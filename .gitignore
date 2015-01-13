@@ -17,6 +17,10 @@ DerivedData
 *.hmap
 *.xccheckout
 
+# Emacs backup
+*~
+#*#
+
 #CocoaPods
 Pods
 
