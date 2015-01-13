@@ -21,6 +21,9 @@ DerivedData
 *~
 #*#
 
+# Java
+.class
+
 #CocoaPods
 Pods
 
