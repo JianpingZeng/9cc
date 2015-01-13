@@ -1,6 +1,6 @@
-package org.hackki.c;
+package org.hackii.c;
 
-class Compiler {
+public class Compiler {
 
     public static void main(String[] args) {
 	System.out.println("Hello, Compiler!");
