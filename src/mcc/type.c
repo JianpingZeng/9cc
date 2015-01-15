@@ -24,7 +24,7 @@ static void install_type(Type *type, const char *name, int op)
     NEW(sym);
     NEW(ty);
     
-    sym->lex.name = string(name);
+    sym->lex.name = strings(name);
     sym->type = ty;
     ty->op = op;
     ty->u.sym = sym;

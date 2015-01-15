@@ -12,7 +12,7 @@ extern void warningl(const char *file, int line, int lineno, const char *fmt, ..
 // alloc
 extern void * allocate(unsigned long size, int flags);
 extern void deallocate(void *p);
-extern const char *string(const char *str);
+extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
 extern const char *stringd(long n);
 void appendstring(const char **string, const char *src, int len);

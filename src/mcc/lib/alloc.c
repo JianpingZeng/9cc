@@ -63,7 +63,7 @@ const char *stringn(const char *src, int len)
     }
 }
 
-const char *string(const char *str)
+const char *strings(const char *str)
 {
     const char *s = str;
     while (*s) {

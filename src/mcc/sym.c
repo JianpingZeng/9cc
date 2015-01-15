@@ -106,7 +106,7 @@ Symbol installsym(const char *name, Table *tpp, int scope)
     NEW(sym);
     s->sym = sym;
     s->sym->scope = scope;
-    s->sym->lex.name = string(name);
+    s->sym->lex.name = strings(name);
     s->next = tp->buckets[h];
     tp->buckets[h] = s;
     tp->all = s->sym;

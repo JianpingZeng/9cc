@@ -629,7 +629,7 @@ static void identifier()
         }
     }
     
-    lexcon->toklex.name = string(idstr);
+    lexcon->toklex.name = strings(idstr);
     deallocate(idstr);
 }
 

@@ -18,7 +18,7 @@ typedef struct table    *Table;
 enum {
 #define _ns(a)  a,
 #define _n(a, b)    a,
-#include "node.h"
+#include "nodename.h"
 };
 
 struct type {
