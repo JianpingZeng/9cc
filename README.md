@@ -1,8 +1,8 @@
 # mcc
 My C Compiler
 
-# readable code style
-OK.
+# Readable coding style
+Haha. :-)
 
 # License
 mcc is free software published under GNU GPLv3.
