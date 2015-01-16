@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-c -Wall
 LDFLAGS=
 SOURCES=$(wildcard *.c)
-OBJECTS=$(SOURCES:.cpp=.o)
+OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=cc
 
 all: $(SOURCES) $(EXECUTABLE)
