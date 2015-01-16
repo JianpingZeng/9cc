@@ -31,4 +31,6 @@ Pods
 src/main/c/mcc.vsproj/mcc/Debug
 src/main/c/mcc.vsproj/mcc/Release
 
+# compile
+*.o
 
