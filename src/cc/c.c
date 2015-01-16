@@ -11,6 +11,7 @@ int cc_option_w;
 
 int main(int argc, const char * argv[])
 {
+    print("hello,world!\n");
 //    string *str = new(String);
 //    printf("%s\n", classof(string)->name);
 //	const char *filename;

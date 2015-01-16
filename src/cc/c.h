@@ -10,6 +10,11 @@
 #include "lib.h"
 #include "config.h"
 
+// print.c
+extern void vfprint(FILE *f, const char *fmt, va_list ap);
+extern void print(const char *fmt, ...);
+extern void fprint(FILE *f, const char *fmt, ...);
+
 typedef struct type     *Type;
 typedef struct symbol   *Symbol;
 typedef struct table    *Table;
