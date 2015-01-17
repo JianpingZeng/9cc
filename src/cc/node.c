@@ -1,9 +1,9 @@
 #include "c.h"
 
 static const char * node_names[] = {
-#define _ns(a)      "",
-#define _n(a, b)    b,
-#include "nodename.h"
+#define _ns(a)   "",
+#define _n(a, b) b,
+#include "nodeid.h"
 };
 
 const char *nname(Node * node)

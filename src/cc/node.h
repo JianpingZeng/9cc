@@ -3,9 +3,9 @@
 
 // node ids
 enum {
-#define _ns(a)  a,
-#define _n(a, b)    a,
-#include "nodename.h"
+#define _ns(a)   a,
+#define _n(a, b) a,
+#include "nodeid.h"
 };
 
 // node
