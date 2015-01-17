@@ -12,8 +12,8 @@ int cc_option_w;
 int main(int argc, const char * argv[])
 {
     char c;
-    printf("%p\n", &c);
-    print("%p\n", &c);
+    printf("%06zzz haha\n", 67);
+    print("%06zzz haha\n", 67);
 //    string *str = new(String);
 //    printf("%s\n", classof(string)->name);
 //	const char *filename;

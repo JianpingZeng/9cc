@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 typedef const char * (*PrintFunc) (void *data);
 
@@ -47,6 +50,52 @@ static void cc_uint(FILE *f, unsigned long l, int base, int uppercase)
     } while ((l/=base));
 
     cc_fputs(f, s);
+}
+
+static void cc_uint_ex(FILE *f, unsigned long l, int base, int uppercase, char lead, unsigned width)
+{
+    if (width == 0) {
+	return cc_uint(f, l, base, uppercase);
+    }
+    else {
+	char buf[64];
+	char *s = &buf[sizeof buf];
+	char *e = s-1;
+    
+	*--s = 0;
+	do {
+	    if (uppercase) {
+		*--s = "0123456789ABCDEF"[l%base];
+	    }
+	    else {
+		*--s = "0123456789abcdef"[l%base];
+	    }
+	} while ((l/=base));
+	
+	if (e-s >= width) {
+	    cc_fputs(f, s);
+	}
+	else if (width <= (sizeof buf - 1)){
+	    unsigned left = width - (e-s);
+	    while(left--) {
+		*--s = lead;
+	    }
+	    cc_fputs(f, s);
+	}
+	else {
+	    char *p = malloc(width+1);
+	    char *pe = p+width;
+	    char *ps = pe - (e-s);
+	    unsigned left = width - (e-s);
+	    assert(p);
+	    memcpy(ps, s, e-s+1);
+	    while (left--) {
+		*--ps = lead;
+	    }
+	    cc_fputs(f, ps);
+	    free(p);
+	}
+    }
 }
 
 int register_print_function(char c, PrintFunc p)
@@ -129,6 +178,38 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		break;
 	    case 'c':
 		cc_fputc(f, va_arg(ap, int));
+		break;
+	    case '0':case '1':case'2':case '3':case '4':
+	    case '5':case '6':case '7':case '8':case '9':
+		{
+		    char lead = 32; // white space
+		    const char *saved = fmt;
+		    if (*fmt == '0') {
+			lead = '0';
+			++fmt;
+		    }
+		    unsigned len = 0;
+		    while (*fmt >= '0' && *fmt <= '9') {
+			len = len * 10 + (*fmt - '0');
+			++fmt;
+		    }
+		    if (*fmt == 'x') {
+			cc_uint_ex(f, va_arg(ap, unsigned), 16, 0, lead, len);
+		    }
+		    else if (*fmt == 'X') {
+			cc_uint_ex(f, va_arg(ap, unsigned), 16, 1, lead, len);
+		    }
+		    else if (*fmt == 'o') {
+			cc_uint_ex(f, va_arg(ap, unsigned), 8, 0, lead, len);
+		    }
+		    else {
+			// undefined
+			while (saved <= fmt) {
+			    cc_fputc(f, *saved);
+			    saved++;
+			}
+		    }
+		}
 		break;
 	    default:
 		// search for register formats
