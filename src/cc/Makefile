@@ -14,7 +14,6 @@ $(EXECUTABLE): $(OBJECTS) $(LIBS)
 
 $(LIBS):
 	@cd $(LIB) && make
-	@cd ..
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@
@@ -24,4 +23,3 @@ $(LIBS):
 clean:
 	@rm -f *.o $(EXECUTABLE)
 	@cd $(LIB) && make clean
-	@cd ..
