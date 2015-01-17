@@ -16,4 +16,4 @@ $(EXECUTABLE): $(OBJECTS)
 .PHONY: clean
 
 clean:
-	rm -f *.o $(EXECUTABLE)
+	@rm -f *.o $(EXECUTABLE)
