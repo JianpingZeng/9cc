@@ -19,8 +19,8 @@ enum {
 
 static unsigned char kinds[] = {
 #define _a(x, y, z)
-#define _x(a, b, c, d)      d,
-#define _t(a, b, c, d)      d,
+#define _x(a, b, c, d)  c,
+#define _t(a, b, c)  c,
 #include "token.h"
 };
 
