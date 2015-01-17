@@ -778,7 +778,7 @@ Node ** declaration()
         match(';');
     }
     else {
-        ERROR("invalid token '%k' in declaration", token);
+        error("invalid token '%k' in declaration", token);
     }
     
     END_CALL(declaration);

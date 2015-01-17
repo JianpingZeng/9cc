@@ -1,13 +1,16 @@
 #ifndef cc_lib_h
 #define cc_lib_h
 
+#include <stdio.h>
+#include <stdarg.h>
+
 // print
 typedef const char * (*PrintFunc) (void *data);
 
 extern void print(const char *fmt, ...);
 extern void fprint(FILE *f, const char *fmt, ...);
 extern void vfprint(FILE *f, const char *fmt, va_list ap);
-extern int register_print_function(char c, PrintFunc p);
+extern void register_print_function(char c, PrintFunc p);
 
 // alloc
 extern void * allocate(unsigned long size, int flags);

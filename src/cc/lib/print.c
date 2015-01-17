@@ -1,10 +1,9 @@
-#include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "lib.h"
 
-static PrintFunc print_funcs[sizeof char];
+static PrintFunc print_funcs[128];
 
 static void cc_fputs(FILE *f, const char *s)
 {

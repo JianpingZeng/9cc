@@ -32,7 +32,7 @@ void * vector_at(Vector *v, unsigned index)
     return v->mem[index];
 }
 
-void vector_push(Vector v, void *elem)
+void vector_push(Vector *v, void *elem)
 {
     assert(v);
     vector_insert(v, v->elems, elem);
@@ -51,7 +51,7 @@ void *vector_pop(Vector *v)
     }
 }
 
-void vector_insert(Vector v, unsigned index, void *elem)
+void vector_insert(Vector *v, unsigned index, void *elem)
 {
     assert(v);
     assert(elem && index <= v->elems);
@@ -95,7 +95,7 @@ void vector_add_from_array(Vector *v, void **array)
 {
     assert(v && array);
     for (int i=0; array[i]; i++) {
-        vector_push_back(v, array[i]);
+        vector_push(v, array[i]);
     }
 }
 

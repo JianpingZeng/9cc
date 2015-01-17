@@ -95,7 +95,7 @@ static Expr * postfix_expr()
                 match('}');
             }
             else {
-                ERROR("expect ',' or '}'");
+                error("expect ',' or '}'");
             }
         }
         else {
@@ -144,7 +144,7 @@ static Expr * postfix_expr()
                 break;
                 
             default:
-                ERROR("invalid token->iden %s", tname(token->id));
+                error("invalid token '%k'", token);
                 break;
         }
     }

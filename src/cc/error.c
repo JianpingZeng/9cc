@@ -3,7 +3,7 @@
 unsigned errors;
 unsigned warnings;
 
-#define MAX_ERRORS 1
+#define MAX_ERRORS 32
 
 static void cc_print_lead(const char *lead, const char *file, unsigned line, unsigned column, const char *fmt, va_list ap)
 {

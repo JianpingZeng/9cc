@@ -42,5 +42,6 @@ extern void init_input();
 extern int  gettok();
 extern int  lookahead();
 extern void match(int t);
+extern const char *tname(int t);
 
 #endif

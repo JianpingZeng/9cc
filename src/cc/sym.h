@@ -12,7 +12,7 @@ enum {
 };
 
 struct symbol {
-    Token tok;
+    Token token;
     Type *type;
     int scope;
     Symbol *up;
@@ -25,7 +25,7 @@ struct table {
         Symbol  *sym;
         struct sentry *next;
     } *buckets[256];
-    Symbol all;
+    Symbol *all;
 };
 
 // sym

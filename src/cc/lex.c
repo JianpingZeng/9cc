@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "lib.h"
-#include "lex.h"
+#include "c.h"
 
 #define LBUFSIZE     512
 #define RBUFSIZE     1024
@@ -46,7 +43,8 @@ static void fillbuf()
     }
     
     if (bread < 0) {
-        FATAL("read error");
+        fprint(stderr, "read error\n");
+	exit(EXIT_FAILURE);
     }
     
     pe = &ibuf[LBUFSIZE+1] + bread;
@@ -71,15 +69,8 @@ static const char *tnames[] = {
 #include "token.h"
 };
 
-static Token _token;
-Token *token = &_token;
-
-// context
-struct lex_context {
-    int tok;
-    struct lex toklex;
-} con1, con2;
-struct lex_context *lexcon;
+static Token token1, token2;
+Token *token = &token1;
 static int lookaheaded;
 
 enum {
@@ -110,7 +101,7 @@ static void block_comment();
 
 static int do_gettok()
 {
-    register unsigned char *pcur;
+    unsigned char *pcur;
     
     for (; ; ) {
         while (isblank(*pc)) {
@@ -475,7 +466,7 @@ static int do_gettok()
 	default:
 	    if (!isblank(*pcur)) {
 		pc++;
-		ERROR("invalid character 0x%x\n", *pcur);
+		error("invalid character 0x%x\n", *pcur);
 	    }
 	    break;
         }
@@ -525,7 +516,7 @@ static void block_comment()
         pc = pcur + 2;
     }
     else {
-        WARNINGL(line, "unclosed comment");
+        warning("unclosed comment");
     }
 }
 
@@ -578,7 +569,7 @@ static int number()
             n = (n<<4) + v;
         }
         pc = pcur;
-        lexcon->toklex.u.u = n;
+        token->v.u = n;
         return ICONSTANT;
     }
     else if (pcur[0] == '0') {
@@ -601,7 +592,7 @@ static int number()
             return FCONSTANT;
         }
         else {
-            lexcon->toklex.u.u = n;
+	    token->v.u = n;
             return ICONSTANT;
         }
     }
@@ -633,21 +624,21 @@ static void identifier()
         }
     }
     
-    lexcon->toklex.name = strings(idstr);
+    token->name = strings(idstr);
     deallocate(idstr);
 }
 
 void match(int t)
 {
-    if (t == tok) {
-        tok = gettok();
+    if (t == token->id) {
+        gettok();
     }
     else {
-        ERROR("expect token '%s' at '%s'", tname(t), tname(tok));
+        error("expect token '%s' at '%k'", tname(t), token);
     }
 }
 
-static const char *tname(int t)
+const char *tname(int t)
 {
     if (t < 0) {
 	return "EOI";
@@ -660,7 +651,7 @@ static const char *tname(int t)
     }
     else if (t < TOKEND) {
         if (t == ID) {
-	    return lexcon->toklex.name;
+	    return token->name;
         }
         else {
 	    return tnames[128+t-ID];
@@ -674,28 +665,25 @@ static const char *tname(int t)
 int gettok()
 {
     if (lookaheaded) {
-	con1 = con2;
+	token1 = token2;
 	lookaheaded = 0;
-	return con1.tok;
+	return token1.id;
     }
     else {
-	lexcon = &con1;
-	con1.tok = do_gettok();
-	toklex = con1.toklex;
-	return con1.tok;
+	token1.id = do_gettok();
+	return token1.id;
     }
 }
 
 int lookahead()
 {
     if (lookaheaded) {
-	return con2.tok;
+	return token2.id;
     }
     else {
 	lookaheaded = 1;
-	lexcon = &con2;
-	con2.tok = do_gettok();
-	return con2.tok;
+	token2.id = do_gettok();
+	return token2.id;
     }
 }
 

@@ -53,7 +53,7 @@ const char *stringn(const char *src, int len)
     // alloc
     {
         char *dst = (char *) allocate(len+1, 0);
-        NEW(ps);
+        ps = new(struct string);
         ps->len = len;
         for (ps->str = dst; src < end; ) {
             *dst++ = *src++;

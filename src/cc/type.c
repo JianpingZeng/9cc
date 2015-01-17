@@ -30,112 +30,112 @@ static void install_type(Type **type, const char *name, int op, int size)
 
 void init_type()
 {
-#define INSTALL_TYPE(ty, name, op)      install_type(&ty, name, op)
+#define INSTALL_TYPE(ty, name, op, size)      install_type(&ty, name, op, size)
     // char
-    INSTALL_TYPE(chartype, "char",  CHAR, sizeof char);
-    INSTALL_TYPE(unsignedchartype, "unsigned char", CHAR, sizeof unsigned char);
-    INSTALL_TYPE(signedchartype, "signed char", CHAR, sizeof signed char);
+    INSTALL_TYPE(chartype, "char",  CHAR, sizeof(char));
+    INSTALL_TYPE(unsignedchartype, "unsigned char", CHAR, sizeof(unsigned char));
+    INSTALL_TYPE(signedchartype, "signed char", CHAR, sizeof(signed char));
     // short
-    INSTALL_TYPE(shorttype, "short", INT, sizeof short);
-    INSTALL_TYPE(unsignedshorttype, "unsigned short", INT, sizeof unsigned short);
+    INSTALL_TYPE(shorttype, "short", INT, sizeof(short));
+    INSTALL_TYPE(unsignedshorttype, "unsigned short", INT, sizeof(unsigned short));
     // int
-    INSTALL_TYPE(inttype, "int", INT, sizeof int);
-    INSTALL_TYPE(unsignedinttype, "unsigned int", INT, sizeof unsigned);
+    INSTALL_TYPE(inttype, "int", INT, sizeof(int));
+    INSTALL_TYPE(unsignedinttype, "unsigned int", INT, sizeof(unsigned));
     // long
-    INSTALL_TYPE(longtype, "long", INT, sizeof long);
-    INSTALL_TYPE(unsignedlongtype, "unsigned long", INT, sizeof unsigned long);
+    INSTALL_TYPE(longtype, "long", INT, sizeof(long));
+    INSTALL_TYPE(unsignedlongtype, "unsigned long", INT, sizeof(unsigned long));
     // long long
-    INSTALL_TYPE(longlongtype, "long long", INT, sizeof long long);
-    INSTALL_TYPE(unsignedlonglongtype, "unsigned long long", INT, sizeof unsigned long long);
+    INSTALL_TYPE(longlongtype, "long long", INT, sizeof(long long));
+    INSTALL_TYPE(unsignedlonglongtype, "unsigned long long", INT, sizeof(unsigned long long));
     // float
-    INSTALL_TYPE(floattype, "float", FLOAT, sizeof float);
+    INSTALL_TYPE(floattype, "float", FLOAT, sizeof(float));
     // double
-    INSTALL_TYPE(doubletype, "double", DOUBLE, sizeof double);
-    INSTALL_TYPE(longdoubletype, "long double", DOUBLE, sizeof long double);
+    INSTALL_TYPE(doubletype, "double", DOUBLE, sizeof(double));
+    INSTALL_TYPE(longdoubletype, "long double", DOUBLE, sizeof(long double));
     // void
     INSTALL_TYPE(voidtype, "void", VOID, 0);
 #undef INSTALL_TYPE
 }
 
-static void printspec(Type type)
+// static void printspec(Type *type)
+// {
+//     if (type->sclass == STATIC) {
+//         printf("static ");
+//     }
+//     else if (type->sclass == REGISTER) {
+//         printf("register ");
+//     }
+//     if (isconst(type)) {
+//         printf("const ");
+//     }
+//     if (isvolatile(type)) {
+//         printf("volatile ");
+//     }
+//     if (isrestrict(type)) {
+//         printf("restrict ");
+//     }
+//     if (isinline(type)) {
+//         printf("inline ");
+//     }
+// }
+
+// static void printtype1(Type *type);
+
+// static void printfparams(Type *ftype)
+// {
+// 	printf("( ");
+// 	if (ftype->u.f.proto) {
+// 		for (int i = 0; ftype->u.f.proto[i]; i++) {
+// 			printtype1(ftype->u.f.proto[i]->type);
+//             if (ftype->u.f.proto[i+1]) {
+//                 printf(", ");
+//             }
+// 		}
+// 	}
+// 	printf(")");
+// }
+
+// static void printtype1(Type *type)
+// {
+//     if (type) {
+//         if (isfunction(type)) {
+//             printspec(type);
+//             printf("%s ", tname(type->op));
+//             printfparams(type);
+//             printf(" returning ");
+//         }
+//         else if (ispointer(type)) {
+//             printspec(type);
+//             printf("%s to ", tname(type->op));
+//         }
+//         else if (isarray(type)) {
+//             printspec(type);
+//             printf("%s %d of ", tname(type->op), type->size);
+//         }
+//         else {
+//             printspec(type);
+//             printf("%s ", type->u.sym->lex.name);
+//         }
+//         printtype1(type->type);
+//     }
+// }
+
+void printtype(Type *type)
 {
-    if (type->sclass == STATIC) {
-        printf("static ");
-    }
-    else if (type->sclass == REGISTER) {
-        printf("register ");
-    }
-    if (isconst(type)) {
-        printf("const ");
-    }
-    if (isvolatile(type)) {
-        printf("volatile ");
-    }
-    if (isrestrict(type)) {
-        printf("restrict ");
-    }
-    if (isinline(type)) {
-        printf("inline ");
-    }
+    // printtype1(type);
+    // printf("\n");
 }
 
-static void printtype1(Type type);
-
-static void printfparams(Type ftype)
-{
-	printf("( ");
-	if (ftype->u.f.proto) {
-		for (int i = 0; ftype->u.f.proto[i]; i++) {
-			printtype1(ftype->u.f.proto[i]->type);
-            if (ftype->u.f.proto[i+1]) {
-                printf(", ");
-            }
-		}
-	}
-	printf(")");
-}
-
-static void printtype1(Type type)
-{
-    if (type) {
-        if (isfunction(type)) {
-            printspec(type);
-            printf("%s ", tname(type->op));
-            printfparams(type);
-            printf(" returning ");
-        }
-        else if (ispointer(type)) {
-            printspec(type);
-            printf("%s to ", tname(type->op));
-        }
-        else if (isarray(type)) {
-            printspec(type);
-            printf("%s %d of ", tname(type->op), type->size);
-        }
-        else {
-            printspec(type);
-            printf("%s ", type->u.sym->lex.name);
-        }
-        printtype1(type->type);
-    }
-}
-
-void printtype(Type type)
-{
-    printtype1(type);
-    printf("\n");
-}
-
-void prepend_type(Type *typelist, Type type)
+void prepend_type(Type **typelist, Type *type)
 {
     attach_type(&type, *typelist);
     *typelist = type;
 }
 
-void attach_type(Type *typelist, Type type)
+void attach_type(Type **typelist, Type *type)
 {
     if (*typelist) {
-        Type tp = *typelist;
+        Type *tp = *typelist;
         while (tp && tp->type) {
             tp = tp->type;
         }
@@ -146,7 +146,7 @@ void attach_type(Type *typelist, Type type)
     }
 }
 
-Type pretype(int tok)
+Type * pretype(int tok)
 {
     switch (tok) {
         case INT:
@@ -164,15 +164,14 @@ Type pretype(int tok)
     }
 }
 
-Type scls(int t, Type ty)
+Type * scls(int t, Type *ty)
 {
     if (t > 0) {
-        Type sty;
-        NEW(sty);
+        Type *sty = new(Type);
         *sty = *ty;
         sty->sclass = t;
         if (!ty->reserved) {
-            FREE(ty);
+            delete(ty);
         }
         return sty;
     }
@@ -181,10 +180,9 @@ Type scls(int t, Type ty)
     }
 }
 
-Type qual(int t, Type ty)
+Type * qual(int t, Type *ty)
 {
-    Type qty;
-    NEW(qty);
+    Type *qty = new(Type);
     *qty = *ty;
     if (t == CONST) {
         qty->qual_const = 1;
@@ -199,15 +197,14 @@ Type qual(int t, Type ty)
         qty->func_spec = 1;
     }
     if (!ty->reserved) {
-        FREE(ty);
+        delete(ty);
     }
     return qty;
 }
 
-Type unqual(int t, Type ty)
+Type * unqual(int t, Type *ty)
 {
-    Type qty;
-    NEW(qty);
+    Type *qty = new(Type);
     *qty = *ty;
     if (t == CONST) {
         qty->qual_const = 0;
@@ -222,12 +219,12 @@ Type unqual(int t, Type ty)
         qty->func_spec = 0;
     }
     if (!ty->reserved) {
-        FREE(ty);
+        delete(ty);
     }
     return qty;
 }
 
-int equal_type(Type ty1, Type ty2)
+int equal_type(Type *ty1, Type *ty2)
 {
     if (ty1 == ty2) {
         return 1;
@@ -247,7 +244,7 @@ int istypedefname(const char *id)
     return 0;
 }
 
-Type typename()
+Type * typename()
 {
     
     return NULL;

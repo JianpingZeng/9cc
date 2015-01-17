@@ -67,7 +67,7 @@ Symbol * lookupsym(const char *name, Table *tp)
     for (Table *t = tp; t; t = t->prev) {
         unsigned h = hash(name) % 256;
         for (struct sentry *entry = tp->buckets[h]; entry; entry = entry->next) {
-            if (entry->sym->lex.name == name) {
+            if (entry->sym->token.name == name) {
                 return entry->sym;
             }
         }
@@ -90,7 +90,7 @@ Symbol * installsym(const char *name, Table **tpp, int scope)
     
     s->sym = sym;
     s->sym->scope = scope;
-    s->sym->lex.name = strings(name);
+    s->sym->token.name = strings(name);
     s->next = tp->buckets[h];
     tp->buckets[h] = s;
     tp->all = s->sym;
