@@ -1,62 +1,50 @@
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
-#include "lib.h"
+#include "c.h"
 
-int errcnt;
-int warncnt;
+unsigned errors;
+unsigned warnings;
 
-#define MAX_ERRORS	1
+#define MAX_ERRORS 1
 
-void printreport()
+static void cc_print_lead(const char *lead, const char *file, unsigned line, unsigned column, const char *fmt, va_list ap)
 {
-    fprintf(stderr, "=== %d errors, %d warnings ===\n", errcnt, warncnt);
+    fprint(stderr, "[%s] %s:L%u:C%u: ", lead, file, line, column);
+    vfprint(stderr, fmt, ap);
+    fprint(stderr, "\n");
 }
 
-void fatal(const char *fmt, ...)
+void warning(const char *fmt, ...)
 {
-    fprintf(stderr, "fatal error: ");
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, "\n");
-    exit(EXIT_FAILURE);
+    va_list ap;
+    va_start(ap, fmt);
+    cc_print_lead("warning", token->src.file, token->src.line, token->src.column, fmt, ap);
+    va_end(ap);
+    ++warnings;
 }
 
-void errorl(const char *file, int line, int lineno, const char *fmt, ...)
+void error(const char *fmt, ...)
 {
-	if (file) {
-		fprintf(stderr, "%s:%d:", file, line); 
-	}
-    fprintf(stderr, "[Line %d] error: ", lineno);
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, "\n");
-	if (++errcnt >= MAX_ERRORS) {
-        printreport();
-		exit(EXIT_FAILURE);
-	}
+    va_list ap;
+    va_start(ap, fmt);
+    cc_print_lead("error", token->src.file, token->src.line, token->src.column, fmt, ap);
+    va_end(ap);
+    ++errors;
+    if (errors >= MAX_ERRORS) {
+	fprint(stderr, "Too many errors.\n");
+	exit(EXIT_FAILURE);
+    }
 }
 
-void warningl(const char *file, int line, int lineno, const char *fmt, ...)
+void do_log(const char *file, unsigned line, const char *fmt, ...)
 {
-	if (file) {
-		fprintf(stderr, "%s:%d:", file, line);
-	}
-    fprintf(stderr, "[Line %d] warning: ", lineno);
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, "\n");
-	++warncnt;
+    va_list ap;
+    va_start(ap, fmt);
+    fprint(stderr, "%s:%u: ", file, line);
+    vfprint(stderr, fmt, ap);
+    fprint(stderr, "\n");
+    va_end(ap);
 }
 
-static int call_depth = -1;
+static long call_depth = -1;
 static const char *depth_str()
 {
     char *str = (char *) allocate(call_depth+1, 0);
@@ -68,12 +56,12 @@ static const char *depth_str()
 void begin_call(const char *funcname)
 {
     call_depth++;
-    printf("%4d%sbegin %s\n", call_depth, depth_str(), funcname);
+    print("%4d%sbegin %s\n", call_depth, depth_str(), funcname);
 }
 
 void end_call(const char *funcname)
 {
-    printf("%4d%send %s\n", call_depth, depth_str(), funcname);
+    print("%4d%send %s\n", call_depth, depth_str(), funcname);
     call_depth--;
 }
 

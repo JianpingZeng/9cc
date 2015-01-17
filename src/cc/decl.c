@@ -4,11 +4,11 @@
 
 int scopelevel;
 
-static Type declaration_specifier(int *sclass);
-static void declarator(Type *, const char **, int abstract);
-static Type pointer();
+static Type * declaration_specifier(int *sclass);
+static void declarator(Type **, const char **, int abstract);
+static Type * pointer();
 
-static Symbol declparam(const char *id, Type ty);
+static Symbol * declparam(const char *id, Type *ty);
 
 // abstract
 enum {
@@ -34,17 +34,17 @@ unsigned char kind(int t)
     }
 }
 
-static Symbol * parameter_type_list(Type ftype)
+static Symbol ** parameter_type_list(Type *ftype)
 {
     BEGIN_CALL(parameter_type_list);
 
-    Vector v = new_vector();
+    Vector *v = new_vector();
     enterscope();
-    if (isdeclspec(tok) || (tok == ID && istypedefname(toklex.name))) {
+    if (isdeclspec(token->id) || (token->id == ID && istypedefname(token->name))) {
         int n = 0;
         for (;;) {
-            Type basety = NULL;
-            Type type = NULL;
+            Type *basety = NULL;
+            Type *type = NULL;
             const char *id = NULL;
             int sclass;
 
@@ -55,26 +55,24 @@ static Symbol * parameter_type_list(Type ftype)
             type = scls(sclass, type);
             if (isvoid(type)) {
                 if (n > 1 || id || type->sclass || isqual(type)) {
-                    ERROR("invalid void type as parameter");
+                    error("invalid void type as parameter");
                 }
             }
             if (id == NULL) {
                 id = stringd(n);
             }
-            vector_push_back(v, declparam(id, type));
-            printf("%s: ", id);
-            printtype(type);
-            if (tok == ')') {
+            vector_push(v, declparam(id, type));
+            if (token->id == ')') {
                 break;
             }
             match(',');
-            if (tok == ELLIPSIS) {
+            if (token->id == ELLIPSIS) {
                 match(ELLIPSIS);
                 break;
             }
 
-            if (!(isdeclspec(tok) || (tok == ID && istypedefname(toklex.name)))) {
-                ERROR("invalid token '%s', missing type name", tname(tok));
+            if (!(isdeclspec(token->id) || (token->id == ID && istypedefname(token->name)))) {
+                error("invalid token '%k', missing type name", token);
                 break;
             }
         }
@@ -85,35 +83,35 @@ static Symbol * parameter_type_list(Type ftype)
 
     END_CALL(parameter_type_list);
 
-    return (Symbol *)vector_to_array(v);
+    return (Symbol **)vector_to_array(v);
 }
 
-static Symbol * funcparams(Type ftype)
+static Symbol ** funcparams(Type *ftype)
 {
-	BEGIN_CALL(funcparams);
+    BEGIN_CALL(funcparams);
 
-    Symbol * syms;
+    Symbol ** syms;
     
-    if (isdeclspec(tok) || (tok == ID && istypedefname(toklex.name))) {
+    if (isdeclspec(token->id) || (token->id == ID && istypedefname(token->name))) {
         // prototype
         syms = parameter_type_list(ftype);
         ftype->u.f.proto = syms;
     }
     else {
-        Vector v = new_vector();
-        if (tok == ID) {
+        Vector *v = new_vector();
+        if (token->id == ID) {
             // old style
             enterscope();
             for ( ; ; ) {
-                Symbol s;
-                if (tok != ID) {
-                    ERROR("expect identifier at '%s'", tname(tok));
+                Symbol *s;
+                if (token->id != ID) {
+                    error("expect identifier at '%k'", token);
                     break;
                 }
-                s = declparam(toklex.name, inttype);
-                vector_push_back(v, s);
+                s = declparam(token->name, inttype);
+                vector_push(v, s);
                 match(ID);
-                if (tok != ',') {
+                if (token->id != ',') {
                     break;
                 }
                 match(',');
@@ -122,36 +120,34 @@ static Symbol * funcparams(Type ftype)
             ftype->u.f.oldstyle = 1;
             exitscope();
         }
-        syms = (Symbol *)vector_to_array(v);
+        syms = vector_to_array(v);
     }
 
-	END_CALL(funcparams);
+    END_CALL(funcparams);
     
     return syms;
 }
 
-static Type func_or_array()
+static Type * func_or_array()
 {
-    Type ty = NULL;
+    Type *ty = NULL;
     BEGIN_CALL(func_or_array);
     
-    for (; tok == '(' || tok == '['; ) {
-        if (tok == '[') {
-            Type atype;
+    for (; token->id == '(' || token->id == '['; ) {
+        if (token->id == '[') {
+            Type *atype = new(Type);
             match('[');
-            if (tok == ICONSTANT) {
+            if (token->id == ICONSTANT) {
                 match(ICONSTANT);
             }
             match(']');
-            NEW(atype);
             atype->op = ARRAY;
-            atype->size = toklex.u.i;
+            atype->size = token->v.i;
             attach_type(&ty, atype);
         }
         else {
             match('(');
-            Type ftype;
-            NEW(ftype);
+            Type *ftype = new(Type);
             ftype->op = FUNCTION;
             ftype->u.f.proto = funcparams(ftype);
             attach_type(&ty, ftype);
@@ -164,18 +160,18 @@ static Type func_or_array()
     return ty;
 }
 
-static Type abstract_func_or_array()
+static Type * abstract_func_or_array()
 {
-    Type ty = NULL;
+    Type *ty = NULL;
     BEGIN_CALL(abstract_func_or_array);
     
-    for (; tok == '(' || tok == '['; ) {
-        if (tok == '[') {
+    for (; token->id == '(' || token->id == '['; ) {
+        if (token->id == '[') {
             match('[');
-            if (tok == ']') {
+            if (token->id == ']') {
                 match(']');
             }
-            else if (tok == '*') {
+            else if (token->id == '*') {
                 match('*');
                 match(']');
             }
@@ -183,15 +179,13 @@ static Type abstract_func_or_array()
                 assignment_expr();
                 match(']');
             }
-            Type atype;
-            NEW(atype);
+            Type *atype = new(Type);
             atype->op = ARRAY;
             attach_type(&ty, atype);
         }
         else {
             match('(');
-            Type ftype;
-            NEW(ftype);
+            Type *ftype = new(Type);
             ftype->op = FUNCTION;
             ftype->u.f.proto = parameter_type_list(ftype);
             attach_type(&ty, ftype);
@@ -204,26 +198,26 @@ static Type abstract_func_or_array()
     return ty;
 }
 
-static void direct_abstract_declarator(Type *type, const char **id)
+static void direct_abstract_declarator(Type **type, const char **id)
 {
     BEGIN_CALL(direct_abstract_declarator);
     
-    assert(tok == '(' || tok == '[');
+    assert(token->id == '(' || token->id == '[');
     
-    if (tok == '[') {
-        Type type2 = abstract_func_or_array();
+    if (token->id == '[') {
+        Type *type2 = abstract_func_or_array();
         prepend_type(type, type2);
     }
-    else if (tok == '(') {
+    else if (token->id == '(') {
         int t = lookahead();
         if (t == '*' || t == '(' || t == '[') {
-            Type type1 = *type;
+            Type *type1 = *type;
             match('(');
             declarator(type, id, ABSTRACT);
             match(')');
-            if (tok == '(' || tok == '[') {
-                Type type2;
-                Type rtype = *type;
+            if (token->id == '(' || token->id == '[') {
+                Type *type2;
+                Type *rtype = *type;
                 type2 = abstract_func_or_array();
                 attach_type(&type2, type1);
                 // deref list
@@ -238,7 +232,7 @@ static void direct_abstract_declarator(Type *type, const char **id)
             }
         }
         else {
-            Type type2 = abstract_func_or_array();
+            Type *type2 = abstract_func_or_array();
             prepend_type(type, type2);
         }
     }
@@ -246,30 +240,30 @@ static void direct_abstract_declarator(Type *type, const char **id)
     END_CALL(direct_abstract_declarator);
 }
 
-static void direct_declarator(Type *type, const char **id)
+static void direct_declarator(Type **type, const char **id)
 {
     BEGIN_CALL(direct_declarator);
     
-    assert(tok == ID || tok == '(');
+    assert(token->id == ID || token->id == '(');
     
-    if (tok == ID) {
+    if (token->id == ID) {
         if (id) {
-            *id = toklex.name;
+            *id = token->name;
         }
         match(ID);
-        if (tok == '(' || tok == '[') {
-            Type type2 = func_or_array();
+        if (token->id == '(' || token->id == '[') {
+            Type *type2 = func_or_array();
             prepend_type(type, type2);
         }
     }
-    else if (tok == '(') {
-        Type type1 = *type;
+    else if (token->id == '(') {
+        Type *type1 = *type;
         match('(');
         declarator(type, id, NON_ABSTRACT);
         match(')');
-        if (tok == '(' || tok == '[') {
-            Type type2 = NULL;
-            Type rtype = *type;
+        if (token->id == '(' || token->id == '[') {
+            Type *type2 = NULL;
+            Type *rtype = *type;
             type2 = func_or_array();
             attach_type(&type2, type1);
             // deref list
@@ -287,43 +281,42 @@ static void direct_declarator(Type *type, const char **id)
     END_CALL(direct_declarator);
 }
 
-static Type pointer()
+static Type * pointer()
 {
-    Type ty = NULL;
+    Type *ty = NULL;
     int con, vol, res, type;
-    assert(tok == '*');
+    assert(token->id == '*');
     
     BEGIN_CALL(pointer);
     
     con = vol = res = type = 0;
     
     for (; ; ) {
-        int *p, t = tok;
-        switch (tok) {
+        int *p, t = token->id;
+        switch (token->id) {
             case CONST:
                 p = &con;
-                tok = gettok();
+                gettok();
                 break;
                 
             case VOLATILE:
                 p = &vol;
-                tok = gettok();
+                gettok();
                 break;
                 
             case RESTRICT:
                 p = &res;
-                tok = gettok();
+                gettok();
                 break;
                 
             case '*':
             {
-                Type ptype;
-                NEW(ptype);
+                Type *ptype = new(Type);
                 ptype->op = POINTER;
                 con = vol = res = type = 0;
                 p = &type;
                 prepend_type(&ty, ptype);
-                tok = gettok();
+                gettok();
             }
                 break;
                 
@@ -337,7 +330,7 @@ static Type pointer()
         }
         
         if (*p != 0) {
-            ERROR("duplicate type qulifier '%s'", tname(t));
+            error("duplicate type qulifier '%k'", token);
         }
         
         *p = t;
@@ -355,100 +348,99 @@ static Type pointer()
 // abstract = NON_ABSTRACT  : only direct_declarator
 //          = ABSTRACT      : only direct_abstract_declarator
 //          = COMPAT        : both
-static void declarator(Type *type, const char **id, int abstract)
+static void declarator(Type **type, const char **id, int abstract)
 {
     BEGIN_CALL(declarator);
     
-    if (tok == '*') {
-        Type ptype = pointer();
+    if (token->id == '*') {
+        Type *ptype = pointer();
         prepend_type(type, ptype);
     }
     
     if (abstract == NON_ABSTRACT) {
         // direct declarator
-        if (tok == ID || tok == '(') {
+        if (token->id == ID || token->id == '(') {
             direct_declarator(type, id);
         }
         else {
-            ERROR("expect identifier or '('");
+            error("expect identifier or '('");
         }
     }
     else if (abstract == ABSTRACT) {
         // direct abstract declarators
-        if (tok == '(' || tok == '[') {
+        if (token->id == '(' || token->id == '[') {
             direct_abstract_declarator(type, id);
         }
         // can be pointer only
     }
     else if (abstract == COMPAT) {
-        if (tok == ID) {
+        if (token->id == ID) {
             direct_declarator(type, id);
         }
-        else if (tok == '[') {
+        else if (token->id == '[') {
             direct_abstract_declarator(type, id);
         }
-        else if (tok == '(') {
-			int t = lookahead();
-			if (t == '*' || t == ID || t == '(' || t == '[') {
-				Type type1 = *type;
-				match('(');
-				declarator(type, id, abstract);
-				match(')');
-				if (tok == '(' || tok == '[') {
-					Type type2;
-					assert(id);
-					if (*id) {
-						type2 =  func_or_array();
-					}
-					else {
-						type2 = abstract_func_or_array();
-					}
-					Type rtype = *type;
-					attach_type(&type2, type1);
-					// deref list
-					while (rtype && rtype->type != type1) {
-						rtype = rtype->type;
-					}
-					assert(rtype);
-					if (type1 == rtype->type) {
-						rtype->type = NULL;
-					}
-					attach_type(type, type2);
-				}
-			}
-			else {
+        else if (token->id == '(') {
+	    int t = lookahead();
+	    if (t == '*' || t == ID || t == '(' || t == '[') {
+		Type *type1 = *type;
+		match('(');
+		declarator(type, id, abstract);
+		match(')');
+		if (token->id == '(' || token->id == '[') {
+		    Type *type2;
+		    assert(id);
+		    if (*id) {
+			type2 =  func_or_array();
+		    }
+		    else {
+			type2 = abstract_func_or_array();
+		    }
+		    Type *rtype = *type;
+		    attach_type(&type2, type1);
+		    // deref list
+		    while (rtype && rtype->type != type1) {
+			rtype = rtype->type;
+		    }
+		    assert(rtype);
+		    if (type1 == rtype->type) {
+			rtype->type = NULL;
+		    }
+		    attach_type(type, type2);
+		}
+	    }
+	    else {
                 match('(');
-				Type ftype;
-				NEW(ftype);
+		Type *ftype = new(Type);
                 ftype->op = FUNCTION;
-				ftype->u.f.proto = parameter_type_list(ftype);
+		ftype->u.f.proto = parameter_type_list(ftype);
                 attach_type(type, ftype);
                 match(')');
-				if (tok == '(' || tok == '[') {
-					abstract_func_or_array();
-				}
-			}
+		if (token->id == '(' || token->id == '[') {
+		    abstract_func_or_array();
+		}
+	    }
         }
     }
     
     END_CALL(declarator);
 }
 
-static Type enum_decl()
+static Type * enum_decl()
 {
     return NULL;
 }
 
-static Type record_decl()
+static Type * record_decl()
 {
     return NULL;
 }
 
-static Type declaration_specifier(int *sclass)
+static Type * declaration_specifier(int *sclass)
 {
     int cls, sign, size, type;
     int cons, vol, res, inl;
-    Type basety = NULL;
+    Type *basety = NULL;
     
     BEGIN_CALL(decl_spec);
     
@@ -456,45 +448,45 @@ static Type declaration_specifier(int *sclass)
     cons = vol = res = inl = 0;
 
     for (;;) {
-        int *p, t = tok;
-        switch (tok) {
+        int *p, t = token->id;
+        switch (token->id) {
             case AUTO: case EXTERN: case REGISTER:
             case STATIC: case TYPEDEF:
                 p = &cls;
-                tok = gettok();
+                gettok();
                 break;
                 
             case CONST:
                 p = &cons;
-                tok = gettok();
+                gettok();
                 break;
                 
             case VOLATILE:
                 p = &vol;
-                tok = gettok();
+                gettok();
                 break;
                 
             case RESTRICT:
                 p = &res;
-                tok = gettok();
+                gettok();
                 break;
                 
             case INLINE:
                 p = &inl;
-                tok = gettok();
+                gettok();
                 break;
                 
             case ENUM:
                 p = &type;
                 basety = enum_decl();
-                tok = gettok();
+                gettok();
                 break;
                 
             case STRUCT:
             case UNION:
                 p = &type;
                 basety = record_decl();
-                tok = gettok();
+                gettok();
                 break;
              
             case LONG:
@@ -505,7 +497,7 @@ static Type declaration_specifier(int *sclass)
                 // go through
             case SHORT:
                 p = &size;
-                tok = gettok();
+                gettok();
                 break;
             
             case FLOAT:
@@ -514,14 +506,14 @@ static Type declaration_specifier(int *sclass)
             case CHAR:
             case INT:
                 p = &type;
-                basety = pretype(tok);
-                tok = gettok();
+                basety = pretype(token->id);
+                gettok();
                 break;
                 
             case SIGNED:
             case UNSIGNED:
                 p = &sign;
-                tok = gettok();
+                gettok();
                 break;
                 
             case ID:
@@ -536,7 +528,7 @@ static Type declaration_specifier(int *sclass)
         }
         
         if (*p != 0) {
-            ERROR("invalid syntax '%s' at '%s'", tname(*p), tname(t));
+            error("invalid syntax at '%k'", token);
         }
         
         *p = t;
@@ -546,10 +538,10 @@ static Type declaration_specifier(int *sclass)
     if (type == 0) {
         if (sign == 0 && size == 0) {
             if (stdc99) {
-                ERROR("missing type specifier");
+                error("missing type specifier");
             }
             else {
-                WARNING("missing type specifier, default is int");
+                error("missing type specifier, default is int");
             }
         }
         type = INT;
@@ -561,14 +553,14 @@ static Type declaration_specifier(int *sclass)
         (size == LONG + LONG && type != INT) ||
         (size == LONG && type != INT && type != DOUBLE)) {
         if (size == LONG + LONG) {
-            ERROR("%s %s %s is invalid", tname(size/2), tname(size/2), tname(type));
+            error("%s %s %s is invalid", tname(size/2), tname(size/2), tname(type));
         }
         else {
-            ERROR("%s %s is invalid", tname(size), tname(type));
+            error("%s %s is invalid", tname(size), tname(type));
         }
     }
     else if ((sign && type != INT && type != CHAR)) {
-        ERROR("'%s' cannot be signed or unsigned", tname(type));
+        error("'%s' cannot be signed or unsigned", tname(type));
     }
     
     if (type == CHAR && sign) {
@@ -611,10 +603,10 @@ static Type declaration_specifier(int *sclass)
     return basety;
 }
 
-static Node declare(const char *id, Type ty)
+static Node * declare(const char *id, Type *ty)
 {
-    Node n = NULL;
-    Symbol sym = lookupsym(id, identifiers);
+    Node *n = NULL;
+    Symbol *sym = lookupsym(id, identifiers);
     if (sym == NULL || equal_type(sym->type, ty)) {
         if (sym == NULL) {
             sym = installsym(id, &identifiers, scopelevel);
@@ -622,64 +614,59 @@ static Node declare(const char *id, Type ty)
         }
         // new node for symbol
         if (isfunction(ty)) {
-            FuncDecl fdecl = funcdecl_node(scopelevel);
+            FuncDecl *fdecl = funcdecl_node(scopelevel);
             fdecl->d.n.s = sym;
             n = NODE(fdecl);
         }
         else {
-            Decl vdecl = decl_node(VAR_DECL, scopelevel);
+            Decl *vdecl = decl_node(VAR_DECL, scopelevel);
             vdecl->n.s = sym;
             n = NODE(vdecl);
         }
     }
     else {
-        ERROR("Confliting types for %s", id);
+        error("Confliting types for %s", id);
     }
-    
-    printf("declare %s as ", id);
-    printtype(ty);
     
     return n;
 }
 
-static Node declglobal(const char *id, Type ty)
+static Node * declglobal(const char *id, Type *ty)
 {
-    Symbol s;
+    Symbol *s;
     assert(scopelevel == GLOBAL);
     
     if (ty->sclass == 0) {
         ty = scls(EXTERN, ty);
     }
     else if (ty->sclass == AUTO || ty->sclass == REGISTER) {
-        ERROR("invalid storage class specifier '%s' for '%s'", tname(ty->sclass), id);
+        error("invalid storage class specifier '%s' for '%s'", tname(ty->sclass), id);
         ty = scls(EXTERN, ty);
     }
     s = lookupsym(id, identifiers);
     if (s && s->scope == GLOBAL) {
-        ERROR("redeclaratoin of '%s'", id);
+        error("redeclaratoin of '%s'", id);
     }
     if (s == NULL || s->scope != GLOBAL) {
         s = installsym(id, &identifiers, scopelevel);
     }
     s->type = ty;
     
-    
-    
     return NULL;
 }
 
-static Symbol declparam(const char *id, Type ty)
+static Symbol * declparam(const char *id, Type *ty)
 {
-    Symbol sym;
+    Symbol *sym;
     assert(scopelevel > GLOBAL);
     
     if (ty->sclass != 0 && ty->sclass != REGISTER) {
-        ERROR("invalid storage class specifier '%s' for '%s' in parameter list", tname(ty->sclass), id);
+        error("invalid storage class specifier '%s' for '%s' in parameter list", tname(ty->sclass), id);
     }
     
     sym = lookupsym(id, identifiers);
     if (sym && sym->scope == scopelevel) {
-        ERROR("redeclaration '%s' in parameter list", id);
+        error("redeclaration '%s' in parameter list", id);
     }
     else {
         sym = installsym(id, &identifiers, scopelevel);
@@ -689,9 +676,9 @@ static Symbol declparam(const char *id, Type ty)
     return sym;
 }
 
-static Node declocal(const char *id, Type ty)
+static Node * declocal(const char *id, Type *ty)
 {
-    Node n = NULL;
+    Node *n = NULL;
     assert(scopelevel > PARAM);
     
     return n;
@@ -707,77 +694,77 @@ void initializer_list()
     
 }
 
-Node * declaration()
+Node ** declaration()
 {
-    Vector v = new_vector();
+    Vector *v = new_vector();
     const char *id = NULL;
-    Type basety, type = NULL;
+    Type *basety, *type = NULL;
     int sclass;
     
     BEGIN_CALL(declaration);
     
     basety = declaration_specifier(&sclass);
-    if (tok == ID || tok == '*' || tok == '(') {
+    if (token->id == ID || token->id == '*' || token->id == '(') {
         declarator(&type, &id, NON_ABSTRACT);
         attach_type(&type, basety);
         type = scls(sclass, type);
-        if (tok == ';' || tok == '=' || tok == ',') {
-            Node n;
+        if (token->id == ';' || token->id == '=' || token->id == ',') {
+            Node *n;
             // initializer
-            if (tok == '=') {
+            if (token->id == '=') {
                 match('=');
                 initializer();
             }
             // next declarator
             n = declare(id, type);
             if (n) {
-                vector_push_back(v, n);
+                vector_push(v, n);
             }
-            while (tok == ',') {
+            while (token->id == ',') {
                 match(',');
                 id = NULL;
                 type = NULL;
-                if (tok == ID || tok == '*' || tok == '(') {
+                if (token->id == ID || token->id == '*' || token->id == '(') {
                     declarator(&type, &id, NON_ABSTRACT);
                     attach_type(&type, basety);
                     // initializer
-                    if (tok == '=') {
+                    if (token->id == '=') {
                         match('=');
                         initializer();
                     }
                     n = declare(id, type);
                     if (n) {
-                        vector_push_back(v, n);
+                        vector_push(v, n);
                     }
                 }
                 else {
-                    ERROR("invalid token '%s' in declaration", tname(tok));
+                    error("invalid token '%k' in declaration", token);
                 }
             }
             match(';');
         }
-        else if (tok == '{' && isfunction(type)) {
+        else if (token->id == '{' && isfunction(type)) {
             // function definiction
             if (scopelevel == GLOBAL) {
-                CompoundStmt cs = compound_stmt();
-                FuncDecl fdecl = (FuncDecl) declglobal(id, type);
+                CompoundStmt *cs = compound_stmt();
+                FuncDecl *fdecl = declglobal(id, type);
                 if (fdecl) {
-                    Vector pv = new_vector();
+                    Vector *pv = new_vector();
                     for (int i=0; type->u.f.proto[i]; i++) {
-                        Decl param_decl = decl_node(PARAMVAL_DECL, PARAM);
+                        Decl *param_decl = decl_node(PARAMVAL_DECL, PARAM);
                         param_decl->n.s = type->u.f.proto[i];
-                        vector_push_back(pv, param_decl);
+                        vector_push(pv, param_decl);
                     }
-                    fdecl->params = (Node *) vector_to_array(pv);
+                    fdecl->params = vector_to_array(pv);
                     fdecl->cs = cs;
-                    vector_push_back(v, fdecl);
+                    vector_push(v, fdecl);
                 }
             }
             else {
-                ERROR("function definition can only in global scope");
+                error("function definition can only in global scope");
             }
         }
-        else if ((kind(tok) & (SCLASS_SPEC|TYPE_QUAL|TYPE_SPEC) || tok == '(') &&
+        else if ((kind(token->id) & (SCLASS_SPEC|TYPE_QUAL|TYPE_SPEC) || token->id == '(') &&
                  isfunction(type) && type->u.f.oldstyle) {
             // old style function
             
@@ -786,41 +773,39 @@ Node * declaration()
             
         }
     }
-    else if (tok == ';') {
+    else if (token->id == ';') {
         // struct/union/enum
         match(';');
     }
     else {
-        ERROR("invalid token '%s' in declaration", tname(tok));
+        ERROR("invalid token '%k' in declaration", token);
     }
     
     END_CALL(declaration);
     
-    return (Node *) vector_to_array(v);
+    return (Node **) vector_to_array(v);
 }
 
-TranslationUnitDecl translation_unit()
+TranslationUnitDecl * translation_unit()
 {
-    TranslationUnitDecl tudecl = tudecl_node();
-    Vector v = new_vector();
+    TranslationUnitDecl *tudecl = tudecl_node();
+    Vector *v = new_vector();
     identifiers = table(NULL, GLOBAL);
-    tok = gettok();
-    for (; tok != EOI; ) {
-        if (isdeclspec(tok) || tok == ID || tok == '(') {
+    gettok();
+    for (; token->id != EOI; ) {
+        if (isdeclspec(token->id) || token->id == ID || token->id == '(') {
             vector_add_from_array(v, (void *) declaration());
         }
-        else if (tok == ';') {
-            WARNING("empty declaration");
+        else if (token->id == ';') {
+            warning("empty declaration");
             match(';');
         }
         else {
-            ERROR("invalid token '%s'", tname(tok));
-            tok = gettok();
+            error("invalid token '%k'", token);
+            gettok();
         }
     }
-    tudecl->exts = (Node *) vector_to_array(v);
-    printnode(NODE(tudecl));
-    printreport();
+    tudecl->exts = vector_to_array(v);
     return tudecl;
 }
 

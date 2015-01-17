@@ -12,7 +12,10 @@ static struct string {
 
 void * allocate(unsigned long size, int flags)
 {
-    return malloc(size);
+    void *p = malloc(size);
+    assert(p);
+    memset(p, 0, size);
+    return p;
 }
 
 void deallocate(void *p)

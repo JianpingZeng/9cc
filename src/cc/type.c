@@ -1,33 +1,29 @@
 #include "c.h"
 
 // predefined types
-Type    chartype;               // char
-Type    unsignedchartype;       // unsigned char
-Type    signedchartype;         // signed char
-Type    shorttype;              // short (int)
-Type    unsignedshorttype;      // unsigned short (int)
-Type    inttype;                // int
-Type    unsignedinttype;        // unsigned (int)
-Type    longtype;               // long
-Type    unsignedlongtype;       // unsigned long (int)
-Type    longlongtype;           // long long (int)
-Type    unsignedlonglongtype;   // unsigned long long (int)
-Type    floattype;              // float
-Type    doubletype;             // double
-Type    longdoubletype;         // long double
-Type    voidtype;               // void
+Type   *chartype;               // char
+Type   *unsignedchartype;       // unsigned char
+Type   *signedchartype;         // signed char
+Type   *shorttype;              // short (int)
+Type   *unsignedshorttype;      // unsigned short (int)
+Type   *inttype;                // int
+Type   *unsignedinttype;        // unsigned (int)
+Type   *longtype;               // long
+Type   *unsignedlongtype;       // unsigned long (int)
+Type   *longlongtype;           // long long (int)
+Type   *unsignedlonglongtype;   // unsigned long long (int)
+Type   *floattype;              // float
+Type   *doubletype;             // double
+Type   *longdoubletype;         // long double
+Type   *voidtype;               // void
 
-static void install_type(Type *type, const char *name, int op)
+static void install_type(Type **type, const char *name, int op, int size)
 {
-    Symbol sym;
-    Type ty;
-    NEW(sym);
-    NEW(ty);
-    
-    sym->lex.name = strings(name);
-    sym->type = ty;
+    Type *ty = new(Type);
+
+    ty->name = strings(name);
     ty->op = op;
-    ty->u.sym = sym;
+    ty->size = size;
     ty->reserved = 1;
     *type = ty;
 }
@@ -36,28 +32,28 @@ void init_type()
 {
 #define INSTALL_TYPE(ty, name, op)      install_type(&ty, name, op)
     // char
-    INSTALL_TYPE(chartype, "char",  CHAR);
-    INSTALL_TYPE(unsignedchartype, "unsigned char", CHAR);
-    INSTALL_TYPE(signedchartype, "signed char", CHAR);
+    INSTALL_TYPE(chartype, "char",  CHAR, sizeof char);
+    INSTALL_TYPE(unsignedchartype, "unsigned char", CHAR, sizeof unsigned char);
+    INSTALL_TYPE(signedchartype, "signed char", CHAR, sizeof signed char);
     // short
-    INSTALL_TYPE(shorttype, "short", INT);
-    INSTALL_TYPE(unsignedshorttype, "unsigned short", INT);
+    INSTALL_TYPE(shorttype, "short", INT, sizeof short);
+    INSTALL_TYPE(unsignedshorttype, "unsigned short", INT, sizeof unsigned short);
     // int
-    INSTALL_TYPE(inttype, "int", INT);
-    INSTALL_TYPE(unsignedinttype, "unsigned int", INT);
+    INSTALL_TYPE(inttype, "int", INT, sizeof int);
+    INSTALL_TYPE(unsignedinttype, "unsigned int", INT, sizeof unsigned);
     // long
-    INSTALL_TYPE(longtype, "long", INT);
-    INSTALL_TYPE(unsignedlongtype, "unsigned long", INT);
+    INSTALL_TYPE(longtype, "long", INT, sizeof long);
+    INSTALL_TYPE(unsignedlongtype, "unsigned long", INT, sizeof unsigned long);
     // long long
-    INSTALL_TYPE(longlongtype, "long long", INT);
-    INSTALL_TYPE(unsignedlonglongtype, "unsigned long long", INT);
+    INSTALL_TYPE(longlongtype, "long long", INT, sizeof long long);
+    INSTALL_TYPE(unsignedlonglongtype, "unsigned long long", INT, sizeof unsigned long long);
     // float
-    INSTALL_TYPE(floattype, "float", FLOAT);
+    INSTALL_TYPE(floattype, "float", FLOAT, sizeof float);
     // double
-    INSTALL_TYPE(doubletype, "double", DOUBLE);
-    INSTALL_TYPE(longdoubletype, "long double", DOUBLE);
+    INSTALL_TYPE(doubletype, "double", DOUBLE, sizeof double);
+    INSTALL_TYPE(longdoubletype, "long double", DOUBLE, sizeof long double);
     // void
-    INSTALL_TYPE(voidtype, "void", VOID);
+    INSTALL_TYPE(voidtype, "void", VOID, 0);
 #undef INSTALL_TYPE
 }
 
@@ -257,3 +253,8 @@ Type typename()
     return NULL;
 }
 
+const char * type_print_function(void *data)
+{
+    Type *p = data;
+    
+}

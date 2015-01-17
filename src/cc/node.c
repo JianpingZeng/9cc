@@ -180,5 +180,9 @@ AddrExpr addr_expr_node(const char *id)
     return aexpr;
 }
 
-
+const char * node_print_function(void *data)
+{
+    Node *p = data;
+    
+}
 

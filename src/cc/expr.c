@@ -1,11 +1,11 @@
 #include "c.h"
 
-static Expr primary_expr();
-static Expr postfix_expr();
-static Expr unary_expr();
-static Expr cast_expr();
+static Expr * primary_expr();
+static Expr * postfix_expr();
+static Expr * unary_expr();
+static Expr * cast_expr();
 
-Expr expr()
+Expr * expr()
 {
     BEGIN_CALL(expr);
     
@@ -16,26 +16,26 @@ Expr expr()
     return NULL;
 }
 
-Expr assignment_expr()
+Expr * assignment_expr()
 {
     return NULL;
 }
 
-Expr constant_expr()
+Expr * constant_expr()
 {
     return NULL;
 }
 
-static Expr primary_expr()
+static Expr * primary_expr()
 {
     BEGIN_CALL(primary_expr);
     
-    Expr e = NULL;
-    switch (tok) {
+    Expr * e = NULL;
+    switch (token->id) {
         case ID:
         {
-            AddrExpr aexpr = addr_expr_node(toklex.name);
-            e = (Expr) aexpr;
+            AddrExpr * aexpr = addr_expr_node(token->name);
+            e = (Expr *) aexpr;
             match(ID);
         }
             break;
@@ -44,10 +44,10 @@ static Expr primary_expr()
         case FCONSTANT:
         case SCONSTANT:
         {
-            LiteralExpr lexpr = literal_expr_node(tok);
-            lexpr->u = toklex.u;
-            e = (Expr) lexpr;
-            match(tok);
+            LiteralExpr * lexpr = literal_expr_node(token->id);
+            lexpr->u = token->v;
+            e = (Expr *) lexpr;
+            match(token->id);
         }
             break;
             
@@ -60,7 +60,7 @@ static Expr primary_expr()
             break;
             
         default:
-            ERROR("invalid primary expression");
+            error("invalid primary expression");
             break;
     }
     
@@ -69,16 +69,16 @@ static Expr primary_expr()
     return e;
 }
 
-static Vector argument_expr_list()
+static Vector * argument_expr_list()
 {
     return NULL;
 }
 
-static Expr postfix_expr()
+static Expr * postfix_expr()
 {
     BEGIN_CALL(postfix_expr);
     
-    if (tok == '(') {
+    if (token->id == '(') {
         int t = lookahead();
         if (kind(t) & (TYPE_QUAL|TYPE_SPEC)) {
             //type-name
@@ -87,11 +87,11 @@ static Expr postfix_expr()
             match(')');
             match('{');
             initializer_list();
-            if (tok == ',') {
+            if (token->id == ',') {
                 match(',');
                 match('}');
             }
-            else if (tok == '}') {
+            else if (token->id == '}') {
                 match('}');
             }
             else {
@@ -109,8 +109,8 @@ static Expr postfix_expr()
         primary_expr();
     }
     
-    for (; tok == '[' || tok == '(' || tok == '.' || tok == DEREF || tok == INCR || tok == DECR; ) {
-        switch (tok) {
+    for (; token->id == '[' || token->id == '(' || token->id == '.' || token->id == DEREF || token->id == INCR || token->id == DECR; ) {
+        switch (token->id) {
             case '[':
                 match('[');
                 expr();
@@ -119,7 +119,7 @@ static Expr postfix_expr()
                 
             case '(':
                 match('(');
-                if (tok != ')') {
+                if (token->id != ')') {
                     argument_expr_list();
                 }
                 match(')');
@@ -144,7 +144,7 @@ static Expr postfix_expr()
                 break;
                 
             default:
-                ERROR("invalid token %s", tname(tok));
+                ERROR("invalid token->iden %s", tname(token->id));
                 break;
         }
     }
@@ -154,20 +154,20 @@ static Expr postfix_expr()
     return NULL;
 }
 
-static Expr unary_expr()
+static Expr * unary_expr()
 {
     BEGIN_CALL(unary_expr);
     
-    switch (tok) {
+    switch (token->id) {
         case INCR:
         case DECR:
-            match(tok);
+            match(token->id);
             unary_expr();
             break;
             
         case '&': case '*': case '+':
         case '-': case '~': case '!':
-            match(tok);
+            match(token->id);
             cast_expr();
             break;
             
@@ -186,7 +186,7 @@ static Expr unary_expr()
     return NULL;
 }
 
-static Expr cast_expr()
+static Expr * cast_expr()
 {
     BEGIN_CALL(cast_expr);
     

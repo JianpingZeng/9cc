@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 
-typedef const char * (*PrintFunc) (void *data);
+static PrintFunc print_funcs[sizeof char];
 
 static void cc_fputs(FILE *f, const char *s)
 {
@@ -98,22 +98,23 @@ static void cc_uint_ex(FILE *f, unsigned long l, int base, int uppercase, char l
     }
 }
 
-int register_print_function(char c, PrintFunc p)
+void register_print_function(char c, PrintFunc p)
 {
     static char reserved[] = {'d', 'i', 'u', 'l', 'f', 'e',
 			      'E', 'g', 'G', 'o', 'x', 'X',
 			      's', 'p', 'c', '%'};
-    return -1;
-}
+    if (c >= '0' && c <= '9') {
+        fprint(stderr, "Can't register print function for '%c'\n", c);
+	exit(EXIT_FAILURE);
+    }
+    for (int i=0; i < sizeof reserved/sizeof reserved[0]; i++) {
+	if (c == reserved[i]) {
+	    fprint(stderr, "Can't register print function for '%c'\n", c);
+	    exit(EXIT_FAILURE);
+	}
+    }
 
-void unregister_print_function(char c)
-{
-
-}
-
-int is_format_registered(char c)
-{
-    return 0;
+    print_funcs[c] = p;
 }
 
 void vfprint(FILE *f, const char *fmt, va_list ap)
@@ -213,8 +214,10 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		break;
 	    default:
 		// search for register formats
-		if (is_format_registered(*fmt)) {
-
+		if (print_funcs[*fmt]) {
+		    PrintFunc p = print_funcs[*fmt];
+		    const char *str = p(va_arg(ap, void*));
+		    cc_fputs(f, str);
 		}
 		else {
 		    cc_fputc(f, *fmt);

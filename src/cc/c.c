@@ -9,11 +9,34 @@ static void test()
 int cc_option_std;
 int cc_option_w;
 
+static void at_begin(int argc, const char **argv)
+{
+    
+}
+
+static void at_end(int argc, const char **argv)
+{
+    
+}
+
+static void cc_init()
+{
+    register_print_function('k', token_print_function);
+    register_print_function('t', type_print_function);
+    register_print_function('n', node_print_function);
+    init_type();
+    init_input();
+}
+
 int main(int argc, const char * argv[])
 {
-    char c;
-    printf("%06zzz haha\n", 67);
-    print("%06zzz haha\n", 67);
+    at_begin(argc, argv);
+
+    cc_init();
+    TranslationUnitDecl *node = translation_unit();
+    log("Node:\n%n", node);
+
+    at_end(argc, argv);
 //    string *str = new(String);
 //    printf("%s\n", classof(string)->name);
 //	const char *filename;
@@ -44,6 +67,6 @@ int main(int argc, const char * argv[])
 //    
 //    fclose(fp);
 //	
-//    return errcnt > 0;
+   return errors > 0;
 }
 

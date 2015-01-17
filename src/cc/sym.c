@@ -1,26 +1,14 @@
 #include "c.h"
 
-struct table {
-    int     scope;
-    Table   prev;
-    struct  sentry {
-        Symbol  sym;
-        struct sentry *next;
-    } *buckets[256];
-    Symbol all;
-};
+Table * identifiers;
 
-Table   identifiers;
-
-static Table newtable()
+static Table * newtable()
 {
-    Table tp;
-    NEW(tp);
-    
+    Table *tp = new(Table);    
     return tp;
 }
 
-static void rmtable(Table tp)
+static void rmtable(Table *tp)
 {
     if (tp) {
         for (int i=0; i < sizeof(tp->buckets)/sizeof(tp->buckets[0]); i++) {
@@ -37,24 +25,22 @@ static void rmtable(Table tp)
 void enterscope()
 {
     scopelevel++;
-    printf("enter to scope %d...\n", scopelevel);
 }
 
 void exitscope()
 {
     if (identifiers->scope == scopelevel) {
-        Table tp = identifiers;
+        Table *tp = identifiers;
         identifiers = identifiers->prev;
         rmtable(tp);
     }
     assert(scopelevel >= GLOBAL);
     scopelevel--;
-    printf("exit to scope %d...\n", scopelevel);
 }
 
-Table table(Table tp, int scope)
+Table * table(Table *tp, int scope)
 {
-    Table t = newtable();
+    Table *t = newtable();
     t->prev = tp;
     t->scope = scope;
     if (tp) {
@@ -74,11 +60,11 @@ static unsigned hash(const char *src)
     return h;
 }
 
-Symbol lookupsym(const char *name, Table tp)
+Symbol * lookupsym(const char *name, Table *tp)
 {
     assert(tp);
     
-    for (Table t = tp; t; t = t->prev) {
+    for (Table *t = tp; t; t = t->prev) {
         unsigned h = hash(name) % 256;
         for (struct sentry *entry = tp->buckets[h]; entry; entry = entry->next) {
             if (entry->sym->lex.name == name) {
@@ -90,20 +76,18 @@ Symbol lookupsym(const char *name, Table tp)
     return NULL;
 }
 
-Symbol installsym(const char *name, Table *tpp, int scope)
+Symbol * installsym(const char *name, Table **tpp, int scope)
 {
     unsigned h = hash(name) % 256;
-    struct sentry *s;
-    Symbol sym;
-    Table tp = *tpp;
+    struct sentry *s = new(struct sentry);
+    Symbol *sym = new(Symbol);
+    Table *tp = *tpp;
     
     assert(scope >= tp->scope);
     if (scope > tp->scope) {
         tp = *tpp = table(tp, scope);
     }
     
-    NEW(s);
-    NEW(sym);
     s->sym = sym;
     s->sym->scope = scope;
     s->sym->lex.name = strings(name);
