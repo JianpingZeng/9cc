@@ -2,6 +2,8 @@
 ** TODO 移除tname，改用register_print_function
 
 ** TODO 完成driver，调用外部预处理器
+   : Mac OS X 上不能直接调用/usr/bin/cpp，总是会报错，应该调用 c99 -E
+   : man c99 可以看到这是一个标准C编译器
 
 ** TODO 完成词法分析器
 
