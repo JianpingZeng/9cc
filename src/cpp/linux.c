@@ -4,10 +4,10 @@
 #include <sys/stat.h>
 
 /*
- * Configurations for Mac OS X
+ * Configurations for Linux
  */
 
-const char *cpp[] = {"/usr/bin/c99", "-E", 0};
+const char *cpp[] = {"/usr/bin/gcc", "-E", 0};
 
 int execv_cpp(const char *path, const char *argv[])
 {
