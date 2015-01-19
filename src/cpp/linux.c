@@ -9,7 +9,7 @@
 
 const char *cpp[] = {"/usr/bin/gcc", "-E", 0};
 
-int execv_cpp(const char *path, const char *argv[])
+int callsys(const char *path, const char *argv[])
 {
     pid_t pid;
     int ret = EXIT_SUCCESS;
@@ -17,13 +17,14 @@ int execv_cpp(const char *path, const char *argv[])
     if (pid == 0) {
 	// child process
 	execv(path, argv);
-	ret = EXIT_FAILURE;
+	perror("execv");
+	exit(EXIT_FAILURE);
     }
     else if (pid > 0) {
 	// wait for
 	int status;
-	ret = waitpid(pid, &status, 0);
-        if (ret != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+	int retpid = waitpid(pid, &status, 0);
+        if (retpid != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
 	    ret = EXIT_FAILURE;
 	}
     }

@@ -1,6 +1,7 @@
 CC=gcc
 CFLAGS=-c -Wall -std=c99
 LDFLAGS=
+INCLUDES=$(wildcard *.h)
 
 ifeq ($(platform), mac)
 SOURCES=mcc.c mac.c
@@ -28,7 +29,7 @@ endif
 $(EXECUTABLE): $(OBJECTS) 
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
-.c.o:
+%.o: %.c $(INCLUDES)
 	$(CC) $(CFLAGS) $< -o $@
 
 .PHONY: clean

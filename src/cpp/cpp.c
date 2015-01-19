@@ -83,11 +83,9 @@ static const char ** concat(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     const char **options;
-    int ret;
-    
+    int ret = EXIT_SUCCESS;
     options = concat(argc, argv);
-    ret = execv_cpp(cpp[0], options);
+    ret = callsys(cpp[0], options);
     free(options);
-    
     return ret;
 }
