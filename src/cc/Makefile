@@ -6,6 +6,7 @@ LDFLAGS=-L$(LIB) -lcc
 SOURCES=$(wildcard *.c)
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=cc
+INCLUDES=$(wildcard *.h)
 
 all: $(SOURCES) $(EXECUTABLE) $(LIBS)
 
@@ -15,7 +16,7 @@ $(EXECUTABLE): $(OBJECTS) $(LIBS)
 $(LIBS):
 	@cd $(LIB) && make
 
-.c.o:
+%.o: %.c $(INCLUDES)
 	$(CC) $(CFLAGS) $< -o $@
 
 .PHONY: clean
