@@ -12,11 +12,16 @@ enum {
     CC_OPTION_W_ALL,
 };
 
-extern int cc_option_std;
-extern int cc_option_w;
+typedef struct {
+    int std;
+    unsigned Wall : 1;
+} CCOptions;
 
-#define stdc99     (cc_option_std == CC_OPTION_STD_C99)
-#define stdc89     (cc_option_std == CC_OPTION_STD_C89)
+extern CCOptions cc_options;
+
+#define stdc99  (cc_options.std == CC_OPTION_STD_C99)
+#define stdc89  (cc_options.std == CC_OPTION_STD_C89)
+#define Wall  cc_options.Wall    
 
 #define SHOW_CALL_TREE
 

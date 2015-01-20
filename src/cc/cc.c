@@ -1,22 +1,14 @@
 #include "cc.h"
 #include "string.h"
 
+CCOptions cc_options;
+
+static const char *input_file;
+static const char *output_file;
+
 static void test()
 {
-    
-}
 
-int cc_option_std;
-int cc_option_w;
-
-static void at_begin(int argc, const char **argv)
-{
-    
-}
-
-static void at_end(int argc, const char **argv)
-{
-    
 }
 
 static void cc_init()
@@ -30,48 +22,40 @@ static void cc_init()
 
 int main(int argc, const char * argv[])
 {
-    for (int i=0; i < argc; i++) {
-	printf("argv[%d]: %s\n", i, argv[i]);
-    }
-    return EXIT_FAILURE;
+    FILE *fp;
     
-    at_begin(argc, argv);
+    for (int i=1; i < argc; i++) {
+	const char *arg = argv[i];
+        if (!strcmp(arg, "-o")) {
+	    if (++i >= argc) {
+		fprintf(stderr, "missing target file while -o option given.\n");
+		return EXIT_FAILURE;
+	    }
+	    output_file = argv[i];
+	}
+	else if (arg[0] == '-') {
+	    // options
+	}
+	else {
+	    input_file = arg;
+	}
+    }
 
+    if (!input_file || !output_file) {
+	return EXIT_FAILURE;
+    }
+
+    fp = freopen(input_file, "r", stdin);
+    if (fp == NULL) {
+	perror(input_file);
+	return EXIT_FAILURE;
+    }
+    
     cc_init();
-    TranslationUnitDecl *node = translation_unit();
-    log("Node:\n%n", node);
+    test();
 
-    at_end(argc, argv);
-//    string *str = new(String);
-//    printf("%s\n", classof(string)->name);
-//	const char *filename;
-//    FILE *fp;
-//	
-//	if (argc < 2) {
-//		fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
-//		return EXIT_FAILURE;
-//	}
-//	filename = argv[1];
-//	
-//	if ((fp = freopen(filename, "r", stdin)) == NULL) {
-//		perror(filename);
-//		return EXIT_FAILURE;
-//	}
-//    
-//    log("open %s ok.\n", filename);
-//    
-//	init_type();
-//	init_input();
-//    
-//    if (DEBUG) {
-//        test();
-//    }
-//    else {
-//        translation_unit();
-//    }
-//    
-//    fclose(fp);
-//	
-   return errors > 0;
+    fclose(fp);
+	
+    return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
