@@ -88,9 +88,7 @@ static int compile(const char *inputfile)
 	cc[3] = sfile;
     }
     cc[1] = inputfile;
-    for (int i=0; cc[i]; i++) {
-	vector_push(v, cc[i]);
-    }
+    vector_add_from_array(v, cc);
     vector_add_from_vector(v, optionlist);
     argv = vector_to_array(v);
     ret = callsys(cc[0], argv);
