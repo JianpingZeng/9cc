@@ -1,4 +1,4 @@
-#include "c.h"
+#include "cc.h"
 
 #define LBUFSIZE     512
 #define RBUFSIZE     1024

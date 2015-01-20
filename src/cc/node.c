@@ -1,4 +1,4 @@
-#include "c.h"
+#include "cc.h"
 
 static const char * node_names[] = {
 #define _ns(a)   "",

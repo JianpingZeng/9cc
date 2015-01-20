@@ -2,23 +2,25 @@ CC=gcc
 CFLAGS=-c -Wall -std=c99
 LDFLAGS=
 INCLUDES=$(wildcard *.h)
+SOURCES=mcc.c vector.c
 
 ifeq ($(platform), mac)
-SOURCES=mcc.c mac.c
+SPEC=mac.c
 endif
 
 ifeq ($(platform), linux)
-SOURCES=mcc.c linux.c
+SPEC=linux.c
 endif
 
 ifeq ($(platform), windows)
-SOURCES=mcc.c windows.c
+SPEC=windows.c
 endif
 
-OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=mcc
 
-ifdef SOURCES
+ifdef SPEC
+SOURCES+=$(SPEC)
+OBJECTS=$(SOURCES:.c=.o)
 all: $(SOURCES) $(EXECUTABLE)
 else
 all:

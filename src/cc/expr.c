@@ -1,4 +1,4 @@
-#include "c.h"
+#include "cc.h"
 
 static Expr * primary_expr();
 static Expr * postfix_expr();

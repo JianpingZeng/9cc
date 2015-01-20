@@ -1,4 +1,4 @@
-#include "c.h"
+#include "cc.h"
 
 // predefined types
 Type   *chartype;               // char

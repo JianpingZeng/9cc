@@ -1,4 +1,4 @@
-#include "c.h"
+#include "cc.h"
 #include "string.h"
 
 static void test()
@@ -30,6 +30,11 @@ static void cc_init()
 
 int main(int argc, const char * argv[])
 {
+    for (int i=0; i < argc; i++) {
+	printf("argv[%d]: %s\n", i, argv[i]);
+    }
+    return EXIT_FAILURE;
+    
     at_begin(argc, argv);
 
     cc_init();
