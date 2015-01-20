@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
 
@@ -44,4 +45,33 @@ int callsys(const char *path, char *argv[])
     }
 
     return ret;
+}
+
+const char *replace_suffix(const char *path, const char *suffix)
+{
+    assert(path && suffix);
+    int dot_index = -1;
+    int len = strlen(path);
+    char *p;
+
+    for (int i=len-1; i >= 0; i--) {
+	if (path[i] == '/') {
+	    break;
+	}
+	if (path[i] == '.') {
+	    dot_index = i;
+	    break;
+	}
+    }
+
+    if (dot_index != -1) {
+	len = dot_index;
+    }
+
+    p = malloc(len+strlen(suffix)+2);
+    memcpy(p, path, len);
+    p[len] = '.';
+    memcpy(p+len+1, suffix, strlen(suffix));
+    p[len+1+strlen(suffix)] = 0;
+    return p;
 }

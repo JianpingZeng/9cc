@@ -69,17 +69,19 @@ static int preprocess(const char *inputfile)
     return callsys(cpp[0], cpp);
 }
 
-static int compile(const char *inputfile)
+static int compile(const char *inputfile, const char *orig_input_file)
 {
     int ret;
     Vector *v = new_vector();
     const char **argv;
+    const char *outfile = NULL;
     if (config.option_s) {
 	if (output_file) {
 	    cc[3] = output_file;
 	}
 	else {
-	    cc[2] = NULL;
+	    outfile = replace_suffix(orig_input_file, "s"); 
+	    cc[3] = outfile;
 	}
     }
     else {
@@ -93,6 +95,7 @@ static int compile(const char *inputfile)
     argv = vector_to_array(v);
     ret = callsys(cc[0], argv);
     free(argv);
+    if (outfile) free(outfile);
     return ret;
 }
 
@@ -124,7 +127,7 @@ static void translate(void *inputfile)
 	return;
     }
     
-    if (compile(ifile) == EXIT_FAILURE) {
+    if (compile(ifile, inputfile) == EXIT_FAILURE) {
 	fails++;
 	return;
     }
