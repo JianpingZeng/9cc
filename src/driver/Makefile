@@ -5,11 +5,11 @@ INCLUDES=$(wildcard *.h)
 SOURCES=mcc.c vector.c
 
 ifeq ($(platform), mac)
-SPEC=mac.c
+SPEC=mac.c posix.c
 endif
 
 ifeq ($(platform), linux)
-SPEC=linux.c
+SPEC=linux.c posix.c
 endif
 
 ifeq ($(platform), windows)

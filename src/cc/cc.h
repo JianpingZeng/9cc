@@ -7,6 +7,7 @@
 #include <string.h>
 #include <memory.h>
 #include <stdarg.h>
+#include <errno.h>
 #include "lib.h"
 
 // cc modules
@@ -21,8 +22,7 @@ extern unsigned errors;
 extern unsigned warnings;
 extern void warning(const char *fmt, ...);
 extern void error(const char *fmt, ...);
-extern void do_log(const char *file, unsigned line, const char *fmt, ...);
-#define log(fmt, ...)  do_log(__FILE__, __LINE__, fmt, __VA_ARGS__)
+extern void log(const char *fmt, ...);
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 #ifdef SHOW_CALL_TREE

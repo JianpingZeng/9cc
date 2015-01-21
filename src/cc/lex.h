@@ -30,7 +30,7 @@ typedef struct {
     int id;
     const char *name;
     union value v;
-    Source src;
+    Source *src;
 } Token;
 
 extern Token *token;

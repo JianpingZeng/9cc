@@ -7,7 +7,7 @@ unsigned warnings;
 
 static void cc_print_lead(const char *lead, const char *file, unsigned line, unsigned column, const char *fmt, va_list ap)
 {
-    fprint(stderr, "[%s] %s:L%u:C%u: ", lead, file, line, column);
+    fprint(stderr, "%s:%u:%u: %s: ", file, line, column, lead);
     vfprint(stderr, fmt, ap);
     fprint(stderr, "\n");
 }
@@ -16,7 +16,7 @@ void warning(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("warning", token->src.file, token->src.line, token->src.column, fmt, ap);
+    cc_print_lead("warning", token->src->file, token->src->line, token->src->column, fmt, ap);
     va_end(ap);
     ++warnings;
 }
@@ -25,7 +25,7 @@ void error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("error", token->src.file, token->src.line, token->src.column, fmt, ap);
+    cc_print_lead("error", token->src->file, token->src->line, token->src->column, fmt, ap);
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
@@ -34,11 +34,10 @@ void error(const char *fmt, ...)
     }
 }
 
-void do_log(const char *file, unsigned line, const char *fmt, ...)
+void log(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    fprint(stderr, "%s:%u: ", file, line);
     vfprint(stderr, fmt, ap);
     fprint(stderr, "\n");
     va_end(ap);

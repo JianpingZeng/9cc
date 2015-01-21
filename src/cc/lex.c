@@ -4,75 +4,6 @@
 #define RBUFSIZE     1024
 #define MINLEN       32
 
-static unsigned char ibuf[LBUFSIZE+1+RBUFSIZE+1];
-static unsigned char *pc;
-static unsigned char *pe;
-static long bread;
-unsigned int lineno;
-
-static void fsync()
-{
-    // # n "file"
-    
-}
-
-static void fillbuf()
-{
-    long n;
-    unsigned char *dst, *src;
-    
-    if (bread == 0) {
-        return;
-    }
-    
-    // copy
-    n = pe - pc;
-    dst = &ibuf[LBUFSIZE+1] - n;
-    src = pc;
-    while (src < pe) {
-        *dst++ = *src++;
-    }
-    
-    pc = &ibuf[LBUFSIZE+1] - n;
-    
-    if (feof(stdin)) {
-        bread = 0;
-    }
-    else {
-        bread = fread(&ibuf[LBUFSIZE+1], 1, RBUFSIZE, stdin);
-    }
-    
-    if (bread < 0) {
-        fprint(stderr, "read error\n");
-	exit(EXIT_FAILURE);
-    }
-    
-    pe = &ibuf[LBUFSIZE+1] + bread;
-    *pe = '\n';
-}
-
-void init_input()
-{
-    pc = pe = &ibuf[LBUFSIZE + 1];
-    
-    bread = -1;
-    
-    fillbuf();
-    
-    lineno = 1;
-}
-
-static const char *tnames[] = {
-#define _a(x, y, z)    y,
-#define _x(a, b, c, d) b,
-#define _t(a, b, c) b,
-#include "token.h"
-};
-
-static Token token1, token2;
-Token *token = &token1;
-static int lookaheaded;
-
 enum {
     BLANK = 01, NEWLINE = 02, LETTER = 04,
     DIGIT = 010, HEX = 020, OTHER = 040,
@@ -92,6 +23,113 @@ static unsigned char map[255] = {
 #define isblank(c)            (map[c] & BLANK)
 #define isnewline(c)          (map[c] & NEWLINE)
 
+static unsigned char ibuf[LBUFSIZE+RBUFSIZE+1];
+static unsigned char *pc;
+static unsigned char *pe;
+static long bread;
+static Source source;
+unsigned int lineno;
+
+static void fillbuf()
+{
+    long n;
+    unsigned char *dst, *src;
+    
+    if (bread == 0) {
+        return;
+    }
+    
+    // copy
+    n = pe - pc;
+    dst = &ibuf[LBUFSIZE] - n;
+    src = pc;
+    while (src < pe) {
+        *dst++ = *src++;
+    }
+    
+    pc = &ibuf[LBUFSIZE] - n;
+    
+    if (feof(stdin)) {
+        bread = 0;
+    }
+    else {
+        bread = fread(&ibuf[LBUFSIZE], 1, RBUFSIZE, stdin);
+    }
+    
+    if (bread < 0) {
+        fprint(stderr, "read error: %s", strerror(errno));
+	exit(EXIT_FAILURE);
+    }
+    
+    pe = &ibuf[LBUFSIZE] + bread;
+    *pe = '\n';
+}
+
+static void fsync()
+{
+    // # n "file"
+    log("fsync");
+    unsigned line = 0;
+    unsigned char *fb;
+    assert(*pc == '#');
+    while (!isdigit(*pc)) {
+	pc++;
+    }
+    assert(isdigit(*pc));
+    log("digit");
+    while (isdigit(*pc)) {
+	line = line * 10 + *pc - '0';
+	pc++;
+    }
+    source.line = line;
+    while (*pc != '"') {
+	pc++;
+    }
+    assert(*pc == '"');
+    fb = ++pc;
+    while (*pc != '"') {
+	pc++;
+    }
+    unsigned char *p = malloc(pc-fb+1);
+    memcpy(p, fb, pc-fb);
+    p[pc-fb] = 0;
+    source.file = p;
+    log("%s:%d", source.file, source.line);
+}
+
+static void nextline()
+{
+    if (pe - pc < LBUFSIZE) {
+	fillbuf();
+    }
+    while (isblank(*pc)) {
+	pc++;
+    }
+    if (*pc == '#') {
+	fsync();
+	//nextline();
+    }
+}
+
+void init_input()
+{
+    pc = pe = &ibuf[LBUFSIZE];
+    bread = -1;
+    memset(&source, 0, sizeof(Source));
+    nextline();
+}
+
+static const char *tnames[] = {
+#define _a(x, y, z)    y,
+#define _x(a, b, c, d) b,
+#define _t(a, b, c) b,
+#include "token.h"
+};
+
+static Token token1, token2;
+Token *token = &token1;
+static int lookaheaded;
+
 static void identifier();
 static int number();
 static void fnumber(unsigned long);
@@ -101,7 +139,7 @@ static void block_comment();
 
 static int do_gettok()
 {
-    unsigned char *pcur;
+    register unsigned char *pcur;
     
     for (; ; ) {
         while (isblank(*pc)) {
@@ -466,7 +504,7 @@ static int do_gettok()
 	default:
 	    if (!isblank(*pcur)) {
 		pc++;
-		error("invalid character 0x%x\n", *pcur);
+		error("invalid character 0x%x", *pcur);
 	    }
 	    break;
         }
@@ -520,6 +558,7 @@ static void block_comment()
     }
 }
 
+/*
 static void nextline()
 {
     // win: \r\n
@@ -543,6 +582,7 @@ static void nextline()
         lineno++;
     }
 }
+*/
 
 static int number()
 {
