@@ -95,7 +95,6 @@ static void fsync()
 	    fillbuf();
 	    if (pc == pe) {
 		if (p) deallocate(p);
-		if (f) deallocate(f);
 		log("input file seems incorrect when #");
 		return;
 	    }
