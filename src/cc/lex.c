@@ -7,7 +7,7 @@
 #include "error.h"
 #include "lib.h"
 
-#define LBUFSIZE     512
+#define LBUFSIZE     1024
 #define RBUFSIZE     4096
 #define MINLEN       LBUFSIZE
 
@@ -80,8 +80,8 @@ static void fsync()
     // # n "file"
     unsigned line = 0;
     unsigned char *fb;
-    char *p = NULL;
-    char *f = NULL;
+    const char *p = NULL;
+    unsigned char *f = NULL;
     struct {
 	unsigned char line_rec : 1;
 	unsigned char line_got : 1;
@@ -90,12 +90,12 @@ static void fsync()
     } s;
     memset(&s, 0, sizeof(s));
     assert(*pc == '#');
-    log("fsync");
     for (;;) {
 	if (pe - pc <= LBUFSIZE) {
 	    fillbuf();
 	    if (pc == pe) {
 		if (p) deallocate(p);
+		if (f) deallocate(f);
 		log("input file seems incorrect when #");
 		return;
 	    }
@@ -139,8 +139,7 @@ static void fsync()
 	    appendstring(&p, fb, pc-fb);
 	    f = strings(p);
 	    deallocate(p);
-	    source.file = f;
-	    source.line = line;
+	    p = NULL;
 	}
 	s.file_got = 1;
 	while (*pc != '\n') {
@@ -150,6 +149,8 @@ static void fsync()
 	if (++pc == pe) {
 	    fillbuf();
 	}
+	source.file = f;
+	source.line = line;
 	log("# %u \"%s\"", source.line, source.file);
 	break;
     }
