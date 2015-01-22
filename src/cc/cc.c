@@ -8,9 +8,9 @@ static const char *output_file;
 
 static void test()
 {
-    // while (gettok() != EOI) {
-    // 	fprint(stderr, "%k ", token);
-    // }
+    while (fake_gettok() != EOI) {
+    	
+    }
 }
 
 static void cc_init()

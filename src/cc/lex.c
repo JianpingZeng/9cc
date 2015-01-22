@@ -7,8 +7,8 @@
 #include "error.h"
 #include "lib.h"
 
-#define LBUFSIZE     1024
-#define RBUFSIZE     4096
+#define LBUFSIZE     10
+#define RBUFSIZE     20
 #define MINLEN       LBUFSIZE
 
 enum {
@@ -571,7 +571,6 @@ static int do_gettok()
 		pc++;
 		error("invalid character 0x%x", *pcur);
 	    }
-	    break;
         }
     }
 }
@@ -796,4 +795,34 @@ const char * token_print_function(void *data)
 {
     Token *p = data;
     
+}
+
+// test
+int fake_gettok()
+{
+    register unsigned char *pcur;
+    
+    for (; ; ) {
+        while (isblank(*pc)) {
+            pc++;
+        }
+        
+        if (pe - pc <= MINLEN) {
+            fillbuf();
+        }
+        
+        pcur = pc++;
+        
+        switch (*pcur++) {
+	case '\n': case '\r':
+	    nextline();
+	    if (pc == pe) {
+		return EOI;
+	    }
+	    continue;
+	    
+	default:
+	    continue;
+	}
+    }
 }
