@@ -15,12 +15,14 @@ extern void register_print_function(char c, PrintFunc p);
 // alloc
 extern void * allocate(unsigned long size, int flags);
 extern void deallocate(void *p);
+#define new(t)      ((t *) allocate(sizeof (t), 0))
+#define delete(p)   deallocate(p)
+
+// string
 extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
 extern const char *stringd(long n);
-void appendstring(const char **string, const char *src, int len);
-#define new(t)      ((t *) allocate(sizeof (t), 0))
-#define delete(p)   deallocate(p)
+extern void appendstring(const char **string, const char *src, int len);
 
 // vector (container of pointers)
 typedef struct {

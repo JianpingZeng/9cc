@@ -1,8 +1,15 @@
-#include "cc.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <errno.h>
+#include <string.h>
+#include "lex.h"
+#include "error.h"
+#include "lib.h"
 
 #define LBUFSIZE     512
-#define RBUFSIZE     1024
-#define MINLEN       32
+#define RBUFSIZE     4096
+#define MINLEN       LBUFSIZE
 
 enum {
     BLANK = 01, NEWLINE = 02, LETTER = 04,
@@ -38,6 +45,8 @@ static void fillbuf()
     if (bread == 0) {
         return;
     }
+
+    assert(pe >= pc);
     
     // copy
     n = pe - pc;
@@ -63,52 +72,107 @@ static void fillbuf()
     
     pe = &ibuf[LBUFSIZE] + bread;
     *pe = '\n';
+    assert(pe >= pc);
 }
 
 static void fsync()
 {
     // # n "file"
-    log("fsync");
     unsigned line = 0;
     unsigned char *fb;
+    char *p = NULL;
+    char *f = NULL;
+    struct {
+	unsigned char line_rec : 1;
+	unsigned char line_got : 1;
+	unsigned char file_rec : 1;
+	unsigned char file_got : 1;
+    } s;
+    memset(&s, 0, sizeof(s));
     assert(*pc == '#');
-    while (!isdigit(*pc)) {
-	pc++;
+    log("fsync");
+    for (;;) {
+	if (pe - pc <= LBUFSIZE) {
+	    fillbuf();
+	    if (pc == pe) {
+		if (p) deallocate(p);
+		log("input file seems incorrect when #");
+		return;
+	    }
+	}
+	if (!s.line_rec) {
+	    while (!isdigit(*pc) && pc < pe) {
+		pc++;
+	    }
+	    if (pc == pe) continue;
+	}
+	s.line_rec = 1;
+	if (!s.line_got) {
+	    while (isdigit(*pc)) {
+		line = line * 10 + *pc - '0';
+		pc++;
+	    }
+	    if (pc == pe) continue;
+	}
+	s.line_got = 1;
+	if (!s.file_rec) {
+	    while (*pc != '"' && pc < pe) {
+		pc++;
+	    }
+	    if (pc == pe) continue;
+	    pc++;
+	    if (pc == pe) {
+		s.file_rec = 1;
+		continue;
+	    }
+	}
+	s.file_rec = 1;
+	if (!s.file_got) {
+	    fb = pc;
+	    while (*pc != '"' && pc < pe) {
+		pc++;
+	    }
+	    if (pc == pe) {
+		appendstring(&p, fb, pc-fb);
+		continue;
+	    }
+	    appendstring(&p, fb, pc-fb);
+	    f = strings(p);
+	    deallocate(p);
+	    source.file = f;
+	    source.line = line;
+	}
+	s.file_got = 1;
+	while (*pc != '\n') {
+	    pc++;
+	}
+	if (pc == pe) continue;
+	if (++pc == pe) {
+	    fillbuf();
+	}
+	log("# %u \"%s\"", source.line, source.file);
+	break;
     }
-    assert(isdigit(*pc));
-    log("digit");
-    while (isdigit(*pc)) {
-	line = line * 10 + *pc - '0';
-	pc++;
-    }
-    source.line = line;
-    while (*pc != '"') {
-	pc++;
-    }
-    assert(*pc == '"');
-    fb = ++pc;
-    while (*pc != '"') {
-	pc++;
-    }
-    unsigned char *p = malloc(pc-fb+1);
-    memcpy(p, fb, pc-fb);
-    p[pc-fb] = 0;
-    source.file = p;
-    log("%s:%d", source.file, source.line);
 }
 
 static void nextline()
 {
-    if (pe - pc < LBUFSIZE) {
-	fillbuf();
-    }
-    while (isblank(*pc)) {
-	pc++;
-    }
-    if (*pc == '#') {
-	fsync();
-	//nextline();
-    }
+    do {
+	if (pc >= pe) {
+	    fillbuf();
+	    if (pc == pe) return;
+	}
+	else {
+	    source.line++;
+	    while (isblank(*pc)) {
+		pc++;
+	    }
+	    if (*pc == '#') {
+		fsync();
+		nextline();
+	    }
+	}
+    } while (*pc == '\n' && pc == pe);
 }
 
 void init_input()
@@ -116,6 +180,7 @@ void init_input()
     pc = pe = &ibuf[LBUFSIZE];
     bread = -1;
     memset(&source, 0, sizeof(Source));
+    fillbuf();
     nextline();
 }
 

@@ -23,7 +23,7 @@ union value {
 typedef struct {
     const char *file;
     unsigned line;
-    unsigned column;
+    unsigned col;
 } Source;
 
 typedef struct {
