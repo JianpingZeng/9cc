@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-c -Wall -std=c99
 LDFLAGS=
 INCLUDES=$(wildcard *.h)
-SOURCES=cpp.c
+SOURCES=cpp.c vector.c
 
 ifeq ($(platform), mac)
 SPEC=mac.c posix.c

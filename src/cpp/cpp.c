@@ -14,8 +14,8 @@ static const char ** concat(int argc, char *argv[])
     char *input_file = NULL;
     char *output_file = NULL;
     const char **p = NULL;
-    int cpp_len = 0;
-    const char **cpp_p = cpp;
+    Vector *v = new_vector();
+    Vector *options = new_vector();
     
     for (int i=1; i < argc; i++) {
 	char *arg = argv[i];
@@ -30,12 +30,13 @@ static const char ** concat(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	    }
 	    output_file = argv[i];
-	    continue;
 	}
 	else if (arg[0] == '-') {
-	    continue;
+	    vector_push(options, arg);
 	}
-	input_file = arg;
+	else {
+	    input_file = arg;
+	}
     }
     if (!input_file) {
 	fprintf(stderr, "no input file.\n");
@@ -48,34 +49,18 @@ static const char ** concat(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-    while(*cpp_p++) {
-	cpp_len++;
-    }
-    
+    cpp[2] = input_file;
     if (output_file) {
-	int len = cpp_len - 1 + 3 + 1;
-	int j = 0;
-	p = malloc(sizeof(char *) * len);
-	assert(p);
-	for (int i=0; i < cpp_len; i++) {
-	    p[j++] = cpp[i]; 
-	}
-	p[j++] = input_file;
-	p[j++] = "-o";
-	p[j++] = output_file;
-	p[j++] = 0;
+	cpp[4] = output_file;
     }
     else {
-	int len = cpp_len - 1 + 3 + 1;
-	int j = 0;
-	p = malloc(sizeof(char *) * len);
-        assert(p);
-	for (int i=0; i < cpp_len; i++) {
-	    p[j++] = cpp[i]; 
-	}
-	p[j++] = input_file;
-	p[j++] = 0;
+        cpp[3] = 0;
     }
+
+    vector_add_from_array(v, cpp);
+    vector_add_from_vector(v, options);
+    free_vector(options);
+    p = vector_to_array(v);
     
     return p;
 }

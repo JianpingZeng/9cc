@@ -7,8 +7,8 @@
 #include "error.h"
 #include "lib.h"
 
-#define LBUFSIZE     10
-#define RBUFSIZE     20
+#define LBUFSIZE     1
+#define RBUFSIZE     1
 #define MINLEN       LBUFSIZE
 
 enum {
@@ -150,7 +150,7 @@ static void fsync()
 	}
 	source.file = f;
 	source.line = line;
-	log("# %u \"%s\"", source.line, source.file);
+	fprint(stderr, "# %u \"%s\"\n", source.line, source.file);
 	break;
     }
 }

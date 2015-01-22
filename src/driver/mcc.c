@@ -52,6 +52,9 @@ static char *tempname(const char *hint)
 
 static int preprocess(const char *inputfile)
 {
+    int ret;
+    Vector *v = new_vector();
+    const char **argv;
     if (config.option_E) {
 	if (output_file) {
 	    cpp[3] = output_file;
@@ -66,7 +69,12 @@ static int preprocess(const char *inputfile)
 	cpp[3] = ifile;
     }
     cpp[1] = inputfile;
-    return callsys(cpp[0], cpp);
+    vector_add_from_array(v, cpp);
+    vector_add_from_vector(v, optionlist);
+    argv = vector_to_array(v);
+    ret = callsys(cpp[0], argv);
+    free(argv);
+    return ret;
 }
 
 static int compile(const char *inputfile, const char *orig_input_file)
