@@ -7,8 +7,8 @@
 #include "error.h"
 #include "lib.h"
 
-#define LBUFSIZE     1
-#define RBUFSIZE     1
+#define LBUFSIZE     1024
+#define RBUFSIZE     4096
 #define MINLEN       LBUFSIZE
 
 enum {
