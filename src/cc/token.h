@@ -175,14 +175,31 @@ _t(VOLATILE,    "volatile",    TYPE_QUAL)
 _t(WHILE,       "while",       0)
 // operators		       
 _t(MULEQ,       "*=",          0)
-_t(PLUSEQ,      "+=",          0)
+_t(ADDEQ,       "+=",          0)
 _t(MINUSEQ,     "-=",          0)
 _t(DIVEQ,       "/=",          0)
+_t(MODEQ,       "%=",          0)
+
+_t(XOREQ,       "^=",          0)
+_t(BANDEQ,      "&=",          0)
+_t(BOREQ,       "|=",          0)
+
+_t(LEQ,         "<=",          0)
+_t(LSHIFTEQ,    "<<=",         0)
+_t(LSHIFT,      "<<",          0)
+_t(REQ,         ">=",          0)
+_t(RSHIFTEQ,    ">>=",         0)
+_t(RSHIFT,      ">>",          0)
+
 _t(INCR,        "++",          0)
 _t(DECR,        "--",          0)
 _t(DEREF,       "->",          0)
 _t(EQ,          "==",          0)
 _t(NEQ,         "!=",          0)
+
+_t(AND,         "&&",          0)
+_t(OR,          "||",          0)
+
 // op			       
 _t(ARRAY,       "array",       0)
 _t(FUNCTION,    "function",    0)

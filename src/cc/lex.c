@@ -296,7 +296,7 @@ static int do_gettok()
 	    }
 	    else if (rpc[1] == '=') {
 		pc = rpc + 2;
-		return PLUSEQ;
+		return ADDEQ;
 	    }
 	    else {
 		return '+';
@@ -327,16 +327,83 @@ static int do_gettok()
                 
 	case '!':
 	    return rpc[1] == '=' ? (pc = rpc+2, NEQ) : (pc = rpc+1, '!');
-                
+
+	case '%':
+	    return rpc[1] == '=' ? (pc = rpc+2, MODEQ) : (pc = rpc+1, '%');
+
+	case '^':
+	    return rpc[1] == '=' ? (pc = rpc+2, XOREQ) : (pc = rpc+1, '^');
+
+        case '&':
+	    if (rpc[1] == '=') {
+		pc = rpc + 2;
+		return BANDEQ;
+	    }
+	    else if (rpc[1] == '&') {
+		pc = rpc + 2;
+		return AND;
+	    }
+	    else {
+		return '&';
+	    }
+
+        case '|':
+	    if (rpc[1] == '=') {
+		pc = rpc + 2;
+		return BOREQ;
+	    }
+	    else if (rpc[1] == '|') {
+		pc = rpc + 2;
+		return OR;
+	    }
+	    else {
+		return '|';
+	    }
+
+	case '<':
+	    if (rpc[1] == '=') {
+		pc = rpc + 2;
+		return LEQ;
+	    }
+	    else if (rpc[1] == '<' && rpc[2] == '=') {
+		pc = rpc + 3;
+		return LSHIFTEQ;
+	    }
+	    else if (rpc[1] == '<') {
+		pc = rpc + 2;
+		return LSHIFT;
+	    }
+	    else {
+		return '<';
+	    }
+
+	case '>':
+	    if (rpc[1] == '=') {
+		pc = rpc + 2;
+		return REQ;
+	    }
+	    else if (rpc[1] == '>' && rpc[2] == '=') {
+		pc = rpc + 3;
+		return RSHIFTEQ;
+	    }
+	    else if (rpc[1] == '>') {
+		pc = rpc + 2;
+		return RSHIFT;
+	    }
+	    else {
+		return '>';
+	    }
+	    
 	case '(': case ')': case '{': case '}':
 	case '[': case ']': case ',': case ';':
-	case ':':
+	case ':': case '~': case '?':
 	    return *rpc;
             
             // numbers
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
-	    return number();
+	    number();
+	    return ICONSTANT;
                 
 	case '.':
 	    if (rpc[1] == '.' && rpc[2] == '.') {
