@@ -1,24 +1,24 @@
 
-### DONE cpp
+### `DONE` cpp
 
    调用外部cpp
 
-### DONE lexer:fsync
+### `DONE` lexer:fsync
 
    写单元测试，针对fsync函数进行大批量测试
    
 
-### DONE 完成driver，调用外部预处理器
+### `DONE` 完成driver，调用外部预处理器
 
    Mac OS X
    Mac OS X 上不能直接调用/usr/bin/cpp，总是会报错，跟 Availability.h 有关。
    应该调用 c99 -E
    man c99 可以看到这是一个标准C编译器
 
-### TODO 移除tname，改用register_print_function
+### `TODO` 移除tname，改用register_print_function
 
 
-### TODO 完成词法分析器
+### `TODO` 完成词法分析器
 
    词法分析器接受的输入来自于预处理器的输出
    遵循UNIX哲学，词法分析器从标准输入(stdin)读入
@@ -43,4 +43,4 @@
       5.4 字符串常量
    
 
-### TODO 完成表达式的语法分析
+### `TODO` 完成表达式的语法分析
