@@ -34,18 +34,6 @@ void error(const char *fmt, ...)
     }
 }
 
-void dolog(const char *file, unsigned line,  const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    fprint(stderr, "%s:%u: ", file, line);
-    vfprint(stderr, fmt, ap);
-    fprint(stderr, "\n");
-    va_end(ap);
-}
-
-#ifndef GNU_EXTENSION
-
 void log(const char *fmt, ...)
 {
     va_list ap;
@@ -54,8 +42,6 @@ void log(const char *fmt, ...)
     fprint(stderr, "\n");
     va_end(ap);
 }
-
-#endif
 
 static long call_depth = -1;
 static const char *depth_str()

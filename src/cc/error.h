@@ -5,17 +5,8 @@ extern unsigned errors;
 extern unsigned warnings;
 extern void warning(const char *fmt, ...);
 extern void error(const char *fmt, ...);
-
-#ifdef GNU_EXTENSION
-
-extern void dolog(const char *file, unsigned line,  const char *fmt, ...);
-#define log(fmt, ...)  dolog(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
-
-#else
-
 extern void log(const char *fmt, ...);
 
-#endif
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 

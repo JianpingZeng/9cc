@@ -7,7 +7,7 @@
 #include "error.h"
 #include "lib.h"
 
-#define LBUFSIZE     1024
+#define LBUFSIZE     512
 #define RBUFSIZE     4096
 #define MINLEN       LBUFSIZE
 
@@ -33,31 +33,34 @@ static unsigned char map[255] = {
 static unsigned char ibuf[LBUFSIZE+RBUFSIZE+1];
 static unsigned char *pc;
 static unsigned char *pe;
+static unsigned char *pl;
 static long bread;
-static Source source;
-unsigned int lineno;
+static Source src;
 
 static void fillbuf()
 {
-    long n;
-    unsigned char *dst, *src;
-    
     if (bread == 0) {
         return;
     }
 
-    assert(pe >= pc);
-    
-    // copy
-    n = pe - pc;
-    dst = &ibuf[LBUFSIZE] - n;
-    src = pc;
-    while (src < pe) {
-        *dst++ = *src++;
+    if (pc >= pe) {
+	pc = &ibuf[LBUFSIZE];
     }
+    else {
+	long n;
+	unsigned char *dst, *src;
+
+	// copy
+	n = pe - pc;
+	dst = &ibuf[LBUFSIZE] - n;
+	src = pc;
+	while (src < pe) {
+	    *dst++ = *src++;
+	}
     
-    pc = &ibuf[LBUFSIZE] - n;
-    
+	pc = &ibuf[LBUFSIZE] - n;
+    }
+        
     if (feof(stdin)) {
         bread = 0;
     }
@@ -72,12 +75,10 @@ static void fillbuf()
     
     pe = &ibuf[LBUFSIZE] + bread;
     *pe = '\n';
-    assert(pe >= pc);
 }
 
-static void fsync()
+static void fline()
 {
-    // # n "file"
     unsigned line = 0;
     unsigned char *fb;
     const char *p = NULL;
@@ -89,7 +90,7 @@ static void fsync()
 	unsigned char file_got : 1;
     } s;
     memset(&s, 0, sizeof(s));
-    assert(*pc == '#');
+    assert(isdigit(*pc));
     for (;;) {
 	if (pe - pc <= LBUFSIZE) {
 	    fillbuf();
@@ -148,10 +149,52 @@ static void fsync()
 	if (++pc == pe) {
 	    fillbuf();
 	}
-	source.file = f;
-	source.line = line;
-	fprint(stderr, "# %u \"%s\"\n", source.line, source.file);
+	src.file = f;
+	src.line = line;
+	log("# %u \"%s\"", src.line, src.file);
 	break;
+    }
+}
+
+static void fsync()
+{
+    // # n "file"
+    assert(*pc++ == '#');
+
+    do {
+	if (pe - pc < LBUFSIZE) {
+	    fillbuf();
+	    if (pc == pe) {
+		error("input file seems incorrect while #");
+		return;
+	    }
+	}
+	while (isblank(*pc)) {
+	    pc++;
+	}
+    } while (*pc == '\n' && pc == pe);
+    
+    if (isdigit(*pc)) {
+	fline();
+    }
+    else {
+	//TODO:support pragma etc.
+	do {
+	    if (pe - pc < LBUFSIZE) {
+		fillbuf();
+		if (pc == pe) {
+		    error("input file seems incorrect while #");
+		    return;
+		}
+	    }
+	    while (*pc != '\n') {
+		pc++;
+	    }
+	} while (*pc == '\n' && pc == pe);
+	
+        if (++pc == pe) {
+	    fillbuf();
+	}
     }
 }
 
@@ -163,7 +206,8 @@ static void nextline()
 	    if (pc == pe) return;
 	}
 	else {
-	    source.line++;
+	    src.line++;
+	    pl = pc;
 	    while (isblank(*pc)) {
 		pc++;
 	    }
@@ -179,7 +223,7 @@ void init_input()
 {
     pc = pe = &ibuf[LBUFSIZE];
     bread = -1;
-    memset(&source, 0, sizeof(Source));
+    memset(&src, 0, sizeof(Source));
     fillbuf();
     nextline();
 }
@@ -204,7 +248,7 @@ static void block_comment();
 
 static int do_gettok()
 {
-    register unsigned char *pcur;
+    register unsigned char *rpc;
     
     for (; ; ) {
         while (isblank(*pc)) {
@@ -215,30 +259,30 @@ static int do_gettok()
             fillbuf();
         }
         
-        pcur = pc;
+        rpc = pc++;
         
-        switch (*pcur) {
-	case '\n': case '\r':
+        switch (*rpc) {
+	case '\n': 
 	    nextline();
-	    if (pcur == pe) {
+	    if (pc == pe) {
 		return EOI;
 	    }
 	    continue;
                 
             // separators & operators
 	case '/':
-	    if (pcur[1] == '/') {
+	    if (rpc[1] == '/') {
 		// line comment
 		line_comment();
 		continue;
 	    }
-	    else if (pcur[1] == '*') {
+	    else if (rpc[1] == '*') {
 		// block comment
 		block_comment();
 		continue;
 	    }
-	    else if (pcur[1] == '=') {
-		pc = pcur + 2;
+	    else if (rpc[1] == '=') {
+		pc = rpc + 2;
 		return DIVEQ;
 	    }
 	    else {
@@ -246,51 +290,48 @@ static int do_gettok()
 	    }
                 
 	case '+':
-	    if (pcur[1] == '+') {
-		pc = pcur + 2;
+	    if (rpc[1] == '+') {
+		pc = rpc + 2;
 		return INCR;
 	    }
-	    else if (pcur[1] == '=') {
-		pc = pcur + 2;
+	    else if (rpc[1] == '=') {
+		pc = rpc + 2;
 		return PLUSEQ;
 	    }
 	    else {
-		pc = pcur + 1;
 		return '+';
 	    }
                 
 	case '-':
-	    if (pcur[1] == '-') {
-		pc = pcur + 2;
+	    if (rpc[1] == '-') {
+		pc = rpc + 2;
 		return DECR;
 	    }
-	    else if (pcur[1] == '=') {
-		pc = pcur + 2;
+	    else if (rpc[1] == '=') {
+		pc = rpc + 2;
 		return MINUSEQ;
 	    }
-	    else if (pcur[1] == '>') {
-		pc = pcur + 2;
+	    else if (rpc[1] == '>') {
+		pc = rpc + 2;
 		return DEREF;
 	    }
 	    else {
-		pc = pcur + 1;
 		return '-';
 	    }
                 
 	case '*':
-	    return pcur[1] == '=' ? (pc = pcur+2, MULEQ) : (pc = pcur+1, '*');
+	    return rpc[1] == '=' ? (pc = rpc+2, MULEQ) : (pc = rpc+1, '*');
                 
 	case '=':
-	    return pcur[1] == '=' ? (pc = pcur+2, EQ) : (pc = pcur+1, '=');
+	    return rpc[1] == '=' ? (pc = rpc+2, EQ) : (pc = rpc+1, '=');
                 
 	case '!':
-	    return pcur[1] == '=' ? (pc = pcur+2, NEQ) : (pc = pcur+1, '!');
+	    return rpc[1] == '=' ? (pc = rpc+2, NEQ) : (pc = rpc+1, '!');
                 
 	case '(': case ')': case '{': case '}':
 	case '[': case ']': case ',': case ';':
 	case ':':
-	    pc++;
-	    return *pcur;
+	    return *rpc;
             
             // numbers
 	case '0': case '1': case '2': case '3': case '4':
@@ -298,11 +339,11 @@ static int do_gettok()
 	    return number();
                 
 	case '.':
-	    if (pcur[1] == '.' && pcur[2] == '.') {
-		pc = pcur + 3;
+	    if (rpc[1] == '.' && rpc[2] == '.') {
+		pc = rpc + 3;
 		return ELLIPSIS;
 	    }
-	    else if (isdigit(pcur[1])) {
+	    else if (isdigit(rpc[1])) {
 		fnumber(0);
 		return FCONSTANT;
 	    }
@@ -312,240 +353,240 @@ static int do_gettok()
             
             // keywords
 	case 'a':
-	    if (pcur[1] == 'u' && pcur[2] == 't' && pcur[3] == 'o' &&
-		!isdigitletter(pcur[4])) {
-		pc = pcur + 4;
+	    if (rpc[1] == 'u' && rpc[2] == 't' && rpc[3] == 'o' &&
+		!isdigitletter(rpc[4])) {
+		pc = rpc + 4;
 		return AUTO;
 	    }
 	    goto id;
                 
 	case 'b':
-	    if (pcur[1] == 'r' && pcur[2] == 'e' && pcur[3] == 'a' &&
-		pcur[4] == 'k' && !isdigitletter(pcur[5])) {
-		pc = pcur + 5;
+	    if (rpc[1] == 'r' && rpc[2] == 'e' && rpc[3] == 'a' &&
+		rpc[4] == 'k' && !isdigitletter(rpc[5])) {
+		pc = rpc + 5;
 		return BREAK;
 	    }
 	    goto id;
                 
 	case 'c':
-	    if (pcur[1] == 'a' && pcur[2] == 's' && pcur[3] == 'e' &&
-		!isdigitletter(pcur[4])) {
-		pc = pcur + 4;
+	    if (rpc[1] == 'a' && rpc[2] == 's' && rpc[3] == 'e' &&
+		!isdigitletter(rpc[4])) {
+		pc = rpc + 4;
 		return CASE;
 	    }
-	    else if (pcur[1] == 'h' && pcur[2] == 'a' && pcur[3] == 'r' &&
-		     !isdigitletter(pcur[4])) {
-		pc = pcur + 4;
+	    else if (rpc[1] == 'h' && rpc[2] == 'a' && rpc[3] == 'r' &&
+		     !isdigitletter(rpc[4])) {
+		pc = rpc + 4;
 		return CHAR;
 	    }
-	    else if (pcur[1] == 'o' && pcur[2] == 'n' && pcur[3] == 's' &&
-		     pcur[4] == 't' && !isdigitletter(pcur[5])) {
-		pc = pcur + 5;
+	    else if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 's' &&
+		     rpc[4] == 't' && !isdigitletter(rpc[5])) {
+		pc = rpc + 5;
 		return CONST;
 	    }
-	    else if (pcur[1] == 'o' && pcur[2] == 'n' && pcur[3] == 't' &&
-		     pcur[4] == 'i' && pcur[5] == 'n' && pcur[6] == 'e' &&
-		     !isdigitletter(pcur[7])) {
-		pc = pcur + 7;
+	    else if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 't' &&
+		     rpc[4] == 'i' && rpc[5] == 'n' && rpc[6] == 'e' &&
+		     !isdigitletter(rpc[7])) {
+		pc = rpc + 7;
 		return CONTINUE;
 	    }
 	    goto id;
                 
 	case 'd':
-	    if (pcur[1] == 'e' && pcur[2] == 'f' && pcur[3] == 'a' &&
-		pcur[4] == 'u' && pcur[5] == 'l' && pcur[6] == 't' &&
-		!isdigitletter(pcur[7])) {
-		pc = pcur + 7;
+	    if (rpc[1] == 'e' && rpc[2] == 'f' && rpc[3] == 'a' &&
+		rpc[4] == 'u' && rpc[5] == 'l' && rpc[6] == 't' &&
+		!isdigitletter(rpc[7])) {
+		pc = rpc + 7;
 		return DEFAULT;
 	    }
-	    else if (pcur[1] == 'o' && !isdigitletter(pcur[2])) {
-		pc = pcur + 2;
+	    else if (rpc[1] == 'o' && !isdigitletter(rpc[2])) {
+		pc = rpc + 2;
 		return DO;
 	    }
-	    else if (pcur[1] == 'o' && pcur[2] == 'u' && pcur[3] == 'b' &&
-		     pcur[4] == 'l' && pcur[5] == 'e' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    else if (rpc[1] == 'o' && rpc[2] == 'u' && rpc[3] == 'b' &&
+		     rpc[4] == 'l' && rpc[5] == 'e' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return DOUBLE;
 	    }
 	    goto id;
                 
 	case 'e':
-	    if (pcur[1] == 'x' && pcur[2] == 't' && pcur[3] == 'e' &&
-		pcur[4] == 'r' && pcur[5] == 'n' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    if (rpc[1] == 'x' && rpc[2] == 't' && rpc[3] == 'e' &&
+		rpc[4] == 'r' && rpc[5] == 'n' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return EXTERN;
 	    }
-	    else if (pcur[1] == 'l' && pcur[2] == 's' && pcur[3] == 'e' &&
-		     !isdigitletter(pcur[4])) {
-		pc = pcur + 4;
+	    else if (rpc[1] == 'l' && rpc[2] == 's' && rpc[3] == 'e' &&
+		     !isdigitletter(rpc[4])) {
+		pc = rpc + 4;
 		return ELSE;
 	    }
-	    else if (pcur[1] == 'n' && pcur[2] == 'u' && pcur[3] == 'm' &&
-		     !isdigitletter(pcur[4])) {
-		pc = pcur + 4;
+	    else if (rpc[1] == 'n' && rpc[2] == 'u' && rpc[3] == 'm' &&
+		     !isdigitletter(rpc[4])) {
+		pc = rpc + 4;
 		return ENUM;
 	    }
 	    goto id;
                 
 	case 'f':
-	    if (pcur[1] == 'l' && pcur[2] == 'o' && pcur[3] == 'a' &&
-		pcur[4] == 't' && !isdigitletter(pcur[5])) {
-		pc = pcur + 5;
+	    if (rpc[1] == 'l' && rpc[2] == 'o' && rpc[3] == 'a' &&
+		rpc[4] == 't' && !isdigitletter(rpc[5])) {
+		pc = rpc + 5;
 		return FLOAT;
 	    }
-	    else if (pcur[1] == 'o' && pcur[2] == 'r' && !isdigitletter(pcur[3])) {
-		pc = pcur + 3;
+	    else if (rpc[1] == 'o' && rpc[2] == 'r' && !isdigitletter(rpc[3])) {
+		pc = rpc + 3;
 		return FOR;
 	    }
 	    goto id;
                 
 	case 'g':
-	    if (pcur[1] == 'o' && pcur[2] == 't' && pcur[3] == 'o' &&
-		!isdigitletter(pcur[4])) {
-		pc = pcur + 4;
+	    if (rpc[1] == 'o' && rpc[2] == 't' && rpc[3] == 'o' &&
+		!isdigitletter(rpc[4])) {
+		pc = rpc + 4;
 		return GOTO;
 	    }
 	    goto id;
                 
 	case 'i':
-	    if (pcur[1] == 'n' && pcur[2] == 't' && !isdigitletter(pcur[3])) {
-		pc = pcur + 3;
+	    if (rpc[1] == 'n' && rpc[2] == 't' && !isdigitletter(rpc[3])) {
+		pc = rpc + 3;
 		return INT;
 	    }
-	    else if (pcur[1] == 'f' && !isdigitletter(pcur[2])) {
-		pc = pcur + 2;
+	    else if (rpc[1] == 'f' && !isdigitletter(rpc[2])) {
+		pc = rpc + 2;
 		return IF;
 	    }
-	    else if (pcur[1] == 'n' && pcur[2] == 'l' && pcur[3] == 'i' &&
-		     pcur[4] == 'n' && pcur[5] == 'e' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    else if (rpc[1] == 'n' && rpc[2] == 'l' && rpc[3] == 'i' &&
+		     rpc[4] == 'n' && rpc[5] == 'e' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return INLINE;
 	    }
 	    goto id;
                 
 	case 'l':
-	    if (pcur[1] == 'o' && pcur[2] == 'n' && pcur[3] == 'g' &&
-		!isdigitletter(pcur[4])) {
-		pc = pcur + 4;
+	    if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 'g' &&
+		!isdigitletter(rpc[4])) {
+		pc = rpc + 4;
 		return LONG;
 	    }
 	    goto id;
                 
 	case 'r':
-	    if (pcur[1] == 'e' && pcur[2] == 't' && pcur[3] == 'u' &&
-		pcur[4] == 'r' && pcur[5] == 'n' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    if (rpc[1] == 'e' && rpc[2] == 't' && rpc[3] == 'u' &&
+		rpc[4] == 'r' && rpc[5] == 'n' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return RETURN;
 	    }
-	    else if (pcur[1] == 'e' && pcur[2] == 's' && pcur[3] == 't' &&
-		     pcur[4] == 'r' && pcur[5] == 'i' && pcur[6] == 'c' &&
-		     pcur[7] == 't' && !isdigitletter(pcur[8])) {
-		pc = pcur + 8;
+	    else if (rpc[1] == 'e' && rpc[2] == 's' && rpc[3] == 't' &&
+		     rpc[4] == 'r' && rpc[5] == 'i' && rpc[6] == 'c' &&
+		     rpc[7] == 't' && !isdigitletter(rpc[8])) {
+		pc = rpc + 8;
 		return RESTRICT;
 	    }
-	    else if (pcur[1] == 'e' && pcur[2] == 'g' && pcur[3] == 'i' &&
-		     pcur[4] == 's' && pcur[5] == 't' && pcur[6] == 'e' &&
-		     pcur[7] == 'r' && !isdigitletter(pcur[8])) {
-		pc = pcur + 8;
+	    else if (rpc[1] == 'e' && rpc[2] == 'g' && rpc[3] == 'i' &&
+		     rpc[4] == 's' && rpc[5] == 't' && rpc[6] == 'e' &&
+		     rpc[7] == 'r' && !isdigitletter(rpc[8])) {
+		pc = rpc + 8;
 		return REGISTER;
 	    }
 	    goto id;
                 
 	case 's':
-	    if (pcur[1] == 't' && pcur[2] == 'a' && pcur[3] == 't' &&
-		pcur[4] == 'i' && pcur[5] == 'c' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    if (rpc[1] == 't' && rpc[2] == 'a' && rpc[3] == 't' &&
+		rpc[4] == 'i' && rpc[5] == 'c' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return STATIC;
 	    }
-	    else if (pcur[1] == 'h' && pcur[2] == 'o' && pcur[3] == 'r' &&
-		     pcur[4] == 't' && !isdigitletter(pcur[5])) {
-		pc = pcur + 5;
+	    else if (rpc[1] == 'h' && rpc[2] == 'o' && rpc[3] == 'r' &&
+		     rpc[4] == 't' && !isdigitletter(rpc[5])) {
+		pc = rpc + 5;
 		return SHORT;
 	    }
-	    else if (pcur[1] == 'i' && pcur[2] == 'z' && pcur[3] == 'e' &&
-		     pcur[4] == 'o' && pcur[5] == 'f' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    else if (rpc[1] == 'i' && rpc[2] == 'z' && rpc[3] == 'e' &&
+		     rpc[4] == 'o' && rpc[5] == 'f' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return SIZEOF;
 	    }
-	    else if (pcur[1] == 'w' && pcur[2] == 'i' && pcur[3] == 't' &&
-		     pcur[4] == 'c' && pcur[5] == 'h' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    else if (rpc[1] == 'w' && rpc[2] == 'i' && rpc[3] == 't' &&
+		     rpc[4] == 'c' && rpc[5] == 'h' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return SWITCH;
 	    }
-	    else if (pcur[1] == 't' && pcur[2] == 'r' && pcur[3] == 'u' &&
-		     pcur[4] == 'c' && pcur[5] == 't' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    else if (rpc[1] == 't' && rpc[2] == 'r' && rpc[3] == 'u' &&
+		     rpc[4] == 'c' && rpc[5] == 't' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return STRUCT;
 	    }
-	    else if (pcur[1] == 'i' && pcur[2] == 'g' && pcur[3] == 'n' &&
-		     pcur[4] == 'e' && pcur[5] == 'd' && !isdigitletter(pcur[6])) {
-		pc = pcur + 6;
+	    else if (rpc[1] == 'i' && rpc[2] == 'g' && rpc[3] == 'n' &&
+		     rpc[4] == 'e' && rpc[5] == 'd' && !isdigitletter(rpc[6])) {
+		pc = rpc + 6;
 		return SIGNED;
 	    }
 	    goto id;
                 
 	case 't':
-	    if (pcur[1] == 'y' && pcur[2] == 'p' && pcur[3] == 'e' &&
-		pcur[4] == 'd' && pcur[5] == 'e' && pcur[6] == 'f' &&
-		!isdigitletter(pcur[7])) {
-		pc = pcur + 7;
+	    if (rpc[1] == 'y' && rpc[2] == 'p' && rpc[3] == 'e' &&
+		rpc[4] == 'd' && rpc[5] == 'e' && rpc[6] == 'f' &&
+		!isdigitletter(rpc[7])) {
+		pc = rpc + 7;
 		return TYPEDEF;
 	    }
 	    goto id;
                 
 	case 'u':
-	    if (pcur[1] == 'n' && pcur[2] == 's' && pcur[3] == 'i' &&
-		pcur[4] == 'g' && pcur[5] == 'n' && pcur[6] == 'e' &&
-		pcur[7] == 'd' && !isdigitletter(pcur[8])) {
-		pc = pcur + 8;
+	    if (rpc[1] == 'n' && rpc[2] == 's' && rpc[3] == 'i' &&
+		rpc[4] == 'g' && rpc[5] == 'n' && rpc[6] == 'e' &&
+		rpc[7] == 'd' && !isdigitletter(rpc[8])) {
+		pc = rpc + 8;
 		return UNSIGNED;
 	    }
-	    else if (pcur[1] == 'n' && pcur[2] == 'i' && pcur[3] == 'o' &&
-		     pcur[4] == 'n' && !isdigitletter(pcur[5])) {
-		pc = pcur + 5;
+	    else if (rpc[1] == 'n' && rpc[2] == 'i' && rpc[3] == 'o' &&
+		     rpc[4] == 'n' && !isdigitletter(rpc[5])) {
+		pc = rpc + 5;
 		return UNION;
 	    }
 	    goto id;
                 
 	case 'v':
-	    if (pcur[1] == 'o' && pcur[2] == 'i' && pcur[3] == 'd' &&
-		!isdigitletter(pcur[4])) {
-		pc = pcur + 4;
+	    if (rpc[1] == 'o' && rpc[2] == 'i' && rpc[3] == 'd' &&
+		!isdigitletter(rpc[4])) {
+		pc = rpc + 4;
 		return VOID;
 	    }
-	    else if (pcur[1] == 'o' && pcur[2] == 'l' && pcur[3] == 'a' &&
-		     pcur[4] == 't' && pcur[5] == 'i' && pcur[6] == 'l' &&
-		     pcur[7] == 'e' && !isdigitletter(pcur[8])) {
-		pc = pcur + 8;
+	    else if (rpc[1] == 'o' && rpc[2] == 'l' && rpc[3] == 'a' &&
+		     rpc[4] == 't' && rpc[5] == 'i' && rpc[6] == 'l' &&
+		     rpc[7] == 'e' && !isdigitletter(rpc[8])) {
+		pc = rpc + 8;
 		return VOLATILE;
 	    }
 	    goto id;
                 
 	case 'w':
-	    if (pcur[1] == 'h' && pcur[2] == 'i' && pcur[3] == 'l' &&
-		pcur[4] == 'e' && !isdigitletter(pcur[5])) {
-		pc = pcur + 5;
+	    if (rpc[1] == 'h' && rpc[2] == 'i' && rpc[3] == 'l' &&
+		rpc[4] == 'e' && !isdigitletter(rpc[5])) {
+		pc = rpc + 5;
 		return WHILE;
 	    }
 	    goto id;
                 
 	case '_':
-	    if (pcur[1] == 'B' && pcur[2] == 'o' && pcur[3] == 'o' &&
-		pcur[4] == 'l' && !isdigitletter(pcur[5])) {
-		pc = pcur + 5;
+	    if (rpc[1] == 'B' && rpc[2] == 'o' && rpc[3] == 'o' &&
+		rpc[4] == 'l' && !isdigitletter(rpc[5])) {
+		pc = rpc + 5;
 		return _BOOL;
 	    }
-	    else if (pcur[1] == 'C' && pcur[2] == 'o' && pcur[3] == 'm' &&
-		     pcur[4] == 'p' && pcur[5] == 'l' && pcur[6] == 'e' &&
-		     pcur[7] == 'x' && !isdigitletter(pcur[8])) {
-		pc = pcur + 8;
+	    else if (rpc[1] == 'C' && rpc[2] == 'o' && rpc[3] == 'm' &&
+		     rpc[4] == 'p' && rpc[5] == 'l' && rpc[6] == 'e' &&
+		     rpc[7] == 'x' && !isdigitletter(rpc[8])) {
+		pc = rpc + 8;
 		return _COMPLEX;
 	    }
-	    else if (pcur[1] == 'I' && pcur[2] == 'm' && pcur[3] == 'a' &&
-		     pcur[4] == 'g' && pcur[5] == 'i' && pcur[6] == 'n' &&
-		     pcur[7] == 'a' && pcur[8] == 'r' && pcur[9] == 'y' &&
-		     !isdigitletter(pcur[10])) {
-		pc = pcur + 10;
+	    else if (rpc[1] == 'I' && rpc[2] == 'm' && rpc[3] == 'a' &&
+		     rpc[4] == 'g' && rpc[5] == 'i' && rpc[6] == 'n' &&
+		     rpc[7] == 'a' && rpc[8] == 'r' && rpc[9] == 'y' &&
+		     !isdigitletter(rpc[10])) {
+		pc = rpc + 10;
 		return _IMAGINARY;
 	    }
 	    goto id;
@@ -563,13 +604,12 @@ static int do_gettok()
 	case 'T':case 'U':case 'V':case 'W':case 'X':case 'Y':
 	case 'Z':
 	id:
-                identifier();
+		identifier();
                 return ID;
                 
 	default:
-	    if (!isblank(*pcur)) {
-		pc++;
-		error("invalid character 0x%x", *pcur);
+	    if (!isblank(*rpc)) {
+		error("invalid character 0x%x", *rpc);
 	    }
         }
     }
@@ -577,17 +617,18 @@ static int do_gettok()
 
 static void line_comment()
 {
-    unsigned char *pcur = pc + 2;
+    unsigned char *rpc = pc + 1;
     for (; ; ) {
-        while (!isnewline(*pcur)) {
-            pcur++;
+        while (!isnewline(*rpc)) {
+            rpc++;
         }
-        pc = pcur;
+        pc = rpc;
         if (pe - pc < MINLEN) {
             fillbuf();
-            pcur = pc;
+            rpc = pc;
         }
-        if (isnewline(*pcur)) {
+        if (isnewline(*rpc)) {
+	    pc++;
             break;
         }
     }
@@ -596,102 +637,75 @@ static void line_comment()
 
 static void block_comment()
 {
-    int line = lineno;
-    unsigned char *pcur = pc + 2;
-    for (; pcur[0] != '*' || pcur[1] != '/'; ) {
-        if (isnewline(*pcur)) {
-            pc = pcur;
+    unsigned char *rpc = pc + 1;
+    for (; rpc[0] != '*' || rpc[1] != '/'; ) {
+        if (isnewline(*rpc)) {
+            pc = rpc;
             if (pe - pc < MINLEN) {
                 fillbuf();
             }
             nextline();
-            pcur = pc;
+            rpc = pc;
             if (pc == pe) {
                 break;
             }
         }
         else {
-            pcur++;
+            rpc++;
         }
     }
-    if (pcur < pe) {
-        pc = pcur + 2;
+    if (rpc < pe) {
+        pc = rpc + 2;
     }
     else {
-        warning("unclosed comment");
+        error("unclosed comment");
     }
 }
-
-/*
-static void nextline()
-{
-    // win: \r\n
-    // mac: \r
-    // *nix: \n
-    unsigned char *pcur = pc;
-    if (pcur[0] == '\n') {
-        if (pcur != pe) {
-            lineno++;
-            pc = pcur + 1;
-        }
-    }
-    else if (pcur[0] == '\r') {
-        if (pcur[1] == '\n' && (&pcur[1] != pe)) {
-            pc = pcur + 2;
-        }
-        else {
-            pc = pcur + 1;
-        }
-        
-        lineno++;
-    }
-}
-*/
 
 static int number()
 {
-    unsigned char *pcur = pc;
+    unsigned char *rpc = pc;
     unsigned long n = 0;
-    if (pcur[0] == '0' && (pcur[1] == 'x' || pcur[1] == 'X')) {
+    if (rpc[0] == '0' && (rpc[1] == 'x' || rpc[1] == 'X')) {
         // hex
         int overflow;
-        pcur += 2;
+        rpc += 2;
         for (; ; ) {
             int v;
-            if (isdigit(*pcur)) {
-                v = *pcur - '0';
+            if (isdigit(*rpc)) {
+                v = *rpc - '0';
             }
-            else if (*pcur >= 'a' && *pcur <= 'f') {
-                v = *pcur - 'a' + 10;
+            else if (*rpc >= 'a' && *rpc <= 'f') {
+                v = *rpc - 'a' + 10;
             }
-            else if (*pcur >= 'A' && *pcur <= 'F') {
-                v = *pcur - 'A' + 10;
+            else if (*rpc >= 'A' && *rpc <= 'F') {
+                v = *rpc - 'A' + 10;
             }
             else {
                 break;
             }
             n = (n<<4) + v;
         }
-        pc = pcur;
+        pc = rpc;
         token->v.u = n;
         return ICONSTANT;
     }
-    else if (pcur[0] == '0') {
+    else if (rpc[0] == '0') {
         // Oct
-        while (isdigit(*pcur)) {
-            pcur++;
+        while (isdigit(*rpc)) {
+            rpc++;
         }
-        pc = pcur;
+        pc = rpc;
         return ICONSTANT;
     }
     else {
         // Dec
-        while (isdigit(*pcur)) {
-            n = 10*n + (*pcur - '0');
-            pcur++;
+        while (isdigit(*rpc)) {
+            n = 10*n + (*rpc - '0');
+            rpc++;
         }
-        pc = pcur;
-        if (*pcur == '.') {
+        pc = rpc;
+        if (*rpc == '.') {
             fnumber(n);
             return FCONSTANT;
         }
@@ -708,20 +722,21 @@ static void fnumber(unsigned long base)
     
 }
 
-// length of identifier is no limit
 static void identifier()
 {
-    unsigned char *pcur = pc;
+    unsigned char *rpc;
+    unsigned char *ps;
+    rpc = ps = pc-1;
     const char *idstr = NULL;
-    for (; pcur != pe ; ) {
-        while (isdigitletter(*pcur)) {
-            pcur++;
+    for (; rpc != pe ; ) {
+        while (isdigitletter(*rpc)) {
+            rpc++;
         }
-        appendstring(&idstr, pc, (int) (pcur - pc));
-        pc = pcur;
+        appendstring(&idstr, ps, rpc - ps);
+        pc = rpc;
         if (pc == pe) {
             fillbuf();
-            pcur = pc;
+            rpc = pc;
         }
         else {
             break;
@@ -800,20 +815,20 @@ const char * token_print_function(void *data)
 // test
 int fake_gettok()
 {
-    register unsigned char *pcur;
+    register unsigned char *rpc;
     
     for (; ; ) {
         while (isblank(*pc)) {
             pc++;
         }
         
-        if (pe - pc <= MINLEN) {
+        if (pe - pc < MINLEN) {
             fillbuf();
         }
         
-        pcur = pc++;
+        rpc = pc++;
         
-        switch (*pcur++) {
+        switch (*rpc) {
 	case '\n': case '\r':
 	    nextline();
 	    if (pc == pe) {
