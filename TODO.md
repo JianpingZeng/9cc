@@ -3,12 +3,12 @@
 
    调用外部cpp
 
-### TODO lexer:fsync
+### DONE lexer:fsync
 
    写单元测试，针对fsync函数进行大批量测试
    
 
-### TODO 完成driver，调用外部预处理器
+### DONE 完成driver，调用外部预处理器
 
    Mac OS X
    Mac OS X 上不能直接调用/usr/bin/cpp，总是会报错，跟 Availability.h 有关。
