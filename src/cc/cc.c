@@ -8,9 +8,11 @@ static const char *output_file;
 
 static void test()
 {
-    while (fake_gettok() != EOI) {
-    	
+    int t;
+    while ((t = gettok()) != EOI) {
+    	log("%s:%d:%d: %d", src.file, src.line, src.col, t);
     }
+    log("end");
 }
 
 static void cc_init()

@@ -29,13 +29,14 @@ static unsigned char map[255] = {
 #define isdigitletter(c)      (isdigit(c) || isletter(c))
 #define isblank(c)            (map[c] & BLANK)
 #define isnewline(c)          (map[c] & NEWLINE)
+#define ishex(c)              (map[c] & HEX)
 
 static unsigned char ibuf[LBUFSIZE+RBUFSIZE+1];
 static unsigned char *pc;
 static unsigned char *pe;
 static unsigned char *pl;
 static long bread;
-static Source src;
+Source src;
 
 static void fillbuf()
 {
@@ -54,6 +55,7 @@ static void fillbuf()
 	n = pe - pc;
 	dst = &ibuf[LBUFSIZE] - n;
 	src = pc;
+	pl = dst - (pc - pl);
 	while (src < pe) {
 	    *dst++ = *src++;
 	}
@@ -150,8 +152,7 @@ static void fline()
 	    fillbuf();
 	}
 	src.file = f;
-	src.line = line;
-	log("# %u \"%s\"", src.line, src.file);
+	src.line = line-1;
 	break;
     }
 }
@@ -245,6 +246,7 @@ static void fnumber(unsigned long);
 static void nextline();
 static void line_comment();
 static void block_comment();
+static int escape();
 
 static int do_gettok()
 {
@@ -258,6 +260,8 @@ static int do_gettok()
         if (pe - pc < MINLEN) {
             fillbuf();
         }
+
+	src.col = pc - pl;
         
         rpc = pc++;
         
@@ -398,12 +402,15 @@ static int do_gettok()
 	case '[': case ']': case ',': case ';':
 	case ':': case '~': case '?':
 	    return *rpc;
-            
+
+        case '\'':
+	    //TODO
+	    return ICONSTANT;
+	    
             // numbers
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
-	    number();
-	    return ICONSTANT;
+	    return number();
                 
 	case '.':
 	    if (rpc[1] == '.' && rpc[2] == '.') {
@@ -812,6 +819,65 @@ static void identifier()
     
     token->name = strings(idstr);
     deallocate(idstr);
+}
+
+static int escape()
+{
+    switch (*pc++) {
+    case 'a': return 7;
+    case 'b': return '\b';
+    case 'f': return '\f';
+    case 'n': return '\n';
+    case 'r': return '\r';
+    case 't': return '\t';
+    case 'v': return '\v';
+    case '\'': case '"':
+    case '\\': case '\?':
+	return pc[-1];
+    case '0': case '1': case '2':
+    case '3': case '4': case '5':
+    case '6': case '7':
+	{
+	    int c = pc[-1] - '0';
+	    if (*pc >= '0' && *pc < '7') {
+		c = (c<<3) + (*pc++) - '0';
+		if (*pc >= '0' && *pc < '7') {
+		    c = (c<<3) + (*pc++) - '0';
+		}
+	    }
+	    if (c > '\377') {
+		error("octal escape sequence out of range");
+	    }
+	    return c;
+	}
+    case 'x':
+	{
+	    int c = 0;
+	    int overflow = 0;
+	    if (!(isdigit(*pc) || ishex(*pc))) {
+		error("invalid character 0x%x in hex escape sequnce", *pc++);
+		return 0;
+	    }
+	    for (; isdigit(*pc) || ishex(*pc); pc++) {
+		if (overflow) continue;
+		if (c > 255) {
+		    overflow = 1;
+		    error("hex escape sequence out of range");
+		}
+		else {
+		    if (isdigit(*pc)) {
+			c = (c<<4) + *pc - '0';
+		    }
+		    else {
+			c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
+		    }
+		}
+	    }
+	    return c;
+	}
+    default:
+	error("unrecognized escape character 0x%x", pc[-1]);
+    }
 }
 
 void match(int t)
