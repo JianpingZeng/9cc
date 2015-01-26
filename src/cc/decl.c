@@ -142,7 +142,7 @@ static Type * func_or_array()
             }
             match(']');
             atype->op = ARRAY;
-            atype->size = token->v.i;
+            atype->size = token->v.u.i;
             attach_type(&ty, atype);
         }
         else {

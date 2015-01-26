@@ -45,7 +45,7 @@ static Expr * primary_expr()
         case SCONSTANT:
         {
             LiteralExpr * lexpr = literal_expr_node(token->id);
-            lexpr->u = token->v;
+            //lexpr->u = token->v.u.u;
             e = (Expr *) lexpr;
             match(token->id);
         }

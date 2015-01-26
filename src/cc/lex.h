@@ -12,14 +12,6 @@ enum {
     TOKEND
 };
 
-union value {
-    long i;
-    unsigned long u;
-    float f;
-    long double d;
-    void *p;
-};
-
 typedef struct {
     const char *file;
     unsigned line;
@@ -29,7 +21,13 @@ typedef struct {
 typedef struct {
     int id;
     const char *name;
-    union value v;
+    struct {
+	union {
+	    long long i;
+	    unsigned long long u;
+	}u;
+	Type *type;
+    }v;
 } Token;
 
 extern Source src;
@@ -43,8 +41,5 @@ extern int  gettok();
 extern int  lookahead();
 extern void match(int t);
 extern const char *tname(int t);
-
-// test
-extern int fake_gettok();
 
 #endif

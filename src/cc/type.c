@@ -33,20 +33,20 @@ void init_type()
 #define INSTALL_TYPE(ty, name, op, size)      install_type(&ty, name, op, size)
     // char
     INSTALL_TYPE(chartype, "char",  CHAR, sizeof(char));
-    INSTALL_TYPE(unsignedchartype, "unsigned char", CHAR, sizeof(unsigned char));
+    INSTALL_TYPE(unsignedchartype, "unsigned char", UNSIGNED, sizeof(unsigned char));
     INSTALL_TYPE(signedchartype, "signed char", CHAR, sizeof(signed char));
     // short
     INSTALL_TYPE(shorttype, "short", INT, sizeof(short));
-    INSTALL_TYPE(unsignedshorttype, "unsigned short", INT, sizeof(unsigned short));
+    INSTALL_TYPE(unsignedshorttype, "unsigned short", UNSIGNED, sizeof(unsigned short));
     // int
     INSTALL_TYPE(inttype, "int", INT, sizeof(int));
-    INSTALL_TYPE(unsignedinttype, "unsigned int", INT, sizeof(unsigned));
+    INSTALL_TYPE(unsignedinttype, "unsigned int", UNSIGNED, sizeof(unsigned));
     // long
     INSTALL_TYPE(longtype, "long", INT, sizeof(long));
-    INSTALL_TYPE(unsignedlongtype, "unsigned long", INT, sizeof(unsigned long));
+    INSTALL_TYPE(unsignedlongtype, "unsigned long", UNSIGNED, sizeof(unsigned long));
     // long long
     INSTALL_TYPE(longlongtype, "long long", INT, sizeof(long long));
-    INSTALL_TYPE(unsignedlonglongtype, "unsigned long long", INT, sizeof(unsigned long long));
+    INSTALL_TYPE(unsignedlonglongtype, "unsigned long long", UNSIGNED, sizeof(unsigned long long));
     // float
     INSTALL_TYPE(floattype, "float", FLOAT, sizeof(float));
     // double
@@ -55,6 +55,34 @@ void init_type()
     // void
     INSTALL_TYPE(voidtype, "void", VOID, 0);
 #undef INSTALL_TYPE
+
+    chartype->limits.max.i = CHAR_MAX;
+    chartype->limits.min.i = CHAR_MIN;
+    
+    unsignedchartype->limits.max.u = UCHAR_MAX;
+    
+    signedchartype->limits.max.i = SCHAR_MAX;
+    signedchartype->limits.min.i = SCHAR_MIN;
+
+    shorttype->limits.max.i = SHRT_MAX;
+    shorttype->limits.min.i = SHRT_MIN;
+
+    unsignedshorttype->limits.max.u = USHRT_MAX;
+    
+    inttype->limits.max.i = INT_MAX;
+    inttype->limits.min.i = INT_MIN;
+    
+    unsignedinttype->limits.max.u = UINT_MAX;
+
+    longtype->limits.max.i = LONG_MAX;
+    longtype->limits.min.i = LONG_MIN;
+
+    unsignedlongtype->limits.max.u = ULONG_MAX;
+
+    longlongtype->limits.max.i = LLONG_MAX;
+    longlongtype->limits.min.i = LLONG_MIN;
+
+    unsignedlonglongtype->limits.max.u = ULLONG_MAX;
 }
 
 // static void printspec(Type *type)

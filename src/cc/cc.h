@@ -8,12 +8,13 @@
 #include <memory.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <limits.h>
 #include "lib.h"
 
 // cc modules
 #include "config.h"
-#include "lex.h"
 #include "type.h"
+#include "lex.h"
 #include "sym.h"
 #include "node.h"
 // error
