@@ -1027,69 +1027,17 @@ static void integer_constant(unsigned long long n, int overflow, int base, Strin
     }
 }
 
-static void wchar_constant()
-{
+static void char_constant(int wide)
+{    
     unsigned long long c = 0;
     int overflow = 0;
+    int char_rec = 0;
     char ws[MB_LEN_MAX];
     int len = 0;
-    unsigned max = twos(sizeof(wchar_t));
-    int char_rec = 0;
-    String *s = new_string();
-    string_concatn(s, pc-2, 2);
-    for (; *pc != '\'';) {
-	if (pc >= pe) {
-	    fillbuf();
-	    if (pc == pe) break;
-	}
-	if (char_rec) {
-	    overflow = 1;
-	}
-
-	if (*pc == '\\') {
-	    c = escape(s);
-	    char_rec = 1;
-	}
-	else {
-	    if (len >= MB_LEN_MAX) {
-		error("multibyte character overflow");
-	    }
-	    else {
-		ws[len++] = (char) *pc;
-	    }
-	    string_concatn(s, pc, 1);
-	}
-    }
-
-    if (*pc == '\'')
-	string_concatn(s, pc, 1);
-    if (*pc != '\'') {
-	error("unclosed character constant");
-    }
-    else if (overflow || c > wchartype->limits.max.u) {
-	error("character constant overflow");
-    }
-    else if (len) {
-	if (mbtowc(&c, ws, len) != len) {
-	    error("invalid multi-character sequence");
-	}
-    }
-    pc++;
-    token->name = strings(s->str);
-    token->v.u.u = (wchar_t) c;
-    token->v.type = wchartype;
-    free_string(s);
-}
-
-static void char_constant(int wide)
-{
-    if (wide) return wchar_constant();
     
-    unsigned c = 0;
-    int overflow = 0;
-    int char_rec = 0;
     String *s = new_string();
-    string_concatn(s, pc-1, 1);
+    wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
+    
     for (; *pc != '\'';) {
 	if (pc >= pe) {
 	    fillbuf();
@@ -1105,9 +1053,21 @@ static void char_constant(int wide)
 	    char_rec = 1;
 	}
 	else {
-	    string_concatn(s, pc, 1);
-	    c = *pc++;
-	    char_rec = 1;
+	    if (wide) {
+		string_concatn(s, pc, 1);
+		if (len >= MB_LEN_MAX) {
+		    error("multibyte character overflow");
+		}
+		else {
+		    ws[len++] = (char) *pc;
+		}
+		pc++;
+	    }
+	    else {
+		string_concatn(s, pc, 1);
+		c = *pc++;
+		char_rec = 1;
+	    }
 	}
     }
 
@@ -1117,23 +1077,22 @@ static void char_constant(int wide)
     if (*pc != '\'') {
 	error("unclosed character constant");
     }
-    else if (overflow || c > unsignedchartype->limits.max.u){
+    else if (overflow || (!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u)){
         error("character constant overflow: %k", token);
     }
+    else if (len) {
+	if (mbtowc(&c, ws, len) != len) {
+	    error("invalid multi-character sequence");
+	}
+    }
     pc++;
-    token->v.u.u = (unsigned char) c;
-    token->v.type = unsignedchartype;
+    token->v.u.u = wide ? (wchar_t) c : (unsigned char) c;
+    token->v.type = wide ? wchartype : unsignedchartype;
     free_string(s);
-}
-
-static void wstring_constant()
-{
-    
 }
 
 static void string_constant(int wide)
 {
-    if (wide) return wstring_constant();
 
     
 }
