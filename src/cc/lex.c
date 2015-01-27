@@ -400,7 +400,6 @@ static int do_gettok()
 	    return *rpc;
 
         case '\'':
-	    token->name = rpc;
 	    char_constant(0);
 	    return ICONSTANT;
 
@@ -670,7 +669,6 @@ static int do_gettok()
                 
 	case 'L':
             if (rpc[1] == '\'') {
-		token->name = rpc;
 		pc = rpc + 2;
 		char_constant(1);
 		return ICONSTANT;
@@ -1000,8 +998,11 @@ static void wchar_constant()
 	}
 
 	if (*pc == '\\') {
-	    unsigned u = escape();
-	    c = (wchar_t) u;
+	    unsigned i = escape();
+	    if (i > wchartype->limits.max.u) {
+		error("character too large for enclosing characeter literal type");
+	    }
+	    c = (wchar_t) i;
 	    char_rec = 1;
 	}
 	else {
@@ -1035,7 +1036,6 @@ static void char_constant(int wide)
     if (wide) return wchar_constant();
     
     unsigned char c = 0;
-    unsigned max = twos(sizeof(unsigned char));
     int overflow = 0;
     int char_rec = 0;
     for (; *pc != '\'';) {
@@ -1052,7 +1052,7 @@ static void char_constant(int wide)
 	if (*pc == '\\') {
 	    // escape
 	    unsigned i = escape();
-	    if (i > max) {
+	    if (i > unsignedchartype->limits.max.u) {
 		error("character too large for enclosing characeter literal type");
 	    }
 	    c = (unsigned char) i;
