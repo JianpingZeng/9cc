@@ -4,6 +4,7 @@
 Type   *chartype;               // char
 Type   *unsignedchartype;       // unsigned char
 Type   *signedchartype;         // signed char
+Type   *wchartype;              // wchar_t
 Type   *shorttype;              // short (int)
 Type   *unsignedshorttype;      // unsigned short (int)
 Type   *inttype;                // int
@@ -35,6 +36,8 @@ void init_type()
     INSTALL_TYPE(chartype, "char",  CHAR, sizeof(char));
     INSTALL_TYPE(unsignedchartype, "unsigned char", UNSIGNED, sizeof(unsigned char));
     INSTALL_TYPE(signedchartype, "signed char", CHAR, sizeof(signed char));
+    // wchar_t
+    INSTALL_TYPE(wchartype, "wchar_t", UNSIGNED, sizeof(wchar_t));
     // short
     INSTALL_TYPE(shorttype, "short", INT, sizeof(short));
     INSTALL_TYPE(unsignedshorttype, "unsigned short", UNSIGNED, sizeof(unsigned short));
@@ -63,6 +66,8 @@ void init_type()
     
     signedchartype->limits.max.i = SCHAR_MAX;
     signedchartype->limits.min.i = SCHAR_MIN;
+
+    wchartype->limits.max.u = twos(sizeof(wchar_t));
 
     shorttype->limits.max.i = SHRT_MAX;
     shorttype->limits.min.i = SHRT_MIN;

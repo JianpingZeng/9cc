@@ -17,6 +17,7 @@ static void test()
 
 static void cc_init()
 {
+    setlocale(LC_ALL, "");
     register_print_function('k', token_print_function);
     register_print_function('t', type_print_function);
     register_print_function('n', node_print_function);

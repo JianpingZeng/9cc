@@ -53,6 +53,7 @@ extern Type *typename();
 extern Type    *chartype;               // char
 extern Type    *unsignedchartype;       // unsigned char
 extern Type    *signedchartype;         // signed char
+extern Type    *wchartype;              // wchar_t
 extern Type    *shorttype;              // short (int)
 extern Type    *unsignedshorttype;      // unsigned short (int)
 extern Type    *inttype;                // int

@@ -1,16 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <errno.h>
-#include <string.h>
-#include "type.h"
-#include "lex.h"
-#include "error.h"
-#include "lib.h"
+#include "cc.h"
 
 #define LBUFSIZE     512
 #define RBUFSIZE     4096
-#define MINLEN       LBUFSIZE
+#define MAXTOKEN       LBUFSIZE
 
 enum {
     BLANK = 01, NEWLINE = 02, LETTER = 04,
@@ -246,7 +238,7 @@ static int number();
 static void nextline();
 static void line_comment();
 static void block_comment();
-static int escape();
+static unsigned escape();
 static void float_constant();
 static void char_constant(int wide);
 static void string_constant(int wide);
@@ -261,7 +253,7 @@ static int do_gettok()
             pc++;
         }
         
-        if (pe - pc < MINLEN) {
+        if (pe - pc < MAXTOKEN) {
             fillbuf();
         }
 
@@ -408,6 +400,7 @@ static int do_gettok()
 	    return *rpc;
 
         case '\'':
+	    token->name = rpc;
 	    char_constant(0);
 	    return ICONSTANT;
 
@@ -677,10 +670,15 @@ static int do_gettok()
                 
 	case 'L':
             if (rpc[1] == '\'') {
+		token->name = rpc;
+		pc = rpc + 2;
 		char_constant(1);
+		return ICONSTANT;
 	    }
 	    else if (rpc[1] == '"') {
+		pc = rpc + 2;
 		string_constant(1);
+		return SCONSTANT;
 	    }
 	    else {
 		goto id;
@@ -714,7 +712,7 @@ static void line_comment()
             rpc++;
         }
         pc = rpc;
-        if (pe - pc < MINLEN) {
+        if (pe - pc < MAXTOKEN) {
             fillbuf();
             rpc = pc;
         }
@@ -732,7 +730,7 @@ static void block_comment()
     for (; rpc[0] != '*' || rpc[1] != '/'; ) {
         if (isnewline(*rpc)) {
             pc = rpc;
-            if (pe - pc < MINLEN) {
+            if (pe - pc < MAXTOKEN) {
                 fillbuf();
             }
             nextline();
@@ -982,14 +980,99 @@ static void integer_constant(unsigned long long n, int overflow, int base)
     }
 }
 
+static void wchar_constant()
+{
+    wchar_t c = 0;
+    int overflow = 0;
+    char s[MB_LEN_MAX];
+    int len = 0;
+    unsigned max = twos(sizeof(wchar_t));
+    int char_rec = 0;
+    for (; *pc != '\'';) {
+	if (pe - pc < MAXTOKEN) {
+	    fillbuf();
+	    if (pc == pe) {
+		break;
+	    }
+	}
+	if (char_rec) {
+	    overflow = 1;
+	}
+
+	if (*pc == '\\') {
+	    unsigned u = escape();
+	    c = (wchar_t) u;
+	    char_rec = 1;
+	}
+	else {
+	    if (len >= MB_LEN_MAX) {
+		error("multibyte character overflow");
+	    }
+	    else {
+		s[len++] = (char) *pc;
+	    }
+	}
+    }
+
+    if (*pc != '\'') {
+	error("unclosed character constant");
+    }
+    else if (overflow) {
+	error("character constant overflow");
+    }
+    else if (len) {
+	if (mbtowc(&c, s, len) != len) {
+	    error("invalid multi-character sequence");
+	}
+    }
+    pc++;
+    token->v.u.u = c;
+    token->v.type = wchartype;
+}
+
 static void char_constant(int wide)
 {
-    if (wide) {
-
+    if (wide) return wchar_constant();
+    
+    unsigned char c = 0;
+    unsigned max = twos(sizeof(unsigned char));
+    int overflow = 0;
+    int char_rec = 0;
+    for (; *pc != '\'';) {
+	if (pe - pc < MAXTOKEN) {
+	    fillbuf();
+	    if (pc == pe) {
+		break;
+	    }
+	}
+	if (char_rec) {
+	    overflow = 1;
+	}
+	
+	if (*pc == '\\') {
+	    // escape
+	    unsigned i = escape();
+	    if (i > max) {
+		error("character too large for enclosing characeter literal type");
+	    }
+	    c = (unsigned char) i;
+	    char_rec = 1;
+	}
+	else {
+	    c = *pc++;
+	    char_rec = 1;
+	}
     }
-    else {
 
+    if (*pc != '\'') {
+	error("unclosed character constant");
     }
+    else if (overflow){
+        error("character constant overflow");
+    }
+    pc++;
+    token->v.u.u = c;
+    token->v.type = unsignedchartype;
 }
 
 static void string_constant(int wide)
@@ -1027,8 +1110,10 @@ static void identifier()
     deallocate(idstr);
 }
 
-static int escape()
+static unsigned escape()
 {
+    assert(*pc == '\\');
+    pc++;
     switch (*pc++) {
     case 'a': return 7;
     case 'b': return '\b';
@@ -1044,29 +1129,29 @@ static int escape()
     case '3': case '4': case '5':
     case '6': case '7':
 	{
-	    int c = pc[-1] - '0';
+	    unsigned c = pc[-1] - '0';
 	    if (*pc >= '0' && *pc < '7') {
 		c = (c<<3) + (*pc++) - '0';
 		if (*pc >= '0' && *pc < '7') {
 		    c = (c<<3) + (*pc++) - '0';
 		}
 	    }
-	    if (c > '\377') {
+	    if (c > twos(sizeof(unsigned char))) {
 		error("octal escape sequence out of range");
 	    }
 	    return c;
 	}
     case 'x':
 	{
-	    int c = 0;
+	    unsigned c = 0;
 	    int overflow = 0;
 	    if (!(isdigit(*pc) || ishex(*pc))) {
-		error("invalid character 0x%x in hex escape sequnce", *pc++);
+		error("\\x used with no following hex digits");
 		return 0;
 	    }
 	    for (; isdigit(*pc) || ishex(*pc); pc++) {
 		if (overflow) continue;
-		if (c > 255) {
+		if (c >> (8*sizeof(unsigned char) - 4)) {
 		    overflow = 1;
 		    error("hex escape sequence out of range");
 		}
@@ -1078,6 +1163,27 @@ static int escape()
 			c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
 		    }
 		}
+	    }
+	    return c;
+	}
+    case 'u': case 'U':
+	{
+	    // universal character name: expect 4(u)/8(U) hex digits
+	    unsigned c = 0;
+	    int x = 0;
+	    int n = pc[-1] == 'u' ? 4 : 8;
+	    for (; isdigit(*pc) || ishex(*pc); x++, pc++) {
+		if (x == n) break;
+
+		if (isdigit(*pc)) {
+		    c = (c<<4) + *pc - '0';
+		}
+		else {
+		    c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
+		}
+	    }
+	    if (x < n) {
+		error("incomplete universal character name");
 	    }
 	    return c;
 	}

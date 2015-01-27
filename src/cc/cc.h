@@ -9,7 +9,10 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <limits.h>
+#include <locale.h>
 #include "lib.h"
+
+#define twos(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
 
 // cc modules
 #include "config.h"
