@@ -1,7 +1,7 @@
 
 TARGETS=libcc cpp cc mcc
 
-.PHONY: all libcc cpp cc mcc clean
+.PHONY: all $(TARGETS)
 
 ifndef platform
 platform=mac

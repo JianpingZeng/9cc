@@ -1,5 +1,6 @@
 CC=gcc
 LIBDIR=../lib
+LIBCC=../lib/libcc.a
 CFLAGS=-c -Wall -std=c99 -I$(LIBDIR)
 LDFLAGS=-L$(LIBDIR) -lcc
 INCLUDES=$(wildcard *.h)
@@ -29,7 +30,7 @@ all:
 	@exit 1
 endif
 
-$(EXECUTABLE): $(OBJECTS) 
+$(EXECUTABLE): $(OBJECTS) $(LIBCC)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
 %.o: %.c $(INCLUDES)

@@ -22,7 +22,7 @@ extern void deallocate(void *p);
 extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
 extern const char *stringd(long n);
-extern void appendstring(const char **string, const char *src, int len);
+
 typedef struct {
     char     *str;
     unsigned size;
@@ -30,9 +30,10 @@ typedef struct {
     unsigned reserve;
 } String;
 extern String * new_string();
-extern void string_concat_s(String *s, char *src);
-extern void string_concat_n(String *s, char *src, int len);
-extern void string_concat_d(String *s, long d);
+extern unsigned string_length(String *s);
+extern void string_concats(String *s, char *src);
+extern void string_concatn(String *s, char *src, int len);
+extern void string_concatd(String *s, long d);
 extern char * string_to_array(String *s);
 extern void free_string(String *s);
 

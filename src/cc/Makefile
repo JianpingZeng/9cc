@@ -1,5 +1,6 @@
 CC=gcc
 LIBDIR=../lib
+LIBCC=../lib/libcc.a
 CFLAGS=-c -Wall -std=c99 -I$(LIBDIR)
 LDFLAGS=-L$(LIBDIR) -lcc
 SOURCES=$(wildcard *.c)
@@ -9,7 +10,7 @@ INCLUDES=$(wildcard *.h)
 
 all: $(SOURCES) $(EXECUTABLE)
 
-$(EXECUTABLE): $(OBJECTS)
+$(EXECUTABLE): $(OBJECTS) $(LIBCC)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
 %.o: %.c $(INCLUDES)

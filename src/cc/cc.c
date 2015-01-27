@@ -1,5 +1,4 @@
 #include "cc.h"
-#include "string.h"
 
 CCOptions cc_options;
 
@@ -9,7 +8,7 @@ static const char *output_file;
 static void test()
 {
     while (gettok() != EOI) {
-    	log("%s:%d:%d: %k", src.file, src.line, src.col, token);
+    	log("%s:%d:%d: %s: %k", src.file, src.line, src.col, tname(token->id), token);
     }
     log("end");
 }

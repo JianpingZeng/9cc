@@ -5,7 +5,7 @@ cc: c compiler
 
 driver: driver for mcc
 
-test: tests for mcc
+lib: shared library
 
 # License
 mcc is free software published under GNU GPLv3.

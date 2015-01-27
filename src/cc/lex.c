@@ -76,8 +76,8 @@ static void fline()
 {
     unsigned line = 0;
     unsigned char *fb;
-    const char *p = NULL;
     unsigned char *f = NULL;
+    String *p = new_string();
     struct {
 	unsigned char line_rec : 1;
 	unsigned char line_got : 1;
@@ -90,7 +90,7 @@ static void fline()
 	if (pe - pc <= LBUFSIZE) {
 	    fillbuf();
 	    if (pc == pe) {
-		if (p) deallocate(p);
+		if (p) free_string(p);
 		log("input file seems incorrect when #");
 		return;
 	    }
@@ -128,12 +128,12 @@ static void fline()
 		pc++;
 	    }
 	    if (pc == pe) {
-		appendstring(&p, fb, pc-fb);
+		string_concatn(p, fb, pc-fb);
 		continue;
 	    }
-	    appendstring(&p, fb, pc-fb);
-	    f = strings(p);
-	    deallocate(p);
+	    string_concatn(p, fb, pc-fb);
+	    f = strings(p->str);
+	    free_string(p);
 	    p = NULL;
 	}
 	s.file_got = 1;
@@ -241,7 +241,7 @@ static unsigned escape();
 static void float_constant();
 static void char_constant(int wide);
 static void string_constant(int wide);
-static void integer_constant(unsigned long long value, int overflow, int base);
+static void integer_constant(unsigned long long value, int overflow, int base, String *s);
 
 static int do_gettok()
 {
@@ -755,9 +755,18 @@ static int number()
         // Hex
 	unsigned long long n = 0;
         int overflow = 0;
-        rpc += 2;
+	String *s = new_string();
+	string_concatn(s, rpc, 2);
+        pc = rpc = rpc + 2;
+	if (!isdigit(*rpc) && !ishex(*rpc)) {
+	    token->name = strings(s->str);
+	    free_string(s);
+	    error("incomplete hex constant: %k", token);
+	    return ICONSTANT;
+	}
         for (; isdigit(*rpc) || ishex(*rpc) || rpc == pe; ) {
 	    if (rpc == pe) {
+		string_concatn(s, pc, rpc-pc);
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
@@ -779,13 +788,16 @@ static int number()
 	    }
 	    rpc++;
         }
+	string_concatn(s, pc, rpc-pc);
         pc = rpc;
 	if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
 	    float_constant();
+	    free_string(s);
 	    return FCONSTANT;
 	}
 	else {
-	    integer_constant(n, overflow, 16);
+	    integer_constant(n, overflow, 16, s);
+	    free_string(s);
 	    return ICONSTANT;
 	}
     }
@@ -794,9 +806,11 @@ static int number()
 	unsigned long long n = 0;
 	int err = 0;
 	int overflow = 0;
+	String *s = new_string();
 	pc = rpc;
 	for (;isdigit(*rpc) || rpc == pe;) {
 	    if (rpc == pe) {
+		string_concatn(s, pc, rpc-pc);
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
@@ -814,16 +828,19 @@ static int number()
 	    }
 	    rpc++;
 	}
+	string_concatn(s, pc, rpc-pc);
 	pc = rpc;
 	if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
 	    float_constant();
+	    free_string(s);
 	    return FCONSTANT;
 	}
 	else {
-	    integer_constant(n, overflow, 8);
+	    integer_constant(n, overflow, 8, s);
 	    if (err) {
 		error("invalid octal constant %k", token);
 	    }
+	    free_string(s);
 	    return ICONSTANT;
 	}
     }
@@ -831,11 +848,11 @@ static int number()
         // Dec
 	unsigned long long n = 0;
 	int overflow = 0;
-	char *str = NULL;
+	String *s = new_string();
 	pc = rpc;
 	for (;isdigit(*rpc) || rpc == pe;) {
 	    if (rpc == pe) {
-		appendstring(&str, pc, rpc-pc);
+		string_concatn(s, pc, rpc-pc);
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
@@ -851,16 +868,16 @@ static int number()
 	    }
 	    rpc++;
 	}
-	appendstring(&str, pc, rpc-pc);
-	token->name = strings(str);
-	deallocate(str);
+	string_concatn(s, pc, rpc-pc);
         pc = rpc;
         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
             float_constant();
+	    free_string(s);
             return FCONSTANT;
         }
         else {
-	    integer_constant(n, overflow, 10);
+	    integer_constant(n, overflow, 10, s);
+	    free_string(s);
             return ICONSTANT;
         }
     }
@@ -872,18 +889,19 @@ static void float_constant()
     
 }
 
-static void integer_constant(unsigned long long n, int overflow, int base)
+static void integer_constant(unsigned long long n, int overflow, int base, String *s)
 {
     unsigned char *rpc = pc;
-    int ull = (rpc[0] == 'u' || rpc == 'U') &&
+    int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
 	((rpc[1] == 'l' && rpc[2] == 'l') ||
-	 (rpc[1] == 'L' || rpc[2] == 'L'));
+	 (rpc[1] == 'L' && rpc[2] == 'L'));
     int llu = ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) &&
 	(rpc[2] == 'u' || rpc[2] == 'U');
     if (ull || llu) {
 	// unsigned long long
 	token->v.type = unsignedlonglongtype;
 	pc = rpc + 3;
+	string_concatn(s, rpc, 3);
     }
     else if ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) {
 	// long long
@@ -894,6 +912,7 @@ static void integer_constant(unsigned long long n, int overflow, int base)
 	    token->v.type = longlongtype;
 	}
 	pc = rpc + 2;
+	string_concatn(s, rpc, 2);
     }
     else if (((rpc[0] == 'l' || rpc[0] == 'L') && (rpc[1] == 'u' || rpc[1] == 'U')) ||
 	     ((rpc[0] == 'u' || rpc[0] == 'U') && (rpc[1] == 'l' || rpc[1] == 'L'))) {
@@ -904,7 +923,8 @@ static void integer_constant(unsigned long long n, int overflow, int base)
 	else {
 	    token->v.type = unsignedlongtype;
 	}
-	pc = rpc + 2;
+	pc = rpc + 2;	
+	string_concatn(s, rpc, 2);
     }
     else if (rpc[0] == 'l' || rpc[0] == 'L') {
 	// long
@@ -931,6 +951,7 @@ static void integer_constant(unsigned long long n, int overflow, int base)
 	    }
 	}
 	pc = rpc + 1;
+	string_concatn(s, rpc, 1);
     }
     else if (rpc[0] == 'u' || rpc[0] == 'U') {
 	// unsigned
@@ -944,6 +965,7 @@ static void integer_constant(unsigned long long n, int overflow, int base)
 	    token->v.type = unsignedinttype;
 	}
 	pc = rpc + 1;
+	string_concatn(s, rpc, 1);
     }
     else {
 	if (base == 10) {
@@ -978,6 +1000,8 @@ static void integer_constant(unsigned long long n, int overflow, int base)
 	    }
 	}
     }
+
+    token->name = strings(s->str);
 
     switch (token->v.type->op) {
     case INT:
@@ -1115,26 +1139,23 @@ static void string_constant(int wide)
 static void identifier()
 {
     unsigned char *rpc;
-    unsigned char *ps;
-    rpc = ps = pc-1;
-    const char *idstr = NULL;
-    do {
-        while (isdigitletter(*rpc)) {
-            rpc++;
-        }
-        appendstring(&idstr, ps, rpc - ps);
-        pc = rpc;
-        if (pc == pe) {
-            fillbuf();
-            rpc = ps = pc;
-        }
-        else {
-            break;
-        }
-    } while(rpc != pe);
-    
-    token->name = strings(idstr);
-    deallocate(idstr);
+    String *s = new_string();
+    rpc = pc = pc-1;
+    for (;isdigitletter(*rpc) || rpc == pe;) {
+	if (rpc == pe) {
+	    string_concatn(s, pc, rpc-pc);
+	    pc = rpc;
+	    fillbuf();
+	    rpc = pc;
+	    if (pc == pe) break;
+	    continue;
+	}
+	rpc++;
+    }
+    string_concatn(s, pc, rpc-pc);
+    pc = rpc;
+    token->name = strings(s->str);
+    free_string(s);
 }
 
 static unsigned escape()
