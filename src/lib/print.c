@@ -101,7 +101,7 @@ void register_print_function(char c, PrintFunc p)
 {
     static char reserved[] = {'d', 'i', 'u', 'l', 'f', 'e',
 			      'E', 'g', 'G', 'o', 'x', 'X',
-			      's', 'p', 'c', '%'};
+			      's', 'p', 'c', '%', 'S'};
     if (c >= '0' && c <= '9') {
         fprint(stderr, "Can't register print function for '%c'\n", c);
 	exit(EXIT_FAILURE);
@@ -163,6 +163,15 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		break;
 	    case 's':
 		cc_fputs(f, va_arg(ap, char *));
+		break;
+	    case 'S':
+		{
+		    char *str = va_arg(ap, char *);
+		    int len = va_arg(ap, int);
+		    while (len-- > 0) {
+			cc_fputc(f, *str++);
+		    }
+		}
 		break;
 	    case 'p':
 		{

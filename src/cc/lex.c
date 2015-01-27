@@ -237,7 +237,7 @@ static int number();
 static void nextline();
 static void line_comment();
 static void block_comment();
-static unsigned escape();
+static unsigned escape(String *s);
 static void float_constant();
 static void char_constant(int wide);
 static void string_constant(int wide);
@@ -1029,29 +1029,25 @@ static void integer_constant(unsigned long long n, int overflow, int base, Strin
 
 static void wchar_constant()
 {
-    wchar_t c = 0;
+    unsigned long long c = 0;
     int overflow = 0;
-    char s[MB_LEN_MAX];
+    char ws[MB_LEN_MAX];
     int len = 0;
     unsigned max = twos(sizeof(wchar_t));
     int char_rec = 0;
+    String *s = new_string();
+    string_concatn(s, pc-2, 2);
     for (; *pc != '\'';) {
-	if (pe - pc < MAXTOKEN) {
+	if (pc >= pe) {
 	    fillbuf();
-	    if (pc == pe) {
-		break;
-	    }
+	    if (pc == pe) break;
 	}
 	if (char_rec) {
 	    overflow = 1;
 	}
 
 	if (*pc == '\\') {
-	    unsigned i = escape();
-	    if (i > wchartype->limits.max.u) {
-		error("character too large for enclosing characeter literal type");
-	    }
-	    c = (wchar_t) i;
+	    c = escape(s);
 	    char_rec = 1;
 	}
 	else {
@@ -1059,40 +1055,45 @@ static void wchar_constant()
 		error("multibyte character overflow");
 	    }
 	    else {
-		s[len++] = (char) *pc;
+		ws[len++] = (char) *pc;
 	    }
+	    string_concatn(s, pc, 1);
 	}
     }
 
+    if (*pc == '\'')
+	string_concatn(s, pc, 1);
     if (*pc != '\'') {
 	error("unclosed character constant");
     }
-    else if (overflow) {
+    else if (overflow || c > wchartype->limits.max.u) {
 	error("character constant overflow");
     }
     else if (len) {
-	if (mbtowc(&c, s, len) != len) {
+	if (mbtowc(&c, ws, len) != len) {
 	    error("invalid multi-character sequence");
 	}
     }
     pc++;
-    token->v.u.u = c;
+    token->name = strings(s->str);
+    token->v.u.u = (wchar_t) c;
     token->v.type = wchartype;
+    free_string(s);
 }
 
 static void char_constant(int wide)
 {
     if (wide) return wchar_constant();
     
-    unsigned char c = 0;
+    unsigned c = 0;
     int overflow = 0;
     int char_rec = 0;
+    String *s = new_string();
+    string_concatn(s, pc-1, 1);
     for (; *pc != '\'';) {
-	if (pe - pc < MAXTOKEN) {
+	if (pc >= pe) {
 	    fillbuf();
-	    if (pc == pe) {
-		break;
-	    }
+	    if (pc == pe) break;
 	}
 	if (char_rec) {
 	    overflow = 1;
@@ -1100,28 +1101,29 @@ static void char_constant(int wide)
 	
 	if (*pc == '\\') {
 	    // escape
-	    unsigned i = escape();
-	    if (i > unsignedchartype->limits.max.u) {
-		error("character too large for enclosing characeter literal type");
-	    }
-	    c = (unsigned char) i;
+	    c = escape(s);
 	    char_rec = 1;
 	}
 	else {
+	    string_concatn(s, pc, 1);
 	    c = *pc++;
 	    char_rec = 1;
 	}
     }
 
+    if (*pc == '\'')
+	string_concatn(s, pc, 1);
+    token->name = strings(s->str);
     if (*pc != '\'') {
 	error("unclosed character constant");
     }
-    else if (overflow){
-        error("character constant overflow");
+    else if (overflow || c > unsignedchartype->limits.max.u){
+        error("character constant overflow: %k", token);
     }
     pc++;
-    token->v.u.u = c;
+    token->v.u.u = (unsigned char) c;
     token->v.type = unsignedchartype;
+    free_string(s);
 }
 
 static void wstring_constant()
@@ -1158,10 +1160,11 @@ static void identifier()
     free_string(s);
 }
 
-static unsigned escape()
+static unsigned escape(String *s)
 {
     assert(*pc == '\\');
     pc++;
+    string_concatn(s, pc-1, 2);
     switch (*pc++) {
     case 'a': return 7;
     case 'b': return '\b';
@@ -1178,14 +1181,13 @@ static unsigned escape()
     case '6': case '7':
 	{
 	    unsigned c = pc[-1] - '0';
-	    if (*pc >= '0' && *pc < '7') {
+	    if (*pc >= '0' && *pc <= '7') {
+		string_concatn(s, pc, 1);
 		c = (c<<3) + (*pc++) - '0';
-		if (*pc >= '0' && *pc < '7') {
+		if (*pc >= '0' && *pc <= '7') {
+		    string_concatn(s, pc, 1);
 		    c = (c<<3) + (*pc++) - '0';
 		}
-	    }
-	    if (c > unsignedchartype->limits.max.u) {
-		error("octal escape sequence out of range");
 	    }
 	    return c;
 	}
@@ -1199,7 +1201,7 @@ static unsigned escape()
 	    }
 	    for (; isdigit(*pc) || ishex(*pc); pc++) {
 		if (overflow) continue;
-		if (c >> (8*sizeof(unsigned char) - 4)) {
+		if (c >> (8*unsignedchartype->size - 4)) {
 		    overflow = 1;
 		    error("hex escape sequence out of range");
 		}
@@ -1220,6 +1222,7 @@ static unsigned escape()
 	    unsigned c = 0;
 	    int x = 0;
 	    int n = pc[-1] == 'u' ? 4 : 8;
+	    unsigned char *ps = pc - 2;
 	    for (; isdigit(*pc) || ishex(*pc); x++, pc++) {
 		if (x == n) break;
 
@@ -1229,9 +1232,10 @@ static unsigned escape()
 		else {
 		    c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
 		}
+		string_concatn(s, pc, 1);
 	    }
 	    if (x < n) {
-		error("incomplete universal character name");
+		error("incomplete universal character name: %S", ps, pc-ps);
 	    }
 	    return c;
 	}
