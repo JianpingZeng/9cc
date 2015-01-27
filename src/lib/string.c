@@ -103,3 +103,46 @@ void appendstring(const char **string, const char *src, int len)
         *string = dst;
     }
 }
+
+static void string_grow(String *s)
+{
+
+}
+
+String * new_string()
+{
+    String *s = new(String);
+    s->reserve = 64;
+    s->size = 0;
+    s->capelems = s->reserve;
+    s->str = allocate(s->capelems, 0);
+    return s;
+}
+
+void string_concat_s(String *s, char *src)
+{
+    assert(s);
+    if (s->size == s->capelems) {
+	
+    }
+}
+
+void string_concat_n(String *s, char *src, int len)
+{
+
+}
+
+void string_concat_d(String *s, long d)
+{
+
+}
+
+char * string_to_array(String *s)
+{
+
+}
+
+void free_string(String *s)
+{
+
+}

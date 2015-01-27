@@ -49,12 +49,10 @@ static const char ** concat(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-    cpp[2] = input_file;
+    vector_push(options, input_file);
     if (output_file) {
-	cpp[4] = output_file;
-    }
-    else {
-        cpp[3] = 0;
+	vector_push(options, "-o");
+	vector_push(options, output_file);
     }
 
     vector_add_from_array(v, cpp);

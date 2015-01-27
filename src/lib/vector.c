@@ -2,10 +2,7 @@
 #include <string.h>
 #include <limits.h>
 #include <assert.h>
-#include "cpp.h"
-
-#define allocate(size, flag) malloc(size)
-#define deallocate(p) free(p)
+#include "lib.h"
 
 static void vector_grow(Vector *v)
 {
@@ -19,7 +16,7 @@ static void vector_grow(Vector *v)
 
 Vector *new_vector()
 {
-    Vector *v = allocate(sizeof(Vector), 0);
+    Vector *v = new(Vector);
     v->reserve = 10;
     v->elemsize = sizeof(void *);
     v->elems = 0;

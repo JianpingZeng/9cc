@@ -256,7 +256,7 @@ static int do_gettok()
             fillbuf();
         }
 
-	src.col = pc - pl;
+	src.col = pc - pl + 1;
         
         rpc = pc++;
         
@@ -755,9 +755,15 @@ static int number()
         // Hex
 	unsigned long long n = 0;
         int overflow = 0;
-	token->name = rpc;
         rpc += 2;
-        for (; isdigit(*rpc) || ishex(*rpc); ) {
+        for (; isdigit(*rpc) || ishex(*rpc) || rpc == pe; ) {
+	    if (rpc == pe) {
+		pc = rpc;
+		fillbuf();
+		rpc = pc;
+		if (pc == pe) break;
+		continue;
+	    }
 	    if (n & ~(~0ULL >> 4)) {
 		overflow = 1;
 	    }
@@ -771,6 +777,7 @@ static int number()
 		}
 		n = (n<<4) + d;
 	    }
+	    rpc++;
         }
         pc = rpc;
 	if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
@@ -787,8 +794,15 @@ static int number()
 	unsigned long long n = 0;
 	int err = 0;
 	int overflow = 0;
-	token->name = rpc;
-	for (; isdigit(*rpc); ) {
+	pc = rpc;
+	for (;isdigit(*rpc) || rpc == pe;) {
+	    if (rpc == pe) {
+		pc = rpc;
+		fillbuf();
+		rpc = pc;
+		if (pc == pe) break;
+		continue;
+	    }
 	    if (*rpc == '8' || *rpc == '9') {
 		err = 1;
 	    }
@@ -798,6 +812,7 @@ static int number()
 	    else {
 		n = (n<<3) + (*rpc - '0');
 	    }
+	    rpc++;
 	}
 	pc = rpc;
 	if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
@@ -816,8 +831,17 @@ static int number()
         // Dec
 	unsigned long long n = 0;
 	int overflow = 0;
-	token->name = rpc;
-	for (; isdigit(*rpc); ) {
+	char *str = NULL;
+	pc = rpc;
+	for (;isdigit(*rpc) || rpc == pe;) {
+	    if (rpc == pe) {
+		appendstring(&str, pc, rpc-pc);
+		pc = rpc;
+		fillbuf();
+		rpc = pc;
+		if (pc == pe) break;
+		continue;
+	    }
 	    int d = *rpc - '0';
 	    if (n > (longlongtype->limits.max.i - d)/10) {
 		overflow = 1;
@@ -825,7 +849,11 @@ static int number()
 	    else {
 		n = n*10 + (*rpc - '0');
 	    }
+	    rpc++;
 	}
+	appendstring(&str, pc, rpc-pc);
+	token->name = strings(str);
+	deallocate(str);
         pc = rpc;
         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
             float_constant();
@@ -951,8 +979,6 @@ static void integer_constant(unsigned long long n, int overflow, int base)
 	}
     }
 
-    token->name = stringn(token->name, (char *)pc - token->name);
-
     switch (token->v.type->op) {
     case INT:
 	if (overflow || n > longlongtype->limits.max.i) {
@@ -1074,14 +1100,16 @@ static void char_constant(int wide)
     token->v.type = unsignedchartype;
 }
 
+static void wstring_constant()
+{
+    
+}
+
 static void string_constant(int wide)
 {
-    if (wide) {
+    if (wide) return wstring_constant();
 
-    }
-    else {
-
-    }
+    
 }
 
 static void identifier()
@@ -1211,20 +1239,25 @@ const char *tname(int t)
         return tnames[t];
     }
     else if (t < 256) {
-        return "[128, 256)";
+        return "(null)";
     }
     else if (t < TOKEND) {
         return tnames[128+t-ID];
     }
     else {
-        return ">=TOKEND";
+        return "(null)";
     }
 }
 
 int gettok()
 {
-    int tok = do_gettok();
+    int tok;
+    token->name = NULL;
+    tok = do_gettok();
     token->id = tok;
+    if (!token->name) {
+	token->name = tname(token->id);
+    }
     return tok;
 }
 
@@ -1236,10 +1269,5 @@ int lookahead()
 const char * token_print_function(void *data)
 {
     Token *p = data;
-    if (p->name) {
-	return p->name;
-    }
-    else {
-	return tname(p->id);
-    }
+    return p->name;
 }

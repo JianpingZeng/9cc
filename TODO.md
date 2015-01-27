@@ -5,6 +5,10 @@
 
    待：选项过滤
 
+   gcc -E 会删除多余空白符，导致列号不准。
+
+   -traditional-cpp 选项可以保留空白和注释。
+
 ### `DONE` lexer:fsync
 
    写单元测试，针对fsync函数进行大批量测试

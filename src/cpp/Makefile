@@ -1,8 +1,9 @@
 CC=gcc
-CFLAGS=-c -Wall -std=c99
-LDFLAGS=
+LIBDIR=../lib
+CFLAGS=-c -Wall -std=c99 -I$(LIBDIR)
+LDFLAGS=-L$(LIBDIR) -lcc
 INCLUDES=$(wildcard *.h)
-SOURCES=cpp.c vector.c
+SOURCES=cpp.c
 
 ifeq ($(platform), mac)
 SPEC=mac.c posix.c

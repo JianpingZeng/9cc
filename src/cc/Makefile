@@ -1,20 +1,16 @@
 CC=gcc
-LIBS=libcc.a
-LIB=lib
-CFLAGS=-c -Wall -I$(LIB) -std=c99
-LDFLAGS=-L$(LIB) -lcc
+LIBDIR=../lib
+CFLAGS=-c -Wall -std=c99 -I$(LIBDIR)
+LDFLAGS=-L$(LIBDIR) -lcc
 SOURCES=$(wildcard *.c)
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=cc
 INCLUDES=$(wildcard *.h)
 
-all: $(SOURCES) $(EXECUTABLE) $(LIBS)
+all: $(SOURCES) $(EXECUTABLE)
 
-$(EXECUTABLE): $(OBJECTS) $(LIBS)
+$(EXECUTABLE): $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
-
-$(LIBS):
-	@cd $(LIB) && make
 
 %.o: %.c $(INCLUDES)
 	$(CC) $(CFLAGS) $< -o $@
@@ -23,4 +19,3 @@ $(LIBS):
 
 clean:
 	@rm -f *.o $(EXECUTABLE)
-	@cd $(LIB) && make clean

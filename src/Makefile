@@ -1,26 +1,28 @@
 
-EXECUTABLES=cpp cc mcc
+TARGETS=libcc cpp cc mcc
 
-.PHONY: all cpp cc mcc clean
+.PHONY: all libcc cpp cc mcc clean
 
 ifndef platform
-all:
-	@echo "Usage: make platform=<mac, linux or windows>"
-	@exit 1
-else
-all: $(EXECUTABLES)
+platform=mac
 endif
 
-cpp:
+all: $(TARGETS)
+
+libcc:
+	@cd lib && make
+
+cpp: libcc
 	@cd cpp && make platform=$(platform)
 
-cc:
+cc: libcc
 	@cd cc && make
 
-mcc:
+mcc: libcc
 	@cd driver && make platform=$(platform)
 
 clean:
+	@cd lib && make clean
 	@cd cpp && make clean
 	@cd cc && make clean
 	@cd driver && make clean

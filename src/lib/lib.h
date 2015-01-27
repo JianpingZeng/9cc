@@ -23,6 +23,18 @@ extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
 extern const char *stringd(long n);
 extern void appendstring(const char **string, const char *src, int len);
+typedef struct {
+    char     *str;
+    unsigned size;
+    unsigned capelems;
+    unsigned reserve;
+} String;
+extern String * new_string();
+extern void string_concat_s(String *s, char *src);
+extern void string_concat_n(String *s, char *src, int len);
+extern void string_concat_d(String *s, long d);
+extern char * string_to_array(String *s);
+extern void free_string(String *s);
 
 // vector (container of pointers)
 typedef struct {
@@ -38,11 +50,13 @@ extern void vector_push(Vector *v, void *elem);
 extern void *vector_pop(Vector *v);
 extern void vector_insert(Vector *v, unsigned index, void *elem);
 extern void free_vector(Vector *v);
+extern void purge_vector(Vector *v);
 extern unsigned vector_length(Vector *v);
 extern void *vector_front(Vector *v);
 extern void *vector_back(Vector *v);
 extern void vector_foreach(Vector *v, void (*func) (void *elem));
 extern void ** vector_to_array(Vector *v);
 extern void vector_add_from_array(Vector *v, void **array);
+extern void vector_add_from_vector(Vector *v, Vector *v2);
 
 #endif
