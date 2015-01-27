@@ -229,9 +229,8 @@ static const char *tnames[] = {
 #include "token.h"
 };
 
-static Token token1, token2;
-Token *token = &token1;
-static int lookaheaded;
+static Token _token;
+Token *token = &_token;
 
 static void identifier();
 static int number();
@@ -1091,7 +1090,7 @@ static void identifier()
     unsigned char *ps;
     rpc = ps = pc-1;
     const char *idstr = NULL;
-    for (; rpc != pe ; ) {
+    do {
         while (isdigitletter(*rpc)) {
             rpc++;
         }
@@ -1099,12 +1098,12 @@ static void identifier()
         pc = rpc;
         if (pc == pe) {
             fillbuf();
-            rpc = pc;
+            rpc = ps = pc;
         }
         else {
             break;
         }
-    }
+    } while(rpc != pe);
     
     token->name = strings(idstr);
     deallocate(idstr);
@@ -1136,7 +1135,7 @@ static unsigned escape()
 		    c = (c<<3) + (*pc++) - '0';
 		}
 	    }
-	    if (c > twos(sizeof(unsigned char))) {
+	    if (c > unsignedchartype->limits.max.u) {
 		error("octal escape sequence out of range");
 	    }
 	    return c;
@@ -1145,7 +1144,7 @@ static unsigned escape()
 	{
 	    unsigned c = 0;
 	    int overflow = 0;
-	    if (!(isdigit(*pc) || ishex(*pc))) {
+	    if (!isdigit(*pc) && !ishex(*pc)) {
 		error("\\x used with no following hex digits");
 		return 0;
 	    }
@@ -1189,6 +1188,7 @@ static unsigned escape()
 	}
     default:
 	error("unrecognized escape character 0x%x", pc[-1]);
+	return pc[-1];
     }
 }
 
@@ -1223,27 +1223,14 @@ const char *tname(int t)
 
 int gettok()
 {
-    if (lookaheaded) {
-	token1 = token2;
-	lookaheaded = 0;
-	return token1.id;
-    }
-    else {
-	token1.id = do_gettok();
-	return token1.id;
-    }
+    int tok = do_gettok();
+    token->id = tok;
+    return tok;
 }
 
 int lookahead()
 {
-    if (lookaheaded) {
-	return token2.id;
-    }
-    else {
-	lookaheaded = 1;
-	token2.id = do_gettok();
-	return token2.id;
-    }
+   
 }
 
 const char * token_print_function(void *data)
