@@ -13,6 +13,7 @@
 #include "lib.h"
 
 #define twos(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
+#define bits(type)  (CHAR_BIT * (type)->size)
 
 // cc modules
 #include "config.h"

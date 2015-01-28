@@ -67,7 +67,7 @@ void init_type()
     signedchartype->limits.max.i = SCHAR_MAX;
     signedchartype->limits.min.i = SCHAR_MIN;
 
-    wchartype->limits.max.u = twos(sizeof(wchar_t));
+    wchartype->limits.max.u = WCHAR_MAX;
 
     shorttype->limits.max.i = SHRT_MAX;
     shorttype->limits.min.i = SHRT_MIN;

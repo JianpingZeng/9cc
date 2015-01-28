@@ -1173,10 +1173,18 @@ static unsigned escape(String *s)
 		error("\\x used with no following hex digits");
 		return 0;
 	    }
-	    for (; isdigit(*pc) || ishex(*pc); pc++) {
+	    for (; isdigit(*pc) || ishex(*pc) || pc == pe; ) {
+		if (pc == pe) {
+		    fillbuf();
+		    if (pc == pe) break;
+		    continue;
+		}
 		string_concatn(s, pc, 1);
-		if (overflow) continue;
-		if (c >> (8*unsignedchartype->size - 4)) {
+		if (overflow) {
+		    pc++;
+		    continue;
+		}
+		if (c >> (bits(wchartype) - 4)) {
 		    overflow = 1;
 		    error("hex escape sequence out of range");
 		}
@@ -1188,6 +1196,7 @@ static unsigned escape(String *s)
 			c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
 		    }
 		}
+		pc++;
 	    }
 	    return c;
 	}
