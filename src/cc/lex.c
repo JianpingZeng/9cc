@@ -1075,21 +1075,32 @@ static void char_constant(int wide)
 	}
     }
 
-    if (*pc == '\'')
-	string_concatn(s, pc, 1);
-    token->name = strings(s->str);
+    
     if (*pc != '\'') {
+	token->name = strings(s->str);
 	error("unclosed character constant: %k", token);
     }
-    else if (overflow || (!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u)){
-        error("character constant overflow: %k", token);
-    }
-    else if (len) {
-	if (mbtowc(&c, ws, len) != len) {
-	    error("invalid multi-character sequence");
+    else {
+	string_concatn(s, pc, 1);
+	token->name = strings(s->str);
+
+	if (!char_rec) {
+	    error("incomplete character constant: %k", token);
 	}
+	else if (overflow) {
+	    error("extraneous characters in character constant: %k", token);
+	}
+	else if ((!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u)){
+	    error("character constant overflow: %k", token);
+	}
+	else if (len) {
+	    if (mbtowc(&c, ws, len) != len) {
+		error("invalid multi-character sequence");
+	    }
+	}
+	pc++;
     }
-    pc++;
+    
     token->v.u.u = wide ? (wchar_t) c : (unsigned char) c;
     token->v.type = wide ? wchartype : unsignedchartype;
     free_string(s);
@@ -1163,6 +1174,7 @@ static unsigned escape(String *s)
 		return 0;
 	    }
 	    for (; isdigit(*pc) || ishex(*pc); pc++) {
+		string_concatn(s, pc, 1);
 		if (overflow) continue;
 		if (c >> (8*unsignedchartype->size - 4)) {
 		    overflow = 1;

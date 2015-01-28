@@ -30,3 +30,10 @@ L'\U12345678'
 sadajdkasjdalkjdajdkasdjkaldasduaisduoadioasdoasdasduasioudaiosudasdjkasdhkasdkjashdkjashdjkshadkashdkahsdhasjkdhaskdhasduaisduasidoaiduoasudoaudoaudoa12121212189
 
 'asasaskl
+''
+'\x6789'
+L'\x6789'
+'\x'
+'\12\12'
+L'\12\12'
+'\477'
