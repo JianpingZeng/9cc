@@ -23,6 +23,7 @@ static unsigned char map[255] = {
 #define isblank(c)            (map[c] & BLANK)
 #define isnewline(c)          (map[c] & NEWLINE)
 #define ishex(c)              (map[c] & HEX)
+#define isdigithex(c)         (isdigit(c) || ishex(c))
 
 static unsigned char ibuf[LBUFSIZE+RBUFSIZE+1];
 static unsigned char *pc;
@@ -754,13 +755,13 @@ static int number()
 	String *s = new_string();
 	string_concatn(s, rpc, 2);
         pc = rpc = rpc + 2;
-	if (!isdigit(*rpc) && !ishex(*rpc)) {
+        if (!isdigithex(*rpc) && *rpc != '.') {
 	    token->name = strings(s->str);
 	    free_string(s);
 	    error("incomplete hex constant: %k", token);
 	    return ICONSTANT;
 	}
-        for (; isdigit(*rpc) || ishex(*rpc) || rpc == pe; ) {
+        for (; isdigithex(*rpc) || rpc == pe; ) {
 	    if (rpc == pe) {
 		string_concatn(s, pc, rpc-pc);
 		pc = rpc;
@@ -931,7 +932,51 @@ static void fnumber(unsigned long long n, int overflow, int base, String *s)
     }
     else {
 	assert(*pc=='.'||*pc=='p');
-	
+	if (*pc == '.') {
+	    string_concatn(s, pc, 1);
+	    pc++;
+	    if (!isdigithex(pc[-2]) && !isdigithex(*pc)) {
+		error("hex floating constants require a significand");
+	    }
+	    for (;isdigithex(*pc) || pc == pe;) {
+		if (pc == pe) {
+		    fillbuf();
+		    if (pc == pe) break;
+		    continue;
+		}
+		string_concatn(s, pc, 1);
+		pc++;
+	    }
+	}
+
+	if (*pc == 'p') {
+	    string_concatn(s, pc, 1);
+	    pc++;
+	    if (pe - pc < MAXTOKEN) {
+		fillbuf();
+	    }
+	    if (*pc == '+' || *pc == '-') {
+		string_concatn(s, pc, 1);
+		pc++;
+	    }
+	    if (isdigit(*pc)) {
+		for (;isdigit(*pc) || pc == pe;) {
+		    if (pc == pe) {
+			fillbuf();
+			if (pc == pe) break;
+			continue;
+		    }
+		    string_concatn(s, pc, 1);
+		    pc++;
+		}
+	    }
+	    else {
+		error("exponent has no digits");
+	    }
+	}
+	else {
+	    error("hex floating constants require an exponent");
+	}
     }
 
     float_constant(s);
@@ -1224,11 +1269,11 @@ static unsigned escape(String *s)
 	{
 	    unsigned c = 0;
 	    int overflow = 0;
-	    if (!isdigit(*pc) && !ishex(*pc)) {
+	    if (!isdigithex(*pc)) {
 		error("\\x used with no following hex digits");
 		return 0;
 	    }
-	    for (; isdigit(*pc) || ishex(*pc) || pc == pe; ) {
+	    for (; isdigithex(*pc) || pc == pe; ) {
 		if (pc == pe) {
 		    fillbuf();
 		    if (pc == pe) break;
@@ -1262,7 +1307,7 @@ static unsigned escape(String *s)
 	    int x = 0;
 	    int n = pc[-1] == 'u' ? 4 : 8;
 	    unsigned char *ps = pc - 2;
-	    for (; isdigit(*pc) || ishex(*pc); x++, pc++) {
+	    for (; isdigithex(*pc); x++, pc++) {
 		if (x == n) break;
 
 		if (isdigit(*pc)) {
