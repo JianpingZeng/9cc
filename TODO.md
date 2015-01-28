@@ -9,6 +9,8 @@
 
    -traditional-cpp 选项可以保留空白和注释。
 
+   即使使用上述选项，gcc 也会在文件末尾添加换行符。
+
 ### `DONE` lexer:fsync
 
    写单元测试，针对fsync函数进行大批量测试
