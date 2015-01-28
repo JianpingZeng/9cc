@@ -1,8 +1,8 @@
 #include "cc.h"
 
-#define LBUFSIZE     512
-#define RBUFSIZE     4096
-#define MAXTOKEN       LBUFSIZE
+#define LBUFSIZE     32
+#define RBUFSIZE     32
+#define MAXTOKEN     LBUFSIZE
 
 enum {
     BLANK = 01, NEWLINE = 02, LETTER = 04,
@@ -34,6 +34,7 @@ Source src;
 static void fillbuf()
 {
     if (bread == 0) {
+	if (pc > pe) pc = pe;
         return;
     }
 
@@ -1046,7 +1047,10 @@ static void char_constant(int wide)
 	if (char_rec) {
 	    overflow = 1;
 	}
-	
+	if (isnewline(*pc)) {
+	    break;
+	}
+
 	if (*pc == '\\') {
 	    // escape
 	    c = escape(s);
@@ -1075,7 +1079,7 @@ static void char_constant(int wide)
 	string_concatn(s, pc, 1);
     token->name = strings(s->str);
     if (*pc != '\'') {
-	error("unclosed character constant");
+	error("unclosed character constant: %k", token);
     }
     else if (overflow || (!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u)){
         error("character constant overflow: %k", token);
