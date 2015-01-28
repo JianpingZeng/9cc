@@ -27,7 +27,6 @@ static unsigned char map[255] = {
 static unsigned char ibuf[LBUFSIZE+RBUFSIZE+1];
 static unsigned char *pc;
 static unsigned char *pe;
-static unsigned char *pl;
 static long bread;
 Source src;
 
@@ -49,7 +48,6 @@ static void fillbuf()
 	n = pe - pc;
 	dst = &ibuf[LBUFSIZE] - n;
 	src = pc;
-	pl = dst - (pc - pl);
 	while (src < pe) {
 	    *dst++ = *src++;
 	}
@@ -92,7 +90,7 @@ static void fline()
 	    fillbuf();
 	    if (pc == pe) {
 		if (p) free_string(p);
-		log("input file seems incorrect when #");
+		cclog("input file seems incorrect when #");
 		return;
 	    }
 	}
@@ -202,7 +200,6 @@ static void nextline()
 	}
 	else {
 	    src.line++;
-	    pl = pc;
 	    while (isblank(*pc)) {
 		pc++;
 	    }
@@ -235,11 +232,12 @@ Token *token = &_token;
 
 static void identifier();
 static int number();
+static void fnumber(unsigned long long n, int overflow, int base, String *s);
 static void nextline();
 static void line_comment();
 static void block_comment();
 static unsigned escape(String *s);
-static void float_constant();
+static void float_constant(String *s);
 static void char_constant(int wide);
 static void string_constant(int wide);
 static void integer_constant(unsigned long long value, int overflow, int base, String *s);
@@ -256,8 +254,6 @@ static int do_gettok()
         if (pe - pc < MAXTOKEN) {
             fillbuf();
         }
-
-	src.col = pc - pl + 1;
         
         rpc = pc++;
         
@@ -418,9 +414,8 @@ static int do_gettok()
 		return ELLIPSIS;
 	    }
 	    else if (isdigit(rpc[1])) {
-		token->name = NULL;
 		pc = rpc;
-		float_constant();
+		fnumber(0, 0, 10, NULL);
 		return FCONSTANT;
 	    }
 	    else {
@@ -791,8 +786,8 @@ static int number()
         }
 	string_concatn(s, pc, rpc-pc);
         pc = rpc;
-	if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
-	    float_constant();
+	if (*rpc == '.' || *rpc == 'p') {
+	    fnumber(n, overflow, 16, s);
 	    free_string(s);
 	    return FCONSTANT;
 	}
@@ -832,7 +827,7 @@ static int number()
 	string_concatn(s, pc, rpc-pc);
 	pc = rpc;
 	if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
-	    float_constant();
+	    fnumber(n, overflow, 10, s);
 	    free_string(s);
 	    return FCONSTANT;
 	}
@@ -872,7 +867,7 @@ static int number()
 	string_concatn(s, pc, rpc-pc);
         pc = rpc;
         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
-            float_constant();
+            fnumber(n, overflow, 10, s);
 	    free_string(s);
             return FCONSTANT;
         }
@@ -884,10 +879,70 @@ static int number()
     }
 }
 
-static void float_constant()
+static void fnumber(unsigned long long n, int overflow, int base, String *s)
 {
-    // ./e/E
+    // ./e/E/p
+    if (!s) s = new_string();
     
+    if (base == 10) {
+	assert(*pc=='.'||*pc=='e'||*pc=='E');
+	if (*pc == '.') {
+	    string_concatn(s, pc, 1);
+	    pc++;
+	    for (;isdigit(*pc) || pc == pe;) {
+		if (pc == pe) {
+		    fillbuf();
+		    if (pc == pe) break;
+		    continue;
+		}
+		string_concatn(s, pc, 1);
+		pc++;
+	    }
+	}
+
+	if (*pc == 'e' || *pc == 'E') {
+	    string_concatn(s, pc, 1);
+	    pc++;
+	    if (pe - pc < MAXTOKEN) {
+		fillbuf();
+	    }
+	    if (*pc == '+' || *pc == '-') {
+		string_concatn(s, pc, 1);
+		pc++;
+	    }
+	    if (isdigit(*pc)) {
+		for (;isdigit(*pc) || pc == pe;) {
+		    if (pc == pe) {
+			fillbuf();
+			if (pc == pe) break;
+			continue;
+		    }
+		    string_concatn(s, pc, 1);
+		    pc++;
+		}
+	    }
+	    else {
+		error("invalid float constant");
+	    }
+	}
+
+
+	
+    }
+    else {
+	assert(*pc=='.'||*pc=='p');
+	
+    }
+
+    float_constant(s);
+}
+
+static void float_constant(String *s)
+{
+    if (*pc == 'f' || *pc == 'F' || *pc == 'l' || *pc == 'L') {
+	string_concatn(s, pc++, 1);
+    }
+    token->name = strings(s->str);
 }
 
 static void integer_constant(unsigned long long n, int overflow, int base, String *s)

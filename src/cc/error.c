@@ -5,9 +5,9 @@ unsigned warnings;
 
 #define MAX_ERRORS 32
 
-static void cc_print_lead(const char *lead, const char *file, unsigned line, unsigned column, const char *fmt, va_list ap)
+static void cc_print_lead(const char *lead, const char *file, unsigned line, const char *fmt, va_list ap)
 {
-    fprint(stderr, "%s:%u:%u: %s: ", file, line, column, lead);
+    fprint(stderr, "%s:%u: %s: ", file, line, lead);
     vfprint(stderr, fmt, ap);
     fprint(stderr, "\n");
 }
@@ -16,7 +16,7 @@ void warning(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("warning", src.file, src.line, src.col, fmt, ap);
+    cc_print_lead("warning", src.file, src.line, fmt, ap);
     va_end(ap);
     ++warnings;
 }
@@ -25,7 +25,7 @@ void error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("error", src.file, src.line, src.col, fmt, ap);
+    cc_print_lead("error", src.file, src.line, fmt, ap);
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
@@ -34,7 +34,7 @@ void error(const char *fmt, ...)
     }
 }
 
-void log(const char *fmt, ...)
+void cclog(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

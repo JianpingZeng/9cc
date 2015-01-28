@@ -113,7 +113,7 @@ void register_print_function(char c, PrintFunc p)
 	}
     }
 
-    print_funcs[c] = p;
+    print_funcs[(int)c] = p;
 }
 
 void vfprint(FILE *f, const char *fmt, va_list ap)
@@ -222,8 +222,8 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		break;
 	    default:
 		// search for register formats
-		if (print_funcs[*fmt]) {
-		    PrintFunc p = print_funcs[*fmt];
+		if (print_funcs[(int)*fmt]) {
+		    PrintFunc p = print_funcs[(int)*fmt];
 		    const char *str = p(va_arg(ap, void*));
 		    cc_fputs(f, str);
 		}

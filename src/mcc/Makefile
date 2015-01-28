@@ -2,7 +2,7 @@ ifndef BUILDDIR
 BUILDDIR=../build
 endif
 
-BUILD=$(BUILDDIR)/objects/driver
+BUILD=$(BUILDDIR)/objects/mcc
 CC=gcc
 LIBCC=$(BUILDDIR)/libcc.a
 CFLAGS=-c -Wall -std=c99 -I../lib

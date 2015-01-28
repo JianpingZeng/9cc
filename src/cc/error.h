@@ -5,7 +5,7 @@ extern unsigned errors;
 extern unsigned warnings;
 extern void warning(const char *fmt, ...);
 extern void error(const char *fmt, ...);
-extern void log(const char *fmt, ...);
+extern void cclog(const char *fmt, ...);
 
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);

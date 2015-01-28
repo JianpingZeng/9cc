@@ -8,9 +8,9 @@ static const char *output_file;
 static void test()
 {
     while (gettok() != EOI) {
-    	log("%s:%d:%d: %s: %k", src.file, src.line, src.col, tname(token->id), token);
+    	cclog("%s:%d: %s: %k", src.file, src.line, tname(token->id), token);
     }
-    log("end");
+    cclog("end");
 }
 
 static void cc_init()

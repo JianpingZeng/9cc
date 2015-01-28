@@ -15,7 +15,6 @@ enum {
 typedef struct {
     const char *file;
     unsigned line;
-    unsigned col;
 } Source;
 
 typedef struct {
