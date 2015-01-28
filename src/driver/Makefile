@@ -1,8 +1,12 @@
+ifndef BUILDDIR
+BUILDDIR=../build
+endif
+
+BUILD=$(BUILDDIR)/objects/driver
 CC=gcc
-LIBDIR=../lib
-LIBCC=../lib/libcc.a
-CFLAGS=-c -Wall -std=c99 -I$(LIBDIR)
-LDFLAGS=-L$(LIBDIR) -lcc
+LIBCC=$(BUILDDIR)/libcc.a
+CFLAGS=-c -Wall -std=c99 -I../lib
+LDFLAGS=-L$(BUILDDIR) -lcc
 INCLUDES=$(wildcard *.h)
 SOURCES=mcc.c
 
@@ -18,11 +22,11 @@ ifeq ($(platform), windows)
 SPEC=windows.c
 endif
 
-EXECUTABLE=mcc
+EXECUTABLE=$(BUILDDIR)/mcc
 
 ifdef SPEC
 SOURCES+=$(SPEC)
-OBJECTS=$(SOURCES:.c=.o)
+OBJECTS=$(addprefix $(BUILD)/, $(SOURCES:.c=.o))
 all: $(SOURCES) $(EXECUTABLE)
 else
 all:
@@ -33,10 +37,11 @@ endif
 $(EXECUTABLE): $(OBJECTS) $(LIBCC)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
-%.o: %.c $(INCLUDES)
+$(BUILD)/%.o: %.c $(INCLUDES)
+	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $< -o $@
 
 .PHONY: clean
 
 clean:
-	@rm -f *.o $(EXECUTABLE)
+	@rm -f $(OBJECTS) $(EXECUTABLE)

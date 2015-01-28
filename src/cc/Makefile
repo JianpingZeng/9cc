@@ -1,11 +1,15 @@
+ifndef BUILDDIR
+BUILDDIR=../build
+endif
+
+BUILD=$(BUILDDIR)/objects/cc
 CC=gcc
-LIBDIR=../lib
-LIBCC=../lib/libcc.a
-CFLAGS=-c -Wall -std=c99 -I$(LIBDIR)
-LDFLAGS=-L$(LIBDIR) -lcc
+LIBCC=$(BUILDDIR)/libcc.a
+CFLAGS=-c -Wall -std=c99 -I../lib
+LDFLAGS=-L$(BUILDDIR) -lcc
 SOURCES=$(wildcard *.c)
-OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=cc
+OBJECTS=$(addprefix $(BUILD)/, $(SOURCES:.c=.o))
+EXECUTABLE=$(BUILDDIR)/cc
 INCLUDES=$(wildcard *.h)
 
 all: $(SOURCES) $(EXECUTABLE)
@@ -13,10 +17,11 @@ all: $(SOURCES) $(EXECUTABLE)
 $(EXECUTABLE): $(OBJECTS) $(LIBCC)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
-%.o: %.c $(INCLUDES)
+$(BUILD)/%.o: %.c $(INCLUDES)
+	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $< -o $@
 
 .PHONY: clean
 
 clean:
-	@rm -f *.o $(EXECUTABLE)
+	@rm -f $(OBJECTS) $(EXECUTABLE)

@@ -1,20 +1,22 @@
+BUILD=$(BUILDDIR)/objects/lib
 CC=gcc
 CFLAGS=-c -Wall -std=c99
 AR=ar
 ARFLAGS=crv
 SOURCES=$(wildcard *.c)
-OBJECTS=$(SOURCES:.c=.o)
-ARCHIVE=libcc.a
+OBJECTS=$(addprefix $(BUILD)/, $(SOURCES:.c=.o))
+ARCHIVE=$(BUILDDIR)/libcc.a
 
 all: $(SOURCES) $(ARCHIVE)
 
 $(ARCHIVE): $(OBJECTS)
 	$(AR) $(ARFLAGS) $@ $(OBJECTS)
 
-.c.o:
+$(BUILD)/%.o: %.c
+	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $< -o $@
 
-.PHONY: clean
+.PHONY: clean 
 
 clean:
-	@rm -f *.o $(ARCHIVE)
+	@rm -f $(OBJECTS) $(ARCHIVE)
