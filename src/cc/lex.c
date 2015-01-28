@@ -1210,10 +1210,13 @@ static void string_constant(int wide)
     //
     String *s = new_string();
     wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
-    for (; *pc != '\"' && pc < pe;) {
+    for (; *pc != '\"';) {
 	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
 	    if (pc == pe) break;
+	}
+	if (isnewline(*pc)) {
+	    break;
 	}
 
 	if (*pc == '\\') {

@@ -7,10 +7,12 @@ static const char *output_file;
 
 static void test()
 {
+    unsigned long n = 0;
     while (gettok() != EOI) {
+	n++;
     	cclog("%s:%d: %s: %k", src.file, src.line, tname(token->id), token);
     }
-    cclog("end");
+    cclog("%lu tokens", n);
 }
 
 static void cc_init()
