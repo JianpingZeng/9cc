@@ -1084,7 +1084,7 @@ static void char_constant(int wide)
 	string_concatn(s, pc, 1);
 	token->name = strings(s->str);
 
-	if (!char_rec) {
+	if (!char_rec && !len) {
 	    error("incomplete character constant: %k", token);
 	}
 	else if (overflow) {
