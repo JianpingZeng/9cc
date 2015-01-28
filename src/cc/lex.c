@@ -1138,9 +1138,8 @@ static void char_constant(int wide)
     
     String *s = new_string();
     wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
-    
     for (; *pc != '\'';) {
-	if (pc >= pe) {
+	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
 	    if (pc == pe) break;
 	}
@@ -1208,8 +1207,29 @@ static void char_constant(int wide)
 
 static void string_constant(int wide)
 {
+    //
+    String *s = new_string();
+    wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
+    for (; *pc != '\"' && pc < pe;) {
+	if (pe - pc < MAXTOKEN) {
+	    fillbuf();
+	    if (pc == pe) break;
+	}
 
-    
+	if (*pc == '\\') {
+	    escape(s);
+	}
+	else {
+	    string_concatn(s, pc, 1);
+	    pc++;
+	}
+    }
+
+    if (*pc == '\"') {
+	string_concatn(s, pc++, 1);
+    }
+    token->name = strings(s->str);
+    free_string(s);
 }
 
 static void identifier()
