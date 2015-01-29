@@ -7,6 +7,8 @@ extern void warning(const char *fmt, ...);
 extern void error(const char *fmt, ...);
 extern void fatal(const char *fmt, ...);
 extern void logv(const char *fmt, ...);
+extern void warningf(unsigned line, const char *fmt, ...);
+extern void errorf(unsigned line, const char *fmt, ...);
 
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);

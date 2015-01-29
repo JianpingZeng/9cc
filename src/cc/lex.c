@@ -740,6 +740,7 @@ static void line_comment()
 static void block_comment()
 {
     pc++;
+    unsigned line = src.line;
     for (; pc[0] != '*' || pc[1] != '/'; ) {
 	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
@@ -750,7 +751,7 @@ static void block_comment()
 	}
     }
     if (pc == pe) {
-	error("unterminated /* comment");
+	errorf(line, "unterminated /* comment");
     }
     else {
         pc += 2;

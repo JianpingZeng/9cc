@@ -12,6 +12,15 @@ static void cc_print_lead(const char *lead, const char *file, unsigned line, con
     fprint(stderr, "\n");
 }
 
+void warningf(unsigned line, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    cc_print_lead("warning", src.file, line, fmt, ap);
+    va_end(ap);
+    ++warnings;
+}
+
 void warning(const char *fmt, ...)
 {
     va_list ap;
@@ -19,6 +28,19 @@ void warning(const char *fmt, ...)
     cc_print_lead("warning", src.file, src.line, fmt, ap);
     va_end(ap);
     ++warnings;
+}
+
+void errorf(unsigned line, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    cc_print_lead("error", src.file, line, fmt, ap);
+    va_end(ap);
+    ++errors;
+    if (errors >= MAX_ERRORS) {
+	fprint(stderr, "Too many errors.\n");
+	exit(EXIT_FAILURE);
+    }
 }
 
 void error(const char *fmt, ...)

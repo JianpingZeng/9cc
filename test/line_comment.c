@@ -24,3 +24,18 @@ asad //asdako;;o
    */
 
 int adas /***asdasdjasd*/ ;
+ asd999  /**
+
+
+
+
+
+
+
+asdasdk
+ int akl
+
+
+
+	 *//**/
+ /* /*
