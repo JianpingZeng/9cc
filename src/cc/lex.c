@@ -9,7 +9,7 @@ enum {
     DIGIT = 010, HEX = 020, OTHER = 040,
 };
 
-static unsigned char map[255] = {
+static unsigned char map[256] = {
 #define _a(x, y, z)     z,
 #define _x(a, b, c, d)
 #define _t(a, b, c)
