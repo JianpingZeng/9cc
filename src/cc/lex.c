@@ -1396,14 +1396,12 @@ const char *tname(int t)
 
 int gettok()
 {
-    int tok;
     token->name = NULL;
-    tok = do_gettok();
-    token->id = tok;
+    token->id = do_gettok();
     if (!token->name) {
 	token->name = tname(token->id);
     }
-    return tok;
+    return token->id;
 }
 
 int lookahead()
