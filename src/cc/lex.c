@@ -17,13 +17,62 @@ static unsigned char map[255] = {
     OTHER,
 };
 
-#define isdigit(c)            (map[c] & DIGIT)
-#define isletter(c)           (map[c] & LETTER)
-#define isdigitletter(c)      (isdigit(c) || isletter(c))
-#define isblank(c)            (map[c] & BLANK)
-#define isnewline(c)          (map[c] & NEWLINE)
-#define ishex(c)              (map[c] & HEX)
-#define isdigithex(c)         (isdigit(c) || ishex(c))
+/* Don't use macro here, because macro make things wrong.
+ * For example:
+ *
+ * #define isvisible(c)     ((c) >= 040 && (c) < 0177)
+ *
+ * Then:
+ *
+ * isvisible(*pc++)
+ *
+ * will be expanded to:
+ *
+ * ((*pc++) >= 040 && (*pc++) < 0177)
+ *
+ * which is not we want.
+ *
+ */
+
+static int isdigit(unsigned char c)
+{
+    return map[c] & DIGIT;
+}
+
+static int isletter(unsigned char c)
+{
+    return map[c] & LETTER;
+}
+
+static int isdigitletter(unsigned char c)
+{
+    return isdigit(c) || isletter(c);
+}
+
+static int isblank(unsigned char c)
+{
+    return map[c] & BLANK;
+}
+
+static int isnewline(unsigned char c)
+{
+    return map[c] & NEWLINE;
+}
+
+static int ishex(unsigned char c)
+{
+    return map[c] & HEX;
+}
+
+static int isdigithex(unsigned char c)
+{
+    return isdigit(c) || ishex(c);
+}
+
+static int isvisible(unsigned char c)
+{
+    return c >= 040 && c < 0177;
+}
 
 static unsigned char ibuf[LBUFSIZE+RBUFSIZE+1];
 static unsigned char *pc;
@@ -93,7 +142,6 @@ static void skipline()
     	if (pe - pc < LBUFSIZE) {
     	    fillbuf();
     	    if (pc == pe) {
-    		warning("preprocessor directive not end of a newline character.");
     		break;
     	    }
     	}
@@ -110,7 +158,7 @@ static void fline()
 	line = line * 10 + *pc - '0';
 	pc++;
     }
-    src.line = line;
+    src.line = line-1;
 
     skipblank();
 
@@ -672,7 +720,12 @@ static int do_gettok()
                 
 	default:
 	    if (!isblank(*rpc)) {
-		error("invalid character 0x%x", *rpc);
+		if (isvisible(*rpc)) {
+		    error("invalid character '%c'", *rpc);
+		}
+		else {
+		    error("invalid character '\\0%o'", *rpc);
+		}
 	    }
         }
     }
@@ -680,48 +733,27 @@ static int do_gettok()
 
 static void line_comment()
 {
-    unsigned char *rpc = pc + 1;
-    for (; ; ) {
-        while (!isnewline(*rpc)) {
-            rpc++;
-        }
-        pc = rpc;
-        if (pe - pc < MAXTOKEN) {
-            fillbuf();
-            rpc = pc;
-        }
-        if (isnewline(*rpc)) {
-	    pc++;
-            break;
-        }
-    }
+    skipline();
     nextline();
 }
 
 static void block_comment()
 {
-    unsigned char *rpc = pc + 1;
-    for (; rpc[0] != '*' || rpc[1] != '/'; ) {
-        if (isnewline(*rpc)) {
-            pc = rpc;
-            if (pe - pc < MAXTOKEN) {
-                fillbuf();
-            }
-            nextline();
-            rpc = pc;
-            if (pc == pe) {
-                break;
-            }
-        }
-        else {
-            rpc++;
-        }
+    pc++;
+    for (; pc[0] != '*' || pc[1] != '/'; ) {
+	if (pe - pc < MAXTOKEN) {
+	    fillbuf();
+	    if (pc == pe) break;
+	}
+	if (isnewline(*pc++)) {
+	    nextline();
+	}
     }
-    if (rpc < pe) {
-        pc = rpc + 2;
+    if (pc == pe) {
+	error("unterminated /* comment");
     }
     else {
-        error("unclosed comment");
+        pc += 2;
     }
 }
 
@@ -1382,29 +1414,4 @@ const char * token_print_function(void *data)
 {
     Token *p = data;
     return p->name;
-}
-
-int fake_gettok()
-{
-    for (;;) {
-	while (isblank(*pc)) {
-            pc++;
-        }
-        
-        if (pe - pc < MAXTOKEN) {
-            fillbuf();
-        }
-
-	switch(*pc++) {
-	case '\n':
-	    nextline();
-	    if (pc == pe) {
-		return EOI;
-	    }
-	    continue;
-
-	default:
-	    break;
-	}
-    }
 }

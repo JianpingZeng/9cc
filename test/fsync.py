@@ -74,7 +74,8 @@ def main():
     input_file = None
     for arg in argv[1:]:
         if arg.startswith("-I"):
-            incs.append(arg)
+            p = os.path.expanduser(arg[2:])
+            incs.append("-I"+p)
         else:
             input_file = arg
 

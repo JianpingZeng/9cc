@@ -41,7 +41,4 @@ extern int  lookahead();
 extern void match(int t);
 extern const char *tname(int t);
 
-// test
-extern int fake_gettok();
-
 #endif

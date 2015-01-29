@@ -43,7 +43,7 @@ void fatal(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
-void cclog(const char *fmt, ...)
+void logv(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

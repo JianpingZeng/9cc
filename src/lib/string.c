@@ -17,7 +17,7 @@ const char *stringn(const char *src, int len)
     register unsigned char *p;
     const char *end = src + len;
     
-    if (src == NULL) {
+    if (src == NULL || len < 0) {
         return NULL;
     }
     
