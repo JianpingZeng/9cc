@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import re
 
-CC="/usr/bin/c99"
+CC="/usr/bin/gcc"
 MCC=os.path.abspath("./mcc")
 tmpdir = tempfile.mkdtemp()
 inc="../src/cc/lib"

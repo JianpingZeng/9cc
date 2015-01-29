@@ -72,123 +72,103 @@ static void fillbuf()
     *pe = '\n';
 }
 
-static void fline()
+static void skipblank()
 {
-    unsigned line = 0;
-    unsigned char *fb;
-    unsigned char *f = NULL;
-    String *p = new_string();
-    struct {
-	unsigned char line_rec : 1;
-	unsigned char line_got : 1;
-	unsigned char file_rec : 1;
-	unsigned char file_got : 1;
-    } s;
-    memset(&s, 0, sizeof(s));
-    assert(isdigit(*pc));
-    for (;;) {
-	if (pe - pc <= LBUFSIZE) {
+     do {
+	while (isblank(*pc)) {
+	    pc++;
+	}
+	if (pe - pc < LBUFSIZE) {
 	    fillbuf();
 	    if (pc == pe) {
-		if (p) free_string(p);
-		cclog("input file seems incorrect when #");
 		return;
 	    }
 	}
-	if (!s.line_rec) {
-	    while (!isdigit(*pc) && pc < pe) {
-		pc++;
-	    }
-	    if (pc == pe) continue;
-	}
-	s.line_rec = 1;
-	if (!s.line_got) {
-	    while (isdigit(*pc)) {
-		line = line * 10 + *pc - '0';
-		pc++;
-	    }
-	    if (pc == pe) continue;
-	}
-	s.line_got = 1;
-	if (!s.file_rec) {
-	    while (*pc != '"' && pc < pe) {
-		pc++;
-	    }
-	    if (pc == pe) continue;
-	    pc++;
-	    if (pc == pe) {
-		s.file_rec = 1;
-		continue;
-	    }
-	}
-	s.file_rec = 1;
-	if (!s.file_got) {
-	    fb = pc;
-	    while (*pc != '"' && pc < pe) {
-		pc++;
-	    }
-	    if (pc == pe) {
-		string_concatn(p, fb, pc-fb);
-		continue;
-	    }
-	    string_concatn(p, fb, pc-fb);
-	    f = strings(p->str);
-	    free_string(p);
-	    p = NULL;
-	}
-	s.file_got = 1;
-	while (*pc != '\n') {
-	    pc++;
-	}
-	if (pc == pe) continue;
-	if (++pc == pe) {
-	    fillbuf();
-	}
-	src.file = f;
-	src.line = line-1;
-	break;
+    } while (isblank(*pc));
+}
+
+static void skipline()
+{
+     while (*pc++ != '\n') {
+    	if (pe - pc < LBUFSIZE) {
+    	    fillbuf();
+    	    if (pc == pe) {
+    		warning("preprocessor directive not end of a newline character.");
+    		break;
+    	    }
+    	}
     }
+}
+
+static void fline()
+{
+    assert(isdigit(*pc));
+
+    unsigned line = 0;
+
+    while (isdigit(*pc)) {
+	line = line * 10 + *pc - '0';
+	pc++;
+    }
+    src.line = line;
+
+    skipblank();
+
+    if (*pc == '"') {
+	String *s = new_string();
+	pc++;
+	for (; *pc != '"' || pc == pe;) {
+	    if (pe - pc < LBUFSIZE) {
+		fillbuf();
+		if (pc == pe) break;
+	    }
+	    if (*pc == '\\' && pc[1] == '"') {
+		string_concatn(s, pc+1, 1);
+		pc += 2;
+	    }
+	    else {
+		string_concatn(s, pc++, 1);
+	    }
+	}
+	src.file = strings(s->str);
+	free_string(s);
+	skipline();
+    }
+    else {
+        skipline();
+    }
+}
+
+static void fpragma()
+{
+    //TODO:
+    skipline();
 }
 
 static void fsync()
 {
-    // # n "file"
     assert(*pc++ == '#');
 
-    do {
-	if (pe - pc < LBUFSIZE) {
-	    fillbuf();
-	    if (pc == pe) {
-		error("input file seems incorrect while #");
-		return;
-	    }
-	}
-	while (isblank(*pc)) {
-	    pc++;
-	}
-    } while (*pc == '\n' && pc == pe);
+    skipblank();
     
     if (isdigit(*pc)) {
+	// # n "filename"
 	fline();
     }
+    else if (!strncmp(pc, "line", 4)) {
+	// #line n "filename"
+	pc += 4;
+	skipblank();
+	fline();
+    }
+    else if (!strncmp(pc, "pragma", 6)) {
+	// #pragma 
+	pc += 6;
+	fpragma();
+    }
     else {
-	//TODO:support pragma etc.
-	do {
-	    if (pe - pc < LBUFSIZE) {
-		fillbuf();
-		if (pc == pe) {
-		    error("input file seems incorrect while #");
-		    return;
-		}
-	    }
-	    while (*pc != '\n') {
-		pc++;
-	    }
-	} while (*pc == '\n' && pc == pe);
-	
-        if (++pc == pe) {
-	    fillbuf();
-	}
+	// others
+        skipline();
     }
 }
 
@@ -1402,4 +1382,29 @@ const char * token_print_function(void *data)
 {
     Token *p = data;
     return p->name;
+}
+
+int fake_gettok()
+{
+    for (;;) {
+	while (isblank(*pc)) {
+            pc++;
+        }
+        
+        if (pe - pc < MAXTOKEN) {
+            fillbuf();
+        }
+
+	switch(*pc++) {
+	case '\n':
+	    nextline();
+	    if (pc == pe) {
+		return EOI;
+	    }
+	    continue;
+
+	default:
+	    break;
+	}
+    }
 }
