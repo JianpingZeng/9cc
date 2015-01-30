@@ -10,7 +10,20 @@ static void test()
     unsigned long n = 0;
     while (gettok() != EOI) {
     	n++;
-    	logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
+	if (token->id == ICONSTANT) {
+	    if (token->v.type->op == INT) {
+		logv("%s:%d: [%s] [0x%llx] %k", src.file, src.line, tname(token->id), token->v.u.i, token);
+	    }
+	    else if (token->v.type->op == UNSIGNED) {
+		logv("%s:%d: [%s] [%llu] %k", src.file, src.line, tname(token->id), token->v.u.u, token);
+	    }
+	    else {
+		assert(0);
+	    }
+	}
+	else {
+	    logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
+	}
     }
     logv("%lu tokens", n);
 }

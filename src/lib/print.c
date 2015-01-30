@@ -130,11 +130,26 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		break;
 	    case 'l':
 		++fmt;
-		if (*fmt == 'd') {
+		if (fmt[0] == 'l' && fmt[1] == 'd') {
+		    cc_int(f, va_arg(ap, long long));
+		    fmt++;
+		}
+		else if (fmt[0] == 'l' && fmt[1] == 'u') {
+		    cc_uint(f, va_arg(ap, unsigned long long), 10, 0);
+		    fmt++;
+		}
+		else if (fmt[0] == 'l' && (fmt[1] == 'x' || fmt[1] == 'X')) {
+		    cc_uint(f, va_arg(ap, unsigned long long), 16, fmt[1] == 'x' ? 0 : 1);
+		    fmt++;
+		}
+		else if (*fmt == 'd') {
 		    cc_int(f, va_arg(ap, long));
 		}
 		else if (*fmt == 'u') {
 		    cc_uint(f, va_arg(ap, unsigned long), 10, 0);
+		}
+		else if (*fmt == 'x' || *fmt == 'X') {
+		    cc_uint(f, va_arg(ap, unsigned long), 16, *fmt == 'x' ? 0 : 1);
 		}
 		else {
 		    cc_fputc(f, 'l');
