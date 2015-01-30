@@ -1252,7 +1252,7 @@ static void identifier()
 {
     unsigned char *rpc;
     String *s = new_string();
-    rpc = pc = pc-1;
+    rpc = pc = pc - 1;
     for (;isdigitletter(*rpc) || rpc == pe;) {
 	if (rpc == pe) {
 	    string_concatn(s, pc, rpc-pc);
