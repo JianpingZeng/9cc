@@ -25,6 +25,8 @@
 
    待：as、ld的调用
 
+   完成后删除临时文件
+
 ### `DONE` 移除tname，改用register_print_function
 
     仍保留。

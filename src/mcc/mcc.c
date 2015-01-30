@@ -208,6 +208,8 @@ int main(int argc, char *argv[])
     
     purge_vector(inputlist);
     purge_vector(optionlist);
+
+    rmdir(tmpdir);
     
     return ret;
 }

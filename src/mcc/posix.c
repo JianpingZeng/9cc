@@ -74,3 +74,10 @@ const char *replace_suffix(const char *path, const char *suffix)
     p[len+1+strlen(suffix)] = 0;
     return p;
 }
+
+int rmdir(const char *dir)
+{
+    char command[64];
+    snprintf(command, sizeof(command), "rm -rf %s", dir);
+    system(command);
+}
