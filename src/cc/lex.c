@@ -769,9 +769,9 @@ static int number()
 	string_concatn(s, rpc, 2);
         pc = rpc = rpc + 2;
         if (!isdigithex(*rpc) && *rpc != '.') {
-	    token->name = strings(s->str);
-	    free_string(s);
+	    integer_constant(n, overflow, 16, s);
 	    error("incomplete hex constant: %k", token);
+	    free_string(s);
 	    return ICONSTANT;
 	}
         for (; isdigithex(*rpc) || rpc == pe; ) {
@@ -1120,21 +1120,15 @@ static void integer_constant(unsigned long long n, int overflow, int base, Strin
     switch (token->v.type->op) {
     case INT:
 	if (overflow || n > longlongtype->limits.max.i) {
-	    warning("integer constant overflow: %k", token);
-	    token->v.u.i = longlongtype->limits.max.i;
+	    error("integer constant overflow: %k", token);
 	}
-	else {
-	    token->v.u.i = n;
-	}
+	token->v.u.i = n;
 	break;
     case UNSIGNED:
 	if (overflow) {
-	    token->v.u.u = unsignedlonglongtype->limits.max.u;
-	    warning("integer constant overflow: %k", token);
+	    error("integer constant overflow: %k", token);
 	}
-	else {
-	    token->v.u.u = n;
-	}
+	token->v.u.u = n;
 	break;
     default:
 	assert(0);

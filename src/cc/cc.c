@@ -12,10 +12,12 @@ static void test()
     	n++;
 	if (token->id == ICONSTANT) {
 	    if (token->v.type->op == INT) {
-		logv("%s:%d: [%s] [0x%llx] %k", src.file, src.line, tname(token->id), token->v.u.i, token);
+		logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
+		     src.file, src.line, tname(token->id), token->v.type, token->v.u.i, token->v.u.i, token->v.u.i, token);
 	    }
 	    else if (token->v.type->op == UNSIGNED) {
-		logv("%s:%d: [%s] [%llu] %k", src.file, src.line, tname(token->id), token->v.u.u, token);
+		logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
+		     src.file, src.line, tname(token->id), token->v.type, token->v.u.u, token->v.u.i, token->v.u.i, token);
 	    }
 	    else {
 		assert(0);

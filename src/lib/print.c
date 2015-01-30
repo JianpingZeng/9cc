@@ -142,6 +142,10 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		    cc_uint(f, va_arg(ap, unsigned long long), 16, fmt[1] == 'x' ? 0 : 1);
 		    fmt++;
 		}
+		else if (fmt[0] == 'l' && fmt[1] == 'o') {
+		    cc_uint(f, va_arg(ap, unsigned long long), 8, 0);
+		    fmt++;
+		}
 		else if (*fmt == 'd') {
 		    cc_int(f, va_arg(ap, long));
 		}
@@ -150,6 +154,9 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		}
 		else if (*fmt == 'x' || *fmt == 'X') {
 		    cc_uint(f, va_arg(ap, unsigned long), 16, *fmt == 'x' ? 0 : 1);
+		}
+		else if (*fmt == 'o') {
+		    cc_uint(f, va_arg(ap, unsigned long), 8, 0);
 		}
 		else {
 		    cc_fputc(f, 'l');

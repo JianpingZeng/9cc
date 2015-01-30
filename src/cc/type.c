@@ -286,5 +286,5 @@ Type * typename()
 const char * type_print_function(void *data)
 {
     Type *p = data;
-    
+    return p->name;
 }
