@@ -1247,6 +1247,21 @@ static void string_constant(int wide)
 	}
     }
 
+    if (wide) {
+	size_t len = string_length(s) - 2;
+	wchar_t ws[len+1];
+	errno = 0;
+	size_t wlen = mbstowcs(ws, s->str+2, len);
+	if (errno == EILSEQ) {
+	    error("invalid multibyte sequence: %s", s->str);
+	}
+	assert(wlen<=len+1);
+        token->v.type = arraytype(wchartype, wlen, NULL);
+    }
+    else {
+	token->v.type = arraytype(chartype, string_length(s)-1, NULL);
+    }
+    
     if (*pc == '"') {
 	string_concatn(s, pc++, 1);
     }

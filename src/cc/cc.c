@@ -10,34 +10,35 @@ static void test()
     unsigned long n = 0;
     while (gettok() != EOI) {
     	n++;
-	if (token->id == ICONSTANT) {
-	    if (token->v.type->op == INT) {
-		logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
-		     src.file, src.line, tname(token->id), token->v.type, token->v.u.i, token->v.u.i, token->v.u.i, token);
-	    }
-	    else if (token->v.type->op == UNSIGNED) {
-		logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
-		     src.file, src.line, tname(token->id), token->v.type, token->v.u.u, token->v.u.i, token->v.u.i, token);
-	    }
-	    else {
-		assert(0);
-	    }
-	}
-	else if (token->id == FCONSTANT) {
-	    if (token->v.type == longdoubletype) {
-		logv("%s:%d: [%s] <%t> [%Lf] %k",
-		     src.file, src.line, tname(token->id), token->v.type, token->v.u.ld, token);
-	    }
-	    else {
-		logv("%s:%d: [%s] <%t> [%f] %k",
-		     src.file, src.line, tname(token->id), token->v.type, token->v.u.d, token);
-	    }
-	}
-	else {
-	    logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
-	}
+	// if (token->id == ICONSTANT) {
+	//     if (token->v.type->op == INT) {
+	// 	logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
+	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.i, token->v.u.i, token->v.u.i, token);
+	//     }
+	//     else if (token->v.type->op == UNSIGNED) {
+	// 	logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
+	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.u, token->v.u.i, token->v.u.i, token);
+	//     }
+	//     else {
+	// 	assert(0);
+	//     }
+	// }
+	// else if (token->id == FCONSTANT) {
+	//     if (token->v.type == longdoubletype) {
+	// 	logv("%s:%d: [%s] <%t> [%Lf] %k",
+	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.ld, token);
+	//     }
+	//     else {
+	// 	logv("%s:%d: [%s] <%t> [%f] %k",
+	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.d, token);
+	//     }
+	// }
+	// else {
+	//     logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
+	// }
+	logv("%k", token);
     }
-    logv("%lu tokens", n);
+    logv("%lu tokens, %lu errors, %lu warnings", n, errors, warnings);
 }
 
 static void cc_init()

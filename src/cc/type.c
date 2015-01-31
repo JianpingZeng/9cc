@@ -292,6 +292,16 @@ Type * typename()
     return NULL;
 }
 
+Type * arraytype(Type *basety, size_t n, void *p)
+{
+    //TODO:
+    Type *ty = new(Type);
+    ty->op = ARRAY;
+    ty->size = basety->size * n;
+
+    return ty;
+}
+
 const char * type_print_function(void *data)
 {
     Type *p = data;

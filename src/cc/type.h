@@ -49,6 +49,7 @@ extern Type *unqual(int t, Type *ty);
 extern int equal_type(Type *ty1, Type *ty2);
 extern int istypedefname(const char *id);
 extern Type *typename();
+extern Type * arraytype(Type *basety, size_t n, void *p);
 
 extern Type    *chartype;               // char
 extern Type    *unsignedchartype;       // unsigned char
