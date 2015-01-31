@@ -1,7 +1,7 @@
 #include "cc.h"
 
-#define LBUFSIZE     32
-#define RBUFSIZE     32
+#define LBUFSIZE     512
+#define RBUFSIZE     4096
 #define MAXTOKEN     LBUFSIZE
 
 enum {
@@ -1231,7 +1231,7 @@ static void string_constant(int wide)
     String *s = new_string();
     wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
     for (; *pc != '"';) {
-	if (pc == pe) {
+	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
 	    if (pc == pe) break;
 	}

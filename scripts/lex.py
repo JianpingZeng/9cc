@@ -8,9 +8,14 @@ import sys
 import subprocess
 import tempfile
 import re
+import tempfile
 
-GCC="/usr/bin/gcc"
-MCC=os.path.abspath("./mcc")
+
+TMPDIR = tempfile.mkdtemp()
+GCC = "/usr/bin/gcc"
+MCC = os.path.abspath("./mcc")
+gcc_i = os.path.join(TMPDIR, "1.i")
+mcc_i = os.path.join(TMPDIR, "2.i")
 
 class Line(object):
     def __init__(self, cstr):
@@ -99,11 +104,13 @@ def isopeq(ch):
 tokens = 0
 errors = 0
 warnings = 0
+gcc_out = ""
 
 def puttok(token):
     '''put token'''
-    print token
+    global gcc_out
     global tokens
+    gcc_out = gcc_out + token + "\n"
     tokens = tokens + 1
 
 def error(key):
@@ -141,7 +148,7 @@ def number(line, i):
     if line[i] == '0' and (line[i+1] == 'x' or line[i+1] == 'X'):
         # hex
         i = i+2
-        if not line[i].isdigit() and line[i] != '.':
+        if not line[i].isdigit() and not line[i] != '.':
             error("incomplete hex constant")
             return inumber(line, beg, i)
 
@@ -382,7 +389,7 @@ def gcc_process(file, argv=None):
     if argv:
         gcc_argv = gcc_argv + argv
 
-    p = subprocess.Popen(gcc_argv, stdout=subprocess.PIPE)
+    p = subprocess.Popen(gcc_argv, stdout=subprocess.PIPE, stderr=open("/dev/null", "w"))
     out = p.communicate()[0]
     lines = out.splitlines()
 
@@ -391,14 +398,23 @@ def gcc_process(file, argv=None):
     global warnings
     tokens = 0
     errors = 0
-    
+
+    global gcc_out
+    gcc_out = ""
     for line in lines:
         line = line.strip()
         if not line.startswith("#") and len(line) > 0:
             parse_line(Line(line))
 
-    print "%u tokens, %u errors, %u warnings" % (tokens, errors, warnings)
-            
+    sumary = "%u tokens, %u errors, %u warnings\n" % (tokens, errors, warnings)
+    gcc_out = gcc_out + sumary
+    
+    f = open(gcc_i, "w")
+    f.seek(0)
+    f.write(gcc_out)
+    f.close()
+
+    return gcc_i
 
 def mcc_process(file, argv=None):
     '''process a file'''
@@ -408,17 +424,42 @@ def mcc_process(file, argv=None):
     if argv:
         mcc_argv = mcc_argv + argv
 
+    p = subprocess.Popen(mcc_argv, stderr=subprocess.PIPE)
+    out = p.communicate()[1]
+
+    f = open(mcc_i, "w")
+    f.seek(0)
+    f.write(out)
+
+    return mcc_i
 
 def process(file, argv=None):
     '''process'''
 
-    gcc_process(file, argv)
+    file1 = gcc_process(file, argv)
+    file2 = mcc_process(file, argv)
 
+    # diff
+    ret = subprocess.call(["diff", file1, file2], stderr=open("/dev/null", "w")) 
+    if ret == 0:
+        print "[OK] "+file
+    else:
+        print "[FAILED]", file
+        
+        # sys.exit(1)
+
+def pre_process():
+    '''pre'''
+
+
+def post_process():
+    '''post'''
+    
 
 def main():
     '''main'''
     if len(sys.argv) < 2:
-        print "fsync.py <input-file> -I[include directory]"
+        print sys.argv[0], "<input-file> -I[include directory]"
         sys.exit(1)
 
     argv = sys.argv
@@ -434,6 +475,8 @@ def main():
     if not input_file:
         print "no input file."
         sys.exit(1)
+
+    pre_process()
             
     if os.path.isfile(input_file):
         if input_file.endswith(".c"):
@@ -449,6 +492,9 @@ def main():
             process(file, incs)
     else:
         print "No such file or directory:", input_file
+
+
+    post_process()
 
 if __name__ == "__main__":
     reload(sys)
