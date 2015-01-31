@@ -1198,7 +1198,7 @@ static void char_constant(int wide)
     
     if (*pc != '\'') {
 	token->name = strings(s->str);
-	error("unclosed character constant: %k", token);
+	error("unterminated character constant: %k", token);
     }
     else {
 	string_concatn(s, pc, 1);
