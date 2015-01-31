@@ -1228,11 +1228,10 @@ static void char_constant(int wide)
 
 static void string_constant(int wide)
 {
-    //
     String *s = new_string();
     wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
-    for (; *pc != '\"';) {
-	if (pe - pc < MAXTOKEN) {
+    for (; *pc != '"';) {
+	if (pc == pe) {
 	    fillbuf();
 	    if (pc == pe) break;
 	}
@@ -1244,13 +1243,15 @@ static void string_constant(int wide)
 	    escape(s);
 	}
 	else {
-	    string_concatn(s, pc, 1);
-	    pc++;
+	    string_concatn(s, pc++, 1);
 	}
     }
 
-    if (*pc == '\"') {
+    if (*pc == '"') {
 	string_concatn(s, pc++, 1);
+    }
+    else {
+	error("unterminated string constant: %s", s->str);
     }
     token->name = strings(s->str);
     free_string(s);
@@ -1281,8 +1282,7 @@ static void identifier()
 static unsigned escape(String *s)
 {
     assert(*pc == '\\');
-    pc++;
-    string_concatn(s, pc-1, 2);
+    string_concatn(s, pc++, 2);
     switch (*pc++) {
     case 'a': return 7;
     case 'b': return '\b';
