@@ -800,7 +800,7 @@ static int number()
         }
 	string_concatn(s, pc, rpc-pc);
         pc = rpc;
-	if (*rpc == '.' || *rpc == 'p') {
+	if (*rpc == '.' || *rpc == 'p' || *rpc == 'P') {
 	    fnumber(s, 16);
 	    free_string(s);
 	    return FCONSTANT;
@@ -948,10 +948,9 @@ static void fnumber(String *s, int base)
 	}
     }
     else {
-	// . p
+	// . p P
 	if (*pc == '.') {
-	    string_concatn(s, pc, 1);
-	    pc++;
+	    string_concatn(s, pc++, 1);
 	    if (!isdigithex(pc[-2]) && !isdigithex(*pc)) {
 		error("hex floating constants require a significand");
 	    }
@@ -961,20 +960,17 @@ static void fnumber(String *s, int base)
 		    if (pc == pe) break;
 		    continue;
 		}
-		string_concatn(s, pc, 1);
-		pc++;
+		string_concatn(s, pc++, 1);
 	    }
 	}
 
-	if (*pc == 'p') {
-	    string_concatn(s, pc, 1);
-	    pc++;
+	if (*pc == 'p' || *pc == 'P') {
+	    string_concatn(s, pc++, 1);
 	    if (pe - pc < MAXTOKEN) {
 		fillbuf();
 	    }
 	    if (*pc == '+' || *pc == '-') {
-		string_concatn(s, pc, 1);
-		pc++;
+		string_concatn(s, pc++, 1);
 	    }
 	    if (isdigit(*pc)) {
 		for (;isdigit(*pc) || pc == pe;) {
@@ -983,8 +979,7 @@ static void fnumber(String *s, int base)
 			if (pc == pe) break;
 			continue;
 		    }
-		    string_concatn(s, pc, 1);
-		    pc++;
+		    string_concatn(s, pc++, 1);
 		}
 	    }
 	    else {
