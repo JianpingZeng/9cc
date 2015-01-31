@@ -88,6 +88,15 @@ void init_type()
     longlongtype->limits.min.i = LLONG_MIN;
 
     unsignedlonglongtype->limits.max.u = ULLONG_MAX;
+
+    floattype->limits.max.d = FLT_MAX;
+    floattype->limits.min.d = FLT_MIN;
+
+    doubletype->limits.max.d = DBL_MAX;
+    doubletype->limits.min.d = DBL_MIN;
+
+    longdoubletype->limits.max.ld = LDBL_MAX;
+    longdoubletype->limits.min.ld = LDBL_MIN;
 }
 
 // static void printspec(Type *type)

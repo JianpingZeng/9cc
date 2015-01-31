@@ -5,7 +5,7 @@ endif
 BUILD=$(BUILDDIR)/objects/cc
 CC=gcc
 LIBCC=$(BUILDDIR)/libcc.a
-CFLAGS=-c -Wall -std=c99 -I../lib
+CFLAGS=-c -Wall -Wno-pointer-sign -std=c99 -I../lib
 LDFLAGS=-L$(BUILDDIR) -lcc
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(BUILD)/, $(SOURCES:.c=.o))

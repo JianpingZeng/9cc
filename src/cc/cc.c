@@ -23,6 +23,16 @@ static void test()
 		assert(0);
 	    }
 	}
+	else if (token->id == FCONSTANT) {
+	    if (token->v.type == longdoubletype) {
+		logv("%s:%d: [%s] <%t> [%Lf] %k",
+		     src.file, src.line, tname(token->id), token->v.type, token->v.u.ld, token);
+	    }
+	    else {
+		logv("%s:%d: [%s] <%t> [%f] %k",
+		     src.file, src.line, tname(token->id), token->v.type, token->v.u.d, token);
+	    }
+	}
 	else {
 	    logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
 	}

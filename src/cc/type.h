@@ -6,10 +6,10 @@ typedef struct type     Type;
 union value {
     long long i;
     unsigned long long u;
-    float f;
     double d;
     long double ld;
     void *p;
+    void (*g) ();
 };
 
 struct type {

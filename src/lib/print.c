@@ -163,15 +163,23 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		    cc_fputc(f, *fmt);
 		}
 		break;
+	    case 'L':
+		++fmt;
+		if (*fmt == 'f') {
+		    fprintf(f, "%Lf", va_arg(ap, long double));
+		}
+		else {
+		    cc_fputc(f, 'L');
+		    cc_fputc(f, *fmt);
+		}
+		break;
 	    case 'f':
 	    case 'g':case 'G':
 	    case 'e':case 'E':
 		{
-		    char buf[128];
-		    char format[] = "%?";
+		    char format[3] = "%?";
 		    format[1] = *fmt;
-		    sprintf(buf, format, va_arg(ap, double));
-		    cc_fputs(f, buf);
+		    fprintf(f, format, va_arg(ap, double));
 		}
 		break;
 	    case 'o':

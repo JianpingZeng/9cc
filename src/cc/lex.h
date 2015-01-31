@@ -21,10 +21,7 @@ typedef struct {
     int id;
     const char *name;
     struct {
-	union {
-	    long long i;
-	    unsigned long long u;
-	}u;
+	union value u;
 	Type *type;
     }v;
 } Token;

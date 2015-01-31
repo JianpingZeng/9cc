@@ -261,7 +261,7 @@ Token *token = &_token;
 
 static void identifier();
 static int number();
-static void fnumber(unsigned long long n, int overflow, int base, String *s);
+static void fnumber(String *s, int base);
 static void nextline();
 static void line_comment();
 static void block_comment();
@@ -444,7 +444,7 @@ static int do_gettok()
 	    }
 	    else if (isdigit(rpc[1])) {
 		pc = rpc;
-		fnumber(0, 0, 10, NULL);
+		fnumber(NULL, 10);
 		return FCONSTANT;
 	    }
 	    else {
@@ -801,7 +801,7 @@ static int number()
 	string_concatn(s, pc, rpc-pc);
         pc = rpc;
 	if (*rpc == '.' || *rpc == 'p') {
-	    fnumber(n, overflow, 16, s);
+	    fnumber(s, 16);
 	    free_string(s);
 	    return FCONSTANT;
 	}
@@ -841,7 +841,7 @@ static int number()
 	string_concatn(s, pc, rpc-pc);
 	pc = rpc;
 	if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
-	    fnumber(n, overflow, 10, s);
+	    fnumber(s, 10);
 	    free_string(s);
 	    return FCONSTANT;
 	}
@@ -881,7 +881,7 @@ static int number()
 	string_concatn(s, pc, rpc-pc);
         pc = rpc;
         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
-            fnumber(n, overflow, 10, s);
+            fnumber(s, 10);
 	    free_string(s);
             return FCONSTANT;
         }
@@ -893,58 +893,62 @@ static int number()
     }
 }
 
-static void fnumber(unsigned long long n, int overflow, int base, String *s)
+static void fnumber(String *s, int base)
 {
     // ./e/E/p
     if (!s) s = new_string();
     
     if (base == 10) {
-	assert(*pc=='.'||*pc=='e'||*pc=='E');
+	// . e E
 	if (*pc == '.') {
-	    string_concatn(s, pc, 1);
-	    pc++;
-	    for (;isdigit(*pc) || pc == pe;) {
-		if (pc == pe) {
+	    string_concatn(s, pc++, 1);
+	    unsigned char *rpc = pc;
+	    for (;isdigit(*rpc) || rpc == pe;) {
+		if (rpc == pe) {
+		    string_concatn(s, pc, rpc-pc);
+		    pc = rpc;
 		    fillbuf();
+		    rpc = pc;
 		    if (pc == pe) break;
 		    continue;
 		}
-		string_concatn(s, pc, 1);
-		pc++;
+		rpc++;
 	    }
+	    string_concatn(s, pc, rpc-pc);
+	    pc = rpc;
 	}
 
 	if (*pc == 'e' || *pc == 'E') {
-	    string_concatn(s, pc, 1);
-	    pc++;
+	    string_concatn(s, pc++, 1);
 	    if (pe - pc < MAXTOKEN) {
 		fillbuf();
 	    }
 	    if (*pc == '+' || *pc == '-') {
-		string_concatn(s, pc, 1);
-		pc++;
+		string_concatn(s, pc++, 1);
 	    }
-	    if (isdigit(*pc)) {
-		for (;isdigit(*pc) || pc == pe;) {
-		    if (pc == pe) {
+	    if (!isdigit(*pc)) {
+		error("exponent used with no following digits: %s", s->str);
+	    }
+	    else {
+		unsigned char *rpc = pc;
+		for (;isdigit(*rpc) || rpc == pe;) {
+		    if (rpc == pe) {
+			string_concatn(s, pc, rpc-pc);
+			pc = rpc;
 			fillbuf();
+			rpc = pc;
 			if (pc == pe) break;
 			continue;
 		    }
-		    string_concatn(s, pc, 1);
-		    pc++;
+		    rpc++;
 		}
-	    }
-	    else {
-		error("invalid float constant");
+		string_concatn(s, pc, rpc-pc);
+		pc = rpc;
 	    }
 	}
-
-
-	
     }
     else {
-	assert(*pc=='.'||*pc=='p');
+	// . p
 	if (*pc == '.') {
 	    string_concatn(s, pc, 1);
 	    pc++;
@@ -997,10 +1001,25 @@ static void fnumber(unsigned long long n, int overflow, int base, String *s)
 
 static void float_constant(String *s)
 {
-    if (*pc == 'f' || *pc == 'F' || *pc == 'l' || *pc == 'L') {
+    errno = 0; // must clear first
+    if (*pc == 'f' || *pc == 'F') {
+	token->v.type = floattype;
+	token->v.u.d = strtof(s->str, NULL);
 	string_concatn(s, pc++, 1);
     }
+    else if (*pc == 'l' || *pc == 'L') {
+	token->v.type = longdoubletype;
+	token->v.u.ld = strtold(s->str, NULL);
+	string_concatn(s, pc++, 1);
+    }
+    else {
+	token->v.type = doubletype;
+	token->v.u.d = strtod(s->str, NULL);
+    }
     token->name = strings(s->str);
+    if (errno == ERANGE) {
+	error("float constant overflow: %k", token);
+    }
 }
 
 static void integer_constant(unsigned long long n, int overflow, int base, String *s)

@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
+#include <float.h>
 #include "lib.h"
 
 #define twos(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
