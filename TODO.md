@@ -94,6 +94,8 @@
 
     * sed
 
+    * wget
+
 
 #### `TODO` Bugs
 
