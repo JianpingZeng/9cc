@@ -389,31 +389,36 @@ def gcc_process(file, argv=None):
         gcc_argv = gcc_argv + argv
 
     p = subprocess.Popen(gcc_argv, stdout=subprocess.PIPE, stderr=open("/dev/null", "w"))
-    out = p.communicate()[0]
+    out= p.communicate()[0]
     lines = out.splitlines()
-
-    global tokens
-    global errors
-    global warnings
-    tokens = 0
-    errors = 0
-
-    global gcc_out
-    gcc_out = ""
-    for line in lines:
-        line = line.strip()
-        if not line.startswith("#") and len(line) > 0:
-            parse_line(Line(line))
-
-    sumary = "%u tokens, %u errors, %u warnings\n" % (tokens, errors, warnings)
-    gcc_out = gcc_out + sumary
     
-    f = open(gcc_i, "w")
-    f.seek(0)
-    f.write(gcc_out)
-    f.close()
+    if p.poll() == 0:
+        global tokens
+        global errors
+        global warnings
+        tokens = 0
+        errors = 0
 
-    return gcc_i
+        global gcc_out
+        gcc_out = ""
+        for line in lines:
+            line = line.strip()
+            if not line.startswith("#") and len(line) > 0:
+                parse_line(Line(line))
+
+        sumary = "%u tokens, %u errors, %u warnings\n" % (tokens, errors, warnings)
+        gcc_out = gcc_out + sumary
+    
+        f = open(gcc_i, "w")
+        f.seek(0)
+        f.write(gcc_out)
+        f.close()
+
+        return gcc_i
+
+    else:
+        return None
+                
 
 def mcc_process(file, argv=None):
     '''process a file'''
@@ -426,11 +431,14 @@ def mcc_process(file, argv=None):
     p = subprocess.Popen(mcc_argv, stderr=subprocess.PIPE)
     out = p.communicate()[1]
 
-    f = open(mcc_i, "w")
-    f.seek(0)
-    f.write(out)
+    if p.poll() == 0:
+        f = open(mcc_i, "w")
+        f.seek(0)
+        f.write(out)
 
-    return mcc_i
+        return mcc_i
+    else:
+        return None
 
 def process(file, argv=None):
     '''process'''
@@ -438,14 +446,16 @@ def process(file, argv=None):
     file1 = gcc_process(file, argv)
     file2 = mcc_process(file, argv)
 
-    # diff
-    ret = subprocess.call(["diff", file1, file2], stderr=open("/dev/null", "w")) 
-    if ret == 0:
-        print "[OK] "+file
+    if file1 and file2:
+        # diff
+        ret = subprocess.call(["diff", file1, file2], stderr=open("/dev/null", "w")) 
+        if ret == 0:
+            print "[OK] "+file
+        else:
+            print "[FAILED]", file
+            sys.exit(1)
     else:
-        print "[FAILED]", file
-        
-        # sys.exit(1)
+        print "[FAILED]", file, "<preprocessor failed>"
 
 def pre_process():
     '''pre'''
