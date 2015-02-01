@@ -435,13 +435,14 @@ def mcc_process(file, argv=None):
     else:
         return None
 
+oks = 0
+skips = 0
 
 def process(file, argv=None):
     '''process'''
 
     global oks
-    global ccfails
-    global ppfails
+    global skips
     
     file1 = gcc_process(file, argv)
     file2 = mcc_process(file, argv)
@@ -451,11 +452,13 @@ def process(file, argv=None):
         ret = subprocess.call(["diff", file1, file2], stderr=open("/dev/null", "w")) 
         if ret == 0:
             print "[OK] "+file
+            oks = oks + 1
         else:
             print "[FAILED]", file
             sys.exit(1)
     else:
-        print "[FAILED]", file, "<preprocessor failed>"
+        print "[SKIPPED]", file, "<preprocessor failed>"
+        skips = skips + 1
 
 def process_dir(dir, argv=None):
     '''process a dir'''
@@ -477,7 +480,7 @@ def pre_process():
 
 def post_process():
     '''post'''
-
+    print oks, "[OK],", skips, "[SKIPPED]"
 
 def main():
     '''main'''
