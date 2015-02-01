@@ -65,13 +65,29 @@ void fatal(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
-void logv(const char *fmt, ...)
+static void logv(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
     vfprint(stderr, fmt, ap);
     fprint(stderr, "\n");
     va_end(ap);
+}
+
+static void logi(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprint(stdout, fmt, ap);
+    fprint(stdout, "\n");
+    va_end(ap);
+}
+
+void init_logger()
+{
+    Log.v = logv;
+    Log.d = logv;
+    Log.i = logi;
 }
 
 static long call_depth = -1;

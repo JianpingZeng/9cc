@@ -36,14 +36,15 @@ static void test()
 	// else {
 	//     logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
 	// }
-	print("%k\n", token);
+	Log.i("%k", token);
     }
-    print("%lu tokens, %lu errors, %lu warnings\n", n, errors, warnings);
+    Log.i("%lu tokens, %lu errors, %lu warnings", n, errors, warnings);
 }
 
 static void cc_init()
 {
     setlocale(LC_ALL, "");
+    init_logger();
     register_print_function('k', token_print_function);
     register_print_function('t', type_print_function);
     register_print_function('n', node_print_function);
