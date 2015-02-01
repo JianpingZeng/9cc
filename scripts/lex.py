@@ -127,7 +127,6 @@ def inumber(line, beg, i):
     ul = '(u|U)(l|L)'
 
     if re.search(ull, line[i:i+3]) or re.search(ull, line[i:i+3]):
-        print line[i:i+3]
         i = i+3
     elif re.search(ll, line[i:i+2]):
         i = i+2
@@ -269,7 +268,7 @@ def parse_line(line):
             while line[i] != '"':
                 if i >= end:
                     break
-                if line[i] == '\\' and line[i+1] == '"':
+                if line[i] == '\\':
                     i = i+2
                 else:
                     i = i+1
