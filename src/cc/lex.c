@@ -1,7 +1,7 @@
 #include "cc.h"
 
-#define LBUFSIZE     512
-#define RBUFSIZE     4096
+#define LBUFSIZE     32
+#define RBUFSIZE     32
 #define MAXTOKEN     LBUFSIZE
 
 enum {
@@ -870,7 +870,7 @@ static int number()
 		continue;
 	    }
 	    int d = *rpc - '0';
-	    if (n > (longlongtype->limits.max.i - d)/10) {
+	    if (n > (unsignedlonglongtype->limits.max.u - d)/10) {
 		overflow = 1;
 	    }
 	    else {
