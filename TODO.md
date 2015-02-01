@@ -92,5 +92,7 @@
     
     * diffutils
 
+    * sed
+
 
 ### `TODO` 完成表达式的语法分析

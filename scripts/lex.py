@@ -423,8 +423,8 @@ def mcc_process(file, argv=None):
     if argv:
         mcc_argv = mcc_argv + argv
 
-    p = subprocess.Popen(mcc_argv, stderr=subprocess.PIPE)
-    out = p.communicate()[1]
+    p = subprocess.Popen(mcc_argv, stdout=subprocess.PIPE, stderr=open("/dev/null", "w"))
+    out = p.communicate()[0]
 
     if p.poll() == 0:
         f = open(mcc_i, "w")
@@ -455,6 +455,8 @@ def process(file, argv=None):
             oks = oks + 1
         else:
             print "[FAILED]", file
+            print file1
+            print file2
             sys.exit(1)
     else:
         print "[SKIPPED]", file, "<preprocessor failed>"

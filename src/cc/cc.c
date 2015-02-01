@@ -36,9 +36,9 @@ static void test()
 	// else {
 	//     logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
 	// }
-	logv("%k", token);
+	print("%k\n", token);
     }
-    logv("%lu tokens, %lu errors, %lu warnings", n, errors, warnings);
+    print("%lu tokens, %lu errors, %lu warnings\n", n, errors, warnings);
 }
 
 static void cc_init()
