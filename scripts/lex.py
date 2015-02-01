@@ -216,22 +216,17 @@ def fnumber(line , b, f, base):
             while isdigithex(line[i]):
                 i = i+1
 
-            if line[i] == 'p' or line[i] == 'P':
+        if line[i] == 'p' or line[i] == 'P':
+            i = i+1
+            if line[i] == '+' or line[i] == '-':
                 i = i+1
-                if line[i] == '+' or line[i] == '-':
-                    i = i+1
-
                 if line[i].isdigit():
-
                     while line[i].isdigit():
                         i = i+1
-                    
                 else:
                     error("exponent has no digits")
-                        
-                
-            else:
-                error("hex floating constants require an exponent")
+        else:
+            error("hex floating constants require an exponent")
                     
 
 
@@ -440,9 +435,14 @@ def mcc_process(file, argv=None):
     else:
         return None
 
+
 def process(file, argv=None):
     '''process'''
 
+    global oks
+    global ccfails
+    global ppfails
+    
     file1 = gcc_process(file, argv)
     file2 = mcc_process(file, argv)
 
@@ -457,13 +457,27 @@ def process(file, argv=None):
     else:
         print "[FAILED]", file, "<preprocessor failed>"
 
+def process_dir(dir, argv=None):
+    '''process a dir'''
+
+    path = dir
+    files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and (f.endswith(".c"))]
+    for f in files:
+        file = os.path.join(path, f)
+        process(file, argv)
+
+    dirs = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
+    for d in dirs:
+        subdir = os.path.join(path, d)
+        process_dir(subdir, argv)
+        
 def pre_process():
     '''pre'''
 
 
 def post_process():
     '''post'''
-    
+
 
 def main():
     '''main'''
@@ -495,10 +509,7 @@ def main():
             print "Not a c file:", input_file
     elif os.path.isdir(input_file):
         path = os.path.abspath(os.path.expanduser(input_file))
-        files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and (f.endswith(".c"))]
-        for f in files:
-            file = os.path.join(path, f)
-            process(file, incs)
+        process_dir(path, incs)
     else:
         print "No such file or directory:", input_file
 
