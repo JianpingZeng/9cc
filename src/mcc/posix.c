@@ -82,7 +82,24 @@ int rmdir(const char *dir)
     system(command);
 }
 
-const char *abspath(const char *path)
+const char *expanduser(const char *path)
 {
-
+    if (!path || !strlen(path)) return NULL;
+    if (path[0] == '~') {
+	const char *home = getenv("HOME");
+	int hlen = strlen(home);
+	int plen = strlen(path);
+	char *ret = malloc(hlen+plen);
+	strncpy(ret, home, hlen);
+	strncpy(ret+hlen, path+1, plen-1);
+	ret[hlen+plen-1] = 0;
+	return ret;
+    }
+    else {
+	int len = strlen(path);
+	char *ret = malloc(len+1);
+	strcpy(ret, path);
+	ret[len] = 0;
+	return ret;
+    }
 }

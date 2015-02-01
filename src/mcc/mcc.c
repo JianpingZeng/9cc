@@ -187,7 +187,21 @@ int main(int argc, char *argv[])
 	    config.option_c = 1;
 	}
 	else if (arg[0] == '-') {
-	    append(optionlist, arg);
+	    if (arg[1] == 'I') {
+		char *abs = expanduser(arg+2);
+		if (abs) {
+		    int len = strlen(abs);
+		    char *ioption = malloc(len+3);
+		    strncpy(ioption, "-I", 2);
+		    strncpy(ioption+2, abs, len);
+		    ioption[len+2] = 0;
+		    free(abs);
+		    vector_push(optionlist, ioption);
+		}
+	    }
+	    else {
+		append(optionlist, arg);
+	    }
 	}
 	else {
 	    append(inputlist, arg);
