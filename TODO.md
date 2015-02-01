@@ -80,19 +80,21 @@
 
     使用`lex.py`工具测试`mcc`词法分析器，已测试通过的软件包：
 
-    * lcc
-    
-    * sqlite
+    * diffutils
+
+    * emacs
     
     * glibc
     
     * gzip
-    
-    * tar
-    
-    * diffutils
+
+    * lcc
 
     * sed
+
+    * sqlite
+
+    * tar
 
     * wget
 

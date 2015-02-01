@@ -81,3 +81,8 @@ int rmdir(const char *dir)
     snprintf(command, sizeof(command), "rm -rf %s", dir);
     system(command);
 }
+
+const char *abspath(const char *path)
+{
+
+}

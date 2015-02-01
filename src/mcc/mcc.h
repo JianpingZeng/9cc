@@ -7,6 +7,7 @@ extern int callsys(const char *path, char *argv[]);
 extern const char *replace_suffix(const char *path, const char *suffix);
 
 extern int rmdir(const char *dir);
+extern const char *abspath(const char *path);
 
 #include "lib.h"
 
