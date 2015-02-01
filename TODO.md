@@ -83,6 +83,8 @@
     * diffutils
 
     * emacs
+
+    * gawk
     
     * glibc
     
@@ -97,6 +99,12 @@
     * tar
 
     * wget
+
+    未通过软件包：
+
+    * bash:
+
+      lib/sh/strtod.c 浮点数溢出
 
 
 #### `TODO` Bugs
