@@ -107,11 +107,15 @@
       lib/sh/strtod.c 浮点数溢出
 
 
-#### `TODO` Bugs
+#### `DONE` Bugs
 
      mcc driver 对 -I 路径进行扩展为绝对路径：完成
 
      log.v：完成
+
+#### `TODO` 完成内存分配程序
+
+     以及源代码目录修改
 
 
 ### `TODO` 完成表达式的语法分析

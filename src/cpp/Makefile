@@ -3,12 +3,11 @@ BUILDDIR=../build
 endif
 
 BUILD=$(BUILDDIR)/objects/cpp
-CC=gcc
-LIBCC=$(BUILDDIR)/libcc.a
-CFLAGS=-c -Wall -std=c99 -I../lib
-LDFLAGS=-L$(BUILDDIR) -lcc
+CC=cc
+CFLAGS=-c -Wall -std=c99
+LDFLAGS=
 INCLUDES=$(wildcard *.h)
-SOURCES=cpp.c
+SOURCES=cpp.c vector.c
 
 ifeq ($(platform), mac)
 SPEC=mac.c posix.c
@@ -34,7 +33,7 @@ all:
 	@exit 1
 endif
 
-$(EXECUTABLE): $(OBJECTS) $(LIBCC)
+$(EXECUTABLE): $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
 $(BUILD)/%.o: %.c $(INCLUDES)
