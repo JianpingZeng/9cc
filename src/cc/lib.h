@@ -3,6 +3,12 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <limits.h>
+
+#define ARRAY_SIZE(array)  (sizeof(array)/sizeof(array[0]))
 
 // print
 typedef const char * (*PrintFunc) (void *data);
@@ -11,53 +17,59 @@ extern void print(const char *fmt, ...);
 extern void fprint(FILE *f, const char *fmt, ...);
 extern void vfprint(FILE *f, const char *fmt, va_list ap);
 extern void register_print_function(char c, PrintFunc p);
+extern void die(const char *fmt, ...);
 
 // alloc
-extern void * allocate(unsigned long size, int flags);
+enum {
+    ALLOC_TEMP,    /* =0: temporarily useage */
+    ALLOC_NODE,    /* =1: nodes, types, symbols */
+    ALLOC_STRING,  /* =2: strings */
+};
+extern void * allocate(size_t size, int flags);
 extern void deallocate(void *p);
-#define new(t)      ((t *) allocate(sizeof (t), 0))
-#define delete(p)   deallocate(p)
+#define alloc_temp(size) allocate(size, ALLOC_TEMP)
+#define alloc_node(st)   allocate(sizeof(st), ALLOC_NODE)
 
 // string
 extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
 extern const char *stringd(long n);
 
-typedef struct {
+struct string {
     char     *str;
     unsigned size;
     unsigned capelems;
     unsigned reserve;
-} String;
-extern String * new_string();
-extern unsigned string_length(String *s);
-extern void string_concats(String *s, char *src);
-extern void string_concatn(String *s, char *src, int len);
-extern void string_concatd(String *s, long d);
-extern char * string_to_array(String *s);
-extern void free_string(String *s);
+};
+extern struct string * new_string();
+extern unsigned string_length(struct string *s);
+extern void string_concats(struct string *s, char *src);
+extern void string_concatn(struct string *s, char *src, int len);
+extern void string_concatd(struct string *s, long d);
+extern char * string_to_array(struct string *s);
+extern void free_string(struct string *s);
 
 // vector (container of pointers)
-typedef struct {
+struct vector {
     void        **mem;
     unsigned    elemsize;
     unsigned    elems;
     unsigned    capelems;
     unsigned    reserve;
-} Vector;
-extern Vector *new_vector();
-extern void * vector_at(Vector *v, unsigned index);
-extern void vector_push(Vector *v, void *elem);
-extern void *vector_pop(Vector *v);
-extern void vector_insert(Vector *v, unsigned index, void *elem);
-extern void free_vector(Vector *v);
-extern void purge_vector(Vector *v);
-extern unsigned vector_length(Vector *v);
-extern void *vector_front(Vector *v);
-extern void *vector_back(Vector *v);
-extern void vector_foreach(Vector *v, void (*func) (void *elem));
-extern void ** vector_to_array(Vector *v);
-extern void vector_add_from_array(Vector *v, void **array);
-extern void vector_add_from_vector(Vector *v, Vector *v2);
+};
+extern struct vector *new_vector();
+extern void * vector_at(struct vector *v, unsigned index);
+extern void vector_push(struct vector *v, void *elem);
+extern void *vector_pop(struct vector *v);
+extern void vector_insert(struct vector *v, unsigned index, void *elem);
+extern void free_vector(struct vector *v);
+extern void purge_vector(struct vector *v);
+extern unsigned vector_length(struct vector *v);
+extern void *vector_front(struct vector *v);
+extern void *vector_back(struct vector *v);
+extern void vector_foreach(struct vector *v, void (*func) (void *elem));
+extern void ** vector_to_array(struct vector *v);
+extern void vector_add_from_array(struct vector *v, void **array);
+extern void vector_add_from_vector(struct vector *v, struct vector *v2);
 
 #endif

@@ -21,7 +21,7 @@
 #include "type.h"
 #include "lex.h"
 #include "sym.h"
-#include "node.h"
+#include "ast.h"
 // error
 #include "error.h"
 
@@ -30,20 +30,5 @@ enum {
     SCLASS_SPEC = 01, TYPE_QUAL = 02, TYPE_SPEC = 04,
     FUNC_SPEC = 010,
 };
-
-// decl
-extern int scopelevel;
-extern TranslationUnitDecl *translation_unit();
-extern Node ** declaration();
-extern unsigned char kind(int t);
-extern void initializer_list();
-
-// stmt
-extern CompoundStmt * compound_stmt();
-
-// expr
-extern Expr * expr();
-extern Expr * assignment_expr();
-
 
 #endif

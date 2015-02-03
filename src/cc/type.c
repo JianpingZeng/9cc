@@ -1,26 +1,26 @@
 #include "cc.h"
 
 // predefined types
-Type   *chartype;               // char
-Type   *unsignedchartype;       // unsigned char
-Type   *signedchartype;         // signed char
-Type   *wchartype;              // wchar_t
-Type   *shorttype;              // short (int)
-Type   *unsignedshorttype;      // unsigned short (int)
-Type   *inttype;                // int
-Type   *unsignedinttype;        // unsigned (int)
-Type   *longtype;               // long
-Type   *unsignedlongtype;       // unsigned long (int)
-Type   *longlongtype;           // long long (int)
-Type   *unsignedlonglongtype;   // unsigned long long (int)
-Type   *floattype;              // float
-Type   *doubletype;             // double
-Type   *longdoubletype;         // long double
-Type   *voidtype;               // void
+struct type   *chartype;               // char
+struct type   *unsignedchartype;       // unsigned char
+struct type   *signedchartype;         // signed char
+struct type   *wchartype;              // wchar_t
+struct type   *shorttype;              // short (int)
+struct type   *unsignedshorttype;      // unsigned short (int)
+struct type   *inttype;                // int
+struct type   *unsignedinttype;        // unsigned (int)
+struct type   *longtype;               // long
+struct type   *unsignedlongtype;       // unsigned long (int)
+struct type   *longlongtype;           // long long (int)
+struct type   *unsignedlonglongtype;   // unsigned long long (int)
+struct type   *floattype;              // float
+struct type   *doubletype;             // double
+struct type   *longdoubletype;         // long double
+struct type   *voidtype;               // void
 
-static void install_type(Type **type, const char *name, int op, int size)
+static void install_type(struct type **type, const char *name, int op, int size)
 {
-    Type *ty = new(Type);
+    struct type *ty = new_type();
 
     ty->name = strings(name);
     ty->op = op;
@@ -99,7 +99,12 @@ void init_type()
     longdoubletype->limits.min.ld = LDBL_MIN;
 }
 
-// static void printspec(Type *type)
+struct type * new_type()
+{
+    return alloc_node(struct type);
+}
+
+// static void printspec(struct type *type)
 // {
 //     if (type->sclass == STATIC) {
 //         printf("static ");
@@ -121,9 +126,9 @@ void init_type()
 //     }
 // }
 
-// static void printtype1(Type *type);
+// static void printtype1(struct type *type);
 
-// static void printfparams(Type *ftype)
+// static void printfparams(struct type *ftype)
 // {
 // 	printf("( ");
 // 	if (ftype->u.f.proto) {
@@ -137,7 +142,7 @@ void init_type()
 // 	printf(")");
 // }
 
-// static void printtype1(Type *type)
+// static void printtype1(struct type *type)
 // {
 //     if (type) {
 //         if (isfunction(type)) {
@@ -162,22 +167,22 @@ void init_type()
 //     }
 // }
 
-void printtype(Type *type)
+void printtype(struct type *type)
 {
     // printtype1(type);
     // printf("\n");
 }
 
-void prepend_type(Type **typelist, Type *type)
+void prepend_type(struct type **typelist, struct type *type)
 {
     attach_type(&type, *typelist);
     *typelist = type;
 }
 
-void attach_type(Type **typelist, Type *type)
+void attach_type(struct type **typelist, struct type *type)
 {
     if (*typelist) {
-        Type *tp = *typelist;
+        struct type *tp = *typelist;
         while (tp && tp->type) {
             tp = tp->type;
         }
@@ -188,7 +193,7 @@ void attach_type(Type **typelist, Type *type)
     }
 }
 
-Type * pretype(int tok)
+struct type * pretype(int tok)
 {
     switch (tok) {
         case INT:
@@ -206,14 +211,14 @@ Type * pretype(int tok)
     }
 }
 
-Type * scls(int t, Type *ty)
+struct type * scls(int t, struct type *ty)
 {
     if (t > 0) {
-        Type *sty = new(Type);
+        struct type *sty = new_type();
         *sty = *ty;
         sty->sclass = t;
         if (!ty->reserved) {
-            delete(ty);
+            // delete(ty);
         }
         return sty;
     }
@@ -222,9 +227,9 @@ Type * scls(int t, Type *ty)
     }
 }
 
-Type * qual(int t, Type *ty)
+struct type * qual(int t, struct type *ty)
 {
-    Type *qty = new(Type);
+    struct type *qty = new_type();
     *qty = *ty;
     if (t == CONST) {
         qty->qual_const = 1;
@@ -239,14 +244,14 @@ Type * qual(int t, Type *ty)
         qty->func_spec = 1;
     }
     if (!ty->reserved) {
-        delete(ty);
+        // delete(ty);
     }
     return qty;
 }
 
-Type * unqual(int t, Type *ty)
+struct type * unqual(int t, struct type *ty)
 {
-    Type *qty = new(Type);
+    struct type *qty = new_type();
     *qty = *ty;
     if (t == CONST) {
         qty->qual_const = 0;
@@ -261,12 +266,12 @@ Type * unqual(int t, Type *ty)
         qty->func_spec = 0;
     }
     if (!ty->reserved) {
-        delete(ty);
+        // delete(ty);
     }
     return qty;
 }
 
-int equal_type(Type *ty1, Type *ty2)
+int equal_type(struct type *ty1, struct type *ty2)
 {
     if (ty1 == ty2) {
         return 1;
@@ -286,16 +291,16 @@ int istypedefname(const char *id)
     return 0;
 }
 
-Type * typename()
+struct type * typename()
 {
     
     return NULL;
 }
 
-Type * arraytype(Type *basety, size_t n, void *p)
+struct type * arraytype(struct type *basety, size_t n, void *p)
 {
     //TODO:
-    Type *ty = new(Type);
+    struct type *ty = new_type();
     ty->op = ARRAY;
     ty->size = basety->size * n;
 
@@ -304,6 +309,6 @@ Type * arraytype(Type *basety, size_t n, void *p)
 
 const char * type_print_function(void *data)
 {
-    Type *p = data;
+    struct type *p = data;
     return p->name;
 }

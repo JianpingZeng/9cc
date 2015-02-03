@@ -1,97 +1,42 @@
-#ifndef cc_node_h
-#define cc_node_h
-
-// node ids
-enum {
-#define _ns(a)   a,
-#define _n(a, b) a,
-#include "nodeid.h"
-};
-
 // node
-typedef struct {
-    int id;
-    Symbol *s;
-} Node;
 
-// expr
-typedef struct {
-    Node n;
-    int op;
-} Expr;
-
-typedef struct {
-    Expr e;
-    union value u;
-} LiteralExpr;
-
-typedef struct {
-    Expr e;
-    const char *id;
-} AddrExpr;
-
-// stmt
-typedef struct {
-    Node n;
-} Stmt;
-
-typedef struct {
-    Stmt s;
-    Node *decls;
-} DeclStmt;
-
-typedef struct {
-    Stmt s;
-    Expr *expr;
-    Stmt *stmt1;
-    Stmt *stmt2;
-} IfStmt;
-
-typedef struct {
-    Stmt s;
-    Expr *expr;
-    Stmt *stmt;
-} WhileStmt;
-
-typedef struct {
-    Stmt s;
-    Expr *expr;
-    Stmt *stmt;
-} DoWhileStmt;
-
-typedef struct {
-    Stmt s;
-    Node **stmts;       // decl/stmt nodes
-} CompoundStmt;;
+_ns(NODE_ID_BEGIN)
 
 // decl
-typedef struct {
-    Node n;
-    int scope;
-} Decl;
+_ns(DECL_ID_BEGIN)
+_n(TRANSLATION_UNIT_DECL,   "TranslationUnitDecl")
+_n(VAR_DECL,                "VarDecl")
+_n(FUNC_DECL,               "FuncDecl")
+_n(PARAMVAL_DECL,           "ParamVarDecl")
+_n(TYPEDEF_DECL,            "TypedefDecl")
+_n(ENUM_DECL,               "EnumDecl")
+_n(STRUCT_DECL,             "StructDecl")
+_n(UNION_DECL,              "UnionDecl")
+_ns(DECL_ID_END)
 
-typedef struct {
-    Decl d;
-    Node  **exts;
-} TranslationUnitDecl;
+// expr
+_ns(EXPR_ID_BEGIN)
+_n(BINARY_OPERTAOR,         "BinaryOperator")
+_n(UNARY_OPERATOR,          "UnaryOperator")
+_n(ADDR_OPERATOR,           "AddrOperator")
 
-typedef struct {
-    Decl d;
-    Node **params;
-    CompoundStmt *cs;
-} FuncDecl;
+_ns(LITERAL_ID_BEGIN)
+_n(INTEGER_LITERAL,         "IntegerLiteral")
+_n(FLOAT_LITERAL,           "FloatLiteral")
+_n(STRING_LITERAL,          "StringLiteral")
+_ns(LITERAL_ID_END)
+_ns(EXPR_ID_END)
 
-#define NODE(n)     ((Node*) (n))
-extern const char * node_print_function(void *data);
-extern const char *nname(Node *node);
-extern void printnode(Node *node);
-extern Decl *decl_node(int id, int scope);
-extern FuncDecl *funcdecl_node(int scope);
-extern TranslationUnitDecl *tudecl_node();
-extern CompoundStmt *compound_stmt_node();
-extern int is_funcdef_node(Node *node);
-extern LiteralExpr *literal_expr_node(int id);
-extern AddrExpr *addr_expr_node(const char *id);
+// stmt
+_ns(STMT_ID_BEGIN)
+_n(IF_STMT,                 "IfStmt")
+_n(WHILE_STMT,              "WhileStmt")
+_n(DOWHILE_STMT,            "DoWhileStmt")
+_n(COMPOUND_STMT,           "CompoundStmt")
+_n(RETURN_STMT,             "ReturnStmt")
+_ns(STMT_ID_END)
 
+_ns(NODE_ID_END)
 
-#endif
+#undef _n
+#undef _ns

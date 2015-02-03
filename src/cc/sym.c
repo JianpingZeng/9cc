@@ -1,14 +1,16 @@
 #include "cc.h"
 
-Table * identifiers;
+struct table * identifiers;
+static int _scopelevel;
 
-static Table * newtable()
+static struct table * newtable()
 {
-    Table *tp = new(Table);    
+    struct table *tp = alloc_node(struct table);    
     return tp;
 }
 
-static void rmtable(Table *tp)
+//TODO: can't rm
+static void rmtable(struct table *tp)
 {
     if (tp) {
         for (int i=0; i < sizeof(tp->buckets)/sizeof(tp->buckets[0]); i++) {
@@ -22,25 +24,30 @@ static void rmtable(Table *tp)
     }
 }
 
+int scopelevel()
+{
+    return _scopelevel;
+}
+
 void enterscope()
 {
-    scopelevel++;
+    _scopelevel++;
 }
 
 void exitscope()
 {
-    if (identifiers->scope == scopelevel) {
-        Table *tp = identifiers;
+    if (identifiers->scope == _scopelevel) {
+        struct table *tp = identifiers;
         identifiers = identifiers->prev;
         rmtable(tp);
     }
     assert(scopelevel >= GLOBAL);
-    scopelevel--;
+    _scopelevel--;
 }
 
-Table * table(Table *tp, int scope)
+struct table * table(struct table *tp, int scope)
 {
-    Table *t = newtable();
+    struct table *t = newtable();
     t->prev = tp;
     t->scope = scope;
     if (tp) {
@@ -60,14 +67,14 @@ static unsigned hash(const char *src)
     return h;
 }
 
-Symbol * lookupsym(const char *name, Table *tp)
+struct symbol * lookupsym(const char *name, struct table *tp)
 {
     assert(tp);
     
-    for (Table *t = tp; t; t = t->prev) {
+    for (struct table *t = tp; t; t = t->prev) {
         unsigned h = hash(name) % 256;
         for (struct sentry *entry = tp->buckets[h]; entry; entry = entry->next) {
-            if (entry->sym->token.name == name) {
+            if (entry->sym->token->name == name) {
                 return entry->sym;
             }
         }
@@ -76,12 +83,13 @@ Symbol * lookupsym(const char *name, Table *tp)
     return NULL;
 }
 
-Symbol * installsym(const char *name, Table **tpp, int scope)
+//TODO: token alloc
+struct symbol * installsym(const char *name, struct table **tpp, int scope)
 {
     unsigned h = hash(name) % 256;
-    struct sentry *s = new(struct sentry);
-    Symbol *sym = new(Symbol);
-    Table *tp = *tpp;
+    struct sentry *s = alloc_node(struct sentry);
+    struct symbol *sym = alloc_node(struct symbol);
+    struct table *tp = *tpp;
     
     assert(scope >= tp->scope);
     if (scope > tp->scope) {
@@ -90,7 +98,7 @@ Symbol * installsym(const char *name, Table **tpp, int scope)
     
     s->sym = sym;
     s->sym->scope = scope;
-    s->sym->token.name = strings(name);
+    s->sym->token->name = strings(name);
     s->next = tp->buckets[h];
     tp->buckets[h] = s;
     tp->all = s->sym;

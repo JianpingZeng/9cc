@@ -4,7 +4,7 @@ endif
 
 BUILD=$(BUILDDIR)/objects/mcc
 CC=cc
-CFLAGS=-c -Wall -std=c99
+CFLAGS=-c -Wall -std=c99 -O2
 INCLUDES=$(wildcard *.h)
 SOURCES=mcc.c vector.c
 
@@ -34,6 +34,7 @@ endif
 
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+	strip $@
 
 $(BUILD)/%.o: %.c $(INCLUDES)
 	@mkdir -p $(BUILD)

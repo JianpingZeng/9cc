@@ -1,6 +1,3 @@
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
 #include "lib.h"
 
 static PrintFunc print_funcs[128];
@@ -285,4 +282,12 @@ void fprint(FILE *f, const char *fmt, ...)
     va_end(ap);
 }
 
-
+void die(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprint(stderr, fmt, ap);
+    fprint(stderr, "\n");
+    va_end(ap);
+    exit(EXIT_FAILURE);
+}

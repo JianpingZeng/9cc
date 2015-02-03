@@ -4,7 +4,7 @@ endif
 
 BUILD=$(BUILDDIR)/objects/cc
 CC=cc
-CFLAGS=-c -Wall -std=c99
+CFLAGS=-c -Wall -std=c99 -O2
 LDFLAGS=
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(BUILD)/, $(SOURCES:.c=.o))
@@ -15,6 +15,7 @@ all: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+	strip $@
 
 $(BUILD)/%.o: %.c $(INCLUDES)
 	@mkdir -p $(BUILD)

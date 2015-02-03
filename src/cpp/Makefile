@@ -4,7 +4,7 @@ endif
 
 BUILD=$(BUILDDIR)/objects/cpp
 CC=cc
-CFLAGS=-c -Wall -std=c99
+CFLAGS=-c -Wall -std=c99 -O2
 LDFLAGS=
 INCLUDES=$(wildcard *.h)
 SOURCES=cpp.c vector.c
@@ -35,6 +35,7 @@ endif
 
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+	strip $@
 
 $(BUILD)/%.o: %.c $(INCLUDES)
 	@mkdir -p $(BUILD)

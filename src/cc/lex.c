@@ -1,7 +1,7 @@
 #include "cc.h"
 
-#define LBUFSIZE     32
-#define RBUFSIZE     32
+#define LBUFSIZE     1024
+#define RBUFSIZE     4096
 #define MAXTOKEN     LBUFSIZE
 
 enum {
@@ -34,42 +34,42 @@ static unsigned char map[256] = {
  *
  */
 
-static int isdigit(unsigned char c)
+static inline int isdigit(unsigned char c)
 {
     return map[c] & DIGIT;
 }
 
-static int isletter(unsigned char c)
+static inline int isletter(unsigned char c)
 {
     return map[c] & LETTER;
 }
 
-static int isdigitletter(unsigned char c)
+static inline int isdigitletter(unsigned char c)
 {
     return isdigit(c) || isletter(c);
 }
 
-static int isblank(unsigned char c)
+static inline int isblank(unsigned char c)
 {
     return map[c] & BLANK;
 }
 
-static int isnewline(unsigned char c)
+static inline int isnewline(unsigned char c)
 {
     return map[c] & NEWLINE;
 }
 
-static int ishex(unsigned char c)
+static inline int ishex(unsigned char c)
 {
     return map[c] & HEX;
 }
 
-static int isdigithex(unsigned char c)
+static inline int isdigithex(unsigned char c)
 {
     return isdigit(c) || ishex(c);
 }
 
-static int isvisible(unsigned char c)
+static inline int isvisible(unsigned char c)
 {
     return c >= 040 && c < 0177;
 }
@@ -78,7 +78,7 @@ static unsigned char ibuf[LBUFSIZE+RBUFSIZE+1];
 static unsigned char *pc;
 static unsigned char *pe;
 static long bread;
-Source src;
+struct source src;
 
 static void fillbuf()
 {
@@ -113,8 +113,7 @@ static void fillbuf()
     }
     
     if (bread < 0) {
-        fprint(stderr, "read error: %s", strerror(errno));
-	exit(EXIT_FAILURE);
+	die("read error: %s", strerror(errno));
     }
     
     pe = &ibuf[LBUFSIZE] + bread;
@@ -163,7 +162,7 @@ static void fline()
     skipblank();
 
     if (*pc == '"') {
-	String *s = new_string();
+	struct string *s = new_string();
 	pc++;
 	for (; *pc != '"' || pc == pe;) {
 	    if (pe - pc < LBUFSIZE) {
@@ -244,7 +243,6 @@ void init_input()
 {
     pc = pe = &ibuf[LBUFSIZE];
     bread = -1;
-    memset(&src, 0, sizeof(Source));
     fillbuf();
     nextline();
 }
@@ -256,20 +254,20 @@ static const char *tnames[] = {
 #include "token.h"
 };
 
-static Token _token;
-Token *token = &_token;
+static struct token _token;
+struct token *token = &_token;
 
 static void identifier();
 static int number();
-static void fnumber(String *s, int base);
+static void fnumber(struct string *s, int base);
 static void nextline();
 static void line_comment();
 static void block_comment();
-static unsigned escape(String *s);
-static void float_constant(String *s);
+static unsigned escape(struct string *s);
+static void float_constant(struct string *s);
 static void char_constant(int wide);
 static void string_constant(int wide);
-static void integer_constant(unsigned long long value, int overflow, int base, String *s);
+static void integer_constant(unsigned long long value, int overflow, int base, struct string *s);
 
 static int do_gettok()
 {
@@ -765,7 +763,7 @@ static int number()
         // Hex
 	unsigned long long n = 0;
         int overflow = 0;
-	String *s = new_string();
+	struct string *s = new_string();
 	string_concatn(s, rpc, 2);
         pc = rpc = rpc + 2;
         if (!isdigithex(*rpc) && *rpc != '.') {
@@ -816,7 +814,7 @@ static int number()
 	unsigned long long n = 0;
 	int err = 0;
 	int overflow = 0;
-	String *s = new_string();
+	struct string *s = new_string();
 	pc = rpc;
 	for (;isdigit(*rpc) || rpc == pe;) {
 	    if (rpc == pe) {
@@ -858,7 +856,7 @@ static int number()
         // Dec
 	unsigned long long n = 0;
 	int overflow = 0;
-	String *s = new_string();
+	struct string *s = new_string();
 	pc = rpc;
 	for (;isdigit(*rpc) || rpc == pe;) {
 	    if (rpc == pe) {
@@ -893,7 +891,7 @@ static int number()
     }
 }
 
-static void fnumber(String *s, int base)
+static void fnumber(struct string *s, int base)
 {
     // ./e/E/p
     if (!s) s = new_string();
@@ -994,7 +992,7 @@ static void fnumber(String *s, int base)
     float_constant(s);
 }
 
-static void float_constant(String *s)
+static void float_constant(struct string *s)
 {
     errno = 0; // must clear first
     if (*pc == 'f' || *pc == 'F') {
@@ -1017,7 +1015,7 @@ static void float_constant(String *s)
     }
 }
 
-static void integer_constant(unsigned long long n, int overflow, int base, String *s)
+static void integer_constant(unsigned long long n, int overflow, int base, struct string *s)
 {
     unsigned char *rpc = pc;
     int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
@@ -1157,7 +1155,7 @@ static void char_constant(int wide)
     char ws[MB_LEN_MAX];
     int len = 0;
     
-    String *s = new_string();
+    struct string *s = new_string();
     wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
     for (; *pc != '\'';) {
 	if (pe - pc < MAXTOKEN) {
@@ -1228,7 +1226,7 @@ static void char_constant(int wide)
 
 static void string_constant(int wide)
 {
-    String *s = new_string();
+    struct string *s = new_string();
     wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
     for (; *pc != '"';) {
 	if (pe - pc < MAXTOKEN) {
@@ -1275,7 +1273,7 @@ static void string_constant(int wide)
 static void identifier()
 {
     unsigned char *rpc;
-    String *s = new_string();
+    struct string *s = new_string();
     rpc = pc = pc - 1;
     for (;isdigitletter(*rpc) || rpc == pe;) {
 	if (rpc == pe) {
@@ -1294,7 +1292,7 @@ static void identifier()
     free_string(s);
 }
 
-static unsigned escape(String *s)
+static unsigned escape(struct string *s)
 {
     assert(*pc == '\\');
     string_concatn(s, pc++, 2);
@@ -1434,6 +1432,6 @@ int lookahead()
 
 const char * token_print_function(void *data)
 {
-    Token *p = data;
+    struct token *p = data;
     return p->name;
 }

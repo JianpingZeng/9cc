@@ -12,22 +12,22 @@ enum {
     TOKEND
 };
 
-typedef struct {
+struct source {
     const char *file;
     unsigned line;
-} Source;
+};
 
-typedef struct {
+struct token {
     int id;
     const char *name;
     struct {
 	union value u;
-	Type *type;
+	struct type *type;
     }v;
-} Token;
+};
 
-extern Source src;
-extern Token *token;
+extern struct source src;
+extern struct token  *token;
 
 // lex
 extern const char * token_print_function(void *data);
