@@ -393,15 +393,15 @@ unary-operator: one of
     
 postfix-expression:
    
-   primary-expression
-   postfix-expression  [ expression ]
-   postfix-expression  ( argument-expression-list(opt) )
-   postfix-expression  .  identifier
-   postfix-expression  -> identifier
-   postfix-expression  ++
-   postfix-expression  --
-   ( type-name )  { initializer-list }
-   ( type-name )  { initializer-list , }
+	primary-expression
+	postfix-expression  [ expression ]
+	postfix-expression  ( argument-expression-list(opt) )
+	postfix-expression  .  identifier
+	postfix-expression  -> identifier
+	postfix-expression  ++
+	postfix-expression  --
+	( type-name )  { initializer-list }
+	( type-name )  { initializer-list , }
     
 primary-expression:
     
@@ -460,6 +460,10 @@ decimal-constant:
 nonzero-digit: one of
     
     1  2  3  4  5  6  7  8  9
+
+digit: one of
+    
+    0  1  2  3  4  5  6  7  8  9
     
 octal-constant:
     
@@ -507,13 +511,4 @@ long-long-suffix: one of
 enumeration-constant:
     
     identifier
-    
-
-
-####Lexical
-***
-
-digit: one of
-    
-    0  1  2  3  4  5  6  7  8  9
 
