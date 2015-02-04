@@ -10,29 +10,22 @@ enum {
 
 struct symbol {
     int scope;
-    struct token *token;
+    const char *name;
+    union value value;
     struct type  *type;
+    unsigned refs;
     struct symbol *up;
-};
-
-struct table {
-    int     scope;
-    struct table   *prev;
-    struct sentry {
-        struct symbol  *sym;
-        struct sentry *next;
-    } *buckets[256];
-    struct symbol *all;
 };
 
 // sym
 extern int scopelevel();
-extern void enterscope();
-extern void exitscope();
-extern struct table * table(struct table *tp, int scope);
-extern struct symbol * lookupsym(const char *name, struct table *tp);
-extern struct symbol * installsym(const char *name, struct table **tpp, int scope);
+extern void enter_scope();
+extern void exit_scope();
+extern struct table * new_table(struct table *up, int scope);
+extern struct symbol * lookup_symbol(const char *name, struct table *table);
+extern struct symbol * install_symbol(const char *name, struct table **tpp, int scope);
 
 extern struct table * identifiers;
+extern struct table * constants;
 
 #endif

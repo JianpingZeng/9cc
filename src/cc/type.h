@@ -1,15 +1,6 @@
 #ifndef cc_type_h
 #define cc_type_h
 
-union value {
-    long long i;
-    unsigned long long u;
-    double d;
-    long double ld;
-    void *p;
-    void (*g) ();
-};
-
 struct type {
     int op;
     const char *name;

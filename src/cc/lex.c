@@ -17,7 +17,7 @@ static unsigned char map[256] = {
     OTHER,
 };
 
-/* Don't use macro here, because macro make things wrong.
+/* Don't use macros here, because macros make things wrong.
  * For example:
  *
  * #define isvisible(c)     ((c) >= 040 && (c) < 0177)
@@ -83,7 +83,8 @@ struct source src;
 static void fillbuf()
 {
     if (bread == 0) {
-	if (pc > pe) pc = pe;
+	if (pc > pe)
+	    pc = pe;
         return;
     }
 
@@ -98,23 +99,19 @@ static void fillbuf()
 	n = pe - pc;
 	dst = &ibuf[LBUFSIZE] - n;
 	src = pc;
-	while (src < pe) {
+	while (src < pe)
 	    *dst++ = *src++;
-	}
     
 	pc = &ibuf[LBUFSIZE] - n;
     }
         
-    if (feof(stdin)) {
+    if (feof(stdin))
         bread = 0;
-    }
-    else {
+    else
         bread = fread(&ibuf[LBUFSIZE], 1, RBUFSIZE, stdin);
-    }
     
-    if (bread < 0) {
+    if (bread < 0) 
 	die("read error: %s", strerror(errno));
-    }
     
     pe = &ibuf[LBUFSIZE] + bread;
     *pe = '\n';
@@ -123,14 +120,12 @@ static void fillbuf()
 static void skipblank()
 {
      do {
-	while (isblank(*pc)) {
+	while (isblank(*pc))
 	    pc++;
-	}
 	if (pe - pc < LBUFSIZE) {
 	    fillbuf();
-	    if (pc == pe) {
+	    if (pc == pe)
 		return;
-	    }
 	}
     } while (isblank(*pc));
 }
@@ -140,9 +135,8 @@ static void skipline()
      while (*pc++ != '\n') {
     	if (pe - pc < LBUFSIZE) {
     	    fillbuf();
-    	    if (pc == pe) {
+    	    if (pc == pe)
     		break;
-    	    }
     	}
     }
 }
@@ -167,7 +161,8 @@ static void fline()
 	for (; *pc != '"' || pc == pe;) {
 	    if (pe - pc < LBUFSIZE) {
 		fillbuf();
-		if (pc == pe) break;
+		if (pc == pe)
+		    break;
 	    }
 	    if (*pc == '\\' && pc[1] == '"') {
 		string_concatn(s, pc+1, 1);
@@ -224,13 +219,13 @@ static void nextline()
     do {
 	if (pc >= pe) {
 	    fillbuf();
-	    if (pc == pe) return;
+	    if (pc == pe)
+		return;
 	}
 	else {
 	    src.line++;
-	    while (isblank(*pc)) {
+	    while (isblank(*pc))
 		pc++;
-	    }
 	    if (*pc == '#') {
 		fsync();
 		nextline();
@@ -274,23 +269,21 @@ static int do_gettok()
     register unsigned char *rpc;
     
     for (; ; ) {
-        while (isblank(*pc)) {
+        while (isblank(*pc))
             pc++;
-        }
         
-        if (pe - pc < MAXTOKEN) {
+        if (pe - pc < MAXTOKEN)
             fillbuf();
-        }
         
         rpc = pc++;
         
         switch (*rpc) {
 	case '\n': 
 	    nextline();
-	    if (pc == pe) {
+	    if (pc == pe)
 		return EOI;
-	    }
-	    continue;
+	    else
+		continue;
                 
             // separators & operators
 	case '/':
@@ -718,12 +711,10 @@ static int do_gettok()
                 
 	default:
 	    if (!isblank(*rpc)) {
-		if (isvisible(*rpc)) {
+		if (isvisible(*rpc))
 		    error("invalid character '%c'", *rpc);
-		}
-		else {
+		else
 		    error("invalid character '\\0%o'", *rpc);
-		}
 	    }
         }
     }
@@ -742,18 +733,16 @@ static void block_comment()
     for (; pc[0] != '*' || pc[1] != '/'; ) {
 	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
-	    if (pc == pe) break;
+	    if (pc == pe)
+		break;
 	}
-	if (isnewline(*pc++)) {
+	if (isnewline(*pc++))
 	    nextline();
-	}
     }
-    if (pc == pe) {
+    if (pc == pe)
 	errorf(line, "unterminated /* comment");
-    }
-    else {
+    else
         pc += 2;
-    }
 }
 
 static int number()
@@ -778,20 +767,21 @@ static int number()
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
-		if (pc == pe) break;
-		continue;
+		if (pc == pe)
+		    break;
+		else
+		    continue;
 	    }
 	    if (n & ~(~0ULL >> 4)) {
 		overflow = 1;
 	    }
 	    else {
 		int d;
-		if (ishex(*rpc)) {
+		if (ishex(*rpc))
 		    d = (*rpc & 0x5f) - 'A' + 10;
-		}
-		else {
+		else
 		    d = *rpc - '0';
-		}
+		
 		n = (n<<4) + d;
 	    }
 	    rpc++;
@@ -822,18 +812,19 @@ static int number()
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
-		if (pc == pe) break;
-		continue;
+		if (pc == pe)
+		    break;
+		else
+		    continue;
 	    }
-	    if (*rpc == '8' || *rpc == '9') {
+	    if (*rpc == '8' || *rpc == '9')
 		err = 1;
-	    }
-	    if (n & ~(~0ULL >> 3)) {
+	    
+	    if (n & ~(~0ULL >> 3))
 		overflow = 1;
-	    }
-	    else {
+	    else
 		n = (n<<3) + (*rpc - '0');
-	    }
+	    
 	    rpc++;
 	}
 	string_concatn(s, pc, rpc-pc);
@@ -845,9 +836,9 @@ static int number()
 	}
 	else {
 	    integer_constant(n, overflow, 8, s);
-	    if (err) {
+	    if (err)
 		error("invalid octal constant %k", token);
-	    }
+	    
 	    free_string(s);
 	    return ICONSTANT;
 	}
@@ -864,16 +855,17 @@ static int number()
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
-		if (pc == pe) break;
-		continue;
+		if (pc == pe)
+		    break;
+		else
+		    continue;
 	    }
 	    int d = *rpc - '0';
-	    if (n > (unsignedlonglongtype->limits.max.u - d)/10) {
+	    if (n > (unsignedlonglongtype->limits.max.u - d)/10)
 		overflow = 1;
-	    }
-	    else {
+	    else
 		n = n*10 + (*rpc - '0');
-	    }
+	    
 	    rpc++;
 	}
 	string_concatn(s, pc, rpc-pc);
@@ -907,8 +899,10 @@ static void fnumber(struct string *s, int base)
 		    pc = rpc;
 		    fillbuf();
 		    rpc = pc;
-		    if (pc == pe) break;
-		    continue;
+		    if (pc == pe)
+			break;
+		    else
+			continue;
 		}
 		rpc++;
 	    }
@@ -918,16 +912,11 @@ static void fnumber(struct string *s, int base)
 
 	if (*pc == 'e' || *pc == 'E') {
 	    string_concatn(s, pc++, 1);
-	    if (pe - pc < MAXTOKEN) {
+	    if (pe - pc < MAXTOKEN)
 		fillbuf();
-	    }
-	    if (*pc == '+' || *pc == '-') {
+	    if (*pc == '+' || *pc == '-')
 		string_concatn(s, pc++, 1);
-	    }
-	    if (!isdigit(*pc)) {
-		error("exponent used with no following digits: %s", s->str);
-	    }
-	    else {
+	    if (isdigit(*pc)) {
 		unsigned char *rpc = pc;
 		for (;isdigit(*rpc) || rpc == pe;) {
 		    if (rpc == pe) {
@@ -935,13 +924,18 @@ static void fnumber(struct string *s, int base)
 			pc = rpc;
 			fillbuf();
 			rpc = pc;
-			if (pc == pe) break;
-			continue;
+			if (pc == pe)
+			    break;
+			else
+			    continue;
 		    }
 		    rpc++;
 		}
 		string_concatn(s, pc, rpc-pc);
 		pc = rpc;
+	    }
+	    else {
+		error("exponent used with no following digits: %s", s->str);
 	    }
 	}
     }
@@ -949,14 +943,16 @@ static void fnumber(struct string *s, int base)
 	// . p P
 	if (*pc == '.') {
 	    string_concatn(s, pc++, 1);
-	    if (!isdigithex(pc[-2]) && !isdigithex(*pc)) {
+	    if (!isdigithex(pc[-2]) && !isdigithex(*pc))
 		error("hex floating constants require a significand");
-	    }
+	    
 	    for (;isdigithex(*pc) || pc == pe;) {
 		if (pc == pe) {
 		    fillbuf();
-		    if (pc == pe) break;
-		    continue;
+		    if (pc == pe)
+			break;
+		    else
+			continue;
 		}
 		string_concatn(s, pc++, 1);
 	    }
@@ -964,18 +960,19 @@ static void fnumber(struct string *s, int base)
 
 	if (*pc == 'p' || *pc == 'P') {
 	    string_concatn(s, pc++, 1);
-	    if (pe - pc < MAXTOKEN) {
+	    if (pe - pc < MAXTOKEN)
 		fillbuf();
-	    }
-	    if (*pc == '+' || *pc == '-') {
+	    if (*pc == '+' || *pc == '-')
 		string_concatn(s, pc++, 1);
-	    }
+	    
 	    if (isdigit(*pc)) {
 		for (;isdigit(*pc) || pc == pe;) {
 		    if (pc == pe) {
 			fillbuf();
-			if (pc == pe) break;
-			continue;
+			if (pc == pe)
+			    break;
+			else
+			    continue;
 		    }
 		    string_concatn(s, pc++, 1);
 		}
@@ -1010,17 +1007,15 @@ static void float_constant(struct string *s)
 	token->v.u.d = strtod(s->str, NULL);
     }
     token->name = strings(s->str);
-    if (errno == ERANGE) {
+    if (errno == ERANGE)
 	error("float constant overflow: %k", token);
-    }
 }
 
 static void integer_constant(unsigned long long n, int overflow, int base, struct string *s)
 {
     unsigned char *rpc = pc;
     int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
-	((rpc[1] == 'l' && rpc[2] == 'l') ||
-	 (rpc[1] == 'L' && rpc[2] == 'L'));
+	((rpc[1] == 'l' && rpc[2] == 'l') || (rpc[1] == 'L' && rpc[2] == 'L'));
     int llu = ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) &&
 	(rpc[2] == 'u' || rpc[2] == 'U');
     if (ull || llu) {
@@ -1031,99 +1026,80 @@ static void integer_constant(unsigned long long n, int overflow, int base, struc
     }
     else if ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) {
 	// long long
-	if (n > longlongtype->limits.max.i && base != 10) {
+	if (n > longlongtype->limits.max.i && base != 10)
 	    token->v.type = unsignedlonglongtype;
-	}
-	else {
+	else
 	    token->v.type = longlongtype;
-	}
+	
 	pc = rpc + 2;
 	string_concatn(s, rpc, 2);
     }
     else if (((rpc[0] == 'l' || rpc[0] == 'L') && (rpc[1] == 'u' || rpc[1] == 'U')) ||
 	     ((rpc[0] == 'u' || rpc[0] == 'U') && (rpc[1] == 'l' || rpc[1] == 'L'))) {
 	// unsigned long
-	if (n > unsignedlongtype->limits.max.u) {
+	if (n > unsignedlongtype->limits.max.u)
 	    token->v.type = unsignedlonglongtype;
-	}
-	else {
+	else
 	    token->v.type = unsignedlongtype;
-	}
+	
 	pc = rpc + 2;	
 	string_concatn(s, rpc, 2);
     }
     else if (rpc[0] == 'l' || rpc[0] == 'L') {
 	// long
 	if (base == 10) {
-	    if (n > longtype->limits.max.i) {
+	    if (n > longtype->limits.max.i)
 		token->v.type = longlongtype;
-	    }
-	    else {
+	    else
 		token->v.type = longtype;
-	    }
 	}
 	else {
-	    if (n > longlongtype->limits.max.i) {
+	    if (n > longlongtype->limits.max.i)
 		token->v.type = unsignedlonglongtype;
-	    }
-	    else if (n > unsignedlongtype->limits.max.u) {
+	    else if (n > unsignedlongtype->limits.max.u)
 		token->v.type = longlongtype;
-	    }
-	    else if (n > longtype->limits.max.i) {
+	    else if (n > longtype->limits.max.i)
 		token->v.type = unsignedlongtype;
-	    }
-	    else {
+	    else
 		token->v.type = longtype;
-	    }
 	}
 	pc = rpc + 1;
 	string_concatn(s, rpc, 1);
     }
     else if (rpc[0] == 'u' || rpc[0] == 'U') {
 	// unsigned
-	if (n > unsignedlongtype->limits.max.u) {
+	if (n > unsignedlongtype->limits.max.u)
 	    token->v.type = unsignedlonglongtype;
-	}
-	else if (n > unsignedinttype->limits.max.u) {
+	else if (n > unsignedinttype->limits.max.u)
 	    token->v.type = unsignedlongtype;
-	}
-	else {
+	else
 	    token->v.type = unsignedinttype;
-	}
+	
 	pc = rpc + 1;
 	string_concatn(s, rpc, 1);
     }
     else {
 	if (base == 10) {
-	    if (n > longtype->limits.max.i) {
+	    if (n > longtype->limits.max.i)
 		token->v.type = longlongtype;
-	    }
-	    else if (n > inttype->limits.max.i) {
+	    else if (n > inttype->limits.max.i)
 		token->v.type = longtype;
-	    }
-	    else {
+	    else
 		token->v.type = inttype;
-	    }
 	}
 	else {
-	    if (n > longlongtype->limits.max.i) {
+	    if (n > longlongtype->limits.max.i)
 		token->v.type = unsignedlonglongtype;
-	    }
-	    else if (n > unsignedlongtype->limits.max.u) {
+	    else if (n > unsignedlongtype->limits.max.u)
 		token->v.type = longlongtype;
-	    }
-	    else if (n > longtype->limits.max.i) {
+	    else if (n > longtype->limits.max.i)
 		token->v.type = unsignedlongtype;
-	    }
-	    else if (n > unsignedinttype->limits.max.u) {
+	    else if (n > unsignedinttype->limits.max.u)
 		token->v.type = longtype;
-	    }
-	    else if (n > inttype->limits.max.i) {
+	    else if (n > inttype->limits.max.i)
 		token->v.type = unsignedinttype;
-	    }
-	    else {
+	    else
 		token->v.type = inttype;
-	    }
 	}
     }
 
@@ -1131,15 +1107,13 @@ static void integer_constant(unsigned long long n, int overflow, int base, struc
 
     switch (token->v.type->op) {
     case INT:
-	if (overflow || n > longlongtype->limits.max.i) {
+	if (overflow || n > longlongtype->limits.max.i)
 	    error("integer constant overflow: %k", token);
-	}
 	token->v.u.i = n;
 	break;
     case UNSIGNED:
-	if (overflow) {
+	if (overflow)
 	    error("integer constant overflow: %k", token);
-	}
 	token->v.u.u = n;
 	break;
     default:
@@ -1160,14 +1134,13 @@ static void char_constant(int wide)
     for (; *pc != '\'';) {
 	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
-	    if (pc == pe) break;
+	    if (pc == pe)
+		break;
 	}
-	if (char_rec) {
+	if (char_rec)
 	    overflow = 1;
-	}
-	if (isnewline(*pc)) {
+	if (isnewline(*pc))
 	    break;
-	}
 
 	if (*pc == '\\') {
 	    // escape
@@ -1177,12 +1150,11 @@ static void char_constant(int wide)
 	else {
 	    if (wide) {
 		string_concatn(s, pc, 1);
-		if (len >= MB_LEN_MAX) {
+		if (len >= MB_LEN_MAX)
 		    error("multibyte character overflow");
-		}
-		else {
+		else
 		    ws[len++] = (char) *pc;
-		}
+		
 		pc++;
 	    }
 	    else {
@@ -1202,20 +1174,15 @@ static void char_constant(int wide)
 	string_concatn(s, pc, 1);
 	token->name = strings(s->str);
 
-	if (!char_rec && !len) {
+	if (!char_rec && !len)
 	    error("incomplete character constant: %k", token);
-	}
-	else if (overflow) {
+	else if (overflow)
 	    error("extraneous characters in character constant: %k", token);
-	}
-	else if ((!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u)){
+	else if ((!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u))
 	    error("character constant overflow: %k", token);
-	}
-	else if (len) {
-	    if (mbtowc(&c, ws, len) != len) {
-		error("invalid multi-character sequence");
-	    }
-	}
+	else if (len && mbtowc(&c, ws, len) != len)
+	    error("invalid multi-character sequence");
+	
 	pc++;
     }
     
@@ -1231,18 +1198,16 @@ static void string_constant(int wide)
     for (; *pc != '"';) {
 	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
-	    if (pc == pe) break;
+	    if (pc == pe)
+		break;
 	}
-	if (isnewline(*pc)) {
+	if (isnewline(*pc))
 	    break;
-	}
 
-	if (*pc == '\\') {
+	if (*pc == '\\')
 	    escape(s);
-	}
-	else {
+	else
 	    string_concatn(s, pc++, 1);
-	}
     }
 
     if (wide) {
@@ -1250,9 +1215,8 @@ static void string_constant(int wide)
 	wchar_t ws[len+1];
 	errno = 0;
 	size_t wlen = mbstowcs(ws, s->str+2, len);
-	if (errno == EILSEQ) {
+	if (errno == EILSEQ)
 	    error("invalid multibyte sequence: %s", s->str);
-	}
 	assert(wlen<=len+1);
         token->v.type = arraytype(wchartype, wlen, NULL);
     }
@@ -1260,12 +1224,10 @@ static void string_constant(int wide)
 	token->v.type = arraytype(chartype, string_length(s)-1, NULL);
     }
     
-    if (*pc == '"') {
+    if (*pc == '"')
 	string_concatn(s, pc++, 1);
-    }
-    else {
+    else
 	error("unterminated string constant: %s", s->str);
-    }
     token->name = strings(s->str);
     free_string(s);
 }
@@ -1281,8 +1243,10 @@ static void identifier()
 	    pc = rpc;
 	    fillbuf();
 	    rpc = pc;
-	    if (pc == pe) break;
-	    continue;
+	    if (pc == pe)
+		break;
+	    else
+		continue;
 	}
 	rpc++;
     }
@@ -1333,8 +1297,10 @@ static unsigned escape(struct string *s)
 	    for (; isdigithex(*pc) || pc == pe; ) {
 		if (pc == pe) {
 		    fillbuf();
-		    if (pc == pe) break;
-		    continue;
+		    if (pc == pe)
+			break;
+		    else
+			continue;
 		}
 		string_concatn(s, pc, 1);
 		if (overflow) {
@@ -1346,12 +1312,10 @@ static unsigned escape(struct string *s)
 		    error("hex escape sequence out of range");
 		}
 		else {
-		    if (isdigit(*pc)) {
+		    if (isdigit(*pc))
 			c = (c<<4) + *pc - '0';
-		    }
-		    else {
+		    else
 			c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
-		    }
 		}
 		pc++;
 	    }
@@ -1365,19 +1329,17 @@ static unsigned escape(struct string *s)
 	    int n = pc[-1] == 'u' ? 4 : 8;
 	    unsigned char *ps = pc - 2;
 	    for (; isdigithex(*pc); x++, pc++) {
-		if (x == n) break;
+		if (x == n)
+		    break;
 
-		if (isdigit(*pc)) {
+		if (isdigit(*pc))
 		    c = (c<<4) + *pc - '0';
-		}
-		else {
+		else
 		    c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
-		}
 		string_concatn(s, pc, 1);
 	    }
-	    if (x < n) {
+	    if (x < n)
 		error("incomplete universal character name: %S", ps, pc-ps);
-	    }
 	    return c;
 	}
     default:
@@ -1388,40 +1350,32 @@ static unsigned escape(struct string *s)
 
 void match(int t)
 {
-    if (t == token->id) {
+    if (t == token->id)
         gettok();
-    }
-    else {
+    else
         error("expect token '%s' at '%k'", tname(t), token);
-    }
 }
 
 const char *tname(int t)
 {
-    if (t < 0) {
+    if (t < 0)
 	return "EOI";
-    }
-    else if (t < 128) {
+    else if (t < 128)
         return tnames[t];
-    }
-    else if (t < 256) {
+    else if (t < 256)
         return "(null)";
-    }
-    else if (t < TOKEND) {
+    else if (t < TOKEND)
         return tnames[128+t-ID];
-    }
-    else {
+    else
         return "(null)";
-    }
 }
 
 int gettok()
 {
     token->name = NULL;
     token->id = do_gettok();
-    if (!token->name) {
+    if (!token->name)
 	token->name = tname(token->id);
-    }
     return token->id;
 }
 

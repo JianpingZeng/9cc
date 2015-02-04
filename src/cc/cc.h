@@ -11,13 +11,23 @@
 #include <limits.h>
 #include <locale.h>
 #include <float.h>
+
+#include "config.h"
 #include "lib.h"
 
 #define twos(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
 #define bits(type)  (CHAR_BIT * (type)->size)
 
+union value {
+    long long i;
+    unsigned long long u;
+    double d;
+    long double ld;
+    void *p;
+    void (*g) ();
+};
+
 // cc modules
-#include "config.h"
 #include "type.h"
 #include "lex.h"
 #include "sym.h"
