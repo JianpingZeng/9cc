@@ -79,7 +79,7 @@ int rmdir(const char *dir)
 {
     char command[64];
     snprintf(command, sizeof(command), "rm -rf %s", dir);
-    system(command);
+    return system(command);
 }
 
 const char *expanduser(const char *path)

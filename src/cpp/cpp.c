@@ -9,7 +9,7 @@ static void usage()
     fprintf(stderr, "Usage: cpp [-E] [-o target] source\n");
 }
 
-static const char ** concat(int argc, char *argv[])
+static const char ** concat(int argc, char **argv)
 {
     char *input_file = NULL;
     char *output_file = NULL;
@@ -55,15 +55,15 @@ static const char ** concat(int argc, char *argv[])
 	vector_push(options, output_file);
     }
 
-    vector_add_from_array(v, cpp);
+    vector_add_from_array(v, (void **)cpp);
     vector_add_from_vector(v, options);
     free_vector(options);
-    p = vector_to_array(v);
+    p = (const char **) vector_to_array(v);
     
     return p;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
     const char **options;
     int ret = EXIT_SUCCESS;

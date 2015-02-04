@@ -3,14 +3,14 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-int callsys(const char *path, const char *argv[])
+int callsys(const char *path, const char **argv)
 {
     pid_t pid;
     int ret = EXIT_SUCCESS;
     pid = fork();
     if (pid == 0) {
-	// child process
-	execv(path, argv);
+	// explicit type cast to make compiler happy
+	execv(path, (char * const *)argv);
 	perror("execv");
 	exit(EXIT_FAILURE);
     }
