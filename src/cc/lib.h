@@ -8,7 +8,8 @@
 #include <assert.h>
 #include <limits.h>
 
-#define ARRAY_SIZE(array)  (sizeof(array)/sizeof(array[0]))
+#define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
+#define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
 
 // print
 typedef const char * (*PrintFunc) (void *data);
