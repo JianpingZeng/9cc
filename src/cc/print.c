@@ -1,6 +1,6 @@
 #include "lib.h"
 
-static PrintFunc print_funcs[128];
+static const char * (*print_funcs[128]) (void *);
 
 static void cc_fputs(FILE *f, const char *s)
 {
@@ -23,9 +23,8 @@ static void cc_int(FILE *f, long l)
 	*--s = m%10 + '0';
     } while ((m/=10));
 
-    if (l < 0) {
+    if (l < 0)
 	*--s = '-';
-    }
 
     cc_fputs(f, s);
 }
@@ -37,12 +36,10 @@ static void cc_uint(FILE *f, unsigned long l, int base, int uppercase)
     
     *--s = 0;
     do {
-	if (uppercase) {
+	if (uppercase)
 	    *--s = "0123456789ABCDEF"[l%base];
-	}
-	else {
+	else
 	    *--s = "0123456789abcdef"[l%base];
-	}
     } while ((l/=base));
 
     cc_fputs(f, s);
@@ -60,12 +57,10 @@ static void cc_uint_ex(FILE *f, unsigned long l, int base, int uppercase, char l
     
 	*--s = 0;
 	do {
-	    if (uppercase) {
+	    if (uppercase)
 		*--s = "0123456789ABCDEF"[l%base];
-	    }
-	    else {
+	    else
 		*--s = "0123456789abcdef"[l%base];
-	    }
 	} while ((l/=base));
 	
 	if (e-s >= width) {
@@ -73,9 +68,8 @@ static void cc_uint_ex(FILE *f, unsigned long l, int base, int uppercase, char l
 	}
 	else if (width <= (sizeof buf - 1)){
 	    unsigned left = width - (e-s);
-	    while(left--) {
+	    while(left--)
 		*--s = lead;
-	    }
 	    cc_fputs(f, s);
 	}
 	else {
@@ -85,32 +79,29 @@ static void cc_uint_ex(FILE *f, unsigned long l, int base, int uppercase, char l
 	    unsigned left = width - (e-s);
 	    assert(p);
 	    memcpy(ps, s, e-s+1);
-	    while (left--) {
+	    while (left--)
 		*--ps = lead;
-	    }
 	    cc_fputs(f, ps);
 	    free(p);
 	}
     }
 }
 
-void register_print_function(char c, PrintFunc p)
+void register_print_function(char c, const char * (*g) (void *data))
 {
     static char reserved[] = {'d', 'i', 'u', 'l', 'f', 'e',
 			      'E', 'g', 'G', 'o', 'x', 'X',
 			      's', 'p', 'c', '%', 'S'};
-    if (c >= '0' && c <= '9') {
-        fprint(stderr, "Can't register print function for '%c'\n", c);
-	exit(EXIT_FAILURE);
-    }
-    for (int i=0; i < sizeof reserved/sizeof reserved[0]; i++) {
-	if (c == reserved[i]) {
-	    fprint(stderr, "Can't register print function for '%c'\n", c);
-	    exit(EXIT_FAILURE);
-	}
+    
+    if (c >= '0' && c <= '9')
+	die("Can't register print function for '%c'", c);
+    
+    for (int i=0; i < ARRAY_SIZE(reserved); i++) {
+	if (c == reserved[i])
+	    die("Can't register print function for '%c'", c);
     }
 
-    print_funcs[(int)c] = p;
+    print_funcs[(int)c] = g;
 }
 
 void vfprint(FILE *f, const char *fmt, va_list ap)
@@ -195,9 +186,8 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		{
 		    char *str = va_arg(ap, char *);
 		    int len = va_arg(ap, int);
-		    while (len-- > 0) {
+		    while (len-- > 0)
 			cc_fputc(f, *str++);
-		    }
 		}
 		break;
 	    case 'p':
@@ -250,7 +240,7 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 	    default:
 		// search for register formats
 		if (print_funcs[(int)*fmt]) {
-		    PrintFunc p = print_funcs[(int)*fmt];
+		    const char * (*p) (void *) = print_funcs[(int)*fmt];
 		    const char *str = p(va_arg(ap, void*));
 		    cc_fputs(f, str);
 		}
