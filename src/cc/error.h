@@ -9,12 +9,12 @@ extern void fatal(const char *fmt, ...);
 extern void warningf(unsigned line, const char *fmt, ...);
 extern void errorf(unsigned line, const char *fmt, ...);
 
-struct {
+struct log {
     void (*v) (const char *fmt, ...);
     void (*d) (const char *fmt, ...);
     void (*i) (const char *fmt, ...);
-} Log;
-extern void init_logger();
+};
+extern struct log Log;
 
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);

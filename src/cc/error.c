@@ -83,12 +83,7 @@ static void logi(const char *fmt, ...)
     va_end(ap);
 }
 
-void init_logger()
-{
-    Log.v = logv;
-    Log.d = logv;
-    Log.i = logi;
-}
+struct log Log = { logv, logv, logi };
 
 static long call_depth = -1;
 static const char *depth_str()
