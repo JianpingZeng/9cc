@@ -1376,12 +1376,34 @@ int gettok()
     token->id = do_gettok();
     if (!token->name)
 	token->name = tname(token->id);
+    
     return token->id;
 }
 
 int lookahead()
 {
-   
+    unsigned char *rpc;
+    
+    for (;;) {
+	while(isblank(*pc))
+	    pc++;
+
+	if (pe - pc < MAXTOKEN)
+	    fillbuf();
+
+	rpc = pc++;
+
+	if (isnewline(*rpc)) {
+	    nextline();
+	    if (pc == pe)
+		return EOI;
+	    else
+		continue;
+	}
+	else if (!isblank(*rpc)) {
+	    return *rpc;
+	}
+    }
 }
 
 const char * token_print_function(void *data)
