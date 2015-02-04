@@ -295,20 +295,16 @@ jump-statement:
 expression:
     
     assignment-expression
-    unary-expression  assignment-expression
+    expression ,  assignment-expression
     
 assignment-expression:
     
     conditional-expression
-    unary-expression  assignment-operator
+    unary-expression  assignment-operator assignment-expression
     
 assignment-operator: one of
     
 	=  *=  /=  %=  +=  -=  <<=  >>=  &=  ^=  |=
-
-constant-expression:
-    
-    conditional-expression
 
 conditional-expression:
     
@@ -415,6 +411,9 @@ argument-expression-list:
     assignment-expression
     argument-expression-list  ,  assignment-expression
     
+constant-expression:
+    
+    conditional-expression
 
 
 ####String literals
