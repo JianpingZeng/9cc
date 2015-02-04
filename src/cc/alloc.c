@@ -1,144 +1,200 @@
-#include "lib.h"
+#include "cc.h"
 
 #define RESERVED_SIZE 8192
 
-#define ALIGN_SIZE    (sizeof (unsigned long long))
+#define ALIGN_SIZE    (sizeof(unsigned long long))
 #define ROUNDUP(size) ((size+(ALIGN_SIZE - 1))&(~(ALIGN_SIZE - 1)))
 
-struct alloc_bucket {
-    void *p;                   /* free position */
-    void *limit;               /* end position */
-    struct alloc_bucket *next; /* next bucket */
-};
-
-struct alloc_info {
-    struct alloc_bucket *head;
-    struct alloc_bucket *free;
-};
-
-static struct alloc_info alloc_info[3];
-
-static void * xmalloc(size_t size)
+void * cc_malloc(size_t size)
 {
     void *p = malloc(size);
-    if (!p) {
+    if (!p)
 	die("Can't malloc");
-    }
     memset(p, 0, size);
     return p;
 }
 
-static void xfree(void *p)
+void cc_free(void *p)
 {
     free(p);
 }
 
-static void * new_page(size_t size)
+struct alloc_state {
+    int nr;			/* number of free nodes */
+    void *p;			/* first free node position */
+};
+
+static inline void * alloc_node(struct alloc_state *s, size_t size)
 {
-    struct alloc_bucket *pb = xmalloc(sizeof(struct alloc_bucket) + size + RESERVED_SIZE);
+    void *ret;
+    
+    if (!s->nr) {
+	s->nr = RESERVED_SIZE;
+	s->p = cc_malloc(size*s->nr);
+    }
+
+    s->nr--;
+    ret = s->p;
+    s->p = (char *)s->p + size;
+    return ret;
+}
+
+static struct alloc_state expr_state;
+void * alloc_expr_node()
+{
+    void *ret = alloc_node(&expr_state, sizeof(struct expr));
+    return ret;
+}
+
+static struct alloc_state stmt_state;
+void * alloc_stmt_node()
+{
+    void *ret = alloc_node(&stmt_state, sizeof(struct stmt));
+    return ret;
+}
+
+static struct alloc_state decl_state;
+void * alloc_decl_node()
+{
+    void *ret = alloc_node(&decl_state, sizeof(struct decl));
+    return ret;
+}
+
+static struct alloc_state type_state;
+void * alloc_type_node()
+{
+    void *ret = alloc_node(&type_state, sizeof(struct type));
+    return ret;
+}
+
+static struct alloc_state symbol_state;
+void * alloc_symbol_node()
+{
+    void *ret = alloc_node(&symbol_state, sizeof(struct symbol));
+    return ret;
+}
+
+/*
+ * alloc_bucket: for table-like structures
+ *
+ * A table-like structure has a bucket array and
+ * each bucket points to a linked list of content
+ * entry.
+ */
+
+struct alloc_bucket {
+    void *p;			/* free position */
+    void *limit;		/* end position */
+    struct alloc_bucket *next;	/* next bucket */
+};
+
+static void * alloc_bucket(size_t size)
+{
+    struct alloc_bucket *pb;
+    size = ROUNDUP(size);
+    
+    pb = cc_malloc(sizeof(struct alloc_bucket) + size + RESERVED_SIZE);
     pb->p = pb + 1;
     pb->limit = (char *)pb->p + size + RESERVED_SIZE;
     return pb;
 }
 
-static void * alloc_for_bucket(size_t size, int index)
+static void * alloc_for_bucket(struct alloc_bucket *s, size_t size)
 {
     void *ret;
-    struct alloc_info info = alloc_info[index];
     size = ROUNDUP(size);
 
-    if (!info.head) {
-	struct alloc_bucket *pb = new_page(size);
-	info.head = info.free = pb;
+    while (s->next)
+	s = s->next;
+
+    if ((char *)s->p + size > s->limit) {
+	struct alloc_bucket *pb = alloc_bucket(size);
+	s->next = pb;
+	s = pb;
     }
 
-    if ((char *)info.free->p + size > info.free->limit) {
-	struct alloc_bucket *pb = new_page(size);
-	info.free->next = pb;
-	info.free = pb;
-    }
-
-    ret = info.free->p;
-    info.free->p = (char *)info.free->p + size;
+    ret = s->p;
+    s->p = (char *)s->p + size;
     return ret;
 }
 
-void * allocate(size_t size, int flags)
+void * alloc_table(size_t size)
 {
-    switch (flags) {
-    case ALLOC_TEMP:
-	return xmalloc(size);
-    case ALLOC_NODE:
-    case ALLOC_STRING:
-	return alloc_for_bucket(size, flags);
-    default:
-	die("unknown alloc type");
-    }
+    struct alloc_bucket *s = alloc_bucket(size);
+    return alloc_for_bucket(s, size);
 }
 
-void deallocate(void *p)
+void drop_table(void *table)
 {
-    xfree(p);
+    struct alloc_bucket *s = (char *)table - sizeof(struct alloc_bucket);
+    do {
+	struct alloc_bucket *c = s;
+	s = c->next;
+	cc_free(c);
+    } while(s);
 }
 
-/* string bucket
- *
- */
+void * alloc_table_entry(void *table, size_t size)
+{
+    struct alloc_bucket *s = (char *)table - sizeof(struct alloc_bucket);
+    return alloc_for_bucket(s, size);
+}
 
-struct string_bucket {
-    char *str;
-    int len;
-    struct string_bucket *next;
+
+struct string_table {
+    struct string_bucket {
+	char *str;
+	int len;
+	struct string_bucket *next;
+    } *buckets[1024];
 };
-
-static struct string_bucket * buckets[1024];
 
 struct string_bucket * new_string_bucket()
 {
-    return allocate(sizeof(struct string_bucket), ALLOC_NODE);
+    /* return allocate(sizeof(struct string_bucket), ALLOC_NODE); */
 }
 
 const char *stringn(const char *src, int len)
 {
-    struct string_bucket *ps;
-    register unsigned int hash;
-    register unsigned char *p;
-    const char *end = src + len;
+    /* struct string_bucket *ps; */
+    /* register unsigned int hash; */
+    /* register unsigned char *p; */
+    /* const char *end = src + len; */
     
-    if (src == NULL || len < 0) {
-        return NULL;
-    }
+    /* if (src == NULL || len < 0) { */
+    /*     return NULL; */
+    /* } */
     
-    for(hash = 0, p = (unsigned char *)src; *p ; p++)
-        hash = 31 * hash + *p;
+    /* for(hash = 0, p = (unsigned char *)src; *p ; p++) */
+    /*     hash = 31 * hash + *p; */
     
-    hash %= ARRAY_SIZE(buckets) - 1;
-    for (ps = buckets[hash]; ps; ps = ps->next) {
-        if (ps->len == len) {
-            const char *s1 = src;
-            char *s2 = ps->str;
-            do {
-                if (s1 == end) {
-                    return ps->str;
-                }
-            } while (*s1++ == *s2++);
-        }
-    }
+    /* hash %= ARRAY_SIZE(buckets) - 1; */
+    /* for (ps = buckets[hash]; ps; ps = ps->next) { */
+    /*     if (ps->len == len) { */
+    /*         const char *s1 = src; */
+    /*         char *s2 = ps->str; */
+    /*         do { */
+    /*             if (s1 == end) { */
+    /*                 return ps->str; */
+    /*             } */
+    /*         } while (*s1++ == *s2++); */
+    /*     } */
+    /* } */
     
-    // alloc
-    {
-        char *dst = (char *) allocate(len+1, ALLOC_STRING);
-        ps = new_string_bucket();
-        ps->len = len;
-        for (ps->str = dst; src < end; ) {
-            *dst++ = *src++;
-        }
-        *dst++ = 0;
-        ps->next = buckets[hash];
-        buckets[hash] = ps;
+    /* // alloc */
+    /* { */
+    /*     char *dst = (char *) allocate(len+1, ALLOC_STRING); */
+    /*     ps = new_string_bucket(); */
+    /*     ps->len = len; */
+    /*     for (ps->str = dst; src < end; ) { */
+    /*         *dst++ = *src++; */
+    /*     } */
+    /*     *dst++ = 0; */
+    /*     ps->next = buckets[hash]; */
+    /*     buckets[hash] = ps; */
 
-        return ps->str;
-    }
+    /*     return ps->str; */
+    /* } */
 }
 
 const char *strings(const char *str)

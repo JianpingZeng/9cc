@@ -101,7 +101,7 @@ void init_type()
 
 struct type * new_type()
 {
-    return alloc_node(struct type);
+    return alloc_type_node();
 }
 
 // static void printspec(struct type *type)

@@ -13,53 +13,32 @@ struct table {
 };
 
 struct table * identifiers;
-static int _scopelevel;
-
-static struct table * newtable()
-{
-    struct table *tp = alloc_node(struct table);    
-    return tp;
-}
-
-//TODO: can't rm
-static void rmtable(struct table *tp)
-{
-    if (tp) {
-        for (int i=0; i < ARRAY_SIZE(tp->buckets); i++) {
-            for (struct sentry *bucket = tp->buckets[i]; bucket; ) {
-                struct sentry *next = bucket->next;
-                deallocate(bucket);
-                bucket = next;
-            }
-        }
-        deallocate(tp);
-    }
-}
+static int scope;
 
 int scopelevel()
 {
-    return _scopelevel;
+    return scope;
 }
 
 void enter_scope()
 {
-    _scopelevel++;
+    scope++;
 }
 
 void exit_scope()
 {
-    if (identifiers->scope == _scopelevel) {
+    if (identifiers->scope == scope) {
         struct table *tp = identifiers;
         identifiers = identifiers->up;
-        rmtable(tp);
+        drop_table(tp);
     }
     assert(scopelevel >= GLOBAL);
-    _scopelevel--;
+    scope--;
 }
 
 struct table * new_table(struct table *up, int scope)
 {
-    struct table *t = newtable();
+    struct table *t = alloc_table(sizeof(struct table));
     t->up = up;
     t->scope = scope;
     if (up) {
@@ -98,8 +77,8 @@ struct symbol * lookup_symbol(const char *name, struct table *table)
 struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
 {
     unsigned h = hash(name) % BUCKET_SIZE;
-    struct sentry *entry = alloc_node(struct sentry);
-    struct symbol *symbol = alloc_node(struct symbol);
+    struct sentry *entry;
+    struct symbol *symbol;
     struct table *tp = *tpp;
     
     assert(scope >= tp->scope);
@@ -107,6 +86,8 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
         tp = *tpp = new_table(tp, scope);
     }
 
+    entry = alloc_table_entry(tp, sizeof(struct sentry));
+    symbol = alloc_symbol_node();
     symbol->scope = scope;
     symbol->name = strings(name);
     tp->all = symbol;

@@ -1,21 +1,21 @@
-#include "lib.h"
+#include "cc.h"
 
 static void string_grow(struct string *s, int len)
 {
-    char *mem = alloc_temp(len + s->reserve);
+    char *mem = cc_malloc(len + s->reserve);
     memcpy(mem, s->str, s->size);
-    deallocate(s->str);
+    cc_free(s->str);
     s->str = mem;
     s->capelems = len + s->reserve;
 }
 
 struct string * new_string()
 {
-    struct string *s = alloc_temp(sizeof(struct string));
+    struct string *s = cc_malloc(sizeof(struct string));
     s->reserve = 128;
     s->size = 0;
     s->capelems = s->reserve;
-    s->str = allocate(s->capelems, 0);
+    s->str = cc_malloc(s->capelems);
     return s;
 }
 
@@ -71,7 +71,7 @@ void string_concatd(struct string *s, long n)
 char * string_to_array(struct string *s)
 {
     assert(s);
-    char *str = allocate(s->size+1, 0);
+    char *str = cc_malloc(s->size+1);
     memcpy(str, s->str, s->size);
     free_string(s);
     return str;
@@ -80,6 +80,6 @@ char * string_to_array(struct string *s)
 void free_string(struct string *s)
 {
     assert(s);
-    deallocate(s->str);
-    deallocate(s);
+    cc_free(s->str);
+    cc_free(s);
 }

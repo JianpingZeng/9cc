@@ -1,23 +1,23 @@
-#include "lib.h"
+#include "cc.h"
 
 static void vector_grow(struct vector *v)
 {
     assert(v->elems == v->capelems);
-    void *mem = allocate((v->elems + v->reserve) * v->elemsize, 0);
+    void *mem = cc_malloc((v->elems + v->reserve) * v->elemsize);
     memcpy(mem, v->mem, v->elems * v->elemsize);
-    deallocate(v->mem);
+    cc_free(v->mem);
     v->mem = mem;
     v->capelems += v->reserve;
 }
 
 struct vector *new_vector()
 {
-    struct vector *v = alloc_temp(sizeof(struct vector));
+    struct vector *v = cc_malloc(sizeof(struct vector));
     v->reserve = 10;
     v->elemsize = sizeof(void *);
     v->elems = 0;
     v->capelems = v->reserve;
-    v->mem = allocate(v->elemsize * v->capelems, 0);
+    v->mem = cc_malloc(v->elemsize * v->capelems);
     return v;
 }
 
@@ -65,8 +65,8 @@ void vector_insert(struct vector *v, unsigned index, void *elem)
 void free_vector(struct vector *v)
 {
     assert(v);
-    deallocate(v->mem);
-    deallocate(v);
+    cc_free(v->mem);
+    cc_free(v);
 }
 
 void purge_vector(struct vector *v)
@@ -74,7 +74,7 @@ void purge_vector(struct vector *v)
     assert(v);
     for (int i=0; i < vector_length(v); i++) {
 	void *p = vector_at(v, i);
-	deallocate(p);
+	cc_free(p);
     }
     free_vector(v); 
 }
@@ -89,7 +89,7 @@ unsigned vector_length(struct vector *v)
 void ** vector_to_array(struct vector *v)
 {
     int vlen = vector_length(v);
-    void **array = allocate((vlen+1) * v->elemsize, 0);
+    void **array = cc_malloc((vlen+1) * v->elemsize);
     array[vlen] = 0;
     memcpy(array, v->mem, vlen * v->elemsize);
     free_vector(v);

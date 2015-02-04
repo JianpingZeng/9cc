@@ -93,7 +93,7 @@ void init_logger()
 static long call_depth = -1;
 static const char *depth_str()
 {
-    char *str = (char *) allocate(call_depth+1, 0);
+    char *str = cc_malloc(call_depth+1);
     str[call_depth] = 0;
     memset(str, '|', call_depth);
     return str;
