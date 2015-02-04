@@ -34,49 +34,55 @@ static unsigned char map[256] = {
  *
  */
 
-static inline int isdigit(unsigned char c)
+static inline int isdigit(char c)
 {
-    return map[c] & DIGIT;
+    return map[(unsigned char)c] & DIGIT;
 }
 
-static inline int isletter(unsigned char c)
+static inline int isletter(char c)
 {
-    return map[c] & LETTER;
+    return map[(unsigned char)c] & LETTER;
 }
 
-static inline int isdigitletter(unsigned char c)
+static inline int isdigitletter(char c)
 {
     return isdigit(c) || isletter(c);
 }
 
-static inline int isblank(unsigned char c)
+static inline int isblank(char c)
 {
-    return map[c] & BLANK;
+    return map[(unsigned char)c] & BLANK;
 }
 
-static inline int isnewline(unsigned char c)
+static inline int isnewline(char c)
 {
-    return map[c] & NEWLINE;
+    return map[(unsigned char)c] & NEWLINE;
 }
 
-static inline int ishex(unsigned char c)
+static inline int ishex(char c)
 {
-    return map[c] & HEX;
+    return map[(unsigned char)c] & HEX;
 }
 
-static inline int isdigithex(unsigned char c)
+static inline int isdigithex(char c)
 {
     return isdigit(c) || ishex(c);
 }
 
-static inline int isvisible(unsigned char c)
+static inline int isvisible(char c)
 {
     return c >= 040 && c < 0177;
 }
 
-static unsigned char ibuf[LBUFSIZE+RBUFSIZE+1];
-static unsigned char *pc;
-static unsigned char *pe;
+/*
+ * unsigned char generates too many warnings
+ * when using functions like stringn etc.
+ * so use char here to make the compiler happy.
+ */
+
+static char ibuf[LBUFSIZE+RBUFSIZE+1];
+static char *pc;
+static char *pe;
 static long bread;
 struct source src;
 
@@ -93,7 +99,7 @@ static void fillbuf()
     }
     else {
 	long n;
-	unsigned char *dst, *src;
+	char *dst, *src;
 
 	// copy
 	n = pe - pc;
@@ -266,7 +272,7 @@ static void integer_constant(unsigned long long value, int overflow, int base, s
 
 static int do_gettok()
 {
-    register unsigned char *rpc;
+    register char *rpc;
     
     for (; ; ) {
         while (isblank(*pc))
@@ -747,7 +753,7 @@ static void block_comment()
 
 static int number()
 {
-    unsigned char *rpc = pc-1;
+    char *rpc = pc-1;
     if (rpc[0] == '0' && (rpc[1] == 'x' || rpc[1] == 'X')) {
         // Hex
 	unsigned long long n = 0;
@@ -892,7 +898,7 @@ static void fnumber(struct string *s, int base)
 	// . e E
 	if (*pc == '.') {
 	    string_concatn(s, pc++, 1);
-	    unsigned char *rpc = pc;
+	    char *rpc = pc;
 	    for (;isdigit(*rpc) || rpc == pe;) {
 		if (rpc == pe) {
 		    string_concatn(s, pc, rpc-pc);
@@ -917,7 +923,7 @@ static void fnumber(struct string *s, int base)
 	    if (*pc == '+' || *pc == '-')
 		string_concatn(s, pc++, 1);
 	    if (isdigit(*pc)) {
-		unsigned char *rpc = pc;
+		char *rpc = pc;
 		for (;isdigit(*rpc) || rpc == pe;) {
 		    if (rpc == pe) {
 			string_concatn(s, pc, rpc-pc);
@@ -1013,7 +1019,7 @@ static void float_constant(struct string *s)
 
 static void integer_constant(unsigned long long n, int overflow, int base, struct string *s)
 {
-    unsigned char *rpc = pc;
+    char *rpc = pc;
     int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
 	((rpc[1] == 'l' && rpc[2] == 'l') || (rpc[1] == 'L' && rpc[2] == 'L'));
     int llu = ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) &&
@@ -1180,7 +1186,7 @@ static void char_constant(int wide)
 	    error("extraneous characters in character constant: %k", token);
 	else if ((!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u))
 	    error("character constant overflow: %k", token);
-	else if (len && mbtowc(&c, ws, len) != len)
+	else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
 	    error("invalid multi-character sequence");
 	
 	pc++;
@@ -1234,7 +1240,7 @@ static void string_constant(int wide)
 
 static void identifier()
 {
-    unsigned char *rpc;
+    char *rpc;
     struct string *s = new_string();
     rpc = pc = pc - 1;
     for (;isdigitletter(*rpc) || rpc == pe;) {
@@ -1327,7 +1333,7 @@ static unsigned escape(struct string *s)
 	    unsigned c = 0;
 	    int x = 0;
 	    int n = pc[-1] == 'u' ? 4 : 8;
-	    unsigned char *ps = pc - 2;
+	    char *ps = pc - 2;
 	    for (; isdigithex(*pc); x++, pc++) {
 		if (x == n)
 		    break;
@@ -1382,7 +1388,7 @@ int gettok()
 
 int lookahead()
 {
-    unsigned char *rpc;
+    char *rpc;
     
     for (;;) {
 	while(isblank(*pc))

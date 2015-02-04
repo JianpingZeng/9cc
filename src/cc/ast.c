@@ -177,6 +177,6 @@ const char *nname(struct node * node)
 const char * node_print_function(void *data)
 {
     struct node *p = data;
-    
+    return nname(p);
 }
 

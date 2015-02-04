@@ -88,6 +88,8 @@ struct alloc_bucket {
     struct alloc_bucket *next;	// next bucket
 };
 
+#define ALLOC_BUCKET_FOR(table)  ((struct alloc_bucket *)((char *)table - sizeof(struct alloc_bucket)))
+
 static void * alloc_bucket(size_t size)
 {
     struct alloc_bucket *pb;
@@ -107,7 +109,7 @@ static inline void * alloc_for_bucket(struct alloc_bucket *s, size_t size)
     while (s->next)
 	s = s->next;
 
-    if ((char *)s->p + size > s->limit) {
+    if ((char *)s->p + size > (char *)s->limit) {
 	struct alloc_bucket *pb = alloc_bucket(size);
 	s->next = pb;
 	s = pb;
@@ -126,7 +128,7 @@ void * alloc_table(size_t size)
 
 void drop_table(void *table)
 {
-    struct alloc_bucket *s = (char *)table - sizeof(struct alloc_bucket);
+    struct alloc_bucket *s = ALLOC_BUCKET_FOR(table);
     do {
 	struct alloc_bucket *c = s;
 	s = c->next;
@@ -136,7 +138,7 @@ void drop_table(void *table)
 
 void * alloc_table_entry(void *table, size_t size)
 {
-    struct alloc_bucket *s = (char *)table - sizeof(struct alloc_bucket);
+    struct alloc_bucket *s = ALLOC_BUCKET_FOR(table);
     return alloc_for_bucket(s, size);
 }
 

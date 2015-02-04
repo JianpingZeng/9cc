@@ -40,7 +40,7 @@ static void test()
     	// else {
     	//     logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
     	// }
-    	// Log.i("%k", token);
+    	Log.i("%k", token);
 	if (token->id == ID)
 	    ids++;
 	else if (token->id >= ICONSTANT && token->id <= SCONSTANT)
@@ -52,8 +52,8 @@ static void test()
 			     
     }
     Log.i("%lu tokens, %lu errors, %lu warnings", n, errors, warnings);
-    Log.v("%lu keywords, %lu constants, %lu identifiers, %lu others",
-	  kws, cons, ids, others);
+    // Log.v("%lu keywords, %lu constants, %lu identifiers, %lu others",
+    // 	  kws, cons, ids, others);
 }
 
 static void cc_init()
