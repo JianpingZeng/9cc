@@ -11,8 +11,7 @@ enum {
 // node
 struct node {
     int id;
-    struct node *lkid;
-    struct node *rkid;
+    struct node *kids[2];
 };
 
 // expr
