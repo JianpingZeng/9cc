@@ -19,7 +19,7 @@ int file_exists(const char *path)
     return stat(path, &st) == 0;
 }
 
-int callsys(const char *path, char *argv[])
+int callsys(const char *path, char **argv)
 {
     pid_t pid;
     int ret = EXIT_SUCCESS;
@@ -46,7 +46,7 @@ int callsys(const char *path, char *argv[])
     return ret;
 }
 
-const char *replace_suffix(const char *path, const char *suffix)
+char *replace_suffix(const char *path, const char *suffix)
 {
     assert(path && suffix);
     int dot_index = -1;
@@ -82,7 +82,7 @@ int rmdir(const char *dir)
     return system(command);
 }
 
-const char *expanduser(const char *path)
+char *expanduser(char *path)
 {
     if (!path || !strlen(path)) return NULL;
     if (path[0] == '~') {

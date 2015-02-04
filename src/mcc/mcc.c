@@ -8,21 +8,24 @@
 #include <stdlib.h>
 #include "mcc.h"
 
+// commands
 static const char *cpp[] = {"cpp", "$in", "-o", "$out", 0};
 static const char *cc[] = {"cc", "$in", "-o", "$out", 0};
-static const char *as[] = {0};
-static const char *ld[] = {0};
-static char *tmpdir;
-static const char *output_file;
+
+// configs
 static struct configs {
     unsigned option_E : 1;
     unsigned option_c : 1;
     unsigned option_s : 1;
 } config;
+
+static char *tmpdir;
+static char *output_file;
+
 // temporary files
-static const char *ifile;
-static const char *sfile;
-static const char *ofile;
+static char *ifile;
+static char *sfile;
+
 // options
 static Vector *optionlist;
 static unsigned fails;
@@ -54,7 +57,7 @@ static int preprocess(const char *inputfile)
 {
     int ret;
     Vector *v = new_vector();
-    const char **argv;
+    char **argv;
     if (config.option_E) {
 	if (output_file) {
 	    cpp[3] = output_file;
@@ -69,9 +72,9 @@ static int preprocess(const char *inputfile)
 	cpp[3] = ifile;
     }
     cpp[1] = inputfile;
-    vector_add_from_array(v, cpp);
+    vector_add_from_array(v, (void **)cpp);
     vector_add_from_vector(v, optionlist);
-    argv = vector_to_array(v);
+    argv = (char **) vector_to_array(v);
     ret = callsys(cpp[0], argv);
     free(argv);
     return ret;
@@ -81,8 +84,8 @@ static int compile(const char *inputfile, const char *orig_input_file)
 {
     int ret;
     Vector *v = new_vector();
-    const char **argv;
-    const char *outfile = NULL;
+    char **argv;
+    char *outfile = NULL;
     if (config.option_s) {
 	if (output_file) {
 	    cc[3] = output_file;
@@ -98,9 +101,9 @@ static int compile(const char *inputfile, const char *orig_input_file)
 	cc[3] = sfile;
     }
     cc[1] = inputfile;
-    vector_add_from_array(v, cc);
+    vector_add_from_array(v, (void **)cc);
     vector_add_from_vector(v, optionlist);
-    argv = vector_to_array(v);
+    argv = (char **) vector_to_array(v);
     ret = callsys(cc[0], argv);
     free(argv);
     if (outfile) free(outfile);
@@ -152,7 +155,7 @@ static void translate(void *inputfile)
     if (sfile) free(sfile);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
     Vector *inputlist = new_vector();
@@ -217,7 +220,7 @@ int main(int argc, char *argv[])
 
     if (!config.option_E && !config.option_s && !config.option_c && fails == 0) {
 	// link
-	
+	ret = link();
     }
     
     purge_vector(inputlist);

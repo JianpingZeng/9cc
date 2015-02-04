@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-int callsys(const char *path, const char **argv)
+int callsys(const char *path, char **argv)
 {
     pid_t pid;
     int ret = EXIT_SUCCESS;
