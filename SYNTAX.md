@@ -1,4 +1,4 @@
-##C99 Standard syntax
+##C99 Standard Syntax
 
 
 ####External definitions
