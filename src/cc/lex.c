@@ -1313,7 +1313,7 @@ static unsigned escape(struct string *s)
 		    pc++;
 		    continue;
 		}
-		if (c >> (bits(wchartype) - 4)) {
+		if (c >> (BITS(wchartype) - 4)) {
 		    overflow = 1;
 		    error("hex escape sequence out of range");
 		}
