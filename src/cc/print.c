@@ -49,8 +49,7 @@ static void cc_uint_ex(FILE *f, unsigned long l, int base, int uppercase, char l
 {
     if (width == 0) {
 	return cc_uint(f, l, base, uppercase);
-    }
-    else {
+    } else {
 	char buf[64];
 	char *s = &buf[sizeof buf];
 	char *e = s-1;
@@ -65,14 +64,12 @@ static void cc_uint_ex(FILE *f, unsigned long l, int base, int uppercase, char l
 	
 	if (e-s >= width) {
 	    cc_fputs(f, s);
-	}
-	else if (width <= (sizeof buf - 1)){
+	} else if (width <= (sizeof buf - 1)){
 	    unsigned left = width - (e-s);
 	    while(left--)
 		*--s = lead;
 	    cc_fputs(f, s);
-	}
-	else {
+	} else {
 	    char *p = malloc(width+1);
 	    char *pe = p+width;
 	    char *ps = pe - (e-s);
@@ -121,32 +118,24 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		if (fmt[0] == 'l' && fmt[1] == 'd') {
 		    cc_int(f, va_arg(ap, long long));
 		    fmt++;
-		}
-		else if (fmt[0] == 'l' && fmt[1] == 'u') {
+		} else if (fmt[0] == 'l' && fmt[1] == 'u') {
 		    cc_uint(f, va_arg(ap, unsigned long long), 10, 0);
 		    fmt++;
-		}
-		else if (fmt[0] == 'l' && (fmt[1] == 'x' || fmt[1] == 'X')) {
+		} else if (fmt[0] == 'l' && (fmt[1] == 'x' || fmt[1] == 'X')) {
 		    cc_uint(f, va_arg(ap, unsigned long long), 16, fmt[1] == 'x' ? 0 : 1);
 		    fmt++;
-		}
-		else if (fmt[0] == 'l' && fmt[1] == 'o') {
+		} else if (fmt[0] == 'l' && fmt[1] == 'o') {
 		    cc_uint(f, va_arg(ap, unsigned long long), 8, 0);
 		    fmt++;
-		}
-		else if (*fmt == 'd') {
+		} else if (*fmt == 'd') {
 		    cc_int(f, va_arg(ap, long));
-		}
-		else if (*fmt == 'u') {
+		} else if (*fmt == 'u') {
 		    cc_uint(f, va_arg(ap, unsigned long), 10, 0);
-		}
-		else if (*fmt == 'x' || *fmt == 'X') {
+		} else if (*fmt == 'x' || *fmt == 'X') {
 		    cc_uint(f, va_arg(ap, unsigned long), 16, *fmt == 'x' ? 0 : 1);
-		}
-		else if (*fmt == 'o') {
+		} else if (*fmt == 'o') {
 		    cc_uint(f, va_arg(ap, unsigned long), 8, 0);
-		}
-		else {
+		} else {
 		    cc_fputc(f, 'l');
 		    cc_fputc(f, *fmt);
 		}
@@ -155,8 +144,7 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		++fmt;
 		if (*fmt == 'f') {
 		    fprintf(f, "%Lf", va_arg(ap, long double));
-		}
-		else {
+		} else {
 		    cc_fputc(f, 'L');
 		    cc_fputc(f, *fmt);
 		}
@@ -196,8 +184,7 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		    if (p) {
 			cc_fputs(f, "0x");
 			cc_uint(f, (unsigned long)p, 16, 0);
-		    }
-		    else {
+		    } else {
 			cc_fputs(f, "(null)");
 		    }
 		}
@@ -221,14 +208,11 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		    }
 		    if (*fmt == 'x') {
 			cc_uint_ex(f, va_arg(ap, unsigned), 16, 0, lead, len);
-		    }
-		    else if (*fmt == 'X') {
+		    } else if (*fmt == 'X') {
 			cc_uint_ex(f, va_arg(ap, unsigned), 16, 1, lead, len);
-		    }
-		    else if (*fmt == 'o') {
+		    } else if (*fmt == 'o') {
 			cc_uint_ex(f, va_arg(ap, unsigned), 8, 0, lead, len);
-		    }
-		    else {
+		    } else {
 			// undefined
 			while (saved <= fmt) {
 			    cc_fputc(f, *saved);
@@ -243,14 +227,12 @@ void vfprint(FILE *f, const char *fmt, va_list ap)
 		    const char * (*p) (void *) = print_funcs[(int)*fmt];
 		    const char *str = p(va_arg(ap, void*));
 		    cc_fputs(f, str);
-		}
-		else {
+		} else {
 		    cc_fputc(f, *fmt);
 		}
 		break;
 	    }
-	}
-	else {
+	} else {
 	    cc_fputc(f, *fmt);
 	}
     }

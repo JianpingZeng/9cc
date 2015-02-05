@@ -18,26 +18,21 @@ static void test()
     	//     if (token->v.type->op == INT) {
     	// 	logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
     	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.i, token->v.u.i, token->v.u.i, token);
-    	//     }
-    	//     else if (token->v.type->op == UNSIGNED) {
+    	//     } else if (token->v.type->op == UNSIGNED) {
     	// 	logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
     	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.u, token->v.u.i, token->v.u.i, token);
-    	//     }
-    	//     else {
+    	//     } else {
     	// 	assert(0);
     	//     }
-    	// }
-    	// else if (token->id == FCONSTANT) {
+    	// } else if (token->id == FCONSTANT) {
     	//     if (token->v.type == longdoubletype) {
     	// 	logv("%s:%d: [%s] <%t> [%Lf] %k",
     	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.ld, token);
-    	//     }
-    	//     else {
+    	//     } else {
     	// 	logv("%s:%d: [%s] <%t> [%f] %k",
     	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.d, token);
     	//     }
-    	// }
-    	// else {
+    	// } else {
     	//     logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
     	// }
     	Log.i("%k", token);
@@ -78,11 +73,9 @@ int main(int argc, const char * argv[])
 		return EXIT_FAILURE;
 	    }
 	    output_file = argv[i];
-	}
-	else if (arg[0] == '-') {
+	} else if (arg[0] == '-') {
 	    // options
-	}
-	else {
+	} else {
 	    input_file = arg;
 	}
     }

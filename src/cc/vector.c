@@ -39,8 +39,7 @@ void *vector_pop(struct vector *v)
     assert(v);
     if (v->elems == 0) {
 	return NULL;
-    }
-    else {
+    } else {
 	void *p = v->mem[v->elems-1];
 	v->elems--;
 	return p;
