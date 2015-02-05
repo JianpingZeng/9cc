@@ -88,7 +88,7 @@ struct alloc_bucket {
     struct alloc_bucket *next;	// next bucket
 };
 
-#define ALLOC_BUCKET_FOR(table)  ((struct alloc_bucket *)((char *)table - sizeof(struct alloc_bucket)))
+#define ALLOC_BUCKET_FOR(table)  ((struct alloc_bucket *)table - 1)
 
 static void * alloc_bucket(size_t size)
 {
