@@ -5,50 +5,12 @@ CCOptions cc_options;
 static const char *input_file;
 static const char *output_file;
 
-static void test()
+static void test_expr()
 {
-    unsigned long n = 0;
-    unsigned long kws = 0;
-    unsigned long cons = 0;
-    unsigned long ids = 0;
-    unsigned long others = 0;
-    while (gettok() != EOI) {
-    	n++;
-    	// if (token->id == ICONSTANT) {
-    	//     if (token->v.type->op == INT) {
-    	// 	logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
-    	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.i, token->v.u.i, token->v.u.i, token);
-    	//     } else if (token->v.type->op == UNSIGNED) {
-    	// 	logv("%s:%d: [%s] <%t>[0x%llx, %llu, 0%llo] %k",
-    	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.u, token->v.u.i, token->v.u.i, token);
-    	//     } else {
-    	// 	assert(0);
-    	//     }
-    	// } else if (token->id == FCONSTANT) {
-    	//     if (token->v.type == longdoubletype) {
-    	// 	logv("%s:%d: [%s] <%t> [%Lf] %k",
-    	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.ld, token);
-    	//     } else {
-    	// 	logv("%s:%d: [%s] <%t> [%f] %k",
-    	// 	     src.file, src.line, tname(token->id), token->v.type, token->v.u.d, token);
-    	//     }
-    	// } else {
-    	//     logv("%s:%d: [%s] %k", src.file, src.line, tname(token->id), token);
-    	// }
-    	Log.i("%k", token);
-	if (token->id == ID)
-	    ids++;
-	else if (token->id >= ICONSTANT && token->id <= SCONSTANT)
-	    cons++;
-	else if (token->id >= AUTO && token->id <= WHILE)
-	    kws++;
-	else
-	    others++;
-			     
-    }
-    Log.i("%lu tokens, %lu errors, %lu warnings", n, errors, warnings);
-    // Log.v("%lu keywords, %lu constants, %lu identifiers, %lu others",
-    // 	  kws, cons, ids, others);
+    struct expr *expr1 = expr_node(ADDR_OPERATOR, 'a', NULL, NULL);
+    struct expr *expr2 = expr_node(ADDR_OPERATOR, 'a', NULL, NULL);
+    struct expr *expr3 = expr_node(BINARY_OPERATOR, '+', NODE(expr1), NODE(expr2));
+    print_tree(NODE(expr3));
 }
 
 static void cc_init()
@@ -91,7 +53,7 @@ int main(int argc, const char * argv[])
     }
     
     cc_init();
-    test();
+    test_expr();
 
     fclose(fp);
 	

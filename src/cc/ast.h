@@ -35,8 +35,9 @@ struct decl {
 #define NODE(n)     ((struct node*) (n))
 extern const char * node_print_function(void *data);
 extern const char *nname(struct node *node);
-extern struct decl * decl_node(int id, int scope);
-extern struct stmt * stmt_node(int id);
-extern struct expr * expr_node(int id, int op);
+
+extern struct expr * expr_node(int id, int op, struct node *l, struct node *r);
+
+extern void print_tree(struct node *root);
 
 #endif

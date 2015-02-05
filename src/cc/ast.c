@@ -8,175 +8,59 @@ static const char * node_names[] = {
 
 const char *nname(struct node * node)
 {
-    if (node == NULL) return "<<<NULL>>>";
-    assert(node->id > NODE_ID_BEGIN && node->id < NODE_ID_END);
+    if (node == NULL)
+	return "<NULL>";
+    
+    assert(node->id > BEGIN_NODE_ID && node->id < END_NODE_ID);
     
     return node_names[node->id];
 }
 
-// print context
-// struct print_context {
-//     int level;
-//     int last;
-//     struct node * node;
-//     struct print_context *prev;
-// };
+struct print_context {
+    int level;
+    struct node * node;
+};
 
-// static void printnode1(struct print_context context)
-// {
-//     // print leading chars
-//     Vector v = new_vector(sizeof(char *));
-//     for (struct print_context *prev=context.prev; prev; prev=prev->prev) {
-//         if (prev->level < 1) {
-//             break;
-//         }
-//         if (prev->last) {
-//             vector_insert(v, 0, "  ");
-//         }
-//         else {
-//             vector_insert(v, 0, "| ");
-//         }
-//     }
-//     for (int i=0; i < vector_length(v); i++) {
-//         char *str = (char *) vector_at(v, i);
-//         printf("%s", str);
-//     }
-//     free_vector(v);
-//     if (context.level > 0) {
-//         if (context.last) {
-//             putchar('`');
-//         }
-//         else {
-//             putchar('|');
-//         }
-//         putchar('-');
-//     }
-//     if (context.node == NULL) {
-//         printf("%s\n", nname(context.node));
-//         return;
-//     }
-//     printf("%s %p <%s %p '%s'>\n", nname(context.node), context.node,
-//            context.node->s ? context.node->s->lex.name : "",
-//            context.node->s ? context.node->s : 0,
-//            (context.node->s && context.node->s->type) ? tname(context.node->s->type->op) : "");
-//     switch (context.node->id) {
-//         case TRANSLATION_UNIT_DECL:
-//         {
-//             TranslationUnitDecl tudecl = (TranslationUnitDecl) context.node;
-//             for (int i=0; tudecl->exts[i]; i++) {
-//                 struct node * n = tudecl->exts[i];
-//                 struct print_context next_context = { context.level+1, tudecl->exts[i+1] == NULL ? 1 : 0, n, &context };
-//                 printnode1(next_context);
-//             }
-//         }
-//             break;
-            
-//         case FUNC_DECL:
-//         {
-//             FuncDecl funcdecl = (FuncDecl) context.node;
-//             if (funcdecl->params) {
-//                 for (int i=0; funcdecl->params[i]; i++) {
-//                     struct node * n = funcdecl->params[i];
-//                     struct print_context next_context = { context.level+1, (funcdecl->params[i+1] == NULL && funcdecl->cs == NULL) ? 1 : 0, n, &context };
-//                     printnode1(next_context);
-//                 }
-//             }
-//             if (funcdecl->cs) {
-//                 struct print_context next_context = { context.level+1, 1, NODE(funcdecl->cs), &context };
-//                 printnode1(next_context);
-//             }
-//         }
-//             break;
-            
-//         case COMPOUND_STMT:
-//         {
-//             CompoundStmt csstmt = (CompoundStmt) context.node;
-//             for (int i=0; csstmt->stmts[i]; i++) {
-//                 struct node * n = csstmt->stmts[i];
-//                 struct print_context next_context = { context.level+1, csstmt->stmts[i+1] == NULL ? 1 : 0, n, &context };
-//                 printnode1(next_context);
-//             }
-//         }
-//             break;
-            
-            
-//         default:
-//             break;
-//     }
-// }
+static void print_tree1(struct print_context context)
+{
+    for (int i=0; i < context.level; i++) {
+	fprint(stderr, "  ");
+    }
+    fprint(stderr, "%s\n", nname(context.node));
 
-// void printnode(struct node * node)
-// {
-//     // struct print_context context = {0, 0, node, NULL};
-//     // printnode1(context);
-// }
+    if (context.node->kids[0]) {
+	struct print_context lcontext;
+	lcontext.level = context.level+1;
+	lcontext.node = context.node->kids[0];
+	print_tree1(lcontext);
+    }
+    if (context.node->kids[1]) {
+	struct print_context rcontext;
+	rcontext.level = context.level+1;
+	rcontext.node = context.node->kids[1];
+	print_tree1(rcontext);
+    }
+}
 
-// Decl * decl_node(int id, int scope)
-// {
-//     Decl *decl = new(Decl);
-//     decl->n.id = id;
-//     decl->scope = scope;
-    
-//     return decl;
-// }
-
-// FuncDecl * funcdecl_node(int scope)
-// {
-//     FuncDecl *fdecl = new(FuncDecl);
-//     fdecl->d.n.id = FUNC_DECL;
-//     fdecl->d.scope = scope;
-    
-//     return fdecl;
-// }
-
-// TranslationUnitDecl * tudecl_node()
-// {
-//     TranslationUnitDecl *tudecl = new(TranslationUnitDecl);
-//     tudecl->d.n.id = TRANSLATION_UNIT_DECL;
-//     tudecl->d.scope = GLOBAL;
-    
-//     return tudecl;
-// }
-
-// CompoundStmt * compound_stmt_node()
-// {
-//     CompoundStmt *cstmt = new(CompoundStmt);
-//     cstmt->s.n.id = COMPOUND_STMT;
-    
-//     return cstmt;
-// }
-
-// int is_funcdef_node(struct node * node)
-// {
-//     if (!node || node->id != FUNC_DECL) {
-//         return 0;
-//     }
-    
-//     FuncDecl *fdecl = node;
-//     return fdecl->cs != NULL;
-// }
-
-
-// LiteralExpr * literal_expr_node(int id)
-// {
-//     assert(id > LITERAL_ID_BEGIN && id < LITERAL_ID_END);
-//     LiteralExpr *expr = new(LiteralExpr);
-//     expr->e.n.id = id;
-    
-//     return expr;
-// }
-
-// AddrExpr * addr_expr_node(const char *id)
-// {
-//     AddrExpr *aexpr = new(AddrExpr);
-//     aexpr->e.n.id = ADDR_OPERATOR;
-//     aexpr->id = id;
-//     return aexpr;
-// }
+void print_tree(struct node * root)
+{
+    struct print_context context = {0, root};
+    print_tree1(context);
+}
 
 const char * node_print_function(void *data)
 {
     struct node *p = data;
     return nname(p);
+}
+
+struct expr * expr_node(int id, int op, struct node *l, struct node *r)
+{
+    struct expr * expr = alloc_expr_node();
+    expr->node.id = id;
+    expr->op = op;
+    expr->node.kids[0] = l;
+    expr->node.kids[1] = r;
+    return expr;
 }
 
