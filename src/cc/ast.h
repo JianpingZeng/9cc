@@ -11,6 +11,7 @@ enum {
 // node
 struct node {
     int id;
+    struct symbol *symbol;
     struct node *kids[2];
 };
 
