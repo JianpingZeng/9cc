@@ -86,23 +86,20 @@ static void logi(const char *fmt, ...)
 struct log Log = { logv, logv, logi };
 
 static long call_depth = -1;
-static const char *depth_str()
-{
-    char *str = cc_malloc(call_depth+1);
-    str[call_depth] = 0;
-    memset(str, '|', call_depth);
-    return str;
-}
 
 void begin_call(const char *funcname)
 {
     call_depth++;
-    print("%4d%sbegin %s\n", call_depth, depth_str(), funcname);
+    for (int i=0; i < call_depth; i++)
+	fprint(stderr, " ");
+    fprint(stderr, "begin %s\n", funcname);
 }
 
 void end_call(const char *funcname)
 {
-    print("%4d%send %s\n", call_depth, depth_str(), funcname);
+    for (int i=0; i < call_depth; i++)
+	fprint(stderr, " ");
+    fprint(stderr, "end %s\n", funcname);
     call_depth--;
 }
 

@@ -5,12 +5,11 @@ CCOptions cc_options;
 static const char *input_file;
 static const char *output_file;
 
-static void test_expr()
+static void test()
 {
-    struct expr *expr1 = expr_node(ADDR_OPERATOR, 'a', NULL, NULL);
-    struct expr *expr2 = expr_node(ADDR_OPERATOR, 'a', NULL, NULL);
-    struct expr *expr3 = expr_node(BINARY_OPERATOR, '+', NODE(expr1), NODE(expr2));
-    print_tree(NODE(expr3));
+    gettok();
+    struct expr * e = test_expr();
+    print_tree(e);
 }
 
 static void cc_init()
@@ -53,7 +52,7 @@ int main(int argc, const char * argv[])
     }
     
     cc_init();
-    test_expr();
+    test();
 
     fclose(fp);
 	

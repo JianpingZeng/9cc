@@ -187,7 +187,7 @@ _t(BOREQ,       "|=",          0)
 _t(LEQ,         "<=",          0)
 _t(LSHIFTEQ,    "<<=",         0)
 _t(LSHIFT,      "<<",          0)
-_t(REQ,         ">=",          0)
+_t(GEQ,         ">=",          0)
 _t(RSHIFTEQ,    ">>=",         0)
 _t(RSHIFT,      ">>",          0)
 
@@ -206,6 +206,7 @@ _t(FUNCTION,    "function",    0)
 _t(POINTER,     "pointer",     0)
 //			       
 _t(ADDR,        "addr",        0)
+_t(CAST,        "cast",        0)
 
 #undef _t
 #undef _x

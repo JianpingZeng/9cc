@@ -380,7 +380,7 @@ static int do_gettok()
 	case '>':
 	    if (rpc[1] == '=') {
 		pc = rpc + 2;
-		return REQ;
+		return GEQ;
 	    } else if (rpc[1] == '>' && rpc[2] == '=') {
 		pc = rpc + 3;
 		return RSHIFTEQ;

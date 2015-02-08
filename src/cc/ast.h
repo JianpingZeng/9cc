@@ -37,8 +37,12 @@ struct decl {
 extern const char * node_print_function(void *data);
 extern const char *nname(struct node *node);
 
-extern struct expr * expr_node(int id, int op, struct node *l, struct node *r);
+extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
+extern struct expr * expr();
+extern struct expr * test_expr();
 
 extern void print_tree(struct node *root);
+
+#define isexpr(n)  ((n)->id > BEGIN_EXPR_ID && (n)->id < END_EXPR_ID)
 
 #endif
