@@ -272,11 +272,6 @@ static struct expr * cond_expr(struct expr *e)
     }
 }
 
-struct expr * test_expr()
-{
-    return expr();
-}
-
 static struct expr * assign_expr()
 {
     BEGIN_CALL(assign_expr);

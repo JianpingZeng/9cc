@@ -39,7 +39,6 @@ extern const char *nname(struct node *node);
 
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
 extern struct expr * expr();
-extern struct expr * test_expr();
 
 extern void print_tree(struct node *root);
 

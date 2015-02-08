@@ -7,8 +7,9 @@ static const char *output_file;
 
 static void test()
 {
+    struct expr *e;
     gettok();
-    struct expr * e = test_expr();
+    e = expr();
     print_tree(e);
 }
 
