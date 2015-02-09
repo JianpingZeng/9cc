@@ -3,4 +3,6 @@
 
 // a+b*c && h/kl || op
 
-a=b, c=d, e = u+o*y
+// a=b, c=d, e = u+o*y
+
+a = (st)(hj) (gh)  b + c

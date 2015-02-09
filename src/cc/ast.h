@@ -33,15 +33,21 @@ struct decl {
     int scope;
 };
 
-#define NODE(n)     ((struct node*) (n))
+// ast
 extern const char * node_print_function(void *data);
 extern const char *nname(struct node *node);
+extern void print_tree(struct node *root);
 
+// expr
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
 extern struct expr * expr();
 
-extern void print_tree(struct node *root);
+// decl
+extern struct decl * initializer_list();
 
+#define NODE(n)    ((struct node*) (n))
 #define isexpr(n)  ((n)->id > BEGIN_EXPR_ID && (n)->id < END_EXPR_ID)
+#define isdecl(n)  ((n)->id > BEGIN_DECL_ID && (n)->id < END_DECL_ID)
+#define isstmt(n)  ((n)->id > BEGIN_STMT_ID && (n)->id < END_STMT_ID)
 
 #endif

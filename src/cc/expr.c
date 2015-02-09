@@ -1,5 +1,7 @@
 #include "cc.h"
 
+static struct expr * cast_expr();
+
 static inline int is_assign_op(int t)
 {
     return t == '=' ||
@@ -20,34 +22,108 @@ static struct expr * typename_expr()
 {
     struct expr * type1;
 
+    match('(');
     type1 = expr_node(0, CAST, NULL, NULL);
     // TODO
     match(ID);
+    match(')');
     return type1;
 }
 
 // TODO
-static struct expr * unary_expr()
+static struct expr * postfix_expr()
 {
-    BEGIN_CALL(unary_expr);
-    struct expr * uexpr1;
-
-    uexpr1 = expr_node(0, ID, NULL, NULL);
-    // TODO
-    match(ID);
-    END_CALL(unary_expr);
-    return uexpr1;
+    int t;
+    
+    switch (token->id) {
+    case ID:
+    case ICONSTANT:
+    case FCONSTANT:
+    case SCONSTANT:
+	t = token->id;
+	match(t);
+	
+	break;
+    case '(':
+	break;
+    default:
+	error("invalid postfix expression");
+    }
 }
 
-// TODO
+static struct expr * unary_expr()
+{
+    struct expr * uexpr;
+    int t;
+
+    BEGIN_CALL(unary_expr);
+
+    switch (token->id) {
+    case INCR:
+    case DECR:
+	t = token->id;
+	match(t);
+	uexpr = expr_node(UNARY_OPERATOR, t, unary_expr(), NULL);
+	break;
+    case '&':
+    case '*':
+    case '+':
+    case '-':
+    case '~':
+    case '!':
+	t = token->id;
+	match(t);
+	uexpr = expr_node(UNARY_OPERATOR, t, cast_expr(), NULL);
+	break;
+    case SIZEOF:
+	t = token->id;
+	match(t);
+	if (token->id == '(') {
+	    struct expr *texpr = typename_expr();
+	    if (token->id == '{') {
+		match('{');
+		texpr->node.kids[0] = initializer_list();
+		if (token->id == ',')
+		    match(',');
+		match('}');
+	    }
+
+	    uexpr = expr_node(UNARY_OPERATOR, t, texpr, NULL);
+	}
+	else {
+	    uexpr = expr_node(UNARY_OPERATOR, t, unary_expr(), NULL);
+	}
+	break;
+    default:
+	uexpr = postfix_expr();
+	break;
+    }
+    
+    END_CALL(unary_expr);
+    return uexpr;
+}
+
 static struct expr * cast_expr()
 {
     BEGIN_CALL(cast_expr);
     struct expr * cast1;
 
-    assert(token->id == ID);
-    cast1 = expr_node(0, ID, NULL, NULL);
-    match(ID);
+    if (token->id == '(') {
+	cast1 = typename_expr();
+	if (token->id == '{') {
+	    match('{');
+	    cast1->node.kids[0] = initializer_list();
+	    if (token->id == ',')
+		match(',');
+	    match('}');
+	}
+	else {
+	    cast1->node.kids[0] = cast_expr();
+	}
+    }
+    else {
+	cast1 = unary_expr();
+    }
 
     END_CALL(cast_expr);
     return cast1;
@@ -200,9 +276,10 @@ static struct expr * logic_or()
 
 static struct expr * cond_expr(struct expr *e)
 {
-    BEGIN_CALL(cond_expr);
     struct expr * ret;
     int t;
+
+    BEGIN_CALL(cond_expr);
 
     ret = e;
     for (;;) {
@@ -278,16 +355,27 @@ static struct expr * assign_expr()
     struct expr * assign1;
 
     if (token->id == '(') {
-	match('(');
-
-	match(')');
+        struct expr *texpr = typename_expr();
 	if (token->id == '{') {
 	    // unary
-	    
+	    match('{');
+	    texpr->node.kids[0] = initializer_list();
+	    if (token->id == ',')
+		match(',');
+	    match('}');
+	    if (is_assign_op(token->id)) {
+		int t = token->id;
+		match(token->id);
+		assign1 = expr_node(0, t, texpr, assign_expr());
+	    }
+	    else {
+		assign1 = cond_expr(texpr);
+	    }
 	}
 	else {
 	    // cast
-	    
+	    texpr->node.kids[0] = cast_expr();
+	    assign1 = cond_expr(texpr);
 	}
     }
     else {

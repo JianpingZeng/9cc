@@ -689,10 +689,10 @@
     
 // }
 
-// void initializer_list()
-// {
-    
-// }
+struct decl * initializer_list()
+{
+    return NULL;
+}
 
 // struct node ** declaration()
 // {
