@@ -19,6 +19,7 @@ static void cc_init()
     register_print_function('k', token_print_function);
     register_print_function('t', type_print_function);
     register_print_function('n', node_print_function);
+    init_symbol();
     init_type();
     init_input();
 }

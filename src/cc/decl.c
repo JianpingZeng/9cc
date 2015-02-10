@@ -17,22 +17,22 @@
 //     COMPAT, // both
 // };
 
-// static unsigned char kinds[] = {
-// #define _a(x, y, z)
-// #define _x(a, b, c, d)  c,
-// #define _t(a, b, c)  c,
-// #include "token.h"
-// };
+static int kinds[] = {
+#define _a(x, y, z)
+#define _x(a, b, c, d)  c,
+#define _t(a, b, c)  c,
+#include "token.h"
+};
 
-// unsigned char kind(int t)
-// {
-//     if (t >= ID && t < TOKEND) {
-//         return kinds[t-ID];
-//     }
-//     else {
-//         return 0;
-//     }
-// }
+int kind(int t)
+{
+    if (t >= ID && t < TOKEND) {
+        return kinds[t-ID];
+    }
+    else {
+        return 0;
+    }
+}
 
 // static struct symbol ** parameter_type_list(struct type *ftype)
 // {

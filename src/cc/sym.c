@@ -13,7 +13,14 @@ struct table {
 };
 
 struct table * identifiers;
-static int scope;
+struct table * constants;
+static int scope = GLOBAL;
+
+void init_symbol()
+{
+    identifiers = new_table(NULL, GLOBAL);
+    constants = new_table(NULL, CONSTANT);
+}
 
 int scopelevel()
 {
@@ -32,7 +39,7 @@ void exit_scope()
         identifiers = identifiers->up;
         drop_table(tp);
     }
-    assert(scopelevel >= GLOBAL);
+    assert(scope >= GLOBAL);
     scope--;
 }
 
@@ -100,3 +107,16 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
     return entry->symbol;
 }
 
+struct symbol * find_symbol(const char *name, struct table **tpp, int scope)
+{
+    struct table *tp = *tpp;
+
+    assert(scope >= tp->scope);
+    if (scope == tp->scope) {
+	struct symbol *sym = lookup_symbol(name, tp);
+	if (sym)
+	    return sym;
+    }
+
+    return install_symbol(name, tpp, scope);
+}

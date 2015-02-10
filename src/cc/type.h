@@ -37,7 +37,7 @@ extern struct type * scls(int t, struct type *ty);
 extern struct type * qual(int t, struct type *ty);
 extern struct type * unqual(int t, struct type *ty);
 extern int equal_type(struct type *ty1, struct type *ty2);
-extern int istypedefname(const char *id);
+extern int is_typedef_name(const char *id);
 extern struct type * typename();
 extern struct type * arraytype(struct type *basety, size_t n, void *p);
 

@@ -44,6 +44,7 @@ extern struct expr * expr();
 
 // decl
 extern struct decl * initializer_list();
+extern int kind(int t);
 
 #define NODE(n)    ((struct node*) (n))
 #define isexpr(n)  ((n)->id > BEGIN_EXPR_ID && (n)->id < END_EXPR_ID)

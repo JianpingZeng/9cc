@@ -1285,7 +1285,7 @@ void match(int t)
     if (t == token->id)
         gettok();
     else
-        error("expect token '%s' at '%k'", tname(t), token);
+        error("expect token '%s' before '%k'", tname(t), token);
 }
 
 const char *tname(int t)

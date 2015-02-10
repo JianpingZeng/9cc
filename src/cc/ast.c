@@ -13,11 +13,6 @@ const char *nname(struct node * node)
 
     assert(node->id > BEGIN_NODE_ID && node->id < END_NODE_ID);
     
-    // if (isexpr(node)) {
-    // 	struct expr *e = (struct expr *)node;
-    // 	return tname(e->op);
-    // }
-    
     return node_names[node->id];
 }
 
@@ -31,7 +26,15 @@ static void print_tree1(struct print_context context)
     for (int i=0; i < context.level; i++) {
 	fprint(stderr, "  ");
     }
-    fprint(stderr, "%s\n", nname(context.node));
+
+    if (context.node->symbol) {	
+	fprint(stderr, "%s '%s'\n", nname(context.node), context.node->symbol->name);
+    } else if (isexpr(context.node)) {
+	struct expr *e = (struct expr *)context.node;
+	fprint(stderr, "%s '%s'\n", nname(context.node), tname(e->op));
+    } else {
+	fprint(stderr, "%s\n", nname(context.node));
+    }
     
     if (context.node->kids[0]) {
 	struct print_context lcontext;

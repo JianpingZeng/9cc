@@ -285,7 +285,7 @@ int equal_type(struct type *ty1, struct type *ty2)
     return 1;
 }
 
-int istypedefname(const char *id)
+int is_typedef_name(const char *id)
 {
     
     return 0;
