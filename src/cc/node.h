@@ -19,9 +19,12 @@ _ns(END_DECL_ID)
 // expr
 _ns(BEGIN_EXPR_ID)
 
-_n(BINARY_OPERATOR,         "BinaryOperator")
-_n(UNARY_OPERATOR,          "UnaryOperator")
-_n(ADDR_OPERATOR,           "AddrOperator")
+_n(BINARY_OP,         "BinaryOperator")
+_n(UNARY_OP,          "UnaryOperator")
+_n(ADDR_OP,           "AddrOperator")
+_n(COMMA_OP,          "CommaOperator")
+_n(CAST_OP,           "CastOperator")
+_n(PARENTHESIS_OP,    "ParenthesisOperator")
 
 _ns(BEGIN_LITERAL_ID)
 

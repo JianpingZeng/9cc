@@ -248,8 +248,8 @@ static const char *tnames[] = {
 #include "token.h"
 };
 
-static struct token _token;
-struct token *token = &_token;
+static struct token token1, token2;
+struct token *token = &token1;
 
 static void identifier();
 static int number();
@@ -1302,38 +1302,41 @@ const char *tname(int t)
         return "(null)";
 }
 
+static int is_looked;
 int gettok()
 {
-    token->name = NULL;
-    token->id = do_gettok();
-    if (!token->name)
-	token->name = tname(token->id);
+    if (is_looked) {
+	token1 = token2;
+	is_looked = 0;
+	
+	return token->id;
+    }
+    else {
+	token->name = NULL;
+	token->id = do_gettok();
+	if (!token->name)
+	    token->name = tname(token->id);
     
-    return token->id;
+	return token->id;
+    }
 }
 
 int lookahead()
 {
-    char *rpc;
-    
-    for (;;) {
-	while(isblank(*pc))
-	    pc++;
+    if (is_looked) {
+	return token2.id;
+    }
+    else {
+	token = &token2;
+	token->name = NULL;
+	token->id = do_gettok();
+	if (!token->name)
+	    token->name = tname(token->id);
 
-	if (pe - pc < MAXTOKEN)
-	    fillbuf();
-
-	rpc = pc++;
-
-	if (isnewline(*rpc)) {
-	    nextline();
-	    if (pc == pe)
-		return EOI;
-	    else
-		continue;
-	} else if (!isblank(*rpc)) {
-	    return *rpc;
-	}
+	token = &token1;
+	is_looked = 1;
+	
+	return token2.id;
     }
 }
 

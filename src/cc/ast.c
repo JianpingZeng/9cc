@@ -11,11 +11,12 @@ const char *nname(struct node * node)
     if (node == NULL)
 	return "<NULL>";
 
-    if (node->id == 0) {
-	struct expr * e = node;
-	return tname(e->op);
-    }
     assert(node->id > BEGIN_NODE_ID && node->id < END_NODE_ID);
+    
+    // if (isexpr(node)) {
+    // 	struct expr *e = (struct expr *)node;
+    // 	return tname(e->op);
+    // }
     
     return node_names[node->id];
 }
@@ -46,9 +47,9 @@ static void print_tree1(struct print_context context)
     }
 }
 
-void print_tree(struct node * root)
+void print_tree(struct node *tree)
 {
-    struct print_context context = {0, root};
+    struct print_context context = {0, tree};
     print_tree1(context);
 }
 
@@ -63,8 +64,8 @@ struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
     struct expr * expr = alloc_expr_node();
     expr->node.id = id;
     expr->op = op;
-    expr->node.kids[0] = l;
-    expr->node.kids[1] = r;
+    expr->node.kids[0] = NODE(l);
+    expr->node.kids[1] = NODE(r);
     return expr;
 }
 

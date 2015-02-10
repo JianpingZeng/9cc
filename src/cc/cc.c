@@ -10,7 +10,7 @@ static void test()
     struct expr *e;
     gettok();
     e = expr();
-    print_tree(e);
+    print_tree(NODE(e));
 }
 
 static void cc_init()

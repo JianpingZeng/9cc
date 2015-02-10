@@ -204,10 +204,6 @@ _t(OR,          "||",          0)
 _t(ARRAY,       "array",       0)
 _t(FUNCTION,    "function",    0)
 _t(POINTER,     "pointer",     0)
-//			       
-_t(ADDR,        "addr",        0)
-_t(CAST,        "cast",        0)
-_t(PARENTHESIS, "()",          0)
 
 #undef _t
 #undef _x
