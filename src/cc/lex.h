@@ -34,7 +34,7 @@ extern const char * token_print_function(void *data);
 
 extern void init_input();
 extern int  gettok();
-extern int  lookahead();
+extern struct token *  lookahead();
 extern void match(int t);
 extern const char *tname(int t);
 

@@ -34,6 +34,11 @@ int kind(int t)
     }
 }
 
+int is_typename(struct token *t)
+{
+    return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(t->name);
+}
+
 // static struct symbol ** parameter_type_list(struct type *ftype)
 // {
 //     BEGIN_CALL(parameter_type_list);

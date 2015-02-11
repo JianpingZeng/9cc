@@ -1307,26 +1307,21 @@ int gettok()
 {
     if (is_looked) {
 	token1 = token2;
-	is_looked = 0;
-	
-	return token->id;
+	is_looked = 0;	
     }
     else {
 	token->name = NULL;
 	token->id = do_gettok();
 	if (!token->name)
 	    token->name = tname(token->id);
-    
-	return token->id;
     }
+
+    return token->id;
 }
 
-int lookahead()
+struct token * lookahead()
 {
-    if (is_looked) {
-	return token2.id;
-    }
-    else {
+    if (!is_looked) {
 	token = &token2;
 	token->name = NULL;
 	token->id = do_gettok();
@@ -1334,10 +1329,10 @@ int lookahead()
 	    token->name = tname(token->id);
 
 	token = &token1;
-	is_looked = 1;
-	
-	return token2.id;
+	is_looked = 1;	
     }
+
+    return &token2;
 }
 
 const char * token_print_function(void *data)

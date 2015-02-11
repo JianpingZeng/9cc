@@ -23,12 +23,54 @@ static struct expr * typename_expr()
     struct expr * type1;
     struct symbol *sym;
 
+    match('(');
     sym = install_symbol(token->name, &identifiers, scopelevel());
     type1 = expr_node(CAST_OP, ID, NULL, NULL);
     type1->node.symbol = sym;
     // TODO
-    match(ID);
+    if (token->id == ID || kind(token->id) & (TYPE_SPEC|TYPE_QUAL))
+	match(token->id);
+    match(')');
     return type1;
+}
+
+static struct expr * postfix_expr1(struct expr *ret)
+{
+    int t;
+    
+    for (;token->id == '[' || token->id == '(' || token->id == '.' || token->id == DEREF || token->id == INCR || token->id == DECR;) {
+	switch (token->id) {
+	case '[':
+	    t = token->id;
+	    match(token->id);
+	    ret = expr_node(BINARY_OP, t, ret, expr());
+	    match(']');
+	    break;
+	case '(':
+	    t = token->id;
+	    match(token->id);
+	    ret = expr_node(BINARY_OP, t, ret, expr());
+	    match(')');
+	    break;
+	case '.':
+	case DEREF:
+	    t = token->id;
+	    match(token->id);
+	    ret = expr_node(BINARY_OP, t, ret, expr_node(ADDR_OP, token->id, NULL, NULL));
+	    match(ID);
+	    break;
+	case INCR:
+	case DECR:
+	    t = token->id;
+	    match(token->id);
+	    ret = expr_node(UNARY_OP, t, ret, NULL);
+	    break;
+	default:
+	    assert(0);
+	}
+    }
+
+    return ret;
 }
 
 // TODO
@@ -75,30 +117,35 @@ static struct expr * postfix_expr()
 	break;
     case '(':
 	{
-	    match('(');
-	    if (kind(token->id) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(token->name)) {
-		ret = NULL;
+	    struct token *ahead = lookahead();
+	    if (is_typename(ahead)) {
+		ret = typename_expr();
+		match('{');
+		ret->node.kids[0] = (struct node*)initializer_list();
+		if (token->id == ',')
+		    match(',');
+		match('}');
+	    } else {
+		match('(');
+		ret = expr();
+		match(')');
 	    }
-	    else {
-		ret = expr(); //expr_node(PARENTHESIS_OP, PARENTHESIS, expr(), NULL);
-	    }
-	    match(')');
 	}
 	break;
     default:
 	ret = NULL;
 	error("invalid postfix expression");
+	break;
     }
-
-    // TODO
-
-    return ret;
+    
+    return postfix_expr1(ret);
 }
 
 static struct expr * unary_expr()
 {
     struct expr * uexpr;
     int t;
+    struct token *ahead;
 
     switch (token->id) {
     case INCR:
@@ -117,10 +164,11 @@ static struct expr * unary_expr()
 	match(t);
 	uexpr = expr_node(UNARY_OP, t, cast_expr(), NULL);
 	break;
-    case SIZEOF:
+    case SIZEOF:  
 	t = token->id;
-	match(t);
-	if (token->id == '(') {
+	match(token->id);	
+	ahead = lookahead();
+	if (token->id == '(' && is_typename(ahead)) {
 	    struct expr *texpr = typename_expr();
 	    if (token->id == '{') {
 		match('{');
@@ -128,8 +176,8 @@ static struct expr * unary_expr()
 		if (token->id == ',')
 		    match(',');
 		match('}');
+		texpr = postfix_expr1(texpr);
 	    }
-
 	    uexpr = expr_node(UNARY_OP, t, texpr, NULL);
 	} else {
 	    uexpr = expr_node(UNARY_OP, t, unary_expr(), NULL);
@@ -146,9 +194,9 @@ static struct expr * unary_expr()
 static struct expr * cast_expr()
 {
     struct expr * cast1;
-    int ahead = lookahead();
+    struct token * ahead = lookahead();
 
-    if (token->id == '(' && (kind(ahead) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(token->name))) {
+    if (token->id == '(' && is_typename(ahead)) {
 	// type-name
 	cast1 = typename_expr();
 	if (token->id == '{') {
@@ -157,6 +205,7 @@ static struct expr * cast_expr()
 	    if (token->id == ',')
 		match(',');
 	    match('}');
+	    cast1 = postfix_expr1(cast1);
 	} else {
 	    cast1->node.kids[0] = (struct node*)cast_expr();
 	}
@@ -373,14 +422,12 @@ static struct expr * cond_expr(struct expr *e)
 
 static struct expr * assign_expr()
 {
-    struct expr * assign1;
-    int ahead = lookahead();
+    struct expr *assign1;
+    struct token *ahead = lookahead();
 
-    if (token->id == '(' && (kind(ahead) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(token->name))) {
-	match('(');
+    if (token->id == '(' && is_typename(ahead)) {
 	// type-name
 	struct expr *texpr = typename_expr();
-	match(')');
 	if (token->id == '{') {
 	    // unary
 	    match('{');
@@ -388,6 +435,7 @@ static struct expr * assign_expr()
 	    if (token->id == ',')
 		match(',');
 	    match('}');
+	    texpr = postfix_expr1(texpr);
 	    if (is_assign_op(token->id)) {
 		int t = token->id;
 		match(token->id);
