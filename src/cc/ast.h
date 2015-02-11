@@ -46,6 +46,11 @@ extern struct expr * expr();
 extern struct decl * initializer_list();
 extern int kind(int t);
 extern int is_typename(struct token *t);
+extern struct decl * declaration();
+
+// stmt
+extern struct stmt * stmt();
+extern struct stmt * compound_stmt();
 
 #define NODE(n)    ((struct node*) (n))
 #define isexpr(n)  ((n)->id > BEGIN_EXPR_ID && (n)->id < END_EXPR_ID)
