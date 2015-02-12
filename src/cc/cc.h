@@ -99,8 +99,14 @@ extern void vector_add_from_vector(struct vector *v, struct vector *v2);
 
 //kind
 enum {
-    SCLASS_SPEC = 01, TYPE_QUAL = 02, TYPE_SPEC = 04,
+    SCLASS_SPEC = 01,
+    TYPE_QUAL = 02,
+    TYPE_SPEC = 04,
     FUNC_SPEC = 010,
+
+    FIRST_EXPR = 020,
+    FIRST_STMT = 040,
+    FIRST_DECL = 0100,
 };
 
 #endif

@@ -10,7 +10,7 @@ enum {
 };
 
 static unsigned char map[256] = {
-#define _a(x, y, z)     z,
+#define _a(a, b, c, d)     c,
 #define _x(a, b, c, d)
 #define _t(a, b, c)
 #include "token.h"
@@ -242,9 +242,9 @@ static void init_input()
 }
 
 static const char *tnames[] = {
-#define _a(x, y, z)    y,
-#define _x(a, b, c, d) b,
-#define _t(a, b, c) b,
+#define _a(a, b, c, d)  b,
+#define _x(a, b, c, d)  b,
+#define _t(a, b, c)     b,
 #include "token.h"
 };
 

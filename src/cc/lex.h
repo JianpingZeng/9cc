@@ -5,7 +5,7 @@
 
 // token
 enum {
-#define _a(x, y, z)     x,
+#define _a(a, b, c, d)  a,
 #define _x(a, b, c, d)  a=d,
 #define _t(a, b, c)     a,
 #include "token.h"
