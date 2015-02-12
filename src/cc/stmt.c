@@ -7,7 +7,7 @@ static struct stmt * expr_stmt()
     if (token->id == ';')
 	return NULL;
 
-    ret = stmt_node(EXPR_STMT, expression(), NULL);
+    ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);
     match(';');
 
     return ret;
@@ -25,11 +25,11 @@ static struct stmt * if_stmt()
     match(')');
 
     stmt1 = statement();
-    ret = stmt_node(IF_STMT, expr, stmt1);
+    ret = stmt_node(IF_STMT, NODE(expr), NODE(stmt1));
     
     if (token->id == ELSE) {
 	match(ELSE);
-	ret = stmt_node(ELSE_STMT, ret, statement());
+	ret = stmt_node(ELSE_STMT, NODE(ret), NODE(statement()));
     }
 
     return ret;
@@ -44,7 +44,7 @@ static struct stmt * while_stmt()
     expr = expression();
     match(')');
 
-    return stmt_node(WHILE_STMT, expr, statement());
+    return stmt_node(WHILE_STMT, NODE(expr), NODE(statement()));
 }
 
 static struct stmt * do_while_stmt()
@@ -60,7 +60,52 @@ static struct stmt * do_while_stmt()
     match(')');
     match(';');
 
-    return stmt_node(DO_WHILE_STMT, stmt, expr);
+    return stmt_node(DO_WHILE_STMT, NODE(stmt), NODE(expr));
+}
+
+static struct stmt * for_stmt()
+{
+    return NULL;
+}
+
+static struct stmt * switch_stmt()
+{
+    return NULL;
+}
+
+static struct stmt * case_stmt()
+{
+    return NULL;
+}
+
+static struct stmt * default_stmt()
+{
+    return NULL;
+}
+
+static struct stmt * label_stmt()
+{
+    return NULL;
+}
+
+static struct stmt * goto_stmt()
+{
+    return NULL;
+}
+
+static struct stmt * break_stmt()
+{
+    return NULL;
+}
+
+static struct stmt * continue_stmt()
+{
+    return NULL;
+}
+
+static struct stmt * return_stmt()
+{
+    return NULL;
 }
 
 struct stmt * statement()
@@ -73,51 +118,45 @@ struct stmt * statement()
     case IF:
 	return if_stmt();
     case SWITCH:
-	break;
+	return switch_stmt();
 	// iteration
     case WHILE:
 	return while_stmt();
     case DO:
 	return do_while_stmt();
     case FOR:
-	break;
+	return for_stmt();
 	// jump
     case GOTO:
-	break;
+	return goto_stmt();
     case CONTINUE:
-	break;
+	return continue_stmt();
     case BREAK:
-	break;
+	return break_stmt();
     case RETURN:
-	break;
+	return return_stmt();
 	// labeled
-    case ID:
-	{
-	    struct token *ahead = lookahead();
-	    if (ahead->id == ':') {
-
-	    } else {
-		goto expr;
-	    }
-	}
-	break;
     case CASE:
-	break;
+	return case_stmt();
     case DEFAULT:
-	break;
+	return default_stmt();
+    case ID:
+        if (lookahead()->id == ':')
+	    return label_stmt();
+	// go through
 	// expression
     default:
-    expr:
         return expr_stmt();
     }
 }
 
 struct stmt * compound_statement()
 {
-    struct stmt *ret;
+    struct stmt *ret = NULL;
 
     match('{');
 
+    
 
     match('}');
 

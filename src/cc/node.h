@@ -2,6 +2,8 @@
 
 _ns(BEGIN_NODE_ID)
 
+_n(CONCAT_NODE,      "ConcatNode")
+
 // decl
 _ns(BEGIN_DECL_ID)
 

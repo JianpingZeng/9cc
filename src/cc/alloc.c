@@ -39,6 +39,13 @@ static inline void * alloc_node(struct alloc_state *s, size_t size)
     return ret;
 }
 
+static struct alloc_state node_state;
+void * alloc_node_node()
+{
+    void *ret = alloc_node(&node_state, sizeof(struct node));
+    return ret;
+}
+
 static struct alloc_state expr_state;
 void * alloc_expr_node()
 {

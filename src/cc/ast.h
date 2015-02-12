@@ -37,6 +37,7 @@ struct decl {
 extern const char * node_print_function(void *data);
 extern const char *nname(struct node *node);
 extern void print_tree(struct node *tree);
+extern struct node * concat_node(struct node *l, struct node *r);
 
 // expr
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
@@ -49,7 +50,7 @@ extern int is_typename(struct token *t);
 extern struct decl * declaration();
 
 // stmt
-extern struct stmt * stmt_node(int id, struct stmt *l, struct stmt *r);
+extern struct stmt * stmt_node(int id, struct node *l, struct node *r);
 extern struct stmt * statement();
 extern struct stmt * compound_statement();
 

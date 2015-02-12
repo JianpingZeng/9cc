@@ -38,6 +38,7 @@ extern void die(const char *fmt, ...);
 // alloc
 extern void * cc_malloc(size_t size);
 extern void cc_free(void *p);
+extern void * alloc_node_node();
 extern void * alloc_expr_node();
 extern void * alloc_stmt_node();
 extern void * alloc_decl_node();

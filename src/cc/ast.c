@@ -62,6 +62,15 @@ const char * node_print_function(void *data)
     return nname(p);
 }
 
+struct node * concat_node(struct node *l, struct node *r)
+{
+    struct node *node = alloc_node_node();
+    node->id = CONCAT_NODE;
+    node->kids[0] = l;
+    node->kids[1] = r;
+    return node;
+}
+
 struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
@@ -73,12 +82,12 @@ struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
     return expr;
 }
 
-struct stmt * stmt_node(int id, struct stmt *l, struct stmt *r)
+struct stmt * stmt_node(int id, struct node *l, struct node *r)
 {
     assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
     struct stmt * stmt = alloc_stmt_node();
     stmt->node.id = id;
-    stmt->node.kids[0] = NODE(l);
-    stmt->node.kids[1] = NODE(r);
+    stmt->node.kids[0] = l;
+    stmt->node.kids[1] = r;
     return stmt;
 }
