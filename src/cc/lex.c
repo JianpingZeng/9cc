@@ -233,7 +233,7 @@ static void nextline()
     } while (*pc == '\n' && pc == pe);
 }
 
-void init_input()
+static void init_input()
 {
     pc = pe = &ibuf[LBUFSIZE];
     bread = -1;
@@ -1282,10 +1282,14 @@ static unsigned escape(struct string *s)
 
 void match(int t)
 {
-    if (t == token->id)
+    if (t == token->id) {
         gettok();
-    else
-        error("expect token '%s' before '%k'", tname(t), token);
+    } else {
+	if (token->id == EOI)
+	    error("expect token '%s' at the end", tname(t));
+	else
+	    error("expect token '%s' before '%k'", tname(t), token);
+    }
 }
 
 const char *tname(int t)
@@ -1339,4 +1343,10 @@ const char * token_print_function(void *data)
 {
     struct token *p = data;
     return p->name;
+}
+
+void init_lexer()
+{
+    init_input();
+    gettok();
 }

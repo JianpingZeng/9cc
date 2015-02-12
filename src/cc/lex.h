@@ -32,7 +32,7 @@ extern struct token  *token;
 // lex
 extern const char * token_print_function(void *data);
 
-extern void init_input();
+extern void init_lexer();
 extern int  gettok();
 extern struct token *  lookahead();
 extern void match(int t);

@@ -44,9 +44,10 @@ _ns(BEGIN_STMT_ID)
 _n(IF_STMT,           "IfStmt")
 _n(ELSE_STMT,         "ElseStmt")
 _n(WHILE_STMT,        "WhileStmt")
-_n(DOWHILE_STMT,      "DoWhileStmt")
+_n(DO_WHILE_STMT,     "DoWhileStmt")
 _n(COMPOUND_STMT,     "CompoundStmt")
 _n(RETURN_STMT,       "ReturnStmt")
+_n(EXPR_STMT,         "ExpressionStmt")
 
 _ns(END_STMT_ID)
 

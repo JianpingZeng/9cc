@@ -7,10 +7,9 @@ static const char *output_file;
 
 static void test()
 {
-    struct expr *e;
-    gettok();
-    e = expression();
-    print_tree(NODE(e));
+    struct stmt *n;
+    n = statement();
+    print_tree(NODE(n));
 }
 
 static void cc_init()
@@ -21,7 +20,7 @@ static void cc_init()
     register_print_function('n', node_print_function);
     init_symbol();
     init_type();
-    init_input();
+    init_lexer();
 }
 
 int main(int argc, const char * argv[])
