@@ -1,14 +1,41 @@
 #include "cc.h"
 
-struct stmt * stmt()
+static struct stmt * expr_stmt()
+{
+
+}
+
+static struct stmt * if_stmt()
+{
+    struct stmt *ret;
+    struct expr *expr1;
+    struct stmt *stmt1;
+    
+    match(IF);
+    match('(');
+    expr1 = expression();
+    match(')');
+
+    stmt1 = statement();
+
+    
+
+    if (token->id == ELSE) {
+	struct stmt *stmt2;
+	match(ELSE);
+	stmt2 = statement();
+    }
+}
+
+struct stmt * statement()
 {
     switch (token->id) {
 	// compound
     case '{':
-	return compound_stmt();
+	return compound_statement();
 	// selection
     case IF:
-	break;
+	return if_stmt();
     case SWITCH:
 	break;
 	// iteration
@@ -36,11 +63,11 @@ struct stmt * stmt()
 	break;
 	// expression
     default:
-	break;
+        return expr_stmt();
     }
 }
 
-struct stmt * compound_stmt()
+struct stmt * compound_statement()
 {
 
 }

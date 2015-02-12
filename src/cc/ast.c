@@ -64,6 +64,7 @@ const char * node_print_function(void *data)
 
 struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
 {
+    assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
     struct expr * expr = alloc_expr_node();
     expr->node.id = id;
     expr->op = op;
@@ -72,3 +73,12 @@ struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
     return expr;
 }
 
+struct stmt * stmt_node(int id, struct stmt *l, struct stmt *r)
+{
+    assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
+    struct stmt * stmt = alloc_stmt_node();
+    stmt->node.id = id;
+    stmt->node.kids[0] = NODE(l);
+    stmt->node.kids[1] = NODE(r);
+    return stmt;
+}

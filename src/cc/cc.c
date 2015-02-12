@@ -9,7 +9,7 @@ static void test()
 {
     struct expr *e;
     gettok();
-    e = expr();
+    e = expression();
     print_tree(NODE(e));
 }
 

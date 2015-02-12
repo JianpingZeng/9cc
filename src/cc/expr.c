@@ -43,13 +43,13 @@ static struct expr * postfix_expr1(struct expr *ret)
 	case '[':
 	    t = token->id;
 	    match(token->id);
-	    ret = expr_node(BINARY_OP, t, ret, expr());
+	    ret = expr_node(BINARY_OP, t, ret, expression());
 	    match(']');
 	    break;
 	case '(':
 	    t = token->id;
 	    match(token->id);
-	    ret = expr_node(BINARY_OP, t, ret, expr());
+	    ret = expr_node(BINARY_OP, t, ret, expression());
 	    match(')');
 	    break;
 	case '.':
@@ -127,7 +127,7 @@ static struct expr * postfix_expr()
 		match('}');
 	    } else {
 		match('(');
-		ret = expr();
+		ret = expression();
 		match(')');
 	    }
 	}
@@ -409,7 +409,7 @@ static struct expr * cond_expr(struct expr *e)
 	    if (token->id == '?') {
 		struct expr *r, *e, *c;
 		match('?');
-		e = expr();
+		e = expression();
 		match(':');
 		c = cond_expr(NULL);
 		r = expr_node(COLON_OP, ':', e, c);
@@ -462,15 +462,15 @@ static struct expr * assign_expr()
     return assign1;
 }
 
-struct expr * expr()
+struct expr * expression()
 {
-    struct expr *expr1;
+    struct expr *expr;
 
-    expr1 = assign_expr();
+    expr = assign_expr();
     while (token->id == ',') {
 	match(token->id);
-	expr1 = expr_node(COMMA_OP, ',', expr1, assign_expr());
+	expr = expr_node(COMMA_OP, ',', expr, assign_expr());
     }
 
-    return expr1;
+    return expr;
 }

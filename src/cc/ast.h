@@ -40,7 +40,7 @@ extern void print_tree(struct node *tree);
 
 // expr
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
-extern struct expr * expr();
+extern struct expr * expression();
 
 // decl
 extern struct decl * initializer_list();
@@ -49,8 +49,9 @@ extern int is_typename(struct token *t);
 extern struct decl * declaration();
 
 // stmt
-extern struct stmt * stmt();
-extern struct stmt * compound_stmt();
+extern struct stmt * stmt_node(int id, struct stmt *l, struct stmt *r);
+extern struct stmt * statement();
+extern struct stmt * compound_statement();
 
 #define NODE(n)    ((struct node*) (n))
 #define isexpr(n)  ((n)->id > BEGIN_EXPR_ID && (n)->id < END_EXPR_ID)
