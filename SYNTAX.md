@@ -81,6 +81,7 @@ type-specifier:
     unsigned
     _Bool
     _Complex
+    _Imaginary
     enum-specifier
     struct-or-union-specifier
     typedef-name

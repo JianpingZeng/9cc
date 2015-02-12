@@ -31,7 +31,7 @@ int kind(int t)
     else if (t < 128)
 	return kinds[t];
     else if (t >= ID && t < TOKEND)
-        return kinds[t-ID];
+        return kinds[128+t-ID];
     else
         return 0;
 }

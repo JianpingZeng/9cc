@@ -23,28 +23,38 @@ struct print_context {
 
 static void print_tree1(struct print_context context)
 {
-    for (int i=0; i < context.level; i++) {
-	fprint(stderr, "  ");
+    struct node *node = context.node;
+    int level;
+
+    if (context.node->id != CONCAT_NODE) {
+	for (int i=0; i < context.level; i++) {
+	    fprint(stderr, "  ");
+	}
+
+	if (node->symbol) {	
+	    fprint(stderr, "%s '%s'\n", nname(node), node->symbol->name);
+	} else if (isexpr(node)) {
+	    struct expr *e = (struct expr *)node;
+	    fprint(stderr, "%s '%s'\n", nname(node), tname(e->op));
+	} else {
+	    fprint(stderr, "%s\n", nname(node));
+	}
     }
 
-    if (context.node->symbol) {	
-	fprint(stderr, "%s '%s'\n", nname(context.node), context.node->symbol->name);
-    } else if (isexpr(context.node)) {
-	struct expr *e = (struct expr *)context.node;
-	fprint(stderr, "%s '%s'\n", nname(context.node), tname(e->op));
-    } else {
-	fprint(stderr, "%s\n", nname(context.node));
-    }
+    if (context.node->id == CONCAT_NODE)
+	level = context.level;
+    else
+	level = context.level + 1;
     
     if (context.node->kids[0]) {
 	struct print_context lcontext;
-	lcontext.level = context.level+1;
+	lcontext.level = level;
 	lcontext.node = context.node->kids[0];
 	print_tree1(lcontext);
     }
     if (context.node->kids[1]) {
 	struct print_context rcontext;
-	rcontext.level = context.level+1;
+	rcontext.level = level;
 	rcontext.node = context.node->kids[1];
 	print_tree1(rcontext);
     }

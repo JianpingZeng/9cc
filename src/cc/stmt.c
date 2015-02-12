@@ -3,11 +3,12 @@
 static struct stmt * expr_stmt()
 {
     struct stmt *ret;
-    
-    if (token->id == ';')
-	return NULL;
 
-    ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);
+    if (token->id == ';')
+	ret = NULL;
+    else
+	ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);
+    
     match(';');
 
     return ret;
@@ -152,11 +153,25 @@ struct stmt * statement()
 
 struct stmt * compound_statement()
 {
-    struct stmt *ret = NULL;
+    struct stmt *ret = stmt_node(COMPOUND_STMT, NULL, NULL);
+    struct node *node = NULL;
 
     match('{');
 
-    
+    // TODO
+    while (kind(token->id) & (FIRST_STMT|FIRST_EXPR|FIRST_DECL)) {
+	struct stmt *stmt;
+	struct node *node1;
+	
+	stmt = statement();
+	node1 = concat_node(NODE(stmt), NULL);
+        if (node)
+	    node->kids[1] = node1;
+	else
+	    ret->node.kids[0] = node1;
+
+	node = node1;
+    }
 
     match('}');
 
