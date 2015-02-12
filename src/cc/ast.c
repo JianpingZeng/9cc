@@ -27,9 +27,8 @@ static void print_tree1(struct print_context context)
     int level;
 
     if (context.node->id != CONCAT_NODE) {
-	for (int i=0; i < context.level; i++) {
+	for (int i=0; i < context.level; i++)
 	    fprint(stderr, "  ");
-	}
 
 	if (node->symbol) {	
 	    fprint(stderr, "%s '%s'\n", nname(node), node->symbol->name);
@@ -52,6 +51,13 @@ static void print_tree1(struct print_context context)
 	lcontext.node = context.node->kids[0];
 	print_tree1(lcontext);
     }
+    else if (context.node->id == CONCAT_NODE) {
+	for (int i=0; i < context.level; i++)
+	    fprint(stderr, "  ");
+	
+	fprint(stderr, "<<<NULL>>>\n");
+    }
+	
     if (context.node->kids[1]) {
 	struct print_context rcontext;
 	rcontext.level = level;

@@ -42,6 +42,7 @@ extern struct node * concat_node(struct node *l, struct node *r);
 // expr
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
 extern struct expr * expression();
+extern struct expr * constant_expression();
 
 // decl
 extern struct decl * initializer_list();

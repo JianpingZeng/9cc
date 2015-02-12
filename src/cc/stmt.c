@@ -4,10 +4,14 @@ static struct stmt * expr_stmt()
 {
     struct stmt *ret;
 
-    if (token->id == ';')
+    if (token->id == ';') {
 	ret = NULL;
-    else
+    } else if (!(kind(token->id) & FIRST_EXPR)) {
+	ret = NULL;
+	error("missing statement before '%k'", token);
+    } else {
 	ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);
+    }
     
     match(';');
 
@@ -66,47 +70,120 @@ static struct stmt * do_while_stmt()
 
 static struct stmt * for_stmt()
 {
-    return NULL;
+    struct node *node;
+    struct node *expr;
+
+    match(FOR);
+    match('(');
+
+    if (token->id == ';')
+	node = concat_node(NULL, NULL);
+    else
+	node = concat_node(NODE(expression()), NULL);
+
+    expr = node;
+
+    match(';');
+
+    if (token->id == ';')
+	node->kids[1] = concat_node(NULL, NULL);
+    else
+	node->kids[1] = concat_node(NODE(expression()), NULL);
+
+    node = node->kids[1];
+
+    match(';');
+
+    if (token->id == ')')
+	node->kids[1] = concat_node(NULL, NULL);
+    else
+	node->kids[1] = concat_node(NODE(expression()), NULL);
+    
+    match(')');
+
+    return stmt_node(FOR_STMT, expr, NODE(statement()));
 }
 
 static struct stmt * switch_stmt()
 {
-    return NULL;
+    struct expr *expr;
+    struct stmt *stmt;
+    
+    match(SWITCH);
+    match('(');
+    expr = expression();
+    match(')');
+    stmt = statement();
+    
+    return stmt_node(SWITCH_STMT, NODE(expr), NODE(stmt));
 }
 
 static struct stmt * case_stmt()
 {
-    return NULL;
+    struct expr *expr;
+    struct stmt *stmt;
+    
+    match(CASE);
+    expr = constant_expression();
+    match(':');
+    stmt = statement();
+    
+    return stmt_node(CASE_STMT, NODE(expr), NODE(stmt));
 }
 
 static struct stmt * default_stmt()
 {
-    return NULL;
+    match(DEFAULT);
+    match(':');
+    
+    return stmt_node(DEFAULT_STMT, NODE(statement()), NULL);
 }
 
 static struct stmt * label_stmt()
 {
-    return NULL;
+    struct node *label;
+    struct stmt *stmt;
+
+    label = NODE(expr_node(ADDR_OP, ID, NULL, NULL));
+    match(ID);
+    match(':');
+    stmt = statement();
+    
+    return stmt_node(LABEL_STMT, label, NODE(stmt));
 }
 
 static struct stmt * goto_stmt()
 {
-    return NULL;
+    struct node *expr = NULL;
+    
+    match(GOTO);
+    if (token->id == ID)
+	expr = NODE(expr_node(ADDR_OP, ID, NULL, NULL));
+    match(ID);
+    match(';');
+    
+    return stmt_node(GOTO_STMT, expr, NULL);
 }
 
 static struct stmt * break_stmt()
 {
-    return NULL;
+    match(BREAK);
+    match(';');
+    return stmt_node(BREAK_STMT, NULL, NULL);
 }
 
 static struct stmt * continue_stmt()
 {
-    return NULL;
+    match(CONTINUE);
+    match(';');
+    return stmt_node(CONTINUE_STMT, NULL, NULL);
 }
 
 static struct stmt * return_stmt()
-{
-    return NULL;
+{   
+    match(RETURN);
+    
+    return stmt_node(RETURN_STMT, NODE(expr_stmt()), NULL);;
 }
 
 struct stmt * statement()
@@ -158,13 +235,19 @@ struct stmt * compound_statement()
 
     match('{');
 
-    // TODO
     while (kind(token->id) & (FIRST_STMT|FIRST_EXPR|FIRST_DECL)) {
-	struct stmt *stmt;
+	struct node *item;
 	struct node *node1;
+
+	if ((token->id == ID && is_typedef_name(token->name)) ||
+	    (token->id != ID && kind(token->id) & FIRST_DECL))
+	    // declaration
+	    item = NODE(declaration());
+	else
+	    // statement
+	    item = NODE(statement());
 	
-	stmt = statement();
-	node1 = concat_node(NODE(stmt), NULL);
+	node1 = concat_node(item, NULL);
         if (node)
 	    node->kids[1] = node1;
 	else

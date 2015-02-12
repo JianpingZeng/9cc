@@ -701,8 +701,12 @@ struct decl * initializer_list()
     return NULL;
 }
 
-// struct node ** declaration()
-// {
+struct decl * declaration()
+{
+    BEGIN_CALL(declaration);
+    Log.v("%d %k", token->id, token);
+    END_CALL(declaration);
+    return NULL;
 //     Vector *v = new_vector();
 //     const char *id = NULL;
 //     struct type *basety, *type = NULL;
@@ -791,7 +795,7 @@ struct decl * initializer_list()
 //     END_CALL(declaration);
     
 //     return (struct node **) vector_to_array(v);
-// }
+}
 
 // struct decl ** translation_unit()
 // {

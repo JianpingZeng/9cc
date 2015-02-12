@@ -36,6 +36,7 @@ extern void init_lexer();
 extern int  gettok();
 extern struct token *  lookahead();
 extern void match(int t);
+extern void skipto(int t1, ...);
 extern const char *tname(int t);
 
 #endif
