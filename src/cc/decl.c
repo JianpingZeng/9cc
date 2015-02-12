@@ -26,12 +26,14 @@ static int kinds[] = {
 
 int kind(int t)
 {
-    if (t >= ID && t < TOKEND) {
+    if (t < 0)
+	return 0;
+    else if (t < 128)
+	return kinds[t];
+    else if (t >= ID && t < TOKEND)
         return kinds[t-ID];
-    }
-    else {
+    else
         return 0;
-    }
 }
 
 int is_typename(struct token *t)
