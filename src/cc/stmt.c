@@ -6,11 +6,11 @@ static struct stmt * expr_stmt()
 
     if (token->id == ';') {
 	ret = NULL;
-    } else if (!(kind(token->id) & FIRST_EXPR)) {
+    } else if (kind(token->id) & FIRST_EXPR) {
+	ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);	
+    } else {
 	ret = NULL;
 	error("missing statement before '%k'", token);
-    } else {
-	ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);
     }
     
     match(';');
