@@ -158,20 +158,42 @@
 `for` 的 `concat-node` 结构如下：
 
       	 	       <ForStmt>
-            	          |
-                     -------------
+            	       |
+                 --------------
        		     |            |
   	       <concat-node>     NULL
-       	             |
+       	         |
   	       -------------
   	       |           |
-  	      <expr1>    <concat-node>
+  	    <expr1>    <concat-node>
 	                   |
 	              -------------
   	              |           |
   	           <expr2>    <concat-node>
-		                  |
+		                      |
 	                     -------------
   	                     |           |
-  	                  <expr3>    <concat-node>
+  	                  <expr3>       NULL
+  	                  
+
+`compound` 的 `concat-node` 结构如下：
+
+      	 	       <CompoundStmt>
+            	       |
+                 --------------
+       		     |            |
+  	       <concat-node>     NULL
+       	         |
+  	       -------------
+  	       |           |
+  	<decl1/stmt1>    <concat-node>
+	                   |
+	              -------------
+  	              |           |
+  	      <decl2/stmt2>    <concat-node>
+		                      |
+	                     -------------
+  	                     |           |
+  	              <decl3/stmt3>     ......
+
        
