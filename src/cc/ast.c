@@ -35,6 +35,13 @@ static void print_tree1(struct print_context context)
 	} else if (isexpr(node)) {
 	    struct expr *e = (struct expr *)node;
 	    fprint(stderr, "%s '%s'\n", nname(node), tname(e->op));
+	} else if (isstmt(node)){
+	    struct stmt *s = (struct stmt *)node;
+	    if (s->up)
+		fprint(stderr, "%s %p -> %s %p\n",
+		       nname(node), node, nname(NODE(s->up)), s->up);
+	    else
+		fprint(stderr, "%s %p\n", nname(node), node);
 	} else {
 	    fprint(stderr, "%s\n", nname(node));
 	}
@@ -106,4 +113,22 @@ struct stmt * stmt_node(int id, struct node *l, struct node *r)
     stmt->node.kids[0] = l;
     stmt->node.kids[1] = r;
     return stmt;
+}
+
+int is_iteration_stmt(struct stmt *stmt)
+{
+    if (!stmt)
+	return 0;
+
+    return stmt->node.id == FOR_STMT ||
+	stmt->node.id == WHILE_STMT ||
+	stmt->node.id == DO_WHILE_STMT;
+}
+
+int is_switch_stmt(struct stmt *stmt)
+{
+    if (!stmt)
+	return 0;
+
+    return stmt->node.id == SWITCH_STMT;
 }

@@ -452,9 +452,9 @@ static int do_gettok()
 		pc = rpc + 5;
 		return CONST;
 	    } else if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 't' &&
-		     rpc[4] == 'i' && rpc[5] == 'n' && rpc[6] == 'e' &&
-		     !isdigitletter(rpc[7])) {
-		pc = rpc + 7;
+		     rpc[4] == 'i' && rpc[5] == 'n' && rpc[6] == 'u' &&
+		     rpc[7] == 'e' && !isdigitletter(rpc[8])) {
+		pc = rpc + 8;
 		return CONTINUE;
 	    }
 	    goto id;

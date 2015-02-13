@@ -8,7 +8,7 @@ static const char *output_file;
 static void test()
 {
     struct stmt *n;
-    n = statement();
+    n = compound_statement(NULL);
     print_tree(NODE(n));
 }
 

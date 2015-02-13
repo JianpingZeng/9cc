@@ -38,24 +38,33 @@
 	
 //  }
 
-{
-    switch (ca) {
-    case 1:
-	break;
-    case 2:
-	i = 9;
-	break;
-    default:
-	break;
-    }
-    return 9 > 0;
+// {
+//     switch (ca) {
+//     case 1:
+// 	break;
+//     case 2:
+// 	i = 9;
+// 	break;
+//     default:
+// 	break;
+//     }
+//     return 9 > 0;
 
-    switch (a)
-    case 5:
-	i = 9;
-	break;
- y:
-	goto jk;
-	h = 9;
-	j = 9;
+//     switch (a)
+//     case 5:
+// 	i = 9;
+// 	break;
+//  y:
+// 	goto jk;
+// 	h = 9;
+// 	j = 9;
+// }
+
+{
+
+    for (;;)
+	continue;
+
+    continue;
+    
 }
