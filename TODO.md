@@ -134,6 +134,10 @@
 
 统一采用二叉树
 
-| 语句 |  左子树  |  右子树|
-|-----|---------|-------|
-| `if`  |  expr    | stmt |
+| 语句        | 节点     | 左子树   |  右子树|
+|------------|----------|---------|-------|
+| `if`       | IfStmt   |  expr   | stmt  |
+| `if-else`  | ElseStmt |  IfStmt | stmt  |
+| `while`    | WhileStmt | expr   | stmt  |
+| `do-while` | DoWhileStmt | stmt | expr  |
+| `for`      | ForStmt  | concat-node | stmt |
