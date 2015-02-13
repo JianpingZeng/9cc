@@ -205,3 +205,8 @@
 
 3. `continue` 只能出现在 `for`, `while` 和 `do-while` 中。
 
+
+### `TODO` 完成声明的语法分析
+
+    1. 设计符号表
+    2. 设计types
