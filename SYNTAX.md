@@ -16,8 +16,7 @@ external-declaration:
     
 function-definition:
    
-    declaration-specifier  declarator  declaration-list(opt)  
-    compound-statement
+    declaration-specifier  declarator  declaration-list(opt)  compound-statement
     
 declaration-list:
 
