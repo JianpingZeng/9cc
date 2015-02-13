@@ -150,3 +150,28 @@
 | `case`     | CaseStmt   | expr    | stmt |
 | `default`  | DefaultStmt | stmt   | NULL |
 | `label`    | LabelStmt   | stmt   | NULL |
+
+二叉树简化了设计，但存在一个问题，就是上面的 `for` 和 `compound` 遇到的。
+
+以 `compound` 为例，其结构是多个 `declaration` 和 `statement` 的并列。二叉树的两个子节点不足以表示。`for` 循环的三个表达式也是如此。因此引进了 `concat-node`。
+
+`for` 的 `concat-node` 结构如下：
+
+      	 	       <ForStmt>
+            	          |
+                     -------------
+       		     |            |
+  	       <concat-node>     NULL
+       	             |
+  	       -------------
+  	       |           |
+  	      <expr1>    <concat-node>
+	                   |
+	              -------------
+  	              |           |
+  	           <expr2>    <concat-node>
+		                  |
+	                     -------------
+  	                     |           |
+  	                  <expr3>    <concat-node>
+       
