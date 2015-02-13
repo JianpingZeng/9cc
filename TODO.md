@@ -196,4 +196,12 @@
   	                     |           |
   	              <decl3/stmt3>     ......
 
-       
+
+### `DONE` 完成语句的语法分析
+
+1. `case` 和 `default` 只能出现在 `switch` 语句中。
+
+2. `break` 只能出现在 `for`, `while`, `do-while` 和 `switch` 中。
+
+3. `continue` 只能出现在 `for`, `while` 和 `do-while` 中。
+
