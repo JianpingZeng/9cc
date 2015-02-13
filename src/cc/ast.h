@@ -47,10 +47,12 @@ extern struct expr * expression();
 extern struct expr * constant_expression();
 
 // decl
+extern struct decl * decl_node(int id, int scope);
 extern struct decl * initializer_list();
 extern int kind(int t);
 extern int is_typename(struct token *t);
 extern struct decl * declaration();
+extern struct decl * translation_unit();
 
 // stmt
 extern struct stmt * stmt_node(int id, struct node *l, struct node *r);

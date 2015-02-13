@@ -7,14 +7,14 @@ _n(CONCAT_NODE,      "ConcatNode")
 // decl
 _ns(BEGIN_DECL_ID)
 
-_n(TRANSLATION_UNIT_DECL,   "TranslationUnitDecl")
-_n(VAR_DECL,                "VarDecl")
-_n(FUNC_DECL,               "FuncDecl")
-_n(PARAMVAL_DECL,           "ParamVarDecl")
-_n(TYPEDEF_DECL,            "TypedefDecl")
-_n(ENUM_DECL,               "EnumDecl")
-_n(STRUCT_DECL,             "StructDecl")
-_n(UNION_DECL,              "UnionDecl")
+_n(TU_DECL,           "TranslationUnitDecl")
+_n(VAR_DECL,          "VarDecl")
+_n(FUNC_DECL,         "FuncDecl")
+_n(PARAMVAL_DECL,     "ParamVarDecl")
+_n(TYPEDEF_DECL,      "TypedefDecl")
+_n(ENUM_DECL,         "EnumDecl")
+_n(STRUCT_DECL,       "StructDecl")
+_n(UNION_DECL,        "UnionDecl")
 
 _ns(END_DECL_ID)
 

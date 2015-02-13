@@ -5,13 +5,6 @@ CCOptions cc_options;
 static const char *input_file;
 static const char *output_file;
 
-static void test()
-{
-    struct stmt *n;
-    n = compound_statement(NULL);
-    print_tree(NODE(n));
-}
-
 static void cc_init()
 {
     setlocale(LC_ALL, "");
@@ -26,6 +19,7 @@ static void cc_init()
 int main(int argc, const char * argv[])
 {
     FILE *fp;
+    struct decl *n;
     
     for (int i=1; i < argc; i++) {
 	const char *arg = argv[i];
@@ -53,7 +47,8 @@ int main(int argc, const char * argv[])
     }
     
     cc_init();
-    test();
+    n = translation_unit();
+    print_tree(NODE(n));
 
     fclose(fp);
 	

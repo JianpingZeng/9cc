@@ -67,29 +67,6 @@ extern void string_concatd(struct string *s, long d);
 extern char * string_to_array(struct string *s);
 extern void free_string(struct string *s);
 
-// vector (container of pointers)
-struct vector {
-    void        **mem;
-    unsigned    elemsize;
-    unsigned    elems;
-    unsigned    capelems;
-    unsigned    reserve;
-};
-extern struct vector *new_vector();
-extern void * vector_at(struct vector *v, unsigned index);
-extern void vector_push(struct vector *v, void *elem);
-extern void *vector_pop(struct vector *v);
-extern void vector_insert(struct vector *v, unsigned index, void *elem);
-extern void free_vector(struct vector *v);
-extern void purge_vector(struct vector *v);
-extern unsigned vector_length(struct vector *v);
-extern void *vector_front(struct vector *v);
-extern void *vector_back(struct vector *v);
-extern void vector_foreach(struct vector *v, void (*func) (void *elem));
-extern void ** vector_to_array(struct vector *v);
-extern void vector_add_from_array(struct vector *v, void **array);
-extern void vector_add_from_vector(struct vector *v, struct vector *v2);
-
 // cc modules
 #include "type.h"
 #include "lex.h"

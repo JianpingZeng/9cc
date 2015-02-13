@@ -1,6 +1,6 @@
 #include "cc.h"
 
-#define isdeclspec(t) (kind(t) & (SCLASS_SPEC|TYPE_QUAL|TYPE_SPEC|FUNC_SPEC))
+// #define isdeclspec(t) (kind(t) & (SCLASS_SPEC|TYPE_QUAL|TYPE_SPEC|FUNC_SPEC))
 
 // int scopelevel;
 
@@ -797,24 +797,38 @@ struct decl * declaration()
 //     return (struct node **) vector_to_array(v);
 }
 
-// struct decl ** translation_unit()
-// {
-//     Vector *v = new_vector();
-//     identifiers = table(NULL, GLOBAL);
-//     gettok();
-//     for (; token->id != EOI; ) {
-//         if (isdeclspec(token->id) || token->id == ID || token->id == '(') {
-//             vector_add_from_array(v, (void *) declaration());
-//         }
-//         else if (token->id == ';') {
-//             warning("empty declaration");
-//             match(';');
-//         }
-//         else {
-//             error("invalid token '%k'", token);
-//             gettok();
-//         }
-//     }
-//     return vector_to_array(v);
-// }
+static struct type * specifiers()
+{
+    
+}
+
+static struct decl * external_decl()
+{
+    struct decl *ret;
+
+
+    return ret;
+}
+
+struct decl * translation_unit()
+{
+    struct decl *ret = decl_node(TU_DECL, GLOBAL);
+    struct node *node = NULL;
+    
+    for (; token->id != EOI; ) {
+	if (kind(token->id) & FIRST_DECL) {
+	    struct node *node1 = concat_node(external_decl(), NULL);
+	    if (node)
+	        node->kids[1] = node1;
+	    else
+		ret->node.kids[0] = node1;
+
+	    node = node1;
+	} else {
+	    error("invalid token '%k'", token);
+	    gettok();
+	}
+    }
+    return ret;
+}
 

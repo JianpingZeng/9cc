@@ -132,3 +132,12 @@ int is_switch_stmt(struct stmt *stmt)
 
     return stmt->node.id == SWITCH_STMT;
 }
+
+struct decl * decl_node(int id, int scope)
+{
+    assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
+    struct decl * decl = alloc_decl_node();
+    decl->node.id = id;
+    decl->scope = scope;
+    return decl;
+}
