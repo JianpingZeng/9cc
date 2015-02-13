@@ -45,29 +45,42 @@ static struct stmt * if_stmt(struct stmt *context)
 static struct stmt * while_stmt(struct stmt *context)
 {
     struct expr *expr;
+    struct stmt *ret;
 
     match(WHILE);
     match('(');
     expr = expression();
     match(')');
 
-    return stmt_node(WHILE_STMT, NODE(expr), NODE(statement(context)));
+    ret = stmt_node(WHILE_STMT, NODE(expr), NULL);
+    ret->up = context;
+    ret->node.kids[1] = NODE(statement(ret));
+    ret->up = NULL;
+    
+    return ret;
 }
 
 static struct stmt * do_while_stmt(struct stmt *context)
 {
     struct stmt *stmt;
     struct expr *expr;
+    struct stmt *ret;
     
     match(DO);
-    stmt = statement(context);
+
+    ret = stmt_node(DO_WHILE_STMT, NULL, NULL);
+    ret->up = context;
+    stmt = statement(ret);    
     match(WHILE);
     match('(');
     expr = expression();
     match(')');
     match(';');
+    ret->node.kids[0] = NODE(stmt);
+    ret->node.kids[1] = NODE(expr);
+    ret->up = NULL;
 
-    return stmt_node(DO_WHILE_STMT, NODE(stmt), NODE(expr));
+    return ret;
 }
 
 static struct stmt * for_stmt(struct stmt *context)
@@ -107,6 +120,7 @@ static struct stmt * for_stmt(struct stmt *context)
     ret = stmt_node(FOR_STMT, expr, NULL);
     ret->up = context;
     ret->node.kids[1] = NODE(statement(ret));
+    ret->up = NULL;
 
     return ret;
 }
@@ -114,36 +128,82 @@ static struct stmt * for_stmt(struct stmt *context)
 static struct stmt * switch_stmt(struct stmt *context)
 {
     struct expr *expr;
-    struct stmt *stmt;
+    struct stmt *ret;
     
     match(SWITCH);
     match('(');
     expr = expression();
     match(')');
-    stmt = statement(context);
     
-    return stmt_node(SWITCH_STMT, NODE(expr), NODE(stmt));
+    ret = stmt_node(SWITCH_STMT, NODE(expr), NULL);
+    ret->up = context;
+    ret->node.kids[1] = NODE(statement(ret));
+    ret->up = NULL;
+
+    return ret;
 }
 
 static struct stmt * case_stmt(struct stmt *context)
 {
+    int in_sw = 0;
     struct expr *expr;
     struct stmt *stmt;
+    unsigned line = src.line;
     
     match(CASE);
     expr = constant_expression();
     match(':');
+
+    while (context) {
+	if (is_switch_stmt(context)) {
+	    in_sw = 1;
+	    break;
+	} else {
+	    context = context->up;
+	}
+    }
+
+    // print before parsing statement
+    if (!in_sw)
+	errorf(line, "'case' statement is not in a switch statement.");
+
+    // always parse even if not in a switch statement
     stmt = statement(context);
-    
-    return stmt_node(CASE_STMT, NODE(expr), NODE(stmt));
+
+    if (!in_sw)
+	return NULL;
+    else
+	return stmt_node(CASE_STMT, NODE(expr), NODE(stmt));
 }
 
 static struct stmt * default_stmt(struct stmt *context)
 {
+    int in_sw = 0;
+    struct stmt *stmt;
+    unsigned line = src.line;
+    
     match(DEFAULT);
     match(':');
-    
-    return stmt_node(DEFAULT_STMT, NODE(statement(context)), NULL);
+
+    while (context) {
+	if (is_switch_stmt(context)) {
+	    in_sw = 1;
+	    break;
+	} else {
+	    context = context->up;
+	}
+    }
+
+    // print before parsing statement
+    if (!in_sw)
+	errorf(line, "'default' statement is not in a switch statement.");
+
+    stmt = statement(context);
+
+    if (!in_sw)
+	return NULL;
+    else
+	return stmt_node(DEFAULT_STMT, NODE(stmt), NULL);
 }
 
 static struct stmt * label_stmt(struct stmt *context)
@@ -174,14 +234,36 @@ static struct stmt * goto_stmt()
 
 static struct stmt * break_stmt(struct stmt *context)
 {
+    int in_iter_sw = 0;
+    unsigned line = src.line;
+    struct stmt *ret;
+    
     match(BREAK);
     match(';');
-    return stmt_node(BREAK_STMT, NULL, NULL);
+
+    while (context) {
+	if (is_iteration_stmt(context) || is_switch_stmt(context)) {
+	    in_iter_sw = 1;
+	    break;
+	} else {
+	    context = context->up;
+	}
+    }
+
+    if (!in_iter_sw) {
+	errorf(line, "'break' statement is not in a loop or switch statement.");
+	return NULL;
+    }
+    
+    ret = stmt_node(BREAK_STMT, NULL, NULL);
+    ret->up = context;
+
+    return ret;
 }
 
 static struct stmt * continue_stmt(struct stmt *context)
 {
-    int is_in_iteration = 0;
+    int in_iter = 0;
     struct stmt *ret;
     unsigned line = src.line;
     
@@ -190,15 +272,17 @@ static struct stmt * continue_stmt(struct stmt *context)
 
     while (context) {
 	if (is_iteration_stmt(context)) {
-	    is_in_iteration = 1;
+	    in_iter = 1;
 	    break;
 	} else {
 	    context = context->up;
 	}
     }
 
-    if (!is_in_iteration)
+    if (!in_iter) {
 	errorf(line, "'continue' statement is not in a loop statement.");
+	return NULL;
+    }
     
     ret = stmt_node(CONTINUE_STMT, NULL, NULL);
     ret->up = context;

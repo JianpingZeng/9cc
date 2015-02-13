@@ -60,11 +60,87 @@
 // 	j = 9;
 // }
 
+// {
+
+//     for (;;) {
+// 	if (a > 9) {
+// 	    for (;;)
+// 	    continue;
+// 	}
+
+// 	continue;
+//     }
+//     continue;
+
+//     if (i) {
+// 	break;
+//     }
+
+//     switch (a) {
+//     case 1:
+// 	i = 9;
+// 	j = 8;
+//         break;
+//     }
+
+//  case 4:
+//      break;
+// }
+
 {
+    while (a) {
 
-    for (;;)
-	continue;
+	for (; i>9 ;) {
 
-    continue;
-    
+	    if (b < 7)
+		break;
+	}
+
+	if (n == 0)
+	    break;
+
+	if (n == 9){
+	    break;
+	}
+    }
+
+    op = 8;
+    j = i;
+
+    switch (b) {
+    case 1:
+	i = 9;
+	h = 7;
+	break;
+
+    case 3:
+	break;
+
+    case 4:
+	{
+
+	}
+
+    case 56:
+	{
+	    do {
+		continue;
+		break;
+
+		for (;;)
+		    break;
+		
+	    } while (1);
+	}
+	break;
+
+    default:
+	i = 8;
+	break;
+    }
+
+    switch (a)
+    case 3:
+	i = 0;
+        break;
 }
