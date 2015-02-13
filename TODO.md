@@ -141,3 +141,12 @@
 | `while`    | WhileStmt | expr   | stmt  |
 | `do-while` | DoWhileStmt | stmt | expr  |
 | `for`      | ForStmt  | concat-node | stmt |
+| `switch`   | SwitchStmt | expr | stmt   |
+| `compound` | CompoundStmt | concat-node | NULL |
+| `continue` | ContinueStmt | NULL  | NULL |
+| `break`    | BreakStmt  |  NULL   | NULL |
+| `return`   | ReturnStmt | expr    | NULL |
+| `goto`     | GotoStmt   | expr    | NULL |
+| `case`     | CaseStmt   | expr    | stmt |
+| `default`  | DefaultStmt | stmt   | NULL |
+| `label`    | LabelStmt   | stmt   | NULL |
