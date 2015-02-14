@@ -31,5 +31,6 @@ extern struct symbol * find_symbol(const char *name, struct table **tpp, int sco
 
 extern struct table * identifiers;
 extern struct table * constants;
+extern struct table * records;
 
 #endif

@@ -1,14 +1,6 @@
 #include "cc.h"
 
-// #define isdeclspec(t) (kind(t) & (SCLASS_SPEC|TYPE_QUAL|TYPE_SPEC|FUNC_SPEC))
-
-// int scopelevel;
-
-// static struct type * declaration_specifier(int *sclass);
-// static void declarator(struct type **, const char **, int abstract);
-// static struct type * pointer();
-
-// static struct symbol * declparam(const char *id, struct type *ty);
+static struct type * specifiers(int *sclass);
 
 // // abstract
 // enum {
@@ -41,8 +33,22 @@ int is_typename(struct token *t)
     return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(t->name);
 }
 
-// static struct symbol ** parameter_type_list(struct type *ftype)
-// {
+static struct node * parameter_type_list()
+{
+    struct node *ret = NULL;
+
+    enterscope();
+
+    for (;;) {
+	struct type *basety = NULL;
+	int sclass;
+
+	basety = specifiers(&sclass);
+    }
+    
+    exitscope();
+
+    return ret;
 //     BEGIN_CALL(parameter_type_list);
 
 //     Vector *v = new_vector();
@@ -91,12 +97,26 @@ int is_typename(struct token *t)
 //     END_CALL(parameter_type_list);
 
 //     return (struct symbol **)vector_to_array(v);
-// }
+}
 
-// static struct symbol ** funcparams(struct type *ftype)
-// {
-//     BEGIN_CALL(funcparams);
+static struct node * func_proto(struct type *ftype)
+{
+    struct node *ret = NULL;
 
+    if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
+	(token->id == ID && is_typedef_name(token->name))) {
+
+	ret = parameter_type_list();
+	    
+    } else if (token->id == ID) {
+	enterscope();
+	
+	exitscope();
+    } else if (token->id != ')') {
+	error("invalid token '%k' in parameter list", token);
+    }
+    
+    return ret;
 //     struct symbol ** syms;
     
 //     if (isdeclspec(token->id) || (token->id == ID && istypedefname(token->name))) {
@@ -133,39 +153,39 @@ int is_typename(struct token *t)
 //     END_CALL(funcparams);
     
 //     return syms;
-// }
+}
 
-// static struct type * func_or_array()
-// {
-//     struct type *ty = NULL;
-//     BEGIN_CALL(func_or_array);
+static struct type * func_or_array()
+{
+    struct type *ty = NULL;
     
-//     for (; token->id == '(' || token->id == '['; ) {
-//         if (token->id == '[') {
-//             struct type *atype = new_type();
-//             match('[');
-//             if (token->id == ICONSTANT) {
-//                 match(ICONSTANT);
-//             }
-//             match(']');
-//             atype->op = ARRAY;
-//             atype->size = token->v.u.i;
-//             attach_type(&ty, atype);
-//         }
-//         else {
-//             match('(');
-//             struct type *ftype = new_type();
-//             ftype->op = FUNCTION;
-//             ftype->u.f.proto = funcparams(ftype);
-//             attach_type(&ty, ftype);
-//             match(')');
-//         }
-//     }
-    
-//     END_CALL(func_or_array);
-    
-//     return ty;
-// }
+    for (; token->id == '(' || token->id == '['; ) {
+        if (token->id == '[') {
+            struct type *atype = array_type();
+            match('[');
+	    if (token->id == STATIC) {
+		match(STATIC);
+		
+	    } else if (kind(token->id) & TYPE_QUAL) {
+		
+	    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+		assign_expression();
+	    } else if (token->id == '*') {
+		match('*');
+	    }
+	    skipto(']');
+            attach_type(&ty, atype);
+        } else {
+	    struct type *ftype = function_type();
+            match('(');
+            ftype->u.f.proto = func_proto(ftype);
+	    skipto(')');
+            attach_type(&ty, ftype);
+        }
+    }
+        
+    return ty;
+}
 
 // static struct type * abstract_func_or_array()
 // {
@@ -288,69 +308,58 @@ int is_typename(struct token *t)
 //     END_CALL(direct_declarator);
 // }
 
-// static struct type * pointer()
-// {
-//     struct type *ty = NULL;
-//     int con, vol, res, type;
-//     assert(token->id == '*');
+static struct type * pointer()
+{
+    struct type *ret = NULL;
+    int con, vol, res, type;
     
-//     BEGIN_CALL(pointer);
+    assert(token->id == '*');
     
-//     con = vol = res = type = 0;
-    
-//     for (; ; ) {
-//         int *p, t = token->id;
-//         switch (token->id) {
-//             case CONST:
-//                 p = &con;
-//                 gettok();
-//                 break;
+    for (;;) {
+        int *p, t = token->id;
+        switch (token->id) {
+            case CONST:
+                p = &con;
+                break;
                 
-//             case VOLATILE:
-//                 p = &vol;
-//                 gettok();
-//                 break;
+            case VOLATILE:
+                p = &vol;
+                break;
                 
-//             case RESTRICT:
-//                 p = &res;
-//                 gettok();
-//                 break;
+            case RESTRICT:
+                p = &res;
+                break;
                 
-//             case '*':
-//             {
-//                 struct type *ptype = new_type();
-//                 ptype->op = POINTER;
-//                 con = vol = res = type = 0;
-//                 p = &type;
-//                 prepend_type(&ty, ptype);
-//                 gettok();
-//             }
-//                 break;
+            case '*':
+            {
+                struct type *pty = pointer_type();
+                con = vol = res = type = 0;
+                p = &type;
+                prepend_type(&ret, pty);
+            }
+                break;
                 
-//             default:
-//                 p = NULL;
-//                 break;
-//         }
+            default:
+                p = NULL;
+                break;
+        }
         
-//         if (p == NULL) {
-//             break;
-//         }
+        if (p == NULL)
+            break;
         
-//         if (*p != 0) {
-//             error("duplicate type qulifier '%k'", token);
-//         }
+        if (*p != 0)
+            warning("duplicate type qulifier '%k'", token);
         
-//         *p = t;
+        *p = t;
         
-//         if (t == CONST || t == VOLATILE || t == RESTRICT) {
-//             ty = qual(t, ty);
-//         }
-//     }
-    
-//     END_CALL(pointer);
-    
-//     return ty;
-// }
+        if (t == CONST || t == VOLATILE || t == RESTRICT)
+            ret = qual(t, ret);
+
+	gettok();
+    }
+        
+    return ret;
+}
 
 // // abstract = NON_ABSTRACT  : only direct_declarator
 // //          = ABSTRACT      : only direct_abstract_declarator
@@ -433,182 +442,215 @@ int is_typename(struct token *t)
 //     END_CALL(declarator);
 // }
 
-// static struct type * enum_decl()
-// {
-//     return NULL;
-// }
+static struct decl * enum_decl()
+{
+    return NULL;
+}
 
-// static struct type * record_decl()
-// {
-//     return NULL;
-// }
+static struct decl * record_decl()
+{
+    return NULL;
+}
 
-// static struct type * declaration_specifier(int *sclass)
-// {
-//     int cls, sign, size, type;
-//     int cons, vol, res, inl;
-//     struct type *basety = NULL;
-    
-//     BEGIN_CALL(decl_spec);
-    
-//     cls = sign = size = type = 0;
-//     cons = vol = res = inl = 0;
+static struct type * specifiers(int *sclass)
+{
+    int cls, sign, size, type;
+    int cons, vol, res, inl;
+    struct type *basety;
+    int ci;			// _Complex, _Imaginary
+        
+    basety = NULL;
+    cls = sign = size = type = 0;
+    cons = vol = res = inl = 0;
+    ci = 0;
 
-//     for (;;) {
-//         int *p, t = token->id;
-//         switch (token->id) {
-//             case AUTO: case EXTERN: case REGISTER:
-//             case STATIC: case TYPEDEF:
-//                 p = &cls;
-//                 gettok();
-//                 break;
+    for (;;) {
+        int *p, t = token->id;
+	unsigned line = src.line;
+        switch (token->id) {
+	case AUTO:
+	case EXTERN:
+	case REGISTER:
+	case STATIC:
+	case TYPEDEF:
+	    p = &cls;
+	    gettok();
+	    break;
                 
-//             case CONST:
-//                 p = &cons;
-//                 gettok();
-//                 break;
+	case CONST:
+	    p = &cons;
+	    gettok();
+	    break;
                 
-//             case VOLATILE:
-//                 p = &vol;
-//                 gettok();
-//                 break;
+	case VOLATILE:
+	    p = &vol;
+	    gettok();
+	    break;
                 
-//             case RESTRICT:
-//                 p = &res;
-//                 gettok();
-//                 break;
+	case RESTRICT:
+	    p = &res;
+	    gettok();
+	    break;
                 
-//             case INLINE:
-//                 p = &inl;
-//                 gettok();
-//                 break;
+	case INLINE:
+	    p = &inl;
+	    gettok();
+	    break;
                 
-//             case ENUM:
-//                 p = &type;
-//                 basety = enum_decl();
-//                 gettok();
-//                 break;
+	case ENUM:
+	    p = &type;
+	    basety = enum_decl()->node.symbol->type;
+	    break;
                 
-//             case STRUCT:
-//             case UNION:
-//                 p = &type;
-//                 basety = record_decl();
-//                 gettok();
-//                 break;
+	case STRUCT:
+	case UNION:
+	    p = &type;
+	    basety = record_decl()->node.symbol->type;
+	    break;
              
-//             case LONG:
-//                 if (size == LONG) {
-//                     t = LONG + LONG;
-//                     size = 0;   // clear
-//                 }
-//                 // go through
-//             case SHORT:
-//                 p = &size;
-//                 gettok();
-//                 break;
+	case LONG:
+	    if (size == LONG) {
+		t = LONG + LONG;
+		size = 0;	// clear
+	    }
+	    // go through
+	case SHORT:
+	    p = &size;
+	    gettok();
+	    break;
             
-//             case FLOAT:
-//             case DOUBLE:
-//             case VOID:
-//             case CHAR:
-//             case INT:
-//                 p = &type;
-//                 basety = pretype(token->id);
-//                 gettok();
-//                 break;
+	case FLOAT:
+	    p = &type;
+	    basety = floattype;
+	    gettok();
+	    break;
+	    
+	case DOUBLE:
+	    p = &type;
+	    basety = doubletype;
+	    gettok();
+	    break;
+	    
+	case VOID:
+	    p = &type;
+	    basety = voidtype;
+	    gettok();
+	    break;
+	    
+	case CHAR:
+	    p = &type;
+	    basety = chartype;
+	    gettok();
+	    break;
+	    
+	case INT:
+	    p = &type;
+	    basety = inttype;
+	    gettok();
+	    break;
+	    
+	case _BOOL:
+	    p = &type;
+	    basety = booltype;
+	    gettok();
+	    break;
                 
-//             case SIGNED:
-//             case UNSIGNED:
-//                 p = &sign;
-//                 gettok();
-//                 break;
+	case SIGNED:
+	case UNSIGNED:
+	    p = &sign;
+	    gettok();
+	    break;
+
+	case _COMPLEX:
+	case _IMAGINARY:
+	    p = &ci;
+	    gettok();
+	    break;
                 
-//             case ID:
-//                 // typedef name
-//             default:
-//                 p = NULL;
-//                 break;
-//         }
+	case ID:
+	    if (is_typedef_name(token->name)) {
+		p = &type;
+		gettok();
+	    } else {
+		p = NULL;
+	    }
+	    break;
+	    
+	default:
+	    p = NULL;
+	    break;
+        }
         
-//         if (p == NULL) {
-//             break;
-//         }
+        if (p == NULL)
+            break;
         
-//         if (*p != 0) {
-//             error("invalid syntax at '%k'", token);
-//         }
+        if (*p != 0) {
+	    if (p == &cls)
+		errorf(line, "duplicate storage class specifier at '%s'", tname(t));
+	    else if (p == &cons || p == &res || p == &vol || p == &inl)
+		warningf(line, "duplicate '%s' declaration specifier", tname(t));
+	    else if (p == &ci)
+		errorf(line, "duplicate _Complex/_Imaginary specifier at '%s'", tname(t));
+	    else if (p == &sign)
+		errorf(line, "duplicate signed/unsigned speficier at '%s'", tname(t));
+	    else if (p == &type || p == &size)
+		errorf(line, "duplicate type specifier at '%s'", tname(t));
+	    else
+		assert(0);
+	}
         
-//         *p = t;
-//     }
+        *p = t;
+    }
     
-//     // default is int
-//     if (type == 0) {
-//         if (sign == 0 && size == 0) {
-//             if (stdc99) {
-//                 error("missing type specifier");
-//             }
-//             else {
-//                 error("missing type specifier, default is int");
-//             }
-//         }
-//         type = INT;
-//         basety = inttype;
-//     }
+    // default is int
+    if (type == 0) {
+        if (sign == 0 && size == 0)
+	    error("missing type specifier");
+        type = INT;
+        basety = inttype;
+    }
     
-//     // type check
-//     if ((size == SHORT && type != INT) ||
-//         (size == LONG + LONG && type != INT) ||
-//         (size == LONG && type != INT && type != DOUBLE)) {
-//         if (size == LONG + LONG) {
-//             error("%s %s %s is invalid", tname(size/2), tname(size/2), tname(type));
-//         }
-//         else {
-//             error("%s %s is invalid", tname(size), tname(type));
-//         }
-//     }
-//     else if ((sign && type != INT && type != CHAR)) {
-//         error("'%s' cannot be signed or unsigned", tname(type));
-//     }
+    // type check
+    if ((size == SHORT && type != INT) ||
+        (size == LONG + LONG && type != INT) ||
+        (size == LONG && type != INT && type != DOUBLE)) {
+        if (size == LONG + LONG)
+            error("%s %s %s is invalid", tname(size/2), tname(size/2), tname(type));
+        else
+            error("%s %s is invalid", tname(size), tname(type));
+    } else if ((sign && type != INT && type != CHAR)) {
+        error("'%s' cannot be signed or unsigned", tname(type));
+    } else if ((ci && type != DOUBLE && type != FLOAT)) {
+	error("'%s' cannot be %s", tname(type), tname(ci));
+    }
     
-//     if (type == CHAR && sign) {
-//         basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
-//     }
-//     else if (size == SHORT) {
-//         basety = sign == UNSIGNED ? unsignedshorttype : shorttype;
-//     }
-//     else if (type == INT && size == LONG) {
-//         basety = sign == UNSIGNED ? unsignedlongtype : longtype;
-//     }
-//     else if (size == LONG + LONG) {
-//         basety = sign == UNSIGNED ? unsignedlonglongtype : longlongtype;
-//     }
-//     else if (type == DOUBLE && size == LONG) {
-//         basety = longdoubletype;
-//     }
-//     else if (sign == UNSIGNED) {
-//         basety = unsignedinttype;
-//     }
+    if (type == CHAR && sign)
+        basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
+    else if (size == SHORT)
+        basety = sign == UNSIGNED ? unsignedshorttype : shorttype;
+    else if (type == INT && size == LONG)
+        basety = sign == UNSIGNED ? unsignedlongtype : longtype;
+    else if (size == LONG + LONG)
+        basety = sign == UNSIGNED ? unsignedlonglongtype : longlongtype;
+    else if (type == DOUBLE && size == LONG)
+        basety = longdoubletype;
+    else if (sign == UNSIGNED)
+        basety = unsignedinttype;
     
-//     // qulifier
-//     if (cons) {
-//         basety = qual(CONST, basety);
-//     }
-//     if (vol) {
-//         basety = qual(VOLATILE, basety);
-//     }
-//     if (res) {
-//         basety = qual(RESTRICT, basety);
-//     }
-//     if (inl) {
-//         basety = qual(INLINE, basety);
-//     }
+    // qulifier
+    if (cons)
+        basety = qual(CONST, basety);
+    if (vol)
+        basety = qual(VOLATILE, basety);
+    if (res)
+        basety = qual(RESTRICT, basety);
+    if (inl)
+        basety = qual(INLINE, basety);
     
-//     *sclass = cls;
-    
-//     END_CALL(decl_spec);
-    
-//     return basety;
-// }
+    *sclass = cls;
+        
+    return basety;
+}
 
 // static struct node * declare(const char *id, struct type *ty)
 // {
@@ -797,15 +839,48 @@ struct decl * declaration()
 //     return (struct node **) vector_to_array(v);
 }
 
-static struct type * specifiers()
+static void declarator(struct type **ty, const char **id)
 {
+    assert(ty && id);
     
+    if (token->id == '*') {
+	struct type *pty = pointer();
+	prepend_type(ty, pty);
+    }
+
+    if (token->id == ID) {
+	*id = token->name;
+	match(ID);
+	if (token->id == '[' || token->id == '(') {
+	    struct type *faty = func_or_array();
+	    prepend_type(ty, faty);
+	}
+    } else if (token->id == '(') {
+
+    } else {
+	error("expect identifier or '(' at '%k'", token);
+    }
 }
 
 static struct decl * external_decl()
 {
-    struct decl *ret;
+    struct decl *ret = NULL;
+    struct type *basety;
+    int sclass;
 
+    basety = specifiers(&sclass);
+    if (token->id == ID || token->id == '*' || token->id == '(') {
+	const char *id = NULL;
+	struct type *ty = NULL;
+
+	// declarator
+	declarator(&ty, &id);
+	
+    } else if (token->id == ';') {
+	// struct/union/enum
+    } else {
+	error("invalid token '%k' in declaration", token);
+    }
 
     return ret;
 }
@@ -817,7 +892,7 @@ struct decl * translation_unit()
     
     for (; token->id != EOI; ) {
 	if (kind(token->id) & FIRST_DECL) {
-	    struct node *node1 = concat_node(external_decl(), NULL);
+	    struct node *node1 = concat_node(NODE(external_decl()), NULL);
 	    if (node)
 	        node->kids[1] = node1;
 	    else

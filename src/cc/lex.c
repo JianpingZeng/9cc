@@ -1152,9 +1152,13 @@ static void string_constant(int wide)
 	if (errno == EILSEQ)
 	    error("invalid multibyte sequence: %s", s->str);
 	assert(wlen<=len+1);
-        token->v.type = arraytype(wchartype, wlen, NULL);
+        token->v.type = array_type();
+	token->v.type->type = wchartype;
+	token->v.type->size = wlen;
     } else {
-	token->v.type = arraytype(chartype, string_length(s)-1, NULL);
+	token->v.type = array_type();
+	token->v.type->type = chartype;
+	token->v.type->size = string_length(s)-1;
     }
     
     if (*pc == '"')
@@ -1280,23 +1284,9 @@ static unsigned escape(struct string *s)
     }
 }
 
-static int matches(int t, int *ts)
-{
-    int i;
-    for (i=0; ts[i]; i++) {
-	if (t == ts[i])
-	    break;
-    }
-    
-    if (ts[i])
-	gettok();
-
-    return ts[i];
-}
-
 void match(int t)
 {
-    if (t) {
+    if (token->id == t) {
 	gettok();
     } else {
 	if (token->id == EOI)
@@ -1306,23 +1296,16 @@ void match(int t)
     }
 }
 
-void skipto(int t1, ...)
+void skipto(int t)
 {
-    int toks[256];
-    int t, i;
+    if (token->id != t) {
+	if (token->id == EOI)
+	    error("expect token '%s' at the end", tname(t));
+	else
+	    error("expect token '%s' before '%k'", tname(t), token);
+    }
     
-    va_list ap;
-    va_start(ap, t1);
-
-    toks[0] = t1;
-    for (i=1; (t = va_arg(ap, int)); i++)
-	toks[i] = t;
-
-    assert(i < ARRAY_SIZE(toks));
-    toks[i] = 0;
-    va_end(ap);
-
-    while (!matches(token->id, toks) && token->id != EOI)
+    while (token->id != t && token->id != EOI)
 	gettok();
 
     gettok();

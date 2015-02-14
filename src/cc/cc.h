@@ -68,10 +68,10 @@ extern char * string_to_array(struct string *s);
 extern void free_string(struct string *s);
 
 // cc modules
-#include "type.h"
 #include "lex.h"
-#include "sym.h"
 #include "ast.h"
+#include "type.h"
+#include "sym.h"
 #include "error.h"
 
 //kind
@@ -81,9 +81,11 @@ enum {
     TYPE_SPEC = 04,
     FUNC_SPEC = 010,
 
-    FIRST_EXPR = 020,
+    FIRST_EXPR = 020,		
     FIRST_STMT = 040,
     FIRST_DECL = 0100,
+
+    FIRST_ASSIGN_EXPR = FIRST_EXPR, // equals to FIRST_EXPR
 };
 
 #endif

@@ -14,12 +14,14 @@ struct table {
 
 struct table * identifiers;
 struct table * constants;
+struct table * records;
 static int scope = GLOBAL;
 
 void init_symbol()
 {
     identifiers = new_table(NULL, GLOBAL);
     constants = new_table(NULL, CONSTANT);
+    records = new_table(NULL, GLOBAL);
 }
 
 int scopelevel()

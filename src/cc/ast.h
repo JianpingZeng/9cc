@@ -45,6 +45,7 @@ extern int is_switch_stmt(struct stmt *stmt);
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
 extern struct expr * expression();
 extern struct expr * constant_expression();
+extern struct expr * assign_expression();
 
 // decl
 extern struct decl * decl_node(int id, int scope);

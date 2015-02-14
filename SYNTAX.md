@@ -157,6 +157,18 @@ direct-declarator:
     direct-declarator [ type-qualifier-list(opt) * ]
     direct-declarator ( parameter-type-list )
     direct-declarator ( identifier-list(opt) )
+
+abstract-declarator:
+    
+    pointer
+    pointer(opt)  direct-abstract-declarator
+    
+direct-abstract-declarator:
+    
+    (  abstract-declarator  )
+    direct-abstract-declarator(opt)  [  assignment-expression(opt)  ]
+    direct-abstract-declarator(opt)  [  *  ]
+    direct-abstract-declarator(opt)  ( parameter-type-list(opt)  )
     
 pointer:
     
@@ -191,18 +203,6 @@ identifier-list:
 type-name:
     
     specifier-qualifier-list  abstract-declarator(opt)
-    
-abstract-declarator:
-    
-    pointer
-    pointer(opt)  direct-abstract-declarator
-    
-direct-abstract-declarator:
-    
-    (  abstract-declarator  )
-    direct-abstract-declarator(opt)  [  assignment-expression(opt)  ]
-    direct-abstract-declarator(opt)  [  *  ]
-    direct-abstract-declarator(opt)  ( parameter-type-list(opt)  )
 
 initializer:
     

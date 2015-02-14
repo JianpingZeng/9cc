@@ -14,7 +14,7 @@ struct type {
     struct type *type;
     union {
 	struct {
-	    void **proto;
+	    struct node *proto;
 	    unsigned oldstyle : 1;
 	}f;
     }u;
@@ -29,7 +29,6 @@ extern const char * type_print_function(void *data);
 
 extern void init_type();
 extern struct type * new_type();
-extern struct type * pretype(int tok);
 extern void printtype(struct type *type);
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
@@ -39,7 +38,9 @@ extern struct type * unqual(int t, struct type *ty);
 extern int equal_type(struct type *ty1, struct type *ty2);
 extern int is_typedef_name(const char *id);
 extern struct type * typename();
-extern struct type * arraytype(struct type *basety, size_t n, void *p);
+extern struct type * array_type();
+extern struct type * pointer_type();
+extern struct type * function_type();
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
@@ -57,6 +58,7 @@ extern struct type    *floattype;              // float
 extern struct type    *doubletype;             // double
 extern struct type    *longdoubletype;         // long double
 extern struct type    *voidtype;               // void
+extern struct type    *booltype;	       // bool
 
 #define isfunction(type)    ((type) && (type)->op == FUNCTION)
 #define isarray(type)       ((type) && (type)->op == ARRAY)

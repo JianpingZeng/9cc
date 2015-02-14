@@ -17,6 +17,7 @@ struct type   *floattype;              // float
 struct type   *doubletype;             // double
 struct type   *longdoubletype;         // long double
 struct type   *voidtype;               // void
+struct type   *booltype;	       // bool
 
 static void install_type(struct type **type, const char *name, int op, int size)
 {
@@ -57,6 +58,8 @@ void init_type()
     INSTALL_TYPE(longdoubletype, "long double", DOUBLE, sizeof(long double));
     // void
     INSTALL_TYPE(voidtype, "void", VOID, 0);
+    // bool
+    INSTALL_TYPE(booltype, "_Bool", INT, sizeof(int));
 #undef INSTALL_TYPE
 
     chartype->limits.max.i = CHAR_MAX;
@@ -97,6 +100,9 @@ void init_type()
 
     longdoubletype->limits.max.ld = LDBL_MAX;
     longdoubletype->limits.min.ld = LDBL_MIN;
+
+    booltype->limits.max.i = 1;
+    booltype->limits.min.i = 0;
 }
 
 struct type * new_type()
@@ -193,24 +199,6 @@ void attach_type(struct type **typelist, struct type *type)
     }
 }
 
-struct type * pretype(int tok)
-{
-    switch (tok) {
-        case INT:
-            return inttype;
-        case CHAR:
-            return chartype;
-        case FLOAT:
-            return floattype;
-        case DOUBLE:
-            return doubletype;
-        case VOID:
-            return voidtype;
-        default:
-            return NULL;
-    }
-}
-
 struct type * scls(int t, struct type *ty)
 {
     if (t > 0) {
@@ -231,21 +219,23 @@ struct type * qual(int t, struct type *ty)
 {
     struct type *qty = new_type();
     *qty = *ty;
-    if (t == CONST) {
-        qty->qual_const = 1;
+    switch (t) {
+    case CONST:
+	qty->qual_const = 1;
+	break;
+    case VOLATILE:
+	qty->qual_volatile = 1;
+	break;
+    case RESTRICT:
+	qty->qual_restrict = 1;
+	break;
+    case INLINE:
+	qty->func_spec = 1;
+	break;
+    default:
+	assert(0);
     }
-    else if (t == VOLATILE) {
-        qty->qual_volatile = 1;
-    }
-    else if (t == RESTRICT) {
-        qty->qual_restrict = 1;
-    }
-    else if (t == INLINE) {
-        qty->func_spec = 1;
-    }
-    if (!ty->reserved) {
-        // delete(ty);
-    }
+    
     return qty;
 }
 
@@ -253,21 +243,23 @@ struct type * unqual(int t, struct type *ty)
 {
     struct type *qty = new_type();
     *qty = *ty;
-    if (t == CONST) {
-        qty->qual_const = 0;
+    switch (t) {
+    case CONST:
+	qty->qual_const = 0;
+	break;
+    case VOLATILE:
+	qty->qual_volatile = 0;
+	break;
+    case RESTRICT:
+	qty->qual_restrict = 0;
+	break;
+    case INLINE:
+	qty->func_spec = 0;
+	break;
+    default:
+	assert(0);
     }
-    else if (t == VOLATILE) {
-        qty->qual_volatile = 0;
-    }
-    else if (t == RESTRICT) {
-        qty->qual_restrict = 0;
-    }
-    else if (t == INLINE) {
-        qty->func_spec = 0;
-    }
-    if (!ty->reserved) {
-        // delete(ty);
-    }
+    
     return qty;
 }
 
@@ -297,12 +289,26 @@ struct type * typename()
     return NULL;
 }
 
-struct type * arraytype(struct type *basety, size_t n, void *p)
+struct type * array_type()
 {
-    //TODO:
     struct type *ty = new_type();
     ty->op = ARRAY;
-    ty->size = basety->size * n;
+
+    return ty;
+}
+
+struct type * pointer_type()
+{
+    struct type *ty = new_type();
+    ty->op = POINTER;
+
+    return ty;
+}
+
+struct type * function_type()
+{
+    struct type *ty = new_type();
+    ty->op = FUNCTION;
 
     return ty;
 }

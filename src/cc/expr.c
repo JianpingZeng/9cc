@@ -420,7 +420,7 @@ static struct expr * cond_expr(struct expr *e)
     }
 }
 
-static struct expr * assign_expr()
+struct expr * assign_expression()
 {
     struct expr *assign1;
     struct token *ahead = lookahead();
@@ -439,7 +439,7 @@ static struct expr * assign_expr()
 	    if (is_assign_op(token->id)) {
 		int t = token->id;
 		match(token->id);
-		assign1 = expr_node(BINARY_OP, t, texpr, assign_expr());
+		assign1 = expr_node(BINARY_OP, t, texpr, assign_expression());
 	    } else {
 		assign1 = cond_expr(texpr);
 	    }
@@ -453,7 +453,7 @@ static struct expr * assign_expr()
 	if (is_assign_op(token->id)) {
 	    int t = token->id;
 	    match(token->id);
-	    assign1 = expr_node(BINARY_OP, t, uexpr, assign_expr());
+	    assign1 = expr_node(BINARY_OP, t, uexpr, assign_expression());
 	} else {
 	    assign1 = cond_expr(uexpr);
 	}
@@ -466,10 +466,10 @@ struct expr * expression()
 {
     struct expr *expr;
 
-    expr = assign_expr();
+    expr = assign_expression();
     while (token->id == ',') {
 	match(token->id);
-	expr = expr_node(COMMA_OP, ',', expr, assign_expr());
+	expr = expr_node(COMMA_OP, ',', expr, assign_expression());
     }
 
     return expr;

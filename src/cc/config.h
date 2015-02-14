@@ -2,9 +2,7 @@
 #define mcc_config_h
 
 enum {
-    CC_OPTION_STD_DEFAULT,
     CC_OPTION_STD_C99,
-    CC_OPTION_STD_C89,
 };
 
 enum {
@@ -20,7 +18,6 @@ typedef struct {
 extern CCOptions cc_options;
 
 #define stdc99  (cc_options.std == CC_OPTION_STD_C99)
-#define stdc89  (cc_options.std == CC_OPTION_STD_C89)
 #define Wall  cc_options.Wall    
 
 #define SHOW_CALL_TREE
