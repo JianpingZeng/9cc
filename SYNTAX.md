@@ -143,6 +143,10 @@ typedef-name:
     
     identifier
 
+type-name:
+    
+    specifier-qualifier-list  abstract-declarator(opt)
+
 declarator:
     
     pointer(opt)  direct-declarator
@@ -199,10 +203,6 @@ identifier-list:
     
     identifier
     identifier-list  ,  identifier
-    
-type-name:
-    
-    specifier-qualifier-list  abstract-declarator(opt)
 
 initializer:
     
