@@ -49,7 +49,7 @@ int main(int argc, const char * argv[])
     cc_init();
     n = translation_unit();
     print_tree(NODE(n));
-
+    
     fclose(fp);
 	
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;

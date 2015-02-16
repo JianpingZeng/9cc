@@ -32,4 +32,6 @@
 
 // (float) (int) 1.9f
 
-(int)(u+9)
+// (int)(u+9)
+
+a != b != c

@@ -37,7 +37,7 @@ static struct node * parameter_type_list()
 {
     struct node *ret = NULL;
 
-    enterscope();
+    // enterscope();
 
     for (;;) {
 	struct type *basety = NULL;
@@ -46,7 +46,7 @@ static struct node * parameter_type_list()
 	basety = specifiers(&sclass);
     }
     
-    exitscope();
+    // exitscope();
 
     return ret;
 //     BEGIN_CALL(parameter_type_list);
@@ -109,9 +109,9 @@ static struct node * func_proto(struct type *ftype)
 	ret = parameter_type_list();
 	    
     } else if (token->id == ID) {
-	enterscope();
+	enter_scope();
 	
-	exitscope();
+	exit_scope();
     } else if (token->id != ')') {
 	error("invalid token '%k' in parameter list", token);
     }
@@ -837,6 +837,24 @@ struct decl * declaration()
 //     END_CALL(declaration);
     
 //     return (struct node **) vector_to_array(v);
+}
+
+static void abstract_declarator(struct type **ty)
+{
+    if (token->id == '*' || token->id == '(' || token->id == '[') {
+
+	if (token->id == '*') {
+	    struct type *pty = pointer();
+	    prepend_type(ty, pty);
+	}
+
+	if (token->id == '(' || token->id == '[') {
+	    
+	}
+	
+    } else {
+	error("invalid abstract declarator '%k'", token);
+    }
 }
 
 static void declarator(struct type **ty, const char **id)
