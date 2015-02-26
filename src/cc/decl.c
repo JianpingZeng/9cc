@@ -96,6 +96,13 @@ static struct type * func_or_array()
     return ty;
 }
 
+static struct type * abstract_func_or_array()
+{
+    struct type *ty = NULL;
+
+    return ty;
+}
+
 static struct type * pointer()
 {
     struct type *ret = NULL;
@@ -374,19 +381,27 @@ struct decl * declaration()
 
 static void abstract_declarator(struct type **ty)
 {
-    if (token->id == '*' || token->id == '(' || token->id == '[') {
+    assert(ty);
 
-	if (token->id == '*') {
-	    struct type *pty = pointer();
-	    prepend_type(ty, pty);
-	}
+    if (token->id == '*') {
+	struct type *pty = pointer();
+	prepend_type(ty, pty);
+    }
 
-	if (token->id == '(' || token->id == '[') {
-	    
+    if (token->id == '(') {
+	if (kind(lookahead()->id) & FIRST_DECL) {
+	    struct type *faty = abstract_func_or_array();
+	    prepend_type(ty, faty);
+	} else {
+	    match('(');
+	    abstract_declarator(ty);
+	    match(')');
 	}
-	
+    } else if (token->id == '[') {
+	struct type *faty = abstract_func_or_array();
+	prepend_type(ty, faty);
     } else {
-	error("invalid abstract declarator '%k'", token);
+	error("expect '(' or '[' at '%k'", token);
     }
 }
 
@@ -407,7 +422,9 @@ static void declarator(struct type **ty, const char **id)
 	    prepend_type(ty, faty);
 	}
     } else if (token->id == '(') {
-
+	match('(');
+	declarator(ty, id);
+	match(')');
     } else {
 	error("expect identifier or '(' at '%k'", token);
     }
