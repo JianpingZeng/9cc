@@ -166,7 +166,7 @@ const char *stringn(const char *src, int len)
     register unsigned char *p;
     const char *end = src + len;
     
-    if (src == NULL || len < 0)
+    if (src == NULL || len <= 0)
         return NULL;
 
     if (!string_table)
@@ -205,6 +205,8 @@ const char *stringn(const char *src, int len)
 const char *strings(const char *str)
 {
     const char *s = str;
+    if (!str)
+	return NULL;
     while (*s)
         s++;
     return stringn(str, s - str);

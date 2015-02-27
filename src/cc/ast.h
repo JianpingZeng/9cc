@@ -33,10 +33,12 @@ struct decl {
     int scope;
 };
 
+// debug
+extern void print_tree(struct node *tree);
+
 // ast
 extern const char * node_print_function(void *data);
 extern const char *nname(struct node *node);
-extern void print_tree(struct node *tree);
 extern struct node * concat_node(struct node *l, struct node *r);
 extern int is_iteration_stmt(struct stmt *stmt);
 extern int is_switch_stmt(struct stmt *stmt);
@@ -63,5 +65,6 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define isexpr(n)  ((n)->id > BEGIN_EXPR_ID && (n)->id < END_EXPR_ID)
 #define isdecl(n)  ((n)->id > BEGIN_DECL_ID && (n)->id < END_DECL_ID)
 #define isstmt(n)  ((n)->id > BEGIN_STMT_ID && (n)->id < END_STMT_ID)
+#define isconcat(n) ((n)->id == CONCAT_NODE)
 
 #endif

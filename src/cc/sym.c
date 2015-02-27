@@ -60,16 +60,40 @@ static unsigned hash(const char *src)
 {
     register unsigned h;
     register unsigned char *p;
-    
-    for(h = 0, p = (unsigned char *)src; *p ; p++)
+
+    for(h = 0, p = (unsigned char *)src; p && *p ; p++)
         h = 31 * h + *p;
-    
+
     return h;
+}
+
+struct symbol * anonymous_symbol(struct table **tpp, int scope)
+{
+    return install_symbol(NULL, tpp, scope);
+}
+
+struct symbol * locate_symbol(const char *name , struct table *table)
+{
+    assert(table);
+    assert(scope >= table->scope);
+
+    if (scope > table->scope)
+	return NULL;
+
+    unsigned h = hash(name) % BUCKET_SIZE;
+    for (struct sentry *entry = table->buckets[h]; entry; entry = entry->next) {
+	if (entry->symbol->name == name) {
+	    return entry->symbol;
+	}
+    }
+
+    return NULL;
 }
 
 struct symbol * lookup_symbol(const char *name, struct table *table)
 {
     assert(table);
+    assert(scope >= table->scope);
     
     for (struct table *t = table; t; t = t->up) {
         unsigned h = hash(name) % BUCKET_SIZE;
@@ -89,7 +113,7 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
     struct sentry *entry;
     struct symbol *symbol;
     struct table *tp = *tpp;
-    
+
     assert(scope >= tp->scope);
     if (scope > tp->scope) {
         tp = *tpp = new_table(tp, scope);
@@ -105,7 +129,7 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
     
     entry->next = tp->buckets[h];
     tp->buckets[h] = entry;
-    
+
     return entry->symbol;
 }
 

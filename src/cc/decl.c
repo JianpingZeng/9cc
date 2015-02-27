@@ -1,6 +1,10 @@
 #include "cc.h"
 
 static struct type * specifiers(int *sclass);
+static void abstract_declarator(struct type **ty);
+static void declarator(struct type **ty, const char **id);
+static struct type * pointer();
+static void func_declarator(struct type **ty, const char **id);
 
 static int kinds[] = {
 #define _a(a, b, c, d)  d,
@@ -26,35 +30,105 @@ int is_typename(struct token *t)
     return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(t->name);
 }
 
-static void func_declarator()
+static struct decl * parameter_type_list()
 {
+    BEGIN_CALL(parameter_type_list);
     
-}
+    struct decl *ret;
+    struct node *node = NULL;
 
-static struct node * parameter_type_list()
-{
-    struct node *ret = NULL;
+    enter_scope();
 
-    enterscope();
+    ret = decl_node(PARAM_DECL, SCOPE);
 
-    for (;;) {
+    for (int i=0;;i++) {
 	struct type *basety = NULL;
 	int sclass;
+	struct type *ty = NULL;
+	const char *id = NULL;
+	struct source sym_src = src;
+	struct node *node1 = concat_node(NULL, NULL);
+	struct decl *paramval_decl = decl_node(VAR_DECL, SCOPE);
+	node1->kids[0] = NODE(paramval_decl);
 
 	basety = specifiers(&sclass);
 
+	if (sclass && sclass != REGISTER)
+	    error("invalid storage class specifier '%s' at parameter list",
+		  tname(sclass));
+	else if (isinline(basety))
+	    error("invalid function specifier 'inline' at parameter list");
+
+	basety = scls(sclass == REGISTER ? REGISTER : 0, basety);
+
+        if (token->id == '*' || token->id == '(' || token->id == '[' || token->id == ID)
+	    func_declarator(&ty, &id);
 	
+	attach_type(&ty, basety);
+
+	if (id) {
+	    struct symbol *sym = locate_symbol(id, identifiers);
+	    if (!sym) {
+		sym = install_symbol(id, &identifiers, SCOPE);
+		sym->type = ty;
+		sym->src = sym_src;
+		paramval_decl->node.symbol = sym;
+	    } else {
+		error("redeclaration '%s', previous declaration at %s line %u",
+		      id, sym->src.file, sym->src.line);
+	    }
+	} else {
+	    struct symbol *sym = anonymous_symbol(&identifiers, SCOPE);
+	    sym->type = ty;
+	    sym->src = sym_src;
+	    paramval_decl->node.symbol = sym;
+	}
+	
+        if (isvoid(ty)) {
+	    if (i > 0)
+		error("invalid parameter type 'void'");
+	    else if (isqual(ty))
+		error("invalid type qualifier for type 'void'");
+	    else if (sclass)
+		error("invalid storage class specifier '%s' for type 'void'",
+		      tname(sclass));
+	    else if (token->id != ')')
+		error("'void' must be the first and only parameter if specified");
+	}
+
+	if (node)
+	    node->kids[1] = node1;
+	else
+	    ret->node.kids[0] = node1;
+
+	node = node1;
+
+	if (token->id == ',') {
+	    match(',');
+	    if (token->id == ELLIPSIS) {
+		match(ELLIPSIS);
+		// TODO
+		break;
+	    }
+	}
+	else if (token->id == ')') {
+	    break;
+	}
     }
 
     if (SCOPE > PARAM)
-	exitscope();
+	exit_scope();
+
+    END_CALL(parameter_type_list);
 
     return ret;
 }
 
-static struct node * func_proto(struct type *ftype)
+static struct decl * func_proto(struct type *ftype)
 {
-    struct node *ret = NULL;
+    BEGIN_CALL(func_proto);
+    
+    struct decl *ret = NULL;
 
     if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
 	(token->id == ID && is_typedef_name(token->name))) {
@@ -64,17 +138,29 @@ static struct node * func_proto(struct type *ftype)
     } else if (token->id == ID) {
 	enter_scope();
 
+	for (;;) {
+	    match(ID);
+	    if (token->id == ')')
+		break;
+	    else
+		match(',');
+	}
+
 	if (SCOPE > PARAM)
 	    exit_scope();
+
+	ftype->u.f.oldstyle = 1;
     } else if (token->id != ')') {
 	error("invalid token '%k' in parameter list", token);
     }
+
+    END_CALL(func_proto);
     
     return ret;
 }
 
 static struct type * func_or_array()
-{
+{    
     struct type *ty = NULL;
     
     for (; token->id == '(' || token->id == '['; ) {
@@ -101,7 +187,7 @@ static struct type * func_or_array()
             attach_type(&ty, ftype);
         }
     }
-        
+    
     return ty;
 }
 
@@ -200,6 +286,8 @@ static struct decl * record_decl()
 
 static struct type * specifiers(int *sclass)
 {
+    BEGIN_CALL(specifiers);
+    
     int cls, sign, size, type;
     int cons, vol, res, inl;
     struct type *basety;
@@ -394,6 +482,8 @@ static struct type * specifiers(int *sclass)
         basety = qual(INLINE, basety);
     
     *sclass = cls;
+
+    END_CALL(specifiers);
         
     return basety;
 }
@@ -439,6 +529,8 @@ static void abstract_declarator(struct type **ty)
 
 static void declarator(struct type **ty, const char **id)
 {
+    BEGIN_CALL(declarator);
+    
     assert(ty && id);
     
     if (token->id == '*') {
@@ -454,16 +546,78 @@ static void declarator(struct type **ty, const char **id)
 	    prepend_type(ty, faty);
 	}
     } else if (token->id == '(') {
+	struct type *type1 = *ty;
 	match('(');
 	declarator(ty, id);
 	match(')');
+	if (token->id == '[' || token->id == '(') {
+	    struct type *faty = func_or_array();
+	    struct type *rtype = *ty;
+	    attach_type(&faty, type1);
+	    // deref list
+	    while (rtype && rtype->type != type1)
+		rtype = rtype->type;
+	    assert(rtype);
+	    if (type1 == rtype->type)
+		rtype->type = NULL;
+	    attach_type(ty, faty);
+	}
     } else {
 	error("expect identifier or '(' at '%k'", token);
     }
+
+    END_CALL(declarator);
+}
+
+static void func_declarator(struct type **ty, const char **id)
+{
+    BEGIN_CALL(func_declarator);
+    
+    if (token->id == '*') {
+	struct type *pty = pointer();
+	prepend_type(ty, pty);
+    }
+
+    if (token->id == '(') {
+	if (kind(lookahead()->id) & FIRST_DECL) {
+	    abstract_declarator(ty);
+	} else {
+	    struct type *type1 = *ty;
+	    match('(');
+	    func_declarator(ty, id);
+	    match(')');
+	    if (token->id == '(' || token->id == '[') {
+		struct type *faty;
+		struct type *rtype = *ty;
+		assert(id);
+		if (*id) {
+		    faty = func_or_array();
+		} else {
+		    faty = abstract_func_or_array();
+		}
+		attach_type(&faty, type1);
+		// deref list
+		while (rtype && rtype->type != type1)
+		    rtype = rtype->type;
+		assert(rtype);
+		if (type1 == rtype->type)
+		    rtype->type = NULL;
+		attach_type(ty, faty);
+	    }
+	}
+    } else if (token->id == '[') {
+	abstract_declarator(ty);
+    } else if (token->id == ID) {
+	declarator(ty, id);
+    }
+
+    END_CALL(func_declarator);
 }
 
 static struct decl * external_decl()
 {
+    BEGIN_CALL(external_decl);
+    
     struct decl *ret = NULL;
     struct type *basety;
     int sclass;
@@ -473,15 +627,44 @@ static struct decl * external_decl()
 	const char *id = NULL;
 	struct type *ty = NULL;
 
-	// declarator
-	declarator(&ty, &id);
-	
+	do {
+	    // declarator
+	    declarator(&ty, &id);
+	    attach_type(&ty, basety);
+	    print_type(ty);
+	    if (token->id == '{') {
+		// function definition
+		compound_statement(NULL);
+		break;
+	    } else if (kind(token->id) & FIRST_DECL) {
+		// old style function definition
+		
+		break;
+	    } else {
+		if (token->id == '=') {
+		    // initializer
+		}
+		if (token->id == ',')
+		    match(',');
+
+		if (sclass == TYPEDEF) {
+		    // typedef decl
+		    
+		} else {
+		    
+		}
+	    }
+	} while (token->id != ';');
+
+	match(';');
     } else if (token->id == ';') {
 	// struct/union/enum
     } else {
 	error("invalid token '%k' in declaration", token);
     }
 
+    END_CALL(external_decl);
+    
     return ret;
 }
 

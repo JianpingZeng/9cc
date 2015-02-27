@@ -110,73 +110,64 @@ struct type * new_type()
     return alloc_type_node();
 }
 
-// static void printspec(struct type *type)
-// {
-//     if (type->sclass == STATIC) {
-//         printf("static ");
-//     }
-//     else if (type->sclass == REGISTER) {
-//         printf("register ");
-//     }
-//     if (isconst(type)) {
-//         printf("const ");
-//     }
-//     if (isvolatile(type)) {
-//         printf("volatile ");
-//     }
-//     if (isrestrict(type)) {
-//         printf("restrict ");
-//     }
-//     if (isinline(type)) {
-//         printf("inline ");
-//     }
-// }
-
-// static void printtype1(struct type *type);
-
-// static void printfparams(struct type *ftype)
-// {
-// 	printf("( ");
-// 	if (ftype->u.f.proto) {
-// 		for (int i = 0; ftype->u.f.proto[i]; i++) {
-// 			printtype1(ftype->u.f.proto[i]->type);
-//             if (ftype->u.f.proto[i+1]) {
-//                 printf(", ");
-//             }
-// 		}
-// 	}
-// 	printf(")");
-// }
-
-// static void printtype1(struct type *type)
-// {
-//     if (type) {
-//         if (isfunction(type)) {
-//             printspec(type);
-//             printf("%s ", tname(type->op));
-//             printfparams(type);
-//             printf(" returning ");
-//         }
-//         else if (ispointer(type)) {
-//             printspec(type);
-//             printf("%s to ", tname(type->op));
-//         }
-//         else if (isarray(type)) {
-//             printspec(type);
-//             printf("%s %d of ", tname(type->op), type->size);
-//         }
-//         else {
-//             printspec(type);
-//             printf("%s ", type->u.sym->lex.name);
-//         }
-//         printtype1(type->type);
-//     }
-// }
-
-void printtype(struct type *type)
+static void print_spec(struct type *type)
 {
-    // printtype1(type);
-    // printf("\n");
+    if (type->sclass)
+	printf("%s ", tname(type->sclass));
+    
+    if (isconst(type)) {
+        printf("const ");
+    }
+    if (isvolatile(type)) {
+        printf("volatile ");
+    }
+    if (isrestrict(type)) {
+        printf("restrict ");
+    }
+    if (isinline(type)) {
+        printf("inline ");
+    }
+}
+
+static void print_type1(struct type *type);
+
+static void print_fparams(struct type *ftype)
+{
+	printf("with parameter list:\n");
+        if (ftype->u.f.proto) {
+	    print_tree(NODE(ftype->u.f.proto));
+	}
+}
+
+static void print_type1(struct type *type)
+{
+    if (type) {
+        if (isfunction(type)) {
+            print_spec(type);
+            printf("%s ", tname(type->op));
+            print_fparams(type);
+            printf("returning ");
+        }
+        else if (ispointer(type)) {
+            print_spec(type);
+            printf("%s to ", tname(type->op));
+        }
+        else if (isarray(type)) {
+            print_spec(type);
+            printf("%s %d of ", tname(type->op), type->size);
+        }
+        else {
+            print_spec(type);
+            printf("%s ", type->name);
+        }
+        print_type1(type->type);
+    }
+}
+
+void print_type(struct type *type)
+{
+    print_type1(type);
+    printf("\n");
 }
 
 void prepend_type(struct type **typelist, struct type *type)
@@ -205,9 +196,6 @@ struct type * scls(int t, struct type *ty)
         struct type *sty = new_type();
         *sty = *ty;
         sty->sclass = t;
-        if (!ty->reserved) {
-            // delete(ty);
-        }
         return sty;
     }
     else {

@@ -31,7 +31,11 @@ static void print_tree1(struct print_context context)
 	    fprint(stderr, "  ");
 
 	if (node->symbol) {	
-	    fprint(stderr, "%s '%s'\n", nname(node), node->symbol->name);
+	    fprint(stderr, "%s '%s' ", nname(node), node->symbol->name);
+	    if (node->symbol->type)
+		print_type(node->symbol->type);
+	    else
+		fprint(stderr, "\n");
 	} else if (isexpr(node)) {
 	    struct expr *e = (struct expr *)node;
 	    fprint(stderr, "%s '%s'\n", nname(node), tname(e->op));

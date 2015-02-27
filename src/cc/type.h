@@ -14,7 +14,7 @@ struct type {
     struct type *type;
     union {
 	struct {
-	    struct node *proto;
+	    struct decl *proto;
 	    unsigned oldstyle : 1;
 	}f;
     }u;
@@ -29,7 +29,6 @@ extern const char * type_print_function(void *data);
 
 extern void init_type();
 extern struct type * new_type();
-extern void printtype(struct type *type);
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
 extern struct type * scls(int t, struct type *ty);
@@ -41,6 +40,9 @@ extern struct type * typename();
 extern struct type * array_type();
 extern struct type * pointer_type();
 extern struct type * function_type();
+
+// debug
+extern void print_type(struct type *type);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
