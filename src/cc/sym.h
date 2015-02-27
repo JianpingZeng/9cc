@@ -33,4 +33,6 @@ extern struct table * identifiers;
 extern struct table * constants;
 extern struct table * records;
 
+#define SCOPE  scopelevel()
+
 #endif

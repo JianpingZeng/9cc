@@ -26,20 +26,28 @@ int is_typename(struct token *t)
     return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(t->name);
 }
 
+static void func_declarator()
+{
+    
+}
+
 static struct node * parameter_type_list()
 {
     struct node *ret = NULL;
 
-    // enterscope();
+    enterscope();
 
     for (;;) {
 	struct type *basety = NULL;
 	int sclass;
 
 	basety = specifiers(&sclass);
+
+	
     }
-    
-    // exitscope();
+
+    if (SCOPE > PARAM)
+	exitscope();
 
     return ret;
 }
@@ -55,8 +63,9 @@ static struct node * func_proto(struct type *ftype)
 	    
     } else if (token->id == ID) {
 	enter_scope();
-	
-	exit_scope();
+
+	if (SCOPE > PARAM)
+	    exit_scope();
     } else if (token->id != ')') {
 	error("invalid token '%k' in parameter list", token);
     }
@@ -100,6 +109,29 @@ static struct type * abstract_func_or_array()
 {
     struct type *ty = NULL;
 
+    for (; token->id == '(' || token->id == '['; ) {
+	if (token->id == '[') {
+	    struct type *atype = array_type();
+	    match('[');
+	    if (token->id == '*') {
+		if (lookahead()->id != ']') 
+		    assign_expression();
+		else
+		    match('*');
+	    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+		assign_expression();
+	    }
+	    skipto(']');
+	    attach_type(&ty, atype);
+	} else {
+	    struct type *ftype = function_type();
+	    match('(');
+	    ftype->u.f.proto = parameter_type_list();
+	    skipto(')');
+	    attach_type(&ty, ftype);
+	}
+    }
+    
     return ty;
 }
 
