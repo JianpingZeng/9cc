@@ -547,21 +547,16 @@ static void declarator(struct type **ty, const char **id)
 	}
     } else if (token->id == '(') {
 	struct type *type1 = *ty;
+	struct type *rtype = NULL;
 	match('(');
-	declarator(ty, id);
+	declarator(&rtype, id);
 	match(')');
 	if (token->id == '[' || token->id == '(') {
 	    struct type *faty = func_or_array();
-	    struct type *rtype = *ty;
 	    attach_type(&faty, type1);
-	    // deref list
-	    while (rtype && rtype->type != type1)
-		rtype = rtype->type;
-	    assert(rtype);
-	    if (type1 == rtype->type)
-		rtype->type = NULL;
-	    attach_type(ty, faty);
+	    attach_type(&rtype, faty);
 	}
+	*ty = rtype;
     } else {
 	error("expect identifier or '(' at '%k'", token);
     }
@@ -583,12 +578,12 @@ static void func_declarator(struct type **ty, const char **id)
 	    abstract_declarator(ty);
 	} else {
 	    struct type *type1 = *ty;
+	    struct type *rtype = NULL;
 	    match('(');
-	    func_declarator(ty, id);
+	    func_declarator(&rtype, id);
 	    match(')');
 	    if (token->id == '(' || token->id == '[') {
 		struct type *faty;
-		struct type *rtype = *ty;
 		assert(id);
 		if (*id) {
 		    faty = func_or_array();
@@ -596,14 +591,9 @@ static void func_declarator(struct type **ty, const char **id)
 		    faty = abstract_func_or_array();
 		}
 		attach_type(&faty, type1);
-		// deref list
-		while (rtype && rtype->type != type1)
-		    rtype = rtype->type;
-		assert(rtype);
-		if (type1 == rtype->type)
-		    rtype->type = NULL;
-		attach_type(ty, faty);
+		attach_type(&rtype, faty);
 	    }
+	    *ty = rtype;
 	}
     } else if (token->id == '[') {
 	abstract_declarator(ty);
