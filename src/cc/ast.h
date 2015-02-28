@@ -66,5 +66,7 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define isdecl(n)  ((n)->id > BEGIN_DECL_ID && (n)->id < END_DECL_ID)
 #define isstmt(n)  ((n)->id > BEGIN_STMT_ID && (n)->id < END_STMT_ID)
 #define isconcat(n) ((n)->id == CONCAT_NODE)
+#define isfuncdecl(n) (NODE(n)->id == FUNC_DECL)
+#define isfuncdef(n) (isfuncdecl(n) && NODE(n)->kids[0] && NODE(n)->kids[0]->id == COMPOUND_STMT)
 
 #endif

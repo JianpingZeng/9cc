@@ -4,7 +4,7 @@ static struct type * specifiers(int *sclass);
 static void abstract_declarator(struct type **ty);
 static void declarator(struct type **ty, const char **id);
 static struct type * pointer();
-static void func_declarator(struct type **ty, const char **id);
+static void param_declarator(struct type **ty, const char **id);
 
 static int kinds[] = {
 #define _a(a, b, c, d)  d,
@@ -46,7 +46,7 @@ static struct decl * parameter_type_list()
 	int sclass;
 	struct type *ty = NULL;
 	const char *id = NULL;
-	struct source sym_src = src;
+	struct source src = source;
 	struct node *node1 = concat_node(NULL, NULL);
 	struct decl *paramval_decl = decl_node(VAR_DECL, SCOPE);
 	node1->kids[0] = NODE(paramval_decl);
@@ -62,7 +62,7 @@ static struct decl * parameter_type_list()
 	basety = scls(sclass == REGISTER ? REGISTER : 0, basety);
 
         if (token->id == '*' || token->id == '(' || token->id == '[' || token->id == ID)
-	    func_declarator(&ty, &id);
+	    param_declarator(&ty, &id);
 	
 	attach_type(&ty, basety);
 
@@ -71,7 +71,7 @@ static struct decl * parameter_type_list()
 	    if (!sym) {
 		sym = install_symbol(id, &identifiers, SCOPE);
 		sym->type = ty;
-		sym->src = sym_src;
+		sym->src = src;
 		paramval_decl->node.symbol = sym;
 	    } else {
 		error("redeclaration '%s', previous declaration at %s line %u",
@@ -80,7 +80,7 @@ static struct decl * parameter_type_list()
 	} else {
 	    struct symbol *sym = anonymous_symbol(&identifiers, SCOPE);
 	    sym->type = ty;
-	    sym->src = sym_src;
+	    sym->src = src;
 	    paramval_decl->node.symbol = sym;
 	}
 	
@@ -274,12 +274,28 @@ static struct type * pointer()
     return ret;
 }
 
-static struct decl * enum_decl()
+static struct type * enum_decl()
 {
+    const char *id = NULL;
+    struct source src = source;
+    
+    match(ENUM);
+    if (token->id == ID) {
+	id = token->name;
+	match(ID);
+    }
+    if (token->id == '{') {
+	match('{');
+	do {
+	    
+	} while(token->id != '}' && token->id != EOI);
+	match('}');
+    }
+	
     return NULL;
 }
 
-static struct decl * record_decl()
+static struct type * record_decl()
 {
     return NULL;
 }
@@ -300,7 +316,7 @@ static struct type * specifiers(int *sclass)
 
     for (;;) {
         int *p, t = token->id;
-	unsigned line = src.line;
+	struct source src = source;
         switch (token->id) {
 	case AUTO:
 	case EXTERN:
@@ -333,13 +349,13 @@ static struct type * specifiers(int *sclass)
                 
 	case ENUM:
 	    p = &type;
-	    basety = enum_decl()->node.symbol->type;
+	    basety = enum_decl();
 	    break;
                 
 	case STRUCT:
 	case UNION:
 	    p = &type;
-	    basety = record_decl()->node.symbol->type;
+	    basety = record_decl();
 	    break;
              
 	case LONG:
@@ -420,15 +436,15 @@ static struct type * specifiers(int *sclass)
         
         if (*p != 0) {
 	    if (p == &cls)
-		errorf(line, "duplicate storage class specifier at '%s'", tname(t));
+		errorf(src, "duplicate storage class specifier at '%s'", tname(t));
 	    else if (p == &cons || p == &res || p == &vol || p == &inl)
-		warningf(line, "duplicate '%s' declaration specifier", tname(t));
+		warningf(src, "duplicate '%s' declaration specifier", tname(t));
 	    else if (p == &ci)
-		errorf(line, "duplicate _Complex/_Imaginary specifier at '%s'", tname(t));
+		errorf(src, "duplicate _Complex/_Imaginary specifier at '%s'", tname(t));
 	    else if (p == &sign)
-		errorf(line, "duplicate signed/unsigned speficier at '%s'", tname(t));
+		errorf(src, "duplicate signed/unsigned speficier at '%s'", tname(t));
 	    else if (p == &type || p == &size)
-		errorf(line, "duplicate type specifier at '%s'", tname(t));
+		errorf(src, "duplicate type specifier at '%s'", tname(t));
 	    else
 		assert(0);
 	}
@@ -496,9 +512,45 @@ struct decl * initializer_list()
 struct decl * declaration()
 {
     BEGIN_CALL(declaration);
-    Log.v("%d %k", token->id, token);
+    
+    struct decl *ret = NULL;
+    struct type *basety;
+    int sclass;
+
+    basety = specifiers(&sclass);
+    if (token->id == ID || token->id == '*' || token->id == '(') {
+	const char *id = NULL;
+	struct type *ty = NULL;
+
+	do {
+	    // declarator
+	    declarator(&ty, &id);
+	    attach_type(&ty, basety);
+	    print_type(ty);
+	    if (token->id == '=') {
+		// initializer
+	    }
+	    if (token->id == ',')
+		match(',');
+
+	    if (sclass == TYPEDEF) {
+		// typedef decl
+		    
+	    } else {
+		    
+	    }
+	} while (token->id != ';' && token->id != EOI);
+
+	match(';');
+    } else if (token->id == ';') {
+	// struct/union/enum
+    } else {
+	error("invalid token '%k' in declaration", token);
+    }
+
     END_CALL(declaration);
-    return NULL;
+    
+    return ret;
 }
 
 static void abstract_declarator(struct type **ty)
@@ -564,9 +616,9 @@ static void declarator(struct type **ty, const char **id)
     END_CALL(declarator);
 }
 
-static void func_declarator(struct type **ty, const char **id)
+static void param_declarator(struct type **ty, const char **id)
 {
-    BEGIN_CALL(func_declarator);
+    BEGIN_CALL(param_declarator);
     
     if (token->id == '*') {
 	struct type *pty = pointer();
@@ -580,7 +632,7 @@ static void func_declarator(struct type **ty, const char **id)
 	    struct type *type1 = *ty;
 	    struct type *rtype = NULL;
 	    match('(');
-	    func_declarator(&rtype, id);
+	    param_declarator(&rtype, id);
 	    match(')');
 	    if (token->id == '(' || token->id == '[') {
 		struct type *faty;
@@ -601,7 +653,7 @@ static void func_declarator(struct type **ty, const char **id)
 	declarator(ty, id);
     }
 
-    END_CALL(func_declarator);
+    END_CALL(param_declarator);
 }
 
 static struct decl * external_decl()
@@ -644,9 +696,10 @@ static struct decl * external_decl()
 		    
 		}
 	    }
-	} while (token->id != ';');
+	} while (token->id != ';' && token->id != EOI);
 
-	match(';');
+	if (!isfuncdef(ret))
+	    match(';');
     } else if (token->id == ';') {
 	// struct/union/enum
     } else {

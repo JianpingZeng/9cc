@@ -12,16 +12,7 @@ static void cc_print_lead(const char *lead, const char *file, unsigned line, con
     fprint(stderr, "\n");
 }
 
-void warningf(unsigned line, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    cc_print_lead("warning", src.file, line, fmt, ap);
-    va_end(ap);
-    ++warnings;
-}
-
-void warning(const char *fmt, ...)
+void warningf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -30,20 +21,16 @@ void warning(const char *fmt, ...)
     ++warnings;
 }
 
-void errorf(unsigned line, const char *fmt, ...)
+void warning(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("error", src.file, line, fmt, ap);
+    cc_print_lead("warning", source.file, source.line, fmt, ap);
     va_end(ap);
-    ++errors;
-    if (errors >= MAX_ERRORS) {
-	fprint(stderr, "Too many errors.\n");
-	exit(EXIT_FAILURE);
-    }
+    ++warnings;
 }
 
-void error(const char *fmt, ...)
+void errorf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -56,11 +43,24 @@ void error(const char *fmt, ...)
     }
 }
 
+void error(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    cc_print_lead("error", source.file, source.line, fmt, ap);
+    va_end(ap);
+    ++errors;
+    if (errors >= MAX_ERRORS) {
+	fprint(stderr, "Too many errors.\n");
+	exit(EXIT_FAILURE);
+    }
+}
+
 void fatal(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("fatal", src.file, src.line, fmt, ap);
+    cc_print_lead("fatal", source.file, source.line, fmt, ap);
     va_end(ap);
     exit(EXIT_FAILURE);
 }

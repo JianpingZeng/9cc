@@ -84,7 +84,7 @@ static char ibuf[LBUFSIZE+RBUFSIZE+1];
 static char *pc;
 static char *pe;
 static long bread;
-struct source src;
+struct source source;
 
 static void fillbuf()
 {
@@ -156,7 +156,7 @@ static void fline()
 	line = line * 10 + *pc - '0';
 	pc++;
     }
-    src.line = line-1;
+    source.line = line-1;
 
     skipblank();
 
@@ -176,7 +176,7 @@ static void fline()
 		string_concatn(s, pc++, 1);
 	    }
 	}
-	src.file = strings(s->str);
+	source.file = strings(s->str);
 	free_string(s);
 	skipline();
     } else {
@@ -222,7 +222,7 @@ static void nextline()
 	    if (pc == pe)
 		return;
 	} else {
-	    src.line++;
+	    source.line++;
 	    while (isblank(*pc))
 		pc++;
 	    if (*pc == '#') {
@@ -685,7 +685,7 @@ static void line_comment()
 static void block_comment()
 {
     pc++;
-    unsigned line = src.line;
+    struct source src = source;
     for (; pc[0] != '*' || pc[1] != '/'; ) {
 	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
@@ -696,7 +696,7 @@ static void block_comment()
 	    nextline();
     }
     if (pc == pe)
-	errorf(line, "unterminated /* comment");
+	errorf(src, "unterminated /* comment");
     else
         pc += 2;
 }

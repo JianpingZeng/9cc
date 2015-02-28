@@ -6,8 +6,8 @@ extern unsigned warnings;
 extern void warning(const char *fmt, ...);
 extern void error(const char *fmt, ...);
 extern void fatal(const char *fmt, ...);
-extern void warningf(unsigned line, const char *fmt, ...);
-extern void errorf(unsigned line, const char *fmt, ...);
+extern void warningf(struct source src, const char *fmt, ...);
+extern void errorf(struct source src, const char *fmt, ...);
 
 struct log {
     void (*v) (const char *fmt, ...);

@@ -71,6 +71,9 @@ extern struct type    *booltype;	       // bool
 #define isqual(type)        (isconst(type) || isvolatile(type) || isrestrict(type))
 #define isinline(type)      ((type) && (type)->func_spec)
 #define isvoid(type)        ((type) && (type)->op == VOID)
-
+#define isenum(type)        ((type) && (type)->op == ENUM)
+#define isstruct(type)      ((type) && (type)->op == STRUCT)
+#define isunion(type)       ((type) && (type)->op == UNION)
+#define isrecord(type)      (isstruct(type) || isunion(type))
 
 #endif

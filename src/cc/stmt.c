@@ -148,7 +148,7 @@ static struct stmt * case_stmt(struct stmt *context)
     int in_sw = 0;
     struct expr *expr;
     struct stmt *stmt;
-    unsigned line = src.line;
+    struct source src = source;
     
     match(CASE);
     expr = constant_expression();
@@ -165,7 +165,7 @@ static struct stmt * case_stmt(struct stmt *context)
 
     // print before parsing statement
     if (!in_sw)
-	errorf(line, "'case' statement is not in a switch statement.");
+	errorf(src, "'case' statement is not in a switch statement.");
 
     // always parse even if not in a switch statement
     stmt = statement(context);
@@ -180,7 +180,7 @@ static struct stmt * default_stmt(struct stmt *context)
 {
     int in_sw = 0;
     struct stmt *stmt;
-    unsigned line = src.line;
+    struct source src = source;
     
     match(DEFAULT);
     match(':');
@@ -196,7 +196,7 @@ static struct stmt * default_stmt(struct stmt *context)
 
     // print before parsing statement
     if (!in_sw)
-	errorf(line, "'default' statement is not in a switch statement.");
+	errorf(src, "'default' statement is not in a switch statement.");
 
     stmt = statement(context);
 
@@ -235,7 +235,7 @@ static struct stmt * goto_stmt()
 static struct stmt * break_stmt(struct stmt *context)
 {
     int in_iter_sw = 0;
-    unsigned line = src.line;
+    struct source src = source;
     struct stmt *ret;
     
     match(BREAK);
@@ -251,7 +251,7 @@ static struct stmt * break_stmt(struct stmt *context)
     }
 
     if (!in_iter_sw) {
-	errorf(line, "'break' statement is not in a loop or switch statement.");
+	errorf(src, "'break' statement is not in a loop or switch statement.");
 	return NULL;
     }
     
@@ -265,7 +265,7 @@ static struct stmt * continue_stmt(struct stmt *context)
 {
     int in_iter = 0;
     struct stmt *ret;
-    unsigned line = src.line;
+    struct source src = source;
     
     match(CONTINUE);
     match(';');
@@ -280,7 +280,7 @@ static struct stmt * continue_stmt(struct stmt *context)
     }
 
     if (!in_iter) {
-	errorf(line, "'continue' statement is not in a loop statement.");
+	errorf(src, "'continue' statement is not in a loop statement.");
 	return NULL;
     }
     

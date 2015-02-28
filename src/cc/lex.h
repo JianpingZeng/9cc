@@ -26,7 +26,7 @@ struct token {
     }v;
 };
 
-extern struct source src;
+extern struct source source;
 extern struct token  *token;
 
 // lex

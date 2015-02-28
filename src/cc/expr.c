@@ -85,7 +85,7 @@ static struct expr * postfix_expr()
 	{
 	    t = token->id;
 	    sym = install_symbol(token->name, &identifiers, scopelevel());
-	    sym->src = src;
+	    sym->src = source;
 	    match(t);
 	    ret = expr_node(ADDR_OP, t, NULL, NULL);
 	    ret->node.symbol = sym;
@@ -98,7 +98,7 @@ static struct expr * postfix_expr()
 	    sym = find_symbol(token->name, &constants, CONSTANT);
 	    sym->value = token->v.u;
 	    sym->type = token->v.type;
-	    sym->src = src;
+	    sym->src = source;
 	    match(t);
 	    ret = expr_node(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, t, NULL, NULL);
 	    ret->node.symbol = sym;
@@ -109,7 +109,7 @@ static struct expr * postfix_expr()
 	    t = token->id;
 	    sym = find_symbol(token->name, &constants, CONSTANT);
 	    sym->type = token->v.type;
-	    sym->src = src;
+	    sym->src = source;
 	    match(t);
 	    ret = expr_node(STRING_LITERAL, t, NULL, NULL);
 	    ret->node.symbol = sym;
