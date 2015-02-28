@@ -220,6 +220,18 @@
 3. `continue` 只能出现在 `for`, `while` 和 `do-while` 中。
 
 
+### `TODO` 完成声明的二叉树设计
+
+| 声明        | 节点     | 左子树             |  右子树|   节点信息     |
+|------------|----------|-------------------|-------|--------------
+| `function`  | FuncDecl  |  CompoundStmt   | NULL  |  symbol中包含函数名、函数返回类型和函数参数列表            |
+| `enum`     | EnumDecl   |  |  |  |
+| `struct`   | StructDecl |  |  |  |
+| `union`    | UnionDecl  |  |  |  |
+| `typedef`  | TypedefDecl |   |    |    |
+| `variable` | VarDecl    |    |    |     |
+| `parameter`| ParamDecl  |    |     |     |
+
 ### `TODO` 完成声明的语法分析
 
     1. 设计符号表

@@ -276,6 +276,7 @@ static struct type * pointer()
 
 static struct type * enum_decl()
 {
+    struct type *ret = NULL;
     const char *id = NULL;
     struct source src = source;
     
@@ -285,14 +286,30 @@ static struct type * enum_decl()
 	match(ID);
     }
     if (token->id == '{') {
+	if (id) {
+	    struct symbol *sym = locate_symbol(id, records);
+	    if (!sym)
+		sym = install_symbol(id, &records, SCOPE);
+	    else
+		error("redefinition symbol '%s', previous definition at %s line %u",
+		      id, src.file, src.line);
+	}
 	match('{');
 	do {
 	    
 	} while(token->id != '}' && token->id != EOI);
 	match('}');
+    } else if (id) {
+	struct symbol *sym = lookup_symbol(id, records);
+	if (sym)
+	    ret = sym->type;
+	else
+	    error("undeclared symbol '%s'", id);
+    } else {
+	error("missing identifier after 'enum'");
     }
 	
-    return NULL;
+    return ret;
 }
 
 static struct type * record_decl()
