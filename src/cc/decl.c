@@ -527,6 +527,189 @@ static struct type * specifiers(int *sclass)
     return basety;
 }
 
+static struct type * specifier_qualifier_list()
+{
+    int sign, size, type;
+    int cons, vol, res;
+    struct type *basety;
+    int ci;			// _Complex, _Imaginary
+    struct type *tydefty = NULL;
+
+    basety = NULL;
+    sign = size = type = 0;
+    cons = vol = res = 0;
+    ci = 0;
+    
+    for (;;) {
+	int *p, t = token->id;
+	struct source src = source;
+	switch (token->id) {
+	case VOID:
+	    p = &type;
+	    basety = voidtype;
+	    gettok();
+	    break;
+	    
+	case CHAR:
+	    p = &type;
+	    basety = chartype;
+	    gettok();
+	    break;
+	    
+	case INT:
+	    p = &type;
+	    basety = inttype;
+	    gettok();
+	    break;
+	    
+	case LONG:
+	    if (size == LONG) {
+		t = LONG + LONG;
+		size = 0;	// clear
+	    }
+	    // go through
+	case SHORT:
+	    p = &size;
+	    gettok();
+	    break;
+	    
+	case FLOAT:
+	    p = &type;
+	    basety = floattype;
+	    gettok();
+	    break;
+	    
+	case DOUBLE:
+	    p = &type;
+	    basety = doubletype;
+	    gettok();
+	    break;
+	    
+	case SIGNED:
+	case UNSIGNED:
+	    p = &sign;
+	    gettok();
+	    break;
+	    
+	case _BOOL:
+	    p = &type;
+	    basety = booltype;
+	    gettok();
+	    break;
+	    
+	case _COMPLEX:
+	case _IMAGINARY:
+	    p = &ci;
+	    gettok();
+	    break;
+
+	case ENUM:
+	    p = &type;
+	    basety = enum_decl();
+	    break;
+
+	case STRUCT:
+	case UNION:
+	    p = &type;
+	    basety = record_decl();
+	    break;
+
+	case ID:
+	    if (is_typedef_name(token->name)) {
+		p = &type;
+		gettok();
+	    } else {
+		p = NULL;
+	    }
+	    break;
+
+	case CONST:
+	    p = &cons;
+	    gettok();
+	    break;
+	    
+	case VOLATILE:
+	    p = &vol;
+	    gettok();
+	    break;
+	    
+	case RESTRICT:
+	    p = &res;
+	    gettok();
+	    break;
+
+	default:
+	    p = NULL;
+	    break;
+	}
+
+	if (p == NULL)
+	    break;
+
+	if (*p != 0) {
+	    if (p == &cons || p == &res || p == &vol)
+		warningf(src, "duplicate '%s' declaration specifier", tname(t));
+	    else if (p == &ci)
+		errorf(src, "duplicate _Complex/_Imaginary specifier at '%s'", tname(t));
+	    else if (p == &sign)
+		errorf(src, "duplicate signed/unsigned specifier at '%s'", tname(t));
+	    else if (p == &type || p == &size)
+		errorf(src, "duplicate type specifier at '%s'", tname(t));
+	    else
+		assert(0);
+	}
+	
+	*p = t;
+    }
+
+    // default is int
+    if (type == 0) {
+	if (sign == 0 && size == 0)
+	    error("missing type specifier");
+	type = INT;
+	basety = inttype;
+    }
+
+    // type check
+    if ((size == SHORT && type != INT) ||
+	(size == LONG + LONG && type != INT) ||
+	(size == LONG && type != INT && type != DOUBLE)) {
+	if (size == LONG + LONG)
+	    error("%s %s %s is invalid", tname(size/2), tname(size/2), tname(type));
+	else
+	    error("%s %s is invalid", tname(size), tname(type));
+    } else if (sign && type != INT && type != CHAR) {
+	error("'%s' cannot be signed or unsigned", tname(type));
+    } else if (ci && type != DOUBLE && type != FLOAT) {
+	error("'%s' cannot be %s", tname(type), tname(ci));
+    }
+
+    if (tydefty)
+	basety = tydefty;
+    else if (type == CHAR && sign)
+	basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
+    else if (size == SHORT)
+	basety = sign == UNSIGNED ? unsignedshorttype : shorttype;
+    else if (type == INT && size == LONG)
+	basety = sign == UNSIGNED ? unsignedlongtype : longtype;
+    else if (size == LONG + LONG)
+	basety = sign == UNSIGNED ? unsignedlonglongtype : longlongtype;
+    else if (type == DOUBLE && size == LONG)
+	basety = longdoubletype;
+    else if (sign == UNSIGNED)
+	basety = unsignedinttype;
+
+    // qualifier
+    if (cons)
+	basety = qual(CONST, basety);
+    if (vol)
+	basety = qual(VOLATILE, basety);
+    if (res)
+	basety = qual(RESTRICT, basety);
+
+    return basety;
+}
+
 struct decl * initializer_list()
 {
     match('{');
@@ -772,6 +955,21 @@ static struct node * external_decl(int mode)
     }
     
     return ret;
+}
+
+struct type * typename()
+{
+    struct type *basety;
+    struct type *ty = NULL;
+
+    basety = specifier_qualifier_list();
+    if (token->id == '*' || token->id == '(' || token->id == '[') {
+	struct type *ty = NULL;
+	abstract_declarator(&ty);
+    }
+    attach_type(&ty, basety);
+
+    return ty;
 }
 
 struct node * declaration()

@@ -54,6 +54,7 @@ extern int kind(int t);
 extern int is_typename(struct token *t);
 extern struct node * declaration();
 extern struct decl * translation_unit();
+extern struct type * typename();
 
 // stmt
 extern struct stmt * stmt_node(int id, struct node *l, struct node *r);

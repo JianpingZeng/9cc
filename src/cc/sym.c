@@ -132,17 +132,3 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
 
     return entry->symbol;
 }
-
-struct symbol * find_symbol(const char *name, struct table **tpp, int scope)
-{
-    struct table *tp = *tpp;
-
-    assert(scope >= tp->scope);
-    if (scope == tp->scope) {
-	struct symbol *sym = lookup_symbol(name, tp);
-	if (sym)
-	    return sym;
-    }
-
-    return install_symbol(name, tpp, scope);
-}

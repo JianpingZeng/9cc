@@ -36,7 +36,6 @@ extern struct type * qual(int t, struct type *ty);
 extern struct type * unqual(int t, struct type *ty);
 extern int equal_type(struct type *ty1, struct type *ty2);
 extern int is_typedef_name(const char *id);
-extern struct type * typename();
 extern struct type * array_type();
 extern struct type * pointer_type();
 extern struct type * function_type();

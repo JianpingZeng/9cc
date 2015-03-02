@@ -215,12 +215,6 @@ int is_typedef_name(const char *id)
     return sym && sym->type && sym->type->op == TYPEDEF;
 }
 
-struct type * typename()
-{
-    
-    return NULL;
-}
-
 struct type * array_type()
 {
     struct type *ty = new_type();

@@ -17,21 +17,19 @@ static inline int is_assign_op(int t)
 	t == RSHIFTEQ;
 }
 
-// TODO
 static struct expr * typename_expr()
 {
-    struct expr * type1;
-    struct symbol *sym;
+    struct expr *expr;
+    struct type *type;
 
     match('(');
-    sym = install_symbol(token->name, &identifiers, scopelevel());
-    type1 = expr_node(CAST_OP, ID, NULL, NULL);
-    type1->node.symbol = sym;
-    // TODO
-    if (token->id == ID || kind(token->id) & (TYPE_SPEC|TYPE_QUAL))
-	match(token->id);
+    type = typename();
     match(')');
-    return type1;
+    expr = expr_node(CAST_OP, CAST, NULL, NULL);
+    expr->node.symbol = anonymous_symbol(&identifiers, SCOPE);
+    expr->node.symbol->type = type;
+
+    return expr;
 }
 
 static struct expr * postfix_expr1(struct expr *ret)
@@ -73,7 +71,6 @@ static struct expr * postfix_expr1(struct expr *ret)
     return ret;
 }
 
-// TODO
 static struct expr * postfix_expr()
 {
     int t;
@@ -84,8 +81,11 @@ static struct expr * postfix_expr()
     case ID:
 	{
 	    t = token->id;
-	    sym = install_symbol(token->name, &identifiers, scopelevel());
-	    sym->src = source;
+	    sym = lookup_symbol(token->name, identifiers);
+	    if (sym)
+		sym->refs++;
+	    else
+		error("use of undeclare symbol '%s'", token->name);
 	    match(t);
 	    ret = expr_node(ADDR_OP, t, NULL, NULL);
 	    ret->node.symbol = sym;
@@ -95,10 +95,12 @@ static struct expr * postfix_expr()
     case FCONSTANT:
 	{
 	    t = token->id;
-	    sym = find_symbol(token->name, &constants, CONSTANT);
-	    sym->value = token->v.u;
-	    sym->type = token->v.type;
-	    sym->src = source;
+	    sym = lookup_symbol(token->name, constants);
+	    if (!sym) {
+		sym = install_symbol(token->name, &constants, CONSTANT);
+		sym->value = token->v.u;
+		sym->type = token->v.type;
+	    }
 	    match(t);
 	    ret = expr_node(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, t, NULL, NULL);
 	    ret->node.symbol = sym;
@@ -107,9 +109,11 @@ static struct expr * postfix_expr()
     case SCONSTANT:
 	{
 	    t = token->id;
-	    sym = find_symbol(token->name, &constants, CONSTANT);
-	    sym->type = token->v.type;
-	    sym->src = source;
+	    sym = lookup_symbol(token->name, constants);
+	    if (!sym) {
+		sym = install_symbol(token->name, &constants, CONSTANT);
+		sym->type = token->v.type;
+	    }	    
 	    match(t);
 	    ret = expr_node(STRING_LITERAL, t, NULL, NULL);
 	    ret->node.symbol = sym;
