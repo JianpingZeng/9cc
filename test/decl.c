@@ -13,7 +13,13 @@ int employ, *pe, io, * (*g) (float);
 
 void test(int a)
 {
-    int b;
+    int b = 9;
     float *c;
     a = b+9;
+
+    for (int i=0; i > 0; i++) {
+	int i = 10;
+	float b;
+	
+    }
 }

@@ -529,7 +529,27 @@ static struct type * specifiers(int *sclass)
 
 struct decl * initializer_list()
 {
+    match('{');
+    // TODO
+    
+    if (token->id == ',')
+	match(',');
+    match('}');
     return NULL;
+}
+
+struct node * initializer()
+{
+    if (token->id == '{') {
+	// initializer list
+	return NODE(initializer_list());
+    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+	// assign expr
+	return NODE(assign_expression());
+    } else {
+	error("expect '{' or assignment expression");
+	return NULL;
+    }
 }
 
 static void abstract_declarator(struct type **ty)
@@ -664,6 +684,43 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
     return decl;
 }
 
+static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct source src)
+{
+    struct decl *decl = decl_node(VAR_DECL, SCOPE);
+    if (token->id == '=') {
+	// initializer
+	match('=');
+	decl->node.kids[0] = initializer();
+    }
+
+    if (sclass == TYPEDEF) {
+	// typedef decl
+	decl->node.id = TYPEDEF_DECL;
+	struct type *type = new_type();
+	type->name = id;
+	type->op = TYPEDEF;
+	type->type = ty;
+	ty = type;
+    } else if (isfunction(ty)){
+	decl->node.id = FUNC_DECL;
+    }
+
+    if (id) {
+	struct symbol *sym = locate_symbol(id, identifiers);
+	if (!sym) {
+	    sym = install_symbol(id, &identifiers, SCOPE);
+	    sym->type = ty;
+	    sym->src = src;
+	    decl->node.symbol = sym;
+	} else {
+	    errorf(src, "redeclaration symbol '%s', previous declaration at %s line %u",
+		   id, sym->src.file, sym->src.line);
+	}
+    }
+
+    return decl;
+}
+
 static struct node * external_decl(int mode)
 {    
     struct node *ret = concat_node(NULL, NULL);
@@ -678,7 +735,6 @@ static struct node * external_decl(int mode)
 	    const char *id = NULL;
 	    struct type *ty = NULL;
 	    struct source src = source;
-	    
 	    // declarator
 	    declarator(&ty, &id);
 	    attach_type(&ty, basety);
@@ -689,38 +745,9 @@ static struct node * external_decl(int mode)
 		ret->kids[0] = NODE(decl);
 		break;
 	    } else {
-		struct decl *decl = decl_node(VAR_DECL, SCOPE);
 		if (SCOPE == PARAM && mode == MODE_BOTH)
 		    exit_scope();
-		if (token->id == '=') {
-		    // initializer
-		}
-
-		if (sclass == TYPEDEF) {
-		    // typedef decl
-		    decl->node.id = TYPEDEF_DECL;
-		    struct type *type = new_type();
-		    type->name = id;
-		    type->op = TYPEDEF;
-		    type->type = ty;
-		    ty = type;
-		} else if (isfunction(ty)){
-		    decl->node.id = FUNC_DECL;
-		}
-
-	        if (id) {
-		    struct symbol *sym = locate_symbol(id, identifiers);
-		    if (!sym) {
-			sym = install_symbol(id, &identifiers, SCOPE);
-			sym->type = ty;
-			sym->src = src;
-			decl->node.symbol = sym;
-		    } else {
-			errorf(src, "redeclaration symbol '%s', previous declaration at %s line %u",
-			       id, sym->src.file, sym->src.line);
-		    }
-		}
-
+		struct decl *decl = vardecl(id, ty, sclass, src);
 		if (node) {
 		    node->kids[1] = concat_node(NODE(decl), NULL);
 		    node = node->kids[1];
@@ -729,12 +756,12 @@ static struct node * external_decl(int mode)
 		    ret->kids[0] = NODE(decl);
 		    node = ret;
 		}
-
-		if (token->id == ',')
+		if (token->id == ';')
+		    break;
+		else if (token->id == ',')
 		    match(',');
 	    }
-
-	} while (token->id != ';' && token->id != EOI);
+	} while (token->id != EOI);
 
 	if (!isfuncdef(ret->kids[0]))
 	    match(';');

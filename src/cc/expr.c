@@ -120,11 +120,7 @@ static struct expr * postfix_expr()
 	    struct token *ahead = lookahead();
 	    if (is_typename(ahead)) {
 		ret = typename_expr();
-		match('{');
-		ret->node.kids[0] = (struct node*)initializer_list();
-		if (token->id == ',')
-		    match(',');
-		match('}');
+		ret->node.kids[0] = NODE(initializer_list());
 	    } else {
 		match('(');
 		ret = expression();
@@ -171,11 +167,7 @@ static struct expr * unary_expr()
 	if (token->id == '(' && is_typename(ahead)) {
 	    struct expr *texpr = typename_expr();
 	    if (token->id == '{') {
-		match('{');
-		texpr->node.kids[0] = (struct node *)initializer_list();
-		if (token->id == ',')
-		    match(',');
-		match('}');
+		texpr->node.kids[0] = NODE(initializer_list());
 		texpr = postfix_expr1(texpr);
 	    }
 	    uexpr = expr_node(UNARY_OP, t, texpr, NULL);
@@ -200,11 +192,7 @@ static struct expr * cast_expr()
 	// type-name
 	cast1 = typename_expr();
 	if (token->id == '{') {
-	    match('{');
-	    cast1->node.kids[0] = (struct node*)initializer_list();
-	    if (token->id == ',')
-		match(',');
-	    match('}');
+	    cast1->node.kids[0] = NODE(initializer_list());
 	    cast1 = postfix_expr1(cast1);
 	} else {
 	    cast1->node.kids[0] = (struct node*)cast_expr();
@@ -430,11 +418,7 @@ struct expr * assign_expression()
 	struct expr *texpr = typename_expr();
 	if (token->id == '{') {
 	    // unary
-	    match('{');
-	    texpr->node.kids[0] = (struct node*)initializer_list();
-	    if (token->id == ',')
-		match(',');
-	    match('}');
+	    texpr->node.kids[0] = NODE(initializer_list());
 	    texpr = postfix_expr1(texpr);
 	    if (is_assign_op(token->id)) {
 		int t = token->id;

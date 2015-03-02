@@ -92,14 +92,23 @@ static struct stmt * for_stmt(struct stmt *context)
     match(FOR);
     match('(');
 
-    if (token->id == ';')
+    enter_scope();
+
+    if (token->id == ';') {
 	node = concat_node(NULL, NULL);
-    else
-	node = concat_node(NODE(expression()), NULL);
+    } else {
+	if ((token->id == ID && is_typedef_name(token->name)) ||
+	    (token->id != ID && kind(token->id) & FIRST_DECL)) {
+	    // declaration
+	    node = declaration();
+	} else {
+	    // expression
+	    node = concat_node(NODE(expression()), NULL);
+	    match(';');
+	}
+    }
 
     expr = node;
-
-    match(';');
 
     if (token->id == ';')
 	node->kids[1] = concat_node(NULL, NULL);
@@ -119,8 +128,11 @@ static struct stmt * for_stmt(struct stmt *context)
 
     ret = stmt_node(FOR_STMT, expr, NULL);
     ret->up = context;
+    ret->node.kids[0] = expr;
     ret->node.kids[1] = NODE(statement(ret));
     ret->up = NULL;
+
+    exit_scope();
 
     return ret;
 }
