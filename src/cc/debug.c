@@ -1,71 +1,92 @@
 #include "cc.h"
 
+struct print_context {
+    int level;
+    struct node * node;
+};
+
+struct type_context {
+    int level;
+    struct type * type;
+};
+
+static void print_tree1(struct print_context context);
+static void print_type1(struct type_context context);
+
 static void print_spec(struct type *type)
 {
     if (type->sclass)
-	printf("%s ", tname(type->sclass));
+	fprint(stderr, "%s ", tname(type->sclass));
     
     if (isconst(type)) {
-        printf("const ");
+        fprint(stderr, "const ");
     }
     if (isvolatile(type)) {
-        printf("volatile ");
+        fprint(stderr, "volatile ");
     }
     if (isrestrict(type)) {
-        printf("restrict ");
+        fprint(stderr, "restrict ");
     }
     if (isinline(type)) {
-        printf("inline ");
+        fprint(stderr, "inline ");
     }
 }
 
-static void print_type1(struct type *type);
-
-static void print_fparams(struct type *ftype)
+static void print_params(struct type_context context)
 {
-	printf(" with params:\n");
-        if (ftype->u.f.proto) {
-	    print_tree(NODE(ftype->u.f.proto));
-	}
+    struct node *node = NODE(context.type->u.f.proto);
+    if (node) {
+	struct print_context pcontext = {context.level+1, node};
+	print_tree1(pcontext);
+    }
 }
 
-static void print_type1(struct type *type)
+static void print_return(struct type_context context)
 {
+    struct type_context rcontext = {context.level+1, context.type};
+    for (int i=0; i < rcontext.level; i++)
+	fprint(stderr, "  ");
+    fprint(stderr, "Return ");
+    print_type1(rcontext);
+}
+
+static void print_type1(struct type_context context)
+{
+    struct type *type = context.type;
     if (type) {
+	struct type_context tcontext = {context.level, type->type};
         if (isfunction(type)) {
             print_spec(type);
-            printf("%s returning ", tname(type->op));
-	    print_type1(type->type);
-            print_fparams(type);
+            fprint(stderr, "%s", tname(type->op));
+	    fprint(stderr, "\n");
+	    print_return(tcontext);
+            print_params(context);
         }
         else if (ispointer(type)) {
             print_spec(type);
-            printf("%s to ", tname(type->op));
-	    print_type1(type->type);
+            fprint(stderr, "%s to ", tname(type->op));
+	    print_type1(tcontext);
         }
         else if (isarray(type)) {
             print_spec(type);
-            printf("%s %d of ", tname(type->op), type->size);
-	    print_type1(type->type);
+            fprint(stderr, "%s %d of ", tname(type->op), type->size);
+	    print_type1(tcontext);
         }
         else {
             print_spec(type);
-            printf("%s ", type->name);
-	    print_type1(type->type);
+            fprint(stderr, "%s ", type->name);
+	    print_type1(tcontext);
         }
+    } else {
+	fprint(stderr, "\n");
     }
 }
 
 void print_type(struct type *type)
 {
-    print_type1(type);
-    printf("\n");
+    struct type_context context = {0, type};
+    print_type1(context);
 }
-
-struct print_context {
-    int level;
-    struct node * node;
-};
 
 static void print_tree1(struct print_context context)
 {
@@ -78,10 +99,12 @@ static void print_tree1(struct print_context context)
 
 	if (node->symbol) {	
 	    fprint(stderr, "%s '%s' ", nname(node), node->symbol->name);
-	    if (node->symbol->type)
-		print_type(node->symbol->type);
-	    else
+	    if (node->symbol->type) {
+		struct type_context tcontext = {context.level, node->symbol->type};
+		print_type1(tcontext);
+	    } else {
 		fprint(stderr, "\n");
+	    }
 	} else if (isexpr(node)) {
 	    struct expr *e = (struct expr *)node;
 	    fprint(stderr, "%s '%s'\n", nname(node), tname(e->op));

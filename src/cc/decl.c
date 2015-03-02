@@ -31,9 +31,7 @@ int is_typename(struct token *t)
 }
 
 static struct decl * parameter_type_list()
-{
-    BEGIN_CALL(parameter_type_list);
-    
+{    
     struct decl *ret;
     struct node *node = NULL;
 
@@ -119,15 +117,11 @@ static struct decl * parameter_type_list()
     if (SCOPE > PARAM)
 	exit_scope();
 
-    END_CALL(parameter_type_list);
-
     return ret;
 }
 
 static struct decl * func_proto(struct type *ftype)
-{
-    BEGIN_CALL(func_proto);
-    
+{    
     struct decl *ret = NULL;
 
     if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
@@ -153,8 +147,6 @@ static struct decl * func_proto(struct type *ftype)
     } else if (token->id != ')') {
 	error("invalid token '%k' in parameter list", token);
     }
-
-    END_CALL(func_proto);
     
     return ret;
 }
@@ -333,13 +325,12 @@ static struct type * record_decl()
 }
 
 static struct type * specifiers(int *sclass)
-{
-    BEGIN_CALL(specifiers);
-    
+{    
     int cls, sign, size, type;
     int cons, vol, res, inl;
     struct type *basety;
     int ci;			// _Complex, _Imaginary
+    struct type *tydefty = NULL;
         
     basety = NULL;
     cls = sign = size = type = 0;
@@ -500,13 +491,15 @@ static struct type * specifiers(int *sclass)
             error("%s %s %s is invalid", tname(size/2), tname(size/2), tname(type));
         else
             error("%s %s is invalid", tname(size), tname(type));
-    } else if ((sign && type != INT && type != CHAR)) {
+    } else if (sign && type != INT && type != CHAR) {
         error("'%s' cannot be signed or unsigned", tname(type));
-    } else if ((ci && type != DOUBLE && type != FLOAT)) {
+    } else if (ci && type != DOUBLE && type != FLOAT) {
 	error("'%s' cannot be %s", tname(type), tname(ci));
     }
-    
-    if (type == CHAR && sign)
+
+    if (tydefty)
+	basety = tydefty;
+    else if (type == CHAR && sign)
         basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
     else if (size == SHORT)
         basety = sign == UNSIGNED ? unsignedshorttype : shorttype;
@@ -530,8 +523,6 @@ static struct type * specifiers(int *sclass)
         basety = qual(INLINE, basety);
     
     *sclass = cls;
-
-    END_CALL(specifiers);
         
     return basety;
 }
@@ -568,9 +559,7 @@ static void abstract_declarator(struct type **ty)
 }
 
 static void declarator(struct type **ty, const char **id)
-{
-    BEGIN_CALL(declarator);
-    
+{    
     assert(ty && id);
     
     if (token->id == '*') {
@@ -600,14 +589,10 @@ static void declarator(struct type **ty, const char **id)
     } else {
 	error("expect identifier or '(' at '%k'", token);
     }
-
-    END_CALL(declarator);
 }
 
 static void param_declarator(struct type **ty, const char **id)
-{
-    BEGIN_CALL(param_declarator);
-    
+{    
     if (token->id == '*') {
 	struct type *pty = pointer();
 	prepend_type(ty, pty);
@@ -640,28 +625,26 @@ static void param_declarator(struct type **ty, const char **id)
     } else if (token->id == ID) {
 	declarator(ty, id);
     }
-
-    END_CALL(param_declarator);
 }
 
 #define MODE_BOTH  0
 #define MODE_DECL  1
 
 static struct node * external_decl(int mode)
-{
-    BEGIN_CALL(external_decl);
-    
+{    
     struct node *ret = concat_node(NULL, NULL);
     struct type *basety;
     int sclass;
 
     basety = specifiers(&sclass);
     if (token->id == ID || token->id == '*' || token->id == '(') {
-	const char *id = NULL;
-	struct type *ty = NULL;
-	struct source src = source;
-
+	struct node *node = NULL;
+	
 	do {
+	    const char *id = NULL;
+	    struct type *ty = NULL;
+	    struct source src = source;
+	    
 	    // declarator
 	    declarator(&ty, &id);
 	    attach_type(&ty, basety);
@@ -678,37 +661,52 @@ static struct node * external_decl(int mode)
 		    break;
 		}
 	    } else {
-		assert(SCOPE <= PARAM);
+		struct decl *decl = decl_node(VAR_DECL, SCOPE);
 		if (SCOPE == PARAM)
 		    exit_scope();
+		assert(SCOPE == GLOBAL);
 		if (token->id == '=') {
 		    // initializer
 		}
-		if (token->id == ',')
-		    match(',');
 
 		if (sclass == TYPEDEF) {
 		    // typedef decl
-		    
-		} else {
-		    int node_id = isfunction(ty) ? FUNC_DECL : VAR_DECL;
-		    struct decl *decl = decl_node(node_id, SCOPE);
-		    if (id) {
-			struct symbol *sym = locate_symbol(id, identifiers);
-			if (!sym) {
-			    sym = install_symbol(id, &identifiers, SCOPE);
-			    sym->type = ty;
-			    sym->src = src;
-			    decl->node.symbol = sym;
-			} else {
-			    errorf(src, "redeclaration symbol '%s', previous declaration at %s line %u",
-				  id, sym->src.file, sym->src.line);
-			}
-		    }
-		    ret->kids[0] = NODE(decl);
+		    decl->node.id = TYPEDEF_DECL;
+		    struct type *type = new_type();
+		    type->name = id;
+		    type->op = TYPEDEF;
+		    type->type = ty;
+		    ty = type;
+		} else if (isfunction(ty)){
+		    decl->node.id = FUNC_DECL;
 		}
+
+	        if (id) {
+		    struct symbol *sym = locate_symbol(id, identifiers);
+		    if (!sym) {
+			sym = install_symbol(id, &identifiers, SCOPE);
+			sym->type = ty;
+			sym->src = src;
+			decl->node.symbol = sym;
+		    } else {
+			errorf(src, "redeclaration symbol '%s', previous declaration at %s line %u",
+			       id, sym->src.file, sym->src.line);
+		    }
+		}
+
+		if (node) {
+		    node->kids[1] = concat_node(NODE(decl), NULL);
+		    node = node->kids[1];
+		}
+		else {
+		    ret->kids[0] = NODE(decl);
+		    node = ret;
+		}
+
+		if (token->id == ',')
+		    match(',');
 	    }
-	    
+
 	} while (token->id != ';' && token->id != EOI);
 
 	if (!isfuncdef(ret->kids[0]))
@@ -718,8 +716,6 @@ static struct node * external_decl(int mode)
     } else {
 	error("invalid token '%k' in declaration", token);
     }
-
-    END_CALL(external_decl);
     
     return ret;
 }

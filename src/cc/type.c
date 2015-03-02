@@ -207,8 +207,12 @@ int equal_type(struct type *ty1, struct type *ty2)
 
 int is_typedef_name(const char *id)
 {
+    if (!id)
+	return 0;
+
+    struct symbol *sym = lookup_symbol(id, identifiers);
     
-    return 0;
+    return sym && sym->type && sym->type->op == TYPEDEF;
 }
 
 struct type * typename()

@@ -78,3 +78,15 @@ struct decl * decl_node(int id, int scope)
     decl->scope = scope;
     return decl;
 }
+
+int count_concat_node(struct node *node)
+{
+    assert(isconcat(node));
+
+    int i;
+    for (i=0; node && node->kids[0]; i++) {
+	node = node->kids[1];
+    }
+
+    return i;
+}

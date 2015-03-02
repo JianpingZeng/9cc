@@ -39,6 +39,7 @@ extern const char *nname(struct node *node);
 extern struct node * concat_node(struct node *l, struct node *r);
 extern int is_iteration_stmt(struct stmt *stmt);
 extern int is_switch_stmt(struct stmt *stmt);
+extern int count_concat_node(struct node *node);
 
 // expr
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
