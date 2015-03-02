@@ -228,7 +228,15 @@
 
 3. typedef type
 
+		op: TYPEDEF
+		name: typedef name
+		type: typedef-ed type
+
 4. function type
+
+		op: FUNCTION
+		type: return type
+		u.f.proto: (parameter type list) 
 
 5. other types (reserved types)
 

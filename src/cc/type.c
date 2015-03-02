@@ -110,66 +110,6 @@ struct type * new_type()
     return alloc_type_node();
 }
 
-static void print_spec(struct type *type)
-{
-    if (type->sclass)
-	printf("%s ", tname(type->sclass));
-    
-    if (isconst(type)) {
-        printf("const ");
-    }
-    if (isvolatile(type)) {
-        printf("volatile ");
-    }
-    if (isrestrict(type)) {
-        printf("restrict ");
-    }
-    if (isinline(type)) {
-        printf("inline ");
-    }
-}
-
-static void print_type1(struct type *type);
-
-static void print_fparams(struct type *ftype)
-{
-	printf("with parameter list:\n");
-        if (ftype->u.f.proto) {
-	    print_tree(NODE(ftype->u.f.proto));
-	}
-}
-
-static void print_type1(struct type *type)
-{
-    if (type) {
-        if (isfunction(type)) {
-            print_spec(type);
-            printf("%s ", tname(type->op));
-            print_fparams(type);
-            printf("returning ");
-        }
-        else if (ispointer(type)) {
-            print_spec(type);
-            printf("%s to ", tname(type->op));
-        }
-        else if (isarray(type)) {
-            print_spec(type);
-            printf("%s %d of ", tname(type->op), type->size);
-        }
-        else {
-            print_spec(type);
-            printf("%s ", type->name);
-        }
-        print_type1(type->type);
-    }
-}
-
-void print_type(struct type *type)
-{
-    print_type1(type);
-    printf("\n");
-}
-
 void prepend_type(struct type **typelist, struct type *type)
 {
     attach_type(&type, *typelist);
@@ -297,6 +237,16 @@ struct type * function_type()
 {
     struct type *ty = new_type();
     ty->op = FUNCTION;
+
+    return ty;
+}
+
+struct type * enum_type(const char *tag)
+{
+    struct type *ty = new_type();
+    ty->op = ENUM;
+    ty->name = tag;
+    ty->type = inttype;		// aka int
 
     return ty;
 }

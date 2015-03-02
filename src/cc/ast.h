@@ -33,9 +33,6 @@ struct decl {
     int scope;
 };
 
-// debug
-extern void print_tree(struct node *tree);
-
 // ast
 extern const char * node_print_function(void *data);
 extern const char *nname(struct node *node);
@@ -54,7 +51,7 @@ extern struct decl * decl_node(int id, int scope);
 extern struct decl * initializer_list();
 extern int kind(int t);
 extern int is_typename(struct token *t);
-extern struct decl * declaration();
+extern struct node * declaration();
 extern struct decl * translation_unit();
 
 // stmt

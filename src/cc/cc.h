@@ -88,4 +88,8 @@ enum {
     FIRST_ASSIGN_EXPR = FIRST_EXPR, // equals to FIRST_EXPR
 };
 
+// debug
+extern void print_tree(struct node *tree);
+extern void print_type(struct type *type);
+
 #endif

@@ -7,4 +7,4 @@ void (*signal(int signo,void (*func)(int))) (int);
 
 void vf(void);
 
-void vf(void *p, int p);
+void vf(void *p, int a);

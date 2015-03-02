@@ -286,17 +286,32 @@ static struct type * enum_decl()
 	match(ID);
     }
     if (token->id == '{') {
+	struct type *ety = enum_type(id);
 	if (id) {
 	    struct symbol *sym = locate_symbol(id, records);
 	    if (!sym)
 		sym = install_symbol(id, &records, SCOPE);
 	    else
 		error("redefinition symbol '%s', previous definition at %s line %u",
-		      id, src.file, src.line);
+		      id, sym->src.file, sym->src.line);
 	}
 	match('{');
 	do {
-	    
+	    if (token->id == ID) {
+		struct symbol *sym = locate_symbol(token->name, identifiers);
+		if (!sym) {
+		    sym = install_symbol(token->name, &identifiers, SCOPE);
+		    sym->type = ety;
+		    sym->src = source;
+		} else {
+		    error("redeclaration symbol '%s', previous declaration at %s line %u",
+			  token->name, sym->src.file, sym->src.line);
+		}
+	    } else {
+		error("expect identifier");
+	    }
+	    if (token->id == ',')
+		match(',');
 	} while(token->id != '}' && token->id != EOI);
 	match('}');
     } else if (id) {
@@ -526,50 +541,6 @@ struct decl * initializer_list()
     return NULL;
 }
 
-struct decl * declaration()
-{
-    BEGIN_CALL(declaration);
-    
-    struct decl *ret = NULL;
-    struct type *basety;
-    int sclass;
-
-    basety = specifiers(&sclass);
-    if (token->id == ID || token->id == '*' || token->id == '(') {
-	const char *id = NULL;
-	struct type *ty = NULL;
-
-	do {
-	    // declarator
-	    declarator(&ty, &id);
-	    attach_type(&ty, basety);
-	    print_type(ty);
-	    if (token->id == '=') {
-		// initializer
-	    }
-	    if (token->id == ',')
-		match(',');
-
-	    if (sclass == TYPEDEF) {
-		// typedef decl
-		    
-	    } else {
-		    
-	    }
-	} while (token->id != ';' && token->id != EOI);
-
-	match(';');
-    } else if (token->id == ';') {
-	// struct/union/enum
-    } else {
-	error("invalid token '%k' in declaration", token);
-    }
-
-    END_CALL(declaration);
-    
-    return ret;
-}
-
 static void abstract_declarator(struct type **ty)
 {
     assert(ty);
@@ -673,11 +644,14 @@ static void param_declarator(struct type **ty, const char **id)
     END_CALL(param_declarator);
 }
 
-static struct decl * external_decl()
+#define MODE_BOTH  0
+#define MODE_DECL  1
+
+static struct node * external_decl(int mode)
 {
     BEGIN_CALL(external_decl);
     
-    struct decl *ret = NULL;
+    struct node *ret = concat_node(NULL, NULL);
     struct type *basety;
     int sclass;
 
@@ -685,21 +659,28 @@ static struct decl * external_decl()
     if (token->id == ID || token->id == '*' || token->id == '(') {
 	const char *id = NULL;
 	struct type *ty = NULL;
+	struct source src = source;
 
 	do {
 	    // declarator
 	    declarator(&ty, &id);
 	    attach_type(&ty, basety);
-	    print_type(ty);
-	    if (token->id == '{') {
-		// function definition
-		compound_statement(NULL);
-		break;
-	    } else if (kind(token->id) & FIRST_DECL) {
-		// old style function definition
+	    if (!id)
+		errorf(src, "missing identifier in declarator");
+	    if (mode == MODE_BOTH && (token->id == '{' || kind(token->id) & FIRST_DECL)) {
+		if (token->id == '{') {
+		    // function definition
+		    compound_statement(NULL);
+		    break;
+		} else if (kind(token->id) & FIRST_DECL) {
+		    // old style function definition
 		
-		break;
+		    break;
+		}
 	    } else {
+		assert(SCOPE <= PARAM);
+		if (SCOPE == PARAM)
+		    exit_scope();
 		if (token->id == '=') {
 		    // initializer
 		}
@@ -710,12 +691,27 @@ static struct decl * external_decl()
 		    // typedef decl
 		    
 		} else {
-		    
+		    int node_id = isfunction(ty) ? FUNC_DECL : VAR_DECL;
+		    struct decl *decl = decl_node(node_id, SCOPE);
+		    if (id) {
+			struct symbol *sym = locate_symbol(id, identifiers);
+			if (!sym) {
+			    sym = install_symbol(id, &identifiers, SCOPE);
+			    sym->type = ty;
+			    sym->src = src;
+			    decl->node.symbol = sym;
+			} else {
+			    errorf(src, "redeclaration symbol '%s', previous declaration at %s line %u",
+				  id, sym->src.file, sym->src.line);
+			}
+		    }
+		    ret->kids[0] = NODE(decl);
 		}
 	    }
+	    
 	} while (token->id != ';' && token->id != EOI);
 
-	if (!isfuncdef(ret))
+	if (!isfuncdef(ret->kids[0]))
 	    match(';');
     } else if (token->id == ';') {
 	// struct/union/enum
@@ -728,6 +724,11 @@ static struct decl * external_decl()
     return ret;
 }
 
+struct node * declaration()
+{
+    return external_decl(MODE_DECL);
+}
+
 struct decl * translation_unit()
 {
     struct decl *ret = decl_node(TU_DECL, GLOBAL);
@@ -735,7 +736,7 @@ struct decl * translation_unit()
     
     for (; token->id != EOI; ) {
 	if (kind(token->id) & FIRST_DECL) {
-	    struct node *node1 = concat_node(NODE(external_decl()), NULL);
+	    struct node *node1 = external_decl(MODE_BOTH);
 	    if (node)
 	        node->kids[1] = node1;
 	    else
