@@ -630,6 +630,40 @@ static void param_declarator(struct type **ty, const char **id)
 #define MODE_BOTH  0
 #define MODE_DECL  1
 
+static struct decl * funcdef(const char *id, struct type *ftype, struct source src)
+{
+    struct decl *decl = decl_node(FUNC_DECL, SCOPE);
+    assert(SCOPE == PARAM);
+
+    if (!isfunction(ftype))
+	error("'%s' is not a function type", id);
+    
+    if (token->id == '{') {
+	// function definition
+	struct stmt *stmt = compound_statement(NULL);
+	assert(SCOPE == GLOBAL);
+	decl->node.kids[0] = NODE(stmt);
+	
+	if (id) {
+	    struct symbol *sym = locate_symbol(id, identifiers);
+	    if (!sym) {
+		sym = install_symbol(id, &identifiers, SCOPE);
+		sym->type = ftype;
+		sym->src = src;
+		decl->node.symbol = sym;
+	    } else {
+		errorf(src, "redeclaration symbol '%s', previous declaration at %s line %u",
+		       id, sym->src.file, sym->src.line);
+	    }
+	}
+    } else if (kind(token->id) & FIRST_DECL) {
+	// old style function definition
+		
+    }
+
+    return decl;
+}
+
 static struct node * external_decl(int mode)
 {    
     struct node *ret = concat_node(NULL, NULL);
@@ -651,20 +685,13 @@ static struct node * external_decl(int mode)
 	    if (!id)
 		errorf(src, "missing identifier in declarator");
 	    if (mode == MODE_BOTH && (token->id == '{' || kind(token->id) & FIRST_DECL)) {
-		if (token->id == '{') {
-		    // function definition
-		    compound_statement(NULL);
-		    break;
-		} else if (kind(token->id) & FIRST_DECL) {
-		    // old style function definition
-		
-		    break;
-		}
+		struct decl *decl = funcdef(id, ty, src);
+		ret->kids[0] = NODE(decl);
+		break;
 	    } else {
 		struct decl *decl = decl_node(VAR_DECL, SCOPE);
-		if (SCOPE == PARAM)
+		if (SCOPE == PARAM && mode == MODE_BOTH)
 		    exit_scope();
-		assert(SCOPE == GLOBAL);
 		if (token->id == '=') {
 		    // initializer
 		}

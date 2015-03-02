@@ -346,19 +346,20 @@ struct stmt * compound_statement(struct stmt *context)
 
     match('{');
 
+    if (SCOPE > PARAM)
+	enter_scope();
+
     while (kind(token->id) & (FIRST_STMT|FIRST_EXPR|FIRST_DECL)) {
-	struct node *item;
 	struct node *node1;
 
 	if ((token->id == ID && is_typedef_name(token->name)) ||
 	    (token->id != ID && kind(token->id) & FIRST_DECL))
 	    // declaration
-	    item = NODE(declaration());
+	    node1 = declaration();
 	else
 	    // statement
-	    item = NODE(statement(context));
+	    node1 = concat_node(NODE(statement(context)), NULL);
 	
-	node1 = concat_node(item, NULL);
         if (node)
 	    node->kids[1] = node1;
 	else
@@ -368,6 +369,8 @@ struct stmt * compound_statement(struct stmt *context)
     }
 
     match('}');
+
+    exit_scope();
 
     return ret;
 }
