@@ -357,9 +357,7 @@ struct stmt * compound_statement(struct stmt *context)
     struct node *node = NULL;
 
     match('{');
-
-    if (SCOPE > PARAM)
-	enter_scope();
+    enter_scope();
 
     while (kind(token->id) & (FIRST_STMT|FIRST_EXPR|FIRST_DECL)) {
 	struct node *node1;
@@ -381,7 +379,6 @@ struct stmt * compound_statement(struct stmt *context)
     }
 
     match('}');
-
     exit_scope();
 
     return ret;

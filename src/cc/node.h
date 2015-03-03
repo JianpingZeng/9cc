@@ -26,9 +26,11 @@ _n(UNARY_OP,          "UnaryOperator")
 _n(ADDR_OP,           "AddrOperator")
 _n(COMMA_OP,          "CommaOperator")
 _n(CAST_OP,           "CastOperator")
-_n(PARENTHESIS_OP,    "ParenthesisOperator")
+_n(PAREN_OP,          "ParenthesisOperator")
 _n(COND_OP,           "ConditionalOperator")
 _n(COLON_OP,          "ColonOperator")
+_n(CALL_OP,           "CallOperator")
+_n(ARGS_OP,           "ArgumentOperator")
 
 _ns(BEGIN_LITERAL_ID)
 

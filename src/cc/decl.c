@@ -144,7 +144,12 @@ static struct decl * func_proto(struct type *ftype)
 	    exit_scope();
 
 	ftype->u.f.oldstyle = 1;
-    } else if (token->id != ')') {
+    } else if (token->id == ')') {
+	enter_scope();
+
+	if (SCOPE > PARAM)
+	    exit_scope();
+    } else {
 	error("invalid token '%k' in parameter list", token);
     }
     
@@ -848,6 +853,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
     if (token->id == '{') {
 	// function definition
 	struct stmt *stmt = compound_statement(NULL);
+	exit_scope();
 	assert(SCOPE == GLOBAL);
 	decl->node.kids[0] = NODE(stmt);
 	
@@ -893,15 +899,33 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
     }
 
     if (id) {
-	struct symbol *sym = locate_symbol(id, identifiers);
-	if (!sym) {
-	    sym = install_symbol(id, &identifiers, SCOPE);
-	    sym->type = ty;
-	    sym->src = src;
-	    decl->node.symbol = sym;
+	if (SCOPE == GLOBAL) {
+	    struct symbol *sym = locate_symbol(id, identifiers);
+	    if (!sym) {
+		sym = install_symbol(id, &identifiers, SCOPE);
+		sym->type = ty;
+		sym->src = src;
+		decl->node.symbol = sym;
+	    } else {
+		errorf(src, "redeclaration of '%s', previous declaration at %s line %u",
+		       id, sym->src.file, sym->src.line);
+	    }
 	} else {
-	    errorf(src, "redeclaration symbol '%s', previous declaration at %s line %u",
-		   id, sym->src.file, sym->src.line);
+	    struct symbol *sym;
+	    if (SCOPE == LOCAL)
+		sym = find_symbol(id, identifiers, PARAM);
+	    else
+		sym = locate_symbol(id, identifiers);
+
+	    if (!sym) {
+		sym = install_symbol(id, &identifiers, SCOPE);
+		sym->type = ty;
+		sym->src = src;
+		decl->node.symbol = sym;
+	    } else {
+		errorf(src, "redefinition of '%s', previous definition at %s line %u",
+		       id, sym->src.file, sym->src.line);
+	    }
 	}
     }
 
@@ -909,7 +933,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 }
 
 static struct node * external_decl(int mode)
-{    
+{
     struct node *ret = concat_node(NULL, NULL);
     struct type *basety;
     int sclass;

@@ -32,6 +32,34 @@ static struct expr * typename_expr()
     return expr;
 }
 
+static struct expr * argument_expr_list()
+{
+    struct expr *ret = NULL;
+
+    if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+	struct node *node = NULL;
+	ret = expr_node(ARGS_OP, PAREN, NULL, NULL);
+	for (;;) {
+	    struct node *node1 = NODE(assign_expression());
+	    if (node) {
+		node->kids[1] = concat_node(node1, NULL);
+		node = node->kids[1];
+	    } else {
+		ret->node.kids[0] = concat_node(node1, NULL);
+		node = ret->node.kids[0];
+	    }
+	    if (token->id == ',')
+		match(',');
+	    else
+		break;
+	}
+    } else if (token->id != ')') {
+	error("expect assignment expression");
+    }
+
+    return ret;
+}
+
 static struct expr * postfix_expr1(struct expr *ret)
 {
     int t;
@@ -40,14 +68,14 @@ static struct expr * postfix_expr1(struct expr *ret)
 	switch (token->id) {
 	case '[':
 	    t = token->id;
-	    match(token->id);
+	    match('[');
 	    ret = expr_node(BINARY_OP, t, ret, expression());
 	    match(']');
 	    break;
 	case '(':
 	    t = token->id;
-	    match(token->id);
-	    ret = expr_node(BINARY_OP, t, ret, expression());
+	    match('(');
+	    ret = expr_node(CALL_OP, CALL, ret, argument_expr_list());
 	    match(')');
 	    break;
 	case '.':

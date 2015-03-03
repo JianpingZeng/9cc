@@ -15,7 +15,7 @@ struct table {
 struct table * identifiers;
 struct table * constants;
 struct table * records;
-static int scope = GLOBAL;
+static int _scope = GLOBAL;
 
 void init_symbol()
 {
@@ -26,23 +26,34 @@ void init_symbol()
 
 int scopelevel()
 {
-    return scope;
+    return _scope;
 }
 
 void enter_scope()
 {
-    scope++;
+    _scope++;
+}
+
+static void unuse_warning(struct table *table)
+{
+    struct symbol *sym = table->all;
+    while (sym && sym->scope == table->scope) {
+	if (sym->name && !sym->refs)
+	    warningf(sym->src, "unused variable '%s'", sym->name);
+	sym = sym->up;
+    }
 }
 
 void exit_scope()
 {
-    if (identifiers->scope == scope) {
+    if (identifiers->scope == _scope) {
         struct table *tp = identifiers;
         identifiers = identifiers->up;
+	unuse_warning(tp);
         drop_table(tp);
     }
-    assert(scope >= GLOBAL);
-    scope--;
+    assert(_scope >= GLOBAL);
+    _scope--;
 }
 
 struct table * new_table(struct table *up, int scope)
@@ -72,30 +83,11 @@ struct symbol * anonymous_symbol(struct table **tpp, int scope)
     return install_symbol(NULL, tpp, scope);
 }
 
-struct symbol * locate_symbol(const char *name , struct table *table)
+struct symbol * find_symbol(const char *name, struct table *table, int scope)
 {
-    assert(table);
-    assert(scope >= table->scope);
-
-    if (scope > table->scope)
-	return NULL;
-
-    unsigned h = hash(name) % BUCKET_SIZE;
-    for (struct sentry *entry = table->buckets[h]; entry; entry = entry->next) {
-	if (entry->symbol->name == name) {
-	    return entry->symbol;
-	}
-    }
-
-    return NULL;
-}
-
-struct symbol * lookup_symbol(const char *name, struct table *table)
-{
-    assert(table);
-    assert(scope >= table->scope);
+    assert(name);
     
-    for (struct table *t = table; t; t = t->up) {
+    for (struct table *t = table; t && t->scope >= scope; t = t->up) {
         unsigned h = hash(name) % BUCKET_SIZE;
         for (struct sentry *entry = t->buckets[h]; entry; entry = entry->next) {
             if (entry->symbol->name == name) {
@@ -105,6 +97,16 @@ struct symbol * lookup_symbol(const char *name, struct table *table)
     }
     
     return NULL;
+}
+
+struct symbol * locate_symbol(const char *name , struct table *table)
+{
+    return find_symbol(name, table, SCOPE);
+}
+
+struct symbol * lookup_symbol(const char *name, struct table *table)
+{
+    return find_symbol(name, table, CONSTANT);
 }
 
 struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
@@ -123,8 +125,8 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
     symbol = alloc_symbol_node();
     symbol->scope = scope;
     symbol->name = strings(name);
-    tp->all = symbol;
     symbol->up = tp->all;
+    tp->all = symbol;
     entry->symbol = symbol;
     
     entry->next = tp->buckets[h];

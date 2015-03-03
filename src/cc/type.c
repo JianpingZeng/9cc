@@ -191,28 +191,59 @@ struct type * unqual(int t, struct type *ty)
     return qty;
 }
 
+// TODO
 int equal_type(struct type *ty1, struct type *ty2)
 {
-    if (ty1 == ty2) {
+    if (ty1 == ty2)
         return 1;
-    }
-    if (ty1 == NULL || ty2 == NULL) {
+    else if (ty1 == NULL || ty2 == NULL)
         return 0;
-    }
-    if (ty1->op != ty2->op) {
+    else if (ty1->op != ty2->op)
         return 0;
+    else if (ty1->qual_const != ty2->qual_const ||
+	       ty1->qual_volatile != ty2->qual_volatile ||
+	       ty1->qual_restrict != ty2->qual_restrict)
+	return 0;
+    else if (ty1->func_spec != ty2->func_spec)
+	return 0;
+
+    switch (ty1->op) {
+    case ENUM:
+    case UNION:
+    case STRUCT:
+	return 0;
+
+    case CHAR:
+    case INT:
+    case UNSIGNED:
+    case FLOAT:
+    case DOUBLE:
+    case VOID:
+	return 1;
+	
+    case POINTER:
+	return equal_type(ty1->type, ty2->type);
+	
+    case ARRAY:
+	;
+	
+    case FUNCTION:
+	;
+	
+    default:
+	assert(0);
+	return 0;
     }
-    return 1;
 }
 
 struct type * lookup_typedef_name(const char *id)
 {
     if (!id)
-	return 0;
+	return NULL;
 
     struct symbol *sym = lookup_symbol(id, identifiers);
     
-    if (sym && sym->type && sym->type->op == TYPEDEF)
+    if (sym && sym->type && sym->type->op == TYPEDEF && !strcmp(sym->type->name, sym->name))
 	return sym->type;
     else
 	return NULL;
@@ -223,7 +254,7 @@ int is_typedef_name(const char *id)
     if (!id)
 	return 0;
     struct symbol *sym = lookup_symbol(id, identifiers);
-    return sym && sym->type && sym->type->op == TYPEDEF;
+    return sym && sym->type && sym->type->op == TYPEDEF && !strcmp(sym->type->name, sym->name);
 }
 
 struct type * array_type()
