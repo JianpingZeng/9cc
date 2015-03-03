@@ -839,9 +839,6 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
-#define MODE_BOTH  0
-#define MODE_DECL  1
-
 static struct decl * funcdef(const char *id, struct type *ftype, struct source src)
 {
     struct decl *decl = decl_node(FUNC_DECL, SCOPE);
@@ -878,24 +875,27 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
 }
 
 static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct source src)
-{
-    struct decl *decl = decl_node(VAR_DECL, SCOPE);
+{    
+    struct decl *decl = NULL;
+    int node_id = VAR_DECL;
+    struct node *init_node = NULL;
+    
     if (token->id == '=') {
 	// initializer
 	match('=');
-	decl->node.kids[0] = initializer();
+	init_node = initializer();
     }
 
     if (sclass == TYPEDEF) {
 	// typedef decl
-	decl->node.id = TYPEDEF_DECL;
 	struct type *type = new_type();
 	type->name = id;
 	type->op = TYPEDEF;
 	type->type = ty;
 	ty = type;
+	node_id = TYPEDEF_DECL;
     } else if (isfunction(ty)){
-	decl->node.id = FUNC_DECL;
+	node_id = FUNC_DECL;
     }
 
     if (id) {
@@ -905,9 +905,16 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 		sym = install_symbol(id, &identifiers, SCOPE);
 		sym->type = ty;
 		sym->src = src;
+		sym->defined = init_node ? 1 : 0;
+		decl = decl_node(node_id, SCOPE);
+		decl->node.kids[0] = init_node;
 		decl->node.symbol = sym;
+	    } else if (equal_type(ty, sym->type)) {
+		if (sym->defined && init_node)
+		    errorf(src, "redefinition of '%s', previous definition at %s line %u",
+			   id, sym->src.file, sym->src.line);
 	    } else {
-		errorf(src, "redeclaration of '%s', previous declaration at %s line %u",
+		errorf(src, "redeclaration of '%s' with different type, previous declaration at %s line %u",
 		       id, sym->src.file, sym->src.line);
 	    }
 	} else {
@@ -921,6 +928,9 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 		sym = install_symbol(id, &identifiers, SCOPE);
 		sym->type = ty;
 		sym->src = src;
+		sym->defined = 1;
+		decl = decl_node(node_id, SCOPE);
+		decl->node.kids[0] = init_node;
 		decl->node.symbol = sym;
 	    } else {
 		errorf(src, "redefinition of '%s', previous definition at %s line %u",
@@ -928,21 +938,23 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    }
 	}
     }
-
+    
     return decl;
 }
 
-static struct node * external_decl(int mode)
-{
-    struct node *ret = concat_node(NULL, NULL);
+#define MODE_EXTERN  0
+#define MODE_DECL    1
+
+// TODO
+static struct node * decls(int mode)
+{    
+    struct node *ret = NULL;
     struct type *basety;
     int sclass;
 
     basety = specifiers(&sclass);
-    if (token->id == ID || token->id == '*' || token->id == '(') {
-	struct node *node = NULL;
-	
-	do {
+    if (token->id == ID || token->id == '*' || token->id == '(') {	
+	for (; token->id != EOI ;) {
 	    const char *id = NULL;
 	    struct type *ty = NULL;
 	    struct source src = source;
@@ -951,33 +963,27 @@ static struct node * external_decl(int mode)
 	    attach_type(&ty, basety);
 	    if (!id)
 		errorf(src, "missing identifier in declarator");
-	    if (mode == MODE_BOTH && (token->id == '{' || kind(token->id) & FIRST_DECL)) {
-		struct decl *decl = funcdef(id, ty, src);
-		ret->kids[0] = NODE(decl);
+	    if (mode == MODE_EXTERN && (token->id == '{' || kind(token->id) & FIRST_DECL)) {
+	        concats(&ret, NODE(funcdef(id, ty, src)));
 		break;
 	    } else {
-		if (SCOPE == PARAM && mode == MODE_BOTH)
+		if (SCOPE == PARAM && mode == MODE_EXTERN)
 		    exit_scope();
-		struct decl *decl = vardecl(id, ty, sclass, src);
-		if (node) {
-		    node->kids[1] = concat_node(NODE(decl), NULL);
-		    node = node->kids[1];
-		}
-		else {
-		    ret->kids[0] = NODE(decl);
-		    node = ret;
-		}
-		if (token->id == ';')
+		
+		concats(&ret, NODE(vardecl(id, ty, sclass, src)));
+		
+		if (token->id == ';') {
+		    match(';');
 		    break;
-		else if (token->id == ',')
+		}
+		else if (token->id == ',') {
 		    match(',');
+		}
 	    }
-	} while (token->id != EOI);
-
-	if (!isfuncdef(ret->kids[0]))
-	    match(';');
+	}
     } else if (token->id == ';') {
 	// struct/union/enum
+	
     } else {
 	error("invalid token '%k' in declaration", token);
     }
@@ -1001,28 +1007,25 @@ struct type * typename()
 
 struct node * declaration()
 {
-    return external_decl(MODE_DECL);
+    return decls(MODE_DECL);
 }
 
 struct decl * translation_unit()
-{
+{    
     struct decl *ret = decl_node(TU_DECL, GLOBAL);
     struct node *node = NULL;
     
     for (; token->id != EOI; ) {
 	if (kind(token->id) & FIRST_DECL) {
-	    struct node *node1 = external_decl(MODE_BOTH);
-	    if (node)
-	        node->kids[1] = node1;
-	    else
-		ret->node.kids[0] = node1;
-
-	    node = node1;
+	    concats(&node, decls(MODE_EXTERN));
 	} else {
 	    error("invalid token '%k'", token);
 	    gettok();
 	}
     }
+
+    ret->node.kids[0] = node;
+	
     return ret;
 }
 

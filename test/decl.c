@@ -28,25 +28,28 @@
 //     }
 // }
 
-typedef int MyInt;
-MyInt c;
-typedef MyInt MyInt2;
-typedef int (*MyFunc) (int);
-MyFunc f2;
-typedef MyFunc *(*Hehe) (int, MyInt *, MyFunc);
+// typedef int MyInt;
+// MyInt c;
+// typedef MyInt MyInt2;
+// typedef int (*MyFunc) (int);
+// MyFunc f2;
+// typedef MyFunc *(*Hehe) (int, MyInt *, MyFunc);
 
-void test(int y)
-{
-    int a;
-    float b;
-    int c;
-    int y;
-    f2(a, b, 8+9);
+// void test(int y)
+// {
+//     int a;
+//     float b;
+//     int c;
+//     int y;
+//     f2(a, b, 8+9);
 
-    {
-	int a;
-	int b;
+//     {
+// 	int a;
+// 	int b;
 
-	c = a / 9;
-    }
-}
+// 	c = a / 9;
+//     }
+// }
+
+int a;
+int a;

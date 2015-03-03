@@ -14,6 +14,7 @@ struct symbol {
     const char *name;
     union value value;
     struct type  *type;
+    unsigned defined : 1;
     struct source src;
     unsigned refs;
     struct symbol *up;

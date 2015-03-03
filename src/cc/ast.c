@@ -79,14 +79,35 @@ struct decl * decl_node(int id, int scope)
     return decl;
 }
 
-int count_concat_node(struct node *node)
+void concats(struct node **head, struct node *node)
 {
-    assert(isconcat(node));
+    assert(head);
 
-    int i;
-    for (i=0; node && node->kids[0]; i++) {
-	node = node->kids[1];
+    if (!node)
+	return;
+    
+    if (*head) {
+	struct node *p = *head;
+	do {
+	    assert(isconcat(p));
+	    if (p->kids[0] == NULL) {
+		p->kids[0] = node;
+		break;
+	    } else if (p->kids[1] == NULL) {
+		if (isconcat(node))
+		    p->kids[1] = node;
+		else
+		    p->kids[1] = concat_node(node, NULL);
+		break;
+	    } else {
+		p = p->kids[1];
+	    }
+	} while (1);
+	
+    } else {
+	if (isconcat(node))
+	    *head = node;
+	else
+	    *head = concat_node(node, NULL);
     }
-
-    return i;
 }
