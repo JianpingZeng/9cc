@@ -442,6 +442,7 @@ static struct type * specifiers(int *sclass)
                 
 	case ID:
 	    if (is_typedef_name(token->name)) {
+		tydefty = lookup_typedef_name(token->name);
 		p = &type;
 		gettok();
 	    } else {
@@ -616,6 +617,7 @@ static struct type * specifier_qualifier_list()
 
 	case ID:
 	    if (is_typedef_name(token->name)) {
+		tydefty = lookup_typedef_name(token->name);
 		p = &type;
 		gettok();
 	    } else {
@@ -739,23 +741,25 @@ static void abstract_declarator(struct type **ty)
 {
     assert(ty);
 
-    if (token->id == '*') {
-	struct type *pty = pointer();
-	prepend_type(ty, pty);
-    }
+    if (token->id == '*' || token->id == '(' || token->id == '[') {
+	if (token->id == '*') {
+	    struct type *pty = pointer();
+	    prepend_type(ty, pty);
+	}
 
-    if (token->id == '(') {
-	if (kind(lookahead()->id) & FIRST_DECL) {
+	if (token->id == '(') {
+	    if (kind(lookahead()->id) & FIRST_DECL) {
+		struct type *faty = abstract_func_or_array();
+		prepend_type(ty, faty);
+	    } else {
+		match('(');
+		abstract_declarator(ty);
+		match(')');
+	    }
+	} else if (token->id == '[') {
 	    struct type *faty = abstract_func_or_array();
 	    prepend_type(ty, faty);
-	} else {
-	    match('(');
-	    abstract_declarator(ty);
-	    match(')');
 	}
-    } else if (token->id == '[') {
-	struct type *faty = abstract_func_or_array();
-	prepend_type(ty, faty);
     } else {
 	error("expect '(' or '[' at '%k'", token);
     }
@@ -963,10 +967,9 @@ struct type * typename()
     struct type *ty = NULL;
 
     basety = specifier_qualifier_list();
-    if (token->id == '*' || token->id == '(' || token->id == '[') {
-	struct type *ty = NULL;
+    if (token->id == '*' || token->id == '(' || token->id == '[')
 	abstract_declarator(&ty);
-    }
+    
     attach_type(&ty, basety);
 
     return ty;

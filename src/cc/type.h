@@ -35,6 +35,7 @@ extern struct type * scls(int t, struct type *ty);
 extern struct type * qual(int t, struct type *ty);
 extern struct type * unqual(int t, struct type *ty);
 extern int equal_type(struct type *ty1, struct type *ty2);
+extern struct type * lookup_typedef_name(const char *id);
 extern int is_typedef_name(const char *id);
 extern struct type * array_type();
 extern struct type * pointer_type();
@@ -72,5 +73,6 @@ extern struct type    *booltype;	       // bool
 #define isstruct(type)      ((type) && (type)->op == STRUCT)
 #define isunion(type)       ((type) && (type)->op == UNION)
 #define isrecord(type)      (isstruct(type) || isunion(type))
+#define istypedef(type)     ((type) && (type)->op == TYPEDEF)
 
 #endif

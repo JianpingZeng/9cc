@@ -205,13 +205,24 @@ int equal_type(struct type *ty1, struct type *ty2)
     return 1;
 }
 
-int is_typedef_name(const char *id)
+struct type * lookup_typedef_name(const char *id)
 {
     if (!id)
 	return 0;
 
     struct symbol *sym = lookup_symbol(id, identifiers);
     
+    if (sym && sym->type && sym->type->op == TYPEDEF)
+	return sym->type;
+    else
+	return NULL;
+}
+
+int is_typedef_name(const char *id)
+{
+    if (!id)
+	return 0;
+    struct symbol *sym = lookup_symbol(id, identifiers);
     return sym && sym->type && sym->type->op == TYPEDEF;
 }
 

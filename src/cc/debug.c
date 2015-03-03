@@ -55,25 +55,25 @@ static void print_type1(struct type_context context)
     struct type *type = context.type;
     if (type) {
 	struct type_context tcontext = {context.level, type->type};
+	print_spec(type);
         if (isfunction(type)) {
-            print_spec(type);
             fprint(stderr, "%s", tname(type->op));
 	    fprint(stderr, "\n");
 	    print_return(tcontext);
             print_params(context);
-        }
-        else if (ispointer(type)) {
-            print_spec(type);
+        } else if (ispointer(type)) {
             fprint(stderr, "%s to ", tname(type->op));
 	    print_type1(tcontext);
-        }
-        else if (isarray(type)) {
-            print_spec(type);
+        } else if (isarray(type)) {
             fprint(stderr, "%s %d of ", tname(type->op), type->size);
 	    print_type1(tcontext);
-        }
-        else {
-            print_spec(type);
+        } else if (istypedef(type)) {
+	    fprint(stderr, "%s aka ", type->name);
+	    while (type->type && istypedef(type->type))
+		type = type->type;
+	    tcontext.type = type->type;
+	    print_type1(tcontext);
+	} else {
             fprint(stderr, "%s ", type->name);
 	    print_type1(tcontext);
         }
@@ -130,8 +130,7 @@ static void print_tree1(struct print_context context)
 	lcontext.level = level;
 	lcontext.node = context.node->kids[0];
 	print_tree1(lcontext);
-    }
-    else if (context.node->id == CONCAT_NODE) {
+    } else if (context.node->id == CONCAT_NODE) {
 	for (int i=0; i < context.level; i++)
 	    fprint(stderr, "  ");
 	
