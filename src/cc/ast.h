@@ -46,7 +46,6 @@ extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
 extern struct expr * expression();
 extern struct expr * constant_expression();
 extern struct expr * assign_expression();
-extern int is_constexpr(struct node *expr);
 extern int eval_constexpr(struct expr *expr, union value *value);
 
 // decl

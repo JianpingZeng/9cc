@@ -107,7 +107,7 @@ static struct expr * postfix_expr()
 	    if (sym)
 		sym->refs++;
 	    else
-		error("use of undeclare symbol '%s'", token->name);
+		error("use of undeclared symbol '%s'", token->name);
 	    match(t);
 	    ret = expr_node(ADDR_EXPR, ID, NULL, NULL);
 	    ret->node.symbol = sym;
@@ -485,25 +485,45 @@ struct expr * expression()
     return expr;
 }
 
-struct expr * constant_expression()
-{
-    return cond_expr(NULL);
-}
-
-// TODO
+// TODO: cast initializer list
 int is_constexpr(struct node *expr)
 {
-    if (!expr)
-	return 1;
-    else if (!isexpr(expr))
+    if (!expr || !isexpr(expr))
 	return 0;
 
-    if (isliteral(expr))
-	return 1;
-    else if (expr->id == ADDR_EXPR)
-	return 0;
-    else
+    switch (expr->id) {
+    case BINARY_EXPR:
+    case COMMA_EXPR:
 	return is_constexpr(expr->kids[0]) && is_constexpr(expr->kids[1]);
+	
+    case UNARY_EXPR:
+    case CAST_EXPR:
+	return is_constexpr(expr->kids[0]);
+
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case STRING_LITERAL:
+	return 1;
+
+    case ADDR_EXPR:
+	return 0;
+
+    case CALL_EXPR:
+    case ARGS_EXPR:
+	return 0;
+
+    default:
+	assert(0);
+    }
+}
+
+struct expr * constant_expression()
+{
+    struct expr *expr = cond_expr(NULL);
+    if (is_constexpr(NODE(expr)))
+	return expr;
+    else
+	return NULL;
 }
 
 // TODO

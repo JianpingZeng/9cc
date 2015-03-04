@@ -60,9 +60,28 @@
 //     int (*f) (unsigned);
 // };
 
-enum  {
-    IO = 9,
-    UI = a,
-    YY
-} re;
+// struct tag tag;
+// struct tag *a;
+// struct haha;
 
+// union u {
+//     int a;
+//     struct tag t;
+// };
+
+// enum  {
+//     IO = 9,
+//     UI = a,
+//     YY = 8 > 0 ? (int)7/6 : 89
+// };
+
+// enum EE {
+//     NOT_FOUND
+// };
+
+// enum EE ee;
+
+int a, f(int b)
+{
+
+}
