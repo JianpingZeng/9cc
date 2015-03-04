@@ -223,7 +223,7 @@ static struct stmt * label_stmt(struct stmt *context)
     struct node *label;
     struct stmt *stmt;
 
-    label = NODE(expr_node(ADDR_OP, ID, NULL, NULL));
+    label = NODE(expr_node(ADDR_EXPR, ID, NULL, NULL));
     match(ID);
     match(':');
     stmt = statement(context);
@@ -237,7 +237,7 @@ static struct stmt * goto_stmt()
     
     match(GOTO);
     if (token->id == ID)
-	expr = NODE(expr_node(ADDR_OP, ID, NULL, NULL));
+	expr = NODE(expr_node(ADDR_EXPR, ID, NULL, NULL));
     match(ID);
     match(';');
     

@@ -5,6 +5,7 @@ static void abstract_declarator(struct type **ty);
 static void declarator(struct type **ty, const char **id);
 static struct type * pointer();
 static void param_declarator(struct type **ty, const char **id);
+static struct type * specifier_qualifier_list();
 
 static int kinds[] = {
 #define _a(a, b, c, d)  d,
@@ -284,14 +285,7 @@ static struct type * enum_decl()
     }
     if (token->id == '{') {
 	struct type *ety = enum_type(id);
-	if (id) {
-	    struct symbol *sym = locate_symbol(id, records);
-	    if (!sym)
-		sym = install_symbol(id, &records, SCOPE);
-	    else
-		error("redefinition symbol '%s', previous definition at %s line %u",
-		      id, sym->src.file, sym->src.line);
-	}
+	int val = 0;
 	match('{');
 	do {
 	    if (token->id == ID) {
@@ -301,22 +295,58 @@ static struct type * enum_decl()
 		    sym->type = ety;
 		    sym->src = source;
 		} else {
-		    error("redeclaration symbol '%s', previous declaration at %s line %u",
+		    error("redeclaration of '%s', previous declaration at %s line %u",
 			  token->name, sym->src.file, sym->src.line);
 		}
+
+		match(ID);
+		if (token->id == '=') {
+		    struct expr *expr;
+		    match('=');
+		    expr = constant_expression();
+		    if (is_constexpr(NODE(expr))) {
+		        // evaluate
+			union value value;
+			eval_constexpr(expr, &value);
+		    } else {
+			error("enum constant is not a compile-time constant");
+		    }
+		}
+
+		val++;
 	    } else {
 		error("expect identifier");
+		gettok();
 	    }
+	    
 	    if (token->id == ',')
 		match(',');
-	} while(token->id != '}' && token->id != EOI);
-	match('}');
+	    if (token->id == '}')
+		break;
+	} while(token->id != EOI);
+	match('}');	
+	
+	if (id) {
+	    struct symbol *sym = locate_symbol(id, records);
+	    if (!sym) {
+		sym = install_symbol(id, &records, SCOPE);
+		sym->type = ety;
+		sym->src = src;
+		ret = ety;
+	    } else {
+		error("redefinition symbol '%s', previous definition at %s line %u",
+		      id, sym->src.file, sym->src.line);
+	    }
+	} else {
+	    ret = ety;
+	}
+	
     } else if (id) {
 	struct symbol *sym = lookup_symbol(id, records);
 	if (sym)
 	    ret = sym->type;
 	else
-	    error("undeclared symbol '%s'", id);
+	    error("undefined enum type '%s'", id);
     } else {
 	error("missing identifier after 'enum'");
     }
@@ -326,7 +356,64 @@ static struct type * enum_decl()
 
 static struct type * record_decl()
 {
-    return NULL;
+    assert(token->id == STRUCT || token->id == UNION);
+    int t = token->id;
+    const char *id = NULL;
+    struct type *ret = NULL;
+    struct source src = source;
+    
+    match(t);
+    if (token->id == ID) {
+	id = token->name;
+	match(ID);
+    }
+
+    if (token->id == '{') {
+	match('{');
+	enter_scope();
+	do {
+	    struct type *basety = specifier_qualifier_list();
+	    if (token->id == ':') {
+		match(':');
+		constant_expression();
+	    } else {
+		struct type *ty = NULL;
+		const char *name = NULL;
+		declarator(&ty, &name);
+		attach_type(&ty, basety);
+	    }
+	    match(';');
+	    if (token->id == '}')
+		break;
+	} while (token->id != EOI);
+	match('}');
+	exit_scope();
+
+	if (id) {
+	    struct symbol *sym = locate_symbol(id, records);
+	    if (!sym) {
+		ret = record_type(t, id);
+		sym = install_symbol(id, &records, SCOPE);
+		sym->src = src;
+		sym->type = ret;
+	    } else {
+		error("redefinition symbol '%s', previous definition at %s line %u",
+		      id, sym->src.file, sym->src.line);
+	    }
+	} else {
+	    ret = record_type(t, id);
+	}
+    } else if (id) {
+	struct symbol *sym = lookup_symbol(id, records);
+	if (sym)
+	    ret = sym->type;
+	else
+	    error("undefined %s type '%s'", tname(t), id);
+    } else {
+	error("missing identifier after '%s'", tname(t));
+    }
+    
+    return ret;
 }
 
 static struct type * specifiers(int *sclass)
@@ -839,6 +926,7 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
+// TODO: function return type cannot be function etc.
 static struct decl * funcdef(const char *id, struct type *ftype, struct source src)
 {
     struct decl *decl = decl_node(FUNC_DECL, SCOPE);
@@ -983,7 +1071,9 @@ static struct node * decls(int mode)
 	}
     } else if (token->id == ';') {
 	// struct/union/enum
-	
+	if (basety && !isenum(basety) && !isrecord(basety))
+	    error("expect enum or struct or union before ';'");	    
+	match(';');
     } else {
 	error("invalid token '%k' in declaration", token);
     }

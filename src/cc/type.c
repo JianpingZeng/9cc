@@ -291,6 +291,15 @@ struct type * enum_type(const char *tag)
     return ty;
 }
 
+struct type * record_type(int t, const char *tag)
+{
+    struct type *ty = new_type();
+    ty->op = t;
+    ty->name = tag;
+
+    return ty;
+}
+
 const char * type_print_function(void *data)
 {
     struct type *p = data;

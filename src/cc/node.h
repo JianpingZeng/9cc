@@ -21,16 +21,13 @@ _ns(END_DECL_ID)
 // expr
 _ns(BEGIN_EXPR_ID)
 
-_n(BINARY_OP,         "BinaryOperator")
-_n(UNARY_OP,          "UnaryOperator")
-_n(ADDR_OP,           "AddrOperator")
-_n(COMMA_OP,          "CommaOperator")
-_n(CAST_OP,           "CastOperator")
-_n(PAREN_OP,          "ParenthesisOperator")
-_n(COND_OP,           "ConditionalOperator")
-_n(COLON_OP,          "ColonOperator")
-_n(CALL_OP,           "CallOperator")
-_n(ARGS_OP,           "ArgumentOperator")
+_n(BINARY_EXPR,       "BinaryExpr")
+_n(UNARY_EXPR,        "UnaryExpr")
+_n(ADDR_EXPR,         "AddrExpr")
+_n(COMMA_EXPR,        "CommaExpr")
+_n(CAST_EXPR,         "CastExpr")
+_n(CALL_EXPR,         "CallExpr")
+_n(ARGS_EXPR,         "ArgumentExpr")
 
 _ns(BEGIN_LITERAL_ID)
 

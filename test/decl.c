@@ -51,5 +51,18 @@
 //     }
 // }
 
-int a;
-int a;
+// int a;
+// int a;
+
+// struct tag {
+//     int a;
+//     float *b;
+//     int (*f) (unsigned);
+// };
+
+enum  {
+    IO = 9,
+    UI = a,
+    YY
+} re;
+

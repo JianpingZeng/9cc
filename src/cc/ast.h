@@ -46,6 +46,8 @@ extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
 extern struct expr * expression();
 extern struct expr * constant_expression();
 extern struct expr * assign_expression();
+extern int is_constexpr(struct node *expr);
+extern int eval_constexpr(struct expr *expr, union value *value);
 
 // decl
 extern struct decl * decl_node(int id, int scope);
@@ -67,5 +69,6 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define isconcat(n) ((n)->id == CONCAT_NODE)
 #define isfuncdecl(n) (NODE(n)->id == FUNC_DECL)
 #define isfuncdef(n) (isfuncdecl(n) && NODE(n)->kids[0] && NODE(n)->kids[0]->id == COMPOUND_STMT)
+#define isliteral(n) ((n)->id > BEGIN_LITERAL_ID && (n)->id < END_LITERAL_ID)
 
 #endif

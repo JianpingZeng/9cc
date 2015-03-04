@@ -73,6 +73,9 @@ static void print_type1(struct type_context context)
 		type = type->type;
 	    tcontext.type = type->type;
 	    print_type1(tcontext);
+	} else if (type->op == ENUM || type->op == STRUCT || type->op == UNION) {
+	    fprint(stderr, "%s %s ", tname(type->op), type->name);
+	    print_type1(tcontext);
 	} else {
             fprint(stderr, "%s ", type->name);
 	    print_type1(tcontext);

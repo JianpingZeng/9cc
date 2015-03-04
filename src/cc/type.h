@@ -41,6 +41,7 @@ extern struct type * array_type();
 extern struct type * pointer_type();
 extern struct type * function_type();
 extern struct type * enum_type(const char *tag);
+extern struct type * record_type(int t, const char *tag);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
