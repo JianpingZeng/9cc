@@ -2,7 +2,7 @@
 
 static void abstract_declarator(struct type **ty);
 static void declarator(struct type **ty, const char **id);
-static struct type * pointer();
+static struct type * pointer_decl();
 static void param_declarator(struct type **ty, const char **id);
 static struct type * enum_decl();
 static struct type * record_decl();
@@ -247,7 +247,7 @@ static struct decl * parameter_type_list()
     struct node *node = NULL;
 
     enter_scope();
-    ret = decl_node(PARAM_DECL, SCOPE);
+    ret = decl_node(PARAMS_DECL, SCOPE);
 
     for (int i=0;;i++) {
 	struct type *basety = NULL;
@@ -258,19 +258,32 @@ static struct decl * parameter_type_list()
 	struct decl *decl = decl_node(VAR_DECL, SCOPE);
 
 	basety = specifiers(&sclass);
-
 	if (sclass && sclass != REGISTER)
 	    error("invalid storage class specifier '%s' at parameter list",
 		  tname(sclass));
 	else if (isinline(basety))
 	    error("invalid function specifier 'inline' at parameter list");
 
-	basety = scls(sclass == REGISTER ? REGISTER : 0, basety);
-
         if (token->id == '*' || token->id == '(' || token->id == '[' || token->id == ID)
 	    param_declarator(&ty, &id);
 	
 	attach_type(&ty, basety);
+	ty = scls(sclass == REGISTER ? REGISTER : 0, ty);
+	
+	if (isvoid(ty)) {
+	    if (i > 0)
+		error("invalid parameter type 'void'");
+	    else if (isqual(ty))
+		error("invalid type qualifier for type 'void'");
+	    else if (sclass)
+		error("invalid storage class specifier '%s' for type 'void'",
+		      tname(sclass));
+	    else if (token->id != ')')
+		error("'void' must be the first and only parameter if specified");
+	} else if (isfunction(ty)) {
+	    // convert to pointer to function
+	    ty = pointer(ty);
+	}
 
 	if (id) {
 	    struct symbol *sym = locate_symbol(id, identifiers);
@@ -289,36 +302,24 @@ static struct decl * parameter_type_list()
 	    sym->src = src;
 	    decl->node.symbol = sym;
 	}
-	
-        if (isvoid(ty)) {
-	    if (i > 0)
-		error("invalid parameter type 'void'");
-	    else if (isqual(ty))
-		error("invalid type qualifier for type 'void'");
-	    else if (sclass)
-		error("invalid storage class specifier '%s' for type 'void'",
-		      tname(sclass));
-	    else if (token->id != ')')
-		error("'void' must be the first and only parameter if specified");
-	}
-
         concats(&node, NODE(decl));
 
-	if (token->id == ',') {
-	    match(',');
-	    if (token->id == ELLIPSIS) {
-		match(ELLIPSIS);
-		// TODO
-		break;
-	    }
-	}
-	else if (token->id == ')') {
+	if (token->id != ',')
+	    break;
+
+	match(',');
+	if (token->id == ELLIPSIS) {
+	    // TODO
+	    
+	    match(ELLIPSIS);
 	    break;
 	}
     }
 
     if (SCOPE > PARAM)
 	exit_scope();
+
+    ret->node.kids[0] = node;
 
     return ret;
 }
@@ -329,29 +330,44 @@ static struct decl * func_proto(struct type *ftype)
 
     if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
 	(token->id == ID && is_typedef_name(token->name))) {
-
+	// prototype
 	ret = parameter_type_list();
-	    
     } else if (token->id == ID) {
+	// oldstyle
+	struct node *node = NULL;
 	enter_scope();
-
+	ret = decl_node(PARAMS_DECL, SCOPE);
 	for (;;) {
+	    if (token->id == ID) {
+		struct symbol *sym = locate_symbol(token->name, identifiers);
+		if (!sym) {
+		    struct decl *decl = decl_node(VAR_DECL, SCOPE);
+		    sym = install_symbol(token->name, &identifiers, SCOPE);
+		    sym->type = inttype;
+		    sym->src = source;
+		    decl->node.symbol = sym;
+		    concats(&node, NODE(decl));
+		} else {
+		    error("redeclaration of '%s', previous declaration at %s line %u",
+			  token->name, sym->src.file, sym->src.line);
+		}
+	    }
 	    match(ID);
-	    if (token->id == ')')
+	    if (token->id != ',')
 		break;
-	    else
-		match(',');
+	    match(',');
 	}
 
 	if (SCOPE > PARAM)
 	    exit_scope();
 
+	ret->node.kids[0] = node;
 	ftype->u.f.oldstyle = 1;
     } else if (token->id == ')') {
 	enter_scope();
-
 	if (SCOPE > PARAM)
 	    exit_scope();
+	ftype->u.f.oldstyle = 1;
     } else {
 	error("invalid token '%k' in parameter list", token);
     }
@@ -421,7 +437,7 @@ static struct type * abstract_func_or_array()
     return ty;
 }
 
-static struct type * pointer()
+static struct type * pointer_decl()
 {
     struct type *ret = NULL;
     int con, vol, res, type;
@@ -649,7 +665,7 @@ static void abstract_declarator(struct type **ty)
 
     if (token->id == '*' || token->id == '(' || token->id == '[') {
 	if (token->id == '*') {
-	    struct type *pty = pointer();
+	    struct type *pty = pointer_decl();
 	    prepend_type(ty, pty);
 	}
 
@@ -676,7 +692,7 @@ static void declarator(struct type **ty, const char **id)
     assert(ty && id);
     
     if (token->id == '*') {
-	struct type *pty = pointer();
+	struct type *pty = pointer_decl();
 	prepend_type(ty, pty);
     }
 
@@ -707,7 +723,7 @@ static void declarator(struct type **ty, const char **id)
 static void param_declarator(struct type **ty, const char **id)
 {    
     if (token->id == '*') {
-	struct type *pty = pointer();
+	struct type *pty = pointer_decl();
 	prepend_type(ty, pty);
     }
 
@@ -746,8 +762,14 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
     struct decl *decl = decl_node(FUNC_DECL, SCOPE);
     assert(SCOPE == PARAM);
 
-    if (!isfunction(ftype))
+    if (id == NULL)
+	error("missing identifier in declaration");
+    else if (!isfunction(ftype))
 	error("'%s' is not a function type", id);
+    else if (isfunction(ftype->type))
+	error("function cannot return function");
+    else if (isarray(ftype->type))
+	error("function cannot return array");
     
     if (token->id == '{') {
 	// function definition
@@ -869,7 +891,6 @@ static struct decl * typedecl(struct type *ty, struct source src)
     return decl;
 }
 
-// TODO for loop
 static struct node * decls()
 {    
     struct node *ret = NULL;
@@ -877,7 +898,7 @@ static struct node * decls()
     int sclass;
     struct source src = source;
     int level = SCOPE;
-
+ 
     basety = specifiers(&sclass);
     if (token->id == ID || token->id == '*' || token->id == '(') {
 	const char *id = NULL;

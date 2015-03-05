@@ -81,7 +81,12 @@
 
 // enum EE ee;
 
-int a, f(int b)
+// int a, f(int b)
+// {
+
+// }
+
+int f(int a(int))
 {
 
 }

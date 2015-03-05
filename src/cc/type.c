@@ -273,6 +273,14 @@ struct type * pointer_type()
     return ty;
 }
 
+struct type * pointer(struct type *ty)
+{
+    struct type *pty = pointer_type();
+    pty->type = ty;
+    
+    return pty;
+}
+
 struct type * function_type()
 {
     struct type *ty = new_type();
