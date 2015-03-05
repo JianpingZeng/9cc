@@ -92,7 +92,12 @@
 
 // }
 
-void ()
+void (8, i)()
+{
+
+}
+
+int f(a) int b;
 {
 
 }

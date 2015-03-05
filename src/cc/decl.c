@@ -797,7 +797,7 @@ static void declarator(struct type **ty, const char **id)
 	struct type *rtype = NULL;
 	match('(');
 	declarator(&rtype, id);
-	match(')');
+	skipto(')');
 	if (token->id == '[' || token->id == '(') {
 	    struct type *faty = func_or_array();
 	    attach_type(&faty, type1);
@@ -805,7 +805,7 @@ static void declarator(struct type **ty, const char **id)
 	}
 	*ty = rtype;
     } else {
-	error("expect identifier or '(' at '%k'", token);
+	error("expect identifier or '(' before '%k'", token);
     }
 }
 
@@ -853,14 +853,18 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
 
     if (id == NULL)
 	error("missing identifier in function definition");
-    else if (isfunction(ftype->type))
-	error("function cannot return function");
-    else if (isarray(ftype->type))
-	error("function cannot return array");
+    else if (isfunction(ftype->type) || isarray(ftype->type))
+	error("function cannot return %s", tname(ftype->type->op));
 
-    if (kind(token->id) & FIRST_DECL && ftype->u.f.oldstyle) {
-	// old style function definition
-	parameter_decl_list(ftype);
+    if (kind(token->id) & FIRST_DECL) {
+	if (ftype->u.f.oldstyle && ftype->u.f.proto &&
+	    (token->id != ID || is_typedef_name(token->name))) {
+	    // old style function definition
+	    parameter_decl_list(ftype);
+	} else {
+	    error("expect function body after function declarator");
+	    stopat('{');
+	}
     }
     
     if (token->id == '{') {

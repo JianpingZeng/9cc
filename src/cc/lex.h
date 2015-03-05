@@ -37,6 +37,7 @@ extern int  gettok();
 extern struct token *  lookahead();
 extern void match(int t);
 extern void skipto(int t);
+extern void stopat(int t);
 extern const char *tname(int t);
 
 #endif
