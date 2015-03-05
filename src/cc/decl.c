@@ -341,11 +341,8 @@ static void parameter_decl_list(struct type *ftype)
 // prototype
 static struct decl * parameter_type_list()
 {    
-    struct decl *ret;
+    struct decl *ret = decl_node(PARAMS_DECL, SCOPE);
     struct node *node = NULL;
-
-    enter_scope();
-    ret = decl_node(PARAMS_DECL, SCOPE);
 
     for (int i=0;;i++) {
 	struct type *basety = NULL;
@@ -413,9 +410,6 @@ static struct decl * parameter_type_list()
 	}
     }
 
-    if (SCOPE > PARAM)
-	exit_scope();
-
     ret->node.kids[0] = node;
 
     return ret;
@@ -425,6 +419,8 @@ static struct decl * func_proto(struct type *ftype)
 {    
     struct decl *ret = NULL;
 
+    enter_scope();
+    
     if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
 	(token->id == ID && is_typedef_name(token->name))) {
 	// prototype
@@ -432,7 +428,6 @@ static struct decl * func_proto(struct type *ftype)
     } else if (token->id == ID) {
 	// oldstyle
 	struct node *node = NULL;
-	enter_scope();
 	ret = decl_node(PARAMS_DECL, SCOPE);
 	for (;;) {
 	    if (token->id == ID) {
@@ -454,21 +449,20 @@ static struct decl * func_proto(struct type *ftype)
 	    match(',');
 	}
 
-	if (SCOPE > PARAM) {
-	    exit_scope();
+	if (SCOPE > PARAM)
 	    error("a parameter list without types is only allowed in a function definition");
-	}
 
 	ret->node.kids[0] = node;
 	ftype->u.f.oldstyle = 1;
     } else if (token->id == ')') {
-	enter_scope();
-	if (SCOPE > PARAM)
-	    exit_scope();
 	ftype->u.f.oldstyle = 1;
     } else {
 	error("invalid token '%k' in parameter list", token);
+	gettok();
     }
+
+    if (SCOPE > PARAM)
+	exit_scope();
     
     return ret;
 }
@@ -851,16 +845,14 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
-// TODO: function return type cannot be function etc.
 static struct decl * funcdef(const char *id, struct type *ftype, struct source src)
 {
     struct decl *decl = decl_node(FUNC_DECL, SCOPE);
+
     assert(SCOPE == PARAM);
 
     if (id == NULL)
 	error("missing identifier in function definition");
-    else if (!isfunction(ftype))
-	error("'%s' is not a function type", id);
     else if (isfunction(ftype->type))
 	error("function cannot return function");
     else if (isarray(ftype->type))
@@ -1008,7 +1000,7 @@ static struct node * decls()
 	attach_type(&ty, basety);
 	
 	if (level == GLOBAL) {
-	    if (token->id == '{' || kind(token->id) & FIRST_DECL) {
+	    if (isfunction(ty) && (token->id == '{' || kind(token->id) & FIRST_DECL)) {
 		concats(&ret, NODE(funcdef(id, ty, src)));
 		return ret;
 	    } else if (SCOPE == PARAM) {
@@ -1046,6 +1038,7 @@ static struct node * decls()
 	match(';');
     } else {
 	error("invalid token '%k' in declaration", token);
+	skipto(';');
     }
     
     return ret;

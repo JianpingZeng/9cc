@@ -86,8 +86,14 @@
 
 // }
 
-void f(a, b)
-     int a; float (*b) (a, b);
+// void f(a, b)
+//      int a; float (*b) (a, b);
+// {
+
+// }
+
+void ()
 {
 
 }
+
