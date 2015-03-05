@@ -98,11 +98,17 @@
 // }
 
 // int g() u;
-// int g() int;
+int g() int;
 // int g(int) int;
 // {
 // }
-int g(a) int a, b;
-{
-}
+// int g(a) int a, b;
+// {
+// }
+// int g()
+// {
+// }
+// int g(a) int a;
+// {
+// }
 

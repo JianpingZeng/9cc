@@ -859,7 +859,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
 
     if (kind(token->id) & FIRST_DECL) {
 	// old style function definition
-	if (ftype->u.f.oldstyle)
+	if (ftype->u.f.oldstyle && ftype->u.f.proto)
 	    parameter_decl_list(ftype);
 
 	if (token->id != '{') {
@@ -1003,7 +1003,7 @@ static struct node * decls()
 	attach_type(&ty, basety);
 	
 	if (level == GLOBAL) {
-	    if (isfunction(ty) && ty->u.f.proto &&
+	    if (isfunction(ty) &&
 		(token->id == '{' || is_typename(token) || token->id & SCLASS_SPEC)) {
 		concats(&ret, NODE(funcdef(id, ty, src)));
 		return ret;
