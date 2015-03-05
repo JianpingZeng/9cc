@@ -98,7 +98,7 @@
 // }
 
 // int g() u;
-int g() int;
+// int g() int;
 // int g(int) int;
 // {
 // }

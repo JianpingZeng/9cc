@@ -846,22 +846,26 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
-static struct decl * funcdef(const char *id, struct type *ftype, struct source src)
+static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
 {
     struct decl *decl = decl_node(FUNC_DECL, SCOPE);
 
     assert(SCOPE == PARAM);
 
-    if (id == NULL)
+    if (id == NULL) {
 	error("missing identifier in function definition");
-    else if (isfunction(ftype->type) || isarray(ftype->type))
+    } else if (isfunction(ftype->type) || isarray(ftype->type)) {
 	error("function return type can't be %s", tname(ftype->type->op));
+    } else if (sclass && sclass != EXTERN && sclass != STATIC) {
+	error("invalid storage class specifier '%s'", tname(sclass));
+	sclass = 0;
+    }
+    
+    ftype = scls(sclass, ftype);
 
     if (kind(token->id) & FIRST_DECL) {
 	// old style function definition
-	if (ftype->u.f.oldstyle && ftype->u.f.proto)
-	    parameter_decl_list(ftype);
-
+	parameter_decl_list(ftype);
 	if (token->id != '{') {
 	    error("expect function body after function declarator");
 	    stopat('{');
@@ -1004,8 +1008,10 @@ static struct node * decls()
 	
 	if (level == GLOBAL) {
 	    if (isfunction(ty) &&
-		(token->id == '{' || is_typename(token) || token->id & SCLASS_SPEC)) {
-		concats(&ret, NODE(funcdef(id, ty, src)));
+		(token->id == '{' ||
+		 ((is_typename(token) || token->id & SCLASS_SPEC) &&
+		  ty->u.f.oldstyle && ty->u.f.proto))) {
+		concats(&ret, NODE(funcdef(id, ty, sclass, src)));
 		return ret;
 	    } else if (SCOPE == PARAM) {
 		exit_scope();
