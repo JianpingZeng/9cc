@@ -854,7 +854,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
     if (id == NULL)
 	error("missing identifier in function definition");
     else if (isfunction(ftype->type) || isarray(ftype->type))
-	error("function cannot return %s", tname(ftype->type->op));
+	error("function return type can't be %s", tname(ftype->type->op));
 
     if (kind(token->id) & FIRST_DECL) {
 	if (ftype->u.f.oldstyle && ftype->u.f.proto &&

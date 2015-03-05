@@ -97,7 +97,8 @@ void (8, i)()
 
 }
 
-int f(a) int b;
+typedef int MyInt;
+int f(a) MyInt a;
 {
 
 }
