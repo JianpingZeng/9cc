@@ -49,7 +49,6 @@ void exit_scope()
     if (identifiers->scope == _scope) {
         struct table *tp = identifiers;
         identifiers = identifiers->up;
-	unuse_warning(tp);
         drop_table(tp);
     }
     assert(_scope >= GLOBAL);

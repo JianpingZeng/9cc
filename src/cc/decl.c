@@ -2,8 +2,8 @@
 
 static void abstract_declarator(struct type **ty);
 static void declarator(struct type **ty, const char **id);
-static struct type * pointer_decl();
 static void param_declarator(struct type **ty, const char **id);
+static struct type * pointer_decl();
 static struct type * enum_decl();
 static struct type * record_decl();
 
@@ -29,6 +29,12 @@ int kind(int t)
 int is_typename(struct token *t)
 {
     return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(t->name);
+}
+
+static void redefinition_error(struct source src, struct symbol *sym)
+{
+    errorf(src, "redefinition of '%s', previous definition at %s line %u",
+	  sym->name, sym->src.file, sym->src.line);
 }
 
 static struct type * specifiers(int *sclass)
@@ -241,6 +247,98 @@ static struct type * specifiers(int *sclass)
     return basety;
 }
 
+static struct symbol * lookup_ids(struct type *ftype, const char *id)
+{
+    if (ftype->u.f.proto && id) {
+	struct node *node = ftype->u.f.proto->node.kids[0];
+
+	while (node && node->kids[0]) {
+	    struct node *p = node->kids[0];
+	    if (p->symbol && !strcmp(p->symbol->name, id))
+		return p->symbol;
+	
+	    node = node->kids[1];
+	}
+    }
+
+    return NULL;
+}
+
+// oldstyle
+static void parameter_decl_list(struct type *ftype)
+{
+    enter_scope();
+    
+    for (;;) {
+	int sclass;
+	struct type *basety;
+	    
+	basety = specifiers(&sclass);
+	if (token->id == ID || token->id == '*' || token->id == '(') {
+	    if (sclass && sclass != REGISTER)
+		error("invalid storage class specifier '%s' in parameter list",
+		      tname(sclass));
+	    else if (isinline(basety))
+		error("invalid function specifier 'inline' in parameter list");
+		
+	    for (;;) {
+		const char *id = NULL;
+		struct type *ty = NULL;
+		struct source src = source;
+
+		// declarator
+		declarator(&ty, &id);
+		attach_type(&ty, basety);
+
+		ty = scls(sclass == REGISTER ? REGISTER : 0, ty);
+		if (isvoid(ty))
+		    error("invalid parameter type 'void'");
+		else if (isfunction(ty))
+		    ty = pointer(ty);
+
+		if (id) {
+		    struct symbol *sym = locate_symbol(id, identifiers);
+		    if (!sym) {
+			sym = lookup_ids(ftype, id);
+			if (sym) {
+			    sym->type = ty;
+			    // new symbol
+			    sym = install_symbol(id, &identifiers, SCOPE);
+			    sym->src = src;
+			    sym->type = ty;
+			} else {
+			    error("parameter named '%s' is missing", id);
+			}
+		    } else {
+			redefinition_error(source, sym);
+		    }
+		} else {
+		    error("missing identifier");
+		}
+
+		if (token->id != ',')
+		    break;
+
+		match(',');
+	    }
+	    
+	    skipto(';');
+	} else if (token->id == ';'){
+	    match(';');
+	    if (basety)
+		error("incomplete declarator");
+	} else {
+	    error("invalid token '%s'", token);
+	}
+	    
+	if (!(kind(token->id) & FIRST_DECL))
+	    break;
+    }
+
+    exit_scope();
+}
+
+// prototype
 static struct decl * parameter_type_list()
 {    
     struct decl *ret;
@@ -259,10 +357,10 @@ static struct decl * parameter_type_list()
 
 	basety = specifiers(&sclass);
 	if (sclass && sclass != REGISTER)
-	    error("invalid storage class specifier '%s' at parameter list",
+	    error("invalid storage class specifier '%s' in parameter list",
 		  tname(sclass));
 	else if (isinline(basety))
-	    error("invalid function specifier 'inline' at parameter list");
+	    error("invalid function specifier 'inline' in parameter list");
 
         if (token->id == '*' || token->id == '(' || token->id == '[' || token->id == ID)
 	    param_declarator(&ty, &id);
@@ -293,8 +391,7 @@ static struct decl * parameter_type_list()
 		sym->src = src;
 		decl->node.symbol = sym;
 	    } else {
-		error("redeclaration '%s', previous declaration at %s line %u",
-		      id, sym->src.file, sym->src.line);
+		redefinition_error(source, sym);
 	    }
 	} else {
 	    struct symbol *sym = anonymous_symbol(&identifiers, SCOPE);
@@ -348,8 +445,7 @@ static struct decl * func_proto(struct type *ftype)
 		    decl->node.symbol = sym;
 		    concats(&node, NODE(decl));
 		} else {
-		    error("redeclaration of '%s', previous declaration at %s line %u",
-			  token->name, sym->src.file, sym->src.line);
+		    redefinition_error(source, sym);
 		}
 	    }
 	    match(ID);
@@ -358,8 +454,10 @@ static struct decl * func_proto(struct type *ftype)
 	    match(',');
 	}
 
-	if (SCOPE > PARAM)
+	if (SCOPE > PARAM) {
 	    exit_scope();
+	    error("a parameter list without types is only allowed in a function definition");
+	}
 
 	ret->node.kids[0] = node;
 	ftype->u.f.oldstyle = 1;
@@ -513,8 +611,7 @@ static struct type * enum_decl()
 		    sym->type = ety;
 		    sym->src = source;
 		} else {
-		    error("redeclaration of '%s', previous declaration at %s line %u",
-			  token->name, sym->src.file, sym->src.line);
+		    redefinition_error(source, sym);
 		}
 
 		match(ID);
@@ -552,8 +649,7 @@ static struct type * enum_decl()
 		sym->src = src;
 		ret = ety;
 	    } else {
-		error("redefinition symbol '%s', previous definition at %s line %u",
-		      id, sym->src.file, sym->src.line);
+		redefinition_error(source, sym);
 	    }
 	} else {
 	    ret = ety;
@@ -615,8 +711,7 @@ static struct type * record_decl()
 		sym->src = src;
 		sym->type = ret;
 	    } else {
-		error("redefinition symbol '%s', previous definition at %s line %u",
-		      id, sym->src.file, sym->src.line);
+		redefinition_error(source, sym);
 	    }
 	} else {
 	    ret = record_type(t, id);
@@ -763,13 +858,18 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
     assert(SCOPE == PARAM);
 
     if (id == NULL)
-	error("missing identifier in declaration");
+	error("missing identifier in function definition");
     else if (!isfunction(ftype))
 	error("'%s' is not a function type", id);
     else if (isfunction(ftype->type))
 	error("function cannot return function");
     else if (isarray(ftype->type))
 	error("function cannot return array");
+
+    if (kind(token->id) & FIRST_DECL && ftype->u.f.oldstyle) {
+	// old style function definition
+	parameter_decl_list(ftype);
+    }
     
     if (token->id == '{') {
 	// function definition
@@ -786,13 +886,11 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
 		sym->src = src;
 		decl->node.symbol = sym;
 	    } else {
-		errorf(src, "redeclaration symbol '%s', previous declaration at %s line %u",
-		       id, sym->src.file, sym->src.line);
+	        redefinition_error(src, sym);
 	    }
 	}
-    } else if (kind(token->id) & FIRST_DECL) {
-	// old style function definition
-		
+    } else {
+	error("missing compound statement in function definition");
     }
 
     return decl;
@@ -822,6 +920,8 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	node_id = TYPEDEF_DECL;
     } else if (isfunction(ty)){
 	node_id = FUNC_DECL;
+	if (ty->u.f.proto && ty->u.f.oldstyle)
+	    error("a parameter list without types is only allowed in a function definition");
     }
 
     if (SCOPE == GLOBAL) {
@@ -836,8 +936,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    decl->node.symbol = sym;
 	} else if (equal_type(ty, sym->type)) {
 	    if (sym->defined && init_node)
-		errorf(src, "redefinition of '%s', previous definition at %s line %u",
-		       id, sym->src.file, sym->src.line);
+		redefinition_error(src, sym);
 	} else {
 	    errorf(src, "redeclaration of '%s' with different type, previous declaration at %s line %u",
 		   id, sym->src.file, sym->src.line);
@@ -858,8 +957,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    decl->node.kids[0] = init_node;
 	    decl->node.symbol = sym;
 	} else {
-	    errorf(src, "redefinition of '%s', previous definition at %s line %u",
-		   id, sym->src.file, sym->src.line);
+	    redefinition_error(src, sym);
 	}
     }
     

@@ -86,7 +86,8 @@
 
 // }
 
-int f(int a(int))
+void f(a, b)
+     int a; float (*b) (a, b);
 {
 
 }
