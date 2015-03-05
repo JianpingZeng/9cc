@@ -92,14 +92,17 @@
 
 // }
 
-void (8, i)()
+// void (8, i)()
+// {
+
+// }
+
+// int g() u;
+// int g() int;
+// int g(int) int;
+// {
+// }
+int g(a) int a, b;
 {
-
-}
-
-typedef int MyInt;
-int f(a) MyInt a;
-{
-
 }
 

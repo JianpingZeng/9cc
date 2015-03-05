@@ -28,7 +28,8 @@ int kind(int t)
 
 int is_typename(struct token *t)
 {
-    return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) || is_typedef_name(t->name);
+    return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) ||
+	(t->id == ID && is_typedef_name(t->name));
 }
 
 static void redefinition_error(struct source src, struct symbol *sym)
@@ -857,11 +858,11 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
 	error("function return type can't be %s", tname(ftype->type->op));
 
     if (kind(token->id) & FIRST_DECL) {
-	if (ftype->u.f.oldstyle && ftype->u.f.proto &&
-	    (token->id != ID || is_typedef_name(token->name))) {
-	    // old style function definition
+	// old style function definition
+	if (ftype->u.f.oldstyle)
 	    parameter_decl_list(ftype);
-	} else {
+
+	if (token->id != '{') {
 	    error("expect function body after function declarator");
 	    stopat('{');
 	}
@@ -885,10 +886,8 @@ static struct decl * funcdef(const char *id, struct type *ftype, struct source s
 	        redefinition_error(src, sym);
 	    }
 	}
-    } else {
-	error("missing compound statement in function definition");
     }
-
+    
     return decl;
 }
 
@@ -1004,7 +1003,8 @@ static struct node * decls()
 	attach_type(&ty, basety);
 	
 	if (level == GLOBAL) {
-	    if (isfunction(ty) && (token->id == '{' || kind(token->id) & FIRST_DECL)) {
+	    if (isfunction(ty) && ty->u.f.proto &&
+		(token->id == '{' || is_typename(token) || token->id & SCLASS_SPEC)) {
 		concats(&ret, NODE(funcdef(id, ty, src)));
 		return ret;
 	    } else if (SCOPE == PARAM) {
