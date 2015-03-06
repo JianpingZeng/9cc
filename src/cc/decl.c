@@ -270,15 +270,14 @@ static void parameter_decl_list(struct type *ftype)
 {
     enter_scope();
     
-    for (;;) {
+    for (; kind(token->id) & FIRST_DECL;) {
 	int sclass;
 	struct type *basety;
 	    
 	basety = specifiers(&sclass);
 	if (token->id == ID || token->id == '*' || token->id == '(') {
 	    if (sclass && sclass != REGISTER)
-		error("invalid storage class specifier '%s' in parameter list",
-		      tname(sclass));
+		error("invalid storage class specifier '%s' in parameter list", tname(sclass));
 	    else if (isinline(basety))
 		error("invalid function specifier 'inline' in parameter list");
 		
@@ -327,13 +326,10 @@ static void parameter_decl_list(struct type *ftype)
 	} else if (token->id == ';'){
 	    match(';');
 	    if (basety)
-		error("incomplete declarator");
+		error("missing declarator");
 	} else {
 	    error("invalid token '%s'", token);
 	}
-	    
-	if (!(kind(token->id) & FIRST_DECL))
-	    break;
     }
 
     exit_scope();
@@ -404,8 +400,11 @@ static struct decl * parameter_type_list()
 
 	match(',');
 	if (token->id == ELLIPSIS) {
-	    // TODO
-	    
+	    decl = decl_node(VAR_DECL, SCOPE);
+	    sym = install_symbol(ELLIPSIS, &identifiers, SCOPE);
+	    sym->src = source;
+	    decl->node.symbol = sym;
+	    concats(&node, NODE(decl));
 	    match(ELLIPSIS);
 	    break;
 	}
@@ -885,6 +884,12 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 		sym = install_symbol(id, &identifiers, SCOPE);
 		sym->type = ftype;
 		sym->src = src;
+		sym->defined = 1;
+		decl->node.symbol = sym;
+	    } else if (equal_type(ftype, sym->type) && !sym->defined) {
+		sym->type = ftype;
+		sym->src = src;
+		sym->defined = 1;
 		decl->node.symbol = sym;
 	    } else {
 	        redefinition_error(src, sym);
