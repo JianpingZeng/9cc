@@ -480,11 +480,15 @@ static struct type * func_or_array()
 		
 	    } else if (kind(token->id) & TYPE_QUAL) {
 		
+	    } else if (token->id == '*') {
+		if (lookahead()->id != ']') {
+		    assign_expression();
+		} else {
+		    match('*');
+		}
 	    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
 		assign_expression();
-	    } else if (token->id == '*') {
-		match('*');
-	    }
+	    } 
 	    skipto(']');
             attach_type(&ty, atype);
         } else {
@@ -508,12 +512,14 @@ static struct type * abstract_func_or_array()
 	    struct type *atype = array_type();
 	    match('[');
 	    if (token->id == '*') {
-		if (lookahead()->id != ']') 
-		    assign_expression();
-		else
+		if (lookahead()->id != ']') {
+		    atype->u.a.assign = assign_expression();
+		} else {
 		    match('*');
+		    atype->u.a.wildcard = 1;
+		}
 	    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-		assign_expression();
+		atype->u.a.assign = assign_expression();
 	    }
 	    skipto(']');
 	    attach_type(&ty, atype);

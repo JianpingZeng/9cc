@@ -17,6 +17,14 @@ struct type {
 	    struct decl *proto;
 	    unsigned oldstyle : 1;
 	}f;
+	struct {
+	    struct expr *assign;
+	    unsigned qual_const : 1;
+	    unsigned qual_volatile : 1;
+	    unsigned qual_restrict : 1;
+	    unsigned sclass_static : 1;
+	    unsigned wildcard : 1;
+	}a;
     }u;
     struct {
 	union value max;
