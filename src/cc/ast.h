@@ -52,7 +52,7 @@ extern int eval_constexpr(struct expr *expr, union value *value);
 extern struct decl * decl_node(int id, int scope);
 extern struct decl * initializer_list();
 extern int kind(int t);
-extern int is_typename(struct token *t);
+extern int istypename(struct token *t);
 extern struct node * declaration();
 extern struct decl * translation_unit();
 extern struct type * typename();

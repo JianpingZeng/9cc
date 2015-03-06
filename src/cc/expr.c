@@ -144,7 +144,7 @@ static struct expr * postfix_expr()
     case '(':
 	{
 	    struct token *ahead = lookahead();
-	    if (is_typename(ahead)) {
+	    if (istypename(ahead)) {
 		ret = typename_expr();
 		ret->node.kids[0] = NODE(initializer_list());
 	    } else {
@@ -190,7 +190,7 @@ static struct expr * unary_expr()
 	t = token->id;
 	match(token->id);	
 	ahead = lookahead();
-	if (token->id == '(' && is_typename(ahead)) {
+	if (token->id == '(' && istypename(ahead)) {
 	    struct expr *texpr = typename_expr();
 	    if (token->id == '{') {
 		texpr->node.kids[0] = NODE(initializer_list());
@@ -214,7 +214,7 @@ static struct expr * cast_expr()
     struct expr * cast1;
     struct token * ahead = lookahead();
 
-    if (token->id == '(' && is_typename(ahead)) {
+    if (token->id == '(' && istypename(ahead)) {
 	// type-name
 	cast1 = typename_expr();
 	if (token->id == '{') {
@@ -439,7 +439,7 @@ struct expr * assign_expression()
     struct expr *assign1;
     struct token *ahead = lookahead();
 
-    if (token->id == '(' && is_typename(ahead)) {
+    if (token->id == '(' && istypename(ahead)) {
 	// type-name
 	struct expr *texpr = typename_expr();
 	if (token->id == '{') {

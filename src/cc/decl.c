@@ -26,7 +26,7 @@ int kind(int t)
         return 0;
 }
 
-int is_typename(struct token *t)
+int istypename(struct token *t)
 {
     return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) ||
 	(t->id == ID && is_typedef_name(t->name));
@@ -1090,7 +1090,7 @@ static struct node * decls()
 	if (level == GLOBAL) {
 	    if (isfunction(ty) &&
 		(token->id == '{' ||
-		 ((is_typename(token) || token->id & SCLASS_SPEC) &&
+		 ((istypename(token) || token->id & SCLASS_SPEC) &&
 		  ty->u.f.oldstyle && ty->u.f.proto))) {
 		concats(&ret, NODE(funcdef(id, ty, sclass, src)));
 		return ret;
