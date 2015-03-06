@@ -11,6 +11,7 @@
 #include <limits.h>
 #include <locale.h>
 #include <float.h>
+#include <wchar.h>
 
 #include "config.h"
 
