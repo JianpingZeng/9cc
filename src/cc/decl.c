@@ -475,6 +475,47 @@ static struct decl * func_proto(struct type *ftype)
     return ret;
 }
 
+static void atype_qualifiers(struct type *atype)
+{
+    int cons, vol, res;
+    int *p;
+    cons = vol = res = 0;
+    while (kind(token->id) & TYPE_QUAL) {
+	int t = token->id;
+	switch (t) {
+	case CONST:
+	    p = &cons;
+	    gettok();
+	    break;
+			    
+	case VOLATILE:
+	    p = &vol;
+	    gettok();
+	    break;
+			    
+	case RESTRICT:
+	    p = &res;
+	    gettok();
+	    break;
+			    
+	default:
+	    assert(0);
+	}
+
+	if (*p != 0)
+	    warning("duplicate type qualifier '%s'", tname(*p));
+			
+	*p = t;
+    }
+
+    if (cons)
+	atype->u.a.qual_const = 1;
+    if (vol)
+	atype->u.a.qual_volatile = 1;
+    if (res)
+	atype->u.a.qual_restrict = 1;
+}
+
 static struct type * func_or_array()
 {    
     struct type *ty = NULL;
@@ -485,17 +526,36 @@ static struct type * func_or_array()
             match('[');
 	    if (token->id == STATIC) {
 		match(STATIC);
-		
+		atype->u.a.sclass_static = 1;
+		if (kind(token->id) & TYPE_QUAL)
+		    atype_qualifiers(atype);
+		atype->u.a.assign = assign_expression();
 	    } else if (kind(token->id) & TYPE_QUAL) {
-		
+	        if (kind(token->id) & TYPE_QUAL)
+		    atype_qualifiers(atype);
+		if (token->id == STATIC) {
+		    match(STATIC);
+		    atype->u.a.sclass_static = 1;
+		    atype->u.a.assign = assign_expression();
+		} else if (token->id == '*') {
+		    if (lookahead()->id != ']') {
+			atype->u.a.assign = assign_expression();
+		    } else {
+			match('*');
+			atype->u.a.wildcard = 1;
+		    }
+		} else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+		    atype->u.a.assign = assign_expression();
+		}
 	    } else if (token->id == '*') {
 		if (lookahead()->id != ']') {
-		    assign_expression();
+		    atype->u.a.assign = assign_expression();
 		} else {
 		    match('*');
+		    atype->u.a.wildcard = 1;
 		}
 	    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-		assign_expression();
+		atype->u.a.assign = assign_expression();
 	    } 
 	    skipto(']');
             attach_type(&ty, atype);

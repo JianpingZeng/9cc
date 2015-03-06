@@ -112,4 +112,6 @@
 // {
 // }
 
-int a(int (*) (int) ());
+int a(int (*) (int) (a, b));
+
+int b() [];
