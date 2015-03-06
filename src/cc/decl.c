@@ -26,12 +26,6 @@ int kind(int t)
         return 0;
 }
 
-int istypename(struct token *t)
-{
-    return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) ||
-	(t->id == ID && is_typedef_name(t->name));
-}
-
 static void redefinition_error(struct source src, struct symbol *sym)
 {
     errorf(src, "redefinition of '%s', previous definition at %s line %u",
@@ -1133,6 +1127,12 @@ static struct node * decls()
     }
     
     return ret;
+}
+
+int istypename(struct token *t)
+{
+    return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) ||
+	(t->id == ID && is_typedef_name(t->name));
 }
 
 struct type * typename()
