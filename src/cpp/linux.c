@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/type.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 
 const char *cpp[] = {"/usr/bin/gcc", "-E", 0};
