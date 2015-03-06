@@ -536,7 +536,7 @@ static struct type * abstract_func_or_array()
 	} else {
 	    struct type *ftype = function_type();
 	    match('(');
-	    ftype->u.f.proto = parameter_type_list();
+	    ftype->u.f.proto = func_proto(ftype);
 	    skipto(')');
 	    attach_type(&ty, ftype);
 	}
