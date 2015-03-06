@@ -4,7 +4,10 @@ static const char * (*print_funcs[128]) (void *);
 
 static void cc_fputs(FILE *f, const char *s)
 {
-    fputs(s, f);
+    if (s == NULL)
+	fputs("null", f);
+    else
+	fputs(s, f);
 }
 
 static void cc_fputc(FILE *f, int c)
