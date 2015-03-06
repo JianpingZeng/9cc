@@ -38,6 +38,14 @@ static void redefinition_error(struct source src, struct symbol *sym)
 	  sym->name, sym->src.file, sym->src.line);
 }
 
+static void validate_func_or_array(struct type *ty)
+{
+    if (isfunction(ty) && (isfunction(ty->type) || isarray(ty->type)))
+	error("function cannot return %s", tname(ty->type->op));
+    else if (isarray(ty) && isfunction(ty->type))
+	error("array of %s is invalid", tname(ty->type->op));
+}
+
 static struct type * specifiers(int *sclass)
 {    
     int cls, sign, size, type;
@@ -500,10 +508,7 @@ static struct type * func_or_array()
         }
     }
 
-    if (isfunction(ty) && (isfunction(ty->type) || isarray(ty->type)))
-	error("function cannot return %s", tname(ty->type->op));
-    else if (isarray(ty) && isfunction(ty->type))
-	error("array of %s is invalid", tname(ty->type->op));
+    validate_func_or_array(ty);
     
     return ty;
 }
@@ -536,6 +541,8 @@ static struct type * abstract_func_or_array()
 	    attach_type(&ty, ftype);
 	}
     }
+
+    validate_func_or_array(ty);
     
     return ty;
 }
