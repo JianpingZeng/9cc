@@ -400,9 +400,9 @@ static struct decl * parameter_type_list()
 
 	match(',');
 	if (token->id == ELLIPSIS) {
-	    decl = decl_node(VAR_DECL, SCOPE);
-	    sym = install_symbol(ELLIPSIS, &identifiers, SCOPE);
+	    struct symbol *sym = install_symbol(token->name, &identifiers, SCOPE);
 	    sym->src = source;
+	    decl = decl_node(VAR_DECL, SCOPE);
 	    decl->node.symbol = sym;
 	    concats(&node, NODE(decl));
 	    match(ELLIPSIS);
@@ -499,6 +499,11 @@ static struct type * func_or_array()
             attach_type(&ty, ftype);
         }
     }
+
+    if (isfunction(ty) && (isfunction(ty->type) || isarray(ty->type)))
+	error("function cannot return %s", tname(ty->type->op));
+    else if (isarray(ty) && isfunction(ty->type))
+	error("array of %s is invalid", tname(ty->type->op));
     
     return ty;
 }
@@ -859,8 +864,6 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 
     if (id == NULL) {
 	error("missing identifier in function definition");
-    } else if (isfunction(ftype->type) || isarray(ftype->type)) {
-	error("function return type can't be %s", tname(ftype->type->op));
     } else if (sclass && sclass != EXTERN && sclass != STATIC) {
 	error("invalid storage class specifier '%s'", tname(sclass));
 	sclass = 0;
