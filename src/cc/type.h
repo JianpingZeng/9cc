@@ -42,7 +42,7 @@ extern void attach_type(struct type **typelist, struct type *type);
 extern struct type * scls(int t, struct type *ty);
 extern struct type * qual(int t, struct type *ty);
 extern struct type * unqual(int t, struct type *ty);
-extern int equal_type(struct type *ty1, struct type *ty2);
+extern int eqtype(struct type *ty1, struct type *ty2);
 extern struct type * lookup_typedef_name(const char *id);
 extern int is_typedef_name(const char *id);
 extern struct type * array_type();
@@ -51,6 +51,9 @@ extern struct type * function_type();
 extern struct type * enum_type(const char *tag);
 extern struct type * record_type(int t, const char *tag);
 extern struct type * pointer(struct type *ty);
+
+extern int isftype(struct type *type);
+extern int isatype(struct type *type);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char

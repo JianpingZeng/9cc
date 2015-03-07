@@ -112,6 +112,27 @@
 // {
 // }
 
-int a(int (*) (int) (a, b));
+// int a(int (*) (int) (a, b));
 
-int b() [];
+// int b() [];
+
+// int (*f(int x)) [];
+
+// typedef int T();
+
+// T r() {}
+
+// int f()
+// {
+//     f();
+// }
+
+// int f(T d()());
+
+typedef int MyInt;
+int f(int a, MyInt);
+
+int f(int, int)
+{
+
+}

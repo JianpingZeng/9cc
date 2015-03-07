@@ -191,13 +191,59 @@ struct type * unqual(int t, struct type *ty)
     return qty;
 }
 
+static int eqparams(struct node *node1, struct node *node2)
+{
+    for (;;) {
+	struct node *decl1, *decl2;
+	if (node1 == NULL && node2 == NULL)
+	    break;
+	if (node1 == NULL || node2 == NULL)
+	    return 0;
+	decl1 = node1->kids[0];
+	decl2 = node2->kids[0];
+	if (decl1 == decl2) {
+	    node1 = node1->kids[1];
+	    node2 = node2->kids[1];
+	    continue;
+	} else if (decl1 == NULL || decl2 == NULL) {
+	    return 0;
+	} else {
+	    struct symbol *sym1 = decl1->symbol;
+	    struct symbol *sym2 = decl2->symbol;
+	    if (sym1 == sym2) {
+		node1 = node1->kids[1];
+		node2 = node2->kids[1];
+		continue;
+	    } else if (sym1 == NULL || sym2 == NULL) {
+		return 0;
+	    } else {
+		if (eqtype(sym1->type, sym2->type)) {
+		    node1 = node1->kids[1];
+		    node2 = node2->kids[1];
+		    continue;
+		} else {
+		    return 0;
+		}
+	    }
+	}
+    }
+
+    return 1;
+}
+
 // TODO
-int equal_type(struct type *ty1, struct type *ty2)
+int eqtype(struct type *ty1, struct type *ty2)
 {
     if (ty1 == ty2)
         return 1;
     else if (ty1 == NULL || ty2 == NULL)
         return 0;
+    else if (ty1->op == TYPEDEF && ty2->op == TYPEDEF)
+	return eqtype(ty1->type, ty2->type);
+    else if (ty1->op == TYPEDEF)
+	return eqtype(ty1->type, ty2);
+    else if (ty2->op == TYPEDEF)
+	return eqtype(ty1, ty2->type);
     else if (ty1->op != ty2->op)
         return 0;
     else if (ty1->qual_const != ty2->qual_const ||
@@ -222,13 +268,28 @@ int equal_type(struct type *ty1, struct type *ty2)
 	return 1;
 	
     case POINTER:
-	return equal_type(ty1->type, ty2->type);
-	
     case ARRAY:
-	;
+	return eqtype(ty1->type, ty2->type);
 	
     case FUNCTION:
-	;
+	if (!eqtype(ty1->type, ty2->type))
+	    return 0;
+	if (ty1->u.f.oldstyle && ty2->u.f.oldstyle) {
+	    // both oldstyle
+	    return 1;
+	} else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
+	    // both prototype
+	    struct decl *proto1 = ty1->u.f.proto;
+	    struct decl *proto2 = ty2->u.f.proto;
+	    if (proto1 == proto2)
+		return 1;
+	    else if (proto1 == NULL || proto2 == NULL)
+		return 0;
+	    else
+		return eqparams(proto1->node.kids[0], proto2->node.kids[0]);
+	} else {
+	    
+	}
 	
     default:
 	assert(0);
@@ -312,4 +373,28 @@ const char * type_print_function(void *data)
 {
     struct type *p = data;
     return p->name;
+}
+
+int isftype(struct type *type)
+{
+    if (type == NULL)
+	return 0;
+    else if (type->op == FUNCTION)
+	return 1;
+    else if (type->op == TYPEDEF)
+	return isftype(type->type);
+    else
+	return 0;
+}
+
+int isatype(struct type *type)
+{
+    if (type == NULL)
+	return 0;
+    else if (type->op == ARRAY)
+	return 1;
+    else if (type->op == TYPEDEF)
+	return isatype(type->type);
+    else
+	return 0;
 }

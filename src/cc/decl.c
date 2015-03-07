@@ -34,10 +34,14 @@ static void redefinition_error(struct source src, struct symbol *sym)
 
 static void validate_func_or_array(struct type *ty)
 {
-    if (isfunction(ty) && (isfunction(ty->type) || isarray(ty->type)))
-	error("function cannot return %s", tname(ty->type->op));
-    else if (isarray(ty) && isfunction(ty->type))
-	error("array of %s is invalid", tname(ty->type->op));
+    if (isfunction(ty)) {
+	if (isftype(ty->type))
+	    error("function can't return function");
+	else if (isatype(ty->type))
+	    error("function can't return array");
+    } else if (isarray(ty) && isftype(ty->type)) {
+	error("array of function is invalid");
+    }
 }
 
 static struct type * specifiers(int *sclass)
@@ -299,7 +303,7 @@ static void parameter_decl_list(struct type *ftype)
 		    ty = pointer(ty);
 
 		if (id) {
-		    struct symbol *sym = locate_symbol(id, identifiers);
+		    struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
 		    if (!sym) {
 			sym = lookup_ids(ftype, id);
 			if (sym) {
@@ -380,7 +384,7 @@ static struct decl * parameter_type_list()
 	}
 
 	if (id) {
-	    struct symbol *sym = locate_symbol(id, identifiers);
+	    struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
 	    if (!sym) {
 		sym = install_symbol(id, &identifiers, SCOPE);
 		sym->type = ty;
@@ -433,7 +437,7 @@ static struct decl * func_proto(struct type *ftype)
 	ret = decl_node(PARAMS_DECL, SCOPE);
 	for (;;) {
 	    if (token->id == ID) {
-		struct symbol *sym = locate_symbol(token->name, identifiers);
+		struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
 		if (!sym) {
 		    struct decl *decl = decl_node(VAR_DECL, SCOPE);
 		    sym = install_symbol(token->name, &identifiers, SCOPE);
@@ -671,7 +675,7 @@ static struct type * enum_decl()
 	match('{');
 	do {
 	    if (token->id == ID) {
-		struct symbol *sym = locate_symbol(token->name, identifiers);
+		struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
 		if (!sym) {
 		    sym = install_symbol(token->name, &identifiers, SCOPE);
 		    sym->type = ety;
@@ -708,7 +712,7 @@ static struct type * enum_decl()
 	match('}');	
 	
 	if (id) {
-	    struct symbol *sym = locate_symbol(id, records);
+	    struct symbol *sym = locate_symbol(id, records, SCOPE);
 	    if (!sym) {
 		sym = install_symbol(id, &records, SCOPE);
 		sym->type = ety;
@@ -770,7 +774,7 @@ static struct type * record_decl()
 	exit_scope();
 
 	if (id) {
-	    struct symbol *sym = locate_symbol(id, records);
+	    struct symbol *sym = locate_symbol(id, records, SCOPE);
 	    if (!sym) {
 		ret = record_type(t, id);
 		sym = install_symbol(id, &records, SCOPE);
@@ -943,20 +947,17 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     
     if (token->id == '{') {
 	// function definition
-	struct stmt *stmt = compound_statement(NULL);
-	exit_scope();
-	assert(SCOPE == GLOBAL);
-	decl->node.kids[0] = NODE(stmt);
-	
+	// install symbol first for backward reference
+	struct stmt *stmt;
 	if (id) {
-	    struct symbol *sym = locate_symbol(id, identifiers);
+	    struct symbol *sym = locate_symbol(id, identifiers, GLOBAL);
 	    if (!sym) {
-		sym = install_symbol(id, &identifiers, SCOPE);
+		sym = install_symbol(id, &identifiers, GLOBAL);
 		sym->type = ftype;
 		sym->src = src;
 		sym->defined = 1;
 		decl->node.symbol = sym;
-	    } else if (equal_type(ftype, sym->type) && !sym->defined) {
+	    } else if (eqtype(ftype, sym->type) && !sym->defined) {
 		sym->type = ftype;
 		sym->src = src;
 		sym->defined = 1;
@@ -965,8 +966,12 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 	        redefinition_error(src, sym);
 	    }
 	}
+	stmt = compound_statement(NULL);
+	exit_scope();
+	assert(SCOPE == GLOBAL);
+	decl->node.kids[0] = NODE(stmt);
     }
-    
+
     return decl;
 }
 
@@ -999,7 +1004,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
     }
 
     if (SCOPE == GLOBAL) {
-	struct symbol *sym = locate_symbol(id, identifiers);
+	struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
 	if (!sym) {
 	    sym = install_symbol(id, &identifiers, SCOPE);
 	    sym->type = ty;
@@ -1008,7 +1013,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    decl = decl_node(node_id, SCOPE);
 	    decl->node.kids[0] = init_node;
 	    decl->node.symbol = sym;
-	} else if (equal_type(ty, sym->type)) {
+	} else if (eqtype(ty, sym->type)) {
 	    if (sym->defined && init_node)
 		redefinition_error(src, sym);
 	} else {
@@ -1020,7 +1025,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	if (SCOPE == LOCAL)
 	    sym = find_symbol(id, identifiers, PARAM);
 	else
-	    sym = locate_symbol(id, identifiers);
+	    sym = locate_symbol(id, identifiers, SCOPE);
 
 	if (!sym) {
 	    sym = install_symbol(id, &identifiers, SCOPE);
@@ -1052,7 +1057,7 @@ static struct decl * typedecl(struct type *ty, struct source src)
 		
     decl = decl_node(node_id, SCOPE);
     if (ty->name) {
-	decl->node.symbol = locate_symbol(ty->name, records);
+	decl->node.symbol = locate_symbol(ty->name, records, SCOPE);
     } else {
 	struct symbol *sym = anonymous_symbol(&records, SCOPE);
 	sym->type = ty;

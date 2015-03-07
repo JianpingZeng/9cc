@@ -1,20 +1,23 @@
 
-a++;
+typedef int myint;
+// int f(myint, a);
+typedef int T();
 
-//int foo(int i, const char *j,  k);
+// T a[10];
 
-//int foo(int, ..., int);
+typedef int B[10];
 
-//void foo (int (*) (), char *, int * (*foo) (int,  char *c));
+B f()
+{
+}
 
-/*
-const volatile int a, * restrict const b, c, (*d)();
-const float g( int a);
-const int a;
-const int (* const (*func[7][8][9])())[5];
-
-int bar(int a, float *)
+int main()
 {
 
+    return 0;
 }
-*/
+
+typedef int MyInt;
+
+int g(int, int);
+int g(int, MyInt);

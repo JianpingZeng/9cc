@@ -98,9 +98,26 @@ struct symbol * find_symbol(const char *name, struct table *table, int scope)
     return NULL;
 }
 
-struct symbol * locate_symbol(const char *name , struct table *table)
+struct symbol * locate_symbol(const char *name , struct table *table, int scope)
 {
-    return find_symbol(name, table, SCOPE);
+    assert(name);
+
+    if (scope > table->scope)
+	return NULL;
+
+    while (scope != table->scope)
+	table = table->up;
+    
+    for (struct table *t = table; t && t->scope == scope; t = t->up) {
+        unsigned h = hash(name) % BUCKET_SIZE;
+        for (struct sentry *entry = t->buckets[h]; entry; entry = entry->next) {
+            if (entry->symbol->name == name) {
+                return entry->symbol;
+            }
+        }
+    }
+    
+    return NULL;
 }
 
 struct symbol * lookup_symbol(const char *name, struct table *table)
@@ -115,9 +132,11 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
     struct symbol *symbol;
     struct table *tp = *tpp;
 
-    assert(scope >= tp->scope);
     if (scope > tp->scope) {
         tp = *tpp = new_table(tp, scope);
+    } else {
+	while (scope != tp->scope)
+	    tp = tp->up;
     }
 
     entry = alloc_table_entry(tp, sizeof(struct sentry));
