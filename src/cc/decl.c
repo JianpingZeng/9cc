@@ -45,7 +45,7 @@ static void validate_func_or_array(struct type *ty)
 }
 
 static struct type * specifiers(int *sclass)
-{    
+{
     int cls, sign, size, type;
     int cons, vol, res, inl;
     struct type *basety;
@@ -248,23 +248,20 @@ static struct type * specifiers(int *sclass)
         basety = qual(RESTRICT, basety);
     if (inl)
         basety = qual(INLINE, basety);
-    
-    *sclass = cls;
-        
+
+    if (sclass)
+	*sclass = cls;
+
     return basety;
 }
 
 static struct symbol * lookup_ids(struct type *ftype, const char *id)
 {
     if (ftype->u.f.proto && id) {
-	struct node *node = ftype->u.f.proto->node.kids[0];
-
-	while (node && node->kids[0]) {
-	    struct node *p = node->kids[0];
+	for (int i=0; ftype->u.f.proto[i]; i++) {
+	    struct node *p = ftype->u.f.proto[i];
 	    if (p->symbol && !strcmp(p->symbol->name, id))
 		return p->symbol;
-	
-	    node = node->kids[1];
 	}
     }
 
@@ -342,10 +339,9 @@ static void parameter_decl_list(struct type *ftype)
 }
 
 // prototype
-static struct decl * parameter_type_list()
+static struct node ** parameter_type_list()
 {    
-    struct decl *ret = decl_node(PARAMS_DECL, SCOPE);
-    struct node *node = NULL;
+    struct vector *v = new_vector();
 
     for (int i=0;;i++) {
 	struct type *basety = NULL;
@@ -399,8 +395,8 @@ static struct decl * parameter_type_list()
 	    sym->src = src;
 	    decl->node.symbol = sym;
 	}
-        concats(&node, NODE(decl));
-
+	vector_push(v, decl);
+	
 	if (token->id != ',')
 	    break;
 
@@ -410,20 +406,18 @@ static struct decl * parameter_type_list()
 	    sym->src = source;
 	    decl = decl_node(VAR_DECL, SCOPE);
 	    decl->node.symbol = sym;
-	    concats(&node, NODE(decl));
+	    vector_push(v, decl);
 	    match(ELLIPSIS);
 	    break;
 	}
     }
 
-    ret->node.kids[0] = node;
-
-    return ret;
+    return (struct node **) vector_to_array(v);
 }
 
-static struct decl * func_proto(struct type *ftype)
+static struct node ** func_proto(struct type *ftype)
 {    
-    struct decl *ret = NULL;
+    struct node **ret = NULL;
 
     enter_scope();
     
@@ -433,8 +427,7 @@ static struct decl * func_proto(struct type *ftype)
 	ret = parameter_type_list();
     } else if (token->id == ID) {
 	// oldstyle
-	struct node *node = NULL;
-	ret = decl_node(PARAMS_DECL, SCOPE);
+	struct vector *v = new_vector();
 	for (;;) {
 	    if (token->id == ID) {
 		struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
@@ -444,7 +437,7 @@ static struct decl * func_proto(struct type *ftype)
 		    sym->type = inttype;
 		    sym->src = source;
 		    decl->node.symbol = sym;
-		    concats(&node, NODE(decl));
+		    vector_push(v, decl);
 		} else {
 		    redefinition_error(source, sym);
 		}
@@ -457,8 +450,7 @@ static struct decl * func_proto(struct type *ftype)
 
 	if (SCOPE > PARAM)
 	    error("a parameter list without types is only allowed in a function definition");
-
-	ret->node.kids[0] = node;
+	ret = (struct node **) vector_to_array(v);
 	ftype->u.f.oldstyle = 1;
     } else if (token->id == ')') {
 	ftype->u.f.oldstyle = 1;
@@ -469,7 +461,7 @@ static struct decl * func_proto(struct type *ftype)
 
     if (SCOPE > PARAM)
 	exit_scope();
-    
+
     return ret;
 }
 
@@ -567,7 +559,7 @@ static struct type * func_or_array()
     }
 
     validate_func_or_array(ty);
-    
+
     return ty;
 }
 
@@ -601,7 +593,7 @@ static struct type * abstract_func_or_array()
     }
 
     validate_func_or_array(ty);
-    
+
     return ty;
 }
 
@@ -976,7 +968,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 }
 
 static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct source src)
-{    
+{
     struct decl *decl = NULL;
     int node_id = VAR_DECL;
     struct node *init_node = NULL;
@@ -1039,7 +1031,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    redefinition_error(src, sym);
 	}
     }
-    
+
     return decl;
 }
 
@@ -1068,9 +1060,9 @@ static struct decl * typedecl(struct type *ty, struct source src)
     return decl;
 }
 
-static struct node * decls()
+static struct node ** decls()
 {    
-    struct node *ret = NULL;
+    struct vector *v = new_vector();
     struct type *basety;
     int sclass;
     struct source src = source;
@@ -1091,8 +1083,8 @@ static struct node * decls()
 		(token->id == '{' ||
 		 ((istypename(token) || token->id & SCLASS_SPEC) &&
 		  ty->u.f.oldstyle && ty->u.f.proto))) {
-		concats(&ret, NODE(funcdef(id, ty, sclass, src)));
-		return ret;
+		vector_push(v, funcdef(id, ty, sclass, src));
+		return (struct node **) vector_to_array(v);
 	    } else if (SCOPE == PARAM) {
 		exit_scope();
 	    }
@@ -1102,7 +1094,7 @@ static struct node * decls()
 	    if (id == NULL)
 		errorf(src, "missing identifier in declaration");
 	    else
-		concats(&ret, NODE(vardecl(id, ty, sclass, src)));
+		vector_push(v, vardecl(id, ty, sclass, src));
 
 	    if (token->id != ',')
 		break;
@@ -1121,7 +1113,7 @@ static struct node * decls()
 	// struct/union/enum
 	if (basety) {
 	    if (isenum(basety) || isrecord(basety))
-		concats(&ret, NODE(typedecl(basety, src)));
+		vector_push(v, typedecl(basety, src));
 	    else
 		error("expect enum or struct or union before ';'");
 	}   
@@ -1130,8 +1122,8 @@ static struct node * decls()
 	error("invalid token '%k' in declaration", token);
 	skipto(';');
     }
-    
-    return ret;
+
+    return (struct node **)vector_to_array(v);
 }
 
 int istypename(struct token *t)
@@ -1154,7 +1146,7 @@ struct type * typename()
     return ty;
 }
 
-struct node * declaration()
+struct node ** declaration()
 {
     assert(SCOPE >= LOCAL);
     return decls();
@@ -1163,19 +1155,19 @@ struct node * declaration()
 struct decl * translation_unit()
 {    
     struct decl *ret = decl_node(TU_DECL, GLOBAL);
-    struct node *node = NULL;
+    struct vector *v = new_vector();
     
     for (; token->id != EOI; ) {
 	if (kind(token->id) & FIRST_DECL) {
 	    assert(SCOPE == GLOBAL);
-	    concats(&node, decls());
+	    vector_add_from_array(v, (void **)decls());
 	} else {
 	    error("invalid token '%k'", token);
 	    gettok();
 	}
     }
 
-    ret->node.kids[0] = node;
+    ret->node.kids[0] = NODE(new_anode((struct node **)vector_to_array(v)));
 	
     return ret;
 }

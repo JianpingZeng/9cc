@@ -85,9 +85,8 @@ static struct stmt * do_while_stmt(struct stmt *context)
 
 static struct stmt * for_stmt(struct stmt *context)
 {
-    struct node *node;
-    struct node *expr;
     struct stmt *ret;
+    struct vector *v = new_vector();
 
     match(FOR);
     match('(');
@@ -95,40 +94,42 @@ static struct stmt * for_stmt(struct stmt *context)
     enter_scope();
 
     if (token->id == ';') {
-	node = concat_node(NULL, NULL);
+	vector_push(v, nullnode);
+	match(';');
     } else {
 	if ((token->id == ID && is_typedef_name(token->name)) ||
 	    (token->id != ID && kind(token->id) & FIRST_DECL)) {
 	    // declaration
-	    node = declaration();
+	    vector_push(v, new_anode(declaration()));
 	} else {
 	    // expression
-	    node = concat_node(NODE(expression()), NULL);
+	    struct expr *expr = expression();
+	    vector_push(v, expr ? NODE(expr) : nullnode);
 	    match(';');
 	}
     }
 
-    expr = node;
-
-    if (token->id == ';')
-	node->kids[1] = concat_node(NULL, NULL);
-    else
-	node->kids[1] = concat_node(NODE(expression()), NULL);
-
-    node = node->kids[1];
+    if (token->id == ';') {
+	vector_push(v, nullnode);
+    } else {
+	struct expr *expr = expression();
+	vector_push(v, expr ? NODE(expr) : nullnode);
+    }
 
     match(';');
 
-    if (token->id == ')')
-	node->kids[1] = concat_node(NULL, NULL);
-    else
-	node->kids[1] = concat_node(NODE(expression()), NULL);
+    if (token->id == ')') {
+	vector_push(v, nullnode);
+    } else {
+	struct expr *expr = expression();
+	vector_push(v, expr ? NODE(expr) : nullnode);
+    }
     
     match(')');
 
-    ret = stmt_node(FOR_STMT, expr, NULL);
+    ret = stmt_node(FOR_STMT, NULL, NULL);
     ret->up = context;
-    ret->node.kids[0] = expr;
+    ret->node.kids[0] = NODE(new_anode((struct node **)vector_to_array(v)));
     ret->node.kids[1] = NODE(statement(ret));
     ret->up = NULL;
 
@@ -354,30 +355,22 @@ static struct stmt * statement(struct stmt *context)
 struct stmt * compound_statement(struct stmt *context)
 {
     struct stmt *ret = stmt_node(COMPOUND_STMT, NULL, NULL);
-    struct node *node = NULL;
-
+    struct vector *v = new_vector();
+    
     match('{');
     enter_scope();
 
     while (kind(token->id) & (FIRST_STMT|FIRST_EXPR|FIRST_DECL)) {
-	struct node *node1;
-
 	if ((token->id == ID && is_typedef_name(token->name)) ||
 	    (token->id != ID && kind(token->id) & FIRST_DECL))
 	    // declaration
-	    node1 = declaration();
+	    vector_add_from_array(v, (void **)declaration());
 	else
 	    // statement
-	    node1 = concat_node(NODE(statement(context)), NULL);
-	
-        if (node)
-	    node->kids[1] = node1;
-	else
-	    ret->node.kids[0] = node1;
-
-	node = node1;
+	    vector_push(v, statement(context));
     }
 
+    ret->node.kids[0] = NODE(new_anode((struct node **)vector_to_array(v)));
     match('}');
     exit_scope();
 

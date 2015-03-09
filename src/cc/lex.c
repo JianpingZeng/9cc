@@ -20,11 +20,11 @@ static unsigned char map[256] = {
 /* Don't use macros here, because macros make things wrong.
  * For example:
  *
- * #define isvisible(c)     ((c) >= 040 && (c) < 0177)
+ * #define is_visible(c)     ((c) >= 040 && (c) < 0177)
  *
  * Then:
  *
- * isvisible(*pc++)
+ * is_visible(*pc++)
  *
  * will be expanded to:
  *
@@ -34,42 +34,42 @@ static unsigned char map[256] = {
  *
  */
 
-static inline int isdigit(char c)
+static inline int is_digit(char c)
 {
     return map[(unsigned char)c] & DIGIT;
 }
 
-static inline int isletter(char c)
+static inline int is_letter(char c)
 {
     return map[(unsigned char)c] & LETTER;
 }
 
-static inline int isdigitletter(char c)
+static inline int is_digitletter(char c)
 {
-    return isdigit(c) || isletter(c);
+    return is_digit(c) || is_letter(c);
 }
 
-static inline int isblank(char c)
+static inline int is_blank(char c)
 {
     return map[(unsigned char)c] & BLANK;
 }
 
-static inline int isnewline(char c)
+static inline int is_newline(char c)
 {
     return map[(unsigned char)c] & NEWLINE;
 }
 
-static inline int ishex(char c)
+static inline int is_hex(char c)
 {
     return map[(unsigned char)c] & HEX;
 }
 
-static inline int isdigithex(char c)
+static inline int is_digithex(char c)
 {
-    return isdigit(c) || ishex(c);
+    return is_digit(c) || is_hex(c);
 }
 
-static inline int isvisible(char c)
+static inline int is_visible(char c)
 {
     return c >= 040 && c < 0177;
 }
@@ -125,14 +125,14 @@ static void fillbuf()
 static void skipblank()
 {
      do {
-	while (isblank(*pc))
+	while (is_blank(*pc))
 	    pc++;
 	if (pe - pc < LBUFSIZE) {
 	    fillbuf();
 	    if (pc == pe)
 		return;
 	}
-    } while (isblank(*pc));
+    } while (is_blank(*pc));
 }
 
 static void skipline()
@@ -148,11 +148,11 @@ static void skipline()
 
 static void fline()
 {
-    assert(isdigit(*pc));
+    assert(is_digit(*pc));
 
     unsigned line = 0;
 
-    while (isdigit(*pc)) {
+    while (is_digit(*pc)) {
 	line = line * 10 + *pc - '0';
 	pc++;
     }
@@ -196,7 +196,7 @@ static void fsync()
 
     skipblank();
     
-    if (isdigit(*pc)) {
+    if (is_digit(*pc)) {
 	// # n "filename"
 	fline();
     } else if (!strncmp(pc, "line", 4)) {
@@ -223,7 +223,7 @@ static void nextline()
 		return;
 	} else {
 	    source.line++;
-	    while (isblank(*pc))
+	    while (is_blank(*pc))
 		pc++;
 	    if (*pc == '#') {
 		fsync();
@@ -268,7 +268,7 @@ static int do_gettok()
     register char *rpc;
     
     for (; ; ) {
-        while (isblank(*pc))
+        while (is_blank(*pc))
             pc++;
         
         if (pe - pc < MAXTOKEN)
@@ -413,7 +413,7 @@ static int do_gettok()
 	    if (rpc[1] == '.' && rpc[2] == '.') {
 		pc = rpc + 3;
 		return ELLIPSIS;
-	    } else if (isdigit(rpc[1])) {
+	    } else if (is_digit(rpc[1])) {
 		pc = rpc;
 		fnumber(NULL, 10);
 		return FCONSTANT;
@@ -424,7 +424,7 @@ static int do_gettok()
             // keywords
 	case 'a':
 	    if (rpc[1] == 'u' && rpc[2] == 't' && rpc[3] == 'o' &&
-		!isdigitletter(rpc[4])) {
+		!is_digitletter(rpc[4])) {
 		pc = rpc + 4;
 		return AUTO;
 	    }
@@ -432,7 +432,7 @@ static int do_gettok()
                 
 	case 'b':
 	    if (rpc[1] == 'r' && rpc[2] == 'e' && rpc[3] == 'a' &&
-		rpc[4] == 'k' && !isdigitletter(rpc[5])) {
+		rpc[4] == 'k' && !is_digitletter(rpc[5])) {
 		pc = rpc + 5;
 		return BREAK;
 	    }
@@ -440,20 +440,20 @@ static int do_gettok()
                 
 	case 'c':
 	    if (rpc[1] == 'a' && rpc[2] == 's' && rpc[3] == 'e' &&
-		!isdigitletter(rpc[4])) {
+		!is_digitletter(rpc[4])) {
 		pc = rpc + 4;
 		return CASE;
 	    } else if (rpc[1] == 'h' && rpc[2] == 'a' && rpc[3] == 'r' &&
-		     !isdigitletter(rpc[4])) {
+		     !is_digitletter(rpc[4])) {
 		pc = rpc + 4;
 		return CHAR;
 	    } else if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 's' &&
-		     rpc[4] == 't' && !isdigitletter(rpc[5])) {
+		     rpc[4] == 't' && !is_digitletter(rpc[5])) {
 		pc = rpc + 5;
 		return CONST;
 	    } else if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 't' &&
 		     rpc[4] == 'i' && rpc[5] == 'n' && rpc[6] == 'u' &&
-		     rpc[7] == 'e' && !isdigitletter(rpc[8])) {
+		     rpc[7] == 'e' && !is_digitletter(rpc[8])) {
 		pc = rpc + 8;
 		return CONTINUE;
 	    }
@@ -462,14 +462,14 @@ static int do_gettok()
 	case 'd':
 	    if (rpc[1] == 'e' && rpc[2] == 'f' && rpc[3] == 'a' &&
 		rpc[4] == 'u' && rpc[5] == 'l' && rpc[6] == 't' &&
-		!isdigitletter(rpc[7])) {
+		!is_digitletter(rpc[7])) {
 		pc = rpc + 7;
 		return DEFAULT;
-	    } else if (rpc[1] == 'o' && !isdigitletter(rpc[2])) {
+	    } else if (rpc[1] == 'o' && !is_digitletter(rpc[2])) {
 		pc = rpc + 2;
 		return DO;
 	    } else if (rpc[1] == 'o' && rpc[2] == 'u' && rpc[3] == 'b' &&
-		     rpc[4] == 'l' && rpc[5] == 'e' && !isdigitletter(rpc[6])) {
+		     rpc[4] == 'l' && rpc[5] == 'e' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return DOUBLE;
 	    }
@@ -477,15 +477,15 @@ static int do_gettok()
                 
 	case 'e':
 	    if (rpc[1] == 'x' && rpc[2] == 't' && rpc[3] == 'e' &&
-		rpc[4] == 'r' && rpc[5] == 'n' && !isdigitletter(rpc[6])) {
+		rpc[4] == 'r' && rpc[5] == 'n' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return EXTERN;
 	    } else if (rpc[1] == 'l' && rpc[2] == 's' && rpc[3] == 'e' &&
-		     !isdigitletter(rpc[4])) {
+		     !is_digitletter(rpc[4])) {
 		pc = rpc + 4;
 		return ELSE;
 	    } else if (rpc[1] == 'n' && rpc[2] == 'u' && rpc[3] == 'm' &&
-		     !isdigitletter(rpc[4])) {
+		     !is_digitletter(rpc[4])) {
 		pc = rpc + 4;
 		return ENUM;
 	    }
@@ -493,10 +493,10 @@ static int do_gettok()
                 
 	case 'f':
 	    if (rpc[1] == 'l' && rpc[2] == 'o' && rpc[3] == 'a' &&
-		rpc[4] == 't' && !isdigitletter(rpc[5])) {
+		rpc[4] == 't' && !is_digitletter(rpc[5])) {
 		pc = rpc + 5;
 		return FLOAT;
-	    } else if (rpc[1] == 'o' && rpc[2] == 'r' && !isdigitletter(rpc[3])) {
+	    } else if (rpc[1] == 'o' && rpc[2] == 'r' && !is_digitletter(rpc[3])) {
 		pc = rpc + 3;
 		return FOR;
 	    }
@@ -504,21 +504,21 @@ static int do_gettok()
                 
 	case 'g':
 	    if (rpc[1] == 'o' && rpc[2] == 't' && rpc[3] == 'o' &&
-		!isdigitletter(rpc[4])) {
+		!is_digitletter(rpc[4])) {
 		pc = rpc + 4;
 		return GOTO;
 	    }
 	    goto id;
                 
 	case 'i':
-	    if (rpc[1] == 'n' && rpc[2] == 't' && !isdigitletter(rpc[3])) {
+	    if (rpc[1] == 'n' && rpc[2] == 't' && !is_digitletter(rpc[3])) {
 		pc = rpc + 3;
 		return INT;
-	    } else if (rpc[1] == 'f' && !isdigitletter(rpc[2])) {
+	    } else if (rpc[1] == 'f' && !is_digitletter(rpc[2])) {
 		pc = rpc + 2;
 		return IF;
 	    } else if (rpc[1] == 'n' && rpc[2] == 'l' && rpc[3] == 'i' &&
-		     rpc[4] == 'n' && rpc[5] == 'e' && !isdigitletter(rpc[6])) {
+		     rpc[4] == 'n' && rpc[5] == 'e' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return INLINE;
 	    }
@@ -526,7 +526,7 @@ static int do_gettok()
                 
 	case 'l':
 	    if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 'g' &&
-		!isdigitletter(rpc[4])) {
+		!is_digitletter(rpc[4])) {
 		pc = rpc + 4;
 		return LONG;
 	    }
@@ -534,17 +534,17 @@ static int do_gettok()
                 
 	case 'r':
 	    if (rpc[1] == 'e' && rpc[2] == 't' && rpc[3] == 'u' &&
-		rpc[4] == 'r' && rpc[5] == 'n' && !isdigitletter(rpc[6])) {
+		rpc[4] == 'r' && rpc[5] == 'n' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return RETURN;
 	    } else if (rpc[1] == 'e' && rpc[2] == 's' && rpc[3] == 't' &&
 		     rpc[4] == 'r' && rpc[5] == 'i' && rpc[6] == 'c' &&
-		     rpc[7] == 't' && !isdigitletter(rpc[8])) {
+		     rpc[7] == 't' && !is_digitletter(rpc[8])) {
 		pc = rpc + 8;
 		return RESTRICT;
 	    } else if (rpc[1] == 'e' && rpc[2] == 'g' && rpc[3] == 'i' &&
 		     rpc[4] == 's' && rpc[5] == 't' && rpc[6] == 'e' &&
-		     rpc[7] == 'r' && !isdigitletter(rpc[8])) {
+		     rpc[7] == 'r' && !is_digitletter(rpc[8])) {
 		pc = rpc + 8;
 		return REGISTER;
 	    }
@@ -552,27 +552,27 @@ static int do_gettok()
                 
 	case 's':
 	    if (rpc[1] == 't' && rpc[2] == 'a' && rpc[3] == 't' &&
-		rpc[4] == 'i' && rpc[5] == 'c' && !isdigitletter(rpc[6])) {
+		rpc[4] == 'i' && rpc[5] == 'c' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return STATIC;
 	    } else if (rpc[1] == 'h' && rpc[2] == 'o' && rpc[3] == 'r' &&
-		     rpc[4] == 't' && !isdigitletter(rpc[5])) {
+		     rpc[4] == 't' && !is_digitletter(rpc[5])) {
 		pc = rpc + 5;
 		return SHORT;
 	    } else if (rpc[1] == 'i' && rpc[2] == 'z' && rpc[3] == 'e' &&
-		     rpc[4] == 'o' && rpc[5] == 'f' && !isdigitletter(rpc[6])) {
+		     rpc[4] == 'o' && rpc[5] == 'f' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return SIZEOF;
 	    } else if (rpc[1] == 'w' && rpc[2] == 'i' && rpc[3] == 't' &&
-		     rpc[4] == 'c' && rpc[5] == 'h' && !isdigitletter(rpc[6])) {
+		     rpc[4] == 'c' && rpc[5] == 'h' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return SWITCH;
 	    } else if (rpc[1] == 't' && rpc[2] == 'r' && rpc[3] == 'u' &&
-		     rpc[4] == 'c' && rpc[5] == 't' && !isdigitletter(rpc[6])) {
+		     rpc[4] == 'c' && rpc[5] == 't' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return STRUCT;
 	    } else if (rpc[1] == 'i' && rpc[2] == 'g' && rpc[3] == 'n' &&
-		     rpc[4] == 'e' && rpc[5] == 'd' && !isdigitletter(rpc[6])) {
+		     rpc[4] == 'e' && rpc[5] == 'd' && !is_digitletter(rpc[6])) {
 		pc = rpc + 6;
 		return SIGNED;
 	    }
@@ -581,7 +581,7 @@ static int do_gettok()
 	case 't':
 	    if (rpc[1] == 'y' && rpc[2] == 'p' && rpc[3] == 'e' &&
 		rpc[4] == 'd' && rpc[5] == 'e' && rpc[6] == 'f' &&
-		!isdigitletter(rpc[7])) {
+		!is_digitletter(rpc[7])) {
 		pc = rpc + 7;
 		return TYPEDEF;
 	    }
@@ -590,11 +590,11 @@ static int do_gettok()
 	case 'u':
 	    if (rpc[1] == 'n' && rpc[2] == 's' && rpc[3] == 'i' &&
 		rpc[4] == 'g' && rpc[5] == 'n' && rpc[6] == 'e' &&
-		rpc[7] == 'd' && !isdigitletter(rpc[8])) {
+		rpc[7] == 'd' && !is_digitletter(rpc[8])) {
 		pc = rpc + 8;
 		return UNSIGNED;
 	    } else if (rpc[1] == 'n' && rpc[2] == 'i' && rpc[3] == 'o' &&
-		     rpc[4] == 'n' && !isdigitletter(rpc[5])) {
+		     rpc[4] == 'n' && !is_digitletter(rpc[5])) {
 		pc = rpc + 5;
 		return UNION;
 	    }
@@ -602,12 +602,12 @@ static int do_gettok()
                 
 	case 'v':
 	    if (rpc[1] == 'o' && rpc[2] == 'i' && rpc[3] == 'd' &&
-		!isdigitletter(rpc[4])) {
+		!is_digitletter(rpc[4])) {
 		pc = rpc + 4;
 		return VOID;
 	    } else if (rpc[1] == 'o' && rpc[2] == 'l' && rpc[3] == 'a' &&
 		     rpc[4] == 't' && rpc[5] == 'i' && rpc[6] == 'l' &&
-		     rpc[7] == 'e' && !isdigitletter(rpc[8])) {
+		     rpc[7] == 'e' && !is_digitletter(rpc[8])) {
 		pc = rpc + 8;
 		return VOLATILE;
 	    }
@@ -615,7 +615,7 @@ static int do_gettok()
                 
 	case 'w':
 	    if (rpc[1] == 'h' && rpc[2] == 'i' && rpc[3] == 'l' &&
-		rpc[4] == 'e' && !isdigitletter(rpc[5])) {
+		rpc[4] == 'e' && !is_digitletter(rpc[5])) {
 		pc = rpc + 5;
 		return WHILE;
 	    }
@@ -623,18 +623,18 @@ static int do_gettok()
                 
 	case '_':
 	    if (rpc[1] == 'B' && rpc[2] == 'o' && rpc[3] == 'o' &&
-		rpc[4] == 'l' && !isdigitletter(rpc[5])) {
+		rpc[4] == 'l' && !is_digitletter(rpc[5])) {
 		pc = rpc + 5;
 		return _BOOL;
 	    } else if (rpc[1] == 'C' && rpc[2] == 'o' && rpc[3] == 'm' &&
 		     rpc[4] == 'p' && rpc[5] == 'l' && rpc[6] == 'e' &&
-		     rpc[7] == 'x' && !isdigitletter(rpc[8])) {
+		     rpc[7] == 'x' && !is_digitletter(rpc[8])) {
 		pc = rpc + 8;
 		return _COMPLEX;
 	    } else if (rpc[1] == 'I' && rpc[2] == 'm' && rpc[3] == 'a' &&
 		     rpc[4] == 'g' && rpc[5] == 'i' && rpc[6] == 'n' &&
 		     rpc[7] == 'a' && rpc[8] == 'r' && rpc[9] == 'y' &&
-		     !isdigitletter(rpc[10])) {
+		     !is_digitletter(rpc[10])) {
 		pc = rpc + 10;
 		return _IMAGINARY;
 	    }
@@ -666,8 +666,8 @@ static int do_gettok()
                 return ID;
                 
 	default:
-	    if (!isblank(*rpc)) {
-		if (isvisible(*rpc))
+	    if (!is_blank(*rpc)) {
+		if (is_visible(*rpc))
 		    error("invalid character '%c'", *rpc);
 		else
 		    error("invalid character '\\0%o'", *rpc);
@@ -692,7 +692,7 @@ static void block_comment()
 	    if (pc == pe)
 		break;
 	}
-	if (isnewline(*pc++))
+	if (is_newline(*pc++))
 	    nextline();
     }
     if (pc == pe)
@@ -711,13 +711,13 @@ static int number()
 	struct string *s = new_string();
 	string_concatn(s, rpc, 2);
         pc = rpc = rpc + 2;
-        if (!isdigithex(*rpc) && *rpc != '.') {
+        if (!is_digithex(*rpc) && *rpc != '.') {
 	    integer_constant(n, overflow, 16, s);
 	    error("incomplete hex constant: %k", token);
 	    free_string(s);
 	    return ICONSTANT;
 	}
-        for (; isdigithex(*rpc) || rpc == pe; ) {
+        for (; is_digithex(*rpc) || rpc == pe; ) {
 	    if (rpc == pe) {
 		string_concatn(s, pc, rpc-pc);
 		pc = rpc;
@@ -732,7 +732,7 @@ static int number()
 		overflow = 1;
 	    } else {
 		int d;
-		if (ishex(*rpc))
+		if (is_hex(*rpc))
 		    d = (*rpc & 0x5f) - 'A' + 10;
 		else
 		    d = *rpc - '0';
@@ -759,7 +759,7 @@ static int number()
 	int overflow = 0;
 	struct string *s = new_string();
 	pc = rpc;
-	for (;isdigit(*rpc) || rpc == pe;) {
+	for (;is_digit(*rpc) || rpc == pe;) {
 	    if (rpc == pe) {
 		string_concatn(s, pc, rpc-pc);
 		pc = rpc;
@@ -800,7 +800,7 @@ static int number()
 	int overflow = 0;
 	struct string *s = new_string();
 	pc = rpc;
-	for (;isdigit(*rpc) || rpc == pe;) {
+	for (;is_digit(*rpc) || rpc == pe;) {
 	    if (rpc == pe) {
 		string_concatn(s, pc, rpc-pc);
 		pc = rpc;
@@ -843,7 +843,7 @@ static void fnumber(struct string *s, int base)
 	if (*pc == '.') {
 	    string_concatn(s, pc++, 1);
 	    char *rpc = pc;
-	    for (;isdigit(*rpc) || rpc == pe;) {
+	    for (;is_digit(*rpc) || rpc == pe;) {
 		if (rpc == pe) {
 		    string_concatn(s, pc, rpc-pc);
 		    pc = rpc;
@@ -866,9 +866,9 @@ static void fnumber(struct string *s, int base)
 		fillbuf();
 	    if (*pc == '+' || *pc == '-')
 		string_concatn(s, pc++, 1);
-	    if (isdigit(*pc)) {
+	    if (is_digit(*pc)) {
 		char *rpc = pc;
-		for (;isdigit(*rpc) || rpc == pe;) {
+		for (;is_digit(*rpc) || rpc == pe;) {
 		    if (rpc == pe) {
 			string_concatn(s, pc, rpc-pc);
 			pc = rpc;
@@ -891,10 +891,10 @@ static void fnumber(struct string *s, int base)
 	// . p P
 	if (*pc == '.') {
 	    string_concatn(s, pc++, 1);
-	    if (!isdigithex(pc[-2]) && !isdigithex(*pc))
+	    if (!is_digithex(pc[-2]) && !is_digithex(*pc))
 		error("hex floating constants require a significand");
 	    
-	    for (;isdigithex(*pc) || pc == pe;) {
+	    for (;is_digithex(*pc) || pc == pe;) {
 		if (pc == pe) {
 		    fillbuf();
 		    if (pc == pe)
@@ -913,8 +913,8 @@ static void fnumber(struct string *s, int base)
 	    if (*pc == '+' || *pc == '-')
 		string_concatn(s, pc++, 1);
 	    
-	    if (isdigit(*pc)) {
-		for (;isdigit(*pc) || pc == pe;) {
+	    if (is_digit(*pc)) {
+		for (;is_digit(*pc) || pc == pe;) {
 		    if (pc == pe) {
 			fillbuf();
 			if (pc == pe)
@@ -1076,7 +1076,7 @@ static void char_constant(int wide)
 	}
 	if (char_rec)
 	    overflow = 1;
-	if (isnewline(*pc))
+	if (is_newline(*pc))
 	    break;
 
 	if (*pc == '\\') {
@@ -1135,7 +1135,7 @@ static void string_constant(int wide)
 	    if (pc == pe)
 		break;
 	}
-	if (isnewline(*pc))
+	if (is_newline(*pc))
 	    break;
 
 	if (*pc == '\\')
@@ -1174,7 +1174,7 @@ static void identifier()
     char *rpc;
     struct string *s = new_string();
     rpc = pc = pc - 1;
-    for (;isdigitletter(*rpc) || rpc == pe;) {
+    for (;is_digitletter(*rpc) || rpc == pe;) {
 	if (rpc == pe) {
 	    string_concatn(s, pc, rpc-pc);
 	    pc = rpc;
@@ -1227,11 +1227,11 @@ static unsigned escape(struct string *s)
 	{
 	    unsigned c = 0;
 	    int overflow = 0;
-	    if (!isdigithex(*pc)) {
+	    if (!is_digithex(*pc)) {
 		error("\\x used with no following hex digits");
 		return 0;
 	    }
-	    for (; isdigithex(*pc) || pc == pe; ) {
+	    for (; is_digithex(*pc) || pc == pe; ) {
 		if (pc == pe) {
 		    fillbuf();
 		    if (pc == pe)
@@ -1248,7 +1248,7 @@ static unsigned escape(struct string *s)
 		    overflow = 1;
 		    error("hex escape sequence out of range");
 		} else {
-		    if (isdigit(*pc))
+		    if (is_digit(*pc))
 			c = (c<<4) + *pc - '0';
 		    else
 			c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
@@ -1264,11 +1264,11 @@ static unsigned escape(struct string *s)
 	    int x = 0;
 	    int n = pc[-1] == 'u' ? 4 : 8;
 	    char *ps = pc - 2;
-	    for (; isdigithex(*pc); x++, pc++) {
+	    for (; is_digithex(*pc); x++, pc++) {
 		if (x == n)
 		    break;
 
-		if (isdigit(*pc))
+		if (is_digit(*pc))
 		    c = (c<<4) + *pc - '0';
 		else
 		    c = (c<<4) + (*pc & 0x5f) - 'A' + 10;

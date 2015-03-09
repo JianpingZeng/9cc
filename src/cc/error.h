@@ -20,11 +20,11 @@ extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 
 #ifdef SHOW_CALL_TREE
-#define BEGIN_CALL(funcname)    begin_call(#funcname)
-#define END_CALL(funcname)      end_call(#funcname)
+#define BEGIN_CALL    begin_call(__func__);
+#define END_CALL      end_call(__func__);
 #else
-#define BEGIN_CALL(funcname)
-#define END_CALL(funcname)
+#define BEGIN_CALL
+#define END_CALL
 #endif
 
 #endif

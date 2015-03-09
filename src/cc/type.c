@@ -191,44 +191,37 @@ struct type * unqual(int t, struct type *ty)
     return qty;
 }
 
-static int eqparams(struct node *node1, struct node *node2)
+static int eqproto(struct node **proto1, struct node **proto2)
 {
-    for (;;) {
-	struct node *decl1, *decl2;
-	if (node1 == NULL && node2 == NULL)
-	    break;
-	if (node1 == NULL || node2 == NULL)
+    if (proto1 == proto2) {
+	return 1;
+    } else if (proto1 == NULL || proto2 == NULL) {
+	return 0;
+    } else {
+	int len1 = array_length((void **)proto1);
+	int len2 = array_length((void **)proto2);
+	if (len1 != len2)
 	    return 0;
-	decl1 = node1->kids[0];
-	decl2 = node2->kids[0];
-	if (decl1 == decl2) {
-	    node1 = node1->kids[1];
-	    node2 = node2->kids[1];
-	    continue;
-	} else if (decl1 == NULL || decl2 == NULL) {
-	    return 0;
-	} else {
+	for (int i=0; i < len1; i++) {
+	    struct node *decl1 = proto1[i];
+	    struct node *decl2 = proto2[i];
+	    if (decl1 == decl2)
+		continue;
+	    
 	    struct symbol *sym1 = decl1->symbol;
 	    struct symbol *sym2 = decl2->symbol;
-	    if (sym1 == sym2) {
-		node1 = node1->kids[1];
-		node2 = node2->kids[1];
+	    if (sym1 == sym2)
 		continue;
-	    } else if (sym1 == NULL || sym2 == NULL) {
+	    else if (sym1 == NULL || sym2 == NULL)
 		return 0;
-	    } else {
-		if (eqtype(sym1->type, sym2->type)) {
-		    node1 = node1->kids[1];
-		    node2 = node2->kids[1];
-		    continue;
-		} else {
-		    return 0;
-		}
-	    }
+	    else if (eqtype(sym1->type, sym2->type))
+		continue;
+	    else
+		return 0;
 	}
-    }
 
-    return 1;
+	return 1;
+    }
 }
 
 // TODO
@@ -279,15 +272,9 @@ int eqtype(struct type *ty1, struct type *ty2)
 	    return 1;
 	} else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
 	    // both prototype
-	    struct decl *proto1 = ty1->u.f.proto;
-	    struct decl *proto2 = ty2->u.f.proto;
-	    if (proto1 == proto2)
-		return 1;
-	    else if (proto1 == NULL || proto2 == NULL)
-		return 0;
-	    else
-		return eqparams(proto1->node.kids[0], proto2->node.kids[0]);
+	    return eqproto(ty1->u.f.proto, ty2->u.f.proto);
 	} else {
+	    // one oldstyle, the other prototype
 	    
 	}
 	

@@ -14,7 +14,7 @@ struct type {
     struct type *type;
     union {
 	struct {
-	    struct decl *proto;
+	    struct node **proto;
 	    unsigned oldstyle : 1;
 	}f;
 	struct {

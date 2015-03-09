@@ -46,6 +46,13 @@ void * alloc_node_node()
     return ret;
 }
 
+static struct alloc_state anode_state;
+void * alloc_anode_node()
+{
+    void *ret = alloc_node(&anode_state, sizeof(struct anode));
+    return ret;
+}
+
 static struct alloc_state expr_state;
 void * alloc_expr_node()
 {

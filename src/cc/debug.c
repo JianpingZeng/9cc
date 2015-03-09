@@ -34,10 +34,12 @@ static void print_spec(struct type *type)
 
 static void print_params(struct type_context context)
 {
-    struct node *node = NODE(context.type->u.f.proto);
-    if (node) {
-	struct print_context pcontext = {context.level+1, node};
-	print_tree1(pcontext);
+    struct node **proto = context.type->u.f.proto;
+    if (proto) {
+	for (int i=0; proto[i]; i++) {
+	    struct print_context pcontext = {context.level+1, proto[i]};
+	    print_tree1(pcontext);
+	}
     }
 }
 
@@ -96,11 +98,19 @@ static void print_tree1(struct print_context context)
     struct node *node = context.node;
     int level;
 
-    if (context.node->id != CONCAT_NODE) {
+    if (node->id == ARRAY_NODE) {
+	struct anode *anode = (struct anode *) node;
+	if (anode->kids) {
+	    for (int i=0; anode->kids[i]; i++) {
+		struct print_context kcontext = {context.level, anode->kids[i]};
+		print_tree1(kcontext);
+	    }
+	}
+    } else {
 	for (int i=0; i < context.level; i++)
 	    fprint(stderr, "  ");
 
-	if (node->symbol) {	
+	if (node->symbol) {
 	    fprint(stderr, "%s '%s' ", nname(node), node->symbol->name);
 	    if (node->symbol->type) {
 		struct type_context tcontext = {context.level, node->symbol->type};
@@ -121,30 +131,22 @@ static void print_tree1(struct print_context context)
 	} else {
 	    fprint(stderr, "%s\n", nname(node));
 	}
-    }
 
-    if (context.node->id == CONCAT_NODE)
-	level = context.level;
-    else
 	level = context.level + 1;
-    
-    if (context.node->kids[0]) {
-	struct print_context lcontext;
-	lcontext.level = level;
-	lcontext.node = context.node->kids[0];
-	print_tree1(lcontext);
-    } else if (context.node->id == CONCAT_NODE) {
-	for (int i=0; i < context.level; i++)
-	    fprint(stderr, "  ");
+
+	if (context.node->kids[0]) {
+	    struct print_context lcontext;
+	    lcontext.level = level;
+	    lcontext.node = context.node->kids[0];
+	    print_tree1(lcontext);
+	}
 	
-	fprint(stderr, "<<<NULL>>>\n");
-    }
-	
-    if (context.node->kids[1]) {
-	struct print_context rcontext;
-	rcontext.level = level;
-	rcontext.node = context.node->kids[1];
-	print_tree1(rcontext);
+	if (context.node->kids[1]) {
+	    struct print_context rcontext;
+	    rcontext.level = level;
+	    rcontext.node = context.node->kids[1];
+	    print_tree1(rcontext);
+	}
     }
 }
 

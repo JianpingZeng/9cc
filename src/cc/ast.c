@@ -6,6 +6,9 @@ static const char * node_names[] = {
 #include "node.h"
 };
 
+static struct node _nullnode = {NULL_NODE, 0, };
+struct node *nullnode = &_nullnode;
+
 const char *nname(struct node * node)
 {
     if (node == NULL)
@@ -22,13 +25,12 @@ const char * node_print_function(void *data)
     return nname(p);
 }
 
-struct node * concat_node(struct node *l, struct node *r)
+struct anode * new_anode(struct node **kids)
 {
-    struct node *node = alloc_node_node();
-    node->id = CONCAT_NODE;
-    node->kids[0] = l;
-    node->kids[1] = r;
-    return node;
+    struct anode * anode = alloc_anode_node();
+    anode->node.id = ARRAY_NODE;
+    anode->kids = kids;
+    return anode;
 }
 
 struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
@@ -77,37 +79,4 @@ struct decl * decl_node(int id, int scope)
     decl->node.id = id;
     decl->scope = scope;
     return decl;
-}
-
-void concats(struct node **head, struct node *node)
-{
-    assert(head);
-
-    if (!node)
-	return;
-    
-    if (*head) {
-	struct node *p = *head;
-	do {
-	    assert(isconcat(p));
-	    if (p->kids[0] == NULL) {
-		p->kids[0] = node;
-		break;
-	    } else if (p->kids[1] == NULL) {
-		if (isconcat(node))
-		    p->kids[1] = node;
-		else
-		    p->kids[1] = concat_node(node, NULL);
-		break;
-	    } else {
-		p = p->kids[1];
-	    }
-	} while (1);
-	
-    } else {
-	if (isconcat(node))
-	    *head = node;
-	else
-	    *head = concat_node(node, NULL);
-    }
 }

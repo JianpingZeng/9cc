@@ -2,7 +2,8 @@
 
 _ns(BEGIN_NODE_ID)
 
-_n(CONCAT_NODE,      "ConcatNode")
+_n(NULL_NODE,        "NullNode")
+_n(ARRAY_NODE,       "ArrayNode")
 
 // decl
 _ns(BEGIN_DECL_ID)

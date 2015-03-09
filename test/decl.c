@@ -129,10 +129,11 @@
 
 // int f(T d()());
 
-typedef int MyInt;
-int f(int a, MyInt);
+// typedef int MyInt;
+// int f(int a, MyInt);
 
 int f(int, int)
 {
-
+    for (;;){
+    }
 }

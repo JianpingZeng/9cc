@@ -37,16 +37,16 @@ static struct expr * argument_expr_list()
     struct expr *ret = NULL;
 
     if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-	struct node *node = NULL;
+	struct vector *v = new_vector();
 	ret = expr_node(ARGS_EXPR, 0, NULL, NULL);
 	for (;;) {
-	    concats(&node, NODE(assign_expression()));
+	    vector_push(v, NODE(assign_expression()));
 	    if (token->id == ',')
 		match(',');
 	    else
 		break;
 	}
-	ret->node.kids[0] = node;
+	ret->node.kids[0] = NODE(new_anode((struct node **)vector_to_array(v)));
     } else if (token->id != ')') {
 	error("expect assignment expression");
     }
