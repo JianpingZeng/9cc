@@ -359,7 +359,30 @@ struct type * record_type(int t, const char *tag)
 const char * type_print_function(void *data)
 {
     struct type *p = data;
-    return p->name;
+    switch (p->op) {
+    case POINTER:
+	return "pointer";
+    case ARRAY:
+	return "array";
+    case FUNCTION:
+	return "function";
+    case ENUM:
+	return "enum";
+    case STRUCT:
+	return "struct";
+    case UNION:
+	return "union";
+    case TYPEDEF:
+    case VOID:
+    case CHAR:
+    case INT:
+    case UNSIGNED:
+    case FLOAT:
+    case DOUBLE:
+	return p->name;
+    default:
+	return "unknown";
+    }
 }
 
 int isftype(struct type *type)
