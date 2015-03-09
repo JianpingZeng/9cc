@@ -19,12 +19,6 @@ const char *nname(struct node * node)
     return node_names[node->id];
 }
 
-const char * node_print_function(void *data)
-{
-    struct node *p = data;
-    return nname(p);
-}
-
 struct anode * new_anode(struct node **kids)
 {
     struct anode * anode = alloc_anode_node();

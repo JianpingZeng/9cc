@@ -49,7 +49,6 @@ struct decl {
 extern struct node *nullnode;
 
 // ast
-extern const char * node_print_function(void *data);
 extern const char *nname(struct node *node);
 extern int is_iteration_stmt(struct stmt *stmt);
 extern int is_switch_stmt(struct stmt *stmt);
