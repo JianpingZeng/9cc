@@ -83,5 +83,7 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define isfuncdecl(n) (NODE(n)->id == FUNC_DECL)
 #define isfuncdef(n) (isfuncdecl(n) && NODE(n)->kids[0] && NODE(n)->kids[0]->id == COMPOUND_STMT)
 #define isliteral(n) ((n)->id > BEGIN_LITERAL_ID && (n)->id < END_LITERAL_ID)
+#define is_switch_stmt(n) ((n) && NODE(n)->id == SWITCH_STMT)
+#define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
 
 #endif

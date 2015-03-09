@@ -54,24 +54,6 @@ struct stmt * stmt_node(int id, struct node *l, struct node *r)
     return stmt;
 }
 
-int is_iteration_stmt(struct stmt *stmt)
-{
-    if (!stmt)
-	return 0;
-
-    return stmt->node.id == FOR_STMT ||
-	stmt->node.id == WHILE_STMT ||
-	stmt->node.id == DO_WHILE_STMT;
-}
-
-int is_switch_stmt(struct stmt *stmt)
-{
-    if (!stmt)
-	return 0;
-
-    return stmt->node.id == SWITCH_STMT;
-}
-
 struct decl * decl_node(int id, int scope)
 {
     assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
