@@ -202,8 +202,10 @@
 		op: FUNCTION
 		type: return type
 		u.f.proto: (parameter type list) 
+		
+5. pointer type
 
-5. other types (reserved types)
+6. identical types (integer, floating)
 
 
 ### `TODO` 完成声明的语法分析

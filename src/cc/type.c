@@ -275,6 +275,8 @@ int eqtype(struct type *ty1, struct type *ty2)
 	    return eqproto(ty1->u.f.proto, ty2->u.f.proto);
 	} else {
 	    // one oldstyle, the other prototype
+	    struct ty *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
+	    struct ty *newty = ty1->u.f.oldstyle ? ty2 : ty1;
 	    
 	}
 	
