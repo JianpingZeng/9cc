@@ -65,21 +65,12 @@ void fatal(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
-static void logv(const char *fmt, ...)
+void cclog(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
-    va_end(ap);
-}
-
-static void logi(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stdout, fmt, ap);
-    fprintf(stdout, "\n");
     va_end(ap);
 }
 
@@ -92,8 +83,6 @@ void die(const char *fmt, ...)
     va_end(ap);
     exit(EXIT_FAILURE);
 }
-
-struct log Log = { logv, logv, logi };
 
 static long call_depth = -1;
 

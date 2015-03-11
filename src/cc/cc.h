@@ -351,13 +351,7 @@ extern void fatal(const char *fmt, ...);
 extern void warningf(struct source src, const char *fmt, ...);
 extern void errorf(struct source src, const char *fmt, ...);
 extern void die(const char *fmt, ...);
-
-struct log {
-    void (*v) (const char *fmt, ...);
-    void (*d) (const char *fmt, ...);
-    void (*i) (const char *fmt, ...);
-};
-extern struct log Log;
+extern void cclog(const char *fmt, ...);
 
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
