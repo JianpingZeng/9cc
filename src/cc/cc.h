@@ -360,6 +360,7 @@ extern void cclog(const char *fmt, ...);
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 
+#define SHOW_CALL_TREE
 #ifdef SHOW_CALL_TREE
 #define BEGIN_CALL    begin_call(__func__);
 #define END_CALL      end_call(__func__);

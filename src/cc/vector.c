@@ -50,7 +50,9 @@ void *vector_pop(struct vector *v)
 void vector_insert(struct vector *v, int index, void *elem)
 {
     assert(v);
-    assert(elem && index >= 0 && index <= v->elems);
+    assert(index >= 0 && index <= v->elems);
+    if (elem == NULL)
+	return;
     if (v->elems == v->capelems) {
         vector_grow(v);
     }

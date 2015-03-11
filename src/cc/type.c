@@ -352,7 +352,6 @@ static int eqproto(struct node **proto1, struct node **proto2)
     }
 }
 
-// TODO
 int eqtype(struct type *ty1, struct type *ty2)
 {
     if (ty1 == ty2)
@@ -405,9 +404,30 @@ int eqtype(struct type *ty1, struct type *ty2)
 	    // one oldstyle, the other prototype
 	    struct type *oldty = ty1->f.oldstyle ? ty1 : ty2;
 	    struct type *newty = ty1->f.oldstyle ? ty2 : ty1;
-	    for (int i=0; newty->f.proto[i]; i++) {
-
+	    if (newty->f.proto) {
+		for (int i=0; newty->f.proto[i]; i++) {
+		    struct node *decl = newty->f.proto[i];
+		    if (decl && decl->symbol && decl->symbol->type) {
+			struct type *ty = decl->symbol->type;
+			if (ty->op == CHAR)
+			    return 0;
+			else if (ty->op == INT && ty->size == sizeof(short))
+			    return 0;
+			else if (ty->op == UNSIGNED && (ty->size == sizeof(unsigned short)
+							|| ty->size == sizeof(unsigned char)))
+			    return 0;
+			else if (ty->op == FLOAT)
+			    return 0;
+			else if (ty->op == ELLIPSIS)
+			    return 0;
+		    }
+		}
 	    }
+
+	    if (oldty->f.proto == NULL)
+		return 1;
+
+	    return eqproto(oldty->f.proto, newty->f.proto);
 	}
 	
     default:

@@ -32,6 +32,12 @@ static void redefinition_error(struct source src, struct symbol *sym)
 	  sym->name, sym->src.file, sym->src.line);
 }
 
+static void conflicting_types_error(struct source src, struct symbol *sym)
+{
+    errorf(src, "conflicting types for '%s', previous at %s line %u",
+	  sym->name, sym->src.file, sym->src.line);
+}
+
 static void validate_func_or_array(struct type *ty)
 {
     if (isfunction(ty)) {
@@ -1010,8 +1016,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    if (sym->defined && init_node)
 		redefinition_error(src, sym);
 	} else {
-	    errorf(src, "redeclaration of '%s' with different type, previous declaration at %s line %u",
-		   id, sym->src.file, sym->src.line);
+	    conflicting_types_error(src, sym);
 	}
     } else {
 	struct symbol *sym;
@@ -1062,7 +1067,7 @@ static struct decl * typedecl(struct type *ty, struct source src)
 }
 
 static struct node ** decls()
-{    
+{
     struct vector *v = new_vector();
     struct type *basety;
     int sclass;
@@ -1154,7 +1159,7 @@ struct node ** declaration()
 }
 
 struct decl * translation_unit()
-{    
+{
     struct decl *ret = decl_node(TU_DECL, GLOBAL);
     struct vector *v = new_vector();
     
@@ -1169,6 +1174,6 @@ struct decl * translation_unit()
     }
 
     ret->exts = (struct node **)vector_to_array(v);
-	
+
     return ret;
 }
