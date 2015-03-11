@@ -456,7 +456,7 @@ static struct node ** func_proto(struct type *ftype)
     } else if (token->id == ')') {
 	ftype->u.f.oldstyle = 1;
     } else {
-	error("invalid token '%k' in parameter list", token);
+	error("invalid token '%s' in parameter list", token->name);
 	gettok();
     }
 
@@ -638,7 +638,7 @@ static struct type * pointer_decl()
             break;
         
         if (*p != 0)
-            warning("duplicate type qulifier '%k'", token);
+            warning("duplicate type qulifier '%s'", token->name);
         
         *p = t;
         
@@ -841,7 +841,7 @@ static void abstract_declarator(struct type **ty)
 	    prepend_type(ty, faty);
 	}
     } else {
-	error("expect '(' or '[' at '%k'", token);
+	error("expect '(' or '[' at '%s'", token->name);
     }
 }
 
@@ -874,7 +874,7 @@ static void declarator(struct type **ty, const char **id)
 	}
 	*ty = rtype;
     } else {
-	error("expect identifier or '(' before '%k'", token);
+	error("expect identifier or '(' before '%s'", token->name);
     }
 }
 
@@ -1120,7 +1120,7 @@ static struct node ** decls()
 	}   
 	match(';');
     } else {
-	error("invalid token '%k' in declaration", token);
+	error("invalid token '%s' in declaration", token->name);
 	skipto(';');
     }
 
@@ -1163,7 +1163,7 @@ struct decl * translation_unit()
 	    assert(SCOPE == GLOBAL);
 	    vector_add_from_array(v, (void **)decls());
 	} else {
-	    error("invalid token '%k'", token);
+	    error("invalid token '%s'", token->name);
 	    gettok();
 	}
     }

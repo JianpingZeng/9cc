@@ -713,7 +713,7 @@ static int number()
         pc = rpc = rpc + 2;
         if (!is_digithex(*rpc) && *rpc != '.') {
 	    integer_constant(n, overflow, 16, s);
-	    error("incomplete hex constant: %k", token);
+	    error("incomplete hex constant: %s", token->name);
 	    free_string(s);
 	    return ICONSTANT;
 	}
@@ -789,7 +789,7 @@ static int number()
 	} else {
 	    integer_constant(n, overflow, 8, s);
 	    if (err)
-		error("invalid octal constant %k", token);
+		error("invalid octal constant %s", token->name);
 	    
 	    free_string(s);
 	    return ICONSTANT;
@@ -952,7 +952,7 @@ static void float_constant(struct string *s)
     }
     token->name = strings(s->str);
     if (errno == ERANGE)
-	error("float constant overflow: %k", token);
+	error("float constant overflow: %s", token->name);
 }
 
 static void integer_constant(unsigned long long n, int overflow, int base, struct string *s)
@@ -1045,12 +1045,12 @@ static void integer_constant(unsigned long long n, int overflow, int base, struc
     switch (token->v.type->op) {
     case INT:
 	if (overflow || n > longlongtype->limits.max.i)
-	    error("integer constant overflow: %k", token);
+	    error("integer constant overflow: %s", token->name);
 	token->v.u.i = n;
 	break;
     case UNSIGNED:
 	if (overflow)
-	    error("integer constant overflow: %k", token);
+	    error("integer constant overflow: %s", token->name);
 	token->v.u.u = n;
 	break;
     default:
@@ -1103,17 +1103,17 @@ static void char_constant(int wide)
     
     if (*pc != '\'') {
 	token->name = strings(s->str);
-	error("unterminated character constant: %k", token);
+	error("unterminated character constant: %s", token->name);
     } else {
 	string_concatn(s, pc, 1);
 	token->name = strings(s->str);
 
 	if (!char_rec && !len)
-	    error("incomplete character constant: %k", token);
+	    error("incomplete character constant: %s", token->name);
 	else if (overflow)
-	    error("extraneous characters in character constant: %k", token);
+	    error("extraneous characters in character constant: %s", token->name);
 	else if ((!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u))
-	    error("character constant overflow: %k", token);
+	    error("character constant overflow: %s", token->name);
 	else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
 	    error("invalid multi-character sequence");
 	
@@ -1292,7 +1292,7 @@ void match(int t)
 	if (token->id == EOI)
 	    error("expect token '%s' at the end", tname(t));
 	else
-	    error("expect token '%s' before '%k'", tname(t), token);
+	    error("expect token '%s' before '%s'", tname(t), token->name);
     }
 }
 
@@ -1302,7 +1302,7 @@ void skipto(int t)
 	if (token->id == EOI)
 	    error("expect token '%s' at the end", tname(t));
 	else
-	    error("expect token '%s' before '%k'", tname(t), token);
+	    error("expect token '%s' before '%s'", tname(t), token->name);
     }
     
     while (token->id != t && token->id != EOI)
@@ -1362,12 +1362,6 @@ struct token * lookahead()
     }
 
     return &token2;
-}
-
-const char * token_print_function(void *data)
-{
-    struct token *p = data;
-    return p->name;
 }
 
 void init_lexer()

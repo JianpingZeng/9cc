@@ -156,7 +156,7 @@ static struct expr * postfix_expr()
 	break;
     default:
 	ret = NULL;
-	error("invalid postfix expression at '%k'", token);
+	error("invalid postfix expression at '%s'", token->name);
 	break;
     }
     

@@ -12,7 +12,7 @@ static struct stmt * expr_stmt()
 	ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);	
     } else {
 	ret = NULL;
-	error("missing statement before '%k'", token);
+	error("missing statement before '%s'", token->name);
     }
     
     match(';');

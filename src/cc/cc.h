@@ -27,13 +27,6 @@ union value {
     void (*g) ();
 };
 
-// print
-extern void print(const char *fmt, ...);
-extern void fprint(FILE *f, const char *fmt, ...);
-extern void vfprint(FILE *f, const char *fmt, va_list ap);
-extern void register_print_function(char c, const char * (*g) (void *data));
-extern void die(const char *fmt, ...);
-
 // alloc
 extern void * cc_malloc(size_t size);
 extern void cc_free(void *p);
@@ -357,6 +350,7 @@ extern void error(const char *fmt, ...);
 extern void fatal(const char *fmt, ...);
 extern void warningf(struct source src, const char *fmt, ...);
 extern void errorf(struct source src, const char *fmt, ...);
+extern void die(const char *fmt, ...);
 
 struct log {
     void (*v) (const char *fmt, ...);

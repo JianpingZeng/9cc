@@ -7,9 +7,9 @@ unsigned warnings;
 
 static void cc_print_lead(const char *lead, const char *file, unsigned line, const char *fmt, va_list ap)
 {
-    fprint(stderr, "%s:%u: %s: ", file, line, lead);
-    vfprint(stderr, fmt, ap);
-    fprint(stderr, "\n");
+    fprintf(stderr, "%s:%u: %s: ", file, line, lead);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
 }
 
 void warningf(struct source src, const char *fmt, ...)
@@ -38,7 +38,7 @@ void errorf(struct source src, const char *fmt, ...)
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
-	fprint(stderr, "Too many errors.\n");
+	fprintf(stderr, "Too many errors.\n");
 	exit(EXIT_FAILURE);
     }
 }
@@ -51,7 +51,7 @@ void error(const char *fmt, ...)
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
-	fprint(stderr, "Too many errors.\n");
+	fprintf(stderr, "Too many errors.\n");
 	exit(EXIT_FAILURE);
     }
 }
@@ -69,8 +69,8 @@ static void logv(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vfprint(stderr, fmt, ap);
-    fprint(stderr, "\n");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
     va_end(ap);
 }
 
@@ -78,9 +78,19 @@ static void logi(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vfprint(stdout, fmt, ap);
-    fprint(stdout, "\n");
+    vfprintf(stdout, fmt, ap);
+    fprintf(stdout, "\n");
     va_end(ap);
+}
+
+void die(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(EXIT_FAILURE);
 }
 
 struct log Log = { logv, logv, logi };
@@ -91,15 +101,14 @@ void begin_call(const char *funcname)
 {
     call_depth++;
     for (int i=0; i < call_depth; i++)
-	fprint(stderr, " ");
-    fprint(stderr, "begin %s\n", funcname);
+	fprintf(stderr, " ");
+    fprintf(stderr, "begin %s\n", funcname);
 }
 
 void end_call(const char *funcname)
 {
     for (int i=0; i < call_depth; i++)
-	fprint(stderr, " ");
-    fprint(stderr, "end %s\n", funcname);
+	fprintf(stderr, " ");
+    fprintf(stderr, "end %s\n", funcname);
     call_depth--;
 }
-

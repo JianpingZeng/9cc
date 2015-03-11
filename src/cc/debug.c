@@ -16,19 +16,19 @@ static void print_type1(struct type_context context);
 static void print_spec(struct type *type)
 {
     if (type->sclass)
-	fprint(stderr, "%s ", tname(type->sclass));
+	fprintf(stderr, "%s ", tname(type->sclass));
     
     if (isconst(type)) {
-        fprint(stderr, "const ");
+        fprintf(stderr, "const ");
     }
     if (isvolatile(type)) {
-        fprint(stderr, "volatile ");
+        fprintf(stderr, "volatile ");
     }
     if (isrestrict(type)) {
-        fprint(stderr, "restrict ");
+        fprintf(stderr, "restrict ");
     }
     if (isinline(type)) {
-        fprint(stderr, "inline ");
+        fprintf(stderr, "inline ");
     }
 }
 
@@ -47,8 +47,8 @@ static void print_return(struct type_context context)
 {
     struct type_context rcontext = {context.level+1, context.type};
     for (int i=0; i < rcontext.level; i++)
-	fprint(stderr, "  ");
-    fprint(stderr, "Return ");
+	fprintf(stderr, "  ");
+    fprintf(stderr, "Return ");
     print_type1(rcontext);
 }
 
@@ -59,31 +59,31 @@ static void print_type1(struct type_context context)
 	struct type_context tcontext = {context.level, type->type};
 	print_spec(type);
         if (isfunction(type)) {
-            fprint(stderr, "%s", tname(type->op));
-	    fprint(stderr, "\n");
+            fprintf(stderr, "%s", tname(type->op));
+	    fprintf(stderr, "\n");
 	    print_return(tcontext);
             print_params(context);
         } else if (ispointer(type)) {
-            fprint(stderr, "%s to ", tname(type->op));
+            fprintf(stderr, "%s to ", tname(type->op));
 	    print_type1(tcontext);
         } else if (isarray(type)) {
-            fprint(stderr, "%s %d of ", tname(type->op), type->size);
+            fprintf(stderr, "%s %d of ", tname(type->op), type->size);
 	    print_type1(tcontext);
         } else if (istypedef(type)) {
-	    fprint(stderr, "%s aka ", type->name);
+	    fprintf(stderr, "%s aka ", type->name);
 	    while (type->type && istypedef(type->type))
 		type = type->type;
 	    tcontext.type = type->type;
 	    print_type1(tcontext);
 	} else if (type->op == ENUM || type->op == STRUCT || type->op == UNION) {
-	    fprint(stderr, "%s %s ", tname(type->op), type->name);
+	    fprintf(stderr, "%s %s ", tname(type->op), type->name);
 	    print_type1(tcontext);
 	} else {
-            fprint(stderr, "%s ", type->name);
+            fprintf(stderr, "%s ", type->name);
 	    print_type1(tcontext);
         }
     } else {
-	fprint(stderr, "\n");
+	fprintf(stderr, "\n");
     }
 }
 
@@ -108,28 +108,28 @@ static void print_tree1(struct print_context context)
 	}
     } else {
 	for (int i=0; i < context.level; i++)
-	    fprint(stderr, "  ");
+	    fprintf(stderr, "  ");
 
 	if (node->symbol) {
-	    fprint(stderr, "%s '%s' ", nname(node), node->symbol->name);
+	    fprintf(stderr, "%s '%s' ", nname(node), node->symbol->name);
 	    if (node->symbol->type) {
 		struct type_context tcontext = {context.level, node->symbol->type};
 		print_type1(tcontext);
 	    } else {
-		fprint(stderr, "\n");
+		fprintf(stderr, "\n");
 	    }
 	} else if (isexpr(node)) {
 	    struct expr *e = (struct expr *)node;
-	    fprint(stderr, "%s '%s'\n", nname(node), tname(e->op));
+	    fprintf(stderr, "%s '%s'\n", nname(node), tname(e->op));
 	} else if (isstmt(node)){
 	    struct stmt *s = (struct stmt *)node;
 	    if (s->up)
-		fprint(stderr, "%s %p -> %s %p\n",
+		fprintf(stderr, "%s %p -> %s %p\n",
 		       nname(node), node, nname(NODE(s->up)), s->up);
 	    else
-		fprint(stderr, "%s %p\n", nname(node), node);
+		fprintf(stderr, "%s %p\n", nname(node), node);
 	} else {
-	    fprint(stderr, "%s\n", nname(node));
+	    fprintf(stderr, "%s\n", nname(node));
 	}
 
 	level = context.level + 1;
