@@ -195,103 +195,6 @@ struct type * unqual(int t, struct type *ty)
     return qty;
 }
 
-static int eqproto(struct node **proto1, struct node **proto2)
-{
-    if (proto1 == proto2) {
-	return 1;
-    } else if (proto1 == NULL || proto2 == NULL) {
-	return 0;
-    } else {
-	int len1 = array_length((void **)proto1);
-	int len2 = array_length((void **)proto2);
-	if (len1 != len2)
-	    return 0;
-	for (int i=0; i < len1; i++) {
-	    struct node *decl1 = proto1[i];
-	    struct node *decl2 = proto2[i];
-	    if (decl1 == decl2)
-		continue;
-	    
-	    struct symbol *sym1 = decl1->symbol;
-	    struct symbol *sym2 = decl2->symbol;
-	    if (sym1 == sym2)
-		continue;
-	    else if (sym1 == NULL || sym2 == NULL)
-		return 0;
-	    else if (eqtype(sym1->type, sym2->type))
-		continue;
-	    else
-		return 0;
-	}
-
-	return 1;
-    }
-}
-
-// TODO
-int eqtype(struct type *ty1, struct type *ty2)
-{
-    if (ty1 == ty2)
-        return 1;
-    else if (ty1 == NULL || ty2 == NULL)
-        return 0;
-    else if (ty1->op == TYPEDEF && ty2->op == TYPEDEF)
-	return eqtype(ty1->type, ty2->type);
-    else if (ty1->op == TYPEDEF)
-	return eqtype(ty1->type, ty2);
-    else if (ty2->op == TYPEDEF)
-	return eqtype(ty1, ty2->type);
-    else if (ty1->op != ty2->op)
-        return 0;
-    else if (ty1->qual_const != ty2->qual_const ||
-	       ty1->qual_volatile != ty2->qual_volatile ||
-	       ty1->qual_restrict != ty2->qual_restrict)
-	return 0;
-    else if (ty1->func_spec != ty2->func_spec)
-	return 0;
-
-    switch (ty1->op) {
-    case ENUM:
-    case UNION:
-    case STRUCT:
-	return 0;
-
-    case CHAR:
-    case INT:
-    case UNSIGNED:
-    case FLOAT:
-    case DOUBLE:
-    case VOID:
-	return 1;
-	
-    case POINTER:
-    case ARRAY:
-	return eqtype(ty1->type, ty2->type);
-	
-    case FUNCTION:
-	if (!eqtype(ty1->type, ty2->type))
-	    return 0;
-	if (ty1->f.oldstyle && ty2->f.oldstyle) {
-	    // both oldstyle
-	    return 1;
-	} else if (!ty1->f.oldstyle && !ty2->f.oldstyle) {
-	    // both prototype
-	    return eqproto(ty1->f.proto, ty2->f.proto);
-	} else {
-	    // one oldstyle, the other prototype
-	    struct type *oldty = ty1->f.oldstyle ? ty1 : ty2;
-	    struct type *newty = ty1->f.oldstyle ? ty2 : ty1;
-	    for (int i=0; newty->f.proto[i]; i++) {
-
-	    }
-	}
-	
-    default:
-	assert(0);
-	return 0;
-    }
-}
-
 struct type * lookup_typedef_name(const char *id)
 {
     if (!id)
@@ -414,4 +317,101 @@ int isatype(struct type *type)
 	return isatype(type->type);
     else
 	return 0;
+}
+
+static int eqproto(struct node **proto1, struct node **proto2)
+{
+    if (proto1 == proto2) {
+	return 1;
+    } else if (proto1 == NULL || proto2 == NULL) {
+	return 0;
+    } else {
+	int len1 = array_length((void **)proto1);
+	int len2 = array_length((void **)proto2);
+	if (len1 != len2)
+	    return 0;
+	for (int i=0; i < len1; i++) {
+	    struct node *decl1 = proto1[i];
+	    struct node *decl2 = proto2[i];
+	    if (decl1 == decl2)
+		continue;
+	    
+	    struct symbol *sym1 = decl1->symbol;
+	    struct symbol *sym2 = decl2->symbol;
+	    if (sym1 == sym2)
+		continue;
+	    else if (sym1 == NULL || sym2 == NULL)
+		return 0;
+	    else if (eqtype(sym1->type, sym2->type))
+		continue;
+	    else
+		return 0;
+	}
+
+	return 1;
+    }
+}
+
+// TODO
+int eqtype(struct type *ty1, struct type *ty2)
+{
+    if (ty1 == ty2)
+        return 1;
+    else if (ty1 == NULL || ty2 == NULL)
+        return 0;
+    else if (ty1->op == TYPEDEF && ty2->op == TYPEDEF)
+	return eqtype(ty1->type, ty2->type);
+    else if (ty1->op == TYPEDEF)
+	return eqtype(ty1->type, ty2);
+    else if (ty2->op == TYPEDEF)
+	return eqtype(ty1, ty2->type);
+    else if (ty1->op != ty2->op)
+        return 0;
+    else if (ty1->qual_const != ty2->qual_const ||
+	       ty1->qual_volatile != ty2->qual_volatile ||
+	       ty1->qual_restrict != ty2->qual_restrict)
+	return 0;
+    else if (ty1->func_spec != ty2->func_spec)
+	return 0;
+
+    switch (ty1->op) {
+    case ENUM:
+    case UNION:
+    case STRUCT:
+	return 0;
+
+    case CHAR:
+    case INT:
+    case UNSIGNED:
+    case FLOAT:
+    case DOUBLE:
+    case VOID:
+	return 1;
+	
+    case POINTER:
+    case ARRAY:
+	return eqtype(ty1->type, ty2->type);
+	
+    case FUNCTION:
+	if (!eqtype(ty1->type, ty2->type))
+	    return 0;
+	if (ty1->f.oldstyle && ty2->f.oldstyle) {
+	    // both oldstyle
+	    return 1;
+	} else if (!ty1->f.oldstyle && !ty2->f.oldstyle) {
+	    // both prototype
+	    return eqproto(ty1->f.proto, ty2->f.proto);
+	} else {
+	    // one oldstyle, the other prototype
+	    struct type *oldty = ty1->f.oldstyle ? ty1 : ty2;
+	    struct type *newty = ty1->f.oldstyle ? ty2 : ty1;
+	    for (int i=0; newty->f.proto[i]; i++) {
+
+	    }
+	}
+	
+    default:
+	assert(0);
+	return 0;
+    }
 }
