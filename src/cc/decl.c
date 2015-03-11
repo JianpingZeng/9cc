@@ -299,7 +299,9 @@ static void parameter_decl_list(struct type *ftype)
 		declarator(&ty, &id);
 		attach_type(&ty, basety);
 
-		ty = scls(sclass == REGISTER ? REGISTER : 0, ty);
+		if (sclass == REGISTER)
+		    ty = scls(REGISTER, ty);
+		
 		if (isvoid(ty))
 		    error("invalid parameter type 'void'");
 		else if (isfunction(ty))
@@ -368,7 +370,8 @@ static struct node ** parameter_type_list()
 	    param_declarator(&ty, &id);
 	
 	attach_type(&ty, basety);
-	ty = scls(sclass == REGISTER ? REGISTER : 0, ty);
+	if (sclass == REGISTER)
+	    ty = scls(REGISTER, ty);
 	
 	if (isvoid(ty)) {
 	    if (i > 0)
@@ -926,14 +929,13 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 
     assert(SCOPE == PARAM);
 
-    if (id == NULL) {
+    if (id == NULL)
 	error("missing identifier in function definition");
-    } else if (sclass && sclass != EXTERN && sclass != STATIC) {
+
+    if (sclass == EXTERN || sclass == STATIC)
+	ftype = scls(sclass, ftype);
+    else
 	error("invalid storage class specifier '%s'", tname(sclass));
-	sclass = 0;
-    }
-    
-    ftype = scls(sclass, ftype);
 
     if (kind(token->id) & FIRST_DECL) {
 	// old style function definition
@@ -1001,6 +1003,11 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	if (ty->f.proto && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
     }
+
+    if (SCOPE == GLOBAL && (sclass == AUTO || sclass == REGISTER))
+	errorf(src, "illegal storage class on file-scoped variable");
+    else
+	ty = scls(sclass, ty);
 
     if (SCOPE == GLOBAL) {
 	struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
