@@ -46,7 +46,7 @@ static struct expr * argument_expr_list()
 	    else
 		break;
 	}
-	ret->node.kids[0] = NODE(new_anode((struct node **)vector_to_array(v)));
+	ret->args = (struct expr **)vector_to_array(v);
     } else if (token->id != ')') {
 	error("expect assignment expression");
     }

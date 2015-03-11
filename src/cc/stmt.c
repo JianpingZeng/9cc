@@ -85,8 +85,7 @@ static struct stmt * do_while_stmt(struct stmt *context)
 
 static struct stmt * for_stmt(struct stmt *context)
 {
-    struct stmt *ret;
-    struct vector *v = new_vector();
+    struct stmt *ret = stmt_node(FOR_STMT, NULL, NULL);
 
     match(FOR);
     match('(');
@@ -94,43 +93,31 @@ static struct stmt * for_stmt(struct stmt *context)
     enter_scope();
 
     if (token->id == ';') {
-	vector_push(v, nullnode);
 	match(';');
     } else {
 	if ((token->id == ID && is_typedef_name(token->name)) ||
 	    (token->id != ID && kind(token->id) & FIRST_DECL)) {
 	    // declaration
-	    vector_push(v, new_anode(declaration()));
+	    ret->forstmt.decl = declaration();
 	} else {
 	    // expression
-	    struct expr *expr = expression();
-	    vector_push(v, expr ? NODE(expr) : nullnode);
+	    ret->forstmt.init = expression();
 	    match(';');
 	}
     }
 
-    if (token->id == ';') {
-	vector_push(v, nullnode);
-    } else {
-	struct expr *expr = expression();
-	vector_push(v, expr ? NODE(expr) : nullnode);
-    }
+    if (token->id != ';')
+	ret->forstmt.cond = expression();
 
     match(';');
 
-    if (token->id == ')') {
-	vector_push(v, nullnode);
-    } else {
-	struct expr *expr = expression();
-	vector_push(v, expr ? NODE(expr) : nullnode);
-    }
+    if (token->id != ')')
+	ret->forstmt.ctrl = expression();
     
     match(')');
 
-    ret = stmt_node(FOR_STMT, NULL, NULL);
     ret->up = context;
-    ret->node.kids[0] = NODE(new_anode((struct node **)vector_to_array(v)));
-    ret->node.kids[1] = NODE(statement(ret));
+    ret->node.kids[0] = NODE(statement(ret));
     ret->up = NULL;
 
     exit_scope();
@@ -370,7 +357,7 @@ struct stmt * compound_statement(struct stmt *context)
 	    vector_push(v, statement(context));
     }
 
-    ret->node.kids[0] = NODE(new_anode((struct node **)vector_to_array(v)));
+    ret->compoundstmt.blks = (struct node **)vector_to_array(v);
     match('}');
     exit_scope();
 

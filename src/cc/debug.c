@@ -1,5 +1,7 @@
 #include "cc.h"
 
+#define STR(str)  ((str) ? (str) : "null")
+
 struct print_context {
     int level;
     struct node * node;
@@ -34,7 +36,7 @@ static void print_spec(struct type *type)
 
 static void print_params(struct type_context context)
 {
-    struct node **proto = context.type->u.f.proto;
+    struct node **proto = context.type->f.proto;
     if (proto) {
 	for (int i=0; proto[i]; i++) {
 	    struct print_context pcontext = {context.level+1, proto[i]};
@@ -98,55 +100,110 @@ static void print_tree1(struct print_context context)
     struct node *node = context.node;
     int level;
 
-    if (node->id == ARRAY_NODE) {
-	struct anode *anode = (struct anode *) node;
-	if (anode->kids) {
-	    for (int i=0; anode->kids[i]; i++) {
-		struct print_context kcontext = {context.level, anode->kids[i]};
-		print_tree1(kcontext);
-	    }
-	}
-    } else {
-	for (int i=0; i < context.level; i++)
-	    fprintf(stderr, "  ");
+    for (int i=0; i < context.level; i++)
+	fprintf(stderr, "  ");
 
+    if (isdecl(node)) {
 	if (node->symbol) {
-	    fprintf(stderr, "%s '%s' ", nname(node), node->symbol->name);
+	    fprintf(stderr, "%s '%s' ", nname(node), STR(node->symbol->name));
 	    if (node->symbol->type) {
 		struct type_context tcontext = {context.level, node->symbol->type};
 		print_type1(tcontext);
 	    } else {
 		fprintf(stderr, "\n");
 	    }
-	} else if (isexpr(node)) {
-	    struct expr *e = (struct expr *)node;
-	    fprintf(stderr, "%s '%s'\n", nname(node), tname(e->op));
-	} else if (isstmt(node)){
-	    struct stmt *s = (struct stmt *)node;
-	    if (s->up)
-		fprintf(stderr, "%s %p -> %s %p\n",
-		       nname(node), node, nname(NODE(s->up)), s->up);
-	    else
-		fprintf(stderr, "%s %p\n", nname(node), node);
 	} else {
 	    fprintf(stderr, "%s\n", nname(node));
 	}
+    } else if (isexpr(node)) {
+	struct expr *e = (struct expr *)node;
+	fprintf(stderr, "%s '%s'\n", nname(node), tname(e->op));
+    } else if (isstmt(node)){
+	struct stmt *s = (struct stmt *)node;
+	if (s->up)
+	    fprintf(stderr, "%s %p -> %s %p\n",
+		    nname(node), node, nname(NODE(s->up)), s->up);
+	else
+	    fprintf(stderr, "%s %p\n", nname(node), node);
+    } else if (node->symbol) {
+	fprintf(stderr, "%s '%s' ", nname(node), STR(node->symbol->name));
+    } else {
+	fprintf(stderr, "%s\n", nname(node));
+    }
 
-	level = context.level + 1;
+    level = context.level + 1;
 
-	if (context.node->kids[0]) {
-	    struct print_context lcontext;
-	    lcontext.level = level;
-	    lcontext.node = context.node->kids[0];
-	    print_tree1(lcontext);
+    if (isdecl(node)) {
+	struct decl *decl = (struct decl *) node;
+	if (decl->exts) {
+	    for (int i=0; decl->exts[i]; i++) {
+		struct print_context con = {level, decl->exts[i]};
+		print_tree1(con);
+	    }
 	}
+    } else if (isstmt(node) && node->id == COMPOUND_STMT) {
+	struct stmt *stmt = (struct stmt *) node;
+	if (stmt->compoundstmt.blks) {
+	    for (int i=0; stmt->compoundstmt.blks[i]; i++) {
+		struct print_context con = {level, stmt->compoundstmt.blks[i]};
+		print_tree1(con);
+	    }
+	}
+    } else if (isstmt(node) && node->id == FOR_STMT) {
+	struct stmt *stmt = (struct stmt *) node;
+	if (stmt->forstmt.decl) {
+	    for (int i=0; stmt->forstmt.decl[i]; i++) {
+		struct print_context con = {level, (struct node*)stmt->forstmt.decl[i]};
+		print_tree1(con);
+	    }
+	} else if (stmt->forstmt.init) {
+	    struct print_context con = {level, (struct node*)stmt->forstmt.init};
+	    print_tree1(con);
+	} else {
+	    for (int i=0; i < level; i++)
+		fprintf(stderr, "  ");
+	    fprintf(stderr, "init: <NULL>\n");
+	}
+
+	if (stmt->forstmt.cond) {
+	    struct print_context con = {level, (struct node*)stmt->forstmt.cond};
+	    print_tree1(con);
+	} else {
+	    for (int i=0; i < level; i++)
+		fprintf(stderr, "  ");
+	    fprintf(stderr, "cond: <NULL>\n");
+	}
+
+	if (stmt->forstmt.ctrl) {
+	    struct print_context con = {level, (struct node*)stmt->forstmt.ctrl};
+	    print_tree1(con);
+	} else {
+	    for (int i=0; i < level; i++)
+		fprintf(stderr, "  ");
+	    fprintf(stderr, "ctrl: <NULL>\n");
+	}
+    } else if (isexpr(node) && node->id == ARGS_EXPR) {
+	struct expr *expr = (struct expr *) node;
+	if (expr->args) {
+	    for (int i=0; expr->args[i]; i++) {
+		struct print_context con = {level, (struct node*)expr->args[i]};
+		print_tree1(con);
+	    }
+	}
+    }
+
+    if (context.node->kids[0]) {
+	struct print_context lcontext;
+	lcontext.level = level;
+	lcontext.node = context.node->kids[0];
+	print_tree1(lcontext);
+    }
 	
-	if (context.node->kids[1]) {
-	    struct print_context rcontext;
-	    rcontext.level = level;
-	    rcontext.node = context.node->kids[1];
-	    print_tree1(rcontext);
-	}
+    if (context.node->kids[1]) {
+	struct print_context rcontext;
+	rcontext.level = level;
+	rcontext.node = context.node->kids[1];
+	print_tree1(rcontext);
     }
 }
 

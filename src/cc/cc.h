@@ -27,11 +27,10 @@ union value {
     void (*g) ();
 };
 
-// alloc
+// alloc.c
 extern void * cc_malloc(size_t size);
 extern void cc_free(void *p);
 extern void * alloc_node_node();
-extern void * alloc_anode_node();
 extern void * alloc_expr_node();
 extern void * alloc_stmt_node();
 extern void * alloc_decl_node();
@@ -41,7 +40,7 @@ extern void * alloc_table(size_t size);
 extern void drop_table(void *table);
 extern void * alloc_table_entry(void *table, size_t size);
 
-// string
+// string.c
 extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
 extern const char *stringd(long n);
@@ -60,7 +59,7 @@ extern void string_concatd(struct string *s, long d);
 extern char * string_to_array(struct string *s);
 extern void free_string(struct string *s);
 
-// vector
+// vector.c
 struct vector {
     void   **mem;
     int    elemsize;
@@ -84,7 +83,7 @@ void * vector_back(struct vector *v);
 void vector_foreach(struct vector *v, void (*func)(void *elem));
 int array_length(void **array);
 
-// lex
+// lex.c
 #define EOI  -1
 
 enum {
@@ -121,7 +120,7 @@ extern void skipto(int t);
 extern void stopat(int t);
 extern const char *tname(int t);
 
-// ast
+// ast.c
 // node ids
 enum {
 #define _ns(a)   a,
@@ -136,44 +135,50 @@ struct node {
     struct node *kids[2];
 };
 
-// array of nodes
-struct anode {
-    struct node node;
-    struct node ** kids;
-};
-
 // expr
 struct expr {
     struct node node;
     int op;
+    union {
+	// arguments
+	struct {
+	    struct expr **args;
+	};
+    };
 };
 
 // stmt
 struct stmt {
     struct node node;
     struct stmt *up;		// internal
+    union {
+	struct {
+	    struct node **decl;
+	    struct expr *init;
+	    struct expr *cond;
+	    struct expr *ctrl;
+	}forstmt;
+	struct {
+	    struct node **blks;	// block items
+	}compoundstmt;
+    };
 };
 
 // decl
 struct decl {
     struct node node;
     int scope;
+    union {
+	struct {
+	    struct node **exts;
+	};
+    };
 };
-
-/**
- * Because vector_to_array, where 'array' is end of 'NULL'.
- * If the vector contains a NULL element, then the conversion
- * will loss all the elements after the NULL element.
- * So here we place a null-node which is actually not NULL, but
- * to indicate a null node, for example, in the for statement.
- */
-extern struct node *nullnode;
 
 // ast
 extern const char *nname(struct node *node);
 extern int is_iteration_stmt(struct stmt *stmt);
 extern int is_switch_stmt(struct stmt *stmt);
-extern struct anode * new_anode(struct node **kids);
 
 // expr
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
@@ -206,7 +211,7 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define is_switch_stmt(n) ((n) && NODE(n)->id == SWITCH_STMT)
 #define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
 
-// type
+// type.c
 struct type {
     int op;
     const char *name;
@@ -231,7 +236,7 @@ struct type {
 	    unsigned sclass_static : 1;
 	    unsigned wildcard : 1;
 	}a;
-    }u;
+    };
     struct {
 	union value max;
 	union value min;

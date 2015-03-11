@@ -257,9 +257,9 @@ static struct type * specifiers(int *sclass)
 
 static struct symbol * lookup_ids(struct type *ftype, const char *id)
 {
-    if (ftype->u.f.proto && id) {
-	for (int i=0; ftype->u.f.proto[i]; i++) {
-	    struct node *p = ftype->u.f.proto[i];
+    if (ftype->f.proto && id) {
+	for (int i=0; ftype->f.proto[i]; i++) {
+	    struct node *p = ftype->f.proto[i];
 	    if (p->symbol && !strcmp(p->symbol->name, id))
 		return p->symbol;
 	}
@@ -452,9 +452,9 @@ static struct node ** func_proto(struct type *ftype)
 	if (SCOPE > PARAM)
 	    error("a parameter list without types is only allowed in a function definition");
 	ret = (struct node **) vector_to_array(v);
-	ftype->u.f.oldstyle = 1;
+	ftype->f.oldstyle = 1;
     } else if (token->id == ')') {
-	ftype->u.f.oldstyle = 1;
+	ftype->f.oldstyle = 1;
     } else {
 	error("invalid token '%s' in parameter list", token->name);
 	gettok();
@@ -500,11 +500,11 @@ static void atype_qualifiers(struct type *atype)
     }
 
     if (cons)
-	atype->u.a.qual_const = 1;
+	atype->a.qual_const = 1;
     if (vol)
-	atype->u.a.qual_volatile = 1;
+	atype->a.qual_volatile = 1;
     if (res)
-	atype->u.a.qual_restrict = 1;
+	atype->a.qual_restrict = 1;
 }
 
 static struct type * func_or_array()
@@ -517,43 +517,43 @@ static struct type * func_or_array()
             match('[');
 	    if (token->id == STATIC) {
 		match(STATIC);
-		atype->u.a.sclass_static = 1;
+		atype->a.sclass_static = 1;
 		if (kind(token->id) & TYPE_QUAL)
 		    atype_qualifiers(atype);
-		atype->u.a.assign = assign_expression();
+		atype->a.assign = assign_expression();
 	    } else if (kind(token->id) & TYPE_QUAL) {
 	        if (kind(token->id) & TYPE_QUAL)
 		    atype_qualifiers(atype);
 		if (token->id == STATIC) {
 		    match(STATIC);
-		    atype->u.a.sclass_static = 1;
-		    atype->u.a.assign = assign_expression();
+		    atype->a.sclass_static = 1;
+		    atype->a.assign = assign_expression();
 		} else if (token->id == '*') {
 		    if (lookahead()->id != ']') {
-			atype->u.a.assign = assign_expression();
+			atype->a.assign = assign_expression();
 		    } else {
 			match('*');
-			atype->u.a.wildcard = 1;
+			atype->a.wildcard = 1;
 		    }
 		} else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-		    atype->u.a.assign = assign_expression();
+		    atype->a.assign = assign_expression();
 		}
 	    } else if (token->id == '*') {
 		if (lookahead()->id != ']') {
-		    atype->u.a.assign = assign_expression();
+		    atype->a.assign = assign_expression();
 		} else {
 		    match('*');
-		    atype->u.a.wildcard = 1;
+		    atype->a.wildcard = 1;
 		}
 	    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-		atype->u.a.assign = assign_expression();
+		atype->a.assign = assign_expression();
 	    } 
 	    skipto(']');
             attach_type(&ty, atype);
         } else {
 	    struct type *ftype = function_type();
             match('(');
-            ftype->u.f.proto = func_proto(ftype);
+            ftype->f.proto = func_proto(ftype);
 	    skipto(')');
             attach_type(&ty, ftype);
         }
@@ -574,20 +574,20 @@ static struct type * abstract_func_or_array()
 	    match('[');
 	    if (token->id == '*') {
 		if (lookahead()->id != ']') {
-		    atype->u.a.assign = assign_expression();
+		    atype->a.assign = assign_expression();
 		} else {
 		    match('*');
-		    atype->u.a.wildcard = 1;
+		    atype->a.wildcard = 1;
 		}
 	    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-		atype->u.a.assign = assign_expression();
+		atype->a.assign = assign_expression();
 	    }
 	    skipto(']');
 	    attach_type(&ty, atype);
 	} else {
 	    struct type *ftype = function_type();
 	    match('(');
-	    ftype->u.f.proto = func_proto(ftype);
+	    ftype->f.proto = func_proto(ftype);
 	    skipto(')');
 	    attach_type(&ty, ftype);
 	}
@@ -992,7 +992,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	node_id = TYPEDEF_DECL;
     } else if (isfunction(ty)){
 	node_id = FUNC_DECL;
-	if (ty->u.f.proto && ty->u.f.oldstyle)
+	if (ty->f.proto && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
     }
 
@@ -1083,7 +1083,7 @@ static struct node ** decls()
 	    if (isfunction(ty) &&
 		(token->id == '{' ||
 		 ((istypename(token) || token->id & SCLASS_SPEC) &&
-		  ty->u.f.oldstyle && ty->u.f.proto))) {
+		  ty->f.oldstyle && ty->f.proto))) {
 		vector_push(v, funcdef(id, ty, sclass, src));
 		return (struct node **) vector_to_array(v);
 	    } else if (SCOPE == PARAM) {
@@ -1168,7 +1168,7 @@ struct decl * translation_unit()
 	}
     }
 
-    ret->node.kids[0] = NODE(new_anode((struct node **)vector_to_array(v)));
+    ret->exts = (struct node **)vector_to_array(v);
 	
     return ret;
 }

@@ -2,9 +2,6 @@
 
 _ns(BEGIN_NODE_ID)
 
-_n(NULL_NODE,        "NullNodede")
-_n(ARRAY_NODE,       "ArrayNode")
-
 // decl
 _ns(BEGIN_DECL_ID)
 

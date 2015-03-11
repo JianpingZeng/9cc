@@ -271,17 +271,17 @@ int eqtype(struct type *ty1, struct type *ty2)
     case FUNCTION:
 	if (!eqtype(ty1->type, ty2->type))
 	    return 0;
-	if (ty1->u.f.oldstyle && ty2->u.f.oldstyle) {
+	if (ty1->f.oldstyle && ty2->f.oldstyle) {
 	    // both oldstyle
 	    return 1;
-	} else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
+	} else if (!ty1->f.oldstyle && !ty2->f.oldstyle) {
 	    // both prototype
-	    return eqproto(ty1->u.f.proto, ty2->u.f.proto);
+	    return eqproto(ty1->f.proto, ty2->f.proto);
 	} else {
 	    // one oldstyle, the other prototype
-	    struct type *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
-	    struct type *newty = ty1->u.f.oldstyle ? ty2 : ty1;
-	    for (int i=0; newty->u.f.proto[i]; i++) {
+	    struct type *oldty = ty1->f.oldstyle ? ty1 : ty2;
+	    struct type *newty = ty1->f.oldstyle ? ty2 : ty1;
+	    for (int i=0; newty->f.proto[i]; i++) {
 
 	    }
 	}

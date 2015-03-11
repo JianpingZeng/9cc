@@ -6,9 +6,6 @@ static const char * node_names[] = {
 #include "node.h"
 };
 
-static struct node _nullnode = {NULL_NODE, 0, };
-struct node *nullnode = &_nullnode;
-
 const char *nname(struct node * node)
 {
     if (node == NULL)
@@ -17,14 +14,6 @@ const char *nname(struct node * node)
     assert(node->id > BEGIN_NODE_ID && node->id < END_NODE_ID);
     
     return node_names[node->id];
-}
-
-struct anode * new_anode(struct node **kids)
-{
-    struct anode * anode = alloc_anode_node();
-    anode->node.id = ARRAY_NODE;
-    anode->kids = kids;
-    return anode;
 }
 
 struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
