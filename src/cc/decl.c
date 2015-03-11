@@ -404,6 +404,7 @@ static struct node ** parameter_type_list()
 	if (token->id == ELLIPSIS) {
 	    struct symbol *sym = install_symbol(token->name, &identifiers, SCOPE);
 	    sym->src = source;
+	    sym->type = vartype;
 	    decl = decl_node(VAR_DECL, SCOPE);
 	    decl->node.symbol = sym;
 	    vector_push(v, decl);

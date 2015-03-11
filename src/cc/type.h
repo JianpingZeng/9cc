@@ -72,6 +72,7 @@ extern struct type    *doubletype;             // double
 extern struct type    *longdoubletype;         // long double
 extern struct type    *voidtype;               // void
 extern struct type    *booltype;	       // bool
+extern struct type    *vartype;		       // variable type
 
 #define isfunction(type)    ((type) && (type)->op == FUNCTION)
 #define isarray(type)       ((type) && (type)->op == ARRAY)

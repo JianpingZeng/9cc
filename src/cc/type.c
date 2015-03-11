@@ -18,6 +18,7 @@ struct type   *doubletype;             // double
 struct type   *longdoubletype;         // long double
 struct type   *voidtype;               // void
 struct type   *booltype;	       // bool
+struct type   *vartype;		       // variable type
 
 static void install_type(struct type **type, const char *name, int op, int size)
 {
@@ -60,6 +61,9 @@ void init_type()
     INSTALL_TYPE(voidtype, "void", VOID, 0);
     // bool
     INSTALL_TYPE(booltype, "_Bool", INT, sizeof(int));
+
+    // variable
+    INSTALL_TYPE(vartype, "vartype", ELLIPSIS, 0);
 #undef INSTALL_TYPE
 
     chartype->limits.max.i = CHAR_MAX;
@@ -275,9 +279,11 @@ int eqtype(struct type *ty1, struct type *ty2)
 	    return eqproto(ty1->u.f.proto, ty2->u.f.proto);
 	} else {
 	    // one oldstyle, the other prototype
-	    struct ty *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
-	    struct ty *newty = ty1->u.f.oldstyle ? ty2 : ty1;
-	    
+	    struct type *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
+	    struct type *newty = ty1->u.f.oldstyle ? ty2 : ty1;
+	    for (int i=0; newty->u.f.proto[i]; i++) {
+
+	    }
 	}
 	
     default:

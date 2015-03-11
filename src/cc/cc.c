@@ -1,7 +1,5 @@
 #include "cc.h"
 
-CCOptions cc_options;
-
 static const char *input_file;
 static const char *output_file;
 
