@@ -364,10 +364,9 @@ struct type * record_type(int t, const char *tag)
     return ty;
 }
 
-const char * type_print_function(void *data)
+const char * pname(struct type *type)
 {
-    struct type *p = data;
-    switch (p->op) {
+    switch (type->op) {
     case POINTER:
 	return "pointer";
     case ARRAY:
@@ -387,7 +386,7 @@ const char * type_print_function(void *data)
     case UNSIGNED:
     case FLOAT:
     case DOUBLE:
-	return p->name;
+	return type->name;
     default:
 	return "unknown";
     }

@@ -244,8 +244,7 @@ struct type {
 };
 
 // type
-extern const char * type_print_function(void *data);
-
+extern const char * pname(struct type *type);
 extern void init_type();
 extern struct type * new_type();
 extern void prepend_type(struct type **typelist, struct type *type);
