@@ -167,7 +167,12 @@
 // {
 // }
 
-typedef int T(int);
+// typedef int T(int);
 
 // T t() {}
-T t;
+// T t;
+// typedef int a = 9;
+// int a = 9;
+// static int a;
+// int a;
+// static int a;

@@ -1026,6 +1026,17 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	sclass = 0;
     }
 
+    if (init_node) {
+	if (sclass == EXTERN) {
+	    if (SCOPE == GLOBAL)
+		warningf(src, "'extern' variable has an initializer");
+	    else
+		errorf(src, "'extern' variable cannot have an initializer");
+	} else if (sclass == TYPEDEF){
+	    errorf(src, "illegal initializer (only variable can be initialized)");
+	}
+    }
+    
     if (sclass == TYPEDEF) {
 	// typedef decl
 	node_id = TYPEDEF_DECL;
@@ -1038,8 +1049,9 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    error("function cannot return function type");
 	else if (isatype(ty->type))
 	    error("function cannot return array type");
-    } else if (isarray(ty) && isftype(ty->type)) {
-	error("array of function is invalid");
+    } else if (isarray(ty)) {
+	if (isftype(ty->type))
+	    error("'%s' declared as array of function", id);
     }
 
     if (SCOPE == GLOBAL) {
@@ -1056,6 +1068,10 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	} else if (sclass != TYPEDEF && eqtype(ty, sym->type)) {
 	    if (sym->defined && init_node)
 		redefinition_error(src, sym);
+	    else if (sclass == STATIC && sym->sclass != STATIC)
+		errorf(src, "static declaration of '%s' follows non-static declaration", id);
+	    else if (sym->sclass == STATIC && sclass != STATIC)
+		errorf(src, "non-static declaration of '%s' follows static declaration", id);
 	} else {
 	    conflicting_types_error(src, sym);
 	}
