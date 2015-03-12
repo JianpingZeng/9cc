@@ -315,8 +315,7 @@ static void parameter_decl_list(struct type *ftype)
 			    sym = install_symbol(id, &identifiers, SCOPE);
 			    sym->src = src;
 			    sym->type = ty;
-			    if (sclass == REGISTER)
-				scls(REGISTER, sym);
+			    sym->sclass = sclass == REGISTER ? REGISTER : 0;
 			} else {
 			    error("parameter named '%s' is missing", id);
 			}
@@ -392,8 +391,7 @@ static struct node ** parameter_type_list()
 		sym = install_symbol(id, &identifiers, SCOPE);
 		sym->type = ty;
 		sym->src = src;
-		if (sclass == REGISTER)
-		    scls(REGISTER, sym);
+	        sym->sclass = sclass == REGISTER ? REGISTER : 0;
 		decl->node.symbol = sym;
 	    } else {
 		redefinition_error(source, sym);
@@ -402,8 +400,7 @@ static struct node ** parameter_type_list()
 	    struct symbol *sym = anonymous_symbol(&identifiers, SCOPE);
 	    sym->type = ty;
 	    sym->src = src;
-	    if (sclass == REGISTER)
-		scls(REGISTER, sym);
+	    sym->sclass = sclass == REGISTER ? REGISTER : 0;
 	    decl->node.symbol = sym;
 	}
 	vector_push(v, decl);
@@ -964,8 +961,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 		sym->type = ftype;
 		sym->src = src;
 		sym->defined = 1;
-		if (sclass)
-		    scls(sclass, sym);
+		sym->sclass = sclass;
 		decl->node.symbol = sym;
 	    } else if (eqtype(ftype, sym->type) && !sym->defined) {
 		sym->type = ftype;
@@ -1028,8 +1024,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    sym->type = ty;
 	    sym->src = src;
 	    sym->defined = init_node ? 1 : 0;
-	    if (sclass)
-		scls(sclass, sym);
+	    sym->sclass = sclass;
 	    decl = decl_node(node_id, SCOPE);
 	    decl->node.kids[0] = init_node;
 	    decl->node.symbol = sym;
@@ -1051,8 +1046,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    sym->type = ty;
 	    sym->src = src;
 	    sym->defined = 1;
-	    if (sclass)
-		scls(sclass, sym);
+	    sym->sclass = sclass;
 	    decl = decl_node(node_id, SCOPE);
 	    decl->node.kids[0] = init_node;
 	    decl->node.symbol = sym;

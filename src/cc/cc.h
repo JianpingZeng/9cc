@@ -345,8 +345,6 @@ extern struct table * records;
 
 #define SCOPE  scopelevel()
 
-extern void scls(int t, struct symbol *sym);
-
 // error.c
 extern unsigned errors;
 extern unsigned warnings;

@@ -152,19 +152,3 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
 
     return entry->symbol;
 }
-
-void scls(int t, struct symbol *sym)
-{
-    switch (t) {
-    case AUTO:
-    case REGISTER:
-    case STATIC:
-    case EXTERN:
-    case TYPEDEF:
-	sym->sclass = t;
-	break;
-	
-    default:
-	assert(0);
-    }
-}
