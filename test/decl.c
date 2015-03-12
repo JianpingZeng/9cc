@@ -28,9 +28,13 @@
 //     }
 // }
 
-// typedef int MyInt;
-// MyInt c;
-// typedef MyInt MyInt2;
+typedef int MyInt;
+MyInt c;
+typedef MyInt MyInt2;
+int MyInt;
+typedef float MyInt;
+int MyInt();
+
 // typedef int (*MyFunc) (int);
 // MyFunc f2;
 // typedef MyFunc *(*Hehe) (int, MyInt *, MyFunc);
@@ -118,9 +122,9 @@
 
 // int (*f(int x)) [];
 
-// typedef int T();
+typedef int T();
 
-// T r() {}
+T r() {}
 
 // int f()
 // {

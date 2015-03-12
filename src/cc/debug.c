@@ -17,7 +17,7 @@ static void print_type1(struct type_context context);
 
 static void print_spec(struct type *type)
 {
-    if (type->sclass)
+    if (type->sclass && type->sclass != TYPEDEF)
 	fprintf(stderr, "%s ", tname(type->sclass));
     
     if (isconst(type)) {

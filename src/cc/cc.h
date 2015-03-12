@@ -243,7 +243,6 @@ struct type {
     }limits;
 };
 
-// type
 extern const char * pname(struct type *type);
 extern void init_type();
 extern struct type * new_type();
@@ -297,7 +296,7 @@ extern struct type    *vartype;		       // variable type
 #define isstruct(type)      ((type) && (type)->op == STRUCT)
 #define isunion(type)       ((type) && (type)->op == UNION)
 #define isrecord(type)      (isstruct(type) || isunion(type))
-#define istypedef(type)     ((type) && (type)->op == TYPEDEF)
+#define istypedef(type)     ((type) && (type)->sclass == TYPEDEF)
 
 // sym
 // scope level

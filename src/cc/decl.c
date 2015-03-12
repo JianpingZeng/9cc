@@ -69,6 +69,7 @@ static struct type * specifiers(int *sclass)
 
     for (;;) {
         int *p, t = token->id;
+	const char *name = token->name;
 	struct source src = source;
         switch (token->id) {
 	case AUTO:
@@ -200,7 +201,7 @@ static struct type * specifiers(int *sclass)
 	    else if (p == &sign)
 		errorf(src, "duplicate signed/unsigned speficier at '%s'", tname(t));
 	    else if (p == &type || p == &size)
-		errorf(src, "duplicate type specifier at '%s'", tname(t));
+		errorf(src, "duplicate type specifier at '%s'", name);
 	    else
 		assert(0);
 	}
@@ -932,9 +933,14 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (id == NULL)
 	error("missing identifier in function definition");
 
+    if (isftype(ftype->type))
+	error("function can't return function");
+    else if (isatype(ftype->type))
+	error("function can't return array");
+
     if (sclass == EXTERN || sclass == STATIC)
 	ftype = scls(sclass, ftype);
-    else
+    else if (sclass)
 	error("invalid storage class specifier '%s'", tname(sclass));
 
     if (kind(token->id) & FIRST_DECL) {
@@ -983,6 +989,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
     struct node *init_node = NULL;
 
     assert(id);
+    assert(SCOPE == GLOBAL || SCOPE >= LOCAL);
     
     if (token->id == '=') {
 	// initializer
@@ -990,24 +997,26 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	init_node = initializer();
     }
 
+    if (SCOPE == GLOBAL && (sclass == AUTO || sclass == REGISTER))
+	errorf(src, "illegal storage class on file-scoped variable");
+    else if (sclass)
+	ty = scls(sclass, ty);
+
     if (sclass == TYPEDEF) {
 	// typedef decl
-	struct type *type = new_type();
-	type->name = id;
-	type->op = TYPEDEF;
-	type->type = ty;
-	ty = type;
 	node_id = TYPEDEF_DECL;
+	ty->name = id;
     } else if (isfunction(ty)){
 	node_id = FUNC_DECL;
 	if (ty->f.proto && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
+	if (isftype(ty->type))
+	    error("function can't return function");
+	else if (isatype(ty->type))
+	    error("function can't return array");
+    } else if (isarray(ty) && isftype(ty->type)) {
+	error("array of function is invalid");
     }
-
-    if (SCOPE == GLOBAL && (sclass == AUTO || sclass == REGISTER))
-	errorf(src, "illegal storage class on file-scoped variable");
-    else
-	ty = scls(sclass, ty);
 
     if (SCOPE == GLOBAL) {
 	struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
@@ -1019,7 +1028,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    decl = decl_node(node_id, SCOPE);
 	    decl->node.kids[0] = init_node;
 	    decl->node.symbol = sym;
-	} else if (eqtype(ty, sym->type)) {
+	} else if (sclass != TYPEDEF && eqtype(ty, sym->type)) {
 	    if (sym->defined && init_node)
 		redefinition_error(src, sym);
 	} else {
@@ -1128,7 +1137,7 @@ static struct node ** decls()
 	    if (isenum(basety) || isrecord(basety))
 		vector_push(v, typedecl(basety, src));
 	    else
-		error("expect enum or struct or union before ';'");
+		error("expect enum/struct/union type before ';'");
 	}   
 	match(';');
     } else {

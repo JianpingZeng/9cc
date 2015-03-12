@@ -31,7 +31,8 @@ void * vector_at(struct vector *v, int index)
 void vector_push(struct vector *v, void *elem)
 {
     assert(v);
-    vector_insert(v, v->elems, elem);
+    if (elem)
+	vector_insert(v, v->elems, elem);
 }
 
 void *vector_pop(struct vector *v)
@@ -50,9 +51,7 @@ void *vector_pop(struct vector *v)
 void vector_insert(struct vector *v, int index, void *elem)
 {
     assert(v);
-    assert(index >= 0 && index <= v->elems);
-    if (elem == NULL)
-	return;
+    assert(elem && index >= 0 && index <= v->elems);
     if (v->elems == v->capelems) {
         vector_grow(v);
     }
