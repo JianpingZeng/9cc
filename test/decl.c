@@ -162,7 +162,12 @@
 // typedef const void MyVoid;
 // void f(int, MyVoid);
 // void f(int a, float );
-static void f(int);
-extern void f(int a)
-{
-}
+// static void f(int);
+// extern void f(int a)
+// {
+// }
+
+typedef int T(int);
+
+// T t() {}
+T t;

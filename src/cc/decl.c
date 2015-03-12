@@ -42,9 +42,9 @@ static void validate_func_or_array(struct type *ty)
 {
     if (isfunction(ty)) {
 	if (isftype(ty->type))
-	    error("function can't return function");
+	    error("function cannot return function type");
 	else if (isatype(ty->type))
-	    error("function can't return array");
+	    error("function cannot return array type");
     } else if (isarray(ty) && isftype(ty->type)) {
 	error("array of function is invalid");
     }
@@ -943,9 +943,9 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 	error("missing identifier in function definition");
 
     if (isftype(ftype->type))
-	error("function can't return function");
+	error("function cannot return function type");
     else if (isatype(ftype->type))
-	error("function can't return array");
+	error("function cannot return array type");
 
     if (sclass && sclass != EXTERN && sclass != STATIC) {
 	error("invalid storage class specifier '%s'", tname(sclass));
@@ -1035,9 +1035,9 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	if (ty->f.proto && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
 	if (isftype(ty->type))
-	    error("function can't return function");
+	    error("function cannot return function type");
 	else if (isatype(ty->type))
-	    error("function can't return array");
+	    error("function cannot return array type");
     } else if (isarray(ty) && isftype(ty->type)) {
 	error("array of function is invalid");
     }
