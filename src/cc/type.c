@@ -172,7 +172,7 @@ struct type * qual(int t, struct type *ty)
 	qty->qual_restrict = 1;
 	break;
     case INLINE:
-	qty->func_spec = 1;
+	qty->func_inline = 1;
 	break;
     default:
 	assert(0);
@@ -196,7 +196,7 @@ struct type * unqual(int t, struct type *ty)
 	qty->qual_restrict = 0;
 	break;
     case INLINE:
-	qty->func_spec = 0;
+	qty->func_inline = 0;
 	break;
     default:
 	assert(0);
@@ -380,7 +380,7 @@ int eqtype(struct type *ty1, struct type *ty2)
 	       ty1->qual_volatile != ty2->qual_volatile ||
 	       ty1->qual_restrict != ty2->qual_restrict)
 	return 0;
-    else if (ty1->func_spec != ty2->func_spec)
+    else if (ty1->func_inline != ty2->func_inline)
 	return 0;
 
     switch (ty1->op) {

@@ -29,11 +29,13 @@
 // }
 
 typedef int MyInt;
-MyInt c;
-typedef MyInt MyInt2;
-int MyInt;
-typedef float MyInt;
-int MyInt();
+MyInt uu;
+uu y;
+// MyInt c;
+// typedef MyInt MyInt2;
+// int MyInt;
+// typedef float MyInt;
+// int MyInt();
 
 // typedef int (*MyFunc) (int);
 // MyFunc f2;

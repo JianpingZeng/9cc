@@ -220,7 +220,7 @@ struct type {
     unsigned qual_const : 1;
     unsigned qual_volatile : 1;
     unsigned qual_restrict : 1;
-    unsigned func_spec : 1;
+    unsigned func_inline : 1;
     unsigned reserved : 1;
     struct type *type;
     union {
@@ -290,7 +290,7 @@ extern struct type    *vartype;		       // variable type
 #define isvolatile(type)    ((type) && (type)->qual_volatile)
 #define isrestrict(type)    ((type) && (type)->qual_restrict)
 #define isqual(type)        (isconst(type) || isvolatile(type) || isrestrict(type))
-#define isinline(type)      ((type) && (type)->func_spec)
+#define isinline(type)      ((type) && (type)->func_inline)
 #define isvoid(type)        ((type) && (type)->op == VOID)
 #define isenum(type)        ((type) && (type)->op == ENUM)
 #define isstruct(type)      ((type) && (type)->op == STRUCT)
