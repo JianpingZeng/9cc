@@ -15,11 +15,8 @@ struct type_context {
 static void print_tree1(struct print_context context);
 static void print_type1(struct type_context context);
 
-static void print_spec(struct type *type)
+static void print_qual(struct type *type)
 {
-    if (type->sclass && type->sclass != TYPEDEF)
-	fprintf(stderr, "%s ", tname(type->sclass));
-    
     if (isconst(type)) {
         fprintf(stderr, "const ");
     }
@@ -59,7 +56,7 @@ static void print_type1(struct type_context context)
     struct type *type = context.type;
     if (type) {
 	struct type_context tcontext = {context.level, type->type};
-	print_spec(type);
+	print_qual(type);
         if (isfunction(type)) {
             fprintf(stderr, "%s", tname(type->op));
 	    fprintf(stderr, "\n");

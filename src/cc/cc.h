@@ -216,7 +216,6 @@ struct type {
     int op;
     const char *name;
     int size;
-    int sclass;
     unsigned qual_const : 1;
     unsigned qual_volatile : 1;
     unsigned qual_restrict : 1;
@@ -248,7 +247,6 @@ extern void init_type();
 extern struct type * new_type();
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
-extern struct type * scls(int t, struct type *ty);
 extern struct type * qual(int t, struct type *ty);
 extern struct type * unqual(int t, struct type *ty);
 extern int eqtype(struct type *ty1, struct type *ty2);
@@ -296,7 +294,7 @@ extern struct type    *vartype;		       // variable type
 #define isstruct(type)      ((type) && (type)->op == STRUCT)
 #define isunion(type)       ((type) && (type)->op == UNION)
 #define isrecord(type)      (isstruct(type) || isunion(type))
-#define istypedef(type)     ((type) && (type)->sclass == TYPEDEF)
+#define istypedef(type)     ((type) && (type)->op == TYPEDEF)
 
 // sym
 // scope level
@@ -310,10 +308,11 @@ enum {
 struct symbol {
     int scope;
     const char *name;
-    union value value;
+    int sclass;
     struct type  *type;
     unsigned defined : 1;
     struct source src;
+    union value value;
     unsigned refs;
     struct symbol *up;
 };
@@ -346,6 +345,9 @@ extern struct table * records;
 
 #define SCOPE  scopelevel()
 
+extern void scls(int t, struct symbol *sym);
+
+// error.c
 extern unsigned errors;
 extern unsigned warnings;
 extern void warning(const char *fmt, ...);

@@ -299,9 +299,6 @@ static void parameter_decl_list(struct type *ftype)
 		// declarator
 		declarator(&ty, &id);
 		attach_type(&ty, basety);
-
-		if (sclass == REGISTER)
-		    ty = scls(REGISTER, ty);
 		
 		if (isvoid(ty))
 		    error("invalid parameter type 'void'");
@@ -318,6 +315,8 @@ static void parameter_decl_list(struct type *ftype)
 			    sym = install_symbol(id, &identifiers, SCOPE);
 			    sym->src = src;
 			    sym->type = ty;
+			    if (sclass == REGISTER)
+				scls(REGISTER, sym);
 			} else {
 			    error("parameter named '%s' is missing", id);
 			}
@@ -371,8 +370,6 @@ static struct node ** parameter_type_list()
 	    param_declarator(&ty, &id);
 	
 	attach_type(&ty, basety);
-	if (sclass == REGISTER)
-	    ty = scls(REGISTER, ty);
 	
 	if (isvoid(ty)) {
 	    if (i > 0)
@@ -395,6 +392,8 @@ static struct node ** parameter_type_list()
 		sym = install_symbol(id, &identifiers, SCOPE);
 		sym->type = ty;
 		sym->src = src;
+		if (sclass == REGISTER)
+		    scls(REGISTER, sym);
 		decl->node.symbol = sym;
 	    } else {
 		redefinition_error(source, sym);
@@ -403,6 +402,8 @@ static struct node ** parameter_type_list()
 	    struct symbol *sym = anonymous_symbol(&identifiers, SCOPE);
 	    sym->type = ty;
 	    sym->src = src;
+	    if (sclass == REGISTER)
+		scls(REGISTER, sym);
 	    decl->node.symbol = sym;
 	}
 	vector_push(v, decl);
@@ -938,10 +939,10 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     else if (isatype(ftype->type))
 	error("function can't return array");
 
-    if (sclass == EXTERN || sclass == STATIC)
-	ftype = scls(sclass, ftype);
-    else if (sclass)
+    if (sclass && sclass != EXTERN && sclass != STATIC) {
 	error("invalid storage class specifier '%s'", tname(sclass));
+	sclass = 0;
+    }
 
     if (kind(token->id) & FIRST_DECL) {
 	// old style function definition
@@ -963,6 +964,8 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 		sym->type = ftype;
 		sym->src = src;
 		sym->defined = 1;
+		if (sclass)
+		    scls(sclass, sym);
 		decl->node.symbol = sym;
 	    } else if (eqtype(ftype, sym->type) && !sym->defined) {
 		sym->type = ftype;
@@ -997,10 +1000,10 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	init_node = initializer();
     }
 
-    if (SCOPE == GLOBAL && (sclass == AUTO || sclass == REGISTER))
+    if (SCOPE == GLOBAL && (sclass == AUTO || sclass == REGISTER)) {
 	errorf(src, "illegal storage class on file-scoped variable");
-    else if (sclass)
-	ty = scls(sclass, ty);
+	sclass = 0;
+    }
 
     if (sclass == TYPEDEF) {
 	// typedef decl
@@ -1025,6 +1028,8 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    sym->type = ty;
 	    sym->src = src;
 	    sym->defined = init_node ? 1 : 0;
+	    if (sclass)
+		scls(sclass, sym);
 	    decl = decl_node(node_id, SCOPE);
 	    decl->node.kids[0] = init_node;
 	    decl->node.symbol = sym;
@@ -1046,6 +1051,8 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	    sym->type = ty;
 	    sym->src = src;
 	    sym->defined = 1;
+	    if (sclass)
+		scls(sclass, sym);
 	    decl = decl_node(node_id, SCOPE);
 	    decl->node.kids[0] = init_node;
 	    decl->node.symbol = sym;

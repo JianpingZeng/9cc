@@ -134,29 +134,6 @@ void attach_type(struct type **typelist, struct type *type)
     }
 }
 
-struct type * scls(int t, struct type *ty)
-{
-    struct type *sty = new_type();
-    switch (t) {
-    case AUTO:
-    case REGISTER:
-    case STATIC:
-    case EXTERN:
-	*sty = *ty;
-	sty->sclass = t;
-	break;
-	
-    case TYPEDEF:
-	sty->sclass = t;
-	sty->type = ty;
-	break;
-	
-    default:
-	assert(0);
-    }
-    return sty;
-}
-
 struct type * qual(int t, struct type *ty)
 {
     struct type *qty = new_type();
@@ -212,7 +189,7 @@ struct type * lookup_typedef_name(const char *id)
 
     struct symbol *sym = lookup_symbol(id, identifiers);
     
-    if (sym && sym->type && sym->type->sclass == TYPEDEF)
+    if (sym && sym->sclass == TYPEDEF)
 	return sym->type;
     else
 	return NULL;
@@ -223,7 +200,7 @@ int is_typedef_name(const char *id)
     if (!id)
 	return 0;
     struct symbol *sym = lookup_symbol(id, identifiers);
-    return sym && sym->type && sym->type->sclass == TYPEDEF;
+    return sym && sym->sclass == TYPEDEF;
 }
 
 struct type * array_type()
@@ -311,7 +288,7 @@ int isftype(struct type *type)
 	return 0;
     else if (type->op == FUNCTION)
 	return 1;
-    else if (type->sclass == TYPEDEF)
+    else if (type->op == TYPEDEF)
 	return isftype(type->type);
     else
 	return 0;
@@ -323,7 +300,7 @@ int isatype(struct type *type)
 	return 0;
     else if (type->op == ARRAY)
 	return 1;
-    else if (type->sclass == TYPEDEF)
+    else if (type->op == TYPEDEF)
 	return isatype(type->type);
     else
 	return 0;
@@ -368,11 +345,11 @@ int eqtype(struct type *ty1, struct type *ty2)
         return 1;
     else if (ty1 == NULL || ty2 == NULL)
         return 0;
-    else if (ty1->sclass == TYPEDEF && ty2->sclass == TYPEDEF)
+    else if (ty1->op == TYPEDEF && ty2->op == TYPEDEF)
 	return eqtype(ty1->type, ty2->type);
-    else if (ty1->sclass == TYPEDEF)
+    else if (ty1->op == TYPEDEF)
 	return eqtype(ty1->type, ty2);
-    else if (ty2->sclass == TYPEDEF)
+    else if (ty2->op == TYPEDEF)
 	return eqtype(ty1, ty2->type);
     else if (ty1->op != ty2->op)
         return 0;
