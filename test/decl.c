@@ -152,9 +152,17 @@
 // }
 // int f(int, int (*) (float));
 
-void f(int);
-inline void f(int);
+// void f(int, void);
+// inline void f(int);
 // void f(int )
 // {
 
 // }
+
+// typedef const void MyVoid;
+// void f(int, MyVoid);
+// void f(int a, float );
+static void f(int);
+extern void f(int a)
+{
+}

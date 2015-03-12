@@ -50,6 +50,18 @@ static void validate_func_or_array(struct type *ty)
     }
 }
 
+static int is_void_qual(struct type *ty)
+{
+    if (ty == NULL)
+	return 0;
+    else if (isqual(ty))
+	return 1;
+    else if (ty->op == TYPEDEF)
+	return is_void_qual(ty->type);
+    else
+	return 0;
+}
+
 static struct type * specifiers(int *sclass)
 {
     int cls, sign, size, type;
@@ -300,9 +312,9 @@ static void parameter_decl_list(struct type *ftype)
 		declarator(&ty, &id);
 		attach_type(&ty, basety);
 		
-		if (isvoid(ty))
-		    error("invalid parameter type 'void'");
-		else if (isfunction(ty))
+		if (isvtype(ty))
+		    error("argument may not have 'void' type");
+		else if (isftype(ty))
 		    ty = pointer(ty);
 
 		if (id) {
@@ -370,17 +382,16 @@ static struct node ** parameter_type_list()
 	
 	attach_type(&ty, basety);
 	
-	if (isvoid(ty)) {
-	    if (i > 0)
-		error("invalid parameter type 'void'");
-	    else if (isqual(ty))
-		error("invalid type qualifier for type 'void'");
-	    else if (sclass)
-		error("invalid storage class specifier '%s' for type 'void'",
-		      tname(sclass));
-	    else if (token->id != ')')
+	if (isvtype(ty)) {
+	    if (i == 0 && token->id == ')') {
+	        if (id)
+		    error("argument may not have 'void' type");
+		else if (is_void_qual(ty))
+		    error("'void' as parameter must not have type qualifiers");
+	    } else {
 		error("'void' must be the first and only parameter if specified");
-	} else if (isfunction(ty)) {
+	    }
+	} else if (isftype(ty)) {
 	    // convert to pointer to function
 	    ty = pointer(ty);
 	}
@@ -922,7 +933,6 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
-// TODO: params id is required 
 static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
 {
     struct decl *decl = decl_node(FUNC_DECL, SCOPE);
@@ -940,6 +950,16 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (sclass && sclass != EXTERN && sclass != STATIC) {
 	error("invalid storage class specifier '%s'", tname(sclass));
 	sclass = 0;
+    }
+
+    if (!ftype->f.oldstyle && ftype->f.proto) {
+	// params id is required in prototype
+	for (int i=0; ftype->f.proto[i]; i++) {
+	    struct node *decl = ftype->f.proto[i];
+	    struct symbol *sym = decl->symbol;
+	    if (sym && sym->name == NULL)
+		errorf(sym->src, "parameter name omitted");
+	}
     }
 
     if (kind(token->id) & FIRST_DECL) {
@@ -965,10 +985,14 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 		sym->sclass = sclass;
 		decl->node.symbol = sym;
 	    } else if (eqtype(ftype, sym->type) && !sym->defined) {
-		sym->type = ftype;
-		sym->src = src;
-		sym->defined = 1;
-		decl->node.symbol = sym;
+		if (sclass == STATIC && sym->sclass != STATIC) {
+		    errorf(src, "static declaaration of '%s' follows non-static declaration", id);
+		} else {
+		    sym->type = ftype;
+		    sym->src = src;
+		    sym->defined = 1;
+		    decl->node.symbol = sym;
+		}
 	    } else {
 	        redefinition_error(src, sym);
 	    }

@@ -316,6 +316,18 @@ int isatype(struct type *type)
 	return 0;
 }
 
+int isvtype(struct type *type)
+{
+    if (type == NULL)
+	return 0;
+    else if (type->op == VOID)
+	return 1;
+    else if (type->op == TYPEDEF)
+	return isvtype(type->type);
+    else
+	return 0;
+}
+
 static int eqproto(struct node **proto1, struct node **proto2)
 {
     if (proto1 == proto2) {

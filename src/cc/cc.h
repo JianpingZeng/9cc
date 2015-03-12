@@ -260,8 +260,10 @@ extern struct type * record_type(int t, const char *tag);
 extern struct type * pointer(struct type *ty);
 extern struct type * typedef_type(const char *id, struct type *type);
 
-extern int isftype(struct type *type);
-extern int isatype(struct type *type);
+extern int isftype(struct type *type); // function
+extern int isatype(struct type *type); // array
+extern int isvtype(struct type *type); // void
+extern int hasqual(struct type *type);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
