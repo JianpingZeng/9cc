@@ -258,6 +258,7 @@ extern struct type * function_type();
 extern struct type * enum_type(const char *tag);
 extern struct type * record_type(int t, const char *tag);
 extern struct type * pointer(struct type *ty);
+extern struct type * typedef_type(const char *id, struct type *type);
 
 extern int isftype(struct type *type);
 extern int isatype(struct type *type);
@@ -382,7 +383,10 @@ enum {
     FIRST_ASSIGN_EXPR = FIRST_EXPR, // equals to FIRST_EXPR
 };
 
-// debug
+// gen.c
+void walk(struct node *tree);
+
+// debug.c
 extern void print_tree(struct node *tree);
 extern void print_type(struct type *type);
 

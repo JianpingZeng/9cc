@@ -28,9 +28,9 @@
 //     }
 // }
 
-typedef int MyInt;
-MyInt uu;
-uu y;
+// typedef int MyInt;
+// MyInt uu;
+// uu y;
 // MyInt c;
 // typedef MyInt MyInt2;
 // int MyInt;
@@ -124,9 +124,9 @@ uu y;
 
 // int (*f(int x)) [];
 
-typedef int T();
+// typedef int T();
 
-T r() {}
+// T r() {}
 
 // int f()
 // {
@@ -145,9 +145,16 @@ T r() {}
 // }
 
 
-int f(a, b)
-     int (*b) (float);
-{
+// int f(a, b)
+//      int (*b) (float);
+// {
 
-}
-int f(int, int (*) (float));
+// }
+// int f(int, int (*) (float));
+
+void f(int);
+inline void f(int);
+// void f(int )
+// {
+
+// }

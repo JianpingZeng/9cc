@@ -254,6 +254,16 @@ struct type * record_type(int t, const char *tag)
     return ty;
 }
 
+struct type * typedef_type(const char *id, struct type *type)
+{
+    struct type *ty = new_type();
+    ty->op = TYPEDEF;
+    ty->name = id;
+    ty->type = type;
+
+    return ty;
+}
+
 const char * pname(struct type *type)
 {
     switch (type->op) {
@@ -356,8 +366,6 @@ int eqtype(struct type *ty1, struct type *ty2)
     else if (ty1->qual_const != ty2->qual_const ||
 	       ty1->qual_volatile != ty2->qual_volatile ||
 	       ty1->qual_restrict != ty2->qual_restrict)
-	return 0;
-    else if (ty1->func_inline != ty2->func_inline)
 	return 0;
 
     switch (ty1->op) {

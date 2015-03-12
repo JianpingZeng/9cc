@@ -922,6 +922,7 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
+// TODO: params id is required 
 static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
 {
     struct decl *decl = decl_node(FUNC_DECL, SCOPE);
@@ -1004,7 +1005,7 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
     if (sclass == TYPEDEF) {
 	// typedef decl
 	node_id = TYPEDEF_DECL;
-	ty->name = id;
+	ty = typedef_type(id, ty);
     } else if (isfunction(ty)){
 	node_id = FUNC_DECL;
 	if (ty->f.proto && ty->f.oldstyle)

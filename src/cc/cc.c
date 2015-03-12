@@ -43,7 +43,8 @@ int main(int argc, const char * argv[])
     
     cc_init();
     n = translation_unit();
-    print_tree(NODE(n));
+    if (errors == 0)
+	walk(NODE(n));
     
     fclose(fp);
 	
