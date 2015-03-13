@@ -40,25 +40,11 @@ extern void * alloc_table(size_t size);
 extern void drop_table(void *table);
 extern void * alloc_table_entry(void *table, size_t size);
 
-// string.c
 extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
 extern const char *stringd(long n);
 
-struct string {
-    char     *str;
-    unsigned size;
-    unsigned capelems;
-    unsigned reserve;
-};
-extern struct string * new_string();
-extern unsigned string_length(struct string *s);
-extern void string_concats(struct string *s, char *src);
-extern void string_concatn(struct string *s, char *src, int len);
-extern void string_concatd(struct string *s, long d);
-extern char * string_to_array(struct string *s);
-extern void free_string(struct string *s);
-
+// string.c
 // vector.c
 #include "lib.h"
 

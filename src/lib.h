@@ -1,6 +1,21 @@
 #ifndef MCC_LIB_H
 #define MCC_LIB_H
 
+// string.c
+struct string {
+    char     *str;
+    unsigned size;
+    unsigned capelems;
+    unsigned reserve;
+};
+extern struct string * new_string();
+extern unsigned string_length(struct string *s);
+extern void string_concats(struct string *s, char *src);
+extern void string_concatn(struct string *s, char *src, int len);
+extern void string_concatd(struct string *s, long d);
+extern char * string_to_array(struct string *s);
+extern void free_string(struct string *s);
+
 // vector.c
 struct vector {
     void   **mem;
