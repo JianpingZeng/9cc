@@ -5,8 +5,10 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+
+const char *cpp[] = {"/usr/bin/gcc",
+		     "-U__GNUC__",
+		     "-E", 0};
 
 static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
 

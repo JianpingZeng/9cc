@@ -28,8 +28,8 @@
 //     }
 // }
 
-typedef int *MyInt;
-MyInt uu;
+// typedef int *MyInt;
+// MyInt uu;
 // uu y;
 // MyInt c;
 // typedef MyInt * MyInt2;
@@ -39,6 +39,7 @@ MyInt uu;
 // int MyInt;
 // typedef float MyInt;
 // int MyInt();
+typedef int1 int2;
 
 // typedef int (*MyFunc) (int);
 // MyFunc f2;
@@ -127,12 +128,12 @@ MyInt uu;
 
 // int (*f(int x)) [];
 
-typedef int T();
+// typedef int T();
 // T r() {}
 // T t {}
 // T t;
 
-T (f()) {}
+// T (f()) {}
 
 // typedef int A [10];
 

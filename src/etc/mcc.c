@@ -9,7 +9,6 @@
 #include "mcc.h"
 
 // commands
-static const char *cpp[] = {"cpp", "$in", "-o", "$out", 0};
 static const char *cc[] = {"cc", "$in", "-o", "$out", 0};
 
 // configs
@@ -27,7 +26,7 @@ static char *ifile;
 static char *sfile;
 
 // options
-static Vector *optionlist;
+static struct vector *optionlist;
 static unsigned fails;
 static unsigned unit;
 
@@ -36,7 +35,7 @@ static void usage()
     fprintf(stderr, "Usage: mcc [-Ec] [-o target] source\n");
 }
 
-static void append(Vector *v, const char *str)
+static void append(struct vector *v, const char *str)
 {
     char *p = malloc(strlen(str)+1);
     memcpy(p, str, strlen(str));
@@ -55,8 +54,9 @@ static char *tempname(const char *hint)
 
 static int preprocess(const char *inputfile)
 {
+    static const char *cpp[] = {"cpp", "$in", "-o", "$out", 0};
     int ret;
-    Vector *v = new_vector();
+    struct vector *v = new_vector();
     char **argv;
     if (config.option_E) {
 	if (output_file) {
@@ -75,7 +75,7 @@ static int preprocess(const char *inputfile)
     vector_add_from_array(v, (void **)cpp);
     vector_add_from_vector(v, optionlist);
     argv = (char **) vector_to_array(v);
-    ret = callsys(cpp[0], argv);
+    ret = cpp_main(array_length((void **)argv), argv);
     free(argv);
     return ret;
 }
@@ -83,7 +83,7 @@ static int preprocess(const char *inputfile)
 static int compile(const char *inputfile, const char *orig_input_file)
 {
     int ret;
-    Vector *v = new_vector();
+    struct vector *v = new_vector();
     char **argv;
     char *outfile = NULL;
     if (config.option_s) {
@@ -158,7 +158,7 @@ static void translate(void *inputfile)
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
-    Vector *inputlist = new_vector();
+    struct vector *inputlist = new_vector();
     optionlist = new_vector();
     
     tmpdir = mk_temp_dir();
@@ -171,25 +171,20 @@ int main(int argc, char **argv)
 	if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
 	    usage();
 	    exit(EXIT_FAILURE);
-	}
-	else if (!strcmp(arg, "-o")) {
+	} else if (!strcmp(arg, "-o")) {
 	    if (++i >= argc) {
 		fprintf(stderr, "missing target file while -o option given.\n");
 		usage();
 		exit(EXIT_FAILURE);
 	    }
 	    output_file = argv[i];
-	}
-	else if (!strcmp(arg, "-E")) {
+	} else if (!strcmp(arg, "-E")) {
 	    config.option_E = 1;
-	}
-	else if (!strcmp(arg, "-s")) {
+	} else if (!strcmp(arg, "-s")) {
 	    config.option_s = 1;
-	}
-	else if (!strcmp(arg, "-c")) {
+	} else if (!strcmp(arg, "-c")) {
 	    config.option_c = 1;
-	}
-	else if (arg[0] == '-') {
+	} else if (arg[0] == '-') {
 	    if (arg[1] == 'I') {
 		char *abs = expanduser(arg+2);
 		if (abs) {
@@ -201,12 +196,10 @@ int main(int argc, char **argv)
 		    free(abs);
 		    vector_push(optionlist, ioption);
 		}
-	    }
-	    else {
+	    } else {
 		append(optionlist, arg);
 	    }
-	}
-	else {
+	} else {
 	    append(inputlist, arg);
 	}
     }

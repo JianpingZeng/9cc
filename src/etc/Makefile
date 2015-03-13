@@ -2,14 +2,14 @@ ifndef BUILDDIR
 BUILDDIR=../build
 endif
 
-BUILD=$(BUILDDIR)/objects/mcc
+BUILD=$(BUILDDIR)/objects/etc
 CC=cc
 CFLAGS=-c -Wall -std=c99 -O2
 INCLUDES=$(wildcard *.h)
-SOURCES=mcc.c vector.c
+SOURCES=cpp.c mcc.c vector.c
 
 ifeq ($(platform), mac)
-SPEC=mac.c
+SPEC=osx.c
 endif
 
 ifeq ($(platform), linux)

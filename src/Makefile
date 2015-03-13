@@ -1,5 +1,5 @@
 
-TARGETS=cpp cc mcc
+TARGETS=etc cc
 
 .PHONY: all $(TARGETS)
 
@@ -13,16 +13,12 @@ endif
 
 all: $(TARGETS)
 
-cpp: 
-	@cd cpp && make platform=$(platform) BUILDDIR=$(BUILDDIR)
-
 cc: 
 	@cd cc && make BUILDDIR=$(BUILDDIR)
 
-mcc: 
-	@cd mcc && make platform=$(platform) BUILDDIR=$(BUILDDIR)
+etc: 
+	@cd etc && make platform=$(platform) BUILDDIR=$(BUILDDIR)
 
 clean:
-	@cd cpp && make clean BUILDDIR=$(BUILDDIR) platform=$(platform)
 	@cd cc && make clean BUILDDIR=$(BUILDDIR)
-	@cd mcc && make clean BUILDDIR=$(BUILDDIR) platform=$(platform)
+	@cd etc && make clean BUILDDIR=$(BUILDDIR) platform=$(platform)

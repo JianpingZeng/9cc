@@ -1,8 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include "cpp.h"
+#include "mcc.h"
 
 static void usage()
 {
@@ -14,8 +10,8 @@ static char ** concat(int argc, char **argv)
     char *input_file = NULL;
     char *output_file = NULL;
     char **p = NULL;
-    Vector *v = new_vector();
-    Vector *options = new_vector();
+    struct vector *v = new_vector();
+    struct vector *options = new_vector();
     
     for (int i=1; i < argc; i++) {
 	char *arg = argv[i];
@@ -63,7 +59,7 @@ static char ** concat(int argc, char **argv)
     return p;
 }
 
-int main(int argc, char **argv)
+int cpp_main(int argc, char **argv)
 {
     char **options;
     int ret = EXIT_SUCCESS;
