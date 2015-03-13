@@ -6,7 +6,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "mcc.h"
+#include "etc.h"
+#include "lib.h"
+
+extern int cpp_main(int argc, char **argv);
+extern int cc_main(int argc, char **argv);
 
 // configs
 static struct configs {
