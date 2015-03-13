@@ -1,7 +1,7 @@
 #include "cc.h"
 
 static void abstract_declarator(struct type **ty);
-static void declarator(struct type **ty, const char **id);
+static void declarator(struct type **ty, const char **id, int *params);
 static void param_declarator(struct type **ty, const char **id);
 static struct type * pointer_decl();
 static struct type * enum_decl();
@@ -297,7 +297,7 @@ static void parameter_decl_list(struct type *ftype)
 		struct source src = source;
 
 		// declarator
-		declarator(&ty, &id);
+		declarator(&ty, &id, NULL);
 		attach_type(&ty, basety);
 		
 		if (isvoid(ty))
@@ -514,7 +514,7 @@ static void atype_qualifiers(struct type *atype)
 	atype->a.qual_restrict = 1;
 }
 
-static struct type * func_or_array()
+static struct type * func_or_array(int *params)
 {    
     struct type *ty = NULL;
     
@@ -563,6 +563,8 @@ static struct type * func_or_array()
             ftype->f.proto = func_proto(ftype);
 	    skipto(')');
             attach_type(&ty, ftype);
+	    if (params)
+		*params = 1;
         }
     }
 
@@ -763,7 +765,7 @@ static struct type * record_decl()
 	    } else {
 		struct type *ty = NULL;
 		const char *name = NULL;
-		declarator(&ty, &name);
+		declarator(&ty, &name, NULL);
 		attach_type(&ty, basety);
 	    }
 	    match(';');
@@ -852,7 +854,7 @@ static void abstract_declarator(struct type **ty)
     }
 }
 
-static void declarator(struct type **ty, const char **id)
+static void declarator(struct type **ty, const char **id, int *params)
 {    
     assert(ty && id);
     
@@ -865,17 +867,17 @@ static void declarator(struct type **ty, const char **id)
 	*id = token->name;
 	match(ID);
 	if (token->id == '[' || token->id == '(') {
-	    struct type *faty = func_or_array();
+	    struct type *faty = func_or_array(params);
 	    prepend_type(ty, faty);
 	}
     } else if (token->id == '(') {
 	struct type *type1 = *ty;
 	struct type *rtype = NULL;
 	match('(');
-	declarator(&rtype, id);
+	declarator(&rtype, id, params);
 	skipto(')');
 	if (token->id == '[' || token->id == '(') {
-	    struct type *faty = func_or_array();
+	    struct type *faty = func_or_array(params);
 	    attach_type(&faty, type1);
 	    attach_type(&rtype, faty);
 	}
@@ -905,7 +907,7 @@ static void param_declarator(struct type **ty, const char **id)
 		struct type *faty;
 		assert(id);
 		if (*id) {
-		    faty = func_or_array();
+		    faty = func_or_array(NULL);
 		} else {
 		    faty = abstract_func_or_array();
 		}
@@ -917,7 +919,7 @@ static void param_declarator(struct type **ty, const char **id)
     } else if (token->id == '[') {
 	abstract_declarator(ty);
     } else if (token->id == ID) {
-	declarator(ty, id);
+	declarator(ty, id, NULL);
     }
 }
 
@@ -1114,14 +1116,15 @@ static struct node ** decls()
     if (token->id == ID || token->id == '*' || token->id == '(') {
 	const char *id = NULL;
 	struct type *ty = NULL;
+	int params = 0;		// for functioness
 	src = source;
 
 	// declarator
-	declarator(&ty, &id);
+	declarator(&ty, &id, &params);
 	attach_type(&ty, basety);
 	
 	if (level == GLOBAL) {
-	    if (isfunction(ty) &&
+	    if (params && isfunction(ty) &&
 		(token->id == '{' ||
 		 ((istypename(token) || token->id & SCLASS_SPEC) &&
 		  ty->f.oldstyle && ty->f.proto))) {
@@ -1146,7 +1149,7 @@ static struct node ** decls()
 	    ty = NULL;
 	    src = source;
 	    // declarator
-	    declarator(&ty, &id);
+	    declarator(&ty, &id, NULL);
 	    attach_type(&ty, basety);
 	}
 
