@@ -930,10 +930,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (id == NULL)
 	error("missing identifier in function definition");
 
-    if (isfunction(ftype->type))
-	error("function cannot return function type");
-    else if (isarray(ftype->type))
-	error("function cannot return array type");
+    validate_func_or_array(ftype);
 
     if (sclass && sclass != EXTERN && sclass != STATIC) {
 	error("invalid storage class specifier '%s'", tname(sclass));
@@ -1032,14 +1029,8 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
 	node_id = FUNC_DECL;
 	if (ty->f.proto && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
-	if (isfunction(ty->type))
-	    error("function cannot return function type");
-	else if (isarray(ty->type))
-	    error("function cannot return array type");
-    } else if (isarray(ty)) {
-	if (isfunction(ty->type))
-	    error("'%s' declared as array of function", id);
     }
+    validate_func_or_array(ty);
 
     if (SCOPE == GLOBAL) {
 	struct symbol *sym = locate_symbol(id, identifiers, SCOPE);

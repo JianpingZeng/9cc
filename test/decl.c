@@ -129,8 +129,12 @@ f g;
 
 typedef int T();
 
-// T r() {}
-T t {}
+T r() {}
+// T t {}
+
+typedef int A [10];
+
+A xx() {}
 
 // int f()
 // {
