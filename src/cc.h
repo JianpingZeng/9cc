@@ -139,20 +139,19 @@ struct decl {
     };
 };
 
-// ast
+// ast.c
 extern const char *nname(struct node *node);
-extern int is_iteration_stmt(struct stmt *stmt);
-extern int is_switch_stmt(struct stmt *stmt);
-
-// expr
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
+extern struct decl * decl_node(int id, int scope);
+extern struct stmt * stmt_node(int id, struct node *l, struct node *r);
+
+// expr.c
 extern struct expr * expression();
 extern struct expr * constant_expression();
 extern struct expr * assign_expression();
 extern int eval_constexpr(struct expr *expr, union value *value);
 
-// decl
-extern struct decl * decl_node(int id, int scope);
+// decl.c
 extern struct decl * initializer_list();
 extern int kind(int t);
 extern int istypename(struct token *t);
@@ -160,8 +159,7 @@ extern struct node ** declaration();
 extern struct decl * translation_unit();
 extern struct type * typename();
 
-// stmt
-extern struct stmt * stmt_node(int id, struct node *l, struct node *r);
+// stmt.c
 extern struct stmt * compound_statement(struct stmt *context);
 
 #define NODE(n)    ((struct node*) (n))
@@ -188,7 +186,7 @@ struct type {
     struct type *type;
     union {
 	struct {
-	    struct node **proto;
+	    struct symbol **proto;
 	    unsigned oldstyle : 1;
 	}f;
 	struct {

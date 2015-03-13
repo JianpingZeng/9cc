@@ -1,6 +1,6 @@
 #include "cc.h"
 
-#define STR(str)  ((str) ? (str) : "null")
+#define STR(str)  ((str) ? (str) : "<null>")
 
 struct print_context {
     int level;
@@ -33,11 +33,15 @@ static void print_qual(struct type *type)
 
 static void print_params(struct type_context context)
 {
-    struct node **proto = context.type->f.proto;
+    struct symbol **proto = context.type->f.proto;
     if (proto) {
 	for (int i=0; proto[i]; i++) {
-	    struct print_context pcontext = {context.level+1, proto[i]};
-	    print_tree1(pcontext);
+	    struct symbol *sym = proto[i];
+	    struct type_context con = {context.level+1, sym->type};
+	    for (int i=0; i < context.level+1; i++)
+		fprintf(stderr, "  ");
+	    fprintf(stderr, "'%s' ", STR(sym->name));
+	    print_type1(con);
 	}
     }
 }
@@ -47,7 +51,7 @@ static void print_return(struct type_context context)
     struct type_context rcontext = {context.level+1, context.type};
     for (int i=0; i < rcontext.level; i++)
 	fprintf(stderr, "  ");
-    fprintf(stderr, "Return ");
+    fprintf(stderr, "return ");
     print_type1(rcontext);
 }
 

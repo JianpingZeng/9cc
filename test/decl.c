@@ -3,7 +3,7 @@
 
 // int * (*f) (float a, int , int (*) (int));
 
-// void (*signal(int signo,void (*func)(int))) (int);
+void (*signal(int signo,void (*func)(int))) (int);
 
 // void vf(void);
 
@@ -39,7 +39,7 @@
 // int MyInt;
 // typedef float MyInt;
 // int MyInt();
-typedef int1 int2;
+// typedef int1 int2;
 
 // typedef int (*MyFunc) (int);
 // MyFunc f2;

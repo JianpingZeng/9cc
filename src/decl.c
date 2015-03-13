@@ -266,9 +266,9 @@ static struct symbol * lookup_ids(struct type *ftype, const char *id)
 {
     if (ftype->f.proto && id) {
 	for (int i=0; ftype->f.proto[i]; i++) {
-	    struct node *p = ftype->f.proto[i];
-	    if (p->symbol && !strcmp(p->symbol->name, id))
-		return p->symbol;
+	    struct symbol *sym = ftype->f.proto[i];
+	    if (!strcmp(sym->name, id))
+		return sym;
 	}
     }
 
@@ -346,7 +346,7 @@ static void parameter_decl_list(struct type *ftype)
 }
 
 // prototype
-static struct node ** parameter_type_list()
+static struct symbol ** parameter_type_list()
 {    
     struct vector *v = new_vector();
 
@@ -356,7 +356,6 @@ static struct node ** parameter_type_list()
 	struct type *ty = NULL;
 	const char *id = NULL;
 	struct source src = source;
-	struct decl *decl = decl_node(VAR_DECL, SCOPE);
 
 	basety = specifiers(&sclass);
 	if (sclass && sclass != REGISTER)
@@ -391,7 +390,7 @@ static struct node ** parameter_type_list()
 		sym->type = ty;
 		sym->src = src;
 	        sym->sclass = sclass == REGISTER ? REGISTER : 0;
-		decl->node.symbol = sym;
+		vector_push(v, sym);
 	    } else {
 		redefinition_error(source, sym);
 	    }
@@ -400,9 +399,8 @@ static struct node ** parameter_type_list()
 	    sym->type = ty;
 	    sym->src = src;
 	    sym->sclass = sclass == REGISTER ? REGISTER : 0;
-	    decl->node.symbol = sym;
+	    vector_push(v, sym);
 	}
-	vector_push(v, decl);
 	
 	if (token->id != ',')
 	    break;
@@ -412,20 +410,18 @@ static struct node ** parameter_type_list()
 	    struct symbol *sym = install_symbol(token->name, &identifiers, SCOPE);
 	    sym->src = source;
 	    sym->type = vartype;
-	    decl = decl_node(VAR_DECL, SCOPE);
-	    decl->node.symbol = sym;
-	    vector_push(v, decl);
+	    vector_push(v, sym);
 	    match(ELLIPSIS);
 	    break;
 	}
     }
 
-    return (struct node **) vector_to_array(v);
+    return (struct symbol **) vector_to_array(v);
 }
 
-static struct node ** func_proto(struct type *ftype)
+static struct symbol ** func_proto(struct type *ftype)
 {    
-    struct node **ret = NULL;
+    struct symbol **ret = NULL;
 
     enter_scope();
     
@@ -440,12 +436,10 @@ static struct node ** func_proto(struct type *ftype)
 	    if (token->id == ID) {
 		struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
 		if (!sym) {
-		    struct decl *decl = decl_node(VAR_DECL, SCOPE);
 		    sym = install_symbol(token->name, &identifiers, SCOPE);
 		    sym->type = inttype;
 		    sym->src = source;
-		    decl->node.symbol = sym;
-		    vector_push(v, decl);
+		    vector_push(v, sym);
 		} else {
 		    redefinition_error(source, sym);
 		}
@@ -458,7 +452,7 @@ static struct node ** func_proto(struct type *ftype)
 
 	if (SCOPE > PARAM)
 	    error("a parameter list without types is only allowed in a function definition");
-	ret = (struct node **) vector_to_array(v);
+	ret = (struct symbol **) vector_to_array(v);
 	ftype->f.oldstyle = 1;
     } else if (token->id == ')') {
 	ftype->f.oldstyle = 1;
@@ -942,9 +936,8 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (!ftype->f.oldstyle && ftype->f.proto) {
 	// params id is required in prototype
 	for (int i=0; ftype->f.proto[i]; i++) {
-	    struct node *decl = ftype->f.proto[i];
-	    struct symbol *sym = decl->symbol;
-	    if (sym && sym->name == NULL)
+	    struct symbol *sym = ftype->f.proto[i];
+	    if (sym->name == NULL)
 		errorf(sym->src, "parameter name omitted");
 	}
     }

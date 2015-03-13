@@ -274,7 +274,7 @@ const char * pname(struct type *type)
     }
 }
 
-static int eqproto(struct node **proto1, struct node **proto2)
+static int eqproto(struct symbol **proto1, struct symbol **proto2)
 {
     if (proto1 == proto2) {
 	return 1;
@@ -286,13 +286,8 @@ static int eqproto(struct node **proto1, struct node **proto2)
 	if (len1 != len2)
 	    return 0;
 	for (int i=0; i < len1; i++) {
-	    struct node *decl1 = proto1[i];
-	    struct node *decl2 = proto2[i];
-	    if (decl1 == decl2)
-		continue;
-	    
-	    struct symbol *sym1 = decl1->symbol;
-	    struct symbol *sym2 = decl2->symbol;
+	    struct symbol *sym1 = proto1[i];
+	    struct symbol *sym2 = proto2[i];
 	    if (sym1 == sym2)
 		continue;
 	    else if (sym1 == NULL || sym2 == NULL)
@@ -353,9 +348,9 @@ int eqtype(struct type *ty1, struct type *ty2)
 	    struct type *newty = ty1->f.oldstyle ? ty2 : ty1;
 	    if (newty->f.proto) {
 		for (int i=0; newty->f.proto[i]; i++) {
-		    struct node *decl = newty->f.proto[i];
-		    if (decl && decl->symbol && decl->symbol->type) {
-			struct type *ty = decl->symbol->type;
+		    struct symbol *sym = newty->f.proto[i];
+		    if (sym->type) {
+			struct type *ty = sym->type;
 			if (ty->op == CHAR)
 			    return 0;
 			else if (ty->op == INT && ty->size == sizeof(short))
