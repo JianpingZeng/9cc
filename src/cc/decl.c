@@ -303,7 +303,7 @@ static void parameter_decl_list(struct type *ftype)
 		if (isvoid(ty))
 		    error("argument may not have 'void' type");
 		else if (isfunction(ty))
-		    ty = pointer(ty);
+		    ty = pointer_type(ty);
 
 		if (id) {
 		    struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
@@ -381,7 +381,7 @@ static struct node ** parameter_type_list()
 	    }
 	} else if (isfunction(ty)) {
 	    // convert to pointer to function
-	    ty = pointer(ty);
+	    ty = pointer_type(ty);
 	}
 
 	if (id) {
@@ -631,7 +631,7 @@ static struct type * pointer_decl()
                 
             case '*':
             {
-                struct type *pty = pointer_type();
+                struct type *pty = pointer_type(NULL);
                 con = vol = res = type = 0;
                 p = &type;
                 prepend_type(&ret, pty);
