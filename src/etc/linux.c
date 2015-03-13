@@ -10,6 +10,7 @@
 
 const char *cpp[] = {"/usr/bin/gcc",
 		     "-U__GNUC__",
+		     "-Iinclude",
 		     "-E", 0};
 
 static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
