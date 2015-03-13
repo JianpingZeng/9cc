@@ -5,9 +5,30 @@ unsigned warnings;
 
 #define MAX_ERRORS 32
 
-static void cc_print_lead(const char *lead, const char *file, unsigned line, const char *fmt, va_list ap)
+#define WRN  1
+#define ERR  2
+#define FTL  3
+
+static void cc_print_lead(int tag, const char *file, unsigned line, const char *fmt, va_list ap)
 {
-    fprintf(stderr, "%s:%u: %s: ", file, line, lead);
+    const char *lead;
+    switch (tag) {
+    case WRN:
+	lead = "\e[1;35mwarning:\e[0m";
+	break;
+
+    case ERR:
+	lead = "\e[1;31merror:\e[0m";
+	break;
+
+    case FTL:
+	lead = "\e[1;31mfatal:\e[0m";
+	break;
+
+    default:
+	assert(0);
+    }
+    fprintf(stderr, "\e[1;38m%s:%u:\e[0m %s ", file, line, lead);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
 }
@@ -16,7 +37,7 @@ void warningf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("\e[1;33mwarning\e[0m", src.file, src.line, fmt, ap);
+    cc_print_lead(WRN, src.file, src.line, fmt, ap);
     va_end(ap);
     ++warnings;
 }
@@ -25,7 +46,7 @@ void warning(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("\e[1;33mwarning\e[0m", source.file, source.line, fmt, ap);
+    cc_print_lead(WRN, source.file, source.line, fmt, ap);
     va_end(ap);
     ++warnings;
 }
@@ -34,7 +55,7 @@ void errorf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("\e[1;31merror\e[0m", src.file, src.line, fmt, ap);
+    cc_print_lead(ERR, src.file, src.line, fmt, ap);
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
@@ -47,7 +68,7 @@ void error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("\e[1;31merror\e[0m", source.file, source.line, fmt, ap);
+    cc_print_lead(ERR, source.file, source.line, fmt, ap);
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
@@ -60,7 +81,7 @@ void fatal(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("\e[1;31mfatal\e[0m", source.file, source.line, fmt, ap);
+    cc_print_lead(FTL, source.file, source.line, fmt, ap);
     va_end(ap);
     exit(EXIT_FAILURE);
 }
