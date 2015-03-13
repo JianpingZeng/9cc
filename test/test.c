@@ -11,6 +11,8 @@
 // {
 // }
 
+int typedef Myint;
+
 int main()
 {
 
@@ -25,16 +27,16 @@ int main()
 // int f();
 // int f(float *);
 // int f(double);
-int f(a)
-     unsigned a;
-{
+// int f(a)
+//      unsigned a;
+// {
 
-}
+// }
 
 // int f(int, ...);
 // int f(float);
 // int f(double);
-int f(unsigned);
+// int f(unsigned);
 
 // int f(a)
 //      double a;
@@ -45,6 +47,6 @@ int f(unsigned);
 // int g(float);
 // int g(double);
 
-int v(int a[][const])
-{
-}
+// int v(int a[][const])
+// {
+// }
