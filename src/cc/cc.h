@@ -111,7 +111,6 @@ struct token {
 extern struct source source;
 extern struct token  *token;
 
-extern const char * token_print_function(void *data);
 extern void init_lexer();
 extern int  gettok();
 extern struct token *  lookahead();
