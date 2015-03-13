@@ -26,7 +26,7 @@ void warningf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("warning", src.file, src.line, fmt, ap);
+    cc_print_lead("\e[1;33mwarning\e[0m", src.file, src.line, fmt, ap);
     va_end(ap);
     ++warnings;
 }
@@ -35,7 +35,7 @@ void warning(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("warning", source.file, source.line, fmt, ap);
+    cc_print_lead("\e[1;33mwarning\e[0m", source.file, source.line, fmt, ap);
     va_end(ap);
     ++warnings;
 }
@@ -44,7 +44,7 @@ void errorf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("error", src.file, src.line, fmt, ap);
+    cc_print_lead("\e[1;31merror\e[0m", src.file, src.line, fmt, ap);
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
@@ -57,7 +57,7 @@ void error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("error", source.file, source.line, fmt, ap);
+    cc_print_lead("\e[1;31merror\e[0m", source.file, source.line, fmt, ap);
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
@@ -70,7 +70,7 @@ void fatal(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead("fatal", source.file, source.line, fmt, ap);
+    cc_print_lead("\e[1;31mfatal\e[0m", source.file, source.line, fmt, ap);
     va_end(ap);
     exit(EXIT_FAILURE);
 }
