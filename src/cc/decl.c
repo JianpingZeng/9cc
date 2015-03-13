@@ -41,25 +41,13 @@ static void conflicting_types_error(struct source src, struct symbol *sym)
 static void validate_func_or_array(struct type *ty)
 {
     if (isfunction(ty)) {
-	if (isftype(ty->type))
+	if (isfunction(ty->type))
 	    error("function cannot return function type");
-	else if (isatype(ty->type))
+	else if (isarray(ty->type))
 	    error("function cannot return array type");
-    } else if (isarray(ty) && isftype(ty->type)) {
+    } else if (isarray(ty) && isfunction(ty->type)) {
 	error("array of function is invalid");
     }
-}
-
-static int is_void_qual(struct type *ty)
-{
-    if (ty == NULL)
-	return 0;
-    else if (isqual(ty))
-	return 1;
-    else if (ty->op == TYPEDEF)
-	return is_void_qual(ty->type);
-    else
-	return 0;
 }
 
 static struct type * specifiers(int *sclass)
@@ -312,9 +300,9 @@ static void parameter_decl_list(struct type *ftype)
 		declarator(&ty, &id);
 		attach_type(&ty, basety);
 		
-		if (isvtype(ty))
+		if (isvoid(ty))
 		    error("argument may not have 'void' type");
-		else if (isftype(ty))
+		else if (isfunction(ty))
 		    ty = pointer(ty);
 
 		if (id) {
@@ -382,16 +370,16 @@ static struct node ** parameter_type_list()
 	
 	attach_type(&ty, basety);
 	
-	if (isvtype(ty)) {
+	if (isvoid(ty)) {
 	    if (i == 0 && token->id == ')') {
 	        if (id)
 		    error("argument may not have 'void' type");
-		else if (is_void_qual(ty))
+		else if (isqual(ty))
 		    error("'void' as parameter must not have type qualifiers");
 	    } else {
 		error("'void' must be the first and only parameter if specified");
 	    }
-	} else if (isftype(ty)) {
+	} else if (isfunction(ty)) {
 	    // convert to pointer to function
 	    ty = pointer(ty);
 	}
@@ -942,9 +930,9 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (id == NULL)
 	error("missing identifier in function definition");
 
-    if (isftype(ftype->type))
+    if (isfunction(ftype->type))
 	error("function cannot return function type");
-    else if (isatype(ftype->type))
+    else if (isarray(ftype->type))
 	error("function cannot return array type");
 
     if (sclass && sclass != EXTERN && sclass != STATIC) {
@@ -1040,17 +1028,16 @@ static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct
     if (sclass == TYPEDEF) {
 	// typedef decl
 	node_id = TYPEDEF_DECL;
-	ty = typedef_type(id, ty);
     } else if (isfunction(ty)){
 	node_id = FUNC_DECL;
 	if (ty->f.proto && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
-	if (isftype(ty->type))
+	if (isfunction(ty->type))
 	    error("function cannot return function type");
-	else if (isatype(ty->type))
+	else if (isarray(ty->type))
 	    error("function cannot return array type");
     } else if (isarray(ty)) {
-	if (isftype(ty->type))
+	if (isfunction(ty->type))
 	    error("'%s' declared as array of function", id);
     }
 

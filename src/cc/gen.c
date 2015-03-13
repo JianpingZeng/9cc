@@ -2,5 +2,5 @@
 
 void walk(struct node *tree)
 {
-    print_tree(tree);
+    
 }

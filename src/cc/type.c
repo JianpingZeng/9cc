@@ -254,16 +254,6 @@ struct type * record_type(int t, const char *tag)
     return ty;
 }
 
-struct type * typedef_type(const char *id, struct type *type)
-{
-    struct type *ty = new_type();
-    ty->op = TYPEDEF;
-    ty->name = id;
-    ty->type = type;
-
-    return ty;
-}
-
 const char * pname(struct type *type)
 {
     switch (type->op) {
@@ -279,7 +269,6 @@ const char * pname(struct type *type)
 	return "struct";
     case UNION:
 	return "union";
-    case TYPEDEF:
     case VOID:
     case CHAR:
     case INT:
@@ -290,42 +279,6 @@ const char * pname(struct type *type)
     default:
 	return "unknown";
     }
-}
-
-int isftype(struct type *type)
-{
-    if (type == NULL)
-	return 0;
-    else if (type->op == FUNCTION)
-	return 1;
-    else if (type->op == TYPEDEF)
-	return isftype(type->type);
-    else
-	return 0;
-}
-
-int isatype(struct type *type)
-{
-    if (type == NULL)
-	return 0;
-    else if (type->op == ARRAY)
-	return 1;
-    else if (type->op == TYPEDEF)
-	return isatype(type->type);
-    else
-	return 0;
-}
-
-int isvtype(struct type *type)
-{
-    if (type == NULL)
-	return 0;
-    else if (type->op == VOID)
-	return 1;
-    else if (type->op == TYPEDEF)
-	return isvtype(type->type);
-    else
-	return 0;
 }
 
 static int eqproto(struct node **proto1, struct node **proto2)
@@ -367,12 +320,6 @@ int eqtype(struct type *ty1, struct type *ty2)
         return 1;
     else if (ty1 == NULL || ty2 == NULL)
         return 0;
-    else if (ty1->op == TYPEDEF && ty2->op == TYPEDEF)
-	return eqtype(ty1->type, ty2->type);
-    else if (ty1->op == TYPEDEF)
-	return eqtype(ty1->type, ty2);
-    else if (ty2->op == TYPEDEF)
-	return eqtype(ty1, ty2->type);
     else if (ty1->op != ty2->op)
         return 0;
     else if (ty1->qual_const != ty2->qual_const ||

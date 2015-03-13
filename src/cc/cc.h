@@ -258,12 +258,6 @@ extern struct type * function_type();
 extern struct type * enum_type(const char *tag);
 extern struct type * record_type(int t, const char *tag);
 extern struct type * pointer(struct type *ty);
-extern struct type * typedef_type(const char *id, struct type *type);
-
-extern int isftype(struct type *type); // function
-extern int isatype(struct type *type); // array
-extern int isvtype(struct type *type); // void
-extern int hasqual(struct type *type);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
@@ -297,7 +291,6 @@ extern struct type    *vartype;		       // variable type
 #define isstruct(type)      ((type) && (type)->op == STRUCT)
 #define isunion(type)       ((type) && (type)->op == UNION)
 #define isrecord(type)      (isstruct(type) || isunion(type))
-#define istypedef(type)     ((type) && (type)->op == TYPEDEF)
 
 // sym
 // scope level

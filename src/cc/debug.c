@@ -68,13 +68,7 @@ static void print_type1(struct type_context context)
         } else if (isarray(type)) {
             fprintf(stderr, "%s %d of ", tname(type->op), type->size);
 	    print_type1(tcontext);
-        } else if (istypedef(type)) {
-	    fprintf(stderr, "%s aka ", type->name);
-	    while (type->type && istypedef(type->type))
-		type = type->type;
-	    tcontext.type = type->type;
-	    print_type1(tcontext);
-	} else if (type->op == ENUM || type->op == STRUCT || type->op == UNION) {
+        } else if (type->op == ENUM || type->op == STRUCT || type->op == UNION) {
 	    fprintf(stderr, "%s %s ", tname(type->op), type->name);
 	    print_type1(tcontext);
 	} else {
