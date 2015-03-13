@@ -34,16 +34,6 @@ void enter_scope()
     _scope++;
 }
 
-static void unuse_warning(struct table *table)
-{
-    struct symbol *sym = table->all;
-    while (sym && sym->scope == table->scope) {
-	if (sym->name && !sym->refs)
-	    warningf(sym->src, "unused variable '%s'", sym->name);
-	sym = sym->up;
-    }
-}
-
 void exit_scope()
 {
     if (identifiers->scope == _scope) {

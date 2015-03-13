@@ -127,7 +127,7 @@ static void translate(void *inputfile)
     unit++;
     
     if (!file_exists(inputfile)) {
-	fprintf(stderr, "input file '%s' not exists.\n", inputfile);
+	fprintf(stderr, "input file '%s' not exists.\n", (char *)inputfile);
 	fails++;
 	return;
     }

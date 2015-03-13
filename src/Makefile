@@ -1,6 +1,6 @@
 
 CC=cc
-CFLAGS=-Wall -std=c99 -o2
+CFLAGS=-Wall -std=c99 -O2
 LDFLAGS=
 TARGETS=mcc
 SOURCES=alloc.c \
@@ -27,7 +27,7 @@ INCLUDES=etc.h cc.h node.h token.h lib.h \
 .PHONY: all clean
 
 ifndef platform
-platform=mac
+platform=linux
 endif
 
 ifndef BUILDDIR
