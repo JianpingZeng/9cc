@@ -734,7 +734,7 @@ static struct type * enum_decl()
 	else
 	    error("undefined enum type '%s'", id);
     } else {
-	error("missing identifier after 'enum'");
+	error("expected identifier or '{'");
     }
 	
     return ret;

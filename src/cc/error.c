@@ -5,9 +5,19 @@ unsigned warnings;
 
 #define MAX_ERRORS 32
 
+static const char * basename(const char *file)
+{
+    int i;
+    for (i=strlen(file)-1; i >= 0; i--) {
+	if (file[i] == '/') 
+	    break;
+    }
+    return file+(i+1);
+}
+
 static void cc_print_lead(const char *lead, const char *file, unsigned line, const char *fmt, va_list ap)
 {
-    fprintf(stderr, "%s:%u: %s: ", file, line, lead);
+    fprintf(stderr, "%s:%u: %s: ", basename(file), line, lead);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
 }
