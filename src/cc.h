@@ -76,7 +76,7 @@ struct token {
 extern struct source source;
 extern struct token  *token;
 
-extern void init_lexer();
+extern void lexer_init();
 extern int  gettok();
 extern struct token *  lookahead();
 extern void match(int t);
@@ -205,7 +205,7 @@ struct type {
 };
 
 extern const char * pname(struct type *type);
-extern void init_type();
+extern void type_init();
 extern struct type * new_type();
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
@@ -275,7 +275,7 @@ struct symbol {
 };
 
 // sym
-extern void init_symbol();
+extern void symbol_init();
 extern int scopelevel();
 extern void enter_scope();
 extern void exit_scope();

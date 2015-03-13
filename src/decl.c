@@ -562,6 +562,7 @@ static struct type * func_or_array(int *params)
         }
     }
 
+    // TODO:
     validate_func_or_array(ty);
 
     return ty;
@@ -596,6 +597,7 @@ static struct type * abstract_func_or_array()
 	}
     }
 
+    // TODO
     validate_func_or_array(ty);
 
     return ty;

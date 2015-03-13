@@ -31,7 +31,7 @@ static void install_type(struct type **type, const char *name, int op, int size)
     *type = ty;
 }
 
-void init_type()
+void type_init()
 {
 #define INSTALL_TYPE(ty, name, op, size)      install_type(&ty, name, op, size)
     // char

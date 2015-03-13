@@ -5,6 +5,8 @@
 
 void (*signal(int signo,void (*func)(int))) (int);
 
+void f[][] ();
+
 // void vf(void);
 
 // void vf(void *p, int a);

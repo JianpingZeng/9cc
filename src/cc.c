@@ -6,9 +6,9 @@ static const char *output_file;
 static void cc_init()
 {
     setlocale(LC_ALL, "");
-    init_symbol();
-    init_type();
-    init_lexer();
+    symbol_init();
+    type_init();
+    lexer_init();
 }
 
 int cc_main(int argc, const char * argv[])

@@ -17,7 +17,7 @@ struct table * constants;
 struct table * records;
 static int _scope = GLOBAL;
 
-void init_symbol()
+void symbol_init()
 {
     identifiers = new_table(NULL, GLOBAL);
     constants = new_table(NULL, CONSTANT);
