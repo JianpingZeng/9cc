@@ -9,7 +9,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-const char *cpp[] = {"/usr/bin/gcc", "-E", 0};
+const char *cpp[] = {"/usr/bin/gcc",
+		     "-U__GNUC__",
+		     "-D__STDC__=1",
+		     "-E", 0};
 
 int callsys(const char *path, char **argv)
 {
