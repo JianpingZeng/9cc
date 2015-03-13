@@ -4,11 +4,11 @@ A standard c compiler. _NOT_ finished yet.
 Now in progress...
 
 # Notes
-The compiler is designed to be able to compile itself, so it is written in C. It is intended to support all C99 language features while keeping the code as simple and small as possiable.
+The compiler is designed to be able to compile itself, so it is written in C. It is intended to support all C99 language features while keeping the code as simple and small as possible.
 
 Do _NOT_ have high expectations on this compiler. For example, it is not an optimizing compiler.
 
-Once upon a time, mcc separate preprocessor, compiler, driver as different applications. It makes things clear but is hard to debug between those processes. Later, I combine them into one single application.
+Once upon a time, mcc separates the preprocessor, compiler and driver as different applications. It makes things clear but it's hard to debug. Later, they are combined into one single application.
 
 # Author
 Guiyang Huang, [mohu3g@163.com](mailto:mohu3g@163.com)
