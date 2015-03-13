@@ -8,9 +8,6 @@
 #include <stdlib.h>
 #include "mcc.h"
 
-// commands
-static const char *cc[] = {"cc", "$in", "-o", "$out", 0};
-
 // configs
 static struct configs {
     unsigned option_E : 1;
@@ -82,6 +79,7 @@ static int preprocess(const char *inputfile)
 
 static int compile(const char *inputfile, const char *orig_input_file)
 {
+    static const char *cc[] = {"cc", "$in", "-o", "$out", 0};
     int ret;
     struct vector *v = new_vector();
     char **argv;
@@ -104,7 +102,7 @@ static int compile(const char *inputfile, const char *orig_input_file)
     vector_add_from_array(v, (void **)cc);
     vector_add_from_vector(v, optionlist);
     argv = (char **) vector_to_array(v);
-    ret = callsys(cc[0], argv);
+    ret = cc_main(array_length((void **)argv), argv);
     free(argv);
     if (outfile) free(outfile);
     return ret;
