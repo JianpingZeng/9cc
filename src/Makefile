@@ -2,27 +2,28 @@
 CC=cc
 CFLAGS=-Wall -std=c99 -O2
 LDFLAGS=
-TARGETS=mcc
-SOURCES=alloc.c \
+TARGETS=mcc cc
+SOURCES_CC=alloc.c \
 	ast.c \
 	cc.c \
-	cpp.c \
 	debug.c \
 	decl.c \
 	error.c \
 	expr.c \
 	gen.c \
 	lex.c \
-	mcc.c \
 	stmt.c \
 	string.c \
 	sym.c \
 	type.c \
-	vector.c 
+	vector.c \
+	misc.c
 
-INCLUDES=etc.h cc.h node.h token.h lib.h \
-	include/stdarg.h include/float.h \
-	etc/linux.c etc/osx.c
+INCLUDES_CC=cc.h node.h token.h lib.h \
+	include/stdarg.h include/float.h
+
+INCLUDES_MCC=etc/mcc.h lib.h etc/linux.c etc/osx.c
+SOURCES_MCC=vector.c misc.c etc/cpp.c etc/mcc.c
 
 .PHONY: all clean
 
@@ -47,14 +48,18 @@ SPEC=etc/windows.c
 endif
 
 ifdef SPEC
-SOURCES+=$(SPEC)
+SOURCES_MCC+=$(SPEC)
 endif
 
 all: $(TARGETS)
 
-mcc: $(INCLUDES) $(SOURCES)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SOURCES) -o $@
+mcc: $(INCLUDES_MCC)
+	$(CC) $(CFLAGS) -I. $(LDFALGS) $(SOURCES_MCC) -o $@
+	@strip $@
+
+cc: $(INCLUDES_CC) mcc
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SOURCES_CC) -o $@
 	@strip $@
 
 clean:
-	@rm -f *.o *~ $(TARGETS)
+	@rm -f *.o *~ etc/*~ $(TARGETS)

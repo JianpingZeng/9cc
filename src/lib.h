@@ -1,6 +1,11 @@
 #ifndef MCC_LIB_H
 #define MCC_LIB_H
 
+// misc.c
+extern void * cc_malloc(size_t size);
+extern void cc_free(void *p);
+extern void die(const char *fmt, ...);
+
 // string.c
 struct string {
     char     *str;

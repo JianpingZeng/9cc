@@ -1,5 +1,4 @@
-#include "etc.h"
-#include "lib.h"
+#include "mcc.h"
 
 static void usage()
 {

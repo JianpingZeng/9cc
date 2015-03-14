@@ -95,16 +95,6 @@ void cclog(const char *fmt, ...)
     va_end(ap);
 }
 
-void die(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    exit(EXIT_FAILURE);
-}
-
 static long call_depth = -1;
 
 void begin_call(const char *funcname)

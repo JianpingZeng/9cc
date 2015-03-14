@@ -173,6 +173,10 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define is_switch_stmt(n) ((n) && NODE(n)->id == SWITCH_STMT)
 #define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
 
+struct field {
+
+};
+
 // type.c
 struct type {
     int op;
@@ -185,10 +189,12 @@ struct type {
     unsigned reserved : 1;
     struct type *type;
     union {
+	// function
 	struct {
 	    struct symbol **proto;
 	    unsigned oldstyle : 1;
 	}f;
+	// array
 	struct {
 	    struct expr *assign;
 	    unsigned qual_const : 1;
@@ -197,6 +203,14 @@ struct type {
 	    unsigned sclass_static : 1;
 	    unsigned wildcard : 1;
 	}a;
+	// enum
+	struct {
+	    struct symbol **ids;
+	}e;
+	// records
+	struct {
+	    struct field **fields;
+	}s;
     };
     struct {
 	union value max;
@@ -310,7 +324,6 @@ extern void error(const char *fmt, ...);
 extern void fatal(const char *fmt, ...);
 extern void warningf(struct source src, const char *fmt, ...);
 extern void errorf(struct source src, const char *fmt, ...);
-extern void die(const char *fmt, ...);
 extern void cclog(const char *fmt, ...);
 
 extern void begin_call(const char *funcname);

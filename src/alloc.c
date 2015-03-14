@@ -5,20 +5,6 @@
 #define ALIGN_SIZE    (sizeof(unsigned long long))
 #define ROUNDUP(size) ((size+(ALIGN_SIZE - 1))&(~(ALIGN_SIZE - 1)))
 
-void * cc_malloc(size_t size)
-{
-    void *p = malloc(size);
-    if (!p)
-	die("Can't malloc");
-    memset(p, 0, size);
-    return p;
-}
-
-void cc_free(void *p)
-{
-    free(p);
-}
-
 struct alloc_state {
     int nr;			// number of free nodes left
     void *p;			// first free node position

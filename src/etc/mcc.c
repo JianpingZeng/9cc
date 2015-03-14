@@ -6,8 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "etc.h"
-#include "lib.h"
+#include "mcc.h"
 
 extern int cpp_main(int argc, char **argv);
 extern int cc_main(int argc, char **argv);
@@ -106,7 +105,7 @@ static int compile(const char *inputfile, const char *orig_input_file)
     vector_add_from_array(v, (void **)cc);
     vector_add_from_vector(v, optionlist);
     argv = (char **) vector_to_array(v);
-    ret = cc_main(array_length((void **)argv), argv);
+    ret = callsys(cc[0], argv);
     free(argv);
     if (outfile) free(outfile);
     return ret;

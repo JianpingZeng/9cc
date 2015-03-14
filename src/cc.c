@@ -11,7 +11,7 @@ static void cc_init()
     lexer_init();
 }
 
-int cc_main(int argc, const char * argv[])
+int main(int argc, const char * argv[])
 {
     FILE *fp;
     struct decl *n;
