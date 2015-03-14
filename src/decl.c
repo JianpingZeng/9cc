@@ -802,7 +802,7 @@ static void update_params(void *elem, void *context)
 	if (p)
 	    p->type = sym->type;
 	else
-	    error("parameter named '%s' is missing", sym->name);
+	    errorf(sym->src, "parameter named '%s' is missing", sym->name);
     }
 }
 
@@ -940,14 +940,35 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 
     assert(SCOPE == PARAM);
 
-    if (id == NULL)
-	error("missing identifier in function definition");
-
     validate_func_or_array(ftype);
-
     if (sclass && sclass != EXTERN && sclass != STATIC) {
 	error("invalid storage class specifier '%s'", tname(sclass));
 	sclass = 0;
+    }
+
+    if (id) {
+	struct symbol *sym = locate_symbol(id, identifiers, GLOBAL);
+	if (!sym) {
+	    sym = install_symbol(id, &identifiers, GLOBAL);
+	    sym->type = ftype;
+	    sym->src = src;
+	    sym->defined = 1;
+	    sym->sclass = sclass;
+	    decl->node.symbol = sym;
+	} else if (eqtype(ftype, sym->type) && !sym->defined) {
+	    if (sclass == STATIC && sym->sclass != STATIC) {
+		errorf(src, "static declaaration of '%s' follows non-static declaration", id);
+	    } else {
+		sym->type = ftype;
+		sym->src = src;
+		sym->defined = 1;
+		decl->node.symbol = sym;
+	    }
+	} else {
+	    redefinition_error(src, sym);
+	}
+    } else {
+	error("missing identifier in function definition");
     }
 
     if (!ftype->f.oldstyle && ftype->f.proto) {
@@ -978,32 +999,8 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (token->id == '{') {
 	// function definition
 	// install symbol first for backward reference
-	struct stmt *stmt;
-	if (id) {
-	    struct symbol *sym = locate_symbol(id, identifiers, GLOBAL);
-	    if (!sym) {
-		sym = install_symbol(id, &identifiers, GLOBAL);
-		sym->type = ftype;
-		sym->src = src;
-		sym->defined = 1;
-		sym->sclass = sclass;
-		decl->node.symbol = sym;
-	    } else if (eqtype(ftype, sym->type) && !sym->defined) {
-		if (sclass == STATIC && sym->sclass != STATIC) {
-		    errorf(src, "static declaaration of '%s' follows non-static declaration", id);
-		} else {
-		    sym->type = ftype;
-		    sym->src = src;
-		    sym->defined = 1;
-		    decl->node.symbol = sym;
-		}
-	    } else {
-	        redefinition_error(src, sym);
-	    }
-	}
-	stmt = compound_statement(NULL);
+	struct stmt *stmt = compound_statement(NULL);
 	exit_scope();
-	assert(SCOPE == GLOBAL);
 	decl->node.kids[0] = NODE(stmt);
     }
 

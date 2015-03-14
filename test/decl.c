@@ -190,13 +190,13 @@ void f[][] ();
 // int a;
 // static int a;
 
-enum UU;
-enum YY y;
-enum HH;
-enum HH {
-    A,
-    B,
-};
+// enum UU;
+// enum YY y;
+// enum HH;
+// enum HH {
+//     A,
+//     B,
+// };
 // enum H2 {
 //     A,
 //     B
@@ -226,4 +226,10 @@ enum HH {
 // void c(...);
 // void c(..., int);
 // void c(int, ...);
-void c(int, ..., int);
+// void c(int, ..., int);
+
+void f (a, b)
+     int a, b; int c; int b;
+{
+
+}
