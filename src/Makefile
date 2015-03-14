@@ -17,13 +17,13 @@ SOURCES_CC=alloc.c \
 	sym.c \
 	type.c \
 	vector.c \
-	misc.c
+	util.c
 
 INCLUDES_CC=cc.h node.h token.h lib.h \
 	include/stdarg.h include/float.h
 
 INCLUDES_MCC=etc/mcc.h lib.h etc/linux.c etc/osx.c
-SOURCES_MCC=vector.c misc.c etc/cpp.c etc/mcc.c
+SOURCES_MCC=vector.c util.c etc/cpp.c etc/mcc.c
 
 .PHONY: all clean
 
