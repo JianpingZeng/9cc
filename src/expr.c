@@ -527,8 +527,8 @@ struct expr * constant_expression()
 }
 
 // TODO
-int eval_constexpr(struct expr *expr, union value *value)
+int intexpr()
 {
-    value->i = 0;
+    constant_expression();
     return 0;
 }

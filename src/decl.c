@@ -6,6 +6,7 @@ static void param_declarator(struct type **ty, const char **id);
 static struct type * pointer_decl();
 static struct type * enum_decl();
 static struct type * record_decl();
+static struct symbol * paramdecl(const char *id, struct type *ftype, int sclass,  struct source src);
 
 static int kinds[] = {
 #define _a(a, b, c, d)  d,
@@ -262,211 +263,6 @@ static struct type * specifiers(int *sclass)
     return basety;
 }
 
-static struct symbol * lookup_ids(struct type *ftype, const char *id)
-{
-    if (ftype->f.proto && id) {
-	for (int i=0; ftype->f.proto[i]; i++) {
-	    struct symbol *sym = ftype->f.proto[i];
-	    if (!strcmp(sym->name, id))
-		return sym;
-	}
-    }
-
-    return NULL;
-}
-
-// oldstyle
-static void parameter_decl_list(struct type *ftype)
-{
-    enter_scope();
-    
-    for (; kind(token->id) & FIRST_DECL;) {
-	int sclass;
-	struct type *basety;
-	    
-	basety = specifiers(&sclass);
-	if (token->id == ID || token->id == '*' || token->id == '(') {
-	    if (sclass && sclass != REGISTER)
-		error("invalid storage class specifier '%s' in parameter list", tname(sclass));
-	    else if (isinline(basety))
-		error("invalid function specifier 'inline' in parameter list");
-		
-	    for (;;) {
-		const char *id = NULL;
-		struct type *ty = NULL;
-		struct source src = source;
-
-		// declarator
-		declarator(&ty, &id, NULL);
-		attach_type(&ty, basety);
-		
-		if (isvoid(ty))
-		    error("argument may not have 'void' type");
-		else if (isfunction(ty))
-		    ty = pointer_type(ty);
-
-		if (id) {
-		    struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
-		    if (!sym) {
-			sym = lookup_ids(ftype, id);
-			if (sym) {
-			    sym->type = ty;
-			    // new symbol
-			    sym = install_symbol(id, &identifiers, SCOPE);
-			    sym->src = src;
-			    sym->type = ty;
-			    sym->sclass = sclass == REGISTER ? REGISTER : 0;
-			} else {
-			    error("parameter named '%s' is missing", id);
-			}
-		    } else {
-			redefinition_error(source, sym);
-		    }
-		} else {
-		    error("missing identifier");
-		}
-
-		if (token->id != ',')
-		    break;
-
-		match(',');
-	    }
-	    
-	    skipto(';');
-	} else if (token->id == ';'){
-	    match(';');
-	    if (basety)
-		error("missing declarator");
-	} else {
-	    error("invalid token '%s'", token);
-	}
-    }
-
-    exit_scope();
-}
-
-// prototype
-static struct symbol ** parameter_type_list()
-{    
-    struct vector *v = new_vector();
-
-    for (int i=0;;i++) {
-	struct type *basety = NULL;
-	int sclass;
-	struct type *ty = NULL;
-	const char *id = NULL;
-	struct source src = source;
-
-	basety = specifiers(&sclass);
-	if (sclass && sclass != REGISTER)
-	    error("invalid storage class specifier '%s' in parameter list",
-		  tname(sclass));
-	else if (isinline(basety))
-	    error("invalid function specifier 'inline' in parameter list");
-
-        if (token->id == '*' || token->id == '(' || token->id == '[' || token->id == ID)
-	    param_declarator(&ty, &id);
-	
-	attach_type(&ty, basety);
-	
-	if (isvoid(ty)) {
-	    if (i == 0 && token->id == ')') {
-	        if (id)
-		    error("argument may not have 'void' type");
-		else if (isqual(ty))
-		    error("'void' as parameter must not have type qualifiers");
-	    } else {
-		error("'void' must be the first and only parameter if specified");
-	    }
-	} else if (isfunction(ty)) {
-	    // convert to pointer to function
-	    ty = pointer_type(ty);
-	}
-
-	if (id) {
-	    struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
-	    if (!sym) {
-		sym = install_symbol(id, &identifiers, SCOPE);
-		sym->type = ty;
-		sym->src = src;
-	        sym->sclass = sclass == REGISTER ? REGISTER : 0;
-		vector_push(v, sym);
-	    } else {
-		redefinition_error(source, sym);
-	    }
-	} else {
-	    struct symbol *sym = anonymous_symbol(&identifiers, SCOPE);
-	    sym->type = ty;
-	    sym->src = src;
-	    sym->sclass = sclass == REGISTER ? REGISTER : 0;
-	    vector_push(v, sym);
-	}
-	
-	if (token->id != ',')
-	    break;
-
-	match(',');
-	if (token->id == ELLIPSIS) {
-	    struct symbol *sym = install_symbol(token->name, &identifiers, SCOPE);
-	    sym->src = source;
-	    sym->type = vartype;
-	    vector_push(v, sym);
-	    match(ELLIPSIS);
-	    break;
-	}
-    }
-
-    return (struct symbol **) vector_to_array(v);
-}
-
-static struct symbol ** func_proto(struct type *ftype)
-{    
-    struct symbol **ret = NULL;
-
-    enter_scope();
-    
-    if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
-	(token->id == ID && is_typedef_name(token->name))) {
-	// prototype
-	ret = parameter_type_list();
-    } else if (token->id == ID) {
-	// oldstyle
-	struct vector *v = new_vector();
-	for (;;) {
-	    if (token->id == ID) {
-		struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
-		if (!sym) {
-		    sym = install_symbol(token->name, &identifiers, SCOPE);
-		    sym->type = inttype;
-		    sym->src = source;
-		    vector_push(v, sym);
-		} else {
-		    redefinition_error(source, sym);
-		}
-	    }
-	    match(ID);
-	    if (token->id != ',')
-		break;
-	    match(',');
-	}
-
-	if (SCOPE > PARAM)
-	    error("a parameter list without types is only allowed in a function definition");
-	ret = (struct symbol **) vector_to_array(v);
-	ftype->f.oldstyle = 1;
-    } else if (token->id == ')') {
-	ftype->f.oldstyle = 1;
-    } else {
-	error("invalid token '%s' in parameter list", token->name);
-	gettok();
-    }
-
-    if (SCOPE > PARAM)
-	exit_scope();
-
-    return ret;
-}
-
 static void atype_qualifiers(struct type *atype)
 {
     int cons, vol, res;
@@ -506,6 +302,84 @@ static void atype_qualifiers(struct type *atype)
 	atype->a.qual_volatile = 1;
     if (res)
 	atype->a.qual_restrict = 1;
+}
+
+static struct symbol ** func_proto(struct type *ftype)
+{    
+    struct symbol **ret = NULL;
+
+    enter_scope();
+    
+    if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
+	(token->id == ID && is_typedef_name(token->name))) {
+	// prototype
+	struct vector *v = new_vector();
+	for (int i=0;;i++) {
+	    struct type *basety = NULL;
+	    int sclass;
+	    struct type *ty = NULL;
+	    const char *id = NULL;
+	    struct source src = source;
+
+	    basety = specifiers(&sclass);
+	    if (token->id == '*' || token->id == '(' || token->id == '[' || token->id == ID)
+		param_declarator(&ty, &id);
+	
+	    attach_type(&ty, basety);
+	    
+	    if (isinline(basety))
+		error("invalid function specifier 'inline' in parameter list");
+	    if (isvoid(ty)) {
+		if (i == 0 && token->id == ')') {
+		    if (id)
+			error("argument may not have 'void' type");
+		    else if (isqual(ty))
+			error("'void' as parameter must not have type qualifiers");
+		} else {
+		    error("'void' must be the first and only parameter if specified");
+		}
+	    }
+	    
+	    vector_push(v, paramdecl(id, ty, sclass, src));
+	    if (token->id != ',')
+		break;
+
+	    match(',');
+	    if (token->id == ELLIPSIS) {
+		vector_push(v, paramdecl(token->name, vartype, 0, source));
+		match(ELLIPSIS);
+		break;
+	    }
+	}
+
+	ret = (struct symbol **)vector_to_array(v);
+    } else if (token->id == ID) {
+	// oldstyle
+	ftype->f.oldstyle = 1;
+	struct vector *v = new_vector();
+	for (;;) {
+	    if (token->id == ID)
+		vector_push(v, paramdecl(token->name, inttype, 0, source));
+	    match(ID);
+	    if (token->id != ',')
+		break;
+	    match(',');
+	}
+
+	if (SCOPE > PARAM)
+	    error("a parameter list without types is only allowed in a function definition");
+	ret = (struct symbol **) vector_to_array(v);
+    } else if (token->id == ')') {
+	ftype->f.oldstyle = 1;
+    } else {
+	error("invalid token '%s' in parameter list", token->name);
+	gettok();
+    }
+
+    if (SCOPE > PARAM)
+	exit_scope();
+
+    return ret;
 }
 
 static struct type * func_or_array(int *params)
@@ -669,70 +543,57 @@ static struct type * enum_decl()
     }
     if (token->id == '{') {
 	struct type *ety = enum_type(id);
-	int val = 0;
+	long long val = 0;
+	struct vector *v = new_vector();
 	match('{');
-	do {
-	    if (token->id == ID) {
-		struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
-		if (!sym) {
-		    sym = install_symbol(token->name, &identifiers, SCOPE);
-		    sym->type = ety;
-		    sym->src = source;
-		} else {
-		    redefinition_error(source, sym);
-		}
-
-		match(ID);
-		if (token->id == '=') {
-		    struct expr *expr;
-		    match('=');
-		    expr = constant_expression();
-		    if (expr) {
-		        //TODO evaluate
-			union value value;
-			eval_constexpr(expr, &value);
-		    } else {
-			error("enum constant is not a compile-time constant");
-		    }
-		}
-
-		val++;
-	    } else {
-		error("expect identifier");
-		gettok();
-	    }
-	    
-	    if (token->id == ',')
-		match(',');
-	    if (token->id == '}')
-		break;
-	} while(token->id != EOI);
-	match('}');	
-	
 	if (id) {
 	    struct symbol *sym = locate_symbol(id, records, SCOPE);
-	    if (!sym) {
-		sym = install_symbol(id, &records, SCOPE);
-		sym->type = ety;
-		sym->src = src;
-		ret = ety;
-	    } else {
-		redefinition_error(source, sym);
-	    }
-	} else {
-	    ret = ety;
+	    if (sym && sym->defined)
+		redefinition_error(src, sym);
+	    
+	    sym = install_symbol(id, &records, SCOPE);
+	    sym->type = ety;
+	    sym->src = src;
+	    sym->defined = 1;
 	}
-	
+	if (token->id != ID)
+	    error("expect identifier");
+	while (token->id == ID) {
+	    struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
+	    if (sym)
+		redefinition_error(source, sym);
+	    
+	    sym = install_symbol(token->name, &identifiers, SCOPE);
+	    sym->type = ety;
+	    sym->src = source;
+	    match(ID);
+	    if (token->id == '=') {
+		match('=');
+	        // TODO
+		val = intexpr();
+	    }
+	    sym->value.i = val++;
+	    vector_push(v, sym);
+	    if (token->id != ',')
+		break;
+	    match(',');
+	}
+	skipto('}');	
+	ety->e.ids = (struct symbol **)vector_to_array(v);	
+	ret = ety;
     } else if (id) {
 	struct symbol *sym = lookup_symbol(id, records);
-	if (sym)
-	    ret = sym->type;
-	else
-	    error("undefined enum type '%s'", id);
+	if (!sym) {
+	    struct type *ety = enum_type(id);
+	    sym = install_symbol(id, &records, SCOPE);
+	    sym->type = ety;
+	    sym->src = src;
+	}
+	ret = sym->type;
     } else {
 	error("expected identifier or '{'");
     }
-	
+
     return ret;
 }
 
@@ -917,6 +778,118 @@ static void param_declarator(struct type **ty, const char **id)
     } else if (token->id == ID) {
 	declarator(ty, id, NULL);
     }
+}
+
+// oldstyle
+static void parameter_decl_list(struct type *ftype)
+{
+    enter_scope();
+    
+    for (; kind(token->id) & FIRST_DECL;) {
+	int sclass;
+	struct type *basety;
+	    
+	basety = specifiers(&sclass);
+	if (token->id == ID || token->id == '*' || token->id == '(') {
+	    if (sclass && sclass != REGISTER)
+		error("invalid storage class specifier '%s' in parameter list", tname(sclass));
+	    else if (isinline(basety))
+		error("invalid function specifier 'inline' in parameter list");
+		
+	    for (;;) {
+		const char *id = NULL;
+		struct type *ty = NULL;
+		struct source src = source;
+
+		// declarator
+		declarator(&ty, &id, NULL);
+		attach_type(&ty, basety);
+		
+		if (isvoid(ty))
+		    error("argument may not have 'void' type");
+		else if (isfunction(ty))
+		    ty = pointer_type(ty);
+
+		if (id) {
+		    struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
+		    if (!sym) {
+			if (ftype->f.proto) {
+			    for (int i=0; ftype->f.proto[i]; i++) {
+				struct symbol *s = ftype->f.proto[i];
+				if (!strcmp(s->name, id)) {
+				    sym = s;
+				    break;
+				}
+			    }
+			}
+
+			if (sym) {
+			    sym->type = ty;
+			    // new symbol
+			    sym = install_symbol(id, &identifiers, SCOPE);
+			    sym->src = src;
+			    sym->type = ty;
+			    sym->sclass = sclass == REGISTER ? REGISTER : 0;
+			} else {
+			    error("parameter named '%s' is missing", id);
+			}
+		    } else {
+			redefinition_error(source, sym);
+		    }
+		} else {
+		    error("missing identifier");
+		}
+
+		if (token->id != ',')
+		    break;
+
+		match(',');
+	    }
+	    
+	    skipto(';');
+	} else if (token->id == ';'){
+	    match(';');
+	    if (basety)
+		error("missing declarator");
+	} else {
+	    error("invalid token '%s'", token);
+	}
+    }
+
+    exit_scope();
+}
+
+static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)
+{
+    struct symbol *ret = NULL;
+    if (sclass && sclass != REGISTER) {
+	error("invalid storage class specifier '%s' in parameter list", tname(sclass));
+	sclass = 0;
+    }
+
+    if (isfunction(ty))
+	ty = pointer_type(ty);
+
+    if (id) {
+	struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
+	if (sym)
+	    redefinition_error(source, sym);
+	sym = install_symbol(id, &identifiers, SCOPE);
+	sym->type = ty;
+	sym->src = src;
+	sym->sclass = sclass;
+	sym->defined = 1;
+	ret = sym;
+    } else {
+	struct symbol *sym = anonymous_symbol(&identifiers, SCOPE);
+	sym->type = ty;
+	sym->src = src;
+	sym->sclass = sclass;
+	sym->defined = 1;
+	ret = sym;
+    }
+
+    return ret;
 }
 
 static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)

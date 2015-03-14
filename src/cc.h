@@ -149,7 +149,7 @@ extern struct stmt * stmt_node(int id, struct node *l, struct node *r);
 extern struct expr * expression();
 extern struct expr * constant_expression();
 extern struct expr * assign_expression();
-extern int eval_constexpr(struct expr *expr, union value *value);
+extern int intexpr();
 
 // decl.c
 extern struct decl * initializer_list();

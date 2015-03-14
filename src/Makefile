@@ -53,11 +53,11 @@ endif
 
 all: $(TARGETS)
 
-mcc: $(INCLUDES_MCC)
+mcc: $(INCLUDES_MCC) $(SOURCES_MCC)
 	$(CC) $(CFLAGS) -I. $(LDFALGS) $(SOURCES_MCC) -o $@
 	@strip $@
 
-cc: $(INCLUDES_CC) mcc
+cc: $(INCLUDES_CC) $(SOURCES_CC) mcc
 	$(CC) $(CFLAGS) $(LDFLAGS) $(SOURCES_CC) -o $@
 	@strip $@
 

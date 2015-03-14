@@ -189,3 +189,41 @@ void f[][] ();
 // static int a;
 // int a;
 // static int a;
+
+enum UU;
+enum YY y;
+enum HH;
+enum HH {
+    A,
+    B,
+};
+// enum H2 {
+//     A,
+//     B
+// };
+
+// enum H3 {
+//     A,
+//     B
+// } h3;
+
+// enum H2 {
+//     A,
+//     B
+// };
+
+// enum {
+//     JJ
+// };
+
+// enum {
+
+// } j;
+
+// void c(int ,void);
+// void c(void);
+// void c(const void);
+// void c(...);
+// void c(..., int);
+// void c(int, ...);
+void c(int, ..., int);

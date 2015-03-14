@@ -100,7 +100,7 @@ static void print_tree1(struct print_context context)
 
     if (isdecl(node)) {
 	if (node->symbol) {
-	    fprintf(stderr, "%s '%s' ", nname(node), STR(node->symbol->name));
+	    fprintf(stderr, "%s '%s' %s ", nname(node), STR(node->symbol->name), node->symbol->defined ? "<defined>" : "");
 	    if (node->symbol->type) {
 		struct type_context tcontext = {context.level, node->symbol->type};
 		print_type1(tcontext);
