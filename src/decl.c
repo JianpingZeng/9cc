@@ -786,8 +786,9 @@ static void param_declarator(struct type **ty, const char **id)
 
 static void update_params(void *elem, void *context)
 {
-    struct symbol *sym = ((struct node *)elem)->symbol;
+    struct node *decl = (struct node *)elem;
     struct type *ftype = (struct type *)context;
+    struct symbol *sym = decl->symbol;
 
     assert(sym->name);
     if (ftype->f.proto) {
@@ -1007,31 +1008,6 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     return decl;
 }
 
-static struct decl * typedecl(struct type *ty, struct source src)
-{
-    int node_id;
-    struct decl *decl;
-
-    if (isstruct(ty))
-	node_id = STRUCT_DECL;
-    else if (isunion(ty))
-	node_id = UNION_DECL;
-    else
-	node_id = ENUM_DECL;
-		
-    decl = decl_node(node_id, SCOPE);
-    if (ty->name) {
-	decl->node.symbol = locate_symbol(ty->name, records, SCOPE);
-    } else {
-	struct symbol *sym = anonymous_symbol(&records, SCOPE);
-	sym->type = ty;
-	sym->src = src;
-	decl->node.symbol = sym;
-    }
-
-    return decl;
-}
-
 static struct node ** decls(DeclFunc declfunc)
 {
     struct vector *v = new_vector();
@@ -1089,22 +1065,33 @@ static struct node ** decls(DeclFunc declfunc)
 	    declarator(&ty, &id, NULL);
 	    attach_type(&ty, basety);
 	}
-
-	skipto(';');
-    } else if (token->id == ';') {
+    } else if (isenum(basety) || isrecord(basety)) {
 	// struct/union/enum
-	if (basety) {
-	    if (isenum(basety) || isrecord(basety))
-		vector_push(v, typedecl(basety, src));
-	    else
-		error("expect enum/struct/union type before ';'");
-	}   
-	match(';');
+	int node_id;
+	struct decl *decl;
+
+	if (isstruct(basety))
+	    node_id = STRUCT_DECL;
+	else if (isunion(basety))
+	    node_id = UNION_DECL;
+	else
+	    node_id = ENUM_DECL;
+		
+	decl = decl_node(node_id, SCOPE);
+	if (basety->name) {
+	    decl->node.symbol = locate_symbol(basety->name, records, SCOPE);
+	} else {
+	    struct symbol *sym = anonymous_symbol(&records, SCOPE);
+	    sym->type = basety;
+	    sym->src = src;
+	    decl->node.symbol = sym;
+	}
+
+	vector_push(v, decl);
     } else {
 	error("invalid token '%s' in declaration", token->name);
-	skipto(';');
     }
-
+    skipto(';');
     return (struct node **)vector_to_array(v);
 }
 
