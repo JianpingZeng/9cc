@@ -130,12 +130,12 @@ void *vector_back(struct vector *v)
     return vector_at(v, vector_length(v)-1);
 }
 
-void vector_foreach(struct vector *v, void (*func) (void *elem))
+void vector_foreach(struct vector *v, void (*func) (void *elem, void *context), void *context)
 {
-    if (!func) return;
+    assert(func);
     for (int i=0; i < vector_length(v); i++) {
 	void *p = vector_at(v, i);
-	func(p);
+	func(p, context);
     }
 }
 

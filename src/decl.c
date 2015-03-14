@@ -6,7 +6,11 @@ static void param_declarator(struct type **ty, const char **id);
 static struct type * pointer_decl();
 static struct type * enum_decl();
 static struct type * record_decl();
-static struct symbol * paramdecl(const char *id, struct type *ftype, int sclass,  struct source src);
+typedef struct symbol * (*DeclFunc)(const char *id, struct type *ftype, int sclass,  struct source src);
+static struct node ** decls(DeclFunc declfunc);
+static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
+static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
+static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
 
 static int kinds[] = {
 #define _a(a, b, c, d)  d,
@@ -780,88 +784,31 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
-// oldstyle
-static void parameter_decl_list(struct type *ftype)
+static void update_params(void *elem, void *context)
 {
-    enter_scope();
-    
-    for (; kind(token->id) & FIRST_DECL;) {
-	int sclass;
-	struct type *basety;
-	    
-	basety = specifiers(&sclass);
-	if (token->id == ID || token->id == '*' || token->id == '(') {
-	    if (sclass && sclass != REGISTER)
-		error("invalid storage class specifier '%s' in parameter list", tname(sclass));
-	    else if (isinline(basety))
-		error("invalid function specifier 'inline' in parameter list");
-		
-	    for (;;) {
-		const char *id = NULL;
-		struct type *ty = NULL;
-		struct source src = source;
+    struct symbol *sym = ((struct node *)elem)->symbol;
+    struct type *ftype = (struct type *)context;
 
-		// declarator
-		declarator(&ty, &id, NULL);
-		attach_type(&ty, basety);
-		
-		if (isvoid(ty))
-		    error("argument may not have 'void' type");
-		else if (isfunction(ty))
-		    ty = pointer_type(ty);
-
-		if (id) {
-		    struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
-		    if (!sym) {
-			if (ftype->f.proto) {
-			    for (int i=0; ftype->f.proto[i]; i++) {
-				struct symbol *s = ftype->f.proto[i];
-				if (!strcmp(s->name, id)) {
-				    sym = s;
-				    break;
-				}
-			    }
-			}
-
-			if (sym) {
-			    sym->type = ty;
-			    // new symbol
-			    sym = install_symbol(id, &identifiers, SCOPE);
-			    sym->src = src;
-			    sym->type = ty;
-			    sym->sclass = sclass == REGISTER ? REGISTER : 0;
-			} else {
-			    error("parameter named '%s' is missing", id);
-			}
-		    } else {
-			redefinition_error(source, sym);
-		    }
-		} else {
-		    error("missing identifier");
-		}
-
-		if (token->id != ',')
-		    break;
-
-		match(',');
+    assert(sym->name);
+    if (ftype->f.proto) {
+	struct symbol *p = NULL;
+	for (int i=0; ftype->f.proto[i]; i++) {
+	    struct symbol *s = ftype->f.proto[i];
+	    if (!strcmp(s->name, sym->name)) {
+		p = s;
+		break;
 	    }
-	    
-	    skipto(';');
-	} else if (token->id == ';'){
-	    match(';');
-	    if (basety)
-		error("missing declarator");
-	} else {
-	    error("invalid token '%s'", token);
 	}
+	if (p)
+	    p->type = sym->type;
+	else
+	    error("parameter named '%s' is missing", sym->name);
     }
-
-    exit_scope();
 }
 
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)
 {
-    struct symbol *ret = NULL;
+    struct symbol *sym = NULL;
     if (sclass && sclass != REGISTER) {
 	error("invalid storage class specifier '%s' in parameter list", tname(sclass));
 	sclass = 0;
@@ -871,7 +818,7 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 	ty = pointer_type(ty);
 
     if (id) {
-	struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
+	sym = locate_symbol(id, identifiers, SCOPE);
 	if (sym)
 	    redefinition_error(source, sym);
 	sym = install_symbol(id, &identifiers, SCOPE);
@@ -879,17 +826,112 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 	sym->src = src;
 	sym->sclass = sclass;
 	sym->defined = 1;
-	ret = sym;
     } else {
-	struct symbol *sym = anonymous_symbol(&identifiers, SCOPE);
+	sym = anonymous_symbol(&identifiers, SCOPE);
 	sym->type = ty;
 	sym->src = src;
 	sym->sclass = sclass;
 	sym->defined = 1;
-	ret = sym;
+    }
+    return sym;
+}
+
+static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src)
+{
+    struct symbol *sym = NULL;
+    struct node *init_node = NULL;
+
+    assert(id);
+    assert(SCOPE >= LOCAL);
+    
+    if (token->id == '=') {
+	// initializer
+	match('=');
+	init_node = initializer();
     }
 
-    return ret;
+    if (init_node) {
+	if (sclass == EXTERN)
+	    errorf(src, "'extern' variable cannot have an initializer");
+	else if (sclass == TYPEDEF)
+	    errorf(src, "illegal initializer (only variable can be initialized)");
+    }
+    
+    if (isfunction(ty)){
+	if (ty->f.proto && ty->f.oldstyle)
+	    error("a parameter list without types is only allowed in a function definition");
+    }
+    validate_func_or_array(ty);
+
+    if (SCOPE == LOCAL)
+	sym = find_symbol(id, identifiers, PARAM);
+    else
+	sym = locate_symbol(id, identifiers, SCOPE);
+
+    if (!sym) {
+	sym = install_symbol(id, &identifiers, SCOPE);
+	sym->type = ty;
+	sym->src = src;
+	sym->defined = 1;
+	sym->sclass = sclass;
+    } else {
+	redefinition_error(src, sym);
+    }
+
+    return sym;
+}
+
+static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src)
+{
+    struct symbol *sym = NULL;
+    struct node *init_node = NULL;
+
+    assert(id);
+    assert(SCOPE == GLOBAL);
+    
+    if (token->id == '=') {
+	// initializer
+	match('=');
+	init_node = initializer();
+    }
+
+    if (sclass == AUTO || sclass == REGISTER) {
+	errorf(src, "illegal storage class on file-scoped variable");
+	sclass = 0;
+    }
+
+    if (init_node) {
+	if (sclass == EXTERN)
+	    warningf(src, "'extern' variable has an initializer");
+	else if (sclass == TYPEDEF)
+	    errorf(src, "illegal initializer (only variable can be initialized)");
+    }
+    
+    if (isfunction(ty)) {
+	if (ty->f.proto && ty->f.oldstyle)
+	    error("a parameter list without types is only allowed in a function definition");
+    }
+    validate_func_or_array(ty);
+
+    sym = locate_symbol(id, identifiers, SCOPE);
+    if (!sym) {
+	sym = install_symbol(id, &identifiers, SCOPE);
+	sym->type = ty;
+	sym->src = src;
+	sym->defined = init_node ? 1 : 0;
+	sym->sclass = sclass;
+    } else if (sclass != TYPEDEF && eqtype(ty, sym->type)) {
+	if (sym->defined && init_node)
+	    redefinition_error(src, sym);
+	else if (sclass == STATIC && sym->sclass != STATIC)
+	    errorf(src, "static declaration of '%s' follows non-static declaration", id);
+	else if (sym->sclass == STATIC && sclass != STATIC)
+	    errorf(src, "non-static declaration of '%s' follows static declaration", id);
+    } else {
+	conflicting_types_error(src, sym);
+    }
+
+    return sym;
 }
 
 static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
@@ -919,7 +961,14 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 
     if (kind(token->id) & FIRST_DECL) {
 	// old style function definition
-	parameter_decl_list(ftype);
+	struct vector *v = new_vector();
+	enter_scope();
+	while (kind(token->id) & FIRST_DECL)
+	    vector_add_from_array(v, (void **)decls(paramdecl));
+
+	vector_foreach(v, update_params, ftype);
+	free_vector(v);
+	exit_scope();
 	if (token->id != '{') {
 	    error("expect function body after function declarator");
 	    stopat('{');
@@ -961,92 +1010,6 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     return decl;
 }
 
-static struct decl * vardecl(const char *id, struct type *ty, int sclass, struct source src)
-{
-    struct decl *decl = NULL;
-    int node_id = VAR_DECL;
-    struct node *init_node = NULL;
-
-    assert(id);
-    assert(SCOPE == GLOBAL || SCOPE >= LOCAL);
-    
-    if (token->id == '=') {
-	// initializer
-	match('=');
-	init_node = initializer();
-    }
-
-    if (SCOPE == GLOBAL && (sclass == AUTO || sclass == REGISTER)) {
-	errorf(src, "illegal storage class on file-scoped variable");
-	sclass = 0;
-    }
-
-    if (init_node) {
-	if (sclass == EXTERN) {
-	    if (SCOPE == GLOBAL)
-		warningf(src, "'extern' variable has an initializer");
-	    else
-		errorf(src, "'extern' variable cannot have an initializer");
-	} else if (sclass == TYPEDEF){
-	    errorf(src, "illegal initializer (only variable can be initialized)");
-	}
-    }
-    
-    if (sclass == TYPEDEF) {
-	// typedef decl
-	node_id = TYPEDEF_DECL;
-    } else if (isfunction(ty)){
-	node_id = FUNC_DECL;
-	if (ty->f.proto && ty->f.oldstyle)
-	    error("a parameter list without types is only allowed in a function definition");
-    }
-    validate_func_or_array(ty);
-
-    if (SCOPE == GLOBAL) {
-	struct symbol *sym = locate_symbol(id, identifiers, SCOPE);
-	if (!sym) {
-	    sym = install_symbol(id, &identifiers, SCOPE);
-	    sym->type = ty;
-	    sym->src = src;
-	    sym->defined = init_node ? 1 : 0;
-	    sym->sclass = sclass;
-	    decl = decl_node(node_id, SCOPE);
-	    decl->node.kids[0] = init_node;
-	    decl->node.symbol = sym;
-	} else if (sclass != TYPEDEF && eqtype(ty, sym->type)) {
-	    if (sym->defined && init_node)
-		redefinition_error(src, sym);
-	    else if (sclass == STATIC && sym->sclass != STATIC)
-		errorf(src, "static declaration of '%s' follows non-static declaration", id);
-	    else if (sym->sclass == STATIC && sclass != STATIC)
-		errorf(src, "non-static declaration of '%s' follows static declaration", id);
-	} else {
-	    conflicting_types_error(src, sym);
-	}
-    } else {
-	struct symbol *sym;
-	if (SCOPE == LOCAL)
-	    sym = find_symbol(id, identifiers, PARAM);
-	else
-	    sym = locate_symbol(id, identifiers, SCOPE);
-
-	if (!sym) {
-	    sym = install_symbol(id, &identifiers, SCOPE);
-	    sym->type = ty;
-	    sym->src = src;
-	    sym->defined = 1;
-	    sym->sclass = sclass;
-	    decl = decl_node(node_id, SCOPE);
-	    decl->node.kids[0] = init_node;
-	    decl->node.symbol = sym;
-	} else {
-	    redefinition_error(src, sym);
-	}
-    }
-
-    return decl;
-}
-
 static struct decl * typedecl(struct type *ty, struct source src)
 {
     int node_id;
@@ -1072,7 +1035,7 @@ static struct decl * typedecl(struct type *ty, struct source src)
     return decl;
 }
 
-static struct node ** decls()
+static struct node ** decls(DeclFunc declfunc)
 {
     struct vector *v = new_vector();
     struct type *basety;
@@ -1104,10 +1067,19 @@ static struct node ** decls()
 	}
 
 	for (;;) {
-	    if (id == NULL)
+	    if (id) {
+		struct decl *decl;
+		struct symbol *sym = declfunc(id, ty, sclass, src);
+		if (sclass == TYPEDEF)
+		    decl = decl_node(TYPEDEF_DECL, SCOPE);
+		else
+		    decl = decl_node(VAR_DECL, SCOPE);
+
+		decl->node.symbol = sym;
+		vector_push(v, decl);
+	    } else {
 		errorf(src, "missing identifier in declaration");
-	    else
-		vector_push(v, vardecl(id, ty, sclass, src));
+	    }
 
 	    if (token->id != ',')
 		break;
@@ -1162,7 +1134,7 @@ struct type * typename()
 struct node ** declaration()
 {
     assert(SCOPE >= LOCAL);
-    return decls();
+    return decls(localdecl);
 }
 
 struct decl * translation_unit()
@@ -1173,7 +1145,7 @@ struct decl * translation_unit()
     for (; token->id != EOI; ) {
 	if (kind(token->id) & FIRST_DECL) {
 	    assert(SCOPE == GLOBAL);
-	    vector_add_from_array(v, (void **)decls());
+	    vector_add_from_array(v, (void **)decls(globaldecl));
 	} else {
 	    error("invalid token '%s'", token->name);
 	    gettok();

@@ -121,7 +121,7 @@ static int link()
     return EXIT_FAILURE;
 }
 
-static void translate(void *inputfile)
+static void translate(void *inputfile, void *context)
 {
     unit++;
     
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
 	return EXIT_FAILURE;
     }
     
-    vector_foreach(inputlist, translate);
+    vector_foreach(inputlist, translate, NULL);
 
     if (!config.option_E && !config.option_s && !config.option_c && fails == 0) {
 	// link

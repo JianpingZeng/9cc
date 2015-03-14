@@ -42,7 +42,7 @@ void vector_add_from_array(struct vector *v, void **array);
 void vector_add_from_vector(struct vector *v, struct vector *v2);
 void * vector_front(struct vector *v);
 void * vector_back(struct vector *v);
-void vector_foreach(struct vector *v, void (*func)(void *elem));
+void vector_foreach(struct vector *v, void (*func)(void *elem, void *context), void *context);
 int array_length(void **array);
 
 #endif
