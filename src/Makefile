@@ -22,39 +22,31 @@ SOURCES=alloc.c \
 	vector.c
 
 
-INCLUDES=cc.h node.h token.h lib.h \
-	include/stdarg.h include/float.h \
-	mcc.h etc/linux.c etc/mac.c
+INCLUDES=cc.h node.h token.h lib.h mcc.h 
 
 .PHONY: all clean
 
-ifndef platform
-platform=mac
+OS:=$(shell uname -s)
+
+ifeq ($(OS), Darwin)
+SYSDIR=etc/macos
 endif
 
-ifndef BUILDDIR
-BUILDDIR=.
+ifeq ($(OS), Linux)
+SYSDIR=etc/linux
 endif
 
-ifeq ($(platform), mac)
-SPEC=etc/mac.c
-endif
-
-ifeq ($(platform), linux)
-SPEC=etc/linux.c
-endif
-
-ifeq ($(platform), windows)
-SPEC=etc/windows.c
-endif
-
-ifdef SPEC
-SOURCES+=$(SPEC)
-endif
-
+ifndef SYSDIR
+all:
+	@echo "Usage: make platform=mac|linux"
+	@exit
+else
 all: $(TARGETS)
+INCLUDES+=$(wildcard $(SYSDIR)/include/*.h)
+SOURCES+=$(SYSDIR)/sys.c
+endif
 
-mcc: $(INCLUDES) $(SOURCES_MCC)
+mcc: $(INCLUDES) $(SOURCES)
 	$(CC) $(CFLAGS) $(LDFALGS) $(SOURCES) -o $@
 	@strip $@
 
