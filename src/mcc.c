@@ -78,6 +78,7 @@ static int compile(const char *inputfile, const char *orig_input_file)
     static const char *cc[] = {"cc", "$in", "-o", "$out", 0};
     int ret;
     struct vector *v = new_vector();
+    int argc;
     char **argv;
     char *outfile = NULL;
     if (config.option_s) {
@@ -97,8 +98,9 @@ static int compile(const char *inputfile, const char *orig_input_file)
     cc[1] = inputfile;
     vector_add_from_array(v, (void **)cc);
     vector_add_from_vector(v, optionlist);
+    argc = vector_length(v);
     argv = (char **) vector_to_array(v);
-    ret = callps(cc_main, array_length(argv), argv);
+    ret = callps(cc_main, argc, argv);
     free(argv);
     if (outfile) free(outfile);
     return ret;
