@@ -8,6 +8,10 @@ The compiler is designed to be able to compile itself, so it is written in C. It
 
 Do _NOT_ have high expectations on this compiler. For example, it is not an optimizing compiler.
 
+# Build
+
+  	make
+
 # Author
 Guiyang Huang, [mohu3g@163.com](mailto:mohu3g@163.com)
 
