@@ -2,33 +2,34 @@
 CC=cc
 CFLAGS=-Wall -std=c99 -O2
 LDFLAGS=
-TARGETS=mcc cc
-SOURCES_CC=alloc.c \
+TARGETS=mcc
+SOURCES=alloc.c \
 	ast.c \
 	cc.c \
+	cpp.c \
 	debug.c \
 	decl.c \
 	error.c \
 	expr.c \
 	gen.c \
 	lex.c \
+	mcc.c \
 	stmt.c \
 	string.c \
 	sym.c \
 	type.c \
-	vector.c \
-	util.c
+	util.c \
+	vector.c
 
-INCLUDES_CC=cc.h node.h token.h lib.h \
-	include/stdarg.h include/float.h
 
-INCLUDES_MCC=etc/mcc.h lib.h etc/linux.c etc/osx.c
-SOURCES_MCC=vector.c util.c etc/cpp.c etc/mcc.c
+INCLUDES=cc.h node.h token.h lib.h \
+	include/stdarg.h include/float.h \
+	mcc.h etc/linux.c etc/mac.c
 
 .PHONY: all clean
 
 ifndef platform
-platform=linux
+platform=mac
 endif
 
 ifndef BUILDDIR
@@ -36,7 +37,7 @@ BUILDDIR=.
 endif
 
 ifeq ($(platform), mac)
-SPEC=etc/osx.c
+SPEC=etc/mac.c
 endif
 
 ifeq ($(platform), linux)
@@ -48,17 +49,13 @@ SPEC=etc/windows.c
 endif
 
 ifdef SPEC
-SOURCES_MCC+=$(SPEC)
+SOURCES+=$(SPEC)
 endif
 
 all: $(TARGETS)
 
-mcc: $(INCLUDES_MCC) $(SOURCES_MCC)
-	$(CC) $(CFLAGS) -I. $(LDFALGS) $(SOURCES_MCC) -o $@
-	@strip $@
-
-cc: $(INCLUDES_CC) $(SOURCES_CC) mcc
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SOURCES_CC) -o $@
+mcc: $(INCLUDES) $(SOURCES_MCC)
+	$(CC) $(CFLAGS) $(LDFALGS) $(SOURCES) -o $@
 	@strip $@
 
 clean:

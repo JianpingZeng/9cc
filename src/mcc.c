@@ -2,14 +2,7 @@
  * mcc
  * frontend of the c compiler
  */
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include "mcc.h"
-
-extern int cpp_main(int argc, char **argv);
-extern int cc_main(int argc, char **argv);
 
 // configs
 static struct configs {
@@ -105,7 +98,7 @@ static int compile(const char *inputfile, const char *orig_input_file)
     vector_add_from_array(v, (void **)cc);
     vector_add_from_vector(v, optionlist);
     argv = (char **) vector_to_array(v);
-    ret = callsys(cc[0], argv);
+    ret = callps(cc_main, array_length(argv), argv);
     free(argv);
     if (outfile) free(outfile);
     return ret;

@@ -688,54 +688,54 @@ static struct type * struct_decl()
     struct type *ret = NULL;
     struct source src = source;
     
-    match(t);
-    if (token->id == ID) {
-    	id = token->name;
-    	match(ID);
-    }
-    if (token->id == '{') {
-    	match('{');
-    	enter_scope();
-    	do {
-    	    struct type *basety = specifiers(NULL);
-    	    if (token->id == ':') {
-    		match(':');
-    		constant_expression();
-    	    } else {
-    		struct type *ty = NULL;
-    		const char *name = NULL;
-    		declarator(&ty, &name, NULL);
-    		attach_type(&ty, basety);
-    	    }
-    	    match(';');
-    	    if (token->id == '}')
-    		break;
-    	} while (token->id != EOI);
-    	match('}');
-    	exit_scope();
+    // match(t);
+    // if (token->id == ID) {
+    // 	id = token->name;
+    // 	match(ID);
+    // }
+    // if (token->id == '{') {
+    // 	match('{');
+    // 	enter_scope();
+    // 	do {
+    // 	    struct type *basety = specifiers(NULL);
+    // 	    if (token->id == ':') {
+    // 		match(':');
+    // 		constant_expression();
+    // 	    } else {
+    // 		struct type *ty = NULL;
+    // 		const char *name = NULL;
+    // 		declarator(&ty, &name, NULL);
+    // 		attach_type(&ty, basety);
+    // 	    }
+    // 	    match(';');
+    // 	    if (token->id == '}')
+    // 		break;
+    // 	} while (token->id != EOI);
+    // 	match('}');
+    // 	exit_scope();
 
-    	if (id) {
-    	    struct symbol *sym = locate_symbol(id, records, SCOPE);
-    	    if (!sym) {
-    		ret = record_type(t, id);
-    		sym = install_symbol(id, &records, SCOPE);
-    		sym->src = src;
-    		sym->type = ret;
-    	    } else {
-    		redefinition_error(source, sym);
-    	    }
-    	} else {
-    	    ret = record_type(t, id);
-    	}
-    } else if (id) {
-    	struct symbol *sym = lookup_symbol(id, records);
-    	if (sym)
-    	    ret = sym->type;
-    	else
-    	    ret = record_type(t, id, src);
-    } else {
-        error("expected identifier or '{'");
-    }
+    // 	if (id) {
+    // 	    struct symbol *sym = locate_symbol(id, records, SCOPE);
+    // 	    if (!sym) {
+    // 		ret = record_type(t, id);
+    // 		sym = install_symbol(id, &records, SCOPE);
+    // 		sym->src = src;
+    // 		sym->type = ret;
+    // 	    } else {
+    // 		redefinition_error(source, sym);
+    // 	    }
+    // 	} else {
+    // 	    ret = record_type(t, id);
+    // 	}
+    // } else if (id) {
+    // 	struct symbol *sym = lookup_symbol(id, records);
+    // 	if (sym)
+    // 	    ret = sym->type;
+    // 	else
+    // 	    ret = record_type(t, id, src);
+    // } else {
+    //     error("expected identifier or '{'");
+    // }
     
     return ret;
 }
