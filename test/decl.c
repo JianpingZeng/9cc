@@ -233,6 +233,9 @@ void (*signal(int signo,void (*func)(int))) (int);
 // {
 //     // enum E {FF};
 // }
-enum AA;
+enum AA {
+    H
+};
 struct AA;
 enum AA;
+struct AA;

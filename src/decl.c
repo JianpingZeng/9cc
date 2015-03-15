@@ -637,6 +637,7 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
+// TODO: int constant expr
 static struct type * enum_decl()
 {
     struct type *ret = NULL;
@@ -682,13 +683,15 @@ static struct type * enum_decl()
 	ret = ety;
     } else if (id) {
 	struct symbol *sym = lookup_symbol(id, tags);
-	if (sym && sym->type->op == ENUM)
+	if (sym && sym->type->op == ENUM) {
 	    ret = sym->type;
-	else if (sym)
+	} else if (sym) {
 	    errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
 		   ENUM, id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
-	else
+	    ret = sym->type;
+	} else {
 	    ret = tag_type(ENUM, id, src);
+	}
     } else {
 	error("expected identifier or '{'");
     }
@@ -745,17 +748,19 @@ static struct type * struct_decl()
     	}
     } else if (id) {
     	struct symbol *sym = lookup_symbol(id, tags);
-    	if (sym && sym->type->op == t)
+    	if (sym && sym->type->op == t) {
     	    ret = sym->type;
-	else if (sym)
+	} else if (sym) {
 	    errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-		   tname(t), id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
-    	else
+		       tname(t), id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
+	    ret = sym->type;
+	} else {
     	    ret = tag_type(t, id, src);
+	}
     } else {
         error("expected identifier or '{'");
     }
-    
+
     return ret;
 }
 
