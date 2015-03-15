@@ -7,9 +7,9 @@ void (*signal(int signo,void (*func)(int))) (int);
 
 // void f[][] ();
 
-// void vf(void);
+void vf(void);
 
-// void vf(void *p, int a);
+void vg(void *p, int a);
 
 // int employ, *pe, io, * (*g) (float);
 
@@ -231,5 +231,5 @@ void (*signal(int signo,void (*func)(int))) (int);
 
 void f(enum E {GG} l, void (*g) (enum E {HH}))
 {
-
+    enum E {FF};
 }

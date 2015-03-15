@@ -247,7 +247,11 @@ struct type * record_type(int op, const char *tag, struct source src)
     if (op == ENUM)
 	ty->type = inttype;
     if (tag) {
-	struct symbol *sym = locate_symbol(tag, records, SCOPE);
+	struct symbol *sym;
+	if (SCOPE == LOCAL)
+	    sym = find_symbol(tag, records, PARAM);
+	else
+	    sym= locate_symbol(tag, records, SCOPE);
 	if (sym && sym->defined)
 	    redefinition_error(src, sym);
 	sym = install_symbol(tag, &records, SCOPE);

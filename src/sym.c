@@ -36,6 +36,11 @@ void enter_scope()
 
 void exit_scope()
 {
+    if (records->scope == _scope) {
+	struct table *tp = records;
+	records = records->up;
+	drop_table(tp);
+    }
     if (identifiers->scope == _scope) {
         struct table *tp = identifiers;
         identifiers = identifiers->up;

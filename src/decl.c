@@ -307,6 +307,13 @@ static struct symbol ** func_proto(struct type *ftype)
     struct symbol **ret = NULL;
 
     enter_scope();
+    /**
+     * To make it easy to distinguish between 'paramaters in parameter' and
+     * 'compound statement of function definition', they both may be at scope
+     * LOCAL (aka PARAM+1), so enter scope again to make things easy.
+     */
+    if (SCOPE > PARAM)
+    	enter_scope();
     
     if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
 	(token->id == ID && is_typedef_name(token->name))) {
@@ -374,8 +381,13 @@ static struct symbol ** func_proto(struct type *ftype)
 	gettok();
     }
 
-    if (SCOPE > PARAM)
+    if (SCOPE > PARAM) {
+	/**
+	 * exit twice here, see comments above.
+	 */
 	exit_scope();
+	exit_scope();
+    }
 
     return ret;
 }
