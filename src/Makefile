@@ -29,7 +29,7 @@ INCLUDES=cc.h node.h token.h lib.h mcc.h
 OS:=$(shell uname -s)
 
 ifeq ($(OS), Darwin)
-SYSDIR=etc/macos
+SYSDIR=etc/darwin
 endif
 
 ifeq ($(OS), Linux)
