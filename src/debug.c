@@ -33,10 +33,10 @@ static void print_qual(struct type *type)
 
 static void print_params(struct type_context context)
 {
-    struct symbol **proto = context.type->f.proto;
-    if (proto) {
-	for (int i=0; proto[i]; i++) {
-	    struct symbol *sym = proto[i];
+    struct symbol **params = context.type->f.params;
+    if (params) {
+	for (int i=0; params[i]; i++) {
+	    struct symbol *sym = params[i];
 	    struct type_context con = {context.level+1, sym->type};
 	    for (int i=0; i < context.level+1; i++)
 		fprintf(stderr, "  ");

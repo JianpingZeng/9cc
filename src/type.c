@@ -238,7 +238,7 @@ struct type * enum_type(const char *tag)
     return ty;
 }
 
-struct type * record_type(int op, const char *tag, struct source src)
+struct type * tag_type(int op, const char *tag, struct source src)
 {
     struct type *ty = new_type();
     ty->op = op;
@@ -249,21 +249,21 @@ struct type * record_type(int op, const char *tag, struct source src)
     if (tag) {
 	struct symbol *sym;
 	if (SCOPE == LOCAL)
-	    sym = find_symbol(tag, records, PARAM);
+	    sym = find_symbol(tag, tags, PARAM);
 	else
-	    sym= locate_symbol(tag, records, SCOPE);
+	    sym= locate_symbol(tag, tags, SCOPE);
 	if (sym) {
 	    if (sym->type->op == op && !sym->defined)
 		return sym->type;
 	    
 	    redefinition_error(src, sym);
 	}
-	sym = install_symbol(tag, &records, SCOPE);
+	sym = install_symbol(tag, &tags, SCOPE);
 	sym->type = ty;
 	sym->src = src;
 	ty->s.symbol = sym;
     } else {
-	struct symbol *sym = anonymous_symbol(&records, SCOPE);
+	struct symbol *sym = anonymous_symbol(&tags, SCOPE);
 	sym->type = ty;
 	sym->src = src;
 	ty->s.symbol = sym;
@@ -299,20 +299,20 @@ const char * pname(struct type *type)
     }
 }
 
-static int eqproto(struct symbol **proto1, struct symbol **proto2)
+static int eqparams(struct symbol **params1, struct symbol **params2)
 {
-    if (proto1 == proto2) {
+    if (params1 == params2) {
 	return 1;
-    } else if (proto1 == NULL || proto2 == NULL) {
+    } else if (params1 == NULL || params2 == NULL) {
 	return 0;
     } else {
-	int len1 = array_length((void **)proto1);
-	int len2 = array_length((void **)proto2);
+	int len1 = array_length((void **)params1);
+	int len2 = array_length((void **)params2);
 	if (len1 != len2)
 	    return 0;
 	for (int i=0; i < len1; i++) {
-	    struct symbol *sym1 = proto1[i];
-	    struct symbol *sym2 = proto2[i];
+	    struct symbol *sym1 = params1[i];
+	    struct symbol *sym2 = params2[i];
 	    if (sym1 == sym2)
 		continue;
 	    else if (sym1 == NULL || sym2 == NULL)
@@ -366,14 +366,14 @@ int eqtype(struct type *ty1, struct type *ty2)
 	    return 1;
 	} else if (!ty1->f.oldstyle && !ty2->f.oldstyle) {
 	    // both prototype
-	    return eqproto(ty1->f.proto, ty2->f.proto);
+	    return eqparams(ty1->f.params, ty2->f.params);
 	} else {
 	    // one oldstyle, the other prototype
 	    struct type *oldty = ty1->f.oldstyle ? ty1 : ty2;
 	    struct type *newty = ty1->f.oldstyle ? ty2 : ty1;
-	    if (newty->f.proto) {
-		for (int i=0; newty->f.proto[i]; i++) {
-		    struct symbol *sym = newty->f.proto[i];
+	    if (newty->f.params) {
+		for (int i=0; newty->f.params[i]; i++) {
+		    struct symbol *sym = newty->f.params[i];
 		    if (sym->type) {
 			struct type *ty = sym->type;
 			if (ty->op == CHAR)
@@ -391,10 +391,10 @@ int eqtype(struct type *ty1, struct type *ty2)
 		}
 	    }
 
-	    if (oldty->f.proto == NULL)
+	    if (oldty->f.params == NULL)
 		return 1;
 
-	    return eqproto(oldty->f.proto, newty->f.proto);
+	    return eqparams(oldty->f.params, newty->f.params);
 	}
 	
     default:

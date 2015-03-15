@@ -302,7 +302,7 @@ static void atype_qualifiers(struct type *atype)
 	atype->a.qual_restrict = 1;
 }
 
-static struct symbol ** func_proto(struct type *ftype)
+static struct symbol ** func_params(struct type *ftype)
 {    
     struct symbol **ret = NULL;
 
@@ -438,7 +438,7 @@ static struct type * func_or_array(int *params)
         } else {
 	    struct type *ftype = function_type();
             match('(');
-            ftype->f.proto = func_proto(ftype);
+            ftype->f.params = func_params(ftype);
 	    skipto(')');
             attach_type(&ty, ftype);
 	    if (params)
@@ -475,7 +475,7 @@ static struct type * abstract_func_or_array()
 	} else {
 	    struct type *ftype = function_type();
 	    match('(');
-	    ftype->f.proto = func_proto(ftype);
+	    ftype->f.params = func_params(ftype);
 	    skipto(')');
 	    attach_type(&ty, ftype);
 	}
@@ -653,7 +653,7 @@ static struct type * enum_decl()
 	long long val = 0;
 	struct vector *v = new_vector();
 	match('{');
-	ety = record_type(ENUM, id, src);
+	ety = tag_type(ENUM, id, src);
 	if (token->id != ID)
 	    error("expect identifier");
 	while (token->id == ID) {
@@ -681,14 +681,14 @@ static struct type * enum_decl()
 	ety->s.symbol->defined = 1;
 	ret = ety;
     } else if (id) {
-	struct symbol *sym = lookup_symbol(id, records);
+	struct symbol *sym = lookup_symbol(id, tags);
 	if (sym && sym->type->op == ENUM)
 	    ret = sym->type;
 	else if (sym)
 	    errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
 		   ENUM, id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
 	else
-	    ret = record_type(ENUM, id, src);
+	    ret = tag_type(ENUM, id, src);
     } else {
 	error("expected identifier or '{'");
     }
@@ -731,27 +731,27 @@ static struct type * struct_decl()
     	exit_scope();
 
     	if (id) {
-    	    struct symbol *sym = locate_symbol(id, records, SCOPE);
+    	    struct symbol *sym = locate_symbol(id, tags, SCOPE);
     	    if (!sym) {
-    		ret = record_type(t, id, src);
-    		sym = install_symbol(id, &records, SCOPE);
+    		ret = tag_type(t, id, src);
+    		sym = install_symbol(id, &tags, SCOPE);
     		sym->src = src;
     		sym->type = ret;
     	    } else {
     		redefinition_error(src, sym);
     	    }
     	} else {
-    	    ret = record_type(t, id, src);
+    	    ret = tag_type(t, id, src);
     	}
     } else if (id) {
-    	struct symbol *sym = lookup_symbol(id, records);
+    	struct symbol *sym = lookup_symbol(id, tags);
     	if (sym && sym->type->op == t)
     	    ret = sym->type;
 	else if (sym)
 	    errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
 		   tname(t), id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
     	else
-    	    ret = record_type(t, id, src);
+    	    ret = tag_type(t, id, src);
     } else {
         error("expected identifier or '{'");
     }
@@ -782,10 +782,10 @@ static void update_params(void *elem, void *context)
     assert(sym->name);
     if (decl->id != VAR_DECL) {
 	warningf(sym->src, "empty declaraion");
-    } else if (ftype->f.proto) {
+    } else if (ftype->f.params) {
 	struct symbol *p = NULL;
-	for (int i=0; ftype->f.proto[i]; i++) {
-	    struct symbol *s = ftype->f.proto[i];
+	for (int i=0; ftype->f.params[i]; i++) {
+	    struct symbol *s = ftype->f.params[i];
 	    if (!strcmp(s->name, sym->name)) {
 		p = s;
 		break;
@@ -855,7 +855,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     }
     
     if (isfunction(ty)){
-	if (ty->f.proto && ty->f.oldstyle)
+	if (ty->f.params && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
 	// TODO: convert to poniter
@@ -910,7 +910,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     }
     
     if (isfunction(ty)) {
-	if (ty->f.proto && ty->f.oldstyle)
+	if (ty->f.params && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
 	// TODO: convert to poniter
@@ -978,9 +978,9 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 	error("missing identifier in function definition");
     }
 
-    if (ftype->f.proto) {
-	for (int i=0; ftype->f.proto[i]; i++) {
-	    struct symbol *sym = ftype->f.proto[i];
+    if (ftype->f.params) {
+	for (int i=0; ftype->f.params[i]; i++) {
+	    struct symbol *sym = ftype->f.params[i];
 	    sym->defined = 1;
 	    // params id is required in prototype
 	    if (sym->name == NULL)
@@ -1046,7 +1046,7 @@ static struct node ** decls(DeclFunc declfunc)
 	    if (params && isfunction(ty) &&
 		(token->id == '{' ||
 		 ((istypename(token) || token->id & SCLASS_SPEC) &&
-		  ty->f.oldstyle && ty->f.proto))) {
+		  ty->f.oldstyle && ty->f.params))) {
 		vector_push(v, funcdef(id, ty, sclass, src));
 		return (struct node **) vector_to_array(v);
 	    } else if (SCOPE == PARAM) {

@@ -14,14 +14,14 @@ struct table {
 
 struct table * identifiers;
 struct table * constants;
-struct table * records;
+struct table * tags;
 static int _scope = GLOBAL;
 
 void symbol_init()
 {
     identifiers = new_table(NULL, GLOBAL);
     constants = new_table(NULL, CONSTANT);
-    records = new_table(NULL, GLOBAL);
+    tags = new_table(NULL, GLOBAL);
 }
 
 int scopelevel()
@@ -36,9 +36,9 @@ void enter_scope()
 
 void exit_scope()
 {
-    if (records->scope == _scope) {
-	struct table *tp = records;
-	records = records->up;
+    if (tags->scope == _scope) {
+	struct table *tp = tags;
+	tags = tags->up;
 	drop_table(tp);
     }
     if (identifiers->scope == _scope) {

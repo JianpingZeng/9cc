@@ -190,7 +190,7 @@ struct type {
     union {
 	// function
 	struct {
-	    struct symbol **proto;
+	    struct symbol **params;
 	    unsigned oldstyle : 1;
 	}f;
 	// array
@@ -230,7 +230,7 @@ extern int is_typedef_name(const char *id);
 extern struct type * array_type();
 extern struct type * pointer_type(struct type *ty);
 extern struct type * function_type();
-extern struct type * record_type(int op, const char *tag, struct source src);
+extern struct type * tag_type(int op, const char *tag, struct source src);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
@@ -309,7 +309,7 @@ extern struct symbol * install_symbol(const char *name, struct table **tpp, int 
 
 extern struct table * identifiers;
 extern struct table * constants;
-extern struct table * records;
+extern struct table * tags;
 
 #define SCOPE  scopelevel()
 
