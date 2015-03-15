@@ -252,8 +252,12 @@ struct type * record_type(int op, const char *tag, struct source src)
 	    sym = find_symbol(tag, records, PARAM);
 	else
 	    sym= locate_symbol(tag, records, SCOPE);
-	if (sym && sym->defined)
+	if (sym) {
+	    if (sym->type->op == op && !sym->defined)
+		return sym->type;
+	    
 	    redefinition_error(src, sym);
+	}
 	sym = install_symbol(tag, &records, SCOPE);
 	sym->type = ty;
 	sym->src = src;

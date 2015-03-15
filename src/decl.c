@@ -682,8 +682,11 @@ static struct type * enum_decl()
 	ret = ety;
     } else if (id) {
 	struct symbol *sym = lookup_symbol(id, records);
-	if (sym)
+	if (sym && sym->type->op == ENUM)
 	    ret = sym->type;
+	else if (sym)
+	    errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+		   ENUM, id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
 	else
 	    ret = record_type(ENUM, id, src);
     } else {
@@ -735,15 +738,18 @@ static struct type * struct_decl()
     		sym->src = src;
     		sym->type = ret;
     	    } else {
-    		redefinition_error(source, sym);
+    		redefinition_error(src, sym);
     	    }
     	} else {
     	    ret = record_type(t, id, src);
     	}
     } else if (id) {
     	struct symbol *sym = lookup_symbol(id, records);
-    	if (sym)
+    	if (sym && sym->type->op == t)
     	    ret = sym->type;
+	else if (sym)
+	    errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+		   tname(t), id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
     	else
     	    ret = record_type(t, id, src);
     } else {
