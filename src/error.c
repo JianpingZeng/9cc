@@ -29,7 +29,9 @@ static void cc_print_lead(int tag, const char *file, unsigned line, const char *
 	assert(0);
     }
     fprintf(stderr, "\e[1;38m%s:%u:\e[0m %s ", file, line, lead);
+    fprintf(stderr, "\e[1;38m");
     vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\e[0m");
     fprintf(stderr, "\n");
 }
 

@@ -806,7 +806,8 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 	// TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
 	if (!ty->s.symbol->defined)
-	    warningf(src, "declaration '%s %s' in parameter list", tname(ty->op), ty->name);
+	    warningf(src, "declaration of '%s %s' will not be visible outside of this function",
+		     tname(ty->op), ty->name);
     }
 
     if (id) {
@@ -972,16 +973,19 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     }
 
     if (ftype->f.proto) {
-	// params id is required in prototype
 	for (int i=0; ftype->f.proto[i]; i++) {
 	    struct symbol *sym = ftype->f.proto[i];
 	    sym->defined = 1;
+	    // params id is required in prototype
 	    if (sym->name == NULL)
 		errorf(sym->src, "parameter name omitted");
 	    if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
 		if (!sym->type->s.symbol->defined)
 		    errorf(sym->src, "incomplete type '%s %s'",
 			   tname(sym->type->op), sym->type->name);
+		else if (sym->type->name)
+		    warningf(sym->src, "declaration of '%s %s' will not be visible outside of this function",
+			     tname(sym->type->op), sym->type->name);
 	    }
 	}
     }
