@@ -38,7 +38,7 @@ endif
 
 ifndef SYSDIR
 all:
-	@echo "Usage: make platform=mac|linux"
+	@echo "Error: unsupported platform '$(OS)'"
 	@exit
 else
 all: $(TARGETS)
