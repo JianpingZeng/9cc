@@ -5,7 +5,7 @@
 
 void (*signal(int signo,void (*func)(int))) (int);
 
-void f[][] ();
+// void f[][] ();
 
 // void vf(void);
 
@@ -190,36 +190,6 @@ void f[][] ();
 // int a;
 // static int a;
 
-// enum UU;
-// enum YY y;
-// enum HH;
-// enum HH {
-//     A,
-//     B,
-// };
-// enum H2 {
-//     A,
-//     B
-// };
-
-// enum H3 {
-//     A,
-//     B
-// } h3;
-
-// enum H2 {
-//     A,
-//     B
-// };
-
-// enum {
-//     JJ
-// };
-
-// enum {
-
-// } j;
-
 // void c(int ,void);
 // void c(void);
 // void c(const void);
@@ -228,8 +198,38 @@ void f[][] ();
 // void c(int, ...);
 // void c(int, ..., int);
 
-void f (a, b)
-     int a, b; int c; int b;
+// void h (a, b)
+//      int a; enum a;
+// {
+
+// }
+
+// enum AA;
+// enum AA a;
+// enum AA {
+//     HO
+// };
+// enum AA;
+// enum AA;
+// void g(enum G);
+// enum E {
+//     UU
+// };
+// void f (enum K a)
+// {
+
+// }
+// enum A;
+// struct A;
+// enum A;
+
+// void f(enum E {JJ} e)
+// {
+//     // enum E e2;
+//     enum E { GG };
+// }
+
+void f(enum E {GG} l, void (*g) (enum E {HH}))
 {
 
 }

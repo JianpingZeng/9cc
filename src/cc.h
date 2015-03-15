@@ -81,7 +81,6 @@ extern int  gettok();
 extern struct token *  lookahead();
 extern void match(int t);
 extern void skipto(int t);
-extern void stopat(int t);
 extern const char *tname(int t);
 
 // ast.c
@@ -203,13 +202,13 @@ struct type {
 	    unsigned sclass_static : 1;
 	    unsigned wildcard : 1;
 	}a;
-	// enum
+	// enum/struct/union
 	struct {
-	    struct symbol **ids;
-	}e;
-	// records
-	struct {
-	    struct field **fields;
+	    struct symbol *symbol;
+	    union {
+		struct symbol **ids;
+		struct field **fields;
+	    };
 	}s;
     };
     struct {
@@ -231,8 +230,7 @@ extern int is_typedef_name(const char *id);
 extern struct type * array_type();
 extern struct type * pointer_type(struct type *ty);
 extern struct type * function_type();
-extern struct type * enum_type(const char *tag);
-extern struct type * record_type(int t, const char *tag);
+extern struct type * record_type(int op, const char *tag, struct source src);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
@@ -265,7 +263,6 @@ extern struct type    *vartype;		       // variable type
 #define isenum(type)        ((type) && (type)->op == ENUM)
 #define isstruct(type)      ((type) && (type)->op == STRUCT)
 #define isunion(type)       ((type) && (type)->op == UNION)
-#define isrecord(type)      (isstruct(type) || isunion(type))
 
 // sym
 // scope level
@@ -328,6 +325,8 @@ extern void cclog(const char *fmt, ...);
 
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
+
+extern void redefinition_error(struct source src, struct symbol *sym);
 
 #define SHOW_CALL_TREE
 #ifdef SHOW_CALL_TREE

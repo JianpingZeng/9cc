@@ -238,11 +238,28 @@ struct type * enum_type(const char *tag)
     return ty;
 }
 
-struct type * record_type(int t, const char *tag)
+struct type * record_type(int op, const char *tag, struct source src)
 {
     struct type *ty = new_type();
-    ty->op = t;
+    ty->op = op;
     ty->name = tag;
+    // TODO
+    if (op == ENUM)
+	ty->type = inttype;
+    if (tag) {
+	struct symbol *sym = locate_symbol(tag, records, SCOPE);
+	if (sym && sym->defined)
+	    redefinition_error(src, sym);
+	sym = install_symbol(tag, &records, SCOPE);
+	sym->type = ty;
+	sym->src = src;
+	ty->s.symbol = sym;
+    } else {
+	struct symbol *sym = anonymous_symbol(&records, SCOPE);
+	sym->type = ty;
+	sym->src = src;
+	ty->s.symbol = sym;
+    }
 
     return ty;
 }

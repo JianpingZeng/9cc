@@ -5,7 +5,7 @@ static void declarator(struct type **ty, const char **id, int *params);
 static void param_declarator(struct type **ty, const char **id);
 static struct type * pointer_decl();
 static struct type * enum_decl();
-static struct type * record_decl();
+static struct type * struct_decl();
 typedef struct symbol * (*DeclFunc)(const char *id, struct type *ftype, int sclass,  struct source src);
 static struct node ** decls(DeclFunc declfunc);
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
@@ -29,12 +29,6 @@ int kind(int t)
         return kinds[128+t-ID];
     else
         return 0;
-}
-
-static void redefinition_error(struct source src, struct symbol *sym)
-{
-    errorf(src, "redefinition of '%s', previous definition at %s line %u",
-	  sym->name, sym->src.file, sym->src.line);
 }
 
 static void conflicting_types_error(struct source src, struct symbol *sym)
@@ -114,7 +108,7 @@ static struct type * specifiers(int *sclass)
 	case STRUCT:
 	case UNION:
 	    p = &type;
-	    basety = record_decl();
+	    basety = struct_decl();
 	    break;
              
 	case LONG:
@@ -534,159 +528,6 @@ static struct type * pointer_decl()
     return ret;
 }
 
-static struct type * enum_decl()
-{
-    struct type *ret = NULL;
-    const char *id = NULL;
-    struct source src = source;
-    
-    match(ENUM);
-    if (token->id == ID) {
-	id = token->name;
-	match(ID);
-    }
-    if (token->id == '{') {
-	struct type *ety = enum_type(id);
-	long long val = 0;
-	struct vector *v = new_vector();
-	match('{');
-	if (id) {
-	    struct symbol *sym = locate_symbol(id, records, SCOPE);
-	    if (sym && sym->defined)
-		redefinition_error(src, sym);
-	    
-	    sym = install_symbol(id, &records, SCOPE);
-	    sym->type = ety;
-	    sym->src = src;
-	    sym->defined = 1;
-	}
-	if (token->id != ID)
-	    error("expect identifier");
-	while (token->id == ID) {
-	    struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
-	    if (sym)
-		redefinition_error(source, sym);
-	    
-	    sym = install_symbol(token->name, &identifiers, SCOPE);
-	    sym->type = ety;
-	    sym->src = source;
-	    match(ID);
-	    if (token->id == '=') {
-		match('=');
-	        // TODO
-		val = intexpr();
-	    }
-	    sym->value.i = val++;
-	    vector_push(v, sym);
-	    if (token->id != ',')
-		break;
-	    match(',');
-	}
-	skipto('}');	
-	ety->e.ids = (struct symbol **)vector_to_array(v);	
-	ret = ety;
-    } else if (id) {
-	struct symbol *sym = lookup_symbol(id, records);
-	if (!sym) {
-	    struct type *ety = enum_type(id);
-	    sym = install_symbol(id, &records, SCOPE);
-	    sym->type = ety;
-	    sym->src = src;
-	}
-	ret = sym->type;
-    } else {
-	error("expected identifier or '{'");
-    }
-
-    return ret;
-}
-
-static struct type * record_decl()
-{
-    assert(token->id == STRUCT || token->id == UNION);
-    int t = token->id;
-    const char *id = NULL;
-    struct type *ret = NULL;
-    struct source src = source;
-    
-    match(t);
-    if (token->id == ID) {
-	id = token->name;
-	match(ID);
-    }
-
-    if (token->id == '{') {
-	match('{');
-	enter_scope();
-	do {
-	    struct type *basety = specifiers(NULL);
-	    if (token->id == ':') {
-		match(':');
-		constant_expression();
-	    } else {
-		struct type *ty = NULL;
-		const char *name = NULL;
-		declarator(&ty, &name, NULL);
-		attach_type(&ty, basety);
-	    }
-	    match(';');
-	    if (token->id == '}')
-		break;
-	} while (token->id != EOI);
-	match('}');
-	exit_scope();
-
-	if (id) {
-	    struct symbol *sym = locate_symbol(id, records, SCOPE);
-	    if (!sym) {
-		ret = record_type(t, id);
-		sym = install_symbol(id, &records, SCOPE);
-		sym->src = src;
-		sym->type = ret;
-	    } else {
-		redefinition_error(source, sym);
-	    }
-	} else {
-	    ret = record_type(t, id);
-	}
-    } else if (id) {
-	struct symbol *sym = lookup_symbol(id, records);
-	if (sym)
-	    ret = sym->type;
-	else
-	    error("undefined %s type '%s'", tname(t), id);
-    } else {
-	error("missing identifier after '%s'", tname(t));
-    }
-    
-    return ret;
-}
-
-struct decl * initializer_list()
-{
-    match('{');
-    // TODO
-    
-    if (token->id == ',')
-	match(',');
-    match('}');
-    return NULL;
-}
-
-struct node * initializer()
-{
-    if (token->id == '{') {
-	// initializer list
-	return NODE(initializer_list());
-    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-	// assign expr
-	return NODE(assign_expression());
-    } else {
-	error("expect '{' or assignment expression");
-	return NULL;
-    }
-}
-
 static void abstract_declarator(struct type **ty)
 {
     assert(ty);
@@ -784,6 +625,135 @@ static void param_declarator(struct type **ty, const char **id)
     }
 }
 
+static struct type * enum_decl()
+{
+    struct type *ret = NULL;
+    const char *id = NULL;
+    struct source src = source;
+
+    match(ENUM);
+    if (token->id == ID) {
+	id = token->name;
+	match(ID);
+    }
+    if (token->id == '{') {
+	struct type *ety;
+	long long val = 0;
+	struct vector *v = new_vector();
+	match('{');
+	ety = record_type(ENUM, id, src);
+	if (token->id != ID)
+	    error("expect identifier");
+	while (token->id == ID) {
+	    struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
+	    if (sym)
+		redefinition_error(source, sym);
+	    
+	    sym = install_symbol(token->name, &identifiers, SCOPE);
+	    sym->type = ety;
+	    sym->src = source;
+	    match(ID);
+	    if (token->id == '=') {
+		match('=');
+	        // TODO
+		val = intexpr();
+	    }
+	    sym->value.i = val++;
+	    vector_push(v, sym);
+	    if (token->id != ',')
+		break;
+	    match(',');
+	}
+	skipto('}');	
+	ety->s.ids = (struct symbol **)vector_to_array(v);	
+	ety->s.symbol->defined = 1;
+	ret = ety;
+    } else if (id) {
+	struct symbol *sym = lookup_symbol(id, records);
+	if (sym)
+	    ret = sym->type;
+	else
+	    ret = record_type(ENUM, id, src);
+    } else {
+	error("expected identifier or '{'");
+    }
+
+    return ret;
+}
+
+static struct type * struct_decl()
+{
+    int t = token->id;
+    const char *id = NULL;
+    struct type *ret = NULL;
+    struct source src = source;
+    
+    match(t);
+    if (token->id == ID) {
+    	id = token->name;
+    	match(ID);
+    }
+    if (token->id == '{') {
+    	match('{');
+    	enter_scope();
+    	do {
+    	    struct type *basety = specifiers(NULL);
+    	    if (token->id == ':') {
+    		match(':');
+    		constant_expression();
+    	    } else {
+    		struct type *ty = NULL;
+    		const char *name = NULL;
+    		declarator(&ty, &name, NULL);
+    		attach_type(&ty, basety);
+    	    }
+    	    match(';');
+    	    if (token->id == '}')
+    		break;
+    	} while (token->id != EOI);
+    	match('}');
+    	exit_scope();
+
+    	if (id) {
+    	    struct symbol *sym = locate_symbol(id, records, SCOPE);
+    	    if (!sym) {
+    		ret = record_type(t, id);
+    		sym = install_symbol(id, &records, SCOPE);
+    		sym->src = src;
+    		sym->type = ret;
+    	    } else {
+    		redefinition_error(source, sym);
+    	    }
+    	} else {
+    	    ret = record_type(t, id);
+    	}
+    } else if (id) {
+    	struct symbol *sym = lookup_symbol(id, records);
+    	if (sym)
+    	    ret = sym->type;
+    	else
+    	    ret = record_type(t, id, src);
+    } else {
+        error("expected identifier or '{'");
+    }
+    
+    return ret;
+}
+
+static struct node * initializer()
+{
+    if (token->id == '{') {
+	// initializer list
+	return NODE(initializer_list());
+    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+	// assign expr
+	return NODE(assign_expression());
+    } else {
+	error("expect '{' or assignment expression");
+	return NULL;
+    }
+}
+
 static void update_params(void *elem, void *context)
 {
     struct node *decl = (struct node *)elem;
@@ -791,7 +761,9 @@ static void update_params(void *elem, void *context)
     struct symbol *sym = decl->symbol;
 
     assert(sym->name);
-    if (ftype->f.proto) {
+    if (decl->id != VAR_DECL) {
+	warningf(sym->src, "empty declaraion");
+    } else if (ftype->f.proto) {
 	struct symbol *p = NULL;
 	for (int i=0; ftype->f.proto[i]; i++) {
 	    struct symbol *s = ftype->f.proto[i];
@@ -815,8 +787,14 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 	sclass = 0;
     }
 
-    if (isfunction(ty))
+    if (isfunction(ty)) {
 	ty = pointer_type(ty);
+    } else if (isarray(ty)) {
+	// TODO: convert to poniter
+    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+	if (!ty->s.symbol->defined)
+	    warningf(src, "declaration '%s %s' in parameter list", tname(ty->op), ty->name);
+    }
 
     if (id) {
 	sym = locate_symbol(id, identifiers, SCOPE);
@@ -826,13 +804,11 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 	sym->type = ty;
 	sym->src = src;
 	sym->sclass = sclass;
-	sym->defined = 1;
     } else {
 	sym = anonymous_symbol(&identifiers, SCOPE);
 	sym->type = ty;
 	sym->src = src;
 	sym->sclass = sclass;
-	sym->defined = 1;
     }
     return sym;
 }
@@ -861,6 +837,11 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     if (isfunction(ty)){
 	if (ty->f.proto && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
+    } else if (isarray(ty)) {
+	// TODO: convert to poniter
+    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+	if (!ty->s.symbol->defined)
+	    error("incomplete type '%s %s'", tname(ty->op), ty->name);
     }
     validate_func_or_array(ty);
 
@@ -911,6 +892,11 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     if (isfunction(ty)) {
 	if (ty->f.proto && ty->f.oldstyle)
 	    error("a parameter list without types is only allowed in a function definition");
+    } else if (isarray(ty)) {
+	// TODO: convert to poniter
+    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+	if (!ty->s.symbol->defined)
+	    error("incomplete type '%s %s'", tname(ty->op), ty->name);
     }
     validate_func_or_array(ty);
 
@@ -972,12 +958,18 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 	error("missing identifier in function definition");
     }
 
-    if (!ftype->f.oldstyle && ftype->f.proto) {
+    if (ftype->f.proto) {
 	// params id is required in prototype
 	for (int i=0; ftype->f.proto[i]; i++) {
 	    struct symbol *sym = ftype->f.proto[i];
+	    sym->defined = 1;
 	    if (sym->name == NULL)
 		errorf(sym->src, "parameter name omitted");
+	    if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
+		if (!sym->type->s.symbol->defined)
+		    errorf(sym->src, "incomplete type '%s %s'",
+			   tname(sym->type->op), sym->type->name);
+	    }
 	}
     }
 
@@ -993,7 +985,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 	exit_scope();
 	if (token->id != '{') {
 	    error("expect function body after function declarator");
-	    stopat('{');
+	    // TODO
 	}
     }
     
@@ -1065,11 +1057,10 @@ static struct node ** decls(DeclFunc declfunc)
 	    declarator(&ty, &id, NULL);
 	    attach_type(&ty, basety);
 	}
-    } else if (isenum(basety) || isrecord(basety)) {
+    } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
 	// struct/union/enum
 	int node_id;
 	struct decl *decl;
-
 	if (isstruct(basety))
 	    node_id = STRUCT_DECL;
 	else if (isunion(basety))
@@ -1078,21 +1069,24 @@ static struct node ** decls(DeclFunc declfunc)
 	    node_id = ENUM_DECL;
 		
 	decl = decl_node(node_id, SCOPE);
-	if (basety->name) {
-	    decl->node.symbol = locate_symbol(basety->name, records, SCOPE);
-	} else {
-	    struct symbol *sym = anonymous_symbol(&records, SCOPE);
-	    sym->type = basety;
-	    sym->src = src;
-	    decl->node.symbol = sym;
-	}
-
+	decl->node.symbol = basety->s.symbol;
 	vector_push(v, decl);
     } else {
 	error("invalid token '%s' in declaration", token->name);
     }
     skipto(';');
     return (struct node **)vector_to_array(v);
+}
+
+struct decl * initializer_list()
+{
+    match('{');
+    // TODO
+    
+    if (token->id == ',')
+	match(',');
+    match('}');
+    return NULL;
 }
 
 int istypename(struct token *t)

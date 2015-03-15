@@ -112,3 +112,9 @@ void end_call(const char *funcname)
     fprintf(stderr, "end %s\n", funcname);
     call_depth--;
 }
+
+void redefinition_error(struct source src, struct symbol *sym)
+{
+    errorf(src, "redefinition of '%s', previous definition at %s line %u",
+	  sym->name, sym->src.file, sym->src.line);
+}

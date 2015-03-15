@@ -1311,12 +1311,6 @@ void skipto(int t)
     gettok();
 }
 
-void stopat(int t)
-{
-    while (token->id != t && token->id != EOI)
-	gettok();
-}
-
 const char *tname(int t)
 {
     if (t < 0)

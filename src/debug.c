@@ -40,7 +40,7 @@ static void print_params(struct type_context context)
 	    struct type_context con = {context.level+1, sym->type};
 	    for (int i=0; i < context.level+1; i++)
 		fprintf(stderr, "  ");
-	    fprintf(stderr, "'%s' ", STR(sym->name));
+	    fprintf(stderr, "'%s' %s ", STR(sym->name), sym->defined ? "<defined>" : "");
 	    print_type1(con);
 	}
     }
