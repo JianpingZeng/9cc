@@ -1,5 +1,5 @@
-#ifndef cc_cc_h
-#define cc_cc_h
+#ifndef _CC_H
+#define _CC_H
 
 #include <assert.h>
 #include <stdio.h>

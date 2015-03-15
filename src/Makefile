@@ -51,4 +51,4 @@ mcc: $(INCLUDES) $(SOURCES)
 	@strip $@
 
 clean:
-	@rm -f *.o *~ etc/*~ $(TARGETS)
+	@rm -f *.o *~ $(SYSDIR)/*~ $(SYSDIR)/include/*~  $(TARGETS)

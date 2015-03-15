@@ -1,4 +1,4 @@
-#ifndef MCC_STDARG_H
-#define MCC_STDARG_H
+#ifndef _FLOAT_H
+#define _FLOAT_H
 
 #endif

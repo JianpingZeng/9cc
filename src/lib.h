@@ -1,5 +1,5 @@
-#ifndef MCC_LIB_H
-#define MCC_LIB_H
+#ifndef _LIB_H
+#define _LIB_H
 
 // misc.c
 extern void * cc_malloc(size_t size);

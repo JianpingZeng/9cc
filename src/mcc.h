@@ -1,5 +1,5 @@
-#ifndef MCC_ETC_H
-#define MCC_ETC_H
+#ifndef _MCC_H
+#define _MCC_H
 
 #include <stdio.h>
 #include <stdlib.h>
