@@ -31,12 +31,13 @@ static void usage()
 	    "OVERVIEW: mcc - A Standard C Compiler v%s\n\n"
 	    "USAGE: mcc [options] <inputs>\n\n"
 	    "OPTIONS:\n", version);
-    print_opt("-c", "Only run preprocess, compile, and assemble steps");
-    print_opt("-I <dir>", "Add directory to include search path");
-    print_opt("-h, --help", "Display available options");
-    print_opt("-E", "Only run the preprocessor");
-    print_opt("-S", "Only run preprocess and compilation steps");
-    print_opt("-v, --version", "Display version and options");
+    print_opt("-c",              "Only run preprocess, compile, and assemble steps");
+    print_opt("-I <dir>",        "Add directory to include search path");
+    print_opt("-h, --help",      "Display available options");
+    print_opt("-E",              "Only run the preprocessor");
+    print_opt("-o <file>",       "Write output to <file>");
+    print_opt("-S",              "Only run preprocess and compilation steps");
+    print_opt("-v, --version",   "Display version and options");
 }
 
 static void append(struct vector *v, const char *str)
