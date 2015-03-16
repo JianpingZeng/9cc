@@ -1,6 +1,6 @@
 #include "cc.h"
 
-static void vector_grow(struct vector *v)
+static void vec_grow(struct vector *v)
 {
     assert(v->elems == v->capelems);
     void *mem = cc_malloc((v->elems + v->reserve) * v->elemsize);
@@ -8,6 +8,21 @@ static void vector_grow(struct vector *v)
     cc_free(v->mem);
     v->mem = mem;
     v->capelems += v->reserve;
+}
+
+static void vec_insert(struct vector *v, int index, void *elem)
+{
+    assert(v);
+    assert(elem && index >= 0 && index <= v->elems);
+    if (v->elems == v->capelems) {
+        vec_grow(v);
+    }
+    if (index < v->elemsize) {
+        // maybe overlap
+        memmove(v->mem + v->elemsize * (index+1), v->mem + v->elemsize * index, (v->elems - index) * v->elemsize);
+    }
+    v->mem[index] = elem;
+    v->elems++;
 }
 
 struct vector *new_vector()
@@ -21,21 +36,38 @@ struct vector *new_vector()
     return v;
 }
 
-void * vector_at(struct vector *v, int index)
+void free_vector(struct vector *v)
+{
+    assert(v);
+    cc_free(v->mem);
+    cc_free(v);
+}
+
+void purge_vector(struct vector *v)
+{
+    assert(v);
+    for (int i=0; i < vec_len(v); i++) {
+	void *p = vec_at(v, i);
+	cc_free(p);
+    }
+    free_vector(v); 
+}
+
+void * vec_at(struct vector *v, int index)
 {
     assert(v);
     assert(index >= 0 && index < v->elems);
     return v->mem[index];
 }
 
-void vector_push(struct vector *v, void *elem)
+void vec_push(struct vector *v, void *elem)
 {
     assert(v);
     if (elem)
-	vector_insert(v, v->elems, elem);
+	vec_insert(v, v->elems, elem);
 }
 
-void *vector_pop(struct vector *v)
+void *vec_pop(struct vector *v)
 {
     assert(v);
     if (v->elems == 0) {
@@ -48,39 +80,7 @@ void *vector_pop(struct vector *v)
     }
 }
 
-void vector_insert(struct vector *v, int index, void *elem)
-{
-    assert(v);
-    assert(elem && index >= 0 && index <= v->elems);
-    if (v->elems == v->capelems) {
-        vector_grow(v);
-    }
-    if (index < v->elemsize) {
-        // maybe overlap
-        memmove(v->mem + v->elemsize * (index+1), v->mem + v->elemsize * index, (v->elems - index) * v->elemsize);
-    }
-    v->mem[index] = elem;
-    v->elems++;
-}
-
-void free_vector(struct vector *v)
-{
-    assert(v);
-    cc_free(v->mem);
-    cc_free(v);
-}
-
-void purge_vector(struct vector *v)
-{
-    assert(v);
-    for (int i=0; i < vector_length(v); i++) {
-	void *p = vector_at(v, i);
-	cc_free(p);
-    }
-    free_vector(v); 
-}
-
-int vector_length(struct vector *v)
+int vec_len(struct vector *v)
 {
     if (v)
 	return v->elems;
@@ -88,63 +88,40 @@ int vector_length(struct vector *v)
 	return 0;
 }
 
-// Convert a vector to a null-terminated array
-void ** vector_to_array(struct vector *v)
-{
-    void **array = NULL;
-    int vlen = vector_length(v);
-    if (vlen > 0) {
-	array = cc_malloc((vlen+1) * v->elemsize);
-	memcpy(array, v->mem, vlen * v->elemsize);
-    }
-    free_vector(v);
-    return array;
-}
-
 // Add elements to vector from a null-terminated array
-void vector_add_from_array(struct vector *v, void **array)
+void vec_add_from_array(struct vector *v, void **array)
 {
     assert(v);
     if (array == NULL)
 	return;
     for (int i=0; array[i]; i++) {
-        vector_push(v, array[i]);
+        vec_push(v, array[i]);
     }
 }
 
-void vector_add_from_vector(struct vector *v, struct vector *v2)
+void vec_add_from_vector(struct vector *v, struct vector *v2)
 {
     assert(v);
-    for (int i=0; i < vector_length(v2); i++) {
-        vector_push(v, vector_at(v2, i));
+    for (int i=0; i < vec_len(v2); i++) {
+        vec_push(v, vec_at(v2, i));
     }
 }
 
-void *vector_front(struct vector *v)
+void *vec_front(struct vector *v)
 {
-    return vector_at(v, 0);
+    return vec_at(v, 0);
 }
 
-void *vector_back(struct vector *v)
+void *vec_back(struct vector *v)
 {
-    return vector_at(v, vector_length(v)-1);
+    return vec_at(v, vec_len(v)-1);
 }
 
-void vector_foreach(struct vector *v, void (*func) (void *elem, void *context), void *context)
+void vec_foreach(struct vector *v, void (*func) (void *elem, void *context), void *context)
 {
     assert(func);
-    for (int i=0; i < vector_length(v); i++) {
-	void *p = vector_at(v, i);
+    for (int i=0; i < vec_len(v); i++) {
+	void *p = vec_at(v, i);
 	func(p, context);
     }
-}
-
-int array_length(void **array)
-{
-    int i;
-    if (array == NULL)
-	return 0;
-    for (i=0; array[i]; i++)
-	;
-    return i;
 }

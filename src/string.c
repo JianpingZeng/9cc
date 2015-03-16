@@ -1,6 +1,6 @@
 #include "cc.h"
 
-static void string_grow(struct string *s, int len)
+static void str_grow(struct string *s, int len)
 {
     char *mem = cc_malloc(len + s->reserve);
     memcpy(mem, s->str, s->size);
@@ -19,22 +19,29 @@ struct string * new_string()
     return s;
 }
 
-unsigned string_length(struct string *s)
+void free_string(struct string *s)
+{
+    assert(s);
+    cc_free(s->str);
+    cc_free(s);
+}
+
+unsigned str_len(struct string *s)
 {
     assert(s);
     return s->size;
 }
 
-void string_concats(struct string *s, char *src)
+void str_cats(struct string *s, char *src)
 {
-    string_concatn(s, src, strlen(src));
+    str_catn(s, src, strlen(src));
 }
 
-void string_concatn(struct string *s, char *src, int len)
+void str_catn(struct string *s, char *src, int len)
 {
     assert(s);
     if (s->size + len >= s->capelems) {
-	string_grow(s, s->size+len);
+	str_grow(s, s->size+len);
     }
 
     char *dst = s->str + s->size;
@@ -45,7 +52,7 @@ void string_concatn(struct string *s, char *src, int len)
     s->size += len;
 }
 
-void string_concatd(struct string *s, long n)
+void str_catd(struct string *s, long n)
 {
     assert(s);
     char str[32], *ps = str + sizeof (str);
@@ -65,21 +72,5 @@ void string_concatd(struct string *s, long n)
     if (n < 0) {
 	*--ps = '-';
     }
-    return string_concatn(s, ps, str + sizeof (str) - ps);
-}
-
-char * string_to_array(struct string *s)
-{
-    assert(s);
-    char *str = cc_malloc(s->size+1);
-    memcpy(str, s->str, s->size);
-    free_string(s);
-    return str;
-}
-
-void free_string(struct string *s)
-{
-    assert(s);
-    cc_free(s->str);
-    cc_free(s);
+    return str_catn(s, ps, str + sizeof (str) - ps);
 }

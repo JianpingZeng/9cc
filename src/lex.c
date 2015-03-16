@@ -170,10 +170,10 @@ static void fline()
 		    break;
 	    }
 	    if (*pc == '\\' && pc[1] == '"') {
-		string_concatn(s, pc+1, 1);
+		str_catn(s, pc+1, 1);
 		pc += 2;
 	    } else {
-		string_concatn(s, pc++, 1);
+		str_catn(s, pc++, 1);
 	    }
 	}
 	source.file = strings(s->str);
@@ -709,7 +709,7 @@ static int number()
 	unsigned long long n = 0;
         int overflow = 0;
 	struct string *s = new_string();
-	string_concatn(s, rpc, 2);
+	str_catn(s, rpc, 2);
         pc = rpc = rpc + 2;
         if (!is_digithex(*rpc) && *rpc != '.') {
 	    integer_constant(n, overflow, 16, s);
@@ -719,7 +719,7 @@ static int number()
 	}
         for (; is_digithex(*rpc) || rpc == pe; ) {
 	    if (rpc == pe) {
-		string_concatn(s, pc, rpc-pc);
+		str_catn(s, pc, rpc-pc);
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
@@ -741,7 +741,7 @@ static int number()
 	    }
 	    rpc++;
         }
-	string_concatn(s, pc, rpc-pc);
+	str_catn(s, pc, rpc-pc);
         pc = rpc;
 	if (*rpc == '.' || *rpc == 'p' || *rpc == 'P') {
 	    fnumber(s, 16);
@@ -761,7 +761,7 @@ static int number()
 	pc = rpc;
 	for (;is_digit(*rpc) || rpc == pe;) {
 	    if (rpc == pe) {
-		string_concatn(s, pc, rpc-pc);
+		str_catn(s, pc, rpc-pc);
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
@@ -780,7 +780,7 @@ static int number()
 	    
 	    rpc++;
 	}
-	string_concatn(s, pc, rpc-pc);
+	str_catn(s, pc, rpc-pc);
 	pc = rpc;
 	if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
 	    fnumber(s, 10);
@@ -802,7 +802,7 @@ static int number()
 	pc = rpc;
 	for (;is_digit(*rpc) || rpc == pe;) {
 	    if (rpc == pe) {
-		string_concatn(s, pc, rpc-pc);
+		str_catn(s, pc, rpc-pc);
 		pc = rpc;
 		fillbuf();
 		rpc = pc;
@@ -819,7 +819,7 @@ static int number()
 	    
 	    rpc++;
 	}
-	string_concatn(s, pc, rpc-pc);
+	str_catn(s, pc, rpc-pc);
         pc = rpc;
         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
             fnumber(s, 10);
@@ -841,11 +841,11 @@ static void fnumber(struct string *s, int base)
     if (base == 10) {
 	// . e E
 	if (*pc == '.') {
-	    string_concatn(s, pc++, 1);
+	    str_catn(s, pc++, 1);
 	    char *rpc = pc;
 	    for (;is_digit(*rpc) || rpc == pe;) {
 		if (rpc == pe) {
-		    string_concatn(s, pc, rpc-pc);
+		    str_catn(s, pc, rpc-pc);
 		    pc = rpc;
 		    fillbuf();
 		    rpc = pc;
@@ -856,21 +856,21 @@ static void fnumber(struct string *s, int base)
 		}
 		rpc++;
 	    }
-	    string_concatn(s, pc, rpc-pc);
+	    str_catn(s, pc, rpc-pc);
 	    pc = rpc;
 	}
 
 	if (*pc == 'e' || *pc == 'E') {
-	    string_concatn(s, pc++, 1);
+	    str_catn(s, pc++, 1);
 	    if (pe - pc < MAXTOKEN)
 		fillbuf();
 	    if (*pc == '+' || *pc == '-')
-		string_concatn(s, pc++, 1);
+		str_catn(s, pc++, 1);
 	    if (is_digit(*pc)) {
 		char *rpc = pc;
 		for (;is_digit(*rpc) || rpc == pe;) {
 		    if (rpc == pe) {
-			string_concatn(s, pc, rpc-pc);
+			str_catn(s, pc, rpc-pc);
 			pc = rpc;
 			fillbuf();
 			rpc = pc;
@@ -881,7 +881,7 @@ static void fnumber(struct string *s, int base)
 		    }
 		    rpc++;
 		}
-		string_concatn(s, pc, rpc-pc);
+		str_catn(s, pc, rpc-pc);
 		pc = rpc;
 	    } else {
 		error("exponent used with no following digits: %s", s->str);
@@ -890,7 +890,7 @@ static void fnumber(struct string *s, int base)
     } else {
 	// . p P
 	if (*pc == '.') {
-	    string_concatn(s, pc++, 1);
+	    str_catn(s, pc++, 1);
 	    if (!is_digithex(pc[-2]) && !is_digithex(*pc))
 		error("hex floating constants require a significand");
 	    
@@ -902,16 +902,16 @@ static void fnumber(struct string *s, int base)
 		    else
 			continue;
 		}
-		string_concatn(s, pc++, 1);
+		str_catn(s, pc++, 1);
 	    }
 	}
 
 	if (*pc == 'p' || *pc == 'P') {
-	    string_concatn(s, pc++, 1);
+	    str_catn(s, pc++, 1);
 	    if (pe - pc < MAXTOKEN)
 		fillbuf();
 	    if (*pc == '+' || *pc == '-')
-		string_concatn(s, pc++, 1);
+		str_catn(s, pc++, 1);
 	    
 	    if (is_digit(*pc)) {
 		for (;is_digit(*pc) || pc == pe;) {
@@ -922,7 +922,7 @@ static void fnumber(struct string *s, int base)
 			else
 			    continue;
 		    }
-		    string_concatn(s, pc++, 1);
+		    str_catn(s, pc++, 1);
 		}
 	    } else {
 		error("exponent has no digits");
@@ -941,11 +941,11 @@ static void float_constant(struct string *s)
     if (*pc == 'f' || *pc == 'F') {
 	token->v.type = floattype;
 	token->v.u.d = strtof(s->str, NULL);
-	string_concatn(s, pc++, 1);
+	str_catn(s, pc++, 1);
     } else if (*pc == 'l' || *pc == 'L') {
 	token->v.type = longdoubletype;
 	token->v.u.ld = strtold(s->str, NULL);
-	string_concatn(s, pc++, 1);
+	str_catn(s, pc++, 1);
     } else {
 	token->v.type = doubletype;
 	token->v.u.d = strtod(s->str, NULL);
@@ -966,7 +966,7 @@ static void integer_constant(unsigned long long n, int overflow, int base, struc
 	// unsigned long long
 	token->v.type = unsignedlonglongtype;
 	pc = rpc + 3;
-	string_concatn(s, rpc, 3);
+	str_catn(s, rpc, 3);
     } else if ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) {
 	// long long
 	if (n > longlongtype->limits.max.i && base != 10)
@@ -975,7 +975,7 @@ static void integer_constant(unsigned long long n, int overflow, int base, struc
 	    token->v.type = longlongtype;
 	
 	pc = rpc + 2;
-	string_concatn(s, rpc, 2);
+	str_catn(s, rpc, 2);
     } else if (((rpc[0] == 'l' || rpc[0] == 'L') && (rpc[1] == 'u' || rpc[1] == 'U')) ||
 	     ((rpc[0] == 'u' || rpc[0] == 'U') && (rpc[1] == 'l' || rpc[1] == 'L'))) {
 	// unsigned long
@@ -985,7 +985,7 @@ static void integer_constant(unsigned long long n, int overflow, int base, struc
 	    token->v.type = unsignedlongtype;
 	
 	pc = rpc + 2;	
-	string_concatn(s, rpc, 2);
+	str_catn(s, rpc, 2);
     } else if (rpc[0] == 'l' || rpc[0] == 'L') {
 	// long
 	if (base == 10) {
@@ -1004,7 +1004,7 @@ static void integer_constant(unsigned long long n, int overflow, int base, struc
 		token->v.type = longtype;
 	}
 	pc = rpc + 1;
-	string_concatn(s, rpc, 1);
+	str_catn(s, rpc, 1);
     } else if (rpc[0] == 'u' || rpc[0] == 'U') {
 	// unsigned
 	if (n > unsignedlongtype->limits.max.u)
@@ -1015,7 +1015,7 @@ static void integer_constant(unsigned long long n, int overflow, int base, struc
 	    token->v.type = unsignedinttype;
 	
 	pc = rpc + 1;
-	string_concatn(s, rpc, 1);
+	str_catn(s, rpc, 1);
     } else {
 	if (base == 10) {
 	    if (n > longtype->limits.max.i)
@@ -1067,7 +1067,7 @@ static void char_constant(int wide)
     int len = 0;
     
     struct string *s = new_string();
-    wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
+    wide ? str_catn(s, pc-2, 2) : str_catn(s, pc-1, 1);
     for (; *pc != '\'';) {
 	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
@@ -1085,7 +1085,7 @@ static void char_constant(int wide)
 	    char_rec = 1;
 	} else {
 	    if (wide) {
-		string_concatn(s, pc, 1);
+		str_catn(s, pc, 1);
 		if (len >= MB_LEN_MAX)
 		    error("multibyte character overflow");
 		else
@@ -1093,7 +1093,7 @@ static void char_constant(int wide)
 		
 		pc++;
 	    } else {
-		string_concatn(s, pc, 1);
+		str_catn(s, pc, 1);
 		c = *pc++;
 		char_rec = 1;
 	    }
@@ -1105,7 +1105,7 @@ static void char_constant(int wide)
 	token->name = strings(s->str);
 	error("unterminated character constant: %s", token->name);
     } else {
-	string_concatn(s, pc, 1);
+	str_catn(s, pc, 1);
 	token->name = strings(s->str);
 
 	if (!char_rec && !len)
@@ -1128,7 +1128,7 @@ static void char_constant(int wide)
 static void string_constant(int wide)
 {
     struct string *s = new_string();
-    wide ? string_concatn(s, pc-2, 2) : string_concatn(s, pc-1, 1);
+    wide ? str_catn(s, pc-2, 2) : str_catn(s, pc-1, 1);
     for (; *pc != '"';) {
 	if (pe - pc < MAXTOKEN) {
 	    fillbuf();
@@ -1141,11 +1141,11 @@ static void string_constant(int wide)
 	if (*pc == '\\')
 	    escape(s);
 	else
-	    string_concatn(s, pc++, 1);
+	    str_catn(s, pc++, 1);
     }
 
     if (wide) {
-	size_t len = string_length(s) - 2;
+	size_t len = str_len(s) - 2;
 	wchar_t ws[len+1];
 	errno = 0;
 	size_t wlen = mbstowcs(ws, s->str+2, len);
@@ -1158,11 +1158,11 @@ static void string_constant(int wide)
     } else {
 	token->v.type = array_type();
 	token->v.type->type = chartype;
-	token->v.type->size = string_length(s)-1;
+	token->v.type->size = str_len(s)-1;
     }
     
     if (*pc == '"')
-	string_concatn(s, pc++, 1);
+	str_catn(s, pc++, 1);
     else
 	error("unterminated string constant: %s", s->str);
     token->name = strings(s->str);
@@ -1176,7 +1176,7 @@ static void identifier()
     rpc = pc = pc - 1;
     for (;is_digitletter(*rpc) || rpc == pe;) {
 	if (rpc == pe) {
-	    string_concatn(s, pc, rpc-pc);
+	    str_catn(s, pc, rpc-pc);
 	    pc = rpc;
 	    fillbuf();
 	    rpc = pc;
@@ -1187,7 +1187,7 @@ static void identifier()
 	}
 	rpc++;
     }
-    string_concatn(s, pc, rpc-pc);
+    str_catn(s, pc, rpc-pc);
     pc = rpc;
     token->name = strings(s->str);
     free_string(s);
@@ -1196,7 +1196,7 @@ static void identifier()
 static unsigned escape(struct string *s)
 {
     assert(*pc == '\\');
-    string_concatn(s, pc++, 2);
+    str_catn(s, pc++, 2);
     switch (*pc++) {
     case 'a': return 7;
     case 'b': return '\b';
@@ -1214,10 +1214,10 @@ static unsigned escape(struct string *s)
 	{
 	    unsigned c = pc[-1] - '0';
 	    if (*pc >= '0' && *pc <= '7') {
-		string_concatn(s, pc, 1);
+		str_catn(s, pc, 1);
 		c = (c<<3) + (*pc++) - '0';
 		if (*pc >= '0' && *pc <= '7') {
-		    string_concatn(s, pc, 1);
+		    str_catn(s, pc, 1);
 		    c = (c<<3) + (*pc++) - '0';
 		}
 	    }
@@ -1239,7 +1239,7 @@ static unsigned escape(struct string *s)
 		    else
 			continue;
 		}
-		string_concatn(s, pc, 1);
+		str_catn(s, pc, 1);
 		if (overflow) {
 		    pc++;
 		    continue;
@@ -1272,7 +1272,7 @@ static unsigned escape(struct string *s)
 		    c = (c<<4) + *pc - '0';
 		else
 		    c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
-		string_concatn(s, pc, 1);
+		str_catn(s, pc, 1);
 	    }
 	    if (x < n)
 		error("incomplete universal character name: %S", ps, pc-ps);

@@ -28,7 +28,7 @@ static char ** concat(int argc, char **argv)
 	    output_file = argv[i];
 	}
 	else if (arg[0] == '-') {
-	    vector_push(options, arg);
+	    vec_push(options, arg);
 	}
 	else {
 	    input_file = arg;
@@ -45,16 +45,16 @@ static char ** concat(int argc, char **argv)
 	exit(EXIT_FAILURE);
     }
 
-    vector_push(options, input_file);
+    vec_push(options, input_file);
     if (output_file) {
-	vector_push(options, "-o");
-	vector_push(options, output_file);
+	vec_push(options, "-o");
+	vec_push(options, output_file);
     }
 
-    vector_add_from_array(v, (void **)cpp);
-    vector_add_from_vector(v, options);
+    vec_add_from_array(v, (void **)cpp);
+    vec_add_from_vector(v, options);
     free_vector(options);
-    p = (char **) vector_to_array(v);
+    p = (char **) vtoa(v);
     
     return p;
 }

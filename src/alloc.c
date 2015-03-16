@@ -209,6 +209,27 @@ const char *stringd(long n)
     return stringn(s, str + sizeof (str) - s);
 }
 
+char * stoa(struct string *s)
+{
+    assert(s);
+    char *str = cc_malloc(s->size+1);
+    memcpy(str, s->str, s->size);
+    free_string(s);
+    return str;
+}
+
+void ** vtoa(struct vector *v)
+{
+    void **array = NULL;
+    int vlen = vec_len(v);
+    if (vlen > 0) {
+	array = cc_malloc((vlen+1) * v->elemsize);
+	memcpy(array, v->mem, vlen * v->elemsize);
+    }
+    free_vector(v);
+    return array;
+}
+
 // for debug
 static void print_bucket(struct bucket_info *s, const char *name)
 {

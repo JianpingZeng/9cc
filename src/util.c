@@ -23,3 +23,13 @@ void die(const char *fmt, ...)
     va_end(ap);
     exit(EXIT_FAILURE);
 }
+
+int array_len(void **array)
+{
+    int i;
+    if (array == NULL)
+	return 0;
+    for (i=0; array[i]; i++)
+	;
+    return i;
+}

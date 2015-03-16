@@ -33,7 +33,7 @@ static void append(struct vector *v, const char *str)
     char *p = malloc(strlen(str)+1);
     memcpy(p, str, strlen(str));
     p[strlen(str)] = 0;
-    vector_push(v, p);
+    vec_push(v, p);
 }
 
 static char *tempname(const char *hint)
@@ -50,6 +50,7 @@ static int preprocess(const char *inputfile)
     static const char *cpp[] = {"cpp", "$in", "-o", "$out", 0};
     int ret;
     struct vector *v = new_vector();
+    int argc;
     char **argv;
     if (config.option_E) {
 	if (output_file) {
@@ -65,10 +66,11 @@ static int preprocess(const char *inputfile)
 	cpp[3] = ifile;
     }
     cpp[1] = inputfile;
-    vector_add_from_array(v, (void **)cpp);
-    vector_add_from_vector(v, optionlist);
-    argv = (char **) vector_to_array(v);
-    ret = cpp_main(array_length((void **)argv), argv);
+    vec_add_from_array(v, (void **)cpp);
+    vec_add_from_vector(v, optionlist);
+    argc = vec_len(v);
+    argv = (char **) vtoa(v);
+    ret = cpp_main(argc, argv);
     free(argv);
     return ret;
 }
@@ -96,10 +98,10 @@ static int compile(const char *inputfile, const char *orig_input_file)
 	cc[3] = sfile;
     }
     cc[1] = inputfile;
-    vector_add_from_array(v, (void **)cc);
-    vector_add_from_vector(v, optionlist);
-    argc = vector_length(v);
-    argv = (char **) vector_to_array(v);
+    vec_add_from_array(v, (void **)cc);
+    vec_add_from_vector(v, optionlist);
+    argc = vec_len(v);
+    argv = (char **) vtoa(v);
     ret = callps(cc_main, argc, argv);
     free(argv);
     if (outfile) free(outfile);
@@ -190,7 +192,7 @@ int main(int argc, char **argv)
 		    strncpy(ioption+2, abs, len);
 		    ioption[len+2] = 0;
 		    free(abs);
-		    vector_push(optionlist, ioption);
+		    vec_push(optionlist, ioption);
 		}
 	    } else {
 		append(optionlist, arg);
@@ -200,12 +202,12 @@ int main(int argc, char **argv)
 	}
     }
 
-    if (vector_length(inputlist) == 0) {
+    if (vec_len(inputlist) == 0) {
 	fprintf(stderr, "no input file.\n");
 	return EXIT_FAILURE;
     }
     
-    vector_foreach(inputlist, translate, NULL);
+    vec_foreach(inputlist, translate, NULL);
 
     if (!config.option_E && !config.option_s && !config.option_c && fails == 0) {
 	// link

@@ -27,9 +27,11 @@ union value {
     void (*g) ();
 };
 
+// string.c
+// vector.c
+#include "lib.h"
+
 // alloc.c
-extern void * cc_malloc(size_t size);
-extern void cc_free(void *p);
 extern void * alloc_node_node();
 extern void * alloc_expr_node();
 extern void * alloc_stmt_node();
@@ -46,10 +48,6 @@ extern const char *stringd(long n);
 
 extern void free_cc();
 extern void print_alloc_info();
-
-// string.c
-// vector.c
-#include "lib.h"
 
 // lex.c
 #define EOI  -1

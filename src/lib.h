@@ -5,6 +5,7 @@
 extern void * cc_malloc(size_t size);
 extern void cc_free(void *p);
 extern void die(const char *fmt, ...);
+extern int array_len(void **array);
 
 // string.c
 struct string {
@@ -14,12 +15,12 @@ struct string {
     unsigned reserve;
 };
 extern struct string * new_string();
-extern unsigned string_length(struct string *s);
-extern void string_concats(struct string *s, char *src);
-extern void string_concatn(struct string *s, char *src, int len);
-extern void string_concatd(struct string *s, long d);
-extern char * string_to_array(struct string *s);
 extern void free_string(struct string *s);
+
+extern unsigned str_len(struct string *s);
+extern void str_cats(struct string *s, char *src);
+extern void str_catn(struct string *s, char *src, int len);
+extern void str_catd(struct string *s, long d);
 
 // vector.c
 struct vector {
@@ -29,20 +30,20 @@ struct vector {
     int    capelems;
     int    reserve;
 };
-struct vector *new_vector();
-void * vector_at(struct vector *v, int index);
-void vector_push(struct vector *v, void *elem);
-void * vector_pop(struct vector *v);
-void vector_insert(struct vector *v, int inex, void *elem);
-void free_vector(struct vector *v);
-void purge_vector(struct vector *v);
-int vector_length(struct vector *v);
-void ** vector_to_array(struct vector *v);
-void vector_add_from_array(struct vector *v, void **array);
-void vector_add_from_vector(struct vector *v, struct vector *v2);
-void * vector_front(struct vector *v);
-void * vector_back(struct vector *v);
-void vector_foreach(struct vector *v, void (*func)(void *elem, void *context), void *context);
-int array_length(void **array);
+extern struct vector *new_vector();
+extern void free_vector(struct vector *v);
+extern void purge_vector(struct vector *v);
+
+extern void * vec_at(struct vector *v, int index);
+extern void vec_push(struct vector *v, void *elem);
+extern int vec_len(struct vector *v);
+extern void vec_add_from_array(struct vector *v, void **array);
+extern void vec_add_from_vector(struct vector *v, struct vector *v2);
+extern void vec_foreach(struct vector *v, void (*func)(void *elem, void *context), void *context);
+
+// string to array
+extern char * stoa(struct string *s);
+// vector to array
+extern void ** vtoa(struct vector *v);
 
 #endif

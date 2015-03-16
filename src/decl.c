@@ -345,26 +345,26 @@ static struct symbol ** func_params(struct type *ftype)
 		}
 	    }
 	    
-	    vector_push(v, paramdecl(id, ty, sclass, src));
+	    vec_push(v, paramdecl(id, ty, sclass, src));
 	    if (token->id != ',')
 		break;
 
 	    match(',');
 	    if (token->id == ELLIPSIS) {
-		vector_push(v, paramdecl(token->name, vartype, 0, source));
+		vec_push(v, paramdecl(token->name, vartype, 0, source));
 		match(ELLIPSIS);
 		break;
 	    }
 	}
 
-	ret = (struct symbol **)vector_to_array(v);
+	ret = (struct symbol **)vtoa(v);
     } else if (token->id == ID) {
 	// oldstyle
 	ftype->f.oldstyle = 1;
 	struct vector *v = new_vector();
 	for (;;) {
 	    if (token->id == ID)
-		vector_push(v, paramdecl(token->name, inttype, 0, source));
+		vec_push(v, paramdecl(token->name, inttype, 0, source));
 	    match(ID);
 	    if (token->id != ',')
 		break;
@@ -373,7 +373,7 @@ static struct symbol ** func_params(struct type *ftype)
 
 	if (SCOPE > PARAM)
 	    error("a parameter list without types is only allowed in a function definition");
-	ret = (struct symbol **) vector_to_array(v);
+	ret = (struct symbol **) vtoa(v);
     } else if (token->id == ')') {
 	ftype->f.oldstyle = 1;
     } else {
@@ -672,13 +672,13 @@ static struct type * enum_decl()
 		val = intexpr();
 	    }
 	    sym->value.i = val++;
-	    vector_push(v, sym);
+	    vec_push(v, sym);
 	    if (token->id != ',')
 		break;
 	    match(',');
 	}
 	skipto('}');	
-	ety->s.ids = (struct symbol **)vector_to_array(v);	
+	ety->s.ids = (struct symbol **)vtoa(v);	
 	ety->s.symbol->defined = 1;
 	ret = ety;
     } else if (id) {
@@ -1008,9 +1008,9 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
 	struct vector *v = new_vector();
 	enter_scope();
 	while (kind(token->id) & FIRST_DECL)
-	    vector_add_from_array(v, (void **)decls(paramdecl));
+	    vec_add_from_array(v, (void **)decls(paramdecl));
 
-	vector_foreach(v, update_params, ftype);
+	vec_foreach(v, update_params, ftype);
 	free_vector(v);
 	exit_scope();
 	if (token->id != '{') {
@@ -1054,8 +1054,8 @@ static struct node ** decls(DeclFunc declfunc)
 		(token->id == '{' ||
 		 ((istypename(token) || token->id & SCLASS_SPEC) &&
 		  ty->f.oldstyle && ty->f.params))) {
-		vector_push(v, funcdef(id, ty, sclass, src));
-		return (struct node **) vector_to_array(v);
+		vec_push(v, funcdef(id, ty, sclass, src));
+		return (struct node **) vtoa(v);
 	    } else if (SCOPE == PARAM) {
 		exit_scope();
 	    }
@@ -1071,7 +1071,7 @@ static struct node ** decls(DeclFunc declfunc)
 		    decl = decl_node(VAR_DECL, SCOPE);
 
 		decl->node.symbol = sym;
-		vector_push(v, decl);
+		vec_push(v, decl);
 	    } else {
 		errorf(src, "missing identifier in declaration");
 	    }
@@ -1100,12 +1100,12 @@ static struct node ** decls(DeclFunc declfunc)
 		
 	decl = decl_node(node_id, SCOPE);
 	decl->node.symbol = basety->s.symbol;
-	vector_push(v, decl);
+	vec_push(v, decl);
     } else {
 	error("invalid token '%s' in declaration", token->name);
     }
     skipto(';');
-    return (struct node **)vector_to_array(v);
+    return (struct node **)vtoa(v);
 }
 
 struct decl * initializer_list()
@@ -1153,14 +1153,14 @@ struct decl * translation_unit()
     for (; token->id != EOI; ) {
 	if (kind(token->id) & FIRST_DECL) {
 	    assert(SCOPE == GLOBAL);
-	    vector_add_from_array(v, (void **)decls(globaldecl));
+	    vec_add_from_array(v, (void **)decls(globaldecl));
 	} else {
 	    error("invalid token '%s'", token->name);
 	    gettok();
 	}
     }
 
-    ret->exts = (struct node **)vector_to_array(v);
+    ret->exts = (struct node **)vtoa(v);
 
     return ret;
 }

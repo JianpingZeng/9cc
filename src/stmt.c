@@ -351,13 +351,13 @@ struct stmt * compound_statement(struct stmt *context)
 	if ((token->id == ID && is_typedef_name(token->name)) ||
 	    (token->id != ID && kind(token->id) & FIRST_DECL))
 	    // declaration
-	    vector_add_from_array(v, (void **)declaration());
+	    vec_add_from_array(v, (void **)declaration());
 	else
 	    // statement
-	    vector_push(v, statement(context));
+	    vec_push(v, statement(context));
     }
 
-    ret->compoundstmt.blks = (struct node **)vector_to_array(v);
+    ret->compoundstmt.blks = (struct node **)vtoa(v);
     match('}');
     exit_scope();
 

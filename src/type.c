@@ -306,8 +306,8 @@ static int eqparams(struct symbol **params1, struct symbol **params2)
     } else if (params1 == NULL || params2 == NULL) {
 	return 0;
     } else {
-	int len1 = array_length((void **)params1);
-	int len2 = array_length((void **)params2);
+	int len1 = array_len((void **)params1);
+	int len2 = array_len((void **)params2);
 	if (len1 != len2)
 	    return 0;
 	for (int i=0; i < len1; i++) {

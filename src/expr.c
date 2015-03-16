@@ -40,13 +40,13 @@ static struct expr * argument_expr_list()
 	struct vector *v = new_vector();
 	ret = expr_node(ARGS_EXPR, 0, NULL, NULL);
 	for (;;) {
-	    vector_push(v, NODE(assign_expression()));
+	    vec_push(v, NODE(assign_expression()));
 	    if (token->id == ',')
 		match(',');
 	    else
 		break;
 	}
-	ret->args = (struct expr **)vector_to_array(v);
+	ret->args = (struct expr **)vtoa(v);
     } else if (token->id != ')') {
 	error("expect assignment expression");
     }
