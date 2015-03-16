@@ -187,8 +187,8 @@ int main(int argc, char **argv)
     
     vec_foreach(inputlist, translate, optionlist);
     
-    free_vector(inputlist);
-    free_vector(optionlist);
+    purge_vector(inputlist);
+    purge_vector(optionlist);
     rmdir(tmpdir);
     
     return ret;
