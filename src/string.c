@@ -44,13 +44,13 @@ void str_catn(struct string *s, const char *src, int len)
 {
     assert(s);
     if (s->size + len >= s->capelems) {
-	str_grow(s, s->size+len);
+        str_grow(s, s->size+len);
     }
-
+    
     char *dst = s->str + s->size;
     int size = len;
     while (size-- > 0) {
-	*dst++ = *src++;
+        *dst++ = *src++;
     }
     s->size += len;
 }
@@ -62,18 +62,18 @@ void str_catd(struct string *s, long n)
     unsigned long m;
     
     if (n == LONG_MIN)
-	m = (unsigned long)LONG_MAX + 1;
+        m = (unsigned long)LONG_MAX + 1;
     else if (n < 0)
-	m = -n;
+        m = -n;
     else
-	m = n;
+        m = n;
     
     do {
-	*--ps = m%10 + '0';
+        *--ps = m%10 + '0';
     } while ((m /= 10) != 0);
     
     if (n < 0) {
-	*--ps = '-';
+        *--ps = '-';
     }
     return str_catn(s, ps, str + sizeof (str) - ps);
 }

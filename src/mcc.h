@@ -17,6 +17,7 @@ extern int callps(int (*pmain)(int, char *argv[]), int argc, char *argv[]);
 extern char *replace_suffix(const char *path, const char *suffix);
 extern int rmdir(const char *dir);
 extern char *expanduser(char *path);
+extern void cc_sleep(int seconds);
 
 #include "lib.h"
 

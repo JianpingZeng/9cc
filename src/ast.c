@@ -10,7 +10,7 @@ static const char * node_names[] = {
 static void * alloc_node(struct bucket_info **s, size_t size)
 {
     if (!*s)
-	*s = node_alloc_bucket(size);
+        *s = node_alloc_bucket(size);
     return alloc_for_size(*s, size, node_alloc_bucket);
 }
 
@@ -70,8 +70,8 @@ void free_cc()
 const char *nname(struct node * node)
 {
     if (node == NULL)
-	return "<NULL>";
-
+        return "<NULL>";
+    
     assert(node->id > BEGIN_NODE_ID && node->id < END_NODE_ID);
     
     return node_names[node->id];

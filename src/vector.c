@@ -49,10 +49,10 @@ void purge_vector(struct vector *v)
 {
     assert(v);
     for (int i=0; i < vec_len(v); i++) {
-	void *p = vec_at(v, i);
-	cc_free(p);
+        void *p = vec_at(v, i);
+        cc_free(p);
     }
-    free_vector(v); 
+    free_vector(v);
 }
 
 void * vec_at(struct vector *v, int index)
@@ -66,15 +66,15 @@ void vec_push(struct vector *v, void *elem)
 {
     assert(v);
     if (elem)
-	vec_insert(v, v->elems, elem);
+        vec_insert(v, v->elems, elem);
 }
 
 int vec_len(struct vector *v)
 {
     if (v)
-	return v->elems;
+        return v->elems;
     else
-	return 0;
+        return 0;
 }
 
 // Add elements to vector from a null-terminated array
@@ -82,7 +82,7 @@ void vec_add_from_array(struct vector *v, void **array)
 {
     assert(v);
     if (array == NULL)
-	return;
+        return;
     for (int i=0; array[i]; i++) {
         vec_push(v, array[i]);
     }
@@ -100,8 +100,8 @@ void vec_foreach(struct vector *v, void (*func) (void *elem, void *context), voi
 {
     assert(func);
     for (int i=0; i < vec_len(v); i++) {
-	void *p = vec_at(v, i);
-	func(p, context);
+        void *p = vec_at(v, i);
+        func(p, context);
     }
 }
 
@@ -114,8 +114,8 @@ void ** vec_to_array(struct vector *v)
     void **array = NULL;
     int vlen = vec_len(v);
     if (vlen > 0) {
-	array = cc_malloc((vlen+1) * v->elemsize);
-	memcpy(array, v->mem, vlen * v->elemsize);
+        array = cc_malloc((vlen+1) * v->elemsize);
+        memcpy(array, v->mem, vlen * v->elemsize);
     }
     free_vector(v);
     return array;

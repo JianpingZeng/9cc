@@ -44,8 +44,8 @@ struct token {
     int id;
     const char *name;
     struct {
-	union value u;
-	struct type *type;
+        union value u;
+        struct type *type;
     }v;
 };
 
@@ -79,10 +79,10 @@ struct expr {
     struct node node;
     int op;
     union {
-	// arguments
-	struct {
-	    struct expr **args;
-	};
+        // arguments
+        struct {
+            struct expr **args;
+        };
     };
 };
 
@@ -91,15 +91,15 @@ struct stmt {
     struct node node;
     struct stmt *up;		// internal
     union {
-	struct {
-	    struct node **decl;
-	    struct expr *init;
-	    struct expr *cond;
-	    struct expr *ctrl;
-	}forstmt;
-	struct {
-	    struct node **blks;	// block items
-	}compoundstmt;
+        struct {
+            struct node **decl;
+            struct expr *init;
+            struct expr *cond;
+            struct expr *ctrl;
+        }forstmt;
+        struct {
+            struct node **blks;	// block items
+        }compoundstmt;
     };
 };
 
@@ -108,9 +108,9 @@ struct decl {
     struct node node;
     int scope;
     union {
-	struct {
-	    struct node **exts;
-	};
+        struct {
+            struct node **exts;
+        };
     };
 };
 
@@ -153,7 +153,7 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
 
 struct field {
-
+    
 };
 
 // type.c
@@ -168,32 +168,32 @@ struct type {
     unsigned reserved : 1;
     struct type *type;
     union {
-	// function
-	struct {
-	    struct symbol **params;
-	    unsigned oldstyle : 1;
-	}f;
-	// array
-	struct {
-	    struct expr *assign;
-	    unsigned qual_const : 1;
-	    unsigned qual_volatile : 1;
-	    unsigned qual_restrict : 1;
-	    unsigned sclass_static : 1;
-	    unsigned wildcard : 1;
-	}a;
-	// enum/struct/union
-	struct {
-	    struct symbol *symbol;
-	    union {
-		struct symbol **ids;
-		struct field **fields;
-	    };
-	}s;
+        // function
+        struct {
+            struct symbol **params;
+            unsigned oldstyle : 1;
+        }f;
+        // array
+        struct {
+            struct expr *assign;
+            unsigned qual_const : 1;
+            unsigned qual_volatile : 1;
+            unsigned qual_restrict : 1;
+            unsigned sclass_static : 1;
+            unsigned wildcard : 1;
+        }a;
+        // enum/struct/union
+        struct {
+            struct symbol *symbol;
+            union {
+                struct symbol **ids;
+                struct field **fields;
+            };
+        }s;
     };
     struct {
-	union value max;
-	union value min;
+        union value max;
+        union value min;
     }limits;
 };
 
@@ -323,11 +323,11 @@ enum {
     TYPE_QUAL = 02,
     TYPE_SPEC = 04,
     FUNC_SPEC = 010,
-
+    
     FIRST_EXPR = 020,		
     FIRST_STMT = 040,
     FIRST_DECL = 0100,
-
+    
     FIRST_ASSIGN_EXPR = FIRST_EXPR, // equals to FIRST_EXPR
 };
 

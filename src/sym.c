@@ -37,9 +37,9 @@ void enter_scope()
 void exit_scope()
 {
     if (tags->scope == _scope) {
-	struct table *tp = tags;
-	tags = tags->up;
-	drop_table(tp);
+        struct table *tp = tags;
+        tags = tags->up;
+        drop_table(tp);
     }
     if (identifiers->scope == _scope) {
         struct table *tp = identifiers;
@@ -65,10 +65,10 @@ static unsigned hash(const char *src)
 {
     register unsigned h;
     register unsigned char *p;
-
+    
     for(h = 0, p = (unsigned char *)src; p && *p ; p++)
         h = 31 * h + *p;
-
+    
     return h;
 }
 
@@ -96,12 +96,12 @@ struct symbol * find_symbol(const char *name, struct table *table, int scope)
 struct symbol * locate_symbol(const char *name , struct table *table, int scope)
 {
     assert(name);
-
+    
     if (scope > table->scope)
-	return NULL;
-
+        return NULL;
+    
     while (scope != table->scope)
-	table = table->up;
+        table = table->up;
     
     for (struct table *t = table; t && t->scope == scope; t = t->up) {
         unsigned h = hash(name) % BUCKET_SIZE;
@@ -126,14 +126,14 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
     struct sentry *entry;
     struct symbol *symbol;
     struct table *tp = *tpp;
-
+    
     if (scope > tp->scope) {
         tp = *tpp = new_table(tp, scope);
     } else {
-	while (scope != tp->scope)
-	    tp = tp->up;
+        while (scope != tp->scope)
+            tp = tp->up;
     }
-
+    
     entry = alloc_table_entry(tp, sizeof(struct sentry));
     symbol = alloc_symbol_node();
     symbol->scope = scope;
@@ -144,6 +144,6 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
     
     entry->next = tp->buckets[h];
     tp->buckets[h] = entry;
-
+    
     return entry->symbol;
 }

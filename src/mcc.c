@@ -28,9 +28,9 @@ static void print_opt(const char *opt, const char *message)
 static void usage()
 {
     fprintf(stderr,
-	    "OVERVIEW: mcc - A Standard C Compiler v%s\n\n"
-	    "USAGE: mcc [options] <inputs>\n\n"
-	    "OPTIONS:\n", version);
+            "OVERVIEW: mcc - A Standard C Compiler v%s\n\n"
+            "USAGE: mcc [options] <inputs>\n\n"
+            "OPTIONS:\n", version);
     print_opt("-c",              "Only run preprocess, compile, and assemble steps");
     print_opt("-I <dir>",        "Add directory to include search path");
     print_opt("-h, --help",      "Display available options");
@@ -70,20 +70,20 @@ static void translate(void *elem, void *context)
     unit++;
     
     if (!file_exists(inputfile)) {
-	fprintf(stderr, "input file '%s' not exists.\n", inputfile);
-	fails++;
-	return;
+        fprintf(stderr, "input file '%s' not exists.\n", inputfile);
+        fails++;
+        return;
     }
-
+    
     // preprocess
     if (config.option_E) {
-	if (output_file)
-	    cpp[3] = output_file;
-	else 
-	    cpp[2] = 0;
+        if (output_file)
+            cpp[3] = output_file;
+        else
+            cpp[2] = 0;
     } else {
-	ifile = tempname("cpp.i");
-	cpp[3] = ifile;
+        ifile = tempname("cpp.i");
+        cpp[3] = ifile;
     }
     cpp[1] = inputfile;
     v = new_vector();
@@ -92,28 +92,28 @@ static void translate(void *elem, void *context)
     argc = vec_len(v);
     argv = (char **) vtoa(v);
     if (cpp_main(argc, argv) == EXIT_FAILURE) {
-	fails++;
-	return;
+        fails++;
+        return;
     }
     if (config.option_E)
-	return;
-
+        return;
+    
     // compile
     if (config.option_S) {
-	if (output_file) {
-	    cc[3] = output_file;
-	}
-	else {
-	    char *new_file = replace_suffix(inputfile, "s");
-	    sfile = cc_malloc(strlen(new_file)+1);
-	    strcpy(sfile, new_file);
-	    free(new_file);
-	    cc[3] = sfile;
-	}
+        if (output_file) {
+            cc[3] = output_file;
+        }
+        else {
+            char *new_file = replace_suffix(inputfile, "s");
+            sfile = cc_malloc(strlen(new_file)+1);
+            strcpy(sfile, new_file);
+            free(new_file);
+            cc[3] = sfile;
+        }
     }
     else {
-	sfile = tempname("cc.s");
-	cc[3] = sfile;
+        sfile = tempname("cc.s");
+        cc[3] = sfile;
     }
     cc[1] = ifile;
     v = new_vector();
@@ -122,15 +122,15 @@ static void translate(void *elem, void *context)
     argc = vec_len(v);
     argv = (char **) vtoa(v);
     if (cc_main(argc, argv) == EXIT_FAILURE) {
-	fails++;
-	return;
+        fails++;
+        return;
     }
-
+    
     if (ifile)
-	cc_free(ifile);
+        cc_free(ifile);
     if (sfile)
-	cc_free(sfile);
-
+        cc_free(sfile);
+    
     free_unit();
 }
 
@@ -142,51 +142,54 @@ int main(int argc, char **argv)
     
     tmpdir = mk_temp_dir();
     if (!tmpdir)
-	die("Can't make temporary directory.");
+        die("Can't make temporary directory.");
     
     for (int i=1; i < argc; i++) {
-	char *arg = argv[i];
-	if (!strcmp(arg, "-h") || !strcmp(arg, "--help") ||
-	    !strcmp(arg, "-v") || !strcmp(arg, "--version")) {
-	    usage();
-	    exit(EXIT_FAILURE);
-	} else if (!strcmp(arg, "-o")) {
-	    if (++i >= argc) {
-		fprintf(stderr, "missing target file while -o option specified.\n");
-		usage();
-		exit(EXIT_FAILURE);
-	    }
-	    output_file = argv[i];
-	} else if (!strcmp(arg, "-E")) {
-	    config.option_E = 1;
-	} else if (!strcmp(arg, "-c")) {
-	    config.option_c = 1;
-	} else if (!strcmp(arg, "-S")) {
-	    config.option_S = 1;
-	} else if (arg[0] == '-') {
-	    if (arg[1] == 'I') {
-		char *abs = expanduser(arg+2);
-		if (abs) {
-		    struct string *s = new_string();
-		    str_cats(s, "-I");
-		    str_cats(s, abs);
-		    vec_push(optionlist, str_to_array(s));
-		    free(abs);
-		}
-	    } else {
-		append(optionlist, arg);
-	    }
-	} else {
-	    append(inputlist, arg);
-	}
-    }
-
-    if (vec_len(inputlist) == 0) {
-	fprintf(stderr, "no input file.\n");
-	return EXIT_FAILURE;
+        char *arg = argv[i];
+        if (!strcmp(arg, "-h") || !strcmp(arg, "--help") ||
+            !strcmp(arg, "-v") || !strcmp(arg, "--version")) {
+            usage();
+            exit(EXIT_FAILURE);
+        } else if (!strcmp(arg, "-o")) {
+            if (++i >= argc) {
+                fprintf(stderr, "missing target file while -o option specified.\n");
+                usage();
+                exit(EXIT_FAILURE);
+            }
+            output_file = argv[i];
+        } else if (!strcmp(arg, "-E")) {
+            config.option_E = 1;
+        } else if (!strcmp(arg, "-c")) {
+            config.option_c = 1;
+        } else if (!strcmp(arg, "-S")) {
+            config.option_S = 1;
+        } else if (arg[0] == '-') {
+            if (arg[1] == 'I') {
+                char *abs = expanduser(arg+2);
+                if (abs) {
+                    struct string *s = new_string();
+                    str_cats(s, "-I");
+                    str_cats(s, abs);
+                    vec_push(optionlist, str_to_array(s));
+                    free(abs);
+                }
+            } else {
+                append(optionlist, arg);
+            }
+        } else {
+            append(inputlist, arg);
+        }
     }
     
+    if (vec_len(inputlist) == 0) {
+        fprintf(stderr, "no input file.\n");
+        return EXIT_FAILURE;
+    }
+    
+    // for (int i=0; i < 1000; i++) {
     vec_foreach(inputlist, translate, optionlist);
+    // sleep(1);
+    // }
     
     purge_vector(inputlist);
     purge_vector(optionlist);

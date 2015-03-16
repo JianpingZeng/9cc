@@ -13,20 +13,20 @@ static void cc_print_lead(int tag, const char *file, unsigned line, const char *
 {
     const char *lead;
     switch (tag) {
-    case WRN:
-	lead = "\e[1;35mwarning:\e[0m";
-	break;
-
-    case ERR:
-	lead = "\e[1;31merror:\e[0m";
-	break;
-
-    case FTL:
-	lead = "\e[1;31mfatal:\e[0m";
-	break;
-
-    default:
-	assert(0);
+        case WRN:
+            lead = "\e[1;35mwarning:\e[0m";
+            break;
+            
+        case ERR:
+            lead = "\e[1;31merror:\e[0m";
+            break;
+            
+        case FTL:
+            lead = "\e[1;31mfatal:\e[0m";
+            break;
+            
+        default:
+            assert(0);
     }
     fprintf(stderr, "\e[1;38m%s:%u:\e[0m %s ", file, line, lead);
     fprintf(stderr, "\e[1;38m");
@@ -61,8 +61,8 @@ void errorf(struct source src, const char *fmt, ...)
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
-	fprintf(stderr, "Too many errors.\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Too many errors.\n");
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -74,8 +74,8 @@ void error(const char *fmt, ...)
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
-	fprintf(stderr, "Too many errors.\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Too many errors.\n");
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -103,14 +103,14 @@ void begin_call(const char *funcname)
 {
     call_depth++;
     for (int i=0; i < call_depth; i++)
-	fprintf(stderr, " ");
+        fprintf(stderr, " ");
     fprintf(stderr, "begin %s\n", funcname);
 }
 
 void end_call(const char *funcname)
 {
     for (int i=0; i < call_depth; i++)
-	fprintf(stderr, " ");
+        fprintf(stderr, " ");
     fprintf(stderr, "end %s\n", funcname);
     call_depth--;
 }
@@ -118,5 +118,5 @@ void end_call(const char *funcname)
 void redefinition_error(struct source src, struct symbol *sym)
 {
     errorf(src, "redefinition of '%s', previous definition at %s line %u",
-	  sym->name, sym->src.file, sym->src.line);
+           sym->name, sym->src.file, sym->src.line);
 }

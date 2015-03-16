@@ -10,7 +10,7 @@ void * cc_malloc(size_t size)
 {
     void *p = malloc(size);
     if (!p)
-	die("Can't malloc");
+        die("Can't malloc");
     memset(p, 0, size);
     return p;
 }
@@ -46,9 +46,9 @@ void * alloc_bucket(size_t size)
 void free_bucket(struct bucket_info *s)
 {
     while (s) {
-	struct bucket_info *c = s;
-	s = c->next;
-	cc_free(c);
+        struct bucket_info *c = s;
+        s = c->next;
+        cc_free(c);
     }
 }
 
@@ -65,16 +65,16 @@ void *node_alloc_bucket(size_t size)
 void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_func)(size_t size))
 {
     void *ret;
-
+    
     while (s->next)
-	s = s->next;
-
+        s = s->next;
+    
     if ((char *)s->p + size > (char *)s->limit) {
-	struct bucket_info *pb = alloc_bucket_func(size);
-	s->next = pb;
-	s = pb;
+        struct bucket_info *pb = alloc_bucket_func(size);
+        s->next = pb;
+        s = pb;
     }
-
+    
     ret = s->p;
     s->p = (char *)s->p + size;
     return ret;
@@ -102,17 +102,17 @@ int array_len(void **array)
 {
     int i;
     if (array == NULL)
-	return 0;
+        return 0;
     for (i=0; array[i]; i++)
-	;
+        ;
     return i;
 }
 
 struct string_table {
     struct string_bucket {
-	char *str;
-	int len;
-	struct string_bucket *next;
+        char *str;
+        int len;
+        struct string_bucket *next;
     } *buckets[1024];
 };
 
@@ -126,9 +126,9 @@ const char *stringn(const char *src, int len)
     
     if (src == NULL || len <= 0)
         return NULL;
-
+    
     if (!string_table)
-	string_table = alloc_table(sizeof(struct string_table));
+        string_table = alloc_table(sizeof(struct string_table));
     
     for(hash = 0, p = (unsigned char *)src; *p ; p++)
         hash = 31 * hash + *p;
@@ -147,15 +147,15 @@ const char *stringn(const char *src, int len)
     
     // alloc
     {
-	char *dst = alloc_table_entry(string_table, len+1);
-	ps = alloc_table_entry(string_table, sizeof(struct string_bucket));
+        char *dst = alloc_table_entry(string_table, len+1);
+        ps = alloc_table_entry(string_table, sizeof(struct string_bucket));
         ps->len = len;
         for (ps->str = dst; src < end; )
             *dst++ = *src++;
         *dst++ = 0;
         ps->next = string_table->buckets[hash];
         string_table->buckets[hash] = ps;
-
+        
         return ps->str;
     }
 }
@@ -164,7 +164,7 @@ const char *strings(const char *str)
 {
     const char *s = str;
     if (!str)
-	return NULL;
+        return NULL;
     while (*s)
         s++;
     return stringn(str, s - str);
@@ -176,18 +176,18 @@ const char *stringd(long n)
     unsigned long m;
     
     if (n == LONG_MIN)
-	m = (unsigned long)LONG_MAX + 1;
+        m = (unsigned long)LONG_MAX + 1;
     else if (n < 0)
-	m = -n;
+        m = -n;
     else
-	m = n;
+        m = n;
     
     do {
-	*--s = m%10 + '0';
+        *--s = m%10 + '0';
     } while ((m /= 10) != 0);
     
     if (n < 0)
-	*--s = '-';
+        *--s = '-';
     
     return stringn(s, str + sizeof (str) - s);
 }
@@ -200,7 +200,7 @@ static struct bucket_info *unit_info;
 static void * alloc_unit(size_t size)
 {
     if (!unit_info)
-	unit_info = table_alloc_bucket(size);
+        unit_info = table_alloc_bucket(size);
     return alloc_for_size(unit_info, size, table_alloc_bucket);
 }
 
@@ -218,8 +218,8 @@ void ** vtoa(struct vector *v)
     void **array = NULL;
     int vlen = vec_len(v);
     if (vlen > 0) {
-	array = alloc_unit((vlen+1) * v->elemsize);
-	memcpy(array, v->mem, vlen * v->elemsize);
+        array = alloc_unit((vlen+1) * v->elemsize);
+        memcpy(array, v->mem, vlen * v->elemsize);
     }
     free_vector(v);
     return array;
@@ -237,8 +237,8 @@ void print_bucket(struct bucket_info *s, const char *name)
     int nr = 0;
     fprintf(stderr, "%s: ", name);
     while (s) {
-	nr++;
-	s = s->next;
+        nr++;
+        s = s->next;
     }
     fprintf(stderr, "%d buckets allocated.\n", nr);
 }

@@ -7,8 +7,8 @@
 #include <assert.h>
 
 const char *cpp[] = {"/usr/bin/gcc",
-		     "-U__GNUC__",
-		     "-E", 0};
+    "-U__GNUC__",
+    "-E", 0};
 
 static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
 
@@ -29,24 +29,24 @@ int callsys(const char *path, char **argv)
     int ret = EXIT_SUCCESS;
     pid = fork();
     if (pid == 0) {
-	// child process
-	execv(path, argv);
+        // child process
+        execv(path, argv);
         fprintf(stderr, "%s: %s\n", strerror(errno), path);
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     else if (pid > 0) {
-	// wait for
-	int status;
-	int retpid = waitpid(pid, &status, 0);
+        // wait for
+        int status;
+        int retpid = waitpid(pid, &status, 0);
         if (retpid != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-	    ret = EXIT_FAILURE;
-	}
+            ret = EXIT_FAILURE;
+        }
     }
     else {
-	perror("Can't fork");
-	ret = EXIT_FAILURE;
+        perror("Can't fork");
+        ret = EXIT_FAILURE;
     }
-
+    
     return ret;
 }
 
@@ -56,22 +56,22 @@ int callps(int (*pmain)(int, char *argv[]), int argc, char *argv[])
     int ret = EXIT_SUCCESS;
     pid = fork();
     if (pid == 0) {
-	// child process
+        // child process
         ret = pmain(argc, argv);
     }
     else if (pid > 0) {
-	// wait for
-	int status;
-	int retpid = waitpid(pid, &status, 0);
+        // wait for
+        int status;
+        int retpid = waitpid(pid, &status, 0);
         if (retpid != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-	    ret = EXIT_FAILURE;
-	}
+            ret = EXIT_FAILURE;
+        }
     }
     else {
-	perror("Can't fork");
-	ret = EXIT_FAILURE;
+        perror("Can't fork");
+        ret = EXIT_FAILURE;
     }
-
+    
     return ret;
 }
 
@@ -81,21 +81,21 @@ char *replace_suffix(const char *path, const char *suffix)
     int dot_index = -1;
     int len = strlen(path);
     char *p;
-
+    
     for (int i=len-1; i >= 0; i--) {
-	if (path[i] == '/') {
-	    break;
-	}
-	if (path[i] == '.') {
-	    dot_index = i;
-	    break;
-	}
+        if (path[i] == '/') {
+            break;
+        }
+        if (path[i] == '.') {
+            dot_index = i;
+            break;
+        }
     }
-
+    
     if (dot_index != -1) {
-	len = dot_index;
+        len = dot_index;
     }
-
+    
     p = malloc(len+strlen(suffix)+2);
     memcpy(p, path, len);
     p[len] = '.';
@@ -115,20 +115,25 @@ char *expanduser(char *path)
 {
     if (!path || !strlen(path)) return NULL;
     if (path[0] == '~') {
-	const char *home = getenv("HOME");
-	int hlen = strlen(home);
-	int plen = strlen(path);
-	char *ret = malloc(hlen+plen);
-	strncpy(ret, home, hlen);
-	strncpy(ret+hlen, path+1, plen-1);
-	ret[hlen+plen-1] = 0;
-	return ret;
+        const char *home = getenv("HOME");
+        int hlen = strlen(home);
+        int plen = strlen(path);
+        char *ret = malloc(hlen+plen);
+        strncpy(ret, home, hlen);
+        strncpy(ret+hlen, path+1, plen-1);
+        ret[hlen+plen-1] = 0;
+        return ret;
     }
     else {
-	int len = strlen(path);
-	char *ret = malloc(len+1);
-	strcpy(ret, path);
-	ret[len] = 0;
-	return ret;
+        int len = strlen(path);
+        char *ret = malloc(len+1);
+        strcpy(ret, path);
+        ret[len] = 0;
+        return ret;
     }
+}
+
+void cc_sleep(int seconds)
+{
+    sleep(seconds);
 }
