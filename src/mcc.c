@@ -8,147 +8,127 @@
 static struct configs {
     unsigned option_E : 1;
     unsigned option_c : 1;
-    unsigned option_s : 1;
+    unsigned option_S : 1;
 } config;
 
 static char *tmpdir;
 static char *output_file;
 
-// temporary files
-static char *ifile;
-static char *sfile;
-
 // options
-static struct vector *optionlist;
 static unsigned fails;
 static unsigned unit;
 
+static const char *version = "0.0";
+
+static void print_opt(const char *opt, const char *message)
+{
+    fprintf(stderr, "  %-20s%s\n", opt, message);
+}
+
 static void usage()
 {
-    fprintf(stderr, "Usage: mcc [-Ec] [-o target] source\n");
+    fprintf(stderr,
+	    "OVERVIEW: mcc - A Standard C Compiler v%s\n\n"
+	    "USAGE: mcc [options] <inputs>\n\n"
+	    "OPTIONS:\n", version);
+    print_opt("-c", "Only run preprocess, compile, and assemble steps");
+    print_opt("-I <dir>", "Add directory to include search path");
+    print_opt("-h, --help", "Display available options");
+    print_opt("-E", "Only run the preprocessor");
+    print_opt("-S", "Only run preprocess and compilation steps");
+    print_opt("-v, --version", "Display version and options");
 }
 
 static void append(struct vector *v, const char *str)
 {
-    char *p = malloc(strlen(str)+1);
-    memcpy(p, str, strlen(str));
-    p[strlen(str)] = 0;
-    vec_push(v, p);
+    struct string *s = new_string();
+    str_cats(s, str);
+    vec_push(v, str_to_array(s));
 }
 
 static char *tempname(const char *hint)
 {
     unsigned len = strlen(tmpdir)+strlen(hint)+128;
-    void *p = malloc(len);
+    void *p = cc_malloc(len);
     hint = hint ? hint : "tmp";
     snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
     return p;
 }
 
-static int preprocess(const char *inputfile)
+static void translate(void *elem, void *context)
 {
-    static const char *cpp[] = {"cpp", "$in", "-o", "$out", 0};
-    int ret;
-    struct vector *v = new_vector();
+    char *inputfile = (char *)elem;
+    struct vector *options = (struct vector *)context;
+    struct vector *v;
     int argc;
     char **argv;
-    if (config.option_E) {
-	if (output_file) {
-	    cpp[3] = output_file;
-	}
-	else {
-	    cpp[2] = NULL;
-	}
+    static const char *cpp[] = {"cpp", "$in", "-o", "$out", 0};
+    static const char *cc[] = {"cc", "$in", "-o", "$out", 0};
+    char *ifile, *sfile;
+    
+    unit++;
+    
+    if (!file_exists(inputfile)) {
+	fprintf(stderr, "input file '%s' not exists.\n", inputfile);
+	fails++;
+	return;
     }
-    else {
-	if (ifile) free(ifile);
+
+    // preprocess
+    if (config.option_E) {
+	if (output_file)
+	    cpp[3] = output_file;
+	else 
+	    cpp[2] = 0;
+    } else {
 	ifile = tempname("cpp.i");
 	cpp[3] = ifile;
     }
     cpp[1] = inputfile;
+    v = new_vector();
     vec_add_from_array(v, (void **)cpp);
-    vec_add_from_vector(v, optionlist);
+    vec_add_from_vector(v, options);
     argc = vec_len(v);
     argv = (char **) vtoa(v);
-    ret = cpp_main(argc, argv);
-    return ret;
-}
+    if (cpp_main(argc, argv) == EXIT_FAILURE) {
+	fails++;
+	return;
+    }
+    if (config.option_E)
+	return;
 
-static int compile(const char *inputfile, const char *orig_input_file)
-{
-    static const char *cc[] = {"cc", "$in", "-o", "$out", 0};
-    int ret;
-    struct vector *v = new_vector();
-    int argc;
-    char **argv;
-    char *outfile = NULL;
-    if (config.option_s) {
+    // compile
+    if (config.option_S) {
 	if (output_file) {
 	    cc[3] = output_file;
 	}
 	else {
-	    outfile = replace_suffix(orig_input_file, "s"); 
-	    cc[3] = outfile;
+	    char *new_file = replace_suffix(inputfile, "s");
+	    sfile = cc_malloc(strlen(new_file)+1);
+	    strcpy(sfile, new_file);
+	    free(new_file);
+	    cc[3] = sfile;
 	}
     }
     else {
-	if (sfile) free(sfile);
 	sfile = tempname("cc.s");
 	cc[3] = sfile;
     }
-    cc[1] = inputfile;
+    cc[1] = ifile;
+    v = new_vector();
     vec_add_from_array(v, (void **)cc);
-    vec_add_from_vector(v, optionlist);
+    vec_add_from_vector(v, options);
     argc = vec_len(v);
     argv = (char **) vtoa(v);
-    ret = callps(cc_main, argc, argv);
-    if (outfile) free(outfile);
-    return ret;
-}
-
-static int assemble(const char *inputfile)
-{
-    return EXIT_FAILURE;
-}
-
-static int link()
-{
-    return EXIT_FAILURE;
-}
-
-static void translate(void *inputfile, void *context)
-{
-    unit++;
-    
-    if (!file_exists(inputfile)) {
-	fprintf(stderr, "input file '%s' not exists.\n", (char *)inputfile);
+    if (cc_main(argc, argv) == EXIT_FAILURE) {
 	fails++;
 	return;
     }
 
-    if (preprocess(inputfile) == EXIT_FAILURE) {
-	fails++;
-	return;
-    }
-    if (config.option_E) {
-	return;
-    }
-    
-    if (compile(ifile, inputfile) == EXIT_FAILURE) {
-	fails++;
-	return;
-    }
-    if (config.option_s) {
-	return;
-    }
-    
-    if (assemble(sfile) == EXIT_FAILURE) {
-	fails++;
-	return;
-    }
-
-    if (ifile) free(ifile);
-    if (sfile) free(sfile);
+    if (ifile)
+	cc_free(ifile);
+    if (sfile)
+	cc_free(sfile);
 
     free_unit();
 }
@@ -157,42 +137,40 @@ int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
     struct vector *inputlist = new_vector();
-    optionlist = new_vector();
+    struct vector *optionlist = new_vector();
     
     tmpdir = mk_temp_dir();
-    if (!tmpdir) {
-	fprintf(stderr, "Can't make temporary directory.\n");
-	return EXIT_FAILURE;
-    }
+    if (!tmpdir)
+	die("Can't make temporary directory.");
+    
     for (int i=1; i < argc; i++) {
 	char *arg = argv[i];
-	if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
+	if (!strcmp(arg, "-h") || !strcmp(arg, "--help") ||
+	    !strcmp(arg, "-v") || !strcmp(arg, "--version")) {
 	    usage();
 	    exit(EXIT_FAILURE);
 	} else if (!strcmp(arg, "-o")) {
 	    if (++i >= argc) {
-		fprintf(stderr, "missing target file while -o option given.\n");
+		fprintf(stderr, "missing target file while -o option specified.\n");
 		usage();
 		exit(EXIT_FAILURE);
 	    }
 	    output_file = argv[i];
 	} else if (!strcmp(arg, "-E")) {
 	    config.option_E = 1;
-	} else if (!strcmp(arg, "-s")) {
-	    config.option_s = 1;
 	} else if (!strcmp(arg, "-c")) {
 	    config.option_c = 1;
+	} else if (!strcmp(arg, "-S")) {
+	    config.option_S = 1;
 	} else if (arg[0] == '-') {
 	    if (arg[1] == 'I') {
 		char *abs = expanduser(arg+2);
 		if (abs) {
-		    int len = strlen(abs);
-		    char *ioption = malloc(len+3);
-		    strncpy(ioption, "-I", 2);
-		    strncpy(ioption+2, abs, len);
-		    ioption[len+2] = 0;
+		    struct string *s = new_string();
+		    str_cats(s, "-I");
+		    str_cats(s, abs);
+		    vec_push(optionlist, str_to_array(s));
 		    free(abs);
-		    vec_push(optionlist, ioption);
 		}
 	    } else {
 		append(optionlist, arg);
@@ -207,16 +185,10 @@ int main(int argc, char **argv)
 	return EXIT_FAILURE;
     }
     
-    vec_foreach(inputlist, translate, NULL);
-
-    if (!config.option_E && !config.option_s && !config.option_c && fails == 0) {
-	// link
-	ret = link();
-    }
+    vec_foreach(inputlist, translate, optionlist);
     
-    purge_vector(inputlist);
-    purge_vector(optionlist);
-
+    free_vector(inputlist);
+    free_vector(optionlist);
     rmdir(tmpdir);
     
     return ret;

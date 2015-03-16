@@ -108,35 +108,6 @@ int array_len(void **array)
     return i;
 }
 
-static struct bucket_info *unit_info;
-static void * alloc_unit(size_t size)
-{
-    if (!unit_info)
-	unit_info = table_alloc_bucket(size);
-    return alloc_for_size(unit_info, size, table_alloc_bucket);
-}
-
-char * stoa(struct string *s)
-{
-    assert(s);
-    char *str = alloc_unit(s->size+1);
-    memcpy(str, s->str, s->size);
-    free_string(s);
-    return str;
-}
-
-void ** vtoa(struct vector *v)
-{
-    void **array = NULL;
-    int vlen = vec_len(v);
-    if (vlen > 0) {
-	array = alloc_unit((vlen+1) * v->elemsize);
-	memcpy(array, v->mem, vlen * v->elemsize);
-    }
-    free_vector(v);
-    return array;
-}
-
 struct string_table {
     struct string_bucket {
 	char *str;
@@ -219,6 +190,39 @@ const char *stringd(long n)
 	*--s = '-';
     
     return stringn(s, str + sizeof (str) - s);
+}
+
+/**
+ * vtoa/stoa are different from vec_to_array/str_to_array,
+ * the memory is managed automatically by unit_info here.
+ */
+static struct bucket_info *unit_info;
+static void * alloc_unit(size_t size)
+{
+    if (!unit_info)
+	unit_info = table_alloc_bucket(size);
+    return alloc_for_size(unit_info, size, table_alloc_bucket);
+}
+
+char * stoa(struct string *s)
+{
+    assert(s);
+    char *str = alloc_unit(s->size+1);
+    memcpy(str, s->str, s->size);
+    free_string(s);
+    return str;
+}
+
+void ** vtoa(struct vector *v)
+{
+    void **array = NULL;
+    int vlen = vec_len(v);
+    if (vlen > 0) {
+	array = alloc_unit((vlen+1) * v->elemsize);
+	memcpy(array, v->mem, vlen * v->elemsize);
+    }
+    free_vector(v);
+    return array;
 }
 
 void free_unit()

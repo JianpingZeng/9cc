@@ -1,11 +1,6 @@
 #include "mcc.h"
 
-static void usage()
-{
-    fprintf(stderr, "Usage: cpp [-E] [-o target] source\n");
-}
-
-static char ** concat(int argc, char **argv)
+static char ** parse_opts(int argc, char **argv)
 {
     char *input_file = NULL;
     char *output_file = NULL;
@@ -15,14 +10,9 @@ static char ** concat(int argc, char **argv)
     
     for (int i=1; i < argc; i++) {
 	char *arg = argv[i];
-	if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
-	    usage();
-	    exit(EXIT_FAILURE);
-	}
-	else if (!strcmp(arg, "-o")) {
+        if (!strcmp(arg, "-o")) {
 	    if (++i >= argc) {
 		fprintf(stderr, "missing target file while -o option is given.\n");
-		usage();
 		exit(EXIT_FAILURE);
 	    }
 	    output_file = argv[i];
@@ -36,12 +26,10 @@ static char ** concat(int argc, char **argv)
     }
     if (!input_file) {
 	fprintf(stderr, "no input file.\n");
-	usage();
 	exit(EXIT_FAILURE);
     }
     if (!file_exists(input_file)) {
 	fprintf(stderr, "input file '%s' not exist.\n", input_file);
-	perror("n");
 	exit(EXIT_FAILURE);
     }
 
@@ -66,7 +54,7 @@ static void free_cpp()
 
 int cpp_main(int argc, char **argv)
 {
-    char **options = concat(argc, argv);
+    char **options = parse_opts(argc, argv);
     int ret = callsys(cpp[0], options);
     free_cpp();
     return ret;

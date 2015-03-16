@@ -104,3 +104,19 @@ void vec_foreach(struct vector *v, void (*func) (void *elem, void *context), voi
 	func(p, context);
     }
 }
+
+/**
+ * vec_to_array is different from vtoa,
+ * the caller needs to free the memory returned.
+ */
+void ** vec_to_array(struct vector *v)
+{
+    void **array = NULL;
+    int vlen = vec_len(v);
+    if (vlen > 0) {
+	array = cc_malloc((vlen+1) * v->elemsize);
+	memcpy(array, v->mem, vlen * v->elemsize);
+    }
+    free_vector(v);
+    return array;
+}

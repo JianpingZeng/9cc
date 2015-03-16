@@ -45,9 +45,10 @@ extern struct string * new_string();
 extern void free_string(struct string *s);
 
 extern unsigned str_len(struct string *s);
-extern void str_cats(struct string *s, char *src);
-extern void str_catn(struct string *s, char *src, int len);
+extern void str_cats(struct string *s, const char *src);
+extern void str_catn(struct string *s, const char *src, int len);
 extern void str_catd(struct string *s, long d);
+extern char * str_to_array(struct string *s);
 
 // vector.c
 struct vector {
@@ -67,6 +68,7 @@ extern int vec_len(struct vector *v);
 extern void vec_add_from_array(struct vector *v, void **array);
 extern void vec_add_from_vector(struct vector *v, struct vector *v2);
 extern void vec_foreach(struct vector *v, void (*func)(void *elem, void *context), void *context);
+extern void ** vec_to_array(struct vector *v);
 
 // string to array
 extern char * stoa(struct string *s);

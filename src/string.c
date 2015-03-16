@@ -35,12 +35,12 @@ unsigned str_len(struct string *s)
     return s->size;
 }
 
-void str_cats(struct string *s, char *src)
+void str_cats(struct string *s, const char *src)
 {
     str_catn(s, src, strlen(src));
 }
 
-void str_catn(struct string *s, char *src, int len)
+void str_catn(struct string *s, const char *src, int len)
 {
     assert(s);
     if (s->size + len >= s->capelems) {
@@ -76,4 +76,17 @@ void str_catd(struct string *s, long n)
 	*--ps = '-';
     }
     return str_catn(s, ps, str + sizeof (str) - ps);
+}
+
+/**
+ * str_to_array is different from stoa,
+ * the caller needs to free the memory returned.
+ */
+char * str_to_array(struct string *s)
+{
+    assert(s);
+    char *str = cc_malloc(s->size+1);
+    memcpy(str, s->str, s->size);
+    free_string(s);
+    return str;
 }
