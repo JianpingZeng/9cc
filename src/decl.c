@@ -713,7 +713,9 @@ static struct type * struct_decl()
     	match(ID);
     }
     if (token->id == '{') {
+	struct type *sty;
     	match('{');
+	sty = tag_type(t, id, src);
     	enter_scope();
     	do {
     	    struct type *basety = specifiers(NULL);

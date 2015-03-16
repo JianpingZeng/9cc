@@ -44,6 +44,9 @@ extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
 extern const char *stringd(long n);
 
+extern void free_cc();
+extern void print_alloc_info();
+
 // string.c
 // vector.c
 #include "lib.h"

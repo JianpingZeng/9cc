@@ -229,13 +229,26 @@ void (*signal(int signo,void (*func)(int))) (int);
 //     enum E { GG };
 // }
 
-// void f(enum E {GG} l, void (*g) (enum E t))
-// {
-//     // enum E {FF};
-// }
-enum AA {
-    H
-};
-struct AA;
-enum AA;
-struct AA;
+void f(enum E {GG} l, void (*g) (enum E t))
+{
+    // enum E {FF};
+}
+
+// struct S2 {
+//     int h;
+// };
+
+// int a;
+// struct S1 {
+//     int a;
+//     struct S2 {
+// 	int a;
+// 	struct S3 {
+// 	    int b;
+// 	};
+//     };
+// };
+
+// struct S1 v1;
+// struct S2 v2;
+// struct S3 v3;
