@@ -1,4 +1,5 @@
 
+const int a;
 // int a;
 
 // int * (*f) (float a, int , int (*) (int));
