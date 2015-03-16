@@ -65,6 +65,12 @@ void free_cc()
     free_bucket(decl_info);
     free_bucket(type_info);
     free_bucket(symbol_info);
+    expr_info = NULL;
+    stmt_info = NULL;
+    decl_info = NULL;
+    type_info = NULL;
+    symbol_info = NULL;
+    symbol_exit();
 }
 
 const char *nname(struct node * node)

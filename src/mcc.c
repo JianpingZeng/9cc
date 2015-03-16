@@ -193,10 +193,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
     
-    // for (int i=0; i < 1000; i++) {
     vec_foreach(inputlist, translate, optionlist);
-    // sleep(1);
-    // }
     
     purge_vector(inputlist);
     purge_vector(optionlist);

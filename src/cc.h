@@ -267,6 +267,7 @@ struct symbol {
 
 // sym
 extern void symbol_init();
+extern void symbol_exit();
 extern int scopelevel();
 extern void enter_scope();
 extern void exit_scope();
@@ -308,7 +309,7 @@ extern void end_call(const char *funcname);
 
 extern void redefinition_error(struct source src, struct symbol *sym);
 
-#define SHOW_CALL_TREE
+//#define SHOW_CALL_TREE
 #ifdef SHOW_CALL_TREE
 #define BEGIN_CALL    begin_call(__func__);
 #define END_CALL      end_call(__func__);

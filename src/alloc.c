@@ -229,6 +229,8 @@ void free_unit()
 {
     drop_table(string_table);
     free_bucket(unit_info);
+    string_table = NULL;
+    unit_info = NULL;
 }
 
 // for debug

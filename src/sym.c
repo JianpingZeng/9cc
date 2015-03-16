@@ -17,11 +17,27 @@ struct table * constants;
 struct table * tags;
 static int _scope = GLOBAL;
 
+static void free_symbol_table(struct table *table)
+{
+    while (table) {
+        struct table *tp = table;
+        table = table->up;
+        drop_table(tp);
+    }
+}
+
 void symbol_init()
 {
     identifiers = new_table(NULL, GLOBAL);
     constants = new_table(NULL, CONSTANT);
     tags = new_table(NULL, GLOBAL);
+}
+
+void symbol_exit()
+{
+    free_symbol_table(identifiers);
+    free_symbol_table(tags);
+    free_symbol_table(constants);
 }
 
 int scopelevel()
