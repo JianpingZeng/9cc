@@ -1,15 +1,15 @@
 
-int a;
+// int a;
 
-int * (*f) (float a, int , int (*) (int));
+// int * (*f) (float a, int , int (*) (int));
 
-void (*signal(int signo,void (*func)(int))) (int);
+// void (*signal(int signo,void (*func)(int))) (int);
 
 // void f[][] ();
 
-void vf(void);
+// void vf(void);
 
-void vg(void *p, int a);
+// void vg(void *p, int a);
 
 // int employ, *pe, io, * (*g) (float);
 
@@ -229,10 +229,10 @@ void test(int a)
 //     enum E { GG };
 // }
 
-void f(enum E {GG} l, void (*g) (enum E t))
-{
+// void f(enum E {GG} l, void (*g) (enum E t))
+// {
     // enum E {FF};
-}
+// }
 
 // struct S2 {
 //     int h;

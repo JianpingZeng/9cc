@@ -24,7 +24,6 @@
 		AC6BAFB41AB6D22D008D3C89 /* sym.c in Sources */ = {isa = PBXBuildFile; fileRef = AC6BAFA01AB6D22D008D3C89 /* sym.c */; };
 		AC6BAFB51AB6D22D008D3C89 /* type.c in Sources */ = {isa = PBXBuildFile; fileRef = AC6BAFA21AB6D22D008D3C89 /* type.c */; };
 		AC6BAFB61AB6D22D008D3C89 /* vector.c in Sources */ = {isa = PBXBuildFile; fileRef = AC6BAFA31AB6D22D008D3C89 /* vector.c */; };
-		AC6BAFB71AB6D22D008D3C89 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = AC6BAFA41AB6D22D008D3C89 /* Makefile */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -65,7 +64,6 @@
 		AC6BAFA11AB6D22D008D3C89 /* token.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = token.h; path = ../../../src/token.h; sourceTree = "<group>"; };
 		AC6BAFA21AB6D22D008D3C89 /* type.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = type.c; path = ../../../src/type.c; sourceTree = "<group>"; };
 		AC6BAFA31AB6D22D008D3C89 /* vector.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = vector.c; path = ../../../src/vector.c; sourceTree = "<group>"; };
-		AC6BAFA41AB6D22D008D3C89 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = ../../../src/Makefile; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -120,7 +118,6 @@
 				AC6BAFA11AB6D22D008D3C89 /* token.h */,
 				AC6BAFA21AB6D22D008D3C89 /* type.c */,
 				AC6BAFA31AB6D22D008D3C89 /* vector.c */,
-				AC6BAFA41AB6D22D008D3C89 /* Makefile */,
 			);
 			path = mcc;
 			sourceTree = "<group>";
@@ -212,7 +209,6 @@
 				AC6BAFAF1AB6D22D008D3C89 /* gen.c in Sources */,
 				AC6BAFAE1AB6D22D008D3C89 /* expr.c in Sources */,
 				AC6BAFA71AB6D22D008D3C89 /* alloc.c in Sources */,
-				AC6BAFB71AB6D22D008D3C89 /* Makefile in Sources */,
 				AC6BAFB01AB6D22D008D3C89 /* lex.c in Sources */,
 				AC6BAFAB1AB6D22D008D3C89 /* debug.c in Sources */,
 				AC6BAFA51AB6D22D008D3C89 /* sys.c in Sources */,
