@@ -1,4 +1,6 @@
-#include "cc.h"
+#include <string.h>
+#include <assert.h>
+#include "lib.h"
 
 static void vec_grow(struct vector *v)
 {

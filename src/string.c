@@ -1,4 +1,7 @@
-#include "cc.h"
+#include <string.h>
+#include <assert.h>
+#include <limits.h>
+#include "lib.h"
 
 static void str_grow(struct string *s, int len)
 {

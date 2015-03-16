@@ -71,7 +71,6 @@ static int preprocess(const char *inputfile)
     argc = vec_len(v);
     argv = (char **) vtoa(v);
     ret = cpp_main(argc, argv);
-    free(argv);
     return ret;
 }
 
@@ -103,7 +102,6 @@ static int compile(const char *inputfile, const char *orig_input_file)
     argc = vec_len(v);
     argv = (char **) vtoa(v);
     ret = callps(cc_main, argc, argv);
-    free(argv);
     if (outfile) free(outfile);
     return ret;
 }
@@ -151,6 +149,8 @@ static void translate(void *inputfile, void *context)
 
     if (ifile) free(ifile);
     if (sfile) free(sfile);
+
+    free_unit();
 }
 
 int main(int argc, char **argv)

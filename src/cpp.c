@@ -59,12 +59,15 @@ static char ** concat(int argc, char **argv)
     return p;
 }
 
+static void free_cpp()
+{
+
+}
+
 int cpp_main(int argc, char **argv)
 {
-    char **options;
-    int ret = EXIT_SUCCESS;
-    options = concat(argc, argv);
-    ret = callsys(cpp[0], options);
-    free(options);
+    char **options = concat(argc, argv);
+    int ret = callsys(cpp[0], options);
+    free_cpp();
     return ret;
 }
