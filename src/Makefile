@@ -1,6 +1,6 @@
 
 CC=cc
-CFLAGS=-Wall -std=c99 -O2
+CFLAGS=-Wall -std=c99
 LDFLAGS=
 TARGETS=mcc
 SOURCES=alloc.c \
