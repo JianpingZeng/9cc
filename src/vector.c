@@ -67,19 +67,6 @@ void vec_push(struct vector *v, void *elem)
 	vec_insert(v, v->elems, elem);
 }
 
-void *vec_pop(struct vector *v)
-{
-    assert(v);
-    if (v->elems == 0) {
-	return NULL;
-    }
-    else {
-	void *p = v->mem[v->elems-1];
-	v->elems--;
-	return p;
-    }
-}
-
 int vec_len(struct vector *v)
 {
     if (v)
@@ -105,16 +92,6 @@ void vec_add_from_vector(struct vector *v, struct vector *v2)
     for (int i=0; i < vec_len(v2); i++) {
         vec_push(v, vec_at(v2, i));
     }
-}
-
-void *vec_front(struct vector *v)
-{
-    return vec_at(v, 0);
-}
-
-void *vec_back(struct vector *v)
-{
-    return vec_at(v, vec_len(v)-1);
 }
 
 void vec_foreach(struct vector *v, void (*func) (void *elem, void *context), void *context)
