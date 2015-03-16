@@ -1,7 +1,33 @@
 #ifndef _LIB_H
 #define _LIB_H
 
-// misc.c
+#define TWOS(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
+#define BITS(type)  (CHAR_BIT * (type)->size)
+#define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
+#define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
+
+// util.c
+struct bucket_info {
+    void *p;			// free position
+    void *limit;		// end position
+    struct bucket_info *next;	// next bucket
+};
+extern void * alloc_bucket(size_t size);
+extern void free_bucket(struct bucket_info *s);
+extern void * alloc_table(size_t size);
+extern void drop_table(void *table);
+extern void * alloc_table_entry(void *table, size_t size);
+extern void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_func)(size_t size));
+extern void *table_alloc_bucket(size_t size);
+extern void *node_alloc_bucket(size_t size);
+
+extern const char *strings(const char *str);
+extern const char *stringn(const char *src, int len);
+extern const char *stringd(long n);
+
+extern void print_bucket(struct bucket_info *s, const char *name);
+extern void print_table(void *table, const char *name);
+
 extern void * cc_malloc(size_t size);
 extern void cc_free(void *p);
 extern void die(const char *fmt, ...);

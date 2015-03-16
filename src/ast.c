@@ -6,6 +6,67 @@ static const char * node_names[] = {
 #include "node.h"
 };
 
+// alloc nodes
+static void * alloc_node(struct bucket_info **s, size_t size)
+{
+    if (!*s)
+	*s = node_alloc_bucket(size);
+    return alloc_for_size(*s, size, node_alloc_bucket);
+}
+
+static struct bucket_info *expr_info;
+static void * alloc_expr_node()
+{
+    void *ret = alloc_node(&expr_info, sizeof(struct expr));
+    return ret;
+}
+
+static struct bucket_info *stmt_info;
+static void * alloc_stmt_node()
+{
+    void *ret = alloc_node(&stmt_info, sizeof(struct stmt));
+    return ret;
+}
+
+static struct bucket_info *decl_info;
+static void * alloc_decl_node()
+{
+    void *ret = alloc_node(&decl_info, sizeof(struct decl));
+    return ret;
+}
+
+static struct bucket_info *type_info;
+void * alloc_type_node()
+{
+    void *ret = alloc_node(&type_info, sizeof(struct type));
+    return ret;
+}
+
+static struct bucket_info *symbol_info;
+void * alloc_symbol_node()
+{
+    void *ret = alloc_node(&symbol_info, sizeof(struct symbol));
+    return ret;
+}
+
+void print_cc_alloc_info()
+{
+    print_bucket(expr_info, "expr_info");
+    print_bucket(stmt_info, "stmt_info");
+    print_bucket(decl_info, "decl_info");
+    print_bucket(type_info, "type_info");
+    print_bucket(symbol_info, "symbol_info");
+}
+
+void free_cc()
+{
+    free_bucket(expr_info);
+    free_bucket(stmt_info);
+    free_bucket(decl_info);
+    free_bucket(type_info);
+    free_bucket(symbol_info);
+}
+
 const char *nname(struct node * node)
 {
     if (node == NULL)

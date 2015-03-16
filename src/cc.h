@@ -13,10 +13,7 @@
 #include <float.h>
 #include <wchar.h>
 
-#define TWOS(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
-#define BITS(type)  (CHAR_BIT * (type)->size)
-#define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
-#define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
+#include "lib.h"
 
 union value {
     long long i;
@@ -26,28 +23,6 @@ union value {
     void *p;
     void (*g) ();
 };
-
-// string.c
-// vector.c
-#include "lib.h"
-
-// alloc.c
-extern void * alloc_node_node();
-extern void * alloc_expr_node();
-extern void * alloc_stmt_node();
-extern void * alloc_decl_node();
-extern void * alloc_type_node();
-extern void * alloc_symbol_node();
-extern void * alloc_table(size_t size);
-extern void drop_table(void *table);
-extern void * alloc_table_entry(void *table, size_t size);
-
-extern const char *strings(const char *str);
-extern const char *stringn(const char *src, int len);
-extern const char *stringd(long n);
-
-extern void free_cc();
-extern void print_alloc_info();
 
 // lex.c
 #define EOI  -1
@@ -140,6 +115,10 @@ struct decl {
 };
 
 // ast.c
+extern void free_cc();
+extern void * alloc_type_node();
+extern void * alloc_symbol_node();
+
 extern const char *nname(struct node *node);
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
 extern struct decl * decl_node(int id, int scope);

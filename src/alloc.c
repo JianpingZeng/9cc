@@ -1,16 +1,39 @@
-#include "cc.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <limits.h>
+#include "lib.h"
 
-#define RESERVED_SIZE 8192
+void * cc_malloc(size_t size)
+{
+    void *p = malloc(size);
+    if (!p)
+	die("Can't malloc");
+    memset(p, 0, size);
+    return p;
+}
 
-struct bucket_info {
-    void *p;			// free position
-    void *limit;		// end position
-    struct bucket_info *next;	// next bucket
-};
+void cc_free(void *p)
+{
+    free(p);
+}
 
+void die(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(EXIT_FAILURE);
+}
+
+#define RESERVED_SIZE       8192
 #define BUCKET_INFO(table)  ((struct bucket_info *)table - 1)
 
-static void * alloc_bucket(size_t size)
+void * alloc_bucket(size_t size)
 {
     struct bucket_info *pb;
     
@@ -20,7 +43,7 @@ static void * alloc_bucket(size_t size)
     return pb;
 }
 
-static void free_bucket(struct bucket_info *s)
+void free_bucket(struct bucket_info *s)
 {
     while (s) {
 	struct bucket_info *c = s;
@@ -29,17 +52,17 @@ static void free_bucket(struct bucket_info *s)
     }
 }
 
-static void *table_alloc_bucket(size_t size)
+void *table_alloc_bucket(size_t size)
 {
     return alloc_bucket(size + RESERVED_SIZE);
 }
 
-static void *node_alloc_bucket(size_t size)
+void *node_alloc_bucket(size_t size)
 {
     return alloc_bucket(size * RESERVED_SIZE);
 }
 
-static inline void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_func)(size_t size))
+void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_func)(size_t size))
 {
     void *ret;
 
@@ -75,54 +98,35 @@ void * alloc_table_entry(void *table, size_t size)
     return alloc_for_size(s, size, table_alloc_bucket);
 }
 
-// alloc nodes
-static void * alloc_node(struct bucket_info **s, size_t size)
+int array_len(void **array)
 {
-    if (!*s)
-	*s = node_alloc_bucket(size);
-    return alloc_for_size(*s, size, node_alloc_bucket);
+    int i;
+    if (array == NULL)
+	return 0;
+    for (i=0; array[i]; i++)
+	;
+    return i;
 }
 
-static struct bucket_info *node_info;
-void * alloc_node_node()
+char * stoa(struct string *s)
 {
-    void *ret = alloc_node(&node_info, sizeof(struct node));
-    return ret;
+    assert(s);
+    char *str = cc_malloc(s->size+1);
+    memcpy(str, s->str, s->size);
+    free_string(s);
+    return str;
 }
 
-static struct bucket_info *expr_info;
-void * alloc_expr_node()
+void ** vtoa(struct vector *v)
 {
-    void *ret = alloc_node(&expr_info, sizeof(struct expr));
-    return ret;
-}
-
-static struct bucket_info *stmt_info;
-void * alloc_stmt_node()
-{
-    void *ret = alloc_node(&stmt_info, sizeof(struct stmt));
-    return ret;
-}
-
-static struct bucket_info *decl_info;
-void * alloc_decl_node()
-{
-    void *ret = alloc_node(&decl_info, sizeof(struct decl));
-    return ret;
-}
-
-static struct bucket_info *type_info;
-void * alloc_type_node()
-{
-    void *ret = alloc_node(&type_info, sizeof(struct type));
-    return ret;
-}
-
-static struct bucket_info *symbol_info;
-void * alloc_symbol_node()
-{
-    void *ret = alloc_node(&symbol_info, sizeof(struct symbol));
-    return ret;
+    void **array = NULL;
+    int vlen = vec_len(v);
+    if (vlen > 0) {
+	array = cc_malloc((vlen+1) * v->elemsize);
+	memcpy(array, v->mem, vlen * v->elemsize);
+    }
+    free_vector(v);
+    return array;
 }
 
 struct string_table {
@@ -209,29 +213,8 @@ const char *stringd(long n)
     return stringn(s, str + sizeof (str) - s);
 }
 
-char * stoa(struct string *s)
-{
-    assert(s);
-    char *str = cc_malloc(s->size+1);
-    memcpy(str, s->str, s->size);
-    free_string(s);
-    return str;
-}
-
-void ** vtoa(struct vector *v)
-{
-    void **array = NULL;
-    int vlen = vec_len(v);
-    if (vlen > 0) {
-	array = cc_malloc((vlen+1) * v->elemsize);
-	memcpy(array, v->mem, vlen * v->elemsize);
-    }
-    free_vector(v);
-    return array;
-}
-
 // for debug
-static void print_bucket(struct bucket_info *s, const char *name)
+void print_bucket(struct bucket_info *s, const char *name)
 {
     int nr = 0;
     fprintf(stderr, "%s: ", name);
@@ -242,33 +225,8 @@ static void print_bucket(struct bucket_info *s, const char *name)
     fprintf(stderr, "%d buckets allocated.\n", nr);
 }
 
-static void print_table(void *table, const char *name)
+void print_table(void *table, const char *name)
 {
     struct bucket_info *s = BUCKET_INFO(table);
     print_bucket(s, name);
-}
-
-void print_alloc_info()
-{
-    print_bucket(node_info, "node_info");
-    print_bucket(expr_info, "expr_info");
-    print_bucket(stmt_info, "stmt_info");
-    print_bucket(decl_info, "decl_info");
-    print_bucket(type_info, "type_info");
-    print_bucket(symbol_info, "symbol_info");
-    print_table(string_table, "string_table");
-}
-
-/**
- * free all allocated memory
- */
-void free_cc()
-{
-    free_bucket(node_info);
-    free_bucket(expr_info);
-    free_bucket(stmt_info);
-    free_bucket(decl_info);
-    free_bucket(type_info);
-    free_bucket(symbol_info);
-    drop_table(string_table);
 }

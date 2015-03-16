@@ -18,7 +18,6 @@ SOURCES=alloc.c \
 	string.c \
 	sym.c \
 	type.c \
-	util.c \
 	vector.c
 
 
