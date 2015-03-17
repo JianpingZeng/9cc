@@ -38,12 +38,15 @@ int callsys(const char *path, char **argv)
 	exit(EXIT_FAILURE);
     }
     else if (pid > 0) {
-	// wait for
-	int status;
-	int retpid = waitpid(pid, &status, 0);
-        if (retpid != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-	    ret = EXIT_FAILURE;
-	}
+        int status;
+        int n;
+        while ((n = waitpid(pid, &status, 0)) != pid ||
+               (n == -1 && errno == EINTR))
+            ; // may be EINTR by a signal, so loop it.
+        if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            perror("waitpid error");
+            ret = EXIT_FAILURE;
+        }
     }
     else {
 	perror("Can't fork");
