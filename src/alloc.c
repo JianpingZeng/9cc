@@ -31,14 +31,21 @@ void die(const char *fmt, ...)
 }
 
 #define RESERVED_SIZE       8192
-#define BUCKET_INFO(table)  ((struct bucket_info *)table - 1)
+/**
+ * Add alignment to make the compiler happy.
+ */
+#define ALIGN_SIZE          sizeof(long double)
+#define ROUNDUP(x)          (((x)+((ALIGN_SIZE)-1))&(~((ALIGN_SIZE)-1)))
+#define HEAD_SIZE           ROUNDUP(sizeof(struct bucket_info))
+#define BUCKET_INFO(table)  ((struct bucket_info *)((char *)table - HEAD_SIZE))
 
 void * alloc_bucket(size_t size)
 {
     struct bucket_info *pb;
+    size = ROUNDUP(size);
     
-    pb = cc_malloc(sizeof(struct bucket_info) + size);
-    pb->p = pb + 1;
+    pb = cc_malloc(HEAD_SIZE + size);
+    pb->p = (char *)pb + HEAD_SIZE;
     pb->limit = (char *)pb->p + size;
     return pb;
 }
@@ -65,6 +72,7 @@ void *node_alloc_bucket(size_t size)
 void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_func)(size_t size))
 {
     void *ret;
+    size = ROUNDUP(size);
     
     while (s->next)
         s = s->next;
