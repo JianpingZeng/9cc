@@ -151,7 +151,7 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
     }
     
     entry = alloc_table_entry(tp, sizeof(struct sentry));
-    symbol = alloc_symbol_node();
+    symbol = new_symbol();
     symbol->scope = scope;
     symbol->name = strings(name);
     symbol->up = tp->all;

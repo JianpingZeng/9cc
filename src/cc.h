@@ -116,8 +116,8 @@ struct decl {
 
 // ast.c
 extern void cc_exit();
-extern void * alloc_type_node();
-extern void * alloc_symbol_node();
+extern struct type * new_type();
+extern struct symbol * new_symbol();
 
 extern const char *nname(struct node *node);
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
@@ -153,7 +153,10 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
 
 struct field {
-    
+    char *name;
+    struct type *type;
+    int offset;
+    int bitsize;
 };
 
 // type.c
@@ -199,7 +202,6 @@ struct type {
 
 extern const char * pname(struct type *type);
 extern void type_init();
-extern struct type * new_type();
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
 extern struct type * qual(int t, struct type *ty);

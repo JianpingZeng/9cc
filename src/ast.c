@@ -36,16 +36,23 @@ static void * alloc_decl_node()
 }
 
 static struct bucket_info *type_info;
-void * alloc_type_node()
+static void * alloc_type_node()
 {
     void *ret = alloc_node(&type_info, sizeof(struct type));
     return ret;
 }
 
 static struct bucket_info *symbol_info;
-void * alloc_symbol_node()
+static void * alloc_symbol_node()
 {
     void *ret = alloc_node(&symbol_info, sizeof(struct symbol));
+    return ret;
+}
+
+static struct bucket_info *field_info;
+static void * alloc_field_node()
+{
+    void *ret = alloc_node(&field_info, sizeof(struct field));
     return ret;
 }
 
@@ -111,4 +118,21 @@ struct decl * decl_node(int id, int scope)
     decl->node.id = id;
     decl->scope = scope;
     return decl;
+}
+
+struct type * new_type()
+{
+    return alloc_type_node();
+}
+
+struct symbol * new_symbol()
+{
+    return alloc_symbol_node();
+}
+
+struct field * field_node(char *id)
+{
+    struct field *field = alloc_field_node();
+    field->name = id;
+    return field;
 }

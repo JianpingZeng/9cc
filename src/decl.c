@@ -700,6 +700,35 @@ static struct type * enum_decl()
 }
 
 // TODO: not finished yet
+static void fields(struct type *sty)
+{
+    for (;istypename(token);) {
+        struct type *basety = specifiers(NULL);
+        
+        for (;;) {
+            if (token->id == ':') {
+                match(':');
+                intexpr();
+            } else {
+                struct type *ty = NULL;
+                const char *id = NULL;
+                declarator(&ty, &id, NULL);
+                attach_type(&ty, basety);
+                if (token->id == ':') {
+                    match(':');
+                    intexpr();
+                }
+            }
+            
+            if (token->id != ',')
+                break;
+            match(',');
+        }
+        
+        skipto(';');
+    }
+}
+
 static struct type * struct_decl()
 {
     int t = token->id;
@@ -716,38 +745,8 @@ static struct type * struct_decl()
         struct type *sty;
         match('{');
         sty = tag_type(t, id, src);
-        enter_scope();
-        do {
-            struct type *basety = specifiers(NULL);
-            if (token->id == ':') {
-                match(':');
-                constant_expression();
-            } else {
-                struct type *ty = NULL;
-                const char *name = NULL;
-                declarator(&ty, &name, NULL);
-                attach_type(&ty, basety);
-            }
-            match(';');
-            if (token->id == '}')
-                break;
-        } while (token->id != EOI);
-        match('}');
-        exit_scope();
-        
-        if (id) {
-            struct symbol *sym = locate_symbol(id, tags, SCOPE);
-            if (!sym) {
-                ret = tag_type(t, id, src);
-                sym = install_symbol(id, &tags, SCOPE);
-                sym->src = src;
-                sym->type = ret;
-            } else {
-                redefinition_error(src, sym);
-            }
-        } else {
-            ret = tag_type(t, id, src);
-        }
+        fields(sty);
+        skipto('}');
     } else if (id) {
         struct symbol *sym = lookup_symbol(id, tags);
         if (sym && sym->type->op == t) {

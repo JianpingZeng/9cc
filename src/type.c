@@ -109,11 +109,6 @@ void type_init()
     booltype->limits.min.i = 0;
 }
 
-struct type * new_type()
-{
-    return alloc_type_node();
-}
-
 void prepend_type(struct type **typelist, struct type *type)
 {
     attach_type(&type, *typelist);
