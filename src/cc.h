@@ -115,7 +115,7 @@ struct decl {
 };
 
 // ast.c
-extern void free_cc();
+extern void cc_exit();
 extern void * alloc_type_node();
 extern void * alloc_symbol_node();
 

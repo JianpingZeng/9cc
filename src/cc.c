@@ -46,7 +46,7 @@ int cc_main(int argc, const char * argv[])
     print_tree(NODE(n));
     
     fclose(fp);
-    free_cc();
+    cc_exit();
     
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

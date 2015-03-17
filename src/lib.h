@@ -17,9 +17,7 @@ extern void free_bucket(struct bucket_info *s);
 extern void * alloc_table(size_t size);
 extern void drop_table(void *table);
 extern void * alloc_table_entry(void *table, size_t size);
-extern void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_func)(size_t size));
-extern void *table_alloc_bucket(size_t size);
-extern void *node_alloc_bucket(size_t size);
+extern void * alloc_for_size(struct bucket_info *s, size_t size);
 
 extern const char *strings(const char *str);
 extern const char *stringn(const char *src, int len);
@@ -27,7 +25,7 @@ extern const char *stringd(long n);
 
 extern void print_bucket(struct bucket_info *s, const char *name);
 extern void print_table(void *table, const char *name);
-extern void free_unit();
+extern void unit_exit();
 
 extern void * cc_malloc(size_t size);
 extern void cc_free(void *p);

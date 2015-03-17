@@ -136,7 +136,7 @@ static void translate(void *elem, void *context)
     if (sfile)
         cc_free(sfile);
     
-    free_unit();
+    unit_exit();
 }
 
 int main(int argc, char **argv)

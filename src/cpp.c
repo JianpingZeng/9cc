@@ -47,7 +47,7 @@ static char ** parse_opts(int argc, char **argv)
     return p;
 }
 
-static void free_cpp()
+static void cpp_exit()
 {
     
 }
@@ -56,6 +56,6 @@ int cpp_main(int argc, char **argv)
 {
     char **options = parse_opts(argc, argv);
     int ret = callsys(cpp[0], options);
-    free_cpp();
+    cpp_exit();
     return ret;
 }

@@ -10,8 +10,8 @@ static const char * node_names[] = {
 static void * alloc_node(struct bucket_info **s, size_t size)
 {
     if (!*s)
-        *s = node_alloc_bucket(size);
-    return alloc_for_size(*s, size, node_alloc_bucket);
+        *s = alloc_bucket(size);
+    return alloc_for_size(*s, size);
 }
 
 static struct bucket_info *expr_info;
@@ -58,7 +58,7 @@ void print_cc_alloc_info()
     print_bucket(symbol_info, "symbol_info");
 }
 
-void free_cc()
+void cc_exit()
 {
     free_bucket(expr_info);
     free_bucket(stmt_info);

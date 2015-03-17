@@ -42,7 +42,7 @@ void die(const char *fmt, ...)
 void * alloc_bucket(size_t size)
 {
     struct bucket_info *pb;
-    size = ROUNDUP(size);
+    size = ROUNDUP(size + RESERVED_SIZE);
     
     pb = cc_malloc(HEAD_SIZE + size);
     pb->p = (char *)pb + HEAD_SIZE;
@@ -59,17 +59,7 @@ void free_bucket(struct bucket_info *s)
     }
 }
 
-void *table_alloc_bucket(size_t size)
-{
-    return alloc_bucket(size + RESERVED_SIZE);
-}
-
-void *node_alloc_bucket(size_t size)
-{
-    return alloc_bucket(size * RESERVED_SIZE);
-}
-
-void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_func)(size_t size))
+void * alloc_for_size(struct bucket_info *s, size_t size)
 {
     void *ret;
     size = ROUNDUP(size);
@@ -78,7 +68,7 @@ void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_fu
         s = s->next;
     
     if ((char *)s->p + size > (char *)s->limit) {
-        struct bucket_info *pb = alloc_bucket_func(size);
+        struct bucket_info *pb = alloc_bucket(size);
         s->next = pb;
         s = pb;
     }
@@ -90,8 +80,8 @@ void * alloc_for_size(struct bucket_info *s, size_t size, void *(alloc_bucket_fu
 
 void * alloc_table(size_t size)
 {
-    struct bucket_info *s = table_alloc_bucket(size);
-    return alloc_for_size(s, size, table_alloc_bucket);
+    struct bucket_info *s = alloc_bucket(size);
+    return alloc_for_size(s, size);
 }
 
 void drop_table(void *table)
@@ -103,7 +93,7 @@ void drop_table(void *table)
 void * alloc_table_entry(void *table, size_t size)
 {
     struct bucket_info *s = BUCKET_INFO(table);
-    return alloc_for_size(s, size, table_alloc_bucket);
+    return alloc_for_size(s, size);
 }
 
 int array_len(void **array)
@@ -208,8 +198,8 @@ static struct bucket_info *unit_info;
 static void * alloc_unit(size_t size)
 {
     if (!unit_info)
-        unit_info = table_alloc_bucket(size);
-    return alloc_for_size(unit_info, size, table_alloc_bucket);
+        unit_info = alloc_bucket(size);
+    return alloc_for_size(unit_info, size);
 }
 
 char * stoa(struct string *s)
@@ -233,7 +223,7 @@ void ** vtoa(struct vector *v)
     return array;
 }
 
-void free_unit()
+void unit_exit()
 {
     drop_table(string_table);
     free_bucket(unit_info);
