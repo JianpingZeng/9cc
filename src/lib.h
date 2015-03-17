@@ -30,6 +30,7 @@ extern void unit_exit();
 extern void * cc_malloc(size_t size);
 extern void cc_free(void *p);
 extern void die(const char *fmt, ...);
+extern void cclog(const char *fmt, ...);
 extern int array_len(void **array);
 
 // string.c

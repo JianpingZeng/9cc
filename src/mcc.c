@@ -5,12 +5,11 @@
 #include "mcc.h"
 
 // configs
-static struct configs {
-    unsigned option_E : 1;
-    unsigned option_c : 1;
-    unsigned option_S : 1;
-    unsigned option_nopp : 1;
-} config;
+static struct {
+    unsigned E : 1;
+    unsigned c : 1;
+    unsigned S : 1;
+} option;
 
 static char *tmpdir;
 static char *output_file;
@@ -36,7 +35,6 @@ static void usage()
     print_opt("-E",              "Only run the preprocessor");
     print_opt("-h, --help",      "Display available options");
     print_opt("-I <dir>",        "Add directory to include search path");
-    print_opt("-nopp",           "Don't run preprocess");
     print_opt("-o <file>",       "Write output to <file>");
     print_opt("-S",              "Only run preprocess and compilation steps");
     print_opt("-v, --version",   "Display version and options");
@@ -51,7 +49,7 @@ static void append(struct vector *v, const char *str)
 
 static char *tempname(const char *hint)
 {
-    unsigned len = strlen(tmpdir)+strlen(hint)+128;
+    size_t len = strlen(tmpdir) + strlen(hint) + 128;
     void *p = cc_malloc(len);
     hint = hint ? hint : "tmp";
     snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
@@ -79,32 +77,30 @@ static void translate(void *elem, void *context)
     }
     
     // preprocess
-    if (!config.option_nopp) {
-        if (config.option_E) {
-            if (output_file)
-                cpp[3] = output_file;
-            else
-                cpp[2] = 0;
-        } else {
-            ifile = tempname("cpp.i");
-            cpp[3] = ifile;
-        }
-        cpp[1] = inputfile;
-        v = new_vector();
-        vec_add_from_array(v, (void **)cpp);
-        vec_add_from_vector(v, options);
-        argc = vec_len(v);
-        argv = (char **) vtoa(v);
-        if (cpp_main(argc, argv) == EXIT_FAILURE) {
-            fails++;
-            return;
-        }
+    if (option.E) {
+        if (output_file)
+            cpp[3] = output_file;
+        else
+            cpp[2] = 0;
+    } else {
+        ifile = tempname("cpp.i");
+        cpp[3] = ifile;
     }
-    if (config.option_E)
+    cpp[1] = inputfile;
+    v = new_vector();
+    vec_add_from_array(v, (void **)cpp);
+    vec_add_from_vector(v, options);
+    argc = vec_len(v);
+    argv = (char **) vtoa(v);
+    if (cpp_main(argc, argv) == EXIT_FAILURE) {
+        fails++;
+        return;
+    }
+    if (option.E)
         return;
     
     // compile
-    if (config.option_S) {
+    if (option.S) {
         if (output_file) {
             cc[3] = output_file;
         }
@@ -120,7 +116,7 @@ static void translate(void *elem, void *context)
         sfile = tempname("cc.s");
         cc[3] = sfile;
     }
-    cc[1] = ifile ? ifile : inputfile;
+    cc[1] = ifile;
     v = new_vector();
     vec_add_from_array(v, (void **)cc);
     vec_add_from_vector(v, options);
@@ -163,13 +159,11 @@ int main(int argc, char **argv)
             }
             output_file = argv[i];
         } else if (!strcmp(arg, "-E")) {
-            config.option_E = 1;
+            option.E = 1;
         } else if (!strcmp(arg, "-c")) {
-            config.option_c = 1;
+            option.c = 1;
         } else if (!strcmp(arg, "-S")) {
-            config.option_S = 1;
-        } else if (!strcmp(arg, "-nopp")) {
-            config.option_nopp = 1;
+            option.S = 1;
         } else if (arg[0] == '-') {
             if (arg[1] == 'I') {
                 char *abs = expanduser(arg+2);

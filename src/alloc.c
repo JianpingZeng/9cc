@@ -30,6 +30,15 @@ void die(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
+void cclog(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+}
+
 #define RESERVED_SIZE       8192
 /**
  * Add alignment to make the compiler happy.

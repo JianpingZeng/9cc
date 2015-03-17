@@ -88,15 +88,6 @@ void fatal(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
-void cclog(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-}
-
 static long call_depth = -1;
 
 void begin_call(const char *funcname)
