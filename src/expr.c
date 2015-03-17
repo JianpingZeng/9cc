@@ -95,7 +95,6 @@ static struct expr * postfix_expr1(struct expr *ret)
 
 static struct expr * postfix_expr()
 {
-    BEGIN_CALL
     int t;
     struct symbol *sym;
     struct expr *ret;
@@ -161,13 +160,11 @@ static struct expr * postfix_expr()
             break;
     }
     
-    END_CALL
     return postfix_expr1(ret);
 }
 
 static struct expr * unary_expr()
 {
-    BEGIN_CALL
     struct expr * uexpr;
     int t;
     struct token *ahead;
@@ -209,13 +206,11 @@ static struct expr * unary_expr()
             break;
     }
     
-    END_CALL
     return uexpr;
 }
 
 static struct expr * cast_expr()
 {
-    BEGIN_CALL
     struct expr * cast1;
     struct token * ahead = lookahead();
     
@@ -233,7 +228,6 @@ static struct expr * cast_expr()
         cast1 = unary_expr();
     }
     
-    END_CALL
     return cast1;
 }
 
@@ -442,7 +436,6 @@ static struct expr * cond_expr(struct expr *e)
 
 struct expr * assign_expression()
 {
-    BEGIN_CALL
     struct expr *assign1;
     struct token *ahead = lookahead();
     
@@ -476,7 +469,6 @@ struct expr * assign_expression()
         }
     }
     
-    END_CALL
     return assign1;
 }
 

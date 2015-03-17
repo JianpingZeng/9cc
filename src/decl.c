@@ -842,7 +842,6 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src)
 {
-    BEGIN_CALL
     struct symbol *sym = NULL;
     struct node *init_node = NULL;
     
@@ -888,13 +887,11 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
         redefinition_error(src, sym);
     }
     
-    END_CALL
     return sym;
 }
 
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src)
 {
-    BEGIN_CALL
     struct symbol *sym = NULL;
     struct node *init_node = NULL;
     
@@ -948,13 +945,11 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
         conflicting_types_error(src, sym);
     }
     
-    END_CALL
     return sym;
 }
 
 static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
 {
-    BEGIN_CALL
     struct decl *decl = decl_node(FUNC_DECL, SCOPE);
     
     assert(SCOPE == PARAM);
@@ -1032,13 +1027,11 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
         decl->node.kids[0] = NODE(stmt);
     }
     
-    END_CALL
     return decl;
 }
 
 static struct node ** decls(DeclFunc declfunc)
 {
-    BEGIN_CALL
     struct vector *v = new_vector();
     struct type *basety;
     int sclass;
@@ -1112,7 +1105,7 @@ static struct node ** decls(DeclFunc declfunc)
         error("invalid token '%s' in declaration", token->name);
     }
     skipto(';');
-    END_CALL
+
     return (struct node **)vtoa(v);
 }
 
