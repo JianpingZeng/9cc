@@ -67,6 +67,10 @@
 		AC3110D11AB88397006C6275 /* decl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = decl.c; sourceTree = "<group>"; };
 		AC3110D21AB88397006C6275 /* fsync.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = fsync.py; sourceTree = "<group>"; };
 		AC3110D31AB88397006C6275 /* lex.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = lex.py; sourceTree = "<group>"; };
+		AC3110D71AB98C95006C6275 /* float.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = float.h; sourceTree = "<group>"; };
+		AC3110D81AB98C95006C6275 /* stdarg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stdarg.h; sourceTree = "<group>"; };
+		AC3110D91AB98C95006C6275 /* sys.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = sys.c; sourceTree = "<group>"; };
+		AC3110DB1AB98CC7006C6275 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = src/Makefile; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,6 +126,7 @@
 				AC3110BB1AB8541F006C6275 /* token.h */,
 				AC3110BC1AB8541F006C6275 /* type.c */,
 				AC3110BD1AB8541F006C6275 /* vector.c */,
+				AC3110DB1AB98CC7006C6275 /* Makefile */,
 			);
 			path = mcc;
 			sourceTree = "<group>";
@@ -129,6 +134,7 @@
 		AC31109E1AB8541F006C6275 /* etc */ = {
 			isa = PBXGroup;
 			children = (
+				AC3110D51AB98C95006C6275 /* linux */,
 				AC31109F1AB8541F006C6275 /* darwin */,
 			);
 			name = etc;
@@ -162,6 +168,24 @@
 			);
 			path = test;
 			sourceTree = SOURCE_ROOT;
+		};
+		AC3110D51AB98C95006C6275 /* linux */ = {
+			isa = PBXGroup;
+			children = (
+				AC3110D61AB98C95006C6275 /* include */,
+				AC3110D91AB98C95006C6275 /* sys.c */,
+			);
+			path = linux;
+			sourceTree = "<group>";
+		};
+		AC3110D61AB98C95006C6275 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				AC3110D71AB98C95006C6275 /* float.h */,
+				AC3110D81AB98C95006C6275 /* stdarg.h */,
+			);
+			path = include;
+			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
