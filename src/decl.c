@@ -716,6 +716,8 @@ static void fields(struct type *sty)
                 const char *id = NULL;
                 declarator(&ty, &id, NULL);
                 attach_type(&ty, basety);
+                if (SCOPE == PARAM)
+                    exit_scope();
                 if (token->id == ':') {
                     match(':');
                     intexpr();
@@ -938,7 +940,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->u.s.symbol->defined)
+        if (!ty->u.s.symbol->defined && sclass != TYPEDEF)
             error("incomplete type '%s %s'", tname(ty->op), ty->name);
     }
     validate_func_or_array(ty);
