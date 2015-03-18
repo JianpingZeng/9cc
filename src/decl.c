@@ -640,7 +640,7 @@ static void param_declarator(struct type **ty, const char **id)
 // TODO: int constant expr
 static struct type * enum_decl()
 {
-    struct type *ret = NULL;
+    struct type *ety = NULL;
     const char *id = NULL;
     struct source src = source;
     
@@ -650,7 +650,6 @@ static struct type * enum_decl()
         match(ID);
     }
     if (token->id == '{') {
-        struct type *ety;
         long long val = 0;
         struct vector *v = new_vector();
         match('{');
@@ -680,23 +679,23 @@ static struct type * enum_decl()
         skipto('}');
         ety->u.s.ids = (struct symbol **)vtoa(v);
         ety->u.s.symbol->defined = 1;
-        ret = ety;
     } else if (id) {
         struct symbol *sym = lookup_symbol(id, tags);
         if (sym && sym->type->op == ENUM) {
-            ret = sym->type;
+            ety = sym->type;
         } else if (sym) {
             errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
                    ENUM, id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
-            ret = sym->type;
+            ety = sym->type;
         } else {
-            ret = tag_type(ENUM, id, src);
+            ety = tag_type(ENUM, id, src);
         }
     } else {
         error("expected identifier or '{'");
+        ety = tag_type(ENUM, NULL, src);
     }
     
-    return ret;
+    return ety;
 }
 
 // TODO: not finished yet
@@ -751,7 +750,7 @@ static struct type * struct_decl()
 {
     int t = token->id;
     const char *id = NULL;
-    struct type *ret = NULL;
+    struct type *sty = NULL;
     struct source src = source;
     
     match(t);
@@ -760,7 +759,6 @@ static struct type * struct_decl()
         match(ID);
     }
     if (token->id == '{') {
-        struct type *sty;
         match('{');
         sty = tag_type(t, id, src);
         fields(sty);
@@ -768,19 +766,20 @@ static struct type * struct_decl()
     } else if (id) {
         struct symbol *sym = lookup_symbol(id, tags);
         if (sym && sym->type->op == t) {
-            ret = sym->type;
+            sty = sym->type;
         } else if (sym) {
             errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
                    tname(t), id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
-            ret = sym->type;
+            sty = sym->type;
         } else {
-            ret = tag_type(t, id, src);
+            sty = tag_type(t, id, src);
         }
     } else {
         error("expected identifier or '{'");
+        sty = tag_type(t, NULL, src);
     }
     
-    return ret;
+    return sty;
 }
 
 static struct node * initializer()
