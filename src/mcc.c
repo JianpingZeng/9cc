@@ -141,10 +141,6 @@ int main(int argc, char **argv)
     struct vector *inputlist = new_vector();
     struct vector *optionlist = new_vector();
     
-    tmpdir = mk_temp_dir();
-    if (!tmpdir)
-        die("Can't make temporary directory.");
-    
     for (int i=1; i < argc; i++) {
         char *arg = argv[i];
         if (!strcmp(arg, "-h") || !strcmp(arg, "--help") ||
@@ -184,15 +180,19 @@ int main(int argc, char **argv)
     
     if (vec_len(inputlist) == 0) {
         fprintf(stderr, "no input file.\n");
-        return EXIT_FAILURE;
+        ret = EXIT_FAILURE;
+        goto end;
     }
     
+    tmpdir = mk_temp_dir();
+    if (!tmpdir)
+        die("Can't make temporary directory.");
     setlocale(LC_ALL, "");
     vec_foreach(inputlist, translate, optionlist);
     
+end:
     purge_vector(inputlist);
     purge_vector(optionlist);
     rmdir(tmpdir);
-    
     return ret;
 }
