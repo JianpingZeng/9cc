@@ -53,31 +53,6 @@ int callsys(const char *path, char **argv)
     return ret;
 }
 
-int callps(int (*pmain)(int, char *argv[]), int argc, char *argv[])
-{
-    pid_t pid;
-    int ret = EXIT_SUCCESS;
-    pid = fork();
-    if (pid == 0) {
-        // child process
-        ret = pmain(argc, argv);
-    }
-    else if (pid > 0) {
-        // wait for
-        int status;
-        int retpid = waitpid(pid, &status, 0);
-        if (retpid != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            ret = EXIT_FAILURE;
-        }
-    }
-    else {
-        perror("Can't fork");
-        ret = EXIT_FAILURE;
-    }
-    
-    return ret;
-}
-
 char *replace_suffix(const char *path, const char *suffix)
 {
     assert(path && suffix);
