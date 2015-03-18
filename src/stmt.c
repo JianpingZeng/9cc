@@ -98,21 +98,21 @@ static struct stmt * for_stmt(struct stmt *context)
         if ((token->id == ID && is_typedef_name(token->name)) ||
             (token->id != ID && kind(token->id) & FIRST_DECL)) {
             // declaration
-            ret->forstmt.decl = declaration();
+            ret->u.forstmt.decl = declaration();
         } else {
             // expression
-            ret->forstmt.init = expression();
+            ret->u.forstmt.init = expression();
             match(';');
         }
     }
     
     if (token->id != ';')
-        ret->forstmt.cond = expression();
+        ret->u.forstmt.cond = expression();
     
     match(';');
     
     if (token->id != ')')
-        ret->forstmt.ctrl = expression();
+        ret->u.forstmt.ctrl = expression();
     
     match(')');
     
@@ -357,7 +357,7 @@ struct stmt * compound_statement(struct stmt *context)
             vec_push(v, statement(context));
     }
     
-    ret->compoundstmt.blks = (struct node **)vtoa(v);
+    ret->u.compoundstmt.blks = (struct node **)vtoa(v);
     match('}');
     exit_scope();
     

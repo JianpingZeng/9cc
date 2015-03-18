@@ -78,12 +78,8 @@ struct node {
 struct expr {
     struct node node;
     int op;
-    union {
-        // arguments
-        struct {
-            struct expr **args;
-        };
-    };
+    // arguments
+    struct expr **args;
 };
 
 // stmt
@@ -100,24 +96,22 @@ struct stmt {
         struct {
             struct node **blks;	// block items
         }compoundstmt;
-    };
+    }u;
 };
 
 // decl
 struct decl {
     struct node node;
     int scope;
-    union {
-        struct {
-            struct node **exts;
-        };
-    };
+    // translation unit
+    struct node **exts;
 };
 
 // ast.c
 extern void cc_exit();
 extern struct type * new_type();
 extern struct symbol * new_symbol();
+extern struct field * new_field(char *id);
 
 extern const char *nname(struct node *node);
 extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
@@ -153,7 +147,7 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
 
 struct field {
-    char *name;
+    const char *name;
     struct type *type;
     int offset;
     int bitsize;
@@ -188,12 +182,10 @@ struct type {
         // enum/struct/union
         struct {
             struct symbol *symbol;
-            union {
-                struct symbol **ids;
-                struct field **fields;
-            };
+            struct symbol **ids;
+            struct field **fields;
         }s;
-    };
+    }u;
     struct {
         union value max;
         union value min;

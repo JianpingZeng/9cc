@@ -130,7 +130,7 @@ struct symbol * new_symbol()
     return alloc_symbol_node();
 }
 
-struct field * field_node(char *id)
+struct field * new_field(char *id)
 {
     struct field *field = alloc_field_node();
     field->name = id;

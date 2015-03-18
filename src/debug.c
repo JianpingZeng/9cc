@@ -33,7 +33,7 @@ static void print_qual(struct type *type)
 
 static void print_params(struct type_context context)
 {
-    struct symbol **params = context.type->f.params;
+    struct symbol **params = context.type->u.f.params;
     if (params) {
         for (int i=0; params[i]; i++) {
             struct symbol *sym = params[i];
@@ -141,21 +141,21 @@ static void print_tree1(struct print_context context)
         }
     } else if (isstmt(node) && node->id == COMPOUND_STMT) {
         struct stmt *stmt = (struct stmt *) node;
-        if (stmt->compoundstmt.blks) {
-            for (int i=0; stmt->compoundstmt.blks[i]; i++) {
-                struct print_context con = {level, stmt->compoundstmt.blks[i]};
+        if (stmt->u.compoundstmt.blks) {
+            for (int i=0; stmt->u.compoundstmt.blks[i]; i++) {
+                struct print_context con = {level, stmt->u.compoundstmt.blks[i]};
                 print_tree1(con);
             }
         }
     } else if (isstmt(node) && node->id == FOR_STMT) {
         struct stmt *stmt = (struct stmt *) node;
-        if (stmt->forstmt.decl) {
-            for (int i=0; stmt->forstmt.decl[i]; i++) {
-                struct print_context con = {level, (struct node*)stmt->forstmt.decl[i]};
+        if (stmt->u.forstmt.decl) {
+            for (int i=0; stmt->u.forstmt.decl[i]; i++) {
+                struct print_context con = {level, (struct node*)stmt->u.forstmt.decl[i]};
                 print_tree1(con);
             }
-        } else if (stmt->forstmt.init) {
-            struct print_context con = {level, (struct node*)stmt->forstmt.init};
+        } else if (stmt->u.forstmt.init) {
+            struct print_context con = {level, (struct node*)stmt->u.forstmt.init};
             print_tree1(con);
         } else {
             for (int i=0; i < level; i++)
@@ -163,8 +163,8 @@ static void print_tree1(struct print_context context)
             fprintf(stderr, "init: <NULL>\n");
         }
         
-        if (stmt->forstmt.cond) {
-            struct print_context con = {level, (struct node*)stmt->forstmt.cond};
+        if (stmt->u.forstmt.cond) {
+            struct print_context con = {level, (struct node*)stmt->u.forstmt.cond};
             print_tree1(con);
         } else {
             for (int i=0; i < level; i++)
@@ -172,8 +172,8 @@ static void print_tree1(struct print_context context)
             fprintf(stderr, "cond: <NULL>\n");
         }
         
-        if (stmt->forstmt.ctrl) {
-            struct print_context con = {level, (struct node*)stmt->forstmt.ctrl};
+        if (stmt->u.forstmt.ctrl) {
+            struct print_context con = {level, (struct node*)stmt->u.forstmt.ctrl};
             print_tree1(con);
         } else {
             for (int i=0; i < level; i++)

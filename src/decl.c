@@ -295,11 +295,11 @@ static void atype_qualifiers(struct type *atype)
     }
     
     if (cons)
-        atype->a.qual_const = 1;
+        atype->u.a.qual_const = 1;
     if (vol)
-        atype->a.qual_volatile = 1;
+        atype->u.a.qual_volatile = 1;
     if (res)
-        atype->a.qual_restrict = 1;
+        atype->u.a.qual_restrict = 1;
 }
 
 static struct symbol ** func_params(struct type *ftype)
@@ -360,7 +360,7 @@ static struct symbol ** func_params(struct type *ftype)
         ret = (struct symbol **)vtoa(v);
     } else if (token->id == ID) {
         // oldstyle
-        ftype->f.oldstyle = 1;
+        ftype->u.f.oldstyle = 1;
         struct vector *v = new_vector();
         for (;;) {
             if (token->id == ID)
@@ -375,7 +375,7 @@ static struct symbol ** func_params(struct type *ftype)
             error("a parameter list without types is only allowed in a function definition");
         ret = (struct symbol **) vtoa(v);
     } else if (token->id == ')') {
-        ftype->f.oldstyle = 1;
+        ftype->u.f.oldstyle = 1;
     } else {
         error("invalid token '%s' in parameter list", token->name);
         gettok();
@@ -402,43 +402,43 @@ static struct type * func_or_array(int *params)
             match('[');
             if (token->id == STATIC) {
                 match(STATIC);
-                atype->a.sclass_static = 1;
+                atype->u.a.sclass_static = 1;
                 if (kind(token->id) & TYPE_QUAL)
                     atype_qualifiers(atype);
-                atype->a.assign = assign_expression();
+                atype->u.a.assign = assign_expression();
             } else if (kind(token->id) & TYPE_QUAL) {
                 if (kind(token->id) & TYPE_QUAL)
                     atype_qualifiers(atype);
                 if (token->id == STATIC) {
                     match(STATIC);
-                    atype->a.sclass_static = 1;
-                    atype->a.assign = assign_expression();
+                    atype->u.a.sclass_static = 1;
+                    atype->u.a.assign = assign_expression();
                 } else if (token->id == '*') {
                     if (lookahead()->id != ']') {
-                        atype->a.assign = assign_expression();
+                        atype->u.a.assign = assign_expression();
                     } else {
                         match('*');
-                        atype->a.wildcard = 1;
+                        atype->u.a.wildcard = 1;
                     }
                 } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-                    atype->a.assign = assign_expression();
+                    atype->u.a.assign = assign_expression();
                 }
             } else if (token->id == '*') {
                 if (lookahead()->id != ']') {
-                    atype->a.assign = assign_expression();
+                    atype->u.a.assign = assign_expression();
                 } else {
                     match('*');
-                    atype->a.wildcard = 1;
+                    atype->u.a.wildcard = 1;
                 }
             } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-                atype->a.assign = assign_expression();
+                atype->u.a.assign = assign_expression();
             }
             skipto(']');
             attach_type(&ty, atype);
         } else {
             struct type *ftype = function_type();
             match('(');
-            ftype->f.params = func_params(ftype);
+            ftype->u.f.params = func_params(ftype);
             skipto(')');
             attach_type(&ty, ftype);
             if (params)
@@ -462,20 +462,20 @@ static struct type * abstract_func_or_array()
             match('[');
             if (token->id == '*') {
                 if (lookahead()->id != ']') {
-                    atype->a.assign = assign_expression();
+                    atype->u.a.assign = assign_expression();
                 } else {
                     match('*');
-                    atype->a.wildcard = 1;
+                    atype->u.a.wildcard = 1;
                 }
             } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-                atype->a.assign = assign_expression();
+                atype->u.a.assign = assign_expression();
             }
             skipto(']');
             attach_type(&ty, atype);
         } else {
             struct type *ftype = function_type();
             match('(');
-            ftype->f.params = func_params(ftype);
+            ftype->u.f.params = func_params(ftype);
             skipto(')');
             attach_type(&ty, ftype);
         }
@@ -678,8 +678,8 @@ static struct type * enum_decl()
             match(',');
         }
         skipto('}');
-        ety->s.ids = (struct symbol **)vtoa(v);
-        ety->s.symbol->defined = 1;
+        ety->u.s.ids = (struct symbol **)vtoa(v);
+        ety->u.s.symbol->defined = 1;
         ret = ety;
     } else if (id) {
         struct symbol *sym = lookup_symbol(id, tags);
@@ -702,13 +702,16 @@ static struct type * enum_decl()
 // TODO: not finished yet
 static void fields(struct type *sty)
 {
+    struct vector *v = new_vector();
     for (;istypename(token);) {
         struct type *basety = specifiers(NULL);
         
         for (;;) {
+            struct field *field = new_field(NULL);
             if (token->id == ':') {
                 match(':');
                 intexpr();
+                field->type = inttype;
             } else {
                 struct type *ty = NULL;
                 const char *id = NULL;
@@ -718,7 +721,21 @@ static void fields(struct type *sty)
                     match(':');
                     intexpr();
                 }
+                field->type = ty;
+                if (id) {
+                    for (int i=0; i < vec_len(v); i++) {
+                        struct field *f = vec_at(v, i);
+                        if (!strcmp(f->name, id)) {
+                            error("redefinition of '%s'", id);
+                            break;
+                        }
+                    }
+                    field->name = id;
+                } else if(!isenum(ty) && !isstruct(ty) && !isunion(ty)) {
+                    error("missing identifier");
+                }
             }
+            vec_push(v, field);
             
             if (token->id != ',')
                 break;
@@ -727,6 +744,7 @@ static void fields(struct type *sty)
         
         skipto(';');
     }
+    sty->u.s.fields = (struct field **)vtoa(v);
 }
 
 static struct type * struct_decl()
@@ -788,10 +806,10 @@ static void update_params(void *elem, void *context)
     assert(sym->name);
     if (decl->id != VAR_DECL) {
         warningf(sym->src, "empty declaraion");
-    } else if (ftype->f.params) {
+    } else if (ftype->u.f.params) {
         struct symbol *p = NULL;
-        for (int i=0; ftype->f.params[i]; i++) {
-            struct symbol *s = ftype->f.params[i];
+        for (int i=0; ftype->u.f.params[i]; i++) {
+            struct symbol *s = ftype->u.f.params[i];
             if (!strcmp(s->name, sym->name)) {
                 p = s;
                 break;
@@ -817,7 +835,7 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->s.symbol->defined)
+        if (!ty->u.s.symbol->defined)
             warningf(src, "declaration of '%s %s' will not be visible outside of this function",
                      tname(ty->op), ty->name);
     }
@@ -861,12 +879,12 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     }
     
     if (isfunction(ty)){
-        if (ty->f.params && ty->f.oldstyle)
+        if (ty->u.f.params && ty->u.f.oldstyle)
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->s.symbol->defined)
+        if (!ty->u.s.symbol->defined)
             error("incomplete type '%s %s'", tname(ty->op), ty->name);
     }
     validate_func_or_array(ty);
@@ -916,12 +934,12 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     }
     
     if (isfunction(ty)) {
-        if (ty->f.params && ty->f.oldstyle)
+        if (ty->u.f.params && ty->u.f.oldstyle)
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->s.symbol->defined)
+        if (!ty->u.s.symbol->defined)
             error("incomplete type '%s %s'", tname(ty->op), ty->name);
     }
     validate_func_or_array(ty);
@@ -984,15 +1002,15 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
         error("missing identifier in function definition");
     }
     
-    if (ftype->f.params) {
-        for (int i=0; ftype->f.params[i]; i++) {
-            struct symbol *sym = ftype->f.params[i];
+    if (ftype->u.f.params) {
+        for (int i=0; ftype->u.f.params[i]; i++) {
+            struct symbol *sym = ftype->u.f.params[i];
             sym->defined = 1;
             // params id is required in prototype
             if (sym->name == NULL)
                 errorf(sym->src, "parameter name omitted");
             if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
-                if (!sym->type->s.symbol->defined)
+                if (!sym->type->u.s.symbol->defined)
                     errorf(sym->src, "incomplete type '%s %s'",
                            tname(sym->type->op), sym->type->name);
                 else if (sym->type->name)
@@ -1052,7 +1070,7 @@ static struct node ** decls(DeclFunc declfunc)
             if (params && isfunction(ty) &&
                 (token->id == '{' ||
                  ((istypename(token) || token->id & SCLASS_SPEC) &&
-                  ty->f.oldstyle && ty->f.params))) {
+                  ty->u.f.oldstyle && ty->u.f.params))) {
                      vec_push(v, funcdef(id, ty, sclass, src));
                      return (struct node **) vtoa(v);
                  } else if (SCOPE == PARAM) {
@@ -1098,7 +1116,7 @@ static struct node ** decls(DeclFunc declfunc)
             node_id = ENUM_DECL;
         
         decl = decl_node(node_id, SCOPE);
-        decl->node.symbol = basety->s.symbol;
+        decl->node.symbol = basety->u.s.symbol;
         vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);

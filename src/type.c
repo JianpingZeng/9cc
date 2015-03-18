@@ -256,12 +256,12 @@ struct type * tag_type(int op, const char *tag, struct source src)
         sym = install_symbol(tag, &tags, SCOPE);
         sym->type = ty;
         sym->src = src;
-        ty->s.symbol = sym;
+        ty->u.s.symbol = sym;
     } else {
         struct symbol *sym = anonymous_symbol(&tags, SCOPE);
         sym->type = ty;
         sym->src = src;
-        ty->s.symbol = sym;
+        ty->u.s.symbol = sym;
     }
     
     return ty;
@@ -356,19 +356,19 @@ int eqtype(struct type *ty1, struct type *ty2)
         case FUNCTION:
             if (!eqtype(ty1->type, ty2->type))
                 return 0;
-            if (ty1->f.oldstyle && ty2->f.oldstyle) {
+            if (ty1->u.f.oldstyle && ty2->u.f.oldstyle) {
                 // both oldstyle
                 return 1;
-            } else if (!ty1->f.oldstyle && !ty2->f.oldstyle) {
+            } else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
                 // both prototype
-                return eqparams(ty1->f.params, ty2->f.params);
+                return eqparams(ty1->u.f.params, ty2->u.f.params);
             } else {
                 // one oldstyle, the other prototype
-                struct type *oldty = ty1->f.oldstyle ? ty1 : ty2;
-                struct type *newty = ty1->f.oldstyle ? ty2 : ty1;
-                if (newty->f.params) {
-                    for (int i=0; newty->f.params[i]; i++) {
-                        struct symbol *sym = newty->f.params[i];
+                struct type *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
+                struct type *newty = ty1->u.f.oldstyle ? ty2 : ty1;
+                if (newty->u.f.params) {
+                    for (int i=0; newty->u.f.params[i]; i++) {
+                        struct symbol *sym = newty->u.f.params[i];
                         if (sym->type) {
                             struct type *ty = sym->type;
                             if (ty->op == CHAR)
@@ -386,10 +386,10 @@ int eqtype(struct type *ty1, struct type *ty2)
                     }
                 }
                 
-                if (oldty->f.params == NULL)
+                if (oldty->u.f.params == NULL)
                     return 1;
                 
-                return eqparams(oldty->f.params, newty->f.params);
+                return eqparams(oldty->u.f.params, newty->u.f.params);
             }
             
         default:

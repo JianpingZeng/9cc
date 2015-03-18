@@ -1,10 +1,10 @@
 
-const int a;
+//const int a;
 // int a;
 
-int * (*f) (float a, int , int (*) (int));
-
-void (*signal(int signo,void (*func)(int))) (int);
+//int * (*f) (float a, int , int (*) (int));
+//
+//void (*signal(int signo,void (*func)(int))) (int);
 
 // void f[][] ();
 
@@ -14,21 +14,21 @@ void (*signal(int signo,void (*func)(int))) (int);
 
 // int employ, *pe, io, * (*g) (float);
 
-void test(int a)
-{
-    int b = (int *)9.0;
-    float *c;
-    a = b+9;
-    float h = 9.0;
-    const char *s = "hello, world!";
-    char *s2 = "hello, world!";
-    
-    for (int i=0; i > 0; i++) {
-	i = 10;
-	float b;
-	
-    }
-}
+//void test(int a)
+//{
+//    int b = (int *)9.0;
+//    float *c;
+//    a = b+9;
+//    float h = 9.0;
+//    const char *s = "hello, world!";
+//    char *s2 = "hello, world!";
+//    
+//    for (int i=0; i > 0; i++) {
+//	i = 10;
+//	float b;
+//	
+//    }
+//}
 
 // typedef int *MyInt;
 // MyInt uu;
@@ -239,15 +239,16 @@ void test(int a)
 // };
 
 // int a;
-// struct S1 {
-//     int a;
-//     struct S2 {
-// 	int a;
-// 	struct S3 {
-// 	    int b;
-// 	};
-//     };
-// };
+struct S1 {
+    int a;
+    struct S2 {
+        int a;
+        struct S3 {
+            int b;
+        };
+    };
+    struct S2;
+};
 
 // struct S1 v1;
 // struct S2 v2;
