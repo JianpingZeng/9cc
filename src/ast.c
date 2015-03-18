@@ -72,11 +72,13 @@ void cc_exit()
     free_bucket(decl_info);
     free_bucket(type_info);
     free_bucket(symbol_info);
+    free_bucket(field_info);
     expr_info = NULL;
     stmt_info = NULL;
     decl_info = NULL;
     type_info = NULL;
     symbol_info = NULL;
+    field_info = NULL;
     symbol_exit();
 }
 

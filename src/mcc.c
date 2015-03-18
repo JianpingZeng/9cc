@@ -73,7 +73,7 @@ static void translate(void *elem, void *context)
     if (!file_exists(inputfile)) {
         fprintf(stderr, "input file '%s' not exists.\n", inputfile);
         fails++;
-        return;
+        goto end;
     }
     
     // preprocess
@@ -94,10 +94,10 @@ static void translate(void *elem, void *context)
     argv = (char **) vtoa(v);
     if (cpp_main(argc, argv) == EXIT_FAILURE) {
         fails++;
-        return;
+        goto end;
     }
     if (option.E)
-        return;
+        goto end;
     
     // compile
     if (option.S) {
@@ -124,14 +124,14 @@ static void translate(void *elem, void *context)
     argv = (char **) vtoa(v);
     if (cc_main(argc, argv) == EXIT_FAILURE) {
         fails++;
-        return;
+        goto end;
     }
     
+end:
     if (ifile)
         cc_free(ifile);
     if (sfile)
         cc_free(sfile);
-    
     unit_exit();
 }
 
@@ -187,6 +187,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
     
+    setlocale(LC_ALL, "");
     vec_foreach(inputlist, translate, optionlist);
     
     purge_vector(inputlist);

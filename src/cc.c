@@ -5,7 +5,6 @@ static const char *output_file;
 
 static void cc_init()
 {
-    setlocale(LC_ALL, "");
     symbol_init();
     type_init();
     lexer_init();

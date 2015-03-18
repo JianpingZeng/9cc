@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <locale.h>
 
 extern const char *cpp[];
 extern int cpp_main(int argc, char **argv);

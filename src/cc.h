@@ -9,7 +9,6 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <limits.h>
-#include <locale.h>
 #include <float.h>
 #include <wchar.h>
 
