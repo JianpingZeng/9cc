@@ -310,6 +310,8 @@ extern void redefinition_error(struct source src, struct symbol *sym);
 #define END_CALL
 #endif
 
+//#define SHOW_COLOR_TERM
+
 //kind
 enum {
     SCLASS_SPEC = 01,

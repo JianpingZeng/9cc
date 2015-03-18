@@ -239,17 +239,34 @@
 // };
 
 // int a;
-struct S1 {
-    int a;
-    struct S2 {
-        int a;
-        struct S3 {
-            int b;
-        };
-    };
-    struct S2;
-};
+//struct S1 {
+//    int a;
+//    struct S2 {
+//        int a;
+//        struct S3 {
+//            int b;
+//        };
+//    };
+//    struct S2;
+//};
 
 // struct S1 v1;
 // struct S2 v2;
 // struct S3 v3;
+
+struct S {
+    int (*f) (int);
+};
+
+void f(struct T { int a;} b, int a)
+{
+}
+
+void g()
+{
+    struct S a = { .f = 0, };
+}
+
+
+
+

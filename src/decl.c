@@ -11,6 +11,7 @@ static struct node ** decls(DeclFunc declfunc);
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
+static struct node * initializer();
 
 static int kinds[] = {
 #define _a(a, b, c, d)  d,
@@ -58,12 +59,10 @@ static struct type * specifiers(int *sclass)
     struct type *tydefty = NULL;
     
     basety = NULL;
-    sign = size = type = 0;
+    cls = sign = size = type = 0;
     cons = vol = res = inl = 0;
     ci = 0;
-    if (sclass)
-        cls = 0;
-    else
+    if (sclass == NULL)
         cls = AUTO;
     
     for (;;) {
@@ -302,16 +301,16 @@ static void atype_qualifiers(struct type *atype)
         atype->u.a.qual_restrict = 1;
 }
 
-static struct symbol ** func_params(struct type *ftype)
+static struct symbol ** func_params(struct type *ftype, int *params)
 {
     struct symbol **ret = NULL;
     
-    enter_scope();
     /**
      * To make it easy to distinguish between 'paramaters in parameter' and
      * 'compound statement of function definition', they both may be at scope
      * LOCAL (aka PARAM+1), so enter scope again to make things easy.
      */
+    enter_scope();
     if (SCOPE > PARAM)
         enter_scope();
     
@@ -381,11 +380,12 @@ static struct symbol ** func_params(struct type *ftype)
         gettok();
     }
     
-    if (SCOPE > PARAM) {
-        /**
-         * exit twice here, see comments above.
-         */
-        exit_scope();
+    if (params) {
+        *params = 1;
+    } else {
+        if (SCOPE > PARAM)
+            exit_scope();
+        
         exit_scope();
     }
     
@@ -438,11 +438,9 @@ static struct type * func_or_array(int *params)
         } else {
             struct type *ftype = function_type();
             match('(');
-            ftype->u.f.params = func_params(ftype);
+            ftype->u.f.params = func_params(ftype, params);
             skipto(')');
             attach_type(&ty, ftype);
-            if (params)
-                *params = 1;
         }
     }
     
@@ -475,7 +473,7 @@ static struct type * abstract_func_or_array()
         } else {
             struct type *ftype = function_type();
             match('(');
-            ftype->u.f.params = func_params(ftype);
+            ftype->u.f.params = func_params(ftype, NULL);
             skipto(')');
             attach_type(&ty, ftype);
         }
@@ -702,7 +700,7 @@ static struct type * enum_decl()
 static void fields(struct type *sty)
 {
     struct vector *v = new_vector();
-    for (;istypename(token);) {
+    while (istypename(token)) {
         struct type *basety = specifiers(NULL);
         
         for (;;) {
@@ -716,8 +714,6 @@ static void fields(struct type *sty)
                 const char *id = NULL;
                 declarator(&ty, &id, NULL);
                 attach_type(&ty, basety);
-                if (SCOPE == PARAM)
-                    exit_scope();
                 if (token->id == ':') {
                     match(':');
                     intexpr();
@@ -732,7 +728,7 @@ static void fields(struct type *sty)
                         }
                     }
                     field->name = id;
-                } else if(!isenum(ty) && !isstruct(ty) && !isunion(ty)) {
+                } else {
                     error("missing identifier");
                 }
             }
@@ -763,6 +759,7 @@ static struct type * struct_decl()
     if (token->id == '{') {
         match('{');
         sty = tag_type(t, id, src);
+        sty->u.s.symbol->defined = 1;
         fields(sty);
         skipto('}');
     } else if (id) {
@@ -782,20 +779,6 @@ static struct type * struct_decl()
     }
     
     return sty;
-}
-
-static struct node * initializer()
-{
-    if (token->id == '{') {
-        // initializer list
-        return NODE(initializer_list());
-    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
-        // assign expr
-        return NODE(assign_expression());
-    } else {
-        error("expect '{' or assignment expression");
-        return NULL;
-    }
 }
 
 static void update_params(void *elem, void *context)
@@ -1074,7 +1057,10 @@ static struct node ** decls(DeclFunc declfunc)
                   ty->u.f.oldstyle && ty->u.f.params))) {
                      vec_push(v, funcdef(id, ty, sclass, src));
                      return (struct node **) vtoa(v);
-                 } else if (SCOPE == PARAM) {
+                 } else if (params) {
+                     if (SCOPE > PARAM)
+                         exit_scope();
+                     
                      exit_scope();
                  }
         }
@@ -1127,14 +1113,44 @@ static struct node ** decls(DeclFunc declfunc)
     return (struct node **)vtoa(v);
 }
 
+static struct node * initializer()
+{
+    if (token->id == '{') {
+        // initializer list
+        return NODE(initializer_list());
+    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+        // assign expr
+        return NODE(assign_expression());
+    } else {
+        error("expect '{' or assignment expression");
+        return NULL;
+    }
+}
+
 struct decl * initializer_list()
 {
     match('{');
-    // TODO
-    
+    for (; token->id == '[' || token->id == '.' || token->id == '{'
+         || kind(token->id) & FIRST_ASSIGN_EXPR;) {
+        if (token->id == '[' || token->id == '.') {
+            for (; token->id == '[' || token->id == '.'; ) {
+                if (token->id == '[') {
+                    match('[');
+                    constant_expression();
+                    skipto(']');
+                } else {
+                    match('.');
+                    match(ID);
+                }
+            }
+            skipto('=');
+        }
+        
+        initializer();
+    }
     if (token->id == ',')
         match(',');
-    match('}');
+    skipto('}');
     return NULL;
 }
 
