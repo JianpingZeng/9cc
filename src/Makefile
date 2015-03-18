@@ -47,7 +47,6 @@ endif
 
 mcc: $(INCLUDES) $(SOURCES)
 	$(CC) $(CFLAGS) $(LDFALGS) $(SOURCES) -o $@
-	@strip $@
 
 clean:
 	@rm -f *.o *~ $(SYSDIR)/*~ $(SYSDIR)/include/*~  $(TARGETS)

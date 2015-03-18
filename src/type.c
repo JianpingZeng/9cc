@@ -131,30 +131,32 @@ void attach_type(struct type **typelist, struct type *type)
 
 struct type * qual(int t, struct type *ty)
 {
+    assert(ty);
     struct type *qty = new_type();
     *qty = *ty;
-   switch (t) {
-       case CONST:
-           qty->qual_const = 1;
-           break;
-       case VOLATILE:
-           qty->qual_volatile = 1;
-           break;
-       case RESTRICT:
-           qty->qual_restrict = 1;
-           break;
-       case INLINE:
-           qty->func_inline = 1;
-           break;
-       default:
-           assert(0);
-   }
+    switch (t) {
+        case CONST:
+            qty->qual_const = 1;
+            break;
+        case VOLATILE:
+            qty->qual_volatile = 1;
+            break;
+        case RESTRICT:
+            qty->qual_restrict = 1;
+            break;
+        case INLINE:
+            qty->func_inline = 1;
+            break;
+        default:
+            assert(0);
+    }
     
     return qty;
 }
 
 struct type * unqual(int t, struct type *ty)
 {
+    assert(ty);
     struct type *qty = new_type();
     *qty = *ty;
     switch (t) {
