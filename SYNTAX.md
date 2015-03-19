@@ -462,6 +462,26 @@ non-digit:
 digit: one of
     
     0  1  2  3  4  5  6  7  8  9
+    
+univeral-character-name:
+
+	\u hex-quad
+	\U hex-quad hex-quad
+	
+hex-quad:
+
+	hexadecimal-digit hexadecimal-digit hexadecimal-digit hexadecimal-digit
+	
+punctuator: one of
+
+	[    ]    (    )    {    }    .    ->
+	++   --   &    *    +    -    ~    !
+	/    %    <<   >>   <    >    <=   >=   ==    !=
+	^    |    &&   ||
+	?    :    ;    ...
+	=    *=   /=    %=   +=   -=   <<=   >>=   &=   ^=   |=
+	,    #    ##
+	<:   :>   <%   %>   %:   %:%:
 
 string-literal:
     
@@ -547,6 +567,96 @@ long-long-suffix: one of
 enumeration-constant:
     
     identifier
+    
+character-constant:
+
+	' c-char-sequence '
+	L' c-char-sequence '
+	
+c-char-sequence:
+
+	c-char
+	c-char-sequence c-har
+	
+c-char:
+
+	any member of the source character set except the single-quote ', backslash \, or new-line character
+	
+escape-sequence:
+
+	simple-escape-sequence
+	octal-escape-sequence
+	hexadecimal-escape-sequence
+	universal-character-name
+	
+simple-escape-sequence:
+
+	\'    \"    \?    \\
+	\a    \b    \f    \n    \r    \t    \v
+	
+octal-escape-sequence:
+
+	\  octal-digit
+	\  octal-digit  octal-digit
+	\  octal-digit  octal-digit  octal-digit
+	
+hexadecimal-escape-sequence:
+
+	\x  hexadecimal-digit
+	hexadecimal-escape-sequence  hexadecimal-digit
+
+floating-constant:
+
+	decimal-floating-constant
+	hexadecimal-floating-constant
+	
+decimal-floating-constant:
+
+	fractional-constant  exponent-part(opt)  floating-suffix(opt)
+	digit-sequence  exponent-part  floating-suffix(opt)
+	
+hexadcimal-floating-constant:
+
+	hexadcimal-prefix  headecimal-fractional-constant binary-exponent-part  floating-suffix(opt)
+	hexadcimal-prefix  headecimal-digit-sequence binary-exponent-part  floating-suffix(opt)
+	
+fractional-constant:
+
+	digit-sequence(opt)  .  digit-sequence
+	digit-sequence  .
+	
+exponent-part:
+
+	e  sign(opt)  digit-sequence
+	E  sign(opt)  digit-sequence
+	
+sign: one of 
+
+	+   -
+	
+digit-sequence:
+
+	digit
+	digit-sequence  digit
+	
+hexadecimal-fractional-constant:
+
+	hexadecimal-digit-sequence(opt)  .  hexadecimal-digit-sequence
+	hexadecimal-digit-sequence  .
+	
+binary-exponent-part:
+
+	p  sign(opt)  digit-sequence
+	P  sign(opt)  digit-sequence
+	
+hexadecimal-digit-sequence:
+
+	hexadecimal-digit
+	hexadecimal-digit-sequence  hexadecimal-digit
+	
+floating-suffix:
+
+	f  l  F  L
 
 ####Preprocessor
 ****
