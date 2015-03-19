@@ -57,7 +57,7 @@ static void cpp_init()
     
 }
 
-int cpp_main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     char **options = parse_opts(argc, argv);
     int ret = callsys(cpp[0], options);

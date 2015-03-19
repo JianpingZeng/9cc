@@ -92,7 +92,7 @@ static void translate(void *elem, void *context)
     vec_add_from_vector(v, options);
     argc = vec_len(v);
     argv = (char **) vtoa(v);
-    if (cpp_main(argc, argv) == EXIT_FAILURE) {
+    if (callsys(cpp[0], argv) == EXIT_FAILURE) {
         fails++;
         goto end;
     }
@@ -178,15 +178,20 @@ int main(int argc, char **argv)
         }
     }
     
+    tmpdir = mk_temp_dir();
+    if (!tmpdir)
+        die("Can't make temporary directory.");
+    
     if (vec_len(inputlist) == 0) {
         fprintf(stderr, "no input file.\n");
         ret = EXIT_FAILURE;
         goto end;
+    } else if (argc == 1) {
+        usage();
+        ret = EXIT_FAILURE;
+        goto end;
     }
     
-    tmpdir = mk_temp_dir();
-    if (!tmpdir)
-        die("Can't make temporary directory.");
     setlocale(LC_ALL, "");
     vec_foreach(inputlist, translate, optionlist);
     

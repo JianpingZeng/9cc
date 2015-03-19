@@ -1,12 +1,11 @@
 
 CC=cc
-CFLAGS=-Wall -std=c99 -Os -g
+CFLAGS=-Wall -std=c99 -Os
 LDFLAGS=
-TARGETS=mcc
-SOURCES=alloc.c \
+TARGETS=mcc cpp
+SOURCES_MCC=alloc.c \
 	ast.c \
 	cc.c \
-	cpp.c \
 	debug.c \
 	decl.c \
 	error.c \
@@ -20,8 +19,14 @@ SOURCES=alloc.c \
 	type.c \
 	vector.c
 
+INCLUDES_MCC=cc.h node.h token.h lib.h mcc.h
 
-INCLUDES=cc.h node.h token.h lib.h mcc.h 
+SOURCES_CPP=alloc.c \
+    string.c \
+    vector.c \
+    cpp.c
+
+INCLUDES_CPP=mcc.h
 
 .PHONY: all clean
 
@@ -41,12 +46,17 @@ all:
 	@exit
 else
 all: $(TARGETS)
-INCLUDES+=$(wildcard $(SYSDIR)/include/*.h)
-SOURCES+=$(SYSDIR)/sys.c
+INCLUDES_MCC+=$(wildcard $(SYSDIR)/include/*.h)
+SOURCES_MCC+=$(SYSDIR)/sys.c
+INCLUDES_CPP+=$(wildcard $(SYSDIR)/include/*.h)
+SOURCES_CPP+=$(SYSDIR)/sys.c
 endif
 
-mcc: $(INCLUDES) $(SOURCES)
-	$(CC) $(CFLAGS) $(LDFALGS) $(SOURCES) -o $@
+cpp: $(INCLUDES_CPP) $(SOURCES_CPP)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SOURCES_CPP) -o $@
+
+mcc: $(INCLUDES_MCC) $(SOURCES_MCC) cpp
+	$(CC) $(CFLAGS) $(LDFALGS) $(SOURCES_MCC) -o $@
 
 clean:
 	@rm -f *.o *~ $(SYSDIR)/*~ $(SYSDIR)/include/*~  $(TARGETS)

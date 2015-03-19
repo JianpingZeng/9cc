@@ -11,7 +11,6 @@
 		AC3110C01AB8541F006C6275 /* alloc.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110A91AB8541F006C6275 /* alloc.c */; };
 		AC3110C11AB8541F006C6275 /* ast.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110AA1AB8541F006C6275 /* ast.c */; };
 		AC3110C21AB8541F006C6275 /* cc.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110AB1AB8541F006C6275 /* cc.c */; };
-		AC3110C31AB8541F006C6275 /* cpp.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110AD1AB8541F006C6275 /* cpp.c */; };
 		AC3110C41AB8541F006C6275 /* debug.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110AE1AB8541F006C6275 /* debug.c */; };
 		AC3110C51AB8541F006C6275 /* decl.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110AF1AB8541F006C6275 /* decl.c */; };
 		AC3110C61AB8541F006C6275 /* error.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110B01AB8541F006C6275 /* error.c */; };
@@ -24,10 +23,24 @@
 		AC3110CD1AB8541F006C6275 /* sym.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110BA1AB8541F006C6275 /* sym.c */; };
 		AC3110CE1AB8541F006C6275 /* type.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110BC1AB8541F006C6275 /* type.c */; };
 		AC3110CF1AB8541F006C6275 /* vector.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110BD1AB8541F006C6275 /* vector.c */; };
+		ACB6D55B1ABB068100FFC599 /* cpp.c in Sources */ = {isa = PBXBuildFile; fileRef = ACB6D55A1ABB068100FFC599 /* cpp.c */; };
+		ACB6D55C1ABB06C200FFC599 /* sys.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110A31AB8541F006C6275 /* sys.c */; };
+		ACB6D55D1ABB06D500FFC599 /* vector.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110BD1AB8541F006C6275 /* vector.c */; };
+		ACB6D55E1ABB06EB00FFC599 /* alloc.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110A91AB8541F006C6275 /* alloc.c */; };
+		ACB6D55F1ABB06FB00FFC599 /* string.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110B91AB8541F006C6275 /* string.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		AC3110601AB853BF006C6275 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		ACB6D54E1ABB05AC00FFC599 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -47,7 +60,6 @@
 		AC3110AA1AB8541F006C6275 /* ast.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ast.c; path = src/ast.c; sourceTree = SOURCE_ROOT; };
 		AC3110AB1AB8541F006C6275 /* cc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cc.c; path = src/cc.c; sourceTree = SOURCE_ROOT; };
 		AC3110AC1AB8541F006C6275 /* cc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cc.h; path = src/cc.h; sourceTree = SOURCE_ROOT; };
-		AC3110AD1AB8541F006C6275 /* cpp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cpp.c; path = src/cpp.c; sourceTree = SOURCE_ROOT; };
 		AC3110AE1AB8541F006C6275 /* debug.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = debug.c; path = src/debug.c; sourceTree = SOURCE_ROOT; };
 		AC3110AF1AB8541F006C6275 /* decl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = decl.c; path = src/decl.c; sourceTree = SOURCE_ROOT; };
 		AC3110B01AB8541F006C6275 /* error.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = error.c; path = src/error.c; sourceTree = SOURCE_ROOT; };
@@ -71,10 +83,19 @@
 		AC3110D81AB98C95006C6275 /* stdarg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stdarg.h; sourceTree = "<group>"; };
 		AC3110D91AB98C95006C6275 /* sys.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = sys.c; sourceTree = "<group>"; };
 		AC3110DB1AB98CC7006C6275 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = src/Makefile; sourceTree = SOURCE_ROOT; };
+		ACB6D5501ABB05AC00FFC599 /* cpp */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = cpp; sourceTree = BUILT_PRODUCTS_DIR; };
+		ACB6D55A1ABB068100FFC599 /* cpp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cpp.c; path = src/cpp/cpp.c; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AC31105F1AB853BF006C6275 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ACB6D54D1ABB05AC00FFC599 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -88,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				AC3110641AB853BF006C6275 /* mcc */,
+				ACB6D5511ABB05AC00FFC599 /* cpp */,
 				AC3110631AB853BF006C6275 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -96,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				AC3110621AB853BF006C6275 /* mcc */,
+				ACB6D5501ABB05AC00FFC599 /* cpp */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -109,7 +132,6 @@
 				AC3110AA1AB8541F006C6275 /* ast.c */,
 				AC3110AB1AB8541F006C6275 /* cc.c */,
 				AC3110AC1AB8541F006C6275 /* cc.h */,
-				AC3110AD1AB8541F006C6275 /* cpp.c */,
 				AC3110AE1AB8541F006C6275 /* debug.c */,
 				AC3110AF1AB8541F006C6275 /* decl.c */,
 				AC3110B01AB8541F006C6275 /* error.c */,
@@ -187,6 +209,14 @@
 			path = include;
 			sourceTree = "<group>";
 		};
+		ACB6D5511ABB05AC00FFC599 /* cpp */ = {
+			isa = PBXGroup;
+			children = (
+				ACB6D55A1ABB068100FFC599 /* cpp.c */,
+			);
+			path = cpp;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -207,6 +237,23 @@
 			productReference = AC3110621AB853BF006C6275 /* mcc */;
 			productType = "com.apple.product-type.tool";
 		};
+		ACB6D54F1ABB05AC00FFC599 /* cpp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ACB6D5541ABB05AC00FFC599 /* Build configuration list for PBXNativeTarget "cpp" */;
+			buildPhases = (
+				ACB6D54C1ABB05AC00FFC599 /* Sources */,
+				ACB6D54D1ABB05AC00FFC599 /* Frameworks */,
+				ACB6D54E1ABB05AC00FFC599 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = cpp;
+			productName = cpp;
+			productReference = ACB6D5501ABB05AC00FFC599 /* cpp */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -218,6 +265,9 @@
 				TargetAttributes = {
 					AC3110611AB853BF006C6275 = {
 						CreatedOnToolsVersion = 6.1.1;
+					};
+					ACB6D54F1ABB05AC00FFC599 = {
+						CreatedOnToolsVersion = 6.2;
 					};
 				};
 			};
@@ -234,6 +284,7 @@
 			projectRoot = "";
 			targets = (
 				AC3110611AB853BF006C6275 /* mcc */,
+				ACB6D54F1ABB05AC00FFC599 /* cpp */,
 			);
 		};
 /* End PBXProject section */
@@ -254,12 +305,23 @@
 				AC3110CF1AB8541F006C6275 /* vector.c in Sources */,
 				AC3110C11AB8541F006C6275 /* ast.c in Sources */,
 				AC3110CC1AB8541F006C6275 /* string.c in Sources */,
-				AC3110C31AB8541F006C6275 /* cpp.c in Sources */,
 				AC3110CE1AB8541F006C6275 /* type.c in Sources */,
 				AC3110C21AB8541F006C6275 /* cc.c in Sources */,
 				AC3110CB1AB8541F006C6275 /* stmt.c in Sources */,
 				AC3110C51AB8541F006C6275 /* decl.c in Sources */,
 				AC3110CD1AB8541F006C6275 /* sym.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ACB6D54C1ABB05AC00FFC599 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ACB6D55F1ABB06FB00FFC599 /* string.c in Sources */,
+				ACB6D55E1ABB06EB00FFC599 /* alloc.c in Sources */,
+				ACB6D55D1ABB06D500FFC599 /* vector.c in Sources */,
+				ACB6D55C1ABB06C200FFC599 /* sys.c in Sources */,
+				ACB6D55B1ABB068100FFC599 /* cpp.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -356,6 +418,25 @@
 			};
 			name = Release;
 		};
+		ACB6D5551ABB05AC00FFC599 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		ACB6D5561ABB05AC00FFC599 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -376,6 +457,14 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
+		};
+		ACB6D5541ABB05AC00FFC599 /* Build configuration list for PBXNativeTarget "cpp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ACB6D5551ABB05AC00FFC599 /* Debug */,
+				ACB6D5561ABB05AC00FFC599 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
 		};
 /* End XCConfigurationList section */
 	};
