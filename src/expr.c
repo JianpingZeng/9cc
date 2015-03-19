@@ -58,7 +58,8 @@ static struct expr * postfix_expr1(struct expr *ret)
 {
     int t;
     
-    for (;token->id == '[' || token->id == '(' || token->id == '.' || token->id == DEREF || token->id == INCR || token->id == DECR;) {
+    for (;token->id == '[' || token->id == '(' || token->id == '.'
+         || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
             case '[':
                 t = token->id;
@@ -74,10 +75,18 @@ static struct expr * postfix_expr1(struct expr *ret)
                 break;
             case '.':
             case DEREF:
+            {
                 t = token->id;
-                match(token->id);
+                match(t);
+                if (token->id == ID) {
+                    //TODO
+                    
+                } else {
+                    error("expect identifier");
+                }
                 ret = expr_node(BINARY_EXPR, t, ret, expr_node(ADDR_EXPR, ID, NULL, NULL));
                 match(ID);
+            }
                 break;
             case INCR:
             case DECR:

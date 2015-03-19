@@ -511,3 +511,106 @@ enumeration-constant:
     
     identifier
 
+####Preprocessor
+****
+
+token:
+	
+	keyword
+	identifier
+	constant
+	string-literal
+	punctuator
+	
+preprocessing-token:
+
+	header-name
+	identifier
+	pp-number
+	character-constant
+	string-literal
+	punctuator
+	each non-white-space character that cannot be one of the above
+	
+preprocessing-file:
+
+	group(opt)
+	
+group:
+
+	group-part
+	group group-part
+	
+group-part:
+
+	if-section
+	control-line
+	text-line
+	# non-directive
+	
+if-section:
+
+	if-group elif-groups(opt) else-group(opt) endif-line
+	
+if-group:
+
+	# if constant-expression new-line group(opt)
+	# ifdef identifier new-line group(opt)
+	# ifndef identifier new-line group(opt)
+	
+elif-groups:
+
+	elif-group
+	elif-groups elif-group
+	
+elif-group:
+
+	# elif constant-expression new-line group(opt)
+	
+else-group:
+
+	# else new-line group(opt)
+	
+endif-line:
+
+	# endif new-line
+	
+control-line:
+
+	# include pp-tokens new-line
+	# define identifier replacement-list new-line
+	# define identifier lparen identifier-list(opt) ) replacement-list new-line
+	# define identifier lparen ... ) replacement-list new-line
+	# define identifier lparen identifier-list , ... ) replacement-list new-line
+	# undef identifier new-line
+	# line pp-tokens new-line
+	# error pp-tokens(opt) new-line
+	# pragma pp-tokens(opt) new-line
+	# new-line
+	
+text-line:
+	
+	pp-tokens(opt) new-line
+	
+non-directive:
+
+	pp-tokens new-line
+	
+lparen:
+
+	a ( character not immediately preceeded by white-space
+	
+replacement-list:
+
+	pp-tokens(opt)
+	
+pp-tokens:
+
+	preprocessing-token
+	pp-tokens preprocessing-token
+	
+new-line:
+	
+	the new-line character
+	
+	
