@@ -430,7 +430,7 @@ token:
 keyword: one of
 
 	auto       enum        restrict     unsigned
-	break      extern	   return        void
+	break      extern	   return       void
 	case       float       short        volatile
 	char       for         signed       while
 	const      goto        sizeof       _Bool
