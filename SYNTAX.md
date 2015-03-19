@@ -416,8 +416,52 @@ constant-expression:
     conditional-expression
 
 
-####String literals
+####Lexical
 ***
+
+token:
+	
+	keyword
+	identifier
+	constant
+	string-literal
+	punctuator
+	
+keyword: one of
+
+	auto       enum        restrict     unsigned
+	break      extern	   return        void
+	case       float       short        volatile
+	char       for         signed       while
+	const      goto        sizeof       _Bool
+	continue   if          static       _Complex
+	default    inline      struct       _Imaginary
+	do         int         switch
+	double     long        typedef
+	else       register    union
+	
+identifier:
+
+	identifier-nondigit
+	identifier identifier-nondigit
+	identifier digit
+	
+identifier-nondigit:
+
+	nondigit
+	univeral-character-name
+	other implemention-defined characters
+	
+non-digit:
+	
+	_  a  b  c  d  e  f  g  h  i  j  k  l  m
+	   n  o  p  q  r  s  t  u  v  w  x  y  z
+	   A  B  C  D  E  F  G  H  I  J  K  L  M
+	   N  O  P  Q  R  S  T  U  V  W  X  Y  Z
+
+digit: one of
+    
+    0  1  2  3  4  5  6  7  8  9
 
 string-literal:
     
@@ -434,9 +478,6 @@ s-char:
     any member of the source character set except the double-quote ", backslash \, or new-line character
     escape-sequence
     
-
-####Constant
-***
 
 constant:
     
@@ -459,10 +500,6 @@ decimal-constant:
 nonzero-digit: one of
     
     1  2  3  4  5  6  7  8  9
-
-digit: one of
-    
-    0  1  2  3  4  5  6  7  8  9
     
 octal-constant:
     
@@ -513,24 +550,6 @@ enumeration-constant:
 
 ####Preprocessor
 ****
-
-token:
-	
-	keyword
-	identifier
-	constant
-	string-literal
-	punctuator
-	
-preprocessing-token:
-
-	header-name
-	identifier
-	pp-number
-	character-constant
-	string-literal
-	punctuator
-	each non-white-space character that cannot be one of the above
 	
 preprocessing-file:
 
@@ -613,4 +632,49 @@ new-line:
 	
 	the new-line character
 	
+preprocessing-token:
+
+	header-name
+	identifier
+	pp-number
+	character-constant
+	string-literal
+	punctuator
+	each non-white-space character that cannot be one of the above
 	
+header-name:
+	
+	< h-char-sequence >
+	" q-char-sequence "
+	
+h-char-sequence:
+
+	h-char
+	h-char-sequence h-char
+	
+h-char:
+
+	any member of the source character set except the new-line character and >
+	
+q-char-sequence:
+
+	q-char
+	q-char-sequence q-char
+	
+q-char:
+
+	any member of the source character set except the new-line character and "
+	
+pp-number:
+
+	digit
+	. digit
+	pp-number digit
+	pp-number identifer-nondigit
+	pp-number e sign
+	pp-number E sign
+	pp-number p sign
+	pp-number P sign
+	pp-number .
+	
+

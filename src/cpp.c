@@ -52,6 +52,11 @@ static void cpp_exit()
     
 }
 
+static void cpp_init()
+{
+    
+}
+
 int cpp_main(int argc, char **argv)
 {
     char **options = parse_opts(argc, argv);
