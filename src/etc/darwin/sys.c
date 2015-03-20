@@ -23,6 +23,16 @@ int file_exists(const char *path)
     return stat(path, &st) == 0;
 }
 
+int is_directory(const char *path)
+{
+    if (path == NULL)
+        return 0;
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return 0;
+    return S_ISDIR(st.st_mode);
+}
+
 int callsys(const char *path, char **argv)
 {
     pid_t pid;
@@ -89,7 +99,7 @@ int rmdir(const char *dir)
     return system(command);
 }
 
-char *expanduser(char *path)
+char *expanduser(const char *path)
 {
     if (!path || !strlen(path)) return NULL;
     if (path[0] == '~') {

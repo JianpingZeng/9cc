@@ -23,11 +23,11 @@
 		AC3110CD1AB8541F006C6275 /* sym.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110BA1AB8541F006C6275 /* sym.c */; };
 		AC3110CE1AB8541F006C6275 /* type.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110BC1AB8541F006C6275 /* type.c */; };
 		AC3110CF1AB8541F006C6275 /* vector.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110BD1AB8541F006C6275 /* vector.c */; };
-		ACB6D55B1ABB068100FFC599 /* cpp.c in Sources */ = {isa = PBXBuildFile; fileRef = ACB6D55A1ABB068100FFC599 /* cpp.c */; };
 		ACB6D55C1ABB06C200FFC599 /* sys.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110A31AB8541F006C6275 /* sys.c */; };
 		ACB6D55D1ABB06D500FFC599 /* vector.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110BD1AB8541F006C6275 /* vector.c */; };
 		ACB6D55E1ABB06EB00FFC599 /* alloc.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110A91AB8541F006C6275 /* alloc.c */; };
 		ACB6D55F1ABB06FB00FFC599 /* string.c in Sources */ = {isa = PBXBuildFile; fileRef = AC3110B91AB8541F006C6275 /* string.c */; };
+		ACB6D5611ABB10E400FFC599 /* cpp.c in Sources */ = {isa = PBXBuildFile; fileRef = ACB6D5601ABB10E400FFC599 /* cpp.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -84,7 +84,7 @@
 		AC3110D91AB98C95006C6275 /* sys.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = sys.c; sourceTree = "<group>"; };
 		AC3110DB1AB98CC7006C6275 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = src/Makefile; sourceTree = SOURCE_ROOT; };
 		ACB6D5501ABB05AC00FFC599 /* cpp */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = cpp; sourceTree = BUILT_PRODUCTS_DIR; };
-		ACB6D55A1ABB068100FFC599 /* cpp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cpp.c; path = src/cpp/cpp.c; sourceTree = SOURCE_ROOT; };
+		ACB6D5601ABB10E400FFC599 /* cpp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cpp.c; path = src/cpp.c; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -212,7 +212,7 @@
 		ACB6D5511ABB05AC00FFC599 /* cpp */ = {
 			isa = PBXGroup;
 			children = (
-				ACB6D55A1ABB068100FFC599 /* cpp.c */,
+				ACB6D5601ABB10E400FFC599 /* cpp.c */,
 			);
 			path = cpp;
 			sourceTree = "<group>";
@@ -319,9 +319,9 @@
 			files = (
 				ACB6D55F1ABB06FB00FFC599 /* string.c in Sources */,
 				ACB6D55E1ABB06EB00FFC599 /* alloc.c in Sources */,
+				ACB6D5611ABB10E400FFC599 /* cpp.c in Sources */,
 				ACB6D55D1ABB06D500FFC599 /* vector.c in Sources */,
 				ACB6D55C1ABB06C200FFC599 /* sys.c in Sources */,
-				ACB6D55B1ABB068100FFC599 /* cpp.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

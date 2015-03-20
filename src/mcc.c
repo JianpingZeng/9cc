@@ -148,11 +148,8 @@ int main(int argc, char **argv)
             usage();
             exit(EXIT_FAILURE);
         } else if (!strcmp(arg, "-o")) {
-            if (++i >= argc) {
-                fprintf(stderr, "missing target file while -o option specified.\n");
-                usage();
-                exit(EXIT_FAILURE);
-            }
+            if (++i >= argc)
+                die("missing file name after '-o'");
             output_file = argv[i];
         } else if (!strcmp(arg, "-E")) {
             option.E = 1;
@@ -161,18 +158,7 @@ int main(int argc, char **argv)
         } else if (!strcmp(arg, "-S")) {
             option.S = 1;
         } else if (arg[0] == '-') {
-            if (arg[1] == 'I') {
-                char *abs = expanduser(arg+2);
-                if (abs) {
-                    struct string *s = new_string();
-                    str_cats(s, "-I");
-                    str_cats(s, abs);
-                    vec_push(optionlist, str_to_array(s));
-                    free(abs);
-                }
-            } else {
-                append(optionlist, arg);
-            }
+            append(optionlist, arg);
         } else {
             append(inputlist, arg);
         }
