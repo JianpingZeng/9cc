@@ -33,7 +33,7 @@ endif
 
 ifeq ($(OS), Linux)
 SYSDIR=etc/linux
-CFLAGS+=-DLINUX
+CFLAGS+=-DLINUX -D_BSD_SOURCE
 endif
 
 ifndef SYSDIR

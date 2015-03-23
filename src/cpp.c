@@ -14,6 +14,7 @@ static FILE *ifp;
 static FILE *ofp;
 static int errors;
 
+#define EOI         (-1)
 #define LBUFSIZE    1024
 #define RBUFSIZE    4096
 static char *ibuf;
@@ -99,7 +100,9 @@ static void fillbuf()
 
 static int gettok()
 {
-    return EOF;
+    register char *rpc;
+    
+    
 }
 
 static void preprocess()
