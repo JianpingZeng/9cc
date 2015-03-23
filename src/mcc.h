@@ -8,7 +8,7 @@
 #include <locale.h>
 #include <stdarg.h>
 
-extern const char *cpp[];
+extern int cpp_main(int argc, char **argv);
 extern int cc_main(int argc, char **argv);
 
 // path

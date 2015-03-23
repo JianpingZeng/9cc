@@ -9,11 +9,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-const char *cpp[] = {"/usr/bin/gcc",
-		     "-U__GNUC__",
-		     "-Iinclude",
-		     "-E", 0};
-
 static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
 
 char *mk_temp_dir()
@@ -25,6 +20,16 @@ int file_exists(const char *path)
 {
     struct stat st;
     return stat(path, &st) == 0;
+}
+
+int is_directory(const char *path)
+{
+    if (path == NULL)
+        return 0;
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return 0;
+    return S_ISDIR(st.st_mode);
 }
 
 int callsys(const char *path, char **argv)

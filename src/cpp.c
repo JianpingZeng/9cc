@@ -26,7 +26,7 @@ struct token {
     char *name;
 };
 
-int main(int argc, char **argv)
+int cpp_main(int argc, char **argv)
 {
     cpp_init();
     parse_opts(argc, argv);
@@ -99,7 +99,7 @@ static void fillbuf()
 
 static int gettok()
 {
-    
+    return EOF;
 }
 
 static void preprocess()

@@ -92,7 +92,7 @@ static void translate(void *elem, void *context)
     vec_add_from_vector(v, options);
     argc = vec_len(v);
     argv = (char **) vtoa(v);
-    if (callsys(cpp[0], argv) == EXIT_FAILURE) {
+    if (cpp_main(argc, argv) == EXIT_FAILURE) {
         fails++;
         goto end;
     }
