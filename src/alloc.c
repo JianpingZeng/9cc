@@ -95,8 +95,10 @@ void * alloc_table(size_t size)
 
 void drop_table(void *table)
 {
-    struct bucket_info *s = BUCKET_INFO(table);
-    free_bucket(s);
+    if (table) {
+        struct bucket_info *s = BUCKET_INFO(table);
+        free_bucket(s);
+    }
 }
 
 void * alloc_table_entry(void *table, size_t size)
