@@ -1,7 +1,7 @@
 # mcc
-A standard c compiler. _NOT_ finished yet.
+A standard c compiler. 
 
-Now in progress...
+_NOT_ finished yet.
 
 # Notes
 The compiler is designed to be able to compile itself, so it is written in C. It is intended to support all C99 language features while keeping the code as simple and small as possible.
