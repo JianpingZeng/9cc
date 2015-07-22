@@ -16,7 +16,7 @@ Do _NOT_ have high expectations on this compiler. For example, it is not an opti
 Guiyang Huang, [mohu3g@163.com](mailto:mohu3g@163.com)
 
 # License
-mcc is free software published under GNU GPLv3.
+mcc is free software published under GNU GPLv2.
 
 # Reference
 
