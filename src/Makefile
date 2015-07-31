@@ -6,7 +6,7 @@ TARGETS=mcc
 SOURCES=ast.c \
 	cc.c \
 	cpp.c \
-	debug.c \
+	print.c \
 	decl.c \
 	error.c \
 	expr.c \
