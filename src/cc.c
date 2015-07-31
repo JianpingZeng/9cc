@@ -10,6 +10,11 @@ static void cc_init()
     lexer_init();
 }
 
+static void cc_exit()
+{
+    
+}
+
 int cc_main(int argc, const char * argv[])
 {
     FILE *fp;

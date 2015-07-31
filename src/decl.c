@@ -1012,7 +1012,6 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
             vec_add_from_array(v, (void **)decls(paramdecl));
         
         vec_foreach(v, update_params, ftype);
-        free_vector(v);
         exit_scope();
         if (token->id != '{') {
             error("expect function body after function declarator");

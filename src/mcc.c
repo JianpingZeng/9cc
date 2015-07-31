@@ -2,7 +2,17 @@
  * mcc
  * frontend of the c compiler
  */
-#include "mcc.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <locale.h>
+#include <stdarg.h>
+#include "sys.h"
+#include "utils.h"
+
+extern int cpp_main(int argc, char *argv[]);
+extern int cc_main(int argc, char *argv[]);
 
 // configs
 static struct {
@@ -44,16 +54,21 @@ static void append(struct vector *v, const char *str)
 {
     struct string *s = new_string();
     str_cats(s, str);
-    vec_push(v, str_to_array(s));
+    vec_push(v, stoa(s));
 }
 
 static char *tempname(const char *hint)
 {
     size_t len = strlen(tmpdir) + strlen(hint) + 128;
-    void *p = cc_malloc(len);
+    void *p = NEW0(len);
     hint = hint ? hint : "tmp";
     snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
     return p;
+}
+
+static void unit_exit(void)
+{
+    
 }
 
 static void translate(void *elem, void *context)
@@ -106,7 +121,7 @@ static void translate(void *elem, void *context)
         }
         else {
             char *new_file = replace_suffix(inputfile, "s");
-            sfile = cc_malloc(strlen(new_file)+1);
+            sfile = NEW0(strlen(new_file)+1);
             strcpy(sfile, new_file);
             free(new_file);
             cc[3] = sfile;
@@ -128,10 +143,6 @@ static void translate(void *elem, void *context)
     }
     
 end:
-    if (ifile)
-        cc_free(ifile);
-    if (sfile)
-        cc_free(sfile);
     unit_exit();
 }
 
@@ -182,8 +193,6 @@ int main(int argc, char **argv)
     vec_foreach(inputlist, translate, optionlist);
     
 end:
-    purge_vector(inputlist);
-    purge_vector(optionlist);
     rmdir(tmpdir);
     return ret;
 }

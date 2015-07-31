@@ -177,7 +177,6 @@ static void fline()
             }
         }
         source.file = strings(s->str);
-        free_string(s);
         skipline();
     } else {
         skipline();
@@ -714,7 +713,6 @@ static int number()
         if (!is_digithex(*rpc) && *rpc != '.') {
             integer_constant(n, overflow, 16, s);
             error("incomplete hex constant: %s", token->name);
-            free_string(s);
             return ICONSTANT;
         }
         for (; is_digithex(*rpc) || rpc == pe; ) {
@@ -745,11 +743,9 @@ static int number()
         pc = rpc;
         if (*rpc == '.' || *rpc == 'p' || *rpc == 'P') {
             fnumber(s, 16);
-            free_string(s);
             return FCONSTANT;
         } else {
             integer_constant(n, overflow, 16, s);
-            free_string(s);
             return ICONSTANT;
         }
     } else if (rpc[0] == '0') {
@@ -784,14 +780,12 @@ static int number()
         pc = rpc;
         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
             fnumber(s, 10);
-            free_string(s);
             return FCONSTANT;
         } else {
             integer_constant(n, overflow, 8, s);
             if (err)
                 error("invalid octal constant %s", token->name);
             
-            free_string(s);
             return ICONSTANT;
         }
     } else {
@@ -823,11 +817,9 @@ static int number()
         pc = rpc;
         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
             fnumber(s, 10);
-            free_string(s);
             return FCONSTANT;
         } else {
             integer_constant(n, overflow, 10, s);
-            free_string(s);
             return ICONSTANT;
         }
     }
@@ -1122,7 +1114,6 @@ static void char_constant(int wide)
     
     token->v.u.u = wide ? (wchar_t) c : (unsigned char) c;
     token->v.type = wide ? wchartype : unsignedchartype;
-    free_string(s);
 }
 
 static void string_constant(int wide)
@@ -1166,7 +1157,6 @@ static void string_constant(int wide)
     else
         error("unterminated string constant: %s", s->str);
     token->name = strings(s->str);
-    free_string(s);
 }
 
 static void identifier()
@@ -1190,7 +1180,6 @@ static void identifier()
     str_catn(s, pc, rpc-pc);
     pc = rpc;
     token->name = strings(s->str);
-    free_string(s);
 }
 
 static unsigned escape(struct string *s)

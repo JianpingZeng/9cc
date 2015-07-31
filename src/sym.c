@@ -17,27 +17,11 @@ struct table * constants;
 struct table * tags;
 static int _scope = GLOBAL;
 
-static void free_symbol_table(struct table *table)
-{
-    while (table) {
-        struct table *tp = table;
-        table = table->up;
-        drop_table(tp);
-    }
-}
-
 void symbol_init()
 {
     identifiers = new_table(NULL, GLOBAL);
     constants = new_table(NULL, CONSTANT);
     tags = new_table(NULL, GLOBAL);
-}
-
-void symbol_exit()
-{
-    free_symbol_table(identifiers);
-    free_symbol_table(tags);
-    free_symbol_table(constants);
 }
 
 int scopelevel()
@@ -53,14 +37,10 @@ void enter_scope()
 void exit_scope()
 {
     if (tags->scope == _scope) {
-        struct table *tp = tags;
         tags = tags->up;
-        drop_table(tp);
     }
     if (identifiers->scope == _scope) {
-        struct table *tp = identifiers;
         identifiers = identifiers->up;
-        drop_table(tp);
     }
     assert(_scope >= GLOBAL);
     _scope--;
@@ -68,7 +48,7 @@ void exit_scope()
 
 struct table * new_table(struct table *up, int scope)
 {
-    struct table *t = alloc_table(sizeof(struct table));
+    struct table *t = NEWS(table);
     t->up = up;
     t->scope = scope;
     if (up) {
@@ -150,7 +130,7 @@ struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
             tp = tp->up;
     }
     
-    entry = alloc_table_entry(tp, sizeof(struct sentry));
+    entry = NEWS(sentry);
     symbol = new_symbol();
     symbol->scope = scope;
     symbol->name = strings(name);

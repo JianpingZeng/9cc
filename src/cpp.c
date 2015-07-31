@@ -1,4 +1,10 @@
-#include "mcc.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <string.h>
+#include "utils.h"
+#include "sys.h"
 
 static void warning(const char *fmt, ...);
 static void error(const char *fmt, ...);
@@ -42,17 +48,15 @@ static void cpp_init()
     search_path = new_vector();
     ifp = NULL;
     ofp = NULL;
-    ibuf = cc_malloc(LBUFSIZE + RBUFSIZE + 1);
+    ibuf = NEW0(LBUFSIZE + RBUFSIZE + 1);
 }
 
 static void cpp_exit()
 {
-    free_vector(search_path);
     if (ifp)
         fclose(ifp);
     if (ofp)
         fclose(ofp);
-    cc_free(ibuf);
 }
 
 static void input_init()

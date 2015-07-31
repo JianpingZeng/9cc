@@ -1,10 +1,9 @@
 
 CC=cc
-CFLAGS=-Wall -std=c99 -Os
+CFLAGS=-Wall -std=c99 -Os -Isys -Iutils
 LDFLAGS=
 TARGETS=mcc
-SOURCES=alloc.c \
-	ast.c \
+SOURCES=ast.c \
 	cc.c \
 	cpp.c \
 	debug.c \
@@ -15,24 +14,35 @@ SOURCES=alloc.c \
 	lex.c \
 	mcc.c \
 	stmt.c \
-	string.c \
 	sym.c \
 	type.c \
-	vector.c
+    utils/alloc.c \
+    utils/string.c \
+	utils/vector.c \
+    utils/misc.c
 
-INCLUDES=cc.h node.def token.def lib.h mcc.h
+INCLUDES=cc.h \
+        node.def \
+        token.def \
+        lex.h \
+        ast.h \
+        type.h \
+        sym.h \
+        sys/sys.h \
+        utils/utils.h
+
 
 .PHONY: all clean
 
 OS:=$(shell uname -s)
 
 ifeq ($(OS), Darwin)
-SYSDIR=etc/linux
+SYSDIR=sys/linux
 CFLAGS+=-DDARWIN
 endif
 
 ifeq ($(OS), Linux)
-SYSDIR=etc/linux
+SYSDIR=sys/linux
 CFLAGS+=-DLINUX -D_BSD_SOURCE
 endif
 

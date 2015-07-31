@@ -1,13 +1,12 @@
 #include <string.h>
 #include <assert.h>
-#include "lib.h"
+#include "utils.h"
 
 static void vec_grow(struct vector *v)
 {
     assert(v->elems == v->capelems);
-    void *mem = cc_malloc((v->elems + v->reserve) * v->elemsize);
+    void *mem = NEW0((v->elems + v->reserve) * v->elemsize);
     memcpy(mem, v->mem, v->elems * v->elemsize);
-    cc_free(v->mem);
     v->mem = mem;
     v->capelems += v->reserve;
 }
@@ -29,30 +28,13 @@ static void vec_insert(struct vector *v, int index, void *elem)
 
 struct vector *new_vector()
 {
-    struct vector *v = cc_malloc(sizeof(struct vector));
+    struct vector *v = NEWS(vector);
     v->reserve = 10;
     v->elemsize = sizeof(void *);
     v->elems = 0;
     v->capelems = v->reserve;
-    v->mem = cc_malloc(v->elemsize * v->capelems);
+    v->mem = NEW0(v->elemsize * v->capelems);
     return v;
-}
-
-void free_vector(struct vector *v)
-{
-    assert(v);
-    cc_free(v->mem);
-    cc_free(v);
-}
-
-void purge_vector(struct vector *v)
-{
-    assert(v);
-    for (int i=0; i < vec_len(v); i++) {
-        void *p = vec_at(v, i);
-        cc_free(p);
-    }
-    free_vector(v);
 }
 
 void * vec_at(struct vector *v, int index)
@@ -105,18 +87,23 @@ void vec_foreach(struct vector *v, void (*func) (void *elem, void *context), voi
     }
 }
 
-/**
- * vec_to_array is different from vtoa,
- * the caller needs to free the memory returned.
- */
-void ** vec_to_array(struct vector *v)
+void ** vtoa(struct vector *v)
 {
     void **array = NULL;
     int vlen = vec_len(v);
     if (vlen > 0) {
-        array = cc_malloc((vlen+1) * v->elemsize);
+        array = NEW0((vlen+1) * v->elemsize);
         memcpy(array, v->mem, vlen * v->elemsize);
     }
-    free_vector(v);
     return array;
+}
+
+int array_len(void **array)
+{
+    int i;
+    if (array == NULL)
+        return 0;
+    for (i=0; array[i]; i++)
+        ;
+    return i;
 }
