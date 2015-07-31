@@ -4,7 +4,7 @@
 #include "macros.h"
 
 // alloc.c
-#define NEW0(size)          cc_alloc(size)
+#define NEW0(size)  cc_alloc(size)
 #define NEWS(struct_name)    ((struct struct_name *)NEW0(sizeof(struct struct_name)))
 
 // alloc memory of size

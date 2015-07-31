@@ -47,7 +47,7 @@ extern void redefinition_error(struct source src, struct symbol *sym);
 // gen.c
 void walk(struct node *tree);
 
-// debug.c
+// print.c
 extern void print_tree(struct node *tree);
 extern void print_type(struct type *type);
 

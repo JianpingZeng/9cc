@@ -37,12 +37,11 @@ int callsys(const char *path, char **argv)
     int ret = EXIT_SUCCESS;
     pid = fork();
     if (pid == 0) {
-	// child process
-	execv(path, argv);
+        // child process
+        execv(path, argv);
         fprintf(stderr, "%s: %s\n", strerror(errno), path);
-	exit(EXIT_FAILURE);
-    }
-    else if (pid > 0) {
+        exit(EXIT_FAILURE);
+    } else if (pid > 0) {
         int status;
         int n;
         while ((n = waitpid(pid, &status, 0)) != pid ||
@@ -52,12 +51,37 @@ int callsys(const char *path, char **argv)
             perror("waitpid error");
             ret = EXIT_FAILURE;
         }
-    }
-    else {
-	perror("Can't fork");
-	ret = EXIT_FAILURE;
+    } else {
+        perror("Can't fork");
+        ret = EXIT_FAILURE;
     }
 
+    return ret;
+}
+
+int runproc(int (*proc) (void *), void *context)
+{
+    pid_t pid;
+    int ret = EXIT_SUCCESS;
+    pid = fork();
+    if (pid == 0) {
+        // child process
+        exit(proc(context));
+    } else if (pid > 0) {
+        int status;
+        int n;
+        while ((n = waitpid(pid, &status, 0)) != pid ||
+               (n == -1 && errno == EINTR))
+            ; // may be EINTR by a signal, so loop it.
+        if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            perror("waitpid error");
+            ret = EXIT_FAILURE;
+        }
+    } else {
+        perror("Can't fork");
+        ret = EXIT_FAILURE;
+    }
+    
     return ret;
 }
 
@@ -117,4 +141,14 @@ char *expanduser(char *path)
 	ret[len] = 0;
 	return ret;
     }
+}
+
+int get_pid(void)
+{
+    return (int)getpid();
+}
+
+int get_ppid(void)
+{
+    return (int)getppid();
 }

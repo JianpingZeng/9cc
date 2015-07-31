@@ -21,7 +21,6 @@ static struct {
     unsigned S : 1;
 } option;
 
-static char *tmpdir;
 static char *output_file;
 
 // options
@@ -50,31 +49,34 @@ static void usage()
     print_opt("-v, --version",   "Display version and options");
 }
 
-static void append(struct vector *v, const char *str)
-{
-    struct string *s = new_string();
-    str_cats(s, str);
-    vec_push(v, stoa(s));
-}
-
 static char *tempname(const char *hint)
 {
-    size_t len = strlen(tmpdir) + strlen(hint) + 128;
-    void *p = NEW0(len);
-    hint = hint ? hint : "tmp";
-    snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
-    return p;
-}
-
-static void unit_exit(void)
-{
+    static char *tmpdir;
+    if (!tmpdir) {
+        tmpdir = mk_temp_dir();
+        if (!tmpdir)
+            die("Can't make temporary directory.");
+    }
     
+    if (!hint) {
+        rmdir(tmpdir);
+        return NULL;
+    } else {
+        size_t len = strlen(tmpdir) + strlen(hint) + 128;
+        void *p = NEW0(len);
+        hint = hint ? hint : "tmp";
+        snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
+        return p;
+    }
 }
 
-static void translate(void *elem, void *context)
+static int unitproc(void *context)
 {
-    char *inputfile = (char *)elem;
-    struct vector *options = (struct vector *)context;
+    struct vector *data = (struct vector *)context;
+    char *inputfile = (char *)vec_at(data, 0);
+    struct vector *options = (struct vector *)vec_at(data, 1);
+    
+    int ret = EXIT_SUCCESS;
     struct vector *v;
     int argc;
     char **argv;
@@ -83,11 +85,9 @@ static void translate(void *elem, void *context)
     char *ifile = NULL;
     char *sfile = NULL;
     
-    unit++;
-    
     if (!file_exists(inputfile)) {
         fprintf(stderr, "input file '%s' not exists.\n", inputfile);
-        fails++;
+        ret = EXIT_FAILURE;
         goto end;
     }
     
@@ -108,7 +108,7 @@ static void translate(void *elem, void *context)
     argc = vec_len(v);
     argv = (char **) vtoa(v);
     if (cpp_main(argc, argv) == EXIT_FAILURE) {
-        fails++;
+        ret = EXIT_FAILURE;
         goto end;
     }
     if (option.E)
@@ -138,12 +138,24 @@ static void translate(void *elem, void *context)
     argc = vec_len(v);
     argv = (char **) vtoa(v);
     if (cc_main(argc, argv) == EXIT_FAILURE) {
-        fails++;
+        ret = EXIT_FAILURE;
         goto end;
     }
     
 end:
-    unit_exit();
+    return ret;
+}
+
+static void translate(void *elem, void *context)
+{
+    int ret;
+    struct vector *v = new_vector();
+    vec_push(v, elem);
+    vec_push(v, context);
+    unit++;
+    ret = runproc(unitproc, (void *)v);
+    if (ret == EXIT_FAILURE)
+        fails++;
 }
 
 int main(int argc, char **argv)
@@ -169,15 +181,11 @@ int main(int argc, char **argv)
         } else if (!strcmp(arg, "-S")) {
             option.S = 1;
         } else if (arg[0] == '-') {
-            append(optionlist, arg);
+            vec_push(optionlist, strings(arg));
         } else {
-            append(inputlist, arg);
+            vec_push(inputlist, strings(arg));
         }
     }
-    
-    tmpdir = mk_temp_dir();
-    if (!tmpdir)
-        die("Can't make temporary directory.");
     
     if (vec_len(inputlist) == 0) {
         fprintf(stderr, "no input file.\n");
@@ -192,7 +200,11 @@ int main(int argc, char **argv)
     setlocale(LC_ALL, "");
     vec_foreach(inputlist, translate, optionlist);
     
+    if (fails) {
+        fprintf(stderr, "%ld fails.\n", fails);
+    }
+    
 end:
-    rmdir(tmpdir);
+    tempname(NULL);
     return ret;
 }

@@ -54,10 +54,8 @@ void * cc_alloc(size_t size)
 {
     void *ret;
     
-    if (!first_bucket) {
-        first_bucket = new_bucket(size);
-        current_bucket = first_bucket;
-    }
+    if (!first_bucket)
+        current_bucket = first_bucket = new_bucket(size);
     
     size = ROUNDUP(size);
     if ((char *)current_bucket->p + size > (char *)current_bucket->limit) {
@@ -71,7 +69,7 @@ void * cc_alloc(size_t size)
     return ret;
 }
 
-void cc_drain()
+void cc_drain(void)
 {
     for (struct bucket_info *s=first_bucket; s;) {
         struct bucket_info *n = s->next;
