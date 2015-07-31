@@ -201,7 +201,7 @@ int main(int argc, char **argv)
     vec_foreach(inputlist, translate, optionlist);
     
     if (fails) {
-        fprintf(stderr, "%ld fails.\n", fails);
+        fprintf(stderr, "%d fails.\n", fails);
     }
     
 end:

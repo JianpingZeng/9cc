@@ -106,7 +106,7 @@ struct-declaration:
     
 specifier-qualifier-list:
     
-	type-specifier   specifier-qulifier-list(opt)
+    type-specifier   specifier-qulifier-list(opt)
     type-qualifier   specifier-qulifier-list(opt)
     
 struct-declarator-list:

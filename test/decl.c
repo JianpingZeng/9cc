@@ -258,7 +258,7 @@ struct S {
     int (*f) (int);
 };
 
-void f(struct T { int a;} b, int a)
+void f2(struct T { int a;} b, int a)
 {
 }
 

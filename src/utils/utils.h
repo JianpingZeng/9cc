@@ -31,9 +31,9 @@ extern void str_catd(struct string *s, long d);
 extern char * stoa(struct string *s);
 
 // char* from char*/integer
-extern const char *strings(const char *str);
-extern const char *stringn(const char *src, int len);
-extern const char *stringd(long n);
+extern char *strings(const char *str);
+extern char *stringn(const char *src, int len);
+extern char *stringd(long n);
 
 
 // vector.c

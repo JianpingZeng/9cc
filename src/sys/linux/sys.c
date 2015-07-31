@@ -48,7 +48,6 @@ int callsys(const char *path, char **argv)
                (n == -1 && errno == EINTR))
             ; // may be EINTR by a signal, so loop it.
         if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            perror("waitpid error");
             ret = EXIT_FAILURE;
         }
     } else {
@@ -74,7 +73,6 @@ int runproc(int (*proc) (void *), void *context)
                (n == -1 && errno == EINTR))
             ; // may be EINTR by a signal, so loop it.
         if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            perror("waitpid error");
             ret = EXIT_FAILURE;
         }
     } else {

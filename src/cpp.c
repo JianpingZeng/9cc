@@ -6,141 +6,59 @@
 #include "utils.h"
 #include "sys.h"
 
-static void warning(const char *fmt, ...);
-static void error(const char *fmt, ...);
-static void cpp_init();
-static void cpp_exit();
-static void input_init();
-static void preprocess();
-static void parse_opts(int argc, char **argv);
-static void fillbuf();
-
-static struct vector *search_path;
-static FILE *ifp;
-static FILE *ofp;
+static const char *ofile, *ifile;
+static struct vector *options;
 static int errors;
 
-#define EOI         (-1)
-#define LBUFSIZE    1024
-#define RBUFSIZE    4096
-static char *ibuf;
-static char *pc;
-static char *pe;
-static long bread;
-
-struct token {
-    int id;
-    char *name;
-};
-
-int cpp_main(int argc, char **argv)
+static void cpp_init(void)
 {
-    cpp_init();
-    parse_opts(argc, argv);
-    input_init();
-    preprocess();
-    cpp_exit();
-    return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+    options = new_vector();
 }
 
-static void cpp_init()
+static void cpp_exit(void)
 {
-    search_path = new_vector();
-    ifp = NULL;
-    ofp = NULL;
-    ibuf = NEW0(LBUFSIZE + RBUFSIZE + 1);
-}
-
-static void cpp_exit()
-{
-    if (ifp)
-        fclose(ifp);
-    if (ofp)
-        fclose(ofp);
-}
-
-static void input_init()
-{
-    pc = pe = ibuf + LBUFSIZE;
-    bread = -1;
-    fillbuf();
-}
-
-static void fillbuf()
-{
-    if (bread == 0) {
-        if (pc > pe)
-            pc = pe;
-        return;
-    }
     
-    if (pc >= pe) {
-        pc = ibuf + LBUFSIZE;
-    } else {
-        long n;
-        char *dst, *src;
-        
-        // copy
-        n = pe - pc;
-        dst = ibuf + LBUFSIZE - n;
-        src = pc;
-        while (src < pe)
-            *dst++ = *src++;
-        
-        pc = ibuf + LBUFSIZE - n;
-    }
+}
+
+static void preprocess(void)
+{
+    static const char *cpp[] = {"/usr/bin/cc", "-E", "$in", "-o", "$out", 0};
+    struct vector *v = new_vector();
     
-    if (feof(stdin))
-        bread = 0;
+    cpp[2] = ifile;
+    if (ofile)
+	cpp[4] = ofile;
     else
-        bread = fread(ibuf + LBUFSIZE, 1, RBUFSIZE, stdin);
-    
-    if (bread < 0)
-        die("read error");
-    
-    pe = ibuf + LBUFSIZE + bread;
-    *pe = '\n';
-}
+	cpp[3] = 0;
 
-static int gettok()
-{
-    register char *rpc;
-    
-    
-}
-
-static void preprocess()
-{
-    
+    vec_add_from_array(v,(void *) cpp);
+    vec_add_from_vector(v, options);
+    errors = callsys(cpp[0], (char **)vtoa(v));
 }
 
 static void add_search_path(const char *path)
 {
-    assert(path);
     const char *abspath = expanduser(path);
-    if (is_directory(abspath)) {
-        
-    } else {
-        warning("%s: not a directory", path);
+    struct string *s = new_string();
+    str_cats(s, "-I");
+    if (abspath) {
+	str_cats(s, abspath);
+	vec_push(options, stoa(s));
     }
-    free(abspath);
 }
 
 static void parse_opts(int argc, char **argv)
-{
-    const char *input_file = NULL;
-    const char *output_file = NULL;
-    
+{    
     for (int i=1; i < argc; i++) {
-        const char *arg = argv[i];
+        char *arg = argv[i];
         if (!strcmp(arg, "-o")) {
             if (++i >= argc)
                 die("missing file name after '-o'");
-            output_file = argv[i];
+            ofile = argv[i];
         } else if (!strncmp(arg, "-D", 2)) {
-            
+            vec_push(options, arg);
         } else if (!strncmp(arg, "-U", 2)) {
-            
+            vec_push(options, arg);
         } else if (!strncmp(arg, "-I", 2)) {
             if (strlen(arg) > 2)
                 add_search_path(arg+2);
@@ -149,45 +67,16 @@ static void parse_opts(int argc, char **argv)
             else
                 die("missing path after '-I'");
         } else if (arg[0] != '-') {
-            input_file = arg;
-        }
-    }
-    
-    if (input_file && !file_exists(input_file))
-        die("input file '%s' not exist.", input_file);
-    
-    ifp = freopen(input_file, "r", stdin);
-    if (ifp == NULL) {
-        perror(input_file);
-        exit(EXIT_FAILURE);
-    }
-    
-    if (output_file) {
-        ofp = freopen(output_file, "w", stdout);
-        if (ofp == NULL) {
-            perror(output_file);
-            exit(EXIT_FAILURE);
+            ifile = arg;
         }
     }
 }
 
-static void warning(const char *fmt, ...)
+int cpp_main(int argc, char **argv)
 {
-    va_list ap;
-    va_start(ap, fmt);
-    fprintf(stderr, "warning: ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-}
-
-static void error(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    fprintf(stderr, "error: ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    errors++;
+    cpp_init();
+    parse_opts(argc, argv);
+    preprocess();
+    cpp_exit();
+    return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

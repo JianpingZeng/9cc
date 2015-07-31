@@ -87,7 +87,7 @@ struct string_table {
 };
 
 static struct string_table *string_table;
-const char *stringn(const char *src, int len)
+char *stringn(const char *src, int len)
 {
     struct string_bucket *ps;
     register unsigned int hash;
@@ -130,7 +130,7 @@ const char *stringn(const char *src, int len)
     }
 }
 
-const char *strings(const char *str)
+char *strings(const char *str)
 {
     const char *s = str;
     if (!str)
@@ -140,7 +140,7 @@ const char *strings(const char *str)
     return stringn(str, s - str);
 }
 
-const char *stringd(long n)
+char *stringd(long n)
 {
     char str[25], *s = str + sizeof (str);
     unsigned long m;
