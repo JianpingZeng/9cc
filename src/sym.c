@@ -17,6 +17,17 @@ struct table * constants;
 struct table * tags;
 static int _scope = GLOBAL;
 
+static struct table * new_table(struct table *up, int scope)
+{
+    struct table *t = NEWS(table);
+    t->up = up;
+    t->scope = scope;
+    if (up) {
+        t->all = up->all;
+    }
+    return t;
+}
+
 void symbol_init()
 {
     identifiers = new_table(NULL, GLOBAL);
@@ -46,17 +57,6 @@ void exit_scope()
     _scope--;
 }
 
-struct table * new_table(struct table *up, int scope)
-{
-    struct table *t = NEWS(table);
-    t->up = up;
-    t->scope = scope;
-    if (up) {
-        t->all = up->all;
-    }
-    return t;
-}
-
 static unsigned hash(const char *src)
 {
     register unsigned h;
@@ -73,47 +73,20 @@ struct symbol * anonymous_symbol(struct table **tpp, int scope)
     return install_symbol(NULL, tpp, scope);
 }
 
-struct symbol * find_symbol(const char *name, struct table *table, int scope)
-{
-    assert(name);
-    
-    for (struct table *t = table; t && t->scope >= scope; t = t->up) {
-        unsigned h = hash(name) % BUCKET_SIZE;
-        for (struct sentry *entry = t->buckets[h]; entry; entry = entry->next) {
-            if (entry->symbol->name == name) {
-                return entry->symbol;
-            }
-        }
-    }
-    
-    return NULL;
-}
-
-struct symbol * locate_symbol(const char *name , struct table *table, int scope)
-{
-    assert(name);
-    
-    if (scope > table->scope)
-        return NULL;
-    
-    while (scope != table->scope)
-        table = table->up;
-    
-    for (struct table *t = table; t && t->scope == scope; t = t->up) {
-        unsigned h = hash(name) % BUCKET_SIZE;
-        for (struct sentry *entry = t->buckets[h]; entry; entry = entry->next) {
-            if (entry->symbol->name == name) {
-                return entry->symbol;
-            }
-        }
-    }
-    
-    return NULL;
-}
-
 struct symbol * lookup_symbol(const char *name, struct table *table)
 {
-    return find_symbol(name, table, CONSTANT);
+    assert(name);
+    
+    for (struct table *t = table; t; t = t->up) {
+        unsigned h = hash(name) % BUCKET_SIZE;
+        for (struct sentry *entry = t->buckets[h]; entry; entry = entry->next) {
+            if (entry->symbol->name == name) {
+                return entry->symbol;
+            }
+        }
+    }
+    
+    return NULL;
 }
 
 struct symbol * install_symbol(const char *name, struct table **tpp, int scope)

@@ -33,38 +33,36 @@ static void install_type(struct type **type, const char *name, int op, int size)
 
 void type_init()
 {
-#define INSTALL_TYPE(ty, name, op, size)      install_type(&ty, name, op, size)
     // char
-    INSTALL_TYPE(chartype, "char",  CHAR, sizeof(char));
-    INSTALL_TYPE(unsignedchartype, "unsigned char", UNSIGNED, sizeof(unsigned char));
-    INSTALL_TYPE(signedchartype, "signed char", CHAR, sizeof(signed char));
+    install_type(&chartype, "char",  CHAR, sizeof(char));
+    install_type(&unsignedchartype, "unsigned char", UNSIGNED, sizeof(unsigned char));
+    install_type(&signedchartype, "signed char", CHAR, sizeof(signed char));
     // wchar_t
-    INSTALL_TYPE(wchartype, "wchar_t", UNSIGNED, sizeof(wchar_t));
+    install_type(&wchartype, "wchar_t", UNSIGNED, sizeof(wchar_t));
     // short
-    INSTALL_TYPE(shorttype, "short", INT, sizeof(short));
-    INSTALL_TYPE(unsignedshorttype, "unsigned short", UNSIGNED, sizeof(unsigned short));
+    install_type(&shorttype, "short", INT, sizeof(short));
+    install_type(&unsignedshorttype, "unsigned short", UNSIGNED, sizeof(unsigned short));
     // int
-    INSTALL_TYPE(inttype, "int", INT, sizeof(int));
-    INSTALL_TYPE(unsignedinttype, "unsigned int", UNSIGNED, sizeof(unsigned));
+    install_type(&inttype, "int", INT, sizeof(int));
+    install_type(&unsignedinttype, "unsigned int", UNSIGNED, sizeof(unsigned));
     // long
-    INSTALL_TYPE(longtype, "long", INT, sizeof(long));
-    INSTALL_TYPE(unsignedlongtype, "unsigned long", UNSIGNED, sizeof(unsigned long));
+    install_type(&longtype, "long", INT, sizeof(long));
+    install_type(&unsignedlongtype, "unsigned long", UNSIGNED, sizeof(unsigned long));
     // long long
-    INSTALL_TYPE(longlongtype, "long long", INT, sizeof(long long));
-    INSTALL_TYPE(unsignedlonglongtype, "unsigned long long", UNSIGNED, sizeof(unsigned long long));
+    install_type(&longlongtype, "long long", INT, sizeof(long long));
+    install_type(&unsignedlonglongtype, "unsigned long long", UNSIGNED, sizeof(unsigned long long));
     // float
-    INSTALL_TYPE(floattype, "float", FLOAT, sizeof(float));
+    install_type(&floattype, "float", FLOAT, sizeof(float));
     // double
-    INSTALL_TYPE(doubletype, "double", DOUBLE, sizeof(double));
-    INSTALL_TYPE(longdoubletype, "long double", DOUBLE, sizeof(long double));
+    install_type(&doubletype, "double", DOUBLE, sizeof(double));
+    install_type(&longdoubletype, "long double", DOUBLE, sizeof(long double));
     // void
-    INSTALL_TYPE(voidtype, "void", VOID, 0);
+    install_type(&voidtype, "void", VOID, 0);
     // bool
-    INSTALL_TYPE(booltype, "_Bool", INT, sizeof(int));
+    install_type(&booltype, "_Bool", INT, sizeof(int));
     
     // variable
-    INSTALL_TYPE(vartype, "vartype", ELLIPSIS, 0);
-#undef INSTALL_TYPE
+    install_type(&vartype, "vartype", ELLIPSIS, 0);
     
     chartype->limits.max.i = CHAR_MAX;
     chartype->limits.min.i = CHAR_MIN;
@@ -244,17 +242,15 @@ struct type * tag_type(int op, const char *tag, struct source src)
     if (op == ENUM)
         ty->type = inttype;
     if (tag) {
-        struct symbol *sym;
-        if (SCOPE == LOCAL)
-            sym = find_symbol(tag, tags, PARAM);
-        else
-            sym= locate_symbol(tag, tags, SCOPE);
-        if (sym) {
+        struct symbol *sym = lookup_symbol(tag, tags);
+        if ((sym && sym->scope == SCOPE) ||
+            (sym && sym->scope == PARAM && SCOPE == LOCAL)) {
             if (sym->type->op == op && !sym->defined)
                 return sym->type;
             
             redefinition_error(src, sym);
         }
+
         sym = install_symbol(tag, &tags, SCOPE);
         sym->type = ty;
         sym->src = src;

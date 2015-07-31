@@ -655,8 +655,8 @@ static struct type * enum_decl()
         if (token->id != ID)
             error("expect identifier");
         while (token->id == ID) {
-            struct symbol *sym = locate_symbol(token->name, identifiers, SCOPE);
-            if (sym)
+            struct symbol *sym = lookup_symbol(token->name, identifiers);
+            if (sym && sym->scope == SCOPE)
                 redefinition_error(source, sym);
             
             sym = install_symbol(token->name, &identifiers, SCOPE);
@@ -825,8 +825,8 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
     }
     
     if (id) {
-        sym = locate_symbol(id, identifiers, SCOPE);
-        if (sym)
+        sym = lookup_symbol(id, identifiers);
+        if (sym && sym->scope == SCOPE)
             redefinition_error(source, sym);
         sym = install_symbol(id, &identifiers, SCOPE);
         sym->type = ty;
@@ -873,19 +873,16 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     }
     validate_func_or_array(ty);
     
-    if (SCOPE == LOCAL)
-        sym = find_symbol(id, identifiers, PARAM);
-    else
-        sym = locate_symbol(id, identifiers, SCOPE);
-    
-    if (!sym) {
+    sym = lookup_symbol(id, identifiers);
+    if ((sym && sym->scope >= SCOPE) ||
+        (sym && sym->scope == PARAM && SCOPE == LOCAL)) {
+        redefinition_error(src, sym);
+    } else {
         sym = install_symbol(id, &identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
         sym->defined = 1;
         sym->sclass = sclass;
-    } else {
-        redefinition_error(src, sym);
     }
     
     return sym;
@@ -928,8 +925,8 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     }
     validate_func_or_array(ty);
     
-    sym = locate_symbol(id, identifiers, SCOPE);
-    if (!sym) {
+    sym = lookup_symbol(id, identifiers);
+    if (!sym || sym->scope != SCOPE) {
         sym = install_symbol(id, &identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
@@ -962,7 +959,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     }
     
     if (id) {
-        struct symbol *sym = locate_symbol(id, identifiers, GLOBAL);
+        struct symbol *sym = lookup_symbol(id, identifiers);
         if (!sym) {
             sym = install_symbol(id, &identifiers, GLOBAL);
             sym->type = ftype;
