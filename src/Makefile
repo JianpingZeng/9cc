@@ -20,7 +20,7 @@ SOURCES=alloc.c \
 	type.c \
 	vector.c
 
-INCLUDES=cc.h node.h token.h lib.h mcc.h
+INCLUDES=cc.h node.def token.def lib.h mcc.h
 
 .PHONY: all clean
 

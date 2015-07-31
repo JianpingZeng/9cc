@@ -13,7 +13,7 @@ static unsigned char map[256] = {
 #define _a(a, b, c, d)     c,
 #define _x(a, b, c, d)
 #define _t(a, b, c)
-#include "token.h"
+#include "token.def"
     OTHER,
 };
 
@@ -245,7 +245,7 @@ static const char *tnames[] = {
 #define _a(a, b, c, d)  b,
 #define _x(a, b, c, d)  b,
 #define _t(a, b, c)     b,
-#include "token.h"
+#include "token.def"
 };
 
 static struct token token1, token2;

@@ -17,7 +17,7 @@ static int kinds[] = {
 #define _a(a, b, c, d)  d,
 #define _x(a, b, c, d)  c,
 #define _t(a, b, c)     c,
-#include "token.h"
+#include "token.def"
 };
 
 int kind(int t)

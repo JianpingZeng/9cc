@@ -30,7 +30,7 @@ enum {
 #define _a(a, b, c, d)  a,
 #define _x(a, b, c, d)  a=d,
 #define _t(a, b, c)     a,
-#include "token.h"
+#include "token.def"
     TOKEND
 };
 
@@ -63,7 +63,7 @@ extern const char *tname(int t);
 enum {
 #define _ns(a)   a,
 #define _n(a, b) a,
-#include "node.h"
+#include "node.def"
 };
 
 // node
