@@ -19,8 +19,12 @@ struct node {
 struct expr {
     struct node node;
     int op;
-    // arguments
-    struct expr **args;
+    union {
+        // arguments
+        struct expr **args;
+        // initializer
+        struct expr **inits;
+    }u;
 };
 
 // stmt
@@ -65,8 +69,7 @@ extern struct expr * assign_expression();
 extern int intexpr();
 
 // decl.c
-extern struct decl * initializer_list();
-extern int kind(int t);
+extern struct expr * initializer_list();
 extern int istypename(struct token *t);
 extern struct node ** declaration();
 extern struct decl * translation_unit();
@@ -85,6 +88,9 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define isliteral(n) ((n)->id > BEGIN_LITERAL_ID && (n)->id < END_LITERAL_ID)
 #define is_switch_stmt(n) ((n) && NODE(n)->id == SWITCH_STMT)
 #define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
+
+#define firstdecl()       ((token->id != ID && token->kind & FIRST_DECL) || \
+                            (token->id == ID && is_typedef_name(token->name)))
 
 struct field {
     const char *name;

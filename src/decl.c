@@ -11,26 +11,8 @@ static struct node ** decls(DeclFunc declfunc);
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
-static struct node * initializer();
+static struct expr * initializer();
 
-static int kinds[] = {
-#define _a(a, b, c, d)  d,
-#define _x(a, b, c, d)  c,
-#define _t(a, b, c)     c,
-#include "token.def"
-};
-
-int kind(int t)
-{
-    if (t < 0)
-        return 0;
-    else if (t < 128)
-        return kinds[t];
-    else if (t >= ID && t < TOKEND)
-        return kinds[128+t-ID];
-    else
-        return 0;
-}
 
 static void conflicting_types_error(struct source src, struct symbol *sym)
 {
@@ -189,15 +171,15 @@ static struct type * specifiers(int *sclass)
         
         if (*p != 0) {
             if (p == &cls)
-                errorf(src, "invalid storage class specifier at '%s'", tname(t));
+                errorf(src, "invalid storage class specifier at '%s'", name);
             else if (p == &inl && !sclass)
                 errorf(src, "invalid function specifier");
             else if (p == &cons || p == &res || p == &vol || p == &inl)
-                warningf(src, "duplicate '%s' declaration specifier", tname(t));
+                warningf(src, "duplicate '%s' declaration specifier", name);
             else if (p == &ci)
-                errorf(src, "duplicate _Complex/_Imaginary specifier at '%s'", tname(t));
+                errorf(src, "duplicate _Complex/_Imaginary specifier at '%s'", name);
             else if (p == &sign)
-                errorf(src, "duplicate signed/unsigned speficier at '%s'", tname(t));
+                errorf(src, "duplicate signed/unsigned speficier at '%s'", name);
             else if (p == &type || p == &size)
                 errorf(src, "duplicate type specifier at '%s'", name);
             else
@@ -265,7 +247,7 @@ static void atype_qualifiers(struct type *atype)
     int cons, vol, res;
     int *p;
     cons = vol = res = 0;
-    while (kind(token->id) & TYPE_QUAL) {
+    while (token->kind & TYPE_QUAL) {
         int t = token->id;
         switch (t) {
             case CONST:
@@ -314,8 +296,7 @@ static struct symbol ** func_params(struct type *ftype, int *params)
     if (SCOPE > PARAM)
         enter_scope();
     
-    if ((token->id != ID && kind(token->id) & FIRST_DECL) ||
-        (token->id == ID && is_typedef_name(token->name))) {
+    if (firstdecl()) {
         // prototype
         struct vector *v = new_vector();
         for (int i=0;;i++) {
@@ -403,11 +384,11 @@ static struct type * func_or_array(int *params)
             if (token->id == STATIC) {
                 match(STATIC);
                 atype->u.a.sclass_static = 1;
-                if (kind(token->id) & TYPE_QUAL)
+                if (token->kind & TYPE_QUAL)
                     atype_qualifiers(atype);
                 atype->u.a.assign = assign_expression();
-            } else if (kind(token->id) & TYPE_QUAL) {
-                if (kind(token->id) & TYPE_QUAL)
+            } else if (token->kind & TYPE_QUAL) {
+                if (token->kind & TYPE_QUAL)
                     atype_qualifiers(atype);
                 if (token->id == STATIC) {
                     match(STATIC);
@@ -420,7 +401,7 @@ static struct type * func_or_array(int *params)
                         match('*');
                         atype->u.a.wildcard = 1;
                     }
-                } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+                } else if (token->kind & FIRST_ASSIGN_EXPR) {
                     atype->u.a.assign = assign_expression();
                 }
             } else if (token->id == '*') {
@@ -430,7 +411,7 @@ static struct type * func_or_array(int *params)
                     match('*');
                     atype->u.a.wildcard = 1;
                 }
-            } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+            } else if (token->kind & FIRST_ASSIGN_EXPR) {
                 atype->u.a.assign = assign_expression();
             }
             skipto(']');
@@ -465,7 +446,7 @@ static struct type * abstract_func_or_array()
                     match('*');
                     atype->u.a.wildcard = 1;
                 }
-            } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+            } else if (token->kind & FIRST_ASSIGN_EXPR) {
                 atype->u.a.assign = assign_expression();
             }
             skipto(']');
@@ -549,7 +530,7 @@ static void abstract_declarator(struct type **ty)
         }
         
         if (token->id == '(') {
-            if (kind(lookahead()->id) & FIRST_DECL) {
+            if (lookahead()->kind & FIRST_DECL) {
                 struct type *faty = abstract_func_or_array();
                 prepend_type(ty, faty);
             } else {
@@ -607,7 +588,7 @@ static void param_declarator(struct type **ty, const char **id)
     }
     
     if (token->id == '(') {
-        if (kind(lookahead()->id) & FIRST_DECL) {
+        if (lookahead()->kind & FIRST_DECL) {
             abstract_declarator(ty);
         } else {
             struct type *type1 = *ty;
@@ -1001,11 +982,11 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
         }
     }
     
-    if (kind(token->id) & FIRST_DECL) {
+    if (token->kind & FIRST_DECL) {
         // old style function definition
         struct vector *v = new_vector();
         enter_scope();
-        while (kind(token->id) & FIRST_DECL)
+        while (token->kind & FIRST_DECL)
             vec_add_from_array(v, (void **)decls(paramdecl));
         
         vec_foreach(v, update_params, ftype);
@@ -1109,25 +1090,29 @@ static struct node ** decls(DeclFunc declfunc)
     return (struct node **)vtoa(v);
 }
 
-static struct node * initializer()
+static struct expr * initializer()
 {
     if (token->id == '{') {
         // initializer list
-        return NODE(initializer_list());
-    } else if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+        return initializer_list();
+    } else if (token->kind & FIRST_ASSIGN_EXPR) {
         // assign expr
-        return NODE(assign_expression());
+        return assign_expression();
     } else {
         error("expect '{' or assignment expression");
         return NULL;
     }
 }
 
-struct decl * initializer_list()
+struct expr * initializer_list()
 {
+    struct expr *inits_node = expr_node(INITS_EXPR, 0, NULL, NULL);
+    struct vector *v = new_vector();
     match('{');
     for (; token->id == '[' || token->id == '.' || token->id == '{'
-         || kind(token->id) & FIRST_ASSIGN_EXPR;) {
+         || token->kind & FIRST_ASSIGN_EXPR;) {
+        struct expr *lnode = NULL;
+        
         if (token->id == '[' || token->id == '.') {
             for (; token->id == '[' || token->id == '.'; ) {
                 if (token->id == '[') {
@@ -1142,17 +1127,23 @@ struct decl * initializer_list()
             skipto('=');
         }
         
-        initializer();
+        struct expr *rnode = initializer();
+        if (lnode) {
+            struct expr *assign_node = expr_node(BINARY_EXPR, '=', lnode, rnode);
+            vec_push(v, assign_node);
+        } else {
+            vec_push(v, rnode);
+        }
     }
     if (token->id == ',')
         match(',');
     skipto('}');
-    return NULL;
+    return inits_node;
 }
 
 int istypename(struct token *t)
 {
-    return kind(t->id) & (TYPE_SPEC|TYPE_QUAL) ||
+    return t->kind & (TYPE_SPEC|TYPE_QUAL) ||
     (t->id == ID && is_typedef_name(t->name));
 }
 
@@ -1182,7 +1173,7 @@ struct decl * translation_unit()
     struct vector *v = new_vector();
     
     for (; token->id != EOI; ) {
-        if (kind(token->id) & FIRST_DECL) {
+        if (token->kind & FIRST_DECL) {
             assert(SCOPE == GLOBAL);
             vec_add_from_array(v, (void **)decls(globaldecl));
         } else {

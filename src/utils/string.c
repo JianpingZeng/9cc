@@ -1,6 +1,8 @@
+#include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include <limits.h>
+#include <stdarg.h>
 #include "utils.h"
 
 static void str_grow(struct string *s, int len)
@@ -160,4 +162,34 @@ char *stringd(long n)
         *--s = '-';
     
     return stringn(s, str + sizeof (str) - s);
+}
+
+static char *vformat(const char *fmt, va_list ap)
+{
+    size_t size = 128;
+    void *buffer = NULL;
+    va_list aq;
+    for (; ; ) {
+        size_t avail = size;
+        buffer = NEW0(avail);
+        va_copy(aq, ap);
+        int total = vsnprintf(buffer, avail, fmt, aq);
+        va_end(aq);
+        if (avail <= total) {
+            size = total + 8;
+            continue;
+        }
+        break;
+    }
+    
+    return buffer;
+}
+
+char *format(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    char *r = vformat(fmt, ap);
+    va_end(ap);
+    return r;
 }

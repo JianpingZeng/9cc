@@ -28,6 +28,7 @@ struct source {
 struct token {
     int id;
     const char *name;
+    int kind;
     struct {
         union value u;
         struct type *type;

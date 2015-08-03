@@ -36,7 +36,7 @@ static struct expr * argument_expr_list()
 {
     struct expr *ret = NULL;
     
-    if (kind(token->id) & FIRST_ASSIGN_EXPR) {
+    if (token->kind & FIRST_ASSIGN_EXPR) {
         struct vector *v = new_vector();
         ret = expr_node(ARGS_EXPR, 0, NULL, NULL);
         for (;;) {
@@ -46,7 +46,7 @@ static struct expr * argument_expr_list()
             else
                 break;
         }
-        ret->args = (struct expr **)vtoa(v);
+        ret->u.args = (struct expr **)vtoa(v);
     } else if (token->id != ')') {
         error("expect assignment expression");
     }

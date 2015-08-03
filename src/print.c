@@ -182,9 +182,9 @@ static void print_tree1(struct print_context context)
         }
     } else if (isexpr(node) && node->id == ARGS_EXPR) {
         struct expr *expr = (struct expr *) node;
-        if (expr->args) {
-            for (int i=0; expr->args[i]; i++) {
-                struct print_context con = {level, (struct node*)expr->args[i]};
+        if (expr->u.args) {
+            for (int i=0; expr->u.args[i]; i++) {
+                struct print_context con = {level, (struct node*)expr->u.args[i]};
                 print_tree1(con);
             }
         }

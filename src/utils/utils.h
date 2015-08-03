@@ -35,6 +35,8 @@ extern char *strings(const char *str);
 extern char *stringn(const char *src, int len);
 extern char *stringd(long n);
 
+extern char *format(const char *fmt, ...);
+
 
 // vector.c
 struct vector {

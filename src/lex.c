@@ -247,6 +247,39 @@ static const char *tnames[] = {
 #include "token.def"
 };
 
+const char *tname(int t)
+{
+    if (t < 0)
+        return "EOI";
+    else if (t < 128)
+        return tnames[t];
+    else if (t < 256)
+        return "(null)";
+    else if (t < TOKEND)
+        return tnames[128+t-ID];
+    else
+        return "(null)";
+}
+
+static int kinds[] = {
+#define _a(a, b, c, d)  d,
+#define _x(a, b, c, d)  c,
+#define _t(a, b, c)     c,
+#include "token.def"
+};
+
+static int kind(int t)
+{
+    if (t < 0)
+        return 0;
+    else if (t < 128)
+        return kinds[t];
+    else if (t >= ID && t < TOKEND)
+        return kinds[128+t-ID];
+    else
+        return 0;
+}
+
 static struct token token1, token2;
 struct token *token = &token1;
 
@@ -1300,20 +1333,6 @@ void skipto(int t)
     gettok();
 }
 
-const char *tname(int t)
-{
-    if (t < 0)
-        return "EOI";
-    else if (t < 128)
-        return tnames[t];
-    else if (t < 256)
-        return "(null)";
-    else if (t < TOKEND)
-        return tnames[128+t-ID];
-    else
-        return "(null)";
-}
-
 static int is_looked;
 int gettok()
 {
@@ -1326,6 +1345,7 @@ int gettok()
         token->id = do_gettok();
         if (!token->name)
             token->name = tname(token->id);
+        token->kind = kind(token->id);
     }
     
     return token->id;
@@ -1339,6 +1359,7 @@ struct token * lookahead()
         token->id = do_gettok();
         if (!token->name)
             token->name = tname(token->id);
+        token->kind = kind(token->id);
         
         token = &token1;
         is_looked = 1;	
