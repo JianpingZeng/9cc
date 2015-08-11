@@ -7,12 +7,27 @@ static struct type * pointer_decl();
 static struct type * enum_decl();
 static struct type * struct_decl();
 typedef struct symbol * (*DeclFunc)(const char *id, struct type *ftype, int sclass,  struct source src);
-static struct node ** decls(DeclFunc declfunc);
+static struct vector * decls(DeclFunc declfunc);
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct expr * initializer();
 
+int firstdecl(struct token *t)
+{
+    return (t->id != ID && (t->kind == STATIC || t->kind == INT || t->kind == CONST)) ||
+    (t->id == ID && is_typedef_name(t->name));
+}
+
+int firststmt(struct token *t)
+{
+    return t->id == ID || t->kind == IF;
+}
+
+int firstexpr(struct token *t)
+{
+    return t->kind == ID;
+}
 
 static void conflicting_types_error(struct source src, struct symbol *sym)
 {
@@ -247,7 +262,7 @@ static void atype_qualifiers(struct type *atype)
     int cons, vol, res;
     int *p;
     cons = vol = res = 0;
-    while (token->kind & TYPE_QUAL) {
+    while (token->kind == CONST) {
         int t = token->id;
         switch (t) {
             case CONST:
@@ -296,7 +311,7 @@ static struct symbol ** func_params(struct type *ftype, int *params)
     if (SCOPE > PARAM)
         enter_scope();
     
-    if (firstdecl()) {
+    if (firstdecl(token)) {
         // prototype
         struct vector *v = new_vector();
         for (int i=0;;i++) {
@@ -384,11 +399,11 @@ static struct type * func_or_array(int *params)
             if (token->id == STATIC) {
                 match(STATIC);
                 atype->u.a.sclass_static = 1;
-                if (token->kind & TYPE_QUAL)
+                if (token->kind == CONST)
                     atype_qualifiers(atype);
                 atype->u.a.assign = assign_expression();
-            } else if (token->kind & TYPE_QUAL) {
-                if (token->kind & TYPE_QUAL)
+            } else if (token->kind == CONST) {
+                if (token->kind == CONST)
                     atype_qualifiers(atype);
                 if (token->id == STATIC) {
                     match(STATIC);
@@ -401,7 +416,7 @@ static struct type * func_or_array(int *params)
                         match('*');
                         atype->u.a.wildcard = 1;
                     }
-                } else if (token->kind & FIRST_ASSIGN_EXPR) {
+                } else if (firstexpr(token)) {
                     atype->u.a.assign = assign_expression();
                 }
             } else if (token->id == '*') {
@@ -411,7 +426,7 @@ static struct type * func_or_array(int *params)
                     match('*');
                     atype->u.a.wildcard = 1;
                 }
-            } else if (token->kind & FIRST_ASSIGN_EXPR) {
+            } else if (firstexpr(token)) {
                 atype->u.a.assign = assign_expression();
             }
             skipto(']');
@@ -446,7 +461,7 @@ static struct type * abstract_func_or_array()
                     match('*');
                     atype->u.a.wildcard = 1;
                 }
-            } else if (token->kind & FIRST_ASSIGN_EXPR) {
+            } else if (firstexpr(token)) {
                 atype->u.a.assign = assign_expression();
             }
             skipto(']');
@@ -530,7 +545,7 @@ static void abstract_declarator(struct type **ty)
         }
         
         if (token->id == '(') {
-            if (lookahead()->kind & FIRST_DECL) {
+            if (firstdecl(lookahead())) {
                 struct type *faty = abstract_func_or_array();
                 prepend_type(ty, faty);
             } else {
@@ -588,7 +603,7 @@ static void param_declarator(struct type **ty, const char **id)
     }
     
     if (token->id == '(') {
-        if (lookahead()->kind & FIRST_DECL) {
+        if (firstdecl(lookahead())) {
             abstract_declarator(ty);
         } else {
             struct type *type1 = *ty;
@@ -982,11 +997,11 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
         }
     }
     
-    if (token->kind & FIRST_DECL) {
+    if (firstdecl(token)) {
         // old style function definition
         struct vector *v = new_vector();
         enter_scope();
-        while (token->kind & FIRST_DECL)
+        while (firstdecl(token))
             vec_add_from_array(v, (void **)decls(paramdecl));
         
         vec_foreach(v, update_params, ftype);
@@ -1008,7 +1023,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     return decl;
 }
 
-static struct node ** decls(DeclFunc declfunc)
+static struct vector * decls(DeclFunc declfunc)
 {
     struct vector *v = new_vector();
     struct type *basety;
@@ -1030,10 +1045,10 @@ static struct node ** decls(DeclFunc declfunc)
         if (level == GLOBAL) {
             if (params && isfunction(ty) &&
                 (token->id == '{' ||
-                 ((istypename(token) || token->id & SCLASS_SPEC) &&
+                 ((istypename(token) || token->kind == STATIC) &&
                   ty->u.f.oldstyle && ty->u.f.params))) {
                      vec_push(v, funcdef(id, ty, sclass, src));
-                     return (struct node **) vtoa(v);
+                     return v;
                  } else if (params) {
                      if (SCOPE > PARAM)
                          exit_scope();
@@ -1087,7 +1102,7 @@ static struct node ** decls(DeclFunc declfunc)
     }
     skipto(';');
 
-    return (struct node **)vtoa(v);
+    return v;
 }
 
 static struct expr * initializer()
@@ -1095,7 +1110,7 @@ static struct expr * initializer()
     if (token->id == '{') {
         // initializer list
         return initializer_list();
-    } else if (token->kind & FIRST_ASSIGN_EXPR) {
+    } else if (firstexpr(token)) {
         // assign expr
         return assign_expression();
     } else {
@@ -1110,7 +1125,7 @@ struct expr * initializer_list()
     struct vector *v = new_vector();
     match('{');
     for (; token->id == '[' || token->id == '.' || token->id == '{'
-         || token->kind & FIRST_ASSIGN_EXPR;) {
+         || firstexpr(token);) {
         struct expr *lnode = NULL;
         
         if (token->id == '[' || token->id == '.') {
@@ -1143,7 +1158,7 @@ struct expr * initializer_list()
 
 int istypename(struct token *t)
 {
-    return t->kind & (TYPE_SPEC|TYPE_QUAL) ||
+    return (t->kind == INT || t->kind == CONST) ||
     (t->id == ID && is_typedef_name(t->name));
 }
 
@@ -1164,7 +1179,7 @@ struct type * typename()
 struct node ** declaration()
 {
     assert(SCOPE >= LOCAL);
-    return decls(localdecl);
+    return (struct node **)vtoa(decls(localdecl));
 }
 
 struct decl * translation_unit()
@@ -1173,9 +1188,9 @@ struct decl * translation_unit()
     struct vector *v = new_vector();
     
     for (; token->id != EOI; ) {
-        if (token->kind & FIRST_DECL) {
+        if (firstdecl(token)) {
             assert(SCOPE == GLOBAL);
-            vec_add_from_array(v, (void **)decls(globaldecl));
+            vec_add_from_vector(v, decls(globaldecl));
         } else {
             error("invalid token '%s'", token->name);
             gettok();

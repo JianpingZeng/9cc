@@ -8,7 +8,7 @@ static struct stmt * expr_stmt()
     
     if (token->id == ';') {
         ret = NULL;
-    } else if (token->kind & FIRST_EXPR) {
+    } else if (firstexpr(token)) {
         ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);
     } else {
         ret = NULL;
@@ -95,7 +95,7 @@ static struct stmt * for_stmt(struct stmt *context)
     if (token->id == ';') {
         match(';');
     } else {
-        if (firstdecl()) {
+        if (firstdecl(token)) {
             // declaration
             ret->u.forstmt.decl = declaration();
         } else {
@@ -346,8 +346,8 @@ struct stmt * compound_statement(struct stmt *context)
     match('{');
     enter_scope();
     
-    while (token->kind & (FIRST_STMT|FIRST_EXPR|FIRST_DECL)) {
-        if (firstdecl())
+    while (firstdecl(token) || firstexpr(token) || firststmt(token)) {
+        if (firstdecl(token))
             // declaration
             vec_add_from_array(v, (void **)declaration());
         else

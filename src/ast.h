@@ -74,6 +74,9 @@ extern int istypename(struct token *t);
 extern struct node ** declaration();
 extern struct decl * translation_unit();
 extern struct type * typename();
+extern int firstdecl(struct token *t);
+extern int firststmt(struct token *t);
+extern int firstexpr(struct token *t);
 
 // stmt.c
 extern struct stmt * compound_statement(struct stmt *context);
@@ -89,28 +92,11 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define is_switch_stmt(n) ((n) && NODE(n)->id == SWITCH_STMT)
 #define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
 
-#define firstdecl()       ((token->id != ID && token->kind & FIRST_DECL) || \
-                            (token->id == ID && is_typedef_name(token->name)))
-
 struct field {
     const char *name;
     struct type *type;
     int offset;
     int bitsize;
-};
-
-//kind
-enum {
-    SCLASS_SPEC = 01,
-    TYPE_QUAL = 02,
-    TYPE_SPEC = 04,
-    FUNC_SPEC = 010,
-    
-    FIRST_EXPR = 020,
-    FIRST_STMT = 040,
-    FIRST_DECL = 0100,
-    
-    FIRST_ASSIGN_EXPR = FIRST_EXPR, // equals to FIRST_EXPR
 };
 
 #endif
