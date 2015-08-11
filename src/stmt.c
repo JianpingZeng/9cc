@@ -15,7 +15,7 @@ static struct stmt * expr_stmt()
         error("missing statement before '%s'", token->name);
     }
     
-    match(';');
+    expect(';');
     
     return ret;
 }
@@ -26,16 +26,16 @@ static struct stmt * if_stmt(struct stmt *context)
     struct expr *expr;
     struct stmt *stmt1;
     
-    match(IF);
-    match('(');
+    expect(IF);
+    expect('(');
     expr = expression();
-    match(')');
+    expect(')');
     
     stmt1 = statement(context);
     ret = stmt_node(IF_STMT, NODE(expr), NODE(stmt1));
     
     if (token->id == ELSE) {
-        match(ELSE);
+        expect(ELSE);
         ret = stmt_node(ELSE_STMT, NODE(ret), NODE(statement(context)));
     }
     
@@ -47,10 +47,10 @@ static struct stmt * while_stmt(struct stmt *context)
     struct expr *expr;
     struct stmt *ret;
     
-    match(WHILE);
-    match('(');
+    expect(WHILE);
+    expect('(');
     expr = expression();
-    match(')');
+    expect(')');
     
     ret = stmt_node(WHILE_STMT, NODE(expr), NULL);
     ret->up = context;
@@ -66,16 +66,16 @@ static struct stmt * do_while_stmt(struct stmt *context)
     struct expr *expr;
     struct stmt *ret;
     
-    match(DO);
+    expect(DO);
     
     ret = stmt_node(DO_WHILE_STMT, NULL, NULL);
     ret->up = context;
     stmt = statement(ret);
-    match(WHILE);
-    match('(');
+    expect(WHILE);
+    expect('(');
     expr = expression();
-    match(')');
-    match(';');
+    expect(')');
+    expect(';');
     ret->node.kids[0] = NODE(stmt);
     ret->node.kids[1] = NODE(expr);
     ret->up = NULL;
@@ -87,13 +87,13 @@ static struct stmt * for_stmt(struct stmt *context)
 {
     struct stmt *ret = stmt_node(FOR_STMT, NULL, NULL);
     
-    match(FOR);
-    match('(');
+    expect(FOR);
+    expect('(');
     
     enter_scope();
     
     if (token->id == ';') {
-        match(';');
+        expect(';');
     } else {
         if (firstdecl(token)) {
             // declaration
@@ -101,19 +101,19 @@ static struct stmt * for_stmt(struct stmt *context)
         } else {
             // expression
             ret->u.forstmt.init = expression();
-            match(';');
+            expect(';');
         }
     }
     
     if (token->id != ';')
         ret->u.forstmt.cond = expression();
     
-    match(';');
+    expect(';');
     
     if (token->id != ')')
         ret->u.forstmt.ctrl = expression();
     
-    match(')');
+    expect(')');
     
     ret->up = context;
     ret->node.kids[0] = NODE(statement(ret));
@@ -129,10 +129,10 @@ static struct stmt * switch_stmt(struct stmt *context)
     struct expr *expr;
     struct stmt *ret;
     
-    match(SWITCH);
-    match('(');
+    expect(SWITCH);
+    expect('(');
     expr = expression();
-    match(')');
+    expect(')');
     
     ret = stmt_node(SWITCH_STMT, NODE(expr), NULL);
     ret->up = context;
@@ -149,9 +149,9 @@ static struct stmt * case_stmt(struct stmt *context)
     struct stmt *stmt;
     struct source src = source;
     
-    match(CASE);
-    expr = constant_expression();
-    match(':');
+    expect(CASE);
+    expr = constant_expr();
+    expect(':');
     
     while (context) {
         if (is_switch_stmt(context)) {
@@ -181,8 +181,8 @@ static struct stmt * default_stmt(struct stmt *context)
     struct stmt *stmt;
     struct source src = source;
     
-    match(DEFAULT);
-    match(':');
+    expect(DEFAULT);
+    expect(':');
     
     while (context) {
         if (is_switch_stmt(context)) {
@@ -211,8 +211,8 @@ static struct stmt * label_stmt(struct stmt *context)
     struct stmt *stmt;
     
     label = NODE(expr_node(ADDR_EXPR, ID, NULL, NULL));
-    match(ID);
-    match(':');
+    expect(ID);
+    expect(':');
     stmt = statement(context);
     
     return stmt_node(LABEL_STMT, label, NODE(stmt));
@@ -222,11 +222,11 @@ static struct stmt * goto_stmt()
 {
     struct node *expr = NULL;
     
-    match(GOTO);
+    expect(GOTO);
     if (token->id == ID)
         expr = NODE(expr_node(ADDR_EXPR, ID, NULL, NULL));
-    match(ID);
-    match(';');
+    expect(ID);
+    expect(';');
     
     return stmt_node(GOTO_STMT, expr, NULL);
 }
@@ -237,8 +237,8 @@ static struct stmt * break_stmt(struct stmt *context)
     struct source src = source;
     struct stmt *ret;
     
-    match(BREAK);
-    match(';');
+    expect(BREAK);
+    expect(';');
     
     while (context) {
         if (is_iteration_stmt(context) || is_switch_stmt(context)) {
@@ -266,8 +266,8 @@ static struct stmt * continue_stmt(struct stmt *context)
     struct stmt *ret;
     struct source src = source;
     
-    match(CONTINUE);
-    match(';');
+    expect(CONTINUE);
+    expect(';');
     
     while (context) {
         if (is_iteration_stmt(context)) {
@@ -291,7 +291,7 @@ static struct stmt * continue_stmt(struct stmt *context)
 
 static struct stmt * return_stmt()
 {
-    match(RETURN);
+    expect(RETURN);
     
     return stmt_node(RETURN_STMT, NODE(expr_stmt()), NULL);;
 }
@@ -343,7 +343,7 @@ struct stmt * compound_statement(struct stmt *context)
     struct stmt *ret = stmt_node(COMPOUND_STMT, NULL, NULL);
     struct vector *v = new_vector();
     
-    match('{');
+    expect('{');
     enter_scope();
     
     while (firstdecl(token) || firstexpr(token) || firststmt(token)) {
@@ -356,7 +356,7 @@ struct stmt * compound_statement(struct stmt *context)
     }
     
     ret->u.compoundstmt.blks = (struct node **)vtoa(v);
-    match('}');
+    expect('}');
     exit_scope();
     
     return ret;

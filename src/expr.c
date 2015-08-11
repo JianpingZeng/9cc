@@ -22,9 +22,9 @@ static struct expr * typename_expr()
     struct expr *expr;
     struct type *type;
     
-    match('(');
+    expect('(');
     type = typename();
-    match(')');
+    expect(')');
     expr = expr_node(CAST_EXPR, 0, NULL, NULL);
     expr->node.symbol = anonymous_symbol(&identifiers, SCOPE);
     expr->node.symbol->type = type;
@@ -40,9 +40,9 @@ static struct expr * argument_expr_list()
         struct vector *v = new_vector();
         ret = expr_node(ARGS_EXPR, 0, NULL, NULL);
         for (;;) {
-            vec_push(v, NODE(assign_expression()));
+            vec_push(v, NODE(assign_expr()));
             if (token->id == ',')
-                match(',');
+                expect(',');
             else
                 break;
         }
@@ -63,21 +63,21 @@ static struct expr * postfix_expr1(struct expr *ret)
         switch (token->id) {
             case '[':
                 t = token->id;
-                match('[');
+                expect('[');
                 ret = expr_node(BINARY_EXPR, t, ret, expression());
-                match(']');
+                expect(']');
                 break;
             case '(':
                 t = token->id;
-                match('(');
+                expect('(');
                 ret = expr_node(CALL_EXPR, 0, ret, argument_expr_list());
-                match(')');
+                expect(')');
                 break;
             case '.':
             case DEREF:
             {
                 t = token->id;
-                match(t);
+                expect(t);
                 if (token->id == ID) {
                     //TODO
                     
@@ -85,13 +85,13 @@ static struct expr * postfix_expr1(struct expr *ret)
                     error("expect identifier");
                 }
                 ret = expr_node(BINARY_EXPR, t, ret, expr_node(ADDR_EXPR, ID, NULL, NULL));
-                match(ID);
+                expect(ID);
             }
                 break;
             case INCR:
             case DECR:
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(UNARY_EXPR, t, ret, NULL);
                 break;
             default:
@@ -117,7 +117,7 @@ static struct expr * postfix_expr()
                 sym->refs++;
             else
                 error("use of undeclared symbol '%s'", token->name);
-            match(t);
+            expect(t);
             ret = expr_node(ADDR_EXPR, ID, NULL, NULL);
             ret->node.symbol = sym;
         }
@@ -132,7 +132,7 @@ static struct expr * postfix_expr()
                 sym->value = token->v.u;
                 sym->type = token->v.type;
             }
-            match(t);
+            expect(t);
             ret = expr_node(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, t, NULL, NULL);
             ret->node.symbol = sym;
         }
@@ -145,7 +145,7 @@ static struct expr * postfix_expr()
                 sym = install_symbol(token->name, &constants, CONSTANT);
                 sym->type = token->v.type;
             }
-            match(t);
+            expect(t);
             ret = expr_node(STRING_LITERAL, t, NULL, NULL);
             ret->node.symbol = sym;
         }
@@ -157,9 +157,9 @@ static struct expr * postfix_expr()
                 ret = typename_expr();
                 ret->node.kids[0] = NODE(initializer_list());
             } else {
-                match('(');
+                expect('(');
                 ret = expression();
-                match(')');
+                expect(')');
             }
         }
             break;
@@ -182,7 +182,7 @@ static struct expr * unary_expr()
         case INCR:
         case DECR:
             t = token->id;
-            match(t);
+            expect(t);
             uexpr = expr_node(UNARY_EXPR, t, unary_expr(), NULL);
             break;
         case '&':
@@ -192,12 +192,12 @@ static struct expr * unary_expr()
         case '~':
         case '!':
             t = token->id;
-            match(t);
+            expect(t);
             uexpr = expr_node(UNARY_EXPR, t, cast_expr(), NULL);
             break;
         case SIZEOF:
             t = token->id;
-            match(token->id);
+            expect(token->id);
             ahead = lookahead();
             if (token->id == '(' && istypename(ahead)) {
                 struct expr *texpr = typename_expr();
@@ -247,7 +247,7 @@ static struct expr * multiple_expr()
     mulp1 = cast_expr();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
-        match(token->id);
+        expect(token->id);
         mulp1 = expr_node(BINARY_EXPR, t, mulp1, cast_expr());
     }
     
@@ -261,7 +261,7 @@ static struct expr * additive_expr()
     add1 = multiple_expr();
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
-        match(token->id);
+        expect(token->id);
         add1 = expr_node(BINARY_EXPR, t, add1, multiple_expr());
     }
     
@@ -275,7 +275,7 @@ static struct expr * shift_expr()
     shift1 = additive_expr();
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
-        match(token->id);
+        expect(token->id);
         shift1 = expr_node(BINARY_EXPR, t, shift1, additive_expr());
     }
     
@@ -289,7 +289,7 @@ static struct expr * relation_expr()
     rel = shift_expr();
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
-        match(token->id);
+        expect(token->id);
         rel = expr_node(BINARY_EXPR, t, rel, shift_expr());
     }
     
@@ -303,7 +303,7 @@ static struct expr * equality_expr()
     equl = relation_expr();
     while (token->id == EQ || token->id == NEQ) {
         int t = token->id;
-        match(token->id);
+        expect(token->id);
         equl = expr_node(BINARY_EXPR, t, equl, relation_expr());
     }
     
@@ -316,7 +316,7 @@ static struct expr * and_expr()
     
     and1 = equality_expr();
     while (token->id == '&') {
-        match('&');
+        expect('&');
         and1 = expr_node(BINARY_EXPR, '&', and1, equality_expr());
     }
     
@@ -329,7 +329,7 @@ static struct expr * exclusive_or()
     
     eor = and_expr();
     while (token->id == '^') {
-        match('^');
+        expect('^');
         eor = expr_node(BINARY_EXPR, '^', eor, and_expr());
     }
     
@@ -342,7 +342,7 @@ static struct expr * inclusive_or()
     
     ior = exclusive_or();
     while (token->id == '|') {
-        match('|');
+        expect('|');
         ior = expr_node(BINARY_EXPR, '|', ior, exclusive_or());
     }
     
@@ -355,7 +355,7 @@ static struct expr * logic_and()
     
     and1 = inclusive_or();
     while (token->id == AND) {
-        match(AND);
+        expect(AND);
         and1 = expr_node(BINARY_EXPR, AND, and1, inclusive_or());
     }
     
@@ -374,19 +374,19 @@ static struct expr * cond_expr(struct expr *e)
             case '/':
             case '%':
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, cast_expr());
                 break;
             case '+':
             case '-':
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, multiple_expr());
                 break;
             case LSHIFT:
             case RSHIFT:
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, additive_expr());
                 break;
             case '>':
@@ -394,46 +394,46 @@ static struct expr * cond_expr(struct expr *e)
             case LEQ:
             case GEQ:
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, shift_expr());
                 break;
             case EQ:
             case NEQ:
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, relation_expr());
                 break;
             case '&':
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, equality_expr());
                 break;
             case '^':
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, and_expr());
                 break;
             case '|':
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, exclusive_or());
                 break;
             case AND:
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, inclusive_or());
                 break;
             case OR:
                 t = token->id;
-                match(token->id);
+                expect(token->id);
                 ret = expr_node(BINARY_EXPR, t, ret, logic_and());
                 break;
             default:
                 if (token->id == '?') {
                     struct expr *r, *e, *c;
-                    match('?');
+                    expect('?');
                     e = expression();
-                    match(':');
+                    expect(':');
                     c = cond_expr(NULL);
                     r = expr_node(BINARY_EXPR, ':', e, c);
                     ret = expr_node(BINARY_EXPR, '?', ret, r);
@@ -443,7 +443,7 @@ static struct expr * cond_expr(struct expr *e)
     }
 }
 
-struct expr * assign_expression()
+struct expr * assign_expr()
 {
     struct expr *assign1;
     struct token *ahead = lookahead();
@@ -457,8 +457,8 @@ struct expr * assign_expression()
             texpr = postfix_expr1(texpr);
             if (is_assign_op(token->id)) {
                 int t = token->id;
-                match(token->id);
-                assign1 = expr_node(BINARY_EXPR, t, texpr, assign_expression());
+                expect(token->id);
+                assign1 = expr_node(BINARY_EXPR, t, texpr, assign_expr());
             } else {
                 assign1 = cond_expr(texpr);
             }
@@ -471,8 +471,8 @@ struct expr * assign_expression()
         struct expr * uexpr = unary_expr();
         if (is_assign_op(token->id)) {
             int t = token->id;
-            match(token->id);
-            assign1 = expr_node(BINARY_EXPR, t, uexpr, assign_expression());
+            expect(token->id);
+            assign1 = expr_node(BINARY_EXPR, t, uexpr, assign_expr());
         } else {
             assign1 = cond_expr(uexpr);
         }
@@ -485,29 +485,28 @@ struct expr * expression()
 {
     struct expr *expr;
     
-    expr = assign_expression();
+    expr = assign_expr();
     while (token->id == ',') {
-        match(token->id);
-        expr = expr_node(COMMA_EXPR, ',', expr, assign_expression());
+        expect(',');
+        expr = expr_node(BINARY_EXPR, ',', expr, assign_expr());
     }
     
     return expr;
 }
 
 // TODO: cast initializer list
-int is_constexpr(struct node *expr)
+static int isconstexpr(struct node *expr)
 {
     if (!expr || !isexpr(expr))
         return 0;
     
     switch (expr->id) {
         case BINARY_EXPR:
-        case COMMA_EXPR:
-            return is_constexpr(expr->kids[0]) && is_constexpr(expr->kids[1]);
+            return isconstexpr(expr->kids[0]) && isconstexpr(expr->kids[1]);
             
         case UNARY_EXPR:
         case CAST_EXPR:
-            return is_constexpr(expr->kids[0]);
+            return isconstexpr(expr->kids[0]);
             
         case INTEGER_LITERAL:
         case FLOAT_LITERAL:
@@ -526,18 +525,37 @@ int is_constexpr(struct node *expr)
     }
 }
 
-struct expr * constant_expression()
+//TODO
+static int eval(struct expr *expr)
 {
+    if (!expr)
+        return 0;
+    
+    assert(isconstexpr(NODE(expr)));
+    
+    return 0;
+}
+
+struct expr * constant_expr()
+{
+    struct source src = source;
     struct expr *expr = cond_expr(NULL);
-    if (is_constexpr(NODE(expr)))
+    if (isconstexpr(NODE(expr))) {
         return expr;
-    else
+    } else {
+        errorf(src, "expect constant expression");
         return NULL;
+    }
 }
 
 // TODO
 int intexpr()
 {
-    constant_expression();
-    return 0;
+    struct expr *expr;
+    int val;
+    
+    expr = constant_expr();
+    val = eval(expr);
+    
+    return val;
 }

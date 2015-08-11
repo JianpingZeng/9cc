@@ -41,8 +41,8 @@ extern struct token  *token;
 extern void lexer_init();
 extern int  gettok();
 extern struct token *  lookahead();
-extern void match(int t);
-extern void skipto(int t);
+extern void expect(int t);
+extern void match(int t, int follow[]);
 extern const char *tname(int t);
 
 #endif

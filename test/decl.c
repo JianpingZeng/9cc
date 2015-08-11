@@ -254,19 +254,25 @@ int * (*f) (float a, int , int (*) (int));
 // struct S2 v2;
 // struct S3 v3;
 
-struct S {
-    int (*f) (int);
-};
-
-void f2(struct T { int a;} b, int a)
-{
-}
+//struct S {
+//    int (*f) (int);
+//};
+//
+//void f2(struct T { int a;} b, int a)
+//{
+//}
+//
+//void g()
+//{
+//    struct S a = { .f = 0, };
+//}
 
 void g()
 {
-    struct S a = { .f = 0, };
+    
 }
 
-
+int (*)
+int a;
 
 
