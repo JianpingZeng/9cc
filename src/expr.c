@@ -32,13 +32,12 @@ static struct expr * typename_expr()
     return expr;
 }
 
-static struct expr * argument_expr_list()
+static struct expr ** argument_expr_list()
 {
-    struct expr *ret = NULL;
+    struct expr **args = NULL;
     
     if (firstexpr(token)) {
         struct vector *v = new_vector();
-        ret = expr_node(ARGS_EXPR, 0, NULL, NULL);
         for (;;) {
             vec_push(v, NODE(assign_expr()));
             if (token->id == ',')
@@ -46,12 +45,12 @@ static struct expr * argument_expr_list()
             else
                 break;
         }
-        ret->u.args = (struct expr **)vtoa(v);
+        args = (struct expr **)vtoa(v);
     } else if (token->id != ')') {
         error("expect assignment expression");
     }
     
-    return ret;
+    return args;
 }
 
 static struct expr * postfix_expr1(struct expr *ret)
@@ -70,7 +69,8 @@ static struct expr * postfix_expr1(struct expr *ret)
             case '(':
                 t = token->id;
                 expect('(');
-                ret = expr_node(CALL_EXPR, 0, ret, argument_expr_list());
+                ret = expr_node(CALL_EXPR, 0, ret, NULL);
+		ret->u.args = argument_expr_list();
                 expect(')');
                 break;
             case '.':
@@ -501,27 +501,30 @@ static int isconstexpr(struct node *expr)
         return 0;
     
     switch (expr->id) {
-        case BINARY_EXPR:
-            return isconstexpr(expr->kids[0]) && isconstexpr(expr->kids[1]);
+    case BINARY_EXPR:
+	return isconstexpr(expr->kids[0]) && isconstexpr(expr->kids[1]);
             
-        case UNARY_EXPR:
-        case CAST_EXPR:
-            return isconstexpr(expr->kids[0]);
+    case UNARY_EXPR:
+    case CAST_EXPR:
+	return isconstexpr(expr->kids[0]);
+
+    case INITS_EXPR:
+	//TODO
+	return 0;
             
-        case INTEGER_LITERAL:
-        case FLOAT_LITERAL:
-        case STRING_LITERAL:
-            return 1;
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case STRING_LITERAL:
+	return 1;
             
-        case ADDR_EXPR:
-            return 0;
+    case ADDR_EXPR:
+	return 0;
             
-        case CALL_EXPR:
-        case ARGS_EXPR:
-            return 0;
+    case CALL_EXPR:
+	return 0;
             
-        default:
-            assert(0);
+    default:
+	assert(0);
     }
 }
 

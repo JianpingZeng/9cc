@@ -23,7 +23,6 @@ _n(UNARY_EXPR,        "UnaryExpr")
 _n(ADDR_EXPR,         "AddrExpr")
 _n(CAST_EXPR,         "CastExpr")
 _n(CALL_EXPR,         "CallExpr")
-_n(ARGS_EXPR,         "ArgumentExpr")
 _n(INITS_EXPR,        "InitializerExpr")
 
 _ns(BEGIN_LITERAL_ID)

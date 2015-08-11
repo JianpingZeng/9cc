@@ -1126,28 +1126,32 @@ struct expr * initializer_list()
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     
-    struct expr *inits_node = expr_node(INITS_EXPR, 0, NULL, NULL);
+    struct expr *ret = expr_node(INITS_EXPR, 0, NULL, NULL);
     struct vector *v = new_vector();
     expect('{');
     for (; token->id == '[' || token->id == '.' || token->id == '{'
          || firstexpr(token);) {
         struct expr *lnode = NULL;
+	struct expr *rnode;
         
         if (token->id == '[' || token->id == '.') {
             for (; token->id == '[' || token->id == '.'; ) {
                 if (token->id == '[') {
                     expect('[');
-                    constant_expr();
+                    int i = intexpr();
                     expect(']');
                 } else {
                     expect('.');
-                    expect(ID);
+		    if (token->id == ID) {
+			
+		    }
+		    expect(ID);
                 }
             }
             expect('=');
         }
         
-        struct expr *rnode = initializer();
+        rnode = initializer();
         if (lnode) {
             struct expr *assign_node = expr_node(BINARY_EXPR, '=', lnode, rnode);
             vec_push(v, assign_node);
@@ -1160,7 +1164,9 @@ struct expr * initializer_list()
         expect(',');
     
     match('}', follow);
-    return inits_node;
+    ret->u.inits = (struct expr **)vtoa(v);
+    
+    return ret;
 }
 
 int istypename(struct token *t)
