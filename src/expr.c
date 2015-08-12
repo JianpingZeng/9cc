@@ -70,7 +70,7 @@ static struct expr * postfix_expr1(struct expr *ret)
                 t = token->id;
                 expect('(');
                 ret = expr_node(CALL_EXPR, 0, ret, NULL);
-		ret->u.args = argument_expr_list();
+                ret->u.args = argument_expr_list();
                 expect(')');
                 break;
             case '.':
@@ -224,7 +224,6 @@ static struct expr * cast_expr()
     struct token * ahead = lookahead();
     
     if (token->id == '(' && istypename(ahead)) {
-        // type-name
         cast1 = typename_expr();
         if (token->id == '{') {
             cast1->node.kids[0] = NODE(initializer_list());
@@ -233,7 +232,6 @@ static struct expr * cast_expr()
             cast1->node.kids[0] = (struct node*)cast_expr();
         }
     } else {
-        // expression
         cast1 = unary_expr();
     }
     
@@ -501,30 +499,30 @@ static int isconstexpr(struct node *expr)
         return 0;
     
     switch (expr->id) {
-    case BINARY_EXPR:
-	return isconstexpr(expr->kids[0]) && isconstexpr(expr->kids[1]);
+        case BINARY_EXPR:
+            return isconstexpr(expr->kids[0]) && isconstexpr(expr->kids[1]);
             
-    case UNARY_EXPR:
-    case CAST_EXPR:
-	return isconstexpr(expr->kids[0]);
-
-    case INITS_EXPR:
-	//TODO
-	return 0;
+        case UNARY_EXPR:
+        case CAST_EXPR:
+            return isconstexpr(expr->kids[0]);
             
-    case INTEGER_LITERAL:
-    case FLOAT_LITERAL:
-    case STRING_LITERAL:
-	return 1;
+        case INITS_EXPR:
+            //TODO
+            return 0;
             
-    case ADDR_EXPR:
-	return 0;
+        case INTEGER_LITERAL:
+        case FLOAT_LITERAL:
+        case STRING_LITERAL:
+            return 1;
             
-    case CALL_EXPR:
-	return 0;
+        case ADDR_EXPR:
+            return 0;
             
-    default:
-	assert(0);
+        case CALL_EXPR:
+            return 0;
+            
+        default:
+            assert(0);
     }
 }
 

@@ -180,7 +180,7 @@ static void print_tree1(struct print_context context)
                 fprintf(stderr, "  ");
             fprintf(stderr, "ctrl: <NULL>\n");
         }
-    } else if (isexpr(node) && node->id == ARGS_EXPR) {
+    } else if (isexpr(node) && node->id == CALL_EXPR) {
         struct expr *expr = (struct expr *) node;
         if (expr->u.args) {
             for (int i=0; expr->u.args[i]; i++) {

@@ -702,10 +702,12 @@ static void fields(struct type *sty)
         
         for (;;) {
             struct field *field = new_field(NULL);
+            int hasbit = 0;
             if (token->id == ':') {
                 expect(':');
-                intexpr();
-                field->type = inttype;
+                field->bitsize = intexpr();
+                field->type = basety;
+                hasbit = 1;
             } else {
                 struct type *ty = NULL;
                 const char *id = NULL;
@@ -713,7 +715,8 @@ static void fields(struct type *sty)
                 attach_type(&ty, basety);
                 if (token->id == ':') {
                     expect(':');
-                    intexpr();
+                    field->bitsize = intexpr();
+                    hasbit = 1;
                 }
                 field->type = ty;
                 if (id) {
@@ -729,6 +732,26 @@ static void fields(struct type *sty)
                     error("missing identifier");
                 }
             }
+            
+            if (hasbit) {
+                if (field->type->op != INT && field->type->op != UNSIGNED) {
+                    if (field->name)
+                        error("bit-field '%s' has non-integral type '%s'", field->name, field->type->name);
+                    else
+                        error("anonymous bit-field has non-integral type '%s'", field->type->name);
+                }
+                if (field->bitsize < 0) {
+                    if (field->name)
+                        error("bit-field '%s' has negative width '%d'", field->name, field->bitsize);
+                    else
+                        error("anonymous bit-field has negative width '%d'", field->bitsize);
+                }
+                if (field->bitsize == 0 && field->name)
+                    error("named bit-field '%s' has zero width", field->name);
+                if (field->bitsize > BITS(field->type))
+                    error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", field->bitsize, BITS(field->type));
+            }
+            
             vec_push(v, field);
             
             if (token->id != ',')
@@ -1142,10 +1165,10 @@ struct expr * initializer_list()
                     expect(']');
                 } else {
                     expect('.');
-		    if (token->id == ID) {
-			
-		    }
-		    expect(ID);
+                    if (token->id == ID) {
+                        
+                    }
+                    expect(ID);
                 }
             }
             expect('=');

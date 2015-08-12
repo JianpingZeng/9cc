@@ -267,12 +267,17 @@ int * (*f) (float a, int , int (*) (int));
 //    struct S a = { .f = 0, };
 //}
 
-void g()
-{
-    
-}
+//void g()
+//{
+//    
+//}
+//
+//int (*)
+//int a;
 
-int (*)
-int a;
-
+struct s {
+    float a:2;
+    int : 3;
+    int b : 42;
+};
 
