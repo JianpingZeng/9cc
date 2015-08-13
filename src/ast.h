@@ -95,13 +95,12 @@ extern struct stmt * compound_statement(struct stmt *context);
 #define KID0(n)    (NODE(n)->kids[0])
 #define KID1(n)    (NODE(n)->kids[1])
 
-#define isexpr(n)  ((n)->id > BEGIN_EXPR_ID && (n)->id < END_EXPR_ID)
-#define isdecl(n)  ((n)->id > BEGIN_DECL_ID && (n)->id < END_DECL_ID)
-#define isstmt(n)  ((n)->id > BEGIN_STMT_ID && (n)->id < END_STMT_ID)
-#define isanode(n)  ((n)->id == ARRAY_NODE)
+#define isexpr(n)  (NODE(n)->id > BEGIN_EXPR_ID && NODE(n)->id < END_EXPR_ID)
+#define isdecl(n)  (NODE(n)->id > BEGIN_DECL_ID && NODE(n)->id < END_DECL_ID)
+#define isstmt(n)  (NODE(n)->id > BEGIN_STMT_ID && NODE(n)->id < END_STMT_ID)
 #define isfuncdecl(n) (NODE(n)->id == FUNC_DECL)
 #define isfuncdef(n) (isfuncdecl(n) && KID0(n) && KID0(n)->id == COMPOUND_STMT)
-#define isliteral(n) ((n)->id > BEGIN_LITERAL_ID && (n)->id < END_LITERAL_ID)
+#define isliteral(n) (NODE(n)->id > BEGIN_LITERAL_ID && NODE(n)->id < END_LITERAL_ID)
 #define is_switch_stmt(n) ((n) && NODE(n)->id == SWITCH_STMT)
 #define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
 

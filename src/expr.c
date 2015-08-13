@@ -1,6 +1,8 @@
 #include "cc.h"
 
 static struct expr * cast_expr();
+static struct type * reduce(struct expr *expr);
+static void ensure_assign(struct expr *asign);
 
 static inline int is_assign_op(int t)
 {
@@ -79,10 +81,22 @@ static struct expr * postfix_expr1(struct expr *ret)
                 t = token->id;
                 expect(t);
                 if (token->id == ID) {
-                    //TODO
-                    
-                } else {
-                    error("expect identifier");
+                    struct type *lty = reduce(ret);
+                    struct type *basety = t == DEREF ? lty->type : lty;
+                    if (isstruct(basety) || isunion(basety)) {
+                        int i;
+                        
+                        for (i=0; i < ARRAY_SIZE(basety->u.s.fields); i++) {
+                            struct field *f = basety->u.s.fields[i];
+                            if (!strcmp(f->name, token->name)) {
+                                break;
+                            }
+                        }
+                        if (i >= ARRAY_SIZE(basety->u.s.fields))
+                            error("no member named '%s' in '%s'", token->name, basety->name);
+                    } else {
+                        error("member reference base type '%s' is not a struct or union", basety->name);
+                    }
                 }
                 ret = expr_node(MEMBER_EXPR, t, ret, expr_node(REF_EXPR, ID, NULL, NULL));
                 expect(ID);
@@ -461,6 +475,7 @@ struct expr * assign_expr()
                 int t = token->id;
                 expect(token->id);
                 assign1 = expr_node(BINARY_EXPR, t, texpr, assign_expr());
+                ensure_assign(assign1);
             } else {
                 assign1 = cond_expr(texpr);
             }
@@ -475,6 +490,7 @@ struct expr * assign_expr()
             int t = token->id;
             expect(token->id);
             assign1 = expr_node(BINARY_EXPR, t, uexpr, assign_expr());
+            ensure_assign(assign1);
         } else {
             assign1 = cond_expr(uexpr);
         }
@@ -563,4 +579,25 @@ int intexpr()
     val = eval(expr);
     
     return val;
+}
+
+// TODO
+static struct type * reduce(struct expr *expr)
+{
+    return NULL;
+}
+
+// TODO
+static void ensure_assign(struct expr *asign)
+{
+    struct expr *l = (struct expr *)KID0(asign);
+    struct expr *r = (struct expr *)KID1(asign);
+    
+    if (l == NULL || r == NULL)
+        error("assign expression invalid");
+    
+    assert(isexpr(l) && isexpr(r));
+    
+    
+    
 }
