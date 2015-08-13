@@ -511,18 +511,34 @@ struct expr * expression()
 }
 
 // TODO: cast initializer list
-static int isconstexpr(struct node *expr)
+static int isconstexpr(struct expr *expr)
 {
     if (!expr || !isexpr(expr))
         return 0;
     
-    switch (expr->id) {
+    struct expr *l = (struct expr *)KID0(expr);
+    struct expr *r = (struct expr *)KID1(expr);
+    
+    switch (NODE(expr)->id) {
         case BINARY_EXPR:
-            return isconstexpr(KID0(expr)) && isconstexpr(KID1(expr));
+            return isconstexpr(l) && isconstexpr(r);
             
         case UNARY_EXPR:
         case CAST_EXPR:
-            return isconstexpr(KID0(expr));
+            return isconstexpr(l);
+            
+        case COND_EXPR:
+            return isconstexpr(expr->u.cond.o) && isconstexpr(expr->u.cond.e) && isconstexpr(expr->u.cond.c);
+            
+        case INDEX_EXPR:
+            return isconstexpr(l) && isconstexpr(r);
+            
+        case MEMBER_EXPR:
+            //TODO
+            return 0;
+            
+        case PAREN_EXPR:
+            return isconstexpr(l);
             
         case INITS_EXPR:
             //TODO
@@ -545,21 +561,66 @@ static int isconstexpr(struct node *expr)
 }
 
 //TODO
-static int eval(struct expr *expr)
+static int eval(struct expr *expr, int *error)
 {
     if (!expr)
         return 0;
     
-    assert(isconstexpr(NODE(expr)));
+    assert(isexpr(expr));
+    
+    struct expr *l = (struct expr *)KID0(expr);
+    struct expr *r = (struct expr *)KID1(expr);
+    
+    switch (NODE(expr)->id) {
+        case BINARY_EXPR:
+            return 0;
+            
+        case UNARY_EXPR:
+        case CAST_EXPR:
+            return 0;
+            
+        case COND_EXPR:
+            return 0;
+            
+        case INDEX_EXPR:
+            return 0;
+            
+        case MEMBER_EXPR:
+            return 0;
+            
+        case PAREN_EXPR:
+            return 0;
+            
+        case INITS_EXPR:
+            return 0;
+            
+        case INTEGER_LITERAL:
+        case FLOAT_LITERAL:
+        case STRING_LITERAL:
+            return 0;
+            
+        case REF_EXPR:
+            return 0;
+            
+        case CALL_EXPR:
+            return 0;
+            
+        default:
+            assert(0);
+    }
     
     return 0;
 }
 
-struct expr * constant_expr()
+static struct expr * eval_constant_expr(int *value)
 {
     struct source src = source;
     struct expr *expr = cond_expr(NULL);
-    if (isconstexpr(NODE(expr))) {
+    int error = 0;
+    int val = eval(expr, &error);
+    if (value)
+        *value = val;
+    if (error == 0) {
         return expr;
     } else {
         errorf(src, "expect constant expression");
@@ -567,15 +628,15 @@ struct expr * constant_expr()
     }
 }
 
-// TODO
+struct expr * constant_expr()
+{
+    return eval_constant_expr(NULL);
+}
+
 int intexpr()
 {
-    struct expr *expr;
-    int val;
-    
-    expr = constant_expr();
-    val = eval(expr);
-    
+    int val = 0;
+    (void) eval_constant_expr(&val);
     return val;
 }
 
