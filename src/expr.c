@@ -158,7 +158,7 @@ static struct expr * postfix_expr()
                 KID0(ret) = NODE(initializer_list());
             } else {
                 expect('(');
-                ret = expression();
+                ret = expr_node(PAREN_EXPR, 0, expression(), NULL);
                 expect(')');
             }
         }
@@ -184,6 +184,7 @@ static struct expr * unary_expr()
             t = token->id;
             expect(t);
             uexpr = expr_node(UNARY_EXPR, t, unary_expr(), NULL);
+            uexpr->u.prefix = 1;
             break;
         case '&':
         case '*':
@@ -429,15 +430,15 @@ static struct expr * cond_expr(struct expr *e)
             default:
                 if (token->id == '?') {
                     struct expr *o, *e, *c;
-		    o = ret;
+                    o = ret;
                     expect('?');
                     e = expression();
                     expect(':');
                     c = cond_expr(NULL);
-		    ret = expr_node(COND_EXPR, '?', NULL, NULL);
-		    ret->u.cond.o = o;
-		    ret->u.cond.e = e;
-		    ret->u.cond.c = c;
+                    ret = expr_node(COND_EXPR, '?', NULL, NULL);
+                    ret->u.cond.o = o;
+                    ret->u.cond.e = e;
+                    ret->u.cond.c = c;
                 }
                 return ret;
         }

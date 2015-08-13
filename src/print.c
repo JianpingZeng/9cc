@@ -113,9 +113,9 @@ static void print_tree1(struct print_context context)
     } else if (isexpr(node)) {
         struct expr *e = (struct expr *)node;
         if (node->symbol)
-            fprintf(stderr, "%s '%s' %s\n", nname(node), tname(e->op), STR(node->symbol->name));
+            fprintf(stderr, "%s '%s' %s %s\n", nname(node), tname(e->op), STR(node->symbol->name), (e->op == INCR || e->op == DECR) ? (e->u.prefix ? "prefix" : "postfix") : "");
         else
-            fprintf(stderr, "%s '%s'\n", nname(node), tname(e->op));
+            fprintf(stderr, "%s '%s' %s\n", nname(node), tname(e->op), (e->op == INCR || e->op == DECR) ? (e->u.prefix ? "prefix" : "postfix") : "");
     } else if (isstmt(node)){
         struct stmt *s = (struct stmt *)node;
         if (s->up)

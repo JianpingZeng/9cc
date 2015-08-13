@@ -19,7 +19,6 @@ struct node {
 struct expr {
     struct node node;
     int op;
-    int prefix : 1;
     union {
         // call
         struct expr **args;
@@ -33,6 +32,8 @@ struct expr {
         }cond;
         // member
         const char *field;
+        // INCR/DECR
+        int prefix : 1;
     }u;
 };
 

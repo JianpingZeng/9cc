@@ -285,4 +285,7 @@ int func(int *p, float a)
 {
     int b, c;
     c + 1;
+    (b++);
+    (++c);
+    b[0] = 90;
 }
