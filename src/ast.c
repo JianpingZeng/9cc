@@ -22,8 +22,8 @@ struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
     struct expr * expr = NEWS(expr);
     expr->node.id = id;
     expr->op = op;
-    expr->node.kids[0] = NODE(l);
-    expr->node.kids[1] = NODE(r);
+    KID0(expr) = NODE(l);
+    KID1(expr) = NODE(r);
     return expr;
 }
 
@@ -32,8 +32,8 @@ struct stmt * stmt_node(int id, struct node *l, struct node *r)
     assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
     struct stmt * stmt = NEWS(stmt);
     stmt->node.id = id;
-    stmt->node.kids[0] = l;
-    stmt->node.kids[1] = r;
+    KID0(stmt) = l;
+    KID1(stmt) = r;
     return stmt;
 }
 

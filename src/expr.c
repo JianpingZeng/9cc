@@ -155,7 +155,7 @@ static struct expr * postfix_expr()
             struct token *ahead = lookahead();
             if (istypename(ahead)) {
                 ret = typename_expr();
-                ret->node.kids[0] = NODE(initializer_list());
+                KID0(ret) = NODE(initializer_list());
             } else {
                 expect('(');
                 ret = expression();
@@ -202,7 +202,7 @@ static struct expr * unary_expr()
             if (token->id == '(' && istypename(ahead)) {
                 struct expr *texpr = typename_expr();
                 if (token->id == '{') {
-                    texpr->node.kids[0] = NODE(initializer_list());
+                    KID0(texpr) = NODE(initializer_list());
                     texpr = postfix_expr1(texpr);
                 }
                 uexpr = expr_node(UNARY_EXPR, t, texpr, NULL);
@@ -226,10 +226,10 @@ static struct expr * cast_expr()
     if (token->id == '(' && istypename(ahead)) {
         cast1 = typename_expr();
         if (token->id == '{') {
-            cast1->node.kids[0] = NODE(initializer_list());
+            KID0(cast1) = NODE(initializer_list());
             cast1 = postfix_expr1(cast1);
         } else {
-            cast1->node.kids[0] = (struct node*)cast_expr();
+            KID0(cast1) = (struct node*)cast_expr();
         }
     } else {
         cast1 = unary_expr();
@@ -454,7 +454,7 @@ struct expr * assign_expr()
         struct expr *texpr = typename_expr();
         if (token->id == '{') {
             // unary
-            texpr->node.kids[0] = NODE(initializer_list());
+            KID0(texpr) = NODE(initializer_list());
             texpr = postfix_expr1(texpr);
             if (is_assign_op(token->id)) {
                 int t = token->id;
@@ -465,7 +465,7 @@ struct expr * assign_expr()
             }
         } else {
             // cast
-            texpr->node.kids[0] = (struct node*)cast_expr();
+            KID0(texpr) = (struct node*)cast_expr();
             assign1 = cond_expr(texpr);
         }
     } else {
@@ -503,11 +503,11 @@ static int isconstexpr(struct node *expr)
     
     switch (expr->id) {
         case BINARY_EXPR:
-            return isconstexpr(expr->kids[0]) && isconstexpr(expr->kids[1]);
+            return isconstexpr(KID0(expr)) && isconstexpr(KID1(expr));
             
         case UNARY_EXPR:
         case CAST_EXPR:
-            return isconstexpr(expr->kids[0]);
+            return isconstexpr(KID0(expr));
             
         case INITS_EXPR:
             //TODO

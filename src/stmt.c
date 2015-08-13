@@ -54,7 +54,7 @@ static struct stmt * while_stmt(struct stmt *context)
     
     ret = stmt_node(WHILE_STMT, NODE(expr), NULL);
     ret->up = context;
-    ret->node.kids[1] = NODE(statement(ret));
+    KID1(ret) = NODE(statement(ret));
     ret->up = NULL;
     
     return ret;
@@ -76,8 +76,8 @@ static struct stmt * do_while_stmt(struct stmt *context)
     expr = expression();
     expect(')');
     expect(';');
-    ret->node.kids[0] = NODE(stmt);
-    ret->node.kids[1] = NODE(expr);
+    KID0(ret) = NODE(stmt);
+    KID1(ret) = NODE(expr);
     ret->up = NULL;
     
     return ret;
@@ -116,7 +116,7 @@ static struct stmt * for_stmt(struct stmt *context)
     expect(')');
     
     ret->up = context;
-    ret->node.kids[0] = NODE(statement(ret));
+    KID0(ret) = NODE(statement(ret));
     ret->up = NULL;
     
     exit_scope();
@@ -136,7 +136,7 @@ static struct stmt * switch_stmt(struct stmt *context)
     
     ret = stmt_node(SWITCH_STMT, NODE(expr), NULL);
     ret->up = context;
-    ret->node.kids[1] = NODE(statement(ret));
+    KID1(ret) = NODE(statement(ret));
     ret->up = NULL;
     
     return ret;

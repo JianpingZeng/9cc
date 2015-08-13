@@ -190,17 +190,17 @@ static void print_tree1(struct print_context context)
         }
     }
     
-    if (context.node->kids[0]) {
+    if (KID0(context.node)) {
         struct print_context lcontext;
         lcontext.level = level;
-        lcontext.node = context.node->kids[0];
+        lcontext.node = KID0(context.node);
         print_tree1(lcontext);
     }
     
-    if (context.node->kids[1]) {
+    if (KID1(context.node)) {
         struct print_context rcontext;
         rcontext.level = level;
-        rcontext.node = context.node->kids[1];
+        rcontext.node = KID1(context.node);
         print_tree1(rcontext);
     }
 }

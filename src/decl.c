@@ -15,7 +15,7 @@ static struct expr * initializer();
 
 int firstdecl(struct token *t)
 {
-    return t->kind == STATIC || t->kind == INT || t->kind == CONST || t->id == ID;
+    return t->kind == STATIC || t->kind == INT || t->kind == CONST || (t->id == ID && is_typedef_name(t->name));
 }
 
 int firststmt(struct token *t)
@@ -1042,7 +1042,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
         // install symbol first for backward reference
         struct stmt *stmt = compound_statement(NULL);
         exit_scope();
-        decl->node.kids[0] = NODE(stmt);
+        KID0(decl) = NODE(stmt);
     }
     
     return decl;

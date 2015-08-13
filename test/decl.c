@@ -275,9 +275,14 @@ int * (*f) (float a, int , int (*) (int));
 //int (*)
 //int a;
 
-struct s {
-    float a:2;
-    int : 3;
-    int b : 42;
-};
+//struct s {
+//    float a:2;
+//    int : 3;
+//    int b : 42;
+//};
 
+int func(int *p, float a)
+{
+    int b, c;
+    c + 1;
+}
