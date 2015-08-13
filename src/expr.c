@@ -510,56 +510,6 @@ struct expr * expression()
     return expr;
 }
 
-// TODO: cast initializer list
-static int isconstexpr(struct expr *expr)
-{
-    if (!expr || !isexpr(expr))
-        return 0;
-    
-    struct expr *l = (struct expr *)KID0(expr);
-    struct expr *r = (struct expr *)KID1(expr);
-    
-    switch (NODE(expr)->id) {
-        case BINARY_EXPR:
-            return isconstexpr(l) && isconstexpr(r);
-            
-        case UNARY_EXPR:
-        case CAST_EXPR:
-            return isconstexpr(l);
-            
-        case COND_EXPR:
-            return isconstexpr(expr->u.cond.o) && isconstexpr(expr->u.cond.e) && isconstexpr(expr->u.cond.c);
-            
-        case INDEX_EXPR:
-            return isconstexpr(l) && isconstexpr(r);
-            
-        case MEMBER_EXPR:
-            //TODO
-            return 0;
-            
-        case PAREN_EXPR:
-            return isconstexpr(l);
-            
-        case INITS_EXPR:
-            //TODO
-            return 0;
-            
-        case INTEGER_LITERAL:
-        case FLOAT_LITERAL:
-        case STRING_LITERAL:
-            return 1;
-            
-        case REF_EXPR:
-            return 0;
-            
-        case CALL_EXPR:
-            return 0;
-            
-        default:
-            assert(0);
-    }
-}
-
 //TODO
 static int eval(struct expr *expr, int *error)
 {
