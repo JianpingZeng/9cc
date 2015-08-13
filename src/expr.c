@@ -63,7 +63,7 @@ static struct expr * postfix_expr1(struct expr *ret)
             case '[':
                 t = token->id;
                 expect('[');
-                ret = expr_node(BINARY_EXPR, t, ret, expression());
+                ret = expr_node(INDEX_EXPR, t, ret, expression());
                 expect(']');
                 break;
             case '(':
@@ -84,7 +84,7 @@ static struct expr * postfix_expr1(struct expr *ret)
                 } else {
                     error("expect identifier");
                 }
-                ret = expr_node(BINARY_EXPR, t, ret, expr_node(REF_EXPR, ID, NULL, NULL));
+                ret = expr_node(MEMBER_EXPR, t, ret, expr_node(REF_EXPR, ID, NULL, NULL));
                 expect(ID);
             }
                 break;
@@ -428,13 +428,16 @@ static struct expr * cond_expr(struct expr *e)
                 break;
             default:
                 if (token->id == '?') {
-                    struct expr *r, *e, *c;
+                    struct expr *o, *e, *c;
+		    o = ret;
                     expect('?');
                     e = expression();
                     expect(':');
                     c = cond_expr(NULL);
-                    r = expr_node(BINARY_EXPR, ':', e, c);
-                    ret = expr_node(BINARY_EXPR, '?', ret, r);
+		    ret = expr_node(COND_EXPR, '?', NULL, NULL);
+		    ret->u.cond.o = o;
+		    ret->u.cond.e = e;
+		    ret->u.cond.c = c;
                 }
                 return ret;
         }
