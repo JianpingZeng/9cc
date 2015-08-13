@@ -84,7 +84,7 @@ static struct expr * postfix_expr1(struct expr *ret)
                 } else {
                     error("expect identifier");
                 }
-                ret = expr_node(BINARY_EXPR, t, ret, expr_node(ADDR_EXPR, ID, NULL, NULL));
+                ret = expr_node(BINARY_EXPR, t, ret, expr_node(REF_EXPR, ID, NULL, NULL));
                 expect(ID);
             }
                 break;
@@ -118,7 +118,7 @@ static struct expr * postfix_expr()
             else
                 error("use of undeclared symbol '%s'", token->name);
             expect(t);
-            ret = expr_node(ADDR_EXPR, ID, NULL, NULL);
+            ret = expr_node(REF_EXPR, ID, NULL, NULL);
             ret->node.symbol = sym;
         }
             break;
@@ -515,7 +515,7 @@ static int isconstexpr(struct node *expr)
         case STRING_LITERAL:
             return 1;
             
-        case ADDR_EXPR:
+        case REF_EXPR:
             return 0;
             
         case CALL_EXPR:

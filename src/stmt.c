@@ -210,7 +210,7 @@ static struct stmt * label_stmt(struct stmt *context)
     struct node *label;
     struct stmt *stmt;
     
-    label = NODE(expr_node(ADDR_EXPR, ID, NULL, NULL));
+    label = NODE(expr_node(REF_EXPR, ID, NULL, NULL));
     expect(ID);
     expect(':');
     stmt = statement(context);
@@ -224,7 +224,7 @@ static struct stmt * goto_stmt()
     
     expect(GOTO);
     if (token->id == ID)
-        expr = NODE(expr_node(ADDR_EXPR, ID, NULL, NULL));
+        expr = NODE(expr_node(REF_EXPR, ID, NULL, NULL));
     expect(ID);
     expect(';');
     

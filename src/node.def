@@ -20,10 +20,13 @@ _ns(BEGIN_EXPR_ID)
 
 _n(BINARY_EXPR,       "BinaryExpr")
 _n(UNARY_EXPR,        "UnaryExpr")
-_n(ADDR_EXPR,         "AddrExpr")
+_n(COND_EXPR,         "ConditionalExpr")
+_n(INDEX_EXPR,        "ArraySubscriptExpr")
+_n(MEMBER_EXPR,       "MemberExpr")
+_n(REF_EXPR,          "RefExpr")
 _n(CAST_EXPR,         "CastExpr")
 _n(CALL_EXPR,         "CallExpr")
-_n(INITS_EXPR,        "InitializerExpr")
+_n(INITS_EXPR,        "InitListExpr")
 
 _ns(BEGIN_LITERAL_ID)
 

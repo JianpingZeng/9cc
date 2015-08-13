@@ -19,11 +19,20 @@ struct node {
 struct expr {
     struct node node;
     int op;
+    int prefix : 1;
     union {
-        // arguments
+        // call
         struct expr **args;
-        // initializer
+        // init list
         struct expr **inits;
+        // cond
+        struct {
+            struct expr *o;
+            struct expr *e;
+            struct expr *c;
+        }cond;
+        // member
+        const char *field;
     }u;
 };
 
