@@ -85,12 +85,10 @@ static struct expr * postfix_expr1(struct expr *ret)
                     struct type *basety = t == DEREF ? lty->type : lty;
                     if (isstruct(basety) || isunion(basety)) {
                         int i;
-                        
                         for (i=0; i < ARRAY_SIZE(basety->u.s.fields); i++) {
                             struct field *f = basety->u.s.fields[i];
-                            if (!strcmp(f->name, token->name)) {
+                            if (!strcmp(f->name, token->name))
                                 break;
-                            }
                         }
                         if (i >= ARRAY_SIZE(basety->u.s.fields))
                             error("no member named '%s' in '%s'", token->name, basety->name);
