@@ -2,21 +2,19 @@
 
 static struct expr * cast_expr();
 static struct type * reduce(struct expr *expr);
-static void ensure_assign(struct expr *asign);
+static void ensure_assignable(struct expr *asign);
+static int islvalue(struct expr *expr);
+static struct expr * cond_expr();
+static struct expr * cond_expr1(struct expr *o);
 
 static inline int is_assign_op(int t)
 {
     return t == '=' ||
-    t == MULEQ ||
-    t == ADDEQ ||
-    t == MINUSEQ ||
-    t == DIVEQ ||
+    t == MULEQ || t == ADDEQ || t == MINUSEQ || t == DIVEQ ||
     t == MODEQ ||
     t == XOREQ ||
-    t == BANDEQ ||
-    t == BOREQ ||
-    t == LSHIFTEQ ||
-    t == RSHIFTEQ;
+    t == BANDEQ || t == BOREQ ||
+    t == LSHIFTEQ || t == RSHIFTEQ;
 }
 
 static struct expr * typename_expr()
@@ -207,6 +205,15 @@ static struct expr * unary_expr()
             t = token->id;
             expect(t);
             uexpr = expr_node(UNARY_EXPR, t, cast_expr(), NULL);
+            if (t == '*') {
+                struct type *p = reduce(KID0(uexpr));
+                if (!ispointer(p))
+                    error("indirection requires pointer operand ('%s' invalid)", p->name);
+            } else if (t == '&') {
+                struct type *p = reduce(KID0(uexpr));
+                if (!islvalue(KID0(uexpr)))
+                    error("cannot take the address of an rvalue of type '%s'", p->name);
+            }
             break;
         case SIZEOF:
             t = token->id;
@@ -373,128 +380,56 @@ static struct expr * logic_and()
     return and1;
 }
 
-static struct expr * cond_expr(struct expr *e)
+static struct expr * logic_or()
 {
-    struct expr * ret;
-    int t;
+    struct expr * or1;
     
-    ret = e ? e : cast_expr();
-    for (;;) {
-        switch (token->id) {
-            case '*':
-            case '/':
-            case '%':
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, cast_expr());
-                break;
-            case '+':
-            case '-':
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, multiple_expr());
-                break;
-            case LSHIFT:
-            case RSHIFT:
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, additive_expr());
-                break;
-            case '>':
-            case '<':
-            case LEQ:
-            case GEQ:
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, shift_expr());
-                break;
-            case EQ:
-            case NEQ:
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, relation_expr());
-                break;
-            case '&':
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, equality_expr());
-                break;
-            case '^':
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, and_expr());
-                break;
-            case '|':
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, exclusive_or());
-                break;
-            case AND:
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, inclusive_or());
-                break;
-            case OR:
-                t = token->id;
-                expect(token->id);
-                ret = expr_node(BINARY_EXPR, t, ret, logic_and());
-                break;
-            default:
-                if (token->id == '?') {
-                    struct expr *o, *e, *c;
-                    o = ret;
-                    expect('?');
-                    e = expression();
-                    expect(':');
-                    c = cond_expr(NULL);
-                    ret = expr_node(COND_EXPR, '?', NULL, NULL);
-                    ret->u.cond.o = o;
-                    ret->u.cond.e = e;
-                    ret->u.cond.c = c;
-                }
-                return ret;
-        }
+    or1 = logic_and();
+    while (token->id == OR) {
+        expect(OR);
+        or1 = expr_node(BINARY_EXPR, OR, or1, logic_and());
     }
+    
+    return or1;
+}
+
+static struct expr * cond_expr1(struct expr *o)
+{
+    struct expr *ret, *e, *c;
+    expect('?');
+    
+    e = expression();
+    expect(':');
+    c = cond_expr();
+    
+    ret = expr_node(COND_EXPR, '?', NULL, NULL);
+    ret->u.cond.o = o;
+    ret->u.cond.e = e;
+    ret->u.cond.c = c;
+    
+    return ret;
+}
+
+static struct expr * cond_expr()
+{
+    struct expr * or1 = logic_or();
+    if (token->id == '?')
+        return cond_expr1(or1);
+    return or1;
 }
 
 struct expr * assign_expr()
 {
-    struct expr *assign1;
-    struct token *ahead = lookahead();
-    
-    if (token->id == '(' && istypename(ahead)) {
-        // type-name
-        struct expr *texpr = typename_expr();
-        if (token->id == '{') {
-            // unary
-            KID0(texpr) = NODE(initializer_list());
-            texpr = postfix_expr1(texpr);
-            if (is_assign_op(token->id)) {
-                int t = token->id;
-                expect(token->id);
-                assign1 = expr_node(BINARY_EXPR, t, texpr, assign_expr());
-                ensure_assign(assign1);
-            } else {
-                assign1 = cond_expr(texpr);
-            }
-        } else {
-            // cast
-            KID0(texpr) = (struct node*)cast_expr();
-            assign1 = cond_expr(texpr);
-        }
-    } else {
-        struct expr * uexpr = unary_expr();
-        if (is_assign_op(token->id)) {
-            int t = token->id;
-            expect(token->id);
-            assign1 = expr_node(BINARY_EXPR, t, uexpr, assign_expr());
-            ensure_assign(assign1);
-        } else {
-            assign1 = cond_expr(uexpr);
-        }
+    struct expr *or1 = logic_or();
+    if (token->id == '?')
+        return cond_expr1(or1);
+    if (is_assign_op(token->id)) {
+        int t = token->id;
+        expect(token->id);
+        or1 = expr_node(BINARY_EXPR, t, or1, assign_expr());
+        ensure_assignable(or1);
     }
-    
-    return assign1;
+    return or1;
 }
 
 struct expr * expression()
@@ -513,7 +448,7 @@ struct expr * expression()
 //TODO
 static int eval(struct expr *expr, int *error)
 {
-    if (!expr)
+    if (!expr || (error && *error))
         return 0;
     
     assert(isexpr(expr));
@@ -525,26 +460,111 @@ static int eval(struct expr *expr, int *error)
     
     switch (NODE(expr)->id) {
         case BINARY_EXPR:
-            return 0;
+        {
+            switch (expr->op) {
+                case ',': return L , R;
+                case '+': return L + R;
+                case '-': return L - R;
+                case '*': return L * R;
+                case '/': return L / R;
+                case '%': return L % R;
+                case LSHIFT: return L << R;
+                case RSHIFT: return L >> R;
+                case '>': return L > R;
+                case '<': return L < R;
+                case GEQ: return L >= R;
+                case LEQ: return L <= R;
+                case EQ: return L == R;
+                case NEQ: return L != R;
+                case AND: return L && R;
+                case OR: return L || R;
+                case '^': return L ^ R;
+                case '|': return L | R;
+                case '&': return L & R;
+                    
+                case '=':
+                case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
+                case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
+                case LSHIFTEQ:case RSHIFTEQ:
+                    if (error)
+                        *error = 1;
+                    return 0;
+                    
+                default:
+                    assert(0);
+            }
+        }
             
         case UNARY_EXPR:
-        case CAST_EXPR:
-            return 0;
+        {
+            switch (expr->op) {
+                case '&':
+                case '*':
+                case INCR:
+                case DECR:
+                    if (error)
+                        *error = 1;
+                    return 0;
+                case '+': return +L;
+                case '-': return -L;
+                case '~': return ~L;
+                case '!': return !L;
+                case SIZEOF:
+                    
+                    
+                default:
+                    assert(0);
+            }
+        }
             
-        case COND_EXPR:
+        case CAST_EXPR:
+            //TODO
             return 0;
             
         case INDEX_EXPR:
+            //TODO
             return 0;
             
         case MEMBER_EXPR:
+            //TODO
             return 0;
+            
+        case COND_EXPR:
+        {
+            struct expr *o = expr->u.cond.o;
+            struct expr *e = expr->u.cond.e;
+            struct expr *c = expr->u.cond.c;
+            int ret0, ret1, ret2, err;
+            err = 0;
+            ret0 = eval(o, &err);
+            if (err) goto end;
+            err = 0;
+            ret1 = eval(e, &err);
+            if (err) goto end;
+            if (ret0) {
+                return ret1;
+            } else {
+                err = 0;
+                ret2 = eval(c, &err);
+                if (err) goto end;
+                return ret2;
+            }
+        end:
+            if (error)
+                *error = 1;
+            return 0;
+        }
             
         case PAREN_EXPR:
-            return 0;
+            return L;
             
         case INITS_EXPR:
-            return 0;
+        {
+            if (expr->u.args)
+                return eval(expr->u.args[0], error);
+            else
+                return 0;
+        }
             
         case INTEGER_LITERAL:
 	    {
@@ -571,25 +591,27 @@ static int eval(struct expr *expr, int *error)
         }
 	    
         case STRING_LITERAL:
-            return 0;
+            return (int) expr->node.symbol->name;
             
         case REF_EXPR:
+            if (error)
+                *error = 1;
             return 0;
             
         case CALL_EXPR:
+            if (error)
+                *error = 1;
             return 0;
             
         default:
             assert(0);
     }
-    
-    return 0;
 }
 
 static struct expr * eval_intexpr(int *value)
 {
     struct source src = source;
-    struct expr *expr = cond_expr(NULL);
+    struct expr *expr = cond_expr();
     int error = 0;
     int val = eval(expr, &error);
     if (value)
@@ -621,7 +643,13 @@ static struct type * reduce(struct expr *expr)
 }
 
 // TODO
-static void ensure_assign(struct expr *asign)
+static int islvalue(struct expr *expr)
+{
+    
+}
+
+// TODO
+static void ensure_assignable(struct expr *asign)
 {
     struct expr *l = (struct expr *)KID0(asign);
     struct expr *r = (struct expr *)KID1(asign);

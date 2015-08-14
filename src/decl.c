@@ -748,11 +748,12 @@ static void fields(struct type *sty)
                 }
                 if (field->bitsize == 0 && field->name)
                     error("named bit-field '%s' has zero width", field->name);
-                if (field->bitsize > BITS(field->type))
+                if (field->bitsize > BITS(field->type)) {
                     if (field->name)
                         error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", field->name, field->bitsize, BITS(field->type));
                     else
                         error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", field->bitsize, BITS(field->type));
+                }
             }
             
             vec_push(v, field);
