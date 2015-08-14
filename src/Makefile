@@ -46,6 +46,11 @@ SYSDIR=sys/linux
 CFLAGS+=-DLINUX -D_BSD_SOURCE
 endif
 
+ifneq (, $(findstring CYGWIN, $(OS)))
+SYSDIR=sys/linux
+CFLAGS+=-DLINUX -D_BSD_SOURCE
+endif
+
 ifndef SYSDIR
 all:
 	@echo "Error: unsupported platform '$(OS)'"

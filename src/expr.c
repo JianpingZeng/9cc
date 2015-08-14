@@ -7,6 +7,461 @@ static int islvalue(struct expr *expr);
 static struct expr * cond_expr();
 static struct expr * cond_expr1(struct expr *o);
 
+// static int number()
+// {
+//     char *rpc = pc-1;
+//     if (rpc[0] == '0' && (rpc[1] == 'x' || rpc[1] == 'X')) {
+//         // Hex
+//         unsigned long long n = 0;
+//         int overflow = 0;
+//         struct string *s = new_string();
+//         str_catn(s, rpc, 2);
+//         pc = rpc = rpc + 2;
+//         if (!is_digithex(*rpc) && *rpc != '.') {
+//             integer_constant(n, overflow, 16, s);
+//             error("incomplete hex constant: %s", token->name);
+//             return ICONSTANT;
+//         }
+//         for (; is_digithex(*rpc) || rpc == pe; ) {
+//             if (rpc == pe) {
+//                 str_catn(s, pc, rpc-pc);
+//                 pc = rpc;
+//                 fillbuf();
+//                 rpc = pc;
+//                 if (pc == pe)
+//                     break;
+//                 else
+//                     continue;
+//             }
+//             if (n & ~(~0ULL >> 4)) {
+//                 overflow = 1;
+//             } else {
+//                 int d;
+//                 if (is_hex(*rpc))
+//                     d = (*rpc & 0x5f) - 'A' + 10;
+//                 else
+//                     d = *rpc - '0';
+                
+//                 n = (n<<4) + d;
+//             }
+//             rpc++;
+//         }
+//         str_catn(s, pc, rpc-pc);
+//         pc = rpc;
+//         if (*rpc == '.' || *rpc == 'p' || *rpc == 'P') {
+//             fnumber(s, 16);
+//             return FCONSTANT;
+//         } else {
+//             integer_constant(n, overflow, 16, s);
+//             return ICONSTANT;
+//         }
+//     } else if (rpc[0] == '0') {
+//         // Oct
+//         unsigned long long n = 0;
+//         int err = 0;
+//         int overflow = 0;
+//         struct string *s = new_string();
+//         pc = rpc;
+//         for (;is_digit(*rpc) || rpc == pe;) {
+//             if (rpc == pe) {
+//                 str_catn(s, pc, rpc-pc);
+//                 pc = rpc;
+//                 fillbuf();
+//                 rpc = pc;
+//                 if (pc == pe)
+//                     break;
+//                 else
+//                     continue;
+//             }
+//             if (*rpc == '8' || *rpc == '9')
+//                 err = 1;
+            
+//             if (n & ~(~0ULL >> 3))
+//                 overflow = 1;
+//             else
+//                 n = (n<<3) + (*rpc - '0');
+            
+//             rpc++;
+//         }
+//         str_catn(s, pc, rpc-pc);
+//         pc = rpc;
+//         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
+//             fnumber(s, 10);
+//             return FCONSTANT;
+//         } else {
+//             integer_constant(n, overflow, 8, s);
+//             if (err)
+//                 error("invalid octal constant %s", token->name);
+            
+//             return ICONSTANT;
+//         }
+//     } else {
+//         // Dec
+//         unsigned long long n = 0;
+//         int overflow = 0;
+//         struct string *s = new_string();
+//         pc = rpc;
+//         for (;is_digit(*rpc) || rpc == pe;) {
+//             if (rpc == pe) {
+//                 str_catn(s, pc, rpc-pc);
+//                 pc = rpc;
+//                 fillbuf();
+//                 rpc = pc;
+//                 if (pc == pe)
+//                     break;
+//                 else
+//                     continue;
+//             }
+//             int d = *rpc - '0';
+//             if (n > (unsignedlonglongtype->limits.max.u - d)/10)
+//                 overflow = 1;
+//             else
+//                 n = n*10 + (*rpc - '0');
+            
+//             rpc++;
+//         }
+//         str_catn(s, pc, rpc-pc);
+//         pc = rpc;
+//         if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
+//             fnumber(s, 10);
+//             return FCONSTANT;
+//         } else {
+//             integer_constant(n, overflow, 10, s);
+//             return ICONSTANT;
+//         }
+//     }
+// }
+
+// static void fnumber(struct string *s, int base)
+// {
+//     // ./e/E/p
+//     if (!s) s = new_string();
+    
+//     if (base == 10) {
+//         // . e E
+//         if (*pc == '.') {
+//             str_catn(s, pc++, 1);
+//             char *rpc = pc;
+//             for (;is_digit(*rpc) || rpc == pe;) {
+//                 if (rpc == pe) {
+//                     str_catn(s, pc, rpc-pc);
+//                     pc = rpc;
+//                     fillbuf();
+//                     rpc = pc;
+//                     if (pc == pe)
+//                         break;
+//                     else
+//                         continue;
+//                 }
+//                 rpc++;
+//             }
+//             str_catn(s, pc, rpc-pc);
+//             pc = rpc;
+//         }
+        
+//         if (*pc == 'e' || *pc == 'E') {
+//             str_catn(s, pc++, 1);
+//             if (pe - pc < MAXTOKEN)
+//                 fillbuf();
+//             if (*pc == '+' || *pc == '-')
+//                 str_catn(s, pc++, 1);
+//             if (is_digit(*pc)) {
+//                 char *rpc = pc;
+//                 for (;is_digit(*rpc) || rpc == pe;) {
+//                     if (rpc == pe) {
+//                         str_catn(s, pc, rpc-pc);
+//                         pc = rpc;
+//                         fillbuf();
+//                         rpc = pc;
+//                         if (pc == pe)
+//                             break;
+//                         else
+//                             continue;
+//                     }
+//                     rpc++;
+//                 }
+//                 str_catn(s, pc, rpc-pc);
+//                 pc = rpc;
+//             } else {
+//                 error("exponent used with no following digits: %s", s->str);
+//             }
+//         }
+//     } else {
+//         // . p P
+//         if (*pc == '.') {
+//             str_catn(s, pc++, 1);
+//             if (!is_digithex(pc[-2]) && !is_digithex(*pc))
+//                 error("hex floating constants require a significand");
+            
+//             for (;is_digithex(*pc) || pc == pe;) {
+//                 if (pc == pe) {
+//                     fillbuf();
+//                     if (pc == pe)
+//                         break;
+//                     else
+//                         continue;
+//                 }
+//                 str_catn(s, pc++, 1);
+//             }
+//         }
+        
+//         if (*pc == 'p' || *pc == 'P') {
+//             str_catn(s, pc++, 1);
+//             if (pe - pc < MAXTOKEN)
+//                 fillbuf();
+//             if (*pc == '+' || *pc == '-')
+//                 str_catn(s, pc++, 1);
+            
+//             if (is_digit(*pc)) {
+//                 for (;is_digit(*pc) || pc == pe;) {
+//                     if (pc == pe) {
+//                         fillbuf();
+//                         if (pc == pe)
+//                             break;
+//                         else
+//                             continue;
+//                     }
+//                     str_catn(s, pc++, 1);
+//                 }
+//             } else {
+//                 error("exponent has no digits");
+//             }
+//         } else {
+//             error("hex floating constants require an exponent");
+//         }
+//     }
+    
+//     float_constant(s);
+// }
+
+// static void float_constant(struct string *s)
+// {
+//     errno = 0; // must clear first
+//     if (*pc == 'f' || *pc == 'F') {
+//         token->v.type = floattype;
+//         token->v.u.d = strtof(s->str, NULL);
+//         str_catn(s, pc++, 1);
+//     } else if (*pc == 'l' || *pc == 'L') {
+//         token->v.type = longdoubletype;
+//         token->v.u.ld = strtold(s->str, NULL);
+//         str_catn(s, pc++, 1);
+//     } else {
+//         token->v.type = doubletype;
+//         token->v.u.d = strtod(s->str, NULL);
+//     }
+//     token->name = strings(s->str);
+//     if (errno == ERANGE)
+//         error("float constant overflow: %s", token->name);
+// }
+
+// static void integer_constant(unsigned long long n, int overflow, int base, struct string *s)
+// {
+//     char *rpc = pc;
+//     int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
+//     ((rpc[1] == 'l' && rpc[2] == 'l') || (rpc[1] == 'L' && rpc[2] == 'L'));
+//     int llu = ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) &&
+//     (rpc[2] == 'u' || rpc[2] == 'U');
+//     if (ull || llu) {
+//         // unsigned long long
+//         token->v.type = unsignedlonglongtype;
+//         pc = rpc + 3;
+//         str_catn(s, rpc, 3);
+//     } else if ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) {
+//         // long long
+//         if (n > longlongtype->limits.max.i && base != 10)
+//             token->v.type = unsignedlonglongtype;
+//         else
+//             token->v.type = longlongtype;
+        
+//         pc = rpc + 2;
+//         str_catn(s, rpc, 2);
+//     } else if (((rpc[0] == 'l' || rpc[0] == 'L') && (rpc[1] == 'u' || rpc[1] == 'U')) ||
+//                ((rpc[0] == 'u' || rpc[0] == 'U') && (rpc[1] == 'l' || rpc[1] == 'L'))) {
+//         // unsigned long
+//         if (n > unsignedlongtype->limits.max.u)
+//             token->v.type = unsignedlonglongtype;
+//         else
+//             token->v.type = unsignedlongtype;
+        
+//         pc = rpc + 2;	
+//         str_catn(s, rpc, 2);
+//     } else if (rpc[0] == 'l' || rpc[0] == 'L') {
+//         // long
+//         if (base == 10) {
+//             if (n > longtype->limits.max.i)
+//                 token->v.type = longlongtype;
+//             else
+//                 token->v.type = longtype;
+//         } else {
+//             if (n > longlongtype->limits.max.i)
+//                 token->v.type = unsignedlonglongtype;
+//             else if (n > unsignedlongtype->limits.max.u)
+//                 token->v.type = longlongtype;
+//             else if (n > longtype->limits.max.i)
+//                 token->v.type = unsignedlongtype;
+//             else
+//                 token->v.type = longtype;
+//         }
+//         pc = rpc + 1;
+//         str_catn(s, rpc, 1);
+//     } else if (rpc[0] == 'u' || rpc[0] == 'U') {
+//         // unsigned
+//         if (n > unsignedlongtype->limits.max.u)
+//             token->v.type = unsignedlonglongtype;
+//         else if (n > unsignedinttype->limits.max.u)
+//             token->v.type = unsignedlongtype;
+//         else
+//             token->v.type = unsignedinttype;
+        
+//         pc = rpc + 1;
+//         str_catn(s, rpc, 1);
+//     } else {
+//         if (base == 10) {
+//             if (n > longtype->limits.max.i)
+//                 token->v.type = longlongtype;
+//             else if (n > inttype->limits.max.i)
+//                 token->v.type = longtype;
+//             else
+//                 token->v.type = inttype;
+//         } else {
+//             if (n > longlongtype->limits.max.i)
+//                 token->v.type = unsignedlonglongtype;
+//             else if (n > unsignedlongtype->limits.max.u)
+//                 token->v.type = longlongtype;
+//             else if (n > longtype->limits.max.i)
+//                 token->v.type = unsignedlongtype;
+//             else if (n > unsignedinttype->limits.max.u)
+//                 token->v.type = longtype;
+//             else if (n > inttype->limits.max.i)
+//                 token->v.type = unsignedinttype;
+//             else
+//                 token->v.type = inttype;
+//         }
+//     }
+    
+//     token->name = strings(s->str);
+    
+//     switch (token->v.type->op) {
+//         case INT:
+//             if (overflow || n > longlongtype->limits.max.i)
+//                 error("integer constant overflow: %s", token->name);
+//             token->v.u.i = n;
+//             break;
+//         case UNSIGNED:
+//             if (overflow)
+//                 error("integer constant overflow: %s", token->name);
+//             token->v.u.u = n;
+//             break;
+//         default:
+//             assert(0);
+//     }
+// }
+
+// static void char_constant(int wide)
+// {    
+//     unsigned long long c = 0;
+//     int overflow = 0;
+//     int char_rec = 0;
+//     char ws[MB_LEN_MAX];
+//     int len = 0;
+    
+//     struct string *s = new_string();
+//     wide ? str_catn(s, pc-2, 2) : str_catn(s, pc-1, 1);
+//     for (; *pc != '\'';) {
+//         if (pe - pc < MAXTOKEN) {
+//             fillbuf();
+//             if (pc == pe)
+//                 break;
+//         }
+//         if (char_rec)
+//             overflow = 1;
+//         if (is_newline(*pc))
+//             break;
+        
+//         if (*pc == '\\') {
+//             // escape
+//             c = escape(s);
+//             char_rec = 1;
+//         } else {
+//             if (wide) {
+//                 str_catn(s, pc, 1);
+//                 if (len >= MB_LEN_MAX)
+//                     error("multibyte character overflow");
+//                 else
+//                     ws[len++] = (char) *pc;
+                
+//                 pc++;
+//             } else {
+//                 str_catn(s, pc, 1);
+//                 c = *pc++;
+//                 char_rec = 1;
+//             }
+//         }
+//     }
+    
+    
+//     if (*pc != '\'') {
+//         token->name = strings(s->str);
+//         error("unterminated character constant: %s", token->name);
+//     } else {
+//         str_catn(s, pc, 1);
+//         token->name = strings(s->str);
+        
+//         if (!char_rec && !len)
+//             error("incomplete character constant: %s", token->name);
+//         else if (overflow)
+//             error("extraneous characters in character constant: %s", token->name);
+//         else if ((!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u))
+//             error("character constant overflow: %s", token->name);
+//         else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
+//             error("invalid multi-character sequence");
+        
+//         pc++;
+//     }
+    
+//     token->v.u.u = wide ? (wchar_t) c : (unsigned char) c;
+//     token->v.type = wide ? wchartype : unsignedchartype;
+// }
+
+static void char_constant(struct token *t)
+{
+    
+}
+
+static struct type * string_constant(struct token *t)
+{
+    const char *s = t->name;
+    bool wide = s[0] == 'L' ? true : false;
+    struct type *ty;
+    if (wide) {
+        size_t len = strlen(s) - 3;
+        wchar_t ws[len+1];
+        errno = 0;
+        size_t wlen = mbstowcs(ws, s+2, len);
+        if (errno == EILSEQ)
+            error("invalid multibyte sequence: %s", s);
+        assert(wlen<=len+1);
+        ty = array_type();
+        ty->type = wchartype;
+        ty->size = wlen;
+    } else {
+        ty = array_type();
+        ty->type = chartype;
+        ty->size = strlen(s)-2;
+    }
+    return ty;
+}
+
+static void integer_constant(struct token *t)
+{
+
+}
+
+static void float_constant(struct token *t)
+{
+    
+}
+
 static inline int is_assign_op(int t)
 {
     return t == '=' ||
@@ -153,7 +608,7 @@ static struct expr * postfix_expr()
             sym = lookup_symbol(token->name, constants);
             if (!sym) {
                 sym = install_symbol(token->name, &constants, CONSTANT);
-                sym->type = token->v.type;
+                sym->type = string_constant(token);
             }
             expect(t);
             ret = expr_node(STRING_LITERAL, t, NULL, NULL);

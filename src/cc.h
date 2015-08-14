@@ -11,6 +11,7 @@
 #include <limits.h>
 #include <float.h>
 #include <wchar.h>
+#include <stdbool.h>
 
 #include "utils.h"
 

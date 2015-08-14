@@ -280,6 +280,7 @@ static int kind(int t)
         return 0;
 }
 
+static const char *tokname;
 static struct token token1, token2;
 struct token *token = &token1;
 
@@ -290,10 +291,9 @@ static void nextline();
 static void line_comment();
 static void block_comment();
 static unsigned escape(struct string *s);
-static void float_constant(struct string *s);
 static void char_constant(int wide);
 static void string_constant(int wide);
-static void integer_constant(unsigned long long value, int overflow, int base, struct string *s);
+static void integer_constant(struct string *s);
 
 static int do_gettok()
 {
@@ -733,126 +733,55 @@ static void block_comment()
         pc += 2;
 }
 
+static void read_char(struct string *s, int (*is) (char))
+{
+    char *rpc = pc;
+    for (; is(*rpc) || rpc == pe; ) {
+	if (rpc == pe) {
+	    str_catn(s, pc, rpc-pc);
+	    pc = rpc;
+	    fillbuf();
+	    rpc = pc;
+	    if (pc == pe)
+		break;
+	    else
+		continue;
+	}
+	rpc++;
+    }
+    str_catn(s, pc, rpc-pc);
+    pc = rpc;
+}
+
 static int number()
 {
+    struct string *s = new_string();
     char *rpc = pc-1;
+    str_catn(s, rpc, 1);
     if (rpc[0] == '0' && (rpc[1] == 'x' || rpc[1] == 'X')) {
         // Hex
-        unsigned long long n = 0;
-        int overflow = 0;
-        struct string *s = new_string();
-        str_catn(s, rpc, 2);
-        pc = rpc = rpc + 2;
-        if (!is_digithex(*rpc) && *rpc != '.') {
-            integer_constant(n, overflow, 16, s);
-            error("incomplete hex constant: %s", token->name);
+        str_catn(s, pc++, 1);
+        if (!is_digithex(*pc) && *pc != '.') {
+            integer_constant(s);
+            error("incomplete hex constant: %s", tokname);
             return ICONSTANT;
         }
-        for (; is_digithex(*rpc) || rpc == pe; ) {
-            if (rpc == pe) {
-                str_catn(s, pc, rpc-pc);
-                pc = rpc;
-                fillbuf();
-                rpc = pc;
-                if (pc == pe)
-                    break;
-                else
-                    continue;
-            }
-            if (n & ~(~0ULL >> 4)) {
-                overflow = 1;
-            } else {
-                int d;
-                if (is_hex(*rpc))
-                    d = (*rpc & 0x5f) - 'A' + 10;
-                else
-                    d = *rpc - '0';
-                
-                n = (n<<4) + d;
-            }
-            rpc++;
-        }
-        str_catn(s, pc, rpc-pc);
-        pc = rpc;
-        if (*rpc == '.' || *rpc == 'p' || *rpc == 'P') {
+	read_char(s, is_digithex);
+        if (*pc == '.' || *pc == 'p' || *pc == 'P') {
             fnumber(s, 16);
             return FCONSTANT;
         } else {
-            integer_constant(n, overflow, 16, s);
-            return ICONSTANT;
-        }
-    } else if (rpc[0] == '0') {
-        // Oct
-        unsigned long long n = 0;
-        int err = 0;
-        int overflow = 0;
-        struct string *s = new_string();
-        pc = rpc;
-        for (;is_digit(*rpc) || rpc == pe;) {
-            if (rpc == pe) {
-                str_catn(s, pc, rpc-pc);
-                pc = rpc;
-                fillbuf();
-                rpc = pc;
-                if (pc == pe)
-                    break;
-                else
-                    continue;
-            }
-            if (*rpc == '8' || *rpc == '9')
-                err = 1;
-            
-            if (n & ~(~0ULL >> 3))
-                overflow = 1;
-            else
-                n = (n<<3) + (*rpc - '0');
-            
-            rpc++;
-        }
-        str_catn(s, pc, rpc-pc);
-        pc = rpc;
-        if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
-            fnumber(s, 10);
-            return FCONSTANT;
-        } else {
-            integer_constant(n, overflow, 8, s);
-            if (err)
-                error("invalid octal constant %s", token->name);
-            
+            integer_constant(s);
             return ICONSTANT;
         }
     } else {
-        // Dec
-        unsigned long long n = 0;
-        int overflow = 0;
-        struct string *s = new_string();
-        pc = rpc;
-        for (;is_digit(*rpc) || rpc == pe;) {
-            if (rpc == pe) {
-                str_catn(s, pc, rpc-pc);
-                pc = rpc;
-                fillbuf();
-                rpc = pc;
-                if (pc == pe)
-                    break;
-                else
-                    continue;
-            }
-            int d = *rpc - '0';
-            if (n > (unsignedlonglongtype->limits.max.u - d)/10)
-                overflow = 1;
-            else
-                n = n*10 + (*rpc - '0');
-            
-            rpc++;
-        }
-        str_catn(s, pc, rpc-pc);
-        pc = rpc;
-        if (*rpc == '.' || *rpc == 'e' || *rpc == 'E') {
+        // Oct/Dec
+	read_char(s, is_digit);
+        if (*pc == '.' || *pc == 'e' || *pc == 'E') {
             fnumber(s, 10);
             return FCONSTANT;
         } else {
-            integer_constant(n, overflow, 10, s);
+            integer_constant(s);
             return ICONSTANT;
         }
     }
@@ -867,22 +796,7 @@ static void fnumber(struct string *s, int base)
         // . e E
         if (*pc == '.') {
             str_catn(s, pc++, 1);
-            char *rpc = pc;
-            for (;is_digit(*rpc) || rpc == pe;) {
-                if (rpc == pe) {
-                    str_catn(s, pc, rpc-pc);
-                    pc = rpc;
-                    fillbuf();
-                    rpc = pc;
-                    if (pc == pe)
-                        break;
-                    else
-                        continue;
-                }
-                rpc++;
-            }
-            str_catn(s, pc, rpc-pc);
-            pc = rpc;
+	    read_char(s, is_digit);
         }
         
         if (*pc == 'e' || *pc == 'E') {
@@ -891,26 +805,10 @@ static void fnumber(struct string *s, int base)
                 fillbuf();
             if (*pc == '+' || *pc == '-')
                 str_catn(s, pc++, 1);
-            if (is_digit(*pc)) {
-                char *rpc = pc;
-                for (;is_digit(*rpc) || rpc == pe;) {
-                    if (rpc == pe) {
-                        str_catn(s, pc, rpc-pc);
-                        pc = rpc;
-                        fillbuf();
-                        rpc = pc;
-                        if (pc == pe)
-                            break;
-                        else
-                            continue;
-                    }
-                    rpc++;
-                }
-                str_catn(s, pc, rpc-pc);
-                pc = rpc;
-            } else {
+            if (is_digit(*pc))
+		read_char(s, is_digit);
+            else
                 error("exponent used with no following digits: %s", s->str);
-            }
         }
     } else {
         // . p P
@@ -918,17 +816,8 @@ static void fnumber(struct string *s, int base)
             str_catn(s, pc++, 1);
             if (!is_digithex(pc[-2]) && !is_digithex(*pc))
                 error("hex floating constants require a significand");
-            
-            for (;is_digithex(*pc) || pc == pe;) {
-                if (pc == pe) {
-                    fillbuf();
-                    if (pc == pe)
-                        break;
-                    else
-                        continue;
-                }
-                str_catn(s, pc++, 1);
-            }
+
+	    read_char(s, is_digithex);
         }
         
         if (*pc == 'p' || *pc == 'P') {
@@ -938,149 +827,56 @@ static void fnumber(struct string *s, int base)
             if (*pc == '+' || *pc == '-')
                 str_catn(s, pc++, 1);
             
-            if (is_digit(*pc)) {
-                for (;is_digit(*pc) || pc == pe;) {
-                    if (pc == pe) {
-                        fillbuf();
-                        if (pc == pe)
-                            break;
-                        else
-                            continue;
-                    }
-                    str_catn(s, pc++, 1);
-                }
-            } else {
+            if (is_digit(*pc))
+                read_char(s, is_digit);
+            else
                 error("exponent has no digits");
-            }
         } else {
             error("hex floating constants require an exponent");
         }
     }
     
-    float_constant(s);
+    if (*pc == 'f' || *pc == 'F' || *pc == 'l' || *pc == 'L')
+	str_catn(s, pc++, 1);
+
+    tokname = strings(s->str);
 }
 
-static void float_constant(struct string *s)
-{
-    errno = 0; // must clear first
-    if (*pc == 'f' || *pc == 'F') {
-        token->v.type = floattype;
-        token->v.u.d = strtof(s->str, NULL);
-        str_catn(s, pc++, 1);
-    } else if (*pc == 'l' || *pc == 'L') {
-        token->v.type = longdoubletype;
-        token->v.u.ld = strtold(s->str, NULL);
-        str_catn(s, pc++, 1);
-    } else {
-        token->v.type = doubletype;
-        token->v.u.d = strtod(s->str, NULL);
-    }
-    token->name = strings(s->str);
-    if (errno == ERANGE)
-        error("float constant overflow: %s", token->name);
-}
-
-static void integer_constant(unsigned long long n, int overflow, int base, struct string *s)
+static void integer_constant(struct string *s)
 {
     char *rpc = pc;
     int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
     ((rpc[1] == 'l' && rpc[2] == 'l') || (rpc[1] == 'L' && rpc[2] == 'L'));
     int llu = ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) &&
     (rpc[2] == 'u' || rpc[2] == 'U');
+    int ll = (rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L');
+    int lu = (rpc[0] == 'l' || rpc[0] == 'L') && (rpc[1] == 'u' || rpc[1] == 'U');
+    int ul = (rpc[0] == 'u' || rpc[0] == 'U') && (rpc[1] == 'l' || rpc[1] == 'L');
+    int l = rpc[0] == 'l' || rpc[0] == 'L';
+    int u = rpc[0] == 'u' || rpc[0] == 'U';
     if (ull || llu) {
         // unsigned long long
-        token->v.type = unsignedlonglongtype;
         pc = rpc + 3;
         str_catn(s, rpc, 3);
-    } else if ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) {
+    } else if (ll) {
         // long long
-        if (n > longlongtype->limits.max.i && base != 10)
-            token->v.type = unsignedlonglongtype;
-        else
-            token->v.type = longlongtype;
-        
         pc = rpc + 2;
         str_catn(s, rpc, 2);
-    } else if (((rpc[0] == 'l' || rpc[0] == 'L') && (rpc[1] == 'u' || rpc[1] == 'U')) ||
-               ((rpc[0] == 'u' || rpc[0] == 'U') && (rpc[1] == 'l' || rpc[1] == 'L'))) {
-        // unsigned long
-        if (n > unsignedlongtype->limits.max.u)
-            token->v.type = unsignedlonglongtype;
-        else
-            token->v.type = unsignedlongtype;
-        
+    } else if (lu || ul) {
+	// unsigned long
         pc = rpc + 2;	
         str_catn(s, rpc, 2);
-    } else if (rpc[0] == 'l' || rpc[0] == 'L') {
+    } else if (l) {
         // long
-        if (base == 10) {
-            if (n > longtype->limits.max.i)
-                token->v.type = longlongtype;
-            else
-                token->v.type = longtype;
-        } else {
-            if (n > longlongtype->limits.max.i)
-                token->v.type = unsignedlonglongtype;
-            else if (n > unsignedlongtype->limits.max.u)
-                token->v.type = longlongtype;
-            else if (n > longtype->limits.max.i)
-                token->v.type = unsignedlongtype;
-            else
-                token->v.type = longtype;
-        }
         pc = rpc + 1;
         str_catn(s, rpc, 1);
-    } else if (rpc[0] == 'u' || rpc[0] == 'U') {
+    } else if (u) {
         // unsigned
-        if (n > unsignedlongtype->limits.max.u)
-            token->v.type = unsignedlonglongtype;
-        else if (n > unsignedinttype->limits.max.u)
-            token->v.type = unsignedlongtype;
-        else
-            token->v.type = unsignedinttype;
-        
         pc = rpc + 1;
         str_catn(s, rpc, 1);
-    } else {
-        if (base == 10) {
-            if (n > longtype->limits.max.i)
-                token->v.type = longlongtype;
-            else if (n > inttype->limits.max.i)
-                token->v.type = longtype;
-            else
-                token->v.type = inttype;
-        } else {
-            if (n > longlongtype->limits.max.i)
-                token->v.type = unsignedlonglongtype;
-            else if (n > unsignedlongtype->limits.max.u)
-                token->v.type = longlongtype;
-            else if (n > longtype->limits.max.i)
-                token->v.type = unsignedlongtype;
-            else if (n > unsignedinttype->limits.max.u)
-                token->v.type = longtype;
-            else if (n > inttype->limits.max.i)
-                token->v.type = unsignedinttype;
-            else
-                token->v.type = inttype;
-        }
     }
     
-    token->name = strings(s->str);
-    
-    switch (token->v.type->op) {
-        case INT:
-            if (overflow || n > longlongtype->limits.max.i)
-                error("integer constant overflow: %s", token->name);
-            token->v.u.i = n;
-            break;
-        case UNSIGNED:
-            if (overflow)
-                error("integer constant overflow: %s", token->name);
-            token->v.u.u = n;
-            break;
-        default:
-            assert(0);
-    }
+    tokname = strings(s->str);
 }
 
 static void char_constant(int wide)
@@ -1168,51 +964,21 @@ static void string_constant(int wide)
             str_catn(s, pc++, 1);
     }
     
-    if (wide) {
-        size_t len = str_len(s) - 2;
-        wchar_t ws[len+1];
-        errno = 0;
-        size_t wlen = mbstowcs(ws, s->str+2, len);
-        if (errno == EILSEQ)
-            error("invalid multibyte sequence: %s", s->str);
-        assert(wlen<=len+1);
-        token->v.type = array_type();
-        token->v.type->type = wchartype;
-        token->v.type->size = wlen;
-    } else {
-        token->v.type = array_type();
-        token->v.type->type = chartype;
-        token->v.type->size = str_len(s)-1;
-    }
-    
-    if (*pc == '"')
+    if (*pc == '"') {
         str_catn(s, pc++, 1);
-    else
+    } else {
         error("unterminated string constant: %s", s->str);
-    token->name = strings(s->str);
+	str_cats(s, "\"");
+    }
+    tokname = strings(s->str);
 }
 
 static void identifier()
 {
-    char *rpc;
     struct string *s = new_string();
-    rpc = pc = pc - 1;
-    for (;is_digitletter(*rpc) || rpc == pe;) {
-        if (rpc == pe) {
-            str_catn(s, pc, rpc-pc);
-            pc = rpc;
-            fillbuf();
-            rpc = pc;
-            if (pc == pe)
-                break;
-            else
-                continue;
-        }
-        rpc++;
-    }
-    str_catn(s, pc, rpc-pc);
-    pc = rpc;
-    token->name = strings(s->str);
+    pc = pc - 1;
+    read_char(s, is_digitletter);
+    tokname = strings(s->str);
 }
 
 static unsigned escape(struct string *s)
@@ -1339,18 +1105,23 @@ void match(int t, int follow[])
 }
 
 static int is_looked;
+void read_tok(struct token *t)
+{
+    tokname = NULL;
+    t->id = do_gettok();
+    if (!tokname)
+	tokname = tname(t->id);
+    t->name = tokname;
+    t->kind = kind(t->id);
+}
+
 int gettok()
 {
     if (is_looked) {
         token1 = token2;
         is_looked = 0;	
-    }
-    else {
-        token->name = NULL;
-        token->id = do_gettok();
-        if (!token->name)
-            token->name = tname(token->id);
-        token->kind = kind(token->id);
+    } else {
+	read_tok(&token1);
     }
     
     return token->id;
@@ -1359,14 +1130,7 @@ int gettok()
 struct token * lookahead()
 {
     if (!is_looked) {
-        token = &token2;
-        token->name = NULL;
-        token->id = do_gettok();
-        if (!token->name)
-            token->name = tname(token->id);
-        token->kind = kind(token->id);
-        
-        token = &token1;
+	read_tok(&token2);
         is_looked = 1;	
     }
     
@@ -1381,3 +1145,4 @@ void lexer_init()
     input_init();
     gettok();
 }
+
