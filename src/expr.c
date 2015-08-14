@@ -87,7 +87,7 @@ static struct expr * postfix_expr1(struct expr *ret)
                         int i;
                         for (i=0; i < ARRAY_SIZE(basety->u.s.fields); i++) {
                             struct field *f = basety->u.s.fields[i];
-                            if (!strcmp(f->name, token->name))
+                            if (f->name && !strcmp(f->name, token->name))
                                 break;
                         }
                         if (i >= ARRAY_SIZE(basety->u.s.fields))
@@ -520,6 +520,8 @@ static int eval(struct expr *expr, int *error)
     
     struct expr *l = (struct expr *)KID0(expr);
     struct expr *r = (struct expr *)KID1(expr);
+#define L eval(l, error)
+#define R eval(r, error)
     
     switch (NODE(expr)->id) {
         case BINARY_EXPR:
@@ -545,7 +547,29 @@ static int eval(struct expr *expr, int *error)
             return 0;
             
         case INTEGER_LITERAL:
+	    {
+            struct symbol *sym = expr->node.symbol;
+            union value v = sym->value;
+            if (sym->type->op == INT)
+                return v.i;
+            else if (sym->type->op == UNSIGNED)
+                return v.u;
+            else
+                assert(0);
+	    }
+	    
         case FLOAT_LITERAL:
+        {
+            struct symbol *sym = expr->node.symbol;
+            union value v = sym->value;
+            if (sym->type == floattype || sym->type == doubletype)
+                return v.d;
+            else if (sym->type == longdoubletype)
+                return v.ld;
+            else
+                assert(0);
+        }
+	    
         case STRING_LITERAL:
             return 0;
             
@@ -562,7 +586,7 @@ static int eval(struct expr *expr, int *error)
     return 0;
 }
 
-static struct expr * eval_constant_expr(int *value)
+static struct expr * eval_intexpr(int *value)
 {
     struct source src = source;
     struct expr *expr = cond_expr(NULL);
@@ -580,13 +604,13 @@ static struct expr * eval_constant_expr(int *value)
 
 struct expr * constant_expr()
 {
-    return eval_constant_expr(NULL);
+    return eval_intexpr(NULL);
 }
 
 int intexpr()
 {
     int val = 0;
-    (void) eval_constant_expr(&val);
+    (void) eval_intexpr(&val);
     return val;
 }
 

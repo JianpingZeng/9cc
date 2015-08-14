@@ -699,7 +699,7 @@ static void fields(struct type *sty)
     struct vector *v = new_vector();
     while (istypename(token)) {
         struct type *basety = specifiers(NULL);
-        
+
         for (;;) {
             struct field *field = new_field(NULL);
             int hasbit = 0;
@@ -722,7 +722,7 @@ static void fields(struct type *sty)
                 if (id) {
                     for (int i=0; i < vec_len(v); i++) {
                         struct field *f = vec_at(v, i);
-                        if (!strcmp(f->name, id)) {
+                        if (f->name && !strcmp(f->name, id)) {
                             error("redefinition of '%s'", id);
                             break;
                         }
@@ -749,7 +749,10 @@ static void fields(struct type *sty)
                 if (field->bitsize == 0 && field->name)
                     error("named bit-field '%s' has zero width", field->name);
                 if (field->bitsize > BITS(field->type))
-                    error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", field->bitsize, BITS(field->type));
+                    if (field->name)
+                        error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", field->name, field->bitsize, BITS(field->type));
+                    else
+                        error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", field->bitsize, BITS(field->type));
             }
             
             vec_push(v, field);
@@ -815,7 +818,7 @@ static void update_params(void *elem, void *context)
         struct symbol *p = NULL;
         for (int i=0; ftype->u.f.params[i]; i++) {
             struct symbol *s = ftype->u.f.params[i];
-            if (!strcmp(s->name, sym->name)) {
+            if (s->name && !strcmp(s->name, sym->name)) {
                 p = s;
                 break;
             }
