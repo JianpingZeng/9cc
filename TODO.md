@@ -212,3 +212,13 @@
 
     1. 设计符号表
     2. 设计types
+    
+    
+### branch `refactor1`
+
+1. 把`type`从lexer解耦，lexer只返回原始的token字符串，解析移至parser，例如，10只返回字符串"10"和ICONSTANT，至于其type,value,这些移到parser解析。
+
+2. 把`symbol`从type解耦，目前type指向symbol，symbol又指向type，比较混乱，改成单向的。
+
+3. `expr`解析构造时，及时填入信息，比如type，这样可以大大简化eval,lvalue函数。
+

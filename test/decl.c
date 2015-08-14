@@ -296,6 +296,8 @@ int GG()
     int a,b,c,d,e,f,g,h,i,j,k,l,m,n;
     
     a++ && b ^ c || d && e || f + g;
+    
+    sizeof (int);
 }
 
 //int func(int *p, float a)
