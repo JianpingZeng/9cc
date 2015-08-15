@@ -330,8 +330,8 @@ static struct expr * typename_expr()
     type = typename();
     expect(')');
     expr = expr_node(CAST_EXPR, 0, NULL, NULL);
-    expr->node.symbol = anonymous_symbol(&identifiers, SCOPE);
-    expr->node.symbol->type = type;
+    expr->node.sym = anonymous(&identifiers, SCOPE);
+    expr->node.sym->type = type;
     
     return expr;
 }
@@ -426,41 +426,41 @@ static struct expr * postfix_expr()
         case ID:
         {
             t = token->id;
-            sym = lookup_symbol(token->name, identifiers);
+            sym = lookup(token->name, identifiers);
             if (sym)
                 sym->refs++;
             else
                 error("use of undeclared symbol '%s'", token->name);
             expect(t);
             ret = expr_node(REF_EXPR, ID, NULL, NULL);
-            ret->node.symbol = sym;
+            ret->node.sym = sym;
         }
             break;
         case ICONSTANT:
         case FCONSTANT:
         {
             t = token->id;
-            sym = lookup_symbol(token->name, constants);
+            sym = lookup(token->name, constants);
             if (!sym) {
-                sym = install_symbol(token->name, &constants, CONSTANT);
+                sym = install(token->name, &constants, CONSTANT);
 		t == ICONSTANT ? integer_constant(token, sym) : float_constant(token, sym);
             }
             expect(t);
             ret = expr_node(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, t, NULL, NULL);
-            ret->node.symbol = sym;
+            ret->node.sym = sym;
         }
             break;
         case SCONSTANT:
         {
             t = token->id;
-            sym = lookup_symbol(token->name, constants);
+            sym = lookup(token->name, constants);
             if (!sym) {
-                sym = install_symbol(token->name, &constants, CONSTANT);
+                sym = install(token->name, &constants, CONSTANT);
                 string_constant(token, sym);
             }
             expect(t);
             ret = expr_node(STRING_LITERAL, t, NULL, NULL);
-            ret->node.symbol = sym;
+            ret->node.sym = sym;
         }
             break;
         case '(':
@@ -871,7 +871,7 @@ static int eval(struct expr *expr, int *error)
             
         case INTEGER_LITERAL:
 	    {
-            struct symbol *sym = expr->node.symbol;
+            struct symbol *sym = expr->node.sym;
             union value v = sym->value;
             if (sym->type->op == INT)
                 return v.i;
@@ -883,7 +883,7 @@ static int eval(struct expr *expr, int *error)
 	    
         case FLOAT_LITERAL:
         {
-            struct symbol *sym = expr->node.symbol;
+            struct symbol *sym = expr->node.sym;
             union value v = sym->value;
             if (sym->type == floattype || sym->type == doubletype)
                 return v.d;
@@ -894,7 +894,7 @@ static int eval(struct expr *expr, int *error)
         }
 	    
         case STRING_LITERAL:
-            return (int) expr->node.symbol->name;
+            return (int) expr->node.sym->name;
             
         case REF_EXPR:
             if (error)

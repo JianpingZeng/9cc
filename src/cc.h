@@ -71,14 +71,12 @@ enum {
 #include "node.def"
 };
 
-// node
 struct node {
     int id;
-    struct symbol *symbol;
+    struct symbol *sym;
     struct node *kids[2];
 };
 
-// expr
 struct expr {
     struct node node;
     int op;
@@ -100,7 +98,6 @@ struct expr {
     }u;
 };
 
-// stmt
 struct stmt {
     struct node node;
     struct stmt *up;		// internal
@@ -117,7 +114,6 @@ struct stmt {
     }u;
 };
 
-// decl
 struct decl {
     struct node node;
     int scope;
@@ -126,8 +122,6 @@ struct decl {
 };
 
 // ast.c
-extern struct type * new_type();
-extern struct symbol * new_symbol();
 extern struct field * new_field(char *id);
 
 extern const char *nname(struct node *node);
@@ -143,7 +137,7 @@ extern int intexpr();
 
 // decl.c
 extern struct expr * initializer_list();
-extern int istypename(struct token *t);
+extern bool istypename(struct token *t);
 extern struct node ** declaration();
 extern struct decl * translation_unit();
 extern struct type * typename();
@@ -179,12 +173,13 @@ struct type {
     int op;
     const char *name;
     int size;
-    unsigned qual_const : 1;
-    unsigned qual_volatile : 1;
-    unsigned qual_restrict : 1;
-    unsigned func_inline : 1;
+    unsigned is_const : 1;
+    unsigned is_volatile : 1;
+    unsigned is_restrict : 1;
+    unsigned is_inline : 1;
     unsigned reserved : 1;
     struct type *type;
+    const char *tag;
     union {
         // function
         struct {
@@ -194,15 +189,14 @@ struct type {
         // array
         struct {
             struct expr *assign;
-            unsigned qual_const : 1;
-            unsigned qual_volatile : 1;
-            unsigned qual_restrict : 1;
-            unsigned sclass_static : 1;
+            unsigned is_const : 1;
+            unsigned is_volatile : 1;
+            unsigned is_restrict : 1;
+            unsigned is_static : 1;
             unsigned wildcard : 1;
         }a;
         // enum/struct/union
         struct {
-            struct symbol *symbol;
             struct symbol **ids;
             struct field **fields;
         }s;
@@ -213,7 +207,6 @@ struct type {
     }limits;
 };
 
-extern const char * pname(struct type *type);
 extern void type_init();
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
@@ -221,11 +214,12 @@ extern struct type * qual(int t, struct type *ty);
 extern struct type * unqual(int t, struct type *ty);
 extern int eqtype(struct type *ty1, struct type *ty2);
 extern struct type * lookup_typedef_name(const char *id);
-extern int is_typedef_name(const char *id);
+extern bool is_typedef_name(const char *id);
 extern struct type * array_type();
 extern struct type * pointer_type(struct type *ty);
 extern struct type * function_type();
-extern struct type * tag_type(int op, const char *tag, struct source src);
+extern struct symbol * tag_type(int op, const char *tag, struct source src);
+extern struct symbol * tag_sym(struct type *ty);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
@@ -249,11 +243,11 @@ extern struct type    *vartype;		       // variable type
 #define isfunction(type)    ((type) && (type)->op == FUNCTION)
 #define isarray(type)       ((type) && (type)->op == ARRAY)
 #define ispointer(type)     ((type) && (type)->op == POINTER)
-#define isconst(type)       ((type) && (type)->qual_const)
-#define isvolatile(type)    ((type) && (type)->qual_volatile)
-#define isrestrict(type)    ((type) && (type)->qual_restrict)
+#define isconst(type)       ((type) && (type)->is_const)
+#define isvolatile(type)    ((type) && (type)->is_volatile)
+#define isrestrict(type)    ((type) && (type)->is_restrict)
 #define isqual(type)        (isconst(type) || isvolatile(type) || isrestrict(type))
-#define isinline(type)      ((type) && (type)->func_inline)
+#define isinline(type)      ((type) && (type)->is_inline)
 #define isvoid(type)        ((type) && (type)->op == VOID)
 #define isenum(type)        ((type) && (type)->op == ENUM)
 #define isstruct(type)      ((type) && (type)->op == STRUCT)
@@ -289,13 +283,13 @@ extern void enter_scope();
 extern void exit_scope();
 
 // create an anonymous symbol
-extern struct symbol * anonymous_symbol(struct table **tpp, int scope);
+extern struct symbol * anonymous(struct table **tpp, int scope);
 
 // look up a symbol from this table to previous one, and so on
-extern struct symbol * lookup_symbol(const char *name, struct table *table);
+extern struct symbol * lookup(const char *name, struct table *table);
 
 // install a symbol with specified scope
-extern struct symbol * install_symbol(const char *name, struct table **tpp, int scope);
+extern struct symbol * install(const char *name, struct table **tpp, int scope);
 
 extern struct table * identifiers;
 extern struct table * constants;

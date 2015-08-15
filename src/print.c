@@ -62,18 +62,18 @@ static void print_type1(struct type_context context)
         struct type_context tcontext = {context.level, type->type};
         print_qual(type);
         if (isfunction(type)) {
-            fprintf(stderr, "%s", tname(type->op));
+            fprintf(stderr, "%s", type->name);
             fprintf(stderr, "\n");
             print_return(tcontext);
             print_params(context);
         } else if (ispointer(type)) {
-            fprintf(stderr, "%s to ", tname(type->op));
+            fprintf(stderr, "%s to ", type->name);
             print_type1(tcontext);
         } else if (isarray(type)) {
-            fprintf(stderr, "%s %d of ", tname(type->op), type->size);
+            fprintf(stderr, "%s %d of ", type->name, type->size);
             print_type1(tcontext);
-        } else if (type->op == ENUM || type->op == STRUCT || type->op == UNION) {
-            fprintf(stderr, "%s %s ", tname(type->op), type->name);
+        } else if (isenum(type) || isstruct(type) || isunion(type)) {
+            fprintf(stderr, "%s %s ", type->name, type->tag);
             print_type1(tcontext);
         } else {
             fprintf(stderr, "%s ", type->name);
@@ -99,10 +99,10 @@ static void print_tree1(struct print_context context)
         fprintf(stderr, "  ");
     
     if (isdecl(node)) {
-        if (node->symbol) {
-            fprintf(stderr, "%s '%s' %s ", nname(node), STR(node->symbol->name), node->symbol->defined ? "<defined>" : "");
-            if (node->symbol->type) {
-                struct type_context tcontext = {context.level, node->symbol->type};
+        if (node->sym) {
+            fprintf(stderr, "%s '%s' %s ", nname(node), STR(node->sym->name), node->sym->defined ? "<defined>" : "");
+            if (node->sym->type) {
+                struct type_context tcontext = {context.level, node->sym->type};
                 print_type1(tcontext);
             } else {
                 fprintf(stderr, "\n");
@@ -112,8 +112,8 @@ static void print_tree1(struct print_context context)
         }
     } else if (isexpr(node)) {
         struct expr *e = (struct expr *)node;
-        if (node->symbol)
-            fprintf(stderr, "%s '%s' %s %s\n", nname(node), tname(e->op), STR(node->symbol->name), (e->op == INCR || e->op == DECR) ? (e->u.prefix ? "prefix" : "postfix") : "");
+        if (node->sym)
+            fprintf(stderr, "%s '%s' %s %s\n", nname(node), tname(e->op), STR(node->sym->name), (e->op == INCR || e->op == DECR) ? (e->u.prefix ? "prefix" : "postfix") : "");
         else
             fprintf(stderr, "%s '%s' %s\n", nname(node), tname(e->op), (e->op == INCR || e->op == DECR) ? (e->u.prefix ? "prefix" : "postfix") : "");
     } else if (isstmt(node)){
@@ -123,8 +123,8 @@ static void print_tree1(struct print_context context)
                     nname(node), node, nname(NODE(s->up)), s->up);
         else
             fprintf(stderr, "%s %p\n", nname(node), node);
-    } else if (node->symbol) {
-        fprintf(stderr, "%s '%s' ", nname(node), STR(node->symbol->name));
+    } else if (node->sym) {
+        fprintf(stderr, "%s '%s' ", nname(node), STR(node->sym->name));
     } else {
         fprintf(stderr, "%s\n", nname(node));
     }

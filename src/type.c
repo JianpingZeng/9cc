@@ -20,6 +20,11 @@ struct type   *voidtype;               // void
 struct type   *booltype;	       // bool
 struct type   *vartype;		       // variable type
 
+static struct type * new_type()
+{
+    return NEWS(type);
+}
+
 static void install_type(struct type **type, const char *name, int op, int size)
 {
     struct type *ty = new_type();
@@ -118,16 +123,16 @@ struct type * qual(int t, struct type *ty)
     *qty = *ty;
     switch (t) {
         case CONST:
-            qty->qual_const = 1;
+            qty->is_const = 1;
             break;
         case VOLATILE:
-            qty->qual_volatile = 1;
+            qty->is_volatile = 1;
             break;
         case RESTRICT:
-            qty->qual_restrict = 1;
+            qty->is_restrict = 1;
             break;
         case INLINE:
-            qty->func_inline = 1;
+            qty->is_inline = 1;
             break;
         default:
             assert(0);
@@ -143,16 +148,16 @@ struct type * unqual(int t, struct type *ty)
     *qty = *ty;
     switch (t) {
         case CONST:
-            qty->qual_const = 0;
+            qty->is_const = 0;
             break;
         case VOLATILE:
-            qty->qual_volatile = 0;
+            qty->is_volatile = 0;
             break;
         case RESTRICT:
-            qty->qual_restrict = 0;
+            qty->is_restrict = 0;
             break;
         case INLINE:
-            qty->func_inline = 0;
+            qty->is_inline = 0;
             break;
         default:
             assert(0);
@@ -166,7 +171,7 @@ struct type * lookup_typedef_name(const char *id)
     if (!id)
         return NULL;
     
-    struct symbol *sym = lookup_symbol(id, identifiers);
+    struct symbol *sym = lookup(id, identifiers);
     
     if (sym && sym->sclass == TYPEDEF)
         return sym->type;
@@ -174,11 +179,11 @@ struct type * lookup_typedef_name(const char *id)
         return NULL;
 }
 
-int is_typedef_name(const char *id)
+bool is_typedef_name(const char *id)
 {
     if (!id)
         return 0;
-    struct symbol *sym = lookup_symbol(id, identifiers);
+    struct symbol *sym = lookup(id, identifiers);
     return sym && sym->sclass == TYPEDEF;
 }
 
@@ -186,6 +191,7 @@ struct type * array_type()
 {
     struct type *ty = new_type();
     ty->op = ARRAY;
+    ty->name = "array";
     
     return ty;
 }
@@ -195,6 +201,7 @@ struct type * pointer_type(struct type *type)
     struct type *ty = new_type();
     ty->op = POINTER;
     ty->type = type;
+    ty->name = "pointer";
     
     return ty;
 }
@@ -203,77 +210,55 @@ struct type * function_type()
 {
     struct type *ty = new_type();
     ty->op = FUNCTION;
+    ty->name = "function";
     
     return ty;
 }
 
-struct type * enum_type(const char *tag)
-{
-    struct type *ty = new_type();
-    ty->op = ENUM;
-    ty->name = tag;
-    ty->type = inttype;		// aka int
-    
-    return ty;
-}
-
-struct type * tag_type(int op, const char *tag, struct source src)
+struct symbol * tag_type(int op, const char *tag, struct source src)
 {
     struct type *ty = new_type();
     ty->op = op;
-    ty->name = tag;
-    // TODO
-    if (op == ENUM)
+    ty->tag = tag;
+    if (op == ENUM) {
         ty->type = inttype;
+	ty->name = "enum";
+    } else if (op == STRUCT) {
+	ty->name = "struct";
+    } else if (op == UNION) {
+	ty->name = "union";
+    } else {
+	assert(0);
+    }
+    struct symbol *sym = NULL;
     if (tag) {
-        struct symbol *sym = lookup_symbol(tag, tags);
+        sym = lookup(tag, tags);
         if ((sym && sym->scope == SCOPE) ||
             (sym && sym->scope == PARAM && SCOPE == LOCAL)) {
             if (sym->type->op == op && !sym->defined)
-                return sym->type;
+                return sym;
             
             redefinition_error(src, sym);
         }
 
-        sym = install_symbol(tag, &tags, SCOPE);
+        sym = install(tag, &tags, SCOPE);
         sym->type = ty;
         sym->src = src;
-        ty->u.s.symbol = sym;
     } else {
-        struct symbol *sym = anonymous_symbol(&tags, SCOPE);
+        sym = anonymous(&tags, SCOPE);
         sym->type = ty;
         sym->src = src;
-        ty->u.s.symbol = sym;
     }
     
-    return ty;
+    return sym;
 }
 
-const char * pname(struct type *type)
+
+struct symbol * tag_sym(struct type *ty)
 {
-    switch (type->op) {
-        case POINTER:
-            return "pointer";
-        case ARRAY:
-            return "array";
-        case FUNCTION:
-            return "function";
-        case ENUM:
-            return "enum";
-        case STRUCT:
-            return "struct";
-        case UNION:
-            return "union";
-        case VOID:
-        case CHAR:
-        case INT:
-        case UNSIGNED:
-        case FLOAT:
-        case DOUBLE:
-            return type->name;
-        default:
-            return "unknown";
-    }
+    struct symbol *sym = lookup(ty->tag, tags);
+    assert(sym && sym->type == ty);
+    return sym;
 }
 
 static int eqparams(struct symbol **params1, struct symbol **params2)
@@ -312,9 +297,9 @@ int eqtype(struct type *ty1, struct type *ty2)
         return 0;
     else if (ty1->op != ty2->op)
         return 0;
-    else if (ty1->qual_const != ty2->qual_const ||
-             ty1->qual_volatile != ty2->qual_volatile ||
-             ty1->qual_restrict != ty2->qual_restrict)
+    else if (ty1->is_const != ty2->is_const ||
+             ty1->is_volatile != ty2->is_volatile ||
+             ty1->is_restrict != ty2->is_restrict)
         return 0;
     
     switch (ty1->op) {
