@@ -1141,7 +1141,7 @@ struct expr * initializer_list()
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     
-    struct expr *ret = expr_node(INITS_EXPR, 0, NULL, NULL);
+    struct expr *ret = expr_node(INITS_EXPR, '{', NULL, NULL);
     struct vector *v = new_vector();
     expect('{');
     for (; token->id == '[' || token->id == '.' || token->id == '{'

@@ -329,7 +329,7 @@ static struct expr * typename_expr()
     expect('(');
     type = typename();
     expect(')');
-    expr = expr_node(CAST_EXPR, 0, NULL, NULL);
+    expr = expr_node(CAST_EXPR, 'C', NULL, NULL);
     expr->node.sym = anonymous(&identifiers, SCOPE);
     expr->node.sym->type = type;
     
@@ -373,7 +373,7 @@ static struct expr * postfix_expr1(struct expr *ret)
             case '(':
                 t = token->id;
                 expect('(');
-                ret = expr_node(CALL_EXPR, 0, ret, NULL);
+                ret = expr_node(CALL_EXPR, FUNCTION, ret, NULL);
                 ret->u.args = argument_expr_list();
                 expect(')');
                 break;
@@ -471,7 +471,7 @@ static struct expr * postfix_expr()
                 KID0(ret) = NODE(initializer_list());
             } else {
                 expect('(');
-                ret = expr_node(PAREN_EXPR, 0, expression(), NULL);
+                ret = expr_node(PAREN_EXPR, '(', expression(), NULL);
                 expect(')');
             }
         }
@@ -755,84 +755,61 @@ static int eval(struct expr *expr, int *error)
         return 0;
     
     assert(isexpr(expr));
-    
+
+    bool bop = expr->node.id == BINARY_EXPR;
     struct expr *l = (struct expr *)KID0(expr);
     struct expr *r = (struct expr *)KID1(expr);
 #define L eval(l, error)
 #define R eval(r, error)
     
-    switch (NODE(expr)->id) {
-        case BINARY_EXPR:
-        {
-            switch (expr->op) {
-                case ',': return L , R;
-                case '+': return L + R;
-                case '-': return L - R;
-                case '*': return L * R;
-                case '/': return L / R;
-                case '%': return L % R;
-                case LSHIFT: return L << R;
-                case RSHIFT: return L >> R;
-                case '>': return L > R;
-                case '<': return L < R;
-                case GEQ: return L >= R;
-                case LEQ: return L <= R;
-                case EQ: return L == R;
-                case NEQ: return L != R;
-                case AND: return L && R;
-                case OR: return L || R;
-                case '^': return L ^ R;
-                case '|': return L | R;
-                case '&': return L & R;
+    switch (expr->op) {
+        //binary
+    case ',': return L , R;
+    case '/': return L / R;
+    case '%': return L % R;
+    case LSHIFT: return L << R;
+    case RSHIFT: return L >> R;
+    case '>': return L > R;
+    case '<': return L < R;
+    case GEQ: return L >= R;
+    case LEQ: return L <= R;
+    case EQ: return L == R;
+    case NEQ: return L != R;
+    case AND: return L && R;
+    case OR: return L || R;
+    case '^': return L ^ R;
+    case '|': return L | R;
+    case '+': return (bop ? (L + R) : (+L));
+    case '-': return (bop ? (L - R) : (-L));
+    case '*': if (bop) return L * R; else goto err;
+    case '&': if (bop) return L & R; else goto err;
                     
-                case '=':
-                case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
-                case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
-                case LSHIFTEQ:case RSHIFTEQ:
-                    if (error)
-                        *error = 1;
-                    return 0;
-                    
-                default:
-                    assert(0);
-            }
-        }
+    case '=':
+    case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
+    case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
+    case LSHIFTEQ:case RSHIFTEQ:
+	if (error)
+	    *error = 1;
+	return 0;
+
+    // case '+': return +L;
+    case '~': return ~L;
+    case '!': return !L;
+    case SIZEOF:
+
+	// cast TODO
+    case 'C':
+	return 0;
+
+	// index TODO
+    case '[':
+	return 0;
+
+	// member TODO
+    case '.': case DEREF:
+	return 0;
             
-        case UNARY_EXPR:
-        {
-            switch (expr->op) {
-                case '&':
-                case '*':
-                case INCR:
-                case DECR:
-                    if (error)
-                        *error = 1;
-                    return 0;
-                case '+': return +L;
-                case '-': return -L;
-                case '~': return ~L;
-                case '!': return !L;
-                case SIZEOF:
-                    
-                    
-                default:
-                    assert(0);
-            }
-        }
-            
-        case CAST_EXPR:
-            //TODO
-            return 0;
-            
-        case INDEX_EXPR:
-            //TODO
-            return 0;
-            
-        case MEMBER_EXPR:
-            //TODO
-            return 0;
-            
-        case COND_EXPR:
+    case '?':
         {
 	    int cond = eval(expr->u.c.cond, error);
 	    if (cond)
@@ -840,11 +817,13 @@ static int eval(struct expr *expr, int *error)
 	    else
 		return eval(expr->u.c.els, error);
         }
-            
-        case PAREN_EXPR:
-            return L;
-            
-        case INITS_EXPR:
+
+	// paren
+    case '(':
+	return L;
+
+	// inits
+    case '{':
         {
             if (expr->u.args)
                 return eval(expr->u.args[0], error);
@@ -852,8 +831,8 @@ static int eval(struct expr *expr, int *error)
                 return 0;
         }
             
-        case INTEGER_LITERAL:
-	    {
+    case INTEGER_LITERAL:
+	{
             struct symbol *sym = expr->node.sym;
             union value v = sym->value;
             if (sym->type->op == INT)
@@ -862,9 +841,9 @@ static int eval(struct expr *expr, int *error)
                 return v.u;
             else
                 assert(0);
-	    }
+	}
 	    
-        case FLOAT_LITERAL:
+    case FLOAT_LITERAL:
         {
             struct symbol *sym = expr->node.sym;
             union value v = sym->value;
@@ -876,17 +855,20 @@ static int eval(struct expr *expr, int *error)
                 assert(0);
         }
 	    
-        case STRING_LITERAL:
-            return (const char *)expr->node.sym->name - (const char *)0;
+    case STRING_LITERAL:
+	return (const char *)expr->node.sym->name - (const char *)0;
+
+    case INCR:
+    case DECR:
+    case ID:
+    case FUNCTION:
+    err:
+	if (error)
+	    *error = 1;
+	return 0;
             
-        case REF_EXPR:
-        case CALL_EXPR:
-            if (error)
-                *error = 1;
-            return 0;
-            
-        default:
-            assert(0);
+    default:
+	assert(0);
     }
 }
 
