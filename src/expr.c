@@ -783,16 +783,7 @@ static int eval(struct expr *expr, int *error)
     case '-': return (bop ? (L - R) : (-L));
     case '*': if (bop) return L * R; else goto err;
     case '&': if (bop) return L & R; else goto err;
-                    
-    case '=':
-    case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
-    case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
-    case LSHIFTEQ:case RSHIFTEQ:
-	if (error)
-	    *error = 1;
-	return 0;
 
-    // case '+': return +L;
     case '~': return ~L;
     case '!': return !L;
     case SIZEOF:
@@ -858,8 +849,11 @@ static int eval(struct expr *expr, int *error)
     case STRING_LITERAL:
 	return (const char *)expr->node.sym->name - (const char *)0;
 
-    case INCR:
-    case DECR:
+    case INCR: case DECR:
+    case '=':
+    case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
+    case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
+    case LSHIFTEQ:case RSHIFTEQ:
     case ID:
     case FUNCTION:
     err:
