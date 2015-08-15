@@ -1044,7 +1044,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
-        struct stmt *stmt = compound_statement(NULL);
+        struct stmt *stmt = compound_stmt(NULL);
         exit_scope();
         KID0(decl) = NODE(stmt);
     }

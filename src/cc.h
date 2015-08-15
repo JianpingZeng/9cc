@@ -115,7 +115,7 @@ extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
 
 // stmt.c
-extern struct stmt * compound_statement(struct stmt *context);
+extern struct stmt * compound_stmt(struct stmt *context);
 
 #define NODE(n)    ((struct node*) (n))
 #define KID0(n)    (NODE(n)->kids[0])
