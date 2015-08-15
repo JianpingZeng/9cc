@@ -86,6 +86,9 @@ void type_init()
     LIMITS(doubletype, d, DBL_MAX, DBL_MIN);
     LIMITS(longdoubletype, ld, LDBL_MAX, LDBL_MIN);
     LIMITS(booltype, i, 1, 0);
+
+#undef INSTALL
+#undef LIMITS
 }
 
 void prepend_type(struct type **typelist, struct type *type)
