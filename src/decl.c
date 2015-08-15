@@ -290,11 +290,11 @@ static void atype_qualifiers(struct type *atype)
     }
     
     if (cons)
-        atype->u.a.qual_const = 1;
+        atype->u.a.is_const = 1;
     if (vol)
-        atype->u.a.qual_volatile = 1;
+        atype->u.a.is_volatile = 1;
     if (res)
-        atype->u.a.qual_restrict = 1;
+        atype->u.a.is_restrict = 1;
 }
 
 static struct symbol ** func_params(struct type *ftype, int *params)
@@ -397,7 +397,7 @@ static struct type * func_or_array(int *params)
             expect('[');
             if (token->id == STATIC) {
                 expect(STATIC);
-                atype->u.a.sclass_static = 1;
+                atype->u.a.is_static = 1;
                 if (token->kind == CONST)
                     atype_qualifiers(atype);
                 atype->u.a.assign = assign_expr();
@@ -406,7 +406,7 @@ static struct type * func_or_array(int *params)
                     atype_qualifiers(atype);
                 if (token->id == STATIC) {
                     expect(STATIC);
-                    atype->u.a.sclass_static = 1;
+                    atype->u.a.is_static = 1;
                     atype->u.a.assign = assign_expr();
                 } else if (token->id == '*') {
                     if (lookahead()->id != ']') {
@@ -633,7 +633,7 @@ static void param_declarator(struct type **ty, const char **id)
 
 static struct type * enum_decl()
 {
-    struct type *ety = NULL;
+    struct symbol *sym = NULL;
     const char *id = NULL;
     struct source src = source;
     int follow[] = {INT, CONST, STATIC, IF, 0};
@@ -647,48 +647,46 @@ static struct type * enum_decl()
         int val = 0;
         struct vector *v = new_vector();
         expect('{');
-        ety = tag_type(ENUM, id, src);
+        sym = tag_type(ENUM, id, src);
         if (token->id != ID)
             error("expect identifier");
         while (token->id == ID) {
-            struct symbol *sym = lookup_symbol(token->name, identifiers);
-            if (sym && sym->scope == SCOPE)
-                redefinition_error(source, sym);
+            struct symbol *s = lookup(token->name, identifiers);
+            if (s && s->scope == SCOPE)
+                redefinition_error(source, s);
             
-            sym = install_symbol(token->name, &identifiers, SCOPE);
-            sym->type = ety;
-            sym->src = source;
+            s = install(token->name, &identifiers, SCOPE);
+            s->type = sym->type;
+            s->src = source;
             expect(ID);
             if (token->id == '=') {
                 expect('=');
                 val = intexpr();
             }
-            sym->value.i = val++;
-            vec_push(v, sym);
+            s->value.i = val++;
+            vec_push(v, s);
             if (token->id != ',')
                 break;
             expect(',');
         }
         match('}', follow);
-        ety->u.s.ids = (struct symbol **)vtoa(v);
-        ety->u.s.symbol->defined = 1;
+        sym->type->u.s.ids = (struct symbol **)vtoa(v);
+        sym->defined = 1;
     } else if (id) {
-        struct symbol *sym = lookup_symbol(id, tags);
-        if (sym && sym->type->op == ENUM) {
-            ety = sym->type;
-        } else if (sym) {
-            errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                   ENUM, id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
-            ety = sym->type;
-        } else {
-            ety = tag_type(ENUM, id, src);
-        }
+        sym = lookup(id, tags);
+	if (sym) {
+	    if (sym->type->op != ENUM)
+		errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+		       tname(ENUM), id, sym->type->name, sym->type->tag,  sym->src.file, sym->src.line);
+	} else {
+	    sym = tag_type(ENUM, id, src);
+	}
     } else {
         error("expected identifier or '{'");
-        ety = tag_type(ENUM, NULL, src);
+        sym = tag_type(ENUM, NULL, src);
     }
     
-    return ety;
+    return sym->type;
 }
 
 // TODO: not finished yet
@@ -728,8 +726,6 @@ static void fields(struct type *sty)
                         }
                     }
                     field->name = id;
-                } else {
-                    error("missing identifier");
                 }
             }
             
@@ -772,7 +768,7 @@ static struct type * struct_decl()
 {
     int t = token->id;
     const char *id = NULL;
-    struct type *sty = NULL;
+    struct symbol *sym = NULL;
     struct source src = source;
     int follow[] = {INT, CONST, STATIC, IF, '[', 0};
     
@@ -783,34 +779,32 @@ static struct type * struct_decl()
     }
     if (token->id == '{') {
         expect('{');
-        sty = tag_type(t, id, src);
-        sty->u.s.symbol->defined = 1;
-        fields(sty);
+        sym = tag_type(t, id, src);
+        sym->defined = 1;
+        fields(sym->type);
         match('}', follow);
     } else if (id) {
-        struct symbol *sym = lookup_symbol(id, tags);
-        if (sym && sym->type->op == t) {
-            sty = sym->type;
-        } else if (sym) {
-            errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                   tname(t), id, tname(sym->type->op), sym->type->name, sym->src.file, sym->src.line);
-            sty = sym->type;
-        } else {
-            sty = tag_type(t, id, src);
-        }
+        sym = lookup(id, tags);
+	if (sym) {
+	    if (sym->type->op != t)
+		errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+                   tname(t), id, sym->type->name, sym->type->tag, sym->src.file, sym->src.line);
+	} else {
+	    sym = tag_type(t, id, src);
+	}
     } else {
         error("expected identifier or '{'");
-        sty = tag_type(t, NULL, src);
+        sym = tag_type(t, NULL, src);
     }
     
-    return sty;
+    return sym->type;
 }
 
 static void update_params(void *elem, void *context)
 {
     struct node *decl = (struct node *)elem;
     struct type *ftype = (struct type *)context;
-    struct symbol *sym = decl->symbol;
+    struct symbol *sym = decl->sym;
     
     assert(sym->name);
     if (decl->id != VAR_DECL) {
@@ -844,21 +838,21 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->u.s.symbol->defined)
+        if (!tag_sym(ty)->defined)
             warningf(src, "declaration of '%s %s' will not be visible outside of this function",
-                     tname(ty->op), ty->name);
+                     ty->name, ty->tag);
     }
     
     if (id) {
-        sym = lookup_symbol(id, identifiers);
+        sym = lookup(id, identifiers);
         if (sym && sym->scope == SCOPE)
             redefinition_error(source, sym);
-        sym = install_symbol(id, &identifiers, SCOPE);
+        sym = install(id, &identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
         sym->sclass = sclass;
     } else {
-        sym = anonymous_symbol(&identifiers, SCOPE);
+        sym = anonymous(&identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
         sym->sclass = sclass;
@@ -893,17 +887,17 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->u.s.symbol->defined)
-            error("incomplete type '%s %s'", tname(ty->op), ty->name);
+        if (!tag_sym(ty)->defined)
+            error("incomplete type '%s %s'", ty->name, ty->tag);
     }
     validate_func_or_array(ty);
     
-    sym = lookup_symbol(id, identifiers);
+    sym = lookup(id, identifiers);
     if ((sym && sym->scope >= SCOPE) ||
         (sym && sym->scope == PARAM && SCOPE == LOCAL)) {
         redefinition_error(src, sym);
     } else {
-        sym = install_symbol(id, &identifiers, SCOPE);
+        sym = install(id, &identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
         sym->defined = 1;
@@ -945,14 +939,14 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->u.s.symbol->defined && sclass != TYPEDEF)
-            error("incomplete type '%s %s'", tname(ty->op), ty->name);
+        if (!tag_sym(ty)->defined && sclass != TYPEDEF)
+            error("incomplete type '%s %s'", ty->name, ty->tag);
     }
     validate_func_or_array(ty);
     
-    sym = lookup_symbol(id, identifiers);
+    sym = lookup(id, identifiers);
     if (!sym || sym->scope != SCOPE) {
-        sym = install_symbol(id, &identifiers, SCOPE);
+        sym = install(id, &identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
         sym->defined = init_node ? 1 : 0;
@@ -984,14 +978,14 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     }
     
     if (id) {
-        struct symbol *sym = lookup_symbol(id, identifiers);
+        struct symbol *sym = lookup(id, identifiers);
         if (!sym) {
-            sym = install_symbol(id, &identifiers, GLOBAL);
+            sym = install(id, &identifiers, GLOBAL);
             sym->type = ftype;
             sym->src = src;
             sym->defined = 1;
             sym->sclass = sclass;
-            decl->node.symbol = sym;
+            decl->node.sym = sym;
         } else if (eqtype(ftype, sym->type) && !sym->defined) {
             if (sclass == STATIC && sym->sclass != STATIC) {
                 errorf(src, "static declaaration of '%s' follows non-static declaration", id);
@@ -999,13 +993,11 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
                 sym->type = ftype;
                 sym->src = src;
                 sym->defined = 1;
-                decl->node.symbol = sym;
+                decl->node.sym = sym;
             }
         } else {
             redefinition_error(src, sym);
         }
-    } else {
-        error("missing identifier in function definition");
     }
     
     if (ftype->u.f.params) {
@@ -1016,12 +1008,10 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
             if (sym->name == NULL)
                 errorf(sym->src, "parameter name omitted");
             if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
-                if (!sym->type->u.s.symbol->defined)
-                    errorf(sym->src, "incomplete type '%s %s'",
-                           tname(sym->type->op), sym->type->name);
-                else if (sym->type->name)
-                    warningf(sym->src, "declaration of '%s %s' will not be visible outside of this function",
-                             tname(sym->type->op), sym->type->name);
+		if (!tag_sym(sym->type)->defined)
+                    errorf(sym->src, "incomplete type '%s %s'", sym->type->name, sym->type->tag);
+                else if (sym->type->tag)
+                    warningf(sym->src, "declaration of '%s %s' will not be visible outside of this function", sym->type->name, sym->type->tag);
             }
         }
     }
@@ -1096,10 +1086,8 @@ static struct vector * decls(DeclFunc dclf)
                 else
                     decl = decl_node(VAR_DECL, SCOPE);
                 
-                decl->node.symbol = sym;
+                decl->node.sym = sym;
                 vec_push(v, decl);
-            } else {
-                errorf(src, "missing identifier in declaration");
             }
             
             if (token->id != ',')
@@ -1125,7 +1113,7 @@ static struct vector * decls(DeclFunc dclf)
             node_id = ENUM_DECL;
         
         decl = decl_node(node_id, SCOPE);
-        decl->node.symbol = basety->u.s.symbol;
+        decl->node.sym = tag_sym(basety);
         vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);
@@ -1196,7 +1184,7 @@ struct expr * initializer_list()
     return ret;
 }
 
-int istypename(struct token *t)
+bool istypename(struct token *t)
 {
     return (t->kind == INT || t->kind == CONST) ||
     (t->id == ID && is_typedef_name(t->name));

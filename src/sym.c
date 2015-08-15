@@ -15,7 +15,12 @@ struct table {
 struct table * identifiers;
 struct table * constants;
 struct table * tags;
-static int _scope = GLOBAL;
+static int level = GLOBAL;
+
+static struct symbol * new_symbol()
+{
+    return NEWS(symbol);
+}
 
 static struct table * new_table(struct table *up, int scope)
 {
@@ -37,24 +42,24 @@ void symbol_init()
 
 int scopelevel()
 {
-    return _scope;
+    return level;
 }
 
 void enter_scope()
 {
-    _scope++;
+    level++;
 }
 
 void exit_scope()
 {
-    if (tags->scope == _scope) {
+    if (tags->scope == level) {
         tags = tags->up;
     }
-    if (identifiers->scope == _scope) {
+    if (identifiers->scope == level) {
         identifiers = identifiers->up;
     }
-    assert(_scope >= GLOBAL);
-    _scope--;
+    assert(level >= GLOBAL);
+    level--;
 }
 
 static unsigned hash(const char *src)
@@ -68,12 +73,13 @@ static unsigned hash(const char *src)
     return h;
 }
 
-struct symbol * anonymous_symbol(struct table **tpp, int scope)
+struct symbol * anonymous(struct table **tpp, int scope)
 {
-    return install_symbol(NULL, tpp, scope);
+    static long i;
+    return install(stringd(i++), tpp, scope);
 }
 
-struct symbol * lookup_symbol(const char *name, struct table *table)
+struct symbol * lookup(const char *name, struct table *table)
 {
     assert(name);
     
@@ -89,7 +95,7 @@ struct symbol * lookup_symbol(const char *name, struct table *table)
     return NULL;
 }
 
-struct symbol * install_symbol(const char *name, struct table **tpp, int scope)
+struct symbol * install(const char *name, struct table **tpp, int scope)
 {
     unsigned h = hash(name) % BUCKET_SIZE;
     struct sentry *entry;

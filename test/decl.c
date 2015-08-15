@@ -3,6 +3,8 @@
 // int a;
 
 int * (*f) (float a, int , int (*) (int));
+
+int * ();
 //
 //void (*signal(int signo,void (*func)(int))) (int);
 
@@ -239,28 +241,28 @@ int * (*f) (float a, int , int (*) (int));
 // };
 
 // int a;
-//struct S1 {
-//    int a;
-//    struct S2 {
-//        int a;
-//        struct S3 {
-//            int b;
-//        };
-//    };
-//    struct S2;
-//};
+struct S1 {
+   int a;
+   struct S2 {
+       int a;
+       struct S3 {
+           int b;
+       };
+   };
+   struct S2;
+};
 
-// struct S1 v1;
-// struct S2 v2;
-// struct S3 v3;
+struct S1 v1;
+struct S2 v2;
+struct S3 v3;
 
-//struct S {
-//    int (*f) (int);
-//};
-//
-//void f2(struct T { int a;} b, int a)
-//{
-//}
+struct S {
+   int (*f) (int);
+};
+
+void f2(struct T { int a;} b, int a)
+{
+}
 //
 //void g()
 //{
@@ -287,9 +289,9 @@ int * (*f) (float a, int , int (*) (int));
 //    int a : 1 ? 0/19 : 2;
 //};
 
-//struct s {
+// struct s {
 //    int a : 10++;
-//};
+// };
 
 int GG()
 {

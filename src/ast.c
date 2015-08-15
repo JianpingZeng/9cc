@@ -46,16 +46,6 @@ struct decl * decl_node(int id, int scope)
     return decl;
 }
 
-struct type * new_type()
-{
-    return NEWS(type);
-}
-
-struct symbol * new_symbol()
-{
-    return NEWS(symbol);
-}
-
 struct field * new_field(char *id)
 {
     struct field *field = NEWS(field);
