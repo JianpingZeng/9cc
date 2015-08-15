@@ -24,7 +24,6 @@ SOURCES=ast.c \
 INCLUDES=cc.h \
         node.def \
         token.def \
-        lex.h \
         sys/sys.h \
         utils/utils.h
 
