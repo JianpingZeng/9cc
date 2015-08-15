@@ -1,15 +1,6 @@
 #ifndef _lex_h
 #define _lex_h
 
-union value {
-    long long i;
-    unsigned long long u;
-    double d;
-    long double ld;
-    void *p;
-    void (*g) ();
-};
-
 #define EOI  -1
 
 enum {
@@ -23,20 +14,21 @@ enum {
 struct source {
     const char *file;
     unsigned line;
+    unsigned column;
 };
 
 struct token {
     int id;
     const char *name;
     int kind;
-    struct {
-        union value u;
-        struct type *type;
-    }v;
 };
 
 extern struct source source;
 extern struct token  *token;
+
+extern bool is_digit(char c);
+extern bool is_hex(char c);
+extern bool is_digithex(char c);
 
 extern void lexer_init();
 extern int  gettok();

@@ -16,6 +16,7 @@ GCC = "/usr/bin/gcc"
 MCC = os.path.abspath("./mcc")
 gcc_i = os.path.join(TMPDIR, "1.i")
 mcc_i = os.path.join(TMPDIR, "2.i")
+INCDIRS = [".", "..", "include", "lib", "../lib", "../include", "sys", "utils"]
 
 class Line(object):
     def __init__(self, cstr):
@@ -383,8 +384,9 @@ def gcc_process(file, argv=None):
     if argv:
         gcc_argv = gcc_argv + argv
 
-    p = subprocess.Popen(gcc_argv, stdout=subprocess.PIPE, stderr=open("/dev/null", "w"))
-    out= p.communicate()[0]
+    # p = subprocess.Popen(gcc_argv, stdout=subprocess.PIPE, stderr=open("/dev/null", "w"))
+    p = subprocess.Popen(gcc_argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out,err= p.communicate()
     lines = out.splitlines()
     
     if p.poll() == 0:
@@ -412,6 +414,7 @@ def gcc_process(file, argv=None):
         return gcc_i
 
     else:
+        print err
         return None
                 
 
@@ -484,6 +487,23 @@ def post_process():
     '''post'''
     print oks, "[OK],", skips, "[SKIPPED]"
 
+def add_incdir(src, incs, dirs):
+    '''inc'''
+    path = None
+    if os.path.isfile(src):
+        path = os.path.abspath(os.path.expanduser(dirname(src)))
+    elif os.path.isdir(src):
+        path = os.path.abspath(os.path.expanduser(src))
+
+    if path:
+        for sub in dirs:
+            newpath = os.path.join(path, sub)
+            if os.path.isdir(newpath):
+                h = [True for h in os.listdir(newpath) if h.endswith(".h")]
+                if h:
+                    incs.append("-I"+newpath)
+
+        
 def main():
     '''main'''
     if len(sys.argv) < 2:
@@ -493,10 +513,10 @@ def main():
     argv = sys.argv
     incs = []
     input_file = None
+    userincs = []
     for arg in argv[1:]:
         if arg.startswith("-I"):
-            p = os.path.expanduser(arg[2:])
-            incs.append("-I"+p)
+            userincs.append(arg[2:])
         else:
             input_file = arg
 
@@ -504,8 +524,19 @@ def main():
         print "no input file."
         sys.exit(1)
 
+    subincs = []
+    for userinc in userincs:
+        if userinc.startswith("/") or userinc.startswith("~"):
+            p = os.path.expanduser(userinc)
+            incs.append("-I"+p)
+        else:
+            subincs.append(userinc)
+
+    add_incdir(input_file, incs, INCDIRS)
+    add_incdir(input_file, incs, subincs)
+
     pre_process()
-            
+
     if os.path.isfile(input_file):
         if input_file.endswith(".c"):
             path = os.path.abspath(os.path.expanduser(input_file))

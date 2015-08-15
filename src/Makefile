@@ -25,9 +25,6 @@ INCLUDES=cc.h \
         node.def \
         token.def \
         lex.h \
-        ast.h \
-        type.h \
-        sym.h \
         sys/sys.h \
         utils/utils.h
 
@@ -42,6 +39,11 @@ CFLAGS+=-DDARWIN
 endif
 
 ifeq ($(OS), Linux)
+SYSDIR=sys/linux
+CFLAGS+=-DLINUX -D_BSD_SOURCE
+endif
+
+ifneq (, $(findstring CYGWIN, $(OS)))
 SYSDIR=sys/linux
 CFLAGS+=-DLINUX -D_BSD_SOURCE
 endif

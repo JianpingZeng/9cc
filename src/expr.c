@@ -1,11 +1,315 @@
 #include "cc.h"
 
 static struct expr * cast_expr();
-static struct type * reduce(struct expr *expr);
+static struct type * reduce(struct node *expr);
 static void ensure_assignable(struct expr *asign);
-static int islvalue(struct expr *expr);
+static bool is_lvalue(struct node *expr);
 static struct expr * cond_expr();
 static struct expr * cond_expr1(struct expr *o);
+
+static unsigned escape(const char **ps)
+{
+    unsigned c = 0;
+    const char *s = *ps;
+    assert(*s == '\\');
+    s += 1;
+    switch (*s++) {
+    case 'a': c = 7; break;
+    case 'b': c = '\b'; break;
+    case 'f': c = '\f'; break;
+    case 'n': c = '\n'; break;
+    case 'r': c = '\r'; break;
+    case 't': c = '\t'; break;
+    case 'v': c = '\v'; break;
+    case '\'': case '"':
+    case '\\': case '\?':
+	c = s[-1];
+	break;
+    case '0': case '1': case '2':
+    case '3': case '4': case '5':
+    case '6': case '7':
+	c = s[-1] - '0';
+	if (*s >= '0' && *s <= '7') {
+	    c = (c<<3) + (*s++) - '0';
+	    if (*s >= '0' && *s <= '7')
+		c = (c<<3) + (*s++) - '0';
+	}
+	break;
+    case 'x':
+	{
+	    bool overflow = 0;
+	    for (;is_digithex(*s);) {
+		if (overflow) {
+		    s++;
+		    continue;
+		}
+		if (c >> (BITS(wchartype) - 4)) {
+		    overflow = 1;
+		    error("hex escape sequence out of range");
+		} else {
+		    if (is_digit(*s))
+			c = (c<<4) + *s - '0';
+		    else
+			c = (c<<4) + (*s & 0x5f) - 'A' + 10;
+		}
+		s++;
+	    }
+	}
+	break;
+    case 'u': case 'U':
+	{
+	    int x = 0;
+	    int n = s[-1] == 'u' ? 4 : 8;
+	    for (;is_digithex(*s); x++, s++) {
+		if (x == n)
+		    break;
+		if (is_digit(*s))
+		    c = (c<<4) + *s - '0';
+		else
+		    c = (c<<4) + (*s & 0x5f) - 'A' + 10;
+	    }
+	}
+	break;
+    default:
+	c = s[-1];
+	break;
+    }
+
+    *ps = s;
+    return c;
+}
+
+static void char_constant(struct token *t, struct symbol *sym)
+{
+    const char *s = t->name;
+    bool wide = s[0] == 'L';
+    unsigned long long c = 0;
+    char ws[MB_LEN_MAX];
+    int len = 0;
+    bool overflow = 0;
+    bool char_rec = 0;
+    wide ? (s += 2) : (s += 1);
+
+    for (;*s != '\'';) {
+	if (char_rec)
+	    overflow = 1;
+	if (*s == '\\') {
+	    c = escape(&s);
+	    char_rec = 1;
+	} else {
+	    if (wide) {
+		if (len >= MB_LEN_MAX)
+		    error("multibyte character overflow");
+		else
+		    ws[len++] = (char) *s++;
+	    } else {
+		c = *s++;
+		char_rec = 1;
+	    }
+	}
+    }
+
+    if (!char_rec && !len)
+	error("incomplete character constant: %s", t->name);
+    else if (overflow)
+	error("extraneous characters in character constant: %s", t->name);
+    else if ((!wide && c > unsignedchartype->limits.max.u) ||
+	     (wide && c > wchartype->limits.max.u))
+	error("character constant overflow: %s", t->name);
+    else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
+	error("illegal multi-character sequence");
+    
+    sym->value.u = wide ? (wchar_t)c : (unsigned char)c;
+    sym->type = wide ? wchartype : unsignedchartype;
+}
+
+static void integer_constant(struct token *t, struct symbol *sym)
+{
+    const char *s = t->name;
+    if (s[0] == '\'' || s[1] == 'L')
+	return char_constant(t, sym);
+    
+    bool ull = (s[0] == 'u' || s[0] == 'U') &&
+    ((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
+    bool llu = ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L')) &&
+    (s[2] == 'u' || s[2] == 'U');
+    bool ll = (s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L');
+    bool lu = (s[0] == 'l' || s[0] == 'L') && (s[1] == 'u' || s[1] == 'U');
+    bool ul = (s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L');
+    bool l = s[0] == 'l' || s[0] == 'L';
+    bool u = s[0] == 'u' || s[0] == 'U';
+    int base;
+    struct type *ty;
+    bool overflow = 0;
+    unsigned long long n = 0;
+
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+	base = 16;
+	const char *rpc = s + 2;
+	for (;is_digithex(*rpc);) {
+	    if (n & ~(~0ULL >> 4)) {
+		overflow = 1;
+	    } else {
+		int d;
+		if (is_hex(*rpc))
+		    d = (*rpc & 0x5f) - 'A' + 10;
+		else
+		    d = *rpc - '0';
+
+		n = (n<<4) + d;
+	    }
+	    rpc++;
+	}
+    } else if (s[0] == '0') {
+	base = 8;
+	bool err = 0;
+	for (;is_digit(*s);) {
+	    if (*s == '8' || *s == '9')
+		err = 1;
+
+	    if (n & ~(~0ULL >> 3))
+		overflow = 1;
+	    else
+		n = (n<<3) + (*s - '0');
+
+	    s++;
+	}
+
+	if (err)
+	    error("invalid octal constant %s", s);
+    } else {
+	base = 10;
+	for (;is_digit(*s);) {
+	    int d = *s - '0';
+	    if (n > (unsignedlonglongtype->limits.max.u - d)/10)
+		overflow = 1;
+	    else
+		n = n*10 + (*s - '0');
+
+	    s++;
+	}
+    }
+
+    if (ull || llu) {
+	ty = unsignedlonglongtype;
+    } else if (ll) {
+	if (n > longlongtype->limits.max.i && base != 10)
+	    ty = unsignedlonglongtype;
+	else
+	    ty = longlongtype;
+    } else if (lu || ul) {
+	if (n > unsignedlongtype->limits.max.u)
+	    ty = unsignedlonglongtype;
+	else
+	    ty = unsignedlongtype;
+    } else if (l) {
+	if (base == 10) {
+	    if (n > longtype->limits.max.i)
+		ty = longlongtype;
+	    else
+		ty = longtype;
+	} else {
+	    if (n > longlongtype->limits.max.i)
+		ty = unsignedlonglongtype;
+	    else if (n > unsignedlongtype->limits.max.u)
+		ty = longlongtype;
+	    else if (n > longtype->limits.max.i)
+		ty = unsignedlongtype;
+	    else
+		ty = longtype;
+	}
+    } else if (u) {
+	if (n > unsignedlongtype->limits.max.u)
+	    ty = unsignedlonglongtype;
+	else if (n > unsignedinttype->limits.max.u)
+	    ty = unsignedlongtype;
+	else
+	    ty = unsignedinttype;
+    } else {
+        if (base == 10) {
+            if (n > longtype->limits.max.i)
+                ty = longlongtype;
+            else if (n > inttype->limits.max.i)
+                ty = longtype;
+            else
+                ty = inttype;
+        } else {
+            if (n > longlongtype->limits.max.i)
+                ty = unsignedlonglongtype;
+            else if (n > unsignedlongtype->limits.max.u)
+                ty = longlongtype;
+            else if (n > longtype->limits.max.i)
+                ty = unsignedlongtype;
+            else if (n > unsignedinttype->limits.max.u)
+                ty = longtype;
+            else if (n > inttype->limits.max.i)
+                ty = unsignedinttype;
+            else
+                ty = inttype;
+        }
+    }
+
+    sym->type = ty;
+
+    switch (sym->type->op) {
+        case INT:
+            if (overflow || n > longlongtype->limits.max.i)
+                error("integer constant overflow: %s", s);
+            sym->value.i = n;
+            break;
+        case UNSIGNED:
+            if (overflow)
+                error("integer constant overflow: %s", s);
+            sym->value.u = n;
+            break;
+        default:
+            assert(0);
+    }
+}
+
+static void float_constant(struct token *t, struct symbol *sym)
+{
+    const char *s = t->name;
+    char c = s[strlen(s)-1];
+    errno = 0;			// must clear first
+    if (c == 'f' || c == 'F') {
+	sym->type = floattype;
+	sym->value.d = strtof(s, NULL);
+    } else if (c == 'l' || c == 'L') {
+	sym->type = longdoubletype;
+	sym->value.ld = strtold(s, NULL);
+    } else {
+	sym->type = doubletype;
+	sym->value.d = strtod(s, NULL);
+    }
+
+    if (errno == ERANGE)
+	error("float constant overflow: %s", s);
+}
+
+static void string_constant(struct token *t, struct symbol *sym)
+{
+    const char *s = t->name;
+    bool wide = s[0] == 'L' ? true : false;
+    struct type *ty;
+    if (wide) {
+        size_t len = strlen(s) - 3;
+        wchar_t ws[len+1];
+        errno = 0;
+        size_t wlen = mbstowcs(ws, s+2, len);
+        if (errno == EILSEQ)
+            error("invalid multibyte sequence: %s", s);
+        assert(wlen<=len+1);
+        ty = array_type();
+        ty->type = wchartype;
+        ty->size = wlen;
+    } else {
+        ty = array_type();
+        ty->type = chartype;
+        ty->size = strlen(s)-2;
+    }
+    sym->type = ty;
+}
 
 static inline int is_assign_op(int t)
 {
@@ -79,7 +383,7 @@ static struct expr * postfix_expr1(struct expr *ret)
                 t = token->id;
                 expect(t);
                 if (token->id == ID) {
-                    struct type *lty = reduce(ret);
+                    struct type *lty = reduce(NODE(ret));
                     struct type *basety = t == DEREF ? lty->type : lty;
                     if (isstruct(basety) || isunion(basety)) {
                         int i;
@@ -139,8 +443,7 @@ static struct expr * postfix_expr()
             sym = lookup_symbol(token->name, constants);
             if (!sym) {
                 sym = install_symbol(token->name, &constants, CONSTANT);
-                sym->value = token->v.u;
-                sym->type = token->v.type;
+		t == ICONSTANT ? integer_constant(token, sym) : float_constant(token, sym);
             }
             expect(t);
             ret = expr_node(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, t, NULL, NULL);
@@ -153,7 +456,7 @@ static struct expr * postfix_expr()
             sym = lookup_symbol(token->name, constants);
             if (!sym) {
                 sym = install_symbol(token->name, &constants, CONSTANT);
-                sym->type = token->v.type;
+                string_constant(token, sym);
             }
             expect(t);
             ret = expr_node(STRING_LITERAL, t, NULL, NULL);
@@ -211,7 +514,7 @@ static struct expr * unary_expr()
                     error("indirection requires pointer operand ('%s' invalid)", p->name);
             } else if (t == '&') {
                 struct type *p = reduce(KID0(uexpr));
-                if (!islvalue(KID0(uexpr)))
+                if (!is_lvalue(KID0(uexpr)))
                     error("cannot take the address of an rvalue of type '%s'", p->name);
             }
             break;
@@ -637,15 +940,15 @@ int intexpr()
 }
 
 // TODO
-static struct type * reduce(struct expr *expr)
+static struct type * reduce(struct node *expr)
 {
     return NULL;
 }
 
 // TODO
-static int islvalue(struct expr *expr)
+static bool is_lvalue(struct node *expr)
 {
-    
+    return true;
 }
 
 // TODO

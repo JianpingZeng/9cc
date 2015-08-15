@@ -301,7 +301,7 @@ static struct stmt * statement(struct stmt *context)
     switch (token->id) {
             // compound
         case '{':
-            return compound_statement(context);
+            return compound_stmt(context);
             // selection
         case IF:
             return if_stmt(context);
@@ -338,7 +338,7 @@ static struct stmt * statement(struct stmt *context)
     }
 }
 
-struct stmt * compound_statement(struct stmt *context)
+struct stmt * compound_stmt(struct stmt *context)
 {
     struct stmt *ret = stmt_node(COMPOUND_STMT, NULL, NULL);
     struct vector *v = new_vector();

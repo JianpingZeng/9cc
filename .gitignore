@@ -34,4 +34,5 @@ src/main/c/mcc.vsproj/mcc/Release
 # compile
 *.o
 mcc
+mcc.exe
 
