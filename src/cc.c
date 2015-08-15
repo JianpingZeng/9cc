@@ -5,9 +5,9 @@ static const char *output_file;
 
 static void cc_init()
 {
+    lexer_init();
     symbol_init();
     type_init();
-    lexer_init();
 }
 
 static void cc_exit()

@@ -33,36 +33,37 @@ static void install_type(struct type **type, const char *name, int op, int size)
 
 void type_init()
 {
+#define INSTALL(type, name, op, size)    install_type(&type, name, op, size)
     // char
-    install_type(&chartype, "char",  CHAR, sizeof(char));
-    install_type(&unsignedchartype, "unsigned char", UNSIGNED, sizeof(unsigned char));
-    install_type(&signedchartype, "signed char", CHAR, sizeof(signed char));
+    INSTALL(chartype, "char",  CHAR, sizeof(char));
+    INSTALL(unsignedchartype, "unsigned char", UNSIGNED, sizeof(unsigned char));
+    INSTALL(signedchartype, "signed char", CHAR, sizeof(signed char));
     // wchar_t
-    install_type(&wchartype, "wchar_t", UNSIGNED, sizeof(wchar_t));
+    INSTALL(wchartype, "wchar_t", UNSIGNED, sizeof(wchar_t));
     // short
-    install_type(&shorttype, "short", INT, sizeof(short));
-    install_type(&unsignedshorttype, "unsigned short", UNSIGNED, sizeof(unsigned short));
+    INSTALL(shorttype, "short", INT, sizeof(short));
+    INSTALL(unsignedshorttype, "unsigned short", UNSIGNED, sizeof(unsigned short));
     // int
-    install_type(&inttype, "int", INT, sizeof(int));
-    install_type(&unsignedinttype, "unsigned int", UNSIGNED, sizeof(unsigned));
+    INSTALL(inttype, "int", INT, sizeof(int));
+    INSTALL(unsignedinttype, "unsigned int", UNSIGNED, sizeof(unsigned));
     // long
-    install_type(&longtype, "long", INT, sizeof(long));
-    install_type(&unsignedlongtype, "unsigned long", UNSIGNED, sizeof(unsigned long));
+    INSTALL(longtype, "long", INT, sizeof(long));
+    INSTALL(unsignedlongtype, "unsigned long", UNSIGNED, sizeof(unsigned long));
     // long long
-    install_type(&longlongtype, "long long", INT, sizeof(long long));
-    install_type(&unsignedlonglongtype, "unsigned long long", UNSIGNED, sizeof(unsigned long long));
+    INSTALL(longlongtype, "long long", INT, sizeof(long long));
+    INSTALL(unsignedlonglongtype, "unsigned long long", UNSIGNED, sizeof(unsigned long long));
     // float
-    install_type(&floattype, "float", FLOAT, sizeof(float));
+    INSTALL(floattype, "float", FLOAT, sizeof(float));
     // double
-    install_type(&doubletype, "double", DOUBLE, sizeof(double));
-    install_type(&longdoubletype, "long double", DOUBLE, sizeof(long double));
+    INSTALL(doubletype, "double", DOUBLE, sizeof(double));
+    INSTALL(longdoubletype, "long double", DOUBLE, sizeof(long double));
     // void
-    install_type(&voidtype, "void", VOID, 0);
+    INSTALL(voidtype, "void", VOID, 0);
     // bool
-    install_type(&booltype, "_Bool", INT, sizeof(int));
+    INSTALL(booltype, "_Bool", INT, sizeof(int));
     
     // variable
-    install_type(&vartype, "vartype", ELLIPSIS, 0);
+    INSTALL(vartype, "vartype", ELLIPSIS, 0);
     
     chartype->limits.max.i = CHAR_MAX;
     chartype->limits.min.i = CHAR_MIN;
