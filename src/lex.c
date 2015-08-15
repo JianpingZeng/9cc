@@ -284,16 +284,15 @@ static const char *tokname;
 static struct token token1, token2;
 struct token *token = &token1;
 
-static void identifier();
-static int number();
-static void fnumber(struct string *s, int base);
 static void nextline();
 static void line_comment();
 static void block_comment();
+static void identifier();
+static int number();
+static void fnumber(struct string *s, int base);
+static void sequence(bool wide, char ch);
+static void integer_suffix(struct string *s);
 static void escape(struct string *s);
-static void char_constant(int wide);
-static void string_constant(int wide);
-static void integer_constant(struct string *s);
 static void readch(struct string *s, bool (*is) (char));
 
 static int do_gettok()
@@ -430,11 +429,11 @@ static int do_gettok()
                 return *rpc;
                 
             case '\'':
-                char_constant(0);
+                sequence(false, '\'');
                 return ICONSTANT;
                 
             case '"':
-                string_constant(0);
+                sequence(false, '"');
                 return SCONSTANT;
                 
                 // numbers
@@ -676,11 +675,11 @@ static int do_gettok()
             case 'L':
                 if (rpc[1] == '\'') {
                     pc = rpc + 2;
-                    char_constant(1);
+                    sequence(true, '\'');
                     return ICONSTANT;
                 } else if (rpc[1] == '"') {
                     pc = rpc + 2;
-                    string_constant(1);
+		    sequence(true, '"');
                     return SCONSTANT;
                 } else {
                     goto id;
@@ -763,7 +762,7 @@ static int number()
         // Hex
         str_catn(s, pc++, 1);
         if (!is_digithex(*pc) && *pc != '.') {
-            integer_constant(s);
+            integer_suffix(s);
             error("incomplete hex constant: %s", tokname);
             return ICONSTANT;
         }
@@ -772,7 +771,7 @@ static int number()
             fnumber(s, 16);
             return FCONSTANT;
         } else {
-            integer_constant(s);
+            integer_suffix(s);
             return ICONSTANT;
         }
     } else {
@@ -782,7 +781,7 @@ static int number()
             fnumber(s, 10);
             return FCONSTANT;
         } else {
-            integer_constant(s);
+            integer_suffix(s);
             return ICONSTANT;
         }
     }
@@ -843,7 +842,7 @@ static void fnumber(struct string *s, int base)
     tokname = str_flat(s);
 }
 
-static void integer_constant(struct string *s)
+static void integer_suffix(struct string *s)
 {
     char *rpc = pc;
     int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
@@ -880,11 +879,11 @@ static void integer_constant(struct string *s)
     tokname = str_flat(s);
 }
 
-static void char_constant(int wide)
+static void sequence(bool wide, char ch)
 {    
     struct string *s = new_string();
     wide ? str_catn(s, pc-2, 2) : str_catn(s, pc-1, 1);
-    for (; *pc != '\'';) {
+    for (; *pc != ch;) {
         if (pe - pc < MAXTOKEN) {
             fillbuf();
             if (pc == pe)
@@ -900,40 +899,13 @@ static void char_constant(int wide)
 	    str_catn(s, pc++, 1);
     }
     
-    
-    if (*pc != '\'') {
-        error("unterminated character constant: %s", s->str);
-	str_cats(s, "'");
+    const char *name = ch == '\'' ? "character" : "string";
+    const char *pad = ch == '\'' ? "'" : "\"";
+    if (*pc != ch) {
+        error("unterminated %s constant: %s", name, s->str);
+	str_cats(s, pad);
     } else {
         str_catn(s, pc++, 1);
-    }
-    tokname = str_flat(s);
-}
-
-static void string_constant(int wide)
-{
-    struct string *s = new_string();
-    wide ? str_catn(s, pc-2, 2) : str_catn(s, pc-1, 1);
-    for (; *pc != '"';) {
-        if (pe - pc < MAXTOKEN) {
-            fillbuf();
-            if (pc == pe)
-                break;
-        }
-        if (is_newline(*pc))
-            break;
-        
-        if (*pc == '\\')
-            escape(s);
-        else
-            str_catn(s, pc++, 1);
-    }
-    
-    if (*pc == '"') {
-        str_catn(s, pc++, 1);
-    } else {
-        error("unterminated string constant: %s", s->str);
-	str_cats(s, "\"");
     }
     tokname = str_flat(s);
 }

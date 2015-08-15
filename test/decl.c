@@ -298,6 +298,8 @@ int GG()
     a++ && b ^ c || d && e || f + g;
     
     sizeof (int);
+
+    char *s = "abc sad\n\a";
 }
 
 //int func(int *p, float a)
