@@ -65,47 +65,27 @@ void type_init()
     // variable
     INSTALL(vartype, "vartype", ELLIPSIS, 0);
     
-    chartype->limits.max.i = CHAR_MAX;
-    chartype->limits.min.i = CHAR_MIN;
-    
-    unsignedchartype->limits.max.u = UCHAR_MAX;
-    
-    signedchartype->limits.max.i = SCHAR_MAX;
-    signedchartype->limits.min.i = SCHAR_MIN;
-    
-    wchartype->limits.max.u = WCHAR_MAX;
-    
-    shorttype->limits.max.i = SHRT_MAX;
-    shorttype->limits.min.i = SHRT_MIN;
-    
-    unsignedshorttype->limits.max.u = USHRT_MAX;
-    
-    inttype->limits.max.i = INT_MAX;
-    inttype->limits.min.i = INT_MIN;
-    
-    unsignedinttype->limits.max.u = UINT_MAX;
-    
-    longtype->limits.max.i = LONG_MAX;
-    longtype->limits.min.i = LONG_MIN;
-    
-    unsignedlongtype->limits.max.u = ULONG_MAX;
-    
-    longlongtype->limits.max.i = LLONG_MAX;
-    longlongtype->limits.min.i = LLONG_MIN;
-    
-    unsignedlonglongtype->limits.max.u = ULLONG_MAX;
-    
-    floattype->limits.max.d = FLT_MAX;
-    floattype->limits.min.d = FLT_MIN;
-    
-    doubletype->limits.max.d = DBL_MAX;
-    doubletype->limits.min.d = DBL_MIN;
-    
-    longdoubletype->limits.max.ld = LDBL_MAX;
-    longdoubletype->limits.min.ld = LDBL_MIN;
-    
-    booltype->limits.max.i = 1;
-    booltype->limits.min.i = 0;
+
+#define LIMITS(type, field, maxval, minval) \
+        type->limits.max.field = maxval; \
+	type->limits.min.field = minval
+
+    LIMITS(chartype, i, CHAR_MAX, CHAR_MIN);
+    LIMITS(unsignedchartype, u, UCHAR_MAX, 0);
+    LIMITS(signedchartype, i, SCHAR_MAX, SCHAR_MIN);
+    LIMITS(wchartype, u, WCHAR_MAX, 0);
+    LIMITS(shorttype, i, SHRT_MAX, SHRT_MIN);
+    LIMITS(unsignedshorttype, u, USHRT_MAX, 0);
+    LIMITS(inttype, i, INT_MAX, INT_MIN);
+    LIMITS(unsignedinttype, u, UINT_MAX, 0);
+    LIMITS(longtype, i, LONG_MAX, LONG_MIN);
+    LIMITS(unsignedlongtype, u, ULONG_MAX, 0);
+    LIMITS(longlongtype, i, LLONG_MAX, LLONG_MIN);
+    LIMITS(unsignedlonglongtype, u, ULLONG_MAX, 0);
+    LIMITS(floattype, d, FLT_MAX, FLT_MIN);
+    LIMITS(doubletype, d, DBL_MAX, DBL_MIN);
+    LIMITS(longdoubletype, ld, LDBL_MAX, LDBL_MIN);
+    LIMITS(booltype, i, 1, 0);
 }
 
 void prepend_type(struct type **typelist, struct type *type)
