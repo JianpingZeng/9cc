@@ -696,19 +696,19 @@ static struct expr * logic_or()
     return or1;
 }
 
-static struct expr * cond_expr1(struct expr *o)
+static struct expr * cond_expr1(struct expr *cond)
 {
-    struct expr *ret, *e, *c;
+    struct expr *ret, *then, *els;
     expect('?');
     
-    e = expression();
+    then = expression();
     expect(':');
-    c = cond_expr();
+    els = cond_expr();
     
     ret = expr_node(COND_EXPR, '?', NULL, NULL);
-    ret->u.cond.o = o;
-    ret->u.cond.e = e;
-    ret->u.cond.c = c;
+    ret->u.c.cond = cond;
+    ret->u.c.then = then;
+    ret->u.c.els = els;
     
     return ret;
 }
@@ -834,28 +834,11 @@ static int eval(struct expr *expr, int *error)
             
         case COND_EXPR:
         {
-            struct expr *o = expr->u.cond.o;
-            struct expr *e = expr->u.cond.e;
-            struct expr *c = expr->u.cond.c;
-            int ret0, ret1, ret2, err;
-            err = 0;
-            ret0 = eval(o, &err);
-            if (err) goto end;
-            err = 0;
-            ret1 = eval(e, &err);
-            if (err) goto end;
-            if (ret0) {
-                return ret1;
-            } else {
-                err = 0;
-                ret2 = eval(c, &err);
-                if (err) goto end;
-                return ret2;
-            }
-        end:
-            if (error)
-                *error = 1;
-            return 0;
+	    int cond = eval(expr->u.c.cond, error);
+	    if (cond)
+		return eval(expr->u.c.then, error);
+	    else
+		return eval(expr->u.c.els, error);
         }
             
         case PAREN_EXPR:
@@ -894,13 +877,9 @@ static int eval(struct expr *expr, int *error)
         }
 	    
         case STRING_LITERAL:
-            return (int) expr->node.sym->name;
+            return (const char *)expr->node.sym->name - (const char *)0;
             
         case REF_EXPR:
-            if (error)
-                *error = 1;
-            return 0;
-            
         case CALL_EXPR:
             if (error)
                 *error = 1;

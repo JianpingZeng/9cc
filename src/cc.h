@@ -87,10 +87,10 @@ struct expr {
         struct expr **inits;
         // cond
         struct {
-            struct expr *o;
-            struct expr *e;
-            struct expr *c;
-        }cond;
+            struct expr *cond;
+            struct expr *then;
+            struct expr *els;
+        }c;
         // member
         const char *field;
         // INCR/DECR
