@@ -34,42 +34,42 @@ static unsigned char map[256] = {
  *
  */
 
-static inline int is_digit(char c)
+bool is_digit(char c)
 {
     return map[(unsigned char)c] & DIGIT;
 }
 
-static inline int is_letter(char c)
+static inline bool is_letter(char c)
 {
     return map[(unsigned char)c] & LETTER;
 }
 
-static inline int is_digitletter(char c)
+static inline bool is_digitletter(char c)
 {
     return is_digit(c) || is_letter(c);
 }
 
-static inline int is_blank(char c)
+static inline bool is_blank(char c)
 {
     return map[(unsigned char)c] & BLANK;
 }
 
-static inline int is_newline(char c)
+static inline bool is_newline(char c)
 {
     return map[(unsigned char)c] & NEWLINE;
 }
 
-static inline int is_hex(char c)
+bool is_hex(char c)
 {
     return map[(unsigned char)c] & HEX;
 }
 
-static inline int is_digithex(char c)
+bool is_digithex(char c)
 {
     return is_digit(c) || is_hex(c);
 }
 
-static inline int is_visible(char c)
+static inline bool is_visible(char c)
 {
     return c >= 040 && c < 0177;
 }
@@ -176,7 +176,7 @@ static void fline()
                 str_catn(s, pc++, 1);
             }
         }
-        source.file = strings(s->str);
+        source.file = str_flat(s);
         skipline();
     } else {
         skipline();
@@ -290,10 +290,11 @@ static void fnumber(struct string *s, int base);
 static void nextline();
 static void line_comment();
 static void block_comment();
-static unsigned escape(struct string *s);
+static void escape(struct string *s);
 static void char_constant(int wide);
 static void string_constant(int wide);
 static void integer_constant(struct string *s);
+static void readch(struct string *s, bool (*is) (char));
 
 static int do_gettok()
 {
@@ -733,7 +734,7 @@ static void block_comment()
         pc += 2;
 }
 
-static void read_char(struct string *s, int (*is) (char))
+static void readch(struct string *s, bool (*is) (char))
 {
     char *rpc = pc;
     for (; is(*rpc) || rpc == pe; ) {
@@ -766,7 +767,7 @@ static int number()
             error("incomplete hex constant: %s", tokname);
             return ICONSTANT;
         }
-	read_char(s, is_digithex);
+	readch(s, is_digithex);
         if (*pc == '.' || *pc == 'p' || *pc == 'P') {
             fnumber(s, 16);
             return FCONSTANT;
@@ -776,7 +777,7 @@ static int number()
         }
     } else {
         // Oct/Dec
-	read_char(s, is_digit);
+	readch(s, is_digit);
         if (*pc == '.' || *pc == 'e' || *pc == 'E') {
             fnumber(s, 10);
             return FCONSTANT;
@@ -796,7 +797,7 @@ static void fnumber(struct string *s, int base)
         // . e E
         if (*pc == '.') {
             str_catn(s, pc++, 1);
-	    read_char(s, is_digit);
+	    readch(s, is_digit);
         }
         
         if (*pc == 'e' || *pc == 'E') {
@@ -806,7 +807,7 @@ static void fnumber(struct string *s, int base)
             if (*pc == '+' || *pc == '-')
                 str_catn(s, pc++, 1);
             if (is_digit(*pc))
-		read_char(s, is_digit);
+		readch(s, is_digit);
             else
                 error("exponent used with no following digits: %s", s->str);
         }
@@ -817,7 +818,7 @@ static void fnumber(struct string *s, int base)
             if (!is_digithex(pc[-2]) && !is_digithex(*pc))
                 error("hex floating constants require a significand");
 
-	    read_char(s, is_digithex);
+	    readch(s, is_digithex);
         }
         
         if (*pc == 'p' || *pc == 'P') {
@@ -828,7 +829,7 @@ static void fnumber(struct string *s, int base)
                 str_catn(s, pc++, 1);
             
             if (is_digit(*pc))
-                read_char(s, is_digit);
+                readch(s, is_digit);
             else
                 error("exponent has no digits");
         } else {
@@ -839,7 +840,7 @@ static void fnumber(struct string *s, int base)
     if (*pc == 'f' || *pc == 'F' || *pc == 'l' || *pc == 'L')
 	str_catn(s, pc++, 1);
 
-    tokname = strings(s->str);
+    tokname = str_flat(s);
 }
 
 static void integer_constant(struct string *s)
@@ -876,17 +877,11 @@ static void integer_constant(struct string *s)
         str_catn(s, rpc, 1);
     }
     
-    tokname = strings(s->str);
+    tokname = str_flat(s);
 }
 
 static void char_constant(int wide)
 {    
-    unsigned long long c = 0;
-    int overflow = 0;
-    int char_rec = 0;
-    char ws[MB_LEN_MAX];
-    int len = 0;
-    
     struct string *s = new_string();
     wide ? str_catn(s, pc-2, 2) : str_catn(s, pc-1, 1);
     for (; *pc != '\'';) {
@@ -895,54 +890,24 @@ static void char_constant(int wide)
             if (pc == pe)
                 break;
         }
-        if (char_rec)
-            overflow = 1;
+
         if (is_newline(*pc))
             break;
         
-        if (*pc == '\\') {
-            // escape
-            c = escape(s);
-            char_rec = 1;
-        } else {
-            if (wide) {
-                str_catn(s, pc, 1);
-                if (len >= MB_LEN_MAX)
-                    error("multibyte character overflow");
-                else
-                    ws[len++] = (char) *pc;
-                
-                pc++;
-            } else {
-                str_catn(s, pc, 1);
-                c = *pc++;
-                char_rec = 1;
-            }
-        }
+        if (*pc == '\\')
+            escape(s);		// escape
+        else
+	    str_catn(s, pc++, 1);
     }
     
     
     if (*pc != '\'') {
-        token->name = strings(s->str);
-        error("unterminated character constant: %s", token->name);
+        error("unterminated character constant: %s", s->str);
+	str_cats(s, "'");
     } else {
-        str_catn(s, pc, 1);
-        token->name = strings(s->str);
-        
-        if (!char_rec && !len)
-            error("incomplete character constant: %s", token->name);
-        else if (overflow)
-            error("extraneous characters in character constant: %s", token->name);
-        else if ((!wide && c > unsignedchartype->limits.max.u) || (wide && c > wchartype->limits.max.u))
-            error("character constant overflow: %s", token->name);
-        else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
-            error("invalid multi-character sequence");
-        
-        pc++;
+        str_catn(s, pc++, 1);
     }
-    
-    token->v.u.u = wide ? (wchar_t) c : (unsigned char) c;
-    token->v.type = wide ? wchartype : unsignedchartype;
+    tokname = str_flat(s);
 }
 
 static void string_constant(int wide)
@@ -970,105 +935,61 @@ static void string_constant(int wide)
         error("unterminated string constant: %s", s->str);
 	str_cats(s, "\"");
     }
-    tokname = strings(s->str);
+    tokname = str_flat(s);
 }
 
 static void identifier()
 {
     struct string *s = new_string();
     pc = pc - 1;
-    read_char(s, is_digitletter);
-    tokname = strings(s->str);
+    readch(s, is_digitletter);
+    tokname = str_flat(s);
 }
 
-static unsigned escape(struct string *s)
+static void escape(struct string *s)
 {
     assert(*pc == '\\');
     str_catn(s, pc++, 2);
     switch (*pc++) {
-        case 'a': return 7;
-        case 'b': return '\b';
-        case 'f': return '\f';
-        case 'n': return '\n';
-        case 'r': return '\r';
-        case 't': return '\t';
-        case 'v': return '\v';
-        case '\'': case '"':
+        case 'a': case 'b': case 'f':
+        case 'n': case 'r': case 't':
+        case 'v': case '\'': case '"':
         case '\\': case '\?':
-            return pc[-1];
+            break;
         case '0': case '1': case '2':
         case '3': case '4': case '5':
         case '6': case '7':
-        {
-            unsigned c = pc[-1] - '0';
             if (*pc >= '0' && *pc <= '7') {
-                str_catn(s, pc, 1);
-                c = (c<<3) + (*pc++) - '0';
-                if (*pc >= '0' && *pc <= '7') {
-                    str_catn(s, pc, 1);
-                    c = (c<<3) + (*pc++) - '0';
-                }
+                str_catn(s, pc++, 1);
+                if (*pc >= '0' && *pc <= '7')
+                    str_catn(s, pc++, 1);
             }
-            return c;
-        }
+            break;
         case 'x':
-        {
-            unsigned c = 0;
-            int overflow = 0;
             if (!is_digithex(*pc)) {
                 error("\\x used with no following hex digits");
-                return 0;
+                break;
             }
-            for (; is_digithex(*pc) || pc == pe; ) {
-                if (pc == pe) {
-                    fillbuf();
-                    if (pc == pe)
-                        break;
-                    else
-                        continue;
-                }
-                str_catn(s, pc, 1);
-                if (overflow) {
-                    pc++;
-                    continue;
-                }
-                if (c >> (BITS(wchartype) - 4)) {
-                    overflow = 1;
-                    error("hex escape sequence out of range");
-                } else {
-                    if (is_digit(*pc))
-                        c = (c<<4) + *pc - '0';
-                    else
-                        c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
-                }
-                pc++;
-            }
-            return c;
-        }
+	    readch(s, is_digithex);
+            break;
         case 'u': case 'U':
         {
             // universal character name: expect 4(u)/8(U) hex digits
-            unsigned c = 0;
             int x = 0;
             int n = pc[-1] == 'u' ? 4 : 8;
             char *ps = pc - 2;
             for (; is_digithex(*pc); x++, pc++) {
                 if (x == n)
                     break;
-                
-                if (is_digit(*pc))
-                    c = (c<<4) + *pc - '0';
-                else
-                    c = (c<<4) + (*pc & 0x5f) - 'A' + 10;
                 str_catn(s, pc, 1);
             }
             if (x < n)
                 error("incomplete universal character name: %S", ps, pc-ps);
-            return c;
         }
+	    break;
         default:
             error("unrecognized escape character 0x%x", pc[-1]);
-            return pc[-1];
+            break;
     }
 }
 
@@ -1104,7 +1025,7 @@ void match(int t, int follow[])
     }
 }
 
-static int is_looked;
+static bool is_looked;
 void read_tok(struct token *t)
 {
     tokname = NULL;

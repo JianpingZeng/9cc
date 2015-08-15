@@ -25,9 +25,6 @@ INCLUDES=cc.h \
         node.def \
         token.def \
         lex.h \
-        ast.h \
-        type.h \
-        sym.h \
         sys/sys.h \
         utils/utils.h
 

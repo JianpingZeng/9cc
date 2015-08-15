@@ -29,6 +29,7 @@ extern void str_catn(struct string *s, const char *src, int len);
 extern void str_catd(struct string *s, long d);
 // string to array
 extern char * stoa(struct string *s);
+extern char * str_flat(struct string *s);
 
 // char* from char*/integer
 extern char *strings(const char *str);

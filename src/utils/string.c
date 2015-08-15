@@ -80,6 +80,12 @@ char * stoa(struct string *s)
     return str;
 }
 
+char * str_flat(struct string *s)
+{
+    if (s == NULL) return NULL;
+    return strings(s->str);
+}
+
 struct string_table {
     struct string_bucket {
         char *str;
