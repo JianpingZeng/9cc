@@ -311,16 +311,6 @@ static void string_constant(struct token *t, struct symbol *sym)
     sym->type = ty;
 }
 
-static inline int is_assign_op(int t)
-{
-    return t == '=' ||
-    t == MULEQ || t == ADDEQ || t == MINUSEQ || t == DIVEQ ||
-    t == MODEQ ||
-    t == XOREQ ||
-    t == BANDEQ || t == BOREQ ||
-    t == LSHIFTEQ || t == RSHIFTEQ;
-}
-
 static struct expr * typename_expr()
 {
     struct expr *expr;

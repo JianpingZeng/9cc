@@ -173,22 +173,23 @@ _t(UNION,       "union",       INT)
 _t(VOID,        "void",        INT)
 _t(VOLATILE,    "volatile",    CONST)
 _t(WHILE,       "while",       IF)
-// operators		       
+// operators
+
+// assign op
 _t(MULEQ,       "*=",          0)
 _t(ADDEQ,       "+=",          0)
 _t(MINUSEQ,     "-=",          0)
 _t(DIVEQ,       "/=",          0)
 _t(MODEQ,       "%=",          0)
-
 _t(XOREQ,       "^=",          XOREQ)
 _t(BANDEQ,      "&=",          BANDEQ)
 _t(BOREQ,       "|=",          BOREQ)
+_t(LSHIFTEQ,    "<<=",         LSHIFTEQ)
+_t(RSHIFTEQ,    ">>=",         RSHIFTEQ)
 
 _t(LEQ,         "<=",          LEQ)
-_t(LSHIFTEQ,    "<<=",         LSHIFTEQ)
 _t(LSHIFT,      "<<",          LSHIFT)
 _t(GEQ,         ">=",          GEQ)
-_t(RSHIFTEQ,    ">>=",         RSHIFTEQ)
 _t(RSHIFT,      ">>",          RSHIFT)
 
 _t(INCR,        "++",          ID)

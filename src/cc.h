@@ -63,6 +63,8 @@ union value {
     void (*g) ();
 };
 
+#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
+
 // ast.h
 // node ids
 enum {
