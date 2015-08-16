@@ -40,57 +40,56 @@ void type_init()
 {
 #define INSTALL(type, name, op, size)    install_type(&type, name, op, size)
     // char
-    INSTALL(chartype, "char",  CHAR, sizeof(char));
-    INSTALL(unsignedchartype, "unsigned char", UNSIGNED, sizeof(unsigned char));
-    INSTALL(signedchartype, "signed char", CHAR, sizeof(signed char));
+    INSTALL(chartype,           "char",             INT,       sizeof(char));
+    INSTALL(unsignedchartype,   "unsigned char",    UNSIGNED,   sizeof(unsigned char));
+    INSTALL(signedchartype,     "signed char",      INT,       sizeof(signed char));
     // wchar_t
-    INSTALL(wchartype, "wchar_t", UNSIGNED, sizeof(wchar_t));
+    INSTALL(wchartype,          "wchar_t",          UNSIGNED,   sizeof(wchar_t));
     // short
-    INSTALL(shorttype, "short", INT, sizeof(short));
-    INSTALL(unsignedshorttype, "unsigned short", UNSIGNED, sizeof(unsigned short));
+    INSTALL(shorttype,          "short",            INT,        sizeof(short));
+    INSTALL(unsignedshorttype,  "unsigned short",   UNSIGNED,   sizeof(unsigned short));
     // int
-    INSTALL(inttype, "int", INT, sizeof(int));
-    INSTALL(unsignedinttype, "unsigned int", UNSIGNED, sizeof(unsigned));
+    INSTALL(inttype,            "int",              INT,        sizeof(int));
+    INSTALL(unsignedinttype,    "unsigned int",     UNSIGNED,   sizeof(unsigned));
     // long
-    INSTALL(longtype, "long", INT, sizeof(long));
-    INSTALL(unsignedlongtype, "unsigned long", UNSIGNED, sizeof(unsigned long));
+    INSTALL(longtype,           "long",             INT,        sizeof(long));
+    INSTALL(unsignedlongtype,   "unsigned long",    UNSIGNED,   sizeof(unsigned long));
     // long long
-    INSTALL(longlongtype, "long long", INT, sizeof(long long));
+    INSTALL(longlongtype,       "long long",        INT,        sizeof(long long));
     INSTALL(unsignedlonglongtype, "unsigned long long", UNSIGNED, sizeof(unsigned long long));
     // float
-    INSTALL(floattype, "float", FLOAT, sizeof(float));
+    INSTALL(floattype,          "float",            FLOAT,      sizeof(float));
     // double
-    INSTALL(doubletype, "double", DOUBLE, sizeof(double));
-    INSTALL(longdoubletype, "long double", DOUBLE, sizeof(long double));
+    INSTALL(doubletype,         "double",           FLOAT,     sizeof(double));
+    INSTALL(longdoubletype,     "long double",      FLOAT,     sizeof(long double));
     // void
-    INSTALL(voidtype, "void", VOID, 0);
+    INSTALL(voidtype,           "void",             VOID,       0);
     // bool
-    INSTALL(booltype, "_Bool", INT, sizeof(int));
-    
+    INSTALL(booltype,           "_Bool",            UNSIGNED,   sizeof(int));
     // variable
-    INSTALL(vartype, "vartype", ELLIPSIS, 0);
+    INSTALL(vartype,            "vartype",          ELLIPSIS,   0);
     
 
 #define LIMITS(type, field, maxval, minval) \
         type->limits.max.field = maxval; \
 	type->limits.min.field = minval
 
-    LIMITS(chartype, i, CHAR_MAX, CHAR_MIN);
-    LIMITS(unsignedchartype, u, UCHAR_MAX, 0);
-    LIMITS(signedchartype, i, SCHAR_MAX, SCHAR_MIN);
-    LIMITS(wchartype, u, WCHAR_MAX, 0);
-    LIMITS(shorttype, i, SHRT_MAX, SHRT_MIN);
-    LIMITS(unsignedshorttype, u, USHRT_MAX, 0);
-    LIMITS(inttype, i, INT_MAX, INT_MIN);
-    LIMITS(unsignedinttype, u, UINT_MAX, 0);
-    LIMITS(longtype, i, LONG_MAX, LONG_MIN);
-    LIMITS(unsignedlongtype, u, ULONG_MAX, 0);
-    LIMITS(longlongtype, i, LLONG_MAX, LLONG_MIN);
+    LIMITS(chartype,            i, CHAR_MAX,    CHAR_MIN);
+    LIMITS(unsignedchartype,    u, UCHAR_MAX,   0);
+    LIMITS(signedchartype,      i, SCHAR_MAX,   SCHAR_MIN);
+    LIMITS(wchartype,           u, WCHAR_MAX,   0);
+    LIMITS(shorttype,           i, SHRT_MAX,    SHRT_MIN);
+    LIMITS(unsignedshorttype,   u, USHRT_MAX,   0);
+    LIMITS(inttype,             i, INT_MAX,     INT_MIN);
+    LIMITS(unsignedinttype,     u, UINT_MAX,    0);
+    LIMITS(longtype,            i, LONG_MAX,    LONG_MIN);
+    LIMITS(unsignedlongtype,    u, ULONG_MAX,   0);
+    LIMITS(longlongtype,        i, LLONG_MAX,   LLONG_MIN);
     LIMITS(unsignedlonglongtype, u, ULLONG_MAX, 0);
-    LIMITS(floattype, d, FLT_MAX, FLT_MIN);
-    LIMITS(doubletype, d, DBL_MAX, DBL_MIN);
-    LIMITS(longdoubletype, ld, LDBL_MAX, LDBL_MIN);
-    LIMITS(booltype, i, 1, 0);
+    LIMITS(floattype,           d, FLT_MAX,     FLT_MIN);
+    LIMITS(doubletype,          d, DBL_MAX,     DBL_MIN);
+    LIMITS(longdoubletype,      ld, LDBL_MAX,   LDBL_MIN);
+    LIMITS(booltype,            u, 1, 0);
 
 #undef INSTALL
 #undef LIMITS
@@ -222,13 +221,13 @@ struct symbol * tag_type(int op, const char *tag, struct source src)
     ty->tag = tag;
     if (op == ENUM) {
         ty->type = inttype;
-	ty->name = "enum";
+        ty->name = "enum";
     } else if (op == STRUCT) {
-	ty->name = "struct";
+        ty->name = "struct";
     } else if (op == UNION) {
-	ty->name = "union";
+        ty->name = "union";
     } else {
-	assert(0);
+        assert(0);
     }
     struct symbol *sym = NULL;
     if (tag) {
@@ -308,11 +307,9 @@ int eqtype(struct type *ty1, struct type *ty2)
         case STRUCT:
             return 0;
             
-        case CHAR:
         case INT:
         case UNSIGNED:
         case FLOAT:
-        case DOUBLE:
         case VOID:
             return 1;
             
@@ -338,9 +335,7 @@ int eqtype(struct type *ty1, struct type *ty2)
                         struct symbol *sym = newty->u.f.params[i];
                         if (sym->type) {
                             struct type *ty = sym->type;
-                            if (ty->op == CHAR)
-                                return 0;
-                            else if (ty->op == INT && ty->size == sizeof(short))
+                            if (ty->op == INT && (ty->size == sizeof(short) || ty->size == sizeof(char)))
                                 return 0;
                             else if (ty->op == UNSIGNED && (ty->size == sizeof(unsigned short)
                                                             || ty->size == sizeof(unsigned char)))
