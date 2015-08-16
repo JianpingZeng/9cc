@@ -312,6 +312,17 @@ static void string_constant(struct token *t, struct symbol *sym)
     sym->type = ty;
 }
 
+static struct expr * compound_literal()
+{
+    struct expr * ret;
+    struct expr * inits;
+
+    inits = initializer_list();
+    ret = expr_node(COMPOUND_LITERAL, CCONSTANT, inits, NULL);
+
+    return ret;
+}
+
 static struct expr * typename_expr()
 {
     struct expr *expr;
@@ -459,7 +470,7 @@ static struct expr * postfix_expr()
             struct token *ahead = lookahead();
             if (istypename(ahead)) {
                 ret = typename_expr();
-                KID0(ret) = NODE(initializer_list());
+                KID0(ret) = NODE(compound_literal());
             } else {
                 expect('(');
                 ret = expr_node(PAREN_EXPR, '(', expression(), NULL);
@@ -516,7 +527,7 @@ static struct expr * unary_expr()
             if (token->id == '(' && istypename(ahead)) {
                 struct expr *texpr = typename_expr();
                 if (token->id == '{') {
-                    KID0(texpr) = NODE(initializer_list());
+                    KID0(texpr) = NODE(compound_literal());
                     texpr = postfix_expr1(texpr);
                 }
                 uexpr = expr_node(UNARY_EXPR, t, texpr, NULL);
@@ -540,7 +551,7 @@ static struct expr * cast_expr()
     if (token->id == '(' && istypename(ahead)) {
         cast1 = typename_expr();
         if (token->id == '{') {
-            KID0(cast1) = NODE(initializer_list());
+            KID0(cast1) = NODE(compound_literal());
             cast1 = postfix_expr1(cast1);
         } else {
             KID0(cast1) = (struct node*)cast_expr();
@@ -802,6 +813,7 @@ static int eval(struct expr *expr, int *error)
 
 	// paren
     case '(':
+    case CCONSTANT:
 	return L;
 
 	// inits
@@ -813,7 +825,7 @@ static int eval(struct expr *expr, int *error)
                 return 0;
         }
             
-    case INTEGER_LITERAL:
+    case ICONSTANT:
 	{
             struct symbol *sym = expr->node.sym;
             union value v = sym->value;
@@ -825,7 +837,7 @@ static int eval(struct expr *expr, int *error)
                 assert(0);
 	}
 	    
-    case FLOAT_LITERAL:
+    case FCONSTANT:
         {
             struct symbol *sym = expr->node.sym;
             union value v = sym->value;
@@ -837,7 +849,7 @@ static int eval(struct expr *expr, int *error)
                 assert(0);
         }
 	    
-    case STRING_LITERAL:
+    case SCONSTANT:
 	return (const char *)expr->node.sym->name - (const char *)0;
 
     case INCR: case DECR:

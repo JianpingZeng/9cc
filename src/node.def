@@ -34,6 +34,7 @@ _ns(BEGIN_LITERAL_ID)
 _n(INTEGER_LITERAL,         "IntegerLiteral")
 _n(FLOAT_LITERAL,           "FloatLiteral")
 _n(STRING_LITERAL,          "StringLiteral")
+_n(COMPOUND_LITERAL,	    "CompoundLiteral")
 
 _ns(END_LITERAL_ID)
 
