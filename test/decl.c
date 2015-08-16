@@ -4,7 +4,7 @@
 
 int * (*f) (float a, int , int (*) (int));
 
-int * ();
+// int * ();
 //
 //void (*signal(int signo,void (*func)(int))) (int);
 
@@ -241,28 +241,28 @@ int * ();
 // };
 
 // int a;
-struct S1 {
-   int a;
-   struct S2 {
-       int a;
-       struct S3 {
-           int b;
-       };
-   };
-   struct S2;
-};
+// struct S1 {
+//    int a;
+//    struct S2 {
+//        int a;
+//        struct S3 {
+//            int b;
+//        };
+//    };
+//    struct S2;
+// };
 
-struct S1 v1;
-struct S2 v2;
-struct S3 v3;
+// struct S1 v1;
+// struct S2 v2;
+// struct S3 v3;
 
-struct S {
-   int (*f) (int);
-};
+// struct S {
+//    int (*f) (int);
+// };
 
-void f2(struct T { int a;} b, int a)
-{
-}
+// void f2(struct T { int a;} b, int a)
+// {
+// }
 //
 //void g()
 //{
@@ -302,6 +302,7 @@ int GG()
     sizeof (int);
 
     char *s = "abc sad\n\a";
+    
 }
 
 //int func(int *p, float a)

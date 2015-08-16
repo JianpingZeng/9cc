@@ -128,16 +128,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
     const char *s = t->name;
     if (s[0] == '\'' || s[1] == 'L')
 	return char_constant(t, sym);
-    
-    bool ull = (s[0] == 'u' || s[0] == 'U') &&
-    ((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
-    bool llu = ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L')) &&
-    (s[2] == 'u' || s[2] == 'U');
-    bool ll = (s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L');
-    bool lu = (s[0] == 'l' || s[0] == 'L') && (s[1] == 'u' || s[1] == 'U');
-    bool ul = (s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L');
-    bool l = s[0] == 'l' || s[0] == 'L';
-    bool u = s[0] == 'u' || s[0] == 'U';
+
     int base;
     struct type *ty;
     bool overflow = 0;
@@ -145,20 +136,20 @@ static void integer_constant(struct token *t, struct symbol *sym)
 
     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
 	base = 16;
-	const char *rpc = s + 2;
-	for (;is_digithex(*rpc);) {
+	s = s + 2;
+	for (;is_digithex(*s);) {
 	    if (n & ~(~0ULL >> 4)) {
 		overflow = 1;
 	    } else {
 		int d;
-		if (is_hex(*rpc))
-		    d = (*rpc & 0x5f) - 'A' + 10;
+		if (is_hex(*s))
+		    d = (*s & 0x5f) - 'A' + 10;
 		else
-		    d = *rpc - '0';
+		    d = *s - '0';
 
 		n = (n<<4) + d;
 	    }
-	    rpc++;
+	    s++;
 	}
     } else if (s[0] == '0') {
 	base = 8;
@@ -176,7 +167,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
 	}
 
 	if (err)
-	    error("invalid octal constant %s", s);
+	    error("invalid octal constant %s", t->name);
     } else {
 	base = 10;
 	for (;is_digit(*s);) {
@@ -189,6 +180,16 @@ static void integer_constant(struct token *t, struct symbol *sym)
 	    s++;
 	}
     }
+
+    int ull = (s[0] == 'u' || s[0] == 'U') &&
+    ((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
+    int llu = ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L')) &&
+    (s[2] == 'u' || s[2] == 'U');
+    int ll = (s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L');
+    int lu = (s[0] == 'l' || s[0] == 'L') && (s[1] == 'u' || s[1] == 'U');
+    int ul = (s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L');
+    int l = s[0] == 'l' || s[0] == 'L';
+    int u = s[0] == 'u' || s[0] == 'U';
 
     if (ull || llu) {
 	ty = unsignedlonglongtype;
@@ -254,12 +255,12 @@ static void integer_constant(struct token *t, struct symbol *sym)
     switch (sym->type->op) {
         case INT:
             if (overflow || n > longlongtype->limits.max.i)
-                error("integer constant overflow: %s", s);
+                error("integer constant overflow: %s", t->name);
             sym->value.i = n;
             break;
         case UNSIGNED:
             if (overflow)
-                error("integer constant overflow: %s", s);
+                error("integer constant overflow: %s", t->name);
             sym->value.u = n;
             break;
         default:
