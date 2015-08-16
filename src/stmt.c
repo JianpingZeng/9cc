@@ -145,12 +145,12 @@ static struct stmt * switch_stmt(struct stmt *context)
 static struct stmt * case_stmt(struct stmt *context)
 {
     int in_sw = 0;
-    struct expr *expr;
+    int val;
     struct stmt *stmt;
     struct source src = source;
     
     expect(CASE);
-    expr = constant_expr();
+    val = intexpr();
     expect(':');
     
     while (context) {
@@ -171,8 +171,10 @@ static struct stmt * case_stmt(struct stmt *context)
     
     if (!in_sw)
         return NULL;
-    else
-        return stmt_node(CASE_STMT, NODE(expr), NODE(stmt));
+    
+    struct stmt *ret = stmt_node(CASE_STMT, NODE(stmt), NULL);
+    ret->u.casestmt.value = val;
+    return ret;
 }
 
 static struct stmt * default_stmt(struct stmt *context)

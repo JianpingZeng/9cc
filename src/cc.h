@@ -113,6 +113,9 @@ struct stmt {
         struct {
             struct node **blks;	// block items
         }compoundstmt;
+        struct {
+            int value;
+        }casestmt;
     }u;
 };
 
@@ -133,7 +136,6 @@ extern struct stmt * stmt_node(int id, struct node *l, struct node *r);
 
 // expr.c
 extern struct expr * expression();
-extern struct expr * constant_expr();
 extern struct expr * assign_expr();
 extern int intexpr();
 

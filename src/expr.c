@@ -869,31 +869,15 @@ static int eval(struct expr *expr, int *error)
     }
 }
 
-static struct expr * eval_intexpr(int *value)
+int intexpr()
 {
     struct source src = source;
     struct expr *expr = cond_expr();
     int error = 0;
     int val = eval(expr, &error);
-    if (value)
-        *value = val;
-    if (error == 0) {
-        return expr;
-    } else {
+    if (error)
         errorf(src, "expect constant expression");
-        return NULL;
-    }
-}
 
-struct expr * constant_expr()
-{
-    return eval_intexpr(NULL);
-}
-
-int intexpr()
-{
-    int val = 0;
-    (void) eval_intexpr(&val);
     return val;
 }
 
