@@ -333,8 +333,7 @@ static struct node * typename_expr()
     type = typename();
     expect(')');
     expr = expr_node(CAST_EXPR, 'C', NULL, NULL);
-    expr->sym = anonymous(&identifiers, SCOPE);
-    expr->sym->type = type;
+    expr->type = type;
     
     return expr;
 }
