@@ -52,3 +52,16 @@ struct field * new_field(char *id)
     field->name = id;
     return field;
 }
+
+struct node * unode(int op, struct type *ty, struct node *l)
+{
+    struct node * expr = expr_node(UNARY_OPERATOR, op, l, NULL);
+    expr->type = ty;
+    return expr;
+}
+
+struct node * bnode(int op, struct node *l, struct node *r)
+{
+    struct node * expr = expr_node(BINARY_OPERATOR, op, l, r);
+    return expr;
+}

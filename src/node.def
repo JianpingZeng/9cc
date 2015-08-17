@@ -18,10 +18,10 @@ _ns(END_DECL_ID)
 // expr
 _ns(BEGIN_EXPR_ID)
 
-_n(BINARY_EXPR,       "BinaryExpr")
-_n(UNARY_EXPR,        "UnaryExpr")
+_n(BINARY_OPERATOR,   "BinaryOperator")
+_n(UNARY_OPERATOR,    "UnaryOperator")
 _n(COND_EXPR,         "ConditionalExpr")
-_n(INDEX_EXPR,        "ArraySubscriptExpr")
+_n(SUBSCRIPT_EXPR,    "ArraySubscriptExpr")
 _n(MEMBER_EXPR,       "MemberExpr")
 _n(PAREN_EXPR,        "ParenExpr")
 _n(REF_EXPR,          "RefExpr")

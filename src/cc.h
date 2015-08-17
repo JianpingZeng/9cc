@@ -76,8 +76,8 @@ enum {
 struct node {
     int id;
     struct type *type;
-    struct symbol *sym;
     struct node *kids[2];
+    struct symbol *sym;
     union {
         // expr
         struct {
@@ -128,6 +128,8 @@ extern const char *nname(struct node *node);
 extern struct node * expr_node(int id, int op, struct node *l, struct node *r);
 extern struct node * decl_node(int id, int scope);
 extern struct node * stmt_node(int id, struct node *l, struct node *r);
+extern struct node * unode(int op, struct type *ty, struct node *l);
+extern struct node * bnode(int op, struct node *l, struct node *r);
 
 // expr.c
 extern struct node * expression();

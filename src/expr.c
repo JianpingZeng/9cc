@@ -311,18 +311,6 @@ static void string_constant(struct token *t, struct symbol *sym)
     sym->type = ty;
 }
 
-static struct node * unode(int op, struct node *l)
-{
-    struct node * expr = expr_node(UNARY_EXPR, op, l, NULL);
-    return expr;
-}
-
-static struct node * bnode(int op, struct node *l, struct node *r)
-{
-    struct node * expr = expr_node(BINARY_EXPR, op, l, r);
-    return expr;
-}
-
 static struct node * compound_literal(struct type *ty)
 {
     struct node * ret;
@@ -377,7 +365,7 @@ static struct node * postfix_expr1(struct node *ret)
             case '[':
                 t = token->id;
                 expect('[');
-                ret = expr_node(INDEX_EXPR, t, ret, expression());
+                ret = expr_node(SUBSCRIPT_EXPR, t, ret, expression());
                 expect(']');
                 break;
             case '(':
@@ -428,6 +416,7 @@ static struct node * primary_expr()
             expect(t);
             ret = expr_node(REF_EXPR, ID, NULL, NULL);
             ret->sym = sym;
+            ret->type = sym->type;
         }
             break;
         case ICONSTANT:
@@ -442,6 +431,7 @@ static struct node * primary_expr()
             expect(t);
             ret = expr_node(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, t, NULL, NULL);
             ret->sym = sym;
+            ret->type = sym->type;
         }
             break;
         case SCONSTANT:
@@ -455,6 +445,7 @@ static struct node * primary_expr()
             expect(t);
             ret = expr_node(STRING_LITERAL, t, NULL, NULL);
             ret->sym = sym;
+            ret->type = sym->type;
         }
             break;
         case '(':
@@ -486,59 +477,89 @@ static struct node * postfix_expr()
     return postfix_expr1(expr);
 }
 
+static struct node * unary_inc_expr(int t)
+{
+    int t = token->id;
+    expect(t);
+    struct node *operand = unary_expr();
+    struct ret = unode(t, operand->type, operand);
+    ret->u.e.prefix = true;
+    return ret;
+}
+
+static struct node * sizeof_expr()
+{
+    int t = token->id;
+    expect(t);
+    struct token *ahead = lookahead();
+    if (token->id == '(' && istypename(ahead)) {
+        struct type *ty = cast_type();
+        if (token->id == '{') {
+            struct node * node = compound_literal(ty);
+            return unode(t, postfix_expr1(node));
+        } else {
+            //TODO
+            return unode(t, NULL);
+        }
+    } else {
+        return unode(t, unary_expr());
+    }
+}
+
+static struct node * unary_addr_expr()
+{
+    int t = token->id;
+    expect(t);
+    struct node *operand = cast_expr();
+    return unode(t, operand->type, operand);
+}
+
+static struct node * unary_deref_expr()
+{
+    int t = token->id;
+    expect(t);
+    struct node *operand = cast_expr();
+    return unode(t, operand->type, operand);
+}
+
+static struct node * unary_minus_expr()
+{
+    int t = token->id;
+    expect(t);
+    struct node *operand = cast_expr();
+    return unode(t, operand->type, operand);
+}
+
+static struct node * unary_bnot_expr()
+{
+    int t = token->id;
+    expect(t);
+    struct node *operand = cast_expr();
+    return unode(t, operand->type, operand);
+}
+
+static struct node * unary_lnot_expr()
+{
+    int t = token->id;
+    expect(t);
+    struct node *operand = cast_expr();
+    return unode(t, operand->type, operand);
+}
+
 static struct node * unary_expr()
 {
-    struct node * ret;
-    int t;
-    struct token *ahead;
-    
     switch (token->id) {
-        case INCR:
-        case DECR:
-        {
-            t = token->id;
-            expect(t);
-            ret = unode(t, unary_expr());
-            ret->u.e.prefix = true;
-        }
-            break;
-        case '&':
-        case '*':
-        case '+':
-        case '-':
-        case '~':
-        case '!':
-        {
-            t = token->id;
-            expect(t);
-            ret = unode(t, cast_expr());
-        }
-            break;
-        case SIZEOF:
-        {
-            t = token->id;
-            expect(token->id);
-            ahead = lookahead();
-            if (token->id == '(' && istypename(ahead)) {
-                struct type *ty = cast_type();
-                if (token->id == '{') {
-                    struct node * node = compound_literal(ty);
-                    ret = unode(t, postfix_expr1(node));
-                } else {
-                    //TODO
-                    ret = unode(t, NULL);
-                }
-            } else {
-                ret = unode(t, unary_expr());
-            }
-        }
-            break;
-        default:
-            ret = postfix_expr();
-            break;
+        case INCR:  return unary_inc_expr(INCR);
+        case DECR:  return unary_inc_expr(DECR);
+        case '&':   return unary_addr_expr();
+        case '*':   return unary_deref_expr();
+        case '+':   return cast_expr();
+        case '-':   return unary_minus_expr();
+        case '~':   return unary_bnot_expr();
+        case '!':   return unary_lnot_expr();
+        case SIZEOF:return sizeof_expr();
+        default:    return postfix_expr();
     }
-    
-    return ret;
 }
 
 static struct node * cast_expr()
@@ -766,7 +787,7 @@ static int eval(struct node *expr, int *error)
     
     assert(isexpr(expr));
     
-    bool bop = expr->id == BINARY_EXPR;
+    bool bop = expr->id == BINARY_OPERATOR;
     struct node *l = LEFT(expr);
     struct node *r = RIGHT(expr);
 #define L eval(l, error)

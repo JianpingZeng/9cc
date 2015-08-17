@@ -1168,7 +1168,7 @@ struct node * initializer_list()
         
         rnode = initializer();
         if (lnode) {
-            struct node *assign_node = expr_node(BINARY_EXPR, '=', lnode, rnode);
+            struct node *assign_node = bnode('=', lnode, rnode);
             vec_push(v, assign_node);
         } else {
             vec_push(v, rnode);
