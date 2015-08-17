@@ -240,18 +240,23 @@ extern struct type    *voidtype;               // void
 extern struct type    *booltype;	       // bool
 extern struct type    *vartype;		       // variable type
 
-#define isfunction(type)    ((type) && (type)->op == FUNCTION)
-#define isarray(type)       ((type) && (type)->op == ARRAY)
-#define ispointer(type)     ((type) && (type)->op == POINTER)
-#define isconst(type)       ((type) && (type)->is_const)
-#define isvolatile(type)    ((type) && (type)->is_volatile)
-#define isrestrict(type)    ((type) && (type)->is_restrict)
-#define isqual(type)        (isconst(type) || isvolatile(type) || isrestrict(type))
-#define isinline(type)      ((type) && (type)->is_inline)
-#define isvoid(type)        ((type) && (type)->op == VOID)
-#define isenum(type)        ((type) && (type)->op == ENUM)
-#define isstruct(type)      ((type) && (type)->op == STRUCT)
-#define isunion(type)       ((type) && (type)->op == UNION)
+#define isfunc(ty)      ((ty)->op == FUNCTION)
+#define isarray(ty)     ((ty)->op == ARRAY)
+#define isptr(ty)       ((ty)->op == POINTER)
+#define isconst(ty)     ((ty)->is_const)
+#define isvolatile(ty)  ((ty)->is_volatile)
+#define isrestrict(ty)  ((ty)->is_restrict)
+#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
+#define isinline(ty)    ((ty)->is_inline)
+#define isvoid(ty)      ((ty)->op == VOID)
+#define isenum(ty)      ((ty)->op == ENUM)
+#define isstruct(ty)    ((ty)->op == STRUCT)
+#define isunion(ty)     ((ty)->op == UNION)
+
+#define isint(ty)       ((ty)->op == INT || (ty)->op == UNSIGNED || isenum(ty))
+#define isfloat(ty)     ((ty)->op == FLOAT)
+#define isarith(ty)     (isint(ty) || isfloat(ty))
+#define isscalar(ty)    (isarith(ty) || isptr(ty))
 
 // sym.c
 // scope level

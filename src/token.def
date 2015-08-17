@@ -135,7 +135,9 @@ _t(ICONSTANT,   "ICONSTANT",   ID)
 _t(FCONSTANT,   "FCONSTANT",   ID)
 _t(SCONSTANT,   "SCONSTANT",   ID)
 _t(ELLIPSIS,    "...",         ELLIPSIS)
+
 // keywords		       
+
 _t(AUTO,        "auto",        STATIC)
 _t(_BOOL,       "_Bool",       INT)
 _t(BREAK,       "break",       IF)
@@ -176,7 +178,7 @@ _t(WHILE,       "while",       IF)
 
 // operators
 
-// assign op
+// assign op begin
 _t(MULEQ,       "*=",          0)
 _t(ADDEQ,       "+=",          0)
 _t(MINUSEQ,     "-=",          0)
@@ -187,6 +189,7 @@ _t(BANDEQ,      "&=",          BANDEQ)
 _t(BOREQ,       "|=",          BOREQ)
 _t(LSHIFTEQ,    "<<=",         LSHIFTEQ)
 _t(RSHIFTEQ,    ">>=",         RSHIFTEQ)
+// assign op end
 
 _t(LEQ,         "<=",          LEQ)
 _t(LSHIFT,      "<<",          LSHIFT)

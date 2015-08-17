@@ -36,12 +36,12 @@ static void conflicting_types_error(struct source src, struct symbol *sym)
 
 static void validate_func_or_array(struct type *ty)
 {
-    if (isfunction(ty)) {
-        if (isfunction(ty->type))
+    if (isfunc(ty)) {
+        if (isfunc(ty->type))
             error("function cannot return function type");
         else if (isarray(ty->type))
             error("function cannot return array type");
-    } else if (isarray(ty) && isfunction(ty->type)) {
+    } else if (isarray(ty) && isfunc(ty->type)) {
         error("array of function is invalid");
     }
 }
@@ -833,7 +833,7 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
         sclass = 0;
     }
     
-    if (isfunction(ty)) {
+    if (isfunc(ty)) {
         ty = pointer_type(ty);
     } else if (isarray(ty)) {
         // TODO: convert to poniter
@@ -881,7 +881,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
             errorf(src, "illegal initializer (only variable can be initialized)");
     }
     
-    if (isfunction(ty)){
+    if (isfunc(ty)){
         if (ty->u.f.params && ty->u.f.oldstyle)
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
@@ -933,7 +933,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
             errorf(src, "illegal initializer (only variable can be initialized)");
     }
     
-    if (isfunction(ty)) {
+    if (isfunc(ty)) {
         if (ty->u.f.params && ty->u.f.oldstyle)
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
@@ -1063,7 +1063,7 @@ static struct vector * decls(DeclFunc dclf)
         attach_type(&ty, basety);
         
         if (level == GLOBAL) {
-            if (params && isfunction(ty) &&
+            if (params && isfunc(ty) &&
                 (token->id == '{' ||
                  ((istypename(token) || token->kind == STATIC) &&
                   ty->u.f.oldstyle && ty->u.f.params))) {

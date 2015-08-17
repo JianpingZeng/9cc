@@ -519,7 +519,14 @@ static struct node * unary_deref()
     return unode(t, operand->type, operand);
 }
 
-static struct node * unary_minus()
+static struct node * unary_minus(int t)
+{
+    expect(t);
+    struct node *operand = cast_expr();
+    return unode(t, operand->type, operand);
+}
+
+static struct node * unary_bneg()
 {
     int t = token->id;
     expect(t);
@@ -527,15 +534,7 @@ static struct node * unary_minus()
     return unode(t, operand->type, operand);
 }
 
-static struct node * unary_bnot()
-{
-    int t = token->id;
-    expect(t);
-    struct node *operand = cast_expr();
-    return unode(t, operand->type, operand);
-}
-
-static struct node * unary_lnot()
+static struct node * unary_lneg()
 {
     int t = token->id;
     expect(t);
@@ -550,10 +549,10 @@ static struct node * unary_expr()
         case DECR:  return unary_inc(DECR);
         case '&':   return unary_addr();
         case '*':   return unary_deref();
-        case '+':   return cast_expr();
-        case '-':   return unary_minus();
-        case '~':   return unary_bnot();
-        case '!':   return unary_lnot();
+        case '+':   return unary_minus('+');
+        case '-':   return unary_minus('-');
+        case '~':   return unary_bneg();
+        case '!':   return unary_lneg();
         case SIZEOF:return unary_sizeof();
         default:    return postfix_expr();
     }
@@ -914,7 +913,7 @@ static void ensure_lvalue(struct node *node)
 {
     if (node->id == MEMBER_EXPR || node->id == SUBSCRIPT_EXPR)
         return;
-    if (node->id == REF_EXPR && !isfunction(node->type))
+    if (node->id == REF_EXPR && !isfunc(node->type))
         return;
     error("expect lvalue");
 }

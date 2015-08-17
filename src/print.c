@@ -58,9 +58,9 @@ static void print_return(struct type_context context)
 static void print_short_type(struct type *type)
 {
     print_qual(type);
-    if (isfunction(type)) {
+    if (isfunc(type)) {
         fprintf(stderr, "'%s'", type->name);
-    } else if (ispointer(type)) {
+    } else if (isptr(type)) {
         fprintf(stderr, "'%s to %s'", type->name, type->type->name);
     } else if (isarray(type)) {
         fprintf(stderr, "'%s %d of'", type->name, type->size);
@@ -77,12 +77,12 @@ static void print_type1(struct type_context context)
     if (type) {
         struct type_context tcontext = {context.level, type->type};
         print_qual(type);
-        if (isfunction(type)) {
+        if (isfunc(type)) {
             fprintf(stderr, "%s", type->name);
             fprintf(stderr, "\n");
             print_return(tcontext);
             print_params(context);
-        } else if (ispointer(type)) {
+        } else if (isptr(type)) {
             fprintf(stderr, "%s to ", type->name);
             print_type1(tcontext);
         } else if (isarray(type)) {
