@@ -55,6 +55,22 @@ static void print_return(struct type_context context)
     print_type1(rcontext);
 }
 
+static void print_short_type(struct type *type)
+{
+    print_qual(type);
+    if (isfunction(type)) {
+        fprintf(stderr, "'%s'", type->name);
+    } else if (ispointer(type)) {
+        fprintf(stderr, "'%s to %s'", type->name, type->type->name);
+    } else if (isarray(type)) {
+        fprintf(stderr, "'%s %d of'", type->name, type->size);
+    } else if (isenum(type) || isstruct(type) || isunion(type)) {
+        fprintf(stderr, "'%s %s'", type->name, type->tag);
+    } else {
+        fprintf(stderr, "'%s'", type->name);
+    }
+}
+
 static void print_type1(struct type_context context)
 {
     struct type *type = context.type;
@@ -90,57 +106,88 @@ void print_type(struct type *type)
     print_type1(context);
 }
 
-static void print_tree1(struct print_context context)
+static void print_decl(struct node *node, struct print_context context)
 {
-    struct node *node = context.node;
     int level;
     
-    for (int i=0; i < context.level; i++)
-        fprintf(stderr, "  ");
-    
-    if (isdecl(node)) {
-        if (node->sym) {
-            fprintf(stderr, "%s '%s' %s ", nname(node), STR(node->sym->name), node->sym->defined ? "<defined>" : "");
-            if (node->sym->type) {
-                struct type_context tcontext = {context.level, node->sym->type};
-                print_type1(tcontext);
-            } else {
-                fprintf(stderr, "\n");
-            }
+    if (node->sym) {
+        fprintf(stderr, "%s '%s' %s ", nname(node), STR(node->sym->name), node->sym->defined ? "<defined>" : "");
+        if (node->sym->type) {
+            struct type_context tcontext = {context.level, node->sym->type};
+            print_type1(tcontext);
         } else {
-            fprintf(stderr, "%s\n", nname(node));
+            fprintf(stderr, "\n");
         }
-    } else if (isexpr(node)) {
-        int op = node->u.e.op;
-        bool prefix = node->u.e.prefix;
-        if (node->sym)
-            fprintf(stderr, "%s '%s' %s %s\n", nname(node), tname(op), STR(node->sym->name), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
-        else
-            fprintf(stderr, "%s '%s' %s\n", nname(node), tname(op), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
-    } else if (isstmt(node)){
-        struct node *up = node->u.s.up;
-        if (up)
-            fprintf(stderr, "%s %p -> %s %p\n",
-                    nname(node), node, nname(up), up);
-        else
-            fprintf(stderr, "%s %p\n", nname(node), node);
-    } else if (node->sym) {
-        fprintf(stderr, "%s '%s' ", nname(node), STR(node->sym->name));
     } else {
         fprintf(stderr, "%s\n", nname(node));
     }
     
     level = context.level + 1;
     
-    if (isdecl(node)) {
-        struct node **exts = node->u.d.exts;
-        if (exts) {
-            for (int i=0; exts[i]; i++) {
-                struct print_context con = {level, exts[i]};
+    struct node **exts = node->u.d.exts;
+    if (exts) {
+        for (int i=0; exts[i]; i++) {
+            struct print_context con = {level, exts[i]};
+            print_tree1(con);
+        }
+    }
+}
+
+static void print_expr(struct node *node, struct print_context context)
+{
+    int level;
+    int op = node->u.e.op;
+    bool prefix = node->u.e.prefix;
+    if (node->sym)
+        fprintf(stderr, "%s '%s' %s %s ", nname(node), tname(op), STR(node->sym->name), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
+    else
+        fprintf(stderr, "%s '%s' %s ", nname(node), tname(op), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
+    if (node->type)
+        print_short_type(node->type);
+    fprintf(stderr, "\n");
+    
+    level = context.level + 1;
+    
+    if (node->id == CALL_EXPR) {
+        struct node **args = node->u.e.args;
+        if (args) {
+            for (int i=0; args[i]; i++) {
+                struct print_context con = {level, args[i]};
                 print_tree1(con);
             }
         }
-    } else if (isstmt(node) && node->id == COMPOUND_STMT) {
+    } else if (node->id == COND_EXPR) {
+        struct node *cond = node->u.e.c.cond;
+        struct node *then = node->u.e.c.then;
+        struct node *els = node->u.e.c.els;
+        if (cond) {
+            struct print_context con = {level, cond};
+            print_tree1(con);
+        }
+        if (then) {
+            struct print_context con = {level, then};
+            print_tree1(con);
+        }
+        if (els) {
+            struct print_context con = {level, els};
+            print_tree1(con);
+        }
+    }
+}
+
+static void print_stmt(struct node *node, struct print_context context)
+{
+    int level;
+    struct node *up = node->u.s.up;
+    if (up)
+        fprintf(stderr, "%s %p -> %s %p\n",
+                nname(node), node, nname(up), up);
+    else
+        fprintf(stderr, "%s %p\n", nname(node), node);
+    
+    level = context.level + 1;
+    
+    if (node->id == COMPOUND_STMT) {
         struct node **blks = node->u.s.compoundstmt.blks;
         if (blks) {
             for (int i=0; blks[i]; i++) {
@@ -148,7 +195,7 @@ static void print_tree1(struct print_context context)
                 print_tree1(con);
             }
         }
-    } else if (isstmt(node) && node->id == FOR_STMT) {
+    } else if (node->id == FOR_STMT) {
         struct node **decl = node->u.s.forstmt.decl;
         struct node *init = node->u.s.forstmt.init;
         struct node *cond = node->u.s.forstmt.cond;
@@ -184,15 +231,25 @@ static void print_tree1(struct print_context context)
                 fprintf(stderr, "  ");
             fprintf(stderr, "ctrl: <NULL>\n");
         }
-    } else if (isexpr(node) && node->id == CALL_EXPR) {
-        struct node **args = node->u.e.args;
-        if (args) {
-            for (int i=0; args[i]; i++) {
-                struct print_context con = {level, args[i]};
-                print_tree1(con);
-            }
-        }
     }
+}
+
+static void print_tree1(struct print_context context)
+{
+    struct node *node = context.node;
+    int level = context.level + 1;
+    
+    for (int i=0; i < context.level; i++)
+        fprintf(stderr, "  ");
+    
+    if (isdecl(node))
+        print_decl(node, context);
+    else if (isexpr(node))
+        print_expr(node, context);
+    else if (isstmt(node))
+        print_stmt(node, context);
+    else
+        assert(0);
     
     if (LEFT(context.node)) {
         struct print_context lcontext;

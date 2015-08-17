@@ -293,17 +293,17 @@ int * (*f) (float a, int , int (*) (int));
 //    int a : 10++;
 // };
 
-int GG()
-{
-    int a,b,c,d,e,f,g,h,i,j,k,l,m,n;
+// int GG()
+// {
+//     int a,b,c,d,e,f,g,h,i,j,k,l,m,n;
     
-    a++ && b ^ c || d && e || f + g;
+//     a++ && b ^ c || d && e || f + g;
     
-    sizeof (int);
+//     sizeof (int);
 
-    char *s = "abc sad\n\a";
+//     char *s = "abc sad\n\a";
     
-}
+// }
 
 //int func(int *p, float a)
 //{
@@ -313,3 +313,11 @@ int GG()
 //    (++c);
 //    b[0] = 90;
 //}
+
+void G()
+{
+    int a;
+    f = 1;
+    a = 10;
+    (10 ? a : f)  = 10;
+}

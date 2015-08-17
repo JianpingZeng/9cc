@@ -1,11 +1,12 @@
 #include "cc.h"
 
 static struct node * cast_expr();
-static void ensure_assignable(struct node *asign);
 static struct node * cond_expr();
 static struct node * cond_expr1(struct node *o);
 static int eval(struct node *expr, int *error);
 static struct node * unary_expr();
+static void ensure_assignable(struct node *asign);
+static void ensure_lvalue(struct node *expr);
 
 static unsigned escape(const char **ps)
 {
@@ -401,14 +402,13 @@ static struct node * postfix_expr1(struct node *ret)
 
 static struct node * primary_expr()
 {
-    int t;
+    int t = token->id;
     struct symbol *sym;
     struct node *ret;
     
-    switch (token->id) {
+    switch (t) {
         case ID:
         {
-            t = token->id;
             sym = lookup(token->name, identifiers);
             if (sym)
                 sym->refs++;
@@ -423,7 +423,6 @@ static struct node * primary_expr()
         case ICONSTANT:
         case FCONSTANT:
         {
-            t = token->id;
             sym = lookup(token->name, constants);
             if (!sym) {
                 sym = install(token->name, &constants, CONSTANT);
@@ -437,7 +436,6 @@ static struct node * primary_expr()
             break;
         case SCONSTANT:
         {
-            t = token->id;
             sym = lookup(token->name, constants);
             if (!sym) {
                 sym = install(token->name, &constants, CONSTANT);
@@ -747,6 +745,7 @@ struct node * assign_expr()
     if (is_assign_op(token->id)) {
         int t = token->id;
         expect(token->id);
+        ensure_lvalue(or1);
         or1 = bnode(t, or1, assign_expr());
         ensure_assignable(or1);
     }
@@ -908,4 +907,14 @@ static void ensure_assignable(struct node *asign)
     
     assert(isexpr(l) && isexpr(r));
     
+}
+
+//TODO
+static void ensure_lvalue(struct node *node)
+{
+    if (node->id == MEMBER_EXPR || node->id == SUBSCRIPT_EXPR)
+        return;
+    if (node->id == REF_EXPR && !isfunction(node->type))
+        return;
+    error("expect lvalue");
 }
