@@ -478,16 +478,7 @@ static struct node * postfix_expr()
     return postfix_expr1(expr);
 }
 
-static struct node * unary_inc_expr(int t)
-{
-    expect(t);
-    struct node *operand = unary_expr();
-    struct node *ret = unode(t, operand->type, operand);
-    ret->u.e.prefix = true;
-    return ret;
-}
-
-static struct node * sizeof_expr()
+static struct node * unary_sizeof()
 {
     int t = token->id;
     expect(t);
@@ -505,7 +496,16 @@ static struct node * sizeof_expr()
     return unode(t, node->type, node);
 }
 
-static struct node * unary_addr_expr()
+static struct node * unary_inc(int t)
+{
+    expect(t);
+    struct node *operand = unary_expr();
+    struct node *ret = unode(t, operand->type, operand);
+    ret->u.e.prefix = true;
+    return ret;
+}
+
+static struct node * unary_addr()
 {
     int t = token->id;
     expect(t);
@@ -513,7 +513,7 @@ static struct node * unary_addr_expr()
     return unode(t, operand->type, operand);
 }
 
-static struct node * unary_deref_expr()
+static struct node * unary_deref()
 {
     int t = token->id;
     expect(t);
@@ -521,7 +521,7 @@ static struct node * unary_deref_expr()
     return unode(t, operand->type, operand);
 }
 
-static struct node * unary_minus_expr()
+static struct node * unary_minus()
 {
     int t = token->id;
     expect(t);
@@ -529,7 +529,7 @@ static struct node * unary_minus_expr()
     return unode(t, operand->type, operand);
 }
 
-static struct node * unary_bnot_expr()
+static struct node * unary_bnot()
 {
     int t = token->id;
     expect(t);
@@ -537,7 +537,7 @@ static struct node * unary_bnot_expr()
     return unode(t, operand->type, operand);
 }
 
-static struct node * unary_lnot_expr()
+static struct node * unary_lnot()
 {
     int t = token->id;
     expect(t);
@@ -548,15 +548,15 @@ static struct node * unary_lnot_expr()
 static struct node * unary_expr()
 {
     switch (token->id) {
-        case INCR:  return unary_inc_expr(INCR);
-        case DECR:  return unary_inc_expr(DECR);
-        case '&':   return unary_addr_expr();
-        case '*':   return unary_deref_expr();
+        case INCR:  return unary_inc(INCR);
+        case DECR:  return unary_inc(DECR);
+        case '&':   return unary_addr();
+        case '*':   return unary_deref();
         case '+':   return cast_expr();
-        case '-':   return unary_minus_expr();
-        case '~':   return unary_bnot_expr();
-        case '!':   return unary_lnot_expr();
-        case SIZEOF:return sizeof_expr();
+        case '-':   return unary_minus();
+        case '~':   return unary_bnot();
+        case '!':   return unary_lnot();
+        case SIZEOF:return unary_sizeof();
         default:    return postfix_expr();
     }
 }
