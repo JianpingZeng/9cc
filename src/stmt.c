@@ -301,40 +301,22 @@ static struct node * return_stmt()
 static struct node * statement(struct node *context)
 {
     switch (token->id) {
-            // compound
-        case '{':
-            return compound_stmt(context);
-            // selection
-        case IF:
-            return if_stmt(context);
-        case SWITCH:
-            return switch_stmt(context);
-            // iteration
-        case WHILE:
-            return while_stmt(context);
-        case DO:
-            return do_while_stmt(context);
-        case FOR:
-            return for_stmt(context);
-            // jump
-        case GOTO:
-            return goto_stmt();
-        case CONTINUE:
-            return continue_stmt(context);
-        case BREAK:
-            return break_stmt(context);
-        case RETURN:
-            return return_stmt();
-            // labeled
-        case CASE:
-            return case_stmt(context);
-        case DEFAULT:
-            return default_stmt(context);
+        case '{':       return compound_stmt(context);
+        case IF:        return if_stmt(context);
+        case SWITCH:    return switch_stmt(context);
+        case WHILE:     return while_stmt(context);
+        case DO:        return do_while_stmt(context);
+        case FOR:       return for_stmt(context);
+        case GOTO:      return goto_stmt();
+        case CONTINUE:  return continue_stmt(context);
+        case BREAK:     return break_stmt(context);
+        case RETURN:    return return_stmt();
+        case CASE:      return case_stmt(context);
+        case DEFAULT:   return default_stmt(context);
         case ID:
             if (lookahead()->id == ':')
                 return label_stmt(context);
             // go through
-            // expression
         default:
             return expr_stmt();
     }
