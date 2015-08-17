@@ -5,6 +5,7 @@ static void ensure_assignable(struct node *asign);
 static struct node * cond_expr();
 static struct node * cond_expr1(struct node *o);
 static int eval(struct node *expr, int *error);
+static struct node * unary_expr();
 
 static unsigned escape(const char **ps)
 {
@@ -388,7 +389,7 @@ static struct node * postfix_expr1(struct node *ret)
             case DECR:
                 t = token->id;
                 expect(token->id);
-                ret = unode(t, ret);
+                ret = unode(t, ret->type, ret);
                 break;
             default:
                 assert(0);
@@ -479,10 +480,9 @@ static struct node * postfix_expr()
 
 static struct node * unary_inc_expr(int t)
 {
-    int t = token->id;
     expect(t);
     struct node *operand = unary_expr();
-    struct ret = unode(t, operand->type, operand);
+    struct node *ret = unode(t, operand->type, operand);
     ret->u.e.prefix = true;
     return ret;
 }
@@ -496,14 +496,13 @@ static struct node * sizeof_expr()
         struct type *ty = cast_type();
         if (token->id == '{') {
             struct node * node = compound_literal(ty);
-            return unode(t, postfix_expr1(node));
+            return unode(t, ty, postfix_expr1(node));
         } else {
-            //TODO
-            return unode(t, NULL);
+            return unode(t, ty, NULL);
         }
-    } else {
-        return unode(t, unary_expr());
     }
+    struct node *node = unary_expr();
+    return unode(t, node->type, node);
 }
 
 static struct node * unary_addr_expr()
