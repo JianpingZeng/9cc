@@ -253,10 +253,10 @@ extern struct type    *vartype;		       // variable type
 #define isstruct(ty)    ((ty)->op == STRUCT)
 #define isunion(ty)     ((ty)->op == UNION)
 
-#define isint(ty)       ((ty)->op == INT || (ty)->op == UNSIGNED || isenum(ty))
-#define isfloat(ty)     ((ty)->op == FLOAT)
-#define isarith(ty)     (isint(ty) || isfloat(ty))
-#define isscalar(ty)    (isarith(ty) || isptr(ty))
+extern bool isint(struct type *ty);
+extern bool isfloat(struct type *ty);
+extern bool isarith(struct type *ty);
+extern bool isscalar(struct type *ty);
 
 // sym.c
 // scope level

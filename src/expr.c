@@ -311,23 +311,13 @@ static void string_constant(struct token *t, struct symbol *sym)
     sym->type = ty;
 }
 
-static void ensure_int(struct node *node)
+static void ensure_type(const char *name, bool (*is) (struct type *), struct node *node)
 {
-    if (!isint(node->type)) {
+    if (!is(node->type)) {
         if (node->type->tag)
-            error("arithmetic type expected, not '%s %s'", node->type->name, node->type->tag);
+            error("%s type expected, not '%s %s'", name, node->type->name, node->type->tag);
         else
-            error("arithmetic type expected, not '%s'", node->type->name);
-    }
-}
-
-static void ensure_arith(struct node *node)
-{
-    if (!isarith(node->type)) {
-        if (node->type->tag)
-            error("arithmetic type expected, not '%s %s'", node->type->name, node->type->tag);
-        else
-            error("arithmetic type expected, not '%s'", node->type->name);
+            error("%s type expected, not '%s'", name, node->type->name);
     }
 }
 
@@ -349,7 +339,9 @@ static void ensure_lvalue(struct node *node)
 {
     if (node->id == MEMBER_EXPR || node->id == SUBSCRIPT_EXPR)
         return;
-    if (node->id == REF_EXPR && !isfunc(node->type))
+    if (node->id == REF_EXPR &&
+        !isfunc(node->type) &&
+        !(isptr(node->type) && isfunc(node->type)))
         return;
     error("expect lvalue");
 }
@@ -564,7 +556,7 @@ static struct node * unary_minus(int t)
 {
     expect(t);
     struct node *operand = cast_expr();
-    ensure_arith(operand);
+    ensure_type("arithmetic", isarith, operand);
     return unode(t, operand->type, operand);
 }
 
@@ -573,7 +565,7 @@ static struct node * unary_bneg()
     int t = token->id;
     expect(t);
     struct node *operand = cast_expr();
-    ensure_int(operand);
+    ensure_type("integer", isint, operand);
     return unode(t, operand->type, operand);
 }
 
@@ -582,6 +574,7 @@ static struct node * unary_lneg()
     int t = token->id;
     expect(t);
     struct node *operand = cast_expr();
+    ensure_type("scalar", isscalar, operand);
     return unode(t, inttype, operand);
 }
 

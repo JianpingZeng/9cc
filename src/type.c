@@ -359,3 +359,23 @@ int eqtype(struct type *ty1, struct type *ty2)
             return 0;
     }
 }
+
+bool isint(struct type *ty)
+{
+    return ty->op == INT || ty->op == UNSIGNED || isenum(ty);
+}
+
+bool isfloat(struct type *ty)
+{
+    return ty->op == FLOAT;
+}
+
+bool isarith(struct type *ty)
+{
+    return isint(ty) || isfloat(ty);
+}
+
+bool isscalar(struct type *ty)
+{
+    return isarith(ty) || isptr(ty);
+}
