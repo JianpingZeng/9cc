@@ -4,15 +4,13 @@ static const char *ifile;
 static const char *ofile;
 static FILE *fp;
 
-static bool parseopts(int argc, const char *argv[])
+static void parseopts(int argc, const char *argv[])
 {
     for (int i=1; i < argc; i++) {
         const char *arg = argv[i];
         if (!strcmp(arg, "-o")) {
-            if (++i >= argc) {
-                fprintf(stderr, "missing target file while -o option given.\n");
-                return false;
-            }
+            if (++i >= argc)
+                die("missing target file while -o option given");
             ofile = argv[i];
         } else if (arg[0] == '-') {
             // options
@@ -22,14 +20,13 @@ static bool parseopts(int argc, const char *argv[])
     }
     
     if (!ifile || !ofile)
-        return false;
+        die("input/output file not specified");
     
     fp = freopen(ifile, "r", stdin);
     if (fp == NULL) {
         perror(ifile);
-        return false;
+        die("Can't open input file");
     }
-    return true;
 }
 
 static void cc_init()
@@ -53,9 +50,7 @@ static void cc_exit()
 
 int cc_main(int argc, const char * argv[])
 {
-    if (!parseopts(argc, argv))
-        return EXIT_FAILURE;
-    
+    parseopts(argc, argv);
     cc_init();
     translate();
     cc_exit();
