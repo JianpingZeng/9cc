@@ -5,8 +5,6 @@ static struct node * cond_expr();
 static struct node * cond_expr1(struct node *o);
 static int eval(struct node *expr, int *error);
 static struct node * unary_expr();
-static void ensure_assignable(struct node *asign);
-static void ensure_lvalue(struct node *expr);
 
 static unsigned escape(const char **ps)
 {
@@ -313,6 +311,49 @@ static void string_constant(struct token *t, struct symbol *sym)
     sym->type = ty;
 }
 
+static void ensure_int(struct node *node)
+{
+    if (!isint(node->type)) {
+        if (node->type->tag)
+            error("arithmetic type expected, not '%s %s'", node->type->name, node->type->tag);
+        else
+            error("arithmetic type expected, not '%s'", node->type->name);
+    }
+}
+
+static void ensure_arith(struct node *node)
+{
+    if (!isarith(node->type)) {
+        if (node->type->tag)
+            error("arithmetic type expected, not '%s %s'", node->type->name, node->type->tag);
+        else
+            error("arithmetic type expected, not '%s'", node->type->name);
+    }
+}
+
+// TODO
+static void ensure_assignable(struct node *asign)
+{
+    struct node *l = LEFT(asign);
+    struct node *r = RIGHT(asign);
+    
+    if (l == NULL || r == NULL)
+        error("assign expression invalid");
+    
+    assert(isexpr(l) && isexpr(r));
+    
+}
+
+//TODO
+static void ensure_lvalue(struct node *node)
+{
+    if (node->id == MEMBER_EXPR || node->id == SUBSCRIPT_EXPR)
+        return;
+    if (node->id == REF_EXPR && !isfunc(node->type))
+        return;
+    error("expect lvalue");
+}
+
 static struct node * compound_literal(struct type *ty)
 {
     struct node * ret;
@@ -523,6 +564,7 @@ static struct node * unary_minus(int t)
 {
     expect(t);
     struct node *operand = cast_expr();
+    ensure_arith(operand);
     return unode(t, operand->type, operand);
 }
 
@@ -531,6 +573,7 @@ static struct node * unary_bneg()
     int t = token->id;
     expect(t);
     struct node *operand = cast_expr();
+    ensure_int(operand);
     return unode(t, operand->type, operand);
 }
 
@@ -539,7 +582,7 @@ static struct node * unary_lneg()
     int t = token->id;
     expect(t);
     struct node *operand = cast_expr();
-    return unode(t, operand->type, operand);
+    return unode(t, inttype, operand);
 }
 
 static struct node * unary_expr()
@@ -893,27 +936,4 @@ static int eval(struct node *expr, int *error)
         default:
             assert(0);
     }
-}
-
-// TODO
-static void ensure_assignable(struct node *asign)
-{
-    struct node *l = LEFT(asign);
-    struct node *r = RIGHT(asign);
-    
-    if (l == NULL || r == NULL)
-        error("assign expression invalid");
-    
-    assert(isexpr(l) && isexpr(r));
-    
-}
-
-//TODO
-static void ensure_lvalue(struct node *node)
-{
-    if (node->id == MEMBER_EXPR || node->id == SUBSCRIPT_EXPR)
-        return;
-    if (node->id == REF_EXPR && !isfunc(node->type))
-        return;
-    error("expect lvalue");
 }

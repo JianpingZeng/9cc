@@ -36,6 +36,7 @@ static void conflicting_types_error(struct source src, struct symbol *sym)
 
 static void validate_func_or_array(struct type *ty)
 {
+    //TODO: ty->type may be null
     if (isfunc(ty)) {
         if (isfunc(ty->type))
             error("function cannot return function type");
