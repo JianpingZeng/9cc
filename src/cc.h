@@ -75,95 +75,89 @@ enum {
 
 struct node {
     int id;
+    struct type *type;
     struct symbol *sym;
     struct node *kids[2];
-};
-
-struct expr {
-    struct node node;
-    int op;
     union {
-        // call
-        struct expr **args;
-        // init list
-        struct expr **inits;
-        // cond
+        // expr
         struct {
-            struct expr *cond;
-            struct expr *then;
-            struct expr *els;
-        }c;
-        // member
-        const char *field;
-        // INCR/DECR
-        int prefix : 1;
+            int op;
+            // call
+            struct node **args;
+            // init list
+            struct node **inits;
+            // cond
+            struct {
+                struct node *cond;
+                struct node *then;
+                struct node *els;
+            }c;
+            // member
+            const char *field;
+            // INCR/DECR
+            bool prefix;
+        }e;
+        // stmt
+        struct {
+            struct node *up;		// internal
+            struct {
+                struct node **decl;
+                struct node *init;
+                struct node *cond;
+                struct node *ctrl;
+            }forstmt;
+            struct {
+                struct node **blks;	// block items
+            }compoundstmt;
+            struct {
+                int value;
+            }casestmt;
+        }s;
+        // decl
+        struct {
+            int scope;
+            struct node **exts;
+        }d;
     }u;
-};
-
-struct stmt {
-    struct node node;
-    struct stmt *up;		// internal
-    union {
-        struct {
-            struct node **decl;
-            struct expr *init;
-            struct expr *cond;
-            struct expr *ctrl;
-        }forstmt;
-        struct {
-            struct node **blks;	// block items
-        }compoundstmt;
-        struct {
-            int value;
-        }casestmt;
-    }u;
-};
-
-struct decl {
-    struct node node;
-    int scope;
-    // translation unit
-    struct node **exts;
 };
 
 // ast.c
 extern struct field * new_field(char *id);
 
 extern const char *nname(struct node *node);
-extern struct expr * expr_node(int id, int op, struct expr *l, struct expr *r);
-extern struct decl * decl_node(int id, int scope);
-extern struct stmt * stmt_node(int id, struct node *l, struct node *r);
+extern struct node * expr_node(int id, int op, struct node *l, struct node *r);
+extern struct node * decl_node(int id, int scope);
+extern struct node * stmt_node(int id, struct node *l, struct node *r);
 
 // expr.c
-extern struct expr * expression();
-extern struct expr * assign_expr();
+extern struct node * expression();
+extern struct node * assign_expr();
 extern int intexpr();
 
 // decl.c
-extern struct expr * initializer_list();
+extern struct node * initializer_list();
 extern bool istypename(struct token *t);
 extern struct node ** declaration();
-extern struct decl * translation_unit();
+extern struct node * translation_unit();
 extern struct type * typename();
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
 
 // stmt.c
-extern struct stmt * compound_stmt(struct stmt *context);
+extern struct node * compound_stmt(struct node *context);
 
-#define NODE(n)    ((struct node*) (n))
-#define KID0(n)    (NODE(n)->kids[0])
-#define KID1(n)    (NODE(n)->kids[1])
+#define LEFT(n)    (n->kids[0])
+#define RIGHT(n)    (n->kids[1])
 
-#define isexpr(n)  (NODE(n)->id > BEGIN_EXPR_ID && NODE(n)->id < END_EXPR_ID)
-#define isdecl(n)  (NODE(n)->id > BEGIN_DECL_ID && NODE(n)->id < END_DECL_ID)
-#define isstmt(n)  (NODE(n)->id > BEGIN_STMT_ID && NODE(n)->id < END_STMT_ID)
-#define isfuncdecl(n) (NODE(n)->id == FUNC_DECL)
+#define isexpr(n)  (n->id > BEGIN_EXPR_ID && n->id < END_EXPR_ID)
+#define isdecl(n)  (n->id > BEGIN_DECL_ID && n->id < END_DECL_ID)
+#define isstmt(n)  (n->id > BEGIN_STMT_ID && n->id < END_STMT_ID)
+#define isfuncdecl(n) (n->id == FUNC_DECL)
 #define isfuncdef(n) (isfuncdecl(n) && KID0(n) && KID0(n)->id == COMPOUND_STMT)
-#define isliteral(n) (NODE(n)->id > BEGIN_LITERAL_ID && NODE(n)->id < END_LITERAL_ID)
-#define is_switch_stmt(n) ((n) && NODE(n)->id == SWITCH_STMT)
-#define is_iteration_stmt(n) ((n) && (NODE(n)->id == FOR_STMT || NODE(n)->id == WHILE_STMT || NODE(n)->id == DO_WHILE_STMT))
+#define isliteral(n) (n->id > BEGIN_LITERAL_ID && n->id < END_LITERAL_ID)
+#define is_switch_stmt(n) (n && n->id == SWITCH_STMT)
+#define is_iteration_stmt(n) (n && (n->id == FOR_STMT || n->id == WHILE_STMT || n->id == DO_WHILE_STMT))
 
 struct field {
     const char *name;
@@ -192,7 +186,7 @@ struct type {
         }f;
         // array
         struct {
-            struct expr *assign;
+            struct node *assign;
             unsigned is_const : 1;
             unsigned is_volatile : 1;
             unsigned is_restrict : 1;

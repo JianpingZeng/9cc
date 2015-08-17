@@ -11,7 +11,7 @@ static struct vector * decls(DeclFunc declfunc);
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
-static struct expr * initializer();
+static struct node * initializer();
 
 int firstdecl(struct token *t)
 {
@@ -965,9 +965,9 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     return sym;
 }
 
-static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
+static struct node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
 {
-    struct decl *decl = decl_node(FUNC_DECL, SCOPE);
+    struct node *decl = decl_node(FUNC_DECL, SCOPE);
     
     assert(SCOPE == PARAM);
     
@@ -985,7 +985,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
             sym->src = src;
             sym->defined = 1;
             sym->sclass = sclass;
-            decl->node.sym = sym;
+            decl->sym = sym;
         } else if (eqtype(ftype, sym->type) && !sym->defined) {
             if (sclass == STATIC && sym->sclass != STATIC) {
                 errorf(src, "static declaaration of '%s' follows non-static declaration", id);
@@ -993,7 +993,7 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
                 sym->type = ftype;
                 sym->src = src;
                 sym->defined = 1;
-                decl->node.sym = sym;
+                decl->sym = sym;
             }
         } else {
             redefinition_error(src, sym);
@@ -1034,9 +1034,9 @@ static struct decl * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
-        struct stmt *stmt = compound_stmt(NULL);
+        struct node *stmt = compound_stmt(NULL);
         exit_scope();
-        KID0(decl) = NODE(stmt);
+        LEFT(decl) = stmt;
     }
     
     return decl;
@@ -1079,14 +1079,14 @@ static struct vector * decls(DeclFunc dclf)
         
         for (;;) {
             if (id) {
-                struct decl *decl;
+                struct node *decl;
                 struct symbol *sym = dclf(id, ty, sclass, src);
                 if (sclass == TYPEDEF)
                     decl = decl_node(TYPEDEF_DECL, SCOPE);
                 else
                     decl = decl_node(VAR_DECL, SCOPE);
                 
-                decl->node.sym = sym;
+                decl->sym = sym;
                 vec_push(v, decl);
             }
             
@@ -1104,7 +1104,7 @@ static struct vector * decls(DeclFunc dclf)
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
         int node_id;
-        struct decl *decl;
+        struct node *decl;
         if (isstruct(basety))
             node_id = STRUCT_DECL;
         else if (isunion(basety))
@@ -1113,7 +1113,7 @@ static struct vector * decls(DeclFunc dclf)
             node_id = ENUM_DECL;
         
         decl = decl_node(node_id, SCOPE);
-        decl->node.sym = tag_sym(basety);
+        decl->sym = tag_sym(basety);
         vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);
@@ -1123,7 +1123,7 @@ static struct vector * decls(DeclFunc dclf)
     return v;
 }
 
-static struct expr * initializer()
+static struct node * initializer()
 {
     if (token->id == '{') {
         // initializer list
@@ -1137,17 +1137,17 @@ static struct expr * initializer()
     }
 }
 
-struct expr * initializer_list()
+struct node * initializer_list()
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     
-    struct expr *ret = expr_node(INITS_EXPR, '{', NULL, NULL);
+    struct node *ret = expr_node(INITS_EXPR, '{', NULL, NULL);
     struct vector *v = new_vector();
     expect('{');
     for (; token->id == '[' || token->id == '.' || token->id == '{'
          || firstexpr(token);) {
-        struct expr *lnode = NULL;
-	struct expr *rnode;
+        struct node *lnode = NULL;
+	struct node *rnode;
         
         if (token->id == '[' || token->id == '.') {
             for (; token->id == '[' || token->id == '.'; ) {
@@ -1168,7 +1168,7 @@ struct expr * initializer_list()
         
         rnode = initializer();
         if (lnode) {
-            struct expr *assign_node = expr_node(BINARY_EXPR, '=', lnode, rnode);
+            struct node *assign_node = expr_node(BINARY_EXPR, '=', lnode, rnode);
             vec_push(v, assign_node);
         } else {
             vec_push(v, rnode);
@@ -1179,7 +1179,7 @@ struct expr * initializer_list()
         expect(',');
     
     match('}', follow);
-    ret->u.inits = (struct expr **)vtoa(v);
+    ret->u.e.inits = (struct node **)vtoa(v);
     
     return ret;
 }
@@ -1210,9 +1210,9 @@ struct node ** declaration()
     return (struct node **)vtoa(decls(localdecl));
 }
 
-struct decl * translation_unit()
+struct node * translation_unit()
 {
-    struct decl *ret = decl_node(TU_DECL, GLOBAL);
+    struct node *ret = decl_node(TU_DECL, GLOBAL);
     struct vector *v = new_vector();
     
     for (; token->id != EOI; ) {
@@ -1225,7 +1225,7 @@ struct decl * translation_unit()
         }
     }
     
-    ret->exts = (struct node **)vtoa(v);
+    ret->u.d.exts = (struct node **)vtoa(v);
     
     return ret;
 }

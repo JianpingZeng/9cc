@@ -18,7 +18,7 @@ static void cc_exit()
 int cc_main(int argc, const char * argv[])
 {
     FILE *fp;
-    struct decl *n;
+    struct node *n;
     
     for (int i=1; i < argc; i++) {
         const char *arg = argv[i];
@@ -47,7 +47,7 @@ int cc_main(int argc, const char * argv[])
     
     cc_init();
     n = translation_unit();
-    print_tree(NODE(n));
+    print_tree(n);
     
     fclose(fp);
     cc_exit();

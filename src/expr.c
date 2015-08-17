@@ -1,11 +1,11 @@
 #include "cc.h"
 
-static struct expr * cast_expr();
+static struct node * cast_expr();
 static struct type * reduce(struct node *expr);
-static void ensure_assignable(struct expr *asign);
+static void ensure_assignable(struct node *asign);
 static bool is_lvalue(struct node *expr);
-static struct expr * cond_expr();
-static struct expr * cond_expr1(struct expr *o);
+static struct node * cond_expr();
+static struct node * cond_expr1(struct node *o);
 
 static unsigned escape(const char **ps)
 {
@@ -14,67 +14,67 @@ static unsigned escape(const char **ps)
     assert(*s == '\\');
     s += 1;
     switch (*s++) {
-    case 'a': c = 7; break;
-    case 'b': c = '\b'; break;
-    case 'f': c = '\f'; break;
-    case 'n': c = '\n'; break;
-    case 'r': c = '\r'; break;
-    case 't': c = '\t'; break;
-    case 'v': c = '\v'; break;
-    case '\'': case '"':
-    case '\\': case '\?':
-	c = s[-1];
-	break;
-    case '0': case '1': case '2':
-    case '3': case '4': case '5':
-    case '6': case '7':
-	c = s[-1] - '0';
-	if (*s >= '0' && *s <= '7') {
-	    c = (c<<3) + (*s++) - '0';
-	    if (*s >= '0' && *s <= '7')
-		c = (c<<3) + (*s++) - '0';
-	}
-	break;
-    case 'x':
-	{
-	    bool overflow = 0;
-	    for (;is_digithex(*s);) {
-		if (overflow) {
-		    s++;
-		    continue;
-		}
-		if (c >> (BITS(wchartype) - 4)) {
-		    overflow = 1;
-		    error("hex escape sequence out of range");
-		} else {
-		    if (is_digit(*s))
-			c = (c<<4) + *s - '0';
-		    else
-			c = (c<<4) + (*s & 0x5f) - 'A' + 10;
-		}
-		s++;
-	    }
-	}
-	break;
-    case 'u': case 'U':
-	{
-	    int x = 0;
-	    int n = s[-1] == 'u' ? 4 : 8;
-	    for (;is_digithex(*s); x++, s++) {
-		if (x == n)
-		    break;
-		if (is_digit(*s))
-		    c = (c<<4) + *s - '0';
-		else
-		    c = (c<<4) + (*s & 0x5f) - 'A' + 10;
-	    }
-	}
-	break;
-    default:
-	c = s[-1];
-	break;
+        case 'a': c = 7; break;
+        case 'b': c = '\b'; break;
+        case 'f': c = '\f'; break;
+        case 'n': c = '\n'; break;
+        case 'r': c = '\r'; break;
+        case 't': c = '\t'; break;
+        case 'v': c = '\v'; break;
+        case '\'': case '"':
+        case '\\': case '\?':
+            c = s[-1];
+            break;
+        case '0': case '1': case '2':
+        case '3': case '4': case '5':
+        case '6': case '7':
+            c = s[-1] - '0';
+            if (*s >= '0' && *s <= '7') {
+                c = (c<<3) + (*s++) - '0';
+                if (*s >= '0' && *s <= '7')
+                    c = (c<<3) + (*s++) - '0';
+            }
+            break;
+        case 'x':
+        {
+            bool overflow = 0;
+            for (;is_digithex(*s);) {
+                if (overflow) {
+                    s++;
+                    continue;
+                }
+                if (c >> (BITS(wchartype) - 4)) {
+                    overflow = 1;
+                    error("hex escape sequence out of range");
+                } else {
+                    if (is_digit(*s))
+                        c = (c<<4) + *s - '0';
+                    else
+                        c = (c<<4) + (*s & 0x5f) - 'A' + 10;
+                }
+                s++;
+            }
+        }
+            break;
+        case 'u': case 'U':
+        {
+            int x = 0;
+            int n = s[-1] == 'u' ? 4 : 8;
+            for (;is_digithex(*s); x++, s++) {
+                if (x == n)
+                    break;
+                if (is_digit(*s))
+                    c = (c<<4) + *s - '0';
+                else
+                    c = (c<<4) + (*s & 0x5f) - 'A' + 10;
+            }
+        }
+            break;
+        default:
+            c = s[-1];
+            break;
     }
-
+    
     *ps = s;
     return c;
 }
@@ -89,35 +89,35 @@ static void char_constant(struct token *t, struct symbol *sym)
     bool overflow = 0;
     bool char_rec = 0;
     wide ? (s += 2) : (s += 1);
-
+    
     for (;*s != '\'';) {
-	if (char_rec)
-	    overflow = 1;
-	if (*s == '\\') {
-	    c = escape(&s);
-	    char_rec = 1;
-	} else {
-	    if (wide) {
-		if (len >= MB_LEN_MAX)
-		    error("multibyte character overflow");
-		else
-		    ws[len++] = (char) *s++;
-	    } else {
-		c = *s++;
-		char_rec = 1;
-	    }
-	}
+        if (char_rec)
+            overflow = 1;
+        if (*s == '\\') {
+            c = escape(&s);
+            char_rec = 1;
+        } else {
+            if (wide) {
+                if (len >= MB_LEN_MAX)
+                    error("multibyte character overflow");
+                else
+                    ws[len++] = (char) *s++;
+            } else {
+                c = *s++;
+                char_rec = 1;
+            }
+        }
     }
-
+    
     if (!char_rec && !len)
-	error("incomplete character constant: %s", t->name);
+        error("incomplete character constant: %s", t->name);
     else if (overflow)
-	error("extraneous characters in character constant: %s", t->name);
+        error("extraneous characters in character constant: %s", t->name);
     else if ((!wide && c > unsignedchartype->limits.max.u) ||
-	     (wide && c > wchartype->limits.max.u))
-	error("character constant overflow: %s", t->name);
+             (wide && c > wchartype->limits.max.u))
+        error("character constant overflow: %s", t->name);
     else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
-	error("illegal multi-character sequence");
+        error("illegal multi-character sequence");
     
     sym->value.u = wide ? (wchar_t)c : (unsigned char)c;
     sym->type = wide ? wchartype : unsignedchartype;
@@ -127,60 +127,60 @@ static void integer_constant(struct token *t, struct symbol *sym)
 {
     const char *s = t->name;
     if (s[0] == '\'' || s[1] == 'L')
-	return char_constant(t, sym);
-
+        return char_constant(t, sym);
+    
     int base;
     struct type *ty;
     bool overflow = 0;
     unsigned long long n = 0;
-
+    
     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
-	base = 16;
-	s = s + 2;
-	for (;is_digithex(*s);) {
-	    if (n & ~(~0ULL >> 4)) {
-		overflow = 1;
-	    } else {
-		int d;
-		if (is_hex(*s))
-		    d = (*s & 0x5f) - 'A' + 10;
-		else
-		    d = *s - '0';
-
-		n = (n<<4) + d;
-	    }
-	    s++;
-	}
+        base = 16;
+        s = s + 2;
+        for (;is_digithex(*s);) {
+            if (n & ~(~0ULL >> 4)) {
+                overflow = 1;
+            } else {
+                int d;
+                if (is_hex(*s))
+                    d = (*s & 0x5f) - 'A' + 10;
+                else
+                    d = *s - '0';
+                
+                n = (n<<4) + d;
+            }
+            s++;
+        }
     } else if (s[0] == '0') {
-	base = 8;
-	bool err = 0;
-	for (;is_digit(*s);) {
-	    if (*s == '8' || *s == '9')
-		err = 1;
-
-	    if (n & ~(~0ULL >> 3))
-		overflow = 1;
-	    else
-		n = (n<<3) + (*s - '0');
-
-	    s++;
-	}
-
-	if (err)
-	    error("invalid octal constant %s", t->name);
+        base = 8;
+        bool err = 0;
+        for (;is_digit(*s);) {
+            if (*s == '8' || *s == '9')
+                err = 1;
+            
+            if (n & ~(~0ULL >> 3))
+                overflow = 1;
+            else
+                n = (n<<3) + (*s - '0');
+            
+            s++;
+        }
+        
+        if (err)
+            error("invalid octal constant %s", t->name);
     } else {
-	base = 10;
-	for (;is_digit(*s);) {
-	    int d = *s - '0';
-	    if (n > (unsignedlonglongtype->limits.max.u - d)/10)
-		overflow = 1;
-	    else
-		n = n*10 + (*s - '0');
-
-	    s++;
-	}
+        base = 10;
+        for (;is_digit(*s);) {
+            int d = *s - '0';
+            if (n > (unsignedlonglongtype->limits.max.u - d)/10)
+                overflow = 1;
+            else
+                n = n*10 + (*s - '0');
+            
+            s++;
+        }
     }
-
+    
     int ull = (s[0] == 'u' || s[0] == 'U') &&
     ((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
     int llu = ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L')) &&
@@ -190,42 +190,42 @@ static void integer_constant(struct token *t, struct symbol *sym)
     int ul = (s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L');
     int l = s[0] == 'l' || s[0] == 'L';
     int u = s[0] == 'u' || s[0] == 'U';
-
+    
     if (ull || llu) {
-	ty = unsignedlonglongtype;
+        ty = unsignedlonglongtype;
     } else if (ll) {
-	if (n > longlongtype->limits.max.i && base != 10)
-	    ty = unsignedlonglongtype;
-	else
-	    ty = longlongtype;
+        if (n > longlongtype->limits.max.i && base != 10)
+            ty = unsignedlonglongtype;
+        else
+            ty = longlongtype;
     } else if (lu || ul) {
-	if (n > unsignedlongtype->limits.max.u)
-	    ty = unsignedlonglongtype;
-	else
-	    ty = unsignedlongtype;
+        if (n > unsignedlongtype->limits.max.u)
+            ty = unsignedlonglongtype;
+        else
+            ty = unsignedlongtype;
     } else if (l) {
-	if (base == 10) {
-	    if (n > longtype->limits.max.i)
-		ty = longlongtype;
-	    else
-		ty = longtype;
-	} else {
-	    if (n > longlongtype->limits.max.i)
-		ty = unsignedlonglongtype;
-	    else if (n > unsignedlongtype->limits.max.u)
-		ty = longlongtype;
-	    else if (n > longtype->limits.max.i)
-		ty = unsignedlongtype;
-	    else
-		ty = longtype;
-	}
+        if (base == 10) {
+            if (n > longtype->limits.max.i)
+                ty = longlongtype;
+            else
+                ty = longtype;
+        } else {
+            if (n > longlongtype->limits.max.i)
+                ty = unsignedlonglongtype;
+            else if (n > unsignedlongtype->limits.max.u)
+                ty = longlongtype;
+            else if (n > longtype->limits.max.i)
+                ty = unsignedlongtype;
+            else
+                ty = longtype;
+        }
     } else if (u) {
-	if (n > unsignedlongtype->limits.max.u)
-	    ty = unsignedlonglongtype;
-	else if (n > unsignedinttype->limits.max.u)
-	    ty = unsignedlongtype;
-	else
-	    ty = unsignedinttype;
+        if (n > unsignedlongtype->limits.max.u)
+            ty = unsignedlonglongtype;
+        else if (n > unsignedinttype->limits.max.u)
+            ty = unsignedlongtype;
+        else
+            ty = unsignedinttype;
     } else {
         if (base == 10) {
             if (n > longtype->limits.max.i)
@@ -249,9 +249,9 @@ static void integer_constant(struct token *t, struct symbol *sym)
                 ty = inttype;
         }
     }
-
+    
     sym->type = ty;
-
+    
     switch (sym->type->op) {
         case INT:
             if (overflow || n > longlongtype->limits.max.i)
@@ -274,18 +274,18 @@ static void float_constant(struct token *t, struct symbol *sym)
     char c = s[strlen(s)-1];
     errno = 0;			// must clear first
     if (c == 'f' || c == 'F') {
-	sym->type = floattype;
-	sym->value.d = strtof(s, NULL);
+        sym->type = floattype;
+        sym->value.d = strtof(s, NULL);
     } else if (c == 'l' || c == 'L') {
-	sym->type = longdoubletype;
-	sym->value.ld = strtold(s, NULL);
+        sym->type = longdoubletype;
+        sym->value.ld = strtold(s, NULL);
     } else {
-	sym->type = doubletype;
-	sym->value.d = strtod(s, NULL);
+        sym->type = doubletype;
+        sym->value.d = strtod(s, NULL);
     }
-
+    
     if (errno == ERANGE)
-	error("float constant overflow: %s", s);
+        error("float constant overflow: %s", s);
 }
 
 static void string_constant(struct token *t, struct symbol *sym)
@@ -312,46 +312,46 @@ static void string_constant(struct token *t, struct symbol *sym)
     sym->type = ty;
 }
 
-static struct expr * compound_literal()
+static struct node * compound_literal()
 {
-    struct expr * ret;
-    struct expr * inits;
-
+    struct node * ret;
+    struct node * inits;
+    
     inits = initializer_list();
     ret = expr_node(COMPOUND_LITERAL, CCONSTANT, inits, NULL);
-
+    
     return ret;
 }
 
-static struct expr * typename_expr()
+static struct node * typename_expr()
 {
-    struct expr *expr;
+    struct node *expr;
     struct type *type;
     
     expect('(');
     type = typename();
     expect(')');
     expr = expr_node(CAST_EXPR, 'C', NULL, NULL);
-    expr->node.sym = anonymous(&identifiers, SCOPE);
-    expr->node.sym->type = type;
+    expr->sym = anonymous(&identifiers, SCOPE);
+    expr->sym->type = type;
     
     return expr;
 }
 
-static struct expr ** argument_expr_list()
+static struct node ** argument_expr_list()
 {
-    struct expr **args = NULL;
+    struct node **args = NULL;
     
     if (firstexpr(token)) {
         struct vector *v = new_vector();
         for (;;) {
-            vec_push(v, NODE(assign_expr()));
+            vec_push(v, assign_expr());
             if (token->id == ',')
                 expect(',');
             else
                 break;
         }
-        args = (struct expr **)vtoa(v);
+        args = (struct node **)vtoa(v);
     } else if (token->id != ')') {
         error("expect assignment expression");
     }
@@ -359,7 +359,7 @@ static struct expr ** argument_expr_list()
     return args;
 }
 
-static struct expr * postfix_expr1(struct expr *ret)
+static struct node * postfix_expr1(struct node *ret)
 {
     int t;
     
@@ -376,7 +376,7 @@ static struct expr * postfix_expr1(struct expr *ret)
                 t = token->id;
                 expect('(');
                 ret = expr_node(CALL_EXPR, FUNCTION, ret, NULL);
-                ret->u.args = argument_expr_list();
+                ret->u.e.args = argument_expr_list();
                 expect(')');
                 break;
             case '.':
@@ -385,7 +385,7 @@ static struct expr * postfix_expr1(struct expr *ret)
                 t = token->id;
                 expect(t);
                 if (token->id == ID) {
-                    struct type *lty = reduce(NODE(ret));
+                    struct type *lty = reduce(ret);
                     struct type *basety = t == DEREF ? lty->type : lty;
                     if (isstruct(basety) || isunion(basety)) {
                         int i;
@@ -418,11 +418,11 @@ static struct expr * postfix_expr1(struct expr *ret)
     return ret;
 }
 
-static struct expr * postfix_expr()
+static struct node * postfix_expr()
 {
     int t;
     struct symbol *sym;
-    struct expr *ret;
+    struct node *ret;
     
     switch (token->id) {
         case ID:
@@ -435,7 +435,7 @@ static struct expr * postfix_expr()
                 error("use of undeclared symbol '%s'", token->name);
             expect(t);
             ret = expr_node(REF_EXPR, ID, NULL, NULL);
-            ret->node.sym = sym;
+            ret->sym = sym;
         }
             break;
         case ICONSTANT:
@@ -445,11 +445,11 @@ static struct expr * postfix_expr()
             sym = lookup(token->name, constants);
             if (!sym) {
                 sym = install(token->name, &constants, CONSTANT);
-		t == ICONSTANT ? integer_constant(token, sym) : float_constant(token, sym);
+                t == ICONSTANT ? integer_constant(token, sym) : float_constant(token, sym);
             }
             expect(t);
             ret = expr_node(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, t, NULL, NULL);
-            ret->node.sym = sym;
+            ret->sym = sym;
         }
             break;
         case SCONSTANT:
@@ -462,7 +462,7 @@ static struct expr * postfix_expr()
             }
             expect(t);
             ret = expr_node(STRING_LITERAL, t, NULL, NULL);
-            ret->node.sym = sym;
+            ret->sym = sym;
         }
             break;
         case '(':
@@ -470,7 +470,7 @@ static struct expr * postfix_expr()
             struct token *ahead = lookahead();
             if (istypename(ahead)) {
                 ret = typename_expr();
-                KID0(ret) = NODE(compound_literal());
+                LEFT(ret) = compound_literal();
             } else {
                 expect('(');
                 ret = expr_node(PAREN_EXPR, '(', expression(), NULL);
@@ -487,9 +487,9 @@ static struct expr * postfix_expr()
     return postfix_expr1(ret);
 }
 
-static struct expr * unary_expr()
+static struct node * unary_expr()
 {
-    struct expr * uexpr;
+    struct node * uexpr;
     int t;
     struct token *ahead;
     
@@ -499,7 +499,7 @@ static struct expr * unary_expr()
             t = token->id;
             expect(t);
             uexpr = expr_node(UNARY_EXPR, t, unary_expr(), NULL);
-            uexpr->u.prefix = 1;
+            uexpr->u.e.prefix = true;
             break;
         case '&':
         case '*':
@@ -511,12 +511,12 @@ static struct expr * unary_expr()
             expect(t);
             uexpr = expr_node(UNARY_EXPR, t, cast_expr(), NULL);
             if (t == '*') {
-                struct type *p = reduce(KID0(uexpr));
+                struct type *p = reduce(LEFT(uexpr));
                 if (!ispointer(p))
                     error("indirection requires pointer operand ('%s' invalid)", p->name);
             } else if (t == '&') {
-                struct type *p = reduce(KID0(uexpr));
-                if (!is_lvalue(KID0(uexpr)))
+                struct type *p = reduce(LEFT(uexpr));
+                if (!is_lvalue(LEFT(uexpr)))
                     error("cannot take the address of an rvalue of type '%s'", p->name);
             }
             break;
@@ -525,9 +525,9 @@ static struct expr * unary_expr()
             expect(token->id);
             ahead = lookahead();
             if (token->id == '(' && istypename(ahead)) {
-                struct expr *texpr = typename_expr();
+                struct node *texpr = typename_expr();
                 if (token->id == '{') {
-                    KID0(texpr) = NODE(compound_literal());
+                    LEFT(texpr) = compound_literal();
                     texpr = postfix_expr1(texpr);
                 }
                 uexpr = expr_node(UNARY_EXPR, t, texpr, NULL);
@@ -543,18 +543,18 @@ static struct expr * unary_expr()
     return uexpr;
 }
 
-static struct expr * cast_expr()
+static struct node * cast_expr()
 {
-    struct expr * cast1;
+    struct node * cast1;
     struct token * ahead = lookahead();
     
     if (token->id == '(' && istypename(ahead)) {
         cast1 = typename_expr();
         if (token->id == '{') {
-            KID0(cast1) = NODE(compound_literal());
+            LEFT(cast1) = compound_literal();
             cast1 = postfix_expr1(cast1);
         } else {
-            KID0(cast1) = (struct node*)cast_expr();
+            LEFT(cast1) = cast_expr();
         }
     } else {
         cast1 = unary_expr();
@@ -563,9 +563,9 @@ static struct expr * cast_expr()
     return cast1;
 }
 
-static struct expr * multiple_expr()
+static struct node * multiple_expr()
 {
-    struct expr * mulp1;
+    struct node * mulp1;
     
     mulp1 = cast_expr();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
@@ -577,9 +577,9 @@ static struct expr * multiple_expr()
     return mulp1;
 }
 
-static struct expr * additive_expr()
+static struct node * additive_expr()
 {
-    struct expr * add1;
+    struct node * add1;
     
     add1 = multiple_expr();
     while (token->id == '+' || token->id == '-') {
@@ -591,9 +591,9 @@ static struct expr * additive_expr()
     return add1;
 }
 
-static struct expr * shift_expr()
+static struct node * shift_expr()
 {
-    struct expr * shift1;
+    struct node * shift1;
     
     shift1 = additive_expr();
     while (token->id == LSHIFT || token->id == RSHIFT) {
@@ -605,9 +605,9 @@ static struct expr * shift_expr()
     return shift1;
 }
 
-static struct expr * relation_expr()
+static struct node * relation_expr()
 {
-    struct expr * rel;
+    struct node * rel;
     
     rel = shift_expr();
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
@@ -619,9 +619,9 @@ static struct expr * relation_expr()
     return rel;
 }
 
-static struct expr * equality_expr()
+static struct node * equality_expr()
 {
-    struct expr * equl;
+    struct node * equl;
     
     equl = relation_expr();
     while (token->id == EQ || token->id == NEQ) {
@@ -633,9 +633,9 @@ static struct expr * equality_expr()
     return equl;
 }
 
-static struct expr * and_expr()
+static struct node * and_expr()
 {
-    struct expr * and1;
+    struct node * and1;
     
     and1 = equality_expr();
     while (token->id == '&') {
@@ -646,9 +646,9 @@ static struct expr * and_expr()
     return and1;
 }
 
-static struct expr * exclusive_or()
+static struct node * exclusive_or()
 {
-    struct expr * eor;
+    struct node * eor;
     
     eor = and_expr();
     while (token->id == '^') {
@@ -659,9 +659,9 @@ static struct expr * exclusive_or()
     return eor;
 }
 
-static struct expr * inclusive_or()
+static struct node * inclusive_or()
 {
-    struct expr * ior;
+    struct node * ior;
     
     ior = exclusive_or();
     while (token->id == '|') {
@@ -672,9 +672,9 @@ static struct expr * inclusive_or()
     return ior;
 }
 
-static struct expr * logic_and()
+static struct node * logic_and()
 {
-    struct expr * and1;
+    struct node * and1;
     
     and1 = inclusive_or();
     while (token->id == AND) {
@@ -685,9 +685,9 @@ static struct expr * logic_and()
     return and1;
 }
 
-static struct expr * logic_or()
+static struct node * logic_or()
 {
-    struct expr * or1;
+    struct node * or1;
     
     or1 = logic_and();
     while (token->id == OR) {
@@ -698,9 +698,9 @@ static struct expr * logic_or()
     return or1;
 }
 
-static struct expr * cond_expr1(struct expr *cond)
+static struct node * cond_expr1(struct node *cond)
 {
-    struct expr *ret, *then, *els;
+    struct node *ret, *then, *els;
     expect('?');
     
     then = expression();
@@ -708,24 +708,24 @@ static struct expr * cond_expr1(struct expr *cond)
     els = cond_expr();
     
     ret = expr_node(COND_EXPR, '?', NULL, NULL);
-    ret->u.c.cond = cond;
-    ret->u.c.then = then;
-    ret->u.c.els = els;
+    ret->u.e.c.cond = cond;
+    ret->u.e.c.then = then;
+    ret->u.e.c.els = els;
     
     return ret;
 }
 
-static struct expr * cond_expr()
+static struct node * cond_expr()
 {
-    struct expr * or1 = logic_or();
+    struct node * or1 = logic_or();
     if (token->id == '?')
         return cond_expr1(or1);
     return or1;
 }
 
-struct expr * assign_expr()
+struct node * assign_expr()
 {
-    struct expr *or1 = logic_or();
+    struct node *or1 = logic_or();
     if (token->id == '?')
         return cond_expr1(or1);
     if (is_assign_op(token->id)) {
@@ -737,9 +737,9 @@ struct expr * assign_expr()
     return or1;
 }
 
-struct expr * expression()
+struct node * expression()
 {
-    struct expr *expr;
+    struct node *expr;
     
     expr = assign_expr();
     while (token->id == ',') {
@@ -751,83 +751,83 @@ struct expr * expression()
 }
 
 //TODO
-static int eval(struct expr *expr, int *error)
+static int eval(struct node *expr, int *error)
 {
     if (!expr || (error && *error))
         return 0;
     
     assert(isexpr(expr));
-
-    bool bop = expr->node.id == BINARY_EXPR;
-    struct expr *l = (struct expr *)KID0(expr);
-    struct expr *r = (struct expr *)KID1(expr);
+    
+    bool bop = expr->id == BINARY_EXPR;
+    struct node *l = LEFT(expr);
+    struct node *r = RIGHT(expr);
 #define L eval(l, error)
 #define R eval(r, error)
     
-    switch (expr->op) {
-        //binary
-    case ',': return L , R;
-    case '/': return L / R;
-    case '%': return L % R;
-    case LSHIFT: return L << R;
-    case RSHIFT: return L >> R;
-    case '>': return L > R;
-    case '<': return L < R;
-    case GEQ: return L >= R;
-    case LEQ: return L <= R;
-    case EQ: return L == R;
-    case NEQ: return L != R;
-    case AND: return L && R;
-    case OR: return L || R;
-    case '^': return L ^ R;
-    case '|': return L | R;
-    case '+': return (bop ? (L + R) : (+L));
-    case '-': return (bop ? (L - R) : (-L));
-    case '*': if (bop) return L * R; else goto err;
-    case '&': if (bop) return L & R; else goto err;
-
-    case '~': return ~L;
-    case '!': return !L;
-    case SIZEOF:
-
-	// cast TODO
-    case 'C':
-	return 0;
-
-	// index TODO
-    case '[':
-	return 0;
-
-	// member TODO
-    case '.': case DEREF:
-	return 0;
+    switch (expr->u.e.op) {
+            //binary
+        case ',': return L , R;
+        case '/': return L / R;
+        case '%': return L % R;
+        case LSHIFT: return L << R;
+        case RSHIFT: return L >> R;
+        case '>': return L > R;
+        case '<': return L < R;
+        case GEQ: return L >= R;
+        case LEQ: return L <= R;
+        case EQ: return L == R;
+        case NEQ: return L != R;
+        case AND: return L && R;
+        case OR: return L || R;
+        case '^': return L ^ R;
+        case '|': return L | R;
+        case '+': return (bop ? (L + R) : (+L));
+        case '-': return (bop ? (L - R) : (-L));
+        case '*': if (bop) return L * R; else goto err;
+        case '&': if (bop) return L & R; else goto err;
             
-    case '?':
+        case '~': return ~L;
+        case '!': return !L;
+        case SIZEOF:
+            
+            // cast TODO
+        case 'C':
+            return 0;
+            
+            // index TODO
+        case '[':
+            return 0;
+            
+            // member TODO
+        case '.': case DEREF:
+            return 0;
+            
+        case '?':
         {
-	    int cond = eval(expr->u.c.cond, error);
-	    if (cond)
-		return eval(expr->u.c.then, error);
-	    else
-		return eval(expr->u.c.els, error);
+            int cond = eval(expr->u.e.c.cond, error);
+            if (cond)
+                return eval(expr->u.e.c.then, error);
+            else
+                return eval(expr->u.e.c.els, error);
         }
-
-	// paren
-    case '(':
-    case CCONSTANT:
-	return L;
-
-	// inits
-    case '{':
+            
+            // paren
+        case '(':
+        case CCONSTANT:
+            return L;
+            
+            // inits
+        case '{':
         {
-            if (expr->u.args)
-                return eval(expr->u.args[0], error);
+            if (expr->u.e.args)
+                return eval(expr->u.e.args[0], error);
             else
                 return 0;
         }
             
-    case ICONSTANT:
-	{
-            struct symbol *sym = expr->node.sym;
+        case ICONSTANT:
+        {
+            struct symbol *sym = expr->sym;
             union value v = sym->value;
             if (sym->type->op == INT)
                 return v.i;
@@ -835,11 +835,11 @@ static int eval(struct expr *expr, int *error)
                 return v.u;
             else
                 assert(0);
-	}
-	    
-    case FCONSTANT:
+        }
+            
+        case FCONSTANT:
         {
-            struct symbol *sym = expr->node.sym;
+            struct symbol *sym = expr->sym;
             union value v = sym->value;
             if (sym->type == floattype || sym->type == doubletype)
                 return v.d;
@@ -848,36 +848,36 @@ static int eval(struct expr *expr, int *error)
             else
                 assert(0);
         }
-	    
-    case SCONSTANT:
-	return (const char *)expr->node.sym->name - (const char *)0;
-
-    case INCR: case DECR:
-    case '=':
-    case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
-    case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
-    case LSHIFTEQ:case RSHIFTEQ:
-    case ID:
-    case FUNCTION:
-    err:
-	if (error)
-	    *error = 1;
-	return 0;
             
-    default:
-	assert(0);
+        case SCONSTANT:
+            return (const char *)expr->sym->name - (const char *)0;
+            
+        case INCR: case DECR:
+        case '=':
+        case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
+        case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
+        case LSHIFTEQ:case RSHIFTEQ:
+        case ID:
+        case FUNCTION:
+        err:
+            if (error)
+                *error = 1;
+            return 0;
+            
+        default:
+            assert(0);
     }
 }
 
 int intexpr()
 {
     struct source src = source;
-    struct expr *expr = cond_expr();
+    struct node *expr = cond_expr();
     int error = 0;
     int val = eval(expr, &error);
     if (error)
         errorf(src, "expect constant expression");
-
+    
     return val;
 }
 
@@ -894,10 +894,10 @@ static bool is_lvalue(struct node *expr)
 }
 
 // TODO
-static void ensure_assignable(struct expr *asign)
+static void ensure_assignable(struct node *asign)
 {
-    struct expr *l = (struct expr *)KID0(asign);
-    struct expr *r = (struct expr *)KID1(asign);
+    struct node *l = LEFT(asign);
+    struct node *r = RIGHT(asign);
     
     if (l == NULL || r == NULL)
         error("assign expression invalid");

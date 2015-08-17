@@ -16,33 +16,33 @@ const char *nname(struct node * node)
     return node_names[node->id];
 }
 
-struct expr * expr_node(int id, int op, struct expr *l, struct expr *r)
+struct node * expr_node(int id, int op, struct node *l, struct node *r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
-    struct expr * expr = NEWS(expr);
-    expr->node.id = id;
-    expr->op = op;
-    KID0(expr) = NODE(l);
-    KID1(expr) = NODE(r);
+    struct node * expr = NEWS(node);
+    expr->id = id;
+    expr->u.e.op = op;
+    LEFT(expr) = l;
+    RIGHT(expr) = r;
     return expr;
 }
 
-struct stmt * stmt_node(int id, struct node *l, struct node *r)
+struct node * stmt_node(int id, struct node *l, struct node *r)
 {
     assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
-    struct stmt * stmt = NEWS(stmt);
-    stmt->node.id = id;
-    KID0(stmt) = l;
-    KID1(stmt) = r;
+    struct node * stmt = NEWS(node);
+    stmt->id = id;
+    LEFT(stmt) = l;
+    RIGHT(stmt) = r;
     return stmt;
 }
 
-struct decl * decl_node(int id, int scope)
+struct node * decl_node(int id, int scope)
 {
     assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
-    struct decl * decl = NEWS(decl);
-    decl->node.id = id;
-    decl->scope = scope;
+    struct node * decl = NEWS(node);
+    decl->id = id;
+    decl->u.d.scope = scope;
     return decl;
 }
 

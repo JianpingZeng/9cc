@@ -1,15 +1,15 @@
 #include "cc.h"
 
-static struct stmt * statement(struct stmt *context);
+static struct node * statement(struct node *context);
 
-static struct stmt * expr_stmt()
+static struct node * expr_stmt()
 {
-    struct stmt *ret;
+    struct node *ret;
     
     if (token->id == ';') {
         ret = NULL;
     } else if (firstexpr(token)) {
-        ret = stmt_node(EXPR_STMT, NODE(expression()), NULL);
+        ret = stmt_node(EXPR_STMT, expression(), NULL);
     } else {
         ret = NULL;
         error("missing statement before '%s'", token->name);
@@ -20,11 +20,11 @@ static struct stmt * expr_stmt()
     return ret;
 }
 
-static struct stmt * if_stmt(struct stmt *context)
+static struct node * if_stmt(struct node *context)
 {
-    struct stmt *ret;
-    struct expr *expr;
-    struct stmt *stmt1;
+    struct node *ret;
+    struct node *expr;
+    struct node *stmt1;
     
     expect(IF);
     expect('(');
@@ -32,60 +32,60 @@ static struct stmt * if_stmt(struct stmt *context)
     expect(')');
     
     stmt1 = statement(context);
-    ret = stmt_node(IF_STMT, NODE(expr), NODE(stmt1));
+    ret = stmt_node(IF_STMT, expr, stmt1);
     
     if (token->id == ELSE) {
         expect(ELSE);
-        ret = stmt_node(ELSE_STMT, NODE(ret), NODE(statement(context)));
+        ret = stmt_node(ELSE_STMT, ret, statement(context));
     }
     
     return ret;
 }
 
-static struct stmt * while_stmt(struct stmt *context)
+static struct node * while_stmt(struct node *context)
 {
-    struct expr *expr;
-    struct stmt *ret;
+    struct node *expr;
+    struct node *ret;
     
     expect(WHILE);
     expect('(');
     expr = expression();
     expect(')');
     
-    ret = stmt_node(WHILE_STMT, NODE(expr), NULL);
-    ret->up = context;
-    KID1(ret) = NODE(statement(ret));
-    ret->up = NULL;
+    ret = stmt_node(WHILE_STMT, expr, NULL);
+    ret->u.s.up = context;
+    RIGHT(ret) = statement(ret);
+    ret->u.s.up = NULL;
     
     return ret;
 }
 
-static struct stmt * do_while_stmt(struct stmt *context)
+static struct node * do_while_stmt(struct node *context)
 {
-    struct stmt *stmt;
-    struct expr *expr;
-    struct stmt *ret;
+    struct node *stmt;
+    struct node *expr;
+    struct node *ret;
     
     expect(DO);
     
     ret = stmt_node(DO_WHILE_STMT, NULL, NULL);
-    ret->up = context;
+    ret->u.s.up = context;
     stmt = statement(ret);
     expect(WHILE);
     expect('(');
     expr = expression();
     expect(')');
     expect(';');
-    KID0(ret) = NODE(stmt);
-    KID1(ret) = NODE(expr);
-    ret->up = NULL;
+    LEFT(ret) = stmt;
+    RIGHT(ret) = expr;
+    ret->u.s.up = NULL;
     
     return ret;
 }
 
-static struct stmt * for_stmt(struct stmt *context)
+static struct node * for_stmt(struct node *context)
 {
-    struct stmt *ret = stmt_node(FOR_STMT, NULL, NULL);
+    struct node *ret = stmt_node(FOR_STMT, NULL, NULL);
     
     expect(FOR);
     expect('(');
@@ -97,56 +97,56 @@ static struct stmt * for_stmt(struct stmt *context)
     } else {
         if (firstdecl(token)) {
             // declaration
-            ret->u.forstmt.decl = declaration();
+            ret->u.s.forstmt.decl = declaration();
         } else {
             // expression
-            ret->u.forstmt.init = expression();
+            ret->u.s.forstmt.init = expression();
             expect(';');
         }
     }
     
     if (token->id != ';')
-        ret->u.forstmt.cond = expression();
+        ret->u.s.forstmt.cond = expression();
     
     expect(';');
     
     if (token->id != ')')
-        ret->u.forstmt.ctrl = expression();
+        ret->u.s.forstmt.ctrl = expression();
     
     expect(')');
     
-    ret->up = context;
-    KID0(ret) = NODE(statement(ret));
-    ret->up = NULL;
+    ret->u.s.up = context;
+    LEFT(ret) = statement(ret);
+    ret->u.s.up = NULL;
     
     exit_scope();
     
     return ret;
 }
 
-static struct stmt * switch_stmt(struct stmt *context)
+static struct node * switch_stmt(struct node *context)
 {
-    struct expr *expr;
-    struct stmt *ret;
+    struct node *expr;
+    struct node *ret;
     
     expect(SWITCH);
     expect('(');
     expr = expression();
     expect(')');
     
-    ret = stmt_node(SWITCH_STMT, NODE(expr), NULL);
-    ret->up = context;
-    KID1(ret) = NODE(statement(ret));
-    ret->up = NULL;
+    ret = stmt_node(SWITCH_STMT, expr, NULL);
+    ret->u.s.up = context;
+    RIGHT(ret) = statement(ret);
+    ret->u.s.up = NULL;
     
     return ret;
 }
 
-static struct stmt * case_stmt(struct stmt *context)
+static struct node * case_stmt(struct node *context)
 {
     int in_sw = 0;
     int val;
-    struct stmt *stmt;
+    struct node *stmt;
     struct source src = source;
     
     expect(CASE);
@@ -158,7 +158,7 @@ static struct stmt * case_stmt(struct stmt *context)
             in_sw = 1;
             break;
         } else {
-            context = context->up;
+            context = context->u.s.up;
         }
     }
     
@@ -172,15 +172,15 @@ static struct stmt * case_stmt(struct stmt *context)
     if (!in_sw)
         return NULL;
     
-    struct stmt *ret = stmt_node(CASE_STMT, NODE(stmt), NULL);
-    ret->u.casestmt.value = val;
+    struct node *ret = stmt_node(CASE_STMT, stmt, NULL);
+    ret->u.s.casestmt.value = val;
     return ret;
 }
 
-static struct stmt * default_stmt(struct stmt *context)
+static struct node * default_stmt(struct node *context)
 {
     int in_sw = 0;
-    struct stmt *stmt;
+    struct node *stmt;
     struct source src = source;
     
     expect(DEFAULT);
@@ -191,7 +191,7 @@ static struct stmt * default_stmt(struct stmt *context)
             in_sw = 1;
             break;
         } else {
-            context = context->up;
+            context = context->u.s.up;
         }
     }
     
@@ -204,40 +204,40 @@ static struct stmt * default_stmt(struct stmt *context)
     if (!in_sw)
         return NULL;
     else
-        return stmt_node(DEFAULT_STMT, NODE(stmt), NULL);
+        return stmt_node(DEFAULT_STMT, stmt, NULL);
 }
 
-static struct stmt * label_stmt(struct stmt *context)
+static struct node * label_stmt(struct node *context)
 {
     struct node *label;
-    struct stmt *stmt;
+    struct node *stmt;
     
-    label = NODE(expr_node(REF_EXPR, ID, NULL, NULL));
+    label = expr_node(REF_EXPR, ID, NULL, NULL);
     expect(ID);
     expect(':');
     stmt = statement(context);
     
-    return stmt_node(LABEL_STMT, label, NODE(stmt));
+    return stmt_node(LABEL_STMT, label, stmt);
 }
 
-static struct stmt * goto_stmt()
+static struct node * goto_stmt()
 {
     struct node *expr = NULL;
     
     expect(GOTO);
     if (token->id == ID)
-        expr = NODE(expr_node(REF_EXPR, ID, NULL, NULL));
+        expr = expr_node(REF_EXPR, ID, NULL, NULL);
     expect(ID);
     expect(';');
     
     return stmt_node(GOTO_STMT, expr, NULL);
 }
 
-static struct stmt * break_stmt(struct stmt *context)
+static struct node * break_stmt(struct node *context)
 {
     int in_iter_sw = 0;
     struct source src = source;
-    struct stmt *ret;
+    struct node *ret;
     
     expect(BREAK);
     expect(';');
@@ -247,7 +247,7 @@ static struct stmt * break_stmt(struct stmt *context)
             in_iter_sw = 1;
             break;
         } else {
-            context = context->up;
+            context = context->u.s.up;
         }
     }
     
@@ -257,15 +257,15 @@ static struct stmt * break_stmt(struct stmt *context)
     }
     
     ret = stmt_node(BREAK_STMT, NULL, NULL);
-    ret->up = context;
+    ret->u.s.up = context;
     
     return ret;
 }
 
-static struct stmt * continue_stmt(struct stmt *context)
+static struct node * continue_stmt(struct node *context)
 {
     int in_iter = 0;
-    struct stmt *ret;
+    struct node *ret;
     struct source src = source;
     
     expect(CONTINUE);
@@ -276,7 +276,7 @@ static struct stmt * continue_stmt(struct stmt *context)
             in_iter = 1;
             break;
         } else {
-            context = context->up;
+            context = context->u.s.up;
         }
     }
     
@@ -286,19 +286,19 @@ static struct stmt * continue_stmt(struct stmt *context)
     }
     
     ret = stmt_node(CONTINUE_STMT, NULL, NULL);
-    ret->up = context;
+    ret->u.s.up = context;
     
     return ret;
 }
 
-static struct stmt * return_stmt()
+static struct node * return_stmt()
 {
     expect(RETURN);
     
-    return stmt_node(RETURN_STMT, NODE(expr_stmt()), NULL);;
+    return stmt_node(RETURN_STMT, expr_stmt(), NULL);;
 }
 
-static struct stmt * statement(struct stmt *context)
+static struct node * statement(struct node *context)
 {
     switch (token->id) {
             // compound
@@ -340,9 +340,9 @@ static struct stmt * statement(struct stmt *context)
     }
 }
 
-struct stmt * compound_stmt(struct stmt *context)
+struct node * compound_stmt(struct node *context)
 {
-    struct stmt *ret = stmt_node(COMPOUND_STMT, NULL, NULL);
+    struct node *ret = stmt_node(COMPOUND_STMT, NULL, NULL);
     struct vector *v = new_vector();
     
     expect('{');
@@ -357,7 +357,7 @@ struct stmt * compound_stmt(struct stmt *context)
             vec_push(v, statement(context));
     }
     
-    ret->u.compoundstmt.blks = (struct node **)vtoa(v);
+    ret->u.s.compoundstmt.blks = (struct node **)vtoa(v);
     expect('}');
     exit_scope();
     
