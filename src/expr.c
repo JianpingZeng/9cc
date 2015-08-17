@@ -418,7 +418,7 @@ static struct node * postfix_expr1(struct node *ret)
     return ret;
 }
 
-static struct node * postfix_expr()
+static struct node * primary_expr()
 {
     int t;
     struct symbol *sym;
@@ -484,7 +484,14 @@ static struct node * postfix_expr()
             break;
     }
     
-    return postfix_expr1(ret);
+    return ret;
+}
+
+static struct node * postfix_expr()
+{
+    struct node * expr = primary_expr();
+    
+    return postfix_expr1(expr);
 }
 
 static struct node * unary_expr()
