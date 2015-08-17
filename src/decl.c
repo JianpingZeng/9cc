@@ -1221,7 +1221,6 @@ struct node * translation_unit()
             assert(SCOPE == GLOBAL);
             vec_add_from_vector(v, decls(globaldecl));
         } else if (token->id == ';') {
-            warning("empty declaration");
             gettok();
         } else {
             error("invalid token '%s'", token->name);
