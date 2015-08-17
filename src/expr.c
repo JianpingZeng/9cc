@@ -6,6 +6,7 @@ static void ensure_assignable(struct node *asign);
 static bool is_lvalue(struct node *expr);
 static struct node * cond_expr();
 static struct node * cond_expr1(struct node *o);
+static int eval(struct node *expr, int *error);
 
 static unsigned escape(const char **ps)
 {
@@ -496,17 +497,19 @@ static struct node * postfix_expr()
 
 static struct node * unary_expr()
 {
-    struct node * uexpr;
+    struct node * ret;
     int t;
     struct token *ahead;
     
     switch (token->id) {
         case INCR:
         case DECR:
+        {
             t = token->id;
             expect(t);
-            uexpr = expr_node(UNARY_EXPR, t, unary_expr(), NULL);
-            uexpr->u.e.prefix = true;
+            ret = expr_node(UNARY_EXPR, t, unary_expr(), NULL);
+            ret->u.e.prefix = true;
+        }
             break;
         case '&':
         case '*':
@@ -514,20 +517,23 @@ static struct node * unary_expr()
         case '-':
         case '~':
         case '!':
+        {
             t = token->id;
             expect(t);
-            uexpr = expr_node(UNARY_EXPR, t, cast_expr(), NULL);
+            ret = expr_node(UNARY_EXPR, t, cast_expr(), NULL);
             if (t == '*') {
-                struct type *p = reduce(LEFT(uexpr));
+                struct type *p = reduce(LEFT(ret));
                 if (!ispointer(p))
                     error("indirection requires pointer operand ('%s' invalid)", p->name);
             } else if (t == '&') {
-                struct type *p = reduce(LEFT(uexpr));
-                if (!is_lvalue(LEFT(uexpr)))
+                struct type *p = reduce(LEFT(ret));
+                if (!is_lvalue(LEFT(ret)))
                     error("cannot take the address of an rvalue of type '%s'", p->name);
             }
+        }
             break;
         case SIZEOF:
+        {
             t = token->id;
             expect(token->id);
             ahead = lookahead();
@@ -537,17 +543,18 @@ static struct node * unary_expr()
                     LEFT(texpr) = compound_literal();
                     texpr = postfix_expr1(texpr);
                 }
-                uexpr = expr_node(UNARY_EXPR, t, texpr, NULL);
+                ret = expr_node(UNARY_EXPR, t, texpr, NULL);
             } else {
-                uexpr = expr_node(UNARY_EXPR, t, unary_expr(), NULL);
+                ret = expr_node(UNARY_EXPR, t, unary_expr(), NULL);
             }
+        }
             break;
         default:
-            uexpr = postfix_expr();
+            ret = postfix_expr();
             break;
     }
     
-    return uexpr;
+    return ret;
 }
 
 static struct node * cast_expr()
@@ -757,6 +764,18 @@ struct node * expression()
     return expr;
 }
 
+int intexpr()
+{
+    struct source src = source;
+    struct node *expr = cond_expr();
+    int error = 0;
+    int val = eval(expr, &error);
+    if (error)
+        errorf(src, "expect constant expression");
+    
+    return val;
+}
+
 //TODO
 static int eval(struct node *expr, int *error)
 {
@@ -876,18 +895,6 @@ static int eval(struct node *expr, int *error)
     }
 }
 
-int intexpr()
-{
-    struct source src = source;
-    struct node *expr = cond_expr();
-    int error = 0;
-    int val = eval(expr, &error);
-    if (error)
-        errorf(src, "expect constant expression");
-    
-    return val;
-}
-
 // TODO
 static struct type * reduce(struct node *expr)
 {
@@ -910,7 +917,5 @@ static void ensure_assignable(struct node *asign)
         error("assign expression invalid");
     
     assert(isexpr(l) && isexpr(r));
-    
-    
     
 }
