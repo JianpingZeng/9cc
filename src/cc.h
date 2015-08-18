@@ -248,13 +248,15 @@ extern struct type    *vartype;		       // variable type
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
 #define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
 
-#define isfunc(ty)      (unqual(ty)->op == FUNCTION)
-#define isarray(ty)     (unqual(ty)->op == ARRAY)
-#define isptr(ty)       (unqual(ty)->op == POINTER)
-#define isvoid(ty)      (unqual(ty)->op == VOID)
-#define isenum(ty)      (unqual(ty)->op == ENUM)
-#define isstruct(ty)    (unqual(ty)->op == STRUCT)
-#define isunion(ty)     (unqual(ty)->op == UNION)
+#define op(ty)          (unqual(ty)->op)
+
+#define isfunc(ty)      (op(ty) == FUNCTION)
+#define isarray(ty)     (op(ty) == ARRAY)
+#define isptr(ty)       (op(ty) == POINTER)
+#define isvoid(ty)      (op(ty) == VOID)
+#define isenum(ty)      (op(ty) == ENUM)
+#define isstruct(ty)    (op(ty) == STRUCT)
+#define isunion(ty)     (op(ty) == UNION)
 
 extern bool isint(struct type *ty);
 extern bool isfloat(struct type *ty);

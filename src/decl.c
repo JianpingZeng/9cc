@@ -676,7 +676,7 @@ static struct type * enum_decl()
     } else if (id) {
         sym = lookup(id, tags);
 	if (sym) {
-	    if (sym->type->op != ENUM)
+	    if (!isenum(sym->type))
 		errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
 		       tname(ENUM), id, sym->type->name, sym->type->tag,  sym->src.file, sym->src.line);
 	} else {
@@ -731,7 +731,7 @@ static void fields(struct type *sty)
             }
             
             if (hasbit) {
-                if (field->type->op != INT && field->type->op != UNSIGNED) {
+                if (op(field->type) != INT && op(field->type) != UNSIGNED) {
                     if (field->name)
                         error("bit-field '%s' has non-integral type '%s'", field->name, field->type->name);
                     else
@@ -787,7 +787,7 @@ static struct type * struct_decl()
     } else if (id) {
         sym = lookup(id, tags);
 	if (sym) {
-	    if (sym->type->op != t)
+	    if (op(sym->type) != t)
 		errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
                    tname(t), id, sym->type->name, sym->type->tag, sym->src.file, sym->src.line);
 	} else {

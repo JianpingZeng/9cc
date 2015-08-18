@@ -251,7 +251,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
     
     sym->type = ty;
     
-    switch (sym->type->op) {
+    switch (op(sym->type)) {
         case INT:
             if (overflow || n > longlongtype->limits.max.i)
                 error("integer constant overflow: %s", t->name);
@@ -891,9 +891,9 @@ static int eval(struct node *expr, int *error)
         {
             struct symbol *sym = expr->sym;
             union value v = sym->value;
-            if (sym->type->op == INT)
+            if (op(sym->type) == INT)
                 return v.i;
-            else if (sym->type->op == UNSIGNED)
+            else if (op(sym->type) == UNSIGNED)
                 return v.u;
             else
                 assert(0);

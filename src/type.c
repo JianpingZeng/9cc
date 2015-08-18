@@ -218,7 +218,7 @@ struct symbol * tag_type(int op, const char *tag, struct source src)
         sym = lookup(tag, tags);
         if ((sym && sym->scope == SCOPE) ||
             (sym && sym->scope == PARAM && SCOPE == LOCAL)) {
-            if (sym->type->op == op && !sym->defined)
+            if (op(sym->type) == op && !sym->defined)
                 return sym;
             
             redefinition_error(src, sym);
@@ -272,6 +272,7 @@ static int eqparams(struct symbol **params1, struct symbol **params2)
     }
 }
 
+// TODO unqual
 int eqtype(struct type *ty1, struct type *ty2)
 {
     if (ty1 == ty2)
@@ -346,12 +347,12 @@ int eqtype(struct type *ty1, struct type *ty2)
 
 bool isint(struct type *ty)
 {
-    return unqual(ty)->op == INT || unqual(ty)->op == UNSIGNED || isenum(ty);
+    return op(ty) == INT || op(ty) == UNSIGNED || isenum(ty);
 }
 
 bool isfloat(struct type *ty)
 {
-    return unqual(ty)->op == FLOAT;
+    return op(ty) == FLOAT;
 }
 
 bool isarith(struct type *ty)
