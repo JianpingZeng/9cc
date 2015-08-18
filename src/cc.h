@@ -217,8 +217,8 @@ extern int eqtype(struct type *ty1, struct type *ty2);
 extern struct type * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
 extern struct type * array_type();
-extern struct type * pointer_type(struct type *ty);
-extern struct type * function_type();
+extern struct type * ptr_type(struct type *ty);
+extern struct type * func_type();
 extern struct symbol * tag_type(int op, const char *tag, struct source src);
 extern struct symbol * tag_sym(struct type *ty);
 
@@ -241,19 +241,20 @@ extern struct type    *voidtype;               // void
 extern struct type    *booltype;	       // bool
 extern struct type    *vartype;		       // variable type
 
-#define isfunc(ty)      ((ty)->op == FUNCTION)
-#define isarray(ty)     ((ty)->op == ARRAY)
-#define isptr(ty)       ((ty)->op == POINTER)
 #define isconst(ty)     ((ty)->q.is_const)
 #define isvolatile(ty)  ((ty)->q.is_volatile)
 #define isrestrict(ty)  ((ty)->q.is_restrict)
 #define isinline(ty)    ((ty)->q.is_inline)
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
-#define isvoid(ty)      ((ty)->op == VOID)
-#define isenum(ty)      ((ty)->op == ENUM)
-#define isstruct(ty)    ((ty)->op == STRUCT)
-#define isunion(ty)     ((ty)->op == UNION)
 #define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
+
+#define isfunc(ty)      (unqual(ty)->op == FUNCTION)
+#define isarray(ty)     (unqual(ty)->op == ARRAY)
+#define isptr(ty)       (unqual(ty)->op == POINTER)
+#define isvoid(ty)      (unqual(ty)->op == VOID)
+#define isenum(ty)      (unqual(ty)->op == ENUM)
+#define isstruct(ty)    (unqual(ty)->op == STRUCT)
+#define isunion(ty)     (unqual(ty)->op == UNION)
 
 extern bool isint(struct type *ty);
 extern bool isfloat(struct type *ty);

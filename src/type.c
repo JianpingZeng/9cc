@@ -179,7 +179,7 @@ struct type * array_type()
     return ty;
 }
 
-struct type * pointer_type(struct type *type)
+struct type * ptr_type(struct type *type)
 {
     struct type *ty = new_type();
     ty->op = POINTER;
@@ -189,7 +189,7 @@ struct type * pointer_type(struct type *type)
     return ty;
 }
 
-struct type * function_type()
+struct type * func_type()
 {
     struct type *ty = new_type();
     ty->op = FUNCTION;
@@ -346,12 +346,12 @@ int eqtype(struct type *ty1, struct type *ty2)
 
 bool isint(struct type *ty)
 {
-    return ty->op == INT || ty->op == UNSIGNED || isenum(ty);
+    return unqual(ty)->op == INT || unqual(ty)->op == UNSIGNED || isenum(ty);
 }
 
 bool isfloat(struct type *ty)
 {
-    return ty->op == FLOAT;
+    return unqual(ty)->op == FLOAT;
 }
 
 bool isarith(struct type *ty)

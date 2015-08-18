@@ -432,7 +432,7 @@ static struct type * func_or_array(int *params)
             expect(']');
             attach_type(&ty, atype);
         } else {
-            struct type *ftype = function_type();
+            struct type *ftype = func_type();
             expect('(');
             ftype->u.f.params = func_params(ftype, params);
             expect(')');
@@ -467,7 +467,7 @@ static struct type * abstract_func_or_array()
             expect(']');
             attach_type(&ty, atype);
         } else {
-            struct type *ftype = function_type();
+            struct type *ftype = func_type();
             expect('(');
             ftype->u.f.params = func_params(ftype, NULL);
             expect(')');
@@ -505,7 +505,7 @@ static struct type * pointer_decl()
                 
             case '*':
             {
-                struct type *pty = pointer_type(NULL);
+                struct type *pty = ptr_type(NULL);
                 con = vol = res = type = 0;
                 p = &type;
                 prepend_type(&ret, pty);
@@ -835,7 +835,7 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
     }
     
     if (isfunc(ty)) {
-        ty = pointer_type(ty);
+        ty = ptr_type(ty);
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
