@@ -148,7 +148,7 @@ extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
 
 // stmt.c
-extern struct node * compound_stmt(struct node *context);
+extern struct node * compound_stmt();
 
 #define LEFT(n)    (n->kids[0])
 #define RIGHT(n)    (n->kids[1])

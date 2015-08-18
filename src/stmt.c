@@ -1,6 +1,7 @@
 #include "cc.h"
 
 static struct node * statement(struct node *context);
+static struct node * _compound_stmt(struct node *context);
 
 static struct node * expr_stmt()
 {
@@ -301,7 +302,7 @@ static struct node * return_stmt()
 static struct node * statement(struct node *context)
 {
     switch (token->id) {
-        case '{':       return compound_stmt(context);
+        case '{':       return _compound_stmt(context);
         case IF:        return if_stmt(context);
         case SWITCH:    return switch_stmt(context);
         case WHILE:     return while_stmt(context);
@@ -322,7 +323,7 @@ static struct node * statement(struct node *context)
     }
 }
 
-struct node * compound_stmt(struct node *context)
+static struct node * _compound_stmt(struct node *context)
 {
     struct node *ret = stmt_node(COMPOUND_STMT, NULL, NULL);
     struct vector *v = new_vector();
@@ -344,4 +345,9 @@ struct node * compound_stmt(struct node *context)
     exit_scope();
     
     return ret;
+}
+
+struct node * compound_stmt()
+{
+    return _compound_stmt(NULL);
 }

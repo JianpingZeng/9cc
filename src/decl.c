@@ -1035,7 +1035,7 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
-        struct node *stmt = compound_stmt(NULL);
+        struct node *stmt = compound_stmt();
         exit_scope();
         LEFT(decl) = stmt;
     }
