@@ -862,7 +862,7 @@ static struct type * struct_decl()
         match('}', follow);
     } else if (id) {
         sym = lookup(id, tags);
-        if (sym) {
+        if (sym && currentscope(sym)) {
             if (op(sym->type) != t)
                 errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
                        tname(t), id, sym->type->name, sym->type->tag, sym->src.file, sym->src.line);
