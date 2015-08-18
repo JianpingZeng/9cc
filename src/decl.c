@@ -728,12 +728,13 @@ static struct type * enum_decl()
             error("expect identifier");
         while (token->id == ID) {
             struct symbol *s = lookup(token->name, identifiers);
-            if (s && s->scope == SCOPE)
+            if (s && currentscope(s))
                 redefinition_error(source, s);
             
             s = install(token->name, &identifiers, SCOPE);
             s->type = sym->type;
             s->src = source;
+            s->sclass = ENUM;
             expect(ID);
             if (token->id == '=') {
                 expect('=');
@@ -750,7 +751,7 @@ static struct type * enum_decl()
         sym->defined = 1;
     } else if (id) {
         sym = lookup(id, tags);
-        if (sym) {
+        if (sym && currentscope(sym)) {
             if (!isenum(sym->type))
                 errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
                        tname(ENUM), id, sym->type->name, sym->type->tag,  sym->src.file, sym->src.line);

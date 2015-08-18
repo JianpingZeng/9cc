@@ -215,8 +215,7 @@ struct symbol * tag_type(int op, const char *tag, struct source src)
     struct symbol *sym = NULL;
     if (tag) {
         sym = lookup(tag, tags);
-        if ((sym && sym->scope == SCOPE) ||
-            (sym && sym->scope == PARAM && SCOPE == LOCAL)) {
+        if (sym && currentscope(sym)) {
             if (op(sym->type) == op && !sym->defined)
                 return sym;
             
@@ -230,6 +229,7 @@ struct symbol * tag_type(int op, const char *tag, struct source src)
         sym = anonymous(&tags, SCOPE);
         sym->type = ty;
         sym->src = src;
+        ty->tag = sym->name;
     }
     
     return sym;
@@ -238,6 +238,7 @@ struct symbol * tag_type(int op, const char *tag, struct source src)
 
 struct symbol * tag_sym(struct type *ty)
 {
+    assert(ty->tag);
     struct symbol *sym = lookup(ty->tag, tags);
     assert(sym && sym->type == ty);
     return sym;

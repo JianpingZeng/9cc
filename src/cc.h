@@ -309,6 +309,8 @@ extern struct table * tags;
 
 #define SCOPE  scopelevel()
 
+#define currentscope(sym)   (sym->scope == SCOPE || (sym->scope == PARAM && SCOPE == LOCAL))
+
 // error.c
 extern unsigned errors;
 extern unsigned warnings;
