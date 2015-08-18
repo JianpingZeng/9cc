@@ -22,11 +22,6 @@ struct table * tags = &_tags;
 
 static int level = GLOBAL;
 
-static struct symbol * new_symbol()
-{
-    return NEWS(symbol);
-}
-
 static struct table * new_table(struct table *up, int scope)
 {
     struct table *t = NEWS(table);
@@ -108,7 +103,7 @@ struct symbol * install(const char *name, struct table **tpp, int scope)
     }
     
     entry = NEWS(sentry);
-    symbol = new_symbol();
+    symbol = NEWS(symbol);
     symbol->scope = scope;
     symbol->name = strings(name);
     symbol->up = tp->all;
