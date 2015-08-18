@@ -29,13 +29,9 @@ static unsigned unit;
 
 static const char *version = "0.0";
 
-static void print_opt(const char *opt, const char *message)
-{
-    fprintf(stderr, "  %-20s%s\n", opt, message);
-}
-
 static void usage()
 {
+#define print_opt(opt, msg)     fprintf(stderr, "  %-20s%s\n", opt, msg)
     fprintf(stderr,
             "OVERVIEW: mcc - A Standard C Compiler v%s\n\n"
             "USAGE: mcc [options] <inputs>\n\n"
@@ -47,6 +43,7 @@ static void usage()
     print_opt("-o <file>",       "Write output to <file>");
     print_opt("-S",              "Only run preprocess and compilation steps");
     print_opt("-v, --version",   "Display version and options");
+#undef print_opt
 }
 
 static char *tempname(const char *hint)
@@ -70,7 +67,7 @@ static char *tempname(const char *hint)
     }
 }
 
-static int unitproc(void *context)
+static int unitprocess(void *context)
 {
     struct vector *data = (struct vector *)context;
     char *inputfile = (char *)vec_at(data, 0);
@@ -153,7 +150,7 @@ static void translate(void *elem, void *context)
     vec_push(v, elem);
     vec_push(v, context);
     unit++;
-    ret = runproc(unitproc, (void *)v);
+    ret = runproc(unitprocess, (void *)v);
     if (ret == EXIT_FAILURE)
         fails++;
 }
