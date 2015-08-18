@@ -57,42 +57,44 @@ static void print_return(struct type_context context)
 
 static void print_short_type(struct type *type)
 {
+    struct type *rty = unqual(type);
     print_qual(type);
     if (isfunc(type)) {
-        fprintf(stderr, "'%s'", type->name);
+        fprintf(stderr, "'%s'", rty->name);
     } else if (isptr(type)) {
-        fprintf(stderr, "'%s to %s'", type->name, type->type->name);
+        fprintf(stderr, "'%s to %s'", rty->name, unqual(rty->type)->name);
     } else if (isarray(type)) {
-        fprintf(stderr, "'%s %lu of'", type->name, type->size);
+        fprintf(stderr, "'%s %lu of'", rty->name, rty->size);
     } else if (isenum(type) || isstruct(type) || isunion(type)) {
-        fprintf(stderr, "'%s %s'", type->name, type->tag);
+        fprintf(stderr, "'%s %s'", rty->name, rty->tag);
     } else {
-        fprintf(stderr, "'%s'", type->name);
+        fprintf(stderr, "'%s'", rty->name);
     }
 }
 
 static void print_type1(struct type_context context)
 {
     struct type *type = context.type;
+    struct type *rty = unqual(type);
     if (type) {
-        struct type_context tcontext = {context.level, type->type};
+        struct type_context tcontext = {context.level, rty->type};
         print_qual(type);
         if (isfunc(type)) {
-            fprintf(stderr, "%s", type->name);
+            fprintf(stderr, "%s", rty->name);
             fprintf(stderr, "\n");
             print_return(tcontext);
             print_params(context);
         } else if (isptr(type)) {
-            fprintf(stderr, "%s to ", type->name);
+            fprintf(stderr, "%s to ", rty->name);
             print_type1(tcontext);
         } else if (isarray(type)) {
-            fprintf(stderr, "%s %lu of ", type->name, type->size);
+            fprintf(stderr, "%s %lu of ", rty->name, rty->size);
             print_type1(tcontext);
         } else if (isenum(type) || isstruct(type) || isunion(type)) {
-            fprintf(stderr, "%s %s ", type->name, type->tag);
+            fprintf(stderr, "%s %s ", rty->name, rty->tag);
             print_type1(tcontext);
         } else {
-            fprintf(stderr, "%s ", type->name);
+            fprintf(stderr, "%s ", rty->name);
             print_type1(tcontext);
         }
     } else {
