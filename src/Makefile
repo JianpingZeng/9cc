@@ -1,6 +1,6 @@
 
 CC=cc
-CFLAGS=-Wall -std=c99 -Os -fno-builtin -Isys -Iutils
+CFLAGS=-Wall -std=c99 -Os -Isys -Iutils
 LDFLAGS=
 TARGETS=mcc
 SOURCES=ast.c \

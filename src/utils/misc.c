@@ -13,7 +13,7 @@ void die(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
-void log(const char *fmt, ...)
+void println(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
