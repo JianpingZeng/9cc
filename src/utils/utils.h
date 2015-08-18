@@ -64,6 +64,6 @@ extern int array_len(void **array);
 
 // misc.c
 extern void die(const char *fmt, ...);
-extern void cclog(const char *fmt, ...);
+extern void log(const char *fmt, ...);
 
 #endif
