@@ -13,6 +13,7 @@
 #include <wchar.h>
 #include <stdbool.h>
 
+#include "config.h"
 #include "utils.h"
 
 // lex.c
@@ -320,17 +321,6 @@ extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 
 extern void redefinition_error(struct source src, struct symbol *sym);
-
-#define SHOW_CALL_TREE
-#ifdef SHOW_CALL_TREE
-#define BEGIN_CALL    begin_call(__func__);
-#define END_CALL      end_call(__func__);
-#else
-#define BEGIN_CALL
-#define END_CALL
-#endif
-
-//#define SHOW_COLOR_TERM
 
 // gen.c
 void walk(struct node *tree);

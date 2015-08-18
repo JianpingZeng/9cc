@@ -22,6 +22,7 @@ SOURCES=ast.c \
     utils/misc.c
 
 INCLUDES=cc.h \
+	config.h \
         node.def \
         token.def \
         sys/sys.h \
