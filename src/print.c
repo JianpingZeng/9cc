@@ -63,7 +63,7 @@ static void print_short_type(struct type *type)
     } else if (isptr(type)) {
         fprintf(stderr, "'%s to %s'", type->name, type->type->name);
     } else if (isarray(type)) {
-        fprintf(stderr, "'%s %d of'", type->name, type->size);
+        fprintf(stderr, "'%s %lu of'", type->name, type->size);
     } else if (isenum(type) || isstruct(type) || isunion(type)) {
         fprintf(stderr, "'%s %s'", type->name, type->tag);
     } else {
@@ -86,7 +86,7 @@ static void print_type1(struct type_context context)
             fprintf(stderr, "%s to ", type->name);
             print_type1(tcontext);
         } else if (isarray(type)) {
-            fprintf(stderr, "%s %d of ", type->name, type->size);
+            fprintf(stderr, "%s %lu of ", type->name, type->size);
             print_type1(tcontext);
         } else if (isenum(type) || isstruct(type) || isunion(type)) {
             fprintf(stderr, "%s %s ", type->name, type->tag);

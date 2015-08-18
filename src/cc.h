@@ -172,11 +172,13 @@ struct field {
 struct type {
     int op;
     const char *name;
-    int size;
-    unsigned is_const : 1;
-    unsigned is_volatile : 1;
-    unsigned is_restrict : 1;
-    unsigned is_inline : 1;
+    size_t size;
+    struct {
+        unsigned is_const : 1;
+        unsigned is_volatile : 1;
+        unsigned is_restrict : 1;
+        unsigned is_inline : 1;
+    }q;
     unsigned reserved : 1;
     struct type *type;
     const char *tag;
@@ -211,7 +213,6 @@ extern void type_init();
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
 extern struct type * qual(int t, struct type *ty);
-extern struct type * unqual(int t, struct type *ty);
 extern int eqtype(struct type *ty1, struct type *ty2);
 extern struct type * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
@@ -243,15 +244,16 @@ extern struct type    *vartype;		       // variable type
 #define isfunc(ty)      ((ty)->op == FUNCTION)
 #define isarray(ty)     ((ty)->op == ARRAY)
 #define isptr(ty)       ((ty)->op == POINTER)
-#define isconst(ty)     ((ty)->is_const)
-#define isvolatile(ty)  ((ty)->is_volatile)
-#define isrestrict(ty)  ((ty)->is_restrict)
+#define isconst(ty)     ((ty)->q.is_const)
+#define isvolatile(ty)  ((ty)->q.is_volatile)
+#define isrestrict(ty)  ((ty)->q.is_restrict)
+#define isinline(ty)    ((ty)->q.is_inline)
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
-#define isinline(ty)    ((ty)->is_inline)
 #define isvoid(ty)      ((ty)->op == VOID)
 #define isenum(ty)      ((ty)->op == ENUM)
 #define isstruct(ty)    ((ty)->op == STRUCT)
 #define isunion(ty)     ((ty)->op == UNION)
+#define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
 
 extern bool isint(struct type *ty);
 extern bool isfloat(struct type *ty);

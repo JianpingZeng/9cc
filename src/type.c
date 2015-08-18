@@ -20,79 +20,98 @@ struct type   *voidtype;               // void
 struct type   *booltype;	       // bool
 struct type   *vartype;		       // variable type
 
+struct metrics {
+    size_t size;
+}
+charmetrics = { sizeof (char) },
+wcharmetrics = { sizeof (wchar_t) },
+shortmetrics = { sizeof (short) },
+intmetrics = { sizeof (int) },
+longmetrics = { sizeof (long) },
+longlongmetrics = { sizeof (long long) },
+floatmetrics = { sizeof (float) },
+doublemetrics = { sizeof (double) },
+longdoublemetrics = { sizeof (long double) },
+boolmetrics = { sizeof (_Bool) },
+zerometrics = { 0 };
+
 static struct type * new_type()
 {
     return NEWS(type);
 }
 
-static void install_type(struct type **type, const char *name, int op, int size)
+static void install_type(struct type **type, const char *name, int op, struct metrics m)
 {
     struct type *ty = new_type();
     
     ty->name = strings(name);
     ty->op = op;
-    ty->size = size;
     ty->reserved = 1;
+    ty->size = m.size;
+    switch (op) {
+        case INT:
+            ty->limits.max.i = TWOS(ty->size) >> 1;
+            ty->limits.min.i = -ty->limits.max.i - 1;
+            break;
+            
+        case UNSIGNED:
+            ty->limits.max.u = TWOS(ty->size);
+            ty->limits.min.u = 0;
+            break;
+            
+        case FLOAT:
+            if (ty->size == sizeof (float)) {
+                ty->limits.max.d = FLT_MAX;
+                ty->limits.min.d = FLT_MIN;
+            } else if (ty->size == sizeof (double)) {
+                ty->limits.max.d = DBL_MAX;
+                ty->limits.min.d = DBL_MIN;
+            } else {
+                ty->limits.max.ld = LDBL_MAX;
+                ty->limits.min.ld = LDBL_MIN;
+            }
+            break;
+            
+        default:
+            break;
+    }
     *type = ty;
 }
 
 void type_init()
 {
-#define INSTALL(type, name, op, size)    install_type(&type, name, op, size)
+#define INSTALL(type, name, op, metrics)    install_type(&type, name, op, metrics)
     // char
-    INSTALL(chartype,           "char",             INT,       sizeof(char));
-    INSTALL(unsignedchartype,   "unsigned char",    UNSIGNED,   sizeof(unsigned char));
-    INSTALL(signedchartype,     "signed char",      INT,       sizeof(signed char));
+    INSTALL(chartype,           "char",             INT,        charmetrics);
+    INSTALL(unsignedchartype,   "unsigned char",    UNSIGNED,   charmetrics);
+    INSTALL(signedchartype,     "signed char",      INT,        charmetrics);
     // wchar_t
-    INSTALL(wchartype,          "wchar_t",          UNSIGNED,   sizeof(wchar_t));
+    INSTALL(wchartype,          "wchar_t",          UNSIGNED,   wcharmetrics);
     // short
-    INSTALL(shorttype,          "short",            INT,        sizeof(short));
-    INSTALL(unsignedshorttype,  "unsigned short",   UNSIGNED,   sizeof(unsigned short));
+    INSTALL(shorttype,          "short",            INT,        shortmetrics);
+    INSTALL(unsignedshorttype,  "unsigned short",   UNSIGNED,   shortmetrics);
     // int
-    INSTALL(inttype,            "int",              INT,        sizeof(int));
-    INSTALL(unsignedinttype,    "unsigned int",     UNSIGNED,   sizeof(unsigned));
+    INSTALL(inttype,            "int",              INT,        intmetrics);
+    INSTALL(unsignedinttype,    "unsigned int",     UNSIGNED,   intmetrics);
     // long
-    INSTALL(longtype,           "long",             INT,        sizeof(long));
-    INSTALL(unsignedlongtype,   "unsigned long",    UNSIGNED,   sizeof(unsigned long));
+    INSTALL(longtype,           "long",             INT,        longmetrics);
+    INSTALL(unsignedlongtype,   "unsigned long",    UNSIGNED,   longmetrics);
     // long long
-    INSTALL(longlongtype,       "long long",        INT,        sizeof(long long));
-    INSTALL(unsignedlonglongtype, "unsigned long long", UNSIGNED, sizeof(unsigned long long));
+    INSTALL(longlongtype,       "long long",        INT,        longlongmetrics);
+    INSTALL(unsignedlonglongtype, "unsigned long long", UNSIGNED, longlongmetrics);
     // float
-    INSTALL(floattype,          "float",            FLOAT,      sizeof(float));
+    INSTALL(floattype,          "float",            FLOAT,      floatmetrics);
     // double
-    INSTALL(doubletype,         "double",           FLOAT,     sizeof(double));
-    INSTALL(longdoubletype,     "long double",      FLOAT,     sizeof(long double));
-    // void
-    INSTALL(voidtype,           "void",             VOID,       0);
+    INSTALL(doubletype,         "double",           FLOAT,     doublemetrics);
+    INSTALL(longdoubletype,     "long double",      FLOAT,     longdoublemetrics);
     // bool
-    INSTALL(booltype,           "_Bool",            UNSIGNED,   sizeof(int));
+    INSTALL(booltype,           "_Bool",            UNSIGNED,   boolmetrics);
+    // void
+    INSTALL(voidtype,           "void",             VOID,       zerometrics);
     // variable
-    INSTALL(vartype,            "vartype",          ELLIPSIS,   0);
-    
-
-#define LIMITS(type, field, maxval, minval) \
-        type->limits.max.field = maxval; \
-	type->limits.min.field = minval
-
-    LIMITS(chartype,            i, CHAR_MAX,    CHAR_MIN);
-    LIMITS(unsignedchartype,    u, UCHAR_MAX,   0);
-    LIMITS(signedchartype,      i, SCHAR_MAX,   SCHAR_MIN);
-    LIMITS(wchartype,           u, WCHAR_MAX,   0);
-    LIMITS(shorttype,           i, SHRT_MAX,    SHRT_MIN);
-    LIMITS(unsignedshorttype,   u, USHRT_MAX,   0);
-    LIMITS(inttype,             i, INT_MAX,     INT_MIN);
-    LIMITS(unsignedinttype,     u, UINT_MAX,    0);
-    LIMITS(longtype,            i, LONG_MAX,    LONG_MIN);
-    LIMITS(unsignedlongtype,    u, ULONG_MAX,   0);
-    LIMITS(longlongtype,        i, LLONG_MAX,   LLONG_MIN);
-    LIMITS(unsignedlonglongtype, u, ULLONG_MAX, 0);
-    LIMITS(floattype,           d, FLT_MAX,     FLT_MIN);
-    LIMITS(doubletype,          d, DBL_MAX,     DBL_MIN);
-    LIMITS(longdoubletype,      ld, LDBL_MAX,   LDBL_MIN);
-    LIMITS(booltype,            u, 1, 0);
+    INSTALL(vartype,            "vartype",          ELLIPSIS,   zerometrics);
 
 #undef INSTALL
-#undef LIMITS
 }
 
 void prepend_type(struct type **typelist, struct type *type)
@@ -119,49 +138,14 @@ struct type * qual(int t, struct type *ty)
 {
     assert(ty);
     struct type *qty = new_type();
-    *qty = *ty;
+    qty->q = ty->q;
     switch (t) {
-        case CONST:
-            qty->is_const = 1;
-            break;
-        case VOLATILE:
-            qty->is_volatile = 1;
-            break;
-        case RESTRICT:
-            qty->is_restrict = 1;
-            break;
-        case INLINE:
-            qty->is_inline = 1;
-            break;
-        default:
-            assert(0);
+        case CONST:     qty->q.is_const = 1;    break;
+        case VOLATILE:  qty->q.is_volatile = 1; break;
+        case RESTRICT:  qty->q.is_restrict = 1; break;
+        case INLINE:    qty->q.is_inline = 1;   break;
+        default:        assert(0);
     }
-    
-    return qty;
-}
-
-struct type * unqual(int t, struct type *ty)
-{
-    assert(ty);
-    struct type *qty = new_type();
-    *qty = *ty;
-    switch (t) {
-        case CONST:
-            qty->is_const = 0;
-            break;
-        case VOLATILE:
-            qty->is_volatile = 0;
-            break;
-        case RESTRICT:
-            qty->is_restrict = 0;
-            break;
-        case INLINE:
-            qty->is_inline = 0;
-            break;
-        default:
-            assert(0);
-    }
-    
     return qty;
 }
 
@@ -296,9 +280,9 @@ int eqtype(struct type *ty1, struct type *ty2)
         return 0;
     else if (ty1->op != ty2->op)
         return 0;
-    else if (ty1->is_const != ty2->is_const ||
-             ty1->is_volatile != ty2->is_volatile ||
-             ty1->is_restrict != ty2->is_restrict)
+    else if (ty1->q.is_const != ty2->q.is_const ||
+             ty1->q.is_volatile != ty2->q.is_volatile ||
+             ty1->q.is_restrict != ty2->q.is_restrict)
         return 0;
     
     switch (ty1->op) {
