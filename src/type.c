@@ -164,10 +164,8 @@ struct type * lookup_typedef_name(const char *id)
 
 bool is_typedef_name(const char *id)
 {
-    if (!id)
-        return 0;
-    struct symbol *sym = lookup(id, identifiers);
-    return sym && sym->sclass == TYPEDEF;
+    struct type *ty = lookup_typedef_name(id);
+    return ty != NULL;
 }
 
 struct type * array_type()
@@ -244,59 +242,61 @@ struct symbol * tag_sym(struct type *ty)
     return sym;
 }
 
-static int eqparams(struct symbol **params1, struct symbol **params2)
+static bool eqparams(struct symbol **params1, struct symbol **params2)
 {
     if (params1 == params2) {
-        return 1;
+        return true;
     } else if (params1 == NULL || params2 == NULL) {
-        return 0;
+        return false;
     } else {
         int len1 = array_len((void **)params1);
         int len2 = array_len((void **)params2);
         if (len1 != len2)
-            return 0;
+            return false;
         for (int i=0; i < len1; i++) {
             struct symbol *sym1 = params1[i];
             struct symbol *sym2 = params2[i];
             if (sym1 == sym2)
                 continue;
             else if (sym1 == NULL || sym2 == NULL)
-                return 0;
+                return false;
             else if (eqtype(sym1->type, sym2->type))
                 continue;
             else
-                return 0;
+                return false;
         }
         
-        return 1;
+        return true;
     }
 }
 
-// TODO unqual
-int eqtype(struct type *ty1, struct type *ty2)
+bool eqtype(struct type *ty1, struct type *ty2)
 {
     if (ty1 == ty2)
-        return 1;
+        return true;
     else if (ty1 == NULL || ty2 == NULL)
-        return 0;
-    else if (ty1->op != ty2->op)
-        return 0;
+        return false;
+    else if (op(ty1) != op(ty2))
+        return false;
     else if (ty1->q.is_const != ty2->q.is_const ||
              ty1->q.is_volatile != ty2->q.is_volatile ||
              ty1->q.is_restrict != ty2->q.is_restrict)
-        return 0;
+        return false;
     
-    switch (ty1->op) {
+    ty1 = unqual(ty1);
+    ty2 = unqual(ty2);
+    
+    switch (op(ty1)) {
         case ENUM:
         case UNION:
         case STRUCT:
-            return 0;
+            return false;
             
         case INT:
         case UNSIGNED:
         case FLOAT:
         case VOID:
-            return 1;
+            return true;
             
         case POINTER:
         case ARRAY:
@@ -304,10 +304,10 @@ int eqtype(struct type *ty1, struct type *ty2)
             
         case FUNCTION:
             if (!eqtype(ty1->type, ty2->type))
-                return 0;
+                return false;
             if (ty1->u.f.oldstyle && ty2->u.f.oldstyle) {
                 // both oldstyle
-                return 1;
+                return true;
             } else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
                 // both prototype
                 return eqparams(ty1->u.f.params, ty2->u.f.params);
@@ -319,29 +319,29 @@ int eqtype(struct type *ty1, struct type *ty2)
                     for (int i=0; newty->u.f.params[i]; i++) {
                         struct symbol *sym = newty->u.f.params[i];
                         if (sym->type) {
-                            struct type *ty = sym->type;
-                            if (ty->op == INT && (ty->size == sizeof(short) || ty->size == sizeof(char)))
-                                return 0;
-                            else if (ty->op == UNSIGNED && (ty->size == sizeof(unsigned short)
+                            struct type *ty = unqual(sym->type);
+                            if (op(ty) == INT && (ty->size == sizeof(short) || ty->size == sizeof(char)))
+                                return false;
+                            else if (op(ty) == UNSIGNED && (ty->size == sizeof(unsigned short)
                                                             || ty->size == sizeof(unsigned char)))
-                                return 0;
-                            else if (ty->op == FLOAT)
-                                return 0;
-                            else if (ty->op == ELLIPSIS)
-                                return 0;
+                                return false;
+                            else if (op(ty) == FLOAT)
+                                return false;
+                            else if (op(ty) == ELLIPSIS)
+                                return false;
                         }
                     }
                 }
                 
                 if (oldty->u.f.params == NULL)
-                    return 1;
+                    return true;
                 
                 return eqparams(oldty->u.f.params, newty->u.f.params);
             }
             
         default:
             assert(0);
-            return 0;
+            return false;
     }
 }
 

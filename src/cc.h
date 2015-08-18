@@ -214,7 +214,7 @@ extern void type_init();
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
 extern struct type * qual(int t, struct type *ty);
-extern int eqtype(struct type *ty1, struct type *ty2);
+extern bool eqtype(struct type *ty1, struct type *ty2);
 extern struct type * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
 extern struct type * array_type();
@@ -246,7 +246,7 @@ extern struct type    *vartype;		       // variable type
 #define isvolatile(ty)  ((ty)->q.is_volatile)
 #define isrestrict(ty)  ((ty)->q.is_restrict)
 #define isinline(ty)    ((ty)->q.is_inline)
-#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
+#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty) || isinline(ty))
 #define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
 
 #define op(ty)          (unqual(ty)->op)
