@@ -242,6 +242,8 @@ extern struct type    *voidtype;               // void
 extern struct type    *booltype;	       // bool
 extern struct type    *vartype;		       // variable type
 
+#define BITS(type)      (CHAR_BIT * (type)->size)
+
 #define isconst(ty)     ((ty)->q.is_const)
 #define isvolatile(ty)  ((ty)->q.is_volatile)
 #define isrestrict(ty)  ((ty)->q.is_restrict)

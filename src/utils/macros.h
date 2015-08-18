@@ -2,11 +2,9 @@
 #define _macro_h
 
 #define TWOS(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
-#define BITS(type)  (CHAR_BIT * (type)->size)
-#define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
-#define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
 
-#define MACRO_CONCAT_(A, B) A ## B
-#define MACRO_CONCAT(A, B)  MACRO_CONCAT_(A, B)
+#define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
+
+#define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
 
 #endif
