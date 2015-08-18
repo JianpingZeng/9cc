@@ -8,25 +8,24 @@
 static void str_grow(struct string *s, int len)
 {
     char *mem = NEW0(len + s->reserve);
-    memcpy(mem, s->str, s->size);
+    memcpy(mem, s->str, s->len);
     s->str = mem;
-    s->capelems = len + s->reserve;
+    s->len = len + s->reserve;
 }
 
 struct string * new_string()
 {
     struct string *s = NEWS(string);
     s->reserve = 128;
-    s->size = 0;
-    s->capelems = s->reserve;
-    s->str = NEW0(s->capelems);
+    s->len = 0;
+    s->nalloc = s->reserve;
+    s->str = NEW0(s->nalloc);
     return s;
 }
 
-unsigned str_len(struct string *s)
+size_t str_len(struct string *s)
 {
-    assert(s);
-    return s->size;
+    return s->len;
 }
 
 void str_cats(struct string *s, const char *src)
@@ -37,16 +36,16 @@ void str_cats(struct string *s, const char *src)
 void str_catn(struct string *s, const char *src, int len)
 {
     assert(s);
-    if (s->size + len >= s->capelems) {
-        str_grow(s, s->size+len);
+    if (s->len + len >= s->nalloc) {
+        str_grow(s, s->len+len);
     }
     
-    char *dst = s->str + s->size;
+    char *dst = s->str + s->len;
     int size = len;
     while (size-- > 0) {
         *dst++ = *src++;
     }
-    s->size += len;
+    s->len += len;
 }
 
 void str_catd(struct string *s, long n)
@@ -73,14 +72,6 @@ void str_catd(struct string *s, long n)
 }
 
 char * stoa(struct string *s)
-{
-    assert(s);
-    char *str = NEW0(s->size+1);
-    memcpy(str, s->str, s->size);
-    return str;
-}
-
-char * str_flat(struct string *s)
 {
     if (s == NULL) return NULL;
     return strings(s->str);
