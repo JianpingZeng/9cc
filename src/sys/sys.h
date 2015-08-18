@@ -1,5 +1,5 @@
-#ifndef _etc_h
-#define _etc_h
+#ifndef _SYS_H
+#define _SYS_H
 
 // path
 extern char *mk_temp_dir();
