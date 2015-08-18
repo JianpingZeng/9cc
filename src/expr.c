@@ -7,6 +7,7 @@ static int eval(struct node *expr, int *error);
 static struct node * unary_expr();
 static struct node * uop(int op, struct type *ty, struct node *l);
 static struct node * bop(int op, struct node *l, struct node *r);
+static struct node * nop(int id, struct node *l, struct node *r);
 static struct node * conv(struct node *node);
 
 static unsigned escape(const char **ps)
@@ -356,7 +357,7 @@ static struct node * compound_literal(struct type *ty)
     struct node * inits;
     
     inits = initializer_list();
-    ret = expr_node(COMPOUND_LITERAL, CCONSTANT, inits, NULL);
+    ret = nop(COMPOUND_LITERAL, inits, NULL);
     ret->type = ty;
     
     return ret;
@@ -404,13 +405,13 @@ static struct node * postfix_expr1(struct node *ret)
             case '[':
                 t = token->id;
                 expect('[');
-                ret = expr_node(SUBSCRIPT_EXPR, t, ret, expression());
+                ret = nop(SUBSCRIPT_EXPR, ret, expression());
                 expect(']');
                 break;
             case '(':
                 t = token->id;
                 expect('(');
-                ret = expr_node(CALL_EXPR, FUNCTION, ret, NULL);
+                ret = nop(CALL_EXPR, ret, NULL);
                 ret->u.e.args = argument_expr_list();
                 expect(')');
                 break;
@@ -419,7 +420,7 @@ static struct node * postfix_expr1(struct node *ret)
             {
                 t = token->id;
                 expect(t);
-                ret = expr_node(MEMBER_EXPR, t, ret, expr_node(REF_EXPR, ID, NULL, NULL));
+                ret = nop(MEMBER_EXPR, ret, nop(REF_EXPR, NULL, NULL));
                 expect(ID);
             }
                 break;
@@ -452,7 +453,7 @@ static struct node * primary_expr()
             else
                 error("use of undeclared symbol '%s'", token->name);
             expect(t);
-            ret = expr_node(REF_EXPR, ID, NULL, NULL);
+            ret = nop(REF_EXPR, NULL, NULL);
             ret->sym = sym;
             ret->type = sym->type;
         }
@@ -466,7 +467,7 @@ static struct node * primary_expr()
                 t == ICONSTANT ? integer_constant(token, sym) : float_constant(token, sym);
             }
             expect(t);
-            ret = expr_node(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, t, NULL, NULL);
+            ret = nop(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, NULL, NULL);
             ret->sym = sym;
             ret->type = sym->type;
         }
@@ -479,7 +480,7 @@ static struct node * primary_expr()
                 string_constant(token, sym);
             }
             expect(t);
-            ret = expr_node(STRING_LITERAL, t, NULL, NULL);
+            ret = nop(STRING_LITERAL, NULL, NULL);
             ret->sym = sym;
             ret->type = sym->type;
         }
@@ -492,7 +493,7 @@ static struct node * primary_expr()
                 ret = compound_literal(ty);
             } else {
                 expect('(');
-                ret = expr_node(PAREN_EXPR, '(', expression(), NULL);
+                ret = nop(PAREN_EXPR, expression(), NULL);
                 expect(')');
             }
         }
@@ -609,7 +610,7 @@ static struct node * cast_expr()
             return postfix_expr1(node);
         }
         
-        struct node * cast = expr_node(CAST_EXPR, 'C', cast_expr(), NULL);
+        struct node * cast = nop(CAST_EXPR, cast_expr(), NULL);
         cast->type = ty;
         return cast;
     }
@@ -760,7 +761,7 @@ static struct node * cond_expr1(struct node *cond)
     expect(':');
     els = cond_expr();
     
-    ret = expr_node(COND_EXPR, '?', NULL, NULL);
+    ret = nop(COND_EXPR, NULL, NULL);
     ret->u.e.c.cond = cond;
     ret->u.e.c.then = then;
     ret->u.e.c.els = els;
@@ -827,6 +828,13 @@ static struct node * uop(int op, struct type *ty, struct node *l)
 static struct node * bop(int op, struct node *l, struct node *r)
 {
     struct node *node = bnode(op, l, r);
+    return node;
+}
+
+// TODO
+static struct node * nop(int id, struct node *l, struct node *r)
+{
+    struct node *node = expr_node(id, 0, l, r);
     return node;
 }
 
@@ -899,7 +907,6 @@ static int eval(struct node *expr, int *error)
             
             // paren
         case '(':
-        case CCONSTANT:
             return L;
             
             // inits
