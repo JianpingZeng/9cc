@@ -12,14 +12,14 @@ SOURCES=ast.c \
 	expr.c \
 	gen.c \
 	lex.c \
-	mcc.c \
 	stmt.c \
 	sym.c \
 	type.c \
-    utils/alloc.c \
-    utils/string.c \
+	sys/mcc.c \
+    	utils/alloc.c \
+    	utils/string.c \
 	utils/vector.c \
-    utils/misc.c
+    	utils/misc.c
 
 INCLUDES=cc.h \
 	config.h \
