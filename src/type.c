@@ -138,6 +138,7 @@ struct type * qual(int t, struct type *ty)
 {
     assert(ty);
     struct type *qty = new_type();
+    qty->type = unqual(ty);
     qty->q = ty->q;
     switch (t) {
         case CONST:     qty->q.is_const = 1;    break;

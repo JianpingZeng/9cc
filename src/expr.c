@@ -314,10 +314,11 @@ static void string_constant(struct token *t, struct symbol *sym)
 static void ensure_type(const char *name, bool (*is) (struct type *), struct node *node)
 {
     if (!is(node->type)) {
-        if (node->type->tag)
-            error("%s type expected, not '%s %s'", name, node->type->name, node->type->tag);
+        struct type *rty = unqual(node->type);
+        if (rty->tag)
+            error("%s type expected, not '%s %s'", name, rty->name, rty->tag);
         else
-            error("%s type expected, not '%s'", name, node->type->name);
+            error("%s type expected, not '%s'", name, rty->name);
     }
 }
 

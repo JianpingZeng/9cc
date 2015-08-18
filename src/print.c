@@ -75,8 +75,8 @@ static void print_short_type(struct type *type)
 static void print_type1(struct type_context context)
 {
     struct type *type = context.type;
-    struct type *rty = unqual(type);
     if (type) {
+        struct type *rty = unqual(type);
         struct type_context tcontext = {context.level, rty->type};
         print_qual(type);
         if (isfunc(type)) {
