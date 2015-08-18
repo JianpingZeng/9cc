@@ -5,6 +5,9 @@ static struct node * cond_expr();
 static struct node * cond_expr1(struct node *o);
 static int eval(struct node *expr, int *error);
 static struct node * unary_expr();
+static struct node * uop(int op, struct type *ty, struct node *l);
+static struct node * bop(int op, struct node *l, struct node *r);
+static struct node * conv(struct node *node);
 
 static unsigned escape(const char **ps)
 {
@@ -424,7 +427,7 @@ static struct node * postfix_expr1(struct node *ret)
             case DECR:
                 t = token->id;
                 expect(token->id);
-                ret = unode(t, ret->type, ret);
+                ret = uop(t, ret->type, ret);
                 break;
             default:
                 assert(0);
@@ -519,20 +522,20 @@ static struct node * unary_sizeof()
         struct type *ty = cast_type();
         if (token->id == '{') {
             struct node * node = compound_literal(ty);
-            return unode(t, ty, postfix_expr1(node));
+            return uop(t, ty, postfix_expr1(node));
         } else {
-            return unode(t, ty, NULL);
+            return uop(t, ty, NULL);
         }
     }
     struct node *node = unary_expr();
-    return unode(t, node->type, node);
+    return uop(t, node->type, node);
 }
 
 static struct node * unary_inc(int t)
 {
     expect(t);
     struct node *operand = unary_expr();
-    struct node *ret = unode(t, operand->type, operand);
+    struct node *ret = uop(t, operand->type, operand);
     ret->u.e.prefix = true;
     return ret;
 }
@@ -542,7 +545,7 @@ static struct node * unary_addr()
     int t = token->id;
     expect(t);
     struct node *operand = cast_expr();
-    return unode(t, operand->type, operand);
+    return uop(t, operand->type, operand);
 }
 
 static struct node * unary_deref()
@@ -550,7 +553,7 @@ static struct node * unary_deref()
     int t = token->id;
     expect(t);
     struct node *operand = cast_expr();
-    return unode(t, operand->type, operand);
+    return uop(t, operand->type, operand);
 }
 
 static struct node * unary_minus(int t)
@@ -558,7 +561,7 @@ static struct node * unary_minus(int t)
     expect(t);
     struct node *operand = cast_expr();
     ensure_type("arithmetic", isarith, operand);
-    return unode(t, operand->type, operand);
+    return uop(t, operand->type, operand);
 }
 
 static struct node * unary_bneg()
@@ -567,7 +570,7 @@ static struct node * unary_bneg()
     expect(t);
     struct node *operand = cast_expr();
     ensure_type("integer", isint, operand);
-    return unode(t, operand->type, operand);
+    return uop(t, operand->type, operand);
 }
 
 static struct node * unary_lneg()
@@ -576,7 +579,7 @@ static struct node * unary_lneg()
     expect(t);
     struct node *operand = cast_expr();
     ensure_type("scalar", isscalar, operand);
-    return unode(t, inttype, operand);
+    return uop(t, inttype, operand);
 }
 
 static struct node * unary_expr()
@@ -621,7 +624,7 @@ static struct node * multiple_expr()
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
         expect(token->id);
-        mulp1 = bnode(t, mulp1, cast_expr());
+        mulp1 = bop(t, mulp1, cast_expr());
     }
     
     return mulp1;
@@ -635,7 +638,7 @@ static struct node * additive_expr()
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
         expect(token->id);
-        add1 = bnode(t, add1, multiple_expr());
+        add1 = bop(t, add1, multiple_expr());
     }
     
     return add1;
@@ -649,7 +652,7 @@ static struct node * shift_expr()
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
         expect(token->id);
-        shift1 = bnode(t, shift1, additive_expr());
+        shift1 = bop(t, shift1, additive_expr());
     }
     
     return shift1;
@@ -663,7 +666,7 @@ static struct node * relation_expr()
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
         expect(token->id);
-        rel = bnode(t, rel, shift_expr());
+        rel = bop(t, rel, shift_expr());
     }
     
     return rel;
@@ -677,7 +680,7 @@ static struct node * equality_expr()
     while (token->id == EQ || token->id == NEQ) {
         int t = token->id;
         expect(token->id);
-        equl = bnode(t, equl, relation_expr());
+        equl = bop(t, equl, relation_expr());
     }
     
     return equl;
@@ -690,7 +693,7 @@ static struct node * and_expr()
     and1 = equality_expr();
     while (token->id == '&') {
         expect('&');
-        and1 = bnode('&', and1, equality_expr());
+        and1 = bop('&', and1, equality_expr());
     }
     
     return and1;
@@ -703,7 +706,7 @@ static struct node * exclusive_or()
     eor = and_expr();
     while (token->id == '^') {
         expect('^');
-        eor = bnode('^', eor, and_expr());
+        eor = bop('^', eor, and_expr());
     }
     
     return eor;
@@ -716,7 +719,7 @@ static struct node * inclusive_or()
     ior = exclusive_or();
     while (token->id == '|') {
         expect('|');
-        ior = bnode('|', ior, exclusive_or());
+        ior = bop('|', ior, exclusive_or());
     }
     
     return ior;
@@ -729,7 +732,7 @@ static struct node * logic_and()
     and1 = inclusive_or();
     while (token->id == AND) {
         expect(AND);
-        and1 = bnode(AND, and1, inclusive_or());
+        and1 = bop(AND, and1, inclusive_or());
     }
     
     return and1;
@@ -742,7 +745,7 @@ static struct node * logic_or()
     or1 = logic_and();
     while (token->id == OR) {
         expect(OR);
-        or1 = bnode(OR, or1, logic_and());
+        or1 = bop(OR, or1, logic_and());
     }
     
     return or1;
@@ -782,7 +785,7 @@ struct node * assign_expr()
         int t = token->id;
         expect(token->id);
         ensure_lvalue(or1);
-        or1 = bnode(t, or1, assign_expr());
+        or1 = bop(t, or1, assign_expr());
         ensure_assignable(or1);
     }
     return or1;
@@ -795,7 +798,7 @@ struct node * expression()
     expr = assign_expr();
     while (token->id == ',') {
         expect(',');
-        expr = bnode(',', expr, assign_expr());
+        expr = bop(',', expr, assign_expr());
     }
     
     return expr;
@@ -811,6 +814,26 @@ int intexpr()
         errorf(src, "expect constant expression");
     
     return val;
+}
+
+// TODO
+static struct node * uop(int op, struct type *ty, struct node *l)
+{
+    struct node *node = unode(op, ty, l);
+    return node;
+}
+
+// TODO
+static struct node * bop(int op, struct node *l, struct node *r)
+{
+    struct node *node = bnode(op, l, r);
+    return node;
+}
+
+// TODO
+static struct node * conv(struct node *node)
+{
+    return node;
 }
 
 //TODO
