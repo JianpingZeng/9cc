@@ -326,29 +326,29 @@ static void ensure_type(const char *name, bool (*is) (struct type *), struct nod
     }
 }
 
-// TODO
-static void ensure_assignable(struct node *asign)
-{
-    struct node *l = LEFT(asign);
-    struct node *r = RIGHT(asign);
-    
-    if (l == NULL || r == NULL)
-        error("assign expression invalid");
-    
-    assert(isexpr(l) && isexpr(r));
-    
-}
-
 //TODO
-static void ensure_lvalue(struct node *node)
+static bool islvalue(struct node *node)
 {
     if (node->id == MEMBER_EXPR || node->id == SUBSCRIPT_EXPR)
-        return;
-    if (node->id == REF_EXPR &&
-        !isfunc(node->type) &&
-        !(isptr(node->type) && isfunc(node->type)))
-        return;
-    error("expect lvalue");
+        return true;
+    if (node->id == REF_EXPR) {
+        if (node->u.e.op == ENUM)
+            return false;
+        if (isfunc(node->type))
+            return false;
+        return true;
+    }
+    
+    return false;
+}
+
+// TODO
+static void ensure_assignable(struct node *or)
+{
+    assert(isexpr(or));
+    
+    if (!islvalue(or))
+        error("expression not assignable");
 }
 
 static struct node * compound_literal(struct type *ty)
@@ -447,15 +447,19 @@ static struct node * primary_expr()
     switch (t) {
         case ID:
         {
-            sym = lookup(token->name, identifiers);
-            if (sym)
-                sym->refs++;
-            else
-                error("use of undeclared symbol '%s'", token->name);
-            expect(t);
             ret = nop(REF_EXPR, NULL, NULL);
+            sym = lookup(token->name, identifiers);
+            if (sym) {
+                sym->refs++;
+                ret->type = sym->type;
+                if (isenum(sym->type) && sym->sclass == ENUM)
+                    // enum ids
+                    ret->u.e.op = ENUM;
+            } else {
+                error("use of undeclared symbol '%s'", token->name);
+            }
+            expect(t);
             ret->sym = sym;
-            ret->type = sym->type;
         }
             break;
         case ICONSTANT:
@@ -785,9 +789,8 @@ struct node * assign_expr()
     if (is_assign_op(token->id)) {
         int t = token->id;
         expect(token->id);
-        ensure_lvalue(or1);
-        or1 = bop(t, or1, assign_expr());
         ensure_assignable(or1);
+        or1 = bop(t, or1, assign_expr());
     }
     return or1;
 }
