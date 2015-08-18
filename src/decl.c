@@ -748,7 +748,7 @@ static struct type * enum_decl()
         }
         match('}', follow);
         sym->type->u.s.ids = (struct symbol **)vtoa(v);
-        sym->defined = 1;
+        sym->defined = true;
     } else if (id) {
         sym = lookup(id, tags);
         if (sym && currentscope(sym)) {
@@ -857,7 +857,7 @@ static struct type * struct_decl()
     if (token->id == '{') {
         expect('{');
         sym = tag_type(t, id, src);
-        sym->defined = 1;
+        sym->defined = true;
         fields(sym->type);
         match('}', follow);
     } else if (id) {
@@ -977,7 +977,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
         sym = install(id, &identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
-        sym->defined = 1;
+        sym->defined = true;
         sym->sclass = sclass;
     }
 
@@ -1026,7 +1026,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
         sym = install(id, &identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
-        sym->defined = init_node ? 1 : 0;
+        sym->defined = init_node ? true : false;
         sym->sclass = sclass;
     } else if (sclass != TYPEDEF && eqtype(ty, sym->type)) {
         if (sym->defined && init_node)
@@ -1060,7 +1060,7 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
             sym = install(id, &identifiers, GLOBAL);
             sym->type = ftype;
             sym->src = src;
-            sym->defined = 1;
+            sym->defined = true;
             sym->sclass = sclass;
             decl->sym = sym;
         } else if (eqtype(ftype, sym->type) && !sym->defined) {
@@ -1069,7 +1069,7 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
             } else {
                 sym->type = ftype;
                 sym->src = src;
-                sym->defined = 1;
+                sym->defined = true;
                 decl->sym = sym;
             }
         } else {
@@ -1080,7 +1080,7 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (ftype->u.f.params) {
         for (int i=0; ftype->u.f.params[i]; i++) {
             struct symbol *sym = ftype->u.f.params[i];
-            sym->defined = 1;
+            sym->defined = true;
             // params id is required in prototype
             if (sym->name == NULL)
                 errorf(sym->src, "parameter name omitted");

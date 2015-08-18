@@ -280,7 +280,7 @@ struct symbol {
     const char *name;
     int sclass;
     struct type  *type;
-    unsigned defined : 1;
+    bool defined;
     struct source src;
     union value value;
     unsigned refs;
