@@ -31,14 +31,14 @@ static void parseopts(int argc, const char *argv[])
 
 static void cc_init()
 {
-    lexer_init();
-    symbol_init();
+    input_init();
     type_init();
 }
 
 static void translate()
 {
     struct node * n;
+    gettok();
     n = translation_unit();
     print_tree(n);
 }

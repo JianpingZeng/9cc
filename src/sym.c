@@ -12,9 +12,14 @@ struct table {
     struct symbol *all;
 };
 
-struct table * identifiers;
-struct table * constants;
-struct table * tags;
+static struct table _identifiers = { .scope = GLOBAL };
+static struct table _constants = { .scope = CONSTANT };
+static struct table _tags = { .scope = GLOBAL };
+
+struct table * identifiers = &_identifiers;
+struct table * constants = &_constants;
+struct table * tags = &_tags;
+
 static int level = GLOBAL;
 
 static struct symbol * new_symbol()
@@ -31,13 +36,6 @@ static struct table * new_table(struct table *up, int scope)
         t->all = up->all;
     }
     return t;
-}
-
-void symbol_init()
-{
-    identifiers = new_table(NULL, GLOBAL);
-    constants = new_table(NULL, CONSTANT);
-    tags = new_table(NULL, GLOBAL);
 }
 
 int scopelevel()

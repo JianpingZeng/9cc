@@ -232,7 +232,7 @@ static void nextline()
     } while (*pc == '\n' && pc == pe);
 }
 
-static void input_init()
+void input_init()
 {
     pc = pe = &ibuf[LBUFSIZE];
     bread = -1;
@@ -1029,13 +1029,3 @@ struct token * lookahead()
     
     return &token2;
 }
-
-void lexer_init()
-{
-    memset(&source, 0, sizeof(struct source));
-    memset(&token1, 0, sizeof(struct token));
-    memset(&token2, 0, sizeof(struct token));
-    input_init();
-    gettok();
-}
-

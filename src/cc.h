@@ -46,7 +46,7 @@ extern bool is_digit(char c);
 extern bool is_hex(char c);
 extern bool is_digithex(char c);
 
-extern void lexer_init();
+extern void input_init();
 extern int  gettok();
 extern struct token *  lookahead();
 extern void expect(int t);
@@ -288,7 +288,6 @@ struct symbol {
 struct table;
 
 // sym
-extern void symbol_init();
 extern int scopelevel();
 extern void enter_scope();
 extern void exit_scope();
