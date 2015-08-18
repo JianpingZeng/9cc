@@ -29,12 +29,6 @@ static void parseopts(int argc, const char *argv[])
     }
 }
 
-static void cc_init()
-{
-    input_init();
-    type_init();
-}
-
 static void translate()
 {
     struct node * n;
@@ -43,17 +37,13 @@ static void translate()
     print_tree(n);
 }
 
-static void cc_exit()
-{
-    fclose(fp);
-}
-
 int cc_main(int argc, const char * argv[])
 {
     parseopts(argc, argv);
-    cc_init();
+    input_init();
+    type_init();
     translate();
-    cc_exit();
+    fclose(fp);
     
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
