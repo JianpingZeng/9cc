@@ -1,3 +1,6 @@
+// Thanks to Rui Ueyama.
+
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include <stdio.h>
 #include <stdlib.h>

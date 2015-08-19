@@ -1,3 +1,6 @@
+// Thanks to Rui Ueyama.
+
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 extern void print(char *s);
 extern void ffail(char *file, int line, char *msg);
