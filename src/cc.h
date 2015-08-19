@@ -288,7 +288,17 @@ struct symbol {
     struct symbol *up;
 };
 
-struct table;
+#define BUCKET_SIZE 256
+
+struct table {
+    int scope;
+    struct table *up;
+    struct sentry {
+        struct symbol *symbol;
+        struct sentry *next;
+    } *buckets[BUCKET_SIZE];
+    struct symbol *all;
+};
 
 // sym
 extern int scopelevel();

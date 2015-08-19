@@ -1149,7 +1149,7 @@ struct node * initializer_list()
             for (; token->id == '[' || token->id == '.'; ) {
                 if (token->id == '[') {
                     expect('[');
-                    int i = intexpr();
+                    intexpr();
                     expect(']');
                 } else {
                     expect('.');

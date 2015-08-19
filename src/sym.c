@@ -1,17 +1,5 @@
 #include "cc.h"
 
-#define BUCKET_SIZE 256
-
-struct table {
-    int scope;
-    struct table *up;
-    struct sentry {
-        struct symbol *symbol;
-        struct sentry *next;
-    } *buckets[BUCKET_SIZE];
-    struct symbol *all;
-};
-
 static struct table _identifiers = { .scope = GLOBAL };
 static struct table _constants = { .scope = CONSTANT };
 static struct table _tags = { .scope = GLOBAL };

@@ -44,7 +44,7 @@ void fexpectl(char *file, int line, long a, long b)
     exit(1);
 }
 
-void fexpects(char *file, int line, char *a, char *b)
+void fexpects(char *file, int line, const char *a, const char *b)
 {
     if (!strcmp(a, b))
         return;

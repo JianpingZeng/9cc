@@ -6,7 +6,7 @@ extern void print(char *s);
 extern void ffail(char *file, int line, char *msg);
 extern void fexpecti(char *file, int line, int a, int b);
 extern void fexpectl(char *file, int line, long a, long b);
-extern void fexpects(char *file, int line, char *a, char *b);
+extern void fexpects(char *file, int line, const char *a, const char *b);
 extern void fexpectf(char *file, int line, float a, float b);
 extern void fexpectd(char *file, int line, double a, double b);
 extern void fexpectp(char *file, int line, void *a, void *b);
