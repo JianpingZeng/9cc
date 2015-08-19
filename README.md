@@ -4,7 +4,7 @@ A standard c compiler.
 _NOT_ finished yet. See [TODO.md](TODO.md)
 
 # Notes
-The compiler is designed to be able to compile itself, so it is written in C. It is intended to support all C99 language features while keeping the code as simple and small as possible.
+The compiler is designed to be able to compile itself, so it is written in C. And it refuses to use any gnu extension, _ONLY_ pure standard syntax. It is intended to support all C99 language features while keeping the code as simple and small as possible.
 
 # Build
 
