@@ -10,7 +10,7 @@ extern void testmain(void);
 
 static void printfail()
 {
-    printf("\e[1;31mFAILED\e[0m\n");
+    printf("\t\t\e[1;31m[FAILED]\e[0m\n");
 }
 
 void print(char *s)
@@ -83,6 +83,6 @@ void fexpectp(char *file, int line, void *a, void *b)
 int main()
 {
     testmain();
-    printf("\e[32mOK\e[0m\n");
+    printf("\t\t\e[32m[OK]\e[0m\n");
     return 0;
 }

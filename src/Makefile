@@ -76,17 +76,17 @@ $(CC1): $(CC1_INC) $(CC1_SRC)
 # Test suite
 #
 TESTDIR=../test
-TESTS=test-internal
 CFLAGS_TEST=-Wall -std=c99 -Os -Iutils -I. -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_MAIN_H=$(TESTDIR)/test.h
 TEST_DEP=$(TEST_MAIN_C) $(TEST_MAIN_H)
 TEST_IN_H=$(TESTDIR)/internal/internal.h
-TEST_IN_SRC=$(wildcard $(TESTDIR)/internal/*.c)
 TEST_SRC=$(filter-out $(TESTDIR)/main.c, $(wildcard $(TESTDIR)/*.c))
+TEST_INTERNAL := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/internal/*.c))
+TESTS=$(TEST_INTERNAL)
 
-test-internal: $(CC1) $(TEST_DEP) $(TEST_IN_H) $(TEST_IN_SRC)
-	$(CC) $(CFLAGS_TEST) -I$(TESTDIR)/internal  $(TEST_MAIN_C) $(TEST_IN_SRC) $(CC1) -o $@
+$(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP) $(TEST_IN_H)
+	$(CC) $(CFLAGS_TEST) -I$(TESTDIR)/internal  $(TEST_MAIN_C) $< $(CC1) -o $@
 
 test: $(TESTS)
 	@for test in $(TESTS); do \
