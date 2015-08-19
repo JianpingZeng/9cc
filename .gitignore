@@ -35,4 +35,6 @@ src/main/c/mcc.vsproj/mcc/Release
 *.o
 mcc
 mcc.exe
+*.a
+test-*
 
