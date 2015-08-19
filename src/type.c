@@ -41,16 +41,15 @@ static struct type * new_type()
     return NEWS(type);
 }
 
-static struct type * install_type(const char *name, int kind, int op, struct metrics m)
+static struct type * install_type(const char *name, int kind, struct metrics m)
 {
     struct type *ty = new_type();
     
     ty->name = strings(name);
-    ty->op = op;
     ty->kind = kind;
     ty->size = m.size;
     ty->rank = m.rank;
-    switch (op) {
+    switch (op(ty)) {
         case INT:
             ty->limits.max.i = TWOS(ty->size) >> 1;
             ty->limits.min.i = -ty->limits.max.i - 1;
@@ -83,41 +82,84 @@ static struct type * install_type(const char *name, int kind, int op, struct met
 
 void type_init()
 {
-#define INSTALL(type, name, op, kind, metrics)    type = install_type(name, kind, op, metrics)
+#define INSTALL(type, name, kind, metrics)    type = install_type(name, kind, metrics)
     
-    // type                     name                    kind            op          metrics
+    // type                     name                    kind            metrics             op
     
     // bool
-    INSTALL(booltype,           "_Bool",                _BOOL,          UNSIGNED,   boolmetrics);
+    INSTALL(booltype,           "_Bool",                _BOOL,          boolmetrics);       // UNSIGNED
     // char
-    INSTALL(chartype,           "char",                 CHAR,           INT,        charmetrics);
-    INSTALL(unsignedchartype,   "unsigned char",        CHAR,           UNSIGNED,   charmetrics);
-    INSTALL(signedchartype,     "signed char",          CHAR,           INT,        charmetrics);
+    INSTALL(chartype,           "char",                 CHAR,           charmetrics);       // INT
+    INSTALL(unsignedchartype,   "unsigned char",        CHAR,           charmetrics);       // UNSIGNED
+    INSTALL(signedchartype,     "signed char",          CHAR,           charmetrics);       // INT
     // wchar_t
-    INSTALL(wchartype,          "wchar_t",              UNSIGNED,       UNSIGNED,   wcharmetrics);
+    INSTALL(wchartype,          "wchar_t",              UNSIGNED,       wcharmetrics);      // UNSIGNED
     // short
-    INSTALL(shorttype,          "short",                SHORT,          INT,        shortmetrics);
-    INSTALL(unsignedshorttype,  "unsigned short",       SHORT,          UNSIGNED,   shortmetrics);
+    INSTALL(shorttype,          "short",                SHORT,          shortmetrics);      // INT
+    INSTALL(unsignedshorttype,  "unsigned short",       SHORT,          shortmetrics);      // UNSIGNED
     // int
-    INSTALL(inttype,            "int",                  INT,            INT,        intmetrics);
-    INSTALL(unsignedinttype,    "unsigned int",         UNSIGNED,       UNSIGNED,   intmetrics);
+    INSTALL(inttype,            "int",                  INT,            intmetrics);        // INT
+    INSTALL(unsignedinttype,    "unsigned int",         UNSIGNED,       intmetrics);        // UNSIGNED
     // long
-    INSTALL(longtype,           "long",                 LONG,           INT,        longmetrics);
-    INSTALL(unsignedlongtype,   "unsigned long",        LONG,           UNSIGNED,   longmetrics);
+    INSTALL(longtype,           "long",                 LONG,           longmetrics);       // INT
+    INSTALL(unsignedlongtype,   "unsigned long",        LONG,           longmetrics);       // UNSIGNED
     // long long
-    INSTALL(longlongtype,       "long long",            LONG+LONG,      INT,        longlongmetrics);
-    INSTALL(unsignedlonglongtype, "unsigned long long", LONG+LONG,      UNSIGNED,   longlongmetrics);
+    INSTALL(longlongtype,       "long long",            LONG+LONG,      longlongmetrics);   // INT
+    INSTALL(unsignedlonglongtype, "unsigned long long", LONG+LONG,      longlongmetrics);   // UNSIGNED
     // float
-    INSTALL(floattype,          "float",                FLOAT,          FLOAT,      floatmetrics);
+    INSTALL(floattype,          "float",                FLOAT,          floatmetrics);      // FLOAT
     // double
-    INSTALL(doubletype,         "double",               DOUBLE,         FLOAT,      doublemetrics);
-    INSTALL(longdoubletype,     "long double",          LONG+DOUBLE,    FLOAT,      longdoublemetrics);
+    INSTALL(doubletype,         "double",               DOUBLE,         doublemetrics);     // FLOAT
+    INSTALL(longdoubletype,     "long double",          LONG+DOUBLE,    longdoublemetrics); // FLOAT
     // void
-    INSTALL(voidtype,           "void",                 VOID,           VOID,       zerometrics);
+    INSTALL(voidtype,           "void",                 VOID,           zerometrics);       // VOID
     // variable
-    INSTALL(vartype,            "vartype",              ELLIPSIS,       ELLIPSIS,   zerometrics);
+    INSTALL(vartype,            "vartype",              ELLIPSIS,       zerometrics);       // ELLIPSIS
 
 #undef INSTALL
+}
+
+int op(struct type *type)
+{
+    int kind = kind(type);
+    switch (kind) {
+        case _BOOL:
+            return UNSIGNED;
+            
+        case CHAR:
+            if (unqual(type) == unsignedchartype)
+                return UNSIGNED;
+            else
+                return INT;
+            
+        case SHORT:
+            if (unqual(type) == unsignedshorttype)
+                return UNSIGNED;
+            else
+                return INT;
+            
+        case LONG:
+            if (unqual(type) == unsignedlongtype)
+                return UNSIGNED;
+            else
+                return INT;
+            
+        case LONG+LONG:
+            if (unqual(type) == unsignedlonglongtype)
+                return UNSIGNED;
+            else
+                return INT;
+            
+        case DOUBLE:
+        case LONG+DOUBLE:
+            return FLOAT;
+            
+        case INT:
+        case UNSIGNED:
+        case FLOAT:
+        default:
+            return kind;
+    }
 }
 
 void prepend_type(struct type **typelist, struct type *type)
@@ -178,7 +220,7 @@ bool is_typedef_name(const char *id)
 struct type * array_type()
 {
     struct type *ty = new_type();
-    ty->op = ty->kind = ARRAY;
+    ty->kind = ARRAY;
     ty->name = "array";
     
     return ty;
@@ -187,7 +229,7 @@ struct type * array_type()
 struct type * ptr_type(struct type *type)
 {
     struct type *ty = new_type();
-    ty->op = ty->kind = POINTER;
+    ty->kind = POINTER;
     ty->type = type;
     ty->name = "pointer";
     
@@ -197,32 +239,26 @@ struct type * ptr_type(struct type *type)
 struct type * func_type()
 {
     struct type *ty = new_type();
-    ty->op = ty->kind = FUNCTION;
+    ty->kind = FUNCTION;
     ty->name = "function";
     
     return ty;
 }
 
-struct symbol * tag_type(int op, const char *tag, struct source src)
+struct symbol * tag_type(int t, const char *tag, struct source src)
 {
     struct type *ty = new_type();
-    ty->op = ty->kind = op;
+    ty->kind = t;
     ty->tag = tag;
-    if (op == ENUM) {
+    ty->name = tname(t);
+    if (t == ENUM)
         ty->type = inttype;
-        ty->name = "enum";
-    } else if (op == STRUCT) {
-        ty->name = "struct";
-    } else if (op == UNION) {
-        ty->name = "union";
-    } else {
-        assert(0);
-    }
+    
     struct symbol *sym = NULL;
     if (tag) {
         sym = lookup(tag, tags);
         if (sym && currentscope(sym)) {
-            if (op(sym->type) == op && !sym->defined)
+            if (op(sym->type) == t && !sym->defined)
                 return sym;
             
             redefinition_error(src, sym);

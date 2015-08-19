@@ -171,7 +171,6 @@ struct field {
 
 // type.c
 struct type {
-    int op;
     int kind;
     const char *name;
     size_t size;
@@ -212,6 +211,7 @@ struct type {
 };
 
 extern void type_init();
+extern int op(struct type *type);
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
 extern struct type * qual(int t, struct type *ty);
@@ -221,7 +221,7 @@ extern bool is_typedef_name(const char *id);
 extern struct type * array_type();
 extern struct type * ptr_type(struct type *ty);
 extern struct type * func_type();
-extern struct symbol * tag_type(int op, const char *tag, struct source src);
+extern struct symbol * tag_type(int t, const char *tag, struct source src);
 extern struct symbol * tag_sym(struct type *ty);
 
 extern struct type    *chartype;               // char
@@ -252,7 +252,6 @@ extern struct type    *vartype;		       // variable type
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty) || isinline(ty))
 #define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
 
-#define op(ty)          (unqual(ty)->op)
 #define kind(ty)        (unqual(ty)->kind)
 
 #define isfunc(ty)      (op(ty) == FUNCTION)
