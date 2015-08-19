@@ -6,8 +6,6 @@ _NOT_ finished yet. See [TODO.md](TODO.md)
 # Notes
 The compiler is designed to be able to compile itself, so it is written in C. It is intended to support all C99 language features while keeping the code as simple and small as possible.
 
-Do _NOT_ have high expectations on this compiler. For example, it is not an optimizing compiler.
-
 # Build
 
   	make
