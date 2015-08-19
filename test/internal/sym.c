@@ -28,6 +28,16 @@ static void test_scope()
     const char *name1 = strings("name1");
     struct symbol *sym = lookup(name1, identifiers);
     expecti(sym->scope, GLOBAL);
+    
+    struct symbol *sym2 = install(name1, &identifiers, SCOPE);
+    expectb(sym != sym2);
+    expectp(identifiers->up->up, NULL);
+    expecti(sym2->scope, sym->scope+1);
+    
+    exit_scope();
+    expecti(SCOPE, GLOBAL);
+    struct symbol *sym3 = lookup(name1, identifiers);
+    expectp(sym3, sym);
 }
 
 void testmain()

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "test.h"
 
 extern void testmain(void);
 
@@ -23,6 +24,15 @@ void ffail(char *file, int line, char *msg)
 {
     printfail();
     printf("%s:%d: %s\n", file, line, msg);
+    exit(1);
+}
+
+void fexpectb(char *file, int line, bool result)
+{
+    if (result)
+        return;
+    printfail();
+    printf("%s:%d: expression got false", file, line);
     exit(1);
 }
 
