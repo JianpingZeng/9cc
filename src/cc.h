@@ -172,6 +172,7 @@ struct field {
 // type.c
 struct type {
     int op;
+    int kind;
     const char *name;
     size_t size;
     unsigned rank;
@@ -181,7 +182,6 @@ struct type {
         unsigned is_restrict : 1;
         unsigned is_inline : 1;
     }q;
-    unsigned reserved : 1;
     struct type *type;
     const char *tag;
     union {
@@ -253,6 +253,7 @@ extern struct type    *vartype;		       // variable type
 #define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
 
 #define op(ty)          (unqual(ty)->op)
+#define kind(ty)        (unqual(ty)->kind)
 
 #define isfunc(ty)      (op(ty) == FUNCTION)
 #define isarray(ty)     (op(ty) == ARRAY)

@@ -41,13 +41,13 @@ static struct type * new_type()
     return NEWS(type);
 }
 
-static void install_type(struct type **type, const char *name, int op, struct metrics m)
+static struct type * install_type(const char *name, int kind, int op, struct metrics m)
 {
     struct type *ty = new_type();
     
     ty->name = strings(name);
     ty->op = op;
-    ty->reserved = 1;
+    ty->kind = kind;
     ty->size = m.size;
     ty->rank = m.rank;
     switch (op) {
@@ -77,41 +77,45 @@ static void install_type(struct type **type, const char *name, int op, struct me
         default:
             break;
     }
-    *type = ty;
+    
+    return ty;
 }
 
 void type_init()
 {
-#define INSTALL(type, name, op, metrics)    install_type(&type, name, op, metrics)
-    // char
-    INSTALL(chartype,           "char",             INT,        charmetrics);
-    INSTALL(unsignedchartype,   "unsigned char",    UNSIGNED,   charmetrics);
-    INSTALL(signedchartype,     "signed char",      INT,        charmetrics);
-    // wchar_t
-    INSTALL(wchartype,          "wchar_t",          UNSIGNED,   wcharmetrics);
-    // short
-    INSTALL(shorttype,          "short",            INT,        shortmetrics);
-    INSTALL(unsignedshorttype,  "unsigned short",   UNSIGNED,   shortmetrics);
-    // int
-    INSTALL(inttype,            "int",              INT,        intmetrics);
-    INSTALL(unsignedinttype,    "unsigned int",     UNSIGNED,   intmetrics);
-    // long
-    INSTALL(longtype,           "long",             INT,        longmetrics);
-    INSTALL(unsignedlongtype,   "unsigned long",    UNSIGNED,   longmetrics);
-    // long long
-    INSTALL(longlongtype,       "long long",        INT,        longlongmetrics);
-    INSTALL(unsignedlonglongtype, "unsigned long long", UNSIGNED, longlongmetrics);
-    // float
-    INSTALL(floattype,          "float",            FLOAT,      floatmetrics);
-    // double
-    INSTALL(doubletype,         "double",           FLOAT,     doublemetrics);
-    INSTALL(longdoubletype,     "long double",      FLOAT,     longdoublemetrics);
+#define INSTALL(type, name, op, kind, metrics)    type = install_type(name, kind, op, metrics)
+    
+    // type                     name                    kind            op          metrics
+    
     // bool
-    INSTALL(booltype,           "_Bool",            UNSIGNED,   boolmetrics);
+    INSTALL(booltype,           "_Bool",                _BOOL,          UNSIGNED,   boolmetrics);
+    // char
+    INSTALL(chartype,           "char",                 CHAR,           INT,        charmetrics);
+    INSTALL(unsignedchartype,   "unsigned char",        CHAR,           UNSIGNED,   charmetrics);
+    INSTALL(signedchartype,     "signed char",          CHAR,           INT,        charmetrics);
+    // wchar_t
+    INSTALL(wchartype,          "wchar_t",              UNSIGNED,       UNSIGNED,   wcharmetrics);
+    // short
+    INSTALL(shorttype,          "short",                SHORT,          INT,        shortmetrics);
+    INSTALL(unsignedshorttype,  "unsigned short",       SHORT,          UNSIGNED,   shortmetrics);
+    // int
+    INSTALL(inttype,            "int",                  INT,            INT,        intmetrics);
+    INSTALL(unsignedinttype,    "unsigned int",         UNSIGNED,       UNSIGNED,   intmetrics);
+    // long
+    INSTALL(longtype,           "long",                 LONG,           INT,        longmetrics);
+    INSTALL(unsignedlongtype,   "unsigned long",        LONG,           UNSIGNED,   longmetrics);
+    // long long
+    INSTALL(longlongtype,       "long long",            LONG+LONG,      INT,        longlongmetrics);
+    INSTALL(unsignedlonglongtype, "unsigned long long", LONG+LONG,      UNSIGNED,   longlongmetrics);
+    // float
+    INSTALL(floattype,          "float",                FLOAT,          FLOAT,      floatmetrics);
+    // double
+    INSTALL(doubletype,         "double",               DOUBLE,         FLOAT,      doublemetrics);
+    INSTALL(longdoubletype,     "long double",          LONG+DOUBLE,    FLOAT,      longdoublemetrics);
     // void
-    INSTALL(voidtype,           "void",             VOID,       zerometrics);
+    INSTALL(voidtype,           "void",                 VOID,           VOID,       zerometrics);
     // variable
-    INSTALL(vartype,            "vartype",          ELLIPSIS,   zerometrics);
+    INSTALL(vartype,            "vartype",              ELLIPSIS,       ELLIPSIS,   zerometrics);
 
 #undef INSTALL
 }
@@ -174,7 +178,7 @@ bool is_typedef_name(const char *id)
 struct type * array_type()
 {
     struct type *ty = new_type();
-    ty->op = ARRAY;
+    ty->op = ty->kind = ARRAY;
     ty->name = "array";
     
     return ty;
@@ -183,7 +187,7 @@ struct type * array_type()
 struct type * ptr_type(struct type *type)
 {
     struct type *ty = new_type();
-    ty->op = POINTER;
+    ty->op = ty->kind = POINTER;
     ty->type = type;
     ty->name = "pointer";
     
@@ -193,7 +197,7 @@ struct type * ptr_type(struct type *type)
 struct type * func_type()
 {
     struct type *ty = new_type();
-    ty->op = FUNCTION;
+    ty->op = ty->kind = FUNCTION;
     ty->name = "function";
     
     return ty;
@@ -202,7 +206,7 @@ struct type * func_type()
 struct symbol * tag_type(int op, const char *tag, struct source src)
 {
     struct type *ty = new_type();
-    ty->op = op;
+    ty->op = ty->kind = op;
     ty->tag = tag;
     if (op == ENUM) {
         ty->type = inttype;
@@ -274,17 +278,20 @@ static bool eqparams(struct symbol **params1, struct symbol **params2)
     }
 }
 
+//TODO
 bool eqtype(struct type *ty1, struct type *ty2)
 {
     if (ty1 == ty2)
         return true;
     else if (ty1 == NULL || ty2 == NULL)
         return false;
-    else if (op(ty1) != op(ty2))
+    
+    if (op(ty1) != op(ty2))
         return false;
     else if (ty1->q.is_const != ty2->q.is_const ||
              ty1->q.is_volatile != ty2->q.is_volatile ||
-             ty1->q.is_restrict != ty2->q.is_restrict)
+             ty1->q.is_restrict != ty2->q.is_restrict ||
+             ty1->q.is_inline != ty2->q.is_inline)
         return false;
     
     ty1 = unqual(ty1);
@@ -300,7 +307,7 @@ bool eqtype(struct type *ty1, struct type *ty2)
         case UNSIGNED:
         case FLOAT:
         case VOID:
-            return true;
+            return ty1 == ty2;
             
         case POINTER:
         case ARRAY:
@@ -324,10 +331,7 @@ bool eqtype(struct type *ty1, struct type *ty2)
                         struct symbol *sym = newty->u.f.params[i];
                         if (sym->type) {
                             struct type *ty = unqual(sym->type);
-                            if (op(ty) == INT && (ty->size == sizeof(short) || ty->size == sizeof(char)))
-                                return false;
-                            else if (op(ty) == UNSIGNED && (ty->size == sizeof(unsigned short)
-                                                            || ty->size == sizeof(unsigned char)))
+                            if (kind(ty) == CHAR || kind(ty) == SHORT)
                                 return false;
                             else if (op(ty) == FLOAT)
                                 return false;

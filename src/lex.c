@@ -268,7 +268,7 @@ static int kinds[] = {
 #include "token.def"
 };
 
-static int kind(int t)
+static int tokind(int t)
 {
     if (t < 0)
         return 0;
@@ -1005,7 +1005,7 @@ void read_tok(struct token *t)
     if (!tokname)
 	tokname = tname(t->id);
     t->name = tokname;
-    t->kind = kind(t->id);
+    t->kind = tokind(t->id);
 }
 
 int gettok()
