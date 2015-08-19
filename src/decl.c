@@ -666,9 +666,9 @@ static struct vector * decls(DeclFunc dclf)
                 struct node *decl;
                 struct symbol *sym = dclf(id, ty, sclass, src);
                 if (sclass == TYPEDEF)
-                    decl = decl_node(TYPEDEF_DECL, SCOPE);
+                    decl = ast_decl(TYPEDEF_DECL, SCOPE);
                 else
-                    decl = decl_node(VAR_DECL, SCOPE);
+                    decl = ast_decl(VAR_DECL, SCOPE);
                 
                 decl->sym = sym;
                 vec_push(v, decl);
@@ -696,7 +696,7 @@ static struct vector * decls(DeclFunc dclf)
         else
             node_id = ENUM_DECL;
         
-        decl = decl_node(node_id, SCOPE);
+        decl = ast_decl(node_id, SCOPE);
         decl->sym = tag_sym(basety);
         vec_push(v, decl);
     } else {
@@ -1044,7 +1044,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
 
 static struct node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
 {
-    struct node *decl = decl_node(FUNC_DECL, SCOPE);
+    struct node *decl = ast_decl(FUNC_DECL, SCOPE);
     
     assert(SCOPE == PARAM);
     
@@ -1137,7 +1137,7 @@ struct node * initializer_list()
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     
-    struct node *ret = expr_node(INITS_EXPR, '{', NULL, NULL);
+    struct node *ret = ast_expr(INITS_EXPR, '{', NULL, NULL);
     struct vector *v = new_vector();
     expect('{');
     for (; token->id == '[' || token->id == '.' || token->id == '{'
@@ -1164,7 +1164,7 @@ struct node * initializer_list()
         
         rnode = initializer();
         if (lnode) {
-            struct node *assign_node = bnode('=', lnode, rnode);
+            struct node *assign_node = ast_bop('=', lnode, rnode);
             vec_push(v, assign_node);
         } else {
             vec_push(v, rnode);
@@ -1223,7 +1223,7 @@ struct node ** declaration()
 
 struct node * translation_unit()
 {
-    struct node *ret = decl_node(TU_DECL, GLOBAL);
+    struct node *ret = ast_decl(TU_DECL, GLOBAL);
     struct vector *v = new_vector();
     
     for (; token->id != EOI; ) {

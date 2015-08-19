@@ -28,6 +28,7 @@ _n(REF_EXPR,          "RefExpr")
 _n(CAST_EXPR,         "CastExpr")
 _n(CALL_EXPR,         "CallExpr")
 _n(INITS_EXPR,        "InitListExpr")
+_n(CONV_EXPR,         "ImplicitCastExpr")
 
 _ns(BEGIN_LITERAL_ID)
 

@@ -16,7 +16,7 @@ const char *nname(struct node * node)
     return node_names[node->id];
 }
 
-struct node * expr_node(int id, int op, struct node *l, struct node *r)
+struct node * ast_expr(int id, int op, struct node *l, struct node *r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
     struct node * expr = NEWS(node);
@@ -27,7 +27,7 @@ struct node * expr_node(int id, int op, struct node *l, struct node *r)
     return expr;
 }
 
-struct node * stmt_node(int id, struct node *l, struct node *r)
+struct node * ast_stmt(int id, struct node *l, struct node *r)
 {
     assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
     struct node * stmt = NEWS(node);
@@ -37,7 +37,7 @@ struct node * stmt_node(int id, struct node *l, struct node *r)
     return stmt;
 }
 
-struct node * decl_node(int id, int scope)
+struct node * ast_decl(int id, int scope)
 {
     assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
     struct node * decl = NEWS(node);
@@ -46,22 +46,22 @@ struct node * decl_node(int id, int scope)
     return decl;
 }
 
-struct field * new_field(char *id)
+struct node * ast_uop(int op, struct type *ty, struct node *l)
 {
-    struct field *field = NEWS(field);
-    field->name = id;
-    return field;
-}
-
-struct node * unode(int op, struct type *ty, struct node *l)
-{
-    struct node * expr = expr_node(UNARY_OPERATOR, op, l, NULL);
+    struct node * expr = ast_expr(UNARY_OPERATOR, op, l, NULL);
     expr->type = ty;
     return expr;
 }
 
-struct node * bnode(int op, struct node *l, struct node *r)
+struct node * ast_bop(int op, struct node *l, struct node *r)
 {
-    struct node * expr = expr_node(BINARY_OPERATOR, op, l, r);
+    struct node * expr = ast_expr(BINARY_OPERATOR, op, l, r);
+    return expr;
+}
+
+struct node * ast_conv(struct type *ty, struct node *l)
+{
+    struct node * expr = ast_expr(CONV_EXPR, 0, l, NULL);
+    expr->type = ty;
     return expr;
 }

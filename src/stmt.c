@@ -10,7 +10,7 @@ static struct node * expr_stmt()
     if (token->id == ';') {
         ret = NULL;
     } else if (firstexpr(token)) {
-        ret = stmt_node(EXPR_STMT, expression(), NULL);
+        ret = ast_stmt(EXPR_STMT, expression(), NULL);
     } else {
         ret = NULL;
         error("missing statement before '%s'", token->name);
@@ -33,11 +33,11 @@ static struct node * if_stmt(struct node *context)
     expect(')');
     
     stmt1 = statement(context);
-    ret = stmt_node(IF_STMT, expr, stmt1);
+    ret = ast_stmt(IF_STMT, expr, stmt1);
     
     if (token->id == ELSE) {
         expect(ELSE);
-        ret = stmt_node(ELSE_STMT, ret, statement(context));
+        ret = ast_stmt(ELSE_STMT, ret, statement(context));
     }
     
     return ret;
@@ -53,7 +53,7 @@ static struct node * while_stmt(struct node *context)
     expr = expression();
     expect(')');
     
-    ret = stmt_node(WHILE_STMT, expr, NULL);
+    ret = ast_stmt(WHILE_STMT, expr, NULL);
     ret->u.s.up = context;
     RIGHT(ret) = statement(ret);
     ret->u.s.up = NULL;
@@ -69,7 +69,7 @@ static struct node * do_while_stmt(struct node *context)
     
     expect(DO);
     
-    ret = stmt_node(DO_WHILE_STMT, NULL, NULL);
+    ret = ast_stmt(DO_WHILE_STMT, NULL, NULL);
     ret->u.s.up = context;
     stmt = statement(ret);
     expect(WHILE);
@@ -86,7 +86,7 @@ static struct node * do_while_stmt(struct node *context)
 
 static struct node * for_stmt(struct node *context)
 {
-    struct node *ret = stmt_node(FOR_STMT, NULL, NULL);
+    struct node *ret = ast_stmt(FOR_STMT, NULL, NULL);
     
     expect(FOR);
     expect('(');
@@ -135,7 +135,7 @@ static struct node * switch_stmt(struct node *context)
     expr = expression();
     expect(')');
     
-    ret = stmt_node(SWITCH_STMT, expr, NULL);
+    ret = ast_stmt(SWITCH_STMT, expr, NULL);
     ret->u.s.up = context;
     RIGHT(ret) = statement(ret);
     ret->u.s.up = NULL;
@@ -173,7 +173,7 @@ static struct node * case_stmt(struct node *context)
     if (!in_sw)
         return NULL;
     
-    struct node *ret = stmt_node(CASE_STMT, stmt, NULL);
+    struct node *ret = ast_stmt(CASE_STMT, stmt, NULL);
     ret->u.s.casestmt.value = val;
     return ret;
 }
@@ -205,7 +205,7 @@ static struct node * default_stmt(struct node *context)
     if (!in_sw)
         return NULL;
     else
-        return stmt_node(DEFAULT_STMT, stmt, NULL);
+        return ast_stmt(DEFAULT_STMT, stmt, NULL);
 }
 
 static struct node * label_stmt(struct node *context)
@@ -213,12 +213,12 @@ static struct node * label_stmt(struct node *context)
     struct node *label;
     struct node *stmt;
     
-    label = expr_node(REF_EXPR, ID, NULL, NULL);
+    label = ast_expr(REF_EXPR, ID, NULL, NULL);
     expect(ID);
     expect(':');
     stmt = statement(context);
     
-    return stmt_node(LABEL_STMT, label, stmt);
+    return ast_stmt(LABEL_STMT, label, stmt);
 }
 
 static struct node * goto_stmt()
@@ -227,11 +227,11 @@ static struct node * goto_stmt()
     
     expect(GOTO);
     if (token->id == ID)
-        expr = expr_node(REF_EXPR, ID, NULL, NULL);
+        expr = ast_expr(REF_EXPR, ID, NULL, NULL);
     expect(ID);
     expect(';');
     
-    return stmt_node(GOTO_STMT, expr, NULL);
+    return ast_stmt(GOTO_STMT, expr, NULL);
 }
 
 static struct node * break_stmt(struct node *context)
@@ -257,7 +257,7 @@ static struct node * break_stmt(struct node *context)
         return NULL;
     }
     
-    ret = stmt_node(BREAK_STMT, NULL, NULL);
+    ret = ast_stmt(BREAK_STMT, NULL, NULL);
     ret->u.s.up = context;
     
     return ret;
@@ -286,7 +286,7 @@ static struct node * continue_stmt(struct node *context)
         return NULL;
     }
     
-    ret = stmt_node(CONTINUE_STMT, NULL, NULL);
+    ret = ast_stmt(CONTINUE_STMT, NULL, NULL);
     ret->u.s.up = context;
     
     return ret;
@@ -296,7 +296,7 @@ static struct node * return_stmt()
 {
     expect(RETURN);
     
-    return stmt_node(RETURN_STMT, expr_stmt(), NULL);;
+    return ast_stmt(RETURN_STMT, expr_stmt(), NULL);;
 }
 
 static struct node * statement(struct node *context)
@@ -325,7 +325,7 @@ static struct node * statement(struct node *context)
 
 static struct node * _compound_stmt(struct node *context)
 {
-    struct node *ret = stmt_node(COMPOUND_STMT, NULL, NULL);
+    struct node *ret = ast_stmt(COMPOUND_STMT, NULL, NULL);
     struct vector *v = new_vector();
     
     expect('{');

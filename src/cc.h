@@ -123,14 +123,13 @@ struct node {
 };
 
 // ast.c
-extern struct field * new_field(char *id);
-
 extern const char *nname(struct node *node);
-extern struct node * expr_node(int id, int op, struct node *l, struct node *r);
-extern struct node * decl_node(int id, int scope);
-extern struct node * stmt_node(int id, struct node *l, struct node *r);
-extern struct node * unode(int op, struct type *ty, struct node *l);
-extern struct node * bnode(int op, struct node *l, struct node *r);
+extern struct node * ast_expr(int id, int op, struct node *l, struct node *r);
+extern struct node * ast_decl(int id, int scope);
+extern struct node * ast_stmt(int id, struct node *l, struct node *r);
+extern struct node * ast_uop(int op, struct type *ty, struct node *l);
+extern struct node * ast_bop(int op, struct node *l, struct node *r);
+extern struct node * ast_conv(struct type *ty, struct node *l);
 
 // expr.c
 extern struct node * expression();
@@ -218,6 +217,7 @@ extern struct type * qual(int t, struct type *ty);
 extern bool eqtype(struct type *ty1, struct type *ty2);
 extern struct type * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
+extern struct field * new_field(char *id);
 extern struct type * array_type();
 extern struct type * ptr_type(struct type *ty);
 extern struct type * func_type();

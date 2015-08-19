@@ -629,7 +629,7 @@ static struct node * multiple_expr()
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
         expect(token->id);
-        mulp1 = bop(t, mulp1, cast_expr());
+        mulp1 = bop(t, conv(mulp1), conv(cast_expr()));
     }
     
     return mulp1;
@@ -823,28 +823,40 @@ int intexpr()
 // TODO
 static struct node * uop(int op, struct type *ty, struct node *l)
 {
-    struct node *node = unode(op, ty, l);
+    struct node *node = ast_uop(op, ty, l);
     return node;
 }
 
 // TODO
 static struct node * bop(int op, struct node *l, struct node *r)
 {
-    struct node *node = bnode(op, l, r);
+    struct node *node = ast_bop(op, l, r);
     return node;
 }
 
 // TODO
 static struct node * nop(int id, struct node *l, struct node *r)
 {
-    struct node *node = expr_node(id, 0, l, r);
+    struct node *node = ast_expr(id, 0, l, r);
     return node;
 }
 
-// TODO
+/*
+ * Universal Unary Conversion
+ */
 static struct node * conv(struct node *node)
 {
-    return node;
+    switch (kind(node->type)) {
+        case _BOOL: case CHAR: case SHORT:
+            return ast_conv(inttype, node);
+            
+        case FUNCTION:
+            
+        case ARRAY:
+            
+        default:
+            return node;
+    }
 }
 
 //TODO

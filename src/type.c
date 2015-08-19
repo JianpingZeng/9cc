@@ -217,6 +217,13 @@ bool is_typedef_name(const char *id)
     return ty != NULL;
 }
 
+struct field * new_field(char *id)
+{
+    struct field *field = NEWS(field);
+    field->name = id;
+    return field;
+}
+
 struct type * array_type()
 {
     struct type *ty = new_type();
