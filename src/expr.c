@@ -584,7 +584,7 @@ static struct node * unary_lneg()
     expect(t);
     struct node *operand = cast_expr();
     ensure_type("scalar", isscalar, operand);
-    return uop(t, inttype, operand);
+    return uop(t, inttype, conv(operand));
 }
 
 static struct node * unary_expr()
@@ -643,7 +643,7 @@ static struct node * additive_expr()
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
         expect(token->id);
-        add1 = bop(t, add1, multiple_expr());
+        add1 = bop(t, conv(add1), conv(multiple_expr()));
     }
     
     return add1;
@@ -851,8 +851,10 @@ static struct node * conv(struct node *node)
             return ast_conv(inttype, node);
             
         case FUNCTION:
+            return ast_conv(ptr_type(node->type), node);
             
         case ARRAY:
+            return ast_conv(ptr_type(unqual(node->type)->type), node);
             
         default:
             return node;
