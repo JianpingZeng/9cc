@@ -22,18 +22,19 @@ struct type   *vartype;		       // variable type
 
 struct metrics {
     size_t size;
+    unsigned rank;
 }
-charmetrics = { sizeof (char) },
-wcharmetrics = { sizeof (wchar_t) },
-shortmetrics = { sizeof (short) },
-intmetrics = { sizeof (int) },
-longmetrics = { sizeof (long) },
-longlongmetrics = { sizeof (long long) },
-floatmetrics = { sizeof (float) },
-doublemetrics = { sizeof (double) },
-longdoublemetrics = { sizeof (long double) },
-boolmetrics = { sizeof (_Bool) },
-zerometrics = { 0 };
+boolmetrics         = { sizeof (_Bool),     10},
+charmetrics         = { sizeof (char),      20},
+shortmetrics        = { sizeof (short),     30},
+wcharmetrics        = { sizeof (wchar_t),   40},
+intmetrics          = { sizeof (int),       40},
+longmetrics         = { sizeof (long),      50},
+longlongmetrics     = { sizeof (long long), 60},
+floatmetrics        = { sizeof (float) },
+doublemetrics       = { sizeof (double) },
+longdoublemetrics   = { sizeof (long double) },
+zerometrics         = { 0 };
 
 static struct type * new_type()
 {
@@ -48,6 +49,7 @@ static void install_type(struct type **type, const char *name, int op, struct me
     ty->op = op;
     ty->reserved = 1;
     ty->size = m.size;
+    ty->rank = m.rank;
     switch (op) {
         case INT:
             ty->limits.max.i = TWOS(ty->size) >> 1;

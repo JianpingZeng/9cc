@@ -174,6 +174,7 @@ struct type {
     int op;
     const char *name;
     size_t size;
+    unsigned rank;
     struct {
         unsigned is_const : 1;
         unsigned is_volatile : 1;
