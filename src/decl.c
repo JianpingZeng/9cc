@@ -807,7 +807,7 @@ static void fields(struct type *sty)
             }
             
             if (hasbit) {
-                if (op(field->type) != INT && op(field->type) != UNSIGNED) {
+                if (!isint(field->type)) {
                     if (field->name)
                         error("bit-field '%s' has non-integral type '%s'", field->name, field->type->name);
                     else
