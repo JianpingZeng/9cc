@@ -1,18 +1,16 @@
-<name>expr</name>
+<unit name="expr">
+    <snippet>
+        <code>
 
-<unit>
-    <code>
-
-    void f() {
-        int a;
-        short b;
-        a = b + 10;
+        void f() {
+            int a;
+            short b;
+            a = b + 10;
         }
 
-    </code>
-    <expect>
+        </code>
+        <expect>
 
-
-
-    </expect>
+        </expect>
+    </snippet>
 </unit>
