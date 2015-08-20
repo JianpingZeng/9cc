@@ -1,5 +1,6 @@
 // Copyright 2015 Guiyang Huang. Released under the MIT license.
 
+#include "internal.h"
+
 #define STRINGIZE(x)    #x
-#define STRINGIZE2(x)   STRINGIZE(x)
-#define SOURCE(text)    STRINGIZE2(x)
+#define SOURCE(text)    STRINGIZE(x)

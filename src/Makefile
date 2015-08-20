@@ -78,15 +78,16 @@ $(CC1): $(CC1_INC) $(CC1_SRC)
 TESTDIR=../test
 CFLAGS_TEST=-Wall -std=c99 -Os -Iutils -I. -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
-TEST_MAIN_H=$(TESTDIR)/test.h
-TEST_DEP=$(TEST_MAIN_C) $(TEST_MAIN_H)
-TEST_IN_H=$(TESTDIR)/internal/internal.h
-TEST_SRC=$(filter-out $(TESTDIR)/main.c, $(wildcard $(TESTDIR)/*.c))
+TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
 TEST_INTERNAL := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/internal/*.c))
-TESTS=$(TEST_INTERNAL)
+TEST_AST := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/ast/*.c))
+TESTS=$(TEST_INTERNAL) $(TEST_AST)
 
-$(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP) $(TEST_IN_H)
-	$(CC) $(CFLAGS_TEST) -I$(TESTDIR)/internal  $(TEST_MAIN_C) $< $(CC1) -o $@
+$(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP) $(TESTDIR)/internal.h
+	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1) -o $@
+
+$(TESTDIR)/ast/%.bin: $(TESTDIR)/ast/%.c $(CC1) $(TEST_DEP) $(TESTDIR)/ast.h $(TESTDIR)/internal.h
+	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(TESTDIR)/ast.c $< $(CC1) -o $@
 
 test: $(TESTS)
 	@for test in $(TESTS); do \
