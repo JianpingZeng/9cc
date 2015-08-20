@@ -1,5 +1,5 @@
-<unit name="expr">
-    <snippet>
+<root name="expr">
+    <unit>
         <code>
 
         void f() {
@@ -12,5 +12,5 @@
         <expect>
 
         </expect>
-    </snippet>
-</unit>
+    </unit>
+</root>

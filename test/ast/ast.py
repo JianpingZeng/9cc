@@ -10,11 +10,11 @@ import tempfile
 import re
 from xml.dom import minidom
 
-class TestUnit:
+class TestRoot:
     name = ""
-    snippets = []
+    units = []
 
-class TestSnippet:
+class TestUnit:
     code = ""
     expect = ""
 
@@ -22,36 +22,36 @@ def die():
     """fail"""
     exit(1)
 
-def run_snippet(snippet):
-    """run snippet"""
-    print snippet.code
-    print snippet.expect
-
 def run_unit(unit):
+    """run snippet"""
+    print unit.code
+    print unit.expect
+
+def run_root(root):
     """run unit"""
-    print "Testing " + unit.name + " ..."
-    for snippet in unit.snippets:
-        run_snippet(snippet)
+    print "Testing " + root.name + " ..."
+    for unit in root.units:
+        run_unit(unit)
 
 def parse_xml(path):
     """process a xml"""
-    testUnit = TestUnit()
+    testRoot = TestRoot()
     
     dom = minidom.parse(path)
-    unit = dom.getElementsByTagName("unit")[0]
-    snippets = unit.getElementsByTagName("snippet")
+    root = dom.getElementsByTagName("root")[0]
+    units = root.getElementsByTagName("unit")
     
-    testUnit.name = unit.attributes["name"].value
+    testRoot.name = root.attributes["name"].value
     
-    for snippet in snippets:
-        testSnippet = TestSnippet()
-        code = snippet.getElementsByTagName("code")[0]
-        expect = snippet.getElementsByTagName("expect")[0]
-        testSnippet.code = code.firstChild.nodeValue
-        testSnippet.expect = expect.firstChild.nodeValue;
-        testUnit.snippets.append(testSnippet)
+    for unit in units:
+        testUnit = TestUnit()
+        code = unit.getElementsByTagName("code")[0]
+        expect = unit.getElementsByTagName("expect")[0]
+        testUnit.code = code.firstChild.nodeValue
+        testUnit.expect = expect.firstChild.nodeValue;
+        testRoot.units.append(testUnit)
 
-    return testUnit
+    return testRoot
 
 def main():
     """main"""
@@ -60,8 +60,8 @@ def main():
     xmls = [f for f in os.listdir(dir) if f.endswith(".xml")]
     for xml in xmls:
         path = os.path.join(dir, xml)
-        unit = parse_xml(path)
-        run_unit(unit)
+        root = parse_xml(path)
+        run_root(root)
     
     return 0
     
