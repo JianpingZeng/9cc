@@ -10,7 +10,7 @@ static void run_script(const char *name)
     char *command;
     struct string *s = new_string();
     
-    str_cats(s, "/usr/bin/python ");
+    str_cats(s, "python3 ");
     str_cats(s, "../test/ast/");
     str_cats(s, name);
     
