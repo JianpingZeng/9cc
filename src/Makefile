@@ -8,6 +8,14 @@ MCC=mcc
 CC1=libcc1.a
 TARGETS=$(MCC) $(CC1)
 
+UTILS_SRC=utils/alloc.c \
+        utils/string.c \
+        utils/vector.c \
+        utils/misc.c
+
+UTILS_INC=utils/utils.h \
+        utils/macros.h
+
 CC1_SRC=ast.c \
         cc.c \
         cpp.c \
@@ -20,17 +28,13 @@ CC1_SRC=ast.c \
         stmt.c \
         sym.c \
         type.c \
-        utils/alloc.c \
-        utils/string.c \
-        utils/vector.c \
-        utils/misc.c
+        $(UTILS_SRC)
 
 CC1_INC=cc.h \
         config.h \
         node.def \
         token.def \
-        utils/utils.h \
-        utils/macros.h
+        $(UTILS_INC)
 
 MCC_SRC=sys/mcc.c
 SYS_INC=sys/sys.h
@@ -88,8 +92,8 @@ TESTS=$(TEST_INTERNAL) $(TEST_AST)
 $(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP)
 	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1) -o $@
 
-$(TEST_AST): $(TESTDIR)/ast/ast.c $(MCC) $(TEST_DEP) $(SYS_INC) $(SYS_SRC)
-	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(SYS_SRC) $< $(CC1) -o $@
+$(TEST_AST): $(TESTDIR)/ast/ast.c $(MCC) $(TEST_DEP) $(UTILS_INC) $(UTILS_SRC)
+	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(UTILS_SRC) $< $(CC1) -o $@
 
 test: $(TESTS)
 	@for test in $(TESTS); do \
