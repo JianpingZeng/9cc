@@ -854,7 +854,7 @@ static struct node * conv(struct node *node)
             return ast_conv(ptr_type(node->type), node);
             
         case ARRAY:
-            return ast_conv(ptr_type(unqual(node->type)->type), node);
+            return ast_conv(ptr_type(rtype(node->type)), node);
             
         default:
             return node;

@@ -262,6 +262,8 @@ extern struct type    *vartype;		       // variable type
 #define isstruct(ty)    (op(ty) == STRUCT)
 #define isunion(ty)     (op(ty) == UNION)
 
+#define rtype(ty)       (unqual(ty)->type)
+
 extern bool isint(struct type *ty);
 extern bool isfloat(struct type *ty);
 extern bool isarith(struct type *ty);
