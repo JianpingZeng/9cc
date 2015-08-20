@@ -23,16 +23,38 @@ class Expr(Node):
     """expr"""
 
 class TestRoot:
+    file = ""
     name = ""
     units = []
 
 class TestUnit:
+    file = ""
+    name = ""
+    i = 0
     code = ""
-    exts = []
+    expect = None
 
-def die():
+    def __str__(self):
+        return "%s: unit %d %s" % (self.file, self.i, self.name)
+
+def die(unit):
     """fail"""
+    print "\033[1;31mFAILED\033[0m"
+    print unit
     exit(1)
+
+def ok():
+    """print ok"""
+    print "\033[32mOK\033[0m"
+
+def construct_tree_from_raw(raw):
+    """construct tree from raw output"""
+
+def construct_tree_from_xml(xml):
+    """construct tree from raw output"""
+
+def diff(tree, expect):
+    """diff two trees"""
 
 def run_code(code):
     """compile code and return the output"""
@@ -46,24 +68,27 @@ def run_code(code):
     command = [mcc, ifile, "-o null"]
     p = subprocess.Popen(command, stderr = subprocess.PIPE, stdout = subprocess.PIPE)
     out, err = p.communicate()
-    print "out: " + out
-    print "err: " + err
-    print ifile
+    ret = p.returncode
+    if ret != 0:
+        die()
+
+    return err
 
 def run_unit(unit):
     """run snippet"""
-    run_code(unit.code)
+    raw = run_code(unit.code)
+    tree = construct_tree_from_raw(raw)
+    diff(tree, unit.expect)
 
 def run_root(root):
     """run unit"""
-    print "Testing " + root.name + " ..."
+    sys.stdout.write("Testing " + root.name + " ...")
     for unit in root.units:
         run_unit(unit)
 
 def parse_expect(expect):
     """parse xml's expect nodes to ast nodes"""
-    exts = []
-    return exts
+    return construct_tree_from_xml(expect)
 
 def parse_xml(path):
     """process a xml"""
@@ -73,14 +98,22 @@ def parse_xml(path):
     root = dom.getElementsByTagName("root")[0]
     units = root.getElementsByTagName("unit")
     
-    testRoot.name = root.attributes["name"].value
-    
+    testRoot.file = path
+    if root.attributes.has_key("name"):
+        testRoot.name = root.attributes["name"].value
+    else:
+        testRoot.name = os.path.basename(path).rstrip(".xml")
+
     for unit in units:
         testUnit = TestUnit()
         code = unit.getElementsByTagName("code")[0]
         expect = unit.getElementsByTagName("expect")[0]
+        testUnit.file = path
+        if unit.attributes.has_key("name"):
+            testUnit.name = unit.attributes["name"].value
+        testUnit.i = units.index(unit) + 1
         testUnit.code = code.firstChild.nodeValue
-        testUnit.exts = expect;
+        testUnit.exts = parse_expect(expect)
         testRoot.units.append(testUnit)
 
     return testRoot

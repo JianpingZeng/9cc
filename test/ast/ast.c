@@ -7,7 +7,6 @@
 
 static void run_script(const char *name)
 {
-    int ret;
     char *command;
     struct string *s = new_string();
     
@@ -16,13 +15,12 @@ static void run_script(const char *name)
     str_cats(s, name);
     
     command = stoa(s);
-    ret = system(command);
-    if (ret != EXIT_SUCCESS)
-        fail("script failed");
+    system(command);
 }
 
 void testmain()
 {
-    print("AST");
+    print("AST suite");
     run_script("ast.py");
+    exit(0);    // don't print redundant 'OK'
 }
