@@ -1,16 +1,18 @@
 <root name="expr">
     <unit>
         <code>
-
-        void f() {
+            void f() {
             int a;
             short b;
             a = b + 10;
-        }
-
+            }
         </code>
         <expect>
-
+            <decl id="FuncDecl" name="f" return="void">
+                <stmt id="CompoundStmt">
+                    <decl id="VarDecl" name="a" type="int" />
+                </stmt>
+            </decl>
         </expect>
     </unit>
 </root>

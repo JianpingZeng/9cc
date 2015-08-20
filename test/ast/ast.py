@@ -10,13 +10,25 @@ import tempfile
 import re
 from xml.dom import minidom
 
+class Node:
+    """ast node"""
+
+class Decl(Node):
+    """decl"""
+
+class Stmt(Node):
+    """stmt"""
+
+class Expr(Node):
+    """expr"""
+
 class TestRoot:
     name = ""
     units = []
 
 class TestUnit:
     code = ""
-    expect = ""
+    exts = []
 
 def die():
     """fail"""
@@ -33,6 +45,11 @@ def run_root(root):
     for unit in root.units:
         run_unit(unit)
 
+def parse_expect(expect):
+    """parse xml's expect nodes to ast nodes"""
+    exts = []
+    return exts
+
 def parse_xml(path):
     """process a xml"""
     testRoot = TestRoot()
@@ -48,7 +65,7 @@ def parse_xml(path):
         code = unit.getElementsByTagName("code")[0]
         expect = unit.getElementsByTagName("expect")[0]
         testUnit.code = code.firstChild.nodeValue
-        testUnit.expect = expect.firstChild.nodeValue;
+        testUnit.exts = expect;
         testRoot.units.append(testUnit)
 
     return testRoot
