@@ -3,6 +3,7 @@
 static const char *ifile;
 static const char *ofile;
 static FILE *fp;
+struct node *root;
 
 static void parseopts(int argc, const char *argv[])
 {
@@ -31,10 +32,9 @@ static void parseopts(int argc, const char *argv[])
 
 static void translate()
 {
-    struct node * n;
     gettok();
-    n = translation_unit();
-    print_tree(n);
+    root = translation_unit();
+    print_tree(root);
 }
 
 int cc_main(int argc, const char * argv[])

@@ -33,7 +33,7 @@ CC1_INC=cc.h \
         utils/macros.h
 
 MCC_SRC=sys/mcc.c
-MCC_INC=sys/sys.h
+SYS_INC=sys/sys.h
 
 CC1_OBJ=$(notdir $(addsuffix .o, $(basename $(CC1_SRC))))
 
@@ -60,8 +60,10 @@ all:
 	@exit
 else
 all: $(MCC)
-MCC_INC+=$(wildcard $(SYSDIR)/include/*.h)
-MCC_SRC+=$(SYSDIR)/sys.c
+SYS_INC+=$(wildcard $(SYSDIR)/include/*.h)
+SYS_SRC:=$(SYSDIR)/sys.c
+MCC_SRC+=$(SYS_SRC)
+MCC_INC=$(SYS_INC)
 endif
 
 $(MCC): $(CC1) $(MCC_INC) $(MCC_SRC)
@@ -86,8 +88,8 @@ TESTS=$(TEST_INTERNAL) $(TEST_AST)
 $(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP) $(TESTDIR)/internal.h
 	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1) -o $@
 
-$(TESTDIR)/ast/%.bin: $(TESTDIR)/ast/%.c $(CC1) $(TEST_DEP) $(TESTDIR)/ast.h $(TESTDIR)/internal.h
-	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(TESTDIR)/ast.c $< $(CC1) -o $@
+$(TESTDIR)/ast/%.bin: $(TESTDIR)/ast/%.c $(CC1) $(TEST_DEP) $(TESTDIR)/ast.h $(TESTDIR)/ast.c $(TESTDIR)/internal.h $(SYS_INC)
+	$(CC) $(CFLAGS_TEST) -Isys $(TEST_MAIN_C) $(TESTDIR)/ast.c $(SYS_SRC) $< $(CC1) -o $@
 
 test: $(TESTS)
 	@for test in $(TESTS); do \

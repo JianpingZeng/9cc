@@ -3,4 +3,6 @@
 #include "internal.h"
 
 #define STRINGIZE(x)    #x
-#define SOURCE(text)    STRINGIZE(x)
+#define CODE(x)    STRINGIZE(x)
+
+extern struct node *compile(const char *code);
