@@ -18,6 +18,9 @@ To run the testing suite, run command:
 # Author
 Guiyang Huang, [mohu3g@163.com](mailto:mohu3g@163.com)
 
+# Acknowledgement
+The data structures of `type` and `symbol table` are inspired by lcc.
+
 # License
 mcc is free software published under GNU GPLv2.
 
