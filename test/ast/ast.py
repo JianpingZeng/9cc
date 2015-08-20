@@ -34,10 +34,25 @@ def die():
     """fail"""
     exit(1)
 
+def run_code(code):
+    """compile code and return the output"""
+    mcc = "./mcc"
+    ifile = tempfile.mktemp(".c")
+    fp = open(ifile, "w")
+    fp.write(code+"\n")
+    fp.close()
+
+    # call mcc
+    command = [mcc, ifile, "-o null"]
+    p = subprocess.Popen(command, stderr = subprocess.PIPE, stdout = subprocess.PIPE)
+    out, err = p.communicate()
+    print "out: " + out
+    print "err: " + err
+    print ifile
+
 def run_unit(unit):
     """run snippet"""
-    print unit.code
-    print unit.expect
+    run_code(unit.code)
 
 def run_root(root):
     """run unit"""

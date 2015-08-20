@@ -22,7 +22,6 @@ static void parseopts(int argc, const char *argv[])
     if (!ifile || !ofile)
         die("input/output file not specified");
     
-    exit(1);
     fp = freopen(ifile, "r", stdin);
     if (fp == NULL) {
         perror(ifile);
