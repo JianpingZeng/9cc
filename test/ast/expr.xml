@@ -1,0 +1,17 @@
+<name>expr</name>
+
+<code>
+
+void f() {
+    int a;
+    short b;
+    a = b + 10;
+}
+
+</code>
+
+<expect>
+
+
+
+</expect>

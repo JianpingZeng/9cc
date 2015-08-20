@@ -1,4 +1,5 @@
-#include "internal.h"
+#include "test.h"
+#include "cc.h"
 
 static void test_qual()
 {

@@ -3,7 +3,6 @@
 static const char *ifile;
 static const char *ofile;
 static FILE *fp;
-struct node *root;
 
 static void parseopts(int argc, const char *argv[])
 {
@@ -23,6 +22,7 @@ static void parseopts(int argc, const char *argv[])
     if (!ifile || !ofile)
         die("input/output file not specified");
     
+    exit(1);
     fp = freopen(ifile, "r", stdin);
     if (fp == NULL) {
         perror(ifile);
@@ -32,9 +32,10 @@ static void parseopts(int argc, const char *argv[])
 
 static void translate()
 {
+    struct node *n;
     gettok();
-    root = translation_unit();
-    print_tree(root);
+    n = translation_unit();
+    print_tree(n);
 }
 
 int cc_main(int argc, const char * argv[])

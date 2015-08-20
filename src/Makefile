@@ -82,14 +82,14 @@ CFLAGS_TEST=-Wall -std=c99 -Os -Iutils -I. -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
 TEST_INTERNAL := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/internal/*.c))
-TEST_AST := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/ast/*.c))
+TEST_AST := $(TESTDIR)/ast/ast.bin
 TESTS=$(TEST_INTERNAL) $(TEST_AST)
 
-$(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP) $(TESTDIR)/internal.h
+$(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP)
 	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1) -o $@
 
-$(TESTDIR)/ast/%.bin: $(TESTDIR)/ast/%.c $(CC1) $(TEST_DEP) $(TESTDIR)/ast.h $(TESTDIR)/ast.c $(TESTDIR)/internal.h $(SYS_INC)
-	$(CC) $(CFLAGS_TEST) -Isys $(TEST_MAIN_C) $(TESTDIR)/ast.c $(SYS_SRC) $< $(CC1) -o $@
+$(TEST_AST): $(TESTDIR)/ast/ast.c $(MCC) $(TEST_DEP) $(SYS_INC) $(SYS_SRC)
+	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(SYS_SRC) $< $(CC1) -o $@
 
 test: $(TESTS)
 	@for test in $(TESTS); do \
