@@ -6,8 +6,7 @@ static void param_declarator(struct type **ty, const char **id);
 static struct type * ptr_decl();
 static struct type * enum_decl();
 static struct type * struct_decl();
-typedef struct symbol * (*DeclFunc)(const char *id, struct type *ftype, int sclass,  struct source src);
-static struct vector * decls(DeclFunc declfunc);
+static struct vector * decls(struct symbol * (*)(const char *id, struct type *ftype, int sclass,  struct source src));
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
@@ -627,7 +626,7 @@ static bool firstfuncdef(struct type *ty)
     return f && (prototype || oldstyle);
 }
 
-static struct vector * decls(DeclFunc dclf)
+static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type *ftype, int sclass,  struct source src))
 {
     struct vector *v = new_vector();
     struct type *basety;
@@ -664,7 +663,7 @@ static struct vector * decls(DeclFunc dclf)
         for (;;) {
             if (id) {
                 struct node *decl;
-                struct symbol *sym = dclf(id, ty, sclass, src);
+                struct symbol *sym = dcl(id, ty, sclass, src);
                 if (sclass == TYPEDEF)
                     decl = ast_decl(TYPEDEF_DECL, SCOPE);
                 else
