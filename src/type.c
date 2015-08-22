@@ -31,9 +31,9 @@ wcharmetrics        = { sizeof (wchar_t),   40},
 intmetrics          = { sizeof (int),       40},
 longmetrics         = { sizeof (long),      50},
 longlongmetrics     = { sizeof (long long), 60},
-floatmetrics        = { sizeof (float) },
-doublemetrics       = { sizeof (double) },
-longdoublemetrics   = { sizeof (long double) },
+floatmetrics        = { sizeof (float),     70},
+doublemetrics       = { sizeof (double),    80},
+longdoublemetrics   = { sizeof (long double), 90},
 zerometrics         = { 0 };
 
 static struct type * new_type()
@@ -394,6 +394,46 @@ bool eqtype(struct type *ty1, struct type *ty2)
             assert(0);
             return false;
     }
+}
+
+bool eqarith(struct type *ty1, struct type *ty2)
+{
+    return kind(ty1) == kind(ty2) && op(ty1) == op(ty2);
+}
+
+bool isfunc(struct type *ty)
+{
+    return op(ty) == FUNCTION;
+}
+
+bool isarray(struct type *ty)
+{
+    return op(ty) == ARRAY;
+}
+
+bool isptr(struct type *ty)
+{
+    return op(ty) == POINTER;
+}
+
+bool isvoid(struct type *ty)
+{
+    return op(ty) == VOID;
+}
+
+bool isenum(struct type *ty)
+{
+    return op(ty) == ENUM;
+}
+
+bool isstruct(struct type *ty)
+{
+    return op(ty) == STRUCT;
+}
+
+bool isunion(struct type *ty)
+{
+    return op(ty) == UNION;
 }
 
 bool isint(struct type *ty)

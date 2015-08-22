@@ -97,6 +97,8 @@ struct node {
             const char *field;
             // INCR/DECR
             bool prefix;
+            // sizeof
+            struct type *type;
         }e;
         // stmt
         struct {
@@ -215,6 +217,7 @@ extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
 extern struct type * qual(int t, struct type *ty);
 extern bool eqtype(struct type *ty1, struct type *ty2);
+extern bool eqarith(struct type *ty1, struct type * ty2);
 extern struct type * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
 extern struct field * new_field(char *id);
@@ -253,16 +256,17 @@ extern struct type    *vartype;		       // variable type
 #define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
 
 #define kind(ty)        (unqual(ty)->kind)
-
-#define isfunc(ty)      (op(ty) == FUNCTION)
-#define isarray(ty)     (op(ty) == ARRAY)
-#define isptr(ty)       (op(ty) == POINTER)
-#define isvoid(ty)      (op(ty) == VOID)
-#define isenum(ty)      (op(ty) == ENUM)
-#define isstruct(ty)    (op(ty) == STRUCT)
-#define isunion(ty)     (op(ty) == UNION)
-
 #define rtype(ty)       (unqual(ty)->type)
+#define size(ty)        (unqual(ty)->size)
+#define rank(ty)        (unqual(ty)->rank)
+
+extern bool isfunc(struct type *type);
+extern bool isarray(struct type *type);
+extern bool isptr(struct type *type);
+extern bool isvoid(struct type *type);
+extern bool isenum(struct type *type);
+extern bool isstruct(struct type *type);
+extern bool isunion(struct type *type);
 
 extern bool isint(struct type *ty);
 extern bool isfloat(struct type *ty);

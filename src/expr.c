@@ -7,8 +7,10 @@ static int eval(struct node *expr, int *error);
 static struct node * unary_expr();
 static struct node * uop(int op, struct type *ty, struct node *l);
 static struct node * bop(int op, struct node *l, struct node *r);
-static struct node * nop(int id, struct node *l, struct node *r);
+static struct node * enode(int id, struct type *ty, struct node *l, struct node *r);
 static struct node * conv(struct node *node);
+static struct type * conv2(struct type *l, struct type *r);
+static struct node * wrap(struct type *ty, struct node *node);
 
 static unsigned escape(const char **ps)
 {
@@ -376,13 +378,19 @@ static bool isbitfield(struct node *node)
     return true;
 }
 
+// TODO
+static bool isincomplete(struct type *ty)
+{
+    return false;
+}
+
 static struct node * compound_literal(struct type *ty)
 {
     struct node * ret;
     struct node * inits;
     
     inits = initializer_list();
-    ret = nop(COMPOUND_LITERAL, inits, NULL);
+    ret = enode(COMPOUND_LITERAL, NULL, inits, NULL);
     ret->type = ty;
     
     return ret;
@@ -430,13 +438,13 @@ static struct node * postfix_expr1(struct node *ret)
 	case '[':
 	    t = token->id;
 	    expect('[');
-	    ret = nop(SUBSCRIPT_EXPR, ret, expression());
+	    ret = enode(SUBSCRIPT_EXPR, NULL, ret, expression());
 	    expect(']');
 	    break;
 	case '(':
 	    t = token->id;
 	    expect('(');
-	    ret = nop(CALL_EXPR, ret, NULL);
+	    ret = enode(CALL_EXPR, NULL, ret, NULL);
 	    ret->u.e.args = argument_expr_list();
 	    expect(')');
 	    break;
@@ -445,7 +453,7 @@ static struct node * postfix_expr1(struct node *ret)
             {
                 t = token->id;
                 expect(t);
-                ret = nop(MEMBER_EXPR, ret, nop(REF_EXPR, NULL, NULL));
+                ret = enode(MEMBER_EXPR, NULL, ret, enode(REF_EXPR, NULL, NULL, NULL));
                 expect(ID);
             }
 	    break;
@@ -472,7 +480,7 @@ static struct node * primary_expr()
     switch (t) {
     case ID:
         {
-            ret = nop(REF_EXPR, NULL, NULL);
+            ret = enode(REF_EXPR, NULL, NULL, NULL);
             sym = lookup(token->name, identifiers);
             if (sym) {
                 sym->refs++;
@@ -496,7 +504,7 @@ static struct node * primary_expr()
                 t == ICONSTANT ? integer_constant(token, sym) : float_constant(token, sym);
             }
             expect(t);
-            ret = nop(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, NULL, NULL);
+            ret = enode(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, NULL, NULL, NULL);
             ret->sym = sym;
             ret->type = sym->type;
         }
@@ -509,7 +517,7 @@ static struct node * primary_expr()
                 string_constant(token, sym);
             }
             expect(t);
-            ret = nop(STRING_LITERAL, NULL, NULL);
+            ret = enode(STRING_LITERAL, NULL, NULL, NULL);
             ret->sym = sym;
             ret->type = sym->type;
         }
@@ -522,7 +530,8 @@ static struct node * primary_expr()
                 ret = compound_literal(ty);
             } else {
                 expect('(');
-                ret = nop(PAREN_EXPR, expression(), NULL);
+		struct node *e = expression();
+                ret = enode(PAREN_EXPR, e->type, e, NULL);
                 expect(')');
             }
         }
@@ -532,7 +541,7 @@ static struct node * primary_expr()
 	error("invalid postfix expression at '%s'", token->name);
 	break;
     }
-    
+
     return ret;
 }
 
@@ -545,19 +554,32 @@ static struct node * postfix_expr()
 
 static struct node * sizeof_expr()
 {
-    int t = SIZEOF;
+    int t = token->id;
+    expect(t);
+
     struct token *ahead = lookahead();
+    struct node *n = NULL;
+    struct type *ty = NULL;
+    
     if (token->id == '(' && istypename(ahead)) {
-	struct type *ty = cast_type();
+	ty = cast_type();
 	if (token->id == '{') {
 	    struct node * node = compound_literal(ty);
-	    return uop(t, ty, postfix_expr1(node));
-	} else {
-	    return uop(t, ty, NULL);
+	    n = uop(t, ty, postfix_expr1(node));
 	}
+    } else {
+	n = unary_expr();
     }
-    struct node *node = unary_expr();
-    return uop(t, node->type, node);
+
+    ty = n ? n->type : ty;
+    if (isfunc(ty) || isvoid(ty))
+	error("'sizeof' to a %s type is invalid", ty->name);
+    else if (isincomplete(ty))
+	error("'sizeof' to an incomplete array type is invalid");
+
+    struct node *ret = uop(t, unsignedinttype, n);
+    ret->u.e.type = ty;
+    return ret;
 }
 
 static struct node * unary_expr()
@@ -635,10 +657,8 @@ static struct node * cast_expr()
             struct node * node = compound_literal(ty);
             return postfix_expr1(node);
         }
-        
-        struct node * cast = nop(CAST_EXPR, cast_expr(), NULL);
-        cast->type = ty;
-        return cast;
+
+	return enode(CAST_EXPR, ty, cast_expr(), NULL);
     }
     return unary_expr();
 }
@@ -650,7 +670,7 @@ static struct node * multiple_expr()
     mulp1 = cast_expr();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
-        expect(token->id);
+        expect(t);
         mulp1 = bop(t, conv(mulp1), conv(cast_expr()));
     }
     
@@ -679,7 +699,7 @@ static struct node * shift_expr()
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
         expect(token->id);
-        shift1 = bop(t, shift1, additive_expr());
+        shift1 = bop(t, conv(shift1), conv(additive_expr()));
     }
     
     return shift1;
@@ -693,7 +713,7 @@ static struct node * relation_expr()
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
         expect(token->id);
-        rel = bop(t, rel, shift_expr());
+        rel = bop(t, conv(rel), conv(shift_expr()));
     }
     
     return rel;
@@ -707,7 +727,7 @@ static struct node * equality_expr()
     while (token->id == EQ || token->id == NEQ) {
         int t = token->id;
         expect(token->id);
-        equl = bop(t, equl, relation_expr());
+        equl = bop(t, conv(equl), conv(relation_expr()));
     }
     
     return equl;
@@ -720,7 +740,7 @@ static struct node * and_expr()
     and1 = equality_expr();
     while (token->id == '&') {
         expect('&');
-        and1 = bop('&', and1, equality_expr());
+        and1 = bop('&', conv(and1), conv(equality_expr()));
     }
     
     return and1;
@@ -733,7 +753,7 @@ static struct node * exclusive_or()
     eor = and_expr();
     while (token->id == '^') {
         expect('^');
-        eor = bop('^', eor, and_expr());
+        eor = bop('^', conv(eor), conv(and_expr()));
     }
     
     return eor;
@@ -746,7 +766,7 @@ static struct node * inclusive_or()
     ior = exclusive_or();
     while (token->id == '|') {
         expect('|');
-        ior = bop('|', ior, exclusive_or());
+        ior = bop('|', conv(ior), conv(exclusive_or()));
     }
     
     return ior;
@@ -759,7 +779,8 @@ static struct node * logic_and()
     and1 = inclusive_or();
     while (token->id == AND) {
         expect(AND);
-        and1 = bop(AND, and1, inclusive_or());
+        and1 = ast_bop(AND, conv(and1), conv(inclusive_or()));
+	and1->type = inttype;
     }
     
     return and1;
@@ -772,7 +793,8 @@ static struct node * logic_or()
     or1 = logic_and();
     while (token->id == OR) {
         expect(OR);
-        or1 = bop(OR, or1, logic_and());
+        or1 = ast_bop(OR, conv(or1), conv(logic_and()));
+	or1->type = inttype;
     }
     
     return or1;
@@ -787,7 +809,7 @@ static struct node * cond_expr1(struct node *cond)
     expect(':');
     els = cond_expr();
     
-    ret = nop(COND_EXPR, NULL, NULL);
+    ret = enode(COND_EXPR, NULL, NULL, NULL);
     ret->u.e.c.cond = cond;
     ret->u.e.c.then = then;
     ret->u.e.c.els = els;
@@ -812,7 +834,7 @@ struct node * assign_expr()
         int t = token->id;
         expect(token->id);
         ensure_assignable(or1);
-        or1 = bop(t, or1, assign_expr());
+        or1 = ast_bop(t, or1, assign_expr());
     }
     return or1;
 }
@@ -824,7 +846,7 @@ struct node * expression()
     expr = assign_expr();
     while (token->id == ',') {
         expect(',');
-        expr = bop(',', expr, assign_expr());
+        expr = ast_bop(',', expr, assign_expr());
     }
     
     return expr;
@@ -849,18 +871,125 @@ static struct node * uop(int op, struct type *ty, struct node *l)
     return node;
 }
 
-// TODO
 static struct node * bop(int op, struct node *l, struct node *r)
 {
-    struct node *node = ast_bop(op, l, r);
+    struct node *node = NULL;
+    struct type *ty;
+    bool (*is) (struct type *ty); 
+    
+    switch (op) {
+    case '*': case '/':
+	is = isarith;
+    case '%':
+    case LSHIFT: case RSHIFT:
+    case '&': case '^': case '|':
+	is = isint;
+	
+	ensure_type(l, is);
+	ensure_type(r, is);
+	ty = conv2(l->type, r->type);
+	node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+	node->type = ty;
+	break;
+    case '+':
+	if (isptr(l->type)) {
+	    ensure_type(r, isint);
+	    node = ast_bop(op, l, r);
+	    node->type = l->type;
+	} else if (isptr(r->type)) {
+	    ensure_type(l, isint);
+	    node = ast_bop(op, l, r);
+	    node->type = r->type;
+	} else {
+	    ensure_type(l, isarith);
+	    ensure_type(r, isarith);
+	    ty = conv2(l->type, r->type);
+	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+	    node->type = ty;
+	}
+	break;
+    case '-':
+	if (isptr(l->type)) {
+	    node = ast_bop(op, l, r);
+	    if (isint(r->type)) {
+		node->type = l->type;
+	    } else if (isptr(r->type)) {
+		node->type = inttype;
+	    } else {
+		error("expect integer or pointer type, but got %s type", r->type->name);
+		node->type = l->type;
+	    }
+	} else {
+	    ensure_type(l, isarith);
+	    ensure_type(r, isarith);
+	    ty = conv2(l->type, r->type);
+	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+	    node->type = ty;
+	}
+	break;
+    case '>': case '<': case LEQ: case GEQ:
+    case EQ: case NEQ:
+	ensure_type(l, isscalar);
+	ensure_type(r, isscalar);
+	node = ast_bop(op, l, r);
+	node->type = inttype;
+	break;
+    default:
+	error("unknown op '%s'", tname(op));
+	assert(0);
+    }
     return node;
 }
 
 // TODO
-static struct node * nop(int id, struct node *l, struct node *r)
+static struct node * enode(int id, struct type *ty, struct node *l, struct node *r)
 {
     struct node *node = ast_expr(id, 0, l, r);
+    node->type = ty;
     return node;
+}
+
+struct node * wrap(struct type *ty, struct node *node)
+{
+    if (eqarith(ty, node->type))
+	return node;
+    else
+	return ast_conv(ty, node);
+}
+
+/*
+ * Universal Binary Conversion
+ */
+static struct type * conv2(struct type *l, struct type *r)
+{
+    assert(isarith(l));
+    assert(isarith(r));
+    
+    assert(size(l) >= size(inttype));
+    assert(size(r) >= size(inttype));
+
+    struct type *max = rank(l) > rank(r) ? l : r;
+    if (isfloat(l) || isfloat(r) || op(l) == op(r))
+	return max;
+
+    struct type *u = op(l) == UNSIGNED ? l : r;
+    struct type *s = op(l) == INT ? l : r;
+
+    if (rank(u) >= rank(s))
+	return u;
+
+    if (size(u) < size(s)) {
+	return s;
+    } else {
+	if (unqual(s) == inttype)
+	    return unsignedinttype;
+	else if (unqual(s) == longtype)
+	    return unsignedlongtype;
+	else
+	    return unsignedlonglongtype;
+    }
+
+    return l;
 }
 
 /*
