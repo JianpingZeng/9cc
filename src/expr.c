@@ -17,28 +17,28 @@ static unsigned escape(const char **ps)
     assert(*s == '\\');
     s += 1;
     switch (*s++) {
-        case 'a': c = 7; break;
-        case 'b': c = '\b'; break;
-        case 'f': c = '\f'; break;
-        case 'n': c = '\n'; break;
-        case 'r': c = '\r'; break;
-        case 't': c = '\t'; break;
-        case 'v': c = '\v'; break;
-        case '\'': case '"':
-        case '\\': case '\?':
-            c = s[-1];
-            break;
-        case '0': case '1': case '2':
-        case '3': case '4': case '5':
-        case '6': case '7':
-            c = s[-1] - '0';
-            if (*s >= '0' && *s <= '7') {
+    case 'a': c = 7; break;
+    case 'b': c = '\b'; break;
+    case 'f': c = '\f'; break;
+    case 'n': c = '\n'; break;
+    case 'r': c = '\r'; break;
+    case 't': c = '\t'; break;
+    case 'v': c = '\v'; break;
+    case '\'': case '"':
+    case '\\': case '\?':
+	c = s[-1];
+	break;
+    case '0': case '1': case '2':
+    case '3': case '4': case '5':
+    case '6': case '7':
+	c = s[-1] - '0';
+	if (*s >= '0' && *s <= '7') {
+	    c = (c<<3) + (*s++) - '0';
+	    if (*s >= '0' && *s <= '7')
                 c = (c<<3) + (*s++) - '0';
-                if (*s >= '0' && *s <= '7')
-                    c = (c<<3) + (*s++) - '0';
-            }
-            break;
-        case 'x':
+	}
+	break;
+    case 'x':
         {
             bool overflow = 0;
             for (;is_digithex(*s);) {
@@ -51,31 +51,31 @@ static unsigned escape(const char **ps)
                     error("hex escape sequence out of range");
                 } else {
                     if (is_digit(*s))
-                        c = (c<<4) + *s - '0';
+			c = (c<<4) + *s - '0';
                     else
-                        c = (c<<4) + (*s & 0x5f) - 'A' + 10;
+			c = (c<<4) + (*s & 0x5f) - 'A' + 10;
                 }
                 s++;
             }
         }
-            break;
-        case 'u': case 'U':
+	break;
+    case 'u': case 'U':
         {
             int x = 0;
             int n = s[-1] == 'u' ? 4 : 8;
             for (;is_digithex(*s); x++, s++) {
                 if (x == n)
-                    break;
+		    break;
                 if (is_digit(*s))
-                    c = (c<<4) + *s - '0';
+		    c = (c<<4) + *s - '0';
                 else
-                    c = (c<<4) + (*s & 0x5f) - 'A' + 10;
+		    c = (c<<4) + (*s & 0x5f) - 'A' + 10;
             }
         }
-            break;
-        default:
-            c = s[-1];
-            break;
+	break;
+    default:
+	c = s[-1];
+	break;
     }
     
     *ps = s;
@@ -95,16 +95,16 @@ static void char_constant(struct token *t, struct symbol *sym)
     
     for (;*s != '\'';) {
         if (char_rec)
-            overflow = 1;
+	    overflow = 1;
         if (*s == '\\') {
             c = escape(&s);
             char_rec = 1;
         } else {
             if (wide) {
                 if (len >= MB_LEN_MAX)
-                    error("multibyte character overflow");
+		    error("multibyte character overflow");
                 else
-                    ws[len++] = (char) *s++;
+		    ws[len++] = (char) *s++;
             } else {
                 c = *s++;
                 char_rec = 1;
@@ -113,14 +113,14 @@ static void char_constant(struct token *t, struct symbol *sym)
     }
     
     if (!char_rec && !len)
-        error("incomplete character constant: %s", t->name);
+	error("incomplete character constant: %s", t->name);
     else if (overflow)
-        error("extraneous characters in character constant: %s", t->name);
+	error("extraneous characters in character constant: %s", t->name);
     else if ((!wide && c > unsignedchartype->limits.max.u) ||
              (wide && c > wchartype->limits.max.u))
-        error("character constant overflow: %s", t->name);
+	error("character constant overflow: %s", t->name);
     else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
-        error("illegal multi-character sequence");
+	error("illegal multi-character sequence");
     
     sym->value.u = wide ? (wchar_t)c : (unsigned char)c;
     sym->type = wide ? wchartype : unsignedchartype;
@@ -130,7 +130,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
 {
     const char *s = t->name;
     if (s[0] == '\'' || s[1] == 'L')
-        return char_constant(t, sym);
+	return char_constant(t, sym);
     
     int base;
     struct type *ty;
@@ -146,9 +146,9 @@ static void integer_constant(struct token *t, struct symbol *sym)
             } else {
                 int d;
                 if (is_hex(*s))
-                    d = (*s & 0x5f) - 'A' + 10;
+		    d = (*s & 0x5f) - 'A' + 10;
                 else
-                    d = *s - '0';
+		    d = *s - '0';
                 
                 n = (n<<4) + d;
             }
@@ -159,35 +159,35 @@ static void integer_constant(struct token *t, struct symbol *sym)
         bool err = 0;
         for (;is_digit(*s);) {
             if (*s == '8' || *s == '9')
-                err = 1;
+		err = 1;
             
             if (n & ~(~0ULL >> 3))
-                overflow = 1;
+		overflow = 1;
             else
-                n = (n<<3) + (*s - '0');
+		n = (n<<3) + (*s - '0');
             
             s++;
         }
         
         if (err)
-            error("invalid octal constant %s", t->name);
+	    error("invalid octal constant %s", t->name);
     } else {
         base = 10;
         for (;is_digit(*s);) {
             int d = *s - '0';
             if (n > (unsignedlonglongtype->limits.max.u - d)/10)
-                overflow = 1;
+		overflow = 1;
             else
-                n = n*10 + (*s - '0');
+		n = n*10 + (*s - '0');
             
             s++;
         }
     }
     
     int ull = (s[0] == 'u' || s[0] == 'U') &&
-    ((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
+	((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
     int llu = ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L')) &&
-    (s[2] == 'u' || s[2] == 'U');
+	(s[2] == 'u' || s[2] == 'U');
     int ll = (s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L');
     int lu = (s[0] == 'l' || s[0] == 'L') && (s[1] == 'u' || s[1] == 'U');
     int ul = (s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L');
@@ -198,76 +198,76 @@ static void integer_constant(struct token *t, struct symbol *sym)
         ty = unsignedlonglongtype;
     } else if (ll) {
         if (n > longlongtype->limits.max.i && base != 10)
-            ty = unsignedlonglongtype;
+	    ty = unsignedlonglongtype;
         else
-            ty = longlongtype;
+	    ty = longlongtype;
     } else if (lu || ul) {
         if (n > unsignedlongtype->limits.max.u)
-            ty = unsignedlonglongtype;
+	    ty = unsignedlonglongtype;
         else
-            ty = unsignedlongtype;
+	    ty = unsignedlongtype;
     } else if (l) {
         if (base == 10) {
             if (n > longtype->limits.max.i)
-                ty = longlongtype;
+		ty = longlongtype;
             else
-                ty = longtype;
+		ty = longtype;
         } else {
             if (n > longlongtype->limits.max.i)
-                ty = unsignedlonglongtype;
+		ty = unsignedlonglongtype;
             else if (n > unsignedlongtype->limits.max.u)
-                ty = longlongtype;
+		ty = longlongtype;
             else if (n > longtype->limits.max.i)
-                ty = unsignedlongtype;
+		ty = unsignedlongtype;
             else
-                ty = longtype;
+		ty = longtype;
         }
     } else if (u) {
         if (n > unsignedlongtype->limits.max.u)
-            ty = unsignedlonglongtype;
+	    ty = unsignedlonglongtype;
         else if (n > unsignedinttype->limits.max.u)
-            ty = unsignedlongtype;
+	    ty = unsignedlongtype;
         else
-            ty = unsignedinttype;
+	    ty = unsignedinttype;
     } else {
         if (base == 10) {
             if (n > longtype->limits.max.i)
-                ty = longlongtype;
+		ty = longlongtype;
             else if (n > inttype->limits.max.i)
-                ty = longtype;
+		ty = longtype;
             else
-                ty = inttype;
+		ty = inttype;
         } else {
             if (n > longlongtype->limits.max.i)
-                ty = unsignedlonglongtype;
+		ty = unsignedlonglongtype;
             else if (n > unsignedlongtype->limits.max.u)
-                ty = longlongtype;
+		ty = longlongtype;
             else if (n > longtype->limits.max.i)
-                ty = unsignedlongtype;
+		ty = unsignedlongtype;
             else if (n > unsignedinttype->limits.max.u)
-                ty = longtype;
+		ty = longtype;
             else if (n > inttype->limits.max.i)
-                ty = unsignedinttype;
+		ty = unsignedinttype;
             else
-                ty = inttype;
+		ty = inttype;
         }
     }
     
     sym->type = ty;
     
     switch (op(sym->type)) {
-        case INT:
-            if (overflow || n > longlongtype->limits.max.i)
-                error("integer constant overflow: %s", t->name);
-            sym->value.i = n;
-            break;
-        case UNSIGNED:
-            if (overflow)
-                error("integer constant overflow: %s", t->name);
-            sym->value.u = n;
-            break;
-        default:
-            assert(0);
+    case INT:
+	if (overflow || n > longlongtype->limits.max.i)
+            error("integer constant overflow: %s", t->name);
+	sym->value.i = n;
+	break;
+    case UNSIGNED:
+	if (overflow)
+            error("integer constant overflow: %s", t->name);
+	sym->value.u = n;
+	break;
+    default:
+	assert(0);
     }
 }
 
@@ -288,7 +288,7 @@ static void float_constant(struct token *t, struct symbol *sym)
     }
     
     if (errno == ERANGE)
-        error("float constant overflow: %s", s);
+	error("float constant overflow: %s", s);
 }
 
 static void string_constant(struct token *t, struct symbol *sym)
@@ -302,7 +302,7 @@ static void string_constant(struct token *t, struct symbol *sym)
         errno = 0;
         size_t wlen = mbstowcs(ws, s+2, len);
         if (errno == EILSEQ)
-            error("invalid multibyte sequence: %s", s);
+	    error("invalid multibyte sequence: %s", s);
         assert(wlen<=len+1);
         ty = array_type();
         ty->type = wchartype;
@@ -315,14 +315,24 @@ static void string_constant(struct token *t, struct symbol *sym)
     sym->type = ty;
 }
 
-static void ensure_type(const char *name, bool (*is) (struct type *), struct node *node)
+static void ensure_type(struct node *node, bool (*is) (struct type *))
 {
+    const char *name;
+    if (is == isint)
+	name = "integer";
+    else if (is == isscalar)
+	name = "scalar";
+    else if (is == isarith)
+	name = "arithmetic";
+    else
+	assert(0);
+    
     if (!is(node->type)) {
         struct type *rty = unqual(node->type);
         if (rty->tag)
-            error("%s type expected, not '%s %s'", name, rty->name, rty->tag);
+	    error("%s type expected, not '%s %s'", name, rty->name, rty->tag);
         else
-            error("%s type expected, not '%s'", name, rty->name);
+	    error("%s type expected, not '%s'", name, rty->name);
     }
 }
 
@@ -330,16 +340,22 @@ static void ensure_type(const char *name, bool (*is) (struct type *), struct nod
 static bool islvalue(struct node *node)
 {
     if (node->id == MEMBER_EXPR || node->id == SUBSCRIPT_EXPR)
-        return true;
+	return true;
     if (node->id == REF_EXPR) {
         if (node->u.e.op == ENUM)
-            return false;
+	    return false;
         if (isfunc(node->type))
-            return false;
+	    return false;
         return true;
     }
     
     return false;
+}
+
+static void ensure_lvalue(struct node *node)
+{
+    if (!islvalue(node))
+	error("lvalue expect");
 }
 
 // TODO
@@ -348,7 +364,16 @@ static void ensure_assignable(struct node *or)
     assert(isexpr(or));
     
     if (!islvalue(or))
-        error("expression not assignable");
+	error("expression not assignable");
+}
+
+// TODO
+static bool isbitfield(struct node *node)
+{
+    if (node->id != MEMBER_EXPR)
+	return false;
+
+    return true;
 }
 
 static struct node * compound_literal(struct type *ty)
@@ -383,9 +408,9 @@ static struct node ** argument_expr_list()
         for (;;) {
             vec_push(v, assign_expr());
             if (token->id == ',')
-                expect(',');
+		expect(',');
             else
-                break;
+		break;
         }
         args = (struct node **)vtoa(v);
     } else if (token->id != ')') {
@@ -400,38 +425,38 @@ static struct node * postfix_expr1(struct node *ret)
     int t;
     
     for (;token->id == '[' || token->id == '(' || token->id == '.'
-         || token->id == DEREF || token->id == INCR || token->id == DECR;) {
+	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
-            case '[':
-                t = token->id;
-                expect('[');
-                ret = nop(SUBSCRIPT_EXPR, ret, expression());
-                expect(']');
-                break;
-            case '(':
-                t = token->id;
-                expect('(');
-                ret = nop(CALL_EXPR, ret, NULL);
-                ret->u.e.args = argument_expr_list();
-                expect(')');
-                break;
-            case '.':
-            case DEREF:
+	case '[':
+	    t = token->id;
+	    expect('[');
+	    ret = nop(SUBSCRIPT_EXPR, ret, expression());
+	    expect(']');
+	    break;
+	case '(':
+	    t = token->id;
+	    expect('(');
+	    ret = nop(CALL_EXPR, ret, NULL);
+	    ret->u.e.args = argument_expr_list();
+	    expect(')');
+	    break;
+	case '.':
+	case DEREF:
             {
                 t = token->id;
                 expect(t);
                 ret = nop(MEMBER_EXPR, ret, nop(REF_EXPR, NULL, NULL));
                 expect(ID);
             }
-                break;
-            case INCR:
-            case DECR:
-                t = token->id;
-                expect(token->id);
-                ret = uop(t, ret->type, ret);
-                break;
-            default:
-                assert(0);
+	    break;
+	case INCR:
+	case DECR:
+	    t = token->id;
+	    expect(token->id);
+	    ret = uop(t, ret->type, ret);
+	    break;
+	default:
+	    assert(0);
         }
     }
     
@@ -445,7 +470,7 @@ static struct node * primary_expr()
     struct node *ret;
     
     switch (t) {
-        case ID:
+    case ID:
         {
             ret = nop(REF_EXPR, NULL, NULL);
             sym = lookup(token->name, identifiers);
@@ -453,17 +478,17 @@ static struct node * primary_expr()
                 sym->refs++;
                 ret->type = sym->type;
                 if (isenum(sym->type) && sym->sclass == ENUM)
-                    // enum ids
-                    ret->u.e.op = ENUM;
+		    // enum ids
+		    ret->u.e.op = ENUM;
             } else {
                 error("use of undeclared symbol '%s'", token->name);
             }
             expect(t);
             ret->sym = sym;
         }
-            break;
-        case ICONSTANT:
-        case FCONSTANT:
+	break;
+    case ICONSTANT:
+    case FCONSTANT:
         {
             sym = lookup(token->name, constants);
             if (!sym) {
@@ -475,8 +500,8 @@ static struct node * primary_expr()
             ret->sym = sym;
             ret->type = sym->type;
         }
-            break;
-        case SCONSTANT:
+	break;
+    case SCONSTANT:
         {
             sym = lookup(token->name, constants);
             if (!sym) {
@@ -488,8 +513,8 @@ static struct node * primary_expr()
             ret->sym = sym;
             ret->type = sym->type;
         }
-            break;
-        case '(':
+	break;
+    case '(':
         {
             struct token *ahead = lookahead();
             if (istypename(ahead)) {
@@ -501,11 +526,11 @@ static struct node * primary_expr()
                 expect(')');
             }
         }
-            break;
-        default:
-            ret = NULL;
-            error("invalid postfix expression at '%s'", token->name);
-            break;
+	break;
+    default:
+	ret = NULL;
+	error("invalid postfix expression at '%s'", token->name);
+	break;
     }
     
     return ret;
@@ -518,88 +543,85 @@ static struct node * postfix_expr()
     return postfix_expr1(expr);
 }
 
-static struct node * unary_sizeof()
+static struct node * sizeof_expr()
 {
-    int t = token->id;
-    expect(t);
+    int t = SIZEOF;
     struct token *ahead = lookahead();
     if (token->id == '(' && istypename(ahead)) {
-        struct type *ty = cast_type();
-        if (token->id == '{') {
-            struct node * node = compound_literal(ty);
-            return uop(t, ty, postfix_expr1(node));
-        } else {
-            return uop(t, ty, NULL);
-        }
+	struct type *ty = cast_type();
+	if (token->id == '{') {
+	    struct node * node = compound_literal(ty);
+	    return uop(t, ty, postfix_expr1(node));
+	} else {
+	    return uop(t, ty, NULL);
+	}
     }
     struct node *node = unary_expr();
     return uop(t, node->type, node);
 }
 
-static struct node * unary_inc(int t)
-{
-    expect(t);
-    struct node *operand = unary_expr();
-    struct node *ret = uop(t, operand->type, operand);
-    ret->u.e.prefix = true;
-    return ret;
-}
-
-static struct node * unary_addr()
-{
-    int t = token->id;
-    expect(t);
-    struct node *operand = cast_expr();
-    return uop(t, operand->type, operand);
-}
-
-static struct node * unary_deref()
-{
-    int t = token->id;
-    expect(t);
-    struct node *operand = cast_expr();
-    return uop(t, operand->type, operand);
-}
-
-static struct node * unary_minus(int t)
-{
-    expect(t);
-    struct node *operand = cast_expr();
-    ensure_type("arithmetic", isarith, operand);
-    return uop(t, operand->type, operand);
-}
-
-static struct node * unary_bneg()
-{
-    int t = token->id;
-    expect(t);
-    struct node *operand = cast_expr();
-    ensure_type("integer", isint, operand);
-    return uop(t, operand->type, operand);
-}
-
-static struct node * unary_lneg()
-{
-    int t = token->id;
-    expect(t);
-    struct node *operand = cast_expr();
-    ensure_type("scalar", isscalar, operand);
-    return uop(t, inttype, conv(operand));
-}
-
 static struct node * unary_expr()
 {
-    switch (token->id) {
-        case INCR:  return unary_inc(INCR);
-        case DECR:  return unary_inc(DECR);
-        case '&':   return unary_addr();
-        case '*':   return unary_deref();
-        case '+':   return unary_minus('+');
-        case '-':   return unary_minus('-');
-        case '~':   return unary_bneg();
-        case '!':   return unary_lneg();
-        case SIZEOF:return unary_sizeof();
-        default:    return postfix_expr();
+    int t = token->id;
+    switch (t) {
+    case INCR:
+    case DECR:
+        {
+            expect(t);
+            struct node *operand = unary_expr();
+            struct node *ret = uop(t, operand->type, operand);
+	    ensure_type(operand, isscalar);
+	    ensure_lvalue(operand);
+            ret->u.e.prefix = true;
+            return ret;
+        }
+    case '+':
+    case '-':
+        {
+            expect(t);
+            struct node *operand = cast_expr();
+            ensure_type(operand, isarith);
+	    struct node *c = conv(operand);
+            return uop(t, c->type, c);
+        }
+    case '~':
+        {
+            expect(t);
+            struct node *operand = cast_expr();
+            ensure_type(operand, isint);
+	    struct node *c = conv(operand);
+            return uop(t, c->type, c);
+        }
+    case '!':
+        {
+            expect(t);
+            struct node *operand = cast_expr();
+            ensure_type(operand, isscalar);
+            return uop(t, inttype, conv(operand));
+        }
+    case '&':
+        {
+            expect(t);
+            struct node *operand = cast_expr();
+	    if (!isfunc(operand->type)) {
+		ensure_lvalue(operand);
+		if (operand->sym && operand->sym->sclass == REGISTER)
+		    error("address of register variable requested");
+		else if (isbitfield(operand))
+		    error("address of bitfield requested");
+	    }
+            return uop(t, ptr_type(operand->type), operand);
+        }
+    case '*':
+        {
+            expect(t);
+            struct node *operand = conv(cast_expr());
+	    if (!isptr(operand->type))
+		error("indirection requires pointer operand");
+            return uop(t, rtype(operand->type), operand);
+        }
+    case SIZEOF: return sizeof_expr();
+    default:     return postfix_expr();
     }
 }
 
@@ -777,7 +799,7 @@ static struct node * cond_expr()
 {
     struct node * or1 = logic_or();
     if (token->id == '?')
-        return cond_expr1(or1);
+	return cond_expr1(or1);
     return or1;
 }
 
@@ -785,7 +807,7 @@ struct node * assign_expr()
 {
     struct node *or1 = logic_or();
     if (token->id == '?')
-        return cond_expr1(or1);
+	return cond_expr1(or1);
     if (is_assign_op(token->id)) {
         int t = token->id;
         expect(token->id);
@@ -815,7 +837,7 @@ int intexpr()
     int error = 0;
     int val = eval(expr, &error);
     if (error)
-        errorf(src, "expect constant expression");
+	errorf(src, "expect constant expression");
     
     return val;
 }
@@ -847,25 +869,26 @@ static struct node * nop(int id, struct node *l, struct node *r)
 static struct node * conv(struct node *node)
 {
     switch (kind(node->type)) {
-        case _BOOL: case CHAR: case SHORT:
-            return ast_conv(inttype, node);
+    case _BOOL: case CHAR: case SHORT:
+	return ast_conv(inttype, node);
             
-        case FUNCTION:
-            return ast_conv(ptr_type(node->type), node);
+    case FUNCTION:
+	return ast_conv(ptr_type(node->type), node);
             
-        case ARRAY:
-            return ast_conv(ptr_type(rtype(node->type)), node);
+    case ARRAY:
+	return ast_conv(ptr_type(rtype(node->type)), node);
             
-        default:
-            return node;
+    default:
+	return node;
     }
 }
 
 //TODO
 static int eval(struct node *expr, int *error)
 {
+    return 1;
     if (!expr || (error && *error))
-        return 0;
+	return 0;
     
     assert(isexpr(expr));
     
@@ -876,105 +899,105 @@ static int eval(struct node *expr, int *error)
 #define R eval(r, error)
     
     switch (expr->u.e.op) {
-            //binary
-        case ',': return L , R;
-        case '/': return L / R;
-        case '%': return L % R;
-        case LSHIFT: return L << R;
-        case RSHIFT: return L >> R;
-        case '>': return L > R;
-        case '<': return L < R;
-        case GEQ: return L >= R;
-        case LEQ: return L <= R;
-        case EQ: return L == R;
-        case NEQ: return L != R;
-        case AND: return L && R;
-        case OR: return L || R;
-        case '^': return L ^ R;
-        case '|': return L | R;
-        case '+': return (bop ? (L + R) : (+L));
-        case '-': return (bop ? (L - R) : (-L));
-        case '*': if (bop) return L * R; else goto err;
-        case '&': if (bop) return L & R; else goto err;
+	//binary
+    case ',': return L , R;
+    case '/': return L / R;
+    case '%': return L % R;
+    case LSHIFT: return L << R;
+    case RSHIFT: return L >> R;
+    case '>': return L > R;
+    case '<': return L < R;
+    case GEQ: return L >= R;
+    case LEQ: return L <= R;
+    case EQ: return L == R;
+    case NEQ: return L != R;
+    case AND: return L && R;
+    case OR: return L || R;
+    case '^': return L ^ R;
+    case '|': return L | R;
+    case '+': return (bop ? (L + R) : (+L));
+    case '-': return (bop ? (L - R) : (-L));
+    case '*': if (bop) return L * R; else goto err;
+    case '&': if (bop) return L & R; else goto err;
             
-        case '~': return ~L;
-        case '!': return !L;
-        case SIZEOF:
+    case '~': return ~L;
+    case '!': return !L;
+    case SIZEOF:
             
-            // cast TODO
-        case 'C':
-            return 0;
+	// cast TODO
+    case 'C':
+	return 0;
             
-            // index TODO
-        case '[':
-            return 0;
+	// index TODO
+    case '[':
+	return 0;
             
-            // member TODO
-        case '.': case DEREF:
-            return 0;
+	// member TODO
+    case '.': case DEREF:
+	return 0;
             
-        case '?':
+    case '?':
         {
             int cond = eval(expr->u.e.c.cond, error);
             if (cond)
-                return eval(expr->u.e.c.then, error);
+		return eval(expr->u.e.c.then, error);
             else
-                return eval(expr->u.e.c.els, error);
+		return eval(expr->u.e.c.els, error);
         }
             
-            // paren
-        case '(':
-            return L;
+	// paren
+    case '(':
+	return L;
             
-            // inits
-        case '{':
+	// inits
+    case '{':
         {
             if (expr->u.e.args)
-                return eval(expr->u.e.args[0], error);
+		return eval(expr->u.e.args[0], error);
             else
-                return 0;
+		return 0;
         }
             
-        case ICONSTANT:
+    case ICONSTANT:
         {
             struct symbol *sym = expr->sym;
             union value v = sym->value;
             if (op(sym->type) == INT)
-                return v.i;
+		return v.i;
             else if (op(sym->type) == UNSIGNED)
-                return v.u;
+		return v.u;
             else
-                assert(0);
+		assert(0);
         }
             
-        case FCONSTANT:
+    case FCONSTANT:
         {
             struct symbol *sym = expr->sym;
             union value v = sym->value;
             if (sym->type == floattype || sym->type == doubletype)
-                return v.d;
+		return v.d;
             else if (sym->type == longdoubletype)
-                return v.ld;
+		return v.ld;
             else
-                assert(0);
+		assert(0);
         }
             
-        case SCONSTANT:
-            return (const char *)expr->sym->name - (const char *)0;
+    case SCONSTANT:
+	return (const char *)expr->sym->name - (const char *)0;
             
-        case INCR: case DECR:
-        case '=':
-        case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
-        case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
-        case LSHIFTEQ:case RSHIFTEQ:
-        case ID:
-        case FUNCTION:
-        err:
+    case INCR: case DECR:
+    case '=':
+    case MULEQ:case ADDEQ:case MINUSEQ:case DIVEQ:
+    case MODEQ:case XOREQ:case BANDEQ:case BOREQ:
+    case LSHIFTEQ:case RSHIFTEQ:
+    case ID:
+    case FUNCTION:
+    err:
             if (error)
-                *error = 1;
+		*error = 1;
             return 0;
             
-        default:
-            assert(0);
+    default:
+	assert(0);
     }
 }

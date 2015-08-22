@@ -1,5 +1,5 @@
-<root name="expr">
-    <unit>
+<unit nam="expr">
+    <case>
         <code>
             void f() {
             int a;
@@ -14,5 +14,5 @@
                 </stmt>
             </decl>
         </expect>
-    </unit>
-</root>
+    </case>
+</unit>
