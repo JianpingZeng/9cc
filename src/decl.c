@@ -13,19 +13,6 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
 static struct node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
 static struct node * initializer();
 
-static void validate_func_or_array(struct type *ty)
-{
-    //TODO: ty->type may be null
-    if (isfunc(ty) && ty->type) {
-        if (isfunc(ty->type))
-            error("function cannot return function type");
-        else if (isarray(ty->type))
-            error("function cannot return array type");
-    } else if (isarray(ty) && ty->type && isfunc(ty->type)) {
-        error("array of function is invalid");
-    }
-}
-
 static struct type * specifiers(int *sclass)
 {
     int cls, sign, size, type;
@@ -236,7 +223,7 @@ static struct type * specifiers(int *sclass)
     return basety;
 }
 
-static void atype_qualifiers(struct type *atype)
+static void qualifiers(struct type *atype)
 {
     int cons, vol, res;
     int *p;
@@ -385,11 +372,11 @@ static struct type * func_or_array(int *params)
                 expect(STATIC);
                 atype->u.a.is_static = 1;
                 if (token->kind == CONST)
-                    atype_qualifiers(atype);
+                    qualifiers(atype);
                 atype->u.a.assign = assign_expr();
             } else if (token->kind == CONST) {
                 if (token->kind == CONST)
-                    atype_qualifiers(atype);
+                    qualifiers(atype);
                 if (token->id == STATIC) {
                     expect(STATIC);
                     atype->u.a.is_static = 1;
@@ -613,11 +600,10 @@ static void declarator(struct type **ty, const char **id, int *params)
 
 static bool firstfuncdef(struct type *ty)
 {
-    bool f = isfunc(ty);
     bool prototype = token->id == '{';
     bool oldstyle = (istypename(token) || token->kind == STATIC) && ty->u.f.oldstyle && ty->u.f.params;
     
-    return f && (prototype || oldstyle);
+    return isfunc(ty) && (prototype || oldstyle);
 }
 
 static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type *ftype, int sclass,  struct source src))
@@ -698,6 +684,81 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
     match(';', follow);
     
     return v;
+}
+
+int firstdecl(struct token *t)
+{
+    return t->kind == STATIC || t->kind == INT || t->kind == CONST || (t->id == ID && is_typedef_name(t->name));
+}
+
+int firststmt(struct token *t)
+{
+    return  t->kind == IF || firstexpr(t);
+}
+
+int firstexpr(struct token *t)
+{
+    return t->kind == ID;
+}
+
+bool istypename(struct token *t)
+{
+    return (t->kind == INT || t->kind == CONST) ||
+    (t->id == ID && is_typedef_name(t->name));
+}
+
+struct type * typename()
+{
+    struct type *basety;
+    struct type *ty = NULL;
+    
+    basety = specifiers(NULL);
+    if (token->id == '*' || token->id == '(' || token->id == '[')
+        abstract_declarator(&ty);
+    
+    attach_type(&ty, basety);
+    
+    return ty;
+}
+
+struct node ** declaration()
+{
+    assert(SCOPE >= LOCAL);
+    return (struct node **)vtoa(decls(localdecl));
+}
+
+struct node * translation_unit()
+{
+    struct node *ret = ast_decl(TU_DECL, GLOBAL);
+    struct vector *v = new_vector();
+    
+    for (; token->id != EOI; ) {
+        if (firstdecl(token)) {
+            assert(SCOPE == GLOBAL);
+            vec_add_from_vector(v, decls(globaldecl));
+        } else {
+            if (token->id != ';')
+                error("invalid token '%s'", token->name);
+            gettok();
+        }
+    }
+    
+    ret->u.d.exts = (struct node **)vtoa(v);
+    
+    return ret;
+}
+
+//TODO: ty->type may be null
+static void validate_func_or_array(struct type *ty)
+{
+    if (isfunc(ty) && ty->type) {
+        if (isfunc(ty->type))
+            error("function cannot return function type");
+        else if (isarray(ty->type))
+            error("function cannot return array type");
+    } else if (isarray(ty) && ty->type && isfunc(ty->type)) {
+        error("array of function is invalid");
+    }
 }
 
 static struct type * enum_decl()
@@ -1169,68 +1230,6 @@ struct node * initializer_list()
     
     match('}', follow);
     ret->u.e.inits = (struct node **)vtoa(v);
-    
-    return ret;
-}
-
-int firstdecl(struct token *t)
-{
-    return t->kind == STATIC || t->kind == INT || t->kind == CONST || (t->id == ID && is_typedef_name(t->name));
-}
-
-int firststmt(struct token *t)
-{
-    return  t->kind == IF || firstexpr(t);
-}
-
-int firstexpr(struct token *t)
-{
-    return t->kind == ID;
-}
-
-bool istypename(struct token *t)
-{
-    return (t->kind == INT || t->kind == CONST) ||
-    (t->id == ID && is_typedef_name(t->name));
-}
-
-struct type * typename()
-{
-    struct type *basety;
-    struct type *ty = NULL;
-    
-    basety = specifiers(NULL);
-    if (token->id == '*' || token->id == '(' || token->id == '[')
-        abstract_declarator(&ty);
-    
-    attach_type(&ty, basety);
-    
-    return ty;
-}
-
-struct node ** declaration()
-{
-    assert(SCOPE >= LOCAL);
-    return (struct node **)vtoa(decls(localdecl));
-}
-
-struct node * translation_unit()
-{
-    struct node *ret = ast_decl(TU_DECL, GLOBAL);
-    struct vector *v = new_vector();
-    
-    for (; token->id != EOI; ) {
-        if (firstdecl(token)) {
-            assert(SCOPE == GLOBAL);
-            vec_add_from_vector(v, decls(globaldecl));
-        } else {
-            if (token->id != ';')
-                error("invalid token '%s'", token->name);
-            gettok();
-        }
-    }
-    
-    ret->u.d.exts = (struct node **)vtoa(v);
     
     return ret;
 }
