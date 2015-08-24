@@ -1223,10 +1223,9 @@ struct node * translation_unit()
         if (firstdecl(token)) {
             assert(SCOPE == GLOBAL);
             vec_add_from_vector(v, decls(globaldecl));
-        } else if (token->id == ';') {
-            gettok();
         } else {
-            error("invalid token '%s'", token->name);
+            if (token->id != ';')
+                error("invalid token '%s'", token->name);
             gettok();
         }
     }
