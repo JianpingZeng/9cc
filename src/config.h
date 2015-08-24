@@ -10,6 +10,6 @@
 #define END_CALL
 #endif
 
-//#define SHOW_COLOR_TERM
+#define SHOW_COLOR_TERM
 
 #endif

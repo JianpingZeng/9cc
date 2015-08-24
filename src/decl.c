@@ -748,19 +748,6 @@ struct node * translation_unit()
     return ret;
 }
 
-//TODO: ty->type may be null
-static void validate_func_or_array(struct type *ty)
-{
-    if (isfunc(ty) && ty->type) {
-        if (isfunc(ty->type))
-            error("function cannot return function type");
-        else if (isarray(ty->type))
-            error("function cannot return array type");
-    } else if (isarray(ty) && ty->type && isfunc(ty->type)) {
-        error("array of function is invalid");
-    }
-}
-
 static struct type * enum_decl()
 {
     struct symbol *sym = NULL;
@@ -967,7 +954,7 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
     if (isfunc(ty)) {
         ty = ptr_type(ty);
     } else if (isarray(ty)) {
-        // TODO: convert to poniter
+        ty = ptr_type(rtype(ty));
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!tag_sym(ty)->defined)
             warningf(src, "declaration of '%s %s' will not be visible outside of this function",
@@ -979,15 +966,14 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
         if (sym && sym->scope == SCOPE)
             redefinition_error(source, sym);
         sym = install(id, &identifiers, SCOPE);
-        sym->type = ty;
-        sym->src = src;
-        sym->sclass = sclass;
     } else {
         sym = anonymous(&identifiers, SCOPE);
-        sym->type = ty;
-        sym->src = src;
-        sym->sclass = sclass;
     }
+    
+    sym->type = ty;
+    sym->src = src;
+    sym->sclass = sclass;
+    
     return sym;
 }
 
@@ -1021,7 +1007,6 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
         if (!tag_sym(ty)->defined)
             error("variable incomplete type '%s %s'", ty->name, ty->tag);
     }
-    validate_func_or_array(ty);
     
     sym = lookup(id, identifiers);
     if ((sym && sym->scope >= SCOPE) ||
@@ -1073,7 +1058,6 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
         if (!tag_sym(ty)->defined && sclass != TYPEDEF)
             error("variable has incomplete type '%s %s'", ty->name, ty->tag);
     }
-    validate_func_or_array(ty);
     
     sym = lookup(id, identifiers);
     if (!sym || sym->scope != SCOPE) {
@@ -1102,7 +1086,6 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
     
     assert(SCOPE == PARAM);
     
-    validate_func_or_array(ftype);
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", tname(sclass));
         sclass = 0;
