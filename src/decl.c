@@ -918,31 +918,6 @@ static struct type * struct_decl()
     return sym->type;
 }
 
-static void update_params(void *elem, void *context)
-{
-    struct node *decl = (struct node *)elem;
-    struct type *ftype = (struct type *)context;
-    struct symbol *sym = decl->sym;
-    
-    assert(sym->name);
-    if (decl->id != VAR_DECL) {
-        warningf(sym->src, "empty declaraion");
-    } else if (ftype->u.f.params) {
-        struct symbol *p = NULL;
-        for (int i=0; ftype->u.f.params[i]; i++) {
-            struct symbol *s = ftype->u.f.params[i];
-            if (s->name && !strcmp(s->name, sym->name)) {
-                p = s;
-                break;
-            }
-        }
-        if (p)
-            p->type = sym->type;
-        else
-            errorf(sym->src, "parameter named '%s' is missing", sym->name);
-    }
-}
-
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)
 {
     struct symbol *sym = NULL;
@@ -1137,7 +1112,28 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
         while (firstdecl(token))
             vec_add_from_array(v, (void **)decls(paramdecl));
         
-        vec_foreach(v, update_params, ftype);
+        for (int i=0; i < vec_len(v); i++) {
+            struct node *decl = (struct node *)vec_at(v, i);
+            struct symbol *sym = decl->sym;
+            
+            assert(sym->name);
+            if (decl->id != VAR_DECL) {
+                warningf(sym->src, "empty declaraion");
+            } else if (ftype->u.f.params) {
+                struct symbol *p = NULL;
+                for (int i=0; ftype->u.f.params[i]; i++) {
+                    struct symbol *s = ftype->u.f.params[i];
+                    if (s->name && !strcmp(s->name, sym->name)) {
+                        p = s;
+                        break;
+                    }
+                }
+                if (p)
+                    p->type = sym->type;
+                else
+                    errorf(sym->src, "parameter named '%s' is missing", sym->name);
+            }
+        }
         exit_scope();
         if (token->id != '{') {
             error("expect function body after function declarator");
