@@ -283,7 +283,7 @@ static void atype_qualifiers(struct type *atype)
         atype->u.a.is_restrict = 1;
 }
 
-static struct symbol ** func_params(struct type *ftype, int *params)
+static struct symbol ** parameters(struct type *ftype, int *params)
 {
     struct symbol **ret = NULL;
     
@@ -419,7 +419,7 @@ static struct type * func_or_array(int *params)
         } else {
             struct type *ftype = func_type();
             expect('(');
-            ftype->u.f.params = func_params(ftype, params);
+            ftype->u.f.params = parameters(ftype, params);
             expect(')');
             attach_type(&ty, ftype);
         }
@@ -454,7 +454,7 @@ static struct type * abstract_func_or_array()
         } else {
             struct type *ftype = func_type();
             expect('(');
-            ftype->u.f.params = func_params(ftype, NULL);
+            ftype->u.f.params = parameters(ftype, NULL);
             expect(')');
             attach_type(&ty, ftype);
         }
