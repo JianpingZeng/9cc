@@ -12,7 +12,7 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
-static struct node * initializer();
+static struct node * initializer(struct type *ty);
 
 static struct type * specifiers(int *sclass)
 {
@@ -687,11 +687,11 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
     return v;
 }
 
-static struct node * initializer()
+static struct node * initializer(struct type *ty)
 {
     if (token->id == '{') {
         // initializer list
-        return initializer_list();
+        return initializer_list(ty);
     } else if (firstexpr(token)) {
         // assign expr
         return assign_expr();
@@ -1011,7 +1011,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     if (token->id == '=') {
         // initializer
         expect('=');
-        init_node = initializer();
+        init_node = initializer(ty);
     }
     
     if (init_node) {
@@ -1057,7 +1057,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     if (token->id == '=') {
         // initializer
         expect('=');
-        init_node = initializer();
+        init_node = initializer(ty);
     }
     
     if (sclass == AUTO || sclass == REGISTER) {
@@ -1200,7 +1200,8 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
     return decl;
 }
 
-struct node * initializer_list()
+//TODO: not finished yet
+struct node * initializer_list(struct type *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     
@@ -1209,11 +1210,11 @@ struct node * initializer_list()
     expect('{');
     for (; token->id == '[' || token->id == '.' || token->id == '{'
          || firstexpr(token);) {
-        struct node *lnode = NULL;
-        struct node *rnode;
+        struct node *dnode = NULL;
+        struct node *inode = NULL;
         
         if (token->id == '[' || token->id == '.') {
-            for (; token->id == '[' || token->id == '.'; ) {
+            do {
                 if (token->id == '[') {
                     expect('[');
                     intexpr();
@@ -1225,21 +1226,23 @@ struct node * initializer_list()
                     }
                     expect(ID);
                 }
-            }
+            } while (token->id == '[' || token->id == '.');
             expect('=');
         }
         
-        rnode = initializer();
-        if (lnode) {
-            struct node *assign_node = ast_bop('=', lnode, rnode);
+        inode = initializer(NULL);
+        if (dnode) {
+            struct node *assign_node = ast_bop('=', dnode, inode);
             vec_push(v, assign_node);
         } else {
-            vec_push(v, rnode);
+            vec_push(v, inode);
         }
-    }
-    
-    if (token->id == ',')
+        
+        if (token->id != ',')
+            break;
+        
         expect(',');
+    }
     
     match('}', follow);
     ret->u.e.inits = (struct node **)vtoa(v);

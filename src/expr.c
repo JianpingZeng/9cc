@@ -389,7 +389,7 @@ static struct node * compound_literal(struct type *ty)
     struct node * ret;
     struct node * inits;
     
-    inits = initializer_list();
+    inits = initializer_list(ty);
     ret = enode(COMPOUND_LITERAL, NULL, inits, NULL);
     ret->type = ty;
     

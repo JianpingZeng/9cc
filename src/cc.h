@@ -139,7 +139,7 @@ extern struct node * assign_expr();
 extern int intexpr();
 
 // decl.c
-extern struct node * initializer_list();
+extern struct node * initializer_list(struct type *ty);
 extern bool istypename(struct token *t);
 extern struct node ** declaration();
 extern struct node * translation_unit();
