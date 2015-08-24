@@ -71,7 +71,7 @@ MCC_INC=$(SYS_INC)
 endif
 
 $(MCC): $(CC1) $(MCC_INC) $(MCC_SRC)
-	$(CC) $(CFLAGS) $(LDFALGS) $(MCC_SRC) $(CC1) -o $@
+	$(CC) $(CFLAGS) -I. $(LDFALGS) $(MCC_SRC) $(CC1) -o $@
 
 $(CC1): $(CC1_INC) $(CC1_SRC)
 	$(CC) $(CFLAGS) -c $(CC1_SRC)

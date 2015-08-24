@@ -10,7 +10,7 @@
 
 static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
 
-char *mk_temp_dir()
+char *mktmpdir()
 {
     return mkdtemp(template);
 }
@@ -21,7 +21,7 @@ int file_exists(const char *path)
     return stat(path, &st) == 0;
 }
 
-int is_directory(const char *path)
+int isdir(const char *path)
 {
     if (path == NULL)
         return 0;
@@ -54,7 +54,7 @@ int callsys(const char *path, char **argv)
         perror("Can't fork");
         ret = EXIT_FAILURE;
     }
-
+    
     return ret;
 }
 
@@ -89,21 +89,21 @@ char *replace_suffix(const char *path, const char *suffix)
     int dot_index = -1;
     int len = strlen(path);
     char *p;
-
+    
     for (int i=len-1; i >= 0; i--) {
-	if (path[i] == '/') {
-	    break;
-	}
-	if (path[i] == '.') {
-	    dot_index = i;
-	    break;
-	}
+        if (path[i] == '/') {
+            break;
+        }
+        if (path[i] == '.') {
+            dot_index = i;
+            break;
+        }
     }
-
+    
     if (dot_index != -1) {
-	len = dot_index;
+        len = dot_index;
     }
-
+    
     p = malloc(len+strlen(suffix)+2);
     memcpy(p, path, len);
     p[len] = '.';
@@ -123,30 +123,28 @@ char *expanduser(char *path)
 {
     if (!path || !strlen(path)) return NULL;
     if (path[0] == '~') {
-	const char *home = getenv("HOME");
-	int hlen = strlen(home);
-	int plen = strlen(path);
-	char *ret = malloc(hlen+plen);
-	strncpy(ret, home, hlen);
-	strncpy(ret+hlen, path+1, plen-1);
-	ret[hlen+plen-1] = 0;
-	return ret;
+        const char *home = getenv("HOME");
+        int hlen = strlen(home);
+        int plen = strlen(path);
+        char *ret = malloc(hlen+plen);
+        strncpy(ret, home, hlen);
+        strncpy(ret+hlen, path+1, plen-1);
+        ret[hlen+plen-1] = 0;
+        return ret;
     }
     else {
-	int len = strlen(path);
-	char *ret = malloc(len+1);
-	strcpy(ret, path);
-	ret[len] = 0;
-	return ret;
+        int len = strlen(path);
+        char *ret = malloc(len+1);
+        strcpy(ret, path);
+        ret[len] = 0;
+        return ret;
     }
 }
 
-int get_pid(void)
+//TODO - detect if color term
+int is_color_term()
 {
-    return (int)getpid();
+    const char *term = getenv("TERM");
+    return term != NULL;
 }
 
-int get_ppid(void)
-{
-    return (int)getppid();
-}

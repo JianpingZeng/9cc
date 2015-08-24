@@ -10,6 +10,8 @@
 #define END_CALL
 #endif
 
-#define SHOW_COLOR_TERM
+struct {
+    unsigned is_color_term : 1;
+} ENV;
 
 #endif

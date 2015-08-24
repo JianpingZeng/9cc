@@ -7,6 +7,7 @@ static struct type * ptr_decl();
 static struct type * enum_decl();
 static struct type * struct_decl();
 static struct vector * decls(struct symbol * (*)(const char *id, struct type *ftype, int sclass,  struct source src));
+static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  struct source src, bool chkvoid);
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
@@ -306,7 +307,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
                 }
             }
             
-            vec_push(v, paramdecl(id, ty, sclass, src));
+            vec_push(v, paramdecl2(id, ty, sclass, src, false));
             if (token->id != ',')
                 break;
             
@@ -686,6 +687,20 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
     return v;
 }
 
+static struct node * initializer()
+{
+    if (token->id == '{') {
+        // initializer list
+        return initializer_list();
+    } else if (firstexpr(token)) {
+        // assign expr
+        return assign_expr();
+    } else {
+        error("expect '{' or assignment expression");
+        return NULL;
+    }
+}
+
 int firstdecl(struct token *t)
 {
     return t->kind == STATIC || t->kind == INT || t->kind == CONST || (t->id == ID && is_typedef_name(t->name));
@@ -746,6 +761,28 @@ struct node * translation_unit()
     ret->u.d.exts = (struct node **)vtoa(v);
     
     return ret;
+}
+
+static void ensure_func(struct type *ftype, struct source src)
+{
+    if (isarray(rtype(ftype)))
+        errorf(src, "function cannot return array type");
+    else if (isfunc(rtype(ftype)))
+        errorf(src, "function cannot return function type");
+}
+
+static void ensure_array(struct type *atype, struct source src, int level)
+{
+    if (isfunc(rtype(atype)))
+        errorf(src, "array of function is invalid");
+    else if (isvoid(rtype(atype)))
+        errorf(src, "array has incomplete element type '%s'", rtype(atype)->name);
+}
+
+static void ensure_nonvoid(struct type *ty, struct source src, int level)
+{
+    if (isvoid(ty))
+        errorf(src, "%s may not have 'void' type", level == PARAM ? "argument" : "variable");
 }
 
 static struct type * enum_decl()
@@ -918,7 +955,7 @@ static struct type * struct_decl()
     return sym->type;
 }
 
-static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)
+static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  struct source src, bool chkvoid)
 {
     struct symbol *sym = NULL;
     if (sclass && sclass != REGISTER) {
@@ -926,9 +963,15 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
         sclass = 0;
     }
     
+    // oldstyle
+    if (chkvoid)
+        ensure_nonvoid(ty, src, PARAM);
+    
     if (isfunc(ty)) {
+        ensure_func(ty, src);
         ty = ptr_type(ty);
     } else if (isarray(ty)) {
+        ensure_array(ty, src, PARAM);
         ty = ptr_type(rtype(ty));
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!tag_sym(ty)->defined)
@@ -950,6 +993,11 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
     sym->sclass = sclass;
     
     return sym;
+}
+
+static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)
+{
+    return paramdecl2(id, ty, sclass, src, true);
 }
 
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src)
@@ -1110,7 +1158,7 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
         struct vector *v = new_vector();
         enter_scope();
         while (firstdecl(token))
-            vec_add_from_array(v, (void **)decls(paramdecl));
+            vec_add_from_vector(v, decls(paramdecl));
         
         for (int i=0; i < vec_len(v); i++) {
             struct node *decl = (struct node *)vec_at(v, i);
@@ -1150,20 +1198,6 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
     }
     
     return decl;
-}
-
-static struct node * initializer()
-{
-    if (token->id == '{') {
-        // initializer list
-        return initializer_list();
-    } else if (firstexpr(token)) {
-        // assign expr
-        return assign_expr();
-    } else {
-        error("expect '{' or assignment expression");
-        return NULL;
-    }
 }
 
 struct node * initializer_list()

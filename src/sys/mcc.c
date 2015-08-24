@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include "sys.h"
 #include "utils.h"
+#include "config.h"
 
 extern int cpp_main(int argc, char *argv[]);
 extern int cc_main(int argc, char *argv[]);
@@ -50,7 +51,7 @@ static char *tempname(const char *hint)
 {
     static char *tmpdir;
     if (!tmpdir) {
-        tmpdir = mk_temp_dir();
+        tmpdir = mktmpdir();
         if (!tmpdir)
             die("Can't make temporary directory.");
     }
@@ -155,6 +156,12 @@ static void translate(void *elem, void *context)
         fails++;
 }
 
+static void setup_env()
+{
+    setlocale(LC_ALL, "");
+    ENV.is_color_term = is_color_term();
+}
+
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
@@ -194,7 +201,7 @@ int main(int argc, char **argv)
         goto end;
     }
     
-    setlocale(LC_ALL, "");
+    setup_env();
     vec_foreach(inputlist, translate, optionlist);
     
     if (fails) {
