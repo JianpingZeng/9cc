@@ -13,12 +13,6 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
 static struct node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
 static struct node * initializer();
 
-static void conflicting_types_error(struct source src, struct symbol *sym)
-{
-    errorf(src, "conflicting types for '%s', previous at %s line %u",
-           sym->name, sym->src.file, sym->src.line);
-}
-
 static void validate_func_or_array(struct type *ty)
 {
     //TODO: ty->type may be null
@@ -313,7 +307,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
             attach_type(&ty, basety);
             
             if (isinline(basety))
-                error("invalid function specifier 'inline' in parameter list");
+                error("'inline' can only appear on functions");
             if (isvoid(ty)) {
                 if (i == 0 && token->id == ')') {
                     if (id)
@@ -357,8 +351,13 @@ static struct symbol ** parameters(struct type *ftype, int *params)
     } else if (token->id == ')') {
         ftype->u.f.oldstyle = 1;
     } else {
-        error("invalid token '%s' in parameter list", token->name);
-        gettok();
+        int follow[] = {')', IF, 0};
+        if (token->id == ELLIPSIS)
+            error("ISO C requires a named parameter before '...'");
+        else
+            error("expect parameter declarator at '%s'", token->name);
+        
+        match(')', follow);
     }
     
     if (params) {
@@ -376,6 +375,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
 static struct type * func_or_array(int *params)
 {
     struct type *ty = NULL;
+    int follow[] = {'[', ID, IF, 0};
     
     for (; token->id == '(' || token->id == '['; ) {
         if (token->id == '[') {
@@ -414,19 +414,16 @@ static struct type * func_or_array(int *params)
             } else if (firstexpr(token)) {
                 atype->u.a.assign = assign_expr();
             }
-            expect(']');
+            match(']', follow);
             attach_type(&ty, atype);
         } else {
             struct type *ftype = func_type();
             expect('(');
             ftype->u.f.params = parameters(ftype, params);
-            expect(')');
+            match(')', follow);
             attach_type(&ty, ftype);
         }
     }
-    
-    // TODO:
-    validate_func_or_array(ty);
     
     return ty;
 }
@@ -459,9 +456,6 @@ static struct type * abstract_func_or_array()
             attach_type(&ty, ftype);
         }
     }
-    
-    // TODO
-    validate_func_or_array(ty);
     
     return ty;
 }
@@ -905,7 +899,7 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 {
     struct symbol *sym = NULL;
     if (sclass && sclass != REGISTER) {
-        error("invalid storage class specifier '%s' in parameter list", tname(sclass));
+        error("invalid storage class specifier '%s' in function declarator", tname(sclass));
         sclass = 0;
     }
     
@@ -964,7 +958,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!tag_sym(ty)->defined)
-            error("incomplete type '%s %s'", ty->name, ty->tag);
+            error("variable incomplete type '%s %s'", ty->name, ty->tag);
     }
     validate_func_or_array(ty);
     
@@ -1016,7 +1010,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!tag_sym(ty)->defined && sclass != TYPEDEF)
-            error("incomplete type '%s %s'", ty->name, ty->tag);
+            error("variable has incomplete type '%s %s'", ty->name, ty->tag);
     }
     validate_func_or_array(ty);
     
@@ -1081,11 +1075,11 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
             struct symbol *sym = ftype->u.f.params[i];
             sym->defined = true;
             // params id is required in prototype
-            if (sym->name == NULL)
+            if (issymnamed(sym))
                 errorf(sym->src, "parameter name omitted");
             if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
                 if (!tag_sym(sym->type)->defined)
-                    errorf(sym->src, "incomplete type '%s %s'", sym->type->name, sym->type->tag);
+                    errorf(sym->src, "variable has incomplete type '%s %s'", sym->type->name, sym->type->tag);
                 else if (sym->type->tag)
                     warningf(sym->src, "declaration of '%s %s' will not be visible outside of this function", sym->type->name, sym->type->tag);
             }

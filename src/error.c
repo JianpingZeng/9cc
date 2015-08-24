@@ -128,3 +128,9 @@ void redefinition_error(struct source src, struct symbol *sym)
     errorf(src, "redefinition of '%s', previous definition at %s line %u",
            sym->name, sym->src.file, sym->src.line);
 }
+
+void conflicting_types_error(struct source src, struct symbol *sym)
+{
+    errorf(src, "conflicting types for '%s', previous at %s line %u",
+           sym->name, sym->src.file, sym->src.line);
+}

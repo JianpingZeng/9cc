@@ -103,3 +103,8 @@ struct symbol * install(const char *name, struct table **tpp, int scope)
     
     return entry->symbol;
 }
+
+bool issymnamed(struct symbol *sym)
+{
+    return sym->name == NULL || is_digit(sym->name[0]);
+}

@@ -252,7 +252,7 @@ extern struct type    *vartype;		       // variable type
 #define isvolatile(ty)  ((ty)->q.is_volatile)
 #define isrestrict(ty)  ((ty)->q.is_restrict)
 #define isinline(ty)    ((ty)->q.is_inline)
-#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty) || isinline(ty))
+#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
 #define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
 
 #define kind(ty)        (unqual(ty)->kind)
@@ -320,6 +320,9 @@ extern struct symbol * lookup(const char *name, struct table *table);
 // install a symbol with specified scope
 extern struct symbol * install(const char *name, struct table **tpp, int scope);
 
+// sym->name is NULL or anynomous
+extern bool issymnamed(struct symbol *sym);
+
 extern struct table * identifiers;
 extern struct table * constants;
 extern struct table * tags;
@@ -341,6 +344,7 @@ extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 
 extern void redefinition_error(struct source src, struct symbol *sym);
+extern void conflicting_types_error(struct source src, struct symbol *sym);
 
 // gen.c
 void walk(struct node *tree);
