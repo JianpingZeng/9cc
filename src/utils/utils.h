@@ -49,6 +49,7 @@ struct vector {
 extern struct vector *new_vector();
 
 extern void * vec_at(struct vector *v, int index);
+extern void vec_set(struct vector *v, int index, void *val);
 extern void vec_push(struct vector *v, void *elem);
 extern size_t vec_len(struct vector *v);
 extern void * vec_head(struct vector *v);

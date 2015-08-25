@@ -133,6 +133,12 @@ static void print_decl(struct node *node, struct print_context context)
             print_tree1(con);
         }
     }
+    
+    struct node *init = node->u.d.init;
+    if (init) {
+        struct print_context con = {level, init};
+        print_tree1(con);
+    }
 }
 
 static void print_expr(struct node *node, struct print_context context)
@@ -172,6 +178,12 @@ static void print_expr(struct node *node, struct print_context context)
         }
         if (els) {
             struct print_context con = {level, els};
+            print_tree1(con);
+        }
+    } else if (node->id == INITS_EXPR) {
+        struct node **inits = node->u.e.inits;
+        for (int i=0; inits[i]; i++) {
+            struct print_context con = {level, inits[i]};
             print_tree1(con);
         }
     }

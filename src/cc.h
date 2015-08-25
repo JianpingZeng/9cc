@@ -120,6 +120,7 @@ struct node {
         struct {
             int scope;
             struct node **exts;
+            struct node *init;
         }d;
     }u;
 };
@@ -132,6 +133,7 @@ extern struct node * ast_stmt(int id, struct node *l, struct node *r);
 extern struct node * ast_uop(int op, struct type *ty, struct node *l);
 extern struct node * ast_bop(int op, struct node *l, struct node *r);
 extern struct node * ast_conv(struct type *ty, struct node *l);
+extern struct node * ast_vinit();
 
 // expr.c
 extern struct node * expression();

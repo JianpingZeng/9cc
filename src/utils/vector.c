@@ -29,6 +29,12 @@ void * vec_at(struct vector *v, int index)
     return v->mem[index];
 }
 
+void vec_set(struct vector *v, int index, void *val)
+{
+    assert(index >= 0 && index < v->len);
+    v->mem[index] = val;
+}
+
 void * vec_head(struct vector *v)
 {
     assert(v->len > 0);

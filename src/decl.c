@@ -13,6 +13,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
 static struct node * initializer(struct type *ty);
+static void fields(struct type *sty);
 
 static struct type * specifiers(int *sclass)
 {
@@ -651,6 +652,28 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
                     decl = ast_decl(VAR_DECL, SCOPE);
                 
                 decl->sym = sym;
+                
+                //TODO: param decl has no initializer
+                if (token->id == '=') {
+                    struct node *init = NULL;
+                    expect('=');
+                    init = initializer(ty);
+                    if (init) {
+                        if (sclass == EXTERN)
+                            warningf(src, "'extern' variable has an initializer");
+                        else if (sclass == TYPEDEF)
+                            errorf(src, "illegal initializer (only variable can be initialized)");
+                    }
+                    
+                    if (SCOPE == GLOBAL) {
+                        if (sym->defined && init)
+                            redefinition_error(src, sym);
+                        sym->defined = init ? true : false;
+                    }
+                    
+                    decl->u.d.init = init;
+                }
+                
                 vec_push(v, decl);
             }
             
@@ -844,6 +867,42 @@ static struct type * enum_decl()
     return sym->type;
 }
 
+static struct type * struct_decl()
+{
+    int t = token->id;
+    const char *id = NULL;
+    struct symbol *sym = NULL;
+    struct source src = source;
+    int follow[] = {INT, CONST, STATIC, IF, '[', 0};
+    
+    expect(t);
+    if (token->id == ID) {
+        id = token->name;
+        expect(ID);
+    }
+    if (token->id == '{') {
+        expect('{');
+        sym = tag_type(t, id, src);
+        sym->defined = true;
+        fields(sym->type);
+        match('}', follow);
+    } else if (id) {
+        sym = lookup(id, tags);
+        if (sym && currentscope(sym)) {
+            if (op(sym->type) != t)
+                errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+                       tname(t), id, sym->type->name, sym->type->tag, sym->src.file, sym->src.line);
+        } else {
+            sym = tag_type(t, id, src);
+        }
+    } else {
+        error("expected identifier or '{'");
+        sym = tag_type(t, NULL, src);
+    }
+    
+    return sym->type;
+}
+
 // TODO: not finished yet
 static void fields(struct type *sty)
 {
@@ -919,40 +978,80 @@ static void fields(struct type *sty)
     sty->u.s.fields = (struct field **)vtoa(v);
 }
 
-static struct type * struct_decl()
+//TODO: not finished yet
+struct node * initializer_list(struct type *ty)
 {
-    int t = token->id;
-    const char *id = NULL;
-    struct symbol *sym = NULL;
-    struct source src = source;
-    int follow[] = {INT, CONST, STATIC, IF, '[', 0};
+    int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     
-    expect(t);
-    if (token->id == ID) {
-        id = token->name;
-        expect(ID);
-    }
-    if (token->id == '{') {
-        expect('{');
-        sym = tag_type(t, id, src);
-        sym->defined = true;
-        fields(sym->type);
-        match('}', follow);
-    } else if (id) {
-        sym = lookup(id, tags);
-        if (sym && currentscope(sym)) {
-            if (op(sym->type) != t)
-                errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(t), id, sym->type->name, sym->type->tag, sym->src.file, sym->src.line);
-        } else {
-            sym = tag_type(t, id, src);
+    struct node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
+    struct vector *vec = new_vector();
+    expect('{');
+    for (int i = 0; token->id == '[' || token->id == '.' || token->id == '{' || firstexpr(token); i++) {
+        struct node *inode = NULL;
+        struct type *dty = ty;
+        struct vector *v = vec;
+        struct node *n = ret;
+        int j = i;
+        
+        if (token->id == '[' || token->id == '.') {
+            do {
+                if (token->id == '[') {
+                    struct source src = source;
+                    expect('[');
+                    //TODO: eval
+                    int k = intexpr();
+                    expect(']');
+                    if (isarray(dty)) {
+                        //TODO: check bound
+                        dty = rtype(dty);
+                    } else {
+                        errorf(src, "array designator cannot initialize non-array type '%s'", dty->name);
+                    }
+                } else {
+                    expect('.');
+                    if (token->id == ID) {
+                        if (isstruct(dty) || isunion(dty)) {
+                            int k;
+                            int len = array_len((void **)dty->u.s.fields);
+                            for (k = 0; k < len; k++) {
+                                struct field *field = dty->u.s.fields[k];
+                                if (field->name && !strcmp(token->name, field->name))
+                                    break;
+                            }
+                            if (k < len) {
+                                
+                            } else {
+                                error("field designator '%s' dose not refer to any filed in type '%s %s'", token->name, dty->name, dty->tag);
+                            }
+                        } else {
+                            error("field designator cannot initialize a non-struct, non-union type '%s'", dty->name);
+                        }
+                    }
+                    expect(ID);
+                }
+            } while (token->id == '[' || token->id == '.');
+            expect('=');
         }
-    } else {
-        error("expected identifier or '{'");
-        sym = tag_type(t, NULL, src);
+        
+        inode = initializer(dty);
+        
+        for (int k=vec_len(v); k < j; k++)
+            vec_push(v, ast_vinit());
+        
+        vec_push(v, inode);
+        
+        //TODO: excess elements error
+        
+        if (token->id != ',')
+            break;
+        
+        expect(',');
     }
     
-    return sym->type;
+    match('}', follow);
+    ret->u.e.inits = (struct node **)vtoa(vec);
+    
+    return ret;
 }
 
 static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  struct source src, bool chkvoid)
@@ -1003,23 +1102,9 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src)
 {
     struct symbol *sym = NULL;
-    struct node *init_node = NULL;
     
     assert(id);
     assert(SCOPE >= LOCAL);
-    
-    if (token->id == '=') {
-        // initializer
-        expect('=');
-        init_node = initializer(ty);
-    }
-    
-    if (init_node) {
-        if (sclass == EXTERN)
-            errorf(src, "'extern' variable cannot have an initializer");
-        else if (sclass == TYPEDEF)
-            errorf(src, "illegal initializer (only variable can be initialized)");
-    }
     
     if (isfunc(ty)){
         if (ty->u.f.params && ty->u.f.oldstyle)
@@ -1049,27 +1134,13 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src)
 {
     struct symbol *sym = NULL;
-    struct node *init_node = NULL;
     
     assert(id);
     assert(SCOPE == GLOBAL);
     
-    if (token->id == '=') {
-        // initializer
-        expect('=');
-        init_node = initializer(ty);
-    }
-    
     if (sclass == AUTO || sclass == REGISTER) {
         errorf(src, "illegal storage class on file-scoped variable");
         sclass = 0;
-    }
-    
-    if (init_node) {
-        if (sclass == EXTERN)
-            warningf(src, "'extern' variable has an initializer");
-        else if (sclass == TYPEDEF)
-            errorf(src, "illegal initializer (only variable can be initialized)");
     }
     
     if (isfunc(ty)) {
@@ -1087,12 +1158,9 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
         sym = install(id, &identifiers, SCOPE);
         sym->type = ty;
         sym->src = src;
-        sym->defined = init_node ? true : false;
         sym->sclass = sclass;
     } else if (sclass != TYPEDEF && eqtype(ty, sym->type)) {
-        if (sym->defined && init_node)
-            redefinition_error(src, sym);
-        else if (sclass == STATIC && sym->sclass != STATIC)
+        if (sclass == STATIC && sym->sclass != STATIC)
             errorf(src, "static declaration of '%s' follows non-static declaration", id);
         else if (sym->sclass == STATIC && sclass != STATIC)
             errorf(src, "non-static declaration of '%s' follows static declaration", id);
@@ -1198,54 +1266,4 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
     }
     
     return decl;
-}
-
-//TODO: not finished yet
-struct node * initializer_list(struct type *ty)
-{
-    int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    
-    struct node *ret = ast_expr(INITS_EXPR, '{', NULL, NULL);
-    struct vector *v = new_vector();
-    expect('{');
-    for (; token->id == '[' || token->id == '.' || token->id == '{'
-         || firstexpr(token);) {
-        struct node *dnode = NULL;
-        struct node *inode = NULL;
-        
-        if (token->id == '[' || token->id == '.') {
-            do {
-                if (token->id == '[') {
-                    expect('[');
-                    intexpr();
-                    expect(']');
-                } else {
-                    expect('.');
-                    if (token->id == ID) {
-                        
-                    }
-                    expect(ID);
-                }
-            } while (token->id == '[' || token->id == '.');
-            expect('=');
-        }
-        
-        inode = initializer(NULL);
-        if (dnode) {
-            struct node *assign_node = ast_bop('=', dnode, inode);
-            vec_push(v, assign_node);
-        } else {
-            vec_push(v, inode);
-        }
-        
-        if (token->id != ',')
-            break;
-        
-        expect(',');
-    }
-    
-    match('}', follow);
-    ret->u.e.inits = (struct node **)vtoa(v);
-    
-    return ret;
 }
