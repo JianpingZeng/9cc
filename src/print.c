@@ -7,106 +7,7 @@ struct print_context {
     struct node * node;
 };
 
-struct type_context {
-    int level;
-    struct type * type;
-};
-
 static void print_tree1(struct print_context context);
-static void print_type1(struct type_context context);
-
-static void print_qual(struct type *type)
-{
-    if (isconst(type)) {
-        fprintf(stderr, "const ");
-    }
-    if (isvolatile(type)) {
-        fprintf(stderr, "volatile ");
-    }
-    if (isrestrict(type)) {
-        fprintf(stderr, "restrict ");
-    }
-    if (isinline(type)) {
-        fprintf(stderr, "inline ");
-    }
-}
-
-static void print_params(struct type_context context)
-{
-    struct symbol **params = context.type->u.f.params;
-    if (params) {
-        for (int i=0; params[i]; i++) {
-            struct symbol *sym = params[i];
-            struct type_context con = {context.level+1, sym->type};
-            for (int i=0; i < context.level+1; i++)
-                fprintf(stderr, "  ");
-            fprintf(stderr, "'%s' %s ", STR(sym->name), sym->defined ? "<defined>" : "");
-            print_type1(con);
-        }
-    }
-}
-
-static void print_return(struct type_context context)
-{
-    struct type_context rcontext = {context.level+1, context.type};
-    for (int i=0; i < rcontext.level; i++)
-        fprintf(stderr, "  ");
-    fprintf(stderr, "return ");
-    print_type1(rcontext);
-}
-
-static void print_short_type(struct type *type)
-{
-    struct type *rty = unqual(type);
-    print_qual(type);
-    if (isfunc(type)) {
-        fprintf(stderr, "'%s'", rty->name);
-    } else if (isptr(type)) {
-        fprintf(stderr, "'%s to %s'", rty->name, unqual(rty->type)->name);
-    } else if (isarray(type)) {
-        fprintf(stderr, "'%s %lu of'", rty->name, rty->size);
-    } else if (isenum(type) || isstruct(type) || isunion(type)) {
-        fprintf(stderr, "'%s %s'", rty->name, rty->tag);
-    } else {
-        fprintf(stderr, "'%s'", rty->name);
-    }
-}
-
-static void print_type1(struct type_context context)
-{
-    struct type *type = context.type;
-    if (type) {
-        struct type *rty = unqual(type);
-        struct type_context tcontext = {context.level, rty->type};
-        print_qual(type);
-        if (isfunc(type)) {
-            fprintf(stderr, "%s", rty->name);
-            fprintf(stderr, "\n");
-            print_return(tcontext);
-            print_params(context);
-        } else if (isptr(type)) {
-            fprintf(stderr, "%s to ", rty->name);
-            print_type1(tcontext);
-        } else if (isarray(type)) {
-            fprintf(stderr, "%s %lu of ", rty->name, rty->size);
-            print_type1(tcontext);
-        } else if (isenum(type) || isstruct(type) || isunion(type)) {
-            fprintf(stderr, "%s %s ", rty->name, rty->tag);
-            print_type1(tcontext);
-        } else {
-            fprintf(stderr, "%s ", rty->name);
-            print_type1(tcontext);
-        }
-    } else {
-        fprintf(stderr, "\n");
-    }
-}
-
-void print_type(struct type *type)
-{
-    struct type_context context = {0, type};
-    print_type1(context);
-}
 
 static void print_decl(struct node *node, struct print_context context)
 {
@@ -114,15 +15,12 @@ static void print_decl(struct node *node, struct print_context context)
     
     if (node->sym) {
         fprintf(stderr, "%s '%s' %s ", nname(node), STR(node->sym->name), node->sym->defined ? "<defined>" : "");
-        if (node->sym->type) {
-            struct type_context tcontext = {context.level, node->sym->type};
-            print_type1(tcontext);
-        } else {
-            fprintf(stderr, "\n");
-        }
+        if (node->sym->type)
+            fprintf(stderr, "'%s'", type2s(node->sym->type));
     } else {
-        fprintf(stderr, "%s\n", nname(node));
+        fprintf(stderr, "%s", nname(node));
     }
+    fprintf(stderr, "\n");
     
     level = context.level + 1;
     
@@ -151,7 +49,7 @@ static void print_expr(struct node *node, struct print_context context)
     else
         fprintf(stderr, "%s '%s' %s ", nname(node), tname(op), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
     if (node->type)
-        print_short_type(node->type);
+        fprintf(stderr, "'%s'", type2s(node->type));
     fprintf(stderr, "\n");
     
     level = context.level + 1;

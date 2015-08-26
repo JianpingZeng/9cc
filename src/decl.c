@@ -805,7 +805,7 @@ static void ensure_array(struct type *atype, struct source src, int level)
     if (isfunc(rtype(atype)))
         errorf(src, "array of function is invalid");
     else if (isvoid(rtype(atype)))
-        errorf(src, "array has incomplete element type '%s'", rtype(atype)->name);
+        errorf(src, "array has incomplete element type '%s'", type2s(rtype(atype)));
 }
 
 static void ensure_nonvoid(struct type *ty, struct source src, int level)
@@ -858,10 +858,10 @@ static struct type * enum_decl()
         sym->defined = true;
     } else if (id) {
         sym = lookup(id, tags);
-        if (sym && currentscope(sym)) {
-            if (!isenum(sym->type))
-                errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(ENUM), id, sym->type->name, sym->type->tag,  sym->src.file, sym->src.line);
+        if (sym) {
+            if (currentscope(sym) && !isenum(sym->type))
+                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+                       tname(ENUM), id, type2s(sym->type),  sym->src.file, sym->src.line);
         } else {
             sym = tag_type(ENUM, id, src);
         }
@@ -894,10 +894,10 @@ static struct type * struct_decl()
         match('}', follow);
     } else if (id) {
         sym = lookup(id, tags);
-        if (sym && currentscope(sym)) {
-            if (op(sym->type) != t)
-                errorf(src, "use of '%s %s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(t), id, sym->type->name, sym->type->tag, sym->src.file, sym->src.line);
+        if (sym) {
+            if (currentscope(sym) && op(sym->type) != t)
+                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+                       tname(t), id, type2s(sym->type), sym->src.file, sym->src.line);
         } else {
             sym = tag_type(t, id, src);
         }
@@ -952,9 +952,9 @@ static void fields(struct type *sty)
             if (hasbit) {
                 if (!isint(field->type)) {
                     if (field->name)
-                        error("bit-field '%s' has non-integral type '%s'", field->name, field->type->name);
+                        error("bit-field '%s' has non-integral type '%s'", field->name, type2s(field->type));
                     else
-                        error("anonymous bit-field has non-integral type '%s'", field->type->name);
+                        error("anonymous bit-field has non-integral type '%s'", type2s(field->type));
                 }
                 if (field->bitsize < 0) {
                     if (field->name)
@@ -1127,8 +1127,7 @@ static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  
         ty = ptr_type(rtype(ty));
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!tag_sym(ty)->defined)
-            warningf(src, "declaration of '%s %s' will not be visible outside of this function",
-                     ty->name, ty->tag);
+            warningf(src, "declaration of '%s' will not be visible outside of this function", type2s(ty));
     }
     
     if (id) {
@@ -1166,7 +1165,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!tag_sym(ty)->defined)
-            error("variable incomplete type '%s %s'", ty->name, ty->tag);
+            error("variable has incomplete type '%s'", type2s(ty));
     }
     
     sym = lookup(id, identifiers);
@@ -1203,7 +1202,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!tag_sym(ty)->defined && sclass != TYPEDEF)
-            error("variable has incomplete type '%s %s'", ty->name, ty->tag);
+            error("variable has incomplete type '%s'", type2s(ty));
     }
     
     sym = lookup(id, identifiers);
@@ -1267,9 +1266,9 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
                 errorf(sym->src, "parameter name omitted");
             if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
                 if (!tag_sym(sym->type)->defined)
-                    errorf(sym->src, "variable has incomplete type '%s %s'", sym->type->name, sym->type->tag);
+                    errorf(sym->src, "variable has incomplete type '%s'", type2s(sym->type));
                 else if (sym->type->tag)
-                    warningf(sym->src, "declaration of '%s %s' will not be visible outside of this function", sym->type->name, sym->type->tag);
+                    warningf(sym->src, "declaration of '%s' will not be visible outside of this function", type2s(sym->type));
             }
         }
     }

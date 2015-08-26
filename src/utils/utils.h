@@ -27,6 +27,7 @@ extern size_t str_len(struct string *s);
 extern void str_cats(struct string *s, const char *src);
 extern void str_catn(struct string *s, const char *src, int len);
 extern void str_catd(struct string *s, long d);
+extern void str_strip(struct string *s);
 // string to array
 extern char * stoa(struct string *s);
 

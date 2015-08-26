@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include "utils.h"
 
 static void str_grow(struct string *s, int len)
@@ -71,9 +72,39 @@ void str_catd(struct string *s, long n)
     return str_catn(s, ps, str + sizeof (str) - ps);
 }
 
+void str_strip(struct string *s)
+{
+    assert(s);
+    if (s->len == 0) return;
+    char *head, *tail;
+    for (head=s->str, tail=s->str+s->len-1; ;) {
+        int b1 = isblank(*head);
+        int b2 = isblank(*tail);
+        if (b1)
+            head++;
+        if (b2)
+            tail--;
+        if (head > tail || (!b1 && !b2))
+            break;
+    }
+    if (head > tail) {
+        s->len = 0;
+    } else {
+        s->len = tail - head + 1;
+        char *dst = s->str;
+        size_t len = s->len;
+        while (len-- > 0) {
+            *dst++ = *head++;
+        }
+        *dst = 0;
+    }
+}
+
 char * stoa(struct string *s)
 {
-    if (s == NULL) return NULL;
+    if (s == NULL || s->len == 0)
+        return NULL;
+
     return strings(s->str);
 }
 
