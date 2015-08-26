@@ -15,6 +15,12 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
 static struct node * initializer(struct type *ty);
 static void fields(struct type *sty);
 
+struct path {
+    struct vector *v;
+    struct type *type;
+    bool broken;
+};
+
 static struct type * specifiers(int *sclass)
 {
     int cls, sign, size, type;
@@ -978,67 +984,114 @@ static void fields(struct type *sty)
     sty->u.s.fields = (struct field **)vtoa(v);
 }
 
+static struct path * designator(struct type *ty)
+{
+    struct vector *v = new_vector();
+    struct type *dty = ty;
+    bool broken = ty ? false : true;
+    
+    do {
+        if (token->id == '[') {
+            struct source src = source;
+            int i;
+            expect('[');
+            //TODO: eval
+            i = intexpr();
+            expect(']');
+            if (!broken) {
+                if (isarray(dty)) {
+                    //TODO: check bound
+                    dty = rtype(dty);
+                    vec_push(v, stringd(i));
+                } else {
+                    errorf(src, "array designator cannot initialize non-array type '%s'", dty->name);
+                    broken = true;
+                }
+            }
+        } else {
+            expect('.');
+            if (!broken) {
+                if (token->id == ID) {
+                    if (isstruct(dty) || isunion(dty)) {
+                        int k;
+                        int len = array_len((void **)dty->u.s.fields);
+                        for (k = 0; k < len; k++) {
+                            struct field *field = dty->u.s.fields[k];
+                            if (field->name && !strcmp(token->name, field->name))
+                                break;
+                        }
+                        if (k < len) {
+                            dty = dty->u.s.fields[k]->type;
+                            vec_push(v, stringd(k));
+                        } else {
+                            error("field designator '%s' dose not refer to any filed in type '%s %s'", token->name, dty->name, dty->tag);
+                            broken = true;
+                        }
+                    } else {
+                        error("field designator cannot initialize a non-struct, non-union type '%s'", dty->name);
+                        broken = true;
+                    }
+                }
+            }
+            expect(ID);
+        }
+    } while (token->id == '[' || token->id == '.');
+    
+    struct path *path = NEWS(path);
+    path->v = v;
+    path->type = dty;
+    path->broken = broken;
+    
+    return path;
+}
+
+static void parse_path(struct node *root, struct path *path)
+{
+    struct node *node = root;
+    for (int i = 0; i < vec_len(path->v); i++) {
+        const char *name = vec_at(path->v, i);
+        int k = atoi(name);
+        struct vector *v = new_vector();
+        struct node *n = NULL;
+        
+        vec_add_from_array(v, node->u.e.inits);
+        
+        if (k < vec_len(v)) {
+            n = vec_at(v, k);
+        } else {
+            for (int j=vec_len(v); j <= k; j++)
+                vec_push(v, ast_vinit());
+        }
+    }
+}
+
 //TODO: not finished yet
 struct node * initializer_list(struct type *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     
     struct node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
-    struct vector *vec = new_vector();
+    struct vector *v = new_vector();
     expect('{');
     for (int i = 0; token->id == '[' || token->id == '.' || token->id == '{' || firstexpr(token); i++) {
-        struct node *inode = NULL;
+        struct node *inode;
+        struct path *path = NULL;
         struct type *dty = ty;
-        struct vector *v = vec;
-        struct node *n = ret;
-        int j = i;
         
         if (token->id == '[' || token->id == '.') {
-            do {
-                if (token->id == '[') {
-                    struct source src = source;
-                    expect('[');
-                    //TODO: eval
-                    int k = intexpr();
-                    expect(']');
-                    if (isarray(dty)) {
-                        //TODO: check bound
-                        dty = rtype(dty);
-                    } else {
-                        errorf(src, "array designator cannot initialize non-array type '%s'", dty->name);
-                    }
-                } else {
-                    expect('.');
-                    if (token->id == ID) {
-                        if (isstruct(dty) || isunion(dty)) {
-                            int k;
-                            int len = array_len((void **)dty->u.s.fields);
-                            for (k = 0; k < len; k++) {
-                                struct field *field = dty->u.s.fields[k];
-                                if (field->name && !strcmp(token->name, field->name))
-                                    break;
-                            }
-                            if (k < len) {
-                                
-                            } else {
-                                error("field designator '%s' dose not refer to any filed in type '%s %s'", token->name, dty->name, dty->tag);
-                            }
-                        } else {
-                            error("field designator cannot initialize a non-struct, non-union type '%s'", dty->name);
-                        }
-                    }
-                    expect(ID);
-                }
-            } while (token->id == '[' || token->id == '.');
+            path = designator(ty);
+            dty = path->type;
             expect('=');
         }
         
         inode = initializer(dty);
         
-        for (int k=vec_len(v); k < j; k++)
-            vec_push(v, ast_vinit());
+        if (path) {
+            parse_path(v, path);
+        } else {
         
-        vec_push(v, inode);
+            vec_push(v, inode);
+        }
         
         //TODO: excess elements error
         
@@ -1049,7 +1102,7 @@ struct node * initializer_list(struct type *ty)
     }
     
     match('}', follow);
-    ret->u.e.inits = (struct node **)vtoa(vec);
+    ret->u.e.inits = (struct node **)vtoa(v);
     
     return ret;
 }
