@@ -114,7 +114,7 @@ void type_init()
     // void
     INSTALL(voidtype,           "void",                 VOID,           zerometrics);       // VOID
     // variable
-    INSTALL(vartype,            "vartype",              ELLIPSIS,       zerometrics);       // ELLIPSIS
+    INSTALL(vartype,            "...",                  ELLIPSIS,       zerometrics);       // ELLIPSIS
 
 #undef INSTALL
 }

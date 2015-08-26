@@ -1045,38 +1045,50 @@ static struct path * designator(struct type *ty)
     return path;
 }
 
-static void parse_path(struct node *root, struct path *path)
+static struct node * get_slot(struct node *root, struct path *path)
 {
-    struct node *node = root;
-    for (int i = 0; i < vec_len(path->v); i++) {
+    BEGIN_CALL
+    struct node *n = root;
+    int len = vec_len(path->v);
+    for (int i = 0; i < len; i++) {
         const char *name = vec_at(path->v, i);
         int k = atoi(name);
         struct vector *v = new_vector();
-        struct node *n = NULL;
+        vec_add_from_array(v, (void **)n->u.e.inits);
         
-        vec_add_from_array(v, node->u.e.inits);
+        for (int j=vec_len(v); j <= k; j++)
+            vec_push(v, ast_vinit());
         
-        if (k < vec_len(v)) {
-            n = vec_at(v, k);
-        } else {
-            for (int j=vec_len(v); j <= k; j++)
-                vec_push(v, ast_vinit());
+        struct node *slot = vec_at(v, k);
+        if (slot->id == VINIT_EXPR && i < len - 1) {
+            slot = ast_expr(INITS_EXPR, 0, NULL, NULL);
+            vec_set(v, k, slot);
         }
+        
+        n->u.e.inits = (struct node **)vtoa(v);
+        if (i < len - 1)
+            n = slot;
     }
+    END_CALL
+    return n;
 }
 
 //TODO: not finished yet
 struct node * initializer_list(struct type *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    
     struct node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
-    struct vector *v = new_vector();
+    
+    
     expect('{');
     for (int i = 0; token->id == '[' || token->id == '.' || token->id == '{' || firstexpr(token); i++) {
         struct node *inode;
         struct path *path = NULL;
         struct type *dty = ty;
+        
+        path = NEWS(path);
+        path->v = new_vector();
+        vec_push(path->v, stringd(i));
         
         if (token->id == '[' || token->id == '.') {
             path = designator(ty);
@@ -1086,11 +1098,14 @@ struct node * initializer_list(struct type *ty)
         
         inode = initializer(dty);
         
-        if (path) {
-            parse_path(v, path);
-        } else {
-        
-            vec_push(v, inode);
+        if (!path->broken) {
+            struct node *slot = get_slot(ret, path);
+            int k = atoi(vec_tail(path->v));
+            struct node *val = slot->u.e.inits[k];
+            if (val->id != VINIT_EXPR)
+                warning("designator initializer override");
+            slot->u.e.inits[k] = inode;
+            i = atoi(vec_head(path->v));
         }
         
         //TODO: excess elements error
@@ -1102,8 +1117,6 @@ struct node * initializer_list(struct type *ty)
     }
     
     match('}', follow);
-    ret->u.e.inits = (struct node **)vtoa(v);
-    
     return ret;
 }
 

@@ -68,6 +68,8 @@ struct node * ast_conv(struct type *ty, struct node *l)
 
 struct node * ast_vinit()
 {
-    struct node * expr = ast_expr(VINIT_EXPR, 0, NULL, NULL);
-    return expr;
+    static struct node *vinit;
+    if (vinit == NULL)
+        vinit = ast_expr(VINIT_EXPR, 0, NULL, NULL);
+    return vinit;
 }
