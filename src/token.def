@@ -141,7 +141,6 @@ _t(AUTO,        "auto",        STATIC)
 _t(BREAK,       "break",       IF)
 _t(CASE,        "case",        IF)
 _t(_COMPLEX,    "_Complex",    INT)
-_t(CONST,       "const",       CONST)
 _t(CONTINUE,    "continue",    IF)
 _t(DEFAULT,     "default",     IF)
 _t(DO,          "do",          IF)
@@ -151,16 +150,13 @@ _t(FOR,         "for",         IF)
 _t(GOTO,        "goto",        IF)
 _t(IF,          "if",          IF)
 _t(_IMAGINARY,  "_Imaginary",  INT)
-_t(INLINE,      "inline",      INT)
 _t(REGISTER,    "register",    STATIC)
-_t(RESTRICT,    "restrict",    CONST)
 _t(RETURN,      "return",      IF)
 _t(SIZEOF,      "sizeof",      ID)
 _t(STATIC,      "static",      STATIC)
 _t(SIGNED,      "signed",      INT)
 _t(SWITCH,      "switch",      IF)
 _t(TYPEDEF,     "typedef",     STATIC)
-_t(VOLATILE,    "volatile",    CONST)
 _t(WHILE,       "while",       IF)
 
 // type op && kind
@@ -177,6 +173,14 @@ _t(UNSIGNED,    "unsigned",    INT)
 _t(FLOAT,       "float",       INT)
 _t(DOUBLE,      "double",      INT)
 _t(LONG,        "long",        INT)
+
+// qualifiers
+_t(CONST,       "const",       CONST)
+_t(RESTRICT,    "restrict",    CONST)
+_t(VOLATILE,    "volatile",    CONST)
+
+// func specifier
+_t(INLINE,      "inline",      INT)
 
 // operators
 

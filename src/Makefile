@@ -87,7 +87,7 @@ TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
 TEST_INTERNAL := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/internal/*.c))
 TEST_AST := $(TESTDIR)/ast/ast.bin
-TESTS=$(TEST_INTERNAL) $(TEST_AST)
+TESTS=$(TEST_INTERNAL)
 
 $(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP)
 	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1) -o $@

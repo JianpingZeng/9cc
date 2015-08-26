@@ -178,12 +178,7 @@ struct type {
     const char *name;
     size_t size;
     unsigned rank;
-    struct {
-        unsigned is_const : 1;
-        unsigned is_volatile : 1;
-        unsigned is_restrict : 1;
-        unsigned is_inline : 1;
-    }q;
+    bool inlined;
     struct type *type;
     const char *tag;
     union {
@@ -228,6 +223,7 @@ extern struct type * ptr_type(struct type *ty);
 extern struct type * func_type();
 extern struct symbol * tag_type(int t, const char *tag, struct source src);
 extern struct symbol * tag_sym(struct type *ty);
+extern const char *type2s(struct type *ty);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
@@ -250,10 +246,10 @@ extern struct type    *vartype;		       // variable type
 
 #define BITS(type)      (CHAR_BIT * (type)->size)
 
-#define isconst(ty)     ((ty)->q.is_const)
-#define isvolatile(ty)  ((ty)->q.is_volatile)
-#define isrestrict(ty)  ((ty)->q.is_restrict)
-#define isinline(ty)    ((ty)->q.is_inline)
+extern bool isconst(struct type *ty);
+extern bool isvolatile(struct type *ty);
+extern bool isrestrict(struct type *ty);
+#define isinline(ty)    ((ty)->inlined)
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
 #define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
 
@@ -353,6 +349,5 @@ void walk(struct node *tree);
 
 // print.c
 extern void print_tree(struct node *tree);
-extern void print_type(struct type *type);
 
 #endif

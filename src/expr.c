@@ -329,13 +329,8 @@ static void ensure_type(struct node *node, bool (*is) (struct type *))
     else
         assert(0);
     
-    if (!is(node->type)) {
-        struct type *rty = unqual(node->type);
-        if (rty->tag)
-            error("%s type expected, not '%s %s'", name, rty->name, rty->tag);
-        else
-            error("%s type expected, not '%s'", name, rty->name);
-    }
+    if (!is(node->type))
+        error("%s type expected, not type '%s'", name, type2s(node->type));
 }
 
 //TODO
@@ -573,7 +568,7 @@ static struct node * sizeof_expr()
     
     ty = n ? n->type : ty;
     if (isfunc(ty) || isvoid(ty))
-        error("'sizeof' to a %s type is invalid", ty->name);
+        error("'sizeof' to a '%s' type is invalid", type2s(ty));
     else if (isincomplete(ty))
         error("'sizeof' to an incomplete array type is invalid");
     
@@ -820,6 +815,11 @@ static struct node * cond_expr1(struct node *cond)
         ret->u.e.c.then = wrap(ty, then);
         ret->u.e.c.els = wrap(ty, els);
         ret->type = ty;
+    } else if ((isstruct(then->type) && isstruct(els->type)) ||
+               (isunion(then->type) && isunion(els->type))) {
+        if (!eqtype(then->type, els->type))
+            ;
+        ret->type = unqual(then->type);
     }
     //TODO: other cases
     
@@ -864,13 +864,10 @@ struct node * expression()
 int intexpr()
 {
     struct source src = source;
-    struct node *expr = cond_expr();
-    int error = 0;
-    int val = eval(expr, &error);
-    if (error)
-        errorf(src, "expect constant expression");
+    struct node *cond = cond_expr();
+    struct node *ret = eval(cond);
     
-    return val;
+    return 0;
 }
 
 struct node * constexpr()
@@ -882,12 +879,12 @@ struct node * constexpr()
 
 static struct node * eval_bop(struct node *expr)
 {
-    
+    return NULL;
 }
 
 static struct node * eval_uop(struct node *expr)
 {
-    
+    return NULL;
 }
 
 //TODO
@@ -900,7 +897,7 @@ static struct node * eval(struct node *expr)
         case UNARY_OPERATOR:
             return eval_uop(expr);
         case PAREN_EXPR:
-            return eval(KID0(expr));
+            return eval(LEFT(expr));
         case COND_EXPR:
         case SUBSCRIPT_EXPR:
         case MEMBER_EXPR:
@@ -908,7 +905,7 @@ static struct node * eval(struct node *expr)
         case CAST_EXPR:
         case CALL_EXPR:
         case INITS_EXPR:
-            break;
+            return NULL;
         case INTEGER_LITERAL:
         case FLOAT_LITERAL:
         case STRING_LITERAL:
@@ -971,7 +968,7 @@ static struct node * bop(int op, struct node *l, struct node *r)
                 } else if (isptr(r->type)) {
                     node->type = inttype;
                 } else {
-                    error("expect integer or pointer type, but got %s type", r->type->name);
+                    error("expect integer or pointer type, but got type '%s'", type2s(r->type));
                     node->type = l->type;
                 }
             } else {

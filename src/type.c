@@ -182,19 +182,30 @@ void attach_type(struct type **typelist, struct type *type)
     }
 }
 
+static int combine(int t, int op)
+{
+    int r = CONST + VOLATILE + RESTRICT - t;
+    int x = op - t;
+    
+    if (op == t || r == x)
+        return op;
+    else if (op == r)
+        return t + op;
+    else if (x == CONST || x == VOLATILE || x == RESTRICT)
+        return op;
+    else
+        return t + op;
+}
+
 struct type * qual(int t, struct type *ty)
 {
     assert(ty);
     struct type *qty = new_type();
+    if (isqual(ty))
+        qty->kind = combine(t, ty->kind);
+    else
+        qty->kind = t;
     qty->type = unqual(ty);
-    qty->q = ty->q;
-    switch (t) {
-        case CONST:     qty->q.is_const = 1;    break;
-        case VOLATILE:  qty->q.is_volatile = 1; break;
-        case RESTRICT:  qty->q.is_restrict = 1; break;
-        case INLINE:    qty->q.is_inline = 1;   break;
-        default:        assert(0);
-    }
     return qty;
 }
 
@@ -287,6 +298,7 @@ struct symbol * tag_type(int t, const char *tag, struct source src)
 
 struct symbol * tag_sym(struct type *ty)
 {
+    ty = unqual(ty);
     assert(ty->tag);
     struct symbol *sym = lookup(ty->tag, tags);
     assert(sym && sym->type == ty);
@@ -321,41 +333,34 @@ static bool eqparams(struct symbol **params1, struct symbol **params2)
     }
 }
 
-//TODO
 bool eqtype(struct type *ty1, struct type *ty2)
 {
     if (ty1 == ty2)
         return true;
-    else if (ty1 == NULL || ty2 == NULL)
+    else if (ty1->kind != ty2->kind)
         return false;
     
-    if (op(ty1) != op(ty2))
-        return false;
-    else if (ty1->q.is_const != ty2->q.is_const ||
-             ty1->q.is_volatile != ty2->q.is_volatile ||
-             ty1->q.is_restrict != ty2->q.is_restrict ||
-             ty1->q.is_inline != ty2->q.is_inline)
-        return false;
-    
-    ty1 = unqual(ty1);
-    ty2 = unqual(ty2);
-    
-    switch (op(ty1)) {
+    switch (ty1->kind) {
+        case CONST:
+        case VOLATILE:
+        case RESTRICT:
+        case CONST+VOLATILE:
+        case CONST+RESTRICT:
+        case VOLATILE+RESTRICT:
+        case CONST+VOLATILE+RESTRICT:
+            return eqtype(ty1->type, ty2->type);
         case ENUM:
         case UNION:
         case STRUCT:
             return false;
-            
         case INT:
         case UNSIGNED:
         case FLOAT:
         case VOID:
             return ty1 == ty2;
-            
         case POINTER:
         case ARRAY:
             return eqtype(ty1->type, ty2->type);
-            
         case FUNCTION:
             if (!eqtype(ty1->type, ty2->type))
                 return false;
@@ -394,6 +399,35 @@ bool eqtype(struct type *ty1, struct type *ty2)
             assert(0);
             return false;
     }
+}
+
+struct type * compose(struct type *ty1, struct type *ty2)
+{
+    
+}
+
+bool isconst(struct type *ty)
+{
+    return  ty->kind == CONST ||
+            ty->kind == CONST + VOLATILE ||
+            ty->kind == CONST + RESTRICT ||
+            ty->kind == CONST + VOLATILE + RESTRICT;
+}
+
+bool isvolatile(struct type *ty)
+{
+    return  ty->kind == VOLATILE ||
+            ty->kind == VOLATILE + CONST ||
+            ty->kind == VOLATILE + RESTRICT ||
+            ty->kind == CONST + VOLATILE + RESTRICT;
+}
+
+bool isrestrict(struct type *ty)
+{
+    return  ty->kind == RESTRICT ||
+            ty->kind == RESTRICT + CONST ||
+            ty->kind == RESTRICT + VOLATILE ||
+            ty->kind == CONST + VOLATILE + RESTRICT;
 }
 
 bool eqarith(struct type *ty1, struct type *ty2)
@@ -454,4 +488,93 @@ bool isarith(struct type *ty)
 bool isscalar(struct type *ty)
 {
     return isarith(ty) || isptr(ty);
+}
+
+static void qualstr(struct string *s, struct type *ty)
+{
+    if (isconst(ty))
+        str_cats(s, "const ");
+    if (isvolatile(ty))
+        str_cats(s, "volatile ");
+    if (isrestrict(ty))
+        str_cats(s, "restrict ");
+}
+
+static const char *returnstr(struct type *ty)
+{
+    struct string *s = new_string();
+    str_cats(s, "(");
+    for (int i=0; i < array_len(ty->u.f.params); i++) {
+        struct type *sty = ty->u.f.params[i]->type;
+        const char *str = type2s(sty);
+        str_cats(s, str);
+        if (i < array_len(ty->u.f.params) - 1)
+            str_cats(s, ", ");
+    }
+    str_cats(s, ")");
+    return stoa(s);
+}
+
+const char *type2s(struct type *ty)
+{
+    struct string *s = new_string();
+    int k = kind(ty);
+    switch (k) {
+        case POINTER:
+        {
+            struct type *pty = ty;
+            struct string *p = new_string();
+            str_cats(p, "*");
+            while (isptr(pty) && isptr(rtype(pty))) {
+                str_cats(p, "*");
+                pty = rtype(pty);
+            }
+            assert(isptr(pty));
+            struct type *rty = rtype(pty);
+            if (isfunc(rty)) {
+                const char *r = type2s(rtype(rty));
+                str_cats(s, r);
+                str_cats(s, " (");
+                str_cats(s, stoa(p));
+                str_cats(s, ") ");
+                str_cats(s, returnstr(rty));
+            } else if (isarray(rty)) {
+                
+            } else {
+                const char *r = type2s(rty);
+                str_cats(s, r);
+                str_cats(s, stoa(p));
+                qualstr(s, ty);
+            }
+        }
+            break;
+        case FUNCTION:
+        {
+            const char *r = type2s(rtype(ty));
+            str_cats(s, r);
+            str_cats(s, returnstr(ty));
+        }
+            break;
+        case ARRAY:
+        {
+            const char *r = type2s(rtype(ty));
+            str_cats(s, r);
+            str_cats(s, "[]");
+        }
+            break;
+        default:
+        {
+            qualstr(s, ty);
+            ty = unqual(ty);
+            str_cats(s, ty->name);
+            if (k == STRUCT || k == UNION || k == ENUM) {
+                str_cats(s, " ");
+                str_cats(s, ty->tag);
+            }
+        }
+            break;
+    }
+    
+    str_strip(s);
+    return stoa(s);
 }
