@@ -1,8 +1,10 @@
 #include "cc.h"
 
-static struct table _identifiers = { .scope = GLOBAL };
-static struct table _constants = { .scope = CONSTANT };
-static struct table _tags = { .scope = GLOBAL };
+#define EMPTY_MAP   ((struct map){ .cmpfn = always_notequal })
+
+static struct table _identifiers = { .scope = GLOBAL, .map = &EMPTY_MAP };
+static struct table _constants = { .scope = CONSTANT, .map = &EMPTY_MAP };
+static struct table _tags = { .scope = GLOBAL, .map = &EMPTY_MAP };
 
 struct table * identifiers = &_identifiers;
 struct table * constants = &_constants;

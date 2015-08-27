@@ -11,19 +11,6 @@
 #define MAP_GROW_FACTOR     80
 #define MAP_RESIZE_BITS     2
 
-struct map_entry {
-    const char *key;
-    void *value;
-    struct map_entry *next;
-};
-
-struct map {
-    unsigned size, tablesize;
-    unsigned grow_at, shrink_at;
-    struct map_entry **table;
-    int (*cmpfn) (const char *key1, const char *key2);
-};
-
 // FNV-1a
 unsigned strhash(const char *s)
 {
@@ -35,13 +22,12 @@ unsigned strhash(const char *s)
     return hash;
 }
 
-static struct map * alloc_map(struct map *map, unsigned size)
+static void alloc_map(struct map *map, unsigned size)
 {
     map->table = zmalloc(size * sizeof(struct map_entry *));
     map->tablesize = size;
     map->grow_at = (unsigned) (size * MAP_GROW_FACTOR / 100);
     map->shrink_at = map->grow_at / ((1<<MAP_RESIZE_BITS) + 1);
-    return map;
 }
 
 static unsigned bucket(struct map *map, const char *key)
@@ -126,40 +112,44 @@ static void map_add(struct map *map, const char *key, void *value)
 
 struct map * new_map(int (*cmpfn) (const char *, const char *))
 {
-    unsigned size = MAP_INIT_SIZE;
     struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
     map->cmpfn = cmpfn ? cmpfn : default_cmpfn;
-    return alloc_map(map, size);
+    alloc_map(map, MAP_INIT_SIZE);
+    return map;
 }
 
 void free_map(struct map *map)
 {
     if (!map)
         return;
-    for (int i = 0; i < map->tablesize; i++) {
-        struct map_entry *entry = map->table[i];
-        while (entry) {
-            struct map_entry *next = entry->next;
-            free(entry);
-            entry = next;
+    if (map->table) {
+        for (int i = 0; i < map->tablesize; i++) {
+            struct map_entry *entry = map->table[i];
+            while (entry) {
+                struct map_entry *next = entry->next;
+                free(entry);
+                entry = next;
+            }
         }
+        free(map->table);
     }
-    free(map->table);
     free(map);
 }
 
 void *map_get(struct map *map, const char *key)
 {
-    struct map_entry *entry = *find_entry(map, key);
-    if (entry)
-        return entry->value;
-    else
+    struct map_entry *entry;
+    if (!map->table)
         return NULL;
+    entry = *find_entry(map, key);
+    return entry ? entry->value : NULL;
 }
 
 void map_put(struct map *map, const char *key, void *value)
 {
+    if (!map->table)
+        alloc_map(map, MAP_INIT_SIZE);
     map_remove(map, key);
     if (value)
         map_add(map, key, value);
