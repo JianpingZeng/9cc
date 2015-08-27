@@ -29,12 +29,10 @@ void enter_scope()
 
 void exit_scope()
 {
-    if (tags->scope == level) {
+    if (tags->scope == level)
         tags = tags->up;
-    }
-    if (identifiers->scope == level) {
+    if (identifiers->scope == level)
         identifiers = identifiers->up;
-    }
     assert(level >= GLOBAL);
     level--;
 }
