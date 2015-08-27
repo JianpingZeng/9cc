@@ -4,7 +4,7 @@
 
 static void test_map()
 {
-    struct map *map = new_map();
+    struct map *map = new_map(NULL);
     
     expectp(map_get(map, "name"), NULL);
     
@@ -28,7 +28,7 @@ static void test_map()
     const char *key11 = strings("key1");
     map_put(map, key1, "value1");
     expects(map_get(map, key1), "value1");
-    expectp(map_get(map, key11), "value1");
+    expects(map_get(map, key11), "value1");
     
     free_map(map);
 }

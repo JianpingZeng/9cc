@@ -14,10 +14,12 @@ extern void cc_drain(void);
 
 // map.c
 extern unsigned strhash(const char *s);
-extern struct map * new_map();
+extern struct map * new_map(int (*cmpfn) (const char *, const char *));
 extern void free_map(struct map *map);
 extern void *map_get(struct map *map, const char *key);
 extern void map_put(struct map *map, const char *key, void *value);
+extern int always_notequal(const char *key1, const char *key2);
+extern int always_equal(const char *key1, const char *key2);
 
 // string.c
 struct string {

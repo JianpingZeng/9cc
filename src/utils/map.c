@@ -21,6 +21,7 @@ struct map {
     unsigned size, tablesize;
     unsigned grow_at, shrink_at;
     struct map_entry **table;
+    int (*cmpfn) (const char *key1, const char *key2);
 };
 
 // FNV-1a
@@ -67,15 +68,30 @@ static void rehash(struct map *map, unsigned newsize)
     free(oldtable);
 }
 
-static int eqentry(struct map_entry *entry, const char *key)
+int always_notequal(const char *key1, const char *key2)
 {
-    return entry->key == key || !strcmp(entry->key, key);
+    return 1;
+}
+
+int always_equal(const char *key1, const char *key2)
+{
+    return 0;
+}
+
+static int default_cmpfn(const char *key1, const char *key2)
+{
+    return strcmp(key1, key2);
+}
+
+static int eqentry(struct map *map, struct map_entry *entry, const char *key)
+{
+    return entry->key == key || !map->cmpfn(entry->key, key);
 }
 
 static struct map_entry ** find_entry(struct map *map, const char *key)
 {
     struct map_entry **entry = &map->table[bucket(map, key)];
-    while (*entry && !eqentry(*entry, key))
+    while (*entry && !eqentry(map, *entry, key))
         entry = &(*entry)->next;
     return entry;
 }
@@ -108,11 +124,12 @@ static void map_add(struct map *map, const char *key, void *value)
         rehash(map, map->tablesize << MAP_RESIZE_BITS);
 }
 
-struct map * new_map()
+struct map * new_map(int (*cmpfn) (const char *, const char *))
 {
     unsigned size = MAP_INIT_SIZE;
     struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
+    map->cmpfn = cmpfn ? cmpfn : default_cmpfn;
     return alloc_map(map, size);
 }
 
