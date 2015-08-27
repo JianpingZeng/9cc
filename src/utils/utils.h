@@ -68,11 +68,11 @@ extern void ** vtoa(struct vector *v);
 extern int array_len(void **array);
 
 // map.c
-extern unsigned strhash(char *s);
+extern unsigned strhash(const char *s);
 extern struct map * new_map();
 extern void free_map(struct map *map);
-extern void *map_get(struct map *map, char *key);
-extern void map_put(struct map *map, char *key, void *value);
+extern void *map_get(struct map *map, const char *key);
+extern void map_put(struct map *map, const char *key, void *value);
 
 // misc.c
 extern void die(const char *fmt, ...);

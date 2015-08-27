@@ -1,6 +1,4 @@
-#include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include "utils.h"
 
 // a key-value implementation
@@ -13,7 +11,7 @@
 #define MAP_RESIZE_BITS     2
 
 struct map_entry {
-    char *key;
+    const char *key;
     void *value;
     struct map_entry *next;
 };
@@ -25,7 +23,7 @@ struct map {
 };
 
 // FNV-1a
-unsigned strhash(char *s)
+unsigned strhash(const char *s)
 {
     unsigned hash = FNV32_BASIS;
     for (; *s; s++) {
@@ -40,11 +38,11 @@ static struct map * alloc_map(struct map *map, unsigned size)
     map->table = xmalloc(size * sizeof(struct map_entry *));
     map->tablesize = size;
     map->grow_at = (unsigned) (size * MAP_GROW_FACTOR / 100);
-    map->shrink_at = map->grow_at / (1<<MAP_RESIZE_BITS + 1);
+    map->shrink_at = map->grow_at / ((1<<MAP_RESIZE_BITS) + 1);
     return map;
 }
 
-static unsigned bucket(struct map *map, char *key)
+static unsigned bucket(struct map *map, const char *key)
 {
     return strhash(key) & (map->tablesize - 1);
 }
@@ -68,15 +66,20 @@ static void rehash(struct map *map, unsigned newsize)
     free(oldtable);
 }
 
-static void ** find_entry(struct map *map, char *key)
+static int eqentry(struct map_entry *entry, const char *key)
+{
+    return entry->key == key || !strcmp(entry->key, key);
+}
+
+static struct map_entry ** find_entry(struct map *map, const char *key)
 {
     struct map_entry **entry = &map->table[bucket(map, key)];
-    while (*entry && strcmp((*entry)->key, key))
+    while (*entry && !eqentry(*entry, key))
         entry = &(*entry)->next;
     return entry;
 }
 
-static void map_remove(struct map *map, char *key)
+static void map_remove(struct map *map, const char *key)
 {
     struct map_entry **entry = find_entry(map, key);
     if (!*entry)
@@ -91,7 +94,7 @@ static void map_remove(struct map *map, char *key)
         rehash(map, map->tablesize >> MAP_RESIZE_BITS);
 }
 
-static void map_add(struct map *map, char *key, void *value)
+static void map_add(struct map *map, const char *key, void *value)
 {
     unsigned b = bucket(map, key);
     struct map_entry *entry = xmalloc(sizeof(struct map_entry));
@@ -128,7 +131,7 @@ void free_map(struct map *map)
     free(map);
 }
 
-void *map_get(struct map *map, char *key)
+void *map_get(struct map *map, const char *key)
 {
     struct map_entry *entry = *find_entry(map, key);
     if (entry)
@@ -137,7 +140,7 @@ void *map_get(struct map *map, char *key)
         return NULL;
 }
 
-void map_put(struct map *map, char *key, void *value)
+void map_put(struct map *map, const char *key, void *value)
 {
     map_remove(map, key);
     if (value)

@@ -121,7 +121,6 @@ char *stringn(const char *src, int len)
 {
     struct string_bucket *ps;
     register unsigned int hash;
-    register unsigned char *p;
     const char *end = src + len;
     
     if (src == NULL || len <= 0)
@@ -130,10 +129,7 @@ char *stringn(const char *src, int len)
     if (!string_table)
         string_table = NEWS(string_table);
     
-    for(hash = 0, p = (unsigned char *)src; *p ; p++)
-        hash = 31 * hash + *p;
-    
-    hash %= ARRAY_SIZE(string_table->buckets) - 1;
+    hash = strhash(src) & (ARRAY_SIZE(string_table->buckets) - 1);
     for (ps = string_table->buckets[hash]; ps; ps = ps->next) {
         if (ps->len == len) {
             const char *s1 = src;
