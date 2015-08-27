@@ -779,7 +779,7 @@ struct node * translation_unit()
     for (; token->id != EOI; ) {
         if (firstdecl(token)) {
             assert(SCOPE == GLOBAL);
-            vec_add_from_vector(v, decls(globaldecl));
+            vec_add(v, decls(globaldecl));
         } else {
             if (token->id != ';')
                 error("invalid token '%s'", token->name);
@@ -1047,7 +1047,6 @@ static struct path * designator(struct type *ty)
 
 static struct node * get_slot(struct node *root, struct path *path)
 {
-    BEGIN_CALL
     struct node *n = root;
     int len = vec_len(path->v);
     for (int i = 0; i < len; i++) {
@@ -1069,7 +1068,6 @@ static struct node * get_slot(struct node *root, struct path *path)
         if (i < len - 1)
             n = slot;
     }
-    END_CALL
     return n;
 }
 
@@ -1291,7 +1289,7 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
         struct vector *v = new_vector();
         enter_scope();
         while (firstdecl(token))
-            vec_add_from_vector(v, decls(paramdecl));
+            vec_add(v, decls(paramdecl));
         
         for (int i=0; i < vec_len(v); i++) {
             struct node *decl = (struct node *)vec_at(v, i);

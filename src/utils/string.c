@@ -6,22 +6,33 @@
 #include <ctype.h>
 #include "utils.h"
 
-static void str_grow(struct string *s, int len)
+#define STRING_INIT_SIZE    32
+
+static void str_grow(struct string *s, size_t len)
 {
-    char *mem = NEW0(len + s->reserve);
-    memcpy(mem, s->str, s->len);
-    s->str = mem;
-    s->len = len + s->reserve;
+    char *oldstr = s->str;
+    s->alloc = len << 1;
+    s->str = xmalloc(s->alloc);
+    memcpy(s->str, oldstr, s->len);
+    s->str[s->len] = '\0';
+    if (s->len > 0)
+        free(oldstr);
 }
 
 struct string * new_string()
 {
-    struct string *s = NEWS(string);
-    s->reserve = 128;
+    struct string *s = xmalloc(sizeof(struct string));
     s->len = 0;
-    s->nalloc = s->reserve;
-    s->str = NEW0(s->nalloc);
+    str_grow(s, STRING_INIT_SIZE);
     return s;
+}
+
+void free_string(struct string *s)
+{
+    if (!s)
+        return;
+    free(s->str);
+    free(s);
 }
 
 size_t str_len(struct string *s)
@@ -29,29 +40,30 @@ size_t str_len(struct string *s)
     return s->len;
 }
 
+void str_add(struct string *s, struct string *s2)
+{
+    str_catn(s, s2->str, str_len(s2));
+}
+
 void str_cats(struct string *s, const char *src)
 {
     str_catn(s, src, strlen(src));
 }
 
-void str_catn(struct string *s, const char *src, int len)
+void str_catn(struct string *s, const char *src, size_t len)
 {
-    assert(s);
-    if (s->len + len >= s->nalloc) {
-        str_grow(s, s->len+len);
-    }
+    if (s->len + len >= s->alloc)
+        str_grow(s, s->len + len);
     
     char *dst = s->str + s->len;
-    int size = len;
-    while (size-- > 0) {
-        *dst++ = *src++;
-    }
     s->len += len;
+    while (len-- > 0)
+        *dst++ = *src++;
+    *dst = '\0';
 }
 
 void str_catd(struct string *s, long n)
 {
-    assert(s);
     char str[32], *ps = str + sizeof (str);
     unsigned long m;
     
@@ -66,38 +78,34 @@ void str_catd(struct string *s, long n)
         *--ps = m%10 + '0';
     } while ((m /= 10) != 0);
     
-    if (n < 0) {
+    if (n < 0)
         *--ps = '-';
-    }
+    
     return str_catn(s, ps, str + sizeof (str) - ps);
+}
+
+void str_lstrip(struct string *s)
+{
+    char *p = s->str;
+    while (s->len > 0 && isblank(*p)) {
+        p++;
+        s->len--;
+    }
+    memmove(s->str, p, s->len);
+    s->str[s->len] = '\0';
+}
+
+void str_rstrip(struct string *s)
+{
+    while (s->len > 0 && isblank(s->str[s->len-1]))
+        s->len--;
+    s->str[s->len] = '\0';
 }
 
 void str_strip(struct string *s)
 {
-    assert(s);
-    if (s->len == 0) return;
-    char *head, *tail;
-    for (head=s->str, tail=s->str+s->len-1; ;) {
-        int b1 = isblank(*head);
-        int b2 = isblank(*tail);
-        if (b1)
-            head++;
-        if (b2)
-            tail--;
-        if (head > tail || (!b1 && !b2))
-            break;
-    }
-    if (head > tail) {
-        s->len = 0;
-    } else {
-        s->len = tail - head + 1;
-        char *dst = s->str;
-        size_t len = s->len;
-        while (len-- > 0) {
-            *dst++ = *head++;
-        }
-        *dst = 0;
-    }
+    str_lstrip(s);
+    str_rstrip(s);
 }
 
 char * stoa(struct string *s)

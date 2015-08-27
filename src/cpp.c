@@ -32,7 +32,7 @@ static void preprocess(void)
 	cpp[3] = 0;
 
     vec_add_from_array(v,(void *) cpp);
-    vec_add_from_vector(v, options);
+    vec_add(v, options);
     errors = callsys(cpp[0], (char **)vtoa(v));
 }
 

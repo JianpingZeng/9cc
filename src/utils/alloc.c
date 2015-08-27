@@ -24,15 +24,19 @@ struct bucket_info {
 static struct bucket_info *first_bucket;
 static struct bucket_info *current_bucket;
 
-void * zmalloc(size_t size)
+void * xmalloc(size_t size)
 {
     void *p = malloc(size);
     if (!p) {
         fprintf(stderr, "Can't malloc\n");
         exit(EXIT_FAILURE);
     }
-    memset(p, 0, size);
     return p;
+}
+
+void * zmalloc(size_t size)
+{
+    return memset(xmalloc(size), 0, size);
 }
 
 static void * new_bucket(size_t size)

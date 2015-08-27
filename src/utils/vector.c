@@ -2,25 +2,33 @@
 #include <assert.h>
 #include "utils.h"
 
+#define VEC_INIT_SIZE   16
+
 static void vec_grow(struct vector *v)
 {
-    if (v->len == v->nalloc) {
-        void *mem = NEW0((v->len + v->reserve) * v->elemsize);
-        memcpy(mem, v->mem, v->len * v->elemsize);
-        v->mem = mem;
-        v->nalloc += v->reserve;
-    }
+    void *oldmem = v->mem;
+    v->alloc <<= 1;
+    v->mem = xmalloc(v->alloc * sizeof(void *));
+    memcpy(v->mem, oldmem, v->len * sizeof(void *));
+    if (v->len > 0)
+        free(oldmem);
 }
 
 struct vector *new_vector()
 {
-    struct vector *v = NEWS(vector);
-    v->reserve = 10;
-    v->elemsize = sizeof(void *);
+    struct vector *v = xmalloc(sizeof(struct vector));
     v->len = 0;
-    v->nalloc = v->reserve;
-    v->mem = NEW0(v->elemsize * v->nalloc);
+    v->alloc = VEC_INIT_SIZE;
+    vec_grow(v);
     return v;
+}
+
+void free_vector(struct vector *v)
+{
+    if (!v)
+        return;
+    free(v->mem);
+    free(v);
 }
 
 void * vec_at(struct vector *v, int index)
@@ -47,11 +55,18 @@ void * vec_tail(struct vector *v)
     return v->mem[v->len - 1];
 }
 
-void vec_push(struct vector *v, void *elem)
+void vec_add(struct vector *v, struct vector *v2)
 {
-    if (elem == NULL) return;
-    vec_grow(v);
-    v->mem[v->len++] = elem;
+    for (int i=0; i < vec_len(v2); i++)
+        vec_push(v, vec_at(v2, i));
+}
+
+void vec_push(struct vector *v, void *val)
+{
+    assert(val);
+    if (v->len == v->alloc)
+        vec_grow(v);
+    v->mem[v->len++] = val;
 }
 
 size_t vec_len(struct vector *v)
@@ -65,12 +80,6 @@ void vec_add_from_array(struct vector *v, void **array)
     if (array == NULL) return;
     for (int i=0; array[i]; i++)
         vec_push(v, array[i]);
-}
-
-void vec_add_from_vector(struct vector *v, struct vector *v2)
-{
-    for (int i=0; i < vec_len(v2); i++)
-        vec_push(v, vec_at(v2, i));
 }
 
 void vec_foreach(struct vector *v, void (*func) (void *elem, void *context), void *context)
@@ -87,8 +96,8 @@ void ** vtoa(struct vector *v)
     void **array = NULL;
     int vlen = vec_len(v);
     if (vlen > 0) {
-        array = NEW0((vlen+1) * v->elemsize);
-        memcpy(array, v->mem, vlen * v->elemsize);
+        array = NEW0((vlen+1) * sizeof(void *));
+        memcpy(array, v->mem, vlen * sizeof(void *));
     }
     return array;
 }

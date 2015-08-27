@@ -102,7 +102,7 @@ static int unitprocess(void *context)
     cpp[1] = inputfile;
     v = new_vector();
     vec_add_from_array(v, (void **)cpp);
-    vec_add_from_vector(v, options);
+    vec_add(v, options);
     argc = vec_len(v);
     argv = (char **) vtoa(v);
     if (cpp_main(argc, argv) == EXIT_FAILURE) {
@@ -132,7 +132,7 @@ static int unitprocess(void *context)
     cc[1] = ifile;
     v = new_vector();
     vec_add_from_array(v, (void **)cc);
-    vec_add_from_vector(v, options);
+    vec_add(v, options);
     argc = vec_len(v);
     argv = (char **) vtoa(v);
     if (cc_main(argc, argv) == EXIT_FAILURE) {
