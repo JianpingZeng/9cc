@@ -2,13 +2,9 @@
 
 #define EMPTY_MAP   ((struct map){ .cmpfn = always_notequal })
 
-static struct table _identifiers = { .scope = GLOBAL, .map = &EMPTY_MAP };
-static struct table _constants = { .scope = CONSTANT, .map = &EMPTY_MAP };
-static struct table _tags = { .scope = GLOBAL, .map = &EMPTY_MAP };
-
-struct table * identifiers = &_identifiers;
-struct table * constants = &_constants;
-struct table * tags = &_tags;
+struct table * identifiers = &(struct table){ GLOBAL, .map = &EMPTY_MAP };
+struct table * constants = &(struct table){ CONSTANT, .map = &EMPTY_MAP };
+struct table * tags = &(struct table){ GLOBAL, .map = &EMPTY_MAP };
 
 static int level = GLOBAL;
 
