@@ -15,9 +15,7 @@ static struct table * new_table(struct table *up, int scope)
     struct table *t = NEWS(table);
     t->up = up;
     t->scope = scope;
-    if (up) {
-        t->all = up->all;
-    }
+    t->map = new_map(always_notequal);
     return t;
 }
 
@@ -43,17 +41,6 @@ void exit_scope()
     level--;
 }
 
-static unsigned hash(const char *src)
-{
-    register unsigned h;
-    register unsigned char *p;
-    
-    for(h = 0, p = (unsigned char *)src; p && *p ; p++)
-        h = 31 * h + *p;
-    
-    return h;
-}
-
 struct symbol * anonymous(struct table **tpp, int scope)
 {
     static long i;
@@ -63,24 +50,19 @@ struct symbol * anonymous(struct table **tpp, int scope)
 struct symbol * lookup(const char *name, struct table *table)
 {
     assert(name);
+    struct symbol *s = NULL;
     
     for (struct table *t = table; t; t = t->up) {
-        unsigned h = hash(name) % BUCKET_SIZE;
-        for (struct sentry *entry = t->buckets[h]; entry; entry = entry->next) {
-            if (entry->symbol->name == name) {
-                return entry->symbol;
-            }
-        }
+        if ((s = map_get(t->map, name)))
+            return s;
     }
-    
-    return NULL;
+
+    return s;
 }
 
 struct symbol * install(const char *name, struct table **tpp, int scope)
 {
-    unsigned h = hash(name) % BUCKET_SIZE;
-    struct sentry *entry;
-    struct symbol *symbol;
+    struct symbol *sym;
     struct table *tp = *tpp;
     
     if (scope > tp->scope) {
@@ -90,18 +72,12 @@ struct symbol * install(const char *name, struct table **tpp, int scope)
             tp = tp->up;
     }
     
-    entry = NEWS(sentry);
-    symbol = NEWS(symbol);
-    symbol->scope = scope;
-    symbol->name = strings(name);
-    symbol->up = tp->all;
-    tp->all = symbol;
-    entry->symbol = symbol;
-    
-    entry->next = tp->buckets[h];
-    tp->buckets[h] = entry;
-    
-    return entry->symbol;
+    sym = NEWS(symbol);
+    sym->scope = scope;
+    sym->name = strings(name);
+    map_put(tp->map, sym->name, sym);
+
+    return sym;
 }
 
 bool issymnamed(struct symbol *sym)

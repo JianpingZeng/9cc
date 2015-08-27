@@ -289,19 +289,12 @@ struct symbol {
     struct source src;
     union value value;
     unsigned refs;
-    struct symbol *up;
 };
-
-#define BUCKET_SIZE 256
 
 struct table {
     int scope;
     struct table *up;
-    struct sentry {
-        struct symbol *symbol;
-        struct sentry *next;
-    } *buckets[BUCKET_SIZE];
-    struct symbol *all;
+    struct map *map;
 };
 
 // sym
