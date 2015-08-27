@@ -202,7 +202,10 @@ int main(int argc, char **argv)
     }
     
     setup_env();
-    vec_foreach(inputlist, translate, optionlist);
+    for (int i = 0; i < vec_len(inputlist); i++) {
+        void *p = vec_at(inputlist, i);
+        translate(p, optionlist);
+    }
     
     if (fails) {
         fprintf(stderr, "%d fails.\n", fails);

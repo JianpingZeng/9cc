@@ -12,7 +12,8 @@ UTILS_SRC=utils/alloc.c \
         utils/string.c \
         utils/vector.c \
         utils/misc.c \
-	utils/map.c
+	utils/map.c \
+	utils/array.c
 
 UTILS_INC=utils/utils.h \
         utils/macros.h

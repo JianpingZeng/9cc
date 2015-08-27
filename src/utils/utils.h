@@ -36,14 +36,6 @@ extern void str_lstrip(struct string *s);
 extern void str_rstrip(struct string *s);
 extern void str_strip(struct string *s);
 
-extern char * stoa(struct string *s);
-extern char *strings(const char *str);
-extern char *stringn(const char *src, int len);
-extern char *stringd(long n);
-
-extern char *format(const char *fmt, ...);
-
-
 // vector.c
 struct vector {
     void    **mem;
@@ -60,13 +52,15 @@ extern void * vec_head(struct vector *v);
 extern void * vec_tail(struct vector *v);
 extern void vec_add(struct vector *v, struct vector *v2);
 
-extern void vec_add_from_array(struct vector *v, void **array);
-extern void vec_foreach(struct vector *v, void (*func)(void *elem, void *context), void *context);
-
-// vector to array
+// array.c
+extern char * stoa(struct string *s);
 extern void ** vtoa(struct vector *v);
-
+extern void vec_add_from_array(struct vector *v, void **array);
 extern int array_len(void **array);
+extern char *format(const char *fmt, ...);
+extern char *strings(const char *str);
+extern char *stringn(const char *src, int len);
+extern char *stringd(long n);
 
 // misc.c
 extern void die(const char *fmt, ...);
