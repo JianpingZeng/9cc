@@ -76,7 +76,7 @@ struct symbol * install(const char *name, struct table **tpp, int scope)
     
     sym = NEWS(symbol);
     sym->scope = scope;
-    sym->name = strings(name);
+    sym->name = name;
     map_put(tp->map, sym->name, sym);
 
     return sym;
