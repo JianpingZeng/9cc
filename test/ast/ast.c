@@ -10,7 +10,7 @@ static void run_script(const char *name)
     char *command;
     struct string *s = new_string();
     
-    str_cats(s, "python3 ");
+    str_cats(s, "ruby ");
     str_cats(s, "../test/ast/");
     str_cats(s, name);
     
@@ -21,6 +21,6 @@ static void run_script(const char *name)
 void testmain()
 {
     print("AST suite");
-    run_script("ast.py");
+    run_script("ast.rb");
     exit(0);    // don't print redundant 'OK'
 }

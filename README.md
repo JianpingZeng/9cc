@@ -30,7 +30,4 @@ mcc is free software published under GNU GPLv2.
 
 * `lcc`: [https://github.com/drh/lcc](https://github.com/drh/lcc)
 
-* `C99 standard final draft` [http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf](http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf)
-
-* `The x86-64 ABI` [http://www.x86-64.org/documentation/abi.pdf](http://www.x86-64.org/documentation/abi.pdf)
-]
+* `C99 standard` 
