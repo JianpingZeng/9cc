@@ -35,7 +35,7 @@ unsigned strhash(const char *s)
 
 static struct map * alloc_map(struct map *map, unsigned size)
 {
-    map->table = xmalloc(size * sizeof(struct map_entry *));
+    map->table = zmalloc(size * sizeof(struct map_entry *));
     map->tablesize = size;
     map->grow_at = (unsigned) (size * MAP_GROW_FACTOR / 100);
     map->shrink_at = map->grow_at / ((1<<MAP_RESIZE_BITS) + 1);
@@ -97,7 +97,7 @@ static void map_remove(struct map *map, const char *key)
 static void map_add(struct map *map, const char *key, void *value)
 {
     unsigned b = bucket(map, key);
-    struct map_entry *entry = xmalloc(sizeof(struct map_entry));
+    struct map_entry *entry = zmalloc(sizeof(struct map_entry));
     entry->key = key;
     entry->value = value;
     entry->next = map->table[b];
@@ -110,7 +110,7 @@ static void map_add(struct map *map, const char *key, void *value)
 struct map * new_map()
 {
     unsigned size = MAP_INIT_SIZE;
-    struct map *map = xmalloc(sizeof(struct map));
+    struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
     return alloc_map(map, size);
 }

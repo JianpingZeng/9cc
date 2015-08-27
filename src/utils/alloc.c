@@ -24,7 +24,7 @@ struct bucket_info {
 static struct bucket_info *first_bucket;
 static struct bucket_info *current_bucket;
 
-void * xmalloc(size_t size)
+void * zmalloc(size_t size)
 {
     void *p = malloc(size);
     if (!p) {
@@ -40,7 +40,7 @@ static void * new_bucket(size_t size)
     struct bucket_info *pb;
     size = ROUNDUP(size + RESERVED_SIZE);
     
-    pb = xmalloc(HEAD_SIZE + size);
+    pb = zmalloc(HEAD_SIZE + size);
     pb->p = (char *)pb + HEAD_SIZE;
     pb->limit = (char *)pb->p + size;
     return pb;

@@ -4,7 +4,7 @@
 #include "macros.h"
 
 // alloc.c
-extern void * xmalloc(size_t size);
+extern void * zmalloc(size_t size);
 
 // via bucket
 #define NEW0(size)      cc_alloc(size)
