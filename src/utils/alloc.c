@@ -4,11 +4,12 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <limits.h>
+#include "utils.h"
 
 /**
  * Add alignment to make the compiler happy.
  */
-#define ALIGN_SIZE          sizeof(long double)
+#define ALIGN_SIZE          sizeof(long long)
 #define ROUNDUP(x)          (((x)+((ALIGN_SIZE)-1))&(~((ALIGN_SIZE)-1)))
 #define HEAD_SIZE           ROUNDUP(sizeof(struct bucket_info))
 #define BUCKET_INFO(table)  ((struct bucket_info *)((char *)table - HEAD_SIZE))
@@ -23,7 +24,7 @@ struct bucket_info {
 static struct bucket_info *first_bucket;
 static struct bucket_info *current_bucket;
 
-static void * cc_malloc(size_t size)
+void * xmalloc(size_t size)
 {
     void *p = malloc(size);
     if (!p) {
@@ -34,17 +35,12 @@ static void * cc_malloc(size_t size)
     return p;
 }
 
-static void cc_free(void *p)
-{
-    free(p);
-}
-
 static void * new_bucket(size_t size)
 {
     struct bucket_info *pb;
     size = ROUNDUP(size + RESERVED_SIZE);
     
-    pb = cc_malloc(HEAD_SIZE + size);
+    pb = xmalloc(HEAD_SIZE + size);
     pb->p = (char *)pb + HEAD_SIZE;
     pb->limit = (char *)pb->p + size;
     return pb;
@@ -73,7 +69,7 @@ void cc_drain(void)
 {
     for (struct bucket_info *s=first_bucket; s;) {
         struct bucket_info *n = s->next;
-        cc_free(s);
+        free(s);
         s = n;
     }
     first_bucket = NULL;

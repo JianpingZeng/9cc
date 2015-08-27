@@ -11,7 +11,8 @@ TARGETS=$(MCC) $(CC1)
 UTILS_SRC=utils/alloc.c \
         utils/string.c \
         utils/vector.c \
-        utils/misc.c
+        utils/misc.c \
+	utils/map.c
 
 UTILS_INC=utils/utils.h \
         utils/macros.h

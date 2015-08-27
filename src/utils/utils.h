@@ -4,6 +4,9 @@
 #include "macros.h"
 
 // alloc.c
+extern void * xmalloc(size_t size);
+
+// via bucket
 #define NEW0(size)      cc_alloc(size)
 #define NEWS(tag)       ((struct tag *)NEW0(sizeof(struct tag)))
 
@@ -64,6 +67,12 @@ extern void ** vtoa(struct vector *v);
 
 extern int array_len(void **array);
 
+// map.c
+extern unsigned strhash(char *s);
+extern struct map * new_map();
+extern void free_map(struct map *map);
+extern void *map_get(struct map *map, char *key);
+extern void map_put(struct map *map, char *key, void *value);
 
 // misc.c
 extern void die(const char *fmt, ...);
