@@ -5,13 +5,13 @@
 #include <limits.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include "str.h"
+#include "strbuf.h"
 #include "map.h"
 #include "utils.h"
 
 #define STRING_INIT_SIZE    32
 
-static void str_grow(struct str *s, size_t len)
+static void strbuf_grow(struct strbuf *s, size_t len)
 {
     char *oldstr = s->str;
     s->alloc = len << 1;
@@ -22,15 +22,15 @@ static void str_grow(struct str *s, size_t len)
         free(oldstr);
 }
 
-struct str * new_str()
+struct strbuf * strbuf_new()
 {
-    struct str *s = xmalloc(sizeof(struct str));
+    struct strbuf *s = xmalloc(sizeof(struct strbuf));
     s->len = 0;
-    str_grow(s, STRING_INIT_SIZE);
+    strbuf_grow(s, STRING_INIT_SIZE);
     return s;
 }
 
-void free_str(struct str *s)
+void strbuf_free(struct strbuf *s)
 {
     if (!s)
         return;
@@ -38,25 +38,25 @@ void free_str(struct str *s)
     free(s);
 }
 
-size_t str_len(struct str *s)
+size_t strbuf_len(struct strbuf *s)
 {
     return s->len;
 }
 
-void str_add(struct str *s, struct str *s2)
+void strbuf_add(struct strbuf *s, struct strbuf *s2)
 {
-    str_catn(s, s2->str, str_len(s2));
+    strbuf_catn(s, s2->str, strbuf_len(s2));
 }
 
-void str_cats(struct str *s, const char *src)
+void strbuf_cats(struct strbuf *s, const char *src)
 {
-    str_catn(s, src, strlen(src));
+    strbuf_catn(s, src, strlen(src));
 }
 
-void str_catn(struct str *s, const char *src, size_t len)
+void strbuf_catn(struct strbuf *s, const char *src, size_t len)
 {
     if (s->len + len >= s->alloc)
-        str_grow(s, s->len + len);
+        strbuf_grow(s, s->len + len);
     
     char *dst = s->str + s->len;
     s->len += len;
@@ -65,7 +65,7 @@ void str_catn(struct str *s, const char *src, size_t len)
     *dst = '\0';
 }
 
-void str_catd(struct str *s, long n)
+void strbuf_catd(struct strbuf *s, long n)
 {
     char str[32], *ps = str + sizeof (str);
     unsigned long m;
@@ -84,10 +84,10 @@ void str_catd(struct str *s, long n)
     if (n < 0)
         *--ps = '-';
     
-    return str_catn(s, ps, str + sizeof (str) - ps);
+    return strbuf_catn(s, ps, str + sizeof (str) - ps);
 }
 
-void str_lstrip(struct str *s)
+void strbuf_lstrip(struct strbuf *s)
 {
     char *p = s->str;
     while (s->len > 0 && isblank(*p)) {
@@ -98,15 +98,15 @@ void str_lstrip(struct str *s)
     s->str[s->len] = '\0';
 }
 
-void str_rstrip(struct str *s)
+void strbuf_rstrip(struct strbuf *s)
 {
     while (s->len > 0 && isblank(s->str[s->len-1]))
         s->len--;
     s->str[s->len] = '\0';
 }
 
-void str_strip(struct str *s)
+void strbuf_strip(struct strbuf *s)
 {
-    str_lstrip(s);
-    str_rstrip(s);
+    strbuf_lstrip(s);
+    strbuf_rstrip(s);
 }

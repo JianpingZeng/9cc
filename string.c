@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
-#include "str.h"
+#include "strbuf.h"
 
 char *strs(const char *str)
 {

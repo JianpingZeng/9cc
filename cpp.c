@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <string.h>
-#include "str.h"
+#include "strbuf.h"
 #include "vector.h"
 #include "sys.h"
 #include "utils.h"
@@ -43,10 +43,10 @@ static void preprocess(void)
 static void add_search_path(const char *path)
 {
     const char *abspath = expanduser(path);
-    struct str *s = new_str();
-    str_cats(s, "-I");
+    struct strbuf *s = strbuf_new();
+    strbuf_cats(s, "-I");
     if (abspath) {
-	str_cats(s, abspath);
+	strbuf_cats(s, abspath);
 	vec_push(options, stoa(s));
     }
 }

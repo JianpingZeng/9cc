@@ -491,60 +491,60 @@ bool isscalar(struct type *ty)
     return isarith(ty) || isptr(ty);
 }
 
-static void qualstr(struct str *s, struct type *ty)
+static void qualstr(struct strbuf *s, struct type *ty)
 {
     if (isconst(ty))
-        str_cats(s, "const ");
+        strbuf_cats(s, "const ");
     if (isvolatile(ty))
-        str_cats(s, "volatile ");
+        strbuf_cats(s, "volatile ");
     if (isrestrict(ty))
-        str_cats(s, "restrict ");
+        strbuf_cats(s, "restrict ");
 }
 
 static const char *returnstr(struct type *ty)
 {
-    struct str *s = new_str();
-    str_cats(s, "(");
+    struct strbuf *s = strbuf_new();
+    strbuf_cats(s, "(");
     for (int i=0; i < array_len(ty->u.f.params); i++) {
         struct type *sty = ty->u.f.params[i]->type;
         const char *str = type2s(sty);
-        str_cats(s, str);
+        strbuf_cats(s, str);
         if (i < array_len(ty->u.f.params) - 1)
-            str_cats(s, ", ");
+            strbuf_cats(s, ", ");
     }
-    str_cats(s, ")");
+    strbuf_cats(s, ")");
     return stoa(s);
 }
 
 const char *type2s(struct type *ty)
 {
-    struct str *s = new_str();
+    struct strbuf *s = strbuf_new();
     int k = kind(ty);
     switch (k) {
         case POINTER:
         {
             struct type *pty = ty;
-            struct str *p = new_str();
-            str_cats(p, "*");
+            struct strbuf *p = strbuf_new();
+            strbuf_cats(p, "*");
             while (isptr(pty) && isptr(rtype(pty))) {
-                str_cats(p, "*");
+                strbuf_cats(p, "*");
                 pty = rtype(pty);
             }
             assert(isptr(pty));
             struct type *rty = rtype(pty);
             if (isfunc(rty)) {
                 const char *r = type2s(rtype(rty));
-                str_cats(s, r);
-                str_cats(s, " (");
-                str_cats(s, stoa(p));
-                str_cats(s, ") ");
-                str_cats(s, returnstr(rty));
+                strbuf_cats(s, r);
+                strbuf_cats(s, " (");
+                strbuf_cats(s, stoa(p));
+                strbuf_cats(s, ") ");
+                strbuf_cats(s, returnstr(rty));
             } else if (isarray(rty)) {
                 
             } else {
                 const char *r = type2s(rty);
-                str_cats(s, r);
-                str_cats(s, stoa(p));
+                strbuf_cats(s, r);
+                strbuf_cats(s, stoa(p));
                 qualstr(s, ty);
             }
         }
@@ -552,30 +552,30 @@ const char *type2s(struct type *ty)
         case FUNCTION:
         {
             const char *r = type2s(rtype(ty));
-            str_cats(s, r);
-            str_cats(s, returnstr(ty));
+            strbuf_cats(s, r);
+            strbuf_cats(s, returnstr(ty));
         }
             break;
         case ARRAY:
         {
             const char *r = type2s(rtype(ty));
-            str_cats(s, r);
-            str_cats(s, "[]");
+            strbuf_cats(s, r);
+            strbuf_cats(s, "[]");
         }
             break;
         default:
         {
             qualstr(s, ty);
             ty = unqual(ty);
-            str_cats(s, ty->name);
+            strbuf_cats(s, ty->name);
             if (k == STRUCT || k == UNION || k == ENUM) {
-                str_cats(s, " ");
-                str_cats(s, ty->tag);
+                strbuf_cats(s, " ");
+                strbuf_cats(s, ty->tag);
             }
         }
             break;
     }
     
-    str_strip(s);
+    strbuf_strip(s);
     return stoa(s);
 }

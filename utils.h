@@ -13,7 +13,7 @@ extern void * zmalloc(size_t size);
 extern char *strs(const char *str);
 extern char *strn(const char *src, size_t len);
 extern char *strd(long n);
-extern char * stoa(struct str *s);
+extern char * stoa(struct strbuf *s);
 extern char *format(const char *fmt, ...);
 
 #endif

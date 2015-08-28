@@ -9,13 +9,13 @@ CC1=libcc1.a
 TARGETS=$(MCC) $(CC1)
 
 UTILS_SRC=alloc.c \
-        str.c \
+        strbuf.c \
         vector.c \
         map.c \
         wrapper.c \
         string.c
 
-UTILS_INC= str.h \
+UTILS_INC= strbuf.h \
 	vector.h \
 	map.h \
 	utils.h
@@ -104,7 +104,7 @@ test: $(TESTS)
 	done
 
 clean:
-	@rm -f *.o *.~ $(TARGETS) $(TESTS)
+	@rm -f *.o *~ $(TARGETS) $(TESTS)
 
 
 .PHONY: all clean test

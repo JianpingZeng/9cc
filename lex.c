@@ -155,7 +155,7 @@ static void fline()
     skipblank();
     
     if (*pc == '"') {
-        struct str *s = new_str();
+        struct strbuf *s = strbuf_new();
         pc++;
         for (; *pc != '"' || pc == pe;) {
             if (pe - pc < LBUFSIZE) {
@@ -164,10 +164,10 @@ static void fline()
                     break;
             }
             if (*pc == '\\' && pc[1] == '"') {
-                str_catn(s, pc+1, 1);
+                strbuf_catn(s, pc+1, 1);
                 pc += 2;
             } else {
-                str_catn(s, pc++, 1);
+                strbuf_catn(s, pc++, 1);
             }
         }
         source.file = stoa(s);
@@ -283,11 +283,11 @@ static void line_comment();
 static void block_comment();
 static void identifier();
 static int number();
-static void fnumber(struct str *s, int base);
+static void fnumber(struct strbuf *s, int base);
 static void sequence(bool wide, char ch);
-static void integer_suffix(struct str *s);
-static void escape(struct str *s);
-static void readch(struct str *s, bool (*is) (char));
+static void integer_suffix(struct strbuf *s);
+static void escape(struct strbuf *s);
+static void readch(struct strbuf *s, bool (*is) (char));
 
 static int do_gettok()
 {
@@ -727,12 +727,12 @@ static void block_comment()
         pc += 2;
 }
 
-static void readch(struct str *s, bool (*is) (char))
+static void readch(struct strbuf *s, bool (*is) (char))
 {
     char *rpc = pc;
     for (; is(*rpc) || rpc == pe; ) {
 	if (rpc == pe) {
-	    str_catn(s, pc, rpc-pc);
+	    strbuf_catn(s, pc, rpc-pc);
 	    pc = rpc;
 	    fillbuf();
 	    rpc = pc;
@@ -743,18 +743,18 @@ static void readch(struct str *s, bool (*is) (char))
 	}
 	rpc++;
     }
-    str_catn(s, pc, rpc-pc);
+    strbuf_catn(s, pc, rpc-pc);
     pc = rpc;
 }
 
 static int number()
 {
-    struct str *s = new_str();
+    struct strbuf *s = strbuf_new();
     char *rpc = pc-1;
-    str_catn(s, rpc, 1);
+    strbuf_catn(s, rpc, 1);
     if (rpc[0] == '0' && (rpc[1] == 'x' || rpc[1] == 'X')) {
         // Hex
-        str_catn(s, pc++, 1);
+        strbuf_catn(s, pc++, 1);
         if (!is_digithex(*pc) && *pc != '.') {
             integer_suffix(s);
             error("incomplete hex constant: %s", tokname);
@@ -781,24 +781,24 @@ static int number()
     }
 }
 
-static void fnumber(struct str *s, int base)
+static void fnumber(struct strbuf *s, int base)
 {
     // ./e/E/p
-    if (!s) s = new_str();
+    if (!s) s = strbuf_new();
     
     if (base == 10) {
         // . e E
         if (*pc == '.') {
-            str_catn(s, pc++, 1);
+            strbuf_catn(s, pc++, 1);
 	    readch(s, is_digit);
         }
         
         if (*pc == 'e' || *pc == 'E') {
-            str_catn(s, pc++, 1);
+            strbuf_catn(s, pc++, 1);
             if (pe - pc < MAXTOKEN)
                 fillbuf();
             if (*pc == '+' || *pc == '-')
-                str_catn(s, pc++, 1);
+                strbuf_catn(s, pc++, 1);
             if (is_digit(*pc))
 		readch(s, is_digit);
             else
@@ -807,7 +807,7 @@ static void fnumber(struct str *s, int base)
     } else {
         // . p P
         if (*pc == '.') {
-            str_catn(s, pc++, 1);
+            strbuf_catn(s, pc++, 1);
             if (!is_digithex(pc[-2]) && !is_digithex(*pc))
                 error("hex floating constants require a significand");
 
@@ -815,11 +815,11 @@ static void fnumber(struct str *s, int base)
         }
         
         if (*pc == 'p' || *pc == 'P') {
-            str_catn(s, pc++, 1);
+            strbuf_catn(s, pc++, 1);
             if (pe - pc < MAXTOKEN)
                 fillbuf();
             if (*pc == '+' || *pc == '-')
-                str_catn(s, pc++, 1);
+                strbuf_catn(s, pc++, 1);
             
             if (is_digit(*pc))
                 readch(s, is_digit);
@@ -831,12 +831,12 @@ static void fnumber(struct str *s, int base)
     }
     
     if (*pc == 'f' || *pc == 'F' || *pc == 'l' || *pc == 'L')
-	str_catn(s, pc++, 1);
+	strbuf_catn(s, pc++, 1);
 
     tokname = stoa(s);
 }
 
-static void integer_suffix(struct str *s)
+static void integer_suffix(struct strbuf *s)
 {
     char *rpc = pc;
     int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
@@ -851,23 +851,23 @@ static void integer_suffix(struct str *s)
     if (ull || llu) {
         // unsigned long long
         pc = rpc + 3;
-        str_catn(s, rpc, 3);
+        strbuf_catn(s, rpc, 3);
     } else if (ll) {
         // long long
         pc = rpc + 2;
-        str_catn(s, rpc, 2);
+        strbuf_catn(s, rpc, 2);
     } else if (lu || ul) {
 	// unsigned long
         pc = rpc + 2;	
-        str_catn(s, rpc, 2);
+        strbuf_catn(s, rpc, 2);
     } else if (l) {
         // long
         pc = rpc + 1;
-        str_catn(s, rpc, 1);
+        strbuf_catn(s, rpc, 1);
     } else if (u) {
         // unsigned
         pc = rpc + 1;
-        str_catn(s, rpc, 1);
+        strbuf_catn(s, rpc, 1);
     }
     
     tokname = stoa(s);
@@ -875,8 +875,8 @@ static void integer_suffix(struct str *s)
 
 static void sequence(bool wide, char ch)
 {    
-    struct str *s = new_str();
-    wide ? str_catn(s, pc-2, 2) : str_catn(s, pc-1, 1);
+    struct strbuf *s = strbuf_new();
+    wide ? strbuf_catn(s, pc-2, 2) : strbuf_catn(s, pc-1, 1);
     for (; *pc != ch;) {
         if (pe - pc < MAXTOKEN) {
             fillbuf();
@@ -890,32 +890,32 @@ static void sequence(bool wide, char ch)
         if (*pc == '\\')
             escape(s);		// escape
         else
-	    str_catn(s, pc++, 1);
+	    strbuf_catn(s, pc++, 1);
     }
     
     const char *name = ch == '\'' ? "character" : "string";
     const char *pad = ch == '\'' ? "'" : "\"";
     if (*pc != ch) {
         error("unterminated %s constant: %s", name, s->str);
-	str_cats(s, pad);
+	strbuf_cats(s, pad);
     } else {
-        str_catn(s, pc++, 1);
+        strbuf_catn(s, pc++, 1);
     }
     tokname = stoa(s);
 }
 
 static void identifier()
 {
-    struct str *s = new_str();
+    struct strbuf *s = strbuf_new();
     pc = pc - 1;
     readch(s, is_digitletter);
     tokname = stoa(s);
 }
 
-static void escape(struct str *s)
+static void escape(struct strbuf *s)
 {
     assert(*pc == '\\');
-    str_catn(s, pc++, 2);
+    strbuf_catn(s, pc++, 2);
     switch (*pc++) {
         case 'a': case 'b': case 'f':
         case 'n': case 'r': case 't':
@@ -926,9 +926,9 @@ static void escape(struct str *s)
         case '3': case '4': case '5':
         case '6': case '7':
             if (*pc >= '0' && *pc <= '7') {
-                str_catn(s, pc++, 1);
+                strbuf_catn(s, pc++, 1);
                 if (*pc >= '0' && *pc <= '7')
-                    str_catn(s, pc++, 1);
+                    strbuf_catn(s, pc++, 1);
             }
             break;
         case 'x':
@@ -947,7 +947,7 @@ static void escape(struct str *s)
             for (; is_digithex(*pc); x++, pc++) {
                 if (x == n)
                     break;
-                str_catn(s, pc, 1);
+                strbuf_catn(s, pc, 1);
             }
             if (x < n)
                 error("incomplete universal character name: %S", ps, pc-ps);

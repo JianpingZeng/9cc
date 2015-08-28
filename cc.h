@@ -32,7 +32,7 @@ extern void cc_drain(void);
 #define NEWS(tag)   ((struct tag *)NEW0(sizeof(struct tag)))
 #define NEWU(tag)   ((union tag *)NEW0(sizeof(union tag)))
 
-#include "str.h"
+#include "strbuf.h"
 #include "vector.h"
 #include "map.h"
 #include "utils.h"
