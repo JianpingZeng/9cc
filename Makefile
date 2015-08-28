@@ -48,17 +48,20 @@ CC1_OBJ=$(notdir $(addsuffix .o, $(basename $(CC1_SRC))))
 OS:=$(shell uname -s)
 
 ifeq ($(OS), Darwin)
-SYSDIR=sys/linux
+SYSDIR=include/linux
+SYS_SRC:=sys/linux.c
 CFLAGS+=-DDARWIN
 endif
 
 ifeq ($(OS), Linux)
-SYSDIR=sys/linux
+SYSDIR=include/linux
+SYS_SRC:=sys/linux.c
 CFLAGS+=-DLINUX -D_BSD_SOURCE
 endif
 
 ifneq (, $(findstring CYGWIN, $(OS)))
-SYSDIR=sys/linux
+SYSDIR=include/linux
+SYS_SRC:=sys/linux.c
 CFLAGS+=-DLINUX -D_BSD_SOURCE
 endif
 
@@ -68,8 +71,7 @@ all:
 	@exit
 else
 all: $(MCC)
-SYS_INC+=$(wildcard $(SYSDIR)/include/*.h)
-SYS_SRC:=$(SYSDIR)/sys.c
+SYS_INC+=$(wildcard $(SYSDIR)/*.h)
 MCC_SRC+=$(SYS_SRC)
 MCC_INC=$(SYS_INC)
 endif
