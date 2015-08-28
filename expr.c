@@ -329,19 +329,19 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
     else
         assert(0);
     
-    if (!is(node->type))
-        error("%s type expected, not type '%s'", name, type2s(node->type));
+    if (!is(AST_TYPE(node)))
+        error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
 }
 
 //TODO
 static bool islvalue(union node *node)
 {
-    if (node->id == MEMBER_EXPR || node->id == SUBSCRIPT_EXPR)
+    if (AST_ID(node) == MEMBER_EXPR || AST_ID(node) == SUBSCRIPT_EXPR)
         return true;
-    if (node->id == REF_EXPR) {
-        if (node->u.e.op == ENUM)
+    if (AST_ID(node) == REF_EXPR) {
+        if (EXPR_OP(node) == ENUM)
             return false;
-        if (isfunc(node->type))
+        if (isfunc(AST_TYPE(node)))
             return false;
         return true;
     }
@@ -367,7 +367,7 @@ static void ensure_assignable(union node *or)
 // TODO
 static bool isbitfield(union node *node)
 {
-    if (node->id != MEMBER_EXPR)
+    if (AST_ID(node) != MEMBER_EXPR)
         return false;
     
     return true;
@@ -386,7 +386,7 @@ static union node * compound_literal(struct type *ty)
     
     inits = initializer_list(ty);
     ret = enode(COMPOUND_LITERAL, NULL, inits, NULL);
-    ret->type = ty;
+    AST_TYPE(ret) = ty;
     
     return ret;
 }
@@ -440,7 +440,7 @@ static union node * postfix_expr1(union node *ret)
                 t = token->id;
                 expect('(');
                 ret = enode(CALL_EXPR, NULL, ret, NULL);
-                ret->u.e.args = argument_expr_list();
+                EXPR_ARGS(ret) = argument_expr_list();
                 expect(')');
                 break;
             case '.':
@@ -456,7 +456,7 @@ static union node * postfix_expr1(union node *ret)
             case DECR:
                 t = token->id;
                 expect(token->id);
-                ret = uop(t, ret->type, ret);
+                ret = uop(t, AST_TYPE(ret), ret);
                 break;
             default:
                 assert(0);
@@ -479,15 +479,15 @@ static union node * primary_expr()
             sym = lookup(token->name, identifiers);
             if (sym) {
                 sym->refs++;
-                ret->type = sym->type;
+                AST_TYPE(ret) = sym->type;
                 if (isenum(sym->type) && sym->sclass == ENUM)
                     // enum ids
-                    ret->u.e.op = ENUM;
+                    EXPR_OP(ret) = ENUM;
             } else {
                 error("use of undeclared symbol '%s'", token->name);
             }
             expect(t);
-            ret->sym = sym;
+            EXPR_SYM(ret) = sym;
         }
             break;
         case ICONSTANT:
@@ -500,8 +500,8 @@ static union node * primary_expr()
             }
             expect(t);
             ret = enode(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, NULL, NULL, NULL);
-            ret->sym = sym;
-            ret->type = sym->type;
+            EXPR_SYM(ret) = sym;
+            AST_TYPE(ret) = sym->type;
         }
             break;
         case SCONSTANT:
@@ -513,8 +513,8 @@ static union node * primary_expr()
             }
             expect(t);
             ret = enode(STRING_LITERAL, NULL, NULL, NULL);
-            ret->sym = sym;
-            ret->type = sym->type;
+            EXPR_SYM(ret) = sym;
+            AST_TYPE(ret) = sym->type;
         }
             break;
         case '(':
@@ -526,7 +526,7 @@ static union node * primary_expr()
             } else {
                 expect('(');
                 union node *e = expression();
-                ret = enode(PAREN_EXPR, e->type, e, NULL);
+                ret = enode(PAREN_EXPR, AST_TYPE(e), e, NULL);
                 expect(')');
             }
         }
@@ -547,6 +547,7 @@ static union node * postfix_expr()
     return postfix_expr1(expr);
 }
 
+//TODO
 static union node * sizeof_expr()
 {
     int t = token->id;
@@ -566,14 +567,14 @@ static union node * sizeof_expr()
         n = unary_expr();
     }
     
-    ty = n ? n->type : ty;
+    ty = n ? AST_TYPE(n) : ty;
     if (isfunc(ty) || isvoid(ty))
         error("'sizeof' to a '%s' type is invalid", type2s(ty));
     else if (isincomplete(ty))
         error("'sizeof' to an incomplete array type is invalid");
     
     union node *ret = uop(t, unsignedinttype, n);
-    ret->u.e.type = ty;
+    AST_TYPE(ret) = ty;
     return ret;
 }
 
@@ -586,10 +587,10 @@ static union node * unary_expr()
         {
             expect(t);
             union node *operand = unary_expr();
-            union node *ret = uop(t, operand->type, operand);
+            union node *ret = uop(t, AST_TYPE(operand), operand);
             ensure_type(operand, isscalar);
             ensure_lvalue(operand);
-            ret->u.e.prefix = true;
+            EXPR_PREFIX(ret) = true;
             return ret;
         }
         case '+':
@@ -599,7 +600,7 @@ static union node * unary_expr()
             union node *operand = cast_expr();
             ensure_type(operand, isarith);
             union node *c = conv(operand);
-            return uop(t, c->type, c);
+            return uop(t, AST_TYPE(c), c);
         }
         case '~':
         {
@@ -607,7 +608,7 @@ static union node * unary_expr()
             union node *operand = cast_expr();
             ensure_type(operand, isint);
             union node *c = conv(operand);
-            return uop(t, c->type, c);
+            return uop(t, AST_TYPE(c), c);
         }
         case '!':
         {
@@ -620,22 +621,22 @@ static union node * unary_expr()
         {
             expect(t);
             union node *operand = cast_expr();
-            if (!isfunc(operand->type)) {
+            if (!isfunc(AST_TYPE(operand))) {
                 ensure_lvalue(operand);
-                if (operand->sym && operand->sym->sclass == REGISTER)
+                if (EXPR_SYM(operand) && EXPR_SYM(operand)->sclass == REGISTER)
                     error("address of register variable requested");
                 else if (isbitfield(operand))
                     error("address of bitfield requested");
             }
-            return uop(t, ptr_type(operand->type), operand);
+            return uop(t, ptr_type(AST_TYPE(operand)), operand);
         }
         case '*':
         {
             expect(t);
             union node *operand = conv(cast_expr());
-            if (!isptr(operand->type))
+            if (!isptr(AST_TYPE(operand)))
                 error("indirection requires pointer operand");
-            return uop(t, rtype(operand->type), operand);
+            return uop(t, rtype(AST_TYPE(operand)), operand);
         }
         case SIZEOF: return sizeof_expr();
         default:     return postfix_expr();
@@ -775,7 +776,7 @@ static union node * logic_and()
     while (token->id == AND) {
         expect(AND);
         and1 = ast_bop(AND, conv(and1), conv(inclusive_or()));
-        and1->type = inttype;
+        AST_TYPE(and1) = inttype;
     }
     
     return and1;
@@ -789,7 +790,7 @@ static union node * logic_or()
     while (token->id == OR) {
         expect(OR);
         or1 = ast_bop(OR, conv(or1), conv(logic_and()));
-        or1->type = inttype;
+        AST_TYPE(or1) = inttype;
     }
     
     return or1;
@@ -806,20 +807,20 @@ static union node * cond_expr1(union node *cond)
     els = conv(cond_expr());
     
     ret = enode(COND_EXPR, NULL, NULL, NULL);
-    ret->u.e.c.cond = cond;
-    ret->u.e.c.then = then;
-    ret->u.e.c.els = els;
+    EXPR_COND(ret) = cond;
+    EXPR_THEN(ret) = then;
+    EXPR_ELSE(ret) = els;
     
-    if (isarith(then->type) && isarith(els->type)) {
-        struct type *ty = conv2(then->type, els->type);
-        ret->u.e.c.then = wrap(ty, then);
-        ret->u.e.c.els = wrap(ty, els);
-        ret->type = ty;
-    } else if ((isstruct(then->type) && isstruct(els->type)) ||
-               (isunion(then->type) && isunion(els->type))) {
-        if (!eqtype(then->type, els->type))
+    if (isarith(AST_TYPE(then)) && isarith(AST_TYPE(els))) {
+        struct type *ty = conv2(AST_TYPE(then), AST_TYPE(els));
+        EXPR_THEN(ret) = wrap(ty, then);
+        EXPR_ELSE(ret) = wrap(ty, els);
+        AST_TYPE(ret) = ty;
+    } else if ((isstruct(AST_TYPE(then)) && isstruct(AST_TYPE(els))) ||
+               (isunion(AST_TYPE(then)) && isunion(AST_TYPE(els)))) {
+        if (!eqtype(AST_TYPE(then), AST_TYPE(els)))
             ;
-        ret->type = unqual(then->type);
+        AST_TYPE(ret) = unqual(AST_TYPE(then));
     }
     //TODO: other cases
     
@@ -891,13 +892,13 @@ static union node * eval_uop(union node *expr)
 static union node * eval(union node *expr)
 {
     assert(isexpr(expr));
-    switch (expr->id) {
+    switch (AST_ID(expr)) {
         case BINARY_OPERATOR:
             return eval_bop(expr);
         case UNARY_OPERATOR:
             return eval_uop(expr);
         case PAREN_EXPR:
-            return eval(LEFT(expr));
+            return eval(EXPR_OPERAND(expr, 0));
         case COND_EXPR:
         case SUBSCRIPT_EXPR:
         case MEMBER_EXPR:
@@ -939,44 +940,44 @@ static union node * bop(int op, union node *l, union node *r)
             
             ensure_type(l, is);
             ensure_type(r, is);
-            ty = conv2(l->type, r->type);
+            ty = conv2(AST_TYPE(l), AST_TYPE(r));
             node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-            node->type = ty;
+            AST_TYPE(node) = ty;
             break;
         case '+':
-            if (isptr(l->type)) {
+            if (isptr(AST_TYPE(l))) {
                 ensure_type(r, isint);
                 node = ast_bop(op, l, r);
                 node->type = l->type;
-            } else if (isptr(r->type)) {
+            } else if (isptr(AST_TYPE(r))) {
                 ensure_type(l, isint);
                 node = ast_bop(op, l, r);
-                node->type = r->type;
+                AST_TYPE(node) = AST_TYPE(r);
             } else {
                 ensure_type(l, isarith);
                 ensure_type(r, isarith);
-                ty = conv2(l->type, r->type);
+                ty = conv2(AST_TYPE(l), AST_TYPE(r));
                 node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-                node->type = ty;
+                AST_TYPE(node) = ty;
             }
             break;
         case '-':
-            if (isptr(l->type)) {
+            if (isptr(AST_TYPE(l))) {
                 node = ast_bop(op, l, r);
-                if (isint(r->type)) {
+                if (isint(AST_TYPE(r))) {
                     node->type = l->type;
-                } else if (isptr(r->type)) {
-                    node->type = inttype;
+                } else if (isptr(AST_TYPE(r))) {
+                    AST_TYPE(node) = inttype;
                 } else {
-                    error("expect integer or pointer type, but got type '%s'", type2s(r->type));
+                    error("expect integer or pointer type, but got type '%s'", type2s(AST_TYPE(r)));
                     node->type = l->type;
                 }
             } else {
                 ensure_type(l, isarith);
                 ensure_type(r, isarith);
-                ty = conv2(l->type, r->type);
+                ty = conv2(AST_TYPE(l), AST_TYPE(r));
                 node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-                node->type = ty;
+                AST_TYPE(node) = ty;
             }
             break;
         case '>': case '<': case LEQ: case GEQ:
@@ -984,7 +985,7 @@ static union node * bop(int op, union node *l, union node *r)
             ensure_type(l, isscalar);
             ensure_type(r, isscalar);
             node = ast_bop(op, l, r);
-            node->type = inttype;
+            AST_TYPE(node) = inttype;
             break;
         default:
             error("unknown op '%s'", tname(op));
@@ -997,13 +998,13 @@ static union node * bop(int op, union node *l, union node *r)
 static union node * enode(int id, struct type *ty, union node *l, union node *r)
 {
     union node *node = ast_expr(id, 0, l, r);
-    node->type = ty;
+    AST_TYPE(node) = ty;
     return node;
 }
 
 union node * wrap(struct type *ty, union node *node)
 {
-    if (eqarith(ty, node->type))
+    if (eqarith(ty, AST_TYPE(node)))
         return node;
     else
         return ast_conv(ty, node);
@@ -1049,15 +1050,15 @@ static struct type * conv2(struct type *l, struct type *r)
  */
 static union node * conv(union node *node)
 {
-    switch (kind(node->type)) {
+    switch (kind(AST_TYPE(node))) {
         case _BOOL: case CHAR: case SHORT:
             return ast_conv(inttype, node);
             
         case FUNCTION:
-            return ast_conv(ptr_type(node->type), node);
+            return ast_conv(ptr_type(AST_TYPE(node)), node);
             
         case ARRAY:
-            return ast_conv(ptr_type(rtype(node->type)), node);
+            return ast_conv(ptr_type(rtype(AST_TYPE(node))), node);
             
         default:
             return node;

@@ -107,7 +107,7 @@ static union node * for_stmt(union node *context)
     }
     
     if (token->id != ';')
-        STMT_TEST(ret) = expression();
+        STMT_COND(ret) = expression();
     
     expect(';');
     

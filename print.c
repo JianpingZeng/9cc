@@ -44,8 +44,8 @@ static void print_expr(union node *node, struct print_context context)
     int level;
     int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
-    if (node->sym)
-        fprintf(stderr, "%s '%s' %s %s ", nname(node), tname(op), STR(node->sym->name), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
+    if (EXPR_SYM(node))
+        fprintf(stderr, "%s '%s' %s %s ", nname(node), tname(op), STR(EXPR_SYM(node)->name), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
     else
         fprintf(stderr, "%s '%s' %s ", nname(node), tname(op), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
     if (AST_TYPE(node))
@@ -55,7 +55,7 @@ static void print_expr(union node *node, struct print_context context)
     level = context.level + 1;
     
     if (AST_ID(node) == CALL_EXPR) {
-        union node **args = node->u.e.args;
+        union node **args = EXPR_ARGS(node);
         if (args) {
             for (int i=0; args[i]; i++) {
                 struct print_context con = {level, args[i]};
@@ -79,7 +79,7 @@ static void print_expr(union node *node, struct print_context context)
             print_tree1(con);
         }
     } else if (AST_ID(node) == INITS_EXPR) {
-        union node **inits = node->u.e.inits;
+        union node **inits = EXPR_INITS(node);
         for (int i=0; inits[i]; i++) {
             struct print_context con = {level, inits[i]};
             print_tree1(con);
@@ -110,7 +110,7 @@ static void print_stmt(union node *node, struct print_context context)
     } else if (AST_ID(node) == FOR_STMT) {
         union node **decl = STMT_DECL(node);
         union node *init = STMT_INIT(node);
-        union node *cond = STMT_TEST(node);
+        union node *cond = STMT_COND(node);
         union node *ctrl = STMT_CTRL(node);
         if (decl) {
             for (int i=0; decl[i]; i++) {

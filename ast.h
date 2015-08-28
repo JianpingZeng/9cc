@@ -69,11 +69,19 @@ struct ast_stmt {
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
 #define EXPR_PREFIX(NODE)       ((NODE)->expr.prefix)
 #define EXPR_OPERAND(NODE, I)   *expr_operand(NODE, I)
+#define EXPR_ARGS(NODE)         ((NODE)->expr.list)
+#define EXPR_INITS(NODE)        ((NODE)->expr.list)
+#define EXPR_SYM(NODE)          ((NODE)->expr.sym)
+// conditional expr
+#define EXPR_COND(NODE)         EXPR_OPERAND(NODE, 0)
+#define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
+#define EXPR_ELSE(NODE)         EXPR_OPERAND(NODE, 2)
 
 struct ast_expr {
     struct ast_common common;
     int op;
     bool prefix;
+    struct symbol *sym;
     union node *operands[1];
     union node **list;
 };
