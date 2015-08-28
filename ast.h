@@ -20,7 +20,7 @@ struct ast_common {
     union node *kids[2];
 };
 
-#define TYPE_TYPE(NODE)         ((NODE)->type.type)
+#define TYPE_TYPE(NODE)         ((NODE)->asty.type)
 
 struct ast_type {
     struct ast_common common;
@@ -91,7 +91,7 @@ union node {
     struct ast_decl decl;
     struct ast_stmt stmt;
     struct ast_expr expr;
-    struct ast_type type;
+    struct ast_type asty;
 };
 
 // ast.c

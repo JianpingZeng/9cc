@@ -948,7 +948,7 @@ static union node * bop(int op, union node *l, union node *r)
             if (isptr(AST_TYPE(l))) {
                 ensure_type(r, isint);
                 node = ast_bop(op, l, r);
-                node->type = l->type;
+                AST_TYPE(node) = AST_TYPE(l);
             } else if (isptr(AST_TYPE(r))) {
                 ensure_type(l, isint);
                 node = ast_bop(op, l, r);
@@ -965,12 +965,12 @@ static union node * bop(int op, union node *l, union node *r)
             if (isptr(AST_TYPE(l))) {
                 node = ast_bop(op, l, r);
                 if (isint(AST_TYPE(r))) {
-                    node->type = l->type;
+                    AST_TYPE(node) = AST_TYPE(l);
                 } else if (isptr(AST_TYPE(r))) {
                     AST_TYPE(node) = inttype;
                 } else {
                     error("expect integer or pointer type, but got type '%s'", type2s(AST_TYPE(r)));
-                    node->type = l->type;
+                    AST_TYPE(node) = AST_TYPE(l);
                 }
             } else {
                 ensure_type(l, isarith);
