@@ -74,10 +74,3 @@ union node * ast_vinit()
     return vinit;
 }
 
-union node ** expr_operand(union node *node, unsigned i)
-{
-    if (i >= 2)
-        return &node->expr.operands[i-2];
-    else
-        return &AST_KID(node, i);
-}

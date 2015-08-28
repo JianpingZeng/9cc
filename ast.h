@@ -68,7 +68,10 @@ struct ast_stmt {
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
 #define EXPR_PREFIX(NODE)       ((NODE)->expr.prefix)
-#define EXPR_OPERAND(NODE, I)   *expr_operand(NODE, I)
+#define EXPR_OPERAND0(NODE)     (AST_KID(NODE, 0))
+#define EXPR_OPERAND1(NODE)     (AST_KID(NODE, 1))
+#define EXPR_OPERAND2(NODE)     ((NODE)->expr.operands[0])
+#define EXPR_OPERAND(NODE, I)   EXPR_OPERAND##I(NODE)
 #define EXPR_ARGS(NODE)         ((NODE)->expr.list)
 #define EXPR_INITS(NODE)        ((NODE)->expr.list)
 #define EXPR_SYM(NODE)          ((NODE)->expr.sym)
@@ -103,7 +106,6 @@ extern union node * ast_uop(int op, struct type *ty, union node *l);
 extern union node * ast_bop(int op, union node *l, union node *r);
 extern union node * ast_conv(struct type *ty, union node *l);
 extern union node * ast_vinit();
-extern union node ** expr_operand(union node *node, unsigned i);
 
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)

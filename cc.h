@@ -14,7 +14,6 @@
 #include <stdbool.h>
 
 #include "config.h"
-#include "utils.h"
 
 #define FLEX_ARRAY      /* flexible array */
 
@@ -36,6 +35,7 @@ extern void cc_drain(void);
 #include "str.h"
 #include "vector.h"
 #include "map.h"
+#include "utils.h"
 
 // lex.c
 #define EOI  -1
