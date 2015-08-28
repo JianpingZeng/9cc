@@ -18,9 +18,13 @@ static void run_script(const char *name)
     system(command);
 }
 
+const char *testname()
+{
+    return "AST suite";
+}
+
 void testmain()
 {
-    print("AST suite");
     run_script("ast.rb");
-    exit(0);    // don't print redundant 'OK'
+    exit(0);
 }

@@ -7,16 +7,11 @@
 #include "test.h"
 
 extern void testmain(void);
+extern const char *testname(void);
 
 static void printfail()
 {
-    printf("\e[1;31mFAILED\e[0m\n");
-}
-
-void print(char *s)
-{
-    printf("Testing %s ...", s);
-    fflush(stdout);
+    printf("\e[1;31mFAIL\e[0m: %s\n", testname());
 }
 
 void ffail(char *file, int line, char *msg)
@@ -92,6 +87,6 @@ void fexpectp(char *file, int line, void *a, void *b)
 int main()
 {
     testmain();
-    printf("\e[32mOK\e[0m\n");
+    printf("\e[32mPASS\e[0m: %s\n", testname());
     return 0;
 }

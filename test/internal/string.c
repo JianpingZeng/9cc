@@ -16,8 +16,12 @@ static void test_strip()
     expecti(NULL, stoa(s1));
 }
 
+const char *testname()
+{
+    return "string";
+}
+
 void testmain()
 {
-    print("string");
     test_strip();
 }

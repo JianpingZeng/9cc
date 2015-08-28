@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 
-extern void print(char *s);
 extern void ffail(char *file, int line, char *msg);
 extern void fexpectb(char *file, int line, bool a);
 extern void fexpecti(char *file, int line, int a, int b);

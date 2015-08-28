@@ -39,9 +39,13 @@ static void test_eq()
     
 }
 
+const char *testname()
+{
+    return "type";
+}
+
 void testmain()
 {
-    print("type");
     type_init();
     test_qual();
     test_eq();
