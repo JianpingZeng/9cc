@@ -1,8 +1,8 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "alloc.h"
 #include "vector.h"
+#include "utils.h"
 
 #define VEC_INIT_SIZE   16
 
@@ -89,7 +89,7 @@ void ** vtoa(struct vector *v)
     void **array = NULL;
     int vlen = vec_len(v);
     if (vlen > 0) {
-        array = NEW0((vlen+1) * sizeof(void *));
+        array = zmalloc((vlen+1) * sizeof(void *));
         memcpy(array, v->mem, vlen * sizeof(void *));
     }
     return array;

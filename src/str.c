@@ -5,9 +5,9 @@
 #include <limits.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include "alloc.h"
 #include "str.h"
 #include "map.h"
+#include "utils.h"
 
 #define STRING_INIT_SIZE    32
 
@@ -127,7 +127,7 @@ char *strn(const char *str, size_t len)
     if ((dst = map_get(map, str)))
         return dst;
     
-    dst = NEW0(len + 1);
+    dst = zmalloc(len + 1);
     strncpy(dst, str, len);
     map_put(map, dst, dst);
     
@@ -166,7 +166,7 @@ static char *vformat(const char *fmt, va_list ap)
     va_list aq;
     for (; ; ) {
         size_t avail = size;
-        buffer = NEW0(avail);
+        buffer = zmalloc(avail);
         va_copy(aq, ap);
         int total = vsnprintf(buffer, avail, fmt, aq);
         va_end(aq);

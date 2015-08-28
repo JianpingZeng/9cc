@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <limits.h>
-#include "alloc.h"
+#include "utils.h"
 
 /**
  * Add alignment to make the compiler happy.
@@ -23,21 +23,6 @@ struct bucket_info {
 
 static struct bucket_info *first_bucket;
 static struct bucket_info *current_bucket;
-
-void * xmalloc(size_t size)
-{
-    void *p = malloc(size);
-    if (!p) {
-        fprintf(stderr, "Can't malloc\n");
-        exit(EXIT_FAILURE);
-    }
-    return p;
-}
-
-void * zmalloc(size_t size)
-{
-    return memset(xmalloc(size), 0, size);
-}
 
 static void * new_bucket(size_t size)
 {

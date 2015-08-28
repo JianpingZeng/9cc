@@ -14,6 +14,7 @@
 #include <stdbool.h>
 
 #include "config.h"
+#include "utils.h"
 
 #define TWOS(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
 
@@ -21,7 +22,14 @@
 
 #define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
 
-#include "alloc.h"
+extern void *cc_alloc(size_t size);
+
+extern void cc_drain(void);
+
+#define NEW0(size)  cc_alloc(size)
+
+#define NEWS(tag)   ((struct tag *)NEW0(sizeof(struct tag)))
+
 #include "str.h"
 #include "vector.h"
 #include "map.h"
@@ -281,13 +289,11 @@ extern void end_call(const char *funcname);
 extern void redefinition_error(struct source src, struct symbol *sym);
 extern void conflicting_types_error(struct source src, struct symbol *sym);
 
-extern void die(const char *fmt, ...);
-extern void println(const char *fmt, ...);
-
 // gen.c
 void walk(struct node *tree);
 
 // print.c
 extern void print_tree(struct node *tree);
+
 
 #endif

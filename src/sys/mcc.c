@@ -9,10 +9,10 @@
 #include <locale.h>
 #include <stdarg.h>
 #include "sys.h"
-#include "alloc.h"
 #include "str.h"
 #include "vector.h"
 #include "config.h"
+#include "utils.h"
 
 extern int cpp_main(int argc, char *argv[]);
 extern int cc_main(int argc, char *argv[]);
@@ -64,7 +64,7 @@ static char *tempname(const char *hint)
         return NULL;
     } else {
         size_t len = strlen(tmpdir) + strlen(hint) + 128;
-        void *p = NEW0(len);
+        void *p = zmalloc(len);
         hint = hint ? hint : "tmp";
         snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
         return p;
@@ -122,7 +122,7 @@ static int unitprocess(void *context)
         }
         else {
             char *new_file = replace_suffix(inputfile, "s");
-            sfile = NEW0(strlen(new_file)+1);
+            sfile = zmalloc(strlen(new_file)+1);
             strcpy(sfile, new_file);
             free(new_file);
             cc[3] = sfile;

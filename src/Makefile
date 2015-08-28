@@ -11,12 +11,13 @@ TARGETS=$(MCC) $(CC1)
 UTILS_SRC=alloc.c \
         str.c \
         vector.c \
-	map.c 
+	map.c \
+	wrapper.c
 
-UTILS_INC=alloc.h \
-        str.h \
+UTILS_INC= str.h \
 	vector.h \
-	map.h
+	map.h \
+	utils.h
 
 CC1_SRC=ast.c \
         cc.c \
