@@ -1,6 +1,6 @@
 #include "cc.h"
 
-#define EMPTY_MAP   ((struct map){ .cmpfn = always_notequal })
+#define EMPTY_MAP   ((struct map){ .cmpfn = nocmp })
 
 struct table * identifiers = &(struct table){ GLOBAL, .map = &EMPTY_MAP };
 struct table * constants = &(struct table){ CONSTANT, .map = &EMPTY_MAP };
@@ -13,7 +13,7 @@ static struct table * new_table(struct table *up, int scope)
     struct table *t = NEWS(table);
     t->up = up;
     t->scope = scope;
-    t->map = new_map(always_notequal);
+    t->map = new_map(nocmp);
     return t;
 }
 
@@ -40,7 +40,7 @@ void exit_scope()
 struct symbol * anonymous(struct table **tpp, int scope)
 {
     static long i;
-    return install(stringd(i++), tpp, scope);
+    return install(strd(i++), tpp, scope);
 }
 
 struct symbol * lookup(const char *name, struct table *table)

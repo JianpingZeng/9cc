@@ -3,8 +3,11 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <string.h>
-#include "utils.h"
+#include "str.h"
+#include "vector.h"
 #include "sys.h"
+
+extern void die(const char *fmt, ...);
 
 static const char *ofile, *ifile;
 static struct vector *options;

@@ -1002,7 +1002,7 @@ static struct path * designator(struct type *ty)
                 if (isarray(dty)) {
                     //TODO: check bound
                     dty = rtype(dty);
-                    vec_push(v, stringd(i));
+                    vec_push(v, strd(i));
                 } else {
                     errorf(src, "array designator cannot initialize non-array type '%s'", dty->name);
                     broken = true;
@@ -1022,7 +1022,7 @@ static struct path * designator(struct type *ty)
                         }
                         if (k < len) {
                             dty = dty->u.s.fields[k]->type;
-                            vec_push(v, stringd(k));
+                            vec_push(v, strd(k));
                         } else {
                             error("field designator '%s' dose not refer to any filed in type '%s %s'", token->name, dty->name, dty->tag);
                             broken = true;
@@ -1086,7 +1086,7 @@ struct node * initializer_list(struct type *ty)
         
         path = NEWS(path);
         path->v = new_vector();
-        vec_push(path->v, stringd(i));
+        vec_push(path->v, strd(i));
         
         if (token->id == '[' || token->id == '.') {
             path = designator(ty);

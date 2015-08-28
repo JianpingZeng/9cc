@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <limits.h>
-#include "utils.h"
+#include "alloc.h"
 
 /**
  * Add alignment to make the compiler happy.

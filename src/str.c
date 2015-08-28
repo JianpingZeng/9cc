@@ -4,7 +4,10 @@
 #include <assert.h>
 #include <limits.h>
 #include <ctype.h>
-#include "utils.h"
+#include <stdarg.h>
+#include "alloc.h"
+#include "str.h"
+#include "map.h"
 
 #define STRING_INIT_SIZE    32
 
@@ -106,4 +109,82 @@ void str_strip(struct string *s)
 {
     str_lstrip(s);
     str_rstrip(s);
+}
+
+// key-value storage
+
+char *strn(const char *str, size_t len)
+{
+    static struct map *map;
+    char *dst;
+    
+    if (!str || len == 0)
+        return NULL;
+    
+    if (!map)
+        map = new_map(NULL);
+    
+    if ((dst = map_get(map, str)))
+        return dst;
+    
+    dst = NEW0(len + 1);
+    strncpy(dst, str, len);
+    map_put(map, dst, dst);
+    
+    return dst;
+}
+
+char *strd(long d)
+{
+    char *ret;
+    struct string *s = new_string();
+    str_catd(s, d);
+    ret = strn(s->str, str_len(s));
+    free_string(s);
+    return ret;
+}
+
+char *strs(const char *str)
+{
+    if (!str)
+        return NULL;
+    return strn(str, strlen(str));
+}
+
+char * stoa(struct string *s)
+{
+    if (s == NULL || s->len == 0)
+        return NULL;
+    
+    return strs(s->str);
+}
+
+static char *vformat(const char *fmt, va_list ap)
+{
+    size_t size = 128;
+    void *buffer = NULL;
+    va_list aq;
+    for (; ; ) {
+        size_t avail = size;
+        buffer = NEW0(avail);
+        va_copy(aq, ap);
+        int total = vsnprintf(buffer, avail, fmt, aq);
+        va_end(aq);
+        if (avail <= total) {
+            size = total + 8;
+            continue;
+        }
+        break;
+    }
+    
+    return buffer;
+}
+
+char *format(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    char *r = vformat(fmt, ap);
+    va_end(ap);
+    return strs(r);
 }

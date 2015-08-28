@@ -1,7 +1,8 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "utils.h"
+#include "alloc.h"
+#include "vector.h"
 
 #define VEC_INIT_SIZE   16
 
@@ -73,4 +74,32 @@ void vec_push(struct vector *v, void *val)
 size_t vec_len(struct vector *v)
 {
     return v->len;
+}
+
+// Add elements to vector from a null-terminated array
+void vec_add_from_array(struct vector *v, void **array)
+{
+    if (array == NULL) return;
+    for (int i=0; array[i]; i++)
+        vec_push(v, array[i]);
+}
+
+void ** vtoa(struct vector *v)
+{
+    void **array = NULL;
+    int vlen = vec_len(v);
+    if (vlen > 0) {
+        array = NEW0((vlen+1) * sizeof(void *));
+        memcpy(array, v->mem, vlen * sizeof(void *));
+    }
+    return array;
+}
+
+int array_len(void **array)
+{
+    int i;
+    if (array == NULL) return 0;
+    for (i=0; array[i]; i++)
+        ;
+    return i;
 }

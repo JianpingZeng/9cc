@@ -14,7 +14,17 @@
 #include <stdbool.h>
 
 #include "config.h"
-#include "utils.h"
+
+#define TWOS(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
+
+#define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
+
+#define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
+
+#include "alloc.h"
+#include "str.h"
+#include "vector.h"
+#include "map.h"
 
 // lex.c
 #define EOI  -1
@@ -336,6 +346,9 @@ extern void end_call(const char *funcname);
 
 extern void redefinition_error(struct source src, struct symbol *sym);
 extern void conflicting_types_error(struct source src, struct symbol *sym);
+
+extern void die(const char *fmt, ...);
+extern void println(const char *fmt, ...);
 
 // gen.c
 void walk(struct node *tree);

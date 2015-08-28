@@ -25,7 +25,7 @@ static void test_map()
     expects(map_get(map, "op"), "delete");
     
     const char *key1 = "key1";
-    const char *key11 = strings("key1");
+    const char *key11 = strs("key1");
     map_put(map, key1, "value1");
     expects(map_get(map, key1), "value1");
     expects(map_get(map, key11), "value1");

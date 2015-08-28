@@ -132,3 +132,22 @@ void conflicting_types_error(struct source src, struct symbol *sym)
     errorf(src, "conflicting types for '%s', previous at %s line %u",
            sym->name, sym->src.file, sym->src.line);
 }
+
+void die(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(EXIT_FAILURE);
+}
+
+void println(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+}

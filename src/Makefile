@@ -2,21 +2,21 @@
 
 AR=ar
 CC=cc
-CFLAGS=-Wall -std=c99 -Os -Isys -Iutils
+CFLAGS=-Wall -std=c99 -Os -Isys -I.
 LDFLAGS=
 MCC=mcc
 CC1=libcc1.a
 TARGETS=$(MCC) $(CC1)
 
-UTILS_SRC=utils/alloc.c \
-        utils/string.c \
-        utils/vector.c \
-        utils/misc.c \
-	utils/map.c \
-	utils/array.c
+UTILS_SRC=alloc.c \
+        str.c \
+        vector.c \
+	map.c 
 
-UTILS_INC=utils/utils.h \
-        utils/macros.h
+UTILS_INC=alloc.h \
+        str.h \
+	vector.h \
+	map.h
 
 CC1_SRC=ast.c \
         cc.c \
@@ -84,18 +84,14 @@ $(CC1): $(CC1_INC) $(CC1_SRC)
 # Test suite
 #
 TESTDIR=../test
-CFLAGS_TEST=-Wall -std=c99 -Os -Iutils -I. -I$(TESTDIR)
+CFLAGS_TEST=-Wall -std=c99 -Os -I. -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
 TEST_INTERNAL := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/internal/*.c))
-TEST_AST := $(TESTDIR)/ast/ast.bin
 TESTS=$(TEST_INTERNAL)
 
 $(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP)
 	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1) -o $@
-
-$(TEST_AST): $(TESTDIR)/ast/ast.c $(MCC) $(TEST_DEP) $(UTILS_INC) $(UTILS_SRC)
-	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(UTILS_SRC) $< $(CC1) -o $@
 
 test: $(TESTS)
 	@for test in $(TESTS); do \

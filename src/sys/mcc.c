@@ -9,11 +9,14 @@
 #include <locale.h>
 #include <stdarg.h>
 #include "sys.h"
-#include "utils.h"
+#include "alloc.h"
+#include "str.h"
+#include "vector.h"
 #include "config.h"
 
 extern int cpp_main(int argc, char *argv[]);
 extern int cc_main(int argc, char *argv[]);
+extern void die(const char *fmt, ...);
 
 // configs
 static struct {
@@ -185,9 +188,9 @@ int main(int argc, char **argv)
         } else if (!strcmp(arg, "-S")) {
             option.S = 1;
         } else if (arg[0] == '-') {
-            vec_push(optionlist, strings(arg));
+            vec_push(optionlist, strs(arg));
         } else {
-            vec_push(inputlist, strings(arg));
+            vec_push(inputlist, strs(arg));
         }
     }
     

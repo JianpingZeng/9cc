@@ -45,7 +45,7 @@ static struct type * install_type(const char *name, int kind, struct metrics m)
 {
     struct type *ty = new_type();
     
-    ty->name = strings(name);
+    ty->name = strs(name);
     ty->kind = kind;
     ty->size = m.size;
     ty->rank = m.rank;

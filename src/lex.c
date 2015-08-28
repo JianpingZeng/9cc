@@ -74,12 +74,6 @@ static inline bool is_visible(char c)
     return c >= 040 && c < 0177;
 }
 
-/*
- * unsigned char generates too many warnings
- * when using functions like stringn etc.
- * so use char here to make the compiler happy.
- */
-
 static char ibuf[LBUFSIZE+RBUFSIZE+1];
 static char *pc;
 static char *pe;

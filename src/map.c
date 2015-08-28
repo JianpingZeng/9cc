@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
-#include "utils.h"
+#include "alloc.h"
+#include "map.h"
 
 // a key-value implementation
 
@@ -54,17 +55,12 @@ static void rehash(struct map *map, unsigned newsize)
     free(oldtable);
 }
 
-int always_notequal(const char *key1, const char *key2)
+int nocmp(const char *key1, const char *key2)
 {
     return 1;
 }
 
-int always_equal(const char *key1, const char *key2)
-{
-    return 0;
-}
-
-static int default_cmpfn(const char *key1, const char *key2)
+int cmp(const char *key1, const char *key2)
 {
     return strcmp(key1, key2);
 }
@@ -114,7 +110,7 @@ struct map * new_map(int (*cmpfn) (const char *, const char *))
 {
     struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
-    map->cmpfn = cmpfn ? cmpfn : default_cmpfn;
+    map->cmpfn = cmpfn ? cmpfn : cmp;
     alloc_map(map, MAP_INIT_SIZE);
     return map;
 }
