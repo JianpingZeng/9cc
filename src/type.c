@@ -490,7 +490,7 @@ bool isscalar(struct type *ty)
     return isarith(ty) || isptr(ty);
 }
 
-static void qualstr(struct string *s, struct type *ty)
+static void qualstr(struct str *s, struct type *ty)
 {
     if (isconst(ty))
         str_cats(s, "const ");
@@ -502,7 +502,7 @@ static void qualstr(struct string *s, struct type *ty)
 
 static const char *returnstr(struct type *ty)
 {
-    struct string *s = new_string();
+    struct str *s = new_str();
     str_cats(s, "(");
     for (int i=0; i < array_len(ty->u.f.params); i++) {
         struct type *sty = ty->u.f.params[i]->type;
@@ -517,13 +517,13 @@ static const char *returnstr(struct type *ty)
 
 const char *type2s(struct type *ty)
 {
-    struct string *s = new_string();
+    struct str *s = new_str();
     int k = kind(ty);
     switch (k) {
         case POINTER:
         {
             struct type *pty = ty;
-            struct string *p = new_string();
+            struct str *p = new_str();
             str_cats(p, "*");
             while (isptr(pty) && isptr(rtype(pty))) {
                 str_cats(p, "*");

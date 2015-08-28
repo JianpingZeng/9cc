@@ -42,7 +42,7 @@ static void preprocess(void)
 static void add_search_path(const char *path)
 {
     const char *abspath = expanduser(path);
-    struct string *s = new_string();
+    struct str *s = new_str();
     str_cats(s, "-I");
     if (abspath) {
 	str_cats(s, abspath);

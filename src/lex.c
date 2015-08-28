@@ -155,7 +155,7 @@ static void fline()
     skipblank();
     
     if (*pc == '"') {
-        struct string *s = new_string();
+        struct str *s = new_str();
         pc++;
         for (; *pc != '"' || pc == pe;) {
             if (pe - pc < LBUFSIZE) {
@@ -283,11 +283,11 @@ static void line_comment();
 static void block_comment();
 static void identifier();
 static int number();
-static void fnumber(struct string *s, int base);
+static void fnumber(struct str *s, int base);
 static void sequence(bool wide, char ch);
-static void integer_suffix(struct string *s);
-static void escape(struct string *s);
-static void readch(struct string *s, bool (*is) (char));
+static void integer_suffix(struct str *s);
+static void escape(struct str *s);
+static void readch(struct str *s, bool (*is) (char));
 
 static int do_gettok()
 {
@@ -727,7 +727,7 @@ static void block_comment()
         pc += 2;
 }
 
-static void readch(struct string *s, bool (*is) (char))
+static void readch(struct str *s, bool (*is) (char))
 {
     char *rpc = pc;
     for (; is(*rpc) || rpc == pe; ) {
@@ -749,7 +749,7 @@ static void readch(struct string *s, bool (*is) (char))
 
 static int number()
 {
-    struct string *s = new_string();
+    struct str *s = new_str();
     char *rpc = pc-1;
     str_catn(s, rpc, 1);
     if (rpc[0] == '0' && (rpc[1] == 'x' || rpc[1] == 'X')) {
@@ -781,10 +781,10 @@ static int number()
     }
 }
 
-static void fnumber(struct string *s, int base)
+static void fnumber(struct str *s, int base)
 {
     // ./e/E/p
-    if (!s) s = new_string();
+    if (!s) s = new_str();
     
     if (base == 10) {
         // . e E
@@ -836,7 +836,7 @@ static void fnumber(struct string *s, int base)
     tokname = stoa(s);
 }
 
-static void integer_suffix(struct string *s)
+static void integer_suffix(struct str *s)
 {
     char *rpc = pc;
     int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
@@ -875,7 +875,7 @@ static void integer_suffix(struct string *s)
 
 static void sequence(bool wide, char ch)
 {    
-    struct string *s = new_string();
+    struct str *s = new_str();
     wide ? str_catn(s, pc-2, 2) : str_catn(s, pc-1, 1);
     for (; *pc != ch;) {
         if (pe - pc < MAXTOKEN) {
@@ -906,13 +906,13 @@ static void sequence(bool wide, char ch)
 
 static void identifier()
 {
-    struct string *s = new_string();
+    struct str *s = new_str();
     pc = pc - 1;
     readch(s, is_digitletter);
     tokname = stoa(s);
 }
 
-static void escape(struct string *s)
+static void escape(struct str *s)
 {
     assert(*pc == '\\');
     str_catn(s, pc++, 2);

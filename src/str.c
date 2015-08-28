@@ -11,7 +11,7 @@
 
 #define STRING_INIT_SIZE    32
 
-static void str_grow(struct string *s, size_t len)
+static void str_grow(struct str *s, size_t len)
 {
     char *oldstr = s->str;
     s->alloc = len << 1;
@@ -22,15 +22,15 @@ static void str_grow(struct string *s, size_t len)
         free(oldstr);
 }
 
-struct string * new_string()
+struct str * new_str()
 {
-    struct string *s = xmalloc(sizeof(struct string));
+    struct str *s = xmalloc(sizeof(struct str));
     s->len = 0;
     str_grow(s, STRING_INIT_SIZE);
     return s;
 }
 
-void free_string(struct string *s)
+void free_str(struct str *s)
 {
     if (!s)
         return;
@@ -38,22 +38,22 @@ void free_string(struct string *s)
     free(s);
 }
 
-size_t str_len(struct string *s)
+size_t str_len(struct str *s)
 {
     return s->len;
 }
 
-void str_add(struct string *s, struct string *s2)
+void str_add(struct str *s, struct str *s2)
 {
     str_catn(s, s2->str, str_len(s2));
 }
 
-void str_cats(struct string *s, const char *src)
+void str_cats(struct str *s, const char *src)
 {
     str_catn(s, src, strlen(src));
 }
 
-void str_catn(struct string *s, const char *src, size_t len)
+void str_catn(struct str *s, const char *src, size_t len)
 {
     if (s->len + len >= s->alloc)
         str_grow(s, s->len + len);
@@ -65,7 +65,7 @@ void str_catn(struct string *s, const char *src, size_t len)
     *dst = '\0';
 }
 
-void str_catd(struct string *s, long n)
+void str_catd(struct str *s, long n)
 {
     char str[32], *ps = str + sizeof (str);
     unsigned long m;
@@ -87,7 +87,7 @@ void str_catd(struct string *s, long n)
     return str_catn(s, ps, str + sizeof (str) - ps);
 }
 
-void str_lstrip(struct string *s)
+void str_lstrip(struct str *s)
 {
     char *p = s->str;
     while (s->len > 0 && isblank(*p)) {
@@ -98,14 +98,14 @@ void str_lstrip(struct string *s)
     s->str[s->len] = '\0';
 }
 
-void str_rstrip(struct string *s)
+void str_rstrip(struct str *s)
 {
     while (s->len > 0 && isblank(s->str[s->len-1]))
         s->len--;
     s->str[s->len] = '\0';
 }
 
-void str_strip(struct string *s)
+void str_strip(struct str *s)
 {
     str_lstrip(s);
     str_rstrip(s);
@@ -137,10 +137,10 @@ char *strn(const char *str, size_t len)
 char *strd(long d)
 {
     char *ret;
-    struct string *s = new_string();
+    struct str *s = new_str();
     str_catd(s, d);
     ret = strn(s->str, str_len(s));
-    free_string(s);
+    free_str(s);
     return ret;
 }
 
@@ -151,7 +151,7 @@ char *strs(const char *str)
     return strn(str, strlen(str));
 }
 
-char * stoa(struct string *s)
+char * stoa(struct str *s)
 {
     if (s == NULL || s->len == 0)
         return NULL;
