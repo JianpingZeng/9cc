@@ -33,6 +33,7 @@ CC1_SRC=ast.c \
         $(UTILS_SRC)
 
 CC1_INC=cc.h \
+	ast.h \
         config.h \
         node.def \
         token.def \
