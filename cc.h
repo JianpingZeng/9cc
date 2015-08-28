@@ -16,6 +16,8 @@
 #include "config.h"
 #include "utils.h"
 
+#define FLEX_ARRAY      /* flexible array */
+
 #define TWOS(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
 
 #define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
