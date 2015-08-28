@@ -6,6 +6,7 @@
 #include "str.h"
 #include "vector.h"
 #include "sys.h"
+#include "utils.h"
 
 extern void die(const char *fmt, ...);
 

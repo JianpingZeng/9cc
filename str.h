@@ -27,16 +27,4 @@ extern void str_rstrip(struct str *s);
 
 extern void str_strip(struct str *s);
 
-// key-value storage
-
-extern char *strs(const char *str);
-
-extern char *strn(const char *src, size_t len);
-
-extern char *strd(long n);
-
-extern char * stoa(struct str *s);
-
-extern char *format(const char *fmt, ...);
-
 #endif

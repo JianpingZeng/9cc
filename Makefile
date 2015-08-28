@@ -11,8 +11,9 @@ TARGETS=$(MCC) $(CC1)
 UTILS_SRC=alloc.c \
         str.c \
         vector.c \
-	map.c \
-	wrapper.c
+        map.c \
+        wrapper.c \
+        string.c
 
 UTILS_INC= str.h \
 	vector.h \
