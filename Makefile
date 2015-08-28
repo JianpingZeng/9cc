@@ -85,7 +85,7 @@ $(CC1): $(CC1_INC) $(CC1_SRC)
 #
 # Test suite
 #
-TESTDIR=../test
+TESTDIR=test
 CFLAGS_TEST=-Wall -std=c99 -Os -I. -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h

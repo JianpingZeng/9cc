@@ -1,5 +1,5 @@
-#ifndef _STRING_H
-#define _STRING_H
+#ifndef _STR_H
+#define _STR_H
 
 struct str {
     char    *str;

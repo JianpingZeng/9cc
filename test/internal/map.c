@@ -1,6 +1,5 @@
 #include "test.h"
 #include "cc.h"
-#include "utils.h"
 
 static void test_map()
 {
