@@ -1,11 +1,11 @@
 #include "cc.h"
 
-static struct node * statement(struct node *context);
-static struct node * _compound_stmt(struct node *context);
+static union node * statement(union node *context);
+static union node * _compound_stmt(union node *context);
 
-static struct node * expr_stmt()
+static union node * expr_stmt()
 {
-    struct node *ret;
+    union node *ret;
     
     if (token->id == ';') {
         ret = NULL;
@@ -21,11 +21,11 @@ static struct node * expr_stmt()
     return ret;
 }
 
-static struct node * if_stmt(struct node *context)
+static union node * if_stmt(union node *context)
 {
-    struct node *ret;
-    struct node *expr;
-    struct node *stmt1;
+    union node *ret;
+    union node *expr;
+    union node *stmt1;
     
     expect(IF);
     expect('(');
@@ -43,10 +43,10 @@ static struct node * if_stmt(struct node *context)
     return ret;
 }
 
-static struct node * while_stmt(struct node *context)
+static union node * while_stmt(union node *context)
 {
-    struct node *expr;
-    struct node *ret;
+    union node *expr;
+    union node *ret;
     
     expect(WHILE);
     expect('(');
@@ -54,39 +54,39 @@ static struct node * while_stmt(struct node *context)
     expect(')');
     
     ret = ast_stmt(WHILE_STMT, expr, NULL);
-    ret->u.s.up = context;
-    RIGHT(ret) = statement(ret);
-    ret->u.s.up = NULL;
+    STMT_UP(ret) = context;
+    AST_KID(ret, 1) = statement(ret);
+    STMT_UP(ret) = NULL;
     
     return ret;
 }
 
-static struct node * do_while_stmt(struct node *context)
+static union node * do_while_stmt(union node *context)
 {
-    struct node *stmt;
-    struct node *expr;
-    struct node *ret;
+    union node *stmt;
+    union node *expr;
+    union node *ret;
     
     expect(DO);
     
     ret = ast_stmt(DO_WHILE_STMT, NULL, NULL);
-    ret->u.s.up = context;
+    STMT_UP(ret) = context;
     stmt = statement(ret);
     expect(WHILE);
     expect('(');
     expr = expression();
     expect(')');
     expect(';');
-    LEFT(ret) = stmt;
-    RIGHT(ret) = expr;
-    ret->u.s.up = NULL;
+    AST_KID(ret, 0) = stmt;
+    AST_KID(ret, 1) = expr;
+    STMT_UP(ret) = NULL;
     
     return ret;
 }
 
-static struct node * for_stmt(struct node *context)
+static union node * for_stmt(union node *context)
 {
-    struct node *ret = ast_stmt(FOR_STMT, NULL, NULL);
+    union node *ret = ast_stmt(FOR_STMT, NULL, NULL);
     
     expect(FOR);
     expect('(');
@@ -98,37 +98,37 @@ static struct node * for_stmt(struct node *context)
     } else {
         if (firstdecl(token)) {
             // declaration
-            ret->u.s.forstmt.decl = declaration();
+            STMT_DECL(ret) = declaration();
         } else {
             // expression
-            ret->u.s.forstmt.init = expression();
+            STMT_INIT(ret) = expression();
             expect(';');
         }
     }
     
     if (token->id != ';')
-        ret->u.s.forstmt.cond = expression();
+        STMT_COND(ret) = expression();
     
     expect(';');
     
     if (token->id != ')')
-        ret->u.s.forstmt.ctrl = expression();
+        STMT_CTRL(ret) = expression();
     
     expect(')');
     
-    ret->u.s.up = context;
-    LEFT(ret) = statement(ret);
-    ret->u.s.up = NULL;
+    STMT_UP(ret) = context;
+    AST_KID(ret, 0) = statement(ret);
+    STMT_UP(ret) = NULL;
     
     exit_scope();
     
     return ret;
 }
 
-static struct node * switch_stmt(struct node *context)
+static union node * switch_stmt(union node *context)
 {
-    struct node *expr;
-    struct node *ret;
+    union node *expr;
+    union node *ret;
     
     expect(SWITCH);
     expect('(');
@@ -136,18 +136,18 @@ static struct node * switch_stmt(struct node *context)
     expect(')');
     
     ret = ast_stmt(SWITCH_STMT, expr, NULL);
-    ret->u.s.up = context;
-    RIGHT(ret) = statement(ret);
-    ret->u.s.up = NULL;
+    STMT_UP(ret) = context;
+    AST_KID(ret, 1) = statement(ret);
+    STMT_UP(ret) = NULL;
     
     return ret;
 }
 
-static struct node * case_stmt(struct node *context)
+static union node * case_stmt(union node *context)
 {
     int in_sw = 0;
     int val;
-    struct node *stmt;
+    union node *stmt;
     struct source src = source;
     
     expect(CASE);
@@ -159,7 +159,7 @@ static struct node * case_stmt(struct node *context)
             in_sw = 1;
             break;
         } else {
-            context = context->u.s.up;
+            context = STMT_UP(context);
         }
     }
     
@@ -173,15 +173,15 @@ static struct node * case_stmt(struct node *context)
     if (!in_sw)
         return NULL;
     
-    struct node *ret = ast_stmt(CASE_STMT, stmt, NULL);
-    ret->u.s.casestmt.value = val;
+    union node *ret = ast_stmt(CASE_STMT, stmt, NULL);
+    STMT_CASE_INDEX(ret) = val;
     return ret;
 }
 
-static struct node * default_stmt(struct node *context)
+static union node * default_stmt(union node *context)
 {
     int in_sw = 0;
-    struct node *stmt;
+    union node *stmt;
     struct source src = source;
     
     expect(DEFAULT);
@@ -192,7 +192,7 @@ static struct node * default_stmt(struct node *context)
             in_sw = 1;
             break;
         } else {
-            context = context->u.s.up;
+            context = STMT_UP(context);
         }
     }
     
@@ -208,10 +208,10 @@ static struct node * default_stmt(struct node *context)
         return ast_stmt(DEFAULT_STMT, stmt, NULL);
 }
 
-static struct node * label_stmt(struct node *context)
+static union node * label_stmt(union node *context)
 {
-    struct node *label;
-    struct node *stmt;
+    union node *label;
+    union node *stmt;
     
     label = ast_expr(REF_EXPR, ID, NULL, NULL);
     expect(ID);
@@ -221,9 +221,9 @@ static struct node * label_stmt(struct node *context)
     return ast_stmt(LABEL_STMT, label, stmt);
 }
 
-static struct node * goto_stmt()
+static union node * goto_stmt()
 {
-    struct node *expr = NULL;
+    union node *expr = NULL;
     
     expect(GOTO);
     if (token->id == ID)
@@ -234,11 +234,11 @@ static struct node * goto_stmt()
     return ast_stmt(GOTO_STMT, expr, NULL);
 }
 
-static struct node * break_stmt(struct node *context)
+static union node * break_stmt(union node *context)
 {
     int in_iter_sw = 0;
     struct source src = source;
-    struct node *ret;
+    union node *ret;
     
     expect(BREAK);
     expect(';');
@@ -248,7 +248,7 @@ static struct node * break_stmt(struct node *context)
             in_iter_sw = 1;
             break;
         } else {
-            context = context->u.s.up;
+            context = STMT_UP(context);
         }
     }
     
@@ -258,15 +258,15 @@ static struct node * break_stmt(struct node *context)
     }
     
     ret = ast_stmt(BREAK_STMT, NULL, NULL);
-    ret->u.s.up = context;
+    STMT_UP(ret) = context;
     
     return ret;
 }
 
-static struct node * continue_stmt(struct node *context)
+static union node * continue_stmt(union node *context)
 {
     int in_iter = 0;
-    struct node *ret;
+    union node *ret;
     struct source src = source;
     
     expect(CONTINUE);
@@ -277,7 +277,7 @@ static struct node * continue_stmt(struct node *context)
             in_iter = 1;
             break;
         } else {
-            context = context->u.s.up;
+            context = STMT_UP(context);
         }
     }
     
@@ -287,19 +287,19 @@ static struct node * continue_stmt(struct node *context)
     }
     
     ret = ast_stmt(CONTINUE_STMT, NULL, NULL);
-    ret->u.s.up = context;
+    STMT_UP(ret) = context;
     
     return ret;
 }
 
-static struct node * return_stmt()
+static union node * return_stmt()
 {
     expect(RETURN);
     
     return ast_stmt(RETURN_STMT, expr_stmt(), NULL);;
 }
 
-static struct node * statement(struct node *context)
+static union node * statement(union node *context)
 {
     switch (token->id) {
         case '{':       return _compound_stmt(context);
@@ -323,9 +323,9 @@ static struct node * statement(struct node *context)
     }
 }
 
-static struct node * _compound_stmt(struct node *context)
+static union node * _compound_stmt(union node *context)
 {
-    struct node *ret = ast_stmt(COMPOUND_STMT, NULL, NULL);
+    union node *ret = ast_stmt(COMPOUND_STMT, NULL, NULL);
     struct vector *v = new_vector();
     
     expect('{');
@@ -340,14 +340,14 @@ static struct node * _compound_stmt(struct node *context)
             vec_push(v, statement(context));
     }
     
-    ret->u.s.compoundstmt.blks = (struct node **)vtoa(v);
+    STMT_BLKS(ret) = (union node **)vtoa(v);
     expect('}');
     exit_scope();
     
     return ret;
 }
 
-struct node * compound_stmt()
+union node * compound_stmt()
 {
     return _compound_stmt(NULL);
 }

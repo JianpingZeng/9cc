@@ -166,11 +166,11 @@
 
 以 `compound` 为例，其结构是多个 `declaration` 和 `statement` 的并列。二叉树的两个子节点不足以表示。`for` 循环的三个表达式也是如此。
 
-最初使用了 `vector`，但觉得破坏了二叉树结构，比如为了 `for` statement， `stmt` 要增加一个 `struct node **exprs` 的字段，如果仅仅 `for` 循环用到了这个字段，显得多余。
+最初使用了 `vector`，但觉得破坏了二叉树结构，比如为了 `for` statement， `stmt` 要增加一个 `union node **exprs` 的字段，如果仅仅 `for` 循环用到了这个字段，显得多余。
 
 因此引进了 `concat-node`，保持二叉树结构，但一旦列表的项目增多，冗余的 `concat-node` 太多，而且不便于遍历操作。
 
-于是又改回了 `vector`，但有改进，新增了 `anode`，其有一个 `struct node **` 字段保存节点列表，但其本身又是一个 `node`，因此，既没有冗余节点，二叉树的结构仍然得以保持。
+于是又改回了 `vector`，但有改进，新增了 `anode`，其有一个 `union node **` 字段保存节点列表，但其本身又是一个 `node`，因此，既没有冗余节点，二叉树的结构仍然得以保持。
 
 
 ### `DONE` 完成语句的语法分析

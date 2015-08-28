@@ -16,6 +16,8 @@
 #include "config.h"
 #include "utils.h"
 
+#define FLEX_ARRAY      /* flexible array */
+
 #define TWOS(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
 
 #define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
@@ -29,6 +31,7 @@ extern void cc_drain(void);
 #define NEW0(size)  cc_alloc(size)
 
 #define NEWS(tag)   ((struct tag *)NEW0(sizeof(struct tag)))
+#define NEWU(tag)   ((union tag *)NEW0(sizeof(union tag)))
 
 #include "str.h"
 #include "vector.h"
@@ -88,34 +91,22 @@ union value {
 #include "ast.h"
 
 // expr.c
-extern struct node * expression();
-extern struct node * assign_expr();
+extern union node * expression();
+extern union node * assign_expr();
 extern int intexpr();
 
 // decl.c
-extern struct node * initializer_list(struct type *ty);
+extern union node * initializer_list(struct type *ty);
 extern bool istypename(struct token *t);
-extern struct node ** declaration();
-extern struct node * translation_unit();
+extern union node ** declaration();
+extern union node * translation_unit();
 extern struct type * typename();
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
 
 // stmt.c
-extern struct node * compound_stmt();
-
-#define LEFT(n)    (n->kids[0])
-#define RIGHT(n)    (n->kids[1])
-
-#define isexpr(n)  (n->id > BEGIN_EXPR_ID && n->id < END_EXPR_ID)
-#define isdecl(n)  (n->id > BEGIN_DECL_ID && n->id < END_DECL_ID)
-#define isstmt(n)  (n->id > BEGIN_STMT_ID && n->id < END_STMT_ID)
-#define isfuncdecl(n) (n->id == FUNC_DECL)
-#define isfuncdef(n) (isfuncdecl(n) && KID0(n) && KID0(n)->id == COMPOUND_STMT)
-#define isliteral(n) (n->id > BEGIN_LITERAL_ID && n->id < END_LITERAL_ID)
-#define is_switch_stmt(n) (n && n->id == SWITCH_STMT)
-#define is_iteration_stmt(n) (n && (n->id == FOR_STMT || n->id == WHILE_STMT || n->id == DO_WHILE_STMT))
+extern union node * compound_stmt();
 
 struct field {
     const char *name;
@@ -141,7 +132,7 @@ struct type {
         }f;
         // array
         struct {
-            struct node *assign;
+            union node *assign;
             unsigned is_const : 1;
             unsigned is_volatile : 1;
             unsigned is_restrict : 1;
@@ -290,10 +281,10 @@ extern void redefinition_error(struct source src, struct symbol *sym);
 extern void conflicting_types_error(struct source src, struct symbol *sym);
 
 // gen.c
-void walk(struct node *tree);
+void walk(union node *tree);
 
 // print.c
-extern void print_tree(struct node *tree);
+extern void print_tree(union node *tree);
 
 
 #endif
