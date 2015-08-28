@@ -401,9 +401,10 @@ bool eqtype(struct type *ty1, struct type *ty2)
     }
 }
 
+//TODO
 struct type * compose(struct type *ty1, struct type *ty2)
 {
-    
+    return NULL;
 }
 
 bool isconst(struct type *ty)

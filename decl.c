@@ -11,8 +11,8 @@ static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
-static struct node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
-static struct node * initializer(struct type *ty);
+static union node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
+static union node * initializer(struct type *ty);
 static void fields(struct type *sty);
 
 struct path {
@@ -650,18 +650,18 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
         
         for (;;) {
             if (id) {
-                struct node *decl;
+                union node *decl;
                 struct symbol *sym = dcl(id, ty, sclass, src);
                 if (sclass == TYPEDEF)
                     decl = ast_decl(TYPEDEF_DECL, SCOPE);
                 else
                     decl = ast_decl(VAR_DECL, SCOPE);
                 
-                decl->sym = sym;
+                DECL_SYM(decl) = sym;
                 
                 //TODO: param decl has no initializer
                 if (token->id == '=') {
-                    struct node *init = NULL;
+                    union node *init = NULL;
                     expect('=');
                     init = initializer(ty);
                     if (init) {
@@ -677,7 +677,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
                         sym->defined = init ? true : false;
                     }
                     
-                    decl->u.d.init = init;
+                    DECL_BODY(decl) = init;
                 }
                 
                 vec_push(v, decl);
@@ -697,7 +697,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
         int node_id;
-        struct node *decl;
+        union node *decl;
         if (isstruct(basety))
             node_id = STRUCT_DECL;
         else if (isunion(basety))
@@ -706,7 +706,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
             node_id = ENUM_DECL;
         
         decl = ast_decl(node_id, SCOPE);
-        decl->sym = tag_sym(basety);
+        DECL_SYM(decl) = tag_sym(basety);
         vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);
@@ -716,7 +716,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
     return v;
 }
 
-static struct node * initializer(struct type *ty)
+static union node * initializer(struct type *ty)
 {
     if (token->id == '{') {
         // initializer list
@@ -765,15 +765,15 @@ struct type * typename()
     return ty;
 }
 
-struct node ** declaration()
+union node ** declaration()
 {
     assert(SCOPE >= LOCAL);
-    return (struct node **)vtoa(decls(localdecl));
+    return (union node **)vtoa(decls(localdecl));
 }
 
-struct node * translation_unit()
+union node * translation_unit()
 {
-    struct node *ret = ast_decl(TU_DECL, GLOBAL);
+    union node *ret = ast_decl(TU_DECL, GLOBAL);
     struct vector *v = new_vector();
     
     for (; token->id != EOI; ) {
@@ -787,7 +787,8 @@ struct node * translation_unit()
         }
     }
     
-    ret->u.d.exts = (struct node **)vtoa(v);
+    
+    DECL_EXTS(ret) = (union node **)vtoa(v);
     
     return ret;
 }
@@ -1045,42 +1046,42 @@ static struct path * designator(struct type *ty)
     return path;
 }
 
-static struct node * get_slot(struct node *root, struct path *path)
+static union node * get_slot(union node *root, struct path *path)
 {
-    struct node *n = root;
-    int len = vec_len(path->v);
-    for (int i = 0; i < len; i++) {
-        const char *name = vec_at(path->v, i);
-        int k = atoi(name);
-        struct vector *v = new_vector();
-        vec_add_from_array(v, (void **)n->u.e.inits);
-        
-        for (int j=vec_len(v); j <= k; j++)
-            vec_push(v, ast_vinit());
-        
-        struct node *slot = vec_at(v, k);
-        if (slot->id == VINIT_EXPR && i < len - 1) {
-            slot = ast_expr(INITS_EXPR, 0, NULL, NULL);
-            vec_set(v, k, slot);
-        }
-        
-        n->u.e.inits = (struct node **)vtoa(v);
-        if (i < len - 1)
-            n = slot;
-    }
+    union node *n = root;
+//    int len = vec_len(path->v);
+//    for (int i = 0; i < len; i++) {
+//        const char *name = vec_at(path->v, i);
+//        int k = atoi(name);
+//        struct vector *v = new_vector();
+//        vec_add_from_array(v, (void **)n->u.e.inits);
+//        
+//        for (int j=vec_len(v); j <= k; j++)
+//            vec_push(v, ast_vinit());
+//        
+//        union node *slot = vec_at(v, k);
+//        if (AST_ID(slot) == VINIT_EXPR && i < len - 1) {
+//            slot = ast_expr(INITS_EXPR, 0, NULL, NULL);
+//            vec_set(v, k, slot);
+//        }
+//        
+//        n->u.e.inits = (union node **)vtoa(v);
+//        if (i < len - 1)
+//            n = slot;
+//    }
     return n;
 }
 
 //TODO: not finished yet
-struct node * initializer_list(struct type *ty)
+union node * initializer_list(struct type *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    struct node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
+    union node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
     
     
     expect('{');
     for (int i = 0; token->id == '[' || token->id == '.' || token->id == '{' || firstexpr(token); i++) {
-        struct node *inode;
+        union node *inode;
         struct path *path = NULL;
         struct type *dty = ty;
         
@@ -1097,12 +1098,12 @@ struct node * initializer_list(struct type *ty)
         inode = initializer(dty);
         
         if (!path->broken) {
-            struct node *slot = get_slot(ret, path);
-            int k = atoi(vec_tail(path->v));
-            struct node *val = slot->u.e.inits[k];
-            if (val->id != VINIT_EXPR)
-                warning("designator initializer override");
-            slot->u.e.inits[k] = inode;
+            union node *slot = get_slot(ret, path);
+//            int k = atoi(vec_tail(path->v));
+//            union node *val = slot->u.e.inits[k];
+//            if (AST_ID(val) != VINIT_EXPR)
+//                warning("designator initializer override");
+//            slot->u.e.inits[k] = inode;
             i = atoi(vec_head(path->v));
         }
         
@@ -1234,9 +1235,9 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     return sym;
 }
 
-static struct node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
+static union node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src)
 {
-    struct node *decl = ast_decl(FUNC_DECL, SCOPE);
+    union node *decl = ast_decl(FUNC_DECL, SCOPE);
     
     assert(SCOPE == PARAM);
     
@@ -1253,7 +1254,7 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
             sym->src = src;
             sym->defined = true;
             sym->sclass = sclass;
-            decl->sym = sym;
+            DECL_SYM(decl) = sym;
         } else if (eqtype(ftype, sym->type) && !sym->defined) {
             if (sclass == STATIC && sym->sclass != STATIC) {
                 errorf(src, "static declaaration of '%s' follows non-static declaration", id);
@@ -1261,7 +1262,7 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
                 sym->type = ftype;
                 sym->src = src;
                 sym->defined = true;
-                decl->sym = sym;
+                DECL_SYM(decl) = sym;
             }
         } else {
             redefinition_error(src, sym);
@@ -1292,11 +1293,11 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
             vec_add(v, decls(paramdecl));
         
         for (int i=0; i < vec_len(v); i++) {
-            struct node *decl = (struct node *)vec_at(v, i);
-            struct symbol *sym = decl->sym;
+            union node *decl = (union node *)vec_at(v, i);
+            struct symbol *sym = DECL_SYM(decl);
             
             assert(sym->name);
-            if (decl->id != VAR_DECL) {
+            if (AST_ID(decl) != VAR_DECL) {
                 warningf(sym->src, "empty declaraion");
             } else if (ftype->u.f.params) {
                 struct symbol *p = NULL;
@@ -1323,9 +1324,9 @@ static struct node * funcdef(const char *id, struct type *ftype, int sclass,  st
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
-        struct node *stmt = compound_stmt();
+        union node *stmt = compound_stmt();
         exit_scope();
-        LEFT(decl) = stmt;
+        AST_KID(decl, 0) = stmt;
     }
     
     return decl;

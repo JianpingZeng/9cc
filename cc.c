@@ -31,7 +31,7 @@ static void parseopts(int argc, const char *argv[])
 
 static void translate()
 {
-    struct node *n;
+    union node *n;
     gettok();
     n = translation_unit();
     print_tree(n);
