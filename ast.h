@@ -101,7 +101,7 @@ extern union node ** expr_operand(union node *node, unsigned i);
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)
 #define isstmt(n)           (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
-#define isfuncdef(n)        (isfuncdecl(n) && AST_BODY(n) && AST_ID(AST_BODY(n)) == COMPOUND_STMT)
+#define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == COMPOUND_STMT)
 #define isliteral(n)        (AST_ID(n) > BEGIN_LITERAL_ID && AST_ID(n) < END_LITERAL_ID)
 #define is_switch_stmt(n)   (AST_ID(n) == SWITCH_STMT)
 #define is_for_stmt(n)      (AST_ID(n) == FOR_STMT)
