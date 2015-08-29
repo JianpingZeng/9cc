@@ -14,12 +14,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
 static union node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
 static union node * initializer(struct type *ty);
 static void fields(struct type *sty);
-
-struct path {
-    struct vector *v;
-    struct type *type;
-    bool broken;
-};
+static void exit_params();
 
 static struct type * specifiers(int *sclass)
 {
@@ -355,7 +350,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
         match(')', follow);
     }
     
-    if (params) {
+    if (params && *params == NULL) {
         *params = 1;
     } else {
         if (SCOPE > PARAM)
@@ -633,7 +628,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
         // declarator
         declarator(&ty, &id, &params);
         attach_type(&ty, basety);
-        
+	
         if (level == GLOBAL) {
             if (params) {
                 if (firstfuncdef(ty)) {
@@ -787,9 +782,7 @@ union node * translation_unit()
         }
     }
     
-    
     DECL_EXTS(ret) = (union node **)vtoa(v);
-    
     return ret;
 }
 
@@ -985,6 +978,12 @@ static void fields(struct type *sty)
     sty->u.s.fields = (struct field **)vtoa(v);
 }
 
+struct path {
+    struct vector *v;
+    struct type *type;
+    bool broken;
+};
+
 static struct path * designator(struct type *ty)
 {
     struct vector *v = new_vector();
@@ -1077,7 +1076,6 @@ union node * initializer_list(struct type *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     union node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
-    
     
     expect('{');
     for (int i = 0; token->id == '[' || token->id == '.' || token->id == '{' || firstexpr(token); i++) {
