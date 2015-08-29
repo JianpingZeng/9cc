@@ -283,25 +283,15 @@ struct symbol * tag_type(int t, const char *tag, struct source src)
         }
 
         sym = install(tag, &tags, SCOPE);
-        sym->type = ty;
-        sym->src = src;
     } else {
         sym = anonymous(&tags, SCOPE);
-        sym->type = ty;
-        sym->src = src;
         ty->tag = sym->name;
     }
+
+    sym->type = ty;
+    sym->src = src;
+    ty->u.s.tsym = sym;
     
-    return sym;
-}
-
-
-struct symbol * tag_sym(struct type *ty)
-{
-    ty = unqual(ty);
-    assert(ty->tag);
-    struct symbol *sym = lookup(ty->tag, tags);
-    assert(sym && sym->type == ty);
     return sym;
 }
 

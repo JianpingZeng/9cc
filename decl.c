@@ -706,7 +706,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
             node_id = ENUM_DECL;
         
         decl = ast_decl(node_id, SCOPE);
-        DECL_SYM(decl) = tag_sym(basety);
+        DECL_SYM(decl) = basety->u.s.tsym;
         vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);
@@ -1138,7 +1138,7 @@ static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  
         ensure_array(ty, src, PARAM);
         ty = ptr_type(rtype(ty));
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!tag_sym(ty)->defined)
+        if (!ty->u.s.tsym->defined)
             warningf(src, "declaration of '%s' will not be visible outside of this function", type2s(ty));
     }
     
@@ -1176,7 +1176,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!tag_sym(ty)->defined)
+        if (!ty->u.s.tsym->defined)
             error("variable has incomplete type '%s'", type2s(ty));
     }
     
@@ -1213,7 +1213,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     } else if (isarray(ty)) {
         // TODO: convert to poniter
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!tag_sym(ty)->defined && sclass != TYPEDEF)
+        if (!ty->u.s.tsym->defined && sclass != TYPEDEF)
             error("variable has incomplete type '%s'", type2s(ty));
     }
     
@@ -1277,7 +1277,7 @@ static union node * funcdef(const char *id, struct type *ftype, int sclass,  str
             if (issymnamed(sym))
                 errorf(sym->src, "parameter name omitted");
             if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
-                if (!tag_sym(sym->type)->defined)
+                if (!sym->type->u.s.tsym->defined)
                     errorf(sym->src, "variable has incomplete type '%s'", type2s(sym->type));
                 else if (sym->type->tag)
                     warningf(sym->src, "declaration of '%s' will not be visible outside of this function", type2s(sym->type));

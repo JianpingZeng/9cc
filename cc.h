@@ -133,6 +133,7 @@ struct type {
         }a;
         // enum/struct/union
         struct {
+	    struct symbol *tsym;
             struct symbol **ids;
             struct field **fields;
         }s;
@@ -157,7 +158,6 @@ extern struct type * array_type();
 extern struct type * ptr_type(struct type *ty);
 extern struct type * func_type();
 extern struct symbol * tag_type(int t, const char *tag, struct source src);
-extern struct symbol * tag_sym(struct type *ty);
 extern const char *type2s(struct type *ty);
 
 extern struct type    *chartype;               // char
