@@ -3,7 +3,7 @@
 
 static void test_map()
 {
-    struct map *map = new_map(NULL);
+    struct map *map = map_new(NULL);
     
     expectp(map_get(map, "name"), NULL);
     
@@ -29,7 +29,7 @@ static void test_map()
     expects(map_get(map, key1), "value1");
     expects(map_get(map, key11), "value1");
     
-    free_map(map);
+    map_free(map);
 }
 
 const char *testname()
