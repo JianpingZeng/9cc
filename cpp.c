@@ -16,7 +16,7 @@ static int errors;
 
 static void cpp_init(void)
 {
-    options = new_vector();
+    options = vec_new();
 }
 
 static void cpp_exit(void)
@@ -27,7 +27,7 @@ static void cpp_exit(void)
 static void preprocess(void)
 {
     static const char *cpp[] = {"/usr/bin/c99", "-E", "$in", "-o", "$out", 0};
-    struct vector *v = new_vector();
+    struct vector *v = vec_new();
     
     cpp[2] = ifile;
     if (ofile)
@@ -35,7 +35,7 @@ static void preprocess(void)
     else
 	cpp[3] = 0;
 
-    vec_add_from_array(v,(void *) cpp);
+    vec_add_array(v,(void *) cpp);
     vec_add(v, options);
     errors = callsys(cpp[0], (char **)vtoa(v));
 }

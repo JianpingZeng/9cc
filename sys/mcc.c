@@ -103,8 +103,8 @@ static int unitprocess(void *context)
         cpp[3] = ifile;
     }
     cpp[1] = inputfile;
-    v = new_vector();
-    vec_add_from_array(v, (void **)cpp);
+    v = vec_new();
+    vec_add_array(v, (void **)cpp);
     vec_add(v, options);
     argc = vec_len(v);
     argv = (char **) vtoa(v);
@@ -133,8 +133,8 @@ static int unitprocess(void *context)
         cc[3] = sfile;
     }
     cc[1] = ifile;
-    v = new_vector();
-    vec_add_from_array(v, (void **)cc);
+    v = vec_new();
+    vec_add_array(v, (void **)cc);
     vec_add(v, options);
     argc = vec_len(v);
     argv = (char **) vtoa(v);
@@ -150,7 +150,7 @@ end:
 static void translate(void *elem, void *context)
 {
     int ret;
-    struct vector *v = new_vector();
+    struct vector *v = vec_new();
     vec_push(v, elem);
     vec_push(v, context);
     unit++;
@@ -168,8 +168,8 @@ static void setup_env()
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
-    struct vector *inputlist = new_vector();
-    struct vector *optionlist = new_vector();
+    struct vector *inputlist = vec_new();
+    struct vector *optionlist = vec_new();
     
     for (int i=1; i < argc; i++) {
         char *arg = argv[i];

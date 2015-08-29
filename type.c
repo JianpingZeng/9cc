@@ -491,21 +491,6 @@ static void qualstr(struct strbuf *s, struct type *ty)
         strbuf_cats(s, "restrict ");
 }
 
-static const char *returnstr(struct type *ty)
-{
-    struct strbuf *s = strbuf_new();
-    strbuf_cats(s, "(");
-    for (int i=0; i < array_len(ty->u.f.params); i++) {
-        struct type *sty = ty->u.f.params[i]->type;
-        const char *str = type2s(sty);
-        strbuf_cats(s, str);
-        if (i < array_len(ty->u.f.params) - 1)
-            strbuf_cats(s, ", ");
-    }
-    strbuf_cats(s, ")");
-    return strs(s->str);
-}
-
 const char *type2s(struct type *ty)
 {
     struct strbuf *s = strbuf_new();
@@ -513,55 +498,22 @@ const char *type2s(struct type *ty)
     switch (k) {
         case POINTER:
         {
-            struct type *pty = ty;
-            struct strbuf *p = strbuf_new();
-            strbuf_cats(p, "*");
-            while (isptr(pty) && isptr(rtype(pty))) {
-                strbuf_cats(p, "*");
-                pty = rtype(pty);
-            }
-            assert(isptr(pty));
-            struct type *rty = rtype(pty);
-            if (isfunc(rty)) {
-                const char *r = type2s(rtype(rty));
-                strbuf_cats(s, r);
-                strbuf_cats(s, " (");
-                strbuf_cats(s, strs(p->str));
-                strbuf_cats(s, ") ");
-                strbuf_cats(s, returnstr(rty));
-            } else if (isarray(rty)) {
-                
-            } else {
-                const char *r = type2s(rty);
-                strbuf_cats(s, r);
-                strbuf_cats(s, strs(p->str));
-                qualstr(s, ty);
-            }
+            
         }
             break;
         case FUNCTION:
         {
-            const char *r = type2s(rtype(ty));
-            strbuf_cats(s, r);
-            strbuf_cats(s, returnstr(ty));
+            
         }
             break;
         case ARRAY:
         {
-            const char *r = type2s(rtype(ty));
-            strbuf_cats(s, r);
-            strbuf_cats(s, "[]");
+            
         }
             break;
         default:
         {
-            qualstr(s, ty);
-            ty = unqual(ty);
-            strbuf_cats(s, ty->name);
-            if (k == STRUCT || k == UNION || k == ENUM) {
-                strbuf_cats(s, " ");
-                strbuf_cats(s, ty->tag);
-            }
+            
         }
             break;
     }

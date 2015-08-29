@@ -16,7 +16,7 @@ static void vec_grow(struct vector *v)
         free(oldmem);
 }
 
-struct vector *new_vector()
+struct vector *vec_new()
 {
     struct vector *v = xmalloc(sizeof(struct vector));
     v->len = 0;
@@ -25,7 +25,7 @@ struct vector *new_vector()
     return v;
 }
 
-void free_vector(struct vector *v)
+void vec_free(struct vector *v)
 {
     if (!v)
         return;
@@ -77,7 +77,7 @@ size_t vec_len(struct vector *v)
 }
 
 // Add elements to vector from a null-terminated array
-void vec_add_from_array(struct vector *v, void **array)
+void vec_add_array(struct vector *v, void **array)
 {
     if (array == NULL) return;
     for (int i=0; array[i]; i++)

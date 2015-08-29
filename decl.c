@@ -282,7 +282,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
     
     if (firstdecl(token)) {
         // prototype
-        struct vector *v = new_vector();
+        struct vector *v = vec_new();
         for (int i=0;;i++) {
             struct type *basety = NULL;
             int sclass;
@@ -325,7 +325,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
     } else if (token->id == ID) {
         // oldstyle
         ftype->u.f.oldstyle = 1;
-        struct vector *v = new_vector();
+        struct vector *v = vec_new();
         for (;;) {
             if (token->id == ID)
                 vec_push(v, paramdecl(token->name, inttype, 0, source));
@@ -611,7 +611,7 @@ static bool firstfuncdef(struct type *ty)
 
 static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type *ftype, int sclass,  struct source src))
 {
-    struct vector *v = new_vector();
+    struct vector *v = vec_new();
     struct type *basety;
     int sclass;
     struct source src = source;
@@ -769,7 +769,7 @@ union node ** declaration()
 union node * translation_unit()
 {
     union node *ret = ast_decl(TU_DECL, GLOBAL);
-    struct vector *v = new_vector();
+    struct vector *v = vec_new();
     
     for (; token->id != EOI; ) {
         if (firstdecl(token)) {
@@ -822,7 +822,7 @@ static struct type * enum_decl()
     }
     if (token->id == '{') {
         int val = 0;
-        struct vector *v = new_vector();
+        struct vector *v = vec_new();
         expect('{');
         sym = tag_type(ENUM, id, src);
         if (token->id != ID)
@@ -908,7 +908,7 @@ static void fields(struct type *sty)
 {
     int follow[] = {INT, CONST, '}', IF, 0};
     
-    struct vector *v = new_vector();
+    struct vector *v = vec_new();
     while (istypename(token)) {
         struct type *basety = specifiers(NULL);
         
@@ -986,7 +986,7 @@ struct path {
 
 static struct path * designator(struct type *ty)
 {
-    struct vector *v = new_vector();
+    struct vector *v = vec_new();
     struct type *dty = ty;
     bool broken = ty ? false : true;
     
@@ -1052,8 +1052,8 @@ static union node * get_slot(union node *root, struct path *path)
 //    for (int i = 0; i < len; i++) {
 //        const char *name = vec_at(path->v, i);
 //        int k = atoi(name);
-//        struct vector *v = new_vector();
-//        vec_add_from_array(v, (void **)n->u.e.inits);
+//        struct vector *v = vec_new();
+//        vec_add_array(v, (void **)n->u.e.inits);
 //        
 //        for (int j=vec_len(v); j <= k; j++)
 //            vec_push(v, ast_vinit());
@@ -1084,7 +1084,7 @@ union node * initializer_list(struct type *ty)
         struct type *dty = ty;
         
         path = NEWS(path);
-        path->v = new_vector();
+        path->v = vec_new();
         vec_push(path->v, strd(i));
         
         if (token->id == '[' || token->id == '.') {
@@ -1285,7 +1285,7 @@ static union node * funcdef(const char *id, struct type *ftype, int sclass,  str
     
     if (firstdecl(token)) {
         // old style function definition
-        struct vector *v = new_vector();
+        struct vector *v = vec_new();
         enter_scope();
         while (firstdecl(token))
             vec_add(v, decls(paramdecl));

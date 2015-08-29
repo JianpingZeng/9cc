@@ -407,7 +407,7 @@ static union node ** argument_expr_list()
     union node **args = NULL;
     
     if (firstexpr(token)) {
-        struct vector *v = new_vector();
+        struct vector *v = vec_new();
         for (;;) {
             vec_push(v, assign_expr());
             if (token->id == ',')

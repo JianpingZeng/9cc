@@ -7,9 +7,9 @@ struct vector {
     size_t  alloc;
 };
 
-extern struct vector *new_vector();
+extern struct vector *vec_new();
 
-extern void free_vector(struct vector *v);
+extern void vec_free(struct vector *v);
 
 extern void * vec_at(struct vector *v, int index);
 
@@ -27,7 +27,7 @@ extern void vec_add(struct vector *v, struct vector *v2);
 
 extern void ** vtoa(struct vector *v);
 
-extern void vec_add_from_array(struct vector *v, void **array);
+extern void vec_add_array(struct vector *v, void **array);
 
 extern int array_len(void **array);
 

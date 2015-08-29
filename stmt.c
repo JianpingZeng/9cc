@@ -326,7 +326,7 @@ static union node * statement(union node *context)
 static union node * _compound_stmt(union node *context)
 {
     union node *ret = ast_stmt(COMPOUND_STMT, NULL, NULL);
-    struct vector *v = new_vector();
+    struct vector *v = vec_new();
     
     expect('{');
     enter_scope();
@@ -334,7 +334,7 @@ static union node * _compound_stmt(union node *context)
     while (firstdecl(token) || firstexpr(token) || firststmt(token)) {
         if (firstdecl(token))
             // declaration
-            vec_add_from_array(v, (void **)declaration());
+            vec_add_array(v, (void **)declaration());
         else
             // statement
             vec_push(v, statement(context));
