@@ -47,7 +47,7 @@ static void add_search_path(const char *path)
     strbuf_cats(s, "-I");
     if (abspath) {
 	strbuf_cats(s, abspath);
-	vec_push(options, stoa(s));
+	vec_push(options, strs(s->str));
     }
 }
 

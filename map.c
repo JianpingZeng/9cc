@@ -5,23 +5,9 @@
 
 // a key-value implementation
 
-#define FNV32_BASIS ((unsigned) 0x811c9dc5)
-#define FNV32_PRIME ((unsigned) 0x01000193)
-
 #define MAP_INIT_SIZE       64
 #define MAP_GROW_FACTOR     80
 #define MAP_RESIZE_BITS     2
-
-// FNV-1a
-unsigned strhash(const char *s)
-{
-    unsigned hash = FNV32_BASIS;
-    for (; *s; s++) {
-        hash ^= *s;
-        hash *= FNV32_PRIME;
-    }
-    return hash;
-}
 
 static void alloc_map(struct map *map, unsigned size)
 {
@@ -106,7 +92,7 @@ static void map_add(struct map *map, const char *key, void *value)
         rehash(map, map->tablesize << MAP_RESIZE_BITS);
 }
 
-struct map * new_map(int (*cmpfn) (const char *, const char *))
+struct map * map_new(int (*cmpfn) (const char *, const char *))
 {
     struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
@@ -115,7 +101,7 @@ struct map * new_map(int (*cmpfn) (const char *, const char *))
     return map;
 }
 
-void free_map(struct map *map)
+void map_free(struct map *map)
 {
     if (!map)
         return;

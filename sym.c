@@ -13,7 +13,7 @@ static struct table * new_table(struct table *up, int scope)
     struct table *t = NEWS(table);
     t->up = up;
     t->scope = scope;
-    t->map = new_map(nocmp);
+    t->map = map_new(nocmp);
     return t;
 }
 

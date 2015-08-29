@@ -14,11 +14,9 @@ struct map {
     int (*cmpfn) (const char *key1, const char *key2);
 };
 
-extern unsigned strhash(const char *s);
+extern struct map * map_new(int (*cmpfn) (const char *, const char *));
 
-extern struct map * new_map(int (*cmpfn) (const char *, const char *));
-
-extern void free_map(struct map *map);
+extern void map_free(struct map *map);
 
 extern void *map_get(struct map *map, const char *key);
 

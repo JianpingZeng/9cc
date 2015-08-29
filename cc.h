@@ -14,14 +14,7 @@
 #include <stdbool.h>
 
 #include "config.h"
-
-#define FLEX_ARRAY      /* flexible array */
-
-#define TWOS(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
-
-#define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
-
-#define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
+#include "utils.h"
 
 extern void *cc_alloc(size_t size);
 
@@ -35,7 +28,6 @@ extern void cc_drain(void);
 #include "strbuf.h"
 #include "vector.h"
 #include "map.h"
-#include "utils.h"
 
 // lex.c
 #define EOI  -1

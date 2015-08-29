@@ -170,7 +170,7 @@ static void fline()
                 strbuf_catn(s, pc++, 1);
             }
         }
-        source.file = stoa(s);
+        source.file = strs(s->str);
         skipline();
     } else {
         skipline();
@@ -833,7 +833,7 @@ static void fnumber(struct strbuf *s, int base)
     if (*pc == 'f' || *pc == 'F' || *pc == 'l' || *pc == 'L')
 	strbuf_catn(s, pc++, 1);
 
-    tokname = stoa(s);
+    tokname = strs(s->str);
 }
 
 static void integer_suffix(struct strbuf *s)
@@ -870,7 +870,7 @@ static void integer_suffix(struct strbuf *s)
         strbuf_catn(s, rpc, 1);
     }
     
-    tokname = stoa(s);
+    tokname = strs(s->str);
 }
 
 static void sequence(bool wide, char ch)
@@ -901,7 +901,7 @@ static void sequence(bool wide, char ch)
     } else {
         strbuf_catn(s, pc++, 1);
     }
-    tokname = stoa(s);
+    tokname = strs(s->str);
 }
 
 static void identifier()
@@ -909,7 +909,7 @@ static void identifier()
     struct strbuf *s = strbuf_new();
     pc = pc - 1;
     readch(s, is_digitletter);
-    tokname = stoa(s);
+    tokname = strs(s->str);
 }
 
 static void escape(struct strbuf *s)

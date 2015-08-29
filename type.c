@@ -513,7 +513,7 @@ static const char *returnstr(struct type *ty)
             strbuf_cats(s, ", ");
     }
     strbuf_cats(s, ")");
-    return stoa(s);
+    return strs(s->str);
 }
 
 const char *type2s(struct type *ty)
@@ -536,7 +536,7 @@ const char *type2s(struct type *ty)
                 const char *r = type2s(rtype(rty));
                 strbuf_cats(s, r);
                 strbuf_cats(s, " (");
-                strbuf_cats(s, stoa(p));
+                strbuf_cats(s, strs(p->str));
                 strbuf_cats(s, ") ");
                 strbuf_cats(s, returnstr(rty));
             } else if (isarray(rty)) {
@@ -544,7 +544,7 @@ const char *type2s(struct type *ty)
             } else {
                 const char *r = type2s(rty);
                 strbuf_cats(s, r);
-                strbuf_cats(s, stoa(p));
+                strbuf_cats(s, strs(p->str));
                 qualstr(s, ty);
             }
         }
@@ -577,5 +577,5 @@ const char *type2s(struct type *ty)
     }
     
     strbuf_strip(s);
-    return stoa(s);
+    return strs(s->str);
 }
