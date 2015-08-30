@@ -397,28 +397,43 @@ struct type * compose(struct type *ty1, struct type *ty2)
     return NULL;
 }
 
+static bool isconst1(int kind)
+{
+    return  kind == CONST ||
+            kind == CONST + VOLATILE ||
+            kind == CONST + RESTRICT ||
+            kind == CONST + VOLATILE + RESTRICT;
+}
+
+static bool isvolatile1(int kind)
+{
+    return  kind == VOLATILE ||
+            kind == VOLATILE + CONST ||
+            kind == VOLATILE + RESTRICT ||
+            kind == CONST + VOLATILE + RESTRICT;
+}
+
+static bool isrestrict1(int kind)
+{
+    return  kind == RESTRICT ||
+            kind == RESTRICT + CONST ||
+            kind == RESTRICT + VOLATILE ||
+            kind == CONST + VOLATILE + RESTRICT;
+}
+
 bool isconst(struct type *ty)
 {
-    return  ty->kind == CONST ||
-            ty->kind == CONST + VOLATILE ||
-            ty->kind == CONST + RESTRICT ||
-            ty->kind == CONST + VOLATILE + RESTRICT;
+    return isconst1(ty->kind);
 }
 
 bool isvolatile(struct type *ty)
 {
-    return  ty->kind == VOLATILE ||
-            ty->kind == VOLATILE + CONST ||
-            ty->kind == VOLATILE + RESTRICT ||
-            ty->kind == CONST + VOLATILE + RESTRICT;
+    return isvolatile1(ty->kind);
 }
 
 bool isrestrict(struct type *ty)
 {
-    return  ty->kind == RESTRICT ||
-            ty->kind == RESTRICT + CONST ||
-            ty->kind == RESTRICT + VOLATILE ||
-            ty->kind == CONST + VOLATILE + RESTRICT;
+    return isrestrict1(ty->kind);
 }
 
 bool eqarith(struct type *ty1, struct type *ty2)
@@ -604,6 +619,16 @@ static struct vector *type2s1(struct type *ty)
     return r;
 }
 
+static void qualstr(struct strbuf *s, int q)
+{
+    if (isconst1(q))
+	strbuf_cats(s, "const ");
+    if (isvolatile1(q))
+	strbuf_cats(s, "volatile ");
+    if (isrestrict1(q))
+	strbuf_cats(s, "restrict ");
+}
+
 const char *type2s(struct type *ty)
 {
     const char *ret;
@@ -621,13 +646,16 @@ const char *type2s(struct type *ty)
 	    strbuf_cats(buf, " ");
 	} else if (isptr(s->type)) {
 	    strbuf_cats(buf, "*");
+	    qualstr(buf, s->qual);
 	} else if (isarray(s->type)) {
 	    strbuf_cats(buf, "[]");
 	} else if (isenum(s->type) || isstruct(s->type) || isunion(s->type)) {
+	    qualstr(buf, s->qual);
 	    strbuf_cats(buf, s->type->name);
 	    if (s->type->tag)
 		strbuf_cats(buf, s->type->tag);
 	} else {
+	    qualstr(buf, s->qual);
 	    strbuf_cats(buf, s->type->name);
 	}
     }
