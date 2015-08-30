@@ -17,7 +17,7 @@ static void print_decl(union node *node, struct print_context context)
         fprintf(stderr, "%s '%s' %s ", nname(node), STR(DECL_SYM(node)->name), DECL_SYM(node)->defined ? "<defined>" : "");
 	struct type *ty = DECL_SYM(node)->type;
         if (ty)
-            fprintf(stderr, "'%s' '%s'", ty->name, type2s(ty));
+            fprintf(stderr, "'%s' '%s'", unqual(ty)->name, type2s(ty));
     } else {
         fprintf(stderr, "%s", nname(node));
     }
@@ -49,8 +49,9 @@ static void print_expr(union node *node, struct print_context context)
         fprintf(stderr, "%s '%s' %s %s ", nname(node), tname(op), STR(EXPR_SYM(node)->name), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
     else
         fprintf(stderr, "%s '%s' %s ", nname(node), tname(op), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
+    
     if (AST_TYPE(node))
-        fprintf(stderr, "'%s' '%s'", AST_TYPE(node)->name, type2s(AST_TYPE(node)));
+        fprintf(stderr, "'%s' '%s'", unqual(AST_TYPE(node))->name, type2s(AST_TYPE(node)));
     fprintf(stderr, "\n");
     
     level = context.level + 1;
