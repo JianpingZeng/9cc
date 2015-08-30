@@ -513,27 +513,39 @@ static void dotype2s(struct vector *l, struct vector *r)
     switch (k) {
         case POINTER:
         {
-            struct type *rty = rtype(s->type);
-	    struct type2s *s2 = vec_head(r);
-	    if (isfunc(rty) || isarray(rty)) {
-	        bool rfunc = s2 && s2->type && isfunc(s2->type);
+	    struct vector *v = vec_new();
+	    for (int i = vec_len(l) - 1; i >= 0; i--) {
+		struct type2s *s = vec_at(l, i);
+		if (!isptr(s->type))
+		    break;
+		vec_push(v, s);
+		vec_pop(l);
+	    }
+	    s = vec_tail(l);
+	    if (isfunc(s->type) || isarray(s->type)) {
+		struct type2s *s2 = vec_head(r);
+		bool rfunc = s2 && s2->type && isfunc(s2->type);
 		if (rfunc)
 		    vec_push_front(r, paren(LPAREN, s2->type));
-		vec_push_front(r, s);
+		for (int i = 0; i < vec_len(v); i++)
+		    vec_push_front(r, vec_at(v, i));
 		vec_push_front(r, paren(LPAREN, s->type));
+		vec_push_front(r, paren(FSPACE, NULL));
 		if (rfunc)
 		    vec_push(r, paren(RPAREN, s2->type));
 		vec_push(r, paren(RPAREN, s->type));
 	    } else {
-		vec_push(r, s);
+		for (int i = 0; i < vec_len(v); i++)
+		    vec_push_front(r, vec_at(v, i));
+		vec_push_front(r, paren(FSPACE, NULL));
 	    }
-	    vec_pop(l);
         }
             break;
         case FUNCTION:
         {
             struct symbol **params = s->type->u.f.params;
 	    int len = array_len(params);
+	    vec_push(r, paren(FSPACE, NULL));
 	    vec_push(r, paren(LPAREN, s->type));
 	    for (int i=0; params[i]; i++) {
 		struct type *ty = params[i]->type;

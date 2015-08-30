@@ -14,7 +14,6 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
 static union node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
 static union node * initializer(struct type *ty);
 static void fields(struct type *sty);
-static void exit_params();
 
 static struct type * specifiers(int *sclass)
 {
