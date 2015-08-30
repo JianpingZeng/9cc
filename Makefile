@@ -89,14 +89,14 @@ $(CC1): $(CC1_INC) $(CC1_SRC)
 # Test suite
 #
 TESTDIR=test
-CFLAGS_TEST=-Wall -std=c99 -Os -I. -I$(TESTDIR)
+CFLAGS_TEST=-Wall -std=c99 -Os -I. -Isys -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
 TEST_INTERNAL := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/internal/*.c))
 TESTS=$(TEST_INTERNAL)
 
-$(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP)
-	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1) -o $@
+$(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(CC1) $(TEST_DEP) $(SYS_SRC) $(SYS_INC)
+	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1) $(SYS_SRC) -o $@
 
 test: $(TESTS)
 	@for test in $(TESTS); do \
