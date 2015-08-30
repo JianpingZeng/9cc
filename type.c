@@ -481,43 +481,147 @@ bool isscalar(struct type *ty)
     return isarith(ty) || isptr(ty);
 }
 
-static void qualstr(struct strbuf *s, struct type *ty)
+#define LPAREN  1
+#define RPAREN  2
+#define FCOMMA  3
+#define FSPACE  4
+struct type2s {
+    int id;
+    int qual;
+    struct type *type;
+};
+static struct vector *type2s1(struct type *ty);
+
+static struct type2s * paren(int id, struct type *ty)
 {
-    if (isconst(ty))
-        strbuf_cats(s, "const ");
-    if (isvolatile(ty))
-        strbuf_cats(s, "volatile ");
-    if (isrestrict(ty))
-        strbuf_cats(s, "restrict ");
+    struct type2s *s = zmalloc(sizeof (struct type2s));
+    s->id = id;
+    s->type = ty;
+    return s;
 }
 
-const char *type2s(struct type *ty)
+static void dotype2s(struct vector *l, struct vector *r)
 {
-    struct strbuf *s = strbuf_new();
-    int k = kind(ty);
+    struct type2s *s;
+    int k;
+
+    if (vec_len(l) == 0)
+	return;
+
+    s = vec_tail(l);
+    k = kind(s->type);
     switch (k) {
         case POINTER:
         {
-            
+            struct type *rty = rtype(s->type);
+	    struct type2s *s2 = vec_head(r);
+	    if (isfunc(rty) || isarray(rty)) {
+	        bool rfunc = s2 && s2->type && isfunc(s2->type);
+		if (rfunc)
+		    vec_push_front(r, paren(LPAREN, s2->type));
+		vec_push_front(r, s);
+		vec_push_front(r, paren(LPAREN, s->type));
+		if (rfunc)
+		    vec_push(r, paren(RPAREN, s2->type));
+		vec_push(r, paren(RPAREN, s->type));
+	    } else {
+		vec_push(r, s);
+	    }
+	    vec_pop(l);
         }
             break;
         case FUNCTION:
         {
-            
+            struct symbol **params = s->type->u.f.params;
+	    int len = array_len(params);
+	    vec_push(r, paren(LPAREN, s->type));
+	    for (int i=0; params[i]; i++) {
+		struct type *ty = params[i]->type;
+		struct vector *v = type2s1(ty);
+		vec_add(r, v);
+		vec_free(v);
+		if (i < len - 1)
+		    vec_push(r, paren(FCOMMA, NULL));
+	    }
+	    vec_push(r, paren(RPAREN, s->type));
+	    vec_pop(l);
         }
             break;
         case ARRAY:
         {
-            
+            vec_push(r, s);
+	    vec_pop(l);
         }
             break;
         default:
         {
-            
+            vec_push_front(r, s);
+	    vec_pop(l);
         }
             break;
     }
+
+    dotype2s(l, r);
+}
+
+static struct vector *type2s1(struct type *ty)
+{
+    struct vector *l, *r, *v;
+
+    l = vec_new();
+    r = vec_new();
+    v = vec_new();
+    while (ty) {
+	struct type2s *s = zmalloc(sizeof (struct type2s));
+	if (isqual(ty)) {
+	    s->qual = ty->kind;
+	    s->type = unqual(ty);
+	} else {
+	    s->type = ty;
+	}
+	vec_push(v, s);
+	ty = s->type->type;
+    }
+
+    for (int i = vec_len(v)-1; i >= 0; i--)
+	vec_push(l, vec_at(v, i));
+    vec_free(v);
     
-    strbuf_strip(s);
-    return strs(s->str);
+    dotype2s(l, r);
+    vec_free(l);
+    return r;
+}
+
+const char *type2s(struct type *ty)
+{
+    const char *ret;
+    struct strbuf *buf = strbuf_new();
+    struct vector *v = type2s1(ty);
+    for (int i = 0; i < vec_len(v); i++) {
+	struct type2s *s = vec_at(v, i);
+	if (s->id == LPAREN) {
+	    strbuf_cats(buf, "(");
+	} else if (s->id == RPAREN) {
+	    strbuf_cats(buf, ")");
+	} else if (s->id == FCOMMA) {
+	    strbuf_cats(buf, ",");
+	} else if (s->id == FSPACE) {
+	    strbuf_cats(buf, " ");
+	} else if (isptr(s->type)) {
+	    strbuf_cats(buf, "*");
+	} else if (isarray(s->type)) {
+	    strbuf_cats(buf, "[]");
+	} else if (isenum(s->type) || isstruct(s->type) || isunion(s->type)) {
+	    strbuf_cats(buf, s->type->name);
+	    if (s->type->tag)
+		strbuf_cats(buf, s->type->tag);
+	} else {
+	    strbuf_cats(buf, s->type->name);
+	}
+    }
+
+    ret = strs(buf->str);
+    strbuf_free(buf);
+    vec_purge(v);
+    return ret;
 }

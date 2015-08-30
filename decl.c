@@ -594,7 +594,9 @@ static void declarator(struct type **ty, const char **id, int *params)
             struct type *faty = func_or_array(params);
             attach_type(&faty, type1);
             attach_type(&rtype, faty);
-        }
+        } else {
+	    attach_type(&rtype, type1);
+	}
         *ty = rtype;
     } else {
         error("expect identifier or '(' before '%s'", token->name);

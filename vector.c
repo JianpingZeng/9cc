@@ -27,10 +27,15 @@ struct vector *vec_new()
 
 void vec_free(struct vector *v)
 {
-    if (!v)
-        return;
     free(v->mem);
     free(v);
+}
+
+void vec_purge(struct vector *v)
+{
+    for (int i = 0; i < v->len; i++)
+	free(v->mem[i]);
+    vec_free(v);
 }
 
 void * vec_at(struct vector *v, int index)
@@ -47,13 +52,15 @@ void vec_set(struct vector *v, int index, void *val)
 
 void * vec_head(struct vector *v)
 {
-    assert(v->len > 0);
+    if (v->len == 0)
+	return NULL;
     return v->mem[0];
 }
 
 void * vec_tail(struct vector *v)
 {
-    assert(v->len > 0);
+    if (v->len == 0)
+	return NULL;
     return v->mem[v->len - 1];
 }
 
@@ -69,6 +76,28 @@ void vec_push(struct vector *v, void *val)
     if (v->len == v->alloc)
         vec_grow(v);
     v->mem[v->len++] = val;
+}
+
+void vec_push_front(struct vector *v, void *val)
+{
+    assert(val);
+    if (v->len == v->alloc)
+	vec_grow(v);
+    memmove(v->mem+1, v->mem, v->len * sizeof (void *));
+    v->mem[0] = val;
+    v->len++;
+}
+
+void vec_pop(struct vector *v)
+{
+    if (v->len == 0)
+	return;
+    v->len--;
+}
+
+void vec_clear(struct vector *v)
+{
+    v->len = 0;
 }
 
 size_t vec_len(struct vector *v)
