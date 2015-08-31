@@ -69,7 +69,7 @@ $(TESTDIR)/internal/%: $(TESTDIR)/internal/%.c $(TEST_DEP) $(CC1_OBJ) $(SYS_OBJ)
 
 test: $(TESTS)
 	@for test in $(TESTS); do \
-	./$$test || exit; \
+	./$$test; \
 	done
 
 clean:
