@@ -84,10 +84,10 @@ TESTDIR=test
 CFLAGS_TEST=-Wall -std=c99 -Os -I. -Isys -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
-TEST_INTERNAL := $(patsubst %.c, %.bin, $(wildcard $(TESTDIR)/internal/*.c))
+TEST_INTERNAL := $(patsubst %.c, %, $(wildcard $(TESTDIR)/internal/*.c))
 TESTS=$(TEST_INTERNAL)
 
-$(TESTDIR)/internal/%.bin: $(TESTDIR)/internal/%.c $(TEST_DEP) $(CC1_OBJ) $(SYS_OBJ)
+$(TESTDIR)/internal/%: $(TESTDIR)/internal/%.c $(TEST_DEP) $(CC1_OBJ) $(SYS_OBJ)
 	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(CC1_OBJ) $(SYS_OBJ) -o $@
 
 test: $(TESTS)
