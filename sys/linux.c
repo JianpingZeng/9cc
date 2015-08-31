@@ -83,6 +83,11 @@ int runproc(int (*proc) (void *), void *context)
     return ret;
 }
 
+/* TODO:
+ *  Functions below are quick and dirty, not robust at all.
+ *  
+ */
+
 char *replace_suffix(const char *path, const char *suffix)
 {
     assert(path && suffix);
