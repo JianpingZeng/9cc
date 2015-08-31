@@ -40,23 +40,12 @@ CC1_INC=cc.h \
 
 MCC_OBJ=mcc.o
 SYS_INC=sys/sys.h
-
-OS:=$(shell uname -s)
-
-ifeq (, $(findstring NT, $(OS)))
 SYSDIR=include/linux
 SYS_OBJ:=sys/linux.o
 CFLAGS+=-DLINUX -D_BSD_SOURCE
-endif
-
-ifndef SYSDIR
-all:
-	@echo "Error: unsupported platform '$(OS)'"
-	@exit
-else
-all: $(MCC)
 SYS_INC+=$(wildcard $(SYSDIR)/*.h)
-endif
+
+all: $(MCC)
 
 $(MCC): $(MCC_OBJ) $(CC1_OBJ) $(SYS_OBJ)
 	$(CC) $(CFLAGS) $(LDFALGS) $(MCC_OBJ) $(SYS_OBJ) $(CC1_OBJ) -o $@
