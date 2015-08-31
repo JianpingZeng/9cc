@@ -559,7 +559,7 @@ static void dotype2s(struct vector *l, struct vector *r)
         case FUNCTION:
         {
             struct symbol **params = s->type->u.f.params;
-	    int len = array_len(params);
+	    int len = array_len((void **)params);
 	    vec_push(r, paren(FSPACE, NULL));
 	    vec_push(r, paren(LPAREN, s->type));
 	    for (int i=0; params[i]; i++) {

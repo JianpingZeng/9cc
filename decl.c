@@ -349,7 +349,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
         match(')', follow);
     }
     
-    if (params && *params == NULL) {
+    if (params && *params == 0) {
         *params = 1;
     } else {
         if (SCOPE > PARAM)

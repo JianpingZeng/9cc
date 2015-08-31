@@ -41,7 +41,7 @@ CC1_INC=cc.h \
         token.def \
         $(UTILS_INC)
 
-MCC_SRC=sys/mcc.c
+MCC_SRC=mcc.c
 SYS_INC=sys/sys.h
 
 CC1_OBJ=$(notdir $(addsuffix .o, $(basename $(CC1_SRC))))

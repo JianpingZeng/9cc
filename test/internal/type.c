@@ -17,7 +17,6 @@ static void test_eq()
 {
     struct type *ty1, *ty2;
     struct type *ty3, *ty4;
-    struct type *ty5, *ty6;
     
     ty1 = qual(CONST, inttype);
     expecti(eqtype(ty1, inttype), false);
