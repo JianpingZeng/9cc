@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "test.h"
 
 extern void testmain(void);
@@ -14,10 +15,15 @@ static void printfail()
     printf("\e[1;31mFAIL\e[0m: %s\n", testname());
 }
 
-void ffail(char *file, int line, char *msg)
+void ffail(char *file, int line, char *msg, ...)
 {
+    va_list ap;
     printfail();
-    printf("%s:%d: %s\n", file, line, msg);
+    va_start(ap, msg);
+    printf("%s:%d: ", file, line);
+    vprintf(msg, ap);
+    printf("\n");
+    va_end(ap);
     exit(1);
 }
 

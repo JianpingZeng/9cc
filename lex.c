@@ -39,22 +39,22 @@ bool is_digit(char c)
     return map[(unsigned char)c] & DIGIT;
 }
 
-static inline bool is_letter(char c)
+bool is_letter(char c)
 {
     return map[(unsigned char)c] & LETTER;
 }
 
-static inline bool is_digitletter(char c)
+bool is_digitletter(char c)
 {
     return is_digit(c) || is_letter(c);
 }
 
-static inline bool is_blank(char c)
+bool is_blank(char c)
 {
     return map[(unsigned char)c] & BLANK;
 }
 
-static inline bool is_newline(char c)
+bool is_newline(char c)
 {
     return map[(unsigned char)c] & NEWLINE;
 }
@@ -69,7 +69,7 @@ bool is_digithex(char c)
     return is_digit(c) || is_hex(c);
 }
 
-static inline bool is_visible(char c)
+bool is_visible(char c)
 {
     return c >= 040 && c < 0177;
 }

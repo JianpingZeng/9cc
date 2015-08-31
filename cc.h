@@ -56,8 +56,13 @@ extern struct source source;
 extern struct token  *token;
 
 extern bool is_digit(char c);
+extern bool is_letter(char c);
+extern bool is_digitletter(char c);
+extern bool is_blank(char c);
+extern bool is_newline(char c);
 extern bool is_hex(char c);
 extern bool is_digithex(char c);
+extern bool is_visible(char c);
 
 extern void input_init();
 extern int  gettok();

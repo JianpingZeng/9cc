@@ -41,41 +41,98 @@ static union node * compile(const char *code)
     return n;
 }
 
-static int getlen(const char **src)
-{
-    
-}
+struct context {
+    const char *code;
+    const char *type;
+    const char *output;
+};
 
-static void expect1(const char *code, const char *output)
+static int subprocess(void *context)
 {
+    struct context *con = (struct context *)context;
+    const char *code = con->code;
+    const char *type = con->type;
+    const char *output = con->output;
     union node *n = compile(code);
     union node *n1 = DECL_EXTS(n)[0];
     struct type *ty = DECL_SYM(n1)->type;
-    const char *ret = type2s(ty);
+    const char *ret;
+    const char *p1, *p2;
+    
+    if (strcmp(unqual(ty)->name, type))
+	fail("type not equal: %s != %s", unqual(ty)->name, type);
+
+    ret = type2s(ty);
+
+    p1 = ret;
+    p2 = output;
+    
     for (;;) {
-	int len;
-	if (*code == '\0' || *output == '\0')
-	    break;
-	if (isspace((unsigned char)*code))
-	    code++;
-	len = getlen(&code);
+	while (isspace((unsigned char)*ret))
+	    ret++;
 	
-	if (isspace((unsigned char)*output))
+	while (isspace((unsigned char)*output))
 	    output++;
 
-	if (strncmp(code, output, len))
-	    fail(format("%c != %c", *code, *output));
-	code += len;
-	output += len;
+	if (*ret == '\0' || *output == '\0')
+	    break;
+
+	if (*ret != *output)
+	    fail("'%s' != '%s' at '%c' != '%c'", p1, p2, *ret, *output);
+
+	ret++;
+	output++;
     }
 
-    if (*code != '\0' || *output != '\0')
-	fail(format("%c != %c", *code, *output));
+    if (*ret != '\0' || *output != '\0')
+	fail("'%s' != '%s'", p1, p2);
+
+    return EXIT_SUCCESS;
+}
+
+static void expect2(const char *code, const char *type, const char *output)
+{
+    int ret;
+    struct context context = { code, type, output };
+
+    ret = runproc(subprocess, &context);
+    if (ret != EXIT_SUCCESS)
+	exit(1);
 }
 
 static void test_type2s()
 {
-    expect1("int (* (f (char *))) (float);", "int (* ((char *))) (float)");
+    expect2("int (* (f (char *))) (float);",
+    	    "function",
+    	    "int (* (char *)) (float)");
+
+    expect2("int (*f) (char *, int);",
+	    "pointer",
+	    "int (*) (char *, int)");
+
+    expect2("const int a;",
+    	    "int",
+    	    "const int");
+
+    expect2("const int * restrict b;",
+    	    "pointer",
+    	    "const int * restrict");
+
+    expect2("int *a[10];",
+    	    "array",
+    	    "int *[]");
+
+    expect2("void (*a[10]) (int *a, const char *c);",
+    	    "array",
+    	    "void (*[]) (int *, const char *)");
+
+    expect2("void (* ((*f) (char *))) (int);",
+	    "pointer",
+	    "void (* (*) (char *)) (int)");
+
+    expect2("void (* (* f(char *))) (int);",
+	    "function",
+	    "void (** (char *)) (int)");
 }
 
 const char *testname()
