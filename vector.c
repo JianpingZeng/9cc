@@ -105,6 +105,15 @@ size_t vec_len(struct vector *v)
     return v->len;
 }
 
+struct vector * vec_reverse(struct vector *v)
+{
+    struct vector *ret = vec_new();
+    for (int i = 0; i < v->len; i++)
+	ret->mem[i] = v->mem[v->len - 1 - i];
+    ret->len = v->len;
+    return ret;
+}
+
 // Add elements to vector from a null-terminated array
 void vec_add_array(struct vector *v, void **array)
 {

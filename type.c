@@ -595,8 +595,6 @@ static struct vector *type2s1(struct type *ty)
 {
     struct vector *l, *r, *v;
 
-    l = vec_new();
-    r = vec_new();
     v = vec_new();
     while (ty) {
 	struct type2s *s = zmalloc(sizeof (struct type2s));
@@ -610,8 +608,8 @@ static struct vector *type2s1(struct type *ty)
 	ty = s->type->type;
     }
 
-    for (int i = vec_len(v)-1; i >= 0; i--)
-	vec_push(l, vec_at(v, i));
+    l = vec_reverse(v);
+    r = vec_new();
     vec_free(v);
     
     dotype2s(l, r);
