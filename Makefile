@@ -43,19 +43,7 @@ SYS_INC=sys/sys.h
 
 OS:=$(shell uname -s)
 
-ifeq ($(OS), Darwin)
-SYSDIR=include/linux
-SYS_OBJ:=sys/linux.o
-CFLAGS+=-DDARWIN
-endif
-
-ifeq ($(OS), Linux)
-SYSDIR=include/linux
-SYS_OBJ:=sys/linux.o
-CFLAGS+=-DLINUX -D_BSD_SOURCE
-endif
-
-ifneq (, $(findstring CYGWIN, $(OS)))
+ifeq (, $(findstring NT, $(OS)))
 SYSDIR=include/linux
 SYS_OBJ:=sys/linux.o
 CFLAGS+=-DLINUX -D_BSD_SOURCE
