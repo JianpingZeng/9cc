@@ -16,7 +16,6 @@
 
 extern int cpp_main(int argc, char *argv[]);
 extern int cc_main(int argc, char *argv[]);
-extern void die(const char *fmt, ...);
 
 // configs
 static struct {
@@ -32,6 +31,7 @@ static unsigned fails;
 static unsigned unit;
 
 static const char *version = "0.0";
+static const char *tmpdir;
 
 static void usage()
 {
@@ -51,24 +51,12 @@ static void usage()
 }
 
 static char *tempname(const char *hint)
-{
-    static char *tmpdir;
-    if (!tmpdir) {
-        tmpdir = mktmpdir();
-        if (!tmpdir)
-            die("Can't make temporary directory.");
-    }
-    
-    if (!hint) {
-        rmdir(tmpdir);
-        return NULL;
-    } else {
-        size_t len = strlen(tmpdir) + strlen(hint) + 128;
-        void *p = zmalloc(len);
-        hint = hint ? hint : "tmp";
-        snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
-        return p;
-    }
+{   
+    size_t len = strlen(tmpdir) + strlen(hint) + 64;
+    void *p = zmalloc(len);
+    hint = hint ? hint : "tmp";
+    snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
+    return p;
 }
 
 static int unitprocess(void *context)
@@ -157,6 +145,7 @@ static void translate(void *elem, void *context)
     ret = runproc(unitprocess, (void *)v);
     if (ret == EXIT_FAILURE)
         fails++;
+    vec_free(v);
 }
 
 static void setup_env()
@@ -188,9 +177,9 @@ int main(int argc, char **argv)
         } else if (!strcmp(arg, "-S")) {
             option.S = 1;
         } else if (arg[0] == '-') {
-            vec_push(optionlist, strs(arg));
+            vec_push(optionlist, arg);
         } else {
-            vec_push(inputlist, strs(arg));
+            vec_push(inputlist, arg);
         }
     }
     
@@ -203,6 +192,10 @@ int main(int argc, char **argv)
         ret = EXIT_FAILURE;
         goto end;
     }
+
+    tmpdir = mktmpdir();
+    if (!tmpdir)
+	die("Can't make temporary directory.");
     
     setup_env();
     for (int i = 0; i < vec_len(inputlist); i++) {
@@ -210,11 +203,11 @@ int main(int argc, char **argv)
         translate(p, optionlist);
     }
     
-    if (fails) {
+    if (fails)
         fprintf(stderr, "%d fails.\n", fails);
-    }
     
 end:
-    tempname(NULL);
+    if (tmpdir)
+	rmdir(tmpdir);
     return ret;
 }
