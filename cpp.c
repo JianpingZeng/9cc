@@ -31,10 +31,10 @@ static void preprocess(void)
     
     cpp[2] = ifile;
     if (ofile)
-	cpp[4] = ofile;
+        cpp[4] = ofile;
     else
-	cpp[3] = 0;
-
+        cpp[3] = 0;
+    
     vec_add_array(v,(void *) cpp);
     vec_add(v, options);
     errors = callsys(cpp[0], (char **)vtoa(v));
@@ -42,17 +42,17 @@ static void preprocess(void)
 
 static void add_search_path(const char *path)
 {
-    const char *abspath = expanduser(path);
     struct strbuf *s = strbuf_new();
     strbuf_cats(s, "-I");
-    if (abspath) {
-	strbuf_cats(s, abspath);
-	vec_push(options, strs(s->str));
+    path = abspath(path);
+    if (path) {
+        strbuf_cats(s, path);
+        vec_push(options, strs(s->str));
     }
 }
 
 static void parse_opts(int argc, char **argv)
-{    
+{
     for (int i=1; i < argc; i++) {
         char *arg = argv[i];
         if (!strcmp(arg, "-o")) {

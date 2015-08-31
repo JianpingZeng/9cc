@@ -50,13 +50,12 @@ static void usage()
 #undef print_opt
 }
 
-static char *tempname(const char *hint)
-{   
-    size_t len = strlen(tmpdir) + strlen(hint) + 64;
-    void *p = zmalloc(len);
+static const char *tempname(const char *hint)
+{
+    char p[64];
     hint = hint ? hint : "tmp";
-    snprintf(p, len, "%s/mcc.%u.%s", tmpdir, unit, hint);
-    return p;
+    snprintf(p, sizeof(p), "mcc.%u.%s", unit, hint);
+    return join(tmpdir, p);
 }
 
 static int unitprocess(void *context)
@@ -71,8 +70,8 @@ static int unitprocess(void *context)
     char **argv;
     static const char *cpp[] = {"cpp", "$in", "-o", "$out", 0};
     static const char *cc[] = {"cc", "$in", "-o", "$out", 0};
-    char *ifile = NULL;
-    char *sfile = NULL;
+    const char *ifile = NULL;
+    const char *sfile = NULL;
     
     if (!file_exists(inputfile)) {
         fprintf(stderr, "input file '%s' not exists.\n", inputfile);
@@ -107,16 +106,11 @@ static int unitprocess(void *context)
     if (option.S) {
         if (output_file) {
             cc[3] = output_file;
-        }
-        else {
-            char *new_file = replace_suffix(inputfile, "s");
-            sfile = zmalloc(strlen(new_file)+1);
-            strcpy(sfile, new_file);
-            free(new_file);
+        } else {
+            sfile = replace_suffix(inputfile, "s");
             cc[3] = sfile;
         }
-    }
-    else {
+    } else {
         sfile = tempname("cc.s");
         cc[3] = sfile;
     }

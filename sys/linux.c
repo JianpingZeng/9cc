@@ -91,18 +91,16 @@ char *replace_suffix(const char *path, const char *suffix)
     char *p;
     
     for (int i=len-1; i >= 0; i--) {
-        if (path[i] == '/') {
+        if (path[i] == '/')
             break;
-        }
         if (path[i] == '.') {
             dot_index = i;
             break;
         }
     }
     
-    if (dot_index != -1) {
+    if (dot_index != -1)
         len = dot_index;
-    }
     
     p = malloc(len+strlen(suffix)+2);
     memcpy(p, path, len);
@@ -119,9 +117,10 @@ int rmdir(const char *dir)
     return system(command);
 }
 
-char *expanduser(char *path)
+char *abspath(char *path)
 {
-    if (!path || !strlen(path)) return NULL;
+    if (!path || !strlen(path))
+        return NULL;
     if (path[0] == '~') {
         const char *home = getenv("HOME");
         int hlen = strlen(home);
@@ -139,6 +138,29 @@ char *expanduser(char *path)
         ret[len] = 0;
         return ret;
     }
+}
+
+const char *join(const char *dir, const char *name)
+{
+    size_t len1 = strlen(dir);
+    size_t len2 = strlen(name);
+    int i = 0;
+    char *p;
+    
+    if (dir[len1 - 1] == '/')
+        len1--;
+    if (name[i] == '/') {
+        i++;
+        len2--;
+    }
+    
+    p = malloc(len1 + len2 + 2);
+    strncpy(p, dir, len1);
+    p[len1] = '/';
+    strncpy(p + len1 + 1, name + i, len2);
+    p[len1 + 1 + len2] = '\0';
+    
+    return p;
 }
 
 //TODO - detect if color term
