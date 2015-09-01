@@ -9,7 +9,7 @@ The compiler is designed to be able to compile itself, so it is written in C. An
 
 To build the mcc compiler, run command:
 
-  	make
+    make
 
 To run the testing suite, run command:
 
