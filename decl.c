@@ -979,99 +979,6 @@ static void fields(struct type *sty)
     sty->u.s.fields = (struct field **)vtoa(v);
 }
 
-struct path {
-    struct vector *v;
-    struct type *type;
-    bool broken;
-};
-
-static struct path * designator(struct type *ty)
-{
-    struct vector *v = vec_new();
-    struct type *dty = ty;
-    bool broken = ty ? false : true;
-    
-    do {
-        if (token->id == '[') {
-            struct source src = source;
-            int i;
-            expect('[');
-            //TODO: eval
-            i = intexpr();
-            expect(']');
-            if (!broken) {
-                if (isarray(dty)) {
-                    //TODO: check bound
-                    dty = rtype(dty);
-                    vec_push(v, strd(i));
-                } else {
-                    errorf(src, "array designator cannot initialize non-array type '%s'", dty->name);
-                    broken = true;
-                }
-            }
-        } else {
-            expect('.');
-            if (!broken) {
-                if (token->id == ID) {
-                    if (isstruct(dty) || isunion(dty)) {
-                        int k;
-                        int len = array_len((void **)dty->u.s.fields);
-                        for (k = 0; k < len; k++) {
-                            struct field *field = dty->u.s.fields[k];
-                            if (field->name && !strcmp(token->name, field->name))
-                                break;
-                        }
-                        if (k < len) {
-                            dty = dty->u.s.fields[k]->type;
-                            vec_push(v, strd(k));
-                        } else {
-                            error("field designator '%s' dose not refer to any filed in type '%s %s'", token->name, dty->name, dty->tag);
-                            broken = true;
-                        }
-                    } else {
-                        error("field designator cannot initialize a non-struct, non-union type '%s'", dty->name);
-                        broken = true;
-                    }
-                }
-            }
-            expect(ID);
-        }
-    } while (token->id == '[' || token->id == '.');
-    
-    struct path *path = NEWS(path);
-    path->v = v;
-    path->type = dty;
-    path->broken = broken;
-    
-    return path;
-}
-
-static union node * get_slot(union node *root, struct path *path)
-{
-    union node *n = root;
-//    int len = vec_len(path->v);
-//    for (int i = 0; i < len; i++) {
-//        const char *name = vec_at(path->v, i);
-//        int k = atoi(name);
-//        struct vector *v = vec_new();
-//        vec_add_array(v, (void **)n->u.e.inits);
-//        
-//        for (int j=vec_len(v); j <= k; j++)
-//            vec_push(v, ast_vinit());
-//        
-//        union node *slot = vec_at(v, k);
-//        if (AST_ID(slot) == VINIT_EXPR && i < len - 1) {
-//            slot = ast_expr(INITS_EXPR, 0, NULL, NULL);
-//            vec_set(v, k, slot);
-//        }
-//        
-//        n->u.e.inits = (union node **)vtoa(v);
-//        if (i < len - 1)
-//            n = slot;
-//    }
-    return n;
-}
-
 //TODO: not finished yet
 union node * initializer_list(struct type *ty)
 {
@@ -1080,33 +987,7 @@ union node * initializer_list(struct type *ty)
     
     expect('{');
     for (int i = 0; token->id == '[' || token->id == '.' || token->id == '{' || firstexpr(token); i++) {
-        union node *inode;
-        struct path *path = NULL;
-        struct type *dty = ty;
-        
-        path = NEWS(path);
-        path->v = vec_new();
-        vec_push(path->v, strd(i));
-        
-        if (token->id == '[' || token->id == '.') {
-            path = designator(ty);
-            dty = path->type;
-            expect('=');
-        }
-        
-        inode = initializer(dty);
-        
-        if (!path->broken) {
-            union node *slot = get_slot(ret, path);
-//            int k = atoi(vec_tail(path->v));
-//            union node *val = slot->u.e.inits[k];
-//            if (AST_ID(val) != VINIT_EXPR)
-//                warning("designator initializer override");
-//            slot->u.e.inits[k] = inode;
-            i = atoi(vec_head(path->v));
-        }
-        
-        //TODO: excess elements error
+        //TODO
         
         if (token->id != ',')
             break;
