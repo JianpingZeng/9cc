@@ -48,7 +48,7 @@ SYS_INC+=$(wildcard $(SYSDIR)/*.h)
 all: $(MCC)
 
 $(MCC): $(MCC_OBJ) $(CC1_OBJ) $(SYS_OBJ)
-	$(CC) $(CFLAGS) $(LDFALGS) $(MCC_OBJ) $(SYS_OBJ) $(CC1_OBJ) -o $@
+	$(CC) $(LDFALGS) $(MCC_OBJ) $(SYS_OBJ) $(CC1_OBJ) -o $@
 
 $(CC1_OBJ): $(CC1_INC)
 
