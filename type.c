@@ -562,7 +562,7 @@ static void dotype2s(struct vector *l, struct vector *r)
 	    int len = array_len((void **)params);
 	    vec_push(r, paren(FSPACE, NULL));
 	    vec_push(r, paren(LPAREN, s->type));
-	    for (int i=0; params[i]; i++) {
+	    for (int i=0; params && params[i]; i++) {
 		struct type *ty = params[i]->type;
 		struct vector *v = type2s1(ty);
 		vec_add(r, v);
@@ -611,7 +611,7 @@ static struct vector *type2s1(struct type *ty)
     l = vec_reverse(v);
     r = vec_new();
     vec_free(v);
-    
+
     dotype2s(l, r);
     vec_free(l);
     return r;
@@ -650,14 +650,16 @@ const char *type2s(struct type *ty)
 	} else if (isenum(s->type) || isstruct(s->type) || isunion(s->type)) {
 	    qualstr(buf, s->qual);
 	    strbuf_cats(buf, s->type->name);
-	    if (s->type->tag)
+	    if (s->type->tag) {
+		strbuf_cats(buf, " ");
 		strbuf_cats(buf, s->type->tag);
+	    }
 	} else {
 	    qualstr(buf, s->qual);
 	    strbuf_cats(buf, s->type->name);
 	}
     }
-
+    
     ret = strs(buf->str);
     strbuf_free(buf);
     vec_purge(v);
