@@ -809,7 +809,7 @@ static void elem_init(struct type *ty, bool designated)
 	    if (!designated)
 		error("expect designator before '='");
 	    expect('=');
-	    initializer_list(ty);
+	    initializer(ty);
 	} else if (token->id == '{') {
 	    initializer_list(ty);
 	} else if (token->id == '[') {
