@@ -721,9 +721,154 @@ static union node * initializer(struct type *ty)
         // assign expr
         return assign_expr();
     } else {
-        error("expect '{' or assignment expression");
+        error("expect '{' or assignment expression at '%s'", token->name);
         return NULL;
     }
+}
+
+static void elem_init(struct type *ty, bool designated);
+#define FIRST_INIT(t) (t->id == '[' || t->id == '.' || t->id == '{' || firstexpr(t))
+
+static void eat_initlist()
+{
+    do {
+	if (token->id == '[' || token->id == '.') {
+	    do {
+		if (token->id == '[') {
+		    expect('[');
+		    intexpr();
+		    expect(']');
+		} else {
+		    expect('.');
+		    expect(ID);
+		}
+	    } while (token->id == '[' || token->id == '.');
+	    expect('=');
+	}
+
+	initializer(NULL);
+	if (token->id != ',')
+	    break;
+
+	expect(',');
+    } while (FIRST_INIT(token));
+}
+
+static void struct_init(struct type *ty, bool designated)
+{
+    int len = array_len((void **)ty->u.s.fields);
+
+    for (int i = 0; i < len; i++) {
+	struct type *fieldty = NULL;
+
+	if (token->id == '}')
+	    break;
+
+	if (token->id == '.') {
+	    int j;
+	    const char *name = NULL;
+	    expect('.');
+	    if (token->id == ID)
+		name = token->name;
+	    expect(ID);
+	    for (j = 0; j < len; j++) {
+		struct field *field = ty->u.s.fields[j];
+		if (name && !strcmp(name, field->name))
+		    break;
+	    }
+	    if (j < len) {
+		i = j;
+		fieldty = ty->u.s.fields[i]->type;
+	    } else {
+		if (name)
+		    error("'%s' has no field named '%s'", type2s(ty), name);
+	    }
+	    designated = true;
+	} else {
+	    struct field *field = ty->u.s.fields[i];
+	    fieldty = field->type;
+	}
+
+	elem_init(fieldty, designated);
+	designated = false;
+	if (token->id == '}')
+	    break;
+	if (i < len - 1)
+	    expect(',');
+    }
+}
+
+static void array_init(struct type *ty, bool designated)
+{
+}
+
+static void elem_init(struct type *ty, bool designated)
+{
+    if (isstruct(ty) || isunion(ty)) {
+	if (token->id == '=') {
+	    if (!designated)
+		error("expect designator before '='");
+	    expect('=');
+	    initializer_list(ty);
+	} else if (token->id == '{') {
+	    initializer_list(ty);
+	} else if (token->id == '[') {
+	    unsigned errs = errors;
+	    expect('[');
+	    intexpr();
+	    expect(']');
+	    expect('=');
+	    initializer(NULL);
+	    // inhibit redundant errors
+	    if (errs == errors)
+		error("array designator cannot initialize non-array type '%s'", type2s(ty));
+        } else {
+	    struct_init(ty, designated);
+	}
+    } else if (isarray(ty)) {
+	
+    } else {
+	if (designated)
+	    expect('=');
+	initializer(ty);
+    }
+}
+
+union node * initializer_list(struct type *ty)
+{
+    int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
+    union node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
+
+    expect('{');
+    if (FIRST_INIT(token)) {
+	if (ty) {
+	    if (isstruct(ty) || isunion(ty)) {
+		struct_init(ty, false);
+	    } else if (isarray(ty)) {
+		array_init(ty, false);
+	    } else {
+		struct type *aty = array_type();
+		aty->type = ty;
+		aty->size = 1;
+		array_init(aty, false);
+	    }
+
+	    if (token->id == ',')
+		expect(',');
+
+	    if (FIRST_INIT(token)) {
+		error("excess elements in %s initializer at '%s'", unqual(ty)->name, token->name);
+		eat_initlist();
+	    }
+	} else {
+	    eat_initlist();
+	}
+    } else {
+	error("expect initializer at '%s'", token->name);
+    }
+    
+    match('}', follow);
+    return ret;
 }
 
 int firstdecl(struct token *t)
@@ -900,7 +1045,7 @@ static struct type * struct_decl()
         error("expected identifier or '{'");
         sym = tag_type(t, NULL, src);
     }
-    
+
     return sym->type;
 }
 
@@ -977,26 +1122,6 @@ static void fields(struct type *sty)
         match(';', follow);
     }
     sty->u.s.fields = (struct field **)vtoa(v);
-}
-
-//TODO: not finished yet
-union node * initializer_list(struct type *ty)
-{
-    int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    union node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
-    
-    expect('{');
-    for (int i = 0; token->id == '[' || token->id == '.' || token->id == '{' || firstexpr(token); i++) {
-        //TODO
-        
-        if (token->id != ',')
-            break;
-        
-        expect(',');
-    }
-    
-    match('}', follow);
-    return ret;
 }
 
 static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  struct source src, bool chkvoid)

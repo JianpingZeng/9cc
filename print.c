@@ -82,7 +82,7 @@ static void print_expr(union node *node, struct print_context context)
         }
     } else if (AST_ID(node) == INITS_EXPR) {
         union node **inits = EXPR_INITS(node);
-        for (int i=0; inits[i]; i++) {
+        for (int i=0; inits && inits[i]; i++) {
             struct print_context con = {level, inits[i]};
             print_tree1(con);
         }
