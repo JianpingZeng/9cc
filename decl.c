@@ -728,7 +728,7 @@ static union node * initializer(struct type *ty)
     }
 }
 
-static void elem_init(struct type *ty, bool designated);
+static void elem_init(struct type *ty, bool designated, struct vector *v);
 #define FIRST_INIT(t) (t->id == '[' || t->id == '.' || t->id == '{' || firstexpr(t))
 
 static void eat_initializer()
@@ -761,9 +761,8 @@ static void eat_initlist()
     } while (FIRST_INIT(token));
 }
 
-static void struct_init(struct type *ty, bool designated)
+static void struct_init(struct type *ty, bool designated, struct vector *v)
 {
-    BEGIN_CALL
     int len = array_len((void **)ty->u.s.fields);
 
     for (int i = 0; i < len; i++) {
@@ -797,21 +796,19 @@ static void struct_init(struct type *ty, bool designated)
 	    fieldty = field->type;
 	}
 
-	elem_init(fieldty, designated);
+	elem_init(fieldty, designated, v);
 	designated = false;
 	if (token->id == '}')
 	    break;
 	if (i < len - 1)
 	    expect(',');
     }
-    END_CALL
 }
 
-static void array_init(struct type *ty, bool designated)
+static void array_init(struct type *ty, bool designated, struct vector *v)
 {
-    BEGIN_CALL
-    int i;
-    for (i = 0; (ty->size > 0 && i < ty->size) || ty->size == 0; i++) {
+    int c = 0;
+    for (int i = 0; (ty->size > 0 && i < ty->size) || ty->size == 0; i++) {
 	if (token->id == '}')
 	    break;
 
@@ -821,8 +818,8 @@ static void array_init(struct type *ty, bool designated)
 	    expect(']');
 	    designated = true;
 	}
-	
-	elem_init(rtype(ty), designated);
+	c = MAX(c, i);
+	elem_init(rtype(ty), designated, v);
 	designated = false;
 	if (token->id == '}')
 	    break;
@@ -831,13 +828,11 @@ static void array_init(struct type *ty, bool designated)
     }
 
     if (ty->size == 0)
-	ty->size = i + 1;
-    END_CALL
+	ty->size = c + 1;
 }
 
-static void elem_init(struct type *ty, bool designated)
+static void elem_init(struct type *ty, bool designated, struct vector *v)
 {
-    BEGIN_CALL
     if (ty == NULL) {
         if (token->id == '.' || token->id == '[') {
 	    eat_initializer();
@@ -846,7 +841,7 @@ static void elem_init(struct type *ty, bool designated)
 		expect('=');
 	    initializer(ty);
 	}
-    } else if (isstruct(ty) || isunion(ty)) {
+    } else if (isstruct(ty) || isunion(ty) || isarray(ty)) {
 	if (token->id == '=') {
 	    if (!designated)
 		error("expect designator before '='");
@@ -856,60 +851,52 @@ static void elem_init(struct type *ty, bool designated)
 	    if (designated)
 		error("expect '=' or another designator at '%s'", token->name);
 	    initializer_list(ty);
-	} else if (token->id == '[') {
-	    unsigned errs = errors;
-	    eat_initializer();
-	    // inhibit redundant errors
-	    if (errs == errors)
-		error("array designator cannot initialize non-array type '%s'", type2s(ty));
-        } else {
-	    struct_init(ty, designated);
-	}
-    } else if (isarray(ty)) {
-	if (token->id == '=') {
-	    if (!designated)
-		error("expect designator before '='");
-	    expect('=');
-	    initializer(ty);
-	} else if (token->id == '{') {
-	    if (designated)
-		error("expect '=' or another designator at '%s'", token->name);
-	    initializer_list(ty);
-	} else if (token->id == '.') {
-	    unsigned errs = errors;
-	    eat_initializer();
-	    // inhibit redundant errors
-	    if (errs == errors)
-		error("struct designator cannot initialize non-struct type '%s'", type2s(ty));
-        } else {
-	    array_init(ty, designated);
+	} else if (isarray(ty)) {
+	    if (token->id == '.') {
+		unsigned errs = errors;
+		eat_initializer();
+		// inhibit redundant errors
+		if (errs == errors)
+		    error("struct designator cannot initialize non-struct type '%s'", type2s(ty));
+	    } else {
+		array_init(ty, designated, v);
+	    }
+	} else {
+	    if (token->id == '[') {
+		unsigned errs = errors;
+		eat_initializer();
+		// inhibit redundant errors
+		if (errs == errors)
+		    error("array designator cannot initialize non-array type '%s'", type2s(ty));
+	    } else {
+		struct_init(ty, designated, v);
+	    }
 	}
     } else {
 	if (designated)
 	    expect('=');
 	initializer(ty);
     }
-    END_CALL
 }
 
 union node * initializer_list(struct type *ty)
 {
-    BEGIN_CALL
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
     union node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
-
+    struct vector *v = vec_new();
+    
     expect('{');
     if (FIRST_INIT(token)) {
 	if (ty) {
 	    if (isstruct(ty) || isunion(ty)) {
-		struct_init(ty, false);
+		struct_init(ty, false, v);
 	    } else if (isarray(ty)) {
-		array_init(ty, false);
+		array_init(ty, false, v);
 	    } else {
 		struct type *aty = array_type();
 		aty->type = ty;
 		aty->size = 1;
-		array_init(aty, false);
+		array_init(aty, false, v);
 	    }
 
 	    if (token->id == ',')
@@ -929,7 +916,7 @@ union node * initializer_list(struct type *ty)
     }
     
     match('}', follow);
-    END_CALL
+    EXPR_INITS(ret) = (union node **)vtoa(v);
     return ret;
 }
 
