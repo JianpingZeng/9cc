@@ -646,7 +646,13 @@ const char *type2s(struct type *ty)
 	    strbuf_cats(buf, "*");
 	    qualstr(buf, s->qual);
 	} else if (isarray(s->type)) {
-	    strbuf_cats(buf, "[]");
+	    if (s->type->size > 0) {
+		strbuf_cats(buf, "[");
+		strbuf_catd(buf, s->type->size);
+		strbuf_cats(buf, "]");
+	    } else {
+		strbuf_cats(buf, "[]");
+	    }
 	} else if (isenum(s->type) || isstruct(s->type) || isunion(s->type)) {
 	    qualstr(buf, s->qual);
 	    strbuf_cats(buf, s->type->name);

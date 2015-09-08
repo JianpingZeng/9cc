@@ -865,7 +865,16 @@ union node * expression()
 //TODO
 int intexpr()
 {
-    eval(cond_expr());
+    union node *n = cond_expr();
+    if (AST_ID(n) == INTEGER_LITERAL) {
+	struct symbol *sym = EXPR_SYM(n);
+	if (op(sym->type) == UNSIGNED)
+	    return (int) sym->value.u;
+	else
+	    return (int) sym->value.i;
+    } else if (AST_ID(n) == FLOAT_LITERAL) {
+
+    }
     
     return 0;
 }
