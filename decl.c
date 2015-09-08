@@ -851,26 +851,17 @@ static void elem_init(struct type *ty, bool designated, struct vector *v)
 	    if (designated)
 		error("expect '=' or another designator at '%s'", token->name);
 	    initializer_list(ty);
+	} else if ((token->id == '.' && isarray(ty)) ||
+		   (token->id == '[' && !isarray(ty))) {
+	    unsigned errs = errors;
+	    eat_initializer();
+	    // inhibit redundant errors
+	    if (errs == errors)
+		error("%s designator cannot initialize non-%s type '%s'", unqual(ty)->name, unqual(ty)->name, type2s(ty));
 	} else if (isarray(ty)) {
-	    if (token->id == '.') {
-		unsigned errs = errors;
-		eat_initializer();
-		// inhibit redundant errors
-		if (errs == errors)
-		    error("struct designator cannot initialize non-struct type '%s'", type2s(ty));
-	    } else {
-		array_init(ty, designated, v);
-	    }
+	    array_init(ty, designated, v);
 	} else {
-	    if (token->id == '[') {
-		unsigned errs = errors;
-		eat_initializer();
-		// inhibit redundant errors
-		if (errs == errors)
-		    error("array designator cannot initialize non-array type '%s'", type2s(ty));
-	    } else {
-		struct_init(ty, designated, v);
-	    }
+	    struct_init(ty, designated, v);
 	}
     } else {
 	if (designated)
