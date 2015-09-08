@@ -9,6 +9,8 @@
 
 #define FLEX_ARRAY      /* flexible array */
 
+#define MAX(x, y)    (((x) > (y)) ? (x) : (y))
+
 // wrapper.c
 extern void die(const char *fmt, ...);
 extern void println(const char *fmt, ...);
