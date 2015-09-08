@@ -38,3 +38,7 @@ mcc.exe
 *.a
 *.bin
 
+# etags
+TAGS
+.etags_update
+
