@@ -66,6 +66,12 @@ union node * ast_conv(struct type *ty, union node *l)
     return expr;
 }
 
+union node * ast_inits()
+{
+    union node * expr = ast_expr(INITS_EXPR, 0, NULL, NULL);
+    return expr;
+}
+
 union node * ast_vinit()
 {
     static union node *vinit;

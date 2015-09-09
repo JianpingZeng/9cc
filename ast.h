@@ -105,6 +105,7 @@ extern union node * ast_stmt(int id, union node *l, union node *r);
 extern union node * ast_uop(int op, struct type *ty, union node *l);
 extern union node * ast_bop(int op, union node *l, union node *r);
 extern union node * ast_conv(struct type *ty, union node *l);
+extern union node * ast_inits();
 extern union node * ast_vinit();
 
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)

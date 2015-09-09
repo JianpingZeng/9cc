@@ -761,7 +761,7 @@ static void eat_initlist()
     } while (FIRST_INIT(token));
 }
 
-static void struct_init(struct type *ty, bool designated, struct vector *v)
+static void struct_init(struct type *ty, bool designated, bool brace, struct vector *v)
 {
     int len = array_len((void **)ty->u.s.fields);
 
@@ -800,12 +800,15 @@ static void struct_init(struct type *ty, bool designated, struct vector *v)
 	designated = false;
 	if (token->id == '}')
 	    break;
+	struct token *ahead = lookahead();
+	if ((ahead->id == '.' || ahead->id == '[') && !brace)
+	    break;
 	if (i < len - 1)
 	    expect(',');
     }
 }
 
-static void array_init(struct type *ty, bool designated, struct vector *v)
+static void array_init(struct type *ty, bool designated, bool brace, struct vector *v)
 {
     int c = 0;
     for (int i = 0; (ty->size > 0 && i < ty->size) || ty->size == 0; i++) {
@@ -822,6 +825,9 @@ static void array_init(struct type *ty, bool designated, struct vector *v)
 	elem_init(rtype(ty), designated, v, i);
 	designated = false;
 	if (token->id == '}')
+	    break;
+	struct token *ahead = lookahead();
+	if ((ahead->id == '.' || ahead->id == '[') && !brace)
 	    break;
 	if ((ty->size > 0 && i < ty->size - 1) || ty->size == 0)
 	    expect(',');
@@ -850,21 +856,19 @@ static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
 	}
     } else if (isstruct(ty) || isunion(ty) || isarray(ty)) {
 	if (token->id == '=') {
-	    union node *n;
 	    if (!designated)
 		error("expect designator before '='");
 	    expect('=');
-	    n = find_elem(v, i);
+	    union node *n = find_elem(v, i);
 	    if (AST_ID(n) != VINIT_EXPR)
 		warning("initializer overrides prior initialization");
 	    n = initializer(ty);
 	    if (n)
 		vec_set(v, i, n);
 	} else if (token->id == '{') {
-	    union node *n;
 	    if (designated)
 		error("expect '=' or another designator at '%s'", token->name);
-	    n = find_elem(v, i);
+	    union node *n = find_elem(v, i);
 	    if (AST_ID(n) != VINIT_EXPR)
 		warning("initializer overrides prior initialization");
 	    n = initializer_list(ty);
@@ -877,16 +881,25 @@ static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
 	    // inhibit redundant errors
 	    if (errs == errors)
 		error("%s designator cannot initialize non-%s type '%s'", unqual(ty)->name, unqual(ty)->name, type2s(ty));
-	} else if (isarray(ty)) {
-	    array_init(ty, designated, v);
 	} else {
-	    struct_init(ty, designated, v);
+	    union node *n = find_elem(v, i);
+	    struct vector *v1 = vec_new();
+	    if (AST_ID(n) == INITS_EXPR) {
+		vec_add_array(v1, (void **)EXPR_INITS(n));
+	    } else {
+		n = ast_inits();
+		vec_set(v, i, n);
+	    }
+	    if (isarray(ty))
+		array_init(ty, designated, false, v1);
+	    else
+		struct_init(ty, designated, false, v1);
+	    EXPR_INITS(n) = (union node **)vtoa(v1);
 	}
     } else {
-	union node *n;
 	if (designated)
 	    expect('=');
-	n = find_elem(v, i);
+	union node *n = find_elem(v, i);
 	if (AST_ID(n) != VINIT_EXPR)
 	    warning("initializer overrides prior initialization");
 	n = initializer(ty);
@@ -898,21 +911,21 @@ static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
 union node * initializer_list(struct type *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    union node *ret = ast_expr(INITS_EXPR, 0, NULL, NULL);
+    union node *ret = ast_inits();
     struct vector *v = vec_new();
     
     expect('{');
     if (FIRST_INIT(token)) {
 	if (ty) {
 	    if (isstruct(ty) || isunion(ty)) {
-		struct_init(ty, false, v);
+		struct_init(ty, false, true, v);
 	    } else if (isarray(ty)) {
-		array_init(ty, false, v);
+		array_init(ty, false, true, v);
 	    } else {
 		struct type *aty = array_type();
 		aty->type = ty;
 		aty->size = 1;
-		array_init(aty, false, v);
+		array_init(aty, false, true, v);
 	    }
 
 	    if (token->id == ',')
