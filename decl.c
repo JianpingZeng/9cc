@@ -728,7 +728,7 @@ static union node * initializer(struct type *ty)
     }
 }
 
-static void elem_init(struct type *ty, bool designated, struct vector *v);
+static void elem_init(struct type *ty, bool designated, struct vector *v, int i);
 #define FIRST_INIT(t) (t->id == '[' || t->id == '.' || t->id == '{' || firstexpr(t))
 
 static void eat_initializer()
@@ -796,7 +796,7 @@ static void struct_init(struct type *ty, bool designated, struct vector *v)
 	    fieldty = field->type;
 	}
 
-	elem_init(fieldty, designated, v);
+	elem_init(fieldty, designated, v, i);
 	designated = false;
 	if (token->id == '}')
 	    break;
@@ -819,7 +819,7 @@ static void array_init(struct type *ty, bool designated, struct vector *v)
 	    designated = true;
 	}
 	c = MAX(c, i);
-	elem_init(rtype(ty), designated, v);
+	elem_init(rtype(ty), designated, v, i);
 	designated = false;
 	if (token->id == '}')
 	    break;
@@ -831,7 +831,14 @@ static void array_init(struct type *ty, bool designated, struct vector *v)
 	ty->size = c + 1;
 }
 
-static void elem_init(struct type *ty, bool designated, struct vector *v)
+static union node * find_elem(struct vector *v, int i)
+{
+    for (int j = vec_len(v); j <= i; j++)
+	vec_push(v, ast_vinit());
+    return vec_at(v, i);
+}
+
+static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
 {
     if (ty == NULL) {
         if (token->id == '.' || token->id == '[') {
@@ -843,14 +850,26 @@ static void elem_init(struct type *ty, bool designated, struct vector *v)
 	}
     } else if (isstruct(ty) || isunion(ty) || isarray(ty)) {
 	if (token->id == '=') {
+	    union node *n;
 	    if (!designated)
 		error("expect designator before '='");
 	    expect('=');
-	    initializer(ty);
+	    n = find_elem(v, i);
+	    if (AST_ID(n) != VINIT_EXPR)
+		warning("initializer overrides prior initialization");
+	    n = initializer(ty);
+	    if (n)
+		vec_set(v, i, n);
 	} else if (token->id == '{') {
+	    union node *n;
 	    if (designated)
 		error("expect '=' or another designator at '%s'", token->name);
-	    initializer_list(ty);
+	    n = find_elem(v, i);
+	    if (AST_ID(n) != VINIT_EXPR)
+		warning("initializer overrides prior initialization");
+	    n = initializer_list(ty);
+	    if (n)
+		vec_set(v, i, n);
 	} else if ((token->id == '.' && isarray(ty)) ||
 		   (token->id == '[' && !isarray(ty))) {
 	    unsigned errs = errors;
@@ -864,9 +883,15 @@ static void elem_init(struct type *ty, bool designated, struct vector *v)
 	    struct_init(ty, designated, v);
 	}
     } else {
+	union node *n;
 	if (designated)
 	    expect('=');
-	initializer(ty);
+	n = find_elem(v, i);
+	if (AST_ID(n) != VINIT_EXPR)
+	    warning("initializer overrides prior initialization");
+	n = initializer(ty);
+	if (n)
+	    vec_set(v, i, n);
     }
 }
 

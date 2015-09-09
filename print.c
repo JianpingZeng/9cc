@@ -12,14 +12,17 @@ static void print_tree1(struct print_context context);
 static void print_decl(union node *node, struct print_context context)
 {
     int level;
-    
+
+    fprintf(stderr, "%s", nname(node));
     if (DECL_SYM(node)) {
-        fprintf(stderr, "%s '%s' %s ", nname(node), STR(DECL_SYM(node)->name), DECL_SYM(node)->defined ? "<defined>" : "");
+        fprintf(stderr, "'%s' %s ", STR(DECL_SYM(node)->name), DECL_SYM(node)->defined ? "<defined>" : "");
 	struct type *ty = DECL_SYM(node)->type;
-        if (ty)
-            fprintf(stderr, "'%s' '%s'", unqual(ty)->name, type2s(ty));
-    } else {
-        fprintf(stderr, "%s", nname(node));
+        if (ty) {
+	    if (isfunc(ty) || isptr(ty))
+		fprintf(stderr, "'%s' '%s'", unqual(ty)->name, type2s(ty));
+	    else
+		fprintf(stderr, "'%s'", type2s(ty));
+	}
     }
     fprintf(stderr, "\n");
     
@@ -45,13 +48,20 @@ static void print_expr(union node *node, struct print_context context)
     int level;
     int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
+
+    fprintf(stderr, "%s ", nname(node));
+    if (op > 0)
+	fprintf(stderr, "'%s' ", tname(op));
     if (EXPR_SYM(node))
-        fprintf(stderr, "%s '%s' %s %s ", nname(node), tname(op), STR(EXPR_SYM(node)->name), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
-    else
-        fprintf(stderr, "%s '%s' %s ", nname(node), tname(op), (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
+	fprintf(stderr, "%s ", STR(EXPR_SYM(node)->name));
+    fprintf(stderr, "%s ", (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
     
-    if (AST_TYPE(node))
-        fprintf(stderr, "'%s' '%s'", unqual(AST_TYPE(node))->name, type2s(AST_TYPE(node)));
+    if (AST_TYPE(node)) {
+	if (isfunc(AST_TYPE(node)) || isptr(AST_TYPE(node)))
+	    fprintf(stderr, "'%s' '%s'", unqual(AST_TYPE(node))->name, type2s(AST_TYPE(node)));
+	else
+	    fprintf(stderr, "'%s'", type2s(AST_TYPE(node)));
+    }
     fprintf(stderr, "\n");
     
     level = context.level + 1;
