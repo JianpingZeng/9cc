@@ -863,8 +863,16 @@ static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
 	    if (AST_ID(n) != VINIT_EXPR)
 		warning("initializer overrides prior initialization");
 	    n = initializer(ty);
-	    if (n)
+	    if (n) {
+		if (AST_ID(n) != INITS_EXPR) {
+		    union node *n1 = ast_inits();
+		    struct vector *v1 = vec_new();
+		    vec_push(v1, n);
+		    EXPR_INITS(n1) = (union node **)vtoa(v1);
+		    n = n1;
+		}
 		vec_set(v, i, n);
+	    }
 	} else if (token->id == '{') {
 	    if (designated)
 		error("expect '=' or another designator at '%s'", token->name);
