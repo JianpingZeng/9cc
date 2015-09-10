@@ -810,14 +810,13 @@ static void struct_init(struct type *ty, bool brace, struct vector *v)
     }
 }
 
-// TODO: bugs
 static void array_init(struct type *ty, bool brace, struct vector *v)
 {
     bool designated = false;
     int c = 0;
     
     for (int i = 0; ; i++) {
-	struct type *rty;
+	struct type *rty = NULL;
 	
 	if (token->id == '[') {
 	    expect('[');
@@ -831,7 +830,7 @@ static void array_init(struct type *ty, bool brace, struct vector *v)
 	
 	c = MAX(c, i);
 	if (ty->size > 0 && i >= ty->size)
-	    rty = NULL;
+	    error("array designator index [%d] exceeds array bounds (%d)", i, ty->size);
 	else
 	    rty = rtype(ty);
 	elem_init(rty, designated, v, i);
@@ -842,7 +841,8 @@ static void array_init(struct type *ty, bool brace, struct vector *v)
 	    break;
 	if ((ahead->id == '.' || ahead->id == '[') && !brace)
 	    break;
-	expect(',');
+	if (brace || (ty->size > 0 && i < ty->size - 1) || ty->size == 0)
+	    expect(',');
     }
 
     if (ty->size == 0)
@@ -952,7 +952,7 @@ union node * initializer_list(struct type *ty)
 		expect(',');
 
 	    if (FIRST_INIT(token)) {
-		error("excess elements in %s initializer at '%s'", unqual(ty)->name, token->name);
+		warning("excess elements in %s initializer at '%s'", unqual(ty)->name, token->name);
 		eat_initlist();
 	    }
 	} else {
