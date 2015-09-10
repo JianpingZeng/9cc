@@ -717,13 +717,11 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
 static union node * initializer(struct type *ty)
 {
     if (token->id == '{') {
-        // initializer list
         return initializer_list(ty);
     } else if (firstexpr(token)) {
-        // assign expr
         return assign_expr();
     } else {
-        error("expect '{' or assignment expression at '%s'", token->name);
+        error("expect '{' or assignment expression");
         return NULL;
     }
 }
