@@ -856,6 +856,7 @@ static union node * find_elem(struct vector *v, int i)
 
 static void aggregate_set(struct type *ty, struct vector *v, int i, union node *node)
 {
+    BEGIN_CALL
     if (!node)
 	return;
     
@@ -866,8 +867,24 @@ static void aggregate_set(struct type *ty, struct vector *v, int i, union node *
     if (AST_ID(node) == INITS_EXPR) {
 	vec_set(v, i, node);
     } else {
-	// TODO: 
+	struct type *rty;
+	if (isarray(ty)) {
+	    rty = rtype(ty);
+	} else {
+	    rty = ty->u.s.fields[0]->type;
+	}
+
+	if (isarray(rty) || isstruct(rty) || isunion(rty)) {
+	    union node *n1 = ast_inits();
+	    struct vector *v1 = vec_new();
+	    aggregate_set(rty, v1, 0, node);
+	    EXPR_INITS(n1) = (union node **)vtoa(v1);
+	    vec_set(v, i, n1);
+	} else {
+	    vec_set(v, i, node);
+	}
     }
+    END_CALL
 }
 
 static void scalar_set(struct type *ty, struct vector *v, int i, union node *node)
