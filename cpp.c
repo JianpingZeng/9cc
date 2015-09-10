@@ -26,14 +26,14 @@ static void cpp_exit(void)
 
 static void preprocess(void)
 {
-    static const char *cpp[] = {"/usr/bin/c99", "-E", "$in", "-o", "$out", 0};
+    static const char *cpp[] = {"/usr/bin/c99", "-E", "-U__GNUC__", "$in", "-o", "$out", 0};
     struct vector *v = vec_new();
     
-    cpp[2] = ifile;
+    cpp[3] = ifile;
     if (ofile)
-        cpp[4] = ofile;
+        cpp[5] = ofile;
     else
-        cpp[3] = 0;
+        cpp[4] = 0;
     
     vec_add_array(v,(void *) cpp);
     vec_add(v, options);
