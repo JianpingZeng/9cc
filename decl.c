@@ -849,7 +849,11 @@ static void array_init(struct type *ty, bool brace, struct vector *v)
 
 static void scalar_init(struct type *ty, struct vector *v)
 {
-
+    // TODO:
+    struct type *atype = array_type();
+    atype->type = ty;
+    atype->size = 1;
+    array_init(atype, true, v);
 }
 
 static union node * find_elem(struct vector *v, int i)
