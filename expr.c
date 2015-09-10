@@ -574,7 +574,6 @@ static union node * sizeof_expr()
         error("'sizeof' to an incomplete array type is invalid");
     
     union node *ret = uop(t, unsignedinttype, n);
-    AST_TYPE(ret) = ty;
     return ret;
 }
 
