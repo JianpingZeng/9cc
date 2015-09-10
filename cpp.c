@@ -80,6 +80,7 @@ int cpp_main(int argc, char **argv)
 {
     cpp_init();
     parse_opts(argc, argv);
+    add_search_path("include/linux");
     preprocess();
     cpp_exit();
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
