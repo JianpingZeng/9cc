@@ -861,7 +861,7 @@ static union node * find_elem(struct vector *v, int i)
 
 static void init_check(struct type *ty1, struct type *ty2)
 {
-
+    // TODO: 
 }
 
 static void aggregate_set(struct type *ty, struct vector *v, int i, union node *node)
