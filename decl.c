@@ -856,6 +856,20 @@ static union node * find_elem(struct vector *v, int i)
     return vec_at(v, i);
 }
 
+static void aggregate_set(struct type *ty, struct vector *v, int i, union node *node)
+{
+// TODO: 
+}
+
+static void scalar_set(struct type *ty, struct vector *v, int i, union node *node)
+{
+    union node *n = find_elem(v, i);
+    if (AST_ID(n) != VINIT_EXPR)
+	warning("initializer overrides prior initialization");
+    if (node)
+	vec_set(v, i, node);
+}
+
 static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
 {
     if (ty == NULL) {
@@ -871,29 +885,11 @@ static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
 	    if (!designated)
 		error("expect designator before '='");
 	    expect('=');
-	    union node *n = find_elem(v, i);
-	    if (AST_ID(n) != VINIT_EXPR)
-		warning("initializer overrides prior initialization");
-	    n = initializer(ty);
-	    if (n) {
-		if (AST_ID(n) != INITS_EXPR) {
-		    union node *n1 = ast_inits();
-		    struct vector *v1 = vec_new();
-		    vec_push(v1, n);
-		    EXPR_INITS(n1) = (union node **)vtoa(v1);
-		    n = n1;
-		}
-		vec_set(v, i, n);
-	    }
+	    aggregate_set(ty, v, i, initializer(ty));
 	} else if (token->id == '{') {
 	    if (designated)
 		error("expect '=' or another designator at '%s'", token->name);
-	    union node *n = find_elem(v, i);
-	    if (AST_ID(n) != VINIT_EXPR)
-		warning("initializer overrides prior initialization");
-	    n = initializer_list(ty);
-	    if (n)
-		vec_set(v, i, n);
+	    aggregate_set(ty, v, i, initializer_list(ty));
 	} else if ((token->id == '.' && isarray(ty)) ||
 		   (token->id == '[' && !isarray(ty))) {
 	    unsigned errs = errors;
@@ -919,12 +915,7 @@ static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
     } else {
 	if (designated)
 	    expect('=');
-	union node *n = find_elem(v, i);
-	if (AST_ID(n) != VINIT_EXPR)
-	    warning("initializer overrides prior initialization");
-	n = initializer(ty);
-	if (n)
-	    vec_set(v, i, n);
+	scalar_set(ty, v, i, initializer(ty));
     }
 }
 
