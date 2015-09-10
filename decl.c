@@ -847,6 +847,11 @@ static void array_init(struct type *ty, bool brace, struct vector *v)
 	ty->size = c + 1;
 }
 
+static void scalar_init(struct type *ty, struct vector *v)
+{
+
+}
+
 static union node * find_elem(struct vector *v, int i)
 {
     for (int j = vec_len(v); j <= i; j++)
@@ -971,16 +976,12 @@ union node * initializer_list(struct type *ty)
     expect('{');
     if (FIRST_INIT(token)) {
 	if (ty) {
-	    if (isstruct(ty) || isunion(ty)) {
+	    if (isstruct(ty) || isunion(ty))
 		struct_init(ty, true, v);
-	    } else if (isarray(ty)) {
+	    else if (isarray(ty))
 		array_init(ty, true, v);
-	    } else {
-		struct type *aty = array_type();
-		aty->type = ty;
-		aty->size = 1;
-		array_init(aty, true, v);
-	    }
+	    else
+		scalar_init(ty, v);
 
 	    if (token->id == ',')
 		expect(',');
