@@ -856,16 +856,34 @@ static union node * find_elem(struct vector *v, int i)
 
 static void aggregate_set(struct type *ty, struct vector *v, int i, union node *node)
 {
-// TODO: 
+    if (!node)
+	return;
+    
+    union node *n = find_elem(v, i);
+    if (AST_ID(n) != VINIT_EXPR)
+	warning("initializer overrides prior initialization");
+    
+    if (AST_ID(node) == INITS_EXPR) {
+	vec_set(v, i, node);
+    } else {
+	// TODO: 
+    }
 }
 
 static void scalar_set(struct type *ty, struct vector *v, int i, union node *node)
 {
+    if (!node)
+	return;
+    
     union node *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
 	warning("initializer overrides prior initialization");
-    if (node)
+
+    if (AST_ID(node) == INITS_EXPR) {
+	// TODO: 
+    } else {
 	vec_set(v, i, node);
+    }
 }
 
 static void elem_init(struct type *ty, bool designated, struct vector *v, int i)
