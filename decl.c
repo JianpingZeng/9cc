@@ -805,7 +805,8 @@ static void struct_init(struct type *ty, bool brace, struct vector *v)
 	    break;
 	if ((ahead->id == '.' || ahead->id == '[') && !brace)
 	    break;
-	expect(',');
+	if (brace || i < len - 1)
+	    expect(',');
     }
 }
 
@@ -816,6 +817,8 @@ static void array_init(struct type *ty, bool brace, struct vector *v)
     int c = 0;
     
     for (int i = 0; ; i++) {
+	struct type *rty;
+	
 	if (token->id == '[') {
 	    expect('[');
 	    i = intexpr();
@@ -823,11 +826,15 @@ static void array_init(struct type *ty, bool brace, struct vector *v)
 	    designated = true;
 	}
 
-	if (ty->size > 0 && i >= ty->size)
+	if (ty->size > 0 && i >= ty->size && !designated)
 	    break;
 	
 	c = MAX(c, i);
-	elem_init(rtype(ty), designated, v, i);
+	if (ty->size > 0 && i >= ty->size)
+	    rty = NULL;
+	else
+	    rty = rtype(ty);
+	elem_init(rty, designated, v, i);
 	designated = false;
 
 	struct token *ahead = lookahead();
