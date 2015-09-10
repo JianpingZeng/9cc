@@ -910,8 +910,17 @@ static void scalar_set(struct type *ty, struct vector *v, int i, union node *nod
     if (AST_ID(n) != VINIT_EXPR)
 	warning("initializer overrides prior initialization");
 
-    if (AST_ID(node) == INITS_EXPR) {
-	// TODO: 
+    if (AST_ID(node) == INITS_EXPR) {	
+	union node **inits;
+    loop:
+	    inits = EXPR_INITS(node);
+	    if (inits) {
+		node = inits[0];
+		if (AST_ID(node) == INITS_EXPR)
+		    goto loop;
+		init_check(ty, AST_TYPE(node));
+		vec_set(v, i, node);
+	    }
     } else {
 	init_check(ty, AST_TYPE(node));
 	vec_set(v, i, node);
