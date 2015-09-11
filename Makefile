@@ -1,7 +1,7 @@
 # Makefile for mcc
 
 CC=cc
-CFLAGS=-Wall -std=c99 -Os -Isys -I.
+CFLAGS=-Wall -std=c99 -Isys -I. -g
 LDFLAGS=
 MCC=mcc
 
