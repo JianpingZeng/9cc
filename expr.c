@@ -19,28 +19,28 @@ static unsigned escape(const char **ps)
     assert(*s == '\\');
     s += 1;
     switch (*s++) {
-        case 'a': c = 7; break;
-        case 'b': c = '\b'; break;
-        case 'f': c = '\f'; break;
-        case 'n': c = '\n'; break;
-        case 'r': c = '\r'; break;
-        case 't': c = '\t'; break;
-        case 'v': c = '\v'; break;
-        case '\'': case '"':
-        case '\\': case '\?':
-            c = s[-1];
-            break;
-        case '0': case '1': case '2':
-        case '3': case '4': case '5':
-        case '6': case '7':
-            c = s[-1] - '0';
-            if (*s >= '0' && *s <= '7') {
-                c = (c<<3) + (*s++) - '0';
-                if (*s >= '0' && *s <= '7')
-                    c = (c<<3) + (*s++) - '0';
-            }
-            break;
-        case 'x':
+    case 'a': c = 7; break;
+    case 'b': c = '\b'; break;
+    case 'f': c = '\f'; break;
+    case 'n': c = '\n'; break;
+    case 'r': c = '\r'; break;
+    case 't': c = '\t'; break;
+    case 'v': c = '\v'; break;
+    case '\'': case '"':
+    case '\\': case '\?':
+	c = s[-1];
+	break;
+    case '0': case '1': case '2':
+    case '3': case '4': case '5':
+    case '6': case '7':
+	c = s[-1] - '0';
+	if (*s >= '0' && *s <= '7') {
+	    c = (c<<3) + (*s++) - '0';
+	    if (*s >= '0' && *s <= '7')
+		c = (c<<3) + (*s++) - '0';
+	}
+	break;
+    case 'x':
         {
             bool overflow = 0;
             for (;is_digithex(*s);) {
@@ -60,8 +60,8 @@ static unsigned escape(const char **ps)
                 s++;
             }
         }
-            break;
-        case 'u': case 'U':
+	break;
+    case 'u': case 'U':
         {
             int x = 0;
             int n = s[-1] == 'u' ? 4 : 8;
@@ -74,10 +74,10 @@ static unsigned escape(const char **ps)
                     c = (c<<4) + (*s & 0x5f) - 'A' + 10;
             }
         }
-            break;
-        default:
-            c = s[-1];
-            break;
+	break;
+    default:
+	c = s[-1];
+	break;
     }
     
     *ps = s;
@@ -187,9 +187,9 @@ static void integer_constant(struct token *t, struct symbol *sym)
     }
     
     int ull = (s[0] == 'u' || s[0] == 'U') &&
-    ((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
+	((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
     int llu = ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L')) &&
-    (s[2] == 'u' || s[2] == 'U');
+	(s[2] == 'u' || s[2] == 'U');
     int ll = (s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L');
     int lu = (s[0] == 'l' || s[0] == 'L') && (s[1] == 'u' || s[1] == 'U');
     int ul = (s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L');
@@ -258,18 +258,18 @@ static void integer_constant(struct token *t, struct symbol *sym)
     sym->type = ty;
     
     switch (op(sym->type)) {
-        case INT:
-            if (overflow || n > longlongtype->limits.max.i)
-                error("integer constant overflow: %s", t->name);
-            sym->value.i = n;
-            break;
-        case UNSIGNED:
-            if (overflow)
-                error("integer constant overflow: %s", t->name);
-            sym->value.u = n;
-            break;
-        default:
-            assert(0);
+    case INT:
+	if (overflow || n > longlongtype->limits.max.i)
+	    error("integer constant overflow: %s", t->name);
+	sym->value.i = n;
+	break;
+    case UNSIGNED:
+	if (overflow)
+	    error("integer constant overflow: %s", t->name);
+	sym->value.u = n;
+	break;
+    default:
+	assert(0);
     }
 }
 
@@ -428,38 +428,38 @@ static union node * postfix_expr1(union node *ret)
     int t;
     
     for (;token->id == '[' || token->id == '(' || token->id == '.'
-         || token->id == DEREF || token->id == INCR || token->id == DECR;) {
+	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
-            case '[':
-                t = token->id;
-                expect('[');
-                ret = enode(SUBSCRIPT_EXPR, NULL, ret, expression());
-                expect(']');
-                break;
-            case '(':
-                t = token->id;
-                expect('(');
-                ret = enode(CALL_EXPR, NULL, ret, NULL);
-                EXPR_ARGS(ret) = argument_expr_list();
-                expect(')');
-                break;
-            case '.':
-            case DEREF:
+	case '[':
+	    t = token->id;
+	    expect('[');
+	    ret = enode(SUBSCRIPT_EXPR, NULL, ret, expression());
+	    expect(']');
+	    break;
+	case '(':
+	    t = token->id;
+	    expect('(');
+	    ret = enode(CALL_EXPR, NULL, ret, NULL);
+	    EXPR_ARGS(ret) = argument_expr_list();
+	    expect(')');
+	    break;
+	case '.':
+	case DEREF:
             {
                 t = token->id;
                 expect(t);
                 ret = enode(MEMBER_EXPR, NULL, ret, enode(REF_EXPR, NULL, NULL, NULL));
                 expect(ID);
             }
-                break;
-            case INCR:
-            case DECR:
-                t = token->id;
-                expect(token->id);
-                ret = uop(t, AST_TYPE(ret), ret);
-                break;
-            default:
-                assert(0);
+	    break;
+	case INCR:
+	case DECR:
+	    t = token->id;
+	    expect(token->id);
+	    ret = uop(t, AST_TYPE(ret), ret);
+	    break;
+	default:
+	    assert(0);
         }
     }
     
@@ -473,7 +473,7 @@ static union node * primary_expr()
     union node *ret;
     
     switch (t) {
-        case ID:
+    case ID:
         {
             ret = enode(REF_EXPR, NULL, NULL, NULL);
             sym = lookup(token->name, identifiers);
@@ -489,35 +489,35 @@ static union node * primary_expr()
             expect(t);
             EXPR_SYM(ret) = sym;
         }
-            break;
-        case ICONSTANT:
-        case FCONSTANT:
+	break;
+    case ICONSTANT:
+    case FCONSTANT:
+    case SCONSTANT:
         {
+	    int id;
             sym = lookup(token->name, constants);
             if (!sym) {
                 sym = install(token->name, &constants, CONSTANT);
-                t == ICONSTANT ? integer_constant(token, sym) : float_constant(token, sym);
+	        if (t == ICONSTANT)
+		    integer_constant(token, sym);
+		else if (t == FCONSTANT)
+		    float_constant(token, sym);
+		else
+		    string_constant(token, sym);
             }
             expect(t);
-            ret = enode(t == ICONSTANT ? INTEGER_LITERAL : FLOAT_LITERAL, NULL, NULL, NULL);
+	    if (t == ICONSTANT)
+		id = INTEGER_LITERAL;
+	    else if (t == FCONSTANT)
+		id = FLOAT_LITERAL;
+	    else
+		id = STRING_LITERAL;
+            ret = enode(id, NULL, NULL, NULL);
             EXPR_SYM(ret) = sym;
             AST_TYPE(ret) = sym->type;
         }
-            break;
-        case SCONSTANT:
-        {
-            sym = lookup(token->name, constants);
-            if (!sym) {
-                sym = install(token->name, &constants, CONSTANT);
-                string_constant(token, sym);
-            }
-            expect(t);
-            ret = enode(STRING_LITERAL, NULL, NULL, NULL);
-            EXPR_SYM(ret) = sym;
-            AST_TYPE(ret) = sym->type;
-        }
-            break;
-        case '(':
+	break;
+    case '(':
         {
             struct token *ahead = lookahead();
             if (istypename(ahead)) {
@@ -530,11 +530,11 @@ static union node * primary_expr()
                 expect(')');
             }
         }
-            break;
-        default:
-            ret = NULL;
-            error("invalid postfix expression at '%s'", token->name);
-            break;
+	break;
+    default:
+	ret = NULL;
+	error("invalid postfix expression at '%s'", token->name);
+	break;
     }
     
     return ret;
@@ -581,8 +581,8 @@ static union node * unary_expr()
 {
     int t = token->id;
     switch (t) {
-        case INCR:
-        case DECR:
+    case INCR:
+    case DECR:
         {
             expect(t);
             union node *operand = unary_expr();
@@ -592,8 +592,8 @@ static union node * unary_expr()
             EXPR_PREFIX(ret) = true;
             return ret;
         }
-        case '+':
-        case '-':
+    case '+':
+    case '-':
         {
             expect(t);
             union node *operand = cast_expr();
@@ -601,7 +601,7 @@ static union node * unary_expr()
             union node *c = conv(operand);
             return uop(t, AST_TYPE(c), c);
         }
-        case '~':
+    case '~':
         {
             expect(t);
             union node *operand = cast_expr();
@@ -609,14 +609,14 @@ static union node * unary_expr()
             union node *c = conv(operand);
             return uop(t, AST_TYPE(c), c);
         }
-        case '!':
+    case '!':
         {
             expect(t);
             union node *operand = cast_expr();
             ensure_type(operand, isscalar);
             return uop(t, inttype, conv(operand));
         }
-        case '&':
+    case '&':
         {
             expect(t);
             union node *operand = cast_expr();
@@ -629,7 +629,7 @@ static union node * unary_expr()
             }
             return uop(t, ptr_type(AST_TYPE(operand)), operand);
         }
-        case '*':
+    case '*':
         {
             expect(t);
             union node *operand = conv(cast_expr());
@@ -637,8 +637,8 @@ static union node * unary_expr()
                 error("indirection requires pointer operand");
             return uop(t, rtype(AST_TYPE(operand)), operand);
         }
-        case SIZEOF: return sizeof_expr();
-        default:     return postfix_expr();
+    case SIZEOF: return sizeof_expr();
+    default:     return postfix_expr();
     }
 }
 
@@ -900,27 +900,27 @@ static union node * eval(union node *expr)
 {
     assert(isexpr(expr));
     switch (AST_ID(expr)) {
-        case BINARY_OPERATOR:
-            return eval_bop(expr);
-        case UNARY_OPERATOR:
-            return eval_uop(expr);
-        case PAREN_EXPR:
-            return eval(EXPR_OPERAND(expr, 0));
-        case COND_EXPR:
-        case SUBSCRIPT_EXPR:
-        case MEMBER_EXPR:
-        case REF_EXPR:
-        case CAST_EXPR:
-        case CALL_EXPR:
-        case INITS_EXPR:
-            return NULL;
-        case INTEGER_LITERAL:
-        case FLOAT_LITERAL:
-        case STRING_LITERAL:
-        case COMPOUND_LITERAL:
-            return expr;
-        default:
-            assert(0);
+    case BINARY_OPERATOR:
+	return eval_bop(expr);
+    case UNARY_OPERATOR:
+	return eval_uop(expr);
+    case PAREN_EXPR:
+	return eval(EXPR_OPERAND(expr, 0));
+    case COND_EXPR:
+    case SUBSCRIPT_EXPR:
+    case MEMBER_EXPR:
+    case REF_EXPR:
+    case CAST_EXPR:
+    case CALL_EXPR:
+    case INITS_EXPR:
+	return NULL;
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case STRING_LITERAL:
+    case COMPOUND_LITERAL:
+	return expr;
+    default:
+	assert(0);
     }
 }
 
@@ -938,65 +938,65 @@ static union node * bop(int op, union node *l, union node *r)
     bool (*is) (struct type *ty);
     
     switch (op) {
-        case '*': case '/':
-            is = isarith;
-        case '%':
-        case LSHIFT: case RSHIFT:
-        case '&': case '^': case '|':
-            is = isint;
+    case '*': case '/':
+	is = isarith;
+    case '%':
+    case LSHIFT: case RSHIFT:
+    case '&': case '^': case '|':
+	is = isint;
             
-            ensure_type(l, is);
-            ensure_type(r, is);
-            ty = conv2(AST_TYPE(l), AST_TYPE(r));
-            node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-            AST_TYPE(node) = ty;
-            break;
-        case '+':
-            if (isptr(AST_TYPE(l))) {
-                ensure_type(r, isint);
-                node = ast_bop(op, l, r);
-                AST_TYPE(node) = AST_TYPE(l);
-            } else if (isptr(AST_TYPE(r))) {
-                ensure_type(l, isint);
-                node = ast_bop(op, l, r);
-                AST_TYPE(node) = AST_TYPE(r);
-            } else {
-                ensure_type(l, isarith);
-                ensure_type(r, isarith);
-                ty = conv2(AST_TYPE(l), AST_TYPE(r));
-                node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-                AST_TYPE(node) = ty;
-            }
-            break;
-        case '-':
-            if (isptr(AST_TYPE(l))) {
-                node = ast_bop(op, l, r);
-                if (isint(AST_TYPE(r))) {
-                    AST_TYPE(node) = AST_TYPE(l);
-                } else if (isptr(AST_TYPE(r))) {
-                    AST_TYPE(node) = inttype;
-                } else {
-                    error("expect integer or pointer type, but got type '%s'", type2s(AST_TYPE(r)));
-                    AST_TYPE(node) = AST_TYPE(l);
-                }
-            } else {
-                ensure_type(l, isarith);
-                ensure_type(r, isarith);
-                ty = conv2(AST_TYPE(l), AST_TYPE(r));
-                node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-                AST_TYPE(node) = ty;
-            }
-            break;
-        case '>': case '<': case LEQ: case GEQ:
-        case EQ: case NEQ:
-            ensure_type(l, isscalar);
-            ensure_type(r, isscalar);
-            node = ast_bop(op, l, r);
-            AST_TYPE(node) = inttype;
-            break;
-        default:
-            error("unknown op '%s'", tname(op));
-            assert(0);
+	ensure_type(l, is);
+	ensure_type(r, is);
+	ty = conv2(AST_TYPE(l), AST_TYPE(r));
+	node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+	AST_TYPE(node) = ty;
+	break;
+    case '+':
+	if (isptr(AST_TYPE(l))) {
+	    ensure_type(r, isint);
+	    node = ast_bop(op, l, r);
+	    AST_TYPE(node) = AST_TYPE(l);
+	} else if (isptr(AST_TYPE(r))) {
+	    ensure_type(l, isint);
+	    node = ast_bop(op, l, r);
+	    AST_TYPE(node) = AST_TYPE(r);
+	} else {
+	    ensure_type(l, isarith);
+	    ensure_type(r, isarith);
+	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
+	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+	    AST_TYPE(node) = ty;
+	}
+	break;
+    case '-':
+	if (isptr(AST_TYPE(l))) {
+	    node = ast_bop(op, l, r);
+	    if (isint(AST_TYPE(r))) {
+		AST_TYPE(node) = AST_TYPE(l);
+	    } else if (isptr(AST_TYPE(r))) {
+		AST_TYPE(node) = inttype;
+	    } else {
+		error("expect integer or pointer type, but got type '%s'", type2s(AST_TYPE(r)));
+		AST_TYPE(node) = AST_TYPE(l);
+	    }
+	} else {
+	    ensure_type(l, isarith);
+	    ensure_type(r, isarith);
+	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
+	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+	    AST_TYPE(node) = ty;
+	}
+	break;
+    case '>': case '<': case LEQ: case GEQ:
+    case EQ: case NEQ:
+	ensure_type(l, isscalar);
+	ensure_type(r, isscalar);
+	node = ast_bop(op, l, r);
+	AST_TYPE(node) = inttype;
+	break;
+    default:
+	error("unknown op '%s'", tname(op));
+	assert(0);
     }
     return node;
 }
@@ -1058,16 +1058,16 @@ static struct type * conv2(struct type *l, struct type *r)
 static union node * conv(union node *node)
 {
     switch (kind(AST_TYPE(node))) {
-        case _BOOL: case CHAR: case SHORT:
-            return ast_conv(inttype, node);
+    case _BOOL: case CHAR: case SHORT:
+	return ast_conv(inttype, node);
             
-        case FUNCTION:
-            return ast_conv(ptr_type(AST_TYPE(node)), node);
+    case FUNCTION:
+	return ast_conv(ptr_type(AST_TYPE(node)), node);
             
-        case ARRAY:
-            return ast_conv(ptr_type(rtype(AST_TYPE(node))), node);
+    case ARRAY:
+	return ast_conv(ptr_type(rtype(AST_TYPE(node))), node);
             
-        default:
-            return node;
+    default:
+	return node;
     }
 }
