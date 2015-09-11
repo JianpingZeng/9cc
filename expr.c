@@ -332,11 +332,12 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
 }
 
-//TODO
 static bool islvalue(union node *node)
 {
-    if (AST_ID(node) == MEMBER_EXPR || AST_ID(node) == SUBSCRIPT_EXPR)
+    if (AST_ID(node) == SUBSCRIPT_EXPR || AST_ID(node) == STRING_LITERAL)
         return true;
+    if (AST_ID(node) == MEMBER_EXPR)
+	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
     if (AST_ID(node) == REF_EXPR) {
         if (EXPR_OP(node) == ENUM)
             return false;
@@ -344,6 +345,10 @@ static bool islvalue(union node *node)
             return false;
         return true;
     }
+    if (AST_ID(node) == PAREN_EXPR)
+	return islvalue(EXPR_OPERAND(node, 0));
+    if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*')
+	return true;
     
     return false;
 }
@@ -361,6 +366,9 @@ static void ensure_assignable(union node *or)
     
     if (!islvalue(or))
         error("expression not assignable");
+
+    // TODO: not all lvalues are modifiable
+    
 }
 
 // TODO
