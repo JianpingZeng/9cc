@@ -1,8 +1,7 @@
-## mcc - a standard c compiler [![Build Status](https://travis-ci.org/huangguiyang/mcc.svg?branch=master)](https://travis-ci.org/huangguiyang/mcc)
-
 Copyright (C) 2015 Guiyang Huang
-
 See the COPYING file for license conditions.
+
+mcc - a standard c compiler
 
 _NOT_ finished yet.
 
@@ -10,23 +9,18 @@ The compiler is designed to be able to compile itself, so it is written in C. An
 
 To build the mcc compiler, run command:
 
-``` 
-make
-```
+	make
 
 To run the testing suite, run command:
 
-``` 
-make test
-```
+	make test
 
-## Source Roadmap:
 
-``` 
+Source Roadmap:
+
 include		headers files provided by this compiler.
 
-sys			system relative utilities.
+sys		system relative utilities.
 
 test		test suite.
-```
 
