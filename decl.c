@@ -667,6 +667,16 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
 			else if (sclass == TYPEDEF)
 			    errorf(src, "illegal initializer (only variable can be initialized)");
 		    }
+
+		    if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+			if (dcl == localdecl) {
+			    if (!ty->u.s.tsym->defined)
+				error("variable has incomplete type '%s'", type2s(ty));
+			} else if (dcl == globaldecl) {
+			    if (init && !ty->u.s.tsym->defined && sclass != TYPEDEF)
+				error("variable has incomplete type '%s'", type2s(ty));
+			} 
+		    }
                     
 		    if (SCOPE == GLOBAL) {
 			if (sym->defined && init)
@@ -1338,9 +1348,6 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
         // TODO: convert to poniter
-    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->u.s.tsym->defined)
-            error("variable has incomplete type '%s'", type2s(ty));
     }
     
     sym = lookup(id, identifiers);
@@ -1375,9 +1382,6 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
         // TODO: convert to poniter
-    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->u.s.tsym->defined && sclass != TYPEDEF)
-            error("variable has incomplete type '%s'", type2s(ty));
     }
     
     sym = lookup(id, identifiers);
