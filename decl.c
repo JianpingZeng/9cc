@@ -7,7 +7,6 @@ static struct type * ptr_decl();
 static struct type * enum_decl();
 static struct type * struct_decl();
 static struct vector * decls(struct symbol * (*)(const char *id, struct type *ftype, int sclass,  struct source src));
-static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  struct source src, bool chkvoid);
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src);
 static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, struct source src);
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src);
@@ -308,7 +307,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
                 }
             }
             
-            vec_push(v, paramdecl2(id, ty, sclass, src, false));
+            vec_push(v, paramdecl(id, ty, sclass, src));
             if (token->id != ',')
                 break;
             
@@ -1288,17 +1287,13 @@ static void fields(struct type *sty)
     sty->u.s.fields = (struct field **)vtoa(v);
 }
 
-static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  struct source src, bool chkvoid)
+static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)
 {
     struct symbol *sym = NULL;
     if (sclass && sclass != REGISTER) {
         error("invalid storage class specifier '%s' in function declarator", tname(sclass));
         sclass = 0;
     }
-    
-    // oldstyle
-    if (chkvoid)
-        ensure_nonvoid(ty, src, PARAM);
     
     if (isfunc(ty)) {
         ensure_func(ty, src);
@@ -1331,11 +1326,6 @@ static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  
     }
     
     return sym;
-}
-
-static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)
-{
-    return paramdecl2(id, ty, sclass, src, true);
 }
 
 static struct symbol * localdecl(const char *id, struct type *ty, int sclass, struct source src)
@@ -1482,6 +1472,7 @@ static union node * funcdef(const char *id, struct type *ftype, int sclass,  str
                 else
                     errorf(sym->src, "parameter named '%s' is missing", sym->name);
             }
+	    ensure_nonvoid(AST_TYPE(decl), sym->src, PARAM);
         }
         exit_scope();
         if (token->id != '{') {
