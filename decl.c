@@ -759,6 +759,81 @@ static void eat_initlist()
     } while (FIRST_INIT(token));
 }
 
+static void init_check(struct type *ty1, struct type *ty2)
+{
+    // TODO: 
+}
+
+static union node * find_elem(struct vector *v, int i)
+{
+    for (int j = vec_len(v); j <= i; j++)
+	vec_push(v, ast_vinit());
+    return vec_at(v, i);
+}
+
+static void aggregate_set(struct type *ty, struct vector *v, int i, union node *node)
+{
+    if (!node)
+	return;
+    
+    union node *n = find_elem(v, i);
+    if (AST_ID(n) != VINIT_EXPR)
+	warning("initializer overrides prior initialization");
+    
+    if (AST_ID(node) == INITS_EXPR) {
+	vec_set(v, i, node);
+    } else {
+	struct type *rty = NULL;
+	if (isarray(ty)) {
+	    rty = rtype(ty);
+	} else {
+	    if (ty->u.s.fields)
+		rty = ty->u.s.fields[0]->type;
+	}
+
+	if (rty) {
+	    union node *n1 = ast_inits();
+	    struct vector *v1 = vec_new();
+	    vec_set(v, i, n1);
+
+	    if (isarray(rty) || isstruct(rty) || isunion(rty)) {
+		aggregate_set(rty, v1, 0, node);
+	    } else {
+		init_check(rty, AST_TYPE(node));
+		vec_push(v1, node);
+	    }
+	
+	    EXPR_INITS(n1) = (union node **)vtoa(v1);
+	}
+    }
+}
+
+static void scalar_set(struct type *ty, struct vector *v, int i, union node *node)
+{
+    if (!node)
+	return;
+    
+    union node *n = find_elem(v, i);
+    if (AST_ID(n) != VINIT_EXPR)
+	warning("initializer overrides prior initialization");
+
+    if (AST_ID(node) == INITS_EXPR) {	
+	union node **inits;
+    loop:
+	    inits = EXPR_INITS(node);
+	    if (inits) {
+		node = inits[0];
+		if (AST_ID(node) == INITS_EXPR)
+		    goto loop;
+		init_check(ty, AST_TYPE(node));
+		vec_set(v, i, node);
+	    }
+    } else {
+	init_check(ty, AST_TYPE(node));
+	vec_set(v, i, node);
+    }
+}
+
 static void struct_init(struct type *ty, bool brace, struct vector *v)
 {
     bool designated = false;
@@ -849,85 +924,17 @@ static void array_init(struct type *ty, bool brace, struct vector *v)
 
 static void scalar_init(struct type *ty, struct vector *v)
 {
-    // TODO:
-    struct type *atype = array_type();
-    atype->type = ty;
-    atype->size = 1;
-    array_init(atype, true, v);
-}
-
-static union node * find_elem(struct vector *v, int i)
-{
-    for (int j = vec_len(v); j <= i; j++)
-	vec_push(v, ast_vinit());
-    return vec_at(v, i);
-}
-
-static void init_check(struct type *ty1, struct type *ty2)
-{
-    // TODO: 
-}
-
-static void aggregate_set(struct type *ty, struct vector *v, int i, union node *node)
-{
-    if (!node)
-	return;
-    
-    union node *n = find_elem(v, i);
-    if (AST_ID(n) != VINIT_EXPR)
-	warning("initializer overrides prior initialization");
-    
-    if (AST_ID(node) == INITS_EXPR) {
-	vec_set(v, i, node);
+    if (token->id == '.' || token->id == '[') {
+	error("designator in initializer for scalar type '%s'", type2s(ty));
+	eat_initializer();
+    } else if (token->id == '{') {
+	static int braces;
+	if (braces++ == 0)
+	    warning("too many braces around scalar initializer");
+	scalar_set(ty, v, 0, initializer_list(ty));
+	braces--;
     } else {
-	struct type *rty = NULL;
-	if (isarray(ty)) {
-	    rty = rtype(ty);
-	} else {
-	    if (ty->u.s.fields)
-		rty = ty->u.s.fields[0]->type;
-	}
-
-	if (rty) {
-	    union node *n1 = ast_inits();
-	    struct vector *v1 = vec_new();
-	    vec_set(v, i, n1);
-
-	    if (isarray(rty) || isstruct(rty) || isunion(rty)) {
-		aggregate_set(rty, v1, 0, node);
-	    } else {
-		init_check(rty, AST_TYPE(node));
-		vec_push(v1, node);
-	    }
-	
-	    EXPR_INITS(n1) = (union node **)vtoa(v1);
-	}
-    }
-}
-
-static void scalar_set(struct type *ty, struct vector *v, int i, union node *node)
-{
-    if (!node)
-	return;
-    
-    union node *n = find_elem(v, i);
-    if (AST_ID(n) != VINIT_EXPR)
-	warning("initializer overrides prior initialization");
-
-    if (AST_ID(node) == INITS_EXPR) {	
-	union node **inits;
-    loop:
-	    inits = EXPR_INITS(node);
-	    if (inits) {
-		node = inits[0];
-		if (AST_ID(node) == INITS_EXPR)
-		    goto loop;
-		init_check(ty, AST_TYPE(node));
-		vec_set(v, i, node);
-	    }
-    } else {
-	init_check(ty, AST_TYPE(node));
-	vec_set(v, i, node);
+	scalar_set(ty, v, 0, initializer(ty));
     }
 }
 
