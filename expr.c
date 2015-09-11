@@ -328,7 +328,7 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
     else
         assert(0);
     
-    if (!is(AST_TYPE(node)))
+    if (node && !is(AST_TYPE(node)))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
 }
 
@@ -355,6 +355,8 @@ static bool islvalue(union node *node)
 
 static void ensure_lvalue(union node *node)
 {
+    if (!node)
+	return;
     if (!islvalue(node))
         error("lvalue expect");
 }
@@ -362,6 +364,9 @@ static void ensure_lvalue(union node *node)
 // TODO
 static void ensure_assignable(union node *or)
 {
+    if (!or)
+	return;
+    
     assert(isexpr(or));
     
     if (!islvalue(or))
