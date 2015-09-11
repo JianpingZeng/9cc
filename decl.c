@@ -652,7 +652,9 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
                 struct symbol *sym = dcl(id, ty, sclass, src);
                 if (sclass == TYPEDEF)
                     decl = ast_decl(TYPEDEF_DECL, SCOPE);
-                else
+                else if (isfunc(ty))
+		    decl = ast_decl(FUNC_DECL, SCOPE);
+		else
                     decl = ast_decl(VAR_DECL, SCOPE);
                 
                 DECL_SYM(decl) = sym;
