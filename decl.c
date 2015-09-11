@@ -400,9 +400,7 @@ static struct type * func_or_array(int *params)
                     atype->u.a.wildcard = 1;
                 }
             } else if (firstexpr(token)) {
-                // atype->u.a.assign = assign_expr();
-		// TODO:
-		atype->size = intexpr();
+                atype->u.a.assign = assign_expr();
             }
             match(']', follow);
             attach_type(&ty, atype);
