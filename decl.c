@@ -1313,7 +1313,7 @@ static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  
     sym->sclass = sclass;
 
     if (token->id == '=') {
-	error("C does not support default arguments at '%s'", token->name);
+	error("C does not support default arguments");
 	expect('=');
 	initializer(NULL);
     }
