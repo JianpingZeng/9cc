@@ -1,7 +1,8 @@
+mcc - a standard c compiler. [![Build Status](https://travis-ci.org/huangguiyang/mcc.svg?branch=master)](https://travis-ci.org/huangguiyang/mcc)
+------------------------------
+
 Copyright (C) 2015 Guiyang Huang
 See the COPYING file for license conditions.
-
-mcc - a standard c compiler. 
 
 _NOT_ finished yet.
 
