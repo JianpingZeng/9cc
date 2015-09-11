@@ -657,25 +657,24 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
                 
                 DECL_SYM(decl) = sym;
                 
-                //TODO: param decl has no initializer
-                if (token->id == '=') {
-                    union node *init = NULL;
-                    expect('=');
-                    init = initializer(ty);
-                    if (init) {
-                        if (sclass == EXTERN)
-                            warningf(src, "'extern' variable has an initializer");
-                        else if (sclass == TYPEDEF)
-                            errorf(src, "illegal initializer (only variable can be initialized)");
-                    }
+                if (token->id == '=' && (dcl == globaldecl || dcl == localdecl)) {
+		    union node *init = NULL;
+		    expect('=');
+		    init = initializer(ty);
+		    if (init) {
+			if (sclass == EXTERN)
+			    warningf(src, "'extern' variable has an initializer");
+			else if (sclass == TYPEDEF)
+			    errorf(src, "illegal initializer (only variable can be initialized)");
+		    }
                     
-                    if (SCOPE == GLOBAL) {
-                        if (sym->defined && init)
-                            redefinition_error(src, sym);
-                        sym->defined = init ? true : false;
-                    }
+		    if (SCOPE == GLOBAL) {
+			if (sym->defined && init)
+			    redefinition_error(src, sym);
+			sym->defined = init ? true : false;
+		    }
                     
-                    DECL_BODY(decl) = init;
+		    DECL_BODY(decl) = init;
                 }
                 
                 vec_push(v, decl);
@@ -1312,6 +1311,12 @@ static struct symbol * paramdecl2(const char *id, struct type *ty, int sclass,  
     sym->type = ty;
     sym->src = src;
     sym->sclass = sclass;
+
+    if (token->id == '=') {
+	error("C does not support default arguments at '%s'", token->name);
+	expect('=');
+	initializer(NULL);
+    }
     
     return sym;
 }
