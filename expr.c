@@ -6,7 +6,6 @@ static union node * cond_expr1(union node *o);
 static union node * unary_expr();
 static union node * uop(int op, struct type *ty, union node *l);
 static union node * bop(int op, union node *l, union node *r);
-static union node * enode(int id, struct type *ty, union node *l, union node *r);
 static union node * conv(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
@@ -385,7 +384,7 @@ static union node * compound_literal(struct type *ty)
     union node * inits;
     
     inits = initializer_list(ty);
-    ret = enode(COMPOUND_LITERAL, NULL, inits, NULL);
+    ret = ast_expr(COMPOUND_LITERAL, 0, inits, NULL);
     AST_TYPE(ret) = ty;
     
     return ret;
@@ -433,13 +432,13 @@ static union node * postfix_expr1(union node *ret)
 	case '[':
 	    t = token->id;
 	    expect('[');
-	    ret = enode(SUBSCRIPT_EXPR, NULL, ret, expression());
+	    ret = ast_expr(SUBSCRIPT_EXPR, 0, ret, expression());
 	    expect(']');
 	    break;
 	case '(':
 	    t = token->id;
 	    expect('(');
-	    ret = enode(CALL_EXPR, NULL, ret, NULL);
+	    ret = ast_expr(CALL_EXPR, 0, ret, NULL);
 	    EXPR_ARGS(ret) = argument_expr_list();
 	    expect(')');
 	    break;
@@ -448,7 +447,7 @@ static union node * postfix_expr1(union node *ret)
             {
                 t = token->id;
                 expect(t);
-                ret = enode(MEMBER_EXPR, NULL, ret, enode(REF_EXPR, NULL, NULL, NULL));
+                ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
                 expect(ID);
             }
 	    break;
@@ -475,7 +474,7 @@ static union node * primary_expr()
     switch (t) {
     case ID:
         {
-            ret = enode(REF_EXPR, NULL, NULL, NULL);
+            ret = ast_expr(REF_EXPR, 0, NULL, NULL);
             sym = lookup(token->name, identifiers);
             if (sym) {
                 sym->refs++;
@@ -512,7 +511,7 @@ static union node * primary_expr()
 		id = FLOAT_LITERAL;
 	    else
 		id = STRING_LITERAL;
-            ret = enode(id, NULL, NULL, NULL);
+            ret = ast_expr(id, 0, NULL, NULL);
             EXPR_SYM(ret) = sym;
             AST_TYPE(ret) = sym->type;
         }
@@ -526,7 +525,8 @@ static union node * primary_expr()
             } else {
                 expect('(');
                 union node *e = expression();
-                ret = enode(PAREN_EXPR, AST_TYPE(e), e, NULL);
+                ret = ast_expr(PAREN_EXPR, 0, e, NULL);
+		AST_TYPE(ret) = AST_TYPE(e);
                 expect(')');
             }
         }
@@ -653,7 +653,9 @@ static union node * cast_expr()
             return postfix_expr1(node);
         }
         
-        return enode(CAST_EXPR, ty, cast_expr(), NULL);
+        union node *ret = ast_expr(CAST_EXPR, 0, cast_expr(), NULL);
+	AST_TYPE(ret) = ty;
+	return ret;
     }
     return unary_expr();
 }
@@ -805,7 +807,7 @@ static union node * cond_expr1(union node *cond)
     expect(':');
     els = conv(cond_expr());
     
-    ret = enode(COND_EXPR, NULL, NULL, NULL);
+    ret = ast_expr(COND_EXPR, 0, NULL, NULL);
     EXPR_COND(ret) = cond;
     EXPR_THEN(ret) = then;
     EXPR_ELSE(ret) = els;
@@ -998,14 +1000,6 @@ static union node * bop(int op, union node *l, union node *r)
 	error("unknown op '%s'", tname(op));
 	assert(0);
     }
-    return node;
-}
-
-// TODO
-static union node * enode(int id, struct type *ty, union node *l, union node *r)
-{
-    union node *node = ast_expr(id, 0, l, r);
-    AST_TYPE(node) = ty;
     return node;
 }
 
