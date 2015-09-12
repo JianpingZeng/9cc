@@ -334,8 +334,12 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
 
 static bool islvalue(union node *node)
 {
-    if (AST_ID(node) == SUBSCRIPT_EXPR || AST_ID(node) == STRING_LITERAL)
+    if (AST_ID(node) == STRING_LITERAL)
         return true;
+    if (AST_ID(node) == PAREN_EXPR)
+	return islvalue(EXPR_OPERAND(node, 0));
+    if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*')
+	return true;
     if (AST_ID(node) == MEMBER_EXPR)
 	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
     if (AST_ID(node) == REF_EXPR) {
@@ -345,10 +349,6 @@ static bool islvalue(union node *node)
             return false;
         return true;
     }
-    if (AST_ID(node) == PAREN_EXPR)
-	return islvalue(EXPR_OPERAND(node, 0));
-    if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*')
-	return true;
     
     return false;
 }
@@ -518,10 +518,15 @@ static union node * postfix_expr1(union node *ret)
 	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
 	case '[':
-	    t = token->id;
-	    expect('[');
-	    ret = ast_expr(SUBSCRIPT_EXPR, 0, ret, expression());
-	    expect(']');
+	    {
+		union node *e;
+		t = token->id;
+		expect('[');
+		e = expression();
+		expect(']');
+		ret = bop('+', conv(ret), conv(e));
+		ret = uop('*', rtype(AST_TYPE(ret)), ret);
+	    }
 	    break;
 	case '(':
 	    t = token->id;
@@ -922,7 +927,6 @@ static union node * eval(union node *expr)
     case PAREN_EXPR:
 	return eval(EXPR_OPERAND(expr, 0));
     case COND_EXPR:
-    case SUBSCRIPT_EXPR:
     case MEMBER_EXPR:
     case REF_EXPR:
     case CAST_EXPR:
