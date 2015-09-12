@@ -476,6 +476,16 @@ bool isunion(struct type *ty)
     return op(ty) == UNION;
 }
 
+bool isrecord(struct type *type)
+{
+    return isstruct(type) || isunion(type);
+}
+
+bool istag(struct type *type)
+{
+    return isstruct(type) || isunion(type) || isenum(type);
+}
+
 bool isint(struct type *ty)
 {
     return op(ty) == INT || op(ty) == UNSIGNED || isenum(ty);

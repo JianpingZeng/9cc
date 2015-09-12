@@ -325,6 +325,8 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
         name = "scalar";
     else if (is == isarith)
         name = "arithmetic";
+    else if (is == isrecord)
+	name = "struct or union";
     else
         assert(0);
     
@@ -539,6 +541,7 @@ static union node * postfix_expr1(union node *ret)
 	case DEREF:
             {
                 t = token->id;
+		ensure_type(ret, isrecord);
                 expect(t);
                 ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
                 expect(ID);

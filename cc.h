@@ -205,6 +205,8 @@ extern bool isvoid(struct type *type);
 extern bool isenum(struct type *type);
 extern bool isstruct(struct type *type);
 extern bool isunion(struct type *type);
+extern bool isrecord(struct type *type); // isstruct or isunion
+extern bool istag(struct type *type);	 // isstruct or isunion or isenum
 
 extern bool isint(struct type *ty);
 extern bool isfloat(struct type *ty);
