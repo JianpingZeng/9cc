@@ -414,70 +414,6 @@ static struct type * cast_type()
     return ty;
 }
 
-static union node ** argument_expr_list()
-{
-    union node **args = NULL;
-    
-    if (firstexpr(token)) {
-        struct vector *v = vec_new();
-        for (;;) {
-            vec_push(v, assign_expr());
-            if (token->id == ',')
-                expect(',');
-            else
-                break;
-        }
-        args = (union node **)vtoa(v);
-    } else if (token->id != ')') {
-        error("expect assignment expression");
-    }
-    
-    return args;
-}
-
-static union node * postfix_expr1(union node *ret)
-{
-    int t;
-    
-    for (;token->id == '[' || token->id == '(' || token->id == '.'
-	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
-        switch (token->id) {
-	case '[':
-	    t = token->id;
-	    expect('[');
-	    ret = ast_expr(SUBSCRIPT_EXPR, 0, ret, expression());
-	    expect(']');
-	    break;
-	case '(':
-	    t = token->id;
-	    expect('(');
-	    ret = ast_expr(CALL_EXPR, 0, ret, NULL);
-	    EXPR_ARGS(ret) = argument_expr_list();
-	    expect(')');
-	    break;
-	case '.':
-	case DEREF:
-            {
-                t = token->id;
-                expect(t);
-                ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
-                expect(ID);
-            }
-	    break;
-	case INCR:
-	case DECR:
-	    t = token->id;
-	    expect(token->id);
-	    ret = uop(t, AST_TYPE(ret), ret);
-	    break;
-	default:
-	    assert(0);
-        }
-    }
-    
-    return ret;
-}
-
 static union node * primary_expr()
 {
     int t = token->id;
@@ -548,6 +484,70 @@ static union node * primary_expr()
 	ret = NULL;
 	error("invalid postfix expression at '%s'", token->name);
 	break;
+    }
+    
+    return ret;
+}
+
+static union node ** argument_expr_list()
+{
+    union node **args = NULL;
+    
+    if (firstexpr(token)) {
+        struct vector *v = vec_new();
+        for (;;) {
+            vec_push(v, assign_expr());
+            if (token->id == ',')
+                expect(',');
+            else
+                break;
+        }
+        args = (union node **)vtoa(v);
+    } else if (token->id != ')') {
+        error("expect assignment expression");
+    }
+    
+    return args;
+}
+
+static union node * postfix_expr1(union node *ret)
+{
+    int t;
+    
+    for (;token->id == '[' || token->id == '(' || token->id == '.'
+	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
+        switch (token->id) {
+	case '[':
+	    t = token->id;
+	    expect('[');
+	    ret = ast_expr(SUBSCRIPT_EXPR, 0, ret, expression());
+	    expect(']');
+	    break;
+	case '(':
+	    t = token->id;
+	    expect('(');
+	    ret = ast_expr(CALL_EXPR, 0, ret, NULL);
+	    EXPR_ARGS(ret) = argument_expr_list();
+	    expect(')');
+	    break;
+	case '.':
+	case DEREF:
+            {
+                t = token->id;
+                expect(t);
+                ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
+                expect(ID);
+            }
+	    break;
+	case INCR:
+	case DECR:
+	    t = token->id;
+	    expect(token->id);
+	    ret = uop(t, AST_TYPE(ret), ret);
+	    break;
+	default:
+	    assert(0);
+        }
     }
     
     return ret;
