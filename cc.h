@@ -164,6 +164,7 @@ extern struct type * ptr_type(struct type *ty);
 extern struct type * func_type();
 extern struct symbol * tag_type(int t, const char *tag, struct source src);
 extern const char *type2s(struct type *ty);
+extern unsigned typesize(struct type *ty);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char

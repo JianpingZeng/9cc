@@ -80,3 +80,10 @@ union node * ast_vinit()
     return vinit;
 }
 
+union node * ast_type(struct type *ty)
+{
+    union node * expr = ast_expr(TYPE_EXPR, 0, NULL, NULL);
+    TYPE_TYPE(expr) = ty;
+    return expr;
+}
+

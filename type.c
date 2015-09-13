@@ -34,6 +34,7 @@ longlongmetrics     = { sizeof (long long), 60},
 floatmetrics        = { sizeof (float),     70},
 doublemetrics       = { sizeof (double),    80},
 longdoublemetrics   = { sizeof (long double), 90},
+ptrmetrics          = { sizeof(void *) },
 zerometrics         = { 0 };
 
 static struct type * new_type()
@@ -389,6 +390,28 @@ bool eqtype(struct type *ty1, struct type *ty2)
             assert(0);
             return false;
     }
+}
+
+// TODO: 
+static unsigned struct_size(struct type *ty)
+{
+    return 0;
+}
+
+unsigned typesize(struct type *ty)
+{
+    if (ty == NULL)
+	return 0;
+    else if (isfunc(ty) || unqual(ty) == vartype)
+	return 0;
+    else if (isstruct(ty) || isunion(ty))
+	return struct_size(ty);
+    else if (isarray(ty))
+	return ty->size * typesize(rtype(ty));
+    else if (isptr(ty))
+	return ptrmetrics.size;
+    else
+	return ty->size;
 }
 
 //TODO

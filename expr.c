@@ -334,16 +334,16 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
 }
 
-static bool islvalue(union node *node)
+static bool is_lvalue(union node *node)
 {
     if (AST_ID(node) == STRING_LITERAL)
         return true;
     if (AST_ID(node) == PAREN_EXPR)
-	return islvalue(EXPR_OPERAND(node, 0));
+	return is_lvalue(EXPR_OPERAND(node, 0));
     if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*')
 	return true;
     if (AST_ID(node) == MEMBER_EXPR)
-	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
+	return EXPR_OP(node) == DEREF ? true : is_lvalue(EXPR_OPERAND(node, 0));
     if (AST_ID(node) == REF_EXPR) {
         if (EXPR_OP(node) == ENUM)
             return false;
@@ -359,38 +359,70 @@ static void ensure_lvalue(union node *node)
 {
     if (!node)
 	return;
-    if (!islvalue(node))
+    if (!is_lvalue(node))
         error("lvalue expect");
 }
 
-// TODO
-static void ensure_assignable(union node *or)
+// TODO: 
+static bool is_assignable(union node *node)
 {
-    if (!or)
-	return;
-    
-    assert(isexpr(or));
-    
-    if (!islvalue(or))
-        error("expression not assignable");
+    if (!is_lvalue(node))
+	return false;
+    if (AST_ID(node) == STRING_LITERAL)
+	return false;
+    if (AST_ID(node) == PAREN_EXPR)
+	return is_assignable(node);
+    if (AST_ID(node) == MEMBER_EXPR) {
+	struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
+	const char *name = AST_NAME(EXPR_OPERAND(node, 1));
+	if (name) {
+	    
+	}
 
-    // TODO: not all lvalues are modifiable
-    
-}
-
-// TODO
-static bool isbitfield(union node *node)
-{
-    if (AST_ID(node) != MEMBER_EXPR)
-        return false;
+	return false;
+    }
+    if (isarray(AST_TYPE(node)))
+	return false;
     
     return true;
 }
 
-// TODO
-static bool isincomplete(struct type *ty)
+static void ensure_assignable(union node *or)
 {
+    if (!or)
+	return;
+        
+    if (!is_assignable(or))
+        error("expression not assignable");
+}
+
+static bool is_bitfield(union node *node)
+{
+    if (!node || AST_ID(node) != MEMBER_EXPR)
+        return false;
+    
+    const char *name = AST_NAME(EXPR_OPERAND(node, 1));
+    if (name) {
+	struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
+	int i;
+	int len = array_len((void **)ty->u.s.fields);
+	for (i = 0; i < len; i++) {
+	    struct field *field = ty->u.s.fields[i];
+	    if (!strcmp(name, field->name))
+		break;
+	}
+	if (i < len) {
+	    struct field *field = ty->u.s.fields[i];
+	    return field->bitsize > 0;
+	}
+    }
+
     return false;
+}
+
+static void ensure_funcall(struct type *fty, union node **args)
+{
+    // TODO: 
 }
 
 static union node * compound_literal(struct type *ty)
@@ -420,25 +452,22 @@ static union node * primary_expr()
 {
     int t = token->id;
     struct symbol *sym;
-    union node *ret;
+    union node *ret = NULL;
     
     switch (t) {
     case ID:
-        {
-            ret = ast_expr(REF_EXPR, 0, NULL, NULL);
-            sym = lookup(token->name, identifiers);
-            if (sym) {
-                sym->refs++;
-                AST_TYPE(ret) = sym->type;
-                if (isenum(sym->type) && sym->sclass == ENUM)
-                    // enum ids
-                    EXPR_OP(ret) = ENUM;
-            } else {
-                error("use of undeclared symbol '%s'", token->name);
-            }
-            expect(t);
-            EXPR_SYM(ret) = sym;
-        }
+	sym = lookup(token->name, identifiers);
+	if (sym) {
+	    sym->refs++;
+	    ret = ast_expr(REF_EXPR, 0, NULL, NULL);
+	    AST_TYPE(ret) = sym->type;
+	    EXPR_SYM(ret) = sym;
+	    if (isenum(sym->type) && sym->sclass == ENUM)
+		EXPR_OP(ret) = ENUM; // enum ids
+	} else {
+	    error("use of undeclared symbol '%s'", token->name);
+	}
+	expect(t);
 	break;
     case ICONSTANT:
     case FCONSTANT:
@@ -463,8 +492,8 @@ static union node * primary_expr()
 	    else
 		id = STRING_LITERAL;
             ret = ast_expr(id, 0, NULL, NULL);
-            EXPR_SYM(ret) = sym;
             AST_TYPE(ret) = sym->type;
+	    EXPR_SYM(ret) = sym;
         }
 	break;
     case '(':
@@ -483,7 +512,6 @@ static union node * primary_expr()
         }
 	break;
     default:
-	ret = NULL;
 	error("invalid postfix expression at '%s'", token->name);
 	break;
     }
@@ -515,7 +543,7 @@ static union node ** argument_expr_list()
 static union node * postfix_expr1(union node *ret)
 {
     int t;
-    
+
     for (;token->id == '[' || token->id == '(' || token->id == '.'
 	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
@@ -523,6 +551,8 @@ static union node * postfix_expr1(union node *ret)
 	    {
 		union node *e;
 		t = token->id;
+		if (ret && !isarray(AST_TYPE(ret)) && isptr(AST_TYPE(ret)))
+		    error("subscripted value is not an array or pointer");
 		expect('[');
 		e = expression();
 		expect(']');
@@ -532,32 +562,65 @@ static union node * postfix_expr1(union node *ret)
 	    break;
 	case '(':
 	    t = token->id;
+	    ensure_type(ret, isfunc);
 	    expect('(');
 	    ret = ast_expr(CALL_EXPR, 0, ret, NULL);
 	    EXPR_ARGS(ret) = argument_expr_list();
+	    ensure_funcall(AST_TYPE(EXPR_OPERAND(ret, 0)), EXPR_ARGS(ret));
 	    expect(')');
 	    break;
 	case '.':
 	case DEREF:
-            {
-                t = token->id;
-		ensure_type(ret, isrecord);
-                expect(t);
-                ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
-                expect(ID);
-            }
+	    {
+		struct field *field = NULL;
+		t = token->id;
+		if (t == '.') {
+		    ensure_type(ret, isrecord);
+		} else {
+		    if (ret) {
+			struct type *ty = AST_TYPE(ret);
+			if (!isptr(ty) || (kind(rtype(ty)) != STRUCT && kind(rtype(ty)) != UNION))
+			    error("pointer to struct/union type expected, not type '%s'", type2s(ty));
+		    }
+		}
+		expect(t);
+		if (token->id == ID) {
+		    struct type *ty = AST_TYPE(ret);
+		    if (isrecord(ty)) {
+			int i;
+			int len = array_len((void **)ty->u.s.fields);
+			for (i = 0; i < len; i++) {
+			    struct field *field = ty->u.s.fields[i];
+			    if (field->name && !strcmp(token->name, field->name))
+				break;
+			}
+			if (i < len)
+			    field = ty->u.s.fields[i];
+			else
+			    error("'%s' has no field named '%s'", type2s(ty), token->name);
+		    }
+		}
+		expect(ID);
+		ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
+		if (field) {
+		    AST_NAME(EXPR_OPERAND(ret, 1)) = field->name;
+		    AST_TYPE(ret) = field->type;
+		}
+	    }
 	    break;
 	case INCR:
 	case DECR:
 	    t = token->id;
 	    expect(token->id);
+	    ensure_type(ret, isscalar);
+	    ensure_assignable(ret);
 	    ret = uop(t, AST_TYPE(ret), ret);
 	    break;
 	default:
 	    assert(0);
         }
     }
-    
+
     return ret;
 }
 
@@ -568,7 +631,6 @@ static union node * postfix_expr()
     return postfix_expr1(expr);
 }
 
-//TODO
 static union node * sizeof_expr()
 {
     int t = token->id;
@@ -591,11 +653,12 @@ static union node * sizeof_expr()
     ty = n ? AST_TYPE(n) : ty;
     if (isfunc(ty) || isvoid(ty))
         error("'sizeof' to a '%s' type is invalid", type2s(ty));
-    else if (isincomplete(ty))
+    else if (isarray(ty) && typesize(ty) == 0)
         error("'sizeof' to an incomplete array type is invalid");
+    else if (n && is_bitfield(n))
+	error("'sizeof' to a bitfield is invalid");
     
-    union node *ret = uop(t, unsignedinttype, n);
-    return ret;
+    return uop(t, unsignedinttype, NULL);
 }
 
 static union node * unary_expr()
@@ -609,7 +672,7 @@ static union node * unary_expr()
             union node *operand = unary_expr();
             union node *ret = uop(t, AST_TYPE(operand), operand);
             ensure_type(operand, isscalar);
-            ensure_lvalue(operand);
+	    ensure_assignable(operand);
             EXPR_PREFIX(ret) = true;
             return ret;
         }
@@ -645,7 +708,7 @@ static union node * unary_expr()
                 ensure_lvalue(operand);
                 if (EXPR_SYM(operand) && EXPR_SYM(operand)->sclass == REGISTER)
                     error("address of register variable requested");
-                else if (isbitfield(operand))
+                else if (is_bitfield(operand))
                     error("address of bitfield requested");
             }
             return uop(t, ptr_type(AST_TYPE(operand)), operand);
@@ -654,12 +717,17 @@ static union node * unary_expr()
         {
             expect(t);
             union node *operand = conv(cast_expr());
-            if (!isptr(AST_TYPE(operand)))
-                error("indirection requires pointer operand");
+	    ensure_type(operand, isptr);
             return uop(t, rtype(AST_TYPE(operand)), operand);
         }
     case SIZEOF: return sizeof_expr();
-    default:     return postfix_expr();
+    default:
+	{
+	    union node *n = postfix_expr();
+	    if (n && (isarray(AST_TYPE(n)) || isfunc(AST_TYPE(n))))
+	    	n = conv(n);
+	    return n;
+	}
     }
 }
 
