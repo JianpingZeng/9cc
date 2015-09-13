@@ -1022,9 +1022,9 @@ static union node * eval(union node *expr)
 	return NULL;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
-    case STRING_LITERAL:
     case COMPOUND_LITERAL:
 	return expr;
+    case CONV_EXPR:
     default:
 	assert(0);
     }
