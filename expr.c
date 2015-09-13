@@ -363,9 +363,10 @@ static void ensure_lvalue(union node *node)
         error("lvalue expect");
 }
 
-// TODO: 
 static bool is_assignable(union node *node)
 {
+    if (node == NULL)
+	return false;
     if (!is_lvalue(node))
 	return false;
     if (AST_ID(node) == STRING_LITERAL)
@@ -375,9 +376,15 @@ static bool is_assignable(union node *node)
     if (AST_ID(node) == MEMBER_EXPR) {
 	struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
 	const char *name = AST_NAME(EXPR_OPERAND(node, 1));
-	if (name) {
-	    
+        int i;
+	int len = array_len((void **)ty->u.s.fields);
+	for (i = 0; i < len; i++) {
+	    struct field *field = ty->u.s.fields[i];
+	    if (!strcmp(name, field->name))
+		break;
 	}
+	if (i < len)
+	    return !isarray(ty->u.s.fields[i]->type);
 
 	return false;
     }
@@ -422,6 +429,8 @@ static bool is_bitfield(union node *node)
 
 static void ensure_funcall(struct type *fty, union node **args)
 {
+    if (!isfunc(fty))
+	return;
     // TODO: 
 }
 
@@ -497,19 +506,18 @@ static union node * primary_expr()
         }
 	break;
     case '(':
-        {
-            struct token *ahead = lookahead();
-            if (istypename(ahead)) {
-                struct type *ty = cast_type();
-                ret = compound_literal(ty);
-            } else {
-                expect('(');
-                union node *e = expression();
-                ret = ast_expr(PAREN_EXPR, 0, e, NULL);
+	if (istypename(lookahead())) {
+	    struct type *ty = cast_type();
+	    ret = compound_literal(ty);
+	} else {
+	    expect('(');
+	    union node *e = expression();
+	    if (e) {
+		ret = ast_expr(PAREN_EXPR, 0, e, NULL);
 		AST_TYPE(ret) = AST_TYPE(e);
-                expect(')');
-            }
-        }
+	    }
+	    expect(')');
+	}
 	break;
     default:
 	error("invalid postfix expression at '%s'", token->name);
@@ -526,11 +534,12 @@ static union node ** argument_expr_list()
     if (firstexpr(token)) {
         struct vector *v = vec_new();
         for (;;) {
-            vec_push(v, assign_expr());
-            if (token->id == ',')
-                expect(',');
-            else
-                break;
+	    union node *e = assign_expr();
+	    if (e)
+		vec_push(v, e);
+	    if (token->id != ',')
+		break;
+	    expect(',');
         }
         args = (union node **)vtoa(v);
     } else if (token->id != ')') {
@@ -550,38 +559,44 @@ static union node * postfix_expr1(union node *ret)
 	case '[':
 	    {
 		union node *e;
-		t = token->id;
-		if (ret && !isarray(AST_TYPE(ret)) && isptr(AST_TYPE(ret)))
-		    error("subscripted value is not an array or pointer");
 		expect('[');
 		e = expression();
 		expect(']');
-		ret = bop('+', conv(ret), conv(e));
-		ret = uop('*', rtype(AST_TYPE(ret)), ret);
+		if (ret && e) {
+		    if (!isarray(AST_TYPE(ret)) && !isptr(AST_TYPE(ret)))
+			error("subscripted value is not an array or pointer");
+		    ensure_type(e, isint);
+		    ret = bop('+', conv(ret), conv(e));
+		    ret = uop('*', rtype(AST_TYPE(ret)), ret);
+		}
 	    }
 	    break;
 	case '(':
-	    t = token->id;
-	    ensure_type(ret, isfunc);
-	    expect('(');
-	    ret = ast_expr(CALL_EXPR, 0, ret, NULL);
-	    EXPR_ARGS(ret) = argument_expr_list();
-	    ensure_funcall(AST_TYPE(EXPR_OPERAND(ret, 0)), EXPR_ARGS(ret));
-	    expect(')');
+	    {
+		union node **args;
+		expect('(');
+		args = argument_expr_list();
+		expect(')');
+		if (ret) {
+		    ensure_type(ret, isfunc);
+		    ensure_funcall(AST_TYPE(ret), args);
+		    ret = ast_expr(CALL_EXPR, 0, ret, NULL);
+		    EXPR_ARGS(ret) = args;
+		}
+	    }
 	    break;
 	case '.':
 	case DEREF:
-	    {
+	    t = token->id;
+	    if (ret) {
+		unsigned err = errors;
 		struct field *field = NULL;
-		t = token->id;
 		if (t == '.') {
 		    ensure_type(ret, isrecord);
 		} else {
-		    if (ret) {
-			struct type *ty = AST_TYPE(ret);
-			if (!isptr(ty) || (kind(rtype(ty)) != STRUCT && kind(rtype(ty)) != UNION))
-			    error("pointer to struct/union type expected, not type '%s'", type2s(ty));
-		    }
+		    struct type *ty = AST_TYPE(ret);
+		    if (!isptr(ty) || (kind(rtype(ty)) != STRUCT && kind(rtype(ty)) != UNION))
+			error("pointer to struct/union type expected, not type '%s'", type2s(ty));
 		}
 		expect(t);
 		if (token->id == ID) {
@@ -601,20 +616,25 @@ static union node * postfix_expr1(union node *ret)
 		    }
 		}
 		expect(ID);
-		ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
-		if (field) {
+		if (err == errors) {
+		    ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
 		    AST_NAME(EXPR_OPERAND(ret, 1)) = field->name;
 		    AST_TYPE(ret) = field->type;
 		}
+	    } else {
+		expect(t);
+		expect(ID);
 	    }
 	    break;
 	case INCR:
 	case DECR:
 	    t = token->id;
 	    expect(token->id);
-	    ensure_type(ret, isscalar);
-	    ensure_assignable(ret);
-	    ret = uop(t, AST_TYPE(ret), ret);
+	    if (ret) {
+		ensure_type(ret, isscalar);
+		ensure_assignable(ret);
+		ret = uop(t, AST_TYPE(ret), ret);
+	    }
 	    break;
 	default:
 	    assert(0);
@@ -976,25 +996,21 @@ union node * constexpr()
     return expr;
 }
 
-static union node * eval_bop(union node *expr)
-{
-    return NULL;
-}
-
-static union node * eval_uop(union node *expr)
-{
-    return NULL;
-}
-
 //TODO
 static union node * eval(union node *expr)
 {
     assert(isexpr(expr));
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
-	return eval_bop(expr);
+        {
+
+	}
+	break;
     case UNARY_OPERATOR:
-	return eval_uop(expr);
+        {
+
+	}
+	break;
     case PAREN_EXPR:
 	return eval(EXPR_OPERAND(expr, 0));
     case COND_EXPR:
@@ -1099,9 +1115,7 @@ union node * wrap(struct type *ty, union node *node)
         return ast_conv(ty, node);
 }
 
-/*
- * Universal Binary Conversion
- */
+// Universal Binary Conversion
 static struct type * conv2(struct type *l, struct type *r)
 {
     assert(isarith(l));
@@ -1134,9 +1148,7 @@ static struct type * conv2(struct type *l, struct type *r)
     return l;
 }
 
-/*
- * Universal Unary Conversion
- */
+// Universal Unary Conversion
 static union node * conv(union node *node)
 {
     switch (kind(AST_TYPE(node))) {
