@@ -851,20 +851,15 @@ static void struct_init(struct type *ty, bool brace, struct vector *v)
 	struct type *fieldty = NULL;
 
 	if (token->id == '.') {
-	    int j;
 	    const char *name = NULL;
 	    expect('.');
 	    if (token->id == ID)
 		name = token->name;
 	    expect(ID);
-	    for (j = 0; j < len; j++) {
-		struct field *field = ty->u.s.fields[j];
-		if (name && !strcmp(name, field->name))
-		    break;
-	    }
-	    if (j < len) {
-		i = j;
-		fieldty = ty->u.s.fields[i]->type;
+	    struct field *field = find_field(ty, name);
+	    if (field) {
+		i = indexof_field(ty, field);
+		fieldty = field->type;
 	    } else {
 		i--;
 		if (name)

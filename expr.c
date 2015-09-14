@@ -376,15 +376,9 @@ static bool is_assignable(union node *node)
     if (AST_ID(node) == MEMBER_EXPR) {
 	struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
 	const char *name = AST_NAME(EXPR_OPERAND(node, 1));
-        int i;
-	int len = array_len((void **)ty->u.s.fields);
-	for (i = 0; i < len; i++) {
-	    struct field *field = ty->u.s.fields[i];
-	    if (!strcmp(name, field->name))
-		break;
-	}
-	if (i < len)
-	    return !isarray(ty->u.s.fields[i]->type);
+	struct field *field = find_field(ty, name);
+	if (field)
+	    return !isarray(field->type);
 
 	return false;
     }
@@ -407,22 +401,12 @@ static bool is_bitfield(union node *node)
 {
     if (!node || AST_ID(node) != MEMBER_EXPR)
         return false;
-    
+
+    struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
     const char *name = AST_NAME(EXPR_OPERAND(node, 1));
-    if (name) {
-	struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
-	int i;
-	int len = array_len((void **)ty->u.s.fields);
-	for (i = 0; i < len; i++) {
-	    struct field *field = ty->u.s.fields[i];
-	    if (!strcmp(name, field->name))
-		break;
-	}
-	if (i < len) {
-	    struct field *field = ty->u.s.fields[i];
-	    return field->bitsize > 0;
-	}
-    }
+    struct field *field = find_field(ty, name);
+    if (field)
+	return field->bitsize > 0;
 
     return false;
 }
@@ -549,92 +533,124 @@ static union node ** argument_expr_list()
     return args;
 }
 
+static union node * subscript(union node *node)
+{
+    union node *e;
+    unsigned errs;
+    union node *ret = NULL;
+    
+    expect('[');
+    e = expression();
+    expect(']');
+    if (node == NULL || e == NULL)
+	return ret;
+
+    errs = errors;
+    if (!isarray(AST_TYPE(node)) && !isptr(AST_TYPE(node)))
+	error("subscripted value is not an array or pointer");
+    ensure_type(e, isint);
+    if (errs == errors) {
+	ret = bop('+', conv(node), conv(e));
+	ret = uop('*', rtype(AST_TYPE(ret)), ret);
+    }
+    return ret;
+}
+
+static union node * funcall(union node *node)
+{
+    union node **args;
+    unsigned errs;
+    union node *ret = NULL;
+    
+    expect('(');
+    args = argument_expr_list();
+    expect(')');
+    if (node == NULL)
+	return ret;
+
+    errs = errors;
+    ensure_type(node, isfunc);
+    ensure_funcall(AST_TYPE(node), args);
+    if (errs == errors) {
+	ret = ast_expr(CALL_EXPR, 0, ret, NULL);
+	EXPR_ARGS(ret) = args;
+    }
+    return ret;
+}
+
+static union node * direction(union node *node)
+{
+    int t = token->id;
+    union node *ret = NULL;
+    const char *name = NULL;
+
+    expect(t);
+    if (token->id == ID)
+	name = token->name;
+    expect(ID);
+    if (node == NULL || name == NULL)
+	return ret;
+    
+    unsigned err = errors;
+    struct field *field = NULL;
+    struct type *ty = AST_TYPE(node);
+    if (t == '.') {
+	ensure_type(node, isrecord);
+    } else {
+	if (!isptr(ty) || (kind(rtype(ty)) != STRUCT && kind(rtype(ty)) != UNION))
+	    error("pointer to struct/union type expected, not type '%s'", type2s(ty));
+	else
+	    ty = rtype(ty);
+    }
+    if (isrecord(ty)) {
+	field = find_field(ty, name);
+        if (field == NULL)
+	    error("'%s' has no field named '%s'", type2s(ty), name);
+    }
+    if (err == errors) {
+	ret = ast_expr(MEMBER_EXPR, t, node, ast_expr(REF_EXPR, 0, NULL, NULL));
+	AST_NAME(EXPR_OPERAND(ret, 1)) = field->name;
+	AST_TYPE(ret) = field->type;
+    }
+    return ret;
+}
+
+static union node * increment(union node *node)
+{
+    int t = token->id;
+    union node *ret = NULL;
+    unsigned errs;
+    
+    expect(t);
+    if (node == NULL)
+	return ret;
+
+    errs = errors;
+    ensure_type(node, isscalar);
+    ensure_assignable(node);
+    if (errs == errors)
+	ret = uop(t, AST_TYPE(node), node);
+    return ret;
+}
+
 static union node * postfix_expr1(union node *ret)
 {
-    int t;
-
     for (;token->id == '[' || token->id == '(' || token->id == '.'
 	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
 	case '[':
-	    {
-		union node *e;
-		expect('[');
-		e = expression();
-		expect(']');
-		if (ret && e) {
-		    if (!isarray(AST_TYPE(ret)) && !isptr(AST_TYPE(ret)))
-			error("subscripted value is not an array or pointer");
-		    ensure_type(e, isint);
-		    ret = bop('+', conv(ret), conv(e));
-		    ret = uop('*', rtype(AST_TYPE(ret)), ret);
-		}
-	    }
+	    ret = subscript(ret);
 	    break;
 	case '(':
-	    {
-		union node **args;
-		expect('(');
-		args = argument_expr_list();
-		expect(')');
-		if (ret) {
-		    ensure_type(ret, isfunc);
-		    ensure_funcall(AST_TYPE(ret), args);
-		    ret = ast_expr(CALL_EXPR, 0, ret, NULL);
-		    EXPR_ARGS(ret) = args;
-		}
-	    }
+	    ret = funcall(ret);
 	    break;
 	case '.':
 	case DEREF:
-	    t = token->id;
-	    if (ret) {
-		unsigned err = errors;
-		struct field *field = NULL;
-		if (t == '.') {
-		    ensure_type(ret, isrecord);
-		} else {
-		    struct type *ty = AST_TYPE(ret);
-		    if (!isptr(ty) || (kind(rtype(ty)) != STRUCT && kind(rtype(ty)) != UNION))
-			error("pointer to struct/union type expected, not type '%s'", type2s(ty));
-		}
-		expect(t);
-		if (token->id == ID) {
-		    struct type *ty = AST_TYPE(ret);
-		    if (isrecord(ty)) {
-			int i;
-			int len = array_len((void **)ty->u.s.fields);
-			for (i = 0; i < len; i++) {
-			    struct field *field = ty->u.s.fields[i];
-			    if (field->name && !strcmp(token->name, field->name))
-				break;
-			}
-			if (i < len)
-			    field = ty->u.s.fields[i];
-			else
-			    error("'%s' has no field named '%s'", type2s(ty), token->name);
-		    }
-		}
-		expect(ID);
-		if (err == errors) {
-		    ret = ast_expr(MEMBER_EXPR, t, ret, ast_expr(REF_EXPR, 0, NULL, NULL));
-		    AST_NAME(EXPR_OPERAND(ret, 1)) = field->name;
-		    AST_TYPE(ret) = field->type;
-		}
-	    } else {
-		expect(t);
-		expect(ID);
-	    }
+	    ret = direction(ret);
 	    break;
 	case INCR:
 	case DECR:
-	    t = token->id;
-	    expect(token->id);
-	    if (ret) {
-		ensure_type(ret, isscalar);
-		ensure_assignable(ret);
-		ret = uop(t, AST_TYPE(ret), ret);
-	    }
+	    ret = increment(ret);
 	    break;
 	default:
 	    assert(0);

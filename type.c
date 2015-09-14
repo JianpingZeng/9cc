@@ -392,6 +392,36 @@ bool eqtype(struct type *ty1, struct type *ty2)
     }
 }
 
+struct field * find_field(struct type *ty, const char *name)
+{
+    int i;
+    int len = array_len((void **)ty->u.s.fields);
+    struct field *ret = NULL;
+
+    if (name == NULL)
+	return NULL;
+    for (i = 0; i < len; i++) {
+	struct field *field = ty->u.s.fields[i];
+	if (field->name && !strcmp(name, field->name))
+	    break;
+    }
+    if (i < len)
+	ret = ty->u.s.fields[i];
+
+    return ret;
+}
+
+int indexof_field(struct type *ty, struct field *field)
+{
+    for (int i = 0; i < array_len((void **)ty->u.s.fields); i++) {
+	struct field *f = ty->u.s.fields[i];
+	if (field == f)
+	    return i;
+    }
+    assert(0);
+    return -1;
+}
+
 // TODO: 
 static unsigned struct_size(struct type *ty)
 {
