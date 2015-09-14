@@ -615,7 +615,7 @@ static union node * direction(union node *node)
     return ret;
 }
 
-static union node * increment(union node *node)
+static union node * post_increment(union node *node)
 {
     int t = token->id;
     union node *ret = NULL;
@@ -638,22 +638,13 @@ static union node * postfix_expr1(union node *ret)
     for (;token->id == '[' || token->id == '(' || token->id == '.'
 	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
-	case '[':
-	    ret = subscript(ret);
-	    break;
-	case '(':
-	    ret = funcall(ret);
-	    break;
+	case '[':   ret = subscript(ret); break;
+	case '(':   ret = funcall(ret);   break;
 	case '.':
-	case DEREF:
-	    ret = direction(ret);
-	    break;
+	case DEREF: ret = direction(ret); break;
 	case INCR:
-	case DECR:
-	    ret = increment(ret);
-	    break;
-	default:
-	    assert(0);
+	case DECR:  ret = post_increment(ret); break;
+	default:    assert(0);
         }
     }
 
@@ -697,65 +688,82 @@ static union node * sizeof_expr()
     return uop(t, unsignedinttype, NULL);
 }
 
-static union node * unary_expr()
+static union node * pre_increment()
 {
     int t = token->id;
-    switch (t) {
+    expect(t);
+    union node *operand = unary_expr();
+    union node *ret = uop(t, AST_TYPE(operand), operand);
+    ensure_type(operand, isscalar);
+    ensure_assignable(operand);
+    EXPR_PREFIX(ret) = true;
+    return ret;
+}
+
+static union node * minus_plus()
+{
+    int t = token->id;
+    expect(t);
+    union node *operand = cast_expr();
+    ensure_type(operand, isarith);
+    union node *c = conv(operand);
+    return uop(t, AST_TYPE(c), c);
+}
+
+static union node * bitwise_not()
+{
+    int t = token->id;
+    expect(t);
+    union node *operand = cast_expr();
+    ensure_type(operand, isint);
+    union node *c = conv(operand);
+    return uop(t, AST_TYPE(c), c);
+}
+
+static union node * logical_not()
+{
+    int t = token->id;
+    expect(t);
+    union node *operand = cast_expr();
+    ensure_type(operand, isscalar);
+    return uop(t, inttype, conv(operand));
+}
+
+static union node * address()
+{
+    int t = token->id;
+    expect(t);
+    union node *operand = cast_expr();
+    if (!isfunc(AST_TYPE(operand))) {
+	ensure_lvalue(operand);
+	if (EXPR_SYM(operand) && EXPR_SYM(operand)->sclass == REGISTER)
+	    error("address of register variable requested");
+	else if (is_bitfield(operand))
+	    error("address of bitfield requested");
+    }
+    return uop(t, ptr_type(AST_TYPE(operand)), operand);
+}
+
+static union node * indirection()
+{
+    int t = token->id;
+    expect(t);
+    union node *operand = conv(cast_expr());
+    ensure_type(operand, isptr);
+    return uop(t, rtype(AST_TYPE(operand)), operand);
+}
+
+static union node * unary_expr()
+{
+    switch (token->id) {
     case INCR:
-    case DECR:
-        {
-            expect(t);
-            union node *operand = unary_expr();
-            union node *ret = uop(t, AST_TYPE(operand), operand);
-            ensure_type(operand, isscalar);
-	    ensure_assignable(operand);
-            EXPR_PREFIX(ret) = true;
-            return ret;
-        }
+    case DECR: 	 return pre_increment();
     case '+':
-    case '-':
-        {
-            expect(t);
-            union node *operand = cast_expr();
-            ensure_type(operand, isarith);
-            union node *c = conv(operand);
-            return uop(t, AST_TYPE(c), c);
-        }
-    case '~':
-        {
-            expect(t);
-            union node *operand = cast_expr();
-            ensure_type(operand, isint);
-            union node *c = conv(operand);
-            return uop(t, AST_TYPE(c), c);
-        }
-    case '!':
-        {
-            expect(t);
-            union node *operand = cast_expr();
-            ensure_type(operand, isscalar);
-            return uop(t, inttype, conv(operand));
-        }
-    case '&':
-        {
-            expect(t);
-            union node *operand = cast_expr();
-            if (!isfunc(AST_TYPE(operand))) {
-                ensure_lvalue(operand);
-                if (EXPR_SYM(operand) && EXPR_SYM(operand)->sclass == REGISTER)
-                    error("address of register variable requested");
-                else if (is_bitfield(operand))
-                    error("address of bitfield requested");
-            }
-            return uop(t, ptr_type(AST_TYPE(operand)), operand);
-        }
-    case '*':
-        {
-            expect(t);
-            union node *operand = conv(cast_expr());
-	    ensure_type(operand, isptr);
-            return uop(t, rtype(AST_TYPE(operand)), operand);
-        }
+    case '-':    return minus_plus();
+    case '~':    return bitwise_not();
+    case '!':    return logical_not();
+    case '&':    return address();
+    case '*':    return indirection();
     case SIZEOF: return sizeof_expr();
     default:
 	{
