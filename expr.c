@@ -6,6 +6,7 @@ static union node * cond_expr1(union node *o);
 static union node * unary_expr();
 static union node * uop(int op, struct type *ty, union node *l);
 static union node * bop(int op, union node *l, union node *r);
+static union node * logicop(int op, union node *l, union node *r);
 static union node * conv(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
@@ -972,13 +973,7 @@ static union node * logic_and()
     and1 = inclusive_or();
     while (token->id == AND) {
         expect(AND);
-	union node *and2 = inclusive_or();
-	if (and1 && and2) {
-	    and1 = ast_bop(AND, conv(and1), conv(and2));
-	    AST_TYPE(and1) = inttype;
-	} else {
-	    and1 = NULL;
-	}
+	and1 = logicop(AND, conv(and1), conv(inclusive_or()));
     }
     
     return and1;
@@ -991,13 +986,7 @@ static union node * logic_or()
     or1 = logic_and();
     while (token->id == OR) {
         expect(OR);
-	union node *or2 = logic_and();
-	if (or1 && or2) {
-	    or1 = ast_bop(OR, conv(or1), conv(or2));
-	    AST_TYPE(or1) = inttype;
-	} else {
-	    or1 = NULL;
-	}
+	or1 = logicop(OR, conv(or1), conv(logic_and()));
     }
     
     return or1;
@@ -1090,28 +1079,28 @@ union node * expression()
     return assign1;
 }
 
+static union node * constexpr()
+{
+    union node *cond = cond_expr();
+    union node *ret = eval(cond);
+    if (ret == NULL)
+	error("constant expression expected");
+	
+    return ret;
+}
+
 //TODO
 int intexpr()
 {
-    union node *n = cond_expr();
-    if (AST_ID(n) == INTEGER_LITERAL) {
-	struct symbol *sym = EXPR_SYM(n);
-	if (op(sym->type) == UNSIGNED)
-	    return (int) sym->value.u;
-	else
-	    return (int) sym->value.i;
-    } else if (AST_ID(n) == FLOAT_LITERAL) {
-
+    union node *cnst = constexpr();
+    if (cnst == NULL)
+	return 0;
+    struct type *ty = AST_TYPE(cnst);
+    if (!isint(ty)) {
+	error("integer constant expression expected");
+	return 0;
     }
-    
     return 0;
-}
-
-union node * constexpr()
-{
-    union node *expr = cond_expr();
-    
-    return expr;
 }
 
 //TODO
@@ -1121,7 +1110,7 @@ static union node * eval(union node *expr)
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
         {
-
+	    
 	}
 	break;
     case UNARY_OPERATOR:
@@ -1158,21 +1147,23 @@ static union node * bop(int op, union node *l, union node *r)
 {
     union node *node = NULL;
     struct type *ty;
-    bool (*is) (struct type *ty);
 
     if (l == NULL || r == NULL)
 	return NULL;
     
     switch (op) {
     case '*': case '/':
-	is = isarith;
+	ensure_type(l, isarith);
+	ensure_type(r, isarith);
+	ty = conv2(AST_TYPE(l), AST_TYPE(r));
+	node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+	AST_TYPE(node) = ty;
+	break;
     case '%':
     case LSHIFT: case RSHIFT:
     case '&': case '^': case '|':
-	is = isint;
-            
-	ensure_type(l, is);
-	ensure_type(r, is);
+	ensure_type(l, isint);
+	ensure_type(r, isint);
 	ty = conv2(AST_TYPE(l), AST_TYPE(r));
 	node = ast_bop(op, wrap(ty, l), wrap(ty, r));
 	AST_TYPE(node) = ty;
@@ -1227,7 +1218,19 @@ static union node * bop(int op, union node *l, union node *r)
     return node;
 }
 
-union node * wrap(struct type *ty, union node *node)
+static union node * logicop(int op, union node *l, union node *r)
+{
+    union node *ret = NULL;
+
+    if (l == NULL || r == NULL)
+	return NULL;
+
+    ret = ast_bop(op, l, r);
+    AST_TYPE(ret) = inttype;
+    return ret;
+}
+
+static union node * wrap(struct type *ty, union node *node)
 {
     if (eqarith(ty, AST_TYPE(node)))
         return node;
