@@ -661,6 +661,8 @@ static union node * postfix_expr()
 static union node * sizeof_expr()
 {
     int t = token->id;
+    union node *ret = NULL;
+    
     expect(t);
     
     struct token *ahead = lookahead();
@@ -678,14 +680,21 @@ static union node * sizeof_expr()
     }
     
     ty = n ? AST_TYPE(n) : ty;
+    if (ty == NULL)
+	return ret;
+
+    SAVE_ERRORS;
     if (isfunc(ty) || isvoid(ty))
         error("'sizeof' to a '%s' type is invalid", type2s(ty));
     else if (isarray(ty) && typesize(ty) == 0)
         error("'sizeof' to an incomplete array type is invalid");
     else if (n && is_bitfield(n))
 	error("'sizeof' to a bitfield is invalid");
-    
-    return uop(t, unsignedinttype, NULL);
+
+    if (NO_ERROR)
+	ret = uop(t, unsignedinttype, NULL);
+
+    return ret;
 }
 
 static union node * pre_increment()
