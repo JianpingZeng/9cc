@@ -1138,66 +1138,81 @@ static union node * bop(int op, union node *l, union node *r)
 
     if (l == NULL || r == NULL)
 	return NULL;
-    
+
+    SAVE_ERRORS;
     switch (op) {
     case '*': case '/':
 	ensure_type(l, isarith);
 	ensure_type(r, isarith);
-	ty = conv2(AST_TYPE(l), AST_TYPE(r));
-	node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-	AST_TYPE(node) = ty;
+	if (NO_ERROR) {
+	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
+	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+	    AST_TYPE(node) = ty;
+	}
 	break;
     case '%':
     case LSHIFT: case RSHIFT:
     case '&': case '^': case '|':
 	ensure_type(l, isint);
 	ensure_type(r, isint);
-	ty = conv2(AST_TYPE(l), AST_TYPE(r));
-	node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-	AST_TYPE(node) = ty;
-	break;
-    case '+':
-	if (isptr(AST_TYPE(l))) {
-	    ensure_type(r, isint);
-	    node = ast_bop(op, l, r);
-	    AST_TYPE(node) = AST_TYPE(l);
-	} else if (isptr(AST_TYPE(r))) {
-	    ensure_type(l, isint);
-	    node = ast_bop(op, l, r);
-	    AST_TYPE(node) = AST_TYPE(r);
-	} else {
-	    ensure_type(l, isarith);
-	    ensure_type(r, isarith);
+	if (NO_ERROR) {
 	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
 	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
 	    AST_TYPE(node) = ty;
 	}
 	break;
-    case '-':
+    case '+':
 	if (isptr(AST_TYPE(l))) {
-	    node = ast_bop(op, l, r);
-	    if (isint(AST_TYPE(r))) {
+	    ensure_type(r, isint);
+	    if (NO_ERROR) {
+		node = ast_bop(op, l, r);
 		AST_TYPE(node) = AST_TYPE(l);
-	    } else if (isptr(AST_TYPE(r))) {
-		AST_TYPE(node) = inttype;
-	    } else {
-		error("expect integer or pointer type, but got type '%s'", type2s(AST_TYPE(r)));
-		AST_TYPE(node) = AST_TYPE(l);
+	    }
+	} else if (isptr(AST_TYPE(r))) {
+	    ensure_type(l, isint);
+	    if (NO_ERROR) {
+		node = ast_bop(op, l, r);
+		AST_TYPE(node) = AST_TYPE(r);
 	    }
 	} else {
 	    ensure_type(l, isarith);
 	    ensure_type(r, isarith);
-	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
-	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-	    AST_TYPE(node) = ty;
+	    if (NO_ERROR) {
+		ty = conv2(AST_TYPE(l), AST_TYPE(r));
+		node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+		AST_TYPE(node) = ty;
+	    }
+	}
+	break;
+    case '-':
+	if (isptr(AST_TYPE(l))) {
+	    if (isint(AST_TYPE(r))) {
+		node = ast_bop(op, l, r);
+		AST_TYPE(node) = AST_TYPE(l);
+	    } else if (isptr(AST_TYPE(r))) {
+		node = ast_bop(op, l, r);
+		AST_TYPE(node) = inttype;
+	    } else {
+		error("expect integer or pointer type, not type '%s'", type2s(AST_TYPE(r)));
+	    }
+	} else {
+	    ensure_type(l, isarith);
+	    ensure_type(r, isarith);
+	    if (NO_ERROR) {
+		ty = conv2(AST_TYPE(l), AST_TYPE(r));
+		node = ast_bop(op, wrap(ty, l), wrap(ty, r));
+		AST_TYPE(node) = ty;
+	    }
 	}
 	break;
     case '>': case '<': case LEQ: case GEQ:
     case EQ: case NEQ:
 	ensure_type(l, isscalar);
 	ensure_type(r, isscalar);
-	node = ast_bop(op, l, r);
-	AST_TYPE(node) = inttype;
+	if (NO_ERROR) {
+	    node = ast_bop(op, l, r);
+	    AST_TYPE(node) = inttype;
+	}
 	break;
     default:
 	error("unknown op '%s'", tname(op));
