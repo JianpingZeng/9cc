@@ -333,7 +333,7 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
     else
         assert(0);
     
-    if (node && !is(AST_TYPE(node)))
+    if (!is(AST_TYPE(node)))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
 }
 
@@ -360,16 +360,12 @@ static bool is_lvalue(union node *node)
 
 static void ensure_lvalue(union node *node)
 {
-    if (!node)
-	return;
     if (!is_lvalue(node))
         error("lvalue expect");
 }
 
 static bool is_assignable(union node *node)
 {
-    if (node == NULL)
-	return false;
     if (!is_lvalue(node))
 	return false;
     if (AST_ID(node) == STRING_LITERAL)
@@ -393,16 +389,13 @@ static bool is_assignable(union node *node)
 
 static void ensure_assignable(union node *or)
 {
-    if (!or)
-	return;
-        
     if (!is_assignable(or))
         error("expression not assignable");
 }
 
 static bool is_bitfield(union node *node)
 {
-    if (!node || AST_ID(node) != MEMBER_EXPR)
+    if (AST_ID(node) != MEMBER_EXPR)
         return false;
 
     struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
@@ -692,7 +685,7 @@ static union node * sizeof_expr()
 	error("'sizeof' to a bitfield is invalid");
 
     if (NO_ERROR)
-	ret = uop(t, unsignedinttype, NULL);
+	ret = uop(t, unsignedinttype, ast_type(ty));
 
     return ret;
 }
@@ -1012,31 +1005,39 @@ static union node * logic_or()
 
 static union node * cond_expr1(union node *cond)
 {
-    union node *ret, *then, *els;
-    
-    ensure_type(cond, isscalar);
+    union node *ret = NULL;
+    union node *then, *els;
+    struct type *ty = NULL;
+
     expect('?');
     then = conv(expression());
     expect(':');
     els = conv(cond_expr());
-    
-    ret = ast_expr(COND_EXPR, 0, NULL, NULL);
-    EXPR_COND(ret) = cond;
-    EXPR_THEN(ret) = then;
-    EXPR_ELSE(ret) = els;
-    
+
+    if (cond == NULL || then == NULL || els == NULL)
+	return ret;
+
+    SAVE_ERRORS;
+    ensure_type(cond, isscalar);
     if (isarith(AST_TYPE(then)) && isarith(AST_TYPE(els))) {
-        struct type *ty = conv2(AST_TYPE(then), AST_TYPE(els));
+        ty = conv2(AST_TYPE(then), AST_TYPE(els));
         EXPR_THEN(ret) = wrap(ty, then);
         EXPR_ELSE(ret) = wrap(ty, els);
-        AST_TYPE(ret) = ty;
     } else if ((isstruct(AST_TYPE(then)) && isstruct(AST_TYPE(els))) ||
                (isunion(AST_TYPE(then)) && isunion(AST_TYPE(els)))) {
         if (!eqtype(AST_TYPE(then), AST_TYPE(els)))
             ;
-        AST_TYPE(ret) = unqual(AST_TYPE(then));
+        ty = unqual(AST_TYPE(then));
     }
     //TODO: other cases
+
+    if (NO_ERROR) {
+	ret = ast_expr(COND_EXPR, 0, NULL, NULL);
+	EXPR_COND(ret) = cond;
+	EXPR_THEN(ret) = then;
+	EXPR_ELSE(ret) = els;
+	AST_TYPE(ret) = ty;
+    }
     
     return ret;
 }
@@ -1056,24 +1057,37 @@ union node * assign_expr()
         return cond_expr1(or1);
     if (is_assign_op(token->id)) {
         int t = token->id;
-        expect(token->id);
-        ensure_assignable(or1);
-        or1 = ast_bop(t, or1, assign_expr());
+        expect(t);
+	union node *assign = assign_expr();
+	if (or1 && assign) {
+	    SAVE_ERRORS;
+	    ensure_assignable(or1);
+	    if (NO_ERROR)
+		or1 = ast_bop(t, or1, assign);
+	    else
+		or1 = NULL;
+	} else {
+	    or1 = NULL;
+	}
     }
     return or1;
 }
 
 union node * expression()
 {
-    union node *expr;
+    union node *assign1;
     
-    expr = assign_expr();
+    assign1 = assign_expr();
     while (token->id == ',') {
         expect(',');
-        expr = ast_bop(',', expr, assign_expr());
+	union node *assign2 = assign_expr();
+	if (assign1 && assign2)
+	    assign1 = ast_bop(',', assign1, assign2);
+	else
+	    assign1 = NULL;
     }
     
-    return expr;
+    return assign1;
 }
 
 //TODO
@@ -1134,7 +1148,6 @@ static union node * eval(union node *expr)
     }
 }
 
-// TODO
 static union node * uop(int op, struct type *ty, union node *l)
 {
     union node *node = ast_uop(op, ty, l);
