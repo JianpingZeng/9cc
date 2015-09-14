@@ -1,6 +1,8 @@
 #ifndef _SYS_H
 #define _SYS_H
 
+extern void setup_sys();
+
 // path
 extern const char *mktmpdir();
 extern int file_exists(const char *path);

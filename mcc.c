@@ -146,6 +146,7 @@ static void setup_env()
 {
     setlocale(LC_ALL, "");
     ENV.is_color_term = is_color_term();
+    setup_sys();
 }
 
 int main(int argc, char **argv)
