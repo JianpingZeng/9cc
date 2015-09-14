@@ -1091,28 +1091,81 @@ int intexpr()
     return 0;
 }
 
+static union node * eval_bop(union node *expr)
+{
+    switch (EXPR_OP(expr)) {
+    case ',':
+
+    case '=':
+    case MULEQ: case ADDEQ: case MINUSEQ: case DIVEQ:
+    case MODEQ: case BOREQ: case BANDEQ: case XOREQ:
+    case LSHIFTEQ: case RSHIFTEQ:
+
+    case '+':
+    case '-':
+    case '*':
+    case '/':
+    case '%':
+
+    case LSHIFT:
+    case RSHIFT:
+
+    case '>':
+    case '<':
+    case GEQ:
+    case LEQ:
+    case EQ:
+    case NEQ:
+
+    case '|':
+    case '&':
+    case '^':
+	    
+    case AND:
+    case OR:
+	    
+	break;
+    default:
+	assert(0);
+    }
+}
+
+static union node * eval_uop(union node *expr)
+{
+    switch (EXPR_OP(expr)) {
+    case INCR:
+    case DECR:
+
+    case '&':
+    case '*':
+    case '+':
+    case '-':
+    case '~':
+    case '!':
+
+    case SIZEOF:
+	break;
+
+    default:
+	assert(0);
+    }
+}
+
 //TODO
 static union node * eval(union node *expr)
 {
     assert(isexpr(expr));
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
-        {
-	    
-	}
-	break;
+        return eval_bop(expr);
     case UNARY_OPERATOR:
-        {
-
-	}
-	break;
+        return eval_uop(expr);
     case PAREN_EXPR:
 	return eval(EXPR_OPERAND(expr, 0));
     case COND_EXPR:
     case MEMBER_EXPR:
     case REF_EXPR:
     case CAST_EXPR:
-    case CALL_EXPR:
     case INITS_EXPR:
 	return NULL;
     case INTEGER_LITERAL:
@@ -1120,6 +1173,8 @@ static union node * eval(union node *expr)
     case COMPOUND_LITERAL:
 	return expr;
     case CONV_EXPR:
+    case CALL_EXPR:
+	return NULL;
     default:
 	assert(0);
     }
