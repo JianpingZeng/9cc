@@ -7,6 +7,7 @@ static union node * unary_expr();
 static union node * uop(int op, struct type *ty, union node *l);
 static union node * bop(int op, union node *l, union node *r);
 static union node * logicop(int op, union node *l, union node *r);
+static union node * commaop(int op, union node *l, union node *r);
 static union node * conv(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
@@ -1069,11 +1070,7 @@ union node * expression()
     assign1 = assign_expr();
     while (token->id == ',') {
         expect(',');
-	union node *assign2 = assign_expr();
-	if (assign1 && assign2)
-	    assign1 = ast_bop(',', assign1, assign2);
-	else
-	    assign1 = NULL;
+	assign1 = commaop(',', assign1, assign_expr());
     }
     
     return assign1;
@@ -1227,6 +1224,18 @@ static union node * logicop(int op, union node *l, union node *r)
 
     ret = ast_bop(op, l, r);
     AST_TYPE(ret) = inttype;
+    return ret;
+}
+
+static union node * commaop(int op, union node *l, union node *r)
+{
+    union node *ret = NULL;
+
+    if (l == NULL || r == NULL)
+	return NULL;
+
+    ret = ast_bop(op, l, r);
+    AST_TYPE(ret) = AST_TYPE(r);
     return ret;
 }
 
