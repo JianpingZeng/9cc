@@ -8,6 +8,7 @@ static union node * uop(int op, struct type *ty, union node *l);
 static union node * bop(int op, union node *l, union node *r);
 static union node * logicop(int op, union node *l, union node *r);
 static union node * commaop(int op, union node *l, union node *r);
+static union node * assignop(int op, union node *l, union node *r);
 static union node * conv(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
@@ -1048,17 +1049,7 @@ union node * assign_expr()
     if (is_assign_op(token->id)) {
         int t = token->id;
         expect(t);
-	union node *assign = assign_expr();
-	if (or1 && assign) {
-	    SAVE_ERRORS;
-	    ensure_assignable(or1);
-	    if (NO_ERROR)
-		or1 = ast_bop(t, or1, assign);
-	    else
-		or1 = NULL;
-	} else {
-	    or1 = NULL;
-	}
+	return assignop(t, or1, assign_expr());
     }
     return or1;
 }
@@ -1236,6 +1227,21 @@ static union node * commaop(int op, union node *l, union node *r)
 
     ret = ast_bop(op, l, r);
     AST_TYPE(ret) = AST_TYPE(r);
+    return ret;
+}
+
+static union node * assignop(int op, union node *l, union node *r)
+{
+    union node *ret = NULL;
+
+    if (l == NULL || r == NULL)
+	return NULL;
+
+    SAVE_ERRORS;
+    ensure_assignable(l);
+    if (NO_ERROR)
+	ret = ast_bop(op, l, r);
+
     return ret;
 }
 
