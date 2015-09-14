@@ -11,6 +11,9 @@ static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
 static union node * eval(union node *expr);
 
+#define SAVE_ERRORS    unsigned err = errors
+#define NO_ERROR       (err == errors)
+
 static unsigned escape(const char **ps)
 {
     unsigned c = 0;
@@ -536,7 +539,6 @@ static union node ** argument_expr_list()
 static union node * subscript(union node *node)
 {
     union node *e;
-    unsigned errs;
     union node *ret = NULL;
     
     expect('[');
@@ -545,11 +547,11 @@ static union node * subscript(union node *node)
     if (node == NULL || e == NULL)
 	return ret;
 
-    errs = errors;
+    SAVE_ERRORS;
     if (!isarray(AST_TYPE(node)) && !isptr(AST_TYPE(node)))
 	error("subscripted value is not an array or pointer");
     ensure_type(e, isint);
-    if (errs == errors) {
+    if (NO_ERROR) {
 	ret = bop('+', conv(node), conv(e));
 	ret = uop('*', rtype(AST_TYPE(ret)), ret);
     }
@@ -559,7 +561,6 @@ static union node * subscript(union node *node)
 static union node * funcall(union node *node)
 {
     union node **args;
-    unsigned errs;
     union node *ret = NULL;
     
     expect('(');
@@ -568,10 +569,10 @@ static union node * funcall(union node *node)
     if (node == NULL)
 	return ret;
 
-    errs = errors;
+    SAVE_ERRORS;
     ensure_type(node, isfunc);
     ensure_funcall(AST_TYPE(node), args);
-    if (errs == errors) {
+    if (NO_ERROR) {
 	ret = ast_expr(CALL_EXPR, 0, ret, NULL);
 	EXPR_ARGS(ret) = args;
     }
@@ -591,7 +592,7 @@ static union node * direction(union node *node)
     if (node == NULL || name == NULL)
 	return ret;
     
-    unsigned err = errors;
+    SAVE_ERRORS;
     struct field *field = NULL;
     struct type *ty = AST_TYPE(node);
     if (t == '.') {
@@ -607,7 +608,7 @@ static union node * direction(union node *node)
         if (field == NULL)
 	    error("'%s' has no field named '%s'", type2s(ty), name);
     }
-    if (err == errors) {
+    if (NO_ERROR) {
 	ret = ast_expr(MEMBER_EXPR, t, node, ast_expr(REF_EXPR, 0, NULL, NULL));
 	AST_NAME(EXPR_OPERAND(ret, 1)) = field->name;
 	AST_TYPE(ret) = field->type;
@@ -619,16 +620,15 @@ static union node * post_increment(union node *node)
 {
     int t = token->id;
     union node *ret = NULL;
-    unsigned errs;
     
     expect(t);
     if (node == NULL)
 	return ret;
 
-    errs = errors;
+    SAVE_ERRORS;
     ensure_type(node, isscalar);
     ensure_assignable(node);
-    if (errs == errors)
+    if (NO_ERROR)
 	ret = uop(t, AST_TYPE(node), node);
     return ret;
 }
@@ -691,49 +691,93 @@ static union node * sizeof_expr()
 static union node * pre_increment()
 {
     int t = token->id;
+    union node *ret = NULL;
+    
     expect(t);
     union node *operand = unary_expr();
-    union node *ret = uop(t, AST_TYPE(operand), operand);
+    if (operand == NULL)
+	return ret;
+
+    SAVE_ERRORS;
     ensure_type(operand, isscalar);
     ensure_assignable(operand);
-    EXPR_PREFIX(ret) = true;
+    if (NO_ERROR) {
+	ret = uop(t, AST_TYPE(operand), operand);
+	EXPR_PREFIX(ret) = true;
+    }
+    
     return ret;
 }
 
 static union node * minus_plus()
 {
     int t = token->id;
+    union node *ret = NULL;
+    
     expect(t);
     union node *operand = cast_expr();
+    if (operand == NULL)
+	return ret;
+
+    SAVE_ERRORS;
     ensure_type(operand, isarith);
-    union node *c = conv(operand);
-    return uop(t, AST_TYPE(c), c);
+    if (NO_ERROR) {
+	union node *c = conv(operand);
+	ret = uop(t, AST_TYPE(c), c);
+    }
+
+    return ret;
 }
 
 static union node * bitwise_not()
 {
     int t = token->id;
+    union node *ret = NULL;
+    
     expect(t);
     union node *operand = cast_expr();
+    if (operand == NULL)
+	return ret;
+
+    SAVE_ERRORS;
     ensure_type(operand, isint);
-    union node *c = conv(operand);
-    return uop(t, AST_TYPE(c), c);
+    if (NO_ERROR) {
+	union node *c = conv(operand);
+	ret = uop(t, AST_TYPE(c), c);
+    }
+
+    return ret;
 }
 
 static union node * logical_not()
 {
     int t = token->id;
+    union node *ret = NULL;
+    
     expect(t);
     union node *operand = cast_expr();
+    if (operand == NULL)
+	return ret;
+
+    SAVE_ERRORS;
     ensure_type(operand, isscalar);
-    return uop(t, inttype, conv(operand));
+    if (NO_ERROR)
+	ret = uop(t, inttype, conv(operand));
+
+    return ret;
 }
 
 static union node * address()
 {
     int t = token->id;
+    union node *ret = NULL;
+    
     expect(t);
     union node *operand = cast_expr();
+    if (operand == NULL)
+	return ret;
+
+    SAVE_ERRORS;
     if (!isfunc(AST_TYPE(operand))) {
 	ensure_lvalue(operand);
 	if (EXPR_SYM(operand) && EXPR_SYM(operand)->sclass == REGISTER)
@@ -741,16 +785,28 @@ static union node * address()
 	else if (is_bitfield(operand))
 	    error("address of bitfield requested");
     }
-    return uop(t, ptr_type(AST_TYPE(operand)), operand);
+    if (NO_ERROR)
+	ret = uop(t, ptr_type(AST_TYPE(operand)), operand);
+
+    return ret;
 }
 
 static union node * indirection()
 {
     int t = token->id;
+    union node *ret = NULL;
+    
     expect(t);
     union node *operand = conv(cast_expr());
+    if (operand == NULL)
+	return ret;
+
+    SAVE_ERRORS;
     ensure_type(operand, isptr);
-    return uop(t, rtype(AST_TYPE(operand)), operand);
+    if (NO_ERROR)
+	ret = uop(t, rtype(AST_TYPE(operand)), operand);
+    
+    return ret;
 }
 
 static union node * unary_expr()
@@ -785,9 +841,14 @@ static union node * cast_expr()
             union node * node = compound_literal(ty);
             return postfix_expr1(node);
         }
+
+	union node *ret = NULL;
+	union node *cast = cast_expr();
+	if (cast) {
+	    union node *ret = ast_expr(CAST_EXPR, 0, cast, NULL);
+	    AST_TYPE(ret) = ty;
+	}
         
-        union node *ret = ast_expr(CAST_EXPR, 0, cast_expr(), NULL);
-	AST_TYPE(ret) = ty;
 	return ret;
     }
     return unary_expr();
