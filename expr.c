@@ -806,7 +806,7 @@ static union node * additive_expr()
     add1 = multiple_expr();
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
-        expect(token->id);
+        expect(t);
         add1 = bop(t, conv(add1), conv(multiple_expr()));
     }
     
@@ -820,7 +820,7 @@ static union node * shift_expr()
     shift1 = additive_expr();
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
-        expect(token->id);
+        expect(t);
         shift1 = bop(t, conv(shift1), conv(additive_expr()));
     }
     
@@ -834,7 +834,7 @@ static union node * relation_expr()
     rel = shift_expr();
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
-        expect(token->id);
+        expect(t);
         rel = bop(t, conv(rel), conv(shift_expr()));
     }
     
@@ -848,7 +848,7 @@ static union node * equality_expr()
     equl = relation_expr();
     while (token->id == EQ || token->id == NEQ) {
         int t = token->id;
-        expect(token->id);
+        expect(t);
         equl = bop(t, conv(equl), conv(relation_expr()));
     }
     
@@ -901,8 +901,13 @@ static union node * logic_and()
     and1 = inclusive_or();
     while (token->id == AND) {
         expect(AND);
-        and1 = ast_bop(AND, conv(and1), conv(inclusive_or()));
-        AST_TYPE(and1) = inttype;
+	union node *and2 = inclusive_or();
+	if (and1 && and2) {
+	    and1 = ast_bop(AND, conv(and1), conv(and2));
+	    AST_TYPE(and1) = inttype;
+	} else {
+	    and1 = NULL;
+	}
     }
     
     return and1;
@@ -915,8 +920,13 @@ static union node * logic_or()
     or1 = logic_and();
     while (token->id == OR) {
         expect(OR);
-        or1 = ast_bop(OR, conv(or1), conv(logic_and()));
-        AST_TYPE(or1) = inttype;
+	union node *or2 = logic_and();
+	if (or1 && or2) {
+	    or1 = ast_bop(OR, conv(or1), conv(or2));
+	    AST_TYPE(or1) = inttype;
+	} else {
+	    or1 = NULL;
+	}
     }
     
     return or1;
@@ -1058,6 +1068,9 @@ static union node * bop(int op, union node *l, union node *r)
     union node *node = NULL;
     struct type *ty;
     bool (*is) (struct type *ty);
+
+    if (l == NULL || r == NULL)
+	return NULL;
     
     switch (op) {
     case '*': case '/':
@@ -1167,6 +1180,8 @@ static struct type * conv2(struct type *l, struct type *r)
 // Universal Unary Conversion
 static union node * conv(union node *node)
 {
+    if (node == NULL)
+	return NULL;
     switch (kind(AST_TYPE(node))) {
     case _BOOL: case CHAR: case SHORT:
 	return ast_conv(inttype, node);
