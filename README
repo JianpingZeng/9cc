@@ -1,7 +1,7 @@
 Copyright (C) 2015 Guiyang Huang
 See the COPYING file for license conditions.
 
-mcc - a standard c compiler
+mcc - a standard C compiler
 
 _NOT_ finished yet.
 
@@ -24,3 +24,11 @@ sys		system relative utilities.
 
 test		test suite.
 
+
+For Mac OS X users:
+
+Nowadays OS X is shipped with Apple's C library headers, which does _NOT_ support a standard compiler. In order to make mcc work, you can install gcc via homebrew:
+
+	 brew install gcc
+
+Once gcc was installed, mcc will try to use it instead of clang.
