@@ -13,6 +13,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
 static union node * funcdef(const char *id, struct type *ftype, int sclass,  struct source src);
 static union node * initializer(struct type *ty);
 static void fields(struct type *sty);
+static void decl_initializer(union node *decl, struct symbol *sym, int sclass, int kind);
 
 static struct type * specifiers(int *sclass)
 {
@@ -655,36 +656,9 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
                     decl = ast_decl(VAR_DECL, SCOPE);
                 
                 DECL_SYM(decl) = sym;
-                
-                if (token->id == '=' && (dcl == globaldecl || dcl == localdecl)) {
-		    union node *init = NULL;
-		    expect('=');
-		    init = initializer(ty);
-		    if (init) {
-			if (sclass == EXTERN)
-			    warningf(src, "'extern' variable has an initializer");
-			else if (sclass == TYPEDEF)
-			    errorf(src, "illegal initializer (only variable can be initialized)");
-		    }
-
-		    if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-			if (dcl == localdecl) {
-			    if (!ty->u.s.tsym->defined)
-				error("variable has incomplete type '%s'", type2s(ty));
-			} else if (dcl == globaldecl) {
-			    if (init && !ty->u.s.tsym->defined && sclass != TYPEDEF)
-				error("variable has incomplete type '%s'", type2s(ty));
-			} 
-		    }
-                    
-		    if (SCOPE == GLOBAL) {
-			if (sym->defined && init)
-			    redefinition_error(src, sym);
-			sym->defined = init ? true : false;
-		    }
-                    
-		    DECL_BODY(decl) = init;
-                }
+		
+                if (token->id == '=' && (dcl == globaldecl || dcl == localdecl))
+		    decl_initializer(decl, sym, sclass, dcl == globaldecl ? GLOBAL : LOCAL);
                 
                 vec_push(v, decl);
             }
@@ -1484,4 +1458,38 @@ static union node * funcdef(const char *id, struct type *ftype, int sclass,  str
     }
     
     return decl;
+}
+
+static void decl_initializer(union node *decl, struct symbol *sym, int sclass, int kind)
+{
+    struct type *ty = sym->type;
+    struct source src = sym->src;
+    union node *init = NULL;
+
+    expect('=');
+    init = initializer(ty);
+    if (init) {
+	if (sclass == EXTERN)
+	    warningf(src, "'extern' variable has an initializer");
+	else if (sclass == TYPEDEF)
+	    errorf(src, "illegal initializer (only variable can be initialized)");
+    }
+
+    if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+	if (kind == LOCAL) {
+	    if (!ty->u.s.tsym->defined)
+		error("variable has incomplete type '%s'", type2s(ty));
+	} else if (kind == GLOBAL) {
+	    if (init && !ty->u.s.tsym->defined && sclass != TYPEDEF)
+		error("variable has incomplete type '%s'", type2s(ty));
+	} 
+    }
+                    
+    if (SCOPE == GLOBAL) {
+	if (sym->defined && init)
+	    redefinition_error(src, sym);
+	sym->defined = init ? true : false;
+    }
+                    
+    DECL_BODY(decl) = init;
 }
