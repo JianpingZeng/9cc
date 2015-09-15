@@ -376,8 +376,18 @@ static const char * is_assignable(union node *node)
 	return is_assignable(node);
     if (isarray(ty))
 	return format("array type '%s' is not assignable", type2s(ty));
-    if (isconst(ty))
-	return "read-only variable is not assignable";
+    if (isconst(ty)) {
+	if (AST_ID(node) == REF_EXPR) {
+	    return format("read-only variable '%s' is not assignable", EXPR_SYM(node)->name);
+	} else if (AST_ID(node) == MEMBER_EXPR) {
+	    const char *op = EXPR_OP(node) == '.' ? "." : "->";
+	    const char *l = EXPR_SYM(EXPR_OPERAND(node, 0))->name;
+	    const char *r = AST_NAME(EXPR_OPERAND(node, 1));
+	    return format("read-only variable '%s%s%s' is not assignable", l, op, r);
+	} else {
+	    return "read-only variable is not assignable";
+	}
+    }
     
     return NULL;
 }
