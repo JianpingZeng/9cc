@@ -52,16 +52,19 @@ static void print_expr(union node *node, struct print_context context)
     fprintf(stderr, "%s ", nname(node));
     if (op > 0)
 	fprintf(stderr, "'%s' ", tname(op));
-    if (EXPR_SYM(node))
-	fprintf(stderr, "%s ", STR(EXPR_SYM(node)->name));
-    fprintf(stderr, "%s ", (op == INCR || op == DECR) ? (prefix ? "prefix" : "postfix") : "");
     
     if (AST_TYPE(node)) {
 	if (isfunc(AST_TYPE(node)) || isptr(AST_TYPE(node)))
-	    fprintf(stderr, "'%s' '%s'", unqual(AST_TYPE(node))->name, type2s(AST_TYPE(node)));
+	    fprintf(stderr, "'%s' '%s' ", unqual(AST_TYPE(node))->name, type2s(AST_TYPE(node)));
 	else
-	    fprintf(stderr, "'%s'", type2s(AST_TYPE(node)));
+	    fprintf(stderr, "'%s' ", type2s(AST_TYPE(node)));
     }
+
+    if (EXPR_SYM(node))
+	fprintf(stderr, "%s ", STR(EXPR_SYM(node)->name));
+    if (op == INCR || op == DECR)
+	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
+    
     fprintf(stderr, "\n");
     
     level = context.level + 1;

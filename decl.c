@@ -1024,6 +1024,7 @@ union node * initializer_list(struct type *ty)
     
     match('}', follow);
     EXPR_INITS(ret) = (union node **)vtoa(v);
+    AST_TYPE(ret) = ty;
     return ret;
 }
 
