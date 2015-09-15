@@ -31,4 +31,4 @@ Nowadays OS X is shipped with Apple's C library headers, which does _NOT_ suppor
 
 	 brew install gcc
 
-Once gcc was installed, mcc will try to use it instead of clang.
+Once gcc was installed, mcc will use the header files provided by gcc.
