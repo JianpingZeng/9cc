@@ -1,6 +1,5 @@
 # Makefile for mcc
 
-CC=cc
 CFLAGS=-Wall -std=c99 -Isys -I. -g
 LDFLAGS=
 MCC=mcc
@@ -64,6 +63,27 @@ $(CC1_OBJ): $(CC1_INC)
 $(SYS_OBJ): $(SYS_INC)
 
 #
+# Bootstrap
+#
+stage1:
+	$(MAKE) clean
+	$(MAKE) CC=cc $(MCC)
+	mv mcc stage1
+
+stage2: stage1
+	$(MAKE) clean
+	$(MAKE) CC=./stage1 $(MCC)
+	mv mcc stage2
+
+stage3: stage2
+	$(MAKE) clean
+	$(MAKE) CC=./stage2 $(MCC)
+	mv mcc stage3
+
+bootstrap: stage3
+	cmp stage2 stage3
+
+#
 # Test suite
 #
 TESTDIR=test
@@ -84,5 +104,7 @@ test: $(TESTS)
 clean:
 	@rm -f *.o *~ $(MCC) $(TESTS) sys/*.o
 
+distclean: clean
+	@rm -f stage1 stage2 stage3
 
-.PHONY: all clean test
+.PHONY: all clean test distclean

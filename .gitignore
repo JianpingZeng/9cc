@@ -37,6 +37,9 @@ mcc
 mcc.exe
 *.a
 *.bin
+stage1
+stage2
+stage3
 
 # etags
 TAGS
