@@ -1311,8 +1311,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     }
     
     sym = lookup(id, identifiers);
-    if ((sym && sym->scope >= SCOPE) ||
-        (sym && sym->scope == PARAM && SCOPE == LOCAL)) {
+    if (sym && currentscope(sym)) {
         redefinition_error(src, sym);
     } else {
         sym = install(id, &identifiers, SCOPE);
