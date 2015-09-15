@@ -687,8 +687,12 @@ static union node * sizeof_expr()
     else if (n && is_bitfield(n))
 	error("'sizeof' to a bitfield is invalid");
 
-    if (NO_ERROR)
+    if (NO_ERROR) {
 	ret = uop(t, unsignedinttype, ast_type(ty));
+	EXPR_SYM(ret) = anonymous(&identifiers, GLOBAL);
+	EXPR_SYM(ret)->type = ty;
+	EXPR_SYM(ret)->value.u = typesize(ty);
+    }
 
     return ret;
 }
@@ -1061,26 +1065,24 @@ union node * expression()
     return assign1;
 }
 
-static union node * constexpr()
+union node * constant(union node *expr, struct type *ty)
 {
-    union node *cond = cond_expr();
-    union node *ret = eval(cond);
-    if (ret == NULL)
-	error("constant expression expected");
-	
-    return ret;
+    union node *ret = eval(expr);
 }
 
 //TODO
 int intexpr()
 {
-    union node *cnst = constexpr();
-    if (cnst == NULL)
-	return 0;
-    struct type *ty = AST_TYPE(cnst);
-    if (!isint(ty)) {
+    union node *cnst = constant(cond_expr(), inttype);
+    if (cnst) {
+	struct type *ty = AST_TYPE(cnst);
+	struct symbol *sym = EXPR_SYM(cnst);
+	if (op(ty) == INT)
+	    return sym->value.i;
+	else
+	    return sym->value.u;
+    } else {
 	error("integer constant expression expected");
-	return 0;
     }
     return 0;
 }

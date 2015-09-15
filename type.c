@@ -24,18 +24,35 @@ struct metrics {
     size_t size;
     unsigned rank;
 }
-boolmetrics         = { sizeof (_Bool),     10},
-charmetrics         = { sizeof (char),      20},
-shortmetrics        = { sizeof (short),     30},
-wcharmetrics        = { sizeof (wchar_t),   40},
-intmetrics          = { sizeof (int),       40},
-longmetrics         = { sizeof (long),      50},
-longlongmetrics     = { sizeof (long long), 60},
-floatmetrics        = { sizeof (float),     70},
-doublemetrics       = { sizeof (double),    80},
-longdoublemetrics   = { sizeof (long double), 90},
-ptrmetrics          = { sizeof(void *) },
-zerometrics         = { 0 };
+                       // size   rank
+#ifdef X32
+    boolmetrics         = { 1,  10},
+    charmetrics         = { 1,  20},
+    shortmetrics        = { 2,  30},
+    wcharmetrics        = { 4,  40},
+    intmetrics          = { 4,  40},
+    longmetrics         = { 4,  50},
+    longlongmetrics     = { 8,  60},
+    floatmetrics        = { 4,  70},
+    doublemetrics       = { 8,  80},
+    longdoublemetrics   = { 8,  90},
+    ptrmetrics          = { 4 },
+#elif defined X64
+    boolmetrics         = { 1,  10},
+    charmetrics         = { 1,  20},
+    shortmetrics        = { 2,  30},
+    wcharmetrics        = { 4,  40},
+    intmetrics          = { 4,  40},
+    longmetrics         = { 8,  50},
+    longlongmetrics     = { 8,  60},
+    floatmetrics        = { 4,  70},
+    doublemetrics       = { 8,  80},
+    longdoublemetrics   = { 16, 90},
+    ptrmetrics          = { 8 },
+#else
+    #error "architecture not defined."
+#endif
+    zerometrics         = { 0 };
 
 static struct type * new_type()
 {

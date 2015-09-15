@@ -44,6 +44,15 @@ SYSDIR=include/linux
 SYS_OBJ:=sys/linux.o
 CFLAGS+=-DLINUX -D_BSD_SOURCE
 SYS_INC+=$(wildcard $(SYSDIR)/*.h)
+ARCH:=$(shell uname -m)
+
+ifeq ($(ARCH), i386)
+CFLAGS+=-DX32
+else ifeq ($(ARCH), i686)
+CFLAGS+=-DX32
+else ifeq ($(ARCH), x86_64)
+CFLAGS+=-DX64
+endif
 
 all: $(MCC)
 
