@@ -1135,7 +1135,7 @@ static union node * eval_uop(union node *expr)
     switch (EXPR_OP(expr)) {
     case INCR:
     case DECR:
-
+	return NULL;
     case '&':
     case '*':
     case '+':
@@ -1144,8 +1144,7 @@ static union node * eval_uop(union node *expr)
     case '!':
 
     case SIZEOF:
-	break;
-
+	return expr;
     default:
 	assert(0);
     }
@@ -1166,6 +1165,10 @@ static bool eval_bool(union node *cond)
 	    return EXPR_SYM(cond)->value.d;
     case STRING_LITERAL:
 	return true;
+    case UNARY_OPERATOR:
+	if (EXPR_OP(cond) == SIZEOF)
+	    return typesize(AST_TYPE(cond));
+	assert(0);
     case REF_EXPR:
 	if (EXPR_OP(cond) == ENUM)
 	    return EXPR_SYM(cond)->value.i;
