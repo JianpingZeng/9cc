@@ -369,22 +369,16 @@ static void ensure_lvalue(union node *node)
 
 static bool is_assignable(union node *node)
 {
+    struct type *ty = AST_TYPE(node);
     if (!is_lvalue(node))
 	return false;
     if (AST_ID(node) == STRING_LITERAL)
 	return false;
     if (AST_ID(node) == PAREN_EXPR)
 	return is_assignable(node);
-    if (AST_ID(node) == MEMBER_EXPR) {
-	struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
-	const char *name = AST_NAME(EXPR_OPERAND(node, 1));
-	struct field *field = find_field(ty, name);
-	if (field)
-	    return !isarray(field->type);
-
+    if (isarray(ty))
 	return false;
-    }
-    if (isarray(AST_TYPE(node)))
+    if (isconst(ty))
 	return false;
     
     return true;

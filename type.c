@@ -392,9 +392,10 @@ bool eqtype(struct type *ty1, struct type *ty2)
     }
 }
 
-struct field * find_field(struct type *ty, const char *name)
+struct field * find_field(struct type *sty, const char *name)
 {
     int i;
+    struct type *ty = unqual(sty);
     int len = array_len((void **)ty->u.s.fields);
     struct field *ret = NULL;
 
