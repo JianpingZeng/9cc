@@ -1154,25 +1154,34 @@ static union node * eval_uop(union node *expr)
 //TODO
 static union node * eval(union node *expr)
 {
-    assert(isexpr(expr));
+    
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
         return eval_bop(expr);
     case UNARY_OPERATOR:
         return eval_uop(expr);
     case PAREN_EXPR:
+    case CONV_EXPR:
+    case COMPOUND_LITERAL:
+    case CAST_EXPR:
 	return eval(EXPR_OPERAND(expr, 0));
     case COND_EXPR:
-    case MEMBER_EXPR:
+	{
+
+	}
     case REF_EXPR:
-    case CAST_EXPR:
+	{
+
+	}
     case INITS_EXPR:
+	{
+
+	}
 	return NULL;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
-    case COMPOUND_LITERAL:
 	return expr;
-    case CONV_EXPR:
+    case MEMBER_EXPR:
     case CALL_EXPR:
 	return NULL;
     default:
