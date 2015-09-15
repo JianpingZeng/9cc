@@ -1012,8 +1012,8 @@ static union node * cond_expr1(union node *cond)
     ensure_type(cond, isscalar);
     if (isarith(AST_TYPE(then)) && isarith(AST_TYPE(els))) {
         ty = conv2(AST_TYPE(then), AST_TYPE(els));
-        EXPR_THEN(ret) = wrap(ty, then);
-        EXPR_ELSE(ret) = wrap(ty, els);
+        then = wrap(ty, then);
+        els = wrap(ty, els);
     } else if ((isstruct(AST_TYPE(then)) && isstruct(AST_TYPE(els))) ||
                (isunion(AST_TYPE(then)) && isunion(AST_TYPE(els)))) {
         if (!eqtype(AST_TYPE(then), AST_TYPE(els)))
@@ -1151,10 +1151,33 @@ static union node * eval_uop(union node *expr)
     }
 }
 
-//TODO
+static bool eval_bool(union node *cond)
+{
+    switch (AST_ID(cond)) {
+    case INTEGER_LITERAL:
+	if (op(AST_TYPE(cond)) == INT)
+	    return EXPR_SYM(cond)->value.i;
+	else
+	    return EXPR_SYM(cond)->value.u;
+    case FLOAT_LITERAL:
+	if (kind(AST_TYPE(cond)) == LONG+DOUBLE)
+	    return EXPR_SYM(cond)->value.ld;
+	else
+	    return EXPR_SYM(cond)->value.d;
+    case STRING_LITERAL:
+	return true;
+    case REF_EXPR:
+	if (EXPR_OP(cond) == ENUM)
+	    return EXPR_SYM(cond)->value.i;
+    default:
+	assert(0);
+    }
+}
+
+// TODO: REF_EXPR: global const int etc.
 static union node * eval(union node *expr)
 {
-    
+    assert(isexpr(expr));
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
         return eval_bop(expr);
@@ -1167,19 +1190,29 @@ static union node * eval(union node *expr)
 	return eval(EXPR_OPERAND(expr, 0));
     case COND_EXPR:
 	{
-
-	}
-    case REF_EXPR:
-	{
-
-	}
-    case INITS_EXPR:
-	{
-
+	    union node *cond = eval(EXPR_COND(expr));
+	    if (cond) {
+		if (eval_bool(cond))
+		    return eval(EXPR_THEN(expr));
+		else
+		    return eval(EXPR_ELSE(expr));
+	    }
 	}
 	return NULL;
+    case REF_EXPR:
+        if (EXPR_OP(expr) == ENUM)
+	    return expr;
+	return NULL;
+    case INITS_EXPR:
+        for (int i = 0; i < array_len((void **)EXPR_INITS(expr)); i++) {
+	    union node *n = EXPR_INITS(expr)[i];
+	    if (eval(n) == NULL)
+		return NULL;
+	}
+	return expr;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
+    case STRING_LITERAL:
 	return expr;
     case MEMBER_EXPR:
     case CALL_EXPR:
