@@ -27,8 +27,4 @@ test		test suite.
 
 For Mac OS X users:
 
-Nowadays OS X is shipped with Apple's C library headers, which does _NOT_ support a standard compiler. In order to make mcc work, you can install gcc via homebrew:
-
-	 brew install gcc
-
-Once gcc was installed, mcc will use the header files provided by gcc.
+Nowadays OS X is shipped with Apple's C library headers, which does _NOT_ support a standard compiler.
