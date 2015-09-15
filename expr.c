@@ -367,27 +367,26 @@ static void ensure_lvalue(union node *node)
         error("lvalue expect");
 }
 
-static bool is_assignable(union node *node)
+static const char * is_assignable(union node *node)
 {
     struct type *ty = AST_TYPE(node);
     if (!is_lvalue(node))
-	return false;
-    if (AST_ID(node) == STRING_LITERAL)
-	return false;
+	return "expression is not assignable";
     if (AST_ID(node) == PAREN_EXPR)
 	return is_assignable(node);
     if (isarray(ty))
-	return false;
+	return format("array type '%s' is not assignable", type2s(ty));
     if (isconst(ty))
-	return false;
+	return "read-only variable is not assignable";
     
-    return true;
+    return NULL;
 }
 
 static void ensure_assignable(union node *or)
 {
-    if (!is_assignable(or))
-        error("expression not assignable");
+    const char *msg = is_assignable(or);
+    if (msg)
+        error(msg);
 }
 
 static bool is_bitfield(union node *node)
@@ -820,13 +819,7 @@ static union node * unary_expr()
     case '&':    return address();
     case '*':    return indirection();
     case SIZEOF: return sizeof_expr();
-    default:
-	{
-	    union node *n = postfix_expr();
-	    if (n && (isarray(AST_TYPE(n)) || isfunc(AST_TYPE(n))))
-	    	n = conv(n);
-	    return n;
-	}
+    default:     return postfix_expr();
     }
 }
 
