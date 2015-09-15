@@ -112,6 +112,8 @@ struct field {
     int bitsize;
 };
 
+#define isbitfield(field)    ((field)->bitsize > 0)
+
 // type.c
 struct type {
     int kind;
