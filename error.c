@@ -14,13 +14,13 @@ static void cc_print_lead(int tag, const char *file, unsigned line, const char *
     const char *lead;
     switch (tag) {
     case WRN:
-	lead = PURPLE "warning:" RESET;
+	lead = PURPLE("warning:");
 	break;
     case ERR:
-	lead = RED "error:" RESET;
+	lead = RED("error:");
 	break;
     case FTL:
-	lead = RED "fatal:" RESET;
+	lead = RED("fatal:");
 	break;
     default:
 	assert(0);

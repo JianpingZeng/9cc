@@ -13,9 +13,9 @@ static void print_ty(struct type *ty)
 {
     if (ty) {
 	if (isfunc(ty) || isptr(ty) || isarray(ty))
-	    fprintf(stderr, RED "'%s' " RESET GREEN "'%s' " RESET, unqual(ty)->name, type2s(ty));
+	    fprintf(stderr, RED("'%s' ") GREEN("'%s' "), unqual(ty)->name, type2s(ty));
 	else
-	    fprintf(stderr, GREEN "'%s' " RESET, type2s(ty));
+	    fprintf(stderr, GREEN("'%s' "), type2s(ty));
     }
 }
 
@@ -23,13 +23,14 @@ static void print_decl(union node *node, struct print_context context)
 {
     int level;
 
-    fprintf(stderr, GREEN "%s " RESET, nname(node));
+    fprintf(stderr, GREEN("%s "), nname(node));
     if (DECL_SYM(node)) {
 	if (DECL_SYM(node)->defined)
-	    fprintf(stderr, YELLOW "<defined> " RESET);
+	    fprintf(stderr, YELLOW("<defined> "));
+	
 	struct type *ty = DECL_SYM(node)->type;
         print_ty(ty);
-	fprintf(stderr, CYAN "%s " RESET, STR(DECL_SYM(node)->name));
+	fprintf(stderr, CYAN("%s "), STR(DECL_SYM(node)->name));
     }
     fprintf(stderr, "\n");
     
@@ -56,14 +57,14 @@ static void print_expr(union node *node, struct print_context context)
     int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
 
-    fprintf(stderr, PURPLE "%s " RESET, nname(node));
+    fprintf(stderr, PURPLE("%s "), nname(node));
     if (op > 0)
 	fprintf(stderr, "'%s' ", tname(op));
 
     print_ty(AST_TYPE(node));
 
     if (EXPR_SYM(node))
-	fprintf(stderr, CYAN "%s " RESET, STR(EXPR_SYM(node)->name));
+	fprintf(stderr, CYAN("%s "), STR(EXPR_SYM(node)->name));
     if (op == INCR || op == DECR)
 	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
     
@@ -93,7 +94,7 @@ static void print_stmt(union node *node, struct print_context context)
     int level;
     union node *up = STMT_UP(node);
 
-    fprintf(stderr, PURPLE "%s " RESET YELLOW "%p" RESET, nname(node), node);
+    fprintf(stderr, PURPLE("%s ") YELLOW("%p"), nname(node), node);
     if (up)
         fprintf(stderr, " -> %s %p\n", nname(up), up);
     fprintf(stderr, "\n");

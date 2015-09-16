@@ -15,29 +15,38 @@
 #define RESET    "\e[0m"
 #define CLEAR    "\e[1;38m"
 
-#define BLACK    "\e[0;30m"
-#define RED      "\e[0;31m"
-#define GREEN    "\e[0;32m"
-#define YELLOW   "\e[0;33m"
-#define BLUE     "\e[0;34m"
-#define PURPLE   "\e[0;35m"
-#define CYAN     "\e[0;36m"
-#define WHITE    "\e[0;37m"
+#define BLACK_COLOR    "\e[0;30m"
+#define RED_COLOR      "\e[0;31m"
+#define GREEN_COLOR    "\e[0;32m"
+#define YELLOW_COLOR   "\e[0;33m"
+#define BLUE_COLOR     "\e[0;34m"
+#define PURPLE_COLOR   "\e[0;35m"
+#define CYAN_COLOR     "\e[0;36m"
+#define WHITE_COLOR    "\e[0;37m"
 
 #else
 
 #define RESET    ""
 #define CLEAR    ""
 
-#define BLACK    ""
-#define RED      ""
-#define GREEN    ""
-#define YELLOW   ""
-#define BLUE     ""
-#define PURPLE   ""
-#define CYAN     ""
-#define WHITE    ""
+#define BLACK_COLOR    ""
+#define RED_COLOR      ""
+#define GREEN_COLOR    ""
+#define YELLOW_COLOR   ""
+#define BLUE_COLOR     ""
+#define PURPLE_COLOR   ""
+#define CYAN_COLOR     ""
+#define WHITE_COLOR    ""
 
 #endif
+
+#define BLACK(str)    BLACK_COLOR str RESET
+#define RED(str)      RED_COLOR str RESET
+#define GREEN(str)    GREEN_COLOR str RESET
+#define YELLOW(str)   YELLOW_COLOR str RESET
+#define BLUE(str)     BLUE_COLOR str RESET
+#define PURPLE(str)   PURPLE_COLOR str RESET
+#define CYAN(str)     CYAN_COLOR str RESET
+#define WHITE(str)    WHITE_COLOR str RESET
 
 #endif
