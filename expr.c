@@ -1090,13 +1090,13 @@ int intexpr()
 static union node * eval_bop(union node *expr)
 {
     switch (EXPR_OP(expr)) {
-    case ',':
-
     case '=':
     case MULEQ: case ADDEQ: case MINUSEQ: case DIVEQ:
     case MODEQ: case BOREQ: case BANDEQ: case XOREQ:
     case LSHIFTEQ: case RSHIFTEQ:
-
+	return NULL;
+    case ',':
+	
     case '+':
     case '-':
     case '*':
@@ -1119,7 +1119,10 @@ static union node * eval_bop(union node *expr)
 	    
     case AND:
     case OR:
-	    
+	if (eval(EXPR_OPERAND(expr, 0)) && eval(EXPR_OPERAND(expr, 1)))    
+	    return expr;
+	else
+	    return NULL;
 	break;
     default:
 	assert(0);
@@ -1131,14 +1134,17 @@ static union node * eval_uop(union node *expr)
     switch (EXPR_OP(expr)) {
     case INCR:
     case DECR:
+    case '*':
 	return NULL;
     case '&':
-    case '*':
     case '+':
     case '-':
     case '~':
     case '!':
-
+	if (eval(EXPR_OPERAND(expr, 0)))
+	    return expr;
+	else
+	    return NULL;
     case SIZEOF:
 	return expr;
     default:
@@ -1173,7 +1179,6 @@ static bool eval_bool(union node *cond)
     }
 }
 
-// TODO: REF_EXPR: global const int etc.
 static union node * eval(union node *expr)
 {
     assert(isexpr(expr));
@@ -1186,7 +1191,11 @@ static union node * eval(union node *expr)
     case CONV_EXPR:
     case COMPOUND_LITERAL:
     case CAST_EXPR:
-	return eval(EXPR_OPERAND(expr, 0));
+    case MEMBER_EXPR:
+	if (eval(EXPR_OPERAND(expr, 0)))
+	    return expr;
+	else
+	    return NULL;
     case COND_EXPR:
 	{
 	    union node *cond = eval(EXPR_COND(expr));
@@ -1199,13 +1208,17 @@ static union node * eval(union node *expr)
 	}
 	return NULL;
     case REF_EXPR:
-        if (EXPR_OP(expr) == ENUM)
+        if (EXPR_OP(expr) == ENUM ||
+	    EXPR_SYM(expr)->sclass == EXTERN ||
+	    EXPR_SYM(expr)->sclass == STATIC ||
+	    EXPR_SYM(expr)->scope == GLOBAL)
 	    return expr;
-	return NULL;
+	else
+	    return NULL;
     case INITS_EXPR:
         for (int i = 0; i < array_len((void **)EXPR_INITS(expr)); i++) {
 	    union node *n = EXPR_INITS(expr)[i];
-	    if (eval(n) == NULL)
+	    if (AST_ID(n) != VINIT_EXPR && eval(n) == NULL)
 		return NULL;
 	}
 	return expr;
@@ -1213,7 +1226,6 @@ static union node * eval(union node *expr)
     case FLOAT_LITERAL:
     case STRING_LITERAL:
 	return expr;
-    case MEMBER_EXPR:
     case CALL_EXPR:
 	return NULL;
     default:
