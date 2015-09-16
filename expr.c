@@ -447,10 +447,19 @@ static void ensure_cast(struct type *dst, struct type *src)
 	error(msg);
 }
 
-// TODO: NULL pointer constant
-static bool is_nullptr(struct type *ty)
+static bool is_nullptr(union node *node)
 {
-
+    assert(isptr(AST_TYPE(node)));
+    union node *ret = eval(node);
+    if (ret == NULL)
+	return false;
+    if (AST_ID(ret) == INTEGER_LITERAL) {
+	if (op(AST_TYPE(ret)) == INT)
+	    return EXPR_SYM(ret)->value.i == 0;
+	else
+	    return EXPR_SYM(ret)->value.u == 0;
+    }
+    return false;
 }
 
 static union node * compound_literal(struct type *ty)
@@ -880,14 +889,14 @@ static union node * cast_expr()
             union node * node = compound_literal(ty);
             return postfix_expr1(node);
         }
-
+	
 	union node *ret = NULL;
 	union node *cast = cast_expr();
 	if (cast) {
 	    SAVE_ERRORS;
 	    ensure_cast(ty, AST_TYPE(cast));
 	    if (NO_ERROR) {
-		union node *ret = ast_expr(CAST_EXPR, 0, cast, NULL);
+		ret = ast_expr(CAST_EXPR, 0, cast, NULL);
 		AST_TYPE(ret) = ty;
 	    }
 	}
@@ -1064,8 +1073,8 @@ static union node * cond_expr1(union node *cond)
     } else if (isvoid(ty1) && isvoid(ty2)) {
 	ty = voidtype;
     } else if (isptr(ty1) && isptr(ty2)) {
-	if (is_nullptr(ty1) || is_nullptr(ty2)) {
-	    struct type *nty = is_nullptr(ty1) ? ty1 : ty2;
+	if (is_nullptr(then) || is_nullptr(els)) {
+	    struct type *nty = is_nullptr(then) ? ty1 : ty2;
 	    struct type *tty = nty == ty1 ? ty2 : ty1;
 	    ty = ptr_type(compose(rtype(tty), rtype(nty)));
 	    then = ast_conv(ty, then);
@@ -1094,7 +1103,7 @@ static union node * cond_expr1(union node *cond)
     } else {
 	error("type mismatch in conditional expression: '%s' and '%s'", type2s(ty1), type2s(ty2));
     }
-
+    
     if (NO_ERROR) {
 	ret = ast_expr(COND_EXPR, 0, NULL, NULL);
 	EXPR_COND(ret) = cond;
@@ -1275,8 +1284,8 @@ static union node * eval(union node *expr)
     case PAREN_EXPR:
     case CONV_EXPR:
     case COMPOUND_LITERAL:
-	return eval(EXPR_OPERAND(expr, 0));
     case CAST_EXPR:
+	return eval(EXPR_OPERAND(expr, 0));
     case MEMBER_EXPR:
 	if (eval(EXPR_OPERAND(expr, 0)))
 	    return expr;
