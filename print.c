@@ -9,20 +9,27 @@ struct print_context {
 
 static void print_tree1(struct print_context context);
 
+static void print_ty(struct type *ty)
+{
+    if (ty) {
+	if (isfunc(ty) || isptr(ty) || isarray(ty))
+	    fprintf(stderr, RED "'%s' " RESET GREEN "'%s' " RESET, unqual(ty)->name, type2s(ty));
+	else
+	    fprintf(stderr, GREEN "'%s' " RESET, type2s(ty));
+    }
+}
+
 static void print_decl(union node *node, struct print_context context)
 {
     int level;
 
-    fprintf(stderr, "%s", nname(node));
+    fprintf(stderr, GREEN "%s " RESET, nname(node));
     if (DECL_SYM(node)) {
-        fprintf(stderr, "'%s' %s ", STR(DECL_SYM(node)->name), DECL_SYM(node)->defined ? "<defined>" : "");
+	if (DECL_SYM(node)->defined)
+	    fprintf(stderr, YELLOW "<defined> " RESET);
 	struct type *ty = DECL_SYM(node)->type;
-        if (ty) {
-	    if (isfunc(ty) || isptr(ty))
-		fprintf(stderr, "'%s' '%s'", unqual(ty)->name, type2s(ty));
-	    else
-		fprintf(stderr, "'%s'", type2s(ty));
-	}
+        print_ty(ty);
+	fprintf(stderr, CYAN "%s " RESET, STR(DECL_SYM(node)->name));
     }
     fprintf(stderr, "\n");
     
@@ -49,19 +56,14 @@ static void print_expr(union node *node, struct print_context context)
     int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
 
-    fprintf(stderr, "%s ", nname(node));
+    fprintf(stderr, PURPLE "%s " RESET, nname(node));
     if (op > 0)
 	fprintf(stderr, "'%s' ", tname(op));
-    
-    if (AST_TYPE(node)) {
-	if (isfunc(AST_TYPE(node)) || isptr(AST_TYPE(node)))
-	    fprintf(stderr, "'%s' '%s' ", unqual(AST_TYPE(node))->name, type2s(AST_TYPE(node)));
-	else
-	    fprintf(stderr, "'%s' ", type2s(AST_TYPE(node)));
-    }
+
+    print_ty(AST_TYPE(node));
 
     if (EXPR_SYM(node))
-	fprintf(stderr, "%s ", STR(EXPR_SYM(node)->name));
+	fprintf(stderr, CYAN "%s " RESET, STR(EXPR_SYM(node)->name));
     if (op == INCR || op == DECR)
 	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
     
@@ -90,11 +92,11 @@ static void print_stmt(union node *node, struct print_context context)
 {
     int level;
     union node *up = STMT_UP(node);
+
+    fprintf(stderr, PURPLE "%s " RESET YELLOW "%p" RESET, nname(node), node);
     if (up)
-        fprintf(stderr, "%s %p -> %s %p\n",
-                nname(node), node, nname(up), up);
-    else
-        fprintf(stderr, "%s %p\n", nname(node), node);
+        fprintf(stderr, " -> %s %p\n", nname(up), up);
+    fprintf(stderr, "\n");
     
     level = context.level + 1;
     
