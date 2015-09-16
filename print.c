@@ -66,9 +66,9 @@ static void print_expr(union node *node, struct print_context context)
 	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
     
     fprintf(stderr, "\n");
-    
+
     level = context.level + 1;
-    
+
     if (AST_ID(node) == CALL_EXPR) {
         union node **args = EXPR_ARGS(node);
         if (args) {
@@ -76,22 +76,6 @@ static void print_expr(union node *node, struct print_context context)
                 struct print_context con = {level, args[i]};
                 print_tree1(con);
             }
-        }
-    } else if (AST_ID(node) == COND_EXPR) {
-        union node *cond = EXPR_OPERAND(node, 0);
-        union node *then = EXPR_OPERAND(node, 1);
-        union node *els = EXPR_OPERAND(node, 2);
-        if (cond) {
-            struct print_context con = {level, cond};
-            print_tree1(con);
-        }
-        if (then) {
-            struct print_context con = {level, then};
-            print_tree1(con);
-        }
-        if (els) {
-            struct print_context con = {level, els};
-            print_tree1(con);
         }
     } else if (AST_ID(node) == INITS_EXPR) {
         union node **inits = EXPR_INITS(node);
@@ -189,6 +173,13 @@ static void print_tree1(struct print_context context)
         struct print_context rcontext;
         rcontext.level = level;
         rcontext.node = AST_KID(context.node, 1);
+        print_tree1(rcontext);
+    }
+
+    if (isexpr(node) && EXPR_OPERAND(node, 2)) {
+	struct print_context rcontext;
+        rcontext.level = level;
+        rcontext.node = EXPR_OPERAND(context.node, 2);
         print_tree1(rcontext);
     }
 }

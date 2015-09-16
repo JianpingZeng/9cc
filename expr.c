@@ -1050,8 +1050,9 @@ static union node * cond_expr1(union node *cond)
         els = wrap(ty, els);
     } else if ((isstruct(ty1) && isstruct(ty2)) ||
                (isunion(ty1) && isunion(ty2))) {
-        if (eqtype(ty1, ty2))
-	    ;
+        if (!eqtype(ty1, ty2))
+	    error("imcompatible type: '%s' and '%s'", type2s(ty1), type2s(ty2));
+	ty = ty1;
     } else if (isvoid(ty1) && isvoid(ty2)) {
 	ty = voidtype;
     } else if (isptr(ty1) && isptr(ty2)) {
@@ -1075,7 +1076,7 @@ static union node * cond_expr()
 {
     union node * or1 = logic_or();
     if (token->id == '?')
-        return cond_expr1(or1);
+        return cond_expr1(conv(or1));
     return or1;
 }
 
@@ -1083,7 +1084,7 @@ union node * assign_expr()
 {
     union node *or1 = logic_or();
     if (token->id == '?')
-        return cond_expr1(or1);
+        return cond_expr1(conv(or1));
     if (is_assign_op(token->id)) {
         int t = token->id;
         expect(t);
