@@ -23,7 +23,7 @@ static void print_decl(union node *node, struct print_context context)
 {
     int level;
 
-    fprintf(stderr, GREEN("%s "), nname(node));
+    fprintf(stderr, GREEN("%s ") YELLOW("%p "), nname(node), node);
     if (DECL_SYM(node)) {
 	if (DECL_SYM(node)->defined)
 	    fprintf(stderr, YELLOW("<defined> "));
@@ -57,7 +57,7 @@ static void print_expr(union node *node, struct print_context context)
     int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
 
-    fprintf(stderr, PURPLE("%s "), nname(node));
+    fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
     if (op > 0)
 	fprintf(stderr, "'%s' ", tname(op));
 
@@ -94,9 +94,9 @@ static void print_stmt(union node *node, struct print_context context)
     int level;
     union node *up = STMT_UP(node);
 
-    fprintf(stderr, PURPLE("%s ") YELLOW("%p"), nname(node), node);
+    fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
     if (up)
-        fprintf(stderr, " -> %s %p\n", nname(up), up);
+        fprintf(stderr, "-> %s %p\n", nname(up), up);
     fprintf(stderr, "\n");
     
     level = context.level + 1;
