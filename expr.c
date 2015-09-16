@@ -1065,26 +1065,36 @@ union node * expression()
     return assign1;
 }
 
-union node * constant(union node *expr, struct type *ty)
+static union node * const_expr()
 {
-    union node *ret = eval(expr);
+    return eval(cond_expr());
+}
+
+// TODO: 
+union node * cast(union node *cnst, struct type *ty)
+{
+    if (isarith(ty)) {
+	
+    } else if (isptr(ty)) {
+
+    } else if (isrecord(ty) || isarray(ty)) {
+
+    } else {
+	assert(0);
+    }
 }
 
 //TODO
 int intexpr()
 {
-    union node *cnst = constant(cond_expr(), inttype);
-    if (cnst) {
-	struct type *ty = AST_TYPE(cnst);
-	struct symbol *sym = EXPR_SYM(cnst);
-	if (op(ty) == INT)
-	    return sym->value.i;
-	else
-	    return sym->value.u;
-    } else {
+    int n = 0;
+    union node *cnst = const_expr();
+    if (cnst && isint(AST_TYPE(cnst)))
+        n = EXPR_SYM(cast(cnst, inttype))->value.i;
+    else
 	error("integer constant expression expected");
-    }
-    return 0;
+    
+    return n;
 }
 
 static union node * eval_bop(union node *expr)
