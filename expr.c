@@ -1181,96 +1181,10 @@ int intexpr()
     return n;
 }
 
-static union node * eval_bop(union node *expr)
-{
-    switch (EXPR_OP(expr)) {
-    case '=':
-    case MULEQ: case ADDEQ: case MINUSEQ: case DIVEQ:
-    case MODEQ: case BOREQ: case BANDEQ: case XOREQ:
-    case LSHIFTEQ: case RSHIFTEQ:
-	return NULL;
-    case ',':
-	
-    case '+':
-    case '-':
-    case '*':
-    case '/':
-    case '%':
-
-    case LSHIFT:
-    case RSHIFT:
-
-    case '>':
-    case '<':
-    case GEQ:
-    case LEQ:
-    case EQ:
-    case NEQ:
-
-    case '|':
-    case '&':
-    case '^':
-	    
-    case AND:
-    case OR:
-	if (eval(EXPR_OPERAND(expr, 0)) && eval(EXPR_OPERAND(expr, 1)))    
-	    return expr;
-	else
-	    return NULL;
-	break;
-    default:
-	assert(0);
-    }
-}
-
-static union node * eval_uop(union node *expr)
-{
-    switch (EXPR_OP(expr)) {
-    case INCR:
-    case DECR:
-    case '*':
-	return NULL;
-    case '&':
-    case '+':
-    case '-':
-    case '~':
-    case '!':
-	if (eval(EXPR_OPERAND(expr, 0)))
-	    return expr;
-	else
-	    return NULL;
-    case SIZEOF:
-	return expr;
-    default:
-	assert(0);
-    }
-}
-
+// TODO: 
 static bool eval_bool(union node *cond)
 {
-    switch (AST_ID(cond)) {
-    case INTEGER_LITERAL:
-	if (op(AST_TYPE(cond)) == INT)
-	    return EXPR_SYM(cond)->value.i;
-	else
-	    return EXPR_SYM(cond)->value.u;
-    case FLOAT_LITERAL:
-	if (kind(AST_TYPE(cond)) == LONG+DOUBLE)
-	    return EXPR_SYM(cond)->value.ld;
-	else
-	    return EXPR_SYM(cond)->value.d;
-    case STRING_LITERAL:
-	return true;
-    case UNARY_OPERATOR:
-	if (EXPR_OP(cond) == SIZEOF)
-	    return typesize(AST_TYPE(cond));
-	assert(0);
-    case REF_EXPR:
-	if (EXPR_OP(cond) == ENUM)
-	    return EXPR_SYM(cond)->value.i;
-    default:
-	assert(0);
-    }
+    return false;
 }
 
 static union node * eval(union node *expr)
@@ -1278,9 +1192,68 @@ static union node * eval(union node *expr)
     assert(isexpr(expr));
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
-        return eval_bop(expr);
+        {
+	    switch (EXPR_OP(expr)) {
+	    case '=':
+	    case MULEQ: case ADDEQ: case MINUSEQ: case DIVEQ:
+	    case MODEQ: case BOREQ: case BANDEQ: case XOREQ:
+	    case LSHIFTEQ: case RSHIFTEQ:
+		return NULL;
+	    case ',':
+	
+	    case '+':
+	    case '-':
+	    case '*':
+	    case '/':
+	    case '%':
+
+	    case LSHIFT:
+	    case RSHIFT:
+
+	    case '>':
+	    case '<':
+	    case GEQ:
+	    case LEQ:
+	    case EQ:
+	    case NEQ:
+
+	    case '|':
+	    case '&':
+	    case '^':
+	    
+	    case AND:
+	    case OR:
+		if (eval(EXPR_OPERAND(expr, 0)) && eval(EXPR_OPERAND(expr, 1)))    
+		    return expr;
+		else
+		    return NULL;
+		break;
+	    default:
+		assert(0);
+	    }
+	}
     case UNARY_OPERATOR:
-        return eval_uop(expr);
+        {
+	    switch (EXPR_OP(expr)) {
+	    case INCR:
+	    case DECR:
+	    case '*':
+		return NULL;
+	    case '&':
+	    case '+':
+	    case '-':
+	    case '~':
+	    case '!':
+		if (eval(EXPR_OPERAND(expr, 0)))
+		    return expr;
+		else
+		    return NULL;
+	    case SIZEOF:
+		return expr;
+	    default:
+		assert(0);
+	    }
+	}
     case PAREN_EXPR:
     case CONV_EXPR:
     case COMPOUND_LITERAL:
