@@ -218,6 +218,8 @@ extern bool isfloat(struct type *ty);
 extern bool isarith(struct type *ty);
 extern bool isscalar(struct type *ty);
 
+extern bool isptrto(struct type *ty, int kind);
+
 // sym.c
 // scope level
 enum {

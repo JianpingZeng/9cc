@@ -417,6 +417,36 @@ static void ensure_funcall(struct type *fty, union node **args)
     // TODO: 
 }
 
+static const char * is_castable(struct type *dst, struct type *src)
+{
+    if (isvoid(dst))
+	return NULL;
+    if (isarith(dst) && isarith(src))
+	return NULL;
+    if (isint(dst) && isptr(src))
+	return NULL;
+    if (isptrto(dst, FUNCTION)) {
+	if (isint(src) ||
+	    isptrto(src, FUNCTION))
+	    return NULL;
+    } else if (isptr(dst)) {
+	if (isint(src) ||
+	    isptrto(src, VOID))
+	    return NULL;
+	if (isptr(src) && !isfunc(rtype(src)))
+	    return NULL;
+    }
+
+    return format("cast from '%s' to '%s' is invalid", type2s(src), type2s(dst));
+}
+
+static void ensure_cast(struct type *dst, struct type *src)
+{
+    const char *msg = is_castable(dst, src);
+    if (msg)
+	error(msg);
+}
+
 static union node * compound_literal(struct type *ty)
 {
     union node * ret;
@@ -848,8 +878,12 @@ static union node * cast_expr()
 	union node *ret = NULL;
 	union node *cast = cast_expr();
 	if (cast) {
-	    union node *ret = ast_expr(CAST_EXPR, 0, cast, NULL);
-	    AST_TYPE(ret) = ty;
+	    SAVE_ERRORS;
+	    ensure_cast(ty, AST_TYPE(cast));
+	    if (NO_ERROR) {
+		union node *ret = ast_expr(CAST_EXPR, 0, cast, NULL);
+		AST_TYPE(ret) = ty;
+	    }
 	}
         
 	return ret;

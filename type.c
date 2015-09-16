@@ -577,6 +577,11 @@ bool isscalar(struct type *ty)
     return isarith(ty) || isptr(ty);
 }
 
+bool isptrto(struct type *ty, int kind)
+{
+    return isptr(ty) && kind(rtype(ty)) == kind;
+}
+
 #define LPAREN  1
 #define RPAREN  2
 #define FCOMMA  3
