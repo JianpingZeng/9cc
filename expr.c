@@ -1190,6 +1190,7 @@ static union node * eval(union node *expr)
     case PAREN_EXPR:
     case CONV_EXPR:
     case COMPOUND_LITERAL:
+	return eval(EXPR_OPERAND(expr, 0));
     case CAST_EXPR:
     case MEMBER_EXPR:
 	if (eval(EXPR_OPERAND(expr, 0)))
