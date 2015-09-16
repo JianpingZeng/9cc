@@ -1040,19 +1040,25 @@ static union node * cond_expr1(union node *cond)
     if (cond == NULL || then == NULL || els == NULL)
 	return ret;
 
+    struct type *ty1 = AST_TYPE(then);
+    struct type *ty2 = AST_TYPE(els);
     SAVE_ERRORS;
     ensure_type(cond, isscalar);
-    if (isarith(AST_TYPE(then)) && isarith(AST_TYPE(els))) {
-        ty = conv2(AST_TYPE(then), AST_TYPE(els));
+    if (isarith(ty1) && isarith(ty2)) {
+        ty = conv2(ty1, ty2);
         then = wrap(ty, then);
         els = wrap(ty, els);
-    } else if ((isstruct(AST_TYPE(then)) && isstruct(AST_TYPE(els))) ||
-               (isunion(AST_TYPE(then)) && isunion(AST_TYPE(els)))) {
-        if (!eqtype(AST_TYPE(then), AST_TYPE(els)))
-            ;
-        ty = unqual(AST_TYPE(then));
+    } else if ((isstruct(ty1) && isstruct(ty2)) ||
+               (isunion(ty1) && isunion(ty2))) {
+        if (eqtype(ty1, ty2))
+	    ;
+    } else if (isvoid(ty1) && isvoid(ty2)) {
+	ty = voidtype;
+    } else if (isptr(ty1) && isptr(ty2)) {
+	
+    } else {
+	error("type mismatch in conditional expression: '%s' and '%s'", type2s(ty1), type2s(ty2));
     }
-    //TODO: other cases
 
     if (NO_ERROR) {
 	ret = ast_expr(COND_EXPR, 0, NULL, NULL);
