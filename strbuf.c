@@ -86,7 +86,7 @@ void strbuf_catd(struct strbuf *s, long n)
     return strbuf_catn(s, ps, str + sizeof (str) - ps);
 }
 
-void strbuf_lstrip(struct strbuf *s)
+struct strbuf * strbuf_lstrip(struct strbuf *s)
 {
     char *p = s->str;
     while (s->len > 0 && isspace((unsigned char)*p)) {
@@ -95,17 +95,20 @@ void strbuf_lstrip(struct strbuf *s)
     }
     memmove(s->str, p, s->len);
     s->str[s->len] = '\0';
+    return s;
 }
 
-void strbuf_rstrip(struct strbuf *s)
+struct strbuf * strbuf_rstrip(struct strbuf *s)
 {
     while (s->len > 0 && isspace((unsigned char)s->str[s->len-1]))
         s->len--;
     s->str[s->len] = '\0';
+    return s;
 }
 
-void strbuf_strip(struct strbuf *s)
+struct strbuf * strbuf_strip(struct strbuf *s)
 {
     strbuf_lstrip(s);
     strbuf_rstrip(s);
+    return s;
 }

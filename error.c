@@ -13,40 +13,23 @@ static void cc_print_lead(int tag, const char *file, unsigned line, const char *
 {
     const char *lead;
     switch (tag) {
-        case WRN:
-            if (ENV.is_color_term)
-                lead = PURPLE "warning:" RESET;
-            else
-                lead = "warning:";
-            break;
-            
-        case ERR:
-            if (ENV.is_color_term)
-                lead = RED "error:" RESET;
-            else
-                lead = "error:";
-            break;
-            
-        case FTL:
-            if (ENV.is_color_term)
-                lead = RED "fatal:" RESET;
-            else
-                lead = "fatal:";
-            break;
-            
-        default:
-            assert(0);
+    case WRN:
+	lead = PURPLE "warning:" RESET;
+	break;
+    case ERR:
+	lead = RED "error:" RESET;
+	break;
+    case FTL:
+	lead = RED "fatal:" RESET;
+	break;
+    default:
+	assert(0);
     }
 
-    if (ENV.is_color_term) {
-        fprintf(stderr, CLEAR "%s:%u:" RESET " %s ", file, line, lead);
-        fprintf(stderr, CLEAR);
-        vfprintf(stderr, fmt, ap);
-        fprintf(stderr, RESET);
-    } else {
-        fprintf(stderr, "%s:%u: %s ", file, line, lead);
-        vfprintf(stderr, fmt, ap);
-    }
+    fprintf(stderr, CLEAR "%s:%u:" RESET " %s ", file, line, lead);
+    fprintf(stderr, CLEAR);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, RESET);
     fprintf(stderr, "\n");
 }
 

@@ -754,8 +754,8 @@ const char *type2s(struct type *ty)
 	    strbuf_cats(buf, s->type->name);
 	}
     }
-    
-    ret = strs(buf->str);
+
+    ret = strs(strbuf_strip(buf)->str);
     strbuf_free(buf);
     vec_purge(v);
     return ret;

@@ -187,11 +187,3 @@ const char *join(const char *dir, const char *name)
     
     return p;
 }
-
-//TODO - detect if color term
-int is_color_term()
-{
-    const char *term = getenv("TERM");
-    return term != NULL;
-}
-

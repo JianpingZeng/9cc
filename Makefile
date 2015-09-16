@@ -53,6 +53,10 @@ else ifeq ($(ARCH), x86_64)
 CFLAGS+=-DX64
 endif
 
+ifeq ($(shell test $(shell tput colors) -gt 7; echo $$?), 0)
+CFLAGS+=-DCOLOR_TERM
+endif
+
 all: $(MCC)
 
 $(MCC): $(MCC_OBJ) $(CC1_OBJ) $(SYS_OBJ)

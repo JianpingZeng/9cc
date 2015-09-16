@@ -16,7 +16,4 @@ extern const char *join(const char *dir, const char *name);
 extern int callsys(const char *path, char **argv);
 extern int runproc(int (*proc) (void *), void *context);
 
-// terminal
-extern int is_color_term();
-
 #endif
