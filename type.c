@@ -100,39 +100,39 @@ static struct type * install_type(const char *name, int kind, struct metrics m)
 
 void type_init()
 {
-#define INSTALL(type, name, kind, metrics)    type = install_type(name, kind, metrics)
+#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, metrics)
     
-    // type                     name                    kind            metrics             op
+    // type                     name                    kind            metrics            op
     
     // bool
-    INSTALL(booltype,           "_Bool",                _BOOL,          boolmetrics);       // UNSIGNED
+    INSTALL(booltype,           "_Bool",                _BOOL,          boolmetrics,       UNSIGNED);
     // char
-    INSTALL(chartype,           "char",                 CHAR,           charmetrics);       // INT
-    INSTALL(unsignedchartype,   "unsigned char",        CHAR,           charmetrics);       // UNSIGNED
-    INSTALL(signedchartype,     "signed char",          CHAR,           charmetrics);       // INT
+    INSTALL(chartype,           "char",                 CHAR,           charmetrics,       INT);
+    INSTALL(unsignedchartype,   "unsigned char",        CHAR,           charmetrics,       UNSIGNED);
+    INSTALL(signedchartype,     "signed char",          CHAR,           charmetrics,       INT);
     // wchar_t
-    INSTALL(wchartype,          "wchar_t",              UNSIGNED,       wcharmetrics);      // UNSIGNED
+    INSTALL(wchartype,          "wchar_t",              UNSIGNED,       wcharmetrics,      UNSIGNED);
     // short
-    INSTALL(shorttype,          "short",                SHORT,          shortmetrics);      // INT
-    INSTALL(unsignedshorttype,  "unsigned short",       SHORT,          shortmetrics);      // UNSIGNED
+    INSTALL(shorttype,          "short",                SHORT,          shortmetrics,      INT);
+    INSTALL(unsignedshorttype,  "unsigned short",       SHORT,          shortmetrics,      UNSIGNED);
     // int
-    INSTALL(inttype,            "int",                  INT,            intmetrics);        // INT
-    INSTALL(unsignedinttype,    "unsigned int",         UNSIGNED,       intmetrics);        // UNSIGNED
+    INSTALL(inttype,            "int",                  INT,            intmetrics,        INT);
+    INSTALL(unsignedinttype,    "unsigned int",         UNSIGNED,       intmetrics,        UNSIGNED);
     // long
-    INSTALL(longtype,           "long",                 LONG,           longmetrics);       // INT
-    INSTALL(unsignedlongtype,   "unsigned long",        LONG,           longmetrics);       // UNSIGNED
+    INSTALL(longtype,           "long",                 LONG,           longmetrics,       INT);
+    INSTALL(unsignedlongtype,   "unsigned long",        LONG,           longmetrics,       UNSIGNED);
     // long long
-    INSTALL(longlongtype,       "long long",            LONG+LONG,      longlongmetrics);   // INT
-    INSTALL(unsignedlonglongtype, "unsigned long long", LONG+LONG,      longlongmetrics);   // UNSIGNED
+    INSTALL(longlongtype,       "long long",            LONG+LONG,      longlongmetrics,   INT);
+    INSTALL(unsignedlonglongtype, "unsigned long long", LONG+LONG,      longlongmetrics,   UNSIGNED);
     // float
-    INSTALL(floattype,          "float",                FLOAT,          floatmetrics);      // FLOAT
+    INSTALL(floattype,          "float",                FLOAT,          floatmetrics,      FLOAT);
     // double
-    INSTALL(doubletype,         "double",               DOUBLE,         doublemetrics);     // FLOAT
-    INSTALL(longdoubletype,     "long double",          LONG+DOUBLE,    longdoublemetrics); // FLOAT
+    INSTALL(doubletype,         "double",               DOUBLE,         doublemetrics,     FLOAT);
+    INSTALL(longdoubletype,     "long double",          LONG+DOUBLE,    longdoublemetrics, FLOAT);
     // void
-    INSTALL(voidtype,           "void",                 VOID,           zerometrics);       // VOID
+    INSTALL(voidtype,           "void",                 VOID,           zerometrics,       VOID);
     // variable
-    INSTALL(vartype,            "...",                  ELLIPSIS,       zerometrics);       // ELLIPSIS
+    INSTALL(vartype,            "...",                  ELLIPSIS,       zerometrics,       ELLIPSIS);
 
 #undef INSTALL
 }
@@ -224,7 +224,7 @@ static bool isrestrict1(int kind)
             kind == CONST + VOLATILE + RESTRICT;
 }
 
-int combine(int qual1, int qual2)
+static int combine(int qual1, int qual2)
 {
     int ret = 0;
     if (isconst1(qual1) || isconst1(qual2))

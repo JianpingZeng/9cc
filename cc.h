@@ -169,7 +169,6 @@ extern const char *type2s(struct type *ty);
 extern unsigned typesize(struct type *ty);
 extern struct field * find_field(struct type *ty, const char *name);
 extern int indexof_field(struct type *ty, struct field *field);
-extern int combine(int qual1, int qual2);
 extern struct type * compose(struct type *ty1, struct type *ty2);
 
 extern struct type    *chartype;               // char
