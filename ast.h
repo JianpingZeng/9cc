@@ -104,7 +104,7 @@ extern union node * ast_decl(int id, int scope);
 extern union node * ast_stmt(int id, union node *l, union node *r);
 extern union node * ast_uop(int op, struct type *ty, union node *l);
 extern union node * ast_bop(int op, union node *l, union node *r);
-extern union node * ast_conv(struct type *ty, union node *l);
+extern union node * ast_conv(struct type *ty, union node *l, const char *name);
 extern union node * ast_inits();
 extern union node * ast_vinit();
 extern union node * ast_type(struct type *ty);
@@ -120,5 +120,10 @@ extern union node * ast_type(struct type *ty);
 #define is_while_stmt(n)    (AST_ID(n) == WHILE_STMT)
 #define is_dowhile_stmt(n)  (AST_ID(n) == DO_WHILE_STMT)
 #define is_iteration_stmt(n) (is_for_stmt(n) || is_while_stmt(n) || is_dowhile_stmt(n))
+
+#define  LValueToRValue          "LValueToRValue"
+#define  FunctionToPointerDecay  "FunctionToPointerDecay"
+#define  ArrayToPointerDecay     "ArrayToPointerDecay"
+#define  IntegralCast            "IntegralCast"
 
 #endif

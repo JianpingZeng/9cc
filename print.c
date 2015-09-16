@@ -58,15 +58,16 @@ static void print_expr(union node *node, struct print_context context)
     bool prefix = EXPR_PREFIX(node);
 
     fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
-    if (op > 0)
-	fprintf(stderr, "'%s' ", tname(op));
-
     print_ty(AST_TYPE(node));
 
     if (EXPR_SYM(node))
 	fprintf(stderr, CYAN("%s "), STR(EXPR_SYM(node)->name));
     if (op == INCR || op == DECR)
 	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
+    if (op > 0)
+	fprintf(stderr, "'%s' ", tname(op));
+    if (AST_NAME(node))
+	fprintf(stderr, "<" RED("%s")  "> ", AST_NAME(node));
     
     fprintf(stderr, "\n");
 

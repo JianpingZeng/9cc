@@ -17,6 +17,23 @@ static union node * eval(union node *expr);
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
 
+static int splitop(int op)
+{
+    switch (op) {
+    case MULEQ: return '*';
+    case DIVEQ: return '/';
+    case MODEQ: return '%';
+    case ADDEQ: return '+';
+    case MINUSEQ: return '-';
+    case LSHIFTEQ: return LSHIFT;
+    case RSHIFTEQ: return RSHIFT;
+    case BANDEQ: return '&';
+    case BOREQ: return '|';
+    case XOREQ: return '^';
+    default: assert(0);
+    }
+}
+
 static unsigned escape(const char **ps)
 {
     unsigned c = 0;
@@ -502,7 +519,7 @@ static union node * primary_expr()
 	    if (isenum(sym->type) && sym->sclass == ENUM)
 		EXPR_OP(ret) = ENUM; // enum ids
 	} else {
-	    error("use of undeclared symbol '%s'", token->name);
+	    error("use of undeclared identifier '%s'", token->name);
 	}
 	expect(t);
 	break;
@@ -1077,8 +1094,8 @@ static union node * cond_expr1(union node *cond)
 	    struct type *nty = is_nullptr(then) ? ty1 : ty2;
 	    struct type *tty = nty == ty1 ? ty2 : ty1;
 	    ty = ptr_type(compose(rtype(tty), rtype(nty)));
-	    then = ast_conv(ty, then);
-	    els = ast_conv(ty, els);
+	    then = ast_conv(ty, then, "TODO");
+	    els = ast_conv(ty, els, "TODO");
 	} else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
 	    struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
 	    struct type *tty = vty == ty1 ? ty2 : ty1;
@@ -1086,16 +1103,16 @@ static union node * cond_expr1(union node *cond)
 	        incompatible_types_error(ty1, ty2);
 	    } else {
 		ty = ptr_type(compose(rtype(vty), rtype(tty)));
-		then = ast_conv(ty, then);
-		els = ast_conv(ty, els);
+		then = ast_conv(ty, then, "TODO");
+		els = ast_conv(ty, els, "TODO");
 	    }
 	} else {
 	    struct type *rty1 = rtype(ty1);
 	    struct type *rty2 = rtype(ty2);
 	    if (eqtype(unqual(rty1), unqual(rty2))) {
 		ty = ptr_type(compose(rty1, rty2));
-		then = ast_conv(ty, then);
-		els = ast_conv(ty, els);
+		then = ast_conv(ty, then, "TODO");
+		els = ast_conv(ty, els, "TODO");
 	    } else {
 		incompatible_types_error(ty1, ty2);
 	    }
@@ -1428,11 +1445,44 @@ static union node * assignop(int op, union node *l, union node *r)
     if (l == NULL || r == NULL)
 	return NULL;
 
+#define TYPE_ERROR(ty1, op, ty2)  error("'%s'%s'%s' is invalid", type2s(ty1), tname(op), type2s(ty2))
+
     SAVE_ERRORS;
     ensure_assignable(l);
-    if (NO_ERROR)
-	ret = ast_bop(op, l, r);
+    if (op == '=') {
+	struct type *ty1 = AST_TYPE(l);
+	struct type *ty2 = AST_TYPE(r);
+	if (isarith(ty1) && isarith(ty2)) {
+	    goto out;
+	} else if ((isstruct(ty1) && isstruct(ty2)) ||
+	    (isunion(ty1) && isunion(ty2))) {
+	    if (!eqtype(unqual(ty1), unqual(ty2)))
+		TYPE_ERROR(ty1, op, ty2);
+	} else if (isptr(ty1)) {
 
+	} else {
+	    TYPE_ERROR(ty1, op, ty2);
+	}
+    } else {
+	int op2 = splitop(op);
+	union node *l1 = conv(l);
+	union node *r1 = conv(r);
+	if (op2 == '+' || op2 == '-') {
+	    struct type *ty1 = AST_TYPE(l1);
+	    struct type *ty2 = AST_TYPE(r1);
+	    if (!((isarith(ty1) && isarith(ty2)) ||
+		  (isptr(ty1) && isint(ty2))))
+	        TYPE_ERROR(ty1, op, ty2);
+	}
+	r = bop(op2, l1, r1);
+    }
+ out:
+    if (NO_ERROR) {
+	ret = ast_bop('=', l, r);
+	AST_TYPE(ret) = unqual(AST_TYPE(l));
+    }
+
+#undef TYPE_ERROR
     return ret;
 }
 
@@ -1441,7 +1491,7 @@ static union node * wrap(struct type *ty, union node *node)
     if (eqarith(ty, AST_TYPE(node)))
         return node;
     else
-        return ast_conv(ty, node);
+        return ast_conv(ty, node, "TODO");
 }
 
 // Universal Binary Conversion
@@ -1478,21 +1528,28 @@ static struct type * conv2(struct type *l, struct type *r)
 }
 
 // Universal Unary Conversion
-static union node * conv(union node *node)
+static union node *uuc(union node *node)
 {
-    if (node == NULL)
-	return NULL;
     switch (kind(AST_TYPE(node))) {
     case _BOOL: case CHAR: case SHORT:
-	return ast_conv(inttype, node);
+	return ast_conv(inttype, node, IntegralCast);
             
     case FUNCTION:
-	return ast_conv(ptr_type(AST_TYPE(node)), node);
+	return ast_conv(ptr_type(AST_TYPE(node)), node, FunctionToPointerDecay);
             
     case ARRAY:
-	return ast_conv(ptr_type(rtype(AST_TYPE(node))), node);
+	return ast_conv(ptr_type(rtype(AST_TYPE(node))), node, ArrayToPointerDecay);
             
     default:
 	return node;
     }
+}
+
+static union node * conv(union node *node)
+{
+    if (node == NULL)
+	return NULL;
+    if (is_lvalue(node))
+	node = ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
+    return uuc(node);
 }
