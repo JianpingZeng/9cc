@@ -200,19 +200,40 @@ void attach_type(struct type **typelist, struct type *type)
     }
 }
 
-static int combine(int t, int op)
+static bool isconst1(int kind)
 {
-    int r = CONST + VOLATILE + RESTRICT - t;
-    int x = op - t;
-    
-    if (op == t || r == x)
-        return op;
-    else if (op == r)
-        return t + op;
-    else if (x == CONST || x == VOLATILE || x == RESTRICT)
-        return op;
-    else
-        return t + op;
+    return  kind == CONST ||
+            kind == CONST + VOLATILE ||
+            kind == CONST + RESTRICT ||
+            kind == CONST + VOLATILE + RESTRICT;
+}
+
+static bool isvolatile1(int kind)
+{
+    return  kind == VOLATILE ||
+            kind == VOLATILE + CONST ||
+            kind == VOLATILE + RESTRICT ||
+            kind == CONST + VOLATILE + RESTRICT;
+}
+
+static bool isrestrict1(int kind)
+{
+    return  kind == RESTRICT ||
+            kind == RESTRICT + CONST ||
+            kind == RESTRICT + VOLATILE ||
+            kind == CONST + VOLATILE + RESTRICT;
+}
+
+int combine(int qual1, int qual2)
+{
+    int ret = 0;
+    if (isconst1(qual1) || isconst1(qual2))
+	ret += CONST;
+    if (isvolatile1(qual1) || isvolatile1(qual2))
+	ret += VOLATILE;
+    if (isrestrict1(qual1) || isrestrict1(qual2))
+	ret += RESTRICT;
+    return ret;
 }
 
 struct type * qual(int t, struct type *ty)
@@ -462,34 +483,16 @@ unsigned typesize(struct type *ty)
 	return ty->size;
 }
 
-//TODO
 struct type * compose(struct type *ty1, struct type *ty2)
 {
-    return NULL;
-}
-
-static bool isconst1(int kind)
-{
-    return  kind == CONST ||
-            kind == CONST + VOLATILE ||
-            kind == CONST + RESTRICT ||
-            kind == CONST + VOLATILE + RESTRICT;
-}
-
-static bool isvolatile1(int kind)
-{
-    return  kind == VOLATILE ||
-            kind == VOLATILE + CONST ||
-            kind == VOLATILE + RESTRICT ||
-            kind == CONST + VOLATILE + RESTRICT;
-}
-
-static bool isrestrict1(int kind)
-{
-    return  kind == RESTRICT ||
-            kind == RESTRICT + CONST ||
-            kind == RESTRICT + VOLATILE ||
-            kind == CONST + VOLATILE + RESTRICT;
+    if (isqual(ty1) && isqual(ty2)) {
+	int kind = combine(ty1->kind, ty2->kind);
+	return qual(kind, unqual(ty1));
+    } else if (isqual(ty2)) {
+	return qual(ty2->kind, ty1);
+    } else {
+	return ty1;
+    }
 }
 
 bool isconst(struct type *ty)

@@ -447,6 +447,12 @@ static void ensure_cast(struct type *dst, struct type *src)
 	error(msg);
 }
 
+// TODO: NULL pointer constant
+static bool is_nullptr(struct type *ty)
+{
+
+}
+
 static union node * compound_literal(struct type *ty)
 {
     union node * ret;
@@ -1042,8 +1048,10 @@ static union node * cond_expr1(union node *cond)
 
     struct type *ty1 = AST_TYPE(then);
     struct type *ty2 = AST_TYPE(els);
+
     SAVE_ERRORS;
     ensure_type(cond, isscalar);
+
     if (isarith(ty1) && isarith(ty2)) {
         ty = conv2(ty1, ty2);
         then = wrap(ty, then);
@@ -1051,12 +1059,38 @@ static union node * cond_expr1(union node *cond)
     } else if ((isstruct(ty1) && isstruct(ty2)) ||
                (isunion(ty1) && isunion(ty2))) {
         if (!eqtype(ty1, ty2))
-	    error("imcompatible type: '%s' and '%s'", type2s(ty1), type2s(ty2));
+	    incompatible_types_error(ty1, ty2);
 	ty = ty1;
     } else if (isvoid(ty1) && isvoid(ty2)) {
 	ty = voidtype;
     } else if (isptr(ty1) && isptr(ty2)) {
-	
+	if (is_nullptr(ty1) || is_nullptr(ty2)) {
+	    struct type *nty = is_nullptr(ty1) ? ty1 : ty2;
+	    struct type *tty = nty == ty1 ? ty2 : ty1;
+	    ty = ptr_type(compose(rtype(tty), rtype(nty)));
+	    then = ast_conv(ty, then);
+	    els = ast_conv(ty, els);
+	} else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
+	    struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+	    struct type *tty = vty == ty1 ? ty2 : ty1;
+	    if (isptrto(tty, FUNCTION)) {
+	        incompatible_types_error(ty1, ty2);
+	    } else {
+		ty = ptr_type(compose(rtype(vty), rtype(tty)));
+		then = ast_conv(ty, then);
+		els = ast_conv(ty, els);
+	    }
+	} else {
+	    struct type *rty1 = rtype(ty1);
+	    struct type *rty2 = rtype(ty2);
+	    if (eqtype(unqual(rty1), unqual(rty2))) {
+		ty = ptr_type(compose(rty1, rty2));
+		then = ast_conv(ty, then);
+		els = ast_conv(ty, els);
+	    } else {
+		incompatible_types_error(ty1, ty2);
+	    }
+	}
     } else {
 	error("type mismatch in conditional expression: '%s' and '%s'", type2s(ty1), type2s(ty2));
     }

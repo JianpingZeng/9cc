@@ -15,21 +15,21 @@ static void cc_print_lead(int tag, const char *file, unsigned line, const char *
     switch (tag) {
         case WRN:
             if (ENV.is_color_term)
-                lead = "\e[1;35mwarning:\e[0m";
+                lead = PURPLE "warning:" RESET;
             else
                 lead = "warning:";
             break;
             
         case ERR:
             if (ENV.is_color_term)
-                lead = "\e[1;31merror:\e[0m";
+                lead = RED "error:" RESET;
             else
                 lead = "error:";
             break;
             
         case FTL:
             if (ENV.is_color_term)
-                lead = "\e[1;31mfatal:\e[0m";
+                lead = RED "fatal:" RESET;
             else
                 lead = "fatal:";
             break;
@@ -39,10 +39,10 @@ static void cc_print_lead(int tag, const char *file, unsigned line, const char *
     }
 
     if (ENV.is_color_term) {
-        fprintf(stderr, "\e[1;38m%s:%u:\e[0m %s ", file, line, lead);
-        fprintf(stderr, "\e[1;38m");
+        fprintf(stderr, CLEAR "%s:%u:" RESET " %s ", file, line, lead);
+        fprintf(stderr, CLEAR);
         vfprintf(stderr, fmt, ap);
-        fprintf(stderr, "\e[0m");
+        fprintf(stderr, RESET);
     } else {
         fprintf(stderr, "%s:%u: %s ", file, line, lead);
         vfprintf(stderr, fmt, ap);
@@ -131,4 +131,9 @@ void conflicting_types_error(struct source src, struct symbol *sym)
 {
     errorf(src, "conflicting types for '%s', previous at %s line %u",
            sym->name, sym->src.file, sym->src.line);
+}
+
+void incompatible_types_error(struct type *ty1, struct type *ty2)
+{
+    error("imcompatible type: '%s' and '%s'", type2s(ty1), type2s(ty2));
 }

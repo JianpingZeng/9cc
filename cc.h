@@ -169,6 +169,8 @@ extern const char *type2s(struct type *ty);
 extern unsigned typesize(struct type *ty);
 extern struct field * find_field(struct type *ty, const char *name);
 extern int indexof_field(struct type *ty, struct field *field);
+extern int combine(int qual1, int qual2);
+extern struct type * compose(struct type *ty1, struct type *ty2);
 
 extern struct type    *chartype;               // char
 extern struct type    *unsignedchartype;       // unsigned char
@@ -285,6 +287,7 @@ extern void end_call(const char *funcname);
 
 extern void redefinition_error(struct source src, struct symbol *sym);
 extern void conflicting_types_error(struct source src, struct symbol *sym);
+extern void incompatible_types_error(struct type *ty1, struct type *ty2);
 
 // gen.c
 void walk(union node *tree);
