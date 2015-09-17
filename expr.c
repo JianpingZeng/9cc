@@ -467,6 +467,7 @@ static void ensure_cast(struct type *dst, struct type *src)
 	error(msg);
 }
 
+// TODO: waiting for eval
 static bool is_nullptr(union node *node)
 {
     assert(isptr(AST_TYPE(node)));
