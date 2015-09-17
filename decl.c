@@ -408,7 +408,7 @@ static struct type * func_or_array(int *params)
         } else {
             struct type *ftype = func_type();
             expect('(');
-            ftype->u.f.params = parameters(ftype, params);
+            PARAMS(ftype) = parameters(ftype, params);
             match(')', follow);
             attach_type(&ty, ftype);
         }
@@ -440,7 +440,7 @@ static struct type * abstract_func_or_array()
         } else {
             struct type *ftype = func_type();
             expect('(');
-            ftype->u.f.params = parameters(ftype, NULL);
+            PARAMS(ftype) = parameters(ftype, NULL);
             expect(')');
             attach_type(&ty, ftype);
         }
@@ -605,7 +605,7 @@ static void declarator(struct type **ty, const char **id, int *params)
 static bool firstfuncdef(struct type *ty)
 {
     bool prototype = token->id == '{';
-    bool oldstyle = (istypename(token) || token->kind == STATIC) && OLDSTYLE(ty) && ty->u.f.params;
+    bool oldstyle = (istypename(token) || token->kind == STATIC) && OLDSTYLE(ty) && PARAMS(ty);
     
     return isfunc(ty) && (prototype || oldstyle);
 }
@@ -686,7 +686,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
             node_id = ENUM_DECL;
         
         decl = ast_decl(node_id, SCOPE);
-        DECL_SYM(decl) = basety->u.s.tsym;
+        DECL_SYM(decl) = TSYM(basety);
         vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);
@@ -769,8 +769,8 @@ static void aggregate_set(struct type *ty, struct vector *v, int i, union node *
 	if (isarray(ty)) {
 	    rty = rtype(ty);
 	} else {
-	    if (ty->u.s.fields)
-		rty = ty->u.s.fields[0]->type;
+	    if (FIELDS(ty))
+		rty = FIELDS(ty)[0]->type;
 	}
 
 	if (rty) {
@@ -819,7 +819,7 @@ static void scalar_set(struct type *ty, struct vector *v, int i, union node *nod
 static void struct_init(struct type *ty, bool brace, struct vector *v)
 {
     bool designated = false;
-    int len = array_len((void **)ty->u.s.fields);
+    int len = array_len((void **)FIELDS(ty));
 
     for (int i = 0; ; i++) {
 	struct type *fieldty = NULL;
@@ -846,7 +846,7 @@ static void struct_init(struct type *ty, bool brace, struct vector *v)
 	    break;
 
 	if (!designated)
-	    fieldty = ty->u.s.fields[i]->type;
+	    fieldty = FIELDS(ty)[i]->type;
 	elem_init(fieldty, designated, v, i);
 	designated = false;
 	
@@ -1125,7 +1125,7 @@ static struct type * enum_decl()
             expect(',');
         }
         match('}', follow);
-        sym->type->u.s.ids = (struct symbol **)vtoa(v);
+        IDS(sym->type) = (struct symbol **)vtoa(v);
         sym->defined = true;
     } else if (id) {
         sym = lookup(id, tags);
@@ -1252,7 +1252,7 @@ static void fields(struct type *sty)
         
         match(';', follow);
     }
-    sty->u.s.fields = (struct field **)vtoa(v);
+    FIELDS(sty) = (struct field **)vtoa(v);
 }
 
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)
@@ -1270,7 +1270,7 @@ static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  s
         ensure_array(ty, src, PARAM);
         ty = ptr_type(rtype(ty));
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!ty->u.s.tsym->defined)
+        if (!TSYM(ty)->defined)
             warningf(src, "declaration of '%s' will not be visible outside of this function", type2s(ty));
     }
     
@@ -1304,7 +1304,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     CCAssert(SCOPE >= LOCAL);
     
     if (isfunc(ty)){
-        if (ty->u.f.params && OLDSTYLE(ty))
+        if (PARAMS(ty) && OLDSTYLE(ty))
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
         // TODO: convert to poniter
@@ -1337,7 +1337,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     }
     
     if (isfunc(ty)) {
-        if (ty->u.f.params && OLDSTYLE(ty))
+        if (PARAMS(ty) && OLDSTYLE(ty))
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
         // TODO: convert to poniter
@@ -1395,15 +1395,15 @@ static union node * funcdef(const char *id, struct type *ftype, int sclass,  str
         }
     }
     
-    if (ftype->u.f.params) {
-        for (int i=0; ftype->u.f.params[i]; i++) {
-            struct symbol *sym = ftype->u.f.params[i];
+    if (PARAMS(ftype)) {
+        for (int i=0; PARAMS(ftype)[i]; i++) {
+            struct symbol *sym = PARAMS(ftype)[i];
             sym->defined = true;
             // params id is required in prototype
             if (issymnamed(sym))
                 errorf(sym->src, "parameter name omitted");
             if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
-                if (!sym->type->u.s.tsym->defined)
+                if (!TSYM(sym->type)->defined)
                     errorf(sym->src, "variable has incomplete type '%s'", type2s(sym->type));
                 else if (sym->type->tag)
                     warningf(sym->src, "declaration of '%s' will not be visible outside of this function", type2s(sym->type));
@@ -1425,10 +1425,10 @@ static union node * funcdef(const char *id, struct type *ftype, int sclass,  str
             CCAssert(sym->name);
             if (AST_ID(decl) != VAR_DECL) {
                 warningf(sym->src, "empty declaraion");
-            } else if (ftype->u.f.params) {
+            } else if (PARAMS(ftype)) {
                 struct symbol *p = NULL;
-                for (int i=0; ftype->u.f.params[i]; i++) {
-                    struct symbol *s = ftype->u.f.params[i];
+                for (int i=0; PARAMS(ftype)[i]; i++) {
+                    struct symbol *s = PARAMS(ftype)[i];
                     if (s->name && !strcmp(s->name, sym->name)) {
                         p = s;
                         break;
@@ -1476,10 +1476,10 @@ static void decl_initializer(union node *decl, struct symbol *sym, int sclass, i
 
     if (isenum(ty) || isstruct(ty) || isunion(ty)) {
 	if (kind == LOCAL) {
-	    if (!ty->u.s.tsym->defined)
+	    if (!TSYM(ty)->defined)
 		error("variable has incomplete type '%s'", type2s(ty));
 	} else if (kind == GLOBAL) {
-	    if (init && !ty->u.s.tsym->defined && sclass != TYPEDEF)
+	    if (init && !TSYM(ty)->defined && sclass != TYPEDEF)
 		error("variable has incomplete type '%s'", type2s(ty));
 	} 
     }

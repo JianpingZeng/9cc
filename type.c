@@ -340,7 +340,7 @@ struct symbol * tag_type(int t, const char *tag, struct source src)
 
     sym->type = ty;
     sym->src = src;
-    ty->u.s.tsym = sym;
+    TSYM(ty) = sym;
     
     return sym;
 }
@@ -409,14 +409,14 @@ bool eqtype(struct type *ty1, struct type *ty2)
                 return true;
             } else if (!OLDSTYLE(ty1) && !OLDSTYLE(ty2)) {
                 // both prototype
-                return eqparams(ty1->u.f.params, ty2->u.f.params);
+                return eqparams(PARAMS(ty1), PARAMS(ty2));
             } else {
                 // one oldstyle, the other prototype
                 struct type *oldty = OLDSTYLE(ty1) ? ty1 : ty2;
                 struct type *newty = OLDSTYLE(ty1) ? ty2 : ty1;
-                if (newty->u.f.params) {
-                    for (int i=0; newty->u.f.params[i]; i++) {
-                        struct symbol *sym = newty->u.f.params[i];
+                if (PARAMS(newty)) {
+                    for (int i=0; PARAMS(newty)[i]; i++) {
+                        struct symbol *sym = PARAMS(newty)[i];
                         if (sym->type) {
                             struct type *ty = unqual(sym->type);
                             if (kind(ty) == CHAR || kind(ty) == SHORT)
@@ -429,10 +429,10 @@ bool eqtype(struct type *ty1, struct type *ty2)
                     }
                 }
                 
-                if (oldty->u.f.params == NULL)
+                if (PARAMS(oldty) == NULL)
                     return true;
                 
-                return eqparams(oldty->u.f.params, newty->u.f.params);
+                return eqparams(PARAMS(oldty), PARAMS(newty));
             }
             
         default:
@@ -445,26 +445,26 @@ struct field * find_field(struct type *sty, const char *name)
 {
     int i;
     struct type *ty = unqual(sty);
-    int len = array_len((void **)ty->u.s.fields);
+    int len = array_len((void **)FIELDS(ty));
     struct field *ret = NULL;
 
     if (name == NULL)
 	return NULL;
     for (i = 0; i < len; i++) {
-	struct field *field = ty->u.s.fields[i];
+	struct field *field = FIELDS(ty)[i];
 	if (field->name && !strcmp(name, field->name))
 	    break;
     }
     if (i < len)
-	ret = ty->u.s.fields[i];
+	ret = FIELDS(ty)[i];
 
     return ret;
 }
 
 int indexof_field(struct type *ty, struct field *field)
 {
-    for (int i = 0; i < array_len((void **)ty->u.s.fields); i++) {
-	struct field *f = ty->u.s.fields[i];
+    for (int i = 0; i < array_len((void **)FIELDS(ty)); i++) {
+	struct field *f = FIELDS(ty)[i];
 	if (field == f)
 	    return i;
     }
@@ -658,7 +658,7 @@ static void dotype2s(struct vector *l, struct vector *r)
             break;
         case FUNCTION:
         {
-            struct symbol **params = s->type->u.f.params;
+            struct symbol **params = PARAMS(s->type);
 	    int len = array_len((void **)params);
 	    vec_push(r, paren(FSPACE, NULL));
 	    vec_push(r, paren(LPAREN, s->type));

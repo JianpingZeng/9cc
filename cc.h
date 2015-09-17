@@ -116,6 +116,11 @@ struct field {
 #define isbitfield(field)    ((field)->bitsize > 0)
 
 #define OLDSTYLE(fty)    ((fty)->u.f.oldstyle)
+#define PARAMS(fty)      ((fty)->u.f.params)
+
+#define TSYM(ty)      ((ty)->u.s.tsym)
+#define IDS(ty)       ((ty)->u.s.ids)
+#define FIELDS(ty)    ((ty)->u.s.fields)
 
 // type.c
 struct type {

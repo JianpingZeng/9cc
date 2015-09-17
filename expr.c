@@ -445,7 +445,7 @@ static void ensure_funcall(struct type *fty, union node **args)
     if (OLDSTYLE(fty)) {
 	
     } else {
-
+        
     }
 }
 
