@@ -1285,6 +1285,11 @@ static union node * commaop(int op, union node *l, union node *r)
     if (l == NULL || r == NULL)
 	return NULL;
 
+    if (islvalue(l))
+	l = ast_conv(unqual(AST_TYPE(l)), l, LValueToRValue);
+    if (islvalue(r))
+	r = ast_conv(unqual(AST_TYPE(r)), r, LValueToRValue);
+    
     ret = ast_bop(op, l, r);
     AST_TYPE(ret) = AST_TYPE(r);
     return ret;

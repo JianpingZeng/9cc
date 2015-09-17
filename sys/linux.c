@@ -28,6 +28,7 @@ static void handler(int sig)
 void setup_sys()
 {
     signal(SIGSEGV, handler);
+    signal(SIGABRT, handler);
 }
 
 char *mktmpdir()
