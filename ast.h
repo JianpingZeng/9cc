@@ -121,9 +121,10 @@ extern union node * ast_type(struct type *ty);
 #define is_dowhile_stmt(n)  (AST_ID(n) == DO_WHILE_STMT)
 #define is_iteration_stmt(n) (is_for_stmt(n) || is_while_stmt(n) || is_dowhile_stmt(n))
 
-#define  LValueToRValue          "LValueToRValue"
-#define  FunctionToPointerDecay  "FunctionToPointerDecay"
-#define  ArrayToPointerDecay     "ArrayToPointerDecay"
-#define  IntegralCast            "IntegralCast"
+#define BitCast                 "BitCast"
+#define LValueToRValue          "LValueToRValue"
+#define FunctionToPointerDecay  "FunctionToPointerDecay"
+#define ArrayToPointerDecay     "ArrayToPointerDecay"
+#define IntegralCast            "IntegralCast"
 
 #endif

@@ -12,6 +12,7 @@ static union node * assignop(int op, union node *l, union node *r);
 static union node * conv(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
+static union node * bitcast(struct type *ty, union node *node);
 static union node * eval(union node *expr);
 
 #define SAVE_ERRORS    unsigned err = errors
@@ -1094,8 +1095,8 @@ static union node * cond_expr1(union node *cond)
 	    struct type *nty = is_nullptr(then) ? ty1 : ty2;
 	    struct type *tty = nty == ty1 ? ty2 : ty1;
 	    ty = ptr_type(compose(rtype(tty), rtype(nty)));
-	    then = ast_conv(ty, then, "TODO");
-	    els = ast_conv(ty, els, "TODO");
+	    then = bitcast(ty, then);
+	    els = bitcast(ty, els);
 	} else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
 	    struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
 	    struct type *tty = vty == ty1 ? ty2 : ty1;
@@ -1103,16 +1104,16 @@ static union node * cond_expr1(union node *cond)
 	        incompatible_types_error(ty1, ty2);
 	    } else {
 		ty = ptr_type(compose(rtype(vty), rtype(tty)));
-		then = ast_conv(ty, then, "TODO");
-		els = ast_conv(ty, els, "TODO");
+		then = bitcast(ty, then);
+		els = bitcast(ty, els);
 	    }
 	} else {
 	    struct type *rty1 = rtype(ty1);
 	    struct type *rty2 = rtype(ty2);
 	    if (eqtype(unqual(rty1), unqual(rty2))) {
 		ty = ptr_type(compose(rty1, rty2));
-		then = ast_conv(ty, then, "TODO");
-		els = ast_conv(ty, els, "TODO");
+		then = bitcast(ty, then);
+		els = bitcast(ty, els);
 	    } else {
 		incompatible_types_error(ty1, ty2);
 	    }
@@ -1491,7 +1492,15 @@ static union node * wrap(struct type *ty, union node *node)
     if (eqarith(ty, AST_TYPE(node)))
         return node;
     else
-        return ast_conv(ty, node, "TODO");
+        return ast_conv(ty, node, "WrapCast");
+}
+
+static union node * bitcast(struct type *ty, union node *node)
+{
+    if (eqtype(ty, AST_TYPE(node)))
+	return node;
+    else
+	return ast_conv(ty, node, BitCast);
 }
 
 // Universal Binary Conversion
