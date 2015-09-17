@@ -437,16 +437,25 @@ static bool is_bitfield(union node *node)
     return isbitfield(field);
 }
 
-static void ensure_funcall(struct type *fty, union node **args)
+// TODO: 
+static bool validate_funcall(struct type *fty, union node **args)
 {
     CCAssert(isfunc(fty));
     
-    // TODO:
     if (OLDSTYLE(fty)) {
 	
     } else {
-        
+        struct symbol **params = PARAMS(fty);
+	int len1 = array_len((void **)params);
+	int len2 = array_len((void **)args);
+
+	if (len1 <= len2) {
+
+	} else {
+	    error("too few arguments to function call, expected %d, have %d", len1, len2);
+	}
     }
+    return true;
 }
 
 static const char * is_castable(struct type *dst, struct type *src)
@@ -625,11 +634,9 @@ static union node * funcall(union node *node)
     if (node == NULL)
 	return ret;
 
-    SAVE_ERRORS;
     if (isptrto(AST_TYPE(node), FUNCTION)) {
 	struct type *fty = rtype(AST_TYPE(node));
-	ensure_funcall(fty, args);
-	if (NO_ERROR) {
+	if (validate_funcall(fty, args)) {
 	    ret = ast_expr(CALL_EXPR, 0, node, NULL);
 	    EXPR_ARGS(ret) = args;
 	    AST_TYPE(ret) = rtype(fty);
