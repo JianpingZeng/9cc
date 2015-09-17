@@ -323,7 +323,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
         ret = (struct symbol **)vtoa(v);
     } else if (token->id == ID) {
         // oldstyle
-        ftype->u.f.oldstyle = 1;
+        OLDSTYLE(ftype) = 1;
         struct vector *v = vec_new();
         for (;;) {
             if (token->id == ID)
@@ -338,7 +338,7 @@ static struct symbol ** parameters(struct type *ftype, int *params)
             error("a parameter list without types is only allowed in a function definition");
         ret = (struct symbol **) vtoa(v);
     } else if (token->id == ')') {
-        ftype->u.f.oldstyle = 1;
+        OLDSTYLE(ftype) = 1;
     } else {
         int follow[] = {')', IF, 0};
         if (token->id == ELLIPSIS)
@@ -605,7 +605,7 @@ static void declarator(struct type **ty, const char **id, int *params)
 static bool firstfuncdef(struct type *ty)
 {
     bool prototype = token->id == '{';
-    bool oldstyle = (istypename(token) || token->kind == STATIC) && ty->u.f.oldstyle && ty->u.f.params;
+    bool oldstyle = (istypename(token) || token->kind == STATIC) && OLDSTYLE(ty) && ty->u.f.params;
     
     return isfunc(ty) && (prototype || oldstyle);
 }
@@ -1304,7 +1304,7 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
     CCAssert(SCOPE >= LOCAL);
     
     if (isfunc(ty)){
-        if (ty->u.f.params && ty->u.f.oldstyle)
+        if (ty->u.f.params && OLDSTYLE(ty))
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
         // TODO: convert to poniter
@@ -1337,7 +1337,7 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
     }
     
     if (isfunc(ty)) {
-        if (ty->u.f.params && ty->u.f.oldstyle)
+        if (ty->u.f.params && OLDSTYLE(ty))
             error("a parameter list without types is only allowed in a function definition");
     } else if (isarray(ty)) {
         // TODO: convert to poniter

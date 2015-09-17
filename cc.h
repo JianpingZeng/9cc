@@ -115,6 +115,8 @@ struct field {
 
 #define isbitfield(field)    ((field)->bitsize > 0)
 
+#define OLDSTYLE(fty)    ((fty)->u.f.oldstyle)
+
 // type.c
 struct type {
     int kind;

@@ -404,16 +404,16 @@ bool eqtype(struct type *ty1, struct type *ty2)
         case FUNCTION:
             if (!eqtype(ty1->type, ty2->type))
                 return false;
-            if (ty1->u.f.oldstyle && ty2->u.f.oldstyle) {
+            if (OLDSTYLE(ty1) && OLDSTYLE(ty2)) {
                 // both oldstyle
                 return true;
-            } else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
+            } else if (!OLDSTYLE(ty1) && !OLDSTYLE(ty2)) {
                 // both prototype
                 return eqparams(ty1->u.f.params, ty2->u.f.params);
             } else {
                 // one oldstyle, the other prototype
-                struct type *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
-                struct type *newty = ty1->u.f.oldstyle ? ty2 : ty1;
+                struct type *oldty = OLDSTYLE(ty1) ? ty1 : ty2;
+                struct type *newty = OLDSTYLE(ty1) ? ty2 : ty1;
                 if (newty->u.f.params) {
                     for (int i=0; newty->u.f.params[i]; i++) {
                         struct symbol *sym = newty->u.f.params[i];

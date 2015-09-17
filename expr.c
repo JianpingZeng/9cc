@@ -440,7 +440,13 @@ static bool is_bitfield(union node *node)
 static void ensure_funcall(struct type *fty, union node **args)
 {
     CCAssert(isfunc(fty));
-    // TODO: 
+    
+    // TODO:
+    if (OLDSTYLE(fty)) {
+	
+    } else {
+
+    }
 }
 
 static const char * is_castable(struct type *dst, struct type *src)
