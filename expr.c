@@ -356,7 +356,7 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
     else if (is == isrecord)
 	name = "struct or union";
     else
-        CCAssert(0);
+        name = AST_TYPE(node)->name;
     
     if (!is(AST_TYPE(node)))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
@@ -639,6 +639,7 @@ static union node * funcall(union node *node)
     if (NO_ERROR) {
 	ret = ast_expr(CALL_EXPR, 0, ret, NULL);
 	EXPR_ARGS(ret) = args;
+	AST_TYPE(ret) = rtype(AST_TYPE(node));
     }
     return ret;
 }
