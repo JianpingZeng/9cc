@@ -1169,155 +1169,6 @@ union node * expression()
     return assign1;
 }
 
-static union node * const_expr()
-{
-    return eval(cond_expr());
-}
-
-// TODO: 
-union node * cast(union node *cnst, struct type *ty)
-{
-    if (isarith(ty)) {
-	
-    } else if (isptr(ty)) {
-
-    } else if (isrecord(ty) || isarray(ty)) {
-
-    } else {
-	assert(0);
-    }
-}
-
-//TODO
-int intexpr()
-{
-    int n = 0;
-    union node *cnst = const_expr();
-    if (cnst && isint(AST_TYPE(cnst)))
-        n = EXPR_SYM(cast(cnst, inttype))->value.i;
-    else
-	error("integer constant expression expected");
-    
-    return n;
-}
-
-// TODO: 
-static bool eval_bool(union node *cond)
-{
-    return false;
-}
-
-static union node * eval(union node *expr)
-{
-    assert(isexpr(expr));
-    switch (AST_ID(expr)) {
-    case BINARY_OPERATOR:
-        {
-	    switch (EXPR_OP(expr)) {
-	    case '=':
-		return NULL;
-	    case ',':
-	
-	    case '+':
-	    case '-':
-	    case '*':
-	    case '/':
-	    case '%':
-
-	    case LSHIFT:
-	    case RSHIFT:
-
-	    case '>':
-	    case '<':
-	    case GEQ:
-	    case LEQ:
-	    case EQ:
-	    case NEQ:
-
-	    case '|':
-	    case '&':
-	    case '^':
-	    
-	    case AND:
-	    case OR:
-		if (eval(EXPR_OPERAND(expr, 0)) && eval(EXPR_OPERAND(expr, 1)))    
-		    return expr;
-		else
-		    return NULL;
-		break;
-	    default:
-		assert(0);
-	    }
-	}
-    case UNARY_OPERATOR:
-        {
-	    switch (EXPR_OP(expr)) {
-	    case INCR:
-	    case DECR:
-	    case '*':
-		return NULL;
-	    case '&':
-	    case '+':
-	    case '-':
-	    case '~':
-	    case '!':
-		if (eval(EXPR_OPERAND(expr, 0)))
-		    return expr;
-		else
-		    return NULL;
-	    case SIZEOF:
-		return expr;
-	    default:
-		assert(0);
-	    }
-	}
-    case PAREN_EXPR:
-    case CONV_EXPR:
-    case COMPOUND_LITERAL:
-    case CAST_EXPR:
-	return eval(EXPR_OPERAND(expr, 0));
-    case MEMBER_EXPR:
-	if (eval(EXPR_OPERAND(expr, 0)))
-	    return expr;
-	else
-	    return NULL;
-    case COND_EXPR:
-	{
-	    union node *cond = eval(EXPR_COND(expr));
-	    if (cond) {
-		if (eval_bool(cond))
-		    return eval(EXPR_THEN(expr));
-		else
-		    return eval(EXPR_ELSE(expr));
-	    }
-	}
-	return NULL;
-    case REF_EXPR:
-        if (EXPR_OP(expr) == ENUM ||
-	    EXPR_SYM(expr)->sclass == EXTERN ||
-	    EXPR_SYM(expr)->sclass == STATIC ||
-	    EXPR_SYM(expr)->scope == GLOBAL)
-	    return expr;
-	else
-	    return NULL;
-    case INITS_EXPR:
-        for (int i = 0; i < array_len((void **)EXPR_INITS(expr)); i++) {
-	    union node *n = EXPR_INITS(expr)[i];
-	    if (AST_ID(n) != VINIT_EXPR && eval(n) == NULL)
-		return NULL;
-	}
-	return expr;
-    case INTEGER_LITERAL:
-    case FLOAT_LITERAL:
-    case STRING_LITERAL:
-	return expr;
-    case CALL_EXPR:
-	return NULL;
-    default:
-	assert(0);
-    }
-}
-
 static union node * uop(int op, struct type *ty, union node *l)
 {
     union node *node = ast_uop(op, ty, l);
@@ -1626,5 +1477,154 @@ static union node * conv(union node *node)
             
     default:
 	return node;
+    }
+}
+
+static union node * const_expr()
+{
+    return eval(cond_expr());
+}
+
+// TODO: 
+union node * cast(union node *cnst, struct type *ty)
+{
+    if (isarith(ty)) {
+	
+    } else if (isptr(ty)) {
+
+    } else if (isrecord(ty) || isarray(ty)) {
+
+    } else {
+	assert(0);
+    }
+}
+
+//TODO
+int intexpr()
+{
+    int n = 0;
+    union node *cnst = const_expr();
+    if (cnst && isint(AST_TYPE(cnst)))
+        n = EXPR_SYM(cast(cnst, inttype))->value.i;
+    else
+	error("integer constant expression expected");
+    
+    return n;
+}
+
+// TODO: 
+static bool eval_bool(union node *cond)
+{
+    return false;
+}
+
+static union node * eval(union node *expr)
+{
+    assert(isexpr(expr));
+    switch (AST_ID(expr)) {
+    case BINARY_OPERATOR:
+        {
+	    switch (EXPR_OP(expr)) {
+	    case '=':
+		return NULL;
+	    case ',':
+	
+	    case '+':
+	    case '-':
+	    case '*':
+	    case '/':
+	    case '%':
+
+	    case LSHIFT:
+	    case RSHIFT:
+
+	    case '>':
+	    case '<':
+	    case GEQ:
+	    case LEQ:
+	    case EQ:
+	    case NEQ:
+
+	    case '|':
+	    case '&':
+	    case '^':
+	    
+	    case AND:
+	    case OR:
+		if (eval(EXPR_OPERAND(expr, 0)) && eval(EXPR_OPERAND(expr, 1)))    
+		    return expr;
+		else
+		    return NULL;
+		break;
+	    default:
+		assert(0);
+	    }
+	}
+    case UNARY_OPERATOR:
+        {
+	    switch (EXPR_OP(expr)) {
+	    case INCR:
+	    case DECR:
+	    case '*':
+		return NULL;
+	    case '&':
+	    case '+':
+	    case '-':
+	    case '~':
+	    case '!':
+		if (eval(EXPR_OPERAND(expr, 0)))
+		    return expr;
+		else
+		    return NULL;
+	    case SIZEOF:
+		return expr;
+	    default:
+		assert(0);
+	    }
+	}
+    case PAREN_EXPR:
+    case CONV_EXPR:
+    case COMPOUND_LITERAL:
+    case CAST_EXPR:
+	return eval(EXPR_OPERAND(expr, 0));
+    case MEMBER_EXPR:
+	if (eval(EXPR_OPERAND(expr, 0)))
+	    return expr;
+	else
+	    return NULL;
+    case COND_EXPR:
+	{
+	    union node *cond = eval(EXPR_COND(expr));
+	    if (cond) {
+		if (eval_bool(cond))
+		    return eval(EXPR_THEN(expr));
+		else
+		    return eval(EXPR_ELSE(expr));
+	    }
+	}
+	return NULL;
+    case REF_EXPR:
+        if (EXPR_OP(expr) == ENUM ||
+	    EXPR_SYM(expr)->sclass == EXTERN ||
+	    EXPR_SYM(expr)->sclass == STATIC ||
+	    EXPR_SYM(expr)->scope == GLOBAL)
+	    return expr;
+	else
+	    return NULL;
+    case INITS_EXPR:
+        for (int i = 0; i < array_len((void **)EXPR_INITS(expr)); i++) {
+	    union node *n = EXPR_INITS(expr)[i];
+	    if (AST_ID(n) != VINIT_EXPR && eval(n) == NULL)
+		return NULL;
+	}
+	return expr;
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case STRING_LITERAL:
+	return expr;
+    case CALL_EXPR:
+	return NULL;
+    default:
+	assert(0);
     }
 }
