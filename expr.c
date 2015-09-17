@@ -1516,6 +1516,20 @@ static union node * assignop(int op, union node *l, union node *r)
     return ret;
 }
 
+static const char * castname(struct type *ty, union node *l)
+{
+    if (isfloat(ty) && isfloat(AST_TYPE(l)))
+	return FloatCast;
+    else if (isfloat(ty) && isint(AST_TYPE(l)))
+        return IntegerToFloatCast;
+    else if (isint(ty) && isint(AST_TYPE(l)))
+	return IntegralCast;
+    else if (isint(ty) && isfloat(AST_TYPE(l)))
+	return FloatToIntegerCast;
+    else
+	return "AutoCast";
+}
+
 static union node * wrap(struct type *ty, union node *node)
 {
     assert(isarith(ty));
@@ -1524,7 +1538,7 @@ static union node * wrap(struct type *ty, union node *node)
     if (eqarith(ty, AST_TYPE(node)))
         return node;
     else
-        return ast_conv(ty, node, NULL); // auto
+        return ast_conv(ty, node, castname(ty, node));
 }
 
 static union node * bitcast(struct type *ty, union node *node)

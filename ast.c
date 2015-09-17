@@ -63,20 +63,7 @@ union node * ast_conv(struct type *ty, union node *l, const char *name)
 {
     union node * expr = ast_expr(CONV_EXPR, 0, l, NULL);
     AST_TYPE(expr) = ty;
-    if (name) {
-	AST_NAME(expr) = name;
-    } else {
-	if (isfloat(ty) && isfloat(AST_TYPE(l)))
-	    AST_NAME(expr) = FloatCast;
-	else if (isfloat(ty) && isint(AST_TYPE(l)))
-	    AST_NAME(expr) = IntegerToFloatCast;
-	else if (isint(ty) && isint(AST_TYPE(l)))
-	    AST_NAME(expr) = IntegralCast;
-	else if (isint(ty) && isfloat(AST_TYPE(l)))
-	    AST_NAME(expr) = FloatToIntegerCast;
-	else
-	    AST_NAME(expr) = "AutoCast";
-    }
+    AST_NAME(expr) = name;
     return expr;
 }
 
