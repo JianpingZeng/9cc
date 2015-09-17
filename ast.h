@@ -126,5 +126,9 @@ extern union node * ast_type(struct type *ty);
 #define FunctionToPointerDecay  "FunctionToPointerDecay"
 #define ArrayToPointerDecay     "ArrayToPointerDecay"
 #define IntegralCast            "IntegralCast"
+#define FloatCast               "FloatCast"
+#define IntegerToFloatCast      "IntegerToFloatCast"
+#define FloatToIntegerCast      "FloatToIntegerCast"
+#define PointerToBoolean        "PointerToBoolean"
 
 #endif

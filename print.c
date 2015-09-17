@@ -59,7 +59,9 @@ static void print_expr(union node *node, struct print_context context)
 
     fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
     print_ty(AST_TYPE(node));
-
+    if (islvalue(node))
+	fprintf(stderr, "'" CYAN("lvalue") "' ");
+    
     if (EXPR_SYM(node))
 	fprintf(stderr, CYAN("%s "), STR(EXPR_SYM(node)->name));
     if (op == INCR || op == DECR)

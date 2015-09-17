@@ -13,6 +13,7 @@ static union node * conv(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
 static union node * bitcast(struct type *ty, union node *node);
+static union node * assigncast(struct type *ty, union node *node);
 static union node * eval(union node *expr);
 
 #define SAVE_ERRORS    unsigned err = errors
@@ -359,16 +360,16 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
 }
 
-static bool is_lvalue(union node *node)
+bool islvalue(union node *node)
 {
     if (AST_ID(node) == STRING_LITERAL)
         return true;
     if (AST_ID(node) == PAREN_EXPR)
-	return is_lvalue(EXPR_OPERAND(node, 0));
+	return islvalue(EXPR_OPERAND(node, 0));
     if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*')
 	return true;
     if (AST_ID(node) == MEMBER_EXPR)
-	return EXPR_OP(node) == DEREF ? true : is_lvalue(EXPR_OPERAND(node, 0));
+	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
     if (AST_ID(node) == REF_EXPR) {
         if (EXPR_OP(node) == ENUM)
             return false;
@@ -382,14 +383,14 @@ static bool is_lvalue(union node *node)
 
 static void ensure_lvalue(union node *node)
 {
-    if (!is_lvalue(node))
+    if (!islvalue(node))
         error("lvalue expect");
 }
 
 static const char * is_assignable(union node *node)
 {
     struct type *ty = AST_TYPE(node);
-    if (!is_lvalue(node))
+    if (!islvalue(node))
 	return "expression is not assignable";
     if (AST_ID(node) == PAREN_EXPR)
 	return is_assignable(node);
@@ -1446,6 +1447,7 @@ static union node * assignop(int op, union node *l, union node *r)
 
 #define TYPE_ERROR(ty1, ty2)  error("assign type '%s' to type '%s' is invalid", type2s(ty2), type2s(ty1))
 
+    struct type *retty = unqual(AST_TYPE(l));
     SAVE_ERRORS;
     ensure_assignable(l);
     if (HAS_ERROR)
@@ -1453,7 +1455,8 @@ static union node * assignop(int op, union node *l, union node *r)
     if (op == '=') {
 	struct type *ty1 = AST_TYPE(l);
 	struct type *ty2 = AST_TYPE(r);
-	if (isarith(ty1) && isarith(ty2)) {
+	if ((isarith(ty1) && isarith(ty2)) ||
+	    (unqual(ty1) == booltype && isptr(ty2))) {
 	    goto out;
 	} else if ((isstruct(ty1) && isstruct(ty2)) ||
 	    (isunion(ty1) && isunion(ty2))) {
@@ -1504,9 +1507,9 @@ static union node * assignop(int op, union node *l, union node *r)
 	r = bop(op2, l1, r1);
     }
  out:
-    if (NO_ERROR) {
+    if (NO_ERROR && (r = assigncast(retty, r))) {
 	ret = ast_bop('=', l, r);
-	AST_TYPE(ret) = unqual(AST_TYPE(l));
+	AST_TYPE(ret) = retty;
     }
 
 #undef TYPE_ERROR
@@ -1515,10 +1518,13 @@ static union node * assignop(int op, union node *l, union node *r)
 
 static union node * wrap(struct type *ty, union node *node)
 {
+    assert(isarith(ty));
+    assert(isarith(AST_TYPE(node)));
+    
     if (eqarith(ty, AST_TYPE(node)))
         return node;
     else
-        return ast_conv(ty, node, "WrapCast");
+        return ast_conv(ty, node, NULL); // auto
 }
 
 static union node * bitcast(struct type *ty, union node *node)
@@ -1527,6 +1533,29 @@ static union node * bitcast(struct type *ty, union node *node)
 	return node;
     else
 	return ast_conv(ty, node, BitCast);
+}
+
+static union node * assigncast(struct type *ty, union node *node)
+{
+    union node *ret = NULL;
+    struct type *ty2 = AST_TYPE(node);
+    
+    if (islvalue(node))
+	node = ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
+    
+    if (isarith(ty) && isarith(ty2)) {
+	ret = wrap(ty, node);
+    } else if (ty == booltype && isptr(ty2)) {
+	ret = ast_conv(ty, node, PointerToBoolean);
+    } else if ((isstruct(ty) && isstruct(ty2)) ||
+	       (isunion(ty) && isunion(ty2))) {
+	ret = bitcast(ty, node);
+    } else if (isptr(ty)) {
+	ret = bitcast(ty, node);
+    } else {
+	error("cannot cast from type '%s' to '%s'", type2s(ty2), type2s(ty));
+    }
+    return ret;
 }
 
 // Universal Binary Conversion
@@ -1568,8 +1597,9 @@ static union node * conv(union node *node)
 {
     if (node == NULL)
 	return NULL;
-    if (is_lvalue(node))
+    if (islvalue(node))
 	node = ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
+    
     switch (kind(AST_TYPE(node))) {
     case _BOOL: case CHAR: case SHORT:
 	return ast_conv(inttype, node, IntegralCast);
