@@ -17,6 +17,7 @@ static union node * eval(union node *expr);
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
+#define HAS_ERROR      (err != errors) 
 
 static int splitop(int op)
 {
@@ -1213,9 +1214,6 @@ static union node * eval(union node *expr)
         {
 	    switch (EXPR_OP(expr)) {
 	    case '=':
-	    case MULEQ: case ADDEQ: case MINUSEQ: case DIVEQ:
-	    case MODEQ: case BOREQ: case BANDEQ: case XOREQ:
-	    case LSHIFTEQ: case RSHIFTEQ:
 		return NULL;
 	    case ',':
 	
@@ -1450,6 +1448,8 @@ static union node * assignop(int op, union node *l, union node *r)
 
     SAVE_ERRORS;
     ensure_assignable(l);
+    if (HAS_ERROR)
+	goto out;
     if (op == '=') {
 	struct type *ty1 = AST_TYPE(l);
 	struct type *ty2 = AST_TYPE(r);
