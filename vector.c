@@ -78,6 +78,12 @@ void vec_push(struct vector *v, void *val)
     v->mem[v->len++] = val;
 }
 
+void vec_push_safe(struct vector *v, void *val)
+{
+    if (val)
+	vec_push(v, val);
+}
+
 void vec_push_front(struct vector *v, void *val)
 {
     CCAssert(val);

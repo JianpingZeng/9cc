@@ -19,6 +19,8 @@ extern void vec_set(struct vector *v, int index, void *val);
 
 extern void vec_push(struct vector *v, void *val);
 
+extern void vec_push_safe(struct vector *v, void *val);
+
 extern void vec_push_front(struct vector *v, void *val);
 
 extern void vec_pop(struct vector *v);

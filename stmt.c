@@ -338,7 +338,7 @@ static union node * _compound_stmt(union node *context)
             vec_add_array(v, (void **)declaration());
         else
             // statement
-            vec_push(v, statement(context));
+            vec_push_safe(v, statement(context));
     }
     
     STMT_BLKS(ret) = (union node **)vtoa(v);
