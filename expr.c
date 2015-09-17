@@ -24,6 +24,7 @@ static union node * eval(union node *expr);
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
+#define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
 
 static int splitop(int op)
 {
@@ -1168,7 +1169,7 @@ static union node * cond_expr1(union node *cond)
     } else if ((isstruct(ty1) && isstruct(ty2)) ||
                (isunion(ty1) && isunion(ty2))) {
         if (!eqtype(ty1, ty2))
-	    incompatible_types_error(ty1, ty2);
+	    error(INCOMPATIBLE_TYPES2, ty1, ty2);
 	ty = ty1;
     } else if (isvoid(ty1) && isvoid(ty2)) {
 	ty = voidtype;
@@ -1183,7 +1184,7 @@ static union node * cond_expr1(union node *cond)
 	    struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
 	    struct type *tty = vty == ty1 ? ty2 : ty1;
 	    if (isptrto(tty, FUNCTION)) {
-	        incompatible_types_error(ty1, ty2);
+	        error(INCOMPATIBLE_TYPES2, ty1, ty2);
 	    } else {
 		ty = ptr_type(compose(rtype(vty), rtype(tty)));
 		then = bitcast(ty, then);
@@ -1197,7 +1198,7 @@ static union node * cond_expr1(union node *cond)
 		then = bitcast(ty, then);
 		els = bitcast(ty, els);
 	    } else {
-		incompatible_types_error(ty1, ty2);
+		error(INCOMPATIBLE_TYPES2, ty1, ty2);
 	    }
 	}
     } else {

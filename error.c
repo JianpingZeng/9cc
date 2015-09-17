@@ -115,8 +115,3 @@ void conflicting_types_error(struct source src, struct symbol *sym)
     errorf(src, "conflicting types for '%s', previous at %s line %u",
            sym->name, sym->src.file, sym->src.line);
 }
-
-void incompatible_types_error(struct type *ty1, struct type *ty2)
-{
-    error("imcompatible type: '%s' and '%s'", type2s(ty1), type2s(ty2));
-}

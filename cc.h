@@ -295,7 +295,6 @@ extern void end_call(const char *funcname);
 
 extern void redefinition_error(struct source src, struct symbol *sym);
 extern void conflicting_types_error(struct source src, struct symbol *sym);
-extern void incompatible_types_error(struct type *ty1, struct type *ty2);
 
 // gen.c
 void walk(union node *tree);
