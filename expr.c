@@ -12,12 +12,14 @@ static union node * assignop(int op, union node *l, union node *r);
 static union node * decay(union node *node);
 static union node * ltor(union node *node);
 static union node * conv(union node *node);
+static union node * conva(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
 static union node * bitcast(struct type *ty, union node *node);
 static union node * assigncast(struct type *ty, union node *node);
 static bool is_nullptr(union node *node);
 static union node * eval(union node *expr);
+static const char * is_castable(struct type *dst, struct type *src);
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
@@ -438,8 +440,9 @@ static bool is_bitfield(union node *node)
 }
 
 // TODO: 
-static bool validate_funcall(struct type *fty, union node **args)
+static union node ** argscast(struct type *fty, union node **args)
 {
+    struct vector *v = vec_new();
     CCAssert(isfunc(fty));
     
     if (OLDSTYLE(fty)) {
@@ -448,14 +451,41 @@ static bool validate_funcall(struct type *fty, union node **args)
         struct symbol **params = PARAMS(fty);
 	int len1 = array_len((void **)params);
 	int len2 = array_len((void **)args);
+	if (len1 == 0)
+	    return NULL;	// parsing error
 
 	if (len1 <= len2) {
-
+	    struct symbol *last = params[len1 - 1];
+	    bool vargs = unqual(last->type) == vartype;
+	    int cmp1 = vargs ? len1 - 1 : len1;
+	    if (!vargs && len1 < len2) {
+		struct symbol *first = params[0];
+		if (isvoid(first->type))
+		    len1 = 0;
+		error("too many arguments to function call, expected %d, have %d", len1, len2);
+		return NULL;
+	    }
+	    for (int i = 0; i < cmp1; i++) {
+		struct type *dst = params[i]->type;
+		struct type *src = AST_TYPE(args[i]);
+		const char *msg = is_castable(dst, src);
+		if (msg) {
+		    error(msg);
+		    return NULL;
+		} else {
+		    vec_push(v, bitcast(dst, args[i]));
+		}
+	    }
+	    // default argument conversion
+	    for (int i = cmp1; i < len2; i++)
+		vec_push(v, conva(args[i]));
+	    
 	} else {
 	    error("too few arguments to function call, expected %d, have %d", len1, len2);
+	    return NULL;
 	}
     }
-    return true;
+    return (union node **)vtoa(v);
 }
 
 static const char * is_castable(struct type *dst, struct type *src)
@@ -636,7 +666,7 @@ static union node * funcall(union node *node)
 
     if (isptrto(AST_TYPE(node), FUNCTION)) {
 	struct type *fty = rtype(AST_TYPE(node));
-	if (validate_funcall(fty, args)) {
+	if ((args = argscast(fty, args))) {
 	    ret = ast_expr(CALL_EXPR, 0, node, NULL);
 	    EXPR_ARGS(ret) = args;
 	    AST_TYPE(ret) = rtype(fty);
@@ -1395,7 +1425,7 @@ static const char * castname(struct type *ty, union node *l)
     else if (isint(ty) && isfloat(AST_TYPE(l)))
 	return FloatToIntegerCast;
     else
-	return "AutoCast";
+	return BitCast;
 }
 
 static union node * wrap(struct type *ty, union node *node)
@@ -1414,7 +1444,7 @@ static union node * bitcast(struct type *ty, union node *node)
     if (eqtype(ty, AST_TYPE(node)))
 	return node;
     else
-	return ast_conv(ty, node, BitCast);
+	return ast_conv(ty, node, castname(ty, node));
 }
 
 static union node * assigncast(struct type *ty, union node *node)
@@ -1511,6 +1541,23 @@ static union node * conv(union node *node)
 	
     default:
 	return node;
+    }
+}
+
+// Default function argument conversion
+static union node * conva(union node *node)
+{
+    if (node == NULL)
+	return NULL;
+    if (islvalue(node))
+	node = ltor(node);
+    
+    switch (kind(AST_TYPE(node))) {
+    case FLOAT:
+	return ast_conv(doubletype, node, FloatCast);
+	
+    default:
+	return conv(node);
     }
 }
 
