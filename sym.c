@@ -78,5 +78,5 @@ struct symbol * install(const char *name, struct table **tpp, int scope)
 
 bool issymnamed(struct symbol *sym)
 {
-    return sym->name == NULL || is_digit(sym->name[0]);
+    return sym->name == NULL || isanonymous(sym->name);
 }

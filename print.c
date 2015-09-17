@@ -202,3 +202,5 @@ void print_tree(union node *tree)
     struct print_context context = {0, tree};
     print_tree1(context);
 }
+
+// TODO: typedef names

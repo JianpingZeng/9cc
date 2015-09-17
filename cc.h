@@ -83,6 +83,7 @@ union value {
 };
 
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
+#define isanonymous(name)   (is_digit((name)[0]))
 
 // ast.h
 #include "ast.h"
