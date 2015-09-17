@@ -630,7 +630,7 @@ static union node * funcall(union node *node)
 	    AST_TYPE(ret) = rtype(fty);
 	}
     } else {
-	error("function type expected, not type '%s'", type2s(AST_TYPE(node)));
+	ensure_type(node, isfunc);
     }
     
     return ret;
@@ -696,7 +696,7 @@ static union node * postfix_expr1(union node *ret)
 	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
 	case '[':   ret = subscript(ret); break;
-	case '(':   ret = funcall(conv(ret));   break;
+	case '(':   ret = funcall(conv(ret)); break;
 	case '.':
 	case DEREF: ret = direction(ret); break;
 	case INCR:
