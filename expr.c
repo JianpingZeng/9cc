@@ -1444,7 +1444,7 @@ static union node * assignop(int op, union node *l, union node *r)
     if (l == NULL || r == NULL)
 	return NULL;
 
-#define TYPE_ERROR(ty1, op, ty2)  error("'%s'%s'%s' is invalid", type2s(ty1), tname(op), type2s(ty2))
+#define TYPE_ERROR(ty1, ty2)  error("assign type '%s' to type '%s' is invalid", type2s(ty2), type2s(ty1))
 
     SAVE_ERRORS;
     ensure_assignable(l);
@@ -1458,11 +1458,37 @@ static union node * assignop(int op, union node *l, union node *r)
 	} else if ((isstruct(ty1) && isstruct(ty2)) ||
 	    (isunion(ty1) && isunion(ty2))) {
 	    if (!eqtype(unqual(ty1), unqual(ty2)))
-		TYPE_ERROR(ty1, op, ty2);
-	} else if (isptr(ty1)) {
-
+		TYPE_ERROR(ty1, ty2);
+	} else if (isptr(ty1) && isptr(ty2)) {
+	    if (is_nullptr(r)) {
+		goto out;
+	    } else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
+		struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+		struct type *tty = vty == ty1 ? ty2 : ty1;
+		if (isptrto(tty, FUNCTION)) {
+		    TYPE_ERROR(ty1, ty2);
+		} else {
+		    struct type *rty1 = rtype(ty1);
+		    struct type *rty2 = rtype(ty2);
+		    int qual1 = isqual(rty1) ? rty1->kind : 0;
+		    int qual2 = isqual(rty2) ? rty2->kind : 0;
+		    if (!contains(qual1, qual2))
+			TYPE_ERROR(ty1, ty2);
+		}
+	    } else {
+		struct type *rty1 = rtype(ty1);
+		struct type *rty2 = rtype(ty2);
+		if (eqtype(unqual(rty1), unqual(rty2))) {
+		    int qual1 = isqual(rty1) ? rty1->kind : 0;
+		    int qual2 = isqual(rty2) ? rty2->kind : 0;
+		    if (!contains(qual1, qual2))
+			TYPE_ERROR(ty1, ty2);
+		} else {
+		    TYPE_ERROR(ty1, ty2);
+		}
+	    }
 	} else {
-	    TYPE_ERROR(ty1, op, ty2);
+	    TYPE_ERROR(ty1, ty2);
 	}
     } else {
 	int op2 = splitop(op);
@@ -1473,7 +1499,7 @@ static union node * assignop(int op, union node *l, union node *r)
 	    struct type *ty2 = AST_TYPE(r1);
 	    if (!((isarith(ty1) && isarith(ty2)) ||
 		  (isptr(ty1) && isint(ty2))))
-	        TYPE_ERROR(ty1, op, ty2);
+	        TYPE_ERROR(ty1, ty2);
 	}
 	r = bop(op2, l1, r1);
     }

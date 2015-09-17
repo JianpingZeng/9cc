@@ -236,6 +236,17 @@ static int combine(int qual1, int qual2)
     return ret;
 }
 
+bool contains(int qual1, int qual2)
+{
+    if (isconst1(qual2) && !isconst1(qual1))
+	return false;
+    if (isvolatile1(qual2) && !isvolatile1(qual1))
+	return false;
+    if (isrestrict1(qual2) && !isrestrict1(qual1))
+	return false;
+    return true;
+}
+
 struct type * qual(int t, struct type *ty)
 {
     assert(ty);
