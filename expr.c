@@ -1518,6 +1518,7 @@ static struct type * conv2(struct type *l, struct type *r)
     
     struct type *u = op(l) == UNSIGNED ? l : r;
     struct type *s = op(l) == INT ? l : r;
+    assert(unqual(s) == s);
     
     if (rank(u) >= rank(s))
         return u;
@@ -1525,9 +1526,9 @@ static struct type * conv2(struct type *l, struct type *r)
     if (size(u) < size(s)) {
         return s;
     } else {
-        if (unqual(s) == inttype)
+        if (s == inttype)
             return unsignedinttype;
-        else if (unqual(s) == longtype)
+        else if (s == longtype)
             return unsignedlongtype;
         else
             return unsignedlonglongtype;
