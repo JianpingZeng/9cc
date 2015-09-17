@@ -9,7 +9,7 @@
 /**
  * Add alignment to make the compiler happy.
  */
-#define ALIGN_SIZE          sizeof(long long)
+#define ALIGN_SIZE          (sizeof (long long))
 #define ROUNDUP(x)          (((x)+((ALIGN_SIZE)-1))&(~((ALIGN_SIZE)-1)))
 #define HEAD_SIZE           ROUNDUP(sizeof(struct bucket_info))
 #define BUCKET_INFO(table)  ((struct bucket_info *)((char *)table - HEAD_SIZE))
@@ -38,6 +38,8 @@ static void * new_bucket(size_t size)
 void * cc_alloc(size_t size)
 {
     void *ret;
+
+    CCAssert(size <= RESERVED_SIZE - HEAD_SIZE);
     
     if (!first_bucket)
         current_bucket = first_bucket = new_bucket(size);
