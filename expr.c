@@ -16,6 +16,7 @@ static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
 static union node * bitcast(struct type *ty, union node *node);
 static union node * assigncast(struct type *ty, union node *node);
+static bool is_nullptr(union node *node);
 static union node * eval(union node *expr);
 
 #define SAVE_ERRORS    unsigned err = errors
@@ -467,22 +468,6 @@ static void ensure_cast(struct type *dst, struct type *src)
     const char *msg = is_castable(dst, src);
     if (msg)
 	error(msg);
-}
-
-// TODO: waiting for eval
-static bool is_nullptr(union node *node)
-{
-    CCAssert(isptr(AST_TYPE(node)));
-    union node *ret = eval(node);
-    if (ret == NULL)
-	return false;
-    if (AST_ID(ret) == INTEGER_LITERAL) {
-	if (op(AST_TYPE(ret)) == INT)
-	    return EXPR_SYM(ret)->value.i == 0;
-	else
-	    return EXPR_SYM(ret)->value.u == 0;
-    }
-    return false;
 }
 
 static union node * compound_literal(struct type *ty)
@@ -1508,6 +1493,22 @@ static union node * conv(union node *node)
     default:
 	return node;
     }
+}
+
+// TODO: waiting for eval
+static bool is_nullptr(union node *node)
+{
+    CCAssert(isptr(AST_TYPE(node)));
+    union node *ret = eval(node);
+    if (ret == NULL)
+	return false;
+    if (AST_ID(ret) == INTEGER_LITERAL) {
+	if (op(AST_TYPE(ret)) == INT)
+	    return EXPR_SYM(ret)->value.i == 0;
+	else
+	    return EXPR_SYM(ret)->value.u == 0;
+    }
+    return false;
 }
 
 static union node * const_expr()
