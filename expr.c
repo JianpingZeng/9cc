@@ -439,8 +439,7 @@ static bool is_bitfield(union node *node)
 
 static void ensure_funcall(struct type *fty, union node **args)
 {
-    if (!isfunc(fty))
-	return;
+    CCAssert(isfunc(fty));
     // TODO: 
 }
 
