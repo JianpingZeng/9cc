@@ -570,9 +570,7 @@ static union node ** argument_expr_list()
     if (firstexpr(token)) {
         struct vector *v = vec_new();
         for (;;) {
-	    union node *e = assign_expr();
-	    if (e)
-		vec_push(v, e);
+	    vec_push_safe(v, assign_expr());
 	    if (token->id != ',')
 		break;
 	    expect(',');
