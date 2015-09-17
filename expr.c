@@ -514,12 +514,14 @@ static union node ** argscast(struct type *fty, union node **args)
 		    vec_push(v, bitcast(dst, args[i]));
 		}
 	    }
-	    // default argument conversion
 	    for (int i = cmp1; i < len2; i++)
 		vec_push(v, conva(args[i]));
 	    
 	} else {
-	    error("too few arguments to function call, expected %d, have %d", len1, len2);
+	    if (vargs)
+		error("too few arguments to function call, expected at least %d, have %d", len1, len2);;
+	    else
+		error("too few arguments to function call, expected %d, have %d", len1, len2);
 	    return NULL;
 	}
     }
