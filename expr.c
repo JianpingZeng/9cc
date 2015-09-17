@@ -1285,6 +1285,10 @@ static union node * commaop(int op, union node *l, union node *r)
     if (l == NULL || r == NULL)
 	return NULL;
 
+    if (isarray(AST_TYPE(l)) || isfunc(AST_TYPE(l)))
+    	l = decay(l);
+    if (isarray(AST_TYPE(r)) || isfunc(AST_TYPE(r)))
+    	r = decay(r);
     if (islvalue(l))
 	l = ast_conv(unqual(AST_TYPE(l)), l, LValueToRValue);
     if (islvalue(r))
@@ -1410,7 +1414,7 @@ static union node * assigncast(struct type *ty, union node *node)
 {
     union node *ret = NULL;
     struct type *ty2 = AST_TYPE(node);
-    
+
     if (islvalue(node))
 	node = ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
     
@@ -1463,6 +1467,20 @@ static struct type * conv2(struct type *l, struct type *r)
     return l;
 }
 
+union node * decay(union node *node)
+{
+    switch (kind(AST_TYPE(node))) {
+    case FUNCTION:
+	return ast_conv(ptr_type(AST_TYPE(node)), node, FunctionToPointerDecay);
+            
+    case ARRAY:
+	return ast_conv(ptr_type(rtype(AST_TYPE(node))), node, ArrayToPointerDecay);
+
+    default:
+	return node;
+    }
+}
+
 // Universal Unary Conversion
 static union node * conv(union node *node)
 {
@@ -1475,12 +1493,10 @@ static union node * conv(union node *node)
     case _BOOL: case CHAR: case SHORT:
 	return ast_conv(inttype, node, IntegralCast);
             
-    case FUNCTION:
-	return ast_conv(ptr_type(AST_TYPE(node)), node, FunctionToPointerDecay);
-            
+    case FUNCTION:            
     case ARRAY:
-	return ast_conv(ptr_type(rtype(AST_TYPE(node))), node, ArrayToPointerDecay);
-            
+	return decay(node);
+	
     default:
 	return node;
     }

@@ -5,14 +5,15 @@ static union node * _compound_stmt(union node *context);
 
 static union node * expr_stmt()
 {
-    union node *ret;
+    union node *ret = NULL;
     
     if (token->id == ';') {
-        ret = NULL;
+        // do nothing
     } else if (firstexpr(token)) {
-        ret = ast_stmt(EXPR_STMT, expression(), NULL);
+	union node *e = expression();
+	if (e)
+	    ret = ast_stmt(EXPR_STMT, decay(e), NULL);
     } else {
-        ret = NULL;
         error("missing statement before '%s'", token->name);
     }
     
