@@ -9,6 +9,7 @@ static union node * bop(int op, union node *l, union node *r);
 static union node * logicop(int op, union node *l, union node *r);
 static union node * commaop(int op, union node *l, union node *r);
 static union node * assignop(int op, union node *l, union node *r);
+static union node * decay(union node *node);
 static union node * ltor(union node *node);
 static union node * conv(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
@@ -1468,7 +1469,7 @@ static struct type * conv2(struct type *l, struct type *r)
     return l;
 }
 
-union node * decay(union node *node)
+static union node * decay(union node *node)
 {
     switch (kind(AST_TYPE(node))) {
     case FUNCTION:

@@ -12,7 +12,7 @@ static union node * expr_stmt()
     } else if (firstexpr(token)) {
 	union node *e = expression();
 	if (e)
-	    ret = ast_stmt(EXPR_STMT, decay(e), NULL);
+	    ret = ast_stmt(EXPR_STMT, e, NULL);
     } else {
         error("missing statement before '%s'", token->name);
     }

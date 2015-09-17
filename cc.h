@@ -92,7 +92,6 @@ extern union node * expression();
 extern union node * assign_expr();
 extern int intexpr();
 extern bool islvalue(union node *node);
-extern union node * decay(union node *node);
 
 // decl.c
 extern union node * initializer_list(struct type *ty);
