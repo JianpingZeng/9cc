@@ -125,5 +125,5 @@ char *format(const char *fmt, ...)
     va_start(ap, fmt);
     char *r = vformat(fmt, ap);
     va_end(ap);
-    return strs(r);
+    return r;
 }
