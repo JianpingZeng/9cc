@@ -356,8 +356,12 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
         name = "arithmetic";
     else if (is == isrecord)
 	name = "struct or union";
+    else if (is == isfunc)
+        name = "function";
+    else if (is == isptr)
+	name = "pointer";
     else
-        name = unqual(AST_TYPE(node))->name;
+	CCAssert(0);
     
     if (!is(AST_TYPE(node)))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
