@@ -19,7 +19,6 @@ static union node * bitcast(struct type *ty, union node *node);
 static union node * assigncast(struct type *ty, union node *node);
 static bool is_nullptr(union node *node);
 static union node * eval(union node *expr);
-static const char * is_castable(struct type *dst, struct type *src);
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
@@ -439,6 +438,36 @@ static bool is_bitfield(union node *node)
     return isbitfield(field);
 }
 
+static const char * is_castable(struct type *dst, struct type *src)
+{
+    if (isvoid(dst))
+	return NULL;
+    if (isarith(dst) && isarith(src))
+	return NULL;
+    if (isint(dst) && isptr(src))
+	return NULL;
+    if (isptrto(dst, FUNCTION)) {
+	if (isint(src) ||
+	    isptrto(src, FUNCTION))
+	    return NULL;
+    } else if (isptr(dst)) {
+	if (isint(src) ||
+	    isptrto(src, VOID))
+	    return NULL;
+	if (isptr(src) && !isfunc(rtype(src)))
+	    return NULL;
+    }
+
+    return format("incompatible type conversion from '%s' to '%s'", type2s(src), type2s(dst));
+}
+
+static void ensure_cast(struct type *dst, struct type *src)
+{
+    const char *msg = is_castable(dst, src);
+    if (msg)
+	error(msg);
+}
+
 // TODO: 
 static union node ** argscast(struct type *fty, union node **args)
 {
@@ -495,36 +524,6 @@ static union node ** argscast(struct type *fty, union node **args)
 	}
     }
     return (union node **)vtoa(v);
-}
-
-static const char * is_castable(struct type *dst, struct type *src)
-{
-    if (isvoid(dst))
-	return NULL;
-    if (isarith(dst) && isarith(src))
-	return NULL;
-    if (isint(dst) && isptr(src))
-	return NULL;
-    if (isptrto(dst, FUNCTION)) {
-	if (isint(src) ||
-	    isptrto(src, FUNCTION))
-	    return NULL;
-    } else if (isptr(dst)) {
-	if (isint(src) ||
-	    isptrto(src, VOID))
-	    return NULL;
-	if (isptr(src) && !isfunc(rtype(src)))
-	    return NULL;
-    }
-
-    return format("cast from '%s' to '%s' is invalid", type2s(src), type2s(dst));
-}
-
-static void ensure_cast(struct type *dst, struct type *src)
-{
-    const char *msg = is_castable(dst, src);
-    if (msg)
-	error(msg);
 }
 
 static union node * compound_literal(struct type *ty)
