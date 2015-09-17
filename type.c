@@ -249,7 +249,7 @@ bool contains(int qual1, int qual2)
 
 struct type * qual(int t, struct type *ty)
 {
-    assert(ty);
+    CCAssert(ty);
     struct type *qty = new_type();
     if (isqual(ty))
         qty->kind = combine(t, ty->kind);
@@ -436,7 +436,7 @@ bool eqtype(struct type *ty1, struct type *ty2)
             }
             
         default:
-            assert(0);
+            CCAssert(0);
             return false;
     }
 }
@@ -468,7 +468,7 @@ int indexof_field(struct type *ty, struct field *field)
 	if (field == f)
 	    return i;
     }
-    assert(0);
+    CCAssert(0);
     return -1;
 }
 

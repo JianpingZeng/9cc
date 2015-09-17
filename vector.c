@@ -40,13 +40,13 @@ void vec_purge(struct vector *v)
 
 void * vec_at(struct vector *v, int index)
 {
-    assert(index >= 0 && index < v->len);
+    CCAssert(index >= 0 && index < v->len);
     return v->mem[index];
 }
 
 void vec_set(struct vector *v, int index, void *val)
 {
-    assert(index >= 0 && index < v->len);
+    CCAssert(index >= 0 && index < v->len);
     v->mem[index] = val;
 }
 
@@ -72,7 +72,7 @@ void vec_add(struct vector *v, struct vector *v2)
 
 void vec_push(struct vector *v, void *val)
 {
-    assert(val);
+    CCAssert(val);
     if (v->len == v->alloc)
         vec_grow(v);
     v->mem[v->len++] = val;
@@ -80,7 +80,7 @@ void vec_push(struct vector *v, void *val)
 
 void vec_push_front(struct vector *v, void *val)
 {
-    assert(val);
+    CCAssert(val);
     if (v->len == v->alloc)
 	vec_grow(v);
     memmove(v->mem+1, v->mem, v->len * sizeof (void *));

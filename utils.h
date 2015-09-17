@@ -11,6 +11,8 @@
 
 #define MAX(x, y)    (((x) > (y)) ? (x) : (y))
 
+#define CCAssert(expr)    assert(expr)
+
 // wrapper.c
 extern void die(const char *fmt, ...);
 extern void println(const char *fmt, ...);

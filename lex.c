@@ -142,7 +142,7 @@ static void skipline()
 
 static void fline()
 {
-    assert(is_digit(*pc));
+    CCAssert(is_digit(*pc));
     
     unsigned line = 0;
     
@@ -185,7 +185,7 @@ static void fpragma()
 
 static void fsync()
 {
-    assert(*pc++ == '#');
+    CCAssert(*pc++ == '#');
     
     skipblank();
     
@@ -914,7 +914,7 @@ static void identifier()
 
 static void escape(struct strbuf *s)
 {
-    assert(*pc == '\\');
+    CCAssert(*pc == '\\');
     strbuf_catn(s, pc++, 2);
     switch (*pc++) {
         case 'a': case 'b': case 'f':

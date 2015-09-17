@@ -166,7 +166,7 @@ static void print_tree1(struct print_context context)
     else if (isstmt(node))
         print_stmt(node, context);
     else
-        assert(0);
+        CCAssert(0);
     
     if (AST_KID(context.node, 0)) {
         struct print_context lcontext;

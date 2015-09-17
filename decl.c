@@ -166,7 +166,7 @@ static struct type * specifiers(int *sclass)
             else if (p == &type || p == &size)
                 errorf(src, "duplicate type specifier at '%s'", name);
             else
-                assert(0);
+                CCAssert(0);
         }
         
         *p = t;
@@ -249,7 +249,7 @@ static void qualifiers(struct type *atype)
                 break;
                 
             default:
-                assert(0);
+                CCAssert(0);
         }
         
         if (*p != 0)
@@ -454,7 +454,7 @@ static struct type * ptr_decl()
     struct type *ret = NULL;
     int con, vol, res, type;
     
-    assert(token->id == '*');
+    CCAssert(token->id == '*');
     
     for (;;) {
         int *p, t = token->id;
@@ -520,7 +520,7 @@ static void param_declarator(struct type **ty, const char **id)
             expect(')');
             if (token->id == '(' || token->id == '[') {
                 struct type *faty;
-                assert(id);
+                CCAssert(id);
                 if (*id) {
                     faty = func_or_array(NULL);
                 } else {
@@ -540,7 +540,7 @@ static void param_declarator(struct type **ty, const char **id)
 
 static void abstract_declarator(struct type **ty)
 {
-    assert(ty);
+    CCAssert(ty);
     
     if (token->id == '*' || token->id == '(' || token->id == '[') {
         if (token->id == '*') {
@@ -568,7 +568,7 @@ static void abstract_declarator(struct type **ty)
 
 static void declarator(struct type **ty, const char **id, int *params)
 {
-    assert(ty && id);
+    CCAssert(ty && id);
     int follow[] = {',', '=', IF, 0};
     
     if (token->id == '*') {
@@ -1039,7 +1039,7 @@ struct type * typename()
 
 union node ** declaration()
 {
-    assert(SCOPE >= LOCAL);
+    CCAssert(SCOPE >= LOCAL);
     return (union node **)vtoa(decls(localdecl));
 }
 
@@ -1050,7 +1050,7 @@ union node * translation_unit()
     
     for (; token->id != EOI; ) {
         if (firstdecl(token)) {
-            assert(SCOPE == GLOBAL);
+            CCAssert(SCOPE == GLOBAL);
             vec_add(v, decls(globaldecl));
         } else {
             if (token->id != ';')
@@ -1300,8 +1300,8 @@ static struct symbol * localdecl(const char *id, struct type *ty, int sclass, st
 {
     struct symbol *sym = NULL;
     
-    assert(id);
-    assert(SCOPE >= LOCAL);
+    CCAssert(id);
+    CCAssert(SCOPE >= LOCAL);
     
     if (isfunc(ty)){
         if (ty->u.f.params && ty->u.f.oldstyle)
@@ -1328,8 +1328,8 @@ static struct symbol * globaldecl(const char *id, struct type *ty, int sclass, s
 {
     struct symbol *sym = NULL;
     
-    assert(id);
-    assert(SCOPE == GLOBAL);
+    CCAssert(id);
+    CCAssert(SCOPE == GLOBAL);
     
     if (sclass == AUTO || sclass == REGISTER) {
         errorf(src, "illegal storage class on file-scoped variable");
@@ -1365,7 +1365,7 @@ static union node * funcdef(const char *id, struct type *ftype, int sclass,  str
 {
     union node *decl = ast_decl(FUNC_DECL, SCOPE);
     
-    assert(SCOPE == PARAM);
+    CCAssert(SCOPE == PARAM);
     
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", tname(sclass));
@@ -1422,7 +1422,7 @@ static union node * funcdef(const char *id, struct type *ftype, int sclass,  str
             union node *decl = (union node *)vec_at(v, i);
             struct symbol *sym = DECL_SYM(decl);
             
-            assert(sym->name);
+            CCAssert(sym->name);
             if (AST_ID(decl) != VAR_DECL) {
                 warningf(sym->src, "empty declaraion");
             } else if (ftype->u.f.params) {

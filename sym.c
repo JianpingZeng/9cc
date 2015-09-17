@@ -33,7 +33,7 @@ void exit_scope()
         tags = tags->up;
     if (identifiers->scope == level)
         identifiers = identifiers->up;
-    assert(level >= GLOBAL);
+    CCAssert(level >= GLOBAL);
     level--;
 }
 
@@ -45,7 +45,7 @@ struct symbol * anonymous(struct table **tpp, int scope)
 
 struct symbol * lookup(const char *name, struct table *table)
 {
-    assert(name);
+    CCAssert(name);
     struct symbol *s = NULL;
     
     for (struct table *t = table; t; t = t->up) {

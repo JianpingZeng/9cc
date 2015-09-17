@@ -23,7 +23,7 @@ static void cc_print_lead(int tag, const char *file, unsigned line, const char *
 	lead = RED("fatal:");
 	break;
     default:
-	assert(0);
+	CCAssert(0);
     }
 
     fprintf(stderr, CLEAR "%s:%u:" RESET " %s ", file, line, lead);

@@ -33,7 +33,7 @@ static int splitop(int op)
     case BANDEQ: return '&';
     case BOREQ: return '|';
     case XOREQ: return '^';
-    default: assert(0);
+    default: CCAssert(0);
     }
 }
 
@@ -41,7 +41,7 @@ static unsigned escape(const char **ps)
 {
     unsigned c = 0;
     const char *s = *ps;
-    assert(*s == '\\');
+    CCAssert(*s == '\\');
     s += 1;
     switch (*s++) {
     case 'a': c = 7; break;
@@ -294,7 +294,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
 	sym->value.u = n;
 	break;
     default:
-	assert(0);
+	CCAssert(0);
     }
 }
 
@@ -330,7 +330,7 @@ static void string_constant(struct token *t, struct symbol *sym)
         size_t wlen = mbstowcs(ws, s+2, len);
         if (errno == EILSEQ)
             error("invalid multibyte sequence: %s", s);
-        assert(wlen<=len+1);
+        CCAssert(wlen<=len+1);
         ty = array_type();
         ty->type = wchartype;
         ty->size = wlen;
@@ -354,7 +354,7 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
     else if (is == isrecord)
 	name = "struct or union";
     else
-        assert(0);
+        CCAssert(0);
     
     if (!is(AST_TYPE(node)))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
@@ -470,7 +470,7 @@ static void ensure_cast(struct type *dst, struct type *src)
 // TODO: waiting for eval
 static bool is_nullptr(union node *node)
 {
-    assert(isptr(AST_TYPE(node)));
+    CCAssert(isptr(AST_TYPE(node)));
     union node *ret = eval(node);
     if (ret == NULL)
 	return false;
@@ -706,7 +706,7 @@ static union node * postfix_expr1(union node *ret)
 	case DEREF: ret = direction(ret); break;
 	case INCR:
 	case DECR:  ret = post_increment(ret); break;
-	default:    assert(0);
+	default:    CCAssert(0);
         }
     }
 
@@ -1261,7 +1261,7 @@ static union node * bop(int op, union node *l, union node *r)
 	break;
     default:
 	error("unknown op '%s'", tname(op));
-	assert(0);
+	CCAssert(0);
     }
     return node;
 }
@@ -1389,8 +1389,8 @@ static const char * castname(struct type *ty, union node *l)
 
 static union node * wrap(struct type *ty, union node *node)
 {
-    assert(isarith(ty));
-    assert(isarith(AST_TYPE(node)));
+    CCAssert(isarith(ty));
+    CCAssert(isarith(AST_TYPE(node)));
     
     if (eqarith(ty, AST_TYPE(node)))
         return node;
@@ -1432,11 +1432,11 @@ static union node * assigncast(struct type *ty, union node *node)
 // Universal Binary Conversion
 static struct type * conv2(struct type *l, struct type *r)
 {
-    assert(isarith(l));
-    assert(isarith(r));
+    CCAssert(isarith(l));
+    CCAssert(isarith(r));
     
-    assert(size(l) >= size(inttype));
-    assert(size(r) >= size(inttype));
+    CCAssert(size(l) >= size(inttype));
+    CCAssert(size(r) >= size(inttype));
     
     struct type *max = rank(l) > rank(r) ? l : r;
     if (isfloat(l) || isfloat(r) || op(l) == op(r))
@@ -1444,7 +1444,7 @@ static struct type * conv2(struct type *l, struct type *r)
     
     struct type *u = op(l) == UNSIGNED ? l : r;
     struct type *s = op(l) == INT ? l : r;
-    assert(unqual(s) == s);
+    CCAssert(unqual(s) == s);
     
     if (rank(u) >= rank(s))
         return u;
@@ -1501,7 +1501,7 @@ union node * cast(union node *cnst, struct type *ty)
     } else if (isrecord(ty) || isarray(ty)) {
 
     } else {
-	assert(0);
+	CCAssert(0);
     }
 }
 
@@ -1526,7 +1526,7 @@ static bool eval_bool(union node *cond)
 
 static union node * eval(union node *expr)
 {
-    assert(isexpr(expr));
+    CCAssert(isexpr(expr));
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
         {
@@ -1563,7 +1563,7 @@ static union node * eval(union node *expr)
 		    return NULL;
 		break;
 	    default:
-		assert(0);
+		CCAssert(0);
 	    }
 	}
     case UNARY_OPERATOR:
@@ -1585,7 +1585,7 @@ static union node * eval(union node *expr)
 	    case SIZEOF:
 		return expr;
 	    default:
-		assert(0);
+		CCAssert(0);
 	    }
 	}
     case PAREN_EXPR:
@@ -1631,6 +1631,6 @@ static union node * eval(union node *expr)
     case CALL_EXPR:
 	return NULL;
     default:
-	assert(0);
+	CCAssert(0);
     }
 }
