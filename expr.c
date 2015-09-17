@@ -356,7 +356,7 @@ static void ensure_type(union node *node, bool (*is) (struct type *))
     else if (is == isrecord)
 	name = "struct or union";
     else
-        name = AST_TYPE(node)->name;
+        name = unqual(AST_TYPE(node))->name;
     
     if (!is(AST_TYPE(node)))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
