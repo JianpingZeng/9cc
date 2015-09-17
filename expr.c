@@ -620,7 +620,7 @@ static union node * funcall(union node *node)
     ensure_type(node, isfunc);
     ensure_funcall(AST_TYPE(node), args);
     if (NO_ERROR) {
-	ret = ast_expr(CALL_EXPR, 0, ret, NULL);
+	ret = ast_expr(CALL_EXPR, 0, conv(node), NULL);
 	EXPR_ARGS(ret) = args;
 	AST_TYPE(ret) = rtype(AST_TYPE(node));
     }
