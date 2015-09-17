@@ -9,6 +9,7 @@ static union node * bop(int op, union node *l, union node *r);
 static union node * logicop(int op, union node *l, union node *r);
 static union node * commaop(int op, union node *l, union node *r);
 static union node * assignop(int op, union node *l, union node *r);
+static union node * ltor(union node *node);
 static union node * conv(union node *node);
 static struct type * conv2(struct type *l, struct type *r);
 static union node * wrap(struct type *ty, union node *node);
@@ -1290,9 +1291,9 @@ static union node * commaop(int op, union node *l, union node *r)
     if (isarray(AST_TYPE(r)) || isfunc(AST_TYPE(r)))
     	r = decay(r);
     if (islvalue(l))
-	l = ast_conv(unqual(AST_TYPE(l)), l, LValueToRValue);
+	l = ltor(l);
     if (islvalue(r))
-	r = ast_conv(unqual(AST_TYPE(r)), r, LValueToRValue);
+	r = ltor(r);
     
     ret = ast_bop(op, l, r);
     AST_TYPE(ret) = AST_TYPE(r);
@@ -1416,7 +1417,7 @@ static union node * assigncast(struct type *ty, union node *node)
     struct type *ty2 = AST_TYPE(node);
 
     if (islvalue(node))
-	node = ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
+	node = ltor(node);
     
     if (isarith(ty) && isarith(ty2)) {
 	ret = wrap(ty, node);
@@ -1481,13 +1482,18 @@ union node * decay(union node *node)
     }
 }
 
+static union node * ltor(union node *node)
+{
+    return ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
+}
+
 // Universal Unary Conversion
 static union node * conv(union node *node)
 {
     if (node == NULL)
 	return NULL;
     if (islvalue(node))
-	node = ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
+	node = ltor(node);
     
     switch (kind(AST_TYPE(node))) {
     case _BOOL: case CHAR: case SHORT:
