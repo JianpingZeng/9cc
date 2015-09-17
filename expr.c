@@ -444,6 +444,15 @@ static union node ** argscast(struct type *fty, union node **args)
 {
     struct vector *v = vec_new();
     CCAssert(isfunc(fty));
+
+    /* There are 5 cases:
+     *
+     * 1. function declaration with prototype
+     * 2. function definition with prototype
+     * 3. function declaration with oldstyle
+     * 4. function definition with oldstyle
+     * 5. no function declaration/definition found
+     */
     
     if (OLDSTYLE(fty)) {
 	
