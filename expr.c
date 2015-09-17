@@ -1528,8 +1528,12 @@ static struct type * conv2(struct type *l, struct type *r)
 }
 
 // Universal Unary Conversion
-static union node *uuc(union node *node)
+static union node * conv(union node *node)
 {
+    if (node == NULL)
+	return NULL;
+    if (is_lvalue(node))
+	node = ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
     switch (kind(AST_TYPE(node))) {
     case _BOOL: case CHAR: case SHORT:
 	return ast_conv(inttype, node, IntegralCast);
@@ -1543,13 +1547,4 @@ static union node *uuc(union node *node)
     default:
 	return node;
     }
-}
-
-static union node * conv(union node *node)
-{
-    if (node == NULL)
-	return NULL;
-    if (is_lvalue(node))
-	node = ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
-    return uuc(node);
 }
