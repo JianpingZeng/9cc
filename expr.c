@@ -492,9 +492,9 @@ static union node ** argscast(struct type *fty, union node **args)
 	if (len1 == 0)
 	    return NULL;	// parsing error
 
+	struct symbol *last = params[len1 - 1];
+	bool vargs = unqual(last->type) == vartype;
 	if (len1 <= len2) {
-	    struct symbol *last = params[len1 - 1];
-	    bool vargs = unqual(last->type) == vartype;
 	    int cmp1 = vargs ? len1 - 1 : len1;
 	    if (!vargs && len1 < len2) {
 		struct symbol *first = params[0];
@@ -519,7 +519,7 @@ static union node ** argscast(struct type *fty, union node **args)
 	    
 	} else {
 	    if (vargs)
-		error("too few arguments to function call, expected at least %d, have %d", len1, len2);;
+		error("too few arguments to function call, expected at least %d, have %d", len1, len2);
 	    else
 		error("too few arguments to function call, expected %d, have %d", len1, len2);
 	    return NULL;
