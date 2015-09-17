@@ -24,7 +24,7 @@ static union node * eval(union node *expr);
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
-#define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
+#define INCOMPATIBLE_TYPES2   "imcompatible types '%s' and '%s' in conditional expression"
 
 static int splitop(int op)
 {
@@ -1400,7 +1400,7 @@ static union node * assignop(int op, union node *l, union node *r)
 	    (unqual(ty1) == booltype && isptr(ty2))) {
 	    goto out;
 	} else if ((isstruct(ty1) && isstruct(ty2)) ||
-	    (isunion(ty1) && isunion(ty2))) {
+		   (isunion(ty1) && isunion(ty2))) {
 	    if (!eqtype(unqual(ty1), unqual(ty2)))
 		TYPE_ERROR(ty1, ty2);
 	} else if (isptr(ty1) && isptr(ty2)) {
