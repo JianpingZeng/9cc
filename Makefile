@@ -22,6 +22,7 @@ CC1_OBJ=ast.o \
         print.o \
         decl.o \
         error.o \
+	eval.o \
         expr.o \
         gen.o \
         lex.o \

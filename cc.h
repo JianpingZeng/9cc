@@ -87,6 +87,9 @@ union value {
 // ast.h
 #include "ast.h"
 
+// eval.c
+extern union node * eval(union node *expr);
+
 // expr.c
 extern union node * expression();
 extern union node * assign_expr();
