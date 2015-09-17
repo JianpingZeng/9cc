@@ -22,7 +22,8 @@ static union node * eval(union node *expr);
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
-#define HAS_ERROR      (err != errors) 
+#define HAS_ERROR      (err != errors)
+#define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 
 static int splitop(int op)
 {
@@ -374,8 +375,11 @@ bool islvalue(union node *node)
         return true;
     if (AST_ID(node) == PAREN_EXPR)
 	return islvalue(EXPR_OPERAND(node, 0));
-    if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*')
+    if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*') {
+	if (isfunc(AST_TYPE(node)))
+	    return false;
 	return true;
+    }
     if (AST_ID(node) == MEMBER_EXPR)
 	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
     if (AST_ID(node) == REF_EXPR) {
@@ -458,7 +462,7 @@ static const char * is_castable(struct type *dst, struct type *src)
 	    return NULL;
     }
 
-    return format("incompatible type conversion from '%s' to '%s'", type2s(src), type2s(dst));
+    return format(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
 }
 
 static void ensure_cast(struct type *dst, struct type *src)
@@ -468,8 +472,40 @@ static void ensure_cast(struct type *dst, struct type *src)
 	error(msg);
 }
 
-// TODO: 
-static union node ** argscast(struct type *fty, union node **args)
+static void argcast1(struct type *fty, union node **args, struct vector *v)
+{
+    struct symbol **params = PARAMS(fty);
+    int len1 = array_len((void **)params);
+    int len2 = array_len((void **)args);
+    bool oldstyle = OLDSTYLE(fty);
+    int cmp1;
+
+    if (oldstyle) {
+	cmp1 = MIN(len1, len2);
+    } else {
+	struct symbol *last = params[len1 - 1];
+	bool vargs = unqual(last->type) == vartype;
+	cmp1 = vargs ? len1 - 1 : len1;
+    }
+    
+    for (int i = 0; i < cmp1; i++) {
+	struct type *dst = params[i]->type;
+	struct type *src = AST_TYPE(args[i]);
+	union node *ret = assigncast(dst, args[i]);
+	if (ret) {
+	    vec_push(v, ret);
+	} else {
+	    if (oldstyle)
+		warning(INCOMPATIBLE_TYPES, src, dst);
+	    else
+		error(INCOMPATIBLE_TYPES, src, dst);
+	}
+    }
+    for (int i = cmp1; i < len2; i++)
+	vec_push(v, conva(args[i]));
+}
+
+static struct vector * argscast(struct type *fty, union node **args)
 {
     struct vector *v = vec_new();
     CCAssert(isfunc(fty));
@@ -482,41 +518,36 @@ static union node ** argscast(struct type *fty, union node **args)
      * 4. function definition with oldstyle
      * 5. no function declaration/definition found
      */
+
+    struct symbol **params = PARAMS(fty);
+    int len1 = array_len((void **)params);
+    int len2 = array_len((void **)args);
     
     if (OLDSTYLE(fty)) {
-	
+	if (len1 > len2)
+	    warning("too few arguments to function call");
+
+        argcast1(fty, args, v);
     } else {
-        struct symbol **params = PARAMS(fty);
-	int len1 = array_len((void **)params);
-	int len2 = array_len((void **)args);
 	if (len1 == 0)
 	    return NULL;	// parsing error
-
+	
 	struct symbol *last = params[len1 - 1];
 	bool vargs = unqual(last->type) == vartype;
+	struct symbol *first = params[0];
+	if (isvoid(first->type))
+	    len1 = 0;
 	if (len1 <= len2) {
-	    int cmp1 = vargs ? len1 - 1 : len1;
 	    if (!vargs && len1 < len2) {
-		struct symbol *first = params[0];
-		if (isvoid(first->type))
-		    len1 = 0;
 		error("too many arguments to function call, expected %d, have %d", len1, len2);
 		return NULL;
 	    }
-	    for (int i = 0; i < cmp1; i++) {
-		struct type *dst = params[i]->type;
-		struct type *src = AST_TYPE(args[i]);
-		const char *msg = is_castable(dst, src);
-		if (msg) {
-		    error(msg);
+	    if (len1 > 0) {
+		SAVE_ERRORS;
+		argcast1(fty, args, v);
+		if (HAS_ERROR)
 		    return NULL;
-		} else {
-		    vec_push(v, bitcast(dst, args[i]));
-		}
 	    }
-	    for (int i = cmp1; i < len2; i++)
-		vec_push(v, conva(args[i]));
-	    
 	} else {
 	    if (vargs)
 		error("too few arguments to function call, expected at least %d, have %d", len1, len2);
@@ -525,7 +556,7 @@ static union node ** argscast(struct type *fty, union node **args)
 	    return NULL;
 	}
     }
-    return (union node **)vtoa(v);
+    return v;
 }
 
 static union node * compound_literal(struct type *ty)
@@ -676,9 +707,10 @@ static union node * funcall(union node *node)
 
     if (isptrto(AST_TYPE(node), FUNCTION)) {
 	struct type *fty = rtype(AST_TYPE(node));
-	if ((args = argscast(fty, args))) {
+	struct vector *v;
+	if ((v = argscast(fty, args))) {
 	    ret = ast_expr(CALL_EXPR, 0, node, NULL);
-	    EXPR_ARGS(ret) = args;
+	    EXPR_ARGS(ret) = (union node **)vtoa(v);
 	    AST_TYPE(ret) = rtype(fty);
 	}
     } else {
@@ -1475,7 +1507,7 @@ static union node * assigncast(struct type *ty, union node *node)
     } else if (isptr(ty)) {
 	ret = bitcast(ty, node);
     } else {
-	error("cannot cast from type '%s' to '%s'", type2s(ty2), type2s(ty));
+	error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty));
     }
     return ret;
 }

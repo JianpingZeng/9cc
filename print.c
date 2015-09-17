@@ -76,6 +76,11 @@ static void print_expr(union node *node, struct print_context context)
     level = context.level + 1;
 
     if (AST_ID(node) == CALL_EXPR) {
+	union node *func = EXPR_OPERAND(node, 0);
+	if (func) {
+	    struct print_context con = {level, func};
+	    print_tree1(con);
+	}
         union node **args = EXPR_ARGS(node);
         if (args) {
             for (int i=0; args[i]; i++) {
@@ -167,19 +172,21 @@ static void print_tree1(struct print_context context)
         print_stmt(node, context);
     else
         CCAssert(0);
-    
-    if (AST_KID(context.node, 0)) {
-        struct print_context lcontext;
-        lcontext.level = level;
-        lcontext.node = AST_KID(context.node, 0);
-        print_tree1(lcontext);
+
+    if (!(isexpr(node) && AST_ID(node) == CALL_EXPR)) {
+	if (AST_KID(context.node, 0)) {
+	    struct print_context lcontext;
+	    lcontext.level = level;
+	    lcontext.node = AST_KID(context.node, 0);
+	    print_tree1(lcontext);
+	}
     }
     
     if (AST_KID(context.node, 1)) {
-        struct print_context rcontext;
-        rcontext.level = level;
-        rcontext.node = AST_KID(context.node, 1);
-        print_tree1(rcontext);
+	struct print_context rcontext;
+	rcontext.level = level;
+	rcontext.node = AST_KID(context.node, 1);
+	print_tree1(rcontext);
     }
 
     if (isexpr(node) && EXPR_OPERAND(node, 2)) {

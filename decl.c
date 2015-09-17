@@ -656,6 +656,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, struct type 
                     decl = ast_decl(VAR_DECL, SCOPE);
                 
                 DECL_SYM(decl) = sym;
+		AST_TYPE(decl) = sym->type;
 		
                 if (token->id == '=' && (dcl == globaldecl || dcl == localdecl))
 		    decl_initializer(decl, sym, sclass, dcl == globaldecl ? GLOBAL : LOCAL);

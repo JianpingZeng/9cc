@@ -10,6 +10,7 @@
 #define FLEX_ARRAY      /* flexible array */
 
 #define MAX(x, y)    (((x) > (y)) ? (x) : (y))
+#define MIN(x, y)    ((x) < (y) ? (x) : (y))
 
 #define CCAssert(expr)    assert(expr)
 #define CCAssertf(expr, ...)    \
