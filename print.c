@@ -19,6 +19,13 @@ static void print_ty(union node *ty)
     }
 }
 
+static void print_type(union node *node, struct print_context context)
+{
+    fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
+    print_ty(node);
+    fprintf(stderr, "\n");
+}
+
 static void print_decl(union node *node, struct print_context context)
 {
     int level;
@@ -170,6 +177,8 @@ static void print_tree1(struct print_context context)
         print_expr(node, context);
     else if (isstmt(node))
         print_stmt(node, context);
+    else if (istype(node))
+	print_type(node, context);
     else
         CCAssert(0);
 

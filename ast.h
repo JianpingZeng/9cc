@@ -176,6 +176,10 @@ extern union node * ast_vinit();
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)
 #define isstmt(n)           (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
+#define istype(n)           (AST_ID(n) == TYPE_NODE)
+#define isfield(n)          (AST_ID(n) == FIELD_NODE)
+#define issymbol(n)         (AST_ID(n) == SYMBOL_NODE)
+
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
 #define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == COMPOUND_STMT)
 #define isliteral(n)        (AST_ID(n) > BEGIN_LITERAL_ID && AST_ID(n) < END_LITERAL_ID)
