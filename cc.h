@@ -236,7 +236,7 @@ extern void redefinition_error(struct source src, union node *sym);
 extern void conflicting_types_error(struct source src, union node *sym);
 
 // gen.c
-void walk(union node *tree);
+extern void gen(union node *tree);
 
 // print.c
 extern void print_tree(union node *tree);
