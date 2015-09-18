@@ -80,7 +80,7 @@ struct symbol * install(const char *name, struct table **tpp, int scope)
             tp = tp->up;
     }
     
-    sym = alloc_symbol_node();
+    sym = alloc_symbol();
     sym->scope = scope;
     sym->name = name;
     map_put(tp->map, sym->name, sym);

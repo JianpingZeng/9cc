@@ -21,9 +21,10 @@
 #include "map.h"
 
 // alloc.c
-extern void * alloc_node_node(void);
-extern void * alloc_symbol_node(void);
-extern void * alloc_type_node(void);
+extern void * alloc_node(void);
+extern void * alloc_symbol(void);
+extern void * alloc_type(void);
+extern void * alloc_field(void);
 
 // lex.c
 #define EOI  -1

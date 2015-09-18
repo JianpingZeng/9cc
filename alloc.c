@@ -8,7 +8,7 @@ struct alloc_state {
     void *p;			// first free node in current allocation
 };
 
-static inline void * alloc_node(struct alloc_state *s, size_t size)
+static inline void * do_alloc_node(struct alloc_state *s, size_t size)
 {
     void *ret;
 
@@ -24,19 +24,26 @@ static inline void * alloc_node(struct alloc_state *s, size_t size)
 }
 
 static struct alloc_state node_state;
-void * alloc_node_node(void)
+void * alloc_node(void)
 {
-    return alloc_node(&node_state, sizeof(union node));
+    return do_alloc_node(&node_state, sizeof(union node));
 }
 
 static struct alloc_state symbol_state;
-void * alloc_symbol_node(void)
+void * alloc_symbol(void)
 {
-    return alloc_node(&symbol_state, sizeof(struct symbol));
+    return do_alloc_node(&symbol_state, sizeof(struct symbol));
 }
 
 static struct alloc_state type_state;
-void * alloc_type_node(void)
+void * alloc_type(void)
 {
-    return alloc_node(&type_state, sizeof(struct type));
+    return do_alloc_node(&type_state, sizeof(struct type));
+}
+
+void * alloc_field(void)
+{
+    union node *n = alloc_node();
+    AST_ID(n) = FIELD_NODE;
+    return n;
 }

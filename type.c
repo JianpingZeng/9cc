@@ -56,7 +56,7 @@ struct metrics {
 
 static inline struct type * new_type()
 {
-    return alloc_type_node();
+    return alloc_type();
 }
 
 static struct type * install_type(const char *name, int kind, struct metrics m)
@@ -280,7 +280,7 @@ bool is_typedef_name(const char *id)
 
 union node * new_field(char *id)
 {
-    union node *field = alloc_node_node();
+    union node *field = alloc_field();
     FIELD_NAME(field) = id;
     return field;
 }

@@ -16,16 +16,17 @@ const char *nname(union node * node)
     return node_names[AST_ID(node)];
 }
 
-static inline union node * new_node(void)
+static inline union node * new_node(int id)
 {
-    return alloc_node_node();
+    union node *n = alloc_node();
+    AST_ID(n) = id;
+    return n;
 }
 
 union node * ast_expr(int id, int op, union node *l, union node *r)
 {
     CCAssert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
-    union node * expr = new_node();
-    AST_ID(expr) = id;
+    union node * expr = new_node(id);
     EXPR_OP(expr) = op;
     EXPR_OPERAND(expr, 0) = l;
     EXPR_OPERAND(expr, 1) = r;
@@ -35,8 +36,7 @@ union node * ast_expr(int id, int op, union node *l, union node *r)
 union node * ast_stmt(int id, union node *l, union node *r)
 {
     CCAssert(id > BEGIN_STMT_ID && id < END_STMT_ID);
-    union node * stmt = new_node();
-    AST_ID(stmt) = id;
+    union node * stmt = new_node(id);
     AST_KID(stmt, 0) = l;
     AST_KID(stmt, 1) = r;
     return stmt;
@@ -45,8 +45,7 @@ union node * ast_stmt(int id, union node *l, union node *r)
 union node * ast_decl(int id, int scope)
 {
     CCAssert(id > BEGIN_DECL_ID && id < END_DECL_ID);
-    union node * decl = new_node();
-    AST_ID(decl) = id;
+    union node * decl = new_node(id);
     DECL_SCOPE(decl) = scope;
     return decl;
 }

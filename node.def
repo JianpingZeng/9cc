@@ -63,6 +63,15 @@ _n(WHILE_STMT,        "WhileStmt")
 
 _ns(END_STMT_ID)
 
+// misc
+_ns(MISC_ID)
+
+_n(FIELD_NODE,         "Field")
+_n(TYPE_NODE,          "Type")
+_n(SYMBOL_NODE,        "Symbol")
+
+_ns(END_MISC_ID)
+
 _ns(END_NODE_ID)
 
 #undef _n
