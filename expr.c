@@ -15,9 +15,10 @@ static node_t * conv(node_t *node);
 static node_t * conva(node_t *node);
 static node_t * conv2(node_t *l, node_t *r);
 static node_t * wrap(node_t *ty, node_t *node);
-static node_t * bitcast(node_t *ty, node_t *node);
-static node_t * assigncast(node_t *ty, node_t *node);
+static node_t * bitconv(node_t *ty, node_t *node);
+static node_t * assignconv(node_t *ty, node_t *node);
 static bool is_nullptr(node_t *node);
+static bool assign_types_check(node_t *ty1, node_t *r);
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
@@ -491,14 +492,15 @@ static void argcast1(node_t *fty, node_t **args, struct vector *v)
     for (int i = 0; i < cmp1; i++) {
 	node_t *dst = SYM_TYPE(params[i]);
 	node_t *src = AST_TYPE(args[i]);
-	node_t *ret = assigncast(dst, args[i]);
-	if (ret) {
+	node_t *ret;
+	if (assign_types_check(dst, args[i]) &&
+	    (ret = assignconv(dst, args[i]))) {
 	    vec_push(v, ret);
 	} else {
 	    if (oldstyle)
-		warning(INCOMPATIBLE_TYPES, src, dst);
+		warning(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
 	    else
-		error(INCOMPATIBLE_TYPES, src, dst);
+		error(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
 	}
     }
     for (int i = cmp1; i < len2; i++)
@@ -1168,7 +1170,7 @@ static node_t * cond_expr1(node_t *cond)
     } else if ((isstruct(ty1) && isstruct(ty2)) ||
                (isunion(ty1) && isunion(ty2))) {
         if (!eqtype(ty1, ty2))
-	    error(INCOMPATIBLE_TYPES2, ty1, ty2);
+	    error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
 	ty = ty1;
     } else if (isvoid(ty1) && isvoid(ty2)) {
 	ty = voidtype;
@@ -1177,27 +1179,27 @@ static node_t * cond_expr1(node_t *cond)
 	    node_t *nty = is_nullptr(then) ? ty1 : ty2;
 	    node_t *tty = nty == ty1 ? ty2 : ty1;
 	    ty = ptr_type(compose(rtype(tty), rtype(nty)));
-	    then = bitcast(ty, then);
-	    els = bitcast(ty, els);
+	    then = bitconv(ty, then);
+	    els = bitconv(ty, els);
 	} else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
 	    node_t *vty = isptrto(ty1, VOID) ? ty1 : ty2;
 	    node_t *tty = vty == ty1 ? ty2 : ty1;
 	    if (isptrto(tty, FUNCTION)) {
-	        error(INCOMPATIBLE_TYPES2, ty1, ty2);
+	        error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
 	    } else {
 		ty = ptr_type(compose(rtype(vty), rtype(tty)));
-		then = bitcast(ty, then);
-		els = bitcast(ty, els);
+		then = bitconv(ty, then);
+		els = bitconv(ty, els);
 	    }
 	} else {
 	    node_t *rty1 = rtype(ty1);
 	    node_t *rty2 = rtype(ty2);
 	    if (eqtype(unqual(rty1), unqual(rty2))) {
 		ty = ptr_type(compose(rty1, rty2));
-		then = bitcast(ty, then);
-		els = bitcast(ty, els);
+		then = bitconv(ty, then);
+		els = bitconv(ty, els);
 	    } else {
-		error(INCOMPATIBLE_TYPES2, ty1, ty2);
+		error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
 	    }
 	}
     } else {
@@ -1378,6 +1380,50 @@ static node_t * commaop(int op, node_t *l, node_t *r)
     return ret;
 }
 
+bool assign_types_check(node_t *ty1, node_t *r)
+{
+    node_t *ty2 = AST_TYPE(r);
+    if ((isarith(ty1) && isarith(ty2)) ||
+	(unqual(ty1) == booltype && isptr(ty2))) {
+        return true;
+    } else if ((isstruct(ty1) && isstruct(ty2)) ||
+	       (isunion(ty1) && isunion(ty2))) {
+	if (!eqtype(unqual(ty1), unqual(ty2)))
+	    return false;
+    } else if (isptr(ty1) && isptr(ty2)) {
+	if (is_nullptr(r)) {
+	    return true;
+	} else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
+	    node_t *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+	    node_t *tty = vty == ty1 ? ty2 : ty1;
+	    if (isptrto(tty, FUNCTION)) {
+		return false;
+	    } else {
+		node_t *rty1 = rtype(ty1);
+		node_t *rty2 = rtype(ty2);
+		int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
+		int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
+		if (!contains(qual1, qual2))
+		    return false;
+	    }
+	} else {
+	    node_t *rty1 = rtype(ty1);
+	    node_t *rty2 = rtype(ty2);
+	    if (eqtype(unqual(rty1), unqual(rty2))) {
+		int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
+		int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
+		if (!contains(qual1, qual2))
+		    return false;
+	    } else {
+		return false;
+	    }
+	}
+    } else {
+	return false;
+    }
+    return true;
+}
+
 static node_t * assignop(int op, node_t *l, node_t *r)
 {
     node_t *ret = NULL;
@@ -1385,54 +1431,14 @@ static node_t * assignop(int op, node_t *l, node_t *r)
     if (l == NULL || r == NULL)
 	return NULL;
 
-#define TYPE_ERROR(ty1, ty2)  error("assign type '%s' to type '%s' is invalid", type2s(ty2), type2s(ty1))
-
     node_t *retty = unqual(AST_TYPE(l));
     SAVE_ERRORS;
     ensure_assignable(l);
     if (HAS_ERROR)
-	goto out;
+	return NULL;
     if (op == '=') {
-	node_t *ty1 = AST_TYPE(l);
-	node_t *ty2 = AST_TYPE(r);
-	if ((isarith(ty1) && isarith(ty2)) ||
-	    (unqual(ty1) == booltype && isptr(ty2))) {
-	    goto out;
-	} else if ((isstruct(ty1) && isstruct(ty2)) ||
-		   (isunion(ty1) && isunion(ty2))) {
-	    if (!eqtype(unqual(ty1), unqual(ty2)))
-		TYPE_ERROR(ty1, ty2);
-	} else if (isptr(ty1) && isptr(ty2)) {
-	    if (is_nullptr(r)) {
-		goto out;
-	    } else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
-		node_t *vty = isptrto(ty1, VOID) ? ty1 : ty2;
-		node_t *tty = vty == ty1 ? ty2 : ty1;
-		if (isptrto(tty, FUNCTION)) {
-		    TYPE_ERROR(ty1, ty2);
-		} else {
-		    node_t *rty1 = rtype(ty1);
-		    node_t *rty2 = rtype(ty2);
-		    int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
-		    int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
-		    if (!contains(qual1, qual2))
-			TYPE_ERROR(ty1, ty2);
-		}
-	    } else {
-		node_t *rty1 = rtype(ty1);
-		node_t *rty2 = rtype(ty2);
-		if (eqtype(unqual(rty1), unqual(rty2))) {
-		    int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
-		    int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
-		    if (!contains(qual1, qual2))
-			TYPE_ERROR(ty1, ty2);
-		} else {
-		    TYPE_ERROR(ty1, ty2);
-		}
-	    }
-	} else {
-	    TYPE_ERROR(ty1, ty2);
-	}
+        if (!assign_types_check(AST_TYPE(l), r))
+	    error("assign type '%s' to type '%s' is invalid", type2s(AST_TYPE(r)), type2s(AST_TYPE(l)));
     } else {
 	int op2 = splitop(op);
 	node_t *l1 = conv(l);
@@ -1442,17 +1448,16 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 	    node_t *ty2 = AST_TYPE(r1);
 	    if (!((isarith(ty1) && isarith(ty2)) ||
 		  (isptr(ty1) && isint(ty2))))
-	        TYPE_ERROR(ty1, ty2);
+	        error("assign type '%s' to type '%s' is invalid", type2s(ty1), type2s(ty2));
 	}
 	r = bop(op2, l1, r1);
     }
- out:
-    if (NO_ERROR && (r = assigncast(retty, r))) {
+
+    if (NO_ERROR && (r = assignconv(retty, r))) {
 	ret = ast_bop('=', l, r);
 	AST_TYPE(ret) = retty;
     }
 
-#undef TYPE_ERROR
     return ret;
 }
 
@@ -1481,7 +1486,7 @@ static node_t * wrap(node_t *ty, node_t *node)
         return ast_conv(ty, node, castname(ty, node));
 }
 
-static node_t * bitcast(node_t *ty, node_t *node)
+static node_t * bitconv(node_t *ty, node_t *node)
 {
     if (eqtype(ty, AST_TYPE(node)))
 	return node;
@@ -1489,7 +1494,7 @@ static node_t * bitcast(node_t *ty, node_t *node)
 	return ast_conv(ty, node, castname(ty, node));
 }
 
-static node_t * assigncast(node_t *ty, node_t *node)
+static node_t * assignconv(node_t *ty, node_t *node)
 {
     node_t *ret = NULL;
     node_t *ty2 = AST_TYPE(node);
@@ -1503,9 +1508,9 @@ static node_t * assigncast(node_t *ty, node_t *node)
 	ret = ast_conv(ty, node, PointerToBoolean);
     } else if ((isstruct(ty) && isstruct(ty2)) ||
 	       (isunion(ty) && isunion(ty2))) {
-	ret = bitcast(ty, node);
+	ret = bitconv(ty, node);
     } else if (isptr(ty)) {
-	ret = bitcast(ty, node);
+	ret = bitconv(ty, node);
     } else {
 	error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty));
     }
