@@ -29,10 +29,11 @@ void * alloc_node(void)
     return do_alloc_node(&node_state, sizeof(union node));
 }
 
-static struct alloc_state symbol_state;
 void * alloc_symbol(void)
 {
-    return do_alloc_node(&symbol_state, sizeof(struct symbol));
+    union node *n = alloc_node();
+    AST_ID(n) = SYMBOL_NODE;
+    return n;
 }
 
 void * alloc_type(void)

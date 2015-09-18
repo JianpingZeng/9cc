@@ -53,13 +53,13 @@ struct ast_type {
     union {
         // function
         struct {
-            struct symbol **params;
+            union node **params;
             unsigned oldstyle : 1;
         }f;
         // enum/struct/union
         struct {
-	    struct symbol *tsym;
-            struct symbol **ids;
+	    union node *tsym;
+            union node **ids;
             union node **fields;
         }s;
 	// array
@@ -91,6 +91,26 @@ struct ast_field {
     int bitsize;
 };
 
+#define SYM_SCOPE(NODE)         ((NODE)->symbol.scope)
+#define SYM_NAME(NODE)          ((NODE)->symbol.name)
+#define SYM_SCLASS(NODE)        ((NODE)->symbol.sclass)
+#define SYM_TYPE(NODE)          ((NODE)->symbol.type)
+#define SYM_DEFINED(NODE)       ((NODE)->symbol.defined)
+#define SYM_SRC(NODE)           ((NODE)->symbol.src)
+#define SYM_VALUE(NODE)         ((NODE)->symbol.value)
+#define SYM_REFS(NODE)          ((NODE)->symbol.refs)
+
+struct ast_symbol {
+    int scope;
+    const char *name;
+    int sclass;
+    union node *type;
+    bool defined;
+    struct source src;
+    union value value;
+    unsigned refs;
+};
+
 #define DECL_SCOPE(NODE)        ((NODE)->decl.scope)
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
@@ -99,7 +119,7 @@ struct ast_field {
 struct ast_decl {
     struct ast_common common;
     int scope;
-    struct symbol *sym;
+    union node *sym;
     union node *body;
     union node **exts;
 };
@@ -148,7 +168,7 @@ struct ast_expr {
     struct ast_common common;
     int op;
     bool prefix;
-    struct symbol *sym;
+    union node *sym;
     union node *operands[1];
     union node **list;
 };
@@ -160,6 +180,7 @@ union node {
     struct ast_expr expr;
     struct ast_type type;
     struct ast_field field;
+    struct ast_symbol symbol;
 };
 
 // ast.c

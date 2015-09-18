@@ -264,10 +264,10 @@ union node * lookup_typedef_name(const char *id)
     if (!id)
         return NULL;
     
-    struct symbol *sym = lookup(id, identifiers);
+    union node *sym = lookup(id, identifiers);
     
-    if (sym && sym->sclass == TYPEDEF)
-        return sym->type;
+    if (sym && SYM_SCLASS(sym) == TYPEDEF)
+        return SYM_TYPE(sym);
     else
         return NULL;
 }
@@ -313,7 +313,7 @@ union node * func_type()
     return ty;
 }
 
-struct symbol * tag_type(int t, const char *tag, struct source src)
+union node * tag_type(int t, const char *tag, struct source src)
 {
     union node *ty = new_type();
     TYPE_KIND(ty) = t;
@@ -322,11 +322,11 @@ struct symbol * tag_type(int t, const char *tag, struct source src)
     if (t == ENUM)
         TYPE_TYPE(ty) = inttype;
     
-    struct symbol *sym = NULL;
+    union node *sym = NULL;
     if (tag) {
         sym = lookup(tag, tags);
         if (sym && currentscope(sym)) {
-            if (op(sym->type) == t && !sym->defined)
+            if (op(SYM_TYPE(sym)) == t && !SYM_DEFINED(sym))
                 return sym;
             
             redefinition_error(src, sym);
@@ -335,17 +335,17 @@ struct symbol * tag_type(int t, const char *tag, struct source src)
         sym = install(tag, &tags, SCOPE);
     } else {
         sym = anonymous(&tags, SCOPE);
-        TYPE_TAG(ty) = sym->name;
+        TYPE_TAG(ty) = SYM_NAME(sym);
     }
 
-    sym->type = ty;
-    sym->src = src;
+    SYM_TYPE(sym) = ty;
+    SYM_SRC(sym) = src;
     TYPE_TSYM(ty) = sym;
     
     return sym;
 }
 
-static bool eqparams(struct symbol **params1, struct symbol **params2)
+static bool eqparams(union node **params1, union node **params2)
 {
     if (params1 == params2) {
         return true;
@@ -357,13 +357,13 @@ static bool eqparams(struct symbol **params1, struct symbol **params2)
         if (len1 != len2)
             return false;
         for (int i=0; i < len1; i++) {
-            struct symbol *sym1 = params1[i];
-            struct symbol *sym2 = params2[i];
+            union node *sym1 = params1[i];
+            union node *sym2 = params2[i];
             if (sym1 == sym2)
                 continue;
             else if (sym1 == NULL || sym2 == NULL)
                 return false;
-            else if (eqtype(sym1->type, sym2->type))
+            else if (eqtype(SYM_TYPE(sym1), SYM_TYPE(sym2)))
                 continue;
             else
                 return false;
@@ -416,9 +416,9 @@ bool eqtype(union node *ty1, union node *ty2)
                 union node *newty = TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
                 if (TYPE_PARAMS(newty)) {
                     for (int i=0; TYPE_PARAMS(newty)[i]; i++) {
-                        struct symbol *sym = TYPE_PARAMS(newty)[i];
-                        if (sym->type) {
-                            union node *ty = unqual(sym->type);
+                        union node *sym = TYPE_PARAMS(newty)[i];
+                        if (SYM_TYPE(sym)) {
+                            union node *ty = unqual(SYM_TYPE(sym));
                             if (kind(ty) == CHAR || kind(ty) == SHORT)
                                 return false;
                             else if (op(ty) == FLOAT)
@@ -658,12 +658,12 @@ static void dotype2s(struct vector *l, struct vector *r)
             break;
         case FUNCTION:
         {
-            struct symbol **params = TYPE_PARAMS(s->type);
+            union node **params = TYPE_PARAMS(s->type);
 	    int len = array_len((void **)params);
 	    vec_push(r, paren(FSPACE, NULL));
 	    vec_push(r, paren(LPAREN, s->type));
 	    for (int i=0; params && params[i]; i++) {
-		union node *ty = params[i]->type;
+		union node *ty = SYM_TYPE(params[i]);
 		struct vector *v = type2s1(ty);
 		vec_add(r, v);
 		vec_free(v);

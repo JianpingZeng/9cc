@@ -104,14 +104,14 @@ void end_call(const char *funcname)
     call_depth--;
 }
 
-void redefinition_error(struct source src, struct symbol *sym)
+void redefinition_error(struct source src, union node *sym)
 {
     errorf(src, "redefinition of '%s', previous definition at %s line %u",
-           sym->name, sym->src.file, sym->src.line);
+           SYM_NAME(sym), SYM_SRC(sym).file, SYM_SRC(sym).line);
 }
 
-void conflicting_types_error(struct source src, struct symbol *sym)
+void conflicting_types_error(struct source src, union node *sym)
 {
     errorf(src, "conflicting types for '%s', previous at %s line %u",
-           sym->name, sym->src.file, sym->src.line);
+           SYM_NAME(sym), SYM_SRC(sym).file, SYM_SRC(sym).line);
 }

@@ -101,9 +101,9 @@ union node * eval(union node *expr)
 	return NULL;
     case REF_EXPR:
         if (EXPR_OP(expr) == ENUM ||
-	    EXPR_SYM(expr)->sclass == EXTERN ||
-	    EXPR_SYM(expr)->sclass == STATIC ||
-	    EXPR_SYM(expr)->scope == GLOBAL)
+	    SYM_SCLASS(EXPR_SYM(expr)) == EXTERN ||
+	    SYM_SCLASS(EXPR_SYM(expr)) == STATIC ||
+	    SYM_SCOPE(EXPR_SYM(expr)) == GLOBAL)
 	    return expr;
 	else
 	    return NULL;

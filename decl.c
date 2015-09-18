@@ -6,14 +6,14 @@ static void param_declarator(union node **ty, const char **id);
 static union node * ptr_decl();
 static union node * enum_decl();
 static union node * struct_decl();
-static struct vector * decls(struct symbol * (*)(const char *id, union node *ftype, int sclass,  struct source src));
-static struct symbol * paramdecl(const char *id, union node *ty, int sclass,  struct source src);
-static struct symbol * globaldecl(const char *id, union node *ty, int sclass, struct source src);
-static struct symbol * localdecl(const char *id, union node *ty, int sclass, struct source src);
+static struct vector * decls(union node * (*)(const char *id, union node *ftype, int sclass,  struct source src));
+static union node * paramdecl(const char *id, union node *ty, int sclass,  struct source src);
+static union node * globaldecl(const char *id, union node *ty, int sclass, struct source src);
+static union node * localdecl(const char *id, union node *ty, int sclass, struct source src);
 static union node * funcdef(const char *id, union node *ftype, int sclass,  struct source src);
 static union node * initializer(union node *ty);
 static void fields(union node *sty);
-static void decl_initializer(union node *decl, struct symbol *sym, int sclass, int kind);
+static void decl_initializer(union node *decl, union node *sym, int sclass, int kind);
 
 static union node * specifiers(int *sclass)
 {
@@ -266,9 +266,9 @@ static void qualifiers(union node *atype)
 	TYPE_A_RESTRICT(atype) = 1;
 }
 
-static struct symbol ** parameters(union node *ftype, int *params)
+static union node ** parameters(union node *ftype, int *params)
 {
-    struct symbol **ret = NULL;
+    union node **ret = NULL;
     
     /**
      * To make it easy to distinguish between 'paramaters in parameter' and
@@ -320,7 +320,7 @@ static struct symbol ** parameters(union node *ftype, int *params)
             }
         }
         
-        ret = (struct symbol **)vtoa(v);
+        ret = (union node **)vtoa(v);
     } else if (token->id == ID) {
         // oldstyle
 	TYPE_OLDSTYLE(ftype) = 1;
@@ -336,7 +336,7 @@ static struct symbol ** parameters(union node *ftype, int *params)
         
         if (SCOPE > PARAM)
             error("a parameter list without types is only allowed in a function definition");
-        ret = (struct symbol **) vtoa(v);
+        ret = (union node **) vtoa(v);
     } else if (token->id == ')') {
         TYPE_OLDSTYLE(ftype) = 1;
     } else {
@@ -610,7 +610,7 @@ static bool firstfuncdef(union node *ty)
     return isfunc(ty) && (prototype || oldstyle);
 }
 
-static struct vector * decls(struct symbol * (*dcl)(const char *id, union node *ftype, int sclass,  struct source src))
+static struct vector * decls(union node * (*dcl)(const char *id, union node *ftype, int sclass,  struct source src))
 {
     struct vector *v = vec_new();
     union node *basety;
@@ -647,7 +647,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, union node *
         for (;;) {
             if (id) {
                 union node *decl;
-                struct symbol *sym = dcl(id, ty, sclass, src);
+                union node *sym = dcl(id, ty, sclass, src);
                 if (sclass == TYPEDEF)
                     decl = ast_decl(TYPEDEF_DECL, SCOPE);
                 else if (isfunc(ty))
@@ -656,7 +656,7 @@ static struct vector * decls(struct symbol * (*dcl)(const char *id, union node *
                     decl = ast_decl(VAR_DECL, SCOPE);
                 
                 DECL_SYM(decl) = sym;
-		AST_TYPE(decl) = sym->type;
+		AST_TYPE(decl) = SYM_TYPE(sym);
 		
                 if (token->id == '=' && (dcl == globaldecl || dcl == localdecl))
 		    decl_initializer(decl, sym, sclass, dcl == globaldecl ? GLOBAL : LOCAL);
@@ -1088,7 +1088,7 @@ static void ensure_nonvoid(union node *ty, struct source src, int level)
 
 static union node * enum_decl()
 {
-    struct symbol *sym = NULL;
+    union node *sym = NULL;
     const char *id = NULL;
     struct source src = source;
     int follow[] = {INT, CONST, STATIC, IF, 0};
@@ -1106,34 +1106,34 @@ static union node * enum_decl()
         if (token->id != ID)
             error("expect identifier");
         while (token->id == ID) {
-            struct symbol *s = lookup(token->name, identifiers);
+            union node *s = lookup(token->name, identifiers);
             if (s && currentscope(s))
                 redefinition_error(source, s);
             
             s = install(token->name, &identifiers, SCOPE);
-            s->type = sym->type;
-            s->src = source;
-            s->sclass = ENUM;
+            SYM_TYPE(s) = SYM_TYPE(sym);
+            SYM_SRC(s) = source;
+            SYM_SCLASS(s) = ENUM;
             expect(ID);
             if (token->id == '=') {
                 expect('=');
                 val = intexpr();
             }
-            s->value.i = val++;
+            SYM_VALUE(s).i = val++;
             vec_push(v, s);
             if (token->id != ',')
                 break;
             expect(',');
         }
         match('}', follow);
-        TYPE_IDS(sym->type) = (struct symbol **)vtoa(v);
-        sym->defined = true;
+        TYPE_IDS(SYM_TYPE(sym)) = (union node **)vtoa(v);
+        SYM_DEFINED(sym) = true;
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {
-            if (currentscope(sym) && !isenum(sym->type))
+            if (currentscope(sym) && !isenum(SYM_TYPE(sym)))
                 errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(ENUM), id, type2s(sym->type),  sym->src.file, sym->src.line);
+                       tname(ENUM), id, type2s(SYM_TYPE(sym)),  SYM_SRC(sym).file, SYM_SRC(sym).line);
         } else {
             sym = tag_type(ENUM, id, src);
         }
@@ -1142,14 +1142,14 @@ static union node * enum_decl()
         sym = tag_type(ENUM, NULL, src);
     }
     
-    return sym->type;
+    return SYM_TYPE(sym);
 }
 
 static union node * struct_decl()
 {
     int t = token->id;
     const char *id = NULL;
-    struct symbol *sym = NULL;
+    union node *sym = NULL;
     struct source src = source;
     int follow[] = {INT, CONST, STATIC, IF, '[', 0};
     
@@ -1161,15 +1161,15 @@ static union node * struct_decl()
     if (token->id == '{') {
         expect('{');
         sym = tag_type(t, id, src);
-        sym->defined = true;
-        fields(sym->type);
+        SYM_DEFINED(sym) = true;
+        fields(SYM_TYPE(sym));
         match('}', follow);
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {
-            if (currentscope(sym) && op(sym->type) != t)
+            if (currentscope(sym) && op(SYM_TYPE(sym)) != t)
                 errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(t), id, type2s(sym->type), sym->src.file, sym->src.line);
+                       tname(t), id, type2s(SYM_TYPE(sym)), SYM_SRC(sym).file, SYM_SRC(sym).line);
         } else {
             sym = tag_type(t, id, src);
         }
@@ -1178,7 +1178,7 @@ static union node * struct_decl()
         sym = tag_type(t, NULL, src);
     }
 
-    return sym->type;
+    return SYM_TYPE(sym);
 }
 
 // TODO: not finished yet
@@ -1256,9 +1256,9 @@ static void fields(union node *sty)
     TYPE_FIELDS(sty) = (union node **)vtoa(v);
 }
 
-static struct symbol * paramdecl(const char *id, union node *ty, int sclass,  struct source src)
+static union node * paramdecl(const char *id, union node *ty, int sclass,  struct source src)
 {
-    struct symbol *sym = NULL;
+    union node *sym = NULL;
     if (sclass && sclass != REGISTER) {
         error("invalid storage class specifier '%s' in function declarator", tname(sclass));
         sclass = 0;
@@ -1271,22 +1271,22 @@ static struct symbol * paramdecl(const char *id, union node *ty, int sclass,  st
         ensure_array(ty, src, PARAM);
         ty = ptr_type(rtype(ty));
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!TYPE_TSYM(ty)->defined)
+        if (!SYM_DEFINED(TYPE_TSYM(ty)))
             warningf(src, "declaration of '%s' will not be visible outside of this function", type2s(ty));
     }
     
     if (id) {
         sym = lookup(id, identifiers);
-        if (sym && sym->scope == SCOPE)
+        if (sym && SYM_SCOPE(sym) == SCOPE)
             redefinition_error(source, sym);
         sym = install(id, &identifiers, SCOPE);
     } else {
         sym = anonymous(&identifiers, SCOPE);
     }
     
-    sym->type = ty;
-    sym->src = src;
-    sym->sclass = sclass;
+    SYM_TYPE(sym) = ty;
+    SYM_SRC(sym) = src;
+    SYM_SCLASS(sym) = sclass;
 
     if (token->id == '=') {
 	error("C does not support default arguments");
@@ -1297,9 +1297,9 @@ static struct symbol * paramdecl(const char *id, union node *ty, int sclass,  st
     return sym;
 }
 
-static struct symbol * localdecl(const char *id, union node *ty, int sclass, struct source src)
+static union node * localdecl(const char *id, union node *ty, int sclass, struct source src)
 {
-    struct symbol *sym = NULL;
+    union node *sym = NULL;
     
     CCAssert(id);
     CCAssert(SCOPE >= LOCAL);
@@ -1316,18 +1316,18 @@ static struct symbol * localdecl(const char *id, union node *ty, int sclass, str
         redefinition_error(src, sym);
     } else {
         sym = install(id, &identifiers, SCOPE);
-        sym->type = ty;
-        sym->src = src;
-        sym->defined = true;
-        sym->sclass = sclass;
+        SYM_TYPE(sym) = ty;
+        SYM_SRC(sym) = src;
+        SYM_DEFINED(sym) = true;
+        SYM_SCLASS(sym) = sclass;
     }
 
     return sym;
 }
 
-static struct symbol * globaldecl(const char *id, union node *ty, int sclass, struct source src)
+static union node * globaldecl(const char *id, union node *ty, int sclass, struct source src)
 {
-    struct symbol *sym = NULL;
+    union node *sym = NULL;
     
     CCAssert(id);
     CCAssert(SCOPE == GLOBAL);
@@ -1345,15 +1345,15 @@ static struct symbol * globaldecl(const char *id, union node *ty, int sclass, st
     }
     
     sym = lookup(id, identifiers);
-    if (!sym || sym->scope != SCOPE) {
+    if (!sym || SYM_SCOPE(sym) != SCOPE) {
         sym = install(id, &identifiers, SCOPE);
-        sym->type = ty;
-        sym->src = src;
-        sym->sclass = sclass;
-    } else if (sclass != TYPEDEF && eqtype(ty, sym->type)) {
-        if (sclass == STATIC && sym->sclass != STATIC)
+        SYM_TYPE(sym) = ty;
+        SYM_SRC(sym) = src;
+        SYM_SCLASS(sym) = sclass;
+    } else if (sclass != TYPEDEF && eqtype(ty, SYM_TYPE(sym))) {
+        if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
             errorf(src, "static declaration of '%s' follows non-static declaration", id);
-        else if (sym->sclass == STATIC && sclass != STATIC)
+        else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
             errorf(src, "non-static declaration of '%s' follows static declaration", id);
     } else {
         conflicting_types_error(src, sym);
@@ -1374,21 +1374,21 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
     }
     
     if (id) {
-        struct symbol *sym = lookup(id, identifiers);
+        union node *sym = lookup(id, identifiers);
         if (!sym) {
             sym = install(id, &identifiers, GLOBAL);
-            sym->type = ftype;
-            sym->src = src;
-            sym->defined = true;
-            sym->sclass = sclass;
+            SYM_TYPE(sym) = ftype;
+            SYM_SRC(sym) = src;
+            SYM_DEFINED(sym) = true;
+            SYM_SCLASS(sym) = sclass;
             DECL_SYM(decl) = sym;
-        } else if (eqtype(ftype, sym->type) && !sym->defined) {
-            if (sclass == STATIC && sym->sclass != STATIC) {
+        } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
+            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC) {
                 errorf(src, "static declaaration of '%s' follows non-static declaration", id);
             } else {
-                sym->type = ftype;
-                sym->src = src;
-                sym->defined = true;
+                SYM_TYPE(sym) = ftype;
+                SYM_SRC(sym) = src;
+                SYM_DEFINED(sym) = true;
                 DECL_SYM(decl) = sym;
             }
         } else {
@@ -1398,16 +1398,16 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
     
     if (TYPE_PARAMS(ftype)) {
         for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
-            struct symbol *sym = TYPE_PARAMS(ftype)[i];
-            sym->defined = true;
+            union node *sym = TYPE_PARAMS(ftype)[i];
+            SYM_DEFINED(sym) = true;
             // params id is required in prototype
             if (issymnamed(sym))
-                errorf(sym->src, "parameter name omitted");
-            if (isenum(sym->type) || isstruct(sym->type) || isunion(sym->type)) {
-                if (!TYPE_TSYM(sym->type)->defined)
-                    errorf(sym->src, "variable has incomplete type '%s'", type2s(sym->type));
-                else if (TYPE_TAG(sym->type))
-                    warningf(sym->src, "declaration of '%s' will not be visible outside of this function", type2s(sym->type));
+                errorf(SYM_SRC(sym), "parameter name omitted");
+            if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
+                if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
+                    errorf(SYM_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
+                else if (TYPE_TAG(SYM_TYPE(sym)))
+                    warningf(SYM_SRC(sym), "declaration of '%s' will not be visible outside of this function", type2s(SYM_TYPE(sym)));
             }
         }
     }
@@ -1421,26 +1421,26 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
         
         for (int i=0; i < vec_len(v); i++) {
             union node *decl = (union node *)vec_at(v, i);
-            struct symbol *sym = DECL_SYM(decl);
+            union node *sym = DECL_SYM(decl);
             
-            CCAssert(sym->name);
+            CCAssert(SYM_NAME(sym));
             if (AST_ID(decl) != VAR_DECL) {
-                warningf(sym->src, "empty declaraion");
+                warningf(SYM_SRC(sym), "empty declaraion");
             } else if (TYPE_PARAMS(ftype)) {
-                struct symbol *p = NULL;
+                union node *p = NULL;
                 for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
-                    struct symbol *s = TYPE_PARAMS(ftype)[i];
-                    if (s->name && !strcmp(s->name, sym->name)) {
+                    union node *s = TYPE_PARAMS(ftype)[i];
+                    if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym))) {
                         p = s;
                         break;
                     }
                 }
                 if (p)
-                    p->type = sym->type;
+                    SYM_TYPE(p) = SYM_TYPE(sym);
                 else
-                    errorf(sym->src, "parameter named '%s' is missing", sym->name);
+                    errorf(SYM_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
             }
-	    ensure_nonvoid(AST_TYPE(decl), sym->src, PARAM);
+	    ensure_nonvoid(AST_TYPE(decl), SYM_SRC(sym), PARAM);
         }
         exit_scope();
         if (token->id != '{') {
@@ -1460,10 +1460,10 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
     return decl;
 }
 
-static void decl_initializer(union node *decl, struct symbol *sym, int sclass, int kind)
+static void decl_initializer(union node *decl, union node *sym, int sclass, int kind)
 {
-    union node *ty = sym->type;
-    struct source src = sym->src;
+    union node *ty = SYM_TYPE(sym);
+    struct source src = SYM_SRC(sym);
     union node *init = NULL;
 
     expect('=');
@@ -1477,18 +1477,18 @@ static void decl_initializer(union node *decl, struct symbol *sym, int sclass, i
 
     if (isenum(ty) || isstruct(ty) || isunion(ty)) {
 	if (kind == LOCAL) {
-	    if (!TYPE_TSYM(ty)->defined)
+	    if (!SYM_DEFINED(TYPE_TSYM(ty)))
 		error("variable has incomplete type '%s'", type2s(ty));
 	} else if (kind == GLOBAL) {
-	    if (init && !TYPE_TSYM(ty)->defined && sclass != TYPEDEF)
+	    if (init && !SYM_DEFINED(TYPE_TSYM(ty)) && sclass != TYPEDEF)
 		error("variable has incomplete type '%s'", type2s(ty));
 	} 
     }
                     
     if (SCOPE == GLOBAL) {
-	if (sym->defined && init)
+	if (SYM_DEFINED(sym) && init)
 	    redefinition_error(src, sym);
-	sym->defined = init ? true : false;
+	SYM_DEFINED(sym) = init ? true : false;
     }
                     
     DECL_BODY(decl) = init;

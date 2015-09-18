@@ -32,12 +32,12 @@ static void print_decl(union node *node, struct print_context context)
 
     fprintf(stderr, GREEN("%s ") YELLOW("%p "), nname(node), node);
     if (DECL_SYM(node)) {
-	if (DECL_SYM(node)->defined)
+	if (SYM_DEFINED(DECL_SYM(node)))
 	    fprintf(stderr, YELLOW("<defined> "));
 	
-	union node *ty = DECL_SYM(node)->type;
+	union node *ty = SYM_TYPE(DECL_SYM(node));
         print_ty(ty);
-	fprintf(stderr, CYAN("%s "), STR(DECL_SYM(node)->name));
+	fprintf(stderr, CYAN("%s "), STR(SYM_NAME(DECL_SYM(node))));
     }
     fprintf(stderr, "\n");
     
@@ -70,7 +70,7 @@ static void print_expr(union node *node, struct print_context context)
 	fprintf(stderr, "'" CYAN("lvalue") "' ");
     
     if (EXPR_SYM(node))
-	fprintf(stderr, CYAN("%s "), STR(EXPR_SYM(node)->name));
+	fprintf(stderr, CYAN("%s "), STR(SYM_NAME(EXPR_SYM(node))));
     if (op == INCR || op == DECR)
 	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
     if (op > 0)

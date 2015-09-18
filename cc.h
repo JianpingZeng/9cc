@@ -122,7 +122,7 @@ extern union node * new_field(char *id);
 extern union node * array_type();
 extern union node * ptr_type(union node *ty);
 extern union node * func_type();
-extern struct symbol * tag_type(int t, const char *tag, struct source src);
+extern union node * tag_type(int t, const char *tag, struct source src);
 extern const char *type2s(union node *ty);
 extern unsigned typesize(union node *ty);
 extern union node * find_field(union node *ty, const char *name);
@@ -189,17 +189,6 @@ enum {
     LOCAL,
 };
 
-struct symbol {
-    int scope;
-    const char *name;
-    int sclass;
-    union node *type;
-    bool defined;
-    struct source src;
-    union value value;
-    unsigned refs;
-};
-
 struct table {
     int scope;
     struct table *up;
@@ -212,16 +201,16 @@ extern void enter_scope();
 extern void exit_scope();
 
 // create an anonymous symbol
-extern struct symbol * anonymous(struct table **tpp, int scope);
+extern union node * anonymous(struct table **tpp, int scope);
 
 // look up a symbol from this table to previous one, and so on
-extern struct symbol * lookup(const char *name, struct table *table);
+extern union node * lookup(const char *name, struct table *table);
 
 // install a symbol with specified scope
-extern struct symbol * install(const char *name, struct table **tpp, int scope);
+extern union node * install(const char *name, struct table **tpp, int scope);
 
 // sym->name is NULL or anynomous
-extern bool issymnamed(struct symbol *sym);
+extern bool issymnamed(union node *sym);
 
 extern struct table * identifiers;
 extern struct table * constants;
@@ -229,7 +218,7 @@ extern struct table * tags;
 
 #define SCOPE  scopelevel()
 
-#define currentscope(sym)   (sym->scope == SCOPE || (sym->scope == PARAM && SCOPE == LOCAL))
+#define currentscope(sym)   (SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL))
 
 // error.c
 extern unsigned errors;
@@ -243,8 +232,8 @@ extern void errorf(struct source src, const char *fmt, ...);
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 
-extern void redefinition_error(struct source src, struct symbol *sym);
-extern void conflicting_types_error(struct source src, struct symbol *sym);
+extern void redefinition_error(struct source src, union node *sym);
+extern void conflicting_types_error(struct source src, union node *sym);
 
 // gen.c
 void walk(union node *tree);

@@ -114,7 +114,7 @@ static unsigned escape(const char **ps)
     return c;
 }
 
-static void char_constant(struct token *t, struct symbol *sym)
+static void char_constant(struct token *t, union node *sym)
 {
     const char *s = t->name;
     bool wide = s[0] == 'L';
@@ -154,11 +154,11 @@ static void char_constant(struct token *t, struct symbol *sym)
     else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
         error("illegal multi-character sequence");
     
-    sym->value.u = wide ? (wchar_t)c : (unsigned char)c;
-    sym->type = wide ? wchartype : unsignedchartype;
+    SYM_VALUE(sym).u = wide ? (wchar_t)c : (unsigned char)c;
+    SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
 }
 
-static void integer_constant(struct token *t, struct symbol *sym)
+static void integer_constant(struct token *t, union node *sym)
 {
     const char *s = t->name;
     if (s[0] == '\'' || s[1] == 'L')
@@ -285,45 +285,45 @@ static void integer_constant(struct token *t, struct symbol *sym)
         }
     }
     
-    sym->type = ty;
+    SYM_TYPE(sym) = ty;
     
-    switch (op(sym->type)) {
+    switch (op(SYM_TYPE(sym))) {
     case INT:
 	if (overflow || n > TYPE_LIMITS_MAX(longlongtype).i)
 	    error("integer constant overflow: %s", t->name);
-	sym->value.i = n;
+	SYM_VALUE(sym).i = n;
 	break;
     case UNSIGNED:
 	if (overflow)
 	    error("integer constant overflow: %s", t->name);
-	sym->value.u = n;
+	SYM_VALUE(sym).u = n;
 	break;
     default:
 	CCAssert(0);
     }
 }
 
-static void float_constant(struct token *t, struct symbol *sym)
+static void float_constant(struct token *t, union node *sym)
 {
     const char *s = t->name;
     char c = s[strlen(s)-1];
     errno = 0;			// must clear first
     if (c == 'f' || c == 'F') {
-        sym->type = floattype;
-        sym->value.d = strtof(s, NULL);
+        SYM_TYPE(sym) = floattype;
+        SYM_VALUE(sym).d = strtof(s, NULL);
     } else if (c == 'l' || c == 'L') {
-        sym->type = longdoubletype;
-        sym->value.ld = strtold(s, NULL);
+        SYM_TYPE(sym) = longdoubletype;
+        SYM_VALUE(sym).ld = strtold(s, NULL);
     } else {
-        sym->type = doubletype;
-        sym->value.d = strtod(s, NULL);
+        SYM_TYPE(sym) = doubletype;
+        SYM_VALUE(sym).d = strtod(s, NULL);
     }
     
     if (errno == ERANGE)
         error("float constant overflow: %s", s);
 }
 
-static void string_constant(struct token *t, struct symbol *sym)
+static void string_constant(struct token *t, union node *sym)
 {
     const char *s = t->name;
     bool wide = s[0] == 'L' ? true : false;
@@ -344,7 +344,7 @@ static void string_constant(struct token *t, struct symbol *sym)
         TYPE_TYPE(ty) = chartype;
         TYPE_SIZE(ty) = strlen(s)-1;
     }
-    sym->type = ty;
+    SYM_TYPE(sym) = ty;
 }
 
 static void ensure_type(union node *node, bool (*is) (union node *))
@@ -410,10 +410,10 @@ static const char * is_assignable(union node *node)
 	return format("array type '%s' is not assignable", type2s(ty));
     if (isconst(ty)) {
 	if (AST_ID(node) == REF_EXPR) {
-	    return format("read-only variable '%s' is not assignable", EXPR_SYM(node)->name);
+	    return format("read-only variable '%s' is not assignable", SYM_NAME(EXPR_SYM(node)));
 	} else if (AST_ID(node) == MEMBER_EXPR) {
 	    const char *op = EXPR_OP(node) == '.' ? "." : "->";
-	    const char *l = EXPR_SYM(EXPR_OPERAND(node, 0))->name;
+	    const char *l = SYM_NAME(EXPR_SYM(EXPR_OPERAND(node, 0)));
 	    const char *r = AST_NAME(EXPR_OPERAND(node, 1));
 	    return format("read-only variable '%s%s%s' is not assignable", l, op, r);
 	} else {
@@ -474,7 +474,7 @@ static void ensure_cast(union node *dst, union node *src)
 
 static void argcast1(union node *fty, union node **args, struct vector *v)
 {
-    struct symbol **params = TYPE_PARAMS(fty);
+    union node **params = TYPE_PARAMS(fty);
     int len1 = array_len((void **)params);
     int len2 = array_len((void **)args);
     bool oldstyle = TYPE_OLDSTYLE(fty);
@@ -483,13 +483,13 @@ static void argcast1(union node *fty, union node **args, struct vector *v)
     if (oldstyle) {
 	cmp1 = MIN(len1, len2);
     } else {
-	struct symbol *last = params[len1 - 1];
-	bool vargs = unqual(last->type) == vartype;
+	union node *last = params[len1 - 1];
+	bool vargs = unqual(SYM_TYPE(last)) == vartype;
 	cmp1 = vargs ? len1 - 1 : len1;
     }
     
     for (int i = 0; i < cmp1; i++) {
-	union node *dst = params[i]->type;
+	union node *dst = SYM_TYPE(params[i]);
 	union node *src = AST_TYPE(args[i]);
 	union node *ret = assigncast(dst, args[i]);
 	if (ret) {
@@ -519,7 +519,7 @@ static struct vector * argscast(union node *fty, union node **args)
      * 5. no function declaration/definition found
      */
 
-    struct symbol **params = TYPE_PARAMS(fty);
+    union node **params = TYPE_PARAMS(fty);
     int len1 = array_len((void **)params);
     int len2 = array_len((void **)args);
     
@@ -532,10 +532,10 @@ static struct vector * argscast(union node *fty, union node **args)
 	if (len1 == 0)
 	    return NULL;	// parsing error
 	
-	struct symbol *last = params[len1 - 1];
-	bool vargs = unqual(last->type) == vartype;
-	struct symbol *first = params[0];
-	if (isvoid(first->type))
+	union node *last = params[len1 - 1];
+	bool vargs = unqual(SYM_TYPE(last)) == vartype;
+	union node *first = params[0];
+	if (isvoid(SYM_TYPE(first)))
 	    len1 = 0;
 	if (len1 <= len2) {
 	    if (!vargs && len1 < len2) {
@@ -585,18 +585,18 @@ static union node * cast_type()
 static union node * primary_expr()
 {
     int t = token->id;
-    struct symbol *sym;
+    union node *sym;
     union node *ret = NULL;
     
     switch (t) {
     case ID:
 	sym = lookup(token->name, identifiers);
 	if (sym) {
-	    sym->refs++;
+	    SYM_REFS(sym)++;
 	    ret = ast_expr(REF_EXPR, 0, NULL, NULL);
-	    AST_TYPE(ret) = sym->type;
+	    AST_TYPE(ret) = SYM_TYPE(sym);
 	    EXPR_SYM(ret) = sym;
-	    if (isenum(sym->type) && sym->sclass == ENUM)
+	    if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
 		EXPR_OP(ret) = ENUM; // enum ids
 	} else {
 	    error("use of undeclared identifier '%s'", token->name);
@@ -626,7 +626,7 @@ static union node * primary_expr()
 	    else
 		id = STRING_LITERAL;
             ret = ast_expr(id, 0, NULL, NULL);
-            AST_TYPE(ret) = sym->type;
+            AST_TYPE(ret) = SYM_TYPE(sym);
 	    EXPR_SYM(ret) = sym;
         }
 	break;
@@ -835,8 +835,8 @@ static union node * sizeof_expr()
     if (NO_ERROR) {
 	ret = uop(t, unsignedinttype, ty);
 	EXPR_SYM(ret) = anonymous(&identifiers, GLOBAL);
-	EXPR_SYM(ret)->type = ty;
-	EXPR_SYM(ret)->value.u = typesize(ty);
+	SYM_TYPE(EXPR_SYM(ret)) = ty;
+	SYM_VALUE(EXPR_SYM(ret)).u = typesize(ty);
     }
 
     return ret;
@@ -934,7 +934,7 @@ static union node * address()
     SAVE_ERRORS;
     if (!isfunc(AST_TYPE(operand))) {
 	ensure_lvalue(operand);
-	if (EXPR_SYM(operand) && EXPR_SYM(operand)->sclass == REGISTER)
+	if (EXPR_SYM(operand) && SYM_SCLASS(EXPR_SYM(operand)) == REGISTER)
 	    error("address of register variable requested");
 	else if (is_bitfield(operand))
 	    error("address of bitfield requested");
@@ -1612,9 +1612,9 @@ static bool is_nullptr(union node *node)
 	return false;
     if (AST_ID(ret) == INTEGER_LITERAL) {
 	if (op(AST_TYPE(ret)) == INT)
-	    return EXPR_SYM(ret)->value.i == 0;
+	    return SYM_VALUE(EXPR_SYM(ret)).i == 0;
 	else
-	    return EXPR_SYM(ret)->value.u == 0;
+	    return SYM_VALUE(EXPR_SYM(ret)).u == 0;
     }
     return false;
 }
