@@ -1,5 +1,13 @@
 #include "cc.h"
 
+/* Constant expressions in C:
+ *
+ * 1. interger
+ * 2. floating
+ * 3. address (address of a static extent)
+ * 4. initializer (combination of the aboves)
+ */
+
 // TODO: 
 static bool eval_bool(union node *cond)
 {
