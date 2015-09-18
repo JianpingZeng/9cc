@@ -54,12 +54,12 @@ static int subprocess(void *context)
     const char *output = con->output;
     union node *n = compile(code);
     union node *n1 = DECL_EXTS(n)[0];
-    struct type *ty = DECL_SYM(n1)->type;
+    union node *ty = SYM_TYPE(DECL_SYM(n1));
     const char *ret;
     const char *p1, *p2;
     
-    if (strcmp(unqual(ty)->name, type))
-        fail("type not equal: %s != %s", unqual(ty)->name, type);
+    if (strcmp(TYPE_NAME(unqual(ty)), type))
+        fail("type not equal: %s != %s", TYPE_NAME(unqual(ty)), type);
     
     ret = type2s(ty);
     

@@ -3,20 +3,20 @@
 
 static void test_qual()
 {
-    struct type *ty1 = qual(CONST, inttype);
-    struct type *ty2 = qual(CONST, ty1);
+    union node *ty1 = qual(CONST, inttype);
+    union node *ty2 = qual(CONST, ty1);
     
     expectp(unqual(ty1), inttype);
     expectp(unqual(ty2), inttype);
     expecti(kind(ty1), INT);
-    expecti(ty1->kind, CONST);
+    expecti(TYPE_KIND(ty1), CONST);
     expecti(isconst(ty1), true);
 }
 
 static void test_eq()
 {
-    struct type *ty1, *ty2;
-    struct type *ty3, *ty4;
+    union node *ty1, *ty2;
+    union node *ty3, *ty4;
     
     ty1 = qual(CONST, inttype);
     expecti(eqtype(ty1, inttype), false);
@@ -34,7 +34,7 @@ static void test_eq()
     expecti(eqtype(ty3, ty4), true);
     
     expecti(kind(ty3), POINTER);
-    expecti(ty3->kind, CONST);
+    expecti(TYPE_KIND(ty3), CONST);
     
 }
 

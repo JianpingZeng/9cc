@@ -3,8 +3,8 @@
 
 static void test_lookup()
 {
-    struct symbol *sym;
-    struct symbol *sym2;
+    union node *sym;
+    union node *sym2;
     
     const char *var1 = strs("var1");
     sym = lookup(var1, identifiers);
@@ -14,7 +14,7 @@ static void test_lookup()
     
     const char *name1 = strs("name1");
     sym = install(name1, &identifiers, SCOPE);
-    expects(sym->name, "name1");
+    expects(SYM_NAME(sym), "name1");
     
     sym2 = lookup(name1, identifiers);
     expectp(sym, sym2);
@@ -27,17 +27,17 @@ static void test_scope()
     expecti(SCOPE, GLOBAL+1);
     
     const char *name1 = strs("name1");
-    struct symbol *sym = lookup(name1, identifiers);
-    expecti(sym->scope, GLOBAL);
+    union node *sym = lookup(name1, identifiers);
+    expecti(SYM_SCOPE(sym), GLOBAL);
     
-    struct symbol *sym2 = install(name1, &identifiers, SCOPE);
+    union node *sym2 = install(name1, &identifiers, SCOPE);
     expectb(sym != sym2);
     expectp(identifiers->up->up, NULL);
-    expecti(sym2->scope, sym->scope+1);
+    expecti(SYM_SCOPE(sym2), SYM_SCOPE(sym)+1);
     
     exit_scope();
     expecti(SCOPE, GLOBAL);
-    struct symbol *sym3 = lookup(name1, identifiers);
+    union node *sym3 = lookup(name1, identifiers);
     expectp(sym3, sym);
 }
 
