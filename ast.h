@@ -10,6 +10,14 @@ enum {
 
 /**
  * This is the _ONLY_ typedef used.
+ *
+ * The coding style tends to avoid typedefs, because
+ * typedefs reduce readability, but it's not a hard rule,
+ * I don't mind a few of them.
+ *
+ * The fields of ast_node are designed to be accessed _ONLY_
+ * via macros, so it's useful to use typedef to hide the
+ * implementation details.
  */
 typedef union ast_node node_t;
 
