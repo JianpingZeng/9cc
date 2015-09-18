@@ -342,7 +342,7 @@ static void string_constant(struct token *t, struct symbol *sym)
     } else {
         ty = array_type();
         ty->type = chartype;
-        ty->size = strlen(s)-2;
+        ty->size = strlen(s)-1;
     }
     sym->type = ty;
 }
