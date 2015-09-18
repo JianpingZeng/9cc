@@ -1438,7 +1438,7 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 	return NULL;
     if (op == '=') {
         if (!assign_types_check(AST_TYPE(l), r))
-	    error("assign type '%s' to type '%s' is invalid", type2s(AST_TYPE(r)), type2s(AST_TYPE(l)));
+	    error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
     } else {
 	int op2 = splitop(op);
 	node_t *l1 = conv(l);
@@ -1448,7 +1448,7 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 	    node_t *ty2 = AST_TYPE(r1);
 	    if (!((isarith(ty1) && isarith(ty2)) ||
 		  (isptr(ty1) && isint(ty2))))
-	        error("assign type '%s' to type '%s' is invalid", type2s(ty1), type2s(ty2));
+	        error(INCOMPATIBLE_TYPES, type2s(ty1), type2s(ty2));
 	}
 	r = bop(op2, l1, r1);
     }
