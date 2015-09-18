@@ -16,18 +16,15 @@
 #include "config.h"
 #include "utils.h"
 
-extern void *cc_alloc(size_t size);
-
-extern void cc_drain(void);
-
-#define NEW0(size)  cc_alloc(size)
-
-#define NEWS(tag)   ((struct tag *)NEW0(sizeof(struct tag)))
-#define NEWU(tag)   ((union tag *)NEW0(sizeof(union tag)))
-
 #include "strbuf.h"
 #include "vector.h"
 #include "map.h"
+
+// alloc.c
+extern void * alloc_node_node(void);
+extern void * alloc_symbol_node(void);
+extern void * alloc_type_node(void);
+extern void * alloc_field_node(void);
 
 // lex.c
 #define EOI  -1

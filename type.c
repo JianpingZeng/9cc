@@ -54,9 +54,9 @@ struct metrics {
 #endif
     zerometrics         = { 0 };
 
-static struct type * new_type()
+static inline struct type * new_type()
 {
-    return NEWS(type);
+    return alloc_type_node();
 }
 
 static struct type * install_type(const char *name, int kind, struct metrics m)
@@ -280,7 +280,7 @@ bool is_typedef_name(const char *id)
 
 struct field * new_field(char *id)
 {
-    struct field *field = NEWS(field);
+    struct field *field = alloc_field_node();
     field->name = id;
     return field;
 }

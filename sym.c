@@ -10,11 +10,17 @@ static int level = GLOBAL;
 
 static struct table * new_table(struct table *up, int scope)
 {
-    struct table *t = NEWS(table);
+    struct table *t = zmalloc(sizeof(struct table));
     t->up = up;
     t->scope = scope;
     t->map = map_new(nocmp);
     return t;
+}
+
+static void free_table(struct table *t)
+{
+    map_free(t->map);
+    free(t);
 }
 
 int scopelevel()
@@ -29,10 +35,16 @@ void enter_scope()
 
 void exit_scope()
 {
-    if (tags->scope == level)
-        tags = tags->up;
-    if (identifiers->scope == level)
-        identifiers = identifiers->up;
+    if (tags->scope == level) {
+	struct table *up = tags->up;
+	free_table(tags);
+        tags = up;
+    }
+    if (identifiers->scope == level) {
+	struct table *up = identifiers->up;
+	free_table(identifiers);
+        identifiers = up;
+    }
     CCAssert(level >= GLOBAL);
     level--;
 }
@@ -68,7 +80,7 @@ struct symbol * install(const char *name, struct table **tpp, int scope)
             tp = tp->up;
     }
     
-    sym = NEWS(symbol);
+    sym = alloc_symbol_node();
     sym->scope = scope;
     sym->name = name;
     map_put(tp->map, sym->name, sym);
