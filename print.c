@@ -13,7 +13,7 @@ static void print_ty(union node *ty)
 {
     if (ty) {
 	if (isfunc(ty) || isptr(ty) || isarray(ty))
-	    fprintf(stderr, RED("'%s' ") GREEN("'%s' "), TYPE_NAME(unqual(ty)), type2s(ty));
+	    fprintf(stderr, RED_BOLD("'%s' ") GREEN("'%s' "), TYPE_NAME(unqual(ty)), type2s(ty));
 	else
 	    fprintf(stderr, GREEN("'%s' "), type2s(ty));
     }
