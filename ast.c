@@ -50,7 +50,7 @@ union node * ast_decl(int id, int scope)
     return decl;
 }
 
-union node * ast_uop(int op, struct type *ty, union node *l)
+union node * ast_uop(int op, union node *ty, union node *l)
 {
     union node * expr = ast_expr(UNARY_OPERATOR, op, l, NULL);
     AST_TYPE(expr) = ty;
@@ -63,7 +63,7 @@ union node * ast_bop(int op, union node *l, union node *r)
     return expr;
 }
 
-union node * ast_conv(struct type *ty, union node *l, const char *name)
+union node * ast_conv(union node *ty, union node *l, const char *name)
 {
     union node * expr = ast_expr(CONV_EXPR, 0, l, NULL);
     AST_TYPE(expr) = ty;
@@ -84,11 +84,3 @@ union node * ast_vinit()
         vinit = ast_expr(VINIT_EXPR, 0, NULL, NULL);
     return vinit;
 }
-
-union node * ast_type(struct type *ty)
-{
-    union node * expr = ast_expr(TYPE_EXPR, 0, NULL, NULL);
-    TYPE_TYPE(expr) = ty;
-    return expr;
-}
-

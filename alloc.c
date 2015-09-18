@@ -35,10 +35,11 @@ void * alloc_symbol(void)
     return do_alloc_node(&symbol_state, sizeof(struct symbol));
 }
 
-static struct alloc_state type_state;
 void * alloc_type(void)
 {
-    return do_alloc_node(&type_state, sizeof(struct type));
+    union node *n = alloc_node();
+    AST_ID(n) = TYPE_NODE;
+    return n;
 }
 
 void * alloc_field(void)

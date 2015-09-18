@@ -4,7 +4,7 @@ static union node * cast_expr();
 static union node * cond_expr();
 static union node * cond_expr1(union node *o);
 static union node * unary_expr();
-static union node * uop(int op, struct type *ty, union node *l);
+static union node * uop(int op, union node *ty, union node *l);
 static union node * bop(int op, union node *l, union node *r);
 static union node * logicop(int op, union node *l, union node *r);
 static union node * commaop(int op, union node *l, union node *r);
@@ -13,10 +13,10 @@ static union node * decay(union node *node);
 static union node * ltor(union node *node);
 static union node * conv(union node *node);
 static union node * conva(union node *node);
-static struct type * conv2(struct type *l, struct type *r);
-static union node * wrap(struct type *ty, union node *node);
-static union node * bitcast(struct type *ty, union node *node);
-static union node * assigncast(struct type *ty, union node *node);
+static union node * conv2(union node *l, union node *r);
+static union node * wrap(union node *ty, union node *node);
+static union node * bitcast(union node *ty, union node *node);
+static union node * assigncast(union node *ty, union node *node);
 static bool is_nullptr(union node *node);
 
 #define SAVE_ERRORS    unsigned err = errors
@@ -148,8 +148,8 @@ static void char_constant(struct token *t, struct symbol *sym)
         error("incomplete character constant: %s", t->name);
     else if (overflow)
         error("extraneous characters in character constant: %s", t->name);
-    else if ((!wide && c > unsignedchartype->limits.max.u) ||
-             (wide && c > wchartype->limits.max.u))
+    else if ((!wide && c > TYPE_LIMITS_MAX(unsignedchartype).u) ||
+             (wide && c > TYPE_LIMITS_MAX(wchartype).u))
         error("character constant overflow: %s", t->name);
     else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
         error("illegal multi-character sequence");
@@ -165,7 +165,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
         return char_constant(t, sym);
     
     int base;
-    struct type *ty;
+    union node *ty;
     bool overflow = 0;
     unsigned long long n = 0;
     
@@ -207,7 +207,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
         base = 10;
         for (;is_digit(*s);) {
             int d = *s - '0';
-            if (n > (unsignedlonglongtype->limits.max.u - d)/10)
+            if (n > (TYPE_LIMITS_MAX(unsignedlonglongtype).u - d)/10)
                 overflow = 1;
             else
                 n = n*10 + (*s - '0');
@@ -229,56 +229,56 @@ static void integer_constant(struct token *t, struct symbol *sym)
     if (ull || llu) {
         ty = unsignedlonglongtype;
     } else if (ll) {
-        if (n > longlongtype->limits.max.i && base != 10)
+        if (n > TYPE_LIMITS_MAX(longlongtype).i && base != 10)
             ty = unsignedlonglongtype;
         else
             ty = longlongtype;
     } else if (lu || ul) {
-        if (n > unsignedlongtype->limits.max.u)
+        if (n > TYPE_LIMITS_MAX(unsignedlongtype).u)
             ty = unsignedlonglongtype;
         else
             ty = unsignedlongtype;
     } else if (l) {
         if (base == 10) {
-            if (n > longtype->limits.max.i)
+            if (n > TYPE_LIMITS_MAX(longtype).i)
                 ty = longlongtype;
             else
                 ty = longtype;
         } else {
-            if (n > longlongtype->limits.max.i)
+            if (n > TYPE_LIMITS_MAX(longlongtype).i)
                 ty = unsignedlonglongtype;
-            else if (n > unsignedlongtype->limits.max.u)
+            else if (n > TYPE_LIMITS_MAX(unsignedlongtype).u)
                 ty = longlongtype;
-            else if (n > longtype->limits.max.i)
+            else if (n > TYPE_LIMITS_MAX(longtype).i)
                 ty = unsignedlongtype;
             else
                 ty = longtype;
         }
     } else if (u) {
-        if (n > unsignedlongtype->limits.max.u)
+        if (n > TYPE_LIMITS_MAX(unsignedlongtype).u)
             ty = unsignedlonglongtype;
-        else if (n > unsignedinttype->limits.max.u)
+        else if (n > TYPE_LIMITS_MAX(unsignedinttype).u)
             ty = unsignedlongtype;
         else
             ty = unsignedinttype;
     } else {
         if (base == 10) {
-            if (n > longtype->limits.max.i)
+            if (n > TYPE_LIMITS_MAX(longtype).i)
                 ty = longlongtype;
-            else if (n > inttype->limits.max.i)
+            else if (n > TYPE_LIMITS_MAX(inttype).i)
                 ty = longtype;
             else
                 ty = inttype;
         } else {
-            if (n > longlongtype->limits.max.i)
+            if (n > TYPE_LIMITS_MAX(longlongtype).i)
                 ty = unsignedlonglongtype;
-            else if (n > unsignedlongtype->limits.max.u)
+            else if (n > TYPE_LIMITS_MAX(unsignedlongtype).u)
                 ty = longlongtype;
-            else if (n > longtype->limits.max.i)
+            else if (n > TYPE_LIMITS_MAX(longtype).i)
                 ty = unsignedlongtype;
-            else if (n > unsignedinttype->limits.max.u)
+            else if (n > TYPE_LIMITS_MAX(unsignedinttype).u)
                 ty = longtype;
-            else if (n > inttype->limits.max.i)
+            else if (n > TYPE_LIMITS_MAX(inttype).i)
                 ty = unsignedinttype;
             else
                 ty = inttype;
@@ -289,7 +289,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
     
     switch (op(sym->type)) {
     case INT:
-	if (overflow || n > longlongtype->limits.max.i)
+	if (overflow || n > TYPE_LIMITS_MAX(longlongtype).i)
 	    error("integer constant overflow: %s", t->name);
 	sym->value.i = n;
 	break;
@@ -327,7 +327,7 @@ static void string_constant(struct token *t, struct symbol *sym)
 {
     const char *s = t->name;
     bool wide = s[0] == 'L' ? true : false;
-    struct type *ty;
+    union node *ty;
     if (wide) {
         size_t len = strlen(s) - 3;
         wchar_t ws[len+1];
@@ -337,17 +337,17 @@ static void string_constant(struct token *t, struct symbol *sym)
             error("invalid multibyte sequence: %s", s);
         CCAssert(wlen<=len+1);
         ty = array_type();
-        ty->type = wchartype;
-        ty->size = wlen;
+        TYPE_TYPE(ty) = wchartype;
+        TYPE_SIZE(ty) = wlen;
     } else {
         ty = array_type();
-        ty->type = chartype;
-        ty->size = strlen(s)-1;
+        TYPE_TYPE(ty) = chartype;
+        TYPE_SIZE(ty) = strlen(s)-1;
     }
     sym->type = ty;
 }
 
-static void ensure_type(union node *node, bool (*is) (struct type *))
+static void ensure_type(union node *node, bool (*is) (union node *))
 {
     const char *name;
     if (is == isint)
@@ -401,7 +401,7 @@ static void ensure_lvalue(union node *node)
 
 static const char * is_assignable(union node *node)
 {
-    struct type *ty = AST_TYPE(node);
+    union node *ty = AST_TYPE(node);
     if (!islvalue(node))
 	return "expression is not assignable";
     if (AST_ID(node) == PAREN_EXPR)
@@ -436,13 +436,13 @@ static bool is_bitfield(union node *node)
     if (AST_ID(node) != MEMBER_EXPR)
         return false;
 
-    struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
+    union node *ty = AST_TYPE(EXPR_OPERAND(node, 0));
     const char *name = AST_NAME(EXPR_OPERAND(node, 1));
     union node *field = find_field(ty, name);
     return isbitfield(field);
 }
 
-static const char * is_castable(struct type *dst, struct type *src)
+static const char * is_castable(union node *dst, union node *src)
 {
     if (isvoid(dst))
 	return NULL;
@@ -465,19 +465,19 @@ static const char * is_castable(struct type *dst, struct type *src)
     return format(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
 }
 
-static void ensure_cast(struct type *dst, struct type *src)
+static void ensure_cast(union node *dst, union node *src)
 {
     const char *msg = is_castable(dst, src);
     if (msg)
 	error(msg);
 }
 
-static void argcast1(struct type *fty, union node **args, struct vector *v)
+static void argcast1(union node *fty, union node **args, struct vector *v)
 {
-    struct symbol **params = PARAMS(fty);
+    struct symbol **params = TYPE_PARAMS(fty);
     int len1 = array_len((void **)params);
     int len2 = array_len((void **)args);
-    bool oldstyle = OLDSTYLE(fty);
+    bool oldstyle = TYPE_OLDSTYLE(fty);
     int cmp1;
 
     if (oldstyle) {
@@ -489,8 +489,8 @@ static void argcast1(struct type *fty, union node **args, struct vector *v)
     }
     
     for (int i = 0; i < cmp1; i++) {
-	struct type *dst = params[i]->type;
-	struct type *src = AST_TYPE(args[i]);
+	union node *dst = params[i]->type;
+	union node *src = AST_TYPE(args[i]);
 	union node *ret = assigncast(dst, args[i]);
 	if (ret) {
 	    vec_push(v, ret);
@@ -505,7 +505,7 @@ static void argcast1(struct type *fty, union node **args, struct vector *v)
 	vec_push(v, conva(args[i]));
 }
 
-static struct vector * argscast(struct type *fty, union node **args)
+static struct vector * argscast(union node *fty, union node **args)
 {
     struct vector *v = vec_new();
     CCAssert(isfunc(fty));
@@ -519,11 +519,11 @@ static struct vector * argscast(struct type *fty, union node **args)
      * 5. no function declaration/definition found
      */
 
-    struct symbol **params = PARAMS(fty);
+    struct symbol **params = TYPE_PARAMS(fty);
     int len1 = array_len((void **)params);
     int len2 = array_len((void **)args);
     
-    if (OLDSTYLE(fty)) {
+    if (TYPE_OLDSTYLE(fty)) {
 	if (len1 > len2)
 	    warning("too few arguments to function call");
 
@@ -559,7 +559,7 @@ static struct vector * argscast(struct type *fty, union node **args)
     return v;
 }
 
-static union node * compound_literal(struct type *ty)
+static union node * compound_literal(union node *ty)
 {
     union node * ret;
     union node * inits;
@@ -571,9 +571,9 @@ static union node * compound_literal(struct type *ty)
     return ret;
 }
 
-static struct type * cast_type()
+static union node * cast_type()
 {
-    struct type *ty;
+    union node *ty;
     
     expect('(');
     ty = typename();
@@ -632,7 +632,7 @@ static union node * primary_expr()
 	break;
     case '(':
 	if (istypename(lookahead())) {
-	    struct type *ty = cast_type();
+	    union node *ty = cast_type();
 	    ret = compound_literal(ty);
 	} else {
 	    expect('(');
@@ -706,7 +706,7 @@ static union node * funcall(union node *node)
 	return ret;
 
     if (isptrto(AST_TYPE(node), FUNCTION)) {
-	struct type *fty = rtype(AST_TYPE(node));
+	union node *fty = rtype(AST_TYPE(node));
 	struct vector *v;
 	if ((v = argscast(fty, args))) {
 	    ret = ast_expr(CALL_EXPR, 0, node, NULL);
@@ -735,7 +735,7 @@ static union node * direction(union node *node)
     
     SAVE_ERRORS;
     union node *field = NULL;
-    struct type *ty = AST_TYPE(node);
+    union node *ty = AST_TYPE(node);
     if (t == '.') {
 	ensure_type(node, isrecord);
     } else {
@@ -808,7 +808,7 @@ static union node * sizeof_expr()
     
     struct token *ahead = lookahead();
     union node *n = NULL;
-    struct type *ty = NULL;
+    union node *ty = NULL;
     
     if (token->id == '(' && istypename(ahead)) {
         ty = cast_type();
@@ -833,7 +833,7 @@ static union node * sizeof_expr()
 	error("'sizeof' to a bitfield is invalid");
 
     if (NO_ERROR) {
-	ret = uop(t, unsignedinttype, ast_type(ty));
+	ret = uop(t, unsignedinttype, ty);
 	EXPR_SYM(ret) = anonymous(&identifiers, GLOBAL);
 	EXPR_SYM(ret)->type = ty;
 	EXPR_SYM(ret)->value.u = typesize(ty);
@@ -984,7 +984,7 @@ static union node * cast_expr()
     struct token * ahead = lookahead();
     
     if (token->id == '(' && istypename(ahead)) {
-        struct type *ty = cast_type();
+        union node *ty = cast_type();
         if (token->id == '{') {
             union node * node = compound_literal(ty);
             return postfix_expr1(node);
@@ -1145,7 +1145,7 @@ static union node * cond_expr1(union node *cond)
 {
     union node *ret = NULL;
     union node *then, *els;
-    struct type *ty = NULL;
+    union node *ty = NULL;
 
     expect('?');
     then = conv(expression());
@@ -1155,8 +1155,8 @@ static union node * cond_expr1(union node *cond)
     if (cond == NULL || then == NULL || els == NULL)
 	return ret;
 
-    struct type *ty1 = AST_TYPE(then);
-    struct type *ty2 = AST_TYPE(els);
+    union node *ty1 = AST_TYPE(then);
+    union node *ty2 = AST_TYPE(els);
 
     SAVE_ERRORS;
     ensure_type(cond, isscalar);
@@ -1174,14 +1174,14 @@ static union node * cond_expr1(union node *cond)
 	ty = voidtype;
     } else if (isptr(ty1) && isptr(ty2)) {
 	if (is_nullptr(then) || is_nullptr(els)) {
-	    struct type *nty = is_nullptr(then) ? ty1 : ty2;
-	    struct type *tty = nty == ty1 ? ty2 : ty1;
+	    union node *nty = is_nullptr(then) ? ty1 : ty2;
+	    union node *tty = nty == ty1 ? ty2 : ty1;
 	    ty = ptr_type(compose(rtype(tty), rtype(nty)));
 	    then = bitcast(ty, then);
 	    els = bitcast(ty, els);
 	} else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
-	    struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
-	    struct type *tty = vty == ty1 ? ty2 : ty1;
+	    union node *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+	    union node *tty = vty == ty1 ? ty2 : ty1;
 	    if (isptrto(tty, FUNCTION)) {
 	        error(INCOMPATIBLE_TYPES2, ty1, ty2);
 	    } else {
@@ -1190,8 +1190,8 @@ static union node * cond_expr1(union node *cond)
 		els = bitcast(ty, els);
 	    }
 	} else {
-	    struct type *rty1 = rtype(ty1);
-	    struct type *rty2 = rtype(ty2);
+	    union node *rty1 = rtype(ty1);
+	    union node *rty2 = rtype(ty2);
 	    if (eqtype(unqual(rty1), unqual(rty2))) {
 		ty = ptr_type(compose(rty1, rty2));
 		then = bitcast(ty, then);
@@ -1249,7 +1249,7 @@ union node * expression()
     return assign1;
 }
 
-static union node * uop(int op, struct type *ty, union node *l)
+static union node * uop(int op, union node *ty, union node *l)
 {
     union node *node = ast_uop(op, ty, l);
     return node;
@@ -1258,7 +1258,7 @@ static union node * uop(int op, struct type *ty, union node *l)
 static union node * bop(int op, union node *l, union node *r)
 {
     union node *node = NULL;
-    struct type *ty;
+    union node *ty;
 
     if (l == NULL || r == NULL)
 	return NULL;
@@ -1387,14 +1387,14 @@ static union node * assignop(int op, union node *l, union node *r)
 
 #define TYPE_ERROR(ty1, ty2)  error("assign type '%s' to type '%s' is invalid", type2s(ty2), type2s(ty1))
 
-    struct type *retty = unqual(AST_TYPE(l));
+    union node *retty = unqual(AST_TYPE(l));
     SAVE_ERRORS;
     ensure_assignable(l);
     if (HAS_ERROR)
 	goto out;
     if (op == '=') {
-	struct type *ty1 = AST_TYPE(l);
-	struct type *ty2 = AST_TYPE(r);
+	union node *ty1 = AST_TYPE(l);
+	union node *ty2 = AST_TYPE(r);
 	if ((isarith(ty1) && isarith(ty2)) ||
 	    (unqual(ty1) == booltype && isptr(ty2))) {
 	    goto out;
@@ -1406,24 +1406,24 @@ static union node * assignop(int op, union node *l, union node *r)
 	    if (is_nullptr(r)) {
 		goto out;
 	    } else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
-		struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
-		struct type *tty = vty == ty1 ? ty2 : ty1;
+		union node *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+		union node *tty = vty == ty1 ? ty2 : ty1;
 		if (isptrto(tty, FUNCTION)) {
 		    TYPE_ERROR(ty1, ty2);
 		} else {
-		    struct type *rty1 = rtype(ty1);
-		    struct type *rty2 = rtype(ty2);
-		    int qual1 = isqual(rty1) ? rty1->kind : 0;
-		    int qual2 = isqual(rty2) ? rty2->kind : 0;
+		    union node *rty1 = rtype(ty1);
+		    union node *rty2 = rtype(ty2);
+		    int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
+		    int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
 		    if (!contains(qual1, qual2))
 			TYPE_ERROR(ty1, ty2);
 		}
 	    } else {
-		struct type *rty1 = rtype(ty1);
-		struct type *rty2 = rtype(ty2);
+		union node *rty1 = rtype(ty1);
+		union node *rty2 = rtype(ty2);
 		if (eqtype(unqual(rty1), unqual(rty2))) {
-		    int qual1 = isqual(rty1) ? rty1->kind : 0;
-		    int qual2 = isqual(rty2) ? rty2->kind : 0;
+		    int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
+		    int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
 		    if (!contains(qual1, qual2))
 			TYPE_ERROR(ty1, ty2);
 		} else {
@@ -1438,8 +1438,8 @@ static union node * assignop(int op, union node *l, union node *r)
 	union node *l1 = conv(l);
 	union node *r1 = conv(r);
 	if (op2 == '+' || op2 == '-') {
-	    struct type *ty1 = AST_TYPE(l1);
-	    struct type *ty2 = AST_TYPE(r1);
+	    union node *ty1 = AST_TYPE(l1);
+	    union node *ty2 = AST_TYPE(r1);
 	    if (!((isarith(ty1) && isarith(ty2)) ||
 		  (isptr(ty1) && isint(ty2))))
 	        TYPE_ERROR(ty1, ty2);
@@ -1456,7 +1456,7 @@ static union node * assignop(int op, union node *l, union node *r)
     return ret;
 }
 
-static const char * castname(struct type *ty, union node *l)
+static const char * castname(union node *ty, union node *l)
 {
     if (isfloat(ty) && isfloat(AST_TYPE(l)))
 	return FloatCast;
@@ -1470,7 +1470,7 @@ static const char * castname(struct type *ty, union node *l)
 	return BitCast;
 }
 
-static union node * wrap(struct type *ty, union node *node)
+static union node * wrap(union node *ty, union node *node)
 {
     CCAssert(isarith(ty));
     CCAssert(isarith(AST_TYPE(node)));
@@ -1481,7 +1481,7 @@ static union node * wrap(struct type *ty, union node *node)
         return ast_conv(ty, node, castname(ty, node));
 }
 
-static union node * bitcast(struct type *ty, union node *node)
+static union node * bitcast(union node *ty, union node *node)
 {
     if (eqtype(ty, AST_TYPE(node)))
 	return node;
@@ -1489,10 +1489,10 @@ static union node * bitcast(struct type *ty, union node *node)
 	return ast_conv(ty, node, castname(ty, node));
 }
 
-static union node * assigncast(struct type *ty, union node *node)
+static union node * assigncast(union node *ty, union node *node)
 {
     union node *ret = NULL;
-    struct type *ty2 = AST_TYPE(node);
+    union node *ty2 = AST_TYPE(node);
 
     if (islvalue(node))
 	node = ltor(node);
@@ -1513,7 +1513,7 @@ static union node * assigncast(struct type *ty, union node *node)
 }
 
 // Universal Binary Conversion
-static struct type * conv2(struct type *l, struct type *r)
+static union node * conv2(union node *l, union node *r)
 {
     CCAssert(isarith(l));
     CCAssert(isarith(r));
@@ -1521,12 +1521,12 @@ static struct type * conv2(struct type *l, struct type *r)
     CCAssert(size(l) >= size(inttype));
     CCAssert(size(r) >= size(inttype));
     
-    struct type *max = rank(l) > rank(r) ? l : r;
+    union node *max = rank(l) > rank(r) ? l : r;
     if (isfloat(l) || isfloat(r) || op(l) == op(r))
         return max;
     
-    struct type *u = op(l) == UNSIGNED ? l : r;
-    struct type *s = op(l) == INT ? l : r;
+    union node *u = op(l) == UNSIGNED ? l : r;
+    union node *s = op(l) == INT ? l : r;
     CCAssert(unqual(s) == s);
     
     if (rank(u) >= rank(s))

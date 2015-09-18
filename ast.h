@@ -16,15 +16,66 @@ enum {
 struct ast_common {
     int id;
     const char *name;
-    struct type *type;
+    union node *type;
     union node *kids[2];
 };
 
-#define TYPE_TYPE(NODE)         ((NODE)->asty.type)
+#define TYPE_KIND(NODE)         ((NODE)->type.kind)
+#define TYPE_NAME(NODE)         ((NODE)->type.name)
+#define TYPE_SIZE(NODE)         ((NODE)->type.size)
+#define TYPE_RANK(NODE)         ((NODE)->type.rank)
+#define TYPE_INLINE(NODE)       ((NODE)->type.inlined)
+#define TYPE_TYPE(NODE)         ((NODE)->type.type)
+#define TYPE_TAG(NODE)          ((NODE)->type.tag)
+#define TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
+#define TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
+#define TYPE_TSYM(NODE)         ((NODE)->type.u.s.tsym)
+#define TYPE_IDS(NODE)          ((NODE)->type.u.s.ids)
+#define TYPE_FIELDS(NODE)       ((NODE)->type.u.s.fields)
+#define TYPE_LIMITS_MAX(NODE)   ((NODE)->type.limits.max)
+#define TYPE_LIMITS_MIN(NODE)   ((NODE)->type.limits.min)
+#define TYPE_A_ASSIGN(NODE)     ((NODE)->type.u.a.assign)
+#define TYPE_A_CONST(NODE)      ((NODE)->type.u.a.is_const)
+#define TYPE_A_VOLATILE(NODE)   ((NODE)->type.u.a.is_volatile)
+#define TYPE_A_RESTRICT(NODE)   ((NODE)->type.u.a.is_restrict)
+#define TYPE_A_STATIC(NODE)     ((NODE)->type.u.a.is_static)
+#define TYPE_A_WILDCARD(NODE)   ((NODE)->type.u.a.wildcard)
 
 struct ast_type {
     struct ast_common common;
-    struct type *type;
+    int kind;
+    const char *name;
+    size_t size;
+    unsigned rank;
+    bool inlined;
+    union node *type;
+    const char *tag;
+    union {
+        // function
+        struct {
+            struct symbol **params;
+            unsigned oldstyle : 1;
+        }f;
+        // enum/struct/union
+        struct {
+	    struct symbol *tsym;
+            struct symbol **ids;
+            union node **fields;
+        }s;
+	// array
+        struct {
+            union node *assign;
+            unsigned is_const : 1;
+            unsigned is_volatile : 1;
+            unsigned is_restrict : 1;
+            unsigned is_static : 1;
+            unsigned wildcard : 1;
+        }a;
+    }u;
+    struct {
+        union value max;
+        union value min;
+    }limits;
 };
 
 #define FIELD_NAME(NODE)        ((NODE)->field.name)
@@ -35,7 +86,7 @@ struct ast_type {
 struct ast_field {
     struct ast_common common;
     const char *name;
-    struct type *type;
+    union node *type;
     int offset;
     int bitsize;
 };
@@ -107,7 +158,7 @@ union node {
     struct ast_decl decl;
     struct ast_stmt stmt;
     struct ast_expr expr;
-    struct ast_type asty;
+    struct ast_type type;
     struct ast_field field;
 };
 
@@ -116,12 +167,11 @@ extern const char *nname(union node *node);
 extern union node * ast_expr(int id, int op, union node *l, union node *r);
 extern union node * ast_decl(int id, int scope);
 extern union node * ast_stmt(int id, union node *l, union node *r);
-extern union node * ast_uop(int op, struct type *ty, union node *l);
+extern union node * ast_uop(int op, union node *ty, union node *l);
 extern union node * ast_bop(int op, union node *l, union node *r);
-extern union node * ast_conv(struct type *ty, union node *l, const char *name);
+extern union node * ast_conv(union node *ty, union node *l, const char *name);
 extern union node * ast_inits();
 extern union node * ast_vinit();
-extern union node * ast_type(struct type *ty);
 
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)

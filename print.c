@@ -9,11 +9,11 @@ struct print_context {
 
 static void print_tree1(struct print_context context);
 
-static void print_ty(struct type *ty)
+static void print_ty(union node *ty)
 {
     if (ty) {
 	if (isfunc(ty) || isptr(ty) || isarray(ty))
-	    fprintf(stderr, RED("'%s' ") GREEN("'%s' "), unqual(ty)->name, type2s(ty));
+	    fprintf(stderr, RED("'%s' ") GREEN("'%s' "), TYPE_NAME(unqual(ty)), type2s(ty));
 	else
 	    fprintf(stderr, GREEN("'%s' "), type2s(ty));
     }
@@ -28,7 +28,7 @@ static void print_decl(union node *node, struct print_context context)
 	if (DECL_SYM(node)->defined)
 	    fprintf(stderr, YELLOW("<defined> "));
 	
-	struct type *ty = DECL_SYM(node)->type;
+	union node *ty = DECL_SYM(node)->type;
         print_ty(ty);
 	fprintf(stderr, CYAN("%s "), STR(DECL_SYM(node)->name));
     }

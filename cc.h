@@ -95,11 +95,11 @@ extern int intexpr();
 extern bool islvalue(union node *node);
 
 // decl.c
-extern union node * initializer_list(struct type *ty);
+extern union node * initializer_list(union node *ty);
 extern bool istypename(struct token *t);
 extern union node ** declaration();
 extern union node * translation_unit();
-extern struct type * typename();
+extern union node * typename();
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
@@ -109,120 +109,76 @@ extern union node * compound_stmt();
 
 #define isbitfield(field)    (FIELD_BITSIZE(field) > 0)
 
-#define OLDSTYLE(fty)    ((fty)->u.f.oldstyle)
-#define PARAMS(fty)      ((fty)->u.f.params)
-
-#define TSYM(ty)      ((ty)->u.s.tsym)
-#define IDS(ty)       ((ty)->u.s.ids)
-#define FIELDS(ty)    ((ty)->u.s.fields)
-
-// type.c
-struct type {
-    int kind;
-    const char *name;
-    size_t size;
-    unsigned rank;
-    bool inlined;
-    struct type *type;
-    const char *tag;
-    union {
-        // function
-        struct {
-            struct symbol **params;
-            unsigned oldstyle : 1;
-        }f;
-        // array
-        struct {
-            union node *assign;
-            unsigned is_const : 1;
-            unsigned is_volatile : 1;
-            unsigned is_restrict : 1;
-            unsigned is_static : 1;
-            unsigned wildcard : 1;
-        }a;
-        // enum/struct/union
-        struct {
-	    struct symbol *tsym;
-            struct symbol **ids;
-            union node **fields;
-        }s;
-    }u;
-    struct {
-        union value max;
-        union value min;
-    }limits;
-};
-
 extern void type_init();
-extern int op(struct type *type);
-extern void prepend_type(struct type **typelist, struct type *type);
-extern void attach_type(struct type **typelist, struct type *type);
-extern struct type * qual(int t, struct type *ty);
-extern bool eqtype(struct type *ty1, struct type *ty2);
-extern bool eqarith(struct type *ty1, struct type * ty2);
-extern struct type * lookup_typedef_name(const char *id);
+extern int op(union node *type);
+extern void prepend_type(union node **typelist, union node *type);
+extern void attach_type(union node **typelist, union node *type);
+extern union node * qual(int t, union node *ty);
+extern bool eqtype(union node *ty1, union node *ty2);
+extern bool eqarith(union node *ty1, union node * ty2);
+extern union node * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
 extern union node * new_field(char *id);
-extern struct type * array_type();
-extern struct type * ptr_type(struct type *ty);
-extern struct type * func_type();
+extern union node * array_type();
+extern union node * ptr_type(union node *ty);
+extern union node * func_type();
 extern struct symbol * tag_type(int t, const char *tag, struct source src);
-extern const char *type2s(struct type *ty);
-extern unsigned typesize(struct type *ty);
-extern union node * find_field(struct type *ty, const char *name);
-extern int indexof_field(struct type *ty, union node *field);
-extern struct type * compose(struct type *ty1, struct type *ty2);
+extern const char *type2s(union node *ty);
+extern unsigned typesize(union node *ty);
+extern union node * find_field(union node *ty, const char *name);
+extern int indexof_field(union node *ty, union node *field);
+extern union node * compose(union node *ty1, union node *ty2);
 extern bool contains(int qual1, int qual2);
 
-extern struct type    *chartype;               // char
-extern struct type    *unsignedchartype;       // unsigned char
-extern struct type    *signedchartype;         // signed char
-extern struct type    *wchartype;              // wchar_t
-extern struct type    *shorttype;              // short (int)
-extern struct type    *unsignedshorttype;      // unsigned short (int)
-extern struct type    *inttype;                // int
-extern struct type    *unsignedinttype;        // unsigned (int)
-extern struct type    *longtype;               // long
-extern struct type    *unsignedlongtype;       // unsigned long (int)
-extern struct type    *longlongtype;           // long long (int)
-extern struct type    *unsignedlonglongtype;   // unsigned long long (int)
-extern struct type    *floattype;              // float
-extern struct type    *doubletype;             // double
-extern struct type    *longdoubletype;         // long double
-extern struct type    *voidtype;               // void
-extern struct type    *booltype;	       // bool
-extern struct type    *vartype;		       // variable type
+extern union node    *chartype;               // char
+extern union node    *unsignedchartype;       // unsigned char
+extern union node    *signedchartype;         // signed char
+extern union node    *wchartype;              // wchar_t
+extern union node    *shorttype;              // short (int)
+extern union node    *unsignedshorttype;      // unsigned short (int)
+extern union node    *inttype;                // int
+extern union node    *unsignedinttype;        // unsigned (int)
+extern union node    *longtype;               // long
+extern union node    *unsignedlongtype;       // unsigned long (int)
+extern union node    *longlongtype;           // long long (int)
+extern union node    *unsignedlonglongtype;   // unsigned long long (int)
+extern union node    *floattype;              // float
+extern union node    *doubletype;             // double
+extern union node    *longdoubletype;         // long double
+extern union node    *voidtype;               // void
+extern union node    *booltype;	       // bool
+extern union node    *vartype;		       // variable type
 
-#define BITS(type)      (CHAR_BIT * (type)->size)
+#define BITS(type)      (CHAR_BIT * (TYPE_SIZE(type)))
 
-extern bool isconst(struct type *ty);
-extern bool isvolatile(struct type *ty);
-extern bool isrestrict(struct type *ty);
-#define isinline(ty)    ((ty)->inlined)
+extern bool isconst(union node *ty);
+extern bool isvolatile(union node *ty);
+extern bool isrestrict(union node *ty);
+#define isinline(ty)    (TYPE_INLINE(ty))
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
-#define unqual(ty)      (isqual(ty) ? (ty)->type : (ty))
+#define unqual(ty)      (isqual(ty) ? (TYPE_TYPE(ty)) : (ty))
 
-#define kind(ty)        (unqual(ty)->kind)
-#define rtype(ty)       (unqual(ty)->type)
-#define size(ty)        (unqual(ty)->size)
-#define rank(ty)        (unqual(ty)->rank)
+#define kind(ty)        (TYPE_KIND(unqual(ty)))
+#define rtype(ty)       (TYPE_TYPE(unqual(ty)))
+#define size(ty)        (TYPE_SIZE(unqual(ty)))
+#define rank(ty)        (TYPE_RANK(unqual(ty)))
 
-extern bool isfunc(struct type *type);
-extern bool isarray(struct type *type);
-extern bool isptr(struct type *type);
-extern bool isvoid(struct type *type);
-extern bool isenum(struct type *type);
-extern bool isstruct(struct type *type);
-extern bool isunion(struct type *type);
-extern bool isrecord(struct type *type); // isstruct or isunion
-extern bool istag(struct type *type);	 // isstruct or isunion or isenum
+extern bool isfunc(union node *type);
+extern bool isarray(union node *type);
+extern bool isptr(union node *type);
+extern bool isvoid(union node *type);
+extern bool isenum(union node *type);
+extern bool isstruct(union node *type);
+extern bool isunion(union node *type);
+extern bool isrecord(union node *type); // isstruct or isunion
+extern bool istag(union node *type);	 // isstruct or isunion or isenum
 
-extern bool isint(struct type *ty);
-extern bool isfloat(struct type *ty);
-extern bool isarith(struct type *ty);
-extern bool isscalar(struct type *ty);
+extern bool isint(union node *ty);
+extern bool isfloat(union node *ty);
+extern bool isarith(union node *ty);
+extern bool isscalar(union node *ty);
 
-extern bool isptrto(struct type *ty, int kind);
+extern bool isptrto(union node *ty, int kind);
 
 // sym.c
 // scope level
@@ -237,7 +193,7 @@ struct symbol {
     int scope;
     const char *name;
     int sclass;
-    struct type  *type;
+    union node *type;
     bool defined;
     struct source src;
     union value value;
