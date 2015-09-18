@@ -8,6 +8,11 @@ enum {
 #include "node.def"
 };
 
+/**
+ * This is the _ONLY_ typedef used.
+ */
+typedef union ast_node node_t;
+
 #define AST_ID(NODE)            ((NODE)->common.id)
 #define AST_NAME(NODE)          ((NODE)->common.name)
 #define AST_TYPE(NODE)          ((NODE)->common.type)
@@ -16,8 +21,8 @@ enum {
 struct ast_common {
     int id;
     const char *name;
-    union node *type;
-    union node *kids[2];
+    node_t *type;
+    node_t *kids[2];
 };
 
 #define TYPE_KIND(NODE)         ((NODE)->type.kind)
@@ -51,18 +56,18 @@ struct ast_type {
     union {
         // function
         struct {
-            union node **params;
+            node_t **params;
             unsigned oldstyle : 1;
         }f;
         // enum/struct/union
         struct {
-	    union node *tsym;
-            union node **ids;
-            union node **fields;
+	    node_t *tsym;
+            node_t **ids;
+            node_t **fields;
         }s;
 	// array
         struct {
-            union node *assign;
+            node_t *assign;
             unsigned is_const : 1;
             unsigned is_volatile : 1;
             unsigned is_restrict : 1;
@@ -114,9 +119,9 @@ struct ast_symbol {
 struct ast_decl {
     struct ast_common common;
     int scope;
-    union node *sym;
-    union node *body;
-    union node **exts;
+    node_t *sym;
+    node_t *body;
+    node_t **exts;
 };
 
 #define STMT_UP(NODE)           ((NODE)->stmt.up)
@@ -139,10 +144,10 @@ struct ast_decl {
 
 struct ast_stmt {
     struct ast_common common;
-    union node *up;
+    node_t *up;
     int index;
-    union node *list[3];
-    union node **blks;
+    node_t *list[3];
+    node_t **blks;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -163,12 +168,12 @@ struct ast_expr {
     struct ast_common common;
     int op;
     bool prefix;
-    union node *sym;
-    union node *operands[1];
-    union node **list;
+    node_t *sym;
+    node_t *operands[1];
+    node_t **list;
 };
 
-union node {
+union ast_node {
     struct ast_common common;
     struct ast_decl decl;
     struct ast_stmt stmt;
@@ -179,15 +184,15 @@ union node {
 };
 
 // ast.c
-extern const char *nname(union node *node);
-extern union node * ast_expr(int id, int op, union node *l, union node *r);
-extern union node * ast_decl(int id, int scope);
-extern union node * ast_stmt(int id, union node *l, union node *r);
-extern union node * ast_uop(int op, union node *ty, union node *l);
-extern union node * ast_bop(int op, union node *l, union node *r);
-extern union node * ast_conv(union node *ty, union node *l, const char *name);
-extern union node * ast_inits();
-extern union node * ast_vinit();
+extern const char *nname(node_t *node);
+extern node_t * ast_expr(int id, int op, node_t *l, node_t *r);
+extern node_t * ast_decl(int id, int scope);
+extern node_t * ast_stmt(int id, node_t *l, node_t *r);
+extern node_t * ast_uop(int op, node_t *ty, node_t *l);
+extern node_t * ast_bop(int op, node_t *l, node_t *r);
+extern node_t * ast_conv(node_t *ty, node_t *l, const char *name);
+extern node_t * ast_inits();
+extern node_t * ast_vinit();
 
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)

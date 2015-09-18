@@ -1,23 +1,23 @@
 #include "cc.h"
 
-static union node * cast_expr();
-static union node * cond_expr();
-static union node * cond_expr1(union node *o);
-static union node * unary_expr();
-static union node * uop(int op, union node *ty, union node *l);
-static union node * bop(int op, union node *l, union node *r);
-static union node * logicop(int op, union node *l, union node *r);
-static union node * commaop(int op, union node *l, union node *r);
-static union node * assignop(int op, union node *l, union node *r);
-static union node * decay(union node *node);
-static union node * ltor(union node *node);
-static union node * conv(union node *node);
-static union node * conva(union node *node);
-static union node * conv2(union node *l, union node *r);
-static union node * wrap(union node *ty, union node *node);
-static union node * bitcast(union node *ty, union node *node);
-static union node * assigncast(union node *ty, union node *node);
-static bool is_nullptr(union node *node);
+static node_t * cast_expr();
+static node_t * cond_expr();
+static node_t * cond_expr1(node_t *o);
+static node_t * unary_expr();
+static node_t * uop(int op, node_t *ty, node_t *l);
+static node_t * bop(int op, node_t *l, node_t *r);
+static node_t * logicop(int op, node_t *l, node_t *r);
+static node_t * commaop(int op, node_t *l, node_t *r);
+static node_t * assignop(int op, node_t *l, node_t *r);
+static node_t * decay(node_t *node);
+static node_t * ltor(node_t *node);
+static node_t * conv(node_t *node);
+static node_t * conva(node_t *node);
+static node_t * conv2(node_t *l, node_t *r);
+static node_t * wrap(node_t *ty, node_t *node);
+static node_t * bitcast(node_t *ty, node_t *node);
+static node_t * assigncast(node_t *ty, node_t *node);
+static bool is_nullptr(node_t *node);
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
@@ -114,7 +114,7 @@ static unsigned escape(const char **ps)
     return c;
 }
 
-static void char_constant(struct token *t, union node *sym)
+static void char_constant(struct token *t, node_t *sym)
 {
     const char *s = t->name;
     bool wide = s[0] == 'L';
@@ -158,14 +158,14 @@ static void char_constant(struct token *t, union node *sym)
     SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
 }
 
-static void integer_constant(struct token *t, union node *sym)
+static void integer_constant(struct token *t, node_t *sym)
 {
     const char *s = t->name;
     if (s[0] == '\'' || s[1] == 'L')
         return char_constant(t, sym);
     
     int base;
-    union node *ty;
+    node_t *ty;
     bool overflow = 0;
     unsigned long long n = 0;
     
@@ -303,7 +303,7 @@ static void integer_constant(struct token *t, union node *sym)
     }
 }
 
-static void float_constant(struct token *t, union node *sym)
+static void float_constant(struct token *t, node_t *sym)
 {
     const char *s = t->name;
     char c = s[strlen(s)-1];
@@ -323,11 +323,11 @@ static void float_constant(struct token *t, union node *sym)
         error("float constant overflow: %s", s);
 }
 
-static void string_constant(struct token *t, union node *sym)
+static void string_constant(struct token *t, node_t *sym)
 {
     const char *s = t->name;
     bool wide = s[0] == 'L' ? true : false;
-    union node *ty;
+    node_t *ty;
     if (wide) {
         size_t len = strlen(s) - 3;
         wchar_t ws[len+1];
@@ -347,7 +347,7 @@ static void string_constant(struct token *t, union node *sym)
     SYM_TYPE(sym) = ty;
 }
 
-static void ensure_type(union node *node, bool (*is) (union node *))
+static void ensure_type(node_t *node, bool (*is) (node_t *))
 {
     const char *name;
     if (is == isint)
@@ -369,7 +369,7 @@ static void ensure_type(union node *node, bool (*is) (union node *))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
 }
 
-bool islvalue(union node *node)
+bool islvalue(node_t *node)
 {
     if (AST_ID(node) == STRING_LITERAL)
         return true;
@@ -393,15 +393,15 @@ bool islvalue(union node *node)
     return false;
 }
 
-static void ensure_lvalue(union node *node)
+static void ensure_lvalue(node_t *node)
 {
     if (!islvalue(node))
         error("lvalue expect");
 }
 
-static const char * is_assignable(union node *node)
+static const char * is_assignable(node_t *node)
 {
-    union node *ty = AST_TYPE(node);
+    node_t *ty = AST_TYPE(node);
     if (!islvalue(node))
 	return "expression is not assignable";
     if (AST_ID(node) == PAREN_EXPR)
@@ -424,25 +424,25 @@ static const char * is_assignable(union node *node)
     return NULL;
 }
 
-static void ensure_assignable(union node *or)
+static void ensure_assignable(node_t *or)
 {
     const char *msg = is_assignable(or);
     if (msg)
         error(msg);
 }
 
-static bool is_bitfield(union node *node)
+static bool is_bitfield(node_t *node)
 {
     if (AST_ID(node) != MEMBER_EXPR)
         return false;
 
-    union node *ty = AST_TYPE(EXPR_OPERAND(node, 0));
+    node_t *ty = AST_TYPE(EXPR_OPERAND(node, 0));
     const char *name = AST_NAME(EXPR_OPERAND(node, 1));
-    union node *field = find_field(ty, name);
+    node_t *field = find_field(ty, name);
     return isbitfield(field);
 }
 
-static const char * is_castable(union node *dst, union node *src)
+static const char * is_castable(node_t *dst, node_t *src)
 {
     if (isvoid(dst))
 	return NULL;
@@ -465,16 +465,16 @@ static const char * is_castable(union node *dst, union node *src)
     return format(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
 }
 
-static void ensure_cast(union node *dst, union node *src)
+static void ensure_cast(node_t *dst, node_t *src)
 {
     const char *msg = is_castable(dst, src);
     if (msg)
 	error(msg);
 }
 
-static void argcast1(union node *fty, union node **args, struct vector *v)
+static void argcast1(node_t *fty, node_t **args, struct vector *v)
 {
-    union node **params = TYPE_PARAMS(fty);
+    node_t **params = TYPE_PARAMS(fty);
     int len1 = array_len((void **)params);
     int len2 = array_len((void **)args);
     bool oldstyle = TYPE_OLDSTYLE(fty);
@@ -483,15 +483,15 @@ static void argcast1(union node *fty, union node **args, struct vector *v)
     if (oldstyle) {
 	cmp1 = MIN(len1, len2);
     } else {
-	union node *last = params[len1 - 1];
+	node_t *last = params[len1 - 1];
 	bool vargs = unqual(SYM_TYPE(last)) == vartype;
 	cmp1 = vargs ? len1 - 1 : len1;
     }
     
     for (int i = 0; i < cmp1; i++) {
-	union node *dst = SYM_TYPE(params[i]);
-	union node *src = AST_TYPE(args[i]);
-	union node *ret = assigncast(dst, args[i]);
+	node_t *dst = SYM_TYPE(params[i]);
+	node_t *src = AST_TYPE(args[i]);
+	node_t *ret = assigncast(dst, args[i]);
 	if (ret) {
 	    vec_push(v, ret);
 	} else {
@@ -505,7 +505,7 @@ static void argcast1(union node *fty, union node **args, struct vector *v)
 	vec_push(v, conva(args[i]));
 }
 
-static struct vector * argscast(union node *fty, union node **args)
+static struct vector * argscast(node_t *fty, node_t **args)
 {
     struct vector *v = vec_new();
     CCAssert(isfunc(fty));
@@ -519,7 +519,7 @@ static struct vector * argscast(union node *fty, union node **args)
      * 5. no function declaration/definition found
      */
 
-    union node **params = TYPE_PARAMS(fty);
+    node_t **params = TYPE_PARAMS(fty);
     int len1 = array_len((void **)params);
     int len2 = array_len((void **)args);
     
@@ -532,9 +532,9 @@ static struct vector * argscast(union node *fty, union node **args)
 	if (len1 == 0)
 	    return NULL;	// parsing error
 	
-	union node *last = params[len1 - 1];
+	node_t *last = params[len1 - 1];
 	bool vargs = unqual(SYM_TYPE(last)) == vartype;
-	union node *first = params[0];
+	node_t *first = params[0];
 	if (isvoid(SYM_TYPE(first)))
 	    len1 = 0;
 	if (len1 <= len2) {
@@ -559,10 +559,10 @@ static struct vector * argscast(union node *fty, union node **args)
     return v;
 }
 
-static union node * compound_literal(union node *ty)
+static node_t * compound_literal(node_t *ty)
 {
-    union node * ret;
-    union node * inits;
+    node_t * ret;
+    node_t * inits;
     
     inits = initializer_list(ty);
     ret = ast_expr(COMPOUND_LITERAL, 0, inits, NULL);
@@ -571,9 +571,9 @@ static union node * compound_literal(union node *ty)
     return ret;
 }
 
-static union node * cast_type()
+static node_t * cast_type()
 {
-    union node *ty;
+    node_t *ty;
     
     expect('(');
     ty = typename();
@@ -582,11 +582,11 @@ static union node * cast_type()
     return ty;
 }
 
-static union node * primary_expr()
+static node_t * primary_expr()
 {
     int t = token->id;
-    union node *sym;
-    union node *ret = NULL;
+    node_t *sym;
+    node_t *ret = NULL;
     
     switch (t) {
     case ID:
@@ -632,11 +632,11 @@ static union node * primary_expr()
 	break;
     case '(':
 	if (istypename(lookahead())) {
-	    union node *ty = cast_type();
+	    node_t *ty = cast_type();
 	    ret = compound_literal(ty);
 	} else {
 	    expect('(');
-	    union node *e = expression();
+	    node_t *e = expression();
 	    if (e) {
 		ret = ast_expr(PAREN_EXPR, 0, e, NULL);
 		AST_TYPE(ret) = AST_TYPE(e);
@@ -652,9 +652,9 @@ static union node * primary_expr()
     return ret;
 }
 
-static union node ** argument_expr_list()
+static node_t ** argument_expr_list()
 {
-    union node **args = NULL;
+    node_t **args = NULL;
     
     if (firstexpr(token)) {
         struct vector *v = vec_new();
@@ -664,7 +664,7 @@ static union node ** argument_expr_list()
 		break;
 	    expect(',');
         }
-        args = (union node **)vtoa(v);
+        args = (node_t **)vtoa(v);
     } else if (token->id != ')') {
         error("expect assignment expression");
     }
@@ -672,10 +672,10 @@ static union node ** argument_expr_list()
     return args;
 }
 
-static union node * subscript(union node *node)
+static node_t * subscript(node_t *node)
 {
-    union node *e;
-    union node *ret = NULL;
+    node_t *e;
+    node_t *ret = NULL;
     
     expect('[');
     e = expression();
@@ -694,10 +694,10 @@ static union node * subscript(union node *node)
     return ret;
 }
 
-static union node * funcall(union node *node)
+static node_t * funcall(node_t *node)
 {
-    union node **args;
-    union node *ret = NULL;
+    node_t **args;
+    node_t *ret = NULL;
     
     expect('(');
     args = argument_expr_list();
@@ -706,11 +706,11 @@ static union node * funcall(union node *node)
 	return ret;
 
     if (isptrto(AST_TYPE(node), FUNCTION)) {
-	union node *fty = rtype(AST_TYPE(node));
+	node_t *fty = rtype(AST_TYPE(node));
 	struct vector *v;
 	if ((v = argscast(fty, args))) {
 	    ret = ast_expr(CALL_EXPR, 0, node, NULL);
-	    EXPR_ARGS(ret) = (union node **)vtoa(v);
+	    EXPR_ARGS(ret) = (node_t **)vtoa(v);
 	    AST_TYPE(ret) = rtype(fty);
 	}
     } else {
@@ -720,10 +720,10 @@ static union node * funcall(union node *node)
     return ret;
 }
 
-static union node * direction(union node *node)
+static node_t * direction(node_t *node)
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     const char *name = NULL;
 
     expect(t);
@@ -734,8 +734,8 @@ static union node * direction(union node *node)
 	return ret;
     
     SAVE_ERRORS;
-    union node *field = NULL;
-    union node *ty = AST_TYPE(node);
+    node_t *field = NULL;
+    node_t *ty = AST_TYPE(node);
     if (t == '.') {
 	ensure_type(node, isrecord);
     } else {
@@ -757,10 +757,10 @@ static union node * direction(union node *node)
     return ret;
 }
 
-static union node * post_increment(union node *node)
+static node_t * post_increment(node_t *node)
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     
     expect(t);
     if (node == NULL)
@@ -774,7 +774,7 @@ static union node * post_increment(union node *node)
     return ret;
 }
 
-static union node * postfix_expr1(union node *ret)
+static node_t * postfix_expr1(node_t *ret)
 {
     for (;token->id == '[' || token->id == '(' || token->id == '.'
 	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
@@ -792,28 +792,28 @@ static union node * postfix_expr1(union node *ret)
     return ret;
 }
 
-static union node * postfix_expr()
+static node_t * postfix_expr()
 {
-    union node * expr = primary_expr();
+    node_t * expr = primary_expr();
     
     return postfix_expr1(expr);
 }
 
-static union node * sizeof_expr()
+static node_t * sizeof_expr()
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     
     expect(t);
     
     struct token *ahead = lookahead();
-    union node *n = NULL;
-    union node *ty = NULL;
+    node_t *n = NULL;
+    node_t *ty = NULL;
     
     if (token->id == '(' && istypename(ahead)) {
         ty = cast_type();
         if (token->id == '{') {
-            union node * node = compound_literal(ty);
+            node_t * node = compound_literal(ty);
             n = uop(t, ty, postfix_expr1(node));
         }
     } else {
@@ -842,13 +842,13 @@ static union node * sizeof_expr()
     return ret;
 }
 
-static union node * pre_increment()
+static node_t * pre_increment()
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     
     expect(t);
-    union node *operand = unary_expr();
+    node_t *operand = unary_expr();
     if (operand == NULL)
 	return ret;
 
@@ -863,53 +863,53 @@ static union node * pre_increment()
     return ret;
 }
 
-static union node * minus_plus()
+static node_t * minus_plus()
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     
     expect(t);
-    union node *operand = cast_expr();
+    node_t *operand = cast_expr();
     if (operand == NULL)
 	return ret;
 
     SAVE_ERRORS;
     ensure_type(operand, isarith);
     if (NO_ERROR) {
-	union node *c = conv(operand);
+	node_t *c = conv(operand);
 	ret = uop(t, AST_TYPE(c), c);
     }
 
     return ret;
 }
 
-static union node * bitwise_not()
+static node_t * bitwise_not()
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     
     expect(t);
-    union node *operand = cast_expr();
+    node_t *operand = cast_expr();
     if (operand == NULL)
 	return ret;
 
     SAVE_ERRORS;
     ensure_type(operand, isint);
     if (NO_ERROR) {
-	union node *c = conv(operand);
+	node_t *c = conv(operand);
 	ret = uop(t, AST_TYPE(c), c);
     }
 
     return ret;
 }
 
-static union node * logical_not()
+static node_t * logical_not()
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     
     expect(t);
-    union node *operand = cast_expr();
+    node_t *operand = cast_expr();
     if (operand == NULL)
 	return ret;
 
@@ -921,13 +921,13 @@ static union node * logical_not()
     return ret;
 }
 
-static union node * address()
+static node_t * address()
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     
     expect(t);
-    union node *operand = cast_expr();
+    node_t *operand = cast_expr();
     if (operand == NULL)
 	return ret;
 
@@ -945,13 +945,13 @@ static union node * address()
     return ret;
 }
 
-static union node * indirection()
+static node_t * indirection()
 {
     int t = token->id;
-    union node *ret = NULL;
+    node_t *ret = NULL;
     
     expect(t);
-    union node *operand = conv(cast_expr());
+    node_t *operand = conv(cast_expr());
     if (operand == NULL)
 	return ret;
 
@@ -963,7 +963,7 @@ static union node * indirection()
     return ret;
 }
 
-static union node * unary_expr()
+static node_t * unary_expr()
 {
     switch (token->id) {
     case INCR:
@@ -979,19 +979,19 @@ static union node * unary_expr()
     }
 }
 
-static union node * cast_expr()
+static node_t * cast_expr()
 {
     struct token * ahead = lookahead();
     
     if (token->id == '(' && istypename(ahead)) {
-        union node *ty = cast_type();
+        node_t *ty = cast_type();
         if (token->id == '{') {
-            union node * node = compound_literal(ty);
+            node_t * node = compound_literal(ty);
             return postfix_expr1(node);
         }
 	
-	union node *ret = NULL;
-	union node *cast = cast_expr();
+	node_t *ret = NULL;
+	node_t *cast = cast_expr();
 	if (cast) {
 	    SAVE_ERRORS;
 	    ensure_cast(ty, AST_TYPE(cast));
@@ -1006,9 +1006,9 @@ static union node * cast_expr()
     return unary_expr();
 }
 
-static union node * multiple_expr()
+static node_t * multiple_expr()
 {
-    union node * mulp1;
+    node_t * mulp1;
     
     mulp1 = cast_expr();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
@@ -1020,9 +1020,9 @@ static union node * multiple_expr()
     return mulp1;
 }
 
-static union node * additive_expr()
+static node_t * additive_expr()
 {
-    union node * add1;
+    node_t * add1;
     
     add1 = multiple_expr();
     while (token->id == '+' || token->id == '-') {
@@ -1034,9 +1034,9 @@ static union node * additive_expr()
     return add1;
 }
 
-static union node * shift_expr()
+static node_t * shift_expr()
 {
-    union node * shift1;
+    node_t * shift1;
     
     shift1 = additive_expr();
     while (token->id == LSHIFT || token->id == RSHIFT) {
@@ -1048,9 +1048,9 @@ static union node * shift_expr()
     return shift1;
 }
 
-static union node * relation_expr()
+static node_t * relation_expr()
 {
-    union node * rel;
+    node_t * rel;
     
     rel = shift_expr();
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
@@ -1062,9 +1062,9 @@ static union node * relation_expr()
     return rel;
 }
 
-static union node * equality_expr()
+static node_t * equality_expr()
 {
-    union node * equl;
+    node_t * equl;
     
     equl = relation_expr();
     while (token->id == EQ || token->id == NEQ) {
@@ -1076,9 +1076,9 @@ static union node * equality_expr()
     return equl;
 }
 
-static union node * and_expr()
+static node_t * and_expr()
 {
-    union node * and1;
+    node_t * and1;
     
     and1 = equality_expr();
     while (token->id == '&') {
@@ -1089,9 +1089,9 @@ static union node * and_expr()
     return and1;
 }
 
-static union node * exclusive_or()
+static node_t * exclusive_or()
 {
-    union node * eor;
+    node_t * eor;
     
     eor = and_expr();
     while (token->id == '^') {
@@ -1102,9 +1102,9 @@ static union node * exclusive_or()
     return eor;
 }
 
-static union node * inclusive_or()
+static node_t * inclusive_or()
 {
-    union node * ior;
+    node_t * ior;
     
     ior = exclusive_or();
     while (token->id == '|') {
@@ -1115,9 +1115,9 @@ static union node * inclusive_or()
     return ior;
 }
 
-static union node * logic_and()
+static node_t * logic_and()
 {
-    union node * and1;
+    node_t * and1;
     
     and1 = inclusive_or();
     while (token->id == AND) {
@@ -1128,9 +1128,9 @@ static union node * logic_and()
     return and1;
 }
 
-static union node * logic_or()
+static node_t * logic_or()
 {
-    union node * or1;
+    node_t * or1;
     
     or1 = logic_and();
     while (token->id == OR) {
@@ -1141,11 +1141,11 @@ static union node * logic_or()
     return or1;
 }
 
-static union node * cond_expr1(union node *cond)
+static node_t * cond_expr1(node_t *cond)
 {
-    union node *ret = NULL;
-    union node *then, *els;
-    union node *ty = NULL;
+    node_t *ret = NULL;
+    node_t *then, *els;
+    node_t *ty = NULL;
 
     expect('?');
     then = conv(expression());
@@ -1155,8 +1155,8 @@ static union node * cond_expr1(union node *cond)
     if (cond == NULL || then == NULL || els == NULL)
 	return ret;
 
-    union node *ty1 = AST_TYPE(then);
-    union node *ty2 = AST_TYPE(els);
+    node_t *ty1 = AST_TYPE(then);
+    node_t *ty2 = AST_TYPE(els);
 
     SAVE_ERRORS;
     ensure_type(cond, isscalar);
@@ -1174,14 +1174,14 @@ static union node * cond_expr1(union node *cond)
 	ty = voidtype;
     } else if (isptr(ty1) && isptr(ty2)) {
 	if (is_nullptr(then) || is_nullptr(els)) {
-	    union node *nty = is_nullptr(then) ? ty1 : ty2;
-	    union node *tty = nty == ty1 ? ty2 : ty1;
+	    node_t *nty = is_nullptr(then) ? ty1 : ty2;
+	    node_t *tty = nty == ty1 ? ty2 : ty1;
 	    ty = ptr_type(compose(rtype(tty), rtype(nty)));
 	    then = bitcast(ty, then);
 	    els = bitcast(ty, els);
 	} else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
-	    union node *vty = isptrto(ty1, VOID) ? ty1 : ty2;
-	    union node *tty = vty == ty1 ? ty2 : ty1;
+	    node_t *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+	    node_t *tty = vty == ty1 ? ty2 : ty1;
 	    if (isptrto(tty, FUNCTION)) {
 	        error(INCOMPATIBLE_TYPES2, ty1, ty2);
 	    } else {
@@ -1190,8 +1190,8 @@ static union node * cond_expr1(union node *cond)
 		els = bitcast(ty, els);
 	    }
 	} else {
-	    union node *rty1 = rtype(ty1);
-	    union node *rty2 = rtype(ty2);
+	    node_t *rty1 = rtype(ty1);
+	    node_t *rty2 = rtype(ty2);
 	    if (eqtype(unqual(rty1), unqual(rty2))) {
 		ty = ptr_type(compose(rty1, rty2));
 		then = bitcast(ty, then);
@@ -1215,17 +1215,17 @@ static union node * cond_expr1(union node *cond)
     return ret;
 }
 
-static union node * cond_expr()
+static node_t * cond_expr()
 {
-    union node * or1 = logic_or();
+    node_t * or1 = logic_or();
     if (token->id == '?')
         return cond_expr1(conv(or1));
     return or1;
 }
 
-union node * assign_expr()
+node_t * assign_expr()
 {
-    union node *or1 = logic_or();
+    node_t *or1 = logic_or();
     if (token->id == '?')
         return cond_expr1(conv(or1));
     if (is_assign_op(token->id)) {
@@ -1236,9 +1236,9 @@ union node * assign_expr()
     return or1;
 }
 
-union node * expression()
+node_t * expression()
 {
-    union node *assign1;
+    node_t *assign1;
     
     assign1 = assign_expr();
     while (token->id == ',') {
@@ -1249,16 +1249,16 @@ union node * expression()
     return assign1;
 }
 
-static union node * uop(int op, union node *ty, union node *l)
+static node_t * uop(int op, node_t *ty, node_t *l)
 {
-    union node *node = ast_uop(op, ty, l);
+    node_t *node = ast_uop(op, ty, l);
     return node;
 }
 
-static union node * bop(int op, union node *l, union node *r)
+static node_t * bop(int op, node_t *l, node_t *r)
 {
-    union node *node = NULL;
-    union node *ty;
+    node_t *node = NULL;
+    node_t *ty;
 
     if (l == NULL || r == NULL)
 	return NULL;
@@ -1345,9 +1345,9 @@ static union node * bop(int op, union node *l, union node *r)
     return node;
 }
 
-static union node * logicop(int op, union node *l, union node *r)
+static node_t * logicop(int op, node_t *l, node_t *r)
 {
-    union node *ret = NULL;
+    node_t *ret = NULL;
 
     if (l == NULL || r == NULL)
 	return NULL;
@@ -1357,9 +1357,9 @@ static union node * logicop(int op, union node *l, union node *r)
     return ret;
 }
 
-static union node * commaop(int op, union node *l, union node *r)
+static node_t * commaop(int op, node_t *l, node_t *r)
 {
-    union node *ret = NULL;
+    node_t *ret = NULL;
 
     if (l == NULL || r == NULL)
 	return NULL;
@@ -1378,23 +1378,23 @@ static union node * commaop(int op, union node *l, union node *r)
     return ret;
 }
 
-static union node * assignop(int op, union node *l, union node *r)
+static node_t * assignop(int op, node_t *l, node_t *r)
 {
-    union node *ret = NULL;
+    node_t *ret = NULL;
 
     if (l == NULL || r == NULL)
 	return NULL;
 
 #define TYPE_ERROR(ty1, ty2)  error("assign type '%s' to type '%s' is invalid", type2s(ty2), type2s(ty1))
 
-    union node *retty = unqual(AST_TYPE(l));
+    node_t *retty = unqual(AST_TYPE(l));
     SAVE_ERRORS;
     ensure_assignable(l);
     if (HAS_ERROR)
 	goto out;
     if (op == '=') {
-	union node *ty1 = AST_TYPE(l);
-	union node *ty2 = AST_TYPE(r);
+	node_t *ty1 = AST_TYPE(l);
+	node_t *ty2 = AST_TYPE(r);
 	if ((isarith(ty1) && isarith(ty2)) ||
 	    (unqual(ty1) == booltype && isptr(ty2))) {
 	    goto out;
@@ -1406,21 +1406,21 @@ static union node * assignop(int op, union node *l, union node *r)
 	    if (is_nullptr(r)) {
 		goto out;
 	    } else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
-		union node *vty = isptrto(ty1, VOID) ? ty1 : ty2;
-		union node *tty = vty == ty1 ? ty2 : ty1;
+		node_t *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+		node_t *tty = vty == ty1 ? ty2 : ty1;
 		if (isptrto(tty, FUNCTION)) {
 		    TYPE_ERROR(ty1, ty2);
 		} else {
-		    union node *rty1 = rtype(ty1);
-		    union node *rty2 = rtype(ty2);
+		    node_t *rty1 = rtype(ty1);
+		    node_t *rty2 = rtype(ty2);
 		    int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
 		    int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
 		    if (!contains(qual1, qual2))
 			TYPE_ERROR(ty1, ty2);
 		}
 	    } else {
-		union node *rty1 = rtype(ty1);
-		union node *rty2 = rtype(ty2);
+		node_t *rty1 = rtype(ty1);
+		node_t *rty2 = rtype(ty2);
 		if (eqtype(unqual(rty1), unqual(rty2))) {
 		    int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
 		    int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
@@ -1435,11 +1435,11 @@ static union node * assignop(int op, union node *l, union node *r)
 	}
     } else {
 	int op2 = splitop(op);
-	union node *l1 = conv(l);
-	union node *r1 = conv(r);
+	node_t *l1 = conv(l);
+	node_t *r1 = conv(r);
 	if (op2 == '+' || op2 == '-') {
-	    union node *ty1 = AST_TYPE(l1);
-	    union node *ty2 = AST_TYPE(r1);
+	    node_t *ty1 = AST_TYPE(l1);
+	    node_t *ty2 = AST_TYPE(r1);
 	    if (!((isarith(ty1) && isarith(ty2)) ||
 		  (isptr(ty1) && isint(ty2))))
 	        TYPE_ERROR(ty1, ty2);
@@ -1456,7 +1456,7 @@ static union node * assignop(int op, union node *l, union node *r)
     return ret;
 }
 
-static const char * castname(union node *ty, union node *l)
+static const char * castname(node_t *ty, node_t *l)
 {
     if (isfloat(ty) && isfloat(AST_TYPE(l)))
 	return FloatCast;
@@ -1470,7 +1470,7 @@ static const char * castname(union node *ty, union node *l)
 	return BitCast;
 }
 
-static union node * wrap(union node *ty, union node *node)
+static node_t * wrap(node_t *ty, node_t *node)
 {
     CCAssert(isarith(ty));
     CCAssert(isarith(AST_TYPE(node)));
@@ -1481,7 +1481,7 @@ static union node * wrap(union node *ty, union node *node)
         return ast_conv(ty, node, castname(ty, node));
 }
 
-static union node * bitcast(union node *ty, union node *node)
+static node_t * bitcast(node_t *ty, node_t *node)
 {
     if (eqtype(ty, AST_TYPE(node)))
 	return node;
@@ -1489,10 +1489,10 @@ static union node * bitcast(union node *ty, union node *node)
 	return ast_conv(ty, node, castname(ty, node));
 }
 
-static union node * assigncast(union node *ty, union node *node)
+static node_t * assigncast(node_t *ty, node_t *node)
 {
-    union node *ret = NULL;
-    union node *ty2 = AST_TYPE(node);
+    node_t *ret = NULL;
+    node_t *ty2 = AST_TYPE(node);
 
     if (islvalue(node))
 	node = ltor(node);
@@ -1513,7 +1513,7 @@ static union node * assigncast(union node *ty, union node *node)
 }
 
 // Universal Binary Conversion
-static union node * conv2(union node *l, union node *r)
+static node_t * conv2(node_t *l, node_t *r)
 {
     CCAssert(isarith(l));
     CCAssert(isarith(r));
@@ -1521,12 +1521,12 @@ static union node * conv2(union node *l, union node *r)
     CCAssert(size(l) >= size(inttype));
     CCAssert(size(r) >= size(inttype));
     
-    union node *max = rank(l) > rank(r) ? l : r;
+    node_t *max = rank(l) > rank(r) ? l : r;
     if (isfloat(l) || isfloat(r) || op(l) == op(r))
         return max;
     
-    union node *u = op(l) == UNSIGNED ? l : r;
-    union node *s = op(l) == INT ? l : r;
+    node_t *u = op(l) == UNSIGNED ? l : r;
+    node_t *s = op(l) == INT ? l : r;
     CCAssert(unqual(s) == s);
     
     if (rank(u) >= rank(s))
@@ -1546,7 +1546,7 @@ static union node * conv2(union node *l, union node *r)
     return l;
 }
 
-static union node * decay(union node *node)
+static node_t * decay(node_t *node)
 {
     switch (kind(AST_TYPE(node))) {
     case FUNCTION:
@@ -1560,13 +1560,13 @@ static union node * decay(union node *node)
     }
 }
 
-static union node * ltor(union node *node)
+static node_t * ltor(node_t *node)
 {
     return ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
 }
 
 // Universal Unary Conversion
-static union node * conv(union node *node)
+static node_t * conv(node_t *node)
 {
     if (node == NULL)
 	return NULL;
@@ -1587,7 +1587,7 @@ static union node * conv(union node *node)
 }
 
 // Default function argument conversion
-static union node * conva(union node *node)
+static node_t * conva(node_t *node)
 {
     if (node == NULL)
 	return NULL;
@@ -1604,10 +1604,10 @@ static union node * conva(union node *node)
 }
 
 // TODO: waiting for eval
-static bool is_nullptr(union node *node)
+static bool is_nullptr(node_t *node)
 {
     CCAssert(isptr(AST_TYPE(node)));
-    union node *ret = eval(node);
+    node_t *ret = eval(node);
     if (ret == NULL)
 	return false;
     if (AST_ID(ret) == INTEGER_LITERAL) {

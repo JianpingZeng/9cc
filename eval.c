@@ -9,12 +9,12 @@
  */
 
 // TODO: 
-static bool eval_bool(union node *cond)
+static bool eval_bool(node_t *cond)
 {
     return false;
 }
 
-union node * eval(union node *expr)
+node_t * eval(node_t *expr)
 {
     CCAssert(isexpr(expr));
     switch (AST_ID(expr)) {
@@ -90,7 +90,7 @@ union node * eval(union node *expr)
 	    return NULL;
     case COND_EXPR:
 	{
-	    union node *cond = eval(EXPR_COND(expr));
+	    node_t *cond = eval(EXPR_COND(expr));
 	    if (cond) {
 		if (eval_bool(cond))
 		    return eval(EXPR_THEN(expr));
@@ -109,7 +109,7 @@ union node * eval(union node *expr)
 	    return NULL;
     case INITS_EXPR:
         for (int i = 0; i < array_len((void **)EXPR_INITS(expr)); i++) {
-	    union node *n = EXPR_INITS(expr)[i];
+	    node_t *n = EXPR_INITS(expr)[i];
 	    if (AST_ID(n) != VINIT_EXPR && eval(n) == NULL)
 		return NULL;
 	}

@@ -1,27 +1,27 @@
 #include "cc.h"
 
-static void abstract_declarator(union node **ty);
-static void declarator(union node **ty, const char **id, int *params);
-static void param_declarator(union node **ty, const char **id);
-static union node * ptr_decl();
-static union node * enum_decl();
-static union node * struct_decl();
-static struct vector * decls(union node * (*)(const char *id, union node *ftype, int sclass,  struct source src));
-static union node * paramdecl(const char *id, union node *ty, int sclass,  struct source src);
-static union node * globaldecl(const char *id, union node *ty, int sclass, struct source src);
-static union node * localdecl(const char *id, union node *ty, int sclass, struct source src);
-static union node * funcdef(const char *id, union node *ftype, int sclass,  struct source src);
-static union node * initializer(union node *ty);
-static void fields(union node *sty);
-static void decl_initializer(union node *decl, union node *sym, int sclass, int kind);
+static void abstract_declarator(node_t **ty);
+static void declarator(node_t **ty, const char **id, int *params);
+static void param_declarator(node_t **ty, const char **id);
+static node_t * ptr_decl();
+static node_t * enum_decl();
+static node_t * struct_decl();
+static struct vector * decls(node_t * (*)(const char *id, node_t *ftype, int sclass,  struct source src));
+static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source src);
+static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source src);
+static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source src);
+static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src);
+static node_t * initializer(node_t *ty);
+static void fields(node_t *sty);
+static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 
-static union node * specifiers(int *sclass)
+static node_t * specifiers(int *sclass)
 {
     int cls, sign, size, type;
     int cons, vol, res, inl;
-    union node *basety;
+    node_t *basety;
     int ci;			// _Complex, _Imaginary
-    union node *tydefty = NULL;
+    node_t *tydefty = NULL;
     
     basety = NULL;
     cls = sign = size = type = 0;
@@ -225,7 +225,7 @@ static union node * specifiers(int *sclass)
     return basety;
 }
 
-static void qualifiers(union node *atype)
+static void qualifiers(node_t *atype)
 {
     int cons, vol, res;
     int *p;
@@ -266,9 +266,9 @@ static void qualifiers(union node *atype)
 	TYPE_A_RESTRICT(atype) = 1;
 }
 
-static union node ** parameters(union node *ftype, int *params)
+static node_t ** parameters(node_t *ftype, int *params)
 {
-    union node **ret = NULL;
+    node_t **ret = NULL;
     
     /**
      * To make it easy to distinguish between 'paramaters in parameter' and
@@ -283,9 +283,9 @@ static union node ** parameters(union node *ftype, int *params)
         // prototype
         struct vector *v = vec_new();
         for (int i=0;;i++) {
-            union node *basety = NULL;
+            node_t *basety = NULL;
             int sclass;
-            union node *ty = NULL;
+            node_t *ty = NULL;
             const char *id = NULL;
             struct source src = source;
             
@@ -320,7 +320,7 @@ static union node ** parameters(union node *ftype, int *params)
             }
         }
         
-        ret = (union node **)vtoa(v);
+        ret = (node_t **)vtoa(v);
     } else if (token->id == ID) {
         // oldstyle
 	TYPE_OLDSTYLE(ftype) = 1;
@@ -336,7 +336,7 @@ static union node ** parameters(union node *ftype, int *params)
         
         if (SCOPE > PARAM)
             error("a parameter list without types is only allowed in a function definition");
-        ret = (union node **) vtoa(v);
+        ret = (node_t **) vtoa(v);
     } else if (token->id == ')') {
         TYPE_OLDSTYLE(ftype) = 1;
     } else {
@@ -361,14 +361,14 @@ static union node ** parameters(union node *ftype, int *params)
     return ret;
 }
 
-static union node * func_or_array(int *params)
+static node_t * func_or_array(int *params)
 {
-    union node *ty = NULL;
+    node_t *ty = NULL;
     int follow[] = {'[', ID, IF, 0};
     
     for (; token->id == '(' || token->id == '['; ) {
         if (token->id == '[') {
-            union node *atype = array_type();
+            node_t *atype = array_type();
             expect('[');
             if (token->id == STATIC) {
                 expect(STATIC);
@@ -406,7 +406,7 @@ static union node * func_or_array(int *params)
             match(']', follow);
             attach_type(&ty, atype);
         } else {
-            union node *ftype = func_type();
+            node_t *ftype = func_type();
             expect('(');
             TYPE_PARAMS(ftype) = parameters(ftype, params);
             match(')', follow);
@@ -417,13 +417,13 @@ static union node * func_or_array(int *params)
     return ty;
 }
 
-static union node * abstract_func_or_array()
+static node_t * abstract_func_or_array()
 {
-    union node *ty = NULL;
+    node_t *ty = NULL;
     
     for (; token->id == '(' || token->id == '['; ) {
         if (token->id == '[') {
-            union node *atype = array_type();
+            node_t *atype = array_type();
             expect('[');
             if (token->id == '*') {
                 if (lookahead()->id != ']') {
@@ -438,7 +438,7 @@ static union node * abstract_func_or_array()
             expect(']');
             attach_type(&ty, atype);
         } else {
-            union node *ftype = func_type();
+            node_t *ftype = func_type();
             expect('(');
             TYPE_PARAMS(ftype) = parameters(ftype, NULL);
             expect(')');
@@ -449,9 +449,9 @@ static union node * abstract_func_or_array()
     return ty;
 }
 
-static union node * ptr_decl()
+static node_t * ptr_decl()
 {
-    union node *ret = NULL;
+    node_t *ret = NULL;
     int con, vol, res, type;
     
     CCAssert(token->id == '*');
@@ -473,7 +473,7 @@ static union node * ptr_decl()
                 
             case '*':
             {
-                union node *pty = ptr_type(NULL);
+                node_t *pty = ptr_type(NULL);
                 con = vol = res = type = 0;
                 p = &type;
                 prepend_type(&ret, pty);
@@ -502,10 +502,10 @@ static union node * ptr_decl()
     return ret;
 }
 
-static void param_declarator(union node **ty, const char **id)
+static void param_declarator(node_t **ty, const char **id)
 {
     if (token->id == '*') {
-        union node *pty = ptr_decl();
+        node_t *pty = ptr_decl();
         prepend_type(ty, pty);
     }
     
@@ -513,13 +513,13 @@ static void param_declarator(union node **ty, const char **id)
         if (firstdecl(lookahead())) {
             abstract_declarator(ty);
         } else {
-            union node *type1 = *ty;
-            union node *rtype = NULL;
+            node_t *type1 = *ty;
+            node_t *rtype = NULL;
             expect('(');
             param_declarator(&rtype, id);
             expect(')');
             if (token->id == '(' || token->id == '[') {
-                union node *faty;
+                node_t *faty;
                 CCAssert(id);
                 if (*id) {
                     faty = func_or_array(NULL);
@@ -538,19 +538,19 @@ static void param_declarator(union node **ty, const char **id)
     }
 }
 
-static void abstract_declarator(union node **ty)
+static void abstract_declarator(node_t **ty)
 {
     CCAssert(ty);
     
     if (token->id == '*' || token->id == '(' || token->id == '[') {
         if (token->id == '*') {
-            union node *pty = ptr_decl();
+            node_t *pty = ptr_decl();
             prepend_type(ty, pty);
         }
         
         if (token->id == '(') {
             if (firstdecl(lookahead())) {
-                union node *faty = abstract_func_or_array();
+                node_t *faty = abstract_func_or_array();
                 prepend_type(ty, faty);
             } else {
                 expect('(');
@@ -558,7 +558,7 @@ static void abstract_declarator(union node **ty)
                 expect(')');
             }
         } else if (token->id == '[') {
-            union node *faty = abstract_func_or_array();
+            node_t *faty = abstract_func_or_array();
             prepend_type(ty, faty);
         }
     } else {
@@ -566,13 +566,13 @@ static void abstract_declarator(union node **ty)
     }
 }
 
-static void declarator(union node **ty, const char **id, int *params)
+static void declarator(node_t **ty, const char **id, int *params)
 {
     CCAssert(ty && id);
     int follow[] = {',', '=', IF, 0};
     
     if (token->id == '*') {
-        union node *pty = ptr_decl();
+        node_t *pty = ptr_decl();
         prepend_type(ty, pty);
     }
     
@@ -580,17 +580,17 @@ static void declarator(union node **ty, const char **id, int *params)
         *id = token->name;
         expect(ID);
         if (token->id == '[' || token->id == '(') {
-            union node *faty = func_or_array(params);
+            node_t *faty = func_or_array(params);
             prepend_type(ty, faty);
         }
     } else if (token->id == '(') {
-        union node *type1 = *ty;
-        union node *rtype = NULL;
+        node_t *type1 = *ty;
+        node_t *rtype = NULL;
         expect('(');
         declarator(&rtype, id, params);
         match(')', follow);
         if (token->id == '[' || token->id == '(') {
-            union node *faty = func_or_array(params);
+            node_t *faty = func_or_array(params);
             attach_type(&faty, type1);
             attach_type(&rtype, faty);
         } else {
@@ -602,7 +602,7 @@ static void declarator(union node **ty, const char **id, int *params)
     }
 }
 
-static bool firstfuncdef(union node *ty)
+static bool firstfuncdef(node_t *ty)
 {
     bool prototype = token->id == '{';
     bool oldstyle = (istypename(token) || token->kind == STATIC) && TYPE_OLDSTYLE(ty) && TYPE_PARAMS(ty);
@@ -610,10 +610,10 @@ static bool firstfuncdef(union node *ty)
     return isfunc(ty) && (prototype || oldstyle);
 }
 
-static struct vector * decls(union node * (*dcl)(const char *id, union node *ftype, int sclass,  struct source src))
+static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int sclass,  struct source src))
 {
     struct vector *v = vec_new();
-    union node *basety;
+    node_t *basety;
     int sclass;
     struct source src = source;
     int level = SCOPE;
@@ -622,7 +622,7 @@ static struct vector * decls(union node * (*dcl)(const char *id, union node *fty
     basety = specifiers(&sclass);
     if (token->id == ID || token->id == '*' || token->id == '(') {
         const char *id = NULL;
-        union node *ty = NULL;
+        node_t *ty = NULL;
         int params = 0;		// for functioness
         src = source;
         
@@ -646,8 +646,8 @@ static struct vector * decls(union node * (*dcl)(const char *id, union node *fty
         
         for (;;) {
             if (id) {
-                union node *decl;
-                union node *sym = dcl(id, ty, sclass, src);
+                node_t *decl;
+                node_t *sym = dcl(id, ty, sclass, src);
                 if (sclass == TYPEDEF)
                     decl = ast_decl(TYPEDEF_DECL, SCOPE);
                 else if (isfunc(ty))
@@ -678,7 +678,7 @@ static struct vector * decls(union node * (*dcl)(const char *id, union node *fty
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
         int node_id;
-        union node *decl;
+        node_t *decl;
         if (isstruct(basety))
             node_id = STRUCT_DECL;
         else if (isunion(basety))
@@ -697,7 +697,7 @@ static struct vector * decls(union node * (*dcl)(const char *id, union node *fty
     return v;
 }
 
-static union node * initializer(union node *ty)
+static node_t * initializer(node_t *ty)
 {
     if (token->id == '{') {
         return initializer_list(ty);
@@ -709,7 +709,7 @@ static union node * initializer(union node *ty)
     }
 }
 
-static void elem_init(union node *ty, bool designated, struct vector *v, int i);
+static void elem_init(node_t *ty, bool designated, struct vector *v, int i);
 #define FIRST_INIT(t) (t->id == '[' || t->id == '.' || t->id == '{' || firstexpr(t))
 
 static void eat_initializer()
@@ -742,31 +742,31 @@ static void eat_initlist()
     } while (FIRST_INIT(token));
 }
 
-static void init_check(union node *ty1, union node *ty2)
+static void init_check(node_t *ty1, node_t *ty2)
 {
     // TODO: 
 }
 
-static union node * find_elem(struct vector *v, int i)
+static node_t * find_elem(struct vector *v, int i)
 {
     for (int j = vec_len(v); j <= i; j++)
 	vec_push(v, ast_vinit());
     return vec_at(v, i);
 }
 
-static void aggregate_set(union node *ty, struct vector *v, int i, union node *node)
+static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 {
     if (!node)
 	return;
     
-    union node *n = find_elem(v, i);
+    node_t *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
 	warning("initializer overrides prior initialization");
     
     if (AST_ID(node) == INITS_EXPR) {
 	vec_set(v, i, node);
     } else {
-	union node *rty = NULL;
+	node_t *rty = NULL;
 	if (isarray(ty)) {
 	    rty = rtype(ty);
 	} else {
@@ -775,7 +775,7 @@ static void aggregate_set(union node *ty, struct vector *v, int i, union node *n
 	}
 
 	if (rty) {
-	    union node *n1 = ast_inits();
+	    node_t *n1 = ast_inits();
 	    struct vector *v1 = vec_new();
 	    vec_set(v, i, n1);
 
@@ -786,22 +786,22 @@ static void aggregate_set(union node *ty, struct vector *v, int i, union node *n
 		vec_push(v1, node);
 	    }
 	
-	    EXPR_INITS(n1) = (union node **)vtoa(v1);
+	    EXPR_INITS(n1) = (node_t **)vtoa(v1);
 	}
     }
 }
 
-static void scalar_set(union node *ty, struct vector *v, int i, union node *node)
+static void scalar_set(node_t *ty, struct vector *v, int i, node_t *node)
 {
     if (!node)
 	return;
     
-    union node *n = find_elem(v, i);
+    node_t *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
 	warning("initializer overrides prior initialization");
 
     if (AST_ID(node) == INITS_EXPR) {	
-	union node **inits;
+	node_t **inits;
     loop:
 	    inits = EXPR_INITS(node);
 	    if (inits) {
@@ -817,13 +817,13 @@ static void scalar_set(union node *ty, struct vector *v, int i, union node *node
     }
 }
 
-static void struct_init(union node *ty, bool brace, struct vector *v)
+static void struct_init(node_t *ty, bool brace, struct vector *v)
 {
     bool designated = false;
     int len = array_len((void **)TYPE_FIELDS(ty));
 
     for (int i = 0; ; i++) {
-	union node *fieldty = NULL;
+	node_t *fieldty = NULL;
 
 	if (token->id == '.') {
 	    const char *name = NULL;
@@ -831,7 +831,7 @@ static void struct_init(union node *ty, bool brace, struct vector *v)
 	    if (token->id == ID)
 		name = token->name;
 	    expect(ID);
-	    union node *field = find_field(ty, name);
+	    node_t *field = find_field(ty, name);
 	    if (field) {
 		i = indexof_field(ty, field);
 		fieldty = FIELD_TYPE(field);
@@ -861,13 +861,13 @@ static void struct_init(union node *ty, bool brace, struct vector *v)
     }
 }
 
-static void array_init(union node *ty, bool brace, struct vector *v)
+static void array_init(node_t *ty, bool brace, struct vector *v)
 {
     bool designated = false;
     int c = 0;
     
     for (int i = 0; ; i++) {
-	union node *rty = NULL;
+	node_t *rty = NULL;
 	
 	if (token->id == '[') {
 	    expect('[');
@@ -900,7 +900,7 @@ static void array_init(union node *ty, bool brace, struct vector *v)
 	TYPE_SIZE(ty) = c + 1;
 }
 
-static void scalar_init(union node *ty, struct vector *v)
+static void scalar_init(node_t *ty, struct vector *v)
 {
     if (token->id == '.' || token->id == '[') {
 	error("designator in initializer for scalar type '%s'", type2s(ty));
@@ -916,7 +916,7 @@ static void scalar_init(union node *ty, struct vector *v)
     }
 }
 
-static void elem_init(union node *ty, bool designated, struct vector *v, int i)
+static void elem_init(node_t *ty, bool designated, struct vector *v, int i)
 {
     if (ty == NULL) {
         if (token->id == '.' || token->id == '[') {
@@ -944,7 +944,7 @@ static void elem_init(union node *ty, bool designated, struct vector *v, int i)
 	    if (errs == errors)
 		error("%s designator cannot initialize non-%s type '%s'", TYPE_NAME(unqual(ty)), TYPE_NAME(unqual(ty)), type2s(ty));
 	} else {
-	    union node *n = find_elem(v, i);
+	    node_t *n = find_elem(v, i);
 	    struct vector *v1 = vec_new();
 	    if (AST_ID(n) == INITS_EXPR) {
 		vec_add_array(v1, (void **)EXPR_INITS(n));
@@ -956,7 +956,7 @@ static void elem_init(union node *ty, bool designated, struct vector *v, int i)
 		array_init(ty, false, v1);
 	    else
 		struct_init(ty, false, v1);
-	    EXPR_INITS(n) = (union node **)vtoa(v1);
+	    EXPR_INITS(n) = (node_t **)vtoa(v1);
 	}
     } else {
 	if (designated)
@@ -965,10 +965,10 @@ static void elem_init(union node *ty, bool designated, struct vector *v, int i)
     }
 }
 
-union node * initializer_list(union node *ty)
+node_t * initializer_list(node_t *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    union node *ret = ast_inits();
+    node_t *ret = ast_inits();
     struct vector *v = vec_new();
     
     expect('{');
@@ -998,7 +998,7 @@ union node * initializer_list(union node *ty)
     }
     
     match('}', follow);
-    EXPR_INITS(ret) = (union node **)vtoa(v);
+    EXPR_INITS(ret) = (node_t **)vtoa(v);
     AST_TYPE(ret) = ty;
     return ret;
 }
@@ -1024,10 +1024,10 @@ bool istypename(struct token *t)
     (t->id == ID && is_typedef_name(t->name));
 }
 
-union node * typename()
+node_t * typename()
 {
-    union node *basety;
-    union node *ty = NULL;
+    node_t *basety;
+    node_t *ty = NULL;
     
     basety = specifiers(NULL);
     if (token->id == '*' || token->id == '(' || token->id == '[')
@@ -1038,15 +1038,15 @@ union node * typename()
     return ty;
 }
 
-union node ** declaration()
+node_t ** declaration()
 {
     CCAssert(SCOPE >= LOCAL);
-    return (union node **)vtoa(decls(localdecl));
+    return (node_t **)vtoa(decls(localdecl));
 }
 
-union node * translation_unit()
+node_t * translation_unit()
 {
-    union node *ret = ast_decl(TU_DECL, GLOBAL);
+    node_t *ret = ast_decl(TU_DECL, GLOBAL);
     struct vector *v = vec_new();
     
     for (; token->id != EOI; ) {
@@ -1060,11 +1060,11 @@ union node * translation_unit()
         }
     }
     
-    DECL_EXTS(ret) = (union node **)vtoa(v);
+    DECL_EXTS(ret) = (node_t **)vtoa(v);
     return ret;
 }
 
-static void ensure_func(union node *ftype, struct source src)
+static void ensure_func(node_t *ftype, struct source src)
 {
     if (isarray(rtype(ftype)))
         errorf(src, "function cannot return array type");
@@ -1072,7 +1072,7 @@ static void ensure_func(union node *ftype, struct source src)
         errorf(src, "function cannot return function type");
 }
 
-static void ensure_array(union node *atype, struct source src, int level)
+static void ensure_array(node_t *atype, struct source src, int level)
 {
     if (isfunc(rtype(atype)))
         errorf(src, "array of function is invalid");
@@ -1080,15 +1080,15 @@ static void ensure_array(union node *atype, struct source src, int level)
         errorf(src, "array has incomplete element type '%s'", type2s(rtype(atype)));
 }
 
-static void ensure_nonvoid(union node *ty, struct source src, int level)
+static void ensure_nonvoid(node_t *ty, struct source src, int level)
 {
     if (isvoid(ty))
         errorf(src, "%s may not have 'void' type", level == PARAM ? "argument" : "variable");
 }
 
-static union node * enum_decl()
+static node_t * enum_decl()
 {
-    union node *sym = NULL;
+    node_t *sym = NULL;
     const char *id = NULL;
     struct source src = source;
     int follow[] = {INT, CONST, STATIC, IF, 0};
@@ -1106,7 +1106,7 @@ static union node * enum_decl()
         if (token->id != ID)
             error("expect identifier");
         while (token->id == ID) {
-            union node *s = lookup(token->name, identifiers);
+            node_t *s = lookup(token->name, identifiers);
             if (s && currentscope(s))
                 redefinition_error(source, s);
             
@@ -1126,7 +1126,7 @@ static union node * enum_decl()
             expect(',');
         }
         match('}', follow);
-        TYPE_IDS(SYM_TYPE(sym)) = (union node **)vtoa(v);
+        TYPE_IDS(SYM_TYPE(sym)) = (node_t **)vtoa(v);
         SYM_DEFINED(sym) = true;
     } else if (id) {
         sym = lookup(id, tags);
@@ -1145,11 +1145,11 @@ static union node * enum_decl()
     return SYM_TYPE(sym);
 }
 
-static union node * struct_decl()
+static node_t * struct_decl()
 {
     int t = token->id;
     const char *id = NULL;
-    union node *sym = NULL;
+    node_t *sym = NULL;
     struct source src = source;
     int follow[] = {INT, CONST, STATIC, IF, '[', 0};
     
@@ -1182,16 +1182,16 @@ static union node * struct_decl()
 }
 
 // TODO: not finished yet
-static void fields(union node *sty)
+static void fields(node_t *sty)
 {
     int follow[] = {INT, CONST, '}', IF, 0};
     
     struct vector *v = vec_new();
     while (istypename(token)) {
-        union node *basety = specifiers(NULL);
+        node_t *basety = specifiers(NULL);
         
         for (;;) {
-            union node *field = new_field(NULL);
+            node_t *field = new_field(NULL);
             int hasbit = 0;
             if (token->id == ':') {
                 expect(':');
@@ -1199,7 +1199,7 @@ static void fields(union node *sty)
                 FIELD_TYPE(field) = basety;
                 hasbit = 1;
             } else {
-                union node *ty = NULL;
+                node_t *ty = NULL;
                 const char *id = NULL;
                 declarator(&ty, &id, NULL);
                 attach_type(&ty, basety);
@@ -1211,7 +1211,7 @@ static void fields(union node *sty)
                 FIELD_TYPE(field) = ty;
                 if (id) {
                     for (int i=0; i < vec_len(v); i++) {
-                        union node *f = vec_at(v, i);
+                        node_t *f = vec_at(v, i);
                         if (FIELD_NAME(f) && !strcmp(FIELD_NAME(f), id)) {
                             error("redefinition of '%s'", id);
                             break;
@@ -1253,12 +1253,12 @@ static void fields(union node *sty)
         
         match(';', follow);
     }
-    TYPE_FIELDS(sty) = (union node **)vtoa(v);
+    TYPE_FIELDS(sty) = (node_t **)vtoa(v);
 }
 
-static union node * paramdecl(const char *id, union node *ty, int sclass,  struct source src)
+static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source src)
 {
-    union node *sym = NULL;
+    node_t *sym = NULL;
     if (sclass && sclass != REGISTER) {
         error("invalid storage class specifier '%s' in function declarator", tname(sclass));
         sclass = 0;
@@ -1297,9 +1297,9 @@ static union node * paramdecl(const char *id, union node *ty, int sclass,  struc
     return sym;
 }
 
-static union node * localdecl(const char *id, union node *ty, int sclass, struct source src)
+static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source src)
 {
-    union node *sym = NULL;
+    node_t *sym = NULL;
     
     CCAssert(id);
     CCAssert(SCOPE >= LOCAL);
@@ -1325,9 +1325,9 @@ static union node * localdecl(const char *id, union node *ty, int sclass, struct
     return sym;
 }
 
-static union node * globaldecl(const char *id, union node *ty, int sclass, struct source src)
+static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source src)
 {
-    union node *sym = NULL;
+    node_t *sym = NULL;
     
     CCAssert(id);
     CCAssert(SCOPE == GLOBAL);
@@ -1362,9 +1362,9 @@ static union node * globaldecl(const char *id, union node *ty, int sclass, struc
     return sym;
 }
 
-static union node * funcdef(const char *id, union node *ftype, int sclass,  struct source src)
+static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src)
 {
-    union node *decl = ast_decl(FUNC_DECL, SCOPE);
+    node_t *decl = ast_decl(FUNC_DECL, SCOPE);
     
     CCAssert(SCOPE == PARAM);
     
@@ -1374,7 +1374,7 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
     }
     
     if (id) {
-        union node *sym = lookup(id, identifiers);
+        node_t *sym = lookup(id, identifiers);
         if (!sym) {
             sym = install(id, &identifiers, GLOBAL);
             SYM_TYPE(sym) = ftype;
@@ -1398,7 +1398,7 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
     
     if (TYPE_PARAMS(ftype)) {
         for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
-            union node *sym = TYPE_PARAMS(ftype)[i];
+            node_t *sym = TYPE_PARAMS(ftype)[i];
             SYM_DEFINED(sym) = true;
             // params id is required in prototype
             if (issymnamed(sym))
@@ -1420,16 +1420,16 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
             vec_add(v, decls(paramdecl));
         
         for (int i=0; i < vec_len(v); i++) {
-            union node *decl = (union node *)vec_at(v, i);
-            union node *sym = DECL_SYM(decl);
+            node_t *decl = (node_t *)vec_at(v, i);
+            node_t *sym = DECL_SYM(decl);
             
             CCAssert(SYM_NAME(sym));
             if (AST_ID(decl) != VAR_DECL) {
                 warningf(SYM_SRC(sym), "empty declaraion");
             } else if (TYPE_PARAMS(ftype)) {
-                union node *p = NULL;
+                node_t *p = NULL;
                 for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
-                    union node *s = TYPE_PARAMS(ftype)[i];
+                    node_t *s = TYPE_PARAMS(ftype)[i];
                     if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym))) {
                         p = s;
                         break;
@@ -1452,7 +1452,7 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
-        union node *stmt = compound_stmt();
+        node_t *stmt = compound_stmt();
         exit_scope();
         AST_KID(decl, 0) = stmt;
     }
@@ -1460,11 +1460,11 @@ static union node * funcdef(const char *id, union node *ftype, int sclass,  stru
     return decl;
 }
 
-static void decl_initializer(union node *decl, union node *sym, int sclass, int kind)
+static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 {
-    union node *ty = SYM_TYPE(sym);
+    node_t *ty = SYM_TYPE(sym);
     struct source src = SYM_SRC(sym);
-    union node *init = NULL;
+    node_t *init = NULL;
 
     expect('=');
     init = initializer(ty);

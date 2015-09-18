@@ -86,74 +86,74 @@ union value {
 #include "ast.h"
 
 // eval.c
-extern union node * eval(union node *expr);
+extern node_t * eval(node_t *expr);
 
 // expr.c
-extern union node * expression();
-extern union node * assign_expr();
+extern node_t * expression();
+extern node_t * assign_expr();
 extern int intexpr();
-extern bool islvalue(union node *node);
+extern bool islvalue(node_t *node);
 
 // decl.c
-extern union node * initializer_list(union node *ty);
+extern node_t * initializer_list(node_t *ty);
 extern bool istypename(struct token *t);
-extern union node ** declaration();
-extern union node * translation_unit();
-extern union node * typename();
+extern node_t ** declaration();
+extern node_t * translation_unit();
+extern node_t * typename();
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
 
 // stmt.c
-extern union node * compound_stmt();
+extern node_t * compound_stmt();
 
 #define isbitfield(field)    (FIELD_BITSIZE(field) > 0)
 
 extern void type_init();
-extern int op(union node *type);
-extern void prepend_type(union node **typelist, union node *type);
-extern void attach_type(union node **typelist, union node *type);
-extern union node * qual(int t, union node *ty);
-extern bool eqtype(union node *ty1, union node *ty2);
-extern bool eqarith(union node *ty1, union node * ty2);
-extern union node * lookup_typedef_name(const char *id);
+extern int op(node_t *type);
+extern void prepend_type(node_t **typelist, node_t *type);
+extern void attach_type(node_t **typelist, node_t *type);
+extern node_t * qual(int t, node_t *ty);
+extern bool eqtype(node_t *ty1, node_t *ty2);
+extern bool eqarith(node_t *ty1, node_t * ty2);
+extern node_t * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
-extern union node * new_field(char *id);
-extern union node * array_type();
-extern union node * ptr_type(union node *ty);
-extern union node * func_type();
-extern union node * tag_type(int t, const char *tag, struct source src);
-extern const char *type2s(union node *ty);
-extern unsigned typesize(union node *ty);
-extern union node * find_field(union node *ty, const char *name);
-extern int indexof_field(union node *ty, union node *field);
-extern union node * compose(union node *ty1, union node *ty2);
+extern node_t * new_field(char *id);
+extern node_t * array_type();
+extern node_t * ptr_type(node_t *ty);
+extern node_t * func_type();
+extern node_t * tag_type(int t, const char *tag, struct source src);
+extern const char *type2s(node_t *ty);
+extern unsigned typesize(node_t *ty);
+extern node_t * find_field(node_t *ty, const char *name);
+extern int indexof_field(node_t *ty, node_t *field);
+extern node_t * compose(node_t *ty1, node_t *ty2);
 extern bool contains(int qual1, int qual2);
 
-extern union node    *chartype;               // char
-extern union node    *unsignedchartype;       // unsigned char
-extern union node    *signedchartype;         // signed char
-extern union node    *wchartype;              // wchar_t
-extern union node    *shorttype;              // short (int)
-extern union node    *unsignedshorttype;      // unsigned short (int)
-extern union node    *inttype;                // int
-extern union node    *unsignedinttype;        // unsigned (int)
-extern union node    *longtype;               // long
-extern union node    *unsignedlongtype;       // unsigned long (int)
-extern union node    *longlongtype;           // long long (int)
-extern union node    *unsignedlonglongtype;   // unsigned long long (int)
-extern union node    *floattype;              // float
-extern union node    *doubletype;             // double
-extern union node    *longdoubletype;         // long double
-extern union node    *voidtype;               // void
-extern union node    *booltype;	       // bool
-extern union node    *vartype;		       // variable type
+extern node_t    *chartype;               // char
+extern node_t    *unsignedchartype;       // unsigned char
+extern node_t    *signedchartype;         // signed char
+extern node_t    *wchartype;              // wchar_t
+extern node_t    *shorttype;              // short (int)
+extern node_t    *unsignedshorttype;      // unsigned short (int)
+extern node_t    *inttype;                // int
+extern node_t    *unsignedinttype;        // unsigned (int)
+extern node_t    *longtype;               // long
+extern node_t    *unsignedlongtype;       // unsigned long (int)
+extern node_t    *longlongtype;           // long long (int)
+extern node_t    *unsignedlonglongtype;   // unsigned long long (int)
+extern node_t    *floattype;              // float
+extern node_t    *doubletype;             // double
+extern node_t    *longdoubletype;         // long double
+extern node_t    *voidtype;               // void
+extern node_t    *booltype;	       // bool
+extern node_t    *vartype;		       // variable type
 
 #define BITS(type)      (CHAR_BIT * (TYPE_SIZE(type)))
 
-extern bool isconst(union node *ty);
-extern bool isvolatile(union node *ty);
-extern bool isrestrict(union node *ty);
+extern bool isconst(node_t *ty);
+extern bool isvolatile(node_t *ty);
+extern bool isrestrict(node_t *ty);
 #define isinline(ty)    (TYPE_INLINE(ty))
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
 #define unqual(ty)      (isqual(ty) ? (TYPE_TYPE(ty)) : (ty))
@@ -163,22 +163,22 @@ extern bool isrestrict(union node *ty);
 #define size(ty)        (TYPE_SIZE(unqual(ty)))
 #define rank(ty)        (TYPE_RANK(unqual(ty)))
 
-extern bool isfunc(union node *type);
-extern bool isarray(union node *type);
-extern bool isptr(union node *type);
-extern bool isvoid(union node *type);
-extern bool isenum(union node *type);
-extern bool isstruct(union node *type);
-extern bool isunion(union node *type);
-extern bool isrecord(union node *type); // isstruct or isunion
-extern bool istag(union node *type);	 // isstruct or isunion or isenum
+extern bool isfunc(node_t *type);
+extern bool isarray(node_t *type);
+extern bool isptr(node_t *type);
+extern bool isvoid(node_t *type);
+extern bool isenum(node_t *type);
+extern bool isstruct(node_t *type);
+extern bool isunion(node_t *type);
+extern bool isrecord(node_t *type); // isstruct or isunion
+extern bool istag(node_t *type);	 // isstruct or isunion or isenum
 
-extern bool isint(union node *ty);
-extern bool isfloat(union node *ty);
-extern bool isarith(union node *ty);
-extern bool isscalar(union node *ty);
+extern bool isint(node_t *ty);
+extern bool isfloat(node_t *ty);
+extern bool isarith(node_t *ty);
+extern bool isscalar(node_t *ty);
 
-extern bool isptrto(union node *ty, int kind);
+extern bool isptrto(node_t *ty, int kind);
 
 // sym.c
 // scope level
@@ -201,16 +201,16 @@ extern void enter_scope();
 extern void exit_scope();
 
 // create an anonymous symbol
-extern union node * anonymous(struct table **tpp, int scope);
+extern node_t * anonymous(struct table **tpp, int scope);
 
 // look up a symbol from this table to previous one, and so on
-extern union node * lookup(const char *name, struct table *table);
+extern node_t * lookup(const char *name, struct table *table);
 
 // install a symbol with specified scope
-extern union node * install(const char *name, struct table **tpp, int scope);
+extern node_t * install(const char *name, struct table **tpp, int scope);
 
 // sym->name is NULL or anynomous
-extern bool issymnamed(union node *sym);
+extern bool issymnamed(node_t *sym);
 
 extern struct table * identifiers;
 extern struct table * constants;
@@ -232,14 +232,14 @@ extern void errorf(struct source src, const char *fmt, ...);
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 
-extern void redefinition_error(struct source src, union node *sym);
-extern void conflicting_types_error(struct source src, union node *sym);
+extern void redefinition_error(struct source src, node_t *sym);
+extern void conflicting_types_error(struct source src, node_t *sym);
 
 // gen.c
-extern void gen(union node *tree);
+extern void gen(node_t *tree);
 
 // print.c
-extern void print_tree(union node *tree);
+extern void print_tree(node_t *tree);
 
 
 #endif

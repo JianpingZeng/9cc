@@ -49,16 +49,16 @@ void exit_scope()
     level--;
 }
 
-union node * anonymous(struct table **tpp, int scope)
+node_t * anonymous(struct table **tpp, int scope)
 {
     static long i;
     return install(strd(i++), tpp, scope);
 }
 
-union node * lookup(const char *name, struct table *table)
+node_t * lookup(const char *name, struct table *table)
 {
     CCAssert(name);
-    union node *s = NULL;
+    node_t *s = NULL;
     
     for (struct table *t = table; t; t = t->up) {
         if ((s = map_get(t->map, name)))
@@ -68,9 +68,9 @@ union node * lookup(const char *name, struct table *table)
     return s;
 }
 
-union node * install(const char *name, struct table **tpp, int scope)
+node_t * install(const char *name, struct table **tpp, int scope)
 {
-    union node *sym;
+    node_t *sym;
     struct table *tp = *tpp;
     
     if (scope > tp->scope) {
@@ -88,7 +88,7 @@ union node * install(const char *name, struct table **tpp, int scope)
     return sym;
 }
 
-bool issymnamed(union node *sym)
+bool issymnamed(node_t *sym)
 {
     return SYM_NAME(sym) == NULL || isanonymous(SYM_NAME(sym));
 }

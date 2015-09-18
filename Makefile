@@ -42,9 +42,18 @@ MCC_OBJ=mcc.o
 SYS_INC=sys/sys.h
 SYSDIR=include/linux
 SYS_OBJ:=sys/linux.o
-CFLAGS+=-DLINUX -D_BSD_SOURCE
 SYS_INC+=$(wildcard $(SYSDIR)/*.h)
 ARCH:=$(shell uname -m)
+
+ifneq (, $(findstring CYGWIN, $(shell uname)))
+CFLAGS+=-DCYGWIN -D_BSD_SOURCE
+CFLAGS+=-DCOLOR_TERM
+else
+CFLAGS+=-DLINUX -D_BSD_SOURCE
+ifeq ($(shell test $(shell tput colors) -gt 7; echo $$?), 0)
+CFLAGS+=-DCOLOR_TERM
+endif
+endif
 
 ifeq ($(ARCH), i386)
 CFLAGS+=-DX32
@@ -52,10 +61,6 @@ else ifeq ($(ARCH), i686)
 CFLAGS+=-DX32
 else ifeq ($(ARCH), x86_64)
 CFLAGS+=-DX64
-endif
-
-ifeq ($(shell test $(shell tput colors) -gt 7; echo $$?), 0)
-CFLAGS+=-DCOLOR_TERM
 endif
 
 all: $(MCC)

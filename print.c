@@ -4,12 +4,12 @@
 
 struct print_context {
     int level;
-    union node * node;
+    node_t * node;
 };
 
 static void print_tree1(struct print_context context);
 
-static void print_ty(union node *ty)
+static void print_ty(node_t *ty)
 {
     if (ty) {
 	if (isfunc(ty) || isptr(ty) || isarray(ty))
@@ -19,14 +19,14 @@ static void print_ty(union node *ty)
     }
 }
 
-static void print_type(union node *node, struct print_context context)
+static void print_type(node_t *node, struct print_context context)
 {
     fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
     print_ty(node);
     fprintf(stderr, "\n");
 }
 
-static void print_decl(union node *node, struct print_context context)
+static void print_decl(node_t *node, struct print_context context)
 {
     int level;
 
@@ -35,7 +35,7 @@ static void print_decl(union node *node, struct print_context context)
 	if (SYM_DEFINED(DECL_SYM(node)))
 	    fprintf(stderr, YELLOW("<defined> "));
 	
-	union node *ty = SYM_TYPE(DECL_SYM(node));
+	node_t *ty = SYM_TYPE(DECL_SYM(node));
         print_ty(ty);
 	fprintf(stderr, CYAN("%s "), STR(SYM_NAME(DECL_SYM(node))));
     }
@@ -43,7 +43,7 @@ static void print_decl(union node *node, struct print_context context)
     
     level = context.level + 1;
     
-    union node **exts = DECL_EXTS(node);
+    node_t **exts = DECL_EXTS(node);
     if (exts) {
         for (int i=0; exts[i]; i++) {
             struct print_context con = {level, exts[i]};
@@ -51,14 +51,14 @@ static void print_decl(union node *node, struct print_context context)
         }
     }
     
-    union node *init = DECL_BODY(node);
+    node_t *init = DECL_BODY(node);
     if (init) {
         struct print_context con = {level, init};
         print_tree1(con);
     }
 }
 
-static void print_expr(union node *node, struct print_context context)
+static void print_expr(node_t *node, struct print_context context)
 {
     int level;
     int op = EXPR_OP(node);
@@ -83,12 +83,12 @@ static void print_expr(union node *node, struct print_context context)
     level = context.level + 1;
 
     if (AST_ID(node) == CALL_EXPR) {
-	union node *func = EXPR_OPERAND(node, 0);
+	node_t *func = EXPR_OPERAND(node, 0);
 	if (func) {
 	    struct print_context con = {level, func};
 	    print_tree1(con);
 	}
-        union node **args = EXPR_ARGS(node);
+        node_t **args = EXPR_ARGS(node);
         if (args) {
             for (int i=0; args[i]; i++) {
                 struct print_context con = {level, args[i]};
@@ -96,7 +96,7 @@ static void print_expr(union node *node, struct print_context context)
             }
         }
     } else if (AST_ID(node) == INITS_EXPR) {
-        union node **inits = EXPR_INITS(node);
+        node_t **inits = EXPR_INITS(node);
         for (int i=0; inits && inits[i]; i++) {
             struct print_context con = {level, inits[i]};
             print_tree1(con);
@@ -104,10 +104,10 @@ static void print_expr(union node *node, struct print_context context)
     }
 }
 
-static void print_stmt(union node *node, struct print_context context)
+static void print_stmt(node_t *node, struct print_context context)
 {
     int level;
-    union node *up = STMT_UP(node);
+    node_t *up = STMT_UP(node);
 
     fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
     if (up)
@@ -117,7 +117,7 @@ static void print_stmt(union node *node, struct print_context context)
     level = context.level + 1;
     
     if (AST_ID(node) == COMPOUND_STMT) {
-        union node **blks = STMT_BLKS(node);
+        node_t **blks = STMT_BLKS(node);
         if (blks) {
             for (int i=0; blks[i]; i++) {
                 struct print_context con = {level, blks[i]};
@@ -125,10 +125,10 @@ static void print_stmt(union node *node, struct print_context context)
             }
         }
     } else if (AST_ID(node) == FOR_STMT) {
-        union node **decl = STMT_DECL(node);
-        union node *init = STMT_INIT(node);
-        union node *cond = STMT_COND(node);
-        union node *ctrl = STMT_CTRL(node);
+        node_t **decl = STMT_DECL(node);
+        node_t *init = STMT_INIT(node);
+        node_t *cond = STMT_COND(node);
+        node_t *ctrl = STMT_CTRL(node);
         if (decl) {
             for (int i=0; decl[i]; i++) {
                 struct print_context con = {level, decl[i]};
@@ -165,7 +165,7 @@ static void print_stmt(union node *node, struct print_context context)
 
 static void print_tree1(struct print_context context)
 {
-    union node *node = context.node;
+    node_t *node = context.node;
     int level = context.level + 1;
     
     for (int i=0; i < context.level; i++)
@@ -206,7 +206,7 @@ static void print_tree1(struct print_context context)
     }
 }
 
-void print_tree(union node *tree)
+void print_tree(node_t *tree)
 {
     struct print_context context = {0, tree};
     print_tree1(context);

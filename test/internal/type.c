@@ -3,8 +3,8 @@
 
 static void test_qual()
 {
-    union node *ty1 = qual(CONST, inttype);
-    union node *ty2 = qual(CONST, ty1);
+    node_t *ty1 = qual(CONST, inttype);
+    node_t *ty2 = qual(CONST, ty1);
     
     expectp(unqual(ty1), inttype);
     expectp(unqual(ty2), inttype);
@@ -15,8 +15,8 @@ static void test_qual()
 
 static void test_eq()
 {
-    union node *ty1, *ty2;
-    union node *ty3, *ty4;
+    node_t *ty1, *ty2;
+    node_t *ty3, *ty4;
     
     ty1 = qual(CONST, inttype);
     expecti(eqtype(ty1, inttype), false);

@@ -26,26 +26,26 @@ static inline void * do_alloc_node(struct alloc_state *s, size_t size)
 static struct alloc_state node_state;
 void * alloc_node(void)
 {
-    return do_alloc_node(&node_state, sizeof(union node));
+    return do_alloc_node(&node_state, sizeof(node_t));
 }
 
 void * alloc_symbol(void)
 {
-    union node *n = alloc_node();
+    node_t *n = alloc_node();
     AST_ID(n) = SYMBOL_NODE;
     return n;
 }
 
 void * alloc_type(void)
 {
-    union node *n = alloc_node();
+    node_t *n = alloc_node();
     AST_ID(n) = TYPE_NODE;
     return n;
 }
 
 void * alloc_field(void)
 {
-    union node *n = alloc_node();
+    node_t *n = alloc_node();
     AST_ID(n) = FIELD_NODE;
     return n;
 }

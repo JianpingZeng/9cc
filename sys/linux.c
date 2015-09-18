@@ -7,11 +7,11 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
+#ifdef LINUX
 // trace
 #include <execinfo.h>
 #include <signal.h>
-
-static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
 
 static void handler(int sig)
 {
@@ -24,12 +24,17 @@ static void handler(int sig)
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     exit(EXIT_FAILURE);
 }
+#endif
 
 void setup_sys()
 {
+#ifdef LINUX
     signal(SIGSEGV, handler);
     signal(SIGABRT, handler);
+#endif
 }
+
+static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
 
 char *mktmpdir()
 {

@@ -1,24 +1,24 @@
 #include "cc.h"
 
 // predefined types
-union node   *chartype;               // char
-union node   *unsignedchartype;       // unsigned char
-union node   *signedchartype;         // signed char
-union node   *wchartype;              // wchar_t
-union node   *shorttype;              // short (int)
-union node   *unsignedshorttype;      // unsigned short (int)
-union node   *inttype;                // int
-union node   *unsignedinttype;        // unsigned (int)
-union node   *longtype;               // long
-union node   *unsignedlongtype;       // unsigned long (int)
-union node   *longlongtype;           // long long (int)
-union node   *unsignedlonglongtype;   // unsigned long long (int)
-union node   *floattype;              // float
-union node   *doubletype;             // double
-union node   *longdoubletype;         // long double
-union node   *voidtype;               // void
-union node   *booltype;	       // bool
-union node   *vartype;		       // variable type
+node_t   *chartype;               // char
+node_t   *unsignedchartype;       // unsigned char
+node_t   *signedchartype;         // signed char
+node_t   *wchartype;              // wchar_t
+node_t   *shorttype;              // short (int)
+node_t   *unsignedshorttype;      // unsigned short (int)
+node_t   *inttype;                // int
+node_t   *unsignedinttype;        // unsigned (int)
+node_t   *longtype;               // long
+node_t   *unsignedlongtype;       // unsigned long (int)
+node_t   *longlongtype;           // long long (int)
+node_t   *unsignedlonglongtype;   // unsigned long long (int)
+node_t   *floattype;              // float
+node_t   *doubletype;             // double
+node_t   *longdoubletype;         // long double
+node_t   *voidtype;               // void
+node_t   *booltype;	       // bool
+node_t   *vartype;		       // variable type
 
 struct metrics {
     size_t size;
@@ -54,14 +54,14 @@ struct metrics {
 #endif
     zerometrics         = { 0 };
 
-static inline union node * new_type()
+static inline node_t * new_type()
 {
     return alloc_type();
 }
 
-static union node * install_type(const char *name, int kind, struct metrics m)
+static node_t * install_type(const char *name, int kind, struct metrics m)
 {
-    union node *ty = new_type();
+    node_t *ty = new_type();
     
     TYPE_NAME(ty) = strs(name);
     TYPE_KIND(ty) = kind;
@@ -137,7 +137,7 @@ void type_init()
 #undef INSTALL
 }
 
-int op(union node *type)
+int op(node_t *type)
 {
     int kind = kind(type);
     switch (kind) {
@@ -180,16 +180,16 @@ int op(union node *type)
     }
 }
 
-void prepend_type(union node **typelist, union node *type)
+void prepend_type(node_t **typelist, node_t *type)
 {
     attach_type(&type, *typelist);
     *typelist = type;
 }
 
-void attach_type(union node **typelist, union node *type)
+void attach_type(node_t **typelist, node_t *type)
 {
     if (*typelist) {
-        union node *tp = *typelist;
+        node_t *tp = *typelist;
         while (tp && TYPE_TYPE(tp)) {
             tp = TYPE_TYPE(tp);
         }
@@ -247,10 +247,10 @@ bool contains(int qual1, int qual2)
     return true;
 }
 
-union node * qual(int t, union node *ty)
+node_t * qual(int t, node_t *ty)
 {
     CCAssert(ty);
-    union node *qty = new_type();
+    node_t *qty = new_type();
     if (isqual(ty))
         TYPE_KIND(qty) = combine(t, TYPE_KIND(ty));
     else
@@ -259,12 +259,12 @@ union node * qual(int t, union node *ty)
     return qty;
 }
 
-union node * lookup_typedef_name(const char *id)
+node_t * lookup_typedef_name(const char *id)
 {
     if (!id)
         return NULL;
     
-    union node *sym = lookup(id, identifiers);
+    node_t *sym = lookup(id, identifiers);
     
     if (sym && SYM_SCLASS(sym) == TYPEDEF)
         return SYM_TYPE(sym);
@@ -274,29 +274,29 @@ union node * lookup_typedef_name(const char *id)
 
 bool is_typedef_name(const char *id)
 {
-    union node *ty = lookup_typedef_name(id);
+    node_t *ty = lookup_typedef_name(id);
     return ty != NULL;
 }
 
-union node * new_field(char *id)
+node_t * new_field(char *id)
 {
-    union node *field = alloc_field();
+    node_t *field = alloc_field();
     FIELD_NAME(field) = id;
     return field;
 }
 
-union node * array_type()
+node_t * array_type()
 {
-    union node *ty = new_type();
+    node_t *ty = new_type();
     TYPE_KIND(ty) = ARRAY;
     TYPE_NAME(ty) = "array";
     
     return ty;
 }
 
-union node * ptr_type(union node *type)
+node_t * ptr_type(node_t *type)
 {
-    union node *ty = new_type();
+    node_t *ty = new_type();
     TYPE_KIND(ty) = POINTER;
     TYPE_TYPE(ty) = type;
     TYPE_NAME(ty) = "pointer";
@@ -304,25 +304,25 @@ union node * ptr_type(union node *type)
     return ty;
 }
 
-union node * func_type()
+node_t * func_type()
 {
-    union node *ty = new_type();
+    node_t *ty = new_type();
     TYPE_KIND(ty) = FUNCTION;
     TYPE_NAME(ty) = "function";
     
     return ty;
 }
 
-union node * tag_type(int t, const char *tag, struct source src)
+node_t * tag_type(int t, const char *tag, struct source src)
 {
-    union node *ty = new_type();
+    node_t *ty = new_type();
     TYPE_KIND(ty) = t;
     TYPE_TAG(ty) = tag;
     TYPE_NAME(ty) = tname(t);
     if (t == ENUM)
         TYPE_TYPE(ty) = inttype;
     
-    union node *sym = NULL;
+    node_t *sym = NULL;
     if (tag) {
         sym = lookup(tag, tags);
         if (sym && currentscope(sym)) {
@@ -345,7 +345,7 @@ union node * tag_type(int t, const char *tag, struct source src)
     return sym;
 }
 
-static bool eqparams(union node **params1, union node **params2)
+static bool eqparams(node_t **params1, node_t **params2)
 {
     if (params1 == params2) {
         return true;
@@ -357,8 +357,8 @@ static bool eqparams(union node **params1, union node **params2)
         if (len1 != len2)
             return false;
         for (int i=0; i < len1; i++) {
-            union node *sym1 = params1[i];
-            union node *sym2 = params2[i];
+            node_t *sym1 = params1[i];
+            node_t *sym2 = params2[i];
             if (sym1 == sym2)
                 continue;
             else if (sym1 == NULL || sym2 == NULL)
@@ -373,7 +373,7 @@ static bool eqparams(union node **params1, union node **params2)
     }
 }
 
-bool eqtype(union node *ty1, union node *ty2)
+bool eqtype(node_t *ty1, node_t *ty2)
 {
     if (ty1 == ty2)
         return true;
@@ -412,13 +412,13 @@ bool eqtype(union node *ty1, union node *ty2)
                 return eqparams(TYPE_PARAMS(ty1), TYPE_PARAMS(ty2));
             } else {
                 // one oldstyle, the other prototype
-                union node *oldty = TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
-                union node *newty = TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
+                node_t *oldty = TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
+                node_t *newty = TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
                 if (TYPE_PARAMS(newty)) {
                     for (int i=0; TYPE_PARAMS(newty)[i]; i++) {
-                        union node *sym = TYPE_PARAMS(newty)[i];
+                        node_t *sym = TYPE_PARAMS(newty)[i];
                         if (SYM_TYPE(sym)) {
-                            union node *ty = unqual(SYM_TYPE(sym));
+                            node_t *ty = unqual(SYM_TYPE(sym));
                             if (kind(ty) == CHAR || kind(ty) == SHORT)
                                 return false;
                             else if (op(ty) == FLOAT)
@@ -441,17 +441,17 @@ bool eqtype(union node *ty1, union node *ty2)
     }
 }
 
-union node * find_field(union node *sty, const char *name)
+node_t * find_field(node_t *sty, const char *name)
 {
     int i;
-    union node *ty = unqual(sty);
+    node_t *ty = unqual(sty);
     int len = array_len((void **)TYPE_FIELDS(ty));
-    union node *ret = NULL;
+    node_t *ret = NULL;
 
     if (name == NULL)
 	return NULL;
     for (i = 0; i < len; i++) {
-        union node *field = TYPE_FIELDS(ty)[i];
+        node_t *field = TYPE_FIELDS(ty)[i];
 	if (FIELD_NAME(field) && !strcmp(name, FIELD_NAME(field)))
 	    break;
     }
@@ -461,10 +461,10 @@ union node * find_field(union node *sty, const char *name)
     return ret;
 }
 
-int indexof_field(union node *ty, union node *field)
+int indexof_field(node_t *ty, node_t *field)
 {
     for (int i = 0; i < array_len((void **)TYPE_FIELDS(ty)); i++) {
-	union node *f = TYPE_FIELDS(ty)[i];
+	node_t *f = TYPE_FIELDS(ty)[i];
 	if (field == f)
 	    return i;
     }
@@ -473,12 +473,12 @@ int indexof_field(union node *ty, union node *field)
 }
 
 // TODO: 
-static unsigned struct_size(union node *ty)
+static unsigned struct_size(node_t *ty)
 {
     return 0;
 }
 
-unsigned typesize(union node *ty)
+unsigned typesize(node_t *ty)
 {
     if (ty == NULL)
 	return 0;
@@ -494,7 +494,7 @@ unsigned typesize(union node *ty)
 	return TYPE_SIZE(ty);
 }
 
-union node * compose(union node *ty1, union node *ty2)
+node_t * compose(node_t *ty1, node_t *ty2)
 {
     if (isqual(ty1) && isqual(ty2)) {
 	int kind = combine(TYPE_KIND(ty1), TYPE_KIND(ty2));
@@ -506,92 +506,92 @@ union node * compose(union node *ty1, union node *ty2)
     }
 }
 
-bool isconst(union node *ty)
+bool isconst(node_t *ty)
 {
     return isconst1(TYPE_KIND(ty));
 }
 
-bool isvolatile(union node *ty)
+bool isvolatile(node_t *ty)
 {
     return isvolatile1(TYPE_KIND(ty));
 }
 
-bool isrestrict(union node *ty)
+bool isrestrict(node_t *ty)
 {
     return isrestrict1(TYPE_KIND(ty));
 }
 
-bool eqarith(union node *ty1, union node *ty2)
+bool eqarith(node_t *ty1, node_t *ty2)
 {
     return kind(ty1) == kind(ty2) && op(ty1) == op(ty2);
 }
 
-bool isfunc(union node *ty)
+bool isfunc(node_t *ty)
 {
     return op(ty) == FUNCTION;
 }
 
-bool isarray(union node *ty)
+bool isarray(node_t *ty)
 {
     return op(ty) == ARRAY;
 }
 
-bool isptr(union node *ty)
+bool isptr(node_t *ty)
 {
     return op(ty) == POINTER;
 }
 
-bool isvoid(union node *ty)
+bool isvoid(node_t *ty)
 {
     return op(ty) == VOID;
 }
 
-bool isenum(union node *ty)
+bool isenum(node_t *ty)
 {
     return op(ty) == ENUM;
 }
 
-bool isstruct(union node *ty)
+bool isstruct(node_t *ty)
 {
     return op(ty) == STRUCT;
 }
 
-bool isunion(union node *ty)
+bool isunion(node_t *ty)
 {
     return op(ty) == UNION;
 }
 
-bool isrecord(union node *type)
+bool isrecord(node_t *type)
 {
     return isstruct(type) || isunion(type);
 }
 
-bool istag(union node *type)
+bool istag(node_t *type)
 {
     return isstruct(type) || isunion(type) || isenum(type);
 }
 
-bool isint(union node *ty)
+bool isint(node_t *ty)
 {
     return op(ty) == INT || op(ty) == UNSIGNED || isenum(ty);
 }
 
-bool isfloat(union node *ty)
+bool isfloat(node_t *ty)
 {
     return op(ty) == FLOAT;
 }
 
-bool isarith(union node *ty)
+bool isarith(node_t *ty)
 {
     return isint(ty) || isfloat(ty);
 }
 
-bool isscalar(union node *ty)
+bool isscalar(node_t *ty)
 {
     return isarith(ty) || isptr(ty);
 }
 
-bool isptrto(union node *ty, int kind)
+bool isptrto(node_t *ty, int kind)
 {
     return isptr(ty) && kind(rtype(ty)) == kind;
 }
@@ -603,11 +603,11 @@ bool isptrto(union node *ty, int kind)
 struct type2s {
     int id;
     int qual;
-    union node *type;
+    node_t *type;
 };
-static struct vector *type2s1(union node *ty);
+static struct vector *type2s1(node_t *ty);
 
-static struct type2s * paren(int id, union node *ty)
+static struct type2s * paren(int id, node_t *ty)
 {
     struct type2s *s = zmalloc(sizeof (struct type2s));
     s->id = id;
@@ -658,12 +658,12 @@ static void dotype2s(struct vector *l, struct vector *r)
             break;
         case FUNCTION:
         {
-            union node **params = TYPE_PARAMS(s->type);
+            node_t **params = TYPE_PARAMS(s->type);
 	    int len = array_len((void **)params);
 	    vec_push(r, paren(FSPACE, NULL));
 	    vec_push(r, paren(LPAREN, s->type));
 	    for (int i=0; params && params[i]; i++) {
-		union node *ty = SYM_TYPE(params[i]);
+		node_t *ty = SYM_TYPE(params[i]);
 		struct vector *v = type2s1(ty);
 		vec_add(r, v);
 		vec_free(v);
@@ -691,7 +691,7 @@ static void dotype2s(struct vector *l, struct vector *r)
     dotype2s(l, r);
 }
 
-static struct vector *type2s1(union node *ty)
+static struct vector *type2s1(node_t *ty)
 {
     struct vector *l, *r, *v;
 
@@ -727,7 +727,7 @@ static void qualstr(struct strbuf *s, int q)
 	strbuf_cats(s, "restrict ");
 }
 
-const char *type2s(union node *ty)
+const char *type2s(node_t *ty)
 {
     const char *ret;
     struct strbuf *buf = strbuf_new();

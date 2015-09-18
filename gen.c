@@ -1,6 +1,6 @@
 #include "cc.h"
 
-void gen(union node *tree)
+void gen(node_t *tree)
 {
     
 }

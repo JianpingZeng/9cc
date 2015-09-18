@@ -22,9 +22,9 @@ static const char * write_str(const char *str)
     return s->str;
 }
 
-static union node * compile(const char *code)
+static node_t * compile(const char *code)
 {
-    union node *n;
+    node_t *n;
     const char *ifile = write_str(code);
     FILE *fp = freopen(ifile, "r", stdin);
     if (fp == NULL)
@@ -52,9 +52,9 @@ static int subprocess(void *context)
     const char *code = con->code;
     const char *type = con->type;
     const char *output = con->output;
-    union node *n = compile(code);
-    union node *n1 = DECL_EXTS(n)[0];
-    union node *ty = SYM_TYPE(DECL_SYM(n1));
+    node_t *n = compile(code);
+    node_t *n1 = DECL_EXTS(n)[0];
+    node_t *ty = SYM_TYPE(DECL_SYM(n1));
     const char *ret;
     const char *p1, *p2;
     
