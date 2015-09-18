@@ -101,6 +101,7 @@ struct ast_field {
 #define SYM_REFS(NODE)          ((NODE)->symbol.refs)
 
 struct ast_symbol {
+    struct ast_common common;
     int scope;
     const char *name;
     int sclass;
