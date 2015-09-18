@@ -21,11 +21,11 @@ struct ast_common {
 };
 
 #define TYPE_KIND(NODE)         ((NODE)->type.kind)
-#define TYPE_NAME(NODE)         ((NODE)->type.name)
+#define TYPE_NAME(NODE)         AST_NAME(NODE)
 #define TYPE_SIZE(NODE)         ((NODE)->type.size)
 #define TYPE_RANK(NODE)         ((NODE)->type.rank)
 #define TYPE_INLINE(NODE)       ((NODE)->type.inlined)
-#define TYPE_TYPE(NODE)         ((NODE)->type.type)
+#define TYPE_TYPE(NODE)         AST_TYPE(NODE)
 #define TYPE_TAG(NODE)          ((NODE)->type.tag)
 #define TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
 #define TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
@@ -44,11 +44,9 @@ struct ast_common {
 struct ast_type {
     struct ast_common common;
     int kind;
-    const char *name;
     size_t size;
     unsigned rank;
     bool inlined;
-    union node *type;
     const char *tag;
     union {
         // function
@@ -78,23 +76,21 @@ struct ast_type {
     }limits;
 };
 
-#define FIELD_NAME(NODE)        ((NODE)->field.name)
-#define FIELD_TYPE(NODE)        ((NODE)->field.type)
+#define FIELD_NAME(NODE)        AST_NAME(NODE)
+#define FIELD_TYPE(NODE)        AST_TYPE(NODE)
 #define FIELD_OFFSET(NODE)      ((NODE)->field.offset)
 #define FIELD_BITSIZE(NODE)     ((NODE)->field.bitsize)
 
 struct ast_field {
     struct ast_common common;
-    const char *name;
-    union node *type;
     int offset;
     int bitsize;
 };
 
 #define SYM_SCOPE(NODE)         ((NODE)->symbol.scope)
-#define SYM_NAME(NODE)          ((NODE)->symbol.name)
+#define SYM_NAME(NODE)          AST_NAME(NODE)
 #define SYM_SCLASS(NODE)        ((NODE)->symbol.sclass)
-#define SYM_TYPE(NODE)          ((NODE)->symbol.type)
+#define SYM_TYPE(NODE)          AST_TYPE(NODE)
 #define SYM_DEFINED(NODE)       ((NODE)->symbol.defined)
 #define SYM_SRC(NODE)           ((NODE)->symbol.src)
 #define SYM_VALUE(NODE)         ((NODE)->symbol.value)
@@ -103,9 +99,7 @@ struct ast_field {
 struct ast_symbol {
     struct ast_common common;
     int scope;
-    const char *name;
     int sclass;
-    union node *type;
     bool defined;
     struct source src;
     union value value;
