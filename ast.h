@@ -27,6 +27,19 @@ struct ast_type {
     struct type *type;
 };
 
+#define FIELD_NAME(NODE)        ((NODE)->field.name)
+#define FIELD_TYPE(NODE)        ((NODE)->field.type)
+#define FIELD_OFFSET(NODE)      ((NODE)->field.offset)
+#define FIELD_BITSIZE(NODE)     ((NODE)->field.bitsize)
+
+struct ast_field {
+    struct ast_common common;
+    const char *name;
+    struct type *type;
+    int offset;
+    int bitsize;
+};
+
 #define DECL_SCOPE(NODE)        ((NODE)->decl.scope)
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
@@ -95,6 +108,7 @@ union node {
     struct ast_stmt stmt;
     struct ast_expr expr;
     struct ast_type asty;
+    struct ast_field field;
 };
 
 // ast.c

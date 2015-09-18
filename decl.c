@@ -771,7 +771,7 @@ static void aggregate_set(struct type *ty, struct vector *v, int i, union node *
 	    rty = rtype(ty);
 	} else {
 	    if (FIELDS(ty))
-		rty = FIELDS(ty)[0]->type;
+		rty = FIELD_TYPE(FIELDS(ty)[0]);
 	}
 
 	if (rty) {
@@ -831,10 +831,10 @@ static void struct_init(struct type *ty, bool brace, struct vector *v)
 	    if (token->id == ID)
 		name = token->name;
 	    expect(ID);
-	    struct field *field = find_field(ty, name);
+	    union node *field = find_field(ty, name);
 	    if (field) {
 		i = indexof_field(ty, field);
-		fieldty = field->type;
+		fieldty = FIELD_TYPE(field);
 	    } else {
 		i--;
 		if (name)
@@ -847,7 +847,7 @@ static void struct_init(struct type *ty, bool brace, struct vector *v)
 	    break;
 
 	if (!designated)
-	    fieldty = FIELDS(ty)[i]->type;
+	    fieldty = FIELD_TYPE(FIELDS(ty)[i]);
 	elem_init(fieldty, designated, v, i);
 	designated = false;
 	
@@ -1191,12 +1191,12 @@ static void fields(struct type *sty)
         struct type *basety = specifiers(NULL);
         
         for (;;) {
-            struct field *field = new_field(NULL);
+            union node *field = new_field(NULL);
             int hasbit = 0;
             if (token->id == ':') {
                 expect(':');
-                field->bitsize = intexpr();
-                field->type = basety;
+                FIELD_BITSIZE(field) = intexpr();
+                FIELD_TYPE(field) = basety;
                 hasbit = 1;
             } else {
                 struct type *ty = NULL;
@@ -1205,42 +1205,42 @@ static void fields(struct type *sty)
                 attach_type(&ty, basety);
                 if (token->id == ':') {
                     expect(':');
-                    field->bitsize = intexpr();
+                    FIELD_BITSIZE(field) = intexpr();
                     hasbit = 1;
                 }
-                field->type = ty;
+                FIELD_TYPE(field) = ty;
                 if (id) {
                     for (int i=0; i < vec_len(v); i++) {
-                        struct field *f = vec_at(v, i);
-                        if (f->name && !strcmp(f->name, id)) {
+                        union node *f = vec_at(v, i);
+                        if (FIELD_NAME(f) && !strcmp(FIELD_NAME(f), id)) {
                             error("redefinition of '%s'", id);
                             break;
                         }
                     }
-                    field->name = id;
+                    FIELD_NAME(field) = id;
                 }
             }
             
             if (hasbit) {
-                if (!isint(field->type)) {
-                    if (field->name)
-                        error("bit-field '%s' has non-integral type '%s'", field->name, type2s(field->type));
+                if (!isint(FIELD_TYPE(field))) {
+                    if (FIELD_NAME(field))
+                        error("bit-field '%s' has non-integral type '%s'", FIELD_NAME(field), type2s(FIELD_TYPE(field)));
                     else
-                        error("anonymous bit-field has non-integral type '%s'", type2s(field->type));
+                        error("anonymous bit-field has non-integral type '%s'", type2s(FIELD_TYPE(field)));
                 }
-                if (field->bitsize < 0) {
-                    if (field->name)
-                        error("bit-field '%s' has negative width '%d'", field->name, field->bitsize);
+                if (FIELD_BITSIZE(field) < 0) {
+                    if (FIELD_NAME(field))
+                        error("bit-field '%s' has negative width '%d'", FIELD_NAME(field), FIELD_BITSIZE(field));
                     else
-                        error("anonymous bit-field has negative width '%d'", field->bitsize);
+                        error("anonymous bit-field has negative width '%d'", FIELD_BITSIZE(field));
                 }
-                if (field->bitsize == 0 && field->name)
-                    error("named bit-field '%s' has zero width", field->name);
-                if (field->bitsize > BITS(field->type)) {
-                    if (field->name)
-                        error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", field->name, field->bitsize, BITS(field->type));
+                if (FIELD_BITSIZE(field) == 0 && FIELD_NAME(field))
+                    error("named bit-field '%s' has zero width", FIELD_NAME(field));
+                if (FIELD_BITSIZE(field) > BITS(FIELD_TYPE(field))) {
+                    if (FIELD_NAME(field))
+                        error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", FIELD_NAME(field), FIELD_BITSIZE(field), BITS(FIELD_TYPE(field)));
                     else
-                        error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", field->bitsize, BITS(field->type));
+                        error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", FIELD_BITSIZE(field), BITS(FIELD_TYPE(field)));
                 }
             }
             
@@ -1253,7 +1253,7 @@ static void fields(struct type *sty)
         
         match(';', follow);
     }
-    FIELDS(sty) = (struct field **)vtoa(v);
+    FIELDS(sty) = (union node **)vtoa(v);
 }
 
 static struct symbol * paramdecl(const char *id, struct type *ty, int sclass,  struct source src)

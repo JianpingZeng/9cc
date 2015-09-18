@@ -278,10 +278,10 @@ bool is_typedef_name(const char *id)
     return ty != NULL;
 }
 
-struct field * new_field(char *id)
+union node * new_field(char *id)
 {
-    struct field *field = alloc_field_node();
-    field->name = id;
+    union node *field = alloc_node_node();
+    FIELD_NAME(field) = id;
     return field;
 }
 
@@ -441,18 +441,18 @@ bool eqtype(struct type *ty1, struct type *ty2)
     }
 }
 
-struct field * find_field(struct type *sty, const char *name)
+union node * find_field(struct type *sty, const char *name)
 {
     int i;
     struct type *ty = unqual(sty);
     int len = array_len((void **)FIELDS(ty));
-    struct field *ret = NULL;
+    union node *ret = NULL;
 
     if (name == NULL)
 	return NULL;
     for (i = 0; i < len; i++) {
-	struct field *field = FIELDS(ty)[i];
-	if (field->name && !strcmp(name, field->name))
+        union node *field = FIELDS(ty)[i];
+	if (FIELD_NAME(field) && !strcmp(name, FIELD_NAME(field)))
 	    break;
     }
     if (i < len)
@@ -461,10 +461,10 @@ struct field * find_field(struct type *sty, const char *name)
     return ret;
 }
 
-int indexof_field(struct type *ty, struct field *field)
+int indexof_field(struct type *ty, union node *field)
 {
     for (int i = 0; i < array_len((void **)FIELDS(ty)); i++) {
-	struct field *f = FIELDS(ty)[i];
+	union node *f = FIELDS(ty)[i];
 	if (field == f)
 	    return i;
     }

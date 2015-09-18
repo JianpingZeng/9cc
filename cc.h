@@ -24,7 +24,6 @@
 extern void * alloc_node_node(void);
 extern void * alloc_symbol_node(void);
 extern void * alloc_type_node(void);
-extern void * alloc_field_node(void);
 
 // lex.c
 #define EOI  -1
@@ -107,14 +106,7 @@ extern int firstexpr(struct token *t);
 // stmt.c
 extern union node * compound_stmt();
 
-struct field {
-    const char *name;
-    struct type *type;
-    int offset;
-    int bitsize;
-};
-
-#define isbitfield(field)    ((field)->bitsize > 0)
+#define isbitfield(field)    (FIELD_BITSIZE(field) > 0)
 
 #define OLDSTYLE(fty)    ((fty)->u.f.oldstyle)
 #define PARAMS(fty)      ((fty)->u.f.params)
@@ -151,7 +143,7 @@ struct type {
         struct {
 	    struct symbol *tsym;
             struct symbol **ids;
-            struct field **fields;
+            union node **fields;
         }s;
     }u;
     struct {
@@ -169,15 +161,15 @@ extern bool eqtype(struct type *ty1, struct type *ty2);
 extern bool eqarith(struct type *ty1, struct type * ty2);
 extern struct type * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
-extern struct field * new_field(char *id);
+extern union node * new_field(char *id);
 extern struct type * array_type();
 extern struct type * ptr_type(struct type *ty);
 extern struct type * func_type();
 extern struct symbol * tag_type(int t, const char *tag, struct source src);
 extern const char *type2s(struct type *ty);
 extern unsigned typesize(struct type *ty);
-extern struct field * find_field(struct type *ty, const char *name);
-extern int indexof_field(struct type *ty, struct field *field);
+extern union node * find_field(struct type *ty, const char *name);
+extern int indexof_field(struct type *ty, union node *field);
 extern struct type * compose(struct type *ty1, struct type *ty2);
 extern bool contains(int qual1, int qual2);
 

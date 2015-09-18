@@ -438,7 +438,7 @@ static bool is_bitfield(union node *node)
 
     struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
     const char *name = AST_NAME(EXPR_OPERAND(node, 1));
-    struct field *field = find_field(ty, name);
+    union node *field = find_field(ty, name);
     return isbitfield(field);
 }
 
@@ -734,7 +734,7 @@ static union node * direction(union node *node)
 	return ret;
     
     SAVE_ERRORS;
-    struct field *field = NULL;
+    union node *field = NULL;
     struct type *ty = AST_TYPE(node);
     if (t == '.') {
 	ensure_type(node, isrecord);
@@ -751,8 +751,8 @@ static union node * direction(union node *node)
     }
     if (NO_ERROR) {
 	ret = ast_expr(MEMBER_EXPR, t, node, ast_expr(REF_EXPR, 0, NULL, NULL));
-	AST_NAME(EXPR_OPERAND(ret, 1)) = field->name;
-	AST_TYPE(ret) = field->type;
+	AST_NAME(EXPR_OPERAND(ret, 1)) = FIELD_NAME(field);
+	AST_TYPE(ret) = FIELD_TYPE(field);
     }
     return ret;
 }

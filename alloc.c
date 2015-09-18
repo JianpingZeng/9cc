@@ -40,9 +40,3 @@ void * alloc_type_node(void)
 {
     return alloc_node(&type_state, sizeof(struct type));
 }
-
-static struct alloc_state field_state;
-void * alloc_field_node(void)
-{
-    return alloc_node(&field_state, sizeof(struct field));
-}
