@@ -155,27 +155,64 @@ static node_t * bop_scalar(int oper, node_t *dty, node_t *l, node_t *r)
     if (l == NULL || r == NULL)
 	return NULL;
 
-    node_t *lty = AST_TYPE(l);
-    node_t *rty = AST_TYPE(r);
+    CCAssert(op(dty) == INT || op(dty) == UNSIGNED || op(dty) == FLOAT);
+    CCAssert(isiliteral(l) || isfliteral(l));
+    CCAssert(isiliteral(r) || isfliteral(r));
+    
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
+    union value ret;
+    bool l_is_u = isiliteral(l);
+    bool r_is_u = isiliteral(r);
+    bool ret_is_u = op(dty) == FLOAT ? false : true;
 
-    switch (oper) {
-    case '*':
-    case '/':
-	
-    case '+':
-    case '-':
+#define LOR(oo) \
+    do { \
+        if (ret_is_u) { \
+	    if (l_is_u) { \
+		if (r_is_u) \
+		    ret.u = lval.u oo rval.u; \
+		else \
+		    ret.u = lval.u oo rval.d; \
+	    } else { \
+		if (r_is_u) \
+		    ret.u = lval.d oo rval.u; \
+		else \
+		    ret.u = lval.d oo rval.d; \
+	    } \
+	} else { \
+	    if (l_is_u) { \
+		if (r_is_u) \
+		    ret.d = lval.u oo rval.u; \
+		else \
+		    ret.d = lval.u oo rval.d; \
+	    } else { \
+		if (r_is_u) \
+		    ret.d = lval.d oo rval.u; \
+		else \
+		    ret.d = lval.d oo rval.d; \
+	    } \
+	} \
+    } while (0)
     
-    case '>':
-    case '<':
-    case GEQ:
-    case LEQ:
-    case EQ:
-    case NEQ:
-    default:
-	CCAssert(0);
+    switch (oper) {
+    case '*': LOR(*); break;
+    case '/': LOR(/); break;
+    case '+': LOR(+); break;
+    case '-': LOR(-); break;
+    case '>': LOR(>); break;
+    case '<': LOR(<); break;
+    case GEQ: LOR(>=); break;
+    case LEQ: LOR(<=); break;
+    case EQ: LOR(==); break;
+    case NEQ: LOR(!=); break;
+    default: CCAssert(0);
     }
+
+    if (ret_is_u)
+	return int_literal_node(dty, ret);
+    else
+	return float_literal_node(dty, ret);
 }
 
 static node_t * eval_arith(node_t *expr)
