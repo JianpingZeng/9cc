@@ -72,7 +72,6 @@ static node_t * arith2arith(node_t *dty, node_t *l)
 	return float_literal_node(dty, dst_val);
     } else if (isfloat(dty) && isfloat(sty)) {
 	// float => float
-	int src_kind = kind(sty);
 	int dst_kind = kind(dty);
 	union value src_val = SYM_VALUE(EXPR_SYM(l));
 	union value dst_val;

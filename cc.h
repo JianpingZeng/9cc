@@ -78,7 +78,7 @@ union value {
 };
 
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
-#define isanonymous(name)   ((name) == NULL || (name)[0] == '@')
+#define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))
 
 // ast.h
 #include "ast.h"
