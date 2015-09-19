@@ -69,12 +69,12 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
     TYPE_RANK(ty) = m.rank;
     switch (op(ty)) {
         case INT:
-            TYPE_LIMITS_MAX(ty).i = TWOS(TYPE_SIZE(ty)) >> 1;
-            TYPE_LIMITS_MIN(ty).i = -TYPE_LIMITS_MAX(ty).i - 1;
+            TYPE_LIMITS_MAX(ty).u = ONES(TYPE_SIZE(ty)) >> 1;
+            TYPE_LIMITS_MIN(ty).u = -TYPE_LIMITS_MAX(ty).u - 1;
             break;
             
         case UNSIGNED:
-            TYPE_LIMITS_MAX(ty).u = TWOS(TYPE_SIZE(ty));
+            TYPE_LIMITS_MAX(ty).u = ONES(TYPE_SIZE(ty));
             TYPE_LIMITS_MIN(ty).u = 0;
             break;
             
@@ -86,8 +86,8 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
                 TYPE_LIMITS_MAX(ty).d = DBL_MAX;
                 TYPE_LIMITS_MIN(ty).d = DBL_MIN;
             } else {
-                TYPE_LIMITS_MAX(ty).ld = LDBL_MAX;
-                TYPE_LIMITS_MIN(ty).ld = LDBL_MIN;
+                TYPE_LIMITS_MAX(ty).d = LDBL_MAX;
+                TYPE_LIMITS_MIN(ty).d = LDBL_MIN;
             }
             break;
             

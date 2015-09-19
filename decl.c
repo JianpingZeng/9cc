@@ -1125,7 +1125,7 @@ static node_t * enum_decl()
                 expect('=');
                 val = intexpr();
             }
-            SYM_VALUE(s).i = val++;
+            SYM_VALUE(s).u = val++;
             vec_push(v, s);
             if (token->id != ',')
                 break;

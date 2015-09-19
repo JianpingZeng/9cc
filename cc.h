@@ -71,10 +71,8 @@ extern const char *tname(int t);
 // value
 
 union value {
-    long long i;
     unsigned long long u;
-    double d;
-    long double ld;
+    long double d;
     void *p;
     void (*g) ();
 };

@@ -79,15 +79,11 @@ static void print_expr(node_t *node, struct print_context context)
 	fprintf(stderr, "<" RED("%s")  "> ", AST_NAME(node));
     if (isiliteral(node)) {
 	if (op(AST_TYPE(node)) == INT)
-	    fprintf(stderr, RED("%lld"), SYM_VALUE(EXPR_SYM(node)).i);
-	else
 	    fprintf(stderr, RED("%lld"), SYM_VALUE(EXPR_SYM(node)).u);
-    } else if (isfliteral(node)) {
-	if (kind(AST_TYPE(node)) == FLOAT ||
-	    kind(AST_TYPE(node)) == DOUBLE)
-	    fprintf(stderr, RED("%f"), SYM_VALUE(EXPR_SYM(node)).d);
 	else
-	    fprintf(stderr, RED("%Lf"), SYM_VALUE(EXPR_SYM(node)).ld);
+	    fprintf(stderr, RED("%llu"), SYM_VALUE(EXPR_SYM(node)).u);
+    } else if (isfliteral(node)) {
+	fprintf(stderr, RED("%Lf"), SYM_VALUE(EXPR_SYM(node)).d);
     }
     
     fprintf(stderr, "\n");

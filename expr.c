@@ -20,6 +20,7 @@ static node_t * assignconv(node_t *ty, node_t *node);
 static bool is_nullptr(node_t *node);
 static bool assign_types_check(node_t *ty1, node_t *r);
 
+#define INTEGER_MAX(type)    (TYPE_LIMITS_MAX(type).u)
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
@@ -149,8 +150,8 @@ static void char_constant(struct token *t, node_t *sym)
         error("incomplete character constant: %s", t->name);
     else if (overflow)
         error("extraneous characters in character constant: %s", t->name);
-    else if ((!wide && c > TYPE_LIMITS_MAX(unsignedchartype).u) ||
-             (wide && c > TYPE_LIMITS_MAX(wchartype).u))
+    else if ((!wide && c > INTEGER_MAX(unsignedchartype)) ||
+             (wide && c > INTEGER_MAX(wchartype)))
         error("character constant overflow: %s", t->name);
     else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
         error("illegal multi-character sequence");
@@ -208,7 +209,7 @@ static void integer_constant(struct token *t, node_t *sym)
         base = 10;
         for (;is_digit(*s);) {
             int d = *s - '0';
-            if (n > (TYPE_LIMITS_MAX(unsignedlonglongtype).u - d)/10)
+            if (n > (INTEGER_MAX(unsignedlonglongtype) - d)/10)
                 overflow = 1;
             else
                 n = n*10 + (*s - '0');
@@ -230,56 +231,56 @@ static void integer_constant(struct token *t, node_t *sym)
     if (ull || llu) {
         ty = unsignedlonglongtype;
     } else if (ll) {
-        if (n > TYPE_LIMITS_MAX(longlongtype).i && base != 10)
+        if (n > INTEGER_MAX(longlongtype) && base != 10)
             ty = unsignedlonglongtype;
         else
             ty = longlongtype;
     } else if (lu || ul) {
-        if (n > TYPE_LIMITS_MAX(unsignedlongtype).u)
+        if (n > INTEGER_MAX(unsignedlongtype))
             ty = unsignedlonglongtype;
         else
             ty = unsignedlongtype;
     } else if (l) {
         if (base == 10) {
-            if (n > TYPE_LIMITS_MAX(longtype).i)
+            if (n > INTEGER_MAX(longtype))
                 ty = longlongtype;
             else
                 ty = longtype;
         } else {
-            if (n > TYPE_LIMITS_MAX(longlongtype).i)
+            if (n > INTEGER_MAX(longlongtype))
                 ty = unsignedlonglongtype;
-            else if (n > TYPE_LIMITS_MAX(unsignedlongtype).u)
+            else if (n > INTEGER_MAX(unsignedlongtype))
                 ty = longlongtype;
-            else if (n > TYPE_LIMITS_MAX(longtype).i)
+            else if (n > INTEGER_MAX(longtype))
                 ty = unsignedlongtype;
             else
                 ty = longtype;
         }
     } else if (u) {
-        if (n > TYPE_LIMITS_MAX(unsignedlongtype).u)
+        if (n > INTEGER_MAX(unsignedlongtype))
             ty = unsignedlonglongtype;
-        else if (n > TYPE_LIMITS_MAX(unsignedinttype).u)
+        else if (n > INTEGER_MAX(unsignedinttype))
             ty = unsignedlongtype;
         else
             ty = unsignedinttype;
     } else {
         if (base == 10) {
-            if (n > TYPE_LIMITS_MAX(longtype).i)
+            if (n > INTEGER_MAX(longtype))
                 ty = longlongtype;
-            else if (n > TYPE_LIMITS_MAX(inttype).i)
+            else if (n > INTEGER_MAX(inttype))
                 ty = longtype;
             else
                 ty = inttype;
         } else {
-            if (n > TYPE_LIMITS_MAX(longlongtype).i)
+            if (n > INTEGER_MAX(longlongtype))
                 ty = unsignedlonglongtype;
-            else if (n > TYPE_LIMITS_MAX(unsignedlongtype).u)
+            else if (n > INTEGER_MAX(unsignedlongtype))
                 ty = longlongtype;
-            else if (n > TYPE_LIMITS_MAX(longtype).i)
+            else if (n > INTEGER_MAX(longtype))
                 ty = unsignedlongtype;
-            else if (n > TYPE_LIMITS_MAX(unsignedinttype).u)
+            else if (n > INTEGER_MAX(unsignedinttype))
                 ty = longtype;
-            else if (n > TYPE_LIMITS_MAX(inttype).i)
+            else if (n > INTEGER_MAX(inttype))
                 ty = unsignedinttype;
             else
                 ty = inttype;
@@ -290,18 +291,17 @@ static void integer_constant(struct token *t, node_t *sym)
     
     switch (op(SYM_TYPE(sym))) {
     case INT:
-	if (overflow || n > TYPE_LIMITS_MAX(longlongtype).i)
+	if (overflow || n > INTEGER_MAX(longlongtype))
 	    error("integer constant overflow: %s", t->name);
-	SYM_VALUE(sym).i = n;
 	break;
     case UNSIGNED:
 	if (overflow)
 	    error("integer constant overflow: %s", t->name);
-	SYM_VALUE(sym).u = n;
 	break;
     default:
 	CCAssert(0);
     }
+    SYM_VALUE(sym).u = n;
 }
 
 static void float_constant(struct token *t, node_t *sym)
@@ -314,7 +314,7 @@ static void float_constant(struct token *t, node_t *sym)
         SYM_VALUE(sym).d = strtof(s, NULL);
     } else if (c == 'l' || c == 'L') {
         SYM_TYPE(sym) = longdoubletype;
-        SYM_VALUE(sym).ld = strtold(s, NULL);
+        SYM_VALUE(sym).d = strtold(s, NULL);
     } else {
         SYM_TYPE(sym) = doubletype;
         SYM_VALUE(sym).d = strtod(s, NULL);
