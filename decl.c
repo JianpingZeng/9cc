@@ -15,6 +15,12 @@ static node_t * initializer(node_t *ty);
 static void fields(node_t *sty);
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 
+static void conflicting_types_error(struct source src, node_t *sym)
+{
+    errorf(src, "conflicting types for '%s', previous at %s line %u",
+           SYM_NAME(sym), SYM_SRC(sym).file, SYM_SRC(sym).line);
+}
+
 static node_t * specifiers(int *sclass)
 {
     int cls, sign, size, type;

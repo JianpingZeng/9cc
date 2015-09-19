@@ -1612,15 +1612,7 @@ static node_t * conva(node_t *node)
 static bool is_nullptr(node_t *node)
 {
     CCAssert(isptr(AST_TYPE(node)));
-    node_t *ret = eval(node);
-    if (ret == NULL)
-	return false;
-    if (AST_ID(ret) == INTEGER_LITERAL) {
-	if (op(AST_TYPE(ret)) == INT)
-	    return SYM_VALUE(EXPR_SYM(ret)).i == 0;
-	else
-	    return SYM_VALUE(EXPR_SYM(ret)).u == 0;
-    }
+    
     return false;
 }
 

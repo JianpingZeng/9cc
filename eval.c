@@ -14,9 +14,8 @@ static bool eval_bool(node_t *cond)
     return false;
 }
 
-node_t * eval(node_t *expr)
+static node_t * eval_arith(node_t *expr)
 {
-    CCAssert(isexpr(expr));
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
         {
@@ -47,7 +46,8 @@ node_t * eval(node_t *expr)
 	    
 	    case AND:
 	    case OR:
-		if (eval(EXPR_OPERAND(expr, 0)) && eval(EXPR_OPERAND(expr, 1)))    
+		if (eval_arith(EXPR_OPERAND(expr, 0)) &&
+		    eval_arith(EXPR_OPERAND(expr, 1)))    
 		    return expr;
 		else
 		    return NULL;
@@ -68,7 +68,7 @@ node_t * eval(node_t *expr)
 	    case '-':
 	    case '~':
 	    case '!':
-		if (eval(EXPR_OPERAND(expr, 0)))
+		if (eval_arith(EXPR_OPERAND(expr, 0)))
 		    return expr;
 		else
 		    return NULL;
@@ -82,20 +82,20 @@ node_t * eval(node_t *expr)
     case CONV_EXPR:
     case COMPOUND_LITERAL:
     case CAST_EXPR:
-	return eval(EXPR_OPERAND(expr, 0));
+	return eval_arith(EXPR_OPERAND(expr, 0));
     case MEMBER_EXPR:
-	if (eval(EXPR_OPERAND(expr, 0)))
+	if (eval_arith(EXPR_OPERAND(expr, 0)))
 	    return expr;
 	else
 	    return NULL;
     case COND_EXPR:
 	{
-	    node_t *cond = eval(EXPR_COND(expr));
+	    node_t *cond = eval_arith(EXPR_COND(expr));
 	    if (cond) {
 		if (eval_bool(cond))
-		    return eval(EXPR_THEN(expr));
+		    return eval_arith(EXPR_THEN(expr));
 		else
-		    return eval(EXPR_ELSE(expr));
+		    return eval_arith(EXPR_ELSE(expr));
 	    }
 	}
 	return NULL;
@@ -110,7 +110,7 @@ node_t * eval(node_t *expr)
     case INITS_EXPR:
         for (int i = 0; i < array_len((void **)EXPR_INITS(expr)); i++) {
 	    node_t *n = EXPR_INITS(expr)[i];
-	    if (AST_ID(n) != VINIT_EXPR && eval(n) == NULL)
+	    if (AST_ID(n) != VINIT_EXPR && eval_arith(n) == NULL)
 		return NULL;
 	}
 	return expr;
@@ -122,5 +122,33 @@ node_t * eval(node_t *expr)
 	return NULL;
     default:
 	CCAssert(0);
+    }
+}
+
+static node_t * eval_address(node_t *expr)
+{
+    return NULL;
+}
+
+static node_t * eval_initializer(node_t *expr)
+{
+    return NULL;
+}
+
+node_t * eval(node_t *expr, node_t *ty)
+{
+    if (expr == NULL)
+	return NULL;
+
+    CCAssert(isexpr(expr));
+
+    if (isarith(ty)) {
+	return eval_arith(expr);
+    } else if (isptr(ty)) {
+	return eval_address(expr);
+    } else if (isrecord(ty) || isarray(ty)) {
+	return eval_initializer(expr);
+    } else {
+	CCAssertf(0, "try to eval for type '%s'", type2s(ty));
     }
 }
