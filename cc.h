@@ -80,13 +80,13 @@ union value {
 };
 
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
-#define isanonymous(name)   (is_digit((name)[0]))
+#define isanonymous(name)   ((name) == NULL || is_digit((name)[0]))
 
 // ast.h
 #include "ast.h"
 
 // eval.c
-extern node_t * eval(node_t *expr);
+extern node_t * eval(node_t *expr, node_t *ty);
 
 // expr.c
 extern node_t * expression();
@@ -208,9 +208,6 @@ extern node_t * lookup(const char *name, struct table *table);
 
 // install a symbol with specified scope
 extern node_t * install(const char *name, struct table **tpp, int scope);
-
-// sym->name is NULL or anynomous
-extern bool issymnamed(node_t *sym);
 
 extern struct table * identifiers;
 extern struct table * constants;

@@ -80,15 +80,12 @@ node_t * install(const char *name, struct table **tpp, int scope)
             tp = tp->up;
     }
     
+    CCAssert(tp);
+        
     sym = alloc_symbol();
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
-    map_put(tp->map, SYM_NAME(sym), sym);
+    map_put(tp->map, name, sym);
 
     return sym;
-}
-
-bool issymnamed(node_t *sym)
-{
-    return SYM_NAME(sym) == NULL || isanonymous(SYM_NAME(sym));
 }
