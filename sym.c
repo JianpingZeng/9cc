@@ -52,7 +52,7 @@ void exit_scope()
 node_t * anonymous(struct table **tpp, int scope)
 {
     static long i;
-    return install(strd(i++), tpp, scope);
+    return install(strs(format("@%ld", i++)), tpp, scope);
 }
 
 node_t * lookup(const char *name, struct table *table)
