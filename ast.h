@@ -211,6 +211,9 @@ extern node_t * ast_vinit();
 
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
 #define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == COMPOUND_STMT)
+#define isiliteral(n)       (AST_ID(n) == INTEGER_LITERAL)
+#define isfliteral(n)       (AST_ID(n) == FLOAT_LITERAL)
+#define issliteral(n)       (AST_ID(n) == STRING_LITERAL)
 #define isliteral(n)        (AST_ID(n) > BEGIN_LITERAL_ID && AST_ID(n) < END_LITERAL_ID)
 #define is_switch_stmt(n)   (AST_ID(n) == SWITCH_STMT)
 #define is_for_stmt(n)      (AST_ID(n) == FOR_STMT)

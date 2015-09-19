@@ -1479,6 +1479,14 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	    warningf(src, "'extern' variable has an initializer");
 	else if (sclass == TYPEDEF)
 	    errorf(src, "illegal initializer (only variable can be initialized)");
+
+	if (SCOPE == GLOBAL) {
+	    node_t *val = eval(init, ty);
+	    if (val == NULL)
+		error("initializer is not a compile-time constant");
+
+	    init = val;
+	}
     }
 
     if (isenum(ty) || isstruct(ty) || isunion(ty)) {

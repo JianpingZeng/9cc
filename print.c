@@ -61,7 +61,7 @@ static void print_decl(node_t *node, struct print_context context)
 static void print_expr(node_t *node, struct print_context context)
 {
     int level;
-    int op = EXPR_OP(node);
+    int oper = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
 
     fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
@@ -71,12 +71,24 @@ static void print_expr(node_t *node, struct print_context context)
     
     if (EXPR_SYM(node))
 	fprintf(stderr, CYAN("%s "), STR(SYM_NAME(EXPR_SYM(node))));
-    if (op == INCR || op == DECR)
+    if (oper == INCR || oper == DECR)
 	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
-    if (op > 0)
-	fprintf(stderr, "'%s' ", tname(op));
+    if (oper > 0)
+	fprintf(stderr, "'%s' ", tname(oper));
     if (AST_NAME(node))
 	fprintf(stderr, "<" RED("%s")  "> ", AST_NAME(node));
+    if (isiliteral(node)) {
+	if (op(AST_TYPE(node)) == INT)
+	    fprintf(stderr, RED("%lld"), SYM_VALUE(EXPR_SYM(node)).i);
+	else
+	    fprintf(stderr, RED("%lld"), SYM_VALUE(EXPR_SYM(node)).u);
+    } else if (isfliteral(node)) {
+	if (kind(AST_TYPE(node)) == FLOAT ||
+	    kind(AST_TYPE(node)) == DOUBLE)
+	    fprintf(stderr, RED("%f"), SYM_VALUE(EXPR_SYM(node)).d);
+	else
+	    fprintf(stderr, RED("%Lf"), SYM_VALUE(EXPR_SYM(node)).ld);
+    }
     
     fprintf(stderr, "\n");
 
