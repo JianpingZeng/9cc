@@ -1608,17 +1608,28 @@ static node_t * conva(node_t *node)
     }
 }
 
-// TODO: waiting for eval
 static bool is_nullptr(node_t *node)
 {
     CCAssert(isptr(AST_TYPE(node)));
-    
+
+    node_t *cnst = eval(node, inttype);
+    if (cnst == NULL)
+	return false;
+    if (isiliteral(cnst))
+	return SYM_VALUE(EXPR_SYM(cnst)).u == 0;
     return false;
 }
 
-// TODO: 
 int intexpr()
 {
-    cond_expr();
-    return 0;
+    node_t *cnst = eval(cond_expr(), inttype);
+    if (cnst == NULL) {
+	error("expression is not a compile-time constant");
+	return 0;
+    }
+    if (!isint(AST_TYPE(cnst))) {
+	error("expression is not an integer constant");
+	return 0;
+    }
+    return SYM_VALUE(EXPR_SYM(cnst)).u;
 }
