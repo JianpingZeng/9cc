@@ -68,7 +68,10 @@ static node_t * arith2arith(node_t *dty, node_t *l)
 	// int => float
 	union value src_val = SYM_VALUE(EXPR_SYM(l));
 	union value dst_val;
-        dst_val.d = src_val.u;
+	if (op(sty) == INT)
+	    dst_val.d = (long long)src_val.u;
+	else
+	    dst_val.d = src_val.u;
 	return float_literal_node(dty, dst_val);
     } else if (isfloat(dty) && isfloat(sty)) {
 	// float => float
@@ -124,47 +127,18 @@ static node_t * cast(node_t *dty, node_t *l)
     CCAssertf(0, "expect arith or ptr");
 }
 
-static node_t * bop_int(int oper, node_t *l, node_t *r)
-{
-    if (l == NULL || r == NULL)
-	return NULL;
-    CCAssert(isiliteral(l));
-    CCAssert(isiliteral(r));
-    CCAssert(AST_TYPE(l) == AST_TYPE(r));
-    
-    union value lval = SYM_VALUE(EXPR_SYM(l));
-    union value rval = SYM_VALUE(EXPR_SYM(r));
-    union value ret;
-
-    switch (oper) {
-    case '%':    ret.u = lval.u % rval.u; break;
-    case LSHIFT: ret.u = lval.u << rval.u; break;
-    case RSHIFT: ret.u = lval.u >> rval.u; break;
-    case '|':    ret.u = lval.u | rval.u; break;
-    case '&':    ret.u = lval.u & rval.u; break;
-    case '^':    ret.u = lval.u ^ rval.u; break;
-    default:     CCAssert(0);
-    }
-
-    return int_literal_node(AST_TYPE(l), ret);
-}
-
 static node_t * bop_scalar(int oper, node_t *dty, node_t *l, node_t *r)
 {
     if (l == NULL || r == NULL)
 	return NULL;
-
-    CCAssert(op(dty) == INT || op(dty) == UNSIGNED || op(dty) == FLOAT);
-    CCAssert(isiliteral(l) || isfliteral(l));
-    CCAssert(isiliteral(r) || isfliteral(r));
     
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
     union value ret;
-    bool l_is_u = isiliteral(l);
-    bool r_is_u = isiliteral(r);
+    bool l_is_u = !isfliteral(l);
+    bool r_is_u = !isfliteral(r);
     bool ret_is_u = op(dty) == FLOAT ? false : true;
-
+    
 #define LOR(oo) \
     do { \
         if (ret_is_u) { \
@@ -193,8 +167,20 @@ static node_t * bop_scalar(int oper, node_t *dty, node_t *l, node_t *r)
 	    } \
 	} \
     } while (0)
+
+#define LORI(oo) \
+    do { \
+        ret.u = lval.u oo rval.u; \
+    } while (0)
     
     switch (oper) {
+    case '%':    LORI(%); break;
+    case LSHIFT: LORI(<<); break;
+    case RSHIFT: LORI(>>); break;
+    case '|':    LORI(|); break;
+    case '&':    LORI(&); break;
+    case '^':    LORI(^); break;
+	
     case '*': LOR(*); break;
     case '/': LOR(/); break;
     case '+': LOR(+); break;
@@ -205,6 +191,50 @@ static node_t * bop_scalar(int oper, node_t *dty, node_t *l, node_t *r)
     case LEQ: LOR(<=); break;
     case EQ: LOR(==); break;
     case NEQ: LOR(!=); break;
+    default: CCAssert(0);
+    }
+
+    if (ret_is_u)
+	return int_literal_node(dty, ret);
+    else
+	return float_literal_node(dty, ret);
+}
+
+static node_t * uop_scalar(int oper, node_t *dty, node_t *l)
+{
+    if (l == NULL)
+	return NULL;
+
+    union value lval = SYM_VALUE(EXPR_SYM(l));
+    bool l_is_u = !isfliteral(l);
+    bool ret_is_u = op(dty) == FLOAT ? false : true;
+    union value ret;
+
+#define LOO(oo) \
+    do { \
+	if (ret_is_u) { \
+	    if (l_is_u) \
+		ret.u = oo lval.u; \
+	    else \
+		ret.u = oo lval.d; \
+	} else { \
+	    if (l_is_u) \
+		ret.d = oo lval.u; \
+	    else \
+		ret.d = oo lval.d; \
+	} \
+    } while (0)
+    
+    switch (oper) {
+	// arith
+    case '-': LOO(-); break;
+	// int
+    case '~':
+	CCAssert(ret_is_u);
+	ret.u = ~ lval.u;
+	break;
+	// scalar
+    case '!': LOO(!); break;
     default: CCAssert(0);
     }
 
@@ -230,7 +260,7 @@ static node_t * eval_arith(node_t *expr)
 	    case '%':
 	    case LSHIFT: case RSHIFT:
 	    case '|': case '&': case '^':
-	        return bop_int(op, eval_arith(l), eval_arith(r));
+
 	    case '+': case '-': case '*': case '/':
 	    case '>': case '<': case GEQ:
 	    case LEQ: case EQ: case NEQ:
@@ -253,16 +283,14 @@ static node_t * eval_arith(node_t *expr)
 	    case INCR:
 	    case DECR:
 	    case '*':
-		return NULL;
 	    case '&':
+		return NULL;
 	    case '+':
+		return eval_arith(EXPR_OPERAND(expr, 0));
 	    case '-':
 	    case '~':
 	    case '!':
-		if (eval_arith(l))
-		    return expr;
-		else
-		    return NULL;
+		return uop_scalar(EXPR_OP(expr), AST_TYPE(expr), eval_arith(EXPR_OPERAND(expr, 0)));
 	    case SIZEOF:
 		return expr;
 	    default:

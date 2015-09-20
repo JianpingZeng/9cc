@@ -836,7 +836,7 @@ static node_t * sizeof_expr()
 
     if (NO_ERROR) {
 	ret = uop(t, unsignedinttype, ty);
-	EXPR_SYM(ret) = anonymous(&identifiers, GLOBAL);
+	EXPR_SYM(ret) = anonymous(&constants, CONSTANT);
 	SYM_TYPE(EXPR_SYM(ret)) = ty;
 	SYM_VALUE(EXPR_SYM(ret)).u = typesize(ty);
     }
