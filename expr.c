@@ -1354,8 +1354,13 @@ static node_t * logicop(int op, node_t *l, node_t *r)
     if (l == NULL || r == NULL)
 	return NULL;
 
-    ret = ast_bop(op, l, r);
-    AST_TYPE(ret) = inttype;
+    SAVE_ERRORS;
+    ensure_type(l, isscalar);
+    ensure_type(r, isscalar);
+    if (NO_ERROR) {
+	ret = ast_bop(op, l, r);
+	AST_TYPE(ret) = inttype;
+    }
     return ret;
 }
 
