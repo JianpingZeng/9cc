@@ -1477,6 +1477,7 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
     node_t *init = NULL;
 
     expect('=');
+
     if (kind == PARAM) {
 	error("C does not support default arguments");
 	initializer(NULL);
@@ -1486,22 +1487,13 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	initializer(NULL);
 	return;
     }
+
     init = initializer(ty);
     if (init) {
 	if (sclass == EXTERN)
 	    warningf(src, "'extern' variable has an initializer");
 	else if (sclass == TYPEDEF)
 	    errorf(src, "illegal initializer (only variable can be initialized)");
-
-	if (isscalar(ty)) {
-	    
-	} else if (isarray(ty)) {
-
-	} else if (isstruct(ty)) {
-
-	} else if (isunion(ty)) {
-
-	}
     }
 
     if (isenum(ty) || isstruct(ty) || isunion(ty)) {
@@ -1519,6 +1511,18 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	    redefinition_error(src, sym);
 	SYM_DEFINED(sym) = init ? true : false;
     }
-    
-    DECL_BODY(decl) = init;
+
+    if (init) {
+	if (isscalar(ty)) {
+	    
+	} else if (isarray(ty)) {
+
+	} else if (isstruct(ty)) {
+
+	} else if (isunion(ty)) {
+
+	}
+
+	DECL_BODY(decl) = init;
+    }
 }
