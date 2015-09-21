@@ -1498,6 +1498,12 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	    warningf(src, "'extern' variable has an initializer");
 	else if (sclass == TYPEDEF)
 	    errorf(src, "illegal initializer (only variable can be initialized)");
+
+	if (SCOPE == GLOBAL) {
+	    if (SYM_DEFINED(sym))
+		redefinition_error(src, sym);
+	    SYM_DEFINED(sym) = true;
+	}
     }
 
     if (isenum(ty) || isstruct(ty) || isunion(ty)) {
@@ -1508,12 +1514,6 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	    if (init && !SYM_DEFINED(TYPE_TSYM(ty)) && sclass != TYPEDEF)
 		error("variable has incomplete type '%s'", type2s(ty));
 	} 
-    }
-
-    if (SCOPE == GLOBAL) {
-	if (SYM_DEFINED(sym) && init)
-	    redefinition_error(src, sym);
-	SYM_DEFINED(sym) = init ? true : false;
     }
 
     if (init) {
