@@ -91,7 +91,7 @@ extern node_t * expression();
 extern node_t * assign_expr();
 extern int intexpr();
 extern bool islvalue(node_t *node);
-extern node_t * assignconv(node_t *ty, node_t *node);
+extern node_t * init_elem_conv(node_t *ty, node_t *node);
 
 // decl.c
 extern node_t * initializer_list(node_t *ty);

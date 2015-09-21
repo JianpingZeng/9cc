@@ -9,6 +9,7 @@ static node_t * bop(int op, node_t *l, node_t *r);
 static node_t * logicop(int op, node_t *l, node_t *r);
 static node_t * commaop(int op, node_t *l, node_t *r);
 static node_t * assignop(int op, node_t *l, node_t *r);
+static node_t * assignconv(node_t *ty, node_t *node);
 static node_t * decay(node_t *node);
 static node_t * ltor(node_t *node);
 static node_t * conv(node_t *node);
@@ -1455,7 +1456,7 @@ static node_t * bitconv(node_t *ty, node_t *node)
 	return ast_conv(ty, node, castname(ty, node));
 }
 
-node_t * assignconv(node_t *ty, node_t *node)
+static node_t * assignconv(node_t *ty, node_t *node)
 {
     node_t *ty2;
 
@@ -1618,4 +1619,9 @@ int intexpr()
 	return 0;
     }
     return SYM_VALUE(EXPR_SYM(cnst)).u;
+}
+
+node_t * init_elem_conv(node_t *ty, node_t *node)
+{
+    return assignconv(ty, decay(node));
 }

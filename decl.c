@@ -13,7 +13,6 @@ static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source 
 static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src);
 static node_t * initializer(node_t *ty);
 static void fields(node_t *sty);
-static node_t * init_elem_conv(node_t *dty, node_t *node);
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 
 static void conflicting_types_error(struct source src, node_t *sym)
@@ -1469,11 +1468,6 @@ bool has_static_extent(node_t *sym)
 	SYM_SCOPE(sym) == GLOBAL;
 }
 
-static inline node_t * init_elem_conv(node_t *dty, node_t *node)
-{
-    return assignconv(dty, node);
-}
-
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 {
     node_t *ty = SYM_TYPE(sym);
@@ -1519,6 +1513,16 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
     if (init) {
 	if (AST_ID(init) != INITS_EXPR) {
 	    if (isarray(ty)) {
+		node_t *rty = rtype(ty);
+		if (kind(rty) == CHAR || unqual(rty) == wchartype) {
+		    //
+		} else {
+		    
+		}
+	    } else if (isstruct(ty)) {
+		if (!eqtype(ty, AST_TYPE(init)))
+		    error("initialzing '%s' with an expression of imcompatible type '%s'", type2s(ty), type2s(AST_TYPE(init)));
+	    } else if (isunion(ty)) {
 
 	    } else {
 		init = init_elem_conv(ty, init);
