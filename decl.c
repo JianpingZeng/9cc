@@ -41,118 +41,118 @@ static node_t * specifiers(int *sclass)
         const char *name = token->name;
         struct source src = source;
         switch (token->id) {
-            case AUTO:
-            case EXTERN:
-            case REGISTER:
-            case STATIC:
-            case TYPEDEF:
-                p = &cls;
-                gettok();
-                break;
+	case AUTO:
+	case EXTERN:
+	case REGISTER:
+	case STATIC:
+	case TYPEDEF:
+	    p = &cls;
+	    gettok();
+	    break;
                 
-            case CONST:
-                p = &cons;
-                gettok();
-                break;
+	case CONST:
+	    p = &cons;
+	    gettok();
+	    break;
                 
-            case VOLATILE:
-                p = &vol;
-                gettok();
-                break;
+	case VOLATILE:
+	    p = &vol;
+	    gettok();
+	    break;
                 
-            case RESTRICT:
-                p = &res;
-                gettok();
-                break;
+	case RESTRICT:
+	    p = &res;
+	    gettok();
+	    break;
                 
-            case INLINE:
-                p = &inl;
-                gettok();
-                break;
+	case INLINE:
+	    p = &inl;
+	    gettok();
+	    break;
                 
-            case ENUM:
-                p = &type;
-                basety = enum_decl();
-                break;
+	case ENUM:
+	    p = &type;
+	    basety = enum_decl();
+	    break;
                 
-            case STRUCT:
-            case UNION:
-                p = &type;
-                basety = struct_decl();
-                break;
+	case STRUCT:
+	case UNION:
+	    p = &type;
+	    basety = struct_decl();
+	    break;
                 
-            case LONG:
-                if (size == LONG) {
-                    t = LONG + LONG;
-                    size = 0;	// clear
-                }
-                // go through
-            case SHORT:
-                p = &size;
-                gettok();
-                break;
+	case LONG:
+	    if (size == LONG) {
+		t = LONG + LONG;
+		size = 0;	// clear
+	    }
+	    // go through
+	case SHORT:
+	    p = &size;
+	    gettok();
+	    break;
                 
-            case FLOAT:
-                p = &type;
-                basety = floattype;
-                gettok();
-                break;
+	case FLOAT:
+	    p = &type;
+	    basety = floattype;
+	    gettok();
+	    break;
                 
-            case DOUBLE:
-                p = &type;
-                basety = doubletype;
-                gettok();
-                break;
+	case DOUBLE:
+	    p = &type;
+	    basety = doubletype;
+	    gettok();
+	    break;
                 
-            case VOID:
-                p = &type;
-                basety = voidtype;
-                gettok();
-                break;
+	case VOID:
+	    p = &type;
+	    basety = voidtype;
+	    gettok();
+	    break;
                 
-            case CHAR:
-                p = &type;
-                basety = chartype;
-                gettok();
-                break;
+	case CHAR:
+	    p = &type;
+	    basety = chartype;
+	    gettok();
+	    break;
                 
-            case INT:
-                p = &type;
-                basety = inttype;
-                gettok();
-                break;
+	case INT:
+	    p = &type;
+	    basety = inttype;
+	    gettok();
+	    break;
                 
-            case _BOOL:
-                p = &type;
-                basety = booltype;
-                gettok();
-                break;
+	case _BOOL:
+	    p = &type;
+	    basety = booltype;
+	    gettok();
+	    break;
                 
-            case SIGNED:
-            case UNSIGNED:
-                p = &sign;
-                gettok();
-                break;
+	case SIGNED:
+	case UNSIGNED:
+	    p = &sign;
+	    gettok();
+	    break;
                 
-            case _COMPLEX:
-            case _IMAGINARY:
-                p = &ci;
-                gettok();
-                break;
+	case _COMPLEX:
+	case _IMAGINARY:
+	    p = &ci;
+	    gettok();
+	    break;
                 
-            case ID:
-                if (is_typedef_name(token->name)) {
-                    tydefty = lookup_typedef_name(token->name);
-                    p = &type;
-                    gettok();
-                } else {
-                    p = NULL;
-                }
-                break;
+	case ID:
+	    if (is_typedef_name(token->name)) {
+		tydefty = lookup_typedef_name(token->name);
+		p = &type;
+		gettok();
+	    } else {
+		p = NULL;
+	    }
+	    break;
                 
-            default:
-                p = NULL;
-                break;
+	default:
+	    p = NULL;
+	    break;
         }
         
         if (p == NULL)
@@ -239,23 +239,23 @@ static void qualifiers(node_t *atype)
     while (token->kind == CONST) {
         int t = token->id;
         switch (t) {
-            case CONST:
-                p = &cons;
-                gettok();
-                break;
+	case CONST:
+	    p = &cons;
+	    gettok();
+	    break;
                 
-            case VOLATILE:
-                p = &vol;
-                gettok();
-                break;
+	case VOLATILE:
+	    p = &vol;
+	    gettok();
+	    break;
                 
-            case RESTRICT:
-                p = &res;
-                gettok();
-                break;
+	case RESTRICT:
+	    p = &res;
+	    gettok();
+	    break;
                 
-            default:
-                CCAssert(0);
+	default:
+	    CCAssert(0);
         }
         
         if (*p != 0)
@@ -381,7 +381,7 @@ static node_t * func_or_array(int *params)
                 TYPE_A_STATIC(atype) = 1;
                 if (token->kind == CONST)
                     qualifiers(atype);
-                TYPE_A_ASSIGN(atype) = assign_expr();
+		TYPE_A_ASSIGN(atype) = assign_expr();
             } else if (token->kind == CONST) {
                 if (token->kind == CONST)
                     qualifiers(atype);
@@ -465,30 +465,30 @@ static node_t * ptr_decl()
     for (;;) {
         int *p, t = token->id;
         switch (token->id) {
-            case CONST:
-                p = &con;
-                break;
+	case CONST:
+	    p = &con;
+	    break;
                 
-            case VOLATILE:
-                p = &vol;
-                break;
+	case VOLATILE:
+	    p = &vol;
+	    break;
                 
-            case RESTRICT:
-                p = &res;
-                break;
+	case RESTRICT:
+	    p = &res;
+	    break;
                 
-            case '*':
+	case '*':
             {
                 node_t *pty = ptr_type(NULL);
                 con = vol = res = type = 0;
                 p = &type;
                 prepend_type(&ret, pty);
             }
-                break;
+	    break;
                 
-            default:
-                p = NULL;
-                break;
+	default:
+	    p = NULL;
+	    break;
         }
         
         if (p == NULL)
@@ -832,13 +832,13 @@ static void scalar_set(node_t *ty, struct vector *v, int i, node_t *node)
     if (AST_ID(node) == INITS_EXPR) {	
 	node_t **inits;
     loop:
-	    inits = EXPR_INITS(node);
-	    if (inits) {
-		node = inits[0];
-		if (AST_ID(node) == INITS_EXPR)
-		    goto loop;
-		vec_set_safe(v, i, do_init_elem_conv(ty, node));
-	    }
+	inits = EXPR_INITS(node);
+	if (inits) {
+	    node = inits[0];
+	    if (AST_ID(node) == INITS_EXPR)
+		goto loop;
+	    vec_set_safe(v, i, do_init_elem_conv(ty, node));
+	}
     } else {
 	vec_set_safe(v, i, do_init_elem_conv(ty, node));
     }
@@ -888,15 +888,16 @@ static void struct_init(node_t *ty, bool brace, struct vector *v)
     }
 }
 
-static void string_init(node_t *ty, bool brace, struct vector *v)
-{
-
-}
-
 static void array_init(node_t *ty, bool brace, struct vector *v)
 {
     bool designated = false;
     int c = 0;
+
+    if (is_string(ty) && token->id == SCONSTANT) {
+	node_t *expr = assign_expr();
+	aggregate_set(ty, v, 0, expr);
+        return;
+    }
     
     for (int i = 0; ; i++) {
 	node_t *rty = NULL;
@@ -1053,7 +1054,7 @@ int firstexpr(struct token *t)
 bool istypename(struct token *t)
 {
     return (t->kind == INT || t->kind == CONST) ||
-    (t->id == ID && is_typedef_name(t->name));
+	(t->id == ID && is_typedef_name(t->name));
 }
 
 node_t * typename()
