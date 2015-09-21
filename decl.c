@@ -1483,7 +1483,7 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	initializer(NULL);
 	return;
     } else if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
-	error("'%s' may not have an initializer", TYPE_NAME(ty));
+	error("'%s' cannot have an initializer", TYPE_NAME(ty));
 	initializer(NULL);
 	return;
     }
