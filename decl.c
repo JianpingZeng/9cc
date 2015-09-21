@@ -664,8 +664,18 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
                 DECL_SYM(decl) = sym;
 		AST_TYPE(decl) = SYM_TYPE(sym);
 		
-                if (token->id == '=' && (dcl == globaldecl || dcl == localdecl))
-		    decl_initializer(decl, sym, sclass, dcl == globaldecl ? GLOBAL : LOCAL);
+                if (token->id == '=') {
+		    int kind;
+		    if (dcl == globaldecl)
+			kind = GLOBAL;
+		    else if (dcl == localdecl)
+			kind = LOCAL;
+		    else if (dcl == paramdecl)
+			kind = PARAM;
+		    else
+			CCAssert(0);
+		    decl_initializer(decl, sym, sclass, kind);
+		}
                 
                 vec_push(v, decl);
             }
@@ -1293,12 +1303,6 @@ static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source
     SYM_TYPE(sym) = ty;
     SYM_SRC(sym) = src;
     SYM_SCLASS(sym) = sclass;
-
-    if (token->id == '=') {
-	error("C does not support default arguments");
-	expect('=');
-	initializer(NULL);
-    }
     
     return sym;
 }
@@ -1473,6 +1477,15 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
     node_t *init = NULL;
 
     expect('=');
+    if (kind == PARAM) {
+	error("C does not support default arguments");
+	initializer(NULL);
+	return;
+    } else if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
+	error("'%s' may not have an initializer", TYPE_NAME(ty));
+	initializer(NULL);
+	return;
+    }
     init = initializer(ty);
     if (init) {
 	if (sclass == EXTERN)
@@ -1480,17 +1493,14 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	else if (sclass == TYPEDEF)
 	    errorf(src, "illegal initializer (only variable can be initialized)");
 
-	init = assignconv(ty, init);
-	if (init) {
-	    if (SCOPE == GLOBAL) {
-		node_t *val = eval(init, ty);
-		if (val == NULL)
-		    error("initializer is not a compile-time constant");
+	if (isscalar(ty)) {
+	    
+	} else if (isarray(ty)) {
 
-		init = val;
-	    }
-	} else {
-	    error("incompatible types '%s' to '%s' in initializer", type2s(AST_TYPE(init)), type2s(ty));
+	} else if (isstruct(ty)) {
+
+	} else if (isunion(ty)) {
+
 	}
     }
 
@@ -1509,6 +1519,6 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	    redefinition_error(src, sym);
 	SYM_DEFINED(sym) = init ? true : false;
     }
-                    
+    
     DECL_BODY(decl) = init;
 }
