@@ -1457,10 +1457,12 @@ static node_t * bitconv(node_t *ty, node_t *node)
 
 node_t * assignconv(node_t *ty, node_t *node)
 {
-    node_t *ty2 = AST_TYPE(node);
+    node_t *ty2;
 
     if (islvalue(node))
 	node = ltor(node);
+
+    ty2 = AST_TYPE(node);
     
     if (isarith(ty) && isarith(ty2)) {
 	return wrap(ty, node);
