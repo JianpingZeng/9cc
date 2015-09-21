@@ -102,6 +102,7 @@ extern node_t * typename();
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
+extern bool has_static_extent(node_t *sym);
 
 // stmt.c
 extern node_t * compound_stmt();

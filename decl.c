@@ -13,6 +13,7 @@ static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source 
 static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src);
 static node_t * initializer(node_t *ty);
 static void fields(node_t *sty);
+static node_t * init_elem_conv(node_t *dty, node_t *node);
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 
 static void conflicting_types_error(struct source src, node_t *sym)
@@ -758,11 +759,6 @@ static void eat_initlist()
     } while (FIRST_INIT(token));
 }
 
-static void init_check(node_t *ty1, node_t *ty2)
-{
-    // TODO: 
-}
-
 static node_t * find_elem(struct vector *v, int i)
 {
     for (int j = vec_len(v); j <= i; j++)
@@ -795,12 +791,10 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 	    struct vector *v1 = vec_new();
 	    vec_set(v, i, n1);
 
-	    if (isarray(rty) || isstruct(rty) || isunion(rty)) {
+	    if (isarray(rty) || isstruct(rty) || isunion(rty))
 		aggregate_set(rty, v1, 0, node);
-	    } else {
-		init_check(rty, AST_TYPE(node));
-		vec_push(v1, node);
-	    }
+	    else
+		vec_push_safe(v1, init_elem_conv(rty, node));
 	
 	    EXPR_INITS(n1) = (node_t **)vtoa(v1);
 	}
@@ -824,12 +818,10 @@ static void scalar_set(node_t *ty, struct vector *v, int i, node_t *node)
 		node = inits[0];
 		if (AST_ID(node) == INITS_EXPR)
 		    goto loop;
-		init_check(ty, AST_TYPE(node));
-		vec_set(v, i, node);
+		vec_set_safe(v, i, init_elem_conv(ty, node));
 	    }
     } else {
-	init_check(ty, AST_TYPE(node));
-	vec_set(v, i, node);
+	vec_set_safe(v, i, init_elem_conv(ty, node));
     }
 }
 
@@ -1470,6 +1462,18 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
     return decl;
 }
 
+bool has_static_extent(node_t *sym)
+{
+    return SYM_SCLASS(sym) == EXTERN ||
+	SYM_SCLASS(sym) == STATIC ||
+	SYM_SCOPE(sym) == GLOBAL;
+}
+
+static inline node_t * init_elem_conv(node_t *dty, node_t *node)
+{
+    return assignconv(dty, node);
+}
+
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 {
     node_t *ty = SYM_TYPE(sym);
@@ -1513,14 +1517,18 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
     }
 
     if (init) {
-	if (isscalar(ty)) {
-	    
-	} else if (isarray(ty)) {
+	if (AST_ID(init) != INITS_EXPR) {
+	    if (isarray(ty)) {
 
-	} else if (isstruct(ty)) {
+	    } else {
+		init = init_elem_conv(ty, init);
+	    }
+	}
 
-	} else if (isunion(ty)) {
-
+	if (has_static_extent(sym)) {
+	    node_t *cnst = eval(init, ty);
+	    if (cnst == NULL)
+		error("initializer element is not a compile-time constant");
 	}
 
 	DECL_BODY(decl) = init;

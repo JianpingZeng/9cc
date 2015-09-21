@@ -338,14 +338,16 @@ static node_t * eval_arith(node_t *expr)
     }
 }
 
+// TODO: 
 static node_t * eval_address(node_t *expr)
 {
-    return NULL;
+    return expr;
 }
 
+// TODO: 
 static node_t * eval_initializer(node_t *expr)
 {
-    return NULL;
+    return expr;
 }
 
 node_t * eval(node_t *expr, node_t *ty)

@@ -50,6 +50,12 @@ void vec_set(struct vector *v, int index, void *val)
     v->mem[index] = val;
 }
 
+void vec_set_safe(struct vector *v, int index, void *val)
+{
+    if (val)
+	vec_set(v, index, val);
+}
+
 void * vec_head(struct vector *v)
 {
     if (v->len == 0)
