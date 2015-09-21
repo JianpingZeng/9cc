@@ -758,11 +758,25 @@ static void eat_initlist()
     } while (FIRST_INIT(token));
 }
 
+static bool is_string(node_t *ty)
+{
+    CCAssert(isarray(ty));
+    node_t *rty = rtype(ty);
+    return kind(rty) == CHAR || unqual(rty) == wchartype;
+}
+
 static node_t * find_elem(struct vector *v, int i)
 {
     for (int j = vec_len(v); j <= i; j++)
 	vec_push(v, ast_vinit());
     return vec_at(v, i);
+}
+
+static inline node_t * do_init_elem_conv(node_t *ty, node_t *node)
+{
+    if (AST_ID(node) == VINIT_EXPR)
+	return NULL;		// init_elem_conv has failed
+    return init_elem_conv(ty, node);
 }
 
 static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
@@ -776,6 +790,12 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
     
     if (AST_ID(node) == INITS_EXPR) {
 	vec_set(v, i, node);
+    } else if (is_string(ty) && issliteral(node)) {
+	vec_set(v, i, node);
+	int size1 = TYPE_SIZE(ty);
+	int size2 = TYPE_SIZE(AST_TYPE(node));
+	if (size1 > 0 && size2 - 1 > size1)
+	    warning("initializer-string for char array is too long");
     } else {
 	node_t *rty = NULL;
 	if (isarray(ty)) {
@@ -793,7 +813,7 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 	    if (isarray(rty) || isstruct(rty) || isunion(rty))
 		aggregate_set(rty, v1, 0, node);
 	    else
-		vec_push_safe(v1, init_elem_conv(rty, node));
+		vec_push_safe(v1, do_init_elem_conv(rty, node));
 	
 	    EXPR_INITS(n1) = (node_t **)vtoa(v1);
 	}
@@ -817,10 +837,10 @@ static void scalar_set(node_t *ty, struct vector *v, int i, node_t *node)
 		node = inits[0];
 		if (AST_ID(node) == INITS_EXPR)
 		    goto loop;
-		vec_set_safe(v, i, init_elem_conv(ty, node));
+		vec_set_safe(v, i, do_init_elem_conv(ty, node));
 	    }
     } else {
-	vec_set_safe(v, i, init_elem_conv(ty, node));
+	vec_set_safe(v, i, do_init_elem_conv(ty, node));
     }
 }
 
@@ -866,6 +886,11 @@ static void struct_init(node_t *ty, bool brace, struct vector *v)
 	if (brace || i < len - 1)
 	    expect(',');
     }
+}
+
+static void string_init(node_t *ty, bool brace, struct vector *v)
+{
+
 }
 
 static void array_init(node_t *ty, bool brace, struct vector *v)
@@ -1513,11 +1538,10 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
     if (init) {
 	if (AST_ID(init) != INITS_EXPR) {
 	    if (isarray(ty)) {
-		node_t *rty = rtype(ty);
-		if (kind(rty) == CHAR || unqual(rty) == wchartype) {
+		if (is_string(ty) && issliteral(init)) {
 		    //
 		} else {
-		    
+		    error("array initializer must be an initializer list or string literal");
 		}
 	    } else if (isstruct(ty)) {
 		if (!eqtype(ty, AST_TYPE(init)))

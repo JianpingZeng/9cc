@@ -1623,5 +1623,6 @@ int intexpr()
 
 node_t * init_elem_conv(node_t *ty, node_t *node)
 {
+    CCAssert(node);
     return assignconv(ty, decay(node));
 }
