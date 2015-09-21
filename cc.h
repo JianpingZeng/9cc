@@ -91,6 +91,7 @@ extern node_t * expression();
 extern node_t * assign_expr();
 extern int intexpr();
 extern bool islvalue(node_t *node);
+extern node_t * assignconv(node_t *ty, node_t *node);
 
 // decl.c
 extern node_t * initializer_list(node_t *ty);
@@ -126,7 +127,7 @@ extern unsigned typesize(node_t *ty);
 extern node_t * find_field(node_t *ty, const char *name);
 extern int indexof_field(node_t *ty, node_t *field);
 extern node_t * compose(node_t *ty1, node_t *ty2);
-extern bool contains(int qual1, int qual2);
+extern bool qual_contains(node_t *ty1, node_t *ty2);
 
 extern node_t    *chartype;               // char
 extern node_t    *unsignedchartype;       // unsigned char

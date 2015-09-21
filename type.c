@@ -236,8 +236,10 @@ static int combine(int qual1, int qual2)
     return ret;
 }
 
-bool contains(int qual1, int qual2)
+bool qual_contains(node_t *ty1, node_t *ty2)
 {
+    int qual1 = isqual(ty1) ? TYPE_KIND(ty1) : 0;
+    int qual2 = isqual(ty2) ? TYPE_KIND(ty2) : 0;
     if (isconst1(qual2) && !isconst1(qual1))
 	return false;
     if (isvolatile1(qual2) && !isvolatile1(qual1))

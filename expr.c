@@ -16,9 +16,7 @@ static node_t * conva(node_t *node);
 static node_t * conv2(node_t *l, node_t *r);
 static node_t * wrap(node_t *ty, node_t *node);
 static node_t * bitconv(node_t *ty, node_t *node);
-static node_t * assignconv(node_t *ty, node_t *node);
 static bool is_nullptr(node_t *node);
-static bool assign_types_check(node_t *ty1, node_t *r);
 
 #define INTEGER_MAX(type)    (TYPE_LIMITS_MAX(type).u)
 #define SAVE_ERRORS    unsigned err = errors
@@ -493,8 +491,7 @@ static void argcast1(node_t *fty, node_t **args, struct vector *v)
 	node_t *dst = SYM_TYPE(params[i]);
 	node_t *src = AST_TYPE(args[i]);
 	node_t *ret;
-	if (assign_types_check(dst, args[i]) &&
-	    (ret = assignconv(dst, args[i]))) {
+	if ((ret = assignconv(dst, args[i]))) {
 	    vec_push(v, ret);
 	} else {
 	    if (oldstyle)
@@ -1385,50 +1382,6 @@ static node_t * commaop(int op, node_t *l, node_t *r)
     return ret;
 }
 
-bool assign_types_check(node_t *ty1, node_t *r)
-{
-    node_t *ty2 = AST_TYPE(r);
-    if ((isarith(ty1) && isarith(ty2)) ||
-	(unqual(ty1) == booltype && isptr(ty2))) {
-        return true;
-    } else if ((isstruct(ty1) && isstruct(ty2)) ||
-	       (isunion(ty1) && isunion(ty2))) {
-	if (!eqtype(unqual(ty1), unqual(ty2)))
-	    return false;
-    } else if (isptr(ty1) && isptr(ty2)) {
-	if (is_nullptr(r)) {
-	    return true;
-	} else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
-	    node_t *vty = isptrto(ty1, VOID) ? ty1 : ty2;
-	    node_t *tty = vty == ty1 ? ty2 : ty1;
-	    if (isptrto(tty, FUNCTION)) {
-		return false;
-	    } else {
-		node_t *rty1 = rtype(ty1);
-		node_t *rty2 = rtype(ty2);
-		int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
-		int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
-		if (!contains(qual1, qual2))
-		    return false;
-	    }
-	} else {
-	    node_t *rty1 = rtype(ty1);
-	    node_t *rty2 = rtype(ty2);
-	    if (eqtype(unqual(rty1), unqual(rty2))) {
-		int qual1 = isqual(rty1) ? TYPE_KIND(rty1) : 0;
-		int qual2 = isqual(rty2) ? TYPE_KIND(rty2) : 0;
-		if (!contains(qual1, qual2))
-		    return false;
-	    } else {
-		return false;
-	    }
-	}
-    } else {
-	return false;
-    }
-    return true;
-}
-
 static node_t * assignop(int op, node_t *l, node_t *r)
 {
     node_t *ret = NULL;
@@ -1441,10 +1394,8 @@ static node_t * assignop(int op, node_t *l, node_t *r)
     ensure_assignable(l);
     if (HAS_ERROR)
 	return NULL;
-    if (op == '=') {
-        if (!assign_types_check(AST_TYPE(l), r))
-	    error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
-    } else {
+    if (op != '=') {
+	// compound assignment
 	int op2 = splitop(op);
 	node_t *l1 = conv(l);
 	node_t *r1 = conv(r);
@@ -1458,9 +1409,14 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 	r = bop(op2, l1, r1);
     }
 
-    if (NO_ERROR && (r = assignconv(retty, r))) {
-	ret = ast_bop('=', l, r);
-	AST_TYPE(ret) = retty;
+    if (NO_ERROR) {
+	r = assignconv(retty, r);
+	if (r) {
+	    ret = ast_bop('=', l, r);
+	    AST_TYPE(ret) = retty;
+	} else {
+	    error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
+	}
     }
 
     return ret;
@@ -1499,27 +1455,50 @@ static node_t * bitconv(node_t *ty, node_t *node)
 	return ast_conv(ty, node, castname(ty, node));
 }
 
-static node_t * assignconv(node_t *ty, node_t *node)
+node_t * assignconv(node_t *ty, node_t *node)
 {
-    node_t *ret = NULL;
     node_t *ty2 = AST_TYPE(node);
 
     if (islvalue(node))
 	node = ltor(node);
     
     if (isarith(ty) && isarith(ty2)) {
-	ret = wrap(ty, node);
+	return wrap(ty, node);
     } else if (ty == booltype && isptr(ty2)) {
-	ret = ast_conv(ty, node, PointerToBoolean);
+	return ast_conv(ty, node, PointerToBoolean);
     } else if ((isstruct(ty) && isstruct(ty2)) ||
 	       (isunion(ty) && isunion(ty2))) {
-	ret = bitconv(ty, node);
-    } else if (isptr(ty)) {
-	ret = bitconv(ty, node);
+        if (eqtype(unqual(ty), unqual(ty2)))
+	    return bitconv(ty, node);
+    } else if (isptr(ty) && isptr(ty2)) {
+	if (is_nullptr(node)) {
+	    // always allowed
+	} else if (isptrto(ty, VOID) || isptrto(ty2, VOID)) {
+	    node_t *vty = isptrto(ty, VOID) ? ty : ty2;
+	    node_t *tty = vty == ty ? ty2 : ty;
+	    if (isptrto(tty, FUNCTION)) {
+		return NULL;
+	    } else {
+		node_t *rty1 = rtype(ty);
+		node_t *rty2 = rtype(ty2);
+		if (!qual_contains(rty1, rty2))
+		    return NULL;
+	    }
+	} else {
+	    node_t *rty1 = rtype(ty);
+	    node_t *rty2 = rtype(ty2);
+	    if (eqtype(unqual(rty1), unqual(rty2))) {
+		if (!qual_contains(rty1, rty2))
+		    return NULL;
+	    } else {
+		return NULL;
+	    }
+	}
+	return bitconv(ty, node);
     } else {
 	error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty));
     }
-    return ret;
+    return NULL;
 }
 
 // Universal Binary Conversion
