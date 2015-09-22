@@ -172,17 +172,17 @@ static node_t * specifiers(int *sclass)
         
         if (*p != 0) {
             if (p == &cls)
-                errorf(src, "invalid storage class specifier at '%s'", name);
+                errorf(src, "type name does not allow storage class to be specified at '%s'", name);
             else if (p == &inl && !sclass)
                 errorf(src, "invalid function specifier");
             else if (p == &cons || p == &res || p == &vol || p == &inl)
                 warningf(src, "duplicate '%s' declaration specifier", name);
             else if (p == &ci)
-                errorf(src, "duplicate _Complex/_Imaginary specifier at '%s'", name);
+                errorf(src, "duplicate _Complex/_Imaginary specifier '%s'", name);
             else if (p == &sign)
-                errorf(src, "duplicate signed/unsigned speficier at '%s'", name);
+                errorf(src, "duplicate signed/unsigned speficier '%s'", name);
             else if (p == &type || p == &size)
-                errorf(src, "duplicate type specifier at '%s'", name);
+                errorf(src, "duplicate type specifier '%s'", name);
             else
                 CCAssert(0);
         }
@@ -555,8 +555,8 @@ static node_t * struct_decl()
     if (token->id == '{') {
         expect('{');
         sym = tag_type(t, id, src);
-        SYM_DEFINED(sym) = true;
         fields(SYM_TYPE(sym));
+	SYM_DEFINED(sym) = true;
         match('}', follow);
     } else if (id) {
         sym = lookup(id, tags);
@@ -578,9 +578,10 @@ static node_t * struct_decl()
 // TODO: not finished yet
 static void ensure_field(node_t *field, bool isbit)
 {
+    const char *name = FIELD_NAME(field);
+    node_t *ty = FIELD_TYPE(field);
+    
     if (isbit) {
-	const char *name = FIELD_NAME(field);
-	node_t *ty = FIELD_TYPE(field);
 	int bitsize = FIELD_BITSIZE(field);
 	int bits = BITS(ty);
 	
@@ -608,7 +609,11 @@ static void ensure_field(node_t *field, bool isbit)
 		error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", bitsize, bits);
 	}
     }
-    
+
+    if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+	if (!SYM_DEFINED(TYPE_TSYM(ty)))
+	    error("field has incomplete type '%s'", type2s(ty));
+    }
 }
 
 static void fields(node_t *sty)
@@ -616,7 +621,7 @@ static void fields(node_t *sty)
     int follow[] = {INT, CONST, '}', IF, 0};
     
     struct vector *v = vec_new();
-    while (istypename(token)) {
+    while (istypename(token) || token->kind == STATIC) {
         node_t *basety = specifiers(NULL);
         
         for (;;) {
