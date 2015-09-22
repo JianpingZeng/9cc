@@ -379,6 +379,60 @@ static node_t ** parameters(node_t *ftype, int *params)
     return ret;
 }
 
+static node_t * arrays(bool abstract)
+{
+    node_t *atype = array_type();
+    
+    if (abstract) {
+	if (token->id == '*') {
+	    if (lookahead()->id != ']') {
+		TYPE_A_ASSIGN(atype) = assign_expr();
+	    } else {
+		expect('*');
+		TYPE_A_WILDCARD(atype) = 1;
+	    }
+	} else if (firstexpr(token)) {
+	    TYPE_A_ASSIGN(atype) = assign_expr();
+	}
+    } else {
+	if (token->id == STATIC) {
+	    expect(STATIC);
+	    TYPE_A_STATIC(atype) = 1;
+	    if (token->kind == CONST)
+		array_qualifiers(atype);
+	    TYPE_A_ASSIGN(atype) = assign_expr();
+	} else if (token->kind == CONST) {
+	    if (token->kind == CONST)
+		array_qualifiers(atype);
+	    if (token->id == STATIC) {
+		expect(STATIC);
+		TYPE_A_STATIC(atype) = 1;
+		TYPE_A_ASSIGN(atype) = assign_expr();
+	    } else if (token->id == '*') {
+		if (lookahead()->id != ']') {
+		    TYPE_A_ASSIGN(atype) = assign_expr();
+		} else {
+		    expect('*');
+		    TYPE_A_WILDCARD(atype) = 1;
+		}
+	    } else if (firstexpr(token)) {
+		TYPE_A_ASSIGN(atype) = assign_expr();
+	    }
+	} else if (token->id == '*') {
+	    if (lookahead()->id != ']') {
+		TYPE_A_ASSIGN(atype) = assign_expr();
+	    } else {
+		expect('*');
+		TYPE_A_WILDCARD(atype) = 1;
+	    }
+	} else if (firstexpr(token)) {
+	    TYPE_A_ASSIGN(atype) = assign_expr();
+	}
+    }
+
+    return atype;
+}
+
 static node_t * func_or_array(int *params)
 {
     node_t *ty = NULL;
@@ -386,41 +440,9 @@ static node_t * func_or_array(int *params)
     
     for (; token->id == '(' || token->id == '['; ) {
         if (token->id == '[') {
-            node_t *atype = array_type();
+            node_t *atype;
             expect('[');
-            if (token->id == STATIC) {
-                expect(STATIC);
-                TYPE_A_STATIC(atype) = 1;
-                if (token->kind == CONST)
-                    array_qualifiers(atype);
-		TYPE_A_ASSIGN(atype) = assign_expr();
-            } else if (token->kind == CONST) {
-                if (token->kind == CONST)
-                    array_qualifiers(atype);
-                if (token->id == STATIC) {
-                    expect(STATIC);
-                    TYPE_A_STATIC(atype) = 1;
-                    TYPE_A_ASSIGN(atype) = assign_expr();
-                } else if (token->id == '*') {
-                    if (lookahead()->id != ']') {
-                        TYPE_A_ASSIGN(atype) = assign_expr();
-                    } else {
-                        expect('*');
-                        TYPE_A_WILDCARD(atype) = 1;
-                    }
-                } else if (firstexpr(token)) {
-                    TYPE_A_ASSIGN(atype) = assign_expr();
-                }
-            } else if (token->id == '*') {
-                if (lookahead()->id != ']') {
-                    TYPE_A_ASSIGN(atype) = assign_expr();
-                } else {
-                    expect('*');
-                    TYPE_A_WILDCARD(atype) = 1;
-                }
-            } else if (firstexpr(token)) {
-                TYPE_A_ASSIGN(atype) = assign_expr();
-            }
+            atype = arrays(false);
             match(']', follow);
             attach_type(&ty, atype);
         } else {
@@ -441,18 +463,9 @@ static node_t * abstract_func_or_array()
     
     for (; token->id == '(' || token->id == '['; ) {
         if (token->id == '[') {
-            node_t *atype = array_type();
+            node_t *atype;
             expect('[');
-            if (token->id == '*') {
-                if (lookahead()->id != ']') {
-                    TYPE_A_ASSIGN(atype) = assign_expr();
-                } else {
-                    expect('*');
-                    TYPE_A_WILDCARD(atype) = 1;
-                }
-            } else if (firstexpr(token)) {
-                TYPE_A_ASSIGN(atype) = assign_expr();
-            }
+            atype = arrays(true);
             expect(']');
             attach_type(&ty, atype);
         } else {
