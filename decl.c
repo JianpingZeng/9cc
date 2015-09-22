@@ -13,7 +13,19 @@ static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source 
 static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src);
 static node_t * initializer(node_t *ty);
 static void fields(node_t *sty);
+
+#define FIRST_INIT(t) (t->id == '[' || t->id == '.' || t->id == '{' || firstexpr(t))
+static void eat_initlist(void);
+static void struct_init(node_t *ty, bool brace, struct vector *v);
+static void array_init(node_t *ty, bool brace, struct vector *v);
+static void scalar_init(node_t *ty, struct vector *v);
+static void elem_init(node_t *ty, bool designated, struct vector *v, int i);
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
+
+static void post_initializer(node_t *decl, node_t *sym, int sclass, int kind);
+static void ensure_array(node_t *atype, struct source src, int level);
+static void ensure_func(node_t *ftype, struct source src);
+static void ensure_nonvoid(node_t *ty, struct source src, int level);
 
 static void conflicting_types_error(struct source src, node_t *sym)
 {
@@ -231,7 +243,7 @@ static node_t * specifiers(int *sclass)
     return basety;
 }
 
-static void qualifiers(node_t *atype)
+static void array_qualifiers(node_t *atype)
 {
     int cons, vol, res;
     int *p;
@@ -380,11 +392,11 @@ static node_t * func_or_array(int *params)
                 expect(STATIC);
                 TYPE_A_STATIC(atype) = 1;
                 if (token->kind == CONST)
-                    qualifiers(atype);
+                    array_qualifiers(atype);
 		TYPE_A_ASSIGN(atype) = assign_expr();
             } else if (token->kind == CONST) {
                 if (token->kind == CONST)
-                    qualifiers(atype);
+                    array_qualifiers(atype);
                 if (token->id == STATIC) {
                     expect(STATIC);
                     TYPE_A_STATIC(atype) = 1;
@@ -453,6 +465,176 @@ static node_t * abstract_func_or_array()
     }
     
     return ty;
+}
+
+static node_t * enum_decl()
+{
+    node_t *sym = NULL;
+    const char *id = NULL;
+    struct source src = source;
+    int follow[] = {INT, CONST, STATIC, IF, 0};
+    
+    expect(ENUM);
+    if (token->id == ID) {
+        id = token->name;
+        expect(ID);
+    }
+    if (token->id == '{') {
+        int val = 0;
+        struct vector *v = vec_new();
+        expect('{');
+        sym = tag_type(ENUM, id, src);
+        if (token->id != ID)
+            error("expect identifier");
+        while (token->id == ID) {
+            node_t *s = lookup(token->name, identifiers);
+            if (s && currentscope(s))
+                redefinition_error(source, s);
+            
+            s = install(token->name, &identifiers, SCOPE);
+            SYM_TYPE(s) = SYM_TYPE(sym);
+            SYM_SRC(s) = source;
+            SYM_SCLASS(s) = ENUM;
+            expect(ID);
+            if (token->id == '=') {
+                expect('=');
+                val = intexpr();
+            }
+            SYM_VALUE(s).u = val++;
+            vec_push(v, s);
+            if (token->id != ',')
+                break;
+            expect(',');
+        }
+        match('}', follow);
+        TYPE_IDS(SYM_TYPE(sym)) = (node_t **)vtoa(v);
+        SYM_DEFINED(sym) = true;
+    } else if (id) {
+        sym = lookup(id, tags);
+        if (sym) {
+            if (currentscope(sym) && !isenum(SYM_TYPE(sym)))
+                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+                       tname(ENUM), id, type2s(SYM_TYPE(sym)),  SYM_SRC(sym).file, SYM_SRC(sym).line);
+        } else {
+            sym = tag_type(ENUM, id, src);
+        }
+    } else {
+        error("expected identifier or '{'");
+        sym = tag_type(ENUM, NULL, src);
+    }
+    
+    return SYM_TYPE(sym);
+}
+
+static node_t * struct_decl()
+{
+    int t = token->id;
+    const char *id = NULL;
+    node_t *sym = NULL;
+    struct source src = source;
+    int follow[] = {INT, CONST, STATIC, IF, '[', 0};
+    
+    expect(t);
+    if (token->id == ID) {
+        id = token->name;
+        expect(ID);
+    }
+    if (token->id == '{') {
+        expect('{');
+        sym = tag_type(t, id, src);
+        SYM_DEFINED(sym) = true;
+        fields(SYM_TYPE(sym));
+        match('}', follow);
+    } else if (id) {
+        sym = lookup(id, tags);
+        if (sym) {
+            if (currentscope(sym) && op(SYM_TYPE(sym)) != t)
+                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
+                       tname(t), id, type2s(SYM_TYPE(sym)), SYM_SRC(sym).file, SYM_SRC(sym).line);
+        } else {
+            sym = tag_type(t, id, src);
+        }
+    } else {
+        error("expected identifier or '{'");
+        sym = tag_type(t, NULL, src);
+    }
+
+    return SYM_TYPE(sym);
+}
+
+// TODO: not finished yet
+static void fields(node_t *sty)
+{
+    int follow[] = {INT, CONST, '}', IF, 0};
+    
+    struct vector *v = vec_new();
+    while (istypename(token)) {
+        node_t *basety = specifiers(NULL);
+        
+        for (;;) {
+            node_t *field = new_field(NULL);
+            int hasbit = 0;
+            if (token->id == ':') {
+                expect(':');
+                FIELD_BITSIZE(field) = intexpr();
+                FIELD_TYPE(field) = basety;
+                hasbit = 1;
+            } else {
+                node_t *ty = NULL;
+                const char *id = NULL;
+                declarator(&ty, &id, NULL);
+                attach_type(&ty, basety);
+                if (token->id == ':') {
+                    expect(':');
+                    FIELD_BITSIZE(field) = intexpr();
+                    hasbit = 1;
+                }
+                FIELD_TYPE(field) = ty;
+                if (id) {
+                    for (int i=0; i < vec_len(v); i++) {
+                        node_t *f = vec_at(v, i);
+                        if (FIELD_NAME(f) && !strcmp(FIELD_NAME(f), id)) {
+                            error("redefinition of '%s'", id);
+                            break;
+                        }
+                    }
+                    FIELD_NAME(field) = id;
+                }
+            }
+            
+            if (hasbit) {
+                if (!isint(FIELD_TYPE(field))) {
+                    if (FIELD_NAME(field))
+                        error("bit-field '%s' has non-integral type '%s'", FIELD_NAME(field), type2s(FIELD_TYPE(field)));
+                    else
+                        error("anonymous bit-field has non-integral type '%s'", type2s(FIELD_TYPE(field)));
+                }
+                if (FIELD_BITSIZE(field) < 0) {
+                    if (FIELD_NAME(field))
+                        error("bit-field '%s' has negative width '%d'", FIELD_NAME(field), FIELD_BITSIZE(field));
+                    else
+                        error("anonymous bit-field has negative width '%d'", FIELD_BITSIZE(field));
+                }
+                if (FIELD_BITSIZE(field) == 0 && FIELD_NAME(field))
+                    error("named bit-field '%s' has zero width", FIELD_NAME(field));
+                if (FIELD_BITSIZE(field) > BITS(FIELD_TYPE(field))) {
+                    if (FIELD_NAME(field))
+                        error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", FIELD_NAME(field), FIELD_BITSIZE(field), BITS(FIELD_TYPE(field)));
+                    else
+                        error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", FIELD_BITSIZE(field), BITS(FIELD_TYPE(field)));
+                }
+            }
+            
+            vec_push(v, field);
+            
+            if (token->id != ',')
+                break;
+            expect(',');
+        }
+        
+        match(';', follow);
+    }
+    TYPE_FIELDS(sty) = (node_t **)vtoa(v);
 }
 
 static node_t * ptr_decl()
@@ -653,6 +835,7 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
         for (;;) {
             if (id) {
                 node_t *decl;
+		int kind;
                 node_t *sym = dcl(id, ty, sclass, src);
                 if (sclass == TYPEDEF)
                     decl = ast_decl(TYPEDEF_DECL, SCOPE);
@@ -663,20 +846,20 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
                 
                 DECL_SYM(decl) = sym;
 		AST_TYPE(decl) = SYM_TYPE(sym);
+
+		if (dcl == globaldecl)
+		    kind = GLOBAL;
+		else if (dcl == localdecl)
+		    kind = LOCAL;
+		else if (dcl == paramdecl)
+		    kind = PARAM;
+		else
+		    CCAssert(0);
 		
-                if (token->id == '=') {
-		    int kind;
-		    if (dcl == globaldecl)
-			kind = GLOBAL;
-		    else if (dcl == localdecl)
-			kind = LOCAL;
-		    else if (dcl == paramdecl)
-			kind = PARAM;
-		    else
-			CCAssert(0);
+                if (token->id == '=')
 		    decl_initializer(decl, sym, sclass, kind);
-		}
-                
+
+		post_initializer(decl, sym, sclass, kind);
                 vec_push(v, decl);
             }
             
@@ -725,10 +908,306 @@ static node_t * initializer(node_t *ty)
     }
 }
 
-static void elem_init(node_t *ty, bool designated, struct vector *v, int i);
-#define FIRST_INIT(t) (t->id == '[' || t->id == '.' || t->id == '{' || firstexpr(t))
+node_t * initializer_list(node_t *ty)
+{
+    int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
+    node_t *ret = ast_inits();
+    struct vector *v = vec_new();
+    
+    expect('{');
+    if (FIRST_INIT(token)) {
+	if (ty) {
+	    if (isstruct(ty) || isunion(ty))
+		struct_init(ty, true, v);
+	    else if (isarray(ty))
+		array_init(ty, true, v);
+	    else
+		scalar_init(ty, v);
 
-static void eat_initializer()
+	    if (token->id == ',')
+		expect(',');
+
+	    if (FIRST_INIT(token)) {
+		warning("excess elements in %s initializer at '%s'", TYPE_NAME(unqual(ty)), token->name);
+		eat_initlist();
+	    }
+	} else {
+	    eat_initlist();
+	}
+    } else {
+	// inhibit redundant errors
+	if (ty)
+	    error("expect initializer at '%s'", token->name);
+    }
+    
+    match('}', follow);
+    EXPR_INITS(ret) = (node_t **)vtoa(v);
+    AST_TYPE(ret) = ty;
+    return ret;
+}
+
+int firstdecl(struct token *t)
+{
+    return t->kind == STATIC || t->kind == INT || t->kind == CONST || (t->id == ID && is_typedef_name(t->name));
+}
+
+int firststmt(struct token *t)
+{
+    return  t->kind == IF || firstexpr(t);
+}
+
+int firstexpr(struct token *t)
+{
+    return t->kind == ID;
+}
+
+bool istypename(struct token *t)
+{
+    return (t->kind == INT || t->kind == CONST) ||
+	(t->id == ID && is_typedef_name(t->name));
+}
+
+node_t * typename()
+{
+    node_t *basety;
+    node_t *ty = NULL;
+    
+    basety = specifiers(NULL);
+    if (token->id == '*' || token->id == '(' || token->id == '[')
+        abstract_declarator(&ty);
+    
+    attach_type(&ty, basety);
+    
+    return ty;
+}
+
+node_t ** declaration()
+{
+    CCAssert(SCOPE >= LOCAL);
+    return (node_t **)vtoa(decls(localdecl));
+}
+
+node_t * translation_unit()
+{
+    node_t *ret = ast_decl(TU_DECL, GLOBAL);
+    struct vector *v = vec_new();
+    
+    for (; token->id != EOI; ) {
+        if (firstdecl(token)) {
+            CCAssert(SCOPE == GLOBAL);
+            vec_add(v, decls(globaldecl));
+        } else {
+            if (token->id != ';')
+                error("invalid token '%s'", token->name);
+            gettok();
+        }
+    }
+    
+    DECL_EXTS(ret) = (node_t **)vtoa(v);
+    return ret;
+}
+
+static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source src)
+{
+    node_t *sym = NULL;
+    if (sclass && sclass != REGISTER) {
+        error("invalid storage class specifier '%s' in function declarator", tname(sclass));
+        sclass = 0;
+    }
+    
+    if (isfunc(ty)) {
+        ensure_func(ty, src);
+        ty = ptr_type(ty);
+    } else if (isarray(ty)) {
+        ensure_array(ty, src, PARAM);
+        ty = ptr_type(rtype(ty));
+    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+        if (!SYM_DEFINED(TYPE_TSYM(ty)))
+            warningf(src, "declaration of '%s' will not be visible outside of this function", type2s(ty));
+    }
+    
+    if (id) {
+        sym = lookup(id, identifiers);
+        if (sym && SYM_SCOPE(sym) == SCOPE)
+            redefinition_error(source, sym);
+        sym = install(id, &identifiers, SCOPE);
+    } else {
+        sym = anonymous(&identifiers, SCOPE);
+    }
+    
+    SYM_TYPE(sym) = ty;
+    SYM_SRC(sym) = src;
+    SYM_SCLASS(sym) = sclass;
+    
+    return sym;
+}
+
+static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source src)
+{
+    node_t *sym = NULL;
+    
+    CCAssert(id);
+    CCAssert(SCOPE >= LOCAL);
+    
+    if (isfunc(ty)){
+        if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
+            error("a parameter list without types is only allowed in a function definition");
+	ensure_func(ty, src);
+    } else if (isarray(ty)) {
+        ensure_array(ty, src, LOCAL);
+    }
+    
+    sym = lookup(id, identifiers);
+    if (sym && currentscope(sym)) {
+        redefinition_error(src, sym);
+    } else {
+        sym = install(id, &identifiers, SCOPE);
+        SYM_TYPE(sym) = ty;
+        SYM_SRC(sym) = src;
+        SYM_DEFINED(sym) = true;
+        SYM_SCLASS(sym) = sclass;
+    }
+
+    return sym;
+}
+
+static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source src)
+{
+    node_t *sym = NULL;
+    
+    CCAssert(id);
+    CCAssert(SCOPE == GLOBAL);
+    
+    if (sclass == AUTO || sclass == REGISTER) {
+        errorf(src, "illegal storage class on file-scoped variable");
+        sclass = 0;
+    }
+    
+    if (isfunc(ty)) {
+        if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
+            error("a parameter list without types is only allowed in a function definition");
+	ensure_func(ty, src);
+    } else if (isarray(ty)) {
+        ensure_array(ty, src, GLOBAL);
+    }
+    
+    sym = lookup(id, identifiers);
+    if (!sym || SYM_SCOPE(sym) != SCOPE) {
+        sym = install(id, &identifiers, SCOPE);
+        SYM_TYPE(sym) = ty;
+        SYM_SRC(sym) = src;
+        SYM_SCLASS(sym) = sclass;
+    } else if (sclass != TYPEDEF && eqtype(ty, SYM_TYPE(sym))) {
+        if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
+            errorf(src, "static declaration of '%s' follows non-static declaration", id);
+        else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
+            errorf(src, "non-static declaration of '%s' follows static declaration", id);
+    } else {
+        conflicting_types_error(src, sym);
+    }
+    
+    return sym;
+}
+
+static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src)
+{
+    node_t *decl = ast_decl(FUNC_DECL, SCOPE);
+    
+    CCAssert(SCOPE == PARAM);
+    
+    if (sclass && sclass != EXTERN && sclass != STATIC) {
+        error("invalid storage class specifier '%s'", tname(sclass));
+        sclass = 0;
+    }
+    
+    if (id) {
+        node_t *sym = lookup(id, identifiers);
+        if (!sym) {
+            sym = install(id, &identifiers, GLOBAL);
+            SYM_TYPE(sym) = ftype;
+            SYM_SRC(sym) = src;
+            SYM_DEFINED(sym) = true;
+            SYM_SCLASS(sym) = sclass;
+            DECL_SYM(decl) = sym;
+        } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
+            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC) {
+                errorf(src, "static declaaration of '%s' follows non-static declaration", id);
+            } else {
+                SYM_TYPE(sym) = ftype;
+                SYM_SRC(sym) = src;
+                SYM_DEFINED(sym) = true;
+                DECL_SYM(decl) = sym;
+            }
+        } else {
+            redefinition_error(src, sym);
+        }
+    }
+    
+    if (TYPE_PARAMS(ftype)) {
+        for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
+            node_t *sym = TYPE_PARAMS(ftype)[i];
+            SYM_DEFINED(sym) = true;
+            // params id is required in prototype
+            if (isanonymous(SYM_NAME(sym)))
+                errorf(SYM_SRC(sym), "parameter name omitted");
+            if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
+                if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
+                    errorf(SYM_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
+                else if (TYPE_TAG(SYM_TYPE(sym)))
+                    warningf(SYM_SRC(sym), "declaration of '%s' will not be visible outside of this function", type2s(SYM_TYPE(sym)));
+            }
+        }
+    }
+    
+    if (firstdecl(token)) {
+        // old style function definition
+        struct vector *v = vec_new();
+        enter_scope();
+        while (firstdecl(token))
+            vec_add(v, decls(paramdecl));
+        
+        for (int i=0; i < vec_len(v); i++) {
+            node_t *decl = (node_t *)vec_at(v, i);
+            node_t *sym = DECL_SYM(decl);
+            
+            CCAssert(SYM_NAME(sym));
+            if (AST_ID(decl) != VAR_DECL) {
+                warningf(SYM_SRC(sym), "empty declaraion");
+            } else if (TYPE_PARAMS(ftype)) {
+                node_t *p = NULL;
+                for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
+                    node_t *s = TYPE_PARAMS(ftype)[i];
+                    if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym))) {
+                        p = s;
+                        break;
+                    }
+                }
+                if (p)
+                    SYM_TYPE(p) = SYM_TYPE(sym);
+                else
+                    errorf(SYM_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
+            }
+	    ensure_nonvoid(AST_TYPE(decl), SYM_SRC(sym), PARAM);
+        }
+        exit_scope();
+        if (token->id != '{') {
+            error("expect function body after function declarator");
+            // TODO
+        }
+    }
+    
+    if (token->id == '{') {
+        // function definition
+        // install symbol first for backward reference
+        node_t *stmt = compound_stmt();
+        exit_scope();
+        AST_KID(decl, 0) = stmt;
+    }
+    
+    return decl;
+}
+
+static void eat_initializer(void)
 {
     if (token->id == '[' || token->id == '.') {
 	do {
@@ -747,7 +1226,7 @@ static void eat_initializer()
     initializer(NULL);
 }
 
-static void eat_initlist()
+static void eat_initlist(void)
 {
     do {
 	eat_initializer();
@@ -998,495 +1477,6 @@ static void elem_init(node_t *ty, bool designated, struct vector *v, int i)
     }
 }
 
-node_t * initializer_list(node_t *ty)
-{
-    int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    node_t *ret = ast_inits();
-    struct vector *v = vec_new();
-    
-    expect('{');
-    if (FIRST_INIT(token)) {
-	if (ty) {
-	    if (isstruct(ty) || isunion(ty))
-		struct_init(ty, true, v);
-	    else if (isarray(ty))
-		array_init(ty, true, v);
-	    else
-		scalar_init(ty, v);
-
-	    if (token->id == ',')
-		expect(',');
-
-	    if (FIRST_INIT(token)) {
-		warning("excess elements in %s initializer at '%s'", TYPE_NAME(unqual(ty)), token->name);
-		eat_initlist();
-	    }
-	} else {
-	    eat_initlist();
-	}
-    } else {
-	// inhibit redundant errors
-	if (ty)
-	    error("expect initializer at '%s'", token->name);
-    }
-    
-    match('}', follow);
-    EXPR_INITS(ret) = (node_t **)vtoa(v);
-    AST_TYPE(ret) = ty;
-    return ret;
-}
-
-int firstdecl(struct token *t)
-{
-    return t->kind == STATIC || t->kind == INT || t->kind == CONST || (t->id == ID && is_typedef_name(t->name));
-}
-
-int firststmt(struct token *t)
-{
-    return  t->kind == IF || firstexpr(t);
-}
-
-int firstexpr(struct token *t)
-{
-    return t->kind == ID;
-}
-
-bool istypename(struct token *t)
-{
-    return (t->kind == INT || t->kind == CONST) ||
-	(t->id == ID && is_typedef_name(t->name));
-}
-
-node_t * typename()
-{
-    node_t *basety;
-    node_t *ty = NULL;
-    
-    basety = specifiers(NULL);
-    if (token->id == '*' || token->id == '(' || token->id == '[')
-        abstract_declarator(&ty);
-    
-    attach_type(&ty, basety);
-    
-    return ty;
-}
-
-node_t ** declaration()
-{
-    CCAssert(SCOPE >= LOCAL);
-    return (node_t **)vtoa(decls(localdecl));
-}
-
-node_t * translation_unit()
-{
-    node_t *ret = ast_decl(TU_DECL, GLOBAL);
-    struct vector *v = vec_new();
-    
-    for (; token->id != EOI; ) {
-        if (firstdecl(token)) {
-            CCAssert(SCOPE == GLOBAL);
-            vec_add(v, decls(globaldecl));
-        } else {
-            if (token->id != ';')
-                error("invalid token '%s'", token->name);
-            gettok();
-        }
-    }
-    
-    DECL_EXTS(ret) = (node_t **)vtoa(v);
-    return ret;
-}
-
-static void ensure_func(node_t *ftype, struct source src)
-{
-    if (isarray(rtype(ftype)))
-        errorf(src, "function cannot return array type");
-    else if (isfunc(rtype(ftype)))
-        errorf(src, "function cannot return function type");
-}
-
-static void ensure_array(node_t *atype, struct source src, int level)
-{
-    if (isfunc(rtype(atype)))
-        errorf(src, "array of function is invalid");
-    else if (isvoid(rtype(atype)))
-        errorf(src, "array has incomplete element type '%s'", type2s(rtype(atype)));
-}
-
-static void ensure_nonvoid(node_t *ty, struct source src, int level)
-{
-    if (isvoid(ty))
-        errorf(src, "%s may not have 'void' type", level == PARAM ? "argument" : "variable");
-}
-
-static node_t * enum_decl()
-{
-    node_t *sym = NULL;
-    const char *id = NULL;
-    struct source src = source;
-    int follow[] = {INT, CONST, STATIC, IF, 0};
-    
-    expect(ENUM);
-    if (token->id == ID) {
-        id = token->name;
-        expect(ID);
-    }
-    if (token->id == '{') {
-        int val = 0;
-        struct vector *v = vec_new();
-        expect('{');
-        sym = tag_type(ENUM, id, src);
-        if (token->id != ID)
-            error("expect identifier");
-        while (token->id == ID) {
-            node_t *s = lookup(token->name, identifiers);
-            if (s && currentscope(s))
-                redefinition_error(source, s);
-            
-            s = install(token->name, &identifiers, SCOPE);
-            SYM_TYPE(s) = SYM_TYPE(sym);
-            SYM_SRC(s) = source;
-            SYM_SCLASS(s) = ENUM;
-            expect(ID);
-            if (token->id == '=') {
-                expect('=');
-                val = intexpr();
-            }
-            SYM_VALUE(s).u = val++;
-            vec_push(v, s);
-            if (token->id != ',')
-                break;
-            expect(',');
-        }
-        match('}', follow);
-        TYPE_IDS(SYM_TYPE(sym)) = (node_t **)vtoa(v);
-        SYM_DEFINED(sym) = true;
-    } else if (id) {
-        sym = lookup(id, tags);
-        if (sym) {
-            if (currentscope(sym) && !isenum(SYM_TYPE(sym)))
-                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(ENUM), id, type2s(SYM_TYPE(sym)),  SYM_SRC(sym).file, SYM_SRC(sym).line);
-        } else {
-            sym = tag_type(ENUM, id, src);
-        }
-    } else {
-        error("expected identifier or '{'");
-        sym = tag_type(ENUM, NULL, src);
-    }
-    
-    return SYM_TYPE(sym);
-}
-
-static node_t * struct_decl()
-{
-    int t = token->id;
-    const char *id = NULL;
-    node_t *sym = NULL;
-    struct source src = source;
-    int follow[] = {INT, CONST, STATIC, IF, '[', 0};
-    
-    expect(t);
-    if (token->id == ID) {
-        id = token->name;
-        expect(ID);
-    }
-    if (token->id == '{') {
-        expect('{');
-        sym = tag_type(t, id, src);
-        SYM_DEFINED(sym) = true;
-        fields(SYM_TYPE(sym));
-        match('}', follow);
-    } else if (id) {
-        sym = lookup(id, tags);
-        if (sym) {
-            if (currentscope(sym) && op(SYM_TYPE(sym)) != t)
-                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(t), id, type2s(SYM_TYPE(sym)), SYM_SRC(sym).file, SYM_SRC(sym).line);
-        } else {
-            sym = tag_type(t, id, src);
-        }
-    } else {
-        error("expected identifier or '{'");
-        sym = tag_type(t, NULL, src);
-    }
-
-    return SYM_TYPE(sym);
-}
-
-// TODO: not finished yet
-static void fields(node_t *sty)
-{
-    int follow[] = {INT, CONST, '}', IF, 0};
-    
-    struct vector *v = vec_new();
-    while (istypename(token)) {
-        node_t *basety = specifiers(NULL);
-        
-        for (;;) {
-            node_t *field = new_field(NULL);
-            int hasbit = 0;
-            if (token->id == ':') {
-                expect(':');
-                FIELD_BITSIZE(field) = intexpr();
-                FIELD_TYPE(field) = basety;
-                hasbit = 1;
-            } else {
-                node_t *ty = NULL;
-                const char *id = NULL;
-                declarator(&ty, &id, NULL);
-                attach_type(&ty, basety);
-                if (token->id == ':') {
-                    expect(':');
-                    FIELD_BITSIZE(field) = intexpr();
-                    hasbit = 1;
-                }
-                FIELD_TYPE(field) = ty;
-                if (id) {
-                    for (int i=0; i < vec_len(v); i++) {
-                        node_t *f = vec_at(v, i);
-                        if (FIELD_NAME(f) && !strcmp(FIELD_NAME(f), id)) {
-                            error("redefinition of '%s'", id);
-                            break;
-                        }
-                    }
-                    FIELD_NAME(field) = id;
-                }
-            }
-            
-            if (hasbit) {
-                if (!isint(FIELD_TYPE(field))) {
-                    if (FIELD_NAME(field))
-                        error("bit-field '%s' has non-integral type '%s'", FIELD_NAME(field), type2s(FIELD_TYPE(field)));
-                    else
-                        error("anonymous bit-field has non-integral type '%s'", type2s(FIELD_TYPE(field)));
-                }
-                if (FIELD_BITSIZE(field) < 0) {
-                    if (FIELD_NAME(field))
-                        error("bit-field '%s' has negative width '%d'", FIELD_NAME(field), FIELD_BITSIZE(field));
-                    else
-                        error("anonymous bit-field has negative width '%d'", FIELD_BITSIZE(field));
-                }
-                if (FIELD_BITSIZE(field) == 0 && FIELD_NAME(field))
-                    error("named bit-field '%s' has zero width", FIELD_NAME(field));
-                if (FIELD_BITSIZE(field) > BITS(FIELD_TYPE(field))) {
-                    if (FIELD_NAME(field))
-                        error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", FIELD_NAME(field), FIELD_BITSIZE(field), BITS(FIELD_TYPE(field)));
-                    else
-                        error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", FIELD_BITSIZE(field), BITS(FIELD_TYPE(field)));
-                }
-            }
-            
-            vec_push(v, field);
-            
-            if (token->id != ',')
-                break;
-            expect(',');
-        }
-        
-        match(';', follow);
-    }
-    TYPE_FIELDS(sty) = (node_t **)vtoa(v);
-}
-
-static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source src)
-{
-    node_t *sym = NULL;
-    if (sclass && sclass != REGISTER) {
-        error("invalid storage class specifier '%s' in function declarator", tname(sclass));
-        sclass = 0;
-    }
-    
-    if (isfunc(ty)) {
-        ensure_func(ty, src);
-        ty = ptr_type(ty);
-    } else if (isarray(ty)) {
-        ensure_array(ty, src, PARAM);
-        ty = ptr_type(rtype(ty));
-    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!SYM_DEFINED(TYPE_TSYM(ty)))
-            warningf(src, "declaration of '%s' will not be visible outside of this function", type2s(ty));
-    }
-    
-    if (id) {
-        sym = lookup(id, identifiers);
-        if (sym && SYM_SCOPE(sym) == SCOPE)
-            redefinition_error(source, sym);
-        sym = install(id, &identifiers, SCOPE);
-    } else {
-        sym = anonymous(&identifiers, SCOPE);
-    }
-    
-    SYM_TYPE(sym) = ty;
-    SYM_SRC(sym) = src;
-    SYM_SCLASS(sym) = sclass;
-    
-    return sym;
-}
-
-static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source src)
-{
-    node_t *sym = NULL;
-    
-    CCAssert(id);
-    CCAssert(SCOPE >= LOCAL);
-    
-    if (isfunc(ty)){
-        if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
-            error("a parameter list without types is only allowed in a function definition");
-    } else if (isarray(ty)) {
-        // TODO: convert to poniter
-    }
-    
-    sym = lookup(id, identifiers);
-    if (sym && currentscope(sym)) {
-        redefinition_error(src, sym);
-    } else {
-        sym = install(id, &identifiers, SCOPE);
-        SYM_TYPE(sym) = ty;
-        SYM_SRC(sym) = src;
-        SYM_DEFINED(sym) = true;
-        SYM_SCLASS(sym) = sclass;
-    }
-
-    return sym;
-}
-
-static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source src)
-{
-    node_t *sym = NULL;
-    
-    CCAssert(id);
-    CCAssert(SCOPE == GLOBAL);
-    
-    if (sclass == AUTO || sclass == REGISTER) {
-        errorf(src, "illegal storage class on file-scoped variable");
-        sclass = 0;
-    }
-    
-    if (isfunc(ty)) {
-        if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
-            error("a parameter list without types is only allowed in a function definition");
-    } else if (isarray(ty)) {
-        // TODO: convert to poniter
-    }
-    
-    sym = lookup(id, identifiers);
-    if (!sym || SYM_SCOPE(sym) != SCOPE) {
-        sym = install(id, &identifiers, SCOPE);
-        SYM_TYPE(sym) = ty;
-        SYM_SRC(sym) = src;
-        SYM_SCLASS(sym) = sclass;
-    } else if (sclass != TYPEDEF && eqtype(ty, SYM_TYPE(sym))) {
-        if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-            errorf(src, "static declaration of '%s' follows non-static declaration", id);
-        else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
-            errorf(src, "non-static declaration of '%s' follows static declaration", id);
-    } else {
-        conflicting_types_error(src, sym);
-    }
-    
-    return sym;
-}
-
-static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src)
-{
-    node_t *decl = ast_decl(FUNC_DECL, SCOPE);
-    
-    CCAssert(SCOPE == PARAM);
-    
-    if (sclass && sclass != EXTERN && sclass != STATIC) {
-        error("invalid storage class specifier '%s'", tname(sclass));
-        sclass = 0;
-    }
-    
-    if (id) {
-        node_t *sym = lookup(id, identifiers);
-        if (!sym) {
-            sym = install(id, &identifiers, GLOBAL);
-            SYM_TYPE(sym) = ftype;
-            SYM_SRC(sym) = src;
-            SYM_DEFINED(sym) = true;
-            SYM_SCLASS(sym) = sclass;
-            DECL_SYM(decl) = sym;
-        } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
-            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC) {
-                errorf(src, "static declaaration of '%s' follows non-static declaration", id);
-            } else {
-                SYM_TYPE(sym) = ftype;
-                SYM_SRC(sym) = src;
-                SYM_DEFINED(sym) = true;
-                DECL_SYM(decl) = sym;
-            }
-        } else {
-            redefinition_error(src, sym);
-        }
-    }
-    
-    if (TYPE_PARAMS(ftype)) {
-        for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
-            node_t *sym = TYPE_PARAMS(ftype)[i];
-            SYM_DEFINED(sym) = true;
-            // params id is required in prototype
-            if (isanonymous(SYM_NAME(sym)))
-                errorf(SYM_SRC(sym), "parameter name omitted");
-            if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
-                if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
-                    errorf(SYM_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
-                else if (TYPE_TAG(SYM_TYPE(sym)))
-                    warningf(SYM_SRC(sym), "declaration of '%s' will not be visible outside of this function", type2s(SYM_TYPE(sym)));
-            }
-        }
-    }
-    
-    if (firstdecl(token)) {
-        // old style function definition
-        struct vector *v = vec_new();
-        enter_scope();
-        while (firstdecl(token))
-            vec_add(v, decls(paramdecl));
-        
-        for (int i=0; i < vec_len(v); i++) {
-            node_t *decl = (node_t *)vec_at(v, i);
-            node_t *sym = DECL_SYM(decl);
-            
-            CCAssert(SYM_NAME(sym));
-            if (AST_ID(decl) != VAR_DECL) {
-                warningf(SYM_SRC(sym), "empty declaraion");
-            } else if (TYPE_PARAMS(ftype)) {
-                node_t *p = NULL;
-                for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
-                    node_t *s = TYPE_PARAMS(ftype)[i];
-                    if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym))) {
-                        p = s;
-                        break;
-                    }
-                }
-                if (p)
-                    SYM_TYPE(p) = SYM_TYPE(sym);
-                else
-                    errorf(SYM_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
-            }
-	    ensure_nonvoid(AST_TYPE(decl), SYM_SRC(sym), PARAM);
-        }
-        exit_scope();
-        if (token->id != '{') {
-            error("expect function body after function declarator");
-            // TODO
-        }
-    }
-    
-    if (token->id == '{') {
-        // function definition
-        // install symbol first for backward reference
-        node_t *stmt = compound_stmt();
-        exit_scope();
-        AST_KID(decl, 0) = stmt;
-    }
-    
-    return decl;
-}
-
 bool has_static_extent(node_t *sym)
 {
     return SYM_SCLASS(sym) == EXTERN ||
@@ -1562,4 +1552,49 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 
 	DECL_BODY(decl) = init;
     }
+}
+
+static void post_initializer(node_t *decl, node_t *sym, int sclass, int kind)
+{
+    node_t *ty = SYM_TYPE(sym);
+    if (isarray(ty)) {
+	
+    }
+}
+
+static void ensure_func(node_t *ftype, struct source src)
+{
+    if (isarray(rtype(ftype)))
+        errorf(src, "function cannot return array type");
+    else if (isfunc(rtype(ftype)))
+        errorf(src, "function cannot return function type");
+}
+
+static void ensure_array(node_t *atype, struct source src, int level)
+{
+    node_t *rty = atype;
+    do {
+	if (TYPE_A_ASSIGN(rty)) {
+	    if (!isint(TYPE_A_ASSIGN(rty)))
+		error("size of array has non-integer type '%s'", type2s(AST_TYPE(TYPE_A_ASSIGN(rty))));
+	}
+	if (TYPE_A_WILDCARD(rty) && level != PARAM)
+	    error("star modifier used outside of function prototype");
+	
+	if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty) || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty)) && level != PARAM)
+	    error("type qualifier used in array declarator outside of function prototype");
+	
+	rty = rtype(rty);
+	if (isfunc(rty))
+	    errorf(src, "array of function is invalid");
+	else if (isvoid(rty) || isincomplete(rty))
+	    errorf(src, "array has incomplete element type '%s'", type2s(rty));
+	
+    } while (isarray(rty));
+}
+
+static void ensure_nonvoid(node_t *ty, struct source src, int level)
+{
+    if (isvoid(ty))
+        errorf(src, "%s may not have 'void' type", level == PARAM ? "argument" : "variable");
 }

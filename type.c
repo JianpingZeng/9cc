@@ -496,6 +496,11 @@ unsigned typesize(node_t *ty)
 	return TYPE_SIZE(ty);
 }
 
+bool isincomplete(node_t *ty)
+{
+    return isarray(ty) && TYPE_A_ASSIGN(ty) == NULL && TYPE_A_WILDCARD(ty) == 0;
+}
+
 node_t * compose(node_t *ty1, node_t *ty2)
 {
     if (isqual(ty1) && isqual(ty2)) {
