@@ -557,6 +557,7 @@ static node_t * struct_decl()
         sym = tag_type(t, id, src);
         fields(SYM_TYPE(sym));
 	SYM_DEFINED(sym) = true;
+	TYPE_SIZE(SYM_TYPE(sym)) = typesize(SYM_TYPE(sym));
         match('}', follow);
     } else if (id) {
         sym = lookup(id, tags);
@@ -615,44 +616,11 @@ static void ensure_field(node_t *field)
     }
 }
 
-static void offsets(node_t *field, int *offset)
-{
-    if (FIELD_ISBIT(field)) {
-	const char *name = FIELD_NAME(field);
-	node_t *ty = FIELD_TYPE(field);
-	int bitsize = FIELD_BITSIZE(field);
-	int bits = BITS(ty);
-	int max = BITS(unsignedinttype);
-
-	if (bitsize > bits) {
-	    bitsize = bits;
-	    FIELD_BITSIZE(field) = bitsize;
-	}
-
-	if (bitsize == 0 && name == NULL) {
-	    if (*offset > 0) {
-		FIELD_OFFSET(field) = *offset;
-		FIELD_BITSIZE(field) = max - *offset;
-	    }
-	    *offset = 0;
-	} else if (bitsize > 0) {
-	    if (*offset + bitsize > max)
-		*offset = 0;
-	    
-	    FIELD_OFFSET(field) = *offset;
-	    *offset += bitsize;
-	}
-    } else {
-	*offset = 0;
-    }
-}
-
 static void fields(node_t *sty)
 {
     int follow[] = {INT, CONST, '}', IF, 0};
     
     struct vector *v = vec_new();
-    int offset = 0;
     while (istypename(token) || token->kind == STATIC) {
         node_t *basety = specifiers(NULL);
         
@@ -687,7 +655,6 @@ static void fields(node_t *sty)
             }
             
 	    ensure_field(field);
-	    offsets(field, &offset);
 	    vec_push(v, field);
             
             if (token->id != ',')

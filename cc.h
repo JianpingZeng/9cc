@@ -237,10 +237,4 @@ extern void gen(node_t *tree);
 // print.c
 extern void print_tree(node_t *tree);
 
-// cc.c
-struct cc_config {
-    int pack;			// pack bytes
-};
-extern struct cc_config cc_config;
-
 #endif

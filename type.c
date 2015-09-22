@@ -302,6 +302,7 @@ node_t * ptr_type(node_t *type)
     TYPE_KIND(ty) = POINTER;
     TYPE_TYPE(ty) = type;
     TYPE_NAME(ty) = "pointer";
+    TYPE_SIZE(ty) = ptrmetrics.size;
     
     return ty;
 }
@@ -474,7 +475,82 @@ int indexof_field(node_t *ty, node_t *field)
     return -1;
 }
 
+/* Alignment requirements
+ *
+ * The rule is that the structure will be padded out
+ * to the size the type would occupy as an element
+ * of an array of such types.
+ */
+#define MAX_BITS    BITS(inttype)
+#define MAX_BYTES   TYPE_SIZE(inttype)
+
+static void packbits(node_t *field, int *offset)
+{
+    if (FIELD_ISBIT(field)) {
+	const char *name = FIELD_NAME(field);
+	node_t *ty = FIELD_TYPE(field);
+	int bitsize = FIELD_BITSIZE(field);
+	int bits = BITS(ty);
+	int max = MAX_BITS;
+
+	if (bitsize > bits) {
+	    bitsize = bits;
+	    FIELD_BITSIZE(field) = bitsize;
+	}
+
+	if (bitsize == 0 && name == NULL) {
+	    if (*offset > 0) {
+		FIELD_OFFSET(field) = *offset;
+		FIELD_BITSIZE(field) = max - *offset;
+	    }
+	    *offset = 0;
+	} else if (bitsize > 0) {
+	    if (*offset + bitsize > max)
+		*offset = 0;
+	    
+	    FIELD_OFFSET(field) = *offset;
+	    *offset += bitsize;
+	}
+    } else {
+	*offset = 0;
+    }
+}
+
 static unsigned struct_size(node_t *ty)
+{
+    unsigned ret = 0;
+    int sz = MAX_BYTES;
+    node_t **fields = TYPE_FIELDS(ty);
+    int len = array_len((void **)fields);
+    int offset = 0;
+
+    for (int i = 0; i < len; i++) {
+	node_t *field = fields[i];
+	node_t *ty = FIELD_TYPE(field);
+	int bitsize = FIELD_BITSIZE(field);
+	int bits = BITS(ty);
+	node_t *next = i+1 < len ? fields[i+1] : NULL;
+	
+	if (FIELD_ISBIT(field)) {
+	    if (bitsize < 0 || (bitsize == 0 && FIELD_NAME(field)))
+		continue;
+	    if (bitsize > bits)
+		FIELD_BITSIZE(field) = bitsize = bits;
+
+	    if (bitsize == 0) {
+		
+	    } else {
+
+	    }
+	} else {
+	    
+	}
+    }
+
+    return ret;
+}
+
+static unsigned union_size(node_t *ty)
 {
     unsigned ret = 0;
     int sz = TYPE_SIZE(unsignedinttype);
@@ -482,26 +558,18 @@ static unsigned struct_size(node_t *ty)
 	node_t *field = TYPE_FIELDS(ty)[i];
 	if (isbitfield(field)) {
 	    if (FIELD_OFFSET(field) == 0 && FIELD_BITSIZE(field) > 0)
-		ret += sz;
+		ret = MAX(ret, ROUNDUP(sz, PACK));
 	} else {
-	    ret += typesize(FIELD_TYPE(field));
+	    int size = typesize(FIELD_TYPE(field));
+	    ret = MAX(ret, ROUNDUP(size, PACK));
 	}
     }
-
-    return ROUNDUP(ret, cc_config.pack);
-}
-
-// TODO:
-static unsigned union_size(node_t *ty)
-{
-
+    return ret;
 }
 
 unsigned typesize(node_t *ty)
 {
     if (ty == NULL)
-	return 0;
-    else if (isfunc(ty) || unqual(ty) == vartype)
 	return 0;
     else if (isstruct(ty))
 	return struct_size(ty);
@@ -509,8 +577,6 @@ unsigned typesize(node_t *ty)
 	return union_size(ty);
     else if (isarray(ty))
 	return TYPE_SIZE(ty) * typesize(rtype(ty));
-    else if (isptr(ty))
-	return ptrmetrics.size;
     else
 	return TYPE_SIZE(ty);
 }

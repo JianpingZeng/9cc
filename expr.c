@@ -827,7 +827,7 @@ static node_t * sizeof_expr()
     SAVE_ERRORS;
     if (isfunc(ty) || isvoid(ty))
         error("'sizeof' to a '%s' type is invalid", type2s(ty));
-    else if (isarray(ty) && typesize(ty) == 0)
+    else if (isarray(ty) && TYPE_SIZE(ty) == 0)
         error("'sizeof' to an incomplete array type is invalid");
     else if (n && is_bitfield(n))
 	error("'sizeof' to a bitfield is invalid");
@@ -836,7 +836,7 @@ static node_t * sizeof_expr()
 	ret = uop(t, unsignedinttype, ty);
 	EXPR_SYM(ret) = anonymous(&constants, CONSTANT);
 	SYM_TYPE(EXPR_SYM(ret)) = ty;
-	SYM_VALUE(EXPR_SYM(ret)).u = typesize(ty);
+	SYM_VALUE(EXPR_SYM(ret)).u = TYPE_SIZE(ty);
     }
 
     return ret;

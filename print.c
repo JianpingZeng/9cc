@@ -13,9 +13,10 @@ static void print_ty(node_t *ty)
 {
     if (ty) {
 	if (isfunc(ty) || isptr(ty) || isarray(ty))
-	    fprintf(stderr, RED_BOLD("'%s' ") GREEN("'%s' "), TYPE_NAME(unqual(ty)), type2s(ty));
-	else
-	    fprintf(stderr, GREEN("'%s' "), type2s(ty));
+	    fprintf(stderr, RED_BOLD("'%s' "), TYPE_NAME(unqual(ty)));
+	fprintf(stderr, GREEN("'%s' "), type2s(ty));
+	if (isarray(ty) || isstruct(ty) || isunion(ty))
+	    fprintf(stderr, YELLOW("<size=%ld> "), TYPE_SIZE(ty));
     }
 }
 
@@ -28,9 +29,6 @@ static void print_type(node_t *node, struct print_context context)
 
 static void print_field(node_t *node, struct print_context context)
 {
-    for (int i=0; i < context.level; i++)
-        fprintf(stderr, "  ");
-
     const char *name = FIELD_NAME(node);
     node_t *ty = FIELD_TYPE(node);
     

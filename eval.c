@@ -49,8 +49,8 @@ static node_t * arith2arith(node_t *dty, node_t *l)
     node_t *sty = AST_TYPE(l);
     if (isint(dty) && isint(sty)) {
 	union value dst_val = SYM_VALUE(EXPR_SYM(l));
-	int src_size = typesize(sty);
-	int dst_size = typesize(dty);
+	int src_size = TYPE_SIZE(sty);
+	int dst_size = TYPE_SIZE(dty);
 	if (src_size > dst_size) {
 	    // narrow
 	    dst_val.u &= TYPE_LIMITS_MAX(dty).u;
