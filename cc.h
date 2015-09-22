@@ -107,8 +107,7 @@ extern bool has_static_extent(node_t *sym);
 // stmt.c
 extern node_t * compound_stmt();
 
-#define isbitfield(field)    (FIELD_BITSIZE(field) > 0)
-
+// type.c
 extern void type_init();
 extern int op(node_t *type);
 extern void prepend_type(node_t **typelist, node_t *type);
@@ -238,5 +237,10 @@ extern void gen(node_t *tree);
 // print.c
 extern void print_tree(node_t *tree);
 
+// cc.c
+struct cc_config {
+    int pack;			// pack bytes
+};
+extern struct cc_config cc_config;
 
 #endif

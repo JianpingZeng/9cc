@@ -10,7 +10,7 @@
 #define FLEX_ARRAY      /* flexible array */
 
 #define ALIGN_SIZE          (sizeof (long long))
-#define ROUNDUP(x)          (((x)+((ALIGN_SIZE)-1))&(~((ALIGN_SIZE)-1)))
+#define ROUNDUP(x, align)   (((x)+((align)-1))&(~((align)-1)))
 
 #define MAX(x, y)    (((x) > (y)) ? (x) : (y))
 #define MIN(x, y)    ((x) < (y) ? (x) : (y))

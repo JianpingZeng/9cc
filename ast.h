@@ -91,11 +91,13 @@ struct ast_type {
 
 #define FIELD_NAME(NODE)        AST_NAME(NODE)
 #define FIELD_TYPE(NODE)        AST_TYPE(NODE)
+#define FIELD_ISBIT(NODE)       ((NODE)->field.isbit)
 #define FIELD_OFFSET(NODE)      ((NODE)->field.offset)
 #define FIELD_BITSIZE(NODE)     ((NODE)->field.bitsize)
 
 struct ast_field {
     struct ast_common common;
+    bool isbit;
     int offset;
     int bitsize;
 };
@@ -220,6 +222,8 @@ extern node_t * ast_vinit();
 #define is_while_stmt(n)    (AST_ID(n) == WHILE_STMT)
 #define is_dowhile_stmt(n)  (AST_ID(n) == DO_WHILE_STMT)
 #define is_iteration_stmt(n) (is_for_stmt(n) || is_while_stmt(n) || is_dowhile_stmt(n))
+
+#define isbitfield(field)    (FIELD_ISBIT(field))
 
 #define BitCast                 "BitCast"
 #define LValueToRValue          "LValueToRValue"

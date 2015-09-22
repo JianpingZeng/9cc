@@ -4,6 +4,8 @@ static const char *ifile;
 static const char *ofile;
 static FILE *fp;
 
+struct cc_config cc_config = { .pack = 4 };
+
 static void parseopts(int argc, const char *argv[])
 {
     for (int i=1; i < argc; i++) {

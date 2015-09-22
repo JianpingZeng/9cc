@@ -26,6 +26,27 @@ static void print_type(node_t *node, struct print_context context)
     fprintf(stderr, "\n");
 }
 
+static void print_field(node_t *node, struct print_context context)
+{
+    for (int i=0; i < context.level; i++)
+        fprintf(stderr, "  ");
+
+    const char *name = FIELD_NAME(node);
+    node_t *ty = FIELD_TYPE(node);
+    
+    fprintf(stderr, GREEN("%s "), nname(node));
+    if (isbitfield(node)) {
+	fprintf(stderr, PURPLE("bit "));
+	if (name)
+	    fprintf(stderr, YELLOW("<offset=%d, size=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
+	else
+	    fprintf(stderr, RED("<offset=%d, size=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
+    }
+    print_ty(ty);
+    fprintf(stderr, CYAN("%s"), STR(name));
+    fprintf(stderr, "\n");
+}
+
 static void print_decl(node_t *node, struct print_context context)
 {
     int level;
@@ -55,6 +76,19 @@ static void print_decl(node_t *node, struct print_context context)
     if (init) {
         struct print_context con = {level, init};
         print_tree1(con);
+    }
+
+    if (AST_ID(node) == STRUCT_DECL || AST_ID(node) == UNION_DECL) {
+	node_t *sym = DECL_SYM(node);
+	if (sym && SYM_DEFINED(sym)) {
+	    node_t *ty = SYM_TYPE(sym);
+	    for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
+		node_t *field = TYPE_FIELDS(ty)[i];
+		struct print_context con = { level, field };
+	        print_tree1(con);
+	    }
+
+	}
     }
 }
 
@@ -187,6 +221,8 @@ static void print_tree1(struct print_context context)
         print_stmt(node, context);
     else if (istype(node))
 	print_type(node, context);
+    else if (isfield(node))
+	print_field(node, context);
     else
         CCAssert(0);
 

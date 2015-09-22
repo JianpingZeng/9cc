@@ -575,13 +575,12 @@ static node_t * struct_decl()
     return SYM_TYPE(sym);
 }
 
-// TODO: not finished yet
-static void ensure_field(node_t *field, bool isbit)
+static void ensure_field(node_t *field)
 {
     const char *name = FIELD_NAME(field);
     node_t *ty = FIELD_TYPE(field);
     
-    if (isbit) {
+    if (FIELD_ISBIT(field)) {
 	int bitsize = FIELD_BITSIZE(field);
 	int bits = BITS(ty);
 	
@@ -616,22 +615,54 @@ static void ensure_field(node_t *field, bool isbit)
     }
 }
 
+static void offsets(node_t *field, int *offset)
+{
+    if (FIELD_ISBIT(field)) {
+	const char *name = FIELD_NAME(field);
+	node_t *ty = FIELD_TYPE(field);
+	int bitsize = FIELD_BITSIZE(field);
+	int bits = BITS(ty);
+	int max = BITS(unsignedinttype);
+
+	if (bitsize > bits) {
+	    bitsize = bits;
+	    FIELD_BITSIZE(field) = bitsize;
+	}
+
+	if (bitsize == 0 && name == NULL) {
+	    if (*offset > 0) {
+		FIELD_OFFSET(field) = *offset;
+		FIELD_BITSIZE(field) = max - *offset;
+	    }
+	    *offset = 0;
+	} else if (bitsize > 0) {
+	    if (*offset + bitsize > max)
+		*offset = 0;
+	    
+	    FIELD_OFFSET(field) = *offset;
+	    *offset += bitsize;
+	}
+    } else {
+	*offset = 0;
+    }
+}
+
 static void fields(node_t *sty)
 {
     int follow[] = {INT, CONST, '}', IF, 0};
     
     struct vector *v = vec_new();
+    int offset = 0;
     while (istypename(token) || token->kind == STATIC) {
         node_t *basety = specifiers(NULL);
         
         for (;;) {
             node_t *field = new_field(NULL);
-            bool isbit = false;
             if (token->id == ':') {
                 expect(':');
                 FIELD_BITSIZE(field) = intexpr();
                 FIELD_TYPE(field) = basety;
-                isbit = true;
+                FIELD_ISBIT(field) = true;
             } else {
                 node_t *ty = NULL;
                 const char *id = NULL;
@@ -640,7 +671,7 @@ static void fields(node_t *sty)
                 if (token->id == ':') {
                     expect(':');
                     FIELD_BITSIZE(field) = intexpr();
-                    isbit = true;
+                    FIELD_ISBIT(field) = true;
                 }
                 FIELD_TYPE(field) = ty;
                 if (id) {
@@ -655,8 +686,9 @@ static void fields(node_t *sty)
                 }
             }
             
-	    ensure_field(field, isbit);
-            vec_push(v, field);
+	    ensure_field(field);
+	    offsets(field, &offset);
+	    vec_push(v, field);
             
             if (token->id != ',')
                 break;

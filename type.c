@@ -474,10 +474,27 @@ int indexof_field(node_t *ty, node_t *field)
     return -1;
 }
 
-// TODO: 
 static unsigned struct_size(node_t *ty)
 {
-    return 0;
+    unsigned ret = 0;
+    int sz = TYPE_SIZE(unsignedinttype);
+    for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
+	node_t *field = TYPE_FIELDS(ty)[i];
+	if (isbitfield(field)) {
+	    if (FIELD_OFFSET(field) == 0 && FIELD_BITSIZE(field) > 0)
+		ret += sz;
+	} else {
+	    ret += typesize(FIELD_TYPE(field));
+	}
+    }
+
+    return ROUNDUP(ret, cc_config.pack);
+}
+
+// TODO:
+static unsigned union_size(node_t *ty)
+{
+
 }
 
 unsigned typesize(node_t *ty)
@@ -486,8 +503,10 @@ unsigned typesize(node_t *ty)
 	return 0;
     else if (isfunc(ty) || unqual(ty) == vartype)
 	return 0;
-    else if (isstruct(ty) || isunion(ty))
+    else if (isstruct(ty))
 	return struct_size(ty);
+    else if (isunion(ty))
+	return union_size(ty);
     else if (isarray(ty))
 	return TYPE_SIZE(ty) * typesize(rtype(ty));
     else if (isptr(ty))
