@@ -576,6 +576,41 @@ static node_t * struct_decl()
 }
 
 // TODO: not finished yet
+static void ensure_field(node_t *field, bool isbit)
+{
+    if (isbit) {
+	const char *name = FIELD_NAME(field);
+	node_t *ty = FIELD_TYPE(field);
+	int bitsize = FIELD_BITSIZE(field);
+	int bits = BITS(ty);
+	
+	if (!isint(ty)) {
+	    if (name)
+		error("bit-field '%s' has non-integral type '%s'", name, type2s(ty));
+	    else
+		error("anonymous bit-field has non-integral type '%s'", type2s(ty));
+	}
+	
+	if (bitsize < 0) {
+	    if (name)
+		error("bit-field '%s' has negative width '%d'", name, bitsize);
+	    else
+		error("anonymous bit-field has negative width '%d'", bitsize);
+	}
+	
+	if (bitsize == 0 && name)
+	    error("named bit-field '%s' has zero width", name);
+	
+	if (bitsize > bits) {
+	    if (name)
+		error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", name, bitsize, bits);
+	    else
+		error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", bitsize, bits);
+	}
+    }
+    
+}
+
 static void fields(node_t *sty)
 {
     int follow[] = {INT, CONST, '}', IF, 0};
@@ -586,12 +621,12 @@ static void fields(node_t *sty)
         
         for (;;) {
             node_t *field = new_field(NULL);
-            int hasbit = 0;
+            bool isbit = false;
             if (token->id == ':') {
                 expect(':');
                 FIELD_BITSIZE(field) = intexpr();
                 FIELD_TYPE(field) = basety;
-                hasbit = 1;
+                isbit = true;
             } else {
                 node_t *ty = NULL;
                 const char *id = NULL;
@@ -600,7 +635,7 @@ static void fields(node_t *sty)
                 if (token->id == ':') {
                     expect(':');
                     FIELD_BITSIZE(field) = intexpr();
-                    hasbit = 1;
+                    isbit = true;
                 }
                 FIELD_TYPE(field) = ty;
                 if (id) {
@@ -615,29 +650,7 @@ static void fields(node_t *sty)
                 }
             }
             
-            if (hasbit) {
-                if (!isint(FIELD_TYPE(field))) {
-                    if (FIELD_NAME(field))
-                        error("bit-field '%s' has non-integral type '%s'", FIELD_NAME(field), type2s(FIELD_TYPE(field)));
-                    else
-                        error("anonymous bit-field has non-integral type '%s'", type2s(FIELD_TYPE(field)));
-                }
-                if (FIELD_BITSIZE(field) < 0) {
-                    if (FIELD_NAME(field))
-                        error("bit-field '%s' has negative width '%d'", FIELD_NAME(field), FIELD_BITSIZE(field));
-                    else
-                        error("anonymous bit-field has negative width '%d'", FIELD_BITSIZE(field));
-                }
-                if (FIELD_BITSIZE(field) == 0 && FIELD_NAME(field))
-                    error("named bit-field '%s' has zero width", FIELD_NAME(field));
-                if (FIELD_BITSIZE(field) > BITS(FIELD_TYPE(field))) {
-                    if (FIELD_NAME(field))
-                        error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", FIELD_NAME(field), FIELD_BITSIZE(field), BITS(FIELD_TYPE(field)));
-                    else
-                        error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", FIELD_BITSIZE(field), BITS(FIELD_TYPE(field)));
-                }
-            }
-            
+	    ensure_field(field, isbit);
             vec_push(v, field);
             
             if (token->id != ',')
