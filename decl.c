@@ -1027,8 +1027,8 @@ node_t * translation_unit(void)
 {
     node_t *ret = ast_decl(TU_DECL, GLOBAL);
     struct vector *v = vec_new();
-    
-    for (; token->id != EOI; ) {
+
+    for (gettok(); token->id != EOI; ) {
         if (firstdecl(token)) {
             CCAssert(SCOPE == GLOBAL);
             vec_add(v, decls(globaldecl));

@@ -32,7 +32,6 @@ static node_t * compile(const char *code)
     
     input_init();
     type_init();
-    gettok();
     n = translation_unit();
     fclose(fp);
     if (errors)
