@@ -424,6 +424,17 @@ static node_t * arrays(bool abstract)
 	}
     }
 
+    // try evaluate the length
+    if (TYPE_A_ASSIGN(atype)) {
+	node_t *ret = eval(TYPE_A_ASSIGN(atype), inttype);
+	if (ret) {
+	    if (isint(AST_TYPE(ret)))
+		TYPE_LEN(atype) = SYM_VALUE_I(EXPR_SYM(ret));
+	    else if (isfloat(AST_TYPE(ret)))
+		TYPE_LEN(atype) = (int)SYM_VALUE_D(EXPR_SYM(ret));
+	}
+    }
+
     return atype;
 }
 
@@ -1601,10 +1612,12 @@ static void ensure_array(node_t *atype, struct source src, int level)
 {
     node_t *rty = atype;
     do {
-	if (TYPE_A_ASSIGN(rty)) {
-	    if (!isint(TYPE_A_ASSIGN(rty)))
-		error("size of array has non-integer type '%s'", type2s(AST_TYPE(TYPE_A_ASSIGN(rty))));
+	node_t *assign = TYPE_A_ASSIGN(rty);
+	if (assign) {
+	    if (!isint(AST_TYPE(assign)))
+		error("size of array has non-integer type '%s'", type2s(AST_TYPE(assign)));
 	}
+	
 	if (TYPE_A_WILDCARD(rty) && level != PARAM)
 	    error("star modifier used outside of function prototype");
 	
