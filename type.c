@@ -484,8 +484,8 @@ int indexof_field(node_t *ty, node_t *field)
  * to the size the type would occupy as an element
  * of an array of such types.
  */
-#define MAX_BITS    BITS(inttype)
-#define MAX_BYTES   TYPE_SIZE(inttype)
+#define MAX_BITFIELD_BITS    BITS(inttype)
+#define MAX_BITFIELD_BYTES   TYPE_SIZE(inttype)
 #define PACK        4
 static unsigned typesize(node_t *ty);
 
@@ -503,7 +503,7 @@ static void packbits(node_t *ty)
 	    node_t *ty = FIELD_TYPE(field);
 	    int bitsize = FIELD_BITSIZE(field);
 	    int bits = BITS(ty);
-	    int max = MAX_BITS;
+	    int max = MAX_BITFIELD_BITS;
 
 	    if (bitsize > bits) {
 		bitsize = bits;
@@ -533,7 +533,7 @@ static void packbits(node_t *ty)
 static unsigned struct_size(node_t *ty)
 {
     unsigned ret = 0;
-    int sz = MAX_BYTES;
+    int sz = MAX_BITFIELD_BYTES;
     node_t **fields = TYPE_FIELDS(ty);
     int len = array_len((void **)fields);
     int offset = 0;
@@ -561,7 +561,8 @@ static unsigned struct_size(node_t *ty)
 static unsigned union_size(node_t *ty)
 {
     unsigned ret = 0;
-    int sz = TYPE_SIZE(unsignedinttype);
+    int sz = MAX_BITFIELD_BYTES;
+    
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
     	node_t *field = TYPE_FIELDS(ty)[i];
     	if (isbitfield(field)) {
