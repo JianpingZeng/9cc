@@ -37,6 +37,7 @@ struct ast_common {
  *
  * macros begin with '_' is for 'atom' access,
  * others use the unqual version of the type.
+ * See cc.h for more details.
  */
 #define _TYPE_KIND(NODE)         ((NODE)->type.kind)
 #define _TYPE_NAME(NODE)         AST_NAME(NODE)

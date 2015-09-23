@@ -131,24 +131,24 @@ extern node_t * compose(node_t *ty1, node_t *ty2);
 extern bool qual_contains(node_t *ty1, node_t *ty2);
 extern bool isincomplete(node_t *ty);
 
-extern node_t    *chartype;               // char
-extern node_t    *unsignedchartype;       // unsigned char
-extern node_t    *signedchartype;         // signed char
-extern node_t    *wchartype;              // wchar_t
-extern node_t    *shorttype;              // short (int)
-extern node_t    *unsignedshorttype;      // unsigned short (int)
-extern node_t    *inttype;                // int
-extern node_t    *unsignedinttype;        // unsigned (int)
-extern node_t    *longtype;               // long
-extern node_t    *unsignedlongtype;       // unsigned long (int)
-extern node_t    *longlongtype;           // long long (int)
-extern node_t    *unsignedlonglongtype;   // unsigned long long (int)
-extern node_t    *floattype;              // float
-extern node_t    *doubletype;             // double
-extern node_t    *longdoubletype;         // long double
-extern node_t    *voidtype;               // void
-extern node_t    *booltype;	       // bool
-extern node_t    *vartype;		       // variable type
+extern node_t  *chartype;               // char
+extern node_t  *unsignedchartype;       // unsigned char
+extern node_t  *signedchartype;         // signed char
+extern node_t  *wchartype;              // wchar_t
+extern node_t  *shorttype;              // short (int)
+extern node_t  *unsignedshorttype;      // unsigned short (int)
+extern node_t  *inttype;                // int
+extern node_t  *unsignedinttype;        // unsigned (int)
+extern node_t  *longtype;               // long
+extern node_t  *unsignedlongtype;       // unsigned long (int)
+extern node_t  *longlongtype;           // long long (int)
+extern node_t  *unsignedlonglongtype;   // unsigned long long (int)
+extern node_t  *floattype;              // float
+extern node_t  *doubletype;             // double
+extern node_t  *longdoubletype;         // long double
+extern node_t  *voidtype;               // void
+extern node_t  *booltype;	        // bool
+extern node_t  *vartype;		// variable type
 
 #define BITS(type)      (CHAR_BIT * (TYPE_SIZE(type)))
 
