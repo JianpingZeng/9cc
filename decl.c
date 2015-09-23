@@ -147,8 +147,8 @@ static node_t * specifiers(int *sclass)
 	    break;
                 
 	case ID:
-	    if (is_typedef_name(token->name)) {
-		tydefty = lookup_typedef_name(token->name);
+	    tydefty = lookup_typedef(token->name);
+	    if (tydefty) {
 		p = &type;
 		gettok();
 	    } else {
@@ -984,7 +984,7 @@ node_t * initializer_list(node_t *ty)
 
 int firstdecl(struct token *t)
 {
-    return t->kind == STATIC || t->kind == INT || t->kind == CONST || (t->id == ID && is_typedef_name(t->name));
+    return t->kind == STATIC || t->kind == INT || t->kind == CONST || (t->id == ID && istypedef(t->name));
 }
 
 int firststmt(struct token *t)
@@ -1000,7 +1000,7 @@ int firstexpr(struct token *t)
 bool istypename(struct token *t)
 {
     return (t->kind == INT || t->kind == CONST) ||
-	(t->id == ID && is_typedef_name(t->name));
+	(t->id == ID && istypedef(t->name));
 }
 
 node_t * typename(void)

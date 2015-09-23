@@ -266,7 +266,7 @@ node_t * unqual(node_t *ty)
     return isqual(ty) ? _TYPE_TYPE(ty) : ty;
 }
 
-node_t * lookup_typedef_name(const char *id)
+node_t * lookup_typedef(const char *id)
 {
     if (!id)
         return NULL;
@@ -279,9 +279,9 @@ node_t * lookup_typedef_name(const char *id)
         return NULL;
 }
 
-bool is_typedef_name(const char *id)
+bool istypedef(const char *id)
 {
-    node_t *ty = lookup_typedef_name(id);
+    node_t *ty = lookup_typedef(id);
     return ty != NULL;
 }
 
