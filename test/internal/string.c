@@ -1,5 +1,4 @@
-#include "test.h"
-#include "cc.h"
+#include "internal.h"
 
 static void test_strip()
 {

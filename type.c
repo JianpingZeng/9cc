@@ -486,8 +486,7 @@ int indexof_field(node_t *ty, node_t *field)
  */
 #define MAX_BITFIELD_BITS    BITS(inttype)
 #define MAX_BITFIELD_BYTES   TYPE_SIZE(inttype)
-#define PACK        4
-static unsigned typesize(node_t *ty);
+#define PACK  4
 
 // TODO: 
 static void packbits(node_t *ty)
@@ -538,7 +537,7 @@ static unsigned struct_size(node_t *ty)
     int len = array_len((void **)fields);
     int offset = 0;
 
-    packbits(ty);
+    // packbits(ty);
     for (int i = 0; i < len; i++) {
     	node_t *field = fields[i];
     	node_t *ty = FIELD_TYPE(field);
@@ -549,8 +548,8 @@ static unsigned struct_size(node_t *ty)
     	    
     	} else {
 	    int align = TYPE_SIZE(ty);
-	    offset = ROUNDUP(offset, align);
-	    FIELD_OFFSET(field) = offset;
+	    FIELD_OFFSET(field) = ROUNDUP(offset, align);
+	    offset += TYPE_SIZE(ty);
     	}
     }
 
@@ -574,31 +573,28 @@ static unsigned union_size(node_t *ty)
     return ret;
 }
 
-// TODO: 
 static unsigned array_size(node_t *ty)
 {
-    if (TYPE_LEN(ty) > 0)
-	return TYPE_LEN(ty) * typesize(rtype(ty));
-    else
-	return 0;
-}
-
-// TODO: 
-static unsigned typesize(node_t *ty)
-{
+    unsigned size = 1;
     
+    do {
+	size *= TYPE_LEN(ty);
+	ty = rtype(ty);
+    } while (isarray(ty));
+
+    size *= TYPE_SIZE(ty);
+    
+    return size;
 }
 
-// TODO:
 void set_typesize(node_t *ty)
 {
-    if (isarray(ty)) {
-	
-    } else if (isstruct(ty)) {
-
-    } else if (isunion(ty)) {
-
-    }
+    if (isarray(ty))
+	TYPE_SIZE(ty) = array_size(ty);
+    else if (isstruct(ty))
+	TYPE_SIZE(ty) = struct_size(ty);
+    else if (isunion(ty))
+	TYPE_SIZE(ty) = union_size(ty);
 }
 
 bool isincomplete(node_t *ty)

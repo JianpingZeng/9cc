@@ -1,5 +1,4 @@
-#include "test.h"
-#include "cc.h"
+#include "internal.h"
 
 static void test_qual()
 {
@@ -8,8 +7,8 @@ static void test_qual()
     
     expectp(unqual(ty1), inttype);
     expectp(unqual(ty2), inttype);
-    expecti(kind(ty1), INT);
-    expecti(TYPE_KIND(ty1), CONST);
+    expecti(TYPE_KIND(ty1), INT);
+    expecti(_TYPE_KIND(ty1), CONST);
     expecti(isconst(ty1), true);
 }
 
@@ -33,8 +32,8 @@ static void test_eq()
     ty4 = qual(CONST, ty4);
     expecti(eqtype(ty3, ty4), true);
     
-    expecti(kind(ty3), POINTER);
-    expecti(TYPE_KIND(ty3), CONST);
+    expecti(TYPE_KIND(ty3), POINTER);
+    expecti(_TYPE_KIND(ty3), CONST);
     
 }
 
