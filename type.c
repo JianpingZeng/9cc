@@ -780,8 +780,10 @@ static void dotype2s(struct vector *l, struct vector *r)
 		struct vector *v = type2s1(ty);
 		vec_add(r, v);
 		vec_free(v);
-		if (i < len - 1)
+		if (i < len - 1) {
 		    vec_push(r, paren(FCOMMA, NULL));
+		    vec_push(r, paren(FSPACE, NULL));
+		}
 	    }
 	    vec_push(r, paren(RPAREN, s->type));
 	    vec_pop(l);
