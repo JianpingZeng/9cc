@@ -15,7 +15,7 @@
 
 #endif	// SHOW_CALL_TREE
 
-#ifdef COLOR_TERM
+#ifdef CONFIG_COLOR_TERM
 
 #define RESET    "\e[0m"
 #define CLEAR    "\e[1;38m"
@@ -63,7 +63,7 @@
 #define CYAN_BOLD_COLOR     ""
 #define WHITE_BOLD_COLOR    ""
 
-#endif	// COLOR_TERM
+#endif	// CONFIG_COLOR_TERM
 
 #define BLACK(str)    BLACK_COLOR str RESET
 #define RED(str)      RED_COLOR str RESET

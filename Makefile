@@ -46,21 +46,21 @@ SYS_INC+=$(wildcard $(SYSDIR)/*.h)
 ARCH:=$(shell uname -m)
 
 ifneq (, $(findstring CYGWIN, $(shell uname)))
-CFLAGS+=-DCYGWIN -D_BSD_SOURCE
-CFLAGS+=-DCOLOR_TERM
+CFLAGS+=-DCONFIG_CYGWIN -D_BSD_SOURCE
+CFLAGS+=-DCONFIG_COLOR_TERM
 else
-CFLAGS+=-DLINUX -D_BSD_SOURCE
+CFLAGS+=-DCONFIG_LINUX -D_BSD_SOURCE
 ifeq ($(shell test $(shell tput colors) -gt 7; echo $$?), 0)
-CFLAGS+=-DCOLOR_TERM
+CFLAGS+=-DCONFIG_COLOR_TERM
 endif
 endif
 
 ifeq ($(ARCH), i386)
-CFLAGS+=-DX32
+CFLAGS+=-DCONFIG_X32
 else ifeq ($(ARCH), i686)
-CFLAGS+=-DX32
+CFLAGS+=-DCONFIG_X32
 else ifeq ($(ARCH), x86_64)
-CFLAGS+=-DX64
+CFLAGS+=-DCONFIG_X64
 endif
 
 all: $(MCC)

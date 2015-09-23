@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#ifdef LINUX
+#ifdef CONFIG_LINUX
 // trace
 #include <execinfo.h>
 #include <signal.h>
@@ -28,7 +28,7 @@ static void handler(int sig)
 
 void setup_sys()
 {
-#ifdef LINUX
+#ifdef CONFIG_LINUX
     signal(SIGSEGV, handler);
     signal(SIGABRT, handler);
 #endif

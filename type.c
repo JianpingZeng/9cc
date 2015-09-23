@@ -17,15 +17,15 @@ node_t   *floattype;              // float
 node_t   *doubletype;             // double
 node_t   *longdoubletype;         // long double
 node_t   *voidtype;               // void
-node_t   *booltype;	       // bool
-node_t   *vartype;		       // variable type
+node_t   *booltype;	          // bool
+node_t   *vartype;		  // variable type
 
 struct metrics {
     size_t size;
     unsigned rank;
 }
                        // size   rank
-#ifdef X32
+#ifdef CONFIG_X32
     boolmetrics         = { 1,  10},
     charmetrics         = { 1,  20},
     shortmetrics        = { 2,  30},
@@ -37,7 +37,7 @@ struct metrics {
     doublemetrics       = { 8,  80},
     longdoublemetrics   = { 8,  90},
     ptrmetrics          = { 4 },
-#elif defined X64
+#elif defined CONFIG_X64
     boolmetrics         = { 1,  10},
     charmetrics         = { 1,  20},
     shortmetrics        = { 2,  30},
@@ -582,17 +582,18 @@ static unsigned array_size(node_t *ty)
 	return 0;
 }
 
+// TODO: 
 static unsigned typesize(node_t *ty)
 {
-
+    if (ty == NULL)
+	return 0;
+    
 }
 
-// Caculate size of type
+// TODO:
 void set_typesize(node_t *ty)
 {
-    if (ty == NULL)
-	return;
-    // TODO: 
+    
 }
 
 bool isincomplete(node_t *ty)
