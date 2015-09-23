@@ -8,10 +8,8 @@ static int size_code(const char *code)
     return TYPE_SIZE(ty1);
 }
 
-static void expect1(const char *code)
+static const char * gcc_code(const char *code)
 {
-    int size1 = size_code(code);
-
     // code for gcc
     struct strbuf *s = strbuf_new();
     strbuf_cats(s, "#include <stdio.h>\n");
@@ -20,27 +18,50 @@ static void expect1(const char *code)
     strbuf_cats(s, "int main(int argc, char *argv[]) {\n");
     strbuf_cats(s, "printf(\"%ld\\n\", sizeof (struct S));\n");
     strbuf_cats(s, "}\n");
-    const char *ret = gcc_compile(s->str);
+
+    return s->str;
+}
+
+static void expect3(int i, const char *code)
+{
+    int size1 = size_code(code);
+    const char *ret = gcc_compile(gcc_code(code));
     int size2 = atoi(ret);
     free((void *)ret);
     
     expecti(size1, size2);
+    expecti(size1, i);
 }
 
-#define xx(s)    expect1(CODE(s))
+#define xx(i, s)       expect3(i, CODE(s))
 
 static void test_struct1()
 {
-    xx(
+    xx(1,
        struct S {
 	   char c;
        };
     );
 
-    xx(
+    xx(4,
        struct S {
 	   char a;
 	   short b;
+       };
+    );
+
+    xx(4,
+       struct S {
+	   short a;
+	   char b;
+       };
+    );
+
+    xx(3,
+       struct S {
+	   char a;
+	   char b;
+	   char c;
        };
     );
 }
