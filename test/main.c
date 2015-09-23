@@ -42,7 +42,7 @@ void fexpecti(char *file, int line, int a, int b)
     if (a == b)
         return;
     printfail();
-    printf("%s:%d: %d expected, but got %d\n", file, line, a, b);
+    printf("%s:%d: %d expected, but got %d\n", file, line, b, a);
     exit(1);
 }
 
@@ -51,7 +51,7 @@ void fexpectl(char *file, int line, long a, long b)
     if (a == b)
         return;
     printfail();
-    printf("%s:%d: %ld expected, but got %ld\n", file, line, a, b);
+    printf("%s:%d: %ld expected, but got %ld\n", file, line, b, a);
     exit(1);
 }
 
@@ -60,7 +60,7 @@ void fexpects(char *file, int line, const char *a, const char *b)
     if (!strcmp(a, b))
         return;
     printfail();
-    printf("%s:%d: \"%s\" expected, but got \"%s\"\n", file, line, a, b);
+    printf("%s:%d: \"%s\" expected, but got \"%s\"\n", file, line, b, a);
     exit(1);
 }
 
@@ -69,7 +69,7 @@ void fexpectf(char *file, int line, float a, float b)
     if (a == b)
         return;
     printfail();
-    printf("%s:%d: %f expected, but got %f\n", file, line, a, b);
+    printf("%s:%d: %f expected, but got %f\n", file, line, b, a);
     exit(1);
 }
 
@@ -78,7 +78,7 @@ void fexpectd(char *file, int line, double a, double b)
     if (a == b)
         return;
     printfail();
-    printf("%s:%d: %lf expected, but got %lf\n", file, line, a, b);
+    printf("%s:%d: %lf expected, but got %lf\n", file, line, b, a);
     exit(1);
 }
 
@@ -87,7 +87,7 @@ void fexpectp(char *file, int line, void *a, void *b)
     if (a == b)
         return;
     printfail();
-    printf("%s:%d: %p expected, but got %p\n", file, line, a, b);
+    printf("%s:%d: %p expected, but got %p\n", file, line, b, a);
     exit(1);
 }
 

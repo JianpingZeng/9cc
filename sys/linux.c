@@ -54,6 +54,15 @@ int file_exists(const char *path)
     return stat(path, &st) == 0;
 }
 
+int file_size(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) == 0)
+	return st.st_size;
+    else
+	return -1;
+}
+
 int isdir(const char *path)
 {
     if (path == NULL)

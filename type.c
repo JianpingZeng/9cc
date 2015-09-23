@@ -536,6 +536,7 @@ static unsigned struct_size(node_t *ty)
     node_t **fields = TYPE_FIELDS(ty);
     int len = array_len((void **)fields);
     int offset = 0;
+    int max = 1;
 
     // packbits(ty);
     for (int i = 0; i < len; i++) {
@@ -550,10 +551,11 @@ static unsigned struct_size(node_t *ty)
 	    int align = TYPE_SIZE(ty);
 	    FIELD_OFFSET(field) = ROUNDUP(offset, align);
 	    offset += TYPE_SIZE(ty);
+	    max = MAX(max, TYPE_SIZE(ty));
     	}
     }
 
-    return ret;
+    return ROUNDUP(offset, max);
 }
 
 // TODO: 

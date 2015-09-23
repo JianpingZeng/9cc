@@ -57,3 +57,38 @@ node_t * compile(const char *code)
         fail("Compile error");
     return n;
 }
+
+const char * gcc_compile(const char *code)
+{
+    const char *ifile = write_str(code);
+    const char *ofile = join(tmpdir, "a.out");
+    const char *argv[] = { "/usr/bin/gcc", ifile, "-o", ofile, NULL};
+    callsys(argv[0], (char **)argv);
+    if (!file_exists(ofile))
+	fail("gcc compile failed");
+
+    const char *rfile = join(tmpdir, "res");
+    const char *cmd = format("%s > %s", ofile, rfile);
+    const char *argv2[] = { "/bin/sh", "-c", cmd,  NULL };
+    callsys(argv2[0], (char **)argv2);
+    if (!file_exists(rfile))
+	fail("run binary failed");
+
+    FILE *fp = fopen(rfile, "r");
+    if (fp == NULL)
+	fail("Cannot open result file");
+    int size = file_size(rfile);
+    if (size < 0)
+	fail("Cannot get file size");
+    if (size == 0)
+	return NULL;
+
+    char *buf = malloc(size+1);
+    if (fread(buf, 1, size, fp) != size)
+	fail("Cannot read file");
+    fclose(fp);
+    buf[size] = 0;
+    
+    rmdir(tmpdir);
+    return buf;
+}

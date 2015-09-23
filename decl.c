@@ -923,6 +923,7 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
         
         decl = ast_decl(node_id, SCOPE);
         DECL_SYM(decl) = TYPE_TSYM(basety);
+	AST_TYPE(decl) = SYM_TYPE(DECL_SYM(decl));
         vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);
