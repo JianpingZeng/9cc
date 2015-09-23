@@ -3,9 +3,9 @@
 static void abstract_declarator(node_t **ty);
 static void declarator(node_t **ty, const char **id, int *params);
 static void param_declarator(node_t **ty, const char **id);
-static node_t * ptr_decl();
-static node_t * enum_decl();
-static node_t * struct_decl();
+static node_t * ptr_decl(void);
+static node_t * enum_decl(void);
+static node_t * struct_decl(void);
 static struct vector * decls(node_t * (*)(const char *id, node_t *ftype, int sclass,  struct source src));
 static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source src);
 static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source src);
@@ -428,10 +428,10 @@ static node_t * arrays(bool abstract)
     if (TYPE_A_ASSIGN(atype)) {
 	node_t *ret = eval(TYPE_A_ASSIGN(atype), inttype);
 	if (ret) {
-	    if (isint(AST_TYPE(ret)))
-		TYPE_LEN(atype) = SYM_VALUE_I(EXPR_SYM(ret));
-	    else if (isfloat(AST_TYPE(ret)))
-		TYPE_LEN(atype) = (int)SYM_VALUE_D(EXPR_SYM(ret));
+	    if (isiliteral(ret))
+		TYPE_LEN(atype) = ILITERAL_VALUE(ret);
+	    else if (isfliteral(ret))
+		TYPE_LEN(atype) = (int)FLITERAL_VALUE(ret);
 	}
     }
 
@@ -462,7 +462,7 @@ static node_t * func_or_array(int *params)
     return ty;
 }
 
-static node_t * abstract_func_or_array()
+static node_t * abstract_func_or_array(void)
 {
     node_t *ty = NULL;
     
@@ -485,7 +485,7 @@ static node_t * abstract_func_or_array()
     return ty;
 }
 
-static node_t * enum_decl()
+static node_t * enum_decl(void)
 {
     node_t *sym = NULL;
     const char *id = NULL;
@@ -544,7 +544,7 @@ static node_t * enum_decl()
     return SYM_TYPE(sym);
 }
 
-static node_t * struct_decl()
+static node_t * struct_decl(void)
 {
     int t = token->id;
     const char *id = NULL;
@@ -562,7 +562,7 @@ static node_t * struct_decl()
         sym = tag_type(t, id, src);
         fields(SYM_TYPE(sym));
 	SYM_DEFINED(sym) = true;
-	typesize(SYM_TYPE(sym));
+	set_typesize(SYM_TYPE(sym));
         match('}', follow);
     } else if (id) {
         sym = lookup(id, tags);
@@ -673,7 +673,7 @@ static void fields(node_t *sty)
     TYPE_FIELDS(sty) = (node_t **)vtoa(v);
 }
 
-static node_t * ptr_decl()
+static node_t * ptr_decl(void)
 {
     node_t *ret = NULL;
     int con, vol, res, type;
@@ -1003,7 +1003,7 @@ bool istypename(struct token *t)
 	(t->id == ID && is_typedef_name(t->name));
 }
 
-node_t * typename()
+node_t * typename(void)
 {
     node_t *basety;
     node_t *ty = NULL;
@@ -1017,13 +1017,13 @@ node_t * typename()
     return ty;
 }
 
-node_t ** declaration()
+node_t ** declaration(void)
 {
     CCAssert(SCOPE >= LOCAL);
     return (node_t **)vtoa(decls(localdecl));
 }
 
-node_t * translation_unit()
+node_t * translation_unit(void)
 {
     node_t *ret = ast_decl(TU_DECL, GLOBAL);
     struct vector *v = vec_new();

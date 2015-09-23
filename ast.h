@@ -216,8 +216,8 @@ extern node_t * ast_stmt(int id, node_t *l, node_t *r);
 extern node_t * ast_uop(int op, node_t *ty, node_t *l);
 extern node_t * ast_bop(int op, node_t *l, node_t *r);
 extern node_t * ast_conv(node_t *ty, node_t *l, const char *name);
-extern node_t * ast_inits();
-extern node_t * ast_vinit();
+extern node_t * ast_inits(void);
+extern node_t * ast_vinit(void);
 
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)

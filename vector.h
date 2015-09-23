@@ -7,7 +7,7 @@ struct vector {
     size_t  alloc;
 };
 
-extern struct vector *vec_new();
+extern struct vector *vec_new(void);
 
 extern void vec_free(struct vector *v);
 

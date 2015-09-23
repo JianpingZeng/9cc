@@ -7,7 +7,7 @@ struct strbuf {
     size_t  alloc;
 };
 
-extern struct strbuf * strbuf_new();
+extern struct strbuf * strbuf_new(void);
 
 extern void strbuf_free(struct strbuf *s);
 

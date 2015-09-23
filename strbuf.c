@@ -21,7 +21,7 @@ static void strbuf_grow(struct strbuf *s, size_t len)
         free(oldstr);
 }
 
-struct strbuf * strbuf_new()
+struct strbuf * strbuf_new(void)
 {
     struct strbuf *s = xmalloc(sizeof(struct strbuf));
     s->len = 0;

@@ -54,7 +54,7 @@ struct metrics {
 #endif
     zerometrics         = { 0 };
 
-static inline node_t * new_type()
+static inline node_t * new_type(void)
 {
     return alloc_type();
 }
@@ -98,7 +98,7 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
     return ty;
 }
 
-void type_init()
+void type_init(void)
 {
 #define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, metrics)
     
@@ -313,7 +313,7 @@ node_t * ptr_type(node_t *type)
     return ty;
 }
 
-node_t * func_type()
+node_t * func_type(void)
 {
     node_t *ty = new_type();
     _TYPE_KIND(ty) = FUNCTION;
@@ -487,6 +487,7 @@ int indexof_field(node_t *ty, node_t *field)
 #define MAX_BITS    BITS(inttype)
 #define MAX_BYTES   TYPE_SIZE(inttype)
 #define PACK        4
+static unsigned typesize(node_t *ty);
 
 // TODO: 
 static void packbits(node_t *ty)
@@ -575,18 +576,19 @@ static unsigned union_size(node_t *ty)
 // TODO: 
 static unsigned array_size(node_t *ty)
 {
-    int sz = 0;
-    node_t *assign = TYPE_A_ASSIGN(ty);
-    if (assign) {
-	node_t *ret = eval(assign, inttype);
-	if (ret && isiliteral(ret))
-	    sz = ILITERAL_VALUE(ret);
-    }
-    return sz;
+    if (TYPE_LEN(ty) > 0)
+	return TYPE_LEN(ty) * typesize(rtype(ty));
+    else
+	return 0;
+}
+
+static unsigned typesize(node_t *ty)
+{
+
 }
 
 // Caculate size of type
-void typesize(node_t *ty)
+void set_typesize(node_t *ty)
 {
     if (ty == NULL)
 	return;

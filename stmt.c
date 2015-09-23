@@ -3,7 +3,7 @@
 static node_t * statement(node_t *context);
 static node_t * _compound_stmt(node_t *context);
 
-static node_t * expr_stmt()
+static node_t * expr_stmt(void)
 {
     node_t *ret = NULL;
     
@@ -222,7 +222,7 @@ static node_t * label_stmt(node_t *context)
     return ast_stmt(LABEL_STMT, label, stmt);
 }
 
-static node_t * goto_stmt()
+static node_t * goto_stmt(void)
 {
     node_t *expr = NULL;
     
@@ -293,7 +293,7 @@ static node_t * continue_stmt(node_t *context)
     return ret;
 }
 
-static node_t * return_stmt()
+static node_t * return_stmt(void)
 {
     expect(RETURN);
     
@@ -348,7 +348,7 @@ static node_t * _compound_stmt(node_t *context)
     return ret;
 }
 
-node_t * compound_stmt()
+node_t * compound_stmt(void)
 {
     return _compound_stmt(NULL);
 }

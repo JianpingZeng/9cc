@@ -33,7 +33,7 @@ static unsigned unit;
 static const char *version = "0.0";
 static const char *tmpdir;
 
-static void usage()
+static void usage(void)
 {
 #define print_opt(opt, msg)     fprintf(stderr, "  %-20s%s\n", opt, msg)
     fprintf(stderr,
@@ -142,7 +142,7 @@ static void translate(void *elem, void *context)
     vec_free(v);
 }
 
-static void setup_env()
+static void setup_env(void)
 {
     setlocale(LC_ALL, "");
     setup_sys();

@@ -29,7 +29,7 @@ static void parseopts(int argc, const char *argv[])
     }
 }
 
-static void translate()
+static void translate(void)
 {
     node_t *n;
     gettok();

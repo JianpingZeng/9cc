@@ -1,9 +1,9 @@
 #include "cc.h"
 
-static node_t * cast_expr();
-static node_t * cond_expr();
+static node_t * cast_expr(void);
+static node_t * cond_expr(void);
 static node_t * cond_expr1(node_t *o);
-static node_t * unary_expr();
+static node_t * unary_expr(void);
 static node_t * uop(int op, node_t *ty, node_t *l);
 static node_t * bop(int op, node_t *l, node_t *r);
 static node_t * logicop(int op, node_t *l, node_t *r);
@@ -572,7 +572,7 @@ static node_t * compound_literal(node_t *ty)
     return ret;
 }
 
-static node_t * cast_type()
+static node_t * cast_type(void)
 {
     node_t *ty;
     
@@ -583,7 +583,7 @@ static node_t * cast_type()
     return ty;
 }
 
-static node_t * primary_expr()
+static node_t * primary_expr(void)
 {
     int t = token->id;
     node_t *sym;
@@ -653,7 +653,7 @@ static node_t * primary_expr()
     return ret;
 }
 
-static node_t ** argument_expr_list()
+static node_t ** argument_expr_list(void)
 {
     node_t **args = NULL;
     
@@ -793,14 +793,14 @@ static node_t * postfix_expr1(node_t *ret)
     return ret;
 }
 
-static node_t * postfix_expr()
+static node_t * postfix_expr(void)
 {
     node_t * expr = primary_expr();
     
     return postfix_expr1(expr);
 }
 
-static node_t * sizeof_expr()
+static node_t * sizeof_expr(void)
 {
     int t = token->id;
     node_t *ret = NULL;
@@ -843,7 +843,7 @@ static node_t * sizeof_expr()
     return ret;
 }
 
-static node_t * pre_increment()
+static node_t * pre_increment(void)
 {
     int t = token->id;
     node_t *ret = NULL;
@@ -864,7 +864,7 @@ static node_t * pre_increment()
     return ret;
 }
 
-static node_t * minus_plus()
+static node_t * minus_plus(void)
 {
     int t = token->id;
     node_t *ret = NULL;
@@ -884,7 +884,7 @@ static node_t * minus_plus()
     return ret;
 }
 
-static node_t * bitwise_not()
+static node_t * bitwise_not(void)
 {
     int t = token->id;
     node_t *ret = NULL;
@@ -904,7 +904,7 @@ static node_t * bitwise_not()
     return ret;
 }
 
-static node_t * logical_not()
+static node_t * logical_not(void)
 {
     int t = token->id;
     node_t *ret = NULL;
@@ -922,7 +922,7 @@ static node_t * logical_not()
     return ret;
 }
 
-static node_t * address()
+static node_t * address(void)
 {
     int t = token->id;
     node_t *ret = NULL;
@@ -946,7 +946,7 @@ static node_t * address()
     return ret;
 }
 
-static node_t * indirection()
+static node_t * indirection(void)
 {
     int t = token->id;
     node_t *ret = NULL;
@@ -964,7 +964,7 @@ static node_t * indirection()
     return ret;
 }
 
-static node_t * unary_expr()
+static node_t * unary_expr(void)
 {
     switch (token->id) {
     case INCR:
@@ -980,7 +980,7 @@ static node_t * unary_expr()
     }
 }
 
-static node_t * cast_expr()
+static node_t * cast_expr(void)
 {
     struct token * ahead = lookahead();
     
@@ -1007,7 +1007,7 @@ static node_t * cast_expr()
     return unary_expr();
 }
 
-static node_t * multiple_expr()
+static node_t * multiple_expr(void)
 {
     node_t * mulp1;
     
@@ -1021,7 +1021,7 @@ static node_t * multiple_expr()
     return mulp1;
 }
 
-static node_t * additive_expr()
+static node_t * additive_expr(void)
 {
     node_t * add1;
     
@@ -1035,7 +1035,7 @@ static node_t * additive_expr()
     return add1;
 }
 
-static node_t * shift_expr()
+static node_t * shift_expr(void)
 {
     node_t * shift1;
     
@@ -1049,7 +1049,7 @@ static node_t * shift_expr()
     return shift1;
 }
 
-static node_t * relation_expr()
+static node_t * relation_expr(void)
 {
     node_t * rel;
     
@@ -1063,7 +1063,7 @@ static node_t * relation_expr()
     return rel;
 }
 
-static node_t * equality_expr()
+static node_t * equality_expr(void)
 {
     node_t * equl;
     
@@ -1077,7 +1077,7 @@ static node_t * equality_expr()
     return equl;
 }
 
-static node_t * and_expr()
+static node_t * and_expr(void)
 {
     node_t * and1;
     
@@ -1090,7 +1090,7 @@ static node_t * and_expr()
     return and1;
 }
 
-static node_t * exclusive_or()
+static node_t * exclusive_or(void)
 {
     node_t * eor;
     
@@ -1103,7 +1103,7 @@ static node_t * exclusive_or()
     return eor;
 }
 
-static node_t * inclusive_or()
+static node_t * inclusive_or(void)
 {
     node_t * ior;
     
@@ -1116,7 +1116,7 @@ static node_t * inclusive_or()
     return ior;
 }
 
-static node_t * logic_and()
+static node_t * logic_and(void)
 {
     node_t * and1;
     
@@ -1129,7 +1129,7 @@ static node_t * logic_and()
     return and1;
 }
 
-static node_t * logic_or()
+static node_t * logic_or(void)
 {
     node_t * or1;
     
@@ -1216,7 +1216,7 @@ static node_t * cond_expr1(node_t *cond)
     return ret;
 }
 
-static node_t * cond_expr()
+static node_t * cond_expr(void)
 {
     node_t * or1 = logic_or();
     if (token->id == '?')
@@ -1224,7 +1224,7 @@ static node_t * cond_expr()
     return or1;
 }
 
-node_t * assign_expr()
+node_t * assign_expr(void)
 {
     node_t *or1 = logic_or();
     if (token->id == '?')
@@ -1237,7 +1237,7 @@ node_t * assign_expr()
     return or1;
 }
 
-node_t * expression()
+node_t * expression(void)
 {
     node_t *assign1;
     
@@ -1608,18 +1608,21 @@ static bool is_nullptr(node_t *node)
     return false;
 }
 
-int intexpr()
+int intexpr(void)
 {
     node_t *cnst = eval(cond_expr(), inttype);
     if (cnst == NULL) {
 	error("expression is not a compile-time constant");
 	return 0;
     }
-    if (!isint(AST_TYPE(cnst))) {
-	error("expression is not an integer constant");
-	return 0;
-    }
-    return SYM_VALUE_I(EXPR_SYM(cnst));
+    if (isiliteral(cnst))
+	return ILITERAL_VALUE(cnst);
+
+    error("expression is not an integer constant");
+    if (isfliteral(cnst))
+	return FLITERAL_VALUE(cnst);
+    
+    return 0;
 }
 
 node_t * init_elem_conv(node_t *ty, node_t *node)

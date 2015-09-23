@@ -23,17 +23,17 @@ static void free_table(struct table *t)
     free(t);
 }
 
-int scopelevel()
+int scopelevel(void)
 {
     return level;
 }
 
-void enter_scope()
+void enter_scope(void)
 {
     level++;
 }
 
-void exit_scope()
+void exit_scope(void)
 {
     if (tags->scope == level) {
 	struct table *up = tags->up;

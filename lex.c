@@ -80,7 +80,7 @@ static char *pe;
 static long bread;
 struct source source;
 
-static void fillbuf()
+static void fillbuf(void)
 {
     if (bread == 0) {
         if (pc > pe)
@@ -116,7 +116,7 @@ static void fillbuf()
     *pe = '\n';
 }
 
-static void skipblank()
+static void skipblank(void)
 {
     do {
         while (is_blank(*pc))
@@ -129,7 +129,7 @@ static void skipblank()
     } while (is_blank(*pc));
 }
 
-static void skipline()
+static void skipline(void)
 {
     while (*pc++ != '\n') {
         if (pe - pc < LBUFSIZE) {
@@ -140,7 +140,7 @@ static void skipline()
     }
 }
 
-static void fline()
+static void fline(void)
 {
     CCAssert(is_digit(*pc));
     
@@ -177,13 +177,13 @@ static void fline()
     }
 }
 
-static void fpragma()
+static void fpragma(void)
 {
     //TODO:
     skipline();
 }
 
-static void fsync()
+static void fsync(void)
 {
     CCAssert(*pc++ == '#');
     
@@ -207,7 +207,7 @@ static void fsync()
     }
 }
 
-static void nextline()
+static void nextline(void)
 {
     do {
         if (pc >= pe) {
@@ -226,7 +226,7 @@ static void nextline()
     } while (*pc == '\n' && pc == pe);
 }
 
-void input_init()
+void input_init(void)
 {
     pc = pe = &ibuf[LBUFSIZE];
     bread = -1;
@@ -278,18 +278,17 @@ static const char *tokname;
 static struct token token1, token2;
 struct token *token = &token1;
 
-static void nextline();
-static void line_comment();
-static void block_comment();
-static void identifier();
-static int number();
+static void line_comment(void);
+static void block_comment(void);
+static void identifier(void);
+static int number(void);
 static void fnumber(struct strbuf *s, int base);
 static void sequence(bool wide, char ch);
 static void integer_suffix(struct strbuf *s);
 static void escape(struct strbuf *s);
 static void readch(struct strbuf *s, bool (*is) (char));
 
-static int do_gettok()
+static int do_gettok(void)
 {
     register char *rpc;
     
@@ -702,13 +701,13 @@ static int do_gettok()
     }
 }
 
-static void line_comment()
+static void line_comment(void)
 {
     skipline();
     nextline();
 }
 
-static void block_comment()
+static void block_comment(void)
 {
     pc++;
     struct source src = source;
@@ -747,7 +746,7 @@ static void readch(struct strbuf *s, bool (*is) (char))
     pc = rpc;
 }
 
-static int number()
+static int number(void)
 {
     struct strbuf *s = strbuf_new();
     char *rpc = pc-1;
@@ -904,7 +903,7 @@ static void sequence(bool wide, char ch)
     tokname = strs(s->str);
 }
 
-static void identifier()
+static void identifier(void)
 {
     struct strbuf *s = strbuf_new();
     pc = pc - 1;
@@ -1002,7 +1001,7 @@ void read_tok(struct token *t)
     t->kind = tokind(t->id);
 }
 
-int gettok()
+int gettok(void)
 {
     if (is_looked) {
         token1 = token2;
@@ -1014,7 +1013,7 @@ int gettok()
     return token->id;
 }
 
-struct token * lookahead()
+struct token * lookahead(void)
 {
     if (!is_looked) {
 	read_tok(&token2);

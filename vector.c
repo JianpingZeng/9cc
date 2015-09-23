@@ -16,7 +16,7 @@ static void vec_grow(struct vector *v)
         free(oldmem);
 }
 
-struct vector *vec_new()
+struct vector *vec_new(void)
 {
     struct vector *v = xmalloc(sizeof(struct vector));
     v->len = 0;

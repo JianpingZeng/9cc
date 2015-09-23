@@ -61,9 +61,9 @@ extern bool is_hex(char c);
 extern bool is_digithex(char c);
 extern bool is_visible(char c);
 
-extern void input_init();
-extern int  gettok();
-extern struct token *  lookahead();
+extern void input_init(void);
+extern int gettok(void);
+extern struct token * lookahead(void);
 extern void expect(int t);
 extern void match(int t, int follow[]);
 extern const char *tname(int t);
@@ -92,28 +92,28 @@ union value {
 extern node_t * eval(node_t *expr, node_t *ty);
 
 // expr.c
-extern node_t * expression();
-extern node_t * assign_expr();
-extern int intexpr();
+extern node_t * expression(void);
+extern node_t * assign_expr(void);
+extern int intexpr(void);
 extern bool islvalue(node_t *node);
 extern node_t * init_elem_conv(node_t *ty, node_t *node);
 
 // decl.c
 extern node_t * initializer_list(node_t *ty);
 extern bool istypename(struct token *t);
-extern node_t ** declaration();
-extern node_t * translation_unit();
-extern node_t * typename();
+extern node_t ** declaration(void);
+extern node_t * translation_unit(void);
+extern node_t * typename(void);
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
 extern bool has_static_extent(node_t *sym);
 
 // stmt.c
-extern node_t * compound_stmt();
+extern node_t * compound_stmt(void);
 
 // type.c
-extern void type_init();
+extern void type_init(void);
 extern int type_op(node_t *type);
 extern void prepend_type(node_t **typelist, node_t *type);
 extern void attach_type(node_t **typelist, node_t *type);
@@ -126,10 +126,10 @@ extern bool is_typedef_name(const char *id);
 extern node_t * new_field(char *id);
 extern node_t * array_type(node_t *ty);
 extern node_t * ptr_type(node_t *ty);
-extern node_t * func_type();
+extern node_t * func_type(void);
 extern node_t * tag_type(int t, const char *tag, struct source src);
 extern const char *type2s(node_t *ty);
-extern void typesize(node_t *ty);
+extern void set_typesize(node_t *ty);
 extern node_t * find_field(node_t *ty, const char *name);
 extern int indexof_field(node_t *ty, node_t *field);
 extern node_t * compose(node_t *ty1, node_t *ty2);
@@ -224,9 +224,9 @@ struct table {
 };
 
 // sym
-extern int scopelevel();
-extern void enter_scope();
-extern void exit_scope();
+extern int scopelevel(void);
+extern void enter_scope(void);
+extern void exit_scope(void);
 
 // create an anonymous symbol
 extern node_t * anonymous(struct table **tpp, int scope);

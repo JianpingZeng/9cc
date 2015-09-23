@@ -71,13 +71,13 @@ node_t * ast_conv(node_t *ty, node_t *l, const char *name)
     return expr;
 }
 
-node_t * ast_inits()
+node_t * ast_inits(void)
 {
     node_t * expr = ast_expr(INITS_EXPR, 0, NULL, NULL);
     return expr;
 }
 
-node_t * ast_vinit()
+node_t * ast_vinit(void)
 {
     static node_t *vinit;
     if (vinit == NULL)
