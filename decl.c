@@ -604,10 +604,10 @@ static void ensure_field(node_t *field)
 	}
     }
 
-    if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-	if (!SYM_DEFINED(TYPE_TSYM(ty)))
-	    error("field has incomplete type '%s'", type2s(ty));
-    }
+    if (isincomplete(ty))
+	error("field has incomplete type '%s'", type2s(ty));
+
+    // TODO: array check
 }
 
 static void fields(node_t *sty)
@@ -1611,7 +1611,7 @@ static void ensure_array(node_t *atype, struct source src, int level)
 	rty = rtype(rty);
 	if (isfunc(rty))
 	    errorf(src, "array of function is invalid");
-	else if (isvoid(rty) || isincomplete(rty))
+	else if (isincomplete(rty))
 	    errorf(src, "array has incomplete element type '%s'", type2s(rty));
 	
     } while (isarray(rty));

@@ -118,8 +118,8 @@ void conflicting_types_error(struct source src, node_t *sym)
 
 void field_not_found_error(node_t *ty, const char *name)
 {
-    if (SYM_DEFINED(TYPE_TSYM(ty)))
-	error("'%s' has no field named '%s'", type2s(ty), name);
-    else
+    if (isincomplete(ty))
 	error("incomplete definition of type '%s'", type2s(ty));
+    else
+	error("'%s' has no field named '%s'", type2s(ty), name);
 }

@@ -581,7 +581,13 @@ unsigned typesize(node_t *ty)
 
 bool isincomplete(node_t *ty)
 {
-    return isarray(ty) && TYPE_A_ASSIGN(ty) == NULL && TYPE_A_WILDCARD(ty) == 0;
+    if (isvoid(ty))
+	return true;
+    else if (isarray(ty))
+	return TYPE_A_ASSIGN(ty) == NULL && TYPE_A_WILDCARD(ty) == 0;
+    else if (isenum(ty) || isstruct(ty) || isunion(ty))
+	return !SYM_DEFINED(TYPE_TSYM(ty));
+    return false;
 }
 
 node_t * compose(node_t *ty1, node_t *ty2)
