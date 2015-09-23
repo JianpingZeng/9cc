@@ -233,7 +233,7 @@ static node_t * specifiers(int *sclass)
     
     if (sclass)
         *sclass = cls;
-    
+
     return basety;
 }
 
@@ -375,7 +375,7 @@ static node_t ** parameters(node_t *ftype, int *params)
 
 static node_t * arrays(bool abstract)
 {
-    node_t *atype = array_type();
+    node_t *atype = array_type(NULL);
     
     if (abstract) {
 	if (token->id == '*') {
@@ -551,12 +551,12 @@ static node_t * struct_decl()
         sym = tag_type(t, id, src);
         fields(SYM_TYPE(sym));
 	SYM_DEFINED(sym) = true;
-	TYPE_SIZE(SYM_TYPE(sym)) = typesize(SYM_TYPE(sym));
+	typesize(SYM_TYPE(sym));
         match('}', follow);
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {
-            if (currentscope(sym) && op(SYM_TYPE(sym)) != t)
+            if (currentscope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
                 errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
                        tname(t), id, type2s(SYM_TYPE(sym)), SYM_SRC(sym).file, SYM_SRC(sym).line);
         } else {
@@ -607,7 +607,8 @@ static void ensure_field(node_t *field)
     if (isincomplete(ty))
 	error("field has incomplete type '%s'", type2s(ty));
 
-    // TODO: array check
+    if (isarray(ty))
+	ensure_array(ty, source, CONSTANT);
 }
 
 static void fields(node_t *sty)
@@ -952,7 +953,7 @@ node_t * initializer_list(node_t *ty)
 		expect(',');
 
 	    if (FIRST_INIT(token)) {
-		warning("excess elements in %s initializer at '%s'", TYPE_NAME(unqual(ty)), token->name);
+		warning("excess elements in %s initializer at '%s'", TYPE_NAME(ty), token->name);
 		eat_initlist();
 	    }
 	} else {
@@ -1265,7 +1266,7 @@ static bool is_string(node_t *ty)
 {
     CCAssert(isarray(ty));
     node_t *rty = rtype(ty);
-    return kind(rty) == CHAR || unqual(rty) == wchartype;
+    return TYPE_KIND(rty) == CHAR || unqual(rty) == wchartype;
 }
 
 static node_t * find_elem(struct vector *v, int i)
@@ -1295,9 +1296,9 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 	vec_set(v, i, node);
     } else if (is_string(ty) && issliteral(node)) {
 	vec_set(v, i, node);
-	int size1 = TYPE_SIZE(ty);
-	int size2 = TYPE_SIZE(AST_TYPE(node));
-	if (size1 > 0 && size2 - 1 > size1)
+	int len1 = TYPE_LEN(ty);
+	int len2 = TYPE_LEN(AST_TYPE(node));
+	if (len1 > 0 && len2 - 1 > len1)
 	    warning("initializer-string for char array is too long");
     } else {
 	node_t *rty = NULL;
@@ -1395,6 +1396,7 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
 {
     bool designated = false;
     int c = 0;
+    int len = TYPE_LEN(ty);
 
     if (is_string(ty) && token->id == SCONSTANT) {
 	node_t *expr = assign_expr();
@@ -1412,12 +1414,12 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
 	    designated = true;
 	}
 
-	if (TYPE_SIZE(ty) > 0 && i >= TYPE_SIZE(ty) && !designated)
+	if (len > 0 && i >= len && !designated)
 	    break;
 	
 	c = MAX(c, i);
-	if (TYPE_SIZE(ty) > 0 && i >= TYPE_SIZE(ty))
-	    error("array designator index [%d] exceeds array bounds (%d)", i, TYPE_SIZE(ty));
+	if (len > 0 && i >= len)
+	    error("array designator index [%d] exceeds array bounds (%d)", i, len);
 	else
 	    rty = rtype(ty);
 	elem_init(rty, designated, v, i);
@@ -1428,12 +1430,12 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
 	    break;
 	if ((ahead->id == '.' || ahead->id == '[') && !brace)
 	    break;
-	if (brace || (TYPE_SIZE(ty) > 0 && i < TYPE_SIZE(ty) - 1) || TYPE_SIZE(ty) == 0)
+	if (brace || (len > 0 && i < len - 1) || len == 0)
 	    expect(',');
     }
 
-    if (TYPE_SIZE(ty) == 0)
-	TYPE_SIZE(ty) = c + 1;
+    if (len == 0)
+	TYPE_LEN(ty) = c + 1;
 }
 
 static void scalar_init(node_t *ty, struct vector *v)
@@ -1478,7 +1480,7 @@ static void elem_init(node_t *ty, bool designated, struct vector *v, int i)
 	    eat_initializer();
 	    // inhibit redundant errors
 	    if (errs == errors)
-		error("%s designator cannot initialize non-%s type '%s'", TYPE_NAME(unqual(ty)), TYPE_NAME(unqual(ty)), type2s(ty));
+		error("%s designator cannot initialize non-%s type '%s'", TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
 	} else {
 	    node_t *n = find_elem(v, i);
 	    struct vector *v1 = vec_new();
@@ -1594,6 +1596,7 @@ static void ensure_func(node_t *ftype, struct source src)
         errorf(src, "function cannot return function type");
 }
 
+// TODO: CONSTANT eval
 static void ensure_array(node_t *atype, struct source src, int level)
 {
     node_t *rty = atype;

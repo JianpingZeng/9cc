@@ -288,7 +288,7 @@ static void integer_constant(struct token *t, node_t *sym)
     
     SYM_TYPE(sym) = ty;
     
-    switch (op(SYM_TYPE(sym))) {
+    switch (TYPE_OP(SYM_TYPE(sym))) {
     case INT:
 	if (overflow || n > INTEGER_MAX(longlongtype))
 	    error("integer constant overflow: %s", t->name);
@@ -336,13 +336,11 @@ static void string_constant(struct token *t, node_t *sym)
         if (errno == EILSEQ)
             error("invalid multibyte sequence: %s", s);
         CCAssert(wlen<=len+1);
-        ty = array_type();
-        TYPE_TYPE(ty) = wchartype;
-        TYPE_SIZE(ty) = wlen;
+        ty = array_type(wchartype);
+        TYPE_LEN(ty) = wlen;
     } else {
-        ty = array_type();
-        TYPE_TYPE(ty) = chartype;
-        TYPE_SIZE(ty) = strlen(s)-1;
+        ty = array_type(chartype);
+        TYPE_LEN(ty) = strlen(s)-1;
     }
     SYM_TYPE(sym) = ty;
 }
@@ -739,7 +737,7 @@ static node_t * direction(node_t *node)
     if (t == '.') {
 	ensure_type(node, isrecord);
     } else {
-	if (!isptr(ty) || (kind(rtype(ty)) != STRUCT && kind(rtype(ty)) != UNION))
+	if (!isptr(ty) || !isrecord(rtype(ty)))
 	    error("pointer to struct/union type expected, not type '%s'", type2s(ty));
 	else
 	    ty = rtype(ty);
@@ -1510,21 +1508,21 @@ static node_t * conv2(node_t *l, node_t *r)
     CCAssert(isarith(l));
     CCAssert(isarith(r));
     
-    CCAssert(size(l) >= size(inttype));
-    CCAssert(size(r) >= size(inttype));
+    CCAssert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
+    CCAssert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
     
-    node_t *max = rank(l) > rank(r) ? l : r;
-    if (isfloat(l) || isfloat(r) || op(l) == op(r))
+    node_t *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
+    if (isfloat(l) || isfloat(r) || TYPE_OP(l) == TYPE_OP(r))
         return max;
     
-    node_t *u = op(l) == UNSIGNED ? l : r;
-    node_t *s = op(l) == INT ? l : r;
+    node_t *u = TYPE_OP(l) == UNSIGNED ? l : r;
+    node_t *s = TYPE_OP(l) == INT ? l : r;
     CCAssert(unqual(s) == s);
     
-    if (rank(u) >= rank(s))
+    if (TYPE_RANK(u) >= TYPE_RANK(s))
         return u;
     
-    if (size(u) < size(s)) {
+    if (TYPE_SIZE(u) < TYPE_SIZE(s)) {
         return s;
     } else {
         if (s == inttype)
@@ -1540,7 +1538,7 @@ static node_t * conv2(node_t *l, node_t *r)
 
 static node_t * decay(node_t *node)
 {
-    switch (kind(AST_TYPE(node))) {
+    switch (TYPE_KIND(AST_TYPE(node))) {
     case FUNCTION:
 	return ast_conv(ptr_type(AST_TYPE(node)), node, FunctionToPointerDecay);
             
@@ -1565,7 +1563,7 @@ static node_t * conv(node_t *node)
     if (islvalue(node))
 	node = ltor(node);
     
-    switch (kind(AST_TYPE(node))) {
+    switch (TYPE_KIND(AST_TYPE(node))) {
     case _BOOL: case CHAR: case SHORT:
 	return ast_conv(inttype, node, IntegralCast);
             
@@ -1586,7 +1584,7 @@ static node_t * conva(node_t *node)
     if (islvalue(node))
 	node = ltor(node);
     
-    switch (kind(AST_TYPE(node))) {
+    switch (TYPE_KIND(AST_TYPE(node))) {
     case FLOAT:
 	return ast_conv(doubletype, node, FloatCast);
 	

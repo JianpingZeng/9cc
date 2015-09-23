@@ -13,7 +13,7 @@ static void print_ty(node_t *ty)
 {
     if (ty) {
 	if (isfunc(ty) || isptr(ty) || isarray(ty))
-	    fprintf(stderr, RED_BOLD("'%s' "), TYPE_NAME(unqual(ty)));
+	    fprintf(stderr, RED_BOLD("'%s' "), TYPE_NAME(ty));
 	fprintf(stderr, GREEN("'%s' "), type2s(ty));
 	if (isarray(ty) || isstruct(ty) || isunion(ty))
 	    fprintf(stderr, YELLOW("<size=%ld> "), TYPE_SIZE(ty));
@@ -93,7 +93,7 @@ static void print_decl(node_t *node, struct print_context context)
 static void print_expr(node_t *node, struct print_context context)
 {
     int level;
-    int oper = EXPR_OP(node);
+    int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
 
     fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
@@ -103,14 +103,14 @@ static void print_expr(node_t *node, struct print_context context)
     
     if (EXPR_SYM(node))
 	fprintf(stderr, CYAN("%s "), STR(SYM_NAME(EXPR_SYM(node))));
-    if (oper == INCR || oper == DECR)
+    if (op == INCR || op == DECR)
 	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
-    if (oper > 0)
-	fprintf(stderr, "'%s' ", tname(oper));
+    if (op > 0)
+	fprintf(stderr, "'%s' ", tname(op));
     if (AST_NAME(node))
 	fprintf(stderr, "<" RED("%s")  "> ", AST_NAME(node));
     if (isiliteral(node)) {
-	if (op(AST_TYPE(node)) == INT)
+	if (TYPE_OP(AST_TYPE(node)) == INT)
 	    fprintf(stderr, RED("%lld"), SYM_VALUE(EXPR_SYM(node)).u);
 	else
 	    fprintf(stderr, RED("%llu"), SYM_VALUE(EXPR_SYM(node)).u);

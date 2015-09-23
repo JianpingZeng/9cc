@@ -109,21 +109,22 @@ extern node_t * compound_stmt();
 
 // type.c
 extern void type_init();
-extern int op(node_t *type);
+extern int type_op(node_t *type);
 extern void prepend_type(node_t **typelist, node_t *type);
 extern void attach_type(node_t **typelist, node_t *type);
 extern node_t * qual(int t, node_t *ty);
+extern node_t * unqual(node_t *ty);
 extern bool eqtype(node_t *ty1, node_t *ty2);
 extern bool eqarith(node_t *ty1, node_t * ty2);
 extern node_t * lookup_typedef_name(const char *id);
 extern bool is_typedef_name(const char *id);
 extern node_t * new_field(char *id);
-extern node_t * array_type();
+extern node_t * array_type(node_t *ty);
 extern node_t * ptr_type(node_t *ty);
 extern node_t * func_type();
 extern node_t * tag_type(int t, const char *tag, struct source src);
 extern const char *type2s(node_t *ty);
-extern unsigned typesize(node_t *ty);
+extern void typesize(node_t *ty);
 extern node_t * find_field(node_t *ty, const char *name);
 extern int indexof_field(node_t *ty, node_t *field);
 extern node_t * compose(node_t *ty1, node_t *ty2);
@@ -154,14 +155,36 @@ extern node_t    *vartype;		       // variable type
 extern bool isconst(node_t *ty);
 extern bool isvolatile(node_t *ty);
 extern bool isrestrict(node_t *ty);
-#define isinline(ty)    (TYPE_INLINE(ty))
-#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
-#define unqual(ty)      (isqual(ty) ? (TYPE_TYPE(ty)) : (ty))
 
-#define kind(ty)        (TYPE_KIND(unqual(ty)))
-#define rtype(ty)       (TYPE_TYPE(unqual(ty)))
-#define size(ty)        (TYPE_SIZE(unqual(ty)))
-#define rank(ty)        (TYPE_RANK(unqual(ty)))
+#define isinline(ty)    (_TYPE_INLINE(ty))
+#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
+
+// operations on the unqual type
+#define TYPE_KIND(ty)            _TYPE_KIND(unqual(ty))
+#define TYPE_NAME(ty)            _TYPE_NAME(unqual(ty))
+#define TYPE_SIZE(ty)            _TYPE_SIZE(unqual(ty))
+#define TYPE_LEN(ty)             _TYPE_LEN(unqual(ty))
+#define TYPE_RANK(ty)            _TYPE_RANK(unqual(ty))
+#define TYPE_INLINE(ty)          _TYPE_INLINE(unqual(ty))
+#define TYPE_TYPE(ty)            _TYPE_TYPE(unqual(ty))
+#define TYPE_TAG(ty)             _TYPE_TAG(unqual(ty))
+#define TYPE_PARAMS(ty)          _TYPE_PARAMS(unqual(ty))
+#define TYPE_OLDSTYLE(ty)        _TYPE_OLDSTYLE(unqual(ty))
+#define TYPE_TSYM(ty)            _TYPE_TSYM(unqual(ty)) 
+#define TYPE_IDS(ty)             _TYPE_IDS(unqual(ty))
+#define TYPE_FIELDS(ty)          _TYPE_FIELDS(unqual(ty))
+#define TYPE_LIMITS_MAX(ty)      _TYPE_LIMITS_MAX(unqual(ty))
+#define TYPE_LIMITS_MIN(ty)      _TYPE_LIMITS_MIN(unqual(ty))     
+#define TYPE_A_ASSIGN(ty)        _TYPE_A_ASSIGN(unqual(ty))
+#define TYPE_A_CONST(ty)         _TYPE_A_CONST(unqual(ty))
+#define TYPE_A_VOLATILE(ty)      _TYPE_A_VOLATILE(unqual(ty))
+#define TYPE_A_RESTRICT(ty)      _TYPE_A_RESTRICT(unqual(ty))
+#define TYPE_A_STATIC(ty)        _TYPE_A_STATIC(unqual(ty))
+#define TYPE_A_WILDCARD(ty)      _TYPE_A_WILDCARD(unqual(ty))
+
+// alias
+#define rtype(ty)       TYPE_TYPE(ty)
+#define TYPE_OP(ty)     type_op(ty)
 
 extern bool isfunc(node_t *type);
 extern bool isarray(node_t *type);

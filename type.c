@@ -63,31 +63,31 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
 {
     node_t *ty = new_type();
     
-    TYPE_NAME(ty) = strs(name);
-    TYPE_KIND(ty) = kind;
-    TYPE_SIZE(ty) = m.size;
-    TYPE_RANK(ty) = m.rank;
-    switch (op(ty)) {
+    _TYPE_NAME(ty) = strs(name);
+    _TYPE_KIND(ty) = kind;
+    _TYPE_SIZE(ty) = m.size;
+    _TYPE_RANK(ty) = m.rank;
+    switch (TYPE_OP(ty)) {
         case INT:
-            TYPE_LIMITS_MAX(ty).u = ONES(TYPE_SIZE(ty)) >> 1;
-            TYPE_LIMITS_MIN(ty).u = -TYPE_LIMITS_MAX(ty).u - 1;
+            _TYPE_LIMITS_MAX(ty).u = ONES(_TYPE_SIZE(ty)) >> 1;
+            _TYPE_LIMITS_MIN(ty).u = -_TYPE_LIMITS_MAX(ty).u - 1;
             break;
             
         case UNSIGNED:
-            TYPE_LIMITS_MAX(ty).u = ONES(TYPE_SIZE(ty));
-            TYPE_LIMITS_MIN(ty).u = 0;
+            _TYPE_LIMITS_MAX(ty).u = ONES(_TYPE_SIZE(ty));
+            _TYPE_LIMITS_MIN(ty).u = 0;
             break;
             
         case FLOAT:
-            if (TYPE_SIZE(ty) == sizeof (float)) {
-                TYPE_LIMITS_MAX(ty).d = FLT_MAX;
-                TYPE_LIMITS_MIN(ty).d = FLT_MIN;
-            } else if (TYPE_SIZE(ty) == sizeof (double)) {
-                TYPE_LIMITS_MAX(ty).d = DBL_MAX;
-                TYPE_LIMITS_MIN(ty).d = DBL_MIN;
+            if (_TYPE_SIZE(ty) == sizeof (float)) {
+                _TYPE_LIMITS_MAX(ty).d = FLT_MAX;
+                _TYPE_LIMITS_MIN(ty).d = FLT_MIN;
+            } else if (_TYPE_SIZE(ty) == sizeof (double)) {
+                _TYPE_LIMITS_MAX(ty).d = DBL_MAX;
+                _TYPE_LIMITS_MIN(ty).d = DBL_MIN;
             } else {
-                TYPE_LIMITS_MAX(ty).d = LDBL_MAX;
-                TYPE_LIMITS_MIN(ty).d = LDBL_MIN;
+                _TYPE_LIMITS_MAX(ty).d = LDBL_MAX;
+                _TYPE_LIMITS_MIN(ty).d = LDBL_MIN;
             }
             break;
             
@@ -137,9 +137,9 @@ void type_init()
 #undef INSTALL
 }
 
-int op(node_t *type)
+int type_op(node_t *type)
 {
-    int kind = kind(type);
+    int kind = TYPE_KIND(type);
     switch (kind) {
         case _BOOL:
             return UNSIGNED;
@@ -190,10 +190,10 @@ void attach_type(node_t **typelist, node_t *type)
 {
     if (*typelist) {
         node_t *tp = *typelist;
-        while (tp && TYPE_TYPE(tp)) {
-            tp = TYPE_TYPE(tp);
+        while (tp && _TYPE_TYPE(tp)) {
+            tp = _TYPE_TYPE(tp);
         }
-        TYPE_TYPE(tp) = type;
+        _TYPE_TYPE(tp) = type;
     }
     else {
         *typelist = type;
@@ -238,8 +238,8 @@ static int combine(int qual1, int qual2)
 
 bool qual_contains(node_t *ty1, node_t *ty2)
 {
-    int qual1 = isqual(ty1) ? TYPE_KIND(ty1) : 0;
-    int qual2 = isqual(ty2) ? TYPE_KIND(ty2) : 0;
+    int qual1 = isqual(ty1) ? _TYPE_KIND(ty1) : 0;
+    int qual2 = isqual(ty2) ? _TYPE_KIND(ty2) : 0;
     if (isconst1(qual2) && !isconst1(qual1))
 	return false;
     if (isvolatile1(qual2) && !isvolatile1(qual1))
@@ -254,11 +254,16 @@ node_t * qual(int t, node_t *ty)
     CCAssert(ty);
     node_t *qty = new_type();
     if (isqual(ty))
-        TYPE_KIND(qty) = combine(t, TYPE_KIND(ty));
+        _TYPE_KIND(qty) = combine(t, _TYPE_KIND(ty));
     else
-        TYPE_KIND(qty) = t;
-    TYPE_TYPE(qty) = unqual(ty);
+        _TYPE_KIND(qty) = t;
+    _TYPE_TYPE(qty) = unqual(ty);
     return qty;
+}
+
+node_t * unqual(node_t *ty)
+{
+    return isqual(ty) ? _TYPE_TYPE(ty) : ty;
 }
 
 node_t * lookup_typedef_name(const char *id)
@@ -287,11 +292,12 @@ node_t * new_field(char *id)
     return field;
 }
 
-node_t * array_type()
+node_t * array_type(node_t *type)
 {
     node_t *ty = new_type();
-    TYPE_KIND(ty) = ARRAY;
-    TYPE_NAME(ty) = "array";
+    _TYPE_KIND(ty) = ARRAY;
+    _TYPE_TYPE(ty) = type;
+    _TYPE_NAME(ty) = "array";
     
     return ty;
 }
@@ -299,10 +305,10 @@ node_t * array_type()
 node_t * ptr_type(node_t *type)
 {
     node_t *ty = new_type();
-    TYPE_KIND(ty) = POINTER;
-    TYPE_TYPE(ty) = type;
-    TYPE_NAME(ty) = "pointer";
-    TYPE_SIZE(ty) = ptrmetrics.size;
+    _TYPE_KIND(ty) = POINTER;
+    _TYPE_TYPE(ty) = type;
+    _TYPE_NAME(ty) = "pointer";
+    _TYPE_SIZE(ty) = ptrmetrics.size;
     
     return ty;
 }
@@ -310,8 +316,8 @@ node_t * ptr_type(node_t *type)
 node_t * func_type()
 {
     node_t *ty = new_type();
-    TYPE_KIND(ty) = FUNCTION;
-    TYPE_NAME(ty) = "function";
+    _TYPE_KIND(ty) = FUNCTION;
+    _TYPE_NAME(ty) = "function";
     
     return ty;
 }
@@ -319,17 +325,17 @@ node_t * func_type()
 node_t * tag_type(int t, const char *tag, struct source src)
 {
     node_t *ty = new_type();
-    TYPE_KIND(ty) = t;
-    TYPE_TAG(ty) = tag;
-    TYPE_NAME(ty) = tname(t);
+    _TYPE_KIND(ty) = t;
+    _TYPE_TAG(ty) = tag;
+    _TYPE_NAME(ty) = tname(t);
     if (t == ENUM)
-        TYPE_TYPE(ty) = inttype;
+        _TYPE_TYPE(ty) = inttype;
     
     node_t *sym = NULL;
     if (tag) {
         sym = lookup(tag, tags);
         if (sym && currentscope(sym)) {
-            if (op(SYM_TYPE(sym)) == t && !SYM_DEFINED(sym))
+            if (TYPE_OP(SYM_TYPE(sym)) == t && !SYM_DEFINED(sym))
                 return sym;
             
             redefinition_error(src, sym);
@@ -338,12 +344,12 @@ node_t * tag_type(int t, const char *tag, struct source src)
         sym = install(tag, &tags, SCOPE);
     } else {
         sym = anonymous(&tags, SCOPE);
-        TYPE_TAG(ty) = SYM_NAME(sym);
+        _TYPE_TAG(ty) = SYM_NAME(sym);
     }
 
     SYM_TYPE(sym) = ty;
     SYM_SRC(sym) = src;
-    TYPE_TSYM(ty) = sym;
+    _TYPE_TSYM(ty) = sym;
     
     return sym;
 }
@@ -380,10 +386,10 @@ bool eqtype(node_t *ty1, node_t *ty2)
 {
     if (ty1 == ty2)
         return true;
-    else if (TYPE_KIND(ty1) != TYPE_KIND(ty2))
+    else if (_TYPE_KIND(ty1) != _TYPE_KIND(ty2))
         return false;
     
-    switch (TYPE_KIND(ty1)) {
+    switch (_TYPE_KIND(ty1)) {
         case CONST:
         case VOLATILE:
         case RESTRICT:
@@ -391,7 +397,7 @@ bool eqtype(node_t *ty1, node_t *ty2)
         case CONST+RESTRICT:
         case VOLATILE+RESTRICT:
         case CONST+VOLATILE+RESTRICT:
-            return eqtype(TYPE_TYPE(ty1), TYPE_TYPE(ty2));
+            return eqtype(_TYPE_TYPE(ty1), _TYPE_TYPE(ty2));
         case ENUM:
         case UNION:
         case STRUCT:
@@ -403,39 +409,39 @@ bool eqtype(node_t *ty1, node_t *ty2)
             return ty1 == ty2;
         case POINTER:
         case ARRAY:
-            return eqtype(TYPE_TYPE(ty1), TYPE_TYPE(ty2));
+            return eqtype(_TYPE_TYPE(ty1), _TYPE_TYPE(ty2));
         case FUNCTION:
-            if (!eqtype(TYPE_TYPE(ty1), TYPE_TYPE(ty2)))
+            if (!eqtype(_TYPE_TYPE(ty1), _TYPE_TYPE(ty2)))
                 return false;
-            if (TYPE_OLDSTYLE(ty1) && TYPE_OLDSTYLE(ty2)) {
+            if (_TYPE_OLDSTYLE(ty1) && _TYPE_OLDSTYLE(ty2)) {
                 // both oldstyle
                 return true;
-            } else if (!TYPE_OLDSTYLE(ty1) && !TYPE_OLDSTYLE(ty2)) {
+            } else if (!_TYPE_OLDSTYLE(ty1) && !_TYPE_OLDSTYLE(ty2)) {
                 // both prototype
-                return eqparams(TYPE_PARAMS(ty1), TYPE_PARAMS(ty2));
+                return eqparams(_TYPE_PARAMS(ty1), _TYPE_PARAMS(ty2));
             } else {
                 // one oldstyle, the other prototype
-                node_t *oldty = TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
-                node_t *newty = TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
-                if (TYPE_PARAMS(newty)) {
-                    for (int i=0; TYPE_PARAMS(newty)[i]; i++) {
-                        node_t *sym = TYPE_PARAMS(newty)[i];
+                node_t *oldty = _TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
+                node_t *newty = _TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
+                if (_TYPE_PARAMS(newty)) {
+                    for (int i=0; _TYPE_PARAMS(newty)[i]; i++) {
+                        node_t *sym = _TYPE_PARAMS(newty)[i];
                         if (SYM_TYPE(sym)) {
                             node_t *ty = unqual(SYM_TYPE(sym));
-                            if (kind(ty) == CHAR || kind(ty) == SHORT)
+                            if (TYPE_KIND(ty) == CHAR || TYPE_KIND(ty) == SHORT)
                                 return false;
-                            else if (op(ty) == FLOAT)
+                            else if (TYPE_OP(ty) == FLOAT)
                                 return false;
-                            else if (op(ty) == ELLIPSIS)
+                            else if (TYPE_OP(ty) == ELLIPSIS)
                                 return false;
                         }
                     }
                 }
                 
-                if (TYPE_PARAMS(oldty) == NULL)
+                if (_TYPE_PARAMS(oldty) == NULL)
                     return true;
                 
-                return eqparams(TYPE_PARAMS(oldty), TYPE_PARAMS(newty));
+                return eqparams(_TYPE_PARAMS(oldty), _TYPE_PARAMS(newty));
             }
             
         default:
@@ -482,38 +488,47 @@ int indexof_field(node_t *ty, node_t *field)
 #define MAX_BYTES   TYPE_SIZE(inttype)
 #define PACK        4
 
-static void packbits(node_t *field, int *offset)
+// TODO: 
+static void packbits(node_t *ty)
 {
-    if (FIELD_ISBIT(field)) {
-	const char *name = FIELD_NAME(field);
-	node_t *ty = FIELD_TYPE(field);
-	int bitsize = FIELD_BITSIZE(field);
-	int bits = BITS(ty);
-	int max = MAX_BITS;
+    int len = array_len((void **)TYPE_FIELDS(ty));
+    int offset = 0;
 
-	if (bitsize > bits) {
-	    bitsize = bits;
-	    FIELD_BITSIZE(field) = bitsize;
-	}
+    for (int i = 0; i < len; i++) {
+	node_t *field = TYPE_FIELDS(ty)[i];
 
-	if (bitsize == 0 && name == NULL) {
-	    if (*offset > 0) {
-		FIELD_OFFSET(field) = *offset;
-		FIELD_BITSIZE(field) = max - *offset;
+	if (FIELD_ISBIT(field)) {
+	    const char *name = FIELD_NAME(field);
+	    node_t *ty = FIELD_TYPE(field);
+	    int bitsize = FIELD_BITSIZE(field);
+	    int bits = BITS(ty);
+	    int max = MAX_BITS;
+
+	    if (bitsize > bits) {
+		bitsize = bits;
+		FIELD_BITSIZE(field) = bitsize;
 	    }
-	    *offset = 0;
-	} else if (bitsize > 0) {
-	    if (*offset + bitsize > max)
-		*offset = 0;
+
+	    if (bitsize == 0 && name == NULL) {
+		if (offset > 0) {
+		    FIELD_OFFSET(field) = offset;
+		    FIELD_BITSIZE(field) = max - offset;
+		}
+		offset = 0;
+	    } else if (bitsize > 0) {
+		if (offset + bitsize > max)
+		    offset = 0;
 	    
-	    FIELD_OFFSET(field) = *offset;
-	    *offset += bitsize;
+		FIELD_OFFSET(field) = offset;
+		offset += bitsize;
+	    }
+	} else {
+	    offset = 0;
 	}
-    } else {
-	*offset = 0;
     }
 }
 
+// TODO: 
 static unsigned struct_size(node_t *ty)
 {
     unsigned ret = 0;
@@ -522,32 +537,26 @@ static unsigned struct_size(node_t *ty)
     int len = array_len((void **)fields);
     int offset = 0;
 
+    packbits(ty);
     for (int i = 0; i < len; i++) {
     	node_t *field = fields[i];
     	node_t *ty = FIELD_TYPE(field);
     	int bitsize = FIELD_BITSIZE(field);
     	int bits = BITS(ty);
-    	node_t *next = i+1 < len ? fields[i+1] : NULL;
 	
     	if (FIELD_ISBIT(field)) {
-    	    if (bitsize < 0 || (bitsize == 0 && FIELD_NAME(field)))
-    		continue;
-    	    if (bitsize > bits)
-    		FIELD_BITSIZE(field) = bitsize = bits;
-
-    	    if (bitsize == 0) {
-		
-    	    } else {
-
-    	    }
+    	    
     	} else {
-	    
+	    int align = TYPE_SIZE(ty);
+	    offset = ROUNDUP(offset, align);
+	    FIELD_OFFSET(field) = offset;
     	}
     }
 
     return ret;
 }
 
+// TODO: 
 static unsigned union_size(node_t *ty)
 {
     unsigned ret = 0;
@@ -555,28 +564,33 @@ static unsigned union_size(node_t *ty)
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
     	node_t *field = TYPE_FIELDS(ty)[i];
     	if (isbitfield(field)) {
-    	    if (FIELD_OFFSET(field) == 0 && FIELD_BITSIZE(field) > 0)
-    		ret = MAX(ret, ROUNDUP(sz, PACK));
+    	    
     	} else {
-    	    int size = typesize(FIELD_TYPE(field));
-    	    ret = MAX(ret, ROUNDUP(size, PACK));
+    	    
     	}
     }
     return ret;
 }
 
-unsigned typesize(node_t *ty)
+// TODO: 
+static unsigned array_size(node_t *ty)
+{
+    int sz = 0;
+    node_t *assign = TYPE_A_ASSIGN(ty);
+    if (assign) {
+	node_t *ret = eval(assign, inttype);
+	if (ret && isiliteral(ret))
+	    sz = ILITERAL_VALUE(ret);
+    }
+    return sz;
+}
+
+// Caculate size of type
+void typesize(node_t *ty)
 {
     if (ty == NULL)
-	return 0;
-    else if (isstruct(ty))
-	return struct_size(ty);
-    else if (isunion(ty))
-	return union_size(ty);
-    else if (isarray(ty))
-	return TYPE_SIZE(ty) * typesize(rtype(ty));
-    else
-	return TYPE_SIZE(ty);
+	return;
+    // TODO: 
 }
 
 bool isincomplete(node_t *ty)
@@ -593,10 +607,10 @@ bool isincomplete(node_t *ty)
 node_t * compose(node_t *ty1, node_t *ty2)
 {
     if (isqual(ty1) && isqual(ty2)) {
-	int kind = combine(TYPE_KIND(ty1), TYPE_KIND(ty2));
+	int kind = combine(_TYPE_KIND(ty1), _TYPE_KIND(ty2));
 	return qual(kind, unqual(ty1));
     } else if (isqual(ty2)) {
-	return qual(TYPE_KIND(ty2), ty1);
+	return qual(_TYPE_KIND(ty2), ty1);
     } else {
 	return ty1;
     }
@@ -604,57 +618,57 @@ node_t * compose(node_t *ty1, node_t *ty2)
 
 bool isconst(node_t *ty)
 {
-    return isconst1(TYPE_KIND(ty));
+    return isconst1(_TYPE_KIND(ty));
 }
 
 bool isvolatile(node_t *ty)
 {
-    return isvolatile1(TYPE_KIND(ty));
+    return isvolatile1(_TYPE_KIND(ty));
 }
 
 bool isrestrict(node_t *ty)
 {
-    return isrestrict1(TYPE_KIND(ty));
+    return isrestrict1(_TYPE_KIND(ty));
 }
 
 bool eqarith(node_t *ty1, node_t *ty2)
 {
-    return kind(ty1) == kind(ty2) && op(ty1) == op(ty2);
+    return TYPE_KIND(ty1) == TYPE_KIND(ty2) && TYPE_OP(ty1) == TYPE_OP(ty2);
 }
 
 bool isfunc(node_t *ty)
 {
-    return op(ty) == FUNCTION;
+    return TYPE_OP(ty) == FUNCTION;
 }
 
 bool isarray(node_t *ty)
 {
-    return op(ty) == ARRAY;
+    return TYPE_OP(ty) == ARRAY;
 }
 
 bool isptr(node_t *ty)
 {
-    return op(ty) == POINTER;
+    return TYPE_OP(ty) == POINTER;
 }
 
 bool isvoid(node_t *ty)
 {
-    return op(ty) == VOID;
+    return TYPE_OP(ty) == VOID;
 }
 
 bool isenum(node_t *ty)
 {
-    return op(ty) == ENUM;
+    return TYPE_OP(ty) == ENUM;
 }
 
 bool isstruct(node_t *ty)
 {
-    return op(ty) == STRUCT;
+    return TYPE_OP(ty) == STRUCT;
 }
 
 bool isunion(node_t *ty)
 {
-    return op(ty) == UNION;
+    return TYPE_OP(ty) == UNION;
 }
 
 bool isrecord(node_t *type)
@@ -669,12 +683,12 @@ bool istag(node_t *type)
 
 bool isint(node_t *ty)
 {
-    return op(ty) == INT || op(ty) == UNSIGNED || isenum(ty);
+    return TYPE_OP(ty) == INT || TYPE_OP(ty) == UNSIGNED || isenum(ty);
 }
 
 bool isfloat(node_t *ty)
 {
-    return op(ty) == FLOAT;
+    return TYPE_OP(ty) == FLOAT;
 }
 
 bool isarith(node_t *ty)
@@ -689,7 +703,7 @@ bool isscalar(node_t *ty)
 
 bool isptrto(node_t *ty, int kind)
 {
-    return isptr(ty) && kind(rtype(ty)) == kind;
+    return isptr(ty) && TYPE_KIND(rtype(ty)) == kind;
 }
 
 #define LPAREN  1
@@ -720,7 +734,7 @@ static void dotype2s(struct vector *l, struct vector *r)
 	return;
 
     s = vec_tail(l);
-    k = kind(s->type);
+    k = TYPE_KIND(s->type);
     switch (k) {
         case POINTER:
         {
@@ -795,13 +809,13 @@ static struct vector *type2s1(node_t *ty)
     while (ty) {
 	struct type2s *s = zmalloc(sizeof (struct type2s));
 	if (isqual(ty)) {
-	    s->qual = TYPE_KIND(ty);
+	    s->qual = _TYPE_KIND(ty);
 	    s->type = unqual(ty);
 	} else {
 	    s->type = ty;
 	}
 	vec_push(v, s);
-	ty = TYPE_TYPE(s->type);
+	ty = _TYPE_TYPE(s->type);
     }
     
     l = vec_reverse(v);
@@ -842,9 +856,9 @@ const char *type2s(node_t *ty)
 	    strbuf_cats(buf, "*");
 	    qualstr(buf, s->qual);
 	} else if (isarray(s->type)) {
-	    if (TYPE_SIZE(s->type) > 0) {
+	    if (TYPE_LEN(s->type) > 0) {
 		strbuf_cats(buf, "[");
-		strbuf_catd(buf, TYPE_SIZE(s->type));
+		strbuf_catd(buf, TYPE_LEN(s->type));
 		strbuf_cats(buf, "]");
 	    } else {
 		strbuf_cats(buf, "[]");

@@ -54,7 +54,7 @@ static node_t * arith2arith(node_t *dty, node_t *l)
 	if (src_size > dst_size) {
 	    // narrow
 	    dst_val.u &= TYPE_LIMITS_MAX(dty).u;
-	    if (kind(dty) == _BOOL)
+	    if (TYPE_KIND(dty) == _BOOL)
 		dst_val.u = dst_val.u == 0 ? 0 : 1;
 	}
 	return int_literal_node(dty, dst_val);
@@ -68,14 +68,14 @@ static node_t * arith2arith(node_t *dty, node_t *l)
 	// int => float
 	union value src_val = SYM_VALUE(EXPR_SYM(l));
 	union value dst_val;
-	if (op(sty) == INT)
+	if (TYPE_OP(sty) == INT)
 	    dst_val.d = (long long)src_val.u;
 	else
 	    dst_val.d = src_val.u;
 	return float_literal_node(dty, dst_val);
     } else if (isfloat(dty) && isfloat(sty)) {
 	// float => float
-	int dst_kind = kind(dty);
+	int dst_kind = TYPE_KIND(dty);
 	union value src_val = SYM_VALUE(EXPR_SYM(l));
 	union value dst_val;
 	if (dst_kind == FLOAT)
@@ -127,7 +127,7 @@ static node_t * cast(node_t *dty, node_t *l)
     CCAssertf(0, "expect arith or ptr");
 }
 
-static node_t * bop_scalar(int oper, node_t *dty, node_t *l, node_t *r)
+static node_t * bop_scalar(int op, node_t *dty, node_t *l, node_t *r)
 {
     if (l == NULL || r == NULL)
 	return NULL;
@@ -137,7 +137,7 @@ static node_t * bop_scalar(int oper, node_t *dty, node_t *l, node_t *r)
     union value ret;
     bool l_is_u = !isfliteral(l);
     bool r_is_u = !isfliteral(r);
-    bool ret_is_u = op(dty) == FLOAT ? false : true;
+    bool ret_is_u = TYPE_OP(dty) == FLOAT ? false : true;
     
 #define LOR(oo) \
     do { \
@@ -173,7 +173,7 @@ static node_t * bop_scalar(int oper, node_t *dty, node_t *l, node_t *r)
         ret.u = lval.u oo rval.u; \
     } while (0)
     
-    switch (oper) {
+    switch (op) {
     case '%':    LORI(%); break;
     case LSHIFT: LORI(<<); break;
     case RSHIFT: LORI(>>); break;
@@ -200,14 +200,14 @@ static node_t * bop_scalar(int oper, node_t *dty, node_t *l, node_t *r)
 	return float_literal_node(dty, ret);
 }
 
-static node_t * uop_scalar(int oper, node_t *dty, node_t *l)
+static node_t * uop_scalar(int op, node_t *dty, node_t *l)
 {
     if (l == NULL)
 	return NULL;
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     bool l_is_u = !isfliteral(l);
-    bool ret_is_u = op(dty) == FLOAT ? false : true;
+    bool ret_is_u = TYPE_OP(dty) == FLOAT ? false : true;
     union value ret;
 
 #define LOO(oo) \
@@ -225,7 +225,7 @@ static node_t * uop_scalar(int oper, node_t *dty, node_t *l)
 	} \
     } while (0)
     
-    switch (oper) {
+    switch (op) {
 	// arith
     case '-': LOO(-); break;
 	// int

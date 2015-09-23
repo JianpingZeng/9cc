@@ -33,31 +33,38 @@ struct ast_common {
     node_t *kids[2];
 };
 
-#define TYPE_KIND(NODE)         ((NODE)->type.kind)
-#define TYPE_NAME(NODE)         AST_NAME(NODE)
-#define TYPE_SIZE(NODE)         ((NODE)->type.size)
-#define TYPE_RANK(NODE)         ((NODE)->type.rank)
-#define TYPE_INLINE(NODE)       ((NODE)->type.inlined)
-#define TYPE_TYPE(NODE)         AST_TYPE(NODE)
-#define TYPE_TAG(NODE)          ((NODE)->type.tag)
-#define TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
-#define TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
-#define TYPE_TSYM(NODE)         ((NODE)->type.u.s.tsym)
-#define TYPE_IDS(NODE)          ((NODE)->type.u.s.ids)
-#define TYPE_FIELDS(NODE)       ((NODE)->type.u.s.fields)
-#define TYPE_LIMITS_MAX(NODE)   ((NODE)->type.limits.max)
-#define TYPE_LIMITS_MIN(NODE)   ((NODE)->type.limits.min)
-#define TYPE_A_ASSIGN(NODE)     ((NODE)->type.u.a.assign)
-#define TYPE_A_CONST(NODE)      ((NODE)->type.u.a.is_const)
-#define TYPE_A_VOLATILE(NODE)   ((NODE)->type.u.a.is_volatile)
-#define TYPE_A_RESTRICT(NODE)   ((NODE)->type.u.a.is_restrict)
-#define TYPE_A_STATIC(NODE)     ((NODE)->type.u.a.is_static)
-#define TYPE_A_WILDCARD(NODE)   ((NODE)->type.u.a.wildcard)
+/* Handle carefully for qual/unqual types.
+ *
+ * macros begin with '_' is for 'atom' access,
+ * others use the unqual version of the type.
+ */
+#define _TYPE_KIND(NODE)         ((NODE)->type.kind)
+#define _TYPE_NAME(NODE)         AST_NAME(NODE)
+#define _TYPE_SIZE(NODE)         ((NODE)->type.size)
+#define _TYPE_LEN(NODE)          ((NODE)->type.len)
+#define _TYPE_RANK(NODE)         ((NODE)->type.rank)
+#define _TYPE_INLINE(NODE)       ((NODE)->type.inlined)
+#define _TYPE_TYPE(NODE)         AST_TYPE(NODE)
+#define _TYPE_TAG(NODE)          ((NODE)->type.tag)
+#define _TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
+#define _TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
+#define _TYPE_TSYM(NODE)         ((NODE)->type.u.s.tsym)
+#define _TYPE_IDS(NODE)          ((NODE)->type.u.s.ids)
+#define _TYPE_FIELDS(NODE)       ((NODE)->type.u.s.fields)
+#define _TYPE_LIMITS_MAX(NODE)   ((NODE)->type.limits.max)
+#define _TYPE_LIMITS_MIN(NODE)   ((NODE)->type.limits.min)
+#define _TYPE_A_ASSIGN(NODE)     ((NODE)->type.u.a.assign)
+#define _TYPE_A_CONST(NODE)      ((NODE)->type.u.a.is_const)
+#define _TYPE_A_VOLATILE(NODE)   ((NODE)->type.u.a.is_volatile)
+#define _TYPE_A_RESTRICT(NODE)   ((NODE)->type.u.a.is_restrict)
+#define _TYPE_A_STATIC(NODE)     ((NODE)->type.u.a.is_static)
+#define _TYPE_A_WILDCARD(NODE)   ((NODE)->type.u.a.wildcard)
 
 struct ast_type {
     struct ast_common common;
     int kind;
     size_t size;
+    size_t len;			// array length
     unsigned rank;
     bool inlined;
     const char *tag;
@@ -173,6 +180,9 @@ struct ast_stmt {
 #define EXPR_COND(NODE)         EXPR_OPERAND(NODE, 0)
 #define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
 #define EXPR_ELSE(NODE)         EXPR_OPERAND(NODE, 2)
+// literal
+#define ILITERAL_VALUE(NODE)    (SYM_VALUE(EXPR_SYM(NODE)).u)
+#define FLITERAL_VALUE(NODE)    (SYM_VALUE(EXPR_SYM(NODE)).d)
 
 struct ast_expr {
     struct ast_common common;
