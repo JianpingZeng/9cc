@@ -40,13 +40,9 @@ static void test_scope()
     expectp(sym3, sym);
 }
 
-const char *testname()
-{
-    return "symbol";
-}
-
 void testmain()
 {
+    START("symbol ...");
     test_lookup();
     test_scope();
 }

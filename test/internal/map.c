@@ -31,12 +31,8 @@ static void test_map()
     map_free(map);
 }
 
-const char *testname()
-{
-    return "map";
-}
-
 void testmain()
 {
+    START("map ...");
     test_map();
 }

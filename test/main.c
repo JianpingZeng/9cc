@@ -9,11 +9,16 @@
 #include "sys.h"
 
 extern void testmain(void);
-extern const char *testname(void);
 
 static void printfail()
 {
-    printf("\e[1;31mFAIL\e[0m: %s\n", testname());
+    printf("\e[1;31mFAIL\e[0m\n");
+}
+
+void printstart(const char *name)
+{
+    printf("%-30s", name);
+    fflush(stdout);
 }
 
 void ffail(char *file, int line, char *msg, ...)
@@ -94,7 +99,8 @@ void fexpectp(char *file, int line, void *a, void *b)
 int main()
 {
     setup_sys();
+    printf("%s", "Testing ");
     testmain();
-    printf("\e[32mPASS\e[0m: %s\n", testname());
+    printf("\e[32mPASS\e[0m\n");
     return 0;
 }

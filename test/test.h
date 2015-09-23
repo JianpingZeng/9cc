@@ -20,3 +20,6 @@ extern void fexpectp(char *file, int line, void *a, void *b);
 #define expectf(a, b)   fexpectf(__FILE__, __LINE__, a, b)
 #define expectd(a, b)   fexpectd(__FILE__, __LINE__, a, b)
 #define expectp(a, b)   fexpectp(__FILE__, __LINE__, a, b)
+
+extern void printstart(const char *name);
+#define START(name)     printstart(name)

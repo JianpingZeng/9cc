@@ -94,12 +94,8 @@ static void test_type2s()
             "void (** (char *)) (int)");
 }
 
-const char *testname()
-{
-    return "type2s";
-}
-
 void testmain()
 {
+    START("type2s ...");
     test_type2s();
 }

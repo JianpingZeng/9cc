@@ -45,12 +45,8 @@ static void test_struct1()
     );
 }
 
-const char *testname()
-{
-    return "typesize";
-}
-
 void testmain()
 {
+    START("typesize ...");
     test_struct1();
 }

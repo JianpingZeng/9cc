@@ -15,12 +15,8 @@ static void test_strip()
     expectp(NULL, strs(s1->str));
 }
 
-const char *testname()
-{
-    return "string";
-}
-
 void testmain()
 {
+    START("string ...");
     test_strip();
 }
