@@ -54,7 +54,7 @@ static void expect2(const char *code, const char *type, const char *output)
     int ret;
     struct context context = { code, type, output };
     
-    ret = runproc(subprocess, &context);
+    ret = subprocess(&context);
     if (ret != EXIT_SUCCESS)
         exit(1);
 }

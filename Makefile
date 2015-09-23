@@ -103,7 +103,7 @@ TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
 TEST_INTERNAL := $(patsubst %.c, %, $(filter-out $(TESTDIR)/internal/internal.c,$(wildcard $(TESTDIR)/internal/*.c)))
 TESTS=$(TEST_INTERNAL)
 
-$(TESTDIR)/internal/%: $(TESTDIR)/internal/%.c $(TEST_DEP) $(TESTDIR)/internal/internal.h $(CC1_OBJ) $(SYS_OBJ)
+$(TESTDIR)/internal/%: $(TESTDIR)/internal/%.c $(TEST_DEP) $(TESTDIR)/internal/internal.h $(TESTDIR)/internal/internal.c $(CC1_OBJ) $(SYS_OBJ)
 	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(TESTDIR)/internal/internal.c $< $(CC1_OBJ) $(SYS_OBJ) -o $@
 
 test: $(TESTS)

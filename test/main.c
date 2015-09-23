@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "test.h"
+#include "sys.h"
 
 extern void testmain(void);
 extern const char *testname(void);
@@ -92,6 +93,7 @@ void fexpectp(char *file, int line, void *a, void *b)
 
 int main()
 {
+    setup_sys();
     testmain();
     printf("\e[32mPASS\e[0m: %s\n", testname());
     return 0;
