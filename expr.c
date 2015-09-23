@@ -747,7 +747,7 @@ static node_t * direction(node_t *node)
     if (isrecord(ty)) {
 	field = find_field(ty, name);
         if (field == NULL)
-	    error("'%s' has no field named '%s'", type2s(ty), name);
+	    field_not_found_error(ty, name);
     }
     if (NO_ERROR) {
 	ret = ast_expr(MEMBER_EXPR, t, node, ast_expr(REF_EXPR, 0, NULL, NULL));

@@ -27,12 +27,6 @@ static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
 static void ensure_nonvoid(node_t *ty, struct source src, int level);
 
-static void conflicting_types_error(struct source src, node_t *sym)
-{
-    errorf(src, "conflicting types for '%s', previous at %s line %u",
-           SYM_NAME(sym), SYM_SRC(sym).file, SYM_SRC(sym).line);
-}
-
 static node_t * specifiers(int *sclass)
 {
     int cls, sign, size, type;
@@ -1374,7 +1368,7 @@ static void struct_init(node_t *ty, bool brace, struct vector *v)
 	    } else {
 		i--;
 		if (name)
-		    error("'%s' has no field named '%s'", type2s(ty), name);
+		    field_not_found_error(ty, name);
 	    }
 	    designated = true;
 	}

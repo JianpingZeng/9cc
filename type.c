@@ -449,19 +449,16 @@ node_t * find_field(node_t *sty, const char *name)
     int i;
     node_t *ty = unqual(sty);
     int len = array_len((void **)TYPE_FIELDS(ty));
-    node_t *ret = NULL;
 
     if (name == NULL)
 	return NULL;
     for (i = 0; i < len; i++) {
         node_t *field = TYPE_FIELDS(ty)[i];
 	if (FIELD_NAME(field) && !strcmp(name, FIELD_NAME(field)))
-	    break;
+	    return field;
     }
-    if (i < len)
-	ret = TYPE_FIELDS(ty)[i];
-
-    return ret;
+    
+    return NULL;
 }
 
 int indexof_field(node_t *ty, node_t *field)
@@ -483,6 +480,7 @@ int indexof_field(node_t *ty, node_t *field)
  */
 #define MAX_BITS    BITS(inttype)
 #define MAX_BYTES   TYPE_SIZE(inttype)
+#define PACK        4
 
 static void packbits(node_t *field, int *offset)
 {
@@ -525,26 +523,26 @@ static unsigned struct_size(node_t *ty)
     int offset = 0;
 
     for (int i = 0; i < len; i++) {
-	node_t *field = fields[i];
-	node_t *ty = FIELD_TYPE(field);
-	int bitsize = FIELD_BITSIZE(field);
-	int bits = BITS(ty);
-	node_t *next = i+1 < len ? fields[i+1] : NULL;
+    	node_t *field = fields[i];
+    	node_t *ty = FIELD_TYPE(field);
+    	int bitsize = FIELD_BITSIZE(field);
+    	int bits = BITS(ty);
+    	node_t *next = i+1 < len ? fields[i+1] : NULL;
 	
-	if (FIELD_ISBIT(field)) {
-	    if (bitsize < 0 || (bitsize == 0 && FIELD_NAME(field)))
-		continue;
-	    if (bitsize > bits)
-		FIELD_BITSIZE(field) = bitsize = bits;
+    	if (FIELD_ISBIT(field)) {
+    	    if (bitsize < 0 || (bitsize == 0 && FIELD_NAME(field)))
+    		continue;
+    	    if (bitsize > bits)
+    		FIELD_BITSIZE(field) = bitsize = bits;
 
-	    if (bitsize == 0) {
+    	    if (bitsize == 0) {
 		
-	    } else {
+    	    } else {
 
-	    }
-	} else {
+    	    }
+    	} else {
 	    
-	}
+    	}
     }
 
     return ret;
@@ -555,14 +553,14 @@ static unsigned union_size(node_t *ty)
     unsigned ret = 0;
     int sz = TYPE_SIZE(unsignedinttype);
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
-	node_t *field = TYPE_FIELDS(ty)[i];
-	if (isbitfield(field)) {
-	    if (FIELD_OFFSET(field) == 0 && FIELD_BITSIZE(field) > 0)
-		ret = MAX(ret, ROUNDUP(sz, PACK));
-	} else {
-	    int size = typesize(FIELD_TYPE(field));
-	    ret = MAX(ret, ROUNDUP(size, PACK));
-	}
+    	node_t *field = TYPE_FIELDS(ty)[i];
+    	if (isbitfield(field)) {
+    	    if (FIELD_OFFSET(field) == 0 && FIELD_BITSIZE(field) > 0)
+    		ret = MAX(ret, ROUNDUP(sz, PACK));
+    	} else {
+    	    int size = typesize(FIELD_TYPE(field));
+    	    ret = MAX(ret, ROUNDUP(size, PACK));
+    	}
     }
     return ret;
 }

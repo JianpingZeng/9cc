@@ -230,6 +230,8 @@ extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
 
 extern void redefinition_error(struct source src, node_t *sym);
+extern void conflicting_types_error(struct source src, node_t *sym);
+extern void field_not_found_error(node_t *ty, const char *name);
 
 // gen.c
 extern void gen(node_t *tree);

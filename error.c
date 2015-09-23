@@ -109,3 +109,17 @@ void redefinition_error(struct source src, node_t *sym)
     errorf(src, "redefinition of '%s', previous definition at %s line %u",
            SYM_NAME(sym), SYM_SRC(sym).file, SYM_SRC(sym).line);
 }
+
+void conflicting_types_error(struct source src, node_t *sym)
+{
+    errorf(src, "conflicting types for '%s', previous at %s line %u",
+           SYM_NAME(sym), SYM_SRC(sym).file, SYM_SRC(sym).line);
+}
+
+void field_not_found_error(node_t *ty, const char *name)
+{
+    if (SYM_DEFINED(TYPE_TSYM(ty)))
+	error("'%s' has no field named '%s'", type2s(ty), name);
+    else
+	error("incomplete definition of type '%s'", type2s(ty));
+}
