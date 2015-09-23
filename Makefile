@@ -44,15 +44,15 @@ SYSDIR=include/linux
 SYS_OBJ:=sys/linux.o
 SYS_INC+=$(wildcard $(SYSDIR)/*.h)
 ARCH:=$(shell uname -m)
+KERNEL:=$(shell uname)
+CFLAGS+=-D_BSD_SOURCE -DCONFIG_COLOR_TERM
 
-ifneq (, $(findstring CYGWIN, $(shell uname)))
-CFLAGS+=-DCONFIG_CYGWIN -D_BSD_SOURCE
-CFLAGS+=-DCONFIG_COLOR_TERM
+ifneq (, $(findstring CYGWIN, $(KERNEL)))
+CFLAGS+=-DCONFIG_CYGWIN
+else ifeq (Darwin, $(KERNEL))
+CFLAGS+=-DCONFIG_DARWIN
 else
-CFLAGS+=-DCONFIG_LINUX -D_BSD_SOURCE
-ifeq ($(shell test $(shell tput colors) -gt 7; echo $$?), 0)
-CFLAGS+=-DCONFIG_COLOR_TERM
-endif
+CFLAGS+=-DCONFIG_LINUX
 endif
 
 ifeq ($(ARCH), i386)
