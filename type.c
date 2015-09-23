@@ -586,15 +586,19 @@ static unsigned array_size(node_t *ty)
 // TODO: 
 static unsigned typesize(node_t *ty)
 {
-    if (ty == NULL)
-	return 0;
     
 }
 
 // TODO:
 void set_typesize(node_t *ty)
 {
-    
+    if (isarray(ty)) {
+	
+    } else if (isstruct(ty)) {
+
+    } else if (isunion(ty)) {
+
+    }
 }
 
 bool isincomplete(node_t *ty)

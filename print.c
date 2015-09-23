@@ -9,22 +9,30 @@ struct print_context {
 
 static void print_tree1(struct print_context context);
 
+static void putf(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+}
+
 static void print_ty(node_t *ty)
 {
     if (ty) {
 	if (isfunc(ty) || isptr(ty) || isarray(ty))
-	    fprintf(stderr, RED_BOLD("'%s' "), TYPE_NAME(ty));
-	fprintf(stderr, GREEN("'%s' "), type2s(ty));
+	    putf(RED_BOLD("'%s' "), TYPE_NAME(ty));
+	putf(GREEN("'%s' "), type2s(ty));
 	if (isarray(ty) || isstruct(ty) || isunion(ty))
-	    fprintf(stderr, YELLOW("<size=%ld> "), TYPE_SIZE(ty));
+	    putf(YELLOW("<size=%ld> "), TYPE_SIZE(ty));
     }
 }
 
 static void print_type(node_t *node, struct print_context context)
 {
-    fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
+    putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
     print_ty(node);
-    fprintf(stderr, "\n");
+    putf("\n");
 }
 
 static void print_field(node_t *node, struct print_context context)
@@ -32,33 +40,33 @@ static void print_field(node_t *node, struct print_context context)
     const char *name = FIELD_NAME(node);
     node_t *ty = FIELD_TYPE(node);
     
-    fprintf(stderr, GREEN("%s "), nname(node));
+    putf(GREEN("%s "), nname(node));
     if (isbitfield(node)) {
-	fprintf(stderr, PURPLE("bit "));
+	putf(PURPLE("bit "));
 	if (name)
-	    fprintf(stderr, YELLOW("<offset=%d, size=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
+	    putf(YELLOW("<offset=%d, size=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
 	else
-	    fprintf(stderr, RED("<offset=%d, size=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
+	    putf(RED("<offset=%d, size=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
     }
     print_ty(ty);
-    fprintf(stderr, CYAN("%s"), STR(name));
-    fprintf(stderr, "\n");
+    putf(CYAN("%s"), STR(name));
+    putf("\n");
 }
 
 static void print_decl(node_t *node, struct print_context context)
 {
     int level;
 
-    fprintf(stderr, GREEN("%s ") YELLOW("%p "), nname(node), node);
+    putf(GREEN("%s ") YELLOW("%p "), nname(node), node);
     if (DECL_SYM(node)) {
 	if (SYM_DEFINED(DECL_SYM(node)))
-	    fprintf(stderr, YELLOW("<defined> "));
+	    putf(YELLOW("<defined> "));
 	
 	node_t *ty = SYM_TYPE(DECL_SYM(node));
         print_ty(ty);
-	fprintf(stderr, CYAN("%s "), STR(SYM_NAME(DECL_SYM(node))));
+	putf(CYAN("%s "), STR(SYM_NAME(DECL_SYM(node))));
     }
-    fprintf(stderr, "\n");
+    putf("\n");
     
     level = context.level + 1;
     
@@ -96,29 +104,29 @@ static void print_expr(node_t *node, struct print_context context)
     int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
 
-    fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
+    putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
     print_ty(AST_TYPE(node));
     if (islvalue(node))
-	fprintf(stderr, "'" CYAN("lvalue") "' ");
+	putf("'" CYAN("lvalue") "' ");
     
     if (EXPR_SYM(node))
-	fprintf(stderr, CYAN("%s "), STR(SYM_NAME(EXPR_SYM(node))));
+	putf(CYAN("%s "), STR(SYM_NAME(EXPR_SYM(node))));
     if (op == INCR || op == DECR)
-	fprintf(stderr, "%s ", (prefix ? "prefix" : "postfix"));
+	putf("%s ", (prefix ? "prefix" : "postfix"));
     if (op > 0)
-	fprintf(stderr, "'%s' ", tname(op));
+	putf("'%s' ", tname(op));
     if (AST_NAME(node))
-	fprintf(stderr, "<" RED("%s")  "> ", AST_NAME(node));
+	putf("<" RED("%s")  "> ", AST_NAME(node));
     if (isiliteral(node)) {
 	if (TYPE_OP(AST_TYPE(node)) == INT)
-	    fprintf(stderr, RED("%lld"), ILITERAL_VALUE(node));
+	    putf(RED("%lld"), ILITERAL_VALUE(node));
 	else
-	    fprintf(stderr, RED("%llu"), ILITERAL_VALUE(node));
+	    putf(RED("%llu"), ILITERAL_VALUE(node));
     } else if (isfliteral(node)) {
-	fprintf(stderr, RED("%Lf"), FLITERAL_VALUE(node));
+	putf(RED("%Lf"), FLITERAL_VALUE(node));
     }
     
-    fprintf(stderr, "\n");
+    putf("\n");
 
     level = context.level + 1;
 
@@ -149,10 +157,10 @@ static void print_stmt(node_t *node, struct print_context context)
     int level;
     node_t *up = STMT_UP(node);
 
-    fprintf(stderr, PURPLE("%s ") YELLOW("%p "), nname(node), node);
+    putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
     if (up)
-        fprintf(stderr, "-> %s %p\n", nname(up), up);
-    fprintf(stderr, "\n");
+        putf("-> %s %p\n", nname(up), up);
+    putf("\n");
     
     level = context.level + 1;
     
@@ -179,8 +187,8 @@ static void print_stmt(node_t *node, struct print_context context)
             print_tree1(con);
         } else {
             for (int i=0; i < level; i++)
-                fprintf(stderr, "  ");
-            fprintf(stderr, "init: <NULL>\n");
+                putf("  ");
+            putf("init: <NULL>\n");
         }
         
         if (cond) {
@@ -188,8 +196,8 @@ static void print_stmt(node_t *node, struct print_context context)
             print_tree1(con);
         } else {
             for (int i=0; i < level; i++)
-                fprintf(stderr, "  ");
-            fprintf(stderr, "cond: <NULL>\n");
+                putf("  ");
+            putf("cond: <NULL>\n");
         }
         
         if (ctrl) {
@@ -197,8 +205,8 @@ static void print_stmt(node_t *node, struct print_context context)
             print_tree1(con);
         } else {
             for (int i=0; i < level; i++)
-                fprintf(stderr, "  ");
-            fprintf(stderr, "ctrl: <NULL>\n");
+                putf("  ");
+            putf("ctrl: <NULL>\n");
         }
     }
 }
@@ -209,7 +217,7 @@ static void print_tree1(struct print_context context)
     int level = context.level + 1;
     
     for (int i=0; i < context.level; i++)
-        fprintf(stderr, "  ");
+        putf("  ");
     
     if (isdecl(node))
         print_decl(node, context);
