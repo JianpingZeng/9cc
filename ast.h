@@ -118,6 +118,10 @@ struct ast_field {
 #define SYM_SRC(NODE)           ((NODE)->symbol.src)
 #define SYM_VALUE(NODE)         ((NODE)->symbol.value)
 #define SYM_REFS(NODE)          ((NODE)->symbol.refs)
+// convenience
+#define SYM_VALUE_U(NODE)       (VALUE_U(SYM_VALUE(NODE)))
+#define SYM_VALUE_I(NODE)       (VALUE_I(SYM_VALUE(NODE)))
+#define SYM_VALUE_D(NODE)       (VALUE_D(SYM_VALUE(NODE)))
 
 struct ast_symbol {
     struct ast_common common;
@@ -182,8 +186,8 @@ struct ast_stmt {
 #define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
 #define EXPR_ELSE(NODE)         EXPR_OPERAND(NODE, 2)
 // literal
-#define ILITERAL_VALUE(NODE)    (SYM_VALUE(EXPR_SYM(NODE)).u)
-#define FLITERAL_VALUE(NODE)    (SYM_VALUE(EXPR_SYM(NODE)).d)
+#define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
+#define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 
 struct ast_expr {
     struct ast_common common;

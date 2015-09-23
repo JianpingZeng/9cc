@@ -69,25 +69,25 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
     _TYPE_RANK(ty) = m.rank;
     switch (TYPE_OP(ty)) {
         case INT:
-            _TYPE_LIMITS_MAX(ty).u = ONES(_TYPE_SIZE(ty)) >> 1;
-            _TYPE_LIMITS_MIN(ty).u = -_TYPE_LIMITS_MAX(ty).u - 1;
+            VALUE_I(_TYPE_LIMITS_MAX(ty)) = ONES(_TYPE_SIZE(ty)) >> 1;
+            VALUE_I(_TYPE_LIMITS_MIN(ty)) = -VALUE_I(_TYPE_LIMITS_MAX(ty)) - 1;
             break;
             
         case UNSIGNED:
-            _TYPE_LIMITS_MAX(ty).u = ONES(_TYPE_SIZE(ty));
-            _TYPE_LIMITS_MIN(ty).u = 0;
+            VALUE_U(_TYPE_LIMITS_MAX(ty)) = ONES(_TYPE_SIZE(ty));
+            VALUE_U(_TYPE_LIMITS_MIN(ty)) = 0;
             break;
             
         case FLOAT:
-            if (_TYPE_SIZE(ty) == sizeof (float)) {
-                _TYPE_LIMITS_MAX(ty).d = FLT_MAX;
-                _TYPE_LIMITS_MIN(ty).d = FLT_MIN;
-            } else if (_TYPE_SIZE(ty) == sizeof (double)) {
-                _TYPE_LIMITS_MAX(ty).d = DBL_MAX;
-                _TYPE_LIMITS_MIN(ty).d = DBL_MIN;
+            if (_TYPE_SIZE(ty) == floatmetrics.size) {
+                VALUE_D(_TYPE_LIMITS_MAX(ty)) = FLT_MAX;
+                VALUE_D(_TYPE_LIMITS_MIN(ty)) = FLT_MIN;
+            } else if (_TYPE_SIZE(ty) == doublemetrics.size) {
+                VALUE_D(_TYPE_LIMITS_MAX(ty)) = DBL_MAX;
+                VALUE_D(_TYPE_LIMITS_MIN(ty)) = DBL_MIN;
             } else {
-                _TYPE_LIMITS_MAX(ty).d = LDBL_MAX;
-                _TYPE_LIMITS_MIN(ty).d = LDBL_MIN;
+                VALUE_D(_TYPE_LIMITS_MAX(ty)) = LDBL_MAX;
+                VALUE_D(_TYPE_LIMITS_MIN(ty)) = LDBL_MIN;
             }
             break;
             

@@ -69,6 +69,11 @@ extern void match(int t, int follow[]);
 extern const char *tname(int t);
 
 // value
+#define VALUE_U(v)    ((v).u)
+#define VALUE_I(v)    ((v).u)
+#define VALUE_D(v)    ((v).d)
+#define VALUE_P(v)    ((v).p)
+#define VALUE_G(v)    ((v).g)
 
 union value {
     unsigned long long u;

@@ -19,7 +19,9 @@ static node_t * wrap(node_t *ty, node_t *node);
 static node_t * bitconv(node_t *ty, node_t *node);
 static bool is_nullptr(node_t *node);
 
-#define INTEGER_MAX(type)    (TYPE_LIMITS_MAX(type).u)
+#define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
+#define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
+
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
@@ -149,13 +151,13 @@ static void char_constant(struct token *t, node_t *sym)
         error("incomplete character constant: %s", t->name);
     else if (overflow)
         error("extraneous characters in character constant: %s", t->name);
-    else if ((!wide && c > INTEGER_MAX(unsignedchartype)) ||
-             (wide && c > INTEGER_MAX(wchartype)))
+    else if ((!wide && c > UINTEGER_MAX(unsignedchartype)) ||
+             (wide && c > UINTEGER_MAX(wchartype)))
         error("character constant overflow: %s", t->name);
     else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
         error("illegal multi-character sequence");
     
-    SYM_VALUE(sym).u = wide ? (wchar_t)c : (unsigned char)c;
+    SYM_VALUE_U(sym) = wide ? (wchar_t)c : (unsigned char)c;
     SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
 }
 
@@ -208,7 +210,7 @@ static void integer_constant(struct token *t, node_t *sym)
         base = 10;
         for (;is_digit(*s);) {
             int d = *s - '0';
-            if (n > (INTEGER_MAX(unsignedlonglongtype) - d)/10)
+            if (n > (UINTEGER_MAX(unsignedlonglongtype) - d)/10)
                 overflow = 1;
             else
                 n = n*10 + (*s - '0');
@@ -235,7 +237,7 @@ static void integer_constant(struct token *t, node_t *sym)
         else
             ty = longlongtype;
     } else if (lu || ul) {
-        if (n > INTEGER_MAX(unsignedlongtype))
+        if (n > UINTEGER_MAX(unsignedlongtype))
             ty = unsignedlonglongtype;
         else
             ty = unsignedlongtype;
@@ -248,7 +250,7 @@ static void integer_constant(struct token *t, node_t *sym)
         } else {
             if (n > INTEGER_MAX(longlongtype))
                 ty = unsignedlonglongtype;
-            else if (n > INTEGER_MAX(unsignedlongtype))
+            else if (n > UINTEGER_MAX(unsignedlongtype))
                 ty = longlongtype;
             else if (n > INTEGER_MAX(longtype))
                 ty = unsignedlongtype;
@@ -256,9 +258,9 @@ static void integer_constant(struct token *t, node_t *sym)
                 ty = longtype;
         }
     } else if (u) {
-        if (n > INTEGER_MAX(unsignedlongtype))
+        if (n > UINTEGER_MAX(unsignedlongtype))
             ty = unsignedlonglongtype;
-        else if (n > INTEGER_MAX(unsignedinttype))
+        else if (n > UINTEGER_MAX(unsignedinttype))
             ty = unsignedlongtype;
         else
             ty = unsignedinttype;
@@ -273,11 +275,11 @@ static void integer_constant(struct token *t, node_t *sym)
         } else {
             if (n > INTEGER_MAX(longlongtype))
                 ty = unsignedlonglongtype;
-            else if (n > INTEGER_MAX(unsignedlongtype))
+            else if (n > UINTEGER_MAX(unsignedlongtype))
                 ty = longlongtype;
             else if (n > INTEGER_MAX(longtype))
                 ty = unsignedlongtype;
-            else if (n > INTEGER_MAX(unsignedinttype))
+            else if (n > UINTEGER_MAX(unsignedinttype))
                 ty = longtype;
             else if (n > INTEGER_MAX(inttype))
                 ty = unsignedinttype;
@@ -292,15 +294,16 @@ static void integer_constant(struct token *t, node_t *sym)
     case INT:
 	if (overflow || n > INTEGER_MAX(longlongtype))
 	    error("integer constant overflow: %s", t->name);
+	SYM_VALUE_I(sym) = n;
 	break;
     case UNSIGNED:
 	if (overflow)
 	    error("integer constant overflow: %s", t->name);
+	SYM_VALUE_U(sym) = n;
 	break;
     default:
 	CCAssert(0);
     }
-    SYM_VALUE(sym).u = n;
 }
 
 static void float_constant(struct token *t, node_t *sym)
@@ -310,13 +313,13 @@ static void float_constant(struct token *t, node_t *sym)
     errno = 0;			// must clear first
     if (c == 'f' || c == 'F') {
         SYM_TYPE(sym) = floattype;
-        SYM_VALUE(sym).d = strtof(s, NULL);
+        SYM_VALUE_D(sym) = strtof(s, NULL);
     } else if (c == 'l' || c == 'L') {
         SYM_TYPE(sym) = longdoubletype;
-        SYM_VALUE(sym).d = strtold(s, NULL);
+        SYM_VALUE_D(sym) = strtold(s, NULL);
     } else {
         SYM_TYPE(sym) = doubletype;
-        SYM_VALUE(sym).d = strtod(s, NULL);
+        SYM_VALUE_D(sym) = strtod(s, NULL);
     }
     
     if (errno == ERANGE)
@@ -834,7 +837,7 @@ static node_t * sizeof_expr()
 	ret = uop(t, unsignedinttype, ty);
 	EXPR_SYM(ret) = anonymous(&constants, CONSTANT);
 	SYM_TYPE(EXPR_SYM(ret)) = ty;
-	SYM_VALUE(EXPR_SYM(ret)).u = TYPE_SIZE(ty);
+	SYM_VALUE_U(EXPR_SYM(ret)) = TYPE_SIZE(ty);
     }
 
     return ret;
@@ -1601,7 +1604,7 @@ static bool is_nullptr(node_t *node)
     if (cnst == NULL)
 	return false;
     if (isiliteral(cnst))
-	return SYM_VALUE(EXPR_SYM(cnst)).u == 0;
+	return SYM_VALUE_U(EXPR_SYM(cnst)) == 0;
     return false;
 }
 
@@ -1616,7 +1619,7 @@ int intexpr()
 	error("expression is not an integer constant");
 	return 0;
     }
-    return SYM_VALUE(EXPR_SYM(cnst)).u;
+    return SYM_VALUE_I(EXPR_SYM(cnst));
 }
 
 node_t * init_elem_conv(node_t *ty, node_t *node)

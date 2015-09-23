@@ -53,25 +53,25 @@ static node_t * arith2arith(node_t *dty, node_t *l)
 	int dst_size = TYPE_SIZE(dty);
 	if (src_size > dst_size) {
 	    // narrow
-	    dst_val.u &= TYPE_LIMITS_MAX(dty).u;
+	    VALUE_U(dst_val) &= VALUE_U(TYPE_LIMITS_MAX(dty));
 	    if (TYPE_KIND(dty) == _BOOL)
-		dst_val.u = dst_val.u == 0 ? 0 : 1;
+		VALUE_U(dst_val) = VALUE_U(dst_val) == 0 ? 0 : 1;
 	}
 	return int_literal_node(dty, dst_val);
     } else if (isint(dty) && isfloat(sty)) {
 	// float => int
 	union value src_val = SYM_VALUE(EXPR_SYM(l));
 	union value dst_val;
-	dst_val.u = src_val.d;
+	VALUE_U(dst_val) = VALUE_D(src_val);
 	return int_literal_node(dty, dst_val);
     } else if (isfloat(dty) && isint(sty)) {
 	// int => float
 	union value src_val = SYM_VALUE(EXPR_SYM(l));
 	union value dst_val;
 	if (TYPE_OP(sty) == INT)
-	    dst_val.d = (long long)src_val.u;
+	    VALUE_D(dst_val) = (long long)VALUE_U(src_val);
 	else
-	    dst_val.d = src_val.u;
+	    VALUE_D(dst_val) = VALUE_U(src_val);
 	return float_literal_node(dty, dst_val);
     } else if (isfloat(dty) && isfloat(sty)) {
 	// float => float
@@ -79,11 +79,11 @@ static node_t * arith2arith(node_t *dty, node_t *l)
 	union value src_val = SYM_VALUE(EXPR_SYM(l));
 	union value dst_val;
 	if (dst_kind == FLOAT)
-	    dst_val.d = (float)src_val.d;
+	    VALUE_D(dst_val) = (float)VALUE_D(src_val);
         else if (dst_kind == DOUBLE)
-	    dst_val.d = (double)src_val.d;
+	    VALUE_D(dst_val) = (double)VALUE_D(src_val);
 	else
-	    dst_val.d = src_val.d;
+	    VALUE_D(dst_val) = VALUE_D(src_val);
 	return float_literal_node(dty, dst_val);
     }
     return NULL;
@@ -144,33 +144,33 @@ static node_t * bop_scalar(int op, node_t *dty, node_t *l, node_t *r)
         if (ret_is_u) { \
 	    if (l_is_u) { \
 		if (r_is_u) \
-		    ret.u = lval.u oo rval.u; \
+		    VALUE_U(ret) = VALUE_U(lval) oo VALUE_U(rval); \
 		else \
-		    ret.u = lval.u oo rval.d; \
+		    VALUE_U(ret) = VALUE_U(lval) oo VALUE_D(rval); \
 	    } else { \
 		if (r_is_u) \
-		    ret.u = lval.d oo rval.u; \
+		    VALUE_U(ret) = VALUE_D(lval) oo VALUE_U(rval); \
 		else \
-		    ret.u = lval.d oo rval.d; \
+		    VALUE_U(ret) = VALUE_D(lval) oo VALUE_D(rval); \
 	    } \
 	} else { \
 	    if (l_is_u) { \
 		if (r_is_u) \
-		    ret.d = lval.u oo rval.u; \
+		    VALUE_D(ret) = VALUE_U(lval) oo VALUE_U(rval); \
 		else \
-		    ret.d = lval.u oo rval.d; \
+		    VALUE_D(ret) = VALUE_U(lval) oo VALUE_D(rval); \
 	    } else { \
 		if (r_is_u) \
-		    ret.d = lval.d oo rval.u; \
+		    VALUE_D(ret) = VALUE_D(lval) oo VALUE_U(rval); \
 		else \
-		    ret.d = lval.d oo rval.d; \
+		    VALUE_D(ret) = VALUE_D(lval) oo VALUE_D(rval); \
 	    } \
 	} \
     } while (0)
 
 #define LORI(oo) \
     do { \
-        ret.u = lval.u oo rval.u; \
+        VALUE_U(ret) = VALUE_U(lval) oo VALUE_U(rval);	\
     } while (0)
     
     switch (op) {
@@ -214,14 +214,14 @@ static node_t * uop_scalar(int op, node_t *dty, node_t *l)
     do { \
 	if (ret_is_u) { \
 	    if (l_is_u) \
-		ret.u = oo lval.u; \
+		VALUE_U(ret) = oo VALUE_U(lval); \
 	    else \
-		ret.u = oo lval.d; \
+		VALUE_U(ret) = oo VALUE_D(lval); \
 	} else { \
 	    if (l_is_u) \
-		ret.d = oo lval.u; \
+		VALUE_D(ret) = oo VALUE_U(lval); \
 	    else \
-		ret.d = oo lval.d; \
+		VALUE_D(ret) = oo VALUE_D(lval); \
 	} \
     } while (0)
     
@@ -231,7 +231,7 @@ static node_t * uop_scalar(int op, node_t *dty, node_t *l)
 	// int
     case '~':
 	CCAssert(ret_is_u);
-	ret.u = ~ lval.u;
+	VALUE_U(ret) = ~ VALUE_U(lval);
 	break;
 	// scalar
     case '!': LOO(!); break;
