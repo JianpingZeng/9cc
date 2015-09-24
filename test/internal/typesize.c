@@ -172,6 +172,29 @@ static void test_struct()
 	   char c[10];
        };
        );
+
+     xx(12,
+	struct S {
+	    char a;
+	    short b;
+	    int c;
+	    char d;
+	};
+	);
+
+     xx(8,
+	struct S {
+	    float x;
+	    char n[1];
+	};
+	);
+
+     xx(6,
+	struct S {
+	    short s;
+	    char n[3];
+	};
+       );
 }
 
 static void test_union()
