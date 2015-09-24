@@ -478,12 +478,6 @@ int indexof_field(node_t *ty, node_t *field)
     return -1;
 }
 
-/* Alignment requirements
- *
- * The rule is that the structure will be padded out
- * to the size the type would occupy as an element
- * of an array of such types.
- */
 static node_t * btype(node_t *ty)
 {
     if (isarray(ty)) {
@@ -495,7 +489,14 @@ static node_t * btype(node_t *ty)
     return ty;
 }
 
-// TODO: 
+/* Structure alignment requirements
+ *
+ * The rule is that the structure will be padded out
+ * to the size the type would occupy as an element
+ * of an array of such types.
+ *
+ * The bitfields must be packed as tightly as possible.
+ */
 static unsigned struct_size(node_t *ty)
 {
     int offset = 0;
