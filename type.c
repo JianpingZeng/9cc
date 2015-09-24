@@ -484,75 +484,66 @@ int indexof_field(node_t *ty, node_t *field)
  * to the size the type would occupy as an element
  * of an array of such types.
  */
-#define MAX_BITFIELD_BITS    BITS(inttype)
-#define MAX_BITFIELD_BYTES   TYPE_SIZE(inttype)
-#define PACK  4
-
-// TODO: 
-static void packbits(node_t *ty)
+static node_t * btype(node_t *ty)
 {
-    int len = array_len((void **)TYPE_FIELDS(ty));
-    int offset = 0;
-
-    for (int i = 0; i < len; i++) {
-	node_t *field = TYPE_FIELDS(ty)[i];
-
-	if (FIELD_ISBIT(field)) {
-	    const char *name = FIELD_NAME(field);
-	    node_t *ty = FIELD_TYPE(field);
-	    int bitsize = FIELD_BITSIZE(field);
-	    int bits = BITS(ty);
-	    int max = MAX_BITFIELD_BITS;
-
-	    if (bitsize > bits) {
-		bitsize = bits;
-		FIELD_BITSIZE(field) = bitsize;
-	    }
-
-	    if (bitsize == 0 && name == NULL) {
-		if (offset > 0) {
-		    FIELD_OFFSET(field) = offset;
-		    FIELD_BITSIZE(field) = max - offset;
-		}
-		offset = 0;
-	    } else if (bitsize > 0) {
-		if (offset + bitsize > max)
-		    offset = 0;
-	    
-		FIELD_OFFSET(field) = offset;
-		offset += bitsize;
-	    }
-	} else {
-	    offset = 0;
-	}
+    if (isarray(ty)) {
+	do {
+	    ty = rtype(ty);
+	} while (isarray(ty));
     }
+
+    return ty;
 }
 
 // TODO: 
 static unsigned struct_size(node_t *ty)
 {
-    unsigned ret = 0;
-    int sz = MAX_BITFIELD_BYTES;
-    node_t **fields = TYPE_FIELDS(ty);
-    int len = array_len((void **)fields);
     int offset = 0;
+    int bsize = 0;
     int max = 1;
+    int maxbits = 0;
 
-    // packbits(ty);
-    for (int i = 0; i < len; i++) {
-    	node_t *field = fields[i];
+    for (int i = 0; i < array_len((void **)TYPE_FIELDS(ty)); i++) {
+    	node_t *field = TYPE_FIELDS(ty)[i];
     	node_t *ty = FIELD_TYPE(field);
-    	int bitsize = FIELD_BITSIZE(field);
-    	int bits = BITS(ty);
 	
     	if (FIELD_ISBIT(field)) {
-    	    
+	    int bitsize = FIELD_BITSIZE(field);
+	    
+	    if (!isint(ty))
+		continue;
+	    if (bitsize < 0 || (FIELD_NAME(field) && bitsize == 0))
+		continue;
+
+	    if (bitsize > BITS(ty))
+		bitsize = BITS(ty);
+
+	    if (bitsize == 0) {
+		offset = ROUNDUP(offset, TYPE_SIZE(ty));
+		bsize = ROUNDUP(bsize, BITS(ty));
+		continue;
+	    }
+
+	    maxbits = MAX(maxbits, BITS(ty));
+
+	    if (bsize == 0 || bitsize + bsize > maxbits) {
+		FIELD_OFFSET(field) = offset = ROUNDUP(offset, TYPE_SIZE(ty));
+		offset += TYPE_SIZE(ty);
+		bsize = FIELD_BITSIZE(field);
+	    } else {
+		bsize += bitsize;
+		offset = ROUNDUP(offset, TYPE_SIZE(ty));
+	    }
+	    
     	} else {
-	    int align = TYPE_SIZE(ty);
-	    FIELD_OFFSET(field) = ROUNDUP(offset, align);
+	    int align = MAX(1, TYPE_SIZE(btype(ty)));
+	    FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
 	    offset += TYPE_SIZE(ty);
-	    max = MAX(max, TYPE_SIZE(ty));
+	    bsize = 0;
+	    maxbits = 0;
     	}
+	
+	max = MAX(max, TYPE_SIZE(btype(ty)));
     }
 
     return ROUNDUP(offset, max);
@@ -562,16 +553,7 @@ static unsigned struct_size(node_t *ty)
 static unsigned union_size(node_t *ty)
 {
     unsigned ret = 0;
-    int sz = MAX_BITFIELD_BYTES;
-    
-    for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
-    	node_t *field = TYPE_FIELDS(ty)[i];
-    	if (isbitfield(field)) {
-    	    
-    	} else {
-    	    
-    	}
-    }
+
     return ret;
 }
 

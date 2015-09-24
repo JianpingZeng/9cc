@@ -661,6 +661,9 @@ static void fields(node_t *sty)
             }
             
 	    ensure_field(field);
+	    if (isarray(FIELD_TYPE(field)))
+		set_typesize(FIELD_TYPE(field));
+	    
 	    vec_push(v, field);
             
             if (token->id != ',')
