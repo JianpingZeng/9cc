@@ -29,22 +29,13 @@ static void expect3(int i, const char *code)
     int size2 = atoi(ret);
     free((void *)ret);
 
-    expecti(size1, size2);
-    expecti(size1, i);
-}
-
-static void expect2(const char *code)
-{
-    int size1 = size_code(code);
-    const char *ret = gcc_compile(gcc_code(code));
-    int size2 = atoi(ret);
-    free((void *)ret);
-
-    expecti(size1, size2);
+    if (size1 != size2)
+	fail("gcc: %ld, but got %ld", size1, size2);
+    if (size1 != i)
+	fail("both got %ld, but guess %ld", size1, i);
 }
 
 #define xx(i, s)       expect3(i, CODE(s))
-#define yy(s)          expect2(CODE(s))
 
 static void test_struct()
 {
@@ -158,7 +149,7 @@ static void test_struct()
        };
        );
 
-     yy(
+     xx(2,
        struct S {
      	   short a:6;
      	   char b:5;
@@ -193,6 +184,37 @@ static void test_struct()
 	struct S {
 	    short s;
 	    char n[3];
+	};
+       );
+
+     xx(2,
+	struct S {
+	    char x;
+	    char :0;
+	    char y;
+	};
+	);
+
+     xx(5,
+	struct S {
+	    char a;
+	    int :0;
+	    char b;
+	};
+	);
+
+     xx(8,
+	struct S {
+	    int a:1;
+	    short b;
+	    char c;
+	};
+       );
+
+     xx(4,
+	struct S {
+	    int a:1;
+	    char b;
 	};
        );
 }

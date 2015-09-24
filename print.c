@@ -41,13 +41,11 @@ static void print_field(node_t *node, struct print_context context)
     node_t *ty = FIELD_TYPE(node);
     
     putf(GREEN("%s "), nname(node));
-    if (isbitfield(node)) {
-	putf(PURPLE("bit "));
-	if (name)
-	    putf(YELLOW("<offset=%d, size=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
-	else
-	    putf(RED("<offset=%d, size=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
-    }
+    if (isbitfield(node))
+	putf(RED("<offset=%d, bits=%d> "), FIELD_OFFSET(node), FIELD_BITSIZE(node));
+    else
+	putf(GREEN("<offset=%d> "), FIELD_OFFSET(node));
+    
     print_ty(ty);
     putf(CYAN("%s"), STR(name));
     putf("\n");
