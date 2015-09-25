@@ -661,9 +661,6 @@ static void fields(node_t *sty)
             }
             
 	    ensure_field(field);
-	    if (isarray(FIELD_TYPE(field)))
-		set_typesize(FIELD_TYPE(field));
-	    
 	    vec_push(v, field);
             
             if (token->id != ',')
@@ -1635,6 +1632,8 @@ static void ensure_array(node_t *atype, struct source src, int level)
 	    errorf(src, "array has incomplete element type '%s'", type2s(rty));
 	
     } while (isarray(rty));
+
+    set_typesize(atype);
 }
 
 static void ensure_nonvoid(node_t *ty, struct source src, int level)

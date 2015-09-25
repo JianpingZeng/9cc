@@ -1,20 +1,21 @@
 #include "internal.h"
 
-extern node_t * alignty(node_t *ty);
-
 static node_t * get_ty(const char *code)
 {
     node_t *n = compile(code);
     node_t **exts = DECL_EXTS(n);
     node_t *n1 = exts[array_len((void **)exts)-1];
     node_t *ty1 = AST_TYPE(n1);
-    return unqual(alignty(ty1));
+    return ty1;
 }
 
 static void expect2(node_t *ty1, node_t *ty2, const char *code)
 {
-    if (ty1 != ty2)
-	fail("expect '%s', but got '%s', code:\n" RED("%s"), type2s(ty2), type2s(ty1), code);
+    int align1 = TYPE_ALIGN(ty1);
+    int align2 = TYPE_ALIGN(ty2);
+    if (align1 != align2)
+	fail("expect %ld ('%s'), but got %ld ('%s'), code:\n" RED("%s"),
+	     align2, type2s(ty2), align1, type2s(ty1), code);
 }
 
 /* Must compile first, then type_init() would

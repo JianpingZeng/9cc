@@ -169,6 +169,7 @@ extern bool isrestrict(node_t *ty);
 #define TYPE_KIND(ty)            _TYPE_KIND(unqual(ty))
 #define TYPE_NAME(ty)            _TYPE_NAME(unqual(ty))
 #define TYPE_SIZE(ty)            _TYPE_SIZE(unqual(ty))
+#define TYPE_ALIGN(ty)           _TYPE_ALIGN(unqual(ty))
 #define TYPE_LEN(ty)             _TYPE_LEN(unqual(ty))
 #define TYPE_RANK(ty)            _TYPE_RANK(unqual(ty))
 #define TYPE_INLINE(ty)          _TYPE_INLINE(unqual(ty))

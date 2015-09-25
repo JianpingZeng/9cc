@@ -42,6 +42,7 @@ struct ast_common {
 #define _TYPE_KIND(NODE)         ((NODE)->type.kind)
 #define _TYPE_NAME(NODE)         AST_NAME(NODE)
 #define _TYPE_SIZE(NODE)         ((NODE)->type.size)
+#define _TYPE_ALIGN(NODE)        ((NODE)->type.align)
 #define _TYPE_LEN(NODE)          ((NODE)->type.len)
 #define _TYPE_RANK(NODE)         ((NODE)->type.rank)
 #define _TYPE_INLINE(NODE)       ((NODE)->type.inlined)
@@ -65,6 +66,7 @@ struct ast_type {
     struct ast_common common;
     int kind;
     size_t size;
+    int align;			// align in bytes
     size_t len;			// array length
     unsigned rank;
     bool inlined;

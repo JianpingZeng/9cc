@@ -22,37 +22,38 @@ node_t   *vartype;		  // variable type
 
 struct metrics {
     size_t size;
+    int align;
     unsigned rank;
 }
-                       // size   rank
+                       // size  align  rank
 #ifdef CONFIG_X32
-    boolmetrics         = { 1,  10},
-    charmetrics         = { 1,  20},
-    shortmetrics        = { 2,  30},
-    wcharmetrics        = { 4,  40},
-    intmetrics          = { 4,  40},
-    longmetrics         = { 4,  50},
-    longlongmetrics     = { 8,  60},
-    floatmetrics        = { 4,  70},
-    doublemetrics       = { 8,  80},
-    longdoublemetrics   = { 8,  90},
-    ptrmetrics          = { 4 },
+    boolmetrics         = { 1,  1,  10},
+    charmetrics         = { 1,  1,  20},
+    shortmetrics        = { 2,  2,  30},
+    wcharmetrics        = { 4,  4,  40},
+    intmetrics          = { 4,  4,  40},
+    longmetrics         = { 4,  4,  50},
+    longlongmetrics     = { 8,  8,  60},
+    floatmetrics        = { 4,  4,  70},
+    doublemetrics       = { 8,  8,  80},
+    longdoublemetrics   = { 8,  8,  90},
+    ptrmetrics          = { 4,  4},
 #elif defined CONFIG_X64
-    boolmetrics         = { 1,  10},
-    charmetrics         = { 1,  20},
-    shortmetrics        = { 2,  30},
-    wcharmetrics        = { 4,  40},
-    intmetrics          = { 4,  40},
-    longmetrics         = { 8,  50},
-    longlongmetrics     = { 8,  60},
-    floatmetrics        = { 4,  70},
-    doublemetrics       = { 8,  80},
-    longdoublemetrics   = { 16, 90},
-    ptrmetrics          = { 8 },
+    boolmetrics         = { 1,  1,  10},
+    charmetrics         = { 1,  1,  20},
+    shortmetrics        = { 2,  2,  30},
+    wcharmetrics        = { 4,  4,  40},
+    intmetrics          = { 4,  4,  40},
+    longmetrics         = { 8,  8,  50},
+    longlongmetrics     = { 8,  8,  60},
+    floatmetrics        = { 4,  4,  70},
+    doublemetrics       = { 8,  8,  80},
+    longdoublemetrics   = { 16, 16, 90},
+    ptrmetrics          = { 8,  8},
 #else
     #error "architecture not defined."
 #endif
-    zerometrics         = { 0 };
+    zerometrics         = { 0,  1};
 
 static inline node_t * new_type(void)
 {
@@ -66,6 +67,7 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
     _TYPE_NAME(ty) = strs(name);
     _TYPE_KIND(ty) = kind;
     _TYPE_SIZE(ty) = m.size;
+    _TYPE_ALIGN(ty) = m.align;
     _TYPE_RANK(ty) = m.rank;
     switch (TYPE_OP(ty)) {
         case INT:
@@ -296,8 +298,8 @@ node_t * array_type(node_t *type)
 {
     node_t *ty = new_type();
     _TYPE_KIND(ty) = ARRAY;
-    _TYPE_TYPE(ty) = type;
     _TYPE_NAME(ty) = "array";
+    _TYPE_TYPE(ty) = type;
     
     return ty;
 }
@@ -306,9 +308,10 @@ node_t * ptr_type(node_t *type)
 {
     node_t *ty = new_type();
     _TYPE_KIND(ty) = POINTER;
-    _TYPE_TYPE(ty) = type;
     _TYPE_NAME(ty) = "pointer";
+    _TYPE_TYPE(ty) = type;
     _TYPE_SIZE(ty) = ptrmetrics.size;
+    _TYPE_ALIGN(ty) = ptrmetrics.align;
     
     return ty;
 }
@@ -318,6 +321,7 @@ node_t * func_type(void)
     node_t *ty = new_type();
     _TYPE_KIND(ty) = FUNCTION;
     _TYPE_NAME(ty) = "function";
+    _TYPE_ALIGN(ty) = ptrmetrics.align;
     
     return ty;
 }
@@ -480,30 +484,6 @@ int indexof_field(node_t *ty, node_t *field)
     return -1;
 }
 
-node_t * alignty(node_t *ty)
-{
-    if (isarray(ty)) {
-	do {
-	    ty = rtype(ty);
-	} while (isarray(ty));
-	
-	return alignty(ty);
-    } else if (isstruct(ty) || isunion(ty)) {
-	node_t *maxty = voidtype;
-	
-	for (int i = 0; i < array_len((void **)TYPE_FIELDS(ty)); i++) {
-	    node_t *field = TYPE_FIELDS(ty)[i];
-	    node_t *fty = FIELD_TYPE(field);
-	    node_t *aty = alignty(fty);
-	    maxty = TYPE_SIZE(aty) > TYPE_SIZE(maxty) ? aty : maxty;
-	}
-
-	return maxty;
-    }
-
-    return TYPE_SIZE(ty) == 0 ? chartype : ty;
-}
-
 /* Structure alignment requirements
  *
  * The rule is that the structure will be padded out
@@ -552,7 +532,7 @@ static unsigned struct_size(node_t *ty)
 	    }
 	    
     	} else {
-	    int align = TYPE_SIZE(alignty(ty));
+	    int align = TYPE_ALIGN(ty);
 	    int bitsize = BITS(TYPE_SIZE(ty));
 	    int bits = BITS(ROUNDUP(BYTES(bsize), align));
 
@@ -571,8 +551,10 @@ static unsigned struct_size(node_t *ty)
 	    maxbits = 0;
     	}
 	
-	max = MAX(max, TYPE_SIZE(alignty(ty)));
+	max = MAX(max, TYPE_ALIGN(ty));
     }
+
+    TYPE_ALIGN(ty) = max;
     
     return ROUNDUP(offset, max);
 }
@@ -588,13 +570,20 @@ static unsigned union_size(node_t *ty)
 static unsigned array_size(node_t *ty)
 {
     unsigned size = 1;
+    node_t *rty = ty;
     
     do {
-	size *= TYPE_LEN(ty);
+	size *= TYPE_LEN(rty);
+	rty = rtype(rty);
+    } while (isarray(rty));
+
+    size *= TYPE_SIZE(rty);
+
+    // set align
+    do {
+	TYPE_ALIGN(ty) = TYPE_ALIGN(rty);
 	ty = rtype(ty);
     } while (isarray(ty));
-
-    size *= TYPE_SIZE(ty);
     
     return size;
 }
