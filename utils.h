@@ -15,17 +15,6 @@
 #define MAX(x, y)    (((x) > (y)) ? (x) : (y))
 #define MIN(x, y)    ((x) < (y) ? (x) : (y))
 
-#define CCAssert(expr)    assert(expr)
-#define CCAssertf(expr, ...)    \
-    do { \
-	if (!(expr)) { \
-	    fprintf(stderr, __VA_ARGS__); \
-	    fprintf(stderr, "\n"); \
-	    assert(expr); \
-	} \
-    } while (0)
-
-
 // wrapper.c
 extern void die(const char *fmt, ...);
 extern void println(const char *fmt, ...);
