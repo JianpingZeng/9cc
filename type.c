@@ -333,7 +333,7 @@ node_t * tag_type(int t, const char *tag, struct source src)
     _TYPE_TAG(ty) = tag;
     _TYPE_NAME(ty) = tname(t);
     if (t == ENUM)
-        _TYPE_TYPE(ty) = inttype;
+        _TYPE_TYPE(ty) = unsignedinttype;
     
     node_t *sym = NULL;
     if (tag) {

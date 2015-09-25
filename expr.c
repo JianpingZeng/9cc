@@ -18,6 +18,8 @@ static node_t * conv2(node_t *l, node_t *r);
 static node_t * wrap(node_t *ty, node_t *node);
 static node_t * bitconv(node_t *ty, node_t *node);
 static bool is_nullptr(node_t *node);
+static inline node_t * expr_bop(int op, node_t *ty, node_t *l, node_t *r);
+static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *r);
 
 #define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
 #define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
@@ -566,8 +568,7 @@ static node_t * compound_literal(node_t *ty)
     node_t * inits;
     
     inits = initializer_list(ty);
-    ret = ast_expr(COMPOUND_LITERAL, 0, inits, NULL);
-    AST_TYPE(ret) = ty;
+    ret = expr_node(COMPOUND_LITERAL, 0, ty, inits, NULL);
     
     return ret;
 }
@@ -594,8 +595,7 @@ static node_t * primary_expr(void)
 	sym = lookup(token->name, identifiers);
 	if (sym) {
 	    SYM_REFS(sym)++;
-	    ret = ast_expr(REF_EXPR, 0, NULL, NULL);
-	    AST_TYPE(ret) = SYM_TYPE(sym);
+	    ret = expr_node(REF_EXPR, 0, SYM_TYPE(sym), NULL, NULL);
 	    EXPR_SYM(ret) = sym;
 	    if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
 		EXPR_OP(ret) = ENUM; // enum ids
@@ -626,8 +626,7 @@ static node_t * primary_expr(void)
 		id = FLOAT_LITERAL;
 	    else
 		id = STRING_LITERAL;
-            ret = ast_expr(id, 0, NULL, NULL);
-            AST_TYPE(ret) = SYM_TYPE(sym);
+            ret = expr_node(id, 0, SYM_TYPE(sym), NULL, NULL);
 	    EXPR_SYM(ret) = sym;
         }
 	break;
@@ -638,10 +637,8 @@ static node_t * primary_expr(void)
 	} else {
 	    expect('(');
 	    node_t *e = expression();
-	    if (e) {
-		ret = ast_expr(PAREN_EXPR, 0, e, NULL);
-		AST_TYPE(ret) = AST_TYPE(e);
-	    }
+	    if (e)
+		ret = expr_node(PAREN_EXPR, 0, AST_TYPE(e), e, NULL);
 	    expect(')');
 	}
 	break;
@@ -710,9 +707,8 @@ static node_t * funcall(node_t *node)
 	node_t *fty = rtype(AST_TYPE(node));
 	struct vector *v;
 	if ((v = argscast(fty, args))) {
-	    ret = ast_expr(CALL_EXPR, 0, node, NULL);
+	    ret = expr_node(CALL_EXPR, 0, rtype(fty), node, NULL);
 	    EXPR_ARGS(ret) = (node_t **)vtoa(v);
-	    AST_TYPE(ret) = rtype(fty);
 	}
     } else {
 	ensure_type(node, isfunc);
@@ -751,9 +747,9 @@ static node_t * direction(node_t *node)
 	    field_not_found_error(ty, name);
     }
     if (NO_ERROR) {
-	ret = ast_expr(MEMBER_EXPR, t, node, ast_expr(REF_EXPR, 0, NULL, NULL));
+	node_t *r = expr_node(REF_EXPR, 0,FIELD_TYPE(field), NULL, NULL);
+	ret = expr_node(MEMBER_EXPR, t, FIELD_TYPE(field), node, r);
 	AST_NAME(EXPR_OPERAND(ret, 1)) = FIELD_NAME(field);
-	AST_TYPE(ret) = FIELD_TYPE(field);
     }
     return ret;
 }
@@ -996,10 +992,8 @@ static node_t * cast_expr(void)
 	if (cast) {
 	    SAVE_ERRORS;
 	    ensure_cast(ty, AST_TYPE(cast));
-	    if (NO_ERROR) {
-		ret = ast_expr(CAST_EXPR, 0, cast, NULL);
-		AST_TYPE(ret) = ty;
-	    }
+	    if (NO_ERROR)
+		ret = expr_node(CAST_EXPR, 0, ty, cast, NULL);
 	}
         
 	return ret;
@@ -1206,11 +1200,10 @@ static node_t * cond_expr1(node_t *cond)
     }
     
     if (NO_ERROR) {
-	ret = ast_expr(COND_EXPR, 0, NULL, NULL);
+	ret = expr_node(COND_EXPR, 0, ty, NULL, NULL);
 	EXPR_COND(ret) = cond;
 	EXPR_THEN(ret) = then;
 	EXPR_ELSE(ret) = els;
-	AST_TYPE(ret) = ty;
     }
     
     return ret;
@@ -1250,6 +1243,20 @@ node_t * expression(void)
     return assign1;
 }
 
+static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *r)
+{
+    node_t *node = ast_expr(id, op, l, r);
+    AST_TYPE(node) = ty;
+    return node;
+}
+
+static inline node_t * expr_bop(int op, node_t *ty, node_t *l, node_t *r)
+{
+    node_t *node = ast_bop(op, l, r);
+    AST_TYPE(node) = ty;
+    return node;
+}
+
 static node_t * uop(int op, node_t *ty, node_t *l)
 {
     node_t *node = ast_uop(op, ty, l);
@@ -1271,8 +1278,7 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	ensure_type(r, isarith);
 	if (NO_ERROR) {
 	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
-	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-	    AST_TYPE(node) = ty;
+	    node = expr_bop(op, ty, wrap(ty, l), wrap(ty, r));
 	}
 	break;
     case '%':
@@ -1282,51 +1288,41 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	ensure_type(r, isint);
 	if (NO_ERROR) {
 	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
-	    node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-	    AST_TYPE(node) = ty;
+	    node = expr_bop(op, ty, wrap(ty, l), wrap(ty, r));
 	}
 	break;
     case '+':
 	if (isptr(AST_TYPE(l))) {
 	    ensure_type(r, isint);
-	    if (NO_ERROR) {
-		node = ast_bop(op, l, r);
-		AST_TYPE(node) = AST_TYPE(l);
-	    }
+	    if (NO_ERROR)
+		node = expr_bop(op, AST_TYPE(l), l, r);
 	} else if (isptr(AST_TYPE(r))) {
 	    ensure_type(l, isint);
-	    if (NO_ERROR) {
-		node = ast_bop(op, l, r);
-		AST_TYPE(node) = AST_TYPE(r);
-	    }
+	    if (NO_ERROR)
+		node = expr_bop(op, AST_TYPE(r), l, r);
 	} else {
 	    ensure_type(l, isarith);
 	    ensure_type(r, isarith);
 	    if (NO_ERROR) {
 		ty = conv2(AST_TYPE(l), AST_TYPE(r));
-		node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-		AST_TYPE(node) = ty;
+		node = expr_bop(op, ty, wrap(ty, l), wrap(ty, r));
 	    }
 	}
 	break;
     case '-':
 	if (isptr(AST_TYPE(l))) {
-	    if (isint(AST_TYPE(r))) {
-		node = ast_bop(op, l, r);
-		AST_TYPE(node) = AST_TYPE(l);
-	    } else if (isptr(AST_TYPE(r))) {
-		node = ast_bop(op, l, r);
-		AST_TYPE(node) = inttype;
-	    } else {
+	    if (isint(AST_TYPE(r)))
+		node = expr_bop(op, AST_TYPE(l), l, r);
+	    else if (isptr(AST_TYPE(r)))
+		node = expr_bop(op, inttype, l, r);
+	    else
 		error("expect integer or pointer type, not type '%s'", type2s(AST_TYPE(r)));
-	    }
 	} else {
 	    ensure_type(l, isarith);
 	    ensure_type(r, isarith);
 	    if (NO_ERROR) {
 		ty = conv2(AST_TYPE(l), AST_TYPE(r));
-		node = ast_bop(op, wrap(ty, l), wrap(ty, r));
-		AST_TYPE(node) = ty;
+		node = expr_bop(op, ty, wrap(ty, l), wrap(ty, r));
 	    }
 	}
 	break;
@@ -1334,10 +1330,8 @@ static node_t * bop(int op, node_t *l, node_t *r)
     case EQ: case NEQ:
 	ensure_type(l, isscalar);
 	ensure_type(r, isscalar);
-	if (NO_ERROR) {
-	    node = ast_bop(op, l, r);
-	    AST_TYPE(node) = inttype;
-	}
+	if (NO_ERROR)
+	    node = expr_bop(op, inttype, l, r);
 	break;
     default:
 	error("unknown op '%s'", tname(op));
@@ -1356,17 +1350,14 @@ static node_t * logicop(int op, node_t *l, node_t *r)
     SAVE_ERRORS;
     ensure_type(l, isscalar);
     ensure_type(r, isscalar);
-    if (NO_ERROR) {
-	ret = ast_bop(op, l, r);
-	AST_TYPE(ret) = inttype;
-    }
+    if (NO_ERROR)
+	ret = expr_bop(op, inttype, l, r);
+    
     return ret;
 }
 
 static node_t * commaop(int op, node_t *l, node_t *r)
 {
-    node_t *ret = NULL;
-
     if (l == NULL || r == NULL)
 	return NULL;
 
@@ -1379,9 +1370,7 @@ static node_t * commaop(int op, node_t *l, node_t *r)
     if (islvalue(r))
 	r = ltor(r);
     
-    ret = ast_bop(op, l, r);
-    AST_TYPE(ret) = AST_TYPE(r);
-    return ret;
+    return expr_bop(op, AST_TYPE(r), l, r);
 }
 
 static node_t * assignop(int op, node_t *l, node_t *r)
@@ -1413,12 +1402,10 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 
     if (NO_ERROR) {
 	r = assignconv(retty, r);
-	if (r) {
-	    ret = ast_bop('=', l, r);
-	    AST_TYPE(ret) = retty;
-	} else {
+	if (r)
+	    ret = expr_bop('=', retty, l, r);
+	else
 	    error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
-	}
     }
 
     return ret;
@@ -1569,6 +1556,9 @@ static node_t * conv(node_t *node)
     switch (TYPE_KIND(AST_TYPE(node))) {
     case _BOOL: case CHAR: case SHORT:
 	return ast_conv(inttype, node, IntegralCast);
+
+    case ENUM:
+	return ast_conv(rtype(AST_TYPE(node)), node, IntegralCast);
             
     case FUNCTION:            
     case ARRAY:
