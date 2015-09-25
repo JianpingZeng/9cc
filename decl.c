@@ -147,8 +147,8 @@ static node_t * specifiers(int *sclass)
 	    break;
                 
 	case ID:
-	    tydefty = lookup_typedef(token->name);
-	    if (tydefty) {
+	    if (istypedef(token->name)) {
+		tydefty = lookup_typedef(token->name);
 		p = &type;
 		gettok();
 	    } else {
