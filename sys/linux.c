@@ -38,14 +38,9 @@ static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
 
 char *mktmpdir()
 {
-    int try = 10;
-    char *dir = NULL;
-    while (try--) {
-	dir = mkdtemp(template);
-	if (dir)
-	    return dir;
-    }
-    return dir;
+    int len = strlen("/tmp/mcc.temp.");
+    memset(template + len, 'X', strlen(template) - len);
+    return  mkdtemp(template);
 }
 
 int file_exists(const char *path)

@@ -9,8 +9,9 @@ static node_t * get_ty(const char *code)
     return ty1;
 }
 
-static void expect2(node_t *ty1, node_t *ty2, const char *code)
+static void expect2(node_t *ty1, node_t **ty22, const char *code)
 {
+    node_t *ty2 = *ty22;
     int align1 = TYPE_ALIGN(ty1);
     int align2 = TYPE_ALIGN(ty2);
     if (align1 != align2)
@@ -18,12 +19,12 @@ static void expect2(node_t *ty1, node_t *ty2, const char *code)
 	     align2, type2s(ty2), align1, type2s(ty1), code);
 }
 
-/* Must compile first, then type_init() would
- * be called. Otherwise variables like inttype
- * would be NULL.
+/* Pass pointer to pointer.
+ * Otherwise variables like inttype
+ * may be NULL.
  */
 
-#define xx(ty, s)    expect2(get_ty(CODE(s)), ty##type, CODE(s))
+#define xx(ty, s)    expect2(get_ty(CODE(s)), &ty##type, CODE(s))
 
 static void test_alignty()
 {
