@@ -30,9 +30,9 @@ static void expect3(int i, const char *code)
     free((void *)ret);
 
     if (size1 != size2)
-	fail("gcc: %ld, but got %ld", size1, size2);
+	fail("gcc got %ld, but mcc got %ld, code:\n" RED("%s"), size2, size1, code);
     if (size1 != i)
-	fail("both got %ld, but guess %ld", size1, i);
+	fail("both got %ld, but guess %ld, code:\n" RED("%s"), size1, i, code);
 }
 
 #define xx(i, s)       expect3(i, CODE(s))

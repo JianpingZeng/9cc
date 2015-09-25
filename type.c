@@ -478,15 +478,28 @@ int indexof_field(node_t *ty, node_t *field)
     return -1;
 }
 
-static node_t * btype(node_t *ty)
+node_t * alignty(node_t *ty)
 {
     if (isarray(ty)) {
 	do {
 	    ty = rtype(ty);
 	} while (isarray(ty));
+	
+	return alignty(ty);
+    } else if (isstruct(ty) || isunion(ty)) {
+	node_t *maxty = voidtype;
+	
+	for (int i = 0; i < array_len((void **)TYPE_FIELDS(ty)); i++) {
+	    node_t *field = TYPE_FIELDS(ty)[i];
+	    node_t *fty = FIELD_TYPE(field);
+	    node_t *aty = alignty(fty);
+	    maxty = TYPE_SIZE(aty) > TYPE_SIZE(maxty) ? aty : maxty;
+	}
+
+	return maxty;
     }
 
-    return ty;
+    return TYPE_SIZE(ty) == 0 ? chartype : ty;
 }
 
 /* Structure alignment requirements
@@ -537,14 +550,14 @@ static unsigned struct_size(node_t *ty)
 	    }
 	    
     	} else {
-	    int align = MAX(1, TYPE_SIZE(btype(ty)));
+	    int align = TYPE_SIZE(alignty(ty));
 	    FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
 	    offset += TYPE_SIZE(ty);
 	    bsize = 0;
 	    maxbits = 0;
     	}
 	
-	max = MAX(max, TYPE_SIZE(btype(ty)));
+	max = MAX(max, TYPE_SIZE(alignty(ty)));
     }
 
     return ROUNDUP(offset, max);

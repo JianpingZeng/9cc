@@ -97,7 +97,7 @@ bootstrap: stage3
 # Test suite
 #
 TESTDIR=test
-CFLAGS_TEST=-Wall -std=c99 -Os -I. -Isys -I$(TESTDIR)
+CFLAGS_TEST=-Wall -std=c99 -DCONFIG_COLOR_TERM -Os -I. -Isys -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
 TEST_INTERNAL := $(patsubst %.c, %.bin, $(filter-out $(TESTDIR)/internal/internal.c,$(wildcard $(TESTDIR)/internal/*.c)))

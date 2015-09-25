@@ -7,12 +7,13 @@
 #include <stdarg.h>
 #include "test.h"
 #include "sys.h"
+#include "config.h"
 
 extern void testmain(void);
 
 static void printfail()
 {
-    printf("\e[1;31mFAIL\e[0m\n");
+    printf(RED("FAIL\n"));
 }
 
 void printstart(const char *name)
@@ -101,6 +102,6 @@ int main()
     setup_sys();
     printf("%s", "Testing ");
     testmain();
-    printf("\e[32mPASS\e[0m\n");
+    printf(GREEN("PASS\n"));
     return 0;
 }
