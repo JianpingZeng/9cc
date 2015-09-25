@@ -6,19 +6,29 @@
 #include <string.h>
 #include <stdarg.h>
 #include "test.h"
-#include "sys.h"
-#include "config.h"
+
+#ifdef CONFIG_COLOR_TERM
+
+#define FAIL_STRING  "\e[1;31mFAIL\e[0m\n"
+#define PASS_STRING  "\e[32mPASS\e[0m\n"
+
+#else
+
+#define FAIL_STRING  "FAIL\n"
+#define PASS_STRING  "PASS\n"
+
+#endif
 
 extern void testmain(void);
 
 static void printfail()
 {
-    printf(RED("FAIL\n"));
+    printf(FAIL_STRING);
 }
 
 void printstart(const char *name)
 {
-    printf("%-30s", name);
+    printf("%-20s", name);
     fflush(stdout);
 }
 
@@ -99,9 +109,8 @@ void fexpectp(char *file, int line, void *a, void *b)
 
 int main()
 {
-    setup_sys();
     printf("%s", "Testing ");
     testmain();
-    printf(GREEN("PASS\n"));
+    printf(PASS_STRING);
     return 0;
 }
