@@ -135,6 +135,7 @@ extern int indexof_field(node_t *ty, node_t *field);
 extern node_t * compose(node_t *ty1, node_t *ty2);
 extern bool qual_contains(node_t *ty1, node_t *ty2);
 extern bool isincomplete(node_t *ty);
+extern node_t * unpack(node_t *ty);
 
 extern node_t  *chartype;               // char
 extern node_t  *unsignedchartype;       // unsigned char
@@ -168,10 +169,10 @@ extern bool isrestrict(node_t *ty);
 // operations on the unqual type
 #define TYPE_KIND(ty)            _TYPE_KIND(unqual(ty))
 #define TYPE_NAME(ty)            _TYPE_NAME(unqual(ty))
-#define TYPE_SIZE(ty)            _TYPE_SIZE(unqual(ty))
-#define TYPE_ALIGN(ty)           _TYPE_ALIGN(unqual(ty))
+#define TYPE_SIZE(ty)            _TYPE_SIZE(unpack(unqual(ty)))
+#define TYPE_ALIGN(ty)           _TYPE_ALIGN(unpack(unqual(ty)))
 #define TYPE_LEN(ty)             _TYPE_LEN(unqual(ty))
-#define TYPE_RANK(ty)            _TYPE_RANK(unqual(ty))
+#define TYPE_RANK(ty)            _TYPE_RANK(unpack(unqual(ty)))
 #define TYPE_INLINE(ty)          _TYPE_INLINE(unqual(ty))
 #define TYPE_TYPE(ty)            _TYPE_TYPE(unqual(ty))
 #define TYPE_TAG(ty)             _TYPE_TAG(unqual(ty))
@@ -180,8 +181,8 @@ extern bool isrestrict(node_t *ty);
 #define TYPE_TSYM(ty)            _TYPE_TSYM(unqual(ty)) 
 #define TYPE_IDS(ty)             _TYPE_IDS(unqual(ty))
 #define TYPE_FIELDS(ty)          _TYPE_FIELDS(unqual(ty))
-#define TYPE_LIMITS_MAX(ty)      _TYPE_LIMITS_MAX(unqual(ty))
-#define TYPE_LIMITS_MIN(ty)      _TYPE_LIMITS_MIN(unqual(ty))     
+#define TYPE_LIMITS_MAX(ty)      _TYPE_LIMITS_MAX(unpack(unqual(ty)))
+#define TYPE_LIMITS_MIN(ty)      _TYPE_LIMITS_MIN(unpack(unqual(ty)))     
 #define TYPE_A_ASSIGN(ty)        _TYPE_A_ASSIGN(unqual(ty))
 #define TYPE_A_CONST(ty)         _TYPE_A_CONST(unqual(ty))
 #define TYPE_A_VOLATILE(ty)      _TYPE_A_VOLATILE(unqual(ty))

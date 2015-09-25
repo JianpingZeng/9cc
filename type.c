@@ -332,10 +332,8 @@ node_t * tag_type(int t, const char *tag, struct source src)
     _TYPE_KIND(ty) = t;
     _TYPE_TAG(ty) = tag;
     _TYPE_NAME(ty) = tname(t);
-    if (t == ENUM) {
+    if (t == ENUM)
         _TYPE_TYPE(ty) = inttype;
-	_TYPE_SIZE(ty) = TYPE_SIZE(inttype);
-    }
     
     node_t *sym = NULL;
     if (tag) {
@@ -607,6 +605,15 @@ bool isincomplete(node_t *ty)
     else if (isenum(ty) || isstruct(ty) || isunion(ty))
 	return !SYM_DEFINED(TYPE_TSYM(ty));
     return false;
+}
+
+node_t * unpack(node_t *ty)
+{
+    CCAssert(!isqual(ty));
+    if (isenum(ty))
+	return _TYPE_TYPE(ty);
+    else
+	return ty;
 }
 
 node_t * compose(node_t *ty1, node_t *ty2)
