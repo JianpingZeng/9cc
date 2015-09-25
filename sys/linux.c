@@ -34,11 +34,11 @@ void setup_sys()
 #endif
 }
 
-static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
-
 char *mktmpdir()
 {
+    static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
     int len = strlen("/tmp/mcc.temp.");
+    // reset suffix every time
     memset(template + len, 'X', strlen(template) - len);
     return  mkdtemp(template);
 }

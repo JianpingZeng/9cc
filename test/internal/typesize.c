@@ -9,37 +9,23 @@ static int size_code(const char *code)
     return TYPE_SIZE(ty1);
 }
 
-static const char * gcc_code(const char *code, const char *operand)
-{
-    // code for gcc
-    struct strbuf *s = strbuf_new();
-    strbuf_cats(s, "#include <stdio.h>\n");
-    strbuf_cats(s, code);
-    strbuf_cats(s, "\n");
-    strbuf_cats(s, "int main(int argc, char *argv[]) {\n");
-    strbuf_cats(s, "printf(\"%ld\\n\", sizeof ");
-    strbuf_cats(s, format("(%s)", operand));
-    strbuf_cats(s, ");\n}\n");
-
-    return s->str;
-}
-
-static void expect3(int i, const char *code, const char *operand)
+static void expect3(int i, const char *code, int size2)
 {
     int size1 = size_code(code);
-    const char *ret = gcc_compile(gcc_code(code, operand));
-    int size2 = atoi(ret);
-    free((void *)ret);
 
     if (size1 != size2)
-	fail("gcc got %ld, but mcc got %ld, code:\n" RED("%s"), size2, size1, code);
+	fail("expect %ld, but got %ld, code:\n" RED("%s"), size2, size1, code);
     if (size1 != i)
 	fail("both got %ld, but guess %ld, code:\n" RED("%s"), size1, i, code);
 }
 
 static void test_struct()
 {
-#define xx(i, s)  expect3(i, CODE(s), "struct S")
+#define xx(i, s)  \
+    { \
+	s;				 \
+	expect3(i, CODE(s), sizeof (struct S)); \
+    }
     
     xx(1,
        struct S {
@@ -235,7 +221,11 @@ static void test_array()
 
 static void test_others()
 {
-#define xx(i, s)  expect3(i, CODE(s), "e")
+#define xx(i, s)  \
+    { \
+	s;				 \
+	expect3(i, CODE(s), sizeof (e)); \
+    }
 
     xx(4,
        enum E {
