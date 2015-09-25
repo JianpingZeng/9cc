@@ -143,6 +143,7 @@
 
 ### ### `TODO` 
 
+0. enum in expr.c etc.
 1. parameters: 对 void 和错误的处理。
 2. fields
 3. array check, function check
