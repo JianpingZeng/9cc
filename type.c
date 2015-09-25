@@ -609,9 +609,8 @@ bool isincomplete(node_t *ty)
 
 node_t * unpack(node_t *ty)
 {
-    CCAssert(!isqual(ty));
     if (isenum(ty))
-	return _TYPE_TYPE(ty);
+	return _TYPE_TYPE(unqual(ty));
     else
 	return ty;
 }
