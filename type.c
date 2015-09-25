@@ -556,6 +556,9 @@ static unsigned struct_size(node_t *ty)
 	    int bitsize = BITS(TYPE_SIZE(ty));
 	    int bits = BITS(ROUNDUP(BYTES(bsize), align));
 
+	    if (bitsize == 0)
+		goto clear;
+
 	    if (bsize == 0 || bits + bitsize > maxbits) {
 	        FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
 		offset += TYPE_SIZE(ty);
@@ -563,6 +566,7 @@ static unsigned struct_size(node_t *ty)
 	        bsize = bits + bitsize;
 	    }
 
+	clear:
 	    bsize = 0;
 	    maxbits = 0;
     	}
