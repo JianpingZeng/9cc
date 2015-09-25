@@ -81,7 +81,7 @@ static unsigned escape(const char **ps)
                     s++;
                     continue;
                 }
-                if (c >> (BITS(wchartype) - 4)) {
+                if (c >> (BITS(TYPE_SIZE(wchartype)) - 4)) {
                     overflow = 1;
                     error("hex escape sequence out of range");
                 } else {

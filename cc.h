@@ -155,7 +155,7 @@ extern node_t  *voidtype;               // void
 extern node_t  *booltype;	        // bool
 extern node_t  *vartype;		// variable type
 
-#define BITS(type)      (CHAR_BIT * (TYPE_SIZE(type)))
+#define BITS(bytes)     (CHAR_BIT * (bytes))
 #define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
 
 extern bool isconst(node_t *ty);

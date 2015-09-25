@@ -531,16 +531,16 @@ static unsigned struct_size(node_t *ty)
 	    if (bitsize < 0 || (FIELD_NAME(field) && bitsize == 0))
 		continue;
 
-	    if (bitsize > BITS(ty))
-		bitsize = BITS(ty);
+	    if (bitsize > BITS(TYPE_SIZE(ty)))
+		bitsize = BITS(TYPE_SIZE(ty));
 
 	    if (bitsize == 0) {
 		offset = ROUNDUP(offset, TYPE_SIZE(ty));
-		bsize = ROUNDUP(bsize, BITS(ty));
+		bsize = ROUNDUP(bsize, BITS(TYPE_SIZE(ty)));
 		continue;
 	    }
 
-	    maxbits = MAX(maxbits, BITS(ty));
+	    maxbits = MAX(maxbits, BITS(TYPE_SIZE(ty)));
 
 	    if (bsize == 0 || bitsize + bsize > maxbits) {
 		FIELD_OFFSET(field) = offset = ROUNDUP(offset, TYPE_SIZE(ty));
@@ -553,13 +553,14 @@ static unsigned struct_size(node_t *ty)
 	    
     	} else {
 	    int align = TYPE_SIZE(alignty(ty));
-	    int bitsize = ROUNDUP(TYPE_SIZE(ty), align) * CHAR_BIT;
+	    int bitsize = BITS(TYPE_SIZE(ty));
+	    int bits = BITS(ROUNDUP(BYTES(bsize), align));
 
-	    if (bsize == 0 || ROUNDUP(bsize, CHAR_BIT) + bitsize > maxbits) {
+	    if (bsize == 0 || bits + bitsize > maxbits) {
 	        FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
 		offset += TYPE_SIZE(ty);
 	    } else {
-	        bsize = ROUNDUP(bsize, CHAR_BIT) + bitsize;
+	        bsize = bits + bitsize;
 	    }
 
 	    bsize = 0;

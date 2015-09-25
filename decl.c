@@ -588,7 +588,7 @@ static void ensure_field(node_t *field)
     
     if (FIELD_ISBIT(field)) {
 	int bitsize = FIELD_BITSIZE(field);
-	int bits = BITS(ty);
+	int bits = BITS(TYPE_SIZE(ty));
 	
 	if (!isint(ty)) {
 	    if (name)
