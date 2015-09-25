@@ -829,7 +829,10 @@ static struct vector *type2s1(node_t *ty)
 	    s->type = ty;
 	}
 	vec_push(v, s);
-	ty = _TYPE_TYPE(s->type);
+	if (isenum(s->type))
+	    ty = NULL;
+	else
+	    ty = _TYPE_TYPE(s->type);
     }
     
     l = vec_reverse(v);
