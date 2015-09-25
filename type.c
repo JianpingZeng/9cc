@@ -557,7 +557,7 @@ static unsigned struct_size(node_t *ty)
 	        FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
 		offset += TYPE_SIZE(ty);
 	    } else {
-	        bsize += bitsize;
+	        bsize = ROUNDUP(bsize, CHAR_BIT) + bitsize;
 	    }
 
 	    bsize = 0;
