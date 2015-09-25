@@ -551,15 +551,22 @@ static unsigned struct_size(node_t *ty)
 	    
     	} else {
 	    int align = TYPE_SIZE(alignty(ty));
-	    FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
-	    offset += TYPE_SIZE(ty);
+	    int bitsize = ROUNDUP(TYPE_SIZE(ty), align) * CHAR_BIT;
+
+	    if (bsize == 0 || ROUNDUP(bsize, CHAR_BIT) + bitsize > maxbits) {
+	        FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
+		offset += TYPE_SIZE(ty);
+	    } else {
+	        bsize += bitsize;
+	    }
+
 	    bsize = 0;
 	    maxbits = 0;
     	}
 	
 	max = MAX(max, TYPE_SIZE(alignty(ty)));
     }
-
+    
     return ROUNDUP(offset, max);
 }
 
