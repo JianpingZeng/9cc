@@ -54,7 +54,7 @@ node_t * compile(const char *code)
     fclose(fp);
     rmdir(tmpdir);
     if (errors)
-        fail("Compile error");
+        fail("Compile error:\n" RED("%s"), code);
     return n;
 }
 
@@ -65,7 +65,7 @@ const char * gcc_compile(const char *code)
     const char *argv[] = { "/usr/bin/gcc", ifile, "-o", ofile, NULL};
     callsys(argv[0], (char **)argv);
     if (!file_exists(ofile))
-	fail("gcc compile failed");
+	fail("gcc compile failed:\n" RED("%s"), code);
 
     const char *rfile = join(tmpdir, "res");
     const char *cmd = format("%s > %s", ofile, rfile);
