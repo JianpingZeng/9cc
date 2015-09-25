@@ -264,7 +264,7 @@ static void test_others()
        unsigned e;
        );
 
-#ifdef CONFIF_X32
+#ifdef CONFIG_X32
     xx(4,
        long e;
        );
@@ -286,7 +286,7 @@ static void test_others()
        double e;
        );
     
-#ifdef CONFIF_X32
+#ifdef CONFIG_X32
     xx(8,
        long double e;
        );
