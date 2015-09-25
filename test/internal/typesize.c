@@ -3,12 +3,13 @@
 static int size_code(const char *code)
 {
     node_t *n = compile(code);
-    node_t *n1 = DECL_EXTS(n)[0];
+    node_t **exts = DECL_EXTS(n);
+    node_t *n1 = exts[array_len((void **)exts)-1];
     node_t *ty1 = AST_TYPE(n1);
     return TYPE_SIZE(ty1);
 }
 
-static const char * gcc_code(const char *code)
+static const char * gcc_code(const char *code, const char *operand)
 {
     // code for gcc
     struct strbuf *s = strbuf_new();
@@ -16,16 +17,17 @@ static const char * gcc_code(const char *code)
     strbuf_cats(s, code);
     strbuf_cats(s, "\n");
     strbuf_cats(s, "int main(int argc, char *argv[]) {\n");
-    strbuf_cats(s, "printf(\"%ld\\n\", sizeof (struct S));\n");
-    strbuf_cats(s, "}\n");
+    strbuf_cats(s, "printf(\"%ld\\n\", sizeof ");
+    strbuf_cats(s, format("(%s)", operand));
+    strbuf_cats(s, ");\n}\n");
 
     return s->str;
 }
 
-static void expect3(int i, const char *code)
+static void expect3(int i, const char *code, const char *operand)
 {
     int size1 = size_code(code);
-    const char *ret = gcc_compile(gcc_code(code));
+    const char *ret = gcc_compile(gcc_code(code, operand));
     int size2 = atoi(ret);
     free((void *)ret);
 
@@ -35,10 +37,10 @@ static void expect3(int i, const char *code)
 	fail("both got %ld, but guess %ld, code:\n" RED("%s"), size1, i, code);
 }
 
-#define xx(i, s)       expect3(i, CODE(s))
-
 static void test_struct()
 {
+#define xx(i, s)  expect3(i, CODE(s), "struct S")
+    
     xx(1,
        struct S {
 	   char c;
@@ -217,6 +219,8 @@ static void test_struct()
 	    char b;
 	};
        );
+
+#undef xx
 }
 
 static void test_union()
@@ -231,7 +235,84 @@ static void test_array()
 
 static void test_others()
 {
+#define xx(i, s)  expect3(i, CODE(s), "e")
 
+    xx(4,
+       enum E {
+	   E1
+       };
+       enum E e;
+       );
+
+    xx(1,
+       _Bool e;
+       );
+
+    xx(1,
+       char e;
+       );
+
+    xx(2,
+       short e;
+       );
+
+    xx(4,
+       int e;
+       );
+
+    xx(4,
+       unsigned e;
+       );
+
+#ifdef CONFIF_X32
+    xx(4,
+       long e;
+       );
+#elif defined (CONFIG_X64)
+    xx(8,
+       long e;
+       );
+#endif
+
+    xx(8,
+       long long e;
+       );
+
+    xx(4,
+       float e;
+       );
+
+    xx(8,
+       double e;
+       );
+    
+#ifdef CONFIF_X32
+    xx(8,
+       long double e;
+       );
+
+    xx(4,
+       void *e;
+       );
+
+    xx(4,
+       char *e;
+       );
+#elif defined (CONFIG_X64)
+    xx(16,
+       long double e;
+       );
+
+    xx(8,
+       void *e;
+       );
+
+    xx(8,
+       char *e;
+       );
+#endif
+
+#undef xx
 }
 
 void testmain()
