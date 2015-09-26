@@ -43,11 +43,11 @@ struct ast_common {
 #define _TYPE_NAME(NODE)         AST_NAME(NODE)
 #define _TYPE_SIZE(NODE)         ((NODE)->type.size)
 #define _TYPE_ALIGN(NODE)        ((NODE)->type.align)
-#define _TYPE_LEN(NODE)          ((NODE)->type.len)
+#define _TYPE_LEN(NODE)          ((NODE)->type.u.a.len)
 #define _TYPE_RANK(NODE)         ((NODE)->type.rank)
-#define _TYPE_INLINE(NODE)       ((NODE)->type.inlined)
+#define _TYPE_INLINE(NODE)       ((NODE)->type.u.f.inlined)
 #define _TYPE_TYPE(NODE)         AST_TYPE(NODE)
-#define _TYPE_TAG(NODE)          ((NODE)->type.tag)
+#define _TYPE_TAG(NODE)          ((NODE)->type.u.s.tag)
 #define _TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
 #define _TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
 #define _TYPE_TSYM(NODE)         ((NODE)->type.u.s.tsym)
@@ -67,24 +67,24 @@ struct ast_type {
     int kind;
     size_t size;
     int align;			// align in bytes
-    size_t len;			// array length
     unsigned rank;
-    bool inlined;
-    const char *tag;
     union {
         // function
         struct {
+	    bool inlined;
             node_t **params;
             unsigned oldstyle : 1;
         }f;
         // enum/struct/union
         struct {
+	    const char *tag;
 	    node_t *tsym;
             node_t **ids;
             node_t **fields;
         }s;
 	// array
         struct {
+	    size_t len;			// array length
             node_t *assign;
             unsigned is_const : 1;
             unsigned is_volatile : 1;
