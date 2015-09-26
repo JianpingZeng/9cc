@@ -267,20 +267,20 @@ extern void redefinition_error(struct source src, node_t *sym);
 extern void conflicting_types_error(struct source src, node_t *sym);
 extern void field_not_found_error(node_t *ty, const char *name);
 
-#define CCAssert(expr)    \
-    do { \
-	if (!(expr)) { \
-	    error("assert failed"); \
-	    assert(expr); \
-	} \
+#define CCAssert(expr)				\
+    do {					\
+	if (!(expr)) {				\
+	    error("assert failed");		\
+	    assert(expr);			\
+	}					\
     } while (0)
 
-#define CCAssertf(expr, ...)    \
-    do { \
-	if (!(expr)) { \
-	    error(__VA_ARGS__); \
-	    assert(expr); \
-	} \
+#define CCAssertf(expr, ...)			\
+    do {					\
+	if (!(expr)) {				\
+	    error(__VA_ARGS__);			\
+	    assert(expr);			\
+	}					\
     } while (0)
 
 // gen.c
