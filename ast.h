@@ -216,7 +216,7 @@ extern node_t * ast_expr(int id, int op, node_t *l, node_t *r);
 extern node_t * ast_decl(int id, int scope);
 extern node_t * ast_stmt(int id, node_t *l, node_t *r);
 extern node_t * ast_uop(int op, node_t *ty, node_t *l);
-extern node_t * ast_bop(int op, node_t *l, node_t *r);
+extern node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r);
 extern node_t * ast_conv(node_t *ty, node_t *l, const char *name);
 extern node_t * ast_inits(void);
 extern node_t * ast_vinit(void);

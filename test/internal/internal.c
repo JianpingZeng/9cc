@@ -24,21 +24,6 @@ static const char * write_str(const char *str)
     return s->str;
 }
 
-static void cleanup(void)
-{
-    identifiers = zmalloc(sizeof(struct table));
-    identifiers->scope = GLOBAL;
-    identifiers->map = map_new(nocmp);
-
-    constants = zmalloc(sizeof(struct table));
-    constants->scope = CONSTANT;
-    constants->map = map_new(nocmp);
-
-    tags = zmalloc(sizeof(struct table));
-    tags->scope = GLOBAL;
-    tags->map = map_new(nocmp);
-}
-
 node_t * compile(const char *code)
 {
     node_t *n;
@@ -47,9 +32,9 @@ node_t * compile(const char *code)
     if (fp == NULL)
         fail("Can't open input file");
 
-    cleanup();
-    lex_init();
+    input_init();
     type_init();
+    symbol_init();
     n = translation_unit();
     fclose(fp);
     rmdir(tmpdir);

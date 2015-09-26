@@ -39,8 +39,9 @@ static void translate(void)
 int cc_main(int argc, const char * argv[])
 {
     parseopts(argc, argv);
-    lex_init();
+    input_init();
     type_init();
+    symbol_init();
     translate();
     fclose(fp);
     

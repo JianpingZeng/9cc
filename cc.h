@@ -61,7 +61,7 @@ extern bool is_hex(char c);
 extern bool is_digithex(char c);
 extern bool is_visible(char c);
 
-extern void lex_init(void);
+extern void input_init(void);
 extern int gettok(void);
 extern struct token * lookahead(void);
 extern void expect(int t);
@@ -227,6 +227,7 @@ struct table {
 };
 
 // sym
+extern void symbol_init(void);
 extern int scopelevel(void);
 extern void enter_scope(void);
 extern void exit_scope(void);

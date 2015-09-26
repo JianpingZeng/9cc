@@ -79,6 +79,7 @@ static char *pc;
 static char *pe;
 static long bread;
 struct source source;
+static bool is_looked;
 
 static void fillbuf(void)
 {
@@ -226,12 +227,13 @@ static void nextline(void)
     } while (*pc == '\n' && pc == pe);
 }
 
-static void input_init(void)
+void input_init(void)
 {
     pc = pe = &ibuf[LBUFSIZE];
     bread = -1;
     fillbuf();
     nextline();
+    is_looked = false;
 }
 
 static const char *tnames[] = {
@@ -990,7 +992,6 @@ void match(int t, int follow[])
     }
 }
 
-static bool is_looked;
 void read_tok(struct token *t)
 {
     tokname = NULL;
@@ -1021,10 +1022,4 @@ struct token * lookahead(void)
     }
     
     return &token2;
-}
-
-void lex_init(void)
-{
-    input_init();
-    is_looked = false;
 }

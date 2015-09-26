@@ -1,10 +1,8 @@
 #include "cc.h"
 
-#define EMPTY_MAP   ((struct map){ .cmpfn = nocmp })
-
-struct table * identifiers = &(struct table){ GLOBAL, .map = &EMPTY_MAP };
-struct table * constants = &(struct table){ CONSTANT, .map = &EMPTY_MAP };
-struct table * tags = &(struct table){ GLOBAL, .map = &EMPTY_MAP };
+struct table *identifiers;
+struct table *constants;
+struct table *tags;
 
 static int level = GLOBAL;
 
@@ -21,6 +19,13 @@ static void free_table(struct table *t)
 {
     map_free(t->map);
     free(t);
+}
+
+void symbol_init(void)
+{
+    identifiers = new_table(NULL, GLOBAL);
+    constants = new_table(NULL, CONSTANT);
+    tags = new_table(NULL, GLOBAL);
 }
 
 int scopelevel(void)

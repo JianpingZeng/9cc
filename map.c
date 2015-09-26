@@ -105,33 +105,26 @@ void map_free(struct map *map)
 {
     if (!map)
         return;
-    if (map->table) {
-        for (int i = 0; i < map->tablesize; i++) {
-            struct map_entry *entry = map->table[i];
-            while (entry) {
-                struct map_entry *next = entry->next;
-                free(entry);
-                entry = next;
-            }
-        }
-        free(map->table);
+    for (int i = 0; i < map->tablesize; i++) {
+	struct map_entry *entry = map->table[i];
+	while (entry) {
+	    struct map_entry *next = entry->next;
+	    free(entry);
+	    entry = next;
+	}
     }
+    free(map->table);
     free(map);
 }
 
 void *map_get(struct map *map, const char *key)
 {
-    struct map_entry *entry;
-    if (!map->table)
-        return NULL;
-    entry = *find_entry(map, key);
+    struct map_entry *entry = *find_entry(map, key);
     return entry ? entry->value : NULL;
 }
 
 void map_put(struct map *map, const char *key, void *value)
 {
-    if (!map->table)
-        alloc_map(map, MAP_INIT_SIZE);
     map_remove(map, key);
     if (value)
         map_add(map, key, value);

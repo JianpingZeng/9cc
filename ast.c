@@ -57,9 +57,10 @@ node_t * ast_uop(int op, node_t *ty, node_t *l)
     return expr;
 }
 
-node_t * ast_bop(int op, node_t *l, node_t *r)
+node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r)
 {
     node_t * expr = ast_expr(BINARY_OPERATOR, op, l, r);
+    AST_TYPE(expr) = ty;
     return expr;
 }
 

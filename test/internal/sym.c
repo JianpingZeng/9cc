@@ -43,6 +43,7 @@ static void test_scope()
 void testmain()
 {
     START("symbol ...");
+    symbol_init();
     test_lookup();
     test_scope();
 }

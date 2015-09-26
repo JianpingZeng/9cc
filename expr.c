@@ -18,7 +18,6 @@ static node_t * conv2(node_t *l, node_t *r);
 static node_t * wrap(node_t *ty, node_t *node);
 static node_t * bitconv(node_t *ty, node_t *node);
 static bool is_nullptr(node_t *node);
-static inline node_t * expr_bop(int op, node_t *ty, node_t *l, node_t *r);
 static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *r);
 
 #define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
@@ -1250,13 +1249,6 @@ static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *
     return node;
 }
 
-static inline node_t * expr_bop(int op, node_t *ty, node_t *l, node_t *r)
-{
-    node_t *node = ast_bop(op, l, r);
-    AST_TYPE(node) = ty;
-    return node;
-}
-
 static node_t * uop(int op, node_t *ty, node_t *l)
 {
     node_t *node = ast_uop(op, ty, l);
@@ -1278,7 +1270,7 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	ensure_type(r, isarith);
 	if (NO_ERROR) {
 	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
-	    node = expr_bop(op, ty, wrap(ty, l), wrap(ty, r));
+	    node = ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
 	}
 	break;
     case '%':
@@ -1288,33 +1280,33 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	ensure_type(r, isint);
 	if (NO_ERROR) {
 	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
-	    node = expr_bop(op, ty, wrap(ty, l), wrap(ty, r));
+	    node = ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
 	}
 	break;
     case '+':
 	if (isptr(AST_TYPE(l))) {
 	    ensure_type(r, isint);
 	    if (NO_ERROR)
-		node = expr_bop(op, AST_TYPE(l), l, r);
+		node = ast_bop(op, AST_TYPE(l), l, r);
 	} else if (isptr(AST_TYPE(r))) {
 	    ensure_type(l, isint);
 	    if (NO_ERROR)
-		node = expr_bop(op, AST_TYPE(r), l, r);
+		node = ast_bop(op, AST_TYPE(r), l, r);
 	} else {
 	    ensure_type(l, isarith);
 	    ensure_type(r, isarith);
 	    if (NO_ERROR) {
 		ty = conv2(AST_TYPE(l), AST_TYPE(r));
-		node = expr_bop(op, ty, wrap(ty, l), wrap(ty, r));
+		node = ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
 	    }
 	}
 	break;
     case '-':
 	if (isptr(AST_TYPE(l))) {
 	    if (isint(AST_TYPE(r)))
-		node = expr_bop(op, AST_TYPE(l), l, r);
+		node = ast_bop(op, AST_TYPE(l), l, r);
 	    else if (isptr(AST_TYPE(r)))
-		node = expr_bop(op, inttype, l, r);
+		node = ast_bop(op, inttype, l, r);
 	    else
 		error("expect integer or pointer type, not type '%s'", type2s(AST_TYPE(r)));
 	} else {
@@ -1322,7 +1314,7 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	    ensure_type(r, isarith);
 	    if (NO_ERROR) {
 		ty = conv2(AST_TYPE(l), AST_TYPE(r));
-		node = expr_bop(op, ty, wrap(ty, l), wrap(ty, r));
+		node = ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
 	    }
 	}
 	break;
@@ -1331,7 +1323,7 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	ensure_type(l, isscalar);
 	ensure_type(r, isscalar);
 	if (NO_ERROR)
-	    node = expr_bop(op, inttype, l, r);
+	    node = ast_bop(op, inttype, l, r);
 	break;
     default:
 	error("unknown op '%s'", tname(op));
@@ -1351,7 +1343,7 @@ static node_t * logicop(int op, node_t *l, node_t *r)
     ensure_type(l, isscalar);
     ensure_type(r, isscalar);
     if (NO_ERROR)
-	ret = expr_bop(op, inttype, l, r);
+	ret = ast_bop(op, inttype, l, r);
     
     return ret;
 }
@@ -1370,7 +1362,7 @@ static node_t * commaop(int op, node_t *l, node_t *r)
     if (islvalue(r))
 	r = ltor(r);
     
-    return expr_bop(op, AST_TYPE(r), l, r);
+    return ast_bop(op, AST_TYPE(r), l, r);
 }
 
 static node_t * assignop(int op, node_t *l, node_t *r)
@@ -1403,7 +1395,7 @@ static node_t * assignop(int op, node_t *l, node_t *r)
     if (NO_ERROR) {
 	r = assignconv(retty, r);
 	if (r)
-	    ret = expr_bop('=', retty, l, r);
+	    ret = ast_bop('=', retty, l, r);
 	else
 	    error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
     }
@@ -1442,88 +1434,6 @@ static node_t * bitconv(node_t *ty, node_t *node)
 	return node;
     else
 	return ast_conv(ty, node, castname(ty, node));
-}
-
-static node_t * assignconv(node_t *ty, node_t *node)
-{
-    node_t *ty2;
-
-    if (islvalue(node))
-	node = ltor(node);
-
-    ty2 = AST_TYPE(node);
-    
-    if (isarith(ty) && isarith(ty2)) {
-	return wrap(ty, node);
-    } else if (ty == booltype && isptr(ty2)) {
-	return ast_conv(ty, node, PointerToBoolean);
-    } else if ((isstruct(ty) && isstruct(ty2)) ||
-	       (isunion(ty) && isunion(ty2))) {
-        if (eqtype(unqual(ty), unqual(ty2)))
-	    return bitconv(ty, node);
-    } else if (isptr(ty) && isptr(ty2)) {
-	if (is_nullptr(node)) {
-	    // always allowed
-	} else if (isptrto(ty, VOID) || isptrto(ty2, VOID)) {
-	    node_t *vty = isptrto(ty, VOID) ? ty : ty2;
-	    node_t *tty = vty == ty ? ty2 : ty;
-	    if (isptrto(tty, FUNCTION)) {
-		return NULL;
-	    } else {
-		node_t *rty1 = rtype(ty);
-		node_t *rty2 = rtype(ty2);
-		if (!qual_contains(rty1, rty2))
-		    return NULL;
-	    }
-	} else {
-	    node_t *rty1 = rtype(ty);
-	    node_t *rty2 = rtype(ty2);
-	    if (eqtype(unqual(rty1), unqual(rty2))) {
-		if (!qual_contains(rty1, rty2))
-		    return NULL;
-	    } else {
-		return NULL;
-	    }
-	}
-	return bitconv(ty, node);
-    } else {
-	error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty));
-    }
-    return NULL;
-}
-
-// Universal Binary Conversion
-static node_t * conv2(node_t *l, node_t *r)
-{
-    CCAssert(isarith(l));
-    CCAssert(isarith(r));
-    
-    CCAssert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
-    CCAssert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
-    
-    node_t *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
-    if (isfloat(l) || isfloat(r) || TYPE_OP(l) == TYPE_OP(r))
-        return max;
-    
-    node_t *u = TYPE_OP(l) == UNSIGNED ? l : r;
-    node_t *s = TYPE_OP(l) == INT ? l : r;
-    CCAssert(unqual(s) == s);
-    
-    if (TYPE_RANK(u) >= TYPE_RANK(s))
-        return u;
-    
-    if (TYPE_SIZE(u) < TYPE_SIZE(s)) {
-        return s;
-    } else {
-        if (s == inttype)
-            return unsignedinttype;
-        else if (s == longtype)
-            return unsignedlongtype;
-        else
-            return unsignedlonglongtype;
-    }
-    
-    return l;
 }
 
 static node_t * decay(node_t *node)
@@ -1584,6 +1494,88 @@ static node_t * conva(node_t *node)
     default:
 	return conv(node);
     }
+}
+
+// Universal Binary Conversion
+static node_t * conv2(node_t *l, node_t *r)
+{
+    CCAssert(isarith(l));
+    CCAssert(isarith(r));
+    
+    CCAssert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
+    CCAssert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
+    
+    node_t *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
+    if (isfloat(l) || isfloat(r) || TYPE_OP(l) == TYPE_OP(r))
+        return max;
+    
+    node_t *u = TYPE_OP(l) == UNSIGNED ? l : r;
+    node_t *s = TYPE_OP(l) == INT ? l : r;
+    CCAssert(unqual(s) == s);
+    
+    if (TYPE_RANK(u) >= TYPE_RANK(s))
+        return u;
+    
+    if (TYPE_SIZE(u) < TYPE_SIZE(s)) {
+        return s;
+    } else {
+        if (s == inttype)
+            return unsignedinttype;
+        else if (s == longtype)
+            return unsignedlongtype;
+        else
+            return unsignedlonglongtype;
+    }
+    
+    return l;
+}
+
+static node_t * assignconv(node_t *ty, node_t *node)
+{
+    node_t *ty2;
+
+    if (islvalue(node))
+	node = ltor(node);
+
+    ty2 = AST_TYPE(node);
+    
+    if (isarith(ty) && isarith(ty2)) {
+	return wrap(ty, node);
+    } else if (ty == booltype && isptr(ty2)) {
+	return ast_conv(ty, node, PointerToBoolean);
+    } else if ((isstruct(ty) && isstruct(ty2)) ||
+	       (isunion(ty) && isunion(ty2))) {
+        if (eqtype(unqual(ty), unqual(ty2)))
+	    return bitconv(ty, node);
+    } else if (isptr(ty) && isptr(ty2)) {
+	if (is_nullptr(node)) {
+	    // always allowed
+	} else if (isptrto(ty, VOID) || isptrto(ty2, VOID)) {
+	    node_t *vty = isptrto(ty, VOID) ? ty : ty2;
+	    node_t *tty = vty == ty ? ty2 : ty;
+	    if (isptrto(tty, FUNCTION)) {
+		return NULL;
+	    } else {
+		node_t *rty1 = rtype(ty);
+		node_t *rty2 = rtype(ty2);
+		if (!qual_contains(rty1, rty2))
+		    return NULL;
+	    }
+	} else {
+	    node_t *rty1 = rtype(ty);
+	    node_t *rty2 = rtype(ty2);
+	    if (eqtype(unqual(rty1), unqual(rty2))) {
+		if (!qual_contains(rty1, rty2))
+		    return NULL;
+	    } else {
+		return NULL;
+	    }
+	}
+	return bitconv(ty, node);
+    } else {
+	error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty));
+    }
+    return NULL;
 }
 
 static bool is_nullptr(node_t *node)
