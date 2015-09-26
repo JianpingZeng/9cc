@@ -637,6 +637,8 @@ static void ensure_field(node_t *field, node_t *sty, struct vector *v, bool last
 	}
     } else if (isincomplete(ty)) {
 	error("field has incomplete type '%s'", type2s(ty));
+    } else if (isfunc(ty)) {
+	error("field has invalid type '%s'", TYPE_NAME(ty));
     }
 }
 
