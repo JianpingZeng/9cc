@@ -125,6 +125,19 @@ static void test_basic()
 	expect3(i2, "union S", CODE(s), sizeof (union S));	\
     }
 
+#undef yy
+#define yy(i1, i2, pre, s)						\
+    {									\
+	pre;								\
+	struct S s;							\
+        expect3(i1, format("%s; struct S", CODE(pre)), CODE(s), sizeof (struct S)); \
+    }									\
+    {									\
+	pre;								\
+	union S s;							\
+	expect3(i2, format("%s; union S", CODE(pre)), CODE(s), sizeof (union S)); \
+    }
+
 
 // ONLY non-bitfields
 static void test_struct1()
@@ -355,6 +368,29 @@ static void test_struct1()
 	       double d;
 	   }s;
 	   char a;
+       };
+       );
+
+    xx(32, 24,
+       {
+	   struct C {
+	       int b;
+	       char a[1];
+	   }c;
+
+	   struct C array[3];
+       };
+       );
+
+    yy(28, 24,
+       struct C {
+    	   int b;
+    	   char a[1];
+       };
+       ,
+       {
+    	   char a;
+    	   struct C array[3];
        };
        );
 }
