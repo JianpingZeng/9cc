@@ -260,6 +260,8 @@ extern void errorf(struct source src, const char *fmt, ...);
 
 extern void begin_call(const char *funcname);
 extern void end_call(const char *funcname);
+#define BEGIN_CALL    begin_call(__func__);
+#define END_CALL      end_call(__func__);
 
 extern void redefinition_error(struct source src, node_t *sym);
 extern void conflicting_types_error(struct source src, node_t *sym);
