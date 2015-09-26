@@ -20,9 +20,9 @@ static void expect3(int i, const char *prefix, const char *code, int size2)
     int size1 = size_code(code1);
 
     if (size1 != size2)
-	fail("expect %ld, but got %ld, code:\n" RED("%s"), size2, size1, code);
+	fail("expect %d, but got %d, code:\n" RED("%s"), size2, size1, code);
     if (size1 != i)
-	fail("both got %ld, but guess %ld, code:\n" RED("%s"), size1, i, code);
+	fail("both got %d, but guess %d, code:\n" RED("%s"), size1, i, code);
 }
 
 #define xx(i, s)				\
@@ -129,11 +129,144 @@ static void test_basic()
 // ONLY non-bitfields
 static void test_struct1()
 {
+    // 1 field basic type
+    
     xx(1, 1,
        {
-	   char c;
+	   _Bool a;
        };
        );
+    
+    xx(1, 1,
+       {
+	   char a;
+       };
+       );
+
+    xx(1, 1,
+       {
+	   signed char a;
+       };
+       );
+
+    xx(1, 1,
+       {
+	   unsigned char a;
+       };
+       );
+
+    xx(2, 2,
+       {
+	   short a;
+       };
+       );
+
+    xx(2, 2,
+       {
+	   unsigned short a;
+       };
+       );
+
+    xx(4, 4,
+       {
+	   int a;
+       };
+       );
+
+    xx(4, 4,
+       {
+	   unsigned a;
+       };
+       );
+
+#ifdef CONFIG_X32
+    xx(4, 4,
+       {
+	   long a;
+       };
+       );
+
+    xx(4, 4,
+       {
+	   unsigned long a;
+       };
+       );
+#elif defined (CONFIG_X64)
+    xx(8, 8,
+       {
+	   long a;
+       };
+       );
+
+    xx(8, 8,
+       {
+	   unsigned long a;
+       };
+       );
+#endif
+
+    xx(8, 8,
+       {
+	   long long a;
+       };
+       );
+
+    xx(8, 8,
+       {
+	   unsigned long long a;
+       };
+       );
+
+    xx(4, 4,
+       {
+	   float a;
+       };
+       );
+
+    xx(8, 8,
+       {
+	   double a;
+       };
+       );
+
+#ifdef CONFIG_X32
+    xx(8, 8,
+       {
+	   long double a;
+       };
+       );
+
+    xx(4, 4,
+       {
+	   void *p;
+       };
+       );
+
+    xx(4, 4,
+       {
+	   char *p;
+       };
+       );
+#elif defined (CONFIG_X64)
+    xx(16, 16,
+       {
+	   long double a;
+       };
+       );
+
+    xx(8, 8,
+       {
+	   void *p;
+       };
+       );
+
+    xx(8, 8,
+       {
+	   char *p;
+       };
+       );
+#endif
+
 
     xx(4, 2,
        {
@@ -185,6 +318,44 @@ static void test_struct1()
 	    short s;
 	    char n[3];
 	};
+       );
+
+    xx(16, 16,
+       {
+	   struct {
+	       int b;
+	       double d;
+	   }s;
+       };
+       );
+
+    xx(4, 4,
+       {
+    	   union {
+    	       char a[3];
+    	       short b;
+    	   }u;
+       };
+       );
+
+    xx(24, 16,
+       {
+	   char a;
+	   struct {
+	       int b;
+	       double d;
+	   }s;
+       };
+       );
+
+    xx(24, 16,
+       {
+	   struct {
+	       int b;
+	       double d;
+	   }s;
+	   char a;
+       };
        );
 }
 
