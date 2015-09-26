@@ -373,6 +373,12 @@ static node_t ** parameters(node_t *ftype, int *params)
     return ret;
 }
 
+static inline void set_assign(node_t *atype)
+{
+    TYPE_A_ASSIGN(atype) = assign_expr();
+    TYPE_A_HASEXPR(atype) = 1;
+}
+
 static node_t * arrays(bool abstract)
 {
     node_t *atype = array_type(NULL);
@@ -380,13 +386,13 @@ static node_t * arrays(bool abstract)
     if (abstract) {
 	if (token->id == '*') {
 	    if (lookahead()->id != ']') {
-		TYPE_A_ASSIGN(atype) = assign_expr();
+	        set_assign(atype);
 	    } else {
 		expect('*');
 		TYPE_A_WILDCARD(atype) = 1;
 	    }
 	} else if (firstexpr(token)) {
-	    TYPE_A_ASSIGN(atype) = assign_expr();
+	    set_assign(atype);
 	}
     } else {
 	if (token->id == STATIC) {
@@ -394,33 +400,33 @@ static node_t * arrays(bool abstract)
 	    TYPE_A_STATIC(atype) = 1;
 	    if (token->kind == CONST)
 		array_qualifiers(atype);
-	    TYPE_A_ASSIGN(atype) = assign_expr();
+	    set_assign(atype);
 	} else if (token->kind == CONST) {
 	    if (token->kind == CONST)
 		array_qualifiers(atype);
 	    if (token->id == STATIC) {
 		expect(STATIC);
 		TYPE_A_STATIC(atype) = 1;
-		TYPE_A_ASSIGN(atype) = assign_expr();
+	        set_assign(atype);
 	    } else if (token->id == '*') {
 		if (lookahead()->id != ']') {
-		    TYPE_A_ASSIGN(atype) = assign_expr();
+		    set_assign(atype);
 		} else {
 		    expect('*');
 		    TYPE_A_WILDCARD(atype) = 1;
 		}
 	    } else if (firstexpr(token)) {
-		TYPE_A_ASSIGN(atype) = assign_expr();
+	        set_assign(atype);
 	    }
 	} else if (token->id == '*') {
 	    if (lookahead()->id != ']') {
-		TYPE_A_ASSIGN(atype) = assign_expr();
+	        set_assign(atype);
 	    } else {
 		expect('*');
 		TYPE_A_WILDCARD(atype) = 1;
 	    }
 	} else if (firstexpr(token)) {
-	    TYPE_A_ASSIGN(atype) = assign_expr();
+	    set_assign(atype);
 	}
     }
 
@@ -581,7 +587,7 @@ static node_t * struct_decl(void)
     return SYM_TYPE(sym);
 }
 
-static void ensure_field(node_t *field)
+static void ensure_field(node_t *field, node_t *sty, struct vector *v, bool last)
 {
     const char *name = FIELD_NAME(field);
     node_t *ty = FIELD_TYPE(field);
@@ -615,19 +621,32 @@ static void ensure_field(node_t *field)
 	}
     }
 
-    if (isincomplete(ty))
-	error("field has incomplete type '%s'", type2s(ty));
-
-    if (isarray(ty))
+    if (isarray(ty)) {
 	ensure_array(ty, source, CONSTANT);
+	if (isstruct(sty) && last && isincomplete(ty)) {
+	    if (vec_len(v) == 1)
+		error("flexible array cannot be the only member");
+	} else {
+	    if (TYPE_LEN(ty) == 0) {
+		if (isincomplete(ty))
+		    error("field has incomplete type '%s'", type2s(ty));
+		else
+		    error("array has variable or zero length");
+	    }
+	}
+    } else if (isincomplete(ty)) {
+	error("field has incomplete type '%s'", type2s(ty));
+    }
 }
 
 static void fields(node_t *sty)
 {
     int follow[] = {INT, CONST, '}', IF, 0};
+
+#define FIRST_FIELD(t)    (istypename(t) || (t)->kind == STATIC)
     
     struct vector *v = vec_new();
-    while (istypename(token) || token->kind == STATIC) {
+    while (FIRST_FIELD(token)) {
         node_t *basety = specifiers(NULL);
         
         for (;;) {
@@ -660,15 +679,15 @@ static void fields(node_t *sty)
                 }
             }
             
-	    ensure_field(field);
 	    vec_push(v, field);
-            
             if (token->id != ',')
                 break;
             expect(',');
+	    ensure_field(field, sty, v, false);
         }
         
         match(';', follow);
+	ensure_field(vec_tail(v), sty, v, !FIRST_FIELD(token));
     }
     TYPE_FIELDS(sty) = (node_t **)vtoa(v);
 }
@@ -1608,7 +1627,6 @@ static void ensure_func(node_t *ftype, struct source src)
         errorf(src, "function cannot return function type");
 }
 
-// TODO: CONSTANT eval
 static void ensure_array(node_t *atype, struct source src, int level)
 {
     node_t *rty = atype;

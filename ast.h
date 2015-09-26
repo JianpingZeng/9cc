@@ -61,6 +61,7 @@ struct ast_common {
 #define _TYPE_A_RESTRICT(NODE)   ((NODE)->type.u.a.is_restrict)
 #define _TYPE_A_STATIC(NODE)     ((NODE)->type.u.a.is_static)
 #define _TYPE_A_WILDCARD(NODE)   ((NODE)->type.u.a.wildcard)
+#define _TYPE_A_HASEXPR(NODE)    ((NODE)->type.u.a.has_expr)
 
 struct ast_type {
     struct ast_common common;
@@ -91,6 +92,7 @@ struct ast_type {
             unsigned is_restrict : 1;
             unsigned is_static : 1;
             unsigned wildcard : 1;
+	    unsigned has_expr : 1;
         }a;
     }u;
     struct {

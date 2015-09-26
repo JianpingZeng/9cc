@@ -333,7 +333,7 @@ node_t * tag_type(int t, const char *tag, struct source src)
     _TYPE_TAG(ty) = tag;
     _TYPE_NAME(ty) = tname(t);
     if (t == ENUM)
-        _TYPE_TYPE(ty) = unsignedinttype;
+        _TYPE_TYPE(ty) = inttype;
     
     node_t *sym = NULL;
     if (tag) {
@@ -628,7 +628,7 @@ bool isincomplete(node_t *ty)
     if (isvoid(ty))
 	return true;
     else if (isarray(ty))
-	return TYPE_LEN(ty) == 0;
+	return !TYPE_A_HASEXPR(ty) || TYPE_A_WILDCARD(ty);
     else if (isenum(ty) || isstruct(ty) || isunion(ty))
 	return !SYM_DEFINED(TYPE_TSYM(ty));
     return false;

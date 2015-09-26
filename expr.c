@@ -795,6 +795,7 @@ static node_t * postfix_expr(void)
     return postfix_expr1(expr);
 }
 
+// TODO: sizeof a variable array is not a constant
 static node_t * sizeof_expr(void)
 {
     int t = token->id;
