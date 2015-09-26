@@ -823,8 +823,8 @@ static node_t * sizeof_expr(void)
     SAVE_ERRORS;
     if (isfunc(ty) || isvoid(ty))
         error("'sizeof' to a '%s' type is invalid", type2s(ty));
-    else if (isarray(ty) && TYPE_SIZE(ty) == 0)
-        error("'sizeof' to an incomplete array type is invalid");
+    else if (isincomplete(ty))
+        error("'sizeof' to an incomplete type '%s' is invalid", type2s(ty));
     else if (n && is_bitfield(n))
 	error("'sizeof' to a bitfield is invalid");
 

@@ -628,7 +628,7 @@ bool isincomplete(node_t *ty)
     if (isvoid(ty))
 	return true;
     else if (isarray(ty))
-	return TYPE_A_ASSIGN(ty) == NULL && TYPE_A_WILDCARD(ty) == 0;
+	return TYPE_SIZE(ty) == 0;
     else if (isenum(ty) || isstruct(ty) || isunion(ty))
 	return !SYM_DEFINED(TYPE_TSYM(ty));
     return false;
