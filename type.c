@@ -496,9 +496,10 @@ static unsigned struct_size(node_t *ty)
     int bsize = 0;
     int max = 1;
     int maxbits = 0;
+    node_t **fields = TYPE_FIELDS(ty);
 
-    for (int i = 0; i < array_len((void **)TYPE_FIELDS(ty)); i++) {
-    	node_t *field = TYPE_FIELDS(ty)[i];
+    for (int i = 0; i < array_len((void **)fields); i++) {
+    	node_t *field = fields[i];
     	node_t *ty = FIELD_TYPE(field);
 	
     	if (FIELD_ISBIT(field)) {
@@ -525,6 +526,7 @@ static unsigned struct_size(node_t *ty)
 		offset += TYPE_SIZE(ty);
 		bsize = FIELD_BITSIZE(field);
 	    } else {
+		FIELD_OFFSET(field) = FIELD_OFFSET(fields[i-1]);
 		bsize += bitsize;
 		offset = ROUNDUP(offset, TYPE_SIZE(ty));
 	    }
@@ -541,6 +543,7 @@ static unsigned struct_size(node_t *ty)
 	        FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
 		offset += TYPE_SIZE(ty);
 	    } else {
+		FIELD_OFFSET(field) = FIELD_OFFSET(fields[i-1]);
 	        bsize = bits + bitsize;
 	    }
 
