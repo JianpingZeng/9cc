@@ -25,18 +25,110 @@ static void expect3(int i, const char *prefix, const char *code, int size2)
 	fail("both got %ld, but guess %ld, code:\n" RED("%s"), size1, i, code);
 }
 
-static void test_struct()
-{
-#define xx(i1, i2, s)				\
-    { \
-	struct S s;				 \
+#define xx(i, s)				\
+    {						\
+	s;					\
+	expect3(i, NULL, CODE(s), sizeof (e));	\
+    }
+
+static void test_basic()
+{    
+    xx(4,
+       enum E {
+	   E1
+       };
+       enum E e;
+       );
+
+    xx(1,
+       _Bool e;
+       );
+
+    xx(1,
+       char e;
+       );
+
+    xx(2,
+       short e;
+       );
+
+    xx(4,
+       int e;
+       );
+
+    xx(4,
+       unsigned e;
+       );
+
+#ifdef CONFIG_X32
+    xx(4,
+       long e;
+       );
+#elif defined (CONFIG_X64)
+    xx(8,
+       long e;
+       );
+#endif
+
+    xx(8,
+       long long e;
+       );
+
+    xx(4,
+       float e;
+       );
+
+    xx(8,
+       double e;
+       );
+    
+#ifdef CONFIG_X32
+    xx(8,
+       long double e;
+       );
+
+    xx(4,
+       void *e;
+       );
+
+    xx(4,
+       char *e;
+       );
+#elif defined (CONFIG_X64)
+    xx(16,
+       long double e;
+       );
+
+    xx(8,
+       void *e;
+       );
+
+    xx(8,
+       char *e;
+       );
+#endif
+}
+
+
+/* Test cases for structure.
+ *
+ */
+
+#undef xx
+#define xx(i1, i2, s)						\
+    {								\
+	struct S s;						\
 	expect3(i1, "struct S", CODE(s), sizeof (struct S));	\
-    } \
-    { \
-	union S s;				 \
+    }								\
+    {								\
+	union S s;						\
 	expect3(i2, "union S", CODE(s), sizeof (union S));	\
     }
-    
+
+
+// ONLY non-bitfields
+static void test_struct1()
+{
     xx(1, 1,
        {
 	   char c;
@@ -65,6 +157,40 @@ static void test_struct()
        };
        );
 
+    xx(24, 16,
+       {
+	   double d;
+	   char c[10];
+       };
+       );
+
+    xx(12, 4,
+        {
+	    char a;
+	    short b;
+	    int c;
+	    char d;
+	};
+	);
+
+    xx(8, 4,
+        {
+	    float x;
+	    char n[1];
+	};
+	);
+
+    xx(6, 4,
+        {
+	    short s;
+	    char n[3];
+	};
+       );
+}
+
+// ONLY bitfields
+static void test_struct2()
+{
     xx(2, 2,
        {
 	   char a:1;
@@ -154,37 +280,11 @@ static void test_struct()
      	   char :0;
        };
        );
-     
-    xx(24, 16,
-       {
-	   double d;
-	   char c[10];
-       };
-       );
+}
 
-    xx(12, 4,
-        {
-	    char a;
-	    short b;
-	    int c;
-	    char d;
-	};
-	);
-
-    xx(8, 4,
-        {
-	    float x;
-	    char n[1];
-	};
-	);
-
-    xx(6, 4,
-        {
-	    short s;
-	    char n[3];
-	};
-       );
-
+// both
+static void test_struct3()
+{
     xx(2, 1,
         {
 	    char x;
@@ -215,8 +315,13 @@ static void test_struct()
 	    char b;
 	};
        );
+}
 
-#undef xx
+static void test_struct()
+{
+    test_struct1();
+    test_struct2();
+    test_struct3();
 }
 
 static void test_array()
@@ -226,93 +331,13 @@ static void test_array()
 
 static void test_others()
 {
-#define xx(i, s)  \
-    { \
-	s;				 \
-	expect3(i, NULL, CODE(s), sizeof (e));	\
-    }
 
-    xx(4,
-       enum E {
-	   E1
-       };
-       enum E e;
-       );
-
-    xx(1,
-       _Bool e;
-       );
-
-    xx(1,
-       char e;
-       );
-
-    xx(2,
-       short e;
-       );
-
-    xx(4,
-       int e;
-       );
-
-    xx(4,
-       unsigned e;
-       );
-
-#ifdef CONFIG_X32
-    xx(4,
-       long e;
-       );
-#elif defined (CONFIG_X64)
-    xx(8,
-       long e;
-       );
-#endif
-
-    xx(8,
-       long long e;
-       );
-
-    xx(4,
-       float e;
-       );
-
-    xx(8,
-       double e;
-       );
-    
-#ifdef CONFIG_X32
-    xx(8,
-       long double e;
-       );
-
-    xx(4,
-       void *e;
-       );
-
-    xx(4,
-       char *e;
-       );
-#elif defined (CONFIG_X64)
-    xx(16,
-       long double e;
-       );
-
-    xx(8,
-       void *e;
-       );
-
-    xx(8,
-       char *e;
-       );
-#endif
-
-#undef xx
 }
 
 void testmain()
 {
     START("typesize ...");
+    test_basic();
     test_struct();
     test_array();
     test_others();
