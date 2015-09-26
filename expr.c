@@ -795,7 +795,6 @@ static node_t * postfix_expr(void)
     return postfix_expr1(expr);
 }
 
-// TODO: sizeof a variable array is not a constant
 static node_t * sizeof_expr(void)
 {
     int t = token->id;
@@ -829,12 +828,8 @@ static node_t * sizeof_expr(void)
     else if (n && is_bitfield(n))
 	error("'sizeof' to a bitfield is invalid");
 
-    if (NO_ERROR) {
-	ret = uop(t, unsignedinttype, ty);
-	EXPR_SYM(ret) = anonymous(&constants, CONSTANT);
-	SYM_TYPE(EXPR_SYM(ret)) = ty;
-	SYM_VALUE_U(EXPR_SYM(ret)) = TYPE_SIZE(ty);
-    }
+    if (NO_ERROR)
+	ret = uop(t, unsignedinttype, n ? n : ty);
 
     return ret;
 }
