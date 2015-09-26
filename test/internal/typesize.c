@@ -9,9 +9,15 @@ static int size_code(const char *code)
     return TYPE_SIZE(ty1);
 }
 
-static void expect3(int i, const char *code, int size2)
+static void expect3(int i, const char *prefix, const char *code, int size2)
 {
-    int size1 = size_code(code);
+    const char *code1;
+    if (prefix)
+	code1 = format("%s %s", prefix, code);
+    else
+	code1 = code;
+    
+    int size1 = size_code(code1);
 
     if (size1 != size2)
 	fail("expect %ld, but got %ld, code:\n" RED("%s"), size2, size1, code);
@@ -21,64 +27,68 @@ static void expect3(int i, const char *code, int size2)
 
 static void test_struct()
 {
-#define xx(i, s)  \
+#define xx(i1, i2, s)				\
     { \
-	s;				 \
-	expect3(i, CODE(s), sizeof (struct S)); \
+	struct S s;				 \
+	expect3(i1, "struct S", CODE(s), sizeof (struct S));	\
+    } \
+    { \
+	union S s;				 \
+	expect3(i2, "union S", CODE(s), sizeof (union S));	\
     }
     
-    xx(1,
-       struct S {
+    xx(1, 1,
+       {
 	   char c;
        };
        );
 
-    xx(4,
-       struct S {
+    xx(4, 2,
+       {
 	   char a;
 	   short b;
        };
        );
 
-    xx(4,
-       struct S {
+    xx(4, 2,
+       {
 	   short a;
 	   char b;
        };
        );
 
-    xx(3,
-       struct S {
+    xx(3, 1,
+       {
 	   char a;
 	   char b;
 	   char c;
        };
        );
 
-    xx(2,
-       struct S {
+    xx(2, 2,
+       {
 	   char a:1;
 	   short b:1;
        };
        );
 
-    xx(2,
-       struct S {
+    xx(2, 2,
+       {
 	   short a:1;
 	   char b:1;
        };
        );
 
-    xx(4,
-       struct S {
+    xx(4, 4,
+       {
 	   char a:1;
 	   short b:1;
 	   int c:1;
        };
        );
 
-    xx(4,
-       struct S {
+    xx(4, 4,
+       {
 	   char a:1;
 	   short b:1;
 	   char :0;
@@ -86,8 +96,8 @@ static void test_struct()
        };
        );
 
-    xx(4,
-       struct S {
+    xx(4, 4,
+       {
 	   char a:1;
 	   short b:1;
 	   short :0;
@@ -95,8 +105,8 @@ static void test_struct()
        };
        );
 
-    xx(8,
-       struct S {
+    xx(8, 4,
+       {
 	   char a:1;
 	   short b:1;
 	   int :0;
@@ -104,8 +114,8 @@ static void test_struct()
        };
        );
 
-     xx(8,
-       struct S {
+    xx(8, 4,
+       {
 	   char a:1;
 	   short b:1;
 	   unsigned :0;
@@ -113,47 +123,47 @@ static void test_struct()
        };
        );
 
-     xx(3,
-       struct S {
+    xx(3, 1,
+       {
 	   char a:1;
 	   short :0;
 	   char c:1;
        };
        );
 
-     xx(2,
-       struct S {
+    xx(2, 2,
+       {
 	   char a:1;
 	   short b:1;
 	   char :0;
        };
        );
 
-     xx(2,
-       struct S {
+    xx(2, 2,
+       {
 	   short a:1;
 	   char b:1;
 	   char :0;
        };
        );
 
-     xx(2,
-       struct S {
+    xx(2, 2,
+       {
      	   short a:6;
      	   char b:5;
      	   char :0;
        };
        );
      
-     xx(24,
-       struct S {
+    xx(24, 16,
+       {
 	   double d;
 	   char c[10];
        };
        );
 
-     xx(12,
-	struct S {
+    xx(12, 4,
+        {
 	    char a;
 	    short b;
 	    int c;
@@ -161,57 +171,52 @@ static void test_struct()
 	};
 	);
 
-     xx(8,
-	struct S {
+    xx(8, 4,
+        {
 	    float x;
 	    char n[1];
 	};
 	);
 
-     xx(6,
-	struct S {
+    xx(6, 4,
+        {
 	    short s;
 	    char n[3];
 	};
        );
 
-     xx(2,
-	struct S {
+    xx(2, 1,
+        {
 	    char x;
 	    char :0;
 	    char y;
 	};
 	);
 
-     xx(5,
-	struct S {
+    xx(5, 1,
+        {
 	    char a;
 	    int :0;
 	    char b;
 	};
 	);
 
-     xx(8,
-	struct S {
+    xx(8, 4,
+        {
 	    int a:1;
 	    short b;
 	    char c;
 	};
        );
 
-     xx(4,
-	struct S {
+    xx(4, 4,
+        {
 	    int a:1;
 	    char b;
 	};
        );
 
 #undef xx
-}
-
-static void test_union()
-{
-
 }
 
 static void test_array()
@@ -224,7 +229,7 @@ static void test_others()
 #define xx(i, s)  \
     { \
 	s;				 \
-	expect3(i, CODE(s), sizeof (e)); \
+	expect3(i, NULL, CODE(s), sizeof (e));	\
     }
 
     xx(4,
@@ -309,7 +314,6 @@ void testmain()
 {
     START("typesize ...");
     test_struct();
-    test_union();
     test_array();
     test_others();
 }

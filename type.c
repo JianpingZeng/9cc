@@ -560,12 +560,36 @@ static unsigned struct_size(node_t *ty)
     return ROUNDUP(offset, max);
 }
 
-// TODO: 
 static unsigned union_size(node_t *ty)
 {
-    unsigned ret = 0;
+    int max = 1;
+    int size = 0;
+    node_t **fields = TYPE_FIELDS(ty);
 
-    return ret;
+    for (int i = 0; i < array_len((void **)fields); i++) {
+	node_t *field = fields[i];
+    	node_t *ty = FIELD_TYPE(field);
+	int tysize = TYPE_SIZE(ty);
+
+	if (tysize == 0)
+	    continue;
+	
+	if (FIELD_ISBIT(field)) {
+	    int bitsize = FIELD_BITSIZE(field);
+	    
+	    if (!isint(ty))
+		continue;
+	    if (bitsize <= 0)
+		continue;
+	}
+
+	size = MAX(size, tysize);
+	max = MAX(max, TYPE_ALIGN(ty));
+    }
+
+    TYPE_ALIGN(ty) = max;
+
+    return ROUNDUP(size, max);
 }
 
 static unsigned array_size(node_t *ty)
