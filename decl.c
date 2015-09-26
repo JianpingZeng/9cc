@@ -293,6 +293,7 @@ static node_t ** parameters(node_t *ftype, int *params)
     
     if (firstdecl(token)) {
         // prototype
+	TYPE_OLDSTYLE(ftype) = 0;
         struct vector *v = vec_new();
         for (int i=0;;i++) {
             node_t *basety = NULL;
