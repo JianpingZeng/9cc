@@ -1533,10 +1533,10 @@ static void elem_init(node_t *ty, bool designated, struct vector *v, int i)
 	    aggregate_set(ty, v, i, initializer_list(ty));
 	} else if ((token->id == '.' && isarray(ty)) ||
 		   (token->id == '[' && !isarray(ty))) {
-	    unsigned errs = errors;
+	    SAVE_ERRORS;
 	    eat_initializer();
 	    // inhibit redundant errors
-	    if (errs == errors)
+	    if (NO_ERROR)
 		error("%s designator cannot initialize non-%s type '%s'", TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
 	} else {
 	    node_t *n = find_elem(v, i);
