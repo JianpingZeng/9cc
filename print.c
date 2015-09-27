@@ -25,6 +25,8 @@ static void print_ty(node_t *ty)
 	putf(GREEN("'%s' "), type2s(ty));
 	if (isarray(ty) || isstruct(ty) || isunion(ty))
 	    putf(YELLOW("<size=%ld> "), TYPE_SIZE(ty));
+	else if (isfunc(ty))
+	    putf("%s ", TYPE_OLDSTYLE(ty) ? "oldstyle" : "prototype");
     }
 }
 

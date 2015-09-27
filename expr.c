@@ -23,9 +23,6 @@ static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *
 #define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
 #define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
 
-#define SAVE_ERRORS    unsigned err = errors
-#define NO_ERROR       (err == errors)
-#define HAS_ERROR      (err != errors)
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 #define INCOMPATIBLE_TYPES2   "imcompatible types '%s' and '%s' in conditional expression"
 
@@ -531,25 +528,28 @@ static struct vector * argscast(node_t *fty, node_t **args)
 
         argcast1(fty, args, v);
     } else {
-	if (len1 == 0)
-	    return NULL;	// parsing error
+	if (len1 == 0) {
+	    if (len2 > 0) {
+		error("too many arguments to function call, expected %d, have %d", len1, len2);
+		return NULL;
+	    }
+	    return v;
+	}
 	
 	node_t *last = params[len1 - 1];
 	bool vargs = unqual(SYM_TYPE(last)) == vartype;
-	node_t *first = params[0];
-	if (isvoid(SYM_TYPE(first)))
-	    len1 = 0;
+	if (vargs)
+	    len1 -= 1;
+	CCAssert(len1 >= 1);
 	if (len1 <= len2) {
 	    if (!vargs && len1 < len2) {
 		error("too many arguments to function call, expected %d, have %d", len1, len2);
 		return NULL;
 	    }
-	    if (len1 > 0) {
-		SAVE_ERRORS;
-		argcast1(fty, args, v);
-		if (HAS_ERROR)
-		    return NULL;
-	    }
+	    SAVE_ERRORS;
+	    argcast1(fty, args, v);
+	    if (HAS_ERROR)
+		return NULL;
 	} else {
 	    if (vargs)
 		error("too few arguments to function call, expected at least %d, have %d", len1, len2);

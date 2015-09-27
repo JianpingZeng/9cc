@@ -25,7 +25,17 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 static void post_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
-static void ensure_nonvoid(node_t *ty, struct source src, int level);
+
+#define PACK_PARAM(prototype, first, fvoid, sclass)	\
+    (((prototype) & 0x01) << 30) |			\
+    (((first) & 0x01) << 29) |				\
+    (((fvoid) & 0x01) << 28) |				\
+    ((sclass) & 0xffffff)
+
+#define PARAM_STYLE(i)   (((i) & 0x40000000) >> 30)
+#define PARAM_FIRST(i)   (((i) & 0x20000000) >> 29)
+#define PARAM_FVOID(i)   (((i) & 0x10000000) >> 28)
+#define PARAM_SCLASS(i)  ((i) & 0x0fffffff)
 
 static node_t * specifiers(int *sclass)
 {
@@ -293,41 +303,37 @@ static node_t ** parameters(node_t *ftype, int *params)
     
     if (firstdecl(token)) {
         // prototype
-	TYPE_OLDSTYLE(ftype) = 0;
         struct vector *v = vec_new();
+	bool first_void = false;
         for (int i=0;;i++) {
             node_t *basety = NULL;
             int sclass;
             node_t *ty = NULL;
             const char *id = NULL;
             struct source src = source;
+	    node_t *sym;
             
             basety = specifiers(&sclass);
             if (token->id == '*' || token->id == '(' || token->id == '[' || token->id == ID)
                 param_declarator(&ty, &id);
             
             attach_type(&ty, basety);
-            
             if (isinline(basety))
                 error("'inline' can only appear on functions");
-            if (isvoid(ty)) {
-                if (i == 0 && token->id == ')') {
-                    if (id)
-                        error("argument may not have 'void' type");
-                    else if (isqual(ty))
-                        error("'void' as parameter must not have type qualifiers");
-                } else {
-                    error("'void' must be the first and only parameter if specified");
-                }
-            }
-            
-            vec_push(v, paramdecl(id, ty, sclass, src));
+	    if (i == 0 && isvoid(ty))
+		first_void = true;
+		
+	    SAVE_ERRORS;
+	    sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass), src);
+	    if (NO_ERROR && !first_void)
+		vec_push(v, sym);
             if (token->id != ',')
                 break;
             
             expect(',');
             if (token->id == ELLIPSIS) {
-                vec_push(v, paramdecl(token->name, vartype, 0, source));
+		if (!first_void)
+		    vec_push(v, paramdecl(token->name, vartype, PACK_PARAM(1, 0, first_void, 0), source));
                 expect(ELLIPSIS);
                 break;
             }
@@ -353,13 +359,12 @@ static node_t ** parameters(node_t *ftype, int *params)
     } else if (token->id == ')') {
         TYPE_OLDSTYLE(ftype) = 1;
     } else {
-        int follow[] = {')', IF, 0};
+	TYPE_OLDSTYLE(ftype) = 1;
         if (token->id == ELLIPSIS)
             error("ISO C requires a named parameter before '...'");
         else
-            error("expect parameter declarator at '%s'", token->name);
-        
-        match(')', follow);
+            error("expect parameter declarator at '%s'", token->name);        
+	gettok();
     }
     
     if (params && *params == 0) {
@@ -1069,6 +1074,11 @@ node_t * translation_unit(void)
 static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source src)
 {
     node_t *sym = NULL;
+    bool prototype = PARAM_STYLE(sclass);
+    bool first = PARAM_FIRST(sclass);
+    bool fvoid = PARAM_FVOID(sclass);
+    sclass = PARAM_SCLASS(sclass);
+    
     if (sclass && sclass != REGISTER) {
         error("invalid storage class specifier '%s' in function declarator", tname(sclass));
         sclass = 0;
@@ -1083,7 +1093,21 @@ static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!SYM_DEFINED(TYPE_TSYM(ty)))
             warningf(src, "declaration of '%s' will not be visible outside of this function", type2s(ty));
+    } else if (isvoid(ty)) {
+	if (prototype) {
+	    if (first) {
+		if (id)
+		    errorf(src, "argument may not have 'void' type");
+		else if (isqual(ty))
+		    errorf(src, "'void' as parameter must not have type qualifiers");
+	    }
+	} else {
+	    errorf(src, "argument may not have 'void' type");
+	}
     }
+
+    if (prototype && fvoid && !first)
+	errorf(src, "'void' must be the first and only parameter if specified");
     
     if (id) {
         sym = lookup(id, identifiers);
@@ -1246,7 +1270,6 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
                 else
                     errorf(SYM_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
             }
-	    ensure_nonvoid(AST_TYPE(decl), SYM_SRC(sym), PARAM);
         }
         exit_scope();
         if (token->id != '{') {
@@ -1655,10 +1678,4 @@ static void ensure_array(node_t *atype, struct source src, int level)
     } while (isarray(rty));
 
     set_typesize(atype);
-}
-
-static void ensure_nonvoid(node_t *ty, struct source src, int level)
-{
-    if (isvoid(ty))
-        errorf(src, "%s may not have 'void' type", level == PARAM ? "argument" : "variable");
 }
