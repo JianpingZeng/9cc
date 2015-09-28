@@ -1,6 +1,6 @@
 #include "cc.h"
 
-void gen(node_t *tree)
+void gen(node_t *tree, const char *ofile)
 {
     
 }

@@ -289,7 +289,7 @@ extern void field_not_found_error(node_t *ty, const char *name);
     } while (0)
 
 // gen.c
-extern void gen(node_t *tree);
+extern void gen(node_t *tree, const char *ofile);
 
 // print.c
 extern void print_tree(node_t *tree);

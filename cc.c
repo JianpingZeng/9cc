@@ -34,6 +34,8 @@ static void translate(void)
     node_t *n;
     n = translation_unit();
     print_tree(n);
+    if (errors == 0)
+	gen(n, ofile);
 }
 
 int cc_main(int argc, const char * argv[])
