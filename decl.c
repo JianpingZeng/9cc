@@ -1335,6 +1335,7 @@ static node_t * find_elem(struct vector *v, int i)
 
 static inline node_t * do_init_elem_conv(node_t *ty, node_t *node)
 {
+    // cannot pass VINIT_EXPR to init_elem_conv
     if (AST_ID(node) == VINIT_EXPR)
 	return NULL;		// init_elem_conv has failed
     return init_elem_conv(ty, node);
@@ -1351,12 +1352,6 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
     
     if (AST_ID(node) == INITS_EXPR) {
 	vec_set(v, i, node);
-    } else if (is_string(ty) && issliteral(node)) {
-	vec_set(v, i, node);
-	int len1 = TYPE_LEN(ty);
-	int len2 = TYPE_LEN(AST_TYPE(node));
-	if (len1 > 0 && len2 - 1 > len1)
-	    warning("initializer-string for char array is too long");
     } else {
 	node_t *rty = NULL;
 	if (isarray(ty)) {
@@ -1454,12 +1449,6 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
     bool designated = false;
     int c = 0;
     int len = TYPE_LEN(ty);
-
-    if (is_string(ty) && token->id == SCONSTANT) {
-	node_t *expr = assign_expr();
-	aggregate_set(ty, v, 0, expr);
-        return;
-    }
     
     for (int i = 0; ; i++) {
 	node_t *rty = NULL;
@@ -1547,10 +1536,12 @@ static void elem_init(node_t *ty, bool designated, struct vector *v, int i)
 		n = ast_inits();
 		vec_set(v, i, n);
 	    }
+	    
 	    if (isarray(ty))
 		array_init(ty, false, v1);
 	    else
 		struct_init(ty, false, v1);
+	    
 	    EXPR_INITS(n) = (node_t **)vtoa(v1);
 	}
     } else {
