@@ -1321,7 +1321,9 @@ static void eat_initlist(void)
 
 static bool is_string(node_t *ty)
 {
-    CCAssert(isarray(ty));
+    if (!isarray(ty))
+	return false;
+    
     node_t *rty = rtype(ty);
     return TYPE_KIND(rty) == CHAR || unqual(rty) == wchartype;
 }
