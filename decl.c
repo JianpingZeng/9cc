@@ -19,7 +19,7 @@ static void eat_initlist(void);
 static void struct_init(node_t *ty, bool brace, struct vector *v);
 static void array_init(node_t *ty, bool brace, struct vector *v);
 static void scalar_init(node_t *ty, struct vector *v);
-static void elem_init(node_t *ty, bool designated, struct vector *v, int i);
+static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v, int i);
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 
 static void post_initializer(node_t *decl, node_t *sym, int sclass, int kind);
@@ -1352,6 +1352,17 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
     
     if (AST_ID(node) == INITS_EXPR) {
 	vec_set(v, i, node);
+    } else if (is_string(ty) && issliteral(node)) {
+	int len1 = TYPE_LEN(ty);
+	int len2 = TYPE_LEN(AST_TYPE(node));
+	if (len1 > 0) {
+	    if (len1 < len2-1)
+		warning("initializer-string for char array is too long");
+	    TYPE_LEN(AST_TYPE(node)) = len1;
+	} else if (len1 == 0) {
+	    TYPE_LEN(ty) = len2;
+	}
+	vec_set(v, i, node);
     } else {
 	node_t *rty = NULL;
 	if (isarray(ty)) {
@@ -1431,7 +1442,7 @@ static void struct_init(node_t *ty, bool brace, struct vector *v)
 
 	if (!designated)
 	    fieldty = FIELD_TYPE(TYPE_FIELDS(ty)[i]);
-	elem_init(fieldty, designated, v, i);
+	elem_init(ty, fieldty, designated, v, i);
 	designated = false;
 	
 	struct token *ahead = lookahead();
@@ -1449,6 +1460,16 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
     bool designated = false;
     int c = 0;
     int len = TYPE_LEN(ty);
+
+    if (is_string(ty) && token->id == SCONSTANT) {
+	node_t *expr = assign_expr();
+	if (vec_len(v)) {
+	    warning("initializer overrides prior initialization");
+	    vec_clear(v);
+	}
+	aggregate_set(ty, v, 0, expr);
+	return;
+    }
     
     for (int i = 0; ; i++) {
 	node_t *rty = NULL;
@@ -1468,7 +1489,7 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
 	    error("array designator index [%d] exceeds array bounds (%d)", i, len);
 	else
 	    rty = rtype(ty);
-	elem_init(rty, designated, v, i);
+	elem_init(ty, rty, designated, v, i);
 	designated = false;
 
 	struct token *ahead = lookahead();
@@ -1500,8 +1521,14 @@ static void scalar_init(node_t *ty, struct vector *v)
     }
 }
 
-static void elem_init(node_t *ty, bool designated, struct vector *v, int i)
+static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v, int i)
 {
+#define IS_STRING_VEC(ty, v)			\
+    (is_string(ty) &&				\
+     vec_len(v) == 1 &&				\
+     issliteral((node_t *)vec_head(v)))
+    
+    
     if (ty == NULL) {
         if (token->id == '.' || token->id == '[') {
 	    eat_initializer();
@@ -1532,23 +1559,37 @@ static void elem_init(node_t *ty, bool designated, struct vector *v, int i)
 	    struct vector *v1 = vec_new();
 	    if (AST_ID(n) == INITS_EXPR) {
 		vec_add_array(v1, (void **)EXPR_INITS(n));
-	    } else {
-		n = ast_inits();
-		vec_set(v, i, n);
+	    } else if (AST_ID(n) == STRING_LITERAL) {
+		vec_push(v1, n);
 	    }
 	    
 	    if (isarray(ty))
 		array_init(ty, false, v1);
 	    else
 		struct_init(ty, false, v1);
-	    
-	    EXPR_INITS(n) = (node_t **)vtoa(v1);
+
+	    if (IS_STRING_VEC(ty, v1)) {
+		// string literal
+		vec_set(v, i, (node_t *)vec_head(v1));
+	    } else {
+		if (AST_ID(n) != INITS_EXPR) {
+		    n = ast_inits();
+		    vec_set(v, i, n);
+		}
+		EXPR_INITS(n) = (node_t **)vtoa(v1);
+	    }
 	}
     } else {
 	if (designated)
 	    expect('=');
+	if (IS_STRING_VEC(sty, v)) {
+	    warning("initializer overrides prior initialization");
+	    vec_clear(v);
+	}
 	scalar_set(ty, v, i, initializer(ty));
     }
+
+#undef IS_STRING_VEC
 }
 
 bool has_static_extent(node_t *sym)
