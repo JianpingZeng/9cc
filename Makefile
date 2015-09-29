@@ -103,14 +103,15 @@ bootstrap: stage3
 # Test suite
 #
 TESTDIR=test/
+INTERNAL=$(TESTDIR)internal/
 CFLAGS_TEST=$(CFLAGS_COMMON) $(CONFIG_FLAGS) -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)test.h
-TEST_INTERNAL := $(patsubst %.c, %.bin, $(filter-out $(TESTDIR)internal/internal.c,$(wildcard $(TESTDIR)internal/*.c)))
+TEST_INTERNAL := $(patsubst %.c, %.bin, $(filter-out $(INTERNAL)internal.c,$(wildcard $(INTERNAL)*.c)))
 TESTS=$(TEST_INTERNAL)
 
-$(TESTDIR)internal/%.bin: $(TESTDIR)internal/%.c $(TEST_DEP) $(TESTDIR)internal/internal.h $(TESTDIR)internal/internal.c $(CC1_OBJ) $(SYS_OBJ)
-	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(TESTDIR)internal/internal.c $< $(CC1_OBJ) $(SYS_OBJ) -o $@
+$(INTERNAL)%.bin: $(INTERNAL)%.c $(TEST_DEP) $(INTERNAL)internal.h $(INTERNAL)internal.c $(CC1_OBJ) $(SYS_OBJ)
+	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(INTERNAL)internal.c $< $(CC1_OBJ) $(SYS_OBJ) -o $@
 
 test: $(TESTS)
 	@for test in $(TESTS); do \
@@ -118,7 +119,7 @@ test: $(TESTS)
 	done
 
 clean:
-	@rm -f *.o *~ $(MCC) $(TESTS) $(SYS)*.o $(SYS)*~ $(UTILS)*.o $(UTILS)*~ $(TESTDIR)internal/*~
+	@rm -f *.o *~ $(MCC) $(TESTS) $(SYS)*.o $(SYS)*~ $(UTILS)*.o $(UTILS)*~ $(INTERNAL)*~
 
 distclean: clean
 	@rm -f stage1 stage2 stage3
