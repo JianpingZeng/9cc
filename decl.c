@@ -1342,6 +1342,19 @@ static inline node_t * do_init_elem_conv(node_t *ty, node_t *node)
     return init_elem_conv(ty, node);
 }
 
+static void init_string(node_t *ty, node_t *node)
+{
+    int len1 = TYPE_LEN(ty);
+    int len2 = TYPE_LEN(AST_TYPE(node));
+    if (len1 > 0) {
+	if (len1 < len2-1)
+	    warning("initializer-string for char array is too long");
+	TYPE_LEN(AST_TYPE(node)) = len1;
+    } else if (isincomplete(ty)) {
+	TYPE_LEN(ty) = len2;
+    }
+}
+
 static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 {
     if (!node)
@@ -1354,15 +1367,7 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
     if (AST_ID(node) == INITS_EXPR) {
 	vec_set(v, i, node);
     } else if (is_string(ty) && issliteral(node)) {
-	int len1 = TYPE_LEN(ty);
-	int len2 = TYPE_LEN(AST_TYPE(node));
-	if (len1 > 0) {
-	    if (len1 < len2-1)
-		warning("initializer-string for char array is too long");
-	    TYPE_LEN(AST_TYPE(node)) = len1;
-	} else if (isincomplete(ty)) {
-	    TYPE_LEN(ty) = len2;
-	}
+        init_string(ty, node);
 	vec_set(v, i, node);
     } else {
 	node_t *rty = NULL;
@@ -1650,24 +1655,22 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 
     if (AST_ID(init) != INITS_EXPR) {
 	if (isarray(ty)) {
-	    if (is_string(ty) && issliteral(init)) {
-		//
-	    } else {
+	    if (is_string(ty) && issliteral(init))
+		init_string(ty, init);
+	    else
 		error("array initializer must be an initializer list or string literal");
-	    }
-	} else if (isstruct(ty)) {
+	} else if (isstruct(ty) || isunion(ty)) {
 	    if (!eqtype(ty, AST_TYPE(init)))
-		error("initialzing '%s' with an expression of imcompatible type '%s'", type2s(ty), type2s(AST_TYPE(init)));
-	} else if (isunion(ty)) {
-
+		error("initialzing '%s' with an expression of imcompatible type '%s'",
+		      type2s(ty), type2s(AST_TYPE(init)));
 	} else {
 	    init = init_elem_conv(ty, init);
 	}
     }
 
-    if (has_static_extent(sym)) {
-	node_t *cnst = eval(init, ty);
-	if (cnst == NULL)
+    if (init && has_static_extent(sym)) {
+        init = eval(init, ty);
+	if (init == NULL)
 	    error("initializer element is not a compile-time constant");
     }
 
