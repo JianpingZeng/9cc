@@ -22,7 +22,7 @@ static void scalar_init(node_t *ty, struct vector *v);
 static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v, int i);
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 
-static void post_initializer(node_t *decl, node_t *sym, int sclass, int kind);
+static void post_decl(node_t *decl, node_t *sym, int sclass, int kind);
 static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
 
@@ -922,7 +922,7 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
                 if (token->id == '=')
 		    decl_initializer(decl, sym, sclass, kind);
 
-		post_initializer(decl, sym, sclass, kind);
+		post_decl(decl, sym, sclass, kind);
                 vec_push(v, decl);
             }
             
@@ -1091,7 +1091,8 @@ static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source
         ensure_array(ty, src, PARAM);
         ty = ptr_type(rtype(ty));
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!SYM_DEFINED(TYPE_TSYM(ty)))
+        if (!SYM_DEFINED(TYPE_TSYM(ty)) ||
+	    SYM_SCOPE(TYPE_TSYM(ty)) == SCOPE)
             warningf(src, "declaration of '%s' will not be visible outside of this function", type2s(ty));
     } else if (isvoid(ty)) {
 	if (prototype) {
@@ -1236,10 +1237,6 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
             if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
                 if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
                     errorf(SYM_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
-                else if (TYPE_TAG(SYM_TYPE(sym)))
-                    warningf(SYM_SRC(sym),
-			     "declaration of '%s' will not be visible outside of this function",
-			     type2s(SYM_TYPE(sym)));
             }
         }
     }
@@ -1607,7 +1604,7 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 {
     node_t *ty = SYM_TYPE(sym);
     struct source src = SYM_SRC(sym);
-    node_t *init = NULL;
+    node_t *init;
 
     expect('=');
 
@@ -1622,58 +1619,59 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
     }
 
     init = initializer(ty);
-    if (init) {
-	if (sclass == EXTERN)
+    if (init == NULL)
+	return;
+    
+    if (sclass == EXTERN) {
+	if (kind == GLOBAL) {
 	    warningf(src, "'extern' variable has an initializer");
-	else if (sclass == TYPEDEF)
-	    errorf(src, "illegal initializer (only variable can be initialized)");
-
-	if (SCOPE == GLOBAL) {
-	    if (SYM_DEFINED(sym))
-		redefinition_error(src, sym);
-	    SYM_DEFINED(sym) = true;
+	} else {
+	    errorf(src, "'extern' variable cannot have an initializer");
+	    return;
 	}
+    } else if (sclass == TYPEDEF) {
+	errorf(src, "illegal initializer (only variable can be initialized)");
+	return;
+    }
+
+    if (SCOPE == GLOBAL) {
+	if (SYM_DEFINED(sym))
+	    redefinition_error(src, sym);
+	SYM_DEFINED(sym) = true;
     }
 
     if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-	if (kind == LOCAL) {
-	    if (!SYM_DEFINED(TYPE_TSYM(ty)))
-		error("variable has incomplete type '%s'", type2s(ty));
-	} else if (kind == GLOBAL) {
-	    if (init && !SYM_DEFINED(TYPE_TSYM(ty)) && sclass != TYPEDEF)
-		error("variable has incomplete type '%s'", type2s(ty));
-	} 
+        if (!SYM_DEFINED(TYPE_TSYM(ty)))
+	    error("variable has incomplete type '%s'", type2s(ty));
     }
 
-    if (init) {
-	if (AST_ID(init) != INITS_EXPR) {
-	    if (isarray(ty)) {
-		if (is_string(ty) && issliteral(init)) {
-		    //
-		} else {
-		    error("array initializer must be an initializer list or string literal");
-		}
-	    } else if (isstruct(ty)) {
-		if (!eqtype(ty, AST_TYPE(init)))
-		    error("initialzing '%s' with an expression of imcompatible type '%s'", type2s(ty), type2s(AST_TYPE(init)));
-	    } else if (isunion(ty)) {
-
+    if (AST_ID(init) != INITS_EXPR) {
+	if (isarray(ty)) {
+	    if (is_string(ty) && issliteral(init)) {
+		//
 	    } else {
-		init = init_elem_conv(ty, init);
+		error("array initializer must be an initializer list or string literal");
 	    }
-	}
+	} else if (isstruct(ty)) {
+	    if (!eqtype(ty, AST_TYPE(init)))
+		error("initialzing '%s' with an expression of imcompatible type '%s'", type2s(ty), type2s(AST_TYPE(init)));
+	} else if (isunion(ty)) {
 
-	if (has_static_extent(sym)) {
-	    node_t *cnst = eval(init, ty);
-	    if (cnst == NULL)
-		error("initializer element is not a compile-time constant");
+	} else {
+	    init = init_elem_conv(ty, init);
 	}
-
-	DECL_BODY(decl) = init;
     }
+
+    if (has_static_extent(sym)) {
+	node_t *cnst = eval(init, ty);
+	if (cnst == NULL)
+	    error("initializer element is not a compile-time constant");
+    }
+
+    DECL_BODY(decl) = init;
 }
 
-static void post_initializer(node_t *decl, node_t *sym, int sclass, int kind)
+static void post_decl(node_t *decl, node_t *sym, int sclass, int kind)
 {
     node_t *ty = SYM_TYPE(sym);
     if (isarray(ty)) {
