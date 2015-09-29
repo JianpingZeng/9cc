@@ -1237,7 +1237,9 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
                 if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
                     errorf(SYM_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
                 else if (TYPE_TAG(SYM_TYPE(sym)))
-                    warningf(SYM_SRC(sym), "declaration of '%s' will not be visible outside of this function", type2s(SYM_TYPE(sym)));
+                    warningf(SYM_SRC(sym),
+			     "declaration of '%s' will not be visible outside of this function",
+			     type2s(SYM_TYPE(sym)));
             }
         }
     }
