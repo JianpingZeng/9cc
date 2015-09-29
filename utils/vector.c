@@ -1,7 +1,6 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "vector.h"
 #include "utils.h"
 
 #define VEC_INIT_SIZE   16

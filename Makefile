@@ -1,22 +1,23 @@
 # Makefile for mcc
 
-CFLAGS=-Wall -std=c99 -Isys -I. -g
+CFLAGS=-Wall -std=c99 -Isys -Iutils -I. -g
 LDFLAGS=
 MCC=mcc
+UTILS=utils
 
-UTILS_OBJ=alloc.o \
-        strbuf.o \
-        vector.o \
-        map.o \
-        wrapper.o \
-        string.o
+UTILS_OBJ=$(UTILS)/wrapper.o \
+        $(UTILS)/strbuf.o \
+        $(UTILS)/vector.o \
+        $(UTILS)/map.o \
+        $(UTILS)/string.o
 
-UTILS_INC= strbuf.h \
-	vector.h \
-	map.h \
-	utils.h
+UTILS_INC= $(UTILS)/strbuf.h \
+	$(UTILS)/vector.h \
+	$(UTILS)/map.h \
+	$(UTILS)/utils.h
 
-CC1_OBJ=ast.o \
+CC1_OBJ=alloc.o \
+	ast.o \
         cc.o \
         cpp.o \
         print.o \
@@ -45,23 +46,25 @@ SYS_OBJ:=sys/linux.o
 SYS_INC+=$(wildcard $(SYSDIR)/*.h)
 ARCH:=$(shell uname -m)
 KERNEL:=$(shell uname)
-CFLAGS+=-D_BSD_SOURCE -DCONFIG_COLOR_TERM
+CONFIG_FLAGS:=-D_BSD_SOURCE -DCONFIG_COLOR_TERM
 
 ifneq (, $(findstring CYGWIN, $(KERNEL)))
-CFLAGS+=-DCONFIG_CYGWIN
+CONFIG_FLAGS+=-DCONFIG_CYGWIN
 else ifeq (Darwin, $(KERNEL))
-CFLAGS+=-DCONFIG_DARWIN
+CONFIG_FLAGS+=-DCONFIG_DARWIN
 else
-CFLAGS+=-DCONFIG_LINUX
+CONFIG_FLAGS+=-DCONFIG_LINUX
 endif
 
 ifeq ($(ARCH), i386)
-CFLAGS+=-DCONFIG_X32
+CONFIG_FLAGS+=-DCONFIG_X32
 else ifeq ($(ARCH), i686)
-CFLAGS+=-DCONFIG_X32
+CONFIG_FLAGS+=-DCONFIG_X32
 else ifeq ($(ARCH), x86_64)
-CFLAGS+=-DCONFIG_X64
+CONFIG_FLAGS+=-DCONFIG_X64
 endif
+
+CFLAGS+=$(CONFIG_FLAGS)
 
 all: $(MCC)
 
@@ -97,7 +100,7 @@ bootstrap: stage3
 # Test suite
 #
 TESTDIR=test
-CFLAGS_TEST=-Wall -std=c99 -DCONFIG_COLOR_TERM -Os -I. -Isys -I$(TESTDIR)
+CFLAGS_TEST=-Wall -std=c99 $(CONFIG_FLAGS) -Os -I. -Isys -Iutils -I$(TESTDIR)
 TEST_MAIN_C=$(TESTDIR)/main.c
 TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)/test.h
 TEST_INTERNAL := $(patsubst %.c, %.bin, $(filter-out $(TESTDIR)/internal/internal.c,$(wildcard $(TESTDIR)/internal/*.c)))
@@ -112,7 +115,7 @@ test: $(TESTS)
 	done
 
 clean:
-	@rm -f *.o *~ $(MCC) $(TESTS) sys/*.o
+	@rm -f *.o *~ $(MCC) $(TESTS) sys/*.o $(UTILS)/*.o
 
 distclean: clean
 	@rm -f stage1 stage2 stage3

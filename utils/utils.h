@@ -30,4 +30,11 @@ extern char *strn(const char *src, size_t len);
 extern char *strd(long n);
 extern char *format(const char *fmt, ...);
 
+// map.c
+#include "map.h"
+// vector.c
+#include "vector.h"
+// strbuf.c
+#include "strbuf.h"
+
 #endif

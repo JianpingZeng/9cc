@@ -9,8 +9,6 @@
 #include <locale.h>
 #include <stdarg.h>
 #include "sys.h"
-#include "strbuf.h"
-#include "vector.h"
 #include "config.h"
 #include "utils.h"
 

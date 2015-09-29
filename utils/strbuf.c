@@ -5,7 +5,6 @@
 #include <limits.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include "strbuf.h"
 #include "utils.h"
 
 #define STRING_INIT_SIZE    32

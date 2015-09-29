@@ -3,8 +3,6 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <string.h>
-#include "strbuf.h"
-#include "vector.h"
 #include "sys.h"
 #include "utils.h"
 

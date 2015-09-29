@@ -16,10 +16,6 @@
 #include "config.h"
 #include "utils.h"
 
-#include "strbuf.h"
-#include "vector.h"
-#include "map.h"
-
 // alloc.c
 extern void * alloc_node(void);
 extern void * alloc_symbol(void);
