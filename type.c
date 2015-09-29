@@ -628,10 +628,24 @@ bool isincomplete(node_t *ty)
     if (isvoid(ty))
 	return true;
     else if (isarray(ty))
-	return !TYPE_A_HASEXPR(ty) || TYPE_A_WILDCARD(ty);
+	return !TYPE_A_HASEXPR(ty) && !TYPE_A_WILDCARD(ty) && TYPE_LEN(ty) == 0;
     else if (isenum(ty) || isstruct(ty) || isunion(ty))
 	return !SYM_DEFINED(TYPE_TSYM(ty));
     return false;
+}
+
+bool isvarray(node_t *ty)
+{
+    if (!isarray(ty))
+	return false;
+    if (isincomplete(ty))
+	return false;
+    if (TYPE_LEN(ty) == 0)
+	return true;
+    if (isarray(rtype(ty)))
+	return isvarray(rtype(ty));
+    else
+	return false;
 }
 
 node_t * unpack(node_t *ty)

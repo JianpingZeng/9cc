@@ -1360,7 +1360,7 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 	    if (len1 < len2-1)
 		warning("initializer-string for char array is too long");
 	    TYPE_LEN(AST_TYPE(node)) = len1;
-	} else if (len1 == 0) {
+	} else if (isincomplete(ty)) {
 	    TYPE_LEN(ty) = len2;
 	}
 	vec_set(v, i, node);
@@ -1502,7 +1502,7 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
 	    expect(',');
     }
 
-    if (len == 0)
+    if (isincomplete(ty))
 	TYPE_LEN(ty) = c + 1;
 }
 
@@ -1634,15 +1634,18 @@ static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 	return;
     }
 
-    if (SCOPE == GLOBAL) {
+    if (kind == GLOBAL) {
 	if (SYM_DEFINED(sym))
 	    redefinition_error(src, sym);
 	SYM_DEFINED(sym) = true;
     }
 
-    if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!SYM_DEFINED(TYPE_TSYM(ty)))
-	    error("variable has incomplete type '%s'", type2s(ty));
+    if (istag(ty) && isincomplete(ty)) {
+	error("variable has incomplete type '%s'", type2s(ty));
+	return;
+    } else if (isvarray(ty)) {
+	error("variable-sized object may not be initialized");
+	return;
     }
 
     if (AST_ID(init) != INITS_EXPR) {
