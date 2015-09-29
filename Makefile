@@ -102,11 +102,11 @@ bootstrap: stage3
 #
 # Test suite
 #
-TESTDIR=test/
-INTERNAL=$(TESTDIR)internal/
-CFLAGS_TEST=$(CFLAGS_COMMON) $(CONFIG_FLAGS) -I$(TESTDIR)
-TEST_MAIN_C=$(TESTDIR)main.c
-TEST_DEP=$(TEST_MAIN_C) $(TESTDIR)test.h
+TEST=test/
+INTERNAL=$(TEST)internal/
+CFLAGS_TEST=$(CFLAGS_COMMON) $(CONFIG_FLAGS) -I$(TEST)
+TEST_MAIN_C=$(TEST)main.c
+TEST_DEP=$(TEST_MAIN_C) $(TEST)test.h
 TEST_INTERNAL := $(patsubst %.c, %.bin, $(filter-out $(INTERNAL)internal.c,$(wildcard $(INTERNAL)*.c)))
 TESTS=$(TEST_INTERNAL)
 
