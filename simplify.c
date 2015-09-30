@@ -13,8 +13,8 @@ static const char * __break;
     __continue = __saved_continue;		\
     __break = __saved_break
 
-#define SET_SWITCH_CONTEXT(brk) \
-    const char *__saved_break = __break; \
+#define SET_SWITCH_CONTEXT(brk)			\
+    const char *__saved_break = __break;	\
     __break = brk
 
 #define RESTORE_SWITCH_CONTEXT()		\
