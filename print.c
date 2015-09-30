@@ -232,27 +232,62 @@ static void print_tree1(struct print_context context)
     else
         CCAssert(0);
 
-    if (!(isexpr(node) && AST_ID(node) == CALL_EXPR)) {
-	if (AST_KID(context.node, 0)) {
+    if (isexpr(node)) {
+	if (AST_KID(node, 0) && AST_ID(node) != CALL_EXPR) {
 	    struct print_context lcontext;
 	    lcontext.level = level;
-	    lcontext.node = AST_KID(context.node, 0);
+	    lcontext.node = AST_KID(node, 0);
 	    print_tree1(lcontext);
 	}
-    }
-    
-    if (AST_KID(context.node, 1)) {
-	struct print_context rcontext;
-	rcontext.level = level;
-	rcontext.node = AST_KID(context.node, 1);
-	print_tree1(rcontext);
-    }
 
-    if (isexpr(node) && EXPR_OPERAND(node, 2)) {
-	struct print_context rcontext;
-        rcontext.level = level;
-        rcontext.node = EXPR_OPERAND(context.node, 2);
-        print_tree1(rcontext);
+	if (AST_KID(node, 1)) {
+	    struct print_context rcontext;
+	    rcontext.level = level;
+	    rcontext.node = AST_KID(node, 1);
+	    print_tree1(rcontext);
+	}
+
+	if (EXPR_OPERAND(node, 2)) {
+	    struct print_context rcontext;
+	    rcontext.level = level;
+	    rcontext.node = EXPR_OPERAND(node, 2);
+	    print_tree1(rcontext);
+	}
+    } else if (isstmt(node)) {
+	if (AST_KID(node, 0)) {
+	    struct print_context lcontext;
+	    lcontext.level = level;
+	    lcontext.node = AST_KID(node, 0);
+	    print_tree1(lcontext);
+	}
+
+	if (AST_KID(node, 1)) {
+	    struct print_context rcontext;
+	    rcontext.level = level;
+	    rcontext.node = AST_KID(node, 1);
+	    print_tree1(rcontext);
+	}
+
+	if (AST_ID(node) == IF_STMT && STMT_ELSE(node)) {
+	    struct print_context rcontext;
+	    rcontext.level = level;
+	    rcontext.node = STMT_ELSE(node);
+	    print_tree1(rcontext);
+	}
+    } else {
+	if (AST_KID(node, 0)) {
+	    struct print_context lcontext;
+	    lcontext.level = level;
+	    lcontext.node = AST_KID(node, 0);
+	    print_tree1(lcontext);
+	}
+
+	if (AST_KID(node, 1)) {
+	    struct print_context rcontext;
+	    rcontext.level = level;
+	    rcontext.node = AST_KID(node, 1);
+	    print_tree1(rcontext);
+	}
     }
 }
 

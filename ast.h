@@ -156,13 +156,13 @@ struct ast_decl {
 #define STMT_BLKS(NODE)         ((NODE)->stmt.blks)
 
 // if stmt
-#define STMT_COND(NODE)         ((NODE)->stmt.list[0])
-#define STMT_THEN(NODE)         ((NODE)->stmt.list[1])
-#define STMT_ELSE(NODE)         ((NODE)->stmt.list[2])
+#define STMT_COND(NODE)         (AST_KID(NODE, 0))
+#define STMT_THEN(NODE)         (AST_KID(NODE, 1))
+#define STMT_ELSE(NODE)         ((NODE)->stmt.list[0])
 
 // for stmt
-#define STMT_CTRL(NODE)         ((NODE)->stmt.list[1])
-#define STMT_INIT(NODE)         ((NODE)->stmt.list[2])
+#define STMT_CTRL(NODE)         (AST_KID(NODE, 0))
+#define STMT_INIT(NODE)         (AST_KID(NODE, 1))
 #define STMT_DECL(NODE)         ((NODE)->stmt.blks)
 
 // case stmt
@@ -172,8 +172,8 @@ struct ast_stmt {
     struct ast_common common;
     node_t *up;
     int index;
-    node_t *list[3];
     node_t **blks;
+    node_t *list[1];
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)

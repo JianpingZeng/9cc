@@ -18,27 +18,35 @@ static node_t * expr_stmt(void)
     }
     
     expect(';');
-    
     return ret;
 }
 
 static node_t * if_stmt(node_t *context)
 {
-    node_t *ret;
+    node_t *ret = NULL;
     node_t *expr;
-    node_t *stmt1;
+    node_t *thenpart;
+    node_t *elsepart = NULL;
+
+    SAVE_ERRORS;
     
     expect(IF);
     expect('(');
     expr = expression();
     expect(')');
     
-    stmt1 = statement(context);
-    ret = ast_stmt(IF_STMT, expr, stmt1);
-    
+    thenpart = statement(context);
+
     if (token->id == ELSE) {
         expect(ELSE);
-        ret = ast_stmt(ELSE_STMT, ret, statement(context));
+	elsepart = statement(context);
+    }
+
+    if (NO_ERROR) {
+	ret = ast_stmt(IF_STMT, NULL, NULL);
+	STMT_COND(ret) = expr;
+	STMT_THEN(ret) = thenpart;
+	STMT_ELSE(ret) = elsepart;
     }
     
     return ret;
