@@ -62,7 +62,7 @@ _n(NULL_STMT,         "NullStmt")
 _ns(END_STMT_ID)
 
 // misc
-_ns(MISC_ID)
+_ns(BEGIN_MISC_ID)
 
 _n(FIELD_NODE,         "Field")
 _n(TYPE_NODE,          "Type")
@@ -70,14 +70,16 @@ _n(SYMBOL_NODE,        "Symbol")
 
 _ns(END_MISC_ID)
 
-// ast
-_ns(AST_ID)
+// gen
+_ns(BEGIN_GEN_ID)
 
 _n(AST_IF,		"AST_IF")
 _n(AST_JUMP,  		"AST_JUMP")
 _n(AST_LABEL,		"AST_LABEL")
+_n(AST_COMPOUND,	"AST_COMPOUND")
+_n(AST_RETURN,		"AST_RETURN")
 
-_ns(END_AST_ID)
+_ns(END_GEN_ID)
 
 _ns(END_NODE_ID)
 

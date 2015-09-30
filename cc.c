@@ -36,6 +36,8 @@ static void translate(void)
     print_tree(tree);
     if (errors == 0) {
 	simplify(tree);
+	println("\nSimplified:");
+	print_tree(tree);
 	gen(tree, ofile);
     }
 }

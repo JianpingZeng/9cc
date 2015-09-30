@@ -161,20 +161,38 @@ struct ast_decl {
 #define STMT_ELSE(NODE)         ((NODE)->stmt.list[0])
 
 // for stmt
-#define STMT_CTRL(NODE)         (AST_KID(NODE, 0))
-#define STMT_INIT(NODE)         (AST_KID(NODE, 1))
-#define STMT_DECL(NODE)         ((NODE)->stmt.blks)
+#define STMT_FOR_INIT(NODE)     (AST_KID(NODE, 0))
+#define STMT_FOR_DECL(NODE)     ((NODE)->stmt.blks)
+#define STMT_FOR_COND(NODE)     (AST_KID(NODE, 1))
+#define STMT_FOR_CTRL(NODE)     ((NODE)->stmt.list[0])
+#define STMT_FOR_BODY(NODE)     ((NODE)->stmt.list[1])
 
 // case stmt
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
+#define STMT_CASE_BODY(NODE)    AST_KID(NODE, 0)
+
+// switch stmt
+#define STMT_SWITCH_EXPR(NODE)     AST_KID(NODE, 0)
+#define STMT_SWITCH_BODY(NODE)     AST_KID(NODE, 1)
+#define STMT_SWITCH_CASES(NODE)    ((NODE)->stmt.blks)
+#define STMT_SWITCH_DEFAULT(NODE)  ((NODE)->stmt.list[0]) 
+
 // label stmt
 #define STMT_LABEL_NAME(NODE)   AST_NAME(NODE)
+#define STMT_LABEL_BODY(NODE)   AST_KID(NODE, 0)
+
+// while stmt
+#define STMT_WHILE_COND(NODE)   AST_KID(NODE, 0)
+#define STMT_WHILE_BODY(NODE)   AST_KID(NODE, 1)
+
+// return stmt
+#define STMT_RETURN_EXPR(NODE)  AST_KID(NODE, 0)
 
 struct ast_stmt {
     struct ast_common common;
     int index;
     node_t **blks;
-    node_t *list[1];
+    node_t *list[2];
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -204,11 +222,16 @@ struct ast_expr {
 };
 
 #define GEN_OPERAND(NODE)       ((NODE)->gen.operand)
+#define GEN_COND(NODE)          GEN_OPERAND(NODE)
+#define GEN_THEN(NODE)          AST_KID(NODE, 0)
+#define GEN_ELSE(NODE)          AST_KID(NODE, 1)
 #define GEN_LABEL(NODE)         AST_NAME(NODE)
+#define GEN_LIST(NODE)          ((NODE)->gen.list)
 
 struct ast_gen {
     struct ast_common common;
     node_t *operand;
+    node_t **list;
 };
 
 union ast_node {
@@ -237,7 +260,11 @@ extern node_t * ast_vinit(void);
 extern const char * gen_label(void);
 extern node_t * ast_if(node_t *cond, node_t *then, node_t *els);
 extern node_t * ast_jump(const char *label);
+extern node_t * ast_goto(const char *label);
+extern node_t * ast_label(const char *label);
 extern node_t * ast_dest(const char *label);
+extern node_t * ast_return(node_t *node);
+extern node_t * ast_compound(node_t **list);
 
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)
@@ -245,6 +272,7 @@ extern node_t * ast_dest(const char *label);
 #define istype(n)           (AST_ID(n) == TYPE_NODE)
 #define isfield(n)          (AST_ID(n) == FIELD_NODE)
 #define issymbol(n)         (AST_ID(n) == SYMBOL_NODE)
+#define isgen(n)            (AST_ID(n) > BEGIN_GEN_ID && AST_ID(n) < END_GEN_ID)
 
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
 #define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == COMPOUND_STMT)

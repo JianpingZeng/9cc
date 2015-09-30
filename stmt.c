@@ -2,38 +2,38 @@
 
 static node_t * statement(void);
 
-static node_t *loop_context;
-static node_t *switch_context;
-static struct vector *cases;
-static node_t *default_context;
+static node_t *__loop;
+static node_t *__switch;
+static struct vector *__cases;
+static node_t *__default;
 
 struct vector *gotos;
 struct map *labels;
 
 #define SET_LOOP_CONTEXT(loop)			\
-    node_t *saved_loop = loop_context;		\
-    loop_context = loop
+    node_t *__saved_loop = __loop;		\
+    __loop = loop
 
 #define RESTORE_LOOP_CONTEXT()			\
-    loop_context = saved_loop
+    __loop = __saved_loop
 
 #define SET_SWITCH_CONTEXT(sw)			\
-    node_t *saved_sw = switch_context;		\
-    struct vector *saved_cases = cases;		\
-    node_t *saved_default = default_context;	\
-    switch_context = sw;			\
-    cases = vec_new();				\
-    default_context = NULL
+    node_t *__saved_sw = __switch;		\
+    struct vector *__saved_cases = __cases;	\
+    node_t *__saved_default = __default;	\
+    __switch = sw;				\
+    __cases = vec_new();			\
+    __default = NULL
 
 #define RESTORE_SWITCH_CONTEXT()		\
-    switch_context = saved_sw;			\
-    cases = saved_cases;			\
-    default_context = saved_default
+    __switch = __saved_sw;			\
+    __cases = __saved_cases;			\
+    __default = __saved_default
 
-#define IN_SWITCH         (switch_context)
-#define IN_LOOP           (loop_context)
-#define CASES             (cases)
-#define DEFAULT_CONTEXT   (default_context)
+#define IN_SWITCH         (__switch)
+#define IN_LOOP           (__loop)
+#define CASES             (__cases)
+#define DEFAULT_CONTEXT   (__default)
 
 static void check_case_duplicates(node_t *node)
 {
@@ -111,8 +111,8 @@ static node_t * while_stmt(void)
     RESTORE_LOOP_CONTEXT();
 
     if (NO_ERROR) {
-	AST_KID(ret, 0) = expr;
-	AST_KID(ret, 1) = stmt;
+	STMT_WHILE_COND(ret) = expr;
+	STMT_WHILE_BODY(ret) = stmt;
     } else {
         ret = NULL;
     }
@@ -138,8 +138,8 @@ static node_t * do_while_stmt(void)
     expect(';');
 
     if (NO_ERROR) {
-	AST_KID(ret, 0) = expr;
-	AST_KID(ret, 1) = stmt;
+	STMT_WHILE_COND(ret) = expr;
+	STMT_WHILE_BODY(ret) = stmt;
     } else {
 	ret = NULL;
     }
@@ -163,21 +163,21 @@ static node_t * for_stmt(void)
     } else {
         if (firstdecl(token)) {
             // declaration
-            STMT_DECL(ret) = declaration();
+            STMT_FOR_DECL(ret) = declaration();
         } else {
             // expression
-            STMT_INIT(ret) = expression();
+            STMT_FOR_INIT(ret) = expression();
             expect(';');
         }
     }
     
     if (token->id != ';')
-        STMT_COND(ret) = expression();
+        STMT_FOR_COND(ret) = expression();
     
     expect(';');
     
     if (token->id != ')')
-        STMT_CTRL(ret) = expression();
+        STMT_FOR_CTRL(ret) = expression();
     
     expect(')');
 
@@ -188,7 +188,7 @@ static node_t * for_stmt(void)
     exit_scope();
 
     if (NO_ERROR)
-	AST_KID(ret, 0) = stmt;
+	STMT_FOR_BODY(ret) = stmt;
     else
 	ret = NULL;
     
@@ -200,19 +200,28 @@ static node_t * switch_stmt(void)
     node_t *ret = ast_stmt(SWITCH_STMT, source);
     node_t *expr;
     node_t *stmt;
+    node_t **cases;
+    node_t *deft;
 
     SAVE_ERRORS;
     expect(SWITCH);
     expect('(');
     expr = switch_expr();
     expect(')');
+
     SET_SWITCH_CONTEXT(ret);
+
     stmt = statement();
+    cases = (node_t **)vtoa(CASES);
+    deft = DEFAULT_CONTEXT;
+
     RESTORE_SWITCH_CONTEXT();
     
     if (NO_ERROR) {
-	AST_KID(ret, 0) = expr;
-	AST_KID(ret, 1) = stmt;
+	STMT_SWITCH_EXPR(ret) = expr;
+	STMT_SWITCH_BODY(ret) = stmt;
+	STMT_SWITCH_CASES(ret) = cases;
+	STMT_SWITCH_DEFAULT(ret) = deft;
     } else {
 	ret = NULL;
     }
@@ -243,7 +252,7 @@ static node_t * case_stmt(void)
     stmt = statement();
 
     if (NO_ERROR)
-	AST_KID(ret, 0) = stmt;
+	STMT_CASE_BODY(ret) = stmt;
     else
 	ret = NULL;
     
@@ -273,7 +282,7 @@ static node_t * default_stmt(void)
     stmt = statement();
 
     if (NO_ERROR)
-	AST_KID(ret, 0) = stmt;
+	STMT_CASE_BODY(ret) = stmt;
     else
 	ret = NULL;
 
@@ -305,7 +314,7 @@ static node_t * label_stmt(void)
     stmt = statement();
     
     if (NO_ERROR)
-	AST_KID(ret, 0) = stmt;
+	STMT_LABEL_BODY(ret) = stmt;
     else
 	ret = NULL;
 
@@ -374,7 +383,7 @@ static node_t * return_stmt(void)
     expr = expr_stmt();
 
     if (NO_ERROR)
-	AST_KID(ret, 0) = expr;
+	STMT_RETURN_EXPR(ret) = expr;
     else
 	ret = NULL;
     

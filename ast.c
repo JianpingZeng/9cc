@@ -92,15 +92,15 @@ node_t * ast_vinit(void)
 const char * gen_label(void)
 {
     static long i;
-    return strs(format(".L%ld", i));
+    return strs(format(".L%ld", i++));
 }
 
 node_t * ast_if(node_t *cond, node_t *then, node_t *els)
 {
     node_t * ast = new_node(AST_IF);
-    AST_KID(ast, 0) = then;
-    AST_KID(ast, 1) = els;
-    GEN_OPERAND(ast) = cond;
+    GEN_COND(ast) = cond;
+    GEN_THEN(ast) = then;
+    GEN_ELSE(ast) = els;
     return ast;
 }
 
@@ -111,9 +111,37 @@ node_t * ast_jump(const char *label)
     return ast;
 }
 
+node_t * ast_goto(const char *label)
+{
+    node_t * ast = new_node(AST_JUMP);
+    GEN_LABEL(ast) = label;
+    return ast;
+}
+
+node_t * ast_label(const char *label)
+{
+    node_t * ast = new_node(AST_LABEL);
+    GEN_LABEL(ast) = label;
+    return ast;
+}
+
 node_t * ast_dest(const char *label)
 {
     node_t * ast = new_node(AST_LABEL);
     GEN_LABEL(ast) = label;
+    return ast;
+}
+
+node_t * ast_return(node_t *node)
+{
+    node_t * ast = new_node(AST_RETURN);
+    GEN_OPERAND(ast) = node;
+    return ast;
+}
+
+node_t * ast_compound(node_t **list)
+{
+    node_t * ast = new_node(AST_COMPOUND);
+    GEN_LIST(ast) = list;
     return ast;
 }

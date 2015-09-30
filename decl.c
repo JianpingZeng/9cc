@@ -1287,6 +1287,10 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
 	post_funcdef(ftype, stmt);
         exit_scope();
 	DECL_BODY(decl) = stmt;
+	vec_free(gotos);
+	gotos = NULL;
+	map_free(labels);
+	labels = NULL;
     }
     
     return decl;
