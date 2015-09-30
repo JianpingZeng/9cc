@@ -1349,9 +1349,9 @@ static void init_string(node_t *ty, node_t *node)
     if (len1 > 0) {
 	if (len1 < len2-1)
 	    warning("initializer-string for char array is too long");
-	TYPE_LEN(AST_TYPE(node)) = len1;
     } else if (isincomplete(ty)) {
 	TYPE_LEN(ty) = len2;
+	set_typesize(ty);
     }
 }
 
@@ -1507,8 +1507,10 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
 	    expect(',');
     }
 
-    if (isincomplete(ty))
+    if (isincomplete(ty)) {
 	TYPE_LEN(ty) = c + 1;
+	set_typesize(ty);
+    }
 }
 
 static void scalar_init(node_t *ty, struct vector *v)

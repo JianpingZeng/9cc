@@ -339,9 +339,11 @@ static void string_constant(struct token *t, node_t *sym)
         CCAssert(wlen<=len+1);
         ty = array_type(wchartype);
         TYPE_LEN(ty) = wlen;
+	set_typesize(ty);
     } else {
         ty = array_type(chartype);
         TYPE_LEN(ty) = strlen(s)-1;
+	set_typesize(ty);
     }
     SYM_TYPE(sym) = ty;
 }
