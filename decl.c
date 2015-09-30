@@ -23,6 +23,7 @@ static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 
 static void post_decl(node_t *decl, node_t *sym, int sclass, int kind);
+static void post_funcdef(node_t *fty, node_t *stmt);
 static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
 
@@ -1283,7 +1284,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
 	gotos = vec_new();
 	labels = map_new(nocmp);
         node_t *stmt = compound_stmt();
-	backfill_labels();
+	post_funcdef(ftype, stmt);
         exit_scope();
         AST_KID(decl, 0) = stmt;
     }
@@ -1688,6 +1689,14 @@ static void post_decl(node_t *decl, node_t *sym, int sclass, int kind)
     if (isarray(ty)) {
 	
     }
+}
+
+static void post_funcdef(node_t *fty, node_t *stmt)
+{
+    // check goto labels
+    backfill_labels();
+    // TODO: check control flow and return stmt
+    
 }
 
 static void ensure_func(node_t *ftype, struct source src)
