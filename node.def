@@ -60,6 +60,7 @@ _n(IF_STMT,           "IfStmt")
 _n(RETURN_STMT,       "ReturnStmt")
 _n(SWITCH_STMT,       "SwitchStmt")
 _n(WHILE_STMT,        "WhileStmt")
+_n(NULL_STMT,         "NullStmt")
 
 _ns(END_STMT_ID)
 

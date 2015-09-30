@@ -42,6 +42,12 @@ node_t * ast_stmt(int id, node_t *l, node_t *r)
     return stmt;
 }
 
+node_t * ast_null_stmt(void)
+{
+    node_t *stmt = ast_stmt(NULL_STMT, NULL, NULL);
+    return stmt;
+}
+
 node_t * ast_decl(int id, int scope)
 {
     CCAssert(id > BEGIN_DECL_ID && id < END_DECL_ID);
@@ -80,8 +86,6 @@ node_t * ast_inits(void)
 
 node_t * ast_vinit(void)
 {
-    static node_t *vinit;
-    if (vinit == NULL)
-        vinit = ast_expr(VINIT_EXPR, 0, NULL, NULL);
+    node_t *vinit = ast_expr(VINIT_EXPR, 0, NULL, NULL);
     return vinit;
 }

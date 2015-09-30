@@ -8,7 +8,7 @@ static node_t * expr_stmt(void)
     node_t *ret = NULL;
     
     if (token->id == ';') {
-        // do nothing
+        ret = ast_null_stmt();
     } else if (firstexpr(token)) {
 	node_t *e = expression();
 	if (e)
