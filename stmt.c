@@ -7,15 +7,12 @@ static node_t * expr_stmt(void)
 {
     node_t *ret = NULL;
     
-    if (token->id == ';') {
+    if (token->id == ';')
         ret = ast_null_stmt();
-    } else if (firstexpr(token)) {
-	node_t *e = expression();
-	if (e)
-	    ret = ast_stmt(EXPR_STMT, e, NULL);
-    } else {
+    else if (firstexpr(token))
+        ret = expression();
+    else
         error("missing statement before '%s'", token->name);
-    }
     
     expect(';');
     return ret;
