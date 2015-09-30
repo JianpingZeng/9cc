@@ -45,3 +45,4 @@ stage3
 # etags
 TAGS
 .etags_update
+.clang_complete

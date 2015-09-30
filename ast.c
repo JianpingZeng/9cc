@@ -94,3 +94,26 @@ const char * gen_label(void)
     static long i;
     return strs(format(".L%ld", i));
 }
+
+node_t * ast_if(node_t *cond, node_t *then, node_t *els)
+{
+    node_t * ast = new_node(AST_IF);
+    AST_KID(ast, 0) = then;
+    AST_KID(ast, 1) = els;
+    GEN_OPERAND(ast) = cond;
+    return ast;
+}
+
+node_t * ast_jump(const char *label)
+{
+    node_t * ast = new_node(AST_JUMP);
+    GEN_LABEL(ast) = label;
+    return ast;
+}
+
+node_t * ast_dest(const char *label)
+{
+    node_t * ast = new_node(AST_LABEL);
+    GEN_LABEL(ast) = label;
+    return ast;
+}

@@ -203,14 +203,23 @@ struct ast_expr {
     node_t **list;
 };
 
+#define GEN_OPERAND(NODE)       ((NODE)->gen.operand)
+#define GEN_LABEL(NODE)         AST_NAME(NODE)
+
+struct ast_gen {
+    struct ast_common common;
+    node_t *operand;
+};
+
 union ast_node {
     struct ast_common common;
-    struct ast_decl decl;
-    struct ast_stmt stmt;
-    struct ast_expr expr;
-    struct ast_type type;
-    struct ast_field field;
+    struct ast_decl   decl;
+    struct ast_stmt   stmt;
+    struct ast_expr   expr;
+    struct ast_type   type;
+    struct ast_field  field;
     struct ast_symbol symbol;
+    struct ast_gen    gen;
 };
 
 // ast.c
@@ -224,7 +233,11 @@ extern node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r);
 extern node_t * ast_conv(node_t *ty, node_t *l, const char *name);
 extern node_t * ast_inits(void);
 extern node_t * ast_vinit(void);
+
 extern const char * gen_label(void);
+extern node_t * ast_if(node_t *cond, node_t *then, node_t *els);
+extern node_t * ast_jump(const char *label);
+extern node_t * ast_dest(const char *label);
 
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)

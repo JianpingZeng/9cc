@@ -1286,7 +1286,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
         node_t *stmt = compound_stmt();
 	post_funcdef(ftype, stmt);
         exit_scope();
-        AST_KID(decl, 0) = stmt;
+	DECL_BODY(decl) = stmt;
     }
     
     return decl;
