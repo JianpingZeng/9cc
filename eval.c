@@ -39,7 +39,7 @@ static node_t * float_literal_node(node_t *ty, union value v)
 }
 
 // TODO: 
-static bool eval_bool(node_t *cond)
+static bool do_eval_bool(node_t *cond)
 {
     return false;
 }
@@ -307,7 +307,7 @@ static node_t * eval_arith(node_t *expr)
 	{
 	    node_t *cond = eval_arith(EXPR_COND(expr));
 	    if (cond) {
-		if (eval_bool(cond))
+		if (do_eval_bool(cond))
 		    return eval_arith(EXPR_THEN(expr));
 		else
 		    return eval_arith(EXPR_ELSE(expr));
@@ -366,4 +366,13 @@ node_t * eval(node_t *expr, node_t *ty)
     } else {
     	CCAssertf(0, "try to eval for type '%s'", type2s(ty));
     }
+}
+
+// TODO: 
+node_t * eval_bool(node_t *expr)
+{
+    if (expr == NULL)
+	return NULL;
+
+    return NULL;
 }

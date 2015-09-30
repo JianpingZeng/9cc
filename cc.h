@@ -86,6 +86,7 @@ union value {
 
 // eval.c
 extern node_t * eval(node_t *expr, node_t *ty);
+extern node_t * eval_bool(node_t *expr);
 
 // expr.c
 extern node_t * expression(void);
