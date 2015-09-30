@@ -1706,7 +1706,8 @@ static void ensure_array(node_t *atype, struct source src, int level)
 	if (TYPE_A_WILDCARD(rty) && level != PARAM)
 	    error("star modifier used outside of function prototype");
 	
-	if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty) || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty)) && level != PARAM)
+	if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty) || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty)) &&
+	    level != PARAM)
 	    error("type qualifier used in array declarator outside of function prototype");
 	
 	rty = rtype(rty);
