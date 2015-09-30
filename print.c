@@ -155,11 +155,8 @@ static void print_expr(node_t *node, struct print_context context)
 static void print_stmt(node_t *node, struct print_context context)
 {
     int level;
-    node_t *up = STMT_UP(node);
 
     putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
-    if (up)
-        putf("-> %s %p\n", nname(up), up);
     putf("\n");
     
     level = context.level + 1;

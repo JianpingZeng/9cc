@@ -1,7 +1,6 @@
 #include "cc.h"
 
-static node_t * statement(node_t *context);
-static node_t * _compound_stmt(node_t *context);
+static node_t * statement(void);
 
 static node_t * expr_stmt(void)
 {
@@ -18,7 +17,7 @@ static node_t * expr_stmt(void)
     return ret;
 }
 
-static node_t * if_stmt(node_t *context)
+static node_t * if_stmt(void)
 {
     node_t *ret = NULL;
     node_t *expr;
@@ -26,17 +25,15 @@ static node_t * if_stmt(node_t *context)
     node_t *elsepart = NULL;
 
     SAVE_ERRORS;
-    
     expect(IF);
     expect('(');
-    expr = expression();
+    expr = bool_expr();
     expect(')');
-    
-    thenpart = statement(context);
+    thenpart = statement();
 
     if (token->id == ELSE) {
         expect(ELSE);
-	elsepart = statement(context);
+	elsepart = statement();
     }
 
     if (NO_ERROR) {
@@ -49,54 +46,55 @@ static node_t * if_stmt(node_t *context)
     return ret;
 }
 
-static node_t * while_stmt(node_t *context)
+static node_t * while_stmt(void)
 {
+    node_t *ret = NULL;
     node_t *expr;
-    node_t *ret;
-    
+    node_t *stmt;
+
+    SAVE_ERRORS;
     expect(WHILE);
     expect('(');
-    expr = expression();
+    expr = bool_expr();
     expect(')');
-    
-    ret = ast_stmt(WHILE_STMT, expr, NULL);
-    STMT_UP(ret) = context;
-    AST_KID(ret, 1) = statement(ret);
-    STMT_UP(ret) = NULL;
+    stmt = statement();
+
+    if (NO_ERROR)
+	ret = ast_stmt(WHILE_STMT, expr, stmt);
     
     return ret;
 }
 
-static node_t * do_while_stmt(node_t *context)
+static node_t * do_while_stmt(void)
 {
+    node_t *ret = NULL;
     node_t *stmt;
     node_t *expr;
-    node_t *ret;
-    
+
+    SAVE_ERRORS;
     expect(DO);
-    
-    ret = ast_stmt(DO_WHILE_STMT, NULL, NULL);
-    STMT_UP(ret) = context;
-    stmt = statement(ret);
+    stmt = statement();
     expect(WHILE);
     expect('(');
-    expr = expression();
+    expr = bool_expr();
     expect(')');
     expect(';');
-    AST_KID(ret, 0) = stmt;
-    AST_KID(ret, 1) = expr;
-    STMT_UP(ret) = NULL;
+
+    if (NO_ERROR)
+	ret = ast_stmt(DO_WHILE_STMT, expr, stmt);
     
     return ret;
 }
 
-static node_t * for_stmt(node_t *context)
+static node_t * for_stmt(void)
 {
-    node_t *ret = ast_stmt(FOR_STMT, NULL, NULL);
-    
+    node_t *ret = NULL;
+    node_t *stmt;
+
+    SAVE_ERRORS;
     expect(FOR);
     expect('(');
-    
+
     enter_scope();
     
     if (token->id == ';') {
@@ -122,214 +120,180 @@ static node_t * for_stmt(node_t *context)
     
     expect(')');
     
-    STMT_UP(ret) = context;
-    AST_KID(ret, 0) = statement(ret);
-    STMT_UP(ret) = NULL;
-    
+    stmt = statement();
     exit_scope();
+
+    if (NO_ERROR)
+	ret = ast_stmt(FOR_STMT, stmt, NULL);
     
     return ret;
 }
 
-static node_t * switch_stmt(node_t *context)
+static node_t * switch_stmt(void)
 {
+    node_t *ret = NULL;
     node_t *expr;
-    node_t *ret;
-    
+    node_t *stmt;
+
+    SAVE_ERRORS;
     expect(SWITCH);
     expect('(');
-    expr = expression();
+    expr = switch_expr();
     expect(')');
-    
-    ret = ast_stmt(SWITCH_STMT, expr, NULL);
-    STMT_UP(ret) = context;
-    AST_KID(ret, 1) = statement(ret);
-    STMT_UP(ret) = NULL;
+    stmt = statement();
+
+    if (NO_ERROR)
+	ret = ast_stmt(SWITCH_STMT, expr, stmt);
     
     return ret;
 }
 
-static node_t * case_stmt(node_t *context)
+static node_t * case_stmt(void)
 {
-    int in_sw = 0;
-    int val;
+    node_t *ret = NULL;
     node_t *stmt;
-    struct source src = source;
-    
+    int index;
+
+    SAVE_ERRORS;
     expect(CASE);
-    val = intexpr();
+    index = intexpr();
     expect(':');
-    
-    while (context) {
-        if (is_switch_stmt(context)) {
-            in_sw = 1;
-            break;
-        } else {
-            context = STMT_UP(context);
-        }
+    // always parse even if not in a switch statement
+    stmt = statement();
+
+    if (NO_ERROR) {
+	ret = ast_stmt(CASE_STMT, stmt, NULL);
+	STMT_CASE_INDEX(ret) = index;
     }
     
-    // print before parsing statement
-    if (!in_sw)
-        errorf(src, "'case' statement is not in a switch statement.");
-    
-    // always parse even if not in a switch statement
-    stmt = statement(context);
-    
-    if (!in_sw)
-        return NULL;
-    
-    node_t *ret = ast_stmt(CASE_STMT, stmt, NULL);
-    STMT_CASE_INDEX(ret) = val;
     return ret;
 }
 
-static node_t * default_stmt(node_t *context)
+static node_t * default_stmt(void)
 {
-    int in_sw = 0;
+    node_t *ret = NULL;
     node_t *stmt;
-    struct source src = source;
-    
+
+    SAVE_ERRORS;
     expect(DEFAULT);
     expect(':');
-    
-    while (context) {
-        if (is_switch_stmt(context)) {
-            in_sw = 1;
-            break;
-        } else {
-            context = STMT_UP(context);
-        }
-    }
-    
-    // print before parsing statement
-    if (!in_sw)
-        errorf(src, "'default' statement is not in a switch statement.");
-    
-    stmt = statement(context);
-    
-    if (!in_sw)
-        return NULL;
-    else
-        return ast_stmt(DEFAULT_STMT, stmt, NULL);
+    stmt = statement();
+
+    if (NO_ERROR)
+	ret = ast_stmt(DEFAULT_STMT, stmt, NULL);
+
+    return ret;
 }
 
-static node_t * label_stmt(node_t *context)
+static node_t * label_stmt(void)
 {
-    node_t *label;
+    node_t *ret = NULL;
     node_t *stmt;
+    const char *name;
     
-    label = ast_expr(REF_EXPR, ID, NULL, NULL);
+    SAVE_ERRORS;
+    if (token->id == ID)
+	name = token->name;
     expect(ID);
     expect(':');
-    stmt = statement(context);
-    
-    return ast_stmt(LABEL_STMT, label, stmt);
+    stmt = statement();
+
+    if (NO_ERROR) {
+	ret = ast_stmt(LABEL_STMT, stmt, NULL);
+	STMT_LABEL_NAME(ret) = name;
+    }
+
+    return ret;
 }
 
 static node_t * goto_stmt(void)
 {
-    node_t *expr = NULL;
-    
+    node_t *ret = NULL;
+    const char *name;
+
+    SAVE_ERRORS;
     expect(GOTO);
     if (token->id == ID)
-        expr = ast_expr(REF_EXPR, ID, NULL, NULL);
+        name = token->name;
     expect(ID);
     expect(';');
-    
-    return ast_stmt(GOTO_STMT, expr, NULL);
+
+    if (NO_ERROR) {
+	ret = ast_stmt(GOTO_STMT, NULL, NULL);
+	STMT_LABEL_NAME(ret) = name;
+    }
+
+    return ret;
 }
 
-static node_t * break_stmt(node_t *context)
+static node_t * break_stmt(void)
 {
-    int in_iter_sw = 0;
-    struct source src = source;
-    node_t *ret;
-    
+    node_t *ret = NULL;
+
+    SAVE_ERRORS;
     expect(BREAK);
     expect(';');
-    
-    while (context) {
-        if (is_iteration_stmt(context) || is_switch_stmt(context)) {
-            in_iter_sw = 1;
-            break;
-        } else {
-            context = STMT_UP(context);
-        }
-    }
-    
-    if (!in_iter_sw) {
-        errorf(src, "'break' statement is not in a loop or switch statement.");
-        return NULL;
-    }
-    
-    ret = ast_stmt(BREAK_STMT, NULL, NULL);
-    STMT_UP(ret) = context;
+
+    if (NO_ERROR)
+	ret = ast_stmt(BREAK_STMT, NULL, NULL);
     
     return ret;
 }
 
-static node_t * continue_stmt(node_t *context)
+static node_t * continue_stmt(void)
 {
-    int in_iter = 0;
-    node_t *ret;
-    struct source src = source;
-    
+    node_t *ret = NULL;
+
+    SAVE_ERRORS;
     expect(CONTINUE);
     expect(';');
-    
-    while (context) {
-        if (is_iteration_stmt(context)) {
-            in_iter = 1;
-            break;
-        } else {
-            context = STMT_UP(context);
-        }
-    }
-    
-    if (!in_iter) {
-        errorf(src, "'continue' statement is not in a loop statement.");
-        return NULL;
-    }
-    
-    ret = ast_stmt(CONTINUE_STMT, NULL, NULL);
-    STMT_UP(ret) = context;
+
+    if (NO_ERROR)
+	ret = ast_stmt(CONTINUE_STMT, NULL, NULL);
     
     return ret;
 }
 
 static node_t * return_stmt(void)
 {
+    node_t *ret = NULL;
+    node_t *expr;
+
+    SAVE_ERRORS;
     expect(RETURN);
+    expr = expr_stmt();
+
+    if (NO_ERROR)
+	ret = ast_stmt(RETURN_STMT, expr, NULL);
     
-    return ast_stmt(RETURN_STMT, expr_stmt(), NULL);;
+    return ret;
 }
 
-static node_t * statement(node_t *context)
+static node_t * statement(void)
 {
     switch (token->id) {
-        case '{':       return _compound_stmt(context);
-        case IF:        return if_stmt(context);
-        case SWITCH:    return switch_stmt(context);
-        case WHILE:     return while_stmt(context);
-        case DO:        return do_while_stmt(context);
-        case FOR:       return for_stmt(context);
+        case '{':       return compound_stmt();
+        case IF:        return if_stmt();
+        case SWITCH:    return switch_stmt();
+        case WHILE:     return while_stmt();
+        case DO:        return do_while_stmt();
+        case FOR:       return for_stmt();
         case GOTO:      return goto_stmt();
-        case CONTINUE:  return continue_stmt(context);
-        case BREAK:     return break_stmt(context);
+        case CONTINUE:  return continue_stmt();
+        case BREAK:     return break_stmt();
         case RETURN:    return return_stmt();
-        case CASE:      return case_stmt(context);
-        case DEFAULT:   return default_stmt(context);
+        case CASE:      return case_stmt();
+        case DEFAULT:   return default_stmt();
         case ID:
             if (lookahead()->id == ':')
-                return label_stmt(context);
+                return label_stmt();
             // go through
         default:
             return expr_stmt();
     }
 }
 
-static node_t * _compound_stmt(node_t *context)
+node_t * compound_stmt(void)
 {
     node_t *ret = ast_stmt(COMPOUND_STMT, NULL, NULL);
     struct vector *v = vec_new();
@@ -343,7 +307,7 @@ static node_t * _compound_stmt(node_t *context)
             vec_add_array(v, (void **)declaration());
         else
             // statement
-            vec_push_safe(v, statement(context));
+            vec_push_safe(v, statement());
     }
     
     STMT_BLKS(ret) = (node_t **)vtoa(v);
@@ -351,9 +315,4 @@ static node_t * _compound_stmt(node_t *context)
     exit_scope();
     
     return ret;
-}
-
-node_t * compound_stmt(void)
-{
-    return _compound_stmt(NULL);
 }

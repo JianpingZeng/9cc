@@ -150,8 +150,6 @@ struct ast_decl {
     node_t **exts;
 };
 
-#define STMT_UP(NODE)           ((NODE)->stmt.up)
-
 // compound stmt
 #define STMT_BLKS(NODE)         ((NODE)->stmt.blks)
 
@@ -167,10 +165,11 @@ struct ast_decl {
 
 // case stmt
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
+// label stmt
+#define STMT_LABEL_NAME(NODE)   AST_NAME(NODE)
 
 struct ast_stmt {
     struct ast_common common;
-    node_t *up;
     int index;
     node_t **blks;
     node_t *list[1];
@@ -251,8 +250,8 @@ extern node_t * ast_vinit(void);
 #define ArrayToPointerDecay     "ArrayToPointerDecay"
 #define IntegralCast            "IntegralCast"
 #define FloatCast               "FloatingCast"
-#define IntegerToFloatCast      "IntegralToFloatingCast"
-#define FloatToIntegerCast      "FloatingToIntegralCast"
+#define IntegerToFloatCast      "IntegralToFloating"
+#define FloatToIntegerCast      "FloatingToIntegral"
 #define PointerToBoolean        "PointerToBoolean"
 
 #endif

@@ -94,6 +94,10 @@ extern node_t * assign_expr(void);
 extern int intexpr(void);
 extern bool islvalue(node_t *node);
 extern node_t * init_elem_conv(node_t *ty, node_t *node);
+// for expression in conditional statement
+extern node_t * bool_expr(void);
+// for expression in switch statement
+extern node_t * switch_expr(void);
 
 // decl.c
 extern node_t * initializer_list(node_t *ty);

@@ -1240,6 +1240,30 @@ node_t * expression(void)
     return assign1;
 }
 
+node_t * bool_expr(void)
+{
+    // Conversion for expression in conditional statement
+    node_t *node = expression();
+    if (node == NULL)
+	return NULL;
+    if (islvalue(node))
+	node = ltor(node);
+    return decay(node);
+}
+
+node_t * switch_expr(void)
+{
+    node_t *node = conv(expression());
+    if (node == NULL)
+	return NULL;
+    if (!isint(AST_TYPE(node))) {
+	error("statement requires expression of integer type ('%s' invalid)",
+	      type2s(AST_TYPE(node)));
+	return NULL;
+    }
+    return node;
+}
+
 static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *r)
 {
     node_t *node = ast_expr(id, op, l, r);
