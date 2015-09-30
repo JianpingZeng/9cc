@@ -35,17 +35,19 @@ struct map *labels;
 #define CASES             (cases)
 #define DEFAULT_CONTEXT   (default_context)
 
-static bool check_case_duplicates(node_t *node)
+static void check_case_duplicates(node_t *node)
 {
-    for (int i = 0; i < vec_len(CASES); i++) {
+    for (int i = vec_len(CASES)-1; i >= 0; i--) {
 	node_t *n = vec_at(CASES, i);
 	if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
-	    errorf(AST_SOURCE(node), "duplicate case value '%d'", STMT_CASE_INDEX(node));
-	    return false;
+	    errorf(AST_SRC(node),
+		   "duplicate case value '%d', previous case defined here: %s:%u",
+		   STMT_CASE_INDEX(node),
+		   AST_SRC(n).file,
+		   AST_SRC(n).line);
+	    break;
 	}
     }
-
-    return true;
 }
 
 static node_t * expr_stmt(void)
@@ -69,6 +71,7 @@ static node_t * if_stmt(void)
     node_t *expr;
     node_t *thenpart;
     node_t *elsepart = NULL;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect(IF);
@@ -83,7 +86,7 @@ static node_t * if_stmt(void)
     }
 
     if (NO_ERROR) {
-	ret = ast_stmt(IF_STMT, NULL, NULL);
+	ret = ast_stmt(IF_STMT, src);
 	STMT_COND(ret) = expr;
 	STMT_THEN(ret) = thenpart;
 	STMT_ELSE(ret) = elsepart;
@@ -94,7 +97,7 @@ static node_t * if_stmt(void)
 
 static node_t * while_stmt(void)
 {
-    node_t *ret = ast_stmt(WHILE_STMT, NULL, NULL);
+    node_t *ret = ast_stmt(WHILE_STMT, source);
     node_t *expr;
     node_t *stmt;
 
@@ -119,7 +122,7 @@ static node_t * while_stmt(void)
 
 static node_t * do_while_stmt(void)
 {
-    node_t *ret = ast_stmt(DO_WHILE_STMT, NULL, NULL);
+    node_t *ret = ast_stmt(DO_WHILE_STMT, source);
     node_t *stmt;
     node_t *expr;
 
@@ -146,7 +149,7 @@ static node_t * do_while_stmt(void)
 
 static node_t * for_stmt(void)
 {
-    node_t *ret = ast_stmt(FOR_STMT, NULL, NULL);
+    node_t *ret = ast_stmt(FOR_STMT, source);
     node_t *stmt;
 
     SAVE_ERRORS;
@@ -194,7 +197,7 @@ static node_t * for_stmt(void)
 
 static node_t * switch_stmt(void)
 {
-    node_t *ret = ast_stmt(SWITCH_STMT, NULL, NULL);
+    node_t *ret = ast_stmt(SWITCH_STMT, source);
     node_t *expr;
     node_t *stmt;
 
@@ -219,40 +222,38 @@ static node_t * switch_stmt(void)
 
 static node_t * case_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(CASE_STMT, source);
     node_t *stmt;
-    int index;
-    struct source src = source;
 
     SAVE_ERRORS;
     expect(CASE);
-    index = intexpr();
+    STMT_CASE_INDEX(ret) = intexpr();
     expect(':');
 
     if (!IN_SWITCH)
 	error("'case' statement not in switch statement");
+
+    // only check when intexpr is okay.
+    if (NO_ERROR) {
+	check_case_duplicates(ret);
+	vec_push(CASES, ret);
+    }
     
     // always parse even if not in a switch statement
     stmt = statement();
 
-    if (NO_ERROR) {
-	ret = ast_stmt(CASE_STMT, stmt, NULL);
-	STMT_CASE_INDEX(ret) = index;
-	AST_SOURCE(ret) = src;
-	if (check_case_duplicates(ret))
-	    vec_push(CASES, ret);
-	else
-	    ret = NULL;
-    }
+    if (NO_ERROR)
+	AST_KID(ret, 0) = stmt;
+    else
+	ret = NULL;
     
     return ret;
 }
 
 static node_t * default_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(DEFAULT_STMT, source);
     node_t *stmt;
-    struct source src = source;
 
     SAVE_ERRORS;
     expect(DEFAULT);
@@ -261,73 +262,77 @@ static node_t * default_stmt(void)
     // print before parsing statement
     if (!IN_SWITCH)
 	error("'default' statement not in switch statement");
+
+    if (DEFAULT_CONTEXT)
+	errorf(AST_SRC(ret), "multiple default labels in one switch, previous case defined here:%s:%u",
+	       AST_SRC(DEFAULT_CONTEXT).file,
+	       AST_SRC(DEFAULT_CONTEXT).line);
+    
+    DEFAULT_CONTEXT = ret;
     
     stmt = statement();
 
-    if (DEFAULT_CONTEXT)
-	errorf(src, "multiple default labels in one switch");
-
-    if (NO_ERROR) {
-	ret = ast_stmt(DEFAULT_STMT, stmt, NULL);
-	DEFAULT_CONTEXT = ret;
-    }
+    if (NO_ERROR)
+	AST_KID(ret, 0) = stmt;
+    else
+	ret = NULL;
 
     return ret;
 }
 
 static node_t * label_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(LABEL_STMT, source);
     node_t *stmt;
     const char *name = NULL;
-    struct source src = source;
 
     SAVE_ERRORS;
-    if (token->id == ID)
-	name = token->name;
+    name = token->name;
     expect(ID);
     expect(':');
-    stmt = statement();
 
-    if (name && map_get(labels, name))
-	errorf(src, "redefinition of label '%s'", name);
-    
     if (NO_ERROR) {
-	ret = ast_stmt(LABEL_STMT, stmt, NULL);
+	node_t *n = map_get(labels, name);
+	if (map_get(labels, name))
+	    errorf(AST_SRC(ret), "redefinition of label '%s', previous label defined here:%s:%u",
+		   name,
+		   AST_SRC(n).file,
+		   AST_SRC(n).line);
 	STMT_LABEL_NAME(ret) = name;
-	AST_SOURCE(ret) = src;
 	map_put(labels, name, ret);
     }
+    
+    stmt = statement();
+    
+    if (NO_ERROR)
+	AST_KID(ret, 0) = stmt;
+    else
+	ret = NULL;
 
     return ret;
 }
 
 static node_t * goto_stmt(void)
 {
-    node_t *ret = NULL;
-    const char *name = NULL;
-    struct source src = source;
+    node_t *ret = ast_stmt(GOTO_STMT, source);
 
     SAVE_ERRORS;
     expect(GOTO);
-    if (token->id == ID)
-        name = token->name;
+    STMT_LABEL_NAME(ret) = token->name;
     expect(ID);
     expect(';');
 
-    if (NO_ERROR) {
-	ret = ast_stmt(GOTO_STMT, NULL, NULL);
-	STMT_LABEL_NAME(ret) = name;
-	AST_SOURCE(ret) = src;
+    if (NO_ERROR)
 	vec_push(gotos, ret);
-    }
+    else
+	ret = NULL;
 
     return ret;
 }
 
 static node_t * break_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(BREAK_STMT, source);
 
     SAVE_ERRORS;
     expect(BREAK);
@@ -336,15 +341,15 @@ static node_t * break_stmt(void)
     if (!IN_LOOP && !IN_SWITCH)
 	error("'break' statement not in loop or switch statement");
 
-    if (NO_ERROR)
-	ret = ast_stmt(BREAK_STMT, NULL, NULL);
+    if (!NO_ERROR)
+	ret = NULL;
     
     return ret;
 }
 
 static node_t * continue_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(CONTINUE_STMT, source);
 
     SAVE_ERRORS;
     expect(CONTINUE);
@@ -353,15 +358,15 @@ static node_t * continue_stmt(void)
     if (!IN_LOOP)
 	error("'continue' statement not in loop statement");
 
-    if (NO_ERROR)
-	ret = ast_stmt(CONTINUE_STMT, NULL, NULL);
+    if (!NO_ERROR)
+	ret = NULL;
     
     return ret;
 }
 
 static node_t * return_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(RETURN_STMT, source);
     node_t *expr;
 
     SAVE_ERRORS;
@@ -369,7 +374,9 @@ static node_t * return_stmt(void)
     expr = expr_stmt();
 
     if (NO_ERROR)
-	ret = ast_stmt(RETURN_STMT, expr, NULL);
+	AST_KID(ret, 0) = expr;
+    else
+	ret = NULL;
     
     return ret;
 }
@@ -400,7 +407,7 @@ static node_t * statement(void)
 
 node_t * compound_stmt(void)
 {
-    node_t *ret = ast_stmt(COMPOUND_STMT, NULL, NULL);
+    node_t *ret = ast_stmt(COMPOUND_STMT, source);
     struct vector *v = vec_new();
     
     expect('{');
@@ -429,7 +436,7 @@ void backfill_labels(void)
 	const char *label = STMT_LABEL_NAME(goto_stmt);
 	node_t *label_stmt = map_get(labels, label);
 	if (!label_stmt)
-	    errorf(AST_SOURCE(goto_stmt), "use of undeclared label '%s'", label);
+	    errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", label);
     }
 
 }

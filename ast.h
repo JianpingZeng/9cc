@@ -25,7 +25,7 @@ typedef union ast_node node_t;
 #define AST_NAME(NODE)          ((NODE)->common.name)
 #define AST_TYPE(NODE)          ((NODE)->common.type)
 #define AST_KID(NODE, I)        ((NODE)->common.kids[I])
-#define AST_SOURCE(NODE)        ((NODE)->common.src)
+#define AST_SRC(NODE)           ((NODE)->common.src)
 
 struct ast_common {
     int id;
@@ -217,7 +217,7 @@ union ast_node {
 extern const char *nname(node_t *node);
 extern node_t * ast_expr(int id, int op, node_t *l, node_t *r);
 extern node_t * ast_decl(int id, int scope);
-extern node_t * ast_stmt(int id, node_t *l, node_t *r);
+extern node_t * ast_stmt(int id, struct source src);
 extern node_t * ast_null_stmt(void);
 extern node_t * ast_uop(int op, node_t *ty, node_t *l);
 extern node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r);

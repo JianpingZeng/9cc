@@ -33,18 +33,17 @@ node_t * ast_expr(int id, int op, node_t *l, node_t *r)
     return expr;
 }
 
-node_t * ast_stmt(int id, node_t *l, node_t *r)
+node_t * ast_stmt(int id, struct source src)
 {
     CCAssert(id > BEGIN_STMT_ID && id < END_STMT_ID);
     node_t * stmt = new_node(id);
-    AST_KID(stmt, 0) = l;
-    AST_KID(stmt, 1) = r;
+    AST_SRC(stmt) = src;
     return stmt;
 }
 
 node_t * ast_null_stmt(void)
 {
-    node_t *stmt = ast_stmt(NULL_STMT, NULL, NULL);
+    node_t *stmt = ast_stmt(NULL_STMT, source);
     return stmt;
 }
 
