@@ -1594,8 +1594,6 @@ static node_t * assignconv(node_t *ty, node_t *node)
 	    }
 	}
 	return bitconv(ty, node);
-    } else {
-	error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty));
     }
     return NULL;
 }
@@ -1632,5 +1630,9 @@ int intexpr(void)
 node_t * init_elem_conv(node_t *ty, node_t *node)
 {
     CCAssert(node);
-    return assignconv(ty, decay(node));
+    node_t *ret =  assignconv(ty, decay(node));
+    if (ret == NULL)
+	error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(node)), type2s(ty));
+    
+    return ret;
 }

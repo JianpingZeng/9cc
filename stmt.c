@@ -2,6 +2,26 @@
 
 static node_t * statement(void);
 
+static node_t *loop_context;
+static node_t *switch_context;
+
+#define SET_LOOP_CONTEXT(loop) \
+    node_t *saved_loop = loop_context; \
+    loop_context = loop
+
+#define RESTORE_LOOP_CONTEXT() \
+    loop_context = saved_loop
+
+#define SET_SWITCH_CONTEXT(sw) \
+    node_t *saved_sw = switch_context; \
+    switch_context = sw
+
+#define RESTORE_SWITCH_CONTEXT() \
+    switch_context = saved_sw
+
+#define IN_SWITCH  (switch_context)
+#define IN_LOOP    (loop_context)
+
 static node_t * expr_stmt(void)
 {
     node_t *ret = NULL;
@@ -48,7 +68,7 @@ static node_t * if_stmt(void)
 
 static node_t * while_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(WHILE_STMT, NULL, NULL);
     node_t *expr;
     node_t *stmt;
 
@@ -57,38 +77,50 @@ static node_t * while_stmt(void)
     expect('(');
     expr = bool_expr();
     expect(')');
+    SET_LOOP_CONTEXT(ret);
     stmt = statement();
+    RESTORE_LOOP_CONTEXT();
 
-    if (NO_ERROR)
-	ret = ast_stmt(WHILE_STMT, expr, stmt);
+    if (NO_ERROR) {
+	AST_KID(ret, 0) = expr;
+	AST_KID(ret, 1) = stmt;
+    } else {
+        ret = NULL;
+    }
     
     return ret;
 }
 
 static node_t * do_while_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(DO_WHILE_STMT, NULL, NULL);
     node_t *stmt;
     node_t *expr;
 
     SAVE_ERRORS;
     expect(DO);
+    SET_LOOP_CONTEXT(ret);
     stmt = statement();
+    RESTORE_LOOP_CONTEXT();
     expect(WHILE);
     expect('(');
     expr = bool_expr();
     expect(')');
     expect(';');
 
-    if (NO_ERROR)
-	ret = ast_stmt(DO_WHILE_STMT, expr, stmt);
+    if (NO_ERROR) {
+	AST_KID(ret, 0) = expr;
+	AST_KID(ret, 1) = stmt;
+    } else {
+	ret = NULL;
+    }
     
     return ret;
 }
 
 static node_t * for_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(FOR_STMT, NULL, NULL);
     node_t *stmt;
 
     SAVE_ERRORS;
@@ -119,19 +151,24 @@ static node_t * for_stmt(void)
         STMT_CTRL(ret) = expression();
     
     expect(')');
-    
+
+    SET_LOOP_CONTEXT(ret);
     stmt = statement();
+    RESTORE_LOOP_CONTEXT();
+    
     exit_scope();
 
     if (NO_ERROR)
-	ret = ast_stmt(FOR_STMT, stmt, NULL);
+	AST_KID(ret, 0) = stmt;
+    else
+	ret = NULL;
     
     return ret;
 }
 
 static node_t * switch_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(SWITCH_STMT, NULL, NULL);
     node_t *expr;
     node_t *stmt;
 
@@ -140,10 +177,16 @@ static node_t * switch_stmt(void)
     expect('(');
     expr = switch_expr();
     expect(')');
+    SET_SWITCH_CONTEXT(ret);
     stmt = statement();
-
-    if (NO_ERROR)
-	ret = ast_stmt(SWITCH_STMT, expr, stmt);
+    RESTORE_SWITCH_CONTEXT();
+    
+    if (NO_ERROR) {
+	AST_KID(ret, 0) = expr;
+	AST_KID(ret, 1) = stmt;
+    } else {
+	ret = NULL;
+    }
     
     return ret;
 }
@@ -158,6 +201,10 @@ static node_t * case_stmt(void)
     expect(CASE);
     index = intexpr();
     expect(':');
+
+    if (!IN_SWITCH)
+	error("'case' statement not in switch statement");
+    
     // always parse even if not in a switch statement
     stmt = statement();
 
@@ -177,6 +224,11 @@ static node_t * default_stmt(void)
     SAVE_ERRORS;
     expect(DEFAULT);
     expect(':');
+
+    // print before parsing statement
+    if (!IN_SWITCH)
+	error("'default' statement not in switch statement");
+    
     stmt = statement();
 
     if (NO_ERROR)
@@ -234,6 +286,9 @@ static node_t * break_stmt(void)
     expect(BREAK);
     expect(';');
 
+    if (!IN_LOOP && !IN_SWITCH)
+	error("'break' statement not in loop or switch statement");
+
     if (NO_ERROR)
 	ret = ast_stmt(BREAK_STMT, NULL, NULL);
     
@@ -247,6 +302,9 @@ static node_t * continue_stmt(void)
     SAVE_ERRORS;
     expect(CONTINUE);
     expect(';');
+
+    if (!IN_LOOP)
+	error("'continue' statement not in loop statement");
 
     if (NO_ERROR)
 	ret = ast_stmt(CONTINUE_STMT, NULL, NULL);
