@@ -29,7 +29,6 @@ _n(CALL_EXPR,         "CallExpr")
 _n(INITS_EXPR,        "InitListExpr")
 _n(VINIT_EXPR,        "ImplicitValueInitExpr")
 _n(CONV_EXPR,         "ImplicitCastExpr")
-_n(TYPE_EXPR,         "TypeExpr")
 
 _ns(BEGIN_LITERAL_ID)
 
