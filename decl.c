@@ -1280,7 +1280,10 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
+	gotos = vec_new();
+	labels = map_new(nocmp);
         node_t *stmt = compound_stmt();
+	backfill_labels();
         exit_scope();
         AST_KID(decl, 0) = stmt;
     }

@@ -25,12 +25,14 @@ typedef union ast_node node_t;
 #define AST_NAME(NODE)          ((NODE)->common.name)
 #define AST_TYPE(NODE)          ((NODE)->common.type)
 #define AST_KID(NODE, I)        ((NODE)->common.kids[I])
+#define AST_SOURCE(NODE)        ((NODE)->common.src)
 
 struct ast_common {
     int id;
     const char *name;
     node_t *type;
     node_t *kids[2];
+    struct source src;
 };
 
 /* Handle carefully for qual/unqual types.

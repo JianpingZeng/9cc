@@ -4,23 +4,49 @@ static node_t * statement(void);
 
 static node_t *loop_context;
 static node_t *switch_context;
+static struct vector *cases;
+static node_t *default_context;
 
-#define SET_LOOP_CONTEXT(loop) \
-    node_t *saved_loop = loop_context; \
+struct vector *gotos;
+struct map *labels;
+
+#define SET_LOOP_CONTEXT(loop)			\
+    node_t *saved_loop = loop_context;		\
     loop_context = loop
 
-#define RESTORE_LOOP_CONTEXT() \
+#define RESTORE_LOOP_CONTEXT()			\
     loop_context = saved_loop
 
-#define SET_SWITCH_CONTEXT(sw) \
-    node_t *saved_sw = switch_context; \
-    switch_context = sw
+#define SET_SWITCH_CONTEXT(sw)			\
+    node_t *saved_sw = switch_context;		\
+    struct vector *saved_cases = cases;		\
+    node_t *saved_default = default_context;	\
+    switch_context = sw;			\
+    cases = vec_new();				\
+    default_context = NULL
 
-#define RESTORE_SWITCH_CONTEXT() \
-    switch_context = saved_sw
+#define RESTORE_SWITCH_CONTEXT()		\
+    switch_context = saved_sw;			\
+    cases = saved_cases;			\
+    default_context = saved_default
 
-#define IN_SWITCH  (switch_context)
-#define IN_LOOP    (loop_context)
+#define IN_SWITCH         (switch_context)
+#define IN_LOOP           (loop_context)
+#define CASES             (cases)
+#define DEFAULT_CONTEXT   (default_context)
+
+static bool check_case_duplicates(node_t *node)
+{
+    for (int i = 0; i < vec_len(CASES); i++) {
+	node_t *n = vec_at(CASES, i);
+	if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
+	    errorf(AST_SOURCE(node), "duplicate case value '%d'", STMT_CASE_INDEX(node));
+	    return false;
+	}
+    }
+
+    return true;
+}
 
 static node_t * expr_stmt(void)
 {
@@ -196,6 +222,7 @@ static node_t * case_stmt(void)
     node_t *ret = NULL;
     node_t *stmt;
     int index;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect(CASE);
@@ -211,6 +238,11 @@ static node_t * case_stmt(void)
     if (NO_ERROR) {
 	ret = ast_stmt(CASE_STMT, stmt, NULL);
 	STMT_CASE_INDEX(ret) = index;
+	AST_SOURCE(ret) = src;
+	if (check_case_duplicates(ret))
+	    vec_push(CASES, ret);
+	else
+	    ret = NULL;
     }
     
     return ret;
@@ -220,6 +252,7 @@ static node_t * default_stmt(void)
 {
     node_t *ret = NULL;
     node_t *stmt;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect(DEFAULT);
@@ -231,8 +264,13 @@ static node_t * default_stmt(void)
     
     stmt = statement();
 
-    if (NO_ERROR)
+    if (DEFAULT_CONTEXT)
+	errorf(src, "multiple default labels in one switch");
+
+    if (NO_ERROR) {
 	ret = ast_stmt(DEFAULT_STMT, stmt, NULL);
+	DEFAULT_CONTEXT = ret;
+    }
 
     return ret;
 }
@@ -241,8 +279,9 @@ static node_t * label_stmt(void)
 {
     node_t *ret = NULL;
     node_t *stmt;
-    const char *name;
-    
+    const char *name = NULL;
+    struct source src = source;
+
     SAVE_ERRORS;
     if (token->id == ID)
 	name = token->name;
@@ -250,9 +289,14 @@ static node_t * label_stmt(void)
     expect(':');
     stmt = statement();
 
+    if (name && map_get(labels, name))
+	errorf(src, "redefinition of label '%s'", name);
+    
     if (NO_ERROR) {
 	ret = ast_stmt(LABEL_STMT, stmt, NULL);
 	STMT_LABEL_NAME(ret) = name;
+	AST_SOURCE(ret) = src;
+	map_put(labels, name, ret);
     }
 
     return ret;
@@ -261,7 +305,8 @@ static node_t * label_stmt(void)
 static node_t * goto_stmt(void)
 {
     node_t *ret = NULL;
-    const char *name;
+    const char *name = NULL;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect(GOTO);
@@ -273,6 +318,8 @@ static node_t * goto_stmt(void)
     if (NO_ERROR) {
 	ret = ast_stmt(GOTO_STMT, NULL, NULL);
 	STMT_LABEL_NAME(ret) = name;
+	AST_SOURCE(ret) = src;
+	vec_push(gotos, ret);
     }
 
     return ret;
@@ -373,4 +420,16 @@ node_t * compound_stmt(void)
     exit_scope();
     
     return ret;
+}
+
+void backfill_labels(void)
+{
+    for (int i = 0; i < vec_len(gotos); i++) {
+	node_t *goto_stmt = vec_at(gotos, i);
+	const char *label = STMT_LABEL_NAME(goto_stmt);
+	node_t *label_stmt = map_get(labels, label);
+	if (!label_stmt)
+	    errorf(AST_SOURCE(goto_stmt), "use of undeclared label '%s'", label);
+    }
+
 }
