@@ -298,6 +298,9 @@ extern void field_not_found_error(node_t *ty, const char *name);
 // gen.c
 extern void gen(node_t *tree, const char *ofile);
 
+// simplify.c
+extern void simplify(node_t *tree);
+
 // print.c
 extern void print_tree(node_t *tree);
 

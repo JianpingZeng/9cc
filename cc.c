@@ -31,11 +31,13 @@ static void parseopts(int argc, const char *argv[])
 
 static void translate(void)
 {
-    node_t *n;
-    n = translation_unit();
-    print_tree(n);
-    if (errors == 0)
-	gen(n, ofile);
+    node_t *tree;
+    tree = translation_unit();
+    print_tree(tree);
+    if (errors == 0) {
+	simplify(tree);
+	gen(tree, ofile);
+    }
 }
 
 int cc_main(int argc, const char * argv[])
