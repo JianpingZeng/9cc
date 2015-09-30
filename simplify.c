@@ -34,7 +34,7 @@ void simplify(node_t *tree)
 {
     CCAssert(AST_ID(tree) == TU_DECL);
     for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
-	node_t *node = exts[i];
+	node_t *node = DECL_EXTS(tree)[i];
 	
 	if (isfuncdef(node)) {
 	    node_t *stmt = DECL_BODY(node);
