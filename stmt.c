@@ -377,24 +377,24 @@ static node_t * return_stmt(void)
 static node_t * statement(void)
 {
     switch (token->id) {
-        case '{':       return compound_stmt();
-        case IF:        return if_stmt();
-        case SWITCH:    return switch_stmt();
-        case WHILE:     return while_stmt();
-        case DO:        return do_while_stmt();
-        case FOR:       return for_stmt();
-        case GOTO:      return goto_stmt();
-        case CONTINUE:  return continue_stmt();
-        case BREAK:     return break_stmt();
-        case RETURN:    return return_stmt();
-        case CASE:      return case_stmt();
-        case DEFAULT:   return default_stmt();
-        case ID:
-            if (lookahead()->id == ':')
-                return label_stmt();
-            // go through
-        default:
-            return expr_stmt();
+    case '{':       return compound_stmt();
+    case IF:        return if_stmt();
+    case SWITCH:    return switch_stmt();
+    case WHILE:     return while_stmt();
+    case DO:        return do_while_stmt();
+    case FOR:       return for_stmt();
+    case GOTO:      return goto_stmt();
+    case CONTINUE:  return continue_stmt();
+    case BREAK:     return break_stmt();
+    case RETURN:    return return_stmt();
+    case CASE:      return case_stmt();
+    case DEFAULT:   return default_stmt();
+    case ID:
+	if (lookahead()->id == ':')
+	    return label_stmt();
+	// go through
+    default:
+	return expr_stmt();
     }
 }
 
