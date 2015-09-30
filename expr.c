@@ -23,7 +23,6 @@ static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *
 #define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
 #define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
 
-#define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 #define INCOMPATIBLE_TYPES2   "imcompatible types '%s' and '%s' in conditional expression"
 
 static int splitop(int op)
@@ -493,7 +492,7 @@ static void argcast1(node_t *fty, node_t **args, struct vector *v)
 	node_t *dst = SYM_TYPE(params[i]);
 	node_t *src = AST_TYPE(args[i]);
 	node_t *ret;
-	if ((ret = assignconv(dst, args[i]))) {
+	if ((ret = init_conv(dst, args[i]))) {
 	    vec_push(v, ret);
 	} else {
 	    if (oldstyle)
@@ -1627,12 +1626,7 @@ int intexpr(void)
     return 0;
 }
 
-node_t * init_elem_conv(node_t *ty, node_t *node)
+node_t * init_conv(node_t *ty, node_t *node)
 {
-    CCAssert(node);
-    node_t *ret =  assignconv(ty, decay(node));
-    if (ret == NULL)
-	error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(node)), type2s(ty));
-    
-    return ret;
+    return assignconv(ty, decay(node));
 }

@@ -93,7 +93,7 @@ extern node_t * expression(void);
 extern node_t * assign_expr(void);
 extern int intexpr(void);
 extern bool islvalue(node_t *node);
-extern node_t * init_elem_conv(node_t *ty, node_t *node);
+extern node_t * init_conv(node_t *ty, node_t *node);
 // for expression in conditional statement
 extern node_t * bool_expr(void);
 // for expression in switch statement
@@ -276,6 +276,8 @@ extern void field_not_found_error(node_t *ty, const char *name);
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
+
+#define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 
 #define CCAssert(expr)				\
     do {					\

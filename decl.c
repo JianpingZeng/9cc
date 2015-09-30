@@ -1338,6 +1338,15 @@ static node_t * find_elem(struct vector *v, int i)
     return vec_at(v, i);
 }
 
+static node_t * init_elem_conv(node_t *ty, node_t *node)
+{
+    node_t *ret = init_conv(ty, node);
+    if (ret == NULL)
+	error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(node)), type2s(ty));
+
+    return ret;
+}
+
 static inline node_t * do_init_elem_conv(node_t *ty, node_t *node)
 {
     // cannot pass VINIT_EXPR to init_elem_conv

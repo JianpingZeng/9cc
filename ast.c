@@ -88,3 +88,9 @@ node_t * ast_vinit(void)
     node_t *vinit = ast_expr(VINIT_EXPR, 0, NULL, NULL);
     return vinit;
 }
+
+const char * gen_label(void)
+{
+    static long i;
+    return strs(format(".L%ld", i));
+}
