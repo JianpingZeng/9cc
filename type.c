@@ -365,8 +365,8 @@ static bool eqparams(node_t **params1, node_t **params2)
     } else if (params1 == NULL || params2 == NULL) {
         return false;
     } else {
-        int len1 = array_len((void **)params1);
-        int len2 = array_len((void **)params2);
+        int len1 = LIST_LEN(params1);
+        int len2 = LIST_LEN(params2);
         if (len1 != len2)
             return false;
         for (int i=0; i < len1; i++) {
@@ -458,7 +458,7 @@ node_t * find_field(node_t *sty, const char *name)
 {
     int i;
     node_t *ty = unqual(sty);
-    int len = array_len((void **)TYPE_FIELDS(ty));
+    int len = LIST_LEN(TYPE_FIELDS(ty));
 
     if (name == NULL)
 	return NULL;
@@ -473,7 +473,7 @@ node_t * find_field(node_t *sty, const char *name)
 
 int indexof_field(node_t *ty, node_t *field)
 {
-    for (int i = 0; i < array_len((void **)TYPE_FIELDS(ty)); i++) {
+    for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
 	node_t *f = TYPE_FIELDS(ty)[i];
 	if (field == f)
 	    return i;
@@ -498,7 +498,7 @@ static unsigned struct_size(node_t *ty)
     int maxbits = 0;
     node_t **fields = TYPE_FIELDS(ty);
 
-    for (int i = 0; i < array_len((void **)fields); i++) {
+    for (int i = 0; i < LIST_LEN(fields); i++) {
     	node_t *field = fields[i];
     	node_t *ty = FIELD_TYPE(field);
 	
@@ -566,7 +566,7 @@ static unsigned union_size(node_t *ty)
     int size = 0;
     node_t **fields = TYPE_FIELDS(ty);
 
-    for (int i = 0; i < array_len((void **)fields); i++) {
+    for (int i = 0; i < LIST_LEN(fields); i++) {
 	node_t *field = fields[i];
     	node_t *ty = FIELD_TYPE(field);
 	int tysize = TYPE_SIZE(ty);
@@ -821,7 +821,7 @@ static void dotype2s(struct vector *l, struct vector *r)
         case FUNCTION:
         {
             node_t **params = TYPE_PARAMS(s->type);
-	    int len = array_len((void **)params);
+	    int len = LIST_LEN(params);
 	    vec_push(r, paren(FSPACE, NULL));
 	    vec_push(r, paren(LPAREN, s->type));
 	    for (int i=0; params && params[i]; i++) {

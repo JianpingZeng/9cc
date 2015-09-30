@@ -4,7 +4,7 @@ static int size_code(const char *code)
 {
     node_t *n = compile(code);
     node_t **exts = DECL_EXTS(n);
-    node_t *n1 = exts[array_len((void **)exts)-1];
+    node_t *n1 = exts[LIST_LEN(exts)-1];
     node_t *ty1 = AST_TYPE(n1);
     return TYPE_SIZE(ty1);
 }

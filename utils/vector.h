@@ -45,4 +45,6 @@ extern void vec_add_array(struct vector *v, void **array);
 
 extern int array_len(void **array);
 
+#define LIST_LEN(list)    (array_len((void **)(list)))
+
 #endif

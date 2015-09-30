@@ -475,8 +475,8 @@ static void ensure_cast(node_t *dst, node_t *src)
 static void argcast1(node_t *fty, node_t **args, struct vector *v)
 {
     node_t **params = TYPE_PARAMS(fty);
-    int len1 = array_len((void **)params);
-    int len2 = array_len((void **)args);
+    int len1 = LIST_LEN(params);
+    int len2 = LIST_LEN(args);
     bool oldstyle = TYPE_OLDSTYLE(fty);
     int cmp1;
 
@@ -520,8 +520,8 @@ static struct vector * argscast(node_t *fty, node_t **args)
      */
 
     node_t **params = TYPE_PARAMS(fty);
-    int len1 = array_len((void **)params);
-    int len2 = array_len((void **)args);
+    int len1 = LIST_LEN(params);
+    int len2 = LIST_LEN(args);
     
     if (TYPE_OLDSTYLE(fty)) {
 	if (len1 > len2)

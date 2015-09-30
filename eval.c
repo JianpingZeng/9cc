@@ -320,7 +320,7 @@ static node_t * eval_arith(node_t *expr)
 	else
 	    return NULL;
     case INITS_EXPR:
-        for (int i = 0; i < array_len((void **)EXPR_INITS(expr)); i++) {
+        for (int i = 0; i < LIST_LEN(EXPR_INITS(expr)); i++) {
 	    node_t *n = EXPR_INITS(expr)[i];
 	    if (AST_ID(n) != VINIT_EXPR && eval_arith(n) == NULL)
 		return NULL;

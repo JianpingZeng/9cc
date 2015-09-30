@@ -1433,7 +1433,7 @@ static void scalar_set(node_t *ty, struct vector *v, int i, node_t *node)
 static void struct_init(node_t *ty, bool brace, struct vector *v)
 {
     bool designated = false;
-    int len = array_len((void **)TYPE_FIELDS(ty));
+    int len = LIST_LEN(TYPE_FIELDS(ty));
 
     for (int i = 0; ; i++) {
 	node_t *fieldty = NULL;
