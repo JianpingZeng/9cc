@@ -47,7 +47,7 @@ struct ast_common {
 #define _TYPE_ALIGN(NODE)        ((NODE)->type.align)
 #define _TYPE_LEN(NODE)          ((NODE)->type.u.a.len)
 #define _TYPE_RANK(NODE)         ((NODE)->type.rank)
-#define _TYPE_INLINE(NODE)       ((NODE)->type.u.f.inlined)
+#define _TYPE_INLINE(NODE)       ((NODE)->type.inlined)
 #define _TYPE_TYPE(NODE)         AST_TYPE(NODE)
 #define _TYPE_TAG(NODE)          ((NODE)->type.u.s.tag)
 #define _TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
@@ -71,10 +71,10 @@ struct ast_type {
     size_t size;
     int align;			// align in bytes
     unsigned rank;
+    bool inlined;
     union {
         // function
         struct {
-	    bool inlined;
             node_t **params;
             unsigned oldstyle : 1;
         }f;
