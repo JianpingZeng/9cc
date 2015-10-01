@@ -7,9 +7,6 @@ static node_t *__switch;
 static struct vector *__cases;
 static node_t *__default;
 
-struct vector *gotos;
-struct map *labels;
-
 #define SET_LOOP_CONTEXT(loop)			\
     node_t *__saved_loop = __loop;		\
     __loop = loop

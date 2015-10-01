@@ -113,8 +113,10 @@ extern bool has_static_extent(node_t *sym);
 // stmt.c
 extern node_t * compound_stmt(void);
 extern void backfill_labels(void);
+
 extern struct vector *gotos;
 extern struct map *labels;
+extern node_t *currentftype;
 
 // type.c
 extern void type_init(void);

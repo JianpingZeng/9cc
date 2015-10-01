@@ -38,6 +38,22 @@ static void ensure_func(node_t *ftype, struct source src);
 #define PARAM_FVOID(i)   (((i) & 0x10000000) >> 28)
 #define PARAM_SCLASS(i)  ((i) & 0x0fffffff)
 
+struct vector *gotos;
+struct map *labels;
+node_t *current_ftype;
+
+#define SET_FUNCDEF_CONTEXT(fty)		\
+    gotos = vec_new();				\
+    labels = map_new(nocmp);			\
+    current_ftype = fty
+
+#define RESTORE_FUNCDEF_CONTEXT()		\
+    vec_free(gotos);				\
+    gotos = NULL;				\
+    map_free(labels);				\
+    labels = NULL;				\
+    current_ftype = NULL
+
 static node_t * specifiers(int *sclass)
 {
     int cls, sign, size, type;
@@ -1281,16 +1297,12 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
-	gotos = vec_new();
-	labels = map_new(nocmp);
+        SET_FUNCDEF_CONTEXT(ftype);
         node_t *stmt = compound_stmt();
 	post_funcdef(ftype, stmt);
         exit_scope();
 	DECL_BODY(decl) = stmt;
-	vec_free(gotos);
-	gotos = NULL;
-	map_free(labels);
-	labels = NULL;
+        RESTORE_FUNCDEF_CONTEXT();
     }
     
     return decl;
