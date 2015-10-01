@@ -182,9 +182,11 @@ void simplify(node_t *tree)
     for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
 	node_t *node = DECL_EXTS(tree)[i];
 	
-	if (isfuncdef(node)) {
-	    node_t *stmt = DECL_BODY(node);
-	    DECL_BODY(node) = simplify_stmt(stmt);
+	if (isfuncdecl(node)) {
+	    if (isfuncdef(node)) {
+		node_t *stmt = DECL_BODY(node);
+		DECL_BODY(node) = simplify_stmt(stmt);
+	    }
 	    vec_push(v, node);
 	} else if (isvardecl(node)) {
 	    vec_push(v, node);
