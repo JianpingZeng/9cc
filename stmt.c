@@ -26,6 +26,7 @@ struct map *labels;
     __default = NULL
 
 #define RESTORE_SWITCH_CONTEXT()		\
+    vec_free(__cases);				\
     __switch = __saved_sw;			\
     __cases = __saved_cases;			\
     __default = __saved_default
@@ -33,7 +34,7 @@ struct map *labels;
 #define IN_SWITCH         (__switch)
 #define IN_LOOP           (__loop)
 #define CASES             (__cases)
-#define DEFAULT_CONTEXT   (__default)
+#define DEFLT             (__default)
 
 static void check_case_duplicates(node_t *node)
 {
@@ -200,8 +201,6 @@ static node_t * switch_stmt(void)
     node_t *ret = ast_stmt(SWITCH_STMT, source);
     node_t *expr;
     node_t *stmt;
-    node_t **cases;
-    node_t *deft;
 
     SAVE_ERRORS;
     expect(SWITCH);
@@ -210,18 +209,12 @@ static node_t * switch_stmt(void)
     expect(')');
 
     SET_SWITCH_CONTEXT(ret);
-
     stmt = statement();
-    cases = (node_t **)vtoa(CASES);
-    deft = DEFAULT_CONTEXT;
-
     RESTORE_SWITCH_CONTEXT();
     
     if (NO_ERROR) {
 	STMT_SWITCH_EXPR(ret) = expr;
 	STMT_SWITCH_BODY(ret) = stmt;
-	STMT_SWITCH_CASES(ret) = cases;
-	STMT_SWITCH_DEFAULT(ret) = deft;
     } else {
 	ret = NULL;
     }
@@ -272,12 +265,12 @@ static node_t * default_stmt(void)
     if (!IN_SWITCH)
 	error("'default' statement not in switch statement");
 
-    if (DEFAULT_CONTEXT)
+    if (DEFLT)
 	errorf(AST_SRC(ret), "multiple default labels in one switch, previous case defined here:%s:%u",
-	       AST_SRC(DEFAULT_CONTEXT).file,
-	       AST_SRC(DEFAULT_CONTEXT).line);
+	       AST_SRC(DEFLT).file,
+	       AST_SRC(DEFLT).line);
     
-    DEFAULT_CONTEXT = ret;
+    DEFLT = ret;
     
     stmt = statement();
 

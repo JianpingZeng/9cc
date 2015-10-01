@@ -2,6 +2,8 @@
 
 static const char * __continue;
 static const char * __break;
+static struct vector * __cases;
+static const char *__default;
 
 #define SET_JUMP_CONTEXT(cont, brk)		\
     const char *__saved_continue = __continue;	\
@@ -15,13 +17,57 @@ static const char * __break;
 
 #define SET_SWITCH_CONTEXT(brk)			\
     const char *__saved_break = __break;	\
-    __break = brk
+    struct vector *__saved_cases = __cases;	\
+    const char *__saved_default = __default;	\
+    __break = brk;				\
+    __cases = vec_new();			\
+    __default = NULL
 
 #define RESTORE_SWITCH_CONTEXT()		\
-    __break = __saved_break
+    __break = __saved_break;			\
+    vec_free(__cases);				\
+    __cases = __saved_cases;			\
+    __default = __saved_default
 
 #define BREAK_CONTEXT      (__break)
 #define CONTINUE_CONTEXT   (__continue)
+#define CASES              (__cases)
+#define DEFLT              (__default)
+
+static node_t * int_literal(int i)
+{
+    node_t *n = alloc_node();
+    node_t *sym = anonymous(&constants, CONSTANT);
+    AST_ID(n) = INTEGER_LITERAL;
+    EXPR_SYM(n) = sym;
+    AST_TYPE(n) = inttype;
+    SYM_TYPE(sym) = inttype;
+    SYM_VALUE_I(sym) = i;
+    return n;
+}
+
+static node_t * tmp_var(node_t *ty)
+{
+    const char *name = gen_tmpname();
+    node_t *sym = install(name, &identifiers, GLOBAL);
+    SYM_TYPE(sym) = ty;
+
+    node_t *n = alloc_node();
+    AST_ID(n) = REF_EXPR;
+    EXPR_SYM(n) = sym;
+    AST_TYPE(n) = ty;
+    return n;
+}
+
+static node_t * switch_jmp(node_t *var, node_t *case_node)
+{
+    node_t *cond;
+    int index = STMT_CASE_INDEX(case_node);
+    const char *label = STMT_CASE_NAME(case_node);
+
+    cond = ast_bop(EQ, inttype, var, int_literal(index));
+    return ast_if(cond, ast_jump(label), NULL);
+}
 
 static node_t * simplify_stmt(node_t *stmt)
 {
@@ -124,24 +170,46 @@ static node_t * simplify_stmt(node_t *stmt)
 	    node_t *expr = STMT_SWITCH_EXPR(stmt);
 	    
 	    SET_SWITCH_CONTEXT(end);
+
 	    node_t *body = simplify_stmt(STMT_SWITCH_BODY(stmt));
-	    RESTORE_SWITCH_CONTEXT();
-	    
-	    node_t **cases = STMT_SWITCH_CASES(stmt);
-	    if (cases) {
-		for (int i = 0; i < LIST_LEN(cases); i++) {
-		    
-		}
+	    struct vector *v = vec_new();
+	    node_t *var = tmp_var(AST_TYPE(expr));
+
+	    vec_push(v, ast_bop('=', AST_TYPE(expr), var, expr));
+	    for (int i = 0; i < vec_len(CASES); i++) {
+		node_t *case_node = vec_at(CASES, i);
+		vec_push(v, switch_jmp(var, case_node));
 	    }
 
-	    // TODO:
+	    vec_push(v, ast_jump(DEFLT ? DEFLT : end));
+	    vec_push(v, body);
+	    vec_push(v, ast_dest(end));
+	    
+	    RESTORE_SWITCH_CONTEXT();
+	    
+	    return ast_compound((node_t **)vtoa(v));
 	}
     case CASE_STMT:
+	{
+	    const char *label = gen_label();
+	    node_t *body = simplify_stmt(STMT_CASE_BODY(stmt));
+
+	    STMT_CASE_NAME(stmt) = label;
+	    vec_push(CASES, stmt);
+	    
+	    struct vector *v = vec_new();
+	    vec_push(v, ast_dest(label));
+	    vec_push(v, body);
+	    return ast_compound((node_t **)vtoa(v));
+	}
     case DEFAULT_STMT:
 	{
 	    const char *label = gen_label();
 	    node_t *body = simplify_stmt(STMT_CASE_BODY(stmt));
 
+	    STMT_CASE_NAME(stmt) = label;
+	    DEFLT = label;
+	    
 	    struct vector *v = vec_new();
 	    vec_push(v, ast_dest(label));
 	    vec_push(v, body);
@@ -166,18 +234,13 @@ static node_t * simplify_stmt(node_t *stmt)
     case RETURN_STMT:
         return ast_return(STMT_RETURN_EXPR(stmt));
     default:
-	// NULL_STMT
-	CCAssertf(AST_ID(stmt) == NULL_STMT,
-		  "null statement expect, but got '%s'",
-		  nname(stmt));
+	// NULL_STMT or expression
 	return stmt;
     }
 }
 
 void simplify(node_t *tree)
 {
-    CCAssert(AST_ID(tree) == TU_DECL);
-
     struct vector *v = vec_new();
     for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
 	node_t *node = DECL_EXTS(tree)[i];

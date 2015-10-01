@@ -1,3 +1,4 @@
+
 #include "cc.h"
 
 /* Constant expressions in C:
@@ -322,8 +323,9 @@ static node_t * eval_arith(node_t *expr)
 	}
 	return NULL;
     case REF_EXPR:
+	// TODO:
         if (EXPR_OP(expr) == ENUM)
-	    return expr;
+	    return int_literal_node(unpack(AST_TYPE(expr)), SYM_VALUE(EXPR_SYM(expr)));
 	else
 	    return NULL;
     case INITS_EXPR:

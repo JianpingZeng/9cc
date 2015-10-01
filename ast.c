@@ -95,6 +95,12 @@ const char * gen_label(void)
     return strs(format(".L%ld", i++));
 }
 
+const char * gen_tmpname(void)
+{
+    static long i;
+    return strs(format(".T%ld", i++));
+}
+
 node_t * ast_if(node_t *cond, node_t *then, node_t *els)
 {
     node_t * ast = new_node(AST_IF);

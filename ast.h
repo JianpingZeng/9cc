@@ -170,12 +170,11 @@ struct ast_decl {
 // case stmt
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
 #define STMT_CASE_BODY(NODE)    AST_KID(NODE, 0)
+#define STMT_CASE_NAME(NODE)    AST_NAME(NODE)
 
 // switch stmt
 #define STMT_SWITCH_EXPR(NODE)     AST_KID(NODE, 0)
 #define STMT_SWITCH_BODY(NODE)     AST_KID(NODE, 1)
-#define STMT_SWITCH_CASES(NODE)    ((NODE)->stmt.blks)
-#define STMT_SWITCH_DEFAULT(NODE)  ((NODE)->stmt.list[0]) 
 
 // label stmt
 #define STMT_LABEL_NAME(NODE)   AST_NAME(NODE)
@@ -258,6 +257,7 @@ extern node_t * ast_inits(void);
 extern node_t * ast_vinit(void);
 
 extern const char * gen_label(void);
+extern const char * gen_tmpname(void);
 extern node_t * ast_if(node_t *cond, node_t *then, node_t *els);
 extern node_t * ast_jump(const char *label);
 extern node_t * ast_goto(const char *label);
@@ -266,6 +266,7 @@ extern node_t * ast_dest(const char *label);
 extern node_t * ast_return(node_t *node);
 extern node_t * ast_compound(node_t **list);
 
+// kind
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)
 #define isstmt(n)           (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
@@ -274,13 +275,23 @@ extern node_t * ast_compound(node_t **list);
 #define issymbol(n)         (AST_ID(n) == SYMBOL_NODE)
 #define isgen(n)            (AST_ID(n) > BEGIN_GEN_ID && AST_ID(n) < END_GEN_ID)
 
+// decl
+#define istudecl(n)         (AST_ID(n) == TU_DECL)
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
 #define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == COMPOUND_STMT)
 #define isvardecl(n)        (AST_ID(n) == VAR_DECL)
+#define istypedefdecl(n)    (AST_ID(n) == TYPEDEF_DECL)
+#define isenumdecl(n)       (AST_ID(n) == ENUM_DECL)
+#define isstructdecl(n)     (AST_ID(n) == STRUCT_DECL)
+#define isuniondecl(n)      (AST_ID(n) == UNION_DECL)
+
+// expr
 #define isiliteral(n)       (AST_ID(n) == INTEGER_LITERAL)
 #define isfliteral(n)       (AST_ID(n) == FLOAT_LITERAL)
 #define issliteral(n)       (AST_ID(n) == STRING_LITERAL)
 #define isliteral(n)        (AST_ID(n) > BEGIN_LITERAL_ID && AST_ID(n) < END_LITERAL_ID)
+
+// stmt
 #define is_switch_stmt(n)   (AST_ID(n) == SWITCH_STMT)
 #define is_for_stmt(n)      (AST_ID(n) == FOR_STMT)
 #define is_while_stmt(n)    (AST_ID(n) == WHILE_STMT)

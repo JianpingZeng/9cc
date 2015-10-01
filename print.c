@@ -84,7 +84,7 @@ static void print_decl(node_t *node, struct print_context context)
         print_tree1(con);
     }
 
-    if (AST_ID(node) == STRUCT_DECL || AST_ID(node) == UNION_DECL) {
+    if (isstructdecl(node) || isuniondecl(node)) {
 	node_t *sym = DECL_SYM(node);
 	if (sym && SYM_DEFINED(sym)) {
 	    node_t *ty = SYM_TYPE(sym);

@@ -874,6 +874,7 @@ static void integer_suffix(struct strbuf *s)
     tokname = strs(s->str);
 }
 
+// TODO: concat continuous strings
 static void sequence(bool wide, char ch)
 {    
     struct strbuf *s = strbuf_new();

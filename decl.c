@@ -1254,7 +1254,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
             node_t *sym = DECL_SYM(decl);
             
             CCAssert(SYM_NAME(sym));
-            if (AST_ID(decl) != VAR_DECL) {
+            if (!isvardecl(decl)) {
                 warningf(SYM_SRC(sym), "empty declaraion");
             } else if (TYPE_PARAMS(ftype)) {
                 node_t *p = NULL;
@@ -1277,7 +1277,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
             // TODO
         }
     }
-    
+
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
