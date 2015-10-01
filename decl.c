@@ -41,18 +41,21 @@ static void ensure_func(node_t *ftype, struct source src);
 struct vector *gotos;
 struct map *labels;
 node_t *current_ftype;
+const char *current_fname;
 
-#define SET_FUNCDEF_CONTEXT(fty)		\
+#define SET_FUNCDEF_CONTEXT(fty, id)		\
     gotos = vec_new();				\
     labels = map_new(nocmp);			\
-    current_ftype = fty
+    current_ftype = fty;			\
+    current_fname = id
 
 #define RESTORE_FUNCDEF_CONTEXT()		\
     vec_free(gotos);				\
     gotos = NULL;				\
     map_free(labels);				\
     labels = NULL;				\
-    current_ftype = NULL
+    current_ftype = NULL;			\
+    current_fname = NULL
 
 static node_t * specifiers(int *sclass)
 {
@@ -1297,7 +1300,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
     if (token->id == '{') {
         // function definition
         // install symbol first for backward reference
-        SET_FUNCDEF_CONTEXT(ftype);
+        SET_FUNCDEF_CONTEXT(ftype, id);
         node_t *stmt = compound_stmt();
 	post_funcdef(ftype, stmt);
         exit_scope();

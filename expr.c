@@ -1630,3 +1630,8 @@ node_t * init_conv(node_t *ty, node_t *node)
 {
     return assignconv(ty, decay(node));
 }
+
+node_t * ret_conv(node_t *ty, node_t *node)
+{
+    return assignconv(ty, decay(node));
+}

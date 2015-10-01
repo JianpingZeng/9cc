@@ -32,6 +32,8 @@ static node_t *__default;
 #define IN_LOOP           (__loop)
 #define CASES             (__cases)
 #define DEFLT             (__default)
+#define FTYPE             (current_ftype)
+#define FNAME             (current_fname)
 
 static void check_case_duplicates(node_t *node)
 {
@@ -372,6 +374,22 @@ static node_t * return_stmt(void)
     expect(RETURN);
     expr = expr_stmt();
 
+    if (isvoid(rtype(FTYPE))) {
+	if (expr && !is_null_stmt(expr))
+	    errorf(AST_SRC(ret), "void function '%s' should not return a value", FNAME);
+    } else {
+	if (expr && !is_null_stmt(expr)) {
+	    node_t *ty1 = AST_TYPE(expr);
+	    node_t *ty2 = rtype(FTYPE);
+	    if (!(expr = ret_conv(ty2, expr)))
+		errorf(AST_SRC(ret),
+		       "returning '%s' from function '%s' with incompatible result type '%s'",
+		       type2s(ty1), FNAME, type2s(ty2));
+	} else {
+	    errorf(AST_SRC(ret), "non-void function '%s' should return a value", FNAME);
+	}
+    }
+    
     if (NO_ERROR)
 	STMT_RETURN_EXPR(ret) = expr;
     else

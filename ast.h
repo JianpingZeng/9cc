@@ -297,6 +297,7 @@ extern node_t * ast_compound(node_t **list);
 #define is_while_stmt(n)    (AST_ID(n) == WHILE_STMT)
 #define is_dowhile_stmt(n)  (AST_ID(n) == DO_WHILE_STMT)
 #define is_iteration_stmt(n) (is_for_stmt(n) || is_while_stmt(n) || is_dowhile_stmt(n))
+#define is_null_stmt(n)     (AST_ID(n) == NULL_STMT)
 
 #define isbitfield(field)    (FIELD_ISBIT(field))
 

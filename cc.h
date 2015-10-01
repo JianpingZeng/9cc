@@ -94,6 +94,7 @@ extern node_t * assign_expr(void);
 extern int intexpr(void);
 extern bool islvalue(node_t *node);
 extern node_t * init_conv(node_t *ty, node_t *node);
+extern node_t * ret_conv(node_t *ty, node_t *node);
 // for expression in conditional statement
 extern node_t * bool_expr(void);
 // for expression in switch statement
@@ -116,7 +117,8 @@ extern void backfill_labels(void);
 
 extern struct vector *gotos;
 extern struct map *labels;
-extern node_t *currentftype;
+extern node_t *current_ftype;
+extern const char *current_fname;
 
 // type.c
 extern void type_init(void);
