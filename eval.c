@@ -292,7 +292,14 @@ static node_t * eval_arith(node_t *expr)
 	    case '!':
 		return uop_scalar(EXPR_OP(expr), AST_TYPE(expr), eval_arith(EXPR_OPERAND(expr, 0)));
 	    case SIZEOF:
-		return expr;
+		// TODO: 
+		if (istype(EXPR_OPERAND(expr, 0))) {
+		    union value ret;
+		    VALUE_I(ret) = TYPE_SIZE(EXPR_OPERAND(expr, 0));
+		    return int_literal_node(AST_TYPE(expr), ret);
+		} else {
+		    return NULL;
+		}
 	    default:
 		CCAssert(0);
 	    }
