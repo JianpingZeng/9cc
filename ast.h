@@ -276,6 +276,7 @@ extern node_t * ast_compound(node_t **list);
 
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
 #define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == COMPOUND_STMT)
+#define isvardecl(n)        (AST_ID(n) == VAR_DECL)
 #define isiliteral(n)       (AST_ID(n) == INTEGER_LITERAL)
 #define isfliteral(n)       (AST_ID(n) == FLOAT_LITERAL)
 #define issliteral(n)       (AST_ID(n) == STRING_LITERAL)

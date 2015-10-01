@@ -177,12 +177,19 @@ static node_t * simplify_stmt(node_t *stmt)
 void simplify(node_t *tree)
 {
     CCAssert(AST_ID(tree) == TU_DECL);
+
+    struct vector *v = vec_new();
     for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
 	node_t *node = DECL_EXTS(tree)[i];
 	
 	if (isfuncdef(node)) {
 	    node_t *stmt = DECL_BODY(node);
 	    DECL_BODY(node) = simplify_stmt(stmt);
+	    vec_push(v, node);
+	} else if (isvardecl(node)) {
+	    vec_push(v, node);
 	}
     }
+
+    DECL_EXTS(tree) = (node_t **)vtoa(v);
 }
