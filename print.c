@@ -157,6 +157,8 @@ static void print_stmt(node_t *node, struct print_context context)
     int level;
 
     putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
+    if (AST_ID(node) == CASE_STMT)
+	putf(CYAN("%d "), STMT_CASE_INDEX(node));
     putf("\n");
     
     level = context.level + 1;

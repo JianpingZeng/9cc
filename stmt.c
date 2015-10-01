@@ -172,7 +172,7 @@ static node_t * for_stmt(void)
     }
     
     if (token->id != ';')
-        STMT_FOR_COND(ret) = expression();
+        STMT_FOR_COND(ret) = bool_expr();
     
     expect(';');
     
