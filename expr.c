@@ -405,7 +405,7 @@ static const char * is_assignable(node_t *node)
     if (!islvalue(node))
 	return "expression is not assignable";
     if (AST_ID(node) == PAREN_EXPR)
-	return is_assignable(node);
+	return is_assignable(EXPR_OPERAND(node, 0));
     if (isarray(ty))
 	return format("array type '%s' is not assignable", type2s(ty));
     if (isconst(ty)) {
@@ -1235,7 +1235,6 @@ node_t * expression(void)
         expect(',');
 	assign1 = commaop(',', assign1, assign_expr());
     }
-    
     return assign1;
 }
 
@@ -1389,7 +1388,7 @@ static node_t * commaop(int op, node_t *l, node_t *r)
 static node_t * assignop(int op, node_t *l, node_t *r)
 {
     node_t *ret = NULL;
-
+    
     if (l == NULL || r == NULL)
 	return NULL;
 
@@ -1412,15 +1411,16 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 	}
 	r = bop(op2, l1, r1);
     }
-
+    
     if (NO_ERROR) {
+	node_t *ty1 = AST_TYPE(l);
+	node_t *ty2 = AST_TYPE(r);
 	r = assignconv(retty, r);
 	if (r)
 	    ret = ast_bop('=', retty, l, r);
 	else
-	    error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
+	    error(INCOMPATIBLE_TYPES, type2s(ty1), type2s(ty2));
     }
-
     return ret;
 }
 
