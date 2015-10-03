@@ -51,6 +51,24 @@ struct source {
     unsigned column;
 };
 
+#define LBUFSIZE     1024
+#define RBUFSIZE     4096
+#define MAXTOKEN     LBUFSIZE
+
+struct cc_char {
+    int ch;
+    struct source src;
+};
+
+struct cc_file {
+    char buf[LBUFSIZE+RBUFSIZE+1];
+    char *pc;
+    char *pe;
+    long bread;
+    const char *file;
+    FILE *fp;
+};
+
 struct token {
     int id;
     const char *name;
@@ -68,6 +86,9 @@ extern bool is_newline(char c);
 extern bool is_hex(char c);
 extern bool is_digithex(char c);
 extern bool is_visible(char c);
+
+extern struct cc_file * open_file(const char *file);
+extern void close_file(struct cc_file *file);
 
 extern int gettok(void);
 extern struct token * lookahead(void);
@@ -90,8 +111,8 @@ union value {
 };
 
 // cpp.c
-extern void input_init(void);
-extern void cpp_init(const char *file, struct vector *options);
+extern void input_init(const char *file);
+extern void cpp_init(struct vector *options);
 
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 #define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))

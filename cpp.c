@@ -8,8 +8,8 @@ static void parseopts(struct vector *options)
 
 }
 
-void cpp_init(const char *file, struct vector *options)
+void cpp_init(struct vector *options)
 {
-    parseopts(options);
     defines = map_new(nocmp);
+    parseopts(options);
 }

@@ -13,14 +13,7 @@ static unsigned char map[256] = {
     OTHER,
 };
 
-#define LBUFSIZE     1024
-#define RBUFSIZE     4096
-#define MAXTOKEN     LBUFSIZE
-
-static char ibuf[LBUFSIZE+RBUFSIZE+1];
-static char *pc;
-static char *pe;
-static long bread;
+static struct vector *files;
 
 struct token *token;
 static struct token *eoi_token = &(struct token){ .id = EOI, .kind = TEOI };
@@ -86,40 +79,61 @@ bool is_visible(char c)
 
 /* Input and buffer
  */
-static void fillbuf(void)
+static void fillbuf(struct cc_file *fs)
 {
-    if (bread == 0) {
-        if (pc > pe)
-            pc = pe;
+    if (fs->bread == 0) {
+        if (fs->pc > fs->pe)
+            fs->pc = fs->pe;
         return;
     }
     
-    if (pc >= pe) {
-        pc = &ibuf[LBUFSIZE];
+    if (fs->pc >= fs->pe) {
+        fs->pc = &fs->buf[LBUFSIZE];
     } else {
         long n;
         char *dst, *src;
         
         // copy
-        n = pe - pc;
-        dst = &ibuf[LBUFSIZE] - n;
-        src = pc;
-        while (src < pe)
+        n = fs->pe - fs->pc;
+        dst = &fs->buf[LBUFSIZE] - n;
+        src = fs->pc;
+        while (src < fs->pe)
             *dst++ = *src++;
         
-        pc = &ibuf[LBUFSIZE] - n;
+        fs->pc = &fs->buf[LBUFSIZE] - n;
     }
     
-    if (feof(stdin))
-        bread = 0;
+    if (feof(fs->fp))
+        fs->bread = 0;
     else
-        bread = fread(&ibuf[LBUFSIZE], 1, RBUFSIZE, stdin);
+        fs->bread = fread(&fs->buf[LBUFSIZE], 1, RBUFSIZE, fs->fp);
     
-    if (bread < 0)
+    if (fs->bread < 0)
         die("read error: %s", strerror(errno));
     
-    pe = &ibuf[LBUFSIZE] + bread;
-    *pe = 0;
+    fs->pe = &fs->buf[LBUFSIZE] + fs->bread;
+    *fs->pe = 0;
+}
+
+struct cc_file * open_file(const char *file)
+{
+    FILE *fp = fopen(file, "r");
+    if (fp == NULL) {
+	perror(file);
+	die("Cannot open file %s", file);
+    }
+    struct cc_file *fs = xmalloc(sizeof(struct cc_file));
+    fs->file = file;
+    fs->fp = fp;
+    fs->pc = fs->pe = &fs->buf[LBUFSIZE];
+    fs->bread = -1;
+    return fs;
+}
+
+void close_file(struct cc_file *file)
+{
+    fclose(file->fp);
+    free(file);
 }
 
 /* Because of the 'backslash' character,
@@ -129,26 +143,24 @@ static void fillbuf(void)
  */
 static char readc(void)
 {
-    for (;;) {
-	if (pe - pc < MAXTOKEN)
-	    fillbuf();
-	if (pe == pc)
-	    return EOI;
-	if (*pc != '\\')
-	    return *pc++;
-	if (pc[1] == '\n') {
-	    pc = pc + 2;
-	    continue;
-	}
-	return *pc++;
-    }
+    // for (;;) {
+    // 	if (pe - pc < MAXTOKEN)
+    // 	    fillbuf();
+    // 	if (pe == pc)
+    // 	    return EOI;
+    // 	if (*pc != '\\')
+    // 	    return *pc++;
+    // 	if (pc[1] == '\n') {
+    // 	    pc = pc + 2;
+    // 	    continue;
+    // 	}
+    // 	return *pc++;
+    // }
 }
 
 static void unreadc(char c)
 {
-    if (c == EOI)
-	return;
-    *--pc = c;
+    
 }
 
 static char peek(void)
@@ -167,11 +179,9 @@ static bool next(char expect)
     return false;
 }
 
-void input_init(void)
+void input_init(const char *file)
 {
-    pc = pe = &ibuf[LBUFSIZE];
-    bread = -1;
-    fillbuf();
+    files = vec_new();
 }
 
 static struct token * new_token(struct token *tok)
@@ -215,13 +225,7 @@ static struct token * sequence(bool wide, char sep)
 
 static struct token * identifier(void)
 {
-    struct token *t;
-    struct strbuf *s = strbuf_new();
-    pc = pc - 1;
-    readch(s, is_digitletter);
-    t = new_token(&(struct token){.id = ID, .name = strs(s->str), .kind = TIDENTIFIER});
-    strbuf_free(s);
-    return t;
+    
 }
 
 struct token * lex(void)
@@ -374,6 +378,8 @@ struct token * lex(void)
 	    } else if (next('.')) {
 		if (next('.'))
 		    return new_token(&(struct token){.id = ELLIPSIS, .kind = TSEPARATOR});
+		else
+		    ;
 	    } else {
 		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
 	    }

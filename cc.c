@@ -2,7 +2,6 @@
 
 static const char *ifile;
 static const char *ofile;
-static FILE *fp;
 static struct vector *options;
 
 static void parseopts(int argc, const char *argv[])
@@ -20,12 +19,6 @@ static void parseopts(int argc, const char *argv[])
         } else {
             ifile = arg;
         }
-    }
-    
-    fp = freopen(ifile, "r", stdin);
-    if (fp == NULL) {
-        perror(ifile);
-        die("Can't open input file");
     }
 }
 
@@ -50,13 +43,12 @@ static void preprocess(void)
 int cc_main(int argc, const char * argv[])
 {
     parseopts(argc, argv);
-    cpp_init(ifile, options);
-    input_init();
+    cpp_init(options);
+    input_init(ifile);
     type_init();
     symbol_init();
     preprocess();
     // translate();
-    fclose(fp);
     
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
