@@ -55,11 +55,6 @@ struct source {
 #define RBUFSIZE     4096
 #define MAXTOKEN     LBUFSIZE
 
-struct cc_char {
-    int ch;
-    struct source src;
-};
-
 struct cc_file {
     char buf[LBUFSIZE+RBUFSIZE+1];
     char *pc;

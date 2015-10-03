@@ -13,6 +13,15 @@ static unsigned char map[256] = {
     OTHER,
 };
 
+struct cc_char {
+    int ch;
+    unsigned line;
+    unsigned column;
+};
+
+static struct cc_char chs[5];
+static struct cc_char *pe = &chs[0] + ARRAY_SIZE(chs);
+static struct cc_char *pc = pe;
 static struct vector *files;
 
 struct token *token;
@@ -134,6 +143,24 @@ void close_file(struct cc_file *file)
 {
     fclose(file->fp);
     free(file);
+}
+
+static void cache_chs(void)
+{
+    struct cc_char *beg = &chs[0];
+    if (pc > beg) {
+	struct cc_char *dst = beg;
+	struct cc_char *src = pc;
+	int n = pe - pc;
+	if (n)
+	    memcpy(dst, src, n);
+
+	pc = beg;
+        struct cc_char *rpc = beg + n;
+	for (; rpc < pe; rpc++) {
+	    
+	}
+    }
 }
 
 /* Because of the 'backslash' character,
