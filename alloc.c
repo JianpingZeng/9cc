@@ -49,3 +49,9 @@ void * alloc_field(void)
     AST_ID(n) = FIELD_NODE;
     return n;
 }
+
+static struct alloc_state token_state;
+void * alloc_token(void)
+{
+    return do_alloc_node(&token_state, sizeof(struct token));
+}

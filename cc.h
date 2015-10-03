@@ -21,6 +21,7 @@ extern void * alloc_node(void);
 extern void * alloc_symbol(void);
 extern void * alloc_type(void);
 extern void * alloc_field(void);
+extern void * alloc_token(void);
 
 // lex.c
 #define EOI  -1
@@ -31,6 +32,17 @@ enum {
 #define _t(a, b, c)     a,
 #include "token.def"
     TOKEND
+};
+
+// lexical token kind
+enum {
+    TEOI,
+    TSPACE,
+    TNEWLINE,
+    TOPERATOR,
+    TSEPARATOR,
+    TIDENTIFIER,
+    TCONSTANT,
 };
 
 struct source {
@@ -46,7 +58,7 @@ struct token {
 };
 
 extern struct source source;
-extern struct token  *token;
+extern struct token *token;
 
 extern bool is_digit(char c);
 extern bool is_letter(char c);
@@ -57,7 +69,6 @@ extern bool is_hex(char c);
 extern bool is_digithex(char c);
 extern bool is_visible(char c);
 
-extern void input_init(void);
 extern int gettok(void);
 extern struct token * lookahead(void);
 extern void expect(int t);
@@ -77,6 +88,10 @@ union value {
     void *p;
     void (*g) ();
 };
+
+// cpp.c
+extern void input_init(void);
+extern void cpp_init(const char *file, struct vector *options);
 
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 #define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))
@@ -259,29 +274,26 @@ extern struct table * tags;
 
 #define currentscope(sym)   (SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL))
 
+// gen.c
+extern void gen(node_t *tree, const char *ofile);
+
+// simplify.c
+extern void simplify(node_t *tree);
+
+// print.c
+extern void print_tree(node_t *tree);
+
 // error.c
 extern unsigned errors;
 extern unsigned warnings;
 extern void warning(const char *fmt, ...);
 extern void error(const char *fmt, ...);
-extern void fatal(const char *fmt, ...);
 extern void warningf(struct source src, const char *fmt, ...);
 extern void errorf(struct source src, const char *fmt, ...);
-
-extern void begin_call(const char *funcname);
-extern void end_call(const char *funcname);
-#define BEGIN_CALL    begin_call(__func__);
-#define END_CALL      end_call(__func__);
-
-extern void redefinition_error(struct source src, node_t *sym);
-extern void conflicting_types_error(struct source src, node_t *sym);
-extern void field_not_found_error(node_t *ty, const char *name);
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
-
-#define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 
 #define CCAssert(expr)				\
     do {					\
@@ -299,13 +311,10 @@ extern void field_not_found_error(node_t *ty, const char *name);
 	}					\
     } while (0)
 
-// gen.c
-extern void gen(node_t *tree, const char *ofile);
+#define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 
-// simplify.c
-extern void simplify(node_t *tree);
-
-// print.c
-extern void print_tree(node_t *tree);
+extern void redefinition_error(struct source src, node_t *sym);
+extern void conflicting_types_error(struct source src, node_t *sym);
+extern void field_not_found_error(node_t *ty, const char *name);
 
 #endif

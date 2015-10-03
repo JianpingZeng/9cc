@@ -3,9 +3,12 @@
 static const char *ifile;
 static const char *ofile;
 static FILE *fp;
+static struct vector *options;
 
 static void parseopts(int argc, const char *argv[])
 {
+    options = vec_new();
+    
     for (int i=1; i < argc; i++) {
         const char *arg = argv[i];
         if (!strcmp(arg, "-o")) {
@@ -13,14 +16,11 @@ static void parseopts(int argc, const char *argv[])
                 die("missing target file while -o option given");
             ofile = argv[i];
         } else if (arg[0] == '-') {
-            // options
+            vec_push(options, arg);
         } else {
             ifile = arg;
         }
     }
-    
-    if (!ifile || !ofile)
-        die("input/output file not specified");
     
     fp = freopen(ifile, "r", stdin);
     if (fp == NULL) {
@@ -42,13 +42,20 @@ static void translate(void)
     }
 }
 
+static void preprocess(void)
+{
+    
+}
+
 int cc_main(int argc, const char * argv[])
 {
     parseopts(argc, argv);
+    cpp_init(ifile, options);
     input_init();
     type_init();
     symbol_init();
-    translate();
+    preprocess();
+    // translate();
     fclose(fp);
     
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
