@@ -39,7 +39,7 @@ static long bread;
 static struct vector *files;
 
 struct token *token;
-static struct token *eoi_token = &(struct token){.id = EOI, .kind = TEOI};
+static struct token *eoi_token = &(struct token){.id = EOI};
 static struct token *newline_token = &(struct token){.id = TOK10, .kind = TNEWLINE};
 static struct token *space_token = &(struct token){.id = TOK32, .kind = TSPACE};
 
@@ -310,14 +310,38 @@ static void readch(struct strbuf *s, bool (*is) (char))
     pc = rpc;
 }
 
-static void line_comment(void)
+static void skipline(void)
 {
+    while (CH(pc) != '\n') {
+	pc++;
+	if (pe - pc < LCACHE) {
+	    fillchs();
+	    if (pc == pe)
+		break;
+	}
+    }
+}
 
+static inline void line_comment(void)
+{
+    skipline();
 }
 
 static void block_comment(void)
 {
-
+    pc++;
+    for (; CH(pc) != '*' || CH(pc+1) != '/'; ) {
+	if (pe - pc < LCACHE) {
+	    fillchs();
+	    if (pc == pe)
+		break;
+	}
+	pc++;
+    }
+    if (pc == pe)
+	error("unterminated /* comment");
+    else
+	pc += 2;
 }
 
 static struct token * number(void)

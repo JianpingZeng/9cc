@@ -36,7 +36,6 @@ enum {
 
 // lexical token kind
 enum {
-    TEOI,
     TSPACE,
     TNEWLINE,
     TPUNCTUATOR,
