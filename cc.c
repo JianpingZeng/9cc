@@ -41,7 +41,7 @@ static void preprocess(void)
 	struct token *tok = lex();
 	if (tok->id == EOI)
 	    break;
-	printf("%s", tok->name);
+	printf("%u:%u:%s\n", tok->src.line, tok->src.column, tok->name);
     }
 }
 

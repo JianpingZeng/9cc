@@ -9,7 +9,7 @@ unsigned warnings;
 #define ERR  2
 #define FTL  3
 
-static void cc_print_lead(int tag, const char *file, unsigned line, const char *fmt, va_list ap)
+static void cc_print_lead(int tag, struct source src, const char *fmt, va_list ap)
 {
     const char *lead;
     switch (tag) {
@@ -26,7 +26,7 @@ static void cc_print_lead(int tag, const char *file, unsigned line, const char *
 	CCAssert(0);
     }
 
-    fprintf(stderr, CLEAR "%s:%u:" RESET " %s ", file, line, lead);
+    fprintf(stderr, CLEAR "%s:%u:%u:" RESET " %s ", src.file, src.line, src.column, lead);
     fprintf(stderr, CLEAR);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, RESET);
@@ -37,7 +37,7 @@ void warningf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead(WRN, src.file, src.line, fmt, ap);
+    cc_print_lead(WRN, src, fmt, ap);
     va_end(ap);
     ++warnings;
 }
@@ -46,7 +46,7 @@ void warning(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead(WRN, source.file, source.line, fmt, ap);
+    cc_print_lead(WRN, source, fmt, ap);
     va_end(ap);
     ++warnings;
 }
@@ -55,7 +55,7 @@ void errorf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead(ERR, src.file, src.line, fmt, ap);
+    cc_print_lead(ERR, src, fmt, ap);
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
@@ -68,7 +68,7 @@ void error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead(ERR, source.file, source.line, fmt, ap);
+    cc_print_lead(ERR, source, fmt, ap);
     va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {

@@ -21,7 +21,7 @@ static const char *tnames[] = {
 };
 
 struct cc_char {
-    int ch;
+    char ch;
     unsigned line;
     unsigned column;
 };
@@ -37,6 +37,7 @@ static struct cc_char *pe;
 static struct cc_char *pc;
 static long bread;
 static struct vector *files;
+static struct source marker;
 
 struct token *token;
 static struct token *eoi_token = &(struct token){.id = EOI};
@@ -136,6 +137,14 @@ static void fillbuf(struct cc_file *fs)
     
     fs->pe = &fs->buf[LBUFSIZE] + fs->bread;
     *fs->pe = 0;
+}
+
+static void mark(struct cc_char *ch)
+{
+    struct cc_file *fs = vec_tail(files);
+    marker.file = fs->file;
+    marker.line = ch->line;
+    marker.column = ch->column;
 }
 
 struct cc_file * open_file(const char *file)
@@ -273,6 +282,7 @@ static struct token * new_token(struct token *tok)
     t->kind = tok->kind;
     if (!tok->name)
 	t->name = tname(tok->id);
+    t->src = marker;
     return t;
 }
 
@@ -334,7 +344,7 @@ static void block_comment(void)
 	pc++;
     }
     if (pc == pe)
-	error("unterminated /* comment");
+	errorf(marker, "unterminated /* comment");
     else
 	pc += 2;
 }
@@ -368,6 +378,7 @@ static struct token * ppnumber(void)
 static void escape(struct strbuf *s)
 {
     CCAssert(CH(pc) == '\\');
+    mark(pc);
     concat(s, pc++, 2);
     switch (CH(pc++)) {
     case 'a': case 'b': case 'f':
@@ -386,7 +397,7 @@ static void escape(struct strbuf *s)
 	break;
     case 'x':
 	if (!is_digithex(CH(pc))) {
-	    error("\\x used with no following hex digits");
+	    errorf(marker, "\\x used with no following hex digits");
 	    break;
 	}
 	readch(s, is_digithex);
@@ -402,11 +413,11 @@ static void escape(struct strbuf *s)
 		concat(s, pc, 1);
             }
             if (x < n)
-                error("incomplete universal character name: %s", s->str);
+                errorf(marker, "incomplete universal character name: %s", s->str);
         }
 	break;
     default:
-	error("unrecognized escape character 0x%x", CH(pc-1));
+	errorf(marker, "unrecognized escape character 0x%x", 0xFF & CH(pc-1));
 	break;
     }
 }
@@ -415,10 +426,11 @@ static struct token * sequence(bool wide, char sep)
 {
     struct strbuf *s = strbuf_new();
     if (wide) {
-	strbuf_catc(s, CH(pc-2));
-	strbuf_catc(s, CH(pc-1));
+	concat(s, pc-2, 2);
+	mark(pc-2);
     } else {
-	strbuf_catc(s, CH(pc-1));
+	concat(s, pc-1, 1);
+        mark(pc-1);
     }
     for (; CH(pc) != sep;) {
 	if (pe - pc < MAXCACHE) {
@@ -438,7 +450,7 @@ static struct token * sequence(bool wide, char sep)
     const char *name = is_char ? "character" : "string";
     const char *pad = is_char ? "'" : "\"";
     if (CH(pc) != sep) {
-	error("untermiated %s constant: %s", name, s->str);
+	errorf(marker, "untermiated %s constant: %s", name, s->str);
 	strbuf_cats(s, pad);
     } else {
 	strbuf_catc(s, CH(pc++));
@@ -464,6 +476,7 @@ static struct token * spaces(void)
     pc = pc - 1;
     readch(s, is_blank);
     space_token->name = strs(s->str);
+    space_token->src = marker;
     return space_token;
 }
 
@@ -475,6 +488,7 @@ struct token * lex(void)
 	    fillchs();
 	
 	rpc = pc++;
+	mark(rpc);
 
 	switch (CH(rpc)) {
 	case EOI:
@@ -710,9 +724,9 @@ struct token * lex(void)
 	    // invalid character
 	    if (!is_blank(CH(rpc))) {
 		if (is_visible(CH(rpc)))
-		    error("invalid character '%c'", CH(rpc));
+		    errorf(marker, "invalid character '%c'", CH(rpc));
 		else
-		    error("invalid character '\\0%o'", CH(rpc));
+		    errorf(marker, "invalid character '\\0%o'", 0xFF & CH(rpc));
 	    }
 	}
     }

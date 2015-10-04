@@ -68,6 +68,7 @@ struct token {
     int id;
     const char *name;
     int kind;
+    struct source src;
 };
 
 extern struct source source;
