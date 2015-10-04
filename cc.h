@@ -39,8 +39,7 @@ enum {
     TEOI,
     TSPACE,
     TNEWLINE,
-    TOPERATOR,
-    TSEPARATOR,
+    TPUNCTUATOR,
     TIDENTIFIER,
     TCONSTANT,
 };
@@ -60,8 +59,10 @@ struct cc_file {
     char *pc;
     char *pe;
     long bread;
-    const char *file;
     FILE *fp;
+    const char *file;
+    unsigned line;
+    unsigned column;
 };
 
 struct token {

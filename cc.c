@@ -15,7 +15,7 @@ static void parseopts(int argc, const char *argv[])
                 die("missing target file while -o option given");
             ofile = argv[i];
         } else if (arg[0] == '-') {
-            vec_push(options, arg);
+            vec_push(options, (void *)arg);
         } else {
             ifile = arg;
         }

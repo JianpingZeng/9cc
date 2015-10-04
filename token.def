@@ -211,6 +211,8 @@ _t(NEQ,         "!=",          NEQ)
 _t(AND,         "&&",          AND)
 _t(OR,          "||",          OR)
 
+_t(SHARPSHARP,  "##",	       0)
+
 // op			       
 _t(ARRAY,       "array",       0)
 _t(FUNCTION,    "function",    0)

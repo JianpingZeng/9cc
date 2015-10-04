@@ -20,9 +20,11 @@ struct cc_char {
 };
 
 static struct cc_char chs[5];
-static struct cc_char *pe = &chs[0] + ARRAY_SIZE(chs);
-static struct cc_char *pc = pe;
+static struct cc_char *pe;
+static struct cc_char *pc;
 static struct vector *files;
+
+#define CH(c)    ((c)->ch)
 
 struct token *token;
 static struct token *eoi_token = &(struct token){ .id = EOI, .kind = TEOI };
@@ -132,10 +134,12 @@ struct cc_file * open_file(const char *file)
 	die("Cannot open file %s", file);
     }
     struct cc_file *fs = xmalloc(sizeof(struct cc_file));
-    fs->file = file;
-    fs->fp = fp;
     fs->pc = fs->pe = &fs->buf[LBUFSIZE];
     fs->bread = -1;
+    fs->fp = fp;
+    fs->file = file;
+    fs->line = 1;
+    fs->column = 0;
     return fs;
 }
 
@@ -145,70 +149,86 @@ void close_file(struct cc_file *file)
     free(file);
 }
 
-static void cache_chs(void)
+static char get(void)
 {
-    struct cc_char *beg = &chs[0];
-    if (pc > beg) {
-	struct cc_char *dst = beg;
-	struct cc_char *src = pc;
-	int n = pe - pc;
-	if (n)
-	    memcpy(dst, src, n);
+    struct cc_file *fs = vec_tail(files);
+    if (fs->pe - fs->pc < MAXTOKEN)
+	fillbuf(fs);
+    if (fs->pc == fs->pe)
+	return EOI;
+    if (*fs->pc == '\n') {
+	fs->line++;
+	fs->column = 0;
+    } else {
+	fs->column++;
+    }
+    return *fs->pc++;
+}
 
-	pc = beg;
-        struct cc_char *rpc = beg + n;
-	for (; rpc < pe; rpc++) {
-	    
+static struct cc_char * readc(void)
+{
+    static struct cc_char ch1, ch2;
+    struct cc_file *fs = vec_tail(files);
+
+    if (ch2.ch) {
+	ch1.ch = ch2.ch;
+	ch1.line = ch2.line;
+	ch1.column = ch2.column;
+	ch2.ch = 0;
+	return &ch1;
+    }
+    
+    for (;;) {
+        char c = get();
+	unsigned line = fs->line;
+	unsigned column = fs->column;
+	if (c == EOI || c != '\\') {
+	    ch1.ch = c;
+	    ch1.line = line;
+	    ch1.column = column;
+	    return &ch1;
 	}
+	char c2 = get();
+	if (c2 == '\n')
+	    continue;
+
+        ch1.ch = c;
+	ch1.line = line;
+	ch1.column = column;
+	ch2.ch = c2;
+	ch2.line = fs->line;
+	ch2.column = fs->column;
+	return &ch1;
     }
 }
 
-/* Because of the 'backslash' character,
- * (concats characters across lines)
- * a function is needed to get the processed
- * character.
- */
-static char readc(void)
+static void fillchs(void)
 {
-    // for (;;) {
-    // 	if (pe - pc < MAXTOKEN)
-    // 	    fillbuf();
-    // 	if (pe == pc)
-    // 	    return EOI;
-    // 	if (*pc != '\\')
-    // 	    return *pc++;
-    // 	if (pc[1] == '\n') {
-    // 	    pc = pc + 2;
-    // 	    continue;
-    // 	}
-    // 	return *pc++;
-    // }
-}
-
-static void unreadc(char c)
-{
+    struct cc_char *dst = &chs[0];
+    struct cc_char *src = pc;
+    if (dst == src)
+	return;
     
-}
+    int n = pe - pc;
+    if (n)
+	memcpy(dst, src, n);
 
-static char peek(void)
-{
-    char c = readc();
-    unreadc(c);
-    return c;
-}
-
-static bool next(char expect)
-{
-    char c = readc();
-    if (c == expect)
-	return true;
-    unreadc(c);
-    return false;
+    pc = dst;
+    struct cc_char *rpc = (struct cc_char *)((char *)dst + n);
+    for (; rpc < pe; rpc++) {
+        struct cc_char *ch = readc();
+	rpc->ch = ch->ch;
+	rpc->line = ch->line;
+	rpc->column = ch->column;
+	if (ch->ch == EOI)
+	    break;
+    }
 }
 
 void input_init(const char *file)
 {
     files = vec_new();
+    pc = pe = &chs[0] + ARRAY_SIZE(chs);
 }
 
 static struct token * new_token(struct token *tok)
@@ -256,134 +276,170 @@ static struct token * identifier(void)
 }
 
 struct token * lex(void)
-{    
+{
+    struct cc_char *rpc;
     for (; ;) {
-        char rpc = readc();
-	switch (rpc) {
+	fillchs();
+	rpc = pc++;
+	
+	switch (CH(rpc)) {
 	case EOI:
 	    return eoi_token;
+	    
 	case '\n':
 	    return newline_token;
+	    
 	    // spaces
 	case TOK9:
 	case TOK11:
 	case TOK12:
 	case TOK13:
 	case TOK32:
-	    space_token->id = rpc;
+	    space_token->id = CH(rpc);
 	    return space_token;
 	
-	    // operators
+	    // punctuators
 	case '/':
-	    if (next('/')) {
+	    if (CH(rpc+1) == '/') {
 		line_comment();
 		continue;
-	    } else if (next('*')) {
+	    } else if (CH(rpc+1) == '*') {
 		block_comment();
 		continue;
-	    } else if (next('=')) {
-		return new_token(&(struct token){.id = DIVEQ, .kind = TOPERATOR});
+	    } else if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = DIVEQ, .kind = TPUNCTUATOR});
 	    } else {
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
 	    }
 
 	case '+':
-	    if (next('+'))
-		return new_token(&(struct token){.id = INCR, .kind = TOPERATOR});
-	    else if (next('='))
-		return new_token(&(struct token){.id = ADDEQ, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '+') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = INCR, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = ADDEQ, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '-':
-	    if (next('-'))
-		return new_token(&(struct token){.id = DECR, .kind = TOPERATOR});
-	    else if (next('='))
-		return new_token(&(struct token){.id = MINUSEQ, .kind = TOPERATOR});
-	    else if (next('>'))
-		return new_token(&(struct token){.id = DEREF, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '-') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = DECR, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = MINUSEQ, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '>') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = DEREF, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '*':
-	    if (next('='))
-		return new_token(&(struct token){.id = MULEQ, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = MULEQ, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '=':
-	    if (next('='))
-		return new_token(&(struct token){.id = EQ, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = EQ, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '!':
-	    if (next('='))
-		return new_token(&(struct token){.id = NEQ, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = NEQ, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '%':
-	    if (next('='))
-		return new_token(&(struct token){.id = MODEQ, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = MODEQ, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '^':
-	    if (next('='))
-		return new_token(&(struct token){.id = XOREQ, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = XOREQ, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '&':
-	    if (next('='))
-		return new_token(&(struct token){.id = BANDEQ, .kind = TOPERATOR});
-	    else if (next('&'))
-		return new_token(&(struct token){.id = AND, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = BANDEQ, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '&') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = AND, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '|':
-	    if (next('='))
-		return new_token(&(struct token){.id = BOREQ, .kind = TOPERATOR});
-	    else if (next('|'))
-		return new_token(&(struct token){.id = OR, .kind = TOPERATOR});
-	    else
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = BOREQ, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '|') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = OR, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '<':
-	    if (next('=')) {
-		return new_token(&(struct token){.id = LEQ, .kind = TOPERATOR});
-	    } else if (next('<')) {
-		if (next('='))
-		    return new_token(&(struct token){.id = RSHIFTEQ, .kind = TOPERATOR});
-		else
-		    return new_token(&(struct token){.id = RSHIFT, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = LEQ, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '<' && CH(rpc+2) == '=') {
+		pc = rpc + 3;
+		return new_token(&(struct token){.id = LSHIFTEQ, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '<') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = LSHIFT, .kind = TPUNCTUATOR});
 	    } else {
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
 	    }
 
 	case '>':
-	    if (next('=')) {
-		return new_token(&(struct token){.id = GEQ, .kind = TOPERATOR});
-	    } else if (next('>')) {
-		if (next('='))
-		    return new_token(&(struct token){.id = RSHIFTEQ, .kind = TOPERATOR});
-		else
-		    return new_token(&(struct token){.id = RSHIFT, .kind = TOPERATOR});
+	    if (CH(rpc+1) == '=') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = GEQ, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '>' && CH(rpc+2) == '=') {
+		pc = rpc + 3;
+		return new_token(&(struct token){.id = RSHIFTEQ, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '>') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = RSHIFT, .kind = TPUNCTUATOR});
 	    } else {
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
 	    }
-
-	case '~':
-	    return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
 	    
-	    // separators
 	case '(': case ')': case '{': case '}':
 	case '[': case ']': case ',': case ';':
-	case ':': case '?':
+	case ':': case '~': case '?':
+	    return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+
 	case '#':
-	    return new_token(&(struct token){.id = rpc, .kind = TSEPARATOR});
+	    if (CH(rpc+1) == '#') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = SHARPSHARP, .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	    // constants
 	case '\'':
@@ -398,34 +454,25 @@ struct token * lex(void)
 	    return number();
 
 	case '.':
-	    if (is_digit(peek())) {
-		struct strbuf *s = strbuf_new();
-		strbuf_cats(s, ".");
-		return fnumber(s, 10);
-	    } else if (next('.')) {
-		if (next('.'))
-		    return new_token(&(struct token){.id = ELLIPSIS, .kind = TSEPARATOR});
-		else
-		    ;
+	    if (CH(rpc+1) == '.' && CH(rpc+2) == '.') {
+		pc = rpc + 3;
+		return new_token(&(struct token){.id = ELLIPSIS, .kind = TPUNCTUATOR});
+	    } else if (is_digit(CH(rpc+1))) {
+		pc = rpc;
+		return fnumber(NULL, 10);
 	    } else {
-		return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
 	    }
-	    // if (rpc[1] == '.' && rpc[2] == '.') {
-	    // 	pc = rpc + 3;
-	    // 	return new_token(&(struct token){.id = ELLIPSIS, .kind = TSEPARATOR});
-	    // } else if (is_digit(rpc[1])) {
-	    // 	pc = rpc;
-	    // 	return fnumber(NULL, 10);
-	    // } else {
-	    // 	return new_token(&(struct token){.id = rpc, .kind = TOPERATOR});
-	    // }
 	    
 	    // identifiers
 	case 'L':
-	    if (next('\''))
+	    if (CH(rpc+1) == '\'') {
+		pc = rpc + 2;
 		return sequence(true, '\'');
-	    else if (next('"'))
+	    } else if (CH(rpc+1) == '"') {
+		pc = rpc + 2;
 		return sequence(true, '"');
+	    }
 	    // go through
 	case 'a': case 'b': case 'c': case 'd':
 	case 'e': case 'f': case 'g': case 'h':
@@ -446,11 +493,11 @@ struct token * lex(void)
 
 	default:
 	    // invalid character
-	    if (!is_blank(rpc)) {
-		if (is_visible(rpc))
-		    error("invalid character '%c'", rpc);
+	    if (!is_blank(CH(rpc))) {
+		if (is_visible(CH(rpc)))
+		    error("invalid character '%c'", CH(rpc));
 		else
-		    error("invalid character '\\0%o'", rpc);
+		    error("invalid character '\\0%o'", CH(rpc));
 	    }
 	}
     }
