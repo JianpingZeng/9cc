@@ -26,21 +26,22 @@ struct cc_char {
     unsigned column;
 };
 
+#define CH(c)    ((c)->ch)
+
 #define LCACHE    8
 #define RCACHE    64
 #define MAXCACHE  8
+
 static struct cc_char chs[LCACHE+RCACHE+1];
 static struct cc_char *pe;
 static struct cc_char *pc;
 static long bread;
 static struct vector *files;
 
-#define CH(c)    ((c)->ch)
-
 struct token *token;
-static struct token *eoi_token = &(struct token){ .id = EOI, .kind = TEOI };
-static struct token *newline_token = &(struct token){ .id = TOK10, .kind = TNEWLINE };
-static struct token *space_token = &(struct token){ .id = TOK32, .kind = TSPACE };
+static struct token *eoi_token = &(struct token){.id = EOI, .kind = TEOI};
+static struct token *newline_token = &(struct token){.id = TOK10, .kind = TNEWLINE};
+static struct token *space_token = &(struct token){.id = TOK32, .kind = TSPACE};
 
 /* Don't use macros here, because macros make things wrong.
  * For example:
