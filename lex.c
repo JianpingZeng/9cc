@@ -327,6 +327,7 @@ static inline void line_comment(void)
     skipline();
 }
 
+// TODO: newline update source
 static void block_comment(void)
 {
     pc++;
@@ -460,6 +461,15 @@ struct token * lex(void)
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
 		return new_token(&(struct token){.id = MODEQ, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '>') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = '}', .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == ':' && CH(rpc+2) == '%' && CH(rpc+3) == ':') {
+		pc = rpc + 4;
+		return new_token(&(struct token){.id = SHARPSHARP, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == ':') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = '#', .kind = TPUNCTUATOR});
 	    } else {
 		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
 	    }
@@ -504,6 +514,12 @@ struct token * lex(void)
 	    } else if (CH(rpc+1) == '<') {
 		pc = rpc + 2;
 		return new_token(&(struct token){.id = LSHIFT, .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == '%') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = '{', .kind = TPUNCTUATOR});
+	    } else if (CH(rpc+1) == ':') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = '[', .kind = TPUNCTUATOR});
 	    } else {
 		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
 	    }
@@ -524,8 +540,16 @@ struct token * lex(void)
 	    
 	case '(': case ')': case '{': case '}':
 	case '[': case ']': case ',': case ';':
-	case ':': case '~': case '?':
+	case '~': case '?':
 	    return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+
+	case ':':
+	    if (CH(rpc+1) == '>') {
+		pc = rpc + 2;
+		return new_token(&(struct token){.id = ']', .kind = TPUNCTUATOR});
+	    } else {
+		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    }
 
 	case '#':
 	    if (CH(rpc+1) == '#') {
