@@ -40,7 +40,7 @@ static struct vector *files;
 
 struct token *token;
 static struct token *eoi_token = &(struct token){.id = EOI};
-static struct token *newline_token = &(struct token){.id = TOK10, .kind = TNEWLINE};
+static struct token *newline_token = &(struct token){.id = TOK10, .name = "\n", .kind = TNEWLINE};
 static struct token *space_token = &(struct token){.id = TOK32, .kind = TSPACE};
 
 /* Don't use macros here, because macros make things wrong.
@@ -276,12 +276,6 @@ static struct token * new_token(struct token *tok)
     return t;
 }
 
-static inline struct token * skeleton_token(struct token *tok)
-{
-    tok->name = tname(tok->id);
-    return tok;
-}
-
 static inline void concat(struct strbuf *s, struct cc_char *p, int n)
 {
     while (n--) {
@@ -464,6 +458,15 @@ static struct token * identifier(void)
     return new_token(&(struct token){.id = ID, .name = strs(s->str), .kind = TIDENTIFIER});
 }
 
+static struct token * spaces(void)
+{
+    struct strbuf *s = strbuf_new();
+    pc = pc - 1;
+    readch(s, is_blank);
+    space_token->name = strs(s->str);
+    return space_token;
+}
+
 struct token * lex(void)
 {
     struct cc_char *rpc;
@@ -478,7 +481,7 @@ struct token * lex(void)
 	    return eoi_token;
 	    
 	case '\n':
-	    return skeleton_token(newline_token);
+	    return newline_token;
 	    
 	    // spaces
 	case TOK9:
@@ -486,8 +489,7 @@ struct token * lex(void)
 	case TOK12:
 	case TOK13:
 	case TOK32:
-	    space_token->id = CH(rpc);
-	    return skeleton_token(space_token);
+	    return spaces();
 	
 	    // punctuators
 	case '/':
