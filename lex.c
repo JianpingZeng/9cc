@@ -345,19 +345,115 @@ static void block_comment(void)
 	pc += 2;
 }
 
-static struct token * number(void)
+static struct token * ppnumber(void)
 {
-
+    struct strbuf *s = strbuf_new();
+    pc--;
+    if (is_digit(CH(pc))) {
+	concat(s, pc, 1);
+	pc += 1;
+    } else {
+	concat(s, pc, 2);
+	pc += 2;
+    }
+    for (; is_digitletter(CH(pc)) || CH(pc) == '.';) {
+	if (pe - pc < MAXCACHE)
+	    fillchs();
+	bool is_float = strchr("eEpP", CH(pc)) && strchr("+-", CH(pc+1));
+	if (is_float) {
+	    concat(s, pc, 2);
+	    pc += 2;
+	} else {
+	    concat(s, pc, 1);
+	    pc += 1;
+	}
+    }
+    return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str), .kind = TCONSTANT});
 }
 
-static struct token * fnumber(struct strbuf *s, int base)
+static void escape(struct strbuf *s)
 {
-
+    CCAssert(CH(pc) == '\\');
+    concat(s, pc++, 2);
+    switch (CH(pc++)) {
+    case 'a': case 'b': case 'f':
+    case 'n': case 'r': case 't':
+    case 'v': case '\'': case '"':
+    case '\\': case '\?':
+	break;
+    case '0': case '1': case '2':
+    case '3': case '4': case '5':
+    case '6': case '7':
+	if (CH(pc) >= '0' && CH(pc) <= '7') {
+	    concat(s, pc++, 1);
+	    if (CH(pc) >= '0' && CH(pc) <= '7')
+		concat(s, pc++, 1);
+	}
+	break;
+    case 'x':
+	if (!is_digithex(CH(pc))) {
+	    error("\\x used with no following hex digits");
+	    break;
+	}
+	readch(s, is_digithex);
+	break;
+    case 'u': case 'U':
+	{
+            // universal character name: expect 4(u)/8(U) hex digits
+            int x = 0;
+            int n = CH(pc-1) == 'u' ? 4 : 8;
+            for (; is_digithex(CH(pc)); x++, pc++) {
+                if (x == n)
+                    break;
+		concat(s, pc, 1);
+            }
+            if (x < n)
+                error("incomplete universal character name: %s", s->str);
+        }
+	break;
+    default:
+	error("unrecognized escape character 0x%x", CH(pc-1));
+	break;
+    }
 }
 
 static struct token * sequence(bool wide, char sep)
 {
+    struct strbuf *s = strbuf_new();
+    if (wide) {
+	strbuf_catc(s, CH(pc-2));
+	strbuf_catc(s, CH(pc-1));
+    } else {
+	strbuf_catc(s, CH(pc-1));
+    }
+    for (; CH(pc) != sep;) {
+	if (pe - pc < MAXCACHE) {
+	    fillchs();
+	    if (pc == pe)
+		break;
+	}
+	if (is_newline(CH(pc)))
+	    break;
+	if (CH(pc) == '\\')
+	    escape(s);
+	else
+	    strbuf_catc(s, CH(pc++));
+    }
 
+    bool is_char = sep == '\'' ? true : false;
+    const char *name = is_char ? "character" : "string";
+    const char *pad = is_char ? "'" : "\"";
+    if (CH(pc) != sep) {
+	error("untermiated %s constant: %s", name, s->str);
+	strbuf_cats(s, pad);
+    } else {
+	strbuf_catc(s, CH(pc++));
+    }
+
+    if (is_char)
+	return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str), .kind = TCONSTANT});
+    else
+	return new_token(&(struct token){.id = SCONSTANT, .name = strs(s->str), .kind = TCONSTANT});
 }
 
 static struct token * identifier(void)
@@ -569,15 +665,14 @@ struct token * lex(void)
 
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
-	    return number();
+	    return ppnumber();
 
 	case '.':
 	    if (CH(rpc+1) == '.' && CH(rpc+2) == '.') {
 		pc = rpc + 3;
 		return new_token(&(struct token){.id = ELLIPSIS, .kind = TPUNCTUATOR});
 	    } else if (is_digit(CH(rpc+1))) {
-		pc = rpc;
-		return fnumber(NULL, 10);
+		return ppnumber();
 	    } else {
 		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
 	    }
