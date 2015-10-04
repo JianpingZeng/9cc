@@ -282,7 +282,7 @@ static inline struct token * skeleton_token(struct token *tok)
     return tok;
 }
 
-static void concat(struct strbuf *s, struct cc_char *p, int n)
+static inline void concat(struct strbuf *s, struct cc_char *p, int n)
 {
     while (n--) {
 	strbuf_catc(s, CH(p));
