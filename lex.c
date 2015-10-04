@@ -177,40 +177,41 @@ static char get(void)
     return *fs->pc++;
 }
 
+static inline struct cc_char * skeleton_char(struct cc_char *ch)
+{
+    static struct cc_char ch1;
+    ch1.ch = ch->ch;
+    ch1.line = ch->line;
+    ch1.column = ch->column;
+    return &ch1;
+}
+
 static struct cc_char * readc(void)
 {
-    static struct cc_char ch1, ch2;
+    static struct cc_char ch2;
     struct cc_file *fs = vec_tail(files);
 
     if (ch2.ch) {
-	ch1.ch = ch2.ch;
-	ch1.line = ch2.line;
-	ch1.column = ch2.column;
+        struct cc_char *ch1 = skeleton_char(&ch2);
 	ch2.ch = 0;
-	return &ch1;
+	return ch1;
     }
     
     for (;;) {
         char c = get();
 	unsigned line = fs->line;
 	unsigned column = fs->column;
-	if (c == EOI || c != '\\') {
-	    ch1.ch = c;
-	    ch1.line = line;
-	    ch1.column = column;
-	    return &ch1;
-	}
+	if (c == EOI || c != '\\')
+	    goto end;
 	char c2 = get();
 	if (c2 == '\n')
 	    continue;
-
-        ch1.ch = c;
-	ch1.line = line;
-	ch1.column = column;
+	// cache
 	ch2.ch = c2;
 	ch2.line = fs->line;
 	ch2.column = fs->column;
-	return &ch1;
+    end:
+	return skeleton_char(&(struct cc_char){.ch = c, .line = line, .column = column});
     }
 }
 
