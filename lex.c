@@ -734,10 +734,34 @@ const char *tname(int t)
 
 void expect(int t)
 {
+    if (token->id == t) {
+        gettok();
+    } else {
+        if (token->id == EOI)
+            error("expect token '%s' at the end", tname(t));
+        else
+            error("expect token '%s' before '%s'", tname(t), token->name);
+    }
 }
 
 void match(int t, int follow[])
 {
+    if (token->id == t) {
+        gettok();
+    } else {
+        int n;
+        expect(t);
+        for (n=0; token->id != EOI; gettok()) {
+            int *k;
+            for (k=follow; *k && *k != token->kind; k++)
+                    ; // continue
+            if (*k == token->kind)
+                break;
+        }
+        
+        if (n > 0)
+            fprintf(stderr, "%d tokens skipped.\n", n);
+    }
 }
 
 int gettok(void)
