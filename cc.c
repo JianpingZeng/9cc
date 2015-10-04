@@ -37,7 +37,12 @@ static void translate(void)
 
 static void preprocess(void)
 {
-    
+    for (;;) {
+	struct token *tok = lex();
+	if (tok->id == EOI)
+	    break;
+	printf("%s", tok->name);
+    }
 }
 
 int cc_main(int argc, const char * argv[])

@@ -13,15 +13,26 @@ static unsigned char map[256] = {
     OTHER,
 };
 
+static const char *tnames[] = {
+#define _a(a, b, c, d)  b,
+#define _x(a, b, c, d)  b,
+#define _t(a, b, c)     b,
+#include "token.def"
+};
+
 struct cc_char {
     int ch;
     unsigned line;
     unsigned column;
 };
 
-static struct cc_char chs[5];
+#define LCACHE    8
+#define RCACHE    64
+#define MAXCACHE  8
+static struct cc_char chs[LCACHE+RCACHE+1];
 static struct cc_char *pe;
 static struct cc_char *pc;
+static long bread;
 static struct vector *files;
 
 #define CH(c)    ((c)->ch)
@@ -204,31 +215,52 @@ static struct cc_char * readc(void)
 
 static void fillchs(void)
 {
-    struct cc_char *dst = &chs[0];
-    struct cc_char *src = pc;
-    if (dst == src)
+    if (bread == 0) {
+	if (pc > pe)
+	    pc = pe;
 	return;
-    
-    int n = pe - pc;
-    if (n)
-	memcpy(dst, src, n);
-
-    pc = dst;
-    struct cc_char *rpc = (struct cc_char *)((char *)dst + n);
-    for (; rpc < pe; rpc++) {
-        struct cc_char *ch = readc();
-	rpc->ch = ch->ch;
-	rpc->line = ch->line;
-	rpc->column = ch->column;
-	if (ch->ch == EOI)
-	    break;
     }
+    
+    if (pc >= pe) {
+	pc = &chs[LCACHE];
+    } else {
+	long n;
+	struct cc_char *dst, *src;
+
+	// copy
+	n = pe - pc;
+	dst = &chs[LCACHE] - n;
+	src = pc;
+	while (src < pe)
+	    *dst++ = *src++;
+
+	pc = &chs[LCACHE] - n;
+    }
+
+    int i;
+    struct cc_char *rpc = &chs[LCACHE];
+    for (i = 0; i < RCACHE; i++) {
+        struct cc_char *ch = readc();
+	rpc[i].ch = ch->ch;
+	rpc[i].line = ch->line;
+	rpc[i].column = ch->column;
+	if (ch->ch == EOI) {
+	    i++;
+	    bread = 0;
+	    break;
+	}
+    }
+
+    pe = &chs[LCACHE] + i;
+    pe->ch = 0;
 }
 
 void input_init(const char *file)
 {
     files = vec_new();
-    pc = pe = &chs[0] + ARRAY_SIZE(chs);
+    vec_push(files, open_file(file));
+    pc = pe = &chs[LCACHE];
+    bread = -1;
 }
 
 static struct token * new_token(struct token *tok)
@@ -237,12 +269,43 @@ static struct token * new_token(struct token *tok)
     t->id = tok->id;
     t->name = tok->name;
     t->kind = tok->kind;
+    if (!tok->name)
+	t->name = tname(tok->id);
     return t;
+}
+
+static inline struct token * skeleton_token(struct token *tok)
+{
+    tok->name = tname(tok->id);
+    return tok;
+}
+
+static void concat(struct strbuf *s, struct cc_char *p, int n)
+{
+    while (n--) {
+	strbuf_catc(s, CH(p));
+	p++;
+    }
 }
 
 static void readch(struct strbuf *s, bool (*is) (char))
 {
-    
+    struct cc_char *rpc = pc;
+    for (; is(CH(rpc)) || rpc == pe; ) {
+        if (rpc == pe) {
+	    concat(s, pc, rpc-pc);
+	    pc = rpc;
+	    fillchs();
+	    rpc = pc;
+	    if (pc == pe)
+		break;
+	    else
+		continue;
+	}
+	rpc++;
+    }
+    concat(s, pc, rpc-pc);
+    pc = rpc;
 }
 
 static void line_comment(void)
@@ -272,22 +335,27 @@ static struct token * sequence(bool wide, char sep)
 
 static struct token * identifier(void)
 {
-    
+    struct strbuf *s = strbuf_new();
+    pc = pc - 1;
+    readch(s, is_digitletter);
+    return new_token(&(struct token){.id = ID, .name = strs(s->str), .kind = TIDENTIFIER});
 }
 
 struct token * lex(void)
 {
     struct cc_char *rpc;
     for (; ;) {
-	fillchs();
-	rpc = pc++;
+	if (pe - pc < MAXCACHE)
+	    fillchs();
 	
+	rpc = pc++;
+
 	switch (CH(rpc)) {
 	case EOI:
 	    return eoi_token;
 	    
 	case '\n':
-	    return newline_token;
+	    return skeleton_token(newline_token);
 	    
 	    // spaces
 	case TOK9:
@@ -296,7 +364,7 @@ struct token * lex(void)
 	case TOK13:
 	case TOK32:
 	    space_token->id = CH(rpc);
-	    return space_token;
+	    return skeleton_token(space_token);
 	
 	    // punctuators
 	case '/':
@@ -505,7 +573,16 @@ struct token * lex(void)
 
 const char *tname(int t)
 {
-    return NULL;
+    if (t < 0)
+        return "EOI";
+    else if (t < 128)
+        return tnames[t];
+    else if (t < 256)
+        return "(null)";
+    else if (t < TOKEND)
+        return tnames[128+t-ID];
+    else
+        return "(null)";
 }
 
 void expect(int t)

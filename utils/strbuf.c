@@ -85,6 +85,17 @@ void strbuf_catd(struct strbuf *s, long n)
     return strbuf_catn(s, ps, str + sizeof (str) - ps);
 }
 
+void strbuf_catc(struct strbuf *s, char c)
+{
+    if (s->len + 1 >= s->alloc)
+        strbuf_grow(s, s->len + 1);
+
+    char *dst = s->str + s->len;
+    s->len += 1;
+    *dst++ = c;
+    *dst = '\0';
+}
+
 struct strbuf * strbuf_lstrip(struct strbuf *s)
 {
     char *p = s->str;

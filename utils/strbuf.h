@@ -21,6 +21,8 @@ extern void strbuf_catn(struct strbuf *s, const char *src, size_t len);
 
 extern void strbuf_catd(struct strbuf *s, long d);
 
+extern void strbuf_catc(struct strbuf *s, char c);
+
 extern struct strbuf * strbuf_lstrip(struct strbuf *s);
 
 extern struct strbuf * strbuf_rstrip(struct strbuf *s);
