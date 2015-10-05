@@ -314,7 +314,7 @@ static void readch(struct strbuf *s, bool (*is) (char))
     pc = rpc;
 }
 
-static void skipline(void)
+void skipline(void)
 {
     while (CH(pc) != '\n') {
 	pc++;
@@ -372,7 +372,7 @@ static struct token * ppnumber(void)
 	    pc += 1;
 	}
     }
-    return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str), .kind = TCONSTANT});
+    return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str), .kind = TNUMBER});
 }
 
 static void escape(struct strbuf *s)
@@ -457,9 +457,9 @@ static struct token * sequence(bool wide, char sep)
     }
 
     if (is_char)
-	return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str), .kind = TCONSTANT});
+	return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str), .kind = TCHARCONST});
     else
-	return new_token(&(struct token){.id = SCONSTANT, .name = strs(s->str), .kind = TCONSTANT});
+	return new_token(&(struct token){.id = SCONSTANT, .name = strs(s->str), .kind = TSTRING});
 }
 
 static struct token * identifier(void)

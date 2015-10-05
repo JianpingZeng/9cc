@@ -40,7 +40,9 @@ enum {
     TNEWLINE,
     TPUNCTUATOR,
     TIDENTIFIER,
-    TCONSTANT,
+    TNUMBER,
+    TCHARCONST,
+    TSTRING,
 };
 
 struct source {
@@ -85,6 +87,7 @@ extern bool is_visible(char c);
 
 extern struct cc_file * open_file(const char *file);
 extern void close_file(struct cc_file *file);
+extern void skipline(void);
 extern struct token * lex(void);
 
 extern int gettok(void);
