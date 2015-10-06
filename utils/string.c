@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <stdbool.h>
 #include "utils.h"
 
 #define FNV32_BASIS ((unsigned) 0x811c9dc5)

@@ -1,6 +1,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "utils.h"
 
 #define VEC_INIT_SIZE   16
@@ -99,11 +100,13 @@ void vec_push_front(struct vector *v, void *val)
     v->len++;
 }
 
-void vec_pop(struct vector *v)
+void * vec_pop(struct vector *v)
 {
     if (v->len == 0)
-	return;
+	return NULL;
+    void *r = v->mem[v->len-1];
     v->len--;
+    return r;
 }
 
 void vec_clear(struct vector *v)

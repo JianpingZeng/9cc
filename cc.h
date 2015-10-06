@@ -36,6 +36,7 @@ enum {
 
 // lexical token kind
 enum {
+    TEOI,
     TSPACE,
     TNEWLINE,
     TPUNCTUATOR,
@@ -71,6 +72,7 @@ struct token {
     const char *name;
     int kind;
     struct source src;
+    struct set *hideset;
 };
 
 extern struct source source;
@@ -87,7 +89,7 @@ extern bool is_visible(char c);
 
 extern struct cc_file * open_file(const char *file);
 extern void close_file(struct cc_file *file);
-extern void skipline(void);
+extern void skipline(bool over);
 extern struct token * lex(void);
 
 extern int gettok(void);
@@ -113,6 +115,7 @@ union value {
 // cpp.c
 extern void input_init(const char *file);
 extern void cpp_init(struct vector *options);
+extern struct token * get_pptok(void);
 
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 #define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))

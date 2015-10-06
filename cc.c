@@ -38,10 +38,10 @@ static void translate(void)
 static void preprocess(void)
 {
     for (;;) {
-	struct token *tok = lex();
+	struct token *tok = get_pptok();
 	if (tok->id == EOI)
 	    break;
-	printf("%u:%u:%s\n", tok->src.line, tok->src.column, tok->name);
+	printf("%s", tok->name);
     }
 }
 

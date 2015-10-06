@@ -40,7 +40,7 @@ static struct vector *files;
 static struct source marker;
 
 struct token *token;
-static struct token *eoi_token = &(struct token){.id = EOI};
+static struct token *eoi_token = &(struct token){.id = EOI, .kind = TEOI};
 static struct token *newline_token = &(struct token){.id = TOK10, .name = "\n", .kind = TNEWLINE};
 static struct token *space_token = &(struct token){.id = TOK32, .kind = TSPACE};
 
@@ -314,7 +314,7 @@ static void readch(struct strbuf *s, bool (*is) (char))
     pc = rpc;
 }
 
-void skipline(void)
+void skipline(bool over)
 {
     while (CH(pc) != '\n') {
 	pc++;
@@ -324,11 +324,13 @@ void skipline(void)
 		break;
 	}
     }
+    if (CH(pc) == '\n')
+	readc();
 }
 
 static inline void line_comment(void)
 {
-    skipline();
+    skipline(false);
 }
 
 // TODO: newline update source

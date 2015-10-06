@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <locale.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include "sys.h"
 #include "config.h"
 #include "utils.h"
