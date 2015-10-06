@@ -110,6 +110,9 @@ static void define_line(void)
 	skipline(true);
 	return;
     }
+    struct macro *m = map_get(macros, id->name);
+    if (m)
+	error("redefinition of macro '%s'", id->name);
     struct token *t = lex();
     if (t->id == '(') {
 	define_funclike_macro(id->name);
