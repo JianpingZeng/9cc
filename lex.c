@@ -753,6 +753,16 @@ void unget(struct token *t)
     vec_push(v, t);
 }
 
+void push_buffer(struct vector *v)
+{
+    vec_push(buffers, v);
+}
+
+void pop_buffer(void)
+{
+    vec_pop(buffers);
+}
+
 struct token * lex(void)
 {
     struct vector *v = vec_tail(buffers);

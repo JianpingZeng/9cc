@@ -317,7 +317,7 @@ static struct token * doexpand(void)
 	{
 	    struct set *hdset = set_add(t->hideset, name);
 	    struct vector *v = subst(m, NULL, hdset);
-	    
+	    ungetv(v);
 	    return expand();
 	}
     case MACRO_FUNC:

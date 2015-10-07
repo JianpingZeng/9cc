@@ -98,6 +98,8 @@ extern void close_file(struct cc_file *file);
 extern void skipline(bool over);
 extern struct token * lex(void);
 extern void unget(struct token *t);
+extern void push_buffer(struct vector *v);
+extern void pop_buffer(void);
 
 extern int gettok(void);
 extern struct token * lookahead(void);
