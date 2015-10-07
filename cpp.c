@@ -34,12 +34,6 @@ static struct macro * new_macro(int kind)
     return m;
 }
 
-static inline void ungetv(struct vector *v)
-{
-    for (int i = vec_len(v)-1; i >= 0; i--)
-	unget(vec_at(v, i));
-}
-
 static void ensure_macro_def(struct macro *m)
 {
     for (int i = 0; i < vec_len(m->body); i++) {
@@ -55,6 +49,12 @@ static void ensure_macro_def(struct macro *m)
     }
 }
 
+static inline void ungetv(struct vector *v)
+{
+    for (int i = vec_len(v)-1; i >= 0; i--)
+	unget(vec_at(v, i));
+}
+
 static struct token * skip_spaces(void)
 {
     struct token *t;
@@ -65,9 +65,16 @@ static struct token * skip_spaces(void)
     return t;
 }
 
+static struct token * peek(void)
+{
+    struct token *t = skip_spaces();
+    unget(t);
+    return t;
+}
+
 static int inparams(struct token *t, struct vector *params)
 {
-    if (t->id != ID)
+    if (t->id != ID || !params)
 	return -1;
     for (int i = 0; i < vec_len(params); i++) {
 	struct token *p = vec_at(params, i);
@@ -75,33 +82,6 @@ static int inparams(struct token *t, struct vector *params)
 	    return i;
     }
     return -1;
-}
-
-static struct vector * hsadd(struct vector *r, struct set *hideset)
-{
-    for (int i = 0; i < vec_len(r); i++) {
-	struct token *t = vec_at(r, i);
-	t->hideset = set_union(t->hideset, hideset);
-    }
-    return r;
-}
-
-static struct vector * subst(struct macro *m, struct vector *args, struct set *hideset)
-{
-    struct vector *r = vec_new();
-    struct vector *body = m->body;
-    struct vector *params = m->params;
-    for (int i = 0; i < vec_len(body); i++) {
-	struct token *t = vec_at(body, i);
-	int index = inparams(t, params);
-	if (index >= 0) {
-	    struct vector *is = vec_at(args, index);
-	    
-	} else {
-	    vec_push(r, t);
-	}
-    }
-    return hsadd(r, hideset);
 }
 
 static void if_section(void)
@@ -299,6 +279,48 @@ static void read_directive(void)
     else if (!strcmp(t->name, "pragma")) pragma_line();
     else if (!strcmp(t->name, "warning")) warning_line();
     else skipline(true);
+}
+
+static struct vector * hsadd(struct vector *r, struct set *hideset)
+{
+    for (int i = 0; i < vec_len(r); i++) {
+	struct token *t = vec_at(r, i);
+	t->hideset = set_union(t->hideset, hideset);
+    }
+    return r;
+}
+
+static struct vector * expandv(struct vector *v)
+{
+    struct vector *r = vec_new();
+    push_buffer(v);
+    for (;;) {
+	struct token *t = expand();
+	if (t->id == EOI)
+	    break;
+	vec_push(r, t);
+    }
+    pop_buffer();
+    return r;
+}
+
+static struct vector * subst(struct macro *m, struct vector *args, struct set *hideset)
+{
+    struct vector *r = vec_new();
+    struct vector *body = m->body;
+    struct vector *params = m->params;
+    for (int i = 0; i < vec_len(body); i++) {
+	struct token *t = vec_at(body, i);
+	int index = inparams(t, params);
+	if (index >= 0) {
+	    struct vector *iv = vec_at(args, index);
+	    struct vector *ov = expandv(iv);
+	    vec_add(r, ov);
+	} else {
+	    vec_push(r, t);
+	}
+    }
+    return hsadd(r, hideset);
 }
 
 static struct token * doexpand(void)

@@ -40,7 +40,7 @@ static struct vector *files;
 
 struct token *token;
 static struct token *eoi_token = &(struct token){.id = EOI};
-static struct token *newline_token = &(struct token){.id = '\n'};
+static struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
 static struct token *space_token = &(struct token){.id = ' '};
 static struct vector *buffers;
 
