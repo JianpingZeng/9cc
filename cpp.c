@@ -255,7 +255,7 @@ static void warning_line(void)
 {
 }
 
-static void read_directive(void)
+static void directive(void)
 {
     struct token *t = skip_spaces();
     if (IS_NEWLINE(t))
@@ -369,7 +369,7 @@ struct token * get_pptok(void)
     for (;;) {
         struct token *t = expand();
 	if (t->id == '#') {
-	    read_directive();
+	    directive();
 	    continue;
 	}
 	return conv2cc(t);
