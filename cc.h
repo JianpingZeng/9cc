@@ -112,6 +112,8 @@ union value {
     void (*g) ();
 };
 
+extern struct token *eoi_token;
+
 // cpp.c
 extern void input_init(const char *file);
 extern void cpp_init(struct vector *options);

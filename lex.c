@@ -40,7 +40,7 @@ static struct vector *files;
 static struct source marker;
 
 struct token *token;
-static struct token *eoi_token = &(struct token){.id = EOI, .kind = TEOI};
+struct token *eoi_token = &(struct token){.id = EOI, .kind = TEOI};
 static struct token *newline_token = &(struct token){.id = TOK10, .name = "\n", .kind = TNEWLINE};
 static struct token *space_token = &(struct token){.id = TOK32, .kind = TSPACE};
 

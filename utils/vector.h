@@ -37,6 +37,8 @@ extern void * vec_tail(struct vector *v);
 
 extern void vec_add(struct vector *v, struct vector *v2);
 
+extern void vec_addr(struct vector *v, struct vector *v2);
+
 extern struct vector * vec_reverse(struct vector *v);
 
 extern void ** vtoa(struct vector *v);
