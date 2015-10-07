@@ -9,22 +9,6 @@
  * this document.
  */
 
-// IS kind
-enum {
-    IS_INPUT,
-    IS_VECTOR,
-};
-
-struct IS {
-    int kind;
-    struct token * (*get) (struct IS *is);
-    struct token * (*peek) (struct IS *is);
-    bool (*eoi) (struct IS *is);
-    void (*add) (struct IS *is, struct vector *v);
-    struct token *token;
-    struct vector *v;
-};
-
 // macro kind
 enum {
     MACRO_OBJ,
@@ -40,38 +24,8 @@ struct macro {
     void (*fn) (struct token *t); // special macro handler
 };
 
-static struct token * read_expand(void);
-static void expand(struct IS *IS, struct vector *OS);
-static struct token *iget(struct IS *is);
-static struct token *ipeek(struct IS *is);
-static bool ieoi(struct IS *is);
-static void iadd(struct IS *is, struct vector *v);
-static struct vector * arguments(struct macro *m);
-
+static struct token * expand(void);
 static struct map *macros;
-struct source source;
-static struct vector *putbacks;
-static struct token *pptoken;
-
-static struct IS * inputIS = &(struct IS){
-    .kind = IS_INPUT,
-    .get = iget,
-    .peek = ipeek,
-    .eoi = ieoi,
-    .add = iadd,
-};
-
-static struct IS * new_IS(struct vector *v)
-{
-    struct IS *is = xmalloc(sizeof (struct IS));
-    is->kind = IS_VECTOR;
-    is->get = iget;
-    is->peek = ipeek;
-    is->eoi = ieoi;
-    is->add = iadd;
-    is->v = v;
-    return is;
-}
 
 static struct macro * new_macro(int kind)
 {
@@ -80,14 +34,10 @@ static struct macro * new_macro(int kind)
     return m;
 }
 
-static inline void putback1(struct token *t)
+static inline void ungetv(struct vector *v)
 {
-    vec_push(putbacks, t);
-}
-
-static inline void putbackv(struct vector *v)
-{
-    vec_addr(putbacks, v);
+    for (int i = vec_len(v)-1; i >= 0; i--)
+	unget(vec_at(v, i));
 }
 
 static void ensure_macro_def(struct macro *m)
@@ -105,69 +55,19 @@ static void ensure_macro_def(struct macro *m)
     }
 }
 
-static inline struct token * skip_spaces(void)
-{
- beg:
-    if (vec_len(putbacks))
-	pptoken = vec_pop(putbacks);
-    else
-	pptoken = lex();
-    if (pptoken->kind == TSPACE)
-	goto beg;
-    return pptoken;
-}
-
-static struct token *iget(struct IS *is)
-{
-    if (is->kind == IS_INPUT) {
-	 is->token = skip_spaces();
-    } else if (is->kind == IS_VECTOR) {
-	if (vec_len(is->v))
-	    is->token = vec_pop(is->v);
-	else
-	    is->token = eoi_token;
-    } else {
-	die("unkown IS type: %d", is->kind);
-    }
-    return is->token;
-}
-
-static struct token *ipeek(struct IS *is)
+static struct token * skip_spaces(void)
 {
     struct token *t;
-    if (is->kind == IS_INPUT) {
-	t = skip_spaces();
-	putback1(t);
-    } else if (is->kind == IS_VECTOR) {
-	if (vec_len(is->v))
-	    t = vec_tail(is->v);
-	else
-	    t = eoi_token;
-    } else {
-	die("unkown IS type: %d", is->kind);
-	t = eoi_token;
-    }
+ beg:
+    t = lex();
+    if (IS_SPACE(t))
+	goto beg;
     return t;
-}
-
-static bool ieoi(struct IS *is)
-{
-    return is->token->kind == TEOI;
-}
-
-static void iadd(struct IS *is, struct vector *v)
-{
-    if (is->kind == IS_INPUT)
-	putbackv(v);
-    else if (is->kind == IS_VECTOR)
-	vec_addr(is->v, v);
-    else
-	die("unkown IS type: %d", is->kind);
 }
 
 static int inparams(struct token *t, struct vector *params)
 {
-    if (t->kind != TIDENTIFIER)
+    if (t->id != ID)
 	return -1;
     for (int i = 0; i < vec_len(params); i++) {
 	struct token *p = vec_at(params, i);
@@ -196,62 +96,12 @@ static struct vector * subst(struct macro *m, struct vector *args, struct set *h
 	int index = inparams(t, params);
 	if (index >= 0) {
 	    struct vector *is = vec_at(args, index);
-	    struct vector *os = vec_new();
-	    expand(is, os);
+	    
 	} else {
 	    vec_push(r, t);
 	}
     }
     return hsadd(r, hideset);
-}
-
-static void expand(struct IS *IS, struct vector *OS)
-{
-    if (IS->eoi(IS))
-	return;
-
-    struct token *t = IS->get(IS);
-    if (t->kind != TIDENTIFIER)
-	goto end;
-
-    const char *name = t->name;
-    struct macro *m = map_get(macros, name);
-    if (m == NULL || set_has(t->hideset, name))
-	goto end;
-
-    switch (m->kind) {
-    case MACRO_OBJ:
-	{
-	    struct set *hdset = set_add(t->hideset, name);
-	    struct vector *v = subst(m, NULL, hdset);
-	    IS->add(IS, v);
-	    return expand(IS, OS);
-	}
-    case MACRO_FUNC:
-	{
-	    struct token *t2 = IS->peek(IS);
-	    if (t2->id != '(')
-		goto end;
-	    struct vector *args = arguments(m);
-	    if (pptoken->id != ')')
-		goto end;
-	    struct set *hdset = set_add(set_intersection(t->hideset, pptoken->hideset), name);
-	    struct vector *v = subst(m, args, hdset);
-	    putbackv(v);
-	    return read_expand();
-	}
-	break;
-    case MACRO_SPECIAL:
-	{
-
-	}
-    default:
-	break;
-    }
-    
- end:
-    vec_push(OS, t);
-    expand(IS, OS);
 }
 
 static void if_section(void)
@@ -273,7 +123,7 @@ static void include_line(void)
 static struct token * read_identifier(void)
 {
      struct token *id = skip_spaces();
-     if (id->kind != TIDENTIFIER) {
+     if (id->id != ID) {
 	 error("expect identifier");
 	 return NULL;
      }
@@ -305,7 +155,7 @@ static struct vector * arguments(struct macro *m)
 {
     struct vector *v = vec_new();
     for (;;) {
-	if (pptoken->id == ')' || pptoken->id == EOI)
+	if (token->id == ')' || token->id == EOI)
 	    break;
 	struct vector *r = arg();
 	if (vec_len(r))
@@ -326,7 +176,7 @@ static void parameters(struct macro *m)
 	t = skip_spaces();
 	if (t->id != ')')
 	    error("expect ')'");
-    } else if (t->kind == TIDENTIFIER) {
+    } else if (t->id == ID) {
 	struct vector *v = vec_new();
 	for (;;) {
 	    if (t->id == ')' || t->id == ELLIPSIS)
@@ -352,7 +202,7 @@ static struct vector * replacement_list(void)
     struct vector *v = vec_new();
     for (;;) {
 	struct token *tok = skip_spaces();
-	if (tok->kind == TNEWLINE)
+	if (IS_NEWLINE(tok))
 	    break;
 	vec_push(v, tok);
     }
@@ -390,7 +240,7 @@ static void define_line(void)
     if (t->id == '(') {
 	define_funclike_macro(id->name);
     } else {
-	putback1(t);
+	unget(t);
 	define_obj_macro(id->name);
     }
 }
@@ -404,7 +254,7 @@ static void undef_line(void)
     }
     map_put(macros, id->name, NULL);
     id = skip_spaces();
-    if (id->kind != TNEWLINE)
+    if (!IS_NEWLINE(id))
 	error("extra tokens");
     skipline(true);
 }
@@ -428,13 +278,13 @@ static void warning_line(void)
 static void read_directive(void)
 {
     struct token *t = skip_spaces();
-    if (t->kind == TNEWLINE)
+    if (IS_NEWLINE(t))
 	return;
-    if (t->kind == TNUMBER) {
+    if (t->id == ICONSTANT) {
 	line_line();
 	return;
     }
-    if (t->kind != TIDENTIFIER) {
+    if (t->id != ID) {
 	skipline(true);
 	return;
     }
@@ -451,9 +301,40 @@ static void read_directive(void)
     else skipline(true);
 }
 
-static struct token * read_expand(void)
+static struct token * doexpand(void)
 {
-    
+    struct token *t = lex();
+    if (t->id != ID)
+	return t;
+
+    const char *name = t->name;
+    struct macro *m = map_get(macros, name);
+    if (m == NULL || set_has(t->hideset, name))
+	return t;
+
+    switch (m->kind) {
+    case MACRO_OBJ:
+	{
+	    struct set *hdset = set_add(t->hideset, name);
+	    struct vector *v = subst(m, NULL, hdset);
+	    
+	    return expand();
+	}
+    case MACRO_FUNC:
+	{
+	}
+	break;
+    case MACRO_SPECIAL:
+	{
+	}
+    default:
+	break;
+    }
+}
+
+static struct token * expand(void)
+{
+    return doexpand();
 }
 
 static struct token * conv2cc(struct token *t)
@@ -464,7 +345,7 @@ static struct token * conv2cc(struct token *t)
 struct token * get_pptok(void)
 {
     for (;;) {
-        struct token *t = read_expand();
+        struct token *t = expand();
 	if (t->id == '#') {
 	    read_directive();
 	    continue;
@@ -480,6 +361,5 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
-    putbacks = vec_new();
     parseopts(options);
 }

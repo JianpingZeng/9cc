@@ -23,6 +23,20 @@ extern void * alloc_type(void);
 extern void * alloc_field(void);
 extern void * alloc_token(void);
 
+// value
+#define VALUE_U(v)    ((v).u)
+#define VALUE_I(v)    ((v).u)
+#define VALUE_D(v)    ((v).d)
+#define VALUE_P(v)    ((v).p)
+#define VALUE_G(v)    ((v).g)
+
+union value {
+    unsigned long long u;
+    long double d;
+    void *p;
+    void (*g) ();
+};
+
 // lex.c
 #define EOI  -1
 
@@ -32,18 +46,6 @@ enum {
 #define _t(a, b, c)     a,
 #include "token.def"
     TOKEND
-};
-
-// lexical token kind
-enum {
-    TEOI,
-    TSPACE,
-    TNEWLINE,
-    TPUNCTUATOR,
-    TIDENTIFIER,
-    TNUMBER,
-    TCHARCONST,
-    TSTRING,
 };
 
 struct source {
@@ -87,10 +89,15 @@ extern bool is_hex(char c);
 extern bool is_digithex(char c);
 extern bool is_visible(char c);
 
+#define IS_SPACE(token)    (token->id == ' ')
+#define IS_NEWLINE(token)  (token->id == '\n')
+
+extern void lex_init(const char *file);
 extern struct cc_file * open_file(const char *file);
 extern void close_file(struct cc_file *file);
 extern void skipline(bool over);
 extern struct token * lex(void);
+extern void unget(struct token *t);
 
 extern int gettok(void);
 extern struct token * lookahead(void);
@@ -98,29 +105,9 @@ extern void expect(int t);
 extern void match(int t, int follow[]);
 extern const char *tname(int t);
 
-// value
-#define VALUE_U(v)    ((v).u)
-#define VALUE_I(v)    ((v).u)
-#define VALUE_D(v)    ((v).d)
-#define VALUE_P(v)    ((v).p)
-#define VALUE_G(v)    ((v).g)
-
-union value {
-    unsigned long long u;
-    long double d;
-    void *p;
-    void (*g) ();
-};
-
-extern struct token *eoi_token;
-
 // cpp.c
-extern void input_init(const char *file);
 extern void cpp_init(struct vector *options);
 extern struct token * get_pptok(void);
-
-#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
-#define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))
 
 // ast.h
 #include "ast.h"
@@ -130,6 +117,7 @@ extern node_t * eval(node_t *expr, node_t *ty);
 extern node_t * eval_bool(node_t *expr);
 
 // expr.c
+#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 extern node_t * expression(void);
 extern node_t * assign_expr(void);
 extern int intexpr(void);
@@ -278,6 +266,8 @@ struct table {
 };
 
 // sym
+#define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))
+
 extern void symbol_init(void);
 extern int scopelevel(void);
 extern void enter_scope(void);

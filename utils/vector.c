@@ -76,12 +76,6 @@ void vec_add(struct vector *v, struct vector *v2)
         vec_push(v, vec_at(v2, i));
 }
 
-void vec_addr(struct vector *v, struct vector *v2)
-{
-    for (int i=vec_len(v2)-1; i >= 0; i--)
-        vec_push(v, vec_at(v2, i));
-}
-
 void vec_push(struct vector *v, void *val)
 {
     assert(val);

@@ -49,7 +49,7 @@ int cc_main(int argc, const char * argv[])
 {
     parseopts(argc, argv);
     cpp_init(options);
-    input_init(ifile);
+    lex_init(ifile);
     type_init();
     symbol_init();
     preprocess();

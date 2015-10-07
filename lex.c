@@ -37,12 +37,14 @@ static struct cc_char *pe;
 static struct cc_char *pc;
 static long bread;
 static struct vector *files;
-static struct source marker;
 
 struct token *token;
-struct token *eoi_token = &(struct token){.id = EOI, .kind = TEOI};
-static struct token *newline_token = &(struct token){.id = TOK10, .name = "\n", .kind = TNEWLINE};
-static struct token *space_token = &(struct token){.id = TOK32, .kind = TSPACE};
+static struct token *eoi_token = &(struct token){.id = EOI};
+static struct token *newline_token = &(struct token){.id = '\n'};
+static struct token *space_token = &(struct token){.id = ' '};
+static struct vector *buffers;
+
+struct source source;
 
 /* Don't use macros here, because macros make things wrong.
  * For example:
@@ -139,12 +141,22 @@ static void fillbuf(struct cc_file *fs)
     *fs->pe = 0;
 }
 
-static void mark(struct cc_char *ch)
+static void pin(struct cc_char *ch)
 {
     struct cc_file *fs = vec_tail(files);
-    marker.file = fs->file;
-    marker.line = ch->line;
-    marker.column = ch->column;
+    source.file = fs->file;
+    source.line = ch->line;
+    source.column = ch->column;
+}
+
+static struct source chsrc(struct cc_char *ch)
+{
+    struct source src;
+    struct cc_file *fs = vec_tail(files);
+    src.file = fs->file;
+    src.line = ch->line;
+    src.column = ch->column;
+    return src;
 }
 
 struct cc_file * open_file(const char *file)
@@ -266,12 +278,19 @@ static void fillchs(void)
     pe->ch = 0;
 }
 
-void input_init(const char *file)
+static void input_init(const char *file)
 {
     files = vec_new();
     vec_push(files, open_file(file));
     pc = pe = &chs[LCACHE];
     bread = -1;
+}
+
+void lex_init(const char *file)
+{
+    input_init(file);
+    buffers = vec_new();
+    vec_push(buffers, vec_new());
 }
 
 static struct token * new_token(struct token *tok)
@@ -282,7 +301,7 @@ static struct token * new_token(struct token *tok)
     t->kind = tok->kind;
     if (!tok->name)
 	t->name = tname(tok->id);
-    t->src = marker;
+    t->src = source;
     return t;
 }
 
@@ -346,7 +365,7 @@ static void block_comment(void)
 	pc++;
     }
     if (pc == pe)
-	errorf(marker, "unterminated /* comment");
+	error("unterminated /* comment");
     else
 	pc += 2;
 }
@@ -374,13 +393,13 @@ static struct token * ppnumber(void)
 	    pc += 1;
 	}
     }
-    return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str), .kind = TNUMBER});
+    return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
 }
 
 static void escape(struct strbuf *s)
 {
     CCAssert(CH(pc) == '\\');
-    mark(pc);
+    struct source src = chsrc(pc);
     concat(s, pc++, 2);
     switch (CH(pc++)) {
     case 'a': case 'b': case 'f':
@@ -399,7 +418,7 @@ static void escape(struct strbuf *s)
 	break;
     case 'x':
 	if (!is_digithex(CH(pc))) {
-	    errorf(marker, "\\x used with no following hex digits");
+	    errorf(src, "\\x used with no following hex digits");
 	    break;
 	}
 	readch(s, is_digithex);
@@ -415,11 +434,11 @@ static void escape(struct strbuf *s)
 		concat(s, pc, 1);
             }
             if (x < n)
-                errorf(marker, "incomplete universal character name: %s", s->str);
+                errorf(src, "incomplete universal character name: %s", s->str);
         }
 	break;
     default:
-	errorf(marker, "unrecognized escape character 0x%x", 0xFF & CH(pc-1));
+	errorf(src, "unrecognized escape character 0x%x", 0xFF & CH(pc-1));
 	break;
     }
 }
@@ -427,13 +446,7 @@ static void escape(struct strbuf *s)
 static struct token * sequence(bool wide, char sep)
 {
     struct strbuf *s = strbuf_new();
-    if (wide) {
-	concat(s, pc-2, 2);
-	mark(pc-2);
-    } else {
-	concat(s, pc-1, 1);
-        mark(pc-1);
-    }
+    wide ? concat(s, pc-2, 2) : concat(s, pc-1, 1);
     for (; CH(pc) != sep;) {
 	if (pe - pc < MAXCACHE) {
 	    fillchs();
@@ -452,16 +465,16 @@ static struct token * sequence(bool wide, char sep)
     const char *name = is_char ? "character" : "string";
     const char *pad = is_char ? "'" : "\"";
     if (CH(pc) != sep) {
-	errorf(marker, "untermiated %s constant: %s", name, s->str);
+	error("untermiated %s constant: %s", name, s->str);
 	strbuf_cats(s, pad);
     } else {
 	strbuf_catc(s, CH(pc++));
     }
 
     if (is_char)
-	return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str), .kind = TCHARCONST});
+	return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
     else
-	return new_token(&(struct token){.id = SCONSTANT, .name = strs(s->str), .kind = TSTRING});
+	return new_token(&(struct token){.id = SCONSTANT, .name = strs(s->str)});
 }
 
 static struct token * identifier(void)
@@ -469,7 +482,7 @@ static struct token * identifier(void)
     struct strbuf *s = strbuf_new();
     pc = pc - 1;
     readch(s, is_digitletter);
-    return new_token(&(struct token){.id = ID, .name = strs(s->str), .kind = TIDENTIFIER});
+    return new_token(&(struct token){.id = ID, .name = strs(s->str)});
 }
 
 static struct token * spaces(void)
@@ -478,11 +491,11 @@ static struct token * spaces(void)
     pc = pc - 1;
     readch(s, is_blank);
     space_token->name = strs(s->str);
-    space_token->src = marker;
+    space_token->src = source;
     return space_token;
 }
 
-struct token * lex(void)
+struct token * dolex(void)
 {
     struct cc_char *rpc;
     for (; ;) {
@@ -490,7 +503,7 @@ struct token * lex(void)
 	    fillchs();
 	
 	rpc = pc++;
-	mark(rpc);
+	pin(rpc);
 
 	switch (CH(rpc)) {
 	case EOI:
@@ -517,160 +530,160 @@ struct token * lex(void)
 		continue;
 	    } else if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = DIVEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = DIVEQ});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '+':
 	    if (CH(rpc+1) == '+') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = INCR, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = INCR});
 	    } else if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = ADDEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = ADDEQ});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '-':
 	    if (CH(rpc+1) == '-') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = DECR, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = DECR});
 	    } else if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = MINUSEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = MINUSEQ});
 	    } else if (CH(rpc+1) == '>') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = DEREF, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = DEREF});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '*':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = MULEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = MULEQ});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '=':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = EQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = EQ});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '!':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = NEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = NEQ});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '%':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = MODEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = MODEQ});
 	    } else if (CH(rpc+1) == '>') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = '}', .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = '}'});
 	    } else if (CH(rpc+1) == ':' && CH(rpc+2) == '%' && CH(rpc+3) == ':') {
 		pc = rpc + 4;
-		return new_token(&(struct token){.id = SHARPSHARP, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = SHARPSHARP});
 	    } else if (CH(rpc+1) == ':') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = '#', .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = '#'});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '^':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = XOREQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = XOREQ});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '&':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = BANDEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = BANDEQ});
 	    } else if (CH(rpc+1) == '&') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = AND, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = AND});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '|':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = BOREQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = BOREQ});
 	    } else if (CH(rpc+1) == '|') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = OR, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = OR});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '<':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = LEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = LEQ});
 	    } else if (CH(rpc+1) == '<' && CH(rpc+2) == '=') {
 		pc = rpc + 3;
-		return new_token(&(struct token){.id = LSHIFTEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = LSHIFTEQ});
 	    } else if (CH(rpc+1) == '<') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = LSHIFT, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = LSHIFT});
 	    } else if (CH(rpc+1) == '%') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = '{', .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = '{'});
 	    } else if (CH(rpc+1) == ':') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = '[', .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = '['});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '>':
 	    if (CH(rpc+1) == '=') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = GEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = GEQ});
 	    } else if (CH(rpc+1) == '>' && CH(rpc+2) == '=') {
 		pc = rpc + 3;
-		return new_token(&(struct token){.id = RSHIFTEQ, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = RSHIFTEQ});
 	    } else if (CH(rpc+1) == '>') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = RSHIFT, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = RSHIFT});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 	    
 	case '(': case ')': case '{': case '}':
 	case '[': case ']': case ',': case ';':
 	case '~': case '?':
-	    return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+	    return new_token(&(struct token){.id = CH(rpc)});
 
 	case ':':
 	    if (CH(rpc+1) == '>') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = ']', .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = ']'});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '#':
 	    if (CH(rpc+1) == '#') {
 		pc = rpc + 2;
-		return new_token(&(struct token){.id = SHARPSHARP, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = SHARPSHARP});
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	    // constants
@@ -688,11 +701,11 @@ struct token * lex(void)
 	case '.':
 	    if (CH(rpc+1) == '.' && CH(rpc+2) == '.') {
 		pc = rpc + 3;
-		return new_token(&(struct token){.id = ELLIPSIS, .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = ELLIPSIS});
 	    } else if (is_digit(CH(rpc+1))) {
 		return ppnumber();
 	    } else {
-		return new_token(&(struct token){.id = CH(rpc), .kind = TPUNCTUATOR});
+		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 	    
 	    // identifiers
@@ -726,12 +739,31 @@ struct token * lex(void)
 	    // invalid character
 	    if (!is_blank(CH(rpc))) {
 		if (is_visible(CH(rpc)))
-		    errorf(marker, "invalid character '%c'", CH(rpc));
+		    error("invalid character '%c'", CH(rpc));
 		else
-		    errorf(marker, "invalid character '\\0%o'", 0xFF & CH(rpc));
+		    error("invalid character '\\0%o'", 0xFF & CH(rpc));
 	    }
 	}
     }
+}
+
+void unget(struct token *t)
+{
+    struct vector *v = vec_tail(buffers);
+    vec_push(v, t);
+}
+
+struct token * lex(void)
+{
+    struct vector *v = vec_tail(buffers);
+    // no matter which is the last
+    if (vec_len(v))
+	return vec_pop(v);
+    // if the last vec is empty and buffers len > 1
+    if (vec_len(buffers) > 1)
+	return eoi_token;
+    // do lex
+    return dolex();
 }
 
 const char *tname(int t)
