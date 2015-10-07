@@ -758,12 +758,14 @@ struct token * lex(void)
     struct vector *v = vec_tail(buffers);
     // no matter which is the last
     if (vec_len(v))
-	return vec_pop(v);
+        token = vec_pop(v);
     // if the last vec is empty and buffers len > 1
-    if (vec_len(buffers) > 1)
-	return eoi_token;
+    else if (vec_len(buffers) > 1)
+	token = eoi_token;
     // do lex
-    return dolex();
+    else
+	token = dolex();
+    return token;
 }
 
 const char *tname(int t)
