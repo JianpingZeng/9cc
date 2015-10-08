@@ -755,6 +755,16 @@ struct token * dolex(void)
     }
 }
 
+static const char * h_char_sequence(void)
+{
+
+}
+
+static const char * q_char_sequence(void)
+{
+
+}
+
 struct token *header_name(void)
 {
     struct cc_char *ch;
@@ -764,9 +774,11 @@ struct token *header_name(void)
 	goto beg;
 
     if (CH(ch) == '<') {
-
+	const char *name = h_char_sequence();
+	return new_token(&(struct token){.id = HEADER, .name = name, .kind = 1});
     } else if (CH(ch) == '"') {
-
+	const char *name = q_char_sequence();
+	return new_token(&(struct token){.id = HEADER, .name = name, .kind = 2});
     } else {
 	// pptokens
 	unreadc(ch);
