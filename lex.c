@@ -159,6 +159,11 @@ static struct source chsrc(struct cc_char *ch)
     return src;
 }
 
+static inline void mark(struct token *t)
+{
+    source = t->src;
+}
+
 struct cc_file * open_file(const char *file)
 {
     FILE *fp = fopen(file, "r");
@@ -775,6 +780,7 @@ struct token * lex(void)
     // do lex
     else
 	token = dolex();
+    mark(token);
     return token;
 }
 
