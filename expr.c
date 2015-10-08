@@ -1346,7 +1346,7 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	    node = ast_bop(op, inttype, l, r);
 	break;
     default:
-	error("unknown op '%s'", tname(op));
+	error("unknown op '%s'", id2s(op));
 	CCAssert(0);
     }
     return node;

@@ -331,7 +331,7 @@ node_t * tag_type(int t, const char *tag, struct source src)
     node_t *ty = new_type();
     _TYPE_KIND(ty) = t;
     _TYPE_TAG(ty) = tag;
-    _TYPE_NAME(ty) = tname(t);
+    _TYPE_NAME(ty) = id2s(t);
     if (t == ENUM)
         _TYPE_TYPE(ty) = inttype;
     

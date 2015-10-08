@@ -114,7 +114,7 @@ static void print_expr(node_t *node, struct print_context context)
     if (op == INCR || op == DECR)
 	putf("%s ", (prefix ? "prefix" : "postfix"));
     if (op > 0)
-	putf("'%s' ", tname(op));
+	putf("'%s' ", id2s(op));
     if (AST_NAME(node))
 	putf("<" RED("%s")  "> ", AST_NAME(node));
     if (isiliteral(node)) {

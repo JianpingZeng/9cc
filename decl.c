@@ -227,13 +227,13 @@ static node_t * specifiers(int *sclass)
         (size == LONG + LONG && type != INT) ||
         (size == LONG && type != INT && type != DOUBLE)) {
         if (size == LONG + LONG)
-            error("%s %s %s is invalid", tname(size/2), tname(size/2), tname(type));
+            error("%s %s %s is invalid", id2s(size/2), id2s(size/2), id2s(type));
         else
-            error("%s %s is invalid", tname(size), tname(type));
+            error("%s %s is invalid", id2s(size), id2s(type));
     } else if (sign && type != INT && type != CHAR) {
-        error("'%s' cannot be signed or unsigned", tname(type));
+        error("'%s' cannot be signed or unsigned", id2s(type));
     } else if (ci && type != DOUBLE && type != FLOAT) {
-        error("'%s' cannot be %s", tname(type), tname(ci));
+        error("'%s' cannot be %s", id2s(type), id2s(ci));
     }
     
     if (tydefty)
@@ -295,7 +295,7 @@ static void array_qualifiers(node_t *atype)
         }
         
         if (*p != 0)
-            warning("duplicate type qualifier '%s'", tname(*p));
+            warning("duplicate type qualifier '%s'", id2s(*p));
         
         *p = t;
     }
@@ -564,7 +564,7 @@ static node_t * enum_decl(void)
         if (sym) {
             if (currentscope(sym) && !isenum(SYM_TYPE(sym)))
                 errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(ENUM), id, type2s(SYM_TYPE(sym)),  SYM_SRC(sym).file, SYM_SRC(sym).line);
+                       id2s(ENUM), id, type2s(SYM_TYPE(sym)),  SYM_SRC(sym).file, SYM_SRC(sym).line);
         } else {
             sym = tag_type(ENUM, id, src);
         }
@@ -601,7 +601,7 @@ static node_t * struct_decl(void)
         if (sym) {
             if (currentscope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
                 errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       tname(t), id, type2s(SYM_TYPE(sym)), SYM_SRC(sym).file, SYM_SRC(sym).line);
+                       id2s(t), id, type2s(SYM_TYPE(sym)), SYM_SRC(sym).file, SYM_SRC(sym).line);
         } else {
             sym = tag_type(t, id, src);
         }
@@ -1100,7 +1100,7 @@ static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source
     sclass = PARAM_SCLASS(sclass);
     
     if (sclass && sclass != REGISTER) {
-        error("invalid storage class specifier '%s' in function declarator", tname(sclass));
+        error("invalid storage class specifier '%s' in function declarator", id2s(sclass));
         sclass = 0;
     }
     
@@ -1220,7 +1220,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
     CCAssert(SCOPE == PARAM);
     
     if (sclass && sclass != EXTERN && sclass != STATIC) {
-        error("invalid storage class specifier '%s'", tname(sclass));
+        error("invalid storage class specifier '%s'", id2s(sclass));
         sclass = 0;
     }
     

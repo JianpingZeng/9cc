@@ -32,10 +32,12 @@ struct cc_char {
 #define RCACHE    64
 #define MAXCACHE  8
 
+static void unreadc(struct cc_char * ch);
 static struct cc_char chs[LCACHE+RCACHE+1];
 static struct cc_char *pe;
 static struct cc_char *pc;
 static long bread;
+static struct vector *chars;
 static struct vector *files;
 
 struct token *token;
@@ -203,25 +205,21 @@ static char get(void)
     return *fs->pc++;
 }
 
-static inline struct cc_char * skeleton_char(struct cc_char *ch)
+static inline struct cc_char * newch(char c, unsigned line, unsigned column)
 {
-    static struct cc_char ch1;
-    ch1.ch = ch->ch;
-    ch1.line = ch->line;
-    ch1.column = ch->column;
-    return &ch1;
+    struct cc_char *ch =  zmalloc(sizeof(struct cc_char));
+    ch->ch = c;
+    ch->line = line;
+    ch->column = column;
+    return ch;
 }
 
 static struct cc_char * readc(void)
 {
-    static struct cc_char ch2;
     struct cc_file *fs = vec_tail(files);
 
-    if (ch2.ch) {
-        struct cc_char *ch1 = skeleton_char(&ch2);
-	ch2.ch = 0;
-	return ch1;
-    }
+    if (vec_len(chars))
+	return vec_pop(chars);
     
     for (;;) {
         char c = get();
@@ -233,12 +231,16 @@ static struct cc_char * readc(void)
 	if (c2 == '\n')
 	    continue;
 	// cache
-	ch2.ch = c2;
-	ch2.line = fs->line;
-	ch2.column = fs->column;
+	struct cc_char *ch2 = newch(c2, fs->line, fs->column);
+	unreadc(ch2);
     end:
-	return skeleton_char(&(struct cc_char){.ch = c, .line = line, .column = column});
+	return newch(c, line, column);
     }
+}
+
+static void unreadc(struct cc_char * ch)
+{
+    vec_push(chars, ch);
 }
 
 static void fillchs(void)
@@ -289,6 +291,7 @@ static void input_init(const char *file)
     vec_push(files, open_file(file));
     pc = pe = &chs[LCACHE];
     bread = -1;
+    chars = vec_new();
 }
 
 void lex_init(const char *file)
@@ -305,7 +308,7 @@ static struct token * new_token(struct token *tok)
     t->name = tok->name;
     t->kind = tok->kind;
     if (!tok->name)
-	t->name = tname(tok->id);
+	t->name = id2s(tok->id);
     t->src = source;
     return t;
 }
@@ -338,7 +341,7 @@ static void readch(struct strbuf *s, bool (*is) (char))
     pc = rpc;
 }
 
-void skipline(bool over)
+void skipline(void)
 {
     while (CH(pc) != '\n') {
 	pc++;
@@ -354,7 +357,7 @@ void skipline(bool over)
 
 static inline void line_comment(void)
 {
-    skipline(false);
+    skipline();
 }
 
 // TODO: newline update source
@@ -752,6 +755,24 @@ struct token * dolex(void)
     }
 }
 
+struct token *header_name(void)
+{
+    struct cc_char *ch;
+ beg:
+    ch = readc();
+    if (is_blank(CH(ch)))
+	goto beg;
+
+    if (CH(ch) == '<') {
+
+    } else if (CH(ch) == '"') {
+
+    } else {
+	// pptokens
+	unreadc(ch);
+    }
+}
+
 void unget(struct token *t)
 {
     struct vector *v = vec_tail(buffers);
@@ -784,7 +805,7 @@ struct token * lex(void)
     return token;
 }
 
-const char *tname(int t)
+const char *id2s(int t)
 {
     if (t < 0)
         return "EOI";
@@ -804,9 +825,9 @@ void expect(int t)
         gettok();
     } else {
         if (token->id == EOI)
-            error("expect token '%s' at the end", tname(t));
+            error("expect token '%s' at the end", id2s(t));
         else
-            error("expect token '%s' before '%s'", tname(t), token->name);
+            error("expect token '%s' before '%s'", id2s(t), token->name);
     }
 }
 

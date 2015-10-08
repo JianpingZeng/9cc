@@ -98,6 +98,7 @@ static void ifndef_section(void)
 
 static void include_line(void)
 {
+    
 }
 
 static struct token * read_identifier(void)
@@ -179,7 +180,7 @@ static void parameters(struct macro *m)
 	m->params = v;
     } else {
 	error("expect identifier list or ')' or ...");
-	skipline(true);
+	skipline();
     }
 }
 
@@ -216,7 +217,7 @@ static void define_line(void)
 {
     struct token *id = read_identifier();
     if (id == NULL) {
-	skipline(true);
+	skipline();
 	return;
     }
     struct macro *m = map_get(macros, id->name);
@@ -235,14 +236,14 @@ static void undef_line(void)
 {
     struct token *id = read_identifier();
     if (id == NULL) {
-	skipline(true);
+	skipline();
 	return;
     }
     map_put(macros, id->name, NULL);
     id = skip_spaces();
     if (!IS_NEWLINE(id))
 	error("extra tokens");
-    skipline(true);
+    skipline();
 }
 
 static void line_line(void)
@@ -271,7 +272,7 @@ static void directive(void)
 	return;
     }
     if (t->id != ID) {
-	skipline(true);
+	skipline();
 	return;
     }
     if (!strcmp(t->name, "if")) if_section();
@@ -284,7 +285,7 @@ static void directive(void)
     else if (!strcmp(t->name, "error")) error_line();
     else if (!strcmp(t->name, "pragma")) pragma_line();
     else if (!strcmp(t->name, "warning")) warning_line();
-    else skipline(true);
+    else skipline();
 }
 
 static struct vector * hsadd(struct vector *r, struct set *hideset)

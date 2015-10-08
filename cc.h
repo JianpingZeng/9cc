@@ -95,7 +95,7 @@ extern bool is_visible(char c);
 extern void lex_init(const char *file);
 extern struct cc_file * open_file(const char *file);
 extern void close_file(struct cc_file *file);
-extern void skipline(bool over);
+extern void skipline(void);
 extern struct token * lex(void);
 extern void unget(struct token *t);
 extern void push_buffer(struct vector *v);
@@ -105,7 +105,7 @@ extern int gettok(void);
 extern struct token * lookahead(void);
 extern void expect(int t);
 extern void match(int t, int follow[]);
-extern const char *tname(int t);
+extern const char *id2s(int t);
 
 // cpp.c
 extern void cpp_init(struct vector *options);
