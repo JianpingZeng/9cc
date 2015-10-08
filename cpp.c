@@ -159,9 +159,13 @@ static void parameters(struct macro *m)
     } else if (t->id == ID) {
 	struct vector *v = vec_new();
 	for (;;) {
-	    if (t->id == ')' || t->id == ELLIPSIS)
+	    if (t->id == ID)
+		vec_push(v, t);
+	    else
+		error("expect identifier");
+	    t = skip_spaces();
+	    if (t->id != ',')
 		break;
-	    vec_push(v, t);
 	    t = skip_spaces();
 	}
 	if (t->id == ELLIPSIS) {
@@ -169,6 +173,8 @@ static void parameters(struct macro *m)
 	    t = skip_spaces();
 	    if (t->id != ')')
 		error("expect ')'");
+	} else if (t->id != ')') {
+	    error("expect ')'");
 	}
 	m->params = v;
     } else {
@@ -313,7 +319,8 @@ static struct vector * subst(struct macro *m, struct vector *args, struct set *h
 	struct token *t = vec_at(body, i);
 	int index = inparams(t, params);
 	if (index >= 0) {
-	    struct vector *iv = vec_at(args, index);
+	    struct vector *iv = vec_new();
+	    vec_add(iv, vec_at(args, index));
 	    struct vector *ov = expandv(iv);
 	    vec_add(r, ov);
 	} else {
@@ -344,6 +351,17 @@ static struct token * doexpand(void)
 	}
     case MACRO_FUNC:
 	{
+	    if (peek()->id != '(') {
+		error("invalid func macro");
+		return t;
+	    }
+	    skip_spaces();
+	    struct vector *args = arguments(m);
+	    CCAssert(token->id == ')');
+	    struct set *hdset = set_add(set_intersection(t->hideset, token->hideset), name);
+	    struct vector *v = subst(m, args, hdset);
+	    ungetv(v);
+	    return expand();
 	}
 	break;
     case MACRO_SPECIAL:
