@@ -751,7 +751,7 @@ beg:
 
 void include_file(const char *file)
 {
-    CCAssert(vec_len(vec_tail(files)) == 0);
+    CCAssert(vec_len(vec_tail(buffers)) == 0);
     vec_push(files, open_file(file));
 }
 
