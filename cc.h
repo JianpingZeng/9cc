@@ -304,10 +304,12 @@ extern void print_tree(node_t *tree);
 // error.c
 extern unsigned errors;
 extern unsigned warnings;
-extern void warning(const char *fmt, ...);
-extern void error(const char *fmt, ...);
 extern void warningf(struct source src, const char *fmt, ...);
 extern void errorf(struct source src, const char *fmt, ...);
+extern void fatalf(struct source src, const char *fmt, ...);
+#define warning(...)  warningf(source, __VA_ARGS__)
+#define error(...)    errorf(source, __VA_ARGS__)
+#define fatal(...)    fatalf(source, __VA_ARGS__)
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)

@@ -136,7 +136,9 @@ static void include_line(void)
 	    include_file(name);
 	} else {
 	    if (t->name)
-		error("Cannot find header '%s'", t->name);
+		fatal("'%s' file not found", t->name);
+	    else
+		error("empty filename");
 	}
     } else {
 	// pptokens

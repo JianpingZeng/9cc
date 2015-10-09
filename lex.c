@@ -677,7 +677,7 @@ struct token * dolex(void)
     }
 }
 
-static const char * hq_char_sequence(char sep, struct source src)
+static const char * hq_char_sequence(char sep)
 {
     struct strbuf *s = strbuf_new();
     struct cc_char *ch;
@@ -690,15 +690,13 @@ static const char * hq_char_sequence(char sep, struct source src)
     }
 
     if (CH(ch) != sep)
-	errorf(src, "missing '%c' in header name", sep);
+	error("missing '%c' in header name", sep);
     
     skipline();
-    if (strbuf_len(s)) {
+    if (strbuf_len(s))
 	return strs(s->str);
-    } else {
-	errorf(src, "empty header name");
+    else
 	return NULL;
-    }
 }
 
 struct token *header_name(void)
@@ -709,11 +707,12 @@ beg:
     if (is_blank(CH(ch)))
 	goto beg;
 
+    pin(ch);
     if (CH(ch) == '<') {
-	const char *name = hq_char_sequence('>', chsrc(ch));
+	const char *name = hq_char_sequence('>');
 	return new_token(&(struct token){.name = name, .kind = '<'});
     } else if (CH(ch) == '"') {
-	const char *name = hq_char_sequence('"', chsrc(ch));
+	const char *name = hq_char_sequence('"');
 	return new_token(&(struct token){.name = name, .kind = '"'});
     } else {
 	// pptokens

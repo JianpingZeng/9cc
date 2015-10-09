@@ -42,15 +42,6 @@ void warningf(struct source src, const char *fmt, ...)
     ++warnings;
 }
 
-void warning(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    cc_print_lead(WRN, source, fmt, ap);
-    va_end(ap);
-    ++warnings;
-}
-
 void errorf(struct source src, const char *fmt, ...)
 {
     va_list ap;
@@ -64,17 +55,13 @@ void errorf(struct source src, const char *fmt, ...)
     }
 }
 
-void error(const char *fmt, ...)
+void fatalf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead(ERR, source, fmt, ap);
+    cc_print_lead(FTL, src, fmt, ap);
     va_end(ap);
-    ++errors;
-    if (errors >= MAX_ERRORS) {
-        fprintf(stderr, "Too many errors.\n");
-        exit(EXIT_FAILURE);
-    }
+    exit(EXIT_FAILURE);
 }
 
 void redefinition_error(struct source src, node_t *sym)

@@ -1,6 +1,6 @@
 // ASCII
 // id    name       map             kind
-_a(TOK0, "\0",      0,              0)
+_a(TOK0, NULL,      0,              0)
 _a(TOK1, "001",     0,              0)
 _a(TOK2, "002",     0,              0)
 _a(TOK3, "003",     0,              0)
