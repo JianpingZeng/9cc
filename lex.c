@@ -28,15 +28,7 @@ struct cc_char {
 
 #define CH(c)    ((c)->ch)
 
-#define LCACHE    8
-#define RCACHE    64
-#define MAXCACHE  8
-
 static void unreadc(struct cc_char * ch);
-static struct cc_char chs[LCACHE+RCACHE+1];
-static struct cc_char *pe;
-static struct cc_char *pc;
-static long bread;
 static struct vector *chars;
 static struct vector *files;
 
@@ -153,8 +145,8 @@ static void pin(struct cc_char *ch)
 
 static struct source chsrc(struct cc_char *ch)
 {
-    struct source src;
     struct cc_file *fs = vec_tail(files);
+    struct source src;
     src.file = fs->file;
     src.line = ch->line;
     src.column = ch->column;
@@ -166,7 +158,7 @@ static inline void mark(struct token *t)
     source = t->src;
 }
 
-struct cc_file * open_file(const char *file)
+static struct cc_file * open_file(const char *file)
 {
     FILE *fp = fopen(file, "r");
     if (fp == NULL) {
@@ -183,7 +175,7 @@ struct cc_file * open_file(const char *file)
     return fs;
 }
 
-void close_file(struct cc_file *file)
+static void close_file(struct cc_file *file)
 {
     fclose(file->fp);
     free(file);
@@ -225,7 +217,15 @@ static struct cc_char * readc(void)
         char c = get();
 	unsigned line = fs->line;
 	unsigned column = fs->column;
-	if (c == EOI || c != '\\')
+	if (c == EOI) {
+	    if (vec_len(files) == 1) {
+		goto end;
+	    } else {
+		close_file(vec_pop(files));
+		continue;
+	    }
+	}
+	if (c != '\\')
 	    goto end;
 	char c2 = get();
 	if (c2 == '\n')
@@ -243,55 +243,27 @@ static void unreadc(struct cc_char * ch)
     vec_push(chars, ch);
 }
 
-static void fillchs(void)
+static bool next(char c)
 {
-    if (bread == 0) {
-	if (pc > pe)
-	    pc = pe;
-	return;
-    }
-    
-    if (pc >= pe) {
-	pc = &chs[LCACHE];
-    } else {
-	long n;
-	struct cc_char *dst, *src;
+    struct cc_char *ch = readc();
+    if (CH(ch) == c)
+	return true;
+    unreadc(ch);
+    return false;
+}
 
-	// copy
-	n = pe - pc;
-	dst = &chs[LCACHE] - n;
-	src = pc;
-	while (src < pe)
-	    *dst++ = *src++;
-
-	pc = &chs[LCACHE] - n;
-    }
-
-    int i;
-    struct cc_char *rpc = &chs[LCACHE];
-    for (i = 0; i < RCACHE; i++) {
-        struct cc_char *ch = readc();
-	rpc[i].ch = ch->ch;
-	rpc[i].line = ch->line;
-	rpc[i].column = ch->column;
-	if (ch->ch == EOI) {
-	    i++;
-	    bread = 0;
-	    break;
-	}
-    }
-
-    pe = &chs[LCACHE] + i;
-    pe->ch = 0;
+static char peek(void)
+{
+    struct cc_char *ch = readc();
+    unreadc(ch);
+    return CH(ch);
 }
 
 static void input_init(const char *file)
 {
     files = vec_new();
-    vec_push(files, open_file(file));
-    pc = pe = &chs[LCACHE];
-    bread = -1;
     chars = vec_new();
+    vec_push(files, open_file(file));
 }
 
 void lex_init(const char *file)
@@ -313,46 +285,25 @@ static struct token * new_token(struct token *tok)
     return t;
 }
 
-static inline void concat(struct strbuf *s, struct cc_char *p, int n)
-{
-    while (n--) {
-	strbuf_catc(s, CH(p));
-	p++;
-    }
-}
-
 static void readch(struct strbuf *s, bool (*is) (char))
 {
-    struct cc_char *rpc = pc;
-    for (; is(CH(rpc)) || rpc == pe; ) {
-        if (rpc == pe) {
-	    concat(s, pc, rpc-pc);
-	    pc = rpc;
-	    fillchs();
-	    rpc = pc;
-	    if (pc == pe)
-		break;
-	    else
-		continue;
+    for (;;) {
+	struct cc_char *ch = readc();
+	if (!is(CH(ch))) {
+	    unreadc(ch);
+	    break;
 	}
-	rpc++;
+	strbuf_catc(s, CH(ch));
     }
-    concat(s, pc, rpc-pc);
-    pc = rpc;
 }
 
 void skipline(void)
 {
-    while (CH(pc) != '\n') {
-	pc++;
-	if (pe - pc < LCACHE) {
-	    fillchs();
-	    if (pc == pe)
-		break;
-	}
+    for (;;) {
+	struct cc_char *ch = readc();
+	if (is_newline(CH(ch)) || CH(ch) == EOI)
+	    break;
     }
-    if (CH(pc) == '\n')
-	readc();
 }
 
 static inline void line_comment(void)
@@ -360,56 +311,49 @@ static inline void line_comment(void)
     skipline();
 }
 
-// TODO: newline update source
 static void block_comment(void)
 {
-    pc++;
-    for (; CH(pc) != '*' || CH(pc+1) != '/'; ) {
-	if (pe - pc < LCACHE) {
-	    fillchs();
-	    if (pc == pe)
-		break;
+    for (;;) {
+	struct cc_char *ch = readc();
+	if (CH(ch) == '*' && next('/'))
+	    break;
+	if (CH(ch) == EOI) {
+	    error("unterminated /* comment");
+	    break;
 	}
-	pc++;
     }
-    if (pc == pe)
-	error("unterminated /* comment");
-    else
-	pc += 2;
 }
 
-static struct token * ppnumber(void)
+static struct token * ppnumber(char c)
 {
     struct strbuf *s = strbuf_new();
-    pc--;
-    if (is_digit(CH(pc))) {
-	concat(s, pc, 1);
-	pc += 1;
-    } else {
-	concat(s, pc, 2);
-	pc += 2;
-    }
-    for (; is_digitletter(CH(pc)) || CH(pc) == '.';) {
-	if (pe - pc < MAXCACHE)
-	    fillchs();
-	bool is_float = strchr("eEpP", CH(pc)) && strchr("+-", CH(pc+1));
+    strbuf_catc(s, c);
+    for (;;) {
+	struct cc_char *ch = readc();
+	if (!is_digitletter(CH(ch)) && CH(ch) != '.') {
+	    unreadc(ch);
+	    break;
+	}
+	bool is_float = strchr("eEpP", CH(ch)) && strchr("+-", peek());
 	if (is_float) {
-	    concat(s, pc, 2);
-	    pc += 2;
+	    strbuf_catc(s, CH(ch));
+	    ch = readc();
+	    strbuf_catc(s, CH(ch));
 	} else {
-	    concat(s, pc, 1);
-	    pc += 1;
+	    strbuf_catc(s, CH(ch));
 	}
     }
     return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
 }
 
-static void escape(struct strbuf *s)
+static void escape(struct strbuf *s, struct cc_char *ch)
 {
-    CCAssert(CH(pc) == '\\');
-    struct source src = chsrc(pc);
-    concat(s, pc++, 2);
-    switch (CH(pc++)) {
+    CCAssert(CH(ch) == '\\');
+    struct source src = chsrc(ch);
+    strbuf_catc(s, CH(ch));
+    ch = readc();
+    strbuf_catc(s, CH(ch));
+    switch (CH(ch)) {
     case 'a': case 'b': case 'f':
     case 'n': case 'r': case 't':
     case 'v': case '\'': case '"':
@@ -418,14 +362,19 @@ static void escape(struct strbuf *s)
     case '0': case '1': case '2':
     case '3': case '4': case '5':
     case '6': case '7':
-	if (CH(pc) >= '0' && CH(pc) <= '7') {
-	    concat(s, pc++, 1);
-	    if (CH(pc) >= '0' && CH(pc) <= '7')
-		concat(s, pc++, 1);
+	{
+	    char c = peek();
+	    if (c >= '0' && c <= '7') {
+		strbuf_catc(s, CH(readc()));
+		c = peek();
+		if (c >= '0' && c <= '7') {
+		    strbuf_catc(s, CH(readc()));
+		}
+	    }
 	}
 	break;
     case 'x':
-	if (!is_digithex(CH(pc))) {
+	if (!is_digithex(peek())) {
 	    errorf(src, "\\x used with no following hex digits");
 	    break;
 	}
@@ -434,19 +383,22 @@ static void escape(struct strbuf *s)
     case 'u': case 'U':
 	{
             // universal character name: expect 4(u)/8(U) hex digits
-            int x = 0;
-            int n = CH(pc-1) == 'u' ? 4 : 8;
-            for (; is_digithex(CH(pc)); x++, pc++) {
-                if (x == n)
-                    break;
-		concat(s, pc, 1);
-            }
+	    int x;
+            int n = CH(ch) == 'u' ? 4 : 8;
+	    for (x = 0; x < n; x++) {
+		ch = readc();
+		if (!is_digithex(CH(ch))) {
+		    unreadc(ch);
+		    break;
+		}
+		strbuf_catc(s, CH(ch));
+	    }
             if (x < n)
                 errorf(src, "incomplete universal character name: %s", s->str);
         }
 	break;
     default:
-	errorf(src, "unrecognized escape character 0x%x", 0xFF & CH(pc-1));
+	errorf(src, "unrecognized escape character 0x%x", 0xFF & CH(ch));
 	break;
     }
 }
@@ -454,30 +406,27 @@ static void escape(struct strbuf *s)
 static struct token * sequence(bool wide, char sep)
 {
     struct strbuf *s = strbuf_new();
-    wide ? concat(s, pc-2, 2) : concat(s, pc-1, 1);
-    for (; CH(pc) != sep;) {
-	if (pe - pc < MAXCACHE) {
-	    fillchs();
-	    if (pc == pe)
-		break;
-	}
-	if (is_newline(CH(pc)))
+    
+    if (wide)
+	strbuf_catc(s, 'L');
+    strbuf_catc(s, sep);
+
+    struct cc_char *ch;
+    for (;;) {
+	ch = readc();
+	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
 	    break;
-	if (CH(pc) == '\\')
-	    escape(s);
+	if (CH(ch) == '\\')
+	    escape(s, ch);
 	else
-	    strbuf_catc(s, CH(pc++));
+	    strbuf_catc(s, CH(ch));
     }
 
     bool is_char = sep == '\'' ? true : false;
     const char *name = is_char ? "character" : "string";
-    const char *pad = is_char ? "'" : "\"";
-    if (CH(pc) != sep) {
+    if (CH(ch) != sep)
 	error("untermiated %s constant: %s", name, s->str);
-	strbuf_cats(s, pad);
-    } else {
-	strbuf_catc(s, CH(pc++));
-    }
+    strbuf_catc(s, sep);
 
     if (is_char)
 	return new_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
@@ -485,18 +434,18 @@ static struct token * sequence(bool wide, char sep)
 	return new_token(&(struct token){.id = SCONSTANT, .name = strs(s->str)});
 }
 
-static struct token * identifier(void)
+static struct token * identifier(char c)
 {
     struct strbuf *s = strbuf_new();
-    pc = pc - 1;
+    strbuf_catc(s, c);
     readch(s, is_digitletter);
     return new_token(&(struct token){.id = ID, .name = strs(s->str)});
 }
 
-static struct token * spaces(void)
+static struct token * spaces(char c)
 {
     struct strbuf *s = strbuf_new();
-    pc = pc - 1;
+    strbuf_catc(s, c);
     readch(s, is_blank);
     space_token->name = strs(s->str);
     space_token->src = source;
@@ -505,12 +454,10 @@ static struct token * spaces(void)
 
 struct token * dolex(void)
 {
-    struct cc_char *rpc;
+    register struct cc_char *rpc;
+    
     for (; ;) {
-	if (pe - pc < MAXCACHE)
-	    fillchs();
-	
-	rpc = pc++;
+	rpc = readc();
 	pin(rpc);
 
 	switch (CH(rpc)) {
@@ -526,148 +473,125 @@ struct token * dolex(void)
 	case TOK12:
 	case TOK13:
 	case TOK32:
-	    return spaces();
+	    return spaces(CH(rpc));
 	
 	    // punctuators
 	case '/':
-	    if (CH(rpc+1) == '/') {
+	    if (next('/')) {
 		line_comment();
 		continue;
-	    } else if (CH(rpc+1) == '*') {
+	    } else if (next('*')) {
 		block_comment();
 		continue;
-	    } else if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    } else if (next('=')) {
 		return new_token(&(struct token){.id = DIVEQ});
 	    } else {
 		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '+':
-	    if (CH(rpc+1) == '+') {
-		pc = rpc + 2;
+	    if (next('+'))
 		return new_token(&(struct token){.id = INCR});
-	    } else if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    else if (next('='))
 		return new_token(&(struct token){.id = ADDEQ});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '-':
-	    if (CH(rpc+1) == '-') {
-		pc = rpc + 2;
+	    if (next('-'))
 		return new_token(&(struct token){.id = DECR});
-	    } else if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    else if (next('='))
 		return new_token(&(struct token){.id = MINUSEQ});
-	    } else if (CH(rpc+1) == '>') {
-		pc = rpc + 2;
+	    else if (next('>'))
 		return new_token(&(struct token){.id = DEREF});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '*':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('='))
 		return new_token(&(struct token){.id = MULEQ});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '=':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('='))
 		return new_token(&(struct token){.id = EQ});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '!':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('='))
 		return new_token(&(struct token){.id = NEQ});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '%':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('=')) {
 		return new_token(&(struct token){.id = MODEQ});
-	    } else if (CH(rpc+1) == '>') {
-		pc = rpc + 2;
+	    } else if (next('>')) {
 		return new_token(&(struct token){.id = '}'});
-	    } else if (CH(rpc+1) == ':' && CH(rpc+2) == '%' && CH(rpc+3) == ':') {
-		pc = rpc + 4;
-		return new_token(&(struct token){.id = SHARPSHARP});
-	    } else if (CH(rpc+1) == ':') {
-		pc = rpc + 2;
+	    } else if (next(':')) {
+		if (next('%')) {
+		    struct cc_char *ch = readc();
+		    if (CH(ch) == ':')
+			return new_token(&(struct token){.id = SHARPSHARP});
+		    else
+			unreadc(ch);
+		}
 		return new_token(&(struct token){.id = '#'});
 	    } else {
 		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '^':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('='))
 		return new_token(&(struct token){.id = XOREQ});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '&':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('='))
 		return new_token(&(struct token){.id = BANDEQ});
-	    } else if (CH(rpc+1) == '&') {
-		pc = rpc + 2;
+	    else if (next('&'))
 		return new_token(&(struct token){.id = AND});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '|':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('='))
 		return new_token(&(struct token){.id = BOREQ});
-	    } else if (CH(rpc+1) == '|') {
-		pc = rpc + 2;
+	    else if (next('|'))
 		return new_token(&(struct token){.id = OR});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '<':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('=')) {
 		return new_token(&(struct token){.id = LEQ});
-	    } else if (CH(rpc+1) == '<' && CH(rpc+2) == '=') {
-		pc = rpc + 3;
-		return new_token(&(struct token){.id = LSHIFTEQ});
-	    } else if (CH(rpc+1) == '<') {
-		pc = rpc + 2;
+	    } else if (next('<')) {
+		struct cc_char *ch = readc();
+		if (CH(ch) == '=')
+		    return new_token(&(struct token){.id = LSHIFTEQ});
+		else
+		    unreadc(ch);
 		return new_token(&(struct token){.id = LSHIFT});
-	    } else if (CH(rpc+1) == '%') {
-		pc = rpc + 2;
+	    } else if (next('%')) {
 		return new_token(&(struct token){.id = '{'});
-	    } else if (CH(rpc+1) == ':') {
-		pc = rpc + 2;
+	    } else if (next(':')) {
 		return new_token(&(struct token){.id = '['});
 	    } else {
 		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 
 	case '>':
-	    if (CH(rpc+1) == '=') {
-		pc = rpc + 2;
+	    if (next('=')) {
 		return new_token(&(struct token){.id = GEQ});
-	    } else if (CH(rpc+1) == '>' && CH(rpc+2) == '=') {
-		pc = rpc + 3;
-		return new_token(&(struct token){.id = RSHIFTEQ});
-	    } else if (CH(rpc+1) == '>') {
-		pc = rpc + 2;
+	    } else if (next('>')) {
+	        struct cc_char *ch = readc();
+		if (CH(ch) == '=')
+		    return new_token(&(struct token){.id = RSHIFTEQ});
+		else
+		    unreadc(ch);
 		return new_token(&(struct token){.id = RSHIFT});
 	    } else {
 		return new_token(&(struct token){.id = CH(rpc)});
@@ -679,20 +603,16 @@ struct token * dolex(void)
 	    return new_token(&(struct token){.id = CH(rpc)});
 
 	case ':':
-	    if (CH(rpc+1) == '>') {
-		pc = rpc + 2;
+	    if (next('>'))
 		return new_token(&(struct token){.id = ']'});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	case '#':
-	    if (CH(rpc+1) == '#') {
-		pc = rpc + 2;
+	    if (next('#'))
 		return new_token(&(struct token){.id = SHARPSHARP});
-	    } else {
+	    else
 		return new_token(&(struct token){.id = CH(rpc)});
-	    }
 
 	    // constants
 	case '\'':
@@ -704,27 +624,29 @@ struct token * dolex(void)
 
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
-	    return ppnumber();
+	    return ppnumber(CH(rpc));
 
 	case '.':
-	    if (CH(rpc+1) == '.' && CH(rpc+2) == '.') {
-		pc = rpc + 3;
-		return new_token(&(struct token){.id = ELLIPSIS});
-	    } else if (is_digit(CH(rpc+1))) {
-		return ppnumber();
+	    if (peek() == '.') {
+		struct cc_char *ch1 = readc();
+		struct cc_char *ch2 = readc();
+		if (CH(ch2) == '.')
+		    return new_token(&(struct token){.id = ELLIPSIS});
+		unreadc(ch2);
+		unreadc(ch1);
+		return new_token(&(struct token){.id = CH(rpc)});
+	    } else if (is_digit(peek())) {
+		return ppnumber(CH(rpc));
 	    } else {
 		return new_token(&(struct token){.id = CH(rpc)});
 	    }
 	    
 	    // identifiers
 	case 'L':
-	    if (CH(rpc+1) == '\'') {
-		pc = rpc + 2;
+	    if (next('\''))
 		return sequence(true, '\'');
-	    } else if (CH(rpc+1) == '"') {
-		pc = rpc + 2;
+	    else if (next('"'))
 		return sequence(true, '"');
-	    }
 	    // go through
 	case 'a': case 'b': case 'c': case 'd':
 	case 'e': case 'f': case 'g': case 'h':
@@ -741,7 +663,7 @@ struct token * dolex(void)
 	case 'U': case 'V': case 'W': case 'X':
 	case 'Y': case 'Z':
 	case '_':
-	    return identifier();
+	    return identifier(CH(rpc));
 
 	default:
 	    // invalid character
@@ -755,34 +677,53 @@ struct token * dolex(void)
     }
 }
 
-static const char * h_char_sequence(void)
+static const char * hq_char_sequence(char sep, struct source src)
 {
+    struct strbuf *s = strbuf_new();
+    struct cc_char *ch;
+    
+    for (;;) {
+	ch = readc();
+	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
+	    break;
+	strbuf_catc(s, CH(ch));
+    }
 
-}
-
-static const char * q_char_sequence(void)
-{
-
+    if (CH(ch) != sep)
+	errorf(src, "missing '%c' in header name", sep);
+    
+    skipline();
+    if (strbuf_len(s)) {
+	return strs(s->str);
+    } else {
+	errorf(src, "empty header name");
+	return NULL;
+    }
 }
 
 struct token *header_name(void)
 {
     struct cc_char *ch;
- beg:
+beg:
     ch = readc();
     if (is_blank(CH(ch)))
 	goto beg;
 
     if (CH(ch) == '<') {
-	const char *name = h_char_sequence();
-	return new_token(&(struct token){.id = HEADER, .name = name, .kind = 1});
+	const char *name = hq_char_sequence('>', chsrc(ch));
+	return new_token(&(struct token){.name = name, .kind = '<'});
     } else if (CH(ch) == '"') {
-	const char *name = q_char_sequence();
-	return new_token(&(struct token){.id = HEADER, .name = name, .kind = 2});
+	const char *name = hq_char_sequence('"', chsrc(ch));
+	return new_token(&(struct token){.name = name, .kind = '"'});
     } else {
 	// pptokens
-	unreadc(ch);
+	return NULL;
     }
+}
+
+void include_file(const char *file)
+{
+    vec_push(files, open_file(file));
 }
 
 void unget(struct token *t)

@@ -1,4 +1,5 @@
 #include "cc.h"
+#include "sys.h"
 
 /* ACKNOWLEDGE
  *
@@ -26,6 +27,8 @@ struct macro {
 
 static struct token * expand(void);
 static struct map *macros;
+static struct vector *std;
+static struct vector *usr;
 
 static struct macro * new_macro(int kind)
 {
@@ -96,9 +99,49 @@ static void ifndef_section(void)
 {
 }
 
+static const char * find_header(struct token *t)
+{
+    if (t->name == NULL)
+	return NULL;
+    
+    struct vector *v1, *v2;
+    if (t->kind == '<') {
+        v1 = std;
+	v2 = usr;
+    } else {
+	v1 = usr;
+	v2 = std;
+    }
+    for (int i = 0; i < vec_len(v1); i++) {
+	const char *dir = vec_at(v1, i);
+	const char *file = join(dir, t->name);
+	if (file_exists(file))
+	    return file;
+    }
+    for (int i = 0; i < vec_len(v2); i++) {
+	const char *dir = vec_at(v2, i);
+	const char *file = join(dir, t->name);
+	if (file_exists(file))
+	    return file;
+    }
+    return NULL;
+}
+
 static void include_line(void)
 {
-    
+    struct token *t = header_name();
+    if (t) {
+        const char *name = find_header(t);
+	if (name) {
+	    include_file(name);
+	} else {
+	    if (t->name)
+		error("Cannot find header '%s'", t->name);
+	}
+    } else {
+	// pptokens
+	
+    }
 }
 
 static struct token * read_identifier(void)
@@ -395,12 +438,45 @@ struct token * get_pptok(void)
     }
 }
 
+static inline void add_include(struct vector *v, const char *name)
+{
+    const char *path = abspath(name);
+    vec_push(v, (void *)strs(path));
+    free((void *)path);
+}
+
+static void init_include(void)
+{
+    std = vec_new();
+    usr = vec_new();
+    
+#ifdef CONFIG_LINUX
+    add_include(std, "/usr/include");
+#elif defined (CONFIG_DARWIN)
+#define XCODE_DIR "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk"
+    add_include(std, XCODE_DIR "/usr/include");
+#endif
+}
+
 static void parseopts(struct vector *options)
 {
+    for (int i = 0; i < vec_len(options); i++) {
+	const char *arg = vec_at(options, i);
+	if (strlen(arg) < 3)
+	    continue;
+	if (!strncmp(arg, "-I", 2)) {
+	    add_include(usr, arg+2);
+	} else if (!strncmp(arg, "-D", 2)) {
+	    
+	} else if (!strncmp(arg, "-U", 2)) {
+
+	}
+    }
 }
 
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
+    init_include();
     parseopts(options);
 }

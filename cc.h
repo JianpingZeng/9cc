@@ -93,13 +93,13 @@ extern bool is_visible(char c);
 #define IS_NEWLINE(token)  (token->id == '\n')
 
 extern void lex_init(const char *file);
-extern struct cc_file * open_file(const char *file);
-extern void close_file(struct cc_file *file);
+extern void include_file(const char *file);
 extern void skipline(void);
 extern struct token * lex(void);
 extern void unget(struct token *t);
 extern void push_buffer(struct vector *v);
 extern void pop_buffer(void);
+extern struct token *header_name(void);
 
 extern int gettok(void);
 extern struct token * lookahead(void);
