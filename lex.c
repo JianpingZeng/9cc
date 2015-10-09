@@ -28,8 +28,23 @@ struct cc_char {
 
 #define CH(c)    ((c)->ch)
 
+#define LBUFSIZE     1024
+#define RBUFSIZE     4096
+#define MAXTOKEN     LBUFSIZE
+
+struct cc_file {
+    char buf[LBUFSIZE+RBUFSIZE+1];
+    char *pc;
+    char *pe;
+    long bread;
+    struct vector *chars;	// unread chars
+    FILE *fp;
+    const char *file;
+    unsigned line;
+    unsigned column;
+};
+
 static void unreadc(struct cc_char * ch);
-static struct vector *chars;
 static struct vector *files;
 
 struct token *token;
@@ -97,8 +112,6 @@ bool is_visible(char c)
     return c >= 040 && c < 0177;
 }
 
-/* Input and buffer
- */
 static void fillbuf(struct cc_file *fs)
 {
     if (fs->bread == 0) {
@@ -122,7 +135,7 @@ static void fillbuf(struct cc_file *fs)
         
         fs->pc = &fs->buf[LBUFSIZE] - n;
     }
-    
+
     if (feof(fs->fp))
         fs->bread = 0;
     else
@@ -132,12 +145,26 @@ static void fillbuf(struct cc_file *fs)
         die("read error: %s", strerror(errno));
     
     fs->pe = &fs->buf[LBUFSIZE] + fs->bread;
+
+    /* Add a newline character to the end if the
+     * file doesn't have one, thus the include
+     * directive would work well.
+     */
+    if (fs->pe < &fs->buf[LBUFSIZE+RBUFSIZE]) {
+	if (fs->pe > fs->pc && fs->pe[-1] != '\n')
+	    *fs->pe++ = '\n';
+    }
     *fs->pe = 0;
+}
+
+static inline struct cc_file * current_file(void)
+{
+    return vec_tail(files);
 }
 
 static void pin(struct cc_char *ch)
 {
-    struct cc_file *fs = vec_tail(files);
+    struct cc_file *fs = current_file();
     source.file = fs->file;
     source.line = ch->line;
     source.column = ch->column;
@@ -145,7 +172,7 @@ static void pin(struct cc_char *ch)
 
 static struct source chsrc(struct cc_char *ch)
 {
-    struct cc_file *fs = vec_tail(files);
+    struct cc_file *fs = current_file();
     struct source src;
     src.file = fs->file;
     src.line = ch->line;
@@ -168,22 +195,27 @@ static struct cc_file * open_file(const char *file)
     struct cc_file *fs = xmalloc(sizeof(struct cc_file));
     fs->pc = fs->pe = &fs->buf[LBUFSIZE];
     fs->bread = -1;
+    fs->chars = vec_new();
     fs->fp = fp;
     fs->file = file;
     fs->line = 1;
     fs->column = 0;
+    gen_cpp_line(1, file);
     return fs;
 }
 
 static void close_file(struct cc_file *file)
 {
     fclose(file->fp);
+    vec_free(file->chars);
     free(file);
+    struct cc_file *fs = current_file();
+    gen_cpp_line(fs->line, fs->file);
 }
 
 static char get(void)
 {
-    struct cc_file *fs = vec_tail(files);
+    struct cc_file *fs = current_file();
     if (fs->pe - fs->pc < MAXTOKEN)
 	fillbuf(fs);
     if (fs->pc == fs->pe)
@@ -208,10 +240,12 @@ static inline struct cc_char * newch(char c, unsigned line, unsigned column)
 
 static struct cc_char * readc(void)
 {
-    struct cc_file *fs = vec_tail(files);
+    struct cc_file *fs;
 
-    if (vec_len(chars))
-	return vec_pop(chars);
+beg:
+    fs = current_file();
+    if (vec_len(fs->chars))
+	return vec_pop(fs->chars);
     
     for (;;) {
         char c = get();
@@ -222,7 +256,7 @@ static struct cc_char * readc(void)
 		goto end;
 	    } else {
 		close_file(vec_pop(files));
-		continue;
+		goto beg;
 	    }
 	}
 	if (c != '\\')
@@ -240,7 +274,7 @@ static struct cc_char * readc(void)
 
 static void unreadc(struct cc_char * ch)
 {
-    vec_push(chars, ch);
+    vec_push(current_file()->chars, ch);
 }
 
 static bool next(char c)
@@ -259,21 +293,15 @@ static char peek(void)
     return CH(ch);
 }
 
-static void input_init(const char *file)
+void lex_init(const char *file)
 {
     files = vec_new();
-    chars = vec_new();
+    buffers = vec_new();
+    vec_push(buffers, vec_new());
     vec_push(files, open_file(file));
 }
 
-void lex_init(const char *file)
-{
-    input_init(file);
-    buffers = vec_new();
-    vec_push(buffers, vec_new());
-}
-
-static struct token * new_token(struct token *tok)
+struct token * new_token(struct token *tok)
 {
     struct token *t = alloc_token();
     t->id = tok->id;
@@ -299,11 +327,14 @@ static void readch(struct strbuf *s, bool (*is) (char))
 
 void skipline(void)
 {
+    struct cc_char *ch;
     for (;;) {
-	struct cc_char *ch = readc();
+	ch = readc();
 	if (is_newline(CH(ch)) || CH(ch) == EOI)
 	    break;
     }
+    if (is_newline(CH(ch)))
+	unreadc(ch);
 }
 
 static inline void line_comment(void)
@@ -720,6 +751,7 @@ beg:
 
 void include_file(const char *file)
 {
+    CCAssert(vec_len(vec_tail(files)) == 0);
     vec_push(files, open_file(file));
 }
 

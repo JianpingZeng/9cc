@@ -54,21 +54,6 @@ struct source {
     unsigned column;
 };
 
-#define LBUFSIZE     1024
-#define RBUFSIZE     4096
-#define MAXTOKEN     LBUFSIZE
-
-struct cc_file {
-    char buf[LBUFSIZE+RBUFSIZE+1];
-    char *pc;
-    char *pe;
-    long bread;
-    FILE *fp;
-    const char *file;
-    unsigned line;
-    unsigned column;
-};
-
 struct token {
     int id;
     const char *name;
@@ -100,6 +85,7 @@ extern void unget(struct token *t);
 extern void push_buffer(struct vector *v);
 extern void pop_buffer(void);
 extern struct token *header_name(void);
+extern struct token * new_token(struct token *tok);
 
 extern int gettok(void);
 extern struct token * lookahead(void);
@@ -110,6 +96,7 @@ extern const char *id2s(int t);
 // cpp.c
 extern void cpp_init(struct vector *options);
 extern struct token * get_pptok(void);
+extern void gen_cpp_line(unsigned line, const char *file);
 
 // ast.h
 #include "ast.h"

@@ -30,6 +30,7 @@ static struct vector * expandv(struct vector *v);
 static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
+static struct vector *cpplines;
 
 static struct macro * new_macro(int kind)
 {
@@ -291,12 +292,15 @@ static void parameters(struct macro *m)
 static struct vector * replacement_list(void)
 {
     struct vector *v = vec_new();
+    struct token *t;
     for (;;) {
-	struct token *tok = skip_spaces();
-	if (IS_NEWLINE(tok))
+	t = skip_spaces();
+	if (IS_NEWLINE(t))
 	    break;
-	vec_push(v, tok);
+	vec_push(v, t);
     }
+    if (IS_NEWLINE(t))
+	unget(t);
     return v;
 }
 
@@ -324,9 +328,6 @@ static void define_line(void)
 	skipline();
 	return;
     }
-    struct macro *m = map_get(macros, id->name);
-    if (m)
-	error("redefinition of macro '%s'", id->name);
     struct token *t = lex();
     if (t->id == '(') {
 	define_funclike_macro(id->name);
@@ -372,6 +373,7 @@ static void directive(void)
     if (IS_NEWLINE(t))
 	return;
     if (t->id == ICONSTANT) {
+	unget(t);
 	line_line();
 	return;
     }
@@ -489,10 +491,20 @@ static struct token * conv2cc(struct token *t)
     return t;
 }
 
+void gen_cpp_line(unsigned line, const char *file)
+{
+    const char *message = strs(format("# %u \"%s\"\n", line, file));
+    struct token *t = new_token(&(struct token){.id = SCONSTANT, .name = message});
+    vec_push(cpplines, t);
+}
+
 struct token * get_pptok(void)
 {
     for (;;) {
+	if (vec_len(cpplines))
+	    return vec_pop(cpplines);
         struct token *t = expand();
+	// TODO: and t must be the first non-white-space token of a line
 	if (t->id == '#') {
 	    directive();
 	    continue;
@@ -543,6 +555,7 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
+    cpplines = vec_new();
     init_include();
     parseopts(options);
 }
