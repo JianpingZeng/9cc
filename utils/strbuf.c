@@ -42,6 +42,14 @@ size_t strbuf_len(struct strbuf *s)
     return s->len;
 }
 
+const char * strbuf_str(struct strbuf *s)
+{
+    if (s->len == 0)
+	return NULL;
+    else
+	return s->str;
+}
+
 void strbuf_add(struct strbuf *s, struct strbuf *s2)
 {
     strbuf_catn(s, s2->str, strbuf_len(s2));

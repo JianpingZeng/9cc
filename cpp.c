@@ -26,6 +26,7 @@ struct macro {
 };
 
 static struct token * expand(void);
+static struct vector * expandv(struct vector *v);
 static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
@@ -99,13 +100,13 @@ static void ifndef_section(void)
 {
 }
 
-static const char * find_header(struct token *t)
+static const char * find_header(const char *name, bool isstd)
 {
-    if (t->name == NULL)
+    if (name == NULL)
 	return NULL;
     
     struct vector *v1, *v2;
-    if (t->kind == '<') {
+    if (isstd) {
         v1 = std;
 	v2 = usr;
     } else {
@@ -114,35 +115,93 @@ static const char * find_header(struct token *t)
     }
     for (int i = 0; i < vec_len(v1); i++) {
 	const char *dir = vec_at(v1, i);
-	const char *file = join(dir, t->name);
+	const char *file = join(dir, name);
 	if (file_exists(file))
 	    return file;
     }
     for (int i = 0; i < vec_len(v2); i++) {
 	const char *dir = vec_at(v2, i);
-	const char *file = join(dir, t->name);
+	const char *file = join(dir, name);
 	if (file_exists(file))
 	    return file;
     }
     return NULL;
 }
 
+static const char * tokens2s(struct vector *v)
+{
+    struct strbuf *s = strbuf_new();
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
+	if (t->name)
+	    strbuf_cats(s, t->name);
+    }
+    return strbuf_str(s);
+}
+
+static void do_include(const char *name, bool isstd, struct vector *tokens)
+{
+    const char *file = find_header(name, isstd);
+    if (file) {
+	include_file(file);
+    } else {
+	if (tokens) {
+	    struct source src = ((struct token *)vec_head(tokens))->src;
+	    const char *macro = tokens2s(tokens);
+	    if (name)
+		fatalf(src, "'%s' file not found, expanded from macro '%s'", name, macro);
+	    else
+		errorf(src, "empty filename, expanded from macro '%s'", macro);
+	} else {
+	    if (name)
+		fatal("'%s' file not found", name);
+	    else
+		error("empty filename");
+	}
+    }
+}
+
+static const char *unwrap(const char *name)
+{
+    struct strbuf *s = strbuf_new();
+    
+    if (name[0] == '"')
+	strbuf_catn(s, name+1, strlen(name)-2); 
+    else
+	strbuf_catn(s, name+2, strlen(name)-3);
+
+    return strbuf_str(s);
+}
+
 static void include_line(void)
 {
     struct token *t = header_name();
     if (t) {
-        const char *name = find_header(t);
-	if (name) {
-	    include_file(name);
-	} else {
-	    if (t->name)
-		fatal("'%s' file not found", t->name);
-	    else
-		error("empty filename");
-	}
+        do_include(t->name, t->kind == '<', NULL);
     } else {
 	// pptokens
+	struct source src = source;
+	struct vector *v = vec_new();
+	for (;;) {
+	    struct token *t = skip_spaces();
+	    if (IS_NEWLINE(t) || t->id == EOI)
+		break;
+	    vec_push(v, t);
+	}
 	
+	if (vec_len(v)) {
+	    struct vector *r = expandv(v);
+	    struct token *tok = vec_head(r);
+	    if (tok->id == SCONSTANT) {
+		do_include(unwrap(tok->name), false, v);
+	    } else if (tok->id == '<') {
+
+	    } else {
+		errorf(src, "invalid filename at '%s'", tok->name);
+	    }
+	} else {
+	    errorf(src, "missing filename");
+	}
     }
 }
 
@@ -345,7 +404,9 @@ static struct vector * hsadd(struct vector *r, struct set *hideset)
 static struct vector * expandv(struct vector *v)
 {
     struct vector *r = vec_new();
-    push_buffer(v);
+    struct vector *iv = vec_new();
+    vec_add(iv, v);
+    push_buffer(iv);
     for (;;) {
 	struct token *t = expand();
 	if (t->id == EOI)
@@ -353,6 +414,7 @@ static struct vector * expandv(struct vector *v)
 	vec_push(r, t);
     }
     pop_buffer();
+    vec_free(iv);
     return r;
 }
 
@@ -365,8 +427,7 @@ static struct vector * subst(struct macro *m, struct vector *args, struct set *h
 	struct token *t = vec_at(body, i);
 	int index = inparams(t, params);
 	if (index >= 0) {
-	    struct vector *iv = vec_new();
-	    vec_add(iv, vec_at(args, index));
+	    struct vector *iv = vec_at(args, index);
 	    struct vector *ov = expandv(iv);
 	    vec_add(r, ov);
 	} else {
@@ -453,10 +514,13 @@ static void init_include(void)
     usr = vec_new();
     
 #ifdef CONFIG_LINUX
+    
     add_include(std, "/usr/include");
+    
 #elif defined (CONFIG_DARWIN)
-#define XCODE_DIR "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk"
+    
     add_include(std, XCODE_DIR "/usr/include");
+    
 #endif
 }
 

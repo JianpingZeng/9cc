@@ -693,10 +693,7 @@ static const char * hq_char_sequence(char sep)
 	error("missing '%c' in header name", sep);
     
     skipline();
-    if (strbuf_len(s))
-	return strs(s->str);
-    else
-	return NULL;
+    return strbuf_str(s);
 }
 
 struct token *header_name(void)
@@ -716,6 +713,7 @@ beg:
 	return new_token(&(struct token){.name = name, .kind = '"'});
     } else {
 	// pptokens
+	unreadc(ch);
 	return NULL;
     }
 }

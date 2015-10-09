@@ -13,6 +13,8 @@ extern void strbuf_free(struct strbuf *s);
 
 extern size_t strbuf_len(struct strbuf *s);
 
+extern const char * strbuf_str(struct strbuf *s);
+
 extern void strbuf_add(struct strbuf *s, struct strbuf *s2);
 
 extern void strbuf_cats(struct strbuf *s, const char *src);

@@ -58,6 +58,8 @@ ifneq (, $(findstring CYGWIN, $(KERNEL)))
 CONFIG_FLAGS+=-DCONFIG_CYGWIN
 else ifeq (Darwin, $(KERNEL))
 CONFIG_FLAGS+=-DCONFIG_DARWIN
+XCODE_SDK_DIR:=$(shell xcrun --show-sdk-path)
+CONFIG_FLAGS+=-DXCODE_DIR='"$(XCODE_SDK_DIR)"'
 else
 CONFIG_FLAGS+=-DCONFIG_LINUX
 endif
