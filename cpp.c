@@ -501,9 +501,11 @@ void gen_cpp_line(unsigned line, const char *file)
 struct token * get_pptok(void)
 {
     for (;;) {
-	if (vec_len(cpplines))
-	    return vec_pop(cpplines);
         struct token *t = expand();
+	if (vec_len(cpplines)) {
+	    unget(t);
+	    return vec_pop(cpplines);
+	}
 	// TODO: and t must be the first non-white-space token of a line
 	if (t->id == '#') {
 	    directive();

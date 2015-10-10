@@ -44,7 +44,6 @@ struct cc_file {
     unsigned column;
 };
 
-static void unreadc(struct cc_char * ch);
 static struct vector *files;
 
 struct token *token;
@@ -238,6 +237,11 @@ static inline struct cc_char * newch(char c, unsigned line, unsigned column)
     return ch;
 }
 
+static void unreadc(struct cc_char * ch)
+{
+    vec_push(current_file()->chars, ch);
+}
+
 static struct cc_char * readc(void)
 {
     struct cc_file *fs;
@@ -270,11 +274,6 @@ beg:
     end:
 	return newch(c, line, column);
     }
-}
-
-static void unreadc(struct cc_char * ch)
-{
-    vec_push(current_file()->chars, ch);
 }
 
 static bool next(char c)
@@ -325,7 +324,7 @@ static void readch(struct strbuf *s, bool (*is) (char))
     }
 }
 
-void skipline(void)
+static void do_skipline(bool over)
 {
     struct cc_char *ch;
     for (;;) {
@@ -333,8 +332,13 @@ void skipline(void)
 	if (is_newline(CH(ch)) || CH(ch) == EOI)
 	    break;
     }
-    if (is_newline(CH(ch)))
+    if (is_newline(CH(ch)) && !over)
 	unreadc(ch);
+}
+
+void skipline(void)
+{
+    do_skipline(false);
 }
 
 static inline void line_comment(void)
@@ -723,7 +727,7 @@ static const char * hq_char_sequence(char sep)
     if (CH(ch) != sep)
 	error("missing '%c' in header name", sep);
     
-    skipline();
+    do_skipline(true);
     return strbuf_str(s);
 }
 
