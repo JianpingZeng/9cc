@@ -3,11 +3,10 @@
 
 /* ACKNOWLEDGE
  *
- * Base on Dave Prosser's algorithm describe
- * in this doc: https://github.com/rui314/8cc/wiki/cpp.algo.pdf
+ * Base on Dave Prosser's algorithm described in this document:
  *
- * Also thanks to Rui Ueyama, from whom I found
- * this document.
+ * http://www.spinellis.gr/blog/20060626/x3J11-86-196.pdf
+ *
  */
 
 // macro kind
