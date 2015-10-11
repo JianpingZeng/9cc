@@ -121,8 +121,8 @@ extern bool is_hex(char c);
 extern bool is_digithex(char c);
 extern bool is_visible(char c);
 
-#define IS_SPACE(token)    (token->id == ' ')
-#define IS_NEWLINE(token)  (token->id == '\n')
+#define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
+#define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 
 extern void lex_init(void);
 extern void skipline(void);
