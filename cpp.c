@@ -520,9 +520,9 @@ static struct vector * glue(struct vector *ls, struct vector *rs)
 {
     struct token *l = vec_pop(ls);
     struct token *r = vec_pop_front(rs);
-    struct set *hideset = set_intersection(l->hideset, r->hideset);
     const char *str = format("%s%s", l->name, r->name);
     struct token *t = with_temp_lex(str);
+    t->hideset = set_intersection(l->hideset, r->hideset);
     vec_push(ls, t);
     vec_add(ls, rs);
     return ls;
@@ -664,7 +664,7 @@ struct token * get_pptok(void)
     }
 }
 
-static void special_file(struct token *t)
+static void file_handler(struct token *t)
 {
     const char *file = t->src.file;
     const char *name = strs(format("\"%s\"", file));
@@ -672,7 +672,7 @@ static void special_file(struct token *t)
     unget(tok);
 }
 
-static void special_line(struct token *t)
+static void line_handler(struct token *t)
 {
     unsigned line = t->src.line;
     const char *name = strd(line);
@@ -680,12 +680,12 @@ static void special_line(struct token *t)
     unget(tok);
 }
 
-static void special_date(struct token *t)
+static void date_handler(struct token *t)
 {
 
 }
 
-static void special_time(struct token *t)
+static void time_handler(struct token *t)
 {
 
 }
@@ -736,10 +736,10 @@ static void init_predefined_macros(void)
     
 #endif
     
-    define_special("__FILE__", special_file);
-    define_special("__LINE__", special_line);
-    define_special("__DATE__", special_date);
-    define_special("__TIME__", special_time);
+    define_special("__FILE__", file_handler);
+    define_special("__LINE__", line_handler);
+    define_special("__DATE__", date_handler);
+    define_special("__TIME__", time_handler);
 
     include_builtin(BUILD_DIR "/include/mcc.h");
 }
