@@ -194,6 +194,7 @@ static struct cc_file * open_file(const char *file)
 	die("Cannot open file %s", file);
     }
     struct cc_file *fs = xmalloc(sizeof(struct cc_file));
+    vec_push(files, fs);
     fs->pc = fs->pe = &fs->buf[LBUFSIZE];
     fs->bread = -1;
     fs->chars = vec_new();
@@ -239,14 +240,17 @@ static inline struct cc_char * newch(char c, unsigned line, unsigned column)
     return ch;
 }
 
-static void unreads(const char *s)
-{
-
-}
-
 static void unreadc(struct cc_char * ch)
 {
     vec_push(current_file()->chars, ch);
+}
+
+static void unreads(const char *s)
+{
+    for (int i = strlen(s) - 1; i >= 0; i--) {
+	struct cc_char *ch = newch(s[i], 0, i+1);
+	unreadc(ch);
+    }
 }
 
 static struct cc_char * readc(void)
@@ -304,7 +308,7 @@ void lex_init(const char *file)
     files = vec_new();
     buffers = vec_new();
     vec_push(buffers, vec_new());
-    vec_push(files, open_file(file));
+    open_file(file);
 }
 
 struct token * new_token(struct token *tok)
@@ -721,7 +725,7 @@ struct token * dolex(void)
 
 static void genlineno(unsigned line, const char *file)
 {
-    
+    unreads(format("# %u \"%s\"\n", line, file));
 }
 
 static const char * hq_char_sequence(char sep)
@@ -768,7 +772,7 @@ beg:
 void include_file(const char *file)
 {
     CCAssert(vec_len(vec_tail(buffers)) == 0);
-    vec_push(files, open_file(file));
+    open_file(file);
 }
 
 void unget(struct token *t)

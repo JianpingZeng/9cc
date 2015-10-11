@@ -32,7 +32,6 @@ static struct vector * expandv(struct vector *v);
 static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
-static struct vector *cpplines;
 
 static struct macro * new_macro(int kind)
 {
@@ -367,7 +366,9 @@ static void line_line(void)
 	    break;
     }
 
-    fprintf(stderr, "# %s \"%s\"\n", t->name, t2->name);
+    const char *name = format("# %s %s\n", t->name, t2->name);
+    t = new_token(&(struct token){.id = LINENO, .name = name});
+    unget(t);
 }
 
 static const char * tokens2msg(struct vector *v)
