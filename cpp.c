@@ -263,9 +263,12 @@ static struct vector * arguments(struct macro *m)
 	error("too few arguments provided to function-like macro invocation");
     } else if (vec_len(v) > vec_len(m->params)) {
 	if (m->vararg) {
+	    // merge 'variable arguments'
 	    struct vector *v2 = vec_new();
-	    for (int i = vec_len(m->params); i < vec_len(v); i++)
+	    for (int i = vec_len(m->params); i < vec_len(v); i++) {
 		vec_add(v2, vec_at(v, i));
+		//TODO: commas
+	    }
 	    int i = vec_len(v) - vec_len(m->params);
 	    while (i--)
 		vec_pop(v);
@@ -567,12 +570,23 @@ static struct vector * subst(struct macro *m, struct vector *args, struct set *h
 	    i++;
 	    
 	} else if (t0->id == SHARPSHARP && t1) {
-
 	    
+	    r = glue(r, vec_new1(t1));
+	    i++;
 	    
-	} else if ((t1 && t1->id == SHARPSHARP) && (index = inparams(t0, m)) >= 0) {
-
-	    
+	} else if ((index = inparams(t0, m)) >= 0 && (t1 && t1->id == SHARPSHARP) ) {
+	    struct vector *iv = select(args, index);
+	    if (iv && vec_len(iv)) {
+		vec_add(r, iv);
+	    } else {
+		struct token *t2 = i+2 < vec_len(body) ? vec_at(body, i+2) : NULL;
+		int index2 = inparams(t2, m);
+		if (index2 >= 0) {
+		    struct vector *iv2 = select(args, index2);
+		    vec_add(r, iv2);
+		}
+		i++;
+	    }
 	    
 	} else if ((index = inparams(t0, m)) >= 0) {
 	    
@@ -691,9 +705,19 @@ static inline void add_include(struct vector *v, const char *name)
     free((void *)path);
 }
 
-static void include_builtin(const char *name)
+static void include_builtin(const char *file)
 {
-    
+    file_stub(with_temp_file(file, "<built-in>"));
+    for (;;) {
+    	struct token *t = expand();
+    	if (t->id == EOI)
+    	    break;
+        if (t->id == '#') {
+    	    directive();
+    	    continue;
+    	}
+    }
+    file_unstub();
 }
 
 static void init_predefined_macros(void)

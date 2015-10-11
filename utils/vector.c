@@ -25,6 +25,13 @@ struct vector *vec_new(void)
     return v;
 }
 
+struct vector *vec_new1(void *val)
+{
+    struct vector *v = vec_new();
+    vec_push(v, val);
+    return v;
+}
+
 void vec_free(struct vector *v)
 {
     free(v->mem);

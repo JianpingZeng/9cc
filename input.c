@@ -98,17 +98,18 @@ static inline struct cc_char * newch(char c, unsigned line, unsigned column)
     return ch;
 }
 
-void unreadc(struct cc_char * ch)
+static void genlineno(unsigned line, const char *file)
 {
-    vec_push(current_file()->chars, ch);
-}
-
-static void unreads(const char *s)
-{
+    const char *s = format("# %u \"%s\"\n", line, file);
     for (int i = strlen(s) - 1; i >= 0; i--) {
 	struct cc_char *ch = newch(s[i], 0, i+1);
 	unreadc(ch);
     }
+}
+
+void unreadc(struct cc_char * ch)
+{
+    vec_push(current_file()->chars, ch);
 }
 
 struct cc_char * readc(void)
@@ -178,11 +179,6 @@ static struct file * do_open_file(int kind, const char *file)
     return fs;
 }
 
-static void genlineno(unsigned line, const char *file)
-{
-    unreads(format("# %u \"%s\"\n", line, file));
-}
-
 struct file * current_file(void)
 {
     return vec_tail(files);
@@ -191,13 +187,12 @@ struct file * current_file(void)
 static void open_file(const char *file)
 {
     struct file *fs = do_open_file(FILE_KIND_REGULAR, file);
-    vec_push(files, fs);
     genlineno(1, file);
+    vec_push(files, fs);
 }
 
 static void close_file(struct file *file)
 {
-    println("close %s", file->file);
     if (file->kind == FILE_KIND_REGULAR) {
 	fclose(file->u.fp);
 	struct file *fs = current_file();
@@ -215,9 +210,7 @@ void include_file(const char *file)
 void file_stub(struct file *f)
 {
     vec_push(fstubs, files);
-    struct vector *v = vec_new();
-    vec_push(v, f);
-    files = v;
+    files = vec_new1(f);
 }
 
 void file_unstub(void)
@@ -244,5 +237,6 @@ void input_init(const char *file)
 {
     fstubs = vec_new();
     files = vec_new();
-    open_file(file);
+    vec_push(files, do_open_file(FILE_KIND_REGULAR, file));
+    genlineno(1, file);
 }
