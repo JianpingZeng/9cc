@@ -78,9 +78,14 @@ static struct token * peek(void)
     return t;
 }
 
-static int inparams(struct token *t, struct vector *params)
+static int inparams(struct token *t, struct macro *m)
 {
-    if (t->id != ID || !params)
+    struct vector *params = m->params;
+    if (t->id != ID)
+	return -1;
+    if (!strcmp(t->name, "__VA_ARGS__") && m->vararg)
+	return vec_len(params);
+    if (!params)
 	return -1;
     for (int i = 0; i < vec_len(params); i++) {
 	struct token *p = vec_at(params, i);
@@ -233,23 +238,42 @@ static struct vector * arg(void)
 	    parens--;
 	vec_push(v, t);
     }
-    if (t->id != ',' && t->id != ')')
-	error("invalid arguments");
+    unget(t);
     return v;
 }
 
 static struct vector * arguments(struct macro *m)
 {
     struct vector *v = vec_new();
+    struct token *t;
     for (;;) {
-	if (token->id == ')' || token->id == EOI)
-	    break;
 	struct vector *r = arg();
 	if (vec_len(r))
 	    vec_push(v, r);
+	t = skip_spaces();
+	if (t->id == ')' || t->id == EOI)
+	    break;
     }
+    if (t->id == ')')
+	unget(t);
+    else
+	error("expect ')'");
     // check args and params
-    
+    if (vec_len(v) < vec_len(m->params)) {
+	error("too few arguments provided to function-like macro invocation");
+    } else if (vec_len(v) > vec_len(m->params)) {
+	if (m->vararg) {
+	    struct vector *v2 = vec_new();
+	    for (int i = vec_len(m->params); i < vec_len(v); i++)
+		vec_add(v2, vec_at(v, i));
+	    int i = vec_len(v) - vec_len(m->params);
+	    while (i--)
+		vec_pop(v);
+	    vec_push(v, v2);
+	} else {
+	    error("too many arguments provided to function-like macro invocation");
+	}
+    }
     return v;
 }
 
@@ -455,6 +479,53 @@ static void directive(void)
     else skipline();
 }
 
+// TODO: space, args' commas
+static struct token * stringize(struct vector *v)
+{
+    struct strbuf *s = strbuf_new();
+    strbuf_cats(s, "\"");
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
+	strbuf_cats(s, t->name);
+    }
+    strbuf_cats(s, "\"");
+    return new_token(&(struct token){.id = SCONSTANT, .name = strs(s->str)});
+}
+
+static struct vector * expandv(struct vector *v)
+{
+    struct vector *r = vec_new();
+    struct vector *iv = vec_new();
+    vec_add(iv, v);
+
+    buffer_stub(iv);
+    for (;;) {
+	struct token *t = expand();
+	if (t->id == EOI)
+	    break;
+	vec_push(r, t);
+    }
+    buffer_unstub();
+    
+    vec_free(iv);
+    struct vector *r2 = vec_reverse(r);
+    vec_free(r);
+    return r2;
+}
+
+// paste last of left side with first of right side
+static struct vector * glue(struct vector *ls, struct vector *rs)
+{
+    struct token *l = vec_pop(ls);
+    struct token *r = vec_pop_front(rs);
+    struct set *hideset = set_intersection(l->hideset, r->hideset);
+    const char *str = format("%s%s", l->name, r->name);
+    struct token *t = with_temp_lex(str);
+    vec_push(ls, t);
+    vec_add(ls, rs);
+    return ls;
+}
+
 static struct vector * hsadd(struct vector *r, struct set *hideset)
 {
     for (int i = 0; i < vec_len(r); i++) {
@@ -464,37 +535,53 @@ static struct vector * hsadd(struct vector *r, struct set *hideset)
     return r;
 }
 
-static struct vector * expandv(struct vector *v)
+static struct vector * select(struct vector *ap, int index)
 {
-    struct vector *r = vec_new();
-    struct vector *iv = vec_new();
-    vec_add(iv, v);
-    push_buffer(iv);
-    for (;;) {
-	struct token *t = expand();
-	if (t->id == EOI)
-	    break;
-	vec_push(r, t);
-    }
-    pop_buffer();
-    vec_free(iv);
-    return r;
+    if (index < 0 || index >= vec_len(ap))
+	return NULL;
+    return vec_at(ap, index);
 }
 
 static struct vector * subst(struct macro *m, struct vector *args, struct set *hideset)
 {
     struct vector *r = vec_new();
     struct vector *body = m->body;
-    struct vector *params = m->params;
+    
     for (int i = 0; i < vec_len(body); i++) {
-	struct token *t = vec_at(body, i);
-	int index = inparams(t, params);
-	if (index >= 0) {
-	    struct vector *iv = vec_at(args, index);
+	struct token *t0 = vec_at(body, i);
+	struct token *t1 = i+1 < vec_len(body) ? vec_at(body, i+1) : NULL;
+	int index;
+
+	if (t0->id == '#' && (index = inparams(t1, m)) >= 0) {
+
+	    struct vector *iv = select(args, index);
+	    struct token *ot = stringize(iv);
+	    vec_push_safe(r, ot);
+	    i++;
+	    
+	} else if (t0->id == SHARPSHARP && (index = inparams(t1, m)) >= 0) {
+
+	    struct vector *iv = select(args, index);
+	    if (iv && vec_len(iv))
+		r = glue(r, iv);
+	    i++;
+	    
+	} else if (t0->id == SHARPSHARP && t1) {
+
+	    
+	    
+	} else if ((t1 && t1->id == SHARPSHARP) && (index = inparams(t0, m)) >= 0) {
+
+	    
+	    
+	} else if ((index = inparams(t0, m)) >= 0) {
+	    
+	    struct vector *iv = select(args, index);
 	    struct vector *ov = expandv(iv);
 	    vec_add(r, ov);
+	    
 	} else {
-	    vec_push(r, t);
+	    vec_push(r, t0);
 	}
     }
     return hsadd(r, hideset);
@@ -523,13 +610,18 @@ static struct token * doexpand(void)
 	{
 	    if (peek()->id != '(')
 		return t;
+	    SAVE_ERRORS;
 	    skip_spaces();
 	    struct vector *args = arguments(m);
-	    CCAssert(token->id == ')');
-	    struct set *hdset = set_add(set_intersection(t->hideset, token->hideset), name);
-	    struct vector *v = subst(m, args, hdset);
-	    ungetv(v);
-	    return expand();
+	    if (NO_ERROR) {
+		struct token *rparen = skip_spaces();
+		struct set *hdset = set_add(set_intersection(t->hideset, rparen->hideset), name);
+		struct vector *v = subst(m, args, hdset);
+		ungetv(v);
+		return expand();
+	    } else {
+		return t;
+	    }
 	}
 	break;
     case MACRO_SPECIAL:

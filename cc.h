@@ -37,6 +37,53 @@ union value {
     void (*g) ();
 };
 
+// input.c
+#define CH(c)    ((c)->ch)
+
+struct cc_char {
+    char ch;
+    unsigned line;
+    unsigned column;
+};
+
+enum {
+    FILE_KIND_REGULAR = 1,
+    FILE_KIND_STRING,
+};
+
+#define LBUFSIZE     64
+#define RBUFSIZE     4096
+#define MAXTOKEN     LBUFSIZE
+
+struct file {
+    int kind;
+    char buf[LBUFSIZE+RBUFSIZE+1];
+    char *pc;
+    char *pe;
+    long bread;
+    struct vector *chars;
+    union {
+	FILE *fp;
+        struct {
+	    const char *input;
+	    size_t pos;
+        }s;
+    }u;
+    const char *file;
+    unsigned line;
+    unsigned column;
+};
+
+extern void input_init(const char *file);
+extern struct file * current_file(void);
+extern struct cc_char * readc(void);
+extern void unreadc(struct cc_char * ch);
+extern void include_file(const char *file);
+extern struct file * with_temp_string(const char *input, const char *name);
+extern struct file * with_temp_file(const char *file, const char *name);
+extern void file_stub(struct file *f);
+extern void file_unstub(void);
+
 // lex.c
 #define EOI  -1
 
@@ -77,15 +124,16 @@ extern bool is_visible(char c);
 #define IS_SPACE(token)    (token->id == ' ')
 #define IS_NEWLINE(token)  (token->id == '\n')
 
-extern void lex_init(const char *file);
-extern void include_file(const char *file);
+extern void lex_init(void);
 extern void skipline(void);
 extern struct token * lex(void);
 extern void unget(struct token *t);
-extern void push_buffer(struct vector *v);
-extern void pop_buffer(void);
+extern void buffer_stub(struct vector *v);
+extern void buffer_unstub(void);
 extern struct token *header_name(void);
 extern struct token * new_token(struct token *tok);
+extern struct token * with_temp_lex(const char *input);
+extern void mark(struct token *t);
 
 extern int gettok(void);
 extern struct token * lookahead(void);

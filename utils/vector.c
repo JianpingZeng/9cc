@@ -109,6 +109,16 @@ void * vec_pop(struct vector *v)
     return r;
 }
 
+void * vec_pop_front(struct vector *v)
+{
+    if (v->len == 0)
+	return NULL;
+    void *r = v->mem[0];
+    v->len--;
+    memmove(v->mem, v->mem+1, v->len * sizeof(void *));
+    return r;
+}
+
 void vec_clear(struct vector *v)
 {
     v->len = 0;
@@ -116,6 +126,8 @@ void vec_clear(struct vector *v)
 
 size_t vec_len(struct vector *v)
 {
+    if (v == NULL)
+	return 0;
     return v->len;
 }
 

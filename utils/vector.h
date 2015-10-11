@@ -27,6 +27,8 @@ extern void vec_push_front(struct vector *v, void *val);
 
 extern void * vec_pop(struct vector *v);
 
+extern void * vec_pop_front(struct vector *v);
+
 extern void vec_clear(struct vector *v);
 
 extern size_t vec_len(struct vector *v);

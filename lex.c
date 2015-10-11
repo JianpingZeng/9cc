@@ -13,49 +13,6 @@ static unsigned char map[256] = {
     OTHER,
 };
 
-static const char *tnames[] = {
-#define _a(a, b, c, d)  b,
-#define _x(a, b, c, d)  b,
-#define _t(a, b, c)     b,
-#include "token.def"
-};
-
-struct cc_char {
-    char ch;
-    unsigned line;
-    unsigned column;
-};
-
-#define CH(c)    ((c)->ch)
-
-#define LBUFSIZE     64
-#define RBUFSIZE     4096
-#define MAXTOKEN     LBUFSIZE
-
-struct cc_file {
-    char buf[LBUFSIZE+RBUFSIZE+1];
-    char *pc;
-    char *pe;
-    long bread;
-    struct vector *chars;	// unread chars
-    FILE *fp;
-    const char *file;
-    unsigned line;
-    unsigned column;
-};
-
-static struct vector *files;
-
-struct token *token;
-static struct token *eoi_token = &(struct token){.id = EOI};
-static struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
-static struct token *space_token = &(struct token){.id = ' '};
-static struct vector *buffers;
-
-struct source source;
-
-static void genlineno(unsigned line, const char *file);
-
 /* Don't use macros here, because macros make things wrong.
  * For example:
  *
@@ -113,59 +70,24 @@ bool is_visible(char c)
     return c >= 040 && c < 0177;
 }
 
-static void fillbuf(struct cc_file *fs)
-{
-    if (fs->bread == 0) {
-        if (fs->pc > fs->pe)
-            fs->pc = fs->pe;
-        return;
-    }
-    
-    if (fs->pc >= fs->pe) {
-        fs->pc = &fs->buf[LBUFSIZE];
-    } else {
-        long n;
-        char *dst, *src;
-        
-        // copy
-        n = fs->pe - fs->pc;
-        dst = &fs->buf[LBUFSIZE] - n;
-        src = fs->pc;
-        while (src < fs->pe)
-            *dst++ = *src++;
-        
-        fs->pc = &fs->buf[LBUFSIZE] - n;
-    }
+static const char *tnames[] = {
+#define _a(a, b, c, d)  b,
+#define _x(a, b, c, d)  b,
+#define _t(a, b, c)     b,
+#include "token.def"
+};
 
-    if (feof(fs->fp))
-        fs->bread = 0;
-    else
-        fs->bread = fread(&fs->buf[LBUFSIZE], 1, RBUFSIZE, fs->fp);
-    
-    if (fs->bread < 0)
-        die("read error: %s", strerror(errno));
-    
-    fs->pe = &fs->buf[LBUFSIZE] + fs->bread;
+static struct token *eoi_token = &(struct token){.id = EOI};
+static struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
+static struct token *space_token = &(struct token){.id = ' '};
+static struct vector *buffers;
 
-    /* Add a newline character to the end if the
-     * file doesn't have one, thus the include
-     * directive would work well.
-     */
-    if (fs->pe < &fs->buf[LBUFSIZE+RBUFSIZE]) {
-	if (fs->pe > fs->pc && fs->pe[-1] != '\n')
-	    *fs->pe++ = '\n';
-    }
-    *fs->pe = 0;
-}
-
-static inline struct cc_file * current_file(void)
-{
-    return vec_tail(files);
-}
+struct token *token;
+struct source source;
 
 static void pin(struct cc_char *ch)
 {
-    struct cc_file *fs = current_file();
+    struct file *fs = current_file();
     source.file = fs->file;
     source.line = ch->line;
     source.column = ch->column;
@@ -173,7 +95,7 @@ static void pin(struct cc_char *ch)
 
 static struct source chsrc(struct cc_char *ch)
 {
-    struct cc_file *fs = current_file();
+    struct file *fs = current_file();
     struct source src;
     src.file = fs->file;
     src.line = ch->line;
@@ -181,110 +103,9 @@ static struct source chsrc(struct cc_char *ch)
     return src;
 }
 
-static inline void mark(struct token *t)
+void mark(struct token *t)
 {
     source = t->src;
-}
-
-static struct cc_file * open_file(const char *file)
-{
-    FILE *fp = fopen(file, "r");
-    if (fp == NULL) {
-	perror(file);
-	die("Cannot open file %s", file);
-    }
-    struct cc_file *fs = xmalloc(sizeof(struct cc_file));
-    vec_push(files, fs);
-    fs->pc = fs->pe = &fs->buf[LBUFSIZE];
-    fs->bread = -1;
-    fs->chars = vec_new();
-    fs->fp = fp;
-    fs->file = file;
-    fs->line = 1;
-    fs->column = 0;
-    genlineno(1, file);
-    return fs;
-}
-
-static void close_file(struct cc_file *file)
-{
-    fclose(file->fp);
-    vec_free(file->chars);
-    free(file);
-    struct cc_file *fs = current_file();
-    genlineno(fs->line, fs->file);
-}
-
-static char get(void)
-{
-    struct cc_file *fs = current_file();
-    if (fs->pe - fs->pc < MAXTOKEN)
-	fillbuf(fs);
-    if (fs->pc == fs->pe)
-	return EOI;
-    if (*fs->pc == '\n') {
-	fs->line++;
-	fs->column = 0;
-    } else {
-	fs->column++;
-    }
-    return *fs->pc++;
-}
-
-static inline struct cc_char * newch(char c, unsigned line, unsigned column)
-{
-    struct cc_char *ch =  zmalloc(sizeof(struct cc_char));
-    ch->ch = c;
-    ch->line = line;
-    ch->column = column;
-    return ch;
-}
-
-static void unreadc(struct cc_char * ch)
-{
-    vec_push(current_file()->chars, ch);
-}
-
-static void unreads(const char *s)
-{
-    for (int i = strlen(s) - 1; i >= 0; i--) {
-	struct cc_char *ch = newch(s[i], 0, i+1);
-	unreadc(ch);
-    }
-}
-
-static struct cc_char * readc(void)
-{
-    struct cc_file *fs;
-
-beg:
-    fs = current_file();
-    if (vec_len(fs->chars))
-	return vec_pop(fs->chars);
-    
-    for (;;) {
-        char c = get();
-	unsigned line = fs->line;
-	unsigned column = fs->column;
-	if (c == EOI) {
-	    if (vec_len(files) == 1) {
-		goto end;
-	    } else {
-		close_file(vec_pop(files));
-		goto beg;
-	    }
-	}
-	if (c != '\\')
-	    goto end;
-	char c2 = get();
-	if (c2 == '\n')
-	    continue;
-	// cache
-	struct cc_char *ch2 = newch(c2, fs->line, fs->column);
-	unreadc(ch2);
-    end:
-	return newch(c, line, column);
-    }
 }
 
 static bool next(char c)
@@ -301,14 +122,6 @@ static char peek(void)
     struct cc_char *ch = readc();
     unreadc(ch);
     return CH(ch);
-}
-
-void lex_init(const char *file)
-{
-    files = vec_new();
-    buffers = vec_new();
-    vec_push(buffers, vec_new());
-    open_file(file);
 }
 
 struct token * new_token(struct token *tok)
@@ -723,11 +536,6 @@ struct token * dolex(void)
     }
 }
 
-static void genlineno(unsigned line, const char *file)
-{
-    unreads(format("# %u \"%s\"\n", line, file));
-}
-
 static const char * hq_char_sequence(char sep)
 {
     struct strbuf *s = strbuf_new();
@@ -769,26 +577,35 @@ beg:
     }
 }
 
-void include_file(const char *file)
-{
-    CCAssert(vec_len(vec_tail(buffers)) == 0);
-    open_file(file);
-}
-
 void unget(struct token *t)
 {
     struct vector *v = vec_tail(buffers);
     vec_push(v, t);
 }
 
-void push_buffer(struct vector *v)
+void buffer_stub(struct vector *v)
 {
     vec_push(buffers, v);
 }
 
-void pop_buffer(void)
+void buffer_unstub(void)
 {
     vec_pop(buffers);
+}
+
+// parse the input string to a token
+struct token * with_temp_lex(const char *input)
+{
+    struct source src = source;
+    file_stub(with_temp_string(input, NULL));
+    struct token *t = dolex();
+    next('\n');
+    if (peek() != EOI) {
+	struct token *t2 = dolex();
+	errorf(src, "pasting formed '%s%s', an invalid preprocessing token", t->name, t2->name);
+    }
+    file_unstub();
+    return t;
 }
 
 struct token * lex(void)
@@ -805,6 +622,12 @@ struct token * lex(void)
 	token = dolex();
     mark(token);
     return token;
+}
+
+void lex_init(void)
+{
+    buffers = vec_new();
+    vec_push(buffers, vec_new());
 }
 
 const char *id2s(int t)
