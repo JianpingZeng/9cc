@@ -96,7 +96,6 @@ extern const char *id2s(int t);
 // cpp.c
 extern void cpp_init(struct vector *options);
 extern struct token * get_pptok(void);
-extern void gen_cpp_line(unsigned line, const char *file);
 
 // ast.h
 #include "ast.h"

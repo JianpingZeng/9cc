@@ -546,24 +546,10 @@ static struct token * expand(void)
     return doexpand();
 }
 
-void gen_cpp_line(unsigned line, const char *file)
-{
-    // if (cpplines == NULL)
-    // 	cpplines = vec_new();
-    // const char *message = strs(format("# %u \"%s\"\n", line, file));
-    // struct token *t = new_token(&(struct token){.id = LINENO, .name = message});
-    // vec_push_front(cpplines, t);
-    
-}
-
 struct token * get_pptok(void)
 {
     for (;;) {
         struct token *t = expand();
-	// if (vec_len(cpplines)) {
-	//     unget(t);
-	//     return vec_pop(cpplines);
-	// }
 	// TODO: and t must be the first non-white-space token of a line
 	if (t->id == '#') {
 	    directive();
