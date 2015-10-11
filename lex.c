@@ -28,7 +28,7 @@ struct cc_char {
 
 #define CH(c)    ((c)->ch)
 
-#define LBUFSIZE     1024
+#define LBUFSIZE     64
 #define RBUFSIZE     4096
 #define MAXTOKEN     LBUFSIZE
 
@@ -53,6 +53,8 @@ static struct token *space_token = &(struct token){.id = ' '};
 static struct vector *buffers;
 
 struct source source;
+
+static void genlineno(unsigned line, const char *file);
 
 /* Don't use macros here, because macros make things wrong.
  * For example:
@@ -199,7 +201,7 @@ static struct cc_file * open_file(const char *file)
     fs->file = file;
     fs->line = 1;
     fs->column = 0;
-    gen_cpp_line(1, file);
+    genlineno(1, file);
     return fs;
 }
 
@@ -209,7 +211,7 @@ static void close_file(struct cc_file *file)
     vec_free(file->chars);
     free(file);
     struct cc_file *fs = current_file();
-    gen_cpp_line(fs->line, fs->file);
+    genlineno(fs->line, fs->file);
 }
 
 static char get(void)
@@ -235,6 +237,11 @@ static inline struct cc_char * newch(char c, unsigned line, unsigned column)
     ch->line = line;
     ch->column = column;
     return ch;
+}
+
+static void unreads(const char *s)
+{
+
 }
 
 static void unreadc(struct cc_char * ch)
@@ -710,6 +717,11 @@ struct token * dolex(void)
 	    }
 	}
     }
+}
+
+static void genlineno(unsigned line, const char *file)
+{
+    
 }
 
 static const char * hq_char_sequence(char sep)

@@ -17,12 +17,14 @@ enum {
     MACRO_SPECIAL
 };
 
+typedef void SpecialFn(struct token *t);
+
 struct macro {
     int kind;
     struct vector *body;
     struct vector *params;
     bool vararg;
-    void (*fn) (struct token *t); // special macro handler
+    SpecialFn *fn; // special macro handler
 };
 
 static struct token * expand(void);
@@ -256,32 +258,33 @@ static void parameters(struct macro *m)
 {
     struct token *t = skip_spaces();
     if (t->id == ')') {
-	// empty
+	// ()
     } else if (t->id == ELLIPSIS) {
+	// (...)
 	m->vararg = true;
 	t = skip_spaces();
 	if (t->id != ')')
 	    error("expect ')'");
     } else if (t->id == ID) {
+	// (a,b,c,...)
 	struct vector *v = vec_new();
 	for (;;) {
-	    if (t->id == ID)
+	    if (t->id == ID) {
 		vec_push(v, t);
-	    else
-		error("expect identifier");
+	    } else if (t->id == ELLIPSIS) {
+		m->vararg = true;
+		t = skip_spaces();
+		break;
+	    } else {
+		error("expect identifier or ...");
+	    }
 	    t = skip_spaces();
 	    if (t->id != ',')
 		break;
 	    t = skip_spaces();
 	}
-	if (t->id == ELLIPSIS) {
-	    m->vararg = true;
-	    t = skip_spaces();
-	    if (t->id != ')')
-		error("expect ')'");
-	} else if (t->id != ')') {
+	if (t->id != ')')
 	    error("expect ')'");
-	}
 	m->params = v;
     } else {
 	error("expect identifier list or ')' or ...");
@@ -299,26 +302,29 @@ static struct vector * replacement_list(void)
 	    break;
 	vec_push(v, t);
     }
-    if (IS_NEWLINE(t))
-	unget(t);
+    unget(t);
     return v;
 }
 
 static void define_obj_macro(const char *name)
 {
     struct macro *m = new_macro(MACRO_OBJ);
+    SAVE_ERRORS;
     m->body = replacement_list();
     ensure_macro_def(m);
-    map_put(macros, name, m);
+    if (NO_ERROR)
+	map_put(macros, name, m);
 }
 
 static void define_funclike_macro(const char *name)
 {
     struct macro *m = new_macro(MACRO_FUNC);
+    SAVE_ERRORS;
     parameters(m);
     m->body = replacement_list();
     ensure_macro_def(m);
-    map_put(macros, name, m);
+    if (NO_ERROR)
+	map_put(macros, name, m);
 }
 
 static void define_line(void)
@@ -347,24 +353,78 @@ static void undef_line(void)
     map_put(macros, id->name, NULL);
     id = skip_spaces();
     if (!IS_NEWLINE(id))
-	error("extra tokens");
+	warning("extra tokens at the end of #undef directive");
     skipline();
 }
 
 static void line_line(void)
 {
+    struct token *t = skip_spaces();
+    struct token *t2 = skip_spaces();
+    for (;;) {
+	struct token *t = skip_spaces();
+	if (IS_NEWLINE(t))
+	    break;
+    }
+
+    fprintf(stderr, "# %s \"%s\"\n", t->name, t2->name);
+}
+
+static const char * tokens2msg(struct vector *v)
+{
+    struct strbuf *s = strbuf_new();
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
+	if (IS_SPACE(t))
+	    strbuf_cats(s, " ");
+	else if (t->name)
+	    strbuf_cats(s, t->name);
+    }
+    const char *ret = strbuf_str(strbuf_strip(s));
+    return ret ? ret : "";
+}
+
+static struct vector * pptokens(void)
+{
+    struct vector *v = vec_new();
+    struct token *t;
+    for (;;) {
+	t = lex();
+	if (IS_NEWLINE(t))
+	    break;
+	vec_push(v, t);
+    }
+    unget(t);
+    return v;
 }
 
 static void error_line(void)
 {
-}
-
-static void pragma_line(void)
-{
+    struct source src = source;
+    struct vector *v = pptokens();
+    const char *message = tokens2msg(v);
+    errorf(src, message);
 }
 
 static void warning_line(void)
 {
+    struct source src = source;
+    struct vector *v = pptokens();
+    const char *message = tokens2msg(v);
+    warningf(src, message);
+}
+
+static void pragma_line(void)
+{
+    struct source src = source;
+    struct token *t;
+    for (;;) {
+	t = skip_spaces();
+	if (IS_NEWLINE(t))
+	    break;
+    }
+    unget(t);
+    warningf(src, "pragma directive not supported yet");
 }
 
 static void directive(void)
@@ -460,10 +520,8 @@ static struct token * doexpand(void)
 	}
     case MACRO_FUNC:
 	{
-	    if (peek()->id != '(') {
-		error("invalid func macro");
+	    if (peek()->id != '(')
 		return t;
-	    }
 	    skip_spaces();
 	    struct vector *args = arguments(m);
 	    CCAssert(token->id == ')');
@@ -474,10 +532,11 @@ static struct token * doexpand(void)
 	}
 	break;
     case MACRO_SPECIAL:
-	{
-	}
+        m->fn(t);
+	return expand();
     default:
-	break;
+	die("unkown macro type %d", m->kind);
+	return t;
     }
 }
 
@@ -486,33 +545,64 @@ static struct token * expand(void)
     return doexpand();
 }
 
-static struct token * conv2cc(struct token *t)
-{
-    return t;
-}
-
 void gen_cpp_line(unsigned line, const char *file)
 {
-    const char *message = strs(format("# %u \"%s\"\n", line, file));
-    struct token *t = new_token(&(struct token){.id = SCONSTANT, .name = message});
-    vec_push(cpplines, t);
+    // if (cpplines == NULL)
+    // 	cpplines = vec_new();
+    // const char *message = strs(format("# %u \"%s\"\n", line, file));
+    // struct token *t = new_token(&(struct token){.id = LINENO, .name = message});
+    // vec_push_front(cpplines, t);
+    
 }
 
 struct token * get_pptok(void)
 {
     for (;;) {
         struct token *t = expand();
-	if (vec_len(cpplines)) {
-	    unget(t);
-	    return vec_pop(cpplines);
-	}
+	// if (vec_len(cpplines)) {
+	//     unget(t);
+	//     return vec_pop(cpplines);
+	// }
 	// TODO: and t must be the first non-white-space token of a line
 	if (t->id == '#') {
 	    directive();
 	    continue;
 	}
-	return conv2cc(t);
+	return t;
     }
+}
+
+static void special_file(struct token *t)
+{
+    const char *file = t->src.file;
+    const char *name = strs(format("\"%s\"", file));
+    struct token *tok = new_token(&(struct token){.id = SCONSTANT, .name = name, .src = t->src});
+    unget(tok);
+}
+
+static void special_line(struct token *t)
+{
+    unsigned line = t->src.line;
+    const char *name = strd(line);
+    struct token *tok = new_token(&(struct token){.id = ICONSTANT, .name = name, .src = t->src});
+    unget(tok);
+}
+
+static void special_date(struct token *t)
+{
+
+}
+
+static void special_time(struct token *t)
+{
+
+}
+
+static void define_special(const char *name, SpecialFn *fn)
+{
+    struct macro *m = new_macro(MACRO_SPECIAL);
+    m->fn = fn;
+    map_put(macros, strs(name), m);
 }
 
 static inline void add_include(struct vector *v, const char *name)
@@ -522,10 +612,17 @@ static inline void add_include(struct vector *v, const char *name)
     free((void *)path);
 }
 
-static void init_include(void)
+static void include_builtin(const char *name)
+{
+    
+}
+
+static void init_predefined_macros(void)
 {
     std = vec_new();
     usr = vec_new();
+
+    add_include(std, BUILD_DIR "/include");
     
 #ifdef CONFIG_LINUX
     
@@ -536,6 +633,13 @@ static void init_include(void)
     add_include(std, XCODE_DIR "/usr/include");
     
 #endif
+    
+    define_special("__FILE__", special_file);
+    define_special("__LINE__", special_line);
+    define_special("__DATE__", special_date);
+    define_special("__TIME__", special_time);
+
+    include_builtin(BUILD_DIR "/include/mcc.h");
 }
 
 static void parseopts(struct vector *options)
@@ -557,7 +661,6 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
-    cpplines = vec_new();
-    init_include();
+    init_predefined_macros();
     parseopts(options);
 }

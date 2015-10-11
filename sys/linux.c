@@ -184,6 +184,9 @@ char *abspath(char *path)
 
 const char *join(const char *dir, const char *name)
 {
+    if (name[0] == '/')
+	return strdup(name);
+    
     size_t len1 = strlen(dir);
     size_t len2 = strlen(name);
     int i = 0;

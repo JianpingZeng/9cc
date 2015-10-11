@@ -212,6 +212,7 @@ _t(AND,         "&&",          AND)
 _t(OR,          "||",          OR)
 
 _t(SHARPSHARP,  "##",	       0)
+_t(LINENO,      "line",        0)
 
 // op			       
 _t(ARRAY,       "array",       0)
