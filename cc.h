@@ -12,6 +12,8 @@
 #include <float.h>
 #include <wchar.h>
 #include <stdbool.h>
+#include <time.h>
+#include <locale.h>
 
 #include "config.h"
 #include "utils.h"

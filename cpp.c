@@ -32,6 +32,7 @@ static inline void include_file(const char *file);
 static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
+static struct tm now;
 
 static struct macro * new_macro(int kind)
 {
@@ -700,12 +701,22 @@ static void line_handler(struct token *t)
 
 static void date_handler(struct token *t)
 {
-
+    // mmm dd yyyy
+    char ch[20];
+    strftime(ch, sizeof(ch), "%b %e %Y", &now);
+    const char *name = strs(format("\"%s\"", ch));
+    struct token *tok = new_token(&(struct token){.id = SCONSTANT, .name = name, .src = t->src});
+    unget(tok);
 }
 
 static void time_handler(struct token *t)
 {
-
+    // hh:mm:ss
+    char ch[10];
+    strftime(ch, sizeof(ch), "%T", &now);
+    const char *name = strs(format("\"%s\"", ch));
+    struct token *tok = new_token(&(struct token){.id = SCONSTANT, .name = name, .src = t->src});
+    unget(tok);
 }
 
 static void define_special(const char *name, SpecialFn *fn)
@@ -789,6 +800,13 @@ static void builtin_macros(void)
     include_builtin(BUILD_DIR "/include/mcc.h");
 }
 
+static void init_env(void)
+{
+    setlocale(LC_ALL, "C");
+    time_t t = time(NULL);
+    localtime_r(&t, &now);
+}
+
 static void init_include(void)
 {
     std = vec_new();
@@ -847,6 +865,7 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
+    init_env();
     init_include();
     builtin_macros();
     parseopts(options);

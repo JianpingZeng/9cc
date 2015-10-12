@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <locale.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include "sys.h"
@@ -81,7 +80,6 @@ static void translate(void *elem, void *context)
 
 static void setup_env(void)
 {
-    setlocale(LC_ALL, "");
     setup_sys();
 }
 
