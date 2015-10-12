@@ -98,7 +98,7 @@ static void if_section(void)
 {
 }
 
-static void do_ifdef_section(const char *name, bool def)
+static void do_ifdef_section(int id)
 {
     struct source src = source;
     struct token *t = skip_spaces();
@@ -107,25 +107,25 @@ static void do_ifdef_section(const char *name, bool def)
     bool b = map_get(macros, t->name);
     t = skip_spaces();
     if (!IS_NEWLINE(t)) {
-	error("extra tokens in '%s' directive", name);
+	error("extra tokens in '%s' directive", id2s(id));
 	skipline();
     } else {
 	unget(t);
     }
-    if_stub(new_ifstub(&(struct ifstub){.name = name, .src = src, .b = b}));
-    bool skip = def ? !b : b;
+    if_stub(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = b}));
+    bool skip = id == IFDEF ? !b : b;
     if (skip)
 	skip_if_cond();
 }
 
 static void ifdef_section(void)
 {
-    do_ifdef_section("ifdef", true);
+    do_ifdef_section(IFDEF);
 }
 
 static void ifndef_section(void)
 {
-    do_ifdef_section("ifndef", false);
+    do_ifdef_section(IFNDEF);
 }
 
 static void elif_group(void)

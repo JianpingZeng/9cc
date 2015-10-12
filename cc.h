@@ -82,7 +82,7 @@ struct file {
 };
 
 struct ifstub {
-    const char *name;
+    int id;
     struct source src;
     bool b;
 };
