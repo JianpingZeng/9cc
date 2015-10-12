@@ -16,14 +16,12 @@ enum {
     MACRO_SPECIAL
 };
 
-typedef void SpecialFn(struct token *t);
-
 struct macro {
     int kind;
     struct vector *body;
     struct vector *params;
     bool vararg;
-    SpecialFn *fn; // special macro handler
+    void (*fn) (struct token *); // special macro handler
 };
 
 static struct token * expand(void);
@@ -761,7 +759,7 @@ static void time_handler(struct token *t)
     unget(tok);
 }
 
-static void define_special(const char *name, SpecialFn *fn)
+static void define_special(const char *name, void (*fn) (struct token *))
 {
     struct macro *m = new_macro(MACRO_SPECIAL);
     m->fn = fn;
