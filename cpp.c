@@ -596,11 +596,13 @@ static struct vector * subst(struct macro *m, struct vector *args, struct set *h
 	    i++;
 	    
 	} else if (t0->id == SHARPSHARP && t1) {
-	    
+
+	    hideset = t1->hideset;
 	    r = glue(r, vec_new1(t1));
 	    i++;
 	    
 	} else if ((index = inparams(t0, m)) >= 0 && (t1 && t1->id == SHARPSHARP) ) {
+	    hideset = t1->hideset;
 	    struct vector *iv = select(args, index);
 	    iv = remove_spaces(iv);
 

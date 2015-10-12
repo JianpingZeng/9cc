@@ -102,6 +102,7 @@ struct token {
     int kind;
     struct source src;
     struct set *hideset;
+    unsigned bol : 1;		// beginning of line
 };
 
 extern struct source source;

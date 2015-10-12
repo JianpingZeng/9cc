@@ -315,7 +315,7 @@ void genlineno(unsigned line, const char *file)
 {
     static struct vector *initv;
 
-    struct token *t0 = new_token(&(struct token){.id = '#'});
+    struct token *t0 = new_token(&(struct token){.id = '#', .bol = true});
     struct token *t1 = new_token(&(struct token){.id = ICONSTANT, .name = strd(line)});
     struct token *t2 = new_token(&(struct token){.id = SCONSTANT, .name = format("\"%s\"", file)});
     struct token *t3 = newline_token;
