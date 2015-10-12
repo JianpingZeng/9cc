@@ -85,6 +85,7 @@ static bool bol;
 
 struct token *token;
 struct source source;
+static struct vector *tokens;
 
 #define VEC_LEX  0
 #define VEC_CPP  1
@@ -583,7 +584,7 @@ static const char * hq_char_sequence(char sep)
 struct token *header_name(void)
 {
     struct cc_char *ch;
-beg:
+ beg:
     ch = readc();
     if (is_blank(CH(ch)))
 	goto beg;
@@ -666,6 +667,7 @@ void lex_init(void)
     buffers = vec_new();
     vec_push(buffers, vec_new());
     vec_push(buffers, vec_new());
+    tokens = vec_new();
 }
 
 const char *id2s(int t)
@@ -704,7 +706,7 @@ void match(int t, int follow[])
         for (n=0; token->id != EOI; gettok()) {
             int *k;
             for (k=follow; *k && *k != token->kind; k++)
-                    ; // continue
+		; // continue
             if (*k == token->kind)
                 break;
         }
@@ -714,12 +716,96 @@ void match(int t, int follow[])
     }
 }
 
+static void unget_token(struct token *t)
+{
+    vec_push(tokens, t);
+}
+
+static struct token * do_one_token(void)
+{
+    for (;;) {
+	struct token *t = get_pptok();
+	if (IS_SPACE(t) || IS_NEWLINE(t) || IS_LINENO(t))
+	    continue;
+	return t;
+    }
+}
+
+static struct token * one_token(void)
+{
+    if (vec_len(tokens))
+	return vec_pop(tokens);
+    else
+	return do_one_token();
+}
+
+static struct token * peek_token(void)
+{
+    struct token *t = one_token();
+    unget_token(t);
+    return t;
+}
+
+const char *unwrap_scon(const char *name)
+{
+    struct strbuf *s = strbuf_new();
+    
+    if (name[0] == '"')
+	strbuf_catn(s, name+1, strlen(name)-2);
+    else
+	strbuf_catn(s, name+2, strlen(name)-3);
+
+    return strbuf_str(s);
+}
+
+static struct token * combine_scons(struct vector *v, bool wide)
+{
+    struct token *t = new_token(vec_head(v));
+    struct strbuf *s = strbuf_new();
+    if (wide)
+	strbuf_catc(s, 'L');
+    strbuf_catc(s, '"');
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *ti = vec_at(v, i);
+	const char *name = unwrap_scon(ti->name);
+	if (name)
+	    strbuf_cats(s, name);
+    }
+    strbuf_catc(s, '"');
+    t->name = strs(s->str);
+    return t;
+}
+
+static struct token * do_gettok(void)
+{
+    struct token *t = one_token();
+    if (t->id == SCONSTANT) {
+	struct vector *v = vec_new1(t);
+	struct token *t1 = peek_token();
+	bool wide = t->name[0] == 'L';
+	while (t1->id == SCONSTANT) {
+	    if (t1->name[0] == 'L')
+		wide = true;
+	    vec_push(v, one_token());
+	    t1 = peek_token();
+	}
+	if (vec_len(v) > 1)
+	    return combine_scons(v, wide);
+	else
+	    return t;
+    } else {
+	return t;
+    }
+}
+
 int gettok(void)
 {
-    return EOI;
+    token = do_gettok();
+    mark(token);
+    return token->id;
 }
 
 struct token * lookahead(void)
 {
-    return NULL;
+    return peek_token();
 }

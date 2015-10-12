@@ -169,18 +169,6 @@ static void do_include(const char *name, bool isstd, struct vector *tokens)
     }
 }
 
-static const char *unwrap(const char *name)
-{
-    struct strbuf *s = strbuf_new();
-    
-    if (name[0] == '"')
-	strbuf_catn(s, name+1, strlen(name)-2); 
-    else
-	strbuf_catn(s, name+2, strlen(name)-3);
-
-    return strbuf_str(s);
-}
-
 static void include_line(void)
 {
     struct token *t = header_name();
@@ -201,7 +189,7 @@ static void include_line(void)
 	    struct vector *r = expandv(v);
 	    struct token *tok = vec_head(r);
 	    if (tok->id == SCONSTANT) {
-		do_include(unwrap(tok->name), false, v);
+		do_include(unwrap_scon(tok->name), false, v);
 	    } else if (tok->id == '<') {
 
 	    } else {
