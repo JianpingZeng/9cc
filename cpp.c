@@ -94,8 +94,19 @@ static int inparams(struct token *t, struct macro *m)
     return -1;
 }
 
+static bool eval_constexpr(void)
+{
+    // TODO:
+    return false;
+}
+
 static void if_section(void)
 {
+    struct source src = source;
+    bool b = eval_constexpr();
+    if_stub(new_ifstub(&(struct ifstub){.id = IF, .src = src, .b = b}));
+    if (!b)
+	skip_ifstub();
 }
 
 static void do_ifdef_section(int id)
@@ -126,12 +137,6 @@ static void ifdef_section(void)
 static void ifndef_section(void)
 {
     do_ifdef_section(IFNDEF);
-}
-
-static bool eval_constexpr(void)
-{
-    // TODO:
-    return false;
 }
 
 static void elif_group(void)
