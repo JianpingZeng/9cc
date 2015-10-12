@@ -753,22 +753,22 @@ static struct vector * preprocess(void)
     return v;
 }
 
-static void include_alias(const char *file, const char *alias)
+static struct vector * include_alias(const char *file, const char *alias)
 {
     file_stub(with_temp_file(file, alias));
     struct vector *v = preprocess();
     file_unstub();
-    ungetv(v);
+    return v;
 }
 
 static inline void include_file(const char *file)
 {
-    include_alias(file, file);
+    ungetv(include_alias(file, file));
 }
 
-static inline void include_builtin(const char *file)
+static inline void include_builtin(struct vector *v, const char *file)
 {
-    include_alias(file, "<built-in>");
+    vec_add(v, include_alias(file, "<built-in>"));
 }
 
 static void builtin_macros(void)
@@ -777,14 +777,17 @@ static void builtin_macros(void)
     define_special("__LINE__", line_handler);
     define_special("__DATE__", date_handler);
     define_special("__TIME__", time_handler);
-    
-    include_builtin(BUILD_DIR "/include/mcc.h");
+
+    struct vector *v = vec_new();
+    include_builtin(v, BUILD_DIR "/include/mcc.h");
     if (commands) {
-	file_stub(with_temp_string(commands, NULL));
-	struct vector *v = preprocess();
+	file_stub(with_temp_string(commands, "<command-line>"));
+	struct vector *v2 = preprocess();
 	file_unstub();
-	ungetv(v);
+	vec_add(v, v2);
     }
+    ungetv(v);
+    vec_free(v);
 }
 
 static void init_include(void)
