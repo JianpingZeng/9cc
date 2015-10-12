@@ -153,6 +153,7 @@ static struct file * open_file(int kind, const char *file)
 	    die("Cannot open file %s", file);
 	}
 	fs->fp = fp;
+	fs->name = file;
     }
     fs->file = file;
     
@@ -164,7 +165,8 @@ static void close_file(struct file *file)
     if (file->kind == FILE_KIND_REGULAR) {
 	fclose(file->fp);
 	struct file *fs = current_file();
-	genlineno(fs->line, fs->file);
+	if (fs->name)
+	    genlineno(fs->line, fs->name);
     }
     vec_free(file->chars);
     free(file);
@@ -183,15 +185,18 @@ void file_unstub(void)
 struct file * with_temp_string(const char *input, const char *name)
 {
     struct file *fs = open_file(FILE_KIND_STRING, input);
-    fs->name = name ? name : "<temp>";
+    fs->name = name;
+    if (name)
+	genlineno(1, fs->name);
     return fs;
 }
 
 struct file * with_temp_file(const char *file, const char *name)
 {
     struct file *fs = open_file(FILE_KIND_REGULAR, file);
-    fs->name = name ? name : fs->file;
-    genlineno(1, fs->name);
+    fs->name = name;
+    if (name)
+	genlineno(1, fs->name);
     return fs;
 }
 

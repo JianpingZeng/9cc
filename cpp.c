@@ -770,6 +770,14 @@ static inline void include_builtin(const char *file)
     include_alias(file, "<built-in>");
 }
 
+static void include_command_line(const char *cmd)
+{
+    file_stub(with_temp_string(cmd, NULL));
+    struct vector *v = preprocess();
+    file_unstub();
+    ungetv(v);
+}
+
 static void init_predefined_macros(void)
 {
     std = vec_new();
@@ -797,6 +805,8 @@ static void init_predefined_macros(void)
 
 static void parseopts(struct vector *options)
 {
+    struct strbuf *s = strbuf_new();
+    
     for (int i = 0; i < vec_len(options); i++) {
 	const char *arg = vec_at(options, i);
 	if (strlen(arg) < 3)
@@ -804,11 +814,30 @@ static void parseopts(struct vector *options)
 	if (!strncmp(arg, "-I", 2)) {
 	    add_include(usr, arg+2);
 	} else if (!strncmp(arg, "-D", 2)) {
-	    
+	    const char *content = arg + 2;
+	    char *ptr = strchr(content, '=');
+	    if (ptr) {
+		char *name = strndup(content, ptr - content);
+		if (ptr - content < strlen(content) - 1) {
+		    char *value = strdup(ptr + 1);
+		    strbuf_cats(s, format("#define %s %s\n", name, value));
+		    free(value);
+		} else {
+		    strbuf_cats(s, format("#define %s\n", name));
+		}
+		free(name);
+	    } else {
+		strbuf_cats(s, format("#define %s\n", content));
+	    }
 	} else if (!strncmp(arg, "-U", 2)) {
-
+	    strbuf_cats(s, format("#undef %s\n", arg+2));
 	}
     }
+
+    if (strbuf_len(s))
+	include_command_line(s->str);
+    
+    strbuf_free(s);
 }
 
 void cpp_init(struct vector *options)
