@@ -136,6 +136,7 @@ static struct file * new_file(int kind)
     fs->file = NULL;
     fs->pos = 0;
     fs->bol = true;
+    fs->ifstubs = vec_new();
     return fs;
 }
 
@@ -166,6 +167,7 @@ static void close_file(struct file *file)
     if (file->kind == FILE_KIND_REGULAR)
 	fclose(file->fp);
     vec_free(file->chars);
+    vec_free(file->ifstubs);
     free(file);
     struct file *fs = current_file();
     fs->bol = true;

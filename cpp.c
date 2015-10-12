@@ -26,7 +26,7 @@ struct macro {
     SpecialFn *fn; // special macro handler
 };
 
-struct ifcond {
+struct ifstub {
     const char *name;
     struct source src;
     bool b;
@@ -39,29 +39,28 @@ static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
 static struct tm now;
-static struct vector *ifstubs;
 
-static struct ifcond * new_ifcond(struct ifcond *i)
+static struct ifstub * new_ifstub(struct ifstub *i)
 {
-    struct ifcond *ic = zmalloc(sizeof(struct ifcond));
-    memcpy(ic, i, sizeof(struct ifcond));
+    struct ifstub *ic = zmalloc(sizeof(struct ifstub));
+    memcpy(ic, i, sizeof(struct ifstub));
     return ic;
 }
 
-static void if_stub(struct ifcond *i)
+static void if_stub(struct ifstub *i)
 {
-    vec_push(ifstubs, i);
+    vec_push(current_file()->ifstubs, i);
 }
 
 static void if_unstub(void)
 {
-    vec_pop(ifstubs);
+    vec_pop(current_file()->ifstubs);
 }
 
-static struct ifcond * current_ifstub(void)
+static struct ifstub * current_ifstub(void)
 {
-    if (vec_len(ifstubs))
-	return vec_tail(ifstubs);
+    if (vec_len(current_file()->ifstubs))
+	return vec_tail(current_file()->ifstubs);
     else
 	return NULL;
 }
@@ -146,7 +145,7 @@ static void do_ifdef_section(const char *name, bool def)
     } else {
 	unget(t);
     }
-    if_stub(new_ifcond(&(struct ifcond){.name = name, .src = src, .b = b}));
+    if_stub(new_ifstub(&(struct ifstub){.name = name, .src = src, .b = b}));
     bool skip = def ? !b : b;
     if (skip)
 	skip_if_cond();
@@ -811,8 +810,12 @@ struct token * get_pptok(void)
 {
     for (;;) {
     	struct token *t = expand();
-    	if (t->id == EOI)
+    	if (t->id == EOI) {
+	    struct ifstub *stub = current_ifstub();
+	    if (stub)
+		errorf(stub->src, "unterminated conditional directive");
     	    return t;
+	}
         if (t->id == '#' && t->bol) {
     	    directive();
     	    continue;
@@ -939,7 +942,6 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
-    ifstubs = vec_new();
     init_env();
     init_include();
     builtin_macros();
