@@ -86,6 +86,9 @@ static bool bol;
 struct token *token;
 struct source source;
 
+#define VEC_LEX  0
+#define VEC_CPP  1
+
 static void pin(struct cc_char *ch)
 {
     struct file *fs = current_file();
@@ -324,11 +327,11 @@ void genlineno(unsigned line, const char *file)
     struct token *t1 = new_token(&(struct token){.id = ICONSTANT, .name = strd(line)});
     struct token *t2 = new_token(&(struct token){.id = SCONSTANT, .name = format("\"%s\"", file)});
     struct token *t3 = newline_token;
-    
-    unget(t3);
-    unget(t2);
-    unget(t1);
-    unget(t0);
+    struct vector *v = vec_at(buffers, VEC_CPP);
+    vec_push_front(v, t0);
+    vec_push_front(v, t1);
+    vec_push_front(v, t2);
+    vec_push_front(v, t3);
 }
 
 struct token * dolex(void)
@@ -601,8 +604,17 @@ beg:
 
 void unget(struct token *t)
 {
-    struct vector *v = vec_tail(buffers);
-    vec_push(v, t);
+    if (vec_len(buffers) > 2) {
+	struct vector *v = vec_tail(buffers);
+	vec_push(v, t);
+    } else {
+	struct vector *v1 = vec_at(buffers, VEC_CPP);
+	struct vector *v0 = vec_at(buffers, VEC_LEX);
+	if (vec_len(v1))
+	    vec_push(v1, t);
+	else
+	    vec_push(v0, t);
+    }
 }
 
 void buffer_stub(struct vector *v)
@@ -632,13 +644,16 @@ struct token * with_temp_lex(const char *input)
 
 struct token * lex(void)
 {
+    struct vector *v0 = vec_head(buffers);
     struct vector *v = vec_tail(buffers);
     if (vec_len(v))
 	// no matter which is the last
 	token = vec_pop(v);
-    else if (vec_len(buffers) > 1)
+    else if (vec_len(buffers) > 2)
 	// if the last vec is empty and buffers len > 1
 	token = eoi_token;
+    else if (vec_len(v0))
+	token = vec_pop(v0);
     else
 	// do lex
 	token = dolex();
@@ -649,6 +664,7 @@ struct token * lex(void)
 void lex_init(void)
 {
     buffers = vec_new();
+    vec_push(buffers, vec_new());
     vec_push(buffers, vec_new());
 }
 
