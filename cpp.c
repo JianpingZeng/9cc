@@ -897,7 +897,7 @@ static void init_include(void)
     
     add_include(std, "/usr/include");
     
-#elif defined (CONFIG_DARWIN)
+#elif defined CONFIG_DARWIN
     
     add_include(std, XCODE_DIR "/usr/include");
     
