@@ -32,6 +32,7 @@ static inline void include_file(const char *file);
 static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
+static const char *commands;
 
 static struct macro * new_macro(int kind)
 {
@@ -770,15 +771,23 @@ static inline void include_builtin(const char *file)
     include_alias(file, "<built-in>");
 }
 
-static void include_command_line(const char *cmd)
+static void builtin_macros(void)
 {
-    file_stub(with_temp_string(cmd, NULL));
-    struct vector *v = preprocess();
-    file_unstub();
-    ungetv(v);
+    define_special("__FILE__", file_handler);
+    define_special("__LINE__", line_handler);
+    define_special("__DATE__", date_handler);
+    define_special("__TIME__", time_handler);
+    
+    include_builtin(BUILD_DIR "/include/mcc.h");
+    if (commands) {
+	file_stub(with_temp_string(commands, NULL));
+	struct vector *v = preprocess();
+	file_unstub();
+	ungetv(v);
+    }
 }
 
-static void init_predefined_macros(void)
+static void init_include(void)
 {
     std = vec_new();
     usr = vec_new();
@@ -794,13 +803,6 @@ static void init_predefined_macros(void)
     add_include(std, XCODE_DIR "/usr/include");
     
 #endif
-    
-    define_special("__FILE__", file_handler);
-    define_special("__LINE__", line_handler);
-    define_special("__DATE__", date_handler);
-    define_special("__TIME__", time_handler);
-
-    include_builtin(BUILD_DIR "/include/mcc.h");
 }
 
 static void parseopts(struct vector *options)
@@ -834,17 +836,15 @@ static void parseopts(struct vector *options)
 	}
     }
 
-    if (strbuf_len(s))
-	include_command_line(s->str);
-    
-    strbuf_free(s);
+    commands = strbuf_str(s);
 }
 
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
-    init_predefined_macros();
+    init_include();
     parseopts(options);
+    builtin_macros();
 }
 
 struct vector * all_pptoks(void)
