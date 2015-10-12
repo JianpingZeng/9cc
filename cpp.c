@@ -680,19 +680,6 @@ static struct token * expand(void)
     return doexpand();
 }
 
-struct token * get_pptok(void)
-{
-    for (;;) {
-        struct token *t = expand();
-	// TODO: and t must be the first non-white-space token of a line
-	if (t->id == '#') {
-	    directive();
-	    continue;
-	}
-	return t;
-    }
-}
-
 static void file_handler(struct token *t)
 {
     const char *file = t->src.file;
@@ -733,23 +720,43 @@ static inline void add_include(struct vector *v, const char *name)
     free((void *)path);
 }
 
-static void include_alias(const char *file, const char *alias)
+struct token * get_pptok(void)
 {
-    struct vector *v = vec_new();
-    file_stub(with_temp_file(file, alias));
     for (;;) {
     	struct token *t = expand();
     	if (t->id == EOI)
-    	    break;
+    	    return t;
+	// TODO: and t must be the first non-white-space token of a line
         if (t->id == '#') {
     	    directive();
     	    continue;
     	}
+	return t;
+    }
+}
+
+static struct vector * preprocess(void)
+{
+    struct vector *v = vec_new();
+    for (;;) {
+	struct token *t = get_pptok();
+	if (t->id == EOI)
+	    break;
 	vec_push(v, t);
     }
-    file_unstub();
+    // remove unnecessary spaces and newlines
     while (vec_len(v) && (IS_NEWLINE(vec_tail(v)) || IS_SPACE(vec_tail(v))))
 	vec_pop(v);
+    if (vec_len(v) && !IS_NEWLINE(vec_tail(v)) && !IS_LINENO(vec_tail(v)))
+	vec_push(v, newline_token);
+    return v;
+}
+
+static void include_alias(const char *file, const char *alias)
+{
+    file_stub(with_temp_file(file, alias));
+    struct vector *v = preprocess();
+    file_unstub();
     ungetv(v);
 }
 
@@ -809,4 +816,9 @@ void cpp_init(struct vector *options)
     macros = map_new(nocmp);
     init_predefined_macros();
     parseopts(options);
+}
+
+struct vector * all_pptoks(void)
+{
+    return preprocess();
 }

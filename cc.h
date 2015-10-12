@@ -106,6 +106,9 @@ struct token {
 
 extern struct source source;
 extern struct token *token;
+extern struct token *eoi_token;
+extern struct token *newline_token;
+extern struct token *space_token;
 
 extern bool is_digit(char c);
 extern bool is_letter(char c);
@@ -118,6 +121,7 @@ extern bool is_visible(char c);
 
 #define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
+#define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
 
 extern void lex_init(void);
 extern void skipline(void);
@@ -139,6 +143,7 @@ extern const char *id2s(int t);
 // cpp.c
 extern void cpp_init(struct vector *options);
 extern struct token * get_pptok(void);
+extern struct vector * all_pptoks(void);
 
 // ast.h
 #include "ast.h"

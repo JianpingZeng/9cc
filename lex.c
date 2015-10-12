@@ -77,9 +77,9 @@ static const char *tnames[] = {
 #include "token.def"
 };
 
-static struct token *eoi_token = &(struct token){.id = EOI};
-static struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
-static struct token *space_token = &(struct token){.id = ' '};
+struct token *eoi_token = &(struct token){.id = EOI};
+struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
+struct token *space_token = &(struct token){.id = ' '};
 static struct vector *buffers;
 
 struct token *token;

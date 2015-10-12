@@ -37,10 +37,9 @@ static void translate(void)
 
 static void preprocess(void)
 {
-    for (;;) {
-	struct token *t = get_pptok();
-	if (t->id == EOI)
-	    break;
+    struct vector *v = all_pptoks();
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
 	printf("%s", t->name);
     }
 }
