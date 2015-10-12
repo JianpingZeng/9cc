@@ -311,6 +311,35 @@ static struct token * spaces(char c)
     return space_token;
 }
 
+void genlineno(unsigned line, const char *file)
+{
+    static struct vector *initv;
+
+    struct token *t0 = new_token(&(struct token){.id = '#'});
+    struct token *t1 = new_token(&(struct token){.id = ICONSTANT, .name = strd(line)});
+    struct token *t2 = new_token(&(struct token){.id = SCONSTANT, .name = format("\"%s\"", file)});
+    struct token *t3 = newline_token;
+    
+    if (!initv) {
+	initv = vec_new();
+	vec_push(initv, t0);
+	vec_push(initv, t1);
+	vec_push(initv, t2);
+	vec_push(initv, t3);
+    } else {
+	unget(t3);
+	unget(t2);
+	unget(t1);
+	unget(t0);
+	if (vec_len(initv)) {
+	    unget(vec_pop(initv));
+	    unget(vec_pop(initv));
+	    unget(vec_pop(initv));
+	    unget(vec_pop(initv));
+	}
+    }
+}
+
 struct token * dolex(void)
 {
     register struct cc_char *rpc;
@@ -611,14 +640,14 @@ struct token * with_temp_lex(const char *input)
 struct token * lex(void)
 {
     struct vector *v = vec_tail(buffers);
-    // no matter which is the last
     if (vec_len(v))
-        token = vec_pop(v);
-    // if the last vec is empty and buffers len > 1
+	// no matter which is the last
+	token = vec_pop(v);
     else if (vec_len(buffers) > 1)
+	// if the last vec is empty and buffers len > 1
 	token = eoi_token;
-    // do lex
     else
+	// do lex
 	token = dolex();
     mark(token);
     return token;

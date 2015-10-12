@@ -41,7 +41,7 @@ union value {
 #define CH(c)    ((c)->ch)
 
 struct cc_char {
-    char ch;
+    int ch;
     unsigned line;
     unsigned column;
 };
@@ -62,14 +62,10 @@ struct file {
     char *pe;
     long bread;
     struct vector *chars;
-    union {
-	FILE *fp;
-        struct {
-	    const char *input;
-	    size_t pos;
-        }s;
-    }u;
-    const char *file;
+    FILE *fp;			// FILE handle
+    size_t pos;			// input string position
+    const char *file;		// file name or input string
+    const char *name;		// buffer name
     unsigned line;
     unsigned column;
 };
@@ -78,7 +74,6 @@ extern void input_init(const char *file);
 extern struct file * current_file(void);
 extern struct cc_char * readc(void);
 extern void unreadc(struct cc_char * ch);
-extern void include_file(const char *file);
 extern struct file * with_temp_string(const char *input, const char *name);
 extern struct file * with_temp_file(const char *file, const char *name);
 extern void file_stub(struct file *f);
@@ -133,7 +128,7 @@ extern void buffer_unstub(void);
 extern struct token *header_name(void);
 extern struct token * new_token(struct token *tok);
 extern struct token * with_temp_lex(const char *input);
-extern void mark(struct token *t);
+extern void genlineno(unsigned line, const char *file);
 
 extern int gettok(void);
 extern struct token * lookahead(void);

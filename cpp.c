@@ -28,6 +28,7 @@ struct macro {
 
 static struct token * expand(void);
 static struct vector * expandv(struct vector *v);
+static inline void include_file(const char *file);
 static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
@@ -732,9 +733,10 @@ static inline void add_include(struct vector *v, const char *name)
     free((void *)path);
 }
 
-static void include_builtin(const char *file)
+static void include_alias(const char *file, const char *alias)
 {
-    file_stub(with_temp_file(file, "<built-in>"));
+    struct vector *v = vec_new();
+    file_stub(with_temp_file(file, alias));
     for (;;) {
     	struct token *t = expand();
     	if (t->id == EOI)
@@ -743,8 +745,22 @@ static void include_builtin(const char *file)
     	    directive();
     	    continue;
     	}
+	vec_push(v, t);
     }
     file_unstub();
+    while (vec_len(v) && (IS_NEWLINE(vec_tail(v)) || IS_SPACE(vec_tail(v))))
+	vec_pop(v);
+    ungetv(v);
+}
+
+static inline void include_file(const char *file)
+{
+    include_alias(file, file);
+}
+
+static inline void include_builtin(const char *file)
+{
+    include_alias(file, "<built-in>");
 }
 
 static void init_predefined_macros(void)
