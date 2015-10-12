@@ -647,19 +647,20 @@ struct token * lex(void)
 {
     struct vector *v0 = vec_head(buffers);
     struct vector *v = vec_tail(buffers);
+    struct token *t;
     if (vec_len(v))
 	// no matter which is the last
-	token = vec_pop(v);
+	t = vec_pop(v);
     else if (vec_len(buffers) > 2)
 	// if the last vec is empty and buffers len > 1
-	token = eoi_token;
+	t = eoi_token;
     else if (vec_len(v0))
-	token = vec_pop(v0);
+	t = vec_pop(v0);
     else
 	// do lex
-	token = dolex();
-    mark(token);
-    return token;
+	t = dolex();
+    mark(t);
+    return t;
 }
 
 void lex_init(void)
