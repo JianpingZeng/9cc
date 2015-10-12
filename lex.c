@@ -81,7 +81,6 @@ struct token *eoi_token = &(struct token){.id = EOI};
 struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
 struct token *space_token = &(struct token){.id = ' '};
 static struct vector *buffers;
-static bool bol;
 
 struct token *token;
 struct source source;
@@ -89,6 +88,8 @@ static struct vector *tokens;
 
 #define VEC_LEX  0
 #define VEC_CPP  1
+
+#define BOL    (current_file()->bol)
 
 static void pin(struct cc_char *ch)
 {
@@ -142,8 +143,8 @@ static struct token * make_token(struct token *tok)
 {
     struct token *t = new_token(tok);
     t->src = source;
-    t->bol = bol;
-    bol = false;
+    t->bol = BOL;
+    BOL = false;
     return t;
 }
 
@@ -345,11 +346,10 @@ struct token * dolex(void)
 
 	switch (CH(rpc)) {
 	case EOI:
-	    bol = true;
 	    return eoi_token;
 	    
 	case '\n':
-	    bol = true;
+	    BOL = true;
 	    return newline_token;
 	    
 	    // spaces
@@ -645,7 +645,7 @@ struct token * with_temp_lex(const char *input)
 
 void skip_if_cond(void)
 {
-    
+    println("%s", __func__);
 }
 
 struct token * lex(void)

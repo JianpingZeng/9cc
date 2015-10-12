@@ -135,6 +135,7 @@ static struct file * new_file(int kind)
     fs->fp = NULL;
     fs->file = NULL;
     fs->pos = 0;
+    fs->bol = true;
     return fs;
 }
 
@@ -167,6 +168,7 @@ static void close_file(struct file *file)
     vec_free(file->chars);
     free(file);
     struct file *fs = current_file();
+    fs->bol = true;
     if (fs->name)
 	genlineno(fs->line, fs->name);
 }

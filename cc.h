@@ -70,6 +70,8 @@ struct file {
     const char *name;		// buffer name
     unsigned line;
     unsigned column;
+    bool bol;			// beginning of line
+    struct vector *ifstubs;
 };
 
 extern void input_init(const char *file);
