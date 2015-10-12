@@ -643,7 +643,7 @@ struct token * with_temp_lex(const char *input)
     return t;
 }
 
-void skip_if_cond(void)
+void skip_ifstub(void)
 {
     println("%s", __func__);
 }

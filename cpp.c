@@ -115,7 +115,7 @@ static void do_ifdef_section(int id)
     bool skip = id == IFDEF ? !b : b;
     if_stub(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = !skip}));
     if (skip)
-	skip_if_cond();
+	skip_ifstub();
 }
 
 static void ifdef_section(void)
