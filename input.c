@@ -203,6 +203,31 @@ struct file * with_temp_file(const char *file, const char *name)
     return fs;
 }
 
+struct ifstub * new_ifstub(struct ifstub *i)
+{
+    struct ifstub *ic = zmalloc(sizeof(struct ifstub));
+    memcpy(ic, i, sizeof(struct ifstub));
+    return ic;
+}
+
+void if_stub(struct ifstub *i)
+{
+    vec_push(current_file()->ifstubs, i);
+}
+
+void if_unstub(void)
+{
+    vec_pop(current_file()->ifstubs);
+}
+
+struct ifstub * current_ifstub(void)
+{
+    if (vec_len(current_file()->ifstubs))
+	return vec_tail(current_file()->ifstubs);
+    else
+	return NULL;
+}
+
 void input_init(const char *file)
 {
     files = vec_new();

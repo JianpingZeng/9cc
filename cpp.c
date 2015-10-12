@@ -26,12 +26,6 @@ struct macro {
     SpecialFn *fn; // special macro handler
 };
 
-struct ifstub {
-    const char *name;
-    struct source src;
-    bool b;
-};
-
 static struct token * expand(void);
 static struct vector * expandv(struct vector *v);
 static inline void include_file(const char *file);
@@ -39,31 +33,6 @@ static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
 static struct tm now;
-
-static struct ifstub * new_ifstub(struct ifstub *i)
-{
-    struct ifstub *ic = zmalloc(sizeof(struct ifstub));
-    memcpy(ic, i, sizeof(struct ifstub));
-    return ic;
-}
-
-static void if_stub(struct ifstub *i)
-{
-    vec_push(current_file()->ifstubs, i);
-}
-
-static void if_unstub(void)
-{
-    vec_pop(current_file()->ifstubs);
-}
-
-static struct ifstub * current_ifstub(void)
-{
-    if (vec_len(current_file()->ifstubs))
-	return vec_tail(current_file()->ifstubs);
-    else
-	return NULL;
-}
 
 static struct macro * new_macro(int kind)
 {

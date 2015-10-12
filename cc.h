@@ -39,6 +39,13 @@ union value {
     void (*g) ();
 };
 
+// source
+struct source {
+    const char *file;
+    unsigned line;
+    unsigned column;
+};
+
 // input.c
 #define CH(c)    ((c)->ch)
 
@@ -74,6 +81,12 @@ struct file {
     struct vector *ifstubs;
 };
 
+struct ifstub {
+    const char *name;
+    struct source src;
+    bool b;
+};
+
 extern void input_init(const char *file);
 extern struct file * current_file(void);
 extern struct cc_char * readc(void);
@@ -82,6 +95,10 @@ extern struct file * with_temp_string(const char *input, const char *name);
 extern struct file * with_temp_file(const char *file, const char *name);
 extern void file_stub(struct file *f);
 extern void file_unstub(void);
+extern struct ifstub * new_ifstub(struct ifstub *i);
+extern void if_stub(struct ifstub *i);
+extern void if_unstub(void);
+extern struct ifstub * current_ifstub(void);
 
 // lex.c
 #define EOI  -1
@@ -92,12 +109,6 @@ enum {
 #define _t(a, b, c)     a,
 #include "token.def"
     TOKEND
-};
-
-struct source {
-    const char *file;
-    unsigned line;
-    unsigned column;
 };
 
 struct token {
