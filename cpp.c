@@ -32,7 +32,6 @@ static inline void include_file(const char *file);
 static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
-static const char *commands;
 
 static struct macro * new_macro(int kind)
 {
@@ -729,8 +728,7 @@ struct token * get_pptok(void)
     	struct token *t = expand();
     	if (t->id == EOI)
     	    return t;
-	// TODO: and t must be the first non-white-space token of a line
-        if (t->id == '#') {
+        if (t->id == '#' && t->bol) {
     	    directive();
     	    continue;
     	}
@@ -755,22 +753,30 @@ static struct vector * preprocess(void)
     return v;
 }
 
-static struct vector * include_alias(const char *file, const char *alias)
+static void include_alias(const char *file, const char *alias)
 {
     file_stub(with_temp_file(file, alias));
     struct vector *v = preprocess();
     file_unstub();
-    return v;
+    ungetv(v);
 }
 
 static inline void include_file(const char *file)
 {
-    ungetv(include_alias(file, file));
+    include_alias(file, file);
 }
 
-static inline void include_builtin(struct vector *v, const char *file)
+static inline void include_builtin(const char *file)
 {
-    vec_add(v, include_alias(file, "<built-in>"));
+    include_alias(file, "<built-in>");
+}
+
+static void include_command_line(const char *command)
+{
+    file_stub(with_temp_string(command, "<command-line>"));
+    struct vector *v = preprocess();
+    file_unstub();
+    ungetv(v);
 }
 
 static void builtin_macros(void)
@@ -780,16 +786,7 @@ static void builtin_macros(void)
     define_special("__DATE__", date_handler);
     define_special("__TIME__", time_handler);
 
-    struct vector *v = vec_new();
-    include_builtin(v, BUILD_DIR "/include/mcc.h");
-    if (commands) {
-	file_stub(with_temp_string(commands, "<command-line>"));
-	struct vector *v2 = preprocess();
-	file_unstub();
-	vec_add(v, v2);
-    }
-    ungetv(v);
-    vec_free(v);
+    include_builtin(BUILD_DIR "/include/mcc.h");
 }
 
 static void init_include(void)
@@ -841,15 +838,18 @@ static void parseopts(struct vector *options)
 	}
     }
 
-    commands = strbuf_str(s);
+    if (strbuf_len(s))
+	include_command_line(s->str);
+    
+    strbuf_free(s);
 }
 
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
     init_include();
-    parseopts(options);
     builtin_macros();
+    parseopts(options);
 }
 
 struct vector * all_pptoks(void)

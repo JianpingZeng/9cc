@@ -162,14 +162,13 @@ static struct file * open_file(int kind, const char *file)
 
 static void close_file(struct file *file)
 {
-    if (file->kind == FILE_KIND_REGULAR) {
+    if (file->kind == FILE_KIND_REGULAR)
 	fclose(file->fp);
-	struct file *fs = current_file();
-	if (fs->name)
-	    genlineno(fs->line, fs->name);
-    }
     vec_free(file->chars);
     free(file);
+    struct file *fs = current_file();
+    if (fs->name)
+	genlineno(fs->line, fs->name);
 }
 
 void file_stub(struct file *f)
