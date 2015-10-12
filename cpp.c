@@ -128,16 +128,46 @@ static void ifndef_section(void)
     do_ifdef_section(IFNDEF);
 }
 
+static bool eval_constexpr(void)
+{
+    // TODO:
+    return false;
+}
+
 static void elif_group(void)
 {
-    if (current_ifstub() == NULL)
+    struct ifstub *stub = current_ifstub();
+    if (stub == NULL)
 	error("#elif without #if");
+    bool b = eval_constexpr();
+    if (stub) {
+	if (stub->b)
+	    skip_ifstub();
+	else
+	    stub->b = true;
+    } else if (!b) {
+	skip_ifstub();
+    }
 }
 
 static void else_group(void)
 {
-    if (current_ifstub() == NULL)
+    struct ifstub *stub = current_ifstub();
+    if (stub == NULL)
 	error("#else without #if");
+    struct token *t = skip_spaces();
+    if (!IS_NEWLINE(t)) {
+	error("extra tokens in #else directive");
+	skipline();
+    } else {
+	unget(t);
+    }
+    if (stub) {
+	if (stub->b)
+	    skip_ifstub();
+	else
+	    stub->b = true;
+    }
 }
 
 static void endif_line(void)
