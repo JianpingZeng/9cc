@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#if defined (CONFIG_LINUX) || defined (CONFIG_DARWIN)
+#if defined CONFIG_LINUX || defined CONFIG_DARWIN
 // trace
 #include <execinfo.h>
 #include <signal.h>
@@ -28,7 +28,7 @@ static void handler(int sig)
 
 void setup_sys()
 {
-#if defined (CONFIG_LINUX) || defined (CONFIG_DARWIN)
+#if defined CONFIG_LINUX || defined CONFIG_DARWIN
     signal(SIGSEGV, handler);
     signal(SIGABRT, handler);
 #endif
