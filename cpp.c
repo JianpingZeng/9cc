@@ -539,8 +539,10 @@ static void pragma_line(void)
 static void directive(void)
 {
     struct token *t = skip_spaces();
-    if (IS_NEWLINE(t))
+    if (IS_NEWLINE(t)) {
+	unget(t);
 	return;
+    }
     if (t->id == ICONSTANT) {
 	unget(t);
 	line_line();
