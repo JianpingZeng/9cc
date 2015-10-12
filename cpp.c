@@ -26,6 +26,12 @@ struct macro {
     SpecialFn *fn; // special macro handler
 };
 
+struct ifcond {
+    const char *name;
+    struct source src;
+    bool b;
+};
+
 static struct token * expand(void);
 static struct vector * expandv(struct vector *v);
 static inline void include_file(const char *file);
@@ -33,6 +39,32 @@ static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
 static struct tm now;
+static struct vector *ifstubs;
+
+static struct ifcond * new_ifcond(struct ifcond *i)
+{
+    struct ifcond *ic = zmalloc(sizeof(struct ifcond));
+    memcpy(ic, i, sizeof(struct ifcond));
+    return ic;
+}
+
+static void if_stub(struct ifcond *i)
+{
+    vec_push(ifstubs, i);
+}
+
+static void if_unstub(void)
+{
+    vec_pop(ifstubs);
+}
+
+static struct ifcond * current_ifstub(void)
+{
+    if (vec_len(ifstubs))
+	return vec_tail(ifstubs);
+    else
+	return NULL;
+}
 
 static struct macro * new_macro(int kind)
 {
@@ -100,12 +132,61 @@ static void if_section(void)
 {
 }
 
+static void do_ifdef_section(const char *name, bool def)
+{
+    struct source src = source;
+    struct token *t = skip_spaces();
+    if (t->id != ID)
+	fatal("expect identifier");
+    bool b = map_get(macros, t->name);
+    t = skip_spaces();
+    if (!IS_NEWLINE(t)) {
+	error("extra tokens in '%s' directive", name);
+	skipline();
+    } else {
+	unget(t);
+    }
+    if_stub(new_ifcond(&(struct ifcond){.name = name, .src = src, .b = b}));
+    bool skip = def ? !b : b;
+    if (skip)
+	skip_if_cond();
+}
+
 static void ifdef_section(void)
 {
+    do_ifdef_section("ifdef", true);
 }
 
 static void ifndef_section(void)
 {
+    do_ifdef_section("ifndef", false);
+}
+
+static void elif_group(void)
+{
+    if (current_ifstub() == NULL)
+	error("#elif without #if");
+}
+
+static void else_group(void)
+{
+    if (current_ifstub() == NULL)
+	error("#else without #if");
+}
+
+static void endif_line(void)
+{
+    if (current_ifstub())
+	if_unstub();
+    else
+	error("#endif without #if");
+    struct token *t = skip_spaces();
+    if (!IS_NEWLINE(t)) {
+	error("extra tokens in #endif");
+	skipline();
+    } else {
+	unget(t);
+    }
 }
 
 static const char * find_header(const char *name, bool isstd)
@@ -472,6 +553,9 @@ static void directive(void)
     if (!strcmp(t->name, "if")) if_section();
     else if (!strcmp(t->name, "ifdef")) ifdef_section();
     else if (!strcmp(t->name, "ifndef")) ifndef_section();
+    else if (!strcmp(t->name, "elif")) elif_group();
+    else if (!strcmp(t->name, "else")) else_group();
+    else if (!strcmp(t->name, "endif")) endif_line();
     else if (!strcmp(t->name, "include")) include_line();
     else if (!strcmp(t->name, "define")) define_line();
     else if (!strcmp(t->name, "undef")) undef_line();
@@ -853,6 +937,7 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
+    ifstubs = vec_new();
     init_env();
     init_include();
     builtin_macros();

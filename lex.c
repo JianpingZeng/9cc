@@ -643,6 +643,11 @@ struct token * with_temp_lex(const char *input)
     return t;
 }
 
+void skip_if_cond(void)
+{
+    
+}
+
 struct token * lex(void)
 {
     struct vector *v0 = vec_head(buffers);
