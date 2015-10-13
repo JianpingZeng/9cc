@@ -94,6 +94,11 @@ static int inparams(struct token *t, struct macro *m)
     return -1;
 }
 
+static bool defined(const char *name)
+{
+    return map_get(macros, name);
+}
+
 static bool eval_constexpr(void)
 {
     // TODO:
@@ -115,7 +120,7 @@ static void do_ifdef_section(int id)
     struct token *t = skip_spaces();
     if (t->id != ID)
 	fatal("expect identifier");
-    bool b = map_get(macros, t->name);
+    bool b = defined(t->name);
     t = skip_spaces();
     if (!IS_NEWLINE(t)) {
 	error("extra tokens in '%s' directive", id2s(id));
