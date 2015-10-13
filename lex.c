@@ -160,7 +160,7 @@ static void readch(struct strbuf *s, bool (*is) (char))
     }
 }
 
-static void do_skipline(bool over)
+static void skipline(bool over)
 {
     struct cc_char *ch;
     for (;;) {
@@ -172,14 +172,9 @@ static void do_skipline(bool over)
 	unreadc(ch);
 }
 
-static void skipline(void)
-{
-    do_skipline(false);
-}
-
 static inline void line_comment(void)
 {
-    skipline();
+    skipline(false);
 }
 
 static void block_comment(void)
@@ -583,7 +578,7 @@ static const char * hq_char_sequence(char sep)
     if (CH(ch) != sep)
 	error("missing '%c' in header name", sep);
     
-    do_skipline(true);
+    skipline(true);
     return strbuf_str(s);
 }
 
@@ -746,7 +741,7 @@ void skip_ifstub(void)
 	    nest--;
 	    bol = false;
 	}
-	skipline();
+	skipline(false);
     }
 
     while (lines-- > 0)
