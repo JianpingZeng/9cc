@@ -612,7 +612,7 @@ void buffer_unstub(void)
 struct token * with_temp_lex(const char *input)
 {
     struct source src = source;
-    file_stub(with_string(input, NULL));
+    file_stub(with_string(input, "lex"));
     struct token *t = dolex();
     next('\n');
     if (peek() != EOI) {
