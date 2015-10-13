@@ -672,8 +672,7 @@ static struct token * stringize(struct vector *v)
 static struct vector * expandv(struct vector *v)
 {
     struct vector *r = vec_new();
-    struct vector *iv = vec_new();
-    vec_add(iv, v);
+    struct vector *iv = vec_reverse(v);
 
     buffer_stub(iv);
     for (;;) {
@@ -685,9 +684,7 @@ static struct vector * expandv(struct vector *v)
     buffer_unstub();
     
     vec_free(iv);
-    struct vector *r2 = vec_reverse(r);
-    vec_free(r);
-    return r2;
+    return r;
 }
 
 // paste last of left side with first of right side
