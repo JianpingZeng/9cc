@@ -161,7 +161,7 @@ static void char_constant(struct token *t, node_t *sym)
 static void integer_constant(struct token *t, node_t *sym)
 {
     const char *s = t->name;
-    if (s[0] == '\'' || s[1] == 'L')
+    if (s[0] == '\'' || s[0] == 'L')
         return char_constant(t, sym);
     
     int base;

@@ -31,6 +31,8 @@ static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
 static struct tm now;
+static struct token *token_zero;
+static struct token *token_one;
 
 static struct macro * new_macro(int kind)
 {
@@ -111,14 +113,12 @@ static struct token * defined_op(struct token *t)
      */
     struct token *t1 = skip_spaces();
     if (t1->id == ID) {
-	bool b = defined(t1->name);
-        return new_token(&(struct token){.id = ICONSTANT, .name = strd(b), .src = t->src});
+	return defined(t1->name) ? token_one : token_zero;
     } else if (t1->id == '(') {
 	struct token *t2 = skip_spaces();
 	struct token *t3 = skip_spaces();
 	if (t2->id == ID && t3->id == ')') {
-	    bool b = defined(t2->name);
-	    return new_token(&(struct token){.id = ICONSTANT, .name = strd(b), .src = t->src});
+	    return defined(t2->name) ? token_one : token_zero;
 	} else {
 	    errorf(t->src, "expect 'identifier )' after 'defined ('");
 	    unget(t3);
@@ -144,6 +144,11 @@ static struct vector * read_if_tokens(void)
 	    continue;
 	if (t->id == ID && !strcmp(t->name, "defined"))
 	    vec_push(v, defined_op(t));
+	else if (t->id == ID)
+	    // C11 6.10.1.4 says that remaining identifiers
+            // should be replaced with pp-number 0.
+	    // Replace with 0 to inhibit parser fail.
+	    vec_push(v, token_zero);
 	else
 	    vec_push(v, t);
     }
@@ -1011,6 +1016,8 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new(nocmp);
+    token_zero = new_token(&(struct token){.id = ICONSTANT, .name = strd(0)});
+    token_one = new_token(&(struct token){.id = ICONSTANT, .name = strd(1)});
     init_env();
     init_include();
     builtin_macros();
