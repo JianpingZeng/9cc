@@ -388,5 +388,6 @@ node_t * eval_bool(node_t *expr)
 
 bool eval_cpp_cond(void)
 {
-
+    gettok();
+    return intexpr();
 }
