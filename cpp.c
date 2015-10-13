@@ -178,7 +178,7 @@ static bool eval_constexpr(void)
     if (tokens == NULL)
 	return false;
 
-    buffer_stub(tokens);
+    buffer_stub(vec_reverse(tokens));
     bool ret = eval_cpp_cond();
     buffer_unstub();
 
