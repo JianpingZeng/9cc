@@ -2,6 +2,11 @@
 
 static struct vector *files;
 
+enum {
+    FILE_KIND_REGULAR = 1,
+    FILE_KIND_STRING,
+};
+
 static bool file_eof(struct file *fs)
 {
     if (fs->kind == FILE_KIND_REGULAR)
@@ -162,23 +167,21 @@ static struct file * open_file(int kind, const char *file)
     return fs;
 }
 
-static void close_file(struct file *file)
+static void close_file(struct file *fs)
 {
-    struct file *fs = current_file();
+    if (fs->kind == FILE_KIND_REGULAR)
+	fclose(fs->fp);
+    vec_free(fs->chars);
+    vec_free(fs->ifstubs);
+    free(fs);
+    // reset current 'bol'
+    fs = current_file();
     fs->bol = true;
-    if (!file->temp && fs->name)
-	genlineno(fs->line, fs->name);
-
-    if (file->kind == FILE_KIND_REGULAR)
-	fclose(file->fp);
-    vec_free(file->chars);
-    vec_free(file->ifstubs);
-    free(file);
 }
 
-void file_stub(struct file *f)
+void file_stub(struct file *fs)
 {
-    vec_push(files, f);
+    vec_push(files, fs);
 }
 
 void file_unstub(void)
@@ -186,30 +189,25 @@ void file_unstub(void)
     close_file(vec_pop(files));
 }
 
-struct file * with_temp_string(const char *input, const char *name)
+struct file * with_string(const char *input, const char *name)
 {
     struct file *fs = open_file(FILE_KIND_STRING, input);
-    fs->name = name;
-    if (name)
-	genlineno(1, fs->name);
+    fs->name = name ? name : "<anonymous-string>";
     return fs;
 }
 
-struct file * with_temp_file(const char *file, const char *name)
+struct file * with_file(const char *file, const char *name)
 {
     struct file *fs = open_file(FILE_KIND_REGULAR, file);
-    fs->name = name;
-    if (name)
-	genlineno(1, fs->name);
+    fs->name = name ? name : "<anonymous-file>";
     return fs;
 }
 
-struct file * with_temp_stub(void)
+struct file * with_shadow(void)
 {
     struct file *fs = new_file(FILE_KIND_STRING);
     fs->file = current_file()->file;
     fs->name = current_file()->name;
-    fs->temp = true;
     return fs;
 }
 
@@ -242,5 +240,4 @@ void input_init(const char *file)
 {
     files = vec_new();
     vec_push(files, open_file(FILE_KIND_REGULAR, file));
-    genlineno(1, file);
 }

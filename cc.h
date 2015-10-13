@@ -55,18 +55,12 @@ struct cc_char {
     unsigned column;
 };
 
-enum {
-    FILE_KIND_REGULAR = 1,
-    FILE_KIND_STRING,
-};
-
 #define LBUFSIZE     64
 #define RBUFSIZE     4096
 #define MAXTOKEN     LBUFSIZE
 
 struct file {
-    int kind : 4;
-    int temp : 1;
+    int kind;
     char buf[LBUFSIZE+RBUFSIZE+1];
     char *pc;
     char *pe;
@@ -92,9 +86,9 @@ extern void input_init(const char *file);
 extern struct file * current_file(void);
 extern struct cc_char * readc(void);
 extern void unreadc(struct cc_char * ch);
-extern struct file * with_temp_string(const char *input, const char *name);
-extern struct file * with_temp_file(const char *file, const char *name);
-extern struct file * with_temp_stub(void);
+extern struct file * with_string(const char *input, const char *name);
+extern struct file * with_file(const char *file, const char *name);
+extern struct file * with_shadow(void);
 extern void file_stub(struct file *f);
 extern void file_unstub(void);
 extern struct ifstub * new_ifstub(struct ifstub *i);
@@ -150,7 +144,6 @@ extern struct token *header_name(void);
 extern struct token * new_token(struct token *tok);
 extern struct token * with_temp_lex(const char *input);
 extern void skip_ifstub(void);
-extern void genlineno(unsigned line, const char *file);
 
 extern int gettok(void);
 extern struct token * lookahead(void);

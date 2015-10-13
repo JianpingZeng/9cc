@@ -40,7 +40,7 @@ static void preprocess(void)
     struct vector *v = all_pptoks();
     for (int i = 0; i < vec_len(v); i++) {
 	struct token *t = vec_at(v, i);
-	printf("%s", t->name);
+        printf("%s", t->name);
     }
 }
 

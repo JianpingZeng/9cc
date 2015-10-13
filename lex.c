@@ -86,9 +86,6 @@ struct token *token;
 struct source source;
 static struct vector *tokens;
 
-#define VEC_LEX  0
-#define VEC_CPP  1
-
 #define BOL    (current_file()->bol)
 
 static void pin(struct cc_char *ch)
@@ -323,19 +320,6 @@ static struct token * spaces(char c)
     space_token->name = strs(s->str);
     space_token->src = source;
     return space_token;
-}
-
-void genlineno(unsigned line, const char *file)
-{
-    struct token *t0 = new_token(&(struct token){.id = '#', .bol = true});
-    struct token *t1 = new_token(&(struct token){.id = ICONSTANT, .name = strd(line)});
-    struct token *t2 = new_token(&(struct token){.id = SCONSTANT, .name = format("\"%s\"", file)});
-    struct token *t3 = newline_token;
-    struct vector *v = vec_at(buffers, VEC_CPP);
-    vec_push_front(v, t0);
-    vec_push_front(v, t1);
-    vec_push_front(v, t2);
-    vec_push_front(v, t3);
 }
 
 struct token * dolex(void)
@@ -606,22 +590,15 @@ struct token *header_name(void)
 
 void unget(struct token *t)
 {
-    if (vec_len(buffers) > 2) {
-	struct vector *v = vec_tail(buffers);
-	vec_push(v, t);
-    } else {
-	struct vector *v1 = vec_at(buffers, VEC_CPP);
-	struct vector *v0 = vec_at(buffers, VEC_LEX);
-	if (vec_len(v1))
-	    vec_push(v1, t);
-	else
-	    vec_push(v0, t);
-    }
+    vec_push(vec_tail(buffers), t);
 }
 
+// create a temp file
+// so that get_pptok will not
+// generate 'unterminated conditional directive'
 void buffer_stub(struct vector *v)
 {
-    file_stub(with_temp_stub());
+    file_stub(with_shadow());
     vec_push(buffers, v);
 }
 
@@ -635,7 +612,7 @@ void buffer_unstub(void)
 struct token * with_temp_lex(const char *input)
 {
     struct source src = source;
-    file_stub(with_temp_string(input, NULL));
+    file_stub(with_string(input, NULL));
     struct token *t = dolex();
     next('\n');
     if (peek() != EOI) {
@@ -750,17 +727,14 @@ void skip_ifstub(void)
 
 struct token * lex(void)
 {
-    struct vector *v0 = vec_head(buffers);
     struct vector *v = vec_tail(buffers);
     struct token *t;
     if (vec_len(v))
 	// no matter which is the last
 	t = vec_pop(v);
-    else if (vec_len(buffers) > 2)
+    else if (vec_len(buffers) > 1)
 	// if the last vec is empty and buffers len > 1
 	t = eoi_token;
-    else if (vec_len(v0))
-	t = vec_pop(v0);
     else
 	// do lex
 	t = dolex();
@@ -771,7 +745,6 @@ struct token * lex(void)
 void lex_init(void)
 {
     buffers = vec_new();
-    vec_push(buffers, vec_new());
     vec_push(buffers, vec_new());
     tokens = vec_new();
 }
@@ -911,21 +884,4 @@ int gettok(void)
 struct token * lookahead(void)
 {
     return peek_token();
-}
-
-void print_buffer_stat(void)
-{
-    println("\nbuffers: %d", vec_len(buffers));
-    struct vector *v0 = vec_at(buffers, 0);
-    struct vector *v1 = vec_at(buffers, 1);
-
-    for (int i = 0; i < vec_len(v0); i++) {
-	struct token *t = vec_at(v0, i);
-	println("v0[%d]: (%s) %u:%s", i, t->name, t->src.line, t->src.file);
-    }
-    
-    for (int i = 0; i < vec_len(v1); i++) {
-	struct token *t = vec_at(v1, i);
-	println("v1[%d]: (%s)", i, t->name);
-    }
 }
