@@ -649,9 +649,87 @@ struct token * with_temp_lex(const char *input)
     return t;
 }
 
-void skip_ifstub(void)
+static void skip_sequence(char sep)
 {
-    println("%s", __func__);
+    struct cc_char *ch;
+    for (;;) {
+	ch = readc();
+	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
+	    break;
+	if (CH(ch) == '\\')
+	    readc();
+    }
+    if (CH(ch) != sep)
+	unreadc(ch);
+}
+
+void skip_ifstub(struct token *t)
+{
+    /* Skip part of conditional group.
+     */
+    unsigned lines = 0;
+    bool bol = true;
+    int nest = 0;
+    if (t && IS_NEWLINE(t)) {
+	lex();
+	lines++;
+    }
+    for (;;) {
+	struct cc_char *ch = readc();
+	// skip spaces
+	if (is_blank(CH(ch)))
+	    continue;
+	if (CH(ch) == EOI)
+	    break;
+	if (is_newline(CH(ch))) {
+	    bol = true;
+	    lines++;
+	    continue;
+	}
+	if (CH(ch) == '\'' || CH(ch) == '"') {
+	    skip_sequence(CH(ch));
+	    bol = false;
+	    continue;
+	}
+	if (CH(ch) != '#' || !bol) {
+	    bol = false;
+	    continue;
+	}
+	struct source src = chsrc(ch);
+        struct token *t = lex();
+	while (IS_SPACE(t))
+	    t = lex();
+        if (t->id != ID) {
+	    if (IS_NEWLINE(t)) {
+		bol = true;
+		lines++;
+	    } else {
+		bol = false;
+	    }
+	    continue;
+	}
+	const char *name = t->name;
+	if (!strcmp(name, "if") || !strcmp(name, "ifdef") || !strcmp(name, "ifndef")) {
+	    nest++;
+	    bol = false;
+	    continue;
+	}
+	if (!nest &&
+	    (!strcmp(name, "elif") || !strcmp(name, "else") || !strcmp(name, "endif"))) {
+	    // found
+	    unget(t);
+	    struct token *t0 = new_token(&(struct token){.id = '#', .src = src, .bol = true});
+	    unget(t0);
+	    break;
+	}
+	if (nest && !strcmp(name, "endif")) {
+	    nest--;
+	    bol = false;
+	}
+    }
+
+    while (lines-- > 0)
+	unget(newline_token);
 }
 
 struct token * lex(void)

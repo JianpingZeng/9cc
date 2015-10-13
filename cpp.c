@@ -100,7 +100,7 @@ static void if_section(void)
     bool b = eval_constexpr();
     if_stub(new_ifstub(&(struct ifstub){.id = IF, .src = src, .b = b}));
     if (!b)
-	skip_ifstub();
+	skip_ifstub(NULL);
 }
 
 static void do_ifdef_section(int id)
@@ -120,7 +120,7 @@ static void do_ifdef_section(int id)
     bool skip = id == IFDEF ? !b : b;
     if_stub(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = !skip}));
     if (skip)
-	skip_ifstub();
+	skip_ifstub(t);
 }
 
 static void ifdef_section(void)
@@ -141,11 +141,11 @@ static void elif_group(void)
     bool b = eval_constexpr();
     if (stub) {
 	if (stub->b)
-	    skip_ifstub();
+	    skip_ifstub(NULL);
 	else
 	    stub->b = true;
     } else if (!b) {
-	skip_ifstub();
+	skip_ifstub(NULL);
     }
 }
 
@@ -163,7 +163,7 @@ static void else_group(void)
     }
     if (stub) {
 	if (stub->b)
-	    skip_ifstub();
+	    skip_ifstub(t);
 	else
 	    stub->b = true;
     }

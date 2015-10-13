@@ -149,7 +149,7 @@ extern void buffer_unstub(void);
 extern struct token *header_name(void);
 extern struct token * new_token(struct token *tok);
 extern struct token * with_temp_lex(const char *input);
-extern void skip_ifstub(void);
+extern void skip_ifstub(struct token *t);
 extern void genlineno(unsigned line, const char *file);
 
 extern int gettok(void);
