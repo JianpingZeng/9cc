@@ -618,12 +618,6 @@ void unget(struct token *t)
     }
 }
 
-void ungetv(struct vector *v)
-{
-    for (int i = vec_len(v)-1; i >= 0; i--)
-	unget(vec_at(v, i));
-}
-
 void buffer_stub(struct vector *v)
 {
     vec_push(buffers, v);

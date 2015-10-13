@@ -71,6 +71,12 @@ static struct token * peek(void)
     return t;
 }
 
+static void ungetv(struct vector *v)
+{
+    for (int i = vec_len(v)-1; i >= 0; i--)
+	unget(vec_at(v, i));
+}
+
 static int inparams(struct token *t, struct macro *m)
 {
     struct vector *params = m->params;

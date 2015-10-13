@@ -143,7 +143,6 @@ extern void lex_init(void);
 extern void skipline(void);
 extern struct token * lex(void);
 extern void unget(struct token *t);
-extern void ungetv(struct vector *v);
 extern void buffer_stub(struct vector *v);
 extern void buffer_unstub(void);
 extern struct token *header_name(void);
