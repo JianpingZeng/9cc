@@ -54,12 +54,6 @@ static void ensure_macro_def(struct macro *m)
     }
 }
 
-static inline void ungetv(struct vector *v)
-{
-    for (int i = vec_len(v)-1; i >= 0; i--)
-	unget(vec_at(v, i));
-}
-
 static struct token * skip_spaces(void)
 {
     struct token *t;
