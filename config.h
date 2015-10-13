@@ -19,7 +19,7 @@
 // bold
 #define BLACK_BOLD_COLOR    "\e[1;30m"
 #define RED_BOLD_COLOR      "\e[1;31m"
-#define GREEN__BOLDCOLOR    "\e[1;32m"
+#define GREEN__BOLD_COLOR    "\e[1;32m"
 #define YELLOW_BOLD_COLOR   "\e[1;33m"
 #define BLUE_BOLD_COLOR     "\e[1;34m"
 #define PURPLE_BOLD_COLOR   "\e[1;35m"
