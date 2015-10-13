@@ -33,7 +33,6 @@ static struct vector *usr;
 static struct tm now;
 static struct token *token_zero;
 static struct token *token_one;
-static struct vector *linenos;
 
 static struct macro * new_macro(int kind)
 {
@@ -900,8 +899,6 @@ static struct token * lineno(unsigned line, const char *file)
 struct token * get_pptok(void)
 {
     for (;;) {
-	if (vec_len(linenos))
-	    return vec_pop(linenos);
     	struct token *t = expand();
     	if (t->id == EOI) {
 	    struct ifstub *stub = current_ifstub();
@@ -937,8 +934,8 @@ static struct vector * preprocess(void)
 static void include_alias(const char *file, const char *alias)
 {
     file_stub(with_file(file, alias));
-    vec_push_front(linenos, lineno(1, current_file()->name));
     struct vector *v = preprocess();
+    vec_push_front(v, lineno(1, current_file()->name));
     file_unstub();
 
     vec_push(v, lineno(current_file()->line, current_file()->name));
@@ -958,8 +955,8 @@ static inline void include_builtin(const char *file)
 static void include_command_line(const char *command)
 {
     file_stub(with_string(command, "<command-line>"));
-    vec_push_front(linenos, lineno(1, current_file()->name));
     struct vector *v = preprocess();
+    vec_push_front(v, lineno(1, current_file()->name));
     file_unstub();
 
     vec_push(v, lineno(current_file()->line, current_file()->name));
@@ -1043,8 +1040,6 @@ void cpp_init(struct vector *options)
     macros = map_new(nocmp);
     token_zero = new_token(&(struct token){.id = ICONSTANT, .name = strd(0)});
     token_one = new_token(&(struct token){.id = ICONSTANT, .name = strd(1)});
-    linenos = vec_new();
-    vec_push(linenos, lineno(1, current_file()->name));
     init_env();
     init_include();
     builtin_macros();
@@ -1053,5 +1048,7 @@ void cpp_init(struct vector *options)
 
 struct vector * all_pptoks(void)
 {
-    return preprocess();
+    struct vector *v = preprocess();
+    vec_push_front(v, lineno(1, current_file()->name));
+    return v;
 }
