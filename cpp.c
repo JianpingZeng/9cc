@@ -889,7 +889,7 @@ static inline void add_include(struct vector *v, const char *name)
 
 static struct token * lineno(unsigned line, const char *file)
 {
-    const char *name = format("# %u %s\n", line, file);
+    const char *name = format("# %u \"%s\"\n", line, file);
     struct token *t = new_token(&(struct token){.id = LINENO, .name = name, .src.file = "<built-in>"});
     return t;
 }
@@ -912,6 +912,26 @@ struct token * get_pptok(void)
     	}
 	return t;
     }
+}
+
+static struct vector * pretty(struct vector *v)
+{
+    struct vector *r = vec_new();
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
+	if (t->id != LINENO) {
+	    vec_push(r, t);
+	    continue;
+	}
+	int j = i + 1;
+	struct token *t1 = vec_at_safe(v, j);
+	while (t1 && (IS_NEWLINE(t1) || IS_SPACE(t1)))
+	    t1 = vec_at_safe(v, ++j);
+	if (t1 && t1->id == LINENO)
+	    i = j - 1;
+	vec_push(r, t);
+    }
+    return r;
 }
 
 static struct vector * preprocess(void)
@@ -1050,5 +1070,5 @@ struct vector * all_pptoks(void)
 {
     struct vector *v = preprocess();
     vec_push_front(v, lineno(1, current_file()->name));
-    return v;
+    return pretty(v);
 }
