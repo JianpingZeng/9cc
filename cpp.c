@@ -39,8 +39,11 @@ static struct macro * new_macro(int kind)
     return m;
 }
 
-static void ensure_macro_def(struct macro *m)
+static void ensure_macro_def(struct token *t, struct macro *m)
 {
+    if (!strcmp(t->name, "defined"))
+	errorf(t->src, "'defined' cannot be used as a macro name");
+	
     for (int i = 0; i < vec_len(m->body); i++) {
 	struct token *t = vec_at(m->body, i);
 	if (t->id == SHARPSHARP) {
@@ -99,9 +102,42 @@ static bool defined(const char *name)
     return map_get(macros, name);
 }
 
+static struct vector * read_if_tokens(void)
+{
+    struct vector *v = vec_new();
+    struct token *t;
+    for (;;) {
+	t = skip_spaces();
+	if (IS_NEWLINE(t))
+	    break;
+	vec_push(v, t);
+    }
+    unget(t);
+    return v;
+}
+
 static bool eval_constexpr(void)
 {
-    // TODO:
+    struct source src = source;
+    struct vector *v = read_if_tokens();
+    if (vec_len(v) == 0) {
+	errorf(src, "expect constant expression");
+	return false;
+    }
+    // scan and replace 'defined' operator
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
+	if (t->id != ID || strcmp(t->name, "defined"))
+	    continue;
+	struct token *t1 = vec_at_safe(v, i+1);
+        if (t1 && t1->id == ID) {
+
+	} else if (t1 && t1->id == '(') {
+
+	} else {
+	    errorf(t->src, "expect '(' or identifier after 'defined' operator");
+	}
+    }
     return false;
 }
 
@@ -111,37 +147,7 @@ static void if_section(void)
     bool b = eval_constexpr();
     if_stub(new_ifstub(&(struct ifstub){.id = IF, .src = src, .b = b}));
     if (!b)
-	skip_ifstub(NULL);
-}
-
-static void do_ifdef_section(int id)
-{
-    struct source src = source;
-    struct token *t = skip_spaces();
-    if (t->id != ID)
-	fatal("expect identifier");
-    bool b = defined(t->name);
-    t = skip_spaces();
-    if (!IS_NEWLINE(t)) {
-	error("extra tokens in '%s' directive", id2s(id));
-	skipline();
-    } else {
-	unget(t);
-    }
-    bool skip = id == IFDEF ? !b : b;
-    if_stub(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = !skip}));
-    if (skip)
-	skip_ifstub(t);
-}
-
-static void ifdef_section(void)
-{
-    do_ifdef_section(IFDEF);
-}
-
-static void ifndef_section(void)
-{
-    do_ifdef_section(IFNDEF);
+	skip_ifstub(skip_spaces());
 }
 
 static void elif_group(void)
@@ -152,11 +158,11 @@ static void elif_group(void)
     bool b = eval_constexpr();
     if (stub) {
 	if (stub->b)
-	    skip_ifstub(NULL);
+	    skip_ifstub(skip_spaces());
 	else
 	    stub->b = true;
     } else if (!b) {
-	skip_ifstub(NULL);
+	skip_ifstub(skip_spaces());
     }
 }
 
@@ -193,6 +199,36 @@ static void endif_line(void)
     } else {
 	unget(t);
     }
+}
+
+static void do_ifdef_section(int id)
+{
+    struct source src = source;
+    struct token *t = skip_spaces();
+    if (t->id != ID)
+	fatal("expect identifier");
+    bool b = defined(t->name);
+    t = skip_spaces();
+    if (!IS_NEWLINE(t)) {
+	error("extra tokens in '%s' directive", id2s(id));
+	skipline();
+    } else {
+	unget(t);
+    }
+    bool skip = id == IFDEF ? !b : b;
+    if_stub(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = !skip}));
+    if (skip)
+	skip_ifstub(t);
+}
+
+static void ifdef_section(void)
+{
+    do_ifdef_section(IFDEF);
+}
+
+static void ifndef_section(void)
+{
+    do_ifdef_section(IFNDEF);
 }
 
 static const char * find_header(const char *name, bool isstd)
@@ -419,25 +455,25 @@ static struct vector * replacement_list(void)
     return v;
 }
 
-static void define_obj_macro(const char *name)
+static void define_obj_macro(struct token *t)
 {
     struct macro *m = new_macro(MACRO_OBJ);
     SAVE_ERRORS;
     m->body = replacement_list();
-    ensure_macro_def(m);
+    ensure_macro_def(t, m);
     if (NO_ERROR)
-	map_put(macros, name, m);
+	map_put(macros, t->name, m);
 }
 
-static void define_funclike_macro(const char *name)
+static void define_funclike_macro(struct token *t)
 {
     struct macro *m = new_macro(MACRO_FUNC);
     SAVE_ERRORS;
     parameters(m);
     m->body = replacement_list();
-    ensure_macro_def(m);
+    ensure_macro_def(t, m);
     if (NO_ERROR)
-	map_put(macros, name, m);
+	map_put(macros, t->name, m);
 }
 
 static void define_line(void)
@@ -449,10 +485,10 @@ static void define_line(void)
     }
     struct token *t = lex();
     if (t->id == '(') {
-	define_funclike_macro(id->name);
+	define_funclike_macro(id);
     } else {
 	unget(t);
-	define_obj_macro(id->name);
+	define_obj_macro(id);
     }
 }
 
@@ -658,7 +694,7 @@ static struct vector * subst(struct macro *m, struct vector *args, struct set *h
     
     for (int i = 0; i < vec_len(body); i++) {
 	struct token *t0 = vec_at(body, i);
-	struct token *t1 = i+1 < vec_len(body) ? vec_at(body, i+1) : NULL;
+	struct token *t1 = vec_at_safe(body, i+1);
 	int index;
 
 	if (t0->id == '#' && (index = inparams(t1, m)) >= 0) {
@@ -689,7 +725,7 @@ static struct vector * subst(struct macro *m, struct vector *args, struct set *h
 	    if (iv && vec_len(iv)) {
 		vec_add(r, iv);
 	    } else {
-		struct token *t2 = i+2 < vec_len(body) ? vec_at(body, i+2) : NULL;
+		struct token *t2 = vec_at_safe(body, i+2);
 		int index2 = inparams(t2, m);
 		if (index2 >= 0) {
 		    struct vector *iv2 = select(args, index2);

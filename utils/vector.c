@@ -51,6 +51,14 @@ void * vec_at(struct vector *v, int index)
     return v->mem[index];
 }
 
+void * vec_at_safe(struct vector *v, int index)
+{
+    if (index >= 0 && index < v->len)
+	return v->mem[index];
+    else
+	return NULL;
+}
+
 void vec_set(struct vector *v, int index, void *val)
 {
     assert(index >= 0 && index < v->len);
