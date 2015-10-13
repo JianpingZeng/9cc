@@ -875,11 +875,8 @@ static struct token * do_gettok(void)
 	}
 	if (vec_len(v) > 1)
 	    return combine_scons(v, wide);
-	else
-	    return t;
-    } else {
-	return t;
     }
+    return t;
 }
 
 int gettok(void)
