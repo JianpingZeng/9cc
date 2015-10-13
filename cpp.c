@@ -48,11 +48,11 @@ static void ensure_macro_def(struct token *t, struct macro *m)
 	struct token *t = vec_at(m->body, i);
 	if (t->id == SHARPSHARP) {
 	    if (i == 0)
-		error("'##' cannot appear at the beginning of a replacement list");
+		errorf(t->src, "'##' cannot appear at the beginning of a replacement list");
 	    else if (i == vec_len(m->body) - 1)
-		error("'##' cannot appear at the end of a replacement list");
+		errorf(t->src, "'##' cannot appear at the end of a replacement list");
 	} else if (t->id == '#' && m->kind != MACRO_FUNC) {
-	    error("'#' must be followed by the name of a macro formal parameter");
+	    errorf(t->src, "'#' must be followed by the name of a macro formal parameter");
 	}
     }
 }
