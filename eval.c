@@ -413,10 +413,6 @@ node_t * eval_bool(node_t *expr)
 
 bool eval_cpp_cond(void)
 {
-    for (;;) {
-        int t = gettok();
-	if (t == EOI)
-	    break;
-    }
-    return true;
+    gettok();
+    return intexpr();
 }

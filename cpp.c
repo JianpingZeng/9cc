@@ -102,80 +102,60 @@ static bool defined(const char *name)
     return map_get(macros, name);
 }
 
+static struct token * defined_op(struct token *t)
+{
+    /* 'defined' operator:
+     *
+     * 1. defined identifier
+     * 2. defined ( identifier )
+     */
+    struct token *t1 = skip_spaces();
+    if (t1->id == ID) {
+	bool b = defined(t1->name);
+        return new_token(&(struct token){.id = ICONSTANT, .name = strd(b), .src = t->src});
+    } else if (t1->id == '(') {
+	struct token *t2 = skip_spaces();
+	struct token *t3 = skip_spaces();
+	if (t2->id == ID && t3->id == ')') {
+	    bool b = defined(t2->name);
+	    return new_token(&(struct token){.id = ICONSTANT, .name = strd(b), .src = t->src});
+	} else {
+	    errorf(t->src, "expect 'identifier )' after 'defined ('");
+	    unget(t3);
+	    unget(t2);
+	    return t;
+	}
+    } else {
+	errorf(t->src, "expect identifier or ( after defined operator");
+	return t;
+    }
+}
+
 // read _expanded_ tokens
 static struct vector * read_if_tokens(void)
 {
     struct vector *v = vec_new();
     struct token *t;
     for (;;) {
-	t = skip_spaces();
+	t = expand();
 	if (IS_NEWLINE(t))
 	    break;
 	if (IS_SPACE(t))
 	    continue;
-	vec_push(v, t);
+	if (t->id == ID && !strcmp(t->name, "defined"))
+	    vec_push(v, defined_op(t));
+	else
+	    vec_push(v, t);
     }
     unget(t);
     return v;
 }
 
-static struct vector * merged(void)
-{
-    struct source src = source;
-    struct vector *v = read_if_tokens();
-    if (vec_len(v) == 0) {
-	errorf(src, "expect constant expression");
-	return NULL;
-    }
-    
-    // scan and replace 'defined' operator
-    SAVE_ERRORS;
-    
-    struct vector *ov = vec_new();
-    for (int i = 0; i < vec_len(v); i++) {
-	struct token *t = vec_at(v, i);
-	if (t->id != ID || strcmp(t->name, "defined")) {
-	    vec_push(ov, t);
-	    continue;
-	}
-	/* 'defined' operator:
-	 *
-	 * 1. defined identifier
-	 * 2. defined ( identifier )
-	 */
-	struct token *t1 = vec_at_safe(v, i+1);
-        if (t1 && t1->id == ID) {
-	    bool b = defined(t1->name);
-	    struct token *tok = new_token(&(struct token){.id = ICONSTANT, .name = strd(b), .src = t->src});
-	    vec_push(ov, tok);
-	    i++;
-	} else if (t1 && t1->id == '(') {
-	    struct token *t2 = vec_at_safe(v, i+2);
-	    struct token *t3 = vec_at_safe(v, i+3);
-	    if (t2 && t2->id == ID && t3 && t3->id == ')') {
-		bool b = defined(t2->name);
-		struct token *tok = new_token(&(struct token){.id = ICONSTANT, .name = strd(b), .src = t->src});
-		vec_push(ov, tok);
-		i += 3;
-	    } else {
-		errorf(t1->src, "expect 'identifier )' after 'defined ('");
-		i++;
-	    }
-	} else {
-	    errorf(t->src, "expect '(' or identifier after 'defined' operator");
-	}
-    }
-
-    if (NO_ERROR)
-	return ov;
-    
-    return NULL;
-}
-
 static bool eval_constexpr(void)
 {
-    struct vector *tokens = merged();
-    if (tokens == NULL)
+    SAVE_ERRORS;
+    struct vector *tokens = read_if_tokens();
+    if (HAS_ERROR)
 	return false;
     
     buffer_stub(vec_reverse(tokens));
