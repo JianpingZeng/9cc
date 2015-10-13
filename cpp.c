@@ -177,7 +177,12 @@ static bool eval_constexpr(void)
     struct vector *tokens = merged();
     if (tokens == NULL)
 	return false;
-    // TODO: 
+
+    buffer_stub(tokens);
+    bool ret = eval_cpp_cond();
+    buffer_unstub();
+
+    return ret;
 }
 
 static void if_section(void)

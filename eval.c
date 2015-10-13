@@ -385,3 +385,8 @@ node_t * eval_bool(node_t *expr)
 
     return NULL;
 }
+
+bool eval_cpp_cond(void)
+{
+
+}
