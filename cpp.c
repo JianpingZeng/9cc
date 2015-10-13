@@ -69,6 +69,16 @@ static struct token * skip_spaces(void)
     return t;
 }
 
+static void skipline(void)
+{
+    struct token *t;
+ beg:
+    t = lex();
+    if (!IS_NEWLINE(t))
+	goto beg;
+    unget(t);
+}
+
 static struct token * peek(void)
 {
     struct token *t = skip_spaces();
@@ -544,15 +554,12 @@ static void line_line(void)
 {
     struct token *t = skip_spaces();
     struct token *t2 = skip_spaces();
-    for (;;) {
-	struct token *t = skip_spaces();
-	if (IS_NEWLINE(t))
-	    break;
-    }
-
+    CCAssert(t->id == ICONSTANT);
+    CCAssert(t2->id == SCONSTANT);
+    skipline();
     const char *name = format("# %s %s\n", t->name, t2->name);
-    t = new_token(&(struct token){.id = LINENO, .name = name});
-    unget(t);
+    struct token *r = new_token(&(struct token){.id = LINENO, .name = name});
+    unget(r);
 }
 
 static const char * tokens2msg(struct vector *v)

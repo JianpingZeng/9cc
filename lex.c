@@ -172,7 +172,7 @@ static void do_skipline(bool over)
 	unreadc(ch);
 }
 
-void skipline(void)
+static void skipline(void)
 {
     do_skipline(false);
 }
