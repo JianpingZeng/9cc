@@ -196,7 +196,7 @@ static void elif_group(void)
 	error("#elif without #if");
     bool b = eval_constexpr();
     if (stub) {
-	if (stub->b)
+	if (stub->b || !b)
 	    skip_ifstub();
 	else
 	    stub->b = true;
