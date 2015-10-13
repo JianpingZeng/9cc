@@ -17,8 +17,8 @@ void println(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
+    vfprintf(stdout, fmt, ap);
+    fprintf(stdout, "\n");
     va_end(ap);
 }
 

@@ -313,6 +313,13 @@ static struct token * identifier(char c)
     return make_token(&(struct token){.id = ID, .name = strs(s->str)});
 }
 
+static struct token *newline(void)
+{
+    BOL = true;
+    newline_token->src = source;
+    return newline_token;
+}
+
 static struct token * spaces(char c)
 {
     struct strbuf *s = strbuf_new();
@@ -349,8 +356,7 @@ struct token * dolex(void)
 	    return eoi_token;
 	    
 	case '\n':
-	    BOL = true;
-	    return newline_token;
+	    return newline();
 	    
 	    // spaces
 	case TOK9:
@@ -620,12 +626,14 @@ void unget(struct token *t)
 
 void buffer_stub(struct vector *v)
 {
+    file_stub(with_temp_stub());
     vec_push(buffers, v);
 }
 
 void buffer_unstub(void)
 {
     vec_pop(buffers);
+    file_unstub();
 }
 
 // parse the input string to a token
@@ -657,22 +665,40 @@ static void skip_sequence(char sep)
 	unreadc(ch);
 }
 
-void skip_ifstub(struct token *t)
+void skip_spaces(void)
+{
+    // skip spaces, including comments
+    struct cc_char *ch;
+
+ beg:
+    ch = readc();
+    if (is_blank(CH(ch))) {
+	goto beg;
+    } else if (CH(ch) == '/') {
+	if (next('/')) {
+	    line_comment();
+	    goto beg;
+	} else if (next('*')) {
+	    block_comment();
+	    goto beg;
+	}
+    }
+    unreadc(ch);
+}
+
+void skip_ifstub(void)
 {
     /* Skip part of conditional group.
      */
     unsigned lines = 0;
     bool bol = true;
     int nest = 0;
-    if (t && IS_NEWLINE(t)) {
-	lex();
-	lines++;
-    }
+    lex();
+    lines++;
     for (;;) {
-	struct cc_char *ch = readc();
 	// skip spaces
-	if (is_blank(CH(ch)))
-	    continue;
+        skip_spaces();
+	struct cc_char *ch = readc();
 	if (CH(ch) == EOI)
 	    break;
 	if (is_newline(CH(ch))) {
@@ -720,6 +746,7 @@ void skip_ifstub(struct token *t)
 	    nest--;
 	    bol = false;
 	}
+	skipline();
     }
 
     while (lines-- > 0)
@@ -889,4 +916,21 @@ int gettok(void)
 struct token * lookahead(void)
 {
     return peek_token();
+}
+
+void print_buffer_stat(void)
+{
+    println("\nbuffers: %d", vec_len(buffers));
+    struct vector *v0 = vec_at(buffers, 0);
+    struct vector *v1 = vec_at(buffers, 1);
+
+    for (int i = 0; i < vec_len(v0); i++) {
+	struct token *t = vec_at(v0, i);
+	println("v0[%d]: (%s) %u:%s", i, t->name, t->src.line, t->src.file);
+    }
+    
+    for (int i = 0; i < vec_len(v1); i++) {
+	struct token *t = vec_at(v1, i);
+	println("v1[%d]: (%s)", i, t->name);
+    }
 }

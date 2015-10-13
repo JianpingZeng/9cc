@@ -164,15 +164,16 @@ static struct file * open_file(int kind, const char *file)
 
 static void close_file(struct file *file)
 {
+    struct file *fs = current_file();
+    fs->bol = true;
+    if (!file->temp && fs->name)
+	genlineno(fs->line, fs->name);
+
     if (file->kind == FILE_KIND_REGULAR)
 	fclose(file->fp);
     vec_free(file->chars);
     vec_free(file->ifstubs);
     free(file);
-    struct file *fs = current_file();
-    fs->bol = true;
-    if (fs->name)
-	genlineno(fs->line, fs->name);
 }
 
 void file_stub(struct file *f)
@@ -200,6 +201,15 @@ struct file * with_temp_file(const char *file, const char *name)
     fs->name = name;
     if (name)
 	genlineno(1, fs->name);
+    return fs;
+}
+
+struct file * with_temp_stub(void)
+{
+    struct file *fs = new_file(FILE_KIND_STRING);
+    fs->file = current_file()->file;
+    fs->name = current_file()->name;
+    fs->temp = true;
     return fs;
 }
 

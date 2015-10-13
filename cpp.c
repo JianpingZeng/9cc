@@ -108,7 +108,7 @@ static struct vector * read_if_tokens(void)
     struct vector *v = vec_new();
     struct token *t;
     for (;;) {
-	t = expand();
+	t = skip_spaces();
 	if (IS_NEWLINE(t))
 	    break;
 	if (IS_SPACE(t))
@@ -177,11 +177,11 @@ static bool eval_constexpr(void)
     struct vector *tokens = merged();
     if (tokens == NULL)
 	return false;
-
+    
     buffer_stub(vec_reverse(tokens));
     bool ret = eval_cpp_cond();
     buffer_unstub();
-
+    
     return ret;
 }
 
@@ -191,7 +191,7 @@ static void if_section(void)
     bool b = eval_constexpr();
     if_stub(new_ifstub(&(struct ifstub){.id = IF, .src = src, .b = b}));
     if (!b)
-	skip_ifstub(skip_spaces());
+	skip_ifstub();
 }
 
 static void elif_group(void)
@@ -202,11 +202,11 @@ static void elif_group(void)
     bool b = eval_constexpr();
     if (stub) {
 	if (stub->b)
-	    skip_ifstub(skip_spaces());
+	    skip_ifstub();
 	else
 	    stub->b = true;
     } else if (!b) {
-	skip_ifstub(skip_spaces());
+	skip_ifstub();
     }
 }
 
@@ -219,12 +219,13 @@ static void else_group(void)
     if (!IS_NEWLINE(t)) {
 	error("extra tokens in #else directive");
 	skipline();
-    } else {
-	unget(t);
+	t = skip_spaces();
     }
+    CCAssert(IS_NEWLINE(t));
+    unget(t);
     if (stub) {
 	if (stub->b)
-	    skip_ifstub(t);
+	    skip_ifstub();
 	else
 	    stub->b = true;
     }
@@ -256,13 +257,14 @@ static void do_ifdef_section(int id)
     if (!IS_NEWLINE(t)) {
 	error("extra tokens in '%s' directive", id2s(id));
 	skipline();
-    } else {
-	unget(t);
+	t = skip_spaces();
     }
+    CCAssert(IS_NEWLINE(t));
+    unget(t);
     bool skip = id == IFDEF ? !b : b;
     if_stub(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = !skip}));
     if (skip)
-	skip_ifstub(t);
+	skip_ifstub();
 }
 
 static void ifdef_section(void)
@@ -370,12 +372,12 @@ static void include_line(void)
 
 static struct token * read_identifier(void)
 {
-     struct token *id = skip_spaces();
-     if (id->id != ID) {
-	 error("expect identifier");
-	 return NULL;
-     }
-     return id;
+    struct token *id = skip_spaces();
+    if (id->id != ID) {
+	error("expect identifier");
+	return NULL;
+    }
+    return id;
 }
 
 static struct vector * arg(void)
@@ -538,16 +540,19 @@ static void define_line(void)
 
 static void undef_line(void)
 {
-    struct token *id = read_identifier();
-    if (id == NULL) {
+    struct token *t = read_identifier();
+    if (t == NULL) {
 	skipline();
 	return;
     }
-    map_put(macros, id->name, NULL);
-    id = skip_spaces();
-    if (!IS_NEWLINE(id))
+    map_put(macros, t->name, NULL);
+    t = skip_spaces();
+    if (!IS_NEWLINE(t)) {
 	warning("extra tokens at the end of #undef directive");
-    skipline();
+	skipline();
+    } else {
+	unget(t);
+    }
 }
 
 static void line_line(void)
@@ -897,7 +902,7 @@ struct token * get_pptok(void)
     	if (t->id == EOI) {
 	    struct ifstub *stub = current_ifstub();
 	    if (stub)
-		errorf(stub->src, "unterminated conditional directive");
+	    	errorf(stub->src, "unterminated conditional directive");
     	    return t;
 	}
         if (t->id == '#' && t->bol) {

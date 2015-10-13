@@ -1611,15 +1611,16 @@ static bool is_nullptr(node_t *node)
 
 int intexpr(void)
 {
+    struct source src = source;
     node_t *cnst = eval(cond_expr(), inttype);
     if (cnst == NULL) {
-	error("expression is not a compile-time constant");
+	errorf(src, "expression is not a compile-time constant");
 	return 0;
     }
     if (isiliteral(cnst))
 	return ILITERAL_VALUE(cnst);
 
-    error("expression is not an integer constant");
+    errorf(src, "expression is not an integer constant");
     if (isfliteral(cnst))
 	return FLITERAL_VALUE(cnst);
     

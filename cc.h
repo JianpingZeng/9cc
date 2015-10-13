@@ -65,7 +65,8 @@ enum {
 #define MAXTOKEN     LBUFSIZE
 
 struct file {
-    int kind;
+    int kind : 4;
+    int temp : 1;
     char buf[LBUFSIZE+RBUFSIZE+1];
     char *pc;
     char *pe;
@@ -93,6 +94,7 @@ extern struct cc_char * readc(void);
 extern void unreadc(struct cc_char * ch);
 extern struct file * with_temp_string(const char *input, const char *name);
 extern struct file * with_temp_file(const char *file, const char *name);
+extern struct file * with_temp_stub(void);
 extern void file_stub(struct file *f);
 extern void file_unstub(void);
 extern struct ifstub * new_ifstub(struct ifstub *i);
@@ -148,7 +150,7 @@ extern void buffer_unstub(void);
 extern struct token *header_name(void);
 extern struct token * new_token(struct token *tok);
 extern struct token * with_temp_lex(const char *input);
-extern void skip_ifstub(struct token *t);
+extern void skip_ifstub(void);
 extern void genlineno(unsigned line, const char *file);
 
 extern int gettok(void);
@@ -157,6 +159,8 @@ extern void expect(int t);
 extern void match(int t, int follow[]);
 extern const char *id2s(int t);
 extern const char *unwrap_scon(const char *name);
+
+extern void print_buffer_stat(void);
 
 // cpp.c
 extern void cpp_init(struct vector *options);
