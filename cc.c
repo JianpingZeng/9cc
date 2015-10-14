@@ -47,6 +47,7 @@ static void preprocess(void)
 int cc_main(int argc, const char * argv[])
 {
     parseopts(argc, argv);
+    lex_init();
     input_init(ifile);
     cpp_init(options);
     type_init();

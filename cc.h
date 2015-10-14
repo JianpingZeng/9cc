@@ -134,6 +134,7 @@ extern bool is_visible(char c);
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 #define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
 
+extern void lex_init(void);
 extern struct token * lex(void);
 extern void unget(struct token *t);
 extern struct token *header_name(void);

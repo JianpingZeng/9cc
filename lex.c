@@ -811,7 +811,7 @@ static struct token * combine_scons(struct vector *v, bool wide)
     return t;
 }
 
-static struct token * do_gettok(void)
+static struct token * do_cctoken(void)
 {
     struct token *t = one_token();
     if (t->id == SCONSTANT) {
@@ -836,6 +836,7 @@ static int kinds[] = {
 #define _t(a, b, c)     c,
 #include "token.def"
 };
+static struct token *ahead_token;
 
 static int tkind(int t)
 {
@@ -849,15 +850,33 @@ static int tkind(int t)
         return 0;
 }
 
+static struct token * cctoken(void)
+{
+    struct token *t = do_cctoken();
+    t->kind = tkind(t->id);
+    return t;
+}
+
 int gettok(void)
 {
-    token = do_gettok();
-    token->kind = tkind(token->id);
+    if (ahead_token) {
+	token = ahead_token;
+	ahead_token = NULL;
+    } else {
+	token = cctoken();
+    }
     mark(token);
     return token->id;
 }
 
 struct token * lookahead(void)
 {
-    return peek_token();
+    if (ahead_token == NULL)
+	ahead_token = cctoken();
+    return ahead_token;
+}
+
+void lex_init(void)
+{
+    ahead_token = NULL;
 }
