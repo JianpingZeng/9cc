@@ -20,9 +20,6 @@
 
 // alloc.c
 extern void * alloc_node(void);
-extern void * alloc_symbol(void);
-extern void * alloc_type(void);
-extern void * alloc_field(void);
 extern void * alloc_token(void);
 extern void * alloc_macro(void);
 

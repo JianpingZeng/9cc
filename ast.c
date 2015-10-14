@@ -23,6 +23,21 @@ static inline node_t * new_node(int id)
     return n;
 }
 
+void * alloc_symbol(void)
+{
+    return new_node(SYMBOL_NODE);
+}
+
+void * alloc_type(void)
+{
+    return new_node(TYPE_NODE);
+}
+
+void * alloc_field(void)
+{
+    return new_node(FIELD_NODE);
+}
+
 node_t * ast_expr(int id, int op, node_t *l, node_t *r)
 {
     CCAssert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);

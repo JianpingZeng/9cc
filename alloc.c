@@ -29,27 +29,6 @@ void * alloc_node(void)
     return do_alloc_object(&node_state, sizeof(node_t));
 }
 
-void * alloc_symbol(void)
-{
-    node_t *n = alloc_node();
-    AST_ID(n) = SYMBOL_NODE;
-    return n;
-}
-
-void * alloc_type(void)
-{
-    node_t *n = alloc_node();
-    AST_ID(n) = TYPE_NODE;
-    return n;
-}
-
-void * alloc_field(void)
-{
-    node_t *n = alloc_node();
-    AST_ID(n) = FIELD_NODE;
-    return n;
-}
-
 static struct alloc_state token_state;
 void * alloc_token(void)
 {
