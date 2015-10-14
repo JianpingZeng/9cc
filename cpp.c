@@ -269,22 +269,17 @@ static const char * find_header(const char *name, bool isstd)
     if (name == NULL)
 	return NULL;
     
-    struct vector *v1, *v2;
+    struct vector *paths = vec_new();
     if (isstd) {
-        v1 = std;
-	v2 = usr;
+        vec_add(paths, std);
     } else {
-	v1 = usr;
-	v2 = std;
+        vec_add(paths, usr);
+	// try current path
+	vec_push(paths, dirname(current_file()->file));
+	vec_add(paths, std);
     }
-    for (int i = 0; i < vec_len(v1); i++) {
-	const char *dir = vec_at(v1, i);
-	const char *file = join(dir, name);
-	if (file_exists(file))
-	    return file;
-    }
-    for (int i = 0; i < vec_len(v2); i++) {
-	const char *dir = vec_at(v2, i);
+    for (int i = 0; i < vec_len(paths); i++) {
+	const char *dir = vec_at(paths, i);
 	const char *file = join(dir, name);
 	if (file_exists(file))
 	    return file;
@@ -292,36 +287,16 @@ static const char * find_header(const char *name, bool isstd)
     return NULL;
 }
 
-static const char * tokens2s(struct vector *v)
-{
-    struct strbuf *s = strbuf_new();
-    for (int i = 0; i < vec_len(v); i++) {
-	struct token *t = vec_at(v, i);
-	if (t->name)
-	    strbuf_cats(s, t->name);
-    }
-    return strbuf_str(s);
-}
-
-static void do_include(const char *name, bool isstd, struct vector *tokens)
+static void do_include(const char *name, bool isstd)
 {
     const char *file = find_header(name, isstd);
     if (file) {
 	include_file(file);
     } else {
-	if (tokens) {
-	    struct source src = ((struct token *)vec_head(tokens))->src;
-	    const char *macro = tokens2s(tokens);
-	    if (name)
-		fatalf(src, "'%s' file not found, expanded from macro '%s'", name, macro);
-	    else
-		errorf(src, "empty filename, expanded from macro '%s'", macro);
-	} else {
-	    if (name)
-		fatal("'%s' file not found", name);
-	    else
-		error("empty filename");
-	}
+        if (name)
+	    fatal("'%s' file not found", name);
+	else
+	    error("empty filename");
     }
 }
 
@@ -329,7 +304,7 @@ static void include_line(void)
 {
     struct token *t = header_name();
     if (t) {
-        do_include(t->name, t->kind == '<', NULL);
+        do_include(t->name, t->kind == '<');
     } else {
 	// pptokens
 	struct source src = source;
@@ -345,7 +320,7 @@ static void include_line(void)
 	    struct vector *r = expandv(v);
 	    struct token *tok = vec_head(r);
 	    if (tok->id == SCONSTANT) {
-		do_include(unwrap_scon(tok->name), false, v);
+		do_include(unwrap_scon(tok->name), false);
 	    } else if (tok->id == '<') {
 
 	    } else {

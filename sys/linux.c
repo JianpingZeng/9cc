@@ -9,6 +9,11 @@
 #include <sys/wait.h>
 
 #if defined CONFIG_LINUX || defined CONFIG_DARWIN
+// dirname, basename
+#include <libgen.h>
+#endif
+
+#if defined CONFIG_LINUX || defined CONFIG_DARWIN
 // trace
 #include <execinfo.h>
 #include <signal.h>

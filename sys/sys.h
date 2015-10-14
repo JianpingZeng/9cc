@@ -12,6 +12,8 @@ extern int rmdir(const char *dir);
 extern const char *abspath(const char *path);
 extern const char *replace_suffix(const char *path, const char *suffix);
 extern const char *join(const char *dir, const char *name);
+extern char *dirname(const char *path);
+extern char *basename(const char *path);
 
 // process
 extern int callsys(const char *path, char **argv);
