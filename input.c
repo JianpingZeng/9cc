@@ -1,5 +1,9 @@
 #include "cc.h"
 
+#define LBUFSIZE     64
+#define RBUFSIZE     4096
+#define MAXTOKEN     LBUFSIZE
+
 static struct vector *files;
 
 enum {
@@ -130,15 +134,13 @@ struct cc_char * readc(void)
 
 static struct file * new_file(int kind)
 {
-    struct file *fs = xmalloc(sizeof(struct file));
+    struct file *fs = zmalloc(sizeof(struct file));
     fs->kind = kind;
+    fs->buf = xmalloc(LBUFSIZE+RBUFSIZE+1);
     fs->pc = fs->pe = &fs->buf[LBUFSIZE];
     fs->bread = -1;
     fs->line = 1;
     fs->column = 0;
-    fs->fp = NULL;
-    fs->file = NULL;
-    fs->pos = 0;
     fs->bol = true;
     fs->ifstubs = vec_new();
     fs->chars = vec_new();
@@ -173,14 +175,15 @@ static void close_file(struct file *fs)
 {
     if (fs->kind == FILE_KIND_REGULAR)
 	fclose(fs->fp);
+    free(fs->buf);
     vec_free(fs->ifstubs);
     vec_free(fs->chars);
     vec_free(fs->buffer);
     vec_free(fs->tokens);
     free(fs);
     // reset current 'bol'
-    fs = current_file();
-    fs->bol = true;
+    if (current_file())
+	current_file()->bol = true;
 }
 
 void file_sentinel(struct file *fs)
@@ -191,6 +194,17 @@ void file_sentinel(struct file *fs)
 void file_unsentinel(void)
 {
     close_file(vec_pop(files));
+}
+
+void file_stub(struct file *fs)
+{
+    fs->stub = true;
+    file_sentinel(fs);
+}
+
+void file_unstub(void)
+{
+    file_unsentinel();
 }
 
 struct file * with_string(const char *input, const char *name)
@@ -234,14 +248,11 @@ void if_unstub(void)
 
 struct ifstub * current_ifstub(void)
 {
-    if (vec_len(current_file()->ifstubs))
-	return vec_tail(current_file()->ifstubs);
-    else
-	return NULL;
+    return vec_tail(current_file()->ifstubs);
 }
 
 void input_init(const char *file)
 {
     files = vec_new();
-    vec_push(files, open_file(FILE_KIND_REGULAR, file));
+    file_sentinel(with_file(file, file));
 }

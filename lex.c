@@ -832,8 +832,8 @@ static int kwi[] = {
 #include "token.def"
 };
 
-static struct token *ahead_token;
 struct token *token;
+#define ahead_token  (current_file()->ahead)
 
 static int tkind(int t)
 {
@@ -915,9 +915,4 @@ void match(int t, int follow[])
         if (n > 0)
             fprintf(stderr, "%d tokens skipped.\n", n);
     }
-}
-
-void lex_init(void)
-{
-    ahead_token = NULL;
 }

@@ -45,6 +45,25 @@ struct source {
     unsigned column;
 };
 
+enum {
+#define _a(a, b, c, d)  a,
+#define _x(a, b, c, d)  a=d,
+#define _t(a, b, c)     a,
+#define _k(a, b, c)     a,
+#include "token.def"
+    TOKEND
+};
+
+// token
+struct token {
+    int id;
+    const char *name;
+    int kind;
+    struct source src;
+    struct hideset *hideset;
+    unsigned bol : 1;		// beginning of line
+};
+
 // input.c
 #define CH(c)    ((c)->ch)
 
@@ -54,14 +73,11 @@ struct cc_char {
     unsigned column;
 };
 
-#define LBUFSIZE     64
-#define RBUFSIZE     4096
-#define MAXTOKEN     LBUFSIZE
-
 struct file {
     int kind : 4;
     bool bol : 1;		// beginning of line
-    char buf[LBUFSIZE+RBUFSIZE+1];
+    bool stub : 1;
+    char *buf;
     char *pc;
     char *pe;
     long bread;
@@ -75,6 +91,7 @@ struct file {
     struct vector *chars;	// readc ungets
     struct vector *buffer;	// lex ungets
     struct vector *tokens;	// parser ungets
+    struct token *ahead;	// lookahead token
 };
 
 struct ifstub {
@@ -92,30 +109,14 @@ extern struct file * with_file(const char *file, const char *name);
 extern struct file * with_buffer(struct vector *v);
 extern void file_sentinel(struct file *f);
 extern void file_unsentinel(void);
+extern void file_stub(struct file *f);
+extern void file_unstub(void);
 extern struct ifstub * new_ifstub(struct ifstub *i);
 extern void if_stub(struct ifstub *i);
 extern void if_unstub(void);
 extern struct ifstub * current_ifstub(void);
 
 // lex.c
-enum {
-#define _a(a, b, c, d)  a,
-#define _x(a, b, c, d)  a=d,
-#define _t(a, b, c)     a,
-#define _k(a, b, c)     a,
-#include "token.def"
-    TOKEND
-};
-
-struct token {
-    int id;
-    const char *name;
-    int kind;
-    struct source src;
-    struct hideset *hideset;
-    unsigned bol : 1;		// beginning of line
-};
-
 extern struct source source;
 extern struct token *token;
 extern struct token *eoi_token;
@@ -135,7 +136,6 @@ extern bool is_visible(char c);
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 #define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
 
-extern void lex_init(void);
 extern struct token * lex(void);
 extern void unget(struct token *t);
 extern struct token *header_name(void);

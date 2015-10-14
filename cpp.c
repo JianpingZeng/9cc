@@ -18,6 +18,7 @@ static struct vector *usr_include_paths;
 static struct tm now;
 static struct token *token_zero = &(struct token){.id = ICONSTANT, .name = "0"};
 static struct token *token_one = &(struct token){.id = ICONSTANT, .name = "1"};
+static struct token *lineno0;
 
 static struct macro * new_macro(int kind)
 {
@@ -150,10 +151,9 @@ static bool eval_constexpr(void)
     // create a temp file
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
-    file_sentinel(with_buffer(vec_reverse(tokens)));
+    file_stub(with_buffer(vec_reverse(tokens)));
     bool ret = eval_cpp_cond();
-    file_unsentinel();
-    
+    file_unstub();
     return ret;
 }
 
@@ -693,14 +693,14 @@ static struct vector * expandv(struct vector *v)
     // create a temp file
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
-    file_sentinel(with_buffer(vec_reverse(v)));
+    file_stub(with_buffer(vec_reverse(v)));
     for (;;) {
 	struct token *t = expand();
 	if (t->id == EOI)
 	    break;
 	vec_push(r, t);
     }
-    file_unsentinel();
+    file_unstub();
     
     return r;
 }
@@ -709,14 +709,14 @@ static struct vector * expandv(struct vector *v)
 static struct token * with_temp_lex(const char *input)
 {
     struct source src = source;
-    file_sentinel(with_string(input, "lex"));
+    file_stub(with_string(input, "lex"));
     struct token *t = lex();
     next('\n');
     if (peek()->id != EOI) {
 	struct token *t2 = lex();
 	errorf(src, "pasting formed '%s%s', an invalid preprocessing token", t->name, t2->name);
     }
-    file_unsentinel();
+    file_unstub();
     return t;
 }
 
@@ -938,7 +938,15 @@ struct token * get_pptok(void)
 	    struct ifstub *stub = current_ifstub();
 	    if (stub)
 	    	errorf(stub->src, "unterminated conditional directive");
-    	    return t;
+	    if (current_file()->stub) {
+		return t;
+	    } else {
+		file_unsentinel();
+		if (current_file())
+		    return lineno(current_file()->line, current_file()->name);
+		else
+		    return t;
+	    }
 	}
         if (t->id == '#' && t->bol) {
     	    directive();
@@ -948,52 +956,10 @@ struct token * get_pptok(void)
     }
 }
 
-static struct vector * pretty(struct vector *v)
-{
-    struct vector *r = vec_new();
-    for (int i = 0; i < vec_len(v); i++) {
-	struct token *t = vec_at(v, i);
-	if (t->id != LINENO) {
-	    vec_push(r, t);
-	    continue;
-	}
-	int j = i + 1;
-	struct token *t1 = vec_at_safe(v, j);
-	while (t1 && (IS_NEWLINE(t1) || IS_SPACE(t1)))
-	    t1 = vec_at_safe(v, ++j);
-	if (t1 && t1->id == LINENO)
-	    i = j - 1;
-	vec_push(r, t);
-    }
-    return r;
-}
-
-static struct vector * preprocess(void)
-{
-    struct vector *v = vec_new();
-    for (;;) {
-	struct token *t = get_pptok();
-	if (t->id == EOI)
-	    break;
-	vec_push(v, t);
-    }
-    // remove unnecessary spaces and newlines
-    while (vec_len(v) && (IS_NEWLINE(vec_tail(v)) || IS_SPACE(vec_tail(v))))
-	vec_pop(v);
-    if (vec_len(v) && !IS_NEWLINE(vec_tail(v)) && !IS_LINENO(vec_tail(v)))
-	vec_push(v, newline_token);
-    return v;
-}
-
 static void include_alias(const char *file, const char *alias)
 {
     file_sentinel(with_file(file, alias));
-    struct vector *v = preprocess();
-    vec_push_front(v, lineno(1, current_file()->name));
-    file_unsentinel();
-
-    vec_push(v, lineno(current_file()->line, current_file()->name));
-    ungetv(v);
+    unget(lineno(1, current_file()->name));
 }
 
 static inline void include_file(const char *file)
@@ -1009,12 +975,7 @@ static inline void include_builtin(const char *file)
 static void include_command_line(const char *command)
 {
     file_sentinel(with_string(command, "<command-line>"));
-    struct vector *v = preprocess();
-    vec_push_front(v, lineno(1, current_file()->name));
-    file_unsentinel();
-
-    vec_push(v, lineno(current_file()->line, current_file()->name));
-    ungetv(v);
+    unget(lineno(1, current_file()->name));
 }
 
 static void builtin_macros(void)
@@ -1092,15 +1053,47 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new();
+    lineno0 = lineno(1, current_file()->name);
     init_env();
     init_include();
     builtin_macros();
     parseopts(options);
 }
 
+static struct vector * pretty(struct vector *v)
+{
+    struct vector *r = vec_new();
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
+	if (t->id != LINENO) {
+	    vec_push(r, t);
+	    continue;
+	}
+	int j = i + 1;
+	struct token *t1 = vec_at_safe(v, j);
+	while (t1 && (IS_NEWLINE(t1) || IS_SPACE(t1)))
+	    t1 = vec_at_safe(v, ++j);
+	if (t1 && t1->id == LINENO)
+	    i = j - 1;
+	vec_push(r, t);
+    }
+    return r;
+}
+
 struct vector * all_pptoks(void)
 {
-    struct vector *v = preprocess();
-    vec_push_front(v, lineno(1, current_file()->name));
+    struct vector *v = vec_new();
+    vec_push(v, lineno0);
+    for (;;) {
+	struct token *t = get_pptok();
+	if (t->id == EOI)
+	    break;
+	vec_push(v, t);
+    }
+    // remove unnecessary spaces and newlines
+    while (vec_len(v) && (IS_NEWLINE(vec_tail(v)) || IS_SPACE(vec_tail(v))))
+	vec_pop(v);
+    if (vec_len(v) && !IS_NEWLINE(vec_tail(v)) && !IS_LINENO(vec_tail(v)))
+	vec_push(v, newline_token);
     return pretty(v);
 }
