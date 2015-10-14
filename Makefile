@@ -12,12 +12,12 @@ UTILS_OBJ=$(UTILS)wrapper.o \
         $(UTILS)vector.o \
         $(UTILS)map.o \
         $(UTILS)string.o \
-	$(UTILS)set.o
+	$(UTILS)hideset.o
 
 UTILS_INC= $(UTILS)strbuf.h \
 	$(UTILS)vector.h \
 	$(UTILS)map.h \
-	$(UTILS)set.h \
+	$(UTILS)hideset.h \
 	$(UTILS)utils.h
 
 CC1_OBJ=alloc.o \

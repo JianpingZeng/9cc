@@ -36,7 +36,7 @@ extern char *format(const char *fmt, ...);
 #include "vector.h"
 // strbuf.c
 #include "strbuf.h"
-// set.c
-#include "set.h"
+// hideset.c
+#include "hideset.h"
 
 #endif

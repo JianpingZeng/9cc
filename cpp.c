@@ -720,17 +720,17 @@ static struct vector * glue(struct vector *ls, struct vector *rs)
     struct token *r = vec_pop_front(rs);
     const char *str = format("%s%s", l->name, r->name);
     struct token *t = with_temp_lex(str);
-    t->hideset = set_intersection(l->hideset, r->hideset);
+    t->hideset = hideset_intersection(l->hideset, r->hideset);
     vec_push(ls, t);
     vec_add(ls, rs);
     return ls;
 }
 
-static struct vector * hsadd(struct vector *r, struct set *hideset)
+static struct vector * hsadd(struct vector *r, struct hideset *hideset)
 {
     for (int i = 0; i < vec_len(r); i++) {
 	struct token *t = vec_at(r, i);
-	t->hideset = set_union(t->hideset, hideset);
+	t->hideset = hideset_union(t->hideset, hideset);
     }
     return r;
 }
@@ -754,7 +754,7 @@ static struct vector * remove_spaces(struct vector *v)
     return r;
 }
 
-static struct vector * subst(struct macro *m, struct vector *args, struct set *hideset)
+static struct vector * subst(struct macro *m, struct vector *args, struct hideset *hideset)
 {
     struct vector *r = vec_new();
     struct vector *body = m->body;
@@ -823,13 +823,13 @@ static struct token * doexpand(void)
 
     const char *name = t->name;
     struct macro *m = get_macro(name);
-    if (m == NULL || set_has(t->hideset, name))
+    if (m == NULL || hideset_has(t->hideset, name))
 	return t;
 
     switch (m->kind) {
     case MACRO_OBJ:
 	{
-	    struct set *hdset = set_add(t->hideset, name);
+	    struct hideset *hdset = hideset_add(t->hideset, name);
 	    struct vector *v = subst(m, NULL, hdset);
 	    ungetv(v);
 	    return expand();
@@ -843,7 +843,7 @@ static struct token * doexpand(void)
 	    struct vector *args = arguments(m);
 	    if (NO_ERROR) {
 		struct token *rparen = skip_spaces();
-		struct set *hdset = set_add(set_intersection(t->hideset, rparen->hideset), name);
+		struct hideset *hdset = hideset_add(hideset_intersection(t->hideset, rparen->hideset), name);
 		struct vector *v = subst(m, args, hdset);
 		ungetv(v);
 		return expand();

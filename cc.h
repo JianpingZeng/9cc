@@ -111,7 +111,7 @@ struct token {
     const char *name;
     int kind;
     struct source src;
-    struct set *hideset;
+    struct hideset *hideset;
     unsigned bol : 1;		// beginning of line
 };
 
