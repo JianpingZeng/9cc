@@ -411,8 +411,10 @@ static void parameters(struct macro *m)
 	// (...)
 	m->vararg = true;
 	t = skip_spaces();
-	if (t->id != ')')
+	if (t->id != ')') {
 	    error("expect ')'");
+	    unget(t);
+	}
     } else if (t->id == ID) {
 	// (a,b,c,...)
 	struct vector *v = vec_new();
@@ -431,13 +433,19 @@ static void parameters(struct macro *m)
 		break;
 	    t = skip_spaces();
 	}
-	if (t->id != ')')
+	if (t->id != ')') {
 	    error("expect ')'");
+	    unget(t);
+	}
 	m->params = v;
     } else {
 	error("expect identifier list or ')' or ...");
+	unget(t);
 	skipline();
     }
+    // create an empty vector if params == 0
+    if (!m->params)
+	m->params = vec_new();
 }
 
 static void ensure_macro_def(struct token *t, struct macro *m)
