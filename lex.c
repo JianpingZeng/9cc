@@ -720,38 +720,6 @@ const char *id2s(int t)
         return "(null)";
 }
 
-void expect(int t)
-{
-    if (token->id == t) {
-        gettok();
-    } else {
-        if (token->id == EOI)
-            error("expect token '%s' at the end", id2s(t));
-        else
-            error("expect token '%s' before '%s'", id2s(t), token->name);
-    }
-}
-
-void match(int t, int follow[])
-{
-    if (token->id == t) {
-        gettok();
-    } else {
-        int n;
-        expect(t);
-        for (n=0; token->id != EOI; gettok()) {
-            int *k;
-            for (k=follow; *k && *k != token->kind; k++)
-		; // continue
-            if (*k == token->kind)
-                break;
-        }
-        
-        if (n > 0)
-            fprintf(stderr, "%d tokens skipped.\n", n);
-    }
-}
-
 static void unget_token(struct token *t)
 {
     vec_push(current_file()->tokens, t);
@@ -831,6 +799,14 @@ static struct token * do_cctoken(void)
     return t;
 }
 
+/* Parser interfaces
+ *
+ * 1. gettok
+ * 2. lookahead
+ * 3. expect
+ * 4. match
+ */
+
 static int kinds[] = {
 #define _a(a, b, c, d)  d,
 #define _x(a, b, c, d)  c,
@@ -875,6 +851,38 @@ struct token * lookahead(void)
     if (ahead_token == NULL)
 	ahead_token = cctoken();
     return ahead_token;
+}
+
+void expect(int t)
+{
+    if (token->id == t) {
+        gettok();
+    } else {
+        if (token->id == EOI)
+            error("expect token '%s' at the end", id2s(t));
+        else
+            error("expect token '%s' before '%s'", id2s(t), token->name);
+    }
+}
+
+void match(int t, int follow[])
+{
+    if (token->id == t) {
+        gettok();
+    } else {
+        int n;
+        expect(t);
+        for (n=0; token->id != EOI; gettok()) {
+            int *k;
+            for (k=follow; *k && *k != token->kind; k++)
+		; // continue
+            if (*k == token->kind)
+                break;
+        }
+        
+        if (n > 0)
+            fprintf(stderr, "%d tokens skipped.\n", n);
+    }
 }
 
 void lex_init(void)
