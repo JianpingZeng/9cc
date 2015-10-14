@@ -28,8 +28,8 @@ static struct token * expand(void);
 static struct vector * expandv(struct vector *v);
 static inline void include_file(const char *file);
 static struct map *macros;
-static struct vector *std;
-static struct vector *usr;
+static struct vector *std_include_paths;
+static struct vector *usr_include_paths;
 static struct tm now;
 static struct token *token_zero = &(struct token){.id = ICONSTANT, .name = "0"};
 static struct token *token_one = &(struct token){.id = ICONSTANT, .name = "1"};
@@ -271,12 +271,12 @@ static const char * find_header(const char *name, bool isstd)
     
     struct vector *paths = vec_new();
     if (isstd) {
-        vec_add(paths, std);
+        vec_add(paths, std_include_paths);
     } else {
-        vec_add(paths, usr);
+        vec_add(paths, usr_include_paths);
 	// try current path
 	vec_push(paths, dirname(current_file()->file));
-	vec_add(paths, std);
+	vec_add(paths, std_include_paths);
     }
     for (int i = 0; i < vec_len(paths); i++) {
 	const char *dir = vec_at(paths, i);
@@ -1044,18 +1044,18 @@ static void init_env(void)
 
 static void init_include(void)
 {
-    std = vec_new();
-    usr = vec_new();
+    std_include_paths = vec_new();
+    usr_include_paths = vec_new();
 
-    add_include(std, BUILD_DIR "/include");
+    add_include(std_include_paths, BUILD_DIR "/include");
     
 #ifdef CONFIG_LINUX
     
-    add_include(std, "/usr/include");
+    add_include(std_include_paths, "/usr/include");
     
 #elif defined CONFIG_DARWIN
     
-    add_include(std, XCODE_DIR "/usr/include");
+    add_include(std_include_paths, XCODE_DIR "/usr/include");
     
 #endif
 }
@@ -1069,7 +1069,7 @@ static void parseopts(struct vector *options)
 	if (strlen(arg) < 3)
 	    continue;
 	if (!strncmp(arg, "-I", 2)) {
-	    add_include(usr, arg+2);
+	    add_include(usr_include_paths, arg+2);
 	} else if (!strncmp(arg, "-D", 2)) {
 	    const char *content = arg + 2;
 	    char *ptr = strchr(content, '=');
