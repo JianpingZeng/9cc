@@ -31,14 +31,34 @@ static struct map *macros;
 static struct vector *std;
 static struct vector *usr;
 static struct tm now;
-static struct token *token_zero;
-static struct token *token_one;
+static struct token *token_zero = &(struct token){.id = ICONSTANT, .name = "0"};
+static struct token *token_one = &(struct token){.id = ICONSTANT, .name = "1"};
 
 static struct macro * new_macro(int kind)
 {
     struct macro *m = zmalloc(sizeof (struct macro));
     m->kind = kind;
     return m;
+}
+
+static inline void add_macro(const char *name, struct macro *m)
+{
+    map_put(macros, strs(name), m);
+}
+
+static inline void remove_macro(const char *name)
+{
+    map_put(macros, name, NULL);
+}
+
+static inline struct macro * get_macro(const char *name)
+{
+    return map_get(macros, name);
+}
+
+static inline bool defined(const char *name)
+{
+    return get_macro(name);
 }
 
 static struct token * skip_spaces(void)
@@ -81,11 +101,6 @@ static void ungetv(struct vector *v)
 {
     for (int i = vec_len(v)-1; i >= 0; i--)
 	unget(vec_at(v, i));
-}
-
-static bool defined(const char *name)
-{
-    return map_get(macros, name);
 }
 
 static struct token * defined_op(struct token *t)
@@ -515,7 +530,7 @@ static void define_obj_macro(struct token *t)
     m->body = replacement_list();
     ensure_macro_def(t, m);
     if (NO_ERROR)
-	map_put(macros, t->name, m);
+	add_macro(t->name, m);
 }
 
 static void define_funclike_macro(struct token *t)
@@ -526,7 +541,7 @@ static void define_funclike_macro(struct token *t)
     m->body = replacement_list();
     ensure_macro_def(t, m);
     if (NO_ERROR)
-	map_put(macros, t->name, m);
+	add_macro(t->name, m);
 }
 
 static void define_line(void)
@@ -552,7 +567,7 @@ static void undef_line(void)
 	skipline();
 	return;
     }
-    map_put(macros, t->name, NULL);
+    remove_macro(t->name);
     t = skip_spaces();
     if (!IS_NEWLINE(t)) {
 	warning("extra tokens at the end of #undef directive");
@@ -675,7 +690,7 @@ static struct token * stringize(struct vector *v)
 	    strbuf_cats(s, t->name);
     }
     strbuf_cats(s, "\"");
-    return new_token(&(struct token){.id = SCONSTANT, .name = strs(s->str)});
+    return new_token(&(struct token){.id = SCONSTANT, .name = strbuf_str(s)});
 }
 
 static struct vector * expandv(struct vector *v)
@@ -821,7 +836,7 @@ static struct token * doexpand(void)
 	return t;
 
     const char *name = t->name;
-    struct macro *m = map_get(macros, name);
+    struct macro *m = get_macro(name);
     if (m == NULL || set_has(t->hideset, name))
 	return t;
 
@@ -868,7 +883,7 @@ static struct token * expand(void)
 static void file_handler(struct token *t)
 {
     const char *file = t->src.file;
-    const char *name = strs(format("\"%s\"", file));
+    const char *name = format("\"%s\"", file);
     struct token *tok = new_token(&(struct token){.id = SCONSTANT, .name = name, .src = t->src});
     unget(tok);
 }
@@ -886,7 +901,7 @@ static void date_handler(struct token *t)
     // mmm dd yyyy
     char ch[20];
     strftime(ch, sizeof(ch), "%b %e %Y", &now);
-    const char *name = strs(format("\"%s\"", ch));
+    const char *name = format("\"%s\"", ch);
     struct token *tok = new_token(&(struct token){.id = SCONSTANT, .name = name, .src = t->src});
     unget(tok);
 }
@@ -896,7 +911,7 @@ static void time_handler(struct token *t)
     // hh:mm:ss
     char ch[10];
     strftime(ch, sizeof(ch), "%T", &now);
-    const char *name = strs(format("\"%s\"", ch));
+    const char *name = format("\"%s\"", ch);
     struct token *tok = new_token(&(struct token){.id = SCONSTANT, .name = name, .src = t->src});
     unget(tok);
 }
@@ -905,14 +920,12 @@ static void define_special(const char *name, void (*fn) (struct token *))
 {
     struct macro *m = new_macro(MACRO_SPECIAL);
     m->fn = fn;
-    map_put(macros, strs(name), m);
+    add_macro(name, m);
 }
 
 static inline void add_include(struct vector *v, const char *name)
 {
-    const char *path = abspath(name);
-    vec_push(v, (void *)strs(path));
-    free((void *)path);
+    vec_push(v, (char *)abspath(name));
 }
 
 static struct token * lineno(unsigned line, const char *file)
@@ -1086,8 +1099,6 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new();
-    token_zero = new_token(&(struct token){.id = ICONSTANT, .name = strd(0)});
-    token_one = new_token(&(struct token){.id = ICONSTANT, .name = strd(1)});
     init_env();
     init_include();
     builtin_macros();
