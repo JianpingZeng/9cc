@@ -92,7 +92,7 @@ static int get(void)
 
 static inline struct cc_char * newch(int c, unsigned line, unsigned column)
 {
-    struct cc_char *ch =  zmalloc(sizeof(struct cc_char));
+    struct cc_char *ch =  alloc_char();
     ch->ch = c;
     ch->line = line;
     ch->column = column;
