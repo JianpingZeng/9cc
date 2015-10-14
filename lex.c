@@ -710,7 +710,7 @@ struct token * lex(void)
 const char *id2s(int t)
 {
     if (t < 0)
-        return "EOI";
+        return "(null)";
     else if (t < 128)
         return tnames[t];
     else if (t < 256)
