@@ -554,14 +554,38 @@ static void undef_line(void)
 
 static void line_line(void)
 {
+    /* line directive:
+     *
+     * standard format:
+     *
+     * 1. # line digit-sequence new-line
+     * 2. # line digit-sequence "s-char-sequence(opt)" new-line
+     * 3. # line pp-tokens new-line
+     *
+     * extended format:
+     *
+     * 4. # digit-sequence new-line
+     * 5. # digit-sequence "s-char-sequence(opt)" new-line
+     */
+    // TODO: 3rd format
+    
     struct token *t = skip_spaces();
+    if (t->id != ICONSTANT) {
+	error("expect integer constant");
+	unget(t);
+	skipline();
+	return;
+    }
+    const char *name;
     struct token *t2 = skip_spaces();
-    CCAssert(t->id == ICONSTANT);
-    CCAssert(t2->id == SCONSTANT);
+    if (t2->id == SCONSTANT) {
+	name = format("# %s %s\n", t->name, t2->name);
+    } else {
+	name = format("# %s \"%s\"", t->name, current_file()->name);
+	unget(t2);
+    }
     skipline();
-    const char *name = format("# %s %s\n", t->name, t2->name);
-    struct token *r = new_token(&(struct token){.id = LINENO, .name = name});
-    unget(r);
+    unget(new_token(&(struct token){.id = LINENO, .name = name}));
 }
 
 static const char * tokens2msg(struct vector *v)
@@ -633,10 +657,8 @@ static void directive(void)
 	line_line();
 	return;
     }
-    if (t->id != ID) {
-	skipline();
-	return;
-    }
+    if (t->id != ID)
+	goto err;
     if (!strcmp(t->name, "if")) if_section();
     else if (!strcmp(t->name, "ifdef")) ifdef_section();
     else if (!strcmp(t->name, "ifndef")) ifndef_section();
@@ -650,7 +672,11 @@ static void directive(void)
     else if (!strcmp(t->name, "error")) error_line();
     else if (!strcmp(t->name, "pragma")) pragma_line();
     else if (!strcmp(t->name, "warning")) warning_line();
-    else skipline();
+    else goto err;
+    return;
+ err:
+    warning("unknown preprocess directive '%s'", t->name);
+    skipline();
 }
 
 static struct token * stringize(struct vector *v)
