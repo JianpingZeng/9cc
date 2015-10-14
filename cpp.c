@@ -498,7 +498,7 @@ static struct vector * replacement_list(void)
     return v;
 }
 
-static void define_obj_macro(struct token *t)
+static void define_objlike_macro(struct token *t)
 {
     struct macro *m = new_macro(MACRO_OBJ);
     SAVE_ERRORS;
@@ -531,7 +531,7 @@ static void define_line(void)
 	define_funclike_macro(id);
     } else {
 	unget(t);
-	define_obj_macro(id);
+	define_objlike_macro(id);
     }
 }
 
