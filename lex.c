@@ -85,14 +85,6 @@ struct source source;
 
 #define BOL    (current_file()->bol)
 
-static void pin(struct cc_char *ch)
-{
-    struct file *fs = current_file();
-    source.file = fs->file;
-    source.line = ch->line;
-    source.column = ch->column;
-}
-
 static struct source chsrc(struct cc_char *ch)
 {
     struct file *fs = current_file();
@@ -103,7 +95,15 @@ static struct source chsrc(struct cc_char *ch)
     return src;
 }
 
-void mark(struct token *t)
+static void markc(struct cc_char *ch)
+{
+    struct file *fs = current_file();
+    source.file = fs->file;
+    source.line = ch->line;
+    source.column = ch->column;
+}
+
+static inline void mark(struct token *t)
 {
     source = t->src;
 }
@@ -325,7 +325,7 @@ struct token * dolex(void)
     
     for (; ;) {
 	rpc = readc();
-	pin(rpc);
+	markc(rpc);
 
 	switch (CH(rpc)) {
 	case EOI:
@@ -571,7 +571,7 @@ struct token *header_name(void)
     if (is_blank(CH(ch)))
 	goto beg;
 
-    pin(ch);
+    markc(ch);
     if (CH(ch) == '<') {
 	const char *name = hq_char_sequence('>');
 	return new_token(&(struct token){.name = name, .kind = '<'});
