@@ -32,7 +32,8 @@ node_t * compile(const char *code)
     if (fp == NULL)
         fail("Can't open input file");
 
-    input_init();
+    input_init(ifile);
+    cpp_init(NULL);
     type_init();
     symbol_init();
     n = translation_unit();

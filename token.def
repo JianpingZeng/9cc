@@ -1,19 +1,19 @@
 // ASCII
 // id    name       map             kind
-_a(TOK0, "000",     0,              0)
+_a(TOK0, NULL,      0,              0)
 _a(TOK1, "001",     0,              0)
 _a(TOK2, "002",     0,              0)
 _a(TOK3, "003",     0,              0)
 _a(TOK4, "004",     0,              0)
 _a(TOK5, "005",     0,              0)
 _a(TOK6, "006",     0,              0)
-_a(TOK7, "007",     0,              0)
-_a(TOK8, "010",     0,              0)
-_a(TOK9, "011",     BLANK,          0)
-_a(TOK10, "012",    NEWLINE,        0)
-_a(TOK11, "013",    BLANK,          0)
-_a(TOK12, "014",    BLANK,          0)
-_a(TOK13, "015",    BLANK,          0)
+_a(TOK7,  "\a",     0,              0)
+_a(TOK8,  "\b",     0,              0)
+_a(TOK9,  "\t",     BLANK,          0)
+_a(TOK10, "\n",     NEWLINE,        0)
+_a(TOK11, "\v",     BLANK,          0)
+_a(TOK12, "\f",     BLANK,          0)
+_a(TOK13, "\r",     BLANK,          0)
 _a(TOK14, "016",    0,              0)
 _a(TOK15, "017",    0,              0)
 _a(TOK16, "020",    0,              0)
@@ -137,50 +137,50 @@ _t(SCONSTANT,   "SCONSTANT",   ID)
 
 // keywords		       
 
-_t(AUTO,        "auto",        STATIC)
-_t(BREAK,       "break",       IF)
-_t(CASE,        "case",        IF)
-_t(_COMPLEX,    "_Complex",    INT)
-_t(CONTINUE,    "continue",    IF)
-_t(DEFAULT,     "default",     IF)
-_t(DO,          "do",          IF)
-_t(ELSE,        "else",        0)
-_t(EXTERN,      "extern",      STATIC)
-_t(FOR,         "for",         IF)
-_t(GOTO,        "goto",        IF)
-_t(IF,          "if",          IF)
-_t(_IMAGINARY,  "_Imaginary",  INT)
-_t(REGISTER,    "register",    STATIC)
-_t(RETURN,      "return",      IF)
-_t(SIZEOF,      "sizeof",      ID)
-_t(STATIC,      "static",      STATIC)
-_t(SIGNED,      "signed",      INT)
-_t(SWITCH,      "switch",      IF)
-_t(TYPEDEF,     "typedef",     STATIC)
-_t(WHILE,       "while",       IF)
+_k(AUTO,        "auto",        STATIC)
+_k(BREAK,       "break",       IF)
+_k(CASE,        "case",        IF)
+_k(_COMPLEX,    "_Complex",    INT)
+_k(CONTINUE,    "continue",    IF)
+_k(DEFAULT,     "default",     IF)
+_k(DO,          "do",          IF)
+_k(ELSE,        "else",        0)
+_k(EXTERN,      "extern",      STATIC)
+_k(FOR,         "for",         IF)
+_k(GOTO,        "goto",        IF)
+_k(IF,          "if",          IF)
+_k(_IMAGINARY,  "_Imaginary",  INT)
+_k(REGISTER,    "register",    STATIC)
+_k(RETURN,      "return",      IF)
+_k(SIZEOF,      "sizeof",      ID)
+_k(STATIC,      "static",      STATIC)
+_k(SIGNED,      "signed",      INT)
+_k(SWITCH,      "switch",      IF)
+_k(TYPEDEF,     "typedef",     STATIC)
+_k(WHILE,       "while",       IF)
 
 // type op && kind
 _t(ELLIPSIS,    "...",         ELLIPSIS)
-_t(VOID,        "void",        INT)
-_t(ENUM,        "enum",        INT)
-_t(STRUCT,      "struct",      INT)
-_t(UNION,       "union",       INT)
-_t(_BOOL,       "_Bool",       INT)
-_t(CHAR,        "char",        INT)
-_t(SHORT,       "short",       INT)
-_t(INT,         "int",         INT)
-_t(UNSIGNED,    "unsigned",    INT)
-_t(FLOAT,       "float",       INT)
-_t(DOUBLE,      "double",      INT)
-_t(LONG,        "long",        INT)
+_k(VOID,        "void",        INT)
+_k(ENUM,        "enum",        INT)
+_k(STRUCT,      "struct",      INT)
+_k(UNION,       "union",       INT)
+_k(_BOOL,       "_Bool",       INT)
+_k(CHAR,        "char",        INT)
+_k(SHORT,       "short",       INT)
+_k(INT,         "int",         INT)
+_k(UNSIGNED,    "unsigned",    INT)
+_k(FLOAT,       "float",       INT)
+_k(DOUBLE,      "double",      INT)
+_k(LONG,        "long",        INT)
 
 // qualifiers
-_t(CONST,       "const",       CONST)
-_t(RESTRICT,    "restrict",    CONST)
-_t(VOLATILE,    "volatile",    CONST)
+_k(CONST,       "const",       CONST)
+_k(RESTRICT,    "restrict",    CONST)
+_k(VOLATILE,    "volatile",    CONST)
 
 // func specifier
-_t(INLINE,      "inline",      INT)
+_k(INLINE,      "inline",      INT)
 
 // operators
 
@@ -211,11 +211,22 @@ _t(NEQ,         "!=",          NEQ)
 _t(AND,         "&&",          AND)
 _t(OR,          "||",          OR)
 
+_t(SHARPSHARP,  "##",	       0)
+_t(LINENO,      "line",        0)
+
 // op			       
 _t(ARRAY,       "array",       0)
 _t(FUNCTION,    "function",    0)
 _t(POINTER,     "pointer",     0)
 
+// preprocess
+_t(IFDEF,	"ifdef",	0)
+_t(IFNDEF,	"ifndef",	0)
+
+// EOI
+_t(EOI,		"EOI",		0)
+
+#undef _k
 #undef _t
 #undef _x
 #undef _a

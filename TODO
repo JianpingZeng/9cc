@@ -1,9 +1,17 @@
 TODO
 
+// preprocessor
+1. dolex: unreadc bug
+2. macro argument
+3. macro subst: space
+4. test case
+
+// parser
 1. initializer: string-literal
 2. eval
 3. decl_initializer
 4. paramdecl, localdecl, globaldecl
-5. stmt
-6. cpp
-7. gen
+5. simplify
+
+// backend
+1. gen

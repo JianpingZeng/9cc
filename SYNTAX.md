@@ -198,11 +198,6 @@ parameter-declaration:
     
     declaration-specifier  declarator
     declaration-specifier  abstract-declarator(opt)
-    
-identifier-list:
-    
-    identifier
-    identifier-list  ,  identifier
 
 initializer:
     
@@ -439,65 +434,6 @@ keyword: one of
 	do         int         switch
 	double     long        typedef
 	else       register    union
-	
-identifier:
-
-	identifier-nondigit
-	identifier identifier-nondigit
-	identifier digit
-	
-identifier-nondigit:
-
-	nondigit
-	univeral-character-name
-	other implemention-defined characters
-	
-non-digit:
-	
-	_  a  b  c  d  e  f  g  h  i  j  k  l  m
-	   n  o  p  q  r  s  t  u  v  w  x  y  z
-	   A  B  C  D  E  F  G  H  I  J  K  L  M
-	   N  O  P  Q  R  S  T  U  V  W  X  Y  Z
-
-digit: one of
-    
-    0  1  2  3  4  5  6  7  8  9
-    
-univeral-character-name:
-
-	\u hex-quad
-	\U hex-quad hex-quad
-	
-hex-quad:
-
-	hexadecimal-digit hexadecimal-digit hexadecimal-digit hexadecimal-digit
-	
-punctuator: one of
-
-	[    ]    (    )    {    }    .    ->
-	++   --   &    *    +    -    ~    !
-	/    %    <<   >>   <    >    <=   >=   ==    !=
-	^    |    &&   ||
-	?    :    ;    ...
-	=    *=   /=    %=   +=   -=   <<=   >>=   &=   ^=   |=
-	,    #    ##
-	<:   :>   <%   %>   %:   %:%:
-
-string-literal:
-    
-    " s-char-sequence(opt) "
-    L " s-char-sequence(opt) "
-
-s-char-sequence:
-    
-    s-char
-    s-char-sequence  s-char
-    
-s-char:
-    
-    any member of the source character set except the double-quote ", backslash \, or new-line character
-    escape-sequence
-    
 
 constant:
     
@@ -568,43 +504,6 @@ enumeration-constant:
     
     identifier
     
-character-constant:
-
-	' c-char-sequence '
-	L' c-char-sequence '
-	
-c-char-sequence:
-
-	c-char
-	c-char-sequence c-har
-	
-c-char:
-
-	any member of the source character set except the single-quote ', backslash \, or new-line character
-	
-escape-sequence:
-
-	simple-escape-sequence
-	octal-escape-sequence
-	hexadecimal-escape-sequence
-	universal-character-name
-	
-simple-escape-sequence:
-
-	\'    \"    \?    \\
-	\a    \b    \f    \n    \r    \t    \v
-	
-octal-escape-sequence:
-
-	\  octal-digit
-	\  octal-digit  octal-digit
-	\  octal-digit  octal-digit  octal-digit
-	
-hexadecimal-escape-sequence:
-
-	\x  hexadecimal-digit
-	hexadecimal-escape-sequence  hexadecimal-digit
-
 floating-constant:
 
 	decimal-floating-constant
@@ -629,10 +528,6 @@ exponent-part:
 
 	e  sign(opt)  digit-sequence
 	E  sign(opt)  digit-sequence
-	
-sign: one of 
-
-	+   -
 	
 digit-sequence:
 
@@ -732,6 +627,11 @@ lparen:
 replacement-list:
 
 	pp-tokens(opt)
+
+identifier-list:
+    
+    identifier
+    identifier-list  ,  identifier
 	
 pp-tokens:
 
@@ -775,6 +675,38 @@ q-char:
 
 	any member of the source character set except the new-line character and "
 	
+identifier:
+
+	identifier-nondigit
+	identifier identifier-nondigit
+	identifier digit
+	
+identifier-nondigit:
+
+	nondigit
+	univeral-character-name
+	other implemention-defined characters
+	
+non-digit:
+	
+	_  a  b  c  d  e  f  g  h  i  j  k  l  m
+	   n  o  p  q  r  s  t  u  v  w  x  y  z
+	   A  B  C  D  E  F  G  H  I  J  K  L  M
+	   N  O  P  Q  R  S  T  U  V  W  X  Y  Z
+
+digit: one of
+    
+    0  1  2  3  4  5  6  7  8  9
+    
+univeral-character-name:
+
+	\u hex-quad
+	\U hex-quad hex-quad
+	
+hex-quad:
+
+	hexadecimal-digit hexadecimal-digit hexadecimal-digit hexadecimal-digit
+
 pp-number:
 
 	digit
@@ -787,4 +719,70 @@ pp-number:
 	pp-number P sign
 	pp-number .
 	
+sign: one of 
 
+	+   -
+
+character-constant:
+
+	' c-char-sequence '
+	L' c-char-sequence '
+	
+c-char-sequence:
+
+	c-char
+	c-char-sequence c-har
+	
+c-char:
+
+	any member of the source character set except the single-quote ', backslash \, or new-line character
+	escape-sequence
+	
+escape-sequence:
+
+	simple-escape-sequence
+	octal-escape-sequence
+	hexadecimal-escape-sequence
+	universal-character-name
+	
+simple-escape-sequence:
+
+	\'    \"    \?    \\
+	\a    \b    \f    \n    \r    \t    \v
+	
+octal-escape-sequence:
+
+	\  octal-digit
+	\  octal-digit  octal-digit
+	\  octal-digit  octal-digit  octal-digit
+	
+hexadecimal-escape-sequence:
+
+	\x  hexadecimal-digit
+	hexadecimal-escape-sequence  hexadecimal-digit
+
+string-literal:
+    
+    " s-char-sequence(opt) "
+    L " s-char-sequence(opt) "
+
+s-char-sequence:
+    
+    s-char
+    s-char-sequence  s-char
+    
+s-char:
+    
+    any member of the source character set except the double-quote ", backslash \, or new-line character
+    escape-sequence
+
+punctuator: one of
+
+	[    ]    (    )    {    }    .    ->
+	++   --   &    *    +    -    ~    !
+	/    %    <<   >>   <    >    <=   >=   ==    !=
+	^    |    &&   ||
+	?    :    ;    ...
+	=    *=   /=    %=   +=   -=   <<=   >>=   &=   ^=   |=
+	,    #    ##
+	<:   :>   <%   %>   %:   %:%:

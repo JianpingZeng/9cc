@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include "utils.h"
 
 #define STRING_INIT_SIZE    32
@@ -39,6 +40,14 @@ void strbuf_free(struct strbuf *s)
 size_t strbuf_len(struct strbuf *s)
 {
     return s->len;
+}
+
+const char * strbuf_str(struct strbuf *s)
+{
+    if (s->len == 0)
+	return NULL;
+    else
+	return s->str;
 }
 
 void strbuf_add(struct strbuf *s, struct strbuf *s2)
@@ -83,6 +92,17 @@ void strbuf_catd(struct strbuf *s, long n)
         *--ps = '-';
     
     return strbuf_catn(s, ps, str + sizeof (str) - ps);
+}
+
+void strbuf_catc(struct strbuf *s, char c)
+{
+    if (s->len + 1 >= s->alloc)
+        strbuf_grow(s, s->len + 1);
+
+    char *dst = s->str + s->len;
+    s->len += 1;
+    *dst++ = c;
+    *dst = '\0';
 }
 
 struct strbuf * strbuf_lstrip(struct strbuf *s)

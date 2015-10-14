@@ -1,7 +1,7 @@
 # Makefile for mcc
 
-CFLAGS_COMMON=-Wall -std=c99 -Isys -Iutils -I.
-CFLAGS=$(CFLAGS_COMMON) -g
+CFLAGS_COMMON=-Wall -std=c99 -Isys -Iutils -I. -DBUILD_DIR='"$(shell pwd)"'
+CFLAGS=$(CFLAGS_COMMON)
 LDFLAGS=
 MCC=mcc
 UTILS=utils/
@@ -11,11 +11,13 @@ UTILS_OBJ=$(UTILS)wrapper.o \
         $(UTILS)strbuf.o \
         $(UTILS)vector.o \
         $(UTILS)map.o \
-        $(UTILS)string.o
+        $(UTILS)string.o \
+	$(UTILS)hideset.o
 
 UTILS_INC= $(UTILS)strbuf.h \
 	$(UTILS)vector.h \
 	$(UTILS)map.h \
+	$(UTILS)hideset.h \
 	$(UTILS)utils.h
 
 CC1_OBJ=alloc.o \
@@ -33,6 +35,7 @@ CC1_OBJ=alloc.o \
         sym.o \
         type.o \
 	simplify.o \
+	input.o \
         $(UTILS_OBJ)
 
 CC1_INC=cc.h \
@@ -56,6 +59,8 @@ ifneq (, $(findstring CYGWIN, $(KERNEL)))
 CONFIG_FLAGS+=-DCONFIG_CYGWIN
 else ifeq (Darwin, $(KERNEL))
 CONFIG_FLAGS+=-DCONFIG_DARWIN
+XCODE_SDK_DIR:=$(shell xcrun --show-sdk-path)
+CONFIG_FLAGS+=-DXCODE_DIR='"$(XCODE_SDK_DIR)"'
 else
 CONFIG_FLAGS+=-DCONFIG_LINUX
 endif

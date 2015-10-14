@@ -14,16 +14,12 @@ struct map {
     int (*cmpfn) (const char *key1, const char *key2);
 };
 
-extern struct map * map_new(int (*cmpfn) (const char *, const char *));
+extern struct map * map_new(void);
 
 extern void map_free(struct map *map);
 
 extern void *map_get(struct map *map, const char *key);
 
 extern void map_put(struct map *map, const char *key, void *value);
-
-extern int nocmp(const char *key1, const char *key2);
-
-extern int cmp(const char *key1, const char *key2);
 
 #endif

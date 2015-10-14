@@ -1,6 +1,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "utils.h"
 
 #define VEC_INIT_SIZE   16
@@ -24,6 +25,13 @@ struct vector *vec_new(void)
     return v;
 }
 
+struct vector *vec_new1(void *val)
+{
+    struct vector *v = vec_new();
+    vec_push(v, val);
+    return v;
+}
+
 void vec_free(struct vector *v)
 {
     free(v->mem);
@@ -41,6 +49,14 @@ void * vec_at(struct vector *v, int index)
 {
     assert(index >= 0 && index < v->len);
     return v->mem[index];
+}
+
+void * vec_at_safe(struct vector *v, int index)
+{
+    if (index >= 0 && index < v->len)
+	return v->mem[index];
+    else
+	return NULL;
 }
 
 void vec_set(struct vector *v, int index, void *val)
@@ -99,11 +115,23 @@ void vec_push_front(struct vector *v, void *val)
     v->len++;
 }
 
-void vec_pop(struct vector *v)
+void * vec_pop(struct vector *v)
 {
     if (v->len == 0)
-	return;
+	return NULL;
+    void *r = v->mem[v->len-1];
     v->len--;
+    return r;
+}
+
+void * vec_pop_front(struct vector *v)
+{
+    if (v->len == 0)
+	return NULL;
+    void *r = v->mem[0];
+    v->len--;
+    memmove(v->mem, v->mem+1, v->len * sizeof(void *));
+    return r;
 }
 
 void vec_clear(struct vector *v)
@@ -113,6 +141,8 @@ void vec_clear(struct vector *v)
 
 size_t vec_len(struct vector *v)
 {
+    if (v == NULL)
+	return 0;
     return v->len;
 }
 

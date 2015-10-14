@@ -161,7 +161,7 @@ static void char_constant(struct token *t, node_t *sym)
 static void integer_constant(struct token *t, node_t *sym)
 {
     const char *s = t->name;
-    if (s[0] == '\'' || s[1] == 'L')
+    if (s[0] == '\'' || s[0] == 'L')
         return char_constant(t, sym);
     
     int base;
@@ -1346,7 +1346,7 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	    node = ast_bop(op, inttype, l, r);
 	break;
     default:
-	error("unknown op '%s'", tname(op));
+	error("unknown op '%s'", id2s(op));
 	CCAssert(0);
     }
     return node;
@@ -1611,15 +1611,16 @@ static bool is_nullptr(node_t *node)
 
 int intexpr(void)
 {
+    struct source src = source;
     node_t *cnst = eval(cond_expr(), inttype);
     if (cnst == NULL) {
-	error("expression is not a compile-time constant");
+	errorf(src, "expression is not a compile-time constant");
 	return 0;
     }
     if (isiliteral(cnst))
 	return ILITERAL_VALUE(cnst);
 
-    error("expression is not an integer constant");
+    errorf(src, "expression is not an integer constant");
     if (isfliteral(cnst))
 	return FLITERAL_VALUE(cnst);
     

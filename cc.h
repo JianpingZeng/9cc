@@ -12,57 +12,17 @@
 #include <float.h>
 #include <wchar.h>
 #include <stdbool.h>
+#include <time.h>
+#include <locale.h>
 
 #include "config.h"
 #include "utils.h"
 
 // alloc.c
 extern void * alloc_node(void);
-extern void * alloc_symbol(void);
-extern void * alloc_type(void);
-extern void * alloc_field(void);
-
-// lex.c
-#define EOI  -1
-
-enum {
-#define _a(a, b, c, d)  a,
-#define _x(a, b, c, d)  a=d,
-#define _t(a, b, c)     a,
-#include "token.def"
-    TOKEND
-};
-
-struct source {
-    const char *file;
-    unsigned line;
-    unsigned column;
-};
-
-struct token {
-    int id;
-    const char *name;
-    int kind;
-};
-
-extern struct source source;
-extern struct token  *token;
-
-extern bool is_digit(char c);
-extern bool is_letter(char c);
-extern bool is_digitletter(char c);
-extern bool is_blank(char c);
-extern bool is_newline(char c);
-extern bool is_hex(char c);
-extern bool is_digithex(char c);
-extern bool is_visible(char c);
-
-extern void input_init(void);
-extern int gettok(void);
-extern struct token * lookahead(void);
-extern void expect(int t);
-extern void match(int t, int follow[]);
-extern const char *tname(int t);
+extern void * alloc_token(void);
+extern void * alloc_macro(void);
+extern void * alloc_char(void);
 
 // value
 #define VALUE_U(v)    ((v).u)
@@ -78,8 +38,141 @@ union value {
     void (*g) ();
 };
 
-#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
-#define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))
+// source
+struct source {
+    const char *file;
+    unsigned line;
+    unsigned column;
+};
+
+enum {
+#define _a(a, b, c, d)  a,
+#define _x(a, b, c, d)  a=d,
+#define _t(a, b, c)     a,
+#define _k(a, b, c)     a,
+#include "token.def"
+    TOKEND
+};
+
+// token
+struct token {
+    int id;
+    const char *name;
+    int kind;
+    struct source src;
+    struct hideset *hideset;
+    unsigned bol : 1;		// beginning of line
+};
+
+// input.c
+#define CH(c)    ((c)->ch)
+
+struct cc_char {
+    int ch;
+    unsigned line;
+    unsigned column;
+};
+
+struct file {
+    int kind : 4;
+    bool bol : 1;		// beginning of line
+    bool stub : 1;
+    char *buf;
+    char *pc;
+    char *pe;
+    long bread;
+    FILE *fp;			// FILE handle
+    size_t pos;			// input string position
+    const char *file;		// file name or input string
+    const char *name;		// buffer name
+    unsigned line;
+    unsigned column;
+    struct vector *ifstubs;
+    struct vector *chars;	// readc ungets
+    struct vector *buffer;	// lex ungets
+    struct vector *tokens;	// parser ungets
+    struct token *ahead;	// lookahead token
+};
+
+struct ifstub {
+    int id;
+    struct source src;
+    bool b;
+};
+
+extern void input_init(const char *file);
+extern struct cc_char * readc(void);
+extern void unreadc(struct cc_char * ch);
+
+extern struct file * with_string(const char *input, const char *name);
+extern struct file * with_file(const char *file, const char *name);
+extern struct file * with_buffer(struct vector *v);
+
+extern void file_sentinel(struct file *f);
+extern void file_unsentinel(void);
+extern void file_stub(struct file *f);
+extern void file_unstub(void);
+extern struct file * current_file(void);
+
+extern void if_sentinel(struct ifstub *i);
+extern void if_unsentinel(void);
+extern struct ifstub * new_ifstub(struct ifstub *i);
+extern struct ifstub * current_ifstub(void);
+
+// lex.c
+extern struct source source;
+extern struct token *token;
+extern struct token *eoi_token;
+extern struct token *newline_token;
+extern struct token *space_token;
+
+extern bool is_digit(char c);
+extern bool is_letter(char c);
+extern bool is_digitletter(char c);
+extern bool is_blank(char c);
+extern bool is_newline(char c);
+extern bool is_hex(char c);
+extern bool is_digithex(char c);
+extern bool is_visible(char c);
+
+#define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
+#define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
+#define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
+
+extern struct token * lex(void);
+extern void unget(struct token *t);
+extern struct token *header_name(void);
+extern struct token * new_token(struct token *tok);
+extern void skip_ifstub(void);
+
+extern int gettok(void);
+extern struct token * lookahead(void);
+extern void expect(int t);
+extern void match(int t, int follow[]);
+extern const char *id2s(int t);
+extern const char *unwrap_scon(const char *name);
+
+extern void print_buffer_stat(void);
+
+// cpp.c
+// macro kind
+enum {
+    MACRO_OBJ,
+    MACRO_FUNC,
+    MACRO_SPECIAL
+};
+
+struct macro {
+    int kind;
+    struct vector *body;
+    struct vector *params;
+    bool vararg;
+    void (*handler) (struct token *); // special macro handler
+};
+
+extern void cpp_init(struct vector *options);
+extern struct token * get_pptok(void);
+extern struct vector * all_pptoks(void);
 
 // ast.h
 #include "ast.h"
@@ -87,8 +180,10 @@ union value {
 // eval.c
 extern node_t * eval(node_t *expr, node_t *ty);
 extern node_t * eval_bool(node_t *expr);
+extern bool eval_cpp_cond(void);
 
 // expr.c
+#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 extern node_t * expression(void);
 extern node_t * assign_expr(void);
 extern int intexpr(void);
@@ -237,6 +332,8 @@ struct table {
 };
 
 // sym
+#define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))
+
 extern void symbol_init(void);
 extern int scopelevel(void);
 extern void enter_scope(void);
@@ -259,29 +356,28 @@ extern struct table * tags;
 
 #define currentscope(sym)   (SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL))
 
+// gen.c
+extern void gen(node_t *tree, const char *ofile);
+
+// simplify.c
+extern void simplify(node_t *tree);
+
+// print.c
+extern void print_tree(node_t *tree);
+
 // error.c
 extern unsigned errors;
 extern unsigned warnings;
-extern void warning(const char *fmt, ...);
-extern void error(const char *fmt, ...);
-extern void fatal(const char *fmt, ...);
 extern void warningf(struct source src, const char *fmt, ...);
 extern void errorf(struct source src, const char *fmt, ...);
-
-extern void begin_call(const char *funcname);
-extern void end_call(const char *funcname);
-#define BEGIN_CALL    begin_call(__func__);
-#define END_CALL      end_call(__func__);
-
-extern void redefinition_error(struct source src, node_t *sym);
-extern void conflicting_types_error(struct source src, node_t *sym);
-extern void field_not_found_error(node_t *ty, const char *name);
+extern void fatalf(struct source src, const char *fmt, ...);
+#define warning(...)  warningf(source, __VA_ARGS__)
+#define error(...)    errorf(source, __VA_ARGS__)
+#define fatal(...)    fatalf(source, __VA_ARGS__)
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
-
-#define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 
 #define CCAssert(expr)				\
     do {					\
@@ -299,13 +395,10 @@ extern void field_not_found_error(node_t *ty, const char *name);
 	}					\
     } while (0)
 
-// gen.c
-extern void gen(node_t *tree, const char *ofile);
+#define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 
-// simplify.c
-extern void simplify(node_t *tree);
-
-// print.c
-extern void print_tree(node_t *tree);
+extern void redefinition_error(struct source src, node_t *sym);
+extern void conflicting_types_error(struct source src, node_t *sym);
+extern void field_not_found_error(node_t *ty, const char *name);
 
 #endif

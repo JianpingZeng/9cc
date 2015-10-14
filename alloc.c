@@ -8,7 +8,7 @@ struct alloc_state {
     void *p;			// first free node in current allocation
 };
 
-static inline void * do_alloc_node(struct alloc_state *s, size_t size)
+static inline void * do_alloc_object(struct alloc_state *s, size_t size)
 {
     void *ret;
 
@@ -26,26 +26,23 @@ static inline void * do_alloc_node(struct alloc_state *s, size_t size)
 static struct alloc_state node_state;
 void * alloc_node(void)
 {
-    return do_alloc_node(&node_state, sizeof(node_t));
+    return do_alloc_object(&node_state, sizeof(node_t));
 }
 
-void * alloc_symbol(void)
+static struct alloc_state token_state;
+void * alloc_token(void)
 {
-    node_t *n = alloc_node();
-    AST_ID(n) = SYMBOL_NODE;
-    return n;
+    return do_alloc_object(&token_state, sizeof(struct token));
 }
 
-void * alloc_type(void)
+static struct alloc_state macro_state;
+void * alloc_macro(void)
 {
-    node_t *n = alloc_node();
-    AST_ID(n) = TYPE_NODE;
-    return n;
+    return do_alloc_object(&macro_state, sizeof(struct macro));
 }
 
-void * alloc_field(void)
+static struct alloc_state char_state;
+void * alloc_char(void)
 {
-    node_t *n = alloc_node();
-    AST_ID(n) = FIELD_NODE;
-    return n;
+    return do_alloc_object(&char_state, sizeof(struct cc_char));
 }

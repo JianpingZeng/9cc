@@ -7,8 +7,8 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
-#if defined (CONFIG_LINUX) || defined (CONFIG_DARWIN)
+// dirname, basename
+#include <libgen.h>
 // trace
 #include <execinfo.h>
 #include <signal.h>
@@ -24,14 +24,11 @@ static void handler(int sig)
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     exit(EXIT_FAILURE);
 }
-#endif
 
 void setup_sys()
 {
-#if defined (CONFIG_LINUX) || defined (CONFIG_DARWIN)
     signal(SIGSEGV, handler);
     signal(SIGABRT, handler);
-#endif
 }
 
 char *mktmpdir()
@@ -184,6 +181,9 @@ char *abspath(char *path)
 
 const char *join(const char *dir, const char *name)
 {
+    if (name[0] == '/')
+	return strdup(name);
+    
     size_t len1 = strlen(dir);
     size_t len2 = strlen(name);
     int i = 0;

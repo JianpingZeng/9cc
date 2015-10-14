@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "utils.h"
 
 // a key-value implementation
@@ -40,12 +41,7 @@ static void rehash(struct map *map, unsigned newsize)
     free(oldtable);
 }
 
-int nocmp(const char *key1, const char *key2)
-{
-    return 1;
-}
-
-int cmp(const char *key1, const char *key2)
+static int cmp(const char *key1, const char *key2)
 {
     return strcmp(key1, key2);
 }
@@ -91,11 +87,11 @@ static void map_add(struct map *map, const char *key, void *value)
         rehash(map, map->tablesize << MAP_RESIZE_BITS);
 }
 
-struct map * map_new(int (*cmpfn) (const char *, const char *))
+struct map * map_new(void)
 {
     struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
-    map->cmpfn = cmpfn ? cmpfn : cmp;
+    map->cmpfn = cmp;
     alloc_map(map, MAP_INIT_SIZE);
     return map;
 }

@@ -39,6 +39,23 @@ static node_t * float_literal_node(node_t *ty, union value v)
     return n;
 }
 
+static node_t * new_int_literal(int i)
+{
+    return int_literal_node(inttype, (union value){.u = i});
+}
+
+static bool bool_arith(node_t *n)
+{
+    if (!n)
+	return false;
+    if (isiliteral(n))
+	return ILITERAL_VALUE(n) != 0;
+    else if (isfliteral(n))
+	return FLITERAL_VALUE(n) != 0;
+    else
+	return false;
+}
+
 // TODO: 
 static bool do_eval_bool(node_t *cond)
 {
@@ -268,11 +285,19 @@ static node_t * eval_arith(node_t *expr)
 		return bop_scalar(op, AST_TYPE(expr), eval_arith(l), eval_arith(r));
 	    case AND:
 		{
-
+		    node_t *l1 = eval_arith(l);
+		    if (!bool_arith(l1))
+			return new_int_literal(0);
+		    else
+			return eval_arith(r);
 		}
 	    case OR:
 		{
-
+		    node_t *l1 = eval_arith(l);
+		    if (bool_arith(l1))
+		        return new_int_literal(1);
+		    else
+			return eval_arith(r);
 		}
 	    default:
 		CCAssert(0);
@@ -384,4 +409,10 @@ node_t * eval_bool(node_t *expr)
 	return NULL;
 
     return NULL;
+}
+
+bool eval_cpp_cond(void)
+{
+    gettok();
+    return intexpr();
 }

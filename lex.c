@@ -1,9 +1,5 @@
 #include "cc.h"
 
-#define LBUFSIZE     1024
-#define RBUFSIZE     4096
-#define MAXTOKEN     LBUFSIZE
-
 enum {
     BLANK = 01, NEWLINE = 02, LETTER = 04,
     DIGIT = 010, HEX = 020, OTHER = 040,
@@ -13,6 +9,7 @@ static unsigned char map[256] = {
 #define _a(a, b, c, d)     c,
 #define _x(a, b, c, d)
 #define _t(a, b, c)
+#define _k(a, b, c)
 #include "token.def"
     OTHER,
 };
@@ -74,179 +71,646 @@ bool is_visible(char c)
     return c >= 040 && c < 0177;
 }
 
-static char ibuf[LBUFSIZE+RBUFSIZE+1];
-static char *pc;
-static char *pe;
-static long bread;
-struct source source;
-static bool is_looked;
-
-static void fillbuf(void)
-{
-    if (bread == 0) {
-        if (pc > pe)
-            pc = pe;
-        return;
-    }
-    
-    if (pc >= pe) {
-        pc = &ibuf[LBUFSIZE];
-    } else {
-        long n;
-        char *dst, *src;
-        
-        // copy
-        n = pe - pc;
-        dst = &ibuf[LBUFSIZE] - n;
-        src = pc;
-        while (src < pe)
-            *dst++ = *src++;
-        
-        pc = &ibuf[LBUFSIZE] - n;
-    }
-    
-    if (feof(stdin))
-        bread = 0;
-    else
-        bread = fread(&ibuf[LBUFSIZE], 1, RBUFSIZE, stdin);
-    
-    if (bread < 0)
-        die("read error: %s", strerror(errno));
-    
-    pe = &ibuf[LBUFSIZE] + bread;
-    *pe = '\n';
-}
-
-static void skipblank(void)
-{
-    do {
-        while (is_blank(*pc))
-            pc++;
-        if (pe - pc < LBUFSIZE) {
-            fillbuf();
-            if (pc == pe)
-                return;
-        }
-    } while (is_blank(*pc));
-}
-
-static void skipline(void)
-{
-    while (*pc++ != '\n') {
-        if (pe - pc < LBUFSIZE) {
-            fillbuf();
-            if (pc == pe)
-                break;
-        }
-    }
-}
-
-static void fline(void)
-{
-    CCAssert(is_digit(*pc));
-    
-    unsigned line = 0;
-    
-    while (is_digit(*pc)) {
-        line = line * 10 + *pc - '0';
-        pc++;
-    }
-    source.line = line-1;
-    
-    skipblank();
-    
-    if (*pc == '"') {
-        struct strbuf *s = strbuf_new();
-        pc++;
-        for (; *pc != '"' || pc == pe;) {
-            if (pe - pc < LBUFSIZE) {
-                fillbuf();
-                if (pc == pe)
-                    break;
-            }
-            if (*pc == '\\' && pc[1] == '"') {
-                strbuf_catn(s, pc+1, 1);
-                pc += 2;
-            } else {
-                strbuf_catn(s, pc++, 1);
-            }
-        }
-        source.file = strs(s->str);
-        skipline();
-    } else {
-        skipline();
-    }
-}
-
-static void fpragma(void)
-{
-    //TODO:
-    skipline();
-}
-
-static void fsync(void)
-{
-    CCAssert(*pc++ == '#');
-    
-    skipblank();
-    
-    if (is_digit(*pc)) {
-        // # n "filename"
-        fline();
-    } else if (!strncmp(pc, "line", 4)) {
-        // #line n "filename"
-        pc += 4;
-        skipblank();
-        fline();
-    } else if (!strncmp(pc, "pragma", 6)) {
-        // #pragma
-        pc += 6;
-        fpragma();
-    } else {
-        // others
-        skipline();
-    }
-}
-
-static void nextline(void)
-{
-    do {
-        if (pc >= pe) {
-            fillbuf();
-            if (pc == pe)
-                return;
-        } else {
-            source.line++;
-            while (is_blank(*pc))
-                pc++;
-            if (*pc == '#') {
-                fsync();
-                nextline();
-            }
-        }
-    } while (*pc == '\n' && pc == pe);
-}
-
-void input_init(void)
-{
-    pc = pe = &ibuf[LBUFSIZE];
-    bread = -1;
-    fillbuf();
-    nextline();
-    is_looked = false;
-}
-
 static const char *tnames[] = {
 #define _a(a, b, c, d)  b,
 #define _x(a, b, c, d)  b,
 #define _t(a, b, c)     b,
+#define _k(a, b, c)     b,
 #include "token.def"
 };
 
-const char *tname(int t)
+struct token *eoi_token = &(struct token){.id = EOI};
+struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
+struct token *space_token = &(struct token){.id = ' '};
+
+struct source source;
+
+#define BOL    (current_file()->bol)
+
+static struct source chsrc(struct cc_char *ch)
+{
+    struct file *fs = current_file();
+    struct source src;
+    src.file = fs->file;
+    src.line = ch->line;
+    src.column = ch->column;
+    return src;
+}
+
+static void markc(struct cc_char *ch)
+{
+    struct file *fs = current_file();
+    source.file = fs->file;
+    source.line = ch->line;
+    source.column = ch->column;
+}
+
+static inline void mark(struct token *t)
+{
+    source = t->src;
+}
+
+static bool next(char c)
+{
+    struct cc_char *ch = readc();
+    if (CH(ch) == c)
+	return true;
+    unreadc(ch);
+    return false;
+}
+
+static char peek(void)
+{
+    struct cc_char *ch = readc();
+    unreadc(ch);
+    return CH(ch);
+}
+
+struct token * new_token(struct token *tok)
+{
+    struct token *t = alloc_token();
+    memcpy(t, tok, sizeof(struct token));
+    if (!tok->name)
+	t->name = id2s(tok->id);
+    return t;
+}
+
+static struct token * make_token(struct token *tok)
+{
+    struct token *t = new_token(tok);
+    t->src = source;
+    t->bol = BOL;
+    BOL = false;
+    return t;
+}
+
+static void readch(struct strbuf *s, bool (*is) (char))
+{
+    for (;;) {
+	struct cc_char *ch = readc();
+	if (!is(CH(ch))) {
+	    unreadc(ch);
+	    break;
+	}
+	strbuf_catc(s, CH(ch));
+    }
+}
+
+static void skipline(bool over)
+{
+    struct cc_char *ch;
+    for (;;) {
+	ch = readc();
+	if (is_newline(CH(ch)) || CH(ch) == EOI)
+	    break;
+    }
+    if (is_newline(CH(ch)) && !over)
+	unreadc(ch);
+}
+
+static inline void line_comment(void)
+{
+    skipline(false);
+}
+
+static void block_comment(void)
+{
+    for (;;) {
+	struct cc_char *ch = readc();
+	if (CH(ch) == '*' && next('/'))
+	    break;
+	if (CH(ch) == EOI) {
+	    error("unterminated /* comment");
+	    break;
+	}
+    }
+}
+
+static struct token * ppnumber(char c)
+{
+    struct strbuf *s = strbuf_new();
+    strbuf_catc(s, c);
+    for (;;) {
+	struct cc_char *ch = readc();
+	if (!is_digitletter(CH(ch)) && CH(ch) != '.') {
+	    unreadc(ch);
+	    break;
+	}
+	bool is_float = strchr("eEpP", CH(ch)) && strchr("+-", peek());
+	if (is_float) {
+	    strbuf_catc(s, CH(ch));
+	    ch = readc();
+	    strbuf_catc(s, CH(ch));
+	} else {
+	    strbuf_catc(s, CH(ch));
+	}
+    }
+    return make_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
+}
+
+static void escape(struct strbuf *s, struct cc_char *ch)
+{
+    CCAssert(CH(ch) == '\\');
+    struct source src = chsrc(ch);
+    strbuf_catc(s, CH(ch));
+    ch = readc();
+    strbuf_catc(s, CH(ch));
+    switch (CH(ch)) {
+    case 'a': case 'b': case 'f':
+    case 'n': case 'r': case 't':
+    case 'v': case '\'': case '"':
+    case '\\': case '\?':
+	break;
+    case '0': case '1': case '2':
+    case '3': case '4': case '5':
+    case '6': case '7':
+	{
+	    char c = peek();
+	    if (c >= '0' && c <= '7') {
+		strbuf_catc(s, CH(readc()));
+		c = peek();
+		if (c >= '0' && c <= '7') {
+		    strbuf_catc(s, CH(readc()));
+		}
+	    }
+	}
+	break;
+    case 'x':
+	if (!is_digithex(peek())) {
+	    errorf(src, "\\x used with no following hex digits");
+	    break;
+	}
+	readch(s, is_digithex);
+	break;
+    case 'u': case 'U':
+	{
+            // universal character name: expect 4(u)/8(U) hex digits
+	    int x;
+            int n = CH(ch) == 'u' ? 4 : 8;
+	    for (x = 0; x < n; x++) {
+		ch = readc();
+		if (!is_digithex(CH(ch))) {
+		    unreadc(ch);
+		    break;
+		}
+		strbuf_catc(s, CH(ch));
+	    }
+            if (x < n)
+                errorf(src, "incomplete universal character name: %s", s->str);
+        }
+	break;
+    default:
+	errorf(src, "unrecognized escape character 0x%x", 0xFF & CH(ch));
+	break;
+    }
+}
+
+static struct token * sequence(bool wide, char sep)
+{
+    struct strbuf *s = strbuf_new();
+    
+    if (wide)
+	strbuf_catc(s, 'L');
+    strbuf_catc(s, sep);
+
+    struct cc_char *ch;
+    for (;;) {
+	ch = readc();
+	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
+	    break;
+	if (CH(ch) == '\\')
+	    escape(s, ch);
+	else
+	    strbuf_catc(s, CH(ch));
+    }
+
+    bool is_char = sep == '\'' ? true : false;
+    const char *name = is_char ? "character" : "string";
+    if (CH(ch) != sep)
+	error("untermiated %s constant: %s", name, s->str);
+    strbuf_catc(s, sep);
+
+    if (is_char)
+	return make_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
+    else
+	return make_token(&(struct token){.id = SCONSTANT, .name = strbuf_str(s)});
+}
+
+static struct token * identifier(char c)
+{
+    struct strbuf *s = strbuf_new();
+    strbuf_catc(s, c);
+    readch(s, is_digitletter);
+    return make_token(&(struct token){.id = ID, .name = strs(s->str)});
+}
+
+static struct token *newline(void)
+{
+    BOL = true;
+    newline_token->src = source;
+    return newline_token;
+}
+
+static struct token * spaces(char c)
+{
+    struct strbuf *s = strbuf_new();
+    strbuf_catc(s, c);
+    readch(s, is_blank);
+    space_token->name = strbuf_str(s);
+    space_token->src = source;
+    return space_token;
+}
+
+struct token * dolex(void)
+{
+    register struct cc_char *rpc;
+    
+    for (; ;) {
+	rpc = readc();
+	markc(rpc);
+
+	switch (CH(rpc)) {
+	case EOI:
+	    return eoi_token;
+	    
+	case '\n':
+	    return newline();
+	    
+	    // spaces
+	case TOK9:
+	case TOK11:
+	case TOK12:
+	case TOK13:
+	case TOK32:
+	    return spaces(CH(rpc));
+	
+	    // punctuators
+	case '/':
+	    if (next('/')) {
+		line_comment();
+		continue;
+	    } else if (next('*')) {
+		block_comment();
+		continue;
+	    } else if (next('=')) {
+		return make_token(&(struct token){.id = DIVEQ});
+	    } else {
+		return make_token(&(struct token){.id = CH(rpc)});
+	    }
+
+	case '+':
+	    if (next('+'))
+		return make_token(&(struct token){.id = INCR});
+	    else if (next('='))
+		return make_token(&(struct token){.id = ADDEQ});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '-':
+	    if (next('-'))
+		return make_token(&(struct token){.id = DECR});
+	    else if (next('='))
+		return make_token(&(struct token){.id = MINUSEQ});
+	    else if (next('>'))
+		return make_token(&(struct token){.id = DEREF});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '*':
+	    if (next('='))
+		return make_token(&(struct token){.id = MULEQ});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '=':
+	    if (next('='))
+		return make_token(&(struct token){.id = EQ});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '!':
+	    if (next('='))
+		return make_token(&(struct token){.id = NEQ});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '%':
+	    if (next('=')) {
+		return make_token(&(struct token){.id = MODEQ});
+	    } else if (next('>')) {
+		return make_token(&(struct token){.id = '}'});
+	    } else if (next(':')) {
+		if (next('%')) {
+		    struct cc_char *ch = readc();
+		    if (CH(ch) == ':')
+			return make_token(&(struct token){.id = SHARPSHARP});
+		    else
+			unreadc(ch);
+		}
+		return make_token(&(struct token){.id = '#'});
+	    } else {
+		return make_token(&(struct token){.id = CH(rpc)});
+	    }
+
+	case '^':
+	    if (next('='))
+		return make_token(&(struct token){.id = XOREQ});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '&':
+	    if (next('='))
+		return make_token(&(struct token){.id = BANDEQ});
+	    else if (next('&'))
+		return make_token(&(struct token){.id = AND});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '|':
+	    if (next('='))
+		return make_token(&(struct token){.id = BOREQ});
+	    else if (next('|'))
+		return make_token(&(struct token){.id = OR});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '<':
+	    if (next('=')) {
+		return make_token(&(struct token){.id = LEQ});
+	    } else if (next('<')) {
+		struct cc_char *ch = readc();
+		if (CH(ch) == '=')
+		    return make_token(&(struct token){.id = LSHIFTEQ});
+		else
+		    unreadc(ch);
+		return make_token(&(struct token){.id = LSHIFT});
+	    } else if (next('%')) {
+		return make_token(&(struct token){.id = '{'});
+	    } else if (next(':')) {
+		return make_token(&(struct token){.id = '['});
+	    } else {
+		return make_token(&(struct token){.id = CH(rpc)});
+	    }
+
+	case '>':
+	    if (next('=')) {
+		return make_token(&(struct token){.id = GEQ});
+	    } else if (next('>')) {
+	        struct cc_char *ch = readc();
+		if (CH(ch) == '=')
+		    return make_token(&(struct token){.id = RSHIFTEQ});
+		else
+		    unreadc(ch);
+		return make_token(&(struct token){.id = RSHIFT});
+	    } else {
+		return make_token(&(struct token){.id = CH(rpc)});
+	    }
+	    
+	case '(': case ')': case '{': case '}':
+	case '[': case ']': case ',': case ';':
+	case '~': case '?':
+	    return make_token(&(struct token){.id = CH(rpc)});
+
+	case ':':
+	    if (next('>'))
+		return make_token(&(struct token){.id = ']'});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	case '#':
+	    if (next('#'))
+		return make_token(&(struct token){.id = SHARPSHARP});
+	    else
+		return make_token(&(struct token){.id = CH(rpc)});
+
+	    // constants
+	case '\'':
+	    return sequence(false, '\'');
+
+	case '"':
+	    return sequence(false, '"');
+
+
+	case '0': case '1': case '2': case '3': case '4':
+	case '5': case '6': case '7': case '8': case '9':
+	    return ppnumber(CH(rpc));
+
+	case '.':
+	    if (peek() == '.') {
+		struct cc_char *ch1 = readc();
+		struct cc_char *ch2 = readc();
+		if (CH(ch2) == '.')
+		    return make_token(&(struct token){.id = ELLIPSIS});
+		unreadc(ch2);
+		unreadc(ch1);
+		return make_token(&(struct token){.id = CH(rpc)});
+	    } else if (is_digit(peek())) {
+		return ppnumber(CH(rpc));
+	    } else {
+		return make_token(&(struct token){.id = CH(rpc)});
+	    }
+	    
+	    // identifiers
+	case 'L':
+	    if (next('\''))
+		return sequence(true, '\'');
+	    else if (next('"'))
+		return sequence(true, '"');
+	    // go through
+	case 'a': case 'b': case 'c': case 'd':
+	case 'e': case 'f': case 'g': case 'h':
+	case 'i': case 'j': case 'k': case 'l':
+	case 'm': case 'n': case 'o': case 'p':
+	case 'q': case 'r': case 's': case 't':
+	case 'u': case 'v': case 'w': case 'x':
+	case 'y': case 'z':
+	case 'A': case 'B': case 'C': case 'D':
+	case 'E': case 'F': case 'G': case 'H':
+	case 'I': case 'J': case 'K':
+	case 'M': case 'N': case 'O': case 'P':
+	case 'Q': case 'R': case 'S': case 'T':
+	case 'U': case 'V': case 'W': case 'X':
+	case 'Y': case 'Z':
+	case '_':
+	    return identifier(CH(rpc));
+
+	default:
+	    // invalid character
+	    if (!is_blank(CH(rpc))) {
+		if (is_visible(CH(rpc)))
+		    error("invalid character '%c'", CH(rpc));
+		else
+		    error("invalid character '\\0%o'", 0xFF & CH(rpc));
+	    }
+	}
+    }
+}
+
+static const char * hq_char_sequence(char sep)
+{
+    struct strbuf *s = strbuf_new();
+    struct cc_char *ch;
+    
+    for (;;) {
+	ch = readc();
+	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
+	    break;
+	strbuf_catc(s, CH(ch));
+    }
+
+    if (CH(ch) != sep)
+	error("missing '%c' in header name", sep);
+    
+    skipline(true);
+    return strbuf_str(s);
+}
+
+struct token *header_name(void)
+{
+    struct cc_char *ch;
+ beg:
+    ch = readc();
+    if (is_blank(CH(ch)))
+	goto beg;
+
+    markc(ch);
+    if (CH(ch) == '<') {
+	const char *name = hq_char_sequence('>');
+	return new_token(&(struct token){.name = name, .kind = '<'});
+    } else if (CH(ch) == '"') {
+	const char *name = hq_char_sequence('"');
+	return new_token(&(struct token){.name = name, .kind = '"'});
+    } else {
+	// pptokens
+	unreadc(ch);
+	return NULL;
+    }
+}
+
+void unget(struct token *t)
+{
+    vec_push(current_file()->buffer, t);
+}
+
+static void skip_sequence(char sep)
+{
+    struct cc_char *ch;
+    for (;;) {
+	ch = readc();
+	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
+	    break;
+	if (CH(ch) == '\\')
+	    readc();
+    }
+    if (CH(ch) != sep)
+	unreadc(ch);
+}
+
+void skip_spaces(void)
+{
+    // skip spaces, including comments
+    struct cc_char *ch;
+
+ beg:
+    ch = readc();
+    if (is_blank(CH(ch))) {
+	goto beg;
+    } else if (CH(ch) == '/') {
+	if (next('/')) {
+	    line_comment();
+	    goto beg;
+	} else if (next('*')) {
+	    block_comment();
+	    goto beg;
+	}
+    }
+    unreadc(ch);
+}
+
+void skip_ifstub(void)
+{
+    /* Skip part of conditional group.
+     */
+    unsigned lines = 0;
+    bool bol = true;
+    int nest = 0;
+    struct token *t0 = lex();
+    lines++;
+    CCAssert(IS_NEWLINE(t0) || t0->id == EOI);
+    for (;;) {
+	// skip spaces
+        skip_spaces();
+	struct cc_char *ch = readc();
+	if (CH(ch) == EOI)
+	    break;
+	if (is_newline(CH(ch))) {
+	    bol = true;
+	    lines++;
+	    continue;
+	}
+	if (CH(ch) == '\'' || CH(ch) == '"') {
+	    skip_sequence(CH(ch));
+	    bol = false;
+	    continue;
+	}
+	if (CH(ch) != '#' || !bol) {
+	    bol = false;
+	    continue;
+	}
+	struct source src = chsrc(ch);
+        struct token *t = lex();
+	while (IS_SPACE(t))
+	    t = lex();
+        if (t->id != ID) {
+	    if (IS_NEWLINE(t)) {
+		bol = true;
+		lines++;
+	    } else {
+		bol = false;
+	    }
+	    continue;
+	}
+	const char *name = t->name;
+	if (!strcmp(name, "if") || !strcmp(name, "ifdef") || !strcmp(name, "ifndef")) {
+	    nest++;
+	    bol = false;
+	    continue;
+	}
+	if (!nest &&
+	    (!strcmp(name, "elif") || !strcmp(name, "else") || !strcmp(name, "endif"))) {
+	    // found
+	    unget(t);
+	    struct token *t0 = new_token(&(struct token){.id = '#', .src = src, .bol = true});
+	    unget(t0);
+	    break;
+	}
+	if (nest && !strcmp(name, "endif")) {
+	    nest--;
+	    bol = false;
+	}
+	skipline(false);
+    }
+
+    while (lines-- > 0)
+	unget(newline_token);
+}
+
+struct token * lex(void)
+{
+    struct vector *v = current_file()->buffer;
+    struct token *t;
+    if (vec_len(v))
+	t = vec_pop(v);
+    else
+	t = dolex();
+    mark(t);
+    return t;
+}
+
+const char *id2s(int t)
 {
     if (t < 0)
-        return "EOI";
+        return "(null)";
     else if (t < 128)
         return tnames[t];
     else if (t < 256)
@@ -257,14 +721,121 @@ const char *tname(int t)
         return "(null)";
 }
 
+static void unget_token(struct token *t)
+{
+    vec_push(current_file()->tokens, t);
+}
+
+static struct token * do_one_token(void)
+{
+    for (;;) {
+	struct token *t = get_pptok();
+	if (IS_SPACE(t) || IS_NEWLINE(t) || IS_LINENO(t))
+	    continue;
+	return t;
+    }
+}
+
+static struct token * one_token(void)
+{
+    if (vec_len(current_file()->tokens))
+	return vec_pop(current_file()->tokens);
+    else
+	return do_one_token();
+}
+
+static struct token * peek_token(void)
+{
+    struct token *t = one_token();
+    unget_token(t);
+    return t;
+}
+
+const char *unwrap_scon(const char *name)
+{
+    struct strbuf *s = strbuf_new();
+    
+    if (name[0] == '"')
+	strbuf_catn(s, name+1, strlen(name)-2);
+    else
+	strbuf_catn(s, name+2, strlen(name)-3);
+
+    return strbuf_str(s);
+}
+
+static struct token * combine_scons(struct vector *v, bool wide)
+{
+    struct token *t = new_token(vec_head(v));
+    struct strbuf *s = strbuf_new();
+    if (wide)
+	strbuf_catc(s, 'L');
+    strbuf_catc(s, '"');
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *ti = vec_at(v, i);
+	const char *name = unwrap_scon(ti->name);
+	if (name)
+	    strbuf_cats(s, name);
+    }
+    strbuf_catc(s, '"');
+    t->name = strbuf_str(s);
+    return t;
+}
+
+static struct token * do_cctoken(void)
+{
+    struct token *t = one_token();
+    if (t->id == SCONSTANT) {
+	struct vector *v = vec_new1(t);
+	struct token *t1 = peek_token();
+	bool wide = t->name[0] == 'L';
+	while (t1->id == SCONSTANT) {
+	    if (t1->name[0] == 'L')
+		wide = true;
+	    vec_push(v, one_token());
+	    t1 = peek_token();
+	}
+	if (vec_len(v) > 1)
+	    return combine_scons(v, wide);
+    }
+    return t;
+}
+
+/* Parser interfaces
+ *
+ * 1. gettok
+ * 2. lookahead
+ * 3. expect
+ * 4. match
+ */
+
 static int kinds[] = {
 #define _a(a, b, c, d)  d,
 #define _x(a, b, c, d)  c,
 #define _t(a, b, c)     c,
+#define _k(a, b, c)     c,
 #include "token.def"
 };
 
-static int tokind(int t)
+static const char *kws[] = {
+#define _a(a, b, c, d)
+#define _x(a, b, c, d)
+#define _t(a, b, c)
+#define _k(a, b, c)  b,
+#include "token.def"
+};
+
+static int kwi[] = {
+#define _a(a, b, c, d)
+#define _x(a, b, c, d)
+#define _t(a, b, c)
+#define _k(a, b, c)  a,
+#include "token.def"
+};
+
+struct token *token;
+#define ahead_token  (current_file()->ahead)
+
+static int tkind(int t)
 {
     if (t < 0)
         return 0;
@@ -276,689 +847,42 @@ static int tokind(int t)
         return 0;
 }
 
-static const char *tokname;
-static struct token token1, token2;
-struct token *token = &token1;
-
-static void line_comment(void);
-static void block_comment(void);
-static void identifier(void);
-static int number(void);
-static void fnumber(struct strbuf *s, int base);
-static void sequence(bool wide, char ch);
-static void integer_suffix(struct strbuf *s);
-static void escape(struct strbuf *s);
-static void readch(struct strbuf *s, bool (*is) (char));
-
-static int do_gettok(void)
+static struct token * cctoken(void)
 {
-    register char *rpc;
-    
-    for (; ; ) {
-        while (is_blank(*pc))
-            pc++;
-        
-        if (pe - pc < MAXTOKEN)
-            fillbuf();
-        
-        rpc = pc++;
-        
-        switch (*rpc) {
-            case '\n':
-                nextline();
-                if (pc == pe)
-                    return EOI;
-                else
-                    continue;
-                
-                // separators & operators
-            case '/':
-                if (rpc[1] == '/') {
-                    // line comment
-                    line_comment();
-                    continue;
-                } else if (rpc[1] == '*') {
-                    // block comment
-                    block_comment();
-                    continue;
-                } else if (rpc[1] == '=') {
-                    pc = rpc + 2;
-                    return DIVEQ;
-                } else {
-                    return '/';
-                }
-                
-            case '+':
-                if (rpc[1] == '+') {
-                    pc = rpc + 2;
-                    return INCR;
-                } else if (rpc[1] == '=') {
-                    pc = rpc + 2;
-                    return ADDEQ;
-                } else {
-                    return '+';
-                }
-                
-            case '-':
-                if (rpc[1] == '-') {
-                    pc = rpc + 2;
-                    return DECR;
-                } else if (rpc[1] == '=') {
-                    pc = rpc + 2;
-                    return MINUSEQ;
-                } else if (rpc[1] == '>') {
-                    pc = rpc + 2;
-                    return DEREF;
-                } else {
-                    return '-';
-                }
-                
-            case '*':
-                return rpc[1] == '=' ? (pc = rpc+2, MULEQ) : (pc = rpc+1, '*');
-                
-            case '=':
-                return rpc[1] == '=' ? (pc = rpc+2, EQ) : (pc = rpc+1, '=');
-                
-            case '!':
-                return rpc[1] == '=' ? (pc = rpc+2, NEQ) : (pc = rpc+1, '!');
-                
-            case '%':
-                return rpc[1] == '=' ? (pc = rpc+2, MODEQ) : (pc = rpc+1, '%');
-                
-            case '^':
-                return rpc[1] == '=' ? (pc = rpc+2, XOREQ) : (pc = rpc+1, '^');
-                
-            case '&':
-                if (rpc[1] == '=') {
-                    pc = rpc + 2;
-                    return BANDEQ;
-                } else if (rpc[1] == '&') {
-                    pc = rpc + 2;
-                    return AND;
-                } else {
-                    return '&';
-                }
-                
-            case '|':
-                if (rpc[1] == '=') {
-                    pc = rpc + 2;
-                    return BOREQ;
-                } else if (rpc[1] == '|') {
-                    pc = rpc + 2;
-                    return OR;
-                } else {
-                    return '|';
-                }
-                
-            case '<':
-                if (rpc[1] == '=') {
-                    pc = rpc + 2;
-                    return LEQ;
-                } else if (rpc[1] == '<' && rpc[2] == '=') {
-                    pc = rpc + 3;
-                    return LSHIFTEQ;
-                } else if (rpc[1] == '<') {
-                    pc = rpc + 2;
-                    return LSHIFT;
-                } else {
-                    return '<';
-                }
-                
-            case '>':
-                if (rpc[1] == '=') {
-                    pc = rpc + 2;
-                    return GEQ;
-                } else if (rpc[1] == '>' && rpc[2] == '=') {
-                    pc = rpc + 3;
-                    return RSHIFTEQ;
-                } else if (rpc[1] == '>') {
-                    pc = rpc + 2;
-                    return RSHIFT;
-                } else {
-                    return '>';
-                }
-                
-            case '(': case ')': case '{': case '}':
-            case '[': case ']': case ',': case ';':
-            case ':': case '~': case '?':
-                return *rpc;
-                
-            case '\'':
-                sequence(false, '\'');
-                return ICONSTANT;
-                
-            case '"':
-                sequence(false, '"');
-                return SCONSTANT;
-                
-                // numbers
-            case '0': case '1': case '2': case '3': case '4':
-            case '5': case '6': case '7': case '8': case '9':
-                return number();
-                
-            case '.':
-                if (rpc[1] == '.' && rpc[2] == '.') {
-                    pc = rpc + 3;
-                    return ELLIPSIS;
-                } else if (is_digit(rpc[1])) {
-                    pc = rpc;
-                    fnumber(NULL, 10);
-                    return FCONSTANT;
-                } else {
-                    return '.';
-                }
-                
-                // keywords
-            case 'a':
-                if (rpc[1] == 'u' && rpc[2] == 't' && rpc[3] == 'o' &&
-                    !is_digitletter(rpc[4])) {
-                    pc = rpc + 4;
-                    return AUTO;
-                }
-                goto id;
-                
-            case 'b':
-                if (rpc[1] == 'r' && rpc[2] == 'e' && rpc[3] == 'a' &&
-                    rpc[4] == 'k' && !is_digitletter(rpc[5])) {
-                    pc = rpc + 5;
-                    return BREAK;
-                }
-                goto id;
-                
-            case 'c':
-                if (rpc[1] == 'a' && rpc[2] == 's' && rpc[3] == 'e' &&
-                    !is_digitletter(rpc[4])) {
-                    pc = rpc + 4;
-                    return CASE;
-                } else if (rpc[1] == 'h' && rpc[2] == 'a' && rpc[3] == 'r' &&
-                           !is_digitletter(rpc[4])) {
-                    pc = rpc + 4;
-                    return CHAR;
-                } else if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 's' &&
-                           rpc[4] == 't' && !is_digitletter(rpc[5])) {
-                    pc = rpc + 5;
-                    return CONST;
-                } else if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 't' &&
-                           rpc[4] == 'i' && rpc[5] == 'n' && rpc[6] == 'u' &&
-                           rpc[7] == 'e' && !is_digitletter(rpc[8])) {
-                    pc = rpc + 8;
-                    return CONTINUE;
-                }
-                goto id;
-                
-            case 'd':
-                if (rpc[1] == 'e' && rpc[2] == 'f' && rpc[3] == 'a' &&
-                    rpc[4] == 'u' && rpc[5] == 'l' && rpc[6] == 't' &&
-                    !is_digitletter(rpc[7])) {
-                    pc = rpc + 7;
-                    return DEFAULT;
-                } else if (rpc[1] == 'o' && !is_digitletter(rpc[2])) {
-                    pc = rpc + 2;
-                    return DO;
-                } else if (rpc[1] == 'o' && rpc[2] == 'u' && rpc[3] == 'b' &&
-                           rpc[4] == 'l' && rpc[5] == 'e' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return DOUBLE;
-                }
-                goto id;
-                
-            case 'e':
-                if (rpc[1] == 'x' && rpc[2] == 't' && rpc[3] == 'e' &&
-                    rpc[4] == 'r' && rpc[5] == 'n' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return EXTERN;
-                } else if (rpc[1] == 'l' && rpc[2] == 's' && rpc[3] == 'e' &&
-                           !is_digitletter(rpc[4])) {
-                    pc = rpc + 4;
-                    return ELSE;
-                } else if (rpc[1] == 'n' && rpc[2] == 'u' && rpc[3] == 'm' &&
-                           !is_digitletter(rpc[4])) {
-                    pc = rpc + 4;
-                    return ENUM;
-                }
-                goto id;
-                
-            case 'f':
-                if (rpc[1] == 'l' && rpc[2] == 'o' && rpc[3] == 'a' &&
-                    rpc[4] == 't' && !is_digitletter(rpc[5])) {
-                    pc = rpc + 5;
-                    return FLOAT;
-                } else if (rpc[1] == 'o' && rpc[2] == 'r' && !is_digitletter(rpc[3])) {
-                    pc = rpc + 3;
-                    return FOR;
-                }
-                goto id;
-                
-            case 'g':
-                if (rpc[1] == 'o' && rpc[2] == 't' && rpc[3] == 'o' &&
-                    !is_digitletter(rpc[4])) {
-                    pc = rpc + 4;
-                    return GOTO;
-                }
-                goto id;
-                
-            case 'i':
-                if (rpc[1] == 'n' && rpc[2] == 't' && !is_digitletter(rpc[3])) {
-                    pc = rpc + 3;
-                    return INT;
-                } else if (rpc[1] == 'f' && !is_digitletter(rpc[2])) {
-                    pc = rpc + 2;
-                    return IF;
-                } else if (rpc[1] == 'n' && rpc[2] == 'l' && rpc[3] == 'i' &&
-                           rpc[4] == 'n' && rpc[5] == 'e' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return INLINE;
-                }
-                goto id;
-                
-            case 'l':
-                if (rpc[1] == 'o' && rpc[2] == 'n' && rpc[3] == 'g' &&
-                    !is_digitletter(rpc[4])) {
-                    pc = rpc + 4;
-                    return LONG;
-                }
-                goto id;
-                
-            case 'r':
-                if (rpc[1] == 'e' && rpc[2] == 't' && rpc[3] == 'u' &&
-                    rpc[4] == 'r' && rpc[5] == 'n' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return RETURN;
-                } else if (rpc[1] == 'e' && rpc[2] == 's' && rpc[3] == 't' &&
-                           rpc[4] == 'r' && rpc[5] == 'i' && rpc[6] == 'c' &&
-                           rpc[7] == 't' && !is_digitletter(rpc[8])) {
-                    pc = rpc + 8;
-                    return RESTRICT;
-                } else if (rpc[1] == 'e' && rpc[2] == 'g' && rpc[3] == 'i' &&
-                           rpc[4] == 's' && rpc[5] == 't' && rpc[6] == 'e' &&
-                           rpc[7] == 'r' && !is_digitletter(rpc[8])) {
-                    pc = rpc + 8;
-                    return REGISTER;
-                }
-                goto id;
-                
-            case 's':
-                if (rpc[1] == 't' && rpc[2] == 'a' && rpc[3] == 't' &&
-                    rpc[4] == 'i' && rpc[5] == 'c' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return STATIC;
-                } else if (rpc[1] == 'h' && rpc[2] == 'o' && rpc[3] == 'r' &&
-                           rpc[4] == 't' && !is_digitletter(rpc[5])) {
-                    pc = rpc + 5;
-                    return SHORT;
-                } else if (rpc[1] == 'i' && rpc[2] == 'z' && rpc[3] == 'e' &&
-                           rpc[4] == 'o' && rpc[5] == 'f' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return SIZEOF;
-                } else if (rpc[1] == 'w' && rpc[2] == 'i' && rpc[3] == 't' &&
-                           rpc[4] == 'c' && rpc[5] == 'h' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return SWITCH;
-                } else if (rpc[1] == 't' && rpc[2] == 'r' && rpc[3] == 'u' &&
-                           rpc[4] == 'c' && rpc[5] == 't' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return STRUCT;
-                } else if (rpc[1] == 'i' && rpc[2] == 'g' && rpc[3] == 'n' &&
-                           rpc[4] == 'e' && rpc[5] == 'd' && !is_digitletter(rpc[6])) {
-                    pc = rpc + 6;
-                    return SIGNED;
-                }
-                goto id;
-                
-            case 't':
-                if (rpc[1] == 'y' && rpc[2] == 'p' && rpc[3] == 'e' &&
-                    rpc[4] == 'd' && rpc[5] == 'e' && rpc[6] == 'f' &&
-                    !is_digitletter(rpc[7])) {
-                    pc = rpc + 7;
-                    return TYPEDEF;
-                }
-                goto id;
-                
-            case 'u':
-                if (rpc[1] == 'n' && rpc[2] == 's' && rpc[3] == 'i' &&
-                    rpc[4] == 'g' && rpc[5] == 'n' && rpc[6] == 'e' &&
-                    rpc[7] == 'd' && !is_digitletter(rpc[8])) {
-                    pc = rpc + 8;
-                    return UNSIGNED;
-                } else if (rpc[1] == 'n' && rpc[2] == 'i' && rpc[3] == 'o' &&
-                           rpc[4] == 'n' && !is_digitletter(rpc[5])) {
-                    pc = rpc + 5;
-                    return UNION;
-                }
-                goto id;
-                
-            case 'v':
-                if (rpc[1] == 'o' && rpc[2] == 'i' && rpc[3] == 'd' &&
-                    !is_digitletter(rpc[4])) {
-                    pc = rpc + 4;
-                    return VOID;
-                } else if (rpc[1] == 'o' && rpc[2] == 'l' && rpc[3] == 'a' &&
-                           rpc[4] == 't' && rpc[5] == 'i' && rpc[6] == 'l' &&
-                           rpc[7] == 'e' && !is_digitletter(rpc[8])) {
-                    pc = rpc + 8;
-                    return VOLATILE;
-                }
-                goto id;
-                
-            case 'w':
-                if (rpc[1] == 'h' && rpc[2] == 'i' && rpc[3] == 'l' &&
-                    rpc[4] == 'e' && !is_digitletter(rpc[5])) {
-                    pc = rpc + 5;
-                    return WHILE;
-                }
-                goto id;
-                
-            case '_':
-                if (rpc[1] == 'B' && rpc[2] == 'o' && rpc[3] == 'o' &&
-                    rpc[4] == 'l' && !is_digitletter(rpc[5])) {
-                    pc = rpc + 5;
-                    return _BOOL;
-                } else if (rpc[1] == 'C' && rpc[2] == 'o' && rpc[3] == 'm' &&
-                           rpc[4] == 'p' && rpc[5] == 'l' && rpc[6] == 'e' &&
-                           rpc[7] == 'x' && !is_digitletter(rpc[8])) {
-                    pc = rpc + 8;
-                    return _COMPLEX;
-                } else if (rpc[1] == 'I' && rpc[2] == 'm' && rpc[3] == 'a' &&
-                           rpc[4] == 'g' && rpc[5] == 'i' && rpc[6] == 'n' &&
-                           rpc[7] == 'a' && rpc[8] == 'r' && rpc[9] == 'y' &&
-                           !is_digitletter(rpc[10])) {
-                    pc = rpc + 10;
-                    return _IMAGINARY;
-                }
-                goto id;
-                
-            case 'L':
-                if (rpc[1] == '\'') {
-                    pc = rpc + 2;
-                    sequence(true, '\'');
-                    return ICONSTANT;
-                } else if (rpc[1] == '"') {
-                    pc = rpc + 2;
-		    sequence(true, '"');
-                    return SCONSTANT;
-                } else {
-                    goto id;
-                }
-                
-                // identifer
-            case 'h':case 'j':case 'k':case 'm':case 'n':case 'o':
-            case 'p':case 'q':case 'x':case 'y':case 'z':
-            case 'A':case 'B':case 'C':case 'D':case 'E':case 'F':
-            case 'G':case 'H':case 'I':case 'J':case 'K':case 'M':
-            case 'N':case 'O':case 'P':case 'Q':case 'R':case 'S':
-            case 'T':case 'U':case 'V':case 'W':case 'X':case 'Y':
-            case 'Z':
-            id:
-                identifier();
-                return ID;
-                
-            default:
-                if (!is_blank(*rpc)) {
-                    if (is_visible(*rpc))
-                        error("invalid character '%c'", *rpc);
-                    else
-                        error("invalid character '\\0%o'", *rpc);
-                }
-        }
-    }
-}
-
-static void line_comment(void)
-{
-    skipline();
-    nextline();
-}
-
-static void block_comment(void)
-{
-    pc++;
-    struct source src = source;
-    for (; pc[0] != '*' || pc[1] != '/'; ) {
-        if (pe - pc < MAXTOKEN) {
-            fillbuf();
-            if (pc == pe)
-                break;
-        }
-        if (is_newline(*pc++))
-            nextline();
-    }
-    if (pc == pe)
-        errorf(src, "unterminated /* comment");
-    else
-        pc += 2;
-}
-
-static void readch(struct strbuf *s, bool (*is) (char))
-{
-    char *rpc = pc;
-    for (; is(*rpc) || rpc == pe; ) {
-	if (rpc == pe) {
-	    strbuf_catn(s, pc, rpc-pc);
-	    pc = rpc;
-	    fillbuf();
-	    rpc = pc;
-	    if (pc == pe)
+    struct token *t = do_cctoken();
+    // keywords
+    if (t->id == ID) {
+	for (int i = 0; i < ARRAY_SIZE(kws); i++) {
+	    if (!strcmp(t->name, kws[i])) {
+		t->id = kwi[i];
 		break;
-	    else
-		continue;
+	    }
 	}
-	rpc++;
     }
-    strbuf_catn(s, pc, rpc-pc);
-    pc = rpc;
+    // TODO: ppnumber
+
+    // set kind finally
+    t->kind = tkind(t->id);
+    return t;
 }
 
-static int number(void)
+int gettok(void)
 {
-    struct strbuf *s = strbuf_new();
-    char *rpc = pc-1;
-    strbuf_catn(s, rpc, 1);
-    if (rpc[0] == '0' && (rpc[1] == 'x' || rpc[1] == 'X')) {
-        // Hex
-        strbuf_catn(s, pc++, 1);
-        if (!is_digithex(*pc) && *pc != '.') {
-            integer_suffix(s);
-            error("incomplete hex constant: %s", tokname);
-            return ICONSTANT;
-        }
-	readch(s, is_digithex);
-        if (*pc == '.' || *pc == 'p' || *pc == 'P') {
-            fnumber(s, 16);
-            return FCONSTANT;
-        } else {
-            integer_suffix(s);
-            return ICONSTANT;
-        }
+    if (ahead_token) {
+	token = ahead_token;
+	ahead_token = NULL;
     } else {
-        // Oct/Dec
-	readch(s, is_digit);
-        if (*pc == '.' || *pc == 'e' || *pc == 'E') {
-            fnumber(s, 10);
-            return FCONSTANT;
-        } else {
-            integer_suffix(s);
-            return ICONSTANT;
-        }
+	token = cctoken();
     }
+    mark(token);
+    return token->id;
 }
 
-static void fnumber(struct strbuf *s, int base)
+struct token * lookahead(void)
 {
-    // ./e/E/p
-    if (!s) s = strbuf_new();
-    
-    if (base == 10) {
-        // . e E
-        if (*pc == '.') {
-            strbuf_catn(s, pc++, 1);
-	    readch(s, is_digit);
-        }
-        
-        if (*pc == 'e' || *pc == 'E') {
-            strbuf_catn(s, pc++, 1);
-            if (pe - pc < MAXTOKEN)
-                fillbuf();
-            if (*pc == '+' || *pc == '-')
-                strbuf_catn(s, pc++, 1);
-            if (is_digit(*pc))
-		readch(s, is_digit);
-            else
-                error("exponent used with no following digits: %s", s->str);
-        }
-    } else {
-        // . p P
-        if (*pc == '.') {
-            strbuf_catn(s, pc++, 1);
-            if (!is_digithex(pc[-2]) && !is_digithex(*pc))
-                error("hex floating constants require a significand");
-
-	    readch(s, is_digithex);
-        }
-        
-        if (*pc == 'p' || *pc == 'P') {
-            strbuf_catn(s, pc++, 1);
-            if (pe - pc < MAXTOKEN)
-                fillbuf();
-            if (*pc == '+' || *pc == '-')
-                strbuf_catn(s, pc++, 1);
-            
-            if (is_digit(*pc))
-                readch(s, is_digit);
-            else
-                error("exponent has no digits");
-        } else {
-            error("hex floating constants require an exponent");
-        }
-    }
-    
-    if (*pc == 'f' || *pc == 'F' || *pc == 'l' || *pc == 'L')
-	strbuf_catn(s, pc++, 1);
-
-    tokname = strs(s->str);
-}
-
-static void integer_suffix(struct strbuf *s)
-{
-    char *rpc = pc;
-    int ull = (rpc[0] == 'u' || rpc[0] == 'U') &&
-    ((rpc[1] == 'l' && rpc[2] == 'l') || (rpc[1] == 'L' && rpc[2] == 'L'));
-    int llu = ((rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L')) &&
-    (rpc[2] == 'u' || rpc[2] == 'U');
-    int ll = (rpc[0] == 'l' && rpc[1] == 'l') || (rpc[0] == 'L' && rpc[1] == 'L');
-    int lu = (rpc[0] == 'l' || rpc[0] == 'L') && (rpc[1] == 'u' || rpc[1] == 'U');
-    int ul = (rpc[0] == 'u' || rpc[0] == 'U') && (rpc[1] == 'l' || rpc[1] == 'L');
-    int l = rpc[0] == 'l' || rpc[0] == 'L';
-    int u = rpc[0] == 'u' || rpc[0] == 'U';
-    if (ull || llu) {
-        // unsigned long long
-        pc = rpc + 3;
-        strbuf_catn(s, rpc, 3);
-    } else if (ll) {
-        // long long
-        pc = rpc + 2;
-        strbuf_catn(s, rpc, 2);
-    } else if (lu || ul) {
-	// unsigned long
-        pc = rpc + 2;	
-        strbuf_catn(s, rpc, 2);
-    } else if (l) {
-        // long
-        pc = rpc + 1;
-        strbuf_catn(s, rpc, 1);
-    } else if (u) {
-        // unsigned
-        pc = rpc + 1;
-        strbuf_catn(s, rpc, 1);
-    }
-    
-    tokname = strs(s->str);
-}
-
-// TODO: concat continuous strings
-static void sequence(bool wide, char ch)
-{    
-    struct strbuf *s = strbuf_new();
-    wide ? strbuf_catn(s, pc-2, 2) : strbuf_catn(s, pc-1, 1);
-    for (; *pc != ch;) {
-        if (pe - pc < MAXTOKEN) {
-            fillbuf();
-            if (pc == pe)
-                break;
-        }
-
-        if (is_newline(*pc))
-            break;
-        
-        if (*pc == '\\')
-            escape(s);		// escape
-        else
-	    strbuf_catn(s, pc++, 1);
-    }
-    
-    const char *name = ch == '\'' ? "character" : "string";
-    const char *pad = ch == '\'' ? "'" : "\"";
-    if (*pc != ch) {
-        error("unterminated %s constant: %s", name, s->str);
-	strbuf_cats(s, pad);
-    } else {
-        strbuf_catn(s, pc++, 1);
-    }
-    tokname = strs(s->str);
-}
-
-static void identifier(void)
-{
-    struct strbuf *s = strbuf_new();
-    pc = pc - 1;
-    readch(s, is_digitletter);
-    tokname = strs(s->str);
-}
-
-static void escape(struct strbuf *s)
-{
-    CCAssert(*pc == '\\');
-    strbuf_catn(s, pc++, 2);
-    switch (*pc++) {
-        case 'a': case 'b': case 'f':
-        case 'n': case 'r': case 't':
-        case 'v': case '\'': case '"':
-        case '\\': case '\?':
-            break;
-        case '0': case '1': case '2':
-        case '3': case '4': case '5':
-        case '6': case '7':
-            if (*pc >= '0' && *pc <= '7') {
-                strbuf_catn(s, pc++, 1);
-                if (*pc >= '0' && *pc <= '7')
-                    strbuf_catn(s, pc++, 1);
-            }
-            break;
-        case 'x':
-            if (!is_digithex(*pc)) {
-                error("\\x used with no following hex digits");
-                break;
-            }
-	    readch(s, is_digithex);
-            break;
-        case 'u': case 'U':
-        {
-            // universal character name: expect 4(u)/8(U) hex digits
-            int x = 0;
-            int n = pc[-1] == 'u' ? 4 : 8;
-            char *ps = pc - 2;
-            for (; is_digithex(*pc); x++, pc++) {
-                if (x == n)
-                    break;
-                strbuf_catn(s, pc, 1);
-            }
-            if (x < n)
-                error("incomplete universal character name: %S", ps, pc-ps);
-        }
-	    break;
-        default:
-            error("unrecognized escape character 0x%x", pc[-1]);
-            break;
-    }
+    if (ahead_token == NULL)
+	ahead_token = cctoken();
+    return ahead_token;
 }
 
 void expect(int t)
@@ -967,9 +891,9 @@ void expect(int t)
         gettok();
     } else {
         if (token->id == EOI)
-            error("expect token '%s' at the end", tname(t));
+            error("expect token '%s' at the end", id2s(t));
         else
-            error("expect token '%s' before '%s'", tname(t), token->name);
+            error("expect token '%s' before '%s'", id2s(t), token->name);
     }
 }
 
@@ -983,7 +907,7 @@ void match(int t, int follow[])
         for (n=0; token->id != EOI; gettok()) {
             int *k;
             for (k=follow; *k && *k != token->kind; k++)
-                    ; // continue
+		; // continue
             if (*k == token->kind)
                 break;
         }
@@ -991,36 +915,4 @@ void match(int t, int follow[])
         if (n > 0)
             fprintf(stderr, "%d tokens skipped.\n", n);
     }
-}
-
-void read_tok(struct token *t)
-{
-    tokname = NULL;
-    t->id = do_gettok();
-    if (!tokname)
-	tokname = tname(t->id);
-    t->name = tokname;
-    t->kind = tokind(t->id);
-}
-
-int gettok(void)
-{
-    if (is_looked) {
-        token1 = token2;
-        is_looked = 0;	
-    } else {
-	read_tok(&token1);
-    }
-    
-    return token->id;
-}
-
-struct token * lookahead(void)
-{
-    if (!is_looked) {
-	read_tok(&token2);
-        is_looked = 1;	
-    }
-    
-    return &token2;
 }

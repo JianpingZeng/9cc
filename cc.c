@@ -2,10 +2,12 @@
 
 static const char *ifile;
 static const char *ofile;
-static FILE *fp;
+static struct vector *options;
 
 static void parseopts(int argc, const char *argv[])
 {
+    options = vec_new();
+    
     for (int i=1; i < argc; i++) {
         const char *arg = argv[i];
         if (!strcmp(arg, "-o")) {
@@ -13,19 +15,10 @@ static void parseopts(int argc, const char *argv[])
                 die("missing target file while -o option given");
             ofile = argv[i];
         } else if (arg[0] == '-') {
-            // options
+            vec_push(options, (void *)arg);
         } else {
             ifile = arg;
         }
-    }
-    
-    if (!ifile || !ofile)
-        die("input/output file not specified");
-    
-    fp = freopen(ifile, "r", stdin);
-    if (fp == NULL) {
-        perror(ifile);
-        die("Can't open input file");
     }
 }
 
@@ -42,14 +35,24 @@ static void translate(void)
     }
 }
 
+static void preprocess(void)
+{
+    struct vector *v = all_pptoks();
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
+        printf("%s", t->name);
+    }
+}
+
 int cc_main(int argc, const char * argv[])
 {
     parseopts(argc, argv);
-    input_init();
+    input_init(ifile);
+    cpp_init(options);
     type_init();
     symbol_init();
-    translate();
-    fclose(fp);
+    preprocess();
+    // translate();
     
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
