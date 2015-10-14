@@ -566,7 +566,7 @@ static void line_line(void)
     if (t2->id == SCONSTANT) {
 	name = format("# %s %s\n", t->name, t2->name);
     } else {
-	name = format("# %s \"%s\"", t->name, current_file()->name);
+	name = format("# %s \"%s\"\n", t->name, current_file()->name);
 	unget(t2);
     }
     skipline();
