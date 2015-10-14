@@ -72,9 +72,10 @@ struct file {
     const char *name;		// buffer name
     unsigned line;
     unsigned column;
-    struct vector *chars;
     struct vector *ifstubs;
-    struct vector *buffer;
+    struct vector *chars;	// readc ungets
+    struct vector *buffer;	// lex ungets
+    struct vector *tokens;	// parser ungets
 };
 
 struct ifstub {
@@ -136,12 +137,10 @@ extern bool is_visible(char c);
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 #define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
 
-extern void lex_init(void);
 extern struct token * lex(void);
 extern void unget(struct token *t);
 extern struct token *header_name(void);
 extern struct token * new_token(struct token *tok);
-extern struct token * with_temp_lex(const char *input);
 extern void skip_ifstub(void);
 
 extern int gettok(void);

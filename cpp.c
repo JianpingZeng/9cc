@@ -68,6 +68,15 @@ static struct token * peek(void)
     return t;
 }
 
+static bool next(char c)
+{
+    struct token *t = lex();
+    if (t->id == c)
+	return true;
+    unget(t);
+    return false;
+}
+
 static void ungetv(struct vector *v)
 {
     for (int i = vec_len(v)-1; i >= 0; i--)
@@ -686,6 +695,21 @@ static struct vector * expandv(struct vector *v)
     file_unstub();
     
     return r;
+}
+
+// parse the input string to a token
+static struct token * with_temp_lex(const char *input)
+{
+    struct source src = source;
+    file_stub(with_string(input, "lex"));
+    struct token *t = lex();
+    next('\n');
+    if (peek()->id != EOI) {
+	struct token *t2 = lex();
+	errorf(src, "pasting formed '%s%s', an invalid preprocessing token", t->name, t2->name);
+    }
+    file_unstub();
+    return t;
 }
 
 // paste last of left side with first of right side

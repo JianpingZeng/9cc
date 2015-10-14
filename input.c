@@ -140,9 +140,10 @@ static struct file * new_file(int kind)
     fs->file = NULL;
     fs->pos = 0;
     fs->bol = true;
-    fs->chars = vec_new();
     fs->ifstubs = vec_new();
+    fs->chars = vec_new();
     fs->buffer = vec_new();
+    fs->tokens = vec_new();
     return fs;
 }
 
@@ -172,9 +173,10 @@ static void close_file(struct file *fs)
 {
     if (fs->kind == FILE_KIND_REGULAR)
 	fclose(fs->fp);
-    vec_free(fs->chars);
     vec_free(fs->ifstubs);
+    vec_free(fs->chars);
     vec_free(fs->buffer);
+    vec_free(fs->tokens);
     free(fs);
     // reset current 'bol'
     fs = current_file();

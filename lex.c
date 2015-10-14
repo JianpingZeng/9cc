@@ -83,7 +83,6 @@ struct token *space_token = &(struct token){.id = ' '};
 
 struct token *token;
 struct source source;
-static struct vector *tokens;
 
 #define BOL    (current_file()->bol)
 
@@ -592,21 +591,6 @@ void unget(struct token *t)
     vec_push(current_file()->buffer, t);
 }
 
-// parse the input string to a token
-struct token * with_temp_lex(const char *input)
-{
-    struct source src = source;
-    file_stub(with_string(input, "lex"));
-    struct token *t = dolex();
-    next('\n');
-    if (peek() != EOI) {
-	struct token *t2 = dolex();
-	errorf(src, "pasting formed '%s%s', an invalid preprocessing token", t->name, t2->name);
-    }
-    file_unstub();
-    return t;
-}
-
 static void skip_sequence(char sep)
 {
     struct cc_char *ch;
@@ -721,11 +705,6 @@ struct token * lex(void)
     return t;
 }
 
-void lex_init(void)
-{
-    tokens = vec_new();
-}
-
 const char *id2s(int t)
 {
     if (t < 0)
@@ -774,7 +753,7 @@ void match(int t, int follow[])
 
 static void unget_token(struct token *t)
 {
-    vec_push(tokens, t);
+    vec_push(current_file()->tokens, t);
 }
 
 static struct token * do_one_token(void)
@@ -789,8 +768,8 @@ static struct token * do_one_token(void)
 
 static struct token * one_token(void)
 {
-    if (vec_len(tokens))
-	return vec_pop(tokens);
+    if (vec_len(current_file()->tokens))
+	return vec_pop(current_file()->tokens);
     else
 	return do_one_token();
 }
