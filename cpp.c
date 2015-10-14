@@ -509,7 +509,6 @@ static void define_funclike_macro(struct token *t)
 	add_macro(t->name, m);
 }
 
-
 static struct token * read_identifier(void)
 {
     struct token *t = skip_spaces();
