@@ -161,7 +161,7 @@ static void if_section(void)
 {
     struct source src = source;
     bool b = eval_constexpr();
-    if_stub(new_ifstub(&(struct ifstub){.id = IF, .src = src, .b = b}));
+    if_sentinel(new_ifstub(&(struct ifstub){.id = IF, .src = src, .b = b}));
     if (!b)
 	skip_ifstub();
 }
@@ -205,7 +205,7 @@ static void else_group(void)
 static void endif_line(void)
 {
     if (current_ifstub())
-	if_unstub();
+	if_unsentinel();
     else
 	error("#endif without #if");
     struct token *t = skip_spaces();
@@ -232,7 +232,7 @@ static void do_ifdef_section(int id)
     }
     unget(t);
     bool skip = id == IFDEF ? !b : b;
-    if_stub(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = !skip}));
+    if_sentinel(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = !skip}));
     if (skip)
 	skip_ifstub();
 }

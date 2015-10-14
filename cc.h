@@ -101,19 +101,22 @@ struct ifstub {
 };
 
 extern void input_init(const char *file);
-extern struct file * current_file(void);
 extern struct cc_char * readc(void);
 extern void unreadc(struct cc_char * ch);
+
 extern struct file * with_string(const char *input, const char *name);
 extern struct file * with_file(const char *file, const char *name);
 extern struct file * with_buffer(struct vector *v);
+
 extern void file_sentinel(struct file *f);
 extern void file_unsentinel(void);
 extern void file_stub(struct file *f);
 extern void file_unstub(void);
+extern struct file * current_file(void);
+
+extern void if_sentinel(struct ifstub *i);
+extern void if_unsentinel(void);
 extern struct ifstub * new_ifstub(struct ifstub *i);
-extern void if_stub(struct ifstub *i);
-extern void if_unstub(void);
 extern struct ifstub * current_ifstub(void);
 
 // lex.c

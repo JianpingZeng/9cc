@@ -149,11 +149,6 @@ static struct file * new_file(int kind)
     return fs;
 }
 
-struct file * current_file(void)
-{
-    return vec_tail(files);
-}
-
 static struct file * open_file(int kind, const char *file)
 {
     struct file *fs = new_file(kind);
@@ -184,6 +179,11 @@ static void close_file(struct file *fs)
     // reset current 'bol'
     if (current_file())
 	current_file()->bol = true;
+}
+
+struct file * current_file(void)
+{
+    return vec_tail(files);
 }
 
 void file_sentinel(struct file *fs)
@@ -236,12 +236,12 @@ struct ifstub * new_ifstub(struct ifstub *i)
     return ic;
 }
 
-void if_stub(struct ifstub *i)
+void if_sentinel(struct ifstub *i)
 {
     vec_push(current_file()->ifstubs, i);
 }
 
-void if_unstub(void)
+void if_unsentinel(void)
 {
     vec_pop(current_file()->ifstubs);
 }
