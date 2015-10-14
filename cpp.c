@@ -41,24 +41,6 @@ static struct macro * new_macro(int kind)
     return m;
 }
 
-static void ensure_macro_def(struct token *t, struct macro *m)
-{
-    if (!strcmp(t->name, "defined"))
-	errorf(t->src, "'defined' cannot be used as a macro name");
-	
-    for (int i = 0; i < vec_len(m->body); i++) {
-	struct token *t = vec_at(m->body, i);
-	if (t->id == SHARPSHARP) {
-	    if (i == 0)
-		errorf(t->src, "'##' cannot appear at the beginning of a replacement list");
-	    else if (i == vec_len(m->body) - 1)
-		errorf(t->src, "'##' cannot appear at the end of a replacement list");
-	} else if (t->id == '#' && m->kind != MACRO_FUNC) {
-	    errorf(t->src, "'#' must be followed by the name of a macro formal parameter");
-	}
-    }
-}
-
 static struct token * skip_spaces(void)
 {
     struct token *t;
@@ -90,23 +72,6 @@ static void ungetv(struct vector *v)
 {
     for (int i = vec_len(v)-1; i >= 0; i--)
 	unget(vec_at(v, i));
-}
-
-static int inparams(struct token *t, struct macro *m)
-{
-    struct vector *params = m->params;
-    if (t->id != ID)
-	return -1;
-    if (!strcmp(t->name, "__VA_ARGS__") && m->vararg)
-	return vec_len(params);
-    if (!params)
-	return -1;
-    for (int i = 0; i < vec_len(params); i++) {
-	struct token *p = vec_at(params, i);
-	if (t->name == p->name)
-	    return i;
-    }
-    return -1;
 }
 
 static bool defined(const char *name)
@@ -172,10 +137,13 @@ static bool eval_constexpr(void)
     struct vector *tokens = read_if_tokens();
     if (HAS_ERROR)
 	return false;
-    
-    buffer_stub(vec_reverse(tokens));
+
+    // create a temp file
+    // so that get_pptok will not
+    // generate 'unterminated conditional directive'
+    file_stub(with_buffer(vec_reverse(tokens)));
     bool ret = eval_cpp_cond();
-    buffer_unstub();
+    file_unstub();
     
     return ret;
 }
@@ -444,6 +412,23 @@ static struct vector * arguments(struct macro *m)
     return v;
 }
 
+static int inparams(struct token *t, struct macro *m)
+{
+    struct vector *params = m->params;
+    if (t->id != ID)
+	return -1;
+    if (!strcmp(t->name, "__VA_ARGS__") && m->vararg)
+	return vec_len(params);
+    if (!params)
+	return -1;
+    for (int i = 0; i < vec_len(params); i++) {
+	struct token *p = vec_at(params, i);
+	if (t->name == p->name)
+	    return i;
+    }
+    return -1;
+}
+
 static void parameters(struct macro *m)
 {
     struct token *t = skip_spaces();
@@ -479,6 +464,24 @@ static void parameters(struct macro *m)
     } else {
 	error("expect identifier list or ')' or ...");
 	skipline();
+    }
+}
+
+static void ensure_macro_def(struct token *t, struct macro *m)
+{
+    if (!strcmp(t->name, "defined"))
+	errorf(t->src, "'defined' cannot be used as a macro name");
+	
+    for (int i = 0; i < vec_len(m->body); i++) {
+	struct token *t = vec_at(m->body, i);
+	if (t->id == SHARPSHARP) {
+	    if (i == 0)
+		errorf(t->src, "'##' cannot appear at the beginning of a replacement list");
+	    else if (i == vec_len(m->body) - 1)
+		errorf(t->src, "'##' cannot appear at the end of a replacement list");
+	} else if (t->id == '#' && m->kind != MACRO_FUNC) {
+	    errorf(t->src, "'#' must be followed by the name of a macro formal parameter");
+	}
     }
 }
 
@@ -669,18 +672,19 @@ static struct token * stringize(struct vector *v)
 static struct vector * expandv(struct vector *v)
 {
     struct vector *r = vec_new();
-    struct vector *iv = vec_reverse(v);
 
-    buffer_stub(iv);
+    // create a temp file
+    // so that get_pptok will not
+    // generate 'unterminated conditional directive'
+    file_stub(with_buffer(vec_reverse(v)));
     for (;;) {
 	struct token *t = expand();
 	if (t->id == EOI)
 	    break;
 	vec_push(r, t);
     }
-    buffer_unstub();
+    file_unstub();
     
-    vec_free(iv);
     return r;
 }
 

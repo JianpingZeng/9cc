@@ -80,7 +80,6 @@ static const char *tnames[] = {
 struct token *eoi_token = &(struct token){.id = EOI};
 struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
 struct token *space_token = &(struct token){.id = ' '};
-static struct vector *buffers;
 
 struct token *token;
 struct source source;
@@ -590,22 +589,7 @@ struct token *header_name(void)
 
 void unget(struct token *t)
 {
-    vec_push(vec_tail(buffers), t);
-}
-
-// create a temp file
-// so that get_pptok will not
-// generate 'unterminated conditional directive'
-void buffer_stub(struct vector *v)
-{
-    file_stub(with_shadow());
-    vec_push(buffers, v);
-}
-
-void buffer_unstub(void)
-{
-    vec_pop(buffers);
-    file_unstub();
+    vec_push(current_file()->buffer, t);
 }
 
 // parse the input string to a token
@@ -727,16 +711,11 @@ void skip_ifstub(void)
 
 struct token * lex(void)
 {
-    struct vector *v = vec_tail(buffers);
+    struct vector *v = current_file()->buffer;
     struct token *t;
     if (vec_len(v))
-	// no matter which is the last
 	t = vec_pop(v);
-    else if (vec_len(buffers) > 1)
-	// if the last vec is empty and buffers len > 1
-	t = eoi_token;
     else
-	// do lex
 	t = dolex();
     mark(t);
     return t;
@@ -744,8 +723,6 @@ struct token * lex(void)
 
 void lex_init(void)
 {
-    buffers = vec_new();
-    vec_push(buffers, vec_new());
     tokens = vec_new();
 }
 

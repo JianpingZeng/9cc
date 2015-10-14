@@ -60,20 +60,21 @@ struct cc_char {
 #define MAXTOKEN     LBUFSIZE
 
 struct file {
-    int kind;
+    int kind : 4;
+    bool bol : 1;		// beginning of line
     char buf[LBUFSIZE+RBUFSIZE+1];
     char *pc;
     char *pe;
     long bread;
-    struct vector *chars;
     FILE *fp;			// FILE handle
     size_t pos;			// input string position
     const char *file;		// file name or input string
     const char *name;		// buffer name
     unsigned line;
     unsigned column;
-    bool bol;			// beginning of line
+    struct vector *chars;
     struct vector *ifstubs;
+    struct vector *buffer;
 };
 
 struct ifstub {
@@ -88,7 +89,7 @@ extern struct cc_char * readc(void);
 extern void unreadc(struct cc_char * ch);
 extern struct file * with_string(const char *input, const char *name);
 extern struct file * with_file(const char *file, const char *name);
-extern struct file * with_shadow(void);
+extern struct file * with_buffer(struct vector *v);
 extern void file_stub(struct file *f);
 extern void file_unstub(void);
 extern struct ifstub * new_ifstub(struct ifstub *i);
@@ -138,8 +139,6 @@ extern bool is_visible(char c);
 extern void lex_init(void);
 extern struct token * lex(void);
 extern void unget(struct token *t);
-extern void buffer_stub(struct vector *v);
-extern void buffer_unstub(void);
 extern struct token *header_name(void);
 extern struct token * new_token(struct token *tok);
 extern struct token * with_temp_lex(const char *input);

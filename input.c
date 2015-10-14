@@ -10,9 +10,9 @@ enum {
 static bool file_eof(struct file *fs)
 {
     if (fs->kind == FILE_KIND_REGULAR)
-	return feof(fs->fp);
+	return fs->fp ? feof(fs->fp) : true;
     else
-	return fs->pos == strlen(fs->file);
+	return fs->file ? fs->pos == strlen(fs->file) : true;
 }
 
 static size_t file_read(void *ptr, size_t size, size_t nitems, struct file *fs)
@@ -134,14 +134,15 @@ static struct file * new_file(int kind)
     fs->kind = kind;
     fs->pc = fs->pe = &fs->buf[LBUFSIZE];
     fs->bread = -1;
-    fs->chars = vec_new();
     fs->line = 1;
     fs->column = 0;
     fs->fp = NULL;
     fs->file = NULL;
     fs->pos = 0;
     fs->bol = true;
+    fs->chars = vec_new();
     fs->ifstubs = vec_new();
+    fs->buffer = vec_new();
     return fs;
 }
 
@@ -173,6 +174,7 @@ static void close_file(struct file *fs)
 	fclose(fs->fp);
     vec_free(fs->chars);
     vec_free(fs->ifstubs);
+    vec_free(fs->buffer);
     free(fs);
     // reset current 'bol'
     fs = current_file();
@@ -203,11 +205,12 @@ struct file * with_file(const char *file, const char *name)
     return fs;
 }
 
-struct file * with_shadow(void)
+struct file * with_buffer(struct vector *v)
 {
     struct file *fs = new_file(FILE_KIND_STRING);
     fs->file = current_file()->file;
     fs->name = current_file()->name;
+    vec_add(fs->buffer, v);
     return fs;
 }
 
