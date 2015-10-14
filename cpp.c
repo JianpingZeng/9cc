@@ -144,7 +144,7 @@ static struct vector * read_if_tokens(void)
 	if (t->id == ID && !strcmp(t->name, "defined"))
 	    vec_push(v, defined_op(t));
 	else if (t->id == ID)
-	    // C11 6.10.1.4 says that remaining identifiers
+	    // C99 6.10.1.3 says that remaining identifiers
             // should be replaced with pp-number 0.
 	    // Replace with 0 to inhibit parser fail.
 	    vec_push(v, token_zero);
