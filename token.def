@@ -130,7 +130,6 @@ _a(TOK126, "~",     OTHER,          ID)
 _a(TOK127, "0177",  OTHER,          0)
 
 // id           name           kind
-_x(EOI,		"EOI",		0,    -1)
 _x(ID,          "identifier",  ID,   256)
 _t(ICONSTANT,   "ICONSTANT",   ID)
 _t(FCONSTANT,   "FCONSTANT",   ID)
@@ -223,6 +222,9 @@ _t(POINTER,     "pointer",     0)
 // preprocess
 _t(IFDEF,	"ifdef",	0)
 _t(IFNDEF,	"ifndef",	0)
+
+// EOI
+_t(EOI,		"EOI",		0)
 
 #undef _k
 #undef _t
