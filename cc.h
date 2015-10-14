@@ -98,8 +98,6 @@ extern void if_unstub(void);
 extern struct ifstub * current_ifstub(void);
 
 // lex.c
-#define EOI  -1
-
 enum {
 #define _a(a, b, c, d)  a,
 #define _x(a, b, c, d)  a=d,
