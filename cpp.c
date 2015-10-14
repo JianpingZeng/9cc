@@ -1058,6 +1058,12 @@ struct token * get_pptok(void)
 
 static struct vector * pretty(struct vector *v)
 {
+    // remove unnecessary spaces and newlines
+    while (vec_len(v) && (IS_NEWLINE(vec_tail(v)) || IS_SPACE(vec_tail(v))))
+	vec_pop(v);
+    if (vec_len(v) && !IS_NEWLINE(vec_tail(v)) && !IS_LINENO(vec_tail(v)))
+	vec_push(v, newline_token);
+    
     struct vector *r = vec_new();
     for (int i = 0; i < vec_len(v); i++) {
 	struct token *t = vec_at(v, i);
@@ -1078,18 +1084,12 @@ static struct vector * pretty(struct vector *v)
 
 struct vector * all_pptoks(void)
 {
-    struct vector *v = vec_new();
-    vec_push(v, lineno0);
+    struct vector *v = vec_new1(lineno0);
     for (;;) {
 	struct token *t = get_pptok();
 	if (t->id == EOI)
 	    break;
 	vec_push(v, t);
     }
-    // remove unnecessary spaces and newlines
-    while (vec_len(v) && (IS_NEWLINE(vec_tail(v)) || IS_SPACE(vec_tail(v))))
-	vec_pop(v);
-    if (vec_len(v) && !IS_NEWLINE(vec_tail(v)) && !IS_LINENO(vec_tail(v)))
-	vec_push(v, newline_token);
     return pretty(v);
 }
