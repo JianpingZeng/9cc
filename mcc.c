@@ -78,11 +78,6 @@ static void translate(void *elem, void *context)
     vec_free(v);
 }
 
-static void setup_env(void)
-{
-    setup_sys();
-}
-
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
@@ -90,7 +85,7 @@ int main(int argc, char **argv)
     struct vector *options = vec_new();
 
     progname = argv[0];
-    setup_env();
+    setup_sys();
     
     for (int i=1; i < argc; i++) {
         char *arg = argv[i];
