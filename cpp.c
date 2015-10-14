@@ -512,8 +512,10 @@ static void define_funclike_macro(struct token *t)
 static struct token * read_identifier(void)
 {
     struct token *t = skip_spaces();
-    if (t->id != ID)
+    if (t->id != ID) {
 	error("expect identifier at '%s'", t->name);
+	unget(t);
+    }
     return t;
 }
 
