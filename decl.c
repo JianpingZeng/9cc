@@ -1082,7 +1082,7 @@ node_t * translation_unit(void)
             vec_add(v, decls(globaldecl));
         } else {
             if (token->id != ';')
-                error("invalid token '%s'", token->name);
+                error("invalid token '%s' in declaration", token->name);
             gettok();
         }
     }

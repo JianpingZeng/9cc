@@ -2,7 +2,7 @@
 
 static void test_map()
 {
-    struct map *map = map_new(NULL);
+    struct map *map = map_new();
     
     expectp(map_get(map, "name"), NULL);
     

@@ -850,7 +850,6 @@ static int tkind(int t)
 static struct token * cctoken(void)
 {
     struct token *t = do_cctoken();
-    t->kind = tkind(t->id);
     // keywords
     if (t->id == ID) {
 	for (int i = 0; i < ARRAY_SIZE(kws); i++) {
@@ -861,6 +860,9 @@ static struct token * cctoken(void)
 	}
     }
     // TODO: ppnumber
+
+    // set kind finally
+    t->kind = tkind(t->id);
     return t;
 }
 
