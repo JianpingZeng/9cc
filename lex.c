@@ -292,7 +292,7 @@ static struct token * sequence(bool wide, char sep)
     if (is_char)
 	return make_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
     else
-	return make_token(&(struct token){.id = SCONSTANT, .name = strs(s->str)});
+	return make_token(&(struct token){.id = SCONSTANT, .name = strbuf_str(s)});
 }
 
 static struct token * identifier(char c)
@@ -315,7 +315,7 @@ static struct token * spaces(char c)
     struct strbuf *s = strbuf_new();
     strbuf_catc(s, c);
     readch(s, is_blank);
-    space_token->name = strs(s->str);
+    space_token->name = strbuf_str(s);
     space_token->src = source;
     return space_token;
 }
@@ -807,7 +807,7 @@ static struct token * combine_scons(struct vector *v, bool wide)
 	    strbuf_cats(s, name);
     }
     strbuf_catc(s, '"');
-    t->name = strs(s->str);
+    t->name = strbuf_str(s);
     return t;
 }
 
