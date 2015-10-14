@@ -634,9 +634,9 @@ void skip_ifstub(void)
     unsigned lines = 0;
     bool bol = true;
     int nest = 0;
-    struct token *newline = lex();
+    struct token *t0 = lex();
     lines++;
-    CCAssert(IS_NEWLINE(newline));
+    CCAssert(IS_NEWLINE(t0) || t0->id == EOI);
     for (;;) {
 	// skip spaces
         skip_spaces();

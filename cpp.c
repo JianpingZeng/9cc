@@ -122,7 +122,7 @@ static struct vector * read_if_tokens(void)
     struct token *t;
     for (;;) {
 	t = expand();
-	if (IS_NEWLINE(t))
+	if (IS_NEWLINE(t) || t->id == EOI)
 	    break;
 	if (IS_SPACE(t))
 	    continue;
@@ -193,7 +193,6 @@ static void else_group(void)
 	skipline();
 	t = skip_spaces();
     }
-    CCAssert(IS_NEWLINE(t));
     unget(t);
     if (stub) {
 	if (stub->b)
@@ -231,7 +230,6 @@ static void do_ifdef_section(int id)
 	skipline();
 	t = skip_spaces();
     }
-    CCAssert(IS_NEWLINE(t));
     unget(t);
     bool skip = id == IFDEF ? !b : b;
     if_stub(new_ifstub(&(struct ifstub){.id = id, .src = src, .b = !skip}));
@@ -466,7 +464,7 @@ static struct vector * replacement_list(void)
     struct token *t;
     for (;;) {
 	t = skip_spaces();
-	if (IS_NEWLINE(t))
+	if (IS_NEWLINE(t) || t->id == EOI)
 	    break;
 	vec_push(v, t);
     }
@@ -594,7 +592,7 @@ static struct vector * pptokens(void)
     struct token *t;
     for (;;) {
 	t = lex();
-	if (IS_NEWLINE(t))
+	if (IS_NEWLINE(t) || t->id == EOI)
 	    break;
 	vec_push(v, t);
     }
@@ -624,7 +622,7 @@ static void pragma_line(void)
     struct token *t;
     for (;;) {
 	t = skip_spaces();
-	if (IS_NEWLINE(t))
+	if (IS_NEWLINE(t) || t->id == EOI)
 	    break;
     }
     unget(t);
