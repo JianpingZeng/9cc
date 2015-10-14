@@ -183,12 +183,12 @@ static void close_file(struct file *fs)
     fs->bol = true;
 }
 
-void file_stub(struct file *fs)
+void file_sentinel(struct file *fs)
 {
     vec_push(files, fs);
 }
 
-void file_unstub(void)
+void file_unsentinel(void)
 {
     close_file(vec_pop(files));
 }

@@ -150,9 +150,9 @@ static bool eval_constexpr(void)
     // create a temp file
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
-    file_stub(with_buffer(vec_reverse(tokens)));
+    file_sentinel(with_buffer(vec_reverse(tokens)));
     bool ret = eval_cpp_cond();
-    file_unstub();
+    file_unsentinel();
     
     return ret;
 }
@@ -693,14 +693,14 @@ static struct vector * expandv(struct vector *v)
     // create a temp file
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
-    file_stub(with_buffer(vec_reverse(v)));
+    file_sentinel(with_buffer(vec_reverse(v)));
     for (;;) {
 	struct token *t = expand();
 	if (t->id == EOI)
 	    break;
 	vec_push(r, t);
     }
-    file_unstub();
+    file_unsentinel();
     
     return r;
 }
@@ -709,14 +709,14 @@ static struct vector * expandv(struct vector *v)
 static struct token * with_temp_lex(const char *input)
 {
     struct source src = source;
-    file_stub(with_string(input, "lex"));
+    file_sentinel(with_string(input, "lex"));
     struct token *t = lex();
     next('\n');
     if (peek()->id != EOI) {
 	struct token *t2 = lex();
 	errorf(src, "pasting formed '%s%s', an invalid preprocessing token", t->name, t2->name);
     }
-    file_unstub();
+    file_unsentinel();
     return t;
 }
 
@@ -987,10 +987,10 @@ static struct vector * preprocess(void)
 
 static void include_alias(const char *file, const char *alias)
 {
-    file_stub(with_file(file, alias));
+    file_sentinel(with_file(file, alias));
     struct vector *v = preprocess();
     vec_push_front(v, lineno(1, current_file()->name));
-    file_unstub();
+    file_unsentinel();
 
     vec_push(v, lineno(current_file()->line, current_file()->name));
     ungetv(v);
@@ -1008,10 +1008,10 @@ static inline void include_builtin(const char *file)
 
 static void include_command_line(const char *command)
 {
-    file_stub(with_string(command, "<command-line>"));
+    file_sentinel(with_string(command, "<command-line>"));
     struct vector *v = preprocess();
     vec_push_front(v, lineno(1, current_file()->name));
-    file_unstub();
+    file_unsentinel();
 
     vec_push(v, lineno(current_file()->line, current_file()->name));
     ungetv(v);
