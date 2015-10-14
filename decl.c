@@ -45,7 +45,7 @@ const char *current_fname;
 
 #define SET_FUNCDEF_CONTEXT(fty, id)		\
     gotos = vec_new();				\
-    labels = map_new(nocmp);			\
+    labels = map_new();				\
     current_ftype = fty;			\
     current_fname = id
 

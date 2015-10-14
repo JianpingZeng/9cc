@@ -11,7 +11,7 @@ static struct table * new_table(struct table *up, int scope)
     struct table *t = zmalloc(sizeof(struct table));
     t->up = up;
     t->scope = scope;
-    t->map = map_new(nocmp);
+    t->map = map_new();
     return t;
 }
 

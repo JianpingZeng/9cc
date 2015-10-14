@@ -1085,7 +1085,7 @@ static void parseopts(struct vector *options)
 
 void cpp_init(struct vector *options)
 {
-    macros = map_new(nocmp);
+    macros = map_new();
     token_zero = new_token(&(struct token){.id = ICONSTANT, .name = strd(0)});
     token_one = new_token(&(struct token){.id = ICONSTANT, .name = strd(1)});
     init_env();
