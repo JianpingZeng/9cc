@@ -812,6 +812,17 @@ static int kinds[] = {
 #define _t(a, b, c)     c,
 #include "token.def"
 };
+
+static const char *kws[] = {
+#define _k(a, b)  a,
+#include "keyword.def"
+};
+
+static int kwi[] = {
+#define _k(a, b)  b,
+#include "keyword.def"
+};
+
 static struct token *ahead_token;
 struct token *token;
 
@@ -831,8 +842,16 @@ static struct token * cctoken(void)
 {
     struct token *t = do_cctoken();
     t->kind = tkind(t->id);
-    // TODO: handle keywords and ppnumber
-    
+    // keywords
+    if (t->id == ID) {
+	for (int i = 0; i < ARRAY_SIZE(kws); i++) {
+	    if (!strcmp(t->name, kws[i])) {
+		t->id = kwi[i];
+		break;
+	    }
+	}
+    }
+    // TODO: ppnumber
     return t;
 }
 
