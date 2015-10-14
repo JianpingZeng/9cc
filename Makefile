@@ -43,7 +43,6 @@ CC1_INC=cc.h \
         config.h \
         node.def \
         token.def \
-	keyword.def \
         $(UTILS_INC)
 
 SYS_INC=$(SYS)sys.h

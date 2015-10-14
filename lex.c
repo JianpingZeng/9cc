@@ -9,6 +9,7 @@ static unsigned char map[256] = {
 #define _a(a, b, c, d)     c,
 #define _x(a, b, c, d)
 #define _t(a, b, c)
+#define _k(a, b, c)
 #include "token.def"
     OTHER,
 };
@@ -74,6 +75,7 @@ static const char *tnames[] = {
 #define _a(a, b, c, d)  b,
 #define _x(a, b, c, d)  b,
 #define _t(a, b, c)     b,
+#define _k(a, b, c)     b,
 #include "token.def"
 };
 
@@ -810,17 +812,24 @@ static int kinds[] = {
 #define _a(a, b, c, d)  d,
 #define _x(a, b, c, d)  c,
 #define _t(a, b, c)     c,
+#define _k(a, b, c)     c,
 #include "token.def"
 };
 
 static const char *kws[] = {
-#define _k(a, b)  a,
-#include "keyword.def"
+#define _a(a, b, c, d)
+#define _x(a, b, c, d)
+#define _t(a, b, c)
+#define _k(a, b, c)  b,
+#include "token.def"
 };
 
 static int kwi[] = {
-#define _k(a, b)  b,
-#include "keyword.def"
+#define _a(a, b, c, d)
+#define _x(a, b, c, d)
+#define _t(a, b, c)
+#define _k(a, b, c)  a,
+#include "token.def"
 };
 
 static struct token *ahead_token;
