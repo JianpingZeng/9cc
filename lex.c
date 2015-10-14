@@ -81,7 +81,6 @@ struct token *eoi_token = &(struct token){.id = EOI};
 struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
 struct token *space_token = &(struct token){.id = ' '};
 
-struct token *token;
 struct source source;
 
 #define BOL    (current_file()->bol)
@@ -814,6 +813,7 @@ static int kinds[] = {
 #include "token.def"
 };
 static struct token *ahead_token;
+struct token *token;
 
 static int tkind(int t)
 {
