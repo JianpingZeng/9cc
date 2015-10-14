@@ -928,20 +928,16 @@ static struct token * lineno(unsigned line, const char *file)
     return t;
 }
 
-static void include_alias(const char *file, const char *alias)
-{
-    file_sentinel(with_file(file, alias));
-    unget(lineno(1, current_file()->name));
-}
-
 static inline void include_file(const char *file)
 {
-    include_alias(file, file);
+    file_sentinel(with_file(file, file));
+    unget(lineno(1, current_file()->name));
 }
 
 static inline void include_builtin(const char *file)
 {
-    include_alias(file, "<built-in>");
+    file_sentinel(with_file(file, "<built-in>"));
+    unget(lineno(1, current_file()->name));
 }
 
 static void include_command_line(const char *command)
