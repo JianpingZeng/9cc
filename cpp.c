@@ -337,6 +337,7 @@ static struct vector * arg(void)
     return v;
 }
 
+// TODO: buggy
 static struct vector * arguments(struct macro *m)
 {
     struct vector *v = vec_new();
