@@ -9,21 +9,6 @@
  *
  */
 
-// macro kind
-enum {
-    MACRO_OBJ,
-    MACRO_FUNC,
-    MACRO_SPECIAL
-};
-
-struct macro {
-    int kind;
-    struct vector *body;
-    struct vector *params;
-    bool vararg;
-    void (*handler) (struct token *); // special macro handler
-};
-
 static struct token * expand(void);
 static struct vector * expandv(struct vector *v);
 static inline void include_file(const char *file);
@@ -36,7 +21,7 @@ static struct token *token_one = &(struct token){.id = ICONSTANT, .name = "1"};
 
 static struct macro * new_macro(int kind)
 {
-    struct macro *m = zmalloc(sizeof (struct macro));
+    struct macro *m = alloc_macro();
     m->kind = kind;
     return m;
 }

@@ -24,6 +24,7 @@ extern void * alloc_symbol(void);
 extern void * alloc_type(void);
 extern void * alloc_field(void);
 extern void * alloc_token(void);
+extern void * alloc_macro(void);
 
 // value
 #define VALUE_U(v)    ((v).u)
@@ -153,6 +154,21 @@ extern const char *unwrap_scon(const char *name);
 extern void print_buffer_stat(void);
 
 // cpp.c
+// macro kind
+enum {
+    MACRO_OBJ,
+    MACRO_FUNC,
+    MACRO_SPECIAL
+};
+
+struct macro {
+    int kind;
+    struct vector *body;
+    struct vector *params;
+    bool vararg;
+    void (*handler) (struct token *); // special macro handler
+};
+
 extern void cpp_init(struct vector *options);
 extern struct token * get_pptok(void);
 extern struct vector * all_pptoks(void);
