@@ -831,6 +831,8 @@ static struct token * cctoken(void)
 {
     struct token *t = do_cctoken();
     t->kind = tkind(t->id);
+    // TODO: handle keywords and ppnumber
+    
     return t;
 }
 
