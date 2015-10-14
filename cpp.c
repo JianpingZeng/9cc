@@ -432,7 +432,7 @@ static int inparams(struct token *t, struct macro *m)
 	return -1;
     for (int i = 0; i < vec_len(params); i++) {
 	struct token *p = vec_at(params, i);
-	if (t->name == p->name)
+	if (!strcmp(t->name, p->name))
 	    return i;
     }
     return -1;

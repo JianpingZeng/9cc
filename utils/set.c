@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "utils.h"
 
 struct set * set_add(struct set *s, const char *name)
@@ -13,7 +14,7 @@ struct set * set_add(struct set *s, const char *name)
 bool set_has(struct set *s, const char *name)
 {
     for (; s; s = s->next) {
-	if (s->name == name)
+	if (!strcmp(s->name, name))
 	    return true;
     }
     return false;
