@@ -928,34 +928,6 @@ static struct token * lineno(unsigned line, const char *file)
     return t;
 }
 
-/* Getting one expanded token.
- */
-struct token * get_pptok(void)
-{
-    for (;;) {
-    	struct token *t = expand();
-    	if (t->id == EOI) {
-	    struct ifstub *stub = current_ifstub();
-	    if (stub)
-	    	errorf(stub->src, "unterminated conditional directive");
-	    if (current_file()->stub) {
-		return t;
-	    } else {
-		file_unsentinel();
-		if (current_file())
-		    return lineno(current_file()->line, current_file()->name);
-		else
-		    return t;
-	    }
-	}
-        if (t->id == '#' && t->bol) {
-    	    directive();
-    	    continue;
-    	}
-	return t;
-    }
-}
-
 static void include_alias(const char *file, const char *alias)
 {
     file_sentinel(with_file(file, alias));
@@ -1058,6 +1030,34 @@ void cpp_init(struct vector *options)
     init_include();
     builtin_macros();
     parseopts(options);
+}
+
+/* Getting one expanded token.
+ */
+struct token * get_pptok(void)
+{
+    for (;;) {
+    	struct token *t = expand();
+    	if (t->id == EOI) {
+	    struct ifstub *stub = current_ifstub();
+	    if (stub)
+	    	errorf(stub->src, "unterminated conditional directive");
+	    if (current_file()->stub) {
+		return t;
+	    } else {
+		file_unsentinel();
+		if (current_file())
+		    return lineno(current_file()->line, current_file()->name);
+		else
+		    return t;
+	    }
+	}
+        if (t->id == '#' && t->bol) {
+    	    directive();
+    	    continue;
+    	}
+	return t;
+    }
 }
 
 static struct vector * pretty(struct vector *v)
