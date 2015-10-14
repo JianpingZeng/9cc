@@ -332,16 +332,6 @@ static void include_line(void)
     }
 }
 
-static struct token * read_identifier(void)
-{
-    struct token *id = skip_spaces();
-    if (id->id != ID) {
-	error("expect identifier");
-	return NULL;
-    }
-    return id;
-}
-
 static struct vector * arg(void)
 {
     struct vector *v = vec_new();
@@ -519,10 +509,19 @@ static void define_funclike_macro(struct token *t)
 	add_macro(t->name, m);
 }
 
+
+static struct token * read_identifier(void)
+{
+    struct token *t = skip_spaces();
+    if (t->id != ID)
+	error("expect identifier at '%s'", t->name);
+    return t;
+}
+
 static void define_line(void)
 {
     struct token *id = read_identifier();
-    if (id == NULL) {
+    if (id->id != ID) {
 	skipline();
 	return;
     }
@@ -538,7 +537,7 @@ static void define_line(void)
 static void undef_line(void)
 {
     struct token *t = read_identifier();
-    if (t == NULL) {
+    if (t->id != ID) {
 	skipline();
 	return;
     }
