@@ -830,9 +830,29 @@ static struct token * do_gettok(void)
     return t;
 }
 
+static int kinds[] = {
+#define _a(a, b, c, d)  d,
+#define _x(a, b, c, d)  c,
+#define _t(a, b, c)     c,
+#include "token.def"
+};
+
+static int tkind(int t)
+{
+    if (t < 0)
+        return 0;
+    else if (t < 128)
+        return kinds[t];
+    else if (t >= ID && t < TOKEND)
+        return kinds[128+t-ID];
+    else
+        return 0;
+}
+
 int gettok(void)
 {
     token = do_gettok();
+    token->kind = tkind(token->id);
     mark(token);
     return token->id;
 }
