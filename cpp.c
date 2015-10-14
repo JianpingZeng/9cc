@@ -21,7 +21,7 @@ struct macro {
     struct vector *body;
     struct vector *params;
     bool vararg;
-    void (*fn) (struct token *); // special macro handler
+    void (*handler) (struct token *); // special macro handler
 };
 
 static struct token * expand(void);
@@ -868,7 +868,7 @@ static struct token * doexpand(void)
 	}
 	break;
     case MACRO_SPECIAL:
-        m->fn(t);
+        m->handler(t);
 	return expand();
     default:
 	die("unkown macro type %d", m->kind);
@@ -917,10 +917,10 @@ static void time_handler(struct token *t)
     unget(tok);
 }
 
-static void define_special(const char *name, void (*fn) (struct token *))
+static void define_special(const char *name, void (*handler) (struct token *))
 {
     struct macro *m = new_macro(MACRO_SPECIAL);
-    m->fn = fn;
+    m->handler = handler;
     add_macro(name, m);
 }
 
