@@ -208,7 +208,6 @@ struct file * with_file(const char *file, const char *name)
 struct file * with_buffer(struct vector *v)
 {
     struct file *fs = new_file(FILE_KIND_STRING);
-    fs->file = current_file()->file;
     fs->name = current_file()->name;
     vec_add(fs->buffer, v);
     return fs;
