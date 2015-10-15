@@ -735,11 +735,9 @@ static struct vector * hsadd(struct vector *r, struct hideset *hideset)
     return r;
 }
 
-static struct vector * select(struct vector *ap, int index)
+static inline struct vector * select(struct vector *ap, int index)
 {
-    if (index < 0 || index >= vec_len(ap))
-	return NULL;
-    return vec_at(ap, index);
+    return vec_at_safe(ap, index);
 }
 
 static struct vector * remove_spaces(struct vector *v)
