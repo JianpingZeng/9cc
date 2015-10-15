@@ -813,7 +813,7 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
     return hsadd(r, hideset);
 }
 
-static struct token * doexpand(void)
+static struct token * expand(void)
 {
     struct token *t = lex();
     if (t->id != ID)
@@ -857,11 +857,6 @@ static struct token * doexpand(void)
 	die("unkown macro type %d", m->kind);
 	return t;
     }
-}
-
-static struct token * expand(void)
-{
-    return doexpand();
 }
 
 static void file_handler(struct token *t)
