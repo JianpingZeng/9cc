@@ -22,11 +22,20 @@ void println(const char *fmt, ...)
     va_end(ap);
 }
 
+static size_t alloc_bytes;
+
+void print_alloc_stat(void)
+{
+    println("%llu bytes = %llu KiB == %llu MiB allocated.",
+	    alloc_bytes, alloc_bytes >> 10, alloc_bytes >> 20);
+}
+
 void * xmalloc(size_t size)
 {
     void *p = malloc(size);
     if (!p)
         die("memory exhausted");
+    alloc_bytes += size;
     return p;
 }
 

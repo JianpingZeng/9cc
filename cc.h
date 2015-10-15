@@ -22,7 +22,6 @@
 extern void * alloc_node(void);
 extern void * alloc_token(void);
 extern void * alloc_macro(void);
-extern void * alloc_char(void);
 
 // value
 #define VALUE_U(v)    ((v).u)
@@ -65,10 +64,11 @@ struct token {
 };
 
 // input.c
-#define CH(c)    ((c)->ch)
+#define MAX_UNREADC  8
 
 struct cc_char {
-    int ch;
+    bool dirty : 1;
+    int ch : 16;
     unsigned line;
     unsigned column;
 };
@@ -77,6 +77,8 @@ struct file {
     int kind : 4;
     bool bol : 1;		// beginning of line
     bool stub : 1;
+    int histp : 8;
+    int charp : 8;
     char *buf;
     char *pc;
     char *pe;
@@ -88,7 +90,8 @@ struct file {
     unsigned line;
     unsigned column;
     struct vector *ifstubs;
-    struct vector *chars;	// readc ungets
+    struct cc_char hists[MAX_UNREADC+1]; // readc history
+    int chars[MAX_UNREADC];	// readc ungets
     struct vector *buffer;	// lex ungets
     struct vector *tokens;	// parser ungets
     struct token *ahead;	// lookahead token
@@ -101,8 +104,8 @@ struct ifstub {
 };
 
 extern void input_init(const char *file);
-extern struct cc_char * readc(void);
-extern void unreadc(struct cc_char * ch);
+extern int readc(void);
+extern void unreadc(int c);
 
 extern struct file * with_string(const char *input, const char *name);
 extern struct file * with_file(const char *file, const char *name);
@@ -120,6 +123,7 @@ extern struct ifstub * new_ifstub(struct ifstub *i);
 extern struct ifstub * current_ifstub(void);
 
 // lex.c
+#define EOI  -1
 extern struct source source;
 extern struct token *token;
 extern struct token *eoi_token;
@@ -405,5 +409,7 @@ extern void fatalf(struct source src, const char *fmt, ...);
 extern void redefinition_error(struct source src, node_t *sym);
 extern void conflicting_types_error(struct source src, node_t *sym);
 extern void field_not_found_error(node_t *ty, const char *name);
+
+extern void print_alloc_stat(void);
 
 #endif

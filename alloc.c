@@ -40,9 +40,3 @@ void * alloc_macro(void)
 {
     return do_alloc_object(&macro_state, sizeof(struct macro));
 }
-
-static struct alloc_state char_state;
-void * alloc_char(void)
-{
-    return do_alloc_object(&char_state, sizeof(struct cc_char));
-}

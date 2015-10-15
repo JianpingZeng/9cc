@@ -39,13 +39,14 @@ static void preprocess(void)
 {
     struct vector *v = all_pptoks();
     for (int i = 0; i < vec_len(v); i++) {
-	struct token *t = vec_at(v, i);
+    	struct token *t = vec_at(v, i);
         printf("%s", t->name);
     }
 }
 
 int cc_main(int argc, const char * argv[])
 {
+    atexit(print_alloc_stat);
     parseopts(argc, argv);
     input_init(ifile);
     cpp_init(options);

@@ -223,9 +223,6 @@ _t(POINTER,     "pointer",     0)
 _t(IFDEF,	"ifdef",	0)
 _t(IFNDEF,	"ifndef",	0)
 
-// EOI
-_t(EOI,		"EOI",		0)
-
 #undef _k
 #undef _t
 #undef _x

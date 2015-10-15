@@ -87,22 +87,22 @@ struct source source;
 
 #define BOL    (current_file()->bol)
 
-static struct source chsrc(struct cc_char *ch)
+static struct source chsrc()
 {
     struct file *fs = current_file();
     struct source src;
-    src.file = fs->file;
-    src.line = ch->line;
-    src.column = ch->column;
+    src.file = fs->name;
+    src.line = fs->line;
+    src.column = fs->column;
     return src;
 }
 
-static void markc(struct cc_char *ch)
+static void markc()
 {
     struct file *fs = current_file();
-    source.file = fs->file;
-    source.line = ch->line;
-    source.column = ch->column;
+    source.file = fs->name;
+    source.line = fs->line;
+    source.column = fs->column;
 }
 
 static inline void mark(struct token *t)
@@ -112,8 +112,8 @@ static inline void mark(struct token *t)
 
 static bool next(char c)
 {
-    struct cc_char *ch = readc();
-    if (CH(ch) == c)
+    char ch = readc();
+    if (ch == c)
 	return true;
     unreadc(ch);
     return false;
@@ -121,9 +121,9 @@ static bool next(char c)
 
 static char peek(void)
 {
-    struct cc_char *ch = readc();
+    char ch = readc();
     unreadc(ch);
-    return CH(ch);
+    return ch;
 }
 
 struct token * new_token(struct token *tok)
@@ -147,24 +147,24 @@ static struct token * make_token(struct token *tok)
 static void readch(struct strbuf *s, bool (*is) (char))
 {
     for (;;) {
-	struct cc_char *ch = readc();
-	if (!is(CH(ch))) {
+        char ch = readc();
+	if (!is(ch)) {
 	    unreadc(ch);
 	    break;
 	}
-	strbuf_catc(s, CH(ch));
+	strbuf_catc(s, ch);
     }
 }
 
 static void skipline(bool over)
 {
-    struct cc_char *ch;
+    char ch;
     for (;;) {
 	ch = readc();
-	if (is_newline(CH(ch)) || CH(ch) == EOI)
+	if (is_newline(ch) || ch == EOI)
 	    break;
     }
-    if (is_newline(CH(ch)) && !over)
+    if (is_newline(ch) && !over)
 	unreadc(ch);
 }
 
@@ -176,10 +176,10 @@ static inline void line_comment(void)
 static void block_comment(void)
 {
     for (;;) {
-	struct cc_char *ch = readc();
-	if (CH(ch) == '*' && next('/'))
+        char ch = readc();
+	if (ch == '*' && next('/'))
 	    break;
-	if (CH(ch) == EOI) {
+	if (ch == EOI) {
 	    error("unterminated /* comment");
 	    break;
 	}
@@ -191,31 +191,31 @@ static struct token * ppnumber(char c)
     struct strbuf *s = strbuf_new();
     strbuf_catc(s, c);
     for (;;) {
-	struct cc_char *ch = readc();
-	if (!is_digitletter(CH(ch)) && CH(ch) != '.') {
+        char ch = readc();
+	if (!is_digitletter(ch) && ch != '.') {
 	    unreadc(ch);
 	    break;
 	}
-	bool is_float = strchr("eEpP", CH(ch)) && strchr("+-", peek());
+	bool is_float = strchr("eEpP", ch) && strchr("+-", peek());
 	if (is_float) {
-	    strbuf_catc(s, CH(ch));
+	    strbuf_catc(s, ch);
 	    ch = readc();
-	    strbuf_catc(s, CH(ch));
+	    strbuf_catc(s, ch);
 	} else {
-	    strbuf_catc(s, CH(ch));
+	    strbuf_catc(s, ch);
 	}
     }
     return make_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
 }
 
-static void escape(struct strbuf *s, struct cc_char *ch)
+static void escape(struct strbuf *s)
 {
-    CCAssert(CH(ch) == '\\');
-    struct source src = chsrc(ch);
-    strbuf_catc(s, CH(ch));
-    ch = readc();
-    strbuf_catc(s, CH(ch));
-    switch (CH(ch)) {
+    // current char is '\\'
+    struct source src = chsrc();
+    strbuf_catc(s, '\\');
+    char ch = readc();
+    strbuf_catc(s, ch);
+    switch (ch) {
     case 'a': case 'b': case 'f':
     case 'n': case 'r': case 't':
     case 'v': case '\'': case '"':
@@ -227,10 +227,10 @@ static void escape(struct strbuf *s, struct cc_char *ch)
 	{
 	    char c = peek();
 	    if (c >= '0' && c <= '7') {
-		strbuf_catc(s, CH(readc()));
+		strbuf_catc(s, readc());
 		c = peek();
 		if (c >= '0' && c <= '7') {
-		    strbuf_catc(s, CH(readc()));
+		    strbuf_catc(s, readc());
 		}
 	    }
 	}
@@ -246,21 +246,21 @@ static void escape(struct strbuf *s, struct cc_char *ch)
 	{
             // universal character name: expect 4(u)/8(U) hex digits
 	    int x;
-            int n = CH(ch) == 'u' ? 4 : 8;
+            int n = ch == 'u' ? 4 : 8;
 	    for (x = 0; x < n; x++) {
 		ch = readc();
-		if (!is_digithex(CH(ch))) {
+		if (!is_digithex(ch)) {
 		    unreadc(ch);
 		    break;
 		}
-		strbuf_catc(s, CH(ch));
+		strbuf_catc(s, ch);
 	    }
             if (x < n)
                 errorf(src, "incomplete universal character name: %s", s->str);
         }
 	break;
     default:
-	errorf(src, "unrecognized escape character 0x%x", 0xFF & CH(ch));
+	errorf(src, "unrecognized escape character 0x%x", ch);
 	break;
     }
 }
@@ -273,20 +273,20 @@ static struct token * sequence(bool wide, char sep)
 	strbuf_catc(s, 'L');
     strbuf_catc(s, sep);
 
-    struct cc_char *ch;
+    char ch;
     for (;;) {
 	ch = readc();
-	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
+	if (ch == sep || is_newline(ch) || ch == EOI)
 	    break;
-	if (CH(ch) == '\\')
-	    escape(s, ch);
+	if (ch == '\\')
+	    escape(s);
 	else
-	    strbuf_catc(s, CH(ch));
+	    strbuf_catc(s, ch);
     }
 
     bool is_char = sep == '\'' ? true : false;
     const char *name = is_char ? "character" : "string";
-    if (CH(ch) != sep)
+    if (ch != sep)
 	error("untermiated %s constant: %s", name, s->str);
     strbuf_catc(s, sep);
 
@@ -323,13 +323,13 @@ static struct token * spaces(char c)
 
 struct token * dolex(void)
 {
-    register struct cc_char *rpc;
+    register char rpc;
     
     for (; ;) {
 	rpc = readc();
-	markc(rpc);
+	markc();
 
-	switch (CH(rpc)) {
+	switch (rpc) {
 	case EOI:
 	    return eoi_token;
 	    
@@ -342,7 +342,7 @@ struct token * dolex(void)
 	case TOK12:
 	case TOK13:
 	case TOK32:
-	    return spaces(CH(rpc));
+	    return spaces(rpc);
 	
 	    // punctuators
 	case '/':
@@ -355,7 +355,7 @@ struct token * dolex(void)
 	    } else if (next('=')) {
 		return make_token(&(struct token){.id = DIVEQ});
 	    } else {
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 	    }
 
 	case '+':
@@ -364,7 +364,7 @@ struct token * dolex(void)
 	    else if (next('='))
 		return make_token(&(struct token){.id = ADDEQ});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '-':
 	    if (next('-'))
@@ -374,25 +374,25 @@ struct token * dolex(void)
 	    else if (next('>'))
 		return make_token(&(struct token){.id = DEREF});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '*':
 	    if (next('='))
 		return make_token(&(struct token){.id = MULEQ});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '=':
 	    if (next('='))
 		return make_token(&(struct token){.id = EQ});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '!':
 	    if (next('='))
 		return make_token(&(struct token){.id = NEQ});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '%':
 	    if (next('=')) {
@@ -401,22 +401,20 @@ struct token * dolex(void)
 		return make_token(&(struct token){.id = '}'});
 	    } else if (next(':')) {
 		if (next('%')) {
-		    struct cc_char *ch = readc();
-		    if (CH(ch) == ':')
+		    if (next(':'))
 			return make_token(&(struct token){.id = SHARPSHARP});
-		    else
-			unreadc(ch);
+		    unreadc('%');
 		}
 		return make_token(&(struct token){.id = '#'});
 	    } else {
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 	    }
 
 	case '^':
 	    if (next('='))
 		return make_token(&(struct token){.id = XOREQ});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '&':
 	    if (next('='))
@@ -424,7 +422,7 @@ struct token * dolex(void)
 	    else if (next('&'))
 		return make_token(&(struct token){.id = AND});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '|':
 	    if (next('='))
@@ -432,56 +430,52 @@ struct token * dolex(void)
 	    else if (next('|'))
 		return make_token(&(struct token){.id = OR});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '<':
 	    if (next('=')) {
 		return make_token(&(struct token){.id = LEQ});
 	    } else if (next('<')) {
-		struct cc_char *ch = readc();
-		if (CH(ch) == '=')
+		if (next('='))
 		    return make_token(&(struct token){.id = LSHIFTEQ});
 		else
-		    unreadc(ch);
-		return make_token(&(struct token){.id = LSHIFT});
+		    return make_token(&(struct token){.id = LSHIFT});
 	    } else if (next('%')) {
 		return make_token(&(struct token){.id = '{'});
 	    } else if (next(':')) {
 		return make_token(&(struct token){.id = '['});
 	    } else {
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 	    }
 
 	case '>':
 	    if (next('=')) {
 		return make_token(&(struct token){.id = GEQ});
 	    } else if (next('>')) {
-	        struct cc_char *ch = readc();
-		if (CH(ch) == '=')
+		if (next('='))
 		    return make_token(&(struct token){.id = RSHIFTEQ});
 		else
-		    unreadc(ch);
-		return make_token(&(struct token){.id = RSHIFT});
+		    return make_token(&(struct token){.id = RSHIFT});
 	    } else {
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 	    }
 	    
 	case '(': case ')': case '{': case '}':
 	case '[': case ']': case ',': case ';':
 	case '~': case '?':
-	    return make_token(&(struct token){.id = CH(rpc)});
+	    return make_token(&(struct token){.id = rpc});
 
 	case ':':
 	    if (next('>'))
 		return make_token(&(struct token){.id = ']'});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	case '#':
 	    if (next('#'))
 		return make_token(&(struct token){.id = SHARPSHARP});
 	    else
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 
 	    // constants
 	case '\'':
@@ -493,21 +487,18 @@ struct token * dolex(void)
 
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
-	    return ppnumber(CH(rpc));
+	    return ppnumber(rpc);
 
 	case '.':
-	    if (peek() == '.') {
-		struct cc_char *ch1 = readc();
-		struct cc_char *ch2 = readc();
-		if (CH(ch2) == '.')
+	    if (next('.')) {
+		if (next('.'))
 		    return make_token(&(struct token){.id = ELLIPSIS});
-		unreadc(ch2);
-		unreadc(ch1);
-		return make_token(&(struct token){.id = CH(rpc)});
+		unreadc('.');
+		return make_token(&(struct token){.id = rpc});
 	    } else if (is_digit(peek())) {
-		return ppnumber(CH(rpc));
+		return ppnumber(rpc);
 	    } else {
-		return make_token(&(struct token){.id = CH(rpc)});
+		return make_token(&(struct token){.id = rpc});
 	    }
 	    
 	    // identifiers
@@ -532,15 +523,15 @@ struct token * dolex(void)
 	case 'U': case 'V': case 'W': case 'X':
 	case 'Y': case 'Z':
 	case '_':
-	    return identifier(CH(rpc));
+	    return identifier(rpc);
 
 	default:
 	    // invalid character
-	    if (!is_blank(CH(rpc))) {
-		if (is_visible(CH(rpc)))
-		    error("invalid character '%c'", CH(rpc));
+	    if (!is_blank(rpc)) {
+		if (is_visible(rpc))
+		    error("invalid character '%c'", rpc);
 		else
-		    error("invalid character '\\0%o'", 0xFF & CH(rpc));
+		    error("invalid character '\\0%o'", rpc);
 	    }
 	}
     }
@@ -549,16 +540,16 @@ struct token * dolex(void)
 static const char * hq_char_sequence(char sep)
 {
     struct strbuf *s = strbuf_new();
-    struct cc_char *ch;
+    char ch;
     
     for (;;) {
 	ch = readc();
-	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
+	if (ch == sep || is_newline(ch) || ch == EOI)
 	    break;
-	strbuf_catc(s, CH(ch));
+	strbuf_catc(s, ch);
     }
 
-    if (CH(ch) != sep)
+    if (ch != sep)
 	error("missing '%c' in header name", sep);
     
     skipline(true);
@@ -567,17 +558,17 @@ static const char * hq_char_sequence(char sep)
 
 struct token *header_name(void)
 {
-    struct cc_char *ch;
+    char ch;
  beg:
     ch = readc();
-    if (is_blank(CH(ch)))
+    if (is_blank(ch))
 	goto beg;
 
-    markc(ch);
-    if (CH(ch) == '<') {
+    markc();
+    if (ch == '<') {
 	const char *name = hq_char_sequence('>');
 	return new_token(&(struct token){.name = name, .kind = '<'});
-    } else if (CH(ch) == '"') {
+    } else if (ch == '"') {
 	const char *name = hq_char_sequence('"');
 	return new_token(&(struct token){.name = name, .kind = '"'});
     } else {
@@ -594,28 +585,28 @@ void unget(struct token *t)
 
 static void skip_sequence(char sep)
 {
-    struct cc_char *ch;
+    char ch;
     for (;;) {
 	ch = readc();
-	if (CH(ch) == sep || is_newline(CH(ch)) || CH(ch) == EOI)
+	if (ch == sep || is_newline(ch) || ch == EOI)
 	    break;
-	if (CH(ch) == '\\')
+	if (ch == '\\')
 	    readc();
     }
-    if (CH(ch) != sep)
+    if (ch != sep)
 	unreadc(ch);
 }
 
 void skip_spaces(void)
 {
     // skip spaces, including comments
-    struct cc_char *ch;
+    char ch;
 
  beg:
     ch = readc();
-    if (is_blank(CH(ch))) {
+    if (is_blank(ch)) {
 	goto beg;
-    } else if (CH(ch) == '/') {
+    } else if (ch == '/') {
 	if (next('/')) {
 	    line_comment();
 	    goto beg;
@@ -640,24 +631,24 @@ void skip_ifstub(void)
     for (;;) {
 	// skip spaces
         skip_spaces();
-	struct cc_char *ch = readc();
-	if (CH(ch) == EOI)
+        char ch = readc();
+	if (ch == EOI)
 	    break;
-	if (is_newline(CH(ch))) {
+	if (is_newline(ch)) {
 	    bol = true;
 	    lines++;
 	    continue;
 	}
-	if (CH(ch) == '\'' || CH(ch) == '"') {
-	    skip_sequence(CH(ch));
+	if (ch == '\'' || ch == '"') {
+	    skip_sequence(ch);
 	    bol = false;
 	    continue;
 	}
-	if (CH(ch) != '#' || !bol) {
+	if (ch != '#' || !bol) {
 	    bol = false;
 	    continue;
 	}
-	struct source src = chsrc(ch);
+	struct source src = chsrc();
         struct token *t = lex();
 	while (IS_SPACE(t))
 	    t = lex();

@@ -11,6 +11,9 @@ enum {
     FILE_KIND_STRING,
 };
 
+#define NEXT(p)  (((p)+1)%(MAX_UNREADC))
+#define PREV(p)  (((p)-1+(MAX_UNREADC))%(MAX_UNREADC))
+
 static bool file_eof(struct file *fs)
 {
     if (fs->kind == FILE_KIND_REGULAR)
@@ -94,41 +97,81 @@ static int get(void)
     return *fs->pc++;
 }
 
-static inline struct cc_char * newch(int c, unsigned line, unsigned column)
-{
-    struct cc_char *ch =  alloc_char();
-    ch->ch = c;
-    ch->line = line;
-    ch->column = column;
-    return ch;
-}
+/**
+ * 'histp' points at current history item.
+ * 'charp' ponits at next available slot.
+ */
 
-void unreadc(struct cc_char * ch)
-{
-    vec_push(current_file()->chars, ch);
-}
-
-struct cc_char * readc(void)
+static void history(int c, unsigned line, unsigned column)
 {
     struct file *fs = current_file();
-    
-    if (vec_len(fs->chars))
-	return vec_pop(fs->chars);
+    fs->histp = NEXT(fs->histp);
+    fs->hists[fs->histp] = (struct cc_char)
+	    {.dirty = true,
+	     .ch = c,
+	     .line = line,
+	     .column = column};
+}
+
+static void unwind_history(int c)
+{
+    struct file *fs = current_file();
+    if (fs->hists[fs->histp].ch != c)
+	die("unreadc: an unbufferred character");
+    if (!fs->hists[PREV(fs->histp)].dirty)
+	die("unreadc: unwind history overflow");
+    fs->hists[fs->histp].dirty = false;
+    fs->histp = PREV(fs->histp);
+    fs->line = fs->hists[fs->histp].line;
+    fs->column = fs->hists[fs->histp].column;
+}
+
+void unreadc(int c)
+{
+    struct file *fs = current_file();
+    if (c == EOI)
+	return;
+    if (fs->charp >= ARRAY_SIZE(fs->chars))
+	die("unreadc: too many unreadc");
+    unwind_history(c);
+    fs->chars[fs->charp++] = c;
+}
+
+int readc(void)
+{
+    struct file *fs = current_file();
+    int c;
+    unsigned line, column;
+
+    if (fs->charp) {
+	c = fs->chars[--fs->charp];
+	if (c == '\n') {
+	    fs->line++;
+	    fs->column = 0;
+	} else {
+	    fs->column++;
+	}
+	history(c, fs->line, fs->column);
+	return c;
+    }
     
     for (;;) {
-        int c = get();
-	unsigned line = fs->line;
-	unsigned column = fs->column;
-	if (c == EOI || c != '\\')
-	    goto end;
-	int c2 = get();
-	if (c2 == '\n')
-	    continue;
-	// cache
-	struct cc_char *ch2 = newch(c2, fs->line, fs->column);
-	unreadc(ch2);
+        c = get();
+	line = fs->line;
+	column = fs->column;
+    	if (c == EOI || c != '\\') {
+	    history(c, line, column);
+    	    goto end;
+	}
+    	int c2 = get();
+    	if (c2 == '\n')
+    	    continue;
+    	// cache
+	history(c, line, column);
+	history(c2, fs->line, fs->column);
+	unreadc(c2);
     end:
-	return newch(c, line, column);
+	return c;
     }
 }
 
@@ -143,9 +186,13 @@ static struct file * new_file(int kind)
     fs->column = 0;
     fs->bol = true;
     fs->ifstubs = vec_new();
-    fs->chars = vec_new();
     fs->buffer = vec_new();
     fs->tokens = vec_new();
+    fs->hists[0] = (struct cc_char)
+	    {.dirty = true,
+	     .ch = EOI,
+	     .line = fs->line,
+	     .column = fs->column};
     return fs;
 }
 
@@ -172,7 +219,6 @@ static void close_file(struct file *fs)
 	fclose(fs->fp);
     free(fs->buf);
     vec_free(fs->ifstubs);
-    vec_free(fs->chars);
     vec_free(fs->buffer);
     vec_free(fs->tokens);
     free(fs);
