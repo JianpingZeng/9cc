@@ -108,10 +108,7 @@ static void history(int c, unsigned line, unsigned column)
     struct file *fs = current_file();
     fs->histp = NEXT(fs->histp);
     fs->hists[fs->histp] = (struct cc_char)
-	    {.dirty = true,
-	     .ch = c,
-	     .line = line,
-	     .column = column};
+	{.dirty = true, .ch = c, .line = line, .column = column};
 }
 
 static void unwind_history(int c)
@@ -137,7 +134,8 @@ void unreadc(int c)
     unsigned line = fs->line;
     unsigned column = fs->column;
     unwind_history(c);
-    fs->chars[fs->charp++] = (struct cc_char){.ch = c, .line = line, .column = column};
+    fs->chars[fs->charp++] = (struct cc_char)
+	{.ch = c, .line = line, .column = column};
 }
 
 int readc(void)
@@ -186,10 +184,7 @@ static struct file * new_file(int kind)
     fs->buffer = vec_new();
     fs->tokens = vec_new();
     fs->hists[0] = (struct cc_char)
-	    {.dirty = true,
-	     .ch = EOI,
-	     .line = fs->line,
-	     .column = fs->column};
+	    {.dirty = true, .ch = EOI, .line = fs->line, .column = fs->column};
     return fs;
 }
 
