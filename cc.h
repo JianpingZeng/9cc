@@ -91,7 +91,7 @@ struct file {
     unsigned column;
     struct vector *ifstubs;
     struct cc_char hists[MAX_UNREADC+1]; // readc history
-    int chars[MAX_UNREADC];	// readc ungets
+    struct cc_char chars[MAX_UNREADC];	// readc ungets
     struct vector *buffer;	// lex ungets
     struct vector *tokens;	// parser ungets
     struct token *ahead;	// lookahead token

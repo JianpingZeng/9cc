@@ -133,8 +133,13 @@ void unreadc(int c)
 	return;
     if (fs->charp >= ARRAY_SIZE(fs->chars))
 	die("unreadc: too many unreadc");
+    unsigned line = fs->line;
+    unsigned column = fs->column;
     unwind_history(c);
-    fs->chars[fs->charp++] = c;
+    fs->chars[fs->charp].ch = c;
+    fs->chars[fs->charp].line = line;
+    fs->chars[fs->charp].column = column;
+    fs->charp++;
 }
 
 int readc(void)
@@ -144,15 +149,9 @@ int readc(void)
     unsigned line, column;
 
     if (fs->charp) {
-	c = fs->chars[--fs->charp];
-	if (c == '\n') {
-	    fs->line++;
-	    fs->column = 0;
-	} else {
-	    fs->column++;
-	}
-	history(c, fs->line, fs->column);
-	return c;
+	struct cc_char ch = fs->chars[--fs->charp];
+	history(ch.ch, ch.line, ch.column);
+	return ch.ch;
     }
     
     for (;;) {
