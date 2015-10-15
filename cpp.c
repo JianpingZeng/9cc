@@ -571,7 +571,7 @@ static void line_line(void)
     unget(new_token(&(struct token){.id = LINENO, .name = name}));
 }
 
-static const char * tokens2msg(struct vector *v)
+static const char * tokens2s(struct vector *v)
 {
     struct strbuf *s = strbuf_new();
     for (int i = 0; i < vec_len(v); i++) {
@@ -585,8 +585,9 @@ static const char * tokens2msg(struct vector *v)
     return ret ? ret : "";
 }
 
-static struct vector * pptokens(void)
+static void do_message_line(int level)
 {
+    struct source src = source;
     struct vector *v = vec_new();
     struct token *t;
     for (;;) {
@@ -596,23 +597,22 @@ static struct vector * pptokens(void)
 	vec_push(v, t);
     }
     unget(t);
-    return v;
+    
+    const char *message = tokens2s(v);
+    if (level == WRN)
+	warningf(src, message);
+    else
+	errorf(src, message);
 }
 
 static void error_line(void)
 {
-    struct source src = source;
-    struct vector *v = pptokens();
-    const char *message = tokens2msg(v);
-    errorf(src, message);
+    do_message_line(ERR);
 }
 
 static void warning_line(void)
 {
-    struct source src = source;
-    struct vector *v = pptokens();
-    const char *message = tokens2msg(v);
-    warningf(src, message);
+    do_message_line(WRN);
 }
 
 static void pragma_line(void)

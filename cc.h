@@ -366,6 +366,11 @@ extern void simplify(node_t *tree);
 extern void print_tree(node_t *tree);
 
 // error.c
+enum {
+    WRN = 1,			// warning
+    ERR,			// error
+    FTL,			// fatal
+};
 extern unsigned errors;
 extern unsigned warnings;
 extern void warningf(struct source src, const char *fmt, ...);

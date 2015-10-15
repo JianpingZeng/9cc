@@ -5,10 +5,6 @@ unsigned warnings;
 
 #define MAX_ERRORS 32
 
-#define WRN  1
-#define ERR  2
-#define FTL  3
-
 static void cc_print_lead(int tag, struct source src, const char *fmt, va_list ap)
 {
     const char *lead;
