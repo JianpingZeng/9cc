@@ -136,10 +136,7 @@ void unreadc(int c)
     unsigned line = fs->line;
     unsigned column = fs->column;
     unwind_history(c);
-    fs->chars[fs->charp].ch = c;
-    fs->chars[fs->charp].line = line;
-    fs->chars[fs->charp].column = column;
-    fs->charp++;
+    fs->chars[fs->charp++] = (struct cc_char){.ch = c, .line = line, .column = column};
 }
 
 int readc(void)
