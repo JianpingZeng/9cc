@@ -147,6 +147,8 @@ int readc(void)
     if (fs->charp) {
 	struct cc_char ch = fs->chars[--fs->charp];
 	history(ch.ch, ch.line, ch.column);
+	fs->line = ch.line;
+	fs->column = ch.column;
 	return ch.ch;
     }
     
