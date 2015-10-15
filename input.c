@@ -11,8 +11,9 @@ enum {
     FILE_KIND_STRING,
 };
 
-#define NEXT(p)  (((p)+1)%(MAX_UNREADC))
-#define PREV(p)  (((p)-1+(MAX_UNREADC))%(MAX_UNREADC))
+#define HISTS    (FIELD_SIZEOF(struct file, hists) / sizeof(struct cc_char))
+#define NEXT(p)  (((p)+1)%HISTS)
+#define PREV(p)  (((p)-1+HISTS)%HISTS)
 
 static bool file_eof(struct file *fs)
 {
@@ -117,9 +118,9 @@ static void unwind_history(int c)
 {
     struct file *fs = current_file();
     if (fs->hists[fs->histp].ch != c)
-	die("unreadc: an unbufferred character");
+	fatal("an unbufferred character '%c'", c);
     if (!fs->hists[PREV(fs->histp)].dirty)
-	die("unreadc: unwind history overflow");
+	fatal("unwind history overflow '%c'", c);
     fs->hists[fs->histp].dirty = false;
     fs->histp = PREV(fs->histp);
     fs->line = fs->hists[fs->histp].line;
@@ -132,7 +133,7 @@ void unreadc(int c)
     if (c == EOI)
 	return;
     if (fs->charp >= ARRAY_SIZE(fs->chars))
-	die("unreadc: too many unreadc");
+	fatal("too many unreadc '%c'", c);
     unsigned line = fs->line;
     unsigned column = fs->column;
     unwind_history(c);
