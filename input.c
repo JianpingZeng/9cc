@@ -1,6 +1,6 @@
 #include "cc.h"
 
-#define LBUFSIZE     64
+#define LBUFSIZE     32
 #define RBUFSIZE     4096
 
 static struct vector *files;
