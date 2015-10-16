@@ -75,8 +75,11 @@ static void fillbuf(struct file *fs)
      * directive would work well.
      */
     if (fs->pe < &fs->buf[LBUFSIZE+RBUFSIZE]) {
-	if (fs->pe > fs->pc && fs->pe[-1] != '\n')
+	if (fs->pe == fs->pc || fs->pe[-1] != '\n') {
+	    warningf((struct source){.file = fs->name, .line = fs->line, .column = fs->column},
+		    "No newline at end of file");
 	    *fs->pe++ = '\n';
+	}
     }
     *fs->pe = 0;
 }
