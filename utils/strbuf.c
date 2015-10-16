@@ -108,7 +108,7 @@ void strbuf_catc(struct strbuf *s, char c)
 struct strbuf * strbuf_lstrip(struct strbuf *s)
 {
     char *p = s->str;
-    while (s->len > 0 && isspace((unsigned char)*p)) {
+    while (s->len > 0 && isblank((unsigned char)*p)) {
         p++;
         s->len--;
     }
@@ -119,7 +119,7 @@ struct strbuf * strbuf_lstrip(struct strbuf *s)
 
 struct strbuf * strbuf_rstrip(struct strbuf *s)
 {
-    while (s->len > 0 && isspace((unsigned char)s->str[s->len-1]))
+    while (s->len > 0 && isblank((unsigned char)s->str[s->len-1]))
         s->len--;
     s->str[s->len] = '\0';
     return s;

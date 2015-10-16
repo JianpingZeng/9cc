@@ -36,6 +36,11 @@ static inline int isdigitletter(int c)
     return isdigit(c) || isletter(c);
 }
 
+static inline int iswhitespace(int c)
+{
+    return c == ' ' || c == '\t' || c == '\f' || c == '\v' || c == '\r';
+}
+
 static struct source chsrc()
 {
     struct file *fs = current_file();
@@ -264,7 +269,7 @@ static struct token * spaces(int c)
 {
     struct strbuf *s = strbuf_new();
     strbuf_catc(s, c);
-    readch(s, isblank);
+    readch(s, iswhitespace);
     space_token->name = strbuf_str(s);
     space_token->src = source;
     return space_token;
@@ -286,11 +291,11 @@ struct token * dolex(void)
 	    return newline();
 	    
 	    // spaces
-	case TOK9:
-	case TOK11:
-	case TOK12:
-	case TOK13:
-	case TOK32:
+	case '\t':
+	case '\v':
+	case '\f':
+	case '\r':
+	case ' ':
 	    return spaces(rpc);
 	
 	    // punctuators
@@ -476,7 +481,7 @@ struct token * dolex(void)
 
 	default:
 	    // invalid character
-	    if (!isblank(rpc)) {
+	    if (!iswhitespace(rpc)) {
 		if (isgraph(rpc))
 		    error("illegal character '%c'", rpc);
 		else
@@ -510,7 +515,7 @@ struct token *header_name(void)
     int ch;
  beg:
     ch = readc();
-    if (isblank(ch))
+    if (iswhitespace(ch))
 	goto beg;
 
     markc();
@@ -553,7 +558,7 @@ void skip_spaces(void)
 
  beg:
     ch = readc();
-    if (isblank(ch)) {
+    if (iswhitespace(ch)) {
 	goto beg;
     } else if (ch == '/') {
 	if (next('/')) {
