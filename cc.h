@@ -56,12 +56,12 @@ enum {
 
 // token
 struct token {
-    int id;
+    int id : 10;
+    int kind : 10;
+    bool bol : 1;		// beginning of line
     const char *name;
-    int kind;
     struct source src;
     struct hideset *hideset;
-    unsigned bol : 1;		// beginning of line
 };
 
 // input.c
@@ -99,9 +99,9 @@ struct file {
 };
 
 struct ifstub {
-    int id;
+    int id : 10;
+    bool b : 1;
     struct source src;
-    bool b;
 };
 
 extern void input_init(const char *file);
@@ -159,10 +159,10 @@ enum {
 };
 
 struct macro {
-    int kind;
+    int kind : 3;
+    bool vararg : 1;
     struct vector *body;
     struct vector *params;
-    bool vararg;
     void (*handler) (struct token *); // special macro handler
 };
 
