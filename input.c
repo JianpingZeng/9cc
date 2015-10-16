@@ -76,8 +76,7 @@ static void fillbuf(struct file *fs)
      */
     if (fs->pe < &fs->buf[LBUFSIZE+RBUFSIZE]) {
 	if (fs->pe == fs->pc || fs->pe[-1] != '\n') {
-	    warningf((struct source){.file = fs->name, .line = fs->line, .column = fs->column},
-		    "No newline at end of file");
+	    fprintf(stderr, "%s: " PURPLE("warning: ") "No newline at end of file\n", fs->name);
 	    *fs->pe++ = '\n';
 	}
     }
@@ -87,6 +86,13 @@ static void fillbuf(struct file *fs)
 static int get(void)
 {
     struct file *fs = current_file();
+    /**
+     * NOTE:
+     * If it's a temp buffer, return EOI directly
+     * to inhibit 'no newline at end of file'.
+     */
+    if (!fs->fp && !fs->file)
+	return EOI;
     if (fs->pe - fs->pc < LBUFSIZE)
 	fillbuf(fs);
     if (fs->pc == fs->pe)
