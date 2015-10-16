@@ -10,6 +10,7 @@ DONE 6. EOI -1 0XFF problem
 DONE 7. ALWAYS add a newline character if none
 
 // parser
+0. ast node struct size needs to be optimize.
 1. initializer: string-literal
 2. eval
 3. decl_initializer
