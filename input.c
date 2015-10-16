@@ -216,9 +216,10 @@ static struct file * open_file(int kind, const char *file)
 	    die("Cannot open file %s", file);
 	}
 	fs->fp = fp;
-	fs->name = file;
+	fs->file = file;
+    } else if (kind == FILE_KIND_STRING) {
+	fs->file = strdup(file);
     }
-    fs->file = file;
     
     return fs;
 }
@@ -227,6 +228,8 @@ static void close_file(struct file *fs)
 {
     if (fs->kind == FILE_KIND_REGULAR)
 	fclose(fs->fp);
+    else if (fs->kind == FILE_KIND_STRING)
+	free((void *)fs->file);
     free(fs->buf);
     vec_free(fs->ifstubs);
     vec_free(fs->buffer);
