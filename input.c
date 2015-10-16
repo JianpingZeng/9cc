@@ -2,7 +2,6 @@
 
 #define LBUFSIZE     64
 #define RBUFSIZE     4096
-#define MAXTOKEN     LBUFSIZE
 
 static struct vector *files;
 
@@ -85,7 +84,7 @@ static void fillbuf(struct file *fs)
 static int get(void)
 {
     struct file *fs = current_file();
-    if (fs->pe - fs->pc < MAXTOKEN)
+    if (fs->pe - fs->pc < LBUFSIZE)
 	fillbuf(fs);
     if (fs->pc == fs->pe)
 	return EOI;
