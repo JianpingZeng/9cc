@@ -78,7 +78,7 @@ static void fillbuf(struct file *fs)
 	if (fs->pe == fs->pc || fs->pe[-1] != '\n') {
 	    *fs->pe++ = '\n';
 	    /**
-	     * warning only if it's really a file. 
+	     * warning only if it's really a file.
 	     */
 	    if (fs->kind == FILE_KIND_REGULAR)
 		fprintf(stderr, "%s: " PURPLE("warning: ") "No newline at end of file\n", fs->name);
