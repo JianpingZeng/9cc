@@ -120,8 +120,10 @@ int main(int argc, char **argv)
     for (int i = 0; i < vec_len(inputs); i++)
         translate(vec_at(inputs, i), options);
     
-    if (fails)
+    if (fails) {
         fprintf(stderr, "%d fails.\n", fails);
+	ret = EXIT_FAILURE;
+    }
     
 end:
     if (tmpdir)
