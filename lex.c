@@ -106,7 +106,8 @@ static void readch(struct strbuf *s, int (*is) (int))
 	    unreadc(ch);
 	    break;
 	}
-	strbuf_catc(s, ch);
+	if (s)
+	    strbuf_catc(s, ch);
     }
 }
 
@@ -265,13 +266,9 @@ static struct token *newline(void)
     return newline_token;
 }
 
-// TODO: whitespace's name
 static struct token * spaces(int c)
 {
-    struct strbuf *s = strbuf_new();
-    strbuf_catc(s, c);
-    readch(s, iswhitespace);
-    // space_token->name = strbuf_str(s);
+    readch(NULL, iswhitespace);
     space_token->src = source;
     return space_token;
 }

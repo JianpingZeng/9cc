@@ -586,10 +586,7 @@ static const char * tokens2s(struct vector *v)
     struct strbuf *s = strbuf_new();
     for (int i = 0; i < vec_len(v); i++) {
 	struct token *t = vec_at(v, i);
-	if (IS_SPACE(t))
-	    strbuf_cats(s, " ");
-	else if (t->name)
-	    strbuf_cats(s, t->name);
+	strbuf_cats(s, t->name);
     }
     const char *ret = strbuf_str(strbuf_strip(s));
     return ret ? ret : "";
@@ -678,10 +675,7 @@ static struct token * stringize(struct vector *v)
     strbuf_cats(s, "\"");
     for (int i = 0; i < vec_len(v); i++) {
 	struct token *t = vec_at(v, i);
-	if (IS_SPACE(t))
-	    strbuf_cats(s, " "); // only one space
-	else
-	    strbuf_cats(s, t->name);
+	strbuf_cats(s, t->name);
     }
     strbuf_cats(s, "\"");
     return new_token(&(struct token){.id = SCONSTANT, .name = strbuf_str(s)});
