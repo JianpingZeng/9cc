@@ -70,7 +70,8 @@ static void fillbuf(struct file *fs)
     
     fs->pe = &fs->buf[LBUFSIZE] + fs->bread;
 
-    /* Add a newline character to the end if the
+    /**
+     * Add a newline character to the end if the
      * file doesn't have one, thus the include
      * directive would work well.
      */
@@ -90,11 +91,12 @@ static void fillbuf(struct file *fs)
 static int get(void)
 {
     struct file *fs = current_file();
-    /** NOTE:
+    /**
+     * NOTE:
      * If it's a temp buffer, return EOI immediately
-     * _NOT_ add newline at the end. Other wise the
-     * buffer will generate a newline when expand
-     * macros.
+     * _NOT_ add newline at the end. Otherwise the
+     * buffer will generate an additional newline when
+     * expanding a macro.
      */
     if (!fs->fp && !fs->file)
 	return EOI;
