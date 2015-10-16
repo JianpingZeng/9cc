@@ -1,9 +1,9 @@
 TODO
 
 // preprocessor
-1. dolex: unreadc bug
-2. macro argument
-3. macro subst: space
+DONE 1. dolex: unreadc bug
+DONE 2. macro argument
+DONE 3. macro subst: space
 4. test case
 DONE 5. 'struct cc_char' wastes too many memory, needs to be re-designed.
 DONE 6. EOI -1 0XFF problem
