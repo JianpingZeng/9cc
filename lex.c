@@ -8,9 +8,9 @@ static const char *tnames[] = {
 #include "token.def"
 };
 
-struct token *eoi_token = &(struct token){.id = EOI};
+static struct token *eoi_token = &(struct token){.id = EOI, .name = "EOI"};
+static struct token *space_token = &(struct token){.id = ' ', .name = " "};
 struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
-struct token *space_token = &(struct token){.id = ' '};
 
 struct source source;
 
@@ -265,12 +265,13 @@ static struct token *newline(void)
     return newline_token;
 }
 
+// TODO: whitespace's name
 static struct token * spaces(int c)
 {
     struct strbuf *s = strbuf_new();
     strbuf_catc(s, c);
     readch(s, iswhitespace);
-    space_token->name = strbuf_str(s);
+    // space_token->name = strbuf_str(s);
     space_token->src = source;
     return space_token;
 }

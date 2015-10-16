@@ -126,9 +126,7 @@ extern struct ifstub * current_ifstub(void);
 // lex.c
 extern struct source source;
 extern struct token *token;
-extern struct token *eoi_token;
 extern struct token *newline_token;
-extern struct token *space_token;
 
 extern int isletter(int c);
 extern int isxalpha(int c);
