@@ -242,7 +242,7 @@ def main():
         except Exception,e:
             print e
             print "%s [FAIL]" % file
-            # sys.exit(1)
+            sys.exit(1)
 
 if __name__ == "__main__":
     reload(sys)
