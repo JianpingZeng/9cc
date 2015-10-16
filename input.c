@@ -91,15 +91,6 @@ static void fillbuf(struct file *fs)
 static int get(void)
 {
     struct file *fs = current_file();
-    /**
-     * NOTE:
-     * If it's a temp buffer, return EOI immediately
-     * _NOT_ add newline at the end. Otherwise the
-     * buffer will generate an additional newline when
-     * expanding a macro.
-     */
-    if (!fs->fp && !fs->file)
-	return EOI;
     if (fs->pe - fs->pc < LBUFSIZE)
 	fillbuf(fs);
     if (fs->pc == fs->pe)
@@ -190,11 +181,16 @@ int readc(void)
 
 static struct file * new_file(int kind)
 {
+    /**
+     * NOTE:
+     * If it's a temp buffer:
+     * 1. _NOT_ allocate buf (save memory)
+     * 2. _NOT_ add newline at the end
+     * Otherwise the buffer will generate an
+     * additional newline when expanding a macro.
+     */
     struct file *fs = zmalloc(sizeof(struct file));
     fs->kind = kind;
-    fs->buf = xmalloc(LBUFSIZE+RBUFSIZE+1);
-    fs->pc = fs->pe = &fs->buf[LBUFSIZE];
-    fs->bread = -1;
     fs->line = 1;
     fs->column = 0;
     fs->bol = true;
@@ -220,6 +216,10 @@ static struct file * open_file(int kind, const char *file)
     } else if (kind == FILE_KIND_STRING) {
 	fs->file = strdup(file);
     }
+    // allocate buf
+    fs->buf = xmalloc(LBUFSIZE+RBUFSIZE+1);
+    fs->pc = fs->pe = &fs->buf[LBUFSIZE];
+    fs->bread = -1;
     
     return fs;
 }
