@@ -480,13 +480,11 @@ struct token * dolex(void)
 	    return identifier(rpc);
 
 	default:
-	    // invalid character
-	    if (!iswhitespace(rpc)) {
-		if (isgraph(rpc))
-		    error("illegal character '%c'", rpc);
-		else
-		    error("illegal character '\\0%o'", rpc);
-	    }
+	    // illegal character
+	    if (isgraph(rpc))
+		error("illegal character '%c'", rpc);
+	    else
+		error("illegal character '\\0%o'", rpc);
 	}
     }
 }
