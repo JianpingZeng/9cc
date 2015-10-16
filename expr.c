@@ -177,7 +177,7 @@ static void integer_constant(struct token *t, node_t *sym)
                 overflow = 1;
             } else {
                 int d;
-                if (ishex(*s))
+                if (isxalpha(*s))
                     d = (*s & 0x5f) - 'A' + 10;
                 else
                     d = *s - '0';

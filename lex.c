@@ -21,7 +21,7 @@ int isletter(int c)
     return isalpha(c) || c == '_';
 }
 
-int ishex(int c)
+int isxalpha(int c)
 {
     return (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 }

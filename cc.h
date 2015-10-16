@@ -131,7 +131,7 @@ extern struct token *newline_token;
 extern struct token *space_token;
 
 extern int isletter(int c);
-extern int ishex(int c);
+extern int isxalpha(int c);
 
 #define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
