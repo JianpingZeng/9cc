@@ -246,6 +246,8 @@ static const char * find_header(const char *name, bool isstd)
     struct vector *paths = vec_new();
     if (isstd) {
         vec_add(paths, std_include_paths);
+	// TODO: for testing
+	vec_add(paths, usr_include_paths);
     } else {
         vec_add(paths, usr_include_paths);
 	// try current path
