@@ -14,6 +14,7 @@ DONE 6. EOI -1 0XFF problem
 3. decl_initializer
 4. paramdecl, localdecl, globaldecl
 5. simplify
+6. node src, node2s
 
 // backend
 1. gen
