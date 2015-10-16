@@ -90,6 +90,14 @@ static void fillbuf(struct file *fs)
 static int get(void)
 {
     struct file *fs = current_file();
+    /** NOTE:
+     * If it's a temp buffer, return EOI immediately
+     * _NOT_ add newline at the end. Other wise the
+     * buffer will generate a newline when expand
+     * macros.
+     */
+    if (!fs->fp && !fs->file)
+	return EOI;
     if (fs->pe - fs->pc < LBUFSIZE)
 	fillbuf(fs);
     if (fs->pc == fs->pe)

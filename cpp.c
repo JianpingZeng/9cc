@@ -326,7 +326,6 @@ static struct vector * arg(void)
     return v;
 }
 
-// TODO: buggy
 static struct vector * arguments(struct macro *m)
 {
     struct vector *v = vec_new();
@@ -338,12 +337,27 @@ static struct vector * arguments(struct macro *m)
 	t = lex();
 	if (t->id == ')' || t->id == EOI)
 	    break;
+	CCAssert(t->id == ',');
 	vec_push(commas, t);
     }
-    if (t->id == ')')
-	unget(t);
+    if (t->id != ')')
+	error("unterminated function-like macro invocation");
     else
-	error("expect ')'");
+	unget(t);
+
+    // remove leading and trailing space
+    if (vec_len(v)) {
+	struct vector *v1 = vec_head(v);
+	struct vector *v2 = vec_tail(v);
+	while (vec_len(v1) && IS_SPACE(vec_head(v1)))
+	    vec_pop_front(v1);
+	while (vec_len(v2) && IS_SPACE(vec_tail(v2)))
+	    vec_pop(v2);
+	// if the only arg is empty, then remove it
+	if (vec_len(v) == 1 && vec_len(vec_head(v)) == 0)
+	    vec_pop(v);
+    }
+
     // check args and params
     if (vec_len(v) < vec_len(m->params)) {
 	error("too few arguments provided to function-like macro invocation");
@@ -364,15 +378,7 @@ static struct vector * arguments(struct macro *m)
 	    error("too many arguments provided to function-like macro invocation");
 	}
     }
-    // remove space
-    if (vec_len(v)) {
-	struct vector *v1 = vec_head(v);
-	struct vector *v2 = vec_tail(v);
-	while (vec_len(v1) && IS_SPACE(vec_head(v1)))
-	    vec_pop_front(v1);
-	while (vec_len(v2) && IS_SPACE(vec_tail(v2)))
-	    vec_pop(v2);
-    }
+
     return v;
 }
 
@@ -841,6 +847,7 @@ static struct token * expand(void)
 	    struct vector *args = arguments(m);
 	    if (NO_ERROR) {
 		struct token *rparen = skip_spaces();
+		CCAssert(rparen->id == ')');
 		struct hideset *hdset = hideset_add(hideset_intersection(t->hideset, rparen->hideset), name);
 		struct vector *v = subst(m, args, hdset);
 		ungetv(v);
