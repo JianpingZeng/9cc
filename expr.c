@@ -73,7 +73,7 @@ static unsigned escape(const char **ps)
     case 'x':
         {
             bool overflow = 0;
-            for (;is_digithex(*s);) {
+            for (;ishexnumber(*s);) {
                 if (overflow) {
                     s++;
                     continue;
@@ -82,7 +82,7 @@ static unsigned escape(const char **ps)
                     overflow = 1;
                     error("hex escape sequence out of range");
                 } else {
-                    if (is_digit(*s))
+                    if (isdigit(*s))
                         c = (c<<4) + *s - '0';
                     else
                         c = (c<<4) + (*s & 0x5f) - 'A' + 10;
@@ -95,10 +95,10 @@ static unsigned escape(const char **ps)
         {
             int x = 0;
             int n = s[-1] == 'u' ? 4 : 8;
-            for (;is_digithex(*s); x++, s++) {
+            for (;ishexnumber(*s); x++, s++) {
                 if (x == n)
                     break;
-                if (is_digit(*s))
+                if (isdigit(*s))
                     c = (c<<4) + *s - '0';
                 else
                     c = (c<<4) + (*s & 0x5f) - 'A' + 10;
@@ -172,12 +172,12 @@ static void integer_constant(struct token *t, node_t *sym)
     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
         base = 16;
         s = s + 2;
-        for (;is_digithex(*s);) {
+        for (;ishexnumber(*s);) {
             if (n & ~(~0ULL >> 4)) {
                 overflow = 1;
             } else {
                 int d;
-                if (is_hex(*s))
+                if (ishex(*s))
                     d = (*s & 0x5f) - 'A' + 10;
                 else
                     d = *s - '0';
@@ -189,7 +189,7 @@ static void integer_constant(struct token *t, node_t *sym)
     } else if (s[0] == '0') {
         base = 8;
         bool err = 0;
-        for (;is_digit(*s);) {
+        for (;isdigit(*s);) {
             if (*s == '8' || *s == '9')
                 err = 1;
             
@@ -205,7 +205,7 @@ static void integer_constant(struct token *t, node_t *sym)
             error("invalid octal constant %s", t->name);
     } else {
         base = 10;
-        for (;is_digit(*s);) {
+        for (;isdigit(*s);) {
             int d = *s - '0';
             if (n > (UINTEGER_MAX(unsignedlonglongtype) - d)/10)
                 overflow = 1;

@@ -95,7 +95,8 @@ static int get(void)
     } else {
 	fs->column++;
     }
-    return *fs->pc++;
+    // convert to unsigned char first
+    return (unsigned char) (*fs->pc++);
 }
 
 /**
@@ -115,9 +116,9 @@ static void unwind_history(int c)
 {
     struct file *fs = current_file();
     if (fs->hists[fs->histp].ch != c)
-	fatal("an unbufferred character '%c'", c);
+	fatal("an unbufferred character '\0%o'", c);
     if (!fs->hists[PREV(fs->histp)].dirty)
-	fatal("unwind history overflow '%c'", c);
+	fatal("unwind history overflow '\0%o'", c);
     fs->hists[fs->histp].dirty = false;
     fs->histp = PREV(fs->histp);
     fs->line = fs->hists[fs->histp].line;
@@ -130,7 +131,7 @@ void unreadc(int c)
     if (c == EOI)
 	return;
     if (fs->charp >= ARRAY_SIZE(fs->chars))
-	fatal("too many unreadc '%c'", c);
+	fatal("too many unreadc '\0%o'", c);
     unsigned line = fs->line;
     unsigned column = fs->column;
     unwind_history(c);

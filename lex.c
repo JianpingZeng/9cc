@@ -1,78 +1,7 @@
 #include "cc.h"
 
-enum {
-    BLANK = 01, NEWLINE = 02, LETTER = 04,
-    DIGIT = 010, HEX = 020, OTHER = 040,
-};
-
-static unsigned char map[256] = {
-#define _a(a, b, c, d)     c,
-#define _x(a, b, c, d)
-#define _t(a, b, c)
-#define _k(a, b, c)
-#include "token.def"
-    OTHER,
-};
-
-/* Don't use macros here, because macros make things wrong.
- * For example:
- *
- * #define is_visible(c)     ((c) >= 040 && (c) < 0177)
- *
- * Then:
- *
- * is_visible(*pc++)
- *
- * will be expanded to:
- *
- * ((*pc++) >= 040 && (*pc++) < 0177)
- *
- * which is not we want.
- *
- */
-
-bool is_digit(char c)
-{
-    return map[(unsigned char)c] & DIGIT;
-}
-
-bool is_letter(char c)
-{
-    return map[(unsigned char)c] & LETTER;
-}
-
-bool is_digitletter(char c)
-{
-    return is_digit(c) || is_letter(c);
-}
-
-bool is_blank(char c)
-{
-    return map[(unsigned char)c] & BLANK;
-}
-
-bool is_newline(char c)
-{
-    return map[(unsigned char)c] & NEWLINE;
-}
-
-bool is_hex(char c)
-{
-    return map[(unsigned char)c] & HEX;
-}
-
-bool is_digithex(char c)
-{
-    return is_digit(c) || is_hex(c);
-}
-
-bool is_visible(char c)
-{
-    return c >= 040 && c < 0177;
-}
-
 static const char *tnames[] = {
-#define _a(a, b, c, d)  b,
+#define _a(a, b, c)     b,
 #define _x(a, b, c, d)  b,
 #define _t(a, b, c)     b,
 #define _k(a, b, c)     b,
@@ -86,6 +15,26 @@ struct token *space_token = &(struct token){.id = ' '};
 struct source source;
 
 #define BOL    (current_file()->bol)
+
+int isletter(int c)
+{
+    return isalpha(c) || c == '_';
+}
+
+int ishex(int c)
+{
+    return (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+}
+
+static inline int isnewline(int c)
+{
+    return c == '\n';
+}
+
+static inline int isdigitletter(int c)
+{
+    return isdigit(c) || isletter(c);
+}
 
 static struct source chsrc()
 {
@@ -110,18 +59,18 @@ static inline void mark(struct token *t)
     source = t->src;
 }
 
-static bool next(char c)
+static bool next(int c)
 {
-    char ch = readc();
+    int ch = readc();
     if (ch == c)
 	return true;
     unreadc(ch);
     return false;
 }
 
-static char peek(void)
+static int peek(void)
 {
-    char ch = readc();
+    int ch = readc();
     unreadc(ch);
     return ch;
 }
@@ -144,10 +93,10 @@ static struct token * make_token(struct token *tok)
     return t;
 }
 
-static void readch(struct strbuf *s, bool (*is) (char))
+static void readch(struct strbuf *s, int (*is) (int))
 {
     for (;;) {
-        char ch = readc();
+        int ch = readc();
 	if (!is(ch)) {
 	    unreadc(ch);
 	    break;
@@ -158,13 +107,13 @@ static void readch(struct strbuf *s, bool (*is) (char))
 
 static void skipline(bool over)
 {
-    char ch;
+    int ch;
     for (;;) {
 	ch = readc();
-	if (is_newline(ch) || ch == EOI)
+	if (isnewline(ch) || ch == EOI)
 	    break;
     }
-    if (is_newline(ch) && !over)
+    if (isnewline(ch) && !over)
 	unreadc(ch);
 }
 
@@ -176,7 +125,7 @@ static inline void line_comment(void)
 static void block_comment(void)
 {
     for (;;) {
-        char ch = readc();
+        int ch = readc();
 	if (ch == '*' && next('/'))
 	    break;
 	if (ch == EOI) {
@@ -186,13 +135,13 @@ static void block_comment(void)
     }
 }
 
-static struct token * ppnumber(char c)
+static struct token * ppnumber(int c)
 {
     struct strbuf *s = strbuf_new();
     strbuf_catc(s, c);
     for (;;) {
-        char ch = readc();
-	if (!is_digitletter(ch) && ch != '.') {
+        int ch = readc();
+	if (!isdigitletter(ch) && ch != '.') {
 	    unreadc(ch);
 	    break;
 	}
@@ -213,7 +162,7 @@ static void escape(struct strbuf *s)
     // current char is '\\'
     struct source src = chsrc();
     strbuf_catc(s, '\\');
-    char ch = readc();
+    int ch = readc();
     strbuf_catc(s, ch);
     switch (ch) {
     case 'a': case 'b': case 'f':
@@ -225,7 +174,7 @@ static void escape(struct strbuf *s)
     case '3': case '4': case '5':
     case '6': case '7':
 	{
-	    char c = peek();
+	    int c = peek();
 	    if (c >= '0' && c <= '7') {
 		strbuf_catc(s, readc());
 		c = peek();
@@ -236,11 +185,11 @@ static void escape(struct strbuf *s)
 	}
 	break;
     case 'x':
-	if (!is_digithex(peek())) {
+	if (!ishexnumber(peek())) {
 	    errorf(src, "\\x used with no following hex digits");
 	    break;
 	}
-	readch(s, is_digithex);
+	readch(s, ishexnumber);
 	break;
     case 'u': case 'U':
 	{
@@ -249,7 +198,7 @@ static void escape(struct strbuf *s)
             int n = ch == 'u' ? 4 : 8;
 	    for (x = 0; x < n; x++) {
 		ch = readc();
-		if (!is_digithex(ch)) {
+		if (!ishexnumber(ch)) {
 		    unreadc(ch);
 		    break;
 		}
@@ -265,7 +214,7 @@ static void escape(struct strbuf *s)
     }
 }
 
-static struct token * sequence(bool wide, char sep)
+static struct token * sequence(bool wide, int sep)
 {
     struct strbuf *s = strbuf_new();
     
@@ -273,10 +222,10 @@ static struct token * sequence(bool wide, char sep)
 	strbuf_catc(s, 'L');
     strbuf_catc(s, sep);
 
-    char ch;
+    int ch;
     for (;;) {
 	ch = readc();
-	if (ch == sep || is_newline(ch) || ch == EOI)
+	if (ch == sep || isnewline(ch) || ch == EOI)
 	    break;
 	if (ch == '\\')
 	    escape(s);
@@ -296,11 +245,11 @@ static struct token * sequence(bool wide, char sep)
 	return make_token(&(struct token){.id = SCONSTANT, .name = strbuf_str(s)});
 }
 
-static struct token * identifier(char c)
+static struct token * identifier(int c)
 {
     struct strbuf *s = strbuf_new();
     strbuf_catc(s, c);
-    readch(s, is_digitletter);
+    readch(s, isdigitletter);
     return make_token(&(struct token){.id = ID, .name = strs(s->str)});
 }
 
@@ -311,11 +260,11 @@ static struct token *newline(void)
     return newline_token;
 }
 
-static struct token * spaces(char c)
+static struct token * spaces(int c)
 {
     struct strbuf *s = strbuf_new();
     strbuf_catc(s, c);
-    readch(s, is_blank);
+    readch(s, isblank);
     space_token->name = strbuf_str(s);
     space_token->src = source;
     return space_token;
@@ -323,7 +272,7 @@ static struct token * spaces(char c)
 
 struct token * dolex(void)
 {
-    register char rpc;
+    register int rpc;
     
     for (; ;) {
 	rpc = readc();
@@ -495,7 +444,7 @@ struct token * dolex(void)
 		    return make_token(&(struct token){.id = ELLIPSIS});
 		unreadc('.');
 		return make_token(&(struct token){.id = rpc});
-	    } else if (is_digit(peek())) {
+	    } else if (isdigit(peek())) {
 		return ppnumber(rpc);
 	    } else {
 		return make_token(&(struct token){.id = rpc});
@@ -527,24 +476,24 @@ struct token * dolex(void)
 
 	default:
 	    // invalid character
-	    if (!is_blank(rpc)) {
-		if (is_visible(rpc))
-		    error("invalid character '%c'", rpc);
+	    if (!isblank(rpc)) {
+		if (isgraph(rpc))
+		    error("illegal character '%c'", rpc);
 		else
-		    error("invalid character '\\0%o'", rpc);
+		    error("illegal character '\\0%o'", rpc);
 	    }
 	}
     }
 }
 
-static const char * hq_char_sequence(char sep)
+static const char * hq_char_sequence(int sep)
 {
     struct strbuf *s = strbuf_new();
-    char ch;
+    int ch;
     
     for (;;) {
 	ch = readc();
-	if (ch == sep || is_newline(ch) || ch == EOI)
+	if (ch == sep || isnewline(ch) || ch == EOI)
 	    break;
 	strbuf_catc(s, ch);
     }
@@ -558,10 +507,10 @@ static const char * hq_char_sequence(char sep)
 
 struct token *header_name(void)
 {
-    char ch;
+    int ch;
  beg:
     ch = readc();
-    if (is_blank(ch))
+    if (isblank(ch))
 	goto beg;
 
     markc();
@@ -583,12 +532,12 @@ void unget(struct token *t)
     vec_push(current_file()->buffer, t);
 }
 
-static void skip_sequence(char sep)
+static void skip_sequence(int sep)
 {
-    char ch;
+    int ch;
     for (;;) {
 	ch = readc();
-	if (ch == sep || is_newline(ch) || ch == EOI)
+	if (ch == sep || isnewline(ch) || ch == EOI)
 	    break;
 	if (ch == '\\')
 	    readc();
@@ -600,11 +549,11 @@ static void skip_sequence(char sep)
 void skip_spaces(void)
 {
     // skip spaces, including comments
-    char ch;
+    int ch;
 
  beg:
     ch = readc();
-    if (is_blank(ch)) {
+    if (isblank(ch)) {
 	goto beg;
     } else if (ch == '/') {
 	if (next('/')) {
@@ -631,10 +580,10 @@ void skip_ifstub(void)
     for (;;) {
 	// skip spaces
         skip_spaces();
-        char ch = readc();
+        int ch = readc();
 	if (ch == EOI)
 	    break;
-	if (is_newline(ch)) {
+	if (isnewline(ch)) {
 	    bol = true;
 	    lines++;
 	    continue;
@@ -800,7 +749,7 @@ static struct token * do_cctoken(void)
  */
 
 static int kinds[] = {
-#define _a(a, b, c, d)  d,
+#define _a(a, b, c)     c,
 #define _x(a, b, c, d)  c,
 #define _t(a, b, c)     c,
 #define _k(a, b, c)     c,
@@ -808,7 +757,7 @@ static int kinds[] = {
 };
 
 static const char *kws[] = {
-#define _a(a, b, c, d)
+#define _a(a, b, c)
 #define _x(a, b, c, d)
 #define _t(a, b, c)
 #define _k(a, b, c)  b,
@@ -816,7 +765,7 @@ static const char *kws[] = {
 };
 
 static int kwi[] = {
-#define _a(a, b, c, d)
+#define _a(a, b, c)
 #define _x(a, b, c, d)
 #define _t(a, b, c)
 #define _k(a, b, c)  a,

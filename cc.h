@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <locale.h>
+#include <ctype.h>
 
 #include "config.h"
 #include "utils.h"
@@ -45,7 +46,7 @@ struct source {
 };
 
 enum {
-#define _a(a, b, c, d)  a,
+#define _a(a, b, c)     a,
 #define _x(a, b, c, d)  a=d,
 #define _t(a, b, c)     a,
 #define _k(a, b, c)     a,
@@ -123,21 +124,14 @@ extern struct ifstub * new_ifstub(struct ifstub *i);
 extern struct ifstub * current_ifstub(void);
 
 // lex.c
-#define EOI  -1
 extern struct source source;
 extern struct token *token;
 extern struct token *eoi_token;
 extern struct token *newline_token;
 extern struct token *space_token;
 
-extern bool is_digit(char c);
-extern bool is_letter(char c);
-extern bool is_digitletter(char c);
-extern bool is_blank(char c);
-extern bool is_newline(char c);
-extern bool is_hex(char c);
-extern bool is_digithex(char c);
-extern bool is_visible(char c);
+extern int isletter(int c);
+extern int ishex(int c);
 
 #define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
@@ -336,7 +330,7 @@ struct table {
 };
 
 // sym
-#define isanonymous(name)   ((name) == NULL || !is_letter((name)[0]))
+#define isanonymous(name)   ((name) == NULL || !isletter((name)[0]))
 
 extern void symbol_init(void);
 extern int scopelevel(void);
