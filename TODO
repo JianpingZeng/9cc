@@ -16,6 +16,7 @@ DONE 6. EOI -1 0XFF problem
 4. paramdecl, localdecl, globaldecl
 5. simplify
 6. node src, node2s
+7. rewrite 'constant parse' in expr.c
 
 // backend
 1. gen
