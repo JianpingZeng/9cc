@@ -242,7 +242,7 @@ static const char * find_header(const char *name, bool isstd)
 {
     if (name == NULL)
 	return NULL;
-    
+
     struct vector *paths = vec_new();
     if (isstd) {
         vec_add(paths, std_include_paths);
@@ -251,7 +251,14 @@ static const char * find_header(const char *name, bool isstd)
     } else {
         vec_add(paths, usr_include_paths);
 	// try current path
-	vec_push(paths, dirname(current_file()->file));
+	/**
+	 * NOTE!!!
+	 * The 'dirname()' manual page says:
+	 * Both dirname() and basename() may modify
+	 * the contents of path, so it may be desirable
+	 * to pass a copy when calling one of these functions.
+	 */
+	vec_push(paths, dirname(strdup(current_file()->name)));
 	vec_add(paths, std_include_paths);
     }
     for (int i = 0; i < vec_len(paths); i++) {
@@ -741,11 +748,6 @@ static struct vector * hsadd(struct vector *r, struct hideset *hideset)
     return r;
 }
 
-static inline struct vector * select(struct vector *ap, int index)
-{
-    return vec_at_safe(ap, index);
-}
-
 static struct vector * remove_spaces(struct vector *v)
 {
     struct vector *r = vec_new();
@@ -770,14 +772,14 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
 
 	if (t0->id == '#' && (index = inparams(t1, m)) >= 0) {
 
-	    struct vector *iv = select(args, index);
+	    struct vector *iv = vec_at_safe(args, index);
 	    struct token *ot = stringize(iv);
 	    vec_push_safe(r, ot);
 	    i++;
 	    
 	} else if (t0->id == SHARPSHARP && (index = inparams(t1, m)) >= 0) {
 
-	    struct vector *iv = select(args, index);
+	    struct vector *iv = vec_at_safe(args, index);
 	    if (iv && vec_len(iv))
 		r = glue(r, remove_spaces(iv));
 	    i++;
@@ -790,7 +792,7 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
 	    
 	} else if ((index = inparams(t0, m)) >= 0 && (t1 && t1->id == SHARPSHARP) ) {
 	    hideset = t1->hideset;
-	    struct vector *iv = select(args, index);
+	    struct vector *iv = vec_at_safe(args, index);
 	    iv = remove_spaces(iv);
 
 	    if (iv && vec_len(iv)) {
@@ -799,7 +801,7 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
 		struct token *t2 = vec_at_safe(body, i+2);
 		int index2 = inparams(t2, m);
 		if (index2 >= 0) {
-		    struct vector *iv2 = select(args, index2);
+		    struct vector *iv2 = vec_at_safe(args, index2);
 		    vec_add(r, remove_spaces(iv2));
 		    i++;
 		}
@@ -808,7 +810,7 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
 	    
 	} else if ((index = inparams(t0, m)) >= 0) {
 	    
-	    struct vector *iv = select(args, index);
+	    struct vector *iv = vec_at_safe(args, index);
 	    struct vector *ov = expandv(iv);
 	    vec_add(r, ov);
 	    
@@ -966,6 +968,8 @@ static void init_include(void)
 #ifdef CONFIG_LINUX
     
     add_include(std_include_paths, "/usr/include");
+    add_include(std_include_paths, "/usr/include/linux");
+    add_include(std_include_paths, "/usr/include/x86_64-linux-gnu");
     
 #elif defined CONFIG_DARWIN
     
