@@ -10,9 +10,10 @@ enum {
     FILE_KIND_STRING,
 };
 
-#define HISTS    (FIELD_SIZEOF(struct file, hists) / sizeof(struct cc_char))
-#define NEXT(p)  (((p)+1)%HISTS)
-#define PREV(p)  (((p)-1+HISTS)%HISTS)
+#define NHISTS    (FIELD_SIZEOF(struct file, hists) / sizeof(struct cc_char))
+#define NEXT(p)   (((p) + 1) % NHISTS)
+#define PREV(p)   (((p) - 1 + NHISTS) % NHISTS)
+#define NCHARS    ARRAY_SIZE(fs->chars)
 
 static bool file_eof(struct file *fs)
 {
@@ -136,7 +137,7 @@ void unreadc(int c)
     struct file *fs = current_file();
     if (c == EOI)
 	return;
-    if (fs->charp >= ARRAY_SIZE(fs->chars))
+    if (fs->charp >= NCHARS)
 	fatal("too many unreadc '\\0%o'", c);
     unsigned line = fs->line;
     unsigned column = fs->column;
