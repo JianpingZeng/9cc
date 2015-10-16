@@ -870,7 +870,7 @@ static struct token * expand(void)
 
 static void file_handler(struct token *t)
 {
-    const char *file = t->src.file;
+    const char *file = current_file()->name;
     const char *name = format("\"%s\"", file);
     struct token *tok = new_token(&(struct token){.id = SCONSTANT, .name = name, .src = t->src});
     unget(tok);
@@ -878,7 +878,7 @@ static void file_handler(struct token *t)
 
 static void line_handler(struct token *t)
 {
-    unsigned line = t->src.line;
+    unsigned line = current_file()->line;
     const char *name = strd(line);
     struct token *tok = new_token(&(struct token){.id = ICONSTANT, .name = name, .src = t->src});
     unget(tok);

@@ -284,6 +284,8 @@ struct file * with_buffer(struct vector *v)
 {
     struct file *fs = new_file(FILE_KIND_STRING);
     fs->name = current_file()->name;
+    fs->line = current_file()->line;
+    fs->column = current_file()->column;
     vec_add(fs->buffer, v);
     return fs;
 }
