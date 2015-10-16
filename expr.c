@@ -73,7 +73,7 @@ static unsigned escape(const char **ps)
     case 'x':
         {
             bool overflow = 0;
-            for (;ishexnumber(*s);) {
+            for (;isxdigit(*s);) {
                 if (overflow) {
                     s++;
                     continue;
@@ -95,7 +95,7 @@ static unsigned escape(const char **ps)
         {
             int x = 0;
             int n = s[-1] == 'u' ? 4 : 8;
-            for (;ishexnumber(*s); x++, s++) {
+            for (;isxdigit(*s); x++, s++) {
                 if (x == n)
                     break;
                 if (isdigit(*s))
@@ -172,7 +172,7 @@ static void integer_constant(struct token *t, node_t *sym)
     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
         base = 16;
         s = s + 2;
-        for (;ishexnumber(*s);) {
+        for (;isxdigit(*s);) {
             if (n & ~(~0ULL >> 4)) {
                 overflow = 1;
             } else {

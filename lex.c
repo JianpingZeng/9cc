@@ -191,11 +191,11 @@ static void escape(struct strbuf *s)
 	}
 	break;
     case 'x':
-	if (!ishexnumber(peek())) {
+	if (!isxdigit(peek())) {
 	    errorf(src, "\\x used with no following hex digits");
 	    break;
 	}
-	readch(s, ishexnumber);
+	readch(s, isxdigit);
 	break;
     case 'u': case 'U':
 	{
@@ -204,7 +204,7 @@ static void escape(struct strbuf *s)
             int n = ch == 'u' ? 4 : 8;
 	    for (x = 0; x < n; x++) {
 		ch = readc();
-		if (!ishexnumber(ch)) {
+		if (!isxdigit(ch)) {
 		    unreadc(ch);
 		    break;
 		}
