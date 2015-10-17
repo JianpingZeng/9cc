@@ -24,27 +24,31 @@ static struct macro * new_macro(int kind)
 {
     struct macro *m = alloc_macro();
     m->kind = kind;
+    m->builtin = current_file()->builtin;
     return m;
 }
 
 static inline void add_macro(const char *name, struct macro *m)
 {
-    map_put(macros, strs(name), m);
+    struct macro *m1 = map_get(macros, name);
+    if (m1 && m1->builtin)
+	error("Can't redefine predefined macro '%s'", name);
+    else
+	map_put(macros, strs(name), m);
 }
 
 static inline void remove_macro(const char *name)
 {
-    map_put(macros, name, NULL);
-}
-
-static inline struct macro * get_macro(const char *name)
-{
-    return map_get(macros, name);
+    struct macro *m = map_get(macros, name);
+    if (m && m->builtin)
+	error("Can't undefine predefined macro '%s'", name);
+    else
+	map_put(macros, name, NULL);
 }
 
 static inline bool defined(const char *name)
 {
-    return get_macro(name);
+    return map_get(macros, name);
 }
 
 static struct token * skip_spaces(void)
@@ -483,6 +487,7 @@ static struct vector * replacement_list(void)
 	vec_push(v, t);
     }
     unget(t);
+    // remove leading and trailing spaces
     if (vec_len(v) && IS_SPACE(vec_head(v)))
 	vec_pop_front(v);
     if (vec_len(v) && IS_SPACE(vec_tail(v)))
@@ -763,7 +768,7 @@ static struct vector * remove_spaces(struct vector *v)
 static struct vector * subst(struct macro *m, struct vector *args, struct hideset *hideset)
 {
     struct vector *r = vec_new();
-    struct vector *body = m->body;
+    struct vector *body = remove_spaces(m->body);
     
     for (int i = 0; i < vec_len(body); i++) {
 	struct token *t0 = vec_at(body, i);
@@ -809,7 +814,6 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
 	    }
 	    
 	} else if ((index = inparams(t0, m)) >= 0) {
-	    
 	    struct vector *iv = vec_at_safe(args, index);
 	    struct vector *ov = expandv(iv);
 	    vec_add(r, ov);
@@ -828,7 +832,7 @@ static struct token * expand(void)
 	return t;
 
     const char *name = t->name;
-    struct macro *m = get_macro(name);
+    struct macro *m = map_get(macros, name);
     if (m == NULL || hideset_has(t->hideset, name))
 	return t;
 
@@ -932,6 +936,13 @@ static inline void include_file(const char *file)
 static inline void include_builtin(const char *file)
 {
     file_sentinel(with_file(file, "<built-in>"));
+    current_file()->builtin = true;
+    unget(lineno(1, current_file()->name));
+}
+
+static inline void include_internal(const char *file)
+{
+    file_sentinel(with_file(file, "<internal>"));
     unget(lineno(1, current_file()->name));
 }
 
@@ -948,7 +959,8 @@ static void builtin_macros(void)
     define_special("__DATE__", date_handler);
     define_special("__TIME__", time_handler);
 
-    include_builtin(BUILD_DIR "/include/mcc.h");
+    include_builtin(BUILD_DIR "/include/builtin.h");
+    include_internal(BUILD_DIR "/include/mcc.h");
 }
 
 static void init_env(void)

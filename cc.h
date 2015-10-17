@@ -75,11 +75,12 @@ struct cc_char {
 };
 
 struct file {
-    int kind : 4;
+    int kind : 3;
     bool bol : 1;		// beginning of line
     bool stub : 1;
     int histp : 8;
     int charp : 8;
+    bool builtin : 1;
     char *buf;
     char *pc;
     char *pe;
@@ -161,6 +162,7 @@ enum {
 struct macro {
     int kind : 3;
     bool vararg : 1;
+    bool builtin : 1;
     struct vector *body;
     struct vector *params;
     void (*handler) (struct token *); // special macro handler
