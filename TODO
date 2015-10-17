@@ -1,24 +1,25 @@
 TODO
 
 // preprocessor
-DONE 1. dolex: unreadc bug
-DONE 2. macro argument
-DONE 3. macro subst: space
-4. test case
-DONE 5. 'struct cc_char' wastes too many memory, needs to be re-designed.
-DONE 6. EOI -1 0XFF problem
-DONE 7. ALWAYS add a newline character if none
-8. expand line numbers "include"
+DONE - dolex: unreadc bug
+DONE - macro argument
+DONE - macro subst: space
+DONE - 'struct cc_char' wastes too many memory, needs to be re-designed.
+DONE - EOI -1 0XFF problem
+DONE - ALWAYS add a newline character if none
+
+TODO - test case
+TODO - subst bug
 
 // parser
-0. ast node struct size needs to be optimize.
-1. initializer: string-literal
-2. eval
-3. decl_initializer
-4. paramdecl, localdecl, globaldecl
-5. simplify
-6. node src, node2s
-7. rewrite 'constant parse' in expr.c
+TODO - ast node struct size needs to be optimize.
+TODO - initializer: string-literal
+TODO - eval
+TODO - decl_initializer
+TODO - paramdecl, localdecl, globaldecl
+TODO - simplify
+TODO - node src, node2s
+TODO - rewrite 'constant parse' in expr.c
 
 // backend
-1. gen
+TODO - gen
