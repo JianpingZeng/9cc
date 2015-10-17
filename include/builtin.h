@@ -13,8 +13,14 @@
 #define __STDC__            1
 
 /**
- * If the implementation conforms to C99,
- * then the macro has the value 199901L.
+ * If the implementation conforms to:
+ *
+ *   standard    value
+ *
+ *   C89         199409L
+ *   C99         199901L
+ *   C11         201112L
+ *
  * Otherwise, its value is not defined.
  */
 #define __STDC_VERSION__    199901L
