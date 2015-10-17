@@ -9,11 +9,12 @@ import tempfile
 import re
 
 GCC = "/usr/bin/gcc"
-# GCC = os.path.expanduser("~/Downloads/8cc/8cc")
 MCC = "./mcc"
 # SDK_PATH = subprocess.check_output(["xcrun", "--show-sdk-path"]).strip()
-# SDK_INC = SDK_PATH + "/usr/include"
-SDK_INC = "/usr/include"
+SDK_PATH = ""
+SDK_INC = SDK_PATH + "/usr/include"
+# GCC_INC = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/7.0.0/include"
+GCC_INC = "/usr/lib/gcc/x86_64-linux-gnu/4.8/include"
 
 def get_incs():
     '''get include dirs'''
@@ -52,7 +53,7 @@ def do_process(cmd):
 
 def gcc_process(file, argv=None):
     '''gcc'''
-    gcc_argv = [GCC, "-E", "-U__GNUC__", "-U__PTRDIFF_TYPE__", "-U__SIZE_TYPE__", "-U__WCHAR_TYPE__", "-U__WINT_TYPE__"]
+    gcc_argv = [GCC, "-E", "-U__has_attribute", "-U__has_builtin", "-U__has_feature", "-U__has_extension"]
 
     if argv:
         gcc_argv = gcc_argv + argv
@@ -63,7 +64,7 @@ def gcc_process(file, argv=None):
 
 def mcc_process(file, argv=None):
     '''mcc'''
-    mcc_argv = [MCC, "-E", "-I~/Downloads/8cc/include"]
+    mcc_argv = [MCC, "-E", "-I"+GCC_INC, "-U__has_attribute", "-U__has_include_next"]
 
     if argv:
         mcc_argv = mcc_argv + argv
@@ -108,6 +109,7 @@ def line_to_tokens(prog, file, line):
     '''line to tokens'''
     i = 0
     end = len(line)
+    rline = line
     line = line + "\n"
     ret = []
     while True:
@@ -132,10 +134,10 @@ def line_to_tokens(prog, file, line):
 
             if line[i] != '"':
                 raise Exception("%s:%s: unterminated string constant [%s] at line [%s]" %
-                         (prog, file, line[beg:i], line))
+                         (prog, file, line[beg:i], rline))
             else:
                 i = i+1
-                ret.append(Token(line[beg:i], line))
+                ret.append(Token(line[beg:i], rline))
                     
         elif (line[i] == 'L' and line[i+1] == '\'') or line[i] == '\'':
             # character constant
@@ -151,29 +153,29 @@ def line_to_tokens(prog, file, line):
 
             if line[i] != '\'':
                 raise Exception("%s:%s: unterminated character constant [%s] at line [%s]" %
-                         (prog, file, line[beg:i], line))
+                         (prog, file, line[beg:i], rline))
             else:
                 i = i+1
-                ret.append(Token(line[beg:i], line))
+                ret.append(Token(line[beg:i], rline))
                     
         elif line[i].isalpha() or line[i] == '_':
             # identifier
             beg = i
             while isdigitletter(line[i]):
                 i = i+1
-            ret.append(Token(line[beg:i], line))
+            ret.append(Token(line[beg:i], rline))
 
         elif line[i].isdigit():
             # digit
             beg = i
             while line[i].isdigit():
                 i = i+1
-            ret.append(Token(line[beg:i], line))
+            ret.append(Token(line[beg:i], rline))
             
         else:
             beg = i
             i = i+1
-            ret.append(Token(line[beg:i], line))
+            ret.append(Token(line[beg:i], rline))
             
     return ret
 
@@ -198,9 +200,9 @@ def compare(file, tokens1, tokens2):
         name1 = tokens1[i].name
         name2 = tokens2[i].name
         if name1 != name2:
-            str1 = "%s: [%s] != [%s]\n" % (file, name1, name2)
-            str2 = "[%s]\n" % tokens1[i].line
-            str3 = "[%s]\n" % tokens2[i].line
+            str1 = "%s: '%s' != '%s'\n" % (file, name1, name2)
+            str2 = "line1:%s\n" % tokens1[i].line
+            str3 = "line2:%s\n" % tokens2[i].line
             if not name1.isdigit() or not name2.isdigit():
                 raise Exception(str1+str2+str3)
 
