@@ -23,6 +23,9 @@
  * Defined as 1 if the implementation is a
  * hosted implementation, 0 if it is a freestanding
  * implementation.
+ *
+ * A hosted environment has the complete facilities
+ * of the standard C library available.
  */
 #define __STDC_HOSTED__     1
 
