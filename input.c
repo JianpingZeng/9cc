@@ -82,8 +82,8 @@ static void fillbuf(struct file *fs)
 	    /**
 	     * warning only if it's really a file.
 	     */
-	    if (fs->kind == FILE_KIND_REGULAR)
-		fprintf(stderr, CLEAR "%s: " RESET PURPLE("warning: ") "No newline at end of file\n", fs->name);
+	    // if (fs->kind == FILE_KIND_REGULAR)
+	    // 	fprintf(stderr, CLEAR "%s: " RESET PURPLE("warning: ") "No newline at end of file\n", fs->name);
 	}
     }
     *fs->pe = 0;
