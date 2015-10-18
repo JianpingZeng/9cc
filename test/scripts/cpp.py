@@ -46,13 +46,18 @@ def process(file):
         str2 = lines_string("mcc_lines:\n", mcc_lines)
         raise Exception(str1+str2)
 
+    err_lines = ""
+    
     for i in range(len(gcc_lines)):
         gcc_line = gcc_lines[i]
         mcc_line = mcc_lines[i]
         if gcc_line != mcc_line:
             str1 = "gcc_line: " + gcc_line + "\n"
             str2 = "mcc_line: " + mcc_line + "\n"
-            raise Exception(str1+str2)
+            err_lines = err_lines + str1 + str2
+
+    if len(err_lines) > 0:
+        raise Exception(err_lines)
 
     return lines_string("gcc_lines:\n", gcc_lines), lines_string("mcc_lines:\n", mcc_lines)
 
