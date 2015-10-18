@@ -1041,16 +1041,15 @@ static const char * find_header(const char *name, bool isstd)
     return NULL;
 }
 
-static void do_include_file(const char *file, const char *name, bool std, bool builtin)
+static void do_include_file(const char *file, const char *name, bool builtin)
 {
-    const char *path = find_header(file, std);
-    if (path) {
-	file_sentinel(with_file(path, name));
+    if (file) {
+	file_sentinel(with_file(file, name));
 	current_file()->builtin = builtin;
 	unget(lineno(1, current_file()->name));
     } else {
         if (file)
-	    fatal("'%s' file not found", file);
+	    fatal("'%s' file not found", name);
 	else
 	    error("empty filename");
     }
@@ -1058,17 +1057,20 @@ static void do_include_file(const char *file, const char *name, bool std, bool b
 
 static inline void include_file(const char *file, bool std)
 {
-    do_include_file(file, file, std, false);
+    const char *path = find_header(file, std);
+    do_include_file(path, path, false);
 }
 
 static inline void include_builtin(const char *file)
 {
-    do_include_file(file, "<built-in>", true, true);
+    const char *path = find_header(file, true);
+    do_include_file(path, "<built-in>", true);
 }
 
 static inline void include_internal(const char *file)
 {
-    do_include_file(file, "<internal>", true, false);
+    const char *path = find_header(file, true);
+    do_include_file(path, "<internal>", false);
 }
 
 static void include_command_line(const char *command)
