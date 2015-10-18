@@ -11,7 +11,7 @@
 
 static struct token * expand(void);
 static struct vector * expandv(struct vector *v);
-static void include_file(const char *file, const char *name, bool std, bool builtin);
+static inline void include_file(const char *file, bool std);
 static struct map *macros;
 static struct vector *std_include_paths;
 static struct vector *usr_include_paths;
@@ -228,7 +228,7 @@ static void include_line(void)
 {
     struct token *t = header_name();
     if (t) {
-        include_file(t->name, t->name, t->kind == '<', false);
+        include_file(t->name, t->kind == '<');
     } else {
 	// pptokens
 	struct source src = source;
@@ -244,8 +244,7 @@ static void include_line(void)
 	    struct vector *r = expandv(v);
 	    struct token *tok = vec_head(r);
 	    if (tok->id == SCONSTANT) {
-		const char *name = unwrap_scon(tok->name);
-		include_file(name, name, false, false);
+		include_file(unwrap_scon(tok->name), false);
 	    } else if (tok->id == '<') {
 
 	    } else {
@@ -952,7 +951,7 @@ static const char * find_header(const char *name, bool isstd)
     return NULL;
 }
 
-static void include_file(const char *file, const char *name, bool std, bool builtin)
+static void do_include_file(const char *file, const char *name, bool std, bool builtin)
 {
     const char *path = find_header(file, std);
     if (path) {
@@ -967,14 +966,19 @@ static void include_file(const char *file, const char *name, bool std, bool buil
     }
 }
 
+static inline void include_file(const char *file, bool std)
+{
+    do_include_file(file, file, std, false);
+}
+
 static inline void include_builtin(const char *file)
 {
-    include_file(file, "<built-in>", true, true);
+    do_include_file(file, "<built-in>", true, true);
 }
 
 static inline void include_internal(const char *file)
 {
-    include_file(file, "<internal>", true, false);
+    do_include_file(file, "<internal>", true, false);
 }
 
 static void include_command_line(const char *command)
