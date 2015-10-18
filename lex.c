@@ -163,62 +163,6 @@ static struct token * ppnumber(int c)
     return make_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
 }
 
-static void escape(struct strbuf *s)
-{
-    // current char is '\\'
-    struct source src = chsrc();
-    strbuf_catc(s, '\\');
-    int ch = readc();
-    strbuf_catc(s, ch);
-    switch (ch) {
-    case 'a': case 'b': case 'f':
-    case 'n': case 'r': case 't':
-    case 'v': case '\'': case '"':
-    case '\\': case '\?':
-	break;
-    case '0': case '1': case '2':
-    case '3': case '4': case '5':
-    case '6': case '7':
-	{
-	    int c = peek();
-	    if (c >= '0' && c <= '7') {
-		strbuf_catc(s, readc());
-		c = peek();
-		if (c >= '0' && c <= '7')
-		    strbuf_catc(s, readc());
-	    }
-	}
-	break;
-    case 'x':
-	if (!isxdigit(peek())) {
-	    errorf(src, "\\x used with no following hex digits");
-	    break;
-	}
-	readch(s, isxdigit);
-	break;
-    case 'u': case 'U':
-	{
-            // universal character name: expect 4(u)/8(U) hex digits
-	    int x;
-            int n = ch == 'u' ? 4 : 8;
-	    for (x = 0; x < n; x++) {
-		ch = readc();
-		if (!isxdigit(ch)) {
-		    unreadc(ch);
-		    break;
-		}
-		strbuf_catc(s, ch);
-	    }
-            if (x < n)
-                errorf(src, "incomplete universal character name: %s", s->str);
-        }
-	break;
-    default:
-	errorf(src, "unrecognized escape character 0x%x", ch);
-	break;
-    }
-}
-
 static struct token * sequence(bool wide, int sep)
 {
     struct strbuf *s = strbuf_new();
@@ -232,10 +176,11 @@ static struct token * sequence(bool wide, int sep)
 	ch = readc();
 	if (ch == sep || isnewline(ch) || ch == EOI)
 	    break;
-	if (ch == '\\')
-	    escape(s);
-	else
-	    strbuf_catc(s, ch);
+	if (ch == '\\') {
+	    strbuf_catc(s, '\\');
+	    ch = readc();
+	}
+	strbuf_catc(s, ch);
     }
 
     bool is_char = sep == '\'' ? true : false;
