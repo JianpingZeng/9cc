@@ -52,8 +52,8 @@ int cc_main(int argc, const char * argv[])
     cpp_init(options);
     type_init();
     symbol_init();
-    preprocess();
-    // translate();
+    // preprocess();
+    translate();
     
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
