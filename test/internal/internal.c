@@ -19,6 +19,8 @@ static const char * write_str(const char *str)
     len = fwrite(str, strlen(str), 1, fp);
     if (len != 1)
         fail("Can't write file");
+
+    fwrite("\n", strlen("\n"), 1, fp);
     
     fclose(fp);
     return s->str;
