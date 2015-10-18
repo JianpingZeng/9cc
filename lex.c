@@ -9,7 +9,7 @@ static const char *tnames[] = {
 };
 
 static struct token *eoi_token = &(struct token){.id = EOI, .name = "EOI"};
-static struct token *space_token = &(struct token){.id = ' ', .name = " "};
+struct token *space_token = &(struct token){.id = ' ', .name = " "};
 struct token *newline_token = &(struct token){.id = '\n', .name = "\n"};
 
 struct source source;

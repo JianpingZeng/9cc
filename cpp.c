@@ -270,7 +270,11 @@ static struct vector * arg(void)
 	    parens++;
 	else if (t->id == ')')
 	    parens--;
-	vec_push(v, t);
+	// replace newline with space
+	if (IS_NEWLINE(t))
+	    vec_push(v, space_token);
+	else
+	    vec_push(v, t);
     }
     unget(t);
     return v;
