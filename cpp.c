@@ -249,6 +249,13 @@ static void include_line(void)
 	struct token *tok = vec_head(r);
 	if (tok->id == SCONSTANT) {
 	    include_file(unwrap_scon(tok->name), false);
+	    for (int i = 1; i < vec_len(r); i++) {
+		struct token *t = vec_at(r, i);
+		if (!IS_SPACE(t)) {
+		    errorf(t->src, "extra tokens at end of #include directive '%s'", t->name);
+		    break;
+		}
+	    }
 	} else if (tok->id == '<') {
 	    struct token *tail = vec_tail(r);
 	    struct strbuf *s = strbuf_new();
