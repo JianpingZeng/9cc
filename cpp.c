@@ -230,7 +230,7 @@ static void include_line(void)
     if (t) {
         include_file(t->name, t->kind == '<');
     } else {
-	// pptokens
+	// # include pptokens newline
 	struct source src = source;
 	struct vector *v = vec_new();
 	for (;;) {
@@ -240,18 +240,31 @@ static void include_line(void)
 	    vec_push(v, t);
 	}
 	
-	if (vec_len(v)) {
-	    struct vector *r = expandv(v);
-	    struct token *tok = vec_head(r);
-	    if (tok->id == SCONSTANT) {
-		include_file(unwrap_scon(tok->name), false);
-	    } else if (tok->id == '<') {
-
-	    } else {
-		errorf(src, "invalid filename at '%s'", tok->name);
+	struct vector *r = expandv(v);
+	if (vec_len(r) == 0) {
+	    errorf(src, "empty filename");
+	    return;
+	}
+	
+	struct token *tok = vec_head(r);
+	if (tok->id == SCONSTANT) {
+	    include_file(unwrap_scon(tok->name), false);
+	} else if (tok->id == '<') {
+	    struct token *tail = vec_tail(r);
+	    struct strbuf *s = strbuf_new();
+	    for (int i = 1; i < vec_len(r) - 1; i++) {
+		struct token *t = vec_at(r, i);
+		if (!IS_SPACE(t))
+		    strbuf_cats(s, t->name);
 	    }
+	    if (tail->id != '>')
+		errorf(src, "expected \"FILENAME\" or <FILENAME>");
+	    else if (strbuf_len(s) == 0)
+		errorf(src, "empty filename");
+	    else
+		include_file(s->str, true);
 	} else {
-	    errorf(src, "missing filename");
+	    errorf(src, "expected \"FILENAME\" or <FILENAME>");
 	}
     }
 }
@@ -1025,7 +1038,7 @@ static void do_include_file(const char *file, const char *name, bool std, bool b
 {
     const char *path = find_header(file, std);
     if (path) {
-	file_sentinel(with_file(file, name));
+	file_sentinel(with_file(path, name));
 	current_file()->builtin = builtin;
 	unget(lineno(1, current_file()->name));
     } else {
