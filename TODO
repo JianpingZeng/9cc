@@ -1,8 +1,7 @@
 TODO
 
 // preprocessor
-TODO - subst bug
-TODO - include pptokens, include path search
+TODO - include pptokens
 TODO - line pptokens
 TODO - pragma
 TODO - test case
