@@ -482,9 +482,9 @@ static struct vector * replacement_list(void)
     }
     unget(t);
     // remove leading and trailing spaces
-    if (vec_len(v) && IS_SPACE(vec_head(v)))
+    while (vec_len(v) && IS_SPACE(vec_head(v)))
 	vec_pop_front(v);
-    if (vec_len(v) && IS_SPACE(vec_tail(v)))
+    while (vec_len(v) && IS_SPACE(vec_tail(v)))
 	vec_pop(v);
     return v;
 }
