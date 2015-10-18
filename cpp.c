@@ -303,9 +303,9 @@ static struct vector * arguments(struct macro *m)
     if (vec_len(v)) {
 	struct vector *v1 = vec_head(v);
 	struct vector *v2 = vec_tail(v);
-	if (vec_len(v1) && IS_SPACE(vec_head(v1)))
+	while (vec_len(v1) && IS_SPACE(vec_head(v1)))
 	    vec_pop_front(v1);
-	if (vec_len(v2) && IS_SPACE(vec_tail(v2)))
+	while (vec_len(v2) && IS_SPACE(vec_tail(v2)))
 	    vec_pop(v2);
 	// if the only arg is empty, then remove it
 	if (vec_len(v) == 1 && vec_len(vec_head(v)) == 0)
