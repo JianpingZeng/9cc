@@ -59,6 +59,7 @@ struct token {
     int id : 10;
     int kind : 10;
     bool bol : 1;		// beginning of line
+    bool space : 1;		// leading space
     const char *name;
     struct source src;
     struct hideset *hideset;

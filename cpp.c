@@ -261,8 +261,19 @@ static struct vector * arg(void)
     struct vector *v = vec_new();
     int parens = 0;
     struct token *t;
+    bool space = false;
     for (;;) {
+	/**
+	 * Merge multiple spaces to one,
+	 * treat newline as space here.
+	 */
 	t = lex();
+	if (IS_SPACE(t) || IS_NEWLINE(t)) {
+	    space = true;
+	    continue;
+	}
+	if (space)
+	    vec_push(v, space_token);
 	if (((t->id == ',' || t->id == ')') && parens == 0) ||
 	    t->id == EOI)
 	    break;
@@ -270,11 +281,8 @@ static struct vector * arg(void)
 	    parens++;
 	else if (t->id == ')')
 	    parens--;
-	// replace newline with space
-	if (IS_NEWLINE(t))
-	    vec_push(v, space_token);
-	else
-	    vec_push(v, t);
+	vec_push(v, t);
+	space = false;
     }
     unget(t);
     return v;
@@ -464,8 +472,10 @@ static void ensure_macro_def(struct token *t, struct macro *m)
 		errorf(t->src, "'##' cannot appear at the beginning of a replacement list");
 	    else if (i == vec_len(m->body) - 1)
 		errorf(t->src, "'##' cannot appear at the end of a replacement list");
-	} else if (t->id == '#' && m->kind != MACRO_FUNC) {
-	    errorf(t->src, "'#' must be followed by the name of a macro formal parameter");
+	} else if (t->id == '#') {
+	    struct token *t1 = vec_at_safe(m->body, i+1);
+	    if (m->kind != MACRO_FUNC || t1 == NULL || inparams(t1, m) < 0)
+		errorf(t->src, "'#' is not followed by a macro parameter");
 	}
     }
 }
@@ -473,19 +483,23 @@ static void ensure_macro_def(struct token *t, struct macro *m)
 static struct vector * replacement_list(void)
 {
     struct vector *v = vec_new();
-    struct token *t;
+    struct token *t = skip_spaces();
+    bool space = false;
     for (;;) {
-	t = lex();
 	if (IS_NEWLINE(t) || t->id == EOI)
 	    break;
+	t->space = space;
 	vec_push(v, t);
+	// skip spaces and record
+	space = false;
+    beg:
+	t = lex();
+	if (IS_SPACE(t)) {
+	    space = true;
+	    goto beg;
+	}
     }
     unget(t);
-    // remove leading and trailing spaces
-    while (vec_len(v) && IS_SPACE(vec_head(v)))
-	vec_pop_front(v);
-    while (vec_len(v) && IS_SPACE(vec_tail(v)))
-	vec_pop(v);
     return v;
 }
 
@@ -679,18 +693,6 @@ static void directive(void)
     skipline();
 }
 
-static struct token * stringize(struct vector *v)
-{
-    struct strbuf *s = strbuf_new();
-    strbuf_cats(s, "\"");
-    for (int i = 0; i < vec_len(v); i++) {
-	struct token *t = vec_at(v, i);
-	strbuf_cats(s, t->name);
-    }
-    strbuf_cats(s, "\"");
-    return new_token(&(struct token){.id = SCONSTANT, .name = strbuf_str(s)});
-}
-
 static struct vector * expandv(struct vector *v)
 {
     struct vector *r = vec_new();
@@ -727,19 +729,6 @@ static struct token * with_temp_lex(const char *input)
     return t;
 }
 
-// paste last of left side with first of right side
-static struct vector * glue(struct vector *ls, struct vector *rs)
-{
-    struct token *l = vec_pop(ls);
-    struct token *r = vec_pop_front(rs);
-    const char *str = format("%s%s", l->name, r->name);
-    struct token *t = with_temp_lex(str);
-    t->hideset = hideset_intersection(l->hideset, r->hideset);
-    vec_push(ls, t);
-    vec_add(ls, rs);
-    return ls;
-}
-
 static struct vector * hsadd(struct vector *r, struct hideset *hideset)
 {
     for (int i = 0; i < vec_len(r); i++) {
@@ -749,22 +738,93 @@ static struct vector * hsadd(struct vector *r, struct hideset *hideset)
     return r;
 }
 
-static struct vector * remove_spaces(struct vector *v)
+/**
+ * Paste last of left side with first of right side.
+ * The 'rs' is selected with no leading spaces and trailing spaces.
+ */
+static struct vector * glue(struct vector *ls, struct vector *rs)
 {
     struct vector *r = vec_new();
-    for (int i = 0; i < vec_len(v); i++) {
-	struct toke *t = vec_at(v, i);
-	if (IS_SPACE(t))
-	    continue;
-	vec_push(r, t);
+    
+    while (vec_len(ls) && IS_SPACE(vec_tail(ls)))
+	vec_pop(ls);
+
+    if (vec_len(ls) == 0) {
+	vec_add(r, rs);
+	return r;
+    } else if (vec_len(rs) == 0) {
+	vec_add(r, ls);
+	return r;
     }
+    
+    struct token *ltok = vec_pop(ls);
+    struct token *rtok = vec_pop_front(rs);
+    const char *str = format("%s%s", ltok->name, rtok->name);
+    struct token *t = with_temp_lex(str);
+    t->hideset = hideset_intersection(ltok->hideset, rtok->hideset);
+
+    vec_add(r, ls);
+    vec_push(r, t);
+    vec_add(r, rs);
     return r;
+}
+
+static const char * backslash(const char *name)
+{
+    struct strbuf *s = strbuf_new();
+    for (int i = 0; i < strlen(name); i++) {
+	char c = name[i];
+	if (c == '"' || c == '\\')
+	    strbuf_catc(s, '\\');
+	strbuf_catc(s, c);
+    }
+    return s->str;
+}
+
+/**
+ * Stringify tokens.
+ * The 'v' is selected with no leading and trailing spaces.
+ */
+static struct token * stringize(struct vector *v)
+{
+    struct strbuf *s = strbuf_new();
+    strbuf_cats(s, "\"");
+    for (int i = 0; i < vec_len(v); i++) {
+	struct token *t = vec_at(v, i);
+	if (t->id == SCONSTANT ||
+	    (t->id == ICONSTANT && (t->name[0] == '\'' || t->name[0] == 'L')))
+	    // Any embedded quotation or backslash characters
+	    // are preceded by a backslash character to preserve
+	    // their meaning in the string.
+	    strbuf_cats(s, backslash(t->name));
+	else
+	    strbuf_cats(s, t->name);
+    }
+    strbuf_cats(s, "\"");
+    return new_token(&(struct token){.id = SCONSTANT, .name = s->str});
+}
+
+/**
+ * Select an argument for expansion.
+ * Remove the leading and trailing spaces.
+ */
+static struct vector * select(struct vector *args, int index)
+{
+    struct vector *v = vec_new();
+    vec_add(v, vec_at_safe(args, index));
+    while (vec_len(v) && IS_SPACE(vec_head(v)))
+	vec_pop_front(v);
+    while (vec_len(v) && IS_SPACE(vec_tail(v)))
+	vec_pop(v);
+    return v;
 }
 
 static struct vector * subst(struct macro *m, struct vector *args, struct hideset *hideset)
 {
     struct vector *r = vec_new();
-    struct vector *body = remove_spaces(m->body);
+    struct vector *body = m->body;
+
+#define PUSH_SPACE(r, t)    if (t->space) vec_push(r, space_token)
     
     for (int i = 0; i < vec_len(body); i++) {
 	struct token *t0 = vec_at(body, i);
@@ -773,16 +833,17 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
 
 	if (t0->id == '#' && (index = inparams(t1, m)) >= 0) {
 
-	    struct vector *iv = vec_at_safe(args, index);
+	    struct vector *iv = select(args, index);
 	    struct token *ot = stringize(iv);
-	    vec_push_safe(r, ot);
+	    PUSH_SPACE(r, t0);
+	    vec_push(r, ot);
 	    i++;
 	    
 	} else if (t0->id == SHARPSHARP && (index = inparams(t1, m)) >= 0) {
 
-	    struct vector *iv = vec_at_safe(args, index);
-	    if (iv && vec_len(iv))
-		r = glue(r, remove_spaces(iv));
+	    struct vector *iv = select(args, index);
+	    if (vec_len(iv))
+		r = glue(r, iv);
 	    i++;
 	    
 	} else if (t0->id == SHARPSHARP && t1) {
@@ -792,33 +853,40 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
 	    i++;
 	    
 	} else if ((index = inparams(t0, m)) >= 0 && (t1 && t1->id == SHARPSHARP) ) {
+	    
 	    hideset = t1->hideset;
-	    struct vector *iv = vec_at_safe(args, index);
-	    iv = remove_spaces(iv);
-
-	    if (iv && vec_len(iv)) {
+	    struct vector *iv = select(args, index);
+	    if (vec_len(iv)) {
+		PUSH_SPACE(r, t0);
 		vec_add(r, iv);
 	    } else {
+		// add a space
+		vec_push(r, space_token);
+		
 		struct token *t2 = vec_at_safe(body, i+2);
 		int index2 = inparams(t2, m);
 		if (index2 >= 0) {
-		    struct vector *iv2 = vec_at_safe(args, index2);
-		    vec_add(r, remove_spaces(iv2));
+		    struct vector *iv2 = select(args, index2);
+		    vec_add(r, iv2);
 		    i++;
 		}
 		i++;
 	    }
 	    
 	} else if ((index = inparams(t0, m)) >= 0) {
-	    struct vector *iv = vec_at_safe(args, index);
+	    
+	    struct vector *iv = select(args, index);
 	    struct vector *ov = expandv(iv);
+	    PUSH_SPACE(r, t0);
 	    vec_add(r, ov);
 	    
 	} else {
+	    PUSH_SPACE(r, t0);
 	    vec_push(r, t0);
 	}
     }
     return hsadd(r, hideset);
+#undef PUSH_SPACE
 }
 
 static struct token * expand(void)
