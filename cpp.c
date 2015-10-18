@@ -11,7 +11,7 @@
 
 static struct token * expand(void);
 static struct vector * expandv(struct vector *v);
-static inline void include_file(const char *file);
+static void include_file(const char *file, const char *name, bool std, bool builtin);
 static struct map *macros;
 static struct vector *std_include_paths;
 static struct vector *usr_include_paths;
@@ -224,56 +224,11 @@ static void ifndef_section(void)
     do_ifdef_section(IFNDEF);
 }
 
-static const char * find_header(const char *name, bool isstd)
-{
-    if (name == NULL)
-	return NULL;
-
-    struct vector *paths = vec_new();
-    if (isstd) {
-        vec_add(paths, std_include_paths);
-	// TODO: for testing
-	vec_add(paths, usr_include_paths);
-    } else {
-        vec_add(paths, usr_include_paths);
-	// try current path
-	/**
-	 * NOTE!!!
-	 * The 'dirname()' manual page says:
-	 * Both dirname() and basename() may modify
-	 * the contents of path, so it may be desirable
-	 * to pass a copy when calling one of these functions.
-	 */
-	vec_push(paths, dirname(strdup(current_file()->name)));
-	vec_add(paths, std_include_paths);
-    }
-    for (int i = 0; i < vec_len(paths); i++) {
-	const char *dir = vec_at(paths, i);
-	const char *file = join(dir, name);
-	if (file_exists(file))
-	    return file;
-    }
-    return NULL;
-}
-
-static void do_include(const char *name, bool isstd)
-{
-    const char *file = find_header(name, isstd);
-    if (file) {
-	include_file(file);
-    } else {
-        if (name)
-	    fatal("'%s' file not found", name);
-	else
-	    error("empty filename");
-    }
-}
-
 static void include_line(void)
 {
     struct token *t = header_name();
     if (t) {
-        do_include(t->name, t->kind == '<');
+        include_file(t->name, t->name, t->kind == '<', false);
     } else {
 	// pptokens
 	struct source src = source;
@@ -289,7 +244,8 @@ static void include_line(void)
 	    struct vector *r = expandv(v);
 	    struct token *tok = vec_head(r);
 	    if (tok->id == SCONSTANT) {
-		do_include(unwrap_scon(tok->name), false);
+		const char *name = unwrap_scon(tok->name);
+		include_file(name, name, false, false);
 	    } else if (tok->id == '<') {
 
 	    } else {
@@ -964,23 +920,61 @@ static struct token * lineno(unsigned line, const char *file)
     return t;
 }
 
-static inline void include_file(const char *file)
+static const char * find_header(const char *name, bool isstd)
 {
-    file_sentinel(with_file(file, file));
-    unget(lineno(1, current_file()->name));
+    if (name == NULL)
+	return NULL;
+
+    struct vector *paths = vec_new();
+    if (isstd) {
+        vec_add(paths, std_include_paths);
+	// TODO: for testing
+	vec_add(paths, usr_include_paths);
+    } else {
+        vec_add(paths, usr_include_paths);
+	// try current path
+	/**
+	 * NOTE!!!
+	 * The 'dirname()' manual page says:
+	 * Both dirname() and basename() may modify
+	 * the contents of path, so it may be desirable
+	 * to pass a copy when calling one of these functions.
+	 */
+	vec_push(paths, dirname(strdup(current_file()->name)));
+	vec_add(paths, std_include_paths);
+    }
+    for (int i = 0; i < vec_len(paths); i++) {
+	const char *dir = vec_at(paths, i);
+	const char *file = join(dir, name);
+	if (file_exists(file))
+	    return file;
+    }
+    return NULL;
+}
+
+static void include_file(const char *file, const char *name, bool std, bool builtin)
+{
+    const char *path = find_header(file, std);
+    if (path) {
+	file_sentinel(with_file(file, name));
+	current_file()->builtin = builtin;
+	unget(lineno(1, current_file()->name));
+    } else {
+        if (file)
+	    fatal("'%s' file not found", file);
+	else
+	    error("empty filename");
+    }
 }
 
 static inline void include_builtin(const char *file)
 {
-    file_sentinel(with_file(file, "<built-in>"));
-    current_file()->builtin = true;
-    unget(lineno(1, current_file()->name));
+    include_file(file, "<built-in>", true, true);
 }
 
 static inline void include_internal(const char *file)
 {
-    file_sentinel(with_file(file, "<internal>"));
-    unget(lineno(1, current_file()->name));
+    include_file(file, "<internal>", true, false);
 }
 
 static void include_command_line(const char *command)
