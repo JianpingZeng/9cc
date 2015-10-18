@@ -184,9 +184,8 @@ static void escape(struct strbuf *s)
 	    if (c >= '0' && c <= '7') {
 		strbuf_catc(s, readc());
 		c = peek();
-		if (c >= '0' && c <= '7') {
+		if (c >= '0' && c <= '7')
 		    strbuf_catc(s, readc());
-		}
 	    }
 	}
 	break;
