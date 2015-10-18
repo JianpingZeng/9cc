@@ -166,6 +166,7 @@ struct macro {
     struct vector *body;
     struct vector *params;
     void (*handler) (struct token *); // special macro handler
+    struct source src;
 };
 
 extern void cpp_init(struct vector *options);

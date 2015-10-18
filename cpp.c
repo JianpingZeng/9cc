@@ -28,24 +28,6 @@ static struct macro * new_macro(int kind)
     return m;
 }
 
-static inline void add_macro(const char *name, struct macro *m)
-{
-    struct macro *m1 = map_get(macros, name);
-    if (m1 && m1->builtin)
-	error("Can't redefine predefined macro '%s'", name);
-    else
-	map_put(macros, strs(name), m);
-}
-
-static inline void remove_macro(const char *name)
-{
-    struct macro *m = map_get(macros, name);
-    if (m && m->builtin)
-	error("Can't undefine predefined macro '%s'", name);
-    else
-	map_put(macros, name, NULL);
-}
-
 static inline bool defined(const char *name)
 {
     return map_get(macros, name);
@@ -430,6 +412,13 @@ static void parameters(struct macro *m)
 	struct vector *v = vec_new();
 	for (;;) {
 	    if (t->id == ID) {
+		for (int i = 0; i < vec_len(v); i++) {
+		    struct token *t1 = vec_at(v, i);
+		    if (!strcmp(t->name, t1->name)) {
+			error("duplicate macro paramter name '%s'", t->name);
+			break;
+		    }
+		}
 		vec_push(v, t);
 	    } else if (t->id == ELLIPSIS) {
 		m->vararg = true;
@@ -444,7 +433,7 @@ static void parameters(struct macro *m)
 	    t = skip_spaces();
 	}
 	if (t->id != ')') {
-	    error("expect ')'");
+	    errorf(t->src, "unterminated macro parameter list");
 	    unget(t);
 	}
 	m->params = v;
@@ -458,9 +447,55 @@ static void parameters(struct macro *m)
 	m->params = vec_new();
 }
 
+static inline void remove_macro(const char *name)
+{
+    struct macro *m = map_get(macros, name);
+    if (m && m->builtin)
+	error("Can't undefine predefined macro '%s'", name);
+    else
+	map_put(macros, name, NULL);
+}
+
 static void ensure_macro_def(struct token *t, struct macro *m)
 {
-    if (!strcmp(t->name, "defined"))
+    // check redefinition
+    const char *name = t->name;
+    struct macro *m1 = map_get(macros, name);
+    if (m1) {
+	if (m1->builtin) {
+	    errorf(t->src, "Can't redefine predefined macro '%s'", name);
+	} else {
+	    // compare definition
+	    if (m->kind != m1->kind ||
+		m->vararg != m1->vararg ||
+		vec_len(m->params) != vec_len(m1->params) ||
+		vec_len(m->body) != vec_len(m1->body))
+		goto redef;
+	    
+	    for (int i = 0; i < vec_len(m->params); i++) {
+		struct token *t1 = vec_at(m->params, i);
+		struct token *t2 = vec_at(m1->params, i);
+		if (strcmp(t1->name, t2->name))
+		    goto redef;
+	    }
+
+	    for (int i = 0; i < vec_len(m->body); i++) {
+		struct token *t1 = vec_at(m->body, i);
+		struct token *t2 = vec_at(m1->body, i);
+		if (strcmp(t1->name, t2->name))
+		    goto redef;
+	    }
+	    // equal definition
+	    return;
+
+	redef:
+	    errorf(t->src, "'%s' macro redefinition, previous definition at %s:%u:%u",
+		   name, m1->src.file, m1->src.line, m1->src.column);
+	}
+	return;
+    }
+    
+    if (!strcmp(name, "defined"))
 	errorf(t->src, "'defined' cannot be used as a macro name");
 	
     for (int i = 0; i < vec_len(m->body); i++) {
@@ -499,21 +534,23 @@ static void define_objlike_macro(struct token *t)
 {
     struct macro *m = new_macro(MACRO_OBJ);
     SAVE_ERRORS;
+    m->src = t->src;
     m->body = replacement_list();
     ensure_macro_def(t, m);
     if (NO_ERROR)
-	add_macro(t->name, m);
+	map_put(macros, t->name, m);
 }
 
 static void define_funclike_macro(struct token *t)
 {
     struct macro *m = new_macro(MACRO_FUNC);
     SAVE_ERRORS;
+    m->src = t->src;
     parameters(m);
     m->body = replacement_list();
     ensure_macro_def(t, m);
     if (NO_ERROR)
-	add_macro(t->name, m);
+	map_put(macros, t->name, m);
 }
 
 static struct token * read_identifier(void)
@@ -912,7 +949,7 @@ static void define_special(const char *name, void (*handler) (struct token *))
 {
     struct macro *m = new_macro(MACRO_SPECIAL);
     m->handler = handler;
-    add_macro(name, m);
+    map_put(macros, strs(name), m);
 }
 
 static inline void add_include(struct vector *v, const char *name)
