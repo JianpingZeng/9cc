@@ -67,14 +67,15 @@ def main():
     files = dir_srcs(dir)
     for file in files:
         try:
+            start = "Preprocesing " + os.path.basename(file) + " ..."
+            sys.stdout.write("%-30s" % start)
             glines, mlines = process(file)
-            print "%s \033[92mPASS\033[0m" % file
+            sys.stdout.write("\033[92mPASS\033[0m\n")
             # print glines
             # print mlines
         except Exception,e:
+            sys.stdout.write("\033[91mFAIL\033[0m\n")
             print e
-            print "%s \033[91mFAIL\033[0m" % file
-            sys.exit(1)
 
 if __name__ == "__main__":
     reload(sys)
