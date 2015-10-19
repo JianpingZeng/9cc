@@ -182,6 +182,7 @@ extern struct vector * all_pptoks(void);
 extern node_t * eval(node_t *expr, node_t *ty);
 extern node_t * eval_bool(node_t *expr);
 extern bool eval_cpp_cond(void);
+extern node_t * string_literal(const char *str);
 
 // expr.c
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))

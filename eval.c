@@ -13,6 +13,20 @@ static node_t * eval_arith(node_t *expr);
 static node_t * eval_address(node_t *expr);
 static node_t * eval_initializer(node_t *expr);
 
+// TODO
+node_t * string_literal(const char *str)
+{
+    node_t *sym = lookup(str, constants);
+    if (!sym) {
+	sym = install(str, &constants, CONSTANT);
+	node_t *ty = array_type(chartype);
+	TYPE_LEN(ty) = strlen(str)-1;
+	set_typesize(ty);
+	SYM_TYPE(ty) = ty;
+    }
+    node_t *ret = ast_expr(STRING_LITERAL, 0, NULL, NULL);
+}
+
 static node_t * literal_node(int id)
 {
     node_t *n = alloc_node();
