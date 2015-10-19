@@ -1,5 +1,12 @@
-#ifndef _STDARG_H
-#define _STDARG_H
+/**
+ * Copyright (C) Guiyang Huang, 2015
+ *
+ * ISO/IEC 9899:1999
+ * <stdarg.h>
+ */
+
+#ifndef __STDARG_H
+#define __STDARG_H
 
 // TODO
 typedef void *__gnuc_va_list;
