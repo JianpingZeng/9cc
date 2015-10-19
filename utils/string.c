@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <string.h>
 #include "utils.h"
 
 #define FNV32_BASIS ((unsigned) 0x811c9dc5)
@@ -127,4 +128,18 @@ char *format(const char *fmt, ...)
     char *r = vformat(fmt, ap);
     va_end(ap);
     return r;
+}
+
+char *strcopy(const char *str)
+{
+    char *ret = xmalloc(strlen(str)+1);
+    strcpy(ret, str);
+    return ret;
+}
+
+char *strncopy(const char *str, size_t n)
+{
+    char *ret = xmalloc(n+1);
+    strncpy(ret, str, n);
+    return ret;
 }

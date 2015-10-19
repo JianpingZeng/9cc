@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <time.h>
 #include "sys.h"
 #include "config.h"
 #include "utils.h"
@@ -38,7 +39,7 @@ static void usage(void)
 static const char * tempname(const char *dir, const char *hint)
 {
     static long index;
-    const char *base = basename(strdup(hint));
+    const char *base = basename(strcopy(hint));
     const char *name = base;
     const char *path;
 

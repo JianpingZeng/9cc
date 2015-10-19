@@ -19,4 +19,7 @@ extern char *basename(const char *path);
 extern int callsys(const char *path, char **argv);
 extern int runproc(int (*proc) (void *), void *context);
 
+// time
+extern void set_localtime(const time_t *timep, struct tm *result);
+
 #endif

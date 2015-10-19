@@ -1,3 +1,7 @@
+// for mkdtemp, dirname, basename,
+// localtime_r
+#define _BSD_SOURCE
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -7,6 +11,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 // dirname, basename
 #include <libgen.h>
 // trace
@@ -31,7 +36,7 @@ void setup_sys()
     signal(SIGABRT, handler);
 }
 
-char *mktmpdir()
+const char *mktmpdir()
 {
     static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
     int len = strlen("/tmp/mcc.temp.");
@@ -122,7 +127,7 @@ int runproc(int (*proc) (void *), void *context)
  *  
  */
 
-char *replace_suffix(const char *path, const char *suffix)
+const char *replace_suffix(const char *path, const char *suffix)
 {
     assert(path && suffix);
     int dot_index = -1;
@@ -156,7 +161,7 @@ int rmdir(const char *dir)
     return system(command);
 }
 
-char *abspath(char *path)
+const char *abspath(const char *path)
 {
     if (!path || !strlen(path))
         return NULL;
@@ -203,4 +208,9 @@ const char *join(const char *dir, const char *name)
     p[len1 + 1 + len2] = '\0';
     
     return p;
+}
+
+void set_localtime(const time_t *timep, struct tm *result)
+{
+    localtime_r(timep, result);
 }
