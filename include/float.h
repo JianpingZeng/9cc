@@ -9,10 +9,10 @@
 #define __FLOAT_H
 
 /**
- *              | sign | exponent | fraction |
- * float:          1      8          23
- * double:         1      11         52
- * long double:    1      64         63
+ *              | sign | exponent | fraction | total bits | exponent bias |
+ * float:          1      8          23          32            127
+ * double:         1      11         52          64            1023
+ * long double:    1      15         64          80            16383
  */
 
 #define DECIMAL_DIG     21
