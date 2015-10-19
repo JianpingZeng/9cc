@@ -8,6 +8,13 @@
 #ifndef __FLOAT_H
 #define __FLOAT_H
 
+/**
+ *              | sign | exponent | fraction |
+ * float:          1      8          23
+ * double:         1      11         52
+ * long double:    1      64         63
+ */
+
 #define FLT_RADIX 2
 #define FLT_ROUNDS 1
 #define FLT_EVAL_METHOD 0
