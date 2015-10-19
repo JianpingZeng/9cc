@@ -261,9 +261,9 @@ static void include_line(void)
 	    struct strbuf *s = strbuf_new();
 	    for (int i = 1; i < vec_len(r) - 1; i++) {
 		struct token *t = vec_at(r, i);
-		if (!IS_SPACE(t))
-		    strbuf_cats(s, t->name);
+		strbuf_cats(s, t->name);
 	    }
+	    strbuf_strip(s);
 	    if (tail->id != '>')
 		errorf(src, "expected \"FILENAME\" or <FILENAME>");
 	    else if (strbuf_len(s) == 0)
