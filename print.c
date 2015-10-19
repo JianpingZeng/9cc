@@ -13,7 +13,7 @@ static void putf(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
+    vfprintf(stdout, fmt, ap);
     va_end(ap);
 }
 
