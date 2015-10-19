@@ -3,6 +3,7 @@
 static const char *ifile;
 static const char *ofile;
 static struct vector *options;
+static bool cpp_only;
 
 static void parseopts(int argc, const char *argv[])
 {
@@ -15,7 +16,10 @@ static void parseopts(int argc, const char *argv[])
                 die("missing target file while -o option given");
             ofile = argv[i];
         } else if (arg[0] == '-') {
-            vec_push(options, (void *)arg);
+	    if (!strcmp(arg, "-E"))
+		cpp_only = true;
+	    else
+		vec_push(options, (void *)arg);
         } else {
             ifile = arg;
         }
@@ -52,8 +56,11 @@ int cc_main(int argc, const char * argv[])
     cpp_init(options);
     type_init();
     symbol_init();
-    // preprocess();
-    translate();
+
+    if (cpp_only)
+	preprocess();
+    else
+	translate();
     
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

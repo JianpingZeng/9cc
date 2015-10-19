@@ -258,9 +258,7 @@ static node_t * specifiers(int *sclass)
         basety = qual(VOLATILE, basety);
     if (res)
         basety = qual(RESTRICT, basety);
-    if (inl)
-        basety = qual(INLINE, basety);
-    
+
     if (sclass)
         *sclass = cls;
 
