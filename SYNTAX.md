@@ -712,7 +712,7 @@ pp-number:
 	digit
 	. digit
 	pp-number digit
-	pp-number identifer-nondigit
+	pp-number identifier-nondigit
 	pp-number e sign
 	pp-number E sign
 	pp-number p sign
