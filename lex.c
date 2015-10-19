@@ -718,7 +718,7 @@ static int kwi[] = {
 };
 
 struct token *token;
-#define ahead_token  (current_file()->ahead)
+struct token *ahead_token;
 
 static int tkind(int t)
 {

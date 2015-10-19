@@ -125,12 +125,21 @@ static bool eval_constexpr(void)
     if (HAS_ERROR)
 	return false;
 
+    // save parser context
+    struct token *saved_token = token;
+    struct token *saved_ahead = ahead_token;
+
     // create a temp file
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
     file_stub(with_buffer(vec_reverse(tokens)));
     bool ret = eval_cpp_cond();
     file_unstub();
+
+    // restore context
+    token = saved_token;
+    ahead_token = saved_ahead;
+
     return ret;
 }
 

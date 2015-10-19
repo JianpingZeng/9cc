@@ -97,7 +97,6 @@ struct file {
     struct cc_char chars[MAX_UNREADC];	// readc ungets
     struct vector *buffer;	// lex ungets
     struct vector *tokens;	// parser ungets
-    struct token *ahead;	// lookahead token
 };
 
 struct ifstub {
@@ -128,6 +127,7 @@ extern struct ifstub * current_ifstub(void);
 // lex.c
 extern struct source source;
 extern struct token *token;
+extern struct token *ahead_token;
 extern struct token *newline_token;
 extern struct token *space_token;
 
