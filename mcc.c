@@ -14,11 +14,8 @@
 
 extern int cc_main(int argc, char *argv[]);
 
-static char *ofile;
 static unsigned fails;
-static unsigned unit;
 static const char *version = "0.0";
-static const char *tmpdir;
 static const char *progname;
 
 static void usage(void)
@@ -38,43 +35,69 @@ static void usage(void)
 #undef print_opt
 }
 
-static const char *tempname(const char *hint)
+static const char * tempname(const char *dir, const char *hint)
 {
-    char p[64];
-    hint = hint ? hint : "tmp";
-    snprintf(p, sizeof(p), "mcc.%u.%s", unit, hint);
-    return join(tmpdir, p);
+    static long index;
+    const char *base = basename(strdup(hint));
+    const char *name = base;
+    const char *path;
+
+ beg:
+    path = join(dir, name);
+    if (file_exists(path)) {
+	name = format("%s-%d", base, index++);
+	goto beg;
+    }
+    return path;
 }
 
-static int unitprocess(void *context)
+static bool options_has(struct vector *v, const char *name)
+{
+    for (int i = 0; i < vec_len(v); i++) {
+	const char *option = vec_at(v, i);
+	if (!strcmp(option, name))
+	    return true;
+    }
+    return false;
+}
+
+static int program(void *context)
 {
     struct vector *data = (struct vector *)context;
-    const char *inputfile = (const char *)vec_at(data, 0);
+    const char *ifile = (const char *)vec_at(data, 0);
     struct vector *options = (struct vector *)vec_at(data, 1);
+    const char *ofile = NULL;
+    if (vec_len(data) > 2)
+	ofile = (const char *)vec_at(data, 2);
     
-    if (!file_exists(inputfile)) {
-        fprintf(stderr, "input file '%s' not exists.\n", inputfile);
+    if (!file_exists(ifile)) {
+        fprintf(stderr, "input file '%s' not exists.\n", ifile);
         return EXIT_FAILURE;
     }
 
     struct vector *v = vec_new();
     vec_push(v, (void *)progname);
     vec_add(v, options);
-    vec_push(v, (void *)inputfile);
+    vec_push(v, (void *)ifile);
+    if (ofile) {
+	vec_push(v, (char *)"-o");
+	vec_push(v, (void *)ofile);
+    }
 
     return cc_main(vec_len(v), (char **)vtoa(v));
 }
 
-static void translate(void *elem, void *context)
+static void translate(const char *ifile, struct vector *options, const char *ofile)
 {
-    int ret;
     struct vector *v = vec_new();
-    vec_push(v, elem);
-    vec_push(v, context);
-    unit++;
-    ret = runproc(unitprocess, (void *)v);
-    if (ret == EXIT_FAILURE)
+    vec_push(v, (void *)ifile);
+    vec_push(v, options);
+    if (ofile)
+	vec_push(v, (void *)ofile);
+
+    if (runproc(program, (void *)v) == EXIT_FAILURE)
         fails++;
+    
     vec_free(v);
 }
 
@@ -83,6 +106,8 @@ int main(int argc, char **argv)
     int ret = EXIT_SUCCESS;
     struct vector *inputs = vec_new();
     struct vector *options = vec_new();
+    const char *tmpdir;
+    const char *output_file = NULL;
 
     progname = argv[0];
     setup_sys();
@@ -92,11 +117,11 @@ int main(int argc, char **argv)
         if (!strcmp(arg, "-h") || !strcmp(arg, "--help") ||
             !strcmp(arg, "-v") || !strcmp(arg, "--version")) {
             usage();
-            exit(EXIT_FAILURE);
+	    return EXIT_SUCCESS;
         } else if (!strcmp(arg, "-o")) {
             if (++i >= argc)
                 die("missing file name after '-o'");
-            ofile = argv[i];
+            output_file = argv[i];
         } else if (arg[0] == '-') {
             vec_push(options, arg);
         } else {
@@ -106,26 +131,48 @@ int main(int argc, char **argv)
     
     if (argc == 1) {
         usage();
-        ret = EXIT_FAILURE;
-        goto end;
+        return EXIT_SUCCESS;
     } else if (vec_len(inputs) == 0) {
         fprintf(stderr, "no input file.\n");
-        ret = EXIT_FAILURE;
-        goto end;
+        return EXIT_FAILURE;
+    } else if (output_file && vec_len(inputs) > 1 &&
+	       (options_has(options, "-E") ||
+		options_has(options, "-S") ||
+		options_has(options, "-c"))) {
+	fprintf(stderr, "mcc: cannot specify -o when generating multiple output files\n");
+	return EXIT_FAILURE;
     }
 
     if (!(tmpdir = mktmpdir()))
 	die("Can't make temporary directory.");
     
-    for (int i = 0; i < vec_len(inputs); i++)
-        translate(vec_at(inputs, i), options);
+    for (int i = 0; i < vec_len(inputs); i++) {
+	const char *ifile = vec_at(inputs, i);
+	const char *ofile = NULL;
+	if (options_has(options, "-E")) {
+	    if (output_file)
+		ofile = output_file;
+	} else if (options_has(options, "-S")) {
+	    if (output_file)
+		ofile = output_file;
+	    else
+		ofile = replace_suffix(ifile, "s");
+	} else if (options_has(options, "-c")) {
+	    if (output_file)
+		ofile = output_file;
+	    else
+		ofile = replace_suffix(ifile, "o");
+	} else {
+	    ofile = tempname(tmpdir, ifile);
+	}
+        translate(ifile, options, ofile);
+    }
     
     if (fails) {
         fprintf(stderr, "%d fails.\n", fails);
 	ret = EXIT_FAILURE;
     }
-    
-end:
+
     if (tmpdir)
 	rmdir(tmpdir);
     return ret;

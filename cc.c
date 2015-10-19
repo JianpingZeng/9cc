@@ -2,6 +2,7 @@
 
 static const char *ifile;
 static const char *ofile;
+static FILE *ofp;
 static struct vector *options;
 static bool cpp_only;
 
@@ -24,6 +25,14 @@ static void parseopts(int argc, const char *argv[])
             ifile = arg;
         }
     }
+
+    if (ofile) {
+	ofp = fopen(ofile, "w");
+	if (ofp == NULL) {
+	    perror(ofile);
+	    die("Can't open file %s", ofile);
+	}
+    }
 }
 
 static void translate(void)
@@ -41,16 +50,25 @@ static void translate(void)
 
 static void preprocess(void)
 {
+    FILE *fp = ofp ? ofp : stdout;
+    
     struct vector *v = all_pptoks();
     for (int i = 0; i < vec_len(v); i++) {
     	struct token *t = vec_at(v, i);
-        printf("%s", t->name);
+        fprintf(fp, "%s", t->name);
     }
+}
+
+static void cc_exit(void)
+{
+    print_alloc_stat();
+    if (ofp)
+	fclose(ofp);
 }
 
 int cc_main(int argc, const char * argv[])
 {
-    atexit(print_alloc_stat);
+    atexit(cc_exit);
     parseopts(argc, argv);
     input_init(ifile);
     cpp_init(options);
