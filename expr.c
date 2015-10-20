@@ -654,9 +654,10 @@ static node_t * primary_expr(void)
     case ID:
 	sym = lookup(token->name, identifiers);
 	if (sym) {
-	    SYM_REFS(sym)++;
 	    ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
 	    EXPR_SYM(ret) = sym;
+	    AST_SRC(ret) = source;
+	    SYM_REFS(sym)++;
 	    if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
 		EXPR_OP(ret) = ENUM; // enum ids
 	} else {
@@ -680,10 +681,13 @@ static node_t * primary_expr(void)
 	    node_t *ty = cast_type();
 	    ret = compound_literal(ty);
 	} else {
+	    struct source src = source;
 	    expect('(');
 	    node_t *e = expression();
-	    if (e)
+	    if (e) {
 		ret = ast_expr(PAREN_EXPR, AST_TYPE(e), e, NULL);
+		AST_SRC(ret) = src;
+	    }
 	    expect(')');
 	}
 	break;

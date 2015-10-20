@@ -551,8 +551,8 @@ static node_t * enum_decl(void)
         sym = lookup(id, tags);
         if (sym) {
             if (currentscope(sym) && !isenum(SYM_TYPE(sym)))
-                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       id2s(ENUM), id, type2s(SYM_TYPE(sym)),  AST_SRC(sym).file, AST_SRC(sym).line);
+                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u:%u",
+                       id2s(ENUM), id, type2s(SYM_TYPE(sym)),  AST_SRC(sym).file, AST_SRC(sym).line, AST_SRC(sym).column);
         } else {
             sym = tag_type(ENUM, id, src);
         }
@@ -588,8 +588,8 @@ static node_t * struct_decl(void)
         sym = lookup(id, tags);
         if (sym) {
             if (currentscope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
-                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       id2s(t), id, type2s(SYM_TYPE(sym)), AST_SRC(sym).file, AST_SRC(sym).line);
+                errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u:%u",
+                       id2s(t), id, type2s(SYM_TYPE(sym)), AST_SRC(sym).file, AST_SRC(sym).line, AST_SRC(sym).column);
         } else {
             sym = tag_type(t, id, src);
         }

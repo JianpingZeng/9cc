@@ -43,10 +43,11 @@ static void check_case_duplicates(node_t *node)
 	node_t *n = vec_at(CASES, i);
 	if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
 	    errorf(AST_SRC(node),
-		   "duplicate case value '%d', previous case defined here: %s:%u",
+		   "duplicate case value '%d', previous case defined here: %s:%u:%u",
 		   STMT_CASE_INDEX(node),
 		   AST_SRC(n).file,
-		   AST_SRC(n).line);
+		   AST_SRC(n).line,
+		   AST_SRC(n).column);
 	    break;
 	}
     }
@@ -267,9 +268,10 @@ static node_t * default_stmt(void)
 	error("'default' statement not in switch statement");
 
     if (DEFLT)
-	errorf(AST_SRC(ret), "multiple default labels in one switch, previous case defined here:%s:%u",
+	errorf(AST_SRC(ret), "multiple default labels in one switch, previous case defined here:%s:%u:%u",
 	       AST_SRC(DEFLT).file,
-	       AST_SRC(DEFLT).line);
+	       AST_SRC(DEFLT).line,
+	       AST_SRC(DEFLT).column);
     
     DEFLT = ret;
     
@@ -297,10 +299,11 @@ static node_t * label_stmt(void)
     if (NO_ERROR) {
 	node_t *n = map_get(labels, name);
 	if (map_get(labels, name))
-	    errorf(AST_SRC(ret), "redefinition of label '%s', previous label defined here:%s:%u",
+	    errorf(AST_SRC(ret), "redefinition of label '%s', previous label defined here:%s:%u:%u",
 		   name,
 		   AST_SRC(n).file,
-		   AST_SRC(n).line);
+		   AST_SRC(n).line,
+		   AST_SRC(n).column);
 	STMT_LABEL_NAME(ret) = name;
 	map_put(labels, name, ret);
     }
