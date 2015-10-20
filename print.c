@@ -574,6 +574,7 @@ static void doexpr2s(struct strbuf *s, node_t *node)
     case INITS_EXPR:
     case VINIT_EXPR:
     case CONV_EXPR:
+	strbuf_cats(s, "node");
 	break;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
@@ -581,6 +582,7 @@ static void doexpr2s(struct strbuf *s, node_t *node)
 	strbuf_cats(s, AST_NAME(node));
 	break;
     case COMPOUND_LITERAL:
+	strbuf_cats(s, format("(%s){...}", type2s(AST_TYPE(node))));
 	break;
     default:
 	cc_assert(0);

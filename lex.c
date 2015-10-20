@@ -765,8 +765,11 @@ int gettok(void)
 
 struct token * lookahead(void)
 {
-    if (ahead_token == NULL)
+    if (ahead_token == NULL) {
 	ahead_token = cctoken();
+	// restore source
+	mark(token);
+    }
     return ahead_token;
 }
 

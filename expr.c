@@ -75,9 +75,9 @@ bool islvalue(node_t *node)
 	return true;
     }
     if (AST_ID(node) == MEMBER_EXPR)
-	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
+    	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
     if (AST_ID(node) == COMPOUND_LITERAL)
-	return true;
+    	return true;
     if (AST_ID(node) == REF_EXPR) {
         if (EXPR_OP(node) == ENUM)
             return false;
@@ -92,7 +92,7 @@ bool islvalue(node_t *node)
 static void ensure_lvalue(node_t *node)
 {
     if (!islvalue(node))
-        error("lvalue expect");
+        errorf(AST_SRC(node), "expect lvalue at '%s'", node2s(node));
 }
 
 static const char * is_assignable(node_t *node)
@@ -626,6 +626,7 @@ static node_t * compound_literal(node_t *ty)
     
     inits = initializer_list(ty);
     ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
+    AST_SRC(ret) = AST_SRC(ty);
     
     return ret;
 }
@@ -633,10 +634,12 @@ static node_t * compound_literal(node_t *ty)
 static node_t * cast_type(void)
 {
     node_t *ty;
+    struct source src = source;
     
     expect('(');
     ty = typename();
     expect(')');
+    AST_SRC(ty) = src;
     
     return ty;
 }
