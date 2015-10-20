@@ -262,7 +262,6 @@ static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v
      vec_len(v) == 1 &&				\
      issliteral((node_t *)vec_head(v)))
     
-    
     if (ty == NULL) {
         if (token->id == '.' || token->id == '[') {
 	    eat_initializer();
