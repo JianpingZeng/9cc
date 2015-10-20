@@ -130,7 +130,7 @@ test: $(TESTS)
 	done
 
 clean:
-	@rm -f *.o *~ $(MCC) $(TESTS) $(SYS)*.o $(SYS)*~ $(UTILS)*.o $(UTILS)*~ $(INTERNAL)*~
+	@rm -f *.o *~ $(MCC) $(TESTS) $(SYS)*.o $(SYS)*~ $(UTILS)*.o $(UTILS)*~ $(INTERNAL)*~ include/*~ $(TEST)scripts/*~
 
 distclean: clean
 	@rm -f stage1 stage2 stage3

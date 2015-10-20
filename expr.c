@@ -77,6 +77,8 @@ bool islvalue(node_t *node)
     }
     if (AST_ID(node) == MEMBER_EXPR)
 	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
+    if (AST_ID(node) == COMPOUND_LITERAL)
+	return true;
     if (AST_ID(node) == REF_EXPR) {
         if (EXPR_OP(node) == ENUM)
             return false;
