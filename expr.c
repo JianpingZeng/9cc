@@ -738,7 +738,7 @@ static node_t * funcall(node_t *node)
     expect('(');
     args = argument_expr_list();
     expect(')');
-    if (node == NULL)
+    if (node == NULL || args == NULL)
 	return ret;
 
     if (isptrto(AST_TYPE(node), FUNCTION)) {
