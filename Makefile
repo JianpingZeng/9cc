@@ -54,7 +54,7 @@ MCC_OBJ=mcc.o
 ARCH:=$(shell uname -m)
 KERNEL:=$(shell uname)
 
-# CONFIG_FLAGS:=-DCONFIG_COLOR_TERM
+CONFIG_FLAGS:=-DCONFIG_COLOR_TERM
 
 ifneq (, $(findstring CYGWIN, $(KERNEL)))
 CONFIG_FLAGS+=-DCONFIG_CYGWIN
