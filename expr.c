@@ -704,11 +704,12 @@ static node_t * subscript(node_t *node)
 
     SAVE_ERRORS;
     if (!isarray(AST_TYPE(node)) && !isptr(AST_TYPE(node)))
-	error("subscripted value is not an array or pointer");
+	errorf(AST_SRC(node), "subscripted value is not an array or pointer");
     ensure_type(e, isint);
     if (NO_ERROR) {
 	ret = bop('+', conv(node), conv(e));
 	ret = uop('*', rtype(AST_TYPE(ret)), ret);
+	AST_SRC(ret) = AST_SRC(node);
     }
     return ret;
 }
