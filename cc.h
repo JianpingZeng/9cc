@@ -397,18 +397,10 @@ extern void fatalf(struct source src, const char *fmt, ...);
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
 
-#define CCAssert(expr)				\
+#define cc_assert(expr)			\
     do {					\
 	if (!(expr)) {				\
 	    error("assert failed");		\
-	    assert(expr);			\
-	}					\
-    } while (0)
-
-#define CCAssertf(expr, ...)			\
-    do {					\
-	if (!(expr)) {				\
-	    error(__VA_ARGS__);			\
 	    assert(expr);			\
 	}					\
     } while (0)

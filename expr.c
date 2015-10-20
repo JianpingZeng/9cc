@@ -38,7 +38,7 @@ static int splitop(int op)
     case BANDEQ: return '&';
     case BOREQ: return '|';
     case XOREQ: return '^';
-    default: CCAssert(0);
+    default: cc_assert(0);
     }
 }
 
@@ -58,7 +58,7 @@ static void ensure_type(node_t *node, bool (*is) (node_t *))
     else if (is == isptr)
 	name = "pointer";
     else
-	CCAssert(0);
+	cc_assert(0);
     
     if (!is(AST_TYPE(node)))
         error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
@@ -173,7 +173,7 @@ static unsigned escape(const char **ps)
 {
     unsigned c = 0;
     const char *s = *ps;
-    CCAssert(*s == '\\');
+    cc_assert(*s == '\\');
     s += 1;
     switch (*s++) {
     case 'a': c = 7; break;
@@ -426,7 +426,7 @@ static void integer_constant(struct token *t, node_t *sym)
 	SYM_VALUE_U(sym) = n;
 	break;
     default:
-	CCAssert(0);
+	cc_assert(0);
     }
 }
 
@@ -462,7 +462,7 @@ static void string_constant(struct token *t, node_t *sym)
         size_t wlen = mbstowcs(ws, s+2, len);
         if (errno == EILSEQ)
             error("invalid multibyte sequence: %s", s);
-        CCAssert(wlen<=len+1);
+        cc_assert(wlen<=len+1);
         ty = array_type(wchartype);
         TYPE_LEN(ty) = wlen;
 	set_typesize(ty);
@@ -563,7 +563,7 @@ static void argcast1(node_t *fty, node_t **args, struct vector *v)
 static struct vector * argscast(node_t *fty, node_t **args)
 {
     struct vector *v = vec_new();
-    CCAssert(isfunc(fty));
+    cc_assert(isfunc(fty));
 
     /* There are 5 cases:
      *
@@ -596,7 +596,7 @@ static struct vector * argscast(node_t *fty, node_t **args)
 	bool vargs = unqual(SYM_TYPE(last)) == vartype;
 	if (vargs)
 	    len1 -= 1;
-	CCAssert(len1 >= 1);
+	cc_assert(len1 >= 1);
 	if (len1 <= len2) {
 	    if (!vargs && len1 < len2) {
 		error("too many arguments to function call, expected %d, have %d", len1, len2);
@@ -823,7 +823,7 @@ static node_t * postfix_expr1(node_t *ret)
 	case DEREF: ret = direction(ret); break;
 	case INCR:
 	case DECR:  ret = post_increment(ret); break;
-	default:    CCAssert(0);
+	default:    cc_assert(0);
         }
     }
 
@@ -1388,7 +1388,7 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	break;
     default:
 	error("unknown op '%s'", id2s(op));
-	CCAssert(0);
+	cc_assert(0);
     }
     return node;
 }
@@ -1481,8 +1481,8 @@ static const char * castname(node_t *ty, node_t *l)
 
 static node_t * wrap(node_t *ty, node_t *node)
 {
-    CCAssert(isarith(ty));
-    CCAssert(isarith(AST_TYPE(node)));
+    cc_assert(isarith(ty));
+    cc_assert(isarith(AST_TYPE(node)));
     
     if (eqarith(ty, AST_TYPE(node)))
         return node;
@@ -1561,11 +1561,11 @@ static node_t * conva(node_t *node)
 // Universal Binary Conversion
 static node_t * conv2(node_t *l, node_t *r)
 {
-    CCAssert(isarith(l));
-    CCAssert(isarith(r));
+    cc_assert(isarith(l));
+    cc_assert(isarith(r));
     
-    CCAssert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
-    CCAssert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
+    cc_assert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
+    cc_assert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
     
     node_t *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
     if (isfloat(l) || isfloat(r) || TYPE_OP(l) == TYPE_OP(r))
@@ -1573,7 +1573,7 @@ static node_t * conv2(node_t *l, node_t *r)
     
     node_t *u = TYPE_OP(l) == UNSIGNED ? l : r;
     node_t *s = TYPE_OP(l) == INT ? l : r;
-    CCAssert(unqual(s) == s);
+    cc_assert(unqual(s) == s);
     
     if (TYPE_RANK(u) >= TYPE_RANK(s))
         return u;
@@ -1640,7 +1640,7 @@ static node_t * assignconv(node_t *ty, node_t *node)
 
 static bool is_nullptr(node_t *node)
 {
-    CCAssert(isptr(AST_TYPE(node)));
+    cc_assert(isptr(AST_TYPE(node)));
 
     node_t *cnst = eval(node, inttype);
     if (cnst == NULL)

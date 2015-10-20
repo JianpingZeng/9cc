@@ -19,7 +19,7 @@ static void cc_print_lead(int tag, struct source src, const char *fmt, va_list a
 	lead = RED("fatal:");
 	break;
     default:
-	CCAssert(0);
+	cc_assert(0);
     }
 
     fprintf(stderr, CLEAR "%s:%u:%u:" RESET " %s ", src.file, src.line, src.column, lead);

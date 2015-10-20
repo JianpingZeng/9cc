@@ -11,7 +11,7 @@ const char *nname(node_t * node)
     if (node == NULL)
         return "<NULL>";
     
-    CCAssert(AST_ID(node) > BEGIN_NODE_ID && AST_ID(node) < END_NODE_ID);
+    cc_assert(AST_ID(node) > BEGIN_NODE_ID && AST_ID(node) < END_NODE_ID);
     
     return node_names[AST_ID(node)];
 }
@@ -40,7 +40,7 @@ void * alloc_field(void)
 
 node_t * ast_expr(int id, int op, node_t *l, node_t *r)
 {
-    CCAssert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
+    cc_assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
     node_t * expr = new_node(id);
     EXPR_OP(expr) = op;
     EXPR_OPERAND(expr, 0) = l;
@@ -50,7 +50,7 @@ node_t * ast_expr(int id, int op, node_t *l, node_t *r)
 
 node_t * ast_stmt(int id, struct source src)
 {
-    CCAssert(id > BEGIN_STMT_ID && id < END_STMT_ID);
+    cc_assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
     node_t * stmt = new_node(id);
     AST_SRC(stmt) = src;
     return stmt;
@@ -64,7 +64,7 @@ node_t * ast_null_stmt(void)
 
 node_t * ast_decl(int id, int scope)
 {
-    CCAssert(id > BEGIN_DECL_ID && id < END_DECL_ID);
+    cc_assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
     node_t * decl = new_node(id);
     DECL_SCOPE(decl) = scope;
     return decl;

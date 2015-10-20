@@ -50,7 +50,7 @@ void exit_scope(void)
 	free_table(identifiers);
         identifiers = up;
     }
-    CCAssert(level >= GLOBAL);
+    cc_assert(level >= GLOBAL);
     level--;
 }
 
@@ -62,7 +62,7 @@ node_t * anonymous(struct table **tpp, int scope)
 
 node_t * lookup(const char *name, struct table *table)
 {
-    CCAssert(name);
+    cc_assert(name);
     node_t *s = NULL;
     
     for (struct table *t = table; t; t = t->up) {
@@ -85,7 +85,7 @@ node_t * install(const char *name, struct table **tpp, int scope)
             tp = tp->up;
     }
     
-    CCAssert(tp);
+    cc_assert(tp);
         
     sym = alloc_symbol();
     SYM_SCOPE(sym) = scope;

@@ -198,7 +198,7 @@ static node_t * specifiers(int *sclass)
             else if (p == &type || p == &size)
                 errorf(src, "duplicate type specifier '%s'", name);
             else
-                CCAssert(0);
+                cc_assert(0);
         }
         
         *p = t;
@@ -279,7 +279,7 @@ static void array_qualifiers(node_t *atype)
 	    break;
                 
 	default:
-	    CCAssert(0);
+	    cc_assert(0);
         }
         
         if (*p != 0)
@@ -713,7 +713,7 @@ static node_t * ptr_decl(void)
     node_t *ret = NULL;
     int con, vol, res, type;
     
-    CCAssert(token->id == '*');
+    cc_assert(token->id == '*');
     
     for (;;) {
         int *p, t = token->id;
@@ -779,7 +779,7 @@ static void param_declarator(node_t **ty, const char **id)
             expect(')');
             if (token->id == '(' || token->id == '[') {
                 node_t *faty;
-                CCAssert(id);
+                cc_assert(id);
                 if (*id) {
                     faty = func_or_array(NULL);
                 } else {
@@ -799,7 +799,7 @@ static void param_declarator(node_t **ty, const char **id)
 
 static void abstract_declarator(node_t **ty)
 {
-    CCAssert(ty);
+    cc_assert(ty);
     
     if (token->id == '*' || token->id == '(' || token->id == '[') {
         if (token->id == '*') {
@@ -827,7 +827,7 @@ static void abstract_declarator(node_t **ty)
 
 static void declarator(node_t **ty, const char **id, int *params)
 {
-    CCAssert(ty && id);
+    cc_assert(ty && id);
     int follow[] = {',', '=', IF, 0};
     
     if (token->id == '*') {
@@ -946,7 +946,7 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
 		else if (dcl == paramdecl)
 		    kind = PARAM;
 		else
-		    CCAssert(0);
+		    cc_assert(0);
 		
                 if (token->id == '=')
 		    decl_initializer(decl, sym, sclass, kind);
@@ -1005,7 +1005,7 @@ node_t * typename(void)
 
 node_t ** declaration(void)
 {
-    CCAssert(SCOPE >= LOCAL);
+    cc_assert(SCOPE >= LOCAL);
     return (node_t **)vtoa(decls(localdecl));
 }
 
@@ -1016,7 +1016,7 @@ node_t * translation_unit(void)
 
     for (gettok(); token->id != EOI; ) {
         if (firstdecl(token)) {
-            CCAssert(SCOPE == GLOBAL);
+            cc_assert(SCOPE == GLOBAL);
             vec_add(v, decls(globaldecl));
         } else {
             if (token->id != ';')
@@ -1132,8 +1132,8 @@ static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source 
 {
     node_t *sym = NULL;
     
-    CCAssert(id);
-    CCAssert(SCOPE >= LOCAL);
+    cc_assert(id);
+    cc_assert(SCOPE >= LOCAL);
     
     if (isfunc(ty)){
         if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
@@ -1161,8 +1161,8 @@ static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source
 {
     node_t *sym = NULL;
     
-    CCAssert(id);
-    CCAssert(SCOPE == GLOBAL);
+    cc_assert(id);
+    cc_assert(SCOPE == GLOBAL);
     
     if (sclass == AUTO || sclass == REGISTER) {
         errorf(src, "illegal storage class on file-scoped variable");
@@ -1199,7 +1199,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
 {
     node_t *decl = ast_decl(FUNC_DECL, SCOPE);
     
-    CCAssert(SCOPE == PARAM);
+    cc_assert(SCOPE == PARAM);
     
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", id2s(sclass));
@@ -1254,7 +1254,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
             node_t *decl = (node_t *)vec_at(v, i);
             node_t *sym = DECL_SYM(decl);
             
-            CCAssert(SYM_NAME(sym));
+            cc_assert(SYM_NAME(sym));
             if (!isvardecl(decl)) {
                 warningf(AST_SRC(sym), "empty declaraion");
             } else if (TYPE_PARAMS(ftype)) {

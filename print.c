@@ -295,7 +295,7 @@ static void print_tree1(struct print_context context)
     else if (isgen(node))
 	print_gen(node, context);
     else
-        CCAssertf(0, "unknown node '%s'", nname(node));
+        cc_assert(0);
 
     if (isexpr(node)) {
 	if (AST_KID(node, 0) && AST_ID(node) != CALL_EXPR) {

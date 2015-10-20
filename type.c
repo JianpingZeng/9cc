@@ -253,7 +253,7 @@ bool qual_contains(node_t *ty1, node_t *ty2)
 
 node_t * qual(int t, node_t *ty)
 {
-    CCAssert(ty);
+    cc_assert(ty);
     node_t *qty = new_type();
     if (isqual(ty))
         _TYPE_KIND(qty) = combine(t, _TYPE_KIND(ty));
@@ -449,7 +449,7 @@ bool eqtype(node_t *ty1, node_t *ty2)
             }
             
         default:
-            CCAssert(0);
+            cc_assert(0);
             return false;
     }
 }
@@ -478,7 +478,7 @@ int indexof_field(node_t *ty, node_t *field)
 	if (field == f)
 	    return i;
     }
-    CCAssert(0);
+    cc_assert(0);
     return -1;
 }
 

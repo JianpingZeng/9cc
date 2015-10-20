@@ -120,14 +120,14 @@ static node_t * arith2arith(node_t *dty, node_t *l)
 
 static node_t * arith2ptr(node_t *dty, node_t *l)
 {
-    CCAssert(isint(AST_TYPE(l)));
+    cc_assert(isint(AST_TYPE(l)));
     // int => ptr
     return int_literal_node(dty, SYM_VALUE(EXPR_SYM(l)));
 }
 
 static node_t * ptr2arith(node_t *dty, node_t *l)
 {
-    CCAssert(isint(dty));
+    cc_assert(isint(dty));
     // ptr => int
     return int_literal_node(dty, SYM_VALUE(EXPR_SYM(l)));
 }
@@ -153,7 +153,7 @@ static node_t * cast(node_t *dty, node_t *l)
     else if (isptr(sty) && isptr(dty))
 	return ptr2ptr(dty, l);
 
-    CCAssertf(0, "expect arith or ptr");
+    cc_assert(0);
 }
 
 static node_t * bop_scalar(int op, node_t *dty, node_t *l, node_t *r)
@@ -220,7 +220,7 @@ static node_t * bop_scalar(int op, node_t *dty, node_t *l, node_t *r)
     case LEQ: LOR(<=); break;
     case EQ: LOR(==); break;
     case NEQ: LOR(!=); break;
-    default: CCAssert(0);
+    default: cc_assert(0);
     }
 
     if (ret_is_u)
@@ -259,12 +259,12 @@ static node_t * uop_scalar(int op, node_t *dty, node_t *l)
     case '-': LOO(-); break;
 	// int
     case '~':
-	CCAssert(ret_is_u);
+	cc_assert(ret_is_u);
 	VALUE_U(ret) = ~ VALUE_U(lval);
 	break;
 	// scalar
     case '!': LOO(!); break;
-    default: CCAssert(0);
+    default: cc_assert(0);
     }
 
     if (ret_is_u)
@@ -311,7 +311,7 @@ static node_t * eval_arith(node_t *expr)
 			return eval_arith(r);
 		}
 	    default:
-		CCAssert(0);
+		cc_assert(0);
 	    }
 	}
     case UNARY_OPERATOR:
@@ -338,7 +338,7 @@ static node_t * eval_arith(node_t *expr)
 		    return NULL;
 		}
 	    default:
-		CCAssert(0);
+		cc_assert(0);
 	    }
 	}
     case PAREN_EXPR:
@@ -379,7 +379,7 @@ static node_t * eval_arith(node_t *expr)
     case CALL_EXPR:
 	return NULL;
     default:
-	CCAssert(0);
+	cc_assert(0);
     }
 }
 
@@ -400,17 +400,16 @@ node_t * eval(node_t *expr, node_t *ty)
     if (expr == NULL)
     	return NULL;
 
-    CCAssert(isexpr(expr));
+    cc_assert(isexpr(expr));
 
-    if (isarith(ty)) {
+    if (isarith(ty))
     	return eval_arith(expr);
-    } else if (isptr(ty)) {
+    else if (isptr(ty))
     	return eval_address(expr);
-    } else if (isrecord(ty) || isarray(ty)) {
+    else if (isrecord(ty) || isarray(ty))
     	return eval_initializer(expr);
-    } else {
-    	CCAssertf(0, "try to eval for type '%s'", type2s(ty));
-    }
+    else
+    	cc_assert(0);
 }
 
 // TODO: 
