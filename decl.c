@@ -543,7 +543,7 @@ static node_t * enum_decl(void)
             
             s = install(token->name, &identifiers, SCOPE);
             SYM_TYPE(s) = SYM_TYPE(sym);
-            SYM_SRC(s) = source;
+            AST_SRC(s) = source;
             SYM_SCLASS(s) = ENUM;
             expect(ID);
             if (token->id == '=') {
@@ -564,7 +564,7 @@ static node_t * enum_decl(void)
         if (sym) {
             if (currentscope(sym) && !isenum(SYM_TYPE(sym)))
                 errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       id2s(ENUM), id, type2s(SYM_TYPE(sym)),  SYM_SRC(sym).file, SYM_SRC(sym).line);
+                       id2s(ENUM), id, type2s(SYM_TYPE(sym)),  AST_SRC(sym).file, AST_SRC(sym).line);
         } else {
             sym = tag_type(ENUM, id, src);
         }
@@ -601,7 +601,7 @@ static node_t * struct_decl(void)
         if (sym) {
             if (currentscope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
                 errorf(src, "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u",
-                       id2s(t), id, type2s(SYM_TYPE(sym)), SYM_SRC(sym).file, SYM_SRC(sym).line);
+                       id2s(t), id, type2s(SYM_TYPE(sym)), AST_SRC(sym).file, AST_SRC(sym).line);
         } else {
             sym = tag_type(t, id, src);
         }
@@ -1140,7 +1140,7 @@ static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source
     }
     
     SYM_TYPE(sym) = ty;
-    SYM_SRC(sym) = src;
+    AST_SRC(sym) = src;
     SYM_SCLASS(sym) = sclass;
     
     return sym;
@@ -1167,7 +1167,7 @@ static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source 
     } else {
         sym = install(id, &identifiers, SCOPE);
         SYM_TYPE(sym) = ty;
-        SYM_SRC(sym) = src;
+        AST_SRC(sym) = src;
         SYM_DEFINED(sym) = true;
         SYM_SCLASS(sym) = sclass;
     }
@@ -1199,7 +1199,7 @@ static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source
     if (!sym || SYM_SCOPE(sym) != SCOPE) {
         sym = install(id, &identifiers, SCOPE);
         SYM_TYPE(sym) = ty;
-        SYM_SRC(sym) = src;
+        AST_SRC(sym) = src;
         SYM_SCLASS(sym) = sclass;
     } else if (sclass != TYPEDEF && eqtype(ty, SYM_TYPE(sym))) {
         if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
@@ -1229,7 +1229,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
         if (!sym) {
             sym = install(id, &identifiers, GLOBAL);
             SYM_TYPE(sym) = ftype;
-            SYM_SRC(sym) = src;
+            AST_SRC(sym) = src;
             SYM_DEFINED(sym) = true;
             SYM_SCLASS(sym) = sclass;
             DECL_SYM(decl) = sym;
@@ -1238,7 +1238,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
                 errorf(src, "static declaaration of '%s' follows non-static declaration", id);
             } else {
                 SYM_TYPE(sym) = ftype;
-                SYM_SRC(sym) = src;
+                AST_SRC(sym) = src;
                 SYM_DEFINED(sym) = true;
                 DECL_SYM(decl) = sym;
             }
@@ -1253,10 +1253,10 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
             SYM_DEFINED(sym) = true;
             // params id is required in prototype
             if (isanonymous(SYM_NAME(sym)))
-                errorf(SYM_SRC(sym), "parameter name omitted");
+                errorf(AST_SRC(sym), "parameter name omitted");
             if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
                 if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
-                    errorf(SYM_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
+                    errorf(AST_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
             }
         }
     }
@@ -1274,7 +1274,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
             
             CCAssert(SYM_NAME(sym));
             if (!isvardecl(decl)) {
-                warningf(SYM_SRC(sym), "empty declaraion");
+                warningf(AST_SRC(sym), "empty declaraion");
             } else if (TYPE_PARAMS(ftype)) {
                 node_t *p = NULL;
                 for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
@@ -1287,7 +1287,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
                 if (p)
                     SYM_TYPE(p) = SYM_TYPE(sym);
                 else
-                    errorf(SYM_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
+                    errorf(AST_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
             }
         }
         exit_scope();
@@ -1643,7 +1643,7 @@ bool has_static_extent(node_t *sym)
 static void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 {
     node_t *ty = SYM_TYPE(sym);
-    struct source src = SYM_SRC(sym);
+    struct source src = AST_SRC(sym);
     node_t *init;
 
     expect('=');
@@ -1782,7 +1782,7 @@ static void predefined_identifiers(struct source src)
 	redefinition_error(src, sym);
     } else {
 	sym = install(strs("__func__"), &identifiers, SCOPE);
-	SYM_SRC(sym) = src;
+	AST_SRC(sym) = src;
 	SYM_DEFINED(sym) = true;
 	SYM_SCLASS(sym) = STATIC;
 	node_t *type = array_type(qual(CONST, chartype));

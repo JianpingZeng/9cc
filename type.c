@@ -352,7 +352,7 @@ node_t * tag_type(int t, const char *tag, struct source src)
     }
 
     SYM_TYPE(sym) = ty;
-    SYM_SRC(sym) = src;
+    AST_SRC(sym) = src;
     _TYPE_TSYM(ty) = sym;
     
     return sym;

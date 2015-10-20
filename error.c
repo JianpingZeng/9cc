@@ -63,13 +63,13 @@ void fatalf(struct source src, const char *fmt, ...)
 void redefinition_error(struct source src, node_t *sym)
 {
     errorf(src, "redefinition of '%s', previous definition at %s:%u:%u",
-           SYM_NAME(sym), SYM_SRC(sym).file, SYM_SRC(sym).line, SYM_SRC(sym).column);
+           SYM_NAME(sym), AST_SRC(sym).file, AST_SRC(sym).line, AST_SRC(sym).column);
 }
 
 void conflicting_types_error(struct source src, node_t *sym)
 {
     errorf(src, "conflicting types for '%s', previous at %s:%u:%u",
-           SYM_NAME(sym), SYM_SRC(sym).file, SYM_SRC(sym).line, SYM_SRC(sym).column);
+           SYM_NAME(sym), AST_SRC(sym).file, AST_SRC(sym).line, AST_SRC(sym).column);
 }
 
 void field_not_found_error(node_t *ty, const char *name)

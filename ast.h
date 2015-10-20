@@ -121,7 +121,6 @@ struct ast_field {
 #define SYM_SCLASS(NODE)        ((NODE)->symbol.sclass)
 #define SYM_TYPE(NODE)          AST_TYPE(NODE)
 #define SYM_DEFINED(NODE)       ((NODE)->symbol.defined)
-#define SYM_SRC(NODE)           ((NODE)->symbol.src)
 #define SYM_VALUE(NODE)         ((NODE)->symbol.value)
 #define SYM_REFS(NODE)          ((NODE)->symbol.refs)
 // convenience
