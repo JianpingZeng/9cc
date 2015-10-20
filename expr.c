@@ -482,7 +482,6 @@ static node_t * float_literal(struct token *t)
     }
     node_t *expr = ast_expr(FLOAT_LITERAL, SYM_TYPE(sym), NULL, NULL);
     AST_SRC(expr) = t->src;
-    AST_NAME(expr) = t->name;
     EXPR_SYM(expr) = sym;
     return expr;
 }
@@ -496,7 +495,6 @@ static node_t * integer_literal(struct token *t)
     }
     node_t *expr = ast_expr(INTEGER_LITERAL, SYM_TYPE(sym), NULL, NULL);
     AST_SRC(expr) = t->src;
-    AST_NAME(expr) = t->name;
     EXPR_SYM(expr) = sym;
     return expr;
 }
@@ -510,7 +508,6 @@ static node_t * string_literal(struct token *t)
     }
     node_t *expr = ast_expr(STRING_LITERAL, SYM_TYPE(sym), NULL, NULL);
     AST_SRC(expr) = t->src;
-    AST_NAME(expr) = t->name;
     EXPR_SYM(expr) = sym;
     return expr;
 }
