@@ -734,11 +734,12 @@ static node_t * funcall(node_t *node)
 {
     node_t **args;
     node_t *ret = NULL;
-    
+
+    SAVE_ERRORS;
     expect('(');
     args = argument_expr_list();
     expect(')');
-    if (node == NULL || args == NULL)
+    if (node == NULL || HAS_ERROR)
 	return ret;
 
     if (isptrto(AST_TYPE(node), FUNCTION)) {
