@@ -237,7 +237,6 @@ extern node_t * array_type(node_t *ty);
 extern node_t * ptr_type(node_t *ty);
 extern node_t * func_type(void);
 extern node_t * tag_type(int t, const char *tag, struct source src);
-extern const char *type2s(node_t *ty);
 extern void set_typesize(node_t *ty);
 extern node_t * find_field(node_t *ty, const char *name);
 extern int indexof_field(node_t *ty, node_t *field);
@@ -268,6 +267,10 @@ extern node_t  *vartype;		// variable type
 
 #define BITS(bytes)     (CHAR_BIT * (bytes))
 #define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
+
+extern bool isconst1(int kind);
+extern bool isvolatile1(int kind);
+extern bool isrestrict1(int kind);
 
 extern bool isconst(node_t *ty);
 extern bool isvolatile(node_t *ty);
@@ -370,6 +373,8 @@ extern void simplify(node_t *tree);
 
 // print.c
 extern void print_tree(node_t *tree);
+extern const char *type2s(node_t *ty);
+extern const char * node2s(node_t *node);
 
 // error.c
 enum {

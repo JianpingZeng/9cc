@@ -202,7 +202,7 @@ void attach_type(node_t **typelist, node_t *type)
     }
 }
 
-static bool isconst1(int kind)
+bool isconst1(int kind)
 {
     return  kind == CONST ||
             kind == CONST + VOLATILE ||
@@ -210,7 +210,7 @@ static bool isconst1(int kind)
             kind == CONST + VOLATILE + RESTRICT;
 }
 
-static bool isvolatile1(int kind)
+bool isvolatile1(int kind)
 {
     return  kind == VOLATILE ||
             kind == VOLATILE + CONST ||
@@ -218,7 +218,7 @@ static bool isvolatile1(int kind)
             kind == CONST + VOLATILE + RESTRICT;
 }
 
-static bool isrestrict1(int kind)
+bool isrestrict1(int kind)
 {
     return  kind == RESTRICT ||
             kind == RESTRICT + CONST ||
@@ -756,185 +756,4 @@ bool isscalar(node_t *ty)
 bool isptrto(node_t *ty, int kind)
 {
     return isptr(ty) && TYPE_KIND(rtype(ty)) == kind;
-}
-
-#define LPAREN  1
-#define RPAREN  2
-#define FCOMMA  3
-#define FSPACE  4
-struct type2s {
-    int id;
-    int qual;
-    node_t *type;
-};
-static struct vector *type2s1(node_t *ty);
-
-static struct type2s * paren(int id, node_t *ty)
-{
-    struct type2s *s = zmalloc(sizeof (struct type2s));
-    s->id = id;
-    s->type = ty;
-    return s;
-}
-
-static void dotype2s(struct vector *l, struct vector *r)
-{
-    struct type2s *s;
-    int k;
-
-    if (vec_len(l) == 0)
-	return;
-
-    s = vec_tail(l);
-    k = TYPE_KIND(s->type);
-    switch (k) {
-        case POINTER:
-        {
-	    struct vector *v = vec_new();
-	    for (int i = vec_len(l) - 1; i >= 0; i--) {
-		struct type2s *s = vec_at(l, i);
-		if (!isptr(s->type))
-		    break;
-		vec_push(v, s);
-		vec_pop(l);
-	    }
-	    s = vec_tail(l);
-	    if (isfunc(s->type) || isarray(s->type)) {
-		struct type2s *s2 = vec_head(r);
-		bool rfunc = s2 && s2->type && isfunc(s2->type);
-		if (rfunc)
-		    vec_push_front(r, paren(LPAREN, s2->type));
-		for (int i = 0; i < vec_len(v); i++)
-		    vec_push_front(r, vec_at(v, i));
-		vec_push_front(r, paren(LPAREN, s->type));
-		vec_push_front(r, paren(FSPACE, NULL));
-		if (rfunc)
-		    vec_push(r, paren(RPAREN, s2->type));
-		vec_push(r, paren(RPAREN, s->type));
-	    } else {
-		for (int i = 0; i < vec_len(v); i++)
-		    vec_push_front(r, vec_at(v, i));
-		vec_push_front(r, paren(FSPACE, NULL));
-	    }
-        }
-            break;
-        case FUNCTION:
-        {
-            node_t **params = TYPE_PARAMS(s->type);
-	    int len = LIST_LEN(params);
-	    vec_push(r, paren(FSPACE, NULL));
-	    vec_push(r, paren(LPAREN, s->type));
-	    for (int i=0; params && params[i]; i++) {
-		node_t *ty = SYM_TYPE(params[i]);
-		struct vector *v = type2s1(ty);
-		vec_add(r, v);
-		vec_free(v);
-		if (i < len - 1) {
-		    vec_push(r, paren(FCOMMA, NULL));
-		    vec_push(r, paren(FSPACE, NULL));
-		}
-	    }
-	    vec_push(r, paren(RPAREN, s->type));
-	    vec_pop(l);
-        }
-            break;
-        case ARRAY:
-        {
-            vec_push(r, s);
-	    vec_pop(l);
-        }
-            break;
-        default:
-        {
-            vec_push_front(r, s);
-	    vec_pop(l);
-        }
-            break;
-    }
-
-    dotype2s(l, r);
-}
-
-static struct vector *type2s1(node_t *ty)
-{
-    struct vector *l, *r, *v;
-
-    v = vec_new();
-    while (ty) {
-	struct type2s *s = zmalloc(sizeof (struct type2s));
-	if (isqual(ty)) {
-	    s->qual = _TYPE_KIND(ty);
-	    s->type = unqual(ty);
-	} else {
-	    s->type = ty;
-	}
-	vec_push(v, s);
-	if (isenum(s->type))
-	    ty = NULL;
-	else
-	    ty = _TYPE_TYPE(s->type);
-    }
-    
-    l = vec_reverse(v);
-    r = vec_new();
-    vec_free(v);
-
-    dotype2s(l, r);
-    vec_free(l);
-    return r;
-}
-
-static void qualstr(struct strbuf *s, int q)
-{
-    if (isconst1(q))
-	strbuf_cats(s, "const ");
-    if (isvolatile1(q))
-	strbuf_cats(s, "volatile ");
-    if (isrestrict1(q))
-	strbuf_cats(s, "restrict ");
-}
-
-const char *type2s(node_t *ty)
-{
-    const char *ret;
-    struct strbuf *buf = strbuf_new();
-    struct vector *v = type2s1(ty);
-    for (int i = 0; i < vec_len(v); i++) {
-	struct type2s *s = vec_at(v, i);
-	if (s->id == LPAREN) {
-	    strbuf_cats(buf, "(");
-	} else if (s->id == RPAREN) {
-	    strbuf_cats(buf, ")");
-	} else if (s->id == FCOMMA) {
-	    strbuf_cats(buf, ",");
-	} else if (s->id == FSPACE) {
-	    strbuf_cats(buf, " ");
-	} else if (isptr(s->type)) {
-	    strbuf_cats(buf, "*");
-	    qualstr(buf, s->qual);
-	} else if (isarray(s->type)) {
-	    if (TYPE_LEN(s->type) > 0) {
-		strbuf_cats(buf, "[");
-		strbuf_catd(buf, TYPE_LEN(s->type));
-		strbuf_cats(buf, "]");
-	    } else {
-		strbuf_cats(buf, "[]");
-	    }
-	} else if (isenum(s->type) || isstruct(s->type) || isunion(s->type)) {
-	    qualstr(buf, s->qual);
-	    strbuf_cats(buf, TYPE_NAME(s->type));
-	    if (TYPE_TAG(s->type)) {
-		strbuf_cats(buf, " ");
-		strbuf_cats(buf, TYPE_TAG(s->type));
-	    }
-	} else {
-	    qualstr(buf, s->qual);
-	    strbuf_cats(buf, TYPE_NAME(s->type));
-	}
-    }
-
-    ret = strs(strbuf_strip(buf)->str);
-    strbuf_free(buf);
-    vec_purge(v);
-    return ret;
 }
