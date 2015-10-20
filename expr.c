@@ -1448,7 +1448,7 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 	    node_t *ty2 = AST_TYPE(r1);
 	    if (!((isarith(ty1) && isarith(ty2)) ||
 		  (isptr(ty1) && isint(ty2))))
-	        error(INCOMPATIBLE_TYPES, type2s(ty1), type2s(ty2));
+	        error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
 	}
 	r = bop(op2, l1, r1);
     }
@@ -1460,7 +1460,7 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 	if (r)
 	    ret = ast_bop('=', retty, l, r);
 	else
-	    error(INCOMPATIBLE_TYPES, type2s(ty1), type2s(ty2));
+	    error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
     }
     return ret;
 }

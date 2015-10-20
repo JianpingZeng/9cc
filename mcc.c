@@ -169,10 +169,9 @@ int main(int argc, char **argv)
         translate(ifile, options, ofile);
     }
     
-    if (fails) {
-        fprintf(stderr, "%d fails.\n", fails);
+    if (fails)
 	ret = EXIT_FAILURE;
-    }
+    fprintf(stderr, "%d succeed, %d failed.\n", vec_len(inputs) - fails, fails);
 
     if (tmpdir)
 	rmdir(tmpdir);
