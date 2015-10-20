@@ -136,7 +136,7 @@ static bool is_bitfield(node_t *node)
     node_t *ty = AST_TYPE(EXPR_OPERAND(node, 0));
     const char *name = AST_NAME(EXPR_OPERAND(node, 1));
     node_t *field = find_field(ty, name);
-    return isbitfield(field);
+    return field && isbitfield(field);
 }
 
 static const char * is_castable(node_t *dst, node_t *src)
