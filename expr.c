@@ -60,7 +60,7 @@ static void ensure_type(node_t *node, bool (*is) (node_t *))
 	cc_assert(0);
     
     if (!is(AST_TYPE(node)))
-        error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
+        errorf(AST_SRC(node), "expect type '%s', not '%s'", name, type2s(AST_TYPE(node)));
 }
 
 bool islvalue(node_t *node)
@@ -95,36 +95,18 @@ static void ensure_lvalue(node_t *node)
         errorf(AST_SRC(node), "expect lvalue at '%s'", node2s(node));
 }
 
-static const char * is_assignable(node_t *node)
+static void ensure_assignable(node_t *node)
 {
     node_t *ty = AST_TYPE(node);
+    struct source src = AST_SRC(node);
     if (!islvalue(node))
-	return "expression is not assignable";
-    if (AST_ID(node) == PAREN_EXPR)
-	return is_assignable(EXPR_OPERAND(node, 0));
-    if (isarray(ty))
-	return format("array type '%s' is not assignable", type2s(ty));
-    if (isconst(ty)) {
-	if (AST_ID(node) == REF_EXPR) {
-	    return format("read-only variable '%s' is not assignable", SYM_NAME(EXPR_SYM(node)));
-	} else if (AST_ID(node) == MEMBER_EXPR) {
-	    const char *op = EXPR_OP(node) == '.' ? "." : "->";
-	    const char *l = SYM_NAME(EXPR_SYM(EXPR_OPERAND(node, 0)));
-	    const char *r = AST_NAME(EXPR_OPERAND(node, 1));
-	    return format("read-only variable '%s%s%s' is not assignable", l, op, r);
-	} else {
-	    return "read-only variable is not assignable";
-	}
-    }
-    
-    return NULL;
-}
-
-static void ensure_assignable(node_t *or)
-{
-    const char *msg = is_assignable(or);
-    if (msg)
-        error(msg);
+	errorf(src, "expression is not assignable '%s'", node2s(node));
+    else if (AST_ID(node) == PAREN_EXPR)
+	ensure_assignable(EXPR_OPERAND(node, 0));
+    else if (isarray(ty))
+	errorf(src, "array type '%s' is not assignable", type2s(ty));
+    else if (isconst(ty))
+	errorf(src, "read-only variable '%s' is not assignable", node2s(node));
 }
 
 static bool is_bitfield(node_t *node)
@@ -138,34 +120,27 @@ static bool is_bitfield(node_t *node)
     return field && isbitfield(field);
 }
 
-static const char * is_castable(node_t *dst, node_t *src)
+static void ensure_cast(node_t *dst, node_t *src)
 {
     if (isvoid(dst))
-	return NULL;
+	return;
     if (isarith(dst) && isarith(src))
-	return NULL;
+	return;
     if (isint(dst) && isptr(src))
-	return NULL;
+	return;
     if (isptrto(dst, FUNCTION)) {
 	if (isint(src) ||
 	    isptrto(src, FUNCTION))
-	    return NULL;
+	    return;
     } else if (isptr(dst)) {
 	if (isint(src) ||
 	    isptrto(src, VOID))
-	    return NULL;
+	    return;
 	if (isptr(src) && !isfunc(rtype(src)))
-	    return NULL;
+	    return;
     }
 
-    return format(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
-}
-
-static void ensure_cast(node_t *dst, node_t *src)
-{
-    const char *msg = is_castable(dst, src);
-    if (msg)
-	error(msg);
+    error(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
 }
 
 static unsigned escape(const char **ps)
