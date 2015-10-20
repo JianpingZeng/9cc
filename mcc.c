@@ -15,7 +15,7 @@
 
 extern int cc_main(int argc, char *argv[]);
 
-static unsigned fails;
+static size_t fails;
 static const char *version = "0.0";
 static const char *progname;
 
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
     
     if (fails)
 	ret = EXIT_FAILURE;
-    fprintf(stderr, "%d succeed, %d failed.\n", vec_len(inputs) - fails, fails);
+    fprintf(stderr, "%lu succeed, %lu failed.\n", vec_len(inputs) - fails, fails);
 
     if (tmpdir)
 	rmdir(tmpdir);

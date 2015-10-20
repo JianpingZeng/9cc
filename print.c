@@ -367,6 +367,10 @@ void print_tree(node_t *tree)
     print_tree1(context);
 }
 
+/**
+ * Convert type node to string.
+ */
+
 #define LPAREN  1
 #define RPAREN  2
 #define FCOMMA  3
@@ -548,10 +552,55 @@ const char *type2s(node_t *ty)
     return ret;
 }
 
-// TODO: 
+/**
+ * Convert expression node to string.
+ */
+static const char * expr2s(node_t *node);
+
+static void doexpr2s(struct strbuf *s, node_t *node)
+{
+    cc_assert(isexpr(node));
+    
+    int id = AST_ID(node);
+    switch (id) {
+    case BINARY_OPERATOR:
+    case UNARY_OPERATOR:
+    case COND_EXPR:
+    case MEMBER_EXPR:
+    case PAREN_EXPR:
+    case REF_EXPR:
+    case CAST_EXPR:
+    case CALL_EXPR:
+    case INITS_EXPR:
+    case VINIT_EXPR:
+    case CONV_EXPR:
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case STRING_LITERAL:
+    case COMPOUND_LITERAL:
+	break;
+    default:
+	cc_assert(0);
+    }
+}
+
+static const char * expr2s(node_t *node)
+{
+    struct strbuf *s = strbuf_new();
+    doexpr2s(s, node);
+    return STR(strbuf_str(s));
+}
+
 const char * node2s(node_t *node)
 {
-    return NULL;
+    if (istype(node))
+	return type2s(node);
+    else if (issymbol(node))
+	return SYM_NAME(node);
+    else if (isexpr(node))
+	return expr2s(node);
+    else
+	return AST_NAME(node);
 }
 
 // TODO: typedef names
