@@ -579,7 +579,7 @@ static void doexpr2s(struct strbuf *s, node_t *node)
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case STRING_LITERAL:
-	strbuf_cats(s, AST_NAME(node));
+	strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));
 	break;
     case COMPOUND_LITERAL:
 	strbuf_cats(s, format("(%s){...}", type2s(AST_TYPE(node))));
