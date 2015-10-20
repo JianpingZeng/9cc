@@ -1250,7 +1250,7 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
             node_t *sym = TYPE_PARAMS(ftype)[i];
             SYM_DEFINED(sym) = true;
             // params id is required in prototype
-            if (isanonymous(SYM_NAME(sym)))
+            if (isanonymous(SYM_NAME(sym)) && SYM_TYPE(sym) != vartype)
                 errorf(AST_SRC(sym), "parameter name omitted");
             if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
                 if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
