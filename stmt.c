@@ -496,7 +496,7 @@ static node_t ** predefined_identifiers(void)
 	AST_TYPE(decl) = type;
 	AST_SRC(decl) = source;
 	
-	sym = install(strs("__func__"), &identifiers, SCOPE);
+	sym = install(name, &identifiers, SCOPE);
 	AST_SRC(sym) = source;
 	SYM_DEFINED(sym) = true;
 	SYM_SCLASS(sym) = STATIC;
