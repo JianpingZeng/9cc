@@ -201,7 +201,6 @@ extern node_t * new_integer_literal(int i);
 extern node_t * new_string_literal(const char *string);
 
 // decl.c
-extern node_t * initializer_list(node_t *ty);
 extern bool istypename(struct token *t);
 extern node_t ** declaration(void);
 extern node_t * translation_unit(void);
@@ -209,7 +208,10 @@ extern node_t * typename(void);
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
-extern bool has_static_extent(node_t *sym);
+
+// initializer.c
+extern node_t * initializer_list(node_t *ty);
+extern void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind);
 extern void init_string(node_t *ty, node_t *node);
 
 // stmt.c
