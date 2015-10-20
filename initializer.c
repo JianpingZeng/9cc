@@ -56,19 +56,16 @@ static node_t * find_elem(struct vector *v, int i)
 
 static node_t * init_elem_conv(node_t *ty, node_t *node)
 {
+    // VINIT_EXPR means failure.
+    // cannot pass VINIT_EXPR to init_conv
+    if (AST_ID(node) == VINIT_EXPR)
+	return NULL;
+
     node_t *ret = init_conv(ty, node);
     if (ret == NULL)
 	error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(node)), type2s(ty));
 
     return ret;
-}
-
-static inline node_t * do_init_elem_conv(node_t *ty, node_t *node)
-{
-    // cannot pass VINIT_EXPR to init_elem_conv
-    if (AST_ID(node) == VINIT_EXPR)
-	return NULL;		// init_elem_conv has failed
-    return init_elem_conv(ty, node);
 }
 
 void init_string(node_t *ty, node_t *node)
@@ -115,7 +112,7 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 	    if (isarray(rty) || isstruct(rty) || isunion(rty))
 		aggregate_set(rty, v1, 0, node);
 	    else
-		vec_push_safe(v1, do_init_elem_conv(rty, node));
+		vec_push_safe(v1, init_elem_conv(rty, node));
 	
 	    EXPR_INITS(n1) = (node_t **)vtoa(v1);
 	}
@@ -139,10 +136,10 @@ static void scalar_set(node_t *ty, struct vector *v, int i, node_t *node)
 	    node = inits[0];
 	    if (AST_ID(node) == INITS_EXPR)
 		goto loop;
-	    vec_set_safe(v, i, do_init_elem_conv(ty, node));
+	    vec_set_safe(v, i, init_elem_conv(ty, node));
 	}
     } else {
-	vec_set_safe(v, i, do_init_elem_conv(ty, node));
+	vec_set_safe(v, i, init_elem_conv(ty, node));
     }
 }
 
