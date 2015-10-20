@@ -249,7 +249,7 @@ extern void * alloc_type(void);
 extern void * alloc_field(void);
 
 extern const char *nname(node_t *node);
-extern node_t * ast_expr(int id, int op, node_t *l, node_t *r);
+extern node_t * ast_expr(int id, node_t *ty, node_t *l, node_t *r);
 extern node_t * ast_decl(int id, int scope);
 extern node_t * ast_stmt(int id, struct source src);
 extern node_t * ast_null_stmt(void);

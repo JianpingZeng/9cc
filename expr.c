@@ -18,7 +18,6 @@ static node_t * conv2(node_t *l, node_t *r);
 static node_t * wrap(node_t *ty, node_t *node);
 static node_t * bitconv(node_t *ty, node_t *node);
 static bool is_nullptr(node_t *node);
-static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *r);
 
 #define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
 #define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
@@ -481,8 +480,9 @@ static node_t * float_literal(struct token *t)
 	sym = install(t->name, &constants, CONSTANT);
 	float_constant(t, sym);
     }
-    node_t *expr = expr_node(FLOAT_LITERAL, 0, SYM_TYPE(sym), NULL, NULL);
+    node_t *expr = ast_expr(FLOAT_LITERAL, SYM_TYPE(sym), NULL, NULL);
     AST_SRC(expr) = t->src;
+    AST_NAME(expr) = t->name;
     EXPR_SYM(expr) = sym;
     return expr;
 }
@@ -494,8 +494,9 @@ static node_t * integer_literal(struct token *t)
 	sym = install(t->name, &constants, CONSTANT);
 	integer_constant(t, sym);
     }
-    node_t *expr = expr_node(INTEGER_LITERAL, 0, SYM_TYPE(sym), NULL, NULL);
+    node_t *expr = ast_expr(INTEGER_LITERAL, SYM_TYPE(sym), NULL, NULL);
     AST_SRC(expr) = t->src;
+    AST_NAME(expr) = t->name;
     EXPR_SYM(expr) = sym;
     return expr;
 }
@@ -507,8 +508,9 @@ static node_t * string_literal(struct token *t)
 	sym = install(t->name, &constants, CONSTANT);
 	string_constant(t, sym);
     }
-    node_t *expr = expr_node(STRING_LITERAL, 0, SYM_TYPE(sym), NULL, NULL);
+    node_t *expr = ast_expr(STRING_LITERAL, SYM_TYPE(sym), NULL, NULL);
     AST_SRC(expr) = t->src;
+    AST_NAME(expr) = t->name;
     EXPR_SYM(expr) = sym;
     return expr;
 }
@@ -623,7 +625,7 @@ static node_t * compound_literal(node_t *ty)
     node_t * inits;
     
     inits = initializer_list(ty);
-    ret = expr_node(COMPOUND_LITERAL, 0, ty, inits, NULL);
+    ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
     
     return ret;
 }
@@ -650,7 +652,7 @@ static node_t * primary_expr(void)
 	sym = lookup(token->name, identifiers);
 	if (sym) {
 	    SYM_REFS(sym)++;
-	    ret = expr_node(REF_EXPR, 0, SYM_TYPE(sym), NULL, NULL);
+	    ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
 	    EXPR_SYM(ret) = sym;
 	    if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
 		EXPR_OP(ret) = ENUM; // enum ids
@@ -678,7 +680,7 @@ static node_t * primary_expr(void)
 	    expect('(');
 	    node_t *e = expression();
 	    if (e)
-		ret = expr_node(PAREN_EXPR, 0, AST_TYPE(e), e, NULL);
+		ret = ast_expr(PAREN_EXPR, AST_TYPE(e), e, NULL);
 	    expect(')');
 	}
 	break;
@@ -748,7 +750,7 @@ static node_t * funcall(node_t *node)
 	node_t *fty = rtype(AST_TYPE(node));
 	struct vector *v;
 	if ((v = argscast(fty, args))) {
-	    ret = expr_node(CALL_EXPR, 0, rtype(fty), node, NULL);
+	    ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
 	    EXPR_ARGS(ret) = (node_t **)vtoa(v);
 	}
     } else {
@@ -788,8 +790,9 @@ static node_t * direction(node_t *node)
 	    field_not_found_error(ty, name);
     }
     if (NO_ERROR) {
-	node_t *r = expr_node(REF_EXPR, 0,FIELD_TYPE(field), NULL, NULL);
-	ret = expr_node(MEMBER_EXPR, t, FIELD_TYPE(field), node, r);
+	node_t *r = ast_expr(REF_EXPR, FIELD_TYPE(field), NULL, NULL);
+	ret = ast_expr(MEMBER_EXPR, FIELD_TYPE(field), node, r);
+	EXPR_OP(ret) = t;
 	AST_NAME(EXPR_OPERAND(ret, 1)) = FIELD_NAME(field);
     }
     return ret;
@@ -1030,7 +1033,7 @@ static node_t * cast_expr(void)
 	    SAVE_ERRORS;
 	    ensure_cast(ty, AST_TYPE(cast));
 	    if (NO_ERROR)
-		ret = expr_node(CAST_EXPR, 0, ty, cast, NULL);
+		ret = ast_expr(CAST_EXPR, ty, cast, NULL);
 	}
         
 	return ret;
@@ -1237,7 +1240,7 @@ static node_t * cond_expr1(node_t *cond)
     }
     
     if (NO_ERROR) {
-	ret = expr_node(COND_EXPR, 0, ty, NULL, NULL);
+	ret = ast_expr(COND_EXPR, ty, NULL, NULL);
 	EXPR_COND(ret) = cond;
 	EXPR_THEN(ret) = then;
 	EXPR_ELSE(ret) = els;
@@ -1300,13 +1303,6 @@ node_t * switch_expr(void)
 	      type2s(AST_TYPE(node)));
 	return NULL;
     }
-    return node;
-}
-
-static inline node_t * expr_node(int id, int op, node_t *ty, node_t *l, node_t *r)
-{
-    node_t *node = ast_expr(id, op, l, r);
-    AST_TYPE(node) = ty;
     return node;
 }
 

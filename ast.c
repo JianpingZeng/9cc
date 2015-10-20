@@ -38,13 +38,13 @@ void * alloc_field(void)
     return new_node(FIELD_NODE);
 }
 
-node_t * ast_expr(int id, int op, node_t *l, node_t *r)
+node_t * ast_expr(int id, node_t *ty, node_t *l, node_t *r)
 {
     cc_assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
     node_t * expr = new_node(id);
-    EXPR_OP(expr) = op;
     EXPR_OPERAND(expr, 0) = l;
     EXPR_OPERAND(expr, 1) = r;
+    AST_TYPE(expr) = ty;
     return expr;
 }
 
@@ -72,35 +72,34 @@ node_t * ast_decl(int id, int scope)
 
 node_t * ast_uop(int op, node_t *ty, node_t *l)
 {
-    node_t * expr = ast_expr(UNARY_OPERATOR, op, l, NULL);
-    AST_TYPE(expr) = ty;
+    node_t *expr = ast_expr(UNARY_OPERATOR, ty, l, NULL);
+    EXPR_OP(expr) = op;
     return expr;
 }
 
 node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r)
 {
-    node_t * expr = ast_expr(BINARY_OPERATOR, op, l, r);
-    AST_TYPE(expr) = ty;
+    node_t *expr = ast_expr(BINARY_OPERATOR, ty, l, r);
+    EXPR_OP(expr) = op;
     return expr;
 }
 
 node_t * ast_conv(node_t *ty, node_t *l, const char *name)
 {
-    node_t * expr = ast_expr(CONV_EXPR, 0, l, NULL);
-    AST_TYPE(expr) = ty;
+    node_t * expr = ast_expr(CONV_EXPR, ty, l, NULL);
     AST_NAME(expr) = name;
     return expr;
 }
 
 node_t * ast_inits(void)
 {
-    node_t * expr = ast_expr(INITS_EXPR, 0, NULL, NULL);
+    node_t * expr = ast_expr(INITS_EXPR, NULL, NULL, NULL);
     return expr;
 }
 
 node_t * ast_vinit(void)
 {
-    node_t *vinit = ast_expr(VINIT_EXPR, 0, NULL, NULL);
+    node_t *vinit = ast_expr(VINIT_EXPR, NULL, NULL, NULL);
     return vinit;
 }
 
