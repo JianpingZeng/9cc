@@ -322,8 +322,6 @@ static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v
 	}
 	scalar_set(ty, v, i, initializer(ty));
     }
-
-#undef IS_STRING_VEC
 }
 
 static node_t * initializer(node_t *ty)

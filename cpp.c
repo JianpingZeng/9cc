@@ -915,7 +915,6 @@ static struct vector * subst(struct macro *m, struct vector *args, struct hidese
 	}
     }
     return hsadd(r, hideset);
-#undef PUSH_SPACE
 }
 
 static struct token * expand(void)
