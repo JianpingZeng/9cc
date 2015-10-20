@@ -503,7 +503,7 @@ static node_t ** predefined_identifiers(void)
 	SYM_TYPE(sym) = type;
 	DECL_SYM(decl) = sym;
 
-	node_t *literal = new_string_literal(name);
+	node_t *literal = new_string_literal(FNAME);
 	AST_SRC(literal) = source;
 	// initializer
 	init_string(type, literal);

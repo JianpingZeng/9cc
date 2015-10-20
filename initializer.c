@@ -95,6 +95,8 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
     } else if (is_string(ty) && issliteral(node)) {
         init_string(ty, node);
 	vec_set(v, i, node);
+    } else if (isrecord(ty) && isrecord(AST_TYPE(node)) && eqtype(unqual(ty), unqual(AST_TYPE(node)))) {
+	vec_set(v, i, node);
     } else {
 	node_t *rty = NULL;
 	if (isarray(ty)) {

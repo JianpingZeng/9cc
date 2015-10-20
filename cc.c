@@ -41,10 +41,10 @@ static void translate(void)
     tree = translation_unit();
     print_tree(tree);
     if (errors == 0) {
-    	simplify(tree);
-    	println("\nSimplified:");
-    	print_tree(tree);
-    	gen(tree, ofile);
+    	// simplify(tree);
+    	// println("\nSimplified:");
+    	// print_tree(tree);
+    	// gen(tree, ofile);
     }
 }
 
