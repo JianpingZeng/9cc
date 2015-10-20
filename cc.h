@@ -182,7 +182,6 @@ extern struct vector * all_pptoks(void);
 extern node_t * eval(node_t *expr, node_t *ty);
 extern node_t * eval_bool(node_t *expr);
 extern bool eval_cpp_cond(void);
-extern node_t * string_literal(const char *str);
 
 // expr.c
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
@@ -197,6 +196,10 @@ extern node_t * bool_expr(void);
 // for expression in switch statement
 extern node_t * switch_expr(void);
 
+// literals
+extern node_t * new_integer_literal(int i);
+extern node_t * new_string_literal(const char *string);
+
 // decl.c
 extern node_t * initializer_list(node_t *ty);
 extern bool istypename(struct token *t);
@@ -207,6 +210,7 @@ extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
 extern bool has_static_extent(node_t *sym);
+extern void init_string(node_t *ty, node_t *node);
 
 // stmt.c
 extern node_t * compound_stmt(void);

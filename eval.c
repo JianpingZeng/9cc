@@ -13,20 +13,6 @@ static node_t * eval_arith(node_t *expr);
 static node_t * eval_address(node_t *expr);
 static node_t * eval_initializer(node_t *expr);
 
-// TODO
-node_t * string_literal(const char *str)
-{
-    node_t *sym = lookup(str, constants);
-    if (!sym) {
-	sym = install(str, &constants, CONSTANT);
-	node_t *ty = array_type(chartype);
-	TYPE_LEN(ty) = strlen(str)-1;
-	set_typesize(ty);
-	SYM_TYPE(ty) = ty;
-    }
-    node_t *ret = ast_expr(STRING_LITERAL, 0, NULL, NULL);
-}
-
 static node_t * literal_node(int id)
 {
     node_t *n = alloc_node();
@@ -53,9 +39,20 @@ static node_t * float_literal_node(node_t *ty, union value v)
     return n;
 }
 
-static node_t * new_int_literal(int i)
+static node_t * one_literal(void)
 {
-    return int_literal_node(inttype, (union value){.u = i});
+    static node_t * _one_literal;
+    if (!_one_literal)
+	_one_literal = new_integer_literal(1);
+    return _one_literal;
+}
+
+static node_t * zero_literal(void)
+{
+    static node_t * _zero_literal;
+    if (!_zero_literal)
+	_zero_literal = new_integer_literal(0);
+    return _zero_literal;
 }
 
 static bool bool_arith(node_t *n)
@@ -301,7 +298,7 @@ static node_t * eval_arith(node_t *expr)
 		{
 		    node_t *l1 = eval_arith(l);
 		    if (!bool_arith(l1))
-			return new_int_literal(0);
+			return zero_literal();
 		    else
 			return eval_arith(r);
 		}
@@ -309,7 +306,7 @@ static node_t * eval_arith(node_t *expr)
 		{
 		    node_t *l1 = eval_arith(l);
 		    if (bool_arith(l1))
-		        return new_int_literal(1);
+		        return one_literal();
 		    else
 			return eval_arith(r);
 		}

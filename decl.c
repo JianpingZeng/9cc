@@ -27,8 +27,6 @@ static void post_funcdef(node_t *fty, node_t *stmt);
 static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
 
-static void predefined_identifiers(struct source src);
-
 #define PACK_PARAM(prototype, first, fvoid, sclass)	\
     (((prototype) & 0x01) << 30) |			\
     (((first) & 0x01) << 29) |				\
@@ -1301,7 +1299,6 @@ static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct sourc
         // function definition
         // install symbol first for backward reference
         SET_FUNCDEF_CONTEXT(ftype, id);
-	predefined_identifiers(src);
         node_t *stmt = compound_stmt();
 	post_funcdef(ftype, stmt);
         exit_scope();
@@ -1375,7 +1372,7 @@ static inline node_t * do_init_elem_conv(node_t *ty, node_t *node)
     return init_elem_conv(ty, node);
 }
 
-static void init_string(node_t *ty, node_t *node)
+void init_string(node_t *ty, node_t *node)
 {
     int len1 = TYPE_LEN(ty);
     int len2 = TYPE_LEN(AST_TYPE(node));
@@ -1762,30 +1759,4 @@ static void ensure_array(node_t *atype, struct source src, int level)
     } while (isarray(rty));
 
     set_typesize(atype);
-}
-
-static void predefined_identifiers(struct source src)
-{
-    /**
-     * Predefined macro: __func__
-     * The identifier __func__ is implicitly declared by C99
-     * implementations as if the following declaration appeared
-     * after the opening brace of each function definition:
-     *
-     * static const char __func__[] = "function-name";
-     *
-     */
-    const char *name = strs("__func__");
-    node_t *sym = lookup(name, identifiers);
-    if (sym && currentscope(sym)) {
-	// redefinition of predefined identifier
-	redefinition_error(src, sym);
-    } else {
-	sym = install(strs("__func__"), &identifiers, SCOPE);
-	AST_SRC(sym) = src;
-	SYM_DEFINED(sym) = true;
-	SYM_SCLASS(sym) = STATIC;
-	node_t *type = array_type(qual(CONST, chartype));
-	SYM_TYPE(sym) = type;
-    }
 }

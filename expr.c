@@ -42,6 +42,131 @@ static int splitop(int op)
     }
 }
 
+static void ensure_type(node_t *node, bool (*is) (node_t *))
+{
+    const char *name;
+    if (is == isint)
+        name = "integer";
+    else if (is == isscalar)
+        name = "scalar";
+    else if (is == isarith)
+        name = "arithmetic";
+    else if (is == isrecord)
+	name = "struct or union";
+    else if (is == isfunc)
+        name = "function";
+    else if (is == isptr)
+	name = "pointer";
+    else
+	CCAssert(0);
+    
+    if (!is(AST_TYPE(node)))
+        error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
+}
+
+bool islvalue(node_t *node)
+{
+    if (AST_ID(node) == STRING_LITERAL)
+        return true;
+    if (AST_ID(node) == PAREN_EXPR)
+	return islvalue(EXPR_OPERAND(node, 0));
+    if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*') {
+	if (isfunc(AST_TYPE(node)))
+	    return false;
+	return true;
+    }
+    if (AST_ID(node) == MEMBER_EXPR)
+	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
+    if (AST_ID(node) == REF_EXPR) {
+        if (EXPR_OP(node) == ENUM)
+            return false;
+        if (isfunc(AST_TYPE(node)))
+            return false;
+        return true;
+    }
+    
+    return false;
+}
+
+static void ensure_lvalue(node_t *node)
+{
+    if (!islvalue(node))
+        error("lvalue expect");
+}
+
+static const char * is_assignable(node_t *node)
+{
+    node_t *ty = AST_TYPE(node);
+    if (!islvalue(node))
+	return "expression is not assignable";
+    if (AST_ID(node) == PAREN_EXPR)
+	return is_assignable(EXPR_OPERAND(node, 0));
+    if (isarray(ty))
+	return format("array type '%s' is not assignable", type2s(ty));
+    if (isconst(ty)) {
+	if (AST_ID(node) == REF_EXPR) {
+	    return format("read-only variable '%s' is not assignable", SYM_NAME(EXPR_SYM(node)));
+	} else if (AST_ID(node) == MEMBER_EXPR) {
+	    const char *op = EXPR_OP(node) == '.' ? "." : "->";
+	    const char *l = SYM_NAME(EXPR_SYM(EXPR_OPERAND(node, 0)));
+	    const char *r = AST_NAME(EXPR_OPERAND(node, 1));
+	    return format("read-only variable '%s%s%s' is not assignable", l, op, r);
+	} else {
+	    return "read-only variable is not assignable";
+	}
+    }
+    
+    return NULL;
+}
+
+static void ensure_assignable(node_t *or)
+{
+    const char *msg = is_assignable(or);
+    if (msg)
+        error(msg);
+}
+
+static bool is_bitfield(node_t *node)
+{
+    if (AST_ID(node) != MEMBER_EXPR)
+        return false;
+
+    node_t *ty = AST_TYPE(EXPR_OPERAND(node, 0));
+    const char *name = AST_NAME(EXPR_OPERAND(node, 1));
+    node_t *field = find_field(ty, name);
+    return isbitfield(field);
+}
+
+static const char * is_castable(node_t *dst, node_t *src)
+{
+    if (isvoid(dst))
+	return NULL;
+    if (isarith(dst) && isarith(src))
+	return NULL;
+    if (isint(dst) && isptr(src))
+	return NULL;
+    if (isptrto(dst, FUNCTION)) {
+	if (isint(src) ||
+	    isptrto(src, FUNCTION))
+	    return NULL;
+    } else if (isptr(dst)) {
+	if (isint(src) ||
+	    isptrto(src, VOID))
+	    return NULL;
+	if (isptr(src) && !isfunc(rtype(src)))
+	    return NULL;
+    }
+
+    return format(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
+}
+
+static void ensure_cast(node_t *dst, node_t *src)
+{
+    const char *msg = is_castable(dst, src);
+    if (msg)
+	error(msg);
+}
+
 static unsigned escape(const char **ps)
 {
     unsigned c = 0;
@@ -347,129 +472,57 @@ static void string_constant(struct token *t, node_t *sym)
     SYM_TYPE(sym) = ty;
 }
 
-static void ensure_type(node_t *node, bool (*is) (node_t *))
+static node_t * float_literal(struct token *t)
 {
-    const char *name;
-    if (is == isint)
-        name = "integer";
-    else if (is == isscalar)
-        name = "scalar";
-    else if (is == isarith)
-        name = "arithmetic";
-    else if (is == isrecord)
-	name = "struct or union";
-    else if (is == isfunc)
-        name = "function";
-    else if (is == isptr)
-	name = "pointer";
-    else
-	CCAssert(0);
-    
-    if (!is(AST_TYPE(node)))
-        error("%s type expected, not type '%s'", name, type2s(AST_TYPE(node)));
-}
-
-bool islvalue(node_t *node)
-{
-    if (AST_ID(node) == STRING_LITERAL)
-        return true;
-    if (AST_ID(node) == PAREN_EXPR)
-	return islvalue(EXPR_OPERAND(node, 0));
-    if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*') {
-	if (isfunc(AST_TYPE(node)))
-	    return false;
-	return true;
+    node_t *sym = lookup(t->name, constants);
+    if (!sym) {
+	sym = install(t->name, &constants, CONSTANT);
+	float_constant(t, sym);
     }
-    if (AST_ID(node) == MEMBER_EXPR)
-	return EXPR_OP(node) == DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
-    if (AST_ID(node) == REF_EXPR) {
-        if (EXPR_OP(node) == ENUM)
-            return false;
-        if (isfunc(AST_TYPE(node)))
-            return false;
-        return true;
+    node_t *expr = expr_node(FLOAT_LITERAL, 0, SYM_TYPE(sym), NULL, NULL);
+    AST_SRC(expr) = t->src;
+    EXPR_SYM(expr) = sym;
+    return expr;
+}
+
+static node_t * integer_literal(struct token *t)
+{
+    node_t *sym = lookup(t->name, constants);
+    if (!sym) {
+	sym = install(t->name, &constants, CONSTANT);
+	integer_constant(t, sym);
     }
-    
-    return false;
+    node_t *expr = expr_node(INTEGER_LITERAL, 0, SYM_TYPE(sym), NULL, NULL);
+    AST_SRC(expr) = t->src;
+    EXPR_SYM(expr) = sym;
+    return expr;
 }
 
-static void ensure_lvalue(node_t *node)
+static node_t * string_literal(struct token *t)
 {
-    if (!islvalue(node))
-        error("lvalue expect");
-}
-
-static const char * is_assignable(node_t *node)
-{
-    node_t *ty = AST_TYPE(node);
-    if (!islvalue(node))
-	return "expression is not assignable";
-    if (AST_ID(node) == PAREN_EXPR)
-	return is_assignable(EXPR_OPERAND(node, 0));
-    if (isarray(ty))
-	return format("array type '%s' is not assignable", type2s(ty));
-    if (isconst(ty)) {
-	if (AST_ID(node) == REF_EXPR) {
-	    return format("read-only variable '%s' is not assignable", SYM_NAME(EXPR_SYM(node)));
-	} else if (AST_ID(node) == MEMBER_EXPR) {
-	    const char *op = EXPR_OP(node) == '.' ? "." : "->";
-	    const char *l = SYM_NAME(EXPR_SYM(EXPR_OPERAND(node, 0)));
-	    const char *r = AST_NAME(EXPR_OPERAND(node, 1));
-	    return format("read-only variable '%s%s%s' is not assignable", l, op, r);
-	} else {
-	    return "read-only variable is not assignable";
-	}
+    node_t *sym = lookup(t->name, constants);
+    if (!sym) {
+	sym = install(t->name, &constants, CONSTANT);
+	string_constant(t, sym);
     }
-    
-    return NULL;
+    node_t *expr = expr_node(STRING_LITERAL, 0, SYM_TYPE(sym), NULL, NULL);
+    AST_SRC(expr) = t->src;
+    EXPR_SYM(expr) = sym;
+    return expr;
 }
 
-static void ensure_assignable(node_t *or)
+node_t * new_integer_literal(int i)
 {
-    const char *msg = is_assignable(or);
-    if (msg)
-        error(msg);
+    struct token *t = new_token(&(struct token){.id = ICONSTANT, .name = strd(i)});
+    node_t *expr = integer_literal(t);
+    return expr;
 }
 
-static bool is_bitfield(node_t *node)
+node_t * new_string_literal(const char *string)
 {
-    if (AST_ID(node) != MEMBER_EXPR)
-        return false;
-
-    node_t *ty = AST_TYPE(EXPR_OPERAND(node, 0));
-    const char *name = AST_NAME(EXPR_OPERAND(node, 1));
-    node_t *field = find_field(ty, name);
-    return isbitfield(field);
-}
-
-static const char * is_castable(node_t *dst, node_t *src)
-{
-    if (isvoid(dst))
-	return NULL;
-    if (isarith(dst) && isarith(src))
-	return NULL;
-    if (isint(dst) && isptr(src))
-	return NULL;
-    if (isptrto(dst, FUNCTION)) {
-	if (isint(src) ||
-	    isptrto(src, FUNCTION))
-	    return NULL;
-    } else if (isptr(dst)) {
-	if (isint(src) ||
-	    isptrto(src, VOID))
-	    return NULL;
-	if (isptr(src) && !isfunc(rtype(src)))
-	    return NULL;
-    }
-
-    return format(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
-}
-
-static void ensure_cast(node_t *dst, node_t *src)
-{
-    const char *msg = is_castable(dst, src);
-    if (msg)
-	error(msg);
+    struct token *t = new_token(&(struct token){.id = SCONSTANT, .name = format("\"%s\"", string)});
+    node_t *expr = string_literal(t);
+    return expr;
 }
 
 static void argcast1(node_t *fty, node_t **args, struct vector *v)
@@ -607,28 +660,13 @@ static node_t * primary_expr(void)
     case ICONSTANT:
     case FCONSTANT:
     case SCONSTANT:
-        {
-	    int id;
-            sym = lookup(token->name, constants);
-            if (!sym) {
-                sym = install(token->name, &constants, CONSTANT);
-	        if (t == ICONSTANT)
-		    integer_constant(token, sym);
-		else if (t == FCONSTANT)
-		    float_constant(token, sym);
-		else
-		    string_constant(token, sym);
-            }
-            expect(t);
-	    if (t == ICONSTANT)
-		id = INTEGER_LITERAL;
-	    else if (t == FCONSTANT)
-		id = FLOAT_LITERAL;
-	    else
-		id = STRING_LITERAL;
-            ret = expr_node(id, 0, SYM_TYPE(sym), NULL, NULL);
-	    EXPR_SYM(ret) = sym;
-        }
+	if (t == ICONSTANT)
+	    ret = integer_literal(token);
+	else if (t == FCONSTANT)
+	    ret = float_literal(token);
+	else
+	    ret = string_literal(token);
+	expect(t);
 	break;
     case '(':
 	if (istypename(lookahead())) {

@@ -1,6 +1,8 @@
 #include "cc.h"
 
 static node_t * statement(void);
+static node_t * do_compound_stmt(bool func);
+static node_t ** predefined_identifiers(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -405,7 +407,7 @@ static node_t * return_stmt(void)
 static node_t * statement(void)
 {
     switch (token->id) {
-    case '{':       return compound_stmt();
+    case '{':       return do_compound_stmt(false);
     case IF:        return if_stmt();
     case SWITCH:    return switch_stmt();
     case WHILE:     return while_stmt();
@@ -426,13 +428,16 @@ static node_t * statement(void)
     }
 }
 
-node_t * compound_stmt(void)
+static node_t * do_compound_stmt(bool func)
 {
     node_t *ret = ast_stmt(COMPOUND_STMT, source);
     struct vector *v = vec_new();
     
     expect('{');
     enter_scope();
+
+    if (func)
+	vec_add_array(v, (void **)predefined_identifiers());
     
     while (firstdecl(token) || firstexpr(token) || firststmt(token)) {
         if (firstdecl(token))
@@ -450,6 +455,11 @@ node_t * compound_stmt(void)
     return ret;
 }
 
+node_t * compound_stmt(void)
+{
+    return do_compound_stmt(true);
+}
+
 void backfill_labels(void)
 {
     for (int i = 0; i < vec_len(gotos); i++) {
@@ -459,5 +469,48 @@ void backfill_labels(void)
 	if (!label_stmt)
 	    errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", label);
     }
+}
 
+static node_t ** predefined_identifiers(void)
+{
+    /**
+     * Predefined identifier: __func__
+     * The identifier __func__ is implicitly declared by C99
+     * implementations as if the following declaration appeared
+     * after the opening brace of each function definition:
+     *
+     * static const char __func__[] = "function-name";
+     *
+     */
+    struct vector *v = vec_new();
+    
+    const char *name = strs("__func__");
+    node_t *sym = lookup(name, identifiers);
+    if (sym && currentscope(sym)) {
+	// redefinition of predefined identifier
+	errorf(AST_SRC(sym), "redefinition of predefined identifier '%s'", name);
+    } else {
+	node_t *decl = ast_decl(VAR_DECL, SCOPE);
+	node_t *type = array_type(qual(CONST, chartype));
+
+	AST_TYPE(decl) = type;
+	AST_SRC(decl) = source;
+	
+	sym = install(strs("__func__"), &identifiers, SCOPE);
+	AST_SRC(sym) = source;
+	SYM_DEFINED(sym) = true;
+	SYM_SCLASS(sym) = STATIC;
+	SYM_TYPE(sym) = type;
+	DECL_SYM(decl) = sym;
+
+	node_t *literal = new_string_literal(name);
+	AST_SRC(literal) = source;
+	// initializer
+	init_string(type, literal);
+	DECL_BODY(decl) = literal;
+	
+	vec_push(v, decl);
+    }
+    
+    return (node_t **)vtoa(v);
 }

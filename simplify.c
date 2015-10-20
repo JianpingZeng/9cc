@@ -34,18 +34,6 @@ static const char *__default;
 #define CASES              (__cases)
 #define DEFLT              (__default)
 
-static node_t * int_literal(int i)
-{
-    node_t *n = alloc_node();
-    node_t *sym = anonymous(&constants, CONSTANT);
-    AST_ID(n) = INTEGER_LITERAL;
-    EXPR_SYM(n) = sym;
-    AST_TYPE(n) = inttype;
-    SYM_TYPE(sym) = inttype;
-    SYM_VALUE_I(sym) = i;
-    return n;
-}
-
 static node_t * tmp_var(node_t *ty)
 {
     const char *name = gen_tmpname();
@@ -65,7 +53,7 @@ static node_t * switch_jmp(node_t *var, node_t *case_node)
     int index = STMT_CASE_INDEX(case_node);
     const char *label = STMT_CASE_NAME(case_node);
 
-    cond = ast_bop(EQ, inttype, var, int_literal(index));
+    cond = ast_bop(EQ, inttype, var, new_integer_literal(index));
     return ast_if(cond, ast_jump(label), NULL);
 }
 
