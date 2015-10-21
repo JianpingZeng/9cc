@@ -3,6 +3,7 @@
 static node_t * statement(void);
 static node_t * do_compound_stmt(bool func);
 static struct vector * predefined_identifiers(void);
+static void post_funcdef(struct vector *v, struct vector *predefines);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -455,25 +456,8 @@ static node_t * do_compound_stmt(bool func)
             vec_push_safe(v, statement());
     }
 
-    if (func) {
-	// remove if no ref.
-	struct vector *used = vec_new();
-	size_t len = vec_len(predefines);
-        for (int i = 0; i < len; i++) {
-	    node_t *decl = vec_at(predefines, i);
-	    node_t *sym = DECL_SYM(decl);
-	    if (SYM_REFS(sym))
-		vec_push(used, decl);
-	}
-	if (vec_len(used) != len) {
-	    while (len--)
-		vec_pop_front(v);
-	    for (int i = vec_len(used) - 1; i >= 0; i--)
-		vec_push_front(v, vec_at(used, i));
-	}
-	vec_free(predefines);
-	vec_free(used);
-    }
+    if (func)
+	post_funcdef(v, predefines);
     
     STMT_BLKS(ret) = (node_t **)vtoa(v);
     expect('}');
@@ -541,4 +525,25 @@ static struct vector * predefined_identifiers(void)
     }
     
     return v;
+}
+
+static void post_funcdef(struct vector *v, struct vector *predefines)
+{
+    // remove if no ref.
+    struct vector *used = vec_new();
+    size_t len = vec_len(predefines);
+    for (int i = 0; i < len; i++) {
+	node_t *decl = vec_at(predefines, i);
+	node_t *sym = DECL_SYM(decl);
+	if (SYM_REFS(sym))
+	    vec_push(used, decl);
+    }
+    if (vec_len(used) != len) {
+	while (len--)
+	    vec_pop_front(v);
+	for (int i = vec_len(used) - 1; i >= 0; i--)
+	    vec_push_front(v, vec_at(used, i));
+    }
+    vec_free(predefines);
+    vec_free(used);
 }

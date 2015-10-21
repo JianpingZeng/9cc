@@ -339,7 +339,7 @@ enum {
 struct table {
     int scope;
     struct table *up;
-    struct dict *dict;
+    struct map *map;
 };
 
 // sym
