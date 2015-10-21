@@ -406,7 +406,7 @@ static void integer_constant(struct token *t, node_t *sym)
                 ty = inttype;
         }
 	if (suffix < 0)
-	    error("illegal integer suffix '%s'", s);
+	    error("invalid suffix '%s' on integer constant", s);
 	break;
     }
     
@@ -428,24 +428,121 @@ static void integer_constant(struct token *t, node_t *sym)
     }
 }
 
+static int float_suffix(const char *s)
+{
+    if (s[0] == 'f' || s[0] == 'F')
+	return FLOAT;
+    else if (s[0] == 'l' || s[0] == 'L')
+	return LONG+DOUBLE;
+    else if (s[0] == '\0')
+	return 0;		// no suffix
+    else
+	return -1;		// invalid suffix
+}
+
 static void float_constant(struct token *t, node_t *sym)
 {
-    const char *s = t->name;
-    char c = s[strlen(s)-1];
-    errno = 0;			// must clear first
-    if (c == 'f' || c == 'F') {
-        SYM_TYPE(sym) = floattype;
-        SYM_VALUE_D(sym) = strtof(s, NULL);
-    } else if (c == 'l' || c == 'L') {
-        SYM_TYPE(sym) = longdoubletype;
-        SYM_VALUE_D(sym) = strtold(s, NULL);
+    const char *pc = t->name;
+    struct strbuf *s = strbuf_new();
+
+    if (pc[0] == '.') {
+	cc_assert(isdigit(pc[1]));
+	goto dotted;
+    } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
+	// base 16
+	strbuf_catn(s, pc, 2);
+	pc += 2;
+	if (*pc == '.') {
+	    if (!isxdigit(pc[1]))
+		error("hexadecimal floating constants require a significand");
+	    goto dotted_hex;
+	} else {
+	    cc_assert(isxdigit(*pc));
+	    
+	    const char *rpc = pc;
+	    while (isxdigit(*rpc))
+		rpc++;
+	    strbuf_catn(s, pc, rpc - pc);
+	    pc = rpc;
+	dotted_hex:
+	    if (*pc == '.') {
+		strbuf_catn(s, pc++, 1);
+		rpc = pc;
+		while (isxdigit(*rpc))
+		    rpc++;
+		strbuf_catn(s, pc, rpc - pc);
+		pc = rpc;
+	    }
+	    if (*pc == 'p' || *pc == 'P') {
+		strbuf_catn(s, pc++, 1);
+		if (*pc == '+' || *pc == '-')
+		    strbuf_catn(s, pc++, 1);
+		if (isdigit(*pc)) {
+		    do {
+			strbuf_catn(s, pc++, 1);
+		    } while (isdigit(*pc));
+		} else {
+		    error("exponent has no digits");
+		}
+	    } else {
+		error("hexadecimal floating constants require an exponent");
+	    }
+	}
     } else {
-        SYM_TYPE(sym) = doubletype;
-        SYM_VALUE_D(sym) = strtod(s, NULL);
+	// base 10
+	cc_assert(isdigit(pc[0]));
+	
+	const char *rpc = pc;
+	while (isdigit(*rpc))
+	    rpc++;
+	strbuf_catn(s, pc, rpc - pc);
+	pc = rpc;
+    dotted:
+	if (*pc == '.') {
+	    strbuf_catn(s, pc++, 1);
+	    rpc = pc;
+	    while (isdigit(*rpc))
+		rpc++;
+	    strbuf_catn(s, pc, rpc - pc);
+	    pc = rpc;
+	}
+	if (*pc == 'e' || *pc == 'E') {
+	    strbuf_catn(s, pc++, 1);
+	    if (*pc == '+' || *pc == '-')
+		strbuf_catn(s, pc++, 1);
+	    if (isdigit(*pc)) {
+		do {
+		    strbuf_catn(s, pc++, 1);
+		} while (isdigit(*pc));
+	    } else {
+		error("exponent used with no following digits: %s", t->name);
+	    }
+	}
+    }
+
+    int suffix = float_suffix(pc);
+    errno = 0;			// must clear first
+    switch (suffix) {
+    case FLOAT:
+	SYM_TYPE(sym) = floattype;
+        SYM_VALUE_D(sym) = strtof(strbuf_str(s), NULL);
+	break;
+    case LONG+DOUBLE:
+	SYM_TYPE(sym) = longdoubletype;
+        SYM_VALUE_D(sym) = strtold(strbuf_str(s), NULL);
+	break;
+    default:
+	SYM_TYPE(sym) = doubletype;
+        SYM_VALUE_D(sym) = strtod(strbuf_str(s), NULL);
+	if (suffix < 0)
+	    error("invalid suffix '%s' on float constant", pc);
+	break;
     }
     
     if (errno == ERANGE)
         error("float constant overflow: %s", s);
+
+    strbuf_free(s);
 }
 
 static void number_constant(struct token *t, node_t *sym)
@@ -456,20 +553,25 @@ static void number_constant(struct token *t, node_t *sym)
 	char_constant(t, sym);
     } else if (pc[0] == '.') {
 	// float
-	
+	float_constant(t, sym);
     } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
 	// Hex
 	pc += 2;
-	if (!isxdigit(*pc) && *pc != '.') {
-	    // integer suffix
+	if (!isxdigit(*pc) && pc[0] != '.') {
 	    error("incomplete hex constant: %s", t->name);
+	    integer_constant(t, sym);
+	    return;
 	}
-	while (isxdigit(*pc))
-	    pc++;
-	if (*pc == '.' || *pc == 'p' || *pc == 'P') {
+	if (*pc == '.') {
 	    // float
+	    float_constant(t, sym);
 	} else {
-	    // integer suffix
+	    while (isxdigit(*pc))
+		pc++;
+	    if (*pc == '.' || *pc == 'p' || *pc == 'P')
+		float_constant(t, sym);
+	    else
+		integer_constant(t, sym);
 	}
     } else {
 	// Oct/Dec
@@ -477,12 +579,10 @@ static void number_constant(struct token *t, node_t *sym)
 	
 	while (isdigit(*pc))
 	    pc++;
-	if (*pc == '.' || *pc == 'e' || *pc == 'E') {
-	    // float
-	    
-	} else {
-	    // integer suffix
-	}
+	if (*pc == '.' || *pc == 'e' || *pc == 'E')
+	    float_constant(t, sym);
+	else
+	    integer_constant(t, sym);
     }
 }
 
