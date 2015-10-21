@@ -869,6 +869,7 @@ static node_t * funcall(node_t *node)
 {
     node_t **args;
     node_t *ret = NULL;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect('(');
@@ -883,6 +884,7 @@ static node_t * funcall(node_t *node)
 	if ((v = argscast(fty, args))) {
 	    ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
 	    EXPR_ARGS(ret) = (node_t **)vtoa(v);
+	    AST_SRC(ret) = src;
 	}
     } else {
 	ensure_type(node, isfunc);
@@ -896,6 +898,7 @@ static node_t * direction(node_t *node)
     int t = token->id;
     node_t *ret = NULL;
     const char *name = NULL;
+    struct source src = source;
 
     expect(t);
     if (token->id == ID)
@@ -921,10 +924,10 @@ static node_t * direction(node_t *node)
 	    field_not_found_error(ty, name);
     }
     if (NO_ERROR) {
-	node_t *r = ast_expr(REF_EXPR, FIELD_TYPE(field), NULL, NULL);
-	ret = ast_expr(MEMBER_EXPR, FIELD_TYPE(field), node, r);
+	ret = ast_expr(MEMBER_EXPR, FIELD_TYPE(field), node, NULL);
+	AST_NAME(ret) = FIELD_NAME(field);
 	EXPR_OP(ret) = t;
-	AST_NAME(EXPR_OPERAND(ret, 1)) = FIELD_NAME(field);
+	AST_SRC(ret) = src;
     }
     return ret;
 }
@@ -933,6 +936,7 @@ static node_t * post_increment(node_t *node)
 {
     int t = token->id;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect(t);
     if (node == NULL)
@@ -941,8 +945,10 @@ static node_t * post_increment(node_t *node)
     SAVE_ERRORS;
     ensure_type(node, isscalar);
     ensure_assignable(node);
-    if (NO_ERROR)
+    if (NO_ERROR) {
 	ret = uop(t, AST_TYPE(node), node);
+	AST_SRC(ret) = src;
+    }
     return ret;
 }
 

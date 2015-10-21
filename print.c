@@ -612,7 +612,7 @@ static const char * expr2s(node_t *node)
     case MEMBER_EXPR:
 	strbuf_cats(s, expr2s(l));
 	strbuf_cats(s, id2s(EXPR_OP(node)));
-	strbuf_cats(s, AST_NAME(r));
+	strbuf_cats(s, AST_NAME(node));
 	break;
     case PAREN_EXPR:
 	strbuf_cats(s, format("(%s)", expr2s(l)));
