@@ -2,7 +2,7 @@
 
 static node_t * statement(void);
 static node_t * do_compound_stmt(bool func);
-static node_t ** predefined_identifiers(void);
+static struct vector * predefined_identifiers(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -379,9 +379,8 @@ static node_t * return_stmt(void)
     expect(RETURN);
     expr = expr_stmt();
 
-    // TODO: return func();
     if (isvoid(rtype(FTYPE))) {
-	if (expr && !is_null_stmt(expr))
+	if (expr && !is_null_stmt(expr) && !isvoid(AST_TYPE(expr)))
 	    errorf(AST_SRC(ret), "void function '%s' should not return a value", FNAME);
     } else {
 	// error only if expr is not NULL to inhibit
@@ -436,12 +435,16 @@ static node_t * do_compound_stmt(bool func)
 {
     node_t *ret = ast_stmt(COMPOUND_STMT, source);
     struct vector *v = vec_new();
+    struct vector *predefines = NULL;
     
     expect('{');
     enter_scope();
 
-    if (func)
-	vec_add_array(v, (void **)predefined_identifiers());
+    if (func) {
+	// add predefined identifiers
+	predefines = predefined_identifiers();
+	vec_add(v, predefines);
+    }
     
     while (firstdecl(token) || firstexpr(token) || firststmt(token)) {
         if (firstdecl(token))
@@ -450,6 +453,26 @@ static node_t * do_compound_stmt(bool func)
         else
             // statement
             vec_push_safe(v, statement());
+    }
+
+    if (func) {
+	// remove if no ref.
+	struct vector *used = vec_new();
+	size_t len = vec_len(predefines);
+        for (int i = 0; i < len; i++) {
+	    node_t *decl = vec_at(predefines, i);
+	    node_t *sym = DECL_SYM(decl);
+	    if (SYM_REFS(sym))
+		vec_push(used, decl);
+	}
+	if (vec_len(used) != len) {
+	    while (len--)
+		vec_pop_front(v);
+	    for (int i = vec_len(used) - 1; i >= 0; i--)
+		vec_push_front(v, vec_at(used, i));
+	}
+	vec_free(predefines);
+	vec_free(used);
     }
     
     STMT_BLKS(ret) = (node_t **)vtoa(v);
@@ -475,7 +498,7 @@ void backfill_labels(void)
     }
 }
 
-static node_t ** predefined_identifiers(void)
+static struct vector * predefined_identifiers(void)
 {
     /**
      * Predefined identifier: __func__
@@ -516,5 +539,5 @@ static node_t ** predefined_identifiers(void)
 	vec_push(v, decl);
     }
     
-    return (node_t **)vtoa(v);
+    return v;
 }
