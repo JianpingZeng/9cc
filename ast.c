@@ -88,6 +88,7 @@ node_t * ast_conv(node_t *ty, node_t *l, const char *name)
 {
     node_t * expr = ast_expr(CONV_EXPR, ty, l, NULL);
     AST_NAME(expr) = name;
+    AST_SRC(expr) = AST_SRC(l);
     return expr;
 }
 

@@ -69,6 +69,8 @@ bool islvalue(node_t *node)
         return true;
     if (AST_ID(node) == PAREN_EXPR)
 	return islvalue(EXPR_OPERAND(node, 0));
+    if (AST_ID(node) == SUBSCRIPT_EXPR)
+	return true;
     if (AST_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*') {
 	if (isfunc(AST_TYPE(node)))
 	    return false;
@@ -695,21 +697,22 @@ static node_t * subscript(node_t *node)
 {
     node_t *e;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect('[');
-    e = expression();
+    e = conv(expression());
     expect(']');
     if (node == NULL || e == NULL)
 	return ret;
 
-    SAVE_ERRORS;
-    if (!isarray(AST_TYPE(node)) && !isptr(AST_TYPE(node)))
-	errorf(AST_SRC(node), "subscripted value is not an array or pointer");
-    ensure_type(e, isint);
-    if (NO_ERROR) {
-	ret = bop('+', conv(node), conv(e));
-	ret = uop('*', rtype(AST_TYPE(ret)), ret);
+    bool kind1 = isptr(AST_TYPE(node)) && isint(AST_TYPE(e));
+    bool kind2 = isint(AST_TYPE(node)) && isptr(AST_TYPE(e));
+    if (kind1 || kind2) {
+	node_t *ty = isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
+	ret = ast_expr(SUBSCRIPT_EXPR, rtype(ty), node, e);
 	AST_SRC(ret) = AST_SRC(node);
+    } else {
+	errorf(src, "subscripted value is not an array or pointer");
     }
     return ret;
 }
@@ -800,7 +803,7 @@ static node_t * postfix_expr1(node_t *ret)
     for (;token->id == '[' || token->id == '(' || token->id == '.'
 	     || token->id == DEREF || token->id == INCR || token->id == DECR;) {
         switch (token->id) {
-	case '[':   ret = subscript(ret); break;
+	case '[':   ret = subscript(conv(ret)); break;
 	case '(':   ret = funcall(conv(ret)); break;
 	case '.':
 	case DEREF: ret = direction(ret); break;

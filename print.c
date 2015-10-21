@@ -596,6 +596,12 @@ static const char * expr2s(node_t *node)
 	    cc_assert(0);
 	}
 	break;
+    case SUBSCRIPT_EXPR:
+	strbuf_cats(s, expr2s(l));
+	strbuf_cats(s, "[");
+	strbuf_cats(s, expr2s(r));
+	strbuf_cats(s, "]");
+	break;
     case COND_EXPR:
 	strbuf_cats(s, expr2s(EXPR_COND(node)));
 	strbuf_cats(s, " ? ");
