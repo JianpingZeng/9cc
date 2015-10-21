@@ -525,6 +525,7 @@ static struct vector * predefined_identifiers(void)
 	
 	sym = install(name, &identifiers, SCOPE);
 	AST_SRC(sym) = source;
+	SYM_PREDEFINE(sym) = true;
 	SYM_DEFINED(sym) = true;
 	SYM_SCLASS(sym) = STATIC;
 	SYM_TYPE(sym) = type;

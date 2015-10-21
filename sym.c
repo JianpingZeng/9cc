@@ -1,5 +1,7 @@
 #include "cc.h"
 
+static void warning_unused(void);
+
 struct table *identifiers;
 struct table *constants;
 struct table *tags;
@@ -11,13 +13,13 @@ static struct table * new_table(struct table *up, int scope)
     struct table *t = zmalloc(sizeof(struct table));
     t->up = up;
     t->scope = scope;
-    t->map = map_new();
+    t->dict = dict_new();
     return t;
 }
 
 static void free_table(struct table *t)
 {
-    map_free(t->map);
+    dict_free(t->dict);
     free(t);
 }
 
@@ -46,6 +48,8 @@ void exit_scope(void)
         tags = up;
     }
     if (identifiers->scope == level) {
+	if (errors == 0 && level >= LOCAL)
+	    warning_unused();
 	struct table *up = identifiers->up;
 	free_table(identifiers);
         identifiers = up;
@@ -66,7 +70,7 @@ node_t * lookup(const char *name, struct table *table)
     node_t *s = NULL;
     
     for (struct table *t = table; t; t = t->up) {
-        if ((s = map_get(t->map, name)))
+        if ((s = dict_get(t->dict, name)))
             return s;
     }
 
@@ -90,7 +94,29 @@ node_t * install(const char *name, struct table **tpp, int scope)
     sym = alloc_symbol();
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
-    map_put(tp->map, name, sym);
+    dict_put(tp->dict, name, sym);
 
     return sym;
+}
+
+static int compare(const void *val1, const void *val2)
+{
+    node_t *sym1 = (node_t *)val1;
+    node_t *sym2 = (node_t *)val2;
+    struct source src1 = AST_SRC(sym1);
+    struct source src2 = AST_SRC(sym2);
+    if (src1.line != src2.line)
+	return src1.line < src2.line;
+    return src1.column < src2.column;
+}
+
+static void warning_unused(void)
+{
+    node_t **syms = (node_t **)dict_allvalues(identifiers->dict);
+    qsort(syms, LIST_LEN(syms), sizeof(node_t *), compare);
+    for (int i = 0; i < LIST_LEN(syms); i++) {
+	node_t *sym = syms[i];
+	if (!isanonymous(SYM_NAME(sym)) && !SYM_PREDEFINE(sym) && SYM_REFS(sym) == 0)
+	    warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+    }
 }
