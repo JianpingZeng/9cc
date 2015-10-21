@@ -426,6 +426,41 @@ static void float_constant(struct token *t, node_t *sym)
         error("float constant overflow: %s", s);
 }
 
+static void number_constant(struct token *t, node_t *sym)
+{
+    const char *pc = t->name;
+    if (pc[0] == '.') {
+	// float
+	
+    } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
+	// Hex
+	pc += 2;
+	if (!isxdigit(*pc) && *pc != '.') {
+	    // integer suffix
+	    error("incomplete hex constant: %s", t->name);
+	}
+	while (isxdigit(*pc))
+	    pc++;
+	if (*pc == '.' || *pc == 'p' || *pc == 'P') {
+	    // float
+	} else {
+	    // integer suffix
+	}
+    } else {
+	// Oct/Dec
+	cc_assert(isdigit(*pc));
+	
+	while (isdigit(*pc))
+	    pc++;
+	if (*pc == '.' || *pc == 'e' || *pc == 'E') {
+	    // float
+	    
+	} else {
+	    // integer suffix
+	}
+    }
+}
+
 static void string_constant(struct token *t, node_t *sym)
 {
     const char *s = t->name;
@@ -450,27 +485,15 @@ static void string_constant(struct token *t, node_t *sym)
     SYM_TYPE(sym) = ty;
 }
 
-static node_t * float_literal(struct token *t)
-{
-    node_t *sym = lookup(t->name, constants);
-    if (!sym) {
-	sym = install(t->name, &constants, CONSTANT);
-	float_constant(t, sym);
-    }
-    node_t *expr = ast_expr(FLOAT_LITERAL, SYM_TYPE(sym), NULL, NULL);
-    AST_SRC(expr) = t->src;
-    EXPR_SYM(expr) = sym;
-    return expr;
-}
-
 static node_t * number_literal(struct token *t)
 {
     node_t *sym = lookup(t->name, constants);
     if (!sym) {
 	sym = install(t->name, &constants, CONSTANT);
-	integer_constant(t, sym);
+	number_constant(t, sym);
     }
-    node_t *expr = ast_expr(INTEGER_LITERAL, SYM_TYPE(sym), NULL, NULL);
+    int id = isint(SYM_TYPE(sym)) ? INTEGER_LITERAL : FLOAT_LITERAL;
+    node_t *expr = ast_expr(id, SYM_TYPE(sym), NULL, NULL);
     AST_SRC(expr) = t->src;
     EXPR_SYM(expr) = sym;
     return expr;
