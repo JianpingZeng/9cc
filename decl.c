@@ -13,7 +13,7 @@ static node_t * localdecl(struct token *id, node_t *ty, int sclass);
 static node_t * funcdef(struct token *id, node_t *ty, int sclass);
 static void fields(node_t *sty);
 
-static void post_decl(node_t *decl, node_t *sym, int sclass, int kind);
+static void post_decl(node_t *decl, node_t *sym, int kind);
 static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
 
@@ -946,9 +946,9 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
 		    cc_assert(0);
 		
                 if (token->id == '=')
-		    decl_initializer(decl, sym, sclass, kind);
+		    decl_initializer(decl, sym, kind);
 
-		post_decl(decl, sym, sclass, kind);
+		post_decl(decl, sym, kind);
                 vec_push(v, decl);
             }
             
@@ -1025,7 +1025,7 @@ node_t * translation_unit(void)
     return ret;
 }
 
-static void post_decl(node_t *decl, node_t *sym, int sclass, int kind)
+static void post_decl(node_t *decl, node_t *sym, int kind)
 {
     node_t *ty = SYM_TYPE(sym);
     if (isarray(ty)) {
