@@ -555,26 +555,85 @@ const char *type2s(node_t *ty)
 /**
  * Convert expression node to string.
  */
-static const char * expr2s(node_t *node);
-
-static void doexpr2s(struct strbuf *s, node_t *node)
+static const char * expr2s(node_t *node)
 {
     cc_assert(isexpr(node));
     
+    struct strbuf *s = strbuf_new();
     int id = AST_ID(node);
+    node_t *l = AST_KID(node, 0);
+    node_t *r = AST_KID(node, 1);
+    
     switch (id) {
     case BINARY_OPERATOR:
+	strbuf_cats(s, expr2s(l));
+	strbuf_cats(s, format(" %s ", id2s(EXPR_OP(node))));
+	strbuf_cats(s, expr2s(r));
+	break;
     case UNARY_OPERATOR:
+	switch (EXPR_OP(node)) {
+	case INCR:
+	case DECR:
+	    if (EXPR_PREFIX(node)) {
+		strbuf_cats(s, id2s(EXPR_OP(node)));
+		strbuf_cats(s, expr2s(l));
+	    } else {
+		strbuf_cats(s, expr2s(l));
+		strbuf_cats(s, id2s(EXPR_OP(node)));
+	    }
+	    break;
+	case '*':
+	case '&':
+	case '+':
+	case '-':
+	case '~':
+	case '!':
+	case SIZEOF:
+	    strbuf_cats(s, id2s(EXPR_OP(node)));
+	    strbuf_cats(s, expr2s(l));
+	    break;
+	default:
+	    cc_assert(0);
+	}
+	break;
     case COND_EXPR:
+	strbuf_cats(s, expr2s(EXPR_COND(node)));
+	strbuf_cats(s, " ? ");
+	strbuf_cats(s, expr2s(EXPR_THEN(node)));
+	strbuf_cats(s, " : ");
+	strbuf_cats(s, expr2s(EXPR_ELSE(node)));
+	break;
     case MEMBER_EXPR:
+	strbuf_cats(s, expr2s(l));
+	strbuf_cats(s, id2s(EXPR_OP(node)));
+	strbuf_cats(s, AST_NAME(r));
+	break;
     case PAREN_EXPR:
-    case REF_EXPR:
-    case CAST_EXPR:
+	strbuf_cats(s, format("(%s)", expr2s(l)));
+	break;
     case CALL_EXPR:
-    case INITS_EXPR:
-    case VINIT_EXPR:
+	{
+	    const char *func = expr2s(l);
+	    node_t ** args = EXPR_ARGS(node);
+	    strbuf_cats(s, func);
+	    strbuf_cats(s, "(");
+	    for (int i = 0; i < LIST_LEN(args); i++) {
+		const char *s1 = expr2s(args[i]);
+		strbuf_cats(s, s1);
+		if (i != LIST_LEN(args) - 1)
+		    strbuf_cats(s, ", ");
+	    }
+	    strbuf_cats(s, ")");
+	}
+	break;
+    case CAST_EXPR:
+	strbuf_cats(s, format("(%s)%s", type2s(AST_TYPE(node)), expr2s(l)));
+	break;
     case CONV_EXPR:
-	strbuf_cats(s, "node");
+	strbuf_cats(s, expr2s(l));
+	break;
+    case REF_EXPR:
+	strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));
 	break;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
@@ -584,15 +643,13 @@ static void doexpr2s(struct strbuf *s, node_t *node)
     case COMPOUND_LITERAL:
 	strbuf_cats(s, format("(%s){...}", type2s(AST_TYPE(node))));
 	break;
+    case INITS_EXPR:
+    case VINIT_EXPR:
+	strbuf_cats(s, "{initializer}");
+	break;
     default:
 	cc_assert(0);
     }
-}
-
-static const char * expr2s(node_t *node)
-{
-    struct strbuf *s = strbuf_new();
-    doexpr2s(s, node);
     return STR(strbuf_str(s));
 }
 
