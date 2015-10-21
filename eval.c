@@ -1,4 +1,3 @@
-
 #include "cc.h"
 
 /* Constant expressions in C:

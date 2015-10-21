@@ -1,16 +1,16 @@
 #include "cc.h"
 
 static void abstract_declarator(node_t **ty);
-static void declarator(node_t **ty, const char **id, int *params);
-static void param_declarator(node_t **ty, const char **id);
+static void declarator(node_t **ty, struct token **id, int *params);
+static void param_declarator(node_t **ty, struct token **id);
 static node_t * ptr_decl(void);
 static node_t * enum_decl(void);
 static node_t * struct_decl(void);
-static struct vector * decls(node_t * (*)(const char *id, node_t *ftype, int sclass,  struct source src));
-static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source src);
-static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source src);
-static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source src);
-static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src);
+static struct vector * decls(node_t * (*)(struct token *id, node_t *ty, int sclass));
+static node_t * paramdecl(struct token *id, node_t *ty, int sclass);
+static node_t * globaldecl(struct token *id, node_t *ty, int sclass);
+static node_t * localdecl(struct token *id, node_t *ty, int sclass);
+static node_t * funcdef(struct token *id, node_t *ty, int sclass);
 static void fields(node_t *sty);
 
 static void post_decl(node_t *decl, node_t *sym, int sclass, int kind);
@@ -317,8 +317,7 @@ static node_t ** parameters(node_t *ftype, int *params)
             node_t *basety = NULL;
             int sclass;
             node_t *ty = NULL;
-            const char *id = NULL;
-            struct source src = source;
+            struct token *id = NULL;
 	    node_t *sym;
             
             basety = specifiers(&sclass);
@@ -332,7 +331,7 @@ static node_t ** parameters(node_t *ftype, int *params)
 		first_void = true;
 		
 	    SAVE_ERRORS;
-	    sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass), src);
+	    sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass));
 	    if (NO_ERROR && !first_void)
 		vec_push(v, sym);
             if (token->id != ',')
@@ -341,7 +340,7 @@ static node_t ** parameters(node_t *ftype, int *params)
             expect(',');
             if (token->id == ELLIPSIS) {
 		if (!first_void)
-		    vec_push(v, paramdecl(token->name, vartype, PACK_PARAM(1, 0, first_void, 0), source));
+		    vec_push(v, paramdecl(token, vartype, PACK_PARAM(1, 0, first_void, 0)));
                 expect(ELLIPSIS);
                 break;
             }
@@ -354,7 +353,7 @@ static node_t ** parameters(node_t *ftype, int *params)
         struct vector *v = vec_new();
         for (;;) {
             if (token->id == ID)
-                vec_push(v, paramdecl(token->name, inttype, 0, source));
+                vec_push(v, paramdecl(token, inttype, 0));
             expect(ID);
             if (token->id != ',')
                 break;
@@ -674,7 +673,7 @@ static void fields(node_t *sty)
                 FIELD_ISBIT(field) = true;
             } else {
                 node_t *ty = NULL;
-                const char *id = NULL;
+                struct token *id = NULL;
                 declarator(&ty, &id, NULL);
                 attach_type(&ty, basety);
                 if (token->id == ':') {
@@ -686,12 +685,12 @@ static void fields(node_t *sty)
                 if (id) {
                     for (int i=0; i < vec_len(v); i++) {
                         node_t *f = vec_at(v, i);
-                        if (FIELD_NAME(f) && !strcmp(FIELD_NAME(f), id)) {
-                            error("redefinition of '%s'", id);
+                        if (FIELD_NAME(f) && !strcmp(FIELD_NAME(f), id->name)) {
+                            errorf(id->src, "redefinition of '%s'", id->name);
                             break;
                         }
                     }
-                    FIELD_NAME(field) = id;
+                    FIELD_NAME(field) = id->name;
                 }
             }
             
@@ -761,7 +760,7 @@ static node_t * ptr_decl(void)
     return ret;
 }
 
-static void param_declarator(node_t **ty, const char **id)
+static void param_declarator(node_t **ty, struct token **id)
 {
     if (token->id == '*') {
         node_t *pty = ptr_decl();
@@ -825,7 +824,7 @@ static void abstract_declarator(node_t **ty)
     }
 }
 
-static void declarator(node_t **ty, const char **id, int *params)
+static void declarator(node_t **ty, struct token **id, int *params)
 {
     cc_assert(ty && id);
     int follow[] = {',', '=', IF, 0};
@@ -836,7 +835,7 @@ static void declarator(node_t **ty, const char **id, int *params)
     }
     
     if (token->id == ID) {
-        *id = token->name;
+        *id = token;
         expect(ID);
         if (token->id == '[' || token->id == '(') {
             node_t *faty = func_or_array(params);
@@ -890,21 +889,19 @@ bool istypename(struct token *t)
 	(t->id == ID && istypedef(t->name));
 }
 
-static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int sclass,  struct source src))
+static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, int sclass))
 {
     struct vector *v = vec_new();
     node_t *basety;
     int sclass;
-    struct source src = source;
     int level = SCOPE;
     int follow[] = {STATIC, INT, CONST, IF, '}', 0};
     
     basety = specifiers(&sclass);
     if (token->id == ID || token->id == '*' || token->id == '(') {
-        const char *id = NULL;
+        struct token *id = NULL;
         node_t *ty = NULL;
         int params = 0;		// for functioness
-        src = source;
         
         // declarator
         declarator(&ty, &id, &params);
@@ -913,7 +910,7 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
         if (level == GLOBAL) {
             if (params) {
                 if (firstfuncdef(ty)) {
-                    vec_push(v, funcdef(id, ty, sclass, src));
+                    vec_push(v, funcdef(id, ty, sclass));
                     return v;
                 } else {
                     if (SCOPE > PARAM)
@@ -928,7 +925,7 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
             if (id) {
                 node_t *decl;
 		int kind;
-                node_t *sym = dcl(id, ty, sclass, src);
+                node_t *sym = dcl(id, ty, sclass);
                 if (sclass == TYPEDEF)
                     decl = ast_decl(TYPEDEF_DECL, SCOPE);
                 else if (isfunc(ty))
@@ -961,7 +958,6 @@ static struct vector * decls(node_t * (*dcl)(const char *id, node_t *ftype, int 
             expect(',');
             id = NULL;
             ty = NULL;
-            src = source;
             // declarator
             declarator(&ty, &id, NULL);
             attach_type(&ty, basety);
@@ -1073,12 +1069,14 @@ static void ensure_array(node_t *atype, struct source src, int level)
     set_typesize(atype);
 }
 
-static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source src)
+static node_t * paramdecl(struct token *t, node_t *ty, int sclass)
 {
     node_t *sym = NULL;
     bool prototype = PARAM_STYLE(sclass);
     bool first = PARAM_FIRST(sclass);
     bool fvoid = PARAM_FVOID(sclass);
+    const char *id = t->name;
+    struct source src = t->src;
     sclass = PARAM_SCLASS(sclass);
     
     if (sclass && sclass != REGISTER) {
@@ -1128,9 +1126,11 @@ static node_t * paramdecl(const char *id, node_t *ty, int sclass,  struct source
     return sym;
 }
 
-static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source src)
+static node_t * localdecl(struct token *t, node_t *ty, int sclass)
 {
     node_t *sym = NULL;
+    const char *id = t->name;
+    struct source src = t->src;
     
     cc_assert(id);
     cc_assert(SCOPE >= LOCAL);
@@ -1157,9 +1157,11 @@ static node_t * localdecl(const char *id, node_t *ty, int sclass, struct source 
     return sym;
 }
 
-static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source src)
+static node_t * globaldecl(struct token *t, node_t *ty, int sclass)
 {
     node_t *sym = NULL;
+    const char *id = t->name;
+    struct source src = t->src;
     
     cc_assert(id);
     cc_assert(SCOPE == GLOBAL);
@@ -1195,9 +1197,11 @@ static node_t * globaldecl(const char *id, node_t *ty, int sclass, struct source
     return sym;
 }
 
-static node_t * funcdef(const char *id, node_t *ftype, int sclass,  struct source src)
+static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
 {
     node_t *decl = ast_decl(FUNC_DECL, SCOPE);
+    const char *id = t->name;
+    struct source src = t->src;
     
     cc_assert(SCOPE == PARAM);
     
