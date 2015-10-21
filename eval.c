@@ -377,6 +377,7 @@ static node_t * eval_arith(node_t *expr)
     case MEMBER_EXPR:
     case STRING_LITERAL:
     case CALL_EXPR:
+    case SUBSCRIPT_EXPR:
 	return NULL;
     default:
 	cc_assert(0);

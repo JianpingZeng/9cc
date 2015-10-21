@@ -122,27 +122,27 @@ static bool is_bitfield(node_t *node)
     return field && isbitfield(field);
 }
 
-static void ensure_cast(node_t *dst, node_t *src)
+static bool is_castable(node_t *dst, node_t *src)
 {
     if (isvoid(dst))
-	return;
+	return true;
     if (isarith(dst) && isarith(src))
-	return;
+	return true;
     if (isint(dst) && isptr(src))
-	return;
+	return true;
     if (isptrto(dst, FUNCTION)) {
 	if (isint(src) ||
 	    isptrto(src, FUNCTION))
-	    return;
+	    return true;
     } else if (isptr(dst)) {
 	if (isint(src) ||
 	    isptrto(src, VOID))
-	    return;
+	    return true;
 	if (isptr(src) && !isfunc(rtype(src)))
-	    return;
+	    return true;
     }
 
-    error(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
+    return false;
 }
 
 static unsigned escape(const char **ps)
@@ -981,6 +981,7 @@ static node_t * sizeof_expr(void)
 {
     int t = token->id;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect(t);
     
@@ -1010,8 +1011,10 @@ static node_t * sizeof_expr(void)
     else if (n && is_bitfield(n))
 	error("'sizeof' to a bitfield is invalid");
 
-    if (NO_ERROR)
+    if (NO_ERROR) {
 	ret = uop(t, unsignedinttype, n ? n : ty);
+	AST_SRC(ret) = src;
+    }
 
     return ret;
 }
@@ -1020,6 +1023,7 @@ static node_t * pre_increment(void)
 {
     int t = token->id;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect(t);
     node_t *operand = unary_expr();
@@ -1032,6 +1036,7 @@ static node_t * pre_increment(void)
     if (NO_ERROR) {
 	ret = uop(t, AST_TYPE(operand), operand);
 	EXPR_PREFIX(ret) = true;
+	AST_SRC(ret) = src;
     }
     
     return ret;
@@ -1041,6 +1046,7 @@ static node_t * minus_plus(void)
 {
     int t = token->id;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect(t);
     node_t *operand = cast_expr();
@@ -1050,8 +1056,9 @@ static node_t * minus_plus(void)
     SAVE_ERRORS;
     ensure_type(operand, isarith);
     if (NO_ERROR) {
-	node_t *c = conv(operand);
-	ret = uop(t, AST_TYPE(c), c);
+	operand = conv(operand);
+	ret = uop(t, AST_TYPE(operand), operand);
+	AST_SRC(ret) = src;
     }
 
     return ret;
@@ -1061,6 +1068,7 @@ static node_t * bitwise_not(void)
 {
     int t = token->id;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect(t);
     node_t *operand = cast_expr();
@@ -1070,8 +1078,9 @@ static node_t * bitwise_not(void)
     SAVE_ERRORS;
     ensure_type(operand, isint);
     if (NO_ERROR) {
-	node_t *c = conv(operand);
-	ret = uop(t, AST_TYPE(c), c);
+	operand = conv(operand);
+	ret = uop(t, AST_TYPE(operand), operand);
+	AST_SRC(ret) = src;
     }
 
     return ret;
@@ -1081,6 +1090,7 @@ static node_t * logical_not(void)
 {
     int t = token->id;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect(t);
     node_t *operand = cast_expr();
@@ -1089,8 +1099,10 @@ static node_t * logical_not(void)
 
     SAVE_ERRORS;
     ensure_type(operand, isscalar);
-    if (NO_ERROR)
+    if (NO_ERROR) {
 	ret = uop(t, inttype, conv(operand));
+	AST_SRC(ret) = src;
+    }
 
     return ret;
 }
@@ -1099,6 +1111,7 @@ static node_t * address(void)
 {
     int t = token->id;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect(t);
     node_t *operand = cast_expr();
@@ -1113,8 +1126,10 @@ static node_t * address(void)
 	else if (is_bitfield(operand))
 	    error("address of bitfield requested");
     }
-    if (NO_ERROR)
+    if (NO_ERROR) {
 	ret = uop(t, ptr_type(AST_TYPE(operand)), operand);
+	AST_SRC(ret) = src;
+    }
 
     return ret;
 }
@@ -1123,6 +1138,7 @@ static node_t * indirection(void)
 {
     int t = token->id;
     node_t *ret = NULL;
+    struct source src = source;
     
     expect(t);
     node_t *operand = conv(cast_expr());
@@ -1131,8 +1147,10 @@ static node_t * indirection(void)
 
     SAVE_ERRORS;
     ensure_type(operand, isptr);
-    if (NO_ERROR)
+    if (NO_ERROR) {
 	ret = uop(t, rtype(AST_TYPE(operand)), operand);
+	AST_SRC(ret) = src;
+    }
     
     return ret;
 }
@@ -1156,6 +1174,7 @@ static node_t * unary_expr(void)
 static node_t * cast_expr(void)
 {
     struct token * ahead = lookahead();
+    struct source src = source;
     
     if (token->id == '(' && istypename(ahead)) {
         node_t *ty = cast_type();
@@ -1165,12 +1184,15 @@ static node_t * cast_expr(void)
         }
 	
 	node_t *ret = NULL;
-	node_t *cast = cast_expr();
-	if (cast) {
-	    SAVE_ERRORS;
-	    ensure_cast(ty, AST_TYPE(cast));
-	    if (NO_ERROR)
-		ret = ast_expr(CAST_EXPR, ty, cast, NULL);
+	node_t *cast = decay(cast_expr());
+	if (cast == NULL)
+	    return ret;
+	
+	if (is_castable(ty, AST_TYPE(cast))) {
+	    ret = ast_expr(CAST_EXPR, ty, cast, NULL);
+	    AST_SRC(ret) = src;
+	} else {
+	    errorf(AST_SRC(cast), INCOMPATIBLE_TYPES, type2s(AST_TYPE(cast)), type2s(ty));
 	}
         
 	return ret;
@@ -1185,8 +1207,10 @@ static node_t * multiple_expr(void)
     mulp1 = cast_expr();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
+	struct source src = source;
         expect(t);
         mulp1 = bop(t, conv(mulp1), conv(cast_expr()));
+	AST_SRC(mulp1) = src;
     }
     
     return mulp1;
@@ -1199,8 +1223,10 @@ static node_t * additive_expr(void)
     add1 = multiple_expr();
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
+	struct source src = source;
         expect(t);
         add1 = bop(t, conv(add1), conv(multiple_expr()));
+	AST_SRC(add1) = src;
     }
     
     return add1;
@@ -1213,8 +1239,10 @@ static node_t * shift_expr(void)
     shift1 = additive_expr();
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
+	struct source src = source;
         expect(t);
         shift1 = bop(t, conv(shift1), conv(additive_expr()));
+	AST_SRC(shift1) = src;
     }
     
     return shift1;
@@ -1227,8 +1255,10 @@ static node_t * relation_expr(void)
     rel = shift_expr();
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
+	struct source src = source;
         expect(t);
         rel = bop(t, conv(rel), conv(shift_expr()));
+	AST_SRC(rel) = src;
     }
     
     return rel;
@@ -1241,8 +1271,10 @@ static node_t * equality_expr(void)
     equl = relation_expr();
     while (token->id == EQ || token->id == NEQ) {
         int t = token->id;
+	struct source src = source;
         expect(t);
         equl = bop(t, conv(equl), conv(relation_expr()));
+	AST_SRC(equl) = src;
     }
     
     return equl;
@@ -1254,8 +1286,10 @@ static node_t * and_expr(void)
     
     and1 = equality_expr();
     while (token->id == '&') {
+	struct source src = source;
         expect('&');
         and1 = bop('&', conv(and1), conv(equality_expr()));
+	AST_SRC(and1) = src;
     }
     
     return and1;
@@ -1267,8 +1301,10 @@ static node_t * exclusive_or(void)
     
     eor = and_expr();
     while (token->id == '^') {
+	struct source src = source;
         expect('^');
         eor = bop('^', conv(eor), conv(and_expr()));
+	AST_SRC(eor) = src;
     }
     
     return eor;
@@ -1280,8 +1316,10 @@ static node_t * inclusive_or(void)
     
     ior = exclusive_or();
     while (token->id == '|') {
+	struct source src = source;
         expect('|');
         ior = bop('|', conv(ior), conv(exclusive_or()));
+	AST_SRC(ior) = src;
     }
     
     return ior;
@@ -1293,8 +1331,10 @@ static node_t * logic_and(void)
     
     and1 = inclusive_or();
     while (token->id == AND) {
+	struct source src = source;
         expect(AND);
 	and1 = logicop(AND, conv(and1), conv(inclusive_or()));
+	AST_SRC(and1) = src;
     }
     
     return and1;
@@ -1306,8 +1346,10 @@ static node_t * logic_or(void)
     
     or1 = logic_and();
     while (token->id == OR) {
+	struct source src = source;
         expect(OR);
 	or1 = logicop(OR, conv(or1), conv(logic_and()));
+	AST_SRC(or1) = src;
     }
     
     return or1;
@@ -1318,6 +1360,7 @@ static node_t * cond_expr1(node_t *cond)
     node_t *ret = NULL;
     node_t *then, *els;
     node_t *ty = NULL;
+    struct source src = source;
 
     expect('?');
     then = conv(expression());
@@ -1381,6 +1424,7 @@ static node_t * cond_expr1(node_t *cond)
 	EXPR_COND(ret) = cond;
 	EXPR_THEN(ret) = then;
 	EXPR_ELSE(ret) = els;
+	AST_SRC(ret) = src;
     }
     
     return ret;
@@ -1413,8 +1457,10 @@ node_t * expression(void)
     
     assign1 = assign_expr();
     while (token->id == ',') {
+	struct source src = source;
         expect(',');
 	assign1 = commaop(',', assign1, assign_expr());
+	AST_SRC(assign1) = src;
     }
     return assign1;
 }
@@ -1729,6 +1775,8 @@ static node_t * assignconv(node_t *ty, node_t *node)
 {
     node_t *ty2;
 
+    if (isfunc(AST_TYPE(node)) || isarray(AST_TYPE(node)))
+	node = decay(node);
     if (islvalue(node))
 	node = ltor(node);
 
@@ -1803,10 +1851,10 @@ int intexpr(void)
 
 node_t * init_conv(node_t *ty, node_t *node)
 {
-    return assignconv(ty, decay(node));
+    return assignconv(ty, node);
 }
 
 node_t * ret_conv(node_t *ty, node_t *node)
 {
-    return assignconv(ty, decay(node));
+    return assignconv(ty, node);
 }
