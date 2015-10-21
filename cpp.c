@@ -16,8 +16,8 @@ static struct map *macros;
 static struct vector *std_include_paths;
 static struct vector *usr_include_paths;
 static struct tm now;
-static struct token *token_zero = &(struct token){.id = ICONSTANT, .name = "0"};
-static struct token *token_one = &(struct token){.id = ICONSTANT, .name = "1"};
+static struct token *token_zero = &(struct token){.id = NCONSTANT, .name = "0"};
+static struct token *token_one = &(struct token){.id = NCONSTANT, .name = "1"};
 static struct token *lineno0;
 
 static struct macro * new_macro(int kind)
@@ -616,7 +616,8 @@ static void line_line(void)
     // TODO: 3rd format
     
     struct token *t = skip_spaces();
-    if (t->id != ICONSTANT) {
+    // TODO: must be an integer, not floating
+    if (t->id != NCONSTANT) {
 	error("expect integer constant");
 	unget(t);
 	skipline();
@@ -695,7 +696,8 @@ static void directive(void)
 	unget(t);
 	return;
     }
-    if (t->id == ICONSTANT) {
+    // TODO: must be an integer, not floating
+    if (t->id == NCONSTANT) {
 	unget(t);
 	line_line();
 	return;
@@ -821,7 +823,7 @@ static struct token * stringize(struct vector *v)
     for (int i = 0; i < vec_len(v); i++) {
 	struct token *t = vec_at(v, i);
 	if (t->id == SCONSTANT ||
-	    (t->id == ICONSTANT && (t->name[0] == '\'' || t->name[0] == 'L')))
+	    (t->id == NCONSTANT && (t->name[0] == '\'' || t->name[0] == 'L')))
 	    // Any embedded quotation or backslash characters
 	    // are preceded by a backslash character to preserve
 	    // their meaning in the string.
@@ -976,7 +978,7 @@ static void line_handler(struct token *t)
 {
     unsigned line = current_file()->line;
     const char *name = strd(line);
-    struct token *tok = new_token(&(struct token){.id = ICONSTANT, .name = name, .src = t->src});
+    struct token *tok = new_token(&(struct token){.id = NCONSTANT, .name = name, .src = t->src});
     unget(tok);
 }
 

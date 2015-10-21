@@ -463,7 +463,7 @@ static node_t * float_literal(struct token *t)
     return expr;
 }
 
-static node_t * integer_literal(struct token *t)
+static node_t * number_literal(struct token *t)
 {
     node_t *sym = lookup(t->name, constants);
     if (!sym) {
@@ -491,8 +491,8 @@ static node_t * string_literal(struct token *t)
 
 node_t * new_integer_literal(int i)
 {
-    struct token *t = new_token(&(struct token){.id = ICONSTANT, .name = strd(i)});
-    node_t *expr = integer_literal(t);
+    struct token *t = new_token(&(struct token){.id = NCONSTANT, .name = strd(i)});
+    node_t *expr = number_literal(t);
     return expr;
 }
 
@@ -639,13 +639,10 @@ static node_t * primary_expr(void)
 	}
 	expect(t);
 	break;
-    case ICONSTANT:
-    case FCONSTANT:
+    case NCONSTANT:
     case SCONSTANT:
-	if (t == ICONSTANT)
-	    ret = integer_literal(token);
-	else if (t == FCONSTANT)
-	    ret = float_literal(token);
+	if (t == NCONSTANT)
+	    ret = number_literal(token);
 	else
 	    ret = string_literal(token);
 	expect(t);

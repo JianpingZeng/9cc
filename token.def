@@ -131,8 +131,7 @@ _a(TOK127, "0177",  0)
 
 // id           name           kind
 _x(ID,          "identifier",  ID,   256)
-_t(ICONSTANT,   "ICONSTANT",   ID)
-_t(FCONSTANT,   "FCONSTANT",   ID)
+_t(NCONSTANT,   "NCONSTANT",   ID)
 _t(SCONSTANT,   "SCONSTANT",   ID)
 
 // keywords		       

@@ -160,7 +160,7 @@ static struct token * ppnumber(int c)
 	    strbuf_catc(s, ch);
 	}
     }
-    return make_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
+    return make_token(&(struct token){.id = NCONSTANT, .name = strs(s->str)});
 }
 
 static struct token * sequence(bool wide, int sep)
@@ -190,7 +190,7 @@ static struct token * sequence(bool wide, int sep)
     strbuf_catc(s, sep);
 
     if (is_char)
-	return make_token(&(struct token){.id = ICONSTANT, .name = strs(s->str)});
+	return make_token(&(struct token){.id = NCONSTANT, .name = strs(s->str)});
     else
 	return make_token(&(struct token){.id = SCONSTANT, .name = strbuf_str(s)});
 }
