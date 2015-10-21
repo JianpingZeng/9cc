@@ -261,11 +261,33 @@ static void char_constant(struct token *t, node_t *sym)
     SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
 }
 
+static int integer_suffix(const char *s)
+{
+    if ((s[0] == 'u' || s[0] == 'U') &&
+	((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L')))
+	return UNSIGNED + LONG + LONG;
+    else if (((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L')) &&
+	     (s[2] == 'u' || s[2] == 'U'))
+	return UNSIGNED + LONG + LONG;
+    else if ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L'))
+	return LONG + LONG;
+    else if ((s[0] == 'l' || s[0] == 'L') && (s[1] == 'u' || s[1] == 'U'))
+	return UNSIGNED + LONG;
+    else if ((s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L'))
+	return UNSIGNED + LONG;
+    else if (s[0] == 'l' || s[0] == 'L')
+	return LONG;
+    else if (s[0] == 'u' || s[0] == 'U')
+	return UNSIGNED;
+    else if (s[0] == '\0')
+	return 0;		// no suffix
+    else
+	return -1;		// invalid suffix
+}
+
 static void integer_constant(struct token *t, node_t *sym)
 {
     const char *s = t->name;
-    if (s[0] == '\'' || s[0] == 'L')
-        return char_constant(t, sym);
     
     int base;
     node_t *ty;
@@ -318,31 +340,26 @@ static void integer_constant(struct token *t, node_t *sym)
             s++;
         }
     }
-    
-    int ull = (s[0] == 'u' || s[0] == 'U') &&
-	((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L'));
-    int llu = ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L')) &&
-	(s[2] == 'u' || s[2] == 'U');
-    int ll = (s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L');
-    int lu = (s[0] == 'l' || s[0] == 'L') && (s[1] == 'u' || s[1] == 'U');
-    int ul = (s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L');
-    int l = s[0] == 'l' || s[0] == 'L';
-    int u = s[0] == 'u' || s[0] == 'U';
-    
-    if (ull || llu) {
-        ty = unsignedlonglongtype;
-    } else if (ll) {
-        if (n > INTEGER_MAX(longlongtype) && base != 10)
+
+    int suffix = integer_suffix(s);
+    switch (suffix) {
+    case UNSIGNED+LONG+LONG:
+	ty = unsignedlonglongtype;
+	break;
+    case LONG+LONG:
+	if (n > INTEGER_MAX(longlongtype) && base != 10)
             ty = unsignedlonglongtype;
         else
             ty = longlongtype;
-    } else if (lu || ul) {
-        if (n > UINTEGER_MAX(unsignedlongtype))
+	break;
+    case UNSIGNED+LONG:
+	if (n > UINTEGER_MAX(unsignedlongtype))
             ty = unsignedlonglongtype;
         else
             ty = unsignedlongtype;
-    } else if (l) {
-        if (base == 10) {
+	break;
+    case LONG:
+	if (base == 10) {
             if (n > INTEGER_MAX(longtype))
                 ty = longlongtype;
             else
@@ -357,15 +374,17 @@ static void integer_constant(struct token *t, node_t *sym)
             else
                 ty = longtype;
         }
-    } else if (u) {
-        if (n > UINTEGER_MAX(unsignedlongtype))
+	break;
+    case UNSIGNED:
+	if (n > UINTEGER_MAX(unsignedlongtype))
             ty = unsignedlonglongtype;
         else if (n > UINTEGER_MAX(unsignedinttype))
             ty = unsignedlongtype;
         else
             ty = unsignedinttype;
-    } else {
-        if (base == 10) {
+	break;
+    default:
+	if (base == 10) {
             if (n > INTEGER_MAX(longtype))
                 ty = longlongtype;
             else if (n > INTEGER_MAX(inttype))
@@ -386,6 +405,9 @@ static void integer_constant(struct token *t, node_t *sym)
             else
                 ty = inttype;
         }
+	if (suffix < 0)
+	    error("illegal integer suffix '%s'", s);
+	break;
     }
     
     SYM_TYPE(sym) = ty;
@@ -429,7 +451,10 @@ static void float_constant(struct token *t, node_t *sym)
 static void number_constant(struct token *t, node_t *sym)
 {
     const char *pc = t->name;
-    if (pc[0] == '.') {
+    if (pc[0] == '\'' || pc[0] == 'L') {
+	// character
+	char_constant(t, sym);
+    } else if (pc[0] == '.') {
 	// float
 	
     } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {

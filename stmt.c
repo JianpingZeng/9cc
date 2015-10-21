@@ -379,6 +379,7 @@ static node_t * return_stmt(void)
     expect(RETURN);
     expr = expr_stmt();
 
+    // TODO: return func();
     if (isvoid(rtype(FTYPE))) {
 	if (expr && !is_null_stmt(expr))
 	    errorf(AST_SRC(ret), "void function '%s' should not return a value", FNAME);
