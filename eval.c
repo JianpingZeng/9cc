@@ -454,12 +454,12 @@ static node_t * doeval(node_t *expr)
 	else
 	    return expr;
     case INITS_EXPR:
-    case SUBSCRIPT_EXPR:
 	break;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case STRING_LITERAL:
 	return expr;
+    case SUBSCRIPT_EXPR:
     case MEMBER_EXPR:
     case CALL_EXPR:
 	return NULL;
