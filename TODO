@@ -7,14 +7,11 @@ TODO - line pptokens
 TODO - pragma
 
 // parser
-TODO - ast node struct size needs to be optimize.
-TODO - initializer: string-literal
 TODO - eval
 TODO - decl_initializer
 TODO - paramdecl, localdecl, globaldecl
 TODO - simplify
-TODO - node src, node2s
-TODO - rewrite 'constant parse' in expr.c
+TODO - ast node struct size needs to be optimized.
 
 // backend
 TODO - gen
