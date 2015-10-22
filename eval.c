@@ -192,7 +192,7 @@ static node_t * cast(node_t *dty, node_t *l)
 
 static bool scalar_bool(node_t *expr)
 {
-
+    
 }
 
 static node_t * address_uop(node_t *expr)
@@ -211,28 +211,82 @@ static node_t * sizeof_uop(node_t *expr)
 
 static node_t * scalar_uop(int op, node_t *ty, node_t *l)
 {
+    if (!isiliteral(l) && !isfliteral(l))
+	return NULL;
 
+    union value lval = SYM_VALUE(EXPR_SYM(l));
+
+    switch (op) {
+    case '!':
+	if (isiliteral(l))
+	    return VALUE_U(lval) == 0 ? zero_literal() : one_literal();
+	else
+	    return VALUE_D(lval) == 0 ? zero_literal() : one_literal();
+    default: cc_assert(0);
+    }
 }
 
 static node_t * arith_uop(int op, node_t *ty, node_t *l)
 {
+    if (!isiliteral(l) && !isfliteral(l))
+	return NULL;
 
+    union value lval = SYM_VALUE(EXPR_SYM(l));
+
+    switch (op) {
+    case '-':
+	if (isiliteral(l))
+	    VALUE_U(SYM_VALUE(EXPR_SYM(l))) = - VALUE_U(lval);
+	else
+	    VALUE_D(SYM_VALUE(EXPR_SYM(l))) = - VALUE_D(lval);
+    default:  cc_assert(0);
+    }
+    return l;
 }
 
 static node_t * int_uop(int op, node_t *ty, node_t *l)
 {
     if (!isiliteral(l))
 	return NULL;
+
+    union value lval = SYM_VALUE(EXPR_SYM(l));
     
     switch (op) {
-    case '~':
+    case '~': VALUE_U(SYM_VALUE(EXPR_SYM(l))) = ~ VALUE_U(lval);
     default:  cc_assert(0);
     }
+    return l;
 }
 
 static node_t * scalar_bop(int op, node_t *ty, node_t *l, node_t *r)
 {
-    return NULL;
+    if (!isiliteral(l) && !isfliteral(l))
+	return NULL;
+
+    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
+
+    union value lval = SYM_VALUE(EXPR_SYM(l));
+    union value rval = SYM_VALUE(EXPR_SYM(r));
+    bool is_int = AST_TYPE(l);
+
+#define SCALAR_OP(op)					\
+    if (is_int) {					\
+	bool b = VALUE_U(lval) op VALUE_U(rval);	\
+	return b ? one_literal() : zero_literal();	\
+    } else {						\
+	bool b = VALUE_D(lval) op VALUE_D(rval);	\
+	return b ? one_literal() : zero_literal();	\
+    }
+    
+    switch (op) {
+    case '<': SCALAR_OP(<);  break;
+    case '>': SCALAR_OP(>);  break;
+    case GEQ: SCALAR_OP(>=); break;
+    case LEQ: SCALAR_OP(<=); break;
+    case EQ:  SCALAR_OP(==); break;
+    case NEQ: SCALAR_OP(!=); break;
+    default:  cc_assert(0);
+    }
 }
 
 static node_t * ptr_int_bop(int op, node_t *ty, node_t *ptr, node_t *i)
@@ -247,40 +301,20 @@ static node_t * arith_bop(int op, node_t *ty, node_t *l, node_t *r)
     else if (!isiliteral(r) && !isfliteral(r))
 	return NULL;
 
+    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
+    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
+
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
-    bool l_is_int = isiliteral(l);
-    bool r_is_int = isiliteral(r);
-    bool ret_is_int = isint(ty);
+    bool is_int = isint(ty);
     union value val;
 
-#define ARITH_BOP(op)  \
-    do { \
-        if (ret_is_int) { \
-	    if (l_is_int) { \
-		if (r_is_int) \
-		    VALUE_U(val) = VALUE_U(lval) op VALUE_U(rval); \
-		else \
-		    VALUE_U(val) = VALUE_U(lval) op VALUE_D(rval); \
-	    } else { \
-		if (r_is_int) \
-		    VALUE_U(val) = VALUE_D(lval) op VALUE_U(rval); \
-		else \
-		    VALUE_U(val) = VALUE_D(lval) op VALUE_D(rval); \
-	    } \
-	} else { \
-	    if (l_is_int) { \
-		if (r_is_int) \
-		    VALUE_D(val) = VALUE_U(lval) op VALUE_U(rval); \
-		else \
-		    VALUE_D(val) = VALUE_U(lval) op VALUE_D(rval); \
-	    } else { \
-		if (r_is_int) \
-		    VALUE_D(val) = VALUE_D(lval) op VALUE_U(rval); \
-		else \
-		    VALUE_D(val) = VALUE_D(lval) op VALUE_D(rval); \
-	    } \
-	} \
+#define ARITH_BOP(op)						\
+    do {							\
+        if (is_int)						\
+	    VALUE_U(val) = VALUE_U(lval) op VALUE_U(rval);	\
+	else							\
+	    VALUE_D(val) = VALUE_D(lval) op VALUE_D(rval);	\
     } while (0)
     
     switch (op) {
@@ -292,7 +326,7 @@ static node_t * arith_bop(int op, node_t *ty, node_t *l, node_t *r)
     }
 
     node_t *ret;
-    if (ret_is_int)
+    if (is_int)
 	ret = int_literal_node(ty, val);
     else
 	ret = float_literal_node(ty, val);
@@ -454,7 +488,8 @@ static node_t * doeval(node_t *expr)
 	else
 	    return expr;
     case INITS_EXPR:
-	break;
+	// TODO: 
+	return NULL;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case STRING_LITERAL:
