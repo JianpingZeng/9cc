@@ -1207,7 +1207,7 @@ static node_t * sizeof_expr(void)
 	error("'sizeof' to a bitfield is invalid");
 
     if (NO_ERROR) {
-	ret = uop(t, unsignedinttype, n ? n : ty);
+	ret = uop(t, unsignedlongtype, n ? n : ty);
 	AST_SRC(ret) = src;
     }
 

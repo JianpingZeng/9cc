@@ -8,9 +8,62 @@
  * 4. initializer (combination of the aboves)
  */
 
-static node_t * eval_arith(node_t *expr);
-static node_t * eval_address(node_t *expr);
-static node_t * eval_initializer(node_t *expr);
+static node_t * scalar_uop(int op, node_t *ty, node_t *l);
+static node_t * arith_uop(int op, node_t *ty, node_t *l);
+static node_t * int_uop(int op, node_t *ty, node_t *l);
+
+static node_t * scalar_bop(int op, node_t *ty, node_t *l, node_t *r);
+static node_t * arith_bop(int op, node_t *ty, node_t *l, node_t *r);
+static node_t * int_bop(int op, node_t *ty, node_t *l, node_t *r);
+
+static struct bop {
+    int op;
+    bool (*is) (node_t *ty);
+    node_t * (*eval) (int op, node_t *ty, node_t *l, node_t *r);
+} bops[] = {
+    {'%',    isint,    int_bop},
+    {LSHIFT, isint,    int_bop},
+    {RSHIFT, isint,    int_bop},
+    {'|',    isint,    int_bop},
+    {'&',    isint,    int_bop},
+    {'^',    isint,    int_bop},
+    {'*',    isarith,  arith_bop},
+    {'/',    isarith,  arith_bop},
+    {'+',    isarith,  arith_bop},
+    {'-',    isarith,  arith_bop},
+    {'>',    isscalar, scalar_bop},
+    {'<',    isscalar, scalar_bop},
+    {LEQ,    isscalar, scalar_bop},
+    {GEQ,    isscalar, scalar_bop},
+    {EQ,     isscalar, scalar_bop},
+    {NEQ,    isscalar, scalar_bop},
+};
+
+static struct uop {
+    int op;
+    bool (*is) (node_t *ty);
+    node_t * (*eval) (int op, node_t *ty, node_t *l);
+} uops[] = {
+    {'-',  isarith,  arith_uop},
+    {'~',  isint,    int_uop},
+    {'!',  isscalar, scalar_uop},
+};
+
+static struct bop * dispatch_bop(int op)
+{
+    for (int i = 0; i < ARRAY_SIZE(bops); i++)
+	if (bops[i].op == op)
+	    return &bops[i];
+    return NULL;
+}
+
+static struct uop * dispatch_uop(int op)
+{
+    for (int i = 0; i < ARRAY_SIZE(uops); i++)
+	if (uops[i].op == op)
+	    return &uops[i];
+    return NULL;
+}
 
 static node_t * literal_node(int id)
 {
@@ -52,24 +105,6 @@ static node_t * zero_literal(void)
     if (!_zero_literal)
 	_zero_literal = new_integer_literal(0);
     return _zero_literal;
-}
-
-static bool bool_arith(node_t *n)
-{
-    if (!n)
-	return false;
-    if (isiliteral(n))
-	return ILITERAL_VALUE(n) != 0;
-    else if (isfliteral(n))
-	return FLITERAL_VALUE(n) != 0;
-    else
-	return false;
-}
-
-// TODO: 
-static bool do_eval_bool(node_t *cond)
-{
-    return false;
 }
 
 static node_t * arith2arith(node_t *dty, node_t *l)
@@ -155,244 +190,135 @@ static node_t * cast(node_t *dty, node_t *l)
     cc_assert(0);
 }
 
-static node_t * bop_scalar(int op, node_t *dty, node_t *l, node_t *r)
+static node_t * address_uop(node_t *expr)
 {
-    if (l == NULL || r == NULL)
-	return NULL;
-    
-    union value lval = SYM_VALUE(EXPR_SYM(l));
-    union value rval = SYM_VALUE(EXPR_SYM(r));
-    union value ret;
-    bool l_is_u = !isfliteral(l);
-    bool r_is_u = !isfliteral(r);
-    bool ret_is_u = TYPE_OP(dty) == FLOAT ? false : true;
-    
-#define LOR(oo) \
-    do { \
-        if (ret_is_u) { \
-	    if (l_is_u) { \
-		if (r_is_u) \
-		    VALUE_U(ret) = VALUE_U(lval) oo VALUE_U(rval); \
-		else \
-		    VALUE_U(ret) = VALUE_U(lval) oo VALUE_D(rval); \
-	    } else { \
-		if (r_is_u) \
-		    VALUE_U(ret) = VALUE_D(lval) oo VALUE_U(rval); \
-		else \
-		    VALUE_U(ret) = VALUE_D(lval) oo VALUE_D(rval); \
-	    } \
-	} else { \
-	    if (l_is_u) { \
-		if (r_is_u) \
-		    VALUE_D(ret) = VALUE_U(lval) oo VALUE_U(rval); \
-		else \
-		    VALUE_D(ret) = VALUE_U(lval) oo VALUE_D(rval); \
-	    } else { \
-		if (r_is_u) \
-		    VALUE_D(ret) = VALUE_D(lval) oo VALUE_U(rval); \
-		else \
-		    VALUE_D(ret) = VALUE_D(lval) oo VALUE_D(rval); \
-	    } \
-	} \
-    } while (0)
 
-#define LORI(oo) \
-    do { \
-        VALUE_U(ret) = VALUE_U(lval) oo VALUE_U(rval);	\
-    } while (0)
-    
-    switch (op) {
-    case '%':    LORI(%); break;
-    case LSHIFT: LORI(<<); break;
-    case RSHIFT: LORI(>>); break;
-    case '|':    LORI(|); break;
-    case '&':    LORI(&); break;
-    case '^':    LORI(^); break;
-	
-    case '*': LOR(*); break;
-    case '/': LOR(/); break;
-    case '+': LOR(+); break;
-    case '-': LOR(-); break;
-    case '>': LOR(>); break;
-    case '<': LOR(<); break;
-    case GEQ: LOR(>=); break;
-    case LEQ: LOR(<=); break;
-    case EQ: LOR(==); break;
-    case NEQ: LOR(!=); break;
-    default: cc_assert(0);
-    }
-
-    if (ret_is_u)
-	return int_literal_node(dty, ret);
-    else
-	return float_literal_node(dty, ret);
 }
 
-static node_t * uop_scalar(int op, node_t *dty, node_t *l)
-{
-    if (l == NULL)
-	return NULL;
-
-    union value lval = SYM_VALUE(EXPR_SYM(l));
-    bool l_is_u = !isfliteral(l);
-    bool ret_is_u = TYPE_OP(dty) == FLOAT ? false : true;
-    union value ret;
-
-#define LOO(oo) \
-    do { \
-	if (ret_is_u) { \
-	    if (l_is_u) \
-		VALUE_U(ret) = oo VALUE_U(lval); \
-	    else \
-		VALUE_U(ret) = oo VALUE_D(lval); \
-	} else { \
-	    if (l_is_u) \
-		VALUE_D(ret) = oo VALUE_U(lval); \
-	    else \
-		VALUE_D(ret) = oo VALUE_D(lval); \
-	} \
-    } while (0)
-    
-    switch (op) {
-	// arith
-    case '-': LOO(-); break;
-	// int
-    case '~':
-	cc_assert(ret_is_u);
-	VALUE_U(ret) = ~ VALUE_U(lval);
-	break;
-	// scalar
-    case '!': LOO(!); break;
-    default: cc_assert(0);
-    }
-
-    if (ret_is_u)
-	return int_literal_node(dty, ret);
-    else
-	return float_literal_node(dty, ret);
-}
-
-static node_t * eval_arith(node_t *expr)
+static node_t * sizeof_uop(node_t *expr)
 {
     node_t *l = EXPR_OPERAND(expr, 0);
-    node_t *r = EXPR_OPERAND(expr, 1);
-    switch (AST_ID(expr)) {
-    case BINARY_OPERATOR:
-        {
-	    int op = EXPR_OP(expr);
-	    switch (op) {
-	    case '=':
-		return NULL;
-	    case ',':
-		return eval_arith(r);
-	    case '%':
-	    case LSHIFT: case RSHIFT:
-	    case '|': case '&': case '^':
+    node_t *ty = istype(l) ? l : AST_TYPE(l);
+    union value val;
+    VALUE_U(val) = TYPE_SIZE(ty);
+    return int_literal_node(AST_TYPE(expr), val);
+}
 
-	    case '+': case '-': case '*': case '/':
-	    case '>': case '<': case GEQ:
-	    case LEQ: case EQ: case NEQ:
-		return bop_scalar(op, AST_TYPE(expr), eval_arith(l), eval_arith(r));
-	    case AND:
-		{
-		    node_t *l1 = eval_arith(l);
-		    if (!bool_arith(l1))
-			return zero_literal();
-		    else
-			return eval_arith(r);
-		}
-	    case OR:
-		{
-		    node_t *l1 = eval_arith(l);
-		    if (bool_arith(l1))
-		        return one_literal();
-		    else
-			return eval_arith(r);
-		}
-	    default:
-		cc_assert(0);
-	    }
-	}
-    case UNARY_OPERATOR:
-        {
-	    switch (EXPR_OP(expr)) {
-	    case INCR:
-	    case DECR:
-	    case '*':
-	    case '&':
-		return NULL;
-	    case '+':
-		return eval_arith(EXPR_OPERAND(expr, 0));
-	    case '-':
-	    case '~':
-	    case '!':
-		return uop_scalar(EXPR_OP(expr), AST_TYPE(expr), eval_arith(EXPR_OPERAND(expr, 0)));
-	    case SIZEOF:
-		// TODO: 
-		if (istype(EXPR_OPERAND(expr, 0))) {
-		    union value ret;
-		    VALUE_I(ret) = TYPE_SIZE(EXPR_OPERAND(expr, 0));
-		    return int_literal_node(AST_TYPE(expr), ret);
-		} else {
-		    return NULL;
-		}
-	    default:
-		cc_assert(0);
-	    }
-	}
-    case PAREN_EXPR:
-    case COMPOUND_LITERAL:
-	return eval_arith(l);
-    case CONV_EXPR:
-    case CAST_EXPR:
-	return cast(AST_TYPE(expr), eval_arith(l));
-    case COND_EXPR:
-	{
-	    node_t *cond = eval_arith(EXPR_COND(expr));
-	    if (cond) {
-		if (do_eval_bool(cond))
-		    return eval_arith(EXPR_THEN(expr));
-		else
-		    return eval_arith(EXPR_ELSE(expr));
-	    }
-	}
-	return NULL;
-    case REF_EXPR:
-	// TODO:
-        if (EXPR_OP(expr) == ENUM)
-	    return int_literal_node(unpack(AST_TYPE(expr)), SYM_VALUE(EXPR_SYM(expr)));
-	else
-	    return NULL;
-    case INITS_EXPR:
-        for (int i = 0; i < LIST_LEN(EXPR_INITS(expr)); i++) {
-	    node_t *n = EXPR_INITS(expr)[i];
-	    if (AST_ID(n) != VINIT_EXPR && eval_arith(n) == NULL)
-		return NULL;
-	}
-	return expr;
-    case INTEGER_LITERAL:
-    case FLOAT_LITERAL:
-	return expr;
-    case MEMBER_EXPR:
-    case STRING_LITERAL:
-    case CALL_EXPR:
-    case SUBSCRIPT_EXPR:
-	return NULL;
-    default:
-	cc_assert(0);
+static node_t * scalar_uop(int op, node_t *ty, node_t *l)
+{
+
+}
+
+static node_t * arith_uop(int op, node_t *ty, node_t *l)
+{
+
+}
+
+static node_t * int_uop(int op, node_t *ty, node_t *l)
+{
+    cc_assert(isiliteral(l));
+    
+    switch (op) {
+    case '~':
+    default:  cc_assert(0);
     }
 }
 
-// TODO: 
-static node_t * eval_address(node_t *expr)
+static bool logic_bop(node_t *expr)
 {
-    return expr;
+
 }
 
-// TODO: 
-static node_t * eval_initializer(node_t *expr)
+static node_t * scalar_bop(int op, node_t *ty, node_t *l, node_t *r)
 {
-    return expr;
+    return NULL;
+}
+
+static node_t * ptr_int_bop(int op, node_t *ty, node_t *ptr, node_t *i)
+{
+    return NULL;
+}
+
+static node_t * arith_bop(int op, node_t *ty, node_t *l, node_t *r)
+{
+    cc_assert(isiliteral(l) || isfliteral(l));
+    cc_assert(isiliteral(r) || isfliteral(r));
+
+    union value lval = SYM_VALUE(EXPR_SYM(l));
+    union value rval = SYM_VALUE(EXPR_SYM(r));
+    bool l_is_int = isiliteral(l);
+    bool r_is_int = isiliteral(r);
+    bool ret_is_int = isint(ty);
+    union value val;
+
+#define ARITH_BOP(op)  \
+    do { \
+        if (ret_is_int) { \
+	    if (l_is_int) { \
+		if (r_is_int) \
+		    VALUE_U(val) = VALUE_U(lval) op VALUE_U(rval); \
+		else \
+		    VALUE_U(val) = VALUE_U(lval) op VALUE_D(rval); \
+	    } else { \
+		if (r_is_int) \
+		    VALUE_U(val) = VALUE_D(lval) op VALUE_U(rval); \
+		else \
+		    VALUE_U(val) = VALUE_D(lval) op VALUE_D(rval); \
+	    } \
+	} else { \
+	    if (l_is_int) { \
+		if (r_is_int) \
+		    VALUE_D(val) = VALUE_U(lval) op VALUE_U(rval); \
+		else \
+		    VALUE_D(val) = VALUE_U(lval) op VALUE_D(rval); \
+	    } else { \
+		if (r_is_int) \
+		    VALUE_D(val) = VALUE_D(lval) op VALUE_U(rval); \
+		else \
+		    VALUE_D(val) = VALUE_D(lval) op VALUE_D(rval); \
+	    } \
+	} \
+    } while (0)
+    
+    switch (op) {
+    case '+': ARITH_BOP(+); break;
+    case '-': ARITH_BOP(-); break;
+    case '*': ARITH_BOP(*); break;
+    case '/': ARITH_BOP(/); break;
+    default:  cc_assert(0);
+    }
+
+    node_t *ret;
+    if (ret_is_int)
+	ret = int_literal_node(ty, val);
+    else
+	ret = float_literal_node(ty, val);
+    return cast(ty, ret);
+}
+
+static node_t * int_bop(int op, node_t *ty, node_t *l, node_t *r)
+{
+    cc_assert(isiliteral(l));
+    cc_assert(isiliteral(r));
+
+    union value lval = SYM_VALUE(EXPR_SYM(l));
+    union value rval = SYM_VALUE(EXPR_SYM(r));
+    union value val;
+
+#define INT_BOP(op)  VALUE_U(val) = VALUE_U(lval) op VALUE_U(rval)
+    
+    switch (op) {
+    case '%':    INT_BOP(%);  break;
+    case LSHIFT: INT_BOP(<<); break;
+    case RSHIFT: INT_BOP(>>); break;
+    case '|':    INT_BOP(|);  break;
+    case '&':    INT_BOP(&);  break;
+    case '^':    INT_BOP(^);  break;
+    default:	 cc_assert(0);
+    }
+
+    node_t *ret = int_literal_node(ty, val);
+    return cast(ty, ret);
 }
 
 static node_t * doeval(node_t *expr)
@@ -403,27 +329,71 @@ static node_t * doeval(node_t *expr)
 	{
 	    node_t *l = EXPR_OPERAND(expr, 0);
 	    node_t *r = EXPR_OPERAND(expr, 1);
-	    switch (EXPR_OP(expr)) {
+	    int op = EXPR_OP(expr);
+	    struct bop *bop;
+	    switch (op) {
 	    case '=':
+		return NULL;
 	    case ',':
+		if (doeval(l))
+		    return doeval(r);
+		else
+		    return NULL;
+		// int
 	    case '%':
-	    case LSHIFT:
-	    case RSHIFT:
 	    case '|':
 	    case '&':
 	    case '^':
-	    case '+':
-	    case '-':
+	    case LSHIFT:
+	    case RSHIFT:
+		// arith
 	    case '*':
 	    case '/':
+		// scalar
 	    case '<':
 	    case '>':
 	    case GEQ:
 	    case LEQ:
 	    case EQ:
 	    case NEQ:
+	    dispatch:
+		bop = dispatch_bop(op);
+		cc_assert(bop->is(AST_TYPE(l)));
+		cc_assert(bop->is(AST_TYPE(r)));
+		l = doeval(l);
+		if (!l)
+		    return NULL;
+		r = doeval(r);
+		if (!r)
+		    return NULL;
+		return bop->eval(op, AST_TYPE(expr), l, r);
+	    case '+':
+		{
+		    if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r)))
+			goto dispatch;
+		    // ptr + int or int + ptr
+		    node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
+		    node_t *i = ptr == l ? r : l;
+		    cc_assert(isptr(ptr));
+		    cc_assert(isint(i));
+		    return ptr_int_bop(op, AST_TYPE(expr), ptr, i);
+		}
+	    case '-':
+		if (!isptr(AST_TYPE(l)))
+		    goto dispatch;
+		// ptr - int
+		cc_assert(isint(AST_TYPE(r)));
+		return ptr_int_bop(op, AST_TYPE(expr), l, r);
 	    case AND:
 	    case OR:
+		l = doeval(l);
+		if (!l)
+		    return NULL;
+		if (op == AND && !logic_bop(l))
+		    return zero_literal();
+		else if (op == OR && logic_bop(l))
+		    return one_literal();
+		return doeval(r);
 	    default:
 		cc_assert(0);
 	    }
@@ -432,68 +402,65 @@ static node_t * doeval(node_t *expr)
     case UNARY_OPERATOR:
 	{
 	    node_t *l = EXPR_OPERAND(expr, 0);
-	    switch (EXPR_OP(expr)) {
+	    int op = EXPR_OP(expr);
+	    struct uop *uop;
+	    switch (op) {
 	    case INCR:
 	    case DECR:
 	    case '*':
+		return NULL;
 	    case '&':
+		return address_uop(expr);
 	    case '+':
+		return doeval(l);
 	    case '-':
 	    case '~':
 	    case '!':
+		uop = dispatch_uop(op);
+		cc_assert(uop->is(AST_TYPE(l)));
+		l = doeval(l);
+		if (!l)
+		    return NULL;
+		return uop->eval(op, AST_TYPE(expr), l);
 	    case SIZEOF:
+		return sizeof_uop(expr);
 	    default:
 		cc_assert(0);
 	    }
 	}
 	break;
+    case PAREN_EXPR:
+	return doeval(EXPR_OPERAND(expr, 0));
+    case CAST_EXPR:
+    case CONV_EXPR:
+	return cast(AST_TYPE(expr), EXPR_OPERAND(expr, 0));
     case COND_EXPR:
     case MEMBER_EXPR:
-    case PAREN_EXPR:
     case REF_EXPR:
-    case CAST_EXPR:
     case CALL_EXPR:
+    case COMPOUND_LITERAL:
     case INITS_EXPR:
-    case VINIT_EXPR:
-    case CONV_EXPR:
     case SUBSCRIPT_EXPR:
+	break;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case STRING_LITERAL:
-    case COMPOUND_LITERAL:
-	break;
+	return expr;
+    case VINIT_EXPR:
     default:
-	cc_assert(0);
+        cc_assert(0);
     }
-}
-
-static node_t * static_cast(node_t *expr, node_t *ty)
-{
-
 }
 
 node_t * eval(node_t *expr, node_t *ty)
 {
-    if (expr == NULL)
+    if (!expr)
     	return NULL;
 
-    if (isarith(ty))
-    	return eval_arith(expr);
-    else if (isptr(ty))
-    	return eval_address(expr);
-    else if (isrecord(ty) || isarray(ty))
-    	return eval_initializer(expr);
-    else
-    	cc_assert(0);
-}
-
-// TODO: 
-node_t * eval_bool(node_t *expr)
-{
-    if (expr == NULL)
+    node_t *ret = doeval(expr);
+    if (!ret)
 	return NULL;
-
-    return NULL;
+    return cast(ty, ret);
 }
 
 bool eval_cpp_cond(void)

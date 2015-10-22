@@ -180,7 +180,6 @@ extern struct vector * all_pptoks(void);
 
 // eval.c
 extern node_t * eval(node_t *expr, node_t *ty);
-extern node_t * eval_bool(node_t *expr);
 extern bool eval_cpp_cond(void);
 
 // expr.c
