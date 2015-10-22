@@ -63,7 +63,7 @@ static node_t * init_elem_conv(node_t *ty, node_t *node)
 
     node_t *ret = init_conv(ty, node);
     if (ret == NULL)
-	error(INCOMPATIBLE_TYPES, type2s(AST_TYPE(node)), type2s(ty));
+	errorf(AST_SRC(node), INCOMPATIBLE_TYPES, type2s(AST_TYPE(node)), type2s(ty));
 
     return ret;
 }
@@ -388,6 +388,7 @@ void decl_initializer(node_t *decl, node_t *sym, int kind)
     struct source src = AST_SRC(sym);
     int sclass = SYM_SCLASS(sym);
     node_t *init;
+    struct source init_src;
 
     expect('=');
 
@@ -402,6 +403,7 @@ void decl_initializer(node_t *decl, node_t *sym, int kind)
     }
 
     init = initializer(ty);
+    init_src = AST_SRC(init);
     if (init == NULL)
 	return;
     
@@ -449,7 +451,7 @@ void decl_initializer(node_t *decl, node_t *sym, int kind)
     if (init && has_static_extent(sym)) {
         init = eval(init, ty);
 	if (init == NULL)
-	    error("initializer element is not a compile-time constant");
+	    errorf(init_src, "initializer element is not a compile-time constant");
     }
 
     DECL_BODY(decl) = init;

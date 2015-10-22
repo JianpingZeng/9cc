@@ -395,12 +395,87 @@ static node_t * eval_initializer(node_t *expr)
     return expr;
 }
 
+static node_t * doeval(node_t *expr)
+{
+    cc_assert(isexpr(expr));
+    switch (AST_ID(expr)) {
+    case BINARY_OPERATOR:
+	{
+	    node_t *l = EXPR_OPERAND(expr, 0);
+	    node_t *r = EXPR_OPERAND(expr, 1);
+	    switch (EXPR_OP(expr)) {
+	    case '=':
+	    case ',':
+	    case '%':
+	    case LSHIFT:
+	    case RSHIFT:
+	    case '|':
+	    case '&':
+	    case '^':
+	    case '+':
+	    case '-':
+	    case '*':
+	    case '/':
+	    case '<':
+	    case '>':
+	    case GEQ:
+	    case LEQ:
+	    case EQ:
+	    case NEQ:
+	    case AND:
+	    case OR:
+	    default:
+		cc_assert(0);
+	    }
+	}
+	break;
+    case UNARY_OPERATOR:
+	{
+	    node_t *l = EXPR_OPERAND(expr, 0);
+	    switch (EXPR_OP(expr)) {
+	    case INCR:
+	    case DECR:
+	    case '*':
+	    case '&':
+	    case '+':
+	    case '-':
+	    case '~':
+	    case '!':
+	    case SIZEOF:
+	    default:
+		cc_assert(0);
+	    }
+	}
+	break;
+    case COND_EXPR:
+    case MEMBER_EXPR:
+    case PAREN_EXPR:
+    case REF_EXPR:
+    case CAST_EXPR:
+    case CALL_EXPR:
+    case INITS_EXPR:
+    case VINIT_EXPR:
+    case CONV_EXPR:
+    case SUBSCRIPT_EXPR:
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case STRING_LITERAL:
+    case COMPOUND_LITERAL:
+	break;
+    default:
+	cc_assert(0);
+    }
+}
+
+static node_t * static_cast(node_t *expr, node_t *ty)
+{
+
+}
+
 node_t * eval(node_t *expr, node_t *ty)
 {
     if (expr == NULL)
     	return NULL;
-
-    cc_assert(isexpr(expr));
 
     if (isarith(ty))
     	return eval_arith(expr);
