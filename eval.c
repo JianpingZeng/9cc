@@ -457,10 +457,7 @@ node_t * eval(node_t *expr, node_t *ty)
     if (!expr)
     	return NULL;
 
-    node_t *ret = doeval(expr);
-    if (!ret)
-	return NULL;
-    return cast(ty, ret);
+    return cast(ty, doeval(expr));
 }
 
 bool eval_cpp_cond(void)
