@@ -190,6 +190,11 @@ static node_t * cast(node_t *dty, node_t *l)
     cc_assert(0);
 }
 
+static bool scalar_bool(node_t *expr)
+{
+
+}
+
 static node_t * address_uop(node_t *expr)
 {
 
@@ -216,17 +221,13 @@ static node_t * arith_uop(int op, node_t *ty, node_t *l)
 
 static node_t * int_uop(int op, node_t *ty, node_t *l)
 {
-    cc_assert(isiliteral(l));
+    if (!isiliteral(l))
+	return NULL;
     
     switch (op) {
     case '~':
     default:  cc_assert(0);
     }
-}
-
-static bool logic_bop(node_t *expr)
-{
-
 }
 
 static node_t * scalar_bop(int op, node_t *ty, node_t *l, node_t *r)
@@ -241,8 +242,10 @@ static node_t * ptr_int_bop(int op, node_t *ty, node_t *ptr, node_t *i)
 
 static node_t * arith_bop(int op, node_t *ty, node_t *l, node_t *r)
 {
-    cc_assert(isiliteral(l) || isfliteral(l));
-    cc_assert(isiliteral(r) || isfliteral(r));
+    if (!isiliteral(l) && !isfliteral(r))
+	return NULL;
+    else if (!isiliteral(r) && !isfliteral(r))
+	return NULL;
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -298,8 +301,8 @@ static node_t * arith_bop(int op, node_t *ty, node_t *l, node_t *r)
 
 static node_t * int_bop(int op, node_t *ty, node_t *l, node_t *r)
 {
-    cc_assert(isiliteral(l));
-    cc_assert(isiliteral(r));
+    if (!isiliteral(l) || !isiliteral(r))
+	return NULL;
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -389,9 +392,9 @@ static node_t * doeval(node_t *expr)
 		l = doeval(l);
 		if (!l)
 		    return NULL;
-		if (op == AND && !logic_bop(l))
+		if (op == AND && !scalar_bool(l))
 		    return zero_literal();
-		else if (op == OR && logic_bop(l))
+		else if (op == OR && scalar_bool(l))
 		    return one_literal();
 		return doeval(r);
 	    default:
@@ -430,15 +433,26 @@ static node_t * doeval(node_t *expr)
 	}
 	break;
     case PAREN_EXPR:
+    case COMPOUND_LITERAL:
 	return doeval(EXPR_OPERAND(expr, 0));
     case CAST_EXPR:
     case CONV_EXPR:
 	return cast(AST_TYPE(expr), EXPR_OPERAND(expr, 0));
     case COND_EXPR:
-    case MEMBER_EXPR:
+	{
+	    node_t *cond = doeval(EXPR_COND(expr));
+	    if (!cond)
+		return NULL;
+	    if (scalar_bool(cond))
+		return doeval(EXPR_THEN(expr));
+	    else
+		return doeval(EXPR_ELSE(expr));
+	}
     case REF_EXPR:
-    case CALL_EXPR:
-    case COMPOUND_LITERAL:
+	if (EXPR_OP(expr) == ENUM)
+	    return cast(AST_TYPE(expr), int_literal_node(AST_TYPE(expr), SYM_VALUE(EXPR_SYM(expr))));
+	else
+	    return expr;
     case INITS_EXPR:
     case SUBSCRIPT_EXPR:
 	break;
@@ -446,6 +460,9 @@ static node_t * doeval(node_t *expr)
     case FLOAT_LITERAL:
     case STRING_LITERAL:
 	return expr;
+    case MEMBER_EXPR:
+    case CALL_EXPR:
+	return NULL;
     case VINIT_EXPR:
     default:
         cc_assert(0);
