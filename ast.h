@@ -315,5 +315,7 @@ extern node_t * ast_compound(node_t **list);
 #define IntegerToFloatCast      "IntegralToFloating"
 #define FloatToIntegerCast      "FloatingToIntegral"
 #define PointerToBoolean        "PointerToBoolean"
+#define IntegerToPointerCast    "IntegerToPointer"
+#define PointerToIntegerCast    "PointerToInteger"
 
 #endif

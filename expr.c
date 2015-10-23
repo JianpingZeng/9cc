@@ -14,6 +14,9 @@ static bool is_nullptr(node_t *node);
 #define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
 #define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
 
+#define SAVE_SOURCE()      struct source src = source
+#define SET_SOURCE(node)   if (node) AST_SRC(node) = src
+
 static void ensure_type(node_t *node, bool (*is) (node_t *))
 {
     const char *name;
@@ -1402,10 +1405,10 @@ static node_t * multiple_expr(void)
     mulp1 = cast_expr();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
-	struct source src = source;
+	SAVE_SOURCE();
         expect(t);
         mulp1 = bop(t, conv(mulp1), conv(cast_expr()));
-	AST_SRC(mulp1) = src;
+	SET_SOURCE(mulp1);
     }
     
     return mulp1;
@@ -1418,10 +1421,10 @@ static node_t * additive_expr(void)
     add1 = multiple_expr();
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
-	struct source src = source;
+	SAVE_SOURCE();
         expect(t);
         add1 = bop(t, conv(add1), conv(multiple_expr()));
-	AST_SRC(add1) = src;
+	SET_SOURCE(add1);
     }
     
     return add1;
@@ -1434,10 +1437,10 @@ static node_t * shift_expr(void)
     shift1 = additive_expr();
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
-	struct source src = source;
+	SAVE_SOURCE();
         expect(t);
         shift1 = bop(t, conv(shift1), conv(additive_expr()));
-	AST_SRC(shift1) = src;
+	SET_SOURCE(shift1);
     }
     
     return shift1;
@@ -1450,10 +1453,10 @@ static node_t * relation_expr(void)
     rel = shift_expr();
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
-	struct source src = source;
+	SAVE_SOURCE();
         expect(t);
         rel = bop(t, conv(rel), conv(shift_expr()));
-	AST_SRC(rel) = src;
+	SET_SOURCE(rel);
     }
     
     return rel;
@@ -1466,10 +1469,10 @@ static node_t * equality_expr(void)
     equl = relation_expr();
     while (token->id == EQ || token->id == NEQ) {
         int t = token->id;
-	struct source src = source;
+	SAVE_SOURCE();
         expect(t);
         equl = bop(t, conv(equl), conv(relation_expr()));
-	AST_SRC(equl) = src;
+	SET_SOURCE(equl);
     }
     
     return equl;
@@ -1481,10 +1484,10 @@ static node_t * and_expr(void)
     
     and1 = equality_expr();
     while (token->id == '&') {
-	struct source src = source;
+	SAVE_SOURCE();
         expect('&');
         and1 = bop('&', conv(and1), conv(equality_expr()));
-	AST_SRC(and1) = src;
+	SET_SOURCE(and1);
     }
     
     return and1;
@@ -1496,10 +1499,10 @@ static node_t * exclusive_or(void)
     
     eor = and_expr();
     while (token->id == '^') {
-	struct source src = source;
+	SAVE_SOURCE();
         expect('^');
         eor = bop('^', conv(eor), conv(and_expr()));
-	AST_SRC(eor) = src;
+	SET_SOURCE(eor);
     }
     
     return eor;
@@ -1511,10 +1514,10 @@ static node_t * inclusive_or(void)
     
     ior = exclusive_or();
     while (token->id == '|') {
-	struct source src = source;
+	SAVE_SOURCE();
         expect('|');
         ior = bop('|', conv(ior), conv(exclusive_or()));
-	AST_SRC(ior) = src;
+	SET_SOURCE(ior);
     }
     
     return ior;
@@ -1526,10 +1529,10 @@ static node_t * logic_and(void)
     
     and1 = inclusive_or();
     while (token->id == AND) {
-	struct source src = source;
+	SAVE_SOURCE();
         expect(AND);
 	and1 = logicop(AND, conv(and1), conv(inclusive_or()));
-	AST_SRC(and1) = src;
+	SET_SOURCE(and1);
     }
     
     return and1;
@@ -1541,10 +1544,10 @@ static node_t * logic_or(void)
     
     or1 = logic_and();
     while (token->id == OR) {
-	struct source src = source;
+	SAVE_SOURCE();
         expect(OR);
 	or1 = logicop(OR, conv(or1), conv(logic_and()));
-	AST_SRC(or1) = src;
+	SET_SOURCE(or1);
     }
     
     return or1;
@@ -1654,10 +1657,10 @@ node_t * expression(void)
     
     assign1 = assign_expr();
     while (token->id == ',') {
-	struct source src = source;
+	SAVE_SOURCE();
         expect(',');
 	assign1 = commaop(',', assign1, assign_expr());
-	AST_SRC(assign1) = src;
+	SET_SOURCE(assign1);
     }
     return assign1;
 }
@@ -1759,8 +1762,42 @@ static node_t * bop(int op, node_t *l, node_t *r)
     case EQ: case NEQ:
 	ensure_type(l, isscalar);
 	ensure_type(r, isscalar);
-	if (NO_ERROR)
-	    node = ast_bop(op, inttype, l, r);
+        if (HAS_ERROR)
+	    break;
+	if (isptr(AST_TYPE(l)) && isptr(AST_TYPE(r))) {
+	    // both ptr
+	    if (eqtype(AST_TYPE(l), AST_TYPE(r))) {
+		node = ast_bop(op, inttype, l, r);
+	    } else {
+		if (op == EQ || op == NEQ) {
+		    if (isptrto(AST_TYPE(l), VOID) || isptrto(AST_TYPE(r), VOID)) {
+			node_t *l1 = isptrto(AST_TYPE(l), VOID) ? l : ast_conv(ptr_type(voidtype), l, BitCast);
+			node_t *r1 = isptrto(AST_TYPE(r), VOID) ? r : ast_conv(ptr_type(voidtype), r, BitCast);
+			node = ast_bop(op, inttype, l1, r1);
+			break;
+		    } else if (is_nullptr(l) || is_nullptr(r)) {
+			node = ast_bop(op, inttype, l, r);
+			break;
+		    }
+		}
+		error("comparison of incompatible pointer types ('%s' and '%s')",
+		      type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
+	    }
+	} else if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
+	    // both arith
+	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
+	    node = ast_bop(op, inttype, wrap(ty, l), wrap(ty, r));
+	} else if (isptr(AST_TYPE(l))) {
+	    // ptr op int
+	    ensure_type(r, isint);
+	    node = ast_bop(op, inttype, l, ast_conv(AST_TYPE(l), r, IntegerToPointerCast));
+	} else if (isptr(AST_TYPE(r))) {
+	    // int op ptr
+	    ensure_type(l, isint);
+	    node = ast_bop(op, inttype, ast_conv(AST_TYPE(r), l, IntegerToPointerCast), r);
+	} else {
+	    cc_assert(0);
+	}
 	break;
     default:
 	error("unknown op '%s'", id2s(op));
