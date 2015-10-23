@@ -190,11 +190,18 @@ static node_t * cast(node_t *dty, node_t *l)
     cc_assert(0);
 }
 
+// 'expr' was evaluated and _NOT_ null.
 static bool scalar_bool(node_t *expr)
 {
-    
+    cc_assert(isiliteral(expr) || isfliteral(expr));
+
+    if (isiliteral(expr))
+	return ILITERAL_VALUE(expr) != 0;
+    else
+	return FLITERAL_VALUE(expr) != 0;
 }
 
+// 'expr' was _NOT_ evaluated.
 static node_t * address_uop(node_t *expr)
 {
 
