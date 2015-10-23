@@ -1790,11 +1790,13 @@ static node_t * bop(int op, node_t *l, node_t *r)
 	} else if (isptr(AST_TYPE(l))) {
 	    // ptr op int
 	    ensure_type(r, isint);
-	    node = ast_bop(op, inttype, l, ast_conv(AST_TYPE(l), r, IntegerToPointerCast));
+	    if (NO_ERROR)
+		node = ast_bop(op, inttype, l, ast_conv(AST_TYPE(l), r, IntegerToPointerCast));
 	} else if (isptr(AST_TYPE(r))) {
 	    // int op ptr
 	    ensure_type(l, isint);
-	    node = ast_bop(op, inttype, ast_conv(AST_TYPE(r), l, IntegerToPointerCast), r);
+	    if (NO_ERROR)
+		node = ast_bop(op, inttype, ast_conv(AST_TYPE(r), l, IntegerToPointerCast), r);
 	} else {
 	    cc_assert(0);
 	}
