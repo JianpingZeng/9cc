@@ -1075,9 +1075,14 @@ static node_t * paramdecl(struct token *t, node_t *ty, int sclass)
     bool prototype = PARAM_STYLE(sclass);
     bool first = PARAM_FIRST(sclass);
     bool fvoid = PARAM_FVOID(sclass);
-    const char *id = t->name;
-    struct source src = t->src;
+    const char *id = NULL;
+    struct source src = source;
     sclass = PARAM_SCLASS(sclass);
+
+    if (t) {
+	id = t->name;
+	src = t->src;
+    }
     
     if (sclass && sclass != REGISTER) {
         error("invalid storage class specifier '%s' in function declarator", id2s(sclass));

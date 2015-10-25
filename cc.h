@@ -212,6 +212,7 @@ extern int firstexpr(struct token *t);
 extern node_t * initializer_list(node_t *ty);
 extern void decl_initializer(node_t *decl, node_t *sym, int kind);
 extern void init_string(node_t *ty, node_t *node);
+extern bool has_static_extent(node_t *sym);
 
 // stmt.c
 extern node_t * compound_stmt(void);

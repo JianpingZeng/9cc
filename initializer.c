@@ -375,7 +375,7 @@ node_t * initializer_list(node_t *ty)
     return ret;
 }
 
-static bool has_static_extent(node_t *sym)
+bool has_static_extent(node_t *sym)
 {
     return SYM_SCLASS(sym) == EXTERN ||
 	SYM_SCLASS(sym) == STATIC ||
@@ -403,9 +403,10 @@ void decl_initializer(node_t *decl, node_t *sym, int kind)
     }
 
     init = initializer(ty);
-    init_src = AST_SRC(init);
     if (init == NULL)
 	return;
+
+    init_src = AST_SRC(init);
     
     if (sclass == EXTERN) {
 	if (kind == GLOBAL) {
@@ -433,6 +434,7 @@ void decl_initializer(node_t *decl, node_t *sym, int kind)
 	return;
     }
 
+    SAVE_ERRORS;
     if (AST_ID(init) != INITS_EXPR) {
 	if (isarray(ty)) {
 	    if (is_string(ty) && issliteral(init))
@@ -448,7 +450,7 @@ void decl_initializer(node_t *decl, node_t *sym, int kind)
 	}
     }
 
-    if (init && has_static_extent(sym)) {
+    if (NO_ERROR && init && has_static_extent(sym)) {
         init = eval(init, ty);
 	if (init == NULL)
 	    errorf(init_src, "initializer element is not a compile-time constant");
