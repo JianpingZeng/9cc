@@ -198,35 +198,21 @@ static node_t * cast(node_t *dty, node_t *l)
 	else if (isptr(sty))
 	    return ptr2arith(dty, l);
     } else if (isptr(dty)) {
-	if (isptr(sty))
+	if (isptr(sty)) {
 	    return ptr2ptr(dty, l);
-	else if (isarith(sty))
+	} else if (isarith(sty)) {
 	    return arith2ptr(dty, l);
+	} else if (isfunc(sty)) {
+	    AST_TYPE(l) = dty;
+	    return l;
+	} else if (isarray(sty)) {
+	    
+	}
     } else if (isrecord(dty)) {
 	AST_TYPE(l) = dty;
 	return l;
     }
     cc_assert(0);
-}
-
-static node_t * cast_uop(node_t *expr)
-{
-    if (expr == NULL)
-	return NULL;
-    node_t *l = doeval(EXPR_OPERAND(expr, 0));
-    if (l == NULL)
-	return NULL;
-    if (isfunc(AST_TYPE(l))) {
-	cc_assert(AST_ID(l) == REF_EXPR);
-	return expr;
-    } else if (isarray(AST_TYPE(l))) {
-	if (issliteral(l))
-	    return expr;
-	else
-	    return NULL;
-    } else {
-	return cast(AST_TYPE(expr), l);
-    }
 }
 
 // 'expr' was evaluated and _NOT_ null.
@@ -537,7 +523,7 @@ static node_t * doeval(node_t *expr)
 	return doeval(EXPR_OPERAND(expr, 0));
     case CAST_EXPR:
     case CONV_EXPR:
-	return cast_uop(expr);
+	return cast(AST_TYPE(expr), EXPR_OPERAND(expr, 0));
     case COND_EXPR:
 	{
 	    node_t *cond = doeval(EXPR_COND(expr));
@@ -579,6 +565,21 @@ static node_t * doeval(node_t *expr)
     case STRING_LITERAL:
 	return expr;
     case SUBSCRIPT_EXPR:
+	{
+	    node_t *l = EXPR_OPERAND(expr, 0);
+	    node_t *r = EXPR_OPERAND(expr, 1);
+	    node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
+	    node_t *i = isint(AST_TYPE(r)) ? r : l;
+	    cc_assert(isptr(ptr));
+	    cc_assert(isint(i));
+	    ptr = doeval(ptr);
+	    l = doeval(l);
+	    if (!l || !isiliteral(l))
+		return NULL;
+	    if (!ptr || !issliteral(ptr))
+		return NULL;
+	    return ast_expr(SUBSCRIPT_EXPR, AST_TYPE(expr), ptr, l);
+	}
     case MEMBER_EXPR:
     case CALL_EXPR:
 	return NULL;
