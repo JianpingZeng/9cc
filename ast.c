@@ -166,3 +166,10 @@ node_t * ast_compound(node_t **list)
     GEN_LIST(ast) = list;
     return ast;
 }
+
+node_t * copy_node(node_t *node)
+{
+    node_t *copy = alloc_node();
+    memcpy(copy, node, sizeof(node_t));
+    return copy;
+}

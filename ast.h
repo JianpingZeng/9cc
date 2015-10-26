@@ -271,6 +271,8 @@ extern node_t * ast_dest(const char *label);
 extern node_t * ast_return(node_t *node);
 extern node_t * ast_compound(node_t **list);
 
+extern node_t * copy_node(node_t *node);
+
 // kind
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)

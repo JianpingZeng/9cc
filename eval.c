@@ -163,8 +163,7 @@ static node_t * arith2ptr(node_t *dty, node_t *l)
     if (!isiliteral(l))
 	return NULL;
     // int => ptr
-    AST_TYPE(l) = dty;
-    return l;
+    return int_literal_node(dty, SYM_VALUE(EXPR_SYM(l)));
 }
 
 static node_t * ptr2arith(node_t *dty, node_t *l)
@@ -173,8 +172,7 @@ static node_t * ptr2arith(node_t *dty, node_t *l)
     if (!isiliteral(l))
 	return NULL;
     // ptr => int
-    AST_TYPE(l) = dty;
-    return l;
+    return int_literal_node(dty, SYM_VALUE(EXPR_SYM(l)));
 }
 
 static node_t * ptr2ptr(node_t *dty, node_t *l)
@@ -196,6 +194,8 @@ static node_t * array2ptr(node_t *dty, node_t *l)
     cc_assert(AST_ID(l) == REF_EXPR || issliteral(l));
     if (AST_ID(l) == REF_EXPR && !has_static_extent(EXPR_SYM(l)))
 	return NULL;
+    if (issliteral(l))
+	l = copy_node(l);
     AST_TYPE(l) = dty;
     return l;
 }
@@ -291,18 +291,20 @@ static node_t * arith_uop(int op, node_t *ty, node_t *l)
 	return NULL;
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
+    union value rval;
 
     switch (op) {
     case '-':
-	if (isiliteral(l))
-	    VALUE_U(SYM_VALUE(EXPR_SYM(l))) = - VALUE_U(lval);
-	else
-	    VALUE_D(SYM_VALUE(EXPR_SYM(l))) = - VALUE_D(lval);
-	break;
+	if (isiliteral(l)) {
+	    VALUE_U(rval) = - VALUE_U(lval);
+	    return int_literal_node(ty, rval);
+	} else {
+	    VALUE_D(rval) = - VALUE_D(lval);
+	    return float_literal_node(ty, rval);
+	}
     default:
 	cc_assert(0);
     }
-    return l;
 }
 
 static node_t * int_uop(int op, node_t *ty, node_t *l)
@@ -311,15 +313,15 @@ static node_t * int_uop(int op, node_t *ty, node_t *l)
 	return NULL;
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
+    union value rval;
     
     switch (op) {
     case '~':
-	VALUE_U(SYM_VALUE(EXPR_SYM(l))) = ~ VALUE_U(lval);
-	break;
+	VALUE_U(rval) = ~ VALUE_U(lval);
+	return int_literal_node(ty, rval);
     default:
 	cc_assert(0);
     }
-    return l;
 }
 
 static node_t * scalar_bop(int op, node_t *ty, node_t *l, node_t *r)
@@ -387,6 +389,8 @@ static node_t * arith_bop(int op, node_t *ty, node_t *l, node_t *r)
 
     cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
     cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
+    cc_assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(AST_TYPE(r)));
+    cc_assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(ty));
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -409,18 +413,21 @@ static node_t * arith_bop(int op, node_t *ty, node_t *l, node_t *r)
     default:  cc_assert(0);
     }
 
-    node_t *ret;
     if (is_int)
-	ret = int_literal_node(ty, val);
+	return int_literal_node(ty, val);
     else
-	ret = float_literal_node(ty, val);
-    return cast(ty, ret);
+	return float_literal_node(ty, val);
 }
 
 static node_t * int_bop(int op, node_t *ty, node_t *l, node_t *r)
 {
     if (!isiliteral(l) || !isiliteral(r))
 	return NULL;
+
+    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
+    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
+    cc_assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(AST_TYPE(r)));
+    cc_assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(ty));
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -438,8 +445,7 @@ static node_t * int_bop(int op, node_t *ty, node_t *l, node_t *r)
     default:	 cc_assert(0);
     }
 
-    node_t *ret = int_literal_node(ty, val);
-    return cast(ty, ret);
+    return int_literal_node(ty, val);
 }
 
 static node_t * doeval(node_t *expr)
@@ -534,8 +540,7 @@ static node_t * doeval(node_t *expr)
 		l = address_uop(doeval(l));
 		if (!l)
 		    return NULL;
-		EXPR_OPERAND(expr, 0) = l;
-		return expr;
+		return ast_uop(op, AST_TYPE(expr), l);
 	    case '+':
 		return doeval(l);
 	    case '-':
@@ -572,7 +577,7 @@ static node_t * doeval(node_t *expr)
 	}
     case REF_EXPR:
 	if (EXPR_OP(expr) == ENUM)
-	    return cast(AST_TYPE(expr), int_literal_node(AST_TYPE(expr), SYM_VALUE(EXPR_SYM(expr))));
+	    return int_literal_node(AST_TYPE(expr), SYM_VALUE(EXPR_SYM(expr)));
 	else
 	    return expr;
     case INITS_EXPR:
