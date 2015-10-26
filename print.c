@@ -591,7 +591,10 @@ static const char * expr2s(node_t *node)
 	case '!':
 	case SIZEOF:
 	    strbuf_cats(s, id2s(EXPR_OP(node)));
-	    strbuf_cats(s, expr2s(l));
+	    if (istype(l))
+		strbuf_cats(s, type2s(l));
+	    else
+		strbuf_cats(s, expr2s(l));
 	    break;
 	default:
 	    cc_assert(0);
@@ -643,7 +646,14 @@ static const char * expr2s(node_t *node)
 	strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));
 	break;
     case INTEGER_LITERAL:
+        if (TYPE_OP(AST_TYPE(node)) == INT)
+	    strbuf_cats(s, format("%lld", ILITERAL_VALUE(node)));
+	else
+	    strbuf_cats(s, format("%llu", ILITERAL_VALUE(node)));
+	break;
     case FLOAT_LITERAL:
+	strbuf_cats(s, format("%Lf", FLITERAL_VALUE(node)));
+	break;
     case STRING_LITERAL:
 	strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));
 	break;
