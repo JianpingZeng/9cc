@@ -184,9 +184,25 @@ static node_t * ptr2ptr(node_t *dty, node_t *l)
     return l;
 }
 
+static node_t * func2ptr(node_t *dty, node_t *l)
+{
+    cc_assert(AST_ID(l) == REF_EXPR);
+    AST_TYPE(l) = dty;
+    return l;
+}
+
+static node_t * array2ptr(node_t *dty, node_t *l)
+{
+    cc_assert(AST_ID(l) == REF_EXPR || issliteral(l));
+    if (AST_ID(l) == REF_EXPR && !has_static_extent(EXPR_SYM(l)))
+	return NULL;
+    AST_TYPE(l) = dty;
+    return l;
+}
+
 static node_t * cast(node_t *dty, node_t *l)
 {
-    if (l == NULL)
+    if (!l || !(l = doeval(l)))
 	return NULL;
     if (AST_ID(l) == INITS_EXPR)
 	l = EXPR_INITS(l)[0];
@@ -198,20 +214,20 @@ static node_t * cast(node_t *dty, node_t *l)
 	else if (isptr(sty))
 	    return ptr2arith(dty, l);
     } else if (isptr(dty)) {
-	if (isptr(sty)) {
+	if (isptr(sty))
 	    return ptr2ptr(dty, l);
-	} else if (isarith(sty)) {
+	else if (isarith(sty))
 	    return arith2ptr(dty, l);
-	} else if (isfunc(sty)) {
-	    AST_TYPE(l) = dty;
-	    return l;
-	} else if (isarray(sty)) {
-	    
-	}
-    } else if (isrecord(dty)) {
+	else if (isfunc(sty))
+	    return func2ptr(dty, l);
+	else if (isarray(sty))
+	    return array2ptr(dty, l);
+    } else {
+	// record or lvalue2rvalue cast
 	AST_TYPE(l) = dty;
 	return l;
     }
+    println("%s <= %s (%s)", type2s(dty), type2s(sty), node2s(l));
     cc_assert(0);
 }
 
@@ -219,20 +235,20 @@ static node_t * cast(node_t *dty, node_t *l)
 static bool scalar_bool(node_t *expr)
 {
     cc_assert(isiliteral(expr) || isfliteral(expr));
-
+    
     if (isiliteral(expr))
 	return ILITERAL_VALUE(expr) != 0;
     else
 	return FLITERAL_VALUE(expr) != 0;
 }
 
-// 'expr' was _NOT_ evaluated.
+// '&': 'expr' was _NOT_ evaluated.
 static node_t * address_uop(node_t *expr)
 {
     node_t *l = doeval(EXPR_OPERAND(expr, 0));
     if (!l)
 	return NULL;
-    if (issliteral(l) || AST_ID(l) == INITS_EXPR) {
+    if (issliteral(l) || AST_ID(l) == INITS_EXPR || AST_ID(l) == SUBSCRIPT_EXPR) {
 	EXPR_OPERAND(expr, 0) = l;
 	return expr;
     } else if (AST_ID(l) == REF_EXPR) {
@@ -264,9 +280,9 @@ static node_t * scalar_uop(int op, node_t *ty, node_t *l)
     switch (op) {
     case '!':
 	if (isiliteral(l))
-	    return VALUE_U(lval) == 0 ? zero_literal() : one_literal();
+	    return VALUE_U(lval) == 0 ? one_literal() : zero_literal();
 	else
-	    return VALUE_D(lval) == 0 ? zero_literal() : one_literal();
+	    return VALUE_D(lval) == 0 ? one_literal() : zero_literal();
     default: cc_assert(0);
     }
 }
@@ -316,7 +332,20 @@ static node_t * scalar_bop(int op, node_t *ty, node_t *l, node_t *r)
 
 #define SCALAR_OP(op)					\
     if (is_int) {					\
-	bool b = VALUE_U(lval) op VALUE_U(rval);	\
+	bool b;						\
+	int sign1 = TYPE_OP(AST_TYPE(l));		\
+	int sign2 = TYPE_OP(AST_TYPE(r));		\
+	if (sign1 == UNSIGNED && sign2 == UNSIGNED) {	\
+            b = VALUE_U(lval) op VALUE_U(rval);		\
+	}  else if (sign1 == INT && sign2 == INT) {	\
+	    long long l = VALUE_I(lval);		\
+	    long long r = VALUE_I(rval);		\
+	    b = l op r;					\
+	} else if (sign1 == UNSIGNED) {			\
+	    b = true;					\
+	} else {					\
+	    b = false;					\
+	}						\
 	return b ? one_literal() : zero_literal();	\
     } else {						\
 	bool b = VALUE_D(lval) op VALUE_D(rval);	\
@@ -476,7 +505,7 @@ static node_t * doeval(node_t *expr)
 	    case AND:
 	    case OR:
 		l = doeval(l);
-		if (!l)
+		if (!l || (!isiliteral(l) && !isfliteral(l)))
 		    return NULL;
 		if (op == AND && !scalar_bool(l))
 		    return zero_literal();
@@ -527,7 +556,7 @@ static node_t * doeval(node_t *expr)
     case COND_EXPR:
 	{
 	    node_t *cond = doeval(EXPR_COND(expr));
-	    if (!cond)
+	    if (!cond || (!isiliteral(cond) && !isfliteral(cond)))
 		return NULL;
 	    if (scalar_bool(cond))
 		return doeval(EXPR_THEN(expr));
@@ -570,15 +599,15 @@ static node_t * doeval(node_t *expr)
 	    node_t *r = EXPR_OPERAND(expr, 1);
 	    node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
 	    node_t *i = isint(AST_TYPE(r)) ? r : l;
-	    cc_assert(isptr(ptr));
-	    cc_assert(isint(i));
+	    cc_assert(isptr(AST_TYPE(ptr)));
+	    cc_assert(isint(AST_TYPE(i)));
 	    ptr = doeval(ptr);
-	    l = doeval(l);
-	    if (!l || !isiliteral(l))
+	    i = doeval(i);
+	    if (!i || !isiliteral(i))
 		return NULL;
 	    if (!ptr || !issliteral(ptr))
 		return NULL;
-	    return ast_expr(SUBSCRIPT_EXPR, AST_TYPE(expr), ptr, l);
+	    return ast_expr(SUBSCRIPT_EXPR, AST_TYPE(expr), ptr, i);
 	}
     case MEMBER_EXPR:
     case CALL_EXPR:
