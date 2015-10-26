@@ -592,6 +592,7 @@ static node_t * doeval(node_t *expr)
 		}
 		vec_push(v, n);
 	    }
+	    expr = copy_node(expr);
 	    EXPR_INITS(expr) = (node_t **)vtoa(v);
 	    vec_free(v);
 	    return expr;
