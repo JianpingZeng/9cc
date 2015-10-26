@@ -202,7 +202,7 @@ static node_t * array2ptr(node_t *dty, node_t *l)
 
 static node_t * cast(node_t *dty, node_t *l)
 {
-    if (!l || !(l = doeval(l)))
+    if (!l)
 	return NULL;
     if (AST_ID(l) == INITS_EXPR)
 	l = EXPR_INITS(l)[0];
@@ -227,7 +227,7 @@ static node_t * cast(node_t *dty, node_t *l)
 	AST_TYPE(l) = dty;
 	return l;
     }
-    println("%s <= %s (%s)", type2s(dty), type2s(sty), node2s(l));
+    die("%s <= %s (%s)", type2s(dty), type2s(sty), node2s(l));
     cc_assert(0);
 }
 
@@ -242,22 +242,20 @@ static bool scalar_bool(node_t *expr)
 	return FLITERAL_VALUE(expr) != 0;
 }
 
-// '&': 'expr' was _NOT_ evaluated.
-static node_t * address_uop(node_t *expr)
+// '&'
+static node_t * address_uop(node_t *l)
 {
-    node_t *l = doeval(EXPR_OPERAND(expr, 0));
     if (!l)
 	return NULL;
     if (issliteral(l) || AST_ID(l) == INITS_EXPR || AST_ID(l) == SUBSCRIPT_EXPR) {
-	EXPR_OPERAND(expr, 0) = l;
-	return expr;
+        return l;
     } else if (AST_ID(l) == REF_EXPR) {
 	node_t *sym = EXPR_SYM(l);
 	if (!has_static_extent(sym))
 	    return NULL;
-	EXPR_OPERAND(expr, 0) = l;
-	return expr;
+        return l;
     }
+    die("%s", node2s(l));
     cc_assert(0);
 }
 
@@ -528,7 +526,11 @@ static node_t * doeval(node_t *expr)
 	    case '*':
 		return NULL;
 	    case '&':
-		return address_uop(expr);
+		l = address_uop(doeval(l));
+		if (!l)
+		    return NULL;
+		EXPR_OPERAND(expr, 0) = l;
+		return expr;
 	    case '+':
 		return doeval(l);
 	    case '-':
@@ -552,7 +554,7 @@ static node_t * doeval(node_t *expr)
 	return doeval(EXPR_OPERAND(expr, 0));
     case CAST_EXPR:
     case CONV_EXPR:
-	return cast(AST_TYPE(expr), EXPR_OPERAND(expr, 0));
+	return cast(AST_TYPE(expr), doeval(EXPR_OPERAND(expr, 0)));
     case COND_EXPR:
 	{
 	    node_t *cond = doeval(EXPR_COND(expr));
@@ -603,9 +605,9 @@ static node_t * doeval(node_t *expr)
 	    cc_assert(isint(AST_TYPE(i)));
 	    ptr = doeval(ptr);
 	    i = doeval(i);
-	    if (!i || !isiliteral(i))
+	    if (!i || !isiliteral(i) || !ptr || !EXPR_SYM(ptr))
 		return NULL;
-	    if (!ptr || !issliteral(ptr))
+	    if (!issliteral(ptr) && !has_static_extent(EXPR_SYM(ptr)))
 		return NULL;
 	    return ast_expr(SUBSCRIPT_EXPR, AST_TYPE(expr), ptr, i);
 	}
