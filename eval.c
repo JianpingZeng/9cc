@@ -575,11 +575,6 @@ static node_t * doeval(node_t *expr)
 	    else
 		return doeval(EXPR_ELSE(expr));
 	}
-    case REF_EXPR:
-	if (EXPR_OP(expr) == ENUM)
-	    return int_literal_node(AST_TYPE(expr), SYM_VALUE(EXPR_SYM(expr)));
-	else
-	    return expr;
     case INITS_EXPR:
 	{
 	    struct vector *v = vec_new();
@@ -601,6 +596,11 @@ static node_t * doeval(node_t *expr)
 	    vec_free(v);
 	    return expr;
 	}
+    case REF_EXPR:
+	if (EXPR_OP(expr) == ENUM)
+	    return int_literal_node(AST_TYPE(expr), SYM_VALUE(EXPR_SYM(expr)));
+	else
+	    return expr;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case STRING_LITERAL:
