@@ -604,6 +604,7 @@ static void ensure_field(node_t *field, node_t *sty, struct vector *v, bool last
 {
     const char *name = FIELD_NAME(field);
     node_t *ty = FIELD_TYPE(field);
+    struct source src = AST_SRC(field);
     
     if (FIELD_ISBIT(field)) {
 	int bitsize = FIELD_BITSIZE(field);
@@ -611,26 +612,26 @@ static void ensure_field(node_t *field, node_t *sty, struct vector *v, bool last
 	
 	if (!isint(ty)) {
 	    if (name)
-		error("bit-field '%s' has non-integral type '%s'", name, type2s(ty));
+		errorf(src, "bit-field '%s' has non-integral type '%s'", name, type2s(ty));
 	    else
-		error("anonymous bit-field has non-integral type '%s'", type2s(ty));
+		errorf(src, "anonymous bit-field has non-integral type '%s'", type2s(ty));
 	}
 	
 	if (bitsize < 0) {
 	    if (name)
-		error("bit-field '%s' has negative width '%d'", name, bitsize);
+		errorf(src, "bit-field '%s' has negative width '%d'", name, bitsize);
 	    else
-		error("anonymous bit-field has negative width '%d'", bitsize);
+		errorf(src, "anonymous bit-field has negative width '%d'", bitsize);
 	}
 	
 	if (bitsize == 0 && name)
-	    error("named bit-field '%s' has zero width", name);
+	    errorf(src, "named bit-field '%s' has zero width", name);
 	
 	if (bitsize > bits) {
 	    if (name)
-		error("size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", name, bitsize, bits);
+		errorf(src, "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)", name, bitsize, bits);
 	    else
-		error("anonymous bit-field (%d bits) exceeds size of its type (%d bits)", bitsize, bits);
+		errorf(src, "anonymous bit-field (%d bits) exceeds size of its type (%d bits)", bitsize, bits);
 	}
     }
 
@@ -638,19 +639,19 @@ static void ensure_field(node_t *field, node_t *sty, struct vector *v, bool last
 	ensure_array(ty, source, CONSTANT);
 	if (isstruct(sty) && last && isincomplete(ty)) {
 	    if (vec_len(v) == 1)
-		error("flexible array cannot be the only member");
+		errorf(src, "flexible array cannot be the only member");
 	} else {
 	    if (TYPE_LEN(ty) == 0) {
 		if (isincomplete(ty))
-		    error("field has incomplete type '%s'", type2s(ty));
+		    errorf(src, "field has incomplete type '%s'", type2s(ty));
 		else
-		    error("array has variable or zero length");
+		    errorf(src, "array has variable or zero length");
 	    }
 	}
     } else if (isincomplete(ty)) {
-	error("field has incomplete type '%s'", type2s(ty));
+	errorf(src, "field has incomplete type '%s'", type2s(ty));
     } else if (isfunc(ty)) {
-	error("field has invalid type '%s'", TYPE_NAME(ty));
+	errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
     }
 }
 
@@ -667,6 +668,7 @@ static void fields(node_t *sty)
         for (;;) {
             node_t *field = new_field(NULL);
             if (token->id == ':') {
+		AST_SRC(field) = source;
                 expect(':');
                 FIELD_BITSIZE(field) = intexpr();
                 FIELD_TYPE(field) = basety;
@@ -677,6 +679,7 @@ static void fields(node_t *sty)
                 declarator(&ty, &id, NULL);
                 attach_type(&ty, basety);
                 if (token->id == ':') {
+		    AST_SRC(field) = source;
                     expect(':');
                     FIELD_BITSIZE(field) = intexpr();
                     FIELD_ISBIT(field) = true;
@@ -691,6 +694,7 @@ static void fields(node_t *sty)
                         }
                     }
                     FIELD_NAME(field) = id->name;
+		    AST_SRC(field) = id->src;
                 }
             }
             
