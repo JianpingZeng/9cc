@@ -298,7 +298,9 @@ static node_t * arith_uop(int op, node_t *ty, node_t *l)
 	    VALUE_U(SYM_VALUE(EXPR_SYM(l))) = - VALUE_U(lval);
 	else
 	    VALUE_D(SYM_VALUE(EXPR_SYM(l))) = - VALUE_D(lval);
-    default:  cc_assert(0);
+	break;
+    default:
+	cc_assert(0);
     }
     return l;
 }
@@ -311,8 +313,11 @@ static node_t * int_uop(int op, node_t *ty, node_t *l)
     union value lval = SYM_VALUE(EXPR_SYM(l));
     
     switch (op) {
-    case '~': VALUE_U(SYM_VALUE(EXPR_SYM(l))) = ~ VALUE_U(lval);
-    default:  cc_assert(0);
+    case '~':
+	VALUE_U(SYM_VALUE(EXPR_SYM(l))) = ~ VALUE_U(lval);
+	break;
+    default:
+	cc_assert(0);
     }
     return l;
 }
