@@ -178,6 +178,7 @@ static node_t * ptr2arith(node_t *dty, node_t *l)
 static node_t * ptr2ptr(node_t *dty, node_t *l)
 {
     // ptr => ptr
+    l = copy_node(l);
     AST_TYPE(l) = dty;
     return l;
 }
@@ -185,6 +186,7 @@ static node_t * ptr2ptr(node_t *dty, node_t *l)
 static node_t * func2ptr(node_t *dty, node_t *l)
 {
     cc_assert(AST_ID(l) == REF_EXPR);
+    l = copy_node(l);
     AST_TYPE(l) = dty;
     return l;
 }
@@ -204,9 +206,10 @@ static node_t * cast(node_t *dty, node_t *l)
 {
     if (!l)
 	return NULL;
-    if (AST_ID(l) == INITS_EXPR)
-	l = EXPR_INITS(l)[0];
 
+    if (AST_ID(l) == INITS_EXPR && isscalar(dty))
+	l = EXPR_INITS(l)[0];
+    
     node_t *sty = AST_TYPE(l);
     if (isarith(dty)) {
 	if (isarith(sty))
@@ -242,18 +245,19 @@ static bool scalar_bool(node_t *expr)
 	return FLITERAL_VALUE(expr) != 0;
 }
 
-// '&'
-static node_t * address_uop(node_t *l)
+// '&': 'expr' was not evaluated.
+static node_t * address_uop(node_t *expr)
 {
-    if (!l)
+    node_t *l = EXPR_OPERAND(expr, 0);
+    if (!l || !(l = doeval(l)))
 	return NULL;
     if (issliteral(l) || AST_ID(l) == INITS_EXPR || AST_ID(l) == SUBSCRIPT_EXPR) {
-        return l;
+	return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);
     } else if (AST_ID(l) == REF_EXPR) {
 	node_t *sym = EXPR_SYM(l);
 	if (!has_static_extent(sym))
 	    return NULL;
-        return l;
+        return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);
     }
     die("%s", node2s(l));
     cc_assert(0);
@@ -537,10 +541,7 @@ static node_t * doeval(node_t *expr)
 	    case '*':
 		return NULL;
 	    case '&':
-		l = address_uop(doeval(l));
-		if (!l)
-		    return NULL;
-		return ast_uop(op, AST_TYPE(expr), l);
+	       return address_uop(expr);
 	    case '+':
 		return doeval(l);
 	    case '-':
@@ -607,9 +608,7 @@ static node_t * doeval(node_t *expr)
 	    cc_assert(isint(AST_TYPE(i)));
 	    ptr = doeval(ptr);
 	    i = doeval(i);
-	    if (!i || !isiliteral(i) || !ptr || !EXPR_SYM(ptr))
-		return NULL;
-	    if (!issliteral(ptr) && !has_static_extent(EXPR_SYM(ptr)))
+	    if (!i || !isiliteral(i) || !ptr)
 		return NULL;
 	    return ast_expr(SUBSCRIPT_EXPR, AST_TYPE(expr), ptr, i);
 	}
