@@ -946,7 +946,7 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
 		    cc_assert(0);
 		
                 if (token->id == '=')
-		    decl_initializer(decl, sym, kind);
+		    decl_initializer(decl, sym, sclass, kind);
 
 		post_decl(decl, sym, kind);
                 vec_push(v, decl);

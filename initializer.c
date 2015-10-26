@@ -382,11 +382,10 @@ bool has_static_extent(node_t *sym)
 	SYM_SCOPE(sym) == GLOBAL;
 }
 
-void decl_initializer(node_t *decl, node_t *sym, int kind)
+void decl_initializer(node_t *decl, node_t *sym, int sclass, int kind)
 {
     node_t *ty = SYM_TYPE(sym);
     struct source src = AST_SRC(sym);
-    int sclass = SYM_SCLASS(sym);
     node_t *init;
     struct source init_src;
 
