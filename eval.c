@@ -154,7 +154,7 @@ static node_t * arith2arith(node_t *dty, node_t *l)
 	    VALUE_D(dst_val) = VALUE_D(src_val);
 	return float_literal_node(dty, dst_val);
     }
-    return NULL;
+    cc_assert(0);
 }
 
 static node_t * arith2ptr(node_t *dty, node_t *l)

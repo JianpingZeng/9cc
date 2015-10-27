@@ -1051,17 +1051,23 @@ static node_t * subscript(node_t *node)
     if (node == NULL || e == NULL)
 	return ret;
 
+    SAVE_ERRORS;
     bool kind1 = isptr(AST_TYPE(node)) && isint(AST_TYPE(e));
     bool kind2 = isint(AST_TYPE(node)) && isptr(AST_TYPE(e));
     if (kind1 || kind2) {
-	node_t *ty = isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
-	ret = ast_expr(SUBSCRIPT_EXPR, rtype(ty), node, e);
-	AST_SRC(ret) = AST_SRC(node);
+	node_t *ptr = isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
+	if (isptrto(ptr, FUNCTION))
+	    errorf(src, "subscript of pointer to function type '%s'", type2s(rtype(ptr)));
     } else {
 	if (!isptr(AST_TYPE(node)) && !isptr(AST_TYPE(e)))
 	    errorf(src, "subscripted value is not an array or pointer");
 	else
 	    errorf(src, "array subscript is not an integer");
+    }
+    if (NO_ERROR) {
+	node_t *ty = isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
+	ret = ast_expr(SUBSCRIPT_EXPR, rtype(ty), node, e);
+	AST_SRC(ret) = AST_SRC(node);
     }
     return ret;
 }
