@@ -600,6 +600,8 @@ static node_t * doeval(node_t *expr)
 	}
     case SUBSCRIPT_EXPR:
 	{
+	    if (isptr(AST_TYPE(expr)))
+		return NULL;
 	    node_t *l = EXPR_OPERAND(expr, 0);
 	    node_t *r = EXPR_OPERAND(expr, 1);
 	    node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
@@ -610,6 +612,7 @@ static node_t * doeval(node_t *expr)
 	    i = doeval(i);
 	    if (!i || !isiliteral(i) || !ptr)
 		return NULL;
+	    cc_assert(isptr(AST_TYPE(ptr)));
 	    return ast_expr(SUBSCRIPT_EXPR, AST_TYPE(expr), ptr, i);
 	}
     case REF_EXPR:
