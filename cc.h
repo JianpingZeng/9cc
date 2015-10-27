@@ -369,7 +369,7 @@ extern struct table * tags;
 #define currentscope(sym)   (SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL))
 
 // gen.c
-extern void gen(node_t *tree, const char *ofile);
+extern void gen(node_t *tree, FILE *fp);
 
 // simplify.c
 extern void simplify(node_t *tree);

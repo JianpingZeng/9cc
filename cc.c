@@ -2,7 +2,6 @@
 
 static const char *ifile;
 static const char *ofile;
-static FILE *ofp;
 static struct vector *options;
 static bool cpp_only;
 
@@ -25,14 +24,19 @@ static void parseopts(int argc, const char *argv[])
             ifile = arg;
         }
     }
+}
 
+static FILE * outfp(void)
+{
     if (ofile) {
-	ofp = fopen(ofile, "w");
-	if (ofp == NULL) {
+	FILE *fp = fopen(ofile, "w");
+	if (fp == NULL) {
 	    perror(ofile);
 	    die("Can't open file %s", ofile);
 	}
+	return fp;
     }
+    return stdout;
 }
 
 static void translate(void)
@@ -41,16 +45,16 @@ static void translate(void)
     tree = translation_unit();
     print_tree(tree);
     if (errors == 0) {
-    	// simplify(tree);
-    	// println("\nSimplified:");
-    	// print_tree(tree);
-    	// gen(tree, ofile);
+	simplify(tree);
+	println("\nSimplified:");
+	print_tree(tree);
+	gen(tree, outfp());
     }
 }
 
 static void preprocess(void)
 {
-    FILE *fp = ofp ? ofp : stdout;
+    FILE *fp = outfp();
     
     struct vector *v = all_pptoks();
     for (int i = 0; i < vec_len(v); i++) {
@@ -62,8 +66,6 @@ static void preprocess(void)
 static void cc_exit(void)
 {
     print_alloc_stat();
-    if (ofp)
-	fclose(ofp);
 }
 
 int cc_main(int argc, const char * argv[])
