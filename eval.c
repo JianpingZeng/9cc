@@ -196,8 +196,7 @@ static node_t * array2ptr(node_t *dty, node_t *l)
     cc_assert(AST_ID(l) == REF_EXPR || issliteral(l));
     if (AST_ID(l) == REF_EXPR && !has_static_extent(EXPR_SYM(l)))
 	return NULL;
-    if (issliteral(l))
-	l = copy_node(l);
+    l = copy_node(l);
     AST_TYPE(l) = dty;
     return l;
 }
@@ -227,6 +226,7 @@ static node_t * cast(node_t *dty, node_t *l)
 	    return array2ptr(dty, l);
     } else {
 	// record or lvalue2rvalue cast
+	l = copy_node(l);
 	AST_TYPE(l) = dty;
 	return l;
     }
