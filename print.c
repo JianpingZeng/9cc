@@ -58,14 +58,16 @@ static void print_decl(node_t *node, struct print_context context)
     int level;
 
     putf(GREEN("%s ") YELLOW("%p "), nname(node), node);
-    if (DECL_SYM(node)) {
-	if (SYM_DEFINED(DECL_SYM(node)))
+
+    node_t *sym = DECL_SYM(node);
+    if (sym) {
+	if (SYM_DEFINED(sym))
 	    putf(YELLOW("<defined> "));
 	
-	node_t *ty = SYM_TYPE(DECL_SYM(node));
-        print_ty(ty);
-	putf(CYAN("%s "), STR(SYM_NAME(DECL_SYM(node))));
-	putf(YELLOW("<src: %u:%u> "), AST_SRC(DECL_SYM(node)).line, AST_SRC(DECL_SYM(node)).column);
+	node_t *ty = SYM_TYPE(sym);
+	print_ty(ty);
+	putf(CYAN("%s "), STR(SYM_NAME(sym)));
+	putf(YELLOW("<line:%u col:%u> "), AST_SRC(sym).line, AST_SRC(sym).column);
     }
     putf("\n");
     

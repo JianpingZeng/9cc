@@ -13,7 +13,7 @@ static node_t * localdecl(struct token *id, node_t *ty, int sclass);
 static node_t * funcdef(struct token *id, node_t *ty, int sclass);
 static void fields(node_t *sty);
 
-static void post_decl(node_t *decl, node_t *sym, int kind);
+static void ensure_decl(node_t *decl, node_t *sym, int kind);
 static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
 
@@ -929,6 +929,15 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
             if (id) {
                 node_t *decl;
 		int kind;
+		if (dcl == globaldecl)
+		    kind = GLOBAL;
+		else if (dcl == localdecl)
+		    kind = LOCAL;
+		else if (dcl == paramdecl)
+		    kind = PARAM;
+		else
+		    cc_assert(0);
+
                 node_t *sym = dcl(id, ty, sclass);
                 if (sclass == TYPEDEF)
                     decl = ast_decl(TYPEDEF_DECL, SCOPE);
@@ -938,21 +947,11 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
                     decl = ast_decl(VAR_DECL, SCOPE);
                 
                 DECL_SYM(decl) = sym;
-		AST_TYPE(decl) = SYM_TYPE(sym);
-
-		if (dcl == globaldecl)
-		    kind = GLOBAL;
-		else if (dcl == localdecl)
-		    kind = LOCAL;
-		else if (dcl == paramdecl)
-		    kind = PARAM;
-		else
-		    cc_assert(0);
 		
                 if (token->id == '=')
 		    decl_initializer(decl, sym, sclass, kind);
 
-		post_decl(decl, sym, kind);
+		ensure_decl(decl, sym, kind);
                 vec_push(v, decl);
             }
             
@@ -979,7 +978,6 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
         
         decl = ast_decl(node_id, SCOPE);
         DECL_SYM(decl) = TYPE_TSYM(basety);
-	AST_TYPE(decl) = SYM_TYPE(DECL_SYM(decl));
         vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);
@@ -1029,12 +1027,15 @@ node_t * translation_unit(void)
     return ret;
 }
 
-static void post_decl(node_t *decl, node_t *sym, int kind)
+static void ensure_decl(node_t *decl, node_t *sym, int kind)
 {
+    if (kind == PARAM)
+	return;
+
     node_t *ty = SYM_TYPE(sym);
-    if (isarray(ty)) {
-	// TODO: check incomplte
-    }
+    struct source src = AST_SRC(sym);
+    if (isincomplete(ty))
+	errorf(src, "variable has incomplete type '%s'", type2s(ty));
 }
 
 static void ensure_func(node_t *ftype, struct source src)

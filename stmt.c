@@ -503,9 +503,6 @@ static struct vector * predefined_identifiers(void)
     } else {
 	node_t *decl = ast_decl(VAR_DECL, SCOPE);
 	node_t *type = array_type(qual(CONST, chartype));
-
-	AST_TYPE(decl) = type;
-	AST_SRC(decl) = source;
 	
 	sym = install(name, &identifiers, SCOPE);
 	AST_SRC(sym) = source;

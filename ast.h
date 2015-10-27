@@ -69,9 +69,9 @@ struct ast_type {
     struct ast_common common;
     int kind;
     size_t size;
-    int align;			// align in bytes
-    unsigned rank;
-    bool inlined;
+    unsigned align;			// align in bytes
+    unsigned rank : 8;
+    bool inlined : 1;
     union {
         // function
         struct {
