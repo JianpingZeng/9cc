@@ -293,6 +293,9 @@ static node_t * assignconv(node_t *ty, node_t *node)
 	    }
 	}
 	return bitconv(ty, node);
+    } else if (isptr(ty) && isint(ty2)) {
+	if (is_nullptr(node))
+	    return bitconv(ty, node);
     }
     return NULL;
 }
@@ -1899,7 +1902,7 @@ static node_t * assignop(int op, node_t *l, node_t *r)
 
 static bool is_nullptr(node_t *node)
 {
-    cc_assert(isptr(AST_TYPE(node)));
+    cc_assert(isptr(AST_TYPE(node)) || isint(AST_TYPE(node)));
 
     node_t *cnst = eval(node, inttype);
     if (cnst == NULL)
