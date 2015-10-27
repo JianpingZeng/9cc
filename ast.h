@@ -153,52 +153,6 @@ struct ast_decl {
     node_t **exts;
 };
 
-// compound stmt
-#define STMT_BLKS(NODE)         ((NODE)->stmt.blks)
-
-// if stmt
-#define STMT_COND(NODE)         (AST_KID(NODE, 0))
-#define STMT_THEN(NODE)         (AST_KID(NODE, 1))
-#define STMT_ELSE(NODE)         ((NODE)->stmt.list[0])
-
-// for stmt
-#define STMT_FOR_INIT(NODE)     (AST_KID(NODE, 0))
-#define STMT_FOR_DECL(NODE)     ((NODE)->stmt.blks)
-#define STMT_FOR_COND(NODE)     (AST_KID(NODE, 1))
-#define STMT_FOR_CTRL(NODE)     ((NODE)->stmt.list[0])
-#define STMT_FOR_BODY(NODE)     ((NODE)->stmt.list[1])
-
-// case stmt
-#define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
-#define STMT_CASE_BODY(NODE)    AST_KID(NODE, 0)
-#define STMT_CASE_NAME(NODE)    AST_NAME(NODE)
-
-// switch stmt
-#define STMT_SWITCH_EXPR(NODE)     AST_KID(NODE, 0)
-#define STMT_SWITCH_BODY(NODE)     AST_KID(NODE, 1)
-
-// label stmt
-#define STMT_LABEL_NAME(NODE)   AST_NAME(NODE)
-#define STMT_LABEL_BODY(NODE)   AST_KID(NODE, 0)
-
-// while stmt
-#define STMT_WHILE_COND(NODE)   AST_KID(NODE, 0)
-#define STMT_WHILE_BODY(NODE)   AST_KID(NODE, 1)
-
-// return stmt
-#define STMT_RETURN_EXPR(NODE)  AST_KID(NODE, 0)
-
-// tag
-#define STMT_TAG(NODE)    ((NODE)->stmt.tag)
-
-struct ast_stmt {
-    struct ast_common common;
-    int index;
-    int tag;
-    node_t **blks;
-    node_t *list[2];
-};
-
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
 #define EXPR_PREFIX(NODE)       ((NODE)->expr.prefix)
 #define EXPR_OPERAND0(NODE)     (AST_KID(NODE, 0))
@@ -225,17 +179,25 @@ struct ast_expr {
     node_t **list;
 };
 
-#define GEN_OPERAND(NODE)       ((NODE)->gen.operand)
-#define GEN_COND(NODE)          GEN_OPERAND(NODE)
-#define GEN_THEN(NODE)          AST_KID(NODE, 0)
-#define GEN_ELSE(NODE)          AST_KID(NODE, 1)
-#define GEN_LABEL(NODE)         AST_NAME(NODE)
-#define GEN_LIST(NODE)          ((NODE)->gen.list)
+// compound stmt
+#define STMT_BLKS(NODE)         ((NODE)->stmt.blks)
+#define STMT_LIST(NODE)         ((NODE)->stmt.blks)
+#define STMT_LABEL(NODE)        AST_NAME(NODE)
+#define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
+#define STMT_OPERAND(NODE)      ((NODE)->stmt.operand)
+#define STMT_TAG(NODE)          ((NODE)->stmt.tag)
 
-struct ast_gen {
+// if stmt
+#define STMT_COND(NODE)         (AST_KID(NODE, 0))
+#define STMT_THEN(NODE)         (AST_KID(NODE, 1))
+#define STMT_ELSE(NODE)         ((NODE)->stmt.operand)
+
+struct ast_stmt {
     struct ast_common common;
+    int index;
+    int tag;
+    node_t **blks;
     node_t *operand;
-    node_t **list;
 };
 
 union ast_node {
@@ -246,7 +208,6 @@ union ast_node {
     struct ast_type   type;
     struct ast_field  field;
     struct ast_symbol symbol;
-    struct ast_gen    gen;
 };
 
 // ast.c
@@ -255,10 +216,13 @@ extern void * alloc_type(void);
 extern void * alloc_field(void);
 
 extern const char *nname(node_t *node);
-extern node_t * ast_expr(int id, node_t *ty, node_t *l, node_t *r);
+// decl
 extern node_t * ast_decl(int id, int scope);
+// stmt
 extern node_t * ast_stmt(int id, struct source src);
 extern node_t * ast_null_stmt(void);
+// expr
+extern node_t * ast_expr(int id, node_t *ty, node_t *l, node_t *r);
 extern node_t * ast_uop(int op, node_t *ty, node_t *l);
 extern node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r);
 extern node_t * ast_conv(node_t *ty, node_t *l, const char *name);

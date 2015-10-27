@@ -60,7 +60,7 @@ static node_t * switch_jmp(node_t *var, node_t *case_node)
 {
     node_t *cond;
     int index = STMT_CASE_INDEX(case_node);
-    const char *label = STMT_CASE_NAME(case_node);
+    const char *label = STMT_LABEL(case_node);
 
     cond = ast_bop(EQ, inttype, var, new_integer_literal(index));
     return ast_if(cond, ast_jump(label), NULL);
