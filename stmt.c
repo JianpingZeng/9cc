@@ -4,39 +4,67 @@ static node_t * statement(void);
 static node_t * do_compound_stmt(bool func);
 static struct vector * predefined_identifiers(void);
 static void post_funcdef(struct vector *v, struct vector *predefines);
+static void ensure_return(node_t *expr, struct source src);
 
-static node_t *__loop;
-static node_t *__switch;
+static const char *__continue;
+static const char *__break;
 static struct vector *__cases;
 static node_t *__default;
 
-#define SET_LOOP_CONTEXT(loop)			\
-    node_t *__saved_loop = __loop;		\
-    __loop = loop
+#define SET_LOOP_CONTEXT(cont, brk)		\
+    const char *__saved_continue = __continue;	\
+    const char *__saved_break = __break;	\
+    __continue = cont;				\
+    __break = brk
 
 #define RESTORE_LOOP_CONTEXT()			\
-    __loop = __saved_loop
+    __continue = __saved_continue;		\
+    __break = __saved_break
 
-#define SET_SWITCH_CONTEXT(sw)			\
-    node_t *__saved_sw = __switch;		\
+#define SET_SWITCH_CONTEXT(brk)			\
+    const char *__saved_break = __break;	\
     struct vector *__saved_cases = __cases;	\
     node_t *__saved_default = __default;	\
-    __switch = sw;				\
+    __break = brk;				\
     __cases = vec_new();			\
     __default = NULL
 
 #define RESTORE_SWITCH_CONTEXT()		\
     vec_free(__cases);				\
-    __switch = __saved_sw;			\
+    __break = __saved_break;			\
     __cases = __saved_cases;			\
     __default = __saved_default
 
-#define IN_SWITCH         (__switch)
-#define IN_LOOP           (__loop)
+#define CONTINUE_CONTEXT  (__continue)
+#define BREAK_CONTEXT     (__break)
+#define IN_SWITCH         (__cases)
 #define CASES             (__cases)
 #define DEFLT             (__default)
 #define FTYPE             (current_ftype)
 #define FNAME             (current_fname)
+
+static node_t * tmpvar(node_t *ty)
+{
+    const char *name = gen_tmpname();
+    node_t *sym = install(name, &identifiers, GLOBAL);
+    SYM_TYPE(sym) = ty;
+
+    node_t *n = alloc_node();
+    AST_ID(n) = REF_EXPR;
+    EXPR_SYM(n) = sym;
+    AST_TYPE(n) = ty;
+    return n;
+}
+
+static node_t * switch_jmp(node_t *var, node_t *case_node)
+{
+    node_t *cond;
+    int index = STMT_CASE_INDEX(case_node);
+    const char *label = STMT_CASE_NAME(case_node);
+
+    cond = ast_bop(EQ, inttype, var, new_integer_literal(index));
+    return ast_if(cond, ast_jump(label), NULL);
+}
 
 static void check_case_duplicates(node_t *node)
 {
@@ -72,7 +100,7 @@ static node_t * expr_stmt(void)
 static node_t * if_stmt(void)
 {
     node_t *ret = NULL;
-    node_t *expr;
+    node_t *cond;
     node_t *thenpart;
     node_t *elsepart = NULL;
     struct source src = source;
@@ -80,7 +108,7 @@ static node_t * if_stmt(void)
     SAVE_ERRORS;
     expect(IF);
     expect('(');
-    expr = bool_expr();
+    cond = bool_expr();
     expect(')');
     thenpart = statement();
 
@@ -90,10 +118,9 @@ static node_t * if_stmt(void)
     }
 
     if (NO_ERROR) {
-	ret = ast_stmt(IF_STMT, src);
-	STMT_COND(ret) = expr;
-	STMT_THEN(ret) = thenpart;
-	STMT_ELSE(ret) = elsepart;
+	ret = ast_if(cond, thenpart, elsepart);
+	STMT_TAG(ret) = IF_STMT;
+	AST_SRC(ret) = src;
     }
     
     return ret;
@@ -101,24 +128,32 @@ static node_t * if_stmt(void)
 
 static node_t * while_stmt(void)
 {
-    node_t *ret = ast_stmt(WHILE_STMT, source);
-    node_t *expr;
-    node_t *stmt;
+    node_t *ret = NULL;
+    node_t *cond;
+    node_t *body;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect(WHILE);
     expect('(');
-    expr = bool_expr();
+    cond = bool_expr();
     expect(')');
-    SET_LOOP_CONTEXT(ret);
-    stmt = statement();
+
+    const char *beg = gen_label();
+    const char *end = gen_label();
+    SET_LOOP_CONTEXT(beg, end);
+    body = statement();
     RESTORE_LOOP_CONTEXT();
 
     if (NO_ERROR) {
-	STMT_WHILE_COND(ret) = expr;
-	STMT_WHILE_BODY(ret) = stmt;
-    } else {
-        ret = NULL;
+	struct vector *v = vec_new();
+	vec_push(v, ast_dest(beg));
+	vec_push(v, ast_if(cond, body, ast_jump(end)));
+	vec_push(v, ast_jump(beg));
+	vec_push(v, ast_dest(end));
+	ret = ast_compound((node_t **)vtoa(v));
+	STMT_TAG(ret) = WHILE_STMT;
+	AST_SRC(ret) = src;
     }
     
     return ret;
@@ -126,26 +161,33 @@ static node_t * while_stmt(void)
 
 static node_t * do_while_stmt(void)
 {
-    node_t *ret = ast_stmt(DO_WHILE_STMT, source);
-    node_t *stmt;
-    node_t *expr;
+    node_t *ret = NULL;
+    node_t *body;
+    node_t *cond;
+    struct source src = source;
+    const char *beg = gen_label();
+    const char *end = gen_label();
 
     SAVE_ERRORS;
     expect(DO);
-    SET_LOOP_CONTEXT(ret);
-    stmt = statement();
+    SET_LOOP_CONTEXT(beg, end);
+    body = statement();
     RESTORE_LOOP_CONTEXT();
     expect(WHILE);
     expect('(');
-    expr = bool_expr();
+    cond = bool_expr();
     expect(')');
     expect(';');
 
     if (NO_ERROR) {
-	STMT_WHILE_COND(ret) = expr;
-	STMT_WHILE_BODY(ret) = stmt;
-    } else {
-	ret = NULL;
+	struct vector *v = vec_new();
+	vec_push(v, ast_dest(beg));
+	vec_push(v, body);
+	vec_push(v, ast_if(cond, ast_jump(beg), NULL));
+	vec_push(v, ast_dest(end));
+	ret = ast_compound((node_t **)vtoa(v));
+	STMT_TAG(ret) = DO_WHILE_STMT;
+	AST_SRC(ret) = src;
     }
     
     return ret;
@@ -153,8 +195,16 @@ static node_t * do_while_stmt(void)
 
 static node_t * for_stmt(void)
 {
-    node_t *ret = ast_stmt(FOR_STMT, source);
-    node_t *stmt;
+    node_t *ret = NULL;
+    node_t **decl = NULL;
+    node_t *init = NULL;
+    node_t *cond = NULL;
+    node_t *ctrl = NULL;
+    node_t *body;
+    struct source src = source;
+    const char *beg = gen_label();
+    const char *mid = gen_label();
+    const char *end = gen_label();
 
     SAVE_ERRORS;
     expect(FOR);
@@ -167,43 +217,61 @@ static node_t * for_stmt(void)
     } else {
         if (firstdecl(token)) {
             // declaration
-            STMT_FOR_DECL(ret) = declaration();
+            decl = declaration();
         } else {
             // expression
-            STMT_FOR_INIT(ret) = expression();
+            init = expression();
             expect(';');
         }
     }
     
     if (token->id != ';')
-        STMT_FOR_COND(ret) = bool_expr();
+        cond = bool_expr();
     
     expect(';');
     
     if (token->id != ')')
-        STMT_FOR_CTRL(ret) = expression();
+        ctrl = expression();
     
     expect(')');
 
-    SET_LOOP_CONTEXT(ret);
-    stmt = statement();
+    SET_LOOP_CONTEXT(mid, end);
+    body = statement();
     RESTORE_LOOP_CONTEXT();
     
     exit_scope();
 
-    if (NO_ERROR)
-	STMT_FOR_BODY(ret) = stmt;
-    else
-	ret = NULL;
-    
+    if (NO_ERROR) {
+	struct vector *v = vec_new();
+	if (decl)
+	    vec_add_array(v, (void **)decl);
+	else if (init)
+	    vec_push(v, init);
+	vec_push(v, ast_dest(beg));
+	if (cond)
+	    vec_push(v, ast_if(cond, NULL, ast_jump(end)));
+	if (body)
+	    vec_push(v, body);
+	vec_push(v, ast_dest(mid));
+	if (ctrl)
+	    vec_push(v, ctrl);
+	vec_push(v, ast_jump(beg));
+	vec_push(v, ast_dest(end));
+	ret = ast_compound((node_t **)vtoa(v));
+	STMT_TAG(ret) = FOR_STMT;
+	AST_SRC(ret) = src;
+    }
+	
     return ret;
 }
 
 static node_t * switch_stmt(void)
 {
-    node_t *ret = ast_stmt(SWITCH_STMT, source);
+    node_t *ret = NULL;
     node_t *expr;
-    node_t *stmt;
+    node_t *body;
+    struct source src = source;
+    const char *end = gen_label();
 
     SAVE_ERRORS;
     expect(SWITCH);
@@ -211,54 +279,77 @@ static node_t * switch_stmt(void)
     expr = switch_expr();
     expect(')');
 
-    SET_SWITCH_CONTEXT(ret);
-    stmt = statement();
-    RESTORE_SWITCH_CONTEXT();
+    SET_SWITCH_CONTEXT(end);
+
+    body = statement();
     
     if (NO_ERROR) {
-	STMT_SWITCH_EXPR(ret) = expr;
-	STMT_SWITCH_BODY(ret) = stmt;
-    } else {
-	ret = NULL;
+        struct vector *v = vec_new();
+	node_t *var = tmpvar(AST_TYPE(expr));
+	vec_push(v, ast_bop('=', AST_TYPE(expr), var, expr));
+	for (int i = 0; i < vec_len(CASES); i++) {
+	    node_t *case_node = vec_at(CASES, i);
+	    vec_push(v, switch_jmp(var, case_node));
+	}
+	const char *label = DEFLT ? STMT_CASE_NAME(DEFLT) : end;
+	vec_push(v, ast_jump(label));
+	vec_push(v, body);
+	vec_push(v, ast_dest(end));
+	ret = ast_compound((node_t **)vtoa(v));
+	STMT_TAG(ret) = SWITCH_STMT;
+	AST_SRC(ret) = src;
     }
+
+    RESTORE_SWITCH_CONTEXT();
     
     return ret;
 }
 
 static node_t * case_stmt(void)
 {
-    node_t *ret = ast_stmt(CASE_STMT, source);
-    node_t *stmt;
+    node_t *ret = NULL;
+    node_t *case_node = ast_stmt(CASE_STMT, source);
+    node_t *body;
+    struct source src = source;
+    const char *label = gen_label();
 
     SAVE_ERRORS;
     expect(CASE);
-    STMT_CASE_INDEX(ret) = intexpr();
+    STMT_CASE_INDEX(case_node) = intexpr();
     expect(':');
-
+    STMT_CASE_NAME(case_node) = label;
+    
     if (!IN_SWITCH)
 	error("'case' statement not in switch statement");
 
     // only check when intexpr is okay.
     if (NO_ERROR) {
-	check_case_duplicates(ret);
-	vec_push(CASES, ret);
+	check_case_duplicates(case_node);
+	vec_push(CASES, case_node);
     }
     
     // always parse even if not in a switch statement
-    stmt = statement();
+    body = statement();
 
-    if (NO_ERROR)
-	STMT_CASE_BODY(ret) = stmt;
-    else
-	ret = NULL;
+    if (NO_ERROR) {
+	struct vector *v = vec_new();
+	vec_push(v, ast_dest(label));
+	vec_push(v, body);
+	ret = ast_compound((node_t **)vtoa(v));
+	STMT_TAG(ret) = CASE_STMT;
+	AST_SRC(ret) = src;
+    }
     
     return ret;
 }
 
 static node_t * default_stmt(void)
 {
-    node_t *ret = ast_stmt(DEFAULT_STMT, source);
-    node_t *stmt;
+    node_t *ret = NULL;
+    node_t *deflt = ast_stmt(DEFAULT_STMT, source);
+    node_t *body;
+    struct source src = source;
+    const char *label = gen_label();
 
     SAVE_ERRORS;
     expect(DEFAULT);
@@ -269,28 +360,33 @@ static node_t * default_stmt(void)
 	error("'default' statement not in switch statement");
 
     if (DEFLT)
-	errorf(AST_SRC(ret), "multiple default labels in one switch, previous case defined here:%s:%u:%u",
-	       AST_SRC(DEFLT).file,
-	       AST_SRC(DEFLT).line,
-	       AST_SRC(DEFLT).column);
+	errorf(src,
+	       "multiple default labels in one switch, previous case defined here:%s:%u:%u",
+	       AST_SRC(DEFLT).file, AST_SRC(DEFLT).line, AST_SRC(DEFLT).column);
     
-    DEFLT = ret;
-    
-    stmt = statement();
+    DEFLT = deflt;
+    STMT_CASE_NAME(DEFLT) = label;
+    body = statement();
 
-    if (NO_ERROR)
-	STMT_CASE_BODY(ret) = stmt;
-    else
-	ret = NULL;
+    if (NO_ERROR) {
+	struct vector *v = vec_new();
+	vec_push(v, ast_dest(label));
+	vec_push(v, body);
+	ret = ast_compound((node_t **)vtoa(v));
+	STMT_TAG(ret) = DEFAULT_STMT;
+	AST_SRC(ret) = src;
+    }
 
     return ret;
 }
 
 static node_t * label_stmt(void)
 {
-    node_t *ret = ast_stmt(LABEL_STMT, source);
-    node_t *stmt;
+    node_t *ret = NULL;
+    node_t *body;
     const char *name = NULL;
+    struct source src = source;
+    node_t *label;
 
     SAVE_ERRORS;
     name = token->name;
@@ -298,112 +394,109 @@ static node_t * label_stmt(void)
     expect(':');
 
     if (NO_ERROR) {
-	node_t *n = map_get(labels, name);
+        label = map_get(labels, name);
 	if (map_get(labels, name))
-	    errorf(AST_SRC(ret), "redefinition of label '%s', previous label defined here:%s:%u:%u",
-		   name,
-		   AST_SRC(n).file,
-		   AST_SRC(n).line,
-		   AST_SRC(n).column);
-	STMT_LABEL_NAME(ret) = name;
-	map_put(labels, name, ret);
+	    errorf(src,
+		   "redefinition of label '%s', previous label defined here:%s:%u:%u",
+		   name, AST_SRC(label).file, AST_SRC(label).line, AST_SRC(label).column);
+	STMT_LABEL_NAME(label) = name;
+	map_put(labels, name, label);
     }
     
-    stmt = statement();
+    body = statement();
     
-    if (NO_ERROR)
-	STMT_LABEL_BODY(ret) = stmt;
-    else
-	ret = NULL;
+    if (NO_ERROR) {
+	struct vector *v = vec_new();
+	vec_push(v, label);
+	vec_push(v, body);
+	ret = ast_compound((node_t **)vtoa(v));
+	STMT_TAG(ret) = LABEL_STMT;
+	AST_SRC(ret) = src;
+    }
 
     return ret;
 }
 
 static node_t * goto_stmt(void)
 {
-    node_t *ret = ast_stmt(GOTO_STMT, source);
+    node_t *ret = NULL;
+    struct source src = source;
+    const char *label;
 
     SAVE_ERRORS;
     expect(GOTO);
-    STMT_LABEL_NAME(ret) = token->name;
+    label = token->name;
     expect(ID);
     expect(';');
 
-    if (NO_ERROR)
+    if (NO_ERROR) {
+	ret = ast_goto(label);
+	STMT_TAG(ret) = GOTO_STMT;
+	AST_SRC(ret) = src;
 	vec_push(gotos, ret);
-    else
-	ret = NULL;
+    }
 
     return ret;
 }
 
 static node_t * break_stmt(void)
 {
-    node_t *ret = ast_stmt(BREAK_STMT, source);
+    node_t *ret = NULL;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect(BREAK);
     expect(';');
 
-    if (!IN_LOOP && !IN_SWITCH)
+    if (!BREAK_CONTEXT)
 	error("'break' statement not in loop or switch statement");
 
-    if (!NO_ERROR)
-	ret = NULL;
+    if (NO_ERROR) {
+	ret = ast_jump(BREAK_CONTEXT);
+	STMT_TAG(ret) = BREAK_STMT;
+	AST_SRC(ret) = src;
+    }
     
     return ret;
 }
 
 static node_t * continue_stmt(void)
 {
-    node_t *ret = ast_stmt(CONTINUE_STMT, source);
+    node_t *ret = NULL;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect(CONTINUE);
     expect(';');
 
-    if (!IN_LOOP)
+    if (!CONTINUE_CONTEXT)
 	error("'continue' statement not in loop statement");
 
-    if (!NO_ERROR)
-	ret = NULL;
+    if (NO_ERROR) {
+	ret = ast_jump(CONTINUE_CONTEXT);
+	STMT_TAG(ret) = CONTINUE_STMT;
+	AST_SRC(ret) = src;
+    }
     
     return ret;
 }
 
 static node_t * return_stmt(void)
 {
-    node_t *ret = ast_stmt(RETURN_STMT, source);
+    node_t *ret = NULL;
     node_t *expr;
+    struct source src = source;
 
     SAVE_ERRORS;
     expect(RETURN);
     expr = expr_stmt();
-
-    if (isvoid(rtype(FTYPE))) {
-	if (expr && !is_null_stmt(expr) && !isvoid(AST_TYPE(expr)))
-	    errorf(AST_SRC(ret), "void function '%s' should not return a value", FNAME);
-    } else {
-	// error only if expr is not NULL to inhibit
-	// redundant errors.
-	if (expr) {
-	    if (!is_null_stmt(expr)) {
-		node_t *ty1 = AST_TYPE(expr);
-		node_t *ty2 = rtype(FTYPE);
-		if (!(expr = ret_conv(ty2, expr)))
-		    errorf(AST_SRC(ret),
-			   "returning '%s' from function '%s' with incompatible result type '%s'",
-			   type2s(ty1), FNAME, type2s(ty2));
-	    } else {
-		errorf(AST_SRC(ret), "non-void function '%s' should return a value", FNAME);
-	    }
-	}
-    }
+    ensure_return(expr, src);
     
-    if (NO_ERROR)
-	STMT_RETURN_EXPR(ret) = expr;
-    else
-	ret = NULL;
+    if (NO_ERROR) {
+	ret = ast_return(expr);
+	STMT_TAG(ret) = RETURN_STMT;
+	AST_SRC(ret) = src;
+    }
     
     return ret;
 }
@@ -543,4 +636,27 @@ static void post_funcdef(struct vector *v, struct vector *predefines)
     }
     vec_free(predefines);
     vec_free(used);
+}
+
+static void ensure_return(node_t *expr, struct source src)
+{
+    if (isvoid(rtype(FTYPE))) {
+	if (expr && !is_null_stmt(expr) && !isvoid(AST_TYPE(expr)))
+	    errorf(src, "void function '%s' should not return a value", FNAME);
+    } else {
+	// error only if expr is not NULL to inhibit
+	// redundant errors.
+	if (expr) {
+	    if (!is_null_stmt(expr)) {
+		node_t *ty1 = AST_TYPE(expr);
+		node_t *ty2 = rtype(FTYPE);
+		if (!(expr = ret_conv(ty2, expr)))
+		    errorf(src,
+			   "returning '%s' from function '%s' with incompatible result type '%s'",
+			   type2s(ty1), FNAME, type2s(ty2));
+	    } else {
+		errorf(src, "non-void function '%s' should return a value", FNAME);
+	    }
+	}
+    }
 }

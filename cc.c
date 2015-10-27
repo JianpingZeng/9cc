@@ -44,12 +44,8 @@ static void translate(void)
     node_t *tree;
     tree = translation_unit();
     print_tree(tree);
-    if (errors == 0) {
-	simplify(tree);
-	println("\nSimplified:");
-	print_tree(tree);
+    if (errors == 0)
 	gen(tree, outfp());
-    }
 }
 
 static void preprocess(void)

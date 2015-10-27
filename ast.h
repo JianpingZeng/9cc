@@ -188,9 +188,13 @@ struct ast_decl {
 // return stmt
 #define STMT_RETURN_EXPR(NODE)  AST_KID(NODE, 0)
 
+// tag
+#define STMT_TAG(NODE)    ((NODE)->stmt.tag)
+
 struct ast_stmt {
     struct ast_common common;
     int index;
+    int tag;
     node_t **blks;
     node_t *list[2];
 };

@@ -371,9 +371,6 @@ extern struct table * tags;
 // gen.c
 extern void gen(node_t *tree, FILE *fp);
 
-// simplify.c
-extern void simplify(node_t *tree);
-
 // print.c
 extern void print_tree(node_t *tree);
 extern const char *type2s(node_t *ty);

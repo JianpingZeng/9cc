@@ -34,7 +34,6 @@ CC1_OBJ=alloc.o \
         stmt.o \
         sym.o \
         type.o \
-	simplify.o \
 	input.o \
 	initializer.o \
         $(UTILS_OBJ)
