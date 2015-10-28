@@ -182,12 +182,11 @@ struct ast_expr {
 // compound stmt
 #define STMT_CASE_LABEL(NODE)   AST_NAME(NODE)
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
-#define STMT_GEN(NODE)          ((NODE)->stmt.gen)
+#define STMT_GEN(NODE)          AST_KID(NODE, 0)
 
 struct ast_stmt {
     struct ast_common common;
     int index;
-    node_t *gen;
 };
 
 #define GEN_OPERAND(NODE)       ((NODE)->gen.operand)
