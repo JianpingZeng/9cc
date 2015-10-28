@@ -264,6 +264,7 @@ extern node_t * ast_jump(const char *label);
 extern node_t * ast_dest(const char *label);
 extern node_t * ast_return(node_t *node);
 extern node_t * ast_compound(node_t **list);
+extern node_t * ast_gen(node_t *node);
 
 extern node_t * copy_node(node_t *node);
 

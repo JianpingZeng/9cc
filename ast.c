@@ -153,6 +153,19 @@ node_t * ast_compound(node_t **list)
     return ast;
 }
 
+node_t * ast_gen(node_t *node)
+{
+    if (!node)
+	return NULL;
+    cc_assert(isstmt(node) || isexpr(node) || isdecl(node));
+    if (isexpr(node) || isdecl(node) || is_null_stmt(node)) {
+	return node;
+    } else {
+	cc_assert(STMT_GEN(node));
+	return STMT_GEN(node);
+    }
+}
+
 node_t * copy_node(node_t *node)
 {
     node_t *copy = alloc_node();
