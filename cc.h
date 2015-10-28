@@ -200,6 +200,17 @@ extern node_t * new_integer_literal(int i);
 extern node_t * new_string_literal(const char *string);
 
 // decl.c
+#define GOTOS      (gotos)
+#define LABELS     (labels)
+#define FTYPE      (current_ftype)
+#define FNAME      (current_fname)
+#define LOCALVARS  (localvars)
+extern struct vector *gotos;
+extern struct map *labels;
+extern node_t *current_ftype;
+extern const char *current_fname;
+extern struct vector *localvars;
+
 extern bool istypename(struct token *t);
 extern node_t ** declaration(void);
 extern node_t * translation_unit(void);
@@ -217,11 +228,6 @@ extern bool has_static_extent(node_t *sym);
 // stmt.c
 extern node_t * compound_stmt(void);
 extern void backfill_labels(void);
-
-extern struct vector *gotos;
-extern struct map *labels;
-extern node_t *current_ftype;
-extern const char *current_fname;
 
 // type.c
 extern void type_init(void);

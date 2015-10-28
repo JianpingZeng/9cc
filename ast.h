@@ -144,6 +144,7 @@ struct ast_symbol {
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
+#define DECL_VARS(NODE)         ((NODE)->decl.exts)
 
 struct ast_decl {
     struct ast_common common;

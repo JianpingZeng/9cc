@@ -40,8 +40,6 @@ static node_t *__default;
 #define IN_SWITCH         (__cases)
 #define CASES             (__cases)
 #define DEFLT             (__default)
-#define FTYPE             (current_ftype)
-#define FNAME             (current_fname)
 
 static inline node_t * ast_compoundv(struct vector *v)
 {
@@ -400,12 +398,12 @@ static node_t * label_stmt(void)
 
     // install label before parsing body
     if (NO_ERROR) {
-        node_t *n = map_get(labels, label);
+        node_t *n = map_get(LABELS, label);
 	if (n)
 	    errorf(src,
 		   "redefinition of label '%s', previous label defined here:%s:%u:%u",
 		   label, AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
-	map_put(labels, label, ret);
+	map_put(LABELS, label, ret);
     }
 
     body = statement();
@@ -439,7 +437,7 @@ static node_t * goto_stmt(void)
     if (NO_ERROR) {
 	ret = ast_stmt(GOTO_STMT, src, ast_jump(label));
 	STMT_LABEL(ret) = label;
-	vec_push(gotos, ret);
+	vec_push(GOTOS, ret);
     }
 
     return ret;
@@ -572,10 +570,10 @@ node_t * compound_stmt(void)
 
 void backfill_labels(void)
 {
-    for (int i = 0; i < vec_len(gotos); i++) {
-	node_t *goto_stmt = vec_at(gotos, i);
+    for (int i = 0; i < vec_len(GOTOS); i++) {
+	node_t *goto_stmt = vec_at(GOTOS, i);
 	const char *label = STMT_LABEL(goto_stmt);
-	node_t *label_stmt = map_get(labels, label);
+	node_t *label_stmt = map_get(LABELS, label);
 	if (!label_stmt)
 	    errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", label);
     }

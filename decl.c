@@ -32,12 +32,14 @@ struct vector *gotos;
 struct map *labels;
 node_t *current_ftype;
 const char *current_fname;
+struct vector *localvars;
 
 #define SET_FUNCDEF_CONTEXT(fty, id)		\
     gotos = vec_new();				\
     labels = map_new();				\
     current_ftype = fty;			\
-    current_fname = id
+    current_fname = id;				\
+    localvars = vec_new()
 
 #define RESTORE_FUNCDEF_CONTEXT()		\
     vec_free(gotos);				\
@@ -45,7 +47,9 @@ const char *current_fname;
     map_free(labels);				\
     labels = NULL;				\
     current_ftype = NULL;			\
-    current_fname = NULL
+    current_fname = NULL;			\
+    vec_free(localvars);			\
+    localvars = NULL
 
 static node_t * specifiers(int *sclass)
 {
@@ -1303,9 +1307,10 @@ static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
 	// check goto labels
 	backfill_labels();
 	// TODO: check control flow and return stmt
-        exit_scope();
 	DECL_BODY(decl) = stmt;
+	DECL_VARS(decl) = (node_t **)vtoa(LOCALVARS);
         RESTORE_FUNCDEF_CONTEXT();
+	exit_scope();
     }
     
     return decl;
