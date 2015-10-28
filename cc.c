@@ -43,7 +43,8 @@ static void translate(void)
 {
     node_t *tree;
     tree = translation_unit();
-    print_tree(tree);
+    // print_tree(tree);
+    print_gen_tree(tree);
     if (errors == 0)
 	gen(tree, outfp());
 }

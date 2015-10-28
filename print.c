@@ -7,6 +7,8 @@ struct print_context {
     node_t * node;
 };
 
+static int needgen;
+
 static void print_tree1(struct print_context context);
 
 static void putf(const char *fmt, ...)
@@ -155,7 +157,7 @@ static void print_expr(node_t *node, struct print_context context)
     }
 }
 
-static void print_stmt(node_t *node, struct print_context context)
+static void do_print_stmt(node_t *node, struct print_context context)
 {
     int level;
 
@@ -327,53 +329,78 @@ static void print_gen(node_t *node, struct print_context context)
     int level = context.level + 1;
     node_t **list = GEN_LIST(node);
 
-    if (AST_ID(node) == AST_LABEL) {
-	putf(CYAN_BOLD("%s: ") "\n", GEN_LABEL(node));
-    } else if (AST_ID(node) == AST_JUMP) {
-	putf(RED_BOLD("JMP to ") CYAN("%s ") "\n", GEN_LABEL(node));
-    } else if (AST_ID(node) == AST_COMPOUND) {
-	putf(PURPLE("%s ") YELLOW("%p ") "\n", nname(node), node);
-	for (int i = 0; i < LIST_LEN(list); i++) {
-	    node_t *n = list[i];
-	    struct print_context con = { level, n };
-	    print_tree1(con);
+    switch (AST_ID(node)) {
+    case AST_COMPOUND:
+	{
+	    putf(PURPLE("%s ") YELLOW("%p ") "\n", nname(node), node);
+	    for (int i = 0; i < LIST_LEN(list); i++) {
+		node_t *n = list[i];
+		struct print_context con = { level, n };
+		print_tree1(con);
+	    }
 	}
-    } else if (AST_ID(node) == AST_IF) {
-	node_t *cond = GEN_COND(node);
-	node_t *then = GEN_THEN(node);
-	node_t *els = GEN_ELSE(node);
+	break;
+    case AST_IF:
+	{
+	    node_t *cond = GEN_COND(node);
+	    node_t *then = GEN_THEN(node);
+	    node_t *els = GEN_ELSE(node);
 
-	putf(WHITE_BOLD("IF %p") "\n", node);
-	if (cond) {
-	    struct print_context con = { level, cond };
-	    print_tree1(con);
-	}
+	    putf(WHITE_BOLD("IF %p") "\n", node);
+	    if (cond) {
+		struct print_context con = { level, cond };
+		print_tree1(con);
+	    }
 
-	if (then) {
-	    for (int i=0; i < context.level; i++)
-		putf("  ");
-	    putf(WHITE_BOLD("THEN %p") "\n", node);
-	    struct print_context con = { level, then };
-	    print_tree1(con);
-	}
+	    if (then) {
+		for (int i=0; i < context.level; i++)
+		    putf("  ");
+		putf(WHITE_BOLD("THEN %p") "\n", node);
+		struct print_context con = { level, then };
+		print_tree1(con);
+	    }
 
-	if (els) {
-	    for (int i=0; i < context.level; i++)
-		putf("  ");
-	    putf(WHITE_BOLD("ELSE %p") "\n", node);
-	    struct print_context con = { level, els };
-	    print_tree1(con);
+	    if (els) {
+		for (int i=0; i < context.level; i++)
+		    putf("  ");
+		putf(WHITE_BOLD("ELSE %p") "\n", node);
+		struct print_context con = { level, els };
+		print_tree1(con);
+	    }
 	}
-    } else if (AST_ID(node) == AST_RETURN) {
-	putf(PURPLE("%s ") YELLOW("%p ") "\n", nname(node), node);
-	node_t *expr = GEN_OPERAND(node);
-	if (expr) {
-	    struct print_context con = { level, expr };
-	    print_tree1(con);
+	break;
+    case AST_JUMP:
+	{
+	    putf(RED_BOLD("JMP to ") CYAN("%s ") "\n", GEN_LABEL(node));
 	}
-    } else {
+	break;
+    case AST_LABEL:
+	{
+	    putf(CYAN_BOLD("%s: ") "\n", GEN_LABEL(node));
+	}
+	break;
+    case AST_RETURN:
+	{
+	    putf(PURPLE("%s ") YELLOW("%p ") "\n", nname(node), node);
+	    node_t *expr = GEN_OPERAND(node);
+	    if (expr) {
+		struct print_context con = { level, expr };
+		print_tree1(con);
+	    }
+	}
+	break;
+    default:
 	putf(PURPLE("%s ") YELLOW("%p ") "\n", nname(node), node);
+	break;
     }
+}
+
+static void print_stmt(node_t *node, struct print_context context)
+{
+    if (needgen && STMT_GEN(node))
+	print_gen(STMT_GEN(node), context);
+    else
+	do_print_stmt(node, context);
 }
 
 static void print_tree1(struct print_context context)
@@ -441,6 +468,13 @@ void print_tree(node_t *tree)
 {
     struct print_context context = {0, tree};
     print_tree1(context);
+}
+
+void print_gen_tree(node_t *tree)
+{
+    needgen++;
+    print_tree(tree);
+    needgen--;
 }
 
 /**
