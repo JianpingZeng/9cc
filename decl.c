@@ -13,7 +13,7 @@ static node_t * localdecl(struct token *id, node_t *ty, int sclass);
 static node_t * funcdef(struct token *id, node_t *ty, int sclass);
 static void fields(node_t *sty);
 
-static void ensure_decl(node_t *decl, node_t *sym, int sclass, int kind);
+static void ensure_decl(node_t *decl, int sclass, int kind);
 static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
 
@@ -953,9 +953,13 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
                 DECL_SYM(decl) = sym;
 		
                 if (token->id == '=')
-		    decl_initializer(decl, sym, sclass, kind);
+		    decl_initializer(decl, sclass, kind);
 
-		ensure_decl(decl, sym, sclass, kind);
+		// local variables
+		if (kind == LOCAL && AST_ID(decl) == VAR_DECL)
+		    vec_push(LOCALVARS, decl);
+
+		ensure_decl(decl, sclass, kind);
                 vec_push(v, decl);
             }
             
@@ -1031,11 +1035,12 @@ node_t * translation_unit(void)
     return ret;
 }
 
-static void ensure_decl(node_t *decl, node_t *sym, int sclass, int kind)
+static void ensure_decl(node_t *decl, int sclass, int kind)
 {
     if (kind == PARAM)
 	return;
 
+    node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
     struct source src = AST_SRC(sym);
     if (AST_ID(decl) == VAR_DECL) {
