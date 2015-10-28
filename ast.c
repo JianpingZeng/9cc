@@ -106,14 +106,14 @@ node_t * ast_vinit(void)
 
 const char * gen_label(void)
 {
-    static long i;
-    return format(".L%ld", i++);
+    static size_t i;
+    return format(".L%llu", i++);
 }
 
 const char * gen_tmpname(void)
 {
-    static long i;
-    return format(".T%ld", i++);
+    static size_t i;
+    return format(".T%llu", i++);
 }
 
 node_t * ast_if(node_t *cond, node_t *then, node_t *els)
