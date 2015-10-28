@@ -48,20 +48,18 @@ node_t * ast_expr(int id, node_t *ty, node_t *l, node_t *r)
     return expr;
 }
 
-node_t * ast_stmt(int id, struct source src)
+node_t * ast_stmt(int id, struct source src, node_t *gen)
 {
     cc_assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
     node_t * stmt = new_node(id);
     AST_SRC(stmt) = src;
-    STMT_TAG(stmt) = id;
+    STMT_GEN(stmt) = gen;
     return stmt;
 }
 
 node_t * ast_null_stmt(void)
 {
-    node_t *stmt = ast_stmt(NULL_STMT, source);
-    STMT_TAG(stmt) = NULL_STMT;
-    return stmt;
+    return ast_stmt(NULL_STMT, source, NULL);
 }
 
 node_t * ast_decl(int id, int scope)
@@ -121,55 +119,37 @@ const char * gen_tmpname(void)
 node_t * ast_if(node_t *cond, node_t *then, node_t *els)
 {
     node_t * ast = new_node(AST_IF);
-    STMT_COND(ast) = cond;
-    STMT_THEN(ast) = then;
-    STMT_ELSE(ast) = els;
+    GEN_COND(ast) = cond;
+    GEN_THEN(ast) = then;
+    GEN_ELSE(ast) = els;
     return ast;
 }
 
 node_t * ast_jump(const char *label)
 {
     node_t * ast = new_node(AST_JUMP);
-    STMT_LABEL(ast) = label;
-    return ast;
-}
-
-node_t * ast_goto(const char *label)
-{
-    node_t * ast = new_node(AST_JUMP);
-    STMT_LABEL(ast) = label;
-    STMT_TAG(ast) = GOTO_STMT;
-    return ast;
-}
-
-node_t * ast_label(const char *label)
-{
-    node_t * ast = new_node(AST_LABEL);
-    STMT_LABEL(ast) = label;
+    GEN_LABEL(ast) = label;
     return ast;
 }
 
 node_t * ast_dest(const char *label)
 {
     node_t * ast = new_node(AST_LABEL);
-    STMT_LABEL(ast) = label;
+    GEN_LABEL(ast) = label;
     return ast;
 }
 
 node_t * ast_return(node_t *node)
 {
     node_t * ast = new_node(AST_RETURN);
-    STMT_OPERAND(ast) = node;
-    STMT_TAG(ast) = RETURN_STMT;
+    GEN_OPERAND(ast) = node;
     return ast;
 }
 
-node_t * ast_compound(int tag, node_t **list, struct source src)
+node_t * ast_compound(node_t **list)
 {
     node_t * ast = new_node(AST_COMPOUND);
-    STMT_LIST(ast) = list;
-    STMT_TAG(ast) = tag;
-    AST_SRC(ast) = src;
+    GEN_LIST(ast) = list;
     return ast;
 }
 

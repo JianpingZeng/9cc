@@ -180,23 +180,27 @@ struct ast_expr {
 };
 
 // compound stmt
-#define STMT_LIST(NODE)         ((NODE)->stmt.blks)
-#define STMT_LABEL(NODE)        AST_NAME(NODE)
+#define STMT_CASE_LABEL(NODE)   AST_NAME(NODE)
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
-#define STMT_OPERAND(NODE)      ((NODE)->stmt.operand)
-#define STMT_TAG(NODE)          ((NODE)->stmt.tag)
-
-// if stmt
-#define STMT_COND(NODE)         (AST_KID(NODE, 0))
-#define STMT_THEN(NODE)         (AST_KID(NODE, 1))
-#define STMT_ELSE(NODE)         ((NODE)->stmt.operand)
+#define STMT_GEN(NODE)          ((NODE)->stmt.gen)
 
 struct ast_stmt {
     struct ast_common common;
     int index;
-    int tag;
-    node_t **blks;
+    node_t *gen;
+};
+
+#define GEN_OPERAND(NODE)       ((NODE)->gen.operand)
+#define GEN_COND(NODE)          GEN_OPERAND(NODE)
+#define GEN_THEN(NODE)          AST_KID(NODE, 0)
+#define GEN_ELSE(NODE)          AST_KID(NODE, 1)
+#define GEN_LABEL(NODE)         AST_NAME(NODE)
+#define GEN_LIST(NODE)          ((NODE)->gen.list)
+
+struct ast_gen {
+    struct ast_common common;
     node_t *operand;
+    node_t **list;
 };
 
 union ast_node {
@@ -207,6 +211,7 @@ union ast_node {
     struct ast_type   type;
     struct ast_field  field;
     struct ast_symbol symbol;
+    struct ast_gen    gen;
 };
 
 // ast.c
@@ -218,7 +223,7 @@ extern const char *nname(node_t *node);
 // decl
 extern node_t * ast_decl(int id, int scope);
 // stmt
-extern node_t * ast_stmt(int id, struct source src);
+extern node_t * ast_stmt(int id, struct source src, node_t *gen);
 extern node_t * ast_null_stmt(void);
 // expr
 extern node_t * ast_expr(int id, node_t *ty, node_t *l, node_t *r);
@@ -227,16 +232,14 @@ extern node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r);
 extern node_t * ast_conv(node_t *ty, node_t *l, const char *name);
 extern node_t * ast_inits(void);
 extern node_t * ast_vinit(void);
-
+// gen
 extern const char * gen_label(void);
 extern const char * gen_tmpname(void);
 extern node_t * ast_if(node_t *cond, node_t *then, node_t *els);
 extern node_t * ast_jump(const char *label);
-extern node_t * ast_goto(const char *label);
-extern node_t * ast_label(const char *label);
 extern node_t * ast_dest(const char *label);
 extern node_t * ast_return(node_t *node);
-extern node_t * ast_compound(int tag, node_t **list, struct source src);
+extern node_t * ast_compound(node_t **list);
 
 extern node_t * copy_node(node_t *node);
 
