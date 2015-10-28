@@ -261,7 +261,7 @@ extern const char * gen_label(void);
 extern const char * gen_tmpname(void);
 extern node_t * ast_if(node_t *cond, node_t *then, node_t *els);
 extern node_t * ast_jump(const char *label);
-extern node_t * ast_dest(const char *label);
+extern node_t * ast_label(const char *label);
 extern node_t * ast_return(node_t *node);
 extern node_t * ast_compound(node_t **list);
 extern node_t * ast_gen(node_t *node);

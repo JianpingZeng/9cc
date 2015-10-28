@@ -132,7 +132,7 @@ node_t * ast_jump(const char *label)
     return ast;
 }
 
-node_t * ast_dest(const char *label)
+node_t * ast_label(const char *label)
 {
     node_t * ast = new_node(AST_LABEL);
     GEN_LABEL(ast) = label;

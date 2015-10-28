@@ -145,10 +145,10 @@ static node_t * while_stmt(void)
 
     if (NO_ERROR) {
 	struct vector *v = vec_new();
-	vec_push(v, ast_dest(beg));
+	vec_push(v, ast_label(beg));
 	vec_push(v, ast_if(cond, ast_gen(body), ast_jump(end)));
 	vec_push(v, ast_jump(beg));
-	vec_push(v, ast_dest(end));
+	vec_push(v, ast_label(end));
 	ret = ast_stmt(WHILE_STMT, src, ast_compound((node_t **)vtoa(v)));
 	STMT_WHILE_COND(ret) = cond;
 	STMT_WHILE_BODY(ret) = body;
@@ -179,10 +179,10 @@ static node_t * do_while_stmt(void)
 
     if (NO_ERROR) {
 	struct vector *v = vec_new();
-	vec_push(v, ast_dest(beg));
+	vec_push(v, ast_label(beg));
 	vec_push(v, ast_gen(body));
 	vec_push(v, ast_if(cond, ast_jump(beg), NULL));
-	vec_push(v, ast_dest(end));
+	vec_push(v, ast_label(end));
 	ret = ast_stmt(DO_WHILE_STMT, src, ast_compound((node_t **)vtoa(v)));
 	STMT_WHILE_COND(ret) = cond;
 	STMT_WHILE_BODY(ret) = body;
@@ -245,16 +245,16 @@ static node_t * for_stmt(void)
 	    vec_add_array(v, (void **)decl);
 	else if (init)
 	    vec_push(v, init);
-	vec_push(v, ast_dest(beg));
+	vec_push(v, ast_label(beg));
 	if (cond)
 	    vec_push(v, ast_if(cond, NULL, ast_jump(end)));
 	if (body)
 	    vec_push(v, ast_gen(body));
-	vec_push(v, ast_dest(mid));
+	vec_push(v, ast_label(mid));
 	if (ctrl)
 	    vec_push(v, ctrl);
 	vec_push(v, ast_jump(beg));
-	vec_push(v, ast_dest(end));
+	vec_push(v, ast_label(end));
 	ret = ast_stmt(FOR_STMT, src, ast_compound((node_t **)vtoa(v)));
 	STMT_FOR_DECL(ret) = decl;
 	STMT_FOR_INIT(ret) = init;
@@ -295,7 +295,7 @@ static node_t * switch_stmt(void)
 	const char *label = DEFLT ? STMT_LABEL(DEFLT) : end;
 	vec_push(v, ast_jump(label));
 	vec_push(v, ast_gen(body));
-	vec_push(v, ast_dest(end));
+	vec_push(v, ast_label(end));
 	ret = ast_stmt(SWITCH_STMT, src, ast_compound((node_t **)vtoa(v)));
 	STMT_SWITCH_EXPR(ret) = expr;
 	STMT_SWITCH_BODY(ret) = body;
@@ -333,7 +333,7 @@ static node_t * case_stmt(void)
 
     if (NO_ERROR) {
 	struct vector *v = vec_new();
-	vec_push(v, ast_dest(label));
+	vec_push(v, ast_label(label));
 	vec_push(v, ast_gen(body));
 	STMT_GEN(ret) = ast_compound((node_t **)vtoa(v));
 	STMT_CASE_BODY(ret) = body;
@@ -370,7 +370,7 @@ static node_t * default_stmt(void)
 
     if (NO_ERROR) {
 	struct vector *v = vec_new();
-	vec_push(v, ast_dest(label));
+	vec_push(v, ast_label(label));
 	vec_push(v, ast_gen(body));
 	STMT_GEN(ret) = ast_compound((node_t **)vtoa(v));
 	STMT_CASE_BODY(ret) = body;
@@ -407,7 +407,7 @@ static node_t * label_stmt(void)
     
     if (NO_ERROR) {
 	struct vector *v = vec_new();
-	vec_push(v, ast_dest(label));
+	vec_push(v, ast_label(label));
 	vec_push(v, ast_gen(body));
 	STMT_GEN(ret) = ast_compound((node_t **)vtoa(v));
 	STMT_CASE_BODY(ret) = body;
