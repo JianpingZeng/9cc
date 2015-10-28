@@ -158,16 +158,14 @@ static void print_expr(node_t *node, struct print_context context)
 static void print_stmt(node_t *node, struct print_context context)
 {
     int level;
-    node_t *gen = STMT_GEN(node);
 
     putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
     if (AST_ID(node) == CASE_STMT) {
 	putf(CYAN("%d "), STMT_CASE_INDEX(node));
     } else if (AST_ID(node) == GOTO_STMT) {
-	putf(CYAN("%s "), GEN_LABEL(gen));
+	putf(CYAN("%s "), STMT_LABEL(node));
     } else if (AST_ID(node) == LABEL_STMT) {
-	node_t *label = GEN_LIST(gen)[0];
-	putf(CYAN("%s "), GEN_LABEL(label));
+	putf(CYAN("%s "), STMT_LABEL(node));
     }
     putf("\n");
 
@@ -176,7 +174,7 @@ static void print_stmt(node_t *node, struct print_context context)
     switch (AST_ID(node)) {
     case COMPOUND_STMT:
 	{
-	    node_t **blks = GEN_LIST(gen);
+	    node_t **blks = STMT_BLKS(node);
 	    if (blks) {
 	        for (int i=0; blks[i]; i++) {
 		    struct print_context con = {level, blks[i]};
@@ -236,10 +234,8 @@ static void print_stmt(node_t *node, struct print_context context)
 	break;
     case WHILE_STMT:
 	{
-	    node_t **list = GEN_LIST(gen);
-	    node_t *if_node = list[1];
-	    node_t *cond = GEN_COND(if_node);
-	    node_t *body = GEN_THEN(if_node);
+	    node_t *cond = STMT_WHILE_COND(node);
+	    node_t *body = STMT_WHILE_BODY(node);
 	    if (cond) {
 		struct print_context con = {level, cond};
 		print_tree1(con);
@@ -252,10 +248,8 @@ static void print_stmt(node_t *node, struct print_context context)
 	break;
     case DO_WHILE_STMT:
 	{
-	    node_t **list = GEN_LIST(gen);
-	    node_t *body = list[1];
-	    node_t *if_node = list[2];
-	    node_t *cond = GEN_COND(if_node);
+	    node_t *cond = STMT_WHILE_COND(node);
+	    node_t *body = STMT_WHILE_BODY(node);
 	    if (body) {
 		struct print_context con = {level, body};
 		print_tree1(con);
@@ -268,9 +262,8 @@ static void print_stmt(node_t *node, struct print_context context)
 	break;
     case SWITCH_STMT:
 	{
-	    node_t **list = GEN_LIST(gen);
-	    node_t *expr = EXPR_OPERAND(list[0], 1);
-	    node_t *body = list[2];
+	    node_t *expr = STMT_SWITCH_EXPR(node);
+	    node_t *body = STMT_SWITCH_BODY(node);
 	    if (expr) {
 		struct print_context con = {level, expr};
 		print_tree1(con);
@@ -283,9 +276,9 @@ static void print_stmt(node_t *node, struct print_context context)
 	break;
     case IF_STMT:
 	{
-	    node_t *cond = GEN_COND(gen);
-	    node_t *then = GEN_THEN(gen);
-	    node_t *els = GEN_ELSE(gen);
+	    node_t *cond = STMT_IF_COND(node);
+	    node_t *then = STMT_IF_THEN(node);
+	    node_t *els = STMT_IF_ELSE(node);
 	    if (cond) {
 		struct print_context con = {level, cond};
 		print_tree1(con);
@@ -304,7 +297,7 @@ static void print_stmt(node_t *node, struct print_context context)
     case DEFAULT_STMT:
     case LABEL_STMT:
 	{
-	    node_t *body = GEN_LIST(gen)[1];
+	    node_t *body = STMT_CASE_BODY(node);
 	    if (body) {
 		struct print_context con = {level, body};
 		print_tree1(con);
@@ -313,7 +306,7 @@ static void print_stmt(node_t *node, struct print_context context)
 	break;
     case RETURN_STMT:
 	{
-	    node_t *expr = GEN_OPERAND(gen);
+	    node_t *expr = STMT_RETURN_BODY(node);
 	    if (expr) {
 		struct print_context con = {level, expr};
 		print_tree1(con);

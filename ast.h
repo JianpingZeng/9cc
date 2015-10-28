@@ -180,29 +180,38 @@ struct ast_expr {
 };
 
 // compound stmt
-#define STMT_GEN(NODE)          AST_KID(NODE, 0)
+#define STMT_BLKS(NODE)         ((NODE)->stmt.blks)
 // case
-#define STMT_CASE_LABEL(NODE)   AST_NAME(NODE)
+#define STMT_LABEL(NODE)        AST_NAME(NODE)
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
+#define STMT_CASE_BODY(NODE)    AST_KID(NODE, 0)
 // for
 #define STMT_FOR_DECL(NODE)     ((NODE)->stmt.blks)
-#define STMT_FOR_INIT(NODE)     AST_KID(NODE, 1)
-#define STMT_FOR_COND(NODE)     ((NODE)->stmt.operands[0])
-#define STMT_FOR_CTRL(NODE)     ((NODE)->stmt.operands[1])
-#define STMT_FOR_BODY(NODE)     ((NODE)->stmt.operands[2])
+#define STMT_FOR_INIT(NODE)     AST_KID(NODE, 0)
+#define STMT_FOR_COND(NODE)     AST_KID(NODE, 1)
+#define STMT_FOR_CTRL(NODE)     ((NODE)->stmt.operands[0])
+#define STMT_FOR_BODY(NODE)     ((NODE)->stmt.operands[1])
 // if
-#define STMT_IF_COND(NODE)      ((NODE)->stmt.operands[0])
-#define STMT_IF_THEN(NODE)      ((NODE)->stmt.operands[1])
-#define STMT_IF_ELSE(NODE)      ((NODE)->stmt.operands[2])
+#define STMT_IF_COND(NODE)      AST_KID(NODE, 0)
+#define STMT_IF_THEN(NODE)      AST_KID(NODE, 1)
+#define STMT_IF_ELSE(NODE)      ((NODE)->stmt.operands[0])
 // while
-#define STMT_WHILE_COND(NODE)   ((NODE)->stmt.operands[0])
-#define STMT_WHILE_BODY(NODE)   ((NODE)->stmt.operands[1])
+#define STMT_WHILE_COND(NODE)   AST_KID(NODE, 0)
+#define STMT_WHILE_BODY(NODE)   AST_KID(NODE, 1)
+// switch
+#define STMT_SWITCH_EXPR(NODE)  AST_KID(NODE, 0)
+#define STMT_SWITCH_BODY(NODE)  AST_KID(NODE, 1)
+// return
+#define STMT_RETURN_BODY(NODE)  AST_KID(NODE, 0)
+// gen
+#define STMT_GEN(NODE)          ((NODE)->stmt.gen)
 
 struct ast_stmt {
     struct ast_common common;
     int index;
-    node_t *operands[3];
+    node_t *operands[2];
     node_t **blks;
+    node_t *gen;
 };
 
 #define GEN_OPERAND(NODE)       ((NODE)->gen.operand)
