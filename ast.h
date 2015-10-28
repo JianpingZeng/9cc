@@ -180,13 +180,29 @@ struct ast_expr {
 };
 
 // compound stmt
+#define STMT_GEN(NODE)          AST_KID(NODE, 0)
+// case
 #define STMT_CASE_LABEL(NODE)   AST_NAME(NODE)
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
-#define STMT_GEN(NODE)          AST_KID(NODE, 0)
+// for
+#define STMT_FOR_DECL(NODE)     ((NODE)->stmt.blks)
+#define STMT_FOR_INIT(NODE)     AST_KID(NODE, 1)
+#define STMT_FOR_COND(NODE)     ((NODE)->stmt.operands[0])
+#define STMT_FOR_CTRL(NODE)     ((NODE)->stmt.operands[1])
+#define STMT_FOR_BODY(NODE)     ((NODE)->stmt.operands[2])
+// if
+#define STMT_IF_COND(NODE)      ((NODE)->stmt.operands[0])
+#define STMT_IF_THEN(NODE)      ((NODE)->stmt.operands[1])
+#define STMT_IF_ELSE(NODE)      ((NODE)->stmt.operands[2])
+// while
+#define STMT_WHILE_COND(NODE)   ((NODE)->stmt.operands[0])
+#define STMT_WHILE_BODY(NODE)   ((NODE)->stmt.operands[1])
 
 struct ast_stmt {
     struct ast_common common;
     int index;
+    node_t *operands[3];
+    node_t **blks;
 };
 
 #define GEN_OPERAND(NODE)       ((NODE)->gen.operand)

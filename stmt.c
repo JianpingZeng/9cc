@@ -248,6 +248,11 @@ static node_t * for_stmt(void)
 	vec_push(v, ast_jump(beg));
 	vec_push(v, ast_dest(end));
 	ret = ast_stmt(FOR_STMT, src, ast_compound((node_t **)vtoa(v)));
+	STMT_FOR_DECL(ret) = decl;
+	STMT_FOR_INIT(ret) = init;
+	STMT_FOR_COND(ret) = cond;
+	STMT_FOR_CTRL(ret) = ctrl;
+	STMT_FOR_BODY(ret) = body;
     }
 	
     return ret;

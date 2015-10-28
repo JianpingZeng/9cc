@@ -375,6 +375,7 @@ extern void gen(node_t *tree, FILE *fp);
 extern void print_tree(node_t *tree);
 extern const char *type2s(node_t *ty);
 extern const char * node2s(node_t *node);
+extern void print_node_size(void);
 
 // error.c
 enum {

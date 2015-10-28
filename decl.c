@@ -13,7 +13,7 @@ static node_t * localdecl(struct token *id, node_t *ty, int sclass);
 static node_t * funcdef(struct token *id, node_t *ty, int sclass);
 static void fields(node_t *sty);
 
-static void ensure_decl(node_t *decl, node_t *sym, int kind);
+static void ensure_decl(node_t *decl, node_t *sym, int sclass, int kind);
 static void ensure_array(node_t *atype, struct source src, int level);
 static void ensure_func(node_t *ftype, struct source src);
 
@@ -951,7 +951,7 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
                 if (token->id == '=')
 		    decl_initializer(decl, sym, sclass, kind);
 
-		ensure_decl(decl, sym, kind);
+		ensure_decl(decl, sym, sclass, kind);
                 vec_push(v, decl);
             }
             
@@ -1027,15 +1027,17 @@ node_t * translation_unit(void)
     return ret;
 }
 
-static void ensure_decl(node_t *decl, node_t *sym, int kind)
+static void ensure_decl(node_t *decl, node_t *sym, int sclass, int kind)
 {
     if (kind == PARAM)
 	return;
 
     node_t *ty = SYM_TYPE(sym);
     struct source src = AST_SRC(sym);
-    if (isincomplete(ty))
-	errorf(src, "variable has incomplete type '%s'", type2s(ty));
+    if (AST_ID(decl) == VAR_DECL) {
+	if (isincomplete(ty) && SYM_DEFINED(sym))
+	    errorf(src, "variable has incomplete type '%s'", type2s(ty));
+    }
 }
 
 static void ensure_func(node_t *ftype, struct source src)
