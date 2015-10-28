@@ -73,10 +73,7 @@ static void check_case_duplicates(node_t *node)
 	if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
 	    errorf(AST_SRC(node),
 		   "duplicate case value '%d', previous case defined here: %s:%u:%u",
-		   STMT_CASE_INDEX(node),
-		   AST_SRC(n).file,
-		   AST_SRC(n).line,
-		   AST_SRC(n).column);
+		   STMT_CASE_INDEX(node), AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
 	    break;
 	}
     }
