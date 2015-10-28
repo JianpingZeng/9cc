@@ -180,7 +180,6 @@ struct ast_expr {
 };
 
 // compound stmt
-#define STMT_BLKS(NODE)         ((NODE)->stmt.blks)
 #define STMT_LIST(NODE)         ((NODE)->stmt.blks)
 #define STMT_LABEL(NODE)        AST_NAME(NODE)
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
@@ -237,7 +236,7 @@ extern node_t * ast_goto(const char *label);
 extern node_t * ast_label(const char *label);
 extern node_t * ast_dest(const char *label);
 extern node_t * ast_return(node_t *node);
-extern node_t * ast_compound(node_t **list);
+extern node_t * ast_compound(int tag, node_t **list, struct source src);
 
 extern node_t * copy_node(node_t *node);
 

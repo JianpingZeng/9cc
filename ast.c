@@ -138,6 +138,7 @@ node_t * ast_goto(const char *label)
 {
     node_t * ast = new_node(AST_JUMP);
     STMT_LABEL(ast) = label;
+    STMT_TAG(ast) = GOTO_STMT;
     return ast;
 }
 
@@ -159,13 +160,16 @@ node_t * ast_return(node_t *node)
 {
     node_t * ast = new_node(AST_RETURN);
     STMT_OPERAND(ast) = node;
+    STMT_TAG(ast) = RETURN_STMT;
     return ast;
 }
 
-node_t * ast_compound(node_t **list)
+node_t * ast_compound(int tag, node_t **list, struct source src)
 {
     node_t * ast = new_node(AST_COMPOUND);
     STMT_LIST(ast) = list;
+    STMT_TAG(ast) = tag;
+    AST_SRC(ast) = src;
     return ast;
 }
 
