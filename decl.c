@@ -6,7 +6,9 @@ static void param_declarator(node_t **ty, struct token **id);
 static node_t * ptr_decl(void);
 static node_t * enum_decl(void);
 static node_t * struct_decl(void);
-static struct vector * decls(node_t * (*)(struct token *id, node_t *ty, int sclass));
+
+typedef node_t * declfun_p (struct token *id, node_t *ty, int sclass);
+static struct vector * decls(declfun_p *dcl);
 static node_t * paramdecl(struct token *id, node_t *ty, int sclass);
 static node_t * globaldecl(struct token *id, node_t *ty, int sclass);
 static node_t * localdecl(struct token *id, node_t *ty, int sclass);
@@ -897,7 +899,41 @@ bool istypename(struct token *t)
 	(t->id == ID && istypedef(t->name));
 }
 
-static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, int sclass))
+static node_t * make_decl(struct token *id, node_t *ty, int sclass, declfun_p *dcl)
+{
+    node_t *decl;
+    int kind;
+    if (dcl == globaldecl)
+	kind = GLOBAL;
+    else if (dcl == localdecl)
+	kind = LOCAL;
+    else if (dcl == paramdecl)
+	kind = PARAM;
+    else
+	cc_assert(0);
+
+    node_t *sym = dcl(id, ty, sclass);
+    if (sclass == TYPEDEF)
+	decl = ast_decl(TYPEDEF_DECL, SCOPE);
+    else if (isfunc(ty))
+	decl = ast_decl(FUNC_DECL, SCOPE);
+    else
+	decl = ast_decl(VAR_DECL, SCOPE);
+
+    DECL_SYM(decl) = sym;
+
+    if (token->id == '=')
+	decl_initializer(decl, sclass, kind);
+
+    // local variables
+    if (kind == LOCAL && isvardecl(decl))
+	vec_push(LOCALVARS, decl);
+
+    ensure_decl(decl, sclass, kind);
+    return decl;
+}
+
+static struct vector * decls(declfun_p *dcl)
 {
     struct vector *v = vec_new();
     node_t *basety;
@@ -930,38 +966,8 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
         }
         
         for (;;) {
-            if (id) {
-                node_t *decl;
-		int kind;
-		if (dcl == globaldecl)
-		    kind = GLOBAL;
-		else if (dcl == localdecl)
-		    kind = LOCAL;
-		else if (dcl == paramdecl)
-		    kind = PARAM;
-		else
-		    cc_assert(0);
-
-                node_t *sym = dcl(id, ty, sclass);
-                if (sclass == TYPEDEF)
-                    decl = ast_decl(TYPEDEF_DECL, SCOPE);
-                else if (isfunc(ty))
-		    decl = ast_decl(FUNC_DECL, SCOPE);
-		else
-                    decl = ast_decl(VAR_DECL, SCOPE);
-                
-                DECL_SYM(decl) = sym;
-		
-                if (token->id == '=')
-		    decl_initializer(decl, sclass, kind);
-
-		// local variables
-		if (kind == LOCAL && isvardecl(decl))
-		    vec_push(LOCALVARS, decl);
-
-		ensure_decl(decl, sclass, kind);
-                vec_push(v, decl);
-            }
+            if (id)
+                vec_push(v, make_decl(id, ty, sclass, dcl));
             
             if (token->id != ',')
                 break;
