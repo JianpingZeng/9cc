@@ -416,7 +416,7 @@ static node_t * arrays(bool abstract)
 	        parse_assign(atype);
 	    } else {
 		expect('*');
-		TYPE_A_ASTERISK(atype) = 1;
+		TYPE_A_STAR(atype) = 1;
 	    }
 	} else if (firstexpr(token)) {
 	    parse_assign(atype);
@@ -440,7 +440,7 @@ static node_t * arrays(bool abstract)
 		    parse_assign(atype);
 		} else {
 		    expect('*');
-		    TYPE_A_ASTERISK(atype) = 1;
+		    TYPE_A_STAR(atype) = 1;
 		}
 	    } else if (firstexpr(token)) {
 	        parse_assign(atype);
@@ -450,7 +450,7 @@ static node_t * arrays(bool abstract)
 	        parse_assign(atype);
 	    } else {
 		expect('*');
-		TYPE_A_ASTERISK(atype) = 1;
+		TYPE_A_STAR(atype) = 1;
 	    }
 	} else if (firstexpr(token)) {
 	    parse_assign(atype);
@@ -1072,6 +1072,17 @@ static void ensure_func(node_t *ftype, struct source src)
         errorf(src, "function cannot return function type");
 }
 
+/**
+ *  1. Array qualifiers may appear only when in a function parameter.
+ *  2. Array qualifiers 'const', 'volatile', 'restrict', 'static' may appear
+ *     within the _outermost_ brackets.
+ *  3. 'static' is an optimization hint, asserting that the actual array
+ *     argument will be non-null and will have the declared size and type upon
+ *     entry to the function.
+ *  4. The star modifier '*' or non-constant expression describe a variable
+ *     length array. The '*' can only appear in array parameter declarations
+ *     within function prototypes that are not part of a function definition.
+ */
 static void ensure_array(node_t *atype, struct source src, int level)
 {
     node_t *rty = atype;
@@ -1082,7 +1093,7 @@ static void ensure_array(node_t *atype, struct source src, int level)
 		error("size of array has non-integer type '%s'", type2s(AST_TYPE(assign)));
 	}
 	
-	if (TYPE_A_ASTERISK(rty) && level != PARAM)
+	if (TYPE_A_STAR(rty) && level != PARAM)
 	    error("star modifier used outside of function prototype");
 	
 	if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty) || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty)) &&
