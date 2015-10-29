@@ -63,7 +63,6 @@ struct ast_common {
 #define _TYPE_A_RESTRICT(NODE)   ((NODE)->type.u.a.is_restrict)
 #define _TYPE_A_STATIC(NODE)     ((NODE)->type.u.a.is_static)
 #define _TYPE_A_ASTERISK(NODE)   ((NODE)->type.u.a.asterisk)
-#define _TYPE_A_HASEXPR(NODE)    ((NODE)->type.u.a.has_expr)
 
 struct ast_type {
     struct ast_common common;

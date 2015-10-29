@@ -396,7 +396,6 @@ static inline void parse_assign(node_t *atype)
 {
     node_t *assign = assign_expr();
     TYPE_A_ASSIGN(atype) = assign;
-    TYPE_A_HASEXPR(atype) = 1;
     // try evaluate the length
     if (assign && isint(AST_TYPE(assign))) {
 	node_t *ret = eval(assign, inttype);
