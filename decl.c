@@ -1052,10 +1052,11 @@ static void ensure_decl(node_t *decl, int sclass, int kind)
 
 static void ensure_func(node_t *ftype, struct source src)
 {
-    if (isarray(rtype(ftype)))
-        errorf(src, "function cannot return array type");
-    else if (isfunc(rtype(ftype)))
-        errorf(src, "function cannot return function type");
+    node_t *rty = rtype(ftype);
+    if (isarray(rty))
+        errorf(src, "function cannot return array type '%s'", type2s(rty));
+    else if (isfunc(rty))
+        errorf(src, "function cannot return function type '%s'", type2s(rty));
 }
 
 /**
@@ -1246,6 +1247,7 @@ static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
     
     cc_assert(SCOPE == PARAM);
     
+    ensure_func(ftype, src);
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", id2s(sclass));
         sclass = 0;
