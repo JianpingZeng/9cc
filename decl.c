@@ -928,7 +928,7 @@ static node_t * make_decl(struct token *id, node_t *ty, int sclass, declfun_p *d
 
     // local variables
     if (kind == LOCAL && isvardecl(decl))
-    	vec_push(LOCALVARS, decl);
+    	vec_push(LOCALVARS, sym);
 
     return decl;
 }
