@@ -120,7 +120,6 @@ struct ast_field {
 #define SYM_NAME(NODE)          AST_NAME(NODE)
 #define SYM_SCLASS(NODE)        ((NODE)->symbol.sclass)
 #define SYM_TYPE(NODE)          AST_TYPE(NODE)
-#define SYM_PREDEFINE(NODE)     ((NODE)->symbol.predefine)
 #define SYM_DEFINED(NODE)       ((NODE)->symbol.defined)
 #define SYM_VALUE(NODE)         ((NODE)->symbol.value)
 #define SYM_REFS(NODE)          ((NODE)->symbol.refs)
@@ -133,7 +132,6 @@ struct ast_symbol {
     struct ast_common common;
     int scope;
     int sclass;
-    bool predefine : 1;
     bool defined : 1;
     struct source src;
     union value value;

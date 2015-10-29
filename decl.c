@@ -928,7 +928,7 @@ static node_t * make_decl(struct token *id, node_t *ty, int sclass, declfun_p *d
 
     // local variables
     if (kind == LOCAL && isvardecl(decl))
-	vec_push(LOCALVARS, decl);
+    	vec_push(LOCALVARS, decl);
 
     return decl;
 }
@@ -1004,6 +1004,13 @@ static struct vector * decls(declfun_p *dcl)
     match(';', follow);
     
     return v;
+}
+
+node_t * define_localvar(const char *name, node_t *ty, int sclass)
+{
+    struct token *id = new_token(&(struct token){.id = ID, .name = name, .kind = ID, .src = source});
+    node_t *decl = make_decl(id, ty, sclass, localdecl);
+    return decl;
 }
 
 node_t * typename(void)

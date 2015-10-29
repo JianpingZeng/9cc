@@ -76,13 +76,21 @@ static void print_decl(node_t *node, struct print_context context)
     putf("\n");
     
     level = context.level + 1;
-    
-    node_t **exts = DECL_EXTS(node);
-    if (exts) {
-        for (int i=0; exts[i]; i++) {
-            struct print_context con = {level, exts[i]};
-            print_tree1(con);
-        }
+
+    switch (AST_ID(node)) {
+    case TU_DECL:
+	{
+	    node_t **exts = DECL_EXTS(node);
+	    if (exts) {
+		for (int i=0; exts[i]; i++) {
+		    struct print_context con = {level, exts[i]};
+		    print_tree1(con);
+		}
+	    }
+	}
+	break;
+    default:
+	break;
     }
     
     node_t *init = DECL_BODY(node);

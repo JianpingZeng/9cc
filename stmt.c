@@ -49,12 +49,10 @@ static inline node_t * ast_compoundv(struct vector *v)
 static node_t * tmpvar(node_t *ty)
 {
     const char *name = gen_tmpname();
-    node_t *sym = install(name, &identifiers, GLOBAL);
-    SYM_TYPE(sym) = ty;
-
+    node_t *decl = define_localvar(name, ty, 0);
     node_t *n = alloc_node();
     AST_ID(n) = REF_EXPR;
-    EXPR_SYM(n) = sym;
+    EXPR_SYM(n) = DECL_SYM(decl);
     AST_TYPE(n) = ty;
     return n;
 }
@@ -531,11 +529,9 @@ static node_t * do_compound_stmt(bool func)
     expect('{');
     enter_scope();
 
-    if (func) {
+    if (func)
 	// add predefined identifiers
 	predefines = predefined_identifiers();
-	vec_add(v, predefines);
-    }
     
     while (firstdecl(token) || firstexpr(token) || firststmt(token)) {
         if (firstdecl(token))
@@ -550,6 +546,7 @@ static node_t * do_compound_stmt(bool func)
 	post_funcdef(v, predefines);
 
     STMT_BLKS(ret) = (node_t **)vtoa(v);
+
     // gen
     for (int i = 0; i < vec_len(v); i++) {
 	node_t *n = vec_at(v, i);
@@ -581,40 +578,26 @@ void backfill_labels(void)
 
 static struct vector * predefined_identifiers(void)
 {
-    /**
-     * Predefined identifier: __func__
-     * The identifier __func__ is implicitly declared by C99
-     * implementations as if the following declaration appeared
-     * after the opening brace of each function definition:
-     *
-     * static const char __func__[] = "function-name";
-     *
-     */
     struct vector *v = vec_new();
-    
-    const char *name = strs("__func__");
-    node_t *sym = lookup(name, identifiers);
-    if (sym && currentscope(sym)) {
-	// redefinition of predefined identifier
-	errorf(AST_SRC(sym), "redefinition of predefined identifier '%s'", name);
-    } else {
-	node_t *decl = ast_decl(VAR_DECL, SCOPE);
-	node_t *type = array_type(qual(CONST, chartype));
-	
-	sym = install(name, &identifiers, SCOPE);
-	AST_SRC(sym) = source;
-	SYM_PREDEFINE(sym) = true;
-	SYM_DEFINED(sym) = true;
-	SYM_SCLASS(sym) = STATIC;
-	SYM_TYPE(sym) = type;
-	DECL_SYM(decl) = sym;
 
+    {
+	/**
+	 * Predefined identifier: __func__
+	 * The identifier __func__ is implicitly declared by C99
+	 * implementations as if the following declaration appeared
+	 * after the opening brace of each function definition:
+	 *
+	 * static const char __func__[] = "function-name";
+	 *
+	 */
+	const char *name = strs("__func__");
+	node_t *type = array_type(qual(CONST, chartype));
+	node_t *decl = define_localvar(name, type, STATIC);
+	// initializer
 	node_t *literal = new_string_literal(FNAME);
 	AST_SRC(literal) = source;
-	// initializer
 	init_string(type, literal);
 	DECL_BODY(decl) = literal;
-	
 	vec_push(v, decl);
     }
     
@@ -623,23 +606,23 @@ static struct vector * predefined_identifiers(void)
 
 static void post_funcdef(struct vector *v, struct vector *predefines)
 {
-    // remove if no ref.
-    struct vector *used = vec_new();
     size_t len = vec_len(predefines);
-    for (int i = 0; i < len; i++) {
+    struct vector *used = vec_new();
+    // remove if no ref.
+    for (int i = len - 1; i >= 0; i--) {
 	node_t *decl = vec_at(predefines, i);
 	node_t *sym = DECL_SYM(decl);
-	if (SYM_REFS(sym))
+	if (SYM_REFS(sym)) {
 	    vec_push(used, decl);
-    }
-    if (vec_len(used) != len) {
-	while (len--)
-	    vec_pop_front(v);
-	for (int i = vec_len(used) - 1; i >= 0; i--)
-	    vec_push_front(v, vec_at(used, i));
+	    vec_push_front(v, decl);
+	}
     }
     vec_free(predefines);
-    vec_free(used);
+    // update localvars
+    while (len--)
+	vec_pop_front(LOCALVARS);
+    for (int i = 0; i < vec_len(used); i++)
+	vec_push_front(LOCALVARS, vec_at(used, i));
 }
 
 static void ensure_return(node_t *expr, struct source src)
