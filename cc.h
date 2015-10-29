@@ -309,7 +309,7 @@ extern bool isrestrict(node_t *ty);
 #define TYPE_A_VOLATILE(ty)      _TYPE_A_VOLATILE(unqual(ty))
 #define TYPE_A_RESTRICT(ty)      _TYPE_A_RESTRICT(unqual(ty))
 #define TYPE_A_STATIC(ty)        _TYPE_A_STATIC(unqual(ty))
-#define TYPE_A_WILDCARD(ty)      _TYPE_A_WILDCARD(unqual(ty))
+#define TYPE_A_ASTERISK(ty)      _TYPE_A_ASTERISK(unqual(ty))
 #define TYPE_A_HASEXPR(ty)       _TYPE_A_HASEXPR(unqual(ty))
 
 // alias

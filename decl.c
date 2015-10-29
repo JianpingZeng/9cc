@@ -408,7 +408,7 @@ static node_t * arrays(bool abstract)
 	        parse_assign(atype);
 	    } else {
 		expect('*');
-		TYPE_A_WILDCARD(atype) = 1;
+		TYPE_A_ASTERISK(atype) = 1;
 	    }
 	} else if (firstexpr(token)) {
 	    parse_assign(atype);
@@ -432,7 +432,7 @@ static node_t * arrays(bool abstract)
 		    parse_assign(atype);
 		} else {
 		    expect('*');
-		    TYPE_A_WILDCARD(atype) = 1;
+		    TYPE_A_ASTERISK(atype) = 1;
 		}
 	    } else if (firstexpr(token)) {
 	        parse_assign(atype);
@@ -442,7 +442,7 @@ static node_t * arrays(bool abstract)
 	        parse_assign(atype);
 	    } else {
 		expect('*');
-		TYPE_A_WILDCARD(atype) = 1;
+		TYPE_A_ASTERISK(atype) = 1;
 	    }
 	} else if (firstexpr(token)) {
 	    parse_assign(atype);
@@ -1085,7 +1085,7 @@ static void ensure_array(node_t *atype, struct source src, int level)
 		error("size of array has non-integer type '%s'", type2s(AST_TYPE(assign)));
 	}
 	
-	if (TYPE_A_WILDCARD(rty) && level != PARAM)
+	if (TYPE_A_ASTERISK(rty) && level != PARAM)
 	    error("star modifier used outside of function prototype");
 	
 	if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty) || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty)) &&

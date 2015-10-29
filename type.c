@@ -628,7 +628,7 @@ bool isincomplete(node_t *ty)
     if (isvoid(ty))
 	return true;
     else if (isarray(ty))
-	return !TYPE_A_HASEXPR(ty) && !TYPE_A_WILDCARD(ty) && TYPE_LEN(ty) == 0;
+	return !TYPE_A_HASEXPR(ty) && !TYPE_A_ASTERISK(ty) && TYPE_LEN(ty) == 0;
     else if (isenum(ty) || isstruct(ty) || isunion(ty))
 	return !SYM_DEFINED(TYPE_TSYM(ty));
     return false;
