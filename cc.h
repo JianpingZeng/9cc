@@ -81,7 +81,6 @@ struct file {
     bool stub : 1;
     int histp : 8;
     int charp : 8;
-    bool builtin : 1;
     char *buf;
     char *pc;
     char *pe;

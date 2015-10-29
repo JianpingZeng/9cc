@@ -744,8 +744,6 @@ static struct token * cctoken(void)
 	    }
 	}
     }
-    // TODO: ppnumber
-
     // set kind finally
     t->kind = tkind(t->id);
     return t;

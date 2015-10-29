@@ -3,7 +3,7 @@
 
 /* ACKNOWLEDGE
  *
- * Base on Dave Prosser's algorithm described in this document:
+ * Based on Dave Prosser's algorithm described in this document:
  *
  * http://www.spinellis.gr/blog/20060626/x3J11-86-196.pdf
  *
@@ -24,7 +24,6 @@ static struct macro * new_macro(int kind)
 {
     struct macro *m = alloc_macro();
     m->kind = kind;
-    m->builtin = current_file()->builtin;
     return m;
 }
 
@@ -443,6 +442,20 @@ static void parameters(struct macro *m)
 	m->params = vec_new();
 }
 
+static inline void add_macro(const char *name, struct macro *m)
+{
+    static const char *builtins[] = {
+	"__STDC__",
+	"__STDC_VERSION__",
+	"__STDC_HOSTED__"
+    };
+    for (int i = 0; i < ARRAY_SIZE(builtins); i++) {
+	if (!strcmp(name, builtins[i]))
+	    m->builtin = true;
+    }
+    map_put(macros, name, m);
+}
+
 static inline void remove_macro(const char *name)
 {
     struct macro *m = map_get(macros, name);
@@ -540,7 +553,7 @@ static void define_objlike_macro(struct token *t)
     m->body = replacement_list();
     ensure_macro_def(t, m);
     if (NO_ERROR)
-	map_put(macros, t->name, m);
+	add_macro(t->name, m);
 }
 
 static void define_funclike_macro(struct token *t)
@@ -552,7 +565,7 @@ static void define_funclike_macro(struct token *t)
     m->body = replacement_list();
     ensure_macro_def(t, m);
     if (NO_ERROR)
-	map_put(macros, t->name, m);
+	add_macro(t->name, m);
 }
 
 static struct token * read_identifier(void)
@@ -1006,7 +1019,7 @@ static void define_special(const char *name, void (*handler) (struct token *))
 {
     struct macro *m = new_macro(MACRO_SPECIAL);
     m->handler = handler;
-    map_put(macros, strs(name), m);
+    add_macro(strs(name), m);
 }
 
 static inline void add_include(struct vector *v, const char *name)
@@ -1051,12 +1064,11 @@ static const char * find_header(const char *name, bool isstd)
     return NULL;
 }
 
-static void do_include_file(const char *file, const char *name, bool std, bool builtin)
+static void do_include_file(const char *file, const char *name, bool std)
 {
     const char *path = find_header(file, std);
     if (path) {
 	file_sentinel(with_file(path, name ? name : path));
-	current_file()->builtin = builtin;
 	unget(lineno(1, current_file()->name));
     } else {
         if (file)
@@ -1068,17 +1080,12 @@ static void do_include_file(const char *file, const char *name, bool std, bool b
 
 static inline void include_file(const char *file, bool std)
 {
-    do_include_file(file, NULL, std, false);
+    do_include_file(file, NULL, std);
 }
 
 static inline void include_builtin(const char *file)
 {
-    do_include_file(file, "<built-in>", true, true);
-}
-
-static inline void include_internal(const char *file)
-{
-    do_include_file(file, "<internal>", true, false);
+    do_include_file(file, "<built-in>", true);
 }
 
 static void include_command_line(const char *command)
@@ -1094,8 +1101,7 @@ static void builtin_macros(void)
     define_special("__DATE__", date_handler);
     define_special("__TIME__", time_handler);
 
-    include_builtin(BUILD_DIR "/include/builtin.h");
-    include_internal(BUILD_DIR "/include/mcc.h");
+    include_builtin(BUILD_DIR "/include/mcc.h");
 }
 
 static void init_env(void)
