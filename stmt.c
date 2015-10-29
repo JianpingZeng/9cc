@@ -645,13 +645,13 @@ static void post_funcdef(struct vector *v, struct vector *predefines)
 static void ensure_return(node_t *expr, struct source src)
 {
     if (isvoid(rtype(FTYPE))) {
-	if (expr && !is_null_stmt(expr) && !isvoid(AST_TYPE(expr)))
+	if (expr && !isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
 	    errorf(src, "void function '%s' should not return a value", FNAME);
     } else {
 	// error only if expr is not NULL to inhibit
 	// redundant errors.
 	if (expr) {
-	    if (!is_null_stmt(expr)) {
+	    if (!isnullstmt(expr)) {
 		node_t *ty1 = AST_TYPE(expr);
 		node_t *ty2 = rtype(FTYPE);
 		if (!(expr = ret_conv(ty2, expr)))

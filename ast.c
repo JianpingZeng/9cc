@@ -158,7 +158,7 @@ node_t * ast_gen(node_t *node)
     if (!node)
 	return NULL;
     cc_assert(isstmt(node) || isexpr(node) || isdecl(node));
-    if (isexpr(node) || isdecl(node) || is_null_stmt(node)) {
+    if (isexpr(node) || isdecl(node) || isnullstmt(node)) {
 	return node;
     } else {
 	cc_assert(STMT_GEN(node));

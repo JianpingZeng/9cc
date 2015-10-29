@@ -956,7 +956,7 @@ static struct vector * decls(node_t * (*dcl)(struct token *id, node_t *ftype, in
 		    decl_initializer(decl, sclass, kind);
 
 		// local variables
-		if (kind == LOCAL && AST_ID(decl) == VAR_DECL)
+		if (kind == LOCAL && isvardecl(decl))
 		    vec_push(LOCALVARS, decl);
 
 		ensure_decl(decl, sclass, kind);
@@ -1043,7 +1043,7 @@ static void ensure_decl(node_t *decl, int sclass, int kind)
     node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
     struct source src = AST_SRC(sym);
-    if (AST_ID(decl) == VAR_DECL) {
+    if (isvardecl(decl)) {
 	if (isincomplete(ty) && SYM_DEFINED(sym))
 	    errorf(src, "variable has incomplete type '%s'", type2s(ty));
     }

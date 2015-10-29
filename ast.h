@@ -292,17 +292,11 @@ extern node_t * copy_node(node_t *node);
 #define isiliteral(n)       (AST_ID(n) == INTEGER_LITERAL)
 #define isfliteral(n)       (AST_ID(n) == FLOAT_LITERAL)
 #define issliteral(n)       (AST_ID(n) == STRING_LITERAL)
-#define isliteral(n)        (AST_ID(n) > BEGIN_LITERAL_ID && AST_ID(n) < END_LITERAL_ID)
 
 // stmt
-#define is_switch_stmt(n)   (AST_ID(n) == SWITCH_STMT)
-#define is_for_stmt(n)      (AST_ID(n) == FOR_STMT)
-#define is_while_stmt(n)    (AST_ID(n) == WHILE_STMT)
-#define is_dowhile_stmt(n)  (AST_ID(n) == DO_WHILE_STMT)
-#define is_iteration_stmt(n) (is_for_stmt(n) || is_while_stmt(n) || is_dowhile_stmt(n))
-#define is_null_stmt(n)     (AST_ID(n) == NULL_STMT)
+#define isnullstmt(n)     (AST_ID(n) == NULL_STMT)
 
-#define isbitfield(field)    (FIELD_ISBIT(field))
+#define isbitfield(field)   (FIELD_ISBIT(field))
 
 #define BitCast                 "BitCast"
 #define LValueToRValue          "LValueToRValue"
