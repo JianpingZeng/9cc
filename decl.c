@@ -392,20 +392,6 @@ static node_t ** parameters(node_t *ftype, int *params)
     return ret;
 }
 
-static inline void parse_assign(node_t *atype)
-{
-    node_t *assign = assign_expr();
-    TYPE_A_ASSIGN(atype) = assign;
-    // try evaluate the length
-    if (assign && isint(AST_TYPE(assign))) {
-	node_t *ret = eval(assign, inttype);
-	if (ret) {
-	    cc_assert(isiliteral(ret));
-	    TYPE_LEN(atype) = ILITERAL_VALUE(ret);
-	}
-    }
-}
-
 static node_t * arrays(bool abstract)
 {
     node_t *atype = array_type(NULL);
@@ -413,13 +399,13 @@ static node_t * arrays(bool abstract)
     if (abstract) {
 	if (token->id == '*') {
 	    if (lookahead()->id != ']') {
-	        parse_assign(atype);
+	        TYPE_A_ASSIGN(atype) = assign_expr();
 	    } else {
 		expect('*');
 		TYPE_A_STAR(atype) = 1;
 	    }
 	} else if (firstexpr(token)) {
-	    parse_assign(atype);
+	    TYPE_A_ASSIGN(atype) = assign_expr();
 	}
     } else {
 	if (token->id == STATIC) {
@@ -427,33 +413,33 @@ static node_t * arrays(bool abstract)
 	    TYPE_A_STATIC(atype) = 1;
 	    if (token->kind == CONST)
 		array_qualifiers(atype);
-	    parse_assign(atype);
+	    TYPE_A_ASSIGN(atype) = assign_expr();
 	} else if (token->kind == CONST) {
 	    if (token->kind == CONST)
 		array_qualifiers(atype);
 	    if (token->id == STATIC) {
 		expect(STATIC);
 		TYPE_A_STATIC(atype) = 1;
-	        parse_assign(atype);
+	        TYPE_A_ASSIGN(atype) = assign_expr();
 	    } else if (token->id == '*') {
 		if (lookahead()->id != ']') {
-		    parse_assign(atype);
+		    TYPE_A_ASSIGN(atype) = assign_expr();
 		} else {
 		    expect('*');
 		    TYPE_A_STAR(atype) = 1;
 		}
 	    } else if (firstexpr(token)) {
-	        parse_assign(atype);
+	        TYPE_A_ASSIGN(atype) = assign_expr();
 	    }
 	} else if (token->id == '*') {
 	    if (lookahead()->id != ']') {
-	        parse_assign(atype);
+	        TYPE_A_ASSIGN(atype) = assign_expr();
 	    } else {
 		expect('*');
 		TYPE_A_STAR(atype) = 1;
 	    }
 	} else if (firstexpr(token)) {
-	    parse_assign(atype);
+	    TYPE_A_ASSIGN(atype) = assign_expr();
 	}
     }
 
@@ -1089,8 +1075,16 @@ static void ensure_array(node_t *atype, struct source src, int level)
     do {
 	node_t *assign = TYPE_A_ASSIGN(rty);
 	if (assign) {
-	    if (!isint(AST_TYPE(assign)))
+	    if (isint(AST_TYPE(assign))) {
+		// try evaluate the length
+	        node_t *ret = eval(assign, inttype);
+		if (ret) {
+		    cc_assert(isiliteral(ret));
+		    TYPE_LEN(rty) = ILITERAL_VALUE(ret);
+		}
+	    } else {
 		error("size of array has non-integer type '%s'", type2s(AST_TYPE(assign)));
+	    }
 	}
 	
 	if (TYPE_A_STAR(rty) && level != PARAM)
