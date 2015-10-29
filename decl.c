@@ -394,8 +394,17 @@ static node_t ** parameters(node_t *ftype, int *params)
 
 static inline void parse_assign(node_t *atype)
 {
-    TYPE_A_ASSIGN(atype) = assign_expr();
+    node_t *assign = assign_expr();
+    TYPE_A_ASSIGN(atype) = assign;
     TYPE_A_HASEXPR(atype) = 1;
+    // try evaluate the length
+    if (assign && isint(AST_TYPE(assign))) {
+	node_t *ret = eval(assign, inttype);
+	if (ret) {
+	    cc_assert(isiliteral(ret));
+	    TYPE_LEN(atype) = ILITERAL_VALUE(ret);
+	}
+    }
 }
 
 static node_t * arrays(bool abstract)
@@ -446,17 +455,6 @@ static node_t * arrays(bool abstract)
 	    }
 	} else if (firstexpr(token)) {
 	    parse_assign(atype);
-	}
-    }
-
-    // try evaluate the length
-    if (TYPE_A_ASSIGN(atype)) {
-	node_t *ret = eval(TYPE_A_ASSIGN(atype), inttype);
-	if (ret) {
-	    if (isiliteral(ret))
-		TYPE_LEN(atype) = ILITERAL_VALUE(ret);
-	    else if (isfliteral(ret))
-		TYPE_LEN(atype) = (int)FLITERAL_VALUE(ret);
 	}
     }
 
