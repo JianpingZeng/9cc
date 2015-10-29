@@ -899,18 +899,22 @@ bool istypename(struct token *t)
 	(t->id == ID && istypedef(t->name));
 }
 
+static inline int dcl2kind(declfun_p *dcl)
+{
+    if (dcl == globaldecl)
+        return GLOBAL;
+    else if (dcl == localdecl)
+        return LOCAL;
+    else if (dcl == paramdecl)
+        return PARAM;
+    else
+	cc_assert(0);
+}
+
 static node_t * make_decl(struct token *id, node_t *ty, int sclass, declfun_p *dcl)
 {
     node_t *decl;
-    int kind;
-    if (dcl == globaldecl)
-	kind = GLOBAL;
-    else if (dcl == localdecl)
-	kind = LOCAL;
-    else if (dcl == paramdecl)
-	kind = PARAM;
-    else
-	cc_assert(0);
+    int kind = dcl2kind(dcl);
 
     node_t *sym = dcl(id, ty, sclass);
     if (sclass == TYPEDEF)
@@ -922,14 +926,10 @@ static node_t * make_decl(struct token *id, node_t *ty, int sclass, declfun_p *d
 
     DECL_SYM(decl) = sym;
 
-    if (token->id == '=')
-	decl_initializer(decl, sclass, kind);
-
     // local variables
     if (kind == LOCAL && isvardecl(decl))
 	vec_push(LOCALVARS, decl);
 
-    ensure_decl(decl, sclass, kind);
     return decl;
 }
 
@@ -959,15 +959,20 @@ static struct vector * decls(declfun_p *dcl)
                 } else {
                     if (SCOPE > PARAM)
                         exit_scope();
-                    
                     exit_scope();
                 }
             }
         }
         
         for (;;) {
-            if (id)
-                vec_push(v, make_decl(id, ty, sclass, dcl));
+            if (id) {
+		int kind = dcl2kind(dcl);
+		node_t *decl = make_decl(id, ty, sclass, dcl);
+		if (token->id == '=')
+		    decl_initializer(decl, sclass, kind);
+		ensure_decl(decl, sclass, kind);
+                vec_push(v, decl);
+	    }
             
             if (token->id != ',')
                 break;
