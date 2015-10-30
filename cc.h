@@ -397,11 +397,6 @@ extern void fatalf(struct source src, const char *fmt, ...);
 #define warning(...)  warningf(source, __VA_ARGS__)
 #define error(...)    errorf(source, __VA_ARGS__)
 #define fatal(...)    fatalf(source, __VA_ARGS__)
-#define maybe_error(...)			\
-    do {					\
-	if (errors == 0)			\
-	    error(__VA_ARGS__);			\
-    } while (0)
 
 #define SAVE_ERRORS    unsigned err = errors
 #define NO_ERROR       (err == errors)
