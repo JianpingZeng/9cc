@@ -40,9 +40,9 @@ union value {
 
 // source
 struct source {
-    const char *file;
     unsigned line;
     unsigned column;
+    const char *file;
 };
 
 enum {

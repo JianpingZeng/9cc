@@ -24,14 +24,12 @@ typedef union ast_node node_t;
 #define AST_ID(NODE)            ((NODE)->common.id)
 #define AST_NAME(NODE)          ((NODE)->common.name)
 #define AST_TYPE(NODE)          ((NODE)->common.type)
-#define AST_KID(NODE, I)        ((NODE)->common.kids[I])
 #define AST_SRC(NODE)           ((NODE)->common.src)
 
 struct ast_common {
     int id;
     const char *name;
     node_t *type;
-    node_t *kids[2];
     struct source src;
 };
 
@@ -131,7 +129,6 @@ struct ast_symbol {
     int scope;
     int sclass;
     bool defined : 1;
-    struct source src;
     union value value;
     unsigned refs;
 };
@@ -150,10 +147,7 @@ struct ast_decl {
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
 #define EXPR_PREFIX(NODE)       ((NODE)->expr.prefix)
-#define EXPR_OPERAND0(NODE)     (AST_KID(NODE, 0))
-#define EXPR_OPERAND1(NODE)     (AST_KID(NODE, 1))
-#define EXPR_OPERAND2(NODE)     ((NODE)->expr.operands[0])
-#define EXPR_OPERAND(NODE, I)   EXPR_OPERAND##I(NODE)
+#define EXPR_OPERAND(NODE, I)   ((NODE)->expr.operands[I])
 #define EXPR_ARGS(NODE)         ((NODE)->expr.list)
 #define EXPR_INITS(NODE)        ((NODE)->expr.list)
 #define EXPR_SYM(NODE)          ((NODE)->expr.sym)
@@ -170,7 +164,7 @@ struct ast_expr {
     int op;
     bool prefix;
     node_t *sym;
-    node_t *operands[1];
+    node_t *operands[3];
     node_t **list;
 };
 
@@ -179,46 +173,47 @@ struct ast_expr {
 // case
 #define STMT_LABEL(NODE)        AST_NAME(NODE)
 #define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
-#define STMT_CASE_BODY(NODE)    AST_KID(NODE, 0)
+#define STMT_CASE_BODY(NODE)    ((NODE)->stmt.operands[0])
 // for
 #define STMT_FOR_DECL(NODE)     ((NODE)->stmt.blks)
-#define STMT_FOR_INIT(NODE)     AST_KID(NODE, 0)
-#define STMT_FOR_COND(NODE)     AST_KID(NODE, 1)
-#define STMT_FOR_CTRL(NODE)     ((NODE)->stmt.operands[0])
-#define STMT_FOR_BODY(NODE)     ((NODE)->stmt.operands[1])
+#define STMT_FOR_INIT(NODE)     ((NODE)->stmt.operands[0])
+#define STMT_FOR_COND(NODE)     ((NODE)->stmt.operands[1])
+#define STMT_FOR_CTRL(NODE)     ((NODE)->stmt.operands[2])
+#define STMT_FOR_BODY(NODE)     ((NODE)->stmt.operands[3])
 // if
-#define STMT_IF_COND(NODE)      AST_KID(NODE, 0)
-#define STMT_IF_THEN(NODE)      AST_KID(NODE, 1)
-#define STMT_IF_ELSE(NODE)      ((NODE)->stmt.operands[0])
+#define STMT_IF_COND(NODE)      ((NODE)->stmt.operands[0])
+#define STMT_IF_THEN(NODE)      ((NODE)->stmt.operands[1])
+#define STMT_IF_ELSE(NODE)      ((NODE)->stmt.operands[2])
 // while
-#define STMT_WHILE_COND(NODE)   AST_KID(NODE, 0)
-#define STMT_WHILE_BODY(NODE)   AST_KID(NODE, 1)
+#define STMT_WHILE_COND(NODE)   ((NODE)->stmt.operands[0])
+#define STMT_WHILE_BODY(NODE)   ((NODE)->stmt.operands[1])
 // switch
-#define STMT_SWITCH_EXPR(NODE)  AST_KID(NODE, 0)
-#define STMT_SWITCH_BODY(NODE)  AST_KID(NODE, 1)
+#define STMT_SWITCH_EXPR(NODE)  ((NODE)->stmt.operands[0])
+#define STMT_SWITCH_BODY(NODE)  ((NODE)->stmt.operands[1])
 // return
-#define STMT_RETURN_BODY(NODE)  AST_KID(NODE, 0)
+#define STMT_RETURN_BODY(NODE)  ((NODE)->stmt.operands[0])
 // gen
 #define STMT_GEN(NODE)          ((NODE)->stmt.gen)
 
 struct ast_stmt {
     struct ast_common common;
     int index;
-    node_t *operands[2];
+    node_t *operands[4];
     node_t **blks;
     node_t *gen;
 };
 
-#define GEN_OPERAND(NODE)       ((NODE)->gen.operand)
-#define GEN_COND(NODE)          GEN_OPERAND(NODE)
-#define GEN_THEN(NODE)          AST_KID(NODE, 0)
-#define GEN_ELSE(NODE)          AST_KID(NODE, 1)
+#define GEN_OPERAND(NODE)       ((NODE)->gen.operands[0])
 #define GEN_LABEL(NODE)         AST_NAME(NODE)
 #define GEN_LIST(NODE)          ((NODE)->gen.list)
+// if
+#define GEN_COND(NODE)          ((NODE)->gen.operands[0])
+#define GEN_THEN(NODE)          ((NODE)->gen.operands[1])
+#define GEN_ELSE(NODE)          ((NODE)->gen.operands[2])
 
 struct ast_gen {
     struct ast_common common;
-    node_t *operand;
+    node_t *operands[3];
     node_t **list;
 };
 

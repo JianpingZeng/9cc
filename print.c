@@ -164,6 +164,27 @@ static void print_expr(node_t *node, struct print_context context)
             struct print_context con = {level, inits[i]};
             print_tree1(con);
         }
+    } else {
+	if (EXPR_OPERAND(node, 0)) {
+	    struct print_context lcontext;
+	    lcontext.level = level;
+	    lcontext.node = EXPR_OPERAND(node, 0);
+	    print_tree1(lcontext);
+	}
+
+	if (EXPR_OPERAND(node, 1)) {
+	    struct print_context rcontext;
+	    rcontext.level = level;
+	    rcontext.node = EXPR_OPERAND(node, 1);
+	    print_tree1(rcontext);
+	}
+
+	if (EXPR_OPERAND(node, 2)) {
+	    struct print_context rcontext;
+	    rcontext.level = level;
+	    rcontext.node = EXPR_OPERAND(node, 2);
+	    print_tree1(rcontext);
+	}
     }
 }
 
@@ -416,7 +437,6 @@ static void print_stmt(node_t *node, struct print_context context)
 static void print_tree1(struct print_context context)
 {
     node_t *node = context.node;
-    int level = context.level + 1;
     
     for (int i=0; i < context.level; i++)
         putf("  ");
@@ -435,43 +455,6 @@ static void print_tree1(struct print_context context)
 	print_gen(node, context);
     else
         cc_assert(0);
-
-    if (isexpr(node)) {
-	if (AST_KID(node, 0) && AST_ID(node) != CALL_EXPR) {
-	    struct print_context lcontext;
-	    lcontext.level = level;
-	    lcontext.node = AST_KID(node, 0);
-	    print_tree1(lcontext);
-	}
-
-	if (AST_KID(node, 1)) {
-	    struct print_context rcontext;
-	    rcontext.level = level;
-	    rcontext.node = AST_KID(node, 1);
-	    print_tree1(rcontext);
-	}
-
-	if (EXPR_OPERAND(node, 2)) {
-	    struct print_context rcontext;
-	    rcontext.level = level;
-	    rcontext.node = EXPR_OPERAND(node, 2);
-	    print_tree1(rcontext);
-	}
-    } else if (isdecl(node)) {
-	if (AST_KID(node, 0)) {
-	    struct print_context lcontext;
-	    lcontext.level = level;
-	    lcontext.node = AST_KID(node, 0);
-	    print_tree1(lcontext);
-	}
-
-	if (AST_KID(node, 1)) {
-	    struct print_context rcontext;
-	    rcontext.level = level;
-	    rcontext.node = AST_KID(node, 1);
-	    print_tree1(rcontext);
-	}
-    }
 }
 
 void print_tree(node_t *tree)
@@ -681,8 +664,8 @@ static const char * expr2s(node_t *node)
     
     struct strbuf *s = strbuf_new();
     int id = AST_ID(node);
-    node_t *l = AST_KID(node, 0);
-    node_t *r = AST_KID(node, 1);
+    node_t *l = EXPR_OPERAND(node, 0);
+    node_t *r = EXPR_OPERAND(node, 1);
     
     switch (id) {
     case BINARY_OPERATOR:
