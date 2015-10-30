@@ -50,6 +50,7 @@ static node_t * tmpvar(node_t *ty)
 {
     const char *name = gen_tmpname();
     node_t *decl = define_localvar(name, ty, 0);
+    vec_push(LOCALVARS, decl);
     node_t *n = alloc_node();
     AST_ID(n) = REF_EXPR;
     EXPR_SYM(n) = DECL_SYM(decl);
@@ -606,22 +607,15 @@ static struct vector * predefined_identifiers(void)
 
 static void post_funcdef(struct vector *v, struct vector *predefines)
 {
-    struct vector *used = vec_new();
-    size_t len = vec_len(predefines);
     // remove if no ref.
-    for (int i = len - 1; i >= 0; i--) {
+    for (int i = vec_len(predefines) - 1; i >= 0; i--) {
 	node_t *decl = vec_at(predefines, i);
 	node_t *sym = DECL_SYM(decl);
 	if (SYM_REFS(sym)) {
 	    vec_push_front(v, decl);
-	    vec_push(used, sym);
+	    vec_push_front(LOCALVARS, decl);
 	}
     }
-    // update localvars
-    while (len--)
-	vec_pop_front(LOCALVARS);
-    for (int i = 0; i < vec_len(used); i++)
-	vec_push_front(LOCALVARS, vec_at(used, i));
     vec_free(predefines);
 }
 

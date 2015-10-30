@@ -35,6 +35,7 @@ struct map *labels;
 node_t *current_ftype;
 const char *current_fname;
 struct vector *localvars;
+struct vector *staticvars;
 
 #define SET_FUNCDEF_CONTEXT(fty, id)		\
     gotos = vec_new();				\
@@ -883,23 +884,9 @@ bool istypename(struct token *t)
 	(t->id == ID && istypedef(t->name));
 }
 
-static inline int dcl2kind(declfun_p *dcl)
-{
-    if (dcl == globaldecl)
-        return GLOBAL;
-    else if (dcl == localdecl)
-        return LOCAL;
-    else if (dcl == paramdecl)
-        return PARAM;
-    else
-	cc_assert(0);
-}
-
 static node_t * make_decl(struct token *id, node_t *ty, int sclass, declfun_p *dcl)
 {
     node_t *decl;
-    int kind = dcl2kind(dcl);
-
     node_t *sym = dcl(id, ty, sclass);
     if (sclass == TYPEDEF)
 	decl = ast_decl(TYPEDEF_DECL);
@@ -909,11 +896,6 @@ static node_t * make_decl(struct token *id, node_t *ty, int sclass, declfun_p *d
 	decl = ast_decl(VAR_DECL);
 
     DECL_SYM(decl) = sym;
-
-    // local variables
-    if (kind == LOCAL && isvardecl(decl))
-    	vec_push(LOCALVARS, sym);
-
     return decl;
 }
 
@@ -950,7 +932,15 @@ static struct vector * decls(declfun_p *dcl)
         
         for (;;) {
             if (id) {
-		int kind = dcl2kind(dcl);
+		int kind;
+		if (dcl == globaldecl)
+		    kind = GLOBAL;
+		else if (dcl == localdecl)
+		    kind = LOCAL;
+		else if (dcl == paramdecl)
+		    kind = PARAM;
+		else
+		    cc_assert(0);
 		node_t *decl = make_decl(id, ty, sclass, dcl);
 		if (token->id == '=')
 		    decl_initializer(decl, sclass, kind);
@@ -990,6 +980,42 @@ static struct vector * decls(declfun_p *dcl)
     return v;
 }
 
+static struct vector * filter(struct vector *v)
+{
+    for (int i = 0; i < vec_len(v); i++) {
+	node_t *decl = vec_at(v, i);
+	node_t *sym = DECL_SYM(decl);
+	int sclass = SYM_SCLASS(sym);
+	if (!isvardecl(decl))
+	    continue;
+        // local variables
+	if (sclass == STATIC) {
+	    SYM_LABEL(sym) = gen_static_label(SYM_NAME(sym));
+	    vec_push(STATICVARS, decl);
+	} else if (sclass != EXTERN) {
+	    vec_push(LOCALVARS, decl);
+	}
+    }
+    return v;
+}
+
+static int compare(const void *val1, const void *val2)
+{
+    node_t *decl1 = (node_t *)(*((void **)val1));
+    node_t *decl2 = (node_t *)(*((void **)val2));
+    int id1 = AST_ID(decl1);
+    int id2 = AST_ID(decl2);
+    if (id1 != id2)
+	return id1 < id2;
+    return 0;
+}
+
+static void ** sorts(void **exts)
+{
+    qsort(exts, LIST_LEN(exts), sizeof(node_t *), compare);
+    return exts;
+}
+
 node_t * define_localvar(const char *name, node_t *ty, int sclass)
 {
     struct token *id = new_token(&(struct token){.id = ID, .name = name, .kind = ID, .src = source});
@@ -1014,13 +1040,14 @@ node_t * typename(void)
 node_t ** declaration(void)
 {
     cc_assert(SCOPE >= LOCAL);
-    return (node_t **)vtoa(decls(localdecl));
+    return (node_t **)vtoa(filter(decls(localdecl)));
 }
 
 node_t * translation_unit(void)
 {
     node_t *ret = ast_decl(TU_DECL);
     struct vector *v = vec_new();
+    staticvars = vec_new();
 
     for (gettok(); token->id != EOI; ) {
         if (firstdecl(token)) {

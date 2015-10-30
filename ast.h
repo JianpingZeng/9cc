@@ -119,6 +119,7 @@ struct ast_field {
 #define SYM_DEFINED(NODE)       ((NODE)->symbol.defined)
 #define SYM_VALUE(NODE)         ((NODE)->symbol.value)
 #define SYM_REFS(NODE)          ((NODE)->symbol.refs)
+#define SYM_LABEL(NODE)         ((NODE)->symbol.label)
 // convenience
 #define SYM_VALUE_U(NODE)       (VALUE_U(SYM_VALUE(NODE)))
 #define SYM_VALUE_I(NODE)       (VALUE_I(SYM_VALUE(NODE)))
@@ -131,18 +132,20 @@ struct ast_symbol {
     bool defined;
     union value value;
     unsigned refs;
+    const char *label;
 };
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
-#define DECL_VARS(NODE)         ((NODE)->decl.exts)
+#define DECL_VARS(NODE)         ((NODE)->decl.vars)
 
 struct ast_decl {
     struct ast_common common;
     node_t *sym;		// the symbol
     node_t *body;		// the initializer expr or func body
     node_t **exts;
+    node_t **vars;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -249,6 +252,7 @@ extern node_t * ast_vinit(void);
 // gen
 extern const char * gen_label(void);
 extern const char * gen_tmpname(void);
+extern const char * gen_static_label(const char *name);
 extern node_t * ast_if(node_t *cond, node_t *then, node_t *els);
 extern node_t * ast_jump(const char *label);
 extern node_t * ast_label(const char *label);
