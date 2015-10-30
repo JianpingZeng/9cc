@@ -1027,7 +1027,8 @@ node_t * translation_unit(void)
             vec_add(v, decls(globaldecl));
         } else {
             if (token->id != ';')
-                error("invalid token '%s' in declaration", token->name);
+		// print only no error
+		maybe_error("invalid token '%s' in declaration", token->name);
             gettok();
         }
     }
