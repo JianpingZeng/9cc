@@ -54,10 +54,12 @@ enum {
     TOKEND
 };
 
+#define ID_BITS    10
+
 // token
 struct token {
-    int id : 10;
-    int kind : 10;
+    int id : ID_BITS;
+    int kind : ID_BITS;
     bool bol : 1;		// beginning of line
     bool space : 1;		// leading space
     const char *name;

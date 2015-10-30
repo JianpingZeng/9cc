@@ -68,7 +68,7 @@ struct ast_type {
     size_t size;
     unsigned align;			// align in bytes
     unsigned rank : 8;
-    bool inlined : 1;
+    unsigned inlined : 1;
     union {
         // function
         struct {
@@ -128,7 +128,7 @@ struct ast_symbol {
     struct ast_common common;
     int scope;
     int sclass;
-    bool defined : 1;
+    bool defined;
     union value value;
     unsigned refs;
 };

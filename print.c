@@ -790,6 +790,8 @@ void print_node_size(void)
 	    "ast_expr: %llu\n"
 	    "ast_stmt: %llu\n"
 	    "ast_type: %llu\n"
+	    "ast_type.u: %llu\n"
+	    "ast_type.limits: %llu\n"
 	    "ast_symbol: %llu\n"
 	    "ast_field: %llu\n"
 	    "ast_gen: %llu\n"
@@ -800,6 +802,8 @@ void print_node_size(void)
 	    sizeof(struct ast_expr),
 	    sizeof(struct ast_stmt),
 	    sizeof(struct ast_type),
+	    FIELD_SIZEOF(struct ast_type, u),
+	    FIELD_SIZEOF(struct ast_type, limits),
 	    sizeof(struct ast_symbol),
 	    sizeof(struct ast_field),
 	    sizeof(struct ast_gen),
