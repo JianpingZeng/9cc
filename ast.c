@@ -62,11 +62,10 @@ node_t * ast_null_stmt(void)
     return ast_stmt(NULL_STMT, source, NULL);
 }
 
-node_t * ast_decl(int id, int scope)
+node_t * ast_decl(int id)
 {
     cc_assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
     node_t * decl = new_node(id);
-    DECL_SCOPE(decl) = scope;
     return decl;
 }
 

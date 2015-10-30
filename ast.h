@@ -136,7 +136,6 @@ struct ast_symbol {
     unsigned refs;
 };
 
-#define DECL_SCOPE(NODE)        ((NODE)->decl.scope)
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
@@ -144,9 +143,8 @@ struct ast_symbol {
 
 struct ast_decl {
     struct ast_common common;
-    int scope;
-    node_t *sym;
-    node_t *body;
+    node_t *sym;		// the symbol
+    node_t *body;		// the initializer expr or func body
     node_t **exts;
 };
 
@@ -242,7 +240,7 @@ extern void * alloc_field(void);
 
 extern const char *nname(node_t *node);
 // decl
-extern node_t * ast_decl(int id, int scope);
+extern node_t * ast_decl(int id);
 // stmt
 extern node_t * ast_stmt(int id, struct source src, node_t *gen);
 extern node_t * ast_null_stmt(void);

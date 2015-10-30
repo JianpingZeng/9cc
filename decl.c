@@ -901,11 +901,11 @@ static node_t * make_decl(struct token *id, node_t *ty, int sclass, declfun_p *d
 
     node_t *sym = dcl(id, ty, sclass);
     if (sclass == TYPEDEF)
-	decl = ast_decl(TYPEDEF_DECL, SCOPE);
+	decl = ast_decl(TYPEDEF_DECL);
     else if (isfunc(ty))
-	decl = ast_decl(FUNC_DECL, SCOPE);
+	decl = ast_decl(FUNC_DECL);
     else
-	decl = ast_decl(VAR_DECL, SCOPE);
+	decl = ast_decl(VAR_DECL);
 
     DECL_SYM(decl) = sym;
 
@@ -978,7 +978,7 @@ static struct vector * decls(declfun_p *dcl)
         else
             node_id = ENUM_DECL;
         
-        decl = ast_decl(node_id, SCOPE);
+        decl = ast_decl(node_id);
         DECL_SYM(decl) = TYPE_TSYM(basety);
         vec_push(v, decl);
     } else {
@@ -1018,7 +1018,7 @@ node_t ** declaration(void)
 
 node_t * translation_unit(void)
 {
-    node_t *ret = ast_decl(TU_DECL, GLOBAL);
+    node_t *ret = ast_decl(TU_DECL);
     struct vector *v = vec_new();
 
     for (gettok(); token->id != EOI; ) {
@@ -1241,7 +1241,7 @@ static node_t * globaldecl(struct token *t, node_t *ty, int sclass)
 
 static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
 {
-    node_t *decl = ast_decl(FUNC_DECL, SCOPE);
+    node_t *decl = ast_decl(FUNC_DECL);
     const char *id = t->name;
     struct source src = t->src;
     
