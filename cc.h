@@ -376,12 +376,11 @@ extern struct table * tags;
 #define currentscope(sym)   (SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL))
 
 // gen.c
-extern void gen(node_t *tree, FILE *fp);
+extern void gen(node_t *tree, FILE *fp, const char *ifile);
 
 // print.c
 extern void print_tree(node_t *tree);
 extern void print_gen_tree(node_t *tree);
-extern void print_exts(node_t *tree);
 extern const char *type2s(node_t *ty);
 extern const char * node2s(node_t *node);
 extern void print_node_size(void);

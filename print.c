@@ -470,46 +470,6 @@ void print_gen_tree(node_t *tree)
     needgen--;
 }
 
-static void print_var(node_t *decl)
-{
-    node_t *sym = DECL_SYM(decl);
-    node_t *ty = SYM_TYPE(sym);
-    const char *name = SYM_NAME(sym);
-    const char *label = SYM_LABEL(sym);
-    int sclass = SYM_SCLASS(sym);
-    putf("'%s' %s", name, TYPE_NAME(ty));
-    if (sclass > 0)
-	putf(" [%s]", id2s(sclass));
-    if (strcmp(name, label))
-	putf(" label: '%s'", label);
-    if (DECL_BODY(decl) && !isfunc(ty))
-	putf(" <init>");
-    putf("\n");
-}
-
-void print_exts(node_t *tree)
-{
-    // funcs
-    node_t **exts = DECL_EXTS(tree);
-    for (int i = 0; i < LIST_LEN(exts); i++) {
-	node_t *decl = exts[i];
-	node_t *sym = DECL_SYM(decl);
-	print_var(decl);
-	if (isfunc(SYM_TYPE(sym))) {
-	    node_t **vars = DECL_LVARS(decl);
-	    if (LIST_LEN(vars)) {
-		println("{");
-		for (int i = 0; i < LIST_LEN(vars); i++) {
-		    node_t *decl = vars[i];
-		    putf("    ");
-		    print_var(decl);
-		}
-		println("}");
-	    }
-	}
-    }
-}
-
 /**
  * Convert type node to string.
  */

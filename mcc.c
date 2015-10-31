@@ -149,6 +149,7 @@ int main(int argc, char **argv)
     
     for (int i = 0; i < vec_len(inputs); i++) {
 	const char *ifile = vec_at(inputs, i);
+	const char *iname = basename(strcopy(ifile));
 	const char *ofile = NULL;
 	if (options_has(options, "-E")) {
 	    if (output_file)
@@ -157,12 +158,12 @@ int main(int argc, char **argv)
 	    if (output_file)
 		ofile = output_file;
 	    else
-		ofile = replace_suffix(ifile, "s");
+		ofile = replace_suffix(iname, "s");
 	} else if (options_has(options, "-c")) {
 	    if (output_file)
 		ofile = output_file;
 	    else
-		ofile = replace_suffix(ifile, "o");
+		ofile = replace_suffix(iname, "o");
 	} else {
 	    ofile = tempname(tmpdir, ifile);
 	}

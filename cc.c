@@ -42,9 +42,8 @@ static void translate(void)
     node_t *tree;
     tree = translation_unit();
     print_tree(tree);
-    print_exts(tree);
     if (errors == 0)
-	gen(tree, outfp);
+	gen(tree, outfp, ifile);
 }
 
 static void preprocess(void)
