@@ -119,7 +119,8 @@ struct ast_field {
 #define SYM_DEFINED(NODE)       ((NODE)->symbol.defined)
 #define SYM_VALUE(NODE)         ((NODE)->symbol.value)
 #define SYM_REFS(NODE)          ((NODE)->symbol.refs)
-#define SYM_LABEL(NODE)         ((NODE)->symbol.label)
+#define SYM_LABEL(NODE)         ((NODE)->symbol.x.label)
+#define SYM_LOFF(NODE)          ((NODE)->symbol.x.loff)
 // convenience
 #define SYM_VALUE_U(NODE)       (VALUE_U(SYM_VALUE(NODE)))
 #define SYM_VALUE_I(NODE)       (VALUE_I(SYM_VALUE(NODE)))
@@ -132,7 +133,10 @@ struct ast_symbol {
     bool defined;
     union value value;
     unsigned refs;
-    const char *label;
+    struct {
+	const char *label;
+	long loff;
+    }x;
 };
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
