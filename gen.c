@@ -1,4 +1,5 @@
 #include "cc.h"
+#include "sys.h"
 
 static FILE *outfp;
 
@@ -16,6 +17,21 @@ static void emitf(const char *lead, const char *fmt, ...)
     va_end(ap);
 }
 
+static void push(const char *reg)
+{
+    emit("pushq %s", reg);
+}
+
+static void pop(const char *reg)
+{
+    emit("popq %s", reg);
+}
+
+static void mov(const char *src, const char *dst)
+{
+    emit("movq %s, %s", src, dst);
+}
+
 static void emit_globalvar(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
@@ -28,8 +44,16 @@ static void emit_globalvar(node_t *n)
 static void emit_funcdef(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
-    emit_noindent("%s:", SYM_LABEL(sym));
+    const char *name = SYM_LABEL(sym);
+    if (SYM_SCLASS(sym) != STATIC)
+	emit(".globl %s", name);
+    emit(".type %s, @function", name);
+    emit_noindent("%s:", name);
     emit(".cfi_startproc");
+    push("%rbp");
+    mov("%rsp", "%rbp");
+    pop("%rbp");
+    emit("ret");
     emit(".cfi_endproc");
 }
 
@@ -54,6 +78,7 @@ void gen(node_t *tree, FILE *fp, const char *ifile)
 	    emit_funcdef(n);
 	else if (isvardecl(n))
 	    emit_globalvar(n);
+	emit_noindent("");
     }
     emit_end();
 }
