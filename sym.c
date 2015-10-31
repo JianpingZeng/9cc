@@ -91,6 +91,8 @@ node_t * install(const char *name, struct table **tpp, int scope)
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
     SYM_LABEL(sym) = name;
+    SYM_UP(sym) = tp->all;
+    tp->all = sym;
     map_put(tp->map, name, sym);
 
     return sym;
