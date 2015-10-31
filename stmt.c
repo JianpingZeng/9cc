@@ -46,18 +46,6 @@ static inline node_t * ast_compoundv(struct vector *v)
     return ast_compound((node_t **)vtoa(v));
 }
 
-static node_t * tmpvar(node_t *ty)
-{
-    const char *name = gen_tmpname();
-    node_t *decl = define_localvar(name, ty, 0);
-    vec_push(LOCALVARS, decl);
-    node_t *n = alloc_node();
-    AST_ID(n) = REF_EXPR;
-    EXPR_SYM(n) = DECL_SYM(decl);
-    AST_TYPE(n) = ty;
-    return n;
-}
-
 static node_t * switch_jmp(node_t *var, node_t *case_node)
 {
     node_t *cond;
@@ -607,15 +595,17 @@ static struct vector * predefined_identifiers(void)
 
 static void post_funcdef(struct vector *v, struct vector *predefines)
 {
+    struct vector *used = vec_new();
     // remove if no ref.
     for (int i = vec_len(predefines) - 1; i >= 0; i--) {
 	node_t *decl = vec_at(predefines, i);
 	node_t *sym = DECL_SYM(decl);
 	if (SYM_REFS(sym)) {
 	    vec_push_front(v, decl);
-	    vec_push_front(LOCALVARS, decl);
+	    vec_push_front(used, decl);
 	}
     }
+    filter_local(used, true);
     vec_free(predefines);
 }
 

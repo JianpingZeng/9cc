@@ -205,14 +205,10 @@ extern node_t * new_string_literal(const char *string);
 #define LABELS     (labels)
 #define FTYPE      (current_ftype)
 #define FNAME      (current_fname)
-#define LOCALVARS  (localvars)
-#define STATICVARS (staticvars)
 extern struct vector *gotos;
 extern struct map *labels;
 extern node_t *current_ftype;
 extern const char *current_fname;
-extern struct vector *localvars;
-extern struct vector *staticvars;
 
 extern bool istypename(struct token *t);
 extern node_t ** declaration(void);
@@ -221,7 +217,9 @@ extern node_t * typename(void);
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
+extern node_t * tmpvar(node_t *ty);
 extern node_t * define_localvar(const char *name, node_t *ty, int sclass);
+extern struct vector * filter_local(struct vector *v, bool front);
 
 // initializer.c
 extern node_t * initializer_list(node_t *ty);
@@ -384,7 +382,7 @@ extern void gen(node_t *tree, FILE *fp);
 // print.c
 extern void print_tree(node_t *tree);
 extern void print_gen_tree(node_t *tree);
-extern void print_vars_tree(node_t *tree);
+extern void print_exts(node_t *tree);
 extern const char *type2s(node_t *ty);
 extern const char * node2s(node_t *node);
 extern void print_node_size(void);

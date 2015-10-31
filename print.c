@@ -72,7 +72,7 @@ static void print_decl(node_t *node, struct print_context context)
 	putf(YELLOW("<line:%u col:%u> "), AST_SRC(sym).line, AST_SRC(sym).column);
     }
     if (isfuncdef(node))
-	putf("%llu localvars ", LIST_LEN(DECL_VARS(node)));
+	putf("%llu localvars ", LIST_LEN(SYM_LVARS(sym)));
     putf("\n");
     
     level = context.level + 1;
@@ -80,7 +80,7 @@ static void print_decl(node_t *node, struct print_context context)
     switch (AST_ID(node)) {
     case TU_DECL:
 	{
-	    node_t **exts = DECL_EXTS(node);
+	    node_t **exts = DECL_DCLS(node);
 	    if (exts) {
 		for (int i=0; exts[i]; i++) {
 		    struct print_context con = {level, exts[i]};
@@ -470,14 +470,13 @@ void print_gen_tree(node_t *tree)
     needgen--;
 }
 
-static void print_vars_decl(node_t *decl)
+static void print_sym(node_t *sym)
 {
-    node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
     const char *name = SYM_NAME(sym);
     const char *label = SYM_LABEL(sym);
     int sclass = SYM_SCLASS(sym);
-    putf("%s '%s'", TYPE_NAME(ty), name);
+    putf("'%s' %s", name, TYPE_NAME(ty));
     if (sclass > 0)
 	putf(" [%s]", id2s(sclass));
     if (strcmp(name, label))
@@ -485,25 +484,24 @@ static void print_vars_decl(node_t *decl)
     putf("\n");
 }
 
-void print_vars_tree(node_t *tree)
+void print_exts(node_t *tree)
 {
-    node_t **exts = DECL_VARS(tree);
+    // funcs
+    node_t **exts = DECL_EXTS(tree);
     for (int i = 0; i < LIST_LEN(exts); i++) {
-	node_t *decl = exts[i];
-	print_vars_decl(decl);
-	if (isfuncdef(decl)) {
-	    node_t **vars = DECL_VARS(decl);
+	node_t *sym = exts[i];
+	print_sym(sym);
+	if (isfunc(SYM_TYPE(sym))) {
+	    node_t **vars = SYM_LVARS(sym);
 	    if (LIST_LEN(vars)) {
 		println("{");
 		for (int i = 0; i < LIST_LEN(vars); i++) {
-		    node_t *decl = vars[i];
+		    node_t *sym = vars[i];
 		    putf("    ");
-		    print_vars_decl(decl);
+		    print_sym(sym);
 		}
 		println("}");
 	    }
-	} else if (isvardecl(decl)) {
-
 	}
     }
 }
