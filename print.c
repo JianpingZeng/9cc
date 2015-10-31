@@ -482,6 +482,8 @@ static void print_var(node_t *decl)
 	putf(" [%s]", id2s(sclass));
     if (strcmp(name, label))
 	putf(" label: '%s'", label);
+    if (DECL_BODY(decl) && !isfunc(ty))
+	putf(" <init>");
     putf("\n");
 }
 

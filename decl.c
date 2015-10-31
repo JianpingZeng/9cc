@@ -983,26 +983,33 @@ static struct vector * decls(declfun_p *dcl)
     return v;
 }
 
-static struct vector * filter_global(void)
+static struct vector * filter_global(struct vector *v)
 {
     cc_assert(SCOPE == GLOBAL);
-    cc_assert(identifiers->scope == GLOBAL);
-    struct vector *v = vec_new();
-    // for (node_t *p = identifiers->all; p; p = SYM_UP(p)) {
-    // 	cc_assert(SYM_SCOPE(p) == GLOBAL);
-    // 	int sclass = SYM_SCLASS(p);
-    // 	if (sclass == TYPEDEF || sclass == EXTERN)
-    // 	    continue;
-    // 	if (isfunc(SYM_TYPE(p))) {
-    // 	    if (SYM_DEFINED(p)) {
-    // 		vec_add_array(v, (void **)SYM_SVARS(p));
-    // 		vec_push(v, p);
-    // 	    }
-    // 	} else {
-    // 	    vec_push(v, p);
-    // 	}
-    // }
-    return v;
+    struct vector *r = vec_new();
+    struct map *map = map_new();
+    map->cmpfn = nocmp;
+    for (int i = 0; i < vec_len(v); i++) {
+	node_t *decl = vec_at(v, i);
+	if (isfuncdef(decl)) {
+	    vec_push(r, decl);
+	    vec_add_array(r, (void **)DECL_SVARS(decl));
+	} else if (isvardecl(decl)) {
+	    node_t *sym = DECL_SYM(decl);
+	    if (SYM_SCLASS(sym) == EXTERN)
+		continue;
+	    node_t *decl1 = map_get(map, sym);
+	    if (decl1) {
+		if (DECL_BODY(decl))
+		    DECL_BODY(decl1) = DECL_BODY(decl);
+	    } else {
+		vec_push(r, decl);
+		map_put(map, sym, decl);
+	    }
+	}
+    }
+    map_free(map);
+    return r;
 }
 
 struct vector * filter_local(struct vector *v, bool front)
@@ -1087,7 +1094,7 @@ node_t * translation_unit(void)
     }
     
     DECL_DCLS(ret) = (node_t **)vtoa(v);
-    DECL_EXTS(ret) = (node_t **)vtoa(filter_global());
+    DECL_EXTS(ret) = (node_t **)vtoa(filter_global(v));
     return ret;
 }
 
@@ -1287,6 +1294,8 @@ static node_t * globaldecl(struct token *t, node_t *ty, int sclass)
             errorf(src, "static declaration of '%s' follows non-static declaration", id);
         else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
             errorf(src, "non-static declaration of '%s' follows static declaration", id);
+	if (sclass != EXTERN)
+	    SYM_SCLASS(sym) = sclass;
     } else {
         conflicting_types_error(src, sym);
     }
