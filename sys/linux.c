@@ -14,6 +14,8 @@
 #include <time.h>
 // dirname, basename
 #include <libgen.h>
+
+#ifndef CONFIG_CYGWIN
 // trace
 #include <execinfo.h>
 #include <signal.h>
@@ -29,11 +31,14 @@ static void handler(int sig)
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     exit(EXIT_FAILURE);
 }
+#endif
 
 void setup_sys()
 {
+#ifndef CONFIG_CYGWIN
     signal(SIGSEGV, handler);
     signal(SIGABRT, handler);
+#endif
 }
 
 const char *mktmpdir()
