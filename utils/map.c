@@ -17,7 +17,7 @@ static void alloc_map(struct map *map, unsigned size)
     map->shrink_at = map->grow_at / ((1<<MAP_RESIZE_BITS) + 1);
 }
 
-static unsigned bucket(struct map *map, const char *key)
+static unsigned bucket(struct map *map, const void *key)
 {
     return strhash(key) & (map->tablesize - 1);
 }
@@ -41,17 +41,22 @@ static void rehash(struct map *map, unsigned newsize)
     free(oldtable);
 }
 
-static int cmp(const char *key1, const char *key2)
+static int cmp(const void *key1, const void *key2)
 {
     return strcmp(key1, key2);
 }
 
-static int eqentry(struct map *map, struct map_entry *entry, const char *key)
+int nocmp(const void *key1, const void *key2)
+{
+    return 1;
+}
+
+static int eqentry(struct map *map, struct map_entry *entry, const void *key)
 {
     return entry->key == key || !map->cmpfn(entry->key, key);
 }
 
-static struct map_entry ** find_entry(struct map *map, const char *key)
+static struct map_entry ** find_entry(struct map *map, const void *key)
 {
     struct map_entry **entry = &map->table[bucket(map, key)];
     while (*entry && !eqentry(map, *entry, key))
@@ -59,7 +64,7 @@ static struct map_entry ** find_entry(struct map *map, const char *key)
     return entry;
 }
 
-static void map_remove(struct map *map, const char *key)
+static void map_remove(struct map *map, const void *key)
 {
     struct map_entry **entry = find_entry(map, key);
     if (!*entry)
@@ -74,7 +79,7 @@ static void map_remove(struct map *map, const char *key)
         rehash(map, map->tablesize >> MAP_RESIZE_BITS);
 }
 
-static void map_add(struct map *map, const char *key, void *value)
+static void map_add(struct map *map, const void *key, void *value)
 {
     unsigned b = bucket(map, key);
     struct map_entry *entry = zmalloc(sizeof(struct map_entry));
@@ -112,13 +117,13 @@ void map_free(struct map *map)
     free(map);
 }
 
-void *map_get(struct map *map, const char *key)
+void *map_get(struct map *map, const void *key)
 {
     struct map_entry *entry = *find_entry(map, key);
     return entry ? entry->value : NULL;
 }
 
-void map_put(struct map *map, const char *key, void *value)
+void map_put(struct map *map, const void *key, void *value)
 {
     map_remove(map, key);
     if (value)
