@@ -122,8 +122,6 @@ struct ast_field {
 #define SYM_UP(NODE)            ((NODE)->symbol.up)
 #define SYM_LABEL(NODE)         ((NODE)->symbol.x.label)
 #define SYM_LOFF(NODE)          ((NODE)->symbol.x.loff)
-#define SYM_LVARS(NODE)         ((NODE)->symbol.x.lvars)
-#define SYM_SVARS(NODE)         ((NODE)->symbol.x.svars)
 // convenience
 #define SYM_VALUE_U(NODE)       (VALUE_U(SYM_VALUE(NODE)))
 #define SYM_VALUE_I(NODE)       (VALUE_I(SYM_VALUE(NODE)))
@@ -140,8 +138,6 @@ struct ast_symbol {
     struct {
 	const char *label;
 	long loff;		// stack offset
-	node_t **lvars;		// function local vars
-	node_t **svars;		// function static vars
     }x;
 };
 
@@ -149,6 +145,8 @@ struct ast_symbol {
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
 #define DECL_DCLS(NODE)         ((NODE)->decl.dcls)
+#define DECL_LVARS(NODE)        ((NODE)->decl.x.lvars)
+#define DECL_SVARS(NODE)        ((NODE)->decl.x.svars)
 
 struct ast_decl {
     struct ast_common common;
@@ -156,6 +154,10 @@ struct ast_decl {
     node_t *body;		// the initializer expr or func body
     node_t **exts;
     node_t **dcls;
+    struct {
+	node_t **lvars;		// function local vars
+	node_t **svars;		// function static vars
+    }x;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)

@@ -988,21 +988,21 @@ static struct vector * filter_global(void)
     cc_assert(SCOPE == GLOBAL);
     cc_assert(identifiers->scope == GLOBAL);
     struct vector *v = vec_new();
-    for (node_t *p = identifiers->all; p; p = SYM_UP(p)) {
-	cc_assert(SYM_SCOPE(p) == GLOBAL);
-	int sclass = SYM_SCLASS(p);
-	if (sclass == TYPEDEF || sclass == EXTERN)
-	    continue;
-	if (isfunc(SYM_TYPE(p))) {
-	    if (SYM_DEFINED(p)) {
-		vec_add_array(v, (void **)SYM_SVARS(p));
-		vec_push(v, p);
-	    }
-	} else {
-	    vec_push(v, p);
-	}
-    }
-    return vec_reverse(v);
+    // for (node_t *p = identifiers->all; p; p = SYM_UP(p)) {
+    // 	cc_assert(SYM_SCOPE(p) == GLOBAL);
+    // 	int sclass = SYM_SCLASS(p);
+    // 	if (sclass == TYPEDEF || sclass == EXTERN)
+    // 	    continue;
+    // 	if (isfunc(SYM_TYPE(p))) {
+    // 	    if (SYM_DEFINED(p)) {
+    // 		vec_add_array(v, (void **)SYM_SVARS(p));
+    // 		vec_push(v, p);
+    // 	    }
+    // 	} else {
+    // 	    vec_push(v, p);
+    // 	}
+    // }
+    return v;
 }
 
 struct vector * filter_local(struct vector *v, bool front)
@@ -1017,14 +1017,14 @@ struct vector * filter_local(struct vector *v, bool front)
 	if (sclass == STATIC) {
 	    SYM_LABEL(sym) = gen_static_label(SYM_NAME(sym));
 	    if (front)
-		vec_push_front(staticvars, sym);
+		vec_push_front(staticvars, decl);
 	    else
-		vec_push(staticvars, sym);
+		vec_push(staticvars, decl);
 	} else if (sclass != EXTERN) {
 	    if (front)
-		vec_push_front(localvars, sym);
+		vec_push_front(localvars, decl);
 	    else
-		vec_push(localvars, sym);
+		vec_push(localvars, decl);
 	}
     }
     return v;
@@ -1034,7 +1034,7 @@ node_t * tmpvar(node_t *ty)
 {
     const char *name = gen_tmpname();
     node_t *decl = define_localvar(name, ty, 0);
-    vec_push(localvars, DECL_SYM(decl));
+    vec_push(localvars, decl);
     node_t *n = alloc_node();
     AST_ID(n) = REF_EXPR;
     EXPR_SYM(n) = DECL_SYM(decl);
@@ -1390,8 +1390,8 @@ static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
 	backfill_labels();
 	// TODO: check control flow and return stmt
 	DECL_BODY(decl) = stmt;
-	SYM_LVARS(DECL_SYM(decl)) = (node_t **)vtoa(localvars);
-	SYM_SVARS(DECL_SYM(decl)) = (node_t **)vtoa(staticvars);
+	DECL_LVARS(decl) = (node_t **)vtoa(localvars);
+	DECL_SVARS(decl) = (node_t **)vtoa(staticvars);
         RESTORE_FUNCDEF_CONTEXT();
 	exit_scope();
     }
