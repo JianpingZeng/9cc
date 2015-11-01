@@ -3,8 +3,12 @@
 
 static FILE *outfp;
 
-#define emit(...)             emitf("    ",  __VA_ARGS__)
+#define LEAD  "    "
+#define emit(...)             emitf(LEAD,  __VA_ARGS__)
 #define emit_noindent(...)    emitf(NULL, __VA_ARGS__)
+#define pushq(reg)      emit("pushq %%" #reg)
+#define popq(reg)       emit("popq %%" #reg)
+#define movq(src, dst)  emit("movq %s, %s", src, dst)
 
 static void emitf(const char *lead, const char *fmt, ...)
 {
@@ -17,28 +21,32 @@ static void emitf(const char *lead, const char *fmt, ...)
     va_end(ap);
 }
 
-static void push(const char *reg)
+static void emit_initializer(node_t *n)
 {
-    emit("pushq %s", reg);
+    emit(".int 4");
 }
 
-static void pop(const char *reg)
-{
-    emit("popq %s", reg);
-}
-
-static void mov(const char *src, const char *dst)
-{
-    emit("movq %s, %s", src, dst);
-}
-
-static void emit_globalvar(node_t *n)
+static void emit_data(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
-    if (SYM_SCLASS(sym) == STATIC)
-	emit(".local %s", SYM_LABEL(sym));
-    else
+    node_t *ty = SYM_TYPE(sym);
+    if (SYM_SCLASS(sym)) {
 	emit(".globl %s", SYM_LABEL(sym));
+	emit(".data");
+    }
+    emit(".align %d", TYPE_ALIGN(ty));
+    emit_noindent("%s:", SYM_LABEL(sym));
+    emit_initializer(n);
+}
+
+static void emit_bss(node_t *n)
+{
+    node_t *sym = DECL_SYM(n);
+    node_t *ty = SYM_TYPE(sym);
+    if (SYM_SCLASS(sym) == STATIC)
+	emit(".lcomm %s,%llu,%d", SYM_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
+    else
+	emit(".comm  %s,%llu,%d", SYM_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
 }
 
 static void emit_funcdef(node_t *n)
@@ -47,14 +55,11 @@ static void emit_funcdef(node_t *n)
     const char *name = SYM_LABEL(sym);
     if (SYM_SCLASS(sym) != STATIC)
 	emit(".globl %s", name);
-    emit(".type %s, @function", name);
     emit_noindent("%s:", name);
-    emit(".cfi_startproc");
-    push("%rbp");
-    mov("%rsp", "%rbp");
-    pop("%rbp");
+    pushq(rbp);
+    movq("%rsp", "%rbp");
+    popq(rbp);
     emit("ret");
-    emit(".cfi_endproc");
 }
 
 static void emit_begin(const char *ifile)
@@ -64,6 +69,7 @@ static void emit_begin(const char *ifile)
 
 static void emit_end(void)
 {
+    emit(".ident \"mcc\"");
 }
 
 void gen(node_t *tree, FILE *fp, const char *ifile)
@@ -74,11 +80,14 @@ void gen(node_t *tree, FILE *fp, const char *ifile)
     node_t **exts = DECL_EXTS(tree);
     for (int i = 0; i < LIST_LEN(exts); i++) {
 	node_t *n = exts[i];
-	if (isfuncdef(n))
+	if (isfuncdef(n)) {
 	    emit_funcdef(n);
-	else if (isvardecl(n))
-	    emit_globalvar(n);
-	emit_noindent("");
+	} else if (isvardecl(n)) {
+	    if (DECL_BODY(n))
+		emit_data(n);
+	    else
+		emit_bss(n);
+	}
     }
     emit_end();
 }
