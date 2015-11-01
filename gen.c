@@ -6,8 +6,8 @@ static FILE *outfp;
 #define LEAD  "    "
 #define emit(...)             emitf(LEAD,  __VA_ARGS__)
 #define emit_noindent(...)    emitf(NULL, __VA_ARGS__)
-#define pushq(reg)      emit("pushq %%" #reg)
-#define popq(reg)       emit("popq %%" #reg)
+#define pushq(reg)      emit("pushq %s", reg)
+#define popq(reg)       emit("popq %s", reg)
 #define movq(src, dst)  emit("movq %s, %s", src, dst)
 
 static void emitf(const char *lead, const char *fmt, ...)
@@ -56,9 +56,9 @@ static void emit_funcdef(node_t *n)
     if (SYM_SCLASS(sym) != STATIC)
 	emit(".globl %s", name);
     emit_noindent("%s:", name);
-    pushq(rbp);
+    pushq("%rbp");
     movq("%rsp", "%rbp");
-    popq(rbp);
+    popq("%rbp");
     emit("ret");
 }
 
