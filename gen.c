@@ -1,5 +1,6 @@
 #include "cc.h"
 #include "sys.h"
+#include <stdint.h>
 
 static FILE *outfp;
 
@@ -23,20 +24,56 @@ static void emitf(const char *lead, const char *fmt, ...)
 
 static void emit_initializer(node_t *n)
 {
-    emit(".int 4");
+    int kind = TYPE_KIND(AST_TYPE(n));
+    switch (kind) {
+    case _BOOL:
+    case CHAR:
+	emit(".byte %d", ILITERAL_VALUE(n));
+	break;
+    case SHORT:
+	emit(".short %d", ILITERAL_VALUE(n));
+	break;
+    case INT:
+    case UNSIGNED:
+	emit(".long %d", ILITERAL_VALUE(n));
+	break;
+    case LONG:
+    case LONG+LONG:
+        emit(".quad %llu", ILITERAL_VALUE(n));
+	break;
+    case FLOAT:
+	{
+	    float f = FLITERAL_VALUE(n);
+	    emit(".long %d", *(uint32_t *)&f);
+	}
+	break;
+    case DOUBLE:
+    case LONG+DOUBLE:
+	{
+	    double d = FLITERAL_VALUE(n);
+	    emit(".quad %llu", *(uint64_t *)&d);
+	}
+	break;
+    case POINTER:
+	break;
+    default:
+	error("unknown type '%s'", type2s(AST_TYPE(n)));
+	break;
+    }
 }
 
 static void emit_data(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
     node_t *ty = SYM_TYPE(sym);
-    if (SYM_SCLASS(sym)) {
+    if (SYM_SCLASS(sym) != STATIC) {
 	emit(".globl %s", SYM_LABEL(sym));
 	emit(".data");
     }
-    emit(".align %d", TYPE_ALIGN(ty));
+    if (TYPE_ALIGN(ty) > 1)
+	emit(".align %d", TYPE_ALIGN(ty));
     emit_noindent("%s:", SYM_LABEL(sym));
-    emit_initializer(n);
+    emit_initializer(DECL_BODY(n));
 }
 
 static void emit_bss(node_t *n)
