@@ -121,14 +121,27 @@ static void emit_address_initializer(node_t *n)
 	emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
 	if (BINARY_OPERATOR) {
 	    node_t *r = EXPR_OPERAND(init, 1);
-	    if (TYPE_OP(AST_TYPE(r)) == INT) {
-		long long i = ILITERAL_VALUE(r);
-		if (i < 0)
-		    emit(".quad %s%lld", label, i*TYPE_SIZE(rtype(ty)));
-		else
-		    emit(".quad %s+%llu", label, i*TYPE_SIZE(rtype(ty)));
+	    int op = EXPR_OP(init);
+	    if (op == '+') {
+		if (TYPE_OP(AST_TYPE(r)) == INT) {
+		    long long i = ILITERAL_VALUE(r);
+		    if (i < 0)
+			emit(".quad %s%lld", label, i*TYPE_SIZE(rtype(ty)));
+		    else
+			emit(".quad %s+%lld", label, i*TYPE_SIZE(rtype(ty)));
+		} else {
+		    emit(".quad %s+%llu", label, ILITERAL_VALUE(r)*TYPE_SIZE(rtype(ty)));
+		}
 	    } else {
-		emit(".quad %s+%llu", label, ILITERAL_VALUE(r)*TYPE_SIZE(rtype(ty)));
+		if (TYPE_OP(AST_TYPE(r)) == INT) {
+		    long long i = ILITERAL_VALUE(r);
+		    if (i < 0)
+			emit(".quad %s+%lld", label, -i*TYPE_SIZE(rtype(ty)));
+		    else
+			emit(".quad %s-%lld", label, i*TYPE_SIZE(rtype(ty)));
+		} else {
+		    emit(".quad %s-%llu", label, ILITERAL_VALUE(r)*TYPE_SIZE(rtype(ty)));
+		}
 	    }
 	} else {
 	    emit(".quad %s", label);

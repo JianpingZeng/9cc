@@ -195,6 +195,8 @@ extern node_t * ret_conv(node_t *ty, node_t *node);
 extern node_t * bool_expr(void);
 // for expression in switch statement
 extern node_t * switch_expr(void);
+// bop
+extern node_t * bop(int op, node_t *l, node_t *r);
 
 // literals
 extern node_t * new_integer_literal(int i);

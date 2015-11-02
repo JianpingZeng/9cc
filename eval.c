@@ -400,8 +400,14 @@ static node_t * ptr_int_bop(int op, node_t *ty, node_t *ptr, node_t *i)
 	cc_assert(op1 == '+' || op1 == '-');
 	cc_assert(isiliteral(r1));
 
-	
-	
+	if (op == op1) {
+	    r = bop('+', r, r1);
+	} else {
+	    node_t *r2 = op == '+' ? r : r1;
+	    node_t *r3 = r2 == r ? r1 : r;
+	    r = bop('-', r2, r3);
+	    op = '+';
+	}
 	l = EXPR_OPERAND(l, 0);
     }
     return ast_bop(op, ty, l, r);

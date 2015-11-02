@@ -5,7 +5,6 @@ static node_t * cond_expr(void);
 static node_t * cond_expr1(node_t *o);
 static node_t * unary_expr(void);
 static node_t * uop(int op, node_t *ty, node_t *l);
-static node_t * bop(int op, node_t *l, node_t *r);
 static node_t * logicop(int op, node_t *l, node_t *r);
 static node_t * commaop(int op, node_t *l, node_t *r);
 static node_t * assignop(int op, node_t *l, node_t *r);
@@ -1704,7 +1703,7 @@ static node_t * uop(int op, node_t *ty, node_t *l)
     return node;
 }
 
-static node_t * bop(int op, node_t *l, node_t *r)
+node_t * bop(int op, node_t *l, node_t *r)
 {
     node_t *node = NULL;
     node_t *ty;
