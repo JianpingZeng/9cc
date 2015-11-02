@@ -46,6 +46,7 @@ static struct uop {
     bool (*is) (node_t *ty);
     node_t * (*eval) (int op, node_t *ty, node_t *l);
 } uops[] = {
+    {'+',  isarith,  arith_uop},
     {'-',  isarith,  arith_uop},
     {'~',  isint,    int_uop},
     {'!',  isscalar, scalar_uop},
@@ -178,6 +179,11 @@ static node_t * ptr2arith(node_t *dty, node_t *l)
 static node_t * ptr2ptr(node_t *dty, node_t *l)
 {
     // ptr => ptr
+    if (AST_ID(l) == REF_EXPR) {
+	node_t *ty = SYM_TYPE(EXPR_SYM(l));
+	if (!isfunc(ty) && !isarray(ty))
+	    return NULL;
+    }
     l = copy_node(l);
     AST_TYPE(l) = dty;
     return l;
@@ -251,8 +257,11 @@ static node_t * address_uop(node_t *expr)
     node_t *l = EXPR_OPERAND(expr, 0);
     if (!l || !(l = doeval(l)))
 	return NULL;
-    if (issliteral(l) || AST_ID(l) == INITS_EXPR || AST_ID(l) == SUBSCRIPT_EXPR) {
+    if (issliteral(l) || AST_ID(l) == INITS_EXPR) {
 	return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);
+    } else if (AST_ID(l) == UNARY_OPERATOR) {
+	cc_assert(EXPR_OP(l) == '*');
+	return EXPR_OPERAND(l, 0);
     } else if (AST_ID(l) == REF_EXPR) {
 	node_t *sym = EXPR_SYM(l);
 	if (!has_static_extent(sym))
@@ -298,6 +307,8 @@ static node_t * arith_uop(int op, node_t *ty, node_t *l)
     union value rval;
 
     switch (op) {
+    case '+':
+	return l;
     case '-':
 	if (isiliteral(l)) {
 	    VALUE_U(rval) = - VALUE_U(lval);
@@ -381,6 +392,18 @@ static node_t * ptr_int_bop(int op, node_t *ty, node_t *ptr, node_t *i)
     node_t *r = doeval(i);
     if (!r || !isiliteral(r))
 	return NULL;
+    // combine
+    if (AST_ID(l) == BINARY_OPERATOR) {
+	int op1 = EXPR_OP(l);
+        node_t *r1 = EXPR_OPERAND(l, 1);
+
+	cc_assert(op1 == '+' || op1 == '-');
+	cc_assert(isiliteral(r1));
+
+	
+	
+	l = EXPR_OPERAND(l, 0);
+    }
     return ast_bop(op, ty, l, r);
 }
 
@@ -543,7 +566,6 @@ static node_t * doeval(node_t *expr)
 	    case '&':
 	       return address_uop(expr);
 	    case '+':
-		return doeval(l);
 	    case '-':
 	    case '~':
 	    case '!':
@@ -608,12 +630,8 @@ static node_t * doeval(node_t *expr)
 	    node_t *i = isint(AST_TYPE(r)) ? r : l;
 	    cc_assert(isptr(AST_TYPE(ptr)));
 	    cc_assert(isint(AST_TYPE(i)));
-	    ptr = doeval(ptr);
-	    i = doeval(i);
-	    if (!i || !isiliteral(i) || !ptr)
-		return NULL;
-	    cc_assert(isptr(AST_TYPE(ptr)));
-	    return ast_expr(SUBSCRIPT_EXPR, AST_TYPE(expr), ptr, i);
+	    node_t *p = ptr_int_bop('+', AST_TYPE(ptr), ptr, i);
+	    return ast_uop('*', AST_TYPE(expr), p);
 	}
     case REF_EXPR:
 	if (EXPR_OP(expr) == ENUM)

@@ -11,6 +11,8 @@ static FILE *outfp;
 #define popq(reg)       emit("popq %s", reg)
 #define movq(src, dst)  emit("movq %s, %s", src, dst)
 
+static void emit_initializer(node_t *t);
+
 static void emitf(const char *lead, const char *fmt, ...)
 {
     va_list ap;
@@ -22,58 +24,182 @@ static void emitf(const char *lead, const char *fmt, ...)
     va_end(ap);
 }
 
-static void emit_initializer(node_t *n)
+static const char *gen_slabel(void)
 {
-    int kind = TYPE_KIND(AST_TYPE(n));
-    switch (kind) {
+    static size_t i;
+    return format(".LC%llu", i++);
+}
+
+static const char * emit_string_literal(const char *name)
+{
+    static struct map *map;
+    if (!map)
+	map = map_new();
+    const char *label = map_get(map, name);
+    if (!label) {
+	label = gen_slabel();
+	map_put(map, name, (void *)label);
+	emit(".section .rodata");
+	emit_noindent("%s:", label);
+	emit(".asciz %s", name);
+    }
+    return label;
+}
+
+static const char *gen_compound_label(void)
+{
+    static size_t i;
+    return format("__compound_literal.%llu", i++);
+}
+
+static void emit_inits_expr(node_t *n)
+{
+    
+}
+
+static const char *emit_compound_literal(node_t *n)
+{
+    const char *label = gen_compound_label();
+    emit_noindent("%s:", label);
+    emit_inits_expr(n);
+    return label;
+}
+
+static void emit_zero(node_t *ty)
+{
+    int size = TYPE_SIZE(ty);
+    if (size == 1) emit(".byte 0");
+    else if (size == 2) emit(".short 0");
+    else if (size == 4) emit(".long 0");
+    else if (size == 8) emit(".quad 0");
+    else cc_assert(0);
+}
+
+static const char *get_ptr_label(node_t *n)
+{
+    const char *label = NULL;
+    switch (AST_ID(n)) {
+    case STRING_LITERAL:
+	label = emit_string_literal(SYM_NAME(EXPR_SYM(n)));
+	break;
+    case REF_EXPR:
+	label = SYM_LABEL(EXPR_SYM(n));
+	break;
+    case BINARY_OPERATOR:
+	label = get_ptr_label(EXPR_OPERAND(n, 0));
+	break;
+    case UNARY_OPERATOR:
+	cc_assert(EXPR_OP(n) == '&');
+	label = get_ptr_label(EXPR_OPERAND(n, 0));
+	break;
+    case INITS_EXPR:
+	label = emit_compound_literal(n);
+	break;
+    default: cc_assert(0);
+    }
+    return label;
+}
+
+static void emit_align_label(int align, const char *label)
+{
+    emit(".data");
+    if (align > 1)
+	emit(".align %d", align);
+    emit_noindent("%s:", label);
+}
+
+static void emit_address_initializer(node_t *n)
+{
+    node_t *sym = DECL_SYM(n);
+    node_t *ty = SYM_TYPE(sym);
+    node_t *init = DECL_BODY(n);
+    if (isiliteral(init)) {
+	emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
+	emit(".quad %llu", ILITERAL_VALUE(init));
+    } else {
+	const char *label = get_ptr_label(init);
+	emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
+	if (BINARY_OPERATOR) {
+	    node_t *r = EXPR_OPERAND(init, 1);
+	    if (TYPE_OP(AST_TYPE(r)) == INT) {
+		long long i = ILITERAL_VALUE(r);
+		if (i < 0)
+		    emit(".quad %s%lld", label, i*TYPE_SIZE(rtype(ty)));
+		else
+		    emit(".quad %s+%llu", label, i*TYPE_SIZE(rtype(ty)));
+	    } else {
+		emit(".quad %s+%llu", label, ILITERAL_VALUE(r)*TYPE_SIZE(rtype(ty)));
+	    }
+	} else {
+	    emit(".quad %s", label);
+	}
+    }
+}
+
+static void emit_arith_initializer(node_t *n)
+{
+    node_t *sym = DECL_SYM(n);
+    node_t *ty = SYM_TYPE(sym);
+    node_t *init = DECL_BODY(n);
+    emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
+    switch (TYPE_KIND(ty)) {
     case _BOOL:
     case CHAR:
-	emit(".byte %d", ILITERAL_VALUE(n));
+	emit(".byte %d", ILITERAL_VALUE(init));
 	break;
     case SHORT:
-	emit(".short %d", ILITERAL_VALUE(n));
+	emit(".short %d", ILITERAL_VALUE(init));
 	break;
     case INT:
     case UNSIGNED:
-	emit(".long %d", ILITERAL_VALUE(n));
+	emit(".long %d", ILITERAL_VALUE(init));
 	break;
     case LONG:
     case LONG+LONG:
-        emit(".quad %llu", ILITERAL_VALUE(n));
+        emit(".quad %llu", ILITERAL_VALUE(init));
 	break;
     case FLOAT:
 	{
-	    float f = FLITERAL_VALUE(n);
+	    float f = FLITERAL_VALUE(init);
 	    emit(".long %d", *(uint32_t *)&f);
 	}
 	break;
     case DOUBLE:
     case LONG+DOUBLE:
 	{
-	    double d = FLITERAL_VALUE(n);
+	    double d = FLITERAL_VALUE(init);
 	    emit(".quad %llu", *(uint64_t *)&d);
 	}
 	break;
-    case POINTER:
-	break;
     default:
-	error("unknown type '%s'", type2s(AST_TYPE(n)));
+	error("unknown type '%s'", type2s(ty));
 	break;
     }
+}
+
+static void emit_struct_initializer(node_t *n)
+{
+
+}
+
+static void emit_initializer(node_t *n)
+{
+    node_t *ty = SYM_TYPE(DECL_SYM(n));
+    if (isarith(ty))
+	emit_arith_initializer(n);
+    else if (isptr(ty))
+	emit_address_initializer(n);
+    else
+	emit_struct_initializer(n);
 }
 
 static void emit_data(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
     node_t *ty = SYM_TYPE(sym);
-    if (SYM_SCLASS(sym) != STATIC) {
+    if (SYM_SCLASS(sym) != STATIC)
 	emit(".globl %s", SYM_LABEL(sym));
-	emit(".data");
-    }
-    if (TYPE_ALIGN(ty) > 1)
-	emit(".align %d", TYPE_ALIGN(ty));
-    emit_noindent("%s:", SYM_LABEL(sym));
-    emit_initializer(DECL_BODY(n));
+    emit_initializer(n);
 }
 
 static void emit_bss(node_t *n)
