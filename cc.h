@@ -198,6 +198,7 @@ struct interface {
 	longdoublemetrics,
 	ptrmetrics,
 	zerometrics;
+    const char *uname;
 };
 extern struct interface *IR;
 

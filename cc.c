@@ -1,4 +1,5 @@
 #include "cc.h"
+#include "sys.h"
 
 static const char *ifile;
 static const char *ofile;
@@ -40,6 +41,7 @@ static void init_IR(void)
 #else
 #error "architecture not defined."
 #endif
+    IR->uname = get_uname();
 }
 
 static void parseopts(int argc, const char *argv[])
