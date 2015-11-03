@@ -69,4 +69,28 @@
 #define CYAN_BOLD(str)     CYAN_BOLD_COLOR str RESET
 #define WHITE_BOLD(str)    WHITE_BOLD_COLOR str RESET
 
+// IR
+struct interface {
+    struct metrics {
+	size_t size;
+	int align;
+	unsigned rank;
+    }
+	boolmetrics,
+	charmetrics,
+	shortmetrics,
+	wcharmetrics,
+	intmetrics,
+	longmetrics,
+	longlongmetrics,
+	floatmetrics,
+	doublemetrics,
+	longdoublemetrics,
+	ptrmetrics,
+	zerometrics;
+    const char *uname;
+    int version;
+};
+extern struct interface *IR;
+
 #endif

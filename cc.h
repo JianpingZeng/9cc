@@ -179,29 +179,6 @@ extern struct vector * all_pptoks(void);
 // ast.h
 #include "ast.h"
 
-// IR
-struct interface {
-    struct metrics {
-	size_t size;
-	int align;
-	unsigned rank;
-    }
-	boolmetrics,
-	charmetrics,
-	shortmetrics,
-	wcharmetrics,
-	intmetrics,
-	longmetrics,
-	longlongmetrics,
-	floatmetrics,
-	doublemetrics,
-	longdoublemetrics,
-	ptrmetrics,
-	zerometrics;
-    const char *uname;
-};
-extern struct interface *IR;
-
 // eval.c
 extern node_t * eval(node_t *expr, node_t *ty);
 extern bool eval_cpp_cond(void);

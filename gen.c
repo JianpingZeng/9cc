@@ -284,7 +284,7 @@ static void emit_begin(const char *ifile)
 
 static void emit_end(void)
 {
-    emit(".ident \"mcc\"");
+    emit(".ident \"mcc: %s\"", IR->uname);
 }
 
 void gen(node_t *tree, FILE *fp, const char *ifile)

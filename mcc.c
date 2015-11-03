@@ -18,6 +18,7 @@ extern int cc_main(int argc, char *argv[]);
 static size_t fails;
 static const char *version = "0.0";
 static const char *progname;
+struct interface *IR;
 
 static void usage(void)
 {
@@ -34,6 +35,42 @@ static void usage(void)
     print_opt("-S",              "Only run preprocess and compilation steps");
     print_opt("-v, --version",   "Display version and options");
 #undef print_opt
+}
+
+static void init_IR(void)
+{
+    IR = zmalloc(sizeof(struct interface));
+                       // size  align  rank
+#ifdef CONFIG_X32
+    IR->boolmetrics        = (struct metrics){1,  1,  10};
+    IR->charmetrics        = (struct metrics){1,  1,  20};
+    IR->shortmetrics       = (struct metrics){2,  2,  30};
+    IR->wcharmetrics       = (struct metrics){4,  4,  40};
+    IR->intmetrics         = (struct metrics){4,  4,  40};
+    IR->longmetrics        = (struct metrics){4,  4,  50};
+    IR->longlongmetrics    = (struct metrics){8,  8,  60};
+    IR->floatmetrics       = (struct metrics){4,  4,  70};
+    IR->doublemetrics      = (struct metrics){8,  8,  80};
+    IR->longdoublemetrics  = (struct metrics){8,  8,  90};
+    IR->ptrmetrics         = (struct metrics){4,  4};
+    IR->zerometrics        = (struct metrics){0,  1};
+#elif defined CONFIG_X64
+    IR->boolmetrics        = (struct metrics){1,  1,  10};
+    IR->charmetrics        = (struct metrics){1,  1,  20};
+    IR->shortmetrics       = (struct metrics){2,  2,  30};
+    IR->wcharmetrics       = (struct metrics){4,  4,  40};
+    IR->intmetrics         = (struct metrics){4,  4,  40};
+    IR->longmetrics        = (struct metrics){8,  8,  50};
+    IR->longlongmetrics    = (struct metrics){8,  8,  60};
+    IR->floatmetrics       = (struct metrics){4,  4,  70};
+    IR->doublemetrics      = (struct metrics){8,  8,  80};
+    IR->longdoublemetrics  = (struct metrics){16, 16, 90};
+    IR->ptrmetrics         = (struct metrics){8,  8};
+    IR->zerometrics        = (struct metrics){0,  1};
+#else
+#error "architecture not defined."
+#endif
+    IR->uname = get_uname();
 }
 
 static const char * tempname(const char *dir, const char *hint)
@@ -112,6 +149,7 @@ int main(int argc, char **argv)
 
     progname = argv[0];
     setup_sys();
+    init_IR();
     
     for (int i=1; i < argc; i++) {
         char *arg = argv[i];

@@ -1,48 +1,10 @@
 #include "cc.h"
-#include "sys.h"
 
 static const char *ifile;
 static const char *ofile;
 static FILE *outfp;
 static struct vector *options;
 static bool cpp_only;
-struct interface *IR;
-
-static void init_IR(void)
-{
-    IR = zmalloc(sizeof(struct interface));
-                       // size  align  rank
-#ifdef CONFIG_X32
-    IR->boolmetrics        = (struct metrics){1,  1,  10};
-    IR->charmetrics        = (struct metrics){1,  1,  20};
-    IR->shortmetrics       = (struct metrics){2,  2,  30};
-    IR->wcharmetrics       = (struct metrics){4,  4,  40};
-    IR->intmetrics         = (struct metrics){4,  4,  40};
-    IR->longmetrics        = (struct metrics){4,  4,  50};
-    IR->longlongmetrics    = (struct metrics){8,  8,  60};
-    IR->floatmetrics       = (struct metrics){4,  4,  70};
-    IR->doublemetrics      = (struct metrics){8,  8,  80};
-    IR->longdoublemetrics  = (struct metrics){8,  8,  90};
-    IR->ptrmetrics         = (struct metrics){4,  4};
-    IR->zerometrics        = (struct metrics){0,  1};
-#elif defined CONFIG_X64
-    IR->boolmetrics        = (struct metrics){1,  1,  10};
-    IR->charmetrics        = (struct metrics){1,  1,  20};
-    IR->shortmetrics       = (struct metrics){2,  2,  30};
-    IR->wcharmetrics       = (struct metrics){4,  4,  40};
-    IR->intmetrics         = (struct metrics){4,  4,  40};
-    IR->longmetrics        = (struct metrics){8,  8,  50};
-    IR->longlongmetrics    = (struct metrics){8,  8,  60};
-    IR->floatmetrics       = (struct metrics){4,  4,  70};
-    IR->doublemetrics      = (struct metrics){8,  8,  80};
-    IR->longdoublemetrics  = (struct metrics){16, 16, 90};
-    IR->ptrmetrics         = (struct metrics){8,  8};
-    IR->zerometrics        = (struct metrics){0,  1};
-#else
-#error "architecture not defined."
-#endif
-    IR->uname = get_uname();
-}
 
 static void parseopts(int argc, const char *argv[])
 {
@@ -103,7 +65,6 @@ static void cc_exit(void)
 int cc_main(int argc, const char * argv[])
 {
     atexit(cc_exit);
-    init_IR();
     parseopts(argc, argv);
     input_init(ifile);
     cpp_init(options);
