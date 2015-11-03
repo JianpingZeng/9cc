@@ -232,6 +232,8 @@ static node_t * cast(node_t *dty, node_t *l)
 	    return array2ptr(dty, l);
     } else {
 	// record or lvalue2rvalue cast
+	if (isrecord(dty) && AST_ID(l) != INITS_EXPR)
+	    return NULL;
 	l = copy_node(l);
 	AST_TYPE(l) = dty;
 	return l;
