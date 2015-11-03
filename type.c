@@ -20,41 +20,6 @@ node_t   *voidtype;               // void
 node_t   *booltype;	          // bool
 node_t   *vartype;		  // variable type
 
-struct metrics {
-    size_t size;
-    int align;
-    unsigned rank;
-}
-                       // size  align  rank
-#ifdef CONFIG_X32
-    boolmetrics         = { 1,  1,  10},
-    charmetrics         = { 1,  1,  20},
-    shortmetrics        = { 2,  2,  30},
-    wcharmetrics        = { 4,  4,  40},
-    intmetrics          = { 4,  4,  40},
-    longmetrics         = { 4,  4,  50},
-    longlongmetrics     = { 8,  8,  60},
-    floatmetrics        = { 4,  4,  70},
-    doublemetrics       = { 8,  8,  80},
-    longdoublemetrics   = { 8,  8,  90},
-    ptrmetrics          = { 4,  4},
-#elif defined CONFIG_X64
-    boolmetrics         = { 1,  1,  10},
-    charmetrics         = { 1,  1,  20},
-    shortmetrics        = { 2,  2,  30},
-    wcharmetrics        = { 4,  4,  40},
-    intmetrics          = { 4,  4,  40},
-    longmetrics         = { 8,  8,  50},
-    longlongmetrics     = { 8,  8,  60},
-    floatmetrics        = { 4,  4,  70},
-    doublemetrics       = { 8,  8,  80},
-    longdoublemetrics   = { 16, 16, 90},
-    ptrmetrics          = { 8,  8},
-#else
-    #error "architecture not defined."
-#endif
-    zerometrics         = { 0,  1};
-
 static inline node_t * new_type(void)
 {
     return alloc_type();
@@ -81,10 +46,10 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
             break;
             
         case FLOAT:
-            if (_TYPE_SIZE(ty) == floatmetrics.size) {
+            if (_TYPE_SIZE(ty) == IR->floatmetrics.size) {
                 VALUE_D(_TYPE_LIMITS_MAX(ty)) = FLT_MAX;
                 VALUE_D(_TYPE_LIMITS_MIN(ty)) = FLT_MIN;
-            } else if (_TYPE_SIZE(ty) == doublemetrics.size) {
+            } else if (_TYPE_SIZE(ty) == IR->doublemetrics.size) {
                 VALUE_D(_TYPE_LIMITS_MAX(ty)) = DBL_MAX;
                 VALUE_D(_TYPE_LIMITS_MIN(ty)) = DBL_MIN;
             } else {
@@ -102,7 +67,7 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
 
 void type_init(void)
 {
-#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, metrics)
+#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, IR->metrics)
     
     // type                     name                    kind            metrics            op
     
@@ -310,8 +275,8 @@ node_t * ptr_type(node_t *type)
     _TYPE_KIND(ty) = POINTER;
     _TYPE_NAME(ty) = "pointer";
     _TYPE_TYPE(ty) = type;
-    _TYPE_SIZE(ty) = ptrmetrics.size;
-    _TYPE_ALIGN(ty) = ptrmetrics.align;
+    _TYPE_SIZE(ty) = IR->ptrmetrics.size;
+    _TYPE_ALIGN(ty) = IR->ptrmetrics.align;
     
     return ty;
 }
@@ -321,7 +286,7 @@ node_t * func_type(void)
     node_t *ty = new_type();
     _TYPE_KIND(ty) = FUNCTION;
     _TYPE_NAME(ty) = "function";
-    _TYPE_ALIGN(ty) = ptrmetrics.align;
+    _TYPE_ALIGN(ty) = IR->ptrmetrics.align;
     
     return ty;
 }

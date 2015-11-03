@@ -192,7 +192,16 @@ static void emit_arith_initializer(node_t *n)
 
 static void emit_struct_initializer(node_t *n)
 {
-
+    node_t *ty = SYM_TYPE(DECL_SYM(n));
+    node_t **fields = TYPE_FIELDS(ty);
+    node_t *init = DECL_BODY(n);
+    for (int i = 0; i < LIST_LEN(EXPR_INITS(n)); i++) {
+	node_t *elem = EXPR_INITS(n)[i];
+	if (AST_ID(elem) == VINIT_EXPR)
+	    emit_zero(AST_TYPE(fields[i]));
+	else
+	    emit_initializer(elem);
+    }
 }
 
 static void emit_initializer(node_t *n)
@@ -209,7 +218,6 @@ static void emit_initializer(node_t *n)
 static void emit_data(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
-    node_t *ty = SYM_TYPE(sym);
     if (SYM_SCLASS(sym) != STATIC)
 	emit(".globl %s", SYM_LABEL(sym));
     emit_initializer(n);
@@ -225,16 +233,47 @@ static void emit_bss(node_t *n)
 	emit(".comm  %s,%llu,%d", SYM_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
 }
 
+static void emit_expr(node_t *n)
+{
+    switch (AST_ID(n)) {
+	
+    }
+}
+
+static void emit_compound(node_t *n)
+{
+    for (int i = 0; i < LIST_LEN(GEN_LIST(n)); i++)
+	emit_expr(GEN_LIST(n)[i]);
+}
+
+static void emit_funcbody(node_t *n)
+{
+    node_t *compound = STMT_GEN(n);
+    cc_assert(AST_ID(compound) == AST_COMPOUND);
+    emit_compound(compound);
+}
+
 static void emit_funcdef(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
     const char *name = SYM_LABEL(sym);
     if (SYM_SCLASS(sym) != STATIC)
 	emit(".globl %s", name);
+    size_t sub = 0;
+    for (int i = 0; i < LIST_LEN(DECL_LVARS(n)); i++) {
+	node_t *lvar = DECL_LVARS(n)[i];
+	node_t *sym = DECL_SYM(lvar);
+	size_t offset = sub + TYPE_SIZE(SYM_TYPE(sym));
+	SYM_LOFF(sym) = offset;
+	sub = ROUNDUP(offset, 8);
+    }
     emit_noindent("%s:", name);
     pushq("%rbp");
     movq("%rsp", "%rbp");
-    popq("%rbp");
+    if (sub)
+	emit("sub $%lld, %%rbp", sub);
+    emit_funcbody(DECL_BODY(n));
+    emit("leave");
     emit("ret");
 }
 
