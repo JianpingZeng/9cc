@@ -8,6 +8,8 @@ static void scalar_init(node_t *ty, struct vector *v);
 static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v, int i);
 static node_t * initializer(node_t *ty);
 
+#define INIT_OVERRIDE    "initializer overrides prior initialization"
+
 static void eat_initializer(void)
 {
     if (token->id == '[' || token->id == '.') {
@@ -88,7 +90,7 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
     
     node_t *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
-	warning("initializer overrides prior initialization");
+	warningf(AST_SRC(node), INIT_OVERRIDE);
     
     if (AST_ID(node) == INITS_EXPR) {
 	vec_set(v, i, node);
@@ -107,7 +109,7 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 	}
 
 	if (rty) {
-	    node_t *n1 = ast_inits();
+	    node_t *n1 = ast_inits(source);
 	    struct vector *v1 = vec_new();
 	    vec_set(v, i, n1);
 
@@ -128,7 +130,7 @@ static void scalar_set(node_t *ty, struct vector *v, int i, node_t *node)
     
     node_t *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
-	warning("initializer overrides prior initialization");
+	warningf(AST_SRC(node), INIT_OVERRIDE);
 
     if (AST_ID(node) == INITS_EXPR) {	
 	node_t **inits;
@@ -198,7 +200,7 @@ static void array_init(node_t *ty, bool brace, struct vector *v)
     if (is_string(ty) && token->id == SCONSTANT) {
 	node_t *expr = assign_expr();
 	if (vec_len(v)) {
-	    warning("initializer overrides prior initialization");
+	    warningf(AST_SRC(expr), INIT_OVERRIDE);
 	    vec_clear(v);
 	}
 	aggregate_set(ty, v, 0, expr);
@@ -263,6 +265,9 @@ static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v
     (is_string(ty) &&				\
      vec_len(v) == 1 &&				\
      issliteral((node_t *)vec_head(v)))
+
+    if (isunion(sty))
+	i = 0;			// always set the first elem
     
     if (ty == NULL) {
         if (token->id == '.' || token->id == '[') {
@@ -288,7 +293,8 @@ static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v
 	    eat_initializer();
 	    // inhibit redundant errors
 	    if (NO_ERROR)
-		error("%s designator cannot initialize non-%s type '%s'", TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
+		error("%s designator cannot initialize non-%s type '%s'",
+		      TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
 	} else {
 	    node_t *n = find_elem(v, i);
 	    struct vector *v1 = vec_new();
@@ -308,7 +314,7 @@ static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v
 		vec_set(v, i, (node_t *)vec_head(v1));
 	    } else {
 		if (AST_ID(n) != INITS_EXPR) {
-		    n = ast_inits();
+		    n = ast_inits(source);
 		    vec_set(v, i, n);
 		}
 		EXPR_INITS(n) = (node_t **)vtoa(v1);
@@ -318,7 +324,7 @@ static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v
 	if (designated)
 	    expect('=');
 	if (IS_STRING_VEC(sty, v)) {
-	    warning("initializer overrides prior initialization");
+	    warning(INIT_OVERRIDE);
 	    vec_clear(v);
 	}
 	scalar_set(ty, v, i, initializer(ty));
@@ -340,7 +346,7 @@ static node_t * initializer(node_t *ty)
 node_t * initializer_list(node_t *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    node_t *ret = ast_inits();
+    node_t *ret = ast_inits(source);
     struct vector *v = vec_new();
     
     expect('{');
