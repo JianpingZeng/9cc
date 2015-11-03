@@ -91,9 +91,10 @@ node_t * ast_conv(node_t *ty, node_t *l, const char *name)
     return expr;
 }
 
-node_t * ast_inits(void)
+node_t * ast_inits(struct source src)
 {
     node_t * expr = ast_expr(INITS_EXPR, NULL, NULL, NULL);
+    AST_SRC(expr) = src;
     return expr;
 }
 
