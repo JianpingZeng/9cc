@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 static FILE *outfp;
+static struct dict *compound_lits;
 
 #define LEAD  "    "
 #define emit(...)             emitf(LEAD,  __VA_ARGS__)
@@ -10,6 +11,8 @@ static FILE *outfp;
 #define pushq(reg)      emit("pushq %s", reg)
 #define popq(reg)       emit("popq %s", reg)
 #define movq(src, dst)  emit("movq %s, %s", src, dst)
+#define STR_PREFIX    ".LC"
+#define IS_STRLIT(sym)  (!strncmp(STR_PREFIX, SYM_LABEL(sym), strlen(STR_PREFIX)))
 
 static void emit_initializer(node_t *t);
 
@@ -24,26 +27,19 @@ static void emitf(const char *lead, const char *fmt, ...)
     va_end(ap);
 }
 
-static const char *gen_slabel(void)
+static const char *gen_str_label(void)
 {
     static size_t i;
-    return format(".LC%llu", i++);
+    return format("%s%llu", STR_PREFIX, i++);
 }
 
 static const char * emit_string_literal(const char *name)
 {
-    static struct map *map;
-    if (!map)
-	map = map_new();
-    const char *label = map_get(map, name);
-    if (!label) {
-	label = gen_slabel();
-	map_put(map, name, (void *)label);
-	emit(".section .rodata");
-	emit_noindent("%s:", label);
-	emit(".asciz %s", name);
-    }
-    return label;
+    node_t *sym = lookup(name, constants);
+    cc_assert(sym);
+    if (!IS_STRLIT(sym))
+	SYM_LABEL(sym) = gen_str_label();
+    return SYM_LABEL(sym);
 }
 
 static const char *gen_compound_label(void)
@@ -52,27 +48,16 @@ static const char *gen_compound_label(void)
     return format("__compound_literal.%llu", i++);
 }
 
-static void emit_inits_expr(node_t *n)
-{
-    
-}
-
 static const char *emit_compound_literal(node_t *n)
 {
     const char *label = gen_compound_label();
-    emit_noindent("%s:", label);
-    emit_inits_expr(n);
+    dict_put(compound_lits, label, n);
     return label;
 }
 
-static void emit_zero(node_t *ty)
+static void emit_zero(size_t bytes)
 {
-    int size = TYPE_SIZE(ty);
-    if (size == 1) emit(".byte 0");
-    else if (size == 2) emit(".short 0");
-    else if (size == 4) emit(".long 0");
-    else if (size == 8) emit(".quad 0");
-    else cc_assert(0);
+    emit(".zero %llu", bytes);
 }
 
 static const char *get_ptr_label(node_t *n)
@@ -108,18 +93,14 @@ static void emit_align_label(int align, const char *label)
     emit_noindent("%s:", label);
 }
 
-static void emit_address_initializer(node_t *n)
+static void emit_address_initializer(node_t *init)
 {
-    node_t *sym = DECL_SYM(n);
-    node_t *ty = SYM_TYPE(sym);
-    node_t *init = DECL_BODY(n);
+    node_t *ty = AST_TYPE(init);
     if (isiliteral(init)) {
-	emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
 	emit(".quad %llu", ILITERAL_VALUE(init));
     } else {
 	const char *label = get_ptr_label(init);
-	emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
-	if (BINARY_OPERATOR) {
+	if (AST_ID(init) == BINARY_OPERATOR) {
 	    node_t *r = EXPR_OPERAND(init, 1);
 	    int op = EXPR_OP(init);
 	    if (op == '+') {
@@ -149,12 +130,9 @@ static void emit_address_initializer(node_t *n)
     }
 }
 
-static void emit_arith_initializer(node_t *n)
+static void emit_arith_initializer(node_t *init)
 {
-    node_t *sym = DECL_SYM(n);
-    node_t *ty = SYM_TYPE(sym);
-    node_t *init = DECL_BODY(n);
-    emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
+    node_t *ty = AST_TYPE(init);
     switch (TYPE_KIND(ty)) {
     case _BOOL:
     case CHAR:
@@ -192,35 +170,54 @@ static void emit_arith_initializer(node_t *n)
 
 static void emit_struct_initializer(node_t *n)
 {
-    node_t *ty = SYM_TYPE(DECL_SYM(n));
+    cc_assert(AST_ID(n) == INITS_EXPR);
+    node_t *ty = AST_TYPE(n);
     node_t **fields = TYPE_FIELDS(ty);
-    node_t *init = DECL_BODY(n);
-    for (int i = 0; i < LIST_LEN(EXPR_INITS(n)); i++) {
-	node_t *elem = EXPR_INITS(n)[i];
-	if (AST_ID(elem) == VINIT_EXPR)
-	    emit_zero(AST_TYPE(fields[i]));
+    node_t **inits = EXPR_INITS(n);
+    for (int i = 0; i < LIST_LEN(inits); i++) {
+	node_t *init = inits[i];
+	node_t *field = fields[i];
+	node_t *next = i < LIST_LEN(inits) - 1 ? fields[i+1] : NULL;
+	size_t offset = FIELD_OFFSET(field);
+	if (isbitfield(field)) {
+	    // TODO:
+	} else {
+	    if (AST_ID(init) == VINIT_EXPR)
+		emit_zero(TYPE_SIZE(AST_TYPE(field)));
+	    else
+		emit_initializer(init);
+	    offset += TYPE_SIZE(AST_TYPE(field));
+	}
+	// pack
+	size_t end;
+	if (next)
+	    end = FIELD_OFFSET(next);
 	else
-	    emit_initializer(elem);
+	    end = TYPE_SIZE(ty);
+	if (end - offset)
+	    emit_zero(end - offset);
     }
 }
 
-static void emit_initializer(node_t *n)
+static void emit_initializer(node_t *init)
 {
-    node_t *ty = SYM_TYPE(DECL_SYM(n));
+    node_t *ty = AST_TYPE(init);
     if (isarith(ty))
-	emit_arith_initializer(n);
+	emit_arith_initializer(init);
     else if (isptr(ty))
-	emit_address_initializer(n);
+	emit_address_initializer(init);
     else
-	emit_struct_initializer(n);
+	emit_struct_initializer(init);
 }
 
 static void emit_data(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
+    node_t *ty = SYM_TYPE(sym);
     if (SYM_SCLASS(sym) != STATIC)
 	emit(".globl %s", SYM_LABEL(sym));
-    emit_initializer(n);
+    emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
+    emit_initializer(DECL_BODY(n));
 }
 
 static void emit_bss(node_t *n)
@@ -277,9 +274,39 @@ static void emit_funcdef(node_t *n)
     emit("ret");
 }
 
+static void emit_literals(void)
+{
+    bool section = false;
+    // compounds
+    for (int i = 0; i < vec_len(compound_lits->keys); i++) {
+	const char *label = vec_at(compound_lits->keys, i);
+	node_t *init = dict_get(compound_lits, label);
+	if (!section) {
+	    emit(".data");
+	    section = true;
+	}
+	emit_noindent("%s:", label);
+	emit_initializer(init);
+    }
+
+    // strings
+    section = false;
+    for (int i = 0; i < vec_len(constants->dict->keys); i++) {
+	node_t *sym = dict_get(constants->dict, vec_at(constants->dict->keys, i));
+	if (sym && IS_STRLIT(sym)) {
+	    if (!section) {
+		emit(".section .rodata");
+		section = true;
+	    }
+	    emit_noindent("%s:", SYM_LABEL(sym));
+	    emit(".asciz %s", SYM_NAME(sym));
+	}
+    }
+}
+
 static void emit_begin(const char *ifile)
 {
-    emit(".file \"%s\"", basename(ifile));
+    emit(".file \"%s\"", basename(strcopy(ifile)));
 }
 
 static void emit_end(void)
@@ -291,7 +318,8 @@ void gen(node_t *tree, FILE *fp, const char *ifile)
 {
     cc_assert(errors == 0 && fp);
     outfp = fp;
-    emit_begin(strcopy(ifile));
+    compound_lits = dict_new();
+    emit_begin(ifile);
     node_t **exts = DECL_EXTS(tree);
     for (int i = 0; i < LIST_LEN(exts); i++) {
 	node_t *n = exts[i];
@@ -304,5 +332,6 @@ void gen(node_t *tree, FILE *fp, const char *ifile)
 		emit_bss(n);
 	}
     }
+    emit_literals();
     emit_end();
 }
