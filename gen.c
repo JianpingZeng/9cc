@@ -80,7 +80,8 @@ static const char *get_ptr_label(node_t *n)
     case INITS_EXPR:
 	label = emit_compound_literal(n);
 	break;
-    default: cc_assert(0);
+    default:
+	die("unkown ptr node: %s", node2s(n));
     }
     return label;
 }
@@ -163,8 +164,7 @@ static void emit_arith_initializer(node_t *init)
 	}
 	break;
     default:
-	error("unknown type '%s'", type2s(ty));
-	break;
+	die("unknown type '%s'", type2s(ty));
     }
 }
 
