@@ -304,22 +304,11 @@ static void emit_literals(void)
     }
 }
 
-static void emit_begin(const char *ifile)
-{
-    emit(".file \"%s\"", basename(strcopy(ifile)));
-}
-
-static void emit_end(void)
-{
-    emit(".ident \"mcc: %s\"", IR->uname);
-}
-
-void gen(node_t *tree, FILE *fp, const char *ifile)
+void gen(node_t *tree, FILE *fp)
 {
     cc_assert(errors == 0 && fp);
     outfp = fp;
     compound_lits = dict_new();
-    emit_begin(ifile);
     node_t **exts = DECL_EXTS(tree);
     for (int i = 0; i < LIST_LEN(exts); i++) {
 	node_t *n = exts[i];
@@ -333,5 +322,5 @@ void gen(node_t *tree, FILE *fp, const char *ifile)
 	}
     }
     emit_literals();
-    emit_end();
+    emit(".ident \"mcc: %s\"", IR->uname);
 }

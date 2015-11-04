@@ -43,7 +43,7 @@ static void translate(void)
     tree = translation_unit();
     print_tree(tree);
     if (errors == 0)
-	gen(tree, outfp, ifile);
+	gen(tree, outfp);
 }
 
 static void preprocess(void)
