@@ -109,7 +109,7 @@ static void aggregate_set(node_t *ty, struct vector *v, int i, node_t *node)
 	}
 
 	if (rty) {
-	    node_t *n1 = ast_inits(source);
+	    node_t *n1 = ast_inits(ty, source);
 	    struct vector *v1 = vec_new();
 	    vec_set(v, i, n1);
 
@@ -314,7 +314,7 @@ static void elem_init(node_t *sty, node_t *ty, bool designated, struct vector *v
 		vec_set(v, i, (node_t *)vec_head(v1));
 	    } else {
 		if (AST_ID(n) != INITS_EXPR) {
-		    n = ast_inits(source);
+		    n = ast_inits(ty, source);
 		    vec_set(v, i, n);
 		}
 		EXPR_INITS(n) = (node_t **)vtoa(v1);
@@ -346,7 +346,7 @@ static node_t * initializer(node_t *ty)
 node_t * initializer_list(node_t *ty)
 {
     int follow[] = {',', IF, '[', ID, '.', DEREF, 0};
-    node_t *ret = ast_inits(source);
+    node_t *ret = ast_inits(ty, source);
     struct vector *v = vec_new();
     
     expect('{');
@@ -377,7 +377,6 @@ node_t * initializer_list(node_t *ty)
     
     match('}', follow);
     EXPR_INITS(ret) = (node_t **)vtoa(v);
-    AST_TYPE(ret) = ty;
     return ret;
 }
 
