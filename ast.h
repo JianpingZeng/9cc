@@ -119,7 +119,6 @@ struct ast_field {
 #define SYM_DEFINED(NODE)       ((NODE)->symbol.defined)
 #define SYM_VALUE(NODE)         ((NODE)->symbol.value)
 #define SYM_REFS(NODE)          ((NODE)->symbol.refs)
-#define SYM_UP(NODE)            ((NODE)->symbol.up)
 #define SYM_LABEL(NODE)         ((NODE)->symbol.x.label)
 #define SYM_LOFF(NODE)          ((NODE)->symbol.x.loff)
 // convenience
@@ -134,7 +133,6 @@ struct ast_symbol {
     bool defined;
     union value value;
     unsigned refs;
-    node_t *up;
     struct {
 	const char *label;
 	long loff;		// stack offset

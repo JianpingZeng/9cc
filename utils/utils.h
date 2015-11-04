@@ -40,5 +40,7 @@ extern char *strncopy(const char *str, size_t n);
 #include "strbuf.h"
 // hideset.c
 #include "hideset.h"
+// dict.c
+#include "dict.h"
 
 #endif
