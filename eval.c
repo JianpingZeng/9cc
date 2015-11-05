@@ -402,14 +402,16 @@ static node_t * ptr_int_bop(int op, node_t *ty, node_t *ptr, node_t *i)
 	cc_assert(op1 == '+' || op1 == '-');
 	cc_assert(isiliteral(r1));
 
+	node_t *n;
 	if (op == op1) {
-	    r = bop('+', r, r1);
+	    n = bop('+', r, r1);
 	} else {
 	    node_t *r2 = op == '+' ? r : r1;
 	    node_t *r3 = r2 == r ? r1 : r;
-	    r = bop('-', r2, r3);
+	    n = bop('-', r2, r3);
 	    op = '+';
 	}
+	r = arith_bop(EXPR_OP(n), AST_TYPE(n), EXPR_OPERAND(n, 0), EXPR_OPERAND(n, 1));
 	l = EXPR_OPERAND(l, 0);
     }
     return ast_bop(op, ty, l, r);
