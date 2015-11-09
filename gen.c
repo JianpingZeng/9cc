@@ -168,6 +168,17 @@ static void emit_arith_initializer(node_t *init)
     }
 }
 
+static void emit_array_initializer(node_t *n)
+{
+    if (issliteral(n)) {
+	const char *label = get_ptr_label(n);
+	emit(".quad %s", label);
+    } else {
+	cc_assert(AST_ID(n) == INITS_EXPR);
+	
+    }
+}
+
 static void emit_struct_initializer(node_t *n)
 {
     cc_assert(AST_ID(n) == INITS_EXPR);
@@ -179,14 +190,17 @@ static void emit_struct_initializer(node_t *n)
 	node_t *field = fields[i];
 	node_t *next = i < LIST_LEN(inits) - 1 ? fields[i+1] : NULL;
 	size_t offset = FIELD_OFFSET(field);
-	if (isbitfield(field)) {
+	if (FIELD_ISBIT(field)) {
 	    // TODO:
 	} else {
-	    if (AST_ID(init) == VINIT_EXPR)
-		emit_zero(TYPE_SIZE(AST_TYPE(field)));
-	    else
-		emit_initializer(init);
-	    offset += TYPE_SIZE(AST_TYPE(field));
+	    node_t *fty = FIELD_TYPE(field);
+	    if (TYPE_SIZE(fty)) {
+		if (AST_ID(init) == VINIT_EXPR)
+		    emit_zero(TYPE_SIZE(fty));
+		else
+		    emit_initializer(init);
+		offset += TYPE_SIZE(fty);
+	    }
 	}
 	// pack
 	size_t end;
@@ -206,6 +220,8 @@ static void emit_initializer(node_t *init)
 	emit_arith_initializer(init);
     else if (isptr(ty))
 	emit_address_initializer(init);
+    else if (isarray(ty))
+	emit_array_initializer(init);
     else
 	emit_struct_initializer(init);
 }
