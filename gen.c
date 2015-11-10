@@ -15,6 +15,7 @@ static struct dict *compound_lits;
 #define IS_STRLIT(sym)  (!strncmp(STR_PREFIX, SYM_LABEL(sym), strlen(STR_PREFIX)))
 
 static void emit_initializer(node_t *t);
+static void emit_stmt(node_t *n);
 
 static void emitf(const char *lead, const char *fmt, ...)
 {
@@ -283,16 +284,82 @@ static void emit_bss(node_t *n)
 
 static void emit_expr(node_t *n)
 {
-    switch (AST_ID(n)) {
-	
-    }
+
+}
+
+static void emit_decl(node_t *n)
+{
+
 }
 
 static void emit_compound(node_t *n)
 {
     cc_assert(AST_ID(n) == AST_COMPOUND);
     for (int i = 0; i < LIST_LEN(STMT_LIST(n)); i++)
-	emit_expr(STMT_LIST(n)[i]);
+	emit_stmt(STMT_LIST(n)[i]);
+}
+
+static void emit_label(const char *label)
+{
+    emit_noindent("%s:", label);
+}
+
+static void emit_jmp(const char *label)
+{
+    emit("jmp %s", label);
+}
+
+static void emit_je(const char *label)
+{
+    emit("je %s", label);
+}
+
+static void emit_if(node_t *n)
+{
+    emit_expr(STMT_COND(n));
+    const char *ne = gen_label();
+    emit_je(ne);
+    if (STMT_THEN(n))
+	emit_stmt(STMT_THEN(n));
+    if (STMT_ELSE(n)) {
+	const char *end = gen_label();
+	emit_jmp(end);
+	emit_label(ne);
+	emit_stmt(STMT_ELSE(n));
+	emit_label(end);
+    } else {
+	emit_label(ne);
+    }
+}
+
+static void emit_stmt(node_t *n)
+{
+    if (isexpr(n)) {
+	emit_expr(n);
+    } else if (isdecl(n)) {
+	emit_decl(n);
+    } else {
+	switch (AST_ID(n)) {
+	case AST_IF:
+	    emit_if(n);
+	    break;
+	case AST_COMPOUND:
+	    emit_compound(n);
+	    break;
+	case AST_RETURN:
+	    break;
+	case AST_LABEL:
+	    emit_label(STMT_LABEL(n));
+	    break;
+	case AST_JUMP:
+	    emit_jmp(STMT_LABEL(n));
+	    break;
+	default:
+	    // null statement
+	    cc_assert(AST_ID(n) == NULL_STMT);
+	    break;
+	}
+    }
 }
 
 static void emit_funcdef(node_t *n)
@@ -314,7 +381,7 @@ static void emit_funcdef(node_t *n)
     movq("%rsp", "%rbp");
     if (sub)
 	emit("sub $%lld, %%rbp", sub);
-    emit_compound(DECL_BODY(n));
+    emit_stmt(DECL_BODY(n));
     emit("leave");
     emit("ret");
 }
