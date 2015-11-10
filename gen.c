@@ -175,7 +175,11 @@ static void emit_array_initializer(node_t *n)
 	emit(".quad %s", label);
     } else {
 	cc_assert(AST_ID(n) == INITS_EXPR);
-	
+	int i;
+	for (i = 0; i < LIST_LEN(EXPR_INITS(n)); i++)
+	    emit_initializer(EXPR_INITS(n)[i]);
+	if (TYPE_LEN(AST_TYPE(n)) - i > 0)
+	    emit_zero((TYPE_LEN(AST_TYPE(n)) - i) * TYPE_SIZE(rtype(AST_TYPE(n))));
     }
 }
 
