@@ -917,7 +917,10 @@ static struct vector * decls(declfun_p *dcl)
         int params = 0;		// for functioness
         
         // declarator
-        declarator(&ty, &id, &params);
+	if (level == GLOBAL)
+	    declarator(&ty, &id, &params);
+	else
+	    declarator(&ty, &id, NULL);
         attach_type(&ty, basety);
 	
         if (level == GLOBAL) {
