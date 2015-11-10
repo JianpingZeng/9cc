@@ -2,6 +2,26 @@
 #include "sys.h"
 #include <stdint.h>
 
+/**
+ *  X86_64 registers
+ *
+ *  64-bit  32-bit  16-bit  8-bit
+ *  rax     eax     ax      al,ah
+ *  rbx     ebx     bx      bl,bh
+ *  rcx     ecx     cx      cl,ch
+ *  rdx     edx     dx      dl,dh
+ *  rbp     ebp     bp
+ *  rsp     esp     sp
+ *  rsi     esi     si
+ *  rdi     edi     di
+ *  rip     eip     ip
+ *  r8~r15
+ *
+ *  Segment registers
+ *
+ *  cs,ds,es,fs,gs,ss
+ */
+
 static FILE *outfp;
 static struct dict *compound_lits;
 
@@ -281,6 +301,16 @@ static void emit_bss(node_t *n)
 	emit(".lcomm %s,%llu,%d", SYM_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
     else
 	emit(".comm  %s,%llu,%d", SYM_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
+}
+
+static void emit_bop(node_t *n)
+{
+
+}
+
+static void emit_uop(node_t *n)
+{
+
 }
 
 static void emit_expr(node_t *n)
