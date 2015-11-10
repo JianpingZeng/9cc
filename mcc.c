@@ -16,7 +16,6 @@
 extern int cc_main(int argc, char *argv[]);
 
 static size_t fails;
-static const char *version = "0.0";
 static const char *progname;
 struct interface *IR;
 
@@ -24,9 +23,9 @@ static void usage(void)
 {
 #define print_opt(opt, msg)     fprintf(stderr, "  %-20s%s\n", opt, msg)
     fprintf(stderr,
-            "OVERVIEW: mcc - A Standard C Compiler v%s\n\n"
+            "OVERVIEW: mcc - A Standard C Compiler v%d.%d\n\n"
             "USAGE: mcc [options] <files>\n\n"
-            "OPTIONS:\n", version);
+            "OPTIONS:\n", MAJOR(IR->version), MINOR(IR->version));
     print_opt("-c",              "Only run preprocess, compile and assemble steps");
     print_opt("-E",              "Only run the preprocessor");
     print_opt("-h, --help",      "Display available options");
@@ -71,6 +70,7 @@ static void init_IR(void)
 #error "architecture not defined."
 #endif
     IR->uname = get_uname();
+    IR->version = VERSION(0, 0);
 }
 
 static const char * tempname(const char *dir, const char *hint)

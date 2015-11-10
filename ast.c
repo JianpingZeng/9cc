@@ -112,7 +112,8 @@ const char * gen_tmpname(void)
 
 const char * gen_static_label(const char *name)
 {
-    return format("%s.%s", FNAME, name);
+    static size_t i;
+    return format("%s.%s.%llu", FNAME, name, i++);
 }
 
 node_t * ast_if(node_t *cond, node_t *then, node_t *els)

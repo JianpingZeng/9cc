@@ -93,4 +93,8 @@ struct interface {
 };
 extern struct interface *IR;
 
+#define VERSION(major, minor)  (((major) << 16) | (minor))
+#define MAJOR(version)         ((version) >> 16)
+#define MINOR(version)         ((version) & 0xFFFF)
+
 #endif
