@@ -16,6 +16,7 @@ static struct dict *compound_lits;
 
 static void emit_initializer(node_t *t);
 static void emit_stmt(node_t *n);
+static const char *func_ret_label;
 
 static void emitf(const char *lead, const char *fmt, ...)
 {
@@ -284,12 +285,39 @@ static void emit_bss(node_t *n)
 
 static void emit_expr(node_t *n)
 {
+    switch (AST_ID(n)) {
+    case BINARY_OPERATOR:
+    case UNARY_OPERATOR:
+    case COND_EXPR:
+    case MEMBER_EXPR:
+    case PAREN_EXPR:
+    case REF_EXPR:
+    case CAST_EXPR:
+    case CALL_EXPR:
+    case INITS_EXPR:
+    case VINIT_EXPR:
+    case CONV_EXPR:
+    case SUBSCRIPT_EXPR:
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case STRING_LITERAL:
+    case COMPOUND_LITERAL:
+	break;
+    default:
+	die("unknown node '%s'", nname(n));
+	break;
+    }
+}
+
+static void emit_decl_init(node_t *init, size_t offset)
+{
 
 }
 
 static void emit_decl(node_t *n)
 {
-
+    if (DECL_BODY(n))
+	emit_decl_init(DECL_BODY(n), SYM_LOFF(DECL_SYM(n)));
 }
 
 static void emit_compound(node_t *n)
@@ -347,6 +375,8 @@ static void emit_stmt(node_t *n)
 	    emit_compound(n);
 	    break;
 	case AST_RETURN:
+	    emit_stmt(STMT_OPERAND(n));
+	    emit_jmp(func_ret_label);
 	    break;
 	case AST_LABEL:
 	    emit_label(STMT_LABEL(n));
@@ -376,12 +406,14 @@ static void emit_funcdef(node_t *n)
 	SYM_LOFF(sym) = offset;
 	sub = ROUNDUP(offset, 8);
     }
+    func_ret_label = gen_label();
     emit_noindent("%s:", name);
     pushq("%rbp");
     movq("%rsp", "%rbp");
     if (sub)
 	emit("sub $%lld, %%rbp", sub);
     emit_stmt(DECL_BODY(n));
+    emit_label(func_ret_label);
     emit("leave");
     emit("ret");
 }
