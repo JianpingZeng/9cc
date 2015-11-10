@@ -9,9 +9,6 @@ _n(TU_DECL,           "TranslationUnitDecl")
 _n(VAR_DECL,          "VarDecl")
 _n(FUNC_DECL,         "FuncDecl")
 _n(TYPEDEF_DECL,      "TypedefDecl")
-_n(ENUM_DECL,         "EnumDecl")
-_n(STRUCT_DECL,       "StructDecl")
-_n(UNION_DECL,        "UnionDecl")
 
 _ns(END_DECL_ID)
 

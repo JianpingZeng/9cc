@@ -966,18 +966,7 @@ static struct vector * decls(declfun_p *dcl)
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
-        int node_id;
-        node_t *decl;
-        if (isstruct(basety))
-            node_id = STRUCT_DECL;
-        else if (isunion(basety))
-            node_id = UNION_DECL;
-        else
-            node_id = ENUM_DECL;
-        
-        decl = ast_decl(node_id);
-        DECL_SYM(decl) = TYPE_TSYM(basety);
-        vec_push(v, decl);
+        // do nothing
     } else {
         error("invalid token '%s' in declaration", token->name);
     }

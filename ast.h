@@ -248,10 +248,6 @@ extern node_t * copy_node(node_t *node);
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
 #define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == AST_COMPOUND)
 #define isvardecl(n)        (AST_ID(n) == VAR_DECL)
-#define istypedefdecl(n)    (AST_ID(n) == TYPEDEF_DECL)
-#define isenumdecl(n)       (AST_ID(n) == ENUM_DECL)
-#define isstructdecl(n)     (AST_ID(n) == STRUCT_DECL)
-#define isuniondecl(n)      (AST_ID(n) == UNION_DECL)
 
 // expr
 #define isiliteral(n)       (AST_ID(n) == INTEGER_LITERAL)

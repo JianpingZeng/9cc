@@ -96,19 +96,6 @@ static void print_decl(node_t *node, struct print_context context)
         struct print_context con = {level, init};
         print_tree1(con);
     }
-
-    if (isstructdecl(node) || isuniondecl(node)) {
-	node_t *sym = DECL_SYM(node);
-	if (sym && SYM_DEFINED(sym)) {
-	    node_t *ty = SYM_TYPE(sym);
-	    for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
-		node_t *field = TYPE_FIELDS(ty)[i];
-		struct print_context con = { level, field };
-	        print_tree1(con);
-	    }
-
-	}
-    }
 }
 
 static void print_expr(node_t *node, struct print_context context)
