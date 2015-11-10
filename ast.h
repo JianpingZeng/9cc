@@ -181,64 +181,30 @@ struct ast_expr {
     node_t **list;
 };
 
-// compound stmt
-#define STMT_BLKS(NODE)         ((NODE)->stmt.blks)
-// case
-#define STMT_LABEL(NODE)        AST_NAME(NODE)
-#define STMT_CASE_INDEX(NODE)   ((NODE)->stmt.index)
-#define STMT_CASE_BODY(NODE)    ((NODE)->stmt.operands[0])
-// for
-#define STMT_FOR_DECL(NODE)     ((NODE)->stmt.blks)
-#define STMT_FOR_INIT(NODE)     ((NODE)->stmt.operands[0])
-#define STMT_FOR_COND(NODE)     ((NODE)->stmt.operands[1])
-#define STMT_FOR_CTRL(NODE)     ((NODE)->stmt.operands[2])
-#define STMT_FOR_BODY(NODE)     ((NODE)->stmt.operands[3])
+#define STMT_OPERAND(NODE)       ((NODE)->stmt.operands[0])
+#define STMT_LABEL(NODE)         AST_NAME(NODE)
+#define STMT_LIST(NODE)          ((NODE)->stmt.list)
+#define STMT_INDEX(NODE)         ((NODE)->stmt.index)
 // if
-#define STMT_IF_COND(NODE)      ((NODE)->stmt.operands[0])
-#define STMT_IF_THEN(NODE)      ((NODE)->stmt.operands[1])
-#define STMT_IF_ELSE(NODE)      ((NODE)->stmt.operands[2])
-// while
-#define STMT_WHILE_COND(NODE)   ((NODE)->stmt.operands[0])
-#define STMT_WHILE_BODY(NODE)   ((NODE)->stmt.operands[1])
-// switch
-#define STMT_SWITCH_EXPR(NODE)  ((NODE)->stmt.operands[0])
-#define STMT_SWITCH_BODY(NODE)  ((NODE)->stmt.operands[1])
-// return
-#define STMT_RETURN_BODY(NODE)  ((NODE)->stmt.operands[0])
-// gen
-#define STMT_GEN(NODE)          ((NODE)->stmt.gen)
+#define STMT_COND(NODE)          ((NODE)->stmt.operands[0])
+#define STMT_THEN(NODE)          ((NODE)->stmt.operands[1])
+#define STMT_ELSE(NODE)          ((NODE)->stmt.operands[2])
 
 struct ast_stmt {
     struct ast_common common;
-    int index;
-    node_t *operands[4];
-    node_t **blks;
-    node_t *gen;
-};
-
-#define GEN_OPERAND(NODE)       ((NODE)->gen.operands[0])
-#define GEN_LABEL(NODE)         AST_NAME(NODE)
-#define GEN_LIST(NODE)          ((NODE)->gen.list)
-// if
-#define GEN_COND(NODE)          ((NODE)->gen.operands[0])
-#define GEN_THEN(NODE)          ((NODE)->gen.operands[1])
-#define GEN_ELSE(NODE)          ((NODE)->gen.operands[2])
-
-struct ast_gen {
-    struct ast_common common;
     node_t *operands[3];
     node_t **list;
+    int index;
 };
 
 union ast_node {
     struct ast_common common;
     struct ast_decl   decl;
-    struct ast_stmt   stmt;
     struct ast_expr   expr;
+    struct ast_stmt   stmt;
     struct ast_type   type;
     struct ast_field  field;
     struct ast_symbol symbol;
-    struct ast_gen    gen;
 };
 
 // ast.c
@@ -249,9 +215,6 @@ extern void * alloc_field(void);
 extern const char *nname(node_t *node);
 // decl
 extern node_t * ast_decl(int id);
-// stmt
-extern node_t * ast_stmt(int id, struct source src, node_t *gen);
-extern node_t * ast_null_stmt(void);
 // expr
 extern node_t * ast_expr(int id, node_t *ty, node_t *l, node_t *r);
 extern node_t * ast_uop(int op, node_t *ty, node_t *l);
@@ -259,7 +222,8 @@ extern node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r);
 extern node_t * ast_conv(node_t *ty, node_t *l, const char *name);
 extern node_t * ast_inits(node_t *ty, struct source src);
 extern node_t * ast_vinit(void);
-// gen
+// stmt
+extern node_t * ast_null_stmt(void);
 extern const char * gen_label(void);
 extern const char * gen_tmpname(void);
 extern const char * gen_static_label(const char *name);
@@ -267,8 +231,7 @@ extern node_t * ast_if(node_t *cond, node_t *then, node_t *els);
 extern node_t * ast_jump(const char *label);
 extern node_t * ast_label(const char *label);
 extern node_t * ast_return(node_t *node);
-extern node_t * ast_compound(node_t **list);
-extern node_t * ast_gen(node_t *node);
+extern node_t * ast_compound(struct source src, node_t **list);
 
 extern node_t * copy_node(node_t *node);
 
@@ -279,12 +242,11 @@ extern node_t * copy_node(node_t *node);
 #define istype(n)           (AST_ID(n) == TYPE_NODE)
 #define isfield(n)          (AST_ID(n) == FIELD_NODE)
 #define issymbol(n)         (AST_ID(n) == SYMBOL_NODE)
-#define isgen(n)            (AST_ID(n) > BEGIN_GEN_ID && AST_ID(n) < END_GEN_ID)
 
 // decl
 #define istudecl(n)         (AST_ID(n) == TU_DECL)
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
-#define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == COMPOUND_STMT)
+#define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == AST_COMPOUND)
 #define isvardecl(n)        (AST_ID(n) == VAR_DECL)
 #define istypedefdecl(n)    (AST_ID(n) == TYPEDEF_DECL)
 #define isenumdecl(n)       (AST_ID(n) == ENUM_DECL)

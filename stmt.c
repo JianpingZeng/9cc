@@ -41,15 +41,10 @@ static node_t *__default;
 #define CASES             (__cases)
 #define DEFLT             (__default)
 
-static inline node_t * ast_compoundv(struct vector *v)
-{
-    return ast_compound((node_t **)vtoa(v));
-}
-
 static node_t * switch_jmp(node_t *var, node_t *case_node)
 {
     node_t *cond;
-    int index = STMT_CASE_INDEX(case_node);
+    int index = STMT_INDEX(case_node);
     const char *label = STMT_LABEL(case_node);
 
     cond = ast_bop(EQ, inttype, var, new_integer_literal(index));
@@ -60,10 +55,10 @@ static void check_case_duplicates(node_t *node)
 {
     for (int i = vec_len(CASES)-1; i >= 0; i--) {
 	node_t *n = vec_at(CASES, i);
-	if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
+	if (STMT_INDEX(n) == STMT_INDEX(node)) {
 	    errorf(AST_SRC(node),
 		   "duplicate case value '%d', previous case defined here: %s:%u:%u",
-		   STMT_CASE_INDEX(node), AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
+		   STMT_INDEX(node), AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
 	    break;
 	}
     }
@@ -105,10 +100,8 @@ static node_t * if_stmt(void)
     }
 
     if (NO_ERROR) {
-	ret = ast_stmt(IF_STMT, src, ast_if(cond, ast_gen(thenpart), ast_gen(elsepart)));
-	STMT_IF_COND(ret) = cond;
-	STMT_IF_THEN(ret) = thenpart;
-	STMT_IF_ELSE(ret) = elsepart;
+	ret = ast_if(cond, thenpart, elsepart);
+	AST_SRC(ret) = src;
     }
     
     return ret;
@@ -136,12 +129,10 @@ static node_t * while_stmt(void)
     if (NO_ERROR) {
 	struct vector *v = vec_new();
 	vec_push(v, ast_label(beg));
-	vec_push(v, ast_if(cond, ast_gen(body), ast_jump(end)));
+	vec_push(v, ast_if(cond, body, ast_jump(end)));
 	vec_push(v, ast_jump(beg));
 	vec_push(v, ast_label(end));
-	ret = ast_stmt(WHILE_STMT, src, ast_compoundv(v));
-	STMT_WHILE_COND(ret) = cond;
-	STMT_WHILE_BODY(ret) = body;
+	ret = ast_compound(src, (node_t **)vtoa(v));
     }
     
     return ret;
@@ -170,12 +161,10 @@ static node_t * do_while_stmt(void)
     if (NO_ERROR) {
 	struct vector *v = vec_new();
 	vec_push(v, ast_label(beg));
-	vec_push(v, ast_gen(body));
+	vec_push(v, body);
 	vec_push(v, ast_if(cond, ast_jump(beg), NULL));
 	vec_push(v, ast_label(end));
-	ret = ast_stmt(DO_WHILE_STMT, src, ast_compoundv(v));
-	STMT_WHILE_COND(ret) = cond;
-	STMT_WHILE_BODY(ret) = body;
+	ret = ast_compound(src, (node_t **)vtoa(v));
     }
     
     return ret;
@@ -239,18 +228,13 @@ static node_t * for_stmt(void)
 	if (cond)
 	    vec_push(v, ast_if(cond, NULL, ast_jump(end)));
 	if (body)
-	    vec_push(v, ast_gen(body));
+	    vec_push(v, body);
 	vec_push(v, ast_label(mid));
 	if (ctrl)
 	    vec_push(v, ctrl);
 	vec_push(v, ast_jump(beg));
 	vec_push(v, ast_label(end));
-	ret = ast_stmt(FOR_STMT, src, ast_compoundv(v));
-	STMT_FOR_DECL(ret) = decl;
-	STMT_FOR_INIT(ret) = init;
-	STMT_FOR_COND(ret) = cond;
-	STMT_FOR_CTRL(ret) = ctrl;
-	STMT_FOR_BODY(ret) = body;
+	ret = ast_compound(src, (node_t **)vtoa(v));
     }
 	
     return ret;
@@ -284,11 +268,9 @@ static node_t * switch_stmt(void)
 	}
 	const char *label = DEFLT ? STMT_LABEL(DEFLT) : end;
 	vec_push(v, ast_jump(label));
-	vec_push(v, ast_gen(body));
+	vec_push(v, body);
 	vec_push(v, ast_label(end));
-	ret = ast_stmt(SWITCH_STMT, src, ast_compoundv(v));
-	STMT_SWITCH_EXPR(ret) = expr;
-	STMT_SWITCH_BODY(ret) = body;
+	ret = ast_compound(src, (node_t **)vtoa(v));
     }
 
     RESTORE_SWITCH_CONTEXT();
@@ -300,11 +282,11 @@ static node_t * case_stmt(void)
 {
     node_t *body;
     struct source src = source;
-    node_t *ret = ast_stmt(CASE_STMT, source, NULL);
+    node_t *ret = ast_compound(src, NULL);
 
     SAVE_ERRORS;
     expect(CASE);
-    STMT_CASE_INDEX(ret) = intexpr();
+    STMT_INDEX(ret) = intexpr();
     expect(':');
     
     if (!IN_SWITCH)
@@ -323,10 +305,9 @@ static node_t * case_stmt(void)
 	const char *label = gen_label();
 	struct vector *v = vec_new();
 	vec_push(v, ast_label(label));
-	vec_push(v, ast_gen(body));
-	STMT_GEN(ret) = ast_compoundv(v);
+	vec_push(v, body);
+	STMT_LIST(ret) = (node_t **)vtoa(v);
 	STMT_LABEL(ret) = label;
-	STMT_CASE_BODY(ret) = body;
     } else {
 	ret = NULL;
     }
@@ -338,7 +319,7 @@ static node_t * default_stmt(void)
 {
     node_t *body;
     struct source src = source;
-    node_t *ret = ast_stmt(DEFAULT_STMT, source, NULL);
+    node_t *ret = ast_compound(src, NULL);
 
     SAVE_ERRORS;
     expect(DEFAULT);
@@ -360,10 +341,9 @@ static node_t * default_stmt(void)
 	const char *label = gen_label();
 	struct vector *v = vec_new();
 	vec_push(v, ast_label(label));
-	vec_push(v, ast_gen(body));
-	STMT_GEN(ret) = ast_compoundv(v);
+	vec_push(v, body);
+	STMT_LIST(ret) = (node_t **)vtoa(v);
 	STMT_LABEL(ret) = label;
-	STMT_CASE_BODY(ret) = body;
     } else {
 	ret = NULL;
     }
@@ -376,7 +356,7 @@ static node_t * label_stmt(void)
     node_t *body;
     const char *label = NULL;
     struct source src = source;
-    node_t *ret = ast_stmt(LABEL_STMT, source, NULL);
+    node_t *ret = ast_compound(src, NULL);
 
     SAVE_ERRORS;
     label = token->name;
@@ -398,10 +378,9 @@ static node_t * label_stmt(void)
     if (NO_ERROR) {
 	struct vector *v = vec_new();
 	vec_push(v, ast_label(label));
-	vec_push(v, ast_gen(body));
-	STMT_GEN(ret) = ast_compoundv(v);
+	vec_push(v, body);
+	STMT_LIST(ret) = (node_t **)vtoa(v);
 	STMT_LABEL(ret) = label;
-	STMT_CASE_BODY(ret) = body;
     } else {
 	ret = NULL;
     }
@@ -422,9 +401,9 @@ static node_t * goto_stmt(void)
     expect(';');
 
     if (NO_ERROR) {
-	ret = ast_stmt(GOTO_STMT, src, ast_jump(label));
-	STMT_LABEL(ret) = label;
+	ret = ast_jump(label);
 	vec_push(GOTOS, ret);
+	AST_SRC(ret) = src;
     }
 
     return ret;
@@ -442,8 +421,10 @@ static node_t * break_stmt(void)
     if (!BREAK_CONTEXT)
 	errorf(src, "'break' statement not in loop or switch statement");
 
-    if (NO_ERROR)
-	ret = ast_stmt(BREAK_STMT, src, ast_jump(BREAK_CONTEXT));
+    if (NO_ERROR) {
+	ret = ast_jump(BREAK_CONTEXT);
+	AST_SRC(ret) = src;
+    }
     
     return ret;
 }
@@ -460,8 +441,10 @@ static node_t * continue_stmt(void)
     if (!CONTINUE_CONTEXT)
 	errorf(src, "'continue' statement not in loop statement");
 
-    if (NO_ERROR)
-	ret = ast_stmt(CONTINUE_STMT, src, ast_jump(CONTINUE_CONTEXT));
+    if (NO_ERROR) {
+	ret = ast_jump(CONTINUE_CONTEXT);
+	AST_SRC(ret) = src;
+    }
     
     return ret;
 }
@@ -478,8 +461,8 @@ static node_t * return_stmt(void)
     ensure_return(expr, src);
     
     if (NO_ERROR) {
-	ret = ast_stmt(RETURN_STMT, src, ast_return(expr));
-	STMT_RETURN_BODY(ret) = expr;
+	ret = ast_return(expr);
+	AST_SRC(ret) = src;
     }
     
     return ret;
@@ -511,7 +494,7 @@ static node_t * statement(void)
 
 static node_t * do_compound_stmt(bool func)
 {
-    node_t *ret = ast_stmt(COMPOUND_STMT, source, NULL);
+    struct source src = source;
     struct vector *v = vec_new();
     struct vector *predefines = NULL;
     
@@ -534,19 +517,10 @@ static node_t * do_compound_stmt(bool func)
     if (func)
 	post_funcdef(v, predefines);
 
-    STMT_BLKS(ret) = (node_t **)vtoa(v);
-
-    // gen
-    for (int i = 0; i < vec_len(v); i++) {
-	node_t *n = vec_at(v, i);
-        vec_set(v, i, ast_gen(n));
-    }
-    STMT_GEN(ret) = ast_compoundv(v);
-
     expect('}');
     exit_scope();
     
-    return ret;
+    return ast_compound(src, (node_t **)vtoa(v));
 }
 
 node_t * compound_stmt(void)

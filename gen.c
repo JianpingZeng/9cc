@@ -290,15 +290,9 @@ static void emit_expr(node_t *n)
 
 static void emit_compound(node_t *n)
 {
-    for (int i = 0; i < LIST_LEN(GEN_LIST(n)); i++)
-	emit_expr(GEN_LIST(n)[i]);
-}
-
-static void emit_funcbody(node_t *n)
-{
-    node_t *compound = STMT_GEN(n);
-    cc_assert(AST_ID(compound) == AST_COMPOUND);
-    emit_compound(compound);
+    cc_assert(AST_ID(n) == AST_COMPOUND);
+    for (int i = 0; i < LIST_LEN(STMT_LIST(n)); i++)
+	emit_expr(STMT_LIST(n)[i]);
 }
 
 static void emit_funcdef(node_t *n)
@@ -320,7 +314,7 @@ static void emit_funcdef(node_t *n)
     movq("%rsp", "%rbp");
     if (sub)
 	emit("sub $%lld, %%rbp", sub);
-    emit_funcbody(DECL_BODY(n));
+    emit_compound(DECL_BODY(n));
     emit("leave");
     emit("ret");
 }
