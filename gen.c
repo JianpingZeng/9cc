@@ -188,34 +188,40 @@ static void emit_struct_initializer(node_t *n)
     for (int i = 0; i < LIST_LEN(inits); i++) {
 	node_t *init = inits[i];
 	node_t *field = fields[i];
-	node_t *next = i < LIST_LEN(inits) - 1 ? fields[i+1] : NULL;
 	size_t offset = FIELD_OFFSET(field);
 	if (FIELD_ISBIT(field)) {
 	    int old_bits = 0;
 	    unsigned long long old_byte = 0;
-	    do {
+	    for (; i < LIST_LEN(inits); i++) {
+		node_t *next = i < LIST_LEN(inits) - 1 ? fields[i+1] : NULL;
+		field = fields[i];
+		init = inits[i];
+		if (next && FIELD_OFFSET(field) != FIELD_OFFSET(next))
+		    break;
 		int bits = FIELD_BITSIZE(field);
 		unsigned long long byte = 0;
 		if (isiliteral(init))
 		    byte = ILITERAL_VALUE(init);
-		for (;;) {
-		    if (bits + old_bits >= 8) {
-			unsigned char val;
-			unsigned char l = byte & ~(~0 << (8 - old_bits));
-			unsigned char r = old_byte & ~(~0 << old_bits);
-			val = (l << old_bits) | r;
-			old_bits = 0;
-			old_byte = 0;
-			bits -= 8 - old_bits;
-			byte >>= 8 - old_bits;
-			emit(".byte %d", val);
-		    } else {
-			old_bits += bits;
-			old_byte += byte;
-			break;
-		    }
+		while (bits + old_bits >= 8) {
+		    unsigned char val;
+		    unsigned char l = byte & ~(~0 << (8 - old_bits));
+		    unsigned char r = old_byte & ~(~0 << old_bits);
+		    val = (l << old_bits) | r;
+		    old_bits = 0;
+		    old_byte = 0;
+		    bits -= 8 - old_bits;
+		    byte >>= 8 - old_bits;
+		    emit(".byte %d", val);
+		    offset += 1;
 		}
-	    } while (FIELD_OFFSET(field) == FIELD_OFFSET(next));
+		old_bits += bits;
+		old_byte += byte;
+	    }
+	    if (old_bits) {
+		unsigned char r = old_byte & ~(~0 << old_bits);
+		emit(".byte %d", r);
+		offset += 1;
+	    }
 	} else {
 	    node_t *fty = FIELD_TYPE(field);
 	    if (TYPE_SIZE(fty)) {
@@ -227,6 +233,7 @@ static void emit_struct_initializer(node_t *n)
 	    }
 	}
 	// pack
+	node_t *next = i < LIST_LEN(inits) - 1 ? fields[i+1] : NULL;
 	size_t end;
 	if (next)
 	    end = FIELD_OFFSET(next);
