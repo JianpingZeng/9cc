@@ -194,7 +194,7 @@ struct ast_stmt {
     struct ast_common common;
     node_t *operands[3];
     node_t **list;
-    int index;
+    long index;
 };
 
 union ast_node {

@@ -1673,30 +1673,6 @@ node_t * expression(void)
     return assign1;
 }
 
-node_t * bool_expr(void)
-{
-    // Conversion for expression in conditional statement
-    node_t *node = expression();
-    if (node == NULL)
-	return NULL;
-    if (islvalue(node))
-	node = ltor(node);
-    return decay(node);
-}
-
-node_t * switch_expr(void)
-{
-    node_t *node = conv(expression());
-    if (node == NULL)
-	return NULL;
-    if (!isint(AST_TYPE(node))) {
-	error("statement requires expression of integer type ('%s' invalid)",
-	      type2s(AST_TYPE(node)));
-	return NULL;
-    }
-    return node;
-}
-
 static node_t * uop(int op, node_t *ty, node_t *l)
 {
     node_t *node = ast_uop(op, ty, l);
@@ -1917,22 +1893,57 @@ static bool is_nullptr(node_t *node)
     return false;
 }
 
-int intexpr(void)
+long intexpr1(node_t *ty)
 {
     struct source src = source;
-    node_t *cnst = eval(cond_expr(), inttype);
+    node_t *cond = cond_expr();
+    if (cond == NULL)
+	// parsing expression failed
+	return 0;
+    if (ty == NULL)
+	ty = AST_TYPE(cond);
+    if (!isint(AST_TYPE(cond)) || !isint(ty)) {
+	errorf(src, "expression is not an integer constant expression");
+	return 0;
+    }
+    node_t *cnst = eval(cond, ty);
     if (cnst == NULL) {
 	errorf(src, "expression is not a compile-time constant");
 	return 0;
     }
-    if (isiliteral(cnst))
-	return ILITERAL_VALUE(cnst);
+    cc_assert(isiliteral(cnst));
+    return ILITERAL_VALUE(cnst);
+}
 
-    errorf(src, "expression is not an integer constant");
-    if (isfliteral(cnst))
-	return FLITERAL_VALUE(cnst);
-    
-    return 0;
+long intexpr(void)
+{
+    return intexpr1(NULL);
+}
+
+// if/do/while/for
+node_t * bool_expr(void)
+{
+    // Conversion for expression in conditional statement
+    node_t *node = expression();
+    if (node == NULL)
+	return NULL;
+    if (islvalue(node))
+	node = ltor(node);
+    return decay(node);
+}
+
+// switch
+node_t * switch_expr(void)
+{
+    node_t *node = conv(expression());
+    if (node == NULL)
+	return NULL;
+    if (!isint(AST_TYPE(node))) {
+	error("statement requires expression of integer type ('%s' invalid)",
+	      type2s(AST_TYPE(node)));
+	return NULL;
+    }
+    return node;
 }
 
 node_t * init_conv(node_t *ty, node_t *node)

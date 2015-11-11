@@ -182,12 +182,14 @@ extern struct vector * all_pptoks(void);
 // eval.c
 extern node_t * eval(node_t *expr, node_t *ty);
 extern bool eval_cpp_cond(void);
+extern node_t * int_literal_node(node_t *ty, union value v);
 
 // expr.c
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 extern node_t * expression(void);
 extern node_t * assign_expr(void);
-extern int intexpr(void);
+extern long intexpr1(node_t *ty);
+extern long intexpr(void);
 extern bool islvalue(node_t *node);
 extern node_t * init_conv(node_t *ty, node_t *node);
 extern node_t * ret_conv(node_t *ty, node_t *node);

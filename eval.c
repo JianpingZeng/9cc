@@ -76,7 +76,7 @@ static node_t * literal_node(int id)
     return n;
 }
 
-static node_t * int_literal_node(node_t *ty, union value v)
+node_t * int_literal_node(node_t *ty, union value v)
 {
     node_t *n = literal_node(INTEGER_LITERAL);
     AST_TYPE(n) = ty;
@@ -238,8 +238,7 @@ static node_t * cast(node_t *dty, node_t *l)
 	AST_TYPE(l) = dty;
 	return l;
     }
-    die("%s <= %s (%s)", type2s(dty), type2s(sty), node2s(l));
-    cc_assert(0);
+    return NULL;
 }
 
 // 'expr' was evaluated and _NOT_ null.

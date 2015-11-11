@@ -10,6 +10,7 @@ static const char *__continue;
 static const char *__break;
 static struct vector *__cases;
 static node_t *__default;
+static node_t *__switch_ty;
 
 #define SET_LOOP_CONTEXT(cont, brk)		\
     const char *__saved_continue = __continue;	\
@@ -23,48 +24,29 @@ static node_t *__default;
     __break = __saved_break;			\
     exit_scope()
 
-#define SET_SWITCH_CONTEXT(brk)			\
+#define SET_SWITCH_CONTEXT(brk, ty)		\
     const char *__saved_break = __break;	\
     struct vector *__saved_cases = __cases;	\
     node_t *__saved_default = __default;	\
+    node_t *__saved_switch_ty = __switch_ty;	\
     __break = brk;				\
     __cases = vec_new();			\
-    __default = NULL
+    __default = NULL;				\
+    __switch_ty = ty
 
 #define RESTORE_SWITCH_CONTEXT()		\
     vec_free(__cases);				\
     __break = __saved_break;			\
     __cases = __saved_cases;			\
-    __default = __saved_default
+    __default = __saved_default;		\
+    __switch_ty = __saved_switch_ty
 
 #define CONTINUE_CONTEXT  (__continue)
 #define BREAK_CONTEXT     (__break)
 #define IN_SWITCH         (__cases)
 #define CASES             (__cases)
 #define DEFLT             (__default)
-
-static node_t * switch_jmp(node_t *var, node_t *case_node)
-{
-    node_t *cond;
-    int index = STMT_INDEX(case_node);
-    const char *label = STMT_LABEL(case_node);
-
-    cond = ast_bop(EQ, inttype, var, new_integer_literal(index));
-    return ast_if(cond, ast_jump(label), NULL);
-}
-
-static void check_case_duplicates(node_t *node)
-{
-    for (int i = vec_len(CASES)-1; i >= 0; i--) {
-	node_t *n = vec_at(CASES, i);
-	if (STMT_INDEX(n) == STMT_INDEX(node)) {
-	    errorf(AST_SRC(node),
-		   "duplicate case value '%lld', previous case defined here: %s:%u:%u",
-		   STMT_INDEX(node), AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
-	    break;
-	}
-    }
-}
+#define SWITCH_TYPE       (__switch_ty)
 
 static node_t * expr_stmt(void)
 {
@@ -269,6 +251,26 @@ static node_t * for_stmt(void)
     return ret;
 }
 
+static node_t * switch_jmp(node_t *var, node_t *case_node)
+{
+    node_t *cond;
+    long index = STMT_INDEX(case_node);
+    const char *label = STMT_LABEL(case_node);
+    node_t *index_node = int_literal_node(AST_TYPE(var), (union value){.u = index});
+
+    cond = ast_bop(EQ, inttype, var, index_node);
+    return ast_if(cond, ast_jump(label), NULL);
+}
+
+/**
+ * Switch Statements Notes:
+ *
+ * 1. The control expression is subject to the usual unary convresion.
+ *
+ * 2. When comparing the control expression and the **case** expressions,
+ *    the **case** expressions are converted to the type of the control
+ *    expression (after the usual unary conversion).
+ */
 static node_t * switch_stmt(void)
 {
     node_t *ret = NULL;
@@ -283,7 +285,7 @@ static node_t * switch_stmt(void)
     expr = switch_expr();
     expect(')');
 
-    SET_SWITCH_CONTEXT(end);
+    SET_SWITCH_CONTEXT(end, expr ? AST_TYPE(expr) : NULL);
 
     body = statement();
     
@@ -307,6 +309,19 @@ static node_t * switch_stmt(void)
     return ret;
 }
 
+static void check_case_duplicates(node_t *node)
+{
+    for (int i = vec_len(CASES)-1; i >= 0; i--) {
+	node_t *n = vec_at(CASES, i);
+	if (STMT_INDEX(n) == STMT_INDEX(node)) {
+	    errorf(AST_SRC(node),
+		   "duplicate case value '%lld', previous case defined here: %s:%u:%u",
+		   STMT_INDEX(node), AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
+	    break;
+	}
+    }
+}
+
 static node_t * case_stmt(void)
 {
     node_t *body;
@@ -315,7 +330,7 @@ static node_t * case_stmt(void)
 
     SAVE_ERRORS;
     expect(CASE);
-    STMT_INDEX(ret) = intexpr();
+    STMT_INDEX(ret) = intexpr1(SWITCH_TYPE);
     expect(':');
     
     if (!IN_SWITCH)
