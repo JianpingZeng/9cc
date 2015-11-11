@@ -1,15 +1,22 @@
 TODO
 
+// refactor
+1. code review for stmt/expr/decl/initializer/eval/type
+2. totally rewrite command line driver
+
 // preprocessor
 TODO - test case
-
 TODO - line pptokens
 TODO - pragma
 
 // parser
-TODO - paramdecl, localdecl, globaldecl
-TODO - simplify
+
 
 // backend
 TODO - gen
 TODO - long double
+
+// supports
+1. variable length array
+2. _Complex, _Imaginary
+3. keyword feture: inline/register
