@@ -871,7 +871,7 @@ static void argcast1(node_t *fty, node_t **args, struct vector *v)
 	node_t *dst = SYM_TYPE(params[i]);
 	node_t *src = AST_TYPE(args[i]);
 	node_t *ret;
-	if ((ret = init_conv(dst, args[i]))) {
+	if ((ret = initconv(dst, args[i]))) {
 	    vec_push(v, ret);
 	} else {
 	    if (oldstyle)
@@ -1946,12 +1946,12 @@ node_t * switch_expr(void)
     return node;
 }
 
-node_t * init_conv(node_t *ty, node_t *node)
+node_t * initconv(node_t *ty, node_t *node)
 {
     return assignconv(ty, node);
 }
 
-node_t * ret_conv(node_t *ty, node_t *node)
+node_t * retconv(node_t *ty, node_t *node)
 {
     return assignconv(ty, node);
 }

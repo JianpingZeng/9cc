@@ -632,23 +632,23 @@ static void post_funcdef(struct vector *v, struct vector *predefines)
 
 static node_t * ensure_return(node_t *expr, struct source src)
 {
+    // return immediately if expr is NULL. (parsing failed)
+    if (expr == NULL)
+	return NULL;
+
     if (isvoid(rtype(FTYPE))) {
-	if (expr && !isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
+	if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
 	    errorf(src, "void function '%s' should not return a value", FNAME);
     } else {
-	// error only if expr is not NULL to inhibit
-	// redundant errors.
-	if (expr) {
-	    if (!isnullstmt(expr)) {
-		node_t *ty1 = AST_TYPE(expr);
-		node_t *ty2 = rtype(FTYPE);
-		if (!(expr = ret_conv(ty2, expr)))
-		    errorf(src,
-			   "returning '%s' from function '%s' with incompatible result type '%s'",
-			   type2s(ty1), FNAME, type2s(ty2));
-	    } else {
-		errorf(src, "non-void function '%s' should return a value", FNAME);
-	    }
+        if (!isnullstmt(expr)) {
+	    node_t *ty1 = AST_TYPE(expr);
+	    node_t *ty2 = rtype(FTYPE);
+	    if (!(expr = retconv(ty2, expr)))
+		errorf(src,
+		       "returning '%s' from function '%s' with incompatible result type '%s'",
+		       type2s(ty1), FNAME, type2s(ty2));
+	} else {
+	    errorf(src, "non-void function '%s' should return a value", FNAME);
 	}
     }
     return expr;

@@ -191,8 +191,8 @@ extern node_t * assign_expr(void);
 extern long intexpr1(node_t *ty);
 extern long intexpr(void);
 extern bool islvalue(node_t *node);
-extern node_t * init_conv(node_t *ty, node_t *node);
-extern node_t * ret_conv(node_t *ty, node_t *node);
+extern node_t * initconv(node_t *ty, node_t *node);
+extern node_t * retconv(node_t *ty, node_t *node);
 // for expression in conditional statement
 extern node_t * bool_expr(void);
 // for expression in switch statement
