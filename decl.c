@@ -1235,6 +1235,8 @@ static node_t * localdecl(struct token *t, node_t *ty, int sclass)
         if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
             error("a parameter list without types is only allowed in a function definition");
 	ensure_func(ty, src);
+	if (sclass && sclass != EXTERN)
+	    errorf(src, "function declared in block scope cannot have '%s' storage class", id2s(sclass));
     } else if (isarray(ty)) {
         ensure_array(ty, src, LOCAL);
     }

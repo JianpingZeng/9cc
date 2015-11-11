@@ -434,9 +434,6 @@ void decl_initializer(node_t *decl, int sclass, int kind)
     if (istag(ty) && isincomplete(ty)) {
 	error("variable has incomplete type '%s'", type2s(ty));
 	return;
-    } else if (isvarray(ty)) {
-	error("variable-sized object may not be initialized");
-	return;
     }
 
     SAVE_ERRORS;

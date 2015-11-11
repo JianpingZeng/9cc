@@ -187,7 +187,7 @@ extern bool eval_cpp_cond(void);
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 extern node_t * expression(void);
 extern node_t * assign_expr(void);
-extern int intexpr(void);
+extern long intexpr(void);
 extern bool islvalue(node_t *node);
 extern node_t * init_conv(node_t *ty, node_t *node);
 extern node_t * ret_conv(node_t *ty, node_t *node);
@@ -255,7 +255,6 @@ extern int indexof_field(node_t *ty, node_t *field);
 extern node_t * compose(node_t *ty1, node_t *ty2);
 extern bool qual_contains(node_t *ty1, node_t *ty2);
 extern bool isincomplete(node_t *ty);
-extern bool isvarray(node_t *ty);
 extern node_t * unpack(node_t *ty);
 
 extern node_t  *chartype;               // char

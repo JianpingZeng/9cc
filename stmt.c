@@ -4,7 +4,7 @@ static node_t * statement(void);
 static node_t * do_compound_stmt(bool func);
 static struct vector * predefined_identifiers(void);
 static void post_funcdef(struct vector *v, struct vector *predefines);
-static void ensure_return(node_t *expr, struct source src);
+static node_t * ensure_return(node_t *expr, struct source src);
 
 static const char *__continue;
 static const char *__break;
@@ -15,11 +15,13 @@ static node_t *__default;
     const char *__saved_continue = __continue;	\
     const char *__saved_break = __break;	\
     __continue = cont;				\
-    __break = brk
+    __break = brk;				\
+    enter_scope()
 
 #define RESTORE_LOOP_CONTEXT()			\
     __continue = __saved_continue;		\
-    __break = __saved_break
+    __break = __saved_break;			\
+    exit_scope()
 
 #define SET_SWITCH_CONTEXT(brk)			\
     const char *__saved_break = __break;	\
@@ -57,7 +59,7 @@ static void check_case_duplicates(node_t *node)
 	node_t *n = vec_at(CASES, i);
 	if (STMT_INDEX(n) == STMT_INDEX(node)) {
 	    errorf(AST_SRC(node),
-		   "duplicate case value '%d', previous case defined here: %s:%u:%u",
+		   "duplicate case value '%lld', previous case defined here: %s:%u:%u",
 		   STMT_INDEX(node), AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
 	    break;
 	}
@@ -79,6 +81,12 @@ static node_t * expr_stmt(void)
     return ret;
 }
 
+/**
+ * The entire **if** statement forms its own block scope, as do the
+ * substatements even if they are not compound statements. This serves
+ * to restrict the scope of objects and types that might be created
+ * as a side effect of using compound literal or type names.
+ */
 static node_t * if_stmt(void)
 {
     node_t *ret = NULL;
@@ -87,17 +95,26 @@ static node_t * if_stmt(void)
     node_t *elsepart = NULL;
     struct source src = source;
 
+    enter_scope();
+
     SAVE_ERRORS;
     expect(IF);
     expect('(');
     cond = bool_expr();
     expect(')');
+
+    enter_scope();
     thenpart = statement();
+    exit_scope();
 
     if (token->id == ELSE) {
         expect(ELSE);
+	enter_scope();
 	elsepart = statement();
+	exit_scope();
     }
+
+    exit_scope();
 
     if (NO_ERROR) {
 	ret = ast_if(cond, thenpart, elsepart);
@@ -107,12 +124,18 @@ static node_t * if_stmt(void)
     return ret;
 }
 
+/**
+ * Each iterative statement(do/while/for) forms its own block scope,
+ * as do the substatements even if they are not compound statements.
+ */
 static node_t * while_stmt(void)
 {
     node_t *ret = NULL;
     node_t *cond;
     node_t *body;
     struct source src = source;
+
+    enter_scope();
 
     SAVE_ERRORS;
     expect(WHILE);
@@ -125,6 +148,8 @@ static node_t * while_stmt(void)
     SET_LOOP_CONTEXT(beg, end);
     body = statement();
     RESTORE_LOOP_CONTEXT();
+
+    exit_scope();
 
     if (NO_ERROR) {
 	struct vector *v = vec_new();
@@ -147,6 +172,8 @@ static node_t * do_while_stmt(void)
     const char *beg = gen_label();
     const char *end = gen_label();
 
+    enter_scope();
+
     SAVE_ERRORS;
     expect(DO);
     SET_LOOP_CONTEXT(beg, end);
@@ -157,6 +184,8 @@ static node_t * do_while_stmt(void)
     cond = bool_expr();
     expect(')');
     expect(';');
+
+    exit_scope();
 
     if (NO_ERROR) {
 	struct vector *v = vec_new();
@@ -183,11 +212,11 @@ static node_t * for_stmt(void)
     const char *mid = gen_label();
     const char *end = gen_label();
 
+    enter_scope();
+
     SAVE_ERRORS;
     expect(FOR);
     expect('(');
-
-    enter_scope();
     
     if (token->id == ';') {
         expect(';');
@@ -354,23 +383,24 @@ static node_t * default_stmt(void)
 static node_t * label_stmt(void)
 {
     node_t *body;
-    const char *label = NULL;
+    const char *name = NULL;
     struct source src = source;
     node_t *ret = ast_compound(src, NULL);
+    const char *label = gen_label();
 
     SAVE_ERRORS;
-    label = token->name;
+    name = token->name;
     expect(ID);
     expect(':');
 
     // install label before parsing body
     if (NO_ERROR) {
-        node_t *n = map_get(LABELS, label);
+        node_t *n = map_get(LABELS, name);
 	if (n)
 	    errorf(src,
 		   "redefinition of label '%s', previous label defined here:%s:%u:%u",
-		   label, AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
-	map_put(LABELS, label, ret);
+		   name, AST_SRC(n).file, AST_SRC(n).line, AST_SRC(n).column);
+	map_put(LABELS, name, ret);
     }
 
     body = statement();
@@ -392,16 +422,16 @@ static node_t * goto_stmt(void)
 {
     node_t *ret = NULL;
     struct source src = source;
-    const char *label;
+    const char *name;
 
     SAVE_ERRORS;
     expect(GOTO);
-    label = token->name;
+    name = token->name;
     expect(ID);
     expect(';');
 
     if (NO_ERROR) {
-	ret = ast_jump(label);
+	ret = ast_jump(name);
 	vec_push(GOTOS, ret);
 	AST_SRC(ret) = src;
     }
@@ -458,7 +488,7 @@ static node_t * return_stmt(void)
     SAVE_ERRORS;
     expect(RETURN);
     expr = expr_stmt();
-    ensure_return(expr, src);
+    expr = ensure_return(expr, src);
     
     if (NO_ERROR) {
 	ret = ast_return(expr);
@@ -532,10 +562,12 @@ void backfill_labels(void)
 {
     for (int i = 0; i < vec_len(GOTOS); i++) {
 	node_t *goto_stmt = vec_at(GOTOS, i);
-	const char *label = STMT_LABEL(goto_stmt);
-	node_t *label_stmt = map_get(LABELS, label);
-	if (!label_stmt)
-	    errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", label);
+	const char *name = STMT_LABEL(goto_stmt);
+	node_t *label_stmt = map_get(LABELS, name);
+	if (label_stmt)
+	    STMT_LABEL(goto_stmt) = STMT_LABEL(label_stmt);
+	else
+	    errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", name);
     }
 }
 
@@ -583,7 +615,7 @@ static void post_funcdef(struct vector *v, struct vector *predefines)
     vec_free(predefines);
 }
 
-static void ensure_return(node_t *expr, struct source src)
+static node_t * ensure_return(node_t *expr, struct source src)
 {
     if (isvoid(rtype(FTYPE))) {
 	if (expr && !isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
@@ -604,4 +636,5 @@ static void ensure_return(node_t *expr, struct source src)
 	    }
 	}
     }
+    return expr;
 }

@@ -1917,10 +1917,10 @@ static bool is_nullptr(node_t *node)
     return false;
 }
 
-int intexpr(void)
+long intexpr(void)
 {
     struct source src = source;
-    node_t *cnst = eval(cond_expr(), inttype);
+    node_t *cnst = eval(cond_expr(), longtype);
     if (cnst == NULL) {
 	errorf(src, "expression is not a compile-time constant");
 	return 0;
