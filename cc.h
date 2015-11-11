@@ -187,7 +187,7 @@ extern bool eval_cpp_cond(void);
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 extern node_t * expression(void);
 extern node_t * assign_expr(void);
-extern long intexpr(void);
+extern int intexpr(void);
 extern bool islvalue(node_t *node);
 extern node_t * init_conv(node_t *ty, node_t *node);
 extern node_t * ret_conv(node_t *ty, node_t *node);
