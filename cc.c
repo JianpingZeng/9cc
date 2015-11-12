@@ -20,7 +20,7 @@ static void parseopts(int argc, const char *argv[])
         } else if (arg[0] == '-') {
 	    if (!strcmp(arg, "-E"))
 		cpp_only = true;
-	    else if (!strcmp(arg, "--ast-dump"))
+	    else if (!strcmp(arg, "-ast-dump"))
 		ast_only = true;
 	    else
 		vec_push(options, (void *)arg);
@@ -63,7 +63,6 @@ static void preprocess(void)
 
 static void cc_exit(void)
 {
-    print_alloc_stat();
     if (outfp != stdout)
 	fclose(outfp);
 }

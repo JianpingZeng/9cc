@@ -20,6 +20,24 @@ node_t   *voidtype;               // void
 node_t   *booltype;	          // bool
 node_t   *vartype;		  // variable type
 
+struct metrics {
+    size_t size;
+    int align;
+    unsigned rank;
+};
+static struct metrics boolmetrics;
+static struct metrics charmetrics;
+static struct metrics shortmetrics;
+static struct metrics wcharmetrics;
+static struct metrics intmetrics;
+static struct metrics longmetrics;
+static struct metrics longlongmetrics;
+static struct metrics floatmetrics;
+static struct metrics doublemetrics;
+static struct metrics longdoublemetrics;
+static struct metrics ptrmetrics;
+static struct metrics zerometrics;
+
 static inline node_t * new_type(void)
 {
     return alloc_type();
@@ -46,10 +64,10 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
             break;
             
         case FLOAT:
-            if (_TYPE_SIZE(ty) == IR->floatmetrics.size) {
+            if (_TYPE_SIZE(ty) == floatmetrics.size) {
                 VALUE_D(_TYPE_LIMITS_MAX(ty)) = FLT_MAX;
                 VALUE_D(_TYPE_LIMITS_MIN(ty)) = FLT_MIN;
-            } else if (_TYPE_SIZE(ty) == IR->doublemetrics.size) {
+            } else if (_TYPE_SIZE(ty) == doublemetrics.size) {
                 VALUE_D(_TYPE_LIMITS_MAX(ty)) = DBL_MAX;
                 VALUE_D(_TYPE_LIMITS_MIN(ty)) = DBL_MIN;
             } else {
@@ -65,9 +83,34 @@ static node_t * install_type(const char *name, int kind, struct metrics m)
     return ty;
 }
 
+static void metrics_init(void)
+{
+    // size  align  rank
+    boolmetrics        = (struct metrics){1,  1,  10};
+    charmetrics        = (struct metrics){1,  1,  20};
+    shortmetrics       = (struct metrics){2,  2,  30};
+    wcharmetrics       = (struct metrics){4,  4,  40};
+    intmetrics         = (struct metrics){4,  4,  40};
+    longlongmetrics    = (struct metrics){8,  8,  60};
+    floatmetrics       = (struct metrics){4,  4,  70};
+    doublemetrics      = (struct metrics){8,  8,  80};
+    longdoublemetrics  = (struct metrics){8,  8,  90};
+    zerometrics        = (struct metrics){0,  1};
+#ifdef CONFIG_X32
+    longmetrics        = (struct metrics){4,  4,  50};
+    ptrmetrics         = (struct metrics){4,  4};
+#elif defined CONFIG_X64
+    longmetrics        = (struct metrics){8,  8,  50};
+    ptrmetrics         = (struct metrics){8,  8};
+#else
+#error "architecture not defined."
+#endif
+}
+
 void type_init(void)
 {
-#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, IR->metrics)
+    metrics_init();
+#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, metrics)
     
     // type                     name                    kind            metrics            op
     
@@ -275,8 +318,8 @@ node_t * ptr_type(node_t *type)
     _TYPE_KIND(ty) = POINTER;
     _TYPE_NAME(ty) = "pointer";
     _TYPE_TYPE(ty) = type;
-    _TYPE_SIZE(ty) = IR->ptrmetrics.size;
-    _TYPE_ALIGN(ty) = IR->ptrmetrics.align;
+    _TYPE_SIZE(ty) = ptrmetrics.size;
+    _TYPE_ALIGN(ty) = ptrmetrics.align;
     
     return ty;
 }
@@ -286,7 +329,7 @@ node_t * func_type(void)
     node_t *ty = new_type();
     _TYPE_KIND(ty) = FUNCTION;
     _TYPE_NAME(ty) = "function";
-    _TYPE_ALIGN(ty) = IR->ptrmetrics.align;
+    _TYPE_ALIGN(ty) = ptrmetrics.align;
     
     return ty;
 }

@@ -1,5 +1,5 @@
-#ifndef _CONFIG_H
-#define _CONFIG_H
+#ifndef _MCC_H
+#define _MCC_H
 
 #ifdef CONFIG_COLOR_TERM
 
@@ -69,29 +69,13 @@
 #define CYAN_BOLD(str)     CYAN_BOLD_COLOR str RESET
 #define WHITE_BOLD(str)    WHITE_BOLD_COLOR str RESET
 
-// IR
-struct interface {
-    struct metrics {
-	size_t size;
-	int align;
-	unsigned rank;
-    }
-	boolmetrics,
-	charmetrics,
-	shortmetrics,
-	wcharmetrics,
-	intmetrics,
-	longmetrics,
-	longlongmetrics,
-	floatmetrics,
-	doublemetrics,
-	longdoublemetrics,
-	ptrmetrics,
-	zerometrics;
+// ENV
+struct env {
     const char *uname;
+    const char *arch;
     int version;
 };
-extern struct interface *IR;
+extern struct env *ENV;
 
 #define VERSION(major, minor)  (((major) << 16) | (minor))
 #define MAJOR(version)         ((version) >> 16)

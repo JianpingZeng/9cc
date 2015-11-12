@@ -77,15 +77,15 @@ int isdir(const char *path)
     return S_ISDIR(st.st_mode);
 }
 
-int callsys(const char *path, char **argv)
+int callsys(const char *file, char **argv)
 {
     pid_t pid;
     int ret = EXIT_SUCCESS;
     pid = fork();
     if (pid == 0) {
         // child process
-        execv(path, argv);
-        fprintf(stderr, "%s: %s\n", strerror(errno), path);
+        execvp(file, argv);
+        fprintf(stderr, "%s: %s\n", strerror(errno), file);
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
         int status;
@@ -93,9 +93,8 @@ int callsys(const char *path, char **argv)
         while ((n = waitpid(pid, &status, 0)) != pid ||
                (n == -1 && errno == EINTR))
             ; // may be EINTR by a signal, so loop it.
-        if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
             ret = EXIT_FAILURE;
-        }
     } else {
         perror("Can't fork");
         ret = EXIT_FAILURE;
@@ -118,9 +117,8 @@ int runproc(int (*proc) (void *), void *context)
         while ((n = waitpid(pid, &status, 0)) != pid ||
                (n == -1 && errno == EINTR))
             ; // may be EINTR by a signal, so loop it.
-        if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
             ret = EXIT_FAILURE;
-        }
     } else {
         perror("Can't fork");
         ret = EXIT_FAILURE;
@@ -232,6 +230,20 @@ char *get_uname(void)
 	int len = strlen(ret.sysname) + strlen(ret.release) + strlen(ret.machine) + 8;
 	char *p = malloc(len);
 	snprintf(p, len, "%s %s %s", ret.sysname, ret.release, ret.machine);
+	return p;
+    }
+}
+
+char *get_arch(void)
+{
+    struct utsname ret;
+    if (uname(&ret)) {
+	perror("uname");
+	return "Unknown";
+    } else {
+	int len = strlen(ret.machine) + 1;
+	char *p = malloc(len);
+	snprintf(p, len, "%s", ret.machine);
 	return p;
     }
 }

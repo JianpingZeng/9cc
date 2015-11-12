@@ -637,5 +637,5 @@ void gen(node_t *tree, FILE *fp)
 	}
     }
     emit_literals();
-    emit(".ident \"mcc: %d.%d %s\"", MAJOR(IR->version), MINOR(IR->version), IR->uname);
+    emit(".ident \"mcc: %d.%d %s\"", MAJOR(ENV->version), MINOR(ENV->version), ENV->uname);
 }

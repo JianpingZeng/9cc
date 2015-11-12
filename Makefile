@@ -42,7 +42,7 @@ CC1_OBJ=alloc.o \
 
 CC1_INC=cc.h \
 	ast.h \
-        config.h \
+        mcc.h \
         node.def \
         token.def \
         $(UTILS_INC)

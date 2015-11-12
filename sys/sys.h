@@ -16,7 +16,7 @@ extern char *dirname(const char *path);
 extern char *basename(const char *path);
 
 // process
-extern int callsys(const char *path, char **argv);
+extern int callsys(const char *file, char **argv);
 extern int runproc(int (*proc) (void *), void *context);
 
 // time
@@ -24,5 +24,6 @@ extern void set_localtime(const time_t *timep, struct tm *result);
 
 // uname
 extern char *get_uname(void);
+extern char *get_arch(void);
 
 #endif

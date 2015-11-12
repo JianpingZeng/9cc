@@ -16,7 +16,7 @@
 #include <locale.h>
 #include <ctype.h>
 
-#include "config.h"
+#include "mcc.h"
 #include "utils.h"
 
 // alloc.c
@@ -420,7 +420,5 @@ extern void fatalf(struct source src, const char *fmt, ...);
 extern void redefinition_error(struct source src, node_t *sym);
 extern void conflicting_types_error(struct source src, node_t *sym);
 extern void field_not_found_error(node_t *ty, const char *name);
-
-extern void print_alloc_stat(void);
 
 #endif
