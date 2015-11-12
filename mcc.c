@@ -63,7 +63,7 @@ static void init_IR(void)
     IR->longlongmetrics    = (struct metrics){8,  8,  60};
     IR->floatmetrics       = (struct metrics){4,  4,  70};
     IR->doublemetrics      = (struct metrics){8,  8,  80};
-    IR->longdoublemetrics  = (struct metrics){16, 16, 90};
+    IR->longdoublemetrics  = (struct metrics){8,  8,  90};
     IR->ptrmetrics         = (struct metrics){8,  8};
     IR->zerometrics        = (struct metrics){0,  1};
 #else
