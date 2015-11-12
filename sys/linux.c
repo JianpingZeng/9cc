@@ -43,6 +43,35 @@ void setup_sys()
 #endif
 }
 
+#ifdef CONFIG_LINUX
+    char *ld[] = {
+	"ld",
+	"-A", "x86_64",
+	"-o", "$0",
+	"-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
+	"/usr/lib64/crt1.o",
+	"/usr/lib64/crti.o",
+	"$1",
+	"-lc", "-lm",
+	"/usr/lib64/crtn.o",
+	NULL
+    };
+#elif defined CONFIG_DARWIN
+    char *ld[] = {
+	"ld",
+	"-o", "$0",
+	"$1",
+	"-lc", "-lm",
+	"-macosx_version_min", OSX_SDK_VERSION,
+	"-arch", "x86_64",
+	NULL
+    };
+#else
+    #error "architecture not defined"
+#endif
+
+char *as[] = {"as", "-o", "$0", "$1", NULL};
+
 const char *mktmpdir()
 {
     static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";

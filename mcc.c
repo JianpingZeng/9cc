@@ -126,40 +126,13 @@ static char ** compose(char *argv[], struct vector *ifiles, const char *ofile)
 
 static int link(struct vector *ifiles, const char *ofile)
 {
-#ifdef CONFIG_LINUX
-    char *argv[] = {
-	"ld",
-	"-A", "x86_64",
-	"-o", "$0",
-	"-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
-	"/usr/lib64/crt1.o",
-	"/usr/lib64/crti.o",
-	"$1",
-	"-lc", "-lm",
-	"/usr/lib64/crtn.o",
-	NULL
-    };
-#elif defined CONFIG_DARWIN
-    char *argv[] = {
-	"ld",
-	"-o", "$0",
-	"$1",
-	"-lc", "-lm",
-	"-macosx_version_min", "10.11",
-	"-arch", "x86_64",
-	NULL
-    };
-#else
-    #error "architecture not defined"
-#endif
-    return callsys("ld", compose(argv, ifiles, ofile));
+    return callsys(ld[0], compose(ld, ifiles, ofile));
 }
 
 static int assemble(const char *ifile, const char *ofile)
 {
-    char *argv[] = {"as", "-o", "$0", "$1", NULL};
     struct vector *v = vec_new1((char *)ifile);
-    return callsys("as", compose(argv, v, ofile));
+    return callsys(as[0], compose(as, v, ofile));
 }
 
 static int translate(const char *ifile, struct vector *options, const char *ofile)

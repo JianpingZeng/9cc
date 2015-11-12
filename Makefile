@@ -61,7 +61,9 @@ CONFIG_FLAGS+=-DCONFIG_CYGWIN
 else ifeq (Darwin, $(KERNEL))
 CONFIG_FLAGS+=-DCONFIG_DARWIN
 XCODE_SDK_DIR:=$(shell xcrun --show-sdk-path)
+OSX_SDK_VERSION:=$(shell xcrun --show-sdk-version)
 CONFIG_FLAGS+=-DXCODE_DIR='"$(XCODE_SDK_DIR)"'
+CONFIG_FLAGS+=-DOSX_SDK_VERSION='"$(OSX_SDK_VERSION)"'
 else
 CONFIG_FLAGS+=-DCONFIG_LINUX
 endif

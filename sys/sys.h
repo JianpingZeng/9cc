@@ -25,4 +25,7 @@ extern void set_localtime(const time_t *timep, struct tm *result);
 // uname
 extern char *get_uname(void);
 
+extern char *ld[];
+extern char *as[];
+
 #endif
