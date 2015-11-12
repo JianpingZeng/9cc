@@ -233,17 +233,3 @@ char *get_uname(void)
 	return p;
     }
 }
-
-char *get_arch(void)
-{
-    struct utsname ret;
-    if (uname(&ret)) {
-	perror("uname");
-	return "Unknown";
-    } else {
-	int len = strlen(ret.machine) + 1;
-	char *p = malloc(len);
-	snprintf(p, len, "%s", ret.machine);
-	return p;
-    }
-}

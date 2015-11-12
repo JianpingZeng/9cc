@@ -42,7 +42,6 @@ static void init_env(void)
 {
     ENV = zmalloc(sizeof(struct env));
     ENV->uname = get_uname();
-    ENV->arch = get_arch();
     ENV->version = version;
 }
 
@@ -130,7 +129,7 @@ static int link(struct vector *ifiles, const char *ofile)
 #ifdef CONFIG_LINUX
     char *argv[] = {
 	"ld",
-	"-A", (char *)ENV->arch,
+	"-A", "x86_64",
 	"-o", "$0",
 	"-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
 	"/usr/lib64/crt1.o",
@@ -147,7 +146,7 @@ static int link(struct vector *ifiles, const char *ofile)
 	"$1",
 	"-lc", "-lm",
 	"-macosx_version_min", "10.11",
-	"-arch", (char *)ENV->arch,
+	"-arch", "x86_64",
 	NULL
     };
 #else

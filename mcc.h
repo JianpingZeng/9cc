@@ -72,7 +72,6 @@
 // ENV
 struct env {
     const char *uname;
-    const char *arch;
     int version;
 };
 extern struct env *ENV;
