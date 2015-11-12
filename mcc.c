@@ -26,6 +26,7 @@ static void usage(void)
             "OVERVIEW: mcc - A Standard C Compiler v%d.%d\n\n"
             "USAGE: mcc [options] <files>\n\n"
             "OPTIONS:\n", MAJOR(IR->version), MINOR(IR->version));
+    print_opt("--ast-dump",      "Only print abstract syntax tree");
     print_opt("-c",              "Only run preprocess, compile and assemble steps");
     print_opt("-E",              "Only run the preprocessor");
     print_opt("-h, --help",      "Display available options");
@@ -179,7 +180,7 @@ int main(int argc, char **argv)
 	const char *ifile = vec_at(inputs, i);
 	const char *iname = basename(strcopy(ifile));
 	const char *ofile = NULL;
-	if (options_has(options, "-E")) {
+	if (options_has(options, "-E") || options_has(options, "--ast-dump")) {
 	    if (output_file)
 		ofile = output_file;
 	} else if (options_has(options, "-S")) {

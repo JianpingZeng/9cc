@@ -5,6 +5,7 @@ static const char *ofile;
 static FILE *outfp;
 static struct vector *options;
 static bool cpp_only;
+static bool ast_only;
 
 static void parseopts(int argc, const char *argv[])
 {
@@ -19,6 +20,8 @@ static void parseopts(int argc, const char *argv[])
         } else if (arg[0] == '-') {
 	    if (!strcmp(arg, "-E"))
 		cpp_only = true;
+	    else if (!strcmp(arg, "--ast-dump"))
+		ast_only = true;
 	    else
 		vec_push(options, (void *)arg);
         } else {
@@ -41,9 +44,12 @@ static void translate(void)
 {
     node_t *tree;
     tree = translation_unit();
-    print_tree(tree);
-    if (errors == 0)
-	gen(tree, outfp);
+    if (ast_only) {
+	print_tree(tree);
+    } else {
+	if (errors == 0)
+	    gen(tree, outfp);
+    }
 }
 
 static void preprocess(void)
