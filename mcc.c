@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <time.h>
+#include <ctype.h>
 #include "sys.h"
 #include "mcc.h"
 #include "utils.h"
@@ -97,31 +98,69 @@ static int program(void *context)
     return cc_main(vec_len(v), (char **)vtoa(v));
 }
 
+static char ** compose(char *argv[], struct vector *ifiles, const char *ofile)
+{
+    size_t ac = LIST_LEN(argv) + vec_len(ifiles);
+    char **av = xmalloc(ac * sizeof(char *));
+    int j = 0;
+    for (int i = 0; i < LIST_LEN(argv); i++) {
+	char *arg = argv[i];
+	if (arg[0] == '$' && isdigit(arg[1])) {
+	    int k = arg[1] - '0';
+	    assert(k >= 0 && k <= 1);
+	    if (k == 0) {
+		av[j++] = (char *)(ofile ? ofile : "a.out");
+	    } else {
+		for (int i = 0; i < vec_len(ifiles); i++) {
+		    char *ifile = vec_at(ifiles, i);
+		    av[j++] = ifile;
+		}
+	    }
+	} else {
+	    av[j++] = arg;
+	}
+    }
+    assert(j < ac);
+    av[j] = NULL;
+    return av;
+}
+
 static int link(struct vector *ifiles, const char *ofile)
 {
-    struct vector *v = vec_new();
-    vec_push(v, "ld");
-    if (ofile) {
-	vec_push(v, "-o");
-	vec_push(v, (char *)ofile);
-    }
-    vec_add(v, ifiles);
-    vec_push(v, "-lc");
-#ifdef CONFIG_DARWIN
-    vec_push(v, "-macosx_version_min");
-    vec_push(v, "10.11");
+#ifdef CONFIG_LINUX
+    char *argv[] = {
+	"ld",
+	"-A", (char *)ENV->arch,
+	"-o", "$0",
+	"-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
+	"/usr/lib64/crt1.o",
+	"/usr/lib64/crti.o",
+	"$1",
+	"-lc", "-lm",
+	"/usr/lib64/crtn.o",
+	NULL
+    };
+#elif defined CONFIG_DARWIN
+    char *argv[] = {
+	"ld",
+	"-o", "$0",
+	"$1",
+	"-lc", "-lm",
+	"-macosx_version_min", "10.11",
+	"-arch", (char *)ENV->arch,
+	NULL
+    };
+#else
+    #error "architecture not defined"
 #endif
-    vec_push(v, "-arch");
-    vec_push(v, (char *)ENV->arch);
-    return callsys("ld", (char **)vtoa(v));
+    return callsys("ld", compose(argv, ifiles, ofile));
 }
 
 static int assemble(const char *ifile, const char *ofile)
 {
-    const char *argv[] = {"as", ifile, "-o", ofile, NULL};
-    if (!ifile || !ofile)
-	return EXIT_FAILURE;
-    return callsys("as", (char **)argv);
+    char *argv[] = {"as", "-o", "$0", "$1", NULL};
+    struct vector *v = vec_new1((char *)ifile);
+    return callsys("as", compose(argv, v, ofile));
 }
 
 static int translate(const char *ifile, struct vector *options, const char *ofile)

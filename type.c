@@ -91,20 +91,13 @@ static void metrics_init(void)
     shortmetrics       = (struct metrics){2,  2,  30};
     wcharmetrics       = (struct metrics){4,  4,  40};
     intmetrics         = (struct metrics){4,  4,  40};
+    longmetrics        = (struct metrics){8,  8,  50};
     longlongmetrics    = (struct metrics){8,  8,  60};
     floatmetrics       = (struct metrics){4,  4,  70};
     doublemetrics      = (struct metrics){8,  8,  80};
     longdoublemetrics  = (struct metrics){8,  8,  90};
     zerometrics        = (struct metrics){0,  1};
-#ifdef CONFIG_X32
-    longmetrics        = (struct metrics){4,  4,  50};
-    ptrmetrics         = (struct metrics){4,  4};
-#elif defined CONFIG_X64
-    longmetrics        = (struct metrics){8,  8,  50};
     ptrmetrics         = (struct metrics){8,  8};
-#else
-#error "architecture not defined."
-#endif
 }
 
 void type_init(void)

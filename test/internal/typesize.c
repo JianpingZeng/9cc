@@ -60,15 +60,9 @@ static void test_basic()
        unsigned e;
        );
 
-#ifdef CONFIG_X32
-    xx(4,
-       long e;
-       );
-#elif defined (CONFIG_X64)
     xx(8,
        long e;
        );
-#endif
 
     xx(8,
        long long e;
@@ -82,19 +76,6 @@ static void test_basic()
        double e;
        );
     
-#ifdef CONFIG_X32
-    xx(8,
-       long double e;
-       );
-
-    xx(4,
-       void *e;
-       );
-
-    xx(4,
-       char *e;
-       );
-#elif defined (CONFIG_X64)
     xx(16,
        long double e;
        );
@@ -106,7 +87,6 @@ static void test_basic()
     xx(8,
        char *e;
        );
-#endif
 }
 
 
@@ -192,19 +172,6 @@ static void test_struct1()
        };
        );
 
-#ifdef CONFIG_X32
-    xx(4, 4,
-       {
-	   long a;
-       };
-       );
-
-    xx(4, 4,
-       {
-	   unsigned long a;
-       };
-       );
-#elif defined (CONFIG_X64)
     xx(8, 8,
        {
 	   long a;
@@ -216,7 +183,6 @@ static void test_struct1()
 	   unsigned long a;
        };
        );
-#endif
 
     xx(8, 8,
        {
@@ -242,25 +208,6 @@ static void test_struct1()
        };
        );
 
-#ifdef CONFIG_X32
-    xx(8, 8,
-       {
-	   long double a;
-       };
-       );
-
-    xx(4, 4,
-       {
-	   void *p;
-       };
-       );
-
-    xx(4, 4,
-       {
-	   char *p;
-       };
-       );
-#elif defined (CONFIG_X64)
     xx(16, 16,
        {
 	   long double a;
@@ -278,7 +225,6 @@ static void test_struct1()
 	   char *p;
        };
        );
-#endif
 
 
     xx(4, 2,

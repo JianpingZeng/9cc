@@ -52,7 +52,6 @@ SYS_OBJ:=$(SYS)linux.o
 
 MCC_OBJ=mcc.o
 
-ARCH:=$(shell uname -m)
 KERNEL:=$(shell uname)
 
 CONFIG_FLAGS:=-DCONFIG_COLOR_TERM
@@ -65,14 +64,6 @@ XCODE_SDK_DIR:=$(shell xcrun --show-sdk-path)
 CONFIG_FLAGS+=-DXCODE_DIR='"$(XCODE_SDK_DIR)"'
 else
 CONFIG_FLAGS+=-DCONFIG_LINUX
-endif
-
-ifeq ($(ARCH), i386)
-CONFIG_FLAGS+=-DCONFIG_X32
-else ifeq ($(ARCH), i686)
-CONFIG_FLAGS+=-DCONFIG_X32
-else ifeq ($(ARCH), x86_64)
-CONFIG_FLAGS+=-DCONFIG_X64
 endif
 
 CFLAGS+=$(CONFIG_FLAGS)
