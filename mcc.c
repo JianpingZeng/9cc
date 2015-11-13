@@ -14,40 +14,88 @@
 #include "mcc.h"
 #include "utils.h"
 
-extern int cc_main(int argc, char *argv[]);
-
 static const char *progname;
-static int version = VERSION(0, 0);
-struct env *ENV;
+static struct vector *inputs;
+static const char *output;
+int version = VERSION(0, 0);
+struct options opts;
 
 static void usage(void)
 {
-#define print_opt(opt, msg)     fprintf(stderr, "  %-20s%s\n", opt, msg)
     fprintf(stderr,
             "OVERVIEW: mcc - A Standard C Compiler v%d.%d\n\n"
             "USAGE: mcc [options] <files>\n\n"
             "OPTIONS:\n", MAJOR(version), MINOR(version));
-    print_opt("-ast-dump",       "Only print abstract syntax tree");
-    print_opt("-c",              "Only run preprocess, compile and assemble steps");
-    print_opt("-E",              "Only run the preprocessor");
-    print_opt("-h, --help",      "Display available options");
-    print_opt("-I <dir>",        "Add directory to include search path");
-    print_opt("-lx",             "Search for library x");
-    print_opt("-Ldir",           "Add dir to library search path");
-    print_opt("-o <file>",       "Write output to <file>");
-    print_opt("-S",              "Only run preprocess and compilation steps");
-    print_opt("-v, --version",   "Display version and options");
-#undef print_opt
+    fprintf(stderr,
+	    "  -ast-dump       Only print abstract syntax tree\n"
+	    "  -c              Only run preprocess, compile and assemble steps\n"
+	    "  -Dname          \n"
+	    "  -Dname=value    Define a macro\n"
+	    "  -Uname          Undefine a macro\n"
+	    "  -E              Only run the preprocessor\n"
+	    "  -h, --help      Display available options\n"
+	    "  -Idir           Add dir to include search path\n"
+	    "  -lx             Search for library x\n"
+	    "  -Ldir           Add dir to library search path\n"
+	    "  -o <file>       Write output to <file>\n"
+	    "  -S              Only run preprocess and compilation steps\n"
+	    "  -Wall           Enable all warnings\n"
+	    "  -Werror         Treat warnings as errors\n"
+	    "  -v, --version   Display version and options\n");
 }
 
 static void init_env(void)
 {
-    ENV = zmalloc(sizeof(struct env));
-    ENV->uname = get_uname();
-    ENV->version = version;
+    opts.cpp_options = vec_new();
+    opts.ld_options = vec_new();
 #ifdef CONFIG_DARWIN
-    ENV->leading_underscore = true;
+    opts.fleading_underscore = true;
 #endif
+    inputs = vec_new();
+}
+
+static void parse_opts(int argc, char *argv[])
+{
+    for (int i = 1; i < argc; i++) {
+	char *arg = argv[i];
+	if (arg[0] == '-') {
+	    if (!strcmp(arg, "-o")) {
+		if (++i >= argc)
+		    die("missing file name after '-o'");
+		else if (output)
+		    fprintf(stderr, "warning: output file overwritten\n");
+		output = argv[i];
+	    } else if (!strcmp(arg, "-ast-dump")) {
+		opts.ast_dump = true;
+	    } else if (!strcmp(arg, "-c")) {
+		opts.c = true;
+	    } else if (!strcmp(arg, "-E")) {
+		opts.E = true;
+	    } else if (!strcmp(arg, "-S")) {
+		opts.S = true;
+	    } else if (!strcmp(arg, "-h") ||
+		       !strcmp(arg, "--help") ||
+		       !strcmp(arg, "-v") ||
+		       !strcmp(arg, "--version")) {
+		usage();
+		exit(EXIT_FAILURE);
+	    } else if (!strncmp(arg, "-I", 2) ||
+		       !strncmp(arg, "-D", 2) ||
+		       !strncmp(arg, "-U", 2)) {
+		vec_push(opts.cpp_options, arg);
+	    } else if (!strncmp(arg, "-l", 2) || !strncmp(arg, "-L", 2)) {
+		vec_push(opts.ld_options, arg);
+	    } else if (!strcmp(arg, "-Wall")) {
+		opts.Wall = true;
+	    } else if (!strcmp(arg, "-Werror")) {
+		opts.Werror = true;
+	    } else {
+		fprintf(stderr, "warning: ignored unknown option: %s\n", arg);
+	    }
+	} else {
+	    vec_push(inputs, arg);
+	}
+    }
 }
 
 static const char * tempname(const char *dir, const char *hint)
@@ -60,46 +108,19 @@ static const char * tempname(const char *dir, const char *hint)
  beg:
     path = join(dir, name);
     if (file_exists(path)) {
-	name = format("%s.%d", base, index++);
+	name = format("%d.%s", index++, base);
 	goto beg;
     }
     return path;
 }
 
-static bool options_has(struct vector *v, const char *name)
-{
-    for (int i = 0; i < vec_len(v); i++) {
-	const char *option = vec_at(v, i);
-	if (!strcmp(option, name))
-	    return true;
-    }
-    return false;
-}
-
+// 'program' runs in a separate process
 static int program(void *context)
 {
-    struct vector *data = (struct vector *)context;
-    const char *ifile = (const char *)vec_at(data, 0);
-    struct vector *options = (struct vector *)vec_at(data, 1);
-    const char *ofile = NULL;
-    if (vec_len(data) > 2)
-	ofile = (const char *)vec_at(data, 2);
-    
-    if (!file_exists(ifile)) {
-        fprintf(stderr, "input file '%s' not exists.\n", ifile);
-        return EXIT_FAILURE;
-    }
-
-    struct vector *v = vec_new();
-    vec_push(v, (void *)progname);
-    vec_add(v, options);
-    vec_push(v, (void *)ifile);
-    if (ofile) {
-	vec_push(v, (char *)"-o");
-	vec_push(v, (void *)ofile);
-    }
-
-    return cc_main(vec_len(v), (char **)vtoa(v));
+    struct vector *v = (struct vector *)context;
+    const char *ifile = (const char *)vec_at(v, 0);
+    const char *ofile = (const char *)vec_at_safe(v, 1);
+    return cc_main(ifile, ofile);
 }
 
 static char ** compose(char *argv[], struct vector *ifiles, const char *ofile, struct vector *options)
@@ -135,64 +156,32 @@ static int link(struct vector *ifiles, const char *ofile, struct vector *options
     return callsys(ld[0], compose(ld, ifiles, ofile, options));
 }
 
-static int assemble(const char *ifile, const char *ofile, struct vector *options)
+static int assemble(const char *ifile, const char *ofile)
 {
     struct vector *v = vec_new1((char *)ifile);
-    return callsys(as[0], compose(as, v, ofile, options));
+    return callsys(as[0], compose(as, v, ofile, NULL));
 }
 
-static int translate(const char *ifile, struct vector *options, const char *ofile)
+static int translate(const char *ifile, const char *ofile)
 {
     struct vector *v = vec_new();
-    vec_push(v, (void *)ifile);
-    vec_push(v, options);
-    if (ofile)
-	vec_push(v, (void *)ofile);
-
-    int ret = runproc(program, (void *)v);
-    vec_free(v);
-    return ret;
+    vec_push(v, (char *)ifile);
+    vec_push_safe(v, (char *)ofile);
+    return runproc(program, v);
 }
 
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
-    struct vector *inputs = vec_new();
-    struct vector *options = vec_new();
     const char *tmpdir;
-    const char *output_file = NULL;
     size_t fails = 0;
-    struct vector *as_options = vec_new();
-    struct vector *ld_options = vec_new();
 
     progname = argv[0];
     setup_sys();
     init_env();
-    
-    for (int i=1; i < argc; i++) {
-        char *arg = argv[i];
-        if (!strcmp(arg, "-h") || !strcmp(arg, "--help") ||
-            !strcmp(arg, "-v") || !strcmp(arg, "--version")) {
-            usage();
-	    return EXIT_SUCCESS;
-        } else if (!strcmp(arg, "-o")) {
-            if (++i >= argc)
-                die("missing file name after '-o'");
-            output_file = argv[i];
-        } else if (arg[0] == '-') {
-            vec_push(options, arg);
-	    if (arg[1] == 'l' || arg[1] == 'L')
-		vec_push(ld_options, arg);
-        } else {
-            vec_push(inputs, arg);
-        }
-    }
+    parse_opts(argc, argv);
 
-    bool partial = 
-	options_has(options, "-E") ||
-	options_has(options, "-ast-dump") ||
-	options_has(options, "-S") ||
-	options_has(options, "-c");
+    bool partial = opts.E || opts.ast_dump || opts.S || opts.c;
     
     if (argc == 1) {
         usage();
@@ -200,7 +189,7 @@ int main(int argc, char **argv)
     } else if (vec_len(inputs) == 0) {
         fprintf(stderr, "no input file.\n");
         return EXIT_FAILURE;
-    } else if (output_file && vec_len(inputs) > 1 && partial) {
+    } else if (output && vec_len(inputs) > 1 && partial) {
 	fprintf(stderr, "mcc: cannot specify -o when generating multiple output files\n");
 	return EXIT_FAILURE;
     }
@@ -215,31 +204,31 @@ int main(int argc, char **argv)
 	const char *iname = basename(strcopy(ifile));
 	const char *ofile = NULL;
 	int ret;
-	if (options_has(options, "-E") || options_has(options, "-ast-dump")) {
-	    if (output_file)
-		ofile = output_file;
-	    ret = translate(ifile, options, ofile);
-	} else if (options_has(options, "-S")) {
-	    if (output_file)
-		ofile = output_file;
+	if (opts.E || opts.ast_dump) {
+	    if (output)
+		ofile = output;
+	    ret = translate(ifile, ofile);
+	} else if (opts.S) {
+	    if (output)
+		ofile = output;
 	    else
 		ofile = replace_suffix(iname, "s");
-	    ret = translate(ifile, options, ofile);
-	} else if (options_has(options, "-c")) {
-	    if (output_file)
-		ofile = output_file;
+	    ret = translate(ifile, ofile);
+	} else if (opts.c) {
+	    if (output)
+		ofile = output;
 	    else
 		ofile = replace_suffix(iname, "o");
-	    const char *sfile = tempname(tmpdir, ifile);
-	    ret = translate(ifile, options, sfile);
+	    const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
+	    ret = translate(ifile, sfile);
 	    if (ret == 0)
-		ret = assemble(sfile, ofile, as_options);
+		ret = assemble(sfile, ofile);
 	} else {
-	    const char *sfile = tempname(tmpdir, ifile);
-	    ret = translate(ifile, options, sfile);
+	    const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
+	    ret = translate(ifile, sfile);
 	    if (ret == 0) {
-		ofile = tempname(tmpdir, sfile);
-		ret = assemble(sfile, ofile, as_options);
+		ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
+		ret = assemble(sfile, ofile);
 		vec_push(objects, (char *)ofile);
 	    }
 	}
@@ -252,7 +241,7 @@ int main(int argc, char **argv)
 	fprintf(stderr, "%lu succeed, %lu failed.\n", vec_len(inputs) - fails, fails);
     } else if (!partial) {
 	// link
-        ret = link(objects, output_file, ld_options);
+        ret = link(objects, output, opts.ld_options);
     }
 
     if (tmpdir)

@@ -137,7 +137,7 @@ static void emitf(const char *lead, const char *fmt, ...)
 
 static const char *glabel(const char *label)
 {
-    if (ENV->leading_underscore)
+    if (opts.fleading_underscore)
 	return format("_%s", label);
     else
 	return label;
@@ -631,5 +631,5 @@ void gen(node_t *tree, FILE *fp)
 	}
     }
     emit_literals();
-    emit(".ident \"mcc: %d.%d %s\"", MAJOR(ENV->version), MINOR(ENV->version), ENV->uname);
+    emit(".ident \"mcc: %d.%d\"", MAJOR(version), MINOR(version));
 }

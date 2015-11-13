@@ -69,16 +69,25 @@
 #define CYAN_BOLD(str)     CYAN_BOLD_COLOR str RESET
 #define WHITE_BOLD(str)    WHITE_BOLD_COLOR str RESET
 
-// ENV
-struct env {
-    const char *uname;
-    int version;
-    bool leading_underscore;
+extern int version;
+
+struct options {
+    int ast_dump : 1;
+    int c : 1;
+    int E : 1;
+    int S : 1;
+    int fleading_underscore : 1;
+    int Wall : 1;
+    int Werror : 1;
+    struct vector *cpp_options;
+    struct vector *ld_options;
 };
-extern struct env *ENV;
+extern struct options opts;
 
 #define VERSION(major, minor)  (((major) << 16) | (minor))
 #define MAJOR(version)         ((version) >> 16)
 #define MINOR(version)         ((version) & 0xFFFF)
+
+extern int cc_main(const char *ifile, const char *ofile);
 
 #endif

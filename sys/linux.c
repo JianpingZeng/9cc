@@ -254,17 +254,3 @@ void set_localtime(const time_t *timep, struct tm *result)
 {
     localtime_r(timep, result);
 }
-
-char *get_uname(void)
-{
-    struct utsname ret;
-    if (uname(&ret)) {
-	perror("uname");
-	return "Unknown";
-    } else {
-	int len = strlen(ret.sysname) + strlen(ret.release) + strlen(ret.machine) + 8;
-	char *p = malloc(len);
-	snprintf(p, len, "%s %s %s", ret.sysname, ret.release, ret.machine);
-	return p;
-    }
-}

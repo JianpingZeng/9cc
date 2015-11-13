@@ -1,34 +1,9 @@
 #include "cc.h"
 
-static const char *ifile;
-static const char *ofile;
 static FILE *outfp;
-static struct vector *options;
-static bool cpp_only;
-static bool ast_only;
 
-static void parseopts(int argc, const char *argv[])
+static void cc_init(const char *ifile, const char *ofile)
 {
-    options = vec_new();
-    
-    for (int i=1; i < argc; i++) {
-        const char *arg = argv[i];
-        if (!strcmp(arg, "-o")) {
-            if (++i >= argc)
-                die("missing target file while -o option given");
-            ofile = argv[i];
-        } else if (arg[0] == '-') {
-	    if (!strcmp(arg, "-E"))
-		cpp_only = true;
-	    else if (!strcmp(arg, "-ast-dump"))
-		ast_only = true;
-	    else
-		vec_push(options, (void *)arg);
-        } else {
-            ifile = arg;
-        }
-    }
-
     if (ofile) {
 	outfp = fopen(ofile, "w");
 	if (outfp == NULL) {
@@ -44,7 +19,7 @@ static void translate(void)
 {
     node_t *tree;
     tree = translation_unit();
-    if (ast_only) {
+    if (opts.ast_dump) {
 	print_tree(tree);
     } else {
 	if (errors == 0)
@@ -67,16 +42,16 @@ static void cc_exit(void)
 	fclose(outfp);
 }
 
-int cc_main(int argc, const char * argv[])
+int cc_main(const char *ifile, const char *ofile)
 {
     atexit(cc_exit);
-    parseopts(argc, argv);
+    cc_init(ifile, ofile);
     input_init(ifile);
-    cpp_init(options);
+    cpp_init(opts.cpp_options);
     type_init();
     symbol_init();
 
-    if (cpp_only)
+    if (opts.E)
 	preprocess();
     else
 	translate();
