@@ -4,7 +4,6 @@ static node_t * cast_expr(void);
 static node_t * cond_expr(void);
 static node_t * cond_expr1(node_t *o);
 static node_t * unary_expr(void);
-static node_t * uop(int op, node_t *ty, node_t *l);
 static node_t * logicop(int op, node_t *l, node_t *r);
 static node_t * commaop(int op, node_t *l, node_t *r);
 static node_t * assignop(int op, node_t *l, node_t *r);
@@ -13,7 +12,7 @@ static bool is_nullptr(node_t *node);
 #define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
 #define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
 
-#define SAVE_SOURCE()      struct source src = source
+#define SAVE_SOURCE        struct source src = source
 #define SET_SOURCE(node)   if (node) AST_SRC(node) = src
 
 static void ensure_type(node_t *node, bool (*is) (node_t *))
@@ -1141,7 +1140,7 @@ static node_t * post_increment(node_t *node)
     ensure_type(node, isscalar);
     ensure_assignable(node);
     if (NO_ERROR) {
-	ret = uop(t, AST_TYPE(node), node);
+	ret = ast_uop(t, AST_TYPE(node), node);
 	AST_SRC(ret) = src;
     }
     return ret;
@@ -1188,7 +1187,7 @@ static node_t * sizeof_expr(void)
         ty = cast_type();
         if (token->id == '{') {
             node_t * node = compound_literal(ty);
-            n = uop(t, ty, postfix_expr1(node));
+            n = ast_uop(t, ty, postfix_expr1(node));
         }
     } else {
         n = unary_expr();
@@ -1207,7 +1206,7 @@ static node_t * sizeof_expr(void)
 	error("'sizeof' to a bitfield is invalid");
 
     if (NO_ERROR) {
-	ret = uop(t, unsignedlongtype, n ? n : ty);
+	ret = ast_uop(t, unsignedlongtype, n ? n : ty);
 	AST_SRC(ret) = src;
     }
 
@@ -1229,7 +1228,7 @@ static node_t * pre_increment(void)
     ensure_type(operand, isscalar);
     ensure_assignable(operand);
     if (NO_ERROR) {
-	ret = uop(t, AST_TYPE(operand), operand);
+	ret = ast_uop(t, AST_TYPE(operand), operand);
 	EXPR_PREFIX(ret) = true;
 	AST_SRC(ret) = src;
     }
@@ -1252,7 +1251,7 @@ static node_t * minus_plus(void)
     ensure_type(operand, isarith);
     if (NO_ERROR) {
 	operand = conv(operand);
-	ret = uop(t, AST_TYPE(operand), operand);
+	ret = ast_uop(t, AST_TYPE(operand), operand);
 	AST_SRC(ret) = src;
     }
 
@@ -1274,7 +1273,7 @@ static node_t * bitwise_not(void)
     ensure_type(operand, isint);
     if (NO_ERROR) {
 	operand = conv(operand);
-	ret = uop(t, AST_TYPE(operand), operand);
+	ret = ast_uop(t, AST_TYPE(operand), operand);
 	AST_SRC(ret) = src;
     }
 
@@ -1295,7 +1294,7 @@ static node_t * logical_not(void)
     SAVE_ERRORS;
     ensure_type(operand, isscalar);
     if (NO_ERROR) {
-	ret = uop(t, inttype, conv(operand));
+	ret = ast_uop(t, inttype, conv(operand));
 	AST_SRC(ret) = src;
     }
 
@@ -1322,7 +1321,7 @@ static node_t * address(void)
 	    error("address of bitfield requested");
     }
     if (NO_ERROR) {
-	ret = uop(t, ptr_type(AST_TYPE(operand)), operand);
+	ret = ast_uop(t, ptr_type(AST_TYPE(operand)), operand);
 	AST_SRC(ret) = src;
     }
 
@@ -1343,7 +1342,7 @@ static node_t * indirection(void)
     SAVE_ERRORS;
     ensure_type(operand, isptr);
     if (NO_ERROR) {
-	ret = uop(t, rtype(AST_TYPE(operand)), operand);
+	ret = ast_uop(t, rtype(AST_TYPE(operand)), operand);
 	AST_SRC(ret) = src;
     }
     
@@ -1402,7 +1401,7 @@ static node_t * multiple_expr(void)
     mulp1 = cast_expr();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect(t);
         mulp1 = bop(t, conv(mulp1), conv(cast_expr()));
 	SET_SOURCE(mulp1);
@@ -1418,7 +1417,7 @@ static node_t * additive_expr(void)
     add1 = multiple_expr();
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect(t);
         add1 = bop(t, conv(add1), conv(multiple_expr()));
 	SET_SOURCE(add1);
@@ -1434,7 +1433,7 @@ static node_t * shift_expr(void)
     shift1 = additive_expr();
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect(t);
         shift1 = bop(t, conv(shift1), conv(additive_expr()));
 	SET_SOURCE(shift1);
@@ -1450,7 +1449,7 @@ static node_t * relation_expr(void)
     rel = shift_expr();
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect(t);
         rel = bop(t, conv(rel), conv(shift_expr()));
 	SET_SOURCE(rel);
@@ -1466,7 +1465,7 @@ static node_t * equality_expr(void)
     equl = relation_expr();
     while (token->id == EQ || token->id == NEQ) {
         int t = token->id;
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect(t);
         equl = bop(t, conv(equl), conv(relation_expr()));
 	SET_SOURCE(equl);
@@ -1481,7 +1480,7 @@ static node_t * and_expr(void)
     
     and1 = equality_expr();
     while (token->id == '&') {
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect('&');
         and1 = bop('&', conv(and1), conv(equality_expr()));
 	SET_SOURCE(and1);
@@ -1496,7 +1495,7 @@ static node_t * exclusive_or(void)
     
     eor = and_expr();
     while (token->id == '^') {
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect('^');
         eor = bop('^', conv(eor), conv(and_expr()));
 	SET_SOURCE(eor);
@@ -1511,7 +1510,7 @@ static node_t * inclusive_or(void)
     
     ior = exclusive_or();
     while (token->id == '|') {
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect('|');
         ior = bop('|', conv(ior), conv(exclusive_or()));
 	SET_SOURCE(ior);
@@ -1526,7 +1525,7 @@ static node_t * logic_and(void)
     
     and1 = inclusive_or();
     while (token->id == AND) {
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect(AND);
 	and1 = logicop(AND, conv(and1), conv(inclusive_or()));
 	SET_SOURCE(and1);
@@ -1541,7 +1540,7 @@ static node_t * logic_or(void)
     
     or1 = logic_and();
     while (token->id == OR) {
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect(OR);
 	or1 = logicop(OR, conv(or1), conv(logic_and()));
 	SET_SOURCE(or1);
@@ -1654,18 +1653,12 @@ node_t * expression(void)
     
     assign1 = assign_expr();
     while (token->id == ',') {
-	SAVE_SOURCE();
+	SAVE_SOURCE;
         expect(',');
 	assign1 = commaop(',', assign1, assign_expr());
 	SET_SOURCE(assign1);
     }
     return assign1;
-}
-
-static node_t * uop(int op, node_t *ty, node_t *l)
-{
-    node_t *node = ast_uop(op, ty, l);
-    return node;
 }
 
 node_t * bop(int op, node_t *l, node_t *r)
