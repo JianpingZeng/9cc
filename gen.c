@@ -393,16 +393,6 @@ static void emit_bss(node_t *n)
 	emit(".comm  %s,%llu,%d", glabel(SYM_LABEL(sym)), TYPE_SIZE(ty), TYPE_ALIGN(ty));
 }
 
-static void emit_bop(node_t *n)
-{
-
-}
-
-static void emit_uop(node_t *n)
-{
-
-}
-
 static void emit_expr(node_t *n)
 {
     switch (AST_ID(n)) {
