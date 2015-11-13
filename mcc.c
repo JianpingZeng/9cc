@@ -181,7 +181,7 @@ int main(int argc, char **argv)
             output_file = argv[i];
         } else if (arg[0] == '-') {
             vec_push(options, arg);
-	    if (strlen(arg) > 2 && (arg[1] == 'l' || arg[1] == 'L'))
+	    if (arg[1] == 'l' || arg[1] == 'L')
 		vec_push(ld_options, arg);
         } else {
             vec_push(inputs, arg);
