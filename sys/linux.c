@@ -14,13 +14,13 @@
 #include <time.h>
 // dirname, basename
 #include <libgen.h>
+// uname
+#include <sys/utsname.h>
 
 #ifndef CONFIG_CYGWIN
 // trace
 #include <execinfo.h>
 #include <signal.h>
-// uname
-#include <sys/utsname.h>
 
 static void handler(int sig)
 {
@@ -43,6 +43,12 @@ void setup_sys()
 #endif
 }
 
+/**
+ * $0: output file
+ * $1: input files
+ * $2: additional options
+ */
+
 #ifdef CONFIG_LINUX
     char *ld[] = {
 	"ld",
@@ -51,7 +57,7 @@ void setup_sys()
 	"-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
 	"/usr/lib64/crt1.o",
 	"/usr/lib64/crti.o",
-	"$1",
+	"$1", "$2",
 	"-lc", "-lm",
 	"/usr/lib64/crtn.o",
 	NULL
@@ -60,7 +66,7 @@ void setup_sys()
     char *ld[] = {
 	"ld",
 	"-o", "$0",
-	"$1",
+	"$1", "$2",
 	"-lc", "-lm",
 	"-macosx_version_min", OSX_SDK_VERSION,
 	"-arch", "x86_64",
@@ -70,7 +76,7 @@ void setup_sys()
     #error "architecture not defined"
 #endif
 
-char *as[] = {"as", "-o", "$0", "$1", NULL};
+char *as[] = {"as", "-o", "$0", "$1", "$2",  NULL};
 
 const char *mktmpdir()
 {

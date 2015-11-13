@@ -135,6 +135,14 @@ static void emitf(const char *lead, const char *fmt, ...)
     va_end(ap);
 }
 
+static const char *glabel(const char *label)
+{
+    if (ENV->leading_underscore)
+	return format("_%s", label);
+    else
+	return label;
+}
+
 static const char *gen_str_label(void)
 {
     static size_t i;
@@ -192,14 +200,6 @@ static const char *get_ptr_label(node_t *n)
 	die("unkown ptr node: %s", node2s(n));
     }
     return label;
-}
-
-static void emit_align_label(int align, const char *label)
-{
-    emit(".data");
-    if (align > 1)
-	emit(".align %d", align);
-    emit_noindent("%s:", label);
 }
 
 static void emit_address_initializer(node_t *init)
@@ -373,9 +373,13 @@ static void emit_data(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
     node_t *ty = SYM_TYPE(sym);
+    const char *label = glabel(SYM_LABEL(sym));
     if (SYM_SCLASS(sym) != STATIC)
-	emit(".globl %s", SYM_LABEL(sym));
-    emit_align_label(TYPE_ALIGN(ty), SYM_LABEL(sym));
+	emit(".globl %s", label);
+    emit(".data");
+    if (TYPE_ALIGN(ty) > 1)
+	emit(".align %d", TYPE_ALIGN(ty));
+    emit_noindent("%s:", label);
     emit_initializer(DECL_BODY(n));
 }
 
@@ -384,9 +388,9 @@ static void emit_bss(node_t *n)
     node_t *sym = DECL_SYM(n);
     node_t *ty = SYM_TYPE(sym);
     if (SYM_SCLASS(sym) == STATIC)
-	emit(".lcomm %s,%llu,%d", SYM_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
+	emit(".lcomm %s,%llu,%d", glabel(SYM_LABEL(sym)), TYPE_SIZE(ty), TYPE_ALIGN(ty));
     else
-	emit(".comm  %s,%llu,%d", SYM_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
+	emit(".comm  %s,%llu,%d", glabel(SYM_LABEL(sym)), TYPE_SIZE(ty), TYPE_ALIGN(ty));
 }
 
 static void emit_bop(node_t *n)
@@ -565,9 +569,9 @@ static void emit_stmt(node_t *n)
 static void emit_funcdef(node_t *n)
 {
     node_t *sym = DECL_SYM(n);
-    const char *name = SYM_LABEL(sym);
+    const char *label = glabel(SYM_LABEL(sym));
     if (SYM_SCLASS(sym) != STATIC)
-	emit(".globl %s", name);
+	emit(".globl %s", label);
     size_t sub = 0;
     for (int i = 0; i < LIST_LEN(DECL_LVARS(n)); i++) {
 	node_t *lvar = DECL_LVARS(n)[i];
@@ -577,7 +581,7 @@ static void emit_funcdef(node_t *n)
 	sub = ROUNDUP(offset, 8);
     }
     func_ret_label = gen_label();
-    emit_noindent("%s:", name);
+    emit_noindent("%s:", label);
     pushq("%rbp");
     movq("%rsp", "%rbp");
     if (sub)

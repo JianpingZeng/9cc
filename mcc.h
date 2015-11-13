@@ -73,6 +73,7 @@
 struct env {
     const char *uname;
     int version;
+    bool leading_underscore;
 };
 extern struct env *ENV;
 
