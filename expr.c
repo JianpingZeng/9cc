@@ -37,6 +37,25 @@ static void ensure_type(node_t *node, bool (*is) (node_t *))
         errorf(AST_SRC(node), "expect type '%s', not '%s'", name, type2s(AST_TYPE(node)));
 }
 
+/**
+ * Object,Lvalue,Designator
+ *
+ * An _object_ is a region of memory that can be examined and stored into.
+ *
+ * An _lvalue_ is an expression that refers to an _object_ in such a way
+ * that the object may be examined or altered.
+ *
+ * Only an _lvalue_ expression **may be** used on the left-hand side of an
+ * assignment.
+ *
+ * An _lvalue_ dose **NOT** necessarily permit modification of the _object_
+ * it designates.
+ *
+ * A _function_ designator is a value of function type. It is neither an
+ * _object_ nor an _lvalue_.
+ *
+ * Functions and objects are often treated **differently** in C.
+ */
 bool islvalue(node_t *node)
 {
     if (AST_ID(node) == STRING_LITERAL)
@@ -1026,6 +1045,7 @@ static node_t ** argument_expr_list(void)
     return args;
 }
 
+// []
 static node_t * subscript(node_t *node)
 {
     node_t *e;
@@ -1087,6 +1107,7 @@ static node_t * funcall(node_t *node)
     return ret;
 }
 
+// '.', '->'
 static node_t * direction(node_t *node)
 {
     int t = token->id;
@@ -1118,7 +1139,9 @@ static node_t * direction(node_t *node)
 	    field_not_found_error(ty, name);
     }
     if (NO_ERROR) {
-	ret = ast_expr(MEMBER_EXPR, FIELD_TYPE(field), node, NULL);
+	// The result has the union of both sets of qualifiers.
+	int q = qual_union(AST_TYPE(node), AST_TYPE(field));
+	ret = ast_expr(MEMBER_EXPR, qual(q, FIELD_TYPE(field)), node, NULL);
 	AST_NAME(ret) = FIELD_NAME(field);
 	EXPR_OP(ret) = t;
 	AST_SRC(ret) = src;

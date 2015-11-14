@@ -256,6 +256,7 @@ extern node_t * find_field(node_t *ty, const char *name);
 extern int indexof_field(node_t *ty, node_t *field);
 extern node_t * compose(node_t *ty1, node_t *ty2);
 extern bool qual_contains(node_t *ty1, node_t *ty2);
+extern int qual_union(node_t *ty1, node_t *ty2);
 extern bool isincomplete(node_t *ty);
 extern node_t * unpack(node_t *ty);
 

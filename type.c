@@ -252,6 +252,11 @@ bool qual_contains(node_t *ty1, node_t *ty2)
     return true;
 }
 
+int qual_union(node_t *ty1, node_t *ty2)
+{
+    return combine(_TYPE_KIND(ty1), _TYPE_KIND(ty2));
+}
+
 node_t * qual(int t, node_t *ty)
 {
     cc_assert(ty);
