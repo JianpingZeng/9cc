@@ -1132,13 +1132,20 @@ static void ensure_array(node_t *atype, struct source src, int level)
 	if (assign) {
 	    if (isint(AST_TYPE(assign))) {
 		// try evaluate the length
-	        node_t *ret = eval(assign, inttype);
+	        node_t *ret = eval(assign, longtype);
 		if (ret) {
 		    cc_assert(isiliteral(ret));
 		    TYPE_LEN(rty) = ILITERAL_VALUE(ret);
+		    if ((long)ILITERAL_VALUE(ret) < 0) {
+			errorf(src, "array has negative size");
+		    }
+		} else {
+		    errorf(src, "expect constant expression");
 		}
 	    } else {
-		error("size of array has non-integer type '%s'", type2s(AST_TYPE(assign)));
+		errorf(src,
+		       "size of array has non-integer type '%s'",
+		       type2s(AST_TYPE(assign)));
 	    }
 	}
 	
@@ -1185,7 +1192,14 @@ static node_t * paramdecl(struct token *t, node_t *ty, int sclass)
         ty = ptr_type(ty);
     } else if (isarray(ty)) {
         ensure_array(ty, src, PARAM);
+	node_t *aty = ty;
         ty = ptr_type(rtype(ty));
+	if (TYPE_A_CONST(aty))
+	    ty = qual(CONST, ty);
+	if (TYPE_A_VOLATILE(aty))
+	    ty = qual(RESTRICT, ty);
+	if (TYPE_A_RESTRICT(aty))
+	    ty = qual(VOLATILE, ty);
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!SYM_DEFINED(TYPE_TSYM(ty)) ||
 	    SYM_SCOPE(TYPE_TSYM(ty)) == SCOPE)
