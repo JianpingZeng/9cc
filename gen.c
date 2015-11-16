@@ -25,29 +25,6 @@
 static FILE *outfp;
 static struct dict *compound_lits;
 
-// register type
-enum {
-    RAX,
-    RBX,
-    RCX,
-    RDX,
-    RSI,
-    RDI,
-    R8,R9,R10,R11,R12,R13,R14,R15,
-    REGS
-};
-
-struct reg {
-    const char *name;
-    int type;
-    bool used;
-};
-
-static struct reg *quadreg[REGS];
-static struct reg *intreg[REGS];
-static struct reg *shortreg[REGS];
-static struct reg *charreg[REGS];
-
 #define LEAD  "    "
 #define emit(...)             emitf(LEAD,  __VA_ARGS__)
 #define emit_noindent(...)    emitf(NULL, __VA_ARGS__)
@@ -60,69 +37,6 @@ static struct reg *charreg[REGS];
 static void emit_initializer(node_t *t);
 static void emit_stmt(node_t *n);
 static const char *func_ret_label;
-
-static struct reg * make_reg(const char *name, int type)
-{
-    struct reg *r = zmalloc(sizeof(struct reg));
-    r->name = name;
-    r->type = type;
-    return r;
-}
-
-static void init_regs(void)
-{
-    quadreg[RAX] = make_reg("rax", RAX);
-    quadreg[RBX] = make_reg("rbx", RBX);
-    quadreg[RCX] = make_reg("rcx", RCX);
-    quadreg[RDX] = make_reg("rdx", RDX);
-    quadreg[RSI] = make_reg("rsi", RSI);
-    quadreg[RDI] = make_reg("rdi", RDI);
-    for (int i = R8, j = 8; i <= R15; i++, j++)
-	quadreg[i] = make_reg(format("r%d", j), i);
-
-    intreg[RAX] = make_reg("eax", RAX);
-    intreg[RBX] = make_reg("ebx", RBX);
-    intreg[RCX] = make_reg("ecx", RCX);
-    intreg[RDX] = make_reg("edx", RDX);
-    intreg[RSI] = make_reg("esi", RSI);
-    intreg[RDI] = make_reg("edi", RDI);
-
-    shortreg[RAX] = make_reg("ax", RAX);
-    shortreg[RBX] = make_reg("bx", RBX);
-    shortreg[RCX] = make_reg("cx", RCX);
-    shortreg[RDX] = make_reg("dx", RDX);
-    shortreg[RSI] = make_reg("si", RSI);
-    shortreg[RDI] = make_reg("di", RDI);
-
-    charreg[RAX] = make_reg("al", RAX);
-    charreg[RBX] = make_reg("bl", RBX);
-    charreg[RCX] = make_reg("cl", RCX);
-    charreg[RDX] = make_reg("dl", RDX);
-}
-
-static void use_reg(int type)
-{
-    if (quadreg[type])
-	quadreg[type]->used = true;
-    if (intreg[type])
-	intreg[type]->used = true;
-    if (shortreg[type])
-	shortreg[type]->used = true;
-    if (charreg[type])
-	charreg[type]->used = true;
-}
-
-static void free_reg(int type)
-{
-    if (quadreg[type])
-	quadreg[type]->used = false;
-    if (intreg[type])
-	intreg[type]->used = false;
-    if (shortreg[type])
-	shortreg[type]->used = false;
-    if (charreg[type])
-	charreg[type]->used = false;
-}
 
 static void emitf(const char *lead, const char *fmt, ...)
 {
@@ -398,8 +312,6 @@ static void emit_expr(node_t *n)
     switch (AST_ID(n)) {
     case BINARY_OPERATOR:
 	{
-	    node_t *l = EXPR_OPERAND(n, 0);
-	    node_t *r = EXPR_OPERAND(n, 1);
 	    int op = EXPR_OP(n);
 	    switch (op) {
 	    case '=':
@@ -432,7 +344,6 @@ static void emit_expr(node_t *n)
 	break;
     case UNARY_OPERATOR:
 	{
-	    node_t *l = EXPR_OPERAND(n, 0);
 	    int op = EXPR_OP(n);
 	    switch (op) {
 	    case INCR:
@@ -617,7 +528,6 @@ void gen(node_t *tree, FILE *fp)
     cc_assert(errors == 0 && fp);
     outfp = fp;
     compound_lits = dict_new();
-    init_regs();
     node_t **exts = DECL_EXTS(tree);
     for (int i = 0; i < LIST_LEN(exts); i++) {
 	node_t *n = exts[i];

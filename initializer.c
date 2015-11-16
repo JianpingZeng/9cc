@@ -59,11 +59,11 @@ static node_t * find_elem(struct vector *v, int i)
 static node_t * init_elem_conv(node_t *ty, node_t *node)
 {
     // VINIT_EXPR means failure.
-    // cannot pass VINIT_EXPR to initconv
+    // cannot pass VINIT_EXPR to assignconv
     if (AST_ID(node) == VINIT_EXPR)
 	return NULL;
 
-    node_t *ret = initconv(ty, node);
+    node_t *ret = assignconv(ty, node);
     if (ret == NULL)
 	errorf(AST_SRC(node), INCOMPATIBLE_TYPES, type2s(AST_TYPE(node)), type2s(ty));
 

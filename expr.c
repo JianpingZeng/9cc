@@ -255,7 +255,7 @@ static node_t * conv2(node_t *l, node_t *r)
  *                                  F and F2 are compatible
  */
 
-static node_t * assignconv(node_t *ty, node_t *node)
+node_t * assignconv(node_t *ty, node_t *node)
 {
     node_t *ty2;
 
@@ -878,7 +878,7 @@ static void argcast1(node_t *fty, node_t **args, struct vector *v)
 	node_t *dst = SYM_TYPE(params[i]);
 	node_t *src = AST_TYPE(args[i]);
 	node_t *ret;
-	if ((ret = initconv(dst, args[i]))) {
+	if ((ret = assignconv(dst, args[i]))) {
 	    vec_push(v, ret);
 	} else {
 	    if (oldstyle)
@@ -1949,14 +1949,4 @@ node_t * switch_expr(void)
 	return NULL;
     }
     return node;
-}
-
-node_t * initconv(node_t *ty, node_t *node)
-{
-    return assignconv(ty, node);
-}
-
-node_t * retconv(node_t *ty, node_t *node)
-{
-    return assignconv(ty, node);
 }

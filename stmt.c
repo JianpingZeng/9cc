@@ -643,7 +643,7 @@ static node_t * ensure_return(node_t *expr, struct source src)
         if (!isnullstmt(expr)) {
 	    node_t *ty1 = AST_TYPE(expr);
 	    node_t *ty2 = rtype(FTYPE);
-	    if (!(expr = retconv(ty2, expr)))
+	    if (!(expr = assignconv(ty2, expr)))
 		errorf(src,
 		       "returning '%s' from function '%s' with incompatible result type '%s'",
 		       type2s(ty1), FNAME, type2s(ty2));
