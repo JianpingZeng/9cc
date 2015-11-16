@@ -17,7 +17,7 @@ static void fields(node_t *sty);
 
 static void ensure_decl(node_t *decl, int sclass, int kind);
 static void ensure_array(node_t *atype, struct source src, int level);
-static void ensure_func(node_t *ftype, struct source src);
+static void ensure_func(node_t *ftype, struct source src, const char *name, int level);
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)	\
     (((prototype) & 0x01) << 30) |			\
@@ -1104,13 +1104,30 @@ static void ensure_decl(node_t *decl, int sclass, int kind)
     }
 }
 
-static void ensure_func(node_t *ftype, struct source src)
+static void ensure_func(node_t *ftype, struct source src, const char *name, int level)
 {
     node_t *rty = rtype(ftype);
     if (isarray(rty))
         errorf(src, "function cannot return array type '%s'", type2s(rty));
     else if (isfunc(rty))
         errorf(src, "function cannot return function type '%s'", type2s(rty));
+
+    // check main function declaration
+    if ((name && !strcmp(name, "main")) && (level == GLOBAL || level == LOCAL)) {
+	node_t **params = TYPE_PARAMS(ftype);
+	if (rty != inttype)
+	    errorf(src, "return type of 'main' is not 'int'");
+	if (LIST_LEN(params) == 2) {
+	    node_t *ty1 = SYM_TYPE(params[0]);
+	    node_t *ty2 = SYM_TYPE(params[1]);
+	    if (ty1 != inttype)
+		errorf(src, "first parameter of 'main' is not 'int'");
+	    if (!isptrto(ty2, POINTER) || !isptrto(rtype(ty2), CHAR))
+		errorf(src, "second parameter of 'main' is not 'char **'");
+	} else if (LIST_LEN(params) != 0) {
+	    errorf(src, "expect 0 or 2 parameters of 'main', have %d", LIST_LEN(params));
+	}
+    }
 }
 
 /**
@@ -1188,7 +1205,7 @@ static node_t * paramdecl(struct token *t, node_t *ty, int sclass)
     }
     
     if (isfunc(ty)) {
-        ensure_func(ty, src);
+        ensure_func(ty, src, id, PARAM);
         ty = ptr_type(ty);
     } else if (isarray(ty)) {
         ensure_array(ty, src, PARAM);
@@ -1248,7 +1265,7 @@ static node_t * localdecl(struct token *t, node_t *ty, int sclass)
     if (isfunc(ty)){
         if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
             error("a parameter list without types is only allowed in a function definition");
-	ensure_func(ty, src);
+	ensure_func(ty, src, id, LOCAL);
 	if (sclass && sclass != EXTERN)
 	    errorf(src, "function declared in block scope cannot have '%s' storage class", id2s(sclass));
     } else if (isarray(ty)) {
@@ -1286,7 +1303,7 @@ static node_t * globaldecl(struct token *t, node_t *ty, int sclass)
     if (isfunc(ty)) {
         if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
             error("a parameter list without types is only allowed in a function definition");
-	ensure_func(ty, src);
+	ensure_func(ty, src, id, GLOBAL);
     } else if (isarray(ty)) {
         ensure_array(ty, src, GLOBAL);
     }
@@ -1319,7 +1336,7 @@ static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
     
     cc_assert(SCOPE == PARAM);
     
-    ensure_func(ftype, src);
+    ensure_func(ftype, src, id, GLOBAL);
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", id2s(sclass));
         sclass = 0;
