@@ -351,6 +351,11 @@ static void dotype2s(struct vector *l, struct vector *r)
 		    vec_push(r, paren(FSPACE, NULL));
 		}
 	    }
+	    if (TYPE_VARG(s->type)) {
+		vec_push(r, paren(FCOMMA, NULL));
+		vec_push(r, paren(FSPACE, NULL));
+		vec_push(r, paren(ELLIPSIS, NULL));
+	    }
 	    vec_push(r, paren(RPAREN, s->type));
 	    vec_pop(l);
         }
@@ -426,6 +431,8 @@ const char *type2s(node_t *ty)
 	    strbuf_cats(buf, ",");
 	} else if (s->id == FSPACE) {
 	    strbuf_cats(buf, " ");
+	} else if (s->id == ELLIPSIS) {
+	    strbuf_cats(buf, "...");
 	} else if (isptr(s->type)) {
 	    strbuf_cats(buf, "*");
 	    qualstr(buf, s->qual);

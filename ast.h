@@ -50,6 +50,7 @@ struct ast_common {
 #define _TYPE_TAG(NODE)          ((NODE)->type.u.s.tag)
 #define _TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
 #define _TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
+#define _TYPE_VARG(NODE)         ((NODE)->type.u.f.varg)
 #define _TYPE_TSYM(NODE)         ((NODE)->type.u.s.tsym)
 #define _TYPE_IDS(NODE)          ((NODE)->type.u.s.ids)
 #define _TYPE_FIELDS(NODE)       ((NODE)->type.u.s.fields)
@@ -74,6 +75,7 @@ struct ast_type {
         struct {
             node_t **params;
             unsigned oldstyle : 1;
+	    unsigned varg : 1;
         }f;
         // enum/struct/union
         struct {

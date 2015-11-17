@@ -276,7 +276,6 @@ extern node_t  *doubletype;             // double
 extern node_t  *longdoubletype;         // long double
 extern node_t  *voidtype;               // void
 extern node_t  *booltype;	        // bool
-extern node_t  *vartype;		// variable type
 
 #define BITS(bytes)     (CHAR_BIT * (bytes))
 #define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
@@ -304,6 +303,7 @@ extern bool isrestrict(node_t *ty);
 #define TYPE_TAG(ty)             _TYPE_TAG(unqual(ty))
 #define TYPE_PARAMS(ty)          _TYPE_PARAMS(unqual(ty))
 #define TYPE_OLDSTYLE(ty)        _TYPE_OLDSTYLE(unqual(ty))
+#define TYPE_VARG(ty)            _TYPE_VARG(unqual(ty))
 #define TYPE_TSYM(ty)            _TYPE_TSYM(unqual(ty)) 
 #define TYPE_IDS(ty)             _TYPE_IDS(unqual(ty))
 #define TYPE_FIELDS(ty)          _TYPE_FIELDS(unqual(ty))
@@ -336,7 +336,6 @@ extern bool isarith(node_t *ty);
 extern bool isscalar(node_t *ty);
 extern bool isptrto(node_t *ty, int kind);
 #define isbool(ty)      (unqual(ty) == booltype)
-#define isvartype(ty)   (unqual(ty) == vartype)
 
 // sym.c
 // scope level

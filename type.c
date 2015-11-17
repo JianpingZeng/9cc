@@ -18,7 +18,6 @@ node_t   *doubletype;             // double
 node_t   *longdoubletype;         // long double
 node_t   *voidtype;               // void
 node_t   *booltype;	          // bool
-node_t   *vartype;		  // variable type
 
 struct metrics {
     size_t size;
@@ -134,8 +133,6 @@ void type_init(void)
     INSTALL(longdoubletype,     "long double",          LONG+DOUBLE,    longdoublemetrics, FLOAT);
     // void
     INSTALL(voidtype,           "void",                 VOID,           zerometrics,       VOID);
-    // variable
-    INSTALL(vartype,            "...",                  ELLIPSIS,       zerometrics,       ELLIPSIS);
 
 #undef INSTALL
 }

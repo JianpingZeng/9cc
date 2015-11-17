@@ -350,7 +350,9 @@ static node_t ** parameters(node_t *ftype, int *params)
             expect(',');
             if (token->id == ELLIPSIS) {
 		if (!first_void)
-		    vec_push(v, paramdecl(token, vartype, PACK_PARAM(1, 0, first_void, 0)));
+		    TYPE_VARG(ftype) = 1;
+		else
+		    error("'void' must be the first and only parameter if specified");
                 expect(ELLIPSIS);
                 break;
             }
@@ -1370,7 +1372,7 @@ static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
             node_t *sym = TYPE_PARAMS(ftype)[i];
             SYM_DEFINED(sym) = true;
             // params id is required in prototype
-            if (isanonymous(SYM_NAME(sym)) && !isvartype(SYM_TYPE(sym)))
+            if (isanonymous(SYM_NAME(sym)))
                 errorf(AST_SRC(sym), "parameter name omitted");
             if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
                 if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))

@@ -869,8 +869,7 @@ static void argcast1(node_t *fty, node_t **args, struct vector *v)
     if (oldstyle) {
 	cmp1 = MIN(len1, len2);
     } else {
-	node_t *last = params[len1 - 1];
-	bool vargs = isvartype(SYM_TYPE(last));
+	bool vargs = TYPE_VARG(fty);
 	cmp1 = vargs ? len1 - 1 : len1;
     }
     
@@ -923,8 +922,7 @@ static struct vector * argscast(node_t *fty, node_t **args)
 	    return v;
 	}
 	
-	node_t *last = params[len1 - 1];
-	bool vargs = isvartype(SYM_TYPE(last));
+	bool vargs = TYPE_VARG(fty);
 	if (vargs)
 	    len1 -= 1;
 	cc_assert(len1 >= 1);
@@ -1025,26 +1023,6 @@ static node_t * primary_expr(void)
     return ret;
 }
 
-static node_t ** argument_expr_list(void)
-{
-    node_t **args = NULL;
-    
-    if (firstexpr(token)) {
-        struct vector *v = vec_new();
-        for (;;) {
-	    vec_push_safe(v, assign_expr());
-	    if (token->id != ',')
-		break;
-	    expect(',');
-        }
-        args = (node_t **)vtoa(v);
-    } else if (token->id != ')') {
-        error("expect assignment expression");
-    }
-    
-    return args;
-}
-
 // []
 static node_t * subscript(node_t *node)
 {
@@ -1077,6 +1055,26 @@ static node_t * subscript(node_t *node)
 	AST_SRC(ret) = AST_SRC(node);
     }
     return ret;
+}
+
+static node_t ** argument_expr_list(void)
+{
+    node_t **args = NULL;
+    
+    if (firstexpr(token)) {
+        struct vector *v = vec_new();
+        for (;;) {
+	    vec_push_safe(v, assign_expr());
+	    if (token->id != ',')
+		break;
+	    expect(',');
+        }
+        args = (node_t **)vtoa(v);
+    } else if (token->id != ')') {
+        error("expect assignment expression");
+    }
+    
+    return args;
 }
 
 static node_t * funcall(node_t *node)
