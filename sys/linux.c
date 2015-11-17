@@ -33,15 +33,20 @@ static void handler(int sig)
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     exit(EXIT_FAILURE);
 }
-#endif
 
 void setup_sys()
 {
-#ifndef CONFIG_CYGWIN
     signal(SIGSEGV, handler);
     signal(SIGABRT, handler);
-#endif
 }
+
+#else
+
+void setup_sys()
+{
+}
+
+#endif
 
 /**
  * $0: output file
