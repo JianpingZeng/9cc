@@ -1343,44 +1343,28 @@ static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
         error("invalid storage class specifier '%s'", id2s(sclass));
         sclass = 0;
     }
-    
+
+    // install symbol first for backward reference
     if (id) {
         node_t *sym = lookup(id, identifiers);
-        if (!sym) {
+        if (!sym || SYM_SCOPE(sym) != GLOBAL) {
             sym = install(id, &identifiers, GLOBAL);
+	def:
             SYM_TYPE(sym) = ftype;
             AST_SRC(sym) = src;
             SYM_DEFINED(sym) = true;
             SYM_SCLASS(sym) = sclass;
             DECL_SYM(decl) = sym;
         } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
-            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC) {
+            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
                 errorf(src, "static declaaration of '%s' follows non-static declaration", id);
-            } else {
-                SYM_TYPE(sym) = ftype;
-                AST_SRC(sym) = src;
-                SYM_DEFINED(sym) = true;
-                DECL_SYM(decl) = sym;
-            }
+            else
+		goto def;
         } else {
             redefinition_error(src, sym);
         }
     }
-    
-    if (TYPE_PARAMS(ftype)) {
-        for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
-            node_t *sym = TYPE_PARAMS(ftype)[i];
-            SYM_DEFINED(sym) = true;
-            // params id is required in prototype
-            if (isanonymous(SYM_NAME(sym)))
-                errorf(AST_SRC(sym), "parameter name omitted");
-            if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
-                if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
-                    errorf(AST_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
-            }
-        }
-    }
-    
+
     if (firstdecl(token)) {
         // old style function definition
         struct vector *v = vec_new();
@@ -1404,22 +1388,35 @@ static node_t * funcdef(struct token *t, node_t *ftype, int sclass)
                         break;
                     }
                 }
-                if (p)
+                if (p) {
                     SYM_TYPE(p) = SYM_TYPE(sym);
-                else
+		    AST_SRC(p) = AST_SRC(sym);
+                } else {
                     errorf(AST_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
+		}
             }
         }
         exit_scope();
-        if (token->id != '{') {
+        if (token->id != '{')
             error("expect function body after function declarator");
-            // TODO
+    }
+
+    if (TYPE_PARAMS(ftype)) {
+        for (int i=0; TYPE_PARAMS(ftype)[i]; i++) {
+            node_t *sym = TYPE_PARAMS(ftype)[i];
+            SYM_DEFINED(sym) = true;
+            // params id is required in prototype
+            if (isanonymous(SYM_NAME(sym)))
+                errorf(AST_SRC(sym), "parameter name omitted");
+            if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym)) || isunion(SYM_TYPE(sym))) {
+                if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
+                    errorf(AST_SRC(sym), "variable has incomplete type '%s'", type2s(SYM_TYPE(sym)));
+            }
         }
     }
 
     if (token->id == '{') {
         // function definition
-        // install symbol first for backward reference
         SET_FUNCDEF_CONTEXT(ftype, id);
         node_t *stmt = compound_stmt();
 	// check goto labels
