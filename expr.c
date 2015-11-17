@@ -1266,14 +1266,13 @@ static node_t * minus_plus(void)
     struct source src = source;
     
     expect(t);
-    node_t *operand = cast_expr();
+    node_t *operand = conv(cast_expr());
     if (operand == NULL)
 	return ret;
 
     SAVE_ERRORS;
     ensure_type(operand, isarith);
     if (NO_ERROR) {
-	operand = conv(operand);
 	ret = ast_uop(t, AST_TYPE(operand), operand);
 	AST_SRC(ret) = src;
     }
@@ -1288,14 +1287,13 @@ static node_t * bitwise_not(void)
     struct source src = source;
     
     expect(t);
-    node_t *operand = cast_expr();
+    node_t *operand = conv(cast_expr());
     if (operand == NULL)
 	return ret;
 
     SAVE_ERRORS;
     ensure_type(operand, isint);
     if (NO_ERROR) {
-	operand = conv(operand);
 	ret = ast_uop(t, AST_TYPE(operand), operand);
 	AST_SRC(ret) = src;
     }
@@ -1310,14 +1308,14 @@ static node_t * logical_not(void)
     struct source src = source;
     
     expect(t);
-    node_t *operand = cast_expr();
+    node_t *operand = conv(cast_expr());
     if (operand == NULL)
 	return ret;
 
     SAVE_ERRORS;
     ensure_type(operand, isscalar);
     if (NO_ERROR) {
-	ret = ast_uop(t, inttype, conv(operand));
+	ret = ast_uop(t, inttype, operand);
 	AST_SRC(ret) = src;
     }
 
