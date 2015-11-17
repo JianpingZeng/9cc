@@ -866,18 +866,16 @@ static void argcast1(node_t *fty, node_t **args, struct vector *v)
     bool oldstyle = TYPE_OLDSTYLE(fty);
     int cmp1;
 
-    if (oldstyle) {
+    if (oldstyle)
 	cmp1 = MIN(len1, len2);
-    } else {
-	bool vargs = TYPE_VARG(fty);
-	cmp1 = vargs ? len1 - 1 : len1;
-    }
+    else
+	cmp1 = len1;
     
     for (int i = 0; i < cmp1; i++) {
 	node_t *dst = SYM_TYPE(params[i]);
 	node_t *src = AST_TYPE(args[i]);
-	node_t *ret;
-	if ((ret = assignconv(dst, args[i]))) {
+	node_t *ret = assignconv(dst, args[i]);
+	if (ret) {
 	    vec_push(v, ret);
 	} else {
 	    if (oldstyle)
@@ -923,8 +921,6 @@ static struct vector * argscast(node_t *fty, node_t **args)
 	}
 	
 	bool vargs = TYPE_VARG(fty);
-	if (vargs)
-	    len1 -= 1;
 	cc_assert(len1 >= 1);
 	if (len1 <= len2) {
 	    if (!vargs && len1 < len2) {
