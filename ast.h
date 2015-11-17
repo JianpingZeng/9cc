@@ -259,6 +259,4 @@ extern node_t * copy_node(node_t *node);
 // stmt
 #define isnullstmt(n)     (AST_ID(n) == NULL_STMT)
 
-#define isbitfield(field)   (FIELD_ISBIT(field))
-
 #endif
