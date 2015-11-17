@@ -291,7 +291,7 @@ static node_t * switch_stmt(void)
     
     if (NO_ERROR) {
         struct vector *v = vec_new();
-	node_t *var = tmpvar(AST_TYPE(expr));
+	node_t *var = define_tmpvar(AST_TYPE(expr));
 	vec_push(v, ast_bop('=', AST_TYPE(expr), var, expr));
 	for (int i = 0; i < vec_len(CASES); i++) {
 	    node_t *case_node = vec_at(CASES, i);
@@ -602,7 +602,7 @@ static struct vector * predefined_identifiers(void)
 	 */
 	const char *name = strs("__func__");
 	node_t *type = array_type(qual(CONST, chartype));
-	node_t *decl = define_localvar(name, type, STATIC);
+	node_t *decl = make_localvar(name, type, STATIC);
 	// initializer
 	node_t *literal = new_string_literal(FNAME);
 	AST_SRC(literal) = source;

@@ -1031,11 +1031,10 @@ struct vector * filter_local(struct vector *v, bool front)
     return v;
 }
 
-node_t * tmpvar(node_t *ty)
+node_t * define_tmpvar(node_t *ty)
 {
     const char *name = gen_tmpname();
-    node_t *decl = define_localvar(name, ty, 0);
-    vec_push(localvars, decl);
+    node_t *decl = define_localvar(name, ty, 0, NULL);
     node_t *n = alloc_node();
     AST_ID(n) = REF_EXPR;
     EXPR_SYM(n) = DECL_SYM(decl);
@@ -1044,10 +1043,17 @@ node_t * tmpvar(node_t *ty)
     return n;
 }
 
-node_t * define_localvar(const char *name, node_t *ty, int sclass)
+node_t * make_localvar(const char *name, node_t *ty, int sclass)
 {
     struct token *id = new_token(&(struct token){.id = ID, .name = name, .kind = ID, .src = source});
     node_t *decl = make_decl(id, ty, sclass, localdecl);
+    return decl;
+}
+
+node_t * define_localvar(const char *name, node_t *ty, int sclass, node_t *init)
+{
+    node_t *decl = make_localvar(name, ty, sclass);
+    vec_push(localvars, decl);
     return decl;
 }
 

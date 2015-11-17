@@ -950,6 +950,12 @@ static node_t * compound_literal(node_t *ty)
     inits = initializer_list(ty);
     ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
     AST_SRC(ret) = AST_SRC(ty);
+
+    // define local variable
+    if (SCOPE >= LOCAL) {
+	const char *label = gen_compound_label();
+	define_localvar(label, ty, 0, inits);
+    }
     
     return ret;
 }

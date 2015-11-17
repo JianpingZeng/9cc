@@ -72,12 +72,6 @@ static const char * emit_string_literal(const char *name)
     return SYM_LABEL(sym);
 }
 
-static const char *gen_compound_label(void)
-{
-    static size_t i;
-    return format("__compound_literal.%llu", i++);
-}
-
 static const char *emit_compound_literal(node_t *n)
 {
     const char *label = gen_compound_label();

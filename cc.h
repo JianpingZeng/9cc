@@ -220,8 +220,9 @@ extern node_t * typename(void);
 extern int firstdecl(struct token *t);
 extern int firststmt(struct token *t);
 extern int firstexpr(struct token *t);
-extern node_t * tmpvar(node_t *ty);
-extern node_t * define_localvar(const char *name, node_t *ty, int sclass);
+extern node_t * define_tmpvar(node_t *ty);
+extern node_t * make_localvar(const char *name, node_t *ty, int sclass);
+extern node_t * define_localvar(const char *name, node_t *ty, int sclass, node_t *init);
 extern struct vector * filter_local(struct vector *v, bool front);
 
 // initializer.c

@@ -115,6 +115,12 @@ const char * gen_static_label(const char *name)
     return format("%s.%s.%llu", FNAME, name, i++);
 }
 
+const char *gen_compound_label(void)
+{
+    static size_t i;
+    return format("__compound_literal.%llu", i++);
+}
+
 node_t * ast_if(node_t *cond, node_t *then, node_t *els)
 {
     node_t * ast = new_node(AST_IF);
