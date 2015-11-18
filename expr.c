@@ -1149,6 +1149,19 @@ static node_t * direction(node_t *node)
     return ret;
 }
 
+static void ensure_increment(node_t *node, struct source src)
+{
+    ensure_type(node, isscalar);
+    ensure_assignable(node);
+    if (isptr(AST_TYPE(node))) {
+	node_t *rty = rtype(AST_TYPE(node));
+	if (isfunc(rty) || isincomplete(rty))
+	    errorf(src,
+		   "increment of invalid type '%s' (pointer to unknown size)",
+		   type2s(AST_TYPE(node)));
+    }
+}
+
 static node_t * post_increment(node_t *node)
 {
     int t = token->id;
@@ -1160,8 +1173,7 @@ static node_t * post_increment(node_t *node)
 	return ret;
 
     SAVE_ERRORS;
-    ensure_type(node, isscalar);
-    ensure_assignable(node);
+    ensure_increment(node, src);
     if (NO_ERROR) {
 	ret = ast_uop(t, AST_TYPE(node), node);
 	AST_SRC(ret) = src;
@@ -1248,8 +1260,7 @@ static node_t * pre_increment(void)
 	return ret;
 
     SAVE_ERRORS;
-    ensure_type(operand, isscalar);
-    ensure_assignable(operand);
+    ensure_increment(operand, src);
     if (NO_ERROR) {
 	ret = ast_uop(t, AST_TYPE(operand), operand);
 	EXPR_PREFIX(ret) = true;
