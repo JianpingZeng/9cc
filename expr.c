@@ -1322,6 +1322,10 @@ static node_t * logical_not(void)
     return ret;
 }
 
+/**
+ * The usual conversions are _NOT_ applied to the operand of the '&'
+ * operator, and its result is never an lvalue.
+ */
 static node_t * address(void)
 {
     int t = token->id;
