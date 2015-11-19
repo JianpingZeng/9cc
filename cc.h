@@ -203,6 +203,8 @@ extern node_t * bop(int op, node_t *l, node_t *r);
 extern node_t * new_integer_literal(int i);
 extern node_t * new_string_literal(const char *string);
 
+extern node_t * reduce(node_t *expr);
+
 // decl.c
 #define GOTOS      (gotos)
 #define LABELS     (labels)

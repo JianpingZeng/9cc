@@ -1963,3 +1963,10 @@ node_t * switch_expr(void)
     }
     return node;
 }
+
+// remove expr which has no side-effect
+node_t * reduce(node_t *expr)
+{
+    // TODO: 
+    return expr;
+}
