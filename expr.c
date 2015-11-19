@@ -1149,17 +1149,22 @@ static node_t * direction(node_t *node)
     return ret;
 }
 
-static void ensure_increment(node_t *node, struct source src)
+static void ensure_additive_ptr(node_t *node)
+{
+    cc_assert(isptr(AST_TYPE(node)));
+    node_t *rty = rtype(AST_TYPE(node));
+    if (isfunc(rty) || isincomplete(rty))
+	errorf(AST_SRC(node),
+	       "increment/decrement of invalid type '%s' (pointer to unknown size)",
+	       type2s(AST_TYPE(node)));
+}
+
+static void ensure_increment(node_t *node)
 {
     ensure_type(node, isscalar);
     ensure_assignable(node);
-    if (isptr(AST_TYPE(node))) {
-	node_t *rty = rtype(AST_TYPE(node));
-	if (isfunc(rty) || isincomplete(rty))
-	    errorf(src,
-		   "increment of invalid type '%s' (pointer to unknown size)",
-		   type2s(AST_TYPE(node)));
-    }
+    if (isptr(AST_TYPE(node)))
+	ensure_additive_ptr(node);
 }
 
 static node_t * post_increment(node_t *node)
@@ -1173,7 +1178,7 @@ static node_t * post_increment(node_t *node)
 	return ret;
 
     SAVE_ERRORS;
-    ensure_increment(node, src);
+    ensure_increment(node);
     if (NO_ERROR) {
 	ret = ast_uop(t, AST_TYPE(node), node);
 	AST_SRC(ret) = src;
@@ -1260,7 +1265,7 @@ static node_t * pre_increment(void)
 	return ret;
 
     SAVE_ERRORS;
-    ensure_increment(operand, src);
+    ensure_increment(operand);
     if (NO_ERROR) {
 	ret = ast_uop(t, AST_TYPE(operand), operand);
 	EXPR_PREFIX(ret) = true;
@@ -1727,10 +1732,12 @@ node_t * bop(int op, node_t *l, node_t *r)
 	break;
     case '+':
 	if (isptr(AST_TYPE(l))) {
+	    ensure_additive_ptr(l);
 	    ensure_type(r, isint);
 	    if (NO_ERROR)
 		node = ast_bop(op, AST_TYPE(l), l, r);
 	} else if (isptr(AST_TYPE(r))) {
+	    ensure_additive_ptr(r);
 	    ensure_type(l, isint);
 	    if (NO_ERROR)
 		node = ast_bop(op, AST_TYPE(r), l, r);
@@ -1745,12 +1752,24 @@ node_t * bop(int op, node_t *l, node_t *r)
 	break;
     case '-':
 	if (isptr(AST_TYPE(l))) {
-	    if (isint(AST_TYPE(r)))
-		node = ast_bop(op, AST_TYPE(l), l, r);
-	    else if (isptr(AST_TYPE(r)))
-		node = ast_bop(op, inttype, l, r);
-	    else
-		error("expect integer or pointer type, not type '%s'", type2s(AST_TYPE(r)));
+	    if (isint(AST_TYPE(r))) {
+		ensure_additive_ptr(l);
+		if (NO_ERROR)
+		    node = ast_bop(op, AST_TYPE(l), l, r);
+	    } else if (isptr(AST_TYPE(r))) {
+		ensure_additive_ptr(l);
+		ensure_additive_ptr(r);
+		node_t *rty1 = rtype(AST_TYPE(l));
+		node_t *rty2 = rtype(AST_TYPE(r));
+		if (!eqtype(unqual(rty1), unqual(rty2)))
+		    error("'%s' and '%s' are not pointers to compatible types",
+			  type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
+		if (NO_ERROR)
+		    node = ast_bop(op, inttype, l, r);
+	    } else {
+		error("expect integer or pointer type, not type '%s'",
+		      type2s(AST_TYPE(r)));
+	    }
 	} else {
 	    ensure_type(l, isarith);
 	    ensure_type(r, isarith);
@@ -1760,31 +1779,25 @@ node_t * bop(int op, node_t *l, node_t *r)
 	    }
 	}
 	break;
+	// scalar op scalar
     case '>': case '<': case LEQ: case GEQ:
     case EQ: case NEQ:
-	ensure_type(l, isscalar);
-	ensure_type(r, isscalar);
-        if (HAS_ERROR)
-	    break;
 	if (isptr(AST_TYPE(l)) && isptr(AST_TYPE(r))) {
 	    // both ptr
 	    if (eqtype(AST_TYPE(l), AST_TYPE(r))) {
 		node = ast_bop(op, inttype, l, r);
-	    } else {
-		if (op == EQ || op == NEQ) {
-		    if (isptrto(AST_TYPE(l), VOID) || isptrto(AST_TYPE(r), VOID)) {
-			node_t *l1 = isptrto(AST_TYPE(l), VOID) ? l : ast_conv(ptr_type(voidtype), l);
-			node_t *r1 = isptrto(AST_TYPE(r), VOID) ? r : ast_conv(ptr_type(voidtype), r);
-			node = ast_bop(op, inttype, l1, r1);
-			break;
-		    } else if (is_nullptr(l) || is_nullptr(r)) {
-			node = ast_bop(op, inttype, l, r);
-			break;
-		    }
+	    } else if (op == EQ || op == NEQ) {
+		if (isptrto(AST_TYPE(l), VOID) || isptrto(AST_TYPE(r), VOID)) {
+		    node_t *l1 = isptrto(AST_TYPE(l), VOID) ? l : ast_conv(ptr_type(voidtype), l);
+		    node_t *r1 = isptrto(AST_TYPE(r), VOID) ? r : ast_conv(ptr_type(voidtype), r);
+		    node = ast_bop(op, inttype, l1, r1);
+		} else if (is_nullptr(l) || is_nullptr(r)) {
+		    node = ast_bop(op, inttype, l, r);
 		}
+	    }
+	    if (!node)
 		error("comparison of incompatible pointer types ('%s' and '%s')",
 		      type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
-	    }
 	} else if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
 	    // both arith
 	    ty = conv2(AST_TYPE(l), AST_TYPE(r));
@@ -1800,7 +1813,8 @@ node_t * bop(int op, node_t *l, node_t *r)
 	    if (NO_ERROR)
 		node = ast_bop(op, inttype, ast_conv(AST_TYPE(r), l), r);
 	} else {
-	    cc_assert(0);
+	    error("comparison of invalid types ('%s' and '%s')",
+		      type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
 	}
 	break;
     default:
@@ -1964,9 +1978,35 @@ node_t * switch_expr(void)
     return node;
 }
 
+static node_t * side_effect(node_t *expr)
+{
+    switch (AST_ID(expr)) {
+    case BINARY_OPERATOR:
+    case UNARY_OPERATOR:
+    case COND_EXPR:
+    case MEMBER_EXPR:
+    case PAREN_EXPR:
+    case REF_EXPR:
+    case CAST_EXPR:
+    case CALL_EXPR:
+    case INITS_EXPR:
+    case VINIT_EXPR:
+    case CONV_EXPR:
+    case SUBSCRIPT_EXPR:
+    case INTEGER_LITERAL:
+    case FLOAT_LITERAL:
+    case STRING_LITERAL:
+    case COMPOUND_LITERAL:
+    default:
+	return expr;
+    }
+}
+
 // remove expr which has no side-effect
 node_t * reduce(node_t *expr)
 {
-    // TODO: 
-    return expr;
+    if (!expr)
+	return NULL;
+    node_t *ret = side_effect(expr);
+    return ret;
 }
