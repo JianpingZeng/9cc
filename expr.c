@@ -1978,35 +1978,8 @@ node_t * switch_expr(void)
     return node;
 }
 
-static node_t * side_effect(node_t *expr)
-{
-    switch (AST_ID(expr)) {
-    case BINARY_OPERATOR:
-    case UNARY_OPERATOR:
-    case COND_EXPR:
-    case MEMBER_EXPR:
-    case PAREN_EXPR:
-    case REF_EXPR:
-    case CAST_EXPR:
-    case CALL_EXPR:
-    case INITS_EXPR:
-    case VINIT_EXPR:
-    case CONV_EXPR:
-    case SUBSCRIPT_EXPR:
-    case INTEGER_LITERAL:
-    case FLOAT_LITERAL:
-    case STRING_LITERAL:
-    case COMPOUND_LITERAL:
-    default:
-	return expr;
-    }
-}
-
 // remove expr which has no side-effect
 node_t * reduce(node_t *expr)
 {
-    if (!expr)
-	return NULL;
-    node_t *ret = side_effect(expr);
-    return ret;
+    return expr;
 }
