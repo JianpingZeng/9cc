@@ -1592,7 +1592,8 @@ static node_t * logic_or(void)
 
 static node_t * cond_expr1(node_t *cond)
 {
-#define INCOMPATIBLE_TYPES2   "imcompatible types '%s' and '%s' in conditional expression"
+#define INCOMPATIBLE_TYPES2 \
+    "imcompatible types '%s' and '%s' in conditional expression"
 
     node_t *ret = NULL;
     node_t *then, *els;
@@ -1653,7 +1654,8 @@ static node_t * cond_expr1(node_t *cond)
 	    }
 	}
     } else {
-	error("type mismatch in conditional expression: '%s' and '%s'", type2s(ty1), type2s(ty2));
+	error("type mismatch in conditional expression: '%s' and '%s'",
+	      type2s(ty1), type2s(ty2));
     }
     
     if (NO_ERROR) {
