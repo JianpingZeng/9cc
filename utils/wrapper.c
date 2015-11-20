@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdbool.h>
+#include "utils.h"
 
 void die(const char *fmt, ...)
 {
@@ -22,6 +24,22 @@ void println(const char *fmt, ...)
 	fprintf(stderr, "\n");
 	va_end(ap);
 }
+
+#ifndef NDEBUG
+
+void debugf(const char *func, const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	fprintf(stderr, "In function '%s': ", func);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	va_end(ap);
+	if (!strncmp(fmt, DFATAL, strlen(DFATAL)))
+		exit(EXIT_FAILURE);
+}
+
+#endif
 
 void *xmalloc(size_t size)
 {

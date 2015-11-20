@@ -1142,7 +1142,7 @@ node_t *translation_unit(void)
 				// empty declaration
 				gettok();
 			else
-			        skipto(firstdecl);
+			        skipto(FARRAY(firstdecl));
 		}
 	}
 

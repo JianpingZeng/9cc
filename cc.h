@@ -149,11 +149,13 @@ extern int gettok(void);
 extern struct token *lookahead(void);
 extern void expect(int t);
 extern void match(int t, int follow[]);
-extern int skipto(int (*test) (struct token *));
+extern int skipto(int (*test[]) (struct token *));
 extern const char *id2s(int t);
 extern const char *unwrap_scon(const char *name);
 
 extern void print_buffer_stat(void);
+
+#define FARRAY(...)  ((int (*[]) (struct token *)){__VA_ARGS__, NULL})
 
 // cpp.c
 // macro kind
