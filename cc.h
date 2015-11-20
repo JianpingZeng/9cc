@@ -149,6 +149,7 @@ extern int gettok(void);
 extern struct token *lookahead(void);
 extern void expect(int t);
 extern void match(int t, int follow[]);
+extern int skip_util(int (*test) (struct token *));
 extern const char *id2s(int t);
 extern const char *unwrap_scon(const char *name);
 

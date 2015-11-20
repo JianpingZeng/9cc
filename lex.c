@@ -910,3 +910,11 @@ void match(int t, int follow[])
 			fprintf(stderr, "%d tokens skipped.\n", n);
 	}
 }
+
+int skip_util(int (*test) (struct token *))
+{
+	int cnt;
+	for (cnt = 0; !test(token) && token->id != EOI; cnt++)
+		gettok();
+	return cnt;
+}
