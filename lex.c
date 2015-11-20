@@ -901,7 +901,8 @@ void match(int t, int follow[])
 		expect(t);
 		for (n = 0; token->id != EOI; gettok()) {
 			int *k;
-			for (k = follow; *k && *k != token->kind; k++) ;	// continue
+			for (k = follow; *k && *k != token->kind; k++)
+			    ;	// continue
 			if (*k == token->kind)
 				break;
 		}
