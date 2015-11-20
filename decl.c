@@ -247,7 +247,7 @@ static node_t *specifiers(int *sclass)
 		error("'%s' cannot be %s", id2s(type), id2s(ci));
 	}
 
-	if (tydefty)
+	if (type == ID)
 		basety = tydefty;
 	else if (type == CHAR && sign)
 		basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
@@ -1164,6 +1164,34 @@ static void ensure_decl(node_t * decl, int sclass, int kind)
 	}
 }
 
+static void ensure_main(node_t *ftype, struct source src)
+{
+	node_t *rty = rtype(ftype);
+	node_t **params = TYPE_PARAMS(ftype);
+	if (rty != inttype)
+		errorf(src, "return type of 'main' is not 'int'");
+	for (int i = 0; i < LIST_LEN(params); i++) {
+		node_t *ty = SYM_TYPE(params[i]);
+		if (i == 0) {
+			if (ty != inttype)
+				errorf(src,
+				       "first parameter of 'main' is not 'int'");
+		} else if (i == 1 || i == 2) {
+			if (!isptrto(ty, POINTER)
+			    || !isptrto(rtype(ty), CHAR))
+				errorf(src,
+				       "%s parameter of 'main' is not 'char **'",
+				       i == 1 ? "second" : "third");
+		} else {
+			break;
+		}
+	}
+	if (LIST_LEN(params) == 1 || LIST_LEN(params) > 3)
+		errorf(src,
+		       "expect 0, 2 or 3 parameters for 'main', have %d",
+		       LIST_LEN(params));
+}
+
 static void ensure_func(node_t * ftype, struct source src, const char *name,
 			int level)
 {
@@ -1177,26 +1205,8 @@ static void ensure_func(node_t * ftype, struct source src, const char *name,
 
 	// check main function declaration
 	if ((name && !strcmp(name, "main"))
-	    && (level == GLOBAL || level == LOCAL)) {
-		node_t **params = TYPE_PARAMS(ftype);
-		if (rty != inttype)
-			errorf(src, "return type of 'main' is not 'int'");
-		if (LIST_LEN(params) == 2) {
-			node_t *ty1 = SYM_TYPE(params[0]);
-			node_t *ty2 = SYM_TYPE(params[1]);
-			if (ty1 != inttype)
-				errorf(src,
-				       "first parameter of 'main' is not 'int'");
-			if (!isptrto(ty2, POINTER)
-			    || !isptrto(rtype(ty2), CHAR))
-				errorf(src,
-				       "second parameter of 'main' is not 'char **'");
-		} else if (LIST_LEN(params) != 0) {
-			errorf(src,
-			       "expect 0 or 2 parameters of 'main', have %d",
-			       LIST_LEN(params));
-		}
-	}
+	    && (level == GLOBAL || level == LOCAL))
+		ensure_main(ftype, src);
 }
 
 /**
