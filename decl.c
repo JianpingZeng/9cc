@@ -283,6 +283,7 @@ static void array_qualifiers(node_t * atype)
 	cons = vol = res = 0;
 	while (token->kind == CONST) {
 		int t = token->id;
+		struct source src = source;
 		switch (t) {
 		case CONST:
 			p = &cons;
@@ -304,7 +305,7 @@ static void array_qualifiers(node_t * atype)
 		}
 
 		if (*p != 0)
-			warning("duplicate type qualifier '%s'", id2s(*p));
+			warningf(src, "duplicate type qualifier '%s'", id2s(*p));
 
 		*p = t;
 	}
