@@ -1170,7 +1170,7 @@ static void ensure_main(node_t *ftype, struct source src)
 	node_t **params = TYPE_PARAMS(ftype);
 	if (rty != inttype)
 		errorf(src, "return type of 'main' is not 'int'");
-	for (int i = 0; i < LIST_LEN(params); i++) {
+	for (int i = 0; i < MIN(3, LIST_LEN(params)); i++) {
 		node_t *ty = SYM_TYPE(params[i]);
 		if (i == 0) {
 			if (ty != inttype)
@@ -1182,8 +1182,6 @@ static void ensure_main(node_t *ftype, struct source src)
 				errorf(src,
 				       "%s parameter of 'main' is not 'char **'",
 				       i == 1 ? "second" : "third");
-		} else {
-			break;
 		}
 	}
 	if (LIST_LEN(params) == 1 || LIST_LEN(params) > 3)
