@@ -911,7 +911,7 @@ void match(int t, int follow[])
 	}
 }
 
-int skip_util(int (*test) (struct token *))
+int skip_until(int (*test) (struct token *))
 {
 	struct token *t = token;
 	int cnt;
