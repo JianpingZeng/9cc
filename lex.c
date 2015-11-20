@@ -913,8 +913,17 @@ void match(int t, int follow[])
 
 int skip_util(int (*test) (struct token *))
 {
+	struct token *t = token;
 	int cnt;
 	for (cnt = 0; !test(token) && token->id != EOI; cnt++)
 		gettok();
+	if (cnt > 1)
+		errorf(t->src,
+		       "invalid token '%s', %d tokens skipped",
+		       t->name, cnt);
+	else if (cnt)
+		errorf(t->src,
+		       "invalid token '%s'",
+		       t->name);
 	return cnt;
 }

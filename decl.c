@@ -1138,22 +1138,11 @@ node_t *translation_unit(void)
 			cc_assert(SCOPE == GLOBAL);
 			vec_add(v, decls(globaldecl));
 		} else {
-			if (token->id == ';') {
+			if (token->id == ';')
 				// empty declaration
 				gettok();
-			} else {
-			        struct token *t = token;
-				int cnt = skip_util(firstdecl);
-				if (cnt > 1)
-					errorf(t->src,
-					       "invalid token '%s' in declaration, "
-					       "%d tokens skipped",
-					       t->name, cnt);
-				else
-					errorf(t->src,
-					       "invalid token '%s' in declaration",
-					       t->name);
-			}
+			else
+			        skip_util(firstdecl);
 		}
 	}
 
