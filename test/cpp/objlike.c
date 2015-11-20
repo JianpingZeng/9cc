@@ -1,5 +1,4 @@
 #define A a
-abc+A+cde
-
+abc + A + cde
 #define B
-abc+B+cde
+    abc + B + cde

@@ -2,13 +2,13 @@
 
 static void invoke_script()
 {
-    system("/usr/bin/python test/scripts/cpp.py");
+	system("/usr/bin/python test/scripts/cpp.py");
 }
 
 void testmain()
 {
-    START("cpp ...");
-    printf("\n");
-    invoke_script();
-    exit(0);
+	START("cpp ...");
+	printf("\n");
+	invoke_script();
+	exit(0);
 }
