@@ -58,7 +58,7 @@ static struct vector *staticvars;
     vec_free(staticvars);			\
     staticvars = NULL
 
-static node_t *specifiers(int *sclass)
+static node_t *specifiers(int *sclass, int *fspec)
 {
 	int cls, sign, size, type;
 	int cons, vol, res, inl;
@@ -196,14 +196,17 @@ static node_t *specifiers(int *sclass)
 			break;
 
 		if (*p != 0) {
-			if (p == &cls)
+			if (p == &cls && !sclass)
 				errorf(src,
-				       "type name does not allow storage class to be specified at '%s'",
+				       "type name does not allow storage class to be specified",
 				       name);
-			else if (p == &inl && !sclass)
-				errorf(src, "invalid function specifier");
-			else if (p == &cons || p == &res || p == &vol
-				 || p == &inl)
+			else if (p == &cls)
+				errorf(src,
+				       "duplicate storage class '%s'",
+				       name);
+			else if (p == &inl && !fspec)
+				errorf(src, "function specifier not allowed");
+			else if (p == &cons || p == &res || p == &vol || p == &inl)
 				warningf(src,
 					 "duplicate '%s' declaration specifier",
 					 name);
@@ -216,7 +219,8 @@ static node_t *specifiers(int *sclass)
 				       "duplicate signed/unsigned speficier '%s'",
 				       name);
 			else if (p == &type || p == &size)
-				errorf(src, "duplicate type specifier '%s'",
+				errorf(src,
+				       "duplicate type specifier '%s'",
 				       name);
 			else
 				cc_assert(0);
@@ -272,6 +276,8 @@ static node_t *specifiers(int *sclass)
 
 	if (sclass)
 		*sclass = cls;
+	if (fspec)
+		*fspec = inl;
 
 	return basety;
 }
@@ -337,27 +343,22 @@ static node_t **parameters(node_t * ftype, int *params)
 		bool first_void = false;
 		for (int i = 0;; i++) {
 			node_t *basety = NULL;
-			int sclass;
+			int sclass, fspec;
 			node_t *ty = NULL;
 			struct token *id = NULL;
 			node_t *sym;
 
-			basety = specifiers(&sclass);
+			basety = specifiers(&sclass, &fspec);
 			if (token->id == '*' || token->id == '('
 			    || token->id == '[' || token->id == ID)
 				param_declarator(&ty, &id);
 
 			attach_type(&ty, basety);
-			if (isinline(basety))
-				error("'inline' can only appear on functions");
 			if (i == 0 && isvoid(ty))
 				first_void = true;
 
 			SAVE_ERRORS;
-			sym =
-			    paramdecl(id, ty,
-				      PACK_PARAM(1, i == 0, first_void,
-						 sclass));
+			sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass));
 			if (NO_ERROR && !first_void)
 				vec_push(v, sym);
 			if (token->id != ',')
@@ -368,8 +369,7 @@ static node_t **parameters(node_t * ftype, int *params)
 				if (!first_void)
 					TYPE_VARG(ftype) = 1;
 				else
-					error
-					    ("'void' must be the first and only parameter if specified");
+					error("'void' must be the first and only parameter if specified");
 				expect(ELLIPSIS);
 				break;
 			}
@@ -390,8 +390,7 @@ static node_t **parameters(node_t * ftype, int *params)
 		}
 
 		if (SCOPE > PARAM)
-			error
-			    ("a parameter list without types is only allowed in a function definition");
+			error("a parameter list without types is only allowed in a function definition");
 		ret = (node_t **) vtoa(v);
 	} else if (token->id == ')') {
 		TYPE_OLDSTYLE(ftype) = 1;
@@ -400,8 +399,7 @@ static node_t **parameters(node_t * ftype, int *params)
 		if (token->id == ELLIPSIS)
 			error("ISO C requires a named parameter before '...'");
 		else
-			error("expect parameter declarator at '%s'",
-			      token->name);
+			error("expect parameter declarator at '%s'", token->name);
 		gettok();
 	}
 
@@ -701,7 +699,7 @@ static void fields(node_t * sty)
 
 	struct vector *v = vec_new();
 	while (FIRST_FIELD(token)) {
-		node_t *basety = specifiers(NULL);
+		node_t *basety = specifiers(NULL, NULL);
 
 		for (;;) {
 			node_t *field = new_field(NULL);
@@ -957,11 +955,11 @@ static struct vector *decls(declfun_p * dcl)
 {
 	struct vector *v = vec_new();
 	node_t *basety;
-	int sclass;
+	int sclass, fspec;
 	int level = SCOPE;
 	int follow[] = { STATIC, INT, CONST, IF, '}', 0 };
 
-	basety = specifiers(&sclass);
+	basety = specifiers(&sclass, &fspec);
 	if (token->id == ID || token->id == '*' || token->id == '(') {
 		struct token *id = NULL;
 		node_t *ty = NULL;
@@ -1113,7 +1111,7 @@ node_t *typename(void)
 	node_t *basety;
 	node_t *ty = NULL;
 
-	basety = specifiers(NULL);
+	basety = specifiers(NULL, NULL);
 	if (token->id == '*' || token->id == '(' || token->id == '[')
 		abstract_declarator(&ty);
 

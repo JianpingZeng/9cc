@@ -25,22 +25,6 @@ void println(const char *fmt, ...)
 	va_end(ap);
 }
 
-#ifndef NDEBUG
-
-void debugf(const char *func, const char *fmt, ...)
-{
-	va_list ap;
-	va_start(ap, fmt);
-	fprintf(stderr, "In function '%s': ", func);
-	vfprintf(stderr, fmt, ap);
-	fprintf(stderr, "\n");
-	va_end(ap);
-	if (!strncmp(fmt, DFATAL, strlen(DFATAL)))
-		exit(EXIT_FAILURE);
-}
-
-#endif
-
 void *xmalloc(size_t size)
 {
 	void *p = malloc(size);

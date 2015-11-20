@@ -931,6 +931,6 @@ int skipto(int (*test[]) (struct token *))
 		       "invalid token '%s'",
 		       t->name);
 	else
-		debug(DFATAL "nothing skipped, may be an internal error");
+		die("nothing skipped, may be an internal error");
 	return cnt;
 }
