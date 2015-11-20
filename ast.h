@@ -27,10 +27,10 @@ typedef union ast_node node_t;
 #define AST_SRC(NODE)           ((NODE)->common.src)
 
 struct ast_common {
-    int id;
-    const char *name;
-    node_t *type;
-    struct source src;
+	int id;
+	const char *name;
+	node_t *type;
+	struct source src;
 };
 
 /* Handle carefully for qual/unqual types.
@@ -64,41 +64,41 @@ struct ast_common {
 #define _TYPE_A_STAR(NODE)       ((NODE)->type.u.a.star)
 
 struct ast_type {
-    struct ast_common common;
-    int kind;
-    size_t size;
-    unsigned align;			// align in bytes
-    unsigned rank : 8;
-    unsigned inlined : 1;
-    union {
-        // function
-        struct {
-            node_t **params;
-            unsigned oldstyle : 1;
-	    unsigned varg : 1;
-        }f;
-        // enum/struct/union
-        struct {
-	    const char *tag;
-	    node_t *tsym;
-            node_t **ids;
-            node_t **fields;
-        }s;
-	// array
-        struct {
-	    size_t len;			// array length
-            node_t *assign;
-            unsigned is_const : 1;
-            unsigned is_volatile : 1;
-            unsigned is_restrict : 1;
-            unsigned is_static : 1;
-            unsigned star : 1;
-        }a;
-    }u;
-    struct {
-        union value max;
-        union value min;
-    }limits;
+	struct ast_common common;
+	int kind;
+	size_t size;
+	unsigned align;		// align in bytes
+	unsigned rank:8;
+	unsigned inlined:1;
+	union {
+		// function
+		struct {
+			node_t **params;
+			unsigned oldstyle:1;
+			unsigned varg:1;
+		} f;
+		// enum/struct/union
+		struct {
+			const char *tag;
+			node_t *tsym;
+			node_t **ids;
+			node_t **fields;
+		} s;
+		// array
+		struct {
+			size_t len;	// array length
+			node_t *assign;
+			unsigned is_const:1;
+			unsigned is_volatile:1;
+			unsigned is_restrict:1;
+			unsigned is_static:1;
+			unsigned star:1;
+		} a;
+	} u;
+	struct {
+		union value max;
+		union value min;
+	} limits;
 };
 
 #define FIELD_NAME(NODE)        AST_NAME(NODE)
@@ -108,10 +108,10 @@ struct ast_type {
 #define FIELD_BITSIZE(NODE)     ((NODE)->field.bitsize)
 
 struct ast_field {
-    struct ast_common common;
-    bool isbit;
-    int offset;
-    int bitsize;
+	struct ast_common common;
+	bool isbit;
+	int offset;
+	int bitsize;
 };
 
 #define SYM_SCOPE(NODE)         ((NODE)->symbol.scope)
@@ -129,16 +129,16 @@ struct ast_field {
 #define SYM_VALUE_D(NODE)       (VALUE_D(SYM_VALUE(NODE)))
 
 struct ast_symbol {
-    struct ast_common common;
-    int scope;
-    int sclass;
-    bool defined;
-    union value value;
-    unsigned refs;
-    struct {
-	const char *label;
-	long loff;		// stack offset
-    }x;
+	struct ast_common common;
+	int scope;
+	int sclass;
+	bool defined;
+	union value value;
+	unsigned refs;
+	struct {
+		const char *label;
+		long loff;	// stack offset
+	} x;
 };
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
@@ -149,15 +149,15 @@ struct ast_symbol {
 #define DECL_SVARS(NODE)        ((NODE)->decl.x.svars)
 
 struct ast_decl {
-    struct ast_common common;
-    node_t *sym;		// the symbol
-    node_t *body;		// the initializer expr or func body
-    node_t **exts;
-    node_t **dcls;
-    struct {
-	node_t **lvars;		// function local vars
-	node_t **svars;		// function static vars
-    }x;
+	struct ast_common common;
+	node_t *sym;		// the symbol
+	node_t *body;		// the initializer expr or func body
+	node_t **exts;
+	node_t **dcls;
+	struct {
+		node_t **lvars;	// function local vars
+		node_t **svars;	// function static vars
+	} x;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -175,12 +175,12 @@ struct ast_decl {
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 
 struct ast_expr {
-    struct ast_common common;
-    int op;
-    bool prefix;
-    node_t *sym;
-    node_t *operands[3];
-    node_t **list;
+	struct ast_common common;
+	int op;
+	bool prefix;
+	node_t *sym;
+	node_t *operands[3];
+	node_t **list;
 };
 
 #define STMT_OPERAND(NODE)       ((NODE)->stmt.operands[0])
@@ -193,50 +193,50 @@ struct ast_expr {
 #define STMT_ELSE(NODE)          ((NODE)->stmt.operands[2])
 
 struct ast_stmt {
-    struct ast_common common;
-    node_t *operands[3];
-    node_t **list;
-    long index;
+	struct ast_common common;
+	node_t *operands[3];
+	node_t **list;
+	long index;
 };
 
 union ast_node {
-    struct ast_common common;
-    struct ast_decl   decl;
-    struct ast_expr   expr;
-    struct ast_stmt   stmt;
-    struct ast_type   type;
-    struct ast_field  field;
-    struct ast_symbol symbol;
+	struct ast_common common;
+	struct ast_decl decl;
+	struct ast_expr expr;
+	struct ast_stmt stmt;
+	struct ast_type type;
+	struct ast_field field;
+	struct ast_symbol symbol;
 };
 
 // ast.c
-extern void * alloc_symbol(void);
-extern void * alloc_type(void);
-extern void * alloc_field(void);
+extern void *alloc_symbol(void);
+extern void *alloc_type(void);
+extern void *alloc_field(void);
 
-extern const char *nname(node_t *node);
+extern const char *nname(node_t * node);
 // decl
-extern node_t * ast_decl(int id);
+extern node_t *ast_decl(int id);
 // expr
-extern node_t * ast_expr(int id, node_t *ty, node_t *l, node_t *r);
-extern node_t * ast_uop(int op, node_t *ty, node_t *l);
-extern node_t * ast_bop(int op, node_t *ty, node_t *l, node_t *r);
-extern node_t * ast_conv(node_t *ty, node_t *l);
-extern node_t * ast_inits(node_t *ty, struct source src);
-extern node_t * ast_vinit(void);
+extern node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r);
+extern node_t *ast_uop(int op, node_t * ty, node_t * l);
+extern node_t *ast_bop(int op, node_t * ty, node_t * l, node_t * r);
+extern node_t *ast_conv(node_t * ty, node_t * l);
+extern node_t *ast_inits(node_t * ty, struct source src);
+extern node_t *ast_vinit(void);
 // stmt
-extern node_t * ast_null_stmt(void);
-extern const char * gen_label(void);
-extern const char * gen_tmpname(void);
-extern const char * gen_static_label(const char *name);
+extern node_t *ast_null_stmt(void);
+extern const char *gen_label(void);
+extern const char *gen_tmpname(void);
+extern const char *gen_static_label(const char *name);
 extern const char *gen_compound_label(void);
-extern node_t * ast_if(node_t *cond, node_t *then, node_t *els);
-extern node_t * ast_jump(const char *label);
-extern node_t * ast_label(const char *label);
-extern node_t * ast_return(node_t *node);
-extern node_t * ast_compound(struct source src, node_t **list);
+extern node_t *ast_if(node_t * cond, node_t * then, node_t * els);
+extern node_t *ast_jump(const char *label);
+extern node_t *ast_label(const char *label);
+extern node_t *ast_return(node_t * node);
+extern node_t *ast_compound(struct source src, node_t ** list);
 
-extern node_t * copy_node(node_t *node);
+extern node_t *copy_node(node_t * node);
 
 // kind
 #define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)

@@ -49,7 +49,7 @@
 #define CYAN_BOLD_COLOR     ""
 #define WHITE_BOLD_COLOR    ""
 
-#endif	// CONFIG_COLOR_TERM
+#endif				// CONFIG_COLOR_TERM
 
 #define BLACK(str)    BLACK_COLOR str RESET
 #define RED(str)      RED_COLOR str RESET
@@ -72,15 +72,15 @@
 extern int version;
 
 struct options {
-    int ast_dump : 1;
-    int c : 1;
-    int E : 1;
-    int S : 1;
-    int fleading_underscore : 1;
-    int Wall : 1;
-    int Werror : 1;
-    struct vector *cpp_options;
-    struct vector *ld_options;
+	int ast_dump:1;
+	int c:1;
+	int E:1;
+	int S:1;
+	int fleading_underscore:1;
+	int Wall:1;
+	int Werror:1;
+	struct vector *cpp_options;
+	struct vector *ld_options;
 };
 extern struct options opts;
 

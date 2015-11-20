@@ -7,7 +7,7 @@
 
 #define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
 
-#define FLEX_ARRAY      /* flexible array */
+#define FLEX_ARRAY		/* flexible array */
 
 #define ALIGN_SIZE          (sizeof (long long))
 #define ROUNDUP(x, align)   (((x)+((align)-1))&(~((align)-1)))
@@ -18,10 +18,10 @@
 // wrapper.c
 extern void die(const char *fmt, ...);
 extern void println(const char *fmt, ...);
-extern void * xmalloc(size_t size);
-extern void * xcalloc(size_t count, size_t size);
-extern void * xrealloc(void *ptr, size_t size);
-extern void * zmalloc(size_t size);
+extern void *xmalloc(size_t size);
+extern void *xcalloc(size_t count, size_t size);
+extern void *xrealloc(void *ptr, size_t size);
+extern void *zmalloc(size_t size);
 
 // string.c
 extern unsigned strhash(const char *s);

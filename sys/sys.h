@@ -20,7 +20,7 @@ extern int callsys(const char *file, char **argv);
 extern int runproc(int (*proc) (void *), void *context);
 
 // time
-extern void set_localtime(const time_t *timep, struct tm *result);
+extern void set_localtime(const time_t * timep, struct tm *result);
 
 extern char *ld[];
 extern char *as[];
