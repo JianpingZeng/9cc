@@ -7,12 +7,12 @@ static node_t *ptr_decl(void);
 static node_t *enum_decl(void);
 static node_t *struct_decl(void);
 
-typedef node_t *declfun_p(struct token *id, node_t * ty, int sclass);
+typedef node_t *declfun_p(struct token *id, node_t * ty, int sclass, int fspec);
 static struct vector *decls(declfun_p * dcl);
-static node_t *paramdecl(struct token *id, node_t * ty, int sclass);
-static node_t *globaldecl(struct token *id, node_t * ty, int sclass);
-static node_t *localdecl(struct token *id, node_t * ty, int sclass);
-static node_t *funcdef(struct token *id, node_t * ty, int sclass);
+static node_t *paramdecl(struct token *id, node_t * ty, int sclass, int fspec);
+static node_t *globaldecl(struct token *id, node_t * ty, int sclass, int fspec);
+static node_t *localdecl(struct token *id, node_t * ty, int sclass, int fspec);
+static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
 static void fields(node_t * sty);
 
 static void ensure_decl(node_t * decl, int sclass, int kind);
@@ -358,7 +358,7 @@ static node_t **parameters(node_t * ftype, int *params)
 				first_void = true;
 
 			SAVE_ERRORS;
-			sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass));
+			sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass), fspec);
 			if (NO_ERROR && !first_void)
 				vec_push(v, sym);
 			if (token->id != ',')
@@ -382,7 +382,7 @@ static node_t **parameters(node_t * ftype, int *params)
 		struct vector *v = vec_new();
 		for (;;) {
 			if (token->id == ID)
-				vec_push(v, paramdecl(token, inttype, 0));
+				vec_push(v, paramdecl(token, inttype, 0, 0));
 			expect(ID);
 			if (token->id != ',')
 				break;
@@ -935,11 +935,10 @@ bool istypename(struct token * t)
 	    (t->id == ID && istypedef(t->name));
 }
 
-static node_t *make_decl(struct token *id, node_t * ty, int sclass,
-			 declfun_p * dcl)
+static node_t *make_decl(struct token *id, node_t * ty, int sclass, int fspec, declfun_p * dcl)
 {
 	node_t *decl;
-	node_t *sym = dcl(id, ty, sclass);
+	node_t *sym = dcl(id, ty, sclass, fspec);
 	if (sclass == TYPEDEF)
 		decl = ast_decl(TYPEDEF_DECL);
 	else if (isfunc(ty))
@@ -975,7 +974,7 @@ static struct vector *decls(declfun_p * dcl)
 		if (level == GLOBAL) {
 			if (params) {
 				if (firstfuncdef(ty)) {
-					vec_push(v, funcdef(id, ty, sclass));
+					vec_push(v, funcdef(id, ty, sclass, fspec));
 					return v;
 				} else {
 					if (SCOPE > PARAM)
@@ -996,7 +995,7 @@ static struct vector *decls(declfun_p * dcl)
 					kind = PARAM;
 				else
 					cc_assert(0);
-				node_t *decl = make_decl(id, ty, sclass, dcl);
+				node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
 				if (token->id == '=')
 					decl_initializer(decl, sclass, kind);
 				ensure_decl(decl, sclass, kind);
@@ -1094,7 +1093,7 @@ node_t *make_localvar(const char *name, node_t * ty, int sclass)
 {
 	struct token *id = new_token(&(struct token){.id = ID,.name =
 				     name,.kind = ID,.src = source });
-	node_t *decl = make_decl(id, ty, sclass, localdecl);
+	node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
 	return decl;
 }
 
@@ -1267,7 +1266,17 @@ static void ensure_array(node_t * atype, struct source src, int level)
 	set_typesize(atype);
 }
 
-static node_t *paramdecl(struct token *t, node_t * ty, int sclass)
+static void ensure_inline(node_t *ty, int fspec, struct source src)
+{
+	if (fspec == INLINE) {
+		if (isfunc(ty))
+			TYPE_INLINE(ty) = 1;
+		else
+			errorf(src, "'inline' can only appear on functions");
+	}
+}
+
+static node_t *paramdecl(struct token *t, node_t * ty, int sclass, int fspec)
 {
 	node_t *sym = NULL;
 	bool prototype = PARAM_STYLE(sclass);
@@ -1327,6 +1336,9 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass)
 		errorf(src,
 		       "'void' must be the first and only parameter if specified");
 
+	// check inline after conversion (decay)
+	ensure_inline(ty, fspec, src);
+	
 	if (id) {
 		sym = lookup(id, identifiers);
 		if (sym && SYM_SCOPE(sym) == SCOPE)
@@ -1343,7 +1355,7 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass)
 	return sym;
 }
 
-static node_t *localdecl(struct token *t, node_t * ty, int sclass)
+static node_t *localdecl(struct token *t, node_t * ty, int sclass, int fspec)
 {
 	node_t *sym = NULL;
 	const char *id = t->name;
@@ -1365,6 +1377,8 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass)
 		ensure_array(ty, src, LOCAL);
 	}
 
+	ensure_inline(ty, fspec, src);
+
 	sym = lookup(id, identifiers);
 	if (sym && currentscope(sym)) {
 		redefinition_error(src, sym);
@@ -1379,7 +1393,7 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass)
 	return sym;
 }
 
-static node_t *globaldecl(struct token *t, node_t * ty, int sclass)
+static node_t *globaldecl(struct token *t, node_t * ty, int sclass, int fspec)
 {
 	node_t *sym = NULL;
 	const char *id = t->name;
@@ -1401,6 +1415,8 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass)
 	} else if (isarray(ty)) {
 		ensure_array(ty, src, GLOBAL);
 	}
+
+	ensure_inline(ty, fspec, src);
 
 	sym = lookup(id, identifiers);
 	if (!sym || SYM_SCOPE(sym) != SCOPE) {
@@ -1426,7 +1442,7 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass)
 	return sym;
 }
 
-static node_t *funcdef(struct token *t, node_t * ftype, int sclass)
+static node_t *funcdef(struct token *t, node_t * ftype, int sclass, int fspec)
 {
 	node_t *decl = ast_decl(FUNC_DECL);
 	const char *id = t->name;
@@ -1439,6 +1455,7 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass)
 		error("invalid storage class specifier '%s'", id2s(sclass));
 		sclass = 0;
 	}
+	ensure_inline(ftype, fspec, src);
 	// install symbol first for backward reference
 	if (id) {
 		node_t *sym = lookup(id, identifiers);

@@ -23,11 +23,14 @@ static void print_ty(node_t * ty)
 		if (isfunc(ty) || isptr(ty) || isarray(ty))
 			putf(RED_BOLD("'%s' "), TYPE_NAME(ty));
 		putf(GREEN("'%s' "), type2s(ty));
-		if (isarray(ty) || isstruct(ty) || isunion(ty))
+		if (isarray(ty) || isstruct(ty) || isunion(ty)) {
 			putf(YELLOW("<size=%ld> "), TYPE_SIZE(ty));
-		else if (isfunc(ty))
+		} else if (isfunc(ty)) {
 			putf("%s ",
 			     TYPE_OLDSTYLE(ty) ? "oldstyle" : "prototype");
+			if (TYPE_INLINE(ty))
+				putf("inline ");
+		}
 	}
 }
 
