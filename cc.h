@@ -252,7 +252,7 @@ extern bool eqtype(node_t * ty1, node_t * ty2);
 extern bool eqarith(node_t * ty1, node_t * ty2);
 extern node_t *lookup_typedef(const char *id);
 extern bool istypedef(const char *id);
-extern node_t *new_field(char *id);
+extern node_t *new_field(void);
 extern node_t *array_type(node_t * ty);
 extern node_t *ptr_type(node_t * ty);
 extern node_t *func_type(void);
@@ -312,7 +312,6 @@ extern bool isrestrict(node_t * ty);
 #define TYPE_OLDSTYLE(ty)        _TYPE_OLDSTYLE(unqual(ty))
 #define TYPE_VARG(ty)            _TYPE_VARG(unqual(ty))
 #define TYPE_TSYM(ty)            _TYPE_TSYM(unqual(ty))
-#define TYPE_IDS(ty)             _TYPE_IDS(unqual(ty))
 #define TYPE_FIELDS(ty)          _TYPE_FIELDS(unqual(ty))
 #define TYPE_LIMITS_MAX(ty)      _TYPE_LIMITS_MAX(unpack(unqual(ty)))
 #define TYPE_LIMITS_MIN(ty)      _TYPE_LIMITS_MIN(unpack(unqual(ty)))

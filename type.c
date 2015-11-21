@@ -290,11 +290,9 @@ bool istypedef(const char *id)
 	return ty != NULL;
 }
 
-node_t *new_field(char *id)
+node_t *new_field(void)
 {
-	node_t *field = alloc_field();
-	FIELD_NAME(field) = id;
-	return field;
+	return alloc_field();
 }
 
 node_t *array_type(node_t * type)

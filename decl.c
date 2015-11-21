@@ -4,8 +4,9 @@ static void abstract_declarator(node_t ** ty);
 static void declarator(node_t ** ty, struct token **id, int *params);
 static void param_declarator(node_t ** ty, struct token **id);
 static node_t *ptr_decl(void);
-static node_t *enum_decl(void);
-static node_t *struct_decl(void);
+static node_t *tag_decl(void);
+static void ids(node_t *sym);
+static void fields(node_t * sym);
 
 typedef node_t *declfun_p(struct token *id, node_t * ty, int sclass, int fspec);
 static struct vector *decls(declfun_p * dcl);
@@ -13,8 +14,8 @@ static node_t *paramdecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *globaldecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *localdecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
-static void fields(node_t * sty);
 
+static void ensure_field(node_t * field, node_t * sty, struct vector *v, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
 static void ensure_func(node_t * ftype, struct source src, const char *name,
@@ -108,14 +109,10 @@ static node_t *specifiers(int *sclass, int *fspec)
 			break;
 
 		case ENUM:
-			p = &type;
-			basety = enum_decl();
-			break;
-
 		case STRUCT:
 		case UNION:
 			p = &type;
-			basety = struct_decl();
+			basety = tag_decl();
 			break;
 
 		case LONG:
@@ -516,75 +513,13 @@ static node_t *abstract_func_or_array(void)
 	return ty;
 }
 
-static node_t *enum_decl(void)
-{
-	node_t *sym = NULL;
-	const char *id = NULL;
-	struct source src = source;
-	int follow[] = { INT, CONST, STATIC, IF, 0 };
-
-	expect(ENUM);
-	if (token->id == ID) {
-		id = token->name;
-		expect(ID);
-	}
-	if (token->id == '{') {
-		int val = 0;
-		struct vector *v = vec_new();
-		expect('{');
-		sym = tag_type(ENUM, id, src);
-		if (token->id != ID)
-			error("expect identifier");
-		while (token->id == ID) {
-			node_t *s = lookup(token->name, identifiers);
-			if (s && currentscope(s))
-				redefinition_error(source, s);
-
-			s = install(token->name, &identifiers, SCOPE);
-			SYM_TYPE(s) = SYM_TYPE(sym);
-			AST_SRC(s) = source;
-			SYM_SCLASS(s) = ENUM;
-			expect(ID);
-			if (token->id == '=') {
-				expect('=');
-				val = intexpr();
-			}
-			SYM_VALUE_U(s) = val++;
-			vec_push(v, s);
-			if (token->id != ',')
-				break;
-			expect(',');
-		}
-		match('}', follow);
-		TYPE_IDS(SYM_TYPE(sym)) = (node_t **) vtoa(v);
-		SYM_DEFINED(sym) = true;
-	} else if (id) {
-		sym = lookup(id, tags);
-		if (sym) {
-			if (currentscope(sym) && !isenum(SYM_TYPE(sym)))
-				errorf(src,
-				       "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u:%u",
-				       id2s(ENUM), id, type2s(SYM_TYPE(sym)),
-				       AST_SRC(sym).file, AST_SRC(sym).line,
-				       AST_SRC(sym).column);
-		} else {
-			sym = tag_type(ENUM, id, src);
-		}
-	} else {
-		error("expected identifier or '{'");
-		sym = tag_type(ENUM, NULL, src);
-	}
-
-	return SYM_TYPE(sym);
-}
-
-static node_t *struct_decl(void)
+static node_t *tag_decl(void)
 {
 	int t = token->id;
 	const char *id = NULL;
 	node_t *sym = NULL;
 	struct source src = source;
-	int follow[] = { INT, CONST, STATIC, IF, '[', 0 };
+	int follow[] = {INT, CONST, STATIC, IF, 0};
 
 	expect(t);
 	if (token->id == ID) {
@@ -594,10 +529,12 @@ static node_t *struct_decl(void)
 	if (token->id == '{') {
 		expect('{');
 		sym = tag_type(t, id, src);
-		fields(SYM_TYPE(sym));
-		SYM_DEFINED(sym) = true;
-		set_typesize(SYM_TYPE(sym));
+		if (t == ENUM)
+			ids(sym);
+		else
+			fields(sym);
 		match('}', follow);
+		SYM_DEFINED(sym) = true;
 	} else if (id) {
 		sym = lookup(id, tags);
 		if (sym) {
@@ -605,7 +542,8 @@ static node_t *struct_decl(void)
 				errorf(src,
 				       "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u:%u",
 				       id2s(t), id, type2s(SYM_TYPE(sym)),
-				       AST_SRC(sym).file, AST_SRC(sym).line,
+				       AST_SRC(sym).file,
+				       AST_SRC(sym).line,
 				       AST_SRC(sym).column);
 		} else {
 			sym = tag_type(t, id, src);
@@ -618,8 +556,100 @@ static node_t *struct_decl(void)
 	return SYM_TYPE(sym);
 }
 
-static void ensure_field(node_t * field, node_t * sty, struct vector *v,
-			 bool last)
+static void ids(node_t *sym)
+{
+        int val = 0;
+	struct vector *v = vec_new();
+	if (token->id != ID)
+		error("expect identifier");
+	while (token->id == ID) {
+		node_t *s = lookup(token->name, identifiers);
+		if (s && currentscope(s))
+			redefinition_error(source, s);
+
+		s = install(token->name, &identifiers, SCOPE);
+		SYM_TYPE(s) = SYM_TYPE(sym);
+		AST_SRC(s) = source;
+		SYM_SCLASS(s) = ENUM;
+		expect(ID);
+		if (token->id == '=') {
+			expect('=');
+			val = intexpr();
+		}
+		SYM_VALUE_U(s) = val++;
+		vec_push(v, s);
+		if (token->id != ',')
+			break;
+		expect(',');
+	}
+}
+
+static void fields(node_t * sym)
+{
+	int follow[] = { INT, CONST, '}', IF, 0 };
+	node_t *sty = SYM_TYPE(sym);
+
+#define FIRST_FIELD(t)    (istypename(t) || (t)->kind == STATIC)
+
+	if (!FIRST_FIELD(token))
+		error("expect type name or qualifiers");
+
+	struct vector *v = vec_new();
+	while (FIRST_FIELD(token)) {
+		node_t *basety = specifiers(NULL, NULL);
+
+		for (;;) {
+			node_t *field = new_field();
+			if (token->id == ':') {
+				AST_SRC(field) = source;
+				expect(':');
+				FIELD_BITSIZE(field) = intexpr();
+				FIELD_TYPE(field) = basety;
+				FIELD_ISBIT(field) = true;
+			} else {
+				node_t *ty = NULL;
+				struct token *id = NULL;
+				declarator(&ty, &id, NULL);
+				attach_type(&ty, basety);
+				if (token->id == ':') {
+					AST_SRC(field) = source;
+					expect(':');
+					FIELD_BITSIZE(field) = intexpr();
+					FIELD_ISBIT(field) = true;
+				}
+				FIELD_TYPE(field) = ty;
+				if (id) {
+					for (int i = 0; i < vec_len(v); i++) {
+						node_t *f = vec_at(v, i);
+						if (FIELD_NAME(f)
+						    && !strcmp(FIELD_NAME(f),
+							       id->name)) {
+							errorf(id->src,
+							       "redefinition of '%s'",
+							       id->name);
+							break;
+						}
+					}
+					FIELD_NAME(field) = id->name;
+					AST_SRC(field) = id->src;
+				}
+			}
+
+			vec_push(v, field);
+			if (token->id != ',')
+				break;
+			expect(',');
+			ensure_field(field, sty, v, false);
+		}
+
+		match(';', follow);
+		ensure_field(vec_tail(v), sty, v, !FIRST_FIELD(token));
+	}
+	TYPE_FIELDS(sty) = (node_t **) vtoa(v);
+	set_typesize(sty);
+}
+
+static void ensure_field(node_t * field, node_t * sty, struct vector *v, bool last)
 {
 	const char *name = FIELD_NAME(field);
 	node_t *ty = FIELD_TYPE(field);
@@ -689,66 +719,6 @@ static void ensure_field(node_t * field, node_t * sty, struct vector *v,
 	} else if (isfunc(ty)) {
 		errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
 	}
-}
-
-static void fields(node_t * sty)
-{
-	int follow[] = { INT, CONST, '}', IF, 0 };
-
-#define FIRST_FIELD(t)    (istypename(t) || (t)->kind == STATIC)
-
-	struct vector *v = vec_new();
-	while (FIRST_FIELD(token)) {
-		node_t *basety = specifiers(NULL, NULL);
-
-		for (;;) {
-			node_t *field = new_field(NULL);
-			if (token->id == ':') {
-				AST_SRC(field) = source;
-				expect(':');
-				FIELD_BITSIZE(field) = intexpr();
-				FIELD_TYPE(field) = basety;
-				FIELD_ISBIT(field) = true;
-			} else {
-				node_t *ty = NULL;
-				struct token *id = NULL;
-				declarator(&ty, &id, NULL);
-				attach_type(&ty, basety);
-				if (token->id == ':') {
-					AST_SRC(field) = source;
-					expect(':');
-					FIELD_BITSIZE(field) = intexpr();
-					FIELD_ISBIT(field) = true;
-				}
-				FIELD_TYPE(field) = ty;
-				if (id) {
-					for (int i = 0; i < vec_len(v); i++) {
-						node_t *f = vec_at(v, i);
-						if (FIELD_NAME(f)
-						    && !strcmp(FIELD_NAME(f),
-							       id->name)) {
-							errorf(id->src,
-							       "redefinition of '%s'",
-							       id->name);
-							break;
-						}
-					}
-					FIELD_NAME(field) = id->name;
-					AST_SRC(field) = id->src;
-				}
-			}
-
-			vec_push(v, field);
-			if (token->id != ',')
-				break;
-			expect(',');
-			ensure_field(field, sty, v, false);
-		}
-
-		match(';', follow);
-		ensure_field(vec_tail(v), sty, v, !FIRST_FIELD(token));
-	}
-	TYPE_FIELDS(sty) = (node_t **) vtoa(v);
 }
 
 static node_t *ptr_decl(void)

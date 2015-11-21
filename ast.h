@@ -52,7 +52,6 @@ struct ast_common {
 #define _TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
 #define _TYPE_VARG(NODE)         ((NODE)->type.u.f.varg)
 #define _TYPE_TSYM(NODE)         ((NODE)->type.u.s.tsym)
-#define _TYPE_IDS(NODE)          ((NODE)->type.u.s.ids)
 #define _TYPE_FIELDS(NODE)       ((NODE)->type.u.s.fields)
 #define _TYPE_LIMITS_MAX(NODE)   ((NODE)->type.limits.max)
 #define _TYPE_LIMITS_MIN(NODE)   ((NODE)->type.limits.min)
@@ -81,7 +80,6 @@ struct ast_type {
 		struct {
 			const char *tag;
 			node_t *tsym;
-			node_t **ids;
 			node_t **fields;
 		} s;
 		// array
