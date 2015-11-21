@@ -584,6 +584,14 @@ static void ids(node_t *sym)
 	}
 }
 
+static void bitfield(node_t *field)
+{
+	AST_SRC(field) = source;
+	expect(':');
+	FIELD_BITSIZE(field) = intexpr();
+	FIELD_ISBIT(field) = true;
+}
+
 static void fields(node_t * sym)
 {
 	int follow[] = { INT, CONST, '}', IF, 0 };
@@ -601,22 +609,15 @@ static void fields(node_t * sym)
 		for (;;) {
 			node_t *field = new_field();
 			if (token->id == ':') {
-				AST_SRC(field) = source;
-				expect(':');
-				FIELD_BITSIZE(field) = intexpr();
+				bitfield(field);
 				FIELD_TYPE(field) = basety;
-				FIELD_ISBIT(field) = true;
 			} else {
 				node_t *ty = NULL;
 				struct token *id = NULL;
 				declarator(&ty, &id, NULL);
 				attach_type(&ty, basety);
-				if (token->id == ':') {
-					AST_SRC(field) = source;
-					expect(':');
-					FIELD_BITSIZE(field) = intexpr();
-					FIELD_ISBIT(field) = true;
-				}
+				if (token->id == ':')
+					bitfield(field);
 				FIELD_TYPE(field) = ty;
 				if (id) {
 					for (int i = 0; i < vec_len(v); i++) {
