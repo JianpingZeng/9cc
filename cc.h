@@ -218,13 +218,13 @@ extern struct map *labels;
 extern node_t *current_ftype;
 extern const char *current_fname;
 
-extern bool istypename(struct token *t);
 extern node_t **declaration(void);
 extern node_t *translation_unit(void);
 extern node_t *typename(void);
 extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
+extern bool first_typename(struct token *t);
 extern node_t *define_tmpvar(node_t * ty);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
 extern node_t *define_localvar(const char *name, node_t * ty, int sclass,

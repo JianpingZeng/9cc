@@ -881,15 +881,10 @@ struct token *lookahead(void)
 
 void expect(int t)
 {
-    if (token->id == t) {
+    if (token->id == t)
         gettok();
-    } else {
-        if (token->id == EOI)
-            error("expect token '%s' at the end", id2s(t));
-        else
-            error("expect token '%s' before '%s'", id2s(t),
-                  token->name);
-    }
+    else
+        error("expect token '%s'", id2s(t));
 }
 
 void match(int t, int follow[])

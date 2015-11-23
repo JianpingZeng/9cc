@@ -1047,7 +1047,7 @@ static node_t *primary_expr(void)
         expect(t);
         break;
     case '(':
-        if (istypename(lookahead())) {
+        if (first_typename(lookahead())) {
             node_t *ty = cast_type();
             ret = compound_literal(ty);
         } else {
@@ -1286,7 +1286,7 @@ static node_t *sizeof_expr(void)
     node_t *n = NULL;
     node_t *ty = NULL;
 
-    if (token->id == '(' && istypename(ahead)) {
+    if (token->id == '(' && first_typename(ahead)) {
         ty = cast_type();
         if (token->id == '{') {
             node_t *node = compound_literal(ty);
@@ -1484,7 +1484,7 @@ static node_t *cast_expr(void)
     struct token *ahead = lookahead();
     struct source src = source;
 
-    if (token->id == '(' && istypename(ahead)) {
+    if (token->id == '(' && first_typename(ahead)) {
         node_t *ty = cast_type();
         if (token->id == '{') {
             node_t *node = compound_literal(ty);

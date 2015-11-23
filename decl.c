@@ -18,8 +18,7 @@ static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
 static void ensure_field(node_t * field, size_t total, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
-static void ensure_func(node_t * ftype, struct source src, const char *name,
-                        int level);
+static void ensure_func(node_t * ftype, struct source src, const char *name, int level);
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
     (((prototype) & 0x01) << 30) |                      \
@@ -580,7 +579,7 @@ static void bitfield(node_t *field)
 
 static inline bool first_field(struct token *t)
 {
-    return istypename(t) || t->kind == STATIC;
+    return first_typename(t) || t->kind == STATIC;
 }
 
 static void fields(node_t * sym)
@@ -588,56 +587,58 @@ static void fields(node_t * sym)
     int follow[] = { INT, CONST, '}', IF, 0 };
     node_t *sty = SYM_TYPE(sym);
 
-    if (!first_field(token))
-        error("expect type name or qualifiers");
+    if (first_field(token)) {
+        struct vector *v = vec_new();
+        do {
+            node_t *basety = specifiers(NULL, NULL);
 
-    struct vector *v = vec_new();
-    while (first_field(token)) {
-        node_t *basety = specifiers(NULL, NULL);
-
-        for (;;) {
-            node_t *field = new_field();
-            if (token->id == ':') {
-                bitfield(field);
-                FIELD_TYPE(field) = basety;
-            } else {
-                node_t *ty = NULL;
-                struct token *id = NULL;
-                declarator(&ty, &id, NULL);
-                attach_type(&ty, basety);
-                if (token->id == ':')
+            for (;;) {
+                node_t *field = new_field();
+                if (token->id == ':') {
                     bitfield(field);
-                FIELD_TYPE(field) = ty;
-                if (id) {
-                    for (int i = 0; i < vec_len(v); i++) {
-                        node_t *f = vec_at(v, i);
-                        if (FIELD_NAME(f)
-                            && !strcmp(FIELD_NAME(f),
-                                       id->name)) {
-                            errorf(id->src,
-                                   "redefinition of '%s'",
-                                   id->name);
-                            break;
+                    FIELD_TYPE(field) = basety;
+                } else {
+                    node_t *ty = NULL;
+                    struct token *id = NULL;
+                    declarator(&ty, &id, NULL);
+                    attach_type(&ty, basety);
+                    if (token->id == ':')
+                        bitfield(field);
+                    FIELD_TYPE(field) = ty;
+                    if (id) {
+                        for (int i = 0; i < vec_len(v); i++) {
+                            node_t *f = vec_at(v, i);
+                            if (FIELD_NAME(f)
+                                && !strcmp(FIELD_NAME(f),
+                                           id->name)) {
+                                errorf(id->src,
+                                       "redefinition of '%s'",
+                                       id->name);
+                                break;
+                            }
                         }
+                        FIELD_NAME(field) = id->name;
+                        AST_SRC(field) = id->src;
                     }
-                    FIELD_NAME(field) = id->name;
-                    AST_SRC(field) = id->src;
                 }
+
+                vec_push(v, field);
+                if (token->id != ',')
+                    break;
+                expect(',');
+                ensure_field(field, vec_len(v), false);
             }
 
-            vec_push(v, field);
-            if (token->id != ',')
-                break;
-            expect(',');
-            ensure_field(field, vec_len(v), false);
-        }
+            match(';', follow);
+            ensure_field(vec_tail(v), vec_len(v),
+                         isstruct(sty) && !first_field(token));
+        } while (first_field(token));
 
-        match(';', follow);
-        ensure_field(vec_tail(v), vec_len(v),
-                     isstruct(sty) && !first_field(token));
+        TYPE_FIELDS(sty) = (node_t **) vtoa(v);
+        set_typesize(sty);
+    } else {
+        error("expect type name or qualifiers");
     }
-    TYPE_FIELDS(sty) = (node_t **) vtoa(v);
-    set_typesize(sty);
 }
 
 static void ensure_bitfield(node_t *field)
@@ -838,9 +839,10 @@ static void abstract_declarator(node_t ** ty)
 
 static void declarator(node_t ** ty, struct token **id, int *params)
 {
-    cc_assert(ty && id);
     int follow[] = { ',', '=', IF, 0 };
 
+    cc_assert(ty && id);
+    
     if (token->id == '*') {
         node_t *pty = ptr_decl();
         prepend_type(ty, pty);
@@ -868,23 +870,21 @@ static void declarator(node_t ** ty, struct token **id, int *params)
         }
         *ty = rtype;
     } else {
-        error("expect identifier or '(' before '%s'", token->name);
+        error("expect identifier or '('");
     }
 }
 
-static bool firstfuncdef(node_t * ty)
+static bool first_funcdef(node_t * ty)
 {
     bool prototype = token->id == '{';
-    bool oldstyle = (istypename(token) || token->kind == STATIC)
-        && TYPE_OLDSTYLE(ty) && TYPE_PARAMS(ty);
+    bool oldstyle = first_decl(token) && TYPE_OLDSTYLE(ty) && TYPE_PARAMS(ty);
 
     return isfunc(ty) && (prototype || oldstyle);
 }
 
 int first_decl(struct token *t)
 {
-    return t->kind == STATIC || t->kind == INT || t->kind == CONST
-        || (t->id == ID && istypedef(t->name));
+    return t->kind == STATIC || first_typename(t);
 }
 
 int first_stmt(struct token *t)
@@ -897,9 +897,9 @@ int first_expr(struct token *t)
     return t->kind == ID;
 }
 
-bool istypename(struct token * t)
+bool first_typename(struct token * t)
 {
-    return (t->kind == INT || t->kind == CONST) ||
+    return t->kind == INT || t->kind == CONST ||
         (t->id == ID && istypedef(t->name));
 }
 
@@ -941,7 +941,7 @@ static struct vector *decls(declfun_p * dcl)
 
         if (level == GLOBAL) {
             if (params) {
-                if (firstfuncdef(ty)) {
+                if (first_funcdef(ty)) {
                     vec_push(v, funcdef(id, ty, sclass, fspec));
                     return v;
                 } else {
