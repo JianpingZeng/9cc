@@ -46,3 +46,6 @@ stage3
 TAGS
 .etags_update
 .clang_complete
+
+# cscope
+cscope.*

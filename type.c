@@ -640,7 +640,8 @@ bool isincomplete(node_t * ty)
 		return TYPE_SIZE(ty) == 0;
 	else if (isenum(ty) || isstruct(ty) || isunion(ty))
 		return !SYM_DEFINED(TYPE_TSYM(ty));
-	return false;
+	else
+		return false;
 }
 
 node_t *unpack(node_t * ty)
