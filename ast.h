@@ -234,25 +234,25 @@ extern node_t *ast_compound(struct source src, node_t ** list);
 extern node_t *copy_node(node_t * node);
 
 // kind
-#define isexpr(n)           (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
-#define isdecl(n)           (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)
-#define isstmt(n)           (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
-#define istype(n)           (AST_ID(n) == TYPE_NODE)
-#define isfield(n)          (AST_ID(n) == FIELD_NODE)
-#define issymbol(n)         (AST_ID(n) == SYMBOL_NODE)
+#define isexpr(n)   (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
+#define isdecl(n)   (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)
+#define isstmt(n)   (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
+#define istype(n)   (AST_ID(n) == TYPE_NODE)
+#define isfield(n)  (AST_ID(n) == FIELD_NODE)
+#define issymbol(n) (AST_ID(n) == SYMBOL_NODE)
 
 // decl
-#define istudecl(n)         (AST_ID(n) == TU_DECL)
-#define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
-#define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n))
-#define isvardecl(n)        (AST_ID(n) == VAR_DECL)
+#define istudecl(n)    (AST_ID(n) == TU_DECL)
+#define isfuncdecl(n)  (AST_ID(n) == FUNC_DECL)
+#define isfuncdef(n)   (isfuncdecl(n) && DECL_BODY(n))
+#define isvardecl(n)   (AST_ID(n) == VAR_DECL)
 
 // expr
-#define isiliteral(n)       (AST_ID(n) == INTEGER_LITERAL)
-#define isfliteral(n)       (AST_ID(n) == FLOAT_LITERAL)
-#define issliteral(n)       (AST_ID(n) == STRING_LITERAL)
+#define isiliteral(n)  (AST_ID(n) == INTEGER_LITERAL)
+#define isfliteral(n)  (AST_ID(n) == FLOAT_LITERAL)
+#define issliteral(n)  (AST_ID(n) == STRING_LITERAL)
 
 // stmt
-#define isnullstmt(n)       (AST_ID(n) == NULL_STMT)
+#define isnullstmt(n)  (AST_ID(n) == NULL_STMT)
 
 #endif
