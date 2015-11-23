@@ -222,9 +222,9 @@ extern bool istypename(struct token *t);
 extern node_t **declaration(void);
 extern node_t *translation_unit(void);
 extern node_t *typename(void);
-extern int firstdecl(struct token *t);
-extern int firststmt(struct token *t);
-extern int firstexpr(struct token *t);
+extern int first_decl(struct token *t);
+extern int first_stmt(struct token *t);
+extern int first_expr(struct token *t);
 extern node_t *define_tmpvar(node_t * ty);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
 extern node_t *define_localvar(const char *name, node_t * ty, int sclass,

@@ -54,7 +54,7 @@ static node_t *expr_stmt(void)
 
 	if (token->id == ';')
 		ret = ast_null_stmt();
-	else if (firstexpr(token))
+	else if (first_expr(token))
 		ret = reduce(expression());
 	else
 		error("missing statement before '%s'", token->name);
@@ -203,7 +203,7 @@ static node_t *for_stmt(void)
 	if (token->id == ';') {
 		expect(';');
 	} else {
-		if (firstdecl(token)) {
+		if (first_decl(token)) {
 			// declaration
 			decl = declaration();
 		} else {
@@ -566,8 +566,8 @@ static node_t *do_compound_stmt(bool func)
 		// add predefined identifiers
 		predefines = predefined_identifiers();
 
-	while (firstdecl(token) || firstexpr(token) || firststmt(token)) {
-		if (firstdecl(token))
+	while (first_decl(token) || first_expr(token) || first_stmt(token)) {
+		if (first_decl(token))
 			// declaration
 			vec_add_array(v, (void **)declaration());
 		else

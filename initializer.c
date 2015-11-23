@@ -1,7 +1,5 @@
 #include "cc.h"
 
-#define FIRST_INIT(t) (t->id == '[' || t->id == '.' || t->id == '{' || firstexpr(t))
-
 static void struct_init(node_t * ty, bool brace, struct vector *v);
 static void array_init(node_t * ty, bool brace, struct vector *v);
 static void scalar_init(node_t * ty, struct vector *v);
@@ -10,6 +8,11 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
 static node_t *initializer(node_t * ty);
 
 #define INIT_OVERRIDE    "initializer overrides prior initialization"
+
+static inline bool first_init(struct token *t)
+{
+	return t->id == '[' || t->id == '.' || t->id == '{' || first_expr(t);
+}
 
 static void eat_initializer(void)
 {
@@ -38,7 +41,7 @@ static void eat_initlist(void)
 			break;
 
 		expect(',');
-	} while (FIRST_INIT(token));
+	} while (first_init(token));
 }
 
 static bool is_string(node_t * ty)
@@ -346,7 +349,7 @@ static node_t *initializer(node_t * ty)
 {
 	if (token->id == '{') {
 		return initializer_list(ty);
-	} else if (firstexpr(token)) {
+	} else if (first_expr(token)) {
 		return assign_expr();
 	} else {
 		error("expect '{' or assignment expression");
@@ -361,7 +364,7 @@ node_t *initializer_list(node_t * ty)
 	struct vector *v = vec_new();
 
 	expect('{');
-	if (FIRST_INIT(token)) {
+	if (first_init(token)) {
 		if (ty) {
 			if (isstruct(ty) || isunion(ty))
 				struct_init(ty, true, v);
@@ -373,7 +376,7 @@ node_t *initializer_list(node_t * ty)
 			if (token->id == ',')
 				expect(',');
 
-			if (FIRST_INIT(token)) {
+			if (first_init(token)) {
 				warning
 				    ("excess elements in %s initializer at '%s'",
 				     TYPE_NAME(ty), token->name);

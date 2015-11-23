@@ -1113,7 +1113,7 @@ static node_t **argument_expr_list(void)
 {
 	node_t **args = NULL;
 
-	if (firstexpr(token)) {
+	if (first_expr(token)) {
 		struct vector *v = vec_new();
 		for (;;) {
 			vec_push_safe(v, assign_expr());

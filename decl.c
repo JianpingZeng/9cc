@@ -15,7 +15,7 @@ static node_t *globaldecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *localdecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
 
-static void ensure_field(node_t * field, node_t * sty, struct vector *v, bool last);
+static void ensure_field(node_t * field, size_t total, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
 static void ensure_func(node_t * ftype, struct source src, const char *name,
@@ -334,7 +334,7 @@ static node_t **parameters(node_t * ftype, int *params)
 	if (SCOPE > PARAM)
 		enter_scope();
 
-	if (firstdecl(token)) {
+	if (first_decl(token)) {
 		// prototype
 		struct vector *v = vec_new();
 		bool first_void = false;
@@ -424,7 +424,7 @@ static node_t *arrays(bool abstract)
 				expect('*');
 				TYPE_A_STAR(atype) = 1;
 			}
-		} else if (firstexpr(token)) {
+		} else if (first_expr(token)) {
 			TYPE_A_ASSIGN(atype) = assign_expr();
 		}
 	} else {
@@ -448,7 +448,7 @@ static node_t *arrays(bool abstract)
 					expect('*');
 					TYPE_A_STAR(atype) = 1;
 				}
-			} else if (firstexpr(token)) {
+			} else if (first_expr(token)) {
 				TYPE_A_ASSIGN(atype) = assign_expr();
 			}
 		} else if (token->id == '*') {
@@ -458,7 +458,7 @@ static node_t *arrays(bool abstract)
 				expect('*');
 				TYPE_A_STAR(atype) = 1;
 			}
-		} else if (firstexpr(token)) {
+		} else if (first_expr(token)) {
 			TYPE_A_ASSIGN(atype) = assign_expr();
 		}
 	}
@@ -592,18 +592,21 @@ static void bitfield(node_t *field)
 	FIELD_ISBIT(field) = true;
 }
 
+static inline bool first_field(struct token *t)
+{
+	return istypename(t) || t->kind == STATIC;
+}
+
 static void fields(node_t * sym)
 {
 	int follow[] = { INT, CONST, '}', IF, 0 };
 	node_t *sty = SYM_TYPE(sym);
 
-#define FIRST_FIELD(t)    (istypename(t) || (t)->kind == STATIC)
-
-	if (!FIRST_FIELD(token))
+	if (!first_field(token))
 		error("expect type name or qualifiers");
 
 	struct vector *v = vec_new();
-	while (FIRST_FIELD(token)) {
+	while (first_field(token)) {
 		node_t *basety = specifiers(NULL, NULL);
 
 		for (;;) {
@@ -640,86 +643,94 @@ static void fields(node_t * sym)
 			if (token->id != ',')
 				break;
 			expect(',');
-			ensure_field(field, sty, v, false);
+			ensure_field(field, vec_len(v), false);
 		}
 
 		match(';', follow);
-		ensure_field(vec_tail(v), sty, v, !FIRST_FIELD(token));
+		ensure_field(vec_tail(v), vec_len(v),
+			     isstruct(sty) && !first_field(token));
 	}
 	TYPE_FIELDS(sty) = (node_t **) vtoa(v);
 	set_typesize(sty);
 }
 
-static void ensure_field(node_t * field, node_t * sty, struct vector *v, bool last)
+static void ensure_bitfield(node_t *field)
 {
 	const char *name = FIELD_NAME(field);
 	node_t *ty = FIELD_TYPE(field);
 	struct source src = AST_SRC(field);
+	int bitsize = FIELD_BITSIZE(field);
+	int bits = BITS(TYPE_SIZE(ty));
 
-	if (FIELD_ISBIT(field)) {
-		int bitsize = FIELD_BITSIZE(field);
-		int bits = BITS(TYPE_SIZE(ty));
-
-		if (!isint(ty)) {
-			if (name)
-				errorf(src,
-				       "bit-field '%s' has non-integral type '%s'",
-				       name, type2s(ty));
-			else
-				errorf(src,
-				       "anonymous bit-field has non-integral type '%s'",
-				       type2s(ty));
-		}
-
-		if (bitsize < 0) {
-			if (name)
-				errorf(src,
-				       "bit-field '%s' has negative width '%d'",
-				       name, bitsize);
-			else
-				errorf(src,
-				       "anonymous bit-field has negative width '%d'",
-				       bitsize);
-		}
-
-		if (bitsize == 0 && name)
-			errorf(src, "named bit-field '%s' has zero width",
-			       name);
-
-		if (bitsize > bits) {
-			if (name)
-				errorf(src,
-				       "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
-				       name, bitsize, bits);
-			else
-				errorf(src,
-				       "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
-				       bitsize, bits);
-		}
+	if (!isint(ty)) {
+		if (name)
+			errorf(src,
+			       "bit-field '%s' has non-integral type '%s'",
+			       name, type2s(ty));
+		else
+			errorf(src,
+			       "anonymous bit-field has non-integral type '%s'",
+			       type2s(ty));
 	}
 
+	if (bitsize < 0) {
+		if (name)
+			errorf(src,
+			       "bit-field '%s' has negative width '%d'",
+			       name, bitsize);
+		else
+			errorf(src,
+			       "anonymous bit-field has negative width '%d'",
+			       bitsize);
+	}
+
+	if (bitsize == 0 && name)
+		errorf(src, "named bit-field '%s' has zero width",
+		       name);
+
+	if (bitsize > bits) {
+		if (name)
+			errorf(src,
+			       "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
+			       name, bitsize, bits);
+		else
+			errorf(src,
+			       "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
+			       bitsize, bits);
+	}
+}
+
+static void ensure_nonbitfield(node_t * field, size_t total, bool last)
+{
+	node_t *ty = FIELD_TYPE(field);
+	struct source src = AST_SRC(field);
+	
 	if (isarray(ty)) {
 		ensure_array(ty, source, CONSTANT);
-		if (isstruct(sty) && last && isincomplete(ty)) {
-			if (vec_len(v) == 1)
+		if (isincomplete(ty)) {
+			if (last) {
+				if (total == 1)
+					errorf(src,
+					       "flexible array cannot be the only member");
+			} else {
 				errorf(src,
-				       "flexible array cannot be the only member");
-		} else {
-			if (TYPE_LEN(ty) == 0) {
-				if (isincomplete(ty))
-					errorf(src,
-					       "field has incomplete type '%s'",
-					       type2s(ty));
-				else
-					errorf(src,
-					       "array has variable or zero length");
+				       "field has incomplete type '%s'",
+				       type2s(ty));
 			}
 		}
-	} else if (isincomplete(ty)) {
-		errorf(src, "field has incomplete type '%s'", type2s(ty));
 	} else if (isfunc(ty)) {
 		errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
+	} else if (isincomplete(ty)) {
+		errorf(src, "field has incomplete type '%s'", type2s(ty));
 	}
+}
+
+static void ensure_field(node_t * field, size_t total, bool last)
+{
+	if (FIELD_ISBIT(field))
+		ensure_bitfield(field);
+	else
+		ensure_nonbitfield(field, total, last);
 }
 
 static node_t *ptr_decl(void)
@@ -783,7 +794,7 @@ static void param_declarator(node_t ** ty, struct token **id)
 	}
 
 	if (token->id == '(') {
-		if (firstdecl(lookahead())) {
+		if (first_decl(lookahead())) {
 			abstract_declarator(ty);
 		} else {
 			node_t *type1 = *ty;
@@ -822,7 +833,7 @@ static void abstract_declarator(node_t ** ty)
 		}
 
 		if (token->id == '(') {
-			if (firstdecl(lookahead())) {
+			if (first_decl(lookahead())) {
 				node_t *faty = abstract_func_or_array();
 				prepend_type(ty, faty);
 			} else {
@@ -884,18 +895,18 @@ static bool firstfuncdef(node_t * ty)
 	return isfunc(ty) && (prototype || oldstyle);
 }
 
-int firstdecl(struct token *t)
+int first_decl(struct token *t)
 {
 	return t->kind == STATIC || t->kind == INT || t->kind == CONST
 	    || (t->id == ID && istypedef(t->name));
 }
 
-int firststmt(struct token *t)
+int first_stmt(struct token *t)
 {
-	return t->kind == IF || firstexpr(t);
+	return t->kind == IF || first_expr(t);
 }
 
-int firstexpr(struct token *t)
+int first_expr(struct token *t)
 {
 	return t->kind == ID;
 }
@@ -1102,7 +1113,7 @@ node_t *translation_unit(void)
 	struct vector *v = vec_new();
 
 	for (gettok(); token->id != EOI;) {
-		if (firstdecl(token)) {
+		if (first_decl(token)) {
 			cc_assert(SCOPE == GLOBAL);
 			vec_add(v, decls(globaldecl));
 		} else {
@@ -1110,7 +1121,7 @@ node_t *translation_unit(void)
 				// empty declaration
 				gettok();
 			else
-			        skipto(FARRAY(firstdecl));
+			        skipto(FARRAY(first_decl));
 		}
 	}
 
@@ -1450,11 +1461,11 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass, int fspec)
 		}
 	}
 
-	if (firstdecl(token)) {
+	if (first_decl(token)) {
 		// old style function definition
 		struct vector *v = vec_new();
 		enter_scope();
-		while (firstdecl(token))
+		while (first_decl(token))
 			vec_add(v, decls(paramdecl));
 
 		for (int i = 0; i < vec_len(v); i++) {
