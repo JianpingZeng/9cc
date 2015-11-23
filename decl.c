@@ -21,10 +21,10 @@ static void ensure_array(node_t * atype, struct source src, int level);
 static void ensure_func(node_t * ftype, struct source src, const char *name,
                         int level);
 
-#define PACK_PARAM(prototype, first, fvoid, sclass)        \
-    (((prototype) & 0x01) << 30) |                        \
-    (((first) & 0x01) << 29) |                                \
-    (((fvoid) & 0x01) << 28) |                                \
+#define PACK_PARAM(prototype, first, fvoid, sclass)     \
+    (((prototype) & 0x01) << 30) |                      \
+    (((first) & 0x01) << 29) |                          \
+    (((fvoid) & 0x01) << 28) |                          \
     ((sclass) & 0xffffff)
 
 #define PARAM_STYLE(i)   (((i) & 0x40000000) >> 30)
@@ -39,24 +39,24 @@ const char *current_fname;
 static struct vector *localvars;
 static struct vector *staticvars;
 
-#define SET_FUNCDEF_CONTEXT(fty, id)                \
-    gotos = vec_new();                                \
-    labels = map_new();                                \
+#define SET_FUNCDEF_CONTEXT(fty, id)            \
+    gotos = vec_new();                          \
+    labels = map_new();                         \
     current_ftype = fty;                        \
-    current_fname = id;                                \
-    localvars = vec_new();                        \
+    current_fname = id;                         \
+    localvars = vec_new();                      \
     staticvars = vec_new()
 
-#define RESTORE_FUNCDEF_CONTEXT()                \
-    vec_free(gotos);                                \
-    gotos = NULL;                                \
-    map_free(labels);                                \
-    labels = NULL;                                \
-    current_ftype = NULL;                        \
-    current_fname = NULL;                        \
+#define RESTORE_FUNCDEF_CONTEXT()               \
+    vec_free(gotos);                            \
+    gotos = NULL;                               \
+    map_free(labels);                           \
+    labels = NULL;                              \
+    current_ftype = NULL;                       \
+    current_fname = NULL;                       \
     vec_free(localvars);                        \
-    localvars = NULL;                                \
-    vec_free(staticvars);                        \
+    localvars = NULL;                           \
+    vec_free(staticvars);                       \
     staticvars = NULL
 
 static node_t *specifiers(int *sclass, int *fspec)
@@ -346,9 +346,7 @@ static node_t **parameters(node_t * ftype, int *params)
             node_t *sym;
 
             basety = specifiers(&sclass, &fspec);
-            if (token->id == '*' || token->id == '('
-                || token->id == '[' || token->id == ID)
-                param_declarator(&ty, &id);
+            param_declarator(&ty, &id);
 
             attach_type(&ty, basety);
             if (i == 0 && isvoid(ty))
