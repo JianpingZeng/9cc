@@ -321,6 +321,14 @@ static void array_qualifiers(node_t * atype)
         TYPE_A_RESTRICT(atype) = 1;
 }
 
+static void exit_params(void)
+{
+    if (SCOPE > PARAM)
+        exit_scope();
+
+    exit_scope();
+}
+
 static node_t **parameters(node_t * ftype, int *params)
 {
     node_t **ret = NULL;
@@ -398,14 +406,10 @@ static node_t **parameters(node_t * ftype, int *params)
         gettok();
     }
 
-    if (params && *params == 0) {
+    if (params && *params == 0)
         *params = 1;
-    } else {
-        if (SCOPE > PARAM)
-            exit_scope();
-
-        exit_scope();
-    }
+    else
+        exit_params();
 
     return ret;
 }
@@ -957,9 +961,7 @@ static struct vector *decls(declfun_p * dcl)
                     vec_push(v, funcdef(id, ty, sclass, fspec));
                     return v;
                 } else {
-                    if (SCOPE > PARAM)
-                        exit_scope();
-                    exit_scope();
+                    exit_params();
                 }
             }
         }
