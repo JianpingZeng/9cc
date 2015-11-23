@@ -8,17 +8,23 @@ static node_t *tag_decl(void);
 static void ids(node_t *sym);
 static void fields(node_t * sym);
 
-typedef node_t *declfun_p(struct token *id, node_t * ty, int sclass, int fspec);
+typedef node_t *declfun_p(struct token *id, node_t * ty, int sclass,
+                          int fspec);
+static node_t *paramdecl(struct token *id, node_t * ty, int sclass,
+                         int fspec);
+static node_t *globaldecl(struct token *id, node_t * ty, int sclass,
+                          int fspec);
+static node_t *localdecl(struct token *id, node_t * ty, int sclass,
+                         int fspec);
+static node_t *funcdef(struct token *id, node_t * ty, int sclass,
+                       int fspec);
 static struct vector *decls(declfun_p * dcl);
-static node_t *paramdecl(struct token *id, node_t * ty, int sclass, int fspec);
-static node_t *globaldecl(struct token *id, node_t * ty, int sclass, int fspec);
-static node_t *localdecl(struct token *id, node_t * ty, int sclass, int fspec);
-static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
 
 static void ensure_field(node_t * field, size_t total, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
-static void ensure_func(node_t * ftype, struct source src, const char *name, int level);
+static void ensure_func(node_t * ftype, struct source src, const char *name,
+                        int level);
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
     (((prototype) & 0x01) << 30) |                      \
@@ -199,7 +205,8 @@ static node_t *specifiers(int *sclass, int *fspec)
                            name);
                 else
                     errorf(src,
-                           "type name does not allow storage class to be specified",
+                           "type name does not allow storage class "
+                           "to be specified",
                            name);
             } else if (p == &inl) {
                 if (fspec)
@@ -340,9 +347,10 @@ static node_t **parameters(node_t * ftype, int *params)
     node_t **ret = NULL;
 
     /**
-     * To make it easy to distinguish between 'paramaters in parameter' and
-     * 'compound statement of function definition', they both may be at scope
-     * LOCAL (aka PARAM+1), so enter scope again to make things easy.
+     * To make it easy to distinguish between 'paramaters in parameter'
+     * and 'compound statement of function definition', they both may be
+     * at scope LOCAL (aka PARAM+1), so enter scope again to make things
+     * easy.
      */
     enter_scope();
     if (SCOPE > PARAM)
@@ -361,13 +369,15 @@ static node_t **parameters(node_t * ftype, int *params)
 
             basety = specifiers(&sclass, &fspec);
             param_declarator(&ty, &id);
-
             attach_type(&ty, basety);
+            
             if (i == 0 && isvoid(ty))
                 first_void = true;
 
             SAVE_ERRORS;
-            sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass), fspec);
+            sym = paramdecl(id, ty,
+                            PACK_PARAM(1, i == 0, first_void, sclass),
+                            fspec);
             if (NO_ERROR && !first_void)
                 vec_push(v, sym);
             if (token->id != ',')
@@ -378,7 +388,8 @@ static node_t **parameters(node_t * ftype, int *params)
                 if (!first_void)
                     TYPE_VARG(ftype) = 1;
                 else
-                    error("'void' must be the first and only parameter if specified");
+                    error("'void' must be the first and only parameter "
+                          "if specified");
                 expect(ELLIPSIS);
                 break;
             }
@@ -399,7 +410,8 @@ static node_t **parameters(node_t * ftype, int *params)
         }
 
         if (SCOPE > PARAM)
-            error("a parameter list without types is only allowed in a function definition");
+            error("a parameter list without types is only allowed in "
+                  "a function definition");
         ret = (node_t **) vtoa(v);
     } else if (token->id == ')') {
         TYPE_OLDSTYLE(ftype) = 1;
@@ -525,8 +537,9 @@ static node_t *tag_decl(void)
         if (sym) {
             if (is_current_scope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
                 errorf(src,
-                       "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u:%u",
-                       id2s(t), id, type2s(SYM_TYPE(sym)),
+                       "use of '%s' with tag type that does not match "
+                       "previous declaration '%s' at %s:%u:%u",
+                       id2s(t), type2s(SYM_TYPE(sym)),
                        AST_SRC(sym).file,
                        AST_SRC(sym).line,
                        AST_SRC(sym).column);
@@ -543,29 +556,29 @@ static node_t *tag_decl(void)
 
 static void ids(node_t *sym)
 {
-    int val = 0;
-    struct vector *v = vec_new();
-    if (token->id != ID)
-        error("expect identifier");
-    while (token->id == ID) {
-        node_t *s = lookup(token->name, identifiers);
-        if (s && is_current_scope(s))
-            redefinition_error(source, s);
+    if (token->id == ID) {
+        int val = 0;
+        do {
+            node_t *s = lookup(token->name, identifiers);
+            if (s && is_current_scope(s))
+                redefinition_error(source, s);
 
-        s = install(token->name, &identifiers, SCOPE);
-        SYM_TYPE(s) = SYM_TYPE(sym);
-        AST_SRC(s) = source;
-        SYM_SCLASS(s) = ENUM;
-        expect(ID);
-        if (token->id == '=') {
-            expect('=');
-            val = intexpr();
-        }
-        SYM_VALUE_U(s) = val++;
-        vec_push(v, s);
-        if (token->id != ',')
-            break;
-        expect(',');
+            s = install(token->name, &identifiers, SCOPE);
+            SYM_TYPE(s) = SYM_TYPE(sym);
+            AST_SRC(s) = source;
+            SYM_SCLASS(s) = ENUM;
+            expect(ID);
+            if (token->id == '=') {
+                expect('=');
+                val = intexpr();
+            }
+            SYM_VALUE_U(s) = val++;
+            if (token->id != ',')
+                break;
+            expect(',');
+        } while (token->id == ID);
+    } else {
+        error("expect identifier");
     }
 }
 
@@ -608,9 +621,8 @@ static void fields(node_t * sym)
                     if (id) {
                         for (int i = 0; i < vec_len(v); i++) {
                             node_t *f = vec_at(v, i);
-                            if (FIELD_NAME(f)
-                                && !strcmp(FIELD_NAME(f),
-                                           id->name)) {
+                            if (FIELD_NAME(f) &&
+                                !strcmp(FIELD_NAME(f), id->name)) {
                                 errorf(id->src,
                                        "redefinition of '%s'",
                                        id->name);
@@ -678,11 +690,13 @@ static void ensure_bitfield(node_t *field)
     if (bitsize > bits) {
         if (name)
             errorf(src,
-                   "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
+                   "size of bit-field '%s' (%d bits) exceeds size of "
+                   "its type (%d bits)",
                    name, bitsize, bits);
         else
             errorf(src,
-                   "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
+                   "anonymous bit-field (%d bits) exceeds size of "
+                   "its type (%d bits)",
                    bitsize, bits);
     }
 }
@@ -877,7 +891,10 @@ static void declarator(node_t ** ty, struct token **id, int *params)
 static bool first_funcdef(node_t * ty)
 {
     bool prototype = token->id == '{';
-    bool oldstyle = first_decl(token) && TYPE_OLDSTYLE(ty) && TYPE_PARAMS(ty);
+    bool oldstyle =
+        first_decl(token) &&
+        TYPE_OLDSTYLE(ty) &&
+        TYPE_PARAMS(ty);
 
     return isfunc(ty) && (prototype || oldstyle);
 }
@@ -903,7 +920,8 @@ bool first_typename(struct token * t)
         (t->id == ID && istypedef(t->name));
 }
 
-static node_t *make_decl(struct token *id, node_t * ty, int sclass, int fspec, declfun_p * dcl)
+static node_t *make_decl(struct token *id, node_t * ty, int sclass,
+                         int fspec, declfun_p * dcl)
 {
     node_t *decl;
     node_t *sym = dcl(id, ty, sclass, fspec);
@@ -1174,14 +1192,18 @@ static void ensure_func(node_t * ftype, struct source src, const char *name,
 
 /**
  *  1. Array qualifiers may appear only when in a function parameter.
- *  2. Array qualifiers 'const', 'volatile', 'restrict', 'static' may appear
- *     within the _outermost_ brackets.
+ *
+ *  2. Array qualifiers 'const', 'volatile', 'restrict', 'static' may
+ *     appear within the _outermost_ brackets.
+ *
  *  3. 'static' is an optimization hint, asserting that the actual array
- *     argument will be non-null and will have the declared size and type upon
- *     entry to the function.
- *  4. The star modifier '*' or non-constant expression describe a variable
- *     length array. The '*' can only appear in array parameter declarations
- *     within function prototypes that are not part of a function definition.
+ *     argument will be non-null and will have the declared size and
+ *     type upon entry to the function.
+ *
+ *  4. The star modifier '*' or non-constant expression describe a
+ *     variable length array. The '*' can only appear in array parameter
+ *     declarations within function prototypes that are not part of
+ *     a function definition.
  */
 static void ensure_array(node_t * atype, struct source src, int level)
 {
@@ -1218,7 +1240,8 @@ static void ensure_array(node_t * atype, struct source src, int level)
              || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty))
             && level != PARAM)
             error
-                ("type qualifier used in array declarator outside of function prototype");
+                ("type qualifier used in array declarator outside of "
+                 "function prototype");
 
         rty = rtype(rty);
         if (isfunc(rty))
@@ -1242,7 +1265,8 @@ static void ensure_inline(node_t *ty, int fspec, struct source src)
     }
 }
 
-static node_t *paramdecl(struct token *t, node_t * ty, int sclass, int fspec)
+static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
+                         int fspec)
 {
     node_t *sym = NULL;
     bool prototype = PARAM_STYLE(sclass);
@@ -1258,8 +1282,8 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass, int fspec)
     }
 
     if (sclass && sclass != REGISTER) {
-        error
-            ("invalid storage class specifier '%s' in function declarator",
+        error("invalid storage class specifier '%s' in "
+              "function declarator",
              id2s(sclass));
         sclass = 0;
     }
@@ -1281,7 +1305,8 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass, int fspec)
         if (!SYM_DEFINED(TYPE_TSYM(ty)) ||
             SYM_SCOPE(TYPE_TSYM(ty)) == SCOPE)
             warningf(src,
-                     "declaration of '%s' will not be visible outside of this function",
+                     "declaration of '%s' will not be visible "
+                     "outside of this function",
                      type2s(ty));
     } else if (isvoid(ty)) {
         if (prototype) {
@@ -1291,7 +1316,8 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass, int fspec)
                            "argument may not have 'void' type");
                 else if (isqual(ty))
                     errorf(src,
-                           "'void' as parameter must not have type qualifiers");
+                           "'void' as parameter must not have "
+                           "type qualifiers");
             }
         } else {
             errorf(src, "argument may not have 'void' type");
@@ -1300,7 +1326,8 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass, int fspec)
 
     if (prototype && fvoid && !first)
         errorf(src,
-               "'void' must be the first and only parameter if specified");
+               "'void' must be the first and only parameter "
+               "if specified");
 
     // check inline after conversion (decay)
     ensure_inline(ty, fspec, src);
@@ -1321,7 +1348,8 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass, int fspec)
     return sym;
 }
 
-static node_t *localdecl(struct token *t, node_t * ty, int sclass, int fspec)
+static node_t *localdecl(struct token *t, node_t * ty, int sclass,
+                         int fspec)
 {
     node_t *sym = NULL;
     const char *id = t->name;
@@ -1332,12 +1360,13 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass, int fspec)
 
     if (isfunc(ty)) {
         if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
-            error
-                ("a parameter list without types is only allowed in a function definition");
+            error("a parameter list without types is only allowed "
+                  "in a function definition");
         ensure_func(ty, src, id, LOCAL);
         if (sclass && sclass != EXTERN)
             errorf(src,
-                   "function declared in block scope cannot have '%s' storage class",
+                   "function declared in block scope cannot have "
+                   "'%s' storage class",
                    id2s(sclass));
     } else if (isarray(ty)) {
         ensure_array(ty, src, LOCAL);
@@ -1359,7 +1388,8 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass, int fspec)
     return sym;
 }
 
-static node_t *globaldecl(struct token *t, node_t * ty, int sclass, int fspec)
+static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
+                          int fspec)
 {
     node_t *sym = NULL;
     const char *id = t->name;
@@ -1376,7 +1406,8 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass, int fspec)
     if (isfunc(ty)) {
         if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
             error
-                ("a parameter list without types is only allowed in a function definition");
+                ("a parameter list without types is only allowed "
+                 "in a function definition");
         ensure_func(ty, src, id, GLOBAL);
     } else if (isarray(ty)) {
         ensure_array(ty, src, GLOBAL);
@@ -1393,11 +1424,13 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass, int fspec)
     } else if (sclass != TYPEDEF && eqtype(ty, SYM_TYPE(sym))) {
         if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
             errorf(src,
-                   "static declaration of '%s' follows non-static declaration",
+                   "static declaration of '%s' follows "
+                   "non-static declaration",
                    id);
         else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
             errorf(src,
-                   "non-static declaration of '%s' follows static declaration",
+                   "non-static declaration of '%s' follows "
+                   "static declaration",
                    id);
         if (sclass != EXTERN)
             SYM_SCLASS(sym) = sclass;
@@ -1408,7 +1441,8 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass, int fspec)
     return sym;
 }
 
-static node_t *funcdef(struct token *t, node_t * ftype, int sclass, int fspec)
+static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
+                       int fspec)
 {
     node_t *decl = ast_decl(FUNC_DECL);
     const char *id = t->name;
@@ -1436,7 +1470,8 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass, int fspec)
         } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
             if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
                 errorf(src,
-                       "static declaaration of '%s' follows non-static declaration",
+                       "static declaaration of '%s' follows "
+                       "non-static declaration",
                        id);
             else
                 goto def;
