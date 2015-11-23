@@ -540,7 +540,7 @@ static node_t *tag_decl(void)
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {
-            if (currentscope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
+            if (is_current_scope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
                 errorf(src,
                        "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u:%u",
                        id2s(t), id, type2s(SYM_TYPE(sym)),
@@ -566,7 +566,7 @@ static void ids(node_t *sym)
         error("expect identifier");
     while (token->id == ID) {
         node_t *s = lookup(token->name, identifiers);
-        if (s && currentscope(s))
+        if (s && is_current_scope(s))
             redefinition_error(source, s);
 
         s = install(token->name, &identifiers, SCOPE);
@@ -1362,7 +1362,7 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass, int fspec)
     ensure_inline(ty, fspec, src);
 
     sym = lookup(id, identifiers);
-    if (sym && currentscope(sym)) {
+    if (sym && is_current_scope(sym)) {
         redefinition_error(src, sym);
     } else {
         sym = install(id, &identifiers, SCOPE);
@@ -1506,7 +1506,7 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass, int fspec)
             node_t *sym = TYPE_PARAMS(ftype)[i];
             SYM_DEFINED(sym) = true;
             // params id is required in prototype
-            if (isanonymous(SYM_NAME(sym)))
+            if (is_anonymous(SYM_NAME(sym)))
                 errorf(AST_SRC(sym), "parameter name omitted");
             if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym))
                 || isunion(SYM_TYPE(sym))) {

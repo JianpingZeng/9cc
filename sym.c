@@ -54,6 +54,16 @@ void exit_scope(void)
     level--;
 }
 
+bool is_current_scope(node_t *sym)
+{
+    return SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL);
+}
+
+bool is_anonymous(const char *name)
+{
+    return name == NULL || !isletter(name[0]);
+}
+
 node_t *anonymous(struct table **tpp, int scope)
 {
     static long i;

@@ -339,7 +339,7 @@ node_t *tag_type(int t, const char *tag, struct source src)
     node_t *sym = NULL;
     if (tag) {
         sym = lookup(tag, tags);
-        if (sym && currentscope(sym)) {
+        if (sym && is_current_scope(sym)) {
             if (TYPE_OP(SYM_TYPE(sym)) == t && !SYM_DEFINED(sym))
                 return sym;
 

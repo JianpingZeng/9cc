@@ -359,12 +359,12 @@ struct table {
 };
 
 // sym
-#define isanonymous(name)   ((name) == NULL || !isletter((name)[0]))
-
 extern void symbol_init(void);
 extern int scopelevel(void);
 extern void enter_scope(void);
 extern void exit_scope(void);
+extern bool is_current_scope(node_t *sym);
+extern bool is_anonymous(const char *name);
 
 // create an anonymous symbol
 extern node_t *anonymous(struct table **tpp, int scope);
@@ -380,8 +380,6 @@ extern struct table *constants;
 extern struct table *tags;
 
 #define SCOPE  scopelevel()
-
-#define currentscope(sym)   (SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL))
 
 // gen.c
 extern void gen(node_t * tree, FILE * fp);
@@ -412,12 +410,12 @@ extern void fatalf(struct source src, const char *fmt, ...);
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
 
-#define cc_assert(expr)                                \
+#define cc_assert(expr)                         \
     do {                                        \
-        if (!(expr)) {                                \
-            error("assert failed");                \
-            assert(expr);                        \
-        }                                        \
+        if (!(expr)) {                          \
+            error("assert failed");             \
+            assert(expr);                       \
+        }                                       \
     } while (0)
 
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"

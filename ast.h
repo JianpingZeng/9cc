@@ -9,8 +9,6 @@ enum {
 };
 
 /**
- * This is the _ONLY_ typedef used.
- *
  * The coding style tends to avoid typedefs, because
  * typedefs reduce readability, but it's not a hard rule.
  *
@@ -246,7 +244,7 @@ extern node_t *copy_node(node_t * node);
 // decl
 #define istudecl(n)         (AST_ID(n) == TU_DECL)
 #define isfuncdecl(n)       (AST_ID(n) == FUNC_DECL)
-#define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n) && AST_ID(DECL_BODY(n)) == AST_COMPOUND)
+#define isfuncdef(n)        (isfuncdecl(n) && DECL_BODY(n))
 #define isvardecl(n)        (AST_ID(n) == VAR_DECL)
 
 // expr
@@ -255,6 +253,6 @@ extern node_t *copy_node(node_t * node);
 #define issliteral(n)       (AST_ID(n) == STRING_LITERAL)
 
 // stmt
-#define isnullstmt(n)     (AST_ID(n) == NULL_STMT)
+#define isnullstmt(n)       (AST_ID(n) == NULL_STMT)
 
 #endif
