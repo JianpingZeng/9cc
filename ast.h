@@ -12,8 +12,7 @@ enum {
  * This is the _ONLY_ typedef used.
  *
  * The coding style tends to avoid typedefs, because
- * typedefs reduce readability, but it's not a hard rule,
- * I don't mind a few of them.
+ * typedefs reduce readability, but it's not a hard rule.
  *
  * The fields of ast_node are designed to be accessed _ONLY_
  * via macros, so it's useful to use typedef to hide the
@@ -27,10 +26,10 @@ typedef union ast_node node_t;
 #define AST_SRC(NODE)           ((NODE)->common.src)
 
 struct ast_common {
-	int id;
-	const char *name;
-	node_t *type;
-	struct source src;
+    int id;
+    const char *name;
+    node_t *type;
+    struct source src;
 };
 
 /* Handle carefully for qual/unqual types.
@@ -63,40 +62,40 @@ struct ast_common {
 #define _TYPE_A_STAR(NODE)       ((NODE)->type.u.a.star)
 
 struct ast_type {
-	struct ast_common common;
-	int kind;
-	size_t size;
-	unsigned align;		// align in bytes
-	unsigned rank:8;
-	unsigned inlined:1;
-	union {
-		// function
-		struct {
-			node_t **params;
-			unsigned oldstyle:1;
-			unsigned varg:1;
-		} f;
-		// enum/struct/union
-		struct {
-			const char *tag;
-			node_t *tsym;
-			node_t **fields;
-		} s;
-		// array
-		struct {
-			size_t len;	// array length
-			node_t *assign;
-			unsigned is_const:1;
-			unsigned is_volatile:1;
-			unsigned is_restrict:1;
-			unsigned is_static:1;
-			unsigned star:1;
-		} a;
-	} u;
-	struct {
-		union value max;
-		union value min;
-	} limits;
+    struct ast_common common;
+    int kind;
+    size_t size;
+    unsigned align;                // align in bytes
+    unsigned rank:8;
+    unsigned inlined:1;
+    union {
+        // function
+        struct {
+            node_t **params;
+            unsigned oldstyle:1;
+            unsigned varg:1;
+        } f;
+        // enum/struct/union
+        struct {
+            const char *tag;
+            node_t *tsym;
+            node_t **fields;
+        } s;
+        // array
+        struct {
+            size_t len;        // array length
+            node_t *assign;
+            unsigned is_const:1;
+            unsigned is_volatile:1;
+            unsigned is_restrict:1;
+            unsigned is_static:1;
+            unsigned star:1;
+        } a;
+    } u;
+    struct {
+        union value max;
+        union value min;
+    } limits;
 };
 
 #define FIELD_NAME(NODE)        AST_NAME(NODE)
@@ -106,10 +105,10 @@ struct ast_type {
 #define FIELD_BITSIZE(NODE)     ((NODE)->field.bitsize)
 
 struct ast_field {
-	struct ast_common common;
-	bool isbit;
-	int offset;
-	int bitsize;
+    struct ast_common common;
+    bool isbit;
+    int offset;
+    int bitsize;
 };
 
 #define SYM_SCOPE(NODE)         ((NODE)->symbol.scope)
@@ -126,18 +125,18 @@ struct ast_field {
 #define SYM_VALUE_I(NODE)       (VALUE_I(SYM_VALUE(NODE)))
 #define SYM_VALUE_D(NODE)       (VALUE_D(SYM_VALUE(NODE)))
 
-struct ast_symbol {
-	struct ast_common common;
-	int scope;
-	int sclass;
-	bool defined;
-	union value value;
-	unsigned refs;
-	struct {
-		const char *label;
-		long loff;	// stack offset
-	} x;
-};
+    struct ast_symbol {
+        struct ast_common common;
+        int scope;
+        int sclass;
+        bool defined;
+        union value value;
+        unsigned refs;
+        struct {
+            const char *label;
+            long loff;        // stack offset
+        } x;
+    };
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
@@ -147,15 +146,15 @@ struct ast_symbol {
 #define DECL_SVARS(NODE)        ((NODE)->decl.x.svars)
 
 struct ast_decl {
-	struct ast_common common;
-	node_t *sym;		// the symbol
-	node_t *body;		// the initializer expr or func body
-	node_t **exts;
-	node_t **dcls;
-	struct {
-		node_t **lvars;	// function local vars
-		node_t **svars;	// function static vars
-	} x;
+    struct ast_common common;
+    node_t *sym;                // the symbol
+    node_t *body;                // the initializer expr or func body
+    node_t **exts;
+    node_t **dcls;
+    struct {
+        node_t **lvars;        // function local vars
+        node_t **svars;        // function static vars
+    } x;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -172,14 +171,14 @@ struct ast_decl {
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 
-struct ast_expr {
-	struct ast_common common;
-	int op;
-	bool prefix;
-	node_t *sym;
-	node_t *operands[3];
-	node_t **list;
-};
+    struct ast_expr {
+        struct ast_common common;
+        int op;
+        bool prefix;
+        node_t *sym;
+        node_t *operands[3];
+        node_t **list;
+    };
 
 #define STMT_OPERAND(NODE)       ((NODE)->stmt.operands[0])
 #define STMT_LABEL(NODE)         AST_NAME(NODE)
@@ -191,20 +190,20 @@ struct ast_expr {
 #define STMT_ELSE(NODE)          ((NODE)->stmt.operands[2])
 
 struct ast_stmt {
-	struct ast_common common;
-	node_t *operands[3];
-	node_t **list;
-	long index;
+    struct ast_common common;
+    node_t *operands[3];
+    node_t **list;
+    long index;
 };
 
 union ast_node {
-	struct ast_common common;
-	struct ast_decl decl;
-	struct ast_expr expr;
-	struct ast_stmt stmt;
-	struct ast_type type;
-	struct ast_field field;
-	struct ast_symbol symbol;
+    struct ast_common common;
+    struct ast_decl decl;
+    struct ast_expr expr;
+    struct ast_stmt stmt;
+    struct ast_type type;
+    struct ast_field field;
+    struct ast_symbol symbol;
 };
 
 // ast.c

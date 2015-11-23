@@ -19,12 +19,12 @@ static void ensure_field(node_t * field, size_t total, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
 static void ensure_func(node_t * ftype, struct source src, const char *name,
-			int level);
+                        int level);
 
-#define PACK_PARAM(prototype, first, fvoid, sclass)	\
-    (((prototype) & 0x01) << 30) |			\
-    (((first) & 0x01) << 29) |				\
-    (((fvoid) & 0x01) << 28) |				\
+#define PACK_PARAM(prototype, first, fvoid, sclass)        \
+    (((prototype) & 0x01) << 30) |                        \
+    (((first) & 0x01) << 29) |                                \
+    (((fvoid) & 0x01) << 28) |                                \
     ((sclass) & 0xffffff)
 
 #define PARAM_STYLE(i)   (((i) & 0x40000000) >> 30)
@@ -39,1153 +39,1153 @@ const char *current_fname;
 static struct vector *localvars;
 static struct vector *staticvars;
 
-#define SET_FUNCDEF_CONTEXT(fty, id)		\
-    gotos = vec_new();				\
-    labels = map_new();				\
-    current_ftype = fty;			\
-    current_fname = id;				\
-    localvars = vec_new();			\
+#define SET_FUNCDEF_CONTEXT(fty, id)                \
+    gotos = vec_new();                                \
+    labels = map_new();                                \
+    current_ftype = fty;                        \
+    current_fname = id;                                \
+    localvars = vec_new();                        \
     staticvars = vec_new()
 
-#define RESTORE_FUNCDEF_CONTEXT()		\
-    vec_free(gotos);				\
-    gotos = NULL;				\
-    map_free(labels);				\
-    labels = NULL;				\
-    current_ftype = NULL;			\
-    current_fname = NULL;			\
-    vec_free(localvars);			\
-    localvars = NULL;				\
-    vec_free(staticvars);			\
+#define RESTORE_FUNCDEF_CONTEXT()                \
+    vec_free(gotos);                                \
+    gotos = NULL;                                \
+    map_free(labels);                                \
+    labels = NULL;                                \
+    current_ftype = NULL;                        \
+    current_fname = NULL;                        \
+    vec_free(localvars);                        \
+    localvars = NULL;                                \
+    vec_free(staticvars);                        \
     staticvars = NULL
 
 static node_t *specifiers(int *sclass, int *fspec)
 {
-	int cls, sign, size, type;
-	int cons, vol, res, inl;
-	node_t *basety;
-	int ci;			// _Complex, _Imaginary
-	node_t *tydefty = NULL;
+    int cls, sign, size, type;
+    int cons, vol, res, inl;
+    node_t *basety;
+    int ci;                        // _Complex, _Imaginary
+    node_t *tydefty = NULL;
 
-	basety = NULL;
-	cls = sign = size = type = 0;
-	cons = vol = res = inl = 0;
-	ci = 0;
-	if (sclass == NULL)
-		cls = AUTO;
+    basety = NULL;
+    cls = sign = size = type = 0;
+    cons = vol = res = inl = 0;
+    ci = 0;
+    if (sclass == NULL)
+        cls = AUTO;
 
-	for (;;) {
-		int *p, t = token->id;
-		const char *name = token->name;
-		struct source src = source;
-		switch (token->id) {
-		case AUTO:
-		case EXTERN:
-		case REGISTER:
-		case STATIC:
-		case TYPEDEF:
-			p = &cls;
-			gettok();
-			break;
+    for (;;) {
+        int *p, t = token->id;
+        const char *name = token->name;
+        struct source src = source;
+        switch (token->id) {
+        case AUTO:
+        case EXTERN:
+        case REGISTER:
+        case STATIC:
+        case TYPEDEF:
+            p = &cls;
+            gettok();
+            break;
 
-		case CONST:
-			p = &cons;
-			gettok();
-			break;
+        case CONST:
+            p = &cons;
+            gettok();
+            break;
 
-		case VOLATILE:
-			p = &vol;
-			gettok();
-			break;
+        case VOLATILE:
+            p = &vol;
+            gettok();
+            break;
 
-		case RESTRICT:
-			p = &res;
-			gettok();
-			break;
+        case RESTRICT:
+            p = &res;
+            gettok();
+            break;
 
-		case INLINE:
-			p = &inl;
-			gettok();
-			break;
+        case INLINE:
+            p = &inl;
+            gettok();
+            break;
 
-		case ENUM:
-		case STRUCT:
-		case UNION:
-			p = &type;
-			basety = tag_decl();
-			break;
+        case ENUM:
+        case STRUCT:
+        case UNION:
+            p = &type;
+            basety = tag_decl();
+            break;
 
-		case LONG:
-			if (size == LONG) {
-				t = LONG + LONG;
-				size = 0;	// clear
-			}
-			// go through
-		case SHORT:
-			p = &size;
-			gettok();
-			break;
+        case LONG:
+            if (size == LONG) {
+                t = LONG + LONG;
+                size = 0;        // clear
+            }
+            // go through
+        case SHORT:
+            p = &size;
+            gettok();
+            break;
 
-		case FLOAT:
-			p = &type;
-			basety = floattype;
-			gettok();
-			break;
+        case FLOAT:
+            p = &type;
+            basety = floattype;
+            gettok();
+            break;
 
-		case DOUBLE:
-			p = &type;
-			basety = doubletype;
-			gettok();
-			break;
+        case DOUBLE:
+            p = &type;
+            basety = doubletype;
+            gettok();
+            break;
 
-		case VOID:
-			p = &type;
-			basety = voidtype;
-			gettok();
-			break;
+        case VOID:
+            p = &type;
+            basety = voidtype;
+            gettok();
+            break;
 
-		case CHAR:
-			p = &type;
-			basety = chartype;
-			gettok();
-			break;
+        case CHAR:
+            p = &type;
+            basety = chartype;
+            gettok();
+            break;
 
-		case INT:
-			p = &type;
-			basety = inttype;
-			gettok();
-			break;
+        case INT:
+            p = &type;
+            basety = inttype;
+            gettok();
+            break;
 
-		case _BOOL:
-			p = &type;
-			basety = booltype;
-			gettok();
-			break;
+        case _BOOL:
+            p = &type;
+            basety = booltype;
+            gettok();
+            break;
 
-		case SIGNED:
-		case UNSIGNED:
-			p = &sign;
-			gettok();
-			break;
+        case SIGNED:
+        case UNSIGNED:
+            p = &sign;
+            gettok();
+            break;
 
-		case _COMPLEX:
-		case _IMAGINARY:
-			p = &ci;
-			gettok();
-			break;
+        case _COMPLEX:
+        case _IMAGINARY:
+            p = &ci;
+            gettok();
+            break;
 
-		case ID:
-			if (istypedef(token->name)) {
-				tydefty = lookup_typedef(token->name);
-				p = &type;
-				gettok();
-			} else {
-				p = NULL;
-			}
-			break;
+        case ID:
+            if (istypedef(token->name)) {
+                tydefty = lookup_typedef(token->name);
+                p = &type;
+                gettok();
+            } else {
+                p = NULL;
+            }
+            break;
 
-		default:
-			p = NULL;
-			break;
-		}
+        default:
+            p = NULL;
+            break;
+        }
 
-		if (p == NULL)
-			break;
+        if (p == NULL)
+            break;
 
-		if (*p != 0) {
-			if (p == &cls && !sclass)
-				errorf(src,
-				       "type name does not allow storage class to be specified",
-				       name);
-			else if (p == &cls)
-				errorf(src,
-				       "duplicate storage class '%s'",
-				       name);
-			else if (p == &inl && !fspec)
-				errorf(src, "function specifier not allowed");
-			else if (p == &cons || p == &res || p == &vol || p == &inl)
-				warningf(src,
-					 "duplicate '%s' declaration specifier",
-					 name);
-			else if (p == &ci)
-				errorf(src,
-				       "duplicate _Complex/_Imaginary specifier '%s'",
-				       name);
-			else if (p == &sign)
-				errorf(src,
-				       "duplicate signed/unsigned speficier '%s'",
-				       name);
-			else if (p == &type || p == &size)
-				errorf(src,
-				       "duplicate type specifier '%s'",
-				       name);
-			else
-				cc_assert(0);
-		}
+        if (*p != 0) {
+            if (p == &cls && !sclass)
+                errorf(src,
+                       "type name does not allow storage class to be specified",
+                       name);
+            else if (p == &cls)
+                errorf(src,
+                       "duplicate storage class '%s'",
+                       name);
+            else if (p == &inl && !fspec)
+                errorf(src, "function specifier not allowed");
+            else if (p == &cons || p == &res || p == &vol || p == &inl)
+                warningf(src,
+                         "duplicate '%s' declaration specifier",
+                         name);
+            else if (p == &ci)
+                errorf(src,
+                       "duplicate _Complex/_Imaginary specifier '%s'",
+                       name);
+            else if (p == &sign)
+                errorf(src,
+                       "duplicate signed/unsigned speficier '%s'",
+                       name);
+            else if (p == &type || p == &size)
+                errorf(src,
+                       "duplicate type specifier '%s'",
+                       name);
+            else
+                cc_assert(0);
+        }
 
-		*p = t;
-	}
+        *p = t;
+    }
 
-	// default is int
-	if (type == 0) {
-		if (sign == 0 && size == 0)
-			error("missing type specifier");
-		type = INT;
-		basety = inttype;
-	}
-	// type check
-	if ((size == SHORT && type != INT) ||
-	    (size == LONG + LONG && type != INT) ||
-	    (size == LONG && type != INT && type != DOUBLE)) {
-		if (size == LONG + LONG)
-			error("%s %s %s is invalid", id2s(size / 2),
-			      id2s(size / 2), id2s(type));
-		else
-			error("%s %s is invalid", id2s(size), id2s(type));
-	} else if (sign && type != INT && type != CHAR) {
-		error("'%s' cannot be signed or unsigned", id2s(type));
-	} else if (ci && type != DOUBLE && type != FLOAT) {
-		error("'%s' cannot be %s", id2s(type), id2s(ci));
-	}
+    // default is int
+    if (type == 0) {
+        if (sign == 0 && size == 0)
+            error("missing type specifier");
+        type = INT;
+        basety = inttype;
+    }
+    // type check
+    if ((size == SHORT && type != INT) ||
+        (size == LONG + LONG && type != INT) ||
+        (size == LONG && type != INT && type != DOUBLE)) {
+        if (size == LONG + LONG)
+            error("%s %s %s is invalid", id2s(size / 2),
+                  id2s(size / 2), id2s(type));
+        else
+            error("%s %s is invalid", id2s(size), id2s(type));
+    } else if (sign && type != INT && type != CHAR) {
+        error("'%s' cannot be signed or unsigned", id2s(type));
+    } else if (ci && type != DOUBLE && type != FLOAT) {
+        error("'%s' cannot be %s", id2s(type), id2s(ci));
+    }
 
-	if (type == ID)
-		basety = tydefty;
-	else if (type == CHAR && sign)
-		basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
-	else if (size == SHORT)
-		basety = sign == UNSIGNED ? unsignedshorttype : shorttype;
-	else if (type == INT && size == LONG)
-		basety = sign == UNSIGNED ? unsignedlongtype : longtype;
-	else if (size == LONG + LONG)
-		basety = sign == UNSIGNED ? unsignedlonglongtype : longlongtype;
-	else if (type == DOUBLE && size == LONG)
-		basety = longdoubletype;
-	else if (sign == UNSIGNED)
-		basety = unsignedinttype;
+    if (type == ID)
+        basety = tydefty;
+    else if (type == CHAR && sign)
+        basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
+    else if (size == SHORT)
+        basety = sign == UNSIGNED ? unsignedshorttype : shorttype;
+    else if (type == INT && size == LONG)
+        basety = sign == UNSIGNED ? unsignedlongtype : longtype;
+    else if (size == LONG + LONG)
+        basety = sign == UNSIGNED ? unsignedlonglongtype : longlongtype;
+    else if (type == DOUBLE && size == LONG)
+        basety = longdoubletype;
+    else if (sign == UNSIGNED)
+        basety = unsignedinttype;
 
-	// qulifier
-	if (cons)
-		basety = qual(CONST, basety);
-	if (vol)
-		basety = qual(VOLATILE, basety);
-	if (res)
-		basety = qual(RESTRICT, basety);
+    // qulifier
+    if (cons)
+        basety = qual(CONST, basety);
+    if (vol)
+        basety = qual(VOLATILE, basety);
+    if (res)
+        basety = qual(RESTRICT, basety);
 
-	if (sclass)
-		*sclass = cls;
-	if (fspec)
-		*fspec = inl;
+    if (sclass)
+        *sclass = cls;
+    if (fspec)
+        *fspec = inl;
 
-	return basety;
+    return basety;
 }
 
 static void array_qualifiers(node_t * atype)
 {
-	int cons, vol, res;
-	int *p;
-	cons = vol = res = 0;
-	while (token->kind == CONST) {
-		int t = token->id;
-		struct source src = source;
-		switch (t) {
-		case CONST:
-			p = &cons;
-			gettok();
-			break;
+    int cons, vol, res;
+    int *p;
+    cons = vol = res = 0;
+    while (token->kind == CONST) {
+        int t = token->id;
+        struct source src = source;
+        switch (t) {
+        case CONST:
+            p = &cons;
+            gettok();
+            break;
 
-		case VOLATILE:
-			p = &vol;
-			gettok();
-			break;
+        case VOLATILE:
+            p = &vol;
+            gettok();
+            break;
 
-		case RESTRICT:
-			p = &res;
-			gettok();
-			break;
+        case RESTRICT:
+            p = &res;
+            gettok();
+            break;
 
-		default:
-			cc_assert(0);
-		}
+        default:
+            cc_assert(0);
+        }
 
-		if (*p != 0)
-			warningf(src, "duplicate type qualifier '%s'", id2s(*p));
+        if (*p != 0)
+            warningf(src, "duplicate type qualifier '%s'", id2s(*p));
 
-		*p = t;
-	}
+        *p = t;
+    }
 
-	if (cons)
-		TYPE_A_CONST(atype) = 1;
-	if (vol)
-		TYPE_A_VOLATILE(atype) = 1;
-	if (res)
-		TYPE_A_RESTRICT(atype) = 1;
+    if (cons)
+        TYPE_A_CONST(atype) = 1;
+    if (vol)
+        TYPE_A_VOLATILE(atype) = 1;
+    if (res)
+        TYPE_A_RESTRICT(atype) = 1;
 }
 
 static node_t **parameters(node_t * ftype, int *params)
 {
-	node_t **ret = NULL;
+    node_t **ret = NULL;
 
     /**
      * To make it easy to distinguish between 'paramaters in parameter' and
      * 'compound statement of function definition', they both may be at scope
      * LOCAL (aka PARAM+1), so enter scope again to make things easy.
      */
-	enter_scope();
-	if (SCOPE > PARAM)
-		enter_scope();
+    enter_scope();
+    if (SCOPE > PARAM)
+        enter_scope();
 
-	if (first_decl(token)) {
-		// prototype
-		struct vector *v = vec_new();
-		bool first_void = false;
-		for (int i = 0;; i++) {
-			node_t *basety = NULL;
-			int sclass, fspec;
-			node_t *ty = NULL;
-			struct token *id = NULL;
-			node_t *sym;
+    if (first_decl(token)) {
+        // prototype
+        struct vector *v = vec_new();
+        bool first_void = false;
+        for (int i = 0;; i++) {
+            node_t *basety = NULL;
+            int sclass, fspec;
+            node_t *ty = NULL;
+            struct token *id = NULL;
+            node_t *sym;
 
-			basety = specifiers(&sclass, &fspec);
-			if (token->id == '*' || token->id == '('
-			    || token->id == '[' || token->id == ID)
-				param_declarator(&ty, &id);
+            basety = specifiers(&sclass, &fspec);
+            if (token->id == '*' || token->id == '('
+                || token->id == '[' || token->id == ID)
+                param_declarator(&ty, &id);
 
-			attach_type(&ty, basety);
-			if (i == 0 && isvoid(ty))
-				first_void = true;
+            attach_type(&ty, basety);
+            if (i == 0 && isvoid(ty))
+                first_void = true;
 
-			SAVE_ERRORS;
-			sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass), fspec);
-			if (NO_ERROR && !first_void)
-				vec_push(v, sym);
-			if (token->id != ',')
-				break;
+            SAVE_ERRORS;
+            sym = paramdecl(id, ty, PACK_PARAM(1, i == 0, first_void, sclass), fspec);
+            if (NO_ERROR && !first_void)
+                vec_push(v, sym);
+            if (token->id != ',')
+                break;
 
-			expect(',');
-			if (token->id == ELLIPSIS) {
-				if (!first_void)
-					TYPE_VARG(ftype) = 1;
-				else
-					error("'void' must be the first and only parameter if specified");
-				expect(ELLIPSIS);
-				break;
-			}
-		}
+            expect(',');
+            if (token->id == ELLIPSIS) {
+                if (!first_void)
+                    TYPE_VARG(ftype) = 1;
+                else
+                    error("'void' must be the first and only parameter if specified");
+                expect(ELLIPSIS);
+                break;
+            }
+        }
 
-		ret = (node_t **) vtoa(v);
-	} else if (token->id == ID) {
-		// oldstyle
-		TYPE_OLDSTYLE(ftype) = 1;
-		struct vector *v = vec_new();
-		for (;;) {
-			if (token->id == ID)
-				vec_push(v, paramdecl(token, inttype, 0, 0));
-			expect(ID);
-			if (token->id != ',')
-				break;
-			expect(',');
-		}
+        ret = (node_t **) vtoa(v);
+    } else if (token->id == ID) {
+        // oldstyle
+        TYPE_OLDSTYLE(ftype) = 1;
+        struct vector *v = vec_new();
+        for (;;) {
+            if (token->id == ID)
+                vec_push(v, paramdecl(token, inttype, 0, 0));
+            expect(ID);
+            if (token->id != ',')
+                break;
+            expect(',');
+        }
 
-		if (SCOPE > PARAM)
-			error("a parameter list without types is only allowed in a function definition");
-		ret = (node_t **) vtoa(v);
-	} else if (token->id == ')') {
-		TYPE_OLDSTYLE(ftype) = 1;
-	} else {
-		TYPE_OLDSTYLE(ftype) = 1;
-		if (token->id == ELLIPSIS)
-			error("ISO C requires a named parameter before '...'");
-		else
-			error("expect parameter declarator at '%s'", token->name);
-		gettok();
-	}
+        if (SCOPE > PARAM)
+            error("a parameter list without types is only allowed in a function definition");
+        ret = (node_t **) vtoa(v);
+    } else if (token->id == ')') {
+        TYPE_OLDSTYLE(ftype) = 1;
+    } else {
+        TYPE_OLDSTYLE(ftype) = 1;
+        if (token->id == ELLIPSIS)
+            error("ISO C requires a named parameter before '...'");
+        else
+            error("expect parameter declarator at '%s'", token->name);
+        gettok();
+    }
 
-	if (params && *params == 0) {
-		*params = 1;
-	} else {
-		if (SCOPE > PARAM)
-			exit_scope();
+    if (params && *params == 0) {
+        *params = 1;
+    } else {
+        if (SCOPE > PARAM)
+            exit_scope();
 
-		exit_scope();
-	}
+        exit_scope();
+    }
 
-	return ret;
+    return ret;
 }
 
 static node_t *arrays(bool abstract)
 {
-	node_t *atype = array_type(NULL);
+    node_t *atype = array_type(NULL);
 
-	if (abstract) {
-		if (token->id == '*') {
-			if (lookahead()->id != ']') {
-				TYPE_A_ASSIGN(atype) = assign_expr();
-			} else {
-				expect('*');
-				TYPE_A_STAR(atype) = 1;
-			}
-		} else if (first_expr(token)) {
-			TYPE_A_ASSIGN(atype) = assign_expr();
-		}
-	} else {
-		if (token->id == STATIC) {
-			expect(STATIC);
-			TYPE_A_STATIC(atype) = 1;
-			if (token->kind == CONST)
-				array_qualifiers(atype);
-			TYPE_A_ASSIGN(atype) = assign_expr();
-		} else if (token->kind == CONST) {
-			if (token->kind == CONST)
-				array_qualifiers(atype);
-			if (token->id == STATIC) {
-				expect(STATIC);
-				TYPE_A_STATIC(atype) = 1;
-				TYPE_A_ASSIGN(atype) = assign_expr();
-			} else if (token->id == '*') {
-				if (lookahead()->id != ']') {
-					TYPE_A_ASSIGN(atype) = assign_expr();
-				} else {
-					expect('*');
-					TYPE_A_STAR(atype) = 1;
-				}
-			} else if (first_expr(token)) {
-				TYPE_A_ASSIGN(atype) = assign_expr();
-			}
-		} else if (token->id == '*') {
-			if (lookahead()->id != ']') {
-				TYPE_A_ASSIGN(atype) = assign_expr();
-			} else {
-				expect('*');
-				TYPE_A_STAR(atype) = 1;
-			}
-		} else if (first_expr(token)) {
-			TYPE_A_ASSIGN(atype) = assign_expr();
-		}
-	}
+    if (abstract) {
+        if (token->id == '*') {
+            if (lookahead()->id != ']') {
+                TYPE_A_ASSIGN(atype) = assign_expr();
+            } else {
+                expect('*');
+                TYPE_A_STAR(atype) = 1;
+            }
+        } else if (first_expr(token)) {
+            TYPE_A_ASSIGN(atype) = assign_expr();
+        }
+    } else {
+        if (token->id == STATIC) {
+            expect(STATIC);
+            TYPE_A_STATIC(atype) = 1;
+            if (token->kind == CONST)
+                array_qualifiers(atype);
+            TYPE_A_ASSIGN(atype) = assign_expr();
+        } else if (token->kind == CONST) {
+            if (token->kind == CONST)
+                array_qualifiers(atype);
+            if (token->id == STATIC) {
+                expect(STATIC);
+                TYPE_A_STATIC(atype) = 1;
+                TYPE_A_ASSIGN(atype) = assign_expr();
+            } else if (token->id == '*') {
+                if (lookahead()->id != ']') {
+                    TYPE_A_ASSIGN(atype) = assign_expr();
+                } else {
+                    expect('*');
+                    TYPE_A_STAR(atype) = 1;
+                }
+            } else if (first_expr(token)) {
+                TYPE_A_ASSIGN(atype) = assign_expr();
+            }
+        } else if (token->id == '*') {
+            if (lookahead()->id != ']') {
+                TYPE_A_ASSIGN(atype) = assign_expr();
+            } else {
+                expect('*');
+                TYPE_A_STAR(atype) = 1;
+            }
+        } else if (first_expr(token)) {
+            TYPE_A_ASSIGN(atype) = assign_expr();
+        }
+    }
 
-	return atype;
+    return atype;
 }
 
 static node_t *func_or_array(int *params)
 {
-	node_t *ty = NULL;
-	int follow[] = { '[', ID, IF, 0 };
+    node_t *ty = NULL;
+    int follow[] = { '[', ID, IF, 0 };
 
-	for (; token->id == '(' || token->id == '[';) {
-		if (token->id == '[') {
-			node_t *atype;
-			expect('[');
-			atype = arrays(false);
-			match(']', follow);
-			attach_type(&ty, atype);
-		} else {
-			node_t *ftype = func_type();
-			expect('(');
-			TYPE_PARAMS(ftype) = parameters(ftype, params);
-			match(')', follow);
-			attach_type(&ty, ftype);
-		}
-	}
+    for (; token->id == '(' || token->id == '[';) {
+        if (token->id == '[') {
+            node_t *atype;
+            expect('[');
+            atype = arrays(false);
+            match(']', follow);
+            attach_type(&ty, atype);
+        } else {
+            node_t *ftype = func_type();
+            expect('(');
+            TYPE_PARAMS(ftype) = parameters(ftype, params);
+            match(')', follow);
+            attach_type(&ty, ftype);
+        }
+    }
 
-	return ty;
+    return ty;
 }
 
 static node_t *abstract_func_or_array(void)
 {
-	node_t *ty = NULL;
+    node_t *ty = NULL;
 
-	for (; token->id == '(' || token->id == '[';) {
-		if (token->id == '[') {
-			node_t *atype;
-			expect('[');
-			atype = arrays(true);
-			expect(']');
-			attach_type(&ty, atype);
-		} else {
-			node_t *ftype = func_type();
-			expect('(');
-			TYPE_PARAMS(ftype) = parameters(ftype, NULL);
-			expect(')');
-			attach_type(&ty, ftype);
-		}
-	}
+    for (; token->id == '(' || token->id == '[';) {
+        if (token->id == '[') {
+            node_t *atype;
+            expect('[');
+            atype = arrays(true);
+            expect(']');
+            attach_type(&ty, atype);
+        } else {
+            node_t *ftype = func_type();
+            expect('(');
+            TYPE_PARAMS(ftype) = parameters(ftype, NULL);
+            expect(')');
+            attach_type(&ty, ftype);
+        }
+    }
 
-	return ty;
+    return ty;
 }
 
 static node_t *tag_decl(void)
 {
-	int t = token->id;
-	const char *id = NULL;
-	node_t *sym = NULL;
-	struct source src = source;
-	int follow[] = {INT, CONST, STATIC, IF, 0};
+    int t = token->id;
+    const char *id = NULL;
+    node_t *sym = NULL;
+    struct source src = source;
+    int follow[] = {INT, CONST, STATIC, IF, 0};
 
-	expect(t);
-	if (token->id == ID) {
-		id = token->name;
-		expect(ID);
-	}
-	if (token->id == '{') {
-		expect('{');
-		sym = tag_type(t, id, src);
-		if (t == ENUM)
-			ids(sym);
-		else
-			fields(sym);
-		match('}', follow);
-		SYM_DEFINED(sym) = true;
-	} else if (id) {
-		sym = lookup(id, tags);
-		if (sym) {
-			if (currentscope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
-				errorf(src,
-				       "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u:%u",
-				       id2s(t), id, type2s(SYM_TYPE(sym)),
-				       AST_SRC(sym).file,
-				       AST_SRC(sym).line,
-				       AST_SRC(sym).column);
-		} else {
-			sym = tag_type(t, id, src);
-		}
-	} else {
-		error("expected identifier or '{'");
-		sym = tag_type(t, NULL, src);
-	}
+    expect(t);
+    if (token->id == ID) {
+        id = token->name;
+        expect(ID);
+    }
+    if (token->id == '{') {
+        expect('{');
+        sym = tag_type(t, id, src);
+        if (t == ENUM)
+            ids(sym);
+        else
+            fields(sym);
+        match('}', follow);
+        SYM_DEFINED(sym) = true;
+    } else if (id) {
+        sym = lookup(id, tags);
+        if (sym) {
+            if (currentscope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
+                errorf(src,
+                       "use of '%s' with tag type that does not match previous declaration '%s %s' at %s:%u:%u",
+                       id2s(t), id, type2s(SYM_TYPE(sym)),
+                       AST_SRC(sym).file,
+                       AST_SRC(sym).line,
+                       AST_SRC(sym).column);
+        } else {
+            sym = tag_type(t, id, src);
+        }
+    } else {
+        error("expected identifier or '{'");
+        sym = tag_type(t, NULL, src);
+    }
 
-	return SYM_TYPE(sym);
+    return SYM_TYPE(sym);
 }
 
 static void ids(node_t *sym)
 {
-        int val = 0;
-	struct vector *v = vec_new();
-	if (token->id != ID)
-		error("expect identifier");
-	while (token->id == ID) {
-		node_t *s = lookup(token->name, identifiers);
-		if (s && currentscope(s))
-			redefinition_error(source, s);
+    int val = 0;
+    struct vector *v = vec_new();
+    if (token->id != ID)
+        error("expect identifier");
+    while (token->id == ID) {
+        node_t *s = lookup(token->name, identifiers);
+        if (s && currentscope(s))
+            redefinition_error(source, s);
 
-		s = install(token->name, &identifiers, SCOPE);
-		SYM_TYPE(s) = SYM_TYPE(sym);
-		AST_SRC(s) = source;
-		SYM_SCLASS(s) = ENUM;
-		expect(ID);
-		if (token->id == '=') {
-			expect('=');
-			val = intexpr();
-		}
-		SYM_VALUE_U(s) = val++;
-		vec_push(v, s);
-		if (token->id != ',')
-			break;
-		expect(',');
-	}
+        s = install(token->name, &identifiers, SCOPE);
+        SYM_TYPE(s) = SYM_TYPE(sym);
+        AST_SRC(s) = source;
+        SYM_SCLASS(s) = ENUM;
+        expect(ID);
+        if (token->id == '=') {
+            expect('=');
+            val = intexpr();
+        }
+        SYM_VALUE_U(s) = val++;
+        vec_push(v, s);
+        if (token->id != ',')
+            break;
+        expect(',');
+    }
 }
 
 static void bitfield(node_t *field)
 {
-	AST_SRC(field) = source;
-	expect(':');
-	FIELD_BITSIZE(field) = intexpr();
-	FIELD_ISBIT(field) = true;
+    AST_SRC(field) = source;
+    expect(':');
+    FIELD_BITSIZE(field) = intexpr();
+    FIELD_ISBIT(field) = true;
 }
 
 static inline bool first_field(struct token *t)
 {
-	return istypename(t) || t->kind == STATIC;
+    return istypename(t) || t->kind == STATIC;
 }
 
 static void fields(node_t * sym)
 {
-	int follow[] = { INT, CONST, '}', IF, 0 };
-	node_t *sty = SYM_TYPE(sym);
+    int follow[] = { INT, CONST, '}', IF, 0 };
+    node_t *sty = SYM_TYPE(sym);
 
-	if (!first_field(token))
-		error("expect type name or qualifiers");
+    if (!first_field(token))
+        error("expect type name or qualifiers");
 
-	struct vector *v = vec_new();
-	while (first_field(token)) {
-		node_t *basety = specifiers(NULL, NULL);
+    struct vector *v = vec_new();
+    while (first_field(token)) {
+        node_t *basety = specifiers(NULL, NULL);
 
-		for (;;) {
-			node_t *field = new_field();
-			if (token->id == ':') {
-				bitfield(field);
-				FIELD_TYPE(field) = basety;
-			} else {
-				node_t *ty = NULL;
-				struct token *id = NULL;
-				declarator(&ty, &id, NULL);
-				attach_type(&ty, basety);
-				if (token->id == ':')
-					bitfield(field);
-				FIELD_TYPE(field) = ty;
-				if (id) {
-					for (int i = 0; i < vec_len(v); i++) {
-						node_t *f = vec_at(v, i);
-						if (FIELD_NAME(f)
-						    && !strcmp(FIELD_NAME(f),
-							       id->name)) {
-							errorf(id->src,
-							       "redefinition of '%s'",
-							       id->name);
-							break;
-						}
-					}
-					FIELD_NAME(field) = id->name;
-					AST_SRC(field) = id->src;
-				}
-			}
+        for (;;) {
+            node_t *field = new_field();
+            if (token->id == ':') {
+                bitfield(field);
+                FIELD_TYPE(field) = basety;
+            } else {
+                node_t *ty = NULL;
+                struct token *id = NULL;
+                declarator(&ty, &id, NULL);
+                attach_type(&ty, basety);
+                if (token->id == ':')
+                    bitfield(field);
+                FIELD_TYPE(field) = ty;
+                if (id) {
+                    for (int i = 0; i < vec_len(v); i++) {
+                        node_t *f = vec_at(v, i);
+                        if (FIELD_NAME(f)
+                            && !strcmp(FIELD_NAME(f),
+                                       id->name)) {
+                            errorf(id->src,
+                                   "redefinition of '%s'",
+                                   id->name);
+                            break;
+                        }
+                    }
+                    FIELD_NAME(field) = id->name;
+                    AST_SRC(field) = id->src;
+                }
+            }
 
-			vec_push(v, field);
-			if (token->id != ',')
-				break;
-			expect(',');
-			ensure_field(field, vec_len(v), false);
-		}
+            vec_push(v, field);
+            if (token->id != ',')
+                break;
+            expect(',');
+            ensure_field(field, vec_len(v), false);
+        }
 
-		match(';', follow);
-		ensure_field(vec_tail(v), vec_len(v),
-			     isstruct(sty) && !first_field(token));
-	}
-	TYPE_FIELDS(sty) = (node_t **) vtoa(v);
-	set_typesize(sty);
+        match(';', follow);
+        ensure_field(vec_tail(v), vec_len(v),
+                     isstruct(sty) && !first_field(token));
+    }
+    TYPE_FIELDS(sty) = (node_t **) vtoa(v);
+    set_typesize(sty);
 }
 
 static void ensure_bitfield(node_t *field)
 {
-	const char *name = FIELD_NAME(field);
-	node_t *ty = FIELD_TYPE(field);
-	struct source src = AST_SRC(field);
-	int bitsize = FIELD_BITSIZE(field);
-	int bits = BITS(TYPE_SIZE(ty));
+    const char *name = FIELD_NAME(field);
+    node_t *ty = FIELD_TYPE(field);
+    struct source src = AST_SRC(field);
+    int bitsize = FIELD_BITSIZE(field);
+    int bits = BITS(TYPE_SIZE(ty));
 
-	if (!isint(ty)) {
-		if (name)
-			errorf(src,
-			       "bit-field '%s' has non-integral type '%s'",
-			       name, type2s(ty));
-		else
-			errorf(src,
-			       "anonymous bit-field has non-integral type '%s'",
-			       type2s(ty));
-	}
+    if (!isint(ty)) {
+        if (name)
+            errorf(src,
+                   "bit-field '%s' has non-integral type '%s'",
+                   name, type2s(ty));
+        else
+            errorf(src,
+                   "anonymous bit-field has non-integral type '%s'",
+                   type2s(ty));
+    }
 
-	if (bitsize < 0) {
-		if (name)
-			errorf(src,
-			       "bit-field '%s' has negative width '%d'",
-			       name, bitsize);
-		else
-			errorf(src,
-			       "anonymous bit-field has negative width '%d'",
-			       bitsize);
-	}
+    if (bitsize < 0) {
+        if (name)
+            errorf(src,
+                   "bit-field '%s' has negative width '%d'",
+                   name, bitsize);
+        else
+            errorf(src,
+                   "anonymous bit-field has negative width '%d'",
+                   bitsize);
+    }
 
-	if (bitsize == 0 && name)
-		errorf(src, "named bit-field '%s' has zero width",
-		       name);
+    if (bitsize == 0 && name)
+        errorf(src, "named bit-field '%s' has zero width",
+               name);
 
-	if (bitsize > bits) {
-		if (name)
-			errorf(src,
-			       "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
-			       name, bitsize, bits);
-		else
-			errorf(src,
-			       "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
-			       bitsize, bits);
-	}
+    if (bitsize > bits) {
+        if (name)
+            errorf(src,
+                   "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
+                   name, bitsize, bits);
+        else
+            errorf(src,
+                   "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
+                   bitsize, bits);
+    }
 }
 
 static void ensure_nonbitfield(node_t * field, size_t total, bool last)
 {
-	node_t *ty = FIELD_TYPE(field);
-	struct source src = AST_SRC(field);
-	
-	if (isarray(ty)) {
-		ensure_array(ty, source, CONSTANT);
-		if (isincomplete(ty)) {
-			if (last) {
-				if (total == 1)
-					errorf(src,
-					       "flexible array cannot be the only member");
-			} else {
-				errorf(src,
-				       "field has incomplete type '%s'",
-				       type2s(ty));
-			}
-		}
-	} else if (isfunc(ty)) {
-		errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
-	} else if (isincomplete(ty)) {
-		errorf(src, "field has incomplete type '%s'", type2s(ty));
-	}
+    node_t *ty = FIELD_TYPE(field);
+    struct source src = AST_SRC(field);
+        
+    if (isarray(ty)) {
+        ensure_array(ty, source, CONSTANT);
+        if (isincomplete(ty)) {
+            if (last) {
+                if (total == 1)
+                    errorf(src,
+                           "flexible array cannot be the only member");
+            } else {
+                errorf(src,
+                       "field has incomplete type '%s'",
+                       type2s(ty));
+            }
+        }
+    } else if (isfunc(ty)) {
+        errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
+    } else if (isincomplete(ty)) {
+        errorf(src, "field has incomplete type '%s'", type2s(ty));
+    }
 }
 
 static void ensure_field(node_t * field, size_t total, bool last)
 {
-	if (FIELD_ISBIT(field))
-		ensure_bitfield(field);
-	else
-		ensure_nonbitfield(field, total, last);
+    if (FIELD_ISBIT(field))
+        ensure_bitfield(field);
+    else
+        ensure_nonbitfield(field, total, last);
 }
 
 static node_t *ptr_decl(void)
 {
-	node_t *ret = NULL;
-	int con, vol, res, type;
+    node_t *ret = NULL;
+    int con, vol, res, type;
 
-	cc_assert(token->id == '*');
+    cc_assert(token->id == '*');
 
-	for (;;) {
-		int *p, t = token->id;
-		switch (token->id) {
-		case CONST:
-			p = &con;
-			break;
+    for (;;) {
+        int *p, t = token->id;
+        switch (token->id) {
+        case CONST:
+            p = &con;
+            break;
 
-		case VOLATILE:
-			p = &vol;
-			break;
+        case VOLATILE:
+            p = &vol;
+            break;
 
-		case RESTRICT:
-			p = &res;
-			break;
+        case RESTRICT:
+            p = &res;
+            break;
 
-		case '*':
-			{
-				node_t *pty = ptr_type(NULL);
-				con = vol = res = type = 0;
-				p = &type;
-				prepend_type(&ret, pty);
-			}
-			break;
+        case '*':
+            {
+                node_t *pty = ptr_type(NULL);
+                con = vol = res = type = 0;
+                p = &type;
+                prepend_type(&ret, pty);
+            }
+            break;
 
-		default:
-			p = NULL;
-			break;
-		}
+        default:
+            p = NULL;
+            break;
+        }
 
-		if (p == NULL)
-			break;
+        if (p == NULL)
+            break;
 
-		if (*p != 0)
-			warning("duplicate type qulifier '%s'", token->name);
+        if (*p != 0)
+            warning("duplicate type qulifier '%s'", token->name);
 
-		*p = t;
+        *p = t;
 
-		if (t == CONST || t == VOLATILE || t == RESTRICT)
-			ret = qual(t, ret);
+        if (t == CONST || t == VOLATILE || t == RESTRICT)
+            ret = qual(t, ret);
 
-		gettok();
-	}
+        gettok();
+    }
 
-	return ret;
+    return ret;
 }
 
 static void param_declarator(node_t ** ty, struct token **id)
 {
-	if (token->id == '*') {
-		node_t *pty = ptr_decl();
-		prepend_type(ty, pty);
-	}
+    if (token->id == '*') {
+        node_t *pty = ptr_decl();
+        prepend_type(ty, pty);
+    }
 
-	if (token->id == '(') {
-		if (first_decl(lookahead())) {
-			abstract_declarator(ty);
-		} else {
-			node_t *type1 = *ty;
-			node_t *rtype = NULL;
-			expect('(');
-			param_declarator(&rtype, id);
-			expect(')');
-			if (token->id == '(' || token->id == '[') {
-				node_t *faty;
-				cc_assert(id);
-				if (*id) {
-					faty = func_or_array(NULL);
-				} else {
-					faty = abstract_func_or_array();
-				}
-				attach_type(&faty, type1);
-				attach_type(&rtype, faty);
-			}
-			*ty = rtype;
-		}
-	} else if (token->id == '[') {
-		abstract_declarator(ty);
-	} else if (token->id == ID) {
-		declarator(ty, id, NULL);
-	}
+    if (token->id == '(') {
+        if (first_decl(lookahead())) {
+            abstract_declarator(ty);
+        } else {
+            node_t *type1 = *ty;
+            node_t *rtype = NULL;
+            expect('(');
+            param_declarator(&rtype, id);
+            expect(')');
+            if (token->id == '(' || token->id == '[') {
+                node_t *faty;
+                cc_assert(id);
+                if (*id) {
+                    faty = func_or_array(NULL);
+                } else {
+                    faty = abstract_func_or_array();
+                }
+                attach_type(&faty, type1);
+                attach_type(&rtype, faty);
+            }
+            *ty = rtype;
+        }
+    } else if (token->id == '[') {
+        abstract_declarator(ty);
+    } else if (token->id == ID) {
+        declarator(ty, id, NULL);
+    }
 }
 
 static void abstract_declarator(node_t ** ty)
 {
-	cc_assert(ty);
+    cc_assert(ty);
 
-	if (token->id == '*' || token->id == '(' || token->id == '[') {
-		if (token->id == '*') {
-			node_t *pty = ptr_decl();
-			prepend_type(ty, pty);
-		}
+    if (token->id == '*' || token->id == '(' || token->id == '[') {
+        if (token->id == '*') {
+            node_t *pty = ptr_decl();
+            prepend_type(ty, pty);
+        }
 
-		if (token->id == '(') {
-			if (first_decl(lookahead())) {
-				node_t *faty = abstract_func_or_array();
-				prepend_type(ty, faty);
-			} else {
-				expect('(');
-				abstract_declarator(ty);
-				expect(')');
-			}
-		} else if (token->id == '[') {
-			node_t *faty = abstract_func_or_array();
-			prepend_type(ty, faty);
-		}
-	} else {
-		error("expect '(' or '[' at '%s'", token->name);
-	}
+        if (token->id == '(') {
+            if (first_decl(lookahead())) {
+                node_t *faty = abstract_func_or_array();
+                prepend_type(ty, faty);
+            } else {
+                expect('(');
+                abstract_declarator(ty);
+                expect(')');
+            }
+        } else if (token->id == '[') {
+            node_t *faty = abstract_func_or_array();
+            prepend_type(ty, faty);
+        }
+    } else {
+        error("expect '(' or '[' at '%s'", token->name);
+    }
 }
 
 static void declarator(node_t ** ty, struct token **id, int *params)
 {
-	cc_assert(ty && id);
-	int follow[] = { ',', '=', IF, 0 };
+    cc_assert(ty && id);
+    int follow[] = { ',', '=', IF, 0 };
 
-	if (token->id == '*') {
-		node_t *pty = ptr_decl();
-		prepend_type(ty, pty);
-	}
+    if (token->id == '*') {
+        node_t *pty = ptr_decl();
+        prepend_type(ty, pty);
+    }
 
-	if (token->id == ID) {
-		*id = token;
-		expect(ID);
-		if (token->id == '[' || token->id == '(') {
-			node_t *faty = func_or_array(params);
-			prepend_type(ty, faty);
-		}
-	} else if (token->id == '(') {
-		node_t *type1 = *ty;
-		node_t *rtype = NULL;
-		expect('(');
-		declarator(&rtype, id, params);
-		match(')', follow);
-		if (token->id == '[' || token->id == '(') {
-			node_t *faty = func_or_array(params);
-			attach_type(&faty, type1);
-			attach_type(&rtype, faty);
-		} else {
-			attach_type(&rtype, type1);
-		}
-		*ty = rtype;
-	} else {
-		error("expect identifier or '(' before '%s'", token->name);
-	}
+    if (token->id == ID) {
+        *id = token;
+        expect(ID);
+        if (token->id == '[' || token->id == '(') {
+            node_t *faty = func_or_array(params);
+            prepend_type(ty, faty);
+        }
+    } else if (token->id == '(') {
+        node_t *type1 = *ty;
+        node_t *rtype = NULL;
+        expect('(');
+        declarator(&rtype, id, params);
+        match(')', follow);
+        if (token->id == '[' || token->id == '(') {
+            node_t *faty = func_or_array(params);
+            attach_type(&faty, type1);
+            attach_type(&rtype, faty);
+        } else {
+            attach_type(&rtype, type1);
+        }
+        *ty = rtype;
+    } else {
+        error("expect identifier or '(' before '%s'", token->name);
+    }
 }
 
 static bool firstfuncdef(node_t * ty)
 {
-	bool prototype = token->id == '{';
-	bool oldstyle = (istypename(token) || token->kind == STATIC)
-	    && TYPE_OLDSTYLE(ty) && TYPE_PARAMS(ty);
+    bool prototype = token->id == '{';
+    bool oldstyle = (istypename(token) || token->kind == STATIC)
+        && TYPE_OLDSTYLE(ty) && TYPE_PARAMS(ty);
 
-	return isfunc(ty) && (prototype || oldstyle);
+    return isfunc(ty) && (prototype || oldstyle);
 }
 
 int first_decl(struct token *t)
 {
-	return t->kind == STATIC || t->kind == INT || t->kind == CONST
-	    || (t->id == ID && istypedef(t->name));
+    return t->kind == STATIC || t->kind == INT || t->kind == CONST
+        || (t->id == ID && istypedef(t->name));
 }
 
 int first_stmt(struct token *t)
 {
-	return t->kind == IF || first_expr(t);
+    return t->kind == IF || first_expr(t);
 }
 
 int first_expr(struct token *t)
 {
-	return t->kind == ID;
+    return t->kind == ID;
 }
 
 bool istypename(struct token * t)
 {
-	return (t->kind == INT || t->kind == CONST) ||
-	    (t->id == ID && istypedef(t->name));
+    return (t->kind == INT || t->kind == CONST) ||
+        (t->id == ID && istypedef(t->name));
 }
 
 static node_t *make_decl(struct token *id, node_t * ty, int sclass, int fspec, declfun_p * dcl)
 {
-	node_t *decl;
-	node_t *sym = dcl(id, ty, sclass, fspec);
-	if (sclass == TYPEDEF)
-		decl = ast_decl(TYPEDEF_DECL);
-	else if (isfunc(ty))
-		decl = ast_decl(FUNC_DECL);
-	else
-		decl = ast_decl(VAR_DECL);
+    node_t *decl;
+    node_t *sym = dcl(id, ty, sclass, fspec);
+    if (sclass == TYPEDEF)
+        decl = ast_decl(TYPEDEF_DECL);
+    else if (isfunc(ty))
+        decl = ast_decl(FUNC_DECL);
+    else
+        decl = ast_decl(VAR_DECL);
 
-	DECL_SYM(decl) = sym;
-	return decl;
+    DECL_SYM(decl) = sym;
+    return decl;
 }
 
 static struct vector *decls(declfun_p * dcl)
 {
-	struct vector *v = vec_new();
-	node_t *basety;
-	int sclass, fspec;
-	int level = SCOPE;
-	int follow[] = { STATIC, INT, CONST, IF, '}', 0 };
+    struct vector *v = vec_new();
+    node_t *basety;
+    int sclass, fspec;
+    int level = SCOPE;
+    int follow[] = { STATIC, INT, CONST, IF, '}', 0 };
 
-	basety = specifiers(&sclass, &fspec);
-	if (token->id == ID || token->id == '*' || token->id == '(') {
-		struct token *id = NULL;
-		node_t *ty = NULL;
-		int params = 0;	// for functioness
+    basety = specifiers(&sclass, &fspec);
+    if (token->id == ID || token->id == '*' || token->id == '(') {
+        struct token *id = NULL;
+        node_t *ty = NULL;
+        int params = 0;        // for functioness
 
-		// declarator
-		if (level == GLOBAL)
-			declarator(&ty, &id, &params);
-		else
-			declarator(&ty, &id, NULL);
-		attach_type(&ty, basety);
+        // declarator
+        if (level == GLOBAL)
+            declarator(&ty, &id, &params);
+        else
+            declarator(&ty, &id, NULL);
+        attach_type(&ty, basety);
 
-		if (level == GLOBAL) {
-			if (params) {
-				if (firstfuncdef(ty)) {
-					vec_push(v, funcdef(id, ty, sclass, fspec));
-					return v;
-				} else {
-					if (SCOPE > PARAM)
-						exit_scope();
-					exit_scope();
-				}
-			}
-		}
+        if (level == GLOBAL) {
+            if (params) {
+                if (firstfuncdef(ty)) {
+                    vec_push(v, funcdef(id, ty, sclass, fspec));
+                    return v;
+                } else {
+                    if (SCOPE > PARAM)
+                        exit_scope();
+                    exit_scope();
+                }
+            }
+        }
 
-		for (;;) {
-			if (id) {
-				int kind;
-				if (dcl == globaldecl)
-					kind = GLOBAL;
-				else if (dcl == localdecl)
-					kind = LOCAL;
-				else if (dcl == paramdecl)
-					kind = PARAM;
-				else
-					cc_assert(0);
-				node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
-				if (token->id == '=')
-					decl_initializer(decl, sclass, kind);
-				ensure_decl(decl, sclass, kind);
-				vec_push(v, decl);
-			}
+        for (;;) {
+            if (id) {
+                int kind;
+                if (dcl == globaldecl)
+                    kind = GLOBAL;
+                else if (dcl == localdecl)
+                    kind = LOCAL;
+                else if (dcl == paramdecl)
+                    kind = PARAM;
+                else
+                    cc_assert(0);
+                node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
+                if (token->id == '=')
+                    decl_initializer(decl, sclass, kind);
+                ensure_decl(decl, sclass, kind);
+                vec_push(v, decl);
+            }
 
-			if (token->id != ',')
-				break;
+            if (token->id != ',')
+                break;
 
-			expect(',');
-			id = NULL;
-			ty = NULL;
-			// declarator
-			declarator(&ty, &id, NULL);
-			attach_type(&ty, basety);
-		}
-	} else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
-		// struct/union/enum
-		// do nothing
-	} else {
-		error("invalid token '%s' in declaration", token->name);
-	}
-	match(';', follow);
+            expect(',');
+            id = NULL;
+            ty = NULL;
+            // declarator
+            declarator(&ty, &id, NULL);
+            attach_type(&ty, basety);
+        }
+    } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
+        // struct/union/enum
+        // do nothing
+    } else {
+        error("invalid token '%s' in declaration", token->name);
+    }
+    match(';', follow);
 
-	return v;
+    return v;
 }
 
 static struct vector *filter_global(struct vector *v)
 {
-	cc_assert(SCOPE == GLOBAL);
-	struct vector *r = vec_new();
-	struct map *map = map_new();
-	map->cmpfn = nocmp;
-	for (int i = 0; i < vec_len(v); i++) {
-		node_t *decl = vec_at(v, i);
-		if (isfuncdef(decl)) {
-			vec_push(r, decl);
-			vec_add_array(r, (void **)DECL_SVARS(decl));
-		} else if (isvardecl(decl)) {
-			node_t *sym = DECL_SYM(decl);
-			if (SYM_SCLASS(sym) == EXTERN)
-				continue;
-			node_t *decl1 = map_get(map, sym);
-			if (decl1) {
-				if (DECL_BODY(decl))
-					DECL_BODY(decl1) = DECL_BODY(decl);
-			} else {
-				vec_push(r, decl);
-				map_put(map, sym, decl);
-			}
-		}
-	}
-	map_free(map);
-	return r;
+    cc_assert(SCOPE == GLOBAL);
+    struct vector *r = vec_new();
+    struct map *map = map_new();
+    map->cmpfn = nocmp;
+    for (int i = 0; i < vec_len(v); i++) {
+        node_t *decl = vec_at(v, i);
+        if (isfuncdef(decl)) {
+            vec_push(r, decl);
+            vec_add_array(r, (void **)DECL_SVARS(decl));
+        } else if (isvardecl(decl)) {
+            node_t *sym = DECL_SYM(decl);
+            if (SYM_SCLASS(sym) == EXTERN)
+                continue;
+            node_t *decl1 = map_get(map, sym);
+            if (decl1) {
+                if (DECL_BODY(decl))
+                    DECL_BODY(decl1) = DECL_BODY(decl);
+            } else {
+                vec_push(r, decl);
+                map_put(map, sym, decl);
+            }
+        }
+    }
+    map_free(map);
+    return r;
 }
 
 struct vector *filter_local(struct vector *v, bool front)
 {
-	for (int i = 0; i < vec_len(v); i++) {
-		node_t *decl = vec_at(v, i);
-		node_t *sym = DECL_SYM(decl);
-		int sclass = SYM_SCLASS(sym);
-		if (!isvardecl(decl))
-			continue;
-		// local variables
-		if (sclass == STATIC) {
-			SYM_LABEL(sym) = gen_static_label(SYM_NAME(sym));
-			if (front)
-				vec_push_front(staticvars, decl);
-			else
-				vec_push(staticvars, decl);
-		} else if (sclass != EXTERN) {
-			if (front)
-				vec_push_front(localvars, decl);
-			else
-				vec_push(localvars, decl);
-		}
-	}
-	return v;
+    for (int i = 0; i < vec_len(v); i++) {
+        node_t *decl = vec_at(v, i);
+        node_t *sym = DECL_SYM(decl);
+        int sclass = SYM_SCLASS(sym);
+        if (!isvardecl(decl))
+            continue;
+        // local variables
+        if (sclass == STATIC) {
+            SYM_LABEL(sym) = gen_static_label(SYM_NAME(sym));
+            if (front)
+                vec_push_front(staticvars, decl);
+            else
+                vec_push(staticvars, decl);
+        } else if (sclass != EXTERN) {
+            if (front)
+                vec_push_front(localvars, decl);
+            else
+                vec_push(localvars, decl);
+        }
+    }
+    return v;
 }
 
 node_t *define_tmpvar(node_t * ty)
 {
-	const char *name = gen_tmpname();
-	node_t *decl = define_localvar(name, ty, 0, NULL);
-	node_t *n = alloc_node();
-	AST_ID(n) = REF_EXPR;
-	EXPR_SYM(n) = DECL_SYM(decl);
-	AST_TYPE(n) = ty;
-	SYM_REFS(DECL_SYM(decl))++;
-	return n;
+    const char *name = gen_tmpname();
+    node_t *decl = define_localvar(name, ty, 0, NULL);
+    node_t *n = alloc_node();
+    AST_ID(n) = REF_EXPR;
+    EXPR_SYM(n) = DECL_SYM(decl);
+    AST_TYPE(n) = ty;
+    SYM_REFS(DECL_SYM(decl))++;
+    return n;
 }
 
 node_t *make_localvar(const char *name, node_t * ty, int sclass)
 {
-	struct token *id = new_token(&(struct token){.id = ID,.name =
-				     name,.kind = ID,.src = source });
-	node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
-	return decl;
+    struct token *id = new_token(&(struct token){.id = ID,.name =
+                name,.kind = ID,.src = source });
+    node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
+    return decl;
 }
 
 node_t *define_localvar(const char *name, node_t * ty, int sclass,
-			node_t * init)
+                        node_t * init)
 {
-	node_t *decl = make_localvar(name, ty, sclass);
-	vec_push(localvars, decl);
-	return decl;
+    node_t *decl = make_localvar(name, ty, sclass);
+    vec_push(localvars, decl);
+    return decl;
 }
 
 node_t *typename(void)
 {
-	node_t *basety;
-	node_t *ty = NULL;
+    node_t *basety;
+    node_t *ty = NULL;
 
-	basety = specifiers(NULL, NULL);
-	if (token->id == '*' || token->id == '(' || token->id == '[')
-		abstract_declarator(&ty);
+    basety = specifiers(NULL, NULL);
+    if (token->id == '*' || token->id == '(' || token->id == '[')
+        abstract_declarator(&ty);
 
-	attach_type(&ty, basety);
+    attach_type(&ty, basety);
 
-	return ty;
+    return ty;
 }
 
 node_t **declaration(void)
 {
-	cc_assert(SCOPE >= LOCAL);
-	return (node_t **) vtoa(filter_local(decls(localdecl), false));
+    cc_assert(SCOPE >= LOCAL);
+    return (node_t **) vtoa(filter_local(decls(localdecl), false));
 }
 
 node_t *translation_unit(void)
 {
-	node_t *ret = ast_decl(TU_DECL);
-	struct vector *v = vec_new();
+    node_t *ret = ast_decl(TU_DECL);
+    struct vector *v = vec_new();
 
-	for (gettok(); token->id != EOI;) {
-		if (first_decl(token)) {
-			cc_assert(SCOPE == GLOBAL);
-			vec_add(v, decls(globaldecl));
-		} else {
-			if (token->id == ';')
-				// empty declaration
-				gettok();
-			else
-			        skipto(FARRAY(first_decl));
-		}
-	}
+    for (gettok(); token->id != EOI;) {
+        if (first_decl(token)) {
+            cc_assert(SCOPE == GLOBAL);
+            vec_add(v, decls(globaldecl));
+        } else {
+            if (token->id == ';')
+                // empty declaration
+                gettok();
+            else
+                skipto(FARRAY(first_decl));
+        }
+    }
 
-	DECL_DCLS(ret) = (node_t **) vtoa(v);
-	DECL_EXTS(ret) = (node_t **) vtoa(filter_global(v));
-	return ret;
+    DECL_DCLS(ret) = (node_t **) vtoa(v);
+    DECL_EXTS(ret) = (node_t **) vtoa(filter_global(v));
+    return ret;
 }
 
 static void ensure_decl(node_t * decl, int sclass, int kind)
 {
-	if (kind == PARAM)
-		return;
+    if (kind == PARAM)
+        return;
 
-	node_t *sym = DECL_SYM(decl);
-	node_t *ty = SYM_TYPE(sym);
-	struct source src = AST_SRC(sym);
-	if (isvardecl(decl)) {
-		if (isincomplete(ty) && SYM_DEFINED(sym))
-			errorf(src, "variable has incomplete type '%s'",
-			       type2s(ty));
-	}
+    node_t *sym = DECL_SYM(decl);
+    node_t *ty = SYM_TYPE(sym);
+    struct source src = AST_SRC(sym);
+    if (isvardecl(decl)) {
+        if (isincomplete(ty) && SYM_DEFINED(sym))
+            errorf(src, "variable has incomplete type '%s'",
+                   type2s(ty));
+    }
 }
 
 static void ensure_main(node_t *ftype, struct source src)
 {
-	node_t *rty = rtype(ftype);
-	node_t **params = TYPE_PARAMS(ftype);
-	if (rty != inttype)
-		errorf(src, "return type of 'main' is not 'int'");
-	for (int i = 0; i < MIN(3, LIST_LEN(params)); i++) {
-		node_t *ty = SYM_TYPE(params[i]);
-		if (i == 0) {
-			if (ty != inttype)
-				errorf(src,
-				       "first parameter of 'main' is not 'int'");
-		} else if (i == 1 || i == 2) {
-			if (!isptrto(ty, POINTER)
-			    || !isptrto(rtype(ty), CHAR))
-				errorf(src,
-				       "%s parameter of 'main' is not 'char **'",
-				       i == 1 ? "second" : "third");
-		}
-	}
-	if (LIST_LEN(params) == 1 || LIST_LEN(params) > 3)
-		errorf(src,
-		       "expect 0, 2 or 3 parameters for 'main', have %d",
-		       LIST_LEN(params));
+    node_t *rty = rtype(ftype);
+    node_t **params = TYPE_PARAMS(ftype);
+    if (rty != inttype)
+        errorf(src, "return type of 'main' is not 'int'");
+    for (int i = 0; i < MIN(3, LIST_LEN(params)); i++) {
+        node_t *ty = SYM_TYPE(params[i]);
+        if (i == 0) {
+            if (ty != inttype)
+                errorf(src,
+                       "first parameter of 'main' is not 'int'");
+        } else if (i == 1 || i == 2) {
+            if (!isptrto(ty, POINTER)
+                || !isptrto(rtype(ty), CHAR))
+                errorf(src,
+                       "%s parameter of 'main' is not 'char **'",
+                       i == 1 ? "second" : "third");
+        }
+    }
+    if (LIST_LEN(params) == 1 || LIST_LEN(params) > 3)
+        errorf(src,
+               "expect 0, 2 or 3 parameters for 'main', have %d",
+               LIST_LEN(params));
 }
 
 static void ensure_func(node_t * ftype, struct source src, const char *name,
-			int level)
+                        int level)
 {
-	node_t *rty = rtype(ftype);
-	if (isarray(rty))
-		errorf(src, "function cannot return array type '%s'",
-		       type2s(rty));
-	else if (isfunc(rty))
-		errorf(src, "function cannot return function type '%s'",
-		       type2s(rty));
+    node_t *rty = rtype(ftype);
+    if (isarray(rty))
+        errorf(src, "function cannot return array type '%s'",
+               type2s(rty));
+    else if (isfunc(rty))
+        errorf(src, "function cannot return function type '%s'",
+               type2s(rty));
 
-	// check main function declaration
-	if ((name && !strcmp(name, "main"))
-	    && (level == GLOBAL || level == LOCAL))
-		ensure_main(ftype, src);
+    // check main function declaration
+    if ((name && !strcmp(name, "main"))
+        && (level == GLOBAL || level == LOCAL))
+        ensure_main(ftype, src);
 }
 
 /**
@@ -1201,336 +1201,336 @@ static void ensure_func(node_t * ftype, struct source src, const char *name,
  */
 static void ensure_array(node_t * atype, struct source src, int level)
 {
-	node_t *rty = atype;
-	do {
-		node_t *assign = TYPE_A_ASSIGN(rty);
-		if (assign) {
-			if (isint(AST_TYPE(assign))) {
-				// try evaluate the length
-				node_t *ret = eval(assign, longtype);
-				if (ret) {
-					cc_assert(isiliteral(ret));
-					TYPE_LEN(rty) = ILITERAL_VALUE(ret);
-					if ((long)ILITERAL_VALUE(ret) < 0) {
-						errorf(src,
-						       "array has negative size");
-					}
-				} else {
-					errorf(src,
-					       "expect constant expression");
-				}
-			} else {
-				errorf(src,
-				       "size of array has non-integer type '%s'",
-				       type2s(AST_TYPE(assign)));
-			}
-		}
+    node_t *rty = atype;
+    do {
+        node_t *assign = TYPE_A_ASSIGN(rty);
+        if (assign) {
+            if (isint(AST_TYPE(assign))) {
+                // try evaluate the length
+                node_t *ret = eval(assign, longtype);
+                if (ret) {
+                    cc_assert(isiliteral(ret));
+                    TYPE_LEN(rty) = ILITERAL_VALUE(ret);
+                    if ((long)ILITERAL_VALUE(ret) < 0) {
+                        errorf(src,
+                               "array has negative size");
+                    }
+                } else {
+                    errorf(src,
+                           "expect constant expression");
+                }
+            } else {
+                errorf(src,
+                       "size of array has non-integer type '%s'",
+                       type2s(AST_TYPE(assign)));
+            }
+        }
 
-		if (TYPE_A_STAR(rty) && level != PARAM)
-			error
-			    ("star modifier used outside of function prototype");
+        if (TYPE_A_STAR(rty) && level != PARAM)
+            error
+                ("star modifier used outside of function prototype");
 
-		if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty)
-		     || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty))
-		    && level != PARAM)
-			error
-			    ("type qualifier used in array declarator outside of function prototype");
+        if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty)
+             || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty))
+            && level != PARAM)
+            error
+                ("type qualifier used in array declarator outside of function prototype");
 
-		rty = rtype(rty);
-		if (isfunc(rty))
-			errorf(src, "array of function is invalid");
-		else if (isincomplete(rty))
-			errorf(src, "array has incomplete element type '%s'",
-			       type2s(rty));
+        rty = rtype(rty);
+        if (isfunc(rty))
+            errorf(src, "array of function is invalid");
+        else if (isincomplete(rty))
+            errorf(src, "array has incomplete element type '%s'",
+                   type2s(rty));
 
-	} while (isarray(rty));
+    } while (isarray(rty));
 
-	set_typesize(atype);
+    set_typesize(atype);
 }
 
 static void ensure_inline(node_t *ty, int fspec, struct source src)
 {
-	if (fspec == INLINE) {
-		if (isfunc(ty))
-			TYPE_INLINE(ty) = 1;
-		else
-			errorf(src, "'inline' can only appear on functions");
-	}
+    if (fspec == INLINE) {
+        if (isfunc(ty))
+            TYPE_INLINE(ty) = 1;
+        else
+            errorf(src, "'inline' can only appear on functions");
+    }
 }
 
 static node_t *paramdecl(struct token *t, node_t * ty, int sclass, int fspec)
 {
-	node_t *sym = NULL;
-	bool prototype = PARAM_STYLE(sclass);
-	bool first = PARAM_FIRST(sclass);
-	bool fvoid = PARAM_FVOID(sclass);
-	const char *id = NULL;
-	struct source src = source;
-	sclass = PARAM_SCLASS(sclass);
+    node_t *sym = NULL;
+    bool prototype = PARAM_STYLE(sclass);
+    bool first = PARAM_FIRST(sclass);
+    bool fvoid = PARAM_FVOID(sclass);
+    const char *id = NULL;
+    struct source src = source;
+    sclass = PARAM_SCLASS(sclass);
 
-	if (t) {
-		id = t->name;
-		src = t->src;
-	}
+    if (t) {
+        id = t->name;
+        src = t->src;
+    }
 
-	if (sclass && sclass != REGISTER) {
-		error
-		    ("invalid storage class specifier '%s' in function declarator",
-		     id2s(sclass));
-		sclass = 0;
-	}
+    if (sclass && sclass != REGISTER) {
+        error
+            ("invalid storage class specifier '%s' in function declarator",
+             id2s(sclass));
+        sclass = 0;
+    }
 
-	if (isfunc(ty)) {
-		ensure_func(ty, src, id, PARAM);
-		ty = ptr_type(ty);
-	} else if (isarray(ty)) {
-		ensure_array(ty, src, PARAM);
-		node_t *aty = ty;
-		ty = ptr_type(rtype(ty));
-		if (TYPE_A_CONST(aty))
-			ty = qual(CONST, ty);
-		if (TYPE_A_VOLATILE(aty))
-			ty = qual(RESTRICT, ty);
-		if (TYPE_A_RESTRICT(aty))
-			ty = qual(VOLATILE, ty);
-	} else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-		if (!SYM_DEFINED(TYPE_TSYM(ty)) ||
-		    SYM_SCOPE(TYPE_TSYM(ty)) == SCOPE)
-			warningf(src,
-				 "declaration of '%s' will not be visible outside of this function",
-				 type2s(ty));
-	} else if (isvoid(ty)) {
-		if (prototype) {
-			if (first) {
-				if (id)
-					errorf(src,
-					       "argument may not have 'void' type");
-				else if (isqual(ty))
-					errorf(src,
-					       "'void' as parameter must not have type qualifiers");
-			}
-		} else {
-			errorf(src, "argument may not have 'void' type");
-		}
-	}
+    if (isfunc(ty)) {
+        ensure_func(ty, src, id, PARAM);
+        ty = ptr_type(ty);
+    } else if (isarray(ty)) {
+        ensure_array(ty, src, PARAM);
+        node_t *aty = ty;
+        ty = ptr_type(rtype(ty));
+        if (TYPE_A_CONST(aty))
+            ty = qual(CONST, ty);
+        if (TYPE_A_VOLATILE(aty))
+            ty = qual(RESTRICT, ty);
+        if (TYPE_A_RESTRICT(aty))
+            ty = qual(VOLATILE, ty);
+    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+        if (!SYM_DEFINED(TYPE_TSYM(ty)) ||
+            SYM_SCOPE(TYPE_TSYM(ty)) == SCOPE)
+            warningf(src,
+                     "declaration of '%s' will not be visible outside of this function",
+                     type2s(ty));
+    } else if (isvoid(ty)) {
+        if (prototype) {
+            if (first) {
+                if (id)
+                    errorf(src,
+                           "argument may not have 'void' type");
+                else if (isqual(ty))
+                    errorf(src,
+                           "'void' as parameter must not have type qualifiers");
+            }
+        } else {
+            errorf(src, "argument may not have 'void' type");
+        }
+    }
 
-	if (prototype && fvoid && !first)
-		errorf(src,
-		       "'void' must be the first and only parameter if specified");
+    if (prototype && fvoid && !first)
+        errorf(src,
+               "'void' must be the first and only parameter if specified");
 
-	// check inline after conversion (decay)
-	ensure_inline(ty, fspec, src);
-	
-	if (id) {
-		sym = lookup(id, identifiers);
-		if (sym && SYM_SCOPE(sym) == SCOPE)
-			redefinition_error(source, sym);
-		sym = install(id, &identifiers, SCOPE);
-	} else {
-		sym = anonymous(&identifiers, SCOPE);
-	}
+    // check inline after conversion (decay)
+    ensure_inline(ty, fspec, src);
+        
+    if (id) {
+        sym = lookup(id, identifiers);
+        if (sym && SYM_SCOPE(sym) == SCOPE)
+            redefinition_error(source, sym);
+        sym = install(id, &identifiers, SCOPE);
+    } else {
+        sym = anonymous(&identifiers, SCOPE);
+    }
 
-	SYM_TYPE(sym) = ty;
-	AST_SRC(sym) = src;
-	SYM_SCLASS(sym) = sclass;
+    SYM_TYPE(sym) = ty;
+    AST_SRC(sym) = src;
+    SYM_SCLASS(sym) = sclass;
 
-	return sym;
+    return sym;
 }
 
 static node_t *localdecl(struct token *t, node_t * ty, int sclass, int fspec)
 {
-	node_t *sym = NULL;
-	const char *id = t->name;
-	struct source src = t->src;
+    node_t *sym = NULL;
+    const char *id = t->name;
+    struct source src = t->src;
 
-	cc_assert(id);
-	cc_assert(SCOPE >= LOCAL);
+    cc_assert(id);
+    cc_assert(SCOPE >= LOCAL);
 
-	if (isfunc(ty)) {
-		if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
-			error
-			    ("a parameter list without types is only allowed in a function definition");
-		ensure_func(ty, src, id, LOCAL);
-		if (sclass && sclass != EXTERN)
-			errorf(src,
-			       "function declared in block scope cannot have '%s' storage class",
-			       id2s(sclass));
-	} else if (isarray(ty)) {
-		ensure_array(ty, src, LOCAL);
-	}
+    if (isfunc(ty)) {
+        if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
+            error
+                ("a parameter list without types is only allowed in a function definition");
+        ensure_func(ty, src, id, LOCAL);
+        if (sclass && sclass != EXTERN)
+            errorf(src,
+                   "function declared in block scope cannot have '%s' storage class",
+                   id2s(sclass));
+    } else if (isarray(ty)) {
+        ensure_array(ty, src, LOCAL);
+    }
 
-	ensure_inline(ty, fspec, src);
+    ensure_inline(ty, fspec, src);
 
-	sym = lookup(id, identifiers);
-	if (sym && currentscope(sym)) {
-		redefinition_error(src, sym);
-	} else {
-		sym = install(id, &identifiers, SCOPE);
-		SYM_TYPE(sym) = ty;
-		AST_SRC(sym) = src;
-		SYM_DEFINED(sym) = true;
-		SYM_SCLASS(sym) = sclass;
-	}
+    sym = lookup(id, identifiers);
+    if (sym && currentscope(sym)) {
+        redefinition_error(src, sym);
+    } else {
+        sym = install(id, &identifiers, SCOPE);
+        SYM_TYPE(sym) = ty;
+        AST_SRC(sym) = src;
+        SYM_DEFINED(sym) = true;
+        SYM_SCLASS(sym) = sclass;
+    }
 
-	return sym;
+    return sym;
 }
 
 static node_t *globaldecl(struct token *t, node_t * ty, int sclass, int fspec)
 {
-	node_t *sym = NULL;
-	const char *id = t->name;
-	struct source src = t->src;
+    node_t *sym = NULL;
+    const char *id = t->name;
+    struct source src = t->src;
 
-	cc_assert(id);
-	cc_assert(SCOPE == GLOBAL);
+    cc_assert(id);
+    cc_assert(SCOPE == GLOBAL);
 
-	if (sclass == AUTO || sclass == REGISTER) {
-		errorf(src, "illegal storage class on file-scoped variable");
-		sclass = 0;
-	}
+    if (sclass == AUTO || sclass == REGISTER) {
+        errorf(src, "illegal storage class on file-scoped variable");
+        sclass = 0;
+    }
 
-	if (isfunc(ty)) {
-		if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
-			error
-			    ("a parameter list without types is only allowed in a function definition");
-		ensure_func(ty, src, id, GLOBAL);
-	} else if (isarray(ty)) {
-		ensure_array(ty, src, GLOBAL);
-	}
+    if (isfunc(ty)) {
+        if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
+            error
+                ("a parameter list without types is only allowed in a function definition");
+        ensure_func(ty, src, id, GLOBAL);
+    } else if (isarray(ty)) {
+        ensure_array(ty, src, GLOBAL);
+    }
 
-	ensure_inline(ty, fspec, src);
+    ensure_inline(ty, fspec, src);
 
-	sym = lookup(id, identifiers);
-	if (!sym || SYM_SCOPE(sym) != SCOPE) {
-		sym = install(id, &identifiers, SCOPE);
-		SYM_TYPE(sym) = ty;
-		AST_SRC(sym) = src;
-		SYM_SCLASS(sym) = sclass;
-	} else if (sclass != TYPEDEF && eqtype(ty, SYM_TYPE(sym))) {
-		if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-			errorf(src,
-			       "static declaration of '%s' follows non-static declaration",
-			       id);
-		else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
-			errorf(src,
-			       "non-static declaration of '%s' follows static declaration",
-			       id);
-		if (sclass != EXTERN)
-			SYM_SCLASS(sym) = sclass;
-	} else {
-		conflicting_types_error(src, sym);
-	}
+    sym = lookup(id, identifiers);
+    if (!sym || SYM_SCOPE(sym) != SCOPE) {
+        sym = install(id, &identifiers, SCOPE);
+        SYM_TYPE(sym) = ty;
+        AST_SRC(sym) = src;
+        SYM_SCLASS(sym) = sclass;
+    } else if (sclass != TYPEDEF && eqtype(ty, SYM_TYPE(sym))) {
+        if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
+            errorf(src,
+                   "static declaration of '%s' follows non-static declaration",
+                   id);
+        else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
+            errorf(src,
+                   "non-static declaration of '%s' follows static declaration",
+                   id);
+        if (sclass != EXTERN)
+            SYM_SCLASS(sym) = sclass;
+    } else {
+        conflicting_types_error(src, sym);
+    }
 
-	return sym;
+    return sym;
 }
 
 static node_t *funcdef(struct token *t, node_t * ftype, int sclass, int fspec)
 {
-	node_t *decl = ast_decl(FUNC_DECL);
-	const char *id = t->name;
-	struct source src = t->src;
+    node_t *decl = ast_decl(FUNC_DECL);
+    const char *id = t->name;
+    struct source src = t->src;
 
-	cc_assert(SCOPE == PARAM);
+    cc_assert(SCOPE == PARAM);
 
-	ensure_func(ftype, src, id, GLOBAL);
-	if (sclass && sclass != EXTERN && sclass != STATIC) {
-		error("invalid storage class specifier '%s'", id2s(sclass));
-		sclass = 0;
-	}
-	ensure_inline(ftype, fspec, src);
-	// install symbol first for backward reference
-	if (id) {
-		node_t *sym = lookup(id, identifiers);
-		if (!sym || SYM_SCOPE(sym) != GLOBAL) {
-			sym = install(id, &identifiers, GLOBAL);
- def:
-			SYM_TYPE(sym) = ftype;
-			AST_SRC(sym) = src;
-			SYM_DEFINED(sym) = true;
-			SYM_SCLASS(sym) = sclass;
-			DECL_SYM(decl) = sym;
-		} else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
-			if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-				errorf(src,
-				       "static declaaration of '%s' follows non-static declaration",
-				       id);
-			else
-				goto def;
-		} else {
-			redefinition_error(src, sym);
-		}
-	}
+    ensure_func(ftype, src, id, GLOBAL);
+    if (sclass && sclass != EXTERN && sclass != STATIC) {
+        error("invalid storage class specifier '%s'", id2s(sclass));
+        sclass = 0;
+    }
+    ensure_inline(ftype, fspec, src);
+    // install symbol first for backward reference
+    if (id) {
+        node_t *sym = lookup(id, identifiers);
+        if (!sym || SYM_SCOPE(sym) != GLOBAL) {
+            sym = install(id, &identifiers, GLOBAL);
+        def:
+            SYM_TYPE(sym) = ftype;
+            AST_SRC(sym) = src;
+            SYM_DEFINED(sym) = true;
+            SYM_SCLASS(sym) = sclass;
+            DECL_SYM(decl) = sym;
+        } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
+            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
+                errorf(src,
+                       "static declaaration of '%s' follows non-static declaration",
+                       id);
+            else
+                goto def;
+        } else {
+            redefinition_error(src, sym);
+        }
+    }
 
-	if (first_decl(token)) {
-		// old style function definition
-		struct vector *v = vec_new();
-		enter_scope();
-		while (first_decl(token))
-			vec_add(v, decls(paramdecl));
+    if (first_decl(token)) {
+        // old style function definition
+        struct vector *v = vec_new();
+        enter_scope();
+        while (first_decl(token))
+            vec_add(v, decls(paramdecl));
 
-		for (int i = 0; i < vec_len(v); i++) {
-			node_t *decl = (node_t *) vec_at(v, i);
-			node_t *sym = DECL_SYM(decl);
+        for (int i = 0; i < vec_len(v); i++) {
+            node_t *decl = (node_t *) vec_at(v, i);
+            node_t *sym = DECL_SYM(decl);
 
-			cc_assert(SYM_NAME(sym));
-			if (!isvardecl(decl)) {
-				warningf(AST_SRC(sym), "empty declaraion");
-			} else if (TYPE_PARAMS(ftype)) {
-				node_t *p = NULL;
-				for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
-					node_t *s = TYPE_PARAMS(ftype)[i];
-					if (SYM_NAME(s)
-					    && !strcmp(SYM_NAME(s),
-						       SYM_NAME(sym))) {
-						p = s;
-						break;
-					}
-				}
-				if (p) {
-					SYM_TYPE(p) = SYM_TYPE(sym);
-					AST_SRC(p) = AST_SRC(sym);
-				} else {
-					errorf(AST_SRC(sym),
-					       "parameter named '%s' is missing",
-					       SYM_NAME(sym));
-				}
-			}
-		}
-		exit_scope();
-		if (token->id != '{')
-			error("expect function body after function declarator");
-	}
+            cc_assert(SYM_NAME(sym));
+            if (!isvardecl(decl)) {
+                warningf(AST_SRC(sym), "empty declaraion");
+            } else if (TYPE_PARAMS(ftype)) {
+                node_t *p = NULL;
+                for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
+                    node_t *s = TYPE_PARAMS(ftype)[i];
+                    if (SYM_NAME(s)
+                        && !strcmp(SYM_NAME(s),
+                                   SYM_NAME(sym))) {
+                        p = s;
+                        break;
+                    }
+                }
+                if (p) {
+                    SYM_TYPE(p) = SYM_TYPE(sym);
+                    AST_SRC(p) = AST_SRC(sym);
+                } else {
+                    errorf(AST_SRC(sym),
+                           "parameter named '%s' is missing",
+                           SYM_NAME(sym));
+                }
+            }
+        }
+        exit_scope();
+        if (token->id != '{')
+            error("expect function body after function declarator");
+    }
 
-	if (TYPE_PARAMS(ftype)) {
-		for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
-			node_t *sym = TYPE_PARAMS(ftype)[i];
-			SYM_DEFINED(sym) = true;
-			// params id is required in prototype
-			if (isanonymous(SYM_NAME(sym)))
-				errorf(AST_SRC(sym), "parameter name omitted");
-			if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym))
-			    || isunion(SYM_TYPE(sym))) {
-				if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
-					errorf(AST_SRC(sym),
-					       "variable has incomplete type '%s'",
-					       type2s(SYM_TYPE(sym)));
-			}
-		}
-	}
+    if (TYPE_PARAMS(ftype)) {
+        for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
+            node_t *sym = TYPE_PARAMS(ftype)[i];
+            SYM_DEFINED(sym) = true;
+            // params id is required in prototype
+            if (isanonymous(SYM_NAME(sym)))
+                errorf(AST_SRC(sym), "parameter name omitted");
+            if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym))
+                || isunion(SYM_TYPE(sym))) {
+                if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
+                    errorf(AST_SRC(sym),
+                           "variable has incomplete type '%s'",
+                           type2s(SYM_TYPE(sym)));
+            }
+        }
+    }
 
-	if (token->id == '{') {
-		// function definition
-		SET_FUNCDEF_CONTEXT(ftype, id);
-		node_t *stmt = compound_stmt();
-		// check goto labels
-		backfill_labels();
-		// TODO: check control flow and return stmt
-		DECL_BODY(decl) = stmt;
-		DECL_LVARS(decl) = (node_t **) vtoa(localvars);
-		DECL_SVARS(decl) = (node_t **) vtoa(staticvars);
-		RESTORE_FUNCDEF_CONTEXT();
-		exit_scope();
-	}
+    if (token->id == '{') {
+        // function definition
+        SET_FUNCDEF_CONTEXT(ftype, id);
+        node_t *stmt = compound_stmt();
+        // check goto labels
+        backfill_labels();
+        // TODO: check control flow and return stmt
+        DECL_BODY(decl) = stmt;
+        DECL_LVARS(decl) = (node_t **) vtoa(localvars);
+        DECL_SVARS(decl) = (node_t **) vtoa(staticvars);
+        RESTORE_FUNCDEF_CONTEXT();
+        exit_scope();
+    }
 
-	return decl;
+    return decl;
 }

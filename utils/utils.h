@@ -7,7 +7,7 @@
 
 #define FIELD_SIZEOF(st, f)  (sizeof(((st*)0)->f))
 
-#define FLEX_ARRAY		/* flexible array */
+#define FLEX_ARRAY                /* flexible array */
 
 #define ALIGN_SIZE          (sizeof (long long))
 #define ROUNDUP(x, align)   (((x)+((align)-1))&(~((align)-1)))

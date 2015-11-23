@@ -2,9 +2,9 @@
 #define _VECTOR_H
 
 struct vector {
-	void **mem;
-	size_t len;
-	size_t alloc;
+    void **mem;
+    size_t len;
+    size_t alloc;
 };
 
 extern struct vector *vec_new(void);

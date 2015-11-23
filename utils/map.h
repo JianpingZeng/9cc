@@ -2,16 +2,16 @@
 #define _MAP_H
 
 struct map_entry {
-	const void *key;
-	void *value;
-	struct map_entry *next;
+    const void *key;
+    void *value;
+    struct map_entry *next;
 };
 
 struct map {
-	unsigned size, tablesize;
-	unsigned grow_at, shrink_at;
-	struct map_entry **table;
-	int (*cmpfn) (const void *key1, const void *key2);
+    unsigned size, tablesize;
+    unsigned grow_at, shrink_at;
+    struct map_entry **table;
+    int (*cmpfn) (const void *key1, const void *key2);
 };
 
 extern struct map *map_new(void);

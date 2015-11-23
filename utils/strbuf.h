@@ -2,9 +2,9 @@
 #define _STRBUF_H
 
 struct strbuf {
-	char *str;
-	size_t len;
-	size_t alloc;
+    char *str;
+    size_t len;
+    size_t alloc;
 };
 
 extern struct strbuf *strbuf_new(void);

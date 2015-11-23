@@ -32,17 +32,17 @@ extern void *alloc_macro(void);
 #define VALUE_G(v)    ((v).g)
 
 union value {
-	unsigned long long u;
-	long double d;
-	void *p;
-	void (*g) ();
+    unsigned long long u;
+    long double d;
+    void *p;
+    void (*g) ();
 };
 
 // source
 struct source {
-	unsigned line;
-	unsigned column;
-	const char *file;
+    unsigned line;
+    unsigned column;
+    const char *file;
 };
 
 enum {
@@ -51,59 +51,59 @@ enum {
 #define _t(a, b, c)     a,
 #define _k(a, b, c)     a,
 #include "token.def"
-	TOKEND
+    TOKEND
 };
 
 #define ID_BITS    10
 
 // token
 struct token {
-	int id:ID_BITS;
-	int kind:ID_BITS;
-	bool bol:1;		// beginning of line
-	bool space:1;		// leading space
-	const char *name;
-	struct source src;
-	struct hideset *hideset;
+    int id:ID_BITS;
+    int kind:ID_BITS;
+    bool bol:1;                // beginning of line
+    bool space:1;                // leading space
+    const char *name;
+    struct source src;
+    struct hideset *hideset;
 };
 
 // input.c
 #define MAX_UNREADC  8
 
 struct cc_char {
-	bool dirty:1;
-	int ch:16;
-	unsigned line;
-	unsigned column;
+    bool dirty:1;
+    int ch:16;
+    unsigned line;
+    unsigned column;
 };
 
 struct file {
-	int kind:3;
-	bool bol:1;		// beginning of line
-	bool stub:1;
-	int histp:8;
-	int charp:8;
-	char *buf;
-	char *pc;
-	char *pe;
-	long bread;
-	FILE *fp;		// FILE handle
-	size_t pos;		// input string position
-	const char *file;	// file name or input string
-	const char *name;	// buffer name
-	unsigned line;
-	unsigned column;
-	struct vector *ifstubs;
-	struct cc_char hists[MAX_UNREADC + 1];	// readc history
-	struct cc_char chars[MAX_UNREADC];	// readc ungets
-	struct vector *buffer;	// lex ungets
-	struct vector *tokens;	// parser ungets
+    int kind:3;
+    bool bol:1;                // beginning of line
+    bool stub:1;
+    int histp:8;
+    int charp:8;
+    char *buf;
+    char *pc;
+    char *pe;
+    long bread;
+    FILE *fp;                // FILE handle
+    size_t pos;                // input string position
+    const char *file;        // file name or input string
+    const char *name;        // buffer name
+    unsigned line;
+    unsigned column;
+    struct vector *ifstubs;
+    struct cc_char hists[MAX_UNREADC + 1];        // readc history
+    struct cc_char chars[MAX_UNREADC];        // readc ungets
+    struct vector *buffer;        // lex ungets
+    struct vector *tokens;        // parser ungets
 };
 
 struct ifstub {
-	int id:10;
-	bool b:1;
-	struct source src;
+    int id:10;
+    bool b:1;
+    struct source src;
 };
 
 extern void input_init(const char *file);
@@ -160,19 +160,19 @@ extern void print_buffer_stat(void);
 // cpp.c
 // macro kind
 enum {
-	MACRO_OBJ,
-	MACRO_FUNC,
-	MACRO_SPECIAL
+    MACRO_OBJ,
+    MACRO_FUNC,
+    MACRO_SPECIAL
 };
 
 struct macro {
-	int kind:3;
-	bool vararg:1;
-	bool builtin:1;
-	struct vector *body;
-	struct vector *params;
-	void (*handler) (struct token *);	// special macro handler
-	struct source src;
+    int kind:3;
+    bool vararg:1;
+    bool builtin:1;
+    struct vector *body;
+    struct vector *params;
+    void (*handler) (struct token *);        // special macro handler
+    struct source src;
 };
 
 extern void cpp_init(struct vector *options);
@@ -228,7 +228,7 @@ extern int first_expr(struct token *t);
 extern node_t *define_tmpvar(node_t * ty);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
 extern node_t *define_localvar(const char *name, node_t * ty, int sclass,
-			       node_t * init);
+                               node_t * init);
 extern struct vector *filter_local(struct vector *v, bool front);
 
 // initializer.c
@@ -266,23 +266,23 @@ extern int qual_union(node_t * ty1, node_t * ty2);
 extern bool isincomplete(node_t * ty);
 extern node_t *unpack(node_t * ty);
 
-extern node_t *chartype;	// char
-extern node_t *unsignedchartype;	// unsigned char
-extern node_t *signedchartype;	// signed char
-extern node_t *wchartype;	// wchar_t
-extern node_t *shorttype;	// short (int)
-extern node_t *unsignedshorttype;	// unsigned short (int)
-extern node_t *inttype;		// int
-extern node_t *unsignedinttype;	// unsigned (int)
-extern node_t *longtype;	// long
-extern node_t *unsignedlongtype;	// unsigned long (int)
-extern node_t *longlongtype;	// long long (int)
-extern node_t *unsignedlonglongtype;	// unsigned long long (int)
-extern node_t *floattype;	// float
-extern node_t *doubletype;	// double
-extern node_t *longdoubletype;	// long double
-extern node_t *voidtype;	// void
-extern node_t *booltype;	// bool
+extern node_t *chartype;        // char
+extern node_t *unsignedchartype;        // unsigned char
+extern node_t *signedchartype;        // signed char
+extern node_t *wchartype;        // wchar_t
+extern node_t *shorttype;        // short (int)
+extern node_t *unsignedshorttype;        // unsigned short (int)
+extern node_t *inttype;                // int
+extern node_t *unsignedinttype;        // unsigned (int)
+extern node_t *longtype;        // long
+extern node_t *unsignedlongtype;        // unsigned long (int)
+extern node_t *longlongtype;        // long long (int)
+extern node_t *unsignedlonglongtype;        // unsigned long long (int)
+extern node_t *floattype;        // float
+extern node_t *doubletype;        // double
+extern node_t *longdoubletype;        // long double
+extern node_t *voidtype;        // void
+extern node_t *booltype;        // bool
 
 #define BITS(bytes)     (CHAR_BIT * (bytes))
 #define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
@@ -333,8 +333,8 @@ extern bool isvoid(node_t * type);
 extern bool isenum(node_t * type);
 extern bool isstruct(node_t * type);
 extern bool isunion(node_t * type);
-extern bool isrecord(node_t * type);	// isstruct or isunion
-extern bool istag(node_t * type);	// isstruct or isunion or isenum
+extern bool isrecord(node_t * type);        // isstruct or isunion
+extern bool istag(node_t * type);        // isstruct or isunion or isenum
 
 extern bool isint(node_t * ty);
 extern bool isfloat(node_t * ty);
@@ -346,16 +346,16 @@ extern bool isptrto(node_t * ty, int kind);
 // sym.c
 // scope level
 enum {
-	CONSTANT,
-	GLOBAL,
-	PARAM,
-	LOCAL,
+    CONSTANT,
+    GLOBAL,
+    PARAM,
+    LOCAL,
 };
 
 struct table {
-	int scope;
-	struct table *up;
-	struct dict *dict;
+    int scope;
+    struct table *up;
+    struct dict *dict;
 };
 
 // sym
@@ -395,9 +395,9 @@ extern void print_node_size(void);
 
 // error.c
 enum {
-	WRN = 1,		// warning
-	ERR,			// error
-	FTL,			// fatal
+    WRN = 1,                // warning
+    ERR,                        // error
+    FTL,                        // fatal
 };
 extern unsigned errors;
 extern unsigned warnings;
@@ -412,12 +412,12 @@ extern void fatalf(struct source src, const char *fmt, ...);
 #define NO_ERROR       (err == errors)
 #define HAS_ERROR      (err != errors)
 
-#define cc_assert(expr)			\
-    do {					\
-	if (!(expr)) {				\
-	    error("assert failed");		\
-	    assert(expr);			\
-	}					\
+#define cc_assert(expr)                                \
+    do {                                        \
+        if (!(expr)) {                                \
+            error("assert failed");                \
+            assert(expr);                        \
+        }                                        \
     } while (0)
 
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"

@@ -2,8 +2,8 @@
 #define _DICT_H
 
 struct dict {
-	struct map *map;
-	struct vector *keys;
+    struct map *map;
+    struct vector *keys;
 };
 
 extern struct dict *dict_new(void);
