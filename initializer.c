@@ -269,14 +269,14 @@ static void scalar_init(node_t * ty, struct vector *v)
 	}
 }
 
+static inline bool is_string_vec(node_t *ty, struct vector *v)
+{
+	return is_string(ty) && vec_len(v) == 1 && issliteral((node_t *)vec_head(v));
+}
+
 static void elem_init(node_t * sty, node_t * ty, bool designated,
 		      struct vector *v, int i)
 {
-#define IS_STRING_VEC(ty, v)			\
-    (is_string(ty) &&				\
-     vec_len(v) == 1 &&				\
-     issliteral((node_t *)vec_head(v)))
-
 	if (isunion(sty))
 		i = 0;		// always set the first elem
 
@@ -323,7 +323,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
 			else
 				struct_init(ty, false, v1);
 
-			if (IS_STRING_VEC(ty, v1)) {
+			if (is_string_vec(ty, v1)) {
 				// string literal
 				vec_set(v, i, (node_t *) vec_head(v1));
 			} else {
@@ -337,7 +337,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
 	} else {
 		if (designated)
 			expect('=');
-		if (IS_STRING_VEC(sty, v)) {
+		if (is_string_vec(sty, v)) {
 			warning(INIT_OVERRIDE);
 			vec_clear(v);
 		}
