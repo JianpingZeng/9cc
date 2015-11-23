@@ -193,34 +193,41 @@ static node_t *specifiers(int *sclass, int *fspec)
             break;
 
         if (*p != 0) {
-            if (p == &cls && !sclass)
-                errorf(src,
-                       "type name does not allow storage class to be specified",
-                       name);
-            else if (p == &cls)
-                errorf(src,
-                       "duplicate storage class '%s'",
-                       name);
-            else if (p == &inl && !fspec)
-                errorf(src, "function specifier not allowed");
-            else if (p == &cons || p == &res || p == &vol || p == &inl)
+            if (p == &cls) {
+                if (sclass)
+                    errorf(src,
+                           "duplicate storage class '%s'",
+                           name);
+                else
+                    errorf(src,
+                           "type name does not allow storage class to be specified",
+                           name);
+            } else if (p == &inl) {
+                if (fspec)
+                    warningf(src,
+                             "duplicate '%s' declaration specifier",
+                             name);
+                else
+                    errorf(src, "function specifier not allowed");
+            } else if (p == &cons || p == &res || p == &vol) {
                 warningf(src,
                          "duplicate '%s' declaration specifier",
                          name);
-            else if (p == &ci)
+            } else if (p == &ci) {
                 errorf(src,
                        "duplicate _Complex/_Imaginary specifier '%s'",
                        name);
-            else if (p == &sign)
+            } else if (p == &sign) {
                 errorf(src,
                        "duplicate signed/unsigned speficier '%s'",
                        name);
-            else if (p == &type || p == &size)
+            } else if (p == &type || p == &size) {
                 errorf(src,
                        "duplicate type specifier '%s'",
                        name);
-            else
+            } else {
                 cc_assert(0);
+            }
         }
 
         *p = t;
@@ -468,7 +475,7 @@ static node_t *arrays(bool abstract)
     return atype;
 }
 
-static node_t *func_or_array(int *params)
+static node_t *func_or_array(bool abstract, int *params)
 {
     node_t *ty = NULL;
     int follow[] = { '[', ID, IF, 0 };
@@ -477,7 +484,7 @@ static node_t *func_or_array(int *params)
         if (token->id == '[') {
             node_t *atype;
             expect('[');
-            atype = arrays(false);
+            atype = arrays(abstract);
             match(']', follow);
             attach_type(&ty, atype);
         } else {
@@ -485,29 +492,6 @@ static node_t *func_or_array(int *params)
             expect('(');
             TYPE_PARAMS(ftype) = parameters(ftype, params);
             match(')', follow);
-            attach_type(&ty, ftype);
-        }
-    }
-
-    return ty;
-}
-
-static node_t *abstract_func_or_array(void)
-{
-    node_t *ty = NULL;
-
-    for (; token->id == '(' || token->id == '[';) {
-        if (token->id == '[') {
-            node_t *atype;
-            expect('[');
-            atype = arrays(true);
-            expect(']');
-            attach_type(&ty, atype);
-        } else {
-            node_t *ftype = func_type();
-            expect('(');
-            TYPE_PARAMS(ftype) = parameters(ftype, NULL);
-            expect(')');
             attach_type(&ty, ftype);
         }
     }
@@ -808,9 +792,9 @@ static void param_declarator(node_t ** ty, struct token **id)
                 node_t *faty;
                 cc_assert(id);
                 if (*id) {
-                    faty = func_or_array(NULL);
+                    faty = func_or_array(false, NULL);
                 } else {
-                    faty = abstract_func_or_array();
+                    faty = func_or_array(true, NULL);
                 }
                 attach_type(&faty, type1);
                 attach_type(&rtype, faty);
@@ -836,7 +820,7 @@ static void abstract_declarator(node_t ** ty)
 
         if (token->id == '(') {
             if (first_decl(lookahead())) {
-                node_t *faty = abstract_func_or_array();
+                node_t *faty = func_or_array(true, NULL);
                 prepend_type(ty, faty);
             } else {
                 expect('(');
@@ -844,7 +828,7 @@ static void abstract_declarator(node_t ** ty)
                 expect(')');
             }
         } else if (token->id == '[') {
-            node_t *faty = abstract_func_or_array();
+            node_t *faty = func_or_array(true, NULL);
             prepend_type(ty, faty);
         }
     } else {
@@ -866,7 +850,7 @@ static void declarator(node_t ** ty, struct token **id, int *params)
         *id = token;
         expect(ID);
         if (token->id == '[' || token->id == '(') {
-            node_t *faty = func_or_array(params);
+            node_t *faty = func_or_array(false, params);
             prepend_type(ty, faty);
         }
     } else if (token->id == '(') {
@@ -876,7 +860,7 @@ static void declarator(node_t ** ty, struct token **id, int *params)
         declarator(&rtype, id, params);
         match(')', follow);
         if (token->id == '[' || token->id == '(') {
-            node_t *faty = func_or_array(params);
+            node_t *faty = func_or_array(false, params);
             attach_type(&faty, type1);
             attach_type(&rtype, faty);
         } else {
