@@ -1173,8 +1173,8 @@ static void ensure_main(node_t *ftype, struct source src)
                LIST_LEN(params));
 }
 
-static void ensure_func(node_t * ftype, struct source src, const char *name,
-                        int level)
+static void ensure_func(node_t * ftype, struct source src,
+                        const char *name, int level)
 {
     node_t *rty = rtype(ftype);
     if (isarray(rty))
