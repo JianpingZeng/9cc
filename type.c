@@ -407,9 +407,16 @@ bool eqtype(node_t * ty1, node_t * ty2)
     case UNION:
     case STRUCT:
         return false;
+    case _BOOL:
+    case CHAR:
+    case SHORT:
     case INT:
     case UNSIGNED:
+    case LONG:
+    case LONG+LONG:
     case FLOAT:
+    case DOUBLE:
+    case LONG+DOUBLE:
     case VOID:
         return ty1 == ty2;
     case POINTER:
@@ -428,29 +435,24 @@ bool eqtype(node_t * ty1, node_t * ty2)
             // one oldstyle, the other prototype
             node_t *oldty = _TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
             node_t *newty = _TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
-            if (_TYPE_PARAMS(newty)) {
-                for (int i = 0; _TYPE_PARAMS(newty)[i]; i++) {
-                    node_t *sym = _TYPE_PARAMS(newty)[i];
-                    if (SYM_TYPE(sym)) {
-                        node_t *ty =
-                            unqual(SYM_TYPE(sym));
-                        if (TYPE_KIND(ty) == CHAR
-                            || TYPE_KIND(ty) == SHORT)
-                            return false;
-                        else if (TYPE_OP(ty) == FLOAT)
-                            return false;
-                        else if (TYPE_OP(ty) ==
-                                 ELLIPSIS)
-                            return false;
-                    }
-                }
+
+            if (TYPE_VARG(newty))
+                return false;
+            
+            for (int i = 0; i < LIST_LEN(_TYPE_PARAMS(newty)); i++) {
+                node_t *sym = _TYPE_PARAMS(newty)[i];
+                node_t *ty = SYM_TYPE(sym);
+                if (TYPE_KIND(ty) == _BOOL ||
+                    TYPE_KIND(ty) == CHAR ||
+                    TYPE_KIND(ty) == SHORT ||
+                    TYPE_KIND(ty) == FLOAT)
+                    return false;
             }
 
             if (_TYPE_PARAMS(oldty) == NULL)
                 return true;
 
-            return eqparams(_TYPE_PARAMS(oldty),
-                            _TYPE_PARAMS(newty));
+            return eqparams(_TYPE_PARAMS(oldty), _TYPE_PARAMS(newty));
         }
 
     default:
