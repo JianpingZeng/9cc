@@ -3,19 +3,19 @@
 // predefined types
 node_t *chartype;                // char
 node_t *unsignedchartype;        // unsigned char
-node_t *signedchartype;                // signed char
-node_t *wchartype;                // wchar_t
-node_t *shorttype;                // short (int)
-node_t *unsignedshorttype;        // unsigned short (int)
-node_t *inttype;                // int
-node_t *unsignedinttype;        // unsigned (int)
+node_t *signedchartype;          // signed char
+node_t *wchartype;               // wchar_t
+node_t *shorttype;               // short (int)
+node_t *unsignedshorttype;       // unsigned short (int)
+node_t *inttype;                 // int
+node_t *unsignedinttype;         // unsigned (int)
 node_t *longtype;                // long
 node_t *unsignedlongtype;        // unsigned long (int)
-node_t *longlongtype;                // long long (int)
-node_t *unsignedlonglongtype;        // unsigned long long (int)
-node_t *floattype;                // float
-node_t *doubletype;                // double
-node_t *longdoubletype;                // long double
+node_t *longlongtype;            // long long (int)
+node_t *unsignedlonglongtype;    // unsigned long long (int)
+node_t *floattype;               // float
+node_t *doubletype;              // double
+node_t *longdoubletype;          // long double
 node_t *voidtype;                // void
 node_t *booltype;                // bool
 
