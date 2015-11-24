@@ -2075,6 +2075,11 @@ node_t *bool_expr(void)
     node_t *node = expression();
     if (node == NULL)
         return NULL;
+    // warning for assignment expression
+    if (AST_ID(node) == BINARY_OPERATOR && EXPR_OP(node) == '=')
+        warning("using the result of an assignment as a condition "
+                "without parentheses '%s'",
+                node2s(node));
     if (islvalue(node))
         node = ltor(node);
     return decay(node);
