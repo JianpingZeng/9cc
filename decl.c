@@ -334,6 +334,19 @@ static void array_qualifiers(node_t * atype)
         TYPE_A_RESTRICT(atype) = 1;
 }
 
+static void enter_params(void)
+{
+    /**
+     * To make it easy to distinguish between 'paramaters in parameter'
+     * and 'compound statement of function definition', they both may be
+     * at scope LOCAL (aka PARAM+1), so enter scope again to make things
+     * easy.
+     */
+    enter_scope();
+    if (SCOPE > PARAM)
+        enter_scope();
+}
+
 static void exit_params(void)
 {
     if (SCOPE > PARAM)
@@ -346,15 +359,7 @@ static node_t **parameters(node_t * ftype, int *params)
 {
     node_t **ret = NULL;
 
-    /**
-     * To make it easy to distinguish between 'paramaters in parameter'
-     * and 'compound statement of function definition', they both may be
-     * at scope LOCAL (aka PARAM+1), so enter scope again to make things
-     * easy.
-     */
-    enter_scope();
-    if (SCOPE > PARAM)
-        enter_scope();
+    enter_params();
 
     if (first_decl(token)) {
         // prototype
@@ -590,17 +595,12 @@ static void bitfield(node_t *field)
     FIELD_ISBIT(field) = true;
 }
 
-static inline bool first_field(struct token *t)
-{
-    return first_typename(t) || t->kind == STATIC;
-}
-
 static void fields(node_t * sym)
 {
     int follow[] = { INT, CONST, '}', IF, 0 };
     node_t *sty = SYM_TYPE(sym);
 
-    if (first_field(token)) {
+    if (first_decl(token)) {
         struct vector *v = vec_new();
         do {
             node_t *basety = specifiers(NULL, NULL);
@@ -643,8 +643,8 @@ static void fields(node_t * sym)
 
             match(';', follow);
             ensure_field(vec_tail(v), vec_len(v),
-                         isstruct(sty) && !first_field(token));
-        } while (first_field(token));
+                         isstruct(sty) && !first_decl(token));
+        } while (first_decl(token));
 
         TYPE_FIELDS(sty) = (node_t **) vtoa(v);
         set_typesize(sty);
@@ -1160,8 +1160,8 @@ static void ensure_main(node_t *ftype, struct source src)
                 errorf(src,
                        "first parameter of 'main' is not 'int'");
         } else if (i == 1 || i == 2) {
-            if (!isptrto(ty, POINTER)
-                || !isptrto(rtype(ty), CHAR))
+            if (!isptrto(ty, POINTER) ||
+                !isptrto(rtype(ty), CHAR))
                 errorf(src,
                        "%s parameter of 'main' is not 'char **'",
                        i == 1 ? "second" : "third");
@@ -1185,8 +1185,8 @@ static void ensure_func(node_t * ftype, struct source src,
                type2s(rty));
 
     // check main function declaration
-    if ((name && !strcmp(name, "main"))
-        && (level == GLOBAL || level == LOCAL))
+    if ((name && !strcmp(name, "main")) &&
+        (level == GLOBAL || level == LOCAL))
         ensure_main(ftype, src);
 }
 
