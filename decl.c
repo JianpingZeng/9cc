@@ -18,6 +18,8 @@ static node_t *localdecl(struct token *id, node_t * ty, int sclass,
                          int fspec);
 static node_t *funcdef(struct token *id, node_t * ty, int sclass,
                        int fspec);
+static void dotypedef(struct token *id, node_t * ty, int sclass,
+                      int fspec, int kind);
 static struct vector *decls(declfun_p * dcl);
 
 static void ensure_field(node_t * field, size_t total, bool last);
@@ -925,9 +927,7 @@ static node_t *make_decl(struct token *id, node_t * ty, int sclass,
 {
     node_t *decl;
     node_t *sym = dcl(id, ty, sclass, fspec);
-    if (sclass == TYPEDEF)
-        decl = ast_decl(TYPEDEF_DECL);
-    else if (isfunc(ty))
+    if (isfunc(ty))
         decl = ast_decl(FUNC_DECL);
     else
         decl = ast_decl(VAR_DECL);
@@ -979,11 +979,15 @@ static struct vector *decls(declfun_p * dcl)
                     kind = PARAM;
                 else
                     cc_assert(0);
-                node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
-                if (token->id == '=')
-                    decl_initializer(decl, sclass, kind);
-                ensure_decl(decl, sclass, kind);
-                vec_push(v, decl);
+                if (sclass == TYPEDEF) {
+                    dotypedef(id, ty, sclass, fspec, kind);
+                } else {
+                    node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
+                    if (token->id == '=')
+                        decl_initializer(decl, sclass, kind);
+                    ensure_decl(decl, sclass, kind);
+                    vec_push(v, decl);
+                }
             }
 
             if (token->id != ',')
@@ -1262,6 +1266,21 @@ static void ensure_inline(node_t *ty, int fspec, struct source src)
             TYPE_INLINE(ty) = 1;
         else
             errorf(src, "'inline' can only appear on functions");
+    }
+}
+
+static void dotypedef(struct token *id, node_t * ty, int sclass,
+                      int fspec, int kind)
+{
+    const char *name = id->name;
+    struct source src = id->src;
+    
+    if (kind == PARAM) {
+        errorf(src, "invalid storage class specifier in "
+               "function declarator", id2s(sclass));
+    } else {
+        node_t *sym = lookup(name, identifiers);
+        
     }
 }
 
