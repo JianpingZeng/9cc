@@ -24,6 +24,7 @@
 
 static FILE *outfp;
 static struct dict *compound_lits;
+static struct dict *string_lits;
 
 static void emit_initializer(node_t * t);
 static void emit_stmt(node_t * n);
@@ -48,11 +49,6 @@ static void emit_noindent(const char *fmt, ...)
     va_end(ap);
 }
 
-static bool is_sliteral_label(node_t *sym)
-{
-    return sym && starts_with(SYM_LABEL(sym), ".LC");
-}
-
 static const char *glabel(const char *label)
 {
     if (opts.fleading_underscore)
@@ -63,11 +59,12 @@ static const char *glabel(const char *label)
 
 static const char *emit_string_literal(const char *name)
 {
-    node_t *sym = lookup(name, constants);
-    cc_assert(sym);
-    if (!is_sliteral_label(sym))
-        SYM_LABEL(sym) = gen_sliteral_label();
-    return SYM_LABEL(sym);
+    const char *label = dict_get(string_lits, name);
+    if (!label) {
+        label = gen_sliteral_label();
+        dict_put(string_lits, name, (void *)label);
+    }
+    return label;
 }
 
 static const char *emit_compound_literal(node_t * n)
@@ -394,9 +391,8 @@ static void emit_expr(node_t * n)
         break;
     case INITS_EXPR:
     case VINIT_EXPR:
-        break;
     default:
-        die("unknown node '%s'", nname(n));
+        die("unknown node (%s)'%s'", nname(n), node2s(n));
         break;
     }
 }
@@ -467,7 +463,7 @@ static void emit_stmt(node_t * n)
             emit_compound(n);
             break;
         case AST_RETURN:
-            emit_stmt(STMT_OPERAND(n));
+            emit_expr(STMT_OPERAND(n));
             emit_jmp(func_ret_label);
             break;
         case AST_LABEL:
@@ -510,10 +506,9 @@ static void emit_funcdef(node_t * n)
     emit("ret");
 }
 
-static void emit_literals(void)
+static void emit_compound_literals(void)
 {
     bool section = false;
-    // compounds
     for (int i = 0; i < vec_len(compound_lits->keys); i++) {
         const char *label = vec_at(compound_lits->keys, i);
         node_t *init = dict_get(compound_lits, label);
@@ -524,28 +519,34 @@ static void emit_literals(void)
         emit_noindent("%s:", label);
         emit_initializer(init);
     }
+}
 
-    // strings
-    section = false;
-    for (int i = 0; i < vec_len(constants->dict->keys); i++) {
-        const char *key = vec_at(constants->dict->keys, i);
-        node_t *sym = dict_get(constants->dict, key);
-        if (is_sliteral_label(sym)) {
-            if (!section) {
-                emit(".section .rodata");
-                section = true;
-            }
-            emit_noindent("%s:", SYM_LABEL(sym));
-            emit(".asciz %s", SYM_NAME(sym));
+static void emit_string_literals(void)
+{
+    bool section = false;
+    for (int i = 0; i < vec_len(string_lits->keys); i++) {
+        const char *name = vec_at(string_lits->keys, i);
+        const char *label = dict_get(string_lits, name);
+        if (!section) {
+            emit(".section .rodata");
+            section = true;
         }
+        emit_noindent("%s:", label);
+        emit(".asciz %s", name);
     }
+}
+
+static void gen_init(FILE *fp)
+{
+    outfp = fp;
+    compound_lits = dict_new();
+    string_lits = dict_new();
 }
 
 void gen(node_t * tree, FILE * fp)
 {
     cc_assert(errors == 0 && fp);
-    outfp = fp;
-    compound_lits = dict_new();
+    gen_init(fp);
     node_t **exts = DECL_EXTS(tree);
     for (int i = 0; i < LIST_LEN(exts); i++) {
         node_t *n = exts[i];
@@ -558,6 +559,7 @@ void gen(node_t * tree, FILE * fp)
                 emit_bss(n);
         }
     }
-    emit_literals();
+    emit_compound_literals();
+    emit_string_literals();
     emit(".ident \"mcc: %d.%d\"", MAJOR(version), MINOR(version));
 }
