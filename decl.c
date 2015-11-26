@@ -1381,8 +1381,9 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass,
         sym = install(id, &identifiers, SCOPE);
         SYM_TYPE(sym) = ty;
         AST_SRC(sym) = src;
-        SYM_DEFINED(sym) = true;
         SYM_SCLASS(sym) = sclass;
+        if (sclass != EXTERN)
+            SYM_DEFINED(sym) = true;
     }
 
     return sym;
