@@ -756,3 +756,8 @@ bool isptrto(node_t * ty, int kind)
 {
     return isptr(ty) && TYPE_KIND(rtype(ty)) == kind;
 }
+
+bool isbool(node_t *ty)
+{
+    return unqual(ty) == booltype;
+}

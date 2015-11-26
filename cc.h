@@ -341,7 +341,7 @@ extern bool isfloat(node_t * ty);
 extern bool isarith(node_t * ty);
 extern bool isscalar(node_t * ty);
 extern bool isptrto(node_t * ty, int kind);
-#define isbool(ty)      (unqual(ty) == booltype)
+extern bool isbool(node_t *ty);
 
 // sym.c
 // scope level
