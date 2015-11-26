@@ -365,6 +365,10 @@ static void emit_uop(node_t *n)
     }
 }
 
+static void emit_ref_expr(node_t *expr)
+{
+}
+
 static void emit_expr(node_t * n)
 {
     switch (AST_ID(n)) {
@@ -379,11 +383,17 @@ static void emit_expr(node_t * n)
         break;
     case COND_EXPR:
     case MEMBER_EXPR:
-    case REF_EXPR:
     case CAST_EXPR:
     case CONV_EXPR:
     case CALL_EXPR:
     case SUBSCRIPT_EXPR:
+        break;
+    case REF_EXPR:
+        if (EXPR_OP(n) == ENUM) {
+        } else {
+            emit_ref_expr(n);
+        }
+        break;
     case INTEGER_LITERAL:
     case FLOAT_LITERAL:
     case STRING_LITERAL:
@@ -508,14 +518,11 @@ static void emit_funcdef(node_t * n)
 
 static void emit_compound_literals(void)
 {
-    bool section = false;
+    if (vec_len(compound_lits->keys))
+        emit(".data");
     for (int i = 0; i < vec_len(compound_lits->keys); i++) {
         const char *label = vec_at(compound_lits->keys, i);
         node_t *init = dict_get(compound_lits, label);
-        if (!section) {
-            emit(".data");
-            section = true;
-        }
         emit_noindent("%s:", label);
         emit_initializer(init);
     }
@@ -523,14 +530,11 @@ static void emit_compound_literals(void)
 
 static void emit_string_literals(void)
 {
-    bool section = false;
+    if (vec_len(string_lits->keys))
+        emit(".section .rodata");
     for (int i = 0; i < vec_len(string_lits->keys); i++) {
         const char *name = vec_at(string_lits->keys, i);
         const char *label = dict_get(string_lits, name);
-        if (!section) {
-            emit(".section .rodata");
-            section = true;
-        }
         emit_noindent("%s:", label);
         emit(".asciz %s", name);
     }

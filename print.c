@@ -72,6 +72,7 @@ static void print_decl(node_t * node, struct print_context context)
         node_t *ty = SYM_TYPE(sym);
         print_ty(ty);
         putf(CYAN("%s "), STR(SYM_NAME(sym)));
+        putf("<scope: %d>", SYM_SCOPE(sym));
         putf(YELLOW("<line:%u col:%u> "), AST_SRC(sym).line,
              AST_SRC(sym).column);
     }
