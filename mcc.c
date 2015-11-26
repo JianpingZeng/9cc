@@ -105,7 +105,7 @@ static void parse_opts(int argc, char *argv[])
 static const char *tempname(const char *dir, const char *hint)
 {
     static long index;
-    const char *base = basename(strcopy(hint));
+    const char *base = basename(xstrdup(hint));
     const char *name = base;
     const char *path;
 
@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 
     for (int i = 0; i < vec_len(inputs); i++) {
         const char *ifile = vec_at(inputs, i);
-        const char *iname = basename(strcopy(ifile));
+        const char *iname = basename(xstrdup(ifile));
         const char *ofile = NULL;
         int ret;
         if (opts.E || opts.ast_dump) {

@@ -1046,7 +1046,7 @@ struct vector *filter_local(struct vector *v, bool front)
             continue;
         // local variables
         if (sclass == STATIC) {
-            SYM_LABEL(sym) = gen_static_label(SYM_NAME(sym));
+            SYM_LABEL(sym) = gen_static_label();
             if (front)
                 vec_push_front(staticvars, decl);
             else

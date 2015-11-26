@@ -130,16 +130,23 @@ char *format(const char *fmt, ...)
     return r;
 }
 
-char *strcopy(const char *str)
+char *xstrdup(const char *str)
 {
     char *ret = xmalloc(strlen(str) + 1);
     strcpy(ret, str);
     return ret;
 }
 
-char *strncopy(const char *str, size_t n)
+char *xstrndup(const char *str, size_t n)
 {
     char *ret = xmalloc(n + 1);
     strncpy(ret, str, n);
     return ret;
+}
+
+bool starts_with(const char *s, const char *prefix)
+{
+    if (!s || !prefix)
+        return false;
+    return !strncmp(s, prefix, strlen(prefix));
 }

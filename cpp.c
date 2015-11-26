@@ -1100,7 +1100,7 @@ static const char *find_header(const char *name, bool isstd)
          * the contents of path, so it may be desirable
          * to pass a copy when calling one of these functions.
          */
-        vec_push(paths, dirname(strcopy(current_file()->name)));
+        vec_push(paths, dirname(xstrdup(current_file()->name)));
         vec_add(paths, std_include_paths);
     }
     for (int i = 0; i < vec_len(paths); i++) {
@@ -1193,9 +1193,9 @@ static void parseopts(struct vector *options)
             const char *content = arg + 2;
             char *ptr = strchr(content, '=');
             if (ptr) {
-                char *name = strncopy(content, ptr - content);
+                char *name = xstrndup(content, ptr - content);
                 if (ptr - content < strlen(content) - 1) {
-                    char *value = strcopy(ptr + 1);
+                    char *value = xstrdup(ptr + 1);
                     strbuf_cats(s,
                                 format("#define %s %s\n",
                                        name, value));

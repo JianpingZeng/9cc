@@ -97,30 +97,6 @@ node_t *ast_null_stmt(void)
     return n;
 }
 
-const char *gen_label(void)
-{
-    static size_t i;
-    return format(".L%llu", i++);
-}
-
-const char *gen_tmpname(void)
-{
-    static size_t i;
-    return format(".T%llu", i++);
-}
-
-const char *gen_static_label(const char *name)
-{
-    static size_t i;
-    return format("%s.%s.%llu", FNAME, name, i++);
-}
-
-const char *gen_compound_label(void)
-{
-    static size_t i;
-    return format("__compound_literal.%llu", i++);
-}
-
 node_t *ast_if(node_t * cond, node_t * then, node_t * els)
 {
     node_t *ast = new_node(AST_IF);
@@ -164,4 +140,34 @@ node_t *copy_node(node_t * node)
     node_t *copy = alloc_node();
     memcpy(copy, node, sizeof(node_t));
     return copy;
+}
+
+const char *gen_label(void)
+{
+    static size_t i;
+    return format(".L%llu", i++);
+}
+
+const char *gen_tmpname(void)
+{
+    static size_t i;
+    return format(".T%llu", i++);
+}
+
+const char *gen_static_label(void)
+{
+    static size_t i;
+    return format(".S%llu", i++);
+}
+
+const char *gen_compound_label(void)
+{
+    static size_t i;
+    return format("__compound_literal.%llu", i++);
+}
+
+const char *gen_sliteral_label(void)
+{
+    static size_t i;
+    return format(".LC%llu", i++);
 }

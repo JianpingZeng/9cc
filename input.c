@@ -215,7 +215,7 @@ static struct file *open_file(int kind, const char *file)
         fs->fp = fp;
         fs->file = file;
     } else if (kind == FILE_KIND_STRING) {
-        fs->file = strcopy(file);
+        fs->file = xstrdup(file);
     }
     // allocate buf
     fs->buf = xmalloc(LBUFSIZE + RBUFSIZE + 1);

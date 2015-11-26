@@ -123,18 +123,18 @@ struct ast_field {
 #define SYM_VALUE_I(NODE)       (VALUE_I(SYM_VALUE(NODE)))
 #define SYM_VALUE_D(NODE)       (VALUE_D(SYM_VALUE(NODE)))
 
-    struct ast_symbol {
-        struct ast_common common;
-        int scope;
-        int sclass;
-        bool defined;
-        union value value;
-        unsigned refs;
-        struct {
-            const char *label;
-            long loff;        // stack offset
-        } x;
-    };
+struct ast_symbol {
+    struct ast_common common;
+    int scope;
+    int sclass;
+    bool defined;
+    union value value;
+    unsigned refs;
+    struct {
+        const char *label;
+        long loff;        // stack offset
+    } x;
+};
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
@@ -168,15 +168,20 @@ struct ast_decl {
 // literal
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
+// x
+#define EXPR_X(NODE)            ((NODE)->expr.x)
 
-    struct ast_expr {
-        struct ast_common common;
-        int op;
-        bool prefix;
-        node_t *sym;
-        node_t *operands[3];
-        node_t **list;
-    };
+struct ast_expr {
+    struct ast_common common;
+    int op;
+    bool prefix;
+    node_t *sym;
+    node_t *operands[3];
+    node_t **list;
+    struct {
+        const char *addr;
+    } x;
+};
 
 #define STMT_OPERAND(NODE)       ((NODE)->stmt.operands[0])
 #define STMT_LABEL(NODE)         AST_NAME(NODE)
@@ -221,15 +226,17 @@ extern node_t *ast_inits(node_t * ty, struct source src);
 extern node_t *ast_vinit(void);
 // stmt
 extern node_t *ast_null_stmt(void);
-extern const char *gen_label(void);
-extern const char *gen_tmpname(void);
-extern const char *gen_static_label(const char *name);
-extern const char *gen_compound_label(void);
 extern node_t *ast_if(node_t * cond, node_t * then, node_t * els);
 extern node_t *ast_jump(const char *label);
 extern node_t *ast_label(const char *label);
 extern node_t *ast_return(node_t * node);
 extern node_t *ast_compound(struct source src, node_t ** list);
+
+extern const char *gen_label(void);
+extern const char *gen_tmpname(void);
+extern const char *gen_static_label(void);
+extern const char *gen_compound_label(void);
+extern const char *gen_sliteral_label(void);
 
 extern node_t *copy_node(node_t * node);
 

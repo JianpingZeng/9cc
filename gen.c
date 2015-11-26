@@ -25,28 +25,32 @@
 static FILE *outfp;
 static struct dict *compound_lits;
 
-#define LEAD  "    "
-#define emit(...)             emitf(LEAD,  __VA_ARGS__)
-#define emit_noindent(...)    emitf(NULL, __VA_ARGS__)
-#define pushq(reg)      emit("pushq %s", reg)
-#define popq(reg)       emit("popq %s", reg)
-#define movq(src, dst)  emit("movq %s, %s", src, dst)
-#define STR_PREFIX    ".LC"
-#define IS_STRLIT(sym)  (!strncmp(STR_PREFIX, SYM_LABEL(sym), strlen(STR_PREFIX)))
-
 static void emit_initializer(node_t * t);
 static void emit_stmt(node_t * n);
 static const char *func_ret_label;
 
-static void emitf(const char *lead, const char *fmt, ...)
+static void emit(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    if (lead)
-        fprintf(outfp, "%s", lead);
+    fprintf(outfp, "\t");
     vfprintf(outfp, fmt, ap);
     fprintf(outfp, "\n");
     va_end(ap);
+}
+
+static void emit_noindent(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(outfp, fmt, ap);
+    fprintf(outfp, "\n");
+    va_end(ap);
+}
+
+static bool is_sliteral_label(node_t *sym)
+{
+    return sym && starts_with(SYM_LABEL(sym), ".LC");
 }
 
 static const char *glabel(const char *label)
@@ -57,18 +61,12 @@ static const char *glabel(const char *label)
         return label;
 }
 
-static const char *gen_str_label(void)
-{
-    static size_t i;
-    return format("%s%llu", STR_PREFIX, i++);
-}
-
 static const char *emit_string_literal(const char *name)
 {
     node_t *sym = lookup(name, constants);
     cc_assert(sym);
-    if (!IS_STRLIT(sym))
-        SYM_LABEL(sym) = gen_str_label();
+    if (!is_sliteral_label(sym))
+        SYM_LABEL(sym) = gen_sliteral_label();
     return SYM_LABEL(sym);
 }
 
@@ -318,60 +316,66 @@ static void emit_bss(node_t * n)
              TYPE_ALIGN(ty));
 }
 
+static void emit_bop(node_t *n)
+{
+    int op = EXPR_OP(n);
+    switch (op) {
+    case '=':
+    case ',':
+        // int
+    case '%':
+    case '|':
+    case '&':
+    case '^':
+    case LSHIFT:
+    case RSHIFT:
+        // arith
+    case '*':
+    case '/':
+        // scalar
+    case '<':
+    case '>':
+    case GEQ:
+    case LEQ:
+    case EQ:
+    case NEQ:
+    case '+':
+    case '-':
+    case AND:
+    case OR:
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
+static void emit_uop(node_t *n)
+{
+    int op = EXPR_OP(n);
+    switch (op) {
+    case INCR:
+    case DECR:
+    case '*':
+    case '&':
+    case '+':
+    case '-':
+    case '~':
+    case '!':
+    case SIZEOF:
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
 static void emit_expr(node_t * n)
 {
     switch (AST_ID(n)) {
     case BINARY_OPERATOR:
-        {
-            int op = EXPR_OP(n);
-            switch (op) {
-            case '=':
-            case ',':
-                // int
-            case '%':
-            case '|':
-            case '&':
-            case '^':
-            case LSHIFT:
-            case RSHIFT:
-                // arith
-            case '*':
-            case '/':
-                // scalar
-            case '<':
-            case '>':
-            case GEQ:
-            case LEQ:
-            case EQ:
-            case NEQ:
-            case '+':
-            case '-':
-            case AND:
-            case OR:
-                break;
-            default:
-                cc_assert(0);
-            }
-        }
+        emit_bop(n);
         break;
     case UNARY_OPERATOR:
-        {
-            int op = EXPR_OP(n);
-            switch (op) {
-            case INCR:
-            case DECR:
-            case '*':
-            case '&':
-            case '+':
-            case '-':
-            case '~':
-            case '!':
-            case SIZEOF:
-                break;
-            default:
-                cc_assert(0);
-            }
-        }
+        emit_uop(n);
         break;
     case PAREN_EXPR:
         emit_expr(EXPR_OPERAND(n, 0));
@@ -496,8 +500,8 @@ static void emit_funcdef(node_t * n)
     }
     func_ret_label = gen_label();
     emit_noindent("%s:", label);
-    pushq("%rbp");
-    movq("%rsp", "%rbp");
+    emit("pushq %rbp");
+    emit("movq %rsp", "%rbp");
     if (sub)
         emit("sub $%lld, %%rbp", sub);
     emit_stmt(DECL_BODY(n));
@@ -524,9 +528,9 @@ static void emit_literals(void)
     // strings
     section = false;
     for (int i = 0; i < vec_len(constants->dict->keys); i++) {
-        node_t *sym =
-            dict_get(constants->dict, vec_at(constants->dict->keys, i));
-        if (sym && IS_STRLIT(sym)) {
+        const char *key = vec_at(constants->dict->keys, i);
+        node_t *sym = dict_get(constants->dict, key);
+        if (is_sliteral_label(sym)) {
             if (!section) {
                 emit(".section .rodata");
                 section = true;

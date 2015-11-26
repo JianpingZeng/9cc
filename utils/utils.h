@@ -29,8 +29,9 @@ extern char *strs(const char *str);
 extern char *strn(const char *src, size_t len);
 extern char *strd(long n);
 extern char *format(const char *fmt, ...);
-extern char *strcopy(const char *str);
-extern char *strncopy(const char *str, size_t n);
+extern char *xstrdup(const char *str);
+extern char *xstrndup(const char *str, size_t n);
+extern bool starts_with(const char *s, const char *prefix);
 
 // map.c
 #include "map.h"
