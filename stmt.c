@@ -263,6 +263,18 @@ static node_t *switch_jmp(node_t * var, node_t * case_node)
     return ast_if(cond, ast_jump(label), NULL);
 }
 
+static node_t *define_tmpvar(node_t * ty)
+{
+    const char *name = gen_tmpname();
+    node_t *decl = define_localvar(name, ty, 0, NULL);
+    node_t *n = alloc_node();
+    AST_ID(n) = REF_EXPR;
+    EXPR_SYM(n) = DECL_SYM(decl);
+    AST_TYPE(n) = ty;
+    SYM_REFS(DECL_SYM(decl))++;
+    return n;
+}
+
 /**
  * Switch Statements Notes:
  *

@@ -225,13 +225,13 @@ extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
 extern bool first_typename(struct token *t);
-extern node_t *define_tmpvar(node_t * ty);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
 extern node_t *define_localvar(const char *name, node_t * ty, int sclass,
                                node_t * init);
 extern struct vector *filter_local(struct vector *v, bool front);
 
 // initializer.c
+extern node_t *initializer(node_t * ty);
 extern node_t *initializer_list(node_t * ty);
 extern void decl_initializer(node_t * decl, int sclass, int kind);
 extern void init_string(node_t * ty, node_t * node);

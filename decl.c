@@ -18,8 +18,8 @@ static node_t *localdecl(struct token *id, node_t * ty, int sclass,
                          int fspec);
 static node_t *funcdef(struct token *id, node_t * ty, int sclass,
                        int fspec);
-static void dotypedef(struct token *id, node_t * ty, int sclass,
-                      int fspec, int kind);
+static void typedefdecl(struct token *id, node_t * ty, int fspec,
+                      int kind);
 static struct vector *decls(declfun_p * dcl);
 
 static void ensure_field(node_t * field, size_t total, bool last);
@@ -357,6 +357,74 @@ static void exit_params(void)
     exit_scope();
 }
 
+static node_t **prototype(node_t *ftype)
+{
+    struct vector *v = vec_new();
+    TYPE_OLDSTYLE(ftype) = 0;
+    bool first_void = false;
+    
+    for (int i = 0;; i++) {
+        node_t *basety = NULL;
+        int sclass, fspec;
+        node_t *ty = NULL;
+        struct token *id = NULL;
+        node_t *sym;
+
+        basety = specifiers(&sclass, &fspec);
+        param_declarator(&ty, &id);
+        attach_type(&ty, basety);
+
+        if (i == 0 && isvoid(ty))
+            first_void = true;
+
+        if (sclass == TYPEDEF) {
+            typedefdecl(id, ty, fspec, PARAM);
+        } else {
+            SAVE_ERRORS;
+            sym = paramdecl(id, ty,
+                            PACK_PARAM(1, i == 0, first_void, sclass),
+                            fspec);
+            if (NO_ERROR && !first_void)
+                vec_push(v, sym);
+        }
+        
+        if (token->id != ',')
+            break;
+
+        expect(',');
+        if (token->id == ELLIPSIS) {
+            if (!first_void)
+                TYPE_VARG(ftype) = 1;
+            else
+                error("'void' must be the first and only parameter "
+                      "if specified");
+            expect(ELLIPSIS);
+            break;
+        }
+    }
+    return (node_t **)vtoa(v);
+}
+
+static node_t **oldstyle(node_t *ftype)
+{
+    struct vector *v = vec_new();
+    TYPE_OLDSTYLE(ftype) = 1;
+    
+    for (;;) {
+        if (token->id == ID)
+            vec_push(v, paramdecl(token, inttype, 0, 0));
+        expect(ID);
+        if (token->id != ',')
+            break;
+        expect(',');
+    }
+
+    if (SCOPE > PARAM)
+        error("a parameter list without types is only allowed "
+              "in a function definition");
+    return (node_t **)vtoa(v);
+}
+
 static node_t **parameters(node_t * ftype, int *params)
 {
     node_t **ret = NULL;
@@ -365,61 +433,10 @@ static node_t **parameters(node_t * ftype, int *params)
 
     if (first_decl(token)) {
         // prototype
-        struct vector *v = vec_new();
-        bool first_void = false;
-        for (int i = 0;; i++) {
-            node_t *basety = NULL;
-            int sclass, fspec;
-            node_t *ty = NULL;
-            struct token *id = NULL;
-            node_t *sym;
-
-            basety = specifiers(&sclass, &fspec);
-            param_declarator(&ty, &id);
-            attach_type(&ty, basety);
-            
-            if (i == 0 && isvoid(ty))
-                first_void = true;
-
-            SAVE_ERRORS;
-            sym = paramdecl(id, ty,
-                            PACK_PARAM(1, i == 0, first_void, sclass),
-                            fspec);
-            if (NO_ERROR && !first_void)
-                vec_push(v, sym);
-            if (token->id != ',')
-                break;
-
-            expect(',');
-            if (token->id == ELLIPSIS) {
-                if (!first_void)
-                    TYPE_VARG(ftype) = 1;
-                else
-                    error("'void' must be the first and only parameter "
-                          "if specified");
-                expect(ELLIPSIS);
-                break;
-            }
-        }
-
-        ret = (node_t **) vtoa(v);
+        ret = prototype(ftype);
     } else if (token->id == ID) {
         // oldstyle
-        TYPE_OLDSTYLE(ftype) = 1;
-        struct vector *v = vec_new();
-        for (;;) {
-            if (token->id == ID)
-                vec_push(v, paramdecl(token, inttype, 0, 0));
-            expect(ID);
-            if (token->id != ',')
-                break;
-            expect(',');
-        }
-
-        if (SCOPE > PARAM)
-            error("a parameter list without types is only allowed in "
-                  "a function definition");
-        ret = (node_t **) vtoa(v);
+        ret = oldstyle(ftype);
     } else if (token->id == ')') {
         TYPE_OLDSTYLE(ftype) = 1;
     } else {
@@ -942,7 +959,7 @@ static struct vector *decls(declfun_p * dcl)
     node_t *basety;
     int sclass, fspec;
     int level = SCOPE;
-    int follow[] = { STATIC, INT, CONST, IF, '}', 0 };
+    int follow[] = {STATIC, INT, CONST, IF, '}', 0};
 
     basety = specifiers(&sclass, &fspec);
     if (token->id == ID || token->id == '*' || token->id == '(') {
@@ -973,14 +990,18 @@ static struct vector *decls(declfun_p * dcl)
                 int kind;
                 if (dcl == globaldecl)
                     kind = GLOBAL;
-                else if (dcl == localdecl)
-                    kind = LOCAL;
                 else if (dcl == paramdecl)
                     kind = PARAM;
                 else
-                    cc_assert(0);
+                    kind = LOCAL;
                 if (sclass == TYPEDEF) {
-                    dotypedef(id, ty, sclass, fspec, kind);
+                    typedefdecl(id, ty, fspec, kind);
+                    if (token->id == '=') {
+                        error("illegal initializer "
+                              "(only variable can be initialized)");
+                        expect('=');
+                        initializer(NULL);
+                    }
                 } else {
                     node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
                     if (token->id == '=')
@@ -1063,18 +1084,6 @@ struct vector *filter_local(struct vector *v, bool front)
         }
     }
     return v;
-}
-
-node_t *define_tmpvar(node_t * ty)
-{
-    const char *name = gen_tmpname();
-    node_t *decl = define_localvar(name, ty, 0, NULL);
-    node_t *n = alloc_node();
-    AST_ID(n) = REF_EXPR;
-    EXPR_SYM(n) = DECL_SYM(decl);
-    AST_TYPE(n) = ty;
-    SYM_REFS(DECL_SYM(decl))++;
-    return n;
 }
 
 node_t *make_localvar(const char *name, node_t * ty, int sclass)
@@ -1269,18 +1278,33 @@ static void ensure_inline(node_t *ty, int fspec, struct source src)
     }
 }
 
-static void dotypedef(struct token *id, node_t * ty, int sclass,
-                      int fspec, int kind)
+static void typedefdecl(struct token *t, node_t * ty, int fspec,
+                      int kind)
 {
-    const char *name = id->name;
-    struct source src = id->src;
+    const char *id = t->name;
+    struct source src = t->src;
+    int sclass = TYPEDEF;
+
+    if (isfunc(ty))
+        ensure_func(ty, src, id, kind);
+    else if (isarray(ty))
+        ensure_array(ty, src, kind);
+
+    ensure_inline(ty, fspec, src);
     
     if (kind == PARAM) {
-        errorf(src, "invalid storage class specifier in "
-               "function declarator", id2s(sclass));
+        errorf(src,
+               "invalid storage class specifier in "
+               "function declarator",
+               id2s(sclass));
     } else {
-        node_t *sym = lookup(name, identifiers);
-        
+        node_t *sym = lookup(id, identifiers);
+        if (sym && is_current_scope(sym))
+            redefinition_error(src, sym);
+        sym = install(id, &identifiers, SCOPE);
+        SYM_TYPE(sym) = ty;
+        AST_SRC(sym) = src;
+        SYM_SCLASS(sym) = sclass;
     }
 }
 
@@ -1441,7 +1465,7 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
         SYM_TYPE(sym) = ty;
         AST_SRC(sym) = src;
         SYM_SCLASS(sym) = sclass;
-    } else if (sclass != TYPEDEF && eqtype(ty, SYM_TYPE(sym))) {
+    } else if (eqtype(ty, SYM_TYPE(sym))) {
         if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
             errorf(src,
                    "static declaration of '%s' follows "
