@@ -49,3 +49,8 @@ TAGS
 
 # cscope
 cscope.*
+
+# gtags
+GPATH
+GRTAGS
+GTAGS
