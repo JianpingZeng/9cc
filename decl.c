@@ -25,8 +25,9 @@ static struct vector *decls(declfun_p * dcl);
 static void ensure_field(node_t * field, size_t total, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
-static void ensure_func(node_t * ftype, struct source src, const char *name,
-                        int level);
+static void ensure_func(node_t * ftype, struct source src);
+static void ensure_main(node_t *ftype, const char *name,
+                        struct source src);
 
 static struct vector *filter_global(struct vector *v);
 
@@ -1089,8 +1090,12 @@ static void ensure_decl(node_t * decl, int sclass, int kind)
     }
 }
 
-static void ensure_main(node_t *ftype, struct source src)
+static void ensure_main(node_t *ftype, const char *name,
+                        struct source src)
 {
+    if (!isfunc(ftype) || !name || strcmp(name, "main"))
+        return;
+    
     node_t *rty = rtype(ftype);
     node_t **params = TYPE_PARAMS(ftype);
     if (rty != inttype)
@@ -1115,8 +1120,7 @@ static void ensure_main(node_t *ftype, struct source src)
                LIST_LEN(params));
 }
 
-static void ensure_func(node_t * ftype, struct source src,
-                        const char *name, int level)
+static void ensure_func(node_t * ftype, struct source src)
 {
     node_t *rty = rtype(ftype);
     if (isarray(rty))
@@ -1125,11 +1129,6 @@ static void ensure_func(node_t * ftype, struct source src,
     else if (isfunc(rty))
         errorf(src, "function cannot return function type '%s'",
                type2s(rty));
-
-    // check main function declaration
-    if ((name && !strcmp(name, "main")) &&
-        (level == GLOBAL || level == LOCAL))
-        ensure_main(ftype, src);
 }
 
 /**
@@ -1215,7 +1214,7 @@ static void typedefdecl(struct token *t, node_t * ty, int fspec,
     int sclass = TYPEDEF;
 
     if (isfunc(ty)) {
-        ensure_func(ty, src, id, kind);
+        ensure_func(ty, src);
     } else if (isarray(ty)) {
         ensure_array(ty, src, kind);
     }
@@ -1262,7 +1261,7 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
     }
 
     if (isfunc(ty)) {
-        ensure_func(ty, src, id, PARAM);
+        ensure_func(ty, src);
         ty = ptr_type(ty);
     } else if (isarray(ty)) {
         ensure_array(ty, src, PARAM);
@@ -1335,7 +1334,8 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass,
         if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
             error("a parameter list without types is only allowed "
                   "in a function definition");
-        ensure_func(ty, src, id, LOCAL);
+        ensure_func(ty, src);
+        ensure_main(ty, id, src);
         if (sclass && sclass != EXTERN)
             errorf(src,
                    "function declared in block scope cannot have "
@@ -1382,7 +1382,8 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
             error
                 ("a parameter list without types is only allowed "
                  "in a function definition");
-        ensure_func(ty, src, id, GLOBAL);
+        ensure_func(ty, src);
+        ensure_main(ty, id, src);
     } else if (isarray(ty)) {
         ensure_array(ty, src, GLOBAL);
     }
@@ -1424,7 +1425,8 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
 
     cc_assert(SCOPE == PARAM);
 
-    ensure_func(ftype, src, id, GLOBAL);
+    ensure_func(ftype, src);
+    ensure_main(ftype, id, src);
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", id2s(sclass));
         sclass = 0;
