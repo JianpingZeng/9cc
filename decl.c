@@ -28,6 +28,8 @@ static void ensure_array(node_t * atype, struct source src, int level);
 static void ensure_func(node_t * ftype, struct source src, const char *name,
                         int level);
 
+static struct vector *filter_global(struct vector *v);
+
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
     (((prototype) & 0x01) << 30) |                      \
     (((first) & 0x01) << 29) |                          \
@@ -616,141 +618,61 @@ static void bitfield(node_t *field)
 
 static void fields(node_t * sym)
 {
-    int follow[] = { INT, CONST, '}', IF, 0 };
+    int follow[] = {INT, CONST, '}', IF, 0};
     node_t *sty = SYM_TYPE(sym);
 
-    if (first_decl(token)) {
-        struct vector *v = vec_new();
-        do {
-            node_t *basety = specifiers(NULL, NULL);
-
-            for (;;) {
-                node_t *field = new_field();
-                if (token->id == ':') {
-                    bitfield(field);
-                    FIELD_TYPE(field) = basety;
-                } else {
-                    node_t *ty = NULL;
-                    struct token *id = NULL;
-                    declarator(&ty, &id, NULL);
-                    attach_type(&ty, basety);
-                    if (token->id == ':')
-                        bitfield(field);
-                    FIELD_TYPE(field) = ty;
-                    if (id) {
-                        for (int i = 0; i < vec_len(v); i++) {
-                            node_t *f = vec_at(v, i);
-                            if (FIELD_NAME(f) &&
-                                !strcmp(FIELD_NAME(f), id->name)) {
-                                errorf(id->src,
-                                       "redefinition of '%s'",
-                                       id->name);
-                                break;
-                            }
-                        }
-                        FIELD_NAME(field) = id->name;
-                        AST_SRC(field) = id->src;
-                    }
-                }
-
-                vec_push(v, field);
-                if (token->id != ',')
-                    break;
-                expect(',');
-                ensure_field(field, vec_len(v), false);
-            }
-
-            match(';', follow);
-            ensure_field(vec_tail(v), vec_len(v),
-                         isstruct(sty) && !first_decl(token));
-        } while (first_decl(token));
-
-        TYPE_FIELDS(sty) = (node_t **) vtoa(v);
-        set_typesize(sty);
-    } else {
+    if (!first_decl(token)) {
         error("expect type name or qualifiers");
+        return;
     }
-}
+    
+    struct vector *v = vec_new();
+    do {
+        node_t *basety = specifiers(NULL, NULL);
 
-static void ensure_bitfield(node_t *field)
-{
-    const char *name = FIELD_NAME(field);
-    node_t *ty = FIELD_TYPE(field);
-    struct source src = AST_SRC(field);
-    int bitsize = FIELD_BITSIZE(field);
-    int bits = BITS(TYPE_SIZE(ty));
-
-    if (!isint(ty)) {
-        if (name)
-            errorf(src,
-                   "bit-field '%s' has non-integral type '%s'",
-                   name, type2s(ty));
-        else
-            errorf(src,
-                   "anonymous bit-field has non-integral type '%s'",
-                   type2s(ty));
-    }
-
-    if (bitsize < 0) {
-        if (name)
-            errorf(src,
-                   "bit-field '%s' has negative width '%d'",
-                   name, bitsize);
-        else
-            errorf(src,
-                   "anonymous bit-field has negative width '%d'",
-                   bitsize);
-    }
-
-    if (bitsize == 0 && name)
-        errorf(src, "named bit-field '%s' has zero width",
-               name);
-
-    if (bitsize > bits) {
-        if (name)
-            errorf(src,
-                   "size of bit-field '%s' (%d bits) exceeds size of "
-                   "its type (%d bits)",
-                   name, bitsize, bits);
-        else
-            errorf(src,
-                   "anonymous bit-field (%d bits) exceeds size of "
-                   "its type (%d bits)",
-                   bitsize, bits);
-    }
-}
-
-static void ensure_nonbitfield(node_t * field, size_t total, bool last)
-{
-    node_t *ty = FIELD_TYPE(field);
-    struct source src = AST_SRC(field);
-        
-    if (isarray(ty)) {
-        ensure_array(ty, source, CONSTANT);
-        if (isincomplete(ty)) {
-            if (last) {
-                if (total == 1)
-                    errorf(src,
-                           "flexible array cannot be the only member");
+        for (;;) {
+            node_t *field = new_field();
+            if (token->id == ':') {
+                bitfield(field);
+                FIELD_TYPE(field) = basety;
             } else {
-                errorf(src,
-                       "field has incomplete type '%s'",
-                       type2s(ty));
+                node_t *ty = NULL;
+                struct token *id = NULL;
+                declarator(&ty, &id, NULL);
+                attach_type(&ty, basety);
+                if (token->id == ':')
+                    bitfield(field);
+                FIELD_TYPE(field) = ty;
+                if (id) {
+                    for (int i = 0; i < vec_len(v); i++) {
+                        node_t *f = vec_at(v, i);
+                        if (FIELD_NAME(f) &&
+                            !strcmp(FIELD_NAME(f), id->name)) {
+                            errorf(id->src,
+                                   "redefinition of '%s'",
+                                   id->name);
+                            break;
+                        }
+                    }
+                    FIELD_NAME(field) = id->name;
+                    AST_SRC(field) = id->src;
+                }
             }
-        }
-    } else if (isfunc(ty)) {
-        errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
-    } else if (isincomplete(ty)) {
-        errorf(src, "field has incomplete type '%s'", type2s(ty));
-    }
-}
 
-static void ensure_field(node_t * field, size_t total, bool last)
-{
-    if (FIELD_ISBIT(field))
-        ensure_bitfield(field);
-    else
-        ensure_nonbitfield(field, total, last);
+            vec_push(v, field);
+            if (token->id != ',')
+                break;
+            expect(',');
+            ensure_field(field, vec_len(v), false);
+        }
+
+        match(';', follow);
+        ensure_field(vec_tail(v), vec_len(v),
+                     isstruct(sty) && !first_decl(token));
+    } while (first_decl(token));
+
+    TYPE_FIELDS(sty) = (node_t **) vtoa(v);
+    set_typesize(sty);
 }
 
 static node_t *ptr_decl(void)
@@ -1032,76 +954,6 @@ static struct vector *decls(declfun_p * dcl)
     return v;
 }
 
-static struct vector *filter_global(struct vector *v)
-{
-    cc_assert(SCOPE == GLOBAL);
-    struct vector *r = vec_new();
-    struct map *map = map_new();
-    map->cmpfn = nocmp;
-    for (int i = 0; i < vec_len(v); i++) {
-        node_t *decl = vec_at(v, i);
-        if (isfuncdef(decl)) {
-            vec_push(r, decl);
-            vec_add_array(r, (void **)DECL_SVARS(decl));
-        } else if (isvardecl(decl)) {
-            node_t *sym = DECL_SYM(decl);
-            if (SYM_SCLASS(sym) == EXTERN)
-                continue;
-            node_t *decl1 = map_get(map, sym);
-            if (decl1) {
-                if (DECL_BODY(decl))
-                    DECL_BODY(decl1) = DECL_BODY(decl);
-            } else {
-                vec_push(r, decl);
-                map_put(map, sym, decl);
-            }
-        }
-    }
-    map_free(map);
-    return r;
-}
-
-struct vector *filter_local(struct vector *v, bool front)
-{
-    for (int i = 0; i < vec_len(v); i++) {
-        node_t *decl = vec_at(v, i);
-        node_t *sym = DECL_SYM(decl);
-        int sclass = SYM_SCLASS(sym);
-        if (!isvardecl(decl))
-            continue;
-        // local variables
-        if (sclass == STATIC) {
-            SYM_LABEL(sym) = gen_static_label();
-            if (front)
-                vec_push_front(staticvars, decl);
-            else
-                vec_push(staticvars, decl);
-        } else if (sclass != EXTERN) {
-            if (front)
-                vec_push_front(localvars, decl);
-            else
-                vec_push(localvars, decl);
-        }
-    }
-    return v;
-}
-
-node_t *make_localvar(const char *name, node_t * ty, int sclass)
-{
-    struct token *id = new_token(&(struct token){.id = ID,.name =
-                name,.kind = ID,.src = source });
-    node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
-    return decl;
-}
-
-node_t *define_localvar(const char *name, node_t * ty, int sclass,
-                        node_t * init)
-{
-    node_t *decl = make_localvar(name, ty, sclass);
-    vec_push(localvars, decl);
-    return decl;
-}
-
 node_t *typename(void)
 {
     node_t *basety;
@@ -1142,6 +994,87 @@ node_t *translation_unit(void)
 
     DECL_EXTS(ret) = (node_t **) vtoa(filter_global(v));
     return ret;
+}
+
+static void ensure_bitfield(node_t *field)
+{
+    const char *name = FIELD_NAME(field);
+    node_t *ty = FIELD_TYPE(field);
+    struct source src = AST_SRC(field);
+    int bitsize = FIELD_BITSIZE(field);
+    int bits = BITS(TYPE_SIZE(ty));
+
+    if (!isint(ty)) {
+        if (name)
+            errorf(src,
+                   "bit-field '%s' has non-integral type '%s'",
+                   name, type2s(ty));
+        else
+            errorf(src,
+                   "anonymous bit-field has non-integral type '%s'",
+                   type2s(ty));
+    }
+
+    if (bitsize < 0) {
+        if (name)
+            errorf(src,
+                   "bit-field '%s' has negative width '%d'",
+                   name, bitsize);
+        else
+            errorf(src,
+                   "anonymous bit-field has negative width '%d'",
+                   bitsize);
+    }
+
+    if (bitsize == 0 && name)
+        errorf(src, "named bit-field '%s' has zero width",
+               name);
+
+    if (bitsize > bits) {
+        if (name)
+            errorf(src,
+                   "size of bit-field '%s' (%d bits) exceeds size of "
+                   "its type (%d bits)",
+                   name, bitsize, bits);
+        else
+            errorf(src,
+                   "anonymous bit-field (%d bits) exceeds size of "
+                   "its type (%d bits)",
+                   bitsize, bits);
+    }
+}
+
+static void ensure_nonbitfield(node_t * field, size_t total, bool last)
+{
+    node_t *ty = FIELD_TYPE(field);
+    struct source src = AST_SRC(field);
+        
+    if (isarray(ty)) {
+        ensure_array(ty, source, CONSTANT);
+        if (isincomplete(ty)) {
+            if (last) {
+                if (total == 1)
+                    errorf(src,
+                           "flexible array cannot be the only member");
+            } else {
+                errorf(src,
+                       "field has incomplete type '%s'",
+                       type2s(ty));
+            }
+        }
+    } else if (isfunc(ty)) {
+        errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
+    } else if (isincomplete(ty)) {
+        errorf(src, "field has incomplete type '%s'", type2s(ty));
+    }
+}
+
+static void ensure_field(node_t * field, size_t total, bool last)
+{
+    if (FIELD_ISBIT(field))
+        ensure_bitfield(field);
+    else
+        ensure_nonbitfield(field, total, last);
 }
 
 static void ensure_decl(node_t * decl, int sclass, int kind)
@@ -1594,5 +1527,75 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
         exit_scope();
     }
 
+    return decl;
+}
+
+static struct vector *filter_global(struct vector *v)
+{
+    cc_assert(SCOPE == GLOBAL);
+    struct vector *r = vec_new();
+    struct map *map = map_new();
+    map->cmpfn = nocmp;
+    for (int i = 0; i < vec_len(v); i++) {
+        node_t *decl = vec_at(v, i);
+        if (isfuncdef(decl)) {
+            vec_push(r, decl);
+            vec_add_array(r, (void **)DECL_SVARS(decl));
+        } else if (isvardecl(decl)) {
+            node_t *sym = DECL_SYM(decl);
+            if (SYM_SCLASS(sym) == EXTERN)
+                continue;
+            node_t *decl1 = map_get(map, sym);
+            if (decl1) {
+                if (DECL_BODY(decl))
+                    DECL_BODY(decl1) = DECL_BODY(decl);
+            } else {
+                vec_push(r, decl);
+                map_put(map, sym, decl);
+            }
+        }
+    }
+    map_free(map);
+    return r;
+}
+
+struct vector *filter_local(struct vector *v, bool front)
+{
+    for (int i = 0; i < vec_len(v); i++) {
+        node_t *decl = vec_at(v, i);
+        node_t *sym = DECL_SYM(decl);
+        int sclass = SYM_SCLASS(sym);
+        if (!isvardecl(decl))
+            continue;
+        // local variables
+        if (sclass == STATIC) {
+            SYM_LABEL(sym) = gen_static_label();
+            if (front)
+                vec_push_front(staticvars, decl);
+            else
+                vec_push(staticvars, decl);
+        } else if (sclass != EXTERN) {
+            if (front)
+                vec_push_front(localvars, decl);
+            else
+                vec_push(localvars, decl);
+        }
+    }
+    return v;
+}
+
+node_t *make_localvar(const char *name, node_t * ty, int sclass)
+{
+    struct token *id = new_token(&(struct token){.id = ID,.name =
+                name,.kind = ID,.src = source });
+    node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
+    return decl;
+}
+
+node_t *define_localvar(const char *name, node_t * ty, int sclass,
+                        node_t * init)
+{
+    node_t *decl = make_localvar(name, ty, sclass);
+    vec_push(localvars, decl);
     return decl;
 }
