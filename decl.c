@@ -832,10 +832,7 @@ static void declarator(node_t ** ty, struct token **id, int *params)
 static bool first_funcdef(node_t * ty)
 {
     bool prototype = token->id == '{';
-    bool oldstyle =
-        first_decl(token) &&
-        TYPE_OLDSTYLE(ty) &&
-        TYPE_PARAMS(ty);
+    bool oldstyle =  first_decl(token) && TYPE_OLDSTYLE(ty);
 
     return isfunc(ty) && (prototype || oldstyle);
 }
@@ -1217,16 +1214,17 @@ static void typedefdecl(struct token *t, node_t * ty, int fspec,
     struct source src = t->src;
     int sclass = TYPEDEF;
 
-    if (isfunc(ty))
+    if (isfunc(ty)) {
         ensure_func(ty, src, id, kind);
-    else if (isarray(ty))
+    } else if (isarray(ty)) {
         ensure_array(ty, src, kind);
+    }
 
     ensure_inline(ty, fspec, src);
     
     if (kind == PARAM) {
         errorf(src,
-               "invalid storage class specifier in "
+               "invalid storage class specifier '%s' in "
                "function declarator",
                id2s(sclass));
     } else {
