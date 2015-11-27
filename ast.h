@@ -139,7 +139,6 @@ struct ast_symbol {
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
-#define DECL_DCLS(NODE)         ((NODE)->decl.dcls)
 #define DECL_LVARS(NODE)        ((NODE)->decl.x.lvars)
 #define DECL_SVARS(NODE)        ((NODE)->decl.x.svars)
 
@@ -148,7 +147,6 @@ struct ast_decl {
     node_t *sym;                // the symbol
     node_t *body;                // the initializer expr or func body
     node_t **exts;
-    node_t **dcls;
     struct {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars

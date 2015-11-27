@@ -85,7 +85,7 @@ static void print_decl(node_t * node, struct print_context context)
     switch (AST_ID(node)) {
     case TU_DECL:
         {
-            node_t **exts = DECL_DCLS(node);
+            node_t **exts = DECL_EXTS(node);
             if (exts) {
                 for (int i = 0; exts[i]; i++) {
                     struct print_context con =

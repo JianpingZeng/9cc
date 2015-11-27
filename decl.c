@@ -1140,7 +1140,6 @@ node_t *translation_unit(void)
         }
     }
 
-    DECL_DCLS(ret) = (node_t **) vtoa(v);
     DECL_EXTS(ret) = (node_t **) vtoa(filter_global(v));
     return ret;
 }
