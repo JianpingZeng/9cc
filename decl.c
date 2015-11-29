@@ -1536,8 +1536,8 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
         backfill_labels();
         // TODO: check control flow and return stmt
         DECL_BODY(decl) = stmt;
-        DECL_LVARS(decl) = (node_t **) vtoa(localvars);
-        DECL_SVARS(decl) = (node_t **) vtoa(staticvars);
+        DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
+        DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
         RESTORE_FUNCDEF_CONTEXT();
         exit_scope();
     }
@@ -1555,7 +1555,7 @@ static struct vector *filter_global(struct vector *v)
         node_t *decl = vec_at(v, i);
         if (isfuncdef(decl)) {
             vec_push(r, decl);
-            vec_add_array(r, (void **)DECL_SVARS(decl));
+            vec_add_array(r, (void **)DECL_X_SVARS(decl));
         } else if (isvardecl(decl)) {
             node_t *sym = DECL_SYM(decl);
             if (SYM_SCLASS(sym) == EXTERN)
@@ -1584,7 +1584,7 @@ struct vector *filter_local(struct vector *v, bool front)
             continue;
         // local variables
         if (sclass == STATIC) {
-            SYM_LABEL(sym) = gen_static_label();
+            SYM_X_LABEL(sym) = gen_static_label();
             if (front)
                 vec_push_front(staticvars, decl);
             else

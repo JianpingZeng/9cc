@@ -77,7 +77,7 @@ static void print_decl(node_t * node, struct print_context context)
              AST_SRC(sym).column);
     }
     if (isfuncdef(node))
-        putf("%llu localvars ", LIST_LEN(DECL_LVARS(node)));
+        putf("%llu localvars ", LIST_LEN(DECL_X_LVARS(node)));
     putf("\n");
 
     level = context.level + 1;

@@ -28,6 +28,7 @@ static struct dict *string_lits;
 
 static void emit_initializer(node_t * t);
 static void emit_stmt(node_t * n);
+static void emit_expr(node_t * n);
 static const char *func_ret_label;
 
 static void emit(const char *fmt, ...)
@@ -87,7 +88,7 @@ static const char *get_ptr_label(node_t * n)
         label = emit_string_literal(SYM_NAME(EXPR_SYM(n)));
         break;
     case REF_EXPR:
-        label = SYM_LABEL(EXPR_SYM(n));
+        label = SYM_X_LABEL(EXPR_SYM(n));
         break;
     case BINARY_OPERATOR:
         label = get_ptr_label(EXPR_OPERAND(n, 0));
@@ -291,7 +292,7 @@ static void emit_data(node_t * n)
 {
     node_t *sym = DECL_SYM(n);
     node_t *ty = SYM_TYPE(sym);
-    const char *label = glabel(SYM_LABEL(sym));
+    const char *label = glabel(SYM_X_LABEL(sym));
     if (SYM_SCLASS(sym) != STATIC)
         emit(".globl %s", label);
     emit(".data");
@@ -306,11 +307,31 @@ static void emit_bss(node_t * n)
     node_t *sym = DECL_SYM(n);
     node_t *ty = SYM_TYPE(sym);
     if (SYM_SCLASS(sym) == STATIC)
-        emit(".lcomm %s,%llu,%d", glabel(SYM_LABEL(sym)), TYPE_SIZE(ty),
+        emit(".lcomm %s,%llu,%d", glabel(SYM_X_LABEL(sym)), TYPE_SIZE(ty),
              TYPE_ALIGN(ty));
     else
-        emit(".comm  %s,%llu,%d", glabel(SYM_LABEL(sym)), TYPE_SIZE(ty),
+        emit(".comm  %s,%llu,%d", glabel(SYM_X_LABEL(sym)), TYPE_SIZE(ty),
              TYPE_ALIGN(ty));
+}
+
+static void emit_addi(node_t *l, node_t *r)
+{
+    
+}
+
+static void emit_bop_plus(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+    if (isint(AST_TYPE(l)) && isint(AST_TYPE(r))) {
+        // ADDI
+        emit_expr(l);
+        emit_expr(r);
+    } else if (isfloat(AST_TYPE(l)) && isfloat(AST_TYPE(r))) {
+        
+    } else {
+        
+    }
 }
 
 static void emit_bop(node_t *n)
@@ -336,7 +357,10 @@ static void emit_bop(node_t *n)
     case LEQ:
     case EQ:
     case NEQ:
+        break;
     case '+':
+        emit_bop_plus(n);
+        break;
     case '-':
     case AND:
     case OR:
@@ -365,8 +389,27 @@ static void emit_uop(node_t *n)
     }
 }
 
-static void emit_ref_expr(node_t *expr)
+static void emit_ref_expr(node_t *n)
 {
+    node_t *sym = EXPR_SYM(n);
+    node_t *ty = SYM_TYPE(sym);
+    if (isfunc(ty)) {
+    }
+}
+
+static void emit_funcall(node_t *n)
+{
+    node_t *node = EXPR_OPERAND(n, 0);
+    node_t **args = EXPR_ARGS(n);
+
+    emit_expr(node);
+
+    for (int i = 0; i < LIST_LEN(args); i++) {
+        node_t *arg = args[i];
+        emit_expr(arg);
+    }
+    
+    emit("callq %s", EXPR_X_ADDR(node));
 }
 
 static void emit_expr(node_t * n)
@@ -415,7 +458,7 @@ static void emit_decl_init(node_t * init, size_t offset)
 static void emit_decl(node_t * n)
 {
     if (DECL_BODY(n))
-        emit_decl_init(DECL_BODY(n), SYM_LOFF(DECL_SYM(n)));
+        emit_decl_init(DECL_BODY(n), SYM_X_LOFF(DECL_SYM(n)));
 }
 
 static void emit_compound(node_t * n)
@@ -493,15 +536,15 @@ static void emit_stmt(node_t * n)
 static void emit_funcdef(node_t * n)
 {
     node_t *sym = DECL_SYM(n);
-    const char *label = glabel(SYM_LABEL(sym));
+    const char *label = glabel(SYM_X_LABEL(sym));
     if (SYM_SCLASS(sym) != STATIC)
         emit(".globl %s", label);
     size_t sub = 0;
-    for (int i = 0; i < LIST_LEN(DECL_LVARS(n)); i++) {
-        node_t *lvar = DECL_LVARS(n)[i];
+    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(n)); i++) {
+        node_t *lvar = DECL_X_LVARS(n)[i];
         node_t *sym = DECL_SYM(lvar);
         size_t offset = sub + TYPE_SIZE(SYM_TYPE(sym));
-        SYM_LOFF(sym) = offset;
+        SYM_X_LOFF(sym) = offset;
         sub = ROUNDUP(offset, 8);
     }
     func_ret_label = gen_label();

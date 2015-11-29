@@ -109,19 +109,20 @@ struct ast_field {
     int bitsize;
 };
 
-#define SYM_SCOPE(NODE)         ((NODE)->symbol.scope)
-#define SYM_NAME(NODE)          AST_NAME(NODE)
-#define SYM_SCLASS(NODE)        ((NODE)->symbol.sclass)
-#define SYM_TYPE(NODE)          AST_TYPE(NODE)
-#define SYM_DEFINED(NODE)       ((NODE)->symbol.defined)
-#define SYM_VALUE(NODE)         ((NODE)->symbol.value)
-#define SYM_REFS(NODE)          ((NODE)->symbol.refs)
-#define SYM_LABEL(NODE)         ((NODE)->symbol.x.label)
-#define SYM_LOFF(NODE)          ((NODE)->symbol.x.loff)
+#define SYM_SCOPE(NODE)       ((NODE)->symbol.scope)
+#define SYM_NAME(NODE)        AST_NAME(NODE)
+#define SYM_SCLASS(NODE)      ((NODE)->symbol.sclass)
+#define SYM_TYPE(NODE)        AST_TYPE(NODE)
+#define SYM_DEFINED(NODE)     ((NODE)->symbol.defined)
+#define SYM_VALUE(NODE)       ((NODE)->symbol.value)
+#define SYM_REFS(NODE)        ((NODE)->symbol.refs)
 // convenience
-#define SYM_VALUE_U(NODE)       (VALUE_U(SYM_VALUE(NODE)))
-#define SYM_VALUE_I(NODE)       (VALUE_I(SYM_VALUE(NODE)))
-#define SYM_VALUE_D(NODE)       (VALUE_D(SYM_VALUE(NODE)))
+#define SYM_VALUE_U(NODE)     (VALUE_U(SYM_VALUE(NODE)))
+#define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
+#define SYM_VALUE_D(NODE)     (VALUE_D(SYM_VALUE(NODE)))
+// x
+#define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.label)
+#define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.loff)
 
 struct ast_symbol {
     struct ast_common common;
@@ -133,14 +134,15 @@ struct ast_symbol {
     struct {
         const char *label;
         long loff;        // stack offset
-    } x;
+    }x;
 };
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
-#define DECL_LVARS(NODE)        ((NODE)->decl.x.lvars)
-#define DECL_SVARS(NODE)        ((NODE)->decl.x.svars)
+// x
+#define DECL_X_LVARS(NODE)      ((NODE)->decl.x.lvars)
+#define DECL_X_SVARS(NODE)      ((NODE)->decl.x.svars)
 
 struct ast_decl {
     struct ast_common common;
@@ -150,7 +152,7 @@ struct ast_decl {
     struct {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars
-    } x;
+    }x;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -167,7 +169,7 @@ struct ast_decl {
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 // x
-#define EXPR_X(NODE)            ((NODE)->expr.x)
+#define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.addr)
 
 struct ast_expr {
     struct ast_common common;
@@ -178,7 +180,7 @@ struct ast_expr {
     node_t **list;
     struct {
         const char *addr;
-    } x;
+    }x;
 };
 
 #define STMT_OPERAND(NODE)       ((NODE)->stmt.operands[0])
