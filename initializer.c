@@ -398,7 +398,8 @@ node_t *initializer_list(node_t * ty)
 bool has_static_extent(node_t * sym)
 {
     return SYM_SCLASS(sym) == EXTERN ||
-        SYM_SCLASS(sym) == STATIC || SYM_SCOPE(sym) == GLOBAL;
+        SYM_SCLASS(sym) == STATIC ||
+        SYM_SCOPE(sym) == GLOBAL;
 }
 
 void decl_initializer(node_t * decl, int sclass, int kind)

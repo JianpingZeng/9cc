@@ -58,7 +58,7 @@ static const char *glabel(const char *label)
         return label;
 }
 
-static const char *emit_string_literal(const char *name)
+static const char *emit_string_literal_label(const char *name)
 {
     const char *label = dict_get(string_lits, name);
     if (!label) {
@@ -68,7 +68,7 @@ static const char *emit_string_literal(const char *name)
     return label;
 }
 
-static const char *emit_compound_literal(node_t * n)
+static const char *emit_compound_literal_label(node_t * n)
 {
     const char *label = gen_compound_label();
     dict_put(compound_lits, label, n);
@@ -85,7 +85,7 @@ static const char *get_ptr_label(node_t * n)
     const char *label = NULL;
     switch (AST_ID(n)) {
     case STRING_LITERAL:
-        label = emit_string_literal(SYM_NAME(EXPR_SYM(n)));
+        label = emit_string_literal_label(SYM_NAME(EXPR_SYM(n)));
         break;
     case REF_EXPR:
         label = SYM_X_LABEL(EXPR_SYM(n));
@@ -98,7 +98,7 @@ static const char *get_ptr_label(node_t * n)
         label = get_ptr_label(EXPR_OPERAND(n, 0));
         break;
     case INITS_EXPR:
-        label = emit_compound_literal(n);
+        label = emit_compound_literal_label(n);
         break;
     default:
         die("unkown ptr node: %s", node2s(n));
@@ -314,11 +314,6 @@ static void emit_bss(node_t * n)
              TYPE_ALIGN(ty));
 }
 
-static void emit_addi(node_t *l, node_t *r)
-{
-    
-}
-
 static void emit_bop_plus(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -389,12 +384,37 @@ static void emit_uop(node_t *n)
     }
 }
 
+static void emit_compound_literal(node_t *n)
+{
+    
+}
+
+static void emit_string_literal(node_t *n)
+{
+    node_t *sym = EXPR_SYM(n);
+    const char *name = SYM_NAME(sym);
+    const char *label = emit_string_literal_label(name);
+    EXPR_X_ADDR(n) = label;
+}
+
+static void emit_float_literal(node_t *n)
+{
+    
+}
+
+static void emit_integer_literal(node_t *n)
+{
+    
+}
+
 static void emit_ref_expr(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     node_t *ty = SYM_TYPE(sym);
-    if (isfunc(ty)) {
-    }
+    if (isfunc(ty) || has_static_extent(sym))
+        EXPR_X_ADDR(n) = SYM_X_LABEL(sym);
+    else
+        EXPR_X_ADDR(n) = format("-%ld(%rbp)", SYM_X_LOFF(sym));
 }
 
 static void emit_funcall(node_t *n)
@@ -408,8 +428,33 @@ static void emit_funcall(node_t *n)
         node_t *arg = args[i];
         emit_expr(arg);
     }
+
+    for (int i = LIST_LEN(args) - 1; i >= 0; i--) {
+        node_t *arg = args[i];
+        emit("pushq %s", EXPR_X_ADDR(arg));
+    }
     
     emit("callq %s", EXPR_X_ADDR(node));
+}
+
+static void emit_conv(node_t *n)
+{
+    
+}
+
+static void emit_cond(node_t *n)
+{
+    
+}
+
+static void emit_member(node_t *n)
+{
+    
+}
+
+static void emit_subscript(node_t *n)
+{
+    
 }
 
 static void emit_expr(node_t * n)
@@ -425,22 +470,38 @@ static void emit_expr(node_t * n)
         emit_expr(EXPR_OPERAND(n, 0));
         break;
     case COND_EXPR:
+        emit_cond(n);
+        break;
     case MEMBER_EXPR:
+        emit_member(n);
+        break;
+    case SUBSCRIPT_EXPR:
+        emit_subscript(n);
+        break;
     case CAST_EXPR:
     case CONV_EXPR:
+        emit_conv(n);
+        break;
     case CALL_EXPR:
-    case SUBSCRIPT_EXPR:
+        emit_funcall(n);
         break;
     case REF_EXPR:
-        if (EXPR_OP(n) == ENUM) {
-        } else {
+        if (EXPR_OP(n) == ENUM)
+            emit_integer_literal(n);
+        else
             emit_ref_expr(n);
-        }
         break;
     case INTEGER_LITERAL:
+        emit_integer_literal(n);
+        break;
     case FLOAT_LITERAL:
+        emit_float_literal(n);
+        break;
     case STRING_LITERAL:
+        emit_string_literal(n);
+        break;
     case COMPOUND_LITERAL:
+        emit_compound_literal(n);
         break;
     case INITS_EXPR:
     case VINIT_EXPR:
