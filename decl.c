@@ -1206,35 +1206,49 @@ static void ensure_inline(node_t *ty, int fspec, struct source src)
     }
 }
 
+static void check_oldstyle(node_t *ftype)
+{
+    cc_assert(isfunc(ftype));
+    
+    if (TYPE_PARAMS(ftype) && TYPE_OLDSTYLE(ftype))
+        error("a parameter list without types is only allowed "
+              "in a function definition");
+}
+
+// token may be NULL when kind == PARAM
 static void typedefdecl(struct token *t, node_t * ty, int fspec,
                       int kind)
 {
+    int sclass = TYPEDEF;
+    if (kind == PARAM) {
+        error("invalid storage class specifier '%s' in "
+               "function declarator",
+               id2s(sclass));
+        return;
+    }
+
+    cc_assert(t);
+    
     const char *id = t->name;
     struct source src = t->src;
-    int sclass = TYPEDEF;
 
     if (isfunc(ty)) {
+        if (kind == GLOBAL)
+            check_oldstyle(ty);
         ensure_func(ty, src);
     } else if (isarray(ty)) {
         ensure_array(ty, src, kind);
     }
 
     ensure_inline(ty, fspec, src);
-    
-    if (kind == PARAM) {
-        errorf(src,
-               "invalid storage class specifier '%s' in "
-               "function declarator",
-               id2s(sclass));
-    } else {
-        node_t *sym = lookup(id, identifiers);
-        if (sym && is_current_scope(sym))
-            redefinition_error(src, sym);
-        sym = install(id, &identifiers, SCOPE);
-        SYM_TYPE(sym) = ty;
-        AST_SRC(sym) = src;
-        SYM_SCLASS(sym) = sclass;
-    }
+
+    node_t *sym = lookup(id, identifiers);
+    if (sym && is_current_scope(sym))
+        redefinition_error(src, sym);
+    sym = install(id, &identifiers, SCOPE);
+    SYM_TYPE(sym) = ty;
+    AST_SRC(sym) = src;
+    SYM_SCLASS(sym) = sclass;
 }
 
 static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
@@ -1256,7 +1270,7 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
     if (sclass && sclass != REGISTER) {
         error("invalid storage class specifier '%s' in "
               "function declarator",
-             id2s(sclass));
+              id2s(sclass));
         sclass = 0;
     }
 
@@ -1331,31 +1345,35 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass,
     cc_assert(SCOPE >= LOCAL);
 
     if (isfunc(ty)) {
-        if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
-            error("a parameter list without types is only allowed "
-                  "in a function definition");
         ensure_func(ty, src);
         ensure_main(ty, id, src);
-        if (sclass && sclass != EXTERN)
+        if (sclass && sclass != EXTERN) {
             errorf(src,
                    "function declared in block scope cannot have "
                    "'%s' storage class",
                    id2s(sclass));
+            sclass = 0;
+        }
     } else if (isarray(ty)) {
         ensure_array(ty, src, LOCAL);
     }
 
     ensure_inline(ty, fspec, src);
 
+    bool globl = isfunc(ty) || sclass == EXTERN;
+
     sym = lookup(id, identifiers);
-    if (sym && is_current_scope(sym)) {
+    if (sym &&
+        (is_current_scope(sym) ||
+         (globl && (isfunc(SYM_TYPE(sym)) ||
+                    SYM_SCLASS(sym) == EXTERN)))) {
         redefinition_error(src, sym);
     } else {
         sym = install(id, &identifiers, SCOPE);
         SYM_TYPE(sym) = ty;
         AST_SRC(sym) = src;
         SYM_SCLASS(sym) = sclass;
-        if (sclass != EXTERN)
+        if (!globl)
             SYM_DEFINED(sym) = true;
     }
 
@@ -1378,10 +1396,7 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
     }
 
     if (isfunc(ty)) {
-        if (TYPE_PARAMS(ty) && TYPE_OLDSTYLE(ty))
-            error
-                ("a parameter list without types is only allowed "
-                 "in a function definition");
+        check_oldstyle(ty);
         ensure_func(ty, src);
         ensure_main(ty, id, src);
     } else if (isarray(ty)) {

@@ -3,8 +3,8 @@
 #define BLOCKING    1024
 
 struct alloc_state {
-    int count;                // total number of nodes allocated
-    int nr;                        // number of nodes left in current allocation
+    int count;              // total number of nodes allocated
+    int nr;                 // number of nodes left in current allocation
     void *p;                // first free node in current allocation
 };
 
