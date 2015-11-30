@@ -30,3 +30,10 @@ test		test suite.
 For Mac OS X users:
 
 Nowadays OS X is shipped with Apple's C library headers, which does _NOT_ support a standard compiler.
+
+
+Reference:
+
+1. C99 Standard Draft: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf
+
+2. X86-64 ABI: http://www.x86-64.org/documentation/
