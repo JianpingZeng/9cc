@@ -170,6 +170,7 @@ struct ast_decl {
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 // x
 #define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.addr)
+#define EXPR_X_REG(NODE)        ((NODE)->expr.x.reg)
 
 struct ast_expr {
     struct ast_common common;
@@ -180,6 +181,7 @@ struct ast_expr {
     node_t **list;
     struct {
         const char *addr;
+        const char *reg;
     }x;
 };
 

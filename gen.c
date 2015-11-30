@@ -21,6 +21,30 @@
  *
  *  cs,ds,es,fs,gs,ss
  */
+enum {
+    RAX,
+    RBX,
+    RCX,
+    RDX,
+    RBP,
+    RSP,
+    RSI,
+    RDI,
+    R8,
+    R9,
+    REGS
+};
+struct reg {
+    const char *r;
+    const char *r64;
+    const char *r32;
+    const char *r16;
+    const char *r8;
+    bool using;
+};
+static struct reg *registers[REGS];
+static struct reg *int_regs[6];
+static struct reg *float_regs[8];
 
 static FILE *outfp;
 static struct dict *compound_lits;
@@ -30,6 +54,147 @@ static void emit_initializer(node_t * t);
 static void emit_stmt(node_t * n);
 static void emit_expr(node_t * n);
 static const char *func_ret_label;
+
+static struct reg *make_reg(struct reg *r)
+{
+    struct reg *reg = zmalloc(sizeof(struct reg));
+    memcpy(reg, r, sizeof(struct reg));
+    return reg;
+}
+
+static void init_regs(void)
+{
+    registers[RAX] = make_reg(&(struct reg){
+            .r = "%rax",
+            .r64 = "%rax",
+            .r32 = "%eax",
+            .r16 = "%ax",
+            .r8 = "%al"
+        });
+    registers[RBX] = make_reg(&(struct reg){
+            .r = "%rbx",
+            .r64 = "%rbx",
+            .r32 = "%ebx",
+            .r16 = "%bx",
+            .r8 = "%bl"
+        });
+    registers[RCX] = make_reg(&(struct reg){
+            .r = "%rcx",
+            .r64 = "%rcx",
+            .r32 = "%ecx",
+            .r16 = "%cx",
+            .r8 = "%cl"
+        });
+    registers[RDX] = make_reg(&(struct reg){
+            .r = "%rdx",
+            .r64 = "%rdx",
+            .r32 = "%edx",
+            .r16 = "%dx",
+            .r8 = "%dl"
+        });
+    registers[RBP] = make_reg(&(struct reg){
+            .r = "%rbp",
+            .r64 = "%rbp",
+            .r32 = "%ebp",
+            .r16 = "%bp"
+        });
+    registers[RSP] = make_reg(&(struct reg){
+            .r = "%rsp",
+            .r64 = "%rsp",
+            .r32 = "%esp",
+            .r16 = "%sp"
+        });
+    registers[RSI] = make_reg(&(struct reg){
+            .r = "%rsi",
+            .r64 = "%rsi",
+            .r32 = "%esi",
+            .r16 = "%si"
+        });
+    registers[RDI] = make_reg(&(struct reg){
+            .r = "%rdi",
+            .r64 = "%rdi",
+            .r32 = "%edi",
+            .r16 = "%di"
+        });
+    registers[R8] = make_reg(&(struct reg){
+            .r = "%r8d",
+            .r64 = "%r8d"
+        });
+    registers[R9] = make_reg(&(struct reg){
+            .r = "%r9d",
+            .r64 = "%r9d"
+        });
+
+    // init integer regs
+    int_regs[0] = registers[RDI];
+    int_regs[1] = registers[RSI];
+    int_regs[2] = registers[RDX];
+    int_regs[3] = registers[RCX];
+    int_regs[4] = registers[R8];
+    int_regs[5] = registers[R9];
+
+    // init floating regs
+    for (int i = 0; i < ARRAY_SIZE(float_regs); i++)
+        float_regs[i]->r = format("%%xmm%d", i);
+}
+
+/**
+ * According to the ABI, the first 6 integer or pointer
+ * arguments to a function are passed in registers:
+ * rdi, rsi, rdx, rcx, r8, r9
+ */
+static const char *get_intreg(node_t *ty)
+{
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
+        struct reg *r = int_regs[i];
+        if (r->using)
+            continue;
+        r->using = true;
+        switch (TYPE_SIZE(ty)) {
+        case 1:
+            return r->r8;
+        case 2:
+            return r->r16;
+        case 4:
+            return r->r32;
+        case 8:
+            return r->r64;
+        default:
+            cc_assert(0);
+            return NULL;
+        }
+    }
+    return NULL;
+}
+
+static const char *get_floatreg(void)
+{
+    for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
+        struct reg *r = float_regs[i];
+        if (r->using)
+            continue;
+        r->using = true;
+        return r->r;
+    }
+    return NULL;
+}
+
+static const char *mov(node_t *ty)
+{
+    switch (TYPE_SIZE(ty)) {
+    case 1:
+        return "movb";
+    case 2:
+        return "movw";
+    case 4:
+        return "movl";
+    case 8:
+        return "movq";
+    default:
+        cc_assert(0);
+        return NULL;
+    }
+}
 
 static void emit(const char *fmt, ...)
 {
@@ -394,7 +559,7 @@ static void emit_string_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *name = SYM_NAME(sym);
     const char *label = emit_string_literal_label(name);
-    EXPR_X_ADDR(n) = label;
+    EXPR_X_ADDR(n) = format("$%s", label);
 }
 
 static void emit_float_literal(node_t *n)
@@ -404,7 +569,8 @@ static void emit_float_literal(node_t *n)
 
 static void emit_integer_literal(node_t *n)
 {
-    
+    const char *addr = format("$%llu", ILITERAL_VALUE(n));
+    EXPR_X_ADDR(n) = addr;
 }
 
 static void emit_ref_expr(node_t *n)
@@ -412,7 +578,7 @@ static void emit_ref_expr(node_t *n)
     node_t *sym = EXPR_SYM(n);
     node_t *ty = SYM_TYPE(sym);
     if (isfunc(ty) || has_static_extent(sym))
-        EXPR_X_ADDR(n) = SYM_X_LABEL(sym);
+        EXPR_X_ADDR(n) = glabel(SYM_X_LABEL(sym));
     else
         EXPR_X_ADDR(n) = format("-%ld(%rbp)", SYM_X_LOFF(sym));
 }
@@ -427,19 +593,88 @@ static void emit_funcall(node_t *n)
     for (int i = 0; i < LIST_LEN(args); i++) {
         node_t *arg = args[i];
         emit_expr(arg);
+        node_t *ty = AST_TYPE(arg);
+        if (isint(ty) || isptr(ty)) {
+            const char *reg = get_intreg(ty);
+            EXPR_X_REG(arg) = reg;
+        } else if (isfloat(ty)) {
+            
+        } else if (isstruct(ty)) {
+            
+        } else if (isunion(ty)) {
+            
+        } else {
+            die("unknown argument type: %s", type2s(ty));
+        }
     }
 
     for (int i = LIST_LEN(args) - 1; i >= 0; i--) {
         node_t *arg = args[i];
-        emit("pushq %s", EXPR_X_ADDR(arg));
+        node_t *ty = AST_TYPE(arg);
+        emit("%s %s, %s", mov(ty), EXPR_X_ADDR(arg), EXPR_X_REG(arg));
     }
     
     emit("callq %s", EXPR_X_ADDR(node));
 }
 
-static void emit_conv(node_t *n)
+static void arith2arith(node_t *dty, node_t *l)
 {
     
+}
+
+static void ptr2arith(node_t *dty, node_t *l)
+{
+    
+}
+
+static void ptr2ptr(node_t *dty, node_t *l)
+{
+    
+}
+
+static void arith2ptr(node_t *dty, node_t *l)
+{
+    
+}
+
+static void func2ptr(node_t *dty, node_t *l)
+{
+    
+}
+
+static void array2ptr(node_t *dty, node_t *l)
+{
+    
+}
+
+static void emit_conv(node_t *n)
+{
+    node_t *dty = AST_TYPE(n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *sty = AST_TYPE(l);
+    emit_expr(l);
+    if (isarith(dty)) {
+        if (isarith(sty))
+            arith2arith(dty, l);
+        else if (isptr(sty))
+            ptr2arith(dty, l);
+        else
+            cc_assert(0);
+    } else if (isptr(dty)) {
+        if (isptr(sty))
+            ptr2ptr(dty, l);
+        else if (isarith(sty))
+            arith2ptr(dty, l);
+        else if (isfunc(sty))
+            func2ptr(dty, l);
+        else if (isarray(sty))
+            array2ptr(dty, l);
+        else
+            cc_assert(0);
+    } else {
+        
+    }
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 static void emit_cond(node_t *n)
@@ -610,13 +845,13 @@ static void emit_funcdef(node_t * n)
     }
     func_ret_label = gen_label();
     emit_noindent("%s:", label);
-    emit("pushq %rbp");
-    emit("movq %rsp", "%rbp");
+    emit("pushq %%rbp");
+    emit("movq %%rsp, %%rbp");
     if (sub)
         emit("sub $%lld, %%rbp", sub);
     emit_stmt(DECL_BODY(n));
     emit_label(func_ret_label);
-    emit("leave");
+    emit("popq %%rbp");
     emit("ret");
 }
 
@@ -649,6 +884,7 @@ static void gen_init(FILE *fp)
     outfp = fp;
     compound_lits = dict_new();
     string_lits = dict_new();
+    init_regs();
 }
 
 void gen(node_t * tree, FILE * fp)
