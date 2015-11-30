@@ -33,7 +33,6 @@ enum {
     REGS
 };
 struct reg {
-    const char *r;
     const char *r64;
     const char *r32;
     const char *r16;
@@ -63,54 +62,52 @@ static struct reg *make_reg(struct reg *r)
 static void init_regs(void)
 {
     registers[RAX] = make_reg(&(struct reg){
-            .r = "%rax",
-                .r64 = "%rax",
+            .r64 = "%rax",
                 .r32 = "%eax",
                 .r16 = "%ax",
                 .r8 = "%al"
                 });
     registers[RBX] = make_reg(&(struct reg){
-            .r = "%rbx",
-                .r64 = "%rbx",
+            .r64 = "%rbx",
                 .r32 = "%ebx",
                 .r16 = "%bx",
                 .r8 = "%bl"
                 });
     registers[RCX] = make_reg(&(struct reg){
-            .r = "%rcx",
-                .r64 = "%rcx",
+            .r64 = "%rcx",
                 .r32 = "%ecx",
                 .r16 = "%cx",
                 .r8 = "%cl"
                 });
     registers[RDX] = make_reg(&(struct reg){
-            .r = "%rdx",
-                .r64 = "%rdx",
+            .r64 = "%rdx",
                 .r32 = "%edx",
                 .r16 = "%dx",
                 .r8 = "%dl"
                 });
     registers[RSI] = make_reg(&(struct reg){
-            .r = "%rsi",
-                .r64 = "%rsi",
+            .r64 = "%rsi",
                 .r32 = "%esi",
-                .r16 = "%si"
+                .r16 = "%si",
+                .r8 = "%sil"
                 });
     registers[RDI] = make_reg(&(struct reg){
-            .r = "%rdi",
-                .r64 = "%rdi",
+            .r64 = "%rdi",
                 .r32 = "%edi",
-                .r16 = "%di"
+                .r16 = "%di",
+                .r8 = "%dil"
                 });
     registers[R8] = make_reg(&(struct reg){
-            .r = "%r8d",
-                .r64 = "%r8d",
-                .r32 = "%r8d"
+            .r64 = "%r8",
+                .r32 = "%r8d",
+                .r16 = "%r8w",
+                .r8 = "%r8b"
                 });
     registers[R9] = make_reg(&(struct reg){
-            .r = "%r9d",
-                .r64 = "%r9d",
-                .r32 = "%r9d"
+            .r64 = "%r9",
+                .r32 = "%r9d",
+                .r16 = "%r9w",
+                .r8 = "%r9b"
                 });
 
     // init integer regs
@@ -123,8 +120,10 @@ static void init_regs(void)
 
     // init floating regs
     for (int i = XMM0; i <= XMM7; i++) {
+        const char *name = format("%%xmm%d", i - XMM0);
         registers[i] = make_reg(&(struct reg){
-                .r = format("%%xmm%d", i - XMM0)
+                .r64 = name,
+                    .r32 = name
             });
         float_regs[i - XMM0] = registers[i];
     }
