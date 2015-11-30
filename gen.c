@@ -26,8 +26,6 @@ enum {
     RBX,
     RCX,
     RDX,
-    RBP,
-    RSP,
     RSI,
     RDI,
     R8, R9,
@@ -91,18 +89,6 @@ static void init_regs(void)
                 .r32 = "%edx",
                 .r16 = "%dx",
                 .r8 = "%dl"
-                });
-    registers[RBP] = make_reg(&(struct reg){
-            .r = "%rbp",
-                .r64 = "%rbp",
-                .r32 = "%ebp",
-                .r16 = "%bp"
-                });
-    registers[RSP] = make_reg(&(struct reg){
-            .r = "%rsp",
-                .r64 = "%rsp",
-                .r32 = "%esp",
-                .r16 = "%sp"
                 });
     registers[RSI] = make_reg(&(struct reg){
             .r = "%rsi",
