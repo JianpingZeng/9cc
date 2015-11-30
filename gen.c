@@ -30,8 +30,8 @@ enum {
     RSP,
     RSI,
     RDI,
-    R8,
-    R9,
+    R8, R9,
+    XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
     REGS
 };
 struct reg {
@@ -66,64 +66,66 @@ static void init_regs(void)
 {
     registers[RAX] = make_reg(&(struct reg){
             .r = "%rax",
-            .r64 = "%rax",
-            .r32 = "%eax",
-            .r16 = "%ax",
-            .r8 = "%al"
-        });
+                .r64 = "%rax",
+                .r32 = "%eax",
+                .r16 = "%ax",
+                .r8 = "%al"
+                });
     registers[RBX] = make_reg(&(struct reg){
             .r = "%rbx",
-            .r64 = "%rbx",
-            .r32 = "%ebx",
-            .r16 = "%bx",
-            .r8 = "%bl"
-        });
+                .r64 = "%rbx",
+                .r32 = "%ebx",
+                .r16 = "%bx",
+                .r8 = "%bl"
+                });
     registers[RCX] = make_reg(&(struct reg){
             .r = "%rcx",
-            .r64 = "%rcx",
-            .r32 = "%ecx",
-            .r16 = "%cx",
-            .r8 = "%cl"
-        });
+                .r64 = "%rcx",
+                .r32 = "%ecx",
+                .r16 = "%cx",
+                .r8 = "%cl"
+                });
     registers[RDX] = make_reg(&(struct reg){
             .r = "%rdx",
-            .r64 = "%rdx",
-            .r32 = "%edx",
-            .r16 = "%dx",
-            .r8 = "%dl"
-        });
+                .r64 = "%rdx",
+                .r32 = "%edx",
+                .r16 = "%dx",
+                .r8 = "%dl"
+                });
     registers[RBP] = make_reg(&(struct reg){
             .r = "%rbp",
-            .r64 = "%rbp",
-            .r32 = "%ebp",
-            .r16 = "%bp"
-        });
+                .r64 = "%rbp",
+                .r32 = "%ebp",
+                .r16 = "%bp"
+                });
     registers[RSP] = make_reg(&(struct reg){
             .r = "%rsp",
-            .r64 = "%rsp",
-            .r32 = "%esp",
-            .r16 = "%sp"
-        });
+                .r64 = "%rsp",
+                .r32 = "%esp",
+                .r16 = "%sp"
+                });
     registers[RSI] = make_reg(&(struct reg){
             .r = "%rsi",
-            .r64 = "%rsi",
-            .r32 = "%esi",
-            .r16 = "%si"
-        });
+                .r64 = "%rsi",
+                .r32 = "%esi",
+                .r16 = "%si"
+                });
     registers[RDI] = make_reg(&(struct reg){
             .r = "%rdi",
-            .r64 = "%rdi",
-            .r32 = "%edi",
-            .r16 = "%di"
-        });
+                .r64 = "%rdi",
+                .r32 = "%edi",
+                .r16 = "%di"
+                });
     registers[R8] = make_reg(&(struct reg){
             .r = "%r8d",
-            .r64 = "%r8d"
-        });
+                .r64 = "%r8d",
+                .r32 = "%r8d"
+                });
     registers[R9] = make_reg(&(struct reg){
             .r = "%r9d",
-            .r64 = "%r9d"
-        });
+                .r64 = "%r9d",
+                .r32 = "%r9d"
+                });
 
     // init integer regs
     int_regs[0] = registers[RDI];
@@ -134,8 +136,23 @@ static void init_regs(void)
     int_regs[5] = registers[R9];
 
     // init floating regs
-    for (int i = 0; i < ARRAY_SIZE(float_regs); i++)
-        float_regs[i]->r = format("%%xmm%d", i);
+    for (int i = XMM0; i <= XMM7; i++) {
+        registers[i] = make_reg(&(struct reg){
+                .r = format("%%xmm%d", i - XMM0)
+            });
+        float_regs[i - XMM0] = registers[i];
+    }
+}
+
+static struct reg *get_free_reg(struct reg **regs, int count)
+{
+    for (int i = 0; i < count; i++) {
+        struct reg *r = regs[i];
+        if (r->using)
+            continue;
+        return r;
+    }
+    return NULL;
 }
 
 /**
@@ -143,45 +160,29 @@ static void init_regs(void)
  * arguments to a function are passed in registers:
  * rdi, rsi, rdx, rcx, r8, r9
  */
-static const char *get_intreg(node_t *ty)
+static inline struct reg *get_intreg(void)
 {
-    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
-        struct reg *r = int_regs[i];
-        if (r->using)
-            continue;
-        r->using = true;
-        switch (TYPE_SIZE(ty)) {
-        case 1:
-            return r->r8;
-        case 2:
-            return r->r16;
-        case 4:
-            return r->r32;
-        case 8:
-            return r->r64;
-        default:
-            cc_assert(0);
-            return NULL;
-        }
-    }
-    return NULL;
+    return get_free_reg(int_regs, ARRAY_SIZE(int_regs));
 }
 
-static const char *get_floatreg(void)
+static inline struct reg *get_floatreg(void)
 {
-    for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
-        struct reg *r = float_regs[i];
-        if (r->using)
-            continue;
-        r->using = true;
-        return r->r;
-    }
-    return NULL;
+    return get_free_reg(float_regs, ARRAY_SIZE(float_regs));
 }
 
-static const char *mov(node_t *ty)
+static inline void use_reg(struct reg *r)
 {
-    switch (TYPE_SIZE(ty)) {
+    r->using = true;
+}
+
+static inline void free_reg(struct reg *r)
+{
+    r->using = false;
+}
+
+static const char *mov(int size)
+{
+    switch (size) {
     case 1:
         return "movb";
     case 2:
@@ -190,6 +191,23 @@ static const char *mov(node_t *ty)
         return "movl";
     case 8:
         return "movq";
+    default:
+        cc_assert(0);
+        return NULL;
+    }
+}
+
+static const char *regname(struct reg *r, int size)
+{
+    switch (size) {
+    case 1:
+        return r->r8;
+    case 2:
+        return r->r16;
+    case 4:
+        return r->r32;
+    case 8:
+        return r->r64;
     default:
         cc_assert(0);
         return NULL;
@@ -583,6 +601,14 @@ static void emit_ref_expr(node_t *n)
         EXPR_X_ADDR(n) = format("-%ld(%rbp)", SYM_X_LOFF(sym));
 }
 
+static const char *stack_arg(int index)
+{
+    if (index == 0)
+        return "(%rsp)";
+    else
+        return format("%d(%%rsp)", 8*index);
+}
+
 static void emit_funcall(node_t *n)
 {
     node_t *node = EXPR_OPERAND(n, 0);
@@ -590,13 +616,18 @@ static void emit_funcall(node_t *n)
 
     emit_expr(node);
 
-    for (int i = 0; i < LIST_LEN(args); i++) {
+    for (int i = 0, j = 0; i < LIST_LEN(args); i++) {
         node_t *arg = args[i];
         emit_expr(arg);
         node_t *ty = AST_TYPE(arg);
         if (isint(ty) || isptr(ty)) {
-            const char *reg = get_intreg(ty);
-            EXPR_X_REG(arg) = reg;
+            struct reg *reg = get_intreg();
+            if (reg) {
+                use_reg(reg);
+                EXPR_X_REG(arg) = regname(reg, TYPE_SIZE(ty));
+            } else {
+                EXPR_X_REG(arg) = stack_arg(j++);
+            }
         } else if (isfloat(ty)) {
             
         } else if (isstruct(ty)) {
@@ -611,7 +642,7 @@ static void emit_funcall(node_t *n)
     for (int i = LIST_LEN(args) - 1; i >= 0; i--) {
         node_t *arg = args[i];
         node_t *ty = AST_TYPE(arg);
-        emit("%s %s, %s", mov(ty), EXPR_X_ADDR(arg), EXPR_X_REG(arg));
+        emit("%s %s, %s", mov(TYPE_SIZE(ty)), EXPR_X_ADDR(arg), EXPR_X_REG(arg));
     }
     
     emit("callq %s", EXPR_X_ADDR(node));
