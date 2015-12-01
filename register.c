@@ -54,13 +54,12 @@ static struct reg *get_free_reg(struct reg **regs, int count)
     return NULL;
 }
 
-static struct reg *use_reg(struct reg *r)
+static inline void use_reg(struct reg *r)
 {
     r->using = true;
-    return r;
 }
 
-static void free_reg(struct reg *r)
+static inline void free_reg(struct reg *r)
 {
     r->using = false;
 }
@@ -73,13 +72,17 @@ static void free_reg(struct reg *r)
 struct reg *get_iarg_reg(void)
 {
     struct reg *reg = get_free_reg(iarg_regs, ARRAY_SIZE(iarg_regs));
-    return use_reg(reg);
+    if (reg)
+        use_reg(reg);
+    return reg;
 }
 
 struct reg *get_farg_reg(void)
 {
     struct reg *reg = get_free_reg(farg_regs, ARRAY_SIZE(farg_regs));
-    return use_reg(reg);
+    if (reg)
+        use_reg(reg);
+    return reg;
 }
 
 static void push_reg(struct reg *reg)
@@ -98,7 +101,8 @@ struct reg *use_float_reg(void)
 {
     struct reg *reg = get_free_reg(float_regs, ARRAY_SIZE(float_regs));
     if (reg) {
-        return use_reg(reg);
+        use_reg(reg);
+        return reg;
     } else {
         struct reg *reg0 = float_regs[0];
         push_reg(reg0);
