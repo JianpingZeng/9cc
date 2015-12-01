@@ -36,10 +36,12 @@ enum {
     ADDR_LITERAL
 };
 
-struct addr {
+struct operand {
     int kind;
-    const char *name;
-    struct reg *reg;
+    union {
+        const char *name;
+        struct reg *reg;
+    }u;
 };
 
 union code {
@@ -55,8 +57,8 @@ union code {
     }decl;
     
     struct {
-        struct addr *addr;
-        struct addr *arg;
+        struct operand *addr;
+        struct operand *arg;
     }expr;
 };
 

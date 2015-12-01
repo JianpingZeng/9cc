@@ -378,7 +378,21 @@ extern struct table *tags;
 
 #define SCOPE  scopelevel()
 
+// register.c
+extern struct reg *get_iarg_reg(void);
+extern struct reg *get_farg_reg(void);
+extern struct reg *use_float_reg(void);
+extern void free_float_reg(struct reg *reg);
+extern struct operand *make_literal_operand(const char *name);
+extern struct operand *make_memory_operand(const char *name);
+extern struct operand *make_register_operand(struct reg *reg);
+extern const char *get_operand_name(struct operand *operand, int size);
+extern void use_operand(struct operand *operand);
+extern void free_operand(struct operand *operand);
+extern void init_regs(void);
+
 // gen.c
+extern void emit(const char *fmt, ...);
 extern void gen(node_t * tree, FILE * fp);
 
 // print.c
