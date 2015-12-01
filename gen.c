@@ -354,10 +354,10 @@ static void emit_bop_plus(node_t *n)
         struct operand *laddr = EXPR_X(l).addr;
         struct operand *raddr = EXPR_X(r).addr;
         struct operand *src, *dst;
-        if (EXPR_X(l).addr->kind == ADDR_MEMORY) {
+        if (laddr->kind == OPERAND_REGISTER ||
+            raddr->kind == OPERAND_REGISTER) {
             
-        }
-        if (EXPR_X(r).addr->kind == ADDR_MEMORY) {
+        } else {
             
         }
         emit_op2(OP_ADD, sz, src, dst);

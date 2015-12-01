@@ -144,28 +144,28 @@ static struct operand *make_operand(int kind)
 
 struct operand *make_literal_operand(const char *name)
 {
-    struct operand *operand = make_operand(ADDR_LITERAL);
+    struct operand *operand = make_operand(OPERAND_LITERAL);
     operand->u.name = name;
     return operand;
 }
 
 struct operand *make_memory_operand(const char *name)
 {
-    struct operand *operand = make_operand(ADDR_MEMORY);
+    struct operand *operand = make_operand(OPERAND_MEMORY);
     operand->u.name = name;
     return operand;
 }
 
 struct operand *make_register_operand(struct reg *reg)
 {
-    struct operand *operand = make_operand(ADDR_REGISTER);
+    struct operand *operand = make_operand(OPERAND_REGISTER);
     operand->u.reg = reg;
     return operand;
 }
 
 const char *get_operand_name(struct operand *operand, int size)
 {
-    if (operand->kind == ADDR_REGISTER)
+    if (operand->kind == OPERAND_REGISTER)
         return get_reg_name(operand->u.reg, size);
     else
         return operand->u.name;
@@ -173,13 +173,13 @@ const char *get_operand_name(struct operand *operand, int size)
 
 void use_operand(struct operand *operand)
 {
-    if (operand->kind == ADDR_REGISTER)
+    if (operand->kind == OPERAND_REGISTER)
         use_reg(operand->u.reg);
 }
 
 void free_operand(struct operand *operand)
 {
-    if (operand->kind == ADDR_REGISTER)
+    if (operand->kind == OPERAND_REGISTER)
         free_reg(operand->u.reg);
 }
 

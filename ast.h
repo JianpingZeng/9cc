@@ -31,9 +31,9 @@ struct reg {
 };
 
 enum {
-    ADDR_REGISTER,
-    ADDR_MEMORY,
-    ADDR_LITERAL
+    OPERAND_REGISTER,
+    OPERAND_MEMORY,
+    OPERAND_LITERAL
 };
 
 struct operand {
