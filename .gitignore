@@ -54,3 +54,6 @@ cscope.*
 GPATH
 GRTAGS
 GTAGS
+
+# flymake
+nul

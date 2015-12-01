@@ -130,4 +130,7 @@ clean:
 distclean: clean
 	@rm -f stage1 stage2 stage3
 
+check-syntax:
+	$(CC) $(CFLAGS) -o nul -S ${CHK_SOURCES}
+
 .PHONY: all clean test distclean
