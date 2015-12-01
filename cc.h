@@ -209,14 +209,11 @@ extern node_t *new_string_literal(const char *string);
 extern node_t *reduce(node_t * expr);
 
 // decl.c
-#define GOTOS      (gotos)
-#define LABELS     (labels)
-#define FTYPE      (current_ftype)
-#define FNAME      (current_fname)
 extern struct vector *gotos;
 extern struct map *labels;
 extern node_t *current_ftype;
 extern const char *current_fname;
+extern size_t extra_stack_size;
 
 extern node_t **declaration(void);
 extern node_t *translation_unit(void);

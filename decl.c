@@ -46,6 +46,7 @@ struct vector *gotos;
 struct map *labels;
 node_t *current_ftype;
 const char *current_fname;
+size_t extra_stack_size;
 static struct vector *localvars;
 static struct vector *staticvars;
 
@@ -55,7 +56,8 @@ static struct vector *staticvars;
     current_ftype = fty;                        \
     current_fname = id;                         \
     localvars = vec_new();                      \
-    staticvars = vec_new()
+    staticvars = vec_new();                     \
+    extra_stack_size = 0
 
 #define RESTORE_FUNCDEF_CONTEXT()               \
     vec_free(gotos);                            \
@@ -67,7 +69,8 @@ static struct vector *staticvars;
     vec_free(localvars);                        \
     localvars = NULL;                           \
     vec_free(staticvars);                       \
-    staticvars = NULL
+    staticvars = NULL;                          \
+    extra_stack_size = 0
 
 static node_t *specifiers(int *sclass, int *fspec)
 {
@@ -1536,8 +1539,9 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
         backfill_labels();
         // TODO: check control flow and return stmt
         DECL_BODY(decl) = stmt;
-        DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
-        DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
+        DECL_X(decl).lvars = (node_t **)vtoa(localvars);
+        DECL_X(decl).svars = (node_t **)vtoa(staticvars);
+        DECL_X(decl).extra_stack_size = extra_stack_size;
         RESTORE_FUNCDEF_CONTEXT();
         exit_scope();
     }
@@ -1555,7 +1559,7 @@ static struct vector *filter_global(struct vector *v)
         node_t *decl = vec_at(v, i);
         if (isfuncdef(decl)) {
             vec_push(r, decl);
-            vec_add_array(r, (void **)DECL_X_SVARS(decl));
+            vec_add_array(r, (void **)DECL_X(decl).svars);
         } else if (isvardecl(decl)) {
             node_t *sym = DECL_SYM(decl);
             if (SYM_SCLASS(sym) == EXTERN)
@@ -1584,7 +1588,7 @@ struct vector *filter_local(struct vector *v, bool front)
             continue;
         // local variables
         if (sclass == STATIC) {
-            SYM_X_LABEL(sym) = gen_static_label();
+            SYM_X(sym).label = gen_static_label();
             if (front)
                 vec_push_front(staticvars, decl);
             else

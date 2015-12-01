@@ -32,16 +32,10 @@ enum {
     XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
     REGS
 };
-struct reg {
-    const char *r64;
-    const char *r32;
-    const char *r16;
-    const char *r8;
-    bool using;
-};
+
 static struct reg *registers[REGS];
-static struct reg *int_regs[6];
-static struct reg *float_regs[8];
+static struct reg *iarg_regs[NUM_IARG_REGS];
+static struct reg *farg_regs[NUM_FARG_REGS];
 
 static FILE *outfp;
 static struct dict *compound_lits;
@@ -111,12 +105,12 @@ static void init_regs(void)
                 });
 
     // init integer regs
-    int_regs[0] = registers[RDI];
-    int_regs[1] = registers[RSI];
-    int_regs[2] = registers[RDX];
-    int_regs[3] = registers[RCX];
-    int_regs[4] = registers[R8];
-    int_regs[5] = registers[R9];
+    iarg_regs[0] = registers[RDI];
+    iarg_regs[1] = registers[RSI];
+    iarg_regs[2] = registers[RDX];
+    iarg_regs[3] = registers[RCX];
+    iarg_regs[4] = registers[R8];
+    iarg_regs[5] = registers[R9];
 
     // init floating regs
     for (int i = XMM0; i <= XMM7; i++) {
@@ -125,7 +119,7 @@ static void init_regs(void)
                 .r64 = name,
                     .r32 = name
             });
-        float_regs[i - XMM0] = registers[i];
+        farg_regs[i - XMM0] = registers[i];
     }
 }
 
@@ -140,29 +134,35 @@ static struct reg *get_free_reg(struct reg **regs, int count)
     return NULL;
 }
 
+static struct reg *use_reg(struct reg *r)
+{
+    if (r)
+        r->using = true;
+    return r;
+}
+
+static struct reg *free_reg(struct reg *r)
+{
+    if (r)
+        r->using = false;
+    return r;
+}
+
 /**
  * According to the ABI, the first 6 integer or pointer
  * arguments to a function are passed in registers:
  * rdi, rsi, rdx, rcx, r8, r9
  */
-static inline struct reg *get_intreg(void)
+static struct reg *get_intreg(void)
 {
-    return get_free_reg(int_regs, ARRAY_SIZE(int_regs));
+    struct reg *reg = get_free_reg(iarg_regs, ARRAY_SIZE(iarg_regs));
+    return use_reg(reg);
 }
 
-static inline struct reg *get_floatreg(void)
+static struct reg *get_floatreg(void)
 {
-    return get_free_reg(float_regs, ARRAY_SIZE(float_regs));
-}
-
-static inline void use_reg(struct reg *r)
-{
-    r->using = true;
-}
-
-static inline void free_reg(struct reg *r)
-{
-    r->using = false;
+    struct reg *reg = get_free_reg(farg_regs, ARRAY_SIZE(farg_regs));
+    return use_reg(reg);
 }
 
 static const char *mov(int size)
@@ -256,7 +256,7 @@ static const char *get_ptr_label(node_t * n)
         label = emit_string_literal_label(SYM_NAME(EXPR_SYM(n)));
         break;
     case REF_EXPR:
-        label = SYM_X_LABEL(EXPR_SYM(n));
+        label = SYM_X(EXPR_SYM(n)).label;
         break;
     case BINARY_OPERATOR:
         label = get_ptr_label(EXPR_OPERAND(n, 0));
@@ -460,7 +460,7 @@ static void emit_data(node_t * n)
 {
     node_t *sym = DECL_SYM(n);
     node_t *ty = SYM_TYPE(sym);
-    const char *label = glabel(SYM_X_LABEL(sym));
+    const char *label = glabel(SYM_X(sym).label);
     if (SYM_SCLASS(sym) != STATIC)
         emit(".globl %s", label);
     emit(".data");
@@ -475,10 +475,10 @@ static void emit_bss(node_t * n)
     node_t *sym = DECL_SYM(n);
     node_t *ty = SYM_TYPE(sym);
     if (SYM_SCLASS(sym) == STATIC)
-        emit(".lcomm %s,%llu,%d", glabel(SYM_X_LABEL(sym)), TYPE_SIZE(ty),
+        emit(".lcomm %s,%llu,%d", glabel(SYM_X(sym).label), TYPE_SIZE(ty),
              TYPE_ALIGN(ty));
     else
-        emit(".comm  %s,%llu,%d", glabel(SYM_X_LABEL(sym)), TYPE_SIZE(ty),
+        emit(".comm  %s,%llu,%d", glabel(SYM_X(sym).label), TYPE_SIZE(ty),
              TYPE_ALIGN(ty));
 }
 
@@ -562,7 +562,7 @@ static void emit_string_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *name = SYM_NAME(sym);
     const char *label = emit_string_literal_label(name);
-    EXPR_X_ADDR(n) = format("$%s", label);
+    EXPR_X(n).addr = format("$%s", label);
 }
 
 static void emit_float_literal(node_t *n)
@@ -573,7 +573,7 @@ static void emit_float_literal(node_t *n)
 static void emit_integer_literal(node_t *n)
 {
     const char *addr = format("$%llu", ILITERAL_VALUE(n));
-    EXPR_X_ADDR(n) = addr;
+    EXPR_X(n).addr = addr;
 }
 
 static void emit_ref_expr(node_t *n)
@@ -581,9 +581,9 @@ static void emit_ref_expr(node_t *n)
     node_t *sym = EXPR_SYM(n);
     node_t *ty = SYM_TYPE(sym);
     if (isfunc(ty) || has_static_extent(sym))
-        EXPR_X_ADDR(n) = glabel(SYM_X_LABEL(sym));
+        EXPR_X(n).addr = glabel(SYM_X(sym).label);
     else
-        EXPR_X_ADDR(n) = format("-%ld(%rbp)", SYM_X_LOFF(sym));
+        EXPR_X(n).addr = format("-%ld(%rbp)", SYM_X(sym).loff);
 }
 
 static const char *stack_arg(int index)
@@ -608,10 +608,10 @@ static void emit_funcall(node_t *n)
         if (isint(ty) || isptr(ty)) {
             struct reg *reg = get_intreg();
             if (reg) {
-                use_reg(reg);
-                EXPR_X_REG(arg) = regname(reg, TYPE_SIZE(ty));
+                EXPR_X(arg).reg = reg;
+                EXPR_X(arg).arg = regname(reg, TYPE_SIZE(ty));
             } else {
-                EXPR_X_REG(arg) = stack_arg(j++);
+                EXPR_X(arg).arg = stack_arg(j++);
             }
         } else if (isfloat(ty)) {
             
@@ -627,10 +627,12 @@ static void emit_funcall(node_t *n)
     for (int i = LIST_LEN(args) - 1; i >= 0; i--) {
         node_t *arg = args[i];
         node_t *ty = AST_TYPE(arg);
-        emit("%s %s, %s", mov(TYPE_SIZE(ty)), EXPR_X_ADDR(arg), EXPR_X_REG(arg));
+        emit("%s %s, %s", mov(TYPE_SIZE(ty)), EXPR_X(arg).addr, EXPR_X(arg).arg);
+        if (EXPR_X(arg).reg)
+            free_reg(EXPR_X(arg).reg);
     }
     
-    emit("callq %s", EXPR_X_ADDR(node));
+    emit("callq %s", EXPR_X(node).addr);
 }
 
 static void arith2arith(node_t *dty, node_t *l)
@@ -690,7 +692,7 @@ static void emit_conv(node_t *n)
     } else {
         
     }
-    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    EXPR_X(n).addr = EXPR_X(l).addr;
 }
 
 static void emit_cond(node_t *n)
@@ -770,7 +772,7 @@ static void emit_decl_init(node_t * init, size_t offset)
 static void emit_decl(node_t * n)
 {
     if (DECL_BODY(n))
-        emit_decl_init(DECL_BODY(n), SYM_X_LOFF(DECL_SYM(n)));
+        emit_decl_init(DECL_BODY(n), SYM_X(DECL_SYM(n)).loff);
 }
 
 static void emit_compound(node_t * n)
@@ -845,29 +847,39 @@ static void emit_stmt(node_t * n)
     }
 }
 
+static size_t calc_stack_size(node_t *n)
+{
+    size_t sub = 0;
+    for (int i = 0; i < LIST_LEN(DECL_X(n).lvars); i++) {
+        node_t *lvar = DECL_X(n).lvars[i];
+        node_t *sym = DECL_SYM(lvar);
+        size_t offset = sub + TYPE_SIZE(SYM_TYPE(sym));
+        SYM_X(sym).loff = offset;
+        sub = ROUNDUP(offset, 8);
+    }
+    sub += DECL_X(n).extra_stack_size;
+    return sub;
+}
+
 static void emit_funcdef(node_t * n)
 {
     node_t *sym = DECL_SYM(n);
-    const char *label = glabel(SYM_X_LABEL(sym));
+    const char *label = glabel(SYM_X(sym).label);
     if (SYM_SCLASS(sym) != STATIC)
         emit(".globl %s", label);
-    size_t sub = 0;
-    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(n)); i++) {
-        node_t *lvar = DECL_X_LVARS(n)[i];
-        node_t *sym = DECL_SYM(lvar);
-        size_t offset = sub + TYPE_SIZE(SYM_TYPE(sym));
-        SYM_X_LOFF(sym) = offset;
-        sub = ROUNDUP(offset, 8);
-    }
+    size_t sub = calc_stack_size(n);
     func_ret_label = gen_label();
     emit_noindent("%s:", label);
     emit("pushq %%rbp");
     emit("movq %%rsp, %%rbp");
     if (sub)
-        emit("sub $%lld, %%rbp", sub);
+        emit("subq $%lld, %%rbp", sub);
     emit_stmt(DECL_BODY(n));
     emit_label(func_ret_label);
-    emit("popq %%rbp");
+    if (sub)
+        emit("leave");
+    else
+        emit("popq %%rbp");
     emit("ret");
 }
 

@@ -424,13 +424,13 @@ static node_t *label_stmt(void)
 
     // install label before parsing body
     if (NO_ERROR) {
-        node_t *n = map_get(LABELS, name);
+        node_t *n = map_get(labels, name);
         if (n)
             errorf(src,
                    "redefinition of label '%s', previous label defined here:%s:%u:%u",
                    name, AST_SRC(n).file, AST_SRC(n).line,
                    AST_SRC(n).column);
-        map_put(LABELS, name, ret);
+        map_put(labels, name, ret);
     }
 
     body = statement();
@@ -462,7 +462,7 @@ static node_t *goto_stmt(void)
 
     if (NO_ERROR) {
         ret = ast_jump(name);
-        vec_push(GOTOS, ret);
+        vec_push(gotos, ret);
         AST_SRC(ret) = src;
     }
 
@@ -603,10 +603,10 @@ node_t *compound_stmt(void)
 
 void backfill_labels(void)
 {
-    for (int i = 0; i < vec_len(GOTOS); i++) {
-        node_t *goto_stmt = vec_at(GOTOS, i);
+    for (int i = 0; i < vec_len(gotos); i++) {
+        node_t *goto_stmt = vec_at(gotos, i);
         const char *name = STMT_LABEL(goto_stmt);
-        node_t *label_stmt = map_get(LABELS, name);
+        node_t *label_stmt = map_get(labels, name);
         if (label_stmt)
             STMT_LABEL(goto_stmt) = STMT_LABEL(label_stmt);
         else
@@ -633,7 +633,7 @@ static struct vector *predefined_identifiers(void)
         node_t *type = array_type(qual(CONST, chartype));
         node_t *decl = make_localvar(name, type, STATIC);
         // initializer
-        node_t *literal = new_string_literal(FNAME);
+        node_t *literal = new_string_literal(current_fname);
         AST_SRC(literal) = source;
         init_string(type, literal);
         DECL_BODY(decl) = literal;
@@ -665,23 +665,23 @@ static node_t *ensure_return(node_t * expr, struct source src)
     if (expr == NULL)
         return NULL;
 
-    if (isvoid(rtype(FTYPE))) {
+    if (isvoid(rtype(current_ftype))) {
         if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
             errorf(src,
                    "void function '%s' should not return a value",
-                   FNAME);
+                   current_fname);
     } else {
         if (!isnullstmt(expr)) {
             node_t *ty1 = AST_TYPE(expr);
-            node_t *ty2 = rtype(FTYPE);
+            node_t *ty2 = rtype(current_ftype);
             if (!(expr = assignconv(ty2, expr)))
                 errorf(src,
                        "returning '%s' from function '%s' with incompatible result type '%s'",
-                       type2s(ty1), FNAME, type2s(ty2));
+                       type2s(ty1), current_fname, type2s(ty2));
         } else {
             errorf(src,
                    "non-void function '%s' should return a value",
-                   FNAME);
+                   current_fname);
         }
     }
     return expr;

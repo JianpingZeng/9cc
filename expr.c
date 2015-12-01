@@ -1129,6 +1129,34 @@ static node_t **argument_expr_list(void)
     return args;
 }
 
+static void calc_stack_size(node_t **args)
+{
+    size_t size = 0;
+    int num_int = 0;
+    int num_float = 0;
+    for (int i = 0; i < LIST_LEN(args); i++) {
+        node_t *ty = AST_TYPE(args[i]);
+        if (isint(ty) || isptr(ty)) {
+            num_int++;
+            if (num_int > NUM_IARG_REGS) {
+                int sz = ROUNDUP(TYPE_SIZE(ty), 8);
+                size += sz;
+            }
+        } else if (isfloat(ty)) {
+            num_float++;
+            if (num_float > NUM_FARG_REGS) {
+                int sz = ROUNDUP(TYPE_SIZE(ty), 8);
+                size += sz;
+            }
+        } else if (isstruct(ty) || isunion(ty)) {
+            size += TYPE_SIZE(ty);
+        } else {
+            cc_assert(0);
+        }
+    }
+    extra_stack_size = MAX(extra_stack_size, size);
+}
+
 static node_t *funcall(node_t * node)
 {
     node_t **args;
@@ -1149,6 +1177,7 @@ static node_t *funcall(node_t * node)
             ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
             EXPR_ARGS(ret) = (node_t **) vtoa(v);
             AST_SRC(ret) = src;
+            calc_stack_size(EXPR_ARGS(ret));
         }
     } else {
         ensure_type(node, isfunc);

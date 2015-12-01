@@ -18,6 +18,36 @@ enum {
  */
 typedef union ast_node node_t;
 
+#define NUM_IARG_REGS  6
+#define NUM_FARG_REGS  8
+
+struct reg {
+    const char *r64;
+    const char *r32;
+    const char *r16;
+    const char *r8;
+    bool using;
+};
+
+union code {
+    struct {
+        const char *label;
+        long loff;             // stack offset
+    }sym;
+    
+    struct {
+        node_t **lvars;        // function local vars
+        node_t **svars;        // function static vars
+        size_t extra_stack_size;
+    }decl;
+    
+    struct {
+        const char *addr;
+        const char *arg;
+        struct reg *reg;
+    }expr;
+};
+
 #define AST_ID(NODE)            ((NODE)->common.id)
 #define AST_NAME(NODE)          ((NODE)->common.name)
 #define AST_TYPE(NODE)          ((NODE)->common.type)
@@ -121,8 +151,7 @@ struct ast_field {
 #define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
 #define SYM_VALUE_D(NODE)     (VALUE_D(SYM_VALUE(NODE)))
 // x
-#define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.label)
-#define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.loff)
+#define SYM_X(NODE)           ((NODE)->symbol.x.sym)
 
 struct ast_symbol {
     struct ast_common common;
@@ -131,28 +160,21 @@ struct ast_symbol {
     bool defined;
     union value value;
     unsigned refs;
-    struct {
-        const char *label;
-        long loff;        // stack offset
-    }x;
+    union code x;
 };
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
 // x
-#define DECL_X_LVARS(NODE)      ((NODE)->decl.x.lvars)
-#define DECL_X_SVARS(NODE)      ((NODE)->decl.x.svars)
+#define DECL_X(NODE)            ((NODE)->decl.x.decl)
 
 struct ast_decl {
     struct ast_common common;
     node_t *sym;                // the symbol
     node_t *body;                // the initializer expr or func body
     node_t **exts;
-    struct {
-        node_t **lvars;        // function local vars
-        node_t **svars;        // function static vars
-    }x;
+    union code x;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -169,8 +191,7 @@ struct ast_decl {
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 // x
-#define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.addr)
-#define EXPR_X_REG(NODE)        ((NODE)->expr.x.reg)
+#define EXPR_X(NODE)            ((NODE)->expr.x.expr)
 
 struct ast_expr {
     struct ast_common common;
@@ -179,10 +200,7 @@ struct ast_expr {
     node_t *sym;
     node_t *operands[3];
     node_t **list;
-    struct {
-        const char *addr;
-        const char *reg;
-    }x;
+    union code x;
 };
 
 #define STMT_OPERAND(NODE)       ((NODE)->stmt.operands[0])
