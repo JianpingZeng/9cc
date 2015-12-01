@@ -379,10 +379,11 @@ extern struct table *tags;
 #define SCOPE  scopelevel()
 
 // register.c
+extern void free_reg(struct reg *r);
 extern struct reg *get_iarg_reg(void);
 extern struct reg *get_farg_reg(void);
+extern struct reg *use_int_reg(void);
 extern struct reg *use_float_reg(void);
-extern void free_float_reg(struct reg *reg);
 extern struct operand *make_literal_operand(const char *name);
 extern struct operand *make_memory_operand(const char *name);
 extern struct operand *make_register_operand(struct reg *reg);

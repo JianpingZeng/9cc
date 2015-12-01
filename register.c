@@ -54,12 +54,24 @@ static struct reg *get_free_reg(struct reg **regs, int count)
     return NULL;
 }
 
+static void push_reg(struct reg *reg)
+{
+    emit("pushq %s", reg->r64);
+    reg->pushes++;
+}
+
+static void pop_reg(struct reg *reg)
+{
+    emit("popq %s", reg->r64);
+    reg->pushes--;
+}
+
 static inline void use_reg(struct reg *r)
 {
     r->using = true;
 }
 
-static inline void free_reg(struct reg *r)
+void free_reg(struct reg *r)
 {
     r->using = false;
 }
@@ -85,16 +97,17 @@ struct reg *get_farg_reg(void)
     return reg;
 }
 
-static void push_reg(struct reg *reg)
+struct reg *use_int_reg(void)
 {
-    emit("pushq %s", reg->r64);
-    reg->pushes++;
-}
-
-static void pop_reg(struct reg *reg)
-{
-    emit("popq %s", reg->r64);
-    reg->pushes--;
+    struct reg *reg = get_free_reg(int_regs, ARRAY_SIZE(int_regs));
+    if (reg) {
+        use_reg(reg);
+        return reg;
+    } else {
+        struct reg *reg0 = int_regs[0];
+        push_reg(reg0);
+        return reg0;
+    }
 }
 
 struct reg *use_float_reg(void)
@@ -108,14 +121,6 @@ struct reg *use_float_reg(void)
         push_reg(reg0);
         return reg0;
     }
-}
-
-void free_float_reg(struct reg *reg)
-{
-    if (reg->pushes)
-        pop_reg(reg);
-    else
-        free_reg(reg);
 }
 
 static const char *get_reg_name(struct reg *r, int size)
