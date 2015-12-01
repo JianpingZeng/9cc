@@ -27,6 +27,19 @@ struct reg {
     const char *r16;
     const char *r8;
     bool using;
+    unsigned pushes;
+};
+
+enum {
+    ADDR_REGISTER,
+    ADDR_MEMORY,
+    ADDR_LITERAL
+};
+
+struct addr {
+    int kind;
+    const char *name;
+    struct reg *reg;
 };
 
 union code {
@@ -42,9 +55,8 @@ union code {
     }decl;
     
     struct {
-        const char *addr;
-        const char *arg;
-        struct reg *reg;
+        struct addr *addr;
+        struct addr *arg;
     }expr;
 };
 

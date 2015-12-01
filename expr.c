@@ -1136,20 +1136,17 @@ static void calc_stack_size(node_t **args)
     int num_float = 0;
     for (int i = 0; i < LIST_LEN(args); i++) {
         node_t *ty = AST_TYPE(args[i]);
+        size_t typesize = ROUNDUP(TYPE_SIZE(ty), 8);
         if (isint(ty) || isptr(ty)) {
             num_int++;
-            if (num_int > NUM_IARG_REGS) {
-                int sz = ROUNDUP(TYPE_SIZE(ty), 8);
-                size += sz;
-            }
+            if (num_int > NUM_IARG_REGS)
+                size += typesize;
         } else if (isfloat(ty)) {
             num_float++;
-            if (num_float > NUM_FARG_REGS) {
-                int sz = ROUNDUP(TYPE_SIZE(ty), 8);
-                size += sz;
-            }
+            if (num_float > NUM_FARG_REGS)
+                size += typesize;
         } else if (isstruct(ty) || isunion(ty)) {
-            size += TYPE_SIZE(ty);
+            size += typesize;
         } else {
             cc_assert(0);
         }

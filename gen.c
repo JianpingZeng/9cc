@@ -22,181 +22,71 @@
  *  cs,ds,es,fs,gs,ss
  */
 enum {
-    RAX,
-    RBX,
-    RCX,
-    RDX,
-    RSI,
-    RDI,
+    RAX, RBX, RCX, RDX,
+    RSI, RDI,
     R8, R9,
-    XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
-    REGS
+    R10, R11, R12, R13, R14, R15,
+    INT_REGS
 };
 
-static struct reg *registers[REGS];
+enum {
+    XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
+    XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15,
+    FLOAT_REGS
+};
+
 static struct reg *iarg_regs[NUM_IARG_REGS];
 static struct reg *farg_regs[NUM_FARG_REGS];
+static struct reg *int_regs[INT_REGS];
+static struct reg *float_regs[FLOAT_REGS];
 
 static FILE *outfp;
 static struct dict *compound_lits;
 static struct dict *string_lits;
+static struct dict *float_lits;
 
 static void emit_initializer(node_t * t);
 static void emit_stmt(node_t * n);
 static void emit_expr(node_t * n);
 static const char *func_ret_label;
 
-static struct reg *make_reg(struct reg *r)
+enum {
+    OP_PUSH,
+    OP_POP,
+    OP_ADD,
+    OP_MOV,
+    OP_SUB,
+};
+struct opnames {
+    const char *names[4];
+} op_names[] = {
+    {.names = {"pushb", "pushw", "pushl", "pushq"}},
+    {.names = {"popb", "popw", "popl", "popq"}},
+    {.names = {"addb", "addw", "addl", "addq"}},
+    {.names = {"movb", "movw", "movl", "movq"}},
+    {.names = {"subb", "subw", "subl", "subq"}},
+};
+
+static unsigned log2(unsigned i)
 {
-    struct reg *reg = zmalloc(sizeof(struct reg));
-    memcpy(reg, r, sizeof(struct reg));
-    return reg;
-}
-
-static void init_regs(void)
-{
-    registers[RAX] = make_reg(&(struct reg){
-            .r64 = "%rax",
-                .r32 = "%eax",
-                .r16 = "%ax",
-                .r8 = "%al"
-                });
-    registers[RBX] = make_reg(&(struct reg){
-            .r64 = "%rbx",
-                .r32 = "%ebx",
-                .r16 = "%bx",
-                .r8 = "%bl"
-                });
-    registers[RCX] = make_reg(&(struct reg){
-            .r64 = "%rcx",
-                .r32 = "%ecx",
-                .r16 = "%cx",
-                .r8 = "%cl"
-                });
-    registers[RDX] = make_reg(&(struct reg){
-            .r64 = "%rdx",
-                .r32 = "%edx",
-                .r16 = "%dx",
-                .r8 = "%dl"
-                });
-    registers[RSI] = make_reg(&(struct reg){
-            .r64 = "%rsi",
-                .r32 = "%esi",
-                .r16 = "%si",
-                .r8 = "%sil"
-                });
-    registers[RDI] = make_reg(&(struct reg){
-            .r64 = "%rdi",
-                .r32 = "%edi",
-                .r16 = "%di",
-                .r8 = "%dil"
-                });
-    registers[R8] = make_reg(&(struct reg){
-            .r64 = "%r8",
-                .r32 = "%r8d",
-                .r16 = "%r8w",
-                .r8 = "%r8b"
-                });
-    registers[R9] = make_reg(&(struct reg){
-            .r64 = "%r9",
-                .r32 = "%r9d",
-                .r16 = "%r9w",
-                .r8 = "%r9b"
-                });
-
-    // init integer regs
-    iarg_regs[0] = registers[RDI];
-    iarg_regs[1] = registers[RSI];
-    iarg_regs[2] = registers[RDX];
-    iarg_regs[3] = registers[RCX];
-    iarg_regs[4] = registers[R8];
-    iarg_regs[5] = registers[R9];
-
-    // init floating regs
-    for (int i = XMM0; i <= XMM7; i++) {
-        const char *name = format("%%xmm%d", i - XMM0);
-        registers[i] = make_reg(&(struct reg){
-                .r64 = name,
-                    .r32 = name
-            });
-        farg_regs[i - XMM0] = registers[i];
+    unsigned ret = 0;
+    unsigned j = i;
+    if (j == 0)
+        return 0;
+    while ((j & 0x01) == 0) {
+        j >>= 1;
+        ret++;
     }
+    if (j)
+        derror("'%u' is not an legal input", i);
+    return ret;
 }
 
-static struct reg *get_free_reg(struct reg **regs, int count)
+static const char *get_op_name(int op, int size)
 {
-    for (int i = 0; i < count; i++) {
-        struct reg *r = regs[i];
-        if (r->using)
-            continue;
-        return r;
-    }
-    return NULL;
-}
-
-static struct reg *use_reg(struct reg *r)
-{
-    if (r)
-        r->using = true;
-    return r;
-}
-
-static struct reg *free_reg(struct reg *r)
-{
-    if (r)
-        r->using = false;
-    return r;
-}
-
-/**
- * According to the ABI, the first 6 integer or pointer
- * arguments to a function are passed in registers:
- * rdi, rsi, rdx, rcx, r8, r9
- */
-static struct reg *get_iarg_reg(void)
-{
-    struct reg *reg = get_free_reg(iarg_regs, ARRAY_SIZE(iarg_regs));
-    return use_reg(reg);
-}
-
-static struct reg *get_farg_reg(void)
-{
-    struct reg *reg = get_free_reg(farg_regs, ARRAY_SIZE(farg_regs));
-    return use_reg(reg);
-}
-
-static const char *mov(int size)
-{
-    switch (size) {
-    case 1:
-        return "movb";
-    case 2:
-        return "movw";
-    case 4:
-        return "movl";
-    case 8:
-        return "movq";
-    default:
-        cc_assert(0);
-        return NULL;
-    }
-}
-
-static const char *regname(struct reg *r, int size)
-{
-    switch (size) {
-    case 1:
-        return r->r8;
-    case 2:
-        return r->r16;
-    case 4:
-        return r->r32;
-    case 8:
-        return r->r64;
-    default:
-        cc_assert(0);
-        return NULL;
-    }
+    struct opnames op_name = op_names[op];
+    unsigned index = log2(size);
+    return op_name.names[index];
 }
 
 static void emit(const char *fmt, ...)
@@ -216,6 +106,225 @@ static void emit_noindent(const char *fmt, ...)
     vfprintf(outfp, fmt, ap);
     fprintf(outfp, "\n");
     va_end(ap);
+}
+
+static struct reg *make_reg(struct reg *r)
+{
+    struct reg *reg = zmalloc(sizeof(struct reg));
+    memcpy(reg, r, sizeof(struct reg));
+    return reg;
+}
+
+static void init_regs(void)
+{
+    int_regs[RAX] = make_reg(&(struct reg){
+            .r64 = "%rax",
+                .r32 = "%eax",
+                .r16 = "%ax",
+                .r8 = "%al"
+                });
+    int_regs[RBX] = make_reg(&(struct reg){
+            .r64 = "%rbx",
+                .r32 = "%ebx",
+                .r16 = "%bx",
+                .r8 = "%bl"
+                });
+    int_regs[RCX] = make_reg(&(struct reg){
+            .r64 = "%rcx",
+                .r32 = "%ecx",
+                .r16 = "%cx",
+                .r8 = "%cl"
+                });
+    int_regs[RDX] = make_reg(&(struct reg){
+            .r64 = "%rdx",
+                .r32 = "%edx",
+                .r16 = "%dx",
+                .r8 = "%dl"
+                });
+    int_regs[RSI] = make_reg(&(struct reg){
+            .r64 = "%rsi",
+                .r32 = "%esi",
+                .r16 = "%si",
+                .r8 = "%sil"
+                });
+    int_regs[RDI] = make_reg(&(struct reg){
+            .r64 = "%rdi",
+                .r32 = "%edi",
+                .r16 = "%di",
+                .r8 = "%dil"
+                });
+    for (int i = R8; i <= R15; i++) {
+        int index = i - R8 + 8;
+        int_regs[i] = make_reg(&(struct reg){
+                .r64 = format("%%r%d", index),
+                    .r32 = format("%%r%dd", index),
+                    .r16 = format("%%r%dw", index),
+                    .r8 = format("%%r%db", index)
+                });
+    }
+
+    // init integer regs
+    iarg_regs[0] = int_regs[RDI];
+    iarg_regs[1] = int_regs[RSI];
+    iarg_regs[2] = int_regs[RDX];
+    iarg_regs[3] = int_regs[RCX];
+    iarg_regs[4] = int_regs[R8];
+    iarg_regs[5] = int_regs[R9];
+
+    // init floating regs
+    for (int i = XMM0; i <= XMM15; i++) {
+        const char *name = format("%%xmm%d", i - XMM0);
+        float_regs[i] = make_reg(&(struct reg){
+                .r64 = name,
+                    .r32 = name
+            });
+        if (i <= XMM7)
+            farg_regs[i - XMM0] = float_regs[i];
+    }
+}
+
+static struct reg *get_free_reg(struct reg **regs, int count)
+{
+    for (int i = 0; i < count; i++) {
+        struct reg *r = regs[i];
+        if (r->using)
+            continue;
+        return r;
+    }
+    return NULL;
+}
+
+static struct reg *use_reg(struct reg *r)
+{
+    r->using = true;
+    return r;
+}
+
+static void free_reg(struct reg *r)
+{
+    r->using = false;
+}
+
+/**
+ * According to the ABI, the first 6 integer or pointer
+ * arguments to a function are passed in registers:
+ * rdi, rsi, rdx, rcx, r8, r9
+ */
+static struct reg *get_iarg_reg(void)
+{
+    struct reg *reg = get_free_reg(iarg_regs, ARRAY_SIZE(iarg_regs));
+    return use_reg(reg);
+}
+
+static struct reg *get_farg_reg(void)
+{
+    struct reg *reg = get_free_reg(farg_regs, ARRAY_SIZE(farg_regs));
+    return use_reg(reg);
+}
+
+static void push_reg(struct reg *reg)
+{
+    emit("pushq %s", reg->r64);
+    reg->pushes++;
+}
+
+static void pop_reg(struct reg *reg)
+{
+    emit("popq %s", reg->r64);
+    reg->pushes--;
+}
+
+static struct reg *use_float_reg(void)
+{
+    struct reg *reg = get_free_reg(float_regs, ARRAY_SIZE(float_regs));
+    if (reg) {
+        return use_reg(reg);
+    } else {
+        struct reg *reg0 = float_regs[0];
+        push_reg(reg0);
+        return reg0;
+    }
+}
+
+static void free_float_reg(struct reg *reg)
+{
+    if (reg->pushes)
+        pop_reg(reg);
+    else
+        free_reg(reg);
+}
+
+static const char *get_reg_name(struct reg *r, int size)
+{
+    switch (size) {
+    case 1:
+        return r->r8;
+    case 2:
+        return r->r16;
+    case 4:
+        return r->r32;
+    case 8:
+        return r->r64;
+    default:
+        cc_assert(0);
+        return NULL;
+    }
+}
+
+static struct addr *make_addr(int kind)
+{
+    struct addr *addr = zmalloc(sizeof(struct addr));
+    addr->kind = kind;
+    return addr;
+}
+
+static struct addr *make_literal_addr(const char *name)
+{
+    struct addr *addr = make_addr(ADDR_LITERAL);
+    addr->name = name;
+    return addr;
+}
+
+static struct addr *make_memory_addr(const char *name)
+{
+    struct addr *addr = make_addr(ADDR_MEMORY);
+    addr->name = name;
+    return addr;
+}
+
+static struct addr *make_register_addr(struct reg *reg)
+{
+    struct addr *addr = make_addr(ADDR_REGISTER);
+    addr->reg = reg;
+    return addr;
+}
+
+static const char *get_addr_name(struct addr *addr, int size)
+{
+    if (addr->kind == ADDR_REGISTER)
+        return get_reg_name(addr->reg, size);
+    else
+        return addr->name;
+}
+
+static void free_addr_safe(struct addr *addr)
+{
+    if (addr->kind == ADDR_REGISTER)
+        free_reg(addr->reg);
+}
+
+static void use_addr_safe(struct addr *addr)
+{
+    if (addr->kind == ADDR_REGISTER)
+        use_reg(addr->reg);
+}
+
+static void emit_op2(int op, int size, struct addr *src, struct addr *dst)
+{
+    const char *op_name = get_op_name(op, size);
+    const char *src_name = get_addr_name(src, size);
+    const char *dst_name = get_addr_name(dst, size);
+    emit("%s %s, %s", op_name, src_name, dst_name);
 }
 
 static const char *glabel(const char *label)
@@ -341,7 +450,7 @@ static void emit_arith_initializer(node_t * init)
     case FLOAT:
         {
             float f = FLITERAL_VALUE(init);
-            emit(".long %d", *(uint32_t *) & f);
+            emit(".long %u", *(uint32_t *) & f);
         }
         break;
     case DOUBLE:
@@ -487,13 +596,26 @@ static void emit_bop_plus(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
     if (isint(AST_TYPE(l)) && isint(AST_TYPE(r))) {
-        // ADDI
+        // int + int
         emit_expr(l);
         emit_expr(r);
+        size_t sz = TYPE_SIZE(AST_TYPE(l));
+        struct addr *laddr = EXPR_X(l).addr;
+        struct addr *raddr = EXPR_X(r).addr;
+        struct addr *src, *dst;
+        if (EXPR_X(l).addr->kind == ADDR_MEMORY) {
+            
+        }
+        if (EXPR_X(r).addr->kind == ADDR_MEMORY) {
+            
+        }
+        emit_op2(OP_ADD, sz, src, dst);
+        free_addr_safe(laddr);
+        free_addr_safe(raddr);
     } else if (isfloat(AST_TYPE(l)) && isfloat(AST_TYPE(r))) {
-        
+        // float + float
     } else {
-        
+        // pointer + int
     }
 }
 
@@ -562,36 +684,70 @@ static void emit_string_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *name = SYM_NAME(sym);
     const char *label = emit_string_literal_label(name);
-    EXPR_X(n).addr = format("$%s", label);
+    EXPR_X(n).addr = make_memory_addr(format("$%s", label));
 }
 
 static void emit_float_literal(node_t *n)
 {
-    
+    node_t *sym = EXPR_SYM(n);
+    node_t *ty = SYM_TYPE(sym);
+    union value v = SYM_VALUE(sym);
+    switch (TYPE_KIND(ty)) {
+    case FLOAT:
+    {
+        float f = VALUE_D(v);
+        const char *name = format("$%u", *(uint32_t *) &f);
+        EXPR_X(n).addr = make_literal_addr(name);
+    }
+    break;
+    case DOUBLE:
+    case LONG + DOUBLE:
+    {
+        double d = VALUE_D(v);
+        const char *name = format("$%llu", *(uint64_t *) &d);
+        EXPR_X(n).addr = make_literal_addr(name);
+    }
+    break;
+    default:
+        cc_assert(0);
+    }
 }
 
 static void emit_integer_literal(node_t *n)
 {
-    const char *addr = format("$%llu", ILITERAL_VALUE(n));
-    EXPR_X(n).addr = addr;
+    const char *name = format("$%llu", ILITERAL_VALUE(n));
+    EXPR_X(n).addr = make_literal_addr(name);
 }
 
 static void emit_ref_expr(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     node_t *ty = SYM_TYPE(sym);
-    if (isfunc(ty) || has_static_extent(sym))
-        EXPR_X(n).addr = glabel(SYM_X(sym).label);
-    else
-        EXPR_X(n).addr = format("-%ld(%rbp)", SYM_X(sym).loff);
+    if (isfunc(ty) || has_static_extent(sym)) {
+        const char *name = glabel(SYM_X(sym).label);
+        EXPR_X(n).addr = make_memory_addr(name);
+    } else {
+        const char *name = format("-%ld(%rbp)", SYM_X(sym).loff);
+        EXPR_X(n).addr = make_memory_addr(name);
+    }
 }
 
-static const char *stack_arg(int index)
+static const char *stack_arg(size_t off)
 {
-    if (index == 0)
+    if (off == 0)
         return "(%rsp)";
     else
-        return format("%d(%%rsp)", 8*index);
+        return format("%lld(%%rsp)", off);
+}
+
+static void set_funcall_context(void)
+{
+    
+}
+
+static void restore_funcall_context(void)
+{
+    
 }
 
 static void emit_funcall(node_t *n)
@@ -601,24 +757,35 @@ static void emit_funcall(node_t *n)
 
     emit_expr(node);
 
-    for (int i = 0, j = 0; i < LIST_LEN(args); i++) {
+    set_funcall_context();
+
+    size_t off = 0;
+    for (int i = 0; i < LIST_LEN(args); i++) {
         node_t *arg = args[i];
-        emit_expr(arg);
         node_t *ty = AST_TYPE(arg);
+        size_t typesize = ROUNDUP(TYPE_SIZE(ty), 8);
+
+        emit_expr(arg);
+        
         if (isint(ty) || isptr(ty)) {
             struct reg *reg = get_iarg_reg();
             if (reg) {
-                EXPR_X(arg).reg = reg;
-                EXPR_X(arg).arg = regname(reg, TYPE_SIZE(ty));
+                EXPR_X(arg).arg = make_register_addr(reg);
             } else {
-                EXPR_X(arg).arg = stack_arg(j++);
+                EXPR_X(arg).arg = make_memory_addr(stack_arg(off));
+                off += typesize;
             }
         } else if (isfloat(ty)) {
-            
-        } else if (isstruct(ty)) {
-            
-        } else if (isunion(ty)) {
-            
+            struct reg *reg = get_farg_reg();
+            if (reg) {
+                EXPR_X(arg).arg = make_register_addr(reg);
+            } else {
+                EXPR_X(arg).arg = make_memory_addr(stack_arg(off));
+                off += typesize;
+            }
+        } else if (isstruct(ty) || isunion(ty)) {
+            EXPR_X(arg).arg = make_memory_addr(stack_arg(off));
+            off += typesize;
         } else {
             die("unknown argument type: %s", type2s(ty));
         }
@@ -626,18 +793,59 @@ static void emit_funcall(node_t *n)
 
     for (int i = LIST_LEN(args) - 1; i >= 0; i--) {
         node_t *arg = args[i];
-        node_t *ty = AST_TYPE(arg);
-        emit("%s %s, %s", mov(TYPE_SIZE(ty)), EXPR_X(arg).addr, EXPR_X(arg).arg);
-        if (EXPR_X(arg).reg)
-            free_reg(EXPR_X(arg).reg);
+        size_t size = TYPE_SIZE(AST_TYPE(arg));
+        emit_op2(OP_MOV, size, EXPR_X(arg).addr, EXPR_X(arg).arg);
+        free_addr_safe(EXPR_X(arg).arg);
     }
     
     emit("callq %s", EXPR_X(node).addr);
+    restore_funcall_context();
 }
 
 static void arith2arith(node_t *dty, node_t *l)
 {
-    
+    node_t *sty = AST_TYPE(l);
+    if (isint(dty) && isint(sty)) {
+        // int => int
+    } else if (isfloat(dty) && isint(sty)) {
+        // int => float
+    } else if (isint(dty) && isfloat(sty)) {
+        // float => int
+    } else if (isfloat(dty) && isfloat(sty)) {
+        // float => float
+        switch (TYPE_KIND(sty)) {
+        case FLOAT:
+            if (TYPE_KIND(dty) == DOUBLE) {
+                // float => double
+            } else if (TYPE_KIND(dty) == LONG + DOUBLE) {
+                // float => long + double
+            }
+            break;
+        case DOUBLE:
+            if (TYPE_KIND(dty) == FLOAT) {
+                // double => float
+                struct reg *reg = use_float_reg();
+                emit("movsd %s, %s", EXPR_X(l).addr, reg->r64);
+                emit("cvtpd2ps %s, %s", reg->r64, reg->r64);
+            } else if (TYPE_KIND(dty) == LONG + DOUBLE) {
+                // double => long double
+                // the same now
+            }
+            break;
+        case LONG + DOUBLE:
+            if (TYPE_KIND(dty) == FLOAT) {
+                // long double => float
+            } else if (TYPE_KIND(dty) == DOUBLE) {
+                // long double => double
+                // the same now
+            }
+            break;
+        default:
+            cc_assert(0);
+        }
+    } else {
+        die("'%s' => '%s'", type2s(sty), type2s(dty));
+    }
 }
 
 static void ptr2arith(node_t *dty, node_t *l)
@@ -912,6 +1120,7 @@ static void gen_init(FILE *fp)
     outfp = fp;
     compound_lits = dict_new();
     string_lits = dict_new();
+    float_lits = dict_new();
     init_regs();
 }
 
