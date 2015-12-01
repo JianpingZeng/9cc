@@ -153,13 +153,13 @@ static struct reg *free_reg(struct reg *r)
  * arguments to a function are passed in registers:
  * rdi, rsi, rdx, rcx, r8, r9
  */
-static struct reg *get_intreg(void)
+static struct reg *get_iarg_reg(void)
 {
     struct reg *reg = get_free_reg(iarg_regs, ARRAY_SIZE(iarg_regs));
     return use_reg(reg);
 }
 
-static struct reg *get_floatreg(void)
+static struct reg *get_farg_reg(void)
 {
     struct reg *reg = get_free_reg(farg_regs, ARRAY_SIZE(farg_regs));
     return use_reg(reg);
@@ -606,7 +606,7 @@ static void emit_funcall(node_t *n)
         emit_expr(arg);
         node_t *ty = AST_TYPE(arg);
         if (isint(ty) || isptr(ty)) {
-            struct reg *reg = get_intreg();
+            struct reg *reg = get_iarg_reg();
             if (reg) {
                 EXPR_X(arg).reg = reg;
                 EXPR_X(arg).arg = regname(reg, TYPE_SIZE(ty));
