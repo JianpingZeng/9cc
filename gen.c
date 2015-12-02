@@ -584,50 +584,129 @@ static void emit_funcall(node_t *n)
     restore_funcall_context();
 }
 
+static void narrow_int(node_t *dty, node_t *l)
+{
+    
+}
+
+static void widden_int(node_t *dty, node_t *l)
+{
+    static const char *movs[][4] = {
+        {NULL, "movsbw", "movsbl", "movsbq"},
+        {NULL, NULL, "movswl", "movwq"},
+        {NULL, NULL, NULL, "movl"}
+    };
+    node_t *sty = AST_TYPE(l);
+    size_t dsize = TYPE_SIZE(dty);
+    size_t ssize = TYPE_SIZE(sty);
+
+    int index1 = log2(ssize);
+    int index2 = log2(dsize);
+
+    cc_assert(index1 >= 0 && index1 < 4);
+    cc_assert(index2 >= 0 && index2 < 4);
+
+    const char *mov = movs[index1][index2];
+    
+    cc_assert(mov);
+
+    const char *src = get_operand_name(EXPR_X(l).addr, ssize);
+    const char *dst;
+
+    if (EXPR_X(l).addr->kind != OPERAND_REGISTER) {
+        struct operand *addr = make_register_operand(use_int_reg());
+        EXPR_X(l).addr = addr;
+    }
+    dst = get_operand_name(EXPR_X(l).addr, dsize);
+
+    emit("%s %s, %s", mov, src, dst);
+}
+
+static void int2int(node_t *dty, node_t *l)
+{
+    node_t *sty = AST_TYPE(l);
+    size_t dsize = TYPE_SIZE(dty);
+    size_t ssize = TYPE_SIZE(sty);
+    if (dsize < ssize) {
+        // narrow
+        narrow_int(dty, l);
+    } else if (dsize > ssize) {
+        // widden
+        widden_int(dty, l);
+    } else {
+        // equal size
+        if (TYPE_OP(sty) == INT && TYPE_OP(dty) == UNSIGNED) {
+            // signed => unsigned
+        } else if (TYPE_OP(sty) == UNSIGNED && TYPE_OP(dty) == INT) {
+            // unsigned => signed
+        } else {
+            dlog("'%s' => '%s' ignored", type2s(sty), type2s(dty));
+        }
+    }
+}
+
+static void int2float(node_t *dty, node_t *l)
+{
+    
+}
+
+static void float2int(node_t *dty, node_t *l)
+{
+    
+}
+
+static void float2float(node_t *dty, node_t *l)
+{
+    node_t *sty = AST_TYPE(l);
+    switch (TYPE_KIND(sty)) {
+    case FLOAT:
+        if (TYPE_KIND(dty) == DOUBLE) {
+            // float => double
+        } else if (TYPE_KIND(dty) == LONG + DOUBLE) {
+            // float => long + double
+        }
+        break;
+    case DOUBLE:
+        if (TYPE_KIND(dty) == FLOAT) {
+            // double => float
+            struct reg *reg = use_float_reg();
+            emit("movsd %s, %s", EXPR_X(l).addr, reg->r64);
+            emit("cvtpd2ps %s, %s", reg->r64, reg->r64);
+        } else if (TYPE_KIND(dty) == LONG + DOUBLE) {
+            // double => long double
+            // the same now
+        }
+        break;
+    case LONG + DOUBLE:
+        if (TYPE_KIND(dty) == FLOAT) {
+            // long double => float
+        } else if (TYPE_KIND(dty) == DOUBLE) {
+            // long double => double
+            // the same now
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
 static void arith2arith(node_t *dty, node_t *l)
 {
     node_t *sty = AST_TYPE(l);
-    if (isint(dty) && isint(sty)) {
+    if (isint(dty) && isint(sty))
         // int => int
-    } else if (isfloat(dty) && isint(sty)) {
+        int2int(dty, l);
+    else if (isfloat(dty) && isint(sty))
         // int => float
-    } else if (isint(dty) && isfloat(sty)) {
+        int2float(dty, l);
+    else if (isint(dty) && isfloat(sty))
         // float => int
-    } else if (isfloat(dty) && isfloat(sty)) {
+        float2int(dty, l);
+    else if (isfloat(dty) && isfloat(sty))
         // float => float
-        switch (TYPE_KIND(sty)) {
-        case FLOAT:
-            if (TYPE_KIND(dty) == DOUBLE) {
-                // float => double
-            } else if (TYPE_KIND(dty) == LONG + DOUBLE) {
-                // float => long + double
-            }
-            break;
-        case DOUBLE:
-            if (TYPE_KIND(dty) == FLOAT) {
-                // double => float
-                struct reg *reg = use_float_reg();
-                emit("movsd %s, %s", EXPR_X(l).addr, reg->r64);
-                emit("cvtpd2ps %s, %s", reg->r64, reg->r64);
-            } else if (TYPE_KIND(dty) == LONG + DOUBLE) {
-                // double => long double
-                // the same now
-            }
-            break;
-        case LONG + DOUBLE:
-            if (TYPE_KIND(dty) == FLOAT) {
-                // long double => float
-            } else if (TYPE_KIND(dty) == DOUBLE) {
-                // long double => double
-                // the same now
-            }
-            break;
-        default:
-            cc_assert(0);
-        }
-    } else {
+        float2float(dty, l);
+    else
         die("'%s' => '%s'", type2s(sty), type2s(dty));
-    }
 }
 
 static void ptr2arith(node_t *dty, node_t *l)
@@ -660,7 +739,9 @@ static void emit_conv(node_t *n)
     node_t *dty = AST_TYPE(n);
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *sty = AST_TYPE(l);
+    
     emit_expr(l);
+    
     if (isarith(dty)) {
         if (isarith(sty))
             arith2arith(dty, l);
