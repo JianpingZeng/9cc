@@ -37,6 +37,7 @@ static struct reg *iarg_regs[NUM_IARG_REGS];
 static struct reg *farg_regs[NUM_FARG_REGS];
 static struct reg *int_regs[INT_REGS];
 static struct reg *float_regs[FLOAT_REGS];
+static struct vector *reg_stack;
 
 static inline struct reg *make_reg(void)
 {
@@ -47,33 +48,42 @@ static struct reg *get_free_reg(struct reg **regs, int count)
 {
     for (int i = 0; i < count; i++) {
         struct reg *r = regs[i];
-        if (r->using)
+        if (r->uses)
             continue;
         return r;
     }
     return NULL;
 }
 
-static void push_reg(struct reg *reg)
+static void push_reg(struct reg *r)
 {
-    emit("pushq %s", reg->r64);
-    reg->pushes++;
+    emit("pushq %s", r->r64);
+    vec_push(reg_stack, r);
 }
 
-static void pop_reg(struct reg *reg)
+static void pop_reg(struct reg *r)
 {
-    emit("popq %s", reg->r64);
-    reg->pushes--;
+    struct reg *reg = vec_tail(reg_stack);
+    if (reg != r) {
+        print_register_state();
+        die("reg_stack conflicts");
+    }
+    emit("popq %s", r->r64);
+    vec_pop(reg_stack);
 }
 
 static inline void use_reg(struct reg *r)
 {
-    r->using = true;
+    r->uses++;
+    if (r->uses > 1)
+        push_reg(r);
 }
 
 void free_reg(struct reg *r)
 {
-    r->using = false;
+    r->uses--;
+    if (r->uses)
+        pop_reg(r);
 }
 
 /**
@@ -105,7 +115,7 @@ struct reg *use_int_reg(void)
         return reg;
     } else {
         struct reg *reg0 = int_regs[0];
-        push_reg(reg0);
+        use_reg(reg0);
         return reg0;
     }
 }
@@ -118,7 +128,7 @@ struct reg *use_float_reg(void)
         return reg;
     } else {
         struct reg *reg0 = float_regs[0];
-        push_reg(reg0);
+        use_reg(reg0);
         return reg0;
     }
 }
@@ -251,5 +261,23 @@ void init_regs(void)
         float_regs[i]->r32 = name;
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
+    }
+
+    reg_stack = vec_new();
+}
+
+void print_register_state(void)
+{
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
+        struct reg *reg = int_regs[i];
+        println("%s: uses[%u]", reg->r64, reg->uses);
+    }
+    for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
+        struct reg *reg = float_regs[i];
+        println("%s: uses[%u]", reg->r64, reg->uses);
+    }
+    for (int i = vec_len(reg_stack) - 1; i >= 0; i--) {
+        struct reg *reg = vec_at(reg_stack, i);
+        println("reg_stack[%d]: %s: uses[%u]", i, reg->r64, reg->uses);
     }
 }

@@ -20,13 +20,13 @@ enum {
     OP_SUB,
 };
 struct opnames {
-    const char *names[4];
+    const char *names[6];
 } op_names[] = {
     {.names = {"pushb", "pushw", "pushl", "pushq"}},
     {.names = {"popb", "popw", "popl", "popq"}},
-    {.names = {"addb", "addw", "addl", "addq"}},
-    {.names = {"movb", "movw", "movl", "movq"}},
-    {.names = {"subb", "subw", "subl", "subq"}},
+    {.names = {"addb", "addw", "addl", "addq", "addss", "addsd"}},
+    {.names = {"movb", "movw", "movl", "movq", "movss", "movsd"}},
+    {.names = {"subb", "subw", "subl", "subq", "subss", "subsd"}},
 };
 
 static unsigned log2(unsigned i)
@@ -39,15 +39,31 @@ static unsigned log2(unsigned i)
         j >>= 1;
         ret++;
     }
+    j >>= 1;
     if (j)
         derror("'%u' is not an legal input", i);
     return ret;
 }
 
-static const char *get_op_name(int op, int size)
+static const char *get_op_name(int op, node_t *ty)
 {
     struct opnames op_name = op_names[op];
-    unsigned index = log2(size);
+    int index = -1;
+    if (isint(ty) || isptr(ty)) {
+        size_t size = TYPE_SIZE(ty);
+        index = log2(size);
+    } else if (isfloat(ty)) {
+        switch (TYPE_KIND(ty)) {
+        case FLOAT:
+            index = 4;
+            break;
+        case DOUBLE:
+        case LONG + DOUBLE:
+            index = 5;
+            break;
+        }
+    }
+    cc_assert(index >= 0);
     return op_name.names[index];
 }
 
@@ -334,37 +350,53 @@ static void emit_bss(node_t * n)
              TYPE_ALIGN(ty));
 }
 
-static void emit_op2(int op, int size, struct operand *src, struct operand *dst)
+static void emit_op2(int op, node_t *ty, struct operand *src, struct operand *dst)
 {
-    const char *op_name = get_op_name(op, size);
+    const char *op_name = get_op_name(op, ty);
+    size_t size = TYPE_SIZE(ty);
     const char *src_name = get_operand_name(src, size);
     const char *dst_name = get_operand_name(dst, size);
     emit("%s %s, %s", op_name, src_name, dst_name);
 }
 
-static void emit_bop_plus(node_t *n)
+static void emit_bop_reg(int op, struct reg * (*use_reg) (void), node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
+
+    emit_expr(l);
+    emit_expr(r);
+
+    struct operand *laddr = EXPR_X(l).addr;
+    struct operand *raddr = EXPR_X(r).addr;
+
+    if (laddr->kind == OPERAND_REGISTER) {
+        emit_op2(op, AST_TYPE(n), raddr, laddr);
+        free_operand(EXPR_X(r).addr);
+        EXPR_X(n).addr = laddr;
+    } else {
+        struct reg *reg = use_reg();
+        struct operand *addr = make_register_operand(reg);
+        emit_op2(OP_MOV, AST_TYPE(l), laddr, addr);
+        emit_op2(op, AST_TYPE(n), raddr, addr);
+        free_operand(EXPR_X(r).addr);
+        free_operand(EXPR_X(l).addr);
+        EXPR_X(n).addr = addr;
+    }
+}
+
+static void emit_bop_plus_minus(node_t *n, int op)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+    int op_kind = op == '+' ? OP_ADD : OP_SUB;
+    
     if (isint(AST_TYPE(l)) && isint(AST_TYPE(r))) {
         // int + int
-        emit_expr(l);
-        emit_expr(r);
-        size_t sz = TYPE_SIZE(AST_TYPE(l));
-        struct operand *laddr = EXPR_X(l).addr;
-        struct operand *raddr = EXPR_X(r).addr;
-        struct operand *src, *dst;
-        if (laddr->kind == OPERAND_REGISTER ||
-            raddr->kind == OPERAND_REGISTER) {
-            
-        } else {
-            
-        }
-        emit_op2(OP_ADD, sz, src, dst);
-        free_operand(laddr);
-        free_operand(raddr);
+        emit_bop_reg(op_kind, use_int_reg, n);
     } else if (isfloat(AST_TYPE(l)) && isfloat(AST_TYPE(r))) {
         // float + float
+        emit_bop_reg(op_kind, use_float_reg, n);
     } else {
         // pointer + int
     }
@@ -395,9 +427,9 @@ static void emit_bop(node_t *n)
     case NEQ:
         break;
     case '+':
-        emit_bop_plus(n);
-        break;
     case '-':
+        emit_bop_plus_minus(n, op);
+        break;
     case AND:
     case OR:
         break;
@@ -478,7 +510,7 @@ static void emit_ref_expr(node_t *n)
         const char *name = glabel(SYM_X(sym).label);
         EXPR_X(n).addr = make_memory_operand(name);
     } else {
-        const char *name = format("-%ld(%rbp)", SYM_X(sym).loff);
+        const char *name = format("-%ld(%%rbp)", SYM_X(sym).loff);
         EXPR_X(n).addr = make_memory_operand(name);
     }
 }
@@ -544,8 +576,7 @@ static void emit_funcall(node_t *n)
 
     for (int i = LIST_LEN(args) - 1; i >= 0; i--) {
         node_t *arg = args[i];
-        size_t size = TYPE_SIZE(AST_TYPE(arg));
-        emit_op2(OP_MOV, size, EXPR_X(arg).addr, EXPR_X(arg).arg);
+        emit_op2(OP_MOV, AST_TYPE(arg), EXPR_X(arg).addr, EXPR_X(arg).arg);
         free_operand(EXPR_X(arg).arg);
     }
     

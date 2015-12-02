@@ -391,6 +391,7 @@ extern const char *get_operand_name(struct operand *operand, int size);
 extern void use_operand(struct operand *operand);
 extern void free_operand(struct operand *operand);
 extern void init_regs(void);
+extern void print_register_state(void);
 
 // gen.c
 extern void emit(const char *fmt, ...);

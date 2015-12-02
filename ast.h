@@ -26,8 +26,7 @@ struct reg {
     const char *r32;
     const char *r16;
     const char *r8;
-    bool using;
-    unsigned pushes;
+    unsigned uses;
 };
 
 enum {
