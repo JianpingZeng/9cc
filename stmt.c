@@ -651,6 +651,7 @@ static void backfill_labels(void)
 void func_body(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
+    
     SET_FUNCDEF_CONTEXT(SYM_TYPE(sym), SYM_NAME(sym));
     
     node_t *stmt = compound_stmt(predefined_identifiers);

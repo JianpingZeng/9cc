@@ -22,7 +22,6 @@ static void typedefdecl(struct token *id, node_t * ty, int fspec,
                       int kind);
 static struct vector *decls(declfun_p * dcl);
 
-static void skip_funcdef(void);
 static void ensure_field(node_t * field, size_t total, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
@@ -870,10 +869,7 @@ static struct vector *decls(declfun_p * dcl)
 
         if (level == GLOBAL && params) {
             if (first_funcdef(ty)) {
-                if (id)
-                    vec_push(v, funcdef(id, ty, sclass, fspec));
-                else
-                    skip_funcdef();
+                vec_push(v, funcdef(id, ty, sclass, fspec));
                 return v;
             } else {
                 exit_params();
@@ -1406,86 +1402,48 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
     return sym;
 }
 
-static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
-                       int fspec)
+static void oldstyle_decls(node_t *ftype)
 {
-    node_t *decl = ast_decl(FUNC_DECL);
-    const char *id = t->name;
-    struct source src = t->src;
+    struct vector *v = vec_new();
+    enter_scope();
+    while (first_decl(token))
+        vec_add(v, decls(paramdecl));
 
-    cc_assert(SCOPE == PARAM);
+    for (int i = 0; i < vec_len(v); i++) {
+        node_t *decl = (node_t *) vec_at(v, i);
+        node_t *sym = DECL_SYM(decl);
 
-    ensure_func(ftype, src);
-    ensure_main(ftype, id, src);
-    if (sclass && sclass != EXTERN && sclass != STATIC) {
-        error("invalid storage class specifier '%s'", id2s(sclass));
-        sclass = 0;
-    }
-    ensure_inline(ftype, fspec, src);
-    // install symbol first for backward reference
-    if (id) {
-        node_t *sym = lookup(id, identifiers);
-        if (!sym || SYM_SCOPE(sym) != GLOBAL) {
-            sym = install(id, &identifiers, GLOBAL);
-        def:
-            SYM_TYPE(sym) = ftype;
-            AST_SRC(sym) = src;
-            SYM_DEFINED(sym) = true;
-            SYM_SCLASS(sym) = sclass;
-            DECL_SYM(decl) = sym;
-        } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
-            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-                errorf(src,
-                       "static declaaration of '%s' follows "
-                       "non-static declaration",
-                       id);
-            else
-                goto def;
-        } else {
-            redefinition_error(src, sym);
-        }
-    }
-
-    if (first_decl(token)) {
-        // old style function definition
-        struct vector *v = vec_new();
-        enter_scope();
-        while (first_decl(token))
-            vec_add(v, decls(paramdecl));
-
-        for (int i = 0; i < vec_len(v); i++) {
-            node_t *decl = (node_t *) vec_at(v, i);
-            node_t *sym = DECL_SYM(decl);
-
-            cc_assert(SYM_NAME(sym));
-            if (!isvardecl(decl)) {
-                warningf(AST_SRC(sym), "empty declaraion");
-            } else if (TYPE_PARAMS(ftype)) {
-                node_t *p = NULL;
-                for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
-                    node_t *s = TYPE_PARAMS(ftype)[i];
-                    if (SYM_NAME(s)
-                        && !strcmp(SYM_NAME(s),
-                                   SYM_NAME(sym))) {
-                        p = s;
-                        break;
-                    }
-                }
-                if (p) {
-                    SYM_TYPE(p) = SYM_TYPE(sym);
-                    AST_SRC(p) = AST_SRC(sym);
-                } else {
-                    errorf(AST_SRC(sym),
-                           "parameter named '%s' is missing",
-                           SYM_NAME(sym));
+        cc_assert(SYM_NAME(sym));
+        if (!isvardecl(decl)) {
+            warningf(AST_SRC(sym), "empty declaraion");
+        } else if (TYPE_PARAMS(ftype)) {
+            node_t *p = NULL;
+            for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
+                node_t *s = TYPE_PARAMS(ftype)[i];
+                if (SYM_NAME(s)
+                    && !strcmp(SYM_NAME(s),
+                               SYM_NAME(sym))) {
+                    p = s;
+                    break;
                 }
             }
+            if (p) {
+                SYM_TYPE(p) = SYM_TYPE(sym);
+                AST_SRC(p) = AST_SRC(sym);
+            } else {
+                errorf(AST_SRC(sym),
+                       "parameter named '%s' is missing",
+                       SYM_NAME(sym));
+            }
         }
-        exit_scope();
-        if (token->id != '{')
-            error("expect function body after function declarator");
     }
+    exit_scope();
+    if (token->id != '{')
+        error("expect function body after function declarator");
+}
 
+static void ensure_params(node_t *ftype)
+{
     if (TYPE_PARAMS(ftype)) {
         for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
             node_t *sym = TYPE_PARAMS(ftype)[i];
@@ -1502,6 +1460,63 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
             }
         }
     }
+}
+
+static void make_funcdecl(node_t *sym, node_t *ty, int sclass, struct source src,
+                          node_t *decl)
+{
+    SYM_TYPE(sym) = ty;
+    AST_SRC(sym) = src;
+    SYM_DEFINED(sym) = true;
+    SYM_SCLASS(sym) = sclass;
+    DECL_SYM(decl) = sym;
+}
+
+// token maybe NULL
+static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
+                       int fspec)
+{
+    cc_assert(SCOPE == PARAM);
+    
+    node_t *decl = ast_decl(FUNC_DECL);
+
+    if (sclass && sclass != EXTERN && sclass != STATIC) {
+        error("invalid storage class specifier '%s'", id2s(sclass));
+        sclass = 0;
+    }
+    
+    if (t) {
+        const char *id = t->name;
+        struct source src = t->src;
+        node_t *sym = lookup(id, identifiers);
+        if (!sym || SYM_SCOPE(sym) != GLOBAL) {
+            sym = install(id, &identifiers, GLOBAL);
+            make_funcdecl(sym, ftype, sclass, src, decl);
+        } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
+            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
+                errorf(src,
+                       "static declaaration of '%s' follows "
+                       "non-static declaration",
+                       id);
+            else
+                make_funcdecl(sym, ftype, sclass, src, decl);
+        } else {
+            redefinition_error(src, sym);
+        }
+
+        ensure_func(ftype, src);
+        ensure_main(ftype, id, src);
+        ensure_inline(ftype, fspec, src);
+    } else {
+        node_t *sym = anonymous(&identifiers, GLOBAL);
+        make_funcdecl(sym, ftype, sclass, source, decl);
+    }
+
+    // old style function parameters declaration
+    if (first_decl(token))
+        oldstyle_decls(ftype);
+    
+    ensure_params(ftype);
 
     if (token->id == '{') {
         // function definition
@@ -1510,12 +1525,6 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
     }
 
     return decl;
-}
-
-static void skip_funcdef(void)
-{
-    cc_assert(SCOPE == PARAM);
-    exit_scope();
 }
 
 static struct vector *filter_global(struct vector *v)
