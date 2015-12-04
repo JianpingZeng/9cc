@@ -998,7 +998,8 @@ static node_t *compound_literal(node_t * ty)
     // define local variable
     if (SCOPE >= LOCAL) {
         const char *label = gen_compound_label();
-        define_localvar(label, ty, 0, inits);
+        node_t *decl = make_localvar(label, ty, 0);
+        DECL_BODY(decl) = inits;
     }
 
     return ret;

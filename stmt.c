@@ -1,9 +1,9 @@
 #include "cc.h"
 
 static node_t *statement(void);
-static node_t *do_compound_stmt(bool func);
-static struct vector *predefined_identifiers(void);
-static void post_funcdef(struct vector *v, struct vector *predefines);
+static node_t *compound_stmt(void (*) (void));
+static void predefined_identifiers(void);
+static void filter_local(void);
 static node_t *ensure_return(node_t * expr, struct source src);
 
 static const char *__continue;
@@ -11,36 +11,75 @@ static const char *__break;
 static struct vector *__cases;
 static node_t *__default;
 static node_t *__switch_ty;
+static struct vector *__compound_vector;
 
-#define SET_LOOP_CONTEXT(cont, brk)                \
-    const char *__saved_continue = __continue;        \
+size_t extra_stack_size;
+static struct vector *gotos;
+static struct map *labels;
+static node_t *functype;
+static const char *funcname;
+static struct vector *localvars;
+static struct vector *staticvars;
+
+#define SET_FUNCDEF_CONTEXT(fty, id)            \
+    gotos = vec_new();                          \
+    labels = map_new();                         \
+    functype = fty;                            \
+    funcname = id;                             \
+    localvars = vec_new();                      \
+    staticvars = vec_new();                     \
+    extra_stack_size = 0
+
+#define RESTORE_FUNCDEF_CONTEXT()               \
+    vec_free(gotos);                            \
+    gotos = NULL;                               \
+    map_free(labels);                           \
+    labels = NULL;                              \
+    functype = NULL;                       \
+    funcname = NULL;                       \
+    vec_free(localvars);                        \
+    localvars = NULL;                           \
+    vec_free(staticvars);                       \
+    staticvars = NULL;                          \
+    extra_stack_size = 0
+
+#define SET_COMPOUND_CONTEXT(v)                         \
+    struct vector *__saved_vector = __compound_vector;  \
+    __compound_vector = v
+
+#define RESTORE_COMPOUND_CONTEXT()              \
+    __compound_vector = __saved_vector
+
+#define SET_LOOP_CONTEXT(cont, brk)             \
+    const char *__saved_continue = __continue;  \
     const char *__saved_break = __break;        \
-    __continue = cont;                                \
-    __break = brk;                                \
+    __continue = cont;                          \
+    __break = brk;                              \
     enter_scope()
 
-#define RESTORE_LOOP_CONTEXT()                        \
-    __continue = __saved_continue;                \
-    __break = __saved_break;                        \
+#define RESTORE_LOOP_CONTEXT()                  \
+    __continue = __saved_continue;              \
+    __break = __saved_break;                    \
     exit_scope()
 
-#define SET_SWITCH_CONTEXT(brk, ty)                \
+#define SET_SWITCH_CONTEXT(brk, ty)             \
     const char *__saved_break = __break;        \
-    struct vector *__saved_cases = __cases;        \
+    struct vector *__saved_cases = __cases;     \
     node_t *__saved_default = __default;        \
-    node_t *__saved_switch_ty = __switch_ty;        \
-    __break = brk;                                \
+    node_t *__saved_switch_ty = __switch_ty;    \
+    __break = brk;                              \
     __cases = vec_new();                        \
-    __default = NULL;                                \
+    __default = NULL;                           \
     __switch_ty = ty
 
 #define RESTORE_SWITCH_CONTEXT()                \
-    vec_free(__cases);                                \
-    __break = __saved_break;                        \
-    __cases = __saved_cases;                        \
+    vec_free(__cases);                          \
+    __break = __saved_break;                    \
+    __cases = __saved_cases;                    \
     __default = __saved_default;                \
     __switch_ty = __saved_switch_ty
 
+#define COMPOUND_VECTOR   (__compound_vector)
 #define CONTINUE_CONTEXT  (__continue)
 #define BREAK_CONTEXT     (__break)
 #define IN_SWITCH         (__cases)
@@ -266,7 +305,7 @@ static node_t *switch_jmp(node_t * var, node_t * case_node)
 static node_t *define_tmpvar(node_t * ty)
 {
     const char *name = gen_tmpname();
-    node_t *decl = define_localvar(name, ty, 0, NULL);
+    node_t *decl = make_localvar(name, ty, 0);
     node_t *n = alloc_node();
     AST_ID(n) = REF_EXPR;
     EXPR_SYM(n) = DECL_SYM(decl);
@@ -533,7 +572,7 @@ static node_t *statement(void)
 {
     switch (token->id) {
     case '{':
-        return do_compound_stmt(false);
+        return compound_stmt(NULL);
     case IF:
         return if_stmt();
     case SWITCH:
@@ -565,18 +604,18 @@ static node_t *statement(void)
     }
 }
 
-static node_t *do_compound_stmt(bool func)
+static node_t *compound_stmt(void (*enter_hook) (void))
 {
     struct source src = source;
     struct vector *v = vec_new();
-    struct vector *predefines = NULL;
 
     expect('{');
     enter_scope();
 
-    if (func)
-        // add predefined identifiers
-        predefines = predefined_identifiers();
+    SET_COMPOUND_CONTEXT(v);
+
+    if (enter_hook)
+        enter_hook();
 
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token))
@@ -587,8 +626,7 @@ static node_t *do_compound_stmt(bool func)
             vec_push_safe(v, statement());
     }
 
-    if (func)
-        post_funcdef(v, predefines);
+    RESTORE_COMPOUND_CONTEXT();
 
     expect('}');
     exit_scope();
@@ -596,12 +634,7 @@ static node_t *do_compound_stmt(bool func)
     return ast_compound(src, (node_t **) vtoa(v));
 }
 
-node_t *compound_stmt(void)
-{
-    return do_compound_stmt(true);
-}
-
-void backfill_labels(void)
+static void backfill_labels(void)
 {
     for (int i = 0; i < vec_len(gotos); i++) {
         node_t *goto_stmt = vec_at(gotos, i);
@@ -615,10 +648,30 @@ void backfill_labels(void)
     }
 }
 
-static struct vector *predefined_identifiers(void)
+void func_body(node_t *decl)
 {
-    struct vector *v = vec_new();
+    node_t *sym = DECL_SYM(decl);
+    SET_FUNCDEF_CONTEXT(SYM_TYPE(sym), SYM_NAME(sym));
+    
+    node_t *stmt = compound_stmt(predefined_identifiers);
+    DECL_BODY(decl) = stmt;
+    // check goto labels
+    backfill_labels();
+    // TODO: check control flow and return stmt
 
+    filter_local();
+    RESTORE_FUNCDEF_CONTEXT();
+}
+
+node_t *make_localvar(const char *name, node_t * ty, int sclass)
+{
+    node_t *decl = make_localdecl(name, ty, sclass);
+    vec_push(COMPOUND_VECTOR, decl);
+    return decl;
+}
+
+static void predefined_identifiers(void)
+{
     {
         /**
          * Predefined identifier: __func__
@@ -633,30 +686,11 @@ static struct vector *predefined_identifiers(void)
         node_t *type = array_type(qual(CONST, chartype));
         node_t *decl = make_localvar(name, type, STATIC);
         // initializer
-        node_t *literal = new_string_literal(current_fname);
+        node_t *literal = new_string_literal(funcname);
         AST_SRC(literal) = source;
         init_string(type, literal);
         DECL_BODY(decl) = literal;
-        vec_push(v, decl);
     }
-
-    return v;
-}
-
-static void post_funcdef(struct vector *v, struct vector *predefines)
-{
-    struct vector *used = vec_new();
-    // remove if no ref.
-    for (int i = vec_len(predefines) - 1; i >= 0; i--) {
-        node_t *decl = vec_at(predefines, i);
-        node_t *sym = DECL_SYM(decl);
-        if (SYM_REFS(sym)) {
-            vec_push_front(v, decl);
-            vec_push_front(used, decl);
-        }
-    }
-    filter_local(used, true);
-    vec_free(predefines);
 }
 
 static node_t *ensure_return(node_t * expr, struct source src)
@@ -665,24 +699,29 @@ static node_t *ensure_return(node_t * expr, struct source src)
     if (expr == NULL)
         return NULL;
 
-    if (isvoid(rtype(current_ftype))) {
+    if (isvoid(rtype(functype))) {
         if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
             errorf(src,
                    "void function '%s' should not return a value",
-                   current_fname);
+                   funcname);
     } else {
         if (!isnullstmt(expr)) {
             node_t *ty1 = AST_TYPE(expr);
-            node_t *ty2 = rtype(current_ftype);
+            node_t *ty2 = rtype(functype);
             if (!(expr = assignconv(ty2, expr)))
                 errorf(src,
                        "returning '%s' from function '%s' with incompatible result type '%s'",
-                       type2s(ty1), current_fname, type2s(ty2));
+                       type2s(ty1), funcname, type2s(ty2));
         } else {
             errorf(src,
                    "non-void function '%s' should return a value",
-                   current_fname);
+                   funcname);
         }
     }
     return expr;
+}
+
+static void filter_local(void)
+{
+    
 }

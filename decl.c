@@ -22,6 +22,7 @@ static void typedefdecl(struct token *id, node_t * ty, int fspec,
                       int kind);
 static struct vector *decls(declfun_p * dcl);
 
+static void skip_funcdef(void);
 static void ensure_field(node_t * field, size_t total, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
@@ -41,36 +42,6 @@ static struct vector *filter_global(struct vector *v);
 #define PARAM_FIRST(i)   (((i) & 0x20000000) >> 29)
 #define PARAM_FVOID(i)   (((i) & 0x10000000) >> 28)
 #define PARAM_SCLASS(i)  ((i) & 0x0fffffff)
-
-struct vector *gotos;
-struct map *labels;
-node_t *current_ftype;
-const char *current_fname;
-size_t extra_stack_size;
-static struct vector *localvars;
-static struct vector *staticvars;
-
-#define SET_FUNCDEF_CONTEXT(fty, id)            \
-    gotos = vec_new();                          \
-    labels = map_new();                         \
-    current_ftype = fty;                        \
-    current_fname = id;                         \
-    localvars = vec_new();                      \
-    staticvars = vec_new();                     \
-    extra_stack_size = 0
-
-#define RESTORE_FUNCDEF_CONTEXT()               \
-    vec_free(gotos);                            \
-    gotos = NULL;                               \
-    map_free(labels);                           \
-    labels = NULL;                              \
-    current_ftype = NULL;                       \
-    current_fname = NULL;                       \
-    vec_free(localvars);                        \
-    localvars = NULL;                           \
-    vec_free(staticvars);                       \
-    staticvars = NULL;                          \
-    extra_stack_size = 0
 
 static node_t *specifiers(int *sclass, int *fspec)
 {
@@ -897,14 +868,15 @@ static struct vector *decls(declfun_p * dcl)
             declarator(&ty, &id, NULL);
         attach_type(&ty, basety);
 
-        if (level == GLOBAL) {
-            if (params) {
-                if (first_funcdef(ty)) {
+        if (level == GLOBAL && params) {
+            if (first_funcdef(ty)) {
+                if (id)
                     vec_push(v, funcdef(id, ty, sclass, fspec));
-                    return v;
-                } else {
-                    exit_params();
-                }
+                else
+                    skip_funcdef();
+                return v;
+            } else {
+                exit_params();
             }
         }
 
@@ -972,7 +944,7 @@ node_t *typename(void)
 node_t **declaration(void)
 {
     cc_assert(SCOPE >= LOCAL);
-    return (node_t **) vtoa(filter_local(decls(localdecl), false));
+    return (node_t **) vtoa(decls(localdecl));
 }
 
 node_t *translation_unit(void)
@@ -1533,20 +1505,17 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
 
     if (token->id == '{') {
         // function definition
-        SET_FUNCDEF_CONTEXT(ftype, id);
-        node_t *stmt = compound_stmt();
-        // check goto labels
-        backfill_labels();
-        // TODO: check control flow and return stmt
-        DECL_BODY(decl) = stmt;
-        DECL_X(decl).lvars = (node_t **)vtoa(localvars);
-        DECL_X(decl).svars = (node_t **)vtoa(staticvars);
-        DECL_X(decl).extra_stack_size = extra_stack_size;
-        RESTORE_FUNCDEF_CONTEXT();
+        func_body(decl);
         exit_scope();
     }
 
     return decl;
+}
+
+static void skip_funcdef(void)
+{
+    cc_assert(SCOPE == PARAM);
+    exit_scope();
 }
 
 static struct vector *filter_global(struct vector *v)
@@ -1578,43 +1547,10 @@ static struct vector *filter_global(struct vector *v)
     return r;
 }
 
-struct vector *filter_local(struct vector *v, bool front)
+node_t *make_localdecl(const char *name, node_t * ty, int sclass)
 {
-    for (int i = 0; i < vec_len(v); i++) {
-        node_t *decl = vec_at(v, i);
-        node_t *sym = DECL_SYM(decl);
-        int sclass = SYM_SCLASS(sym);
-        if (!isvardecl(decl))
-            continue;
-        // local variables
-        if (sclass == STATIC) {
-            SYM_X(sym).label = gen_static_label();
-            if (front)
-                vec_push_front(staticvars, decl);
-            else
-                vec_push(staticvars, decl);
-        } else if (sclass != EXTERN) {
-            if (front)
-                vec_push_front(localvars, decl);
-            else
-                vec_push(localvars, decl);
-        }
-    }
-    return v;
-}
-
-node_t *make_localvar(const char *name, node_t * ty, int sclass)
-{
-    struct token *id = new_token(&(struct token){.id = ID,.name =
-                name,.kind = ID,.src = source });
+    struct token *id = new_token(&(struct token){
+            .id = ID, .name = name, .kind = ID, .src = source});
     node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
-    return decl;
-}
-
-node_t *define_localvar(const char *name, node_t * ty, int sclass,
-                        node_t * init)
-{
-    node_t *decl = make_localvar(name, ty, sclass);
-    vec_push(localvars, decl);
     return decl;
 }
