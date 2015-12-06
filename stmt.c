@@ -1,10 +1,9 @@
 #include "cc.h"
 
 static node_t *statement(void);
-static node_t *compound_stmt(void (*) (void));
-static void predefined_identifiers(void);
+static node_t *compound_stmt(void (*) (void), void (*) (void));
+static void predefined_ids(void);
 static void filter_local(void);
-static node_t *ensure_return(node_t * expr, struct source src);
 
 static const char *__continue;
 static const char *__break;
@@ -24,8 +23,8 @@ static struct vector *staticvars;
 #define SET_FUNCDEF_CONTEXT(fty, id)            \
     gotos = vec_new();                          \
     labels = map_new();                         \
-    functype = fty;                            \
-    funcname = id;                             \
+    functype = fty;                             \
+    funcname = id;                              \
     localvars = vec_new();                      \
     staticvars = vec_new();                     \
     extra_stack_size = 0
@@ -35,8 +34,8 @@ static struct vector *staticvars;
     gotos = NULL;                               \
     map_free(labels);                           \
     labels = NULL;                              \
-    functype = NULL;                       \
-    funcname = NULL;                       \
+    functype = NULL;                            \
+    funcname = NULL;                            \
     vec_free(localvars);                        \
     localvars = NULL;                           \
     vec_free(staticvars);                       \
@@ -295,8 +294,8 @@ static node_t *switch_jmp(node_t * var, node_t * case_node)
     node_t *cond;
     long index = STMT_INDEX(case_node);
     const char *label = STMT_LABEL(case_node);
-    node_t *index_node = int_literal_node(AST_TYPE(var), (union value){.u =
-                index });
+    node_t *index_node = int_literal_node(AST_TYPE(var), (union value){
+            .u = index });
 
     cond = ast_bop(EQ, inttype, var, index_node);
     return ast_if(cond, ast_jump(label), NULL);
@@ -367,7 +366,8 @@ static void check_case_duplicates(node_t * node)
         node_t *n = vec_at(CASES, i);
         if (STMT_INDEX(n) == STMT_INDEX(node)) {
             errorf(AST_SRC(node),
-                   "duplicate case value '%lld', previous case defined here: %s:%u:%u",
+                   "duplicate case value '%lld', "
+                   "previous case defined here: %s:%u:%u",
                    STMT_INDEX(node), AST_SRC(n).file,
                    AST_SRC(n).line, AST_SRC(n).column);
             break;
@@ -427,7 +427,8 @@ static node_t *default_stmt(void)
 
     if (DEFLT)
         errorf(src,
-               "multiple default labels in one switch, previous case defined here:%s:%u:%u",
+               "multiple default labels in one switch, "
+               "previous case defined here:%s:%u:%u",
                AST_SRC(DEFLT).file, AST_SRC(DEFLT).line,
                AST_SRC(DEFLT).column);
 
@@ -466,7 +467,8 @@ static node_t *label_stmt(void)
         node_t *n = map_get(labels, name);
         if (n)
             errorf(src,
-                   "redefinition of label '%s', previous label defined here:%s:%u:%u",
+                   "redefinition of label '%s', "
+                   "previous label defined here:%s:%u:%u",
                    name, AST_SRC(n).file, AST_SRC(n).line,
                    AST_SRC(n).column);
         map_put(labels, name, ret);
@@ -549,6 +551,35 @@ static node_t *continue_stmt(void)
     return ret;
 }
 
+static node_t *ensure_return(node_t * expr, struct source src)
+{
+    // return immediately if expr is NULL. (parsing failed)
+    if (expr == NULL)
+        return NULL;
+
+    if (isvoid(rtype(functype))) {
+        if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
+            errorf(src,
+                   "void function '%s' should not return a value",
+                   funcname);
+    } else {
+        if (!isnullstmt(expr)) {
+            node_t *ty1 = AST_TYPE(expr);
+            node_t *ty2 = rtype(functype);
+            if (!(expr = assignconv(ty2, expr)))
+                errorf(src,
+                       "returning '%s' from function '%s' "
+                       "with incompatible result type '%s'",
+                       type2s(ty1), funcname, type2s(ty2));
+        } else {
+            errorf(src,
+                   "non-void function '%s' should return a value",
+                   funcname);
+        }
+    }
+    return expr;
+}
+
 static node_t *return_stmt(void)
 {
     node_t *ret = NULL;
@@ -572,7 +603,7 @@ static node_t *statement(void)
 {
     switch (token->id) {
     case '{':
-        return compound_stmt(NULL);
+        return compound_stmt(NULL, NULL);
     case IF:
         return if_stmt();
     case SWITCH:
@@ -604,7 +635,8 @@ static node_t *statement(void)
     }
 }
 
-static node_t *compound_stmt(void (*enter_hook) (void))
+static node_t *compound_stmt(void (*enter_hook) (void),
+                             void (*exit_hook) (void))
 {
     struct source src = source;
     struct vector *v = vec_new();
@@ -625,6 +657,9 @@ static node_t *compound_stmt(void (*enter_hook) (void))
             // statement
             vec_push_safe(v, statement());
     }
+
+    if (exit_hook)
+        exit_hook();
 
     RESTORE_COMPOUND_CONTEXT();
 
@@ -654,13 +689,15 @@ void func_body(node_t *decl)
     
     SET_FUNCDEF_CONTEXT(SYM_TYPE(sym), SYM_NAME(sym));
     
-    node_t *stmt = compound_stmt(predefined_identifiers);
+    node_t *stmt = compound_stmt(predefined_ids, filter_local);
     DECL_BODY(decl) = stmt;
     // check goto labels
     backfill_labels();
     // TODO: check control flow and return stmt
 
-    filter_local();
+    DECL_X(decl).lvars = (node_t **)vtoa(localvars);
+    DECL_X(decl).svars = (node_t **)vtoa(staticvars);
+    
     RESTORE_FUNCDEF_CONTEXT();
 }
 
@@ -671,7 +708,7 @@ node_t *make_localvar(const char *name, node_t * ty, int sclass)
     return decl;
 }
 
-static void predefined_identifiers(void)
+static void predefined_ids(void)
 {
     {
         /**
@@ -686,6 +723,7 @@ static void predefined_identifiers(void)
         const char *name = strs("__func__");
         node_t *type = array_type(qual(CONST, chartype));
         node_t *decl = make_localvar(name, type, STATIC);
+        SYM_PREDEFINE(DECL_SYM(decl)) = true;
         // initializer
         node_t *literal = new_string_literal(funcname);
         AST_SRC(literal) = source;
@@ -694,35 +732,32 @@ static void predefined_identifiers(void)
     }
 }
 
-static node_t *ensure_return(node_t * expr, struct source src)
-{
-    // return immediately if expr is NULL. (parsing failed)
-    if (expr == NULL)
-        return NULL;
-
-    if (isvoid(rtype(functype))) {
-        if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
-            errorf(src,
-                   "void function '%s' should not return a value",
-                   funcname);
-    } else {
-        if (!isnullstmt(expr)) {
-            node_t *ty1 = AST_TYPE(expr);
-            node_t *ty2 = rtype(functype);
-            if (!(expr = assignconv(ty2, expr)))
-                errorf(src,
-                       "returning '%s' from function '%s' with incompatible result type '%s'",
-                       type2s(ty1), funcname, type2s(ty2));
-        } else {
-            errorf(src,
-                   "non-void function '%s' should return a value",
-                   funcname);
-        }
-    }
-    return expr;
-}
-
 static void filter_local(void)
 {
-    
+    struct vector *v = vec_new();
+    for (int i = 0; i < vec_len(COMPOUND_VECTOR); i++) {
+        node_t *n = vec_at(COMPOUND_VECTOR, i);
+        if (isdecl(n)) {
+            if (isvardecl(n)) {
+                node_t *sym = DECL_SYM(n);
+                int sclass = SYM_SCLASS(sym);
+                if (SYM_REFS(sym)) {
+                    if (sclass == STATIC) {
+                        vec_push(v, n);
+                        vec_push(staticvars, n);
+                    } else if (sclass != EXTERN) {
+                        vec_push(v, n);
+                        vec_push(localvars, n);
+                    }
+                } else {
+                    if (!SYM_PREDEFINE(sym))
+                        warningf(AST_SRC(sym),
+                                 "unused variable '%s'",
+                                 SYM_NAME(sym));
+                }
+            }
+        } else {
+            vec_push(v, n);
+        }
+    }
 }
