@@ -1,9 +1,8 @@
 #include "cc.h"
 
 static node_t *statement(void);
-static node_t *compound_stmt(void (*) (void), void (*) (void));
+static node_t *compound_stmt(void (*) (void));
 static void predefined_ids(void);
-static void filter_local(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -57,16 +56,12 @@ static struct vector *gotos;
 static struct map *labels;
 static node_t *functype;
 static const char *funcname;
-static struct vector *localvars;
-static struct vector *staticvars;
 
 #define SET_FUNCDEF_CONTEXT(fty, id)            \
     gotos = vec_new();                          \
     labels = map_new();                         \
     functype = fty;                             \
     funcname = id;                              \
-    localvars = vec_new();                      \
-    staticvars = vec_new();                     \
     extra_stack_size = 0
 
 #define RESTORE_FUNCDEF_CONTEXT()               \
@@ -76,10 +71,6 @@ static struct vector *staticvars;
     labels = NULL;                              \
     functype = NULL;                            \
     funcname = NULL;                            \
-    vec_free(localvars);                        \
-    localvars = NULL;                           \
-    vec_free(staticvars);                       \
-    staticvars = NULL;                          \
     extra_stack_size = 0
 
 
@@ -514,7 +505,7 @@ static node_t *statement(void)
 {
     switch (token->id) {
     case '{':
-        return compound_stmt(NULL, NULL);
+        return compound_stmt(NULL);
     case IF:
         return if_stmt();
     case SWITCH:
@@ -546,8 +537,7 @@ static node_t *statement(void)
     }
 }
 
-static node_t *compound_stmt(void (*enter_hook) (void),
-                             void (*exit_hook) (void))
+static node_t *compound_stmt(void (*enter_hook) (void))
 {
     node_t *ret = ast_stmt(COMPOUND_STMT, source);
     struct vector *v = vec_new();
@@ -568,9 +558,6 @@ static node_t *compound_stmt(void (*enter_hook) (void),
             // statement
             vec_push_safe(v, statement());
     }
-
-    if (exit_hook)
-        exit_hook();
 
     STMT_BLKS(ret) = (node_t **)vtoa(v);
 
@@ -600,14 +587,11 @@ void func_body(node_t *decl)
     
     SET_FUNCDEF_CONTEXT(SYM_TYPE(sym), SYM_NAME(sym));
     
-    node_t *stmt = compound_stmt(predefined_ids, filter_local);
+    node_t *stmt = compound_stmt(predefined_ids);
     DECL_BODY(decl) = stmt;
     // check goto labels
     backfill_labels();
     // TODO: check control flow and return stmt
-
-    DECL_X(decl).lvars = (node_t **)vtoa(localvars);
-    DECL_X(decl).svars = (node_t **)vtoa(staticvars);
     
     RESTORE_FUNCDEF_CONTEXT();
 }
@@ -641,9 +625,4 @@ static void predefined_ids(void)
         init_string(type, literal);
         DECL_BODY(decl) = literal;
     }
-}
-
-static void filter_local(void)
-{
-    
 }
