@@ -599,18 +599,17 @@ static void ensure_labels(void)
     }
 }
 
-void func_body(node_t *decl)
+node_t *func_body(node_t *ty, const char *name)
 {
-    node_t *sym = DECL_SYM(decl);
-    
-    SET_FUNCDEF_CONTEXT(SYM_TYPE(sym), SYM_NAME(sym));
+    SET_FUNCDEF_CONTEXT(ty, name);
     
     node_t *stmt = compound_stmt(predefined_ids);
-    DECL_BODY(decl) = stmt;
     // check goto labels
     ensure_labels();
     
     RESTORE_FUNCDEF_CONTEXT();
+
+    return stmt;
 }
 
 node_t *make_localvar(const char *name, node_t * ty, int sclass)
