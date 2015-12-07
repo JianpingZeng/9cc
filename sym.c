@@ -100,7 +100,6 @@ node_t *install(const char *name, struct table ** tpp, int scope)
     sym = alloc_symbol();
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
-    SYM_X(sym).label = name;
     dict_put(tp->dict, name, sym);
 
     return sym;
