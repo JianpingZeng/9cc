@@ -2,9 +2,6 @@
 
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
-static void predefined_ids(void);
-static void ensure_labels(void);
-static void check_control_flow(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -83,7 +80,7 @@ static node_t *expr_stmt(void)
     if (token->id == ';')
         ret = ast_stmt(NULL_STMT, source);
     else if (first_expr(token))
-        ret = reduce(expression());
+        ret = expression();
     else
         error("missing statement before '%s'", token->name);
 
@@ -370,7 +367,7 @@ static node_t *label_stmt(void)
 {
     node_t *ret = ast_stmt(LABEL_STMT, source);
     node_t *stmt;
-    const char *name = NULL;
+    const char *name;
 
     SAVE_ERRORS;
     name = token->name;
@@ -567,29 +564,6 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     return ret;
 }
 
-void func_body(node_t *decl)
-{
-    node_t *sym = DECL_SYM(decl);
-    
-    SET_FUNCDEF_CONTEXT(SYM_TYPE(sym), SYM_NAME(sym));
-    
-    node_t *stmt = compound_stmt(predefined_ids);
-    DECL_BODY(decl) = stmt;
-    // check goto labels
-    ensure_labels();
-    // check control flow and return stmt
-    check_control_flow();
-    
-    RESTORE_FUNCDEF_CONTEXT();
-}
-
-node_t *make_localvar(const char *name, node_t * ty, int sclass)
-{
-    node_t *decl = make_localdecl(name, ty, sclass);
-    vec_push(COMPOUND_VECTOR, decl);
-    return decl;
-}
-
 static void predefined_ids(void)
 {
     {
@@ -625,7 +599,23 @@ static void ensure_labels(void)
     }
 }
 
-static void check_control_flow(void)
+void func_body(node_t *decl)
 {
+    node_t *sym = DECL_SYM(decl);
     
+    SET_FUNCDEF_CONTEXT(SYM_TYPE(sym), SYM_NAME(sym));
+    
+    node_t *stmt = compound_stmt(predefined_ids);
+    DECL_BODY(decl) = stmt;
+    // check goto labels
+    ensure_labels();
+    
+    RESTORE_FUNCDEF_CONTEXT();
+}
+
+node_t *make_localvar(const char *name, node_t * ty, int sclass)
+{
+    node_t *decl = make_localdecl(name, ty, sclass);
+    vec_push(COMPOUND_VECTOR, decl);
+    return decl;
 }

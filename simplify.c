@@ -227,6 +227,11 @@ static node_t * simplify_stmt(node_t *stmt)
     }
 }
 
+static void check_control_flow(void)
+{
+    
+}
+
 static void backfill_labels(void)
 {
     
@@ -239,6 +244,10 @@ static node_t * simplify_function(node_t *decl)
     SET_FUNCDEF_CONTEXT();
     DECL_BODY(decl) = simplify_stmt(stmt);
     RESTORE_FUNCDEF_CONTEXT();
+
+    // check control flow and return stmt
+    check_control_flow();
+    
     return decl;
 }
 
