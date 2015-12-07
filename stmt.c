@@ -3,7 +3,7 @@
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
 static void predefined_ids(void);
-static void backfill_labels(void);
+static void esnure_labels(void);
 static void check_control_flow(void);
 
 static node_t *__loop;
@@ -464,22 +464,18 @@ static node_t *ensure_return(node_t * expr, struct source src)
 
     if (isvoid(rtype(functype))) {
         if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
-            errorf(src,
-                   "void function '%s' should not return a value",
-                   funcname);
+            errorf(src, "void function should not return a value");
     } else {
         if (!isnullstmt(expr)) {
             node_t *ty1 = AST_TYPE(expr);
             node_t *ty2 = rtype(functype);
             if (!(expr = assignconv(ty2, expr)))
                 errorf(src,
-                       "returning '%s' from function '%s' "
+                       "returning '%s' from function "
                        "with incompatible result type '%s'",
-                       type2s(ty1), funcname, type2s(ty2));
+                       type2s(ty1), type2s(ty2));
         } else {
-            errorf(src,
-                   "non-void function '%s' should return a value",
-                   funcname);
+            errorf(src, "non-void function should return a value");
         }
     }
     return expr;
@@ -580,7 +576,7 @@ void func_body(node_t *decl)
     node_t *stmt = compound_stmt(predefined_ids);
     DECL_BODY(decl) = stmt;
     // check goto labels
-    backfill_labels();
+    ensure_labels();
     // check control flow and return stmt
     check_control_flow();
     
@@ -612,13 +608,12 @@ static void predefined_ids(void)
         SYM_PREDEFINE(DECL_SYM(decl)) = true;
         // initializer
         node_t *literal = new_string_literal(funcname);
-        AST_SRC(literal) = source;
         init_string(type, literal);
         DECL_BODY(decl) = literal;
     }
 }
 
-static void backfill_labels(void)
+static void ensure_labels(void)
 {
     for (int i = 0; i < vec_len(gotos); i++) {
         node_t *goto_stmt = vec_at(gotos, i);
