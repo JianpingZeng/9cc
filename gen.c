@@ -848,9 +848,7 @@ static void emit_decl(node_t * n)
 
 static void emit_compound(node_t * n)
 {
-    cc_assert(AST_ID(n) == AST_COMPOUND);
-    for (int i = 0; i < LIST_LEN(STMT_LIST(n)); i++)
-        emit_stmt(STMT_LIST(n)[i]);
+    
 }
 
 static void emit_label(const char *label)
@@ -901,14 +899,14 @@ static void emit_stmt(node_t * n)
             emit_compound(n);
             break;
         case AST_RETURN:
-            emit_expr(STMT_OPERAND(n));
+            emit_expr(GEN_OPERAND(n));
             emit_jmp(func_ret_label);
             break;
         case AST_LABEL:
-            emit_label(STMT_LABEL(n));
+            emit_label(GEN_LABEL(n));
             break;
         case AST_JUMP:
-            emit_jmp(STMT_LABEL(n));
+            emit_jmp(GEN_LABEL(n));
             break;
         default:
             // null statement

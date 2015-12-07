@@ -41,14 +41,33 @@ _ns(END_EXPR_ID)
 // stmt
 _ns(BEGIN_STMT_ID)
 
+_n(BREAK_STMT,        "BreakStmt")
+_n(CASE_STMT,         "CaseStmt")
+_n(COMPOUND_STMT,     "CompoundStmt")
+_n(CONTINUE_STMT,     "ContinueStmt")
+_n(DEFAULT_STMT,      "DefaultStmt")
+_n(DO_WHILE_STMT,     "DoWhileStmt")
+_n(FOR_STMT,          "ForStmt")
+_n(GOTO_STMT,         "GotoStmt")
+_n(LABEL_STMT,        "LabelStmt")
+_n(IF_STMT,           "IfStmt")
+_n(RETURN_STMT,       "ReturnStmt")
+_n(SWITCH_STMT,       "SwitchStmt")
+_n(WHILE_STMT,        "WhileStmt")
+_n(NULL_STMT,         "NullStmt")
+
+_ns(END_STMT_ID)
+
+// gen
+_ns(BEGIN_GEN_ID)
+
 _n(AST_IF,		"AST_IF")
 _n(AST_JUMP,  		"AST_JUMP")
 _n(AST_LABEL,		"AST_LABEL")
 _n(AST_COMPOUND,	"AST_COMPOUND")
 _n(AST_RETURN,		"AST_RETURN")
-_n(NULL_STMT,           "NullStmt")
 
-_ns(END_STMT_ID)
+_ns(END_GEN_ID)
 
 // misc
 _n(FIELD_NODE,         "Field")

@@ -5,12 +5,52 @@ static node_t *compound_stmt(void (*) (void), void (*) (void));
 static void predefined_ids(void);
 static void filter_local(void);
 
-static const char *__continue;
-static const char *__break;
+static node_t *__loop;
+static node_t *__switch;
 static struct vector *__cases;
 static node_t *__default;
 static node_t *__switch_ty;
+
+#define SET_LOOP_CONTEXT(loop)                  \
+    node_t *__saved_loop = __loop;              \
+    __loop = loop
+
+#define RESTORE_LOOP_CONTEXT()                  \
+    __loop = __saved_loop
+
+#define SET_SWITCH_CONTEXT(sw, ty)              \
+    node_t *__saved_sw = __switch;              \
+    struct vector *__saved_cases = __cases;     \
+    node_t *__saved_default = __default;        \
+    node_t *__saved_switch_ty = __switch_ty;    \
+    __switch = sw;                              \
+    __cases = vec_new();                        \
+    __default = NULL;                           \
+    __switch_ty = ty
+
+#define RESTORE_SWITCH_CONTEXT()                \
+    vec_free(__cases);                          \
+    __switch = __saved_sw;                      \
+    __cases = __saved_cases;                    \
+    __default = __saved_default;                \
+    __switch_ty = __saved_switch_ty
+
+#define IN_LOOP       (__loop)
+#define IN_SWITCH     (__switch)
+#define CASES         (__cases)
+#define DEFLT         (__default)
+#define SWITCH_TYPE   (__switch_ty)
+
 static struct vector *__compound_vector;
+
+#define SET_COMPOUND_CONTEXT(v)                         \
+    struct vector *__saved_vector = __compound_vector;  \
+    __compound_vector = v
+
+#define RESTORE_COMPOUND_CONTEXT()              \
+    __compound_vector = __saved_vector
+
+#define COMPOUND_VECTOR   (__compound_vector)
 
 size_t extra_stack_size;
 static struct vector *gotos;
@@ -42,56 +82,13 @@ static struct vector *staticvars;
     staticvars = NULL;                          \
     extra_stack_size = 0
 
-#define SET_COMPOUND_CONTEXT(v)                         \
-    struct vector *__saved_vector = __compound_vector;  \
-    __compound_vector = v
-
-#define RESTORE_COMPOUND_CONTEXT()              \
-    __compound_vector = __saved_vector
-
-#define SET_LOOP_CONTEXT(cont, brk)             \
-    const char *__saved_continue = __continue;  \
-    const char *__saved_break = __break;        \
-    __continue = cont;                          \
-    __break = brk;                              \
-    enter_scope()
-
-#define RESTORE_LOOP_CONTEXT()                  \
-    __continue = __saved_continue;              \
-    __break = __saved_break;                    \
-    exit_scope()
-
-#define SET_SWITCH_CONTEXT(brk, ty)             \
-    const char *__saved_break = __break;        \
-    struct vector *__saved_cases = __cases;     \
-    node_t *__saved_default = __default;        \
-    node_t *__saved_switch_ty = __switch_ty;    \
-    __break = brk;                              \
-    __cases = vec_new();                        \
-    __default = NULL;                           \
-    __switch_ty = ty
-
-#define RESTORE_SWITCH_CONTEXT()                \
-    vec_free(__cases);                          \
-    __break = __saved_break;                    \
-    __cases = __saved_cases;                    \
-    __default = __saved_default;                \
-    __switch_ty = __saved_switch_ty
-
-#define COMPOUND_VECTOR   (__compound_vector)
-#define CONTINUE_CONTEXT  (__continue)
-#define BREAK_CONTEXT     (__break)
-#define IN_SWITCH         (__cases)
-#define CASES             (__cases)
-#define DEFLT             (__default)
-#define SWITCH_TYPE       (__switch_ty)
 
 static node_t *expr_stmt(void)
 {
     node_t *ret = NULL;
 
     if (token->id == ';')
-        ret = ast_null_stmt();
+        ret = ast_stmt(NULL_STMT, source);
     else if (first_expr(token))
         ret = reduce(expression());
     else
@@ -109,11 +106,10 @@ static node_t *expr_stmt(void)
  */
 static node_t *if_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(IF_STMT, source);
     node_t *cond;
     node_t *thenpart;
     node_t *elsepart = NULL;
-    struct source src = source;
 
     enter_scope();
 
@@ -137,8 +133,11 @@ static node_t *if_stmt(void)
     exit_scope();
 
     if (NO_ERROR) {
-        ret = ast_if(cond, thenpart, elsepart);
-        AST_SRC(ret) = src;
+        STMT_COND(ret) = cond;
+        STMT_THEN(ret) = thenpart;
+        STMT_ELSE(ret) = elsepart;
+    } else {
+        ret = NULL;
     }
 
     return ret;
@@ -150,10 +149,9 @@ static node_t *if_stmt(void)
  */
 static node_t *while_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(WHILE_STMT, source);
     node_t *cond;
     node_t *body;
-    struct source src = source;
 
     enter_scope();
 
@@ -163,21 +161,17 @@ static node_t *while_stmt(void)
     cond = bool_expr();
     expect(')');
 
-    const char *beg = gen_label();
-    const char *end = gen_label();
-    SET_LOOP_CONTEXT(beg, end);
+    SET_LOOP_CONTEXT(ret);
     body = statement();
     RESTORE_LOOP_CONTEXT();
 
     exit_scope();
 
     if (NO_ERROR) {
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(beg));
-        vec_push(v, ast_if(cond, body, ast_jump(end)));
-        vec_push(v, ast_jump(beg));
-        vec_push(v, ast_label(end));
-        ret = ast_compound(src, (node_t **) vtoa(v));
+        STMT_WHILE_COND(ret) = cond;
+        STMT_WHILE_BODY(ret) = body;
+    } else {
+        ret = NULL;
     }
 
     return ret;
@@ -185,20 +179,19 @@ static node_t *while_stmt(void)
 
 static node_t *do_while_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(DO_WHILE_STMT, source);
     node_t *body;
     node_t *cond;
-    struct source src = source;
-    const char *beg = gen_label();
-    const char *end = gen_label();
 
     enter_scope();
 
     SAVE_ERRORS;
     expect(DO);
-    SET_LOOP_CONTEXT(beg, end);
+    
+    SET_LOOP_CONTEXT(ret);
     body = statement();
     RESTORE_LOOP_CONTEXT();
+
     expect(WHILE);
     expect('(');
     cond = bool_expr();
@@ -208,12 +201,10 @@ static node_t *do_while_stmt(void)
     exit_scope();
 
     if (NO_ERROR) {
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(beg));
-        vec_push(v, body);
-        vec_push(v, ast_if(cond, ast_jump(beg), NULL));
-        vec_push(v, ast_label(end));
-        ret = ast_compound(src, (node_t **) vtoa(v));
+        STMT_WHILE_COND(ret) = cond;
+        STMT_WHILE_BODY(ret) = body;
+    } else {
+        ret = NULL;
     }
 
     return ret;
@@ -221,16 +212,8 @@ static node_t *do_while_stmt(void)
 
 static node_t *for_stmt(void)
 {
-    node_t *ret = NULL;
-    node_t **decl = NULL;
-    node_t *init = NULL;
-    node_t *cond = NULL;
-    node_t *ctrl = NULL;
+    node_t *ret = ast_stmt(FOR_STMT, source);
     node_t *body;
-    struct source src = source;
-    const char *beg = gen_label();
-    const char *mid = gen_label();
-    const char *end = gen_label();
 
     enter_scope();
 
@@ -243,74 +226,36 @@ static node_t *for_stmt(void)
     } else {
         if (first_decl(token)) {
             // declaration
-            decl = declaration();
+            STMT_FOR_DECL(ret) = declaration();
         } else {
             // expression
-            init = expression();
+            STMT_FOR_INIT(ret) = expression();
             expect(';');
         }
     }
 
     if (token->id != ';')
-        cond = bool_expr();
+        STMT_FOR_COND(ret) = bool_expr();
 
     expect(';');
 
     if (token->id != ')')
-        ctrl = expression();
+        STMT_FOR_CTRL(ret) = expression();
 
     expect(')');
 
-    SET_LOOP_CONTEXT(mid, end);
+    SET_LOOP_CONTEXT(ret);
     body = statement();
     RESTORE_LOOP_CONTEXT();
 
     exit_scope();
 
-    if (NO_ERROR) {
-        struct vector *v = vec_new();
-        if (decl)
-            vec_add_array(v, (void **)decl);
-        else if (init)
-            vec_push(v, init);
-        vec_push(v, ast_label(beg));
-        if (cond)
-            vec_push(v, ast_if(cond, NULL, ast_jump(end)));
-        if (body)
-            vec_push(v, body);
-        vec_push(v, ast_label(mid));
-        if (ctrl)
-            vec_push(v, ctrl);
-        vec_push(v, ast_jump(beg));
-        vec_push(v, ast_label(end));
-        ret = ast_compound(src, (node_t **) vtoa(v));
-    }
+    if (NO_ERROR)
+        STMT_FOR_BODY(ret) = body;
+    else
+        ret = NULL;
 
     return ret;
-}
-
-static node_t *switch_jmp(node_t * var, node_t * case_node)
-{
-    node_t *cond;
-    long index = STMT_INDEX(case_node);
-    const char *label = STMT_LABEL(case_node);
-    node_t *index_node = int_literal_node(AST_TYPE(var), (union value){
-            .u = index });
-
-    cond = ast_bop(EQ, inttype, var, index_node);
-    return ast_if(cond, ast_jump(label), NULL);
-}
-
-static node_t *define_tmpvar(node_t * ty)
-{
-    const char *name = gen_tmpname();
-    node_t *decl = make_localvar(name, ty, 0);
-    node_t *n = alloc_node();
-    AST_ID(n) = REF_EXPR;
-    EXPR_SYM(n) = DECL_SYM(decl);
-    AST_TYPE(n) = ty;
-    SYM_REFS(DECL_SYM(decl))++;
-    return n;
 }
 
 /**
@@ -324,11 +269,9 @@ static node_t *define_tmpvar(node_t * ty)
  */
 static node_t *switch_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(SWITCH_STMT, source);
     node_t *expr;
     node_t *body;
-    struct source src = source;
-    const char *end = gen_label();
 
     SAVE_ERRORS;
     expect(SWITCH);
@@ -336,26 +279,16 @@ static node_t *switch_stmt(void)
     expr = switch_expr();
     expect(')');
 
-    SET_SWITCH_CONTEXT(end, expr ? AST_TYPE(expr) : NULL);
-
+    SET_SWITCH_CONTEXT(ret, expr ? AST_TYPE(expr) : NULL);
     body = statement();
+    RESTORE_SWITCH_CONTEXT();
 
     if (NO_ERROR) {
-        struct vector *v = vec_new();
-        node_t *var = define_tmpvar(AST_TYPE(expr));
-        vec_push(v, ast_bop('=', AST_TYPE(expr), var, expr));
-        for (int i = 0; i < vec_len(CASES); i++) {
-            node_t *case_node = vec_at(CASES, i);
-            vec_push(v, switch_jmp(var, case_node));
-        }
-        const char *label = DEFLT ? STMT_LABEL(DEFLT) : end;
-        vec_push(v, ast_jump(label));
-        vec_push(v, body);
-        vec_push(v, ast_label(end));
-        ret = ast_compound(src, (node_t **) vtoa(v));
+        STMT_SWITCH_EXPR(ret) = expr;
+        STMT_SWITCH_BODY(ret) = body;
+    } else {
+        ret = NULL;
     }
-
-    RESTORE_SWITCH_CONTEXT();
 
     return ret;
 }
@@ -364,12 +297,14 @@ static void check_case_duplicates(node_t * node)
 {
     for (int i = vec_len(CASES) - 1; i >= 0; i--) {
         node_t *n = vec_at(CASES, i);
-        if (STMT_INDEX(n) == STMT_INDEX(node)) {
+        if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
             errorf(AST_SRC(node),
                    "duplicate case value '%lld', "
                    "previous case defined here: %s:%u:%u",
-                   STMT_INDEX(node), AST_SRC(n).file,
-                   AST_SRC(n).line, AST_SRC(n).column);
+                   STMT_CASE_INDEX(node),
+                   AST_SRC(n).file,
+                   AST_SRC(n).line,
+                   AST_SRC(n).column);
             break;
         }
     }
@@ -377,45 +312,38 @@ static void check_case_duplicates(node_t * node)
 
 static node_t *case_stmt(void)
 {
+    node_t *ret = ast_stmt(CASE_STMT, source);
     node_t *body;
-    struct source src = source;
-    node_t *ret = ast_compound(src, NULL);
 
     SAVE_ERRORS;
     expect(CASE);
-    STMT_INDEX(ret) = intexpr1(SWITCH_TYPE);
+    STMT_CASE_INDEX(ret) = intexpr1(SWITCH_TYPE);
     expect(':');
 
     if (!IN_SWITCH)
-        errorf(src, "'case' statement not in switch statement");
+        errorf(AST_SRC(ret), "'case' statement not in switch statement");
 
     // only check when intexpr is okay.
     if (NO_ERROR) {
         check_case_duplicates(ret);
         vec_push(CASES, ret);
     }
+
     // always parse even if not in a switch statement
     body = statement();
 
-    if (NO_ERROR) {
-        const char *label = gen_label();
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(label));
-        vec_push(v, body);
-        STMT_LIST(ret) = (node_t **) vtoa(v);
-        STMT_LABEL(ret) = label;
-    } else {
+    if (NO_ERROR)
+        STMT_CASE_BODY(ret) = body;
+    else
         ret = NULL;
-    }
 
     return ret;
 }
 
 static node_t *default_stmt(void)
 {
-    node_t *body;
-    struct source src = source;
-    node_t *ret = ast_compound(src, NULL);
+    node_t *ret = ast_stmt(DEFAULT_STMT, source);
+    node_t *stmt;
 
     SAVE_ERRORS;
     expect(DEFAULT);
@@ -423,39 +351,33 @@ static node_t *default_stmt(void)
 
     // print before parsing statement
     if (!IN_SWITCH)
-        errorf(src, "'default' statement not in switch statement");
+        errorf(AST_SRC(ret), "'default' statement not in switch statement");
 
     if (DEFLT)
-        errorf(src,
+        errorf(AST_SRC(ret),
                "multiple default labels in one switch, "
                "previous case defined here:%s:%u:%u",
-               AST_SRC(DEFLT).file, AST_SRC(DEFLT).line,
+               AST_SRC(DEFLT).file,
+               AST_SRC(DEFLT).line,
                AST_SRC(DEFLT).column);
 
     DEFLT = ret;
-    body = statement();
+    
+    stmt = statement();
 
-    if (NO_ERROR) {
-        const char *label = gen_label();
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(label));
-        vec_push(v, body);
-        STMT_LIST(ret) = (node_t **) vtoa(v);
-        STMT_LABEL(ret) = label;
-    } else {
+    if (NO_ERROR)
+        STMT_CASE_BODY(ret) = stmt;
+    else
         ret = NULL;
-    }
 
     return ret;
 }
 
 static node_t *label_stmt(void)
 {
-    node_t *body;
+    node_t *ret = ast_stmt(LABEL_STMT, source);
+    node_t *stmt;
     const char *name = NULL;
-    struct source src = source;
-    node_t *ret = ast_compound(src, NULL);
-    const char *label = gen_label();
 
     SAVE_ERRORS;
     name = token->name;
@@ -466,87 +388,77 @@ static node_t *label_stmt(void)
     if (NO_ERROR) {
         node_t *n = map_get(labels, name);
         if (n)
-            errorf(src,
+            errorf(AST_SRC(ret),
                    "redefinition of label '%s', "
                    "previous label defined here:%s:%u:%u",
-                   name, AST_SRC(n).file, AST_SRC(n).line,
+                   name,
+                   AST_SRC(n).file,
+                   AST_SRC(n).line,
                    AST_SRC(n).column);
         map_put(labels, name, ret);
+        STMT_LABEL_NAME(ret) = name;
     }
 
-    body = statement();
+    stmt = statement();
 
-    if (NO_ERROR) {
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(label));
-        vec_push(v, body);
-        STMT_LIST(ret) = (node_t **) vtoa(v);
-        STMT_LABEL(ret) = label;
-    } else {
+    if (NO_ERROR)
+        STMT_LABEL_BODY(ret) = stmt;
+    else
         ret = NULL;
-    }
 
     return ret;
 }
 
 static node_t *goto_stmt(void)
 {
-    node_t *ret = NULL;
-    struct source src = source;
-    const char *name;
+    node_t *ret = ast_stmt(GOTO_STMT, source);
 
     SAVE_ERRORS;
     expect(GOTO);
-    name = token->name;
+    STMT_LABEL_NAME(ret) = token->name;
     expect(ID);
     expect(';');
 
-    if (NO_ERROR) {
-        ret = ast_jump(name);
+    if (NO_ERROR)
         vec_push(gotos, ret);
-        AST_SRC(ret) = src;
-    }
+    else
+        ret = NULL;
 
     return ret;
 }
 
 static node_t *break_stmt(void)
 {
-    node_t *ret = NULL;
-    struct source src = source;
+    node_t *ret = ast_stmt(BREAK_STMT, source);
 
     SAVE_ERRORS;
     expect(BREAK);
     expect(';');
 
-    if (!BREAK_CONTEXT)
-        errorf(src,
+    if (!IN_LOOP && !IN_SWITCH)
+        errorf(AST_SRC(ret),
                "'break' statement not in loop or switch statement");
 
-    if (NO_ERROR) {
-        ret = ast_jump(BREAK_CONTEXT);
-        AST_SRC(ret) = src;
-    }
+    if (!NO_ERROR)
+        ret = NULL;
 
     return ret;
 }
 
 static node_t *continue_stmt(void)
 {
-    node_t *ret = NULL;
-    struct source src = source;
+    node_t *ret = ast_stmt(CONTINUE_STMT, source);
 
     SAVE_ERRORS;
     expect(CONTINUE);
     expect(';');
 
-    if (!CONTINUE_CONTEXT)
-        errorf(src, "'continue' statement not in loop statement");
+    if (!IN_LOOP)
+        errorf(AST_SRC(ret),
+               "'continue' statement not in loop statement");
 
-    if (NO_ERROR) {
-        ret = ast_jump(CONTINUE_CONTEXT);
-        AST_SRC(ret) = src;
-    }
+    if (!NO_ERROR)
+        ret = NULL;
 
     return ret;
 }
@@ -582,19 +494,18 @@ static node_t *ensure_return(node_t * expr, struct source src)
 
 static node_t *return_stmt(void)
 {
-    node_t *ret = NULL;
+    node_t *ret = ast_stmt(RETURN_STMT, source);
     node_t *expr;
-    struct source src = source;
 
     SAVE_ERRORS;
     expect(RETURN);
     expr = expr_stmt();
-    expr = ensure_return(expr, src);
+    expr = ensure_return(expr, AST_SRC(ret));
 
-    if (NO_ERROR) {
-        ret = ast_return(expr);
-        AST_SRC(ret) = src;
-    }
+    if (NO_ERROR)
+        STMT_RETURN_EXPR(ret) = expr;
+    else
+        ret = NULL;
 
     return ret;
 }
@@ -638,7 +549,7 @@ static node_t *statement(void)
 static node_t *compound_stmt(void (*enter_hook) (void),
                              void (*exit_hook) (void))
 {
-    struct source src = source;
+    node_t *ret = ast_stmt(COMPOUND_STMT, source);
     struct vector *v = vec_new();
 
     expect('{');
@@ -661,23 +572,23 @@ static node_t *compound_stmt(void (*enter_hook) (void),
     if (exit_hook)
         exit_hook();
 
+    STMT_BLKS(ret) = (node_t **)vtoa(v);
+
     RESTORE_COMPOUND_CONTEXT();
 
     expect('}');
     exit_scope();
 
-    return ast_compound(src, (node_t **) vtoa(v));
+    return ret;
 }
 
 static void backfill_labels(void)
 {
     for (int i = 0; i < vec_len(gotos); i++) {
         node_t *goto_stmt = vec_at(gotos, i);
-        const char *name = STMT_LABEL(goto_stmt);
+        const char *name = STMT_LABEL_NAME(goto_stmt);
         node_t *label_stmt = map_get(labels, name);
-        if (label_stmt)
-            STMT_LABEL(goto_stmt) = STMT_LABEL(label_stmt);
-        else
+        if (!label_stmt)
             errorf(AST_SRC(goto_stmt),
                    "use of undeclared label '%s'", name);
     }
@@ -734,30 +645,5 @@ static void predefined_ids(void)
 
 static void filter_local(void)
 {
-    struct vector *v = vec_new();
-    for (int i = 0; i < vec_len(COMPOUND_VECTOR); i++) {
-        node_t *n = vec_at(COMPOUND_VECTOR, i);
-        if (isdecl(n)) {
-            if (isvardecl(n)) {
-                node_t *sym = DECL_SYM(n);
-                int sclass = SYM_SCLASS(sym);
-                if (SYM_REFS(sym)) {
-                    if (sclass == STATIC) {
-                        vec_push(v, n);
-                        vec_push(staticvars, n);
-                    } else if (sclass != EXTERN) {
-                        vec_push(v, n);
-                        vec_push(localvars, n);
-                    }
-                } else {
-                    if (!SYM_PREDEFINE(sym))
-                        warningf(AST_SRC(sym),
-                                 "unused variable '%s'",
-                                 SYM_NAME(sym));
-                }
-            }
-        } else {
-            vec_push(v, n);
-        }
-    }
+    
 }
