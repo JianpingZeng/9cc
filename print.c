@@ -62,7 +62,7 @@ static void print_label(int level, const char *name)
 {
     for (int i = 0; i < level; i++)
         putf("  ");
-    putf("%s\n", name);
+    putf(RED("%s\n"), name);
 }
 
 static void print_decl(node_t * node, struct print_context context)
@@ -334,8 +334,11 @@ static void print_stmt(node_t * node, struct print_context context)
     break;
     case LABEL_STMT:
     {
+        const char *label = STMT_LABEL_NAME(node);
         node_t *body = STMT_LABEL_BODY(node);
 
+        if (label)
+            print_label(level, label);
         if (body) {
             struct print_context con = {level, body};
             print_tree1(con);
