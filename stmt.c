@@ -3,6 +3,8 @@
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
 static void predefined_ids(void);
+static void backfill_labels(void);
+static void check_control_flow(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -569,18 +571,6 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     return ret;
 }
 
-static void backfill_labels(void)
-{
-    for (int i = 0; i < vec_len(gotos); i++) {
-        node_t *goto_stmt = vec_at(gotos, i);
-        const char *name = STMT_LABEL_NAME(goto_stmt);
-        node_t *label_stmt = map_get(labels, name);
-        if (!label_stmt)
-            errorf(AST_SRC(goto_stmt),
-                   "use of undeclared label '%s'", name);
-    }
-}
-
 void func_body(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
@@ -591,7 +581,8 @@ void func_body(node_t *decl)
     DECL_BODY(decl) = stmt;
     // check goto labels
     backfill_labels();
-    // TODO: check control flow and return stmt
+    // check control flow and return stmt
+    check_control_flow();
     
     RESTORE_FUNCDEF_CONTEXT();
 }
@@ -625,4 +616,21 @@ static void predefined_ids(void)
         init_string(type, literal);
         DECL_BODY(decl) = literal;
     }
+}
+
+static void backfill_labels(void)
+{
+    for (int i = 0; i < vec_len(gotos); i++) {
+        node_t *goto_stmt = vec_at(gotos, i);
+        const char *name = STMT_LABEL_NAME(goto_stmt);
+        node_t *label_stmt = map_get(labels, name);
+        if (!label_stmt)
+            errorf(AST_SRC(goto_stmt),
+                   "use of undeclared label '%s'", name);
+    }
+}
+
+static void check_control_flow(void)
+{
+    
 }
