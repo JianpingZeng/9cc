@@ -3,7 +3,7 @@
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
 static void predefined_ids(void);
-static void esnure_labels(void);
+static void ensure_labels(void);
 static void check_control_flow(void);
 
 static node_t *__loop;

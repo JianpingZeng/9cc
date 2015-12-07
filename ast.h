@@ -59,6 +59,10 @@ union code {
         struct operand *addr;
         struct operand *arg;
     }expr;
+
+    struct {
+        const char *label;
+    }stmt;
 };
 
 #define AST_ID(NODE)            ((NODE)->common.id)
@@ -253,11 +257,15 @@ struct ast_expr {
 // return stmt
 #define STMT_RETURN_EXPR(NODE)  ((NODE)->stmt.list[0])
 
+// x
+#define STMT_X(NODE)    ((NODE)->stmt.x.stmt)
+
 struct ast_stmt {
     struct ast_common common;
     long index;
     node_t **blks;
     node_t *list[4];
+    union code x;
 };
 
 #define GEN_OPERAND(NODE)    ((NODE)->gen.operands[0])
