@@ -23,7 +23,7 @@ static void translate(void)
         print_tree(tree);
     } else {
         if (errors == 0)
-            gen(tree, outfp);
+            gen(simplify(tree), outfp);
     }
 }
 

@@ -29,8 +29,6 @@ static void ensure_func(node_t * ftype, struct source src);
 static void ensure_main(node_t *ftype, const char *name,
                         struct source src);
 
-static struct vector *filter_global(struct vector *v);
-
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
     (((prototype) & 0x01) << 30) |                      \
     (((first) & 0x01) << 29) |                          \
@@ -961,7 +959,7 @@ node_t *translation_unit(void)
         }
     }
 
-    DECL_EXTS(ret) = (node_t **) vtoa(filter_global(v));
+    DECL_EXTS(ret) = (node_t **) vtoa(v);
     return ret;
 }
 
@@ -1525,35 +1523,6 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
     }
 
     return decl;
-}
-
-static struct vector *filter_global(struct vector *v)
-{
-    cc_assert(SCOPE == GLOBAL);
-    struct vector *r = vec_new();
-    struct map *map = map_new();
-    map->cmpfn = nocmp;
-    for (int i = 0; i < vec_len(v); i++) {
-        node_t *decl = vec_at(v, i);
-        if (isfuncdef(decl)) {
-            vec_push(r, decl);
-            vec_add_array(r, (void **)DECL_X(decl).svars);
-        } else if (isvardecl(decl)) {
-            node_t *sym = DECL_SYM(decl);
-            if (SYM_SCLASS(sym) == EXTERN)
-                continue;
-            node_t *decl1 = map_get(map, sym);
-            if (decl1) {
-                if (DECL_BODY(decl))
-                    DECL_BODY(decl1) = DECL_BODY(decl);
-            } else {
-                vec_push(r, decl);
-                map_put(map, sym, decl);
-            }
-        }
-    }
-    map_free(map);
-    return r;
 }
 
 node_t *make_localdecl(const char *name, node_t * ty, int sclass)

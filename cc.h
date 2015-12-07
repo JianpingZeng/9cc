@@ -371,6 +371,9 @@ extern struct table *tags;
 
 #define SCOPE  scopelevel()
 
+// simplify.c
+extern node_t * simplify(node_t *tree);
+
 // register.c
 extern void free_reg(struct reg *r);
 extern struct reg *get_iarg_reg(void);
