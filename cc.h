@@ -179,6 +179,19 @@ extern void cpp_init(struct vector *options);
 extern struct token *get_pptok(void);
 extern struct vector *all_pptoks(void);
 
+/**
+ * The coding style tends to avoid typedefs, because
+ * typedefs reduce readability, but it's not a hard rule.
+ *
+ * The fields of ast_node are designed to be accessed _ONLY_
+ * via macros, so it's useful to use typedef to hide the
+ * implementation details.
+ */
+typedef union ast_node node_t;
+
+// gen.h
+#include "gen.h"
+
 // ast.h
 #include "ast.h"
 
@@ -372,25 +385,6 @@ extern struct table *tags;
 // simplify.c
 extern node_t * simplify(node_t *tree);
 extern node_t * reduce(node_t *expr);
-
-// register.c
-extern void free_reg(struct reg *r);
-extern struct reg *get_iarg_reg(void);
-extern struct reg *get_farg_reg(void);
-extern struct reg *use_int_reg(void);
-extern struct reg *use_float_reg(void);
-extern struct operand *make_literal_operand(const char *name);
-extern struct operand *make_memory_operand(const char *name);
-extern struct operand *make_register_operand(struct reg *reg);
-extern const char *get_operand_name(struct operand *operand, int size);
-extern void use_operand(struct operand *operand);
-extern void free_operand(struct operand *operand);
-extern void init_regs(void);
-extern void print_register_state(void);
-
-// gen.c
-extern void emit(const char *fmt, ...);
-extern void gen(node_t * tree, FILE * fp);
 
 // print.c
 extern void print_tree(node_t * tree);

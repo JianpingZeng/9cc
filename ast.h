@@ -8,18 +8,6 @@ enum {
 #include "node.def"
 };
 
-/**
- * The coding style tends to avoid typedefs, because
- * typedefs reduce readability, but it's not a hard rule.
- *
- * The fields of ast_node are designed to be accessed _ONLY_
- * via macros, so it's useful to use typedef to hide the
- * implementation details.
- */
-typedef union ast_node node_t;
-
-#include "register.h"
-
 #define AST_ID(NODE)            ((NODE)->common.id)
 #define AST_NAME(NODE)          ((NODE)->common.name)
 #define AST_TYPE(NODE)          ((NODE)->common.type)
@@ -123,9 +111,6 @@ struct ast_field {
 #define SYM_VALUE_U(NODE)     (VALUE_U(SYM_VALUE(NODE)))
 #define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
 #define SYM_VALUE_D(NODE)     (VALUE_D(SYM_VALUE(NODE)))
-// x
-#define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.label)
-#define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.loff)
 
 struct ast_symbol {
     struct ast_common common;
@@ -135,30 +120,19 @@ struct ast_symbol {
     unsigned predefine : 1;
     union value value;
     unsigned refs;
-    struct {
-        const char *label;
-        long loff;             // stack offset
-    }x;
+    union code x;
 };
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
-// x
-#define DECL_X_SVARS(NODE)             ((NODE)->decl.x.svars)
-#define DECL_X_LVARS(NODE)             ((NODE)->decl.x.lvars)
-#define DECL_X_EXTRA_STACK_SIZE(NODE)  ((NODE)->decl.x.extra_stack_size)
 
 struct ast_decl {
     struct ast_common common;
     node_t *sym;                // the symbol
     node_t *body;                // the initializer expr or func body
     node_t **exts;
-    struct {
-        node_t **lvars;        // function local vars
-        node_t **svars;        // function static vars
-        size_t extra_stack_size;
-    }x;
+    union code x;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -174,9 +148,6 @@ struct ast_decl {
 // literal
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
-// x
-#define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.addr)
-#define EXPR_X_ARG(NODE)        ((NODE)->expr.x.arg)
     
 struct ast_expr {
     struct ast_common common;
@@ -185,10 +156,7 @@ struct ast_expr {
     node_t *sym;
     node_t *operands[3];
     node_t **list;
-    struct {
-        struct operand *addr;
-        struct operand *arg;
-    }x;
+    union code x;
 };
 
 // compound stmt
@@ -226,17 +194,12 @@ struct ast_expr {
 // return stmt
 #define STMT_RETURN_EXPR(NODE)  ((NODE)->stmt.list[0])
 
-// x
-#define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.label)
-
 struct ast_stmt {
     struct ast_common common;
     long index;
     node_t **blks;
     node_t *list[4];
-    struct {
-        const char *label;
-    }x;
+    union code x;
 };
 
 #define GEN_OPERAND(NODE)    ((NODE)->gen.operands[0])
