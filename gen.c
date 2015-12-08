@@ -469,20 +469,20 @@ static void emit_float_literal(node_t *n)
     union value v = SYM_VALUE(sym);
     switch (TYPE_KIND(ty)) {
     case FLOAT:
-    {
-        float f = VALUE_D(v);
-        const char *name = format("$%u", *(uint32_t *) &f);
-        EXPR_X_ADDR(n) = make_literal_operand(name);
-    }
-    break;
+        {
+            float f = VALUE_D(v);
+            const char *name = format("$%u", *(uint32_t *) &f);
+            EXPR_X_ADDR(n) = make_literal_operand(name);
+        }
+        break;
     case DOUBLE:
     case LONG + DOUBLE:
-    {
-        double d = VALUE_D(v);
-        const char *name = format("$%llu", *(uint64_t *) &d);
-        EXPR_X_ADDR(n) = make_literal_operand(name);
-    }
-    break;
+        {
+            double d = VALUE_D(v);
+            const char *name = format("$%llu", *(uint64_t *) &d);
+            EXPR_X_ADDR(n) = make_literal_operand(name);
+        }
+        break;
     default:
         cc_assert(0);
     }
