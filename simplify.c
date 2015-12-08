@@ -70,24 +70,47 @@ static node_t *define_tmpvar(node_t * ty)
     return n;
 }
 
+static node_t * simplify_expr(node_t *expr)
+{
+    cc_assert(isexpr(expr));
+    
+    return expr;
+}
+
+static node_t * simplify_decl(node_t *decl)
+{
+    cc_assert(isdecl(decl));
+    
+    return decl;
+}
+
+static node_t ** simplify_decls(node_t **decls)
+{
+
+    return decls;
+}
+
 static node_t * simplify_stmt(node_t *stmt)
 {
+    cc_assert(isstmt(stmt));
+    
     switch (AST_ID(stmt)) {
     case COMPOUND_STMT:
         {
+            struct vector *v = vec_new();
             node_t **blks = STMT_BLKS(stmt);
             for (int i = 0; i < LIST_LEN(blks); i++) {
                 node_t *n = blks[i];
-                if (isdecl(n)) {
-                
-                } else if (isstmt(n)) {
-                
-                } else {
-                
-                }
+                if (isdecl(n))
+                    vec_push_safe(v, simplify_decl(n));
+                else if (isstmt(n))
+                    vec_push_safe(v, simplify_stmt(n));
+                else
+                    vec_push_safe(v, simplify_expr(n));
             }
+            STMT_BLKS(stmt) = (node_t **)vtoa(v);
+            return stmt;
         }
-        break;
     case IF_STMT:
         {
             node_t *cond = STMT_COND(stmt);
@@ -138,7 +161,37 @@ static node_t * simplify_stmt(node_t *stmt)
         }
     case FOR_STMT:
         {
-        
+            const char *beg = gen_label();
+	    const char *mid = gen_label();
+	    const char *end = gen_label();
+	    node_t **decl = STMT_FOR_DECL(stmt);
+	    node_t *init = STMT_FOR_INIT(stmt);
+	    node_t *cond = STMT_FOR_COND(stmt);
+	    node_t *ctrl = STMT_FOR_CTRL(stmt);
+            node_t *body = STMT_FOR_BODY(stmt);
+
+            decl = simplify_decls(decl);
+
+            SET_LOOP_CONTEXT(mid, end);
+            body = simplify_stmt(body);
+            RESTORE_LOOP_CONTEXT();
+
+            struct vector *v = vec_new();
+            if (decl)
+                vec_add_array(v, (void **)decl);
+            else if (init)
+                vec_push(v, init);
+            vec_push(v, ast_label(beg));
+            if (cond)
+                vec_push(v, ast_if(cond, NULL, ast_jump(end)));
+            if (body)
+                vec_push(v, body);
+            vec_push(v, ast_label(mid));
+            if (ctrl)
+                vec_push(v, ctrl);
+            vec_push(v, ast_jump(beg));
+            vec_push(v, ast_label(end));
+            return ast_compound((node_t **) vtoa(v));
         }
     case SWITCH_STMT:
         {
@@ -164,7 +217,7 @@ static node_t * simplify_stmt(node_t *stmt)
 
             RESTORE_SWITCH_CONTEXT();
 
-            return ast_compound((node_t **) vtoa(v));
+            return ast_compound((node_t **)vtoa(v));
         }
     case CASE_STMT:
         {
@@ -178,7 +231,7 @@ static node_t * simplify_stmt(node_t *stmt)
             struct vector *v = vec_new();
             vec_push(v, ast_label(label));
             vec_push(v, body);
-            return ast_compound((node_t **) vtoa(v));
+            return ast_compound((node_t **)vtoa(v));
         }
     case DEFAULT_STMT:
         {
@@ -186,13 +239,12 @@ static node_t * simplify_stmt(node_t *stmt)
             node_t *body = STMT_CASE_BODY(stmt);
 
             body = simplify_stmt(body);
-            STMT_X(stmt).label = label;
             DEFLT = label;
 
             struct vector *v = vec_new();
             vec_push(v, ast_label(label));
             vec_push(v, body);
-            return ast_compound((node_t **) vtoa(v));
+            return ast_compound((node_t **)vtoa(v));
         }
     case LABEL_STMT:
         {
@@ -210,7 +262,8 @@ static node_t * simplify_stmt(node_t *stmt)
         }
     case GOTO_STMT:
         {
-            node_t *ret = ast_jump(STMT_LABEL_NAME(stmt));
+            const char *name = STMT_LABEL_NAME(stmt);
+            node_t *ret = ast_jump(name);
             vec_push(gotos, ret);
             return ret;
         }
@@ -234,7 +287,13 @@ static void check_control_flow(void)
 
 static void backfill_labels(void)
 {
-    
+    for (int i = 0; i < vec_len(gotos); i++) {
+        node_t *goto_stmt = vec_at(gotos, i);
+        const char *name = GEN_LABEL(goto_stmt);
+        const char *label = map_get(labels, name);
+        cc_assert(label);
+        GEN_LABEL(goto_stmt) = label;
+    }
 }
 
 static node_t * simplify_function(node_t *decl)
@@ -242,11 +301,13 @@ static node_t * simplify_function(node_t *decl)
     node_t *stmt = DECL_BODY(decl);
 
     SET_FUNCDEF_CONTEXT();
+    
     DECL_BODY(decl) = simplify_stmt(stmt);
-    RESTORE_FUNCDEF_CONTEXT();
-
+    backfill_labels();
     // check control flow and return stmt
     check_control_flow();
+
+    RESTORE_FUNCDEF_CONTEXT();
     
     return decl;
 }
