@@ -37,165 +37,10 @@ static struct reg *iarg_regs[NUM_IARG_REGS];
 static struct reg *farg_regs[NUM_FARG_REGS];
 static struct reg *int_regs[INT_REGS];
 static struct reg *float_regs[FLOAT_REGS];
-static struct vector *reg_stack;
 
 static inline struct reg *make_reg(void)
 {
     return zmalloc(sizeof(struct reg));
-}
-
-static struct reg *get_free_reg(struct reg **regs, int count)
-{
-    for (int i = 0; i < count; i++) {
-        struct reg *r = regs[i];
-        if (r->uses)
-            continue;
-        return r;
-    }
-    return NULL;
-}
-
-static void push_reg(struct reg *r)
-{
-    emit("pushq %s", r->r64);
-    vec_push(reg_stack, r);
-}
-
-static void pop_reg(struct reg *r)
-{
-    struct reg *reg = vec_tail(reg_stack);
-    if (reg != r) {
-        print_register_state();
-        die("reg_stack conflicts");
-    }
-    emit("popq %s", r->r64);
-    vec_pop(reg_stack);
-}
-
-static inline void use_reg(struct reg *r)
-{
-    r->uses++;
-    if (r->uses > 1)
-        push_reg(r);
-}
-
-void free_reg(struct reg *r)
-{
-    r->uses--;
-    if (r->uses)
-        pop_reg(r);
-}
-
-/**
- * According to the ABI, the first 6 integer or pointer
- * arguments to a function are passed in registers:
- * rdi, rsi, rdx, rcx, r8, r9
- */
-struct reg *get_iarg_reg(void)
-{
-    struct reg *reg = get_free_reg(iarg_regs, ARRAY_SIZE(iarg_regs));
-    if (reg)
-        use_reg(reg);
-    return reg;
-}
-
-struct reg *get_farg_reg(void)
-{
-    struct reg *reg = get_free_reg(farg_regs, ARRAY_SIZE(farg_regs));
-    if (reg)
-        use_reg(reg);
-    return reg;
-}
-
-struct reg *use_int_reg(void)
-{
-    struct reg *reg = get_free_reg(int_regs, ARRAY_SIZE(int_regs));
-    if (reg) {
-        use_reg(reg);
-        return reg;
-    } else {
-        struct reg *reg0 = int_regs[0];
-        use_reg(reg0);
-        return reg0;
-    }
-}
-
-struct reg *use_float_reg(void)
-{
-    struct reg *reg = get_free_reg(float_regs, ARRAY_SIZE(float_regs));
-    if (reg) {
-        use_reg(reg);
-        return reg;
-    } else {
-        struct reg *reg0 = float_regs[0];
-        use_reg(reg0);
-        return reg0;
-    }
-}
-
-static const char *get_reg_name(struct reg *r, int size)
-{
-    switch (size) {
-    case 1:
-        return r->r8;
-    case 2:
-        return r->r16;
-    case 4:
-        return r->r32;
-    case 8:
-        return r->r64;
-    default:
-        cc_assert(0);
-        return NULL;
-    }
-}
-
-static struct operand *make_operand(int kind)
-{
-    struct operand *operand = zmalloc(sizeof(struct operand));
-    operand->kind = kind;
-    return operand;
-}
-
-struct operand *make_literal_operand(const char *name)
-{
-    struct operand *operand = make_operand(OPERAND_LITERAL);
-    operand->u.name = name;
-    return operand;
-}
-
-struct operand *make_memory_operand(const char *name)
-{
-    struct operand *operand = make_operand(OPERAND_MEMORY);
-    operand->u.name = name;
-    return operand;
-}
-
-struct operand *make_register_operand(struct reg *reg)
-{
-    struct operand *operand = make_operand(OPERAND_REGISTER);
-    operand->u.reg = reg;
-    return operand;
-}
-
-const char *get_operand_name(struct operand *operand, int size)
-{
-    if (operand->kind == OPERAND_REGISTER)
-        return get_reg_name(operand->u.reg, size);
-    else
-        return operand->u.name;
-}
-
-void use_operand(struct operand *operand)
-{
-    if (operand->kind == OPERAND_REGISTER)
-        use_reg(operand->u.reg);
-}
-
-void free_operand(struct operand *operand)
-{
-    if (operand->kind == OPERAND_REGISTER)
-        free_reg(operand->u.reg);
 }
 
 void init_regs(void)
@@ -262,8 +107,6 @@ void init_regs(void)
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
     }
-
-    reg_stack = vec_new();
 }
 
 void print_register_state(void)
@@ -275,9 +118,5 @@ void print_register_state(void)
     for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
         struct reg *reg = float_regs[i];
         println("%s: uses[%u]", reg->r64, reg->uses);
-    }
-    for (int i = vec_len(reg_stack) - 1; i >= 0; i--) {
-        struct reg *reg = vec_at(reg_stack, i);
-        println("reg_stack[%d]: %s: uses[%u]", i, reg->r64, reg->uses);
     }
 }

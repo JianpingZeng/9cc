@@ -62,17 +62,6 @@ union code {
 };
 
 // register.c
-extern void free_reg(struct reg *r);
-extern struct reg *get_iarg_reg(void);
-extern struct reg *get_farg_reg(void);
-extern struct reg *use_int_reg(void);
-extern struct reg *use_float_reg(void);
-extern struct operand *make_literal_operand(const char *name);
-extern struct operand *make_memory_operand(const char *name);
-extern struct operand *make_register_operand(struct reg *reg);
-extern const char *get_operand_name(struct operand *operand, int size);
-extern void use_operand(struct operand *operand);
-extern void free_operand(struct operand *operand);
 extern void init_regs(void);
 extern void print_register_state(void);
 
