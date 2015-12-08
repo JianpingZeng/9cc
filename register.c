@@ -111,12 +111,4 @@ void init_regs(void)
 
 void print_register_state(void)
 {
-    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
-        struct reg *reg = int_regs[i];
-        println("%s: uses[%u]", reg->r64, reg->uses);
-    }
-    for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
-        struct reg *reg = float_regs[i];
-        println("%s: uses[%u]", reg->r64, reg->uses);
-    }
 }

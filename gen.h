@@ -9,16 +9,15 @@ struct reg {
     const char *r32;
     const char *r16;
     const char *r8;
-    unsigned uses;
 };
 
 enum {
-    OPERAND_REGISTER,
-    OPERAND_MEMORY,
-    OPERAND_LITERAL
+    ADDR_REGISTER,
+    ADDR_MEMORY,
+    ADDR_LITERAL
 };
 
-struct operand {
+struct addr {
     int kind;
     union {
         const char *name;
@@ -52,8 +51,8 @@ union code {
     }decl;
     
     struct {
-        struct operand *addr;
-        struct operand *arg;
+        struct addr *addr;
+        struct addr *arg;
     }expr;
 
     struct {
