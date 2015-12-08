@@ -68,4 +68,7 @@ extern void print_register_state(void);
 extern void emit(const char *fmt, ...);
 extern void gen(node_t * tree, FILE * fp);
 
+// ir.c
+extern node_t * ir(node_t *tree);
+
 #endif
