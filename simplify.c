@@ -312,17 +312,22 @@ static node_t * simplify_function(node_t *decl)
     return decl;
 }
 
-static struct vector *filter_global(struct vector *v)
+node_t * simplify(node_t *tree)
 {
-    cc_assert(SCOPE == GLOBAL);
-    struct vector *r = vec_new();
+    cc_assert(istudecl(tree) && errors == 0);
+
+    struct vector *v = vec_new();
     struct map *map = map_new();
     map->cmpfn = nocmp;
-    for (int i = 0; i < vec_len(v); i++) {
-        node_t *decl = vec_at(v, i);
+    
+    node_t **exts = DECL_EXTS(tree);
+
+    for (int i = 0; i < LIST_LEN(exts); i++) {
+        node_t *decl = exts[i];
         if (isfuncdef(decl)) {
-            vec_push(r, decl);
-            vec_add_array(r, (void **)DECL_X(decl).svars);
+            node_t *node = simplify_function(decl);
+            vec_push(v, node);
+            vec_add_array(v, (void **)DECL_X(node).svars);
         } else if (isvardecl(decl)) {
             node_t *sym = DECL_SYM(decl);
             if (SYM_SCLASS(sym) == EXTERN)
@@ -332,27 +337,13 @@ static struct vector *filter_global(struct vector *v)
                 if (DECL_BODY(decl))
                     DECL_BODY(decl1) = DECL_BODY(decl);
             } else {
-                vec_push(r, decl);
+                vec_push(v, decl);
                 map_put(map, sym, decl);
             }
         }
     }
-    map_free(map);
-    return r;
-}
 
-node_t * simplify(node_t *tree)
-{
-    cc_assert(istudecl(tree) && errors == 0);
-
-    for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
-        node_t *decl = DECL_EXTS(tree)[i];
-        if (isfuncdef(decl)) {
-            node_t *node = simplify_function(decl);
-        } else {
-            
-        }
-    }
+    DECL_EXTS(tree) = (node_t **)vtoa(v);
     
     return tree;
 }
