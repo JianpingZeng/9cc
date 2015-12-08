@@ -6,6 +6,8 @@ static struct vector *__cases;
 static const char *__default;
 static struct map *labels;
 static struct vector *gotos;
+static struct vector *localvars;
+static struct vector *staticvars;
 
 #define SET_LOOP_CONTEXT(cont, brk)             \
     const char *__saved_continue = __continue;  \
@@ -33,13 +35,19 @@ static struct vector *gotos;
 
 #define SET_FUNCDEF_CONTEXT()                   \
     labels = map_new();                         \
-    gotos = vec_new()
+    gotos = vec_new();                          \
+    localvars = vec_new();                      \
+    staticvars = vec_new()
 
 #define RESTORE_FUNCDEF_CONTEXT()               \
     map_free(labels);                           \
     labels = NULL;                              \
     vec_free(gotos);                            \
-    gotos = NULL
+    gotos = NULL;                               \
+    vec_free(localvars);                        \
+    localvars = NULL;                           \
+    vec_free(staticvars);                       \
+    staticvars = NULL
 
 #define BREAK_CONTEXT     (__break)
 #define CONTINUE_CONTEXT  (__continue)
@@ -50,7 +58,7 @@ static node_t * switch_jmp(node_t *var, node_t *case_node)
 {
     node_t *cond;
     long index = STMT_CASE_INDEX(case_node);
-    const char *label = STMT_X(case_node).label;
+    const char *label = STMT_X_LABEL(case_node);
     node_t *index_node = int_literal_node
         (AST_TYPE(var), (union value){.u = index});
 
@@ -70,24 +78,43 @@ static node_t *define_tmpvar(node_t * ty)
     return n;
 }
 
-static node_t * simplify_expr(node_t *expr)
-{
-    cc_assert(isexpr(expr));
-    
-    return expr;
-}
-
 static node_t * simplify_decl(node_t *decl)
 {
     cc_assert(isdecl(decl));
     
-    return decl;
+    node_t *sym = DECL_SYM(decl);
+    int sclass = SYM_SCLASS(sym);
+
+    if (!isvardecl(decl))
+        return NULL;
+    
+    if (SYM_REFS(sym) == 0) {
+        if (!SYM_PREDEFINE(sym))
+            warningf(AST_SRC(sym),
+                     "unused variable '%s'", SYM_NAME(sym));
+        return NULL;
+    } else {
+        if (sclass == EXTERN) {
+            return NULL;
+        } else if (sclass == STATIC) {
+            SYM_X_LABEL(sym) = gen_static_label();
+            vec_push(staticvars, decl);
+            return decl;
+        } else {
+            vec_push(localvars, decl);
+            return decl;
+        }
+    }
 }
 
 static node_t ** simplify_decls(node_t **decls)
 {
-
-    return decls;
+    struct vector *v = vec_new();
+    for (int i = 0; i < LIST_LEN(decls); i++) {
+        node_t *decl = decls[i];
+        vec_push_safe(v, simplify_decl(decl));
+    }
+    return (node_t **)vtoa(v);
 }
 
 static node_t * simplify_stmt(node_t *stmt)
@@ -106,10 +133,9 @@ static node_t * simplify_stmt(node_t *stmt)
                 else if (isstmt(n))
                     vec_push_safe(v, simplify_stmt(n));
                 else
-                    vec_push_safe(v, simplify_expr(n));
+                    vec_push(v, n);
             }
-            STMT_BLKS(stmt) = (node_t **)vtoa(v);
-            return stmt;
+            return ast_compound((node_t **)vtoa(v));
         }
     case IF_STMT:
         {
@@ -225,7 +251,7 @@ static node_t * simplify_stmt(node_t *stmt)
             node_t *body = STMT_CASE_BODY(stmt);
 
             body = simplify_stmt(body);
-            STMT_X(stmt).label = label;
+            STMT_X_LABEL(stmt) = label;
             vec_push(CASES, stmt);
 
             struct vector *v = vec_new();
@@ -303,6 +329,8 @@ static node_t * simplify_function(node_t *decl)
     SET_FUNCDEF_CONTEXT();
     
     DECL_BODY(decl) = simplify_stmt(stmt);
+    DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
+    DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
     backfill_labels();
     // check control flow and return stmt
     check_control_flow();
@@ -310,6 +338,14 @@ static node_t * simplify_function(node_t *decl)
     RESTORE_FUNCDEF_CONTEXT();
     
     return decl;
+}
+
+static const char *glabel(const char *label)
+{
+    if (opts.fleading_underscore)
+        return format("_%s", label);
+    else
+        return label;
 }
 
 node_t * simplify(node_t *tree)
@@ -324,14 +360,24 @@ node_t * simplify(node_t *tree)
 
     for (int i = 0; i < LIST_LEN(exts); i++) {
         node_t *decl = exts[i];
+        node_t *sym = DECL_SYM(decl);
         if (isfuncdef(decl)) {
-            node_t *node = simplify_function(decl);
-            vec_push(v, node);
-            vec_add_array(v, (void **)DECL_X(node).svars);
+            if (SYM_REFS(sym) == 0 && SYM_SCLASS(sym) == STATIC) {
+                warningf(AST_SRC(sym),
+                         "unused function '%s'", SYM_NAME(sym));
+            } else {
+                node_t *node = simplify_function(decl);
+                vec_push(v, node);
+                vec_add_array(v, (void **)DECL_X_SVARS(decl));
+            }
         } else if (isvardecl(decl)) {
-            node_t *sym = DECL_SYM(decl);
-            if (SYM_SCLASS(sym) == EXTERN)
+            if (SYM_SCLASS(sym) == EXTERN) {
                 continue;
+            } else if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
+                warningf(AST_SRC(sym),
+                         "unused variable '%s'", SYM_NAME(sym));
+                continue;
+            }
             node_t *decl1 = map_get(map, sym);
             if (decl1) {
                 if (DECL_BODY(decl))
@@ -341,9 +387,16 @@ node_t * simplify(node_t *tree)
                 map_put(map, sym, decl);
             }
         }
+
+        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     }
 
     DECL_EXTS(tree) = (node_t **)vtoa(v);
     
     return tree;
+}
+
+node_t * reduce(node_t *expr)
+{
+    return expr;
 }

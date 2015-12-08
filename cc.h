@@ -371,6 +371,7 @@ extern struct table *tags;
 
 // simplify.c
 extern node_t * simplify(node_t *tree);
+extern node_t * reduce(node_t *expr);
 
 // register.c
 extern void free_reg(struct reg *r);
@@ -401,8 +402,8 @@ extern void print_node_size(void);
 // error.c
 enum {
     WRN = 1,                // warning
-    ERR,                        // error
-    FTL,                        // fatal
+    ERR,                    // error
+    FTL,                    // fatal
 };
 extern unsigned errors;
 extern unsigned warnings;

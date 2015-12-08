@@ -169,7 +169,8 @@ struct ast_field {
 #define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
 #define SYM_VALUE_D(NODE)     (VALUE_D(SYM_VALUE(NODE)))
 // x
-#define SYM_X(NODE)           ((NODE)->symbol.x.sym)
+#define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.sym.label)
+#define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 
 struct ast_symbol {
     struct ast_common common;
@@ -186,7 +187,9 @@ struct ast_symbol {
 #define DECL_BODY(NODE)         ((NODE)->decl.body)
 #define DECL_EXTS(NODE)         ((NODE)->decl.exts)
 // x
-#define DECL_X(NODE)            ((NODE)->decl.x.decl)
+#define DECL_X_SVARS(NODE)      ((NODE)->decl.x.decl.svars)
+#define DECL_X_LVARS(NODE)      ((NODE)->decl.x.decl.lvars)
+#define DECL_X_EXTRA_STACK_SIZE(NODE)      ((NODE)->decl.x.decl.extra_stack_size)
 
 struct ast_decl {
     struct ast_common common;
@@ -210,8 +213,9 @@ struct ast_decl {
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 // x
-#define EXPR_X(NODE)            ((NODE)->expr.x.expr)
-
+#define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.expr.addr)
+#define EXPR_X_ARG(NODE)        ((NODE)->expr.x.expr.arg)
+    
 struct ast_expr {
     struct ast_common common;
     int op;
@@ -258,7 +262,7 @@ struct ast_expr {
 #define STMT_RETURN_EXPR(NODE)  ((NODE)->stmt.list[0])
 
 // x
-#define STMT_X(NODE)    ((NODE)->stmt.x.stmt)
+#define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 
 struct ast_stmt {
     struct ast_common common;

@@ -80,7 +80,7 @@ static node_t *expr_stmt(void)
     if (token->id == ';')
         ret = ast_stmt(NULL_STMT, source);
     else if (first_expr(token))
-        ret = expression();
+        ret = reduce(expression());
     else
         error("missing statement before '%s'", token->name);
 
