@@ -12,16 +12,18 @@ struct reg {
 };
 
 enum {
+    ADDR_LITERAL,
     ADDR_REGISTER,
     ADDR_MEMORY,
-    ADDR_LITERAL
+    ADDR_STACK
 };
 
 struct addr {
     int kind;
     union {
-        const char *name;
-        struct reg *reg;
+        long loff;              // stack offset
+        const char *name;       // data/literal
+        struct reg *reg;        // register
     }u;
 };
 
@@ -32,6 +34,7 @@ struct addr {
 #define DECL_X_SVARS(NODE)             ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)             ((NODE)->decl.x.decl.lvars)
 #define DECL_X_EXTRA_STACK_SIZE(NODE)  ((NODE)->decl.x.decl.extra_stack_size)
+#define DECL_X_IRS(NODE)               ((NODE)->decl.x.decl.irs)
 // expr
 #define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.expr.addr)
 #define EXPR_X_ARG(NODE)        ((NODE)->expr.x.expr.arg)
@@ -48,6 +51,7 @@ union code {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars
         size_t extra_stack_size;
+        struct vector *irs;
     }decl;
     
     struct {
@@ -58,6 +62,16 @@ union code {
     struct {
         const char *label;
     }stmt;
+};
+
+struct operand {
+    const char *name;
+};
+
+struct ir {
+    int op;
+    struct operand *l;          // left operand
+    struct operand *r;          // right operand
 };
 
 // register.c
