@@ -47,6 +47,7 @@ CC1_INC=cc.h \
         mcc.h \
         node.def \
         token.def \
+	register.h \
         $(UTILS_INC)
 
 SYS_INC=$(SYS)sys.h
