@@ -40,6 +40,7 @@ CC1_OBJ=alloc.o \
 	initializer.o \
 	register.o \
 	simplify.o \
+	ir.o \
         $(UTILS_OBJ)
 
 CC1_INC=cc.h \
