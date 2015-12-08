@@ -832,15 +832,16 @@ static void emit_decl_init(node_t * init, size_t offset)
 
 }
 
-static void emit_decl(node_t * n)
+static void emit_decl(node_t *n)
 {
     if (DECL_BODY(n))
         emit_decl_init(DECL_BODY(n), SYM_X_LOFF(DECL_SYM(n)));
 }
 
-static void emit_compound(node_t * n)
+static void emit_compound(node_t *n)
 {
-    
+    for (int i = 0; i < LIST_LEN(GEN_LIST(n)); i++)
+        emit_stmt(GEN_LIST(n)[i]);
 }
 
 static void emit_label(const char *label)
@@ -876,36 +877,40 @@ static void emit_if(node_t * n)
     }
 }
 
+static void emit_gen(node_t *n)
+{
+    switch (AST_ID(n)) {
+    case AST_IF:
+        emit_if(n);
+        break;
+    case AST_COMPOUND:
+        emit_compound(n);
+        break;
+    case AST_RETURN:
+        emit_expr(GEN_OPERAND(n));
+        emit_jmp(func_ret_label);
+        break;
+    case AST_LABEL:
+        emit_label(GEN_LABEL(n));
+        break;
+    case AST_JUMP:
+        emit_jmp(GEN_LABEL(n));
+        break;
+    case NULL_STMT:
+        break;
+    default:
+        die("unexpected node '%s'", nname(n));
+    }
+}
+
 static void emit_stmt(node_t * n)
 {
-    if (isexpr(n)) {
+    if (isexpr(n))
         emit_expr(n);
-    } else if (isdecl(n)) {
+    else if (isdecl(n))
         emit_decl(n);
-    } else {
-        switch (AST_ID(n)) {
-        case AST_IF:
-            emit_if(n);
-            break;
-        case AST_COMPOUND:
-            emit_compound(n);
-            break;
-        case AST_RETURN:
-            emit_expr(GEN_OPERAND(n));
-            emit_jmp(func_ret_label);
-            break;
-        case AST_LABEL:
-            emit_label(GEN_LABEL(n));
-            break;
-        case AST_JUMP:
-            emit_jmp(GEN_LABEL(n));
-            break;
-        case NULL_STMT:
-            break;
-        default:
-            die("unexpected node '%s'", nname(n));
-        }
-    }
+    else
+        emit_gen(n);
 }
 
 static size_t calc_stack_size(node_t *n)
@@ -980,10 +985,10 @@ static void gen_init(FILE *fp)
 void gen(node_t * tree, FILE * fp)
 {
     cc_assert(errors == 0 && fp);
+    
     gen_init(fp);
-    node_t **exts = DECL_EXTS(tree);
-    for (int i = 0; i < LIST_LEN(exts); i++) {
-        node_t *n = exts[i];
+    for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
+        node_t *n = DECL_EXTS(tree)[i];
         if (isfuncdef(n)) {
             emit_funcdef(n);
         } else if (isvardecl(n)) {
