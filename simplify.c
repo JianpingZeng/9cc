@@ -348,44 +348,58 @@ static const char *glabel(const char *label)
         return label;
 }
 
-node_t * simplify(node_t *tree)
+static struct vector * filter_global(node_t **exts)
 {
-    cc_assert(istudecl(tree) && errors == 0);
-
-    struct vector *v = vec_new();
+    struct vector *r = vec_new();
     struct map *map = map_new();
     map->cmpfn = nocmp;
-    
-    node_t **exts = DECL_EXTS(tree);
-
     for (int i = 0; i < LIST_LEN(exts); i++) {
         node_t *decl = exts[i];
-        node_t *sym = DECL_SYM(decl);
         if (isfuncdef(decl)) {
-            if (SYM_REFS(sym) == 0 && SYM_SCLASS(sym) == STATIC) {
-                warningf(AST_SRC(sym),
-                         "unused function '%s'", SYM_NAME(sym));
-            } else {
-                node_t *node = simplify_function(decl);
-                vec_push(v, node);
-                vec_add_array(v, (void **)DECL_X_SVARS(decl));
-            }
+            vec_push(r, decl);
         } else if (isvardecl(decl)) {
-            if (SYM_SCLASS(sym) == EXTERN) {
+            node_t *sym = DECL_SYM(decl);
+            if (SYM_SCLASS(sym) == EXTERN)
                 continue;
-            } else if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
-                warningf(AST_SRC(sym),
-                         "unused variable '%s'", SYM_NAME(sym));
-                continue;
-            }
             node_t *decl1 = map_get(map, sym);
             if (decl1) {
                 if (DECL_BODY(decl))
                     DECL_BODY(decl1) = DECL_BODY(decl);
             } else {
-                vec_push(v, decl);
+                vec_push(r, decl);
                 map_put(map, sym, decl);
             }
+        }
+    }
+    map_free(map);
+    return r;
+}
+
+node_t * simplify(node_t *tree)
+{
+    cc_assert(istudecl(tree) && errors == 0);
+
+    struct vector *v = vec_new();
+    struct vector *exts = filter_global(DECL_EXTS(tree));
+
+    for (int i = 0; i < vec_len(exts); i++) {
+        node_t *decl = vec_at(exts, i);
+        node_t *sym = DECL_SYM(decl);
+
+        if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
+            if (isfuncdef(decl))
+                warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+            else if (isvardecl(decl))
+                warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+            continue;
+        }
+        
+        if (isfuncdef(decl)) {
+            node_t *node = simplify_function(decl);
+            vec_push(v, node);
+            vec_add_array(v, (void **)DECL_X_SVARS(decl));
+        } else if (isvardecl(decl)) {
+            vec_push(v, decl);
         }
 
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
