@@ -74,146 +74,146 @@ static node_t * simplify_stmt(node_t *stmt)
 {
     switch (AST_ID(stmt)) {
     case COMPOUND_STMT:
-    {
-        node_t **blks = STMT_BLKS(stmt);
-        for (int i = 0; i < LIST_LEN(blks); i++) {
-            node_t *n = blks[i];
-            if (isdecl(n)) {
+        {
+            node_t **blks = STMT_BLKS(stmt);
+            for (int i = 0; i < LIST_LEN(blks); i++) {
+                node_t *n = blks[i];
+                if (isdecl(n)) {
                 
-            } else if (isstmt(n)) {
+                } else if (isstmt(n)) {
                 
-            } else {
+                } else {
                 
+                }
             }
         }
-    }
-    break;
+        break;
     case IF_STMT:
-    {
-        node_t *cond = STMT_COND(stmt);
-        node_t *then = STMT_THEN(stmt);
-        node_t *els = STMT_ELSE(stmt);
+        {
+            node_t *cond = STMT_COND(stmt);
+            node_t *then = STMT_THEN(stmt);
+            node_t *els = STMT_ELSE(stmt);
 
-        then = simplify_stmt(then);
-        if (els)
-            els = simplify_stmt(els);
+            then = simplify_stmt(then);
+            if (els)
+                els = simplify_stmt(els);
 
-        return ast_if(cond, then, els);
-    }
-    case WHILE_STMT:
-    {
-        const char *beg = gen_label();
-        const char *end = gen_label();
-        node_t *cond = STMT_WHILE_COND(stmt);
-        node_t *body = STMT_WHILE_BODY(stmt);
-
-        SET_LOOP_CONTEXT(beg, end);
-        body = simplify_stmt(body);
-        RESTORE_LOOP_CONTEXT();
-
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(beg));
-        vec_push(v, ast_if(cond, body, ast_jump(end)));
-        vec_push(v, ast_jump(beg));
-        vec_push(v, ast_label(end));
-        return ast_compound((node_t **) vtoa(v));
-    }
-    case DO_WHILE_STMT:
-    {
-        const char *beg = gen_label();
-        const char *end = gen_label();
-        node_t *cond = STMT_WHILE_COND(stmt);
-        node_t *body = STMT_WHILE_BODY(stmt);
-
-        SET_LOOP_CONTEXT(beg, end);
-        body = simplify_stmt(body);
-        RESTORE_LOOP_CONTEXT();
-
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(beg));
-        vec_push(v, body);
-        vec_push(v, ast_if(cond, ast_jump(beg), NULL));
-        vec_push(v, ast_label(end));
-        return ast_compound((node_t **) vtoa(v));
-    }
-    case FOR_STMT:
-    {
-        
-    }
-    case SWITCH_STMT:
-    {
-        const char *end = gen_label();
-        node_t *expr = STMT_SWITCH_EXPR(stmt);
-        node_t *body = STMT_SWITCH_BODY(stmt);
-
-        SET_SWITCH_CONTEXT(end);
-
-        body = simplify_stmt(body);
-
-        struct vector *v = vec_new();
-        node_t *var = define_tmpvar(AST_TYPE(expr));
-        vec_push(v, ast_bop('=', AST_TYPE(expr), var, expr));
-        for (int i = 0; i < vec_len(CASES); i++) {
-            node_t *case_node = vec_at(CASES, i);
-            vec_push(v, switch_jmp(var, case_node));
+            return ast_if(cond, then, els);
         }
-        const char *label = DEFLT ? DEFLT : end;
-        vec_push(v, ast_jump(label));
-        vec_push(v, body);
-        vec_push(v, ast_label(end));
+    case WHILE_STMT:
+        {
+            const char *beg = gen_label();
+            const char *end = gen_label();
+            node_t *cond = STMT_WHILE_COND(stmt);
+            node_t *body = STMT_WHILE_BODY(stmt);
 
-        RESTORE_SWITCH_CONTEXT();
+            SET_LOOP_CONTEXT(beg, end);
+            body = simplify_stmt(body);
+            RESTORE_LOOP_CONTEXT();
 
-        return ast_compound((node_t **) vtoa(v));
-    }
+            struct vector *v = vec_new();
+            vec_push(v, ast_label(beg));
+            vec_push(v, ast_if(cond, body, ast_jump(end)));
+            vec_push(v, ast_jump(beg));
+            vec_push(v, ast_label(end));
+            return ast_compound((node_t **) vtoa(v));
+        }
+    case DO_WHILE_STMT:
+        {
+            const char *beg = gen_label();
+            const char *end = gen_label();
+            node_t *cond = STMT_WHILE_COND(stmt);
+            node_t *body = STMT_WHILE_BODY(stmt);
+
+            SET_LOOP_CONTEXT(beg, end);
+            body = simplify_stmt(body);
+            RESTORE_LOOP_CONTEXT();
+
+            struct vector *v = vec_new();
+            vec_push(v, ast_label(beg));
+            vec_push(v, body);
+            vec_push(v, ast_if(cond, ast_jump(beg), NULL));
+            vec_push(v, ast_label(end));
+            return ast_compound((node_t **) vtoa(v));
+        }
+    case FOR_STMT:
+        {
+        
+        }
+    case SWITCH_STMT:
+        {
+            const char *end = gen_label();
+            node_t *expr = STMT_SWITCH_EXPR(stmt);
+            node_t *body = STMT_SWITCH_BODY(stmt);
+
+            SET_SWITCH_CONTEXT(end);
+
+            body = simplify_stmt(body);
+
+            struct vector *v = vec_new();
+            node_t *var = define_tmpvar(AST_TYPE(expr));
+            vec_push(v, ast_bop('=', AST_TYPE(expr), var, expr));
+            for (int i = 0; i < vec_len(CASES); i++) {
+                node_t *case_node = vec_at(CASES, i);
+                vec_push(v, switch_jmp(var, case_node));
+            }
+            const char *label = DEFLT ? DEFLT : end;
+            vec_push(v, ast_jump(label));
+            vec_push(v, body);
+            vec_push(v, ast_label(end));
+
+            RESTORE_SWITCH_CONTEXT();
+
+            return ast_compound((node_t **) vtoa(v));
+        }
     case CASE_STMT:
-    {
-        const char *label = gen_label();
-        node_t *body = STMT_CASE_BODY(stmt);
+        {
+            const char *label = gen_label();
+            node_t *body = STMT_CASE_BODY(stmt);
 
-        body = simplify_stmt(body);
-        STMT_X(stmt).label = label;
-        vec_push(CASES, stmt);
+            body = simplify_stmt(body);
+            STMT_X(stmt).label = label;
+            vec_push(CASES, stmt);
 
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(label));
-        vec_push(v, body);
-        return ast_compound((node_t **) vtoa(v));
-    }
+            struct vector *v = vec_new();
+            vec_push(v, ast_label(label));
+            vec_push(v, body);
+            return ast_compound((node_t **) vtoa(v));
+        }
     case DEFAULT_STMT:
-    {
-        const char *label = gen_label();
-        node_t *body = STMT_CASE_BODY(stmt);
+        {
+            const char *label = gen_label();
+            node_t *body = STMT_CASE_BODY(stmt);
 
-        body = simplify_stmt(body);
-        STMT_X(stmt).label = label;
-        DEFLT = label;
+            body = simplify_stmt(body);
+            STMT_X(stmt).label = label;
+            DEFLT = label;
 
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(label));
-        vec_push(v, body);
-        return ast_compound((node_t **) vtoa(v));
-    }
+            struct vector *v = vec_new();
+            vec_push(v, ast_label(label));
+            vec_push(v, body);
+            return ast_compound((node_t **) vtoa(v));
+        }
     case LABEL_STMT:
-    {
-        const char *label = gen_label();
-        const char *name = STMT_LABEL_NAME(stmt);
-        node_t *body = STMT_LABEL_BODY(stmt);
+        {
+            const char *label = gen_label();
+            const char *name = STMT_LABEL_NAME(stmt);
+            node_t *body = STMT_LABEL_BODY(stmt);
 
-        body = simplify_stmt(body);
-        map_put(labels, name, (char *)label);
+            body = simplify_stmt(body);
+            map_put(labels, name, (char *)label);
 
-        struct vector *v = vec_new();
-        vec_push(v, ast_label(label));
-        vec_push(v, body);
-        return ast_compound((node_t **)vtoa(v));
-    }
+            struct vector *v = vec_new();
+            vec_push(v, ast_label(label));
+            vec_push(v, body);
+            return ast_compound((node_t **)vtoa(v));
+        }
     case GOTO_STMT:
-    {
-        node_t *ret = ast_jump(STMT_LABEL_NAME(stmt));
-        vec_push(gotos, ret);
-        return ret;
-    }
+        {
+            node_t *ret = ast_jump(STMT_LABEL_NAME(stmt));
+            vec_push(gotos, ret);
+            return ret;
+        }
     case BREAK_STMT:
         return ast_jump(BREAK_CONTEXT);
     case CONTINUE_STMT:
