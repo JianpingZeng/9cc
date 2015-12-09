@@ -6,16 +6,50 @@
  *  three address code
  */
 
-static struct vector *firs;
+static void ir_stmt(node_t *n);
+
+static struct vector *func_irs;
+static const char *func_ret_label;
+
+static struct ir * new_ir(int op, struct operand *l, struct operand *r)
+{
+    struct ir *ir = zmalloc(sizeof(struct ir));
+    ir->op = op;
+    ir->l = l;
+    ir->r = r;
+    return ir;
+}
+
+static void ir_emit(struct ir *ir)
+{
+    vec_push(func_irs, ir);
+}
+
+static struct ir * make_label_operand(const char *label)
+{
+    
+}
+
+static struct ir * make_label_ir(const char *label)
+{
+    
+}
+
+static struct ir * make_jmp_ir(const char *label)
+{
+    
+}
 
 static void set_func_context(void)
 {
-    firs = vec_new();
+    func_irs = vec_new();
+    func_ret_label = gen_label();
 }
 
 static void restore_func_context(void)
 {
-    firs = NULL;
+    func_irs = NULL;
+    func_ret_label = NULL;
 }
 
 static void ir_decl(node_t *n)
@@ -135,29 +169,49 @@ static void ir_expr(node_t *n)
     }
 }
 
-static void ir_jmp(node_t *n)
+static void ir_jmp(const char *label)
 {
-    
+    ir_emit(make_jmp_ir(label));
 }
 
-static void ir_label(node_t *n)
+static void ir_label(const char *label)
 {
-    
+    ir_emit(make_label_ir(label));
 }
 
 static void ir_return(node_t *n)
+{
+    ir_expr(GEN_OPERAND(n));
+    ir_jmp(func_ret_label);
+}
+
+static void ir_je(const char *label)
 {
     
 }
 
 static void ir_if(node_t *n)
 {
-    
+    ir_expr(GEN_COND(n));
+    const char *ne = gen_label();
+    ir_je(ne);
+    if (GEN_THEN(n))
+        ir_stmt(GEN_THEN(n));
+    if (GEN_ELSE(n)) {
+        const char *end = gen_label();
+        ir_jmp(end);
+        ir_label(ne);
+        ir_stmt(GEN_ELSE(n));
+        ir_label(end);
+    } else {
+        ir_label(ne);
+    }
 }
 
 static void ir_compound(node_t *n)
 {
-    
+    for (int i = 0; i < LIST_LEN(GEN_LIST(n)); i++)
+        ir_stmt(GEN_LIST(n)[i]);
 }
 
 static void ir_gen(node_t *n)
@@ -173,10 +227,10 @@ static void ir_gen(node_t *n)
         ir_return(n);
         break;
     case AST_LABEL:
-        ir_label(n);
+        ir_label(GEN_LABEL(n));
         break;
     case AST_JUMP:
-        ir_jmp(n);
+        ir_jmp(GEN_LABEL(n));
         break;
     case NULL_STMT:
         break;

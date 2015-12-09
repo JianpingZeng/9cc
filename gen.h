@@ -64,6 +64,22 @@ union code {
     }stmt;
 };
 
+// op
+enum {
+    // control
+    IR_LABEL,
+    IR_GOTO,
+    IR_IF_GOTO,
+    // bop
+    IR_ADD,
+    IR_MINUS,
+    IR_MUL,
+    IR_DIV,
+    IR_MOD,
+    // uop
+    IR_U_MINUS,
+};
+
 struct operand {
     const char *name;
 };
