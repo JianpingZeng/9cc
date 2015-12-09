@@ -68,8 +68,14 @@ union code {
 enum {
     // control
     IR_LABEL,
-    IR_GOTO,
-    IR_IF_GOTO,
+    IR_JMP,
+    IR_JL,                      // <
+    IR_JLE,                     // <=
+    IR_JG,                      // >
+    IR_JGE,                     // >=
+    IR_JE,                      // ==
+    IR_JNE,                     // !=
+    IR_CMP,
     // bop
     IR_ADD,
     IR_MINUS,
@@ -88,6 +94,14 @@ struct ir {
     int op;
     struct operand *l;          // left operand
     struct operand *r;          // right operand
+};
+
+struct basic_block {
+    struct vector *irs;
+};
+
+struct flow_graph {
+    struct vector *blks;
 };
 
 // register.c

@@ -35,7 +35,7 @@ static struct ir * make_label_ir(const char *label)
     
 }
 
-static struct ir * make_jmp_ir(const char *label)
+static struct ir * make_jmp_ir(int jop, const char *label)
 {
     
 }
@@ -171,7 +171,12 @@ static void ir_expr(node_t *n)
 
 static void ir_jmp(const char *label)
 {
-    ir_emit(make_jmp_ir(label));
+    ir_emit(make_jmp_ir(IR_JMP, label));
+}
+
+static void ir_if_jmp(int jop, const char *label)
+{
+    ir_emit(make_jmp_ir(jop, label));
 }
 
 static void ir_label(const char *label)
@@ -185,26 +190,78 @@ static void ir_return(node_t *n)
     ir_jmp(func_ret_label);
 }
 
-static void ir_je(const char *label)
+static int ir_jop(node_t *expr)
 {
-    
+    int nop = nrelop(expr);
+    switch (nop) {
+    case '<':
+        return IR_JGE;
+    case '>':
+        return IR_JLE;
+    case GEQ:
+        return IR_JL;
+    case LEQ:
+        return IR_JG;
+    case EQ:
+        return IR_JNE;
+    case NEQ:
+        return IR_JE;
+    default:
+        return -1;
+    }
+}
+
+static int ir_je(node_t *expr)
+{
+    return IR_JE;
+}
+
+static int ir_if_cond(node_t *cond)
+{
+    if (AST_ID(cond) == BINARY_OPERATOR) {
+        switch (EXPR_OP(cond)) {
+        case '<':
+            break;
+        case '>':
+        case GEQ:
+        case LEQ:
+        case EQ:
+        case NEQ:
+            break;
+        default:
+            return ir_je(cond);
+        }
+    } else if (AST_ID(cond) == UNARY_OPERATOR) {
+        if (EXPR_OP(cond) == '!') {
+            int op = IR_JNE;
+            int *node = EXPR_OPERAND(cond, 0);
+            ir_expr(node);
+            
+        } else {
+            return ir_je(cond);
+        }
+    } else {
+        return ir_je(cond);
+    }
 }
 
 static void ir_if(node_t *n)
 {
-    ir_expr(GEN_COND(n));
-    const char *ne = gen_label();
-    ir_je(ne);
+    int jop = ir_if_cond(GEN_OPERAND(n));
+    const char *label = gen_label();
+
+    ir_if_jmp(jop, label);
+
     if (GEN_THEN(n))
         ir_stmt(GEN_THEN(n));
     if (GEN_ELSE(n)) {
         const char *end = gen_label();
         ir_jmp(end);
-        ir_label(ne);
+        ir_label(label);
         ir_stmt(GEN_ELSE(n));
         ir_label(end);
     } else {
-        ir_label(ne);
+        ir_label(label);
     }
 }
 
