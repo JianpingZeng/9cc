@@ -66,42 +66,27 @@ union code {
 
 // op
 enum {
-    // control
-    IR_LABEL,
-    IR_JMP,
-    IR_JL,                      // <
-    IR_JLE,                     // <=
-    IR_JG,                      // >
-    IR_JGE,                     // >=
-    IR_JE,                      // ==
-    IR_JNE,                     // !=
-    IR_CMP,
-    // bop
-    IR_ADD,
-    IR_MINUS,
-    IR_MUL,
-    IR_DIV,
-    IR_MOD,
-    // uop
-    IR_U_MINUS,
+#define _rop(a, b) a,
+#include "rop.def"
+    IR_END
 };
 
 struct operand {
-    const char *name;
+    node_t *sym;
 };
+
+/**
+ *  - binary:  result = arg1 op arg2
+ *  - unary:   result = op arg1
+ *  - jump:    op result  (op == jump operator)
+ *  - label:   op result  (op == label operator)
+ */
 
 struct ir {
     int op;
-    struct operand *l;          // left operand
-    struct operand *r;          // right operand
-};
-
-struct basic_block {
-    struct vector *irs;
-};
-
-struct flow_graph {
-    struct vector *blks;
+    struct operand *arg1;          // left operand
+    struct operand *arg2;          // right operand
+    struct operand *result;
 };
 
 // register.c
@@ -110,9 +95,17 @@ extern void print_register_state(void);
 
 // gen.c
 extern void emit(const char *fmt, ...);
+extern void emit_noindent(const char *fmt, ...);
 extern void gen(node_t * tree, FILE * fp);
+extern void emit_initializer(node_t * init);
+extern struct dict *compound_lits;
+extern struct dict *string_lits;
+
+// gen-decl.c
+extern void gen_decl(node_t *decl);
 
 // ir.c
 extern node_t * ir(node_t *tree);
+extern void print_irs(struct vector *irs);
 
 #endif

@@ -6,7 +6,7 @@ struct table *tags;
 
 static int level = GLOBAL;
 
-static struct table *new_table(struct table *up, int scope)
+struct table *new_table(struct table *up, int scope)
 {
     struct table *t = zmalloc(sizeof(struct table));
     t->up = up;
@@ -15,7 +15,7 @@ static struct table *new_table(struct table *up, int scope)
     return t;
 }
 
-static void free_table(struct table *t)
+void free_table(struct table *t)
 {
     dict_free(t->dict);
     free(t);

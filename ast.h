@@ -252,6 +252,7 @@ extern node_t *ast_compound(node_t ** list);
 
 extern const char *gen_label(void);
 extern const char *gen_tmpname(void);
+extern const char *gen_tmpname_r(void);
 extern const char *gen_static_label(void);
 extern const char *gen_compound_label(void);
 extern const char *gen_sliteral_label(void);

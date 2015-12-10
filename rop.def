@@ -1,0 +1,19 @@
+
+_rop(IR_NONE,   "null")
+_rop(IR_LABEL,  "label")
+_rop(IR_JMP,    "jmp")
+_rop(IR_JL,     "jl")
+_rop(IR_JLE,    "jle")
+_rop(IR_JG,     "jg")
+_rop(IR_JGE,    "jge")
+_rop(IR_JE,     "je")
+_rop(IR_JNE,    "jne")
+_rop(IR_CMP,    "cmp")
+_rop(IR_ADD,    "+")
+_rop(IR_MINUS,  "-")
+_rop(IR_DIV,    "/")
+_rop(IR_MUL,    "*")
+_rop(IR_MOD,    "%")
+_rop(IR_U_MINUS,        "-")
+
+#undef _rop

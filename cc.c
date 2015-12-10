@@ -25,7 +25,7 @@ static void translate(void)
         if (errors == 0) {
             tree = simplify(tree);
             tree = ir(tree);
-            // gen(tree, outfp);
+            gen(tree, outfp);
         }
     }
 }

@@ -41,6 +41,7 @@ CC1_OBJ=alloc.o \
 	register.o \
 	simplify.o \
 	ir.o \
+	gen-decl.o \
         $(UTILS_OBJ)
 
 CC1_INC=cc.h \
@@ -49,6 +50,7 @@ CC1_INC=cc.h \
         node.def \
         token.def \
 	gen.h \
+	rop.def \
         $(UTILS_INC)
 
 SYS_INC=$(SYS)sys.h

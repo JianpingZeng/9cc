@@ -154,6 +154,12 @@ const char *gen_tmpname(void)
     return format(".T%llu", i++);
 }
 
+const char *gen_tmpname_r(void)
+{
+    static size_t i;
+    return format(".t%llu", i++);
+}
+
 const char *gen_static_label(void)
 {
     static size_t i;
