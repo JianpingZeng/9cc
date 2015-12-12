@@ -12,6 +12,11 @@ _rop(IR_MINUS,  "-")
 _rop(IR_DIV,    "/")
 _rop(IR_MUL,    "*")
 _rop(IR_MOD,    "%")
+_rop(IR_OR,     "|")
+_rop(IR_AND,    "&")
+_rop(IR_XOR,    "^")
+_rop(IR_LSHIFT, "<<")
+_rop(IR_RSHIFT, ">>")
 
 _rop(IR_U_MINUS,        "-")
 

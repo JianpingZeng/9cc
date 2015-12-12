@@ -31,7 +31,7 @@ static void emit_funcdef(node_t * n)
     if (SYM_SCLASS(sym) != STATIC)
         emit(".globl %s", label);
     emit_noindent("%s:", label);
-    print_codes(DECL_X_CODES(n));
+    print_irs(DECL_X_IRS(n));
 }
 
 static void emit_compound_literals(void)

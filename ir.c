@@ -3,7 +3,7 @@
 /**
  *  Intermediate Representation
  *
- *  three address code
+ *  three address ir
  */
 
 static const char *rops[] = {
@@ -11,11 +11,13 @@ static const char *rops[] = {
 #include "rop.def"    
 };
 
-static void ir_stmt(node_t *n);
-static struct operand * ir_expr(node_t *n);
+static void emit_stmt(node_t *n);
+static void emit_expr(node_t *n);
+static void emit_bool_expr(node_t *n);
 
-static struct vector *func_codes;
+static struct vector *func_irs;
 static const char *func_ret_label;
+static unsigned func_ret_refs;
 static struct table *tmps;
 static struct table *labels;
 static const char *fall = (const char *)&fall;
@@ -35,15 +37,27 @@ static const char *__break;
 #define BREAK_CONTEXT     (__break)
 #define CONTINUE_CONTEXT  (__continue)
 
+static void set_func_context()
+{
+    func_irs = vec_new();
+    func_ret_label = gen_label();
+    func_ret_refs = 0;
+}
+
+static void restore_func_context()
+{
+    
+}
+
 static const char *rop2s(int op)
 {
     cc_assert(op >= IR_NONE && op < IR_END);
     return rops[op];
 }
 
-static void emit_code(struct code *code)
+static void emit_ir(struct ir *ir)
 {
-    vec_push(func_codes, ir);
+    vec_push(func_irs, ir);
 }
 
 static struct operand * new_operand(void)
@@ -66,58 +80,70 @@ static struct operand * make_label_operand(const char *label)
     return operand;
 }
 
-static struct code * new_code(int op, struct operand *l, struct operand *r, bool result)
+static struct ir * new_ir(int op, struct operand *l, struct operand *r, bool result)
 {
-    struct code *code = zmalloc(sizeof(struct code));
-    code->op = op;
-    code->arg1 = l;
-    code->arg2 = r;
+    struct ir *ir = zmalloc(sizeof(struct ir));
+    ir->op = op;
+    ir->arg1 = l;
+    ir->arg2 = r;
     if (result)
-        code->result = make_tmp_operand();
-    return code;
+        ir->result = make_tmp_operand();
+    return ir;
 }
 
-static struct code * make_code(int op, struct operand *l, struct operand *r)
+static struct ir * make_ir(int op, struct operand *l, struct operand *r)
 {
-    return new_code(op, l, r, true);
+    return new_ir(op, l, r, true);
 }
 
-static struct code * make_code_nor(int op, struct operand *l, struct operand *r)
+static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
 {
-    return new_code(op, l, r, false);
+    return new_ir(op, l, r, false);
 }
 
-static struct code * make_conv_code(int op, node_t *dty, struct operand *l)
+static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
 {
-    struct code *code = new_code(op, l, NULL, true);
-    AST_TYPE(code->result->sym) = dty;
-    return code;
+    struct ir *ir = new_ir(op, l, NULL, true);
+    AST_TYPE(ir->result->sym) = dty;
+    return ir;
 }
 
-static struct code * emit_conv_code(int op, node_t *dty, struct operand *l)
+static struct ir * emit_conv_ir(int op, node_t *dty, struct operand *l)
 {
-    struct code *code = make_conv_code(op, dty, l);
-    emit_code(code);
-    return code;
+    struct ir *ir = make_conv_ir(op, dty, l);
+    emit_ir(ir);
+    return ir;
 }
 
-static void set_func_context(void)
-{
-    func_codes = vec_new();
-    func_ret_label = gen_label();
-}
-
-static void restore_func_context(void)
-{
-    func_codes = NULL;
-    func_ret_label = NULL;
-}
-
-static void ir_decl(node_t *n)
+static void emit_decl(node_t *n)
 {
 }
 
-static struct operand * ir_bop(node_t *n)
+static int bop2rop(int op)
+{
+    switch (op) {
+    case '%':
+        return IR_MOD;
+    case '|':
+        return IR_OR;
+    case '&':
+        return IR_AND;
+    case '^':
+        return IR_XOR;
+    case LSHIFT:
+        return IR_LSHIFT;
+    case RSHIFT:
+        return IR_RSHIFT;
+    case '*':
+        return IR_MUL;
+    case '/':
+        return IR_DIV;
+    default:
+        cc_assert(0);
+    }
+}
+
+static void emit_bop(node_t *n)
 {
     int op = EXPR_OP(n);
     node_t *l = EXPR_OPERAND(n, 0);
@@ -125,7 +151,7 @@ static struct operand * ir_bop(node_t *n)
     switch (op) {
     case '=':
     case ',':
-        return NULL;
+        break;
         // int
     case '%':
     case '|':
@@ -133,11 +159,27 @@ static struct operand * ir_bop(node_t *n)
     case '^':
     case LSHIFT:
     case RSHIFT:
-        return NULL;
         // arith
     case '*':
     case '/':
-        return NULL;
+        {
+            
+            struct operand *result1;
+            struct operand *result2;
+            struct ir *ir;
+            
+            emit_expr(l);
+            emit_expr(r);
+            result1 = EXPR_X_ADDR(l);
+            result2 = EXPR_X_ADDR(r);
+            ir = make_ir(bop2rop(op), result1, result2);
+            emit_ir(ir);
+            EXPR_X_ADDR(n) = ir->result;
+        }
+        break;
+    case '+':
+    case '-':
+        break;
         // scalar
     case '<':
     case '>':
@@ -145,28 +187,16 @@ static struct operand * ir_bop(node_t *n)
     case LEQ:
     case EQ:
     case NEQ:
-        return NULL;
-    case '+':
-    case '-':
-        {
-            struct operand *result1;
-            struct operand *result2;
-            result1 = ir_expr(l);
-            result2 = ir_expr(r);
-            struct code *code = make_code(IR_ADD, result1, result2);
-            emit_code(code);
-            return code->result;
-        }
         break;
     case AND:
     case OR:
-        return NULL;
+        break;
     default:
         cc_assert(0);
     }
 }
 
-static struct operand * ir_uop(node_t *n)
+static void emit_uop(node_t *n)
 {
     int op = EXPR_OP(n);
     switch (op) {
@@ -179,192 +209,194 @@ static struct operand * ir_uop(node_t *n)
     case '~':
     case '!':
     case SIZEOF:
-        return NULL;
+        break;
     default:
         cc_assert(0);
     }
 }
 
-static struct operand * ir_cond(node_t *n)
+static void emit_cond(node_t *n)
 {
-    return NULL;
 }
 
-static struct operand * ir_member(node_t *n)
+static void emit_member(node_t *n)
 {
-    return NULL;
 }
 
-static struct operand * ir_subscript(node_t *n)
+static void emit_subscript(node_t *n)
 {
-    return NULL;
 }
 
-static struct operand * arith2arith(node_t *dty, struct operand *l)
+static void arith2arith(node_t *dty, node_t *l)
 {
-    node_t *sty = SYM_TYPE(l->sym);
+    node_t *sty = AST_TYPE(l);
 
     if (eqarith(sty, dty))
-        return l;
+        return;
 
     if (isint(sty) && isint(dty)) {
-        struct code *code = emit_conv_code(IR_CONV_II, dty, l);
-        return code->result;
+        struct ir *ir = emit_conv_ir(IR_CONV_II, dty, l);
     } else if (isint(sty) && isfloat(dty)) {
-        struct code *code = emit_conv_code(IR_CONV_IF, dty, l);
-        return code->result;
+        struct ir *ir = emit_conv_ir(IR_CONV_IF, dty, l);
     } else if (isfloat(sty) && isint(dty)) {
-        struct code *code = emit_conv_code(IR_CONV_FI, dty, l);
-        return code->result;
+        struct ir *ir = emit_conv_ir(IR_CONV_FI, dty, l);
     } else if (isfloat(sty) && isfloat(dty)) {
-        struct code *code = emit_conv_code(IR_CONV_FF, dty, l);
-        return code->result;
+        struct ir *ir = emit_conv_ir(IR_CONV_FF, dty, l);
     } else {
         cc_assert(0);
     }
 }
 
-static struct operand * ptr2arith(node_t *dty, struct operand *l)
+static void ptr2arith(node_t *dty, node_t *l)
 {
     cc_assert(isint(dty));
-    struct code *code = emit_conv_code(IR_CONV_PI, dty, l);
-    return code->result;
+    struct ir *ir = emit_conv_ir(IR_CONV_PI, dty, l);
+    return ir->result;
 }
 
-static struct operand * ptr2ptr(node_t *dty, struct operand *l)
+static void ptr2ptr(node_t *dty, node_t *l)
 {
-    struct code *code = emit_conv_code(IR_CONV_PP, dty, l);
-    return code->result;
+    struct ir *ir = emit_conv_ir(IR_CONV_PP, dty, l);
 }
 
-static struct operand * arith2ptr(node_t *dty, struct operand *l)
+static void arith2ptr(node_t *dty, node_t *l)
 {
-    cc_assert(isint(SYM_TYPE(l->sym)));
-    struct code *code = emit_conv_code(IR_CONV_IP, dty, l);
-    return code->result;
+    cc_assert(isint(AST_TYPE(l)));
+    struct ir *ir = emit_conv_ir(IR_CONV_IP, dty, l);
 }
 
-static struct operand * func2ptr(node_t *dty, struct operand *l)
+static void func2ptr(node_t *dty, node_t *l)
 {
-    struct code *code = emit_conv_code(IR_CONV_FP, dty, l);
-    return code->result;
+    struct ir *ir = emit_conv_ir(IR_CONV_FP, dty, l);
 }
 
-static struct operand * array2ptr(node_t *dty, struct operand *l)
+static void array2ptr(node_t *dty, node_t *l)
 {
-    struct code *code = emit_conv_code(IR_CONV_AP, dty, l);
-    return code->result;
+    struct ir *ir = emit_conv_ir(IR_CONV_AP, dty, l);
 }
 
-static struct operand * ir_conv(node_t *n)
+static void emit_conv(node_t *n)
 {
     node_t *dty = AST_TYPE(n);
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *sty = AST_TYPE(l);
 
-    struct operand *operand = ir_expr(l);
+    emit_expr(l);
     
     if (isarith(dty)) {
         if (isarith(sty))
-            return arith2arith(dty, operand);
+            arith2arith(dty, l);
         else if (isptr(sty))
-            return ptr2arith(dty, operand);
+            ptr2arith(dty, l);
         else
             cc_assert(0);
     } else if (isptr(dty)) {
         if (isptr(sty))
-            return ptr2ptr(dty, operand);
+            ptr2ptr(dty, l);
         else if (isarith(sty))
-            return arith2ptr(dty, operand);
+            arith2ptr(dty, l);
         else if (isfunc(sty))
-            return func2ptr(dty, operand);
+            func2ptr(dty, l);
         else if (isarray(sty))
-            return array2ptr(dty, operand);
+            array2ptr(dty, l);
         else
             cc_assert(0);
     } else {
-        return operand;
+        // nothing
     }
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
-static struct operand * ir_funcall(node_t *n)
+static void emit_funcall(node_t *n)
 {
-    return NULL;
 }
 
-static struct operand * ir_ref_expr(node_t *n)
-{
-    node_t *sym = EXPR_SYM(n);
-    struct operand *operand = new_operand();
-    operand->sym = sym;
-    return operand;
-}
-
-static struct operand * ir_integer_literal(node_t *n)
+static void emit_ref_expr(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     struct operand *operand = new_operand();
     operand->sym = sym;
-    return operand;
+    EXPR_X_ADDR(n) = operand;
 }
 
-static struct operand * ir_float_literal(node_t *n)
+static void emit_integer_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     struct operand *operand = new_operand();
     operand->sym = sym;
-    return operand;
+    EXPR_X_ADDR(n) = operand;
 }
 
-static struct operand * ir_string_literal(node_t *n)
+static void emit_float_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     struct operand *operand = new_operand();
     operand->sym = sym;
-    return operand;
+    EXPR_X_ADDR(n) = operand;
 }
 
-static struct operand * ir_compound_literal(node_t *n)
+static void emit_string_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     struct operand *operand = new_operand();
     operand->sym = sym;
-    return operand;
+    EXPR_X_ADDR(n) = operand;
 }
 
-static struct operand * ir_expr(node_t *n)
+static void emit_compound_literal(node_t *n)
+{
+    node_t *sym = EXPR_SYM(n);
+    struct operand *operand = new_operand();
+    operand->sym = sym;
+    EXPR_X_ADDR(n) = operand;
+}
+
+static void emit_expr(node_t *n)
 {
     switch (AST_ID(n)) {
     case BINARY_OPERATOR:
-        return ir_bop(n);
+        emit_bop(n);
+        break;
     case UNARY_OPERATOR:
-        return ir_uop(n);
+        emit_uop(n);
+        break;
     case PAREN_EXPR:
-        return ir_expr(EXPR_OPERAND(n, 0));
+        emit_expr(EXPR_OPERAND(n, 0));
+        break;
     case COND_EXPR:
-        return ir_cond(n);
+        emit_cond(n);
+        break;
     case MEMBER_EXPR:
-        return ir_member(n);
+        emit_member(n);
+        break;
     case SUBSCRIPT_EXPR:
-        return ir_subscript(n);
+        emit_subscript(n);
+        break;
     case CAST_EXPR:
     case CONV_EXPR:
-        return ir_conv(n);
+        emit_conv(n);
+        break;
     case CALL_EXPR:
-        return ir_funcall(n);
+        emit_funcall(n);
+        break;
     case REF_EXPR:
         if (EXPR_OP(n) == ENUM)
-            return ir_integer_literal(n);
+            emit_integer_literal(n);
         else
-            return ir_ref_expr(n);
+            emit_ref_expr(n);
+        break;
     case INTEGER_LITERAL:
-        return ir_integer_literal(n);
+        emit_integer_literal(n);
+        break;
     case FLOAT_LITERAL:
-        return ir_float_literal(n);
+        emit_float_literal(n);
+        break;
     case STRING_LITERAL:
-        return ir_string_literal(n);
+        emit_string_literal(n);
+        break;
     case COMPOUND_LITERAL:
-        return ir_compound_literal(n);
+        emit_compound_literal(n);
+        break;
     case INITS_EXPR:
     case VINIT_EXPR:
     default:
@@ -372,225 +404,262 @@ static struct operand * ir_expr(node_t *n)
     }
 }
 
-static void ir_label(const char *label)
+static void emit_label(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct code *code = make_code_nor(IR_LABEL, operand, NULL);
-    emit_code(code);
+    struct ir *ir = make_ir_nor(IR_LABEL, operand, NULL);
+    emit_ir(ir);
 }
 
-static void ir_goto(const char *label)
+static void emit_goto(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct code *code = make_code_nor(IR_GOTO, operand, NULL);
-    emit_code(code);
+    struct ir *ir = make_ir_nor(IR_GOTO, operand, NULL);
+    emit_ir(ir);
 }
 
-static void ir_bool_expr(node_t *expr)
+static bool isrelop(int op)
 {
-    
+    switch (op) {
+    case '>':
+    case '<':
+    case GEQ:
+    case LEQ:
+    case NEQ:
+    case EQ:
+        return true;
+    default:
+        return false;
+    }
 }
 
-static void ir_compound_stmt(node_t *stmt)
+static void emit_bool_expr(node_t *n)
+{
+    if (AST_ID(n) == BINARY_OPERATOR && EXPR_OP(n) == AND) {
+        
+    } else if (AST_ID(n) == BINARY_OPERATOR && EXPR_OP(n) == OR) {
+        
+    } else if (AST_ID(n) == BINARY_OPERATOR && isrelop(EXPR_OP(n))) {
+        node_t *l = EXPR_OPERAND(n, 0);
+        node_t *r = EXPR_OPERAND(n, 1);
+        
+    } else if (AST_ID(n) == UNARY_OPERATOR && EXPR_OP(n) == '!') {
+        node_t *l = EXPR_OPERAND(n, 0);
+        EXPR_X_TRUE(l) = EXPR_X_FALSE(n);
+        EXPR_X_FALSE(l) = EXPR_X_TRUE(n);
+        emit_expr(l);
+    } else {
+        
+    }
+}
+
+static void emit_compound_stmt(node_t *stmt)
 {
     node_t **blks = STMT_BLKS(stmt);
     for (int i = 0; i < LIST_LEN(blks); i++) {
         node_t *node = blks[i];
-        if (isdecl(node))
-            ir_decl(node);
-        else if (isstmt(node))
-            ir_stmt(node);
-        else if (isexpr(node))
-            ir_expr(node);
-        else
+        if (isdecl(node)) {
+            emit_decl(node);
+        } else if (isstmt(node)) {
+            STMT_X_NEXT(node) = gen_label();
+            emit_stmt(node);
+        } else if (isexpr(node)) {
+            emit_expr(node);
+        } else {
             cc_assert(0);
+        }
     }
 }
 
-static void ir_if_stmt(node_t *stmt)
+static void emit_if_stmt(node_t *stmt)
 {
     node_t *cond = STMT_COND(stmt);
     node_t *then = STMT_THEN(stmt);
     node_t *els = STMT_ELSE(stmt);
 
-    STMT_X_NEXT(stmt) = gen_label();
     EXPR_X_TRUE(cond) = fall;
+    STMT_X_NEXT(then) = STMT_X_NEXT(stmt);
+  
     if (els) {
         EXPR_X_FALSE(cond) = gen_label();
-        STMT_X_NEXT(then) = STMT_X_NEXT(stmt);
         STMT_X_NEXT(els) = STMT_X_NEXT(stmt);
-        ir_bool_expr(cond);
-        ir_stmt(then);
-        ir_goto(STMT_X_NEXT(stmt));
-        ir_label(EXPR_X_FALSE(cond));
-        ir_stmt(els);
+        emit_bool_expr(cond);
+        emit_stmt(then);
+        emit_goto(STMT_X_NEXT(stmt));
+        emit_label(EXPR_X_FALSE(cond));
+        emit_stmt(els);
     } else {
         EXPR_X_FALSE(cond) = STMT_X_NEXT(stmt);
-        STMT_X_NEXT(then) = STMT_X_NEXT(stmt);
-        ir_bool_expr(cond);
-        ir_stmt(then);
+        emit_bool_expr(cond);
+        emit_stmt(then);
     }
-    ir_label(STMT_X_NEXT(stmt));
+    emit_label(STMT_X_NEXT(stmt));
 }
 
-static void ir_while_stmt(node_t *stmt)
+static void emit_while_stmt(node_t *stmt)
 {
     const char *beg = gen_label();
-    const char *end = gen_label();
     node_t *cond = STMT_WHILE_COND(stmt);
     node_t *body = STMT_WHILE_BODY(stmt);
 
-    STMT_X_NEXT(stmt) = end;
     EXPR_X_TRUE(cond) = fall;
     EXPR_X_FALSE(cond) = STMT_X_NEXT(stmt);
 
-    ir_label(beg);
-    ir_bool_expr(cond);
+    emit_label(beg);
+    emit_bool_expr(cond);
             
-    SET_LOOP_CONTEXT(beg, end);
-    ir_stmt(body);
+    SET_LOOP_CONTEXT(beg, STMT_X_NEXT(stmt));
+    emit_stmt(body);
     RESTORE_LOOP_CONTEXT();
 
-    ir_goto(beg);
-    ir_label(STMT_X_NEXT(stmt));
+    emit_goto(beg);
+    emit_label(STMT_X_NEXT(stmt));
 }
 
-static void ir_do_while_stmt(node_t *stmt)
+static void emit_do_while_stmt(node_t *stmt)
 {
     const char *beg = gen_label();
-    const char *end = gen_label();
     node_t *cond = STMT_WHILE_COND(stmt);
     node_t *body = STMT_WHILE_BODY(stmt);
 
-    STMT_X_NEXT(stmt) = end;
     EXPR_X_TRUE(cond) = beg;
-    EXPR_X_FALSE(cond) = STMT_X_NEXT(stmt);
+    EXPR_X_FALSE(cond) = fall;
 
-    ir_label(beg);
+    emit_label(beg);
 
-    SET_LOOP_CONTEXT(beg, end);
-    ir_stmt(body);
+    SET_LOOP_CONTEXT(beg, STMT_X_NEXT(stmt));
+    emit_stmt(body);
     RESTORE_LOOP_CONTEXT();
+
+    emit_bool_expr(cond);
+    emit_label(STMT_X_NEXT(stmt));
 }
 
-static void ir_for_stmt(node_t *stmt)
+static void emit_for_stmt(node_t *stmt)
 {
     
 }
 
-static void ir_switch_stmt(node_t *stmt)
+static void emit_switch_stmt(node_t *stmt)
 {
     
 }
 
-static void ir_case_stmt(node_t *stmt)
+static void emit_case_stmt(node_t *stmt)
 {
     
 }
 
-static void ir_default_stmt(node_t *stmt)
+static void emit_default_stmt(node_t *stmt)
 {
     
 }
 
-static void ir_label_stmt(node_t *stmt)
+static void emit_label_stmt(node_t *stmt)
 {
     
 }
 
-static void ir_goto_stmt(node_t *stmt)
+static void emit_goto_stmt(node_t *stmt)
 {
     
 }
 
-static void ir_break_stmt(node_t *stmt)
+static void emit_break_stmt(node_t *stmt)
+{
+    emit_goto(BREAK_CONTEXT);
+}
+
+static void emit_continue_stmt(node_t *stmt)
+{
+    emit_goto(CONTINUE_CONTEXT);
+}
+
+static void emit_return_stmt(node_t *stmt)
+{
+    node_t *expr = STMT_RETURN_EXPR(stmt);
+    emit_expr(expr);
+    // TODO: mov return value
+    emit_goto(func_ret_label);
+    func_ret_refs++;
+}
+
+static void emit_null_stmt(node_t *stmt)
 {
     
 }
 
-static void ir_continue_stmt(node_t *stmt)
-{
-    
-}
-
-static void ir_return_stmt(node_t *stmt)
-{
-    
-}
-
-static void ir_null_stmt(node_t *stmt)
-{
-    
-}
-
-static void ir_stmt(node_t *stmt)
+static void emit_stmt(node_t *stmt)
 {
     switch (AST_ID(stmt)) {
     case COMPOUND_STMT:
-        ir_compound_stmt(stmt);
+        emit_compound_stmt(stmt);
         break;
     case IF_STMT:
-        ir_if_stmt(stmt);
+        emit_if_stmt(stmt);
         break;
     case WHILE_STMT:
-        ir_while_stmt(stmt);
+        emit_while_stmt(stmt);
         break;
     case DO_WHILE_STMT:
-        ir_do_while_stmt(stmt);
+        emit_do_while_stmt(stmt);
         break;
     case FOR_STMT:
-        ir_for_stmt(stmt);
+        emit_for_stmt(stmt);
         break;
     case SWITCH_STMT:
-        ir_switch_stmt(stmt);
+        emit_switch_stmt(stmt);
         break;
     case CASE_STMT:
-        ir_case_stmt(stmt);
+        emit_case_stmt(stmt);
         break;
     case DEFAULT_STMT:
-        ir_default_stmt(stmt);
+        emit_default_stmt(stmt);
         break;
     case LABEL_STMT:
-        ir_label_stmt(stmt);
+        emit_label_stmt(stmt);
         break;
     case GOTO_STMT:
-        ir_goto_stmt(stmt);
+        emit_goto_stmt(stmt);
         break;
     case BREAK_STMT:
-        ir_break_stmt(stmt);
+        emit_break_stmt(stmt);
         break;
     case CONTINUE_STMT:
-        ir_continue_stmt(stmt);
+        emit_continue_stmt(stmt);
         break;
     case RETURN_STMT:
-        ir_return_stmt(stmt);
+        emit_return_stmt(stmt);
         break;
     case NULL_STMT:
-        ir_null_stmt(stmt);
+        emit_null_stmt(stmt);
         break;
     default:
         cc_assert(0);
     }
 }
 
-static void ir_function(node_t *decl)
+static void emit_function(node_t *decl)
 {
     node_t *stmt = DECL_BODY(decl);
 
     set_func_context();
-    
-    ir_stmt(stmt);
-    DECL_X_CODES(decl) = func_codes;
+
+    STMT_X_NEXT(stmt) = func_ret_label;
+    emit_stmt(stmt);
+    if (func_ret_refs > 0)
+        emit_label(func_ret_label);
+    DECL_X_IRS(decl) = func_irs;
 
     restore_func_context();
 }
 
-static void ir_globalvar(node_t *decl)
+static void emit_globalvar(node_t *decl)
 {
     
 }
 
-static void ir_init(void)
+static void emit_init(void)
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
@@ -600,25 +669,25 @@ node_t * ir(node_t *tree)
 {
     cc_assert(istudecl(tree) && errors == 0);
 
-    ir_init();
+    emit_init();
     for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
         node_t *decl = DECL_EXTS(tree)[i];
         if (isfuncdef(decl))
-            ir_function(decl);
+            emit_function(decl);
         else if (isvardecl(decl))
-            ir_globalvar(decl);
+            emit_globalvar(decl);
     }
     
     return tree;
 }
 
-static void print_code(struct code *code)
+static void print_ir(struct ir *ir)
 {
-    switch (code->op) {
+    switch (ir->op) {
     case IR_NONE:
         break;
     case IR_LABEL:
-        println("%s:", SYM_NAME(code->arg1->sym));
+        println("%s:", SYM_NAME(ir->arg1->sym));
         break;
     case IR_GOTO:
         break;
@@ -631,10 +700,10 @@ static void print_code(struct code *code)
     case IR_MUL:
     case IR_MOD:
         println("%s = %s %s %s",
-                SYM_NAME(code->result->sym),
-                SYM_NAME(code->arg1->sym),
-                rop2s(code->op),
-                SYM_NAME(code->arg2->sym));
+                SYM_NAME(ir->result->sym),
+                SYM_NAME(ir->arg1->sym),
+                rop2s(ir->op),
+                SYM_NAME(ir->arg2->sym));
         break;
     case IR_U_MINUS:
         break;
@@ -643,10 +712,10 @@ static void print_code(struct code *code)
     case IR_CONV_FI:
     case IR_CONV_FF:
         println("%s = (%s=>%s) %s",
-                SYM_NAME(code->result->sym),
-                TYPE_NAME(SYM_TYPE(code->arg1->sym)),
-                TYPE_NAME(SYM_TYPE(code->result->sym)),
-                SYM_NAME(code->arg1->sym));
+                SYM_NAME(ir->result->sym),
+                TYPE_NAME(SYM_TYPE(ir->arg1->sym)),
+                TYPE_NAME(SYM_TYPE(ir->result->sym)),
+                SYM_NAME(ir->arg1->sym));
         break;
     case IR_CONV_IP:
     case IR_CONV_PI:
@@ -654,21 +723,21 @@ static void print_code(struct code *code)
     case IR_CONV_FP:
     case IR_CONV_AP:
         println("%s = (%s) %s",
-                SYM_NAME(code->result->sym),
-                rop2s(code->op),
-                SYM_NAME(code->arg1->sym));
+                SYM_NAME(ir->result->sym),
+                rop2s(ir->op),
+                SYM_NAME(ir->arg1->sym));
         break;
     default:
-        die("unexpected rop %d", code->op);
+        die("unexpected rop %d", ir->op);
     }
 }
 
-void print_codes(struct vector *codes)
+void print_irs(struct vector *irs)
 {
-    println("IRS: %lld", vec_len(codes));
-    for (int i = 0; i < vec_len(codes); i++) {
-        struct code *code = vec_at(codes, i);
-        print_code(code);
+    println("IRS: %lld", vec_len(irs));
+    for (int i = 0; i < vec_len(irs); i++) {
+        struct ir *ir = vec_at(irs, i);
+        print_ir(ir);
     }
 }
 
