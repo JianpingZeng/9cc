@@ -1,5 +1,7 @@
 #include "cc.h"
 
+// This file will be removed soon.
+
 static const char *__continue;
 static const char *__break;
 static struct vector *__cases;
@@ -408,9 +410,4 @@ node_t * simplify(node_t *tree)
     DECL_EXTS(tree) = (node_t **)vtoa(v);
     
     return tree;
-}
-
-node_t * reduce(node_t *expr)
-{
-    return expr;
 }

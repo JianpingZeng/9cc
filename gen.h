@@ -34,14 +34,17 @@ struct addr {
 #define DECL_X_SVARS(NODE)             ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)             ((NODE)->decl.x.decl.lvars)
 #define DECL_X_EXTRA_STACK_SIZE(NODE)  ((NODE)->decl.x.decl.extra_stack_size)
-#define DECL_X_IRS(NODE)               ((NODE)->decl.x.decl.irs)
+#define DECL_X_CODES(NODE)             ((NODE)->decl.x.decl.codes)
 // expr
 #define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.expr.addr)
 #define EXPR_X_ARG(NODE)        ((NODE)->expr.x.expr.arg)
+#define EXPR_X_TRUE(NODE)       ((NODE)->expr.x.expr.btrue)
+#define EXPR_X_FALSE(NODE)      ((NODE)->expr.x.expr.bfalse)
 // stmt
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
+#define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
 
-union code {
+union x {
     struct {
         const char *label;
         long loff;             // stack offset
@@ -51,16 +54,23 @@ union code {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars
         size_t extra_stack_size;
-        struct vector *irs;
+        struct vector *codes;
     }decl;
     
     struct {
         struct addr *addr;
         struct addr *arg;
+
+        // label
+        const char *btrue;
+        const char *bfalse;
     }expr;
 
     struct {
         const char *label;
+
+        // label
+        const char *next;
     }stmt;
 };
 
@@ -82,7 +92,7 @@ struct operand {
  *  - label:   op result  (op == label operator)
  */
 
-struct ir {
+struct code {
     int op;
     struct operand *arg1;          // left operand
     struct operand *arg2;          // right operand
@@ -106,6 +116,7 @@ extern void gen_decl(node_t *decl);
 
 // ir.c
 extern node_t * ir(node_t *tree);
-extern void print_irs(struct vector *irs);
+extern void print_codes(struct vector *codes);
+extern node_t * reduce(node_t *expr);
 
 #endif

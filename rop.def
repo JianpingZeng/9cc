@@ -1,19 +1,28 @@
 
 _rop(IR_NONE,   "null")
+
 _rop(IR_LABEL,  "label")
-_rop(IR_JMP,    "jmp")
-_rop(IR_JL,     "jl")
-_rop(IR_JLE,    "jle")
-_rop(IR_JG,     "jg")
-_rop(IR_JGE,    "jge")
-_rop(IR_JE,     "je")
-_rop(IR_JNE,    "jne")
-_rop(IR_CMP,    "cmp")
+
+_rop(IR_IF,             "if")
+_rop(IR_IF_FALSE,       "ifFalse")
+_rop(IR_GOTO,           "goto")
+
 _rop(IR_ADD,    "+")
 _rop(IR_MINUS,  "-")
 _rop(IR_DIV,    "/")
 _rop(IR_MUL,    "*")
 _rop(IR_MOD,    "%")
+
 _rop(IR_U_MINUS,        "-")
+
+_rop(IR_CONV_II,        "int=>int")
+_rop(IR_CONV_IF,        "int=>float")
+_rop(IR_CONV_FF,        "float=>int")
+_rop(IR_CONV_FI,        "int=>float")
+_rop(IR_CONV_IP,        "int=>pointer")
+_rop(IR_CONV_PI,        "pointer=>int")
+_rop(IR_CONV_PP,        "pointer=>pointer")
+_rop(IR_CONV_FP,        "function=>pointer")
+_rop(IR_CONV_AP,        "array=>pointer")
 
 #undef _rop

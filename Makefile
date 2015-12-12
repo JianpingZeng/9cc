@@ -39,7 +39,6 @@ CC1_OBJ=alloc.o \
 	input.o \
 	initializer.o \
 	register.o \
-	simplify.o \
 	ir.o \
 	gen-decl.o \
         $(UTILS_OBJ)

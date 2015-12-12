@@ -15,6 +15,7 @@
 #include <time.h>
 #include <locale.h>
 #include <ctype.h>
+#include <stdint.h>
 
 #include "mcc.h"
 #include "utils.h"
@@ -383,10 +384,6 @@ extern struct table *constants;
 extern struct table *tags;
 
 #define SCOPE  scopelevel()
-
-// simplify.c
-extern node_t * simplify(node_t *tree);
-extern node_t * reduce(node_t *expr);
 
 // print.c
 extern void print_tree(node_t * tree);

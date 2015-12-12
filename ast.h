@@ -120,7 +120,7 @@ struct ast_symbol {
     unsigned predefine : 1;
     union value value;
     unsigned refs;
-    union code x;
+    union x x;
 };
 
 #define DECL_SYM(NODE)          ((NODE)->decl.sym)
@@ -132,7 +132,7 @@ struct ast_decl {
     node_t *sym;                // the symbol
     node_t *body;                // the initializer expr or func body
     node_t **exts;
-    union code x;
+    union x x;
 };
 
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
@@ -156,7 +156,7 @@ struct ast_expr {
     node_t *sym;
     node_t *operands[3];
     node_t **list;
-    union code x;
+    union x x;
 };
 
 // compound stmt
@@ -199,7 +199,7 @@ struct ast_stmt {
     long index;
     node_t **blks;
     node_t *list[4];
-    union code x;
+    union x x;
 };
 
 #define GEN_OPERAND(NODE)    ((NODE)->gen.operands[0])
