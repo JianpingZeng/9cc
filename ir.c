@@ -227,52 +227,60 @@ static void emit_subscript(node_t *n)
 {
 }
 
-static void arith2arith(node_t *dty, node_t *l)
+static struct operand * arith2arith(node_t *dty, struct operand *l)
 {
-    node_t *sty = AST_TYPE(l);
+    node_t *sty = SYM_TYPE(l->sym);
 
     if (eqarith(sty, dty))
-        return;
+        return l;
 
     if (isint(sty) && isint(dty)) {
         struct ir *ir = emit_conv_ir(IR_CONV_II, dty, l);
+        return ir->result;
     } else if (isint(sty) && isfloat(dty)) {
         struct ir *ir = emit_conv_ir(IR_CONV_IF, dty, l);
+        return ir->result;
     } else if (isfloat(sty) && isint(dty)) {
         struct ir *ir = emit_conv_ir(IR_CONV_FI, dty, l);
+        return ir->result;
     } else if (isfloat(sty) && isfloat(dty)) {
         struct ir *ir = emit_conv_ir(IR_CONV_FF, dty, l);
+        return ir->result;
     } else {
         cc_assert(0);
     }
 }
 
-static void ptr2arith(node_t *dty, node_t *l)
+static struct operand * ptr2arith(node_t *dty, struct operand *l)
 {
     cc_assert(isint(dty));
     struct ir *ir = emit_conv_ir(IR_CONV_PI, dty, l);
     return ir->result;
 }
 
-static void ptr2ptr(node_t *dty, node_t *l)
+static struct operand * ptr2ptr(node_t *dty, struct operand *l)
 {
     struct ir *ir = emit_conv_ir(IR_CONV_PP, dty, l);
+    return ir->result;
 }
 
-static void arith2ptr(node_t *dty, node_t *l)
+static struct operand * arith2ptr(node_t *dty, struct operand *l)
 {
-    cc_assert(isint(AST_TYPE(l)));
+    cc_assert(isint(SYM_TYPE(l->sym)));
     struct ir *ir = emit_conv_ir(IR_CONV_IP, dty, l);
+    return ir->result;
 }
 
-static void func2ptr(node_t *dty, node_t *l)
+static struct operand * func2ptr(node_t *dty, struct operand *l)
 {
     struct ir *ir = emit_conv_ir(IR_CONV_FP, dty, l);
+    return ir->result;
 }
 
-static void array2ptr(node_t *dty, node_t *l)
+static struct operand * array2ptr(node_t *dty, struct operand *l)
 {
     struct ir *ir = emit_conv_ir(IR_CONV_AP, dty, l);
+    return ir->result;
 }
 
 static void emit_conv(node_t *n)
@@ -285,26 +293,26 @@ static void emit_conv(node_t *n)
     
     if (isarith(dty)) {
         if (isarith(sty))
-            arith2arith(dty, l);
+            EXPR_X_ADDR(n) = arith2arith(dty, EXPR_X_ADDR(l));
         else if (isptr(sty))
-            ptr2arith(dty, l);
+            EXPR_X_ADDR(n) = ptr2arith(dty, EXPR_X_ADDR(l));
         else
             cc_assert(0);
     } else if (isptr(dty)) {
         if (isptr(sty))
-            ptr2ptr(dty, l);
+            EXPR_X_ADDR(n) = ptr2ptr(dty, EXPR_X_ADDR(l));
         else if (isarith(sty))
-            arith2ptr(dty, l);
+            EXPR_X_ADDR(n) = arith2ptr(dty, EXPR_X_ADDR(l));
         else if (isfunc(sty))
-            func2ptr(dty, l);
+            EXPR_X_ADDR(n) = func2ptr(dty, EXPR_X_ADDR(l));
         else if (isarray(sty))
-            array2ptr(dty, l);
+            EXPR_X_ADDR(n) = array2ptr(dty, EXPR_X_ADDR(l));
         else
             cc_assert(0);
     } else {
         // nothing
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
     }
-    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 static void emit_funcall(node_t *n)
