@@ -17,8 +17,15 @@ _rop(IR_AND,    "&")
 _rop(IR_XOR,    "^")
 _rop(IR_LSHIFT, "<<")
 _rop(IR_RSHIFT, ">>")
+_rop(IR_SUBSCRIPT,      "[]")
+_rop(IR_ASSIGN,         "=")
 
 _rop(IR_U_MINUS,        "-")
+_rop(IR_U_ADDRESS,      "&")
+_rop(IR_U_INDIRECTION,  "*")
+
+_rop(IR_PARAM,          "param")
+_rop(IR_CALL,           "call")
 
 _rop(IR_CONV_II,        "int=>int")
 _rop(IR_CONV_IF,        "int=>float")

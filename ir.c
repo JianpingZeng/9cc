@@ -8,7 +8,7 @@
 
 static const char *rops[] = {
 #define _rop(a, b)  b,
-#include "rop.def"    
+#include "rop.def"
 };
 
 static void emit_stmt(node_t *n);
@@ -46,7 +46,7 @@ static void set_func_context()
 
 static void restore_func_context()
 {
-    
+
 }
 
 static const char *rop2s(int op)
@@ -163,11 +163,11 @@ static void emit_bop(node_t *n)
     case '*':
     case '/':
         {
-            
+
             struct operand *result1;
             struct operand *result2;
             struct ir *ir;
-            
+
             emit_expr(l);
             emit_expr(r);
             result1 = EXPR_X_ADDR(l);
@@ -290,7 +290,7 @@ static void emit_conv(node_t *n)
     node_t *sty = AST_TYPE(l);
 
     emit_expr(l);
-    
+
     if (isarith(dty)) {
         if (isarith(sty))
             EXPR_X_ADDR(n) = arith2arith(dty, EXPR_X_ADDR(l));
@@ -444,20 +444,20 @@ static bool isrelop(int op)
 static void emit_bool_expr(node_t *n)
 {
     if (AST_ID(n) == BINARY_OPERATOR && EXPR_OP(n) == AND) {
-        
+
     } else if (AST_ID(n) == BINARY_OPERATOR && EXPR_OP(n) == OR) {
-        
+
     } else if (AST_ID(n) == BINARY_OPERATOR && isrelop(EXPR_OP(n))) {
         node_t *l = EXPR_OPERAND(n, 0);
         node_t *r = EXPR_OPERAND(n, 1);
-        
+
     } else if (AST_ID(n) == UNARY_OPERATOR && EXPR_OP(n) == '!') {
         node_t *l = EXPR_OPERAND(n, 0);
         EXPR_X_TRUE(l) = EXPR_X_FALSE(n);
         EXPR_X_FALSE(l) = EXPR_X_TRUE(n);
         emit_expr(l);
     } else {
-        
+
     }
 }
 
@@ -487,7 +487,7 @@ static void emit_if_stmt(node_t *stmt)
 
     EXPR_X_TRUE(cond) = fall;
     STMT_X_NEXT(then) = STMT_X_NEXT(stmt);
-  
+
     if (els) {
         EXPR_X_FALSE(cond) = gen_label();
         STMT_X_NEXT(els) = STMT_X_NEXT(stmt);
@@ -515,7 +515,7 @@ static void emit_while_stmt(node_t *stmt)
 
     emit_label(beg);
     emit_bool_expr(cond);
-            
+
     SET_LOOP_CONTEXT(beg, STMT_X_NEXT(stmt));
     emit_stmt(body);
     RESTORE_LOOP_CONTEXT();
@@ -545,32 +545,32 @@ static void emit_do_while_stmt(node_t *stmt)
 
 static void emit_for_stmt(node_t *stmt)
 {
-    
+
 }
 
 static void emit_switch_stmt(node_t *stmt)
 {
-    
+
 }
 
 static void emit_case_stmt(node_t *stmt)
 {
-    
+
 }
 
 static void emit_default_stmt(node_t *stmt)
 {
-    
+
 }
 
 static void emit_label_stmt(node_t *stmt)
 {
-    
+
 }
 
 static void emit_goto_stmt(node_t *stmt)
 {
-    
+
 }
 
 static void emit_break_stmt(node_t *stmt)
@@ -594,7 +594,6 @@ static void emit_return_stmt(node_t *stmt)
 
 static void emit_null_stmt(node_t *stmt)
 {
-    
 }
 
 static void emit_stmt(node_t *stmt)
@@ -664,7 +663,7 @@ static void emit_function(node_t *decl)
 
 static void emit_globalvar(node_t *decl)
 {
-    
+
 }
 
 static void emit_init(void)
@@ -685,7 +684,7 @@ node_t * ir(node_t *tree)
         else if (isvardecl(decl))
             emit_globalvar(decl);
     }
-    
+
     return tree;
 }
 
