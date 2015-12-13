@@ -391,10 +391,12 @@ static node_t *label_stmt(void)
 
     stmt = statement();
 
-    if (NO_ERROR)
+    if (NO_ERROR) {
         STMT_LABEL_BODY(ret) = stmt;
-    else
+        STMT_X_LABEL(ret) = gen_label();
+    } else {
         ret = NULL;
+    }
 
     return ret;
 }
@@ -587,15 +589,16 @@ static void predefined_ids(void)
     }
 }
 
-static void ensure_labels(void)
+static void backfill_labels(void)
 {
     for (int i = 0; i < vec_len(gotos); i++) {
         node_t *goto_stmt = vec_at(gotos, i);
         const char *name = STMT_LABEL_NAME(goto_stmt);
         node_t *label_stmt = map_get(labels, name);
-        if (!label_stmt)
-            errorf(AST_SRC(goto_stmt),
-                   "use of undeclared label '%s'", name);
+        if (label_stmt)
+            STMT_X_LABEL(goto_stmt) = STMT_X_LABEL(label_stmt);
+        else
+            errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", name);
     }
 }
 
@@ -605,7 +608,7 @@ node_t *func_body(node_t *ty, const char *name)
     
     node_t *stmt = compound_stmt(predefined_ids);
     // check goto labels
-    ensure_labels();
+    backfill_labels();
     
     RESTORE_FUNCDEF_CONTEXT();
 
