@@ -119,6 +119,11 @@ static void emit_decl(node_t *n)
 {
 }
 
+static void emit_decls(node_t **n)
+{
+    
+}
+
 static int bop2rop(int op)
 {
     switch (op) {
@@ -444,9 +449,47 @@ static bool isrelop(int op)
 static void emit_bool_expr(node_t *n)
 {
     if (AST_ID(n) == BINARY_OPERATOR && EXPR_OP(n) == AND) {
+        node_t *l = EXPR_OPERAND(n, 0);
+        node_t *r = EXPR_OPERAND(n, 1);
+        if (EXPR_X_FALSE(n) == fall) {
+            EXPR_X_TRUE(l) = fall;
+            EXPR_X_FALSE(l) = gen_label();
+            EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
+            EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
 
+            emit_bool_expr(l);
+            emit_bool_expr(r);
+            emit_label(EXPR_X_FALSE(l));
+        } else {
+            EXPR_X_TRUE(l) = fall;
+            EXPR_X_FALSE(l) = EXPR_X_FALSE(n);
+            EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
+            EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
+
+            emit_bool_expr(l);
+            emit_bool_expr(r);
+        }
     } else if (AST_ID(n) == BINARY_OPERATOR && EXPR_OP(n) == OR) {
+        node_t *l = EXPR_OPERAND(n, 0);
+        node_t *r = EXPR_OPERAND(n, 1);
+        if (EXPR_X_TRUE(n) == fall) {
+            EXPR_X_TRUE(l) = gen_label();
+            EXPR_X_FALSE(l) = fall;
+            EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
+            EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
 
+            emit_bool_expr(l);
+            emit_bool_expr(r);
+            emit_label(EXPR_X_TRUE(l));
+        } else {
+            EXPR_X_TRUE(l) = EXPR_X_TRUE(n);
+            EXPR_X_FALSE(l) = fall;
+            EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
+            EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
+
+            emit_bool_expr(l);
+            emit_bool_expr(r);
+        }
     } else if (AST_ID(n) == BINARY_OPERATOR && isrelop(EXPR_OP(n))) {
         node_t *l = EXPR_OPERAND(n, 0);
         node_t *r = EXPR_OPERAND(n, 1);
@@ -455,9 +498,18 @@ static void emit_bool_expr(node_t *n)
         node_t *l = EXPR_OPERAND(n, 0);
         EXPR_X_TRUE(l) = EXPR_X_FALSE(n);
         EXPR_X_FALSE(l) = EXPR_X_TRUE(n);
-        emit_expr(l);
+        emit_bool_expr(l);
     } else {
-
+        emit_expr(n);
+        if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
+            
+        } else if (EXPR_X_TRUE(n) != fall) {
+            
+        } else if (EXPR_X_FALSE(n) != fall) {
+            
+        } else {
+            // both fall
+        }
     }
 }
 
@@ -512,6 +564,7 @@ static void emit_while_stmt(node_t *stmt)
 
     EXPR_X_TRUE(cond) = fall;
     EXPR_X_FALSE(cond) = STMT_X_NEXT(stmt);
+    STMT_X_NEXT(body) = STMT_X_NEXT(stmt);
 
     emit_label(beg);
     emit_bool_expr(cond);
@@ -532,6 +585,7 @@ static void emit_do_while_stmt(node_t *stmt)
 
     EXPR_X_TRUE(cond) = beg;
     EXPR_X_FALSE(cond) = fall;
+    STMT_X_NEXT(body) = STMT_X_NEXT(stmt); 
 
     emit_label(beg);
 
@@ -545,7 +599,42 @@ static void emit_do_while_stmt(node_t *stmt)
 
 static void emit_for_stmt(node_t *stmt)
 {
+    node_t **decl = STMT_FOR_DECL(stmt);
+    node_t *init = STMT_FOR_INIT(stmt);
+    node_t *cond = STMT_FOR_COND(stmt);
+    node_t *ctrl = STMT_FOR_CTRL(stmt);
+    node_t *body = STMT_FOR_BODY(stmt);
 
+    const char *beg = gen_label();
+    const char *mid = gen_label();
+    
+    if (decl)
+        emit_decls(decl);
+    else if (init)
+        emit_expr(init);
+
+    emit_label(beg);
+
+    if (cond) {
+        EXPR_X_TRUE(cond) = fall;
+        EXPR_X_FALSE(cond) = STMT_X_NEXT(stmt);
+        emit_bool_expr(cond);
+    }
+
+    SET_LOOP_CONTEXT(beg, STMT_X_NEXT(stmt));
+    
+    STMT_X_NEXT(body) = STMT_X_NEXT(stmt);
+    emit_stmt(body);
+
+    RESTORE_LOOP_CONTEXT();
+
+    emit_label(mid);
+    
+    if (ctrl)
+        emit_expr(ctrl);
+    
+    emit_goto(beg);
+    emit_label(STMT_X_NEXT(stmt));
 }
 
 static void emit_switch_stmt(node_t *stmt)
@@ -565,12 +654,12 @@ static void emit_default_stmt(node_t *stmt)
 
 static void emit_label_stmt(node_t *stmt)
 {
-
+    emit_label(STMT_X_LABEL(stmt));
 }
 
 static void emit_goto_stmt(node_t *stmt)
 {
-
+    emit_goto(STMT_X_LABEL(stmt));
 }
 
 static void emit_break_stmt(node_t *stmt)
