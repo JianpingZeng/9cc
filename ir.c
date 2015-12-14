@@ -413,6 +413,8 @@ static void emit_compound_literal(node_t *n)
 
 static void emit_expr(node_t *n)
 {
+    cc_assert(isexpr(stmt));
+    
     switch (AST_ID(n)) {
     case BINARY_OPERATOR:
         emit_bop(n);
@@ -833,7 +835,6 @@ static void emit_stmt(node_t *stmt)
         emit_null_stmt(stmt);
         break;
     default:
-        cc_assert(isexpr(stmt));
         emit_expr(stmt);
         break;
     }
