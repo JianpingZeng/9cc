@@ -5,6 +5,7 @@ _rop(IR_LABEL,  "label")
 
 _rop(IR_IF,             "if")
 _rop(IR_IF_FALSE,       "ifFalse")
+_rop(IR_RETURN,         "return")
 _rop(IR_GOTO,           "goto")
 
 _rop(IR_ADD,    "+")

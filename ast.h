@@ -182,6 +182,8 @@ struct ast_expr {
 // switch stmt
 #define STMT_SWITCH_EXPR(NODE)     ((NODE)->stmt.list[0])
 #define STMT_SWITCH_BODY(NODE)     ((NODE)->stmt.list[1])
+#define STMT_SWITCH_CASES(NODE)    ((NODE)->stmt.blks)
+#define STMT_SWITCH_DEFAULT(NODE)  ((NODE)->stmt.list[2])
 
 // label stmt
 #define STMT_LABEL_NAME(NODE)   AST_NAME(NODE)

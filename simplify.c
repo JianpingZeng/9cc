@@ -350,42 +350,15 @@ static const char *glabel(const char *label)
         return label;
 }
 
-static struct vector * filter_global(node_t **exts)
-{
-    struct vector *r = vec_new();
-    struct map *map = map_new();
-    map->cmpfn = nocmp;
-    for (int i = 0; i < LIST_LEN(exts); i++) {
-        node_t *decl = exts[i];
-        if (isfuncdef(decl)) {
-            vec_push(r, decl);
-        } else if (isvardecl(decl)) {
-            node_t *sym = DECL_SYM(decl);
-            if (SYM_SCLASS(sym) == EXTERN)
-                continue;
-            node_t *decl1 = map_get(map, sym);
-            if (decl1) {
-                if (DECL_BODY(decl))
-                    DECL_BODY(decl1) = DECL_BODY(decl);
-            } else {
-                vec_push(r, decl);
-                map_put(map, sym, decl);
-            }
-        }
-    }
-    map_free(map);
-    return r;
-}
-
 node_t * simplify(node_t *tree)
 {
     cc_assert(istudecl(tree) && errors == 0);
 
     struct vector *v = vec_new();
-    struct vector *exts = filter_global(DECL_EXTS(tree));
+    node_t **exts = DECL_EXTS(tree);
 
-    for (int i = 0; i < vec_len(exts); i++) {
-        node_t *decl = vec_at(exts, i);
+    for (int i = 0; i < LIST_LEN(exts); i++) {
+        node_t *decl = exts[i];
         node_t *sym = DECL_SYM(decl);
 
         if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {

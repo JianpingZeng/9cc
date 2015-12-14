@@ -270,16 +270,20 @@ static node_t *switch_stmt(void)
     expect(')');
 
     SET_SWITCH_CONTEXT(ret, expr ? AST_TYPE(expr) : NULL);
+
     body = statement();
-    RESTORE_SWITCH_CONTEXT();
 
     if (NO_ERROR) {
         STMT_SWITCH_EXPR(ret) = expr;
         STMT_SWITCH_BODY(ret) = body;
+        STMT_SWITCH_CASES(ret) = (node_t **) vtoa(CASES);
+        STMT_SWITCH_DEFAULT(ret) = DEFLT;
     } else {
         ret = NULL;
     }
 
+    RESTORE_SWITCH_CONTEXT();
+    
     return ret;
 }
 

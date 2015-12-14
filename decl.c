@@ -8,26 +8,20 @@ static node_t *tag_decl(void);
 static void ids(node_t *sym);
 static void fields(node_t * sym);
 
-typedef node_t *declfun_p(struct token *id, node_t * ty, int sclass,
-                          int fspec);
-static node_t *paramdecl(struct token *id, node_t * ty, int sclass,
-                         int fspec);
-static node_t *globaldecl(struct token *id, node_t * ty, int sclass,
-                          int fspec);
-static node_t *localdecl(struct token *id, node_t * ty, int sclass,
-                         int fspec);
-static node_t *funcdef(struct token *id, node_t * ty, int sclass,
-                       int fspec);
-static void typedefdecl(struct token *id, node_t * ty, int fspec,
-                      int kind);
+typedef node_t *declfun_p(struct token *id, node_t * ty, int sclass, int fspec);
+static node_t *paramdecl(struct token *id, node_t * ty, int sclass, int fspec);
+static node_t *globaldecl(struct token *id, node_t * ty, int sclass, int fspec);
+static node_t *localdecl(struct token *id, node_t * ty, int sclass, int fspec);
+static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
+static void typedefdecl(struct token *id, node_t * ty, int fspec, int kind);
 static struct vector *decls(declfun_p * dcl);
 
 static void ensure_field(node_t * field, size_t total, bool last);
 static void ensure_decl(node_t * decl, int sclass, int kind);
 static void ensure_array(node_t * atype, struct source src, int level);
 static void ensure_func(node_t * ftype, struct source src);
-static void ensure_main(node_t *ftype, const char *name,
-                        struct source src);
+static void ensure_main(node_t *ftype, const char *name, struct source src);
+static struct vector * filter_global(struct vector *v);
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
     (((prototype) & 0x01) << 30) |                      \
@@ -959,8 +953,35 @@ node_t *translation_unit(void)
         }
     }
 
-    DECL_EXTS(ret) = (node_t **) vtoa(v);
+    DECL_EXTS(ret) = (node_t **) vtoa(filter_global(v));
     return ret;
+}
+
+static struct vector * filter_global(struct vector *v)
+{
+    struct vector *r = vec_new();
+    struct map *map = map_new();
+    map->cmpfn = nocmp;
+    for (int i = 0; i < vec_len(v); i++) {
+        node_t *decl = vec_at(v, i);
+        if (isfuncdef(decl)) {
+            vec_push(r, decl);
+        } else if (isvardecl(decl)) {
+            node_t *sym = DECL_SYM(decl);
+            if (SYM_SCLASS(sym) == EXTERN)
+                continue;
+            node_t *decl1 = map_get(map, sym);
+            if (decl1) {
+                if (DECL_BODY(decl))
+                    DECL_BODY(decl1) = DECL_BODY(decl);
+            } else {
+                vec_push(r, decl);
+                map_put(map, sym, decl);
+            }
+        }
+    }
+    map_free(map);
+    return r;
 }
 
 static void ensure_bitfield(node_t *field)

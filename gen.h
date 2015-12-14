@@ -29,32 +29,15 @@ struct operand {
  *  - label:   op result  (op == label operator)
  */
 
-typedef union ir ir_t;
-
-#define IR_OP(ir)        ((ir)->common.op)
-#define IR_ARG(ir, I)    ((ir)->common.args[I])
-#define IR_RESULT(ir)    ((ir)->common.result)
-
-struct ir_common {
+struct ir {
     int op;
     struct operand *args[2];
     struct operand *result;
-};
 
-#define IR_IF_RELOP(ir)    ((ir)->if_ir.relop)
-#define IR_IF_RELIR(ir)    ((ir)->if_ir.rel_ir)
-#define IR_IF_GOTOIR(ir)   ((ir)->if_ir.goto_ir)
-
-struct ir_if {
-    struct ir_common common;
+    // if
     int relop;
-    ir_t *rel_ir;
-    ir_t *goto_ir;
-};
-
-union ir {
-    struct ir_common common;
-    struct ir_if if_ir;
+    struct ir *rel_ir;
+    struct ir *goto_ir;
 };
 
 // sym
