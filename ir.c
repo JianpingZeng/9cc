@@ -413,7 +413,7 @@ static void emit_compound_literal(node_t *n)
 
 static void emit_expr(node_t *n)
 {
-    cc_assert(isexpr(stmt));
+    cc_assert(isexpr(n));
     
     switch (AST_ID(n)) {
     case BINARY_OPERATOR:
@@ -930,7 +930,16 @@ static void print_ir(struct ir *ir)
     case IR_IF:
     case IR_IF_FALSE:
         if (ir->relop) {
-            
+            // rel if
+            struct ir *rel_ir = ir->rel_ir;
+            struct ir *goto_ir = ir->goto_ir;
+            println("%s %s %s %s %s %s",
+                    rop2s(ir->op),
+                    SYM_NAME(rel_ir->args[0]->sym),
+                    rop2s(rel_ir->op),
+                    SYM_NAME(rel_ir->args[1]->sym),
+                    rop2s(goto_ir->op),
+                    SYM_NAME(goto_ir->args[0]->sym));
         } else {
             // simple if
             struct ir *goto_ir = ir->goto_ir;
@@ -956,6 +965,10 @@ static void print_ir(struct ir *ir)
                 SYM_NAME(ir->args[1]->sym));
         break;
     case IR_U_MINUS:
+        println("%s = %s %s",
+                SYM_NAME(ir->result->sym),
+                rop2s(ir->op),
+                SYM_NAME(ir->args[0]->sym));
         break;
     case IR_CONV_II:
     case IR_CONV_IF:
