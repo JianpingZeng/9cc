@@ -76,7 +76,7 @@ static node_t *literal_node(int id)
     return n;
 }
 
-node_t *int_literal_node(node_t * ty, union value v)
+static node_t *int_literal_node(node_t * ty, union value v)
 {
     node_t *n = literal_node(INTEGER_LITERAL);
     AST_TYPE(n) = ty;

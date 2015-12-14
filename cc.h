@@ -199,7 +199,6 @@ typedef union ast_node node_t;
 // eval.c
 extern node_t *eval(node_t * expr, node_t * ty);
 extern bool eval_cpp_cond(void);
-extern node_t *int_literal_node(node_t * ty, union value v);
 
 // expr.c
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))

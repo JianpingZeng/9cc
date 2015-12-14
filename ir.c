@@ -78,6 +78,11 @@ static struct operand * make_label_operand(const char *label)
 static struct operand * make_case_operand(long index)
 {
     struct operand *operand = new_operand();
+    const char *name = strd(index);
+    node_t *sym = lookup(name, constants);
+    if (!sym)
+        sym = install(name, &constants, CONSTANT);
+    operand->sym = sym;
     return operand;
 }
 
@@ -195,13 +200,22 @@ static int bop2rop(int op)
     }
 }
 
-static void emit_bop(node_t *n)
+static void emit_assign(node_t *n)
 {
-    int op = EXPR_OP(n);
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
-    switch (op) {
+
+    emit_expr(l);
+    emit_expr(r);
+    
+}
+
+static void emit_bop(node_t *n)
+{    
+    switch (EXPR_OP(n)) {
     case '=':
+        emit_assign(n);
+        break;
     case ',':
         break;
         // int
@@ -215,7 +229,9 @@ static void emit_bop(node_t *n)
     case '*':
     case '/':
         {
-
+            int op = EXPR_OP(n);
+            node_t *l = EXPR_OPERAND(n, 0);
+            node_t *r = EXPR_OPERAND(n, 1);
             struct operand *result1;
             struct operand *result2;
             struct ir *ir;
@@ -480,21 +496,6 @@ static void emit_goto(const char *label)
     emit_ir(ir);
 }
 
-static bool isrelop(int op)
-{
-    switch (op) {
-    case '>':
-    case '<':
-    case GEQ:
-    case LEQ:
-    case NEQ:
-    case EQ:
-        return true;
-    default:
-        return false;
-    }
-}
-
 static void emit_logic_and(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -543,10 +544,41 @@ static void emit_logic_or(node_t *n)
     }
 }
 
+static bool isrelop(int op)
+{
+    switch (op) {
+    case '>':
+    case '<':
+    case GEQ:
+    case LEQ:
+    case NEQ:
+    case EQ:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static void emit_rel_expr(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
+    int op = EXPR_OP(n);
+
+    emit_expr(l);
+    emit_expr(r);
+    struct ir *rel_ir = make_ir_nor(op, EXPR_X_ADDR(l), EXPR_X_ADDR(r));
+
+    if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
+        emit_rel_if(IR_IF, rel_ir, EXPR_X_TRUE(n));
+        emit_goto(EXPR_X_FALSE(n));
+    } else if (EXPR_X_TRUE(n) != fall) {
+        emit_rel_if(IR_IF, rel_ir, EXPR_X_TRUE(n));
+    } else if (EXPR_X_FALSE(n) != fall) {
+        emit_rel_if(IR_IF_FALSE, rel_ir, EXPR_X_FALSE(n));
+    } else {
+        // both fall
+    }
 }
 
 static void emit_bool_expr(node_t *n)
@@ -736,18 +768,16 @@ static void emit_switch_stmt(node_t *stmt)
         emit_goto(STMT_X_NEXT(stmt));
     }
 
+    SET_SWITCH_CONTEXT(STMT_X_NEXT(stmt));
     emit_stmt(body);
+    RESTORE_SWITCH_CONTEXT();
     emit_label(STMT_X_NEXT(stmt));
 }
 
 static void emit_case_stmt(node_t *stmt)
 {
-    const char *label = gen_label();
     node_t *body = STMT_CASE_BODY(stmt);
-
-    STMT_X_LABEL(stmt) = label;
-
-    emit_label(label);
+    emit_label(STMT_X_LABEL(stmt));
     emit_stmt(body);
 }
 
@@ -936,7 +966,7 @@ static void print_ir(struct ir *ir)
             println("%s %s %s %s %s %s",
                     rop2s(ir->op),
                     SYM_NAME(rel_ir->args[0]->sym),
-                    rop2s(rel_ir->op),
+                    id2s(rel_ir->op),
                     SYM_NAME(rel_ir->args[1]->sym),
                     rop2s(goto_ir->op),
                     SYM_NAME(goto_ir->args[0]->sym));
@@ -949,6 +979,8 @@ static void print_ir(struct ir *ir)
                     rop2s(goto_ir->op),
                     SYM_NAME(goto_ir->args[0]->sym));
         }
+        break;
+    case IR_ASSIGN:
         break;
     case IR_ADD:
     case IR_MINUS:
