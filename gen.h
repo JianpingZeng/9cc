@@ -35,7 +35,7 @@ struct ir {
     struct operand *result;
 
     // if
-    int relop;
+    bool relop;
     struct ir *rel_ir;
     struct ir *goto_ir;
 };

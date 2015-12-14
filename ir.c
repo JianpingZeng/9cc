@@ -16,6 +16,8 @@ static void emit_expr(node_t *n);
 static void emit_bool_expr(node_t *n);
 
 static struct vector *func_irs;
+static struct vector *staticvars;
+static struct vector *localvars;
 static struct table *tmps;
 static struct table *labels;
 static const char *fall = (const char *)&fall;
@@ -73,6 +75,12 @@ static struct operand * make_label_operand(const char *label)
     return operand;
 }
 
+static struct operand * make_case_operand(long index)
+{
+    struct operand *operand = new_operand();
+    return operand;
+}
+
 static struct ir * new_ir(int op, struct operand *l, struct operand *r, bool result)
 {
     struct ir *ir = zmalloc(sizeof(struct ir));
@@ -115,13 +123,52 @@ static void emit_simple_if(int op, struct operand *operand, const char *label)
     emit_ir(ir);
 }
 
-static void emit_decl(node_t *n)
+static void emit_rel_if(int op, struct ir *rel_ir, const char *label)
 {
+    struct ir *ir = make_ir_nor(op, NULL, NULL);
+    ir->relop = true;
+    ir->goto_ir = make_ir_nor(IR_GOTO, make_label_operand(label), NULL);
+    ir->rel_ir = rel_ir;
+    emit_ir(ir);
 }
 
-static void emit_decls(node_t **n)
+static void do_emit_local_decl(node_t *decl)
 {
+    // TODO: 
+}
+
+static void emit_local_decl(node_t *decl)
+{
+    cc_assert(isdecl(decl));
     
+    node_t *sym = DECL_SYM(decl);
+    int sclass = SYM_SCLASS(sym);
+
+    if (!isvardecl(decl))
+        return;
+    
+    if (SYM_REFS(sym) == 0) {
+        if (!SYM_PREDEFINE(sym))
+            warningf(AST_SRC(sym),
+                     "unused variable '%s'", SYM_NAME(sym));
+    } else {
+        if (sclass == EXTERN) {
+            // do nothing
+        } else if (sclass == STATIC) {
+            SYM_X_LABEL(sym) = gen_static_label();
+            vec_push(staticvars, decl);
+            do_emit_local_decl(decl);
+        } else {
+            vec_push(localvars, decl);
+            do_emit_local_decl(decl);
+        }
+    }
+}
+
+static void emit_local_decls(node_t **decls)
+{
+    for (int i = 0; i < LIST_LEN(decls); i++)
+        emit_local_decl(decls[i]);
 }
 
 static int bop2rop(int op)
@@ -536,7 +583,7 @@ static void emit_compound_stmt(node_t *stmt)
     for (int i = 0; i < LIST_LEN(blks); i++) {
         node_t *node = blks[i];
         if (isdecl(node)) {
-            emit_decl(node);
+            emit_local_decl(node);
         } else if (isstmt(node)) {
             STMT_X_NEXT(node) = gen_label();
             emit_stmt(node);
@@ -626,7 +673,7 @@ static void emit_for_stmt(node_t *stmt)
     const char *mid = gen_label();
     
     if (decl)
-        emit_decls(decl);
+        emit_local_decls(decl);
     else if (init)
         emit_expr(init);
 
@@ -654,9 +701,15 @@ static void emit_for_stmt(node_t *stmt)
     emit_label(STMT_X_NEXT(stmt));
 }
 
-static void emit_switch_jmp(struct operand *n, node_t *case_stmt)
+static void emit_switch_jmp(struct operand *l, node_t *case_stmt)
 {
-    
+    struct operand *case_operand;
+    struct ir *rel_ir;
+
+    case_operand = make_case_operand(STMT_CASE_INDEX(case_stmt));
+    rel_ir = make_ir_nor(EQ, l, case_operand);
+    STMT_X_LABEL(case_stmt) = gen_label();
+    emit_rel_if(IR_IF, rel_ir, STMT_X_LABEL(case_stmt));
 }
 
 static void emit_switch_stmt(node_t *stmt)
@@ -791,10 +844,14 @@ static void emit_function(node_t *decl)
     node_t *stmt = DECL_BODY(decl);
 
     func_irs = vec_new();
+    staticvars = vec_new();
+    localvars = vec_new();
 
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
     DECL_X_IRS(decl) = func_irs;
+    DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
+    DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
 }
 
 static void emit_globalvar(node_t *decl)
@@ -808,19 +865,46 @@ static void ir_init(void)
     labels = new_table(NULL, GLOBAL);
 }
 
+static const char *glabel(const char *label)
+{
+    if (opts.fleading_underscore)
+        return format("_%s", label);
+    else
+        return label;
+}
+
 node_t * ir(node_t *tree)
 {
     cc_assert(istudecl(tree) && errors == 0);
 
+    struct vector *v = vec_new();
     ir_init();
     for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
         node_t *decl = DECL_EXTS(tree)[i];
-        if (isfuncdef(decl))
+        node_t *sym = DECL_SYM(decl);
+
+        // skip unused symbols
+        if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
+            if (isfuncdef(decl))
+                warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+            else if (isvardecl(decl))
+                warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+            continue;
+        }
+        
+        if (isfuncdef(decl)) {
             emit_function(decl);
-        else if (isvardecl(decl))
+            vec_push(v, decl);
+            vec_add_array(v, (void **)DECL_X_SVARS(decl));
+        } else if (isvardecl(decl)) {
             emit_globalvar(decl);
+            vec_push(v, decl);
+        }
+
+        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     }
 
+    DECL_EXTS(tree) = (node_t **)vtoa(v);
     return tree;
 }
 
