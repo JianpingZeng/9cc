@@ -55,7 +55,7 @@ static const char *rop2s(int op)
     return rops[op];
 }
 
-static void emit_ir(struct ir *ir)
+static void emit_ir(ir_t *ir)
 {
     vec_push(func_irs, ir);
 }
@@ -80,39 +80,49 @@ static struct operand * make_label_operand(const char *label)
     return operand;
 }
 
-static struct ir * new_ir(int op, struct operand *l, struct operand *r, bool result)
+static ir_t * new_ir(int op, struct operand *l, struct operand *r, bool result)
 {
-    struct ir *ir = zmalloc(sizeof(struct ir));
-    ir->op = op;
-    ir->arg1 = l;
-    ir->arg2 = r;
+    ir_t *ir = zmalloc(sizeof(ir_t));
+    IR_OP(ir) = op;
+    IR_ARG(ir, 0) = l;
+    IR_ARG(ir, 1) = r;
     if (result)
-        ir->result = make_tmp_operand();
+        IR_RESULT(ir) = make_tmp_operand();
     return ir;
 }
 
-static struct ir * make_ir(int op, struct operand *l, struct operand *r)
+static ir_t * make_ir(int op, struct operand *l, struct operand *r)
 {
     return new_ir(op, l, r, true);
 }
 
-static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
+static ir_t * make_ir_nor(int op, struct operand *l, struct operand *r)
 {
     return new_ir(op, l, r, false);
 }
 
-static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
+static ir_t * make_conv_ir(int op, node_t *dty, struct operand *l)
 {
-    struct ir *ir = new_ir(op, l, NULL, true);
-    AST_TYPE(ir->result->sym) = dty;
+    ir_t *ir = new_ir(op, l, NULL, true);
+    AST_TYPE(IR_RESULT(ir)->sym) = dty;
     return ir;
 }
 
-static struct ir * emit_conv_ir(int op, node_t *dty, struct operand *l)
+static ir_t * emit_conv_ir(int op, node_t *dty, struct operand *l)
 {
-    struct ir *ir = make_conv_ir(op, dty, l);
+    ir_t *ir = make_conv_ir(op, dty, l);
     emit_ir(ir);
     return ir;
+}
+
+static void emit_if(struct operand *operand, const char *label)
+{
+    
+}
+
+static void emit_iffalse(struct operand *operand, const char *label)
+{
+    
 }
 
 static void emit_decl(node_t *n)
@@ -171,7 +181,7 @@ static void emit_bop(node_t *n)
 
             struct operand *result1;
             struct operand *result2;
-            struct ir *ir;
+            ir_t *ir;
 
             emit_expr(l);
             emit_expr(r);
@@ -179,7 +189,7 @@ static void emit_bop(node_t *n)
             result2 = EXPR_X_ADDR(r);
             ir = make_ir(bop2rop(op), result1, result2);
             emit_ir(ir);
-            EXPR_X_ADDR(n) = ir->result;
+            EXPR_X_ADDR(n) = IR_RESULT(ir);
         }
         break;
     case '+':
@@ -240,17 +250,17 @@ static struct operand * arith2arith(node_t *dty, struct operand *l)
         return l;
 
     if (isint(sty) && isint(dty)) {
-        struct ir *ir = emit_conv_ir(IR_CONV_II, dty, l);
-        return ir->result;
+        ir_t *ir = emit_conv_ir(IR_CONV_II, dty, l);
+        return IR_RESULT(ir);
     } else if (isint(sty) && isfloat(dty)) {
-        struct ir *ir = emit_conv_ir(IR_CONV_IF, dty, l);
-        return ir->result;
+        ir_t *ir = emit_conv_ir(IR_CONV_IF, dty, l);
+        return IR_RESULT(ir);
     } else if (isfloat(sty) && isint(dty)) {
-        struct ir *ir = emit_conv_ir(IR_CONV_FI, dty, l);
-        return ir->result;
+        ir_t *ir = emit_conv_ir(IR_CONV_FI, dty, l);
+        return IR_RESULT(ir);
     } else if (isfloat(sty) && isfloat(dty)) {
-        struct ir *ir = emit_conv_ir(IR_CONV_FF, dty, l);
-        return ir->result;
+        ir_t *ir = emit_conv_ir(IR_CONV_FF, dty, l);
+        return IR_RESULT(ir);
     } else {
         cc_assert(0);
     }
@@ -259,33 +269,33 @@ static struct operand * arith2arith(node_t *dty, struct operand *l)
 static struct operand * ptr2arith(node_t *dty, struct operand *l)
 {
     cc_assert(isint(dty));
-    struct ir *ir = emit_conv_ir(IR_CONV_PI, dty, l);
-    return ir->result;
+    ir_t *ir = emit_conv_ir(IR_CONV_PI, dty, l);
+    return IR_RESULT(ir);
 }
 
 static struct operand * ptr2ptr(node_t *dty, struct operand *l)
 {
-    struct ir *ir = emit_conv_ir(IR_CONV_PP, dty, l);
-    return ir->result;
+    ir_t *ir = emit_conv_ir(IR_CONV_PP, dty, l);
+    return IR_RESULT(ir);
 }
 
 static struct operand * arith2ptr(node_t *dty, struct operand *l)
 {
     cc_assert(isint(SYM_TYPE(l->sym)));
-    struct ir *ir = emit_conv_ir(IR_CONV_IP, dty, l);
-    return ir->result;
+    ir_t *ir = emit_conv_ir(IR_CONV_IP, dty, l);
+    return IR_RESULT(ir);
 }
 
 static struct operand * func2ptr(node_t *dty, struct operand *l)
 {
-    struct ir *ir = emit_conv_ir(IR_CONV_FP, dty, l);
-    return ir->result;
+    ir_t *ir = emit_conv_ir(IR_CONV_FP, dty, l);
+    return IR_RESULT(ir);
 }
 
 static struct operand * array2ptr(node_t *dty, struct operand *l)
 {
-    struct ir *ir = emit_conv_ir(IR_CONV_AP, dty, l);
-    return ir->result;
+    ir_t *ir = emit_conv_ir(IR_CONV_AP, dty, l);
+    return IR_RESULT(ir);
 }
 
 static void emit_conv(node_t *n)
@@ -420,14 +430,14 @@ static void emit_expr(node_t *n)
 static void emit_label(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir_nor(IR_LABEL, operand, NULL);
+    ir_t *ir = make_ir_nor(IR_LABEL, operand, NULL);
     emit_ir(ir);
 }
 
 static void emit_goto(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir_nor(IR_GOTO, operand, NULL);
+    ir_t *ir = make_ir_nor(IR_GOTO, operand, NULL);
     emit_ir(ir);
 }
 
@@ -446,54 +456,68 @@ static bool isrelop(int op)
     }
 }
 
+static void emit_logic_and(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+    if (EXPR_X_FALSE(n) == fall) {
+        EXPR_X_TRUE(l) = fall;
+        EXPR_X_FALSE(l) = gen_label();
+        EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
+        EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
+
+        emit_bool_expr(l);
+        emit_bool_expr(r);
+        emit_label(EXPR_X_FALSE(l));
+    } else {
+        EXPR_X_TRUE(l) = fall;
+        EXPR_X_FALSE(l) = EXPR_X_FALSE(n);
+        EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
+        EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
+
+        emit_bool_expr(l);
+        emit_bool_expr(r);
+    }
+}
+
+static void emit_logic_or(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+    if (EXPR_X_TRUE(n) == fall) {
+        EXPR_X_TRUE(l) = gen_label();
+        EXPR_X_FALSE(l) = fall;
+        EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
+        EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
+
+        emit_bool_expr(l);
+        emit_bool_expr(r);
+        emit_label(EXPR_X_TRUE(l));
+    } else {
+        EXPR_X_TRUE(l) = EXPR_X_TRUE(n);
+        EXPR_X_FALSE(l) = fall;
+        EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
+        EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
+
+        emit_bool_expr(l);
+        emit_bool_expr(r);
+    }
+}
+
+static void emit_rel_expr(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+}
+
 static void emit_bool_expr(node_t *n)
 {
     if (AST_ID(n) == BINARY_OPERATOR && EXPR_OP(n) == AND) {
-        node_t *l = EXPR_OPERAND(n, 0);
-        node_t *r = EXPR_OPERAND(n, 1);
-        if (EXPR_X_FALSE(n) == fall) {
-            EXPR_X_TRUE(l) = fall;
-            EXPR_X_FALSE(l) = gen_label();
-            EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
-            EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
-
-            emit_bool_expr(l);
-            emit_bool_expr(r);
-            emit_label(EXPR_X_FALSE(l));
-        } else {
-            EXPR_X_TRUE(l) = fall;
-            EXPR_X_FALSE(l) = EXPR_X_FALSE(n);
-            EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
-            EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
-
-            emit_bool_expr(l);
-            emit_bool_expr(r);
-        }
+        emit_logic_and(n);
     } else if (AST_ID(n) == BINARY_OPERATOR && EXPR_OP(n) == OR) {
-        node_t *l = EXPR_OPERAND(n, 0);
-        node_t *r = EXPR_OPERAND(n, 1);
-        if (EXPR_X_TRUE(n) == fall) {
-            EXPR_X_TRUE(l) = gen_label();
-            EXPR_X_FALSE(l) = fall;
-            EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
-            EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
-
-            emit_bool_expr(l);
-            emit_bool_expr(r);
-            emit_label(EXPR_X_TRUE(l));
-        } else {
-            EXPR_X_TRUE(l) = EXPR_X_TRUE(n);
-            EXPR_X_FALSE(l) = fall;
-            EXPR_X_TRUE(r) = EXPR_X_TRUE(n);
-            EXPR_X_FALSE(r) = EXPR_X_FALSE(n);
-
-            emit_bool_expr(l);
-            emit_bool_expr(r);
-        }
+        emit_logic_or(n);
     } else if (AST_ID(n) == BINARY_OPERATOR && isrelop(EXPR_OP(n))) {
-        node_t *l = EXPR_OPERAND(n, 0);
-        node_t *r = EXPR_OPERAND(n, 1);
-
+        emit_rel_expr(n);
     } else if (AST_ID(n) == UNARY_OPERATOR && EXPR_OP(n) == '!') {
         node_t *l = EXPR_OPERAND(n, 0);
         EXPR_X_TRUE(l) = EXPR_X_FALSE(n);
@@ -501,14 +525,17 @@ static void emit_bool_expr(node_t *n)
         emit_bool_expr(l);
     } else {
         emit_expr(n);
+        struct operand *test = EXPR_X_ADDR(n);
+        
         if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
-            
+            emit_if(test, EXPR_X_TRUE(n));
+            emit_goto(EXPR_X_FALSE(n));
         } else if (EXPR_X_TRUE(n) != fall) {
-            
+            emit_if(test, EXPR_X_TRUE(n));
         } else if (EXPR_X_FALSE(n) != fall) {
-            
+            emit_iffalse(test, EXPR_X_FALSE(n));
         } else {
-            // both fall
+            // both fall: do nothing
         }
     }
 }
@@ -731,7 +758,9 @@ static void emit_stmt(node_t *stmt)
         emit_null_stmt(stmt);
         break;
     default:
-        cc_assert(0);
+        cc_assert(isexpr(stmt));
+        emit_expr(stmt);
+        break;
     }
 }
 
@@ -777,13 +806,13 @@ node_t * ir(node_t *tree)
     return tree;
 }
 
-static void print_ir(struct ir *ir)
+static void print_ir(ir_t *ir)
 {
-    switch (ir->op) {
+    switch (IR_OP(ir)) {
     case IR_NONE:
         break;
     case IR_LABEL:
-        println("%s:", SYM_NAME(ir->arg1->sym));
+        println("%s:", SYM_NAME(IR_ARG(ir, 0)->sym));
         break;
     case IR_GOTO:
         break;
@@ -796,10 +825,10 @@ static void print_ir(struct ir *ir)
     case IR_MUL:
     case IR_MOD:
         println("%s = %s %s %s",
-                SYM_NAME(ir->result->sym),
-                SYM_NAME(ir->arg1->sym),
-                rop2s(ir->op),
-                SYM_NAME(ir->arg2->sym));
+                SYM_NAME(IR_RESULT(ir)->sym),
+                SYM_NAME(IR_ARG(ir, 0)->sym),
+                rop2s(IR_OP(ir)),
+                SYM_NAME(IR_ARG(ir, 1)->sym));
         break;
     case IR_U_MINUS:
         break;
@@ -808,10 +837,10 @@ static void print_ir(struct ir *ir)
     case IR_CONV_FI:
     case IR_CONV_FF:
         println("%s = (%s=>%s) %s",
-                SYM_NAME(ir->result->sym),
-                TYPE_NAME(SYM_TYPE(ir->arg1->sym)),
-                TYPE_NAME(SYM_TYPE(ir->result->sym)),
-                SYM_NAME(ir->arg1->sym));
+                SYM_NAME(IR_RESULT(ir)->sym),
+                TYPE_NAME(SYM_TYPE(IR_ARG(ir, 0)->sym)),
+                TYPE_NAME(SYM_TYPE(IR_RESULT(ir)->sym)),
+                SYM_NAME(IR_ARG(ir, 0)->sym));
         break;
     case IR_CONV_IP:
     case IR_CONV_PI:
@@ -819,12 +848,12 @@ static void print_ir(struct ir *ir)
     case IR_CONV_FP:
     case IR_CONV_AP:
         println("%s = (%s) %s",
-                SYM_NAME(ir->result->sym),
-                rop2s(ir->op),
-                SYM_NAME(ir->arg1->sym));
+                SYM_NAME(IR_RESULT(ir)->sym),
+                rop2s(IR_OP(ir)),
+                SYM_NAME(IR_ARG(ir, 0)->sym));
         break;
     default:
-        die("unexpected rop %d", ir->op);
+        die("unexpected rop %d", IR_OP(ir));
     }
 }
 
@@ -832,7 +861,7 @@ void print_irs(struct vector *irs)
 {
     println("IRS: %lld", vec_len(irs));
     for (int i = 0; i < vec_len(irs); i++) {
-        struct ir *ir = vec_at(irs, i);
+        ir_t *ir = vec_at(irs, i);
         print_ir(ir);
     }
 }
