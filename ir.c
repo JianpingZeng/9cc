@@ -523,6 +523,7 @@ static void emit_expr(node_t *n)
         break;
     case PAREN_EXPR:
         emit_expr(EXPR_OPERAND(n, 0));
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
         break;
     case COND_EXPR:
         emit_cond(n);
