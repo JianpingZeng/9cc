@@ -23,6 +23,8 @@ static struct table *labels;
 static const char *fall = (const char *)&fall;
 static const char *__continue;
 static const char *__break;
+static struct operand *true_operand;
+static struct operand *false_operand;
 
 #define SET_LOOP_CONTEXT(con, brk)              \
     const char *saved_continue = __continue;    \
@@ -75,7 +77,7 @@ static struct operand * make_label_operand(const char *label)
     return operand;
 }
 
-static struct operand * make_case_operand(long index)
+static struct operand * make_int_operand(long index)
 {
     struct operand *operand = new_operand();
     const char *name = strd(index);
@@ -114,6 +116,19 @@ static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
     return ir;
 }
 
+static struct ir * make_assign_ir(struct operand *l, struct operand *r)
+{
+    struct ir *ir = new_ir(IR_ASSIGN, r, NULL, false);
+    ir->result = l;
+    return ir;
+}
+
+static void emit_assin_ir(struct operand *l, struct operand *r)
+{
+    struct ir *ir = make_assign_ir(l, r);
+    emit_ir(ir);
+}
+
 static struct ir * emit_conv_ir(int op, node_t *dty, struct operand *l)
 {
     struct ir *ir = make_conv_ir(op, dty, l);
@@ -134,6 +149,20 @@ static void emit_rel_if(int op, struct ir *rel_ir, const char *label)
     ir->relop = true;
     ir->goto_ir = make_ir_nor(IR_GOTO, make_label_operand(label), NULL);
     ir->rel_ir = rel_ir;
+    emit_ir(ir);
+}
+
+static void emit_label(const char *label)
+{
+    struct operand *operand = make_label_operand(label);
+    struct ir *ir = make_ir_nor(IR_LABEL, operand, NULL);
+    emit_ir(ir);
+}
+
+static void emit_goto(const char *label)
+{
+    struct operand *operand = make_label_operand(label);
+    struct ir *ir = make_ir_nor(IR_GOTO, operand, NULL);
     emit_ir(ir);
 }
 
@@ -207,7 +236,25 @@ static void emit_assign(node_t *n)
 
     emit_expr(l);
     emit_expr(r);
-    
+    emit_assin_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r));
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+}
+
+static void emit_bool_expr_e(node_t *n)
+{
+    EXPR_X_TRUE(n) = fall;
+    EXPR_X_FALSE(n) = gen_label();
+    const char *label = gen_label();
+    struct operand *result = make_tmp_operand();
+    emit_bool_expr(n);
+    // true
+    emit_assin_ir(result, true_operand);
+    emit_goto(label);
+    emit_label(EXPR_X_FALSE(n));
+    // false
+    emit_assin_ir(result, false_operand);
+    emit_label(label);
+    EXPR_X_ADDR(n) = result;
 }
 
 static void emit_bop(node_t *n)
@@ -217,6 +264,13 @@ static void emit_bop(node_t *n)
         emit_assign(n);
         break;
     case ',':
+        {
+            node_t *l = EXPR_OPERAND(n, 0);
+            node_t *r = EXPR_OPERAND(n, 1);
+            emit_expr(l);
+            emit_expr(r);
+            EXPR_X_ADDR(n) = EXPR_X_ADDR(r);
+        }
         break;
         // int
     case '%':
@@ -255,9 +309,9 @@ static void emit_bop(node_t *n)
     case LEQ:
     case EQ:
     case NEQ:
-        break;
     case AND:
     case OR:
+        emit_bool_expr_e(n);
         break;
     default:
         cc_assert(0);
@@ -266,17 +320,29 @@ static void emit_bop(node_t *n)
 
 static void emit_uop(node_t *n)
 {
-    int op = EXPR_OP(n);
-    switch (op) {
+    switch (EXPR_OP(n)) {
     case INCR:
     case DECR:
+        break;
     case '*':
     case '&':
+        break;
     case '+':
+        emit_expr(EXPR_OPERAND(n, 0));
+        break;
     case '-':
     case '~':
+        break;
     case '!':
+        emit_bool_expr_e(n);
+        break;
     case SIZEOF:
+        {
+            node_t *l = EXPR_OPERAND(n, 0);
+            node_t *ty = istype(l) ? l : AST_TYPE(l);
+            size_t size = TYPE_SIZE(ty);
+            // TODO: 
+        }
         break;
     default:
         cc_assert(0);
@@ -285,6 +351,23 @@ static void emit_uop(node_t *n)
 
 static void emit_cond(node_t *n)
 {
+    node_t *cond = EXPR_COND(n);
+    node_t *then = EXPR_THEN(n);
+    node_t *els = EXPR_ELSE(n);
+
+    EXPR_X_TRUE(cond) = fall;
+    EXPR_X_FALSE(cond) = gen_label();
+    const char *label = gen_label();
+    struct operand *result = make_tmp_operand();
+    emit_bool_expr(cond);
+    emit_expr(then);
+    emit_assin_ir(result, EXPR_X_ADDR(then));
+    emit_goto(label);
+    emit_label(EXPR_X_FALSE(cond));
+    emit_expr(els);
+    emit_assin_ir(result, EXPR_X_ADDR(els));
+    emit_label(label);
+    EXPR_X_ADDR(n) = result;
 }
 
 static void emit_member(node_t *n)
@@ -480,20 +563,6 @@ static void emit_expr(node_t *n)
     default:
         cc_assert(0);
     }
-}
-
-static void emit_label(const char *label)
-{
-    struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir_nor(IR_LABEL, operand, NULL);
-    emit_ir(ir);
-}
-
-static void emit_goto(const char *label)
-{
-    struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir_nor(IR_GOTO, operand, NULL);
-    emit_ir(ir);
 }
 
 static void emit_logic_and(node_t *n)
@@ -740,7 +809,7 @@ static void emit_switch_jmp(struct operand *l, node_t *case_stmt)
     struct operand *case_operand;
     struct ir *rel_ir;
 
-    case_operand = make_case_operand(STMT_CASE_INDEX(case_stmt));
+    case_operand = make_int_operand(STMT_CASE_INDEX(case_stmt));
     rel_ir = make_ir_nor(EQ, l, case_operand);
     STMT_X_LABEL(case_stmt) = gen_label();
     emit_rel_if(IR_IF, rel_ir, STMT_X_LABEL(case_stmt));
@@ -894,6 +963,8 @@ static void ir_init(void)
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
+    true_operand = make_int_operand(1);
+    false_operand = make_int_operand(0);
 }
 
 static const char *glabel(const char *label)
@@ -981,6 +1052,9 @@ static void print_ir(struct ir *ir)
         }
         break;
     case IR_ASSIGN:
+        println("%s = %s",
+                SYM_NAME(ir->result->sym),
+                SYM_NAME(ir->args[0]->sym));
         break;
     case IR_ADD:
     case IR_MINUS:
