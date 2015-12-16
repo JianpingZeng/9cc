@@ -204,19 +204,6 @@ struct ast_stmt {
     union x x;
 };
 
-#define GEN_OPERAND(NODE)    ((NODE)->gen.operands[0])
-#define GEN_COND(NODE)       ((NODE)->gen.operands[0])
-#define GEN_THEN(NODE)       ((NODE)->gen.operands[1])
-#define GEN_ELSE(NODE)       ((NODE)->gen.operands[2])
-#define GEN_LABEL(NODE)      AST_NAME(NODE)
-#define GEN_LIST(NODE)       ((NODE)->gen.list)
-
-struct ast_gen {
-    struct ast_common common;
-    node_t *operands[3];
-    node_t **list;
-};
-
 union ast_node {
     struct ast_common common;
     struct ast_decl decl;
@@ -225,7 +212,6 @@ union ast_node {
     struct ast_type type;
     struct ast_field field;
     struct ast_symbol symbol;
-    struct ast_gen gen;
 };
 
 // ast.c
@@ -245,12 +231,6 @@ extern node_t *ast_inits(node_t * ty, struct source src);
 extern node_t *ast_vinit(void);
 // stmt
 extern node_t *ast_stmt(int id, struct source src);
-// gen
-extern node_t *ast_if(node_t * cond, node_t * then, node_t * els);
-extern node_t *ast_jump(const char *label);
-extern node_t *ast_label(const char *label);
-extern node_t *ast_return(node_t * node);
-extern node_t *ast_compound(node_t ** list);
 
 extern const char *gen_label(void);
 extern const char *gen_tmpname(void);
@@ -265,7 +245,6 @@ extern node_t *copy_node(node_t * node);
 #define isexpr(n)   (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isdecl(n)   (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)
 #define isstmt(n)   (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
-#define isgen(n)    (AST_ID(n) > BEGIN_GEN_ID && AST_ID(n) < END_GEN_ID)
 #define istype(n)   (AST_ID(n) == TYPE_NODE)
 #define isfield(n)  (AST_ID(n) == FIELD_NODE)
 #define issymbol(n) (AST_ID(n) == SYMBOL_NODE)

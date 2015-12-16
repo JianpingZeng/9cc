@@ -91,8 +91,8 @@ extern struct dict *string_lits;
 extern void gen_decl(node_t *decl);
 
 // ir.c
+extern const char *rop2s(int op);
 extern node_t * ir(node_t *tree);
-extern void print_irs(struct vector *irs);
 extern node_t * reduce(node_t *expr);
 
 #endif

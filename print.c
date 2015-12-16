@@ -381,6 +381,111 @@ void print_tree(node_t * tree)
     print_tree1(context);
 }
 
+static void print_ir(struct ir *ir)
+{
+    switch (ir->op) {
+    case IR_NONE:
+        break;
+    case IR_LABEL:
+        println("%s:", SYM_NAME(ir->result->sym));
+        break;
+    case IR_GOTO:
+        println("%s %s",
+                rop2s(ir->op),
+                SYM_NAME(ir->result->sym));
+        break;
+    case IR_RETURN:
+        println("%s %s",
+                rop2s(ir->op),
+                SYM_NAME(ir->args[0]->sym));
+        break;
+    case IR_IF:
+    case IR_IF_FALSE:
+        if (ir->relop) {
+            // rel if
+            println("%s %s %s %s %s %s",
+                    rop2s(ir->op),
+                    SYM_NAME(ir->args[0]->sym),
+                    id2s(ir->relop),
+                    SYM_NAME(ir->args[1]->sym),
+                    rop2s(IR_GOTO),
+                    SYM_NAME(ir->result->sym));
+        } else {
+            // simple if
+            println("%s %s %s %s",
+                    rop2s(ir->op),
+                    SYM_NAME(ir->args[0]->sym),
+                    rop2s(IR_GOTO),
+                    SYM_NAME(ir->result->sym));
+        }
+        break;
+    case IR_ASSIGN:
+        println("%s = %s",
+                SYM_NAME(ir->result->sym),
+                SYM_NAME(ir->args[0]->sym));
+        break;
+    case IR_SUBSCRIPT:
+        break;
+    case IR_ADD:
+    case IR_MINUS:
+    case IR_DIV:
+    case IR_MUL:
+    case IR_MOD:
+    case IR_OR:
+    case IR_AND:
+    case IR_XOR:
+    case IR_LSHIFT:
+    case IR_RSHIFT:
+        println("%s = %s %s %s",
+                SYM_NAME(ir->result->sym),
+                SYM_NAME(ir->args[0]->sym),
+                rop2s(ir->op),
+                SYM_NAME(ir->args[1]->sym));
+        break;
+    case IR_ADDRESS:
+    case IR_INDIRECTION:
+    case IR_NOT:
+        println("%s = %s %s",
+                SYM_NAME(ir->result->sym),
+                rop2s(ir->op),
+                SYM_NAME(ir->args[0]->sym));
+        break;
+    case IR_PARAM:
+    case IR_CALL:
+        break;
+    case IR_CONV_II:
+    case IR_CONV_IF:
+    case IR_CONV_FI:
+    case IR_CONV_FF:
+        println("%s = (%s=>%s) %s",
+                SYM_NAME(ir->result->sym),
+                TYPE_NAME(SYM_TYPE(ir->args[0]->sym)),
+                TYPE_NAME(SYM_TYPE(ir->result->sym)),
+                SYM_NAME(ir->args[0]->sym));
+        break;
+    case IR_CONV_IP:
+    case IR_CONV_PI:
+    case IR_CONV_PP:
+    case IR_CONV_FP:
+    case IR_CONV_AP:
+        println("%s = (%s) %s",
+                SYM_NAME(ir->result->sym),
+                rop2s(ir->op),
+                SYM_NAME(ir->args[0]->sym));
+        break;
+    default:
+        die("unexpected rop %s", rop2s(ir->op));
+    }
+}
+
+void print_irs(struct vector *irs)
+{
+    for (int i = 0; i < vec_len(irs); i++) {
+        struct ir *ir = vec_at(irs, i);
+        print_ir(ir);
+    }
+}
+
 /**
  * Convert type node to string.
  */

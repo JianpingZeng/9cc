@@ -58,17 +58,6 @@ _n(NULL_STMT,         "NullStmt")
 
 _ns(END_STMT_ID)
 
-// gen
-_ns(BEGIN_GEN_ID)
-
-_n(AST_IF,		"AST_IF")
-_n(AST_JUMP,  		"AST_JUMP")
-_n(AST_LABEL,		"AST_LABEL")
-_n(AST_COMPOUND,	"AST_COMPOUND")
-_n(AST_RETURN,		"AST_RETURN")
-
-_ns(END_GEN_ID)
-
 // misc
 _n(FIELD_NODE,         "Field")
 _n(TYPE_NODE,          "Type")

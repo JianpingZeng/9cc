@@ -386,7 +386,7 @@ extern struct table *tags;
 
 // print.c
 extern void print_tree(node_t * tree);
-extern void print_gen_tree(node_t * tree);
+extern void print_irs(struct vector *irs);
 extern const char *type2s(node_t * ty);
 extern const char *node2s(node_t * node);
 extern void print_node_size(void);
