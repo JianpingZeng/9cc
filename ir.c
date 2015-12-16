@@ -100,6 +100,13 @@ static struct operand * make_unsigned_operand(unsigned long long u)
     return make_integer_operand(stru(u));
 }
 
+static struct operand * make_literal_operand(node_t *sym)
+{
+    struct operand *operand = new_operand();
+    operand->sym = sym;
+    return operand;
+}
+
 static struct ir * new_ir(int op, struct operand *l, struct operand *r, struct operand *result)
 {
     struct ir *ir = zmalloc(sizeof(struct ir));
@@ -492,34 +499,22 @@ static void emit_ref_expr(node_t *n)
 
 static void emit_integer_literal(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
-    struct operand *operand = new_operand();
-    operand->sym = sym;
-    EXPR_X_ADDR(n) = operand;
+    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
 }
 
 static void emit_float_literal(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
-    struct operand *operand = new_operand();
-    operand->sym = sym;
-    EXPR_X_ADDR(n) = operand;
+    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
 }
 
 static void emit_string_literal(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
-    struct operand *operand = new_operand();
-    operand->sym = sym;
-    EXPR_X_ADDR(n) = operand;
+    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
 }
 
 static void emit_compound_literal(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
-    struct operand *operand = new_operand();
-    operand->sym = sym;
-    EXPR_X_ADDR(n) = operand;
+    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
 }
 
 static void emit_expr(node_t *n)
