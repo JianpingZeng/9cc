@@ -231,6 +231,14 @@ static void emit_local_decls(node_t **decls)
 static int bop2rop(int op)
 {
     switch (op) {
+    case '+':
+        return IR_ADD;
+    case '-':
+        return IR_MINUS;
+    case '*':
+        return IR_MUL;
+    case '/':
+        return IR_DIV;
     case '%':
         return IR_MOD;
     case '|':
@@ -243,16 +251,12 @@ static int bop2rop(int op)
         return IR_LSHIFT;
     case RSHIFT:
         return IR_RSHIFT;
-    case '*':
-        return IR_MUL;
-    case '/':
-        return IR_DIV;
     default:
         cc_assert(0);
     }
 }
 
-static void emit_assign(node_t *n)
+static void emit_bop_assign(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
@@ -263,7 +267,16 @@ static void emit_assign(node_t *n)
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
-static void emit_bool_expr_e(node_t *n)
+static void emit_bop_comma(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+    emit_expr(l);
+    emit_expr(r);
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(r);
+}
+
+static void emit_bop_bool(node_t *n)
 {
     EXPR_X_TRUE(n) = fall;
     EXPR_X_FALSE(n) = gen_label();
@@ -280,20 +293,58 @@ static void emit_bool_expr_e(node_t *n)
     EXPR_X_ADDR(n) = result;
 }
 
+static void emit_bop_arith(node_t *n)
+{
+    int op = EXPR_OP(n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+    struct ir *ir;
+
+    emit_expr(l);
+    emit_expr(r);
+    ir = make_ir_r(bop2rop(op), EXPR_X_ADDR(l), EXPR_X_ADDR(r));
+    emit_ir(ir);
+    EXPR_X_ADDR(n) = ir->result;
+}
+
+static void emit_bop_plus(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+
+    if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
+        emit_bop_arith(n);
+    } else if (isptr(AST_TYPE(l))) {
+        // TODO: 
+    } else if (isptr(AST_TYPE(r))) {
+        // TODO: 
+    } else {
+        cc_assert(0);
+    }
+}
+
+static void emit_bop_minus(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *r = EXPR_OPERAND(n, 1);
+
+    if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
+        emit_bop_arith(n);
+    } else if (isptr(AST_TYPE(l))) {
+        // TODO: 
+    } else {
+        cc_assert(0);
+    }
+}
+
 static void emit_bop(node_t *n)
 {    
     switch (EXPR_OP(n)) {
     case '=':
-        emit_assign(n);
+        emit_bop_assign(n);
         break;
     case ',':
-        {
-            node_t *l = EXPR_OPERAND(n, 0);
-            node_t *r = EXPR_OPERAND(n, 1);
-            emit_expr(l);
-            emit_expr(r);
-            EXPR_X_ADDR(n) = EXPR_X_ADDR(r);
-        }
+        emit_bop_comma(n);
         break;
         // int
     case '%':
@@ -305,25 +356,13 @@ static void emit_bop(node_t *n)
         // arith
     case '*':
     case '/':
-        {
-            int op = EXPR_OP(n);
-            node_t *l = EXPR_OPERAND(n, 0);
-            node_t *r = EXPR_OPERAND(n, 1);
-            struct operand *result1;
-            struct operand *result2;
-            struct ir *ir;
-
-            emit_expr(l);
-            emit_expr(r);
-            result1 = EXPR_X_ADDR(l);
-            result2 = EXPR_X_ADDR(r);
-            ir = make_ir_r(bop2rop(op), result1, result2);
-            emit_ir(ir);
-            EXPR_X_ADDR(n) = ir->result;
-        }
+        emit_bop_arith(n);
         break;
     case '+':
+        emit_bop_plus(n);
+        break;
     case '-':
+        emit_bop_minus(n);
         break;
         // scalar
     case '<':
@@ -334,11 +373,20 @@ static void emit_bop(node_t *n)
     case NEQ:
     case AND:
     case OR:
-        emit_bool_expr_e(n);
+        emit_bop_bool(n);
         break;
     default:
         cc_assert(0);
     }
+}
+
+static void emit_uop_sizeof(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *ty = istype(l) ? l : AST_TYPE(l);
+    size_t size = TYPE_SIZE(ty);
+    struct operand *operand = make_unsigned_operand(size);
+    EXPR_X_ADDR(n) = operand;
 }
 
 static void emit_uop(node_t *n)
@@ -359,16 +407,10 @@ static void emit_uop(node_t *n)
     case '~':
         break;
     case '!':
-        emit_bool_expr_e(n);
+        emit_bop_bool(n);
         break;
     case SIZEOF:
-        {
-            node_t *l = EXPR_OPERAND(n, 0);
-            node_t *ty = istype(l) ? l : AST_TYPE(l);
-            size_t size = TYPE_SIZE(ty);
-            struct operand *operand = make_unsigned_operand(size);
-            EXPR_X_ADDR(n) = operand;
-        }
+        emit_uop_sizeof(n);
         break;
     default:
         cc_assert(0);
