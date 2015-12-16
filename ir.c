@@ -73,14 +73,28 @@ static struct operand * make_tmp_operand(void)
 static struct operand * make_label_operand(const char *label)
 {
     struct operand *operand = new_operand();
-    operand->sym = install(label, &labels, GLOBAL);
+    node_t *sym = lookup(label, labels);
+    if (!sym)
+        sym = install(label, &labels, GLOBAL);
+    operand->sym = sym;
     return operand;
 }
 
-static struct operand * make_int_operand(long index)
+static struct operand * make_int_operand(long long i)
 {
     struct operand *operand = new_operand();
-    const char *name = strd(index);
+    const char *name = strd(i);
+    node_t *sym = lookup(name, constants);
+    if (!sym)
+        sym = install(name, &constants, CONSTANT);
+    operand->sym = sym;
+    return operand;
+}
+
+static struct operand * make_unsigned_operand(unsigned long long u)
+{
+    struct operand *operand = new_operand();
+    const char *name = stru(u);
     node_t *sym = lookup(name, constants);
     if (!sym)
         sym = install(name, &constants, CONSTANT);
