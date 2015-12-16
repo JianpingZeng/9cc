@@ -57,14 +57,9 @@ static void emit_ir(struct ir *ir)
     vec_push(func_irs, ir);
 }
 
-static struct operand * new_operand(void)
-{
-    return zmalloc(sizeof(struct operand));
-}
-
 static struct operand * make_sym_operand(node_t *sym)
 {
-    struct operand *operand = new_operand();
+    struct operand *operand = zmalloc(sizeof(struct operand));
     operand->sym = sym;
     return operand;
 }
@@ -108,15 +103,10 @@ static struct operand * make_literal_operand(node_t *sym)
     return operand;
 }
 
-static struct ir * new_ir(void)
-{
-    return zmalloc(sizeof(struct ir));
-}
-
 static struct ir * make_ir(int op, struct operand *l, struct operand *r,
                            struct operand *result)
 {
-    struct ir *ir = new_ir();
+    struct ir *ir = zmalloc(sizeof(struct ir));
     ir->op = op;
     ir->args[0] = l;
     ir->args[1] = r;
@@ -137,26 +127,13 @@ static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
 static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
 {
     struct ir *ir = make_ir_r(op, l, NULL);
-    AST_TYPE(ir->result->sym) = dty;
+    SYM_TYPE(ir->result->sym) = dty;
     return ir;
 }
 
 static struct ir * make_assign_ir(struct operand *l, struct operand *r)
 {
     struct ir *ir = make_ir(IR_ASSIGN, r, NULL, l);
-    return ir;
-}
-
-static void emit_assin_ir(struct operand *l, struct operand *r)
-{
-    struct ir *ir = make_assign_ir(l, r);
-    emit_ir(ir);
-}
-
-static struct ir * emit_conv_ir(int op, node_t *dty, struct operand *l)
-{
-    struct ir *ir = make_conv_ir(op, dty, l);
-    emit_ir(ir);
     return ir;
 }
 
@@ -225,7 +202,7 @@ static void emit_local_decl(node_t *decl)
     node_t *init = DECL_BODY(decl);
     struct operand *l = make_sym_operand(sym);
     emit_expr(init);
-    emit_assin_ir(l, EXPR_X_ADDR(init));
+    emit_ir(make_assign_ir(l, EXPR_X_ADDR(init)));
 }
 
 static void emit_local_decls(node_t **decls)
@@ -269,7 +246,7 @@ static void emit_bop_assign(node_t *n)
 
     emit_expr(l);
     emit_expr(r);
-    emit_assin_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r));
+    emit_ir(make_assign_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r)));
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
@@ -290,11 +267,11 @@ static void emit_bop_bool(node_t *n)
     struct operand *result = make_tmp_operand();
     emit_bool_expr(n);
     // true
-    emit_assin_ir(result, operand_true);
+    emit_ir(make_assign_ir(result, operand_true));
     emit_goto(label);
     emit_label(EXPR_X_FALSE(n));
     // false
-    emit_assin_ir(result, operand_false);
+    emit_ir(make_assign_ir(result, operand_false));
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
@@ -453,7 +430,7 @@ static void emit_uop_increment(node_t *n, int op)
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
     } else {
         struct operand *tmp = make_tmp_operand();
-        emit_assin_ir(tmp, EXPR_X_ADDR(l));
+        emit_ir(make_assign_ir(tmp, EXPR_X_ADDR(l)));
         struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
         emit_ir(ir);
         EXPR_X_ADDR(n) = tmp;
@@ -508,11 +485,11 @@ static void emit_cond(node_t *n)
     struct operand *result = make_tmp_operand();
     emit_bool_expr(cond);
     emit_expr(then);
-    emit_assin_ir(result, EXPR_X_ADDR(then));
+    emit_ir(make_assign_ir(result, EXPR_X_ADDR(then)));
     emit_goto(label);
     emit_label(EXPR_X_FALSE(cond));
     emit_expr(els);
-    emit_assin_ir(result, EXPR_X_ADDR(els));
+    emit_ir(make_assign_ir(result, EXPR_X_ADDR(els)));
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
@@ -530,56 +507,60 @@ static void emit_subscript(node_t *n)
 static struct operand * arith2arith(node_t *dty, struct operand *l)
 {
     node_t *sty = SYM_TYPE(l->sym);
+    struct ir *ir;
 
     if (eqarith(sty, dty))
         return l;
 
-    if (isint(sty) && isint(dty)) {
-        struct ir *ir = emit_conv_ir(IR_CONV_II, dty, l);
-        return ir->result;
-    } else if (isint(sty) && isfloat(dty)) {
-        struct ir *ir = emit_conv_ir(IR_CONV_IF, dty, l);
-        return ir->result;
-    } else if (isfloat(sty) && isint(dty)) {
-        struct ir *ir = emit_conv_ir(IR_CONV_FI, dty, l);
-        return ir->result;
-    } else if (isfloat(sty) && isfloat(dty)) {
-        struct ir *ir = emit_conv_ir(IR_CONV_FF, dty, l);
-        return ir->result;
-    } else {
+    if (isint(sty) && isint(dty))
+        ir = make_conv_ir(IR_CONV_II, dty, l);
+    else if (isint(sty) && isfloat(dty))
+        ir = make_conv_ir(IR_CONV_IF, dty, l);
+    else if (isfloat(sty) && isint(dty))
+        ir = make_conv_ir(IR_CONV_FI, dty, l);
+    else if (isfloat(sty) && isfloat(dty))
+        ir = make_conv_ir(IR_CONV_FF, dty, l);
+    else
         cc_assert(0);
-    }
+    
+    emit_ir(ir);
+    return ir->result;
 }
 
 static struct operand * ptr2arith(node_t *dty, struct operand *l)
 {
     cc_assert(isint(dty));
-    struct ir *ir = emit_conv_ir(IR_CONV_PI, dty, l);
+    struct ir *ir = make_conv_ir(IR_CONV_PI, dty, l);
+    emit_ir(ir);
     return ir->result;
 }
 
 static struct operand * ptr2ptr(node_t *dty, struct operand *l)
 {
-    struct ir *ir = emit_conv_ir(IR_CONV_PP, dty, l);
+    struct ir *ir = make_conv_ir(IR_CONV_PP, dty, l);
+    emit_ir(ir);
     return ir->result;
 }
 
 static struct operand * arith2ptr(node_t *dty, struct operand *l)
 {
     cc_assert(isint(SYM_TYPE(l->sym)));
-    struct ir *ir = emit_conv_ir(IR_CONV_IP, dty, l);
+    struct ir *ir = make_conv_ir(IR_CONV_IP, dty, l);
+    emit_ir(ir);
     return ir->result;
 }
 
 static struct operand * func2ptr(node_t *dty, struct operand *l)
 {
-    struct ir *ir = emit_conv_ir(IR_CONV_FP, dty, l);
+    struct ir *ir = make_conv_ir(IR_CONV_FP, dty, l);
+    emit_ir(ir);
     return ir->result;
 }
 
 static struct operand * array2ptr(node_t *dty, struct operand *l)
 {
-    struct ir *ir = emit_conv_ir(IR_CONV_AP, dty, l);
+    struct ir *ir = make_conv_ir(IR_CONV_AP, dty, l);
+    emit_ir(ir);
     return ir->result;
 }
 
