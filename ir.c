@@ -62,32 +62,34 @@ static struct operand * new_operand(void)
     return zmalloc(sizeof(struct operand));
 }
 
-static struct operand * make_tmp_operand(void)
+static struct operand * make_sym_operand(node_t *sym)
 {
     struct operand *operand = new_operand();
-    const char *name = gen_tmpname_r();
-    operand->sym = install(name, &tmps, GLOBAL);
-    return operand;
-}
-
-static struct operand * make_sym_operand(const char *name, struct table *table, int scope)
-{
-    struct operand *operand = new_operand();
-    node_t *sym = lookup(name, table);
-    if (!sym)
-        sym = install(name, &table, scope);
     operand->sym = sym;
     return operand;
 }
 
+static struct operand * make_name_operand(const char *name, struct table **table, int scope)
+{
+    node_t *sym = lookup(name, *table);
+    if (!sym)
+        sym = install(name, table, scope);
+    return make_sym_operand(sym);
+}
+
+static struct operand * make_tmp_operand(void)
+{
+    return make_name_operand(gen_tmpname_r(), &tmps, GLOBAL);
+}
+
 static struct operand * make_label_operand(const char *label)
 {
-    return make_sym_operand(label, labels, GLOBAL);
+    return make_name_operand(label, &labels, GLOBAL);
 }
 
 static struct operand * make_integer_operand(const char *name)
 {
-    return make_sym_operand(name, constants, CONSTANT);
+    return make_name_operand(name, &constants, CONSTANT);
 }
 
 static struct operand * make_int_operand(long long i)
@@ -102,8 +104,7 @@ static struct operand * make_unsigned_operand(unsigned long long u)
 
 static struct operand * make_literal_operand(node_t *sym)
 {
-    struct operand *operand = new_operand();
-    operand->sym = sym;
+    struct operand *operand = make_sym_operand(sym);
     return operand;
 }
 
@@ -491,10 +492,7 @@ static void emit_funcall(node_t *n)
 
 static void emit_ref_expr(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
-    struct operand *operand = new_operand();
-    operand->sym = sym;
-    EXPR_X_ADDR(n) = operand;
+    EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
 }
 
 static void emit_integer_literal(node_t *n)
