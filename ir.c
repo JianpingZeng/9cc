@@ -108,9 +108,15 @@ static struct operand * make_literal_operand(node_t *sym)
     return operand;
 }
 
-static struct ir * new_ir(int op, struct operand *l, struct operand *r, struct operand *result)
+static struct ir * new_ir(void)
 {
-    struct ir *ir = zmalloc(sizeof(struct ir));
+    return zmalloc(sizeof(struct ir));
+}
+
+static struct ir * make_ir(int op, struct operand *l, struct operand *r,
+                           struct operand *result)
+{
+    struct ir *ir = new_ir();
     ir->op = op;
     ir->args[0] = l;
     ir->args[1] = r;
@@ -120,12 +126,12 @@ static struct ir * new_ir(int op, struct operand *l, struct operand *r, struct o
 
 static struct ir * make_ir_r(int op, struct operand *l, struct operand *r)
 {
-    return new_ir(op, l, r, make_tmp_operand());
+    return make_ir(op, l, r, make_tmp_operand());
 }
 
 static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
 {
-    return new_ir(op, l, r, NULL);
+    return make_ir(op, l, r, NULL);
 }
 
 static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
@@ -137,7 +143,7 @@ static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
 
 static struct ir * make_assign_ir(struct operand *l, struct operand *r)
 {
-    struct ir *ir = new_ir(IR_ASSIGN, r, NULL, l);
+    struct ir *ir = make_ir(IR_ASSIGN, r, NULL, l);
     return ir;
 }
 
@@ -156,15 +162,15 @@ static struct ir * emit_conv_ir(int op, node_t *dty, struct operand *l)
 
 static void emit_simple_if(int op, struct operand *operand, const char *label)
 {
-    struct ir *ir = new_ir(op, operand, NULL, make_label_operand(label));
+    struct ir *ir = make_ir(op, operand, NULL, make_label_operand(label));
     emit_ir(ir);
 }
 
-static void emit_rel_if(int op, int relop,
-                        struct operand *rel_l, struct operand *rel_r,
+static void emit_rel_if(int op,
+                        int relop, struct operand *rel_l, struct operand *rel_r,
                         const char *label)
 {
-    struct ir *ir = new_ir(op, rel_l, rel_r, make_label_operand(label));
+    struct ir *ir = make_ir(op, rel_l, rel_r, make_label_operand(label));
     ir->relop = relop;
     emit_ir(ir);
 }
@@ -172,14 +178,14 @@ static void emit_rel_if(int op, int relop,
 static void emit_label(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = new_ir(IR_LABEL, NULL, NULL, operand);
+    struct ir *ir = make_ir(IR_LABEL, NULL, NULL, operand);
     emit_ir(ir);
 }
 
 static void emit_goto(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = new_ir(IR_GOTO, NULL, NULL, operand);
+    struct ir *ir = make_ir(IR_GOTO, NULL, NULL, operand);
     emit_ir(ir);
 }
 
