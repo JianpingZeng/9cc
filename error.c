@@ -31,13 +31,28 @@ static void cc_print_lead(int tag, struct source src, const char *fmt,
     fprintf(stderr, "\n");
 }
 
+static void increse_error_count(void)
+{
+    ++errors;
+    if (errors >= MAX_ERRORS) {
+        fprintf(stderr, "Too many errors.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
 void warningf(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    cc_print_lead(WRN, src, fmt, ap);
+    if (opts.Werror)
+        cc_print_lead(ERR, src, fmt, ap);
+    else
+        cc_print_lead(WRN, src, fmt, ap);
     va_end(ap);
-    ++warnings;
+    if (opts.Werror)
+        increse_error_count();
+    else
+        ++warnings;
 }
 
 void errorf(struct source src, const char *fmt, ...)
@@ -46,11 +61,7 @@ void errorf(struct source src, const char *fmt, ...)
     va_start(ap, fmt);
     cc_print_lead(ERR, src, fmt, ap);
     va_end(ap);
-    ++errors;
-    if (errors >= MAX_ERRORS) {
-        fprintf(stderr, "Too many errors.\n");
-        exit(EXIT_FAILURE);
-    }
+    increse_error_count();
 }
 
 void fatalf(struct source src, const char *fmt, ...)
