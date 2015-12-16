@@ -688,6 +688,9 @@ bool isrestrict(node_t * ty)
 
 bool eqarith(node_t * ty1, node_t * ty2)
 {
+    cc_assert(isarith(ty1));
+    cc_assert(isarith(ty2));
+
     return TYPE_KIND(ty1) == TYPE_KIND(ty2) &&
         TYPE_OP(ty1) == TYPE_OP(ty2);
 }
