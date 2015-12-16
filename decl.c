@@ -957,6 +957,14 @@ node_t *translation_unit(void)
     return ret;
 }
 
+static const char *glabel(const char *label)
+{
+    if (opts.fleading_underscore)
+        return format("_%s", label);
+    else
+        return label;
+}
+
 static struct vector * filter_global(struct vector *v)
 {
     struct vector *r = vec_new();
@@ -964,8 +972,20 @@ static struct vector * filter_global(struct vector *v)
     map->cmpfn = nocmp;
     for (int i = 0; i < vec_len(v); i++) {
         node_t *decl = vec_at(v, i);
+        node_t *sym = DECL_SYM(decl);
+
+        // skip unused symbols
+        if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
+            if (isfuncdef(decl))
+                warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+            else if (isvardecl(decl))
+                warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+            continue;
+        }
+        
         if (isfuncdef(decl)) {
             vec_push(r, decl);
+            vec_add_array(r, (void **)DECL_X_SVARS(decl));
         } else if (isvardecl(decl)) {
             node_t *sym = DECL_SYM(decl);
             if (SYM_SCLASS(sym) == EXTERN)
@@ -979,6 +999,8 @@ static struct vector * filter_global(struct vector *v)
                 map_put(map, sym, decl);
             }
         }
+
+        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     }
     map_free(map);
     return r;

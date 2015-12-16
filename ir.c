@@ -1145,46 +1145,20 @@ static void ir_init(void)
     operand_zero = make_int_operand(0);
 }
 
-static const char *glabel(const char *label)
-{
-    if (opts.fleading_underscore)
-        return format("_%s", label);
-    else
-        return label;
-}
-
 node_t * ir(node_t *tree)
 {
     cc_assert(istudecl(tree) && errors == 0);
 
-    struct vector *v = vec_new();
     ir_init();
     for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
         node_t *decl = DECL_EXTS(tree)[i];
-        node_t *sym = DECL_SYM(decl);
 
-        // skip unused symbols
-        if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
-            if (isfuncdef(decl))
-                warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
-            else if (isvardecl(decl))
-                warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
-            continue;
-        }
-        
-        if (isfuncdef(decl)) {
+        if (isfuncdef(decl))
             emit_function(decl);
-            vec_push(v, decl);
-            vec_add_array(v, (void **)DECL_X_SVARS(decl));
-        } else if (isvardecl(decl)) {
+        else if (isvardecl(decl))
             emit_globalvar(decl);
-            vec_push(v, decl);
-        }
-
-        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     }
 
-    DECL_EXTS(tree) = (node_t **)vtoa(v);
     return tree;
 }
 
