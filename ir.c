@@ -415,7 +415,14 @@ static void emit_uop_sizeof(node_t *n)
 
 static void emit_uop_minus(node_t *n)
 {
-    // TODO: 
+    node_t *l = EXPR_OPERAND(n, 0);
+
+    emit_expr(l);
+
+    struct operand *tmp = make_tmp_operand();
+    struct ir *ir = make_ir(IR_MINUS, operand_zero, EXPR_X_ADDR(l), tmp);
+    emit_ir(ir);
+    EXPR_X_ADDR(n) = tmp;
 }
 
 static void emit_uop_indirection(node_t *n)
@@ -508,10 +515,12 @@ static void emit_cond(node_t *n)
 
 static void emit_member(node_t *n)
 {
+    // TODO: 
 }
 
 static void emit_subscript(node_t *n)
 {
+    // TODO: 
 }
 
 static struct operand * arith2arith(node_t *dty, struct operand *l)
@@ -604,6 +613,7 @@ static void emit_conv(node_t *n)
 
 static void emit_funcall(node_t *n)
 {
+    // TODO: 
 }
 
 static void emit_ref_expr(node_t *n)
