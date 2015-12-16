@@ -70,24 +70,24 @@ static struct operand * make_tmp_operand(void)
     return operand;
 }
 
-static struct operand * make_label_operand(const char *label)
+static struct operand * make_sym_operand(const char *name, struct table *table, int scope)
 {
     struct operand *operand = new_operand();
-    node_t *sym = lookup(label, labels);
+    node_t *sym = lookup(name, table);
     if (!sym)
-        sym = install(label, &labels, GLOBAL);
+        sym = install(name, &table, scope);
     operand->sym = sym;
     return operand;
 }
 
+static struct operand * make_label_operand(const char *label)
+{
+    return make_sym_operand(label, labels, GLOBAL);
+}
+
 static struct operand * make_integer_operand(const char *name)
 {
-    struct operand *operand = new_operand();
-    node_t *sym = lookup(name, constants);
-    if (!sym)
-        sym = install(name, &constants, CONSTANT);
-    operand->sym = sym;
-    return operand;
+    return make_sym_operand(name, constants, CONSTANT);
 }
 
 static struct operand * make_int_operand(long long i)
