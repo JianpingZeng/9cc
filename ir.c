@@ -80,10 +80,9 @@ static struct operand * make_label_operand(const char *label)
     return operand;
 }
 
-static struct operand * make_int_operand(long long i)
+static struct operand * make_integer_operand(const char *name)
 {
     struct operand *operand = new_operand();
-    const char *name = strd(i);
     node_t *sym = lookup(name, constants);
     if (!sym)
         sym = install(name, &constants, CONSTANT);
@@ -91,15 +90,14 @@ static struct operand * make_int_operand(long long i)
     return operand;
 }
 
+static struct operand * make_int_operand(long long i)
+{
+    return make_integer_operand(strd(i));
+}
+
 static struct operand * make_unsigned_operand(unsigned long long u)
 {
-    struct operand *operand = new_operand();
-    const char *name = stru(u);
-    node_t *sym = lookup(name, constants);
-    if (!sym)
-        sym = install(name, &constants, CONSTANT);
-    operand->sym = sym;
-    return operand;
+    return make_integer_operand(stru(u));
 }
 
 static struct ir * new_ir(int op, struct operand *l, struct operand *r, struct operand *result)
