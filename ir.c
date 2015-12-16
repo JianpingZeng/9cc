@@ -88,38 +88,36 @@ static struct operand * make_int_operand(long index)
     return operand;
 }
 
-static struct ir * new_ir(int op, struct operand *l, struct operand *r, bool result)
+static struct ir * new_ir(int op, struct operand *l, struct operand *r, struct operand *result)
 {
     struct ir *ir = zmalloc(sizeof(struct ir));
     ir->op = op;
     ir->args[0] = l;
     ir->args[1] = r;
-    if (result)
-        ir->result = make_tmp_operand();
+    ir->result = result;
     return ir;
 }
 
 static struct ir * make_ir(int op, struct operand *l, struct operand *r)
 {
-    return new_ir(op, l, r, true);
+    return new_ir(op, l, r, make_tmp_operand());
 }
 
 static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
 {
-    return new_ir(op, l, r, false);
+    return new_ir(op, l, r, NULL);
 }
 
 static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
 {
-    struct ir *ir = new_ir(op, l, NULL, true);
+    struct ir *ir = make_ir(op, l, NULL);
     AST_TYPE(ir->result->sym) = dty;
     return ir;
 }
 
 static struct ir * make_assign_ir(struct operand *l, struct operand *r)
 {
-    struct ir *ir = new_ir(IR_ASSIGN, r, NULL, false);
-    ir->result = l;
+    struct ir *ir = new_ir(IR_ASSIGN, r, NULL, l);
     return ir;
 }
 
@@ -138,31 +136,30 @@ static struct ir * emit_conv_ir(int op, node_t *dty, struct operand *l)
 
 static void emit_simple_if(int op, struct operand *operand, const char *label)
 {
-    struct ir *ir = make_ir_nor(op, operand, NULL);
-    ir->goto_ir = make_ir_nor(IR_GOTO, make_label_operand(label), NULL);
+    struct ir *ir = new_ir(op, operand, NULL, make_label_operand(label));
     emit_ir(ir);
 }
 
-static void emit_rel_if(int op, struct ir *rel_ir, const char *label)
+static void emit_rel_if(int op, int relop,
+                        struct operand *rel_l, struct operand *rel_r,
+                        const char *label)
 {
-    struct ir *ir = make_ir_nor(op, NULL, NULL);
-    ir->relop = true;
-    ir->goto_ir = make_ir_nor(IR_GOTO, make_label_operand(label), NULL);
-    ir->rel_ir = rel_ir;
+    struct ir *ir = new_ir(op, rel_l, rel_r, make_label_operand(label));
+    ir->relop = relop;
     emit_ir(ir);
 }
 
 static void emit_label(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir_nor(IR_LABEL, operand, NULL);
+    struct ir *ir = new_ir(IR_LABEL, NULL, NULL, operand);
     emit_ir(ir);
 }
 
 static void emit_goto(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir_nor(IR_GOTO, operand, NULL);
+    struct ir *ir = new_ir(IR_GOTO, NULL, NULL, operand);
     emit_ir(ir);
 }
 
@@ -637,15 +634,20 @@ static void emit_rel_expr(node_t *n)
 
     emit_expr(l);
     emit_expr(r);
-    struct ir *rel_ir = make_ir_nor(op, EXPR_X_ADDR(l), EXPR_X_ADDR(r));
 
     if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
-        emit_rel_if(IR_IF, rel_ir, EXPR_X_TRUE(n));
+        emit_rel_if(IR_IF,
+                    op, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    EXPR_X_TRUE(n));
         emit_goto(EXPR_X_FALSE(n));
     } else if (EXPR_X_TRUE(n) != fall) {
-        emit_rel_if(IR_IF, rel_ir, EXPR_X_TRUE(n));
+        emit_rel_if(IR_IF,
+                    op, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    EXPR_X_TRUE(n));
     } else if (EXPR_X_FALSE(n) != fall) {
-        emit_rel_if(IR_IF_FALSE, rel_ir, EXPR_X_FALSE(n));
+        emit_rel_if(IR_IF_FALSE,
+                    op, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    EXPR_X_FALSE(n));
     } else {
         // both fall
     }
@@ -808,12 +810,12 @@ static void emit_for_stmt(node_t *stmt)
 static void emit_switch_jmp(struct operand *l, node_t *case_stmt)
 {
     struct operand *case_operand;
-    struct ir *rel_ir;
 
     case_operand = make_int_operand(STMT_CASE_INDEX(case_stmt));
-    rel_ir = make_ir_nor(EQ, l, case_operand);
     STMT_X_LABEL(case_stmt) = gen_label();
-    emit_rel_if(IR_IF, rel_ir, STMT_X_LABEL(case_stmt));
+    emit_rel_if(IR_IF,
+                EQ, l, case_operand,
+                STMT_X_LABEL(case_stmt));
 }
 
 static void emit_switch_stmt(node_t *stmt)
@@ -1017,12 +1019,12 @@ static void print_ir(struct ir *ir)
     case IR_NONE:
         break;
     case IR_LABEL:
-        println("%s:", SYM_NAME(ir->args[0]->sym));
+        println("%s:", SYM_NAME(ir->result->sym));
         break;
     case IR_GOTO:
         println("%s %s",
                 rop2s(ir->op),
-                SYM_NAME(ir->args[0]->sym));
+                SYM_NAME(ir->result->sym));
         break;
     case IR_RETURN:
         println("%s %s",
@@ -1033,23 +1035,20 @@ static void print_ir(struct ir *ir)
     case IR_IF_FALSE:
         if (ir->relop) {
             // rel if
-            struct ir *rel_ir = ir->rel_ir;
-            struct ir *goto_ir = ir->goto_ir;
             println("%s %s %s %s %s %s",
                     rop2s(ir->op),
-                    SYM_NAME(rel_ir->args[0]->sym),
-                    id2s(rel_ir->op),
-                    SYM_NAME(rel_ir->args[1]->sym),
-                    rop2s(goto_ir->op),
-                    SYM_NAME(goto_ir->args[0]->sym));
+                    SYM_NAME(ir->args[0]->sym),
+                    id2s(ir->relop),
+                    SYM_NAME(ir->args[1]->sym),
+                    rop2s(IR_GOTO),
+                    SYM_NAME(ir->result->sym));
         } else {
             // simple if
-            struct ir *goto_ir = ir->goto_ir;
             println("%s %s %s %s",
                     rop2s(ir->op),
                     SYM_NAME(ir->args[0]->sym),
-                    rop2s(goto_ir->op),
-                    SYM_NAME(goto_ir->args[0]->sym));
+                    rop2s(IR_GOTO),
+                    SYM_NAME(ir->result->sym));
         }
         break;
     case IR_ASSIGN:

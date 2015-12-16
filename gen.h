@@ -22,22 +22,12 @@ struct operand {
     node_t *sym;
 };
 
-/**
- *  - binary:  result = arg1 op arg2
- *  - unary:   result = op arg1
- *  - jump:    op result  (op == jump operator)
- *  - label:   op result  (op == label operator)
- */
-
+// three-address code
 struct ir {
     int op;
+    int relop;
     struct operand *args[2];
     struct operand *result;
-
-    // if
-    bool relop;
-    struct ir *rel_ir;
-    struct ir *goto_ir;
 };
 
 // sym
