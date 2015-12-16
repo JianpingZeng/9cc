@@ -191,6 +191,19 @@ static void emit_goto(const char *label)
     emit_ir(ir);
 }
 
+static void emit_param(struct operand *operand)
+{
+    struct ir *ir = make_ir(IR_PARAM, NULL, NULL, operand);
+    emit_ir(ir);
+}
+
+static struct ir * make_call_ir(struct operand *l, int args)
+{
+    struct ir *ir = make_ir(IR_CALL, l, NULL, NULL);
+    ir->relop = args;
+    return ir;
+}
+
 static void do_emit_local_decl(node_t *decl)
 {
     // TODO: 
@@ -613,7 +626,33 @@ static void emit_conv(node_t *n)
 
 static void emit_funcall(node_t *n)
 {
-    // TODO: 
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t **args = EXPR_ARGS(n);
+    int len = LIST_LEN(args);
+    node_t *ty = AST_TYPE(n);
+
+    emit_expr(l);
+
+    for (int i = 0; i < len; i++) {
+        node_t *arg = args[i];
+        emit_expr(arg);
+    }
+
+    // in reverse order
+    for (int i = len - 1; i >= 0; i--) {
+        node_t *arg = args[i];
+        emit_param(EXPR_X_ADDR(arg));
+    }
+
+    if (isvoid(ty)) {
+        struct ir *ir = make_call_ir(EXPR_X_ADDR(l), len);
+        emit_ir(ir);
+    } else {
+        struct ir *ir = make_call_ir(EXPR_X_ADDR(l), len);
+        ir->result = make_tmp_operand();
+        emit_ir(ir);
+        EXPR_X_ADDR(n) = ir->result;
+    }
 }
 
 static void emit_ref_expr(node_t *n)

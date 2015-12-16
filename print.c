@@ -101,16 +101,16 @@ static void print_decl(node_t * node, struct print_context context)
 
     switch (AST_ID(node)) {
     case TU_DECL:
-    {
-        node_t **exts = DECL_EXTS(node);
-        if (exts) {
-            for (int i = 0; exts[i]; i++) {
-                struct print_context con = {level, exts[i]};
-                print_tree1(con);
+        {
+            node_t **exts = DECL_EXTS(node);
+            if (exts) {
+                for (int i = 0; exts[i]; i++) {
+                    struct print_context con = {level, exts[i]};
+                    print_tree1(con);
+                }
             }
         }
-    }
-    break;
+        break;
     default:
         break;
     }
@@ -206,154 +206,154 @@ static void print_stmt(node_t * node, struct print_context context)
 
     switch (AST_ID(node)) {
     case COMPOUND_STMT:
-    {
-        node_t **blks = STMT_BLKS(node);
-        for (int i = 0; i < LIST_LEN(blks); i++) {
-            struct print_context con = {level, blks[i]};
-            print_tree1(con);
-        }
-    }
-    break;
-    case FOR_STMT:
-    {
-        node_t **decl = STMT_FOR_DECL(node);
-        node_t *init = STMT_FOR_INIT(node);
-        node_t *cond = STMT_FOR_COND(node);
-        node_t *ctrl = STMT_FOR_CTRL(node);
-	node_t *body = STMT_FOR_BODY(node);
-        if (decl) {
-            for (int i=0; decl[i]; i++) {
-                struct print_context con = {level, decl[i]};
+        {
+            node_t **blks = STMT_BLKS(node);
+            for (int i = 0; i < LIST_LEN(blks); i++) {
+                struct print_context con = {level, blks[i]};
                 print_tree1(con);
             }
-        } else if (init) {
-            struct print_context con = {level, init};
-            print_tree1(con);
-        } else {
-            for (int i=0; i < level; i++)
-                putf("  ");
-            putf("init: <NULL>\n");
         }
+        break;
+    case FOR_STMT:
+        {
+            node_t **decl = STMT_FOR_DECL(node);
+            node_t *init = STMT_FOR_INIT(node);
+            node_t *cond = STMT_FOR_COND(node);
+            node_t *ctrl = STMT_FOR_CTRL(node);
+            node_t *body = STMT_FOR_BODY(node);
+            if (decl) {
+                for (int i=0; decl[i]; i++) {
+                    struct print_context con = {level, decl[i]};
+                    print_tree1(con);
+                }
+            } else if (init) {
+                struct print_context con = {level, init};
+                print_tree1(con);
+            } else {
+                for (int i=0; i < level; i++)
+                    putf("  ");
+                putf("init: <NULL>\n");
+            }
         
-        if (cond) {
-            struct print_context con = {level, cond};
-            print_tree1(con);
-        } else {
-            for (int i=0; i < level; i++)
-                putf("  ");
-            putf("cond: <NULL>\n");
-        }
+            if (cond) {
+                struct print_context con = {level, cond};
+                print_tree1(con);
+            } else {
+                for (int i=0; i < level; i++)
+                    putf("  ");
+                putf("cond: <NULL>\n");
+            }
         
-        if (ctrl) {
-            struct print_context con = {level, ctrl};
-            print_tree1(con);
-        } else {
-            for (int i=0; i < level; i++)
-                putf("  ");
-            putf("ctrl: <NULL>\n");
-        }
+            if (ctrl) {
+                struct print_context con = {level, ctrl};
+                print_tree1(con);
+            } else {
+                for (int i=0; i < level; i++)
+                    putf("  ");
+                putf("ctrl: <NULL>\n");
+            }
 
-	if (body) {
-	    struct print_context con = {level, body};
-            print_tree1(con);
-	} else {
-	    for (int i=0; i < level; i++)
-                putf("  ");
-            putf("ctrl: <NULL>\n");
-	}
-    }
-    break;
+            if (body) {
+                struct print_context con = {level, body};
+                print_tree1(con);
+            } else {
+                for (int i=0; i < level; i++)
+                    putf("  ");
+                putf("ctrl: <NULL>\n");
+            }
+        }
+        break;
     case IF_STMT:
-    {
-        node_t *cond = STMT_COND(node);
-        node_t *then = STMT_THEN(node);
-        node_t *els = STMT_ELSE(node);
+        {
+            node_t *cond = STMT_COND(node);
+            node_t *then = STMT_THEN(node);
+            node_t *els = STMT_ELSE(node);
 
-        if (cond) {
-            struct print_context con = {level, cond};
-            print_tree1(con);
+            if (cond) {
+                struct print_context con = {level, cond};
+                print_tree1(con);
+            }
+            if (then) {
+                struct print_context con = {level, then};
+                print_tree1(con);
+            }
+            if (els) {
+                struct print_context con = {level, els};
+                print_tree1(con);
+            }
         }
-        if (then) {
-            struct print_context con = {level, then};
-            print_tree1(con);
-        }
-        if (els) {
-            struct print_context con = {level, els};
-            print_tree1(con);
-        }
-    }
-    break;
+        break;
     case DO_WHILE_STMT:
     case WHILE_STMT:
-    {
-        node_t *cond = STMT_WHILE_COND(node);
-        node_t *body = STMT_WHILE_BODY(node);
+        {
+            node_t *cond = STMT_WHILE_COND(node);
+            node_t *body = STMT_WHILE_BODY(node);
 
-        if (cond) {
-            struct print_context con = {level, cond};
-            print_tree1(con);
+            if (cond) {
+                struct print_context con = {level, cond};
+                print_tree1(con);
+            }
+            if (body) {
+                struct print_context con = {level, body};
+                print_tree1(con);
+            }
         }
-        if (body) {
-            struct print_context con = {level, body};
-            print_tree1(con);
-        }
-    }
-    break;
+        break;
     case SWITCH_STMT:
-    {
-        node_t *expr = STMT_SWITCH_EXPR(node);
-        node_t *body = STMT_SWITCH_BODY(node);
+        {
+            node_t *expr = STMT_SWITCH_EXPR(node);
+            node_t *body = STMT_SWITCH_BODY(node);
 
-        if (expr) {
-            struct print_context con = {level, expr};
-            print_tree1(con);
+            if (expr) {
+                struct print_context con = {level, expr};
+                print_tree1(con);
+            }
+            if (body) {
+                struct print_context con = {level, body};
+                print_tree1(con);
+            }
         }
-         if (body) {
-            struct print_context con = {level, body};
-            print_tree1(con);
-        }
-    }
-    break;
+        break;
     case CASE_STMT:
     case DEFAULT_STMT:
-    {
-        node_t *body = STMT_CASE_BODY(node);
+        {
+            node_t *body = STMT_CASE_BODY(node);
 
-        if (body) {
-            struct print_context con = {level, body};
-            print_tree1(con);
+            if (body) {
+                struct print_context con = {level, body};
+                print_tree1(con);
+            }
         }
-    }
-    break;
+        break;
     case RETURN_STMT:
-    {
-        node_t *expr = STMT_RETURN_EXPR(node);
+        {
+            node_t *expr = STMT_RETURN_EXPR(node);
 
-        if (expr) {
-            struct print_context con = {level, expr};
-            print_tree1(con);
+            if (expr) {
+                struct print_context con = {level, expr};
+                print_tree1(con);
+            }
         }
-    }
     case GOTO_STMT:
-    {
-        const char *label = STMT_LABEL_NAME(node);
+        {
+            const char *label = STMT_LABEL_NAME(node);
 
-        if (label)
-            print_label(level, label);
-    }
-    break;
-    case LABEL_STMT:
-    {
-        const char *label = STMT_LABEL_NAME(node);
-        node_t *body = STMT_LABEL_BODY(node);
-
-        if (label)
-            print_label(level, label);
-        if (body) {
-            struct print_context con = {level, body};
-            print_tree1(con);
+            if (label)
+                print_label(level, label);
         }
-    }
+        break;
+    case LABEL_STMT:
+        {
+            const char *label = STMT_LABEL_NAME(node);
+            node_t *body = STMT_LABEL_BODY(node);
+
+            if (label)
+                print_label(level, label);
+            if (body) {
+                struct print_context con = {level, body};
+                print_tree1(con);
+            }
+        }
         break;
     case BREAK_STMT:
     case CONTINUE_STMT:
@@ -401,38 +401,38 @@ static void do_print_ir(struct ir *ir)
         break;
     case IR_GOTO:
         putln("%s %s",
-                rop2s(ir->op),
-                SYM_NAME(ir->result->sym));
+              rop2s(ir->op),
+              SYM_NAME(ir->result->sym));
         break;
     case IR_RETURN:
         putln("%s %s",
-                rop2s(ir->op),
-                SYM_NAME(ir->args[0]->sym));
+              rop2s(ir->op),
+              SYM_NAME(ir->args[0]->sym));
         break;
     case IR_IF:
     case IR_IF_FALSE:
         if (ir->relop) {
             // rel if
             putln("%s %s %s %s %s %s",
-                    rop2s(ir->op),
-                    SYM_NAME(ir->args[0]->sym),
-                    id2s(ir->relop),
-                    SYM_NAME(ir->args[1]->sym),
-                    rop2s(IR_GOTO),
-                    SYM_NAME(ir->result->sym));
+                  rop2s(ir->op),
+                  SYM_NAME(ir->args[0]->sym),
+                  id2s(ir->relop),
+                  SYM_NAME(ir->args[1]->sym),
+                  rop2s(IR_GOTO),
+                  SYM_NAME(ir->result->sym));
         } else {
             // simple if
             putln("%s %s %s %s",
-                    rop2s(ir->op),
-                    SYM_NAME(ir->args[0]->sym),
-                    rop2s(IR_GOTO),
-                    SYM_NAME(ir->result->sym));
+                  rop2s(ir->op),
+                  SYM_NAME(ir->args[0]->sym),
+                  rop2s(IR_GOTO),
+                  SYM_NAME(ir->result->sym));
         }
         break;
     case IR_ASSIGN:
         putln("%s = %s",
-                SYM_NAME(ir->result->sym),
-                SYM_NAME(ir->args[0]->sym));
+              SYM_NAME(ir->result->sym),
+              SYM_NAME(ir->args[0]->sym));
         break;
     case IR_SUBSCRIPT:
         break;
@@ -447,31 +447,58 @@ static void do_print_ir(struct ir *ir)
     case IR_LSHIFT:
     case IR_RSHIFT:
         putln("%s = %s %s %s",
-                SYM_NAME(ir->result->sym),
-                SYM_NAME(ir->args[0]->sym),
-                rop2s(ir->op),
-                SYM_NAME(ir->args[1]->sym));
+              SYM_NAME(ir->result->sym),
+              SYM_NAME(ir->args[0]->sym),
+              rop2s(ir->op),
+              SYM_NAME(ir->args[1]->sym));
         break;
     case IR_ADDRESS:
     case IR_INDIRECTION:
     case IR_NOT:
         putln("%s = %s %s",
-                SYM_NAME(ir->result->sym),
-                rop2s(ir->op),
-                SYM_NAME(ir->args[0]->sym));
+              SYM_NAME(ir->result->sym),
+              rop2s(ir->op),
+              SYM_NAME(ir->args[0]->sym));
         break;
     case IR_PARAM:
+        putln("%s %s",
+              rop2s(ir->op),
+              SYM_NAME(ir->result->sym));
+        break;
     case IR_CALL:
+        if (ir->result) {
+            if (ir->relop > 0)
+                putln("%s = %s %s, %d",
+                      SYM_NAME(ir->result->sym),
+                      rop2s(ir->op),
+                      SYM_NAME(ir->args[0]->sym),
+                      ir->relop);
+            else
+                putln("%s = %s %s",
+                      SYM_NAME(ir->result->sym),
+                      rop2s(ir->op),
+                      SYM_NAME(ir->args[0]->sym));
+        } else {
+            if (ir->relop > 0)
+                putln("%s %s, %d",
+                      rop2s(ir->op),
+                      SYM_NAME(ir->args[0]->sym),
+                      ir->relop);
+            else
+                putln("%s %s",
+                      rop2s(ir->op),
+                      SYM_NAME(ir->args[0]->sym));
+        }
         break;
     case IR_CONV_II:
     case IR_CONV_IF:
     case IR_CONV_FI:
     case IR_CONV_FF:
         putln("%s = (%s=>%s) %s",
-                SYM_NAME(ir->result->sym),
-                TYPE_NAME(SYM_TYPE(ir->args[0]->sym)),
-                TYPE_NAME(SYM_TYPE(ir->result->sym)),
-                SYM_NAME(ir->args[0]->sym));
+              SYM_NAME(ir->result->sym),
+              TYPE_NAME(SYM_TYPE(ir->args[0]->sym)),
+              TYPE_NAME(SYM_TYPE(ir->result->sym)),
+              SYM_NAME(ir->args[0]->sym));
         break;
     case IR_CONV_IP:
     case IR_CONV_PI:
@@ -479,9 +506,9 @@ static void do_print_ir(struct ir *ir)
     case IR_CONV_FP:
     case IR_CONV_AP:
         putln("%s = (%s) %s",
-                SYM_NAME(ir->result->sym),
-                rop2s(ir->op),
-                SYM_NAME(ir->args[0]->sym));
+              SYM_NAME(ir->result->sym),
+              rop2s(ir->op),
+              SYM_NAME(ir->args[0]->sym));
         break;
     default:
         die("unexpected rop %s", rop2s(ir->op));
@@ -539,73 +566,73 @@ static void dotype2s(struct vector *l, struct vector *r)
     k = TYPE_KIND(s->type);
     switch (k) {
     case POINTER:
-    {
-        struct vector *v = vec_new();
-        for (int i = vec_len(l) - 1; i >= 0; i--) {
-            struct type2s *s = vec_at(l, i);
-            if (!isptr(s->type))
-                break;
-            vec_push(v, s);
-            vec_pop(l);
-        }
-        s = vec_tail(l);
-        if (isfunc(s->type) || isarray(s->type)) {
-            struct type2s *s2 = vec_head(r);
-            bool rfunc = s2 && s2->type && isfunc(s2->type);
-            if (rfunc)
-                vec_push_front(r,
-                               paren(LPAREN, s2->type));
-            for (int i = 0; i < vec_len(v); i++)
-                vec_push_front(r, vec_at(v, i));
-            vec_push_front(r, paren(LPAREN, s->type));
-            vec_push_front(r, paren(FSPACE, NULL));
-            if (rfunc)
-                vec_push(r, paren(RPAREN, s2->type));
-            vec_push(r, paren(RPAREN, s->type));
-        } else {
-            for (int i = 0; i < vec_len(v); i++)
-                vec_push_front(r, vec_at(v, i));
-            vec_push_front(r, paren(FSPACE, NULL));
-        }
-    }
-    break;
-    case FUNCTION:
-    {
-        node_t **params = TYPE_PARAMS(s->type);
-        int len = LIST_LEN(params);
-        vec_push(r, paren(FSPACE, NULL));
-        vec_push(r, paren(LPAREN, s->type));
-        for (int i = 0; params && params[i]; i++) {
-            node_t *ty = SYM_TYPE(params[i]);
-            struct vector *v = type2s1(ty);
-            vec_add(r, v);
-            vec_free(v);
-            if (i < len - 1) {
-                vec_push(r, paren(FCOMMA, NULL));
-                vec_push(r, paren(FSPACE, NULL));
+        {
+            struct vector *v = vec_new();
+            for (int i = vec_len(l) - 1; i >= 0; i--) {
+                struct type2s *s = vec_at(l, i);
+                if (!isptr(s->type))
+                    break;
+                vec_push(v, s);
+                vec_pop(l);
+            }
+            s = vec_tail(l);
+            if (isfunc(s->type) || isarray(s->type)) {
+                struct type2s *s2 = vec_head(r);
+                bool rfunc = s2 && s2->type && isfunc(s2->type);
+                if (rfunc)
+                    vec_push_front(r,
+                                   paren(LPAREN, s2->type));
+                for (int i = 0; i < vec_len(v); i++)
+                    vec_push_front(r, vec_at(v, i));
+                vec_push_front(r, paren(LPAREN, s->type));
+                vec_push_front(r, paren(FSPACE, NULL));
+                if (rfunc)
+                    vec_push(r, paren(RPAREN, s2->type));
+                vec_push(r, paren(RPAREN, s->type));
+            } else {
+                for (int i = 0; i < vec_len(v); i++)
+                    vec_push_front(r, vec_at(v, i));
+                vec_push_front(r, paren(FSPACE, NULL));
             }
         }
-        if (TYPE_VARG(s->type)) {
-            vec_push(r, paren(FCOMMA, NULL));
+        break;
+    case FUNCTION:
+        {
+            node_t **params = TYPE_PARAMS(s->type);
+            int len = LIST_LEN(params);
             vec_push(r, paren(FSPACE, NULL));
-            vec_push(r, paren(ELLIPSIS, NULL));
+            vec_push(r, paren(LPAREN, s->type));
+            for (int i = 0; params && params[i]; i++) {
+                node_t *ty = SYM_TYPE(params[i]);
+                struct vector *v = type2s1(ty);
+                vec_add(r, v);
+                vec_free(v);
+                if (i < len - 1) {
+                    vec_push(r, paren(FCOMMA, NULL));
+                    vec_push(r, paren(FSPACE, NULL));
+                }
+            }
+            if (TYPE_VARG(s->type)) {
+                vec_push(r, paren(FCOMMA, NULL));
+                vec_push(r, paren(FSPACE, NULL));
+                vec_push(r, paren(ELLIPSIS, NULL));
+            }
+            vec_push(r, paren(RPAREN, s->type));
+            vec_pop(l);
         }
-        vec_push(r, paren(RPAREN, s->type));
-        vec_pop(l);
-    }
-    break;
+        break;
     case ARRAY:
-    {
-        vec_push(r, s);
-        vec_pop(l);
-    }
-    break;
+        {
+            vec_push(r, s);
+            vec_pop(l);
+        }
+        break;
     default:
-    {
-        vec_push_front(r, s);
-        vec_pop(l);
-    }
-    break;
+        {
+            vec_push_front(r, s);
+            vec_pop(l);
+        }
+        break;
     }
 
     dotype2s(l, r);
@@ -767,20 +794,20 @@ static const char *expr2s(node_t * node)
         strbuf_cats(s, format("(%s)", expr2s(l)));
         break;
     case CALL_EXPR:
-    {
-        const char *func = expr2s(l);
-        node_t **args = EXPR_ARGS(node);
-        strbuf_cats(s, func);
-        strbuf_cats(s, "(");
-        for (int i = 0; i < LIST_LEN(args); i++) {
-            const char *s1 = expr2s(args[i]);
-            strbuf_cats(s, s1);
-            if (i != LIST_LEN(args) - 1)
-                strbuf_cats(s, ", ");
+        {
+            const char *func = expr2s(l);
+            node_t **args = EXPR_ARGS(node);
+            strbuf_cats(s, func);
+            strbuf_cats(s, "(");
+            for (int i = 0; i < LIST_LEN(args); i++) {
+                const char *s1 = expr2s(args[i]);
+                strbuf_cats(s, s1);
+                if (i != LIST_LEN(args) - 1)
+                    strbuf_cats(s, ", ");
+            }
+            strbuf_cats(s, ")");
         }
-        strbuf_cats(s, ")");
-    }
-    break;
+        break;
     case CAST_EXPR:
         strbuf_cats(s,
                     format("(%s)%s", type2s(AST_TYPE(node)),
@@ -851,7 +878,7 @@ void print_node_size(void)
             sizeof(struct ast_field),
             sizeof(union ast_node), sizeof(node_t),
             sizeof(struct ast_common)
-        );
+            );
 }
 
 // TODO: typedef names
