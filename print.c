@@ -1,6 +1,7 @@
 #include "cc.h"
 
 #define STR(str)  ((str) ? (str) : "<null>")
+#define OUTFD     stdout
 
 struct print_context {
     int level;
@@ -13,7 +14,16 @@ static void putf(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(stdout, fmt, ap);
+    vfprintf(OUTFD, fmt, ap);
+    va_end(ap);
+}
+
+static void putln(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(OUTFD, fmt, ap);
+    fprintf(OUTFD, "\n");
     va_end(ap);
 }
 
@@ -381,21 +391,21 @@ void print_tree(node_t * tree)
     print_tree1(context);
 }
 
-static void print_ir(struct ir *ir)
+static void do_print_ir(struct ir *ir)
 {
     switch (ir->op) {
     case IR_NONE:
         break;
     case IR_LABEL:
-        println("%s:", SYM_NAME(ir->result->sym));
+        putln("%s:", SYM_NAME(ir->result->sym));
         break;
     case IR_GOTO:
-        println("%s %s",
+        putln("%s %s",
                 rop2s(ir->op),
                 SYM_NAME(ir->result->sym));
         break;
     case IR_RETURN:
-        println("%s %s",
+        putln("%s %s",
                 rop2s(ir->op),
                 SYM_NAME(ir->args[0]->sym));
         break;
@@ -403,7 +413,7 @@ static void print_ir(struct ir *ir)
     case IR_IF_FALSE:
         if (ir->relop) {
             // rel if
-            println("%s %s %s %s %s %s",
+            putln("%s %s %s %s %s %s",
                     rop2s(ir->op),
                     SYM_NAME(ir->args[0]->sym),
                     id2s(ir->relop),
@@ -412,7 +422,7 @@ static void print_ir(struct ir *ir)
                     SYM_NAME(ir->result->sym));
         } else {
             // simple if
-            println("%s %s %s %s",
+            putln("%s %s %s %s",
                     rop2s(ir->op),
                     SYM_NAME(ir->args[0]->sym),
                     rop2s(IR_GOTO),
@@ -420,7 +430,7 @@ static void print_ir(struct ir *ir)
         }
         break;
     case IR_ASSIGN:
-        println("%s = %s",
+        putln("%s = %s",
                 SYM_NAME(ir->result->sym),
                 SYM_NAME(ir->args[0]->sym));
         break;
@@ -436,7 +446,7 @@ static void print_ir(struct ir *ir)
     case IR_XOR:
     case IR_LSHIFT:
     case IR_RSHIFT:
-        println("%s = %s %s %s",
+        putln("%s = %s %s %s",
                 SYM_NAME(ir->result->sym),
                 SYM_NAME(ir->args[0]->sym),
                 rop2s(ir->op),
@@ -445,7 +455,7 @@ static void print_ir(struct ir *ir)
     case IR_ADDRESS:
     case IR_INDIRECTION:
     case IR_NOT:
-        println("%s = %s %s",
+        putln("%s = %s %s",
                 SYM_NAME(ir->result->sym),
                 rop2s(ir->op),
                 SYM_NAME(ir->args[0]->sym));
@@ -457,7 +467,7 @@ static void print_ir(struct ir *ir)
     case IR_CONV_IF:
     case IR_CONV_FI:
     case IR_CONV_FF:
-        println("%s = (%s=>%s) %s",
+        putln("%s = (%s=>%s) %s",
                 SYM_NAME(ir->result->sym),
                 TYPE_NAME(SYM_TYPE(ir->args[0]->sym)),
                 TYPE_NAME(SYM_TYPE(ir->result->sym)),
@@ -468,7 +478,7 @@ static void print_ir(struct ir *ir)
     case IR_CONV_PP:
     case IR_CONV_FP:
     case IR_CONV_AP:
-        println("%s = (%s) %s",
+        putln("%s = (%s) %s",
                 SYM_NAME(ir->result->sym),
                 rop2s(ir->op),
                 SYM_NAME(ir->args[0]->sym));
@@ -478,11 +488,19 @@ static void print_ir(struct ir *ir)
     }
 }
 
-void print_irs(struct vector *irs)
+void print_ir(node_t *tree)
 {
-    for (int i = 0; i < vec_len(irs); i++) {
-        struct ir *ir = vec_at(irs, i);
-        print_ir(ir);
+    node_t **exts = DECL_EXTS(tree);
+    for (int i = 0; i < LIST_LEN(exts); i++) {
+        node_t *decl = exts[i];
+        if (isfuncdef(decl)) {
+            putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
+            struct vector *irs = DECL_X_IRS(decl);
+            for (int j = 0; j < vec_len(irs); j++) {
+                struct ir *ir = vec_at(irs, j);
+                do_print_ir(ir);
+            }
+        }
     }
 }
 

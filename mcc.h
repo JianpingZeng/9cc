@@ -73,6 +73,7 @@ extern int version;
 
 struct options {
     int ast_dump:1;
+    int ir_dump:1;
     int c:1;
     int E:1;
     int S:1;

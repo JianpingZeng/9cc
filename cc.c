@@ -22,8 +22,13 @@ static void translate(void)
     if (opts.ast_dump) {
         print_tree(tree);
     } else {
-        if (errors == 0)
-            gen(ir(tree), outfp);
+        if (errors == 0) {
+            tree = ir(tree);
+            if (opts.ir_dump)
+                print_ir(tree);
+            else
+                gen(tree, outfp);
+        }
     }
 }
 

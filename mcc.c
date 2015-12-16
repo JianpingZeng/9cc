@@ -28,6 +28,7 @@ static void usage(void)
             "OPTIONS:\n", MAJOR(version), MINOR(version));
     fprintf(stderr,
             "  -ast-dump       Only print abstract syntax tree\n"
+            "  -ir-dump        Only print intermediate representation\n"
             "  -c              Only run preprocess, compile and assemble steps\n"
             "  -Dname          \n"
             "  -Dname=value    Define a macro\n"
@@ -68,6 +69,8 @@ static void parse_opts(int argc, char *argv[])
                 output = argv[i];
             } else if (!strcmp(arg, "-ast-dump")) {
                 opts.ast_dump = true;
+            } else if (!strcmp(arg, "-ir-dump")) {
+                opts.ir_dump = true;
             } else if (!strcmp(arg, "-c")) {
                 opts.c = true;
             } else if (!strcmp(arg, "-E")) {
@@ -187,7 +190,7 @@ int main(int argc, char **argv)
     init_env();
     parse_opts(argc, argv);
 
-    bool partial = opts.E || opts.ast_dump || opts.S || opts.c;
+    bool partial = opts.E || opts.ast_dump || opts.ir_dump || opts.S || opts.c;
 
     if (argc == 1) {
         usage();
@@ -211,7 +214,7 @@ int main(int argc, char **argv)
         const char *iname = basename(xstrdup(ifile));
         const char *ofile = NULL;
         int ret;
-        if (opts.E || opts.ast_dump) {
+        if (opts.E || opts.ast_dump || opts.ir_dump) {
             if (output)
                 ofile = output;
             ret = translate(ifile, ofile);
