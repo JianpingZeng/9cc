@@ -23,8 +23,10 @@ static struct table *labels;
 static const char *fall = (const char *)&fall;
 static const char *__continue;
 static const char *__break;
-static struct operand *true_operand;
-static struct operand *false_operand;
+static struct operand *operand_true;
+static struct operand *operand_false;
+static struct operand *operand_one;
+static struct operand *operand_zero;
 
 #define SET_LOOP_CONTEXT(con, brk)              \
     const char *saved_continue = __continue;    \
@@ -284,11 +286,11 @@ static void emit_bop_bool(node_t *n)
     struct operand *result = make_tmp_operand();
     emit_bool_expr(n);
     // true
-    emit_assin_ir(result, true_operand);
+    emit_assin_ir(result, operand_true);
     emit_goto(label);
     emit_label(EXPR_X_FALSE(n));
     // false
-    emit_assin_ir(result, false_operand);
+    emit_assin_ir(result, operand_false);
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
@@ -380,6 +382,28 @@ static void emit_bop(node_t *n)
     }
 }
 
+static int uop2rop(int op)
+{
+    switch (op) {
+    case '~':
+        return IR_NOT;
+    default:
+        cc_assert(0);
+    }
+}
+
+static void emit_uop_simple(node_t *n)
+{
+    int op = EXPR_OP(n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    struct ir *ir;
+
+    emit_expr(l);
+    ir = make_ir_r(uop2rop(op), EXPR_X_ADDR(l), NULL);
+    emit_ir(ir);
+    EXPR_X_ADDR(n) = ir->result;
+}
+
 static void emit_uop_sizeof(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -389,22 +413,66 @@ static void emit_uop_sizeof(node_t *n)
     EXPR_X_ADDR(n) = operand;
 }
 
+static void emit_uop_minus(node_t *n)
+{
+    // TODO: 
+}
+
+static void emit_uop_indirection(node_t *n)
+{
+    // TODO: 
+}
+
+static void emit_uop_address(node_t *n)
+{
+    // TODO: 
+}
+
+static void emit_uop_increment(node_t *n, int op)
+{
+    bool prefix = EXPR_PREFIX(n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    int rop = op == INCR ? IR_ADD : IR_MINUS;
+
+    emit_expr(l);
+    
+    if (prefix) {
+        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
+        emit_ir(ir);
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    } else {
+        struct operand *tmp = make_tmp_operand();
+        emit_assin_ir(tmp, EXPR_X_ADDR(l));
+        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
+        emit_ir(ir);
+        EXPR_X_ADDR(n) = tmp;
+    }
+}
+
 static void emit_uop(node_t *n)
 {
     switch (EXPR_OP(n)) {
     case INCR:
+        emit_uop_increment(n, INCR);
+        break;
     case DECR:
+        emit_uop_increment(n, DECR);
         break;
     case '*':
+        emit_uop_indirection(n);
+        break;
     case '&':
+        emit_uop_address(n);
         break;
     case '+':
         emit_expr(EXPR_OPERAND(n, 0));
         EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
         break;
     case '-':
+        emit_uop_minus(n);
         break;
     case '~':
+        emit_uop_simple(n);
         break;
     case '!':
         emit_bop_bool(n);
@@ -1022,8 +1090,10 @@ static void ir_init(void)
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
-    true_operand = make_int_operand(1);
-    false_operand = make_int_operand(0);
+    operand_true = make_int_operand(1);
+    operand_false = make_int_operand(0);
+    operand_one = make_int_operand(1);
+    operand_zero = make_int_operand(0);
 }
 
 static const char *glabel(const char *label)
