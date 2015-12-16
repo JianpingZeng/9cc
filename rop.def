@@ -1,13 +1,14 @@
 
 _rop(IR_NONE,   "null")
 
-_rop(IR_LABEL,  "label")
-
+// control
+_rop(IR_LABEL,          "label")
 _rop(IR_IF,             "if")
 _rop(IR_IF_FALSE,       "ifFalse")
 _rop(IR_RETURN,         "return")
 _rop(IR_GOTO,           "goto")
 
+// binary
 _rop(IR_ADD,    "+")
 _rop(IR_MINUS,  "-")
 _rop(IR_DIV,    "/")
@@ -21,13 +22,16 @@ _rop(IR_RSHIFT, ">>")
 _rop(IR_SUBSCRIPT,      "[]")
 _rop(IR_ASSIGN,         "=")
 
-_rop(IR_U_MINUS,        "-")
-_rop(IR_U_ADDRESS,      "&")
-_rop(IR_U_INDIRECTION,  "*")
+// unary
+_rop(IR_ADDRESS,      "&")
+_rop(IR_INDIRECTION,  "*")
+_rop(IR_NOT,          "~")
 
+// function
 _rop(IR_PARAM,          "param")
 _rop(IR_CALL,           "call")
 
+// conv
 _rop(IR_CONV_II,        "int=>int")
 _rop(IR_CONV_IF,        "int=>float")
 _rop(IR_CONV_FF,        "float=>int")

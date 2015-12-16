@@ -338,8 +338,10 @@ static void emit_uop(node_t *n)
         break;
     case '+':
         emit_expr(EXPR_OPERAND(n, 0));
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
         break;
     case '-':
+        break;
     case '~':
         break;
     case '!':
@@ -350,7 +352,8 @@ static void emit_uop(node_t *n)
             node_t *l = EXPR_OPERAND(n, 0);
             node_t *ty = istype(l) ? l : AST_TYPE(l);
             size_t size = TYPE_SIZE(ty);
-            // TODO: 
+            struct operand *operand = make_unsigned_operand(size);
+            EXPR_X_ADDR(n) = operand;
         }
         break;
     default:
@@ -1068,11 +1071,15 @@ static void print_ir(struct ir *ir)
                 SYM_NAME(ir->result->sym),
                 SYM_NAME(ir->args[0]->sym));
         break;
+    case IR_SUBSCRIPT:
+        break;
     case IR_ADD:
     case IR_MINUS:
     case IR_DIV:
     case IR_MUL:
     case IR_MOD:
+    case IR_OR:
+    case IR_AND:
     case IR_XOR:
     case IR_LSHIFT:
     case IR_RSHIFT:
@@ -1082,11 +1089,16 @@ static void print_ir(struct ir *ir)
                 rop2s(ir->op),
                 SYM_NAME(ir->args[1]->sym));
         break;
-    case IR_U_MINUS:
+    case IR_ADDRESS:
+    case IR_INDIRECTION:
+    case IR_NOT:
         println("%s = %s %s",
                 SYM_NAME(ir->result->sym),
                 rop2s(ir->op),
                 SYM_NAME(ir->args[0]->sym));
+        break;
+    case IR_PARAM:
+    case IR_CALL:
         break;
     case IR_CONV_II:
     case IR_CONV_IF:
