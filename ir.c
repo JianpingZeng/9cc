@@ -98,7 +98,7 @@ static struct ir * new_ir(int op, struct operand *l, struct operand *r, struct o
     return ir;
 }
 
-static struct ir * make_ir(int op, struct operand *l, struct operand *r)
+static struct ir * make_ir_r(int op, struct operand *l, struct operand *r)
 {
     return new_ir(op, l, r, make_tmp_operand());
 }
@@ -110,7 +110,7 @@ static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
 
 static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
 {
-    struct ir *ir = make_ir(op, l, NULL);
+    struct ir *ir = make_ir_r(op, l, NULL);
     AST_TYPE(ir->result->sym) = dty;
     return ir;
 }
@@ -291,7 +291,7 @@ static void emit_bop(node_t *n)
             emit_expr(r);
             result1 = EXPR_X_ADDR(l);
             result2 = EXPR_X_ADDR(r);
-            ir = make_ir(bop2rop(op), result1, result2);
+            ir = make_ir_r(bop2rop(op), result1, result2);
             emit_ir(ir);
             EXPR_X_ADDR(n) = ir->result;
         }
