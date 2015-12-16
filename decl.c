@@ -1561,9 +1561,7 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
 
     if (token->id == '{') {
         // function definition
-        node_t *sym = DECL_SYM(decl);
-        node_t *stmt = func_body(SYM_TYPE(sym), SYM_NAME(sym));
-        DECL_BODY(decl) = stmt;
+        func_body(decl);
         exit_scope();
     }
 

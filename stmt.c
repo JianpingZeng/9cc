@@ -2,6 +2,8 @@
 
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
+static node_t ** filter_local(node_t **decls);
+static void check_unused(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -50,28 +52,15 @@ static struct vector *__compound_vector;
 
 #define COMPOUND_VECTOR   (__compound_vector)
 
+// funcdef context
 size_t extra_stack_size;
 static struct vector *gotos;
 static struct map *labels;
 static node_t *functype;
 static const char *funcname;
-
-#define SET_FUNCDEF_CONTEXT(fty, id)            \
-    gotos = vec_new();                          \
-    labels = map_new();                         \
-    functype = fty;                             \
-    funcname = id;                              \
-    extra_stack_size = 0
-
-#define RESTORE_FUNCDEF_CONTEXT()               \
-    vec_free(gotos);                            \
-    gotos = NULL;                               \
-    map_free(labels);                           \
-    labels = NULL;                              \
-    functype = NULL;                            \
-    funcname = NULL;                            \
-    extra_stack_size = 0
-
+static struct vector *staticvars;
+static struct vector *localvars;
+static struct vector *localdecls;
 
 static node_t *expr_stmt(void)
 {
@@ -216,7 +205,7 @@ static node_t *for_stmt(void)
     } else {
         if (first_decl(token)) {
             // declaration
-            STMT_FOR_DECL(ret) = declaration();
+            STMT_FOR_DECL(ret) = filter_local(declaration());
         } else {
             // expression
             STMT_FOR_INIT(ret) = expression();
@@ -554,7 +543,7 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token))
             // declaration
-            vec_add_array(v, (void **)declaration());
+            vec_add_array(v, (void **)filter_local(declaration()));
         else
             // statement
             vec_push_safe(v, statement());
@@ -606,17 +595,52 @@ static void backfill_labels(void)
     }
 }
 
-node_t *func_body(node_t *ty, const char *name)
+static void set_funcdef_context(node_t *fty, const char *name)
 {
-    SET_FUNCDEF_CONTEXT(ty, name);
+    gotos = vec_new();
+    labels = map_new();
+    functype = fty;
+    funcname = name;
+    extra_stack_size = 0;
+    staticvars = vec_new();
+    localvars = vec_new();
+    localdecls = vec_new();
+}
+
+static void restore_funcdef_context(void)
+{
+    vec_free(gotos);
+    gotos = NULL;
+    map_free(labels);
+    labels = NULL;
+    functype = NULL;
+    funcname = NULL;
+    extra_stack_size = 0;
+    vec_free(staticvars);
+    staticvars = NULL;
+    vec_free(localvars);
+    localvars = NULL;
+    vec_free(localdecls);
+    localdecls = NULL;
+}
+
+void func_body(node_t *decl)
+{
+    node_t *sym = DECL_SYM(decl);
+    
+    set_funcdef_context(SYM_TYPE(sym), SYM_NAME(sym));
     
     node_t *stmt = compound_stmt(predefined_ids);
     // check goto labels
     backfill_labels();
+    DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
+    DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
+    // check unused
+    check_unused();
     
-    RESTORE_FUNCDEF_CONTEXT();
+    restore_funcdef_context();
 
-    return stmt;
+    DECL_BODY(decl) = stmt;
 }
 
 node_t *make_localvar(const char *name, node_t * ty, int sclass)
@@ -624,4 +648,41 @@ node_t *make_localvar(const char *name, node_t * ty, int sclass)
     node_t *decl = make_localdecl(name, ty, sclass);
     vec_push(COMPOUND_VECTOR, decl);
     return decl;
+}
+
+static void do_filter_local(node_t *decl)
+{
+    node_t *sym = DECL_SYM(decl);
+    int sclass = SYM_SCLASS(sym);
+
+    if (!isvardecl(decl) || sclass == EXTERN)
+        return;
+
+    if (sclass == STATIC) {
+        SYM_X_LABEL(sym) = gen_static_label();
+        vec_push(staticvars, decl);
+    } else {
+        vec_push(localvars, decl);
+    }
+
+    vec_push(localdecls, decl);
+}
+
+static node_t ** filter_local(node_t **decls)
+{
+    for (int i = 0; i < LIST_LEN(decls); i++)
+        do_filter_local(decls[i]);
+    return decls;
+}
+
+static void check_unused(void)
+{
+    for (int i = 0; i < vec_len(localdecls); i++) {
+        node_t *decl = vec_at(localdecls, i);
+        node_t *sym = DECL_SYM(decl);
+
+        if (SYM_REFS(sym) == 0 && !SYM_PREDEFINE(sym))
+            warningf(AST_SRC(sym),
+                     "unused variable '%s'", SYM_NAME(sym));
+    }
 }

@@ -16,8 +16,6 @@ static void emit_expr(node_t *n);
 static void emit_bool_expr(node_t *n);
 
 static struct vector *func_irs;
-static struct vector *staticvars;
-static struct vector *localvars;
 static struct table *tmps;
 static struct table *labels;
 static const char *fall = (const char *)&fall;
@@ -204,37 +202,30 @@ static struct ir * make_call_ir(struct operand *l, int args)
     return ir;
 }
 
-static void do_emit_local_decl(node_t *decl)
+static node_t * filter_local_decl(node_t *decl)
 {
-    // TODO: 
+    node_t *sym = DECL_SYM(decl);
+    if (!isvardecl(decl))
+        return NULL;
+    else if (SYM_SCLASS(sym) == EXTERN ||
+             SYM_SCLASS(sym) == STATIC)
+        return NULL;
+    else if (!DECL_BODY(decl))
+        return NULL;
+    else
+        return decl;
 }
 
 static void emit_local_decl(node_t *decl)
 {
-    cc_assert(isdecl(decl));
-    
-    node_t *sym = DECL_SYM(decl);
-    int sclass = SYM_SCLASS(sym);
-
-    if (!isvardecl(decl))
+    decl = filter_local_decl(decl);
+    if (!decl)
         return;
-    
-    if (SYM_REFS(sym) == 0) {
-        if (!SYM_PREDEFINE(sym))
-            warningf(AST_SRC(sym),
-                     "unused variable '%s'", SYM_NAME(sym));
-    } else {
-        if (sclass == EXTERN) {
-            // do nothing
-        } else if (sclass == STATIC) {
-            SYM_X_LABEL(sym) = gen_static_label();
-            vec_push(staticvars, decl);
-            do_emit_local_decl(decl);
-        } else {
-            vec_push(localvars, decl);
-            do_emit_local_decl(decl);
-        }
-    }
+    node_t *sym = DECL_SYM(decl);
+    node_t *init = DECL_BODY(decl);
+    struct operand *l = make_sym_operand(sym);
+    emit_expr(init);
+    emit_assin_ir(l, EXPR_X_ADDR(init));
 }
 
 static void emit_local_decls(node_t **decls)
@@ -1120,14 +1111,10 @@ static void emit_function(node_t *decl)
     node_t *stmt = DECL_BODY(decl);
 
     func_irs = vec_new();
-    staticvars = vec_new();
-    localvars = vec_new();
 
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
     DECL_X_IRS(decl) = func_irs;
-    DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
-    DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
 }
 
 static void emit_globalvar(node_t *decl)

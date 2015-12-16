@@ -239,7 +239,7 @@ extern void init_string(node_t * ty, node_t * node);
 extern bool has_static_extent(node_t * sym);
 
 // stmt.c
-extern node_t *func_body(node_t *ty, const char *name);
+extern void func_body(node_t *decl);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
 
 // type.c
