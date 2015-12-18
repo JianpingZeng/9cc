@@ -426,7 +426,27 @@ static node_t **parameters(node_t * ftype, int *params)
 
 static void parse_assign(node_t *atype)
 {
-    TYPE_A_ASSIGN(atype) = assign_expr();
+    node_t *assign = assign_expr();
+    TYPE_A_ASSIGN(atype) =assign;
+
+    if (!assign)
+        return;
+
+    if (isint(AST_TYPE(assign))) {
+        // try evaluate the length
+        node_t *ret = eval(assign, longtype);
+        if (ret) {
+            cc_assert(isiliteral(ret));
+            TYPE_LEN(atype) = ILITERAL_VALUE(ret);
+            if ((long)ILITERAL_VALUE(ret) < 0)
+                error("array has negative size");
+        } else {
+            error("expect constant expression");
+        }
+    } else {
+        error("size of array has non-integer type '%s'",
+              type2s(AST_TYPE(assign)));
+    }
 }
 
 static node_t *arrays(bool abstract)
@@ -1167,46 +1187,20 @@ static void ensure_array(node_t * atype, struct source src, int level)
 {
     node_t *rty = atype;
     do {
-        node_t *assign = TYPE_A_ASSIGN(rty);
-        if (assign) {
-            if (isint(AST_TYPE(assign))) {
-                // try evaluate the length
-                node_t *ret = eval(assign, longtype);
-                if (ret) {
-                    cc_assert(isiliteral(ret));
-                    TYPE_LEN(rty) = ILITERAL_VALUE(ret);
-                    if ((long)ILITERAL_VALUE(ret) < 0) {
-                        errorf(src,
-                               "array has negative size");
-                    }
-                } else {
-                    errorf(src,
-                           "expect constant expression");
-                }
-            } else {
-                errorf(src,
-                       "size of array has non-integer type '%s'",
-                       type2s(AST_TYPE(assign)));
-            }
-        }
-
         if (TYPE_A_STAR(rty) && level != PARAM)
-            error
-                ("star modifier used outside of function prototype");
+            error("star modifier used outside of function prototype");
 
         if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty)
-             || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty))
-            && level != PARAM)
-            error
-                ("type qualifier used in array declarator outside of "
+             || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty)) &&
+            level != PARAM)
+            error("type qualifier used in array declarator outside of "
                  "function prototype");
 
         rty = rtype(rty);
         if (isfunc(rty))
             errorf(src, "array of function is invalid");
         else if (isincomplete(rty))
-            errorf(src, "array has incomplete element type '%s'",
-                   type2s(rty));
+            errorf(src, "array has incomplete element type '%s'", type2s(rty));
 
     } while (isarray(rty));
 
