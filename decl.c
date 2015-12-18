@@ -424,6 +424,11 @@ static node_t **parameters(node_t * ftype, int *params)
     return ret;
 }
 
+static void parse_assign(node_t *atype)
+{
+    TYPE_A_ASSIGN(atype) = assign_expr();
+}
+
 static node_t *arrays(bool abstract)
 {
     node_t *atype = array_type(NULL);
@@ -431,13 +436,13 @@ static node_t *arrays(bool abstract)
     if (abstract) {
         if (token->id == '*') {
             if (lookahead()->id != ']') {
-                TYPE_A_ASSIGN(atype) = assign_expr();
+                parse_assign(atype);
             } else {
                 expect('*');
                 TYPE_A_STAR(atype) = 1;
             }
         } else if (first_expr(token)) {
-            TYPE_A_ASSIGN(atype) = assign_expr();
+            parse_assign(atype);
         }
     } else {
         if (token->id == STATIC) {
@@ -445,33 +450,33 @@ static node_t *arrays(bool abstract)
             TYPE_A_STATIC(atype) = 1;
             if (token->kind == CONST)
                 array_qualifiers(atype);
-            TYPE_A_ASSIGN(atype) = assign_expr();
+            parse_assign(atype);
         } else if (token->kind == CONST) {
             if (token->kind == CONST)
                 array_qualifiers(atype);
             if (token->id == STATIC) {
                 expect(STATIC);
                 TYPE_A_STATIC(atype) = 1;
-                TYPE_A_ASSIGN(atype) = assign_expr();
+                parse_assign(atype);
             } else if (token->id == '*') {
                 if (lookahead()->id != ']') {
-                    TYPE_A_ASSIGN(atype) = assign_expr();
+                    parse_assign(atype);
                 } else {
                     expect('*');
                     TYPE_A_STAR(atype) = 1;
                 }
             } else if (first_expr(token)) {
-                TYPE_A_ASSIGN(atype) = assign_expr();
+                parse_assign(atype);
             }
         } else if (token->id == '*') {
             if (lookahead()->id != ']') {
-                TYPE_A_ASSIGN(atype) = assign_expr();
+                parse_assign(atype);
             } else {
                 expect('*');
                 TYPE_A_STAR(atype) = 1;
             }
         } else if (first_expr(token)) {
-            TYPE_A_ASSIGN(atype) = assign_expr();
+            parse_assign(atype);
         }
     }
 
