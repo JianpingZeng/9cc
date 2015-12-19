@@ -2,8 +2,8 @@
 
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
-static node_t ** filter_local(node_t **decls);
-static void check_unused(void);
+static node_t ** local_decls(node_t **decls);
+static void filter_local(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -205,7 +205,7 @@ static node_t *for_stmt(void)
     } else {
         if (first_decl(token)) {
             // declaration
-            STMT_FOR_DECL(ret) = filter_local(declaration());
+            STMT_FOR_DECL(ret) = local_decls(declaration());
         } else {
             // expression
             STMT_FOR_INIT(ret) = expression();
@@ -543,7 +543,7 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token))
             // declaration
-            vec_add_array(v, (void **)filter_local(declaration()));
+            vec_add_array(v, (void **)local_decls(declaration()));
         else
             // statement
             vec_push_safe(v, statement());
@@ -636,7 +636,7 @@ void func_body(node_t *decl)
     DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
     DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
     // check unused
-    check_unused();
+    filter_local();
     
     restore_funcdef_context();
 
@@ -650,39 +650,38 @@ node_t *make_localvar(const char *name, node_t * ty, int sclass)
     return decl;
 }
 
-static void do_filter_local(node_t *decl)
+static node_t ** local_decls(node_t **decls)
 {
-    node_t *sym = DECL_SYM(decl);
-    int sclass = SYM_SCLASS(sym);
+    for (int i = 0; i < LIST_LEN(decls); i++) {
+        node_t *decl = decls[i];
+        node_t *sym = DECL_SYM(decl);
+        int sclass = SYM_SCLASS(sym);
 
-    if (!isvardecl(decl) || sclass == EXTERN)
-        return;
+        if (!isvardecl(decl) || sclass == EXTERN)
+            continue;
 
-    if (sclass == STATIC) {
-        SYM_X_LABEL(sym) = gen_static_label();
-        vec_push(staticvars, decl);
-    } else {
-        vec_push(localvars, decl);
+        vec_push(localdecls, decl);
     }
-
-    vec_push(localdecls, decl);
-}
-
-static node_t ** filter_local(node_t **decls)
-{
-    for (int i = 0; i < LIST_LEN(decls); i++)
-        do_filter_local(decls[i]);
     return decls;
 }
 
-static void check_unused(void)
+static void filter_local(void)
 {
     for (int i = 0; i < vec_len(localdecls); i++) {
         node_t *decl = vec_at(localdecls, i);
         node_t *sym = DECL_SYM(decl);
 
-        if (SYM_REFS(sym) == 0 && !SYM_PREDEFINE(sym))
-            warningf(AST_SRC(sym),
+        if (SYM_REFS(sym) == 0) {
+            if (!SYM_PREDEFINE(sym))
+                warningf(AST_SRC(sym),
                      "unused variable '%s'", SYM_NAME(sym));
+        } else {
+            if (SYM_SCLASS(sym) == STATIC) {
+                SYM_X_LABEL(sym) = gen_static_label();
+                vec_push(staticvars, decl);
+            } else {
+                vec_push(localvars, decl);
+            }
+        }
     }
 }
