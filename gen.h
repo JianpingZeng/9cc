@@ -80,15 +80,7 @@ extern void init_regs(void);
 extern void print_register_state(void);
 
 // gen.c
-extern void emit(const char *fmt, ...);
-extern void emit_noindent(const char *fmt, ...);
 extern void gen(node_t * tree, FILE * fp);
-extern void emit_initializer(node_t * init);
-extern struct dict *compound_lits;
-extern struct dict *string_lits;
-
-// gen-decl.c
-extern void gen_decl(node_t *decl);
 
 // ir.c
 extern const char *rop2s(int op);

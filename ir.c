@@ -406,6 +406,12 @@ static void emit_uop_minus(node_t *n)
     EXPR_X_ADDR(n) = tmp;
 }
 
+static void emit_uop_plus(node_t *n)
+{
+    emit_expr(EXPR_OPERAND(n, 0));
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
+}
+
 static void emit_uop_indirection(node_t *n)
 {
     // TODO: 
@@ -453,8 +459,7 @@ static void emit_uop(node_t *n)
         emit_uop_address(n);
         break;
     case '+':
-        emit_expr(EXPR_OPERAND(n, 0));
-        EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
+        emit_uop_plus(n);
         break;
     case '-':
         emit_uop_minus(n);
@@ -627,6 +632,12 @@ static void emit_funcall(node_t *n)
     }
 }
 
+static void emit_paren_expr(node_t *n)
+{
+    emit_expr(EXPR_OPERAND(n, 0));
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
+}
+
 static void emit_ref_expr(node_t *n)
 {
     EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
@@ -664,8 +675,7 @@ static void emit_expr(node_t *n)
         emit_uop(n);
         break;
     case PAREN_EXPR:
-        emit_expr(EXPR_OPERAND(n, 0));
-        EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
+        emit_paren_expr(n);
         break;
     case COND_EXPR:
         emit_cond(n);
@@ -1032,10 +1042,6 @@ static void emit_return_stmt(node_t *stmt)
     emit_ir(ir);
 }
 
-static void emit_null_stmt(node_t *stmt)
-{
-}
-
 static void emit_stmt(node_t *stmt)
 {
     switch (AST_ID(stmt)) {
@@ -1079,7 +1085,7 @@ static void emit_stmt(node_t *stmt)
         emit_return_stmt(stmt);
         break;
     case NULL_STMT:
-        emit_null_stmt(stmt);
+        // do nothing
         break;
     default:
         emit_expr(stmt);
