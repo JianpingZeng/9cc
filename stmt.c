@@ -41,17 +41,6 @@ static node_t *__switch_ty;
 #define DEFLT         (__default)
 #define SWITCH_TYPE   (__switch_ty)
 
-static struct vector *__compound_vector;
-
-#define SET_COMPOUND_CONTEXT(v)                         \
-    struct vector *__saved_vector = __compound_vector;  \
-    __compound_vector = v
-
-#define RESTORE_COMPOUND_CONTEXT()              \
-    __compound_vector = __saved_vector
-
-#define COMPOUND_VECTOR   (__compound_vector)
-
 // funcdef context
 size_t extra_stack_size;
 static struct vector *gotos;
@@ -535,8 +524,6 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     expect('{');
     enter_scope();
 
-    SET_COMPOUND_CONTEXT(v);
-
     if (enter_hook)
         enter_hook();
 
@@ -550,8 +537,6 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     }
 
     STMT_BLKS(ret) = (node_t **)vtoa(v);
-
-    RESTORE_COMPOUND_CONTEXT();
 
     expect('}');
     exit_scope();
@@ -643,13 +628,6 @@ void func_body(node_t *decl)
     DECL_BODY(decl) = stmt;
 }
 
-node_t *make_localvar(const char *name, node_t * ty, int sclass)
-{
-    node_t *decl = make_localdecl(name, ty, sclass);
-    vec_push(COMPOUND_VECTOR, decl);
-    return decl;
-}
-
 static node_t ** local_decls(node_t **decls)
 {
     for (int i = 0; i < LIST_LEN(decls); i++) {
@@ -684,4 +662,11 @@ static void filter_local(void)
             }
         }
     }
+}
+
+node_t *make_localvar(const char *name, node_t * ty, int sclass)
+{
+    node_t *decl = make_localdecl(name, ty, sclass);
+    vec_push(localdecls, decl);
+    return decl;
 }
