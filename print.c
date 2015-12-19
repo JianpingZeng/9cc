@@ -111,6 +111,20 @@ static void print_decl(node_t * node, struct print_context context)
             }
         }
         break;
+    case STRUCT_DECL:
+    case UNION_DECL:
+        {
+            node_t *ty = SYM_TYPE(sym);
+            node_t **fields = TYPE_FIELDS(ty);
+            for (int i = 0; i < LIST_LEN(fields); i++) {
+                node_t *field = fields[i];
+                struct print_context con = {level, field};
+                print_tree1(con);
+            }
+        }
+        break;
+    case ENUM_DECL:
+        break;
     default:
         break;
     }

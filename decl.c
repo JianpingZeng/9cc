@@ -13,7 +13,7 @@ static node_t *paramdecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *globaldecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *localdecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
-static void typedefdecl(struct token *id, node_t * ty, int fspec, int kind);
+static node_t *typedefdecl(struct token *id, node_t * ty, int fspec, int kind);
 static struct vector *decls(declfun_p * dcl);
 
 static void ensure_field(node_t * field, size_t total, bool last);
@@ -345,16 +345,12 @@ static node_t **prototype(node_t *ftype)
         if (i == 0 && isvoid(ty))
             first_void = true;
 
-        if (sclass == TYPEDEF) {
-            typedefdecl(id, ty, fspec, PARAM);
-        } else {
-            SAVE_ERRORS;
-            sym = paramdecl(id, ty,
-                            PACK_PARAM(1, i == 0, first_void, sclass),
-                            fspec);
-            if (NO_ERROR && !first_void)
-                vec_push(v, sym);
-        }
+        SAVE_ERRORS;
+        sym = paramdecl(id, ty,
+                        PACK_PARAM(1, i == 0, first_void, sclass),
+                        fspec);
+        if (NO_ERROR && !first_void)
+            vec_push(v, sym);
         
         if (token->id != ',')
             break;
@@ -853,11 +849,13 @@ static node_t *make_decl(struct token *id, node_t * ty, int sclass,
                          int fspec, declfun_p * dcl)
 {
     node_t *decl;
-    node_t *sym = dcl(id, ty, sclass, fspec);
-    if (isfunc(ty))
+    if (sclass == TYPEDEF)
+        decl = ast_decl(TYPEDEF_DECL);
+    else if (isfunc(ty))
         decl = ast_decl(FUNC_DECL);
     else
         decl = ast_decl(VAR_DECL);
+    node_t *sym = dcl(id, ty, sclass, fspec);
 
     DECL_SYM(decl) = sym;
     return decl;
@@ -902,21 +900,11 @@ static struct vector *decls(declfun_p * dcl)
                     kind = PARAM;
                 else
                     kind = LOCAL;
-                if (sclass == TYPEDEF) {
-                    typedefdecl(id, ty, fspec, kind);
-                    if (token->id == '=') {
-                        error("illegal initializer "
-                              "(only variable can be initialized)");
-                        expect('=');
-                        initializer(NULL);
-                    }
-                } else {
-                    node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
-                    if (token->id == '=')
-                        decl_initializer(decl, sclass, kind);
-                    ensure_decl(decl, sclass, kind);
-                    vec_push(v, decl);
-                }
+                node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
+                if (token->id == '=')
+                    decl_initializer(decl, sclass, kind);
+                ensure_decl(decl, sclass, kind);
+                vec_push(v, decl);
             }
 
             if (token->id != ',')
@@ -931,7 +919,18 @@ static struct vector *decls(declfun_p * dcl)
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
-        // do nothing
+        int node_id;
+        node_t *decl;
+        if (isstruct(basety))
+            node_id = STRUCT_DECL;
+        else if (isunion(basety))
+            node_id = UNION_DECL;
+        else
+            node_id = ENUM_DECL;
+
+        decl = ast_decl(node_id);
+        DECL_SYM(decl) = TYPE_TSYM(basety);
+        vec_push(v, decl);
     } else {
         error("invalid token '%s' in declaration", token->name);
     }
@@ -1183,28 +1182,41 @@ static void ensure_func(node_t * ftype, struct source src)
  *     declarations within function prototypes that are not part of
  *     a function definition.
  */
+static void ensure_array_sub(node_t *atype, struct source src, int level, bool outermost)
+{
+    if (TYPE_A_STAR(atype) && level != PARAM)
+        errorf(src, "star modifier used outside of function prototype");
+    
+    if (TYPE_A_CONST(atype) || TYPE_A_RESTRICT(atype) ||
+        TYPE_A_VOLATILE(atype) || TYPE_A_STATIC(atype)) {
+        if (level != PARAM)
+            errorf(src,
+                   "type qualifier used in array declarator outside of "
+                   "function prototype");
+        else if (!outermost)
+            errorf(src,
+                   "type qualifier used in non-outermost array type derivation");
+    }
+            
+
+    node_t *rty = rtype(atype);
+    if (isarray(rty))
+        ensure_array_sub(rty, src, level, false);
+    else if (isfunc(rty))
+        errorf(src, "array of function is invalid");
+    
+    set_typesize(atype);
+}
+
 static void ensure_array(node_t * atype, struct source src, int level)
 {
-    node_t *rty = atype;
-    do {
-        if (TYPE_A_STAR(rty) && level != PARAM)
-            error("star modifier used outside of function prototype");
+    ensure_array_sub(atype, src, level, true);
 
-        if ((TYPE_A_CONST(rty) || TYPE_A_RESTRICT(rty)
-             || TYPE_A_VOLATILE(rty) || TYPE_A_STATIC(rty)) &&
-            level != PARAM)
-            error("type qualifier used in array declarator outside of "
-                 "function prototype");
-
-        rty = rtype(rty);
-        if (isfunc(rty))
-            errorf(src, "array of function is invalid");
-        else if (isincomplete(rty))
-            errorf(src, "array has incomplete element type '%s'", type2s(rty));
-
-    } while (isarray(rty));
-
-    set_typesize(atype);
+    node_t *rty = rtype(atype);
+    if (isincomplete(rty))
+        errorf(src,
+               "array has incomplete element type '%s'",
+               type2s(rty));
 }
 
 static void ensure_inline(node_t *ty, int fspec, struct source src)
@@ -1226,19 +1238,12 @@ static void check_oldstyle(node_t *ftype)
               "in a function definition");
 }
 
-// token may be NULL when kind == PARAM
-static void typedefdecl(struct token *t, node_t * ty, int fspec,
-                      int kind)
+static node_t * typedefdecl(struct token *t, node_t * ty, int fspec, int kind)
 {
     int sclass = TYPEDEF;
-    if (kind == PARAM) {
-        error("invalid storage class specifier '%s' in "
-               "function declarator",
-               id2s(sclass));
-        return;
-    }
 
     cc_assert(t);
+    cc_assert(kind != PARAM);
     
     const char *id = t->name;
     struct source src = t->src;
@@ -1260,6 +1265,8 @@ static void typedefdecl(struct token *t, node_t * ty, int fspec,
     SYM_TYPE(sym) = ty;
     AST_SRC(sym) = src;
     SYM_SCLASS(sym) = sclass;
+
+    return sym;
 }
 
 static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
@@ -1355,6 +1362,10 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass,
     cc_assert(id);
     cc_assert(SCOPE >= LOCAL);
 
+    // typedef
+    if (sclass == TYPEDEF)
+        return typedefdecl(t, ty, fspec, LOCAL);
+
     if (isfunc(ty)) {
         ensure_func(ty, src);
         ensure_main(ty, id, src);
@@ -1400,6 +1411,10 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
 
     cc_assert(id);
     cc_assert(SCOPE == GLOBAL);
+
+    // typedef
+    if (sclass == TYPEDEF)
+        return typedefdecl(t, ty, fspec, GLOBAL);
 
     if (sclass == AUTO || sclass == REGISTER) {
         errorf(src, "illegal storage class on file-scoped variable");
@@ -1484,20 +1499,18 @@ static void oldstyle_decls(node_t *ftype)
 
 static void ensure_params(node_t *ftype)
 {
-    if (TYPE_PARAMS(ftype)) {
-        for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
-            node_t *sym = TYPE_PARAMS(ftype)[i];
-            SYM_DEFINED(sym) = true;
-            // params id is required in prototype
-            if (is_anonymous(SYM_NAME(sym)))
-                errorf(AST_SRC(sym), "parameter name omitted");
-            if (isenum(SYM_TYPE(sym)) || isstruct(SYM_TYPE(sym))
-                || isunion(SYM_TYPE(sym))) {
-                if (!SYM_DEFINED(TYPE_TSYM(SYM_TYPE(sym))))
-                    errorf(AST_SRC(sym),
-                           "variable has incomplete type '%s'",
-                           type2s(SYM_TYPE(sym)));
-            }
+    for (int i = 0; i < LIST_LEN(TYPE_PARAMS(ftype)); i++) {
+        node_t *sym = TYPE_PARAMS(ftype)[i];
+        node_t *ty = SYM_TYPE(sym);
+        SYM_DEFINED(sym) = true;
+        // params id is required in prototype
+        if (is_anonymous(SYM_NAME(sym)))
+            errorf(AST_SRC(sym), "parameter name omitted");
+        if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+            if (!SYM_DEFINED(TYPE_TSYM(ty)))
+                errorf(AST_SRC(sym),
+                       "variable has incomplete type '%s'",
+                       type2s(ty));
         }
     }
 }
@@ -1555,8 +1568,9 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
     // old style function parameters declaration
     if (first_decl(token))
         oldstyle_decls(ftype);
-    
-    ensure_params(ftype);
+
+    if (TYPE_PARAMS(ftype))
+        ensure_params(ftype);
 
     if (token->id == '{') {
         // function definition

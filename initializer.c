@@ -5,6 +5,7 @@ static void array_init(node_t * ty, bool brace, struct vector *v);
 static void scalar_init(node_t * ty, struct vector *v);
 static void elem_init(node_t * sty, node_t * ty, bool designated,
                       struct vector *v, int i);
+static node_t *initializer(node_t * ty);
 
 #define INIT_OVERRIDE    "initializer overrides prior initialization"
 
@@ -344,7 +345,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
     }
 }
 
-node_t *initializer(node_t * ty)
+static node_t *initializer(node_t * ty)
 {
     if (token->id == '{') {
         return initializer_list(ty);
@@ -436,6 +437,10 @@ void decl_initializer(node_t * decl, int sclass, int kind)
                    "'extern' variable cannot have an initializer");
             return;
         }
+    } else if (sclass == TYPEDEF) {
+        errorf(src,
+               "illegal initializer (only variable can be initialized)");
+        return;
     }
 
     if (kind == GLOBAL) {
