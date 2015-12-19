@@ -49,6 +49,7 @@ CC1_INC=cc.h \
         token.def \
 	gen.h \
 	rop.def \
+	cpp.h \
         $(UTILS_INC)
 
 SYS_INC=$(SYS)sys.h
