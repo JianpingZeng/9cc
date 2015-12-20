@@ -999,7 +999,10 @@ static node_t *compound_literal(node_t * ty)
     if (SCOPE >= LOCAL) {
         const char *label = gen_compound_label();
         node_t *decl = make_localvar(label, ty, 0);
+        SYM_REFS(DECL_SYM(decl))++;
         DECL_BODY(decl) = inits;
+        // set sym
+        EXPR_SYM(ret) = DECL_SYM(decl);
     }
 
     return ret;

@@ -517,8 +517,6 @@ static void do_print_ir(struct ir *ir)
     case IR_CONV_IP:
     case IR_CONV_PI:
     case IR_CONV_PP:
-    case IR_CONV_FP:
-    case IR_CONV_AP:
         putln("%s = (%s) %s",
               SYM_NAME(ir->result->sym),
               rop2s(ir->op),

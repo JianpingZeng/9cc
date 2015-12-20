@@ -39,7 +39,5 @@ _rop(IR_CONV_FI,        "int=>float")
 _rop(IR_CONV_IP,        "int=>pointer")
 _rop(IR_CONV_PI,        "pointer=>int")
 _rop(IR_CONV_PP,        "pointer=>pointer")
-_rop(IR_CONV_FP,        "function=>pointer")
-_rop(IR_CONV_AP,        "array=>pointer")
 
 #undef _rop

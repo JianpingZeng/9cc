@@ -42,6 +42,7 @@ struct ir {
 #define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)       ((NODE)->expr.x.expr.btrue)
 #define EXPR_X_FALSE(NODE)      ((NODE)->expr.x.expr.bfalse)
+#define EXPR_X_ARRAY(NODE)      ((NODE)->expr.x.expr.array)
 // stmt
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
@@ -61,6 +62,7 @@ union x {
     
     struct {
         struct operand *addr;
+        struct operand *array;
 
         // label
         const char *btrue;
