@@ -15,6 +15,7 @@ static void emit_stmt(node_t *n);
 static void emit_expr(node_t *n);
 static void emit_bool_expr(node_t *n);
 static void emit_bop_bool(node_t *n);
+static struct flow_graph * construct_flowgraph(struct vector *irs);
 
 static struct vector *func_irs;
 static struct table *tmps;
@@ -1158,6 +1159,7 @@ static void emit_function(node_t *decl)
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
     DECL_X_IRS(decl) = func_irs;
+    DECL_X_FLOW_GRAPH(decl) = construct_flowgraph(func_irs);
 }
 
 static void emit_globalvar(node_t *decl)
@@ -1195,4 +1197,10 @@ node_t * ir(node_t *tree)
 node_t * reduce(node_t *expr)
 {
     return expr;
+}
+
+static struct flow_graph * construct_flowgraph(struct vector *irs)
+{
+    // TODO:
+    return NULL;
 }

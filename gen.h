@@ -37,6 +37,15 @@ struct ir {
     struct operand *result;
 };
 
+// basic block && flow graph
+struct basic_block {
+    struct ir **irs;
+};
+
+struct flow_graph {
+    struct basic_block **blks;
+};
+
 // sym
 #define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.sym.label)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
@@ -45,6 +54,7 @@ struct ir {
 #define DECL_X_LVARS(NODE)             ((NODE)->decl.x.decl.lvars)
 #define DECL_X_EXTRA_STACK_SIZE(NODE)  ((NODE)->decl.x.decl.extra_stack_size)
 #define DECL_X_IRS(NODE)               ((NODE)->decl.x.decl.irs)
+#define DECL_X_FLOW_GRAPH(NODE)        ((NODE)->decl.x.decl.flow_graph)
 // expr
 #define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)       ((NODE)->expr.x.expr.btrue)
@@ -65,6 +75,7 @@ union x {
         node_t **svars;        // function static vars
         size_t extra_stack_size;
         struct vector *irs;
+        struct flow_graph *flow_graph;
     }decl;
     
     struct {
