@@ -611,7 +611,6 @@ static void array2ptr(node_t *dty, node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     SYM_TYPE(EXPR_X_ADDR(l)->sym) = dty;
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
-    EXPR_X_ARRAY(n) = EXPR_X_ARRAY(l);
 }
 
 static void emit_conv(node_t *n)
@@ -685,10 +684,7 @@ static void emit_paren_expr(node_t *n)
 
 static void emit_ref_expr(node_t *n)
 {
-    struct operand *operand = make_sym_operand(EXPR_SYM(n));
-    EXPR_X_ADDR(n) = operand;
-    if (isarray(AST_TYPE(n)))
-        EXPR_X_ARRAY(n) = operand;
+    EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
 }
 
 static void emit_integer_literal(node_t *n)
@@ -703,9 +699,7 @@ static void emit_float_literal(node_t *n)
 
 static void emit_string_literal(node_t *n)
 {
-    struct operand *operand = make_literal_operand(EXPR_SYM(n));
-    EXPR_X_ADDR(n) = operand;
-    EXPR_X_ARRAY(n) = operand;
+    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
 }
 
 static void emit_compound_literal(node_t *n)
