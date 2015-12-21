@@ -23,10 +23,6 @@ static struct table *labels;
 static const char *fall = (const char *)&fall;
 static const char *__continue;
 static const char *__break;
-static struct operand *operand_true;
-static struct operand *operand_false;
-static struct operand *operand_one;
-static struct operand *operand_zero;
 
 #define SET_LOOP_CONTEXT(con, brk)              \
     const char *saved_continue = __continue;    \
@@ -97,6 +93,38 @@ static struct operand * make_int_operand(long long i)
 static struct operand * make_unsigned_operand(unsigned long long u)
 {
     return make_integer_operand(stru(u));
+}
+
+static struct operand * make_operand_true(void)
+{
+    static struct operand *operand_true;
+    if (!operand_true)
+        operand_true = make_int_operand(1);
+    return operand_true;
+}
+
+static struct operand * make_operand_false(void)
+{
+    static struct operand *operand_false;
+    if (!operand_false)
+        operand_false = make_int_operand(0);
+    return operand_false;
+}
+
+static struct operand * make_operand_one(void)
+{
+    static struct operand *operand_one;
+    if (!operand_one)
+        operand_one = make_int_operand(1);
+    return operand_one;
+}
+
+static struct operand * make_operand_zero(void)
+{
+    static struct operand *operand_zero;
+    if (!operand_zero)
+        operand_zero = make_int_operand(0);
+    return operand_zero;
 }
 
 static struct operand * make_literal_operand(node_t *sym)
@@ -265,7 +293,7 @@ static void emit_uop_minus(node_t *n)
     emit_expr(l);
 
     struct operand *tmp = make_tmp_operand();
-    struct ir *ir = make_ir(IR_MINUS, operand_zero, EXPR_X_ADDR(l), tmp);
+    struct ir *ir = make_ir(IR_MINUS, make_operand_zero(), EXPR_X_ADDR(l), tmp);
     emit_ir(ir);
     EXPR_X_ADDR(n) = tmp;
 }
@@ -301,13 +329,13 @@ static void emit_uop_increment(node_t *n, int op)
     emit_expr(l);
     
     if (prefix) {
-        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
+        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), make_operand_one(), EXPR_X_ADDR(l));
         emit_ir(ir);
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
     } else {
         struct operand *tmp = make_tmp_operand();
         emit_ir(make_assign_ir(tmp, EXPR_X_ADDR(l)));
-        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
+        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), make_operand_one(), EXPR_X_ADDR(l));
         emit_ir(ir);
         EXPR_X_ADDR(n) = tmp;
     }
@@ -404,11 +432,11 @@ static void emit_bop_bool(node_t *n)
     struct operand *result = make_tmp_operand();
     emit_bool_expr(n);
     // true
-    emit_ir(make_assign_ir(result, operand_true));
+    emit_ir(make_assign_ir(result, make_operand_true()));
     emit_goto(label);
     emit_label(EXPR_X_FALSE(n));
     // false
-    emit_ir(make_assign_ir(result, operand_false));
+    emit_ir(make_assign_ir(result, make_operand_false()));
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
@@ -1171,10 +1199,6 @@ static void ir_init(void)
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
-    operand_true = make_int_operand(1);
-    operand_false = make_int_operand(0);
-    operand_one = make_int_operand(1);
-    operand_zero = make_int_operand(0);
 }
 
 node_t * ir(node_t *tree)
