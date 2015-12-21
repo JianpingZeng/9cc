@@ -25,6 +25,7 @@ enum {
  */
 struct operand {
     int op;
+    node_t *type;
     node_t *sym;
     node_t *index;
 };

@@ -59,6 +59,7 @@ static struct operand * make_sym_operand(node_t *sym)
 {
     struct operand *operand = zmalloc(sizeof(struct operand));
     operand->sym = sym;
+    operand->type = SYM_TYPE(sym);
     return operand;
 }
 
@@ -145,6 +146,7 @@ static struct operand * make_indirection_operand(node_t *sym)
 {
     struct operand *operand = make_sym_operand(sym);
     operand->op = IR_INDIRECTION;
+    operand->type = rtype(SYM_TYPE(sym));
     return operand;
 }
 
@@ -163,6 +165,7 @@ static struct ir * make_ir_r(int op, struct operand *l, struct operand *r, node_
 {
     struct ir *ir = make_ir(op, l, r, make_tmp_operand());
     SYM_TYPE(ir->result->sym) = ty;
+    ir->result->type = ty;
     return ir;
 }
 
@@ -306,7 +309,11 @@ static void emit_uop_plus(node_t *n)
 
 static void emit_uop_indirection(node_t *n)
 {
-    // TODO: 
+    node_t *l = EXPR_OPERAND(n, 0);
+
+    emit_expr(l);
+
+    EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l)->sym);
 }
 
 static void emit_uop_address(node_t *n)
@@ -633,25 +640,27 @@ static void arith2ptr(node_t *dty, node_t *n)
     EXPR_X_ADDR(n) = ir->result;
 }
 
-static void ptr2ptr(node_t *dty, node_t *n)
+static void wrapconv(node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    SYM_TYPE(EXPR_X_ADDR(l)->sym) = dty;
-    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    struct operand *operand = make_sym_operand(EXPR_X_ADDR(l)->sym);
+    operand->type = dty;
+    EXPR_X_ADDR(n) = operand;
+}
+
+static void ptr2ptr(node_t *dty, node_t *n)
+{
+    wrapconv(dty, n);
 }
 
 static void func2ptr(node_t *dty, node_t *n)
 {
-    node_t *l = EXPR_OPERAND(n, 0);
-    SYM_TYPE(EXPR_X_ADDR(l)->sym) = dty;
-    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    wrapconv(dty, n);
 }
 
 static void array2ptr(node_t *dty, node_t *n)
 {
-    node_t *l = EXPR_OPERAND(n, 0);
-    SYM_TYPE(EXPR_X_ADDR(l)->sym) = dty;
-    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    wrapconv(dty, n);
 }
 
 static void emit_conv(node_t *n)

@@ -496,27 +496,16 @@ static void do_print_ir(struct ir *ir)
         break;
     case IR_CALL:
         if (ir->result) {
-            if (ir->relop > 0)
-                putln("%s = %s %s, %d",
+            putln("%s = %s %s, %d",
                       operand2s(ir->result),
                       rop2s(ir->op),
                       operand2s(ir->args[0]),
                       ir->relop);
-            else
-                putln("%s = %s %s",
-                      operand2s(ir->result),
-                      rop2s(ir->op),
-                      operand2s(ir->args[0]));
         } else {
-            if (ir->relop > 0)
-                putln("%s %s, %d",
+            putln("%s %s, %d",
                       rop2s(ir->op),
                       operand2s(ir->args[0]),
                       ir->relop);
-            else
-                putln("%s %s",
-                      rop2s(ir->op),
-                      operand2s(ir->args[0]));
         }
         break;
     case IR_CONV_II:
@@ -527,8 +516,8 @@ static void do_print_ir(struct ir *ir)
     case IR_CONV_PI:
         putln("%s = (%s => %s) %s",
               operand2s(ir->result),
-              type2s(SYM_TYPE(ir->args[0]->sym)),
-              type2s(SYM_TYPE(ir->result->sym)),
+              type2s(ir->args[0]->type),
+              type2s(ir->result->type),
               operand2s(ir->args[0]));
         break;
     default:
