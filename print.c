@@ -405,23 +405,38 @@ void print_tree(node_t * tree)
     print_tree1(context);
 }
 
+static const char * operand2s(struct operand *operand)
+{
+    switch (operand->op) {
+    case IR_SUBSCRIPT:
+        return format("%s[%s]",
+                      SYM_NAME(operand->sym),
+                      SYM_NAME(operand->index));
+    case IR_INDIRECTION:
+        return format("*%s", SYM_NAME(operand->sym));
+    case IR_NONE:
+    default:
+        return SYM_NAME(operand->sym);
+    }
+}
+
 static void do_print_ir(struct ir *ir)
 {
     switch (ir->op) {
     case IR_NONE:
         break;
     case IR_LABEL:
-        putln("%s:", SYM_NAME(ir->result->sym));
+        putln("%s:", operand2s(ir->result));
         break;
     case IR_GOTO:
         putln("%s %s",
               rop2s(ir->op),
-              SYM_NAME(ir->result->sym));
+              operand2s(ir->result));
         break;
     case IR_RETURN:
         putln("%s %s",
               rop2s(ir->op),
-              SYM_NAME(ir->args[0]->sym));
+              operand2s(ir->args[0]));
         break;
     case IR_IF:
     case IR_IF_FALSE:
@@ -429,24 +444,24 @@ static void do_print_ir(struct ir *ir)
             // rel if
             putln("%s %s %s %s %s %s",
                   rop2s(ir->op),
-                  SYM_NAME(ir->args[0]->sym),
+                  operand2s(ir->args[0]),
                   id2s(ir->relop),
-                  SYM_NAME(ir->args[1]->sym),
+                  operand2s(ir->args[1]),
                   rop2s(IR_GOTO),
-                  SYM_NAME(ir->result->sym));
+                  operand2s(ir->result));
         } else {
             // simple if
             putln("%s %s %s %s",
                   rop2s(ir->op),
-                  SYM_NAME(ir->args[0]->sym),
+                  operand2s(ir->args[0]),
                   rop2s(IR_GOTO),
-                  SYM_NAME(ir->result->sym));
+                  operand2s(ir->result));
         }
         break;
     case IR_ASSIGN:
         putln("%s = %s",
-              SYM_NAME(ir->result->sym),
-              SYM_NAME(ir->args[0]->sym));
+              operand2s(ir->result),
+              operand2s(ir->args[0]));
         break;
     case IR_SUBSCRIPT:
         break;
@@ -461,66 +476,60 @@ static void do_print_ir(struct ir *ir)
     case IR_LSHIFT:
     case IR_RSHIFT:
         putln("%s = %s %s %s",
-              SYM_NAME(ir->result->sym),
-              SYM_NAME(ir->args[0]->sym),
+              operand2s(ir->result),
+              operand2s(ir->args[0]),
               rop2s(ir->op),
-              SYM_NAME(ir->args[1]->sym));
+              operand2s(ir->args[1]));
         break;
     case IR_ADDRESS:
     case IR_INDIRECTION:
     case IR_NOT:
         putln("%s = %s %s",
-              SYM_NAME(ir->result->sym),
+              operand2s(ir->result),
               rop2s(ir->op),
-              SYM_NAME(ir->args[0]->sym));
+              operand2s(ir->args[0]));
         break;
     case IR_PARAM:
         putln("%s %s",
               rop2s(ir->op),
-              SYM_NAME(ir->result->sym));
+              operand2s(ir->result));
         break;
     case IR_CALL:
         if (ir->result) {
             if (ir->relop > 0)
                 putln("%s = %s %s, %d",
-                      SYM_NAME(ir->result->sym),
+                      operand2s(ir->result),
                       rop2s(ir->op),
-                      SYM_NAME(ir->args[0]->sym),
+                      operand2s(ir->args[0]),
                       ir->relop);
             else
                 putln("%s = %s %s",
-                      SYM_NAME(ir->result->sym),
+                      operand2s(ir->result),
                       rop2s(ir->op),
-                      SYM_NAME(ir->args[0]->sym));
+                      operand2s(ir->args[0]));
         } else {
             if (ir->relop > 0)
                 putln("%s %s, %d",
                       rop2s(ir->op),
-                      SYM_NAME(ir->args[0]->sym),
+                      operand2s(ir->args[0]),
                       ir->relop);
             else
                 putln("%s %s",
                       rop2s(ir->op),
-                      SYM_NAME(ir->args[0]->sym));
+                      operand2s(ir->args[0]));
         }
         break;
     case IR_CONV_II:
     case IR_CONV_IF:
     case IR_CONV_FI:
     case IR_CONV_FF:
-        putln("%s = (%s=>%s) %s",
-              SYM_NAME(ir->result->sym),
-              TYPE_NAME(SYM_TYPE(ir->args[0]->sym)),
-              TYPE_NAME(SYM_TYPE(ir->result->sym)),
-              SYM_NAME(ir->args[0]->sym));
-        break;
     case IR_CONV_IP:
     case IR_CONV_PI:
-    case IR_CONV_PP:
-        putln("%s = (%s) %s",
-              SYM_NAME(ir->result->sym),
-              rop2s(ir->op),
-              SYM_NAME(ir->args[0]->sym));
+        putln("%s = (%s => %s) %s",
+              operand2s(ir->result),
+              type2s(SYM_TYPE(ir->args[0]->sym)),
+              type2s(SYM_TYPE(ir->result->sym)),
+              operand2s(ir->args[0]));
         break;
     default:
         die("unexpected rop %s", rop2s(ir->op));

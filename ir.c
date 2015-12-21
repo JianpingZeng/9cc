@@ -105,7 +105,10 @@ static struct operand * make_literal_operand(node_t *sym)
 
 static struct operand * make_subscript_operand(struct operand *array, struct operand *index)
 {
-    // TODO: 
+    struct operand *operand = make_sym_operand(array->sym);
+    operand->index = index->sym;
+    operand->op = IR_SUBSCRIPT;
+    return operand;
 }
 
 static struct ir * make_ir(int op, struct operand *l, struct operand *r,
@@ -520,26 +523,24 @@ static void emit_subscript(node_t *n)
 
     node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
     node_t *i = ptr == l ? r : l;
-
-    EXPR_X_ARRAY(n) = EXPR_X_ARRAY(ptr);
-
     node_t *rty = rtype(AST_TYPE(ptr));
-    if (isint(SYM_TYPE(EXPR_X_ADDR(ptr)->sym))) {
+    struct operand *addr = EXPR_X_ADDR(ptr);
+
+    if (addr->op == IR_SUBSCRIPT) {
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
         struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size);
         emit_ir(ir);
         SYM_TYPE(ir->result->sym) = inttype;
-        ir = make_ir_r(IR_ADD, ir->result, EXPR_X_ADDR(l));
+        ir = make_ir_r(IR_ADD, ir->result, make_sym_operand(addr->index));
         emit_ir(ir);
         SYM_TYPE(ir->result->sym) = inttype;
-        EXPR_X_ADDR(n) = ir->result;
+        EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
     } else {
-        // inner most
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
         struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size);
         emit_ir(ir);
         SYM_TYPE(ir->result->sym) = inttype;
-        EXPR_X_ADDR(n) = ir->result;
+        EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
     }
 }
 
@@ -547,7 +548,7 @@ static void arith2arith(node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     struct operand *operand = EXPR_X_ADDR(l);
-    node_t *sty = SYM_TYPE(operand->sym);
+    node_t *sty = AST_TYPE(l);
     struct ir *ir;
 
     if (eqarith(sty, dty)) {
@@ -580,15 +581,6 @@ static void ptr2arith(node_t *dty, node_t *n)
     EXPR_X_ADDR(n) = ir->result;
 }
 
-static void ptr2ptr(node_t *dty, node_t *n)
-{
-    node_t *l = EXPR_OPERAND(n, 0);
-    struct operand *operand = EXPR_X_ADDR(l);
-    struct ir *ir = make_conv_ir(IR_CONV_PP, dty, operand);
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
-}
-
 static void arith2ptr(node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -597,6 +589,13 @@ static void arith2ptr(node_t *dty, node_t *n)
     struct ir *ir = make_conv_ir(IR_CONV_IP, dty, operand);
     emit_ir(ir);
     EXPR_X_ADDR(n) = ir->result;
+}
+
+static void ptr2ptr(node_t *dty, node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    SYM_TYPE(EXPR_X_ADDR(l)->sym) = dty;
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 static void func2ptr(node_t *dty, node_t *n)

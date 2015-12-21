@@ -18,8 +18,15 @@ enum {
     IR_END
 };
 
+/*
+  op = IR_NONE:        sym
+  op = IR_SUBSCRIPT:   sym[index]
+  op = IR_INDIRECTION: *sym
+ */
 struct operand {
+    int op;
     node_t *sym;
+    node_t *index;
 };
 
 // three-address code
