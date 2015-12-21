@@ -14,6 +14,7 @@ static const char *rops[] = {
 static void emit_stmt(node_t *n);
 static void emit_expr(node_t *n);
 static void emit_bool_expr(node_t *n);
+static void emit_bop_bool(node_t *n);
 
 static struct vector *func_irs;
 static struct table *tmps;
@@ -111,6 +112,13 @@ static struct operand * make_subscript_operand(struct operand *array, struct ope
     return operand;
 }
 
+static struct operand * make_indirection_operand(node_t *sym)
+{
+    struct operand *operand = make_sym_operand(sym);
+    operand->op = IR_INDIRECTION;
+    return operand;
+}
+
 static struct ir * make_ir(int op, struct operand *l, struct operand *r,
                            struct operand *result)
 {
@@ -122,9 +130,11 @@ static struct ir * make_ir(int op, struct operand *l, struct operand *r,
     return ir;
 }
 
-static struct ir * make_ir_r(int op, struct operand *l, struct operand *r)
+static struct ir * make_ir_r(int op, struct operand *l, struct operand *r, node_t *ty)
 {
-    return make_ir(op, l, r, make_tmp_operand());
+    struct ir *ir = make_ir(op, l, r, make_tmp_operand());
+    SYM_TYPE(ir->result->sym) = ty;
+    return ir;
 }
 
 static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
@@ -134,15 +144,12 @@ static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
 
 static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
 {
-    struct ir *ir = make_ir_r(op, l, NULL);
-    SYM_TYPE(ir->result->sym) = dty;
-    return ir;
+    return make_ir_r(op, l, NULL, dty);
 }
 
 static struct ir * make_assign_ir(struct operand *l, struct operand *r)
 {
-    struct ir *ir = make_ir(IR_ASSIGN, r, NULL, l);
-    return ir;
+    return make_ir(IR_ASSIGN, r, NULL, l);
 }
 
 static void emit_simple_if(int op, struct operand *operand, const char *label)
@@ -219,6 +226,127 @@ static void emit_local_decls(node_t **decls)
         emit_local_decl(decls[i]);
 }
 
+static int uop2rop(int op)
+{
+    switch (op) {
+    case '~':
+        return IR_NOT;
+    default:
+        cc_assert(0);
+    }
+}
+
+static void emit_uop_simple(node_t *n)
+{
+    int op = EXPR_OP(n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    struct ir *ir;
+
+    emit_expr(l);
+    ir = make_ir_r(uop2rop(op), EXPR_X_ADDR(l), NULL, AST_TYPE(n));
+    emit_ir(ir);
+    EXPR_X_ADDR(n) = ir->result;
+}
+
+static void emit_uop_sizeof(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *ty = istype(l) ? l : AST_TYPE(l);
+    size_t size = TYPE_SIZE(ty);
+    struct operand *operand = make_unsigned_operand(size);
+    EXPR_X_ADDR(n) = operand;
+}
+
+static void emit_uop_minus(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+
+    emit_expr(l);
+
+    struct operand *tmp = make_tmp_operand();
+    struct ir *ir = make_ir(IR_MINUS, operand_zero, EXPR_X_ADDR(l), tmp);
+    emit_ir(ir);
+    EXPR_X_ADDR(n) = tmp;
+}
+
+static void emit_uop_plus(node_t *n)
+{
+    emit_expr(EXPR_OPERAND(n, 0));
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
+}
+
+static void emit_uop_indirection(node_t *n)
+{
+    // TODO: 
+}
+
+static void emit_uop_address(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+
+    emit_expr(l);
+    
+    struct ir *ir = make_ir_r(IR_ADDRESS, EXPR_X_ADDR(l), NULL, AST_TYPE(n));
+    emit_ir(ir);
+    EXPR_X_ADDR(n) = ir->result;
+}
+
+static void emit_uop_increment(node_t *n, int op)
+{
+    bool prefix = EXPR_PREFIX(n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    int rop = op == INCR ? IR_ADD : IR_MINUS;
+
+    emit_expr(l);
+    
+    if (prefix) {
+        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
+        emit_ir(ir);
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    } else {
+        struct operand *tmp = make_tmp_operand();
+        emit_ir(make_assign_ir(tmp, EXPR_X_ADDR(l)));
+        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
+        emit_ir(ir);
+        EXPR_X_ADDR(n) = tmp;
+    }
+}
+
+static void emit_uop(node_t *n)
+{
+    switch (EXPR_OP(n)) {
+    case INCR:
+        emit_uop_increment(n, INCR);
+        break;
+    case DECR:
+        emit_uop_increment(n, DECR);
+        break;
+    case '*':
+        emit_uop_indirection(n);
+        break;
+    case '&':
+        emit_uop_address(n);
+        break;
+    case '+':
+        emit_uop_plus(n);
+        break;
+    case '-':
+        emit_uop_minus(n);
+        break;
+    case '~':
+        emit_uop_simple(n);
+        break;
+    case '!':
+        emit_bop_bool(n);
+        break;
+    case SIZEOF:
+        emit_uop_sizeof(n);
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
 static int bop2rop(int op)
 {
     switch (op) {
@@ -293,8 +421,7 @@ static void emit_bop_arith(node_t *n)
 
     emit_expr(l);
     emit_expr(r);
-    ir = make_ir_r(bop2rop(op), EXPR_X_ADDR(l), EXPR_X_ADDR(r));
-    SYM_TYPE(ir->result->sym) = AST_TYPE(n);
+    ir = make_ir_r(bop2rop(op), EXPR_X_ADDR(l), EXPR_X_ADDR(r), AST_TYPE(n));
     emit_ir(ir);
     EXPR_X_ADDR(n) = ir->result;
 }
@@ -322,7 +449,11 @@ static void emit_bop_minus(node_t *n)
 
     if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
         emit_bop_arith(n);
-    } else if (isptr(AST_TYPE(l))) {
+    } else if (isptr(AST_TYPE(l)) && isint(AST_TYPE(r))) {
+        emit_expr(l);
+        emit_expr(r);
+        
+        node_t *rty = rtype(AST_TYPE(l));
         // TODO: 
     } else {
         cc_assert(0);
@@ -372,121 +503,6 @@ static void emit_bop(node_t *n)
     }
 }
 
-static int uop2rop(int op)
-{
-    switch (op) {
-    case '~':
-        return IR_NOT;
-    default:
-        cc_assert(0);
-    }
-}
-
-static void emit_uop_simple(node_t *n)
-{
-    int op = EXPR_OP(n);
-    node_t *l = EXPR_OPERAND(n, 0);
-    struct ir *ir;
-
-    emit_expr(l);
-    ir = make_ir_r(uop2rop(op), EXPR_X_ADDR(l), NULL);
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
-}
-
-static void emit_uop_sizeof(node_t *n)
-{
-    node_t *l = EXPR_OPERAND(n, 0);
-    node_t *ty = istype(l) ? l : AST_TYPE(l);
-    size_t size = TYPE_SIZE(ty);
-    struct operand *operand = make_unsigned_operand(size);
-    EXPR_X_ADDR(n) = operand;
-}
-
-static void emit_uop_minus(node_t *n)
-{
-    node_t *l = EXPR_OPERAND(n, 0);
-
-    emit_expr(l);
-
-    struct operand *tmp = make_tmp_operand();
-    struct ir *ir = make_ir(IR_MINUS, operand_zero, EXPR_X_ADDR(l), tmp);
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = tmp;
-}
-
-static void emit_uop_plus(node_t *n)
-{
-    emit_expr(EXPR_OPERAND(n, 0));
-    EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
-}
-
-static void emit_uop_indirection(node_t *n)
-{
-    // TODO: 
-}
-
-static void emit_uop_address(node_t *n)
-{
-    // TODO: 
-}
-
-static void emit_uop_increment(node_t *n, int op)
-{
-    bool prefix = EXPR_PREFIX(n);
-    node_t *l = EXPR_OPERAND(n, 0);
-    int rop = op == INCR ? IR_ADD : IR_MINUS;
-
-    emit_expr(l);
-    
-    if (prefix) {
-        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
-        emit_ir(ir);
-        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
-    } else {
-        struct operand *tmp = make_tmp_operand();
-        emit_ir(make_assign_ir(tmp, EXPR_X_ADDR(l)));
-        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), operand_one, EXPR_X_ADDR(l));
-        emit_ir(ir);
-        EXPR_X_ADDR(n) = tmp;
-    }
-}
-
-static void emit_uop(node_t *n)
-{
-    switch (EXPR_OP(n)) {
-    case INCR:
-        emit_uop_increment(n, INCR);
-        break;
-    case DECR:
-        emit_uop_increment(n, DECR);
-        break;
-    case '*':
-        emit_uop_indirection(n);
-        break;
-    case '&':
-        emit_uop_address(n);
-        break;
-    case '+':
-        emit_uop_plus(n);
-        break;
-    case '-':
-        emit_uop_minus(n);
-        break;
-    case '~':
-        emit_uop_simple(n);
-        break;
-    case '!':
-        emit_bop_bool(n);
-        break;
-    case SIZEOF:
-        emit_uop_sizeof(n);
-        break;
-    default:
-        cc_assert(0);
-    }
-}
-
 static void emit_cond(node_t *n)
 {
     node_t *cond = EXPR_COND(n);
@@ -528,18 +544,15 @@ static void emit_subscript(node_t *n)
 
     if (addr->op == IR_SUBSCRIPT) {
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
-        struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size);
+        struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size, longtype);
         emit_ir(ir);
-        SYM_TYPE(ir->result->sym) = inttype;
-        ir = make_ir_r(IR_ADD, ir->result, make_sym_operand(addr->index));
+        ir = make_ir_r(IR_ADD, ir->result, make_sym_operand(addr->index), longtype);
         emit_ir(ir);
-        SYM_TYPE(ir->result->sym) = inttype;
         EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
     } else {
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
-        struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size);
+        struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size, longtype);
         emit_ir(ir);
-        SYM_TYPE(ir->result->sym) = inttype;
         EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
     }
 }
