@@ -528,17 +528,17 @@ static void emit_subscript(node_t *n)
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
         struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size);
         emit_ir(ir);
-        SYM_TYPE(ir->result) = inttype;
+        SYM_TYPE(ir->result->sym) = inttype;
         ir = make_ir_r(IR_ADD, ir->result, EXPR_X_ADDR(l));
         emit_ir(ir);
-        SYM_TYPE(ir->result) = inttype;
+        SYM_TYPE(ir->result->sym) = inttype;
         EXPR_X_ADDR(n) = ir->result;
     } else {
         // inner most
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
         struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size);
         emit_ir(ir);
-        SYM_TYPE(ir->result) = inttype;
+        SYM_TYPE(ir->result->sym) = inttype;
         EXPR_X_ADDR(n) = ir->result;
     }
 }

@@ -39,68 +39,7 @@ union value {
     void (*g) ();
 };
 
-// source
-struct source {
-    unsigned line;
-    unsigned column;
-    const char *file;
-};
-
-enum {
-#define _a(a, b, c)     a,
-#define _x(a, b, c, d)  a=d,
-#define _t(a, b, c)     a,
-#define _k(a, b, c)     a,
-#include "token.def"
-    TOKEND
-};
-
-#define ID_BITS    10
-
-// token
-struct token {
-    int id:ID_BITS;
-    int kind:ID_BITS;
-    bool bol:1;                // beginning of line
-    bool space:1;                // leading space
-    const char *name;
-    struct source src;
-    struct hideset *hideset;
-};
-
-#include "cpp.h"
-
-// lex.c
-extern struct source source;
-extern struct token *token;
-extern struct token *ahead_token;
-extern struct token *newline_token;
-extern struct token *space_token;
-
-extern int isletter(int c);
-extern int isxalpha(int c);
-
-#define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
-#define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
-#define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
-
-extern struct token *lex(void);
-extern void unget(struct token *t);
-extern struct token *header_name(void);
-extern struct token *new_token(struct token *tok);
-extern void skip_ifstub(void);
-
-extern int gettok(void);
-extern struct token *lookahead(void);
-extern void expect(int t);
-extern void match(int t, int follow[]);
-extern int skipto(int (*test[]) (struct token *));
-extern const char *id2s(int t);
-extern const char *unwrap_scon(const char *name);
-
-extern void print_buffer_stat(void);
-
-#define FARRAY(...)  ((int (*[]) (struct token *)){__VA_ARGS__, NULL})
+#include "lex.h"
 
 /**
  * The coding style tends to avoid typedefs, because
@@ -121,7 +60,7 @@ typedef union ast_node node_t;
 // eval.c
 extern node_t *eval(node_t * expr, node_t * ty);
 extern bool eval_cpp_cond(void);
-
+ 
 // expr.c
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 extern node_t *expression(void);
