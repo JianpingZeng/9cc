@@ -63,7 +63,7 @@ static struct operand * make_sym_operand(node_t *sym)
     return operand;
 }
 
-static struct operand * make_name_operand(const char *name, struct table **table, int scope)
+static struct operand * make_named_operand(const char *name, struct table **table, int scope)
 {
     node_t *sym = lookup(name, *table);
     if (!sym)
@@ -71,36 +71,44 @@ static struct operand * make_name_operand(const char *name, struct table **table
     return make_sym_operand(sym);
 }
 
-static struct operand * make_tmp_operand(void)
+static struct operand * make_tmp_operand(node_t *ty)
 {
-    return make_name_operand(gen_tmpname_r(), &tmps, GLOBAL);
+    struct operand *operand = make_named_operand(gen_tmpname_r(), &tmps, GLOBAL);
+    SYM_TYPE(operand->sym) = ty;
+    operand->type = ty;
+    return operand;
 }
 
 static struct operand * make_label_operand(const char *label)
 {
-    return make_name_operand(label, &labels, GLOBAL);
+    return make_named_operand(label, &labels, GLOBAL);
 }
 
-static struct operand * make_integer_operand(const char *name)
+static struct operand * make_constant_operand(const char *name)
 {
-    return make_name_operand(name, &constants, CONSTANT);
+    return make_named_operand(name, &constants, CONSTANT);
 }
 
-static struct operand * make_int_operand(long long i)
+static struct operand * make_integer_operand(node_t *ty, unsigned long long i)
 {
-    return make_integer_operand(strd(i));
-}
+    cc_assert(isint(ty));
+    struct operand *operand;
+    
+    if (TYPE_OP(ty) == INT)
+        operand = make_constant_operand(strd(i));
+    else
+        operand = make_constant_operand(stru(i));
 
-static struct operand * make_unsigned_operand(unsigned long long u)
-{
-    return make_integer_operand(stru(u));
+    SYM_TYPE(operand->sym) = ty;
+    operand->type = ty;
+    return operand;
 }
 
 static struct operand * make_operand_true(void)
 {
     static struct operand *operand_true;
     if (!operand_true)
-        operand_true = make_int_operand(1);
+        operand_true = make_integer_operand(inttype, 1);
     return operand_true;
 }
 
@@ -108,7 +116,7 @@ static struct operand * make_operand_false(void)
 {
     static struct operand *operand_false;
     if (!operand_false)
-        operand_false = make_int_operand(0);
+        operand_false = make_integer_operand(inttype, 0);
     return operand_false;
 }
 
@@ -116,7 +124,7 @@ static struct operand * make_operand_one(void)
 {
     static struct operand *operand_one;
     if (!operand_one)
-        operand_one = make_int_operand(1);
+        operand_one = make_integer_operand(inttype, 1);
     return operand_one;
 }
 
@@ -124,7 +132,7 @@ static struct operand * make_operand_zero(void)
 {
     static struct operand *operand_zero;
     if (!operand_zero)
-        operand_zero = make_int_operand(0);
+        operand_zero = make_integer_operand(inttype, 0);
     return operand_zero;
 }
 
@@ -163,10 +171,7 @@ static struct ir * make_ir(int op, struct operand *l, struct operand *r,
 
 static struct ir * make_ir_r(int op, struct operand *l, struct operand *r, node_t *ty)
 {
-    struct ir *ir = make_ir(op, l, r, make_tmp_operand());
-    SYM_TYPE(ir->result->sym) = ty;
-    ir->result->type = ty;
-    return ir;
+    return make_ir(op, l, r, make_tmp_operand(ty));
 }
 
 static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
@@ -263,6 +268,8 @@ static int uop2rop(int op)
     switch (op) {
     case '~':
         return IR_NOT;
+    case '&':
+        return IR_ADDRESS;
     default:
         cc_assert(0);
     }
@@ -284,8 +291,7 @@ static void emit_uop_sizeof(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *ty = istype(l) ? l : AST_TYPE(l);
-    size_t size = TYPE_SIZE(ty);
-    struct operand *operand = make_unsigned_operand(size);
+    struct operand *operand = make_integer_operand(ty, TYPE_SIZE(ty));
     EXPR_X_ADDR(n) = operand;
 }
 
@@ -295,16 +301,17 @@ static void emit_uop_minus(node_t *n)
 
     emit_expr(l);
 
-    struct operand *tmp = make_tmp_operand();
-    struct ir *ir = make_ir(IR_MINUS, make_operand_zero(), EXPR_X_ADDR(l), tmp);
+    struct ir *ir = make_ir_r(IR_MINUS, make_operand_zero(), EXPR_X_ADDR(l), AST_TYPE(n));
     emit_ir(ir);
-    EXPR_X_ADDR(n) = tmp;
+    EXPR_X_ADDR(n) = ir->result;
 }
 
 static void emit_uop_plus(node_t *n)
 {
-    emit_expr(EXPR_OPERAND(n, 0));
-    EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
+    node_t *l = EXPR_OPERAND(n, 0);
+    
+    emit_expr(l);
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 static void emit_uop_indirection(node_t *n)
@@ -314,17 +321,6 @@ static void emit_uop_indirection(node_t *n)
     emit_expr(l);
 
     EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l)->sym);
-}
-
-static void emit_uop_address(node_t *n)
-{
-    node_t *l = EXPR_OPERAND(n, 0);
-
-    emit_expr(l);
-    
-    struct ir *ir = make_ir_r(IR_ADDRESS, EXPR_X_ADDR(l), NULL, AST_TYPE(n));
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
 }
 
 static void emit_uop_increment(node_t *n, int op)
@@ -340,7 +336,7 @@ static void emit_uop_increment(node_t *n, int op)
         emit_ir(ir);
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
     } else {
-        struct operand *tmp = make_tmp_operand();
+        struct operand *tmp = make_tmp_operand(AST_TYPE(n));
         emit_ir(make_assign_ir(tmp, EXPR_X_ADDR(l)));
         struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), make_operand_one(), EXPR_X_ADDR(l));
         emit_ir(ir);
@@ -361,7 +357,7 @@ static void emit_uop(node_t *n)
         emit_uop_indirection(n);
         break;
     case '&':
-        emit_uop_address(n);
+        emit_uop_simple(n);
         break;
     case '+':
         emit_uop_plus(n);
@@ -411,6 +407,16 @@ static int bop2rop(int op)
     }
 }
 
+static void emit_assign_struct(node_t *l, node_t *r)
+{
+    // TODO: 
+}
+
+static void emit_assign_array(node_t *l, node_t *r)
+{
+    // TODO: 
+}
+
 static void emit_bop_assign(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -418,7 +424,12 @@ static void emit_bop_assign(node_t *n)
 
     emit_expr(l);
     emit_expr(r);
-    emit_ir(make_assign_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r)));
+    if (isstruct(AST_TYPE(l)) || isunion(AST_TYPE(l)))
+        emit_assign_struct(l, r);
+    else if (isarray(AST_TYPE(l)))
+        emit_assign_array(l, r);
+    else
+        emit_ir(make_assign_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r)));
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
@@ -436,7 +447,7 @@ static void emit_bop_bool(node_t *n)
     EXPR_X_TRUE(n) = fall;
     EXPR_X_FALSE(n) = gen_label();
     const char *label = gen_label();
-    struct operand *result = make_tmp_operand();
+    struct operand *result = make_tmp_operand(AST_TYPE(n));
     emit_bool_expr(n);
     // true
     emit_ir(make_assign_ir(result, make_operand_true()));
@@ -469,9 +480,9 @@ static void emit_bop_plus(node_t *n)
 
     if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
         emit_bop_arith(n);
-    } else if (isptr(AST_TYPE(l))) {
+    } else if (isptr(AST_TYPE(l)) && isint(AST_TYPE(r))) {
         // TODO: 
-    } else if (isptr(AST_TYPE(r))) {
+    } else if (isptr(AST_TYPE(r)) && isint(AST_TYPE(l))) {
         // TODO: 
     } else {
         cc_assert(0);
@@ -548,7 +559,7 @@ static void emit_cond(node_t *n)
     EXPR_X_TRUE(cond) = fall;
     EXPR_X_FALSE(cond) = gen_label();
     const char *label = gen_label();
-    struct operand *result = make_tmp_operand();
+    struct operand *result = make_tmp_operand(AST_TYPE(n));
     emit_bool_expr(cond);
     emit_expr(then);
     emit_ir(make_assign_ir(result, EXPR_X_ADDR(then)));
@@ -579,14 +590,14 @@ static void emit_subscript(node_t *n)
     struct operand *addr = EXPR_X_ADDR(ptr);
 
     if (addr->op == IR_SUBSCRIPT) {
-        struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
+        struct operand *size = make_integer_operand(longtype, TYPE_SIZE(rty));
         struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size, longtype);
         emit_ir(ir);
         ir = make_ir_r(IR_ADD, ir->result, make_sym_operand(addr->index), longtype);
         emit_ir(ir);
         EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
     } else {
-        struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
+        struct operand *size = make_integer_operand(longtype, TYPE_SIZE(rty));
         struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size, longtype);
         emit_ir(ir);
         EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
@@ -622,9 +633,10 @@ static void arith2arith(node_t *dty, node_t *n)
 
 static void ptr2arith(node_t *dty, node_t *n)
 {
+    cc_assert(isint(dty));
+    
     node_t *l = EXPR_OPERAND(n, 0);
     struct operand *operand = EXPR_X_ADDR(l);
-    cc_assert(isint(dty));
     struct ir *ir = make_conv_ir(IR_CONV_PI, dty, operand);
     emit_ir(ir);
     EXPR_X_ADDR(n) = ir->result;
@@ -633,11 +645,10 @@ static void ptr2arith(node_t *dty, node_t *n)
 static void arith2ptr(node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    struct operand *operand = EXPR_X_ADDR(l);
-    cc_assert(isint(SYM_TYPE(operand->sym)));
-    struct ir *ir = make_conv_ir(IR_CONV_IP, dty, operand);
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
+
+    cc_assert(isint(AST_TYPE(l)));
+
+    arith2arith(unsignedlongtype, n);
 }
 
 static void wrapconv(node_t *dty, node_t *n)
@@ -720,7 +731,7 @@ static void emit_funcall(node_t *n)
         emit_ir(ir);
     } else {
         struct ir *ir = make_call_ir(EXPR_X_ADDR(l), len);
-        ir->result = make_tmp_operand();
+        ir->result = make_tmp_operand(AST_TYPE(n));
         emit_ir(ir);
         EXPR_X_ADDR(n) = ir->result;
     }
@@ -1056,14 +1067,16 @@ static void emit_for_stmt(node_t *stmt)
     emit_label(STMT_X_NEXT(stmt));
 }
 
-static void emit_switch_jmp(struct operand *l, node_t *case_stmt)
+static void emit_switch_jmp(node_t *expr, node_t *case_stmt)
 {
+    struct operand *expr_operand = EXPR_X_ADDR(expr);
     struct operand *case_operand;
 
-    case_operand = make_int_operand(STMT_CASE_INDEX(case_stmt));
+    case_operand = make_integer_operand(AST_TYPE(expr),
+                                        STMT_CASE_INDEX(case_stmt));
     STMT_X_LABEL(case_stmt) = gen_label();
     emit_rel_if(IR_IF,
-                EQ, l, case_operand,
+                EQ, expr_operand, case_operand,
                 STMT_X_LABEL(case_stmt));
 }
 
@@ -1077,7 +1090,7 @@ static void emit_switch_stmt(node_t *stmt)
     
     for (int i = 0; i < LIST_LEN(cases); i++) {
         node_t *case_stmt = cases[i];
-        emit_switch_jmp(EXPR_X_ADDR(expr), case_stmt);
+        emit_switch_jmp(expr, case_stmt);
     }
 
     node_t *default_stmt = STMT_SWITCH_DEFAULT(stmt);
