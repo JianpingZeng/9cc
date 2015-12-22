@@ -184,6 +184,30 @@ static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
     return make_ir_r(op, l, NULL, dty);
 }
 
+static struct operand * emit_mul_operand(size_t typesize, struct operand *mul)
+{
+    if (typesize == 0) {
+        return make_operand_zero();
+    } else if (typesize == 1) {
+        return mul;
+    } else {
+        int i = log2i(typesize);
+        if (i == -1) {
+            // NOT power of 2
+            struct operand *r = make_integer_operand(longtype, typesize);
+            struct ir *ir = make_ir_r(IR_MUL, mul, r, longtype);
+            emit_ir(ir);
+            return ir->result;
+        } else {
+            // power of 2
+            struct operand *r = make_integer_operand(longtype, i);
+            struct ir *ir = make_ir_r(IR_LSHIFT, mul, r, longtype);
+            emit_ir(ir);
+            return ir->result;
+        }
+    }
+}
+
 static struct ir * make_assign_ir(struct operand *l, struct operand *r)
 {
     return make_ir(IR_ASSIGN, r, NULL, l);
@@ -291,7 +315,7 @@ static void emit_uop_sizeof(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *ty = istype(l) ? l : AST_TYPE(l);
-    struct operand *operand = make_integer_operand(ty, TYPE_SIZE(ty));
+    struct operand *operand = make_integer_operand(AST_TYPE(n), TYPE_SIZE(ty));
     EXPR_X_ADDR(n) = operand;
 }
 
@@ -409,12 +433,14 @@ static int bop2rop(int op)
 
 static void emit_assign_struct(node_t *l, node_t *r)
 {
-    // TODO: 
+    // TODO:
+    emit_ir(make_assign_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r)));
 }
 
 static void emit_assign_array(node_t *l, node_t *r)
 {
-    // TODO: 
+    // TODO:
+    emit_ir(make_assign_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r)));
 }
 
 static void emit_bop_assign(node_t *n)
@@ -473,6 +499,16 @@ static void emit_bop_arith(node_t *n)
     EXPR_X_ADDR(n) = ir->result;
 }
 
+static void emit_bop_ptr_int(int rop, node_t *ptr, node_t *i, node_t *n)
+{
+    node_t *rty = rtype(AST_TYPE(ptr));
+
+    struct operand *index = emit_mul_operand(TYPE_SIZE(rty), EXPR_X_ADDR(i));
+    struct ir *ir = make_ir_r(rop, EXPR_X_ADDR(ptr), index, AST_TYPE(n));
+    emit_ir(ir);
+    EXPR_X_ADDR(n) = ir->result;
+}
+
 static void emit_bop_plus(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -480,12 +516,13 @@ static void emit_bop_plus(node_t *n)
 
     if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
         emit_bop_arith(n);
-    } else if (isptr(AST_TYPE(l)) && isint(AST_TYPE(r))) {
-        // TODO: 
-    } else if (isptr(AST_TYPE(r)) && isint(AST_TYPE(l))) {
-        // TODO: 
     } else {
-        cc_assert(0);
+        emit_expr(l);
+        emit_expr(r);
+
+        node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
+        node_t *i = isint(AST_TYPE(l)) ? l : r;
+        emit_bop_ptr_int(IR_ADD, ptr, i, n);
     }
 }
 
@@ -496,14 +533,11 @@ static void emit_bop_minus(node_t *n)
 
     if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
         emit_bop_arith(n);
-    } else if (isptr(AST_TYPE(l)) && isint(AST_TYPE(r))) {
+    } else {
         emit_expr(l);
         emit_expr(r);
-        
-        node_t *rty = rtype(AST_TYPE(l));
-        // TODO: 
-    } else {
-        cc_assert(0);
+
+        emit_bop_ptr_int(IR_MINUS, l, r, n);
     }
 }
 
@@ -573,7 +607,20 @@ static void emit_cond(node_t *n)
 
 static void emit_member(node_t *n)
 {
-    // TODO: 
+    node_t *l = EXPR_OPERAND(n, 0);
+    const char *name = AST_NAME(n);
+    node_t *ty;
+
+    if (isrecord(AST_TYPE(l)))
+        ty = AST_TYPE(l);
+    else
+        ty = rtype(AST_TYPE(l));
+
+    node_t *field = find_field(ty, name);
+
+    emit_expr(l);
+    struct operand *index = make_integer_operand(unsignedlongtype, FIELD_OFFSET(field));
+    EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), index);
 }
 
 static void emit_subscript(node_t *n)
@@ -634,12 +681,18 @@ static void arith2arith(node_t *dty, node_t *n)
 static void ptr2arith(node_t *dty, node_t *n)
 {
     cc_assert(isint(dty));
-    
+
     node_t *l = EXPR_OPERAND(n, 0);
-    struct operand *operand = EXPR_X_ADDR(l);
-    struct ir *ir = make_conv_ir(IR_CONV_PI, dty, operand);
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
+
+    if (eqtype(unsignedlongtype, dty)) {
+        EXPR_X_ADDR(l)->type = dty;
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    } else {
+        EXPR_X_ADDR(l)->type = unsignedlongtype;
+        struct ir *ir = make_conv_ir(IR_CONV_II, dty, EXPR_X_ADDR(l));
+        emit_ir(ir);
+        EXPR_X_ADDR(n) = ir->result;
+    }
 }
 
 static void arith2ptr(node_t *dty, node_t *n)
@@ -648,13 +701,20 @@ static void arith2ptr(node_t *dty, node_t *n)
 
     cc_assert(isint(AST_TYPE(l)));
 
-    arith2arith(unsignedlongtype, n);
+    if (eqarith(unsignedlongtype, AST_TYPE(l))) {
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    } else {
+        struct ir *ir = make_conv_ir(IR_CONV_II, unsignedlongtype, EXPR_X_ADDR(l));
+        emit_ir(ir);
+        ir->result->type = dty;
+        EXPR_X_ADDR(n) = ir->result;
+    }
 }
 
 static void wrapconv(node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    struct operand *operand = make_sym_operand(EXPR_X_ADDR(l)->sym);
+    struct operand *operand = EXPR_X_ADDR(l);
     operand->type = dty;
     EXPR_X_ADDR(n) = operand;
 }

@@ -25,7 +25,7 @@ extern void *xmalloc(size_t size);
 extern void *xcalloc(size_t count, size_t size);
 extern void *xrealloc(void *ptr, size_t size);
 extern void *zmalloc(size_t size);
-extern int log2i(int i);
+extern int log2i(size_t i);
 
 // string.c
 extern unsigned strhash(const char *s);

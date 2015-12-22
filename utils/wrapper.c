@@ -83,9 +83,9 @@ void *zmalloc(size_t size)
     return memset(xmalloc(size), 0, size);
 }
 
-int log2i(int i)
+int log2i(size_t i)
 {
-    if (i <= 0) {
+    if (i == 0) {
         return -1;
     } else {
         int r = 0;

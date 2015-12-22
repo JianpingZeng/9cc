@@ -95,7 +95,7 @@ struct ast_type {
 struct ast_field {
     struct ast_common common;
     bool isbit;
-    int offset;
+    size_t offset;
     int bitsize;
 };
 

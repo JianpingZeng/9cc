@@ -512,8 +512,6 @@ static void do_print_ir(struct ir *ir)
     case IR_CONV_IF:
     case IR_CONV_FI:
     case IR_CONV_FF:
-    case IR_CONV_IP:
-    case IR_CONV_PI:
         putln("%s = (%s => %s) %s",
               operand2s(ir->result),
               type2s(ir->args[0]->type),
@@ -537,6 +535,7 @@ void print_ir(node_t *tree)
                 struct ir *ir = vec_at(irs, j);
                 do_print_ir(ir);
             }
+            putln("");
         }
     }
 }
