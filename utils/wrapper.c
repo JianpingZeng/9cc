@@ -82,3 +82,17 @@ void *zmalloc(size_t size)
 {
     return memset(xmalloc(size), 0, size);
 }
+
+int log2i(int i)
+{
+    if (i <= 0) {
+        return -1;
+    } else {
+        int r = 0;
+        while ((i & 0x01) == 0) {
+            r++;
+            i >>= 1;
+        }
+        return i >> 1 ? -1 : r;
+    }
+}
