@@ -19,6 +19,7 @@ static struct flow_graph * construct_flowgraph(struct vector *irs);
 static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
 static void emit_funcdef_gdata(node_t *decl);
+static const char *get_string_literal_label(const char *name);
 
 static struct vector *func_irs;
 static struct table *tmps;
@@ -826,7 +827,10 @@ static void emit_float_literal(node_t *n)
 
 static void emit_string_literal(node_t *n)
 {
-    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
+    node_t *sym = EXPR_SYM(n);
+    const char *label = get_string_literal_label(SYM_NAME(sym));
+    SYM_X_LABEL(sym) = label;
+    EXPR_X_ADDR(n) = make_literal_operand(sym);
 }
 
 static void emit_compound_literal(node_t *n)
