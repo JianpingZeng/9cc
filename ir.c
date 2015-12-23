@@ -16,10 +16,13 @@ static void emit_expr(node_t *n);
 static void emit_bool_expr(node_t *n);
 static void emit_bop_bool(node_t *n);
 static struct flow_graph * construct_flowgraph(struct vector *irs);
+static void emit_bss(node_t *decl);
+static void emit_data(node_t *decl);
 
 static struct vector *func_irs;
 static struct table *tmps;
 static struct table *labels;
+static struct vector *gdatas;
 static const char *fall = (const char *)&fall;
 static const char *__continue;
 static const char *__break;
@@ -1272,15 +1275,21 @@ static void emit_function(node_t *decl)
     DECL_X_FLOW_GRAPH(decl) = construct_flowgraph(func_irs);
 }
 
-static void emit_globalvar(node_t *decl)
+static void emit_globalvar(node_t *n)
 {
-
+    cc_assert(isdecl(n));
+    
+    if (DECL_BODY(n))
+        emit_data(n);
+    else
+        emit_bss(n);
 }
 
 static void ir_init(void)
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
+    gdatas = vec_new();
 }
 
 node_t * ir(node_t *tree)
@@ -1309,4 +1318,66 @@ static struct flow_graph * construct_flowgraph(struct vector *irs)
 {
     // TODO:
     return NULL;
+}
+
+//
+// decl
+//
+static struct vector *xvalues;
+
+static void emit_gdata(struct gdata *data)
+{
+    vec_push(gdatas, data);
+}
+
+static void emit_xvalue(struct xvalue *value)
+{
+    vec_push(xvalues, value);
+}
+
+static inline struct xvalue * alloc_xvalue(void)
+{
+    return zmalloc(sizeof(struct xvalue));
+}
+
+static inline struct gdata * alloc_gdata(void)
+{
+    return zmalloc(sizeof(struct gdata));
+}
+
+static void emit_initializer(node_t *body)
+{
+    
+}
+
+static void emit_bss(node_t *decl)
+{
+    node_t *sym = DECL_SYM(decl);
+    node_t *ty = SYM_TYPE(sym);
+    struct gdata *data = alloc_gdata();
+    data->bss = true;
+    data->globl = SYM_SCLASS(sym) == STATIC ? false : true;
+    data->label = SYM_X_LABEL(sym);
+    data->size = TYPE_SIZE(ty);
+    data->align = TYPE_ALIGN(ty);
+    emit_gdata(data);
+}
+
+static void emit_data(node_t *decl)
+{
+    node_t *sym = DECL_SYM(decl);
+    node_t *ty = SYM_TYPE(sym);
+    struct gdata *data = alloc_gdata();
+    data->globl = SYM_SCLASS(sym) == STATIC ? false : true;
+    data->label = SYM_X_LABEL(sym);
+    data->align = TYPE_ALIGN(ty);
+
+    // enter context
+    xvalues = vec_new();
+
+    emit_initializer(DECL_BODY(decl));
+    
+    // exit context
+    vec_free(xvalues);
+    xvalues = NULL;
 }
