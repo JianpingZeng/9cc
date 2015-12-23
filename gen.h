@@ -20,50 +20,62 @@ enum {
 
 // operand size
 enum {
+    Zero = 0,
     Byte = 1,
     Word = 2,
     Long = 4,
     Quad = 8,
 };
 
-// gdata
-
 enum {
-    XVALUE_BYTES,
-    XVALUE_LABEL,
+    GDATA_BSS,
+    GDATA_DATA,
+    GDATA_TEXT
+};
+
+#define GDATA_ID(gdata)        ((gdata)->common.id)
+#define GDATA_GLOBAL(gdata)    ((gdata)->common.global)
+#define GDATA_LABEL(gdata)     ((gdata)->common.label)
+#define GDATA_ALIGN(gdata)     ((gdata)->common.align)
+#define GDATA_SIZE(gdata)      ((gdata)->common.size)
+
+struct gdata_common {
+    int id:3;
+    int global:1;
+    int align:6;
+    const char *label;
+    size_t size;
+};
+
+struct gdata_bss {
+    struct gdata_common common;
 };
 
 struct xvalue {
-    int kind;
     int size;
-    union {
-        union value v;
-        struct {
-            const char *name;
-            long offset;
-        } p;
-    } u;
+    const char *name;
 };
 
-struct gdata {
-    int bss:1;
-    int string:1;
-    int globl:1;
-    int align:6;
-    size_t size;
-    const char *label;
-    union {
-        struct {
-            struct xvalue **values;
-            size_t zeros;
-        } v;
-        const char *string;
-    } u;
+#define GDATA_DATA_XVALUES(gdata)    ((gdata)->data.xvalues)
+
+struct gdata_data {
+    struct gdata_common common;
+    struct xvalue **xvalues;
 };
 
-struct gtext {
+#define GDATA_TEXT_DECL(gdata)       ((gdata)->text.decl)
+
+struct gdata_text {
+    struct gdata_common common;
     node_t *decl;
 };
+
+typedef union {
+    struct gdata_common common;
+    struct gdata_bss bss;
+    struct gdata_data data;
+    struct gdata_text text;
+} gdata_t;
 
 /*
   op = IR_NONE:        sym
@@ -103,8 +115,9 @@ struct flow_graph {
 #define DECL_X_EXTRA_STACK_SIZE(NODE)  ((NODE)->decl.x.decl.extra_stack_size)
 #define DECL_X_IRS(NODE)               ((NODE)->decl.x.decl.irs)
 #define DECL_X_FLOW_GRAPH(NODE)        ((NODE)->decl.x.decl.flow_graph)
-#define DECL_X_GDATA(NODE)             ((NODE)->decl.x.decl.gdata)
-#define DECL_X_GTEXT(NODE)             ((NODE)->decl.x.decl.gtext)
+#define DECL_X_GDATAS(NODE)            ((NODE)->decl.x.decl.gdatas)
+#define DECL_X_STRINGS(NODE)           ((NODE)->decl.x.decl.strings)
+#define DECL_X_COMPOUNDS(NODE)         ((NODE)->decl.x.decl.compounds)
 // expr
 #define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)       ((NODE)->expr.x.expr.btrue)
@@ -126,8 +139,9 @@ union x {
         size_t extra_stack_size;
         struct vector *irs;
         struct flow_graph *flow_graph;
-        struct gdata **gdata;
-        struct gtext **gtext;
+        gdata_t **gdatas;
+        struct dict *strings;
+        struct dict *compounds;
     }decl;
     
     struct {

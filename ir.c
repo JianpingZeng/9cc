@@ -18,11 +18,14 @@ static void emit_bop_bool(node_t *n);
 static struct flow_graph * construct_flowgraph(struct vector *irs);
 static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
+static void emit_funcdef_gdata(node_t *decl);
 
 static struct vector *func_irs;
 static struct table *tmps;
 static struct table *labels;
 static struct vector *gdatas;
+static struct dict *strings;
+static struct dict *compounds;
 static const char *fall = (const char *)&fall;
 static const char *__continue;
 static const char *__break;
@@ -1273,6 +1276,7 @@ static void emit_function(node_t *decl)
     emit_stmt(stmt);
     DECL_X_IRS(decl) = func_irs;
     DECL_X_FLOW_GRAPH(decl) = construct_flowgraph(func_irs);
+    emit_funcdef_gdata(decl);
 }
 
 static void emit_globalvar(node_t *n)
@@ -1290,6 +1294,8 @@ static void ir_init(void)
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
     gdatas = vec_new();
+    strings = dict_new();
+    compounds = dict_new();
 }
 
 node_t * ir(node_t *tree)
@@ -1305,6 +1311,10 @@ node_t * ir(node_t *tree)
         else if (isvardecl(decl))
             emit_globalvar(decl);
     }
+
+    DECL_X_GDATAS(tree) = (gdata_t **)vtoa(gdatas);
+    DECL_X_STRINGS(tree) = strings;
+    DECL_X_COMPOUNDS(tree) = compounds;
 
     return tree;
 }
@@ -1323,61 +1333,334 @@ static struct flow_graph * construct_flowgraph(struct vector *irs)
 //
 // decl
 //
-static struct vector *xvalues;
+static struct vector *__xvalues;
 
-static void emit_gdata(struct gdata *data)
-{
-    vec_push(gdatas, data);
-}
+#define SET_GDATA_CONTEXT()                     \
+    struct vector *__saved_xvalues = __xvalues; \
+    __xvalues = vec_new()
 
-static void emit_xvalue(struct xvalue *value)
-{
-    vec_push(xvalues, value);
-}
+#define RESTORE_GDATA_CONTEXT()                 \
+    vec_free(__xvalues);                        \
+    __xvalues = __saved_xvalues
+
+#define XVALUES   (__xvalues)
+
+static void emit_initializer(node_t *init);
 
 static inline struct xvalue * alloc_xvalue(void)
 {
     return zmalloc(sizeof(struct xvalue));
 }
 
-static inline struct gdata * alloc_gdata(void)
+static inline gdata_t * alloc_gdata(void)
 {
-    return zmalloc(sizeof(struct gdata));
+    return zmalloc(sizeof(gdata_t));
 }
 
-static void emit_initializer(node_t *body)
+static void emit_xvalue(int size, const char *name)
 {
+    struct xvalue *value = alloc_xvalue();
+    value->size = size;
+    value->name = name;
+    vec_push(XVALUES, value);
+}
+
+static void emit_zero(size_t bytes)
+{
+    emit_xvalue(Zero, format("%llu", bytes));
+}
+
+static void emit_gdata(gdata_t *data)
+{
+    vec_push(gdatas, data);
+}
+
+static void emit_funcdef_gdata(node_t *decl)
+{
+    node_t *sym = DECL_SYM(decl);
+    gdata_t *gdata = alloc_gdata();
+    GDATA_ID(gdata) = GDATA_TEXT;
+    GDATA_GLOBAL(gdata) = SYM_SCLASS(sym) == STATIC ? false : true;
+    GDATA_LABEL(gdata) = SYM_X_LABEL(sym);
+    GDATA_TEXT_DECL(gdata) = decl;
+    emit_gdata(gdata);
+}
+
+static const char *get_string_literal_label(const char *name)
+{
+    const char *label = dict_get(strings, name);
+    if (!label) {
+        label = gen_sliteral_label();
+        dict_put(strings, name, (void *)label);
+    }
+    return label;
+}
+
+static gdata_t *emit_compound_literal_label(const char *label, node_t *init)
+{
+    node_t *ty = AST_TYPE(init);
     
+    gdata_t *gdata = alloc_gdata();
+    GDATA_ID(gdata) = GDATA_DATA;
+    GDATA_LABEL(gdata) = label;
+    GDATA_SIZE(gdata) = TYPE_SIZE(ty);
+    GDATA_ALIGN(gdata) = TYPE_ALIGN(ty);
+
+    SET_GDATA_CONTEXT();
+
+    emit_initializer(init);
+
+    GDATA_DATA_XVALUES(gdata) = (struct xvalue **)vtoa(XVALUES);
+
+    RESTORE_GDATA_CONTEXT();
+
+    return gdata;
+}
+
+static const char *get_compound_literal_label(node_t *n)
+{
+    cc_assert(AST_ID(n) == INITS_EXPR);
+    
+    const char *label = gen_compound_label();
+    gdata_t *gdata = emit_compound_literal_label(label, n);
+    dict_put(compounds, label, gdata);
+    return label;
+}
+
+static const char *get_ptr_label(node_t *n)
+{
+    switch (AST_ID(n)) {
+    case STRING_LITERAL:
+        return get_string_literal_label(SYM_NAME(EXPR_SYM(n)));
+    case REF_EXPR:
+        return SYM_X_LABEL(EXPR_SYM(n));
+    case BINARY_OPERATOR:
+        return get_ptr_label(EXPR_OPERAND(n, 0));
+    case UNARY_OPERATOR:
+        cc_assert(EXPR_OP(n) == '&');
+        return get_ptr_label(EXPR_OPERAND(n, 0));
+    case INITS_EXPR:
+        return get_compound_literal_label(n);
+    default:
+        cc_assert(0);
+    }
+}
+
+static void emit_struct_initializer(node_t *n)
+{
+    cc_assert(AST_ID(n) == INITS_EXPR);
+    node_t *ty = AST_TYPE(n);
+    node_t **fields = TYPE_FIELDS(ty);
+    node_t **inits = EXPR_INITS(n);
+    for (int i = 0; i < LIST_LEN(inits); i++) {
+        node_t *init = inits[i];
+        node_t *field = fields[i];
+        size_t offset = FIELD_OFFSET(field);
+        if (FIELD_ISBIT(field)) {
+            int old_bits = 0;
+            unsigned long long old_byte = 0;
+            for (; i < LIST_LEN(inits); i++) {
+                node_t *next = i < LIST_LEN(inits) - 1 ? fields[i + 1] : NULL;
+                field = fields[i];
+                init = inits[i];
+                if (next
+                    && FIELD_OFFSET(field) !=
+                    FIELD_OFFSET(next))
+                    break;
+                int bits = FIELD_BITSIZE(field);
+                unsigned long long byte = 0;
+                if (isiliteral(init))
+                    byte = ILITERAL_VALUE(init);
+                while (bits + old_bits >= 8) {
+                    unsigned char val;
+                    unsigned char l =
+                        byte & ~(~0 << (8 - old_bits));
+                    unsigned char r =
+                        old_byte & ~(~0 << old_bits);
+                    val = (l << old_bits) | r;
+                    old_bits = 0;
+                    old_byte = 0;
+                    bits -= 8 - old_bits;
+                    byte >>= 8 - old_bits;
+                    emit_xvalue(Byte, format("%d", val));
+                    offset += 1;
+                }
+                old_bits += bits;
+                old_byte += byte;
+            }
+            if (old_bits) {
+                unsigned char r = old_byte & ~(~0 << old_bits);
+                emit_xvalue(Byte, format("%d", r));
+                offset += 1;
+            }
+        } else {
+            node_t *fty = FIELD_TYPE(field);
+            if (TYPE_SIZE(fty)) {
+                if (AST_ID(init) == VINIT_EXPR)
+                    emit_zero(TYPE_SIZE(fty));
+                else
+                    emit_initializer(init);
+                offset += TYPE_SIZE(fty);
+            }
+        }
+        // pack
+        node_t *next = i < LIST_LEN(inits) - 1 ? fields[i + 1] : NULL;
+        size_t end;
+        if (next)
+            end = FIELD_OFFSET(next);
+        else
+            end = TYPE_SIZE(ty);
+        if (end - offset)
+            emit_zero(end - offset);
+    }
+}
+
+static void emit_array_initializer(node_t *n)
+{
+    if (issliteral(n)) {
+        const char *label = get_ptr_label(n);
+        emit_xvalue(Quad, label);
+    } else {
+        cc_assert(AST_ID(n) == INITS_EXPR);
+        int i;
+        for (i = 0; i < LIST_LEN(EXPR_INITS(n)); i++)
+            emit_initializer(EXPR_INITS(n)[i]);
+        int left = TYPE_LEN(AST_TYPE(n)) - i;
+        if (left > 0)
+            emit_zero(left * TYPE_SIZE(rtype(AST_TYPE(n))));
+    }
+}
+
+static void emit_address_initializer(node_t *init)
+{
+    node_t *ty = AST_TYPE(init);
+    if (isiliteral(init)) {
+        emit_xvalue(Quad, format("%llu", ILITERAL_VALUE(init)));
+    } else {
+        const char *label = get_ptr_label(init);
+        if (AST_ID(init) == BINARY_OPERATOR) {
+            node_t *r = EXPR_OPERAND(init, 1);
+            int op = EXPR_OP(init);
+            size_t size = TYPE_SIZE(rtype(ty));
+            if (op == '+') {
+                if (TYPE_OP(AST_TYPE(r)) == INT) {
+                    long long i = ILITERAL_VALUE(r);
+                    if (i < 0)
+                        emit_xvalue(Quad,
+                                    format("%s%lld", label, i * size));
+                    else
+                        emit_xvalue(Quad,
+                                    format("%s+%lld", label, i * size));
+                } else {
+                    emit_xvalue(Quad,
+                                format("%s+%llu", label, ILITERAL_VALUE(r) * size));
+                }
+            } else {
+                if (TYPE_OP(AST_TYPE(r)) == INT) {
+                    long long i = ILITERAL_VALUE(r);
+                    if (i < 0)
+                        emit_xvalue(Quad,
+                                    format("%s+%lld", label, -i * size));
+                    else
+                        emit_xvalue(Quad,
+                                    format("%s-%lld", label, i * size));
+                } else {
+                    emit_xvalue(Quad,
+                                format("%s-%llu", label, ILITERAL_VALUE(r) * size));
+                }
+            }
+        } else {
+            emit_xvalue(Quad, label);
+        }
+    }
+}
+
+static void emit_arith_initializer(node_t *init)
+{
+    node_t *ty = AST_TYPE(init);
+    switch (TYPE_KIND(ty)) {
+    case _BOOL:
+    case CHAR:
+        emit_xvalue(Byte, format("%d", ILITERAL_VALUE(init)));
+        break;
+    case SHORT:
+        emit_xvalue(Word, format("%d", ILITERAL_VALUE(init)));
+        break;
+    case INT:
+    case UNSIGNED:
+        emit_xvalue(Long, format("%d", ILITERAL_VALUE(init)));
+        break;
+    case LONG:
+    case LONG+LONG:
+        emit_xvalue(Quad, format("%llu", ILITERAL_VALUE(init)));
+        break;
+    case FLOAT:
+        {
+            float f = FLITERAL_VALUE(init);
+            emit_xvalue(Long, format("%u", *(uint32_t *)&f));
+        }
+        break;
+    case DOUBLE:
+    case LONG+DOUBLE:
+        {
+            double d = FLITERAL_VALUE(init);
+            emit_xvalue(Quad, format("%llu", *(uint64_t *)&d));
+        }
+        break;
+    default:
+        die("unknown type '%s'", type2s(ty));
+        break;
+    }
+}
+
+static void emit_initializer(node_t *init)
+{
+    node_t *ty = AST_TYPE(init);
+    if (isarith(ty))
+        emit_arith_initializer(init);
+    else if (isptr(ty))
+        emit_address_initializer(init);
+    else if (isarray(ty))
+        emit_array_initializer(init);
+    else if (isrecord(ty))
+        emit_struct_initializer(init);
+    else
+        die("unexpected initializer type: %s", type2s(ty));
+}
+
+static void set_gdata_basic(gdata_t *gdata, node_t *decl)
+{
+    node_t *sym = DECL_SYM(decl);
+    node_t *ty = SYM_TYPE(sym);
+    
+    GDATA_GLOBAL(gdata) = SYM_SCLASS(sym) == STATIC ? false : true;
+    GDATA_LABEL(gdata) = SYM_X_LABEL(sym);
+    GDATA_SIZE(gdata) = TYPE_SIZE(ty);
+    GDATA_ALIGN(gdata) = TYPE_ALIGN(ty);
 }
 
 static void emit_bss(node_t *decl)
 {
-    node_t *sym = DECL_SYM(decl);
-    node_t *ty = SYM_TYPE(sym);
-    struct gdata *data = alloc_gdata();
-    data->bss = true;
-    data->globl = SYM_SCLASS(sym) == STATIC ? false : true;
-    data->label = SYM_X_LABEL(sym);
-    data->size = TYPE_SIZE(ty);
-    data->align = TYPE_ALIGN(ty);
-    emit_gdata(data);
+    gdata_t *gdata = alloc_gdata();
+    GDATA_ID(gdata) = GDATA_BSS;
+    set_gdata_basic(gdata, decl);
+    emit_gdata(gdata);
 }
 
 static void emit_data(node_t *decl)
 {
-    node_t *sym = DECL_SYM(decl);
-    node_t *ty = SYM_TYPE(sym);
-    struct gdata *data = alloc_gdata();
-    data->globl = SYM_SCLASS(sym) == STATIC ? false : true;
-    data->label = SYM_X_LABEL(sym);
-    data->align = TYPE_ALIGN(ty);
-
+    gdata_t *gdata = alloc_gdata();
+    GDATA_ID(gdata) = GDATA_DATA;
+    set_gdata_basic(gdata, decl);
+    
     // enter context
-    xvalues = vec_new();
+    SET_GDATA_CONTEXT();
 
     emit_initializer(DECL_BODY(decl));
+    emit_gdata(gdata);
+
+    GDATA_DATA_XVALUES(gdata) = (struct xvalue **)vtoa(XVALUES);
     
     // exit context
-    vec_free(xvalues);
-    xvalues = NULL;
+    RESTORE_GDATA_CONTEXT();
 }
