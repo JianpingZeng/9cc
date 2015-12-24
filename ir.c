@@ -20,6 +20,7 @@ static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
 static void emit_funcdef_gdata(node_t *decl);
 static const char *get_string_literal_label(const char *name);
+static void emit_bop_ptr_int(int rop, node_t *ptr, node_t *i, node_t *n);
 
 static struct vector *func_irs;
 static struct table *tmps;
@@ -50,6 +51,24 @@ static const char *__break;
 
 #define BREAK_CONTEXT     (__break)
 #define CONTINUE_CONTEXT  (__continue)
+
+static unsigned tysize2opsize(size_t tysize)
+{
+    switch (tysize) {
+    case 0:
+        return Zero;
+    case 1:
+        return Byte;
+    case 2:
+        return Word;
+    case 4:
+        return Long;
+    case 8:
+        return Quad;
+    default:
+        cc_assert(0);
+    }
+}
 
 const char *rop2s(int op)
 {
@@ -92,25 +111,21 @@ static struct operand * make_constant_operand(const char *name)
     return make_named_operand(name, &constants, CONSTANT);
 }
 
-static struct operand * make_integer_operand(node_t *ty, unsigned long long i)
+static struct operand * make_int_operand(long long i)
 {
-    cc_assert(isint(ty));
-    struct operand *operand;
-    
-    if (TYPE_OP(ty) == INT)
-        operand = make_constant_operand(strd(i));
-    else
-        operand = make_constant_operand(stru(i));
+    return make_constant_operand(strd(i));
+}
 
-    SYM_TYPE(operand->sym) = ty;
-    return operand;
+static struct operand * make_unsigned_operand(unsigned long long u)
+{
+    return make_constant_operand(stru(u));
 }
 
 static struct operand * make_operand_one(void)
 {
     static struct operand *operand_one;
     if (!operand_one)
-        operand_one = make_integer_operand(inttype, 1);
+        operand_one = make_unsigned_operand(1);
     return operand_one;
 }
 
@@ -118,7 +133,7 @@ static struct operand * make_operand_zero(void)
 {
     static struct operand *operand_zero;
     if (!operand_zero)
-        operand_zero = make_integer_operand(inttype, 0);
+        operand_zero = make_unsigned_operand(0);
     return operand_zero;
 }
 
@@ -137,72 +152,85 @@ static struct operand * make_indirection_operand(node_t *sym)
     return operand;
 }
 
-static struct ir * make_ir(int op, struct operand *l, struct operand *r,
-                           struct operand *result)
+static struct operand * make_address_operand(node_t *sym)
+{
+    struct operand *operand = make_sym_operand(sym);
+    operand->op = IR_ADDRESS;
+    return operand;
+}
+
+static struct ir * make_ir(unsigned op,
+                           struct operand *l, struct operand *r,
+                           struct operand *result,
+                           unsigned opsize)
 {
     struct ir *ir = zmalloc(sizeof(struct ir));
     ir->op = op;
     ir->args[0] = l;
     ir->args[1] = r;
     ir->result = result;
+    ir->opsize = opsize;
     return ir;
 }
 
-static struct ir * make_ir_r(int op, struct operand *l, struct operand *r, node_t *ty)
+static struct ir * make_ir_r(unsigned op,
+                             struct operand *l, struct operand *r,
+                             unsigned opsize)
 {
-    return make_ir(op, l, r, make_tmp_operand());
+    return make_ir(op, l, r, make_tmp_operand(), opsize);
 }
 
-static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)
+static struct ir * make_ir_nor(unsigned op,
+                               struct operand *l, struct operand *r,
+                               unsigned opsize)
 {
-    return make_ir(op, l, r, NULL);
-}
-
-static struct ir * make_conv_ir(int op, node_t *dty, struct operand *l)
-{
-    return make_ir_r(op, l, NULL, dty);
+    return make_ir(op, l, r, NULL, opsize);
 }
 
 static struct operand * emit_mul_operand(size_t typesize, struct operand *mul)
 {
-    if (typesize == 0) {
-        return make_operand_zero();
-    } else if (typesize == 1) {
-        return mul;
-    } else {
-        int i = log2i(typesize);
-        if (i == -1) {
-            // NOT power of 2
-            struct operand *r = make_integer_operand(longtype, typesize);
-            struct ir *ir = make_ir_r(IR_MUL, mul, r, longtype);
-            emit_ir(ir);
-            return ir->result;
-        } else {
-            // power of 2
-            struct operand *r = make_integer_operand(longtype, i);
-            struct ir *ir = make_ir_r(IR_LSHIFT, mul, r, longtype);
-            emit_ir(ir);
-            return ir->result;
-        }
-    }
+    // if (typesize == 0) {
+    //     return make_operand_zero();
+    // } else if (typesize == 1) {
+    //     return mul;
+    // } else {
+    //     int i = log2i(typesize);
+    //     if (i == -1) {
+    //         // NOT power of 2
+    //         struct operand *r = make_integer_operand(longtype, typesize);
+    //         struct ir *ir = make_ir_r(IR_MUL, mul, r, longtype);
+    //         emit_ir(ir);
+    //         return ir->result;
+    //     } else {
+    //         // power of 2
+    //         struct operand *r = make_integer_operand(longtype, i);
+    //         struct ir *ir = make_ir_r(IR_LSHIFT, mul, r, longtype);
+    //         emit_ir(ir);
+    //         return ir->result;
+    //     }
+    // }
 }
 
-static struct ir * make_assign_ir(struct operand *l, struct operand *r)
+static struct ir * make_assign_ir(struct operand *l, struct operand *r,
+                                  unsigned opsize)
 {
-    return make_ir(IR_ASSIGN, r, NULL, l);
+    return make_ir(IR_ASSIGN, r, NULL, l, opsize);
 }
 
-static void emit_simple_if(int op, struct operand *operand, const char *label)
+static void emit_simple_if(unsigned op, struct operand *operand,
+                           const char *label, unsigned opsize)
 {
-    struct ir *ir = make_ir(op, operand, NULL, make_label_operand(label));
+    struct ir *ir = make_ir(op, operand, NULL, make_label_operand(label), opsize);
     emit_ir(ir);
 }
 
-static void emit_rel_if(int op,
-                        int relop, struct operand *rel_l, struct operand *rel_r,
-                        const char *label)
+static void emit_rel_if(unsigned op,
+                        unsigned relop,
+                        struct operand *rel_l, struct operand *rel_r,
+                        const char *label,
+                        unsigned opsize)
 {
-    struct ir *ir = make_ir(op, rel_l, rel_r, make_label_operand(label));
+    struct ir *ir = make_ir(op, rel_l, rel_r, make_label_operand(label), opsize);
     ir->relop = relop;
     emit_ir(ir);
 }
@@ -210,26 +238,26 @@ static void emit_rel_if(int op,
 static void emit_label(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir(IR_LABEL, NULL, NULL, operand);
+    struct ir *ir = make_ir(IR_LABEL, NULL, NULL, operand, Zero);
     emit_ir(ir);
 }
 
 static void emit_goto(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir(IR_GOTO, NULL, NULL, operand);
+    struct ir *ir = make_ir(IR_GOTO, NULL, NULL, operand, Zero);
     emit_ir(ir);
 }
 
 static void emit_param(struct operand *operand)
 {
-    struct ir *ir = make_ir(IR_PARAM, NULL, NULL, operand);
+    struct ir *ir = make_ir(IR_PARAM, NULL, NULL, operand, Zero);
     emit_ir(ir);
 }
 
 static struct ir * make_call_ir(struct operand *l, int args)
 {
-    struct ir *ir = make_ir(IR_CALL, l, NULL, NULL);
+    struct ir *ir = make_ir(IR_CALL, l, NULL, NULL, Quad);
     ir->relop = args;
     return ir;
 }
@@ -278,37 +306,46 @@ static int uop2rop(int op)
     }
 }
 
-static void emit_uop_simple(node_t *n)
+// int
+static void emit_uop_bitwise_not(node_t *n)
 {
     int op = EXPR_OP(n);
     node_t *l = EXPR_OPERAND(n, 0);
-    struct ir *ir;
 
     emit_expr(l);
-    ir = make_ir_r(uop2rop(op), EXPR_X_ADDR(l), NULL, AST_TYPE(n));
+    struct ir *ir = make_ir_r(uop2rop(op),
+                              EXPR_X_ADDR(l), NULL,
+                              tysize2opsize(TYPE_SIZE(AST_TYPE(n))));
     emit_ir(ir);
     EXPR_X_ADDR(n) = ir->result;
 }
 
+// int
 static void emit_uop_sizeof(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *ty = istype(l) ? l : AST_TYPE(l);
-    struct operand *operand = make_integer_operand(AST_TYPE(n), TYPE_SIZE(ty));
-    EXPR_X_ADDR(n) = operand;
+    EXPR_X_ADDR(n) = make_unsigned_operand(TYPE_SIZE(ty));
 }
 
+// arith
 static void emit_uop_minus(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
+    node_t *ty = AST_TYPE(n);
+    unsigned op = isint(ty) ? IR_SUBI : IR_SUBF;
 
     emit_expr(l);
 
-    struct ir *ir = make_ir_r(IR_MINUS, make_operand_zero(), EXPR_X_ADDR(l), AST_TYPE(n));
+    struct ir *ir = make_ir_r(op,
+                              make_operand_zero(),
+                              EXPR_X_ADDR(l),
+                              tysize2opsize(TYPE_SIZE(ty)));
     emit_ir(ir);
     EXPR_X_ADDR(n) = ir->result;
 }
 
+// arith
 static void emit_uop_plus(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -317,6 +354,7 @@ static void emit_uop_plus(node_t *n)
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
+// ptr
 static void emit_uop_indirection(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -326,25 +364,97 @@ static void emit_uop_indirection(node_t *n)
     EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l)->sym);
 }
 
+// lvalue
+static void emit_uop_address(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+
+    emit_expr(l);
+
+    EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l)->sym);
+}
+
+// ptr + int
+static struct operand * emit_ptr_int(unsigned op,
+                                     struct operand *l,
+                                     struct operand *result,
+                                     struct operand *index,
+                                     size_t step,
+                                     unsigned opsize)
+{
+    struct ir *ir = make_ir_r(IR_MULI, index, make_unsigned_operand(step), opsize);
+    emit_ir(ir);
+    struct ir *ir2 = make_ir(op, l, ir->result, result, opsize);
+    emit_ir(ir2);
+    return ir2->result;
+}
+
+// scalar
 static void emit_uop_increment(node_t *n, int op)
 {
     bool prefix = EXPR_PREFIX(n);
     node_t *l = EXPR_OPERAND(n, 0);
-    int rop = op == INCR ? IR_ADD : IR_MINUS;
+    node_t *ty = AST_TYPE(n);
+    unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
+    int rop;
+    if (op == INCR) {
+        if (isfloat(ty))
+            rop = IR_ADDF;
+        else
+            rop = IR_ADDI;
+    } else {
+        if (isfloat(ty))
+            rop = IR_SUBF;
+        else
+            rop = IR_SUBI;
+    }
 
     emit_expr(l);
     
     if (prefix) {
-        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), make_operand_one(), EXPR_X_ADDR(l));
-        emit_ir(ir);
-        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+        if (isptr(ty)) {
+            EXPR_X_ADDR(n) = emit_ptr_int(rop,
+                                          EXPR_X_ADDR(l),
+                                          EXPR_X_ADDR(l),
+                                          make_operand_one(),
+                                          TYPE_SIZE(rtype(ty)),
+                                          opsize);
+        } else {
+            struct ir *ir = make_ir(rop,
+                                    EXPR_X_ADDR(l),
+                                    make_operand_one(),
+                                    EXPR_X_ADDR(l),
+                                    opsize);
+            emit_ir(ir);
+            EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+        }
     } else {
-        struct operand *tmp = make_tmp_operand(AST_TYPE(n));
-        emit_ir(make_assign_ir(tmp, EXPR_X_ADDR(l)));
-        struct ir *ir = make_ir(rop, EXPR_X_ADDR(l), make_operand_one(), EXPR_X_ADDR(l));
-        emit_ir(ir);
+        struct operand *tmp = make_tmp_operand();
+        emit_ir(make_assign_ir(tmp, EXPR_X_ADDR(l), opsize));
+        if (isptr(ty)) {
+            emit_ptr_int(rop,
+                         EXPR_X_ADDR(l),
+                         EXPR_X_ADDR(l),
+                         make_operand_one(),
+                         TYPE_SIZE(rtype(ty)),
+                         opsize);
+        } else {
+            
+            struct ir *ir = make_ir(rop,
+                                    EXPR_X_ADDR(l),
+                                    make_operand_one(),
+                                    EXPR_X_ADDR(l),
+                                    opsize);
+            emit_ir(ir);
+        }
         EXPR_X_ADDR(n) = tmp;
     }
+}
+
+// scalar
+static void emit_uop_logic_not(node_t *n)
+{
+    emit_bop_bool(n);
 }
 
 static void emit_uop(node_t *n)
@@ -360,7 +470,7 @@ static void emit_uop(node_t *n)
         emit_uop_indirection(n);
         break;
     case '&':
-        emit_uop_simple(n);
+        emit_uop_address(n);
         break;
     case '+':
         emit_uop_plus(n);
@@ -369,10 +479,10 @@ static void emit_uop(node_t *n)
         emit_uop_minus(n);
         break;
     case '~':
-        emit_uop_simple(n);
+        emit_uop_bitwise_not(n);
         break;
     case '!':
-        emit_bop_bool(n);
+        emit_uop_logic_not(n);
         break;
     case SIZEOF:
         emit_uop_sizeof(n);
@@ -382,17 +492,30 @@ static void emit_uop(node_t *n)
     }
 }
 
-static int bop2rop(int op)
+static unsigned bop2rop(int op, node_t *ty)
 {
     switch (op) {
+        // scalar
     case '+':
-        return IR_ADD;
+        return isfloat(ty) ? IR_ADDF : IR_ADDI;
     case '-':
-        return IR_MINUS;
+        return isfloat(ty) ? IR_SUBF : IR_SUBI;
+        // arith
     case '*':
-        return IR_MUL;
+        if (isfloat(ty))
+            return IR_MULF;
+        else if (TYPE_OP(ty) == UNSIGNED)
+            return IR_MULI;
+        else
+            return IR_IMULI;
     case '/':
-        return IR_DIV;
+        if (isfloat(ty))
+            return IR_DIVF;
+        else if (TYPE_OP(ty) == UNSIGNED)
+            return IR_DIVI;
+        else
+            return IR_IDIVI;
+        // int
     case '%':
         return IR_MOD;
     case '|':
@@ -412,14 +535,12 @@ static int bop2rop(int op)
 
 static void emit_assign_struct(node_t *l, node_t *r)
 {
-    // TODO:
-    emit_ir(make_assign_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r)));
+    // TODO: 
 }
 
 static void emit_assign_array(node_t *l, node_t *r)
 {
-    // TODO:
-    emit_ir(make_assign_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r)));
+    // TODO: 
 }
 
 static void emit_bop_assign(node_t *n)
@@ -452,42 +573,50 @@ static void emit_bop_bool(node_t *n)
     EXPR_X_TRUE(n) = fall;
     EXPR_X_FALSE(n) = gen_label();
     const char *label = gen_label();
-    struct operand *result = make_tmp_operand(AST_TYPE(n));
+    struct operand *result = make_tmp_operand();
     emit_bool_expr(n);
     // true
-    emit_ir(make_assign_ir(result, make_operand_true()));
+    emit_ir(make_assign_ir(result, make_operand_one()));
     emit_goto(label);
     emit_label(EXPR_X_FALSE(n));
     // false
-    emit_ir(make_assign_ir(result, make_operand_false()));
+    emit_ir(make_assign_ir(result, make_operand_zero()));
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
 
+// arith op arith
 static void emit_bop_arith(node_t *n)
 {
-    int op = EXPR_OP(n);
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
-    struct ir *ir;
+    node_t *ty = AST_TYPE(n);
+    unsigned op = bop2rop(EXPR_OP(n), ty);
+    unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
 
     emit_expr(l);
     emit_expr(r);
-    ir = make_ir_r(bop2rop(op), EXPR_X_ADDR(l), EXPR_X_ADDR(r), AST_TYPE(n));
+
+    struct ir *ir = make_ir_r(op, EXPR_X_ADDR(l), EXPR_X_ADDR(r), opsize);
     emit_ir(ir);
     EXPR_X_ADDR(n) = ir->result;
 }
 
-static void emit_bop_ptr_int(int rop, node_t *ptr, node_t *i, node_t *n)
+static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *index, node_t *n)
 {
     node_t *rty = rtype(AST_TYPE(ptr));
-
-    struct operand *index = emit_mul_operand(TYPE_SIZE(rty), EXPR_X_ADDR(i));
-    struct ir *ir = make_ir_r(rop, EXPR_X_ADDR(ptr), index, AST_TYPE(n));
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
+    
+    EXPR_X_ADDR(n) =  emit_ptr_int(op,
+                                   EXPR_X_ADDR(ptr),
+                                   make_tmp_operand(),
+                                   index,
+                                   TYPE_SIZE(rty),
+                                   tysize2opsize(TYPE_SIZE(ptr)));
 }
 
+// arith + arith
+// ptr + int
+// int + ptr
 static void emit_bop_plus(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -501,10 +630,12 @@ static void emit_bop_plus(node_t *n)
 
         node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
         node_t *i = isint(AST_TYPE(l)) ? l : r;
-        emit_bop_ptr_int(IR_ADD, ptr, i, n);
+        emit_bop_ptr_int(IR_ADDI, ptr, i, n);
     }
 }
 
+// arith - arith
+// ptr - int
 static void emit_bop_minus(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -516,7 +647,7 @@ static void emit_bop_minus(node_t *n)
         emit_expr(l);
         emit_expr(r);
 
-        emit_bop_ptr_int(IR_MINUS, l, r, n);
+        emit_bop_ptr_int(IR_SUBI, l, r, n);
     }
 }
 
@@ -563,6 +694,7 @@ static void emit_bop(node_t *n)
     }
 }
 
+// scalar ? type : type
 static void emit_cond(node_t *n)
 {
     node_t *cond = EXPR_COND(n);
@@ -572,7 +704,7 @@ static void emit_cond(node_t *n)
     EXPR_X_TRUE(cond) = fall;
     EXPR_X_FALSE(cond) = gen_label();
     const char *label = gen_label();
-    struct operand *result = make_tmp_operand(AST_TYPE(n));
+    struct operand *result = make_tmp_operand();
     emit_bool_expr(cond);
     emit_expr(then);
     emit_ir(make_assign_ir(result, EXPR_X_ADDR(then)));
@@ -630,113 +762,153 @@ static void emit_subscript(node_t *n)
     }
 }
 
-static void arith2arith(node_t *dty, node_t *n)
+static struct ir * make_conv_ir(unsigned op, struct operand *l,
+                                unsigned from_opszie, unsigned to_opsize)
 {
-    node_t *l = EXPR_OPERAND(n, 0);
-    struct operand *operand = EXPR_X_ADDR(l);
-    node_t *sty = AST_TYPE(l);
-    struct ir *ir;
-
-    if (eqarith(sty, dty)) {
-        EXPR_X_ADDR(n) = operand;
-        return;
-    }
-
-    if (isint(sty) && isint(dty))
-        ir = make_conv_ir(IR_CONV_II, dty, operand);
-    else if (isint(sty) && isfloat(dty))
-        ir = make_conv_ir(IR_CONV_IF, dty, operand);
-    else if (isfloat(sty) && isint(dty))
-        ir = make_conv_ir(IR_CONV_FI, dty, operand);
-    else if (isfloat(sty) && isfloat(dty))
-        ir = make_conv_ir(IR_CONV_FF, dty, operand);
-    else
-        cc_assert(0);
-    
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
+    struct ir *ir = make_ir_r(op, l, NULL, Zero);
+    ir->from_opsize = from_opszie;
+    ir->to_opsize = to_opsize;
+    return ir;
 }
 
-static void ptr2arith(node_t *dty, node_t *n)
+static struct operand * emit_conv_ir(int op, struct operand *l,
+                                     unsigned from_opsize,
+                                     unsigned to_opsize)
+{
+    struct ir *ir = make_conv_ir(op, l, from_opsize, to_opsize);
+    emit_ir(ir);
+    return ir->result;
+}
+
+static void int2int(node_t *dty, node_t *sty, node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    unsigned op;
+    
+    if (TYPE_OP(dty) == UNSIGNED && TYPE_OP(sty) == UNSIGNED)
+        op = IR_CONV_UI_UI;
+    else if (TYPE_OP(dty) == UNSIGNED && TYPE_OP(sty) == INT)
+        op = IR_CONV_SI_UI;
+    else if (TYPE_OP(dty) == INT && TYPE_OP(sty) == INT)
+        op = IR_CONV_SI_SI;
+    else
+        op = IR_CONV_UI_SI;
+
+    EXPR_X_ADDR(n) = emit_conv_ir(op,
+                                  EXPR_X_ADDR(l),
+                                  tysize2opsize(TYPE_SIZE(sty)),
+                                  tysize2opsize(TYPE_SIZE(dty)));
+}
+
+static void int2float(node_t *dty, node_t *sty, node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    unsigned op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_F : IR_CONV_SI_F;
+
+    EXPR_X_ADDR(n) = emit_conv_ir(op,
+                                  EXPR_X_ADDR(l),
+                                  tysize2opsize(TYPE_SIZE(sty)),
+                                  tysize2opsize(TYPE_SIZE(dty)));
+}
+
+static void float2int(node_t *dty, node_t *sty, node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    unsigned op = TYPE_OP(dty) == UNSIGNED ? IR_CONV_F_UI : IR_CONV_F_SI;
+
+    EXPR_X_ADDR(n) = emit_conv_ir(op,
+                                  EXPR_X_ADDR(l),
+                                  tysize2opsize(TYPE_SIZE(sty)),
+                                  tysize2opsize(TYPE_SIZE(dty)));
+}
+
+static void float2float(node_t *dty, node_t *sty, node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    EXPR_X_ADDR(n) = emit_conv_ir(IR_CONV_FF,
+                                  EXPR_X_ADDR(l),
+                                  tysize2opsize(TYPE_SIZE(sty)),
+                                  tysize2opsize(TYPE_SIZE(dty)));
+}
+
+static void arith2arith(node_t *dty, node_t *sty, node_t *n)
+{
+    if (eqarith(sty, dty)) {
+        node_t *l = EXPR_OPERAND(n, 0);
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    } else {
+        if (isint(sty) && isint(dty))
+            int2int(dty, sty, n);
+        else if (isint(sty) && isfloat(dty))
+            int2float(dty, sty, n);
+        else if (isfloat(sty) && isint(dty))
+            float2int(dty, sty, n);
+        else if (isfloat(sty) && isfloat(dty))
+            float2float(dty, sty, n);
+        else
+            cc_assert(0);
+    }
+}
+
+static void ptr2arith(node_t *dty, node_t *sty, node_t *n)
 {
     cc_assert(isint(dty));
 
-    node_t *l = EXPR_OPERAND(n, 0);
-
-    if (eqtype(unsignedlongtype, dty)) {
-        EXPR_X_ADDR(l)->type = dty;
-        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
-    } else {
-        EXPR_X_ADDR(l)->type = unsignedlongtype;
-        struct ir *ir = make_conv_ir(IR_CONV_II, dty, EXPR_X_ADDR(l));
-        emit_ir(ir);
-        EXPR_X_ADDR(n) = ir->result;
-    }
+    arith2arith(dty, unsignedlongtype, n);
 }
 
-static void arith2ptr(node_t *dty, node_t *n)
+static void arith2ptr(node_t *dty, node_t *sty, node_t *n)
+{
+    cc_assert(isint(sty));
+
+    arith2arith(unsignedlongtype, sty, n);
+}
+
+static void wrapconv(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-
-    cc_assert(isint(AST_TYPE(l)));
-
-    if (eqarith(unsignedlongtype, AST_TYPE(l))) {
-        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
-    } else {
-        struct ir *ir = make_conv_ir(IR_CONV_II, unsignedlongtype, EXPR_X_ADDR(l));
-        emit_ir(ir);
-        ir->result->type = dty;
-        EXPR_X_ADDR(n) = ir->result;
-    }
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
-static void wrapconv(node_t *dty, node_t *n)
+static inline void ptr2ptr(node_t *dty, node_t *sty, node_t *n)
 {
-    node_t *l = EXPR_OPERAND(n, 0);
-    struct operand *operand = EXPR_X_ADDR(l);
-    operand->type = dty;
-    EXPR_X_ADDR(n) = operand;
+    wrapconv(dty, sty, n);
 }
 
-static void ptr2ptr(node_t *dty, node_t *n)
+static inline void func2ptr(node_t *dty, node_t *sty, node_t *n)
 {
-    wrapconv(dty, n);
+    wrapconv(dty, sty, n);
 }
 
-static void func2ptr(node_t *dty, node_t *n)
+static inline void array2ptr(node_t *dty, node_t *sty, node_t *n)
 {
-    wrapconv(dty, n);
-}
-
-static void array2ptr(node_t *dty, node_t *n)
-{
-    wrapconv(dty, n);
+    wrapconv(dty, sty, n);
 }
 
 static void emit_conv(node_t *n)
 {
-    node_t *dty = AST_TYPE(n);
     node_t *l = EXPR_OPERAND(n, 0);
+    node_t *dty = AST_TYPE(n);
     node_t *sty = AST_TYPE(l);
 
     emit_expr(l);
 
     if (isarith(dty)) {
         if (isarith(sty))
-            arith2arith(dty, n);
+            arith2arith(dty, sty, n);
         else if (isptr(sty))
-            ptr2arith(dty, n);
+            ptr2arith(dty, sty, n);
         else
             cc_assert(0);
     } else if (isptr(dty)) {
         if (isptr(sty))
-            ptr2ptr(dty, n);
+            ptr2ptr(dty, sty, n);
         else if (isarith(sty))
-            arith2ptr(dty, n);
+            arith2ptr(dty, sty, n);
         else if (isfunc(sty))
-            func2ptr(dty, n);
+            func2ptr(dty, sty, n);
         else if (isarray(sty))
-            array2ptr(dty, n);
+            array2ptr(dty, sty, n);
         else
             cc_assert(0);
     } else {
@@ -770,7 +942,7 @@ static void emit_funcall(node_t *n)
         emit_ir(ir);
     } else {
         struct ir *ir = make_call_ir(EXPR_X_ADDR(l), len);
-        ir->result = make_tmp_operand(AST_TYPE(n));
+        ir->result = make_tmp_operand();
         emit_ir(ir);
         EXPR_X_ADDR(n) = ir->result;
     }
@@ -789,12 +961,12 @@ static void emit_ref_expr(node_t *n)
 
 static void emit_integer_literal(node_t *n)
 {
-    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
+    EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
 }
 
 static void emit_float_literal(node_t *n)
 {
-    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
+    EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
 }
 
 static void emit_string_literal(node_t *n)
@@ -802,12 +974,12 @@ static void emit_string_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_string_literal_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    EXPR_X_ADDR(n) = make_literal_operand(sym);
+    EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_compound_literal(node_t *n)
 {
-    EXPR_X_ADDR(n) = make_literal_operand(EXPR_SYM(n));
+    EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
 }
 
 static void emit_expr(node_t *n)
@@ -932,24 +1104,37 @@ static void emit_rel_expr(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
-    int op = EXPR_OP(n);
+    int relop = EXPR_OP(n);
+    node_t *ty = AST_TYPE(n);
+    unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
 
     emit_expr(l);
     emit_expr(r);
 
     if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
-        emit_rel_if(IR_IF,
-                    op, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
-                    EXPR_X_TRUE(n));
+        
+        unsigned op = isfloat(ty) ? IR_IF_F : IR_IF_I;
+        emit_rel_if(op,
+                    relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    EXPR_X_TRUE(n),
+                    opsize);
         emit_goto(EXPR_X_FALSE(n));
+        
     } else if (EXPR_X_TRUE(n) != fall) {
-        emit_rel_if(IR_IF,
-                    op, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
-                    EXPR_X_TRUE(n));
+
+        unsigned op = isfloat(ty) ? IR_IF_F : IR_IF_I;
+        emit_rel_if(op,
+                    relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    EXPR_X_TRUE(n),
+                    opsize);
+        
     } else if (EXPR_X_FALSE(n) != fall) {
-        emit_rel_if(IR_IF_FALSE,
-                    op, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
-                    EXPR_X_FALSE(n));
+
+        unsigned op = isfloat(ty) ? IR_IF_FALSE_F : IR_IF_FALSE_I;
+        emit_rel_if(op,
+                    relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    EXPR_X_FALSE(n),
+                    opsize);
     } else {
         // both fall
     }
@@ -970,15 +1155,27 @@ static void emit_bool_expr(node_t *n)
         emit_bool_expr(l);
     } else {
         emit_expr(n);
+
+        node_t *ty = AST_TYPE(n);
+        unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
         struct operand *test = EXPR_X_ADDR(n);
         
         if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
-            emit_simple_if(IR_IF, test, EXPR_X_TRUE(n));
+            
+            unsigned op = isfloat(ty) ? IR_IF_F : IR_IF_I;
+            emit_simple_if(op, test, EXPR_X_TRUE(n), opsize);
             emit_goto(EXPR_X_FALSE(n));
+            
         } else if (EXPR_X_TRUE(n) != fall) {
-            emit_simple_if(IR_IF, test, EXPR_X_TRUE(n));
+            
+            unsigned op = isfloat(ty) ? IR_IF_F : IR_IF_I;
+            emit_simple_if(op, test, EXPR_X_TRUE(n), opsize);
+            
         } else if (EXPR_X_FALSE(n) != fall) {
-            emit_simple_if(IR_IF_FALSE, test, EXPR_X_FALSE(n));
+            
+            unsigned op = isfloat(ty) ? IR_IF_FALSE_F : IR_IF_FALSE_I;
+            emit_simple_if(op, test, EXPR_X_FALSE(n), opsize);
+            
         } else {
             // both fall: do nothing
         }
@@ -1109,17 +1306,17 @@ static void emit_for_stmt(node_t *stmt)
     emit_label(STMT_X_NEXT(stmt));
 }
 
-static void emit_switch_jmp(node_t *expr, node_t *case_stmt)
+static void emit_switch_jmp(node_t *cond, node_t *case_stmt)
 {
-    struct operand *expr_operand = EXPR_X_ADDR(expr);
-    struct operand *case_operand;
-
-    case_operand = make_integer_operand(AST_TYPE(expr),
-                                        STMT_CASE_INDEX(case_stmt));
+    node_t *ty = AST_TYPE(cond);
+    struct operand *cond_operand = EXPR_X_ADDR(cond);
+    struct operand *case_operand = make_int_operand(STMT_CASE_INDEX(case_stmt));
     STMT_X_LABEL(case_stmt) = gen_label();
-    emit_rel_if(IR_IF,
-                EQ, expr_operand, case_operand,
-                STMT_X_LABEL(case_stmt));
+
+    emit_rel_if(IR_IF_I,
+                EQ, cond_operand, case_operand,
+                STMT_X_LABEL(case_stmt),
+                tysize2opsize(TYPE_SIZE(ty)));
 }
 
 static void emit_switch_stmt(node_t *stmt)
@@ -1186,8 +1383,15 @@ static void emit_continue_stmt(node_t *stmt)
 static void emit_return_stmt(node_t *stmt)
 {
     node_t *n = STMT_RETURN_EXPR(stmt);
+    node_t *ty = AST_TYPE(n);
+    unsigned op = isfloat(ty) ? IR_RETURNF : IR_RETURNI;
+    
     emit_expr(n);
-    struct ir *ir = make_ir_nor(IR_RETURN, EXPR_X_ADDR(n), NULL);
+    
+    struct ir *ir = make_ir_nor(op,
+                                EXPR_X_ADDR(n),
+                                NULL,
+                                tysize2opsize(TYPE_SIZE(ty)));
     emit_ir(ir);
 }
 

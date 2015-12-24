@@ -1,6 +1,6 @@
 # Makefile for mcc
 
-CFLAGS_COMMON=-Wall -std=c99 -Isys -Iutils -I. -DBUILD_DIR='"$(shell pwd)"'
+CFLAGS_COMMON=-Wall -std=c99 -DBUILD_DIR='"$(shell pwd)"'
 CFLAGS=$(CFLAGS_COMMON)
 LDFLAGS=
 MCC=mcc

@@ -1,5 +1,4 @@
 #include "cc.h"
-#include "sys.h"
 
 static FILE *outfp;
 

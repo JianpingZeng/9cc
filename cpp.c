@@ -1,5 +1,5 @@
 #include "cc.h"
-#include "sys.h"
+#include "sys/sys.h"
 
 /* ACKNOWLEDGE
  *

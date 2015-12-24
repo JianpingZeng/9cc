@@ -83,16 +83,18 @@ typedef union {
   op = IR_INDIRECTION: *sym
  */
 struct operand {
-    int op:8;
+    unsigned op:8;
     node_t *sym;
     node_t *index;
 };
 
 // three-address code
 struct ir {
-    int op:8;
-    int relop:8;
-    int opsize:6;
+    unsigned op:8;
+    unsigned opsize:6;
+    unsigned from_opsize:6;
+    unsigned to_opsize:6;
+    int relop;
     struct operand *args[2];
     struct operand *result;
 };

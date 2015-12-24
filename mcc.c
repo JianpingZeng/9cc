@@ -10,9 +10,9 @@
 #include <stdbool.h>
 #include <time.h>
 #include <ctype.h>
-#include "sys.h"
+#include "sys/sys.h"
 #include "mcc.h"
-#include "utils.h"
+#include "utils/utils.h"
 
 static const char *progname;
 static struct vector *inputs;

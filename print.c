@@ -433,13 +433,16 @@ static void do_print_ir(struct ir *ir)
               rop2s(ir->op),
               operand2s(ir->result));
         break;
-    case IR_RETURN:
+    case IR_RETURNI:
+    case IR_RETURNF:
         putln("%s %s",
               rop2s(ir->op),
               operand2s(ir->args[0]));
         break;
-    case IR_IF:
-    case IR_IF_FALSE:
+    case IR_IF_I:
+    case IR_IF_F:
+    case IR_IF_FALSE_I:
+    case IR_IF_FALSE_F:
         if (ir->relop) {
             // rel if
             putln("%s %s %s %s %s %s",
@@ -458,17 +461,24 @@ static void do_print_ir(struct ir *ir)
                   operand2s(ir->result));
         }
         break;
-    case IR_ASSIGN:
+    case IR_ASSIGNI:
+    case IR_ASSIGNF:
         putln("%s = %s",
               operand2s(ir->result),
               operand2s(ir->args[0]));
         break;
     case IR_SUBSCRIPT:
         break;
-    case IR_ADD:
-    case IR_MINUS:
-    case IR_DIV:
-    case IR_MUL:
+    case IR_ADDI:
+    case IR_ADDF:
+    case IR_SUBI:
+    case IR_SUBF:
+    case IR_DIVI:
+    case IR_IDIVI:
+    case IR_DIVF:
+    case IR_MULF:
+    case IR_MULI:
+    case IR_IMULI:
     case IR_MOD:
     case IR_OR:
     case IR_AND:
@@ -508,14 +518,18 @@ static void do_print_ir(struct ir *ir)
                       ir->relop);
         }
         break;
-    case IR_CONV_II:
-    case IR_CONV_IF:
-    case IR_CONV_FI:
+    case IR_CONV_UI_UI:
+    case IR_CONV_SI_SI:
+    case IR_CONV_UI_SI:
+    case IR_CONV_SI_UI:
+    case IR_CONV_SI_F:
+    case IR_CONV_UI_F:
+    case IR_CONV_F_UI:
+    case IR_CONV_F_SI:
     case IR_CONV_FF:
-        putln("%s = (%s => %s) %s",
+        putln("%s = (%s) %s",
               operand2s(ir->result),
-              type2s(ir->args[0]->type),
-              type2s(ir->result->type),
+              rop2s(ir->op),
               operand2s(ir->args[0]));
         break;
     default:

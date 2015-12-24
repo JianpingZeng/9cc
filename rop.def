@@ -3,10 +3,13 @@ _rop(IR_NONE,   "null")
 
 // control
 _rop(IR_LABEL,          "label")
-_rop(IR_IF,             "if")
-_rop(IR_IF_FALSE,       "ifFalse")
-_rop(IR_RETURN,         "return")
 _rop(IR_GOTO,           "goto")
+_rop(IR_IF_I,           "if")
+_rop(IR_IF_F,           "if")
+_rop(IR_IF_FALSE_I,     "ifFalse")
+_rop(IR_IF_FALSE_F,     "ifFalse")
+_rop(IR_RETURNI,       "return")
+_rop(IR_RETURNF,       "return")
 
 // binary
 
@@ -34,26 +37,8 @@ _rop(IR_LSHIFT, "<<")
 _rop(IR_RSHIFT, ">>")
 
 _rop(IR_SUBSCRIPT,      "[]")
-_rop(IR_ASSIGN,         "=")
-
-// relop
-_rop(IR_RELI_G,      ">")
-_rop(IR_RELF_G,      ">")
-
-_rop(IR_RELI_L,      "<")
-_rop(IR_RELF_L,      "<")
-
-_rop(IR_RELI_GEQ,    ">=")
-_rop(IR_RELF_GEQ,    ">=")
-
-_rop(IR_RELI_LEQ,    "<=")
-_rop(IR_RELF_LEQ,    "<=")
-
-_rop(IR_RELI_NEQ,    "!=")
-_rop(IR_RELF_NEQ,    "!=")
-
-_rop(IR_RELI_EQ,     "==")
-_rop(IR_RELF_EQ,     "==")
+_rop(IR_ASSIGNI,        "=")
+_rop(IR_ASSIGNF,        "=")
 
 // unary
 _rop(IR_ADDRESS,      "&")

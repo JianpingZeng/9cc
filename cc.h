@@ -18,7 +18,7 @@
 #include <stdint.h>
 
 #include "mcc.h"
-#include "utils.h"
+#include "utils/utils.h"
 
 // alloc.c
 extern void *alloc_node(void);
