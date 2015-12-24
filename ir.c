@@ -66,7 +66,6 @@ static struct operand * make_sym_operand(node_t *sym)
 {
     struct operand *operand = zmalloc(sizeof(struct operand));
     operand->sym = sym;
-    operand->type = SYM_TYPE(sym);
     return operand;
 }
 
@@ -78,12 +77,9 @@ static struct operand * make_named_operand(const char *name, struct table **tabl
     return make_sym_operand(sym);
 }
 
-static struct operand * make_tmp_operand(node_t *ty)
+static struct operand * make_tmp_operand(void)
 {
-    struct operand *operand = make_named_operand(gen_tmpname_r(), &tmps, GLOBAL);
-    SYM_TYPE(operand->sym) = ty;
-    operand->type = ty;
-    return operand;
+    return make_named_operand(gen_tmpname_r(), &tmps, GLOBAL);
 }
 
 static struct operand * make_label_operand(const char *label)
@@ -107,24 +103,7 @@ static struct operand * make_integer_operand(node_t *ty, unsigned long long i)
         operand = make_constant_operand(stru(i));
 
     SYM_TYPE(operand->sym) = ty;
-    operand->type = ty;
     return operand;
-}
-
-static struct operand * make_operand_true(void)
-{
-    static struct operand *operand_true;
-    if (!operand_true)
-        operand_true = make_integer_operand(inttype, 1);
-    return operand_true;
-}
-
-static struct operand * make_operand_false(void)
-{
-    static struct operand *operand_false;
-    if (!operand_false)
-        operand_false = make_integer_operand(inttype, 0);
-    return operand_false;
 }
 
 static struct operand * make_operand_one(void)
@@ -143,12 +122,6 @@ static struct operand * make_operand_zero(void)
     return operand_zero;
 }
 
-static struct operand * make_literal_operand(node_t *sym)
-{
-    struct operand *operand = make_sym_operand(sym);
-    return operand;
-}
-
 static struct operand * make_subscript_operand(struct operand *array, struct operand *index)
 {
     struct operand *operand = make_sym_operand(array->sym);
@@ -161,7 +134,6 @@ static struct operand * make_indirection_operand(node_t *sym)
 {
     struct operand *operand = make_sym_operand(sym);
     operand->op = IR_INDIRECTION;
-    operand->type = rtype(SYM_TYPE(sym));
     return operand;
 }
 
@@ -178,7 +150,7 @@ static struct ir * make_ir(int op, struct operand *l, struct operand *r,
 
 static struct ir * make_ir_r(int op, struct operand *l, struct operand *r, node_t *ty)
 {
-    return make_ir(op, l, r, make_tmp_operand(ty));
+    return make_ir(op, l, r, make_tmp_operand());
 }
 
 static struct ir * make_ir_nor(int op, struct operand *l, struct operand *r)

@@ -9,18 +9,51 @@ _rop(IR_RETURN,         "return")
 _rop(IR_GOTO,           "goto")
 
 // binary
-_rop(IR_ADD,    "+")
-_rop(IR_MINUS,  "-")
-_rop(IR_DIV,    "/")
-_rop(IR_MUL,    "*")
+
+// arith
+_rop(IR_ADDI,  "+")
+_rop(IR_ADDF,  "+")
+
+_rop(IR_SUBI,  "-")
+_rop(IR_SUBF,  "-")
+
+_rop(IR_DIVI,    "/")
+_rop(IR_IDIVI,   "/")
+_rop(IR_DIVF,    "/")
+
+_rop(IR_MULI,   "*")
+_rop(IR_IMULI,  "*")
+_rop(IR_MULF,   "*")
+
+// integer
 _rop(IR_MOD,    "%")
 _rop(IR_OR,     "|")
 _rop(IR_AND,    "&")
 _rop(IR_XOR,    "^")
 _rop(IR_LSHIFT, "<<")
 _rop(IR_RSHIFT, ">>")
+
 _rop(IR_SUBSCRIPT,      "[]")
 _rop(IR_ASSIGN,         "=")
+
+// relop
+_rop(IR_RELI_G,      ">")
+_rop(IR_RELF_G,      ">")
+
+_rop(IR_RELI_L,      "<")
+_rop(IR_RELF_L,      "<")
+
+_rop(IR_RELI_GEQ,    ">=")
+_rop(IR_RELF_GEQ,    ">=")
+
+_rop(IR_RELI_LEQ,    "<=")
+_rop(IR_RELF_LEQ,    "<=")
+
+_rop(IR_RELI_NEQ,    "!=")
+_rop(IR_RELF_NEQ,    "!=")
+
+_rop(IR_RELI_EQ,     "==")
+_rop(IR_RELF_EQ,     "==")
 
 // unary
 _rop(IR_ADDRESS,      "&")
@@ -32,9 +65,17 @@ _rop(IR_PARAM,          "param")
 _rop(IR_CALL,           "call")
 
 // conv
-_rop(IR_CONV_II,        "int=>int")
-_rop(IR_CONV_IF,        "int=>float")
-_rop(IR_CONV_FF,        "float=>int")
-_rop(IR_CONV_FI,        "int=>float")
+_rop(IR_CONV_UI_UI,     "uint => uint")
+_rop(IR_CONV_SI_SI,     "int => int")
+_rop(IR_CONV_UI_SI,     "uint => int")
+_rop(IR_CONV_SI_UI,     "int => uint")
+
+_rop(IR_CONV_SI_F,      "int => float")
+_rop(IR_CONV_UI_F,      "uint => float")
+
+_rop(IR_CONV_FF,        "float => float")
+
+_rop(IR_CONV_F_UI,      "float => uint")
+_rop(IR_CONV_F_SI,      "float => int")
 
 #undef _rop
