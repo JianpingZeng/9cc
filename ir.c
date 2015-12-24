@@ -187,30 +187,6 @@ static struct ir * make_ir_nor(unsigned op,
     return make_ir(op, l, r, NULL, opsize);
 }
 
-static struct operand * emit_mul_operand(size_t typesize, struct operand *mul)
-{
-    // if (typesize == 0) {
-    //     return make_operand_zero();
-    // } else if (typesize == 1) {
-    //     return mul;
-    // } else {
-    //     int i = log2i(typesize);
-    //     if (i == -1) {
-    //         // NOT power of 2
-    //         struct operand *r = make_integer_operand(longtype, typesize);
-    //         struct ir *ir = make_ir_r(IR_MUL, mul, r, longtype);
-    //         emit_ir(ir);
-    //         return ir->result;
-    //     } else {
-    //         // power of 2
-    //         struct operand *r = make_integer_operand(longtype, i);
-    //         struct ir *ir = make_ir_r(IR_LSHIFT, mul, r, longtype);
-    //         emit_ir(ir);
-    //         return ir->result;
-    //     }
-    // }
-}
-
 static struct ir * make_assign_ir(struct operand *l, struct operand *r,
                                   unsigned opsize)
 {
