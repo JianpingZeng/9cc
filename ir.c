@@ -121,7 +121,7 @@ static struct operand * make_operand_one(void)
 {
     static struct operand *operand_one;
     if (!operand_one)
-        operand_one = make_unsigned_operand(1);
+        operand_one = make_int_operand(1);
     return operand_one;
 }
 
@@ -129,7 +129,7 @@ static struct operand * make_operand_zero(void)
 {
     static struct operand *operand_zero;
     if (!operand_zero)
-        operand_zero = make_unsigned_operand(0);
+        operand_zero = make_int_operand(0);
     return operand_zero;
 }
 
@@ -235,7 +235,7 @@ static struct ir * make_call_ir(struct operand *l, int args)
     return ir;
 }
 
-static node_t * filter_local_decl(node_t *decl)
+static node_t * filter_decl(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
     if (!isvardecl(decl))
@@ -249,9 +249,9 @@ static node_t * filter_local_decl(node_t *decl)
         return decl;
 }
 
-static void emit_local_decl(node_t *decl)
+static void emit_decl(node_t *decl)
 {
-    decl = filter_local_decl(decl);
+    decl = filter_decl(decl);
     if (!decl)
         return;
     node_t *sym = DECL_SYM(decl);
@@ -261,10 +261,10 @@ static void emit_local_decl(node_t *decl)
     emit_assign(AST_TYPE(decl), l, init);
 }
 
-static void emit_local_decls(node_t **decls)
+static void emit_decls(node_t **decls)
 {
     for (int i = 0; i < LIST_LEN(decls); i++)
-        emit_local_decl(decls[i]);
+        emit_decl(decls[i]);
 }
 
 static int uop2rop(int op)
@@ -1172,7 +1172,7 @@ static void emit_compound_stmt(node_t *stmt)
     for (int i = 0; i < LIST_LEN(blks); i++) {
         node_t *node = blks[i];
         if (isdecl(node)) {
-            emit_local_decl(node);
+            emit_decl(node);
         } else if (isstmt(node)) {
             STMT_X_NEXT(node) = gen_label();
             emit_stmt(node);
@@ -1262,7 +1262,7 @@ static void emit_for_stmt(node_t *stmt)
     const char *mid = gen_label();
     
     if (decl)
-        emit_local_decls(decl);
+        emit_decls(decl);
     else if (init)
         emit_expr(init);
 
