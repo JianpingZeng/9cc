@@ -210,7 +210,7 @@ static struct file *open_file(int kind, const char *file)
         FILE *fp = fopen(file, "r");
         if (fp == NULL) {
             perror(file);
-            die("Cannot open file %s", file);
+            exit(EXIT_FAILURE);
         }
         fs->fp = fp;
         fs->file = file;

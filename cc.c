@@ -8,7 +8,7 @@ static void cc_init(const char *ifile, const char *ofile)
         outfp = fopen(ofile, "w");
         if (outfp == NULL) {
             perror(ofile);
-            die("Can't open file %s", ofile);
+            exit(EXIT_FAILURE);
         }
     } else {
         outfp = stdout;
