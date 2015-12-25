@@ -20,7 +20,8 @@ static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
 static void emit_funcdef_gdata(node_t *decl);
 static const char *get_string_literal_label(const char *name);
-static void emit_bop_ptr_int(int rop, node_t *ptr, node_t *i, node_t *n);
+static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *i, node_t *n);
+static void emit_assign(node_t *ty, struct operand *l, node_t *r);
 
 static struct vector *func_irs;
 static struct table *tmps;
@@ -187,10 +188,11 @@ static struct ir * make_ir_nor(unsigned op,
     return make_ir(op, l, r, NULL, opsize);
 }
 
-static struct ir * make_assign_ir(struct operand *l, struct operand *r,
+static struct ir * make_assign_ir(unsigned op,
+                                  struct operand *l, struct operand *r,
                                   unsigned opsize)
 {
-    return make_ir(IR_ASSIGN, r, NULL, l, opsize);
+    return make_ir(op, r, NULL, l, opsize);
 }
 
 static void emit_simple_if(unsigned op, struct operand *operand,
@@ -261,7 +263,7 @@ static void emit_local_decl(node_t *decl)
     node_t *init = DECL_BODY(decl);
     struct operand *l = make_sym_operand(sym);
     emit_expr(init);
-    emit_ir(make_assign_ir(l, EXPR_X_ADDR(init)));
+    emit_assign(AST_TYPE(decl), l, init);
 }
 
 static void emit_local_decls(node_t **decls)
@@ -406,7 +408,7 @@ static void emit_uop_increment(node_t *n, int op)
         }
     } else {
         struct operand *tmp = make_tmp_operand();
-        emit_ir(make_assign_ir(tmp, EXPR_X_ADDR(l), opsize));
+        emit_ir(make_assign_ir(IR_ASSIGNI, tmp, EXPR_X_ADDR(l), opsize));
         if (isptr(ty)) {
             emit_ptr_int(rop,
                          EXPR_X_ADDR(l),
@@ -509,14 +511,29 @@ static unsigned bop2rop(int op, node_t *ty)
     }
 }
 
-static void emit_assign_struct(node_t *l, node_t *r)
+static void emit_assign_struct(node_t *ty, struct operand *l, node_t *r)
 {
     // TODO: 
 }
 
-static void emit_assign_array(node_t *l, node_t *r)
+static void emit_assign_array(node_t *ty, struct operand *l, node_t *r)
 {
     // TODO: 
+}
+
+static void emit_assign_scalar(node_t *ty, struct operand *l, node_t *r)
+{
+    // TODO: 
+}
+
+static void emit_assign(node_t *ty, struct operand *l, node_t *r)
+{
+    if (isstruct(ty) || isunion(ty))
+        emit_assign_struct(ty, l, r);
+    else if (isarray(ty))
+        emit_assign_array(ty, l, r);
+    else
+        emit_assign_scalar(ty, l, r);
 }
 
 static void emit_bop_assign(node_t *n)
@@ -526,12 +543,7 @@ static void emit_bop_assign(node_t *n)
 
     emit_expr(l);
     emit_expr(r);
-    if (isstruct(AST_TYPE(l)) || isunion(AST_TYPE(l)))
-        emit_assign_struct(l, r);
-    else if (isarray(AST_TYPE(l)))
-        emit_assign_array(l, r);
-    else
-        emit_ir(make_assign_ir(EXPR_X_ADDR(l), EXPR_X_ADDR(r)));
+    emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r);
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
@@ -546,17 +558,18 @@ static void emit_bop_comma(node_t *n)
 
 static void emit_bop_bool(node_t *n)
 {
+    unsigned opsize = tysize2opsize(TYPE_SIZE(AST_TYPE(n)));
     EXPR_X_TRUE(n) = fall;
     EXPR_X_FALSE(n) = gen_label();
     const char *label = gen_label();
     struct operand *result = make_tmp_operand();
     emit_bool_expr(n);
     // true
-    emit_ir(make_assign_ir(result, make_operand_one()));
+    emit_ir(make_assign_ir(IR_ASSIGNI, result, make_operand_one(), opsize));
     emit_goto(label);
     emit_label(EXPR_X_FALSE(n));
     // false
-    emit_ir(make_assign_ir(result, make_operand_zero()));
+    emit_ir(make_assign_ir(IR_ASSIGNI, result, make_operand_zero(), opsize));
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
@@ -585,7 +598,7 @@ static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *index, node_t *n)
     EXPR_X_ADDR(n) =  emit_ptr_int(op,
                                    EXPR_X_ADDR(ptr),
                                    make_tmp_operand(),
-                                   index,
+                                   EXPR_X_ADDR(index),
                                    TYPE_SIZE(rty),
                                    tysize2opsize(TYPE_SIZE(ptr)));
 }
@@ -683,11 +696,11 @@ static void emit_cond(node_t *n)
     struct operand *result = make_tmp_operand();
     emit_bool_expr(cond);
     emit_expr(then);
-    emit_ir(make_assign_ir(result, EXPR_X_ADDR(then)));
+    emit_assign(AST_TYPE(n), result, then);
     emit_goto(label);
     emit_label(EXPR_X_FALSE(cond));
     emit_expr(els);
-    emit_ir(make_assign_ir(result, EXPR_X_ADDR(els)));
+    emit_assign(AST_TYPE(n), result, els);
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
@@ -706,7 +719,7 @@ static void emit_member(node_t *n)
     node_t *field = find_field(ty, name);
 
     emit_expr(l);
-    struct operand *index = make_integer_operand(unsignedlongtype, FIELD_OFFSET(field));
+    struct operand *index = make_unsigned_operand(FIELD_OFFSET(field));
     EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), index);
 }
 
@@ -724,15 +737,15 @@ static void emit_subscript(node_t *n)
     struct operand *addr = EXPR_X_ADDR(ptr);
 
     if (addr->op == IR_SUBSCRIPT) {
-        struct operand *size = make_integer_operand(longtype, TYPE_SIZE(rty));
-        struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size, longtype);
+        struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
+        struct ir *ir = make_ir_r(IR_IMULI, EXPR_X_ADDR(i), size, Quad);
         emit_ir(ir);
-        ir = make_ir_r(IR_ADD, ir->result, make_sym_operand(addr->index), longtype);
+        ir = make_ir_r(IR_ADDI, ir->result, make_sym_operand(addr->index), Quad);
         emit_ir(ir);
         EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
     } else {
-        struct operand *size = make_integer_operand(longtype, TYPE_SIZE(rty));
-        struct ir *ir = make_ir_r(IR_MUL, EXPR_X_ADDR(i), size, longtype);
+        struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
+        struct ir *ir = make_ir_r(IR_IMULI, EXPR_X_ADDR(i), size, Quad);
         emit_ir(ir);
         EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
     }
