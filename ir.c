@@ -107,19 +107,14 @@ static struct operand * make_label_operand(const char *label)
     return make_named_operand(label, &labels, GLOBAL);
 }
 
-static struct operand * make_constant_operand(const char *name)
-{
-    return make_named_operand(name, &constants, CONSTANT);
-}
-
 static struct operand * make_int_operand(long long i)
 {
-    return make_constant_operand(strd(i));
+    return make_named_operand(strd(i), &constants, CONSTANT);
 }
 
 static struct operand * make_unsigned_operand(unsigned long long u)
 {
-    return make_constant_operand(stru(u));
+    return make_named_operand(stru(u), &constants, CONSTANT);
 }
 
 static struct operand * make_operand_one(void)
