@@ -1000,10 +1000,14 @@ static struct vector * filter_global(struct vector *v)
 
         // skip unused symbols
         if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
-            if (isfuncdef(decl))
-                warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
-            else if (isvardecl(decl))
-                warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+            // but warning only when top file
+            if (is_top_file(AST_SRC(sym).file)) {
+                if (isfuncdef(decl))
+                    warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+                else if (isvardecl(decl))
+                    warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+            }
+            
             continue;
         }
         

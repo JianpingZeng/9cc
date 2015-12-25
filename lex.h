@@ -47,6 +47,8 @@ struct ifstub {
     struct source src;
 };
 
+extern bool is_top_file(const char *file);
+
 extern void input_init(const char *file);
 extern int readc(void);
 extern void unreadc(int c);

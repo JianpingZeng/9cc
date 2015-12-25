@@ -15,6 +15,24 @@ enum {
 #define PREV(p)   (((p) - 1 + NHISTS) % NHISTS)
 #define NCHARS    ARRAY_SIZE(fs->chars)
 
+bool is_top_file(const char *file)
+{
+    const char *src = vec_head(files);
+    if (src && !strcmp(src, file))
+        return true;
+    else
+        return false;
+}
+
+static void warning_no_newline(const char *file)
+{
+    if (is_top_file(file))
+        fprintf(stderr,
+                CLEAR "%s: " RESET PURPLE("warning: ")
+                "No newline at end of file\n",
+                file);
+}
+
 static bool file_eof(struct file *fs)
 {
     if (fs->kind == FILE_KIND_REGULAR)
@@ -82,8 +100,8 @@ static void fillbuf(struct file *fs)
             /**
              * warning only if it's really a file.
              */
-            // if (fs->kind == FILE_KIND_REGULAR)
-            //  fprintf(stderr, CLEAR "%s: " RESET PURPLE("warning: ") "No newline at end of file\n", fs->name);
+            if (fs->kind == FILE_KIND_REGULAR)
+                warning_no_newline(fs->name);
         }
     }
     *fs->pe = 0;
