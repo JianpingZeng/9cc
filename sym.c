@@ -100,7 +100,6 @@ node_t *install(const char *name, struct table ** tpp, int scope)
     sym = alloc_symbol();
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
-    SYM_X_LABEL(sym) = name;
     map_put(tp->map, name, sym);
 
     return sym;

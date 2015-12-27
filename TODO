@@ -1,5 +1,10 @@
 TODO
 
+1. SYM_X_LABEL 从前端移除
+2. 先完成ir，然后完成register和gen，完成第一个可运行版本
+3. 重构：将语法分析和语义分析分离，使得 cpp, lexer, parser 代码稳定。
+	然后再逐一验证 语义分析、ir、register、gen 的正确性。
+
 // refactor
 1. code review for stmt/expr/decl/initializer/eval/type
 2. totally rewrite command line driver

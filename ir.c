@@ -86,6 +86,8 @@ static struct operand * make_sym_operand(node_t *sym)
 {
     struct operand *operand = zmalloc(sizeof(struct operand));
     operand->sym = sym;
+    if (!SYM_X_LABEL(sym))
+        SYM_X_LABEL(sym) = SYM_NAME(sym);
     return operand;
 }
 
@@ -109,12 +111,16 @@ static struct operand * make_label_operand(const char *label)
 
 static struct operand * make_int_operand(long long i)
 {
-    return make_named_operand(strd(i), &constants, CONSTANT);
+    struct operand *operand = make_named_operand(strd(i), &constants, CONSTANT);
+    SYM_VALUE_I(operand->sym) = i;
+    return operand;
 }
 
 static struct operand * make_unsigned_operand(unsigned long long u)
 {
-    return make_named_operand(stru(u), &constants, CONSTANT);
+    struct operand *operand = make_named_operand(stru(u), &constants, CONSTANT);
+    SYM_VALUE_U(operand->sym) = u;
+    return operand;
 }
 
 static struct operand * make_operand_one(void)
@@ -866,7 +872,8 @@ static inline void func2ptr(node_t *dty, node_t *sty, node_t *n)
 
 static inline void array2ptr(node_t *dty, node_t *sty, node_t *n)
 {
-    wrapconv(dty, sty, n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l)->sym);
 }
 
 static void emit_conv(node_t *n)
@@ -946,7 +953,9 @@ static void emit_ref_expr(node_t *n)
 
 static void emit_integer_literal(node_t *n)
 {
-    EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
+    node_t *sym = EXPR_SYM(n);
+    SYM_X_LABEL(sym) = stru(SYM_VALUE_U(sym));
+    EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_float_literal(node_t *n)
@@ -965,6 +974,7 @@ static void emit_string_literal(node_t *n)
 static void emit_compound_literal(node_t *n)
 {
     EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
+    emit_assign(AST_TYPE(n), EXPR_X_ADDR(n), EXPR_OPERAND(n, 0));
 }
 
 static void emit_expr(node_t *n)
