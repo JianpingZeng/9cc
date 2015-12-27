@@ -934,8 +934,9 @@ static void emit_funcall(node_t *n)
 
 static void emit_paren_expr(node_t *n)
 {
-    emit_expr(EXPR_OPERAND(n, 0));
-    EXPR_X_ADDR(n) = EXPR_X_ADDR(EXPR_OPERAND(n, 0));
+    node_t *l = EXPR_OPERAND(n, 0);
+    emit_expr(l);
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 static void emit_ref_expr(node_t *n)
