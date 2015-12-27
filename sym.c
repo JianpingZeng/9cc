@@ -11,13 +11,13 @@ struct table *new_table(struct table *up, int scope)
     struct table *t = zmalloc(sizeof(struct table));
     t->up = up;
     t->scope = scope;
-    t->dict = dict_new();
+    t->map = map_new();
     return t;
 }
 
 void free_table(struct table *t)
 {
-    dict_free(t->dict);
+    map_free(t->map);
     free(t);
 }
 
@@ -76,7 +76,7 @@ node_t *lookup(const char *name, struct table * table)
     node_t *s = NULL;
 
     for (struct table * t = table; t; t = t->up) {
-        if ((s = dict_get(t->dict, name)))
+        if ((s = map_get(t->map, name)))
             return s;
     }
 
@@ -101,7 +101,7 @@ node_t *install(const char *name, struct table ** tpp, int scope)
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
     SYM_X_LABEL(sym) = name;
-    dict_put(tp->dict, name, sym);
+    map_put(tp->map, name, sym);
 
     return sym;
 }
