@@ -420,52 +420,52 @@ static const char * operand2s(struct operand *operand)
     }
 }
 
-static void do_print_ir(struct ir *ir)
+void print_tac(struct tac *tac)
 {
-    switch (ir->op) {
+    switch (tac->op) {
     case IR_NONE:
         break;
     case IR_LABEL:
-        putln("%s:", operand2s(ir->result));
+        putln("%s:", operand2s(tac->result));
         break;
     case IR_GOTO:
         putln("%s %s",
-              rop2s(ir->op),
-              operand2s(ir->result));
+              rop2s(tac->op),
+              operand2s(tac->result));
         break;
     case IR_RETURNI:
     case IR_RETURNF:
         putln("%s %s",
-              rop2s(ir->op),
-              operand2s(ir->args[0]));
+              rop2s(tac->op),
+              operand2s(tac->args[0]));
         break;
     case IR_IF_I:
     case IR_IF_F:
     case IR_IF_FALSE_I:
     case IR_IF_FALSE_F:
-        if (ir->relop) {
+        if (tac->relop) {
             // rel if
             putln("%s %s %s %s %s %s",
-                  rop2s(ir->op),
-                  operand2s(ir->args[0]),
-                  id2s(ir->relop),
-                  operand2s(ir->args[1]),
+                  rop2s(tac->op),
+                  operand2s(tac->args[0]),
+                  id2s(tac->relop),
+                  operand2s(tac->args[1]),
                   rop2s(IR_GOTO),
-                  operand2s(ir->result));
+                  operand2s(tac->result));
         } else {
             // simple if
             putln("%s %s %s %s",
-                  rop2s(ir->op),
-                  operand2s(ir->args[0]),
+                  rop2s(tac->op),
+                  operand2s(tac->args[0]),
                   rop2s(IR_GOTO),
-                  operand2s(ir->result));
+                  operand2s(tac->result));
         }
         break;
     case IR_ASSIGNI:
     case IR_ASSIGNF:
         putln("%s = %s",
-              operand2s(ir->result),
-              operand2s(ir->args[0]));
+              operand2s(tac->result),
+              operand2s(tac->args[0]));
         break;
     case IR_SUBSCRIPT:
         break;
@@ -486,36 +486,36 @@ static void do_print_ir(struct ir *ir)
     case IR_LSHIFT:
     case IR_RSHIFT:
         putln("%s = %s %s %s",
-              operand2s(ir->result),
-              operand2s(ir->args[0]),
-              rop2s(ir->op),
-              operand2s(ir->args[1]));
+              operand2s(tac->result),
+              operand2s(tac->args[0]),
+              rop2s(tac->op),
+              operand2s(tac->args[1]));
         break;
     case IR_ADDRESS:
     case IR_INDIRECTION:
     case IR_NOT:
         putln("%s = %s %s",
-              operand2s(ir->result),
-              rop2s(ir->op),
-              operand2s(ir->args[0]));
+              operand2s(tac->result),
+              rop2s(tac->op),
+              operand2s(tac->args[0]));
         break;
     case IR_PARAM:
         putln("%s %s",
-              rop2s(ir->op),
-              operand2s(ir->result));
+              rop2s(tac->op),
+              operand2s(tac->result));
         break;
     case IR_CALL:
-        if (ir->result) {
+        if (tac->result) {
             putln("%s = %s %s, %d",
-                      operand2s(ir->result),
-                      rop2s(ir->op),
-                      operand2s(ir->args[0]),
-                      ir->relop);
+                      operand2s(tac->result),
+                      rop2s(tac->op),
+                      operand2s(tac->args[0]),
+                      tac->relop);
         } else {
             putln("%s %s, %d",
-                      rop2s(ir->op),
-                      operand2s(ir->args[0]),
-                      ir->relop);
+                      rop2s(tac->op),
+                      operand2s(tac->args[0]),
+                      tac->relop);
         }
         break;
     case IR_CONV_UI_UI:
@@ -528,28 +528,34 @@ static void do_print_ir(struct ir *ir)
     case IR_CONV_F_SI:
     case IR_CONV_FF:
         putln("%s = (%s) %s",
-              operand2s(ir->result),
-              rop2s(ir->op),
-              operand2s(ir->args[0]));
+              operand2s(tac->result),
+              rop2s(tac->op),
+              operand2s(tac->args[0]));
         break;
     default:
-        die("unexpected rop %s", rop2s(ir->op));
+        die("unexpected rop %s", rop2s(tac->op));
     }
 }
 
-void print_ir(node_t *tree)
+void print_ir(struct externals *exts)
 {
-    node_t **exts = DECL_EXTS(tree);
-    for (int i = 0; i < LIST_LEN(exts); i++) {
-        node_t *decl = exts[i];
-        if (isfuncdef(decl)) {
-            putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
-            struct vector *irs = DECL_X_IRS(decl);
-            for (int j = 0; j < vec_len(irs); j++) {
-                struct ir *ir = vec_at(irs, j);
-                do_print_ir(ir);
+    for (int i = 0; i < vec_len(exts->gdatas); i++) {
+        gdata_t *gdata = vec_at(exts->gdatas, i);
+        switch (GDATA_ID(gdata)) {
+        case GDATA_TEXT:
+            {
+                node_t *decl = GDATA_TEXT_DECL(gdata);
+                putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
+                struct vector *tacs = DECL_X_TACS(decl);
+                for (int j = 0; j < vec_len(tacs); j++) {
+                    struct tac *tac = vec_at(tacs, j);
+                    print_tac(tac);
+                }
+                putln("");
             }
-            putln("");
+            break;
+        default:
+            break;
         }
     }
 }

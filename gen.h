@@ -89,7 +89,7 @@ struct operand {
 };
 
 // three-address code
-struct ir {
+struct tac {
     unsigned op:8;
     unsigned opsize:6;
     unsigned from_opsize:6;
@@ -99,13 +99,16 @@ struct ir {
     struct operand *result;
 };
 
-// basic block && flow graph
-struct basic_block {
-    struct ir **irs;
+// basic block
+struct bblock {
+    struct vector *tacs;
 };
 
-struct flow_graph {
-    struct basic_block **blks;
+// externals
+struct externals {
+    struct vector *gdatas;
+    struct dict *strings;
+    struct dict *compounds;
 };
 
 // sym
@@ -115,11 +118,7 @@ struct flow_graph {
 #define DECL_X_SVARS(NODE)             ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)             ((NODE)->decl.x.decl.lvars)
 #define DECL_X_EXTRA_STACK_SIZE(NODE)  ((NODE)->decl.x.decl.extra_stack_size)
-#define DECL_X_IRS(NODE)               ((NODE)->decl.x.decl.irs)
-#define DECL_X_FLOW_GRAPH(NODE)        ((NODE)->decl.x.decl.flow_graph)
-#define DECL_X_GDATAS(NODE)            ((NODE)->decl.x.decl.gdatas)
-#define DECL_X_STRINGS(NODE)           ((NODE)->decl.x.decl.strings)
-#define DECL_X_COMPOUNDS(NODE)         ((NODE)->decl.x.decl.compounds)
+#define DECL_X_TACS(NODE)              ((NODE)->decl.x.decl.tacs)
 // expr
 #define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)       ((NODE)->expr.x.expr.btrue)
@@ -139,11 +138,7 @@ union x {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars
         size_t extra_stack_size;
-        struct vector *irs;
-        struct flow_graph *flow_graph;
-        gdata_t **gdatas;
-        struct dict *strings;
-        struct dict *compounds;
+        struct vector *tacs;
     }decl;
     
     struct {
@@ -168,11 +163,11 @@ extern void init_regs(void);
 extern void print_register_state(void);
 
 // gen.c
-extern void gen(node_t * tree, FILE * fp);
+extern void gen(struct externals *externals, FILE * fp);
 
 // ir.c
 extern const char *rop2s(int op);
-extern node_t * ir(node_t *tree);
+extern struct externals * ir(node_t *tree);
 extern node_t * reduce(node_t *expr);
 
 #endif

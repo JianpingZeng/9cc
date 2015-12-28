@@ -23,11 +23,11 @@ static void translate(void)
         print_tree(tree);
     } else {
         if (errors == 0) {
-            tree = ir(tree);
+            struct externals *exts = ir(tree);
             if (opts.ir_dump)
-                print_ir(tree);
+                print_ir(exts);
             else
-                gen(tree, outfp);
+                gen(exts, outfp);
         }
     }
 }

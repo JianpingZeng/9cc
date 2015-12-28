@@ -15,7 +15,6 @@ static void emit_stmt(node_t *n);
 static void emit_expr(node_t *n);
 static void emit_bool_expr(node_t *n);
 static void emit_bop_bool(node_t *n);
-static struct flow_graph * construct_flowgraph(struct vector *irs);
 static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
 static void emit_funcdef_gdata(node_t *decl);
@@ -23,12 +22,10 @@ static const char *get_string_literal_label(const char *name);
 static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *i, node_t *n);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r);
 
-static struct vector *func_irs;
+static struct vector *func_tacs;
 static struct table *tmps;
 static struct table *labels;
-static struct vector *gdatas;
-static struct dict *strings;
-static struct dict *compounds;
+static struct externals *exts;
 static const char *fall = (const char *)&fall;
 static const char *__continue;
 static const char *__break;
@@ -77,9 +74,9 @@ const char *rop2s(int op)
     return rops[op];
 }
 
-static void emit_ir(struct ir *ir)
+static void emit_tac(struct tac *tac)
 {
-    vec_push(func_irs, ir);
+    vec_push(func_tacs, tac);
 }
 
 static struct operand * make_sym_operand(node_t *sym)
@@ -161,46 +158,46 @@ static struct operand * make_address_operand(node_t *sym)
     return operand;
 }
 
-static struct ir * make_ir(unsigned op,
+static struct tac * make_tac(unsigned op,
                            struct operand *l, struct operand *r,
                            struct operand *result,
                            unsigned opsize)
 {
-    struct ir *ir = zmalloc(sizeof(struct ir));
-    ir->op = op;
-    ir->args[0] = l;
-    ir->args[1] = r;
-    ir->result = result;
-    ir->opsize = opsize;
-    return ir;
+    struct tac *tac = zmalloc(sizeof(struct tac));
+    tac->op = op;
+    tac->args[0] = l;
+    tac->args[1] = r;
+    tac->result = result;
+    tac->opsize = opsize;
+    return tac;
 }
 
-static struct ir * make_ir_r(unsigned op,
+static struct tac * make_tac_r(unsigned op,
                              struct operand *l, struct operand *r,
                              unsigned opsize)
 {
-    return make_ir(op, l, r, make_tmp_operand(), opsize);
+    return make_tac(op, l, r, make_tmp_operand(), opsize);
 }
 
-static struct ir * make_ir_nor(unsigned op,
+static struct tac * make_tac_nor(unsigned op,
                                struct operand *l, struct operand *r,
                                unsigned opsize)
 {
-    return make_ir(op, l, r, NULL, opsize);
+    return make_tac(op, l, r, NULL, opsize);
 }
 
-static struct ir * make_assign_ir(unsigned op,
+static struct tac * make_assign_tac(unsigned op,
                                   struct operand *l, struct operand *r,
                                   unsigned opsize)
 {
-    return make_ir(op, r, NULL, l, opsize);
+    return make_tac(op, r, NULL, l, opsize);
 }
 
 static void emit_simple_if(unsigned op, struct operand *operand,
                            const char *label, unsigned opsize)
 {
-    struct ir *ir = make_ir(op, operand, NULL, make_label_operand(label), opsize);
-    emit_ir(ir);
+    struct tac *tac = make_tac(op, operand, NULL, make_label_operand(label), opsize);
+    emit_tac(tac);
 }
 
 static void emit_rel_if(unsigned op,
@@ -209,36 +206,36 @@ static void emit_rel_if(unsigned op,
                         const char *label,
                         unsigned opsize)
 {
-    struct ir *ir = make_ir(op, rel_l, rel_r, make_label_operand(label), opsize);
-    ir->relop = relop;
-    emit_ir(ir);
+    struct tac *tac = make_tac(op, rel_l, rel_r, make_label_operand(label), opsize);
+    tac->relop = relop;
+    emit_tac(tac);
 }
 
 static void emit_label(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir(IR_LABEL, NULL, NULL, operand, Zero);
-    emit_ir(ir);
+    struct tac *tac = make_tac(IR_LABEL, NULL, NULL, operand, Zero);
+    emit_tac(tac);
 }
 
 static void emit_goto(const char *label)
 {
     struct operand *operand = make_label_operand(label);
-    struct ir *ir = make_ir(IR_GOTO, NULL, NULL, operand, Zero);
-    emit_ir(ir);
+    struct tac *tac = make_tac(IR_GOTO, NULL, NULL, operand, Zero);
+    emit_tac(tac);
 }
 
 static void emit_param(struct operand *operand)
 {
-    struct ir *ir = make_ir(IR_PARAM, NULL, NULL, operand, Zero);
-    emit_ir(ir);
+    struct tac *tac = make_tac(IR_PARAM, NULL, NULL, operand, Zero);
+    emit_tac(tac);
 }
 
-static struct ir * make_call_ir(struct operand *l, int args)
+static struct tac * make_call_tac(struct operand *l, int args)
 {
-    struct ir *ir = make_ir(IR_CALL, l, NULL, NULL, Quad);
-    ir->relop = args;
-    return ir;
+    struct tac *tac = make_tac(IR_CALL, l, NULL, NULL, Quad);
+    tac->relop = args;
+    return tac;
 }
 
 static node_t * filter_decl(node_t *decl)
@@ -292,11 +289,11 @@ static void emit_uop_bitwise_not(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
 
     emit_expr(l);
-    struct ir *ir = make_ir_r(uop2rop(op),
+    struct tac *tac = make_tac_r(uop2rop(op),
                               EXPR_X_ADDR(l), NULL,
                               tysize2opsize(TYPE_SIZE(AST_TYPE(n))));
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
+    emit_tac(tac);
+    EXPR_X_ADDR(n) = tac->result;
 }
 
 // int
@@ -316,12 +313,12 @@ static void emit_uop_minus(node_t *n)
 
     emit_expr(l);
 
-    struct ir *ir = make_ir_r(op,
+    struct tac *tac = make_tac_r(op,
                               make_operand_zero(),
                               EXPR_X_ADDR(l),
                               tysize2opsize(TYPE_SIZE(ty)));
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
+    emit_tac(tac);
+    EXPR_X_ADDR(n) = tac->result;
 }
 
 // arith
@@ -361,11 +358,11 @@ static struct operand * emit_ptr_int(unsigned op,
                                      size_t step,
                                      unsigned opsize)
 {
-    struct ir *ir = make_ir_r(IR_MULI, index, make_unsigned_operand(step), opsize);
-    emit_ir(ir);
-    struct ir *ir2 = make_ir(op, l, ir->result, result, opsize);
-    emit_ir(ir2);
-    return ir2->result;
+    struct tac *tac = make_tac_r(IR_MULI, index, make_unsigned_operand(step), opsize);
+    emit_tac(tac);
+    struct tac *tac2 = make_tac(op, l, tac->result, result, opsize);
+    emit_tac(tac2);
+    return tac2->result;
 }
 
 // scalar
@@ -399,17 +396,17 @@ static void emit_uop_increment(node_t *n, int op)
                                           TYPE_SIZE(rtype(ty)),
                                           opsize);
         } else {
-            struct ir *ir = make_ir(rop,
+            struct tac *tac = make_tac(rop,
                                     EXPR_X_ADDR(l),
                                     make_operand_one(),
                                     EXPR_X_ADDR(l),
                                     opsize);
-            emit_ir(ir);
+            emit_tac(tac);
             EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
         }
     } else {
         struct operand *tmp = make_tmp_operand();
-        emit_ir(make_assign_ir(IR_ASSIGNI, tmp, EXPR_X_ADDR(l), opsize));
+        emit_tac(make_assign_tac(IR_ASSIGNI, tmp, EXPR_X_ADDR(l), opsize));
         if (isptr(ty)) {
             emit_ptr_int(rop,
                          EXPR_X_ADDR(l),
@@ -419,12 +416,12 @@ static void emit_uop_increment(node_t *n, int op)
                          opsize);
         } else {
             
-            struct ir *ir = make_ir(rop,
+            struct tac *tac = make_tac(rop,
                                     EXPR_X_ADDR(l),
                                     make_operand_one(),
                                     EXPR_X_ADDR(l),
                                     opsize);
-            emit_ir(ir);
+            emit_tac(tac);
         }
         EXPR_X_ADDR(n) = tmp;
     }
@@ -524,7 +521,11 @@ static void emit_assign_array(node_t *ty, struct operand *l, node_t *r)
 
 static void emit_assign_scalar(node_t *ty, struct operand *l, node_t *r)
 {
-    // TODO: 
+    // TODO:
+    unsigned op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
+    unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
+    struct tac *tac = make_assign_tac(op, l, EXPR_X_ADDR(r), opsize);
+    emit_tac(tac);
 }
 
 static void emit_assign(node_t *ty, struct operand *l, node_t *r)
@@ -566,11 +567,11 @@ static void emit_bop_bool(node_t *n)
     struct operand *result = make_tmp_operand();
     emit_bool_expr(n);
     // true
-    emit_ir(make_assign_ir(IR_ASSIGNI, result, make_operand_one(), opsize));
+    emit_tac(make_assign_tac(IR_ASSIGNI, result, make_operand_one(), opsize));
     emit_goto(label);
     emit_label(EXPR_X_FALSE(n));
     // false
-    emit_ir(make_assign_ir(IR_ASSIGNI, result, make_operand_zero(), opsize));
+    emit_tac(make_assign_tac(IR_ASSIGNI, result, make_operand_zero(), opsize));
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
@@ -587,9 +588,9 @@ static void emit_bop_arith(node_t *n)
     emit_expr(l);
     emit_expr(r);
 
-    struct ir *ir = make_ir_r(op, EXPR_X_ADDR(l), EXPR_X_ADDR(r), opsize);
-    emit_ir(ir);
-    EXPR_X_ADDR(n) = ir->result;
+    struct tac *tac = make_tac_r(op, EXPR_X_ADDR(l), EXPR_X_ADDR(r), opsize);
+    emit_tac(tac);
+    EXPR_X_ADDR(n) = tac->result;
 }
 
 static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *index, node_t *n)
@@ -739,35 +740,35 @@ static void emit_subscript(node_t *n)
 
     if (addr->op == IR_SUBSCRIPT) {
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
-        struct ir *ir = make_ir_r(IR_IMULI, EXPR_X_ADDR(i), size, Quad);
-        emit_ir(ir);
-        ir = make_ir_r(IR_ADDI, ir->result, make_sym_operand(addr->index), Quad);
-        emit_ir(ir);
-        EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
+        struct tac *tac = make_tac_r(IR_IMULI, EXPR_X_ADDR(i), size, Quad);
+        emit_tac(tac);
+        tac = make_tac_r(IR_ADDI, tac->result, make_sym_operand(addr->index), Quad);
+        emit_tac(tac);
+        EXPR_X_ADDR(n) = make_subscript_operand(addr, tac->result);
     } else {
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
-        struct ir *ir = make_ir_r(IR_IMULI, EXPR_X_ADDR(i), size, Quad);
-        emit_ir(ir);
-        EXPR_X_ADDR(n) = make_subscript_operand(addr, ir->result);
+        struct tac *tac = make_tac_r(IR_IMULI, EXPR_X_ADDR(i), size, Quad);
+        emit_tac(tac);
+        EXPR_X_ADDR(n) = make_subscript_operand(addr, tac->result);
     }
 }
 
-static struct ir * make_conv_ir(unsigned op, struct operand *l,
+static struct tac * make_conv_tac(unsigned op, struct operand *l,
                                 unsigned from_opszie, unsigned to_opsize)
 {
-    struct ir *ir = make_ir_r(op, l, NULL, Zero);
-    ir->from_opsize = from_opszie;
-    ir->to_opsize = to_opsize;
-    return ir;
+    struct tac *tac = make_tac_r(op, l, NULL, Zero);
+    tac->from_opsize = from_opszie;
+    tac->to_opsize = to_opsize;
+    return tac;
 }
 
-static struct operand * emit_conv_ir(int op, struct operand *l,
+static struct operand * emit_conv_tac(int op, struct operand *l,
                                      unsigned from_opsize,
                                      unsigned to_opsize)
 {
-    struct ir *ir = make_conv_ir(op, l, from_opsize, to_opsize);
-    emit_ir(ir);
-    return ir->result;
+    struct tac *tac = make_conv_tac(op, l, from_opsize, to_opsize);
+    emit_tac(tac);
+    return tac->result;
 }
 
 static void int2int(node_t *dty, node_t *sty, node_t *n)
@@ -784,7 +785,7 @@ static void int2int(node_t *dty, node_t *sty, node_t *n)
     else
         op = IR_CONV_UI_SI;
 
-    EXPR_X_ADDR(n) = emit_conv_ir(op,
+    EXPR_X_ADDR(n) = emit_conv_tac(op,
                                   EXPR_X_ADDR(l),
                                   tysize2opsize(TYPE_SIZE(sty)),
                                   tysize2opsize(TYPE_SIZE(dty)));
@@ -795,7 +796,7 @@ static void int2float(node_t *dty, node_t *sty, node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     unsigned op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_F : IR_CONV_SI_F;
 
-    EXPR_X_ADDR(n) = emit_conv_ir(op,
+    EXPR_X_ADDR(n) = emit_conv_tac(op,
                                   EXPR_X_ADDR(l),
                                   tysize2opsize(TYPE_SIZE(sty)),
                                   tysize2opsize(TYPE_SIZE(dty)));
@@ -806,7 +807,7 @@ static void float2int(node_t *dty, node_t *sty, node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     unsigned op = TYPE_OP(dty) == UNSIGNED ? IR_CONV_F_UI : IR_CONV_F_SI;
 
-    EXPR_X_ADDR(n) = emit_conv_ir(op,
+    EXPR_X_ADDR(n) = emit_conv_tac(op,
                                   EXPR_X_ADDR(l),
                                   tysize2opsize(TYPE_SIZE(sty)),
                                   tysize2opsize(TYPE_SIZE(dty)));
@@ -815,7 +816,7 @@ static void float2int(node_t *dty, node_t *sty, node_t *n)
 static void float2float(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    EXPR_X_ADDR(n) = emit_conv_ir(IR_CONV_FF,
+    EXPR_X_ADDR(n) = emit_conv_tac(IR_CONV_FF,
                                   EXPR_X_ADDR(l),
                                   tysize2opsize(TYPE_SIZE(sty)),
                                   tysize2opsize(TYPE_SIZE(dty)));
@@ -929,13 +930,13 @@ static void emit_funcall(node_t *n)
     }
 
     if (isvoid(ty)) {
-        struct ir *ir = make_call_ir(EXPR_X_ADDR(l), len);
-        emit_ir(ir);
+        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len);
+        emit_tac(tac);
     } else {
-        struct ir *ir = make_call_ir(EXPR_X_ADDR(l), len);
-        ir->result = make_tmp_operand();
-        emit_ir(ir);
-        EXPR_X_ADDR(n) = ir->result;
+        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len);
+        tac->result = make_tmp_operand();
+        emit_tac(tac);
+        EXPR_X_ADDR(n) = tac->result;
     }
 }
 
@@ -1383,11 +1384,11 @@ static void emit_return_stmt(node_t *stmt)
     
     emit_expr(n);
     
-    struct ir *ir = make_ir_nor(op,
+    struct tac *tac = make_tac_nor(op,
                                 EXPR_X_ADDR(n),
                                 NULL,
                                 tysize2opsize(TYPE_SIZE(ty)));
-    emit_ir(ir);
+    emit_tac(tac);
 }
 
 static void emit_stmt(node_t *stmt)
@@ -1445,12 +1446,11 @@ static void emit_function(node_t *decl)
 {
     node_t *stmt = DECL_BODY(decl);
 
-    func_irs = vec_new();
+    func_tacs = vec_new();
 
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
-    DECL_X_IRS(decl) = func_irs;
-    DECL_X_FLOW_GRAPH(decl) = construct_flowgraph(func_irs);
+    DECL_X_TACS(decl) = func_tacs;
     emit_funcdef_gdata(decl);
 }
 
@@ -1468,12 +1468,13 @@ static void ir_init(void)
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
-    gdatas = vec_new();
-    strings = dict_new();
-    compounds = dict_new();
+    exts = zmalloc(sizeof(struct externals));
+    exts->gdatas = vec_new();
+    exts->strings = dict_new();
+    exts->compounds = dict_new();
 }
 
-node_t * ir(node_t *tree)
+struct externals * ir(node_t *tree)
 {
     cc_assert(istudecl(tree) && errors == 0);
 
@@ -1487,22 +1488,12 @@ node_t * ir(node_t *tree)
             emit_globalvar(decl);
     }
 
-    DECL_X_GDATAS(tree) = (gdata_t **)vtoa(gdatas);
-    DECL_X_STRINGS(tree) = strings;
-    DECL_X_COMPOUNDS(tree) = compounds;
-
-    return tree;
+    return exts;
 }
 
 node_t * reduce(node_t *expr)
 {
     return expr;
-}
-
-static struct flow_graph * construct_flowgraph(struct vector *irs)
-{
-    // TODO:
-    return NULL;
 }
 
 //
@@ -1547,7 +1538,7 @@ static void emit_zero(size_t bytes)
 
 static void emit_gdata(gdata_t *data)
 {
-    vec_push(gdatas, data);
+    vec_push(exts->gdatas, data);
 }
 
 static void emit_funcdef_gdata(node_t *decl)
@@ -1563,10 +1554,10 @@ static void emit_funcdef_gdata(node_t *decl)
 
 static const char *get_string_literal_label(const char *name)
 {
-    const char *label = dict_get(strings, name);
+    const char *label = dict_get(exts->strings, name);
     if (!label) {
         label = gen_sliteral_label();
-        dict_put(strings, name, (void *)label);
+        dict_put(exts->strings, name, (void *)label);
     }
     return label;
 }
@@ -1598,7 +1589,7 @@ static const char *get_compound_literal_label(node_t *n)
     
     const char *label = gen_compound_label();
     gdata_t *gdata = emit_compound_literal_label(label, n);
-    dict_put(compounds, label, gdata);
+    dict_put(exts->compounds, label, gdata);
     return label;
 }
 

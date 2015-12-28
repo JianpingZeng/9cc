@@ -21,13 +21,85 @@ static void emit_noindent(const char *fmt, ...)
     va_end(ap);
 }
 
+static struct bblock * alloc_bblock(void)
+{
+    struct bblock *blk = zmalloc(sizeof(struct bblock));
+    blk->tacs = vec_new();
+    return blk;
+}
+
+static struct bblock * make_bblock(struct vector *bblks)
+{
+    cc_assert(bblks);
+
+    struct bblock *current = vec_tail(bblks);
+    if (current == NULL || vec_len(current->tacs) > 0) {
+        struct bblock *blk = alloc_bblock();
+        vec_push(bblks, blk);
+        return blk;
+    } else {
+        return current;
+    }
+}
+
+static struct vector * construct_flow_graph(struct vector *tacs)
+{
+    struct vector *v = vec_new();
+    struct bblock *blk;
+    
+    for (int i = 0; i < vec_len(tacs); i++) {
+        struct tac *tac = vec_at(tacs, i);
+        if (i == 0) {
+            // new block
+            blk = make_bblock(v);
+        }
+
+        if (tac->op == IR_IF_I ||
+                   tac->op == IR_IF_F ||
+                   tac->op == IR_IF_FALSE_I ||
+                   tac->op == IR_IF_FALSE_F ||
+                   tac->op == IR_GOTO) {
+            vec_push(blk->tacs, tac);
+            // new block
+            blk = make_bblock(v);
+        } else if (tac->op == IR_LABEL) {
+            // new block
+            blk = make_bblock(v);
+            do {
+                vec_push(blk->tacs, tac);
+                i++;
+                if (i < vec_len(tacs))
+                    tac = vec_at(tacs, i);
+                else
+                    tac = NULL;
+            } while (tac && tac->op == IR_LABEL);
+            i--;
+        } else {
+            vec_push(blk->tacs, tac);
+        }
+    }
+    return v;
+}
+
 static void emit_text(gdata_t *gdata)
 {
     if (GDATA_GLOBAL(gdata))
         emit(".globl %s", GDATA_LABEL(gdata));
     emit(".text");
     emit_noindent("%s:", GDATA_LABEL(gdata));
-    // TODO: 
+    // TODO:
+    node_t *decl = GDATA_TEXT_DECL(gdata);
+    struct vector *tacs = DECL_X_TACS(decl);
+    struct vector *bblks = construct_flow_graph(tacs);
+    for (int i = 0; i < vec_len(bblks); i++) {
+        struct bblock *blk = vec_at(bblks, i);
+        println("BLOCK#%d {", i);
+        for (int j = 0; j < vec_len(blk->tacs); j++) {
+            struct tac *tac = vec_at(blk->tacs, j);
+            print_tac(tac);
+        }
+        println("}\n");
+    }
 }
 
 static void emit_data(gdata_t *gdata)
@@ -104,13 +176,13 @@ static void gen_init(FILE *fp)
     init_regs();
 }
 
-void gen(node_t * tree, FILE * fp)
+void gen(struct externals *exts, FILE * fp)
 {
     cc_assert(errors == 0 && fp);
     
     gen_init(fp);
-    for (int i = 0; i < LIST_LEN(DECL_X_GDATAS(tree)); i++) {
-        gdata_t *gdata = DECL_X_GDATAS(tree)[i];
+    for (int i = 0; i < vec_len(exts->gdatas); i++) {
+        gdata_t *gdata = vec_at(exts->gdatas, i);
         switch (GDATA_ID(gdata)) {
         case GDATA_BSS:
             emit_bss(gdata);
@@ -126,7 +198,7 @@ void gen(node_t * tree, FILE * fp)
             break;
         }
     }
-    emit_compounds(DECL_X_COMPOUNDS(tree));
-    emit_strings(DECL_X_STRINGS(tree));
+    emit_compounds(exts->compounds);
+    emit_strings(exts->strings);
     emit(".ident \"mcc: %d.%d\"", MAJOR(version), MINOR(version));
 }

@@ -246,7 +246,8 @@ extern struct table *tags;
 
 // print.c
 extern void print_tree(node_t * tree);
-extern void print_ir(node_t * tree);
+extern void print_tac(struct tac *tac);
+extern void print_ir(struct externals * tree);
 extern const char *type2s(node_t * ty);
 extern const char *node2s(node_t * node);
 extern void print_node_size(void);
