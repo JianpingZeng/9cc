@@ -109,6 +109,7 @@ struct externals {
     struct vector *gdatas;
     struct dict *strings;
     struct dict *compounds;
+    struct dict *floats;
 };
 
 // sym

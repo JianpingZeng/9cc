@@ -170,9 +170,44 @@ static void emit_strings(struct dict *strings)
     }
 }
 
+static void emit_floats(struct dict *floats)
+{
+    struct vector *keys = floats->keys;
+    if (vec_len(keys)) {
+        emit(".section .rodata");
+        for (int i = 0; i < vec_len(keys); i++) {
+            const char *name = vec_at(floats->keys, i);
+            const char *label = dict_get(floats, name);
+            node_t *sym = lookup(name, constants);
+            cc_assert(sym);
+            node_t *ty = SYM_TYPE(sym);
+            emit(".align %d", TYPE_ALIGN(ty));
+            emit_noindent("%s:", label);
+            switch (TYPE_KIND(ty)) {
+            case FLOAT:
+                {
+                    float f = SYM_VALUE_D(sym);
+                    emit(".long %u", *(uint32_t *)&f);
+                }
+                break;
+            case DOUBLE:
+            case LONG+DOUBLE:
+                {
+                    double d = SYM_VALUE_D(sym);
+                    emit(".quad %llu", *(uint64_t *)&d);
+                }
+                break;
+            default:
+                cc_assert(0);
+            }
+        }
+    }
+}
+
 static void gen_init(FILE *fp)
 {
-    outfp = fp;
+    // outfp = fp;
+    outfp = stdout;
     init_regs();
 }
 
@@ -200,5 +235,6 @@ void gen(struct externals *exts, FILE * fp)
     }
     emit_compounds(exts->compounds);
     emit_strings(exts->strings);
+    emit_floats(exts->floats);
     emit(".ident \"mcc: %d.%d\"", MAJOR(version), MINOR(version));
 }

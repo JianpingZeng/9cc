@@ -44,6 +44,8 @@ _rop(IR_ASSIGNF,        "=")
 _rop(IR_ADDRESS,      "&")
 _rop(IR_INDIRECTION,  "*")
 _rop(IR_NOT,          "~")
+_rop(IR_MINUSI,       "-")
+_rop(IR_MINUSF,       "-")
 
 // function
 _rop(IR_PARAM,          "param")
