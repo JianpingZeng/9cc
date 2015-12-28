@@ -55,10 +55,10 @@ static struct vector * construct_flow_graph(struct vector *tacs)
         }
 
         if (tac->op == IR_IF_I ||
-                   tac->op == IR_IF_F ||
-                   tac->op == IR_IF_FALSE_I ||
-                   tac->op == IR_IF_FALSE_F ||
-                   tac->op == IR_GOTO) {
+            tac->op == IR_IF_F ||
+            tac->op == IR_IF_FALSE_I ||
+            tac->op == IR_IF_FALSE_F ||
+            tac->op == IR_GOTO) {
             vec_push(blk->tacs, tac);
             // new block
             blk = make_bblock(v);
