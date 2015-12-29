@@ -2,7 +2,7 @@
 
 static const char *node_names[] = {
 #define _ns(a)   "",
-#define _n(a, b) b,
+#define _n(a, b, c) b,
 #include "node.def"
 };
 

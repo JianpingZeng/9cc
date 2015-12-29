@@ -4,7 +4,7 @@
 // node ids
 enum {
 #define _ns(a)   a,
-#define _n(a, b) a,
+#define _n(a, b, c) a,
 #include "node.def"
 };
 
