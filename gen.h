@@ -86,6 +86,10 @@ struct operand {
     unsigned op:8;
     node_t *sym;
     node_t *index;
+    struct uses {
+        bool live;
+        struct tac *use_tac;
+    } uses;
 };
 
 // three-address code
@@ -115,6 +119,8 @@ struct externals {
 // sym
 #define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.sym.label)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
+#define SYM_X_USES(NODE)      ((NODE)->symbol.x.sym.uses)
+#define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 // decl
 #define DECL_X_SVARS(NODE)             ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)             ((NODE)->decl.x.decl.lvars)
@@ -129,10 +135,23 @@ struct externals {
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
 
+// symbol kind
+enum {
+    SYM_KIND_TMP,
+    SYM_KIND_ILITERAL,
+    SYM_KIND_FLITERAL,
+    SYM_KIND_SLITERAL,
+    SYM_KIND_REF
+};
+
 union x {
     struct {
         const char *label;
         long loff;             // stack offset
+
+        // uses
+        unsigned kind : 3;
+        struct uses uses;
     }sym;
     
     struct {

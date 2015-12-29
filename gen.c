@@ -58,7 +58,9 @@ static struct vector * construct_flow_graph(struct vector *tacs)
             tac->op == IR_IF_F ||
             tac->op == IR_IF_FALSE_I ||
             tac->op == IR_IF_FALSE_F ||
-            tac->op == IR_GOTO) {
+            tac->op == IR_GOTO ||
+            tac->op == IR_RETURNI ||
+            tac->op == IR_RETURNF) {
             vec_push(blk->tacs, tac);
             // new block
             blk = make_bblock(v);
@@ -74,11 +76,46 @@ static struct vector * construct_flow_graph(struct vector *tacs)
                     tac = NULL;
             } while (tac && tac->op == IR_LABEL);
             i--;
+        } else if (tac->op == IR_CALL) {
+            // new block
+            blk = make_bblock(v);
+            vec_push(blk->tacs, tac);
         } else {
             vec_push(blk->tacs, tac);
         }
     }
     return v;
+}
+
+static void scan_tac_uses(struct tac *tac)
+{
+    struct operand *result = tac->result;
+    struct operand *l = tac->args[0];
+    struct operand *r = tac->args[1];
+
+    // TODO: 
+}
+
+static void scan_uses(struct vector *blks)
+{
+    for (int i = 0; i < vec_len(blks); i++) {
+        struct bblock *blk = vec_at(blks, i);
+        for (int j = vec_len(blk->tacs) - 1; j >= 0; j--) {
+            struct tac *tac = vec_at(blk->tacs, j);
+            scan_tac_uses(tac);
+        }
+    }
+}
+
+static void optimize_blk(struct bblock *blk)
+{
+    // TODO: 
+}
+
+static void optimize_blks(struct vector *blks)
+{
+    for (int i = 0; i < vec_len(blks); i++)
+        optimize_blk(vec_at(blks, i));
 }
 
 static void emit_text(gdata_t *gdata)
@@ -91,6 +128,8 @@ static void emit_text(gdata_t *gdata)
     node_t *decl = GDATA_TEXT_DECL(gdata);
     struct vector *tacs = DECL_X_TACS(decl);
     struct vector *bblks = construct_flow_graph(tacs);
+    scan_uses(bblks);
+    optimize_blks(bblks);
     for (int i = 0; i < vec_len(bblks); i++) {
         struct bblock *blk = vec_at(bblks, i);
         println("BLOCK#%d {", i);

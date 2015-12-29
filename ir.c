@@ -261,7 +261,7 @@ static void emit_decl(node_t *decl)
     node_t *init = DECL_BODY(decl);
     struct operand *l = make_sym_operand(sym);
     emit_expr(init);
-    emit_assign(AST_TYPE(decl), l, init);
+    emit_assign(SYM_TYPE(sym), l, init);
 }
 
 static void emit_decls(node_t **decls)
@@ -529,6 +529,8 @@ static void emit_assign_scalar(node_t *ty, struct operand *l, node_t *r)
 
 static void emit_assign(node_t *ty, struct operand *l, node_t *r)
 {
+    cc_assert(ty);
+    
     if (isstruct(ty) || isunion(ty))
         emit_assign_struct(ty, l, r);
     else if (isarray(ty))
@@ -752,6 +754,13 @@ static void emit_subscript(node_t *n)
     }
 }
 
+static void emit_inits_expr(node_t *n)
+{
+    cc_assert(AST_ID(n) == INITS_EXPR);
+
+    node_t **inits = EXPR_INITS(n);
+}
+
 static struct tac * make_conv_tac(unsigned op, struct operand *l,
                                   unsigned from_opszie, unsigned to_opsize)
 {
@@ -944,13 +953,16 @@ static void emit_paren_expr(node_t *n)
 
 static void emit_ref_expr(node_t *n)
 {
-    EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
+    node_t *sym = EXPR_SYM(n);
+    SYM_X_KIND(sym) = SYM_KIND_REF;
+    EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_integer_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     SYM_X_LABEL(sym) = stru(SYM_VALUE_U(sym));
+    SYM_X_KIND(sym) = SYM_KIND_ILITERAL;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
@@ -969,6 +981,7 @@ static void emit_float_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_float_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
+    SYM_X_KIND(sym) = SYM_KIND_FLITERAL;
     EXPR_X_ADDR(n) = make_indirection_operand(sym);
 }
 
@@ -977,13 +990,18 @@ static void emit_string_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_string_literal_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
+    SYM_X_KIND(sym) = SYM_KIND_SLITERAL;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_compound_literal(node_t *n)
 {
-    EXPR_X_ADDR(n) = make_sym_operand(EXPR_SYM(n));
-    emit_assign(AST_TYPE(n), EXPR_X_ADDR(n), EXPR_OPERAND(n, 0));
+    node_t *sym = EXPR_SYM(n);
+    SYM_X_KIND(sym) = SYM_KIND_REF;
+    EXPR_X_ADDR(n) = make_sym_operand(sym);
+    node_t *l = EXPR_OPERAND(n, 0);
+    emit_expr(l);
+    emit_assign(AST_TYPE(n), EXPR_X_ADDR(n), l);
 }
 
 static void emit_expr(node_t *n)
@@ -1035,7 +1053,11 @@ static void emit_expr(node_t *n)
         emit_compound_literal(n);
         break;
     case INITS_EXPR:
+        emit_inits_expr(n);
+        break;
     case VINIT_EXPR:
+        // do nothing
+        break;
     default:
         cc_assert(0);
     }
