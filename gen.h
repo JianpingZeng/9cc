@@ -13,7 +13,7 @@ struct reg {
 
 // op
 enum {
-#define _rop(a, b) a,
+#define _rop(a, b, c) a,
 #include "rop.def"
     IR_END
 };
@@ -138,10 +138,11 @@ struct externals {
 // symbol kind
 enum {
     SYM_KIND_TMP,
+    SYM_KIND_LABEL,
+    SYM_KIND_REF,
     SYM_KIND_ILITERAL,
     SYM_KIND_FLITERAL,
-    SYM_KIND_SLITERAL,
-    SYM_KIND_REF
+    SYM_KIND_SLITERAL
 };
 
 union x {

@@ -1,68 +1,68 @@
 
-_rop(IR_NONE,   "null")
+_rop(IR_NONE,           "null",         NULL)
 
 // control
-_rop(IR_LABEL,          "label")
-_rop(IR_GOTO,           "goto")
-_rop(IR_IF_I,           "if")
-_rop(IR_IF_F,           "if")
-_rop(IR_IF_FALSE_I,     "ifFalse")
-_rop(IR_IF_FALSE_F,     "ifFalse")
-_rop(IR_RETURNI,       "return")
-_rop(IR_RETURNF,       "return")
+_rop(IR_LABEL,          "label",        NULL)
+_rop(IR_GOTO,           "goto",         NULL)
+_rop(IR_IF_I,           "if",           use_if)
+_rop(IR_IF_F,           "if",           use_if)
+_rop(IR_IF_FALSE_I,     "ifFalse",      use_if)
+_rop(IR_IF_FALSE_F,     "ifFalse",      use_if)
+_rop(IR_RETURNI,        "return",       use_uop)
+_rop(IR_RETURNF,        "return",       use_uop)
 
 // binary
 
 // arith
-_rop(IR_ADDI,  "+")
-_rop(IR_ADDF,  "+")
+_rop(IR_ADDI,           "+",            use_bop)
+_rop(IR_ADDF,           "+",            use_bop)
 
-_rop(IR_SUBI,  "-")
-_rop(IR_SUBF,  "-")
+_rop(IR_SUBI,           "-",            use_bop)
+_rop(IR_SUBF,           "-",            use_bop)
 
-_rop(IR_DIVI,    "/")
-_rop(IR_IDIVI,   "/")
-_rop(IR_DIVF,    "/")
+_rop(IR_DIVI,           "/",            use_bop)
+_rop(IR_IDIVI,          "/",            use_bop)
+_rop(IR_DIVF,           "/",            use_bop)
 
-_rop(IR_MULI,   "*")
-_rop(IR_IMULI,  "*")
-_rop(IR_MULF,   "*")
+_rop(IR_MULI,           "*",            use_bop)
+_rop(IR_IMULI,          "*",            use_bop)
+_rop(IR_MULF,           "*",            use_bop)
 
 // integer
-_rop(IR_MOD,    "%")
-_rop(IR_OR,     "|")
-_rop(IR_AND,    "&")
-_rop(IR_XOR,    "^")
-_rop(IR_LSHIFT, "<<")
-_rop(IR_RSHIFT, ">>")
+_rop(IR_MOD,            "%",            use_bop)
+_rop(IR_OR,             "|",            use_bop)
+_rop(IR_AND,            "&",            use_bop)
+_rop(IR_XOR,            "^",            use_bop)
+_rop(IR_LSHIFT,         "<<",           use_bop)
+_rop(IR_RSHIFT,         ">>",           use_bop)
 
-_rop(IR_SUBSCRIPT,      "[]")
-_rop(IR_ASSIGNI,        "=")
-_rop(IR_ASSIGNF,        "=")
+_rop(IR_SUBSCRIPT,      "[]",           NULL)
+_rop(IR_ASSIGNI,        "=",            use_uop)
+_rop(IR_ASSIGNF,        "=",            use_uop)
 
 // unary
-_rop(IR_ADDRESS,      "&")
-_rop(IR_INDIRECTION,  "*")
-_rop(IR_NOT,          "~")
-_rop(IR_MINUSI,       "-")
-_rop(IR_MINUSF,       "-")
+_rop(IR_ADDRESS,        "&",            NULL)
+_rop(IR_INDIRECTION,    "*",            NULL)
+_rop(IR_NOT,            "~",            use_uop)
+_rop(IR_MINUSI,         "-",            use_uop)
+_rop(IR_MINUSF,         "-",            use_uop)
 
 // function
-_rop(IR_PARAM,          "param")
-_rop(IR_CALL,           "call")
+_rop(IR_PARAM,          "param",        use_uop)
+_rop(IR_CALL,           "call",         use_uop)
 
 // conv
-_rop(IR_CONV_UI_UI,     "uint => uint")
-_rop(IR_CONV_SI_SI,     "int => int")
-_rop(IR_CONV_UI_SI,     "uint => int")
-_rop(IR_CONV_SI_UI,     "int => uint")
+_rop(IR_CONV_UI_UI,     "uint => uint",         use_uop)
+_rop(IR_CONV_SI_SI,     "int => int",           use_uop)
+_rop(IR_CONV_UI_SI,     "uint => int",          use_uop)
+_rop(IR_CONV_SI_UI,     "int => uint",          use_uop)
 
-_rop(IR_CONV_SI_F,      "int => float")
-_rop(IR_CONV_UI_F,      "uint => float")
+_rop(IR_CONV_SI_F,      "int => float",         use_uop)
+_rop(IR_CONV_UI_F,      "uint => float",        use_uop)
 
-_rop(IR_CONV_FF,        "float => float")
+_rop(IR_CONV_FF,        "float => float",       use_uop)
 
-_rop(IR_CONV_F_UI,      "float => uint")
-_rop(IR_CONV_F_SI,      "float => int")
+_rop(IR_CONV_F_UI,      "float => uint",        use_uop)
+_rop(IR_CONV_F_SI,      "float => int",         use_uop)
 
 #undef _rop

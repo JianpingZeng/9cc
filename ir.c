@@ -7,7 +7,7 @@
  */
 
 static const char *rops[] = {
-#define _rop(a, b)  b,
+#define _rop(a, b, c)  b,
 #include "rop.def"
 };
 
@@ -98,18 +98,23 @@ static struct operand * make_named_operand(const char *name, struct table **tabl
 
 static struct operand * make_tmp_operand(void)
 {
-    return make_named_operand(gen_tmpname_r(), &tmps, GLOBAL);
+    struct operand *operand = make_named_operand(gen_tmpname_r(), &tmps, GLOBAL);
+    SYM_X_KIND(operand->sym) = SYM_KIND_TMP;
+    return operand;
 }
 
 static struct operand * make_label_operand(const char *label)
 {
-    return make_named_operand(label, &labels, GLOBAL);
+    struct operand *operand = make_named_operand(label, &labels, GLOBAL);
+    SYM_X_KIND(operand->sym) = SYM_KIND_LABEL;
+    return operand;
 }
 
 static struct operand * make_int_operand(long long i)
 {
     struct operand *operand = make_named_operand(strd(i), &constants, CONSTANT);
     SYM_VALUE_I(operand->sym) = i;
+    SYM_X_KIND(operand->sym) = SYM_KIND_ILITERAL;
     return operand;
 }
 
@@ -117,6 +122,7 @@ static struct operand * make_unsigned_operand(unsigned long long u)
 {
     struct operand *operand = make_named_operand(stru(u), &constants, CONSTANT);
     SYM_VALUE_U(operand->sym) = u;
+    SYM_X_KIND(operand->sym) = SYM_KIND_ILITERAL;
     return operand;
 }
 

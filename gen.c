@@ -87,13 +87,30 @@ static struct vector * construct_flow_graph(struct vector *tacs)
     return v;
 }
 
+static void use_if(struct tac *tac)
+{
+    
+}
+
+static void use_uop(struct tac *tac)
+{
+    
+}
+
+static void use_bop(struct tac *tac)
+{
+    
+}
+
 static void scan_tac_uses(struct tac *tac)
 {
-    struct operand *result = tac->result;
-    struct operand *l = tac->args[0];
-    struct operand *r = tac->args[1];
+    static void (*uses[]) (struct tac *) = {
+#define _rop(a, b, c)  c,
+#include "rop.def"
+    };
 
-    // TODO: 
+    if (uses[tac->op])
+        uses[tac->op](tac);
 }
 
 static void scan_uses(struct vector *blks)
