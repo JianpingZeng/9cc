@@ -62,15 +62,22 @@ KERNEL:=$(shell uname)
 CONFIG_FLAGS:=-DCONFIG_COLOR_TERM
 
 ifneq (, $(findstring CYGWIN, $(KERNEL)))
+
 CONFIG_FLAGS+=-DCONFIG_CYGWIN
+
 else ifeq (Darwin, $(KERNEL))
+
 CONFIG_FLAGS+=-DCONFIG_DARWIN
 XCODE_SDK_DIR:=$(shell xcrun --show-sdk-path)
 OSX_SDK_VERSION:=$(shell xcrun --show-sdk-version)
 CONFIG_FLAGS+=-DXCODE_DIR='"$(XCODE_SDK_DIR)"'
 CONFIG_FLAGS+=-DOSX_SDK_VERSION='"$(OSX_SDK_VERSION)"'
+
 else
+
 CONFIG_FLAGS+=-DCONFIG_LINUX
+LDFLAGS+=-lunwind
+
 endif
 
 CFLAGS+=$(CONFIG_FLAGS)
@@ -78,7 +85,7 @@ CFLAGS+=$(CONFIG_FLAGS)
 all: $(MCC)
 
 $(MCC): $(MCC_OBJ) $(CC1_OBJ) $(SYS_OBJ)
-	$(CC) $(LDFALGS) $(MCC_OBJ) $(SYS_OBJ) $(CC1_OBJ) -o $@
+	$(CC) $(MCC_OBJ) $(SYS_OBJ) $(CC1_OBJ) $(LDFLAGS) -o $@
 
 $(CC1_OBJ): $(CC1_INC)
 

@@ -17,7 +17,7 @@
 // uname
 #include <sys/utsname.h>
 
-#ifndef CONFIG_CYGWIN
+#ifdef CONFIG_DARWIN
 // trace
 #include <execinfo.h>
 #include <signal.h>
@@ -31,6 +31,42 @@ static void handler(int sig)
 
     fprintf(stderr, "Stack trace:\n");
     backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(EXIT_FAILURE);
+}
+
+void setup_sys()
+{
+    signal(SIGSEGV, handler);
+    signal(SIGABRT, handler);
+}
+
+#elif defined (CONFIG_LINUX)
+
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+
+static void handler(int sig)
+{
+    unw_cursor_t cursor;
+    unw_context_t uc;
+    unw_word_t offp;
+    char buf[128];
+    int i = 0;
+
+    fprintf(stderr, "Stack trace:\n");
+    unw_getcontext(&uc);
+    unw_init_local(&cursor, &uc);
+    
+    while (unw_step(&cursor) > 0) {
+        int ret = unw_get_proc_name(&cursor, buf, sizeof buf/sizeof buf[0], &offp);
+        if (ret == 0) {
+            printf("%d\t%s + %ld\n", i, buf, offp);
+        } else {
+            printf("%d\t???\n", i);
+        }
+        i++;
+    }
+    
     exit(EXIT_FAILURE);
 }
 
