@@ -87,36 +87,21 @@ static struct vector * construct_flow_graph(struct vector *tacs)
     return v;
 }
 
-static void use_if(struct tac *tac)
-{
-    
-}
-
-static void use_uop(struct tac *tac)
-{
-    
-}
-
-static void use_bop(struct tac *tac)
-{
-    
-}
-
 static void scan_tac_uses(struct tac *tac)
 {
-    static void (*uses[]) (struct tac *) = {
-#define _rop(a, b, c)  c,
-#include "rop.def"
-    };
 
-    if (uses[tac->op])
-        uses[tac->op](tac);
+}
+
+static void scan_init_blk(struct bblock *blk)
+{
+    
 }
 
 static void scan_uses(struct vector *blks)
 {
     for (int i = 0; i < vec_len(blks); i++) {
         struct bblock *blk = vec_at(blks, i);
+        scan_init_blk(blk);
         for (int j = vec_len(blk->tacs) - 1; j >= 0; j--) {
             struct tac *tac = vec_at(blk->tacs, j);
             scan_tac_uses(tac);

@@ -7,7 +7,7 @@
  */
 
 static const char *rops[] = {
-#define _rop(a, b, c)  b,
+#define _rop(a, b)  b,
 #include "rop.def"
 };
 
@@ -49,8 +49,6 @@ static const char *__break;
 
 #define BREAK_CONTEXT     (__break)
 #define CONTINUE_CONTEXT  (__continue)
-
-static void (*emits[]) (node_t *);
 
 static unsigned tysize2opsize(size_t tysize)
 {
@@ -1007,22 +1005,68 @@ static void emit_compound_literal(node_t *n)
 
 static void emit_ref(node_t *n)
 {
-    if (EXPR_OP(n) == ENUM) {
-        emit_integer_literal(n);
-    } else {
-        node_t *sym = EXPR_SYM(n);
-        SYM_X_KIND(sym) = SYM_KIND_REF;
-        EXPR_X_ADDR(n) = make_sym_operand(sym);
-    }
+    node_t *sym = EXPR_SYM(n);
+    SYM_X_KIND(sym) = SYM_KIND_REF;
+    EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_expr(node_t *n)
 {
     cc_assert(isexpr(n));
 
-    void (*emit) (node_t *) = emits[AST_ID(n)];
-    if (emit)
-        emit(n);
+    switch (AST_ID(n)) {
+    case BINARY_OPERATOR:
+        emit_bop(n);
+        break;
+    case UNARY_OPERATOR:
+        emit_uop(n);
+        break;
+    case PAREN_EXPR:
+        emit_paren(n);
+        break;
+    case COND_EXPR:
+        emit_cond(n);
+        break;
+    case MEMBER_EXPR:
+        emit_member(n);
+        break;
+    case SUBSCRIPT_EXPR:
+        emit_subscript(n);
+        break;
+    case CAST_EXPR:
+    case CONV_EXPR:
+        emit_conv(n);
+        break;
+    case CALL_EXPR:
+        emit_call(n);
+        break;
+    case REF_EXPR:
+        if (EXPR_OP(n) == ENUM)
+            emit_integer_literal(n);
+        else
+            emit_ref(n);
+        break;
+    case INTEGER_LITERAL:
+        emit_integer_literal(n);
+        break;
+    case FLOAT_LITERAL:
+        emit_float_literal(n);
+        break;
+    case STRING_LITERAL:
+        emit_string_literal(n);
+        break;
+    case COMPOUND_LITERAL:
+        emit_compound_literal(n);
+        break;
+    case INITS_EXPR:
+        emit_inits(n);
+        break;
+    case VINIT_EXPR:
+        // do nothing
+        break;
+    default:
+        cc_assert(0);
+    }
 }
 
 static void emit_logic_and(node_t *n)
@@ -1385,17 +1429,54 @@ static void emit_return_stmt(node_t *stmt)
 
 static void emit_stmt(node_t *stmt)
 {
-    void (*emit) (node_t *) = emits[AST_ID(stmt)];
-    if (emit)
-        emit(stmt);
+    switch (AST_ID(stmt)) {
+    case COMPOUND_STMT:
+        emit_compound_stmt(stmt);
+        break;
+    case IF_STMT:
+        emit_if_stmt(stmt);
+        break;
+    case WHILE_STMT:
+        emit_while_stmt(stmt);
+        break;
+    case DO_WHILE_STMT:
+        emit_do_while_stmt(stmt);
+        break;
+    case FOR_STMT:
+        emit_for_stmt(stmt);
+        break;
+    case SWITCH_STMT:
+        emit_switch_stmt(stmt);
+        break;
+    case CASE_STMT:
+        emit_case_stmt(stmt);
+        break;
+    case DEFAULT_STMT:
+        emit_default_stmt(stmt);
+        break;
+    case LABEL_STMT:
+        emit_label_stmt(stmt);
+        break;
+    case GOTO_STMT:
+        emit_goto_stmt(stmt);
+        break;
+    case BREAK_STMT:
+        emit_break_stmt(stmt);
+        break;
+    case CONTINUE_STMT:
+        emit_continue_stmt(stmt);
+        break;
+    case RETURN_STMT:
+        emit_return_stmt(stmt);
+        break;
+    case NULL_STMT:
+        // do nothing
+        break;
+    default:
+        emit_expr(stmt);
+        break;
+    }
 }
-
-// emit functions
-static void (*emits[]) (node_t *) = {
-#define _ns(a)  NULL,
-#define _n(a, b, c)  c,
-#include "node.def"
-};
 
 static void emit_function(node_t *decl)
 {
