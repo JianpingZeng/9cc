@@ -19,6 +19,7 @@
  *
  *  cs,ds,es,fs,gs,ss
  */
+
 enum {
     RAX, RBX, RCX, RDX,
     RSI, RDI,
@@ -109,6 +110,43 @@ void init_regs(void)
     }
 }
 
-void print_register_state(void)
+static struct reg * get_int_reg(struct tac *tac)
 {
+    
+}
+
+static struct reg * get_float_reg(struct tac *tac)
+{
+    
+}
+
+struct reg * get_reg(struct tac *tac)
+{
+    switch (tac->op) {
+    case IR_ADDI:
+    case IR_ADDF:
+    case IR_SUBI:
+    case IR_SUBF:
+    case IR_MULI:
+    case IR_MULF:
+    case IR_IMULI:
+    case IR_DIVI:
+    case IR_DIVF:
+    case IR_IDIVI:
+
+    case IR_CONV_FF:
+    case IR_CONV_F_SI:
+    case IR_CONV_F_UI:
+    case IR_CONV_SI_F:
+    case IR_CONV_SI_SI:
+    case IR_CONV_SI_UI:
+    case IR_CONV_UI_F:
+    case IR_CONV_UI_SI:
+    case IR_CONV_UI_UI:
+        break;
+
+    case IR_LABEL:
+    case IR_NONE:
+        break;
+    }
 }

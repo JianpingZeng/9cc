@@ -9,6 +9,8 @@ struct reg {
     const char *r32;
     const char *r16;
     const char *r8;
+
+    struct vector *vars;
 };
 
 // op
@@ -122,15 +124,15 @@ struct externals {
 #define SYM_X_USES(NODE)      ((NODE)->symbol.x.sym.uses)
 #define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 // decl
-#define DECL_X_SVARS(NODE)             ((NODE)->decl.x.decl.svars)
-#define DECL_X_LVARS(NODE)             ((NODE)->decl.x.decl.lvars)
-#define DECL_X_EXTRA_STACK_SIZE(NODE)  ((NODE)->decl.x.decl.extra_stack_size)
-#define DECL_X_TACS(NODE)              ((NODE)->decl.x.decl.tacs)
+#define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
+#define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
+#define DECL_X_CALLS(NODE)    ((NODE)->decl.x.decl.calls)
+#define DECL_X_TACS(NODE)     ((NODE)->decl.x.decl.tacs)
 // expr
-#define EXPR_X_ADDR(NODE)       ((NODE)->expr.x.expr.addr)
-#define EXPR_X_TRUE(NODE)       ((NODE)->expr.x.expr.btrue)
-#define EXPR_X_FALSE(NODE)      ((NODE)->expr.x.expr.bfalse)
-#define EXPR_X_ARRAY(NODE)      ((NODE)->expr.x.expr.array)
+#define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.expr.addr)
+#define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
+#define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.expr.bfalse)
+#define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.expr.array)
 // stmt
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
@@ -158,7 +160,7 @@ union x {
     struct {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars
-        size_t extra_stack_size;
+        struct vector *calls;
         struct vector *tacs;
     }decl;
     
@@ -181,7 +183,7 @@ union x {
 
 // register.c
 extern void init_regs(void);
-extern void print_register_state(void);
+extern struct reg * get_reg(struct tac *tac);
 
 // gen.c
 extern void gen(struct externals *externals, FILE * fp);

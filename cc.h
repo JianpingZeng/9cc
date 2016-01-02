@@ -81,8 +81,6 @@ extern node_t *new_integer_literal(int i);
 extern node_t *new_string_literal(const char *string);
 
 // decl.c
-extern size_t extra_stack_size;
-
 extern node_t **declaration(void);
 extern node_t *translation_unit(void);
 extern node_t *typename(void);
@@ -99,6 +97,7 @@ extern void init_string(node_t * ty, node_t * node);
 extern bool has_static_extent(node_t * sym);
 
 // stmt.c
+extern struct vector *funcalls;
 extern void func_body(node_t *decl);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
 

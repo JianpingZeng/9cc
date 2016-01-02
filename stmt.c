@@ -42,7 +42,7 @@ static node_t *__switch_ty;
 #define SWITCH_TYPE   (__switch_ty)
 
 // funcdef context
-size_t extra_stack_size;
+struct vector *funcalls;
 static struct vector *gotos;
 static struct map *labels;
 static node_t *functype;
@@ -586,10 +586,10 @@ static void set_funcdef_context(node_t *fty, const char *name)
     labels = map_new();
     functype = fty;
     funcname = name;
-    extra_stack_size = 0;
     staticvars = vec_new();
     localvars = vec_new();
     localdecls = vec_new();
+    funcalls = vec_new();
 }
 
 static void restore_funcdef_context(void)
@@ -600,13 +600,14 @@ static void restore_funcdef_context(void)
     labels = NULL;
     functype = NULL;
     funcname = NULL;
-    extra_stack_size = 0;
     vec_free(staticvars);
     staticvars = NULL;
     vec_free(localvars);
     localvars = NULL;
     vec_free(localdecls);
     localdecls = NULL;
+    vec_free(funcalls);
+    funcalls = NULL;
 }
 
 void func_body(node_t *decl)
@@ -620,6 +621,7 @@ void func_body(node_t *decl)
     backfill_labels();
     DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
     DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
+    DECL_X_CALLS(decl) = funcalls;
     // check unused
     filter_local();
     
