@@ -262,6 +262,25 @@ static void emit_blks(struct vector *blks)
     }
 }
 
+static struct vector * init_text(gdata_t *gdata)
+{
+    node_t *decl = GDATA_TEXT_DECL(gdata);
+    struct vector *tacs = DECL_X_TACS(decl);
+    struct vector *bblks = construct_flow_graph(tacs);
+    scan_uses(bblks);
+    optimize_blks(bblks);
+    for (int i = 0; i < vec_len(bblks); i++) {
+        struct bblock *blk = vec_at(bblks, i);
+        println("BLOCK#%d {", i);
+        for (int j = 0; j < vec_len(blk->tacs); j++) {
+            struct tac *tac = vec_at(blk->tacs, j);
+            print_tac(tac);
+        }
+        println("}\n");
+    }
+    return bblks;
+}
+
 static void calc_stack_size(node_t **args)
 {
     size_t size = 0;
@@ -285,25 +304,6 @@ static void calc_stack_size(node_t **args)
         }
     }
     extra_stack_size = MAX(extra_stack_size, size);
-}
-
-static struct vector * init_text(gdata_t *gdata)
-{
-    node_t *decl = GDATA_TEXT_DECL(gdata);
-    struct vector *tacs = DECL_X_TACS(decl);
-    struct vector *bblks = construct_flow_graph(tacs);
-    scan_uses(bblks);
-    optimize_blks(bblks);
-    for (int i = 0; i < vec_len(bblks); i++) {
-        struct bblock *blk = vec_at(bblks, i);
-        println("BLOCK#%d {", i);
-        for (int j = 0; j < vec_len(blk->tacs); j++) {
-            struct tac *tac = vec_at(blk->tacs, j);
-            print_tac(tac);
-        }
-        println("}\n");
-    }
-    return bblks;
 }
 
 static void emit_text(gdata_t *gdata)
