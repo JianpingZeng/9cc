@@ -1511,6 +1511,14 @@ static void ir_init(void)
     exts->floats = dict_new();
 }
 
+static const char *glabel(const char *label)
+{
+    if (opts.fleading_underscore)
+        return format("_%s", label);
+    else
+        return label;
+}
+
 struct externals * ir(node_t *tree)
 {
     cc_assert(istudecl(tree) && errors == 0);
@@ -1518,11 +1526,14 @@ struct externals * ir(node_t *tree)
     ir_init();
     for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
         node_t *decl = DECL_EXTS(tree)[i];
+        node_t *sym = DECL_SYM(decl);
 
         if (isfuncdef(decl))
             emit_function(decl);
         else if (isvardecl(decl))
             emit_globalvar(decl);
+
+        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     }
 
     return exts;

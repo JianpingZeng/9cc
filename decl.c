@@ -981,14 +981,6 @@ node_t *translation_unit(void)
     return ret;
 }
 
-static const char *glabel(const char *label)
-{
-    if (opts.fleading_underscore)
-        return format("_%s", label);
-    else
-        return label;
-}
-
 static struct vector * filter_global(struct vector *v)
 {
     struct vector *r = vec_new();
@@ -1027,8 +1019,6 @@ static struct vector * filter_global(struct vector *v)
                 map_put(map, sym, decl);
             }
         }
-
-        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     }
     map_free(map);
     return r;
