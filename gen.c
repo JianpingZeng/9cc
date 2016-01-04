@@ -317,6 +317,11 @@ static size_t call_stack_size(node_t *decl)
 /*
   stack layout
 
+  | ...           |
+  +---------------+ <--- rbp+16
+  | return address|
+  +---------------+ <--- rbp+8
+  | saved rbp     |
   +---------------+ <--- rbp
   | local vars    |
   +---------------+
