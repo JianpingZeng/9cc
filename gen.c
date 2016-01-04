@@ -281,30 +281,50 @@ static struct vector * init_text(gdata_t *gdata)
     return bblks;
 }
 
-static void calc_stack_size(node_t **args)
+static size_t call_stack_size(node_t *decl)
 {
-    size_t size = 0;
-    int num_int = 0;
-    int num_float = 0;
-    for (int i = 0; i < LIST_LEN(args); i++) {
-        node_t *ty = AST_TYPE(args[i]);
-        size_t typesize = ROUNDUP(TYPE_SIZE(ty), 8);
-        if (isint(ty) || isptr(ty)) {
-            num_int++;
-            if (num_int > NUM_IARG_REGS)
+    size_t extra_stack_size = 0;
+    struct vector *calls = DECL_X_CALLS(decl);
+    for (int i = 0; i < vec_len(calls); i++) {
+        node_t *call = vec_at(calls, i);
+        node_t **args = EXPR_ARGS(call);
+
+        size_t size = 0;
+        int num_int = 0;
+        int num_float = 0;
+        for (int j = 0; j < LIST_LEN(args); j++) {
+            node_t *ty = AST_TYPE(args[j]);
+            size_t typesize = ROUNDUP(TYPE_SIZE(ty), 8);
+            if (isint(ty) || isptr(ty)) {
+                num_int++;
+                if (num_int > NUM_IARG_REGS)
+                    size += typesize;
+            } else if (isfloat(ty)) {
+                num_float++;
+                if (num_float > NUM_FARG_REGS)
+                    size += typesize;
+            } else if (isstruct(ty) || isunion(ty)) {
                 size += typesize;
-        } else if (isfloat(ty)) {
-            num_float++;
-            if (num_float > NUM_FARG_REGS)
-                size += typesize;
-        } else if (isstruct(ty) || isunion(ty)) {
-            size += typesize;
-        } else {
-            cc_assert(0);
+            } else {
+                cc_assert(0);
+            }
         }
+        extra_stack_size = MAX(extra_stack_size, size);
     }
-    extra_stack_size = MAX(extra_stack_size, size);
+    return extra_stack_size;
 }
+
+/*
+  stack layout
+
+  +---------------+ <--- rbp
+  | local vars    |
+  +---------------+
+  | params        |
+  +---------------+
+  | call params   |
+  +---------------+ <--- rsp
+ */
 
 static void emit_text(gdata_t *gdata)
 {
