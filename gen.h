@@ -79,6 +79,19 @@ typedef union {
     struct gdata_text text;
 } gdata_t;
 
+enum {
+    ADDR_TYPE_LITERAL,
+    ADDR_TYPE_MEMORY,
+    ADDR_TYPE_STACK,
+    ADDR_TYPE_REGISTER
+};
+
+struct addr {
+    int kind;
+    struct reg *reg;
+    long offset;
+};
+
 /*
   op = IR_NONE:        sym
   op = IR_SUBSCRIPT:   sym[index]
@@ -120,9 +133,8 @@ struct externals {
 
 // sym
 #define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.sym.label)
-#define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 #define SYM_X_USES(NODE)      ((NODE)->symbol.x.sym.uses)
-#define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
+#define SYM_X_ADDRS(NODE)     ((NODE)->symbol.x.sym.addrs)
 // decl
 #define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
@@ -137,24 +149,14 @@ struct externals {
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
 
-// symbol kind
-enum {
-    SYM_KIND_TMP,
-    SYM_KIND_LABEL,
-    SYM_KIND_REF,
-    SYM_KIND_ILITERAL,
-    SYM_KIND_FLITERAL,
-    SYM_KIND_SLITERAL
-};
-
 union x {
     struct {
         const char *label;
-        long loff;             // stack offset
 
         // uses
-        unsigned kind : 3;
         struct uses uses;
+        // addrs
+        struct vector *addrs;
     }sym;
     
     struct {
@@ -184,6 +186,10 @@ union x {
 // register.c
 extern void init_regs(void);
 extern struct reg * get_reg(struct tac *tac);
+extern struct addr * make_literal_addr(void);
+extern struct addr * make_memory_addr(void);
+extern struct addr * make_stack_addr(void);
+extern struct addr * make_register_addr(void);
 
 // gen.c
 extern void gen(struct externals *externals, FILE * fp);

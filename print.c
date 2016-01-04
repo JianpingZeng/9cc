@@ -423,13 +423,10 @@ static const char * operand2s(struct operand *operand)
 static void print_operand_uses(struct operand *operand)
 {
     node_t *sym = operand->sym;
-    int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_REF ||
-        kind == SYM_KIND_TMP)
-        putf("%s(live=%d, tac=%p)",
-             SYM_X_LABEL(sym),
-             operand->uses.live,
-             operand->uses.use_tac);
+    putf("%s(live=%d, tac=%p)",
+         SYM_X_LABEL(sym),
+         operand->uses.live,
+         operand->uses.use_tac);
 }
 
 static void print_uses(struct tac *tac)

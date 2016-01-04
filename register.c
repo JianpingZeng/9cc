@@ -150,3 +150,30 @@ struct reg * get_reg(struct tac *tac)
         break;
     }
 }
+
+static struct addr * make_addr_with_type(int kind)
+{
+    struct addr *addr = zmalloc(sizeof(struct addr));
+    addr->kind = kind;
+    return addr;
+}
+
+struct addr * make_literal_addr(void)
+{
+    return make_addr_with_type(ADDR_TYPE_LITERAL);
+}
+
+struct addr * make_memory_addr(void)
+{
+    return make_addr_with_type(ADDR_TYPE_MEMORY);
+}
+
+struct addr * make_stack_addr(void)
+{
+    return make_addr_with_type(ADDR_TYPE_STACK);
+}
+
+struct addr * make_register_addr(void)
+{
+    return make_addr_with_type(ADDR_TYPE_REGISTER);
+}
