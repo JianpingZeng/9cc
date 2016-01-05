@@ -87,10 +87,19 @@ static struct vector * construct_flow_graph(struct vector *tacs)
     return v;
 }
 
+static int addr_type(node_t *sym)
+{
+    struct vector *addrs = SYM_X_ADDRS(sym);
+    struct addr *addr = vec_at(addrs, 0);
+    return addr->kind;
+}
+
 static void mark_die(node_t *sym)
 {
-    int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_REF || kind == SYM_KIND_TMP) {
+    int kind = addr_type(sym);
+    if (kind == ADDR_TYPE_MEMORY ||
+        kind == ADDR_TYPE_STACK ||
+        kind == ADDR_TYPE_REGISTER) {
         SYM_X_USES(sym).live = false;
         SYM_X_USES(sym).use_tac = NULL;
     }
@@ -98,8 +107,10 @@ static void mark_die(node_t *sym)
 
 static void mark_live(node_t *sym, struct tac *tac)
 {
-    int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_REF || kind == SYM_KIND_TMP) {
+    int kind = addr_type(sym);
+    if (kind == ADDR_TYPE_MEMORY ||
+        kind == ADDR_TYPE_STACK ||
+        kind == ADDR_TYPE_REGISTER) {
         SYM_X_USES(sym).live = true;
         SYM_X_USES(sym).use_tac = tac;
     }
@@ -128,8 +139,9 @@ static void scan_tac_uses(struct tac *tac)
 
 static void init_sym_uses(node_t *sym)
 {
-    int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_REF) {
+    int kind = addr_type(sym);
+    if (kind == ADDR_TYPE_MEMORY ||
+        kind == ADDR_TYPE_STACK) {
         SYM_X_USES(sym).live = true;
         SYM_X_USES(sym).use_tac = NULL;
     } else {

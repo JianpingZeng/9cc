@@ -262,27 +262,19 @@ static struct operand * emit_conv_tac(int op, struct operand *l,
     return tac->result;
 }
 
-static node_t * filter_decl(node_t *decl)
-{
-    node_t *sym = DECL_SYM(decl);
-    if (!isvardecl(decl))
-        return NULL;
-    else if (SYM_SCLASS(sym) == EXTERN ||
-             SYM_SCLASS(sym) == STATIC)
-        return NULL;
-    else if (!DECL_BODY(decl))
-        return NULL;
-    else
-        return decl;
-}
-
 static void emit_decl(node_t *decl)
 {
-    decl = filter_decl(decl);
-    if (!decl)
-        return;
     node_t *sym = DECL_SYM(decl);
     node_t *init = DECL_BODY(decl);
+    
+    if (!isvardecl(decl))
+        return;
+    else if (SYM_SCLASS(sym) == EXTERN ||
+             SYM_SCLASS(sym) == STATIC)
+        return;
+    else if (!init)
+        return;
+    
     struct operand *l = make_sym_operand(sym);
     emit_expr(init);
     emit_assign(SYM_TYPE(sym), l, init);
@@ -1528,12 +1520,12 @@ struct externals * ir(node_t *tree)
         node_t *decl = DECL_EXTS(tree)[i];
         node_t *sym = DECL_SYM(decl);
 
+        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+        
         if (isfuncdef(decl))
             emit_function(decl);
         else if (isvardecl(decl))
             emit_globalvar(decl);
-
-        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     }
 
     return exts;
