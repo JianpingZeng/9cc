@@ -357,11 +357,13 @@ static void emit_text(gdata_t *gdata)
     emit("movq %rsp, %rbp");
 
     size_t sub = 0;
-    for (int i = 0; i < DECL_X_LVARS(decl); i++) {
+    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(decl)); i++) {
         node_t *lvar = DECL_X_LVARS(decl)[i];
-        node_t *sym = DECL_SYM(decl);
+        node_t *sym = DECL_SYM(lvar);
         size_t offset = sub + TYPE_SIZE(SYM_TYPE(sym));
-        
+        struct addr *addr = vec_head(SYM_X_ADDRS(sym));
+        addr->reg = rbp;
+        addr->offset = -offset;
     }
     
     emit_blks(bblks);

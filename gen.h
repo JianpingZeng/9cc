@@ -184,6 +184,7 @@ union x {
 };
 
 // register.c
+extern struct reg *rsp, *rbp, *rip;
 extern void init_regs(void);
 extern struct reg * get_reg(struct tac *tac);
 extern struct addr * make_literal_addr(void);

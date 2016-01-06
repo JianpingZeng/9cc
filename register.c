@@ -38,57 +38,57 @@ static struct reg *iarg_regs[NUM_IARG_REGS];
 static struct reg *farg_regs[NUM_FARG_REGS];
 static struct reg *int_regs[INT_REGS];
 static struct reg *float_regs[FLOAT_REGS];
+struct reg * rsp = &(struct reg){
+    .r64 = "%rsp",
+    .r32 = "%esp",
+    .r16 = "%sp"
+};
+struct reg * rbp = &(struct reg){
+    .r64 = "%rbp",
+    .r32 = "%ebp",
+    .r16 = "%bp"
+};
+struct reg * rip = &(struct reg){
+    .r64 = "%rip",
+    .r32 = "%eip",
+    .r16 = "%ip"
+};
 
-static inline struct reg *make_reg(void)
+static inline struct reg *mkreg(struct reg *r)
 {
-    return zmalloc(sizeof(struct reg));
+    struct reg *reg = xmalloc(sizeof(struct reg));
+    *reg = *r;
+    return reg;
 }
 
 void init_regs(void)
 {
-    int_regs[RAX] = make_reg();
-    int_regs[RAX]->r64 = "%rax";
-    int_regs[RAX]->r32 = "%eax";
-    int_regs[RAX]->r16 = "%ax";
-    int_regs[RAX]->r8 = "%al";
+    int_regs[RAX] = mkreg(&(struct reg)
+                          {.r64 = "%rax", .r32 = "%eax", .r16 = "%ax", .r8 = "%al"});
 
-    int_regs[RBX] = make_reg();
-    int_regs[RBX]->r64 = "%rbx";
-    int_regs[RBX]->r32 = "%ebx";
-    int_regs[RBX]->r16 = "%bx";
-    int_regs[RBX]->r8 = "%bl";
+    int_regs[RBX] = mkreg(&(struct reg)
+                          {.r64 = "%rbx", .r32 = "%ebx", .r16 = "%bx", .r8 = "%bl"});
     
-    int_regs[RCX] = make_reg();
-    int_regs[RCX]->r64 = "%rcx";
-    int_regs[RCX]->r32 = "%ecx";
-    int_regs[RCX]->r16 = "%cx";
-    int_regs[RCX]->r8 = "%cl";
+    int_regs[RCX] = mkreg(&(struct reg)
+                          {.r64 = "%rcx", .r32 = "%ecx", .r16 = "%cx", .r8 = "%cl"});
     
-    int_regs[RDX] = make_reg();
-    int_regs[RDX]->r64 = "%rdx";
-    int_regs[RDX]->r32 = "%edx";
-    int_regs[RDX]->r16 = "%dx";
-    int_regs[RDX]->r8 = "%dl";
+    int_regs[RDX] = mkreg(&(struct reg)
+                          {.r64 = "%rdx", .r32 = "%edx", .r16 = "%dx", .r8 = "%dl"});
 
-    int_regs[RSI] = make_reg();
-    int_regs[RSI]->r64 = "%rsi";
-    int_regs[RSI]->r32 = "%esi";
-    int_regs[RSI]->r16 = "%si";
-    int_regs[RSI]->r8 = "%sil";
+    int_regs[RSI] = mkreg(&(struct reg)
+                          {.r64 = "%rsi", .r32 = "%esi", .r16 = "%si", .r8 = "%sil"});
 
-    int_regs[RDI] = make_reg();
-    int_regs[RDI]->r64 = "%rdi";
-    int_regs[RDI]->r32 = "%edi";
-    int_regs[RDI]->r16 = "%di";
-    int_regs[RDI]->r8 = "%dil";
+    int_regs[RDI] = mkreg(&(struct reg)
+                          {.r64 = "%rdi", .r32 = "%edi", .r16 = "%di", .r8 = "%dil"});
 
     for (int i = R8; i <= R15; i++) {
         int index = i - R8 + 8;
-        int_regs[i] = make_reg();
-        int_regs[i]->r64 = format("%%r%d", index);
-        int_regs[i]->r32 = format("%%r%dd", index);
-        int_regs[i]->r16 = format("%%r%dw", index);
-        int_regs[i]->r8 = format("%%r%db", index);
+        int_regs[i] = mkreg(&(struct reg){
+                                .r64 = format("%%r%d", index),
+                                .r32 = format("%%r%dd", index),
+                                .r16 = format("%%r%dw", index),
+                                .r8 = format("%%r%db", index)
+                            });
     }
 
     // init integer regs
@@ -102,9 +102,7 @@ void init_regs(void)
     // init floating regs
     for (int i = XMM0; i <= XMM15; i++) {
         const char *name = format("%%xmm%d", i - XMM0);
-        float_regs[i] = make_reg();
-        float_regs[i]->r64 = name;
-        float_regs[i]->r32 = name;
+        float_regs[i] = mkreg(&(struct reg){.r64 = name, .r32 = name});
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
     }

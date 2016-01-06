@@ -106,7 +106,6 @@ static struct operand * make_tmp_operand(void)
 static struct operand * make_label_operand(const char *label)
 {
     struct operand *operand = make_named_operand(label, &labels, GLOBAL);
-    SYM_X_KIND(operand->sym) = SYM_KIND_LABEL;
     return operand;
 }
 
@@ -998,7 +997,6 @@ static void emit_compound_literal(node_t *n)
 static void emit_ref(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
-    SYM_X_KIND(sym) = SYM_KIND_REF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
@@ -1476,6 +1474,12 @@ static void emit_function(node_t *decl)
 
     func_tacs = vec_new();
 
+    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(decl)); i++) {
+        node_t *lvar = DECL_X_LVARS(decl)[i];
+        node_t *sym = DECL_SYM(lvar);
+        SYM_X_ADDRS(sym) = vec_new1(make_stack_addr());
+    }
+
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
     DECL_X_TACS(decl) = func_tacs;
@@ -1521,6 +1525,7 @@ struct externals * ir(node_t *tree)
         node_t *sym = DECL_SYM(decl);
 
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+        SYM_X_ADDRS(sym) = vec_new1(make_memory_addr());
         
         if (isfuncdef(decl))
             emit_function(decl);
