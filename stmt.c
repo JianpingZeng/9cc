@@ -2,8 +2,8 @@
 
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
-static node_t ** local_decls(node_t **decls);
-static void filter_local(void);
+static node_t ** filter_decls(node_t **decls);
+static void filter_unused(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -49,7 +49,7 @@ static node_t *functype;
 static const char *funcname;
 static struct vector *staticvars;
 static struct vector *localvars;
-static struct vector *localdecls;
+static struct vector *allvars;
 
 static node_t *expr_stmt(void)
 {
@@ -194,7 +194,7 @@ static node_t *for_stmt(void)
     } else {
         if (first_decl(token)) {
             // declaration
-            STMT_FOR_DECL(ret) = local_decls(declaration());
+            STMT_FOR_DECL(ret) = filter_decls(declaration());
         } else {
             // expression
             STMT_FOR_INIT(ret) = expression();
@@ -530,7 +530,7 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token))
             // declaration
-            vec_add_array(v, (void **)local_decls(declaration()));
+            vec_add_array(v, (void **)filter_decls(declaration()));
         else
             // statement
             vec_push_safe(v, statement());
@@ -588,7 +588,7 @@ static void set_funcdef_context(node_t *fty, const char *name)
     funcname = name;
     staticvars = vec_new();
     localvars = vec_new();
-    localdecls = vec_new();
+    allvars = vec_new();
     funcalls = vec_new();
 }
 
@@ -604,8 +604,8 @@ static void restore_funcdef_context(void)
     staticvars = NULL;
     vec_free(localvars);
     localvars = NULL;
-    vec_free(localdecls);
-    localdecls = NULL;
+    vec_free(allvars);
+    allvars = NULL;
     vec_free(funcalls);
     funcalls = NULL;
 }
@@ -619,42 +619,43 @@ void func_body(node_t *decl)
     node_t *stmt = compound_stmt(predefined_ids);
     // check goto labels
     backfill_labels();
+    // check unused
+    filter_unused();
+
+    // save
     DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
     DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
-    DECL_X_CALLS(decl) = funcalls;
-    // check unused
-    filter_local();
+    DECL_X_CALLS(decl) = (node_t **)vtoa(funcalls);
     
     restore_funcdef_context();
 
     DECL_BODY(decl) = stmt;
 }
 
-static node_t ** local_decls(node_t **decls)
+static node_t ** filter_decls(node_t **decls)
 {
     for (int i = 0; i < LIST_LEN(decls); i++) {
         node_t *decl = decls[i];
         node_t *sym = DECL_SYM(decl);
-        int sclass = SYM_SCLASS(sym);
 
-        if (!isvardecl(decl) || sclass == EXTERN)
+        if (!isvardecl(decl) || SYM_SCLASS(sym) == EXTERN)
             continue;
 
-        vec_push(localdecls, decl);
+        vec_push(allvars, decl);
     }
     return decls;
 }
 
-static void filter_local(void)
+static void filter_unused(void)
 {
-    for (int i = 0; i < vec_len(localdecls); i++) {
-        node_t *decl = vec_at(localdecls, i);
+    for (int i = 0; i < vec_len(allvars); i++) {
+        node_t *decl = vec_at(allvars, i);
         node_t *sym = DECL_SYM(decl);
 
         if (SYM_REFS(sym) == 0) {
             if (!SYM_PREDEFINE(sym))
                 warningf(AST_SRC(sym),
-                     "unused variable '%s'", SYM_NAME(sym));
+                         "unused variable '%s'", SYM_NAME(sym));
         } else {
             if (SYM_SCLASS(sym) == STATIC) {
                 SYM_X_LABEL(sym) = gen_static_label();
@@ -669,6 +670,6 @@ static void filter_local(void)
 node_t *make_localvar(const char *name, node_t * ty, int sclass)
 {
     node_t *decl = make_localdecl(name, ty, sclass);
-    vec_push(localdecls, decl);
+    vec_push(allvars, decl);
     return decl;
 }

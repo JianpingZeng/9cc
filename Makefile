@@ -38,7 +38,6 @@ CC1_OBJ=alloc.o \
         type.o \
 	input.o \
 	initializer.o \
-	register.o \
 	ir.o \
         $(UTILS_OBJ)
 

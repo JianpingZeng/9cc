@@ -97,14 +97,15 @@ struct addr {
   op = IR_SUBSCRIPT:   sym[index]
   op = IR_INDIRECTION: *sym
  */
+struct uses {
+    bool live;
+    struct tac *use_tac;
+};
 struct operand {
     unsigned op:8;
     node_t *sym;
     node_t *index;
-    struct uses {
-        bool live;
-        struct tac *use_tac;
-    } uses;
+    struct uses uses;
 };
 
 // three-address code
@@ -162,7 +163,7 @@ union x {
     struct {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars
-        struct vector *calls;
+        node_t **calls;        // function calls
         struct vector *tacs;
     }decl;
     
@@ -183,16 +184,11 @@ union x {
     }stmt;
 };
 
-// register.c
-extern struct reg *rsp, *rbp, *rip;
-extern void init_regs(void);
-extern struct reg * get_reg(struct tac *tac);
+// gen.c
 extern struct addr * make_literal_addr(void);
 extern struct addr * make_memory_addr(void);
 extern struct addr * make_stack_addr(void);
 extern struct addr * make_register_addr(void);
-
-// gen.c
 extern void gen(struct externals *externals, FILE * fp);
 
 // ir.c

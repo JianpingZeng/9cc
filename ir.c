@@ -265,18 +265,33 @@ static void emit_decl(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
     node_t *init = DECL_BODY(decl);
-    
-    if (!isvardecl(decl))
-        return;
-    else if (SYM_SCLASS(sym) == EXTERN ||
-             SYM_SCLASS(sym) == STATIC)
-        return;
-    else if (!init)
-        return;
-    
-    struct operand *l = make_sym_operand(sym);
-    emit_expr(init);
-    emit_assign(SYM_TYPE(sym), l, init);
+
+    if (isfuncdecl(decl)) {
+        // function
+        if (!SYM_X_ADDRS(sym))
+                SYM_X_ADDRS(sym) = vec_new1(make_memory_addr());
+        
+    } else if (isvardecl(decl)) {
+        // vars
+        
+        if (SYM_SCLASS(sym) == EXTERN ||
+            SYM_SCLASS(sym) == STATIC) {
+            // external
+            if (!SYM_X_ADDRS(sym))
+                SYM_X_ADDRS(sym) = vec_new1(make_memory_addr());
+            
+        } else {
+            // local vars
+            if (!SYM_X_ADDRS(sym))
+                SYM_X_ADDRS(sym) = vec_new1(make_stack_addr());
+            
+            if (init) {
+                struct operand *l = make_sym_operand(sym);
+                emit_expr(init);
+                emit_assign(SYM_TYPE(sym), l, init);
+            }
+        }
+    }
 }
 
 static void emit_decls(node_t **decls)
@@ -1473,12 +1488,6 @@ static void emit_function(node_t *decl)
     node_t *stmt = DECL_BODY(decl);
 
     func_tacs = vec_new();
-
-    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(decl)); i++) {
-        node_t *lvar = DECL_X_LVARS(decl)[i];
-        node_t *sym = DECL_SYM(lvar);
-        SYM_X_ADDRS(sym) = vec_new1(make_stack_addr());
-    }
 
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
