@@ -129,6 +129,37 @@ static void init_regs(void)
     }
 }
 
+static struct reg * get_int_reg(struct tac *tac)
+{
+    
+}
+
+static struct reg * get_float_reg(struct tac *tac)
+{
+    
+}
+
+static void dispatch_reg(struct operand *operand)
+{
+    node_t *sym = operand->sym;
+    struct addr **addrs = SYM_X_ADDRS(sym);
+    
+    // if in reg
+    if (addrs[ADDR_REGISTER]) {
+        return;
+    }
+
+    // if has free reg
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
+        struct reg *reg = int_regs[i];
+        if (vec_len(reg->vars) == 0) {
+            // select
+
+            return;
+        }
+    }
+}
+
 /*
   Integer Conversion
 
@@ -226,39 +257,12 @@ static void init_regs(void)
   uint64 => int64: movq, movq
  */
 
-static struct reg * get_int_reg(struct tac *tac)
-{
-    
-}
-
-static struct reg * get_float_reg(struct tac *tac)
-{
-    
-}
-
 static void conv_si_si(struct tac *tac)
 {
-    
-}
-
-static void dispatch_reg(struct operand *operand)
-{
-    node_t *sym = operand->sym;
-    struct addr **addrs = SYM_X_ADDRS(sym);
-    
-    // if in reg
-    if (addrs[ADDR_REGISTER]) {
-        return;
-    }
-
-    // if has free reg
-    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
-        struct reg *reg = int_regs[i];
-        if (vec_len(reg->vars) == 0) {
-            // select
-
-            return;
-        }
+    if (tac->from_opsize < tac->to_opsize) {
+        // widden
+    } else if (tac->from_opsize > tac->to_opsize) {
+        // narrow
     }
 }
 
@@ -347,185 +351,24 @@ static struct addr * make_addr_with_type(int kind)
     return addr;
 }
 
-struct addr * make_literal_addr(void)
+static struct addr * make_literal_addr(void)
 {
     return make_addr_with_type(ADDR_LITERAL);
 }
 
-struct addr * make_memory_addr(void)
+static struct addr * make_memory_addr(void)
 {
     return make_addr_with_type(ADDR_MEMORY);
 }
 
-struct addr * make_stack_addr(void)
+static struct addr * make_stack_addr(void)
 {
     return make_addr_with_type(ADDR_STACK);
 }
 
-struct addr * make_register_addr(void)
+static struct addr * make_register_addr(void)
 {
     return make_addr_with_type(ADDR_REGISTER);
-}
-
-static struct bblock * alloc_bblock(void)
-{
-    struct bblock *blk = zmalloc(sizeof(struct bblock));
-    blk->tacs = vec_new();
-    return blk;
-}
-
-static struct bblock * make_bblock(struct vector *bblks)
-{
-    cc_assert(bblks);
-
-    struct bblock *current = vec_tail(bblks);
-    if (current == NULL || vec_len(current->tacs) > 0) {
-        struct bblock *blk = alloc_bblock();
-        vec_push(bblks, blk);
-        return blk;
-    } else {
-        return current;
-    }
-}
-
-static struct vector * construct_flow_graph(struct vector *tacs)
-{
-    struct vector *v = vec_new();
-    struct bblock *blk;
-    
-    for (int i = 0; i < vec_len(tacs); i++) {
-        struct tac *tac = vec_at(tacs, i);
-        if (i == 0) {
-            // new block
-            blk = make_bblock(v);
-        }
-
-        if (tac->op == IR_IF_I ||
-            tac->op == IR_IF_F ||
-            tac->op == IR_IF_FALSE_I ||
-            tac->op == IR_IF_FALSE_F ||
-            tac->op == IR_GOTO ||
-            tac->op == IR_RETURNI ||
-            tac->op == IR_RETURNF) {
-            vec_push(blk->tacs, tac);
-            // new block
-            blk = make_bblock(v);
-        } else if (tac->op == IR_LABEL) {
-            // new block
-            blk = make_bblock(v);
-            do {
-                vec_push(blk->tacs, tac);
-                i++;
-                if (i < vec_len(tacs))
-                    tac = vec_at(tacs, i);
-                else
-                    tac = NULL;
-            } while (tac && tac->op == IR_LABEL);
-            i--;
-        } else if (tac->op == IR_CALL) {
-            // new block
-            blk = make_bblock(v);
-            vec_push(blk->tacs, tac);
-        } else {
-            vec_push(blk->tacs, tac);
-        }
-    }
-    return v;
-}
-
-static void mark_die(node_t *sym)
-{
-    struct addr **addrs = SYM_X_ADDRS(sym);
-    if (addrs[ADDR_MEMORY] ||
-        addrs[ADDR_STACK] ||
-        addrs[ADDR_REGISTER]) {
-        SYM_X_USES(sym).live = false;
-        SYM_X_USES(sym).use_tac = NULL;
-    }
-}
-
-static void mark_live(node_t *sym, struct tac *tac)
-{
-    struct addr **addrs = SYM_X_ADDRS(sym);
-    if (addrs[ADDR_MEMORY] ||
-        addrs[ADDR_STACK] ||
-        addrs[ADDR_REGISTER]) {
-        SYM_X_USES(sym).live = true;
-        SYM_X_USES(sym).use_tac = tac;
-    }
-}
-
-static void scan_tac_uses(struct tac *tac)
-{
-    struct operand *result = tac->result;
-    struct operand *l = tac->args[0];
-    struct operand *r = tac->args[1];
-
-    if (result)
-        result->uses = SYM_X_USES(result->sym);
-    if (l)
-        l->uses = SYM_X_USES(l->sym);
-    if (r)
-        r->uses = SYM_X_USES(r->sym);
-    // mark
-    if (result)
-        mark_die(result->sym);
-    if (l)
-        mark_live(l->sym, tac);
-    if (r)
-        mark_live(r->sym, tac);
-}
-
-static void init_sym_uses(node_t *sym)
-{
-    struct addr **addrs = SYM_X_ADDRS(sym);
-    if (addrs[ADDR_MEMORY] ||
-        addrs[ADDR_STACK]) {
-        SYM_X_USES(sym).live = true;
-        SYM_X_USES(sym).use_tac = NULL;
-    } else {
-        SYM_X_USES(sym).live = false;
-        SYM_X_USES(sym).use_tac = NULL;
-    }
-}
-
-static void scan_init_blk(struct bblock *blk)
-{
-    for (int i = 0; i < vec_len(blk->tacs); i++) {
-        struct tac *tac = vec_at(blk->tacs, i);
-        struct operand *result = tac->result;
-        struct operand *l = tac->args[0];
-        struct operand *r = tac->args[1];
-        if (result)
-            init_sym_uses(result->sym);
-        if (l)
-            init_sym_uses(l->sym);
-        if (r)
-            init_sym_uses(r->sym);
-    }
-}
-
-static void scan_uses(struct vector *blks)
-{
-    for (int i = 0; i < vec_len(blks); i++) {
-        struct bblock *blk = vec_at(blks, i);
-        scan_init_blk(blk);
-        for (int j = vec_len(blk->tacs) - 1; j >= 0; j--) {
-            struct tac *tac = vec_at(blk->tacs, j);
-            scan_tac_uses(tac);
-        }
-    }
-}
-
-static void optimize_blk(struct bblock *blk)
-{
-    // TODO: 
-}
-
-static void optimize_blks(struct vector *blks)
-{
-    for (int i = 0; i < vec_len(blks); i++)
-        optimize_blk(vec_at(blks, i));
 }
 
 static void emit_tac(struct tac *tac)
@@ -569,9 +412,10 @@ static void emit_tac(struct tac *tac)
     case IR_CONV_F_SI:
     case IR_CONV_F_UI:
     case IR_CONV_SI_F:
+    case IR_CONV_UI_F:
+        break;
     case IR_CONV_SI_SI:
     case IR_CONV_SI_UI:
-    case IR_CONV_UI_F:
     case IR_CONV_UI_SI:
     case IR_CONV_UI_UI:
         break;
@@ -603,34 +447,97 @@ static void emit_tac(struct tac *tac)
     }
 }
 
-static void emit_blks(struct vector *blks)
+static void emit_tacs(struct vector *tacs)
 {
-    for (int i = 0; i < vec_len(blks); i++) {
-        struct bblock *blk = vec_at(blks, i);
-        for (int j = 0; j < vec_len(blk->tacs); j++) {
-            struct tac *tac = vec_at(blk->tacs, j);
-            emit_tac(tac);
-        }
+    for (int i = 0; i < vec_len(tacs); i++) {
+        struct tac *tac = vec_at(tacs, i);
+        emit_tac(tac);
     }
 }
 
-static struct vector * init_text(gdata_t *gdata)
+static void mark_die(node_t *sym)
 {
-    node_t *decl = GDATA_TEXT_DECL(gdata);
-    struct vector *tacs = DECL_X_TACS(decl);
-    struct vector *bblks = construct_flow_graph(tacs);
-    scan_uses(bblks);
-    optimize_blks(bblks);
-    for (int i = 0; i < vec_len(bblks); i++) {
-        struct bblock *blk = vec_at(bblks, i);
-        println("BLOCK#%d {", i);
-        for (int j = 0; j < vec_len(blk->tacs); j++) {
-            struct tac *tac = vec_at(blk->tacs, j);
-            print_tac(tac);
-        }
-        println("}\n");
+    int kind = SYM_X_KIND(sym);
+    if (kind == SYM_KIND_REF ||
+        kind == SYM_KIND_TMP) {
+        SYM_X_USES(sym).live = false;
+        SYM_X_USES(sym).use_tac = NULL;
     }
-    return bblks;
+}
+
+static void mark_live(node_t *sym, struct tac *tac)
+{
+    int kind = SYM_X_KIND(sym);
+    if (kind == SYM_KIND_REF ||
+        kind == SYM_KIND_TMP) {
+        SYM_X_USES(sym).live = true;
+        SYM_X_USES(sym).use_tac = tac;
+    }
+}
+
+static void scan_tac_uses(struct tac *tac)
+{
+    struct operand *result = tac->result;
+    struct operand *l = tac->args[0];
+    struct operand *r = tac->args[1];
+
+    if (result)
+        result->uses = SYM_X_USES(result->sym);
+    if (l)
+        l->uses = SYM_X_USES(l->sym);
+    if (r)
+        r->uses = SYM_X_USES(r->sym);
+    // mark
+    if (result)
+        mark_die(result->sym);
+    if (l)
+        mark_live(l->sym, tac);
+    if (r)
+        mark_live(r->sym, tac);
+}
+
+static void init_sym_uses(node_t *sym)
+{
+    struct addr **addrs = SYM_X_ADDRS(sym);
+    if (addrs[ADDR_MEMORY] ||
+        addrs[ADDR_STACK]) {
+        SYM_X_USES(sym).live = true;
+        SYM_X_USES(sym).use_tac = NULL;
+    } else {
+        SYM_X_USES(sym).live = false;
+        SYM_X_USES(sym).use_tac = NULL;
+    }
+}
+
+static void init_tacs(struct vector *tacs)
+{
+    for (int i = 0; i < vec_len(tacs); i++) {
+        struct tac *tac = vec_at(tacs, i);
+        struct operand *result = tac->result;
+        struct operand *l = tac->args[0];
+        struct operand *r = tac->args[1];
+        if (result)
+            init_sym_uses(result->sym);
+        if (l)
+            init_sym_uses(l->sym);
+        if (r)
+            init_sym_uses(r->sym);
+    }
+}
+
+static void scan_tacs(struct vector *tacs)
+{
+    for (int i = vec_len(tacs) - 1; i >= 0; i--) {
+        struct tac *tac = vec_at(tacs, i);
+        scan_tac_uses(tac);
+    }
+}
+
+static void init_text(node_t *decl)
+{
+    struct vector *tacs = DECL_X_TACS(decl);
+    init_tacs(tacs);
+    scan_tacs(tacs);
 }
 
 static size_t call_stack_size(node_t *decl)
@@ -683,7 +590,7 @@ static size_t call_stack_size(node_t *decl)
   +---------------+ <--- rsp
  */
 
-static void emit_text(gdata_t *gdata)
+static void emit_function_prologue(gdata_t *gdata)
 {
     node_t *decl = GDATA_TEXT_DECL(gdata);
     
@@ -697,14 +604,12 @@ static void emit_text(gdata_t *gdata)
     size_t offset = 0;
 
     // local vars
-    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(decl)); i++) {
+    for (int i = LIST_LEN(DECL_X_LVARS(decl)) - 1; i >= 0; i--) {
         node_t *lvar = DECL_X_LVARS(decl)[i];
         node_t *sym = DECL_SYM(lvar);
         size_t tysize = TYPE_SIZE(SYM_TYPE(sym));
         offset += ROUNDUP(tysize, 8);
-        struct addr *addr = vec_head(SYM_X_ADDRS(sym));
-        addr->reg = rbp;
-        addr->offset = -offset;
+        SYM_X_LOFF(sym) = - offset;
     }
 
     // params
@@ -720,12 +625,23 @@ static void emit_text(gdata_t *gdata)
 
     if (offset > 0)
         emit("subq $%llu, %s", offset, rsp->r64);
+}
 
-    // init
-    struct vector *bblks = init_text(gdata);
-    emit_blks(bblks);
+static void emit_function_epilogue(gdata_t *gdata)
+{
     emit("leave");
     emit("ret");
+}
+
+static void emit_text(gdata_t *gdata)
+{
+    node_t *decl = GDATA_TEXT_DECL(gdata);
+    
+    emit_function_prologue(gdata);
+    // init
+    init_text(decl);
+    emit_tacs(DECL_X_TACS(decl));
+    emit_function_epilogue(gdata);
 }
 
 static void emit_data(gdata_t *gdata)

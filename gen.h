@@ -80,6 +80,13 @@ typedef union {
 } gdata_t;
 
 enum {
+    SYM_KIND_LABEL,
+    SYM_KIND_LITERAL,
+    SYM_KIND_REF,
+    SYM_KIND_TMP,
+};
+
+enum {
     ADDR_LITERAL,
     ADDR_MEMORY,
     ADDR_STACK,
@@ -120,11 +127,6 @@ struct tac {
     struct operand *result;
 };
 
-// basic block
-struct bblock {
-    struct vector *tacs;
-};
-
 // externals
 struct externals {
     struct vector *gdatas;
@@ -137,6 +139,8 @@ struct externals {
 #define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.sym.label)
 #define SYM_X_USES(NODE)      ((NODE)->symbol.x.sym.uses)
 #define SYM_X_ADDRS(NODE)     ((NODE)->symbol.x.sym.addrs)
+#define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
+#define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 // decl
 #define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
@@ -154,7 +158,9 @@ struct externals {
 union x {
     struct {
         const char *label;
-
+        long loff;              // local offset (<0)
+        // kind
+        int kind;
         // uses
         struct uses uses;
         // addrs
@@ -186,10 +192,6 @@ union x {
 };
 
 // gen.c
-extern struct addr * make_literal_addr(void);
-extern struct addr * make_memory_addr(void);
-extern struct addr * make_stack_addr(void);
-extern struct addr * make_register_addr(void);
 extern void gen(struct externals *externals, FILE * fp);
 
 // ir.c

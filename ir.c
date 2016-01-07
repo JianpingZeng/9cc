@@ -99,13 +99,14 @@ static struct operand * make_named_operand(const char *name, struct table **tabl
 static struct operand * make_tmp_operand(void)
 {
     struct operand *operand = make_named_operand(gen_tmpname_r(), &tmps, GLOBAL);
-    SYM_X_ADDRS(operand->sym)[ADDR_REGISTER] = make_register_addr();
+    SYM_X_KIND(operand->sym) = SYM_KIND_TMP;
     return operand;
 }
 
 static struct operand * make_label_operand(const char *label)
 {
     struct operand *operand = make_named_operand(label, &labels, GLOBAL);
+    SYM_X_KIND(operand->sym) = SYM_KIND_LABEL;
     return operand;
 }
 
@@ -113,7 +114,7 @@ static struct operand * make_int_operand(long long i)
 {
     struct operand *operand = make_named_operand(strd(i), &constants, CONSTANT);
     SYM_VALUE_I(operand->sym) = i;
-    SYM_X_ADDRS(operand->sym)[ADDR_LITERAL] = make_literal_addr();
+    SYM_X_KIND(operand->sym) = SYM_KIND_LITERAL;
     return operand;
 }
 
@@ -121,7 +122,7 @@ static struct operand * make_unsigned_operand(unsigned long long u)
 {
     struct operand *operand = make_named_operand(stru(u), &constants, CONSTANT);
     SYM_VALUE_U(operand->sym) = u;
-    SYM_X_ADDRS(operand->sym)[ADDR_LITERAL] = make_literal_addr();
+    SYM_X_KIND(operand->sym) = SYM_KIND_LITERAL;
     return operand;
 }
 
@@ -265,33 +266,17 @@ static void emit_decl(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
     node_t *init = DECL_BODY(decl);
+    if (!isvardecl(decl))
+        return;
+    else if (SYM_SCLASS(sym) == EXTERN ||
+             SYM_SCLASS(sym) == STATIC)
+        return;
+    else if (!init)
+        return;
 
-    if (isfuncdecl(decl)) {
-        // function
-        if (!SYM_X_ADDRS(sym))
-            SYM_X_ADDRS(sym)[ADDR_MEMORY] = make_memory_addr();
-        
-    } else if (isvardecl(decl)) {
-        // vars
-        
-        if (SYM_SCLASS(sym) == EXTERN ||
-            SYM_SCLASS(sym) == STATIC) {
-            // external
-            if (!SYM_X_ADDRS(sym))
-                SYM_X_ADDRS(sym)[ADDR_MEMORY] = make_memory_addr();
-            
-        } else {
-            // local vars
-            if (!SYM_X_ADDRS(sym))
-                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr();
-            
-            if (init) {
-                struct operand *l = make_sym_operand(sym);
-                emit_expr(init);
-                emit_assign(SYM_TYPE(sym), l, init);
-            }
-        }
-    }
+    struct operand *l = make_sym_operand(sym);
+    emit_expr(init);
+    emit_assign(SYM_TYPE(sym), l, init);
 }
 
 static void emit_decls(node_t **decls)
@@ -967,7 +952,7 @@ static void emit_integer_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     SYM_X_LABEL(sym) = stru(SYM_VALUE_U(sym));
-    SYM_X_ADDRS(sym)[ADDR_LITERAL] = make_literal_addr();
+    SYM_X_KIND(sym) = SYM_KIND_LITERAL;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
@@ -986,7 +971,7 @@ static void emit_float_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_float_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    SYM_X_ADDRS(sym)[ADDR_LITERAL] = make_literal_addr();
+    SYM_X_KIND(sym) = SYM_KIND_LITERAL;
     EXPR_X_ADDR(n) = make_indirection_operand(sym);
 }
 
@@ -995,15 +980,16 @@ static void emit_string_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_string_literal_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    SYM_X_ADDRS(sym)[ADDR_MEMORY] = make_memory_addr();
+    SYM_X_KIND(sym) = SYM_KIND_REF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_compound_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
-    SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr();
+    SYM_X_KIND(sym) = SYM_KIND_REF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
+    
     node_t *l = EXPR_OPERAND(n, 0);
     emit_expr(l);
     emit_assign(AST_TYPE(n), EXPR_X_ADDR(n), l);
@@ -1012,6 +998,7 @@ static void emit_compound_literal(node_t *n)
 static void emit_ref(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
+    SYM_X_KIND(sym) = SYM_KIND_REF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
@@ -1534,7 +1521,6 @@ struct externals * ir(node_t *tree)
         node_t *sym = DECL_SYM(decl);
 
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
-        SYM_X_ADDRS(sym)[ADDR_MEMORY] = make_memory_addr();
         
         if (isfuncdef(decl))
             emit_function(decl);
