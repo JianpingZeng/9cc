@@ -611,8 +611,7 @@ static void emit_function_prologue(gdata_t *gdata)
         node_t *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
         int align = TYPE_ALIGN(ty);
-        localsize = ROUNDUP(localsize, align);
-        localsize += size;
+        localsize = ROUNDUP(localsize, align) + size;
         SYM_X_LOFF(sym) = - localsize;
         dlog("%s: %ld(%s)", SYM_X_LABEL(sym), SYM_X_LOFF(sym), rbp->r64);
     }
@@ -624,6 +623,7 @@ static void emit_function_prologue(gdata_t *gdata)
     int num_int = 0;
     int num_float = 0;
     int num_struct = 0;
+    size_t stack_off = 16;      // rbp+16
     for (int i = 0; i < LIST_LEN(args); i++) {
         node_t *sym = args[i];
         node_t *ty = SYM_TYPE(sym);
@@ -635,6 +635,7 @@ static void emit_function_prologue(gdata_t *gdata)
                 
             } else {
                 struct reg *ireg = iarg_regs[num_int-1];
+                // mov ireg, local
             }
         } else if (isfloat(ty)) {
             num_float++;
