@@ -147,13 +147,11 @@ static void conv_si_si(struct tac *tac)
 static void dispatch_reg(struct operand *operand)
 {
     node_t *sym = operand->sym;
-
+    struct addr **addrs = SYM_X_ADDRS(sym);
+    
     // if in reg
-    for (int i = 0; i < vec_len(SYM_X_ADDRS(sym)); i++) {
-        struct addr *addr = vec_at(SYM_X_ADDRS(sym), i);
-        if (addr->kind == ADDR_TYPE_REGISTER ||
-            addr->kind == ADDR_TYPE_LITERAL)
-            return;
+    if (addrs[ADDR_REGISTER]) {
+        return;
     }
 
     // if has free reg
@@ -254,22 +252,22 @@ static struct addr * make_addr_with_type(int kind)
 
 struct addr * make_literal_addr(void)
 {
-    return make_addr_with_type(ADDR_TYPE_LITERAL);
+    return make_addr_with_type(ADDR_LITERAL);
 }
 
 struct addr * make_memory_addr(void)
 {
-    return make_addr_with_type(ADDR_TYPE_MEMORY);
+    return make_addr_with_type(ADDR_MEMORY);
 }
 
 struct addr * make_stack_addr(void)
 {
-    return make_addr_with_type(ADDR_TYPE_STACK);
+    return make_addr_with_type(ADDR_STACK);
 }
 
 struct addr * make_register_addr(void)
 {
-    return make_addr_with_type(ADDR_TYPE_REGISTER);
+    return make_addr_with_type(ADDR_REGISTER);
 }
 
 static struct bblock * alloc_bblock(void)
@@ -338,19 +336,12 @@ static struct vector * construct_flow_graph(struct vector *tacs)
     return v;
 }
 
-static int addr_type(node_t *sym)
-{
-    struct vector *addrs = SYM_X_ADDRS(sym);
-    struct addr *addr = vec_at(addrs, 0);
-    return addr->kind;
-}
-
 static void mark_die(node_t *sym)
 {
-    int kind = addr_type(sym);
-    if (kind == ADDR_TYPE_MEMORY ||
-        kind == ADDR_TYPE_STACK ||
-        kind == ADDR_TYPE_REGISTER) {
+    struct addr **addrs = SYM_X_ADDRS(sym);
+    if (addrs[ADDR_MEMORY] ||
+        addrs[ADDR_STACK] ||
+        addrs[ADDR_REGISTER]) {
         SYM_X_USES(sym).live = false;
         SYM_X_USES(sym).use_tac = NULL;
     }
@@ -358,10 +349,10 @@ static void mark_die(node_t *sym)
 
 static void mark_live(node_t *sym, struct tac *tac)
 {
-    int kind = addr_type(sym);
-    if (kind == ADDR_TYPE_MEMORY ||
-        kind == ADDR_TYPE_STACK ||
-        kind == ADDR_TYPE_REGISTER) {
+    struct addr **addrs = SYM_X_ADDRS(sym);
+    if (addrs[ADDR_MEMORY] ||
+        addrs[ADDR_STACK] ||
+        addrs[ADDR_REGISTER]) {
         SYM_X_USES(sym).live = true;
         SYM_X_USES(sym).use_tac = tac;
     }
@@ -390,9 +381,9 @@ static void scan_tac_uses(struct tac *tac)
 
 static void init_sym_uses(node_t *sym)
 {
-    int kind = addr_type(sym);
-    if (kind == ADDR_TYPE_MEMORY ||
-        kind == ADDR_TYPE_STACK) {
+    struct addr **addrs = SYM_X_ADDRS(sym);
+    if (addrs[ADDR_MEMORY] ||
+        addrs[ADDR_STACK]) {
         SYM_X_USES(sym).live = true;
         SYM_X_USES(sym).use_tac = NULL;
     } else {
@@ -624,7 +615,7 @@ static void emit_text(gdata_t *gdata)
     node_t **args = TYPE_PARAMS(ty);
     for (int i = 0; i < LIST_LEN(args); i++) {
         node_t *arg = args[i];
-        SYM_X_ADDRS(arg) = vec_new1(make_stack_addr());
+        SYM_X_ADDRS(arg)[ADDR_STACK] = make_stack_addr();
     }
 
     // calls

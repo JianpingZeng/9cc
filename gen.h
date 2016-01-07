@@ -80,10 +80,11 @@ typedef union {
 } gdata_t;
 
 enum {
-    ADDR_TYPE_LITERAL,
-    ADDR_TYPE_MEMORY,
-    ADDR_TYPE_STACK,
-    ADDR_TYPE_REGISTER
+    ADDR_LITERAL,
+    ADDR_MEMORY,
+    ADDR_STACK,
+    ADDR_REGISTER,
+    ADDR_NUM
 };
 
 struct addr {
@@ -157,7 +158,7 @@ union x {
         // uses
         struct uses uses;
         // addrs
-        struct vector *addrs;
+        struct addr *addrs[ADDR_NUM];
     }sym;
     
     struct {

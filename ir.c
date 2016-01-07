@@ -99,7 +99,7 @@ static struct operand * make_named_operand(const char *name, struct table **tabl
 static struct operand * make_tmp_operand(void)
 {
     struct operand *operand = make_named_operand(gen_tmpname_r(), &tmps, GLOBAL);
-    SYM_X_ADDRS(operand->sym) = vec_new1(make_register_addr());
+    SYM_X_ADDRS(operand->sym)[ADDR_REGISTER] = make_register_addr();
     return operand;
 }
 
@@ -113,7 +113,7 @@ static struct operand * make_int_operand(long long i)
 {
     struct operand *operand = make_named_operand(strd(i), &constants, CONSTANT);
     SYM_VALUE_I(operand->sym) = i;
-    SYM_X_ADDRS(operand->sym) = vec_new1(make_literal_addr());
+    SYM_X_ADDRS(operand->sym)[ADDR_LITERAL] = make_literal_addr();
     return operand;
 }
 
@@ -121,7 +121,7 @@ static struct operand * make_unsigned_operand(unsigned long long u)
 {
     struct operand *operand = make_named_operand(stru(u), &constants, CONSTANT);
     SYM_VALUE_U(operand->sym) = u;
-    SYM_X_ADDRS(operand->sym) = vec_new1(make_literal_addr());
+    SYM_X_ADDRS(operand->sym)[ADDR_LITERAL] = make_literal_addr();
     return operand;
 }
 
@@ -269,7 +269,7 @@ static void emit_decl(node_t *decl)
     if (isfuncdecl(decl)) {
         // function
         if (!SYM_X_ADDRS(sym))
-                SYM_X_ADDRS(sym) = vec_new1(make_memory_addr());
+            SYM_X_ADDRS(sym)[ADDR_MEMORY] = make_memory_addr();
         
     } else if (isvardecl(decl)) {
         // vars
@@ -278,12 +278,12 @@ static void emit_decl(node_t *decl)
             SYM_SCLASS(sym) == STATIC) {
             // external
             if (!SYM_X_ADDRS(sym))
-                SYM_X_ADDRS(sym) = vec_new1(make_memory_addr());
+                SYM_X_ADDRS(sym)[ADDR_MEMORY] = make_memory_addr();
             
         } else {
             // local vars
             if (!SYM_X_ADDRS(sym))
-                SYM_X_ADDRS(sym) = vec_new1(make_stack_addr());
+                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr();
             
             if (init) {
                 struct operand *l = make_sym_operand(sym);
@@ -967,7 +967,7 @@ static void emit_integer_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     SYM_X_LABEL(sym) = stru(SYM_VALUE_U(sym));
-    SYM_X_ADDRS(sym) = vec_new1(make_literal_addr());
+    SYM_X_ADDRS(sym)[ADDR_LITERAL] = make_literal_addr();
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
@@ -986,7 +986,7 @@ static void emit_float_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_float_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    SYM_X_ADDRS(sym) = vec_new1(make_literal_addr());
+    SYM_X_ADDRS(sym)[ADDR_LITERAL] = make_literal_addr();
     EXPR_X_ADDR(n) = make_indirection_operand(sym);
 }
 
@@ -995,14 +995,14 @@ static void emit_string_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_string_literal_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    SYM_X_ADDRS(sym) = vec_new1(make_memory_addr());
+    SYM_X_ADDRS(sym)[ADDR_MEMORY] = make_memory_addr();
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_compound_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
-    SYM_X_ADDRS(sym) = vec_new1(make_stack_addr());
+    SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr();
     EXPR_X_ADDR(n) = make_sym_operand(sym);
     node_t *l = EXPR_OPERAND(n, 0);
     emit_expr(l);
@@ -1534,7 +1534,7 @@ struct externals * ir(node_t *tree)
         node_t *sym = DECL_SYM(decl);
 
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
-        SYM_X_ADDRS(sym) = vec_new1(make_memory_addr());
+        SYM_X_ADDRS(sym)[ADDR_MEMORY] = make_memory_addr();
         
         if (isfuncdef(decl))
             emit_function(decl);
