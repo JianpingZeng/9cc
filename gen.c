@@ -351,11 +351,6 @@ static struct addr * make_addr_with_type(int kind)
     return addr;
 }
 
-static struct addr * make_literal_addr(void)
-{
-    return make_addr_with_type(ADDR_LITERAL);
-}
-
 static struct addr * make_memory_addr(void)
 {
     return make_addr_with_type(ADDR_MEMORY);
@@ -540,34 +535,40 @@ static void init_text(node_t *decl)
     scan_tacs(tacs);
 }
 
-static size_t call_stack_size(node_t *decl)
+static size_t call_stack_size(node_t *call)
+{
+    node_t **args = EXPR_ARGS(call);
+    size_t extra_size = 0;
+    int num_int = 0;
+    int num_float = 0;
+    for (int i = 0; i < LIST_LEN(args); i++) {
+        node_t *ty = AST_TYPE(args[i]);
+        size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
+        
+        if (isint(ty) || isptr(ty)) {
+            num_int++;
+            if (num_int > NUM_IARG_REGS)
+                extra_size += size;
+        } else if (isfloat(ty)) {
+            num_float++;
+            if (num_float > NUM_FARG_REGS)
+                extra_size += size;
+        } else if (isstruct(ty) || isunion(ty)) {
+            extra_size += size;
+        } else {
+            cc_assert(0);
+        }
+    }
+    return extra_size;
+}
+
+static size_t extra_stack_size(node_t *decl)
 {
     size_t extra_stack_size = 0;
     node_t **calls = DECL_X_CALLS(decl);
     for (int i = 0; i < LIST_LEN(calls); i++) {
         node_t *call = calls[i];
-        node_t **args = EXPR_ARGS(call);
-
-        size_t size = 0;
-        int num_int = 0;
-        int num_float = 0;
-        for (int j = 0; j < LIST_LEN(args); j++) {
-            node_t *ty = AST_TYPE(args[j]);
-            size_t typesize = ROUNDUP(TYPE_SIZE(ty), 8);
-            if (isint(ty) || isptr(ty)) {
-                num_int++;
-                if (num_int > NUM_IARG_REGS)
-                    size += typesize;
-            } else if (isfloat(ty)) {
-                num_float++;
-                if (num_float > NUM_FARG_REGS)
-                    size += typesize;
-            } else if (isstruct(ty) || isunion(ty)) {
-                size += typesize;
-            } else {
-                cc_assert(0);
-            }
-        }
+        size_t size = call_stack_size(call);
         extra_stack_size = MAX(extra_stack_size, size);
     }
     return extra_stack_size;
@@ -576,18 +577,19 @@ static size_t call_stack_size(node_t *decl)
 /*
   stack layout
 
-  | ...           |
-  +---------------+ <--- rbp+16
-  | return address|
-  +---------------+ <--- rbp+8
-  | saved rbp     |
-  +---------------+ <--- rbp
-  | local vars    |
-  +---------------+
-  | params        |
-  +---------------+
-  | call params   |
-  +---------------+ <--- rsp
+  High  | ...           |
+        +---------------+ <--- rbp+16
+        | return address|
+        +---------------+ <--- rbp+8
+        | saved rbp     |
+        +---------------+ <--- rbp
+        | local vars    |
+        +---------------+
+        | params        |
+        +---------------+
+        | call params   |
+  Low   +---------------+ <--- rsp
+        | ...           |
  */
 
 static void emit_function_prologue(gdata_t *gdata)
@@ -601,30 +603,59 @@ static void emit_function_prologue(gdata_t *gdata)
     emit("pushq %s", rbp->r64);
     emit("movq %s, %s", rsp->r64, rbp->r64);
 
-    size_t offset = 0;
-
+    size_t localsize = 0;
     // local vars
     for (int i = LIST_LEN(DECL_X_LVARS(decl)) - 1; i >= 0; i--) {
         node_t *lvar = DECL_X_LVARS(decl)[i];
         node_t *sym = DECL_SYM(lvar);
-        size_t tysize = TYPE_SIZE(SYM_TYPE(sym));
-        offset += ROUNDUP(tysize, 8);
-        SYM_X_LOFF(sym) = - offset;
+        node_t *ty = SYM_TYPE(sym);
+        size_t size = TYPE_SIZE(ty);
+        int align = TYPE_ALIGN(ty);
+        localsize = ROUNDUP(localsize, align);
+        localsize += size;
+        SYM_X_LOFF(sym) = - localsize;
+        dlog("%s: %ld(%s)", SYM_X_LABEL(sym), SYM_X_LOFF(sym), rbp->r64);
     }
+    localsize = ROUNDUP(localsize, 16);
 
     // params
     node_t *ty = SYM_TYPE(DECL_SYM(decl));
     node_t **args = TYPE_PARAMS(ty);
+    int num_int = 0;
+    int num_float = 0;
+    int num_struct = 0;
     for (int i = 0; i < LIST_LEN(args); i++) {
-        node_t *arg = args[i];
-        SYM_X_ADDRS(arg)[ADDR_STACK] = make_stack_addr();
+        node_t *sym = args[i];
+        node_t *ty = SYM_TYPE(sym);
+        size_t size = TYPE_SIZE(ty);
+        int align = TYPE_ALIGN(ty);
+        if (isint(ty) || isptr(ty)) {
+            num_int++;
+            if (num_int > NUM_IARG_REGS) {
+                
+            } else {
+                struct reg *ireg = iarg_regs[num_int-1];
+            }
+        } else if (isfloat(ty)) {
+            num_float++;
+            if (num_float > NUM_FARG_REGS) {
+                
+            } else {
+                
+            }
+        } else if (isstruct(ty) || isunion(ty)) {
+            // set offset
+        } else {
+            cc_assert(0);
+        }
     }
+    localsize = ROUNDUP(localsize, 16);
 
     // calls
-    offset += call_stack_size(decl);
+    localsize += extra_stack_size(decl);
 
-    if (offset > 0)
-        emit("subq $%llu, %s", offset, rsp->r64);
+    if (localsize > 0)
+        emit("subq $%llu, %s", localsize, rsp->r64);
 }
 
 static void emit_function_epilogue(gdata_t *gdata)

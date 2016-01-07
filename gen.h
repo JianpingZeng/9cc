@@ -87,7 +87,6 @@ enum {
 };
 
 enum {
-    ADDR_LITERAL,
     ADDR_MEMORY,
     ADDR_STACK,
     ADDR_REGISTER,
