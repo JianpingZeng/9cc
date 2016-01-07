@@ -41,19 +41,25 @@ static struct reg *farg_regs[NUM_FARG_REGS];
 static struct reg *int_regs[INT_REGS];
 static struct reg *float_regs[FLOAT_REGS];
 static struct reg * rsp = &(struct reg){
-    .r64 = "%rsp",
-    .r32 = "%esp",
-    .r16 = "%sp"
+    .r[Q] = "%rsp",
+    .r[L] = "%esp",
+    .r[W] = "%sp"
 };
 static struct reg * rbp = &(struct reg){
-    .r64 = "%rbp",
-    .r32 = "%ebp",
-    .r16 = "%bp"
+    .r[Q] = "%rbp",
+    .r[L] = "%ebp",
+    .r[W] = "%bp"
 };
 static struct reg * rip = &(struct reg){
-    .r64 = "%rip",
-    .r32 = "%eip",
-    .r16 = "%ip"
+    .r[Q] = "%rip",
+    .r[L] = "%eip",
+    .r[W] = "%ip"
+};
+static int idx[] = {
+    -1, B, W, -1, L, -1, -1, -1, Q
+};
+static const char *suffix[] = {
+    "b", "w", "l", "q"
 };
 
 static void emit(const char *fmt, ...)
@@ -84,31 +90,49 @@ static inline struct reg *mkreg(struct reg *r)
 
 static void init_regs(void)
 {
-    int_regs[RAX] = mkreg(&(struct reg)
-                          {.r64 = "%rax", .r32 = "%eax", .r16 = "%ax", .r8 = "%al"});
+    int_regs[RAX] = mkreg(&(struct reg){
+            .r[Q] = "%rax",
+                .r[L] = "%eax",
+                .r[W] = "%ax",
+                .r[B] = "%al"});
 
-    int_regs[RBX] = mkreg(&(struct reg)
-                          {.r64 = "%rbx", .r32 = "%ebx", .r16 = "%bx", .r8 = "%bl"});
+    int_regs[RBX] = mkreg(&(struct reg){
+            .r[Q] = "%rbx",
+                .r[L] = "%ebx",
+                .r[W] = "%bx",
+                .r[B] = "%bl"});
     
-    int_regs[RCX] = mkreg(&(struct reg)
-                          {.r64 = "%rcx", .r32 = "%ecx", .r16 = "%cx", .r8 = "%cl"});
+    int_regs[RCX] = mkreg(&(struct reg){
+            .r[Q] = "%rcx",
+                .r[L] = "%ecx",
+                .r[W] = "%cx",
+                .r[B] = "%cl"});
     
-    int_regs[RDX] = mkreg(&(struct reg)
-                          {.r64 = "%rdx", .r32 = "%edx", .r16 = "%dx", .r8 = "%dl"});
+    int_regs[RDX] = mkreg(&(struct reg){
+            .r[Q] = "%rdx",
+                .r[L] = "%edx",
+                .r[W] = "%dx",
+                .r[B] = "%dl"});
 
-    int_regs[RSI] = mkreg(&(struct reg)
-                          {.r64 = "%rsi", .r32 = "%esi", .r16 = "%si", .r8 = "%sil"});
+    int_regs[RSI] = mkreg(&(struct reg){
+            .r[Q] = "%rsi",
+                .r[L] = "%esi",
+                .r[W] = "%si",
+                .r[B] = "%sil"});
 
-    int_regs[RDI] = mkreg(&(struct reg)
-                          {.r64 = "%rdi", .r32 = "%edi", .r16 = "%di", .r8 = "%dil"});
+    int_regs[RDI] = mkreg(&(struct reg){
+            .r[Q] = "%rdi",
+                .r[L] = "%edi",
+                .r[W] = "%di",
+                .r[B] = "%dil"});
 
     for (int i = R8; i <= R15; i++) {
         int index = i - R8 + 8;
         int_regs[i] = mkreg(&(struct reg){
-                                .r64 = format("%%r%d", index),
-                                .r32 = format("%%r%dd", index),
-                                .r16 = format("%%r%dw", index),
-                                .r8 = format("%%r%db", index)
+                                .r[Q] = format("%%r%d", index),
+                                .r[L] = format("%%r%dd", index),
+                                .r[W] = format("%%r%dw", index),
+                                .r[B] = format("%%r%db", index)
                             });
     }
 
@@ -123,7 +147,7 @@ static void init_regs(void)
     // init floating regs
     for (int i = XMM0; i <= XMM15; i++) {
         const char *name = format("%%xmm%d", i - XMM0);
-        float_regs[i] = mkreg(&(struct reg){.r64 = name, .r32 = name});
+        float_regs[i] = mkreg(&(struct reg){.r[Q] = name, .r[L] = name});
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
     }
@@ -344,27 +368,27 @@ static void get_reg(struct tac *tac)
     }
 }
 
-static struct addr * make_addr_with_type(int kind)
-{
-    struct addr *addr = zmalloc(sizeof(struct addr));
-    addr->kind = kind;
-    return addr;
-}
+// static struct addr * make_addr_with_type(int kind)
+// {
+//     struct addr *addr = zmalloc(sizeof(struct addr));
+//     addr->kind = kind;
+//     return addr;
+// }
 
-static struct addr * make_memory_addr(void)
-{
-    return make_addr_with_type(ADDR_MEMORY);
-}
+// static struct addr * make_memory_addr(void)
+// {
+//     return make_addr_with_type(ADDR_MEMORY);
+// }
 
-static struct addr * make_stack_addr(void)
-{
-    return make_addr_with_type(ADDR_STACK);
-}
+// static struct addr * make_stack_addr(void)
+// {
+//     return make_addr_with_type(ADDR_STACK);
+// }
 
-static struct addr * make_register_addr(void)
-{
-    return make_addr_with_type(ADDR_REGISTER);
-}
+// static struct addr * make_register_addr(void)
+// {
+//     return make_addr_with_type(ADDR_REGISTER);
+// }
 
 static void emit_tac(struct tac *tac)
 {
@@ -600,8 +624,8 @@ static void emit_function_prologue(gdata_t *gdata)
         emit(".globl %s", GDATA_LABEL(gdata));
     emit(".text");
     emit_noindent("%s:", GDATA_LABEL(gdata));
-    emit("pushq %s", rbp->r64);
-    emit("movq %s, %s", rsp->r64, rbp->r64);
+    emit("pushq %s", rbp->r[Q]);
+    emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
 
     size_t localsize = 0;
     // local vars
@@ -613,39 +637,24 @@ static void emit_function_prologue(gdata_t *gdata)
         int align = TYPE_ALIGN(ty);
         localsize = ROUNDUP(localsize, align) + size;
         SYM_X_LOFF(sym) = - localsize;
-        dlog("%s: %ld(%s)", SYM_X_LABEL(sym), SYM_X_LOFF(sym), rbp->r64);
     }
     localsize = ROUNDUP(localsize, 16);
 
     // params
     node_t *ty = SYM_TYPE(DECL_SYM(decl));
     node_t **args = TYPE_PARAMS(ty);
-    int num_int = 0;
-    int num_float = 0;
-    int num_struct = 0;
     size_t stack_off = 16;      // rbp+16
     for (int i = 0; i < LIST_LEN(args); i++) {
         node_t *sym = args[i];
         node_t *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
         int align = TYPE_ALIGN(ty);
-        if (isint(ty) || isptr(ty)) {
-            num_int++;
-            if (num_int > NUM_IARG_REGS) {
-                
-            } else {
-                struct reg *ireg = iarg_regs[num_int-1];
-                // mov ireg, local
-            }
-        } else if (isfloat(ty)) {
-            num_float++;
-            if (num_float > NUM_FARG_REGS) {
-                
-            } else {
-                
-            }
+        if (isscalar(ty)) {
+            localsize = ROUNDUP(localsize, align) + size;
+            SYM_X_LOFF(sym) = - localsize;
         } else if (isstruct(ty) || isunion(ty)) {
-            // set offset
+            SYM_X_LOFF(sym) = stack_off;
+            stack_off += ROUNDUP(size, 8);
         } else {
             cc_assert(0);
         }
@@ -656,7 +665,42 @@ static void emit_function_prologue(gdata_t *gdata)
     localsize += extra_stack_size(decl);
 
     if (localsize > 0)
-        emit("subq $%llu, %s", localsize, rsp->r64);
+        emit("subq $%llu, %s", localsize, rsp->r[Q]);
+}
+
+static void emit_function_params(node_t *decl)
+{
+    node_t *ty = SYM_TYPE(DECL_SYM(decl));
+    node_t **args = TYPE_PARAMS(ty);
+    int num_int = 0;
+    int num_float = 0;
+    
+    for (int i = 0; i < LIST_LEN(args); i++) {
+        node_t *sym = args[i];
+        node_t *ty = SYM_TYPE(sym);
+        size_t size = TYPE_SIZE(ty);
+        int align = TYPE_ALIGN(ty);
+
+        if (isint(ty) || isptr(ty)) {
+            num_int++;
+            if (num_int > NUM_IARG_REGS) {
+                
+            } else {
+                struct reg *ireg = iarg_regs[num_int-1];
+                emit("mov%s %s, %ld(%s)",
+                     suffix[idx[size]],
+                     ireg->r[idx[size]],
+                     SYM_X_LOFF(sym), rbp->r[Q]);
+            }
+        } else if (isfloat(ty)) {
+            num_float++;
+            if (num_float > NUM_FARG_REGS) {
+                
+            } else {
+                
+            }
+        }
+    }
 }
 
 static void emit_function_epilogue(gdata_t *gdata)
@@ -670,6 +714,7 @@ static void emit_text(gdata_t *gdata)
     node_t *decl = GDATA_TEXT_DECL(gdata);
     
     emit_function_prologue(gdata);
+    emit_function_params(decl);
     // init
     init_text(decl);
     emit_tacs(DECL_X_TACS(decl));

@@ -50,23 +50,9 @@ static const char *__break;
 #define BREAK_CONTEXT     (__break)
 #define CONTINUE_CONTEXT  (__continue)
 
-static unsigned tysize2opsize(size_t tysize)
-{
-    switch (tysize) {
-    case 0:
-        return Zero;
-    case 1:
-        return Byte;
-    case 2:
-        return Word;
-    case 4:
-        return Long;
-    case 8:
-        return Quad;
-    default:
-        cc_assert(0);
-    }
-}
+static int ops[] = {
+    Zero, Byte, Word, -1, Long, -1, -1, -1, Quad
+};
 
 const char *rop2s(int op)
 {
@@ -83,8 +69,6 @@ static struct operand * make_sym_operand(node_t *sym)
 {
     struct operand *operand = zmalloc(sizeof(struct operand));
     operand->sym = sym;
-    if (!SYM_X_LABEL(sym))
-        SYM_X_LABEL(sym) = SYM_NAME(sym);
     return operand;
 }
 
@@ -306,7 +290,7 @@ static void emit_uop_bitwise_not(node_t *n)
     emit_expr(l);
     struct tac *tac = make_tac_r(uop2rop(op),
                                  EXPR_X_ADDR(l), NULL,
-                                 tysize2opsize(TYPE_SIZE(AST_TYPE(n))));
+                                 ops[TYPE_SIZE(AST_TYPE(n))]);
     emit_tac(tac);
     EXPR_X_ADDR(n) = tac->result;
 }
@@ -330,7 +314,7 @@ static void emit_uop_minus(node_t *n)
 
     struct tac *tac = make_tac_r(op,
                                  EXPR_X_ADDR(l), NULL,
-                                 tysize2opsize(TYPE_SIZE(ty)));
+                                 ops[TYPE_SIZE(ty)]);
     emit_tac(tac);
     EXPR_X_ADDR(n) = tac->result;
 }
@@ -385,7 +369,7 @@ static void emit_uop_increment(node_t *n, int op)
     bool prefix = EXPR_PREFIX(n);
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *ty = AST_TYPE(n);
-    unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
+    unsigned opsize = ops[TYPE_SIZE(ty)];
     int rop;
     if (op == INCR) {
         if (isfloat(ty))
@@ -537,7 +521,7 @@ static void emit_assign_scalar(node_t *ty, struct operand *l, node_t *r)
 {
     // TODO:
     unsigned op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
-    unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
+    unsigned opsize = ops[TYPE_SIZE(ty)];
     struct tac *tac = make_assign_tac(op, l, EXPR_X_ADDR(r), opsize);
     emit_tac(tac);
 }
@@ -576,7 +560,7 @@ static void emit_bop_comma(node_t *n)
 
 static void emit_bop_bool(node_t *n)
 {
-    unsigned opsize = tysize2opsize(TYPE_SIZE(AST_TYPE(n)));
+    unsigned opsize = ops[TYPE_SIZE(AST_TYPE(n))];
     EXPR_X_TRUE(n) = fall;
     EXPR_X_FALSE(n) = gen_label();
     const char *label = gen_label();
@@ -599,7 +583,7 @@ static void emit_bop_arith(node_t *n)
     node_t *r = EXPR_OPERAND(n, 1);
     node_t *ty = AST_TYPE(n);
     unsigned op = bop2rop(EXPR_OP(n), ty);
-    unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
+    unsigned opsize = ops[TYPE_SIZE(ty)];
 
     emit_expr(l);
     emit_expr(r);
@@ -618,7 +602,7 @@ static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *index, node_t *n)
                                    make_tmp_operand(),
                                    EXPR_X_ADDR(index),
                                    TYPE_SIZE(rty),
-                                   tysize2opsize(TYPE_SIZE(ptr)));
+                                   ops[TYPE_SIZE(ptr)]);
 }
 
 // arith + arith
@@ -792,8 +776,8 @@ static void int2int(node_t *dty, node_t *sty, node_t *n)
 
     EXPR_X_ADDR(n) = emit_conv_tac(op,
                                    EXPR_X_ADDR(l),
-                                   tysize2opsize(TYPE_SIZE(sty)),
-                                   tysize2opsize(TYPE_SIZE(dty)));
+                                   ops[TYPE_SIZE(sty)],
+                                   ops[TYPE_SIZE(dty)]);
 }
 
 static void int2float(node_t *dty, node_t *sty, node_t *n)
@@ -803,8 +787,8 @@ static void int2float(node_t *dty, node_t *sty, node_t *n)
 
     EXPR_X_ADDR(n) = emit_conv_tac(op,
                                    EXPR_X_ADDR(l),
-                                   tysize2opsize(TYPE_SIZE(sty)),
-                                   tysize2opsize(TYPE_SIZE(dty)));
+                                   ops[TYPE_SIZE(sty)],
+                                   ops[TYPE_SIZE(dty)]);
 }
 
 static void float2int(node_t *dty, node_t *sty, node_t *n)
@@ -814,8 +798,8 @@ static void float2int(node_t *dty, node_t *sty, node_t *n)
 
     EXPR_X_ADDR(n) = emit_conv_tac(op,
                                    EXPR_X_ADDR(l),
-                                   tysize2opsize(TYPE_SIZE(sty)),
-                                   tysize2opsize(TYPE_SIZE(dty)));
+                                   ops[TYPE_SIZE(sty)],
+                                   ops[TYPE_SIZE(dty)]);
 }
 
 static void float2float(node_t *dty, node_t *sty, node_t *n)
@@ -823,8 +807,8 @@ static void float2float(node_t *dty, node_t *sty, node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = emit_conv_tac(IR_CONV_FF,
                                    EXPR_X_ADDR(l),
-                                   tysize2opsize(TYPE_SIZE(sty)),
-                                   tysize2opsize(TYPE_SIZE(dty)));
+                                   ops[TYPE_SIZE(sty)],
+                                   ops[TYPE_SIZE(dty)]);
 }
 
 static void arith2arith(node_t *dty, node_t *sty, node_t *n)
@@ -1130,7 +1114,7 @@ static void emit_rel_expr(node_t *n)
     node_t *r = EXPR_OPERAND(n, 1);
     int relop = EXPR_OP(n);
     node_t *ty = AST_TYPE(n);
-    unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
+    unsigned opsize = ops[TYPE_SIZE(ty)];
 
     emit_expr(l);
     emit_expr(r);
@@ -1181,7 +1165,7 @@ static void emit_bool_expr(node_t *n)
         emit_expr(n);
 
         node_t *ty = AST_TYPE(n);
-        unsigned opsize = tysize2opsize(TYPE_SIZE(ty));
+        unsigned opsize = ops[TYPE_SIZE(ty)];
         struct operand *test = EXPR_X_ADDR(n);
         
         if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
@@ -1340,7 +1324,7 @@ static void emit_switch_jmp(node_t *cond, node_t *case_stmt)
     emit_rel_if(IR_IF_I,
                 EQ, cond_operand, case_operand,
                 STMT_X_LABEL(case_stmt),
-                tysize2opsize(TYPE_SIZE(ty)));
+                ops[TYPE_SIZE(ty)]);
 }
 
 static void emit_switch_stmt(node_t *stmt)
@@ -1415,7 +1399,7 @@ static void emit_return_stmt(node_t *stmt)
     struct tac *tac = make_tac_nor(op,
                                    EXPR_X_ADDR(n),
                                    NULL,
-                                   tysize2opsize(TYPE_SIZE(ty)));
+                                   ops[TYPE_SIZE(ty)]);
     emit_tac(tac);
 }
 

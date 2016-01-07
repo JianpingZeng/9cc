@@ -4,12 +4,24 @@
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
 
-struct reg {
-    const char *r64;
-    const char *r32;
-    const char *r16;
-    const char *r8;
+// operand size
+enum {
+    Zero = 0,
+    Byte = 1,
+    Word = 2,
+    Long = 4,
+    Quad = 8,
+};
 
+enum {
+    B = 0,
+    W = 1,
+    L = 2,
+    Q = 3
+};
+
+struct reg {
+    const char *r[4];
     struct vector *vars;
 };
 
@@ -18,15 +30,6 @@ enum {
 #define _rop(a, b) a,
 #include "rop.def"
     IR_END
-};
-
-// operand size
-enum {
-    Zero = 0,
-    Byte = 1,
-    Word = 2,
-    Long = 4,
-    Quad = 8,
 };
 
 enum {
