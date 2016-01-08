@@ -54,17 +54,17 @@ _rop(IR_PARAM,          "param",        emit_param)
 _rop(IR_CALL,           "call",         emit_call)
 
 // conv
-_rop(IR_CONV_UI_UI,     "uint => uint",         emit_conv)
-_rop(IR_CONV_SI_SI,     "int => int",           emit_conv)
-_rop(IR_CONV_UI_SI,     "uint => int",          emit_conv)
-_rop(IR_CONV_SI_UI,     "int => uint",          emit_conv)
+_rop(IR_CONV_UI_UI,     "uint => uint",         emit_conv_i2i)
+_rop(IR_CONV_SI_SI,     "int => int",           emit_conv_i2i)
+_rop(IR_CONV_UI_SI,     "uint => int",          emit_conv_i2i)
+_rop(IR_CONV_SI_UI,     "int => uint",          emit_conv_i2i)
 
-_rop(IR_CONV_SI_F,      "int => float",         emit_conv)
-_rop(IR_CONV_UI_F,      "uint => float",        emit_conv)
+_rop(IR_CONV_SI_F,      "int => float",         emit_conv_i2f)
+_rop(IR_CONV_UI_F,      "uint => float",        emit_conv_i2f)
 
-_rop(IR_CONV_FF,        "float => float",       emit_conv)
+_rop(IR_CONV_FF,        "float => float",       emit_conv_f2f)
 
-_rop(IR_CONV_F_UI,      "float => uint",        emit_conv)
-_rop(IR_CONV_F_SI,      "float => int",         emit_conv)
+_rop(IR_CONV_F_UI,      "float => uint",        emit_conv_f2i)
+_rop(IR_CONV_F_SI,      "float => int",         emit_conv_f2i)
 
 #undef _rop

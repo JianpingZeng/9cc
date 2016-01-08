@@ -303,46 +303,68 @@ static void dispatch_reg(struct operand *operand)
 
   3. signed => unsigned
 
-  int8 => uint8: movzbl, movb
+  widden
+
   int8 => uint16: movsbw, movw
   int8 => uint32: movsbl, movl
   int8 => uint64: movsbq, movq
-
-  int16 => uint8: movzwl, movb
-  int16 => uint16: movzwl, movw
+  
   int16 => uint32: movswl, movl
   int16 => uint64: movswq, movq
 
-  int32 => uint8: movl, movb
-  int32 => uint16: movl, movw
-  int32 => uint32: movl, movl
   int32 => uint64: movl, cltq
+
+  
+  narrow
 
   int64 => uint8: movq, movb
   int64 => uint16: movq, movw
   int64 => uint32: movq, movl
+
+  int32 => uint8: movl, movb
+  int32 => uint16: movl, movw
+
+  int16 => uint8: movzwl, movb
+
+  
+  equal
+
+  int8 => uint8: movzbl, movb
+  int16 => uint16: movzwl, movw
+  int32 => uint32: movl, movl
   int64 => uint64: movq, movq
 
   4. unsigned => signed
 
-  uint8 => int8: movzbl, movb
+  widden
+  
   uint8 => int16: movzbl, movw
   uint8 => int32: movzbl, movl
   uint8 => int64: movzbl, movq
 
-  uint16 => int8: movzwl, movb
-  uint16 => int16: movzwl, movw
   uint16 => int32: movzwl, movl
   uint16 => int64: movzwl, movq
 
-  uint32 => int8: movl, movb
-  uint32 => int16: movl, movw
-  uint32 => int32: movl, movl
   uint32 => int64: movl, movq
+
+  
+  narrow
 
   uint64 => int8: movq, movb
   uint64 => int16: movq, movw
   uint64 => int32: movq, movl
+
+  uint32 => int8: movl, movb
+  uint32 => int16: movl, movw
+
+  uint16 => int8: movzwl, movb
+  
+
+  equal
+
+  uint8 => int8: movzbl, movb
+  uint16 => int16: movzwl, movw
+  uint32 => int32: movl, movl
   uint64 => int64: movq, movq
  */
 
@@ -357,6 +379,28 @@ static void conv_si_si(struct tac *tac)
 
 static void get_reg(struct tac *tac)
 {
+}
+
+static void emit_conv_i2i(struct tac *tac)
+{
+    if (tac->op == IR_CONV_SI_SI) {
+        
+    }
+}
+
+static void emit_conv_i2f(struct tac *tac)
+{
+    
+}
+
+static void emit_conv_f2i(struct tac *tac)
+{
+    
+}
+
+static void emit_conv_f2f(struct tac *tac)
+{
+    
 }
 
 static void emit_param(struct tac *tac)
@@ -415,11 +459,6 @@ static void emit_address(struct tac *tac)
 }
 
 static void emit_indirection(struct tac *tac)
-{
-    
-}
-
-static void emit_conv(struct tac *tac)
 {
     
 }
