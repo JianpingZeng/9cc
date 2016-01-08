@@ -7,7 +7,7 @@
  */
 
 static const char *rops[] = {
-#define _rop(a, b)  b,
+#define _rop(a, b, c)  b,
 #include "rop.def"
 };
 

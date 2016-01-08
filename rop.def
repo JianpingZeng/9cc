@@ -1,68 +1,70 @@
 
-_rop(IR_NONE,           "null")
+// id   name    emit    dispatch
+
+_rop(IR_NONE,           "null",         NULL)
 
 // control
-_rop(IR_LABEL,          "label")
-_rop(IR_GOTO,           "goto")
-_rop(IR_IF_I,           "if")
-_rop(IR_IF_F,           "if")
-_rop(IR_IF_FALSE_I,     "ifFalse")
-_rop(IR_IF_FALSE_F,     "ifFalse")
-_rop(IR_RETURNI,        "return")
-_rop(IR_RETURNF,        "return")
+_rop(IR_LABEL,          "label",        emit_label)
+_rop(IR_GOTO,           "goto",         emit_goto)
+_rop(IR_IF_I,           "if",           emit_if)
+_rop(IR_IF_F,           "if",           emit_if)
+_rop(IR_IF_FALSE_I,     "ifFalse",      emit_if)
+_rop(IR_IF_FALSE_F,     "ifFalse",      emit_if)
+_rop(IR_RETURNI,        "return",       emit_return)
+_rop(IR_RETURNF,        "return",       emit_return)
 
 // binary
 
 // arith
-_rop(IR_ADDI,           "+")
-_rop(IR_ADDF,           "+")
+_rop(IR_ADDI,           "+",            emit_bop)
+_rop(IR_ADDF,           "+",            emit_bop)
                            
-_rop(IR_SUBI,           "-")
-_rop(IR_SUBF,           "-")
+_rop(IR_SUBI,           "-",            emit_bop)
+_rop(IR_SUBF,           "-",            emit_bop)
                            
-_rop(IR_DIVI,           "/")
-_rop(IR_IDIVI,          "/")
-_rop(IR_DIVF,           "/")
+_rop(IR_DIVI,           "/",            emit_bop)
+_rop(IR_IDIVI,          "/",            emit_bop)
+_rop(IR_DIVF,           "/",            emit_bop)
                            
-_rop(IR_MULI,           "*")
-_rop(IR_IMULI,          "*")
-_rop(IR_MULF,           "*")
+_rop(IR_MULI,           "*",            emit_bop)
+_rop(IR_IMULI,          "*",            emit_bop)
+_rop(IR_MULF,           "*",            emit_bop)
                            
 // integer                 
-_rop(IR_MOD,            "%")
-_rop(IR_OR,             "|")
-_rop(IR_AND,            "&")
-_rop(IR_XOR,            "^")
-_rop(IR_LSHIFT,         "<<")
-_rop(IR_RSHIFT,         ">>")
+_rop(IR_MOD,            "%",            emit_bop)
+_rop(IR_OR,             "|",            emit_bop)
+_rop(IR_AND,            "&",            emit_bop)
+_rop(IR_XOR,            "^",            emit_bop)
+_rop(IR_LSHIFT,         "<<",           emit_bop)
+_rop(IR_RSHIFT,         ">>",           emit_bop)
 
-_rop(IR_SUBSCRIPT,      "[]")
-_rop(IR_ASSIGNI,        "=")
-_rop(IR_ASSIGNF,        "=")
+_rop(IR_SUBSCRIPT,      "[]",           emit_subscript)
+_rop(IR_ASSIGNI,        "=",            emit_assign)
+_rop(IR_ASSIGNF,        "=",            emit_assign)
 
 // unary
-_rop(IR_ADDRESS,        "&")
-_rop(IR_INDIRECTION,    "*")
-_rop(IR_NOT,            "~")
-_rop(IR_MINUSI,         "-")
-_rop(IR_MINUSF,         "-")
+_rop(IR_ADDRESS,        "&",            emit_address)
+_rop(IR_INDIRECTION,    "*",            emit_indirection)
+_rop(IR_NOT,            "~",            emit_uop)
+_rop(IR_MINUSI,         "-",            emit_uop)
+_rop(IR_MINUSF,         "-",            emit_uop)
 
 // function
-_rop(IR_PARAM,          "param")
-_rop(IR_CALL,           "call")
+_rop(IR_PARAM,          "param",        emit_param)
+_rop(IR_CALL,           "call",         emit_call)
 
 // conv
-_rop(IR_CONV_UI_UI,     "uint => uint")
-_rop(IR_CONV_SI_SI,     "int => int")
-_rop(IR_CONV_UI_SI,     "uint => int")
-_rop(IR_CONV_SI_UI,     "int => uint")
+_rop(IR_CONV_UI_UI,     "uint => uint",         emit_conv)
+_rop(IR_CONV_SI_SI,     "int => int",           emit_conv)
+_rop(IR_CONV_UI_SI,     "uint => int",          emit_conv)
+_rop(IR_CONV_SI_UI,     "int => uint",          emit_conv)
 
-_rop(IR_CONV_SI_F,      "int => float")
-_rop(IR_CONV_UI_F,      "uint => float")
+_rop(IR_CONV_SI_F,      "int => float",         emit_conv)
+_rop(IR_CONV_UI_F,      "uint => float",        emit_conv)
 
-_rop(IR_CONV_FF,        "float => float")
+_rop(IR_CONV_FF,        "float => float",       emit_conv)
 
-_rop(IR_CONV_F_UI,      "float => uint")
-_rop(IR_CONV_F_SI,      "float => int")
+_rop(IR_CONV_F_UI,      "float => uint",        emit_conv)
+_rop(IR_CONV_F_SI,      "float => int",         emit_conv)
 
 #undef _rop

@@ -357,156 +357,81 @@ static void conv_si_si(struct tac *tac)
 
 static void get_reg(struct tac *tac)
 {
-    switch (tac->op) {
-        // bop
-    case IR_ADDI:
-    case IR_ADDF:
-    case IR_SUBI:
-    case IR_SUBF:
-    case IR_MULI:
-    case IR_MULF:
-    case IR_IMULI:
-    case IR_DIVI:
-    case IR_DIVF:
-    case IR_IDIVI:
-    case IR_MOD:
-    case IR_OR:
-    case IR_AND:
-    case IR_XOR:
-    case IR_LSHIFT:
-    case IR_RSHIFT:
-        break;
+}
 
-        // uop
-    case IR_NOT:
-    case IR_MINUSI:
-    case IR_MINUSF:
-        break;
+static void emit_param(struct tac *tac)
+{
+    
+}
 
-    case IR_ASSIGNI:
-    case IR_ASSIGNF:
-        break;
+static void emit_call(struct tac *tac)
+{
+    
+}
 
-    case IR_PARAM:
-    case IR_CALL:
-        break;
+static void emit_return(struct tac *tac)
+{
+    
+}
 
-    case IR_CONV_FF:
-        break;
-    case IR_CONV_F_SI:
-    case IR_CONV_F_UI:
-    case IR_CONV_SI_F:
-    case IR_CONV_UI_F:
-        break;
-    case IR_CONV_SI_SI:
-        conv_si_si(tac);
-        break;
-    case IR_CONV_SI_UI:
-    case IR_CONV_UI_SI:
-    case IR_CONV_UI_UI:
-        break;
+static void emit_if(struct tac *tac)
+{
+    
+}
 
-    case IR_IF_I:
-    case IR_IF_F:
-    case IR_IF_FALSE_I:
-    case IR_IF_FALSE_F:
-        break;
+static void emit_goto(struct tac *tac)
+{
+    
+}
 
-    case IR_RETURNI:
-    case IR_RETURNF:
-        break;
+static void emit_label(struct tac *tac)
+{
+    
+}
 
-    case IR_LABEL:
-    case IR_GOTO:
-        break;
+static void emit_assign(struct tac *tac)
+{
+    
+}
 
-    case IR_SUBSCRIPT:
-    case IR_ADDRESS:
-    case IR_INDIRECTION:
-        break;
-        
-    case IR_NONE:
-        break;
+static void emit_uop(struct tac *tac)
+{
+    
+}
 
-    default:
-        cc_assert(0);
-    }
+static void emit_bop(struct tac *tac)
+{
+    
+}
+
+static void emit_subscript(struct tac *tac)
+{
+    
+}
+
+static void emit_address(struct tac *tac)
+{
+    
+}
+
+static void emit_indirection(struct tac *tac)
+{
+    
+}
+
+static void emit_conv(struct tac *tac)
+{
+    
 }
 
 static void emit_tac(struct tac *tac)
 {
-    get_reg(tac);
-    switch (tac->op) {
-        // bop
-    case IR_ADDI:
-    case IR_ADDF:
-    case IR_SUBI:
-    case IR_SUBF:
-    case IR_MULI:
-    case IR_MULF:
-    case IR_IMULI:
-    case IR_DIVI:
-    case IR_DIVF:
-    case IR_IDIVI:
-    case IR_MOD:
-    case IR_OR:
-    case IR_AND:
-    case IR_XOR:
-    case IR_LSHIFT:
-    case IR_RSHIFT:
-        break;
-
-        // uop
-    case IR_NOT:
-    case IR_MINUSI:
-    case IR_MINUSF:
-        break;
-
-    case IR_ASSIGNI:
-    case IR_ASSIGNF:
-        break;
-
-    case IR_PARAM:
-    case IR_CALL:
-        break;
-
-    case IR_CONV_FF:
-    case IR_CONV_F_SI:
-    case IR_CONV_F_UI:
-    case IR_CONV_SI_F:
-    case IR_CONV_UI_F:
-        break;
-    case IR_CONV_SI_SI:
-    case IR_CONV_SI_UI:
-    case IR_CONV_UI_SI:
-    case IR_CONV_UI_UI:
-        break;
-
-    case IR_IF_I:
-    case IR_IF_F:
-    case IR_IF_FALSE_I:
-    case IR_IF_FALSE_F:
-        break;
-
-    case IR_RETURNI:
-    case IR_RETURNF:
-        break;
-
-    case IR_LABEL:
-    case IR_GOTO:
-        break;
-
-    case IR_SUBSCRIPT:
-    case IR_ADDRESS:
-    case IR_INDIRECTION:
-        break;
-        
-    case IR_NONE:
-        break;
-
-    default:
-        cc_assert(0);
-    }
+    static void (*emitter[]) (struct tac *) = {
+#define _rop(a, b, c) c,
+#include "rop.def"  
+    };
+    if (emitter[tac->op])
+        emitter[tac->op](tac);
 }
 
 static void emit_tacs(struct vector *tacs)

@@ -27,7 +27,7 @@ struct reg {
 
 // op
 enum {
-#define _rop(a, b) a,
+#define _rop(a, b, c) a,
 #include "rop.def"
     IR_END
 };
