@@ -81,6 +81,33 @@ static void emit_noindent(const char *fmt, ...)
     va_end(ap);
 }
 
+static struct addr * make_addr_with_type(int kind)
+{
+    struct addr *addr = zmalloc(sizeof(struct addr));
+    addr->kind = kind;
+    return addr;
+}
+
+static struct addr * make_memory_addr(void)
+{
+    return make_addr_with_type(ADDR_MEMORY);
+}
+
+static struct addr * make_stack_addr(struct reg *reg, long offset)
+{
+    struct addr *addr = make_addr_with_type(ADDR_STACK);
+    addr->reg = reg;
+    addr->offset = offset;
+    return addr;
+}
+
+static struct addr * make_register_addr(struct reg *reg)
+{
+    struct addr *addr = make_addr_with_type(ADDR_REGISTER);
+    addr->reg = reg;
+    return addr;
+}
+
 static inline struct reg *mkreg(struct reg *r)
 {
     struct reg *reg = xmalloc(sizeof(struct reg));
@@ -151,6 +178,44 @@ static void init_regs(void)
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
     }
+}
+
+static void reg_add(struct reg *reg, node_t *sym)
+{
+    if (!reg->vars)
+        reg->vars = vec_new();
+
+    for (int i = vec_len(reg->vars) - 1; i >= 0; i--) {
+        node_t *element = vec_at(reg->vars, i);
+        if (element == sym)
+            return;
+    }
+
+    vec_push(reg->vars, sym);
+}
+
+static void reg_remove(struct reg *reg, node_t *sym)
+{
+    if (!reg->vars)
+        return;
+
+    struct vector *v = vec_new();
+    for (int i = 0; i < vec_len(reg->vars); i++) {
+        node_t *element = vec_at(reg->vars, i);
+        if (element == sym)
+            continue;
+        vec_push(reg->vars, element);
+    }
+    vec_free(reg->vars);
+    reg->vars = v;
+}
+
+static void reg_drain(struct reg *reg)
+{
+    if (!reg->vars)
+        return;
+    vec_free(reg->vars);
+    reg->vars = NULL;
 }
 
 static struct reg * get_int_reg(struct tac *tac)
@@ -368,28 +433,6 @@ static void get_reg(struct tac *tac)
     }
 }
 
-// static struct addr * make_addr_with_type(int kind)
-// {
-//     struct addr *addr = zmalloc(sizeof(struct addr));
-//     addr->kind = kind;
-//     return addr;
-// }
-
-// static struct addr * make_memory_addr(void)
-// {
-//     return make_addr_with_type(ADDR_MEMORY);
-// }
-
-// static struct addr * make_stack_addr(void)
-// {
-//     return make_addr_with_type(ADDR_STACK);
-// }
-
-// static struct addr * make_register_addr(void)
-// {
-//     return make_addr_with_type(ADDR_REGISTER);
-// }
-
 static void emit_tac(struct tac *tac)
 {
     get_reg(tac);
@@ -517,9 +560,9 @@ static void scan_tac_uses(struct tac *tac)
 
 static void init_sym_uses(node_t *sym)
 {
-    struct addr **addrs = SYM_X_ADDRS(sym);
-    if (addrs[ADDR_MEMORY] ||
-        addrs[ADDR_STACK]) {
+    int kind = SYM_X_KIND(sym);
+    if(kind == SYM_KIND_REF ||
+        kind == SYM_KIND_TMP) {
         SYM_X_USES(sym).live = true;
         SYM_X_USES(sym).use_tac = NULL;
     } else {
@@ -637,6 +680,8 @@ static void emit_function_prologue(gdata_t *gdata)
         int align = TYPE_ALIGN(ty);
         localsize = ROUNDUP(localsize, align) + size;
         SYM_X_LOFF(sym) = - localsize;
+        // addr
+        SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, - localsize);
     }
     localsize = ROUNDUP(localsize, 16);
 
@@ -644,16 +689,40 @@ static void emit_function_prologue(gdata_t *gdata)
     node_t *ty = SYM_TYPE(DECL_SYM(decl));
     node_t **args = TYPE_PARAMS(ty);
     size_t stack_off = 16;      // rbp+16
+    int num_int = 0;
+    int num_float = 0;
     for (int i = 0; i < LIST_LEN(args); i++) {
         node_t *sym = args[i];
         node_t *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
         int align = TYPE_ALIGN(ty);
-        if (isscalar(ty)) {
-            localsize = ROUNDUP(localsize, align) + size;
-            SYM_X_LOFF(sym) = - localsize;
+        if (isint(ty) || isptr(ty)) {
+            num_int++;
+            if (num_int > NUM_IARG_REGS) {
+                SYM_X_LOFF(sym) = stack_off;
+                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
+                stack_off += ROUNDUP(size, 8);
+            } else {
+                localsize = ROUNDUP(localsize, align) + size;
+                SYM_X_LOFF(sym) = - localsize;
+                struct reg *ireg = iarg_regs[num_int-1];
+                SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(ireg);
+            }
+        } else if (isfloat(ty)) {
+            num_float++;
+            if (num_float > NUM_FARG_REGS) {
+                SYM_X_LOFF(sym) = stack_off;
+                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
+                stack_off += ROUNDUP(size, 8);
+            } else {
+                localsize = ROUNDUP(localsize, align) + size;
+                SYM_X_LOFF(sym) = - localsize;
+                struct reg *freg = farg_regs[num_float-1];
+                SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(freg);
+            }
         } else if (isstruct(ty) || isunion(ty)) {
             SYM_X_LOFF(sym) = stack_off;
+            SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
             stack_off += ROUNDUP(size, 8);
         } else {
             cc_assert(0);
@@ -672,36 +741,41 @@ static void emit_function_params(node_t *decl)
 {
     node_t *ty = SYM_TYPE(DECL_SYM(decl));
     node_t **args = TYPE_PARAMS(ty);
-    int num_int = 0;
-    int num_float = 0;
-    
     for (int i = 0; i < LIST_LEN(args); i++) {
         node_t *sym = args[i];
         node_t *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
-        int align = TYPE_ALIGN(ty);
-
-        if (isint(ty) || isptr(ty)) {
-            num_int++;
-            if (num_int > NUM_IARG_REGS) {
-                
-            } else {
-                struct reg *ireg = iarg_regs[num_int-1];
+        if (SYM_X_ADDRS(sym)[ADDR_REGISTER]) {
+            struct reg *reg = SYM_X_ADDRS(sym)[ADDR_REGISTER]->reg;
+            if (isint(ty) || isptr(ty)) {
                 emit("mov%s %s, %ld(%s)",
                      suffix[idx[size]],
-                     ireg->r[idx[size]],
+                     reg->r[idx[size]],
                      SYM_X_LOFF(sym), rbp->r[Q]);
+            } else if (isfloat(ty)) {
+                if (TYPE_KIND(ty) == FLOAT) {
+                    emit("movss %s, %ld(%s)",
+                         reg->r[idx[size]],
+                         SYM_X_LOFF(sym), rbp->r[Q]);
+                } else {
+                    emit("movsd %s, %ld(%s)",
+                         reg->r[idx[size]],
+                         SYM_X_LOFF(sym), rbp->r[Q]);
+                }
             }
-        } else if (isfloat(ty)) {
-            num_float++;
-            if (num_float > NUM_FARG_REGS) {
-                
-            } else {
-                
-            }
+            // reset
+            SYM_X_ADDRS(sym)[ADDR_REGISTER] = NULL;
+            SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, SYM_X_LOFF(sym));
         }
     }
 }
+
+/*
+  leave instruction
+
+  move rbp to rsp
+  pop rbp
+ */
 
 static void emit_function_epilogue(gdata_t *gdata)
 {
