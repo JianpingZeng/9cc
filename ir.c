@@ -22,7 +22,8 @@ static const char *get_string_literal_label(const char *name);
 static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *i, node_t *n);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r);
 
-static struct vector *func_tacs;
+static struct tac *func_tac_head;
+static struct tac *func_tac_tail;
 static struct table *tmps;
 static struct table *labels;
 static struct externals *exts;
@@ -62,7 +63,15 @@ const char *rop2s(int op)
 
 static void emit_tac(struct tac *tac)
 {
-    vec_push(func_tacs, tac);
+    if (!func_tac_head)
+        func_tac_head = tac;
+    if (!func_tac_tail) {
+        func_tac_tail = tac;
+    } else {
+        tac->prev = func_tac_tail;
+        func_tac_tail->next = tac;
+        func_tac_tail = tac;
+    }
 }
 
 static struct operand * make_sym_operand(node_t *sym)
@@ -1458,11 +1467,12 @@ static void emit_function(node_t *decl)
 {
     node_t *stmt = DECL_BODY(decl);
 
-    func_tacs = vec_new();
+    func_tac_head = NULL;
+    func_tac_tail = NULL;
 
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
-    DECL_X_TACS(decl) = func_tacs;
+    DECL_X_HEAD(decl) = func_tac_head;
     emit_funcdef_gdata(decl);
 }
 

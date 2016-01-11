@@ -440,12 +440,41 @@ static void emit_assign(struct tac *tac)
 
 static void emit_uop(struct tac *tac)
 {
-    
+    switch (tac->op) {
+    case IR_NOT:
+    case IR_MINUSI:
+        break;
+    case IR_MINUSF:
+        break;
+    default:
+        cc_assert(0);
+    }
 }
 
 static void emit_bop(struct tac *tac)
 {
-    
+    switch (tac->op) {
+    case IR_ADDI:
+    case IR_SUBI:
+    case IR_DIVI:
+    case IR_IDIVI:
+    case IR_MULI:
+    case IR_IMULI:
+    case IR_MOD:
+    case IR_OR:
+    case IR_AND:
+    case IR_XOR:
+    case IR_LSHIFT:
+    case IR_RSHIFT:
+        break;
+    case IR_ADDF:
+    case IR_SUBF:
+    case IR_DIVF:
+    case IR_MULF:
+        break;
+    default:
+        cc_assert(0);
+    }
 }
 
 static void emit_subscript(struct tac *tac)
@@ -473,12 +502,10 @@ static void emit_tac(struct tac *tac)
         emitter[tac->op](tac);
 }
 
-static void emit_tacs(struct vector *tacs)
+static void emit_tacs(struct tac *head)
 {
-    for (int i = 0; i < vec_len(tacs); i++) {
-        struct tac *tac = vec_at(tacs, i);
+    for (struct tac *tac = head; tac; tac = tac->next)
         emit_tac(tac);
-    }
 }
 
 static void mark_die(node_t *sym)
@@ -535,10 +562,9 @@ static void init_sym_uses(node_t *sym)
     }
 }
 
-static void init_tacs(struct vector *tacs)
+static void init_tacs(struct tac *head)
 {
-    for (int i = 0; i < vec_len(tacs); i++) {
-        struct tac *tac = vec_at(tacs, i);
+    for (struct tac *tac = head; tac; tac = tac->next) {
         struct operand *result = tac->result;
         struct operand *l = tac->args[0];
         struct operand *r = tac->args[1];
@@ -551,19 +577,19 @@ static void init_tacs(struct vector *tacs)
     }
 }
 
-static void scan_tacs(struct vector *tacs)
+static void scan_tacs(struct tac *head)
 {
-    for (int i = vec_len(tacs) - 1; i >= 0; i--) {
-        struct tac *tac = vec_at(tacs, i);
+    while (head->next)
+        head = head->next;
+    for (struct tac *tac = head; tac; tac = tac->prev)
         scan_tac_uses(tac);
-    }
 }
 
 static void init_text(node_t *decl)
 {
-    struct vector *tacs = DECL_X_TACS(decl);
-    init_tacs(tacs);
-    scan_tacs(tacs);
+    struct tac *head = DECL_X_HEAD(decl);
+    init_tacs(head);
+    scan_tacs(head);
 }
 
 static size_t call_stack_size(node_t *call)
@@ -755,7 +781,7 @@ static void emit_text(gdata_t *gdata)
     emit_function_params(decl);
     // init
     init_text(decl);
-    emit_tacs(DECL_X_TACS(decl));
+    emit_tacs(DECL_X_HEAD(decl));
     emit_function_epilogue(gdata);
 }
 

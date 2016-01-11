@@ -583,11 +583,9 @@ void print_ir(struct externals *exts)
             {
                 node_t *decl = GDATA_TEXT_DECL(gdata);
                 putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
-                struct vector *tacs = DECL_X_TACS(decl);
-                for (int j = 0; j < vec_len(tacs); j++) {
-                    struct tac *tac = vec_at(tacs, j);
+                struct tac *head = DECL_X_HEAD(decl);
+                for (struct tac *tac = head; tac; tac = tac->next)
                     print_tac(tac);
-                }
                 putln("");
             }
             break;

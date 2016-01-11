@@ -127,6 +127,7 @@ struct tac {
     int relop;
     struct operand *args[2];
     struct operand *result;
+    struct tac *next, *prev;
 };
 
 // externals
@@ -147,7 +148,7 @@ struct externals {
 #define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
 #define DECL_X_CALLS(NODE)    ((NODE)->decl.x.decl.calls)
-#define DECL_X_TACS(NODE)     ((NODE)->decl.x.decl.tacs)
+#define DECL_X_HEAD(NODE)     ((NODE)->decl.x.decl.head)
 // expr
 #define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
@@ -173,7 +174,7 @@ union x {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars
         node_t **calls;        // function calls
-        struct vector *tacs;
+        struct tac *head;
     }decl;
     
     struct {
