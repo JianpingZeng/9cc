@@ -180,6 +180,11 @@ static void init_regs(void)
     }
 }
 
+static bool is_reg_free(struct reg *reg)
+{
+    return vec_len(reg->vars) == 0;
+}
+
 static void reg_add(struct reg *reg, node_t *sym)
 {
     if (!reg->vars)
@@ -216,6 +221,35 @@ static void reg_drain(struct reg *reg)
         return;
     vec_free(reg->vars);
     reg->vars = NULL;
+}
+
+static void load_to_reg(struct reg *reg, struct operand *operand)
+{
+    
+}
+
+static void get_reg(struct operand *operand, struct reg *regs[], int len)
+{
+    // already in register
+    if (operand[ADDR_REGISTER])
+        return;
+    // if has a free register
+    for (int i = len - 1; i >= 0; i--) {
+        struct reg *r = regs[i];
+        if (is_reg_free(r)) {
+            // load
+            load_to_reg(r, operand);
+            return;
+        }
+    }
+    //
+    for (int i = len - 1; i >= 0; i--) {
+        struct reg *r = regs[i];
+        for (int j = 0; j < vec_len(r->vars); j++) {
+            node_t *v = vec_at(r->vars, j);
+            
+        }
+    }
 }
 
 static struct reg * get_int_reg(struct tac *tac)

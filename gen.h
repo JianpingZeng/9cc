@@ -93,7 +93,7 @@ enum {
     ADDR_MEMORY,
     ADDR_STACK,
     ADDR_REGISTER,
-    ADDR_NUM
+    ADDR_NUM                    // count
 };
 
 struct addr {
