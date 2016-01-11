@@ -231,7 +231,7 @@ static void load_to_reg(struct reg *reg, struct operand *operand)
 static void get_reg(struct operand *operand, struct reg *regs[], int len)
 {
     // already in register
-    if (operand[ADDR_REGISTER])
+    if (SYM_X_ADDRS(operand->sym)[ADDR_REGISTER])
         return;
     // if has a free register
     for (int i = len - 1; i >= 0; i--) {
@@ -260,27 +260,6 @@ static struct reg * get_int_reg(struct tac *tac)
 static struct reg * get_float_reg(struct tac *tac)
 {
     
-}
-
-static void dispatch_reg(struct operand *operand)
-{
-    node_t *sym = operand->sym;
-    struct addr **addrs = SYM_X_ADDRS(sym);
-    
-    // if in reg
-    if (addrs[ADDR_REGISTER]) {
-        return;
-    }
-
-    // if has free reg
-    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
-        struct reg *reg = int_regs[i];
-        if (vec_len(reg->vars) == 0) {
-            // select
-
-            return;
-        }
-    }
 }
 
 /*
@@ -409,10 +388,6 @@ static void conv_si_si(struct tac *tac)
     } else if (tac->from_opsize > tac->to_opsize) {
         // narrow
     }
-}
-
-static void get_reg(struct tac *tac)
-{
 }
 
 static void emit_conv_i2i(struct tac *tac)
