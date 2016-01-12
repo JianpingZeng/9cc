@@ -992,17 +992,21 @@ static node_t *compound_literal(node_t * ty)
     node_t *inits;
 
     inits = initializer_list(ty);
-    ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
-    AST_SRC(ret) = AST_SRC(ty);
 
     // define local variable
     if (SCOPE >= LOCAL) {
         const char *label = gen_compound_label();
         node_t *decl = make_localvar(label, ty, 0);
-        SYM_REFS(DECL_SYM(decl))++;
         DECL_BODY(decl) = inits;
         // set sym
+        node_t *sym = DECL_SYM(decl);
+        ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
         EXPR_SYM(ret) = DECL_SYM(decl);
+        SYM_REFS(sym)++;
+        AST_SRC(ret) = AST_SRC(ty);
+    } else {
+        ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
+        AST_SRC(ret) = AST_SRC(ty);
     }
 
     return ret;

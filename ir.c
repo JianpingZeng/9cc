@@ -266,7 +266,7 @@ static void emit_decl(node_t *decl)
         return;
     else if (!init)
         return;
-
+    
     struct operand *l = make_sym_operand(sym);
     emit_expr(init);
     emit_assign(SYM_TYPE(sym), l, init);
@@ -977,17 +977,6 @@ static void emit_string_literal(node_t *n)
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
-static void emit_compound_literal(node_t *n)
-{
-    node_t *sym = EXPR_SYM(n);
-    SYM_X_KIND(sym) = SYM_KIND_REF;
-    EXPR_X_ADDR(n) = make_sym_operand(sym);
-    
-    node_t *l = EXPR_OPERAND(n, 0);
-    emit_expr(l);
-    emit_assign(AST_TYPE(n), EXPR_X_ADDR(n), l);
-}
-
 static void emit_ref(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
@@ -1040,15 +1029,13 @@ static void emit_expr(node_t *n)
     case STRING_LITERAL:
         emit_string_literal(n);
         break;
-    case COMPOUND_LITERAL:
-        emit_compound_literal(n);
-        break;
     case INITS_EXPR:
         emit_inits(n);
         break;
     case VINIT_EXPR:
         // do nothing
         break;
+    case COMPOUND_LITERAL:
     default:
         cc_assert(0);
     }
