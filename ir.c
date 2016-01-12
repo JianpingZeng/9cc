@@ -569,9 +569,10 @@ static void emit_bop_bool(node_t *n)
     // true
     emit_tac(make_assign_tac(IR_ASSIGNI, result, make_operand_one(), opsize));
     emit_goto(label);
-    emit_label(EXPR_X_FALSE(n));
     // false
+    emit_label(EXPR_X_FALSE(n));
     emit_tac(make_assign_tac(IR_ASSIGNI, result, make_operand_zero(), opsize));
+    // out
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
