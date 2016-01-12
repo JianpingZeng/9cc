@@ -344,7 +344,10 @@ static void emit_uop_indirection(node_t *n)
 
     emit_expr(l);
 
-    EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l)->sym);
+    if (isfunc(AST_TYPE(n)))
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    else
+        EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l)->sym);
 }
 
 // lvalue
@@ -769,6 +772,37 @@ static void emit_inits(node_t *n)
     node_t **inits = EXPR_INITS(n);
 }
 
+static void emit_call(node_t *n)
+{
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t **args = EXPR_ARGS(n);
+    int len = LIST_LEN(args);
+    node_t *ty = AST_TYPE(n);
+
+    emit_expr(l);
+
+    for (int i = 0; i < len; i++) {
+        node_t *arg = args[i];
+        emit_expr(arg);
+    }
+
+    // in reverse order
+    for (int i = len - 1; i >= 0; i--) {
+        node_t *arg = args[i];
+        emit_param(EXPR_X_ADDR(arg));
+    }
+
+    if (isvoid(ty)) {
+        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len);
+        emit_tac(tac);
+    } else {
+        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len);
+        tac->result = make_tmp_operand();
+        emit_tac(tac);
+        EXPR_X_ADDR(n) = tac->result;
+    }
+}
+
 static void int2int(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -859,12 +893,14 @@ static inline void ptr2ptr(node_t *dty, node_t *sty, node_t *n)
    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
+//@ function to pointer decay
 static inline void func2ptr(node_t *dty, node_t *sty, node_t *n)
 {
    node_t *l = EXPR_OPERAND(n, 0);
    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
+//@ array to pointer decay
 static inline void array2ptr(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -900,37 +936,6 @@ static void emit_conv(node_t *n)
     } else {
         // nothing
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
-    }
-}
-
-static void emit_call(node_t *n)
-{
-    node_t *l = EXPR_OPERAND(n, 0);
-    node_t **args = EXPR_ARGS(n);
-    int len = LIST_LEN(args);
-    node_t *ty = AST_TYPE(n);
-
-    emit_expr(l);
-
-    for (int i = 0; i < len; i++) {
-        node_t *arg = args[i];
-        emit_expr(arg);
-    }
-
-    // in reverse order
-    for (int i = len - 1; i >= 0; i--) {
-        node_t *arg = args[i];
-        emit_param(EXPR_X_ADDR(arg));
-    }
-
-    if (isvoid(ty)) {
-        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len);
-        emit_tac(tac);
-    } else {
-        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len);
-        tac->result = make_tmp_operand();
-        emit_tac(tac);
-        EXPR_X_ADDR(n) = tac->result;
     }
 }
 
