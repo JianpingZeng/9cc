@@ -278,18 +278,6 @@ static void emit_decls(node_t **decls)
         emit_decl(decls[i]);
 }
 
-static int uop2rop(int op)
-{
-    switch (op) {
-    case '~':
-        return IR_NOT;
-    case '&':
-        return IR_ADDRESS;
-    default:
-        cc_assert(0);
-    }
-}
-
 // int
 static void emit_uop_bitwise_not(node_t *n)
 {
@@ -297,7 +285,7 @@ static void emit_uop_bitwise_not(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
 
     emit_expr(l);
-    struct tac *tac = make_tac_r(uop2rop(op),
+    struct tac *tac = make_tac_r(IR_NOT,
                                  EXPR_X_ADDR(l), NULL,
                                  ops[TYPE_SIZE(AST_TYPE(n))]);
     emit_tac(tac);
