@@ -544,11 +544,11 @@ void print_tac(struct tac *tac)
 void print_ir(struct externals *exts)
 {
     for (int i = 0; i < vec_len(exts->gdatas); i++) {
-        gdata_t *gdata = vec_at(exts->gdatas, i);
-        switch (GDATA_ID(gdata)) {
+        struct gdata *gdata = vec_at(exts->gdatas, i);
+        switch (gdata->id) {
         case GDATA_TEXT:
             {
-                node_t *decl = GDATA_TEXT_DECL(gdata);
+                node_t *decl = gdata->u.decl;
                 putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
                 struct tac *head = DECL_X_HEAD(decl);
                 for (struct tac *tac = head; tac; tac = tac->next)

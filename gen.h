@@ -38,49 +38,24 @@ enum {
     GDATA_TEXT
 };
 
-#define GDATA_ID(gdata)        ((gdata)->common.id)
-#define GDATA_GLOBAL(gdata)    ((gdata)->common.global)
-#define GDATA_LABEL(gdata)     ((gdata)->common.label)
-#define GDATA_ALIGN(gdata)     ((gdata)->common.align)
-#define GDATA_SIZE(gdata)      ((gdata)->common.size)
-
-struct gdata_common {
-    int id:3;
-    int global:1;
-    int align:6;
-    const char *label;
-    size_t size;
-};
-
-struct gdata_bss {
-    struct gdata_common common;
-};
-
 struct xvalue {
     int size;
     const char *name;
 };
 
-#define GDATA_DATA_XVALUES(gdata)    ((gdata)->data.xvalues)
-
-struct gdata_data {
-    struct gdata_common common;
-    struct xvalue **xvalues;
+struct gdata {
+    int id:3;
+    int global:1;
+    int align:6;
+    const char *label;
+    size_t size;
+    union {
+        // data
+        struct xvalue **xvalues;
+        // decl
+        node_t *decl;
+    } u;
 };
-
-#define GDATA_TEXT_DECL(gdata)       ((gdata)->text.decl)
-
-struct gdata_text {
-    struct gdata_common common;
-    node_t *decl;
-};
-
-typedef union {
-    struct gdata_common common;
-    struct gdata_bss bss;
-    struct gdata_data data;
-    struct gdata_text text;
-} gdata_t;
 
 enum {
     SYM_KIND_LABEL,

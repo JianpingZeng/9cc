@@ -1552,9 +1552,9 @@ static inline struct xvalue * alloc_xvalue(void)
     return zmalloc(sizeof(struct xvalue));
 }
 
-static inline gdata_t * alloc_gdata(void)
+static inline struct gdata * alloc_gdata(void)
 {
-    return zmalloc(sizeof(gdata_t));
+    return zmalloc(sizeof(struct gdata));
 }
 
 static void emit_xvalue(int size, const char *name)
@@ -1570,7 +1570,7 @@ static void emit_zero(size_t bytes)
     emit_xvalue(Zero, format("%llu", bytes));
 }
 
-static void emit_gdata(gdata_t *data)
+static void emit_gdata(struct gdata *data)
 {
     vec_push(exts->gdatas, data);
 }
@@ -1578,11 +1578,11 @@ static void emit_gdata(gdata_t *data)
 static void emit_funcdef_gdata(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
-    gdata_t *gdata = alloc_gdata();
-    GDATA_ID(gdata) = GDATA_TEXT;
-    GDATA_GLOBAL(gdata) = SYM_SCLASS(sym) == STATIC ? false : true;
-    GDATA_LABEL(gdata) = SYM_X_LABEL(sym);
-    GDATA_TEXT_DECL(gdata) = decl;
+    struct gdata *gdata = alloc_gdata();
+    gdata->id = GDATA_TEXT;
+    gdata->global = SYM_SCLASS(sym) == STATIC ? false : true;
+    gdata->label = SYM_X_LABEL(sym);
+    gdata->u.decl = decl;
     emit_gdata(gdata);
 }
 
@@ -1596,21 +1596,21 @@ static const char *get_string_literal_label(const char *name)
     return label;
 }
 
-static gdata_t *emit_compound_literal_label(const char *label, node_t *init)
+static struct gdata *emit_compound_literal_label(const char *label, node_t *init)
 {
     node_t *ty = AST_TYPE(init);
     
-    gdata_t *gdata = alloc_gdata();
-    GDATA_ID(gdata) = GDATA_DATA;
-    GDATA_LABEL(gdata) = label;
-    GDATA_SIZE(gdata) = TYPE_SIZE(ty);
-    GDATA_ALIGN(gdata) = TYPE_ALIGN(ty);
+    struct gdata *gdata = alloc_gdata();
+    gdata->id = GDATA_DATA;
+    gdata->label = label;
+    gdata->size = TYPE_SIZE(ty);
+    gdata->align = TYPE_ALIGN(ty);
 
     SET_GDATA_CONTEXT();
 
     emit_initializer(init);
 
-    GDATA_DATA_XVALUES(gdata) = (struct xvalue **)vtoa(XVALUES);
+    gdata->u.xvalues = (struct xvalue **)vtoa(XVALUES);
 
     RESTORE_GDATA_CONTEXT();
 
@@ -1622,7 +1622,7 @@ static const char *get_compound_literal_label(node_t *n)
     cc_assert(AST_ID(n) == INITS_EXPR);
     
     const char *label = gen_compound_label();
-    gdata_t *gdata = emit_compound_literal_label(label, n);
+    struct gdata *gdata = emit_compound_literal_label(label, n);
     dict_put(exts->compounds, label, gdata);
     return label;
 }
@@ -1828,29 +1828,29 @@ static void emit_initializer(node_t *init)
         die("unexpected initializer type: %s", type2s(ty));
 }
 
-static void set_gdata_basic(gdata_t *gdata, node_t *decl)
+static void set_gdata_basic(struct gdata *gdata, node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
     
-    GDATA_GLOBAL(gdata) = SYM_SCLASS(sym) == STATIC ? false : true;
-    GDATA_LABEL(gdata) = SYM_X_LABEL(sym);
-    GDATA_SIZE(gdata) = TYPE_SIZE(ty);
-    GDATA_ALIGN(gdata) = TYPE_ALIGN(ty);
+    gdata->global = SYM_SCLASS(sym) == STATIC ? false : true;
+    gdata->label = SYM_X_LABEL(sym);
+    gdata->size = TYPE_SIZE(ty);
+    gdata->align = TYPE_ALIGN(ty);
 }
 
 static void emit_bss(node_t *decl)
 {
-    gdata_t *gdata = alloc_gdata();
-    GDATA_ID(gdata) = GDATA_BSS;
+    struct gdata *gdata = alloc_gdata();
+    gdata->id = GDATA_BSS;
     set_gdata_basic(gdata, decl);
     emit_gdata(gdata);
 }
 
 static void emit_data(node_t *decl)
 {
-    gdata_t *gdata = alloc_gdata();
-    GDATA_ID(gdata) = GDATA_DATA;
+    struct gdata *gdata = alloc_gdata();
+    gdata->id = GDATA_DATA;
     set_gdata_basic(gdata, decl);
     
     // enter context
@@ -1859,7 +1859,7 @@ static void emit_data(node_t *decl)
     emit_initializer(DECL_BODY(decl));
     emit_gdata(gdata);
 
-    GDATA_DATA_XVALUES(gdata) = (struct xvalue **)vtoa(XVALUES);
+    gdata->u.xvalues = (struct xvalue **)vtoa(XVALUES);
     
     // exit context
     RESTORE_GDATA_CONTEXT();

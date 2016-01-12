@@ -658,14 +658,14 @@ static size_t extra_stack_size(node_t *decl)
         | ...           |
  */
 
-static void emit_function_prologue(gdata_t *gdata)
+static void emit_function_prologue(struct gdata *gdata)
 {
-    node_t *decl = GDATA_TEXT_DECL(gdata);
+    node_t *decl = gdata->u.decl;
     
-    if (GDATA_GLOBAL(gdata))
-        emit(".globl %s", GDATA_LABEL(gdata));
+    if (gdata->global)
+        emit(".globl %s", gdata->label);
     emit(".text");
-    emit_noindent("%s:", GDATA_LABEL(gdata));
+    emit_noindent("%s:", gdata->label);
     emit("pushq %s", rbp->r[Q]);
     emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
 
@@ -776,15 +776,15 @@ static void emit_function_params(node_t *decl)
   pop rbp
  */
 
-static void emit_function_epilogue(gdata_t *gdata)
+static void emit_function_epilogue(struct gdata *gdata)
 {
     emit("leave");
     emit("ret");
 }
 
-static void emit_text(gdata_t *gdata)
+static void emit_text(struct gdata *gdata)
 {
-    node_t *decl = GDATA_TEXT_DECL(gdata);
+    node_t *decl = gdata->u.decl;
     
     emit_function_prologue(gdata);
     emit_function_params(decl);
@@ -794,16 +794,16 @@ static void emit_text(gdata_t *gdata)
     emit_function_epilogue(gdata);
 }
 
-static void emit_data(gdata_t *gdata)
+static void emit_data(struct gdata *gdata)
 {
-    if (GDATA_GLOBAL(gdata))
-        emit(".globl %s", GDATA_LABEL(gdata));
+    if (gdata->global)
+        emit(".globl %s", gdata->label);
     emit(".data");
-    if (GDATA_ALIGN(gdata) > 1)
-        emit(".align %d", GDATA_ALIGN(gdata));
-    emit_noindent("%s:", GDATA_LABEL(gdata));
-    for (int i = 0; i < LIST_LEN(GDATA_DATA_XVALUES(gdata)); i++) {
-        struct xvalue *value = GDATA_DATA_XVALUES(gdata)[i];
+    if (gdata->align > 1)
+        emit(".align %d", gdata->align);
+    emit_noindent("%s:", gdata->label);
+    for (int i = 0; i < LIST_LEN(gdata->u.xvalues); i++) {
+        struct xvalue *value = gdata->u.xvalues[i];
         switch (value->size) {
         case Zero:
             emit(".zero %s", value->name);
@@ -827,13 +827,13 @@ static void emit_data(gdata_t *gdata)
     }
 }
 
-static void emit_bss(gdata_t *gdata)
+static void emit_bss(struct gdata *gdata)
 {
     emit("%s %s,%llu,%d",
-         GDATA_GLOBAL(gdata) ? ".comm" : ".lcomm",
-         GDATA_LABEL(gdata),
-         GDATA_SIZE(gdata),
-         GDATA_ALIGN(gdata));
+         gdata->global ? ".comm" : ".lcomm",
+         gdata->label,
+         gdata->size,
+         gdata->align);
 }
 
 static void emit_compounds(struct dict *compounds)
@@ -842,7 +842,7 @@ static void emit_compounds(struct dict *compounds)
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(compounds->keys, i);
-            gdata_t *gdata = dict_get(compounds, label);
+            struct gdata *gdata = dict_get(compounds, label);
             emit_data(gdata);
         }
     }
@@ -908,8 +908,8 @@ void gen(struct externals *exts, FILE * fp)
     
     gen_init(fp);
     for (int i = 0; i < vec_len(exts->gdatas); i++) {
-        gdata_t *gdata = vec_at(exts->gdatas, i);
-        switch (GDATA_ID(gdata)) {
+        struct gdata *gdata = vec_at(exts->gdatas, i);
+        switch (gdata->id) {
         case GDATA_BSS:
             emit_bss(gdata);
             break;
@@ -920,7 +920,7 @@ void gen(struct externals *exts, FILE * fp)
             emit_text(gdata);
             break;
         default:
-            die("unknown gdata id '%d'", GDATA_ID(gdata));
+            die("unknown gdata id '%d'", gdata->id);
             break;
         }
     }
