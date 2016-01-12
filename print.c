@@ -556,8 +556,11 @@ void print_ir(struct externals *exts)
                 putln("");
             }
             break;
-        default:
+        case GDATA_DATA:
+        case GDATA_BSS:
             break;
+        default:
+            cc_assert(0);
         }
     }
 }

@@ -923,8 +923,7 @@ void gen(struct externals *exts, FILE * fp)
             emit_text(gdata);
             break;
         default:
-            die("unknown gdata id '%d'", gdata->id);
-            break;
+            cc_assert(0);
         }
     }
     emit_compounds(exts->compounds);
