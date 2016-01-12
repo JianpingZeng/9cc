@@ -1,7 +1,5 @@
 #include "cc.h"
 
-static FILE *outfp;
-
 /**
  *  X86_64 registers
  *
@@ -21,6 +19,11 @@ static FILE *outfp;
  *
  *  cs,ds,es,fs,gs,ss
  */
+
+static FILE *outfp;
+
+#define NUM_IARG_REGS  6
+#define NUM_FARG_REGS  8
 
 enum {
     RAX, RBX, RCX, RDX,

@@ -1,9 +1,6 @@
 #ifndef _GEN_H
 #define _GEN_H
 
-#define NUM_IARG_REGS  6
-#define NUM_FARG_REGS  8
-
 // operand size
 enum {
     Zero = 0,
@@ -68,7 +65,7 @@ enum {
     ADDR_MEMORY,
     ADDR_STACK,
     ADDR_REGISTER,
-    ADDR_NUM                    // count
+    ADDRS                    // count
 };
 
 struct addr {
@@ -142,7 +139,7 @@ union x {
         // uses
         struct uses uses;
         // addrs
-        struct addr *addrs[ADDR_NUM];
+        struct addr *addrs[ADDRS];
     }sym;
     
     struct {
