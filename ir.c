@@ -474,47 +474,6 @@ static void emit_uop(node_t *n)
     }
 }
 
-static unsigned bop2rop(int op, node_t *ty)
-{
-    switch (op) {
-        // scalar
-    case '+':
-        return isfloat(ty) ? IR_ADDF : IR_ADDI;
-    case '-':
-        return isfloat(ty) ? IR_SUBF : IR_SUBI;
-        // arith
-    case '*':
-        if (isfloat(ty))
-            return IR_MULF;
-        else if (TYPE_OP(ty) == UNSIGNED)
-            return IR_MULI;
-        else
-            return IR_IMULI;
-    case '/':
-        if (isfloat(ty))
-            return IR_DIVF;
-        else if (TYPE_OP(ty) == UNSIGNED)
-            return IR_DIVI;
-        else
-            return IR_IDIVI;
-        // int
-    case '%':
-        return IR_MOD;
-    case '|':
-        return IR_OR;
-    case '&':
-        return IR_AND;
-    case '^':
-        return IR_XOR;
-    case LSHIFT:
-        return IR_LSHIFT;
-    case RSHIFT:
-        return IR_RSHIFT;
-    default:
-        cc_assert(0);
-    }
-}
-
 static void emit_assign_struct(node_t *ty, struct operand *l, node_t *r)
 {
     // TODO: 
@@ -583,6 +542,47 @@ static void emit_bop_bool(node_t *n)
     // out
     emit_label(label);
     EXPR_X_ADDR(n) = result;
+}
+
+static unsigned bop2rop(int op, node_t *ty)
+{
+    switch (op) {
+        // scalar
+    case '+':
+        return isfloat(ty) ? IR_ADDF : IR_ADDI;
+    case '-':
+        return isfloat(ty) ? IR_SUBF : IR_SUBI;
+        // arith
+    case '*':
+        if (isfloat(ty))
+            return IR_MULF;
+        else if (TYPE_OP(ty) == UNSIGNED)
+            return IR_MULI;
+        else
+            return IR_IMULI;
+    case '/':
+        if (isfloat(ty))
+            return IR_DIVF;
+        else if (TYPE_OP(ty) == UNSIGNED)
+            return IR_DIVI;
+        else
+            return IR_IDIVI;
+        // int
+    case '%':
+        return IR_MOD;
+    case '|':
+        return IR_OR;
+    case '&':
+        return IR_AND;
+    case '^':
+        return IR_XOR;
+    case LSHIFT:
+        return IR_LSHIFT;
+    case RSHIFT:
+        return IR_RSHIFT;
+    default:
+        cc_assert(0);
+    }
 }
 
 // arith op arith
