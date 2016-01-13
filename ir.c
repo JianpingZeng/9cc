@@ -23,6 +23,7 @@ static void emit_assign(node_t *ty, struct operand *l, node_t *r);
 
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
+static struct vector *extra_lvars;
 static struct table *tmps;
 static struct table *labels;
 static struct externals *exts;
@@ -510,6 +511,7 @@ static void emit_bop_assign(node_t *n)
 
     emit_expr(l);
     emit_expr(r);
+    // TODO: bit-field assign
     emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r);
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
@@ -692,6 +694,28 @@ static void emit_bop(node_t *n)
     }
 }
 
+static struct operand * make_extra_decl(node_t *ty)
+{
+    cc_assert(isrecord(ty));
+    
+    if (!extra_lvars)
+        extra_lvars = vec_new();
+
+    const char *name = gen_tmpname();
+    node_t *sym = alloc_symbol();
+    SYM_NAME(sym) = SYM_X_LABEL(sym) = name;
+    SYM_TYPE(sym) = ty;
+    SYM_REFS(sym)++;
+
+    node_t *decl = ast_decl(VAR_DECL);
+    DECL_SYM(decl) = sym;
+    vec_push(extra_lvars, decl);
+    
+    struct operand *operand = make_sym_operand(sym);
+    SYM_X_KIND(sym) = SYM_KIND_REF;
+    return operand;
+}
+
 // scalar ? type : type
 static void emit_cond(node_t *n)
 {
@@ -702,14 +726,21 @@ static void emit_cond(node_t *n)
     EXPR_X_TRUE(cond) = fall;
     EXPR_X_FALSE(cond) = gen_label();
     const char *label = gen_label();
-    struct operand *result = make_tmp_operand();
+    struct operand *result;
+    if (isrecord(AST_TYPE(n)))
+        result = make_extra_decl(ty);
+    else
+        result = make_tmp_operand();
     emit_bool_expr(cond);
+    // true
     emit_expr(then);
     emit_assign(AST_TYPE(n), result, then);
     emit_goto(label);
+    // false
     emit_label(EXPR_X_FALSE(cond));
     emit_expr(els);
     emit_assign(AST_TYPE(n), result, els);
+    // out
     emit_label(label);
     EXPR_X_ADDR(n) = result;
 }
@@ -1459,10 +1490,14 @@ static void emit_function(node_t *decl)
 
     func_tac_head = NULL;
     func_tac_tail = NULL;
+    extra_lvars = NULL;
 
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
     DECL_X_HEAD(decl) = func_tac_head;
+    // add extra local vars
+    if (extra_lvars)
+        vec_add(DECL_X_LVARS(decl), extra_lvars);
     emit_funcdef_gdata(decl);
 }
 
