@@ -356,7 +356,15 @@ static struct operand * emit_ptr_int(unsigned op,
                                      size_t step,
                                      unsigned opsize)
 {
-    struct tac *tac = make_tac_r(IR_MULI, index, make_unsigned_operand(step), opsize);
+    struct tac *tac;
+    int sup = log2i(step);
+    if (sup == -1)
+        // using MUL
+        tac = make_tac_r(IR_MULI, index, make_unsigned_operand(step), opsize);
+    else
+        // using SHIFT
+        tac = make_tac_r(IR_LSHIFT, index, make_unsigned_operand(sup), opsize);
+    
     emit_tac(tac);
     struct tac *tac2 = make_tac(op, l, tac->result, result, opsize);
     emit_tac(tac2);
