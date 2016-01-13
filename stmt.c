@@ -50,7 +50,6 @@ static const char *funcname;
 static struct vector *staticvars;
 static struct vector *localvars;
 static struct vector *allvars;
-static struct vector *compoundv;
 
 static node_t *expr_stmt(void)
 {
@@ -525,8 +524,6 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     expect('{');
     enter_scope();
 
-    compoundv = v;
-
     if (enter_hook)
         enter_hook();
 
@@ -540,8 +537,6 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     }
 
     STMT_BLKS(ret) = (node_t **)vtoa(v);
-
-    compoundv = NULL;
 
     expect('}');
     exit_scope();
@@ -675,7 +670,6 @@ static void filter_unused(void)
 node_t *make_localvar(const char *name, node_t * ty, int sclass)
 {
     node_t *decl = make_localdecl(name, ty, sclass);
-    vec_push(compoundv, decl);
     vec_push(allvars, decl);
     return decl;
 }
