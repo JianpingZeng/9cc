@@ -19,7 +19,6 @@ static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
 static void emit_funcdef_gdata(node_t *decl);
 static const char *get_string_literal_label(const char *name);
-static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *i, node_t *n);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r);
 
 static struct tac *func_tac_head;
@@ -601,18 +600,6 @@ static void emit_bop_arith(node_t *n)
     EXPR_X_ADDR(n) = tac->result;
 }
 
-static void emit_bop_ptr_int(unsigned op, node_t *ptr, node_t *index, node_t *n)
-{
-    node_t *rty = rtype(AST_TYPE(ptr));
-    
-    EXPR_X_ADDR(n) =  emit_ptr_int(op,
-                                   EXPR_X_ADDR(ptr),
-                                   make_tmp_operand(),
-                                   EXPR_X_ADDR(index),
-                                   TYPE_SIZE(rty),
-                                   ops[TYPE_SIZE(ptr)]);
-}
-
 // arith + arith
 // ptr + int
 // int + ptr
@@ -629,7 +616,13 @@ static void emit_bop_plus(node_t *n)
 
         node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
         node_t *i = isint(AST_TYPE(l)) ? l : r;
-        emit_bop_ptr_int(IR_ADDI, ptr, i, n);
+        node_t *rty = rtype(AST_TYPE(ptr));
+        EXPR_X_ADDR(n) = emit_ptr_int(IR_ADDI,
+                                      EXPR_X_ADDR(ptr),
+                                      make_tmp_operand(),
+                                      EXPR_X_ADDR(i),
+                                      TYPE_SIZE(rty),
+                                      ops[TYPE_SIZE(AST_TYPE(ptr))]);
     }
 }
 
@@ -646,7 +639,13 @@ static void emit_bop_minus(node_t *n)
         emit_expr(l);
         emit_expr(r);
 
-        emit_bop_ptr_int(IR_SUBI, l, r, n);
+        node_t *rty = rtype(AST_TYPE(l));
+        EXPR_X_ADDR(n) = emit_ptr_int(IR_SUBI,
+                                      EXPR_X_ADDR(l),
+                                      make_tmp_operand(),
+                                      EXPR_X_ADDR(r),
+                                      TYPE_SIZE(rty),
+                                      ops[TYPE_SIZE(AST_TYPE(l))]);
     }
 }
 
