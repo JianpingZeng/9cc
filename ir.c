@@ -281,7 +281,6 @@ static void emit_decls(node_t **decls)
 // int
 static void emit_uop_bitwise_not(node_t *n)
 {
-    int op = EXPR_OP(n);
     node_t *l = EXPR_OPERAND(n, 0);
 
     emit_expr(l);
@@ -762,13 +761,6 @@ static void emit_subscript(node_t *n)
     }
 }
 
-static void emit_inits(node_t *n)
-{
-    cc_assert(AST_ID(n) == INITS_EXPR);
-
-    node_t **inits = EXPR_INITS(n);
-}
-
 static void emit_call(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
@@ -1047,11 +1039,7 @@ static void emit_expr(node_t *n)
         emit_compound_literal(n);
         break;
     case INITS_EXPR:
-        emit_inits(n);
-        break;
     case VINIT_EXPR:
-        // do nothing
-        break;
     default:
         cc_assert(0);
     }
