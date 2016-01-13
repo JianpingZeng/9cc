@@ -728,7 +728,7 @@ static void emit_cond(node_t *n)
     const char *label = gen_label();
     struct operand *result;
     if (isrecord(AST_TYPE(n)))
-        result = make_extra_decl(ty);
+        result = make_extra_decl(AST_TYPE(n));
     else
         result = make_tmp_operand();
     emit_bool_expr(cond);
@@ -1496,8 +1496,12 @@ static void emit_function(node_t *decl)
     emit_stmt(stmt);
     DECL_X_HEAD(decl) = func_tac_head;
     // add extra local vars
-    if (extra_lvars)
-        vec_add(DECL_X_LVARS(decl), extra_lvars);
+    if (extra_lvars) {
+        struct vector *v = vec_new();
+        vec_add_array(v, (void **)DECL_X_LVARS(decl));
+        vec_add(v, extra_lvars);
+        DECL_X_LVARS(decl) = (node_t **)vtoa(v);
+    }
     emit_funcdef_gdata(decl);
 }
 
