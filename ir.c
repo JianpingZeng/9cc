@@ -143,16 +143,18 @@ static struct operand * make_subscript_operand(struct operand *array, struct ope
     return operand;
 }
 
-static struct operand * make_indirection_operand(node_t *sym)
+static struct operand * make_indirection_operand(struct operand *l)
 {
-    struct operand *operand = make_sym_operand(sym);
+    struct operand *operand = make_sym_operand(l->sym);
+    operand->index = l->index;  // copy index
     operand->op = IR_INDIRECTION;
     return operand;
 }
 
-static struct operand * make_address_operand(node_t *sym)
+static struct operand * make_address_operand(struct operand *l)
 {
-    struct operand *operand = make_sym_operand(sym);
+    struct operand *operand = make_sym_operand(l->sym);
+    operand->index = l->index;  // copy index
     operand->op = IR_ADDRESS;
     return operand;
 }
@@ -334,7 +336,7 @@ static void emit_uop_indirection(node_t *n)
     if (isfunc(AST_TYPE(n)))
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
     else
-        EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l)->sym);
+        EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l));
 }
 
 // lvalue
@@ -344,7 +346,7 @@ static void emit_uop_address(node_t *n)
 
     emit_expr(l);
 
-    EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l)->sym);
+    EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l));
 }
 
 // ptr + int
@@ -706,6 +708,8 @@ static struct operand * make_extra_decl(node_t *ty)
     SYM_NAME(sym) = SYM_X_LABEL(sym) = name;
     SYM_TYPE(sym) = ty;
     SYM_REFS(sym)++;
+    // set scope as LOCAL
+    SYM_SCOPE(sym) = LOCAL;
 
     node_t *decl = ast_decl(VAR_DECL);
     DECL_SYM(decl) = sym;
@@ -759,8 +763,18 @@ static void emit_member(node_t *n)
     node_t *field = find_field(ty, name);
 
     emit_expr(l);
-    struct operand *index = make_unsigned_operand(FIELD_OFFSET(field));
-    EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), index);
+
+    struct operand *addr = EXPR_X_ADDR(l);
+    
+    if (addr->index) {
+        struct operand *index = make_unsigned_operand(FIELD_OFFSET(field));
+        struct tac *tac = make_tac_r(IR_ADDI, make_sym_operand(addr->index), index, Quad);
+        emit_tac(tac);
+        EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), tac->result);
+    } else {
+        struct operand *index = make_unsigned_operand(FIELD_OFFSET(field));
+        EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), index);
+    }
 }
 
 static void emit_subscript(node_t *n)
@@ -776,7 +790,7 @@ static void emit_subscript(node_t *n)
     node_t *rty = rtype(AST_TYPE(ptr));
     struct operand *addr = EXPR_X_ADDR(ptr);
 
-    if (addr->op == IR_SUBSCRIPT) {
+    if (addr->index) {
         struct operand *size = make_unsigned_operand(TYPE_SIZE(rty));
         struct tac *tac = make_tac_r(IR_IMULI, EXPR_X_ADDR(i), size, Quad);
         emit_tac(tac);
@@ -923,7 +937,7 @@ static inline void func2ptr(node_t *dty, node_t *sty, node_t *n)
 static inline void array2ptr(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l)->sym);
+    EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l));
 }
 
 static void emit_conv(node_t *n)
@@ -989,7 +1003,7 @@ static void emit_float_literal(node_t *n)
     const char *label = get_float_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
     SYM_X_KIND(sym) = SYM_KIND_LITERAL;
-    EXPR_X_ADDR(n) = make_indirection_operand(sym);
+    EXPR_X_ADDR(n) = make_indirection_operand(make_sym_operand(sym));
 }
 
 static void emit_string_literal(node_t *n)

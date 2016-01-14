@@ -414,6 +414,8 @@ static const char * operand2s(struct operand *operand)
                       SYM_X_LABEL(operand->index));
     case IR_INDIRECTION:
         return format("*%s", SYM_X_LABEL(operand->sym));
+    case IR_ADDRESS:
+        return format("&%s", SYM_X_LABEL(operand->sym));
     case IR_NONE:
     default:
         return SYM_X_LABEL(operand->sym);
