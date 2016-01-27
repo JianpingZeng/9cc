@@ -270,7 +270,6 @@ static void emit_decl(node_t *decl)
         return;
     
     struct operand *l = make_sym_operand(sym);
-    emit_expr(init);
     emit_assign(SYM_TYPE(sym), l, init);
 }
 
@@ -494,9 +493,12 @@ static void emit_assign_scalar(node_t *ty, struct operand *l, node_t *r)
     emit_tac(tac);
 }
 
+// r is _NOT_ evaluated.
 static void emit_assign(node_t *ty, struct operand *l, node_t *r)
 {
     cc_assert(ty);
+
+    emit_expr(r);
     
     if (isstruct(ty) || isunion(ty))
         emit_assign_struct(ty, l, r);
@@ -512,7 +514,6 @@ static void emit_bop_assign(node_t *n)
     node_t *r = EXPR_OPERAND(n, 1);
 
     emit_expr(l);
-    emit_expr(r);
     // TODO: bit-field assign
     emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r);
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
@@ -737,12 +738,10 @@ static void emit_cond(node_t *n)
         result = make_tmp_operand();
     emit_bool_expr(cond);
     // true
-    emit_expr(then);
     emit_assign(AST_TYPE(n), result, then);
     emit_goto(label);
     // false
     emit_label(EXPR_X_FALSE(cond));
-    emit_expr(els);
     emit_assign(AST_TYPE(n), result, els);
     // out
     emit_label(label);
@@ -1021,9 +1020,7 @@ static void emit_compound_literal(node_t *n)
     SYM_X_KIND(sym) = SYM_KIND_REF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 
-    // TODO:
     node_t *l = EXPR_OPERAND(n, 0);
-    emit_expr(l);
     emit_assign(AST_TYPE(n), EXPR_X_ADDR(n), l);
 }
 
