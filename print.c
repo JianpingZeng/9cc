@@ -543,28 +543,127 @@ void print_tac(struct tac *tac)
     putf("\n");
 }
 
+static void print_data(struct gdata *gdata)
+{
+    putln("%s:", gdata->label);
+    for (int i = 0; i < LIST_LEN(gdata->u.xvalues); i++) {
+        struct xvalue *value = gdata->u.xvalues[i];
+        switch (value->size) {
+        case Zero:
+            putln(".zero %s", value->name);
+            break;
+        case Byte:
+            putln(".byte %s", value->name);
+            break;
+        case Word:
+            putln(".short %s", value->name);
+            break;
+        case Long:
+            putln(".long %s", value->name);
+            break;
+        case Quad:
+            putln(".quad %s", value->name);
+            break;
+        default:
+            cc_assert(0);
+        }
+    }
+}
+
+static void print_bss(struct gdata *gdata)
+{
+    putln("%s,%llu,%d",
+          gdata->label, gdata->size, gdata->align);
+}
+
+static void print_text(struct gdata *gdata)
+{
+    node_t *decl = gdata->u.decl;
+    putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
+    struct tac *head = DECL_X_HEAD(decl);
+    for (struct tac *tac = head; tac; tac = tac->next)
+        print_tac(tac);
+    putln("");
+}
+
+static void print_compounds(struct dict *compounds)
+{
+    struct vector *keys = compounds->keys;
+    if (vec_len(keys)) {
+        for (int i = 0; i < vec_len(keys); i++) {
+            const char *label = vec_at(compounds->keys, i);
+            struct gdata *gdata = dict_get(compounds, label);
+            print_data(gdata);
+        }
+    }
+}
+
+static void print_strings(struct dict *strings)
+{
+    struct vector *keys = strings->keys;
+    if (vec_len(keys)) {
+        for (int i = 0; i < vec_len(keys); i++) {
+            const char *name = vec_at(strings->keys, i);
+            const char *label = dict_get(strings, name);
+            putln("%s:", label);
+            putln(".string %s", name);
+        }
+    }
+}
+
+static void print_floats(struct dict *floats)
+{
+    struct vector *keys = floats->keys;
+    if (vec_len(keys)) {
+        for (int i = 0; i < vec_len(keys); i++) {
+            const char *name = vec_at(floats->keys, i);
+            const char *label = dict_get(floats, name);
+            node_t *sym = lookup(name, constants);
+            cc_assert(sym);
+            node_t *ty = SYM_TYPE(sym);
+            putln("%s:", label);
+            switch (TYPE_KIND(ty)) {
+            case FLOAT:
+                {
+                    float f = SYM_VALUE_D(sym);
+                    putln(".long %u", *(uint32_t *)&f);
+                }
+                break;
+            case DOUBLE:
+            case LONG + DOUBLE:
+                {
+                    double d = SYM_VALUE_D(sym);
+                    putln(".quad %llu", *(uint64_t *)&d);
+                }
+                break;
+            default:
+                cc_assert(0);
+            }
+        }
+    }
+}
+
 void print_ir(struct externals *exts)
 {
     for (int i = 0; i < vec_len(exts->gdatas); i++) {
         struct gdata *gdata = vec_at(exts->gdatas, i);
         switch (gdata->id) {
         case GDATA_TEXT:
-            {
-                node_t *decl = gdata->u.decl;
-                putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
-                struct tac *head = DECL_X_HEAD(decl);
-                for (struct tac *tac = head; tac; tac = tac->next)
-                    print_tac(tac);
-                putln("");
-            }
+            print_text(gdata);
             break;
         case GDATA_DATA:
+            print_data(gdata);
+            break;
         case GDATA_BSS:
+            print_bss(gdata);
             break;
         default:
             cc_assert(0);
         }
     }
+    print_compounds(exts->compounds);
+    print_strings(exts->strings);
+    print_floats(exts->floats);
 }
 
 /**
