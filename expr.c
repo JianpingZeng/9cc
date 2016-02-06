@@ -1199,9 +1199,7 @@ static node_t *direction(node_t * node)
     if (NO_ERROR) {
         // The result has the union of both sets of qualifiers.
         int q = qual_union(AST_TYPE(node), AST_TYPE(field));
-        ret =
-            ast_expr(MEMBER_EXPR, qual(q, FIELD_TYPE(field)), node,
-                     NULL);
+        ret = ast_expr(MEMBER_EXPR, qual(q, FIELD_TYPE(field)), node,  NULL);
         AST_NAME(ret) = FIELD_NAME(field);
         EXPR_OP(ret) = t;
         AST_SRC(ret) = src;

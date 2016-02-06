@@ -19,7 +19,7 @@ static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
 static void emit_funcdef_gdata(node_t *decl);
 static const char *get_string_literal_label(const char *name);
-static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset);
+static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset, node_t *bfield);
 static struct vector * filter_global(node_t **v);
 
 static struct tac *func_tac_head;
@@ -303,7 +303,7 @@ static void emit_decl(node_t *decl)
         return;
     
     struct operand *l = make_sym_operand(sym);
-    emit_assign(SYM_TYPE(sym), l, init, 0);
+    emit_assign(SYM_TYPE(sym), l, init, 0, NULL);
 }
 
 static void emit_decls(node_t **decls)
@@ -507,7 +507,25 @@ static void emit_uop(node_t *n)
     }
 }
 
-static void do_emit_zeros(node_t *ty, struct operand *l, long *offset, size_t *bytes, unsigned size)
+static node_t *bfieldof(node_t *n)
+{
+    if (AST_ID(n) != MEMBER_EXPR)
+        return NULL;
+    const char *name = AST_NAME(n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *ty = AST_TYPE(l);
+    if (isptr(ty))
+        ty = rtype(ty);
+    cc_assert(isrecord(ty));
+    node_t *field = find_field(ty, name);
+    if (FIELD_ISBIT(field))
+        return field;
+    else
+        return NULL;
+}
+
+static void do_emit_zeros(node_t *ty, struct operand *l, long *offset,
+                          size_t *bytes, unsigned size)
 {
     cc_assert(size <= 8);
     
@@ -575,7 +593,7 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
             if (AST_ID(init) == VINIT_EXPR)
                 emit_zeros(rty, l, off, TYPE_SIZE(rty));
             else
-                emit_assign(rty, l, init, off);
+                emit_assign(rty, l, init, off, FIELD_ISBIT(field) ? field : NULL);
         }
         if (LIST_LEN(inits) < TYPE_LEN(ty)) {
             node_t *field = TYPE_FIELDS(ty)[LIST_LEN(inits)];
@@ -592,7 +610,7 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
             if (AST_ID(init) == VINIT_EXPR)
                 emit_zeros(rty, l, off, TYPE_SIZE(rty));
             else
-                emit_assign(rty, l, init, off);
+                emit_assign(rty, l, init, off, NULL);
         }
         if (LIST_LEN(inits) < TYPE_LEN(ty)) {
             long off = offset + LIST_LEN(inits) * TYPE_SIZE(rty);
@@ -604,8 +622,48 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
     }
 }
 
+static void emit_scalar(node_t *ty, struct operand *l, node_t *r, long offset)
+{
+    emit_expr(r);
+    unsigned op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
+    unsigned opsize = ops[TYPE_SIZE(ty)];
+    if (offset) {
+        struct operand *x = make_offset_operand(l, offset);
+        struct tac *tac = make_assign_tac(op, x, EXPR_X_ADDR(r), opsize);
+        emit_tac(tac);
+    } else {
+        struct tac *tac = make_assign_tac(op, l, EXPR_X_ADDR(r), opsize);
+        emit_tac(tac);
+    }
+}
+
+static void emit_bitfield(node_t *ty, struct operand *l, node_t *r, long offset,
+                          node_t *bfield)
+{
+    emit_expr(r);
+    unsigned op = IR_ASSIGNI;
+    int boff = FIELD_BITOFF(bfield);
+    int bsize = FIELD_BITSIZE(bfield);
+    unsigned long mask1 = (1UL << bsize) - 1;
+    unsigned opsize = boff + bsize <= 32 ? ops[4] : ops[8];
+    struct operand *operand1 = make_unsigned_operand(mask1);
+    struct tac *tac1 = make_tac_r(IR_AND, EXPR_X_ADDR(r), operand1, opsize);
+    emit_tac(tac1);
+    struct operand *operand2 = make_unsigned_operand(boff);
+    struct tac *tac2 = make_tac_r(IR_LSHIFT, tac1->result, operand2, opsize);
+    emit_tac(tac2);
+    unsigned mask2 = ~(mask1 << boff);
+    struct operand *operand3 = make_unsigned_operand(mask2);
+    struct tac *tac3 = make_tac_r(IR_AND, l, operand3, opsize);
+    emit_tac(tac3);
+    struct tac *tac4 = make_tac_r(IR_OR, tac2->result, tac3->result, opsize);
+    emit_tac(tac4);
+    struct tac *tac = make_assign_tac(op, l, tac4->result, opsize);
+    emit_tac(tac);
+}
+
 // r is _NOT_ evaluated.
-static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset)
+static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset, node_t *bfield)
 {
     cc_assert(ty);
     
@@ -626,17 +684,10 @@ static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset)
             cc_assert(0);
         }
     } else {
-        emit_expr(r);
-        unsigned op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
-        unsigned opsize = ops[TYPE_SIZE(ty)];
-        if (offset) {
-            struct operand *x = make_offset_operand(l, offset);
-            struct tac *tac = make_assign_tac(op, x, EXPR_X_ADDR(r), opsize);
-            emit_tac(tac);
-        } else {
-            struct tac *tac = make_assign_tac(op, l, EXPR_X_ADDR(r), opsize);
-            emit_tac(tac);
-        }
+        if (bfield)
+            emit_bitfield(ty, l, r, offset, bfield);
+        else
+            emit_scalar(ty, l, r, offset);
     }
 }
 
@@ -646,8 +697,7 @@ static void emit_bop_assign(node_t *n)
     node_t *r = EXPR_OPERAND(n, 1);
 
     emit_expr(l);
-    // TODO: bit-field assign
-    emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r, 0);
+    emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r, 0, bfieldof(l));
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
@@ -870,11 +920,11 @@ static void emit_cond(node_t *n)
         result = make_tmp_operand();
     emit_bool_expr(cond);
     // true
-    emit_assign(AST_TYPE(n), result, then, 0);
+    emit_assign(AST_TYPE(n), result, then, 0, NULL);
     emit_goto(label);
     // false
     emit_label(EXPR_X_FALSE(cond));
-    emit_assign(AST_TYPE(n), result, els, 0);
+    emit_assign(AST_TYPE(n), result, els, 0, NULL);
     // out
     emit_label(label);
     EXPR_X_ADDR(n) = result;
@@ -1153,7 +1203,7 @@ static void emit_compound_literal(node_t *n)
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 
     node_t *l = EXPR_OPERAND(n, 0);
-    emit_assign(AST_TYPE(n), EXPR_X_ADDR(n), l, 0);
+    emit_assign(AST_TYPE(n), EXPR_X_ADDR(n), l, 0, NULL);
 }
 
 static void emit_ref(node_t *n)
