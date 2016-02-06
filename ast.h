@@ -91,6 +91,7 @@ struct ast_type {
 #define FIELD_ISBIT(NODE)       ((NODE)->field.isbit)
 #define FIELD_OFFSET(NODE)      ((NODE)->field.offset)
 #define FIELD_BITSIZE(NODE)     ((NODE)->field.bitsize)
+#define FIELD_BITOFF(NODE)      ((NODE)->field.bitoff)
 
 struct ast_field {
     struct ast_common common;

@@ -58,8 +58,8 @@ static void print_field(node_t * node, struct print_context context)
 
     putf(GREEN("%s "), nname(node));
     if (FIELD_ISBIT(node))
-        putf(RED("<offset=%d, bits=%d> "), FIELD_OFFSET(node),
-             FIELD_BITSIZE(node));
+        putf(RED("<offset=%d, bitoff=%d, bits=%d> "),
+             FIELD_OFFSET(node), FIELD_BITOFF(node), FIELD_BITSIZE(node));
     else
         putf(GREEN("<offset=%d> "), FIELD_OFFSET(node));
 
