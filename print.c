@@ -438,8 +438,8 @@ void print_tac(struct tac *tac)
     case IR_RETURNI:
     case IR_RETURNF:
         putf("%s %s",
-              rop2s(tac->op),
-              operand2s(tac->args[0]));
+             rop2s(tac->op),
+             tac->args[0] ? operand2s(tac->args[0]) : "");
         break;
     case IR_IF_I:
     case IR_IF_F:

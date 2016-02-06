@@ -585,9 +585,10 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
 
     if (isstruct(ty) || isunion(ty)) {
         node_t **inits = EXPR_INITS(r);
+        node_t **fields = TYPE_FIELDS(ty);
         for (int i = 0; i < LIST_LEN(inits); i++) {
             node_t *init = inits[i];
-            node_t *field = TYPE_FIELDS(ty)[i];
+            node_t *field = fields[i];
             node_t *rty = FIELD_TYPE(field);
             long off = offset + FIELD_OFFSET(field);
             if (AST_ID(init) == VINIT_EXPR)
@@ -595,8 +596,8 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
             else
                 emit_assign(rty, l, init, off, FIELD_ISBIT(field) ? field : NULL);
         }
-        if (LIST_LEN(inits) < TYPE_LEN(ty)) {
-            node_t *field = TYPE_FIELDS(ty)[LIST_LEN(inits)];
+        if (LIST_LEN(inits) < LIST_LEN(fields)) {
+            node_t *field = fields[LIST_LEN(inits)];
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
             emit_zeros(FIELD_TYPE(field), l, off, bytes);
@@ -1621,19 +1622,27 @@ static void emit_continue_stmt(node_t *stmt)
     emit_goto(CONTINUE_CONTEXT);
 }
 
+// return expr(opt)
 static void emit_return_stmt(node_t *stmt)
 {
     node_t *n = STMT_RETURN_EXPR(stmt);
-    node_t *ty = AST_TYPE(n);
-    unsigned op = isfloat(ty) ? IR_RETURNF : IR_RETURNI;
+    if (isnullstmt(n)) {
+        struct tac *tac = make_tac_nor(IR_RETURNI,
+                                       NULL,
+                                       NULL,
+                                       ops[0]);
+        emit_tac(tac);
+    } else {
+        node_t *ty = AST_TYPE(n);
+        unsigned op = isfloat(ty) ? IR_RETURNF : IR_RETURNI;
     
-    emit_expr(n);
-    
-    struct tac *tac = make_tac_nor(op,
-                                   EXPR_X_ADDR(n),
-                                   NULL,
-                                   ops[TYPE_SIZE(ty)]);
-    emit_tac(tac);
+        emit_expr(n);
+        struct tac *tac = make_tac_nor(op,
+                                       EXPR_X_ADDR(n),
+                                       NULL,
+                                       ops[TYPE_SIZE(ty)]);
+        emit_tac(tac);
+    }
 }
 
 static void emit_stmt(node_t *stmt)
