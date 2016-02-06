@@ -465,9 +465,11 @@ void print_tac(struct tac *tac)
         break;
     case IR_ASSIGNI:
     case IR_ASSIGNF:
-        putf("%s = %s",
-              operand2s(tac->result),
-              operand2s(tac->args[0]));
+        putf("%s = %s \t(%s, %u)",
+             operand2s(tac->result),
+             operand2s(tac->args[0]),
+             tac->op == IR_ASSIGNF ? "ASSIGNF" : "ASSIGNI",
+             tac->opsize);
         break;
     case IR_ADDI:
     case IR_ADDF:

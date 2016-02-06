@@ -94,9 +94,10 @@ struct ast_type {
 
 struct ast_field {
     struct ast_common common;
-    bool isbit;
     size_t offset;
-    int bitsize;
+    int isbit : 1;
+    int bitsize : 10;
+    int bitoff : 10;
 };
 
 #define SYM_SCOPE(NODE)       ((NODE)->symbol.scope)

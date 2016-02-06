@@ -194,6 +194,38 @@ static struct tac * make_assign_tac(unsigned op,
     return make_tac(op, r, NULL, l, opsize);
 }
 
+static struct operand * make_offset_operand(struct operand *l, long offset)
+{
+    struct operand *index;
+    if (l->index) {
+        if (SYM_X_KIND(l->index) == SYM_KIND_LITERAL) {
+            unsigned long x = SYM_VALUE_U(l->index);
+            index = make_unsigned_operand(x + offset);
+        } else {
+            struct operand *x = make_int_operand(offset);
+            struct tac *tac = make_tac_r(IR_ADDI, l, x, ops[8]);
+            emit_tac(tac);
+            index = tac->result;
+        }
+    } else {
+        index = make_int_operand(offset);
+    }
+    switch (l->op) {
+    case IR_NONE:
+    case IR_SUBSCRIPT:
+        {
+            struct operand *ret = make_sym_operand(l->sym);
+            ret->op = IR_SUBSCRIPT;
+            ret->index = index->sym;
+            return ret;
+        }
+    case IR_INDIRECTION:
+    case IR_ADDRESS:
+    default:
+        cc_assert(0);
+    }
+}
+
 static void emit_simple_if(unsigned op, struct operand *operand,
                            const char *label, unsigned opsize)
 {
@@ -474,14 +506,58 @@ static void emit_uop(node_t *n)
     }
 }
 
-static void emit_zeros(struct operand *l, long offset, size_t bytes)
+static void do_emit_zeros(node_t *ty, struct operand *l, long *offset, size_t *bytes, unsigned size)
 {
+    cc_assert(size <= 8);
     
+    while (*bytes >= size) {
+        unsigned op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
+        unsigned opsize = ops[size];
+        struct operand *r1 = make_operand_zero();
+        struct operand *l1 = make_offset_operand(l, *offset);
+        struct tac *tac = make_assign_tac(op, l1, r1, opsize);
+        emit_tac(tac);
+        *bytes -= size;
+        *offset += size;
+    }
 }
 
-static void emit_bytes(node_t *ty, struct operand *l, struct operand *r, size_t bytes)
+static void emit_zeros(node_t *ty, struct operand *l, long offset, size_t bytes)
 {
-    
+    do_emit_zeros(ty, l, &offset, &bytes, 8);
+    do_emit_zeros(ty, l, &offset, &bytes, 4);
+    do_emit_zeros(ty, l, &offset, &bytes, 2);
+    do_emit_zeros(ty, l, &offset, &bytes, 1);
+    cc_assert(bytes == 0);
+}
+
+static void do_emit_bytes(struct operand *l, long *loffset,
+                          struct operand *r, long *roffset,
+                          size_t *bytes, unsigned size)
+{
+    cc_assert(size <= 8);
+
+    while (*bytes >= size) {
+        unsigned op = IR_ASSIGNI;
+        unsigned opsize = ops[size];
+        struct operand *l1 = make_offset_operand(l, *loffset);
+        struct operand *r1 = make_offset_operand(r, *roffset);
+        struct tac *tac = make_assign_tac(op, l1, r1, opsize);
+        emit_tac(tac);
+        *bytes -= size;
+        *loffset += size;
+        *roffset += size;
+    }
+}
+
+static void emit_bytes(struct operand *l, long offset, struct operand *r, size_t bytes)
+{
+    long roffset = 0;
+    do_emit_bytes(l, &offset, r, &roffset, &bytes, 8);
+    do_emit_bytes(l, &offset, r, &roffset, &bytes, 4);
+    do_emit_bytes(l, &offset, r, &roffset, &bytes, 2);
+    do_emit_bytes(l, &offset, r, &roffset, &bytes, 1);
+    cc_assert(bytes == 0);
 }
 
 static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
@@ -496,7 +572,7 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
             node_t *rty = FIELD_TYPE(field);
             long off = offset + FIELD_OFFSET(field);
             if (AST_ID(init) == VINIT_EXPR)
-                emit_zeros(l, off, TYPE_SIZE(rty));
+                emit_zeros(rty, l, off, TYPE_SIZE(rty));
             else
                 emit_assign(rty, l, init, off);
         }
@@ -504,7 +580,7 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
             node_t *field = TYPE_FIELDS(ty)[LIST_LEN(inits)];
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
-            emit_zeros(l, off, bytes);
+            emit_zeros(FIELD_TYPE(field), l, off, bytes);
         }
     } else if (isarray(ty)) {
         node_t *rty = rtype(ty);
@@ -513,14 +589,14 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
             node_t *init = inits[i];
             long off = offset + i * TYPE_SIZE(rty);
             if (AST_ID(init) == VINIT_EXPR)
-                emit_zeros(l, off, TYPE_SIZE(rty));
+                emit_zeros(rty, l, off, TYPE_SIZE(rty));
             else
                 emit_assign(rty, l, init, off);
         }
         if (LIST_LEN(inits) < TYPE_LEN(ty)) {
             long off = offset + LIST_LEN(inits) * TYPE_SIZE(rty);
             size_t bytes = TYPE_SIZE(ty) - off;
-            emit_zeros(l, off, bytes);
+            emit_zeros(rty, l, off, bytes);
         }
     } else {
         cc_assert(0);
@@ -537,18 +613,29 @@ static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset)
             emit_inits(ty, l, r, offset);
         } else {
             emit_expr(r);
-            emit_bytes(ty, l, EXPR_ADDR(r), TYPE_SIZE(ty));
+            emit_bytes(l, offset, EXPR_X_ADDR(r), TYPE_SIZE(ty));
         }
     } else if (isarray(ty)) {
         if (AST_ID(r) == INITS_EXPR) {
             emit_inits(ty, l, r, offset);
+        } else if (AST_ID(r) == STRING_LITERAL) {
+            emit_expr(r);
+            emit_bytes(l, offset, EXPR_X_ADDR(r), TYPE_SIZE(ty));
         } else {
-            // TODO: 
+            cc_assert(0);
         }
     } else {
         emit_expr(r);
         unsigned op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
-        struct tac *tac = ;
+        unsigned opsize = ops[TYPE_SIZE(ty)];
+        if (offset) {
+            struct operand *x = make_offset_operand(l, offset);
+            struct tac *tac = make_assign_tac(op, x, EXPR_X_ADDR(r), opsize);
+            emit_tac(tac);
+        } else {
+            struct tac *tac = make_assign_tac(op, l, EXPR_X_ADDR(r), opsize);
+            emit_tac(tac);
+        }
     }
 }
 
