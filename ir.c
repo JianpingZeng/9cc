@@ -20,6 +20,7 @@ static void emit_data(node_t *decl);
 static void emit_funcdef_gdata(node_t *decl);
 static const char *get_string_literal_label(const char *name);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset);
+static struct vector * filter_global(node_t **v);
 
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
@@ -1681,8 +1682,10 @@ struct externals * ir(node_t *tree)
     cc_assert(istudecl(tree) && errors == 0);
 
     ir_init();
-    for (int i = 0; i < LIST_LEN(DECL_EXTS(tree)); i++) {
-        node_t *decl = DECL_EXTS(tree)[i];
+    struct vector *v = filter_global(DECL_EXTS(tree));
+    
+    for (int i = 0; i < vec_len(v); i++) {
+        node_t *decl = vec_at(v, i);
         node_t *sym = DECL_SYM(decl);
 
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
@@ -1699,6 +1702,49 @@ struct externals * ir(node_t *tree)
 node_t * reduce(node_t *expr)
 {
     return expr;
+}
+
+static struct vector * filter_global(node_t **v)
+{
+    struct vector *r = vec_new();
+    struct map *map = map_new();
+    map->cmpfn = nocmp;
+    for (int i = 0; i < LIST_LEN(v); i++) {
+        node_t *decl = v[i];
+        node_t *sym = DECL_SYM(decl);
+
+        // skip unused symbols
+        if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
+            // but warning only when top file
+            if (is_top_file(AST_SRC(sym).file)) {
+                if (isfuncdef(decl))
+                    warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+                else if (isvardecl(decl))
+                    warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+            }
+            
+            continue;
+        }
+        
+        if (isfuncdef(decl)) {
+            vec_push(r, decl);
+            vec_add_array(r, (void **)DECL_X_SVARS(decl));
+        } else if (isvardecl(decl)) {
+            node_t *sym = DECL_SYM(decl);
+            if (SYM_SCLASS(sym) == EXTERN)
+                continue;
+            node_t *decl1 = map_get(map, sym);
+            if (decl1) {
+                if (DECL_BODY(decl))
+                    DECL_BODY(decl1) = DECL_BODY(decl);
+            } else {
+                vec_push(r, decl);
+                map_put(map, sym, decl);
+            }
+        }
+    }
+    map_free(map);
+    return r;
 }
 
 //
