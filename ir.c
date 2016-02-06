@@ -913,21 +913,31 @@ static void emit_cond(node_t *n)
     EXPR_X_TRUE(cond) = fall;
     EXPR_X_FALSE(cond) = gen_label();
     const char *label = gen_label();
-    struct operand *result;
-    if (isrecord(AST_TYPE(n)))
-        result = make_extra_decl(AST_TYPE(n));
-    else
-        result = make_tmp_operand();
-    emit_bool_expr(cond);
-    // true
-    emit_assign(AST_TYPE(n), result, then, 0, NULL);
-    emit_goto(label);
-    // false
-    emit_label(EXPR_X_FALSE(cond));
-    emit_assign(AST_TYPE(n), result, els, 0, NULL);
-    // out
-    emit_label(label);
-    EXPR_X_ADDR(n) = result;
+    if (isvoid(AST_TYPE(n))) {
+        emit_bool_expr(cond);
+        // true
+        emit_goto(label);
+        // false
+        emit_label(EXPR_X_FALSE(cond));
+        // out
+        emit_label(label);
+    } else {
+        struct operand *result;
+        if (isrecord(AST_TYPE(n)))
+            result = make_extra_decl(AST_TYPE(n));
+        else
+            result = make_tmp_operand();
+        emit_bool_expr(cond);
+        // true
+        emit_assign(AST_TYPE(n), result, then, 0, NULL);
+        emit_goto(label);
+        // false
+        emit_label(EXPR_X_FALSE(cond));
+        emit_assign(AST_TYPE(n), result, els, 0, NULL);
+        // out
+        emit_label(label);
+        EXPR_X_ADDR(n) = result;
+    }
 }
 
 static void emit_member(node_t *n)
