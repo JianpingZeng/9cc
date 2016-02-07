@@ -40,3 +40,6 @@
  */
 #define __x86_64__    1
 #define __LP64__      1
+
+// Standard C source
+#define _ISOC99_SOURCE 1
