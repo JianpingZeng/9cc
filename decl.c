@@ -765,9 +765,17 @@ static void abstract_declarator(node_t ** ty)
                 node_t *faty = func_or_array(true, NULL);
                 prepend_type(ty, faty);
             } else {
+                node_t *type1 = *ty;
+                node_t *rtype = NULL;
                 expect('(');
-                abstract_declarator(ty);
+                abstract_declarator(&rtype);
                 expect(')');
+                if (token->id == '[' || token->id == '(') {
+                    node_t *faty = func_or_array(true, NULL);
+                    attach_type(&faty, type1);
+                    attach_type(&rtype, faty);
+                }
+                *ty = rtype;
             }
         } else if (token->id == '[') {
             node_t *faty = func_or_array(true, NULL);
