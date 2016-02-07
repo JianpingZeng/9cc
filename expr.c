@@ -414,8 +414,7 @@ static unsigned escape(const char **ps)
                 }
                 if (c >> (BITS(TYPE_SIZE(wchartype)) - 4)) {
                     overflow = 1;
-                    error
-                        ("hex escape sequence out of range");
+                    error("hex escape sequence out of range");
                 } else {
                     if (isdigit(*s))
                         c = (c << 4) + *s - '0';
@@ -689,8 +688,7 @@ static void float_constant(struct token *t, node_t * sym)
         pc += 2;
         if (*pc == '.') {
             if (!isxdigit(pc[1]))
-                error
-                    ("hexadecimal floating constants require a significand");
+                error("hexadecimal floating constants require a significand");
             goto dotted_hex;
         } else {
             cc_assert(isxdigit(*pc));
@@ -721,8 +719,7 @@ static void float_constant(struct token *t, node_t * sym)
                     error("exponent has no digits");
                 }
             } else {
-                error
-                    ("hexadecimal floating constants require an exponent");
+                error("hexadecimal floating constants require an exponent");
             }
         }
     } else {
@@ -752,8 +749,7 @@ static void float_constant(struct token *t, node_t * sym)
                     strbuf_catn(s, pc++, 1);
                 } while (isdigit(*pc));
             } else {
-                error
-                    ("exponent used with no following digits: %s",
+                error("exponent used with no following digits: %s",
                      t->name);
             }
         }
@@ -832,7 +828,7 @@ static void string_constant(struct token *t, node_t * sym)
     node_t *ty;
     if (wide) {
         size_t len = strlen(s) - 3;
-        wchar_t ws[len + 1];
+        wchar_t *ws = xmalloc(sizeof(wchar_t) * (len+1));
         errno = 0;
         size_t wlen = mbstowcs(ws, s + 2, len);
         if (errno == EILSEQ)
@@ -841,6 +837,7 @@ static void string_constant(struct token *t, node_t * sym)
         ty = array_type(wchartype);
         TYPE_LEN(ty) = wlen;
         set_typesize(ty);
+        free(ws);
     } else {
         ty = array_type(chartype);
         TYPE_LEN(ty) = strlen(s) - 1;
@@ -950,8 +947,7 @@ static struct vector *argscast(node_t * fty, node_t ** args)
     } else {
         if (len1 == 0) {
             if (len2 > 0) {
-                error
-                    ("too many arguments to function call, expected %d, have %d",
+                error("too many arguments to function call, expected %d, have %d",
                      len1, len2);
                 return NULL;
             }
@@ -962,9 +958,7 @@ static struct vector *argscast(node_t * fty, node_t ** args)
         cc_assert(len1 >= 1);
         if (len1 <= len2) {
             if (!vargs && len1 < len2) {
-                error
-                    ("too many arguments to function call, expected %d, have %d",
-                     len1, len2);
+                error("too many arguments to function call, expected %d, have %d", len1, len2);
                 return NULL;
             }
             SAVE_ERRORS;
@@ -973,13 +967,9 @@ static struct vector *argscast(node_t * fty, node_t ** args)
                 return NULL;
         } else {
             if (vargs)
-                error
-                    ("too few arguments to function call, expected at least %d, have %d",
-                     len1, len2);
+                error("too few arguments to function call, expected at least %d, have %d", len1, len2);
             else
-                error
-                    ("too few arguments to function call, expected %d, have %d",
-                     len1, len2);
+                error("too few arguments to function call, expected %d, have %d", len1, len2);
             return NULL;
         }
     }
@@ -1185,8 +1175,7 @@ static node_t *direction(node_t * node)
         ensure_type(node, isrecord);
     } else {
         if (!isptr(ty) || !isrecord(rtype(ty)))
-            error
-                ("pointer to struct/union type expected, not type '%s'",
+            error("pointer to struct/union type expected, not type '%s'",
                  type2s(ty));
         else
             ty = rtype(ty);
@@ -1850,15 +1839,13 @@ node_t *bop(int op, node_t * l, node_t * r)
                 node_t *rty1 = rtype(AST_TYPE(l));
                 node_t *rty2 = rtype(AST_TYPE(r));
                 if (!eqtype(unqual(rty1), unqual(rty2)))
-                    error
-                        ("'%s' and '%s' are not pointers to compatible types",
+                    error("'%s' and '%s' are not pointers to compatible types",
                          type2s(AST_TYPE(l)),
                          type2s(AST_TYPE(r)));
                 if (NO_ERROR)
                     node = ast_bop(op, inttype, l, r);
             } else {
-                error
-                    ("expect integer or pointer type, not type '%s'",
+                error("expect integer or pointer type, not type '%s'",
                      type2s(AST_TYPE(r)));
             }
         } else {
@@ -1899,8 +1886,7 @@ node_t *bop(int op, node_t * l, node_t * r)
                 }
             }
             if (!node)
-                error
-                    ("comparison of incompatible pointer types ('%s' and '%s')",
+                error("comparison of incompatible pointer types ('%s' and '%s')",
                      type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
         } else if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
             // both arith
@@ -2096,8 +2082,7 @@ node_t *switch_expr(void)
     if (node == NULL)
         return NULL;
     if (!isint(AST_TYPE(node))) {
-        error
-            ("statement requires expression of integer type ('%s' invalid)",
+        error("statement requires expression of integer type ('%s' invalid)",
              type2s(AST_TYPE(node)));
         return NULL;
     }

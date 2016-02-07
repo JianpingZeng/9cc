@@ -356,8 +356,7 @@ static struct vector *arguments(struct macro *m)
     }
     // check args and params
     if (vec_len(v) < vec_len(m->params)) {
-        error
-            ("too few arguments provided to function-like macro invocation");
+        error("too few arguments provided to function-like macro invocation");
     } else if (vec_len(v) > vec_len(m->params)) {
         if (m->vararg) {
             // merge 'variable arguments'
@@ -372,8 +371,7 @@ static struct vector *arguments(struct macro *m)
                 vec_pop(v);
             vec_push(v, v2);
         } else {
-            error
-                ("too many arguments provided to function-like macro invocation");
+            error("too many arguments provided to function-like macro invocation");
         }
     }
 
@@ -418,8 +416,7 @@ static void parameters(struct macro *m)
                 for (int i = 0; i < vec_len(v); i++) {
                     struct token *t1 = vec_at(v, i);
                     if (!strcmp(t->name, t1->name)) {
-                        error
-                            ("duplicate macro paramter name '%s'",
+                        error("duplicate macro paramter name '%s'",
                              t->name);
                         break;
                     }

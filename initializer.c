@@ -81,8 +81,7 @@ void init_string(node_t * ty, node_t * node)
     int len2 = TYPE_LEN(AST_TYPE(node));
     if (len1 > 0) {
         if (len1 < len2 - 1)
-            warning
-                ("initializer-string for char array is too long");
+            warning("initializer-string for char array is too long");
     } else if (isincomplete(ty)) {
         TYPE_LEN(ty) = len2;
         set_typesize(ty);
@@ -229,8 +228,7 @@ static void array_init(node_t * ty, bool brace, struct vector *v)
 
         c = MAX(c, i);
         if (len > 0 && i >= len)
-            error
-                ("array designator index [%d] exceeds array bounds (%d)",
+            error("array designator index [%d] exceeds array bounds (%d)",
                  i, len);
         else
             rty = rtype(ty);
@@ -296,8 +294,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
             aggregate_set(ty, v, i, initializer(ty));
         } else if (token->id == '{') {
             if (designated)
-                error
-                    ("expect '=' or another designator at '%s'",
+                error("expect '=' or another designator at '%s'",
                      token->name);
             aggregate_set(ty, v, i, initializer_list(ty));
         } else if ((token->id == '.' && isarray(ty)) ||
@@ -306,8 +303,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
             eat_initializer();
             // inhibit redundant errors
             if (NO_ERROR)
-                error
-                    ("%s designator cannot initialize non-%s type '%s'",
+                error("%s designator cannot initialize non-%s type '%s'",
                      TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
         } else {
             node_t *n = find_elem(v, i);
@@ -377,8 +373,7 @@ node_t *initializer_list(node_t * ty)
                 expect(',');
 
             if (first_init(token)) {
-                warning
-                    ("excess elements in %s initializer at '%s'",
+                warning("excess elements in %s initializer at '%s'",
                      TYPE_NAME(ty), token->name);
                 eat_initlist();
             }
@@ -460,12 +455,10 @@ void decl_initializer(node_t * decl, int sclass, int kind)
             if (is_string(ty) && issliteral(init))
                 init_string(ty, init);
             else
-                error
-                    ("array initializer must be an initializer list or string literal");
+                error("array initializer must be an initializer list or string literal");
         } else if (isstruct(ty) || isunion(ty)) {
             if (!eqtype(ty, AST_TYPE(init)))
-                error
-                    ("initialzing '%s' with an expression of imcompatible type '%s'",
+                error("initialzing '%s' with an expression of imcompatible type '%s'",
                      type2s(ty), type2s(AST_TYPE(init)));
         } else {
             init = init_elem_conv(ty, init);
