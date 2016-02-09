@@ -248,9 +248,15 @@ static void emit_rel_if(unsigned op,
 
 static void emit_label(const char *label)
 {
-    struct operand *operand = make_label_operand(label);
-    struct tac *tac = make_tac(IR_LABEL, NULL, NULL, operand, Zero);
-    emit_tac(tac);
+    if (func_tac_tail &&
+        func_tac_tail->op == IR_LABEL &&
+        !strcmp(SYM_NAME(func_tac_tail->result->sym), label)) {
+        // same label, do nothing
+    } else {
+        struct operand *operand = make_label_operand(label);
+        struct tac *tac = make_tac(IR_LABEL, NULL, NULL, operand, Zero);
+        emit_tac(tac);
+    }
 }
 
 static void emit_goto(const char *label)
@@ -1799,7 +1805,7 @@ static struct vector * filter_global(node_t **v)
         // skip unused symbols
         if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
             // but warning only when top file
-            if (is_top_file(AST_SRC(sym).file)) {
+            if (is_original_file(AST_SRC(sym).file)) {
                 if (isfuncdef(decl))
                     warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
                 else if (isvardecl(decl))

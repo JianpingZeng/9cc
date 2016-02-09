@@ -47,8 +47,6 @@ struct ifstub {
     struct source src;
 };
 
-extern bool is_top_file(const char *file);
-
 extern void input_init(const char *file);
 extern int readc(void);
 extern void unreadc(int c);
@@ -61,6 +59,9 @@ extern void file_sentinel(struct file *f);
 extern void file_unsentinel(void);
 extern void file_stub(struct file *f);
 extern void file_unstub(void);
+
+extern bool is_original_file(const char *file);
+extern struct file *original_file(void);
 extern struct file *current_file(void);
 
 extern void if_sentinel(struct ifstub *i);

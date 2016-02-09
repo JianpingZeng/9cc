@@ -15,10 +15,10 @@ enum {
 #define PREV(p)   (((p) - 1 + NHISTS) % NHISTS)
 #define NCHARS    ARRAY_SIZE(fs->chars)
 
-bool is_top_file(const char *file)
+bool is_original_file(const char *file)
 {
-    const char *src = vec_head(files);
-    if (src && !strcmp(src, file))
+    struct file *original = original_file();
+    if (original && !strcmp(original->file, file))
         return true;
     else
         return false;
@@ -26,7 +26,7 @@ bool is_top_file(const char *file)
 
 static void warning_no_newline(const char *file)
 {
-    if (is_top_file(file))
+    if (is_original_file(file))
         fprintf(stderr,
                 CLEAR "%s: " RESET PURPLE("warning: ")
                 "No newline at end of file\n",
@@ -257,6 +257,11 @@ static void close_file(struct file *fs)
     // reset current 'bol'
     if (current_file())
         current_file()->bol = true;
+}
+
+struct file *original_file(void)
+{
+    return vec_head(files);
 }
 
 struct file *current_file(void)
