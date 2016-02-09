@@ -55,13 +55,15 @@ static node_t *expr_stmt(void)
 {
     node_t *ret = NULL;
 
-    if (token->id == ';')
+    if (token->id == ';') {
         ret = ast_stmt(NULL_STMT, source);
-    else if (first_expr(token))
-        ret = reduce(expression());
-    else
+    } else if (first_expr(token)) {
+        ret = ast_stmt(EXPR_STMT, source);
+        STMT_EXPR_BODY(ret) = reduce(expression());
+    } else {
         error("missing statement before '%s'", token->name);
-
+    }
+    
     expect(';');
     return ret;
 }
@@ -469,7 +471,8 @@ static node_t *return_stmt(void)
 
     SAVE_ERRORS;
     expect(RETURN);
-    expr = expr_stmt();
+    node_t *stmt = expr_stmt();
+    expr = STMT_EXPR_BODY(stmt);
     expr = ensure_return(expr, AST_SRC(ret));
 
     if (NO_ERROR)

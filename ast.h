@@ -198,6 +198,9 @@ struct ast_expr {
 // return stmt
 #define STMT_RETURN_EXPR(NODE)  ((NODE)->stmt.list[0])
 
+// expr stmt
+#define STMT_EXPR_BODY(NODE)    ((NODE)->stmt.list[0])
+
 struct ast_stmt {
     struct ast_common common;
     long index;

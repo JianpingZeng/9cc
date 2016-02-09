@@ -222,6 +222,7 @@ static struct operand * make_offset_operand(struct operand *l, long offset)
         }
     case IR_INDIRECTION:
     case IR_ADDRESS:
+        die("%s: rop %s", __func__, rop2s(l->op));
     default:
         cc_assert(0);
     }
@@ -1583,6 +1584,9 @@ static void emit_switch_stmt(node_t *stmt)
         emit_goto(STMT_X_NEXT(stmt));
     }
 
+    // set body next
+    STMT_X_NEXT(body) = STMT_X_NEXT(stmt);
+
     SET_SWITCH_CONTEXT(STMT_X_NEXT(stmt));
     emit_stmt(body);
     RESTORE_SWITCH_CONTEXT();
@@ -1593,6 +1597,8 @@ static void emit_case_stmt(node_t *stmt)
 {
     node_t *body = STMT_CASE_BODY(stmt);
     emit_label(STMT_X_LABEL(stmt));
+    // set body next
+    STMT_X_NEXT(body) = STMT_X_NEXT(stmt);
     emit_stmt(body);
 }
 
@@ -1626,7 +1632,7 @@ static void emit_continue_stmt(node_t *stmt)
 static void emit_return_stmt(node_t *stmt)
 {
     node_t *n = STMT_RETURN_EXPR(stmt);
-    if (isnullstmt(n)) {
+    if (!n || isnullstmt(n)) {
         struct tac *tac = make_tac_nor(IR_RETURNI,
                                        NULL,
                                        NULL,
@@ -1643,6 +1649,12 @@ static void emit_return_stmt(node_t *stmt)
                                        ops[TYPE_SIZE(ty)]);
         emit_tac(tac);
     }
+}
+
+static void emit_expr_stmt(node_t *stmt)
+{
+    node_t *expr = STMT_EXPR_BODY(stmt);
+    emit_expr(expr);
 }
 
 static void emit_stmt(node_t *stmt)
@@ -1687,12 +1699,14 @@ static void emit_stmt(node_t *stmt)
     case RETURN_STMT:
         emit_return_stmt(stmt);
         break;
+    case EXPR_STMT:
+        emit_expr_stmt(stmt);
+        break;
     case NULL_STMT:
         // do nothing
         break;
     default:
-        emit_expr(stmt);
-        break;
+        cc_assert(0);
     }
 }
 
@@ -2009,8 +2023,13 @@ static void emit_array_initializer(node_t *n)
     } else {
         cc_assert(AST_ID(n) == INITS_EXPR);
         int i;
-        for (i = 0; i < LIST_LEN(EXPR_INITS(n)); i++)
-            emit_initializer(EXPR_INITS(n)[i]);
+        for (i = 0; i < LIST_LEN(EXPR_INITS(n)); i++) {
+            node_t *init = EXPR_INITS(n)[i];
+            if (AST_ID(init) == VINIT_EXPR)
+                emit_zero(TYPE_SIZE(rtype(AST_TYPE(n))));
+            else
+                emit_initializer(init);
+        }
         int left = TYPE_LEN(AST_TYPE(n)) - i;
         if (left > 0)
             emit_zero(left * TYPE_SIZE(rtype(AST_TYPE(n))));

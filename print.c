@@ -369,6 +369,15 @@ static void print_stmt(node_t * node, struct print_context context)
             }
         }
         break;
+    case EXPR_STMT:
+        {
+            node_t *expr = STMT_EXPR_BODY(node);
+            if (expr) {
+                struct print_context con = {level, expr};
+                print_tree1(con);
+            }
+        }
+        break;
     case BREAK_STMT:
     case CONTINUE_STMT:
     case NULL_STMT:
