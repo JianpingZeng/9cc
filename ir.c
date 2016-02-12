@@ -20,6 +20,7 @@ static void emit_data(node_t *decl);
 static void emit_funcdef_gdata(node_t *decl);
 static const char *get_string_literal_label(const char *name);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset, node_t *bfield);
+static void emit_member_nonbitfield(node_t *n, node_t *field);
 static struct vector * filter_global(node_t **v);
 
 static struct tac *func_tac_head;
@@ -514,7 +515,7 @@ static void emit_uop(node_t *n)
     }
 }
 
-static node_t *bfieldof(node_t *n)
+static node_t * fieldof(node_t *n)
 {
     if (AST_ID(n) != MEMBER_EXPR)
         return NULL;
@@ -525,10 +526,7 @@ static node_t *bfieldof(node_t *n)
         ty = rtype(ty);
     cc_assert(isrecord(ty));
     node_t *field = find_field(ty, name);
-    if (FIELD_ISBIT(field))
-        return field;
-    else
-        return NULL;
+    return field;
 }
 
 static void do_emit_zeros(node_t *ty, struct operand *l, long *offset,
@@ -645,8 +643,8 @@ static void emit_scalar(node_t *ty, struct operand *l, node_t *r, long offset)
     }
 }
 
-static void emit_bitfield(node_t *ty, struct operand *l, node_t *r, long offset,
-                          node_t *bfield)
+static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
+                          long offset, node_t *bfield)
 {
     emit_expr(r);
     unsigned op = IR_ASSIGNI;
@@ -671,7 +669,8 @@ static void emit_bitfield(node_t *ty, struct operand *l, node_t *r, long offset,
 }
 
 // r is _NOT_ evaluated.
-static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset, node_t *bfield)
+static void emit_assign(node_t *ty, struct operand *l, node_t *r,
+                        long offset, node_t *bfield)
 {
     cc_assert(ty);
     
@@ -703,9 +702,17 @@ static void emit_bop_assign(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
-
-    emit_expr(l);
-    emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r, 0, bfieldof(l));
+    
+    node_t *field = fieldof(l);
+    if (field && FIELD_ISBIT(field)) {
+        // if it's a bit-field
+        emit_member_nonbitfield(l, field);
+        emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r, 0, field);
+    } else {
+        emit_expr(l);
+        emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r, 0, NULL);
+    }
+    
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
@@ -948,31 +955,60 @@ static void emit_cond(node_t *n)
     }
 }
 
-static void emit_member(node_t *n)
+static void emit_member_nonbitfield(node_t *n, node_t *field)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    const char *name = AST_NAME(n);
-    node_t *ty;
-
-    if (isrecord(AST_TYPE(l)))
-        ty = AST_TYPE(l);
-    else
-        ty = rtype(AST_TYPE(l));
-
-    node_t *field = find_field(ty, name);
-
     emit_expr(l);
 
     struct operand *addr = EXPR_X_ADDR(l);
     
     if (addr->index) {
-        struct operand *index = make_unsigned_operand(FIELD_OFFSET(field));
-        struct tac *tac = make_tac_r(IR_ADDI, make_sym_operand(addr->index), index, Quad);
-        emit_tac(tac);
-        EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), tac->result);
+        if (SYM_X_KIND(addr->index) == SYM_KIND_LITERAL) {
+            unsigned long long i = SYM_VALUE_U(addr->index) + FIELD_OFFSET(field);
+            struct operand *index = make_unsigned_operand(i);
+            EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), index);
+        } else {
+            struct operand *index = make_unsigned_operand(FIELD_OFFSET(field));
+            struct tac *tac = make_tac_r(IR_ADDI,
+                                         make_sym_operand(addr->index),
+                                         index,
+                                         Quad);
+            emit_tac(tac);
+            EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), tac->result);
+        }
+        
     } else {
         struct operand *index = make_unsigned_operand(FIELD_OFFSET(field));
         EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), index);
+    }
+}
+
+static void emit_member(node_t *n)
+{
+    node_t *field = fieldof(n);
+    emit_member_nonbitfield(n, field);
+
+    // if it's a bit-field
+    if (FIELD_ISBIT(field)) {
+        int boff = FIELD_BITOFF(field);
+        int bsize = FIELD_BITSIZE(field);
+        unsigned long mask1 = (1UL << bsize) - 1;
+        unsigned opsize = boff + bsize <= 32 ? ops[4] : ops[8];
+        struct operand *result = EXPR_X_ADDR(n);
+        if (boff) {
+            struct tac *tac = make_tac_r(IR_RSHIFT,
+                                         result,
+                                         make_unsigned_operand(boff),
+                                         opsize);
+            emit_tac(tac);
+            result = tac->result;
+        }
+        struct tac *tac = make_tac_r(IR_OR,
+                                     result,
+                                     make_unsigned_operand(mask1),
+                                     opsize);
+        emit_tac(tac);
+        EXPR_X_ADDR(n) = tac->result;
     }
 }
 
