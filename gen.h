@@ -84,7 +84,7 @@ struct uses {
     struct tac *use_tac;
 };
 struct operand {
-    unsigned op:8;
+    int op;
     node_t *sym;
     node_t *index;
     struct uses uses;
@@ -92,11 +92,11 @@ struct operand {
 
 // three-address code
 struct tac {
-    unsigned op:8;
-    unsigned opsize:6;
-    unsigned from_opsize:6;
-    unsigned to_opsize:6;
+    int op;
     int relop;
+    int opsize:6;
+    int from_opsize:6;
+    int to_opsize:6;
     struct operand *args[2];
     struct operand *result;
     struct tac *next, *prev;
