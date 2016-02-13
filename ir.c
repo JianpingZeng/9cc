@@ -22,6 +22,8 @@ static const char *get_string_literal_label(const char *name);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset, node_t *bfield);
 static void emit_member_nonbitfield(node_t *n, node_t *field);
 static struct vector * filter_global(node_t **v);
+static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
+                                long offset, node_t *bfield);
 
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
@@ -596,10 +598,17 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
             node_t *field = fields[i];
             node_t *rty = FIELD_TYPE(field);
             long off = offset + FIELD_OFFSET(field);
-            if (AST_ID(init) == VINIT_EXPR)
-                emit_zeros(rty, l, off, TYPE_SIZE(rty));
-            else
-                emit_assign(rty, l, init, off, FIELD_ISBIT(field) ? field : NULL);
+            if (FIELD_ISBIT(field)) {
+                if (AST_ID(init) == VINIT_EXPR)
+                    emit_bitfield_basic(rty, l, make_operand_zero(), off, field);
+                else
+                    emit_assign(rty, l, init, off, field);
+            } else {
+                if (AST_ID(init) == VINIT_EXPR)
+                    emit_zeros(rty, l, off, TYPE_SIZE(rty));
+                else
+                    emit_assign(rty, l, init, off, NULL);
+            }
         }
         if (LIST_LEN(inits) < LIST_LEN(fields)) {
             node_t *field = fields[LIST_LEN(inits)];
@@ -648,17 +657,16 @@ static void emit_scalar(node_t *ty, struct operand *l, node_t *r, long offset)
     emit_scalar_basic(ty, l, EXPR_X_ADDR(r), offset);
 }
 
-static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
-                          long offset, node_t *bfield)
+static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
+                                long offset, node_t *bfield)
 {
-    emit_expr(r);
     int boff = FIELD_BITOFF(bfield);
     int bsize = FIELD_BITSIZE(bfield);
     unsigned long mask1 = (1UL << bsize) - 1;
     unsigned opsize = boff + bsize <= 32 ? ops[4] : ops[8];
     // &
     struct operand *operand1 = make_unsigned_operand(mask1);
-    struct tac *tac1 = make_tac_r(IR_AND, EXPR_X_ADDR(r), operand1, opsize);
+    struct tac *tac1 = make_tac_r(IR_AND, r, operand1, opsize);
     emit_tac(tac1);
     // <<
     struct operand *operand2 = make_unsigned_operand(boff);
@@ -674,6 +682,13 @@ static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
     emit_tac(tac4);
     // assign
     emit_scalar_basic(ty, l, tac4->result, offset);
+}
+
+static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
+                          long offset, node_t *bfield)
+{
+    emit_expr(r);
+    emit_bitfield_basic(ty, l, EXPR_X_ADDR(r), offset, bfield);
 }
 
 // r is _NOT_ evaluated.
