@@ -628,44 +628,52 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset)
     }
 }
 
-static void emit_scalar(node_t *ty, struct operand *l, node_t *r, long offset)
+static void emit_scalar_basic(node_t *ty, struct operand *l, struct operand *r, long offset)
 {
-    emit_expr(r);
     unsigned op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
     unsigned opsize = ops[TYPE_SIZE(ty)];
     if (offset) {
         struct operand *x = make_offset_operand(l, offset);
-        struct tac *tac = make_assign_tac(op, x, EXPR_X_ADDR(r), opsize);
+        struct tac *tac = make_assign_tac(op, x, r, opsize);
         emit_tac(tac);
     } else {
-        struct tac *tac = make_assign_tac(op, l, EXPR_X_ADDR(r), opsize);
+        struct tac *tac = make_assign_tac(op, l, r, opsize);
         emit_tac(tac);
     }
+}
+
+static void emit_scalar(node_t *ty, struct operand *l, node_t *r, long offset)
+{
+    emit_expr(r);
+    emit_scalar_basic(ty, l, EXPR_X_ADDR(r), offset);
 }
 
 static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
                           long offset, node_t *bfield)
 {
     emit_expr(r);
-    unsigned op = IR_ASSIGNI;
     int boff = FIELD_BITOFF(bfield);
     int bsize = FIELD_BITSIZE(bfield);
     unsigned long mask1 = (1UL << bsize) - 1;
     unsigned opsize = boff + bsize <= 32 ? ops[4] : ops[8];
+    // &
     struct operand *operand1 = make_unsigned_operand(mask1);
     struct tac *tac1 = make_tac_r(IR_AND, EXPR_X_ADDR(r), operand1, opsize);
     emit_tac(tac1);
+    // <<
     struct operand *operand2 = make_unsigned_operand(boff);
     struct tac *tac2 = make_tac_r(IR_LSHIFT, tac1->result, operand2, opsize);
     emit_tac(tac2);
+    // &
     unsigned mask2 = ~(mask1 << boff);
     struct operand *operand3 = make_unsigned_operand(mask2);
     struct tac *tac3 = make_tac_r(IR_AND, l, operand3, opsize);
     emit_tac(tac3);
+    // |
     struct tac *tac4 = make_tac_r(IR_OR, tac2->result, tac3->result, opsize);
     emit_tac(tac4);
-    struct tac *tac = make_assign_tac(op, l, tac4->result, opsize);
-    emit_tac(tac);
+    // assign
+    emit_scalar_basic(ty, l, tac4->result, offset);
 }
 
 // r is _NOT_ evaluated.
