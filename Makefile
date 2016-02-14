@@ -111,37 +111,10 @@ stage3: stage2
 bootstrap: stage3
 	cmp stage2 stage3
 
-#
-# Test suite
-#
-TEST=test/
-INTERNAL=$(TEST)internal/
-CPP=$(TEST)cpp/
-CFLAGS_TEST=$(CFLAGS_COMMON) $(CONFIG_FLAGS) -I$(TEST)
-TEST_MAIN_C=$(TEST)main.c
-TEST_DEP=$(TEST_MAIN_C) $(TEST)test.h
-TEST_INTERNAL := $(patsubst %.c, %.bin, $(filter-out $(INTERNAL)internal.c,$(wildcard $(INTERNAL)*.c)))
-TEST_CPP := $(CPP)cpp.bin
-TESTS=$(TEST_INTERNAL) $(TEST_CPP)
-
-$(INTERNAL)%.bin: $(INTERNAL)%.c $(TEST_DEP) $(INTERNAL)internal.h $(INTERNAL)internal.c $(CC1_OBJ) $(SYS_OBJ)
-	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $(INTERNAL)internal.c $< $(CC1_OBJ) $(SYS_OBJ) -o $@
-
-$(TEST_CPP): $(CPP)cpp.c $(TEST_DEP) $(SYS_OBJ)
-	$(CC) $(CFLAGS_TEST) $(TEST_MAIN_C) $< $(SYS_OBJ) -o $@
-
-test: $(TESTS)
-	@for test in $(TESTS); do \
-	./$$test; \
-	done
-
 clean:
-	@rm -f *.o *~ $(MCC) $(TESTS) $(SYS)*.o $(SYS)*~ $(UTILS)*.o $(UTILS)*~ $(INTERNAL)*~ include/*~ $(TEST)scripts/*~ mcc.exe*
+	@rm -f *.o *~ $(MCC) $(SYS)*.o $(SYS)*~ $(UTILS)*.o $(UTILS)*~ include/*~ mcc.exe*
 
 distclean: clean
 	@rm -f stage1 stage2 stage3
 
-check-syntax:
-	gcc $(CFLAGS) -o nul -S ${CHK_SOURCES}
-
-.PHONY: all clean test distclean
+.PHONY: all clean distclean

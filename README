@@ -27,10 +27,6 @@ To build the mcc compiler, run command:
 
 	make
 
-To run the testing suite, run command:
-
-	make test
-
 
 For Windows users:
 
