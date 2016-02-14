@@ -408,14 +408,14 @@ static struct operand * emit_ptr_int(int op,
 }
 
 // scalar
-static void emit_uop_increment(node_t *n, int op)
+static void emit_uop_increment(node_t *n)
 {
     bool prefix = EXPR_PREFIX(n);
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *ty = AST_TYPE(n);
     int opsize = ops[TYPE_SIZE(ty)];
     int rop;
-    if (op == INCR) {
+    if (EXPR_OP(n) == INCR) {
         if (isfloat(ty))
             rop = IR_ADDF;
         else
@@ -479,10 +479,8 @@ static void emit_uop(node_t *n)
 {
     switch (EXPR_OP(n)) {
     case INCR:
-        emit_uop_increment(n, INCR);
-        break;
     case DECR:
-        emit_uop_increment(n, DECR);
+        emit_uop_increment(n);
         break;
     case '*':
         emit_uop_indirection(n);
