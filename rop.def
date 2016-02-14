@@ -47,9 +47,9 @@ _rop(IR_MINUSI,         "-",            emit_uop)
 _rop(IR_MINUSF,         "-",            emit_uop)
 
 //
-_rop(IR_SUBSCRIPT,      "[]",           emit_subscript)
-_rop(IR_ADDRESS,        "&",            emit_address)
-_rop(IR_INDIRECTION,    "*",            emit_indirection)
+_rop(IR_SUBSCRIPT,      "[]",           NULL)
+_rop(IR_ADDRESS,        "&",            NULL)
+_rop(IR_INDIRECTION,    "*",            NULL)
 
 // function
 _rop(IR_PARAM,          "param",        emit_param)

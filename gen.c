@@ -21,6 +21,7 @@
  */
 
 static FILE *outfp;
+static void emit_operand(struct operand *operand);
 
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
@@ -183,88 +184,6 @@ static void init_regs(void)
     }
 }
 
-static bool is_reg_free(struct reg *reg)
-{
-    return vec_len(reg->vars) == 0;
-}
-
-static void reg_add(struct reg *reg, node_t *sym)
-{
-    if (!reg->vars)
-        reg->vars = vec_new();
-
-    for (int i = vec_len(reg->vars) - 1; i >= 0; i--) {
-        node_t *element = vec_at(reg->vars, i);
-        if (element == sym)
-            return;
-    }
-
-    vec_push(reg->vars, sym);
-}
-
-static void reg_remove(struct reg *reg, node_t *sym)
-{
-    if (!reg->vars)
-        return;
-
-    struct vector *v = vec_new();
-    for (int i = 0; i < vec_len(reg->vars); i++) {
-        node_t *element = vec_at(reg->vars, i);
-        if (element == sym)
-            continue;
-        vec_push(reg->vars, element);
-    }
-    vec_free(reg->vars);
-    reg->vars = v;
-}
-
-static void reg_drain(struct reg *reg)
-{
-    if (!reg->vars)
-        return;
-    vec_free(reg->vars);
-    reg->vars = NULL;
-}
-
-static void load_to_reg(struct reg *reg, struct operand *operand)
-{
-    
-}
-
-static void get_reg(struct operand *operand, struct reg *regs[], int len)
-{
-    // already in register
-    if (SYM_X_ADDRS(operand->sym)[ADDR_REGISTER])
-        return;
-    // if has a free register
-    for (int i = len - 1; i >= 0; i--) {
-        struct reg *r = regs[i];
-        if (is_reg_free(r)) {
-            // load
-            load_to_reg(r, operand);
-            return;
-        }
-    }
-    //
-    for (int i = len - 1; i >= 0; i--) {
-        struct reg *r = regs[i];
-        for (int j = 0; j < vec_len(r->vars); j++) {
-            node_t *v = vec_at(r->vars, j);
-            
-        }
-    }
-}
-
-static struct reg * get_int_reg(struct tac *tac)
-{
-    
-}
-
-static struct reg * get_float_reg(struct tac *tac)
-{
-    
-}
-
 /*
   Integer Conversion
 
@@ -384,20 +303,9 @@ static struct reg * get_float_reg(struct tac *tac)
   uint64 => int64: movq, movq
  */
 
-static void conv_si_si(struct tac *tac)
-{
-    if (tac->from_opsize < tac->to_opsize) {
-        // widden
-    } else if (tac->from_opsize > tac->to_opsize) {
-        // narrow
-    }
-}
-
 static void emit_conv_i2i(struct tac *tac)
 {
-    if (tac->op == IR_CONV_SI_SI) {
-        
-    }
+    
 }
 
 static void emit_conv_i2f(struct tac *tac)
@@ -489,17 +397,22 @@ static void emit_bop(struct tac *tac)
     }
 }
 
-static void emit_subscript(struct tac *tac)
+static void emit_subscript(struct operand *operand)
 {
     
 }
 
-static void emit_address(struct tac *tac)
+static void emit_address(struct operand *operand)
 {
     
 }
 
-static void emit_indirection(struct tac *tac)
+static void emit_indirection(struct operand *operand)
+{
+    
+}
+
+static void emit_operand(struct operand *operand)
 {
     
 }
@@ -518,90 +431,6 @@ static void emit_tacs(struct tac *head)
 {
     for (struct tac *tac = head; tac; tac = tac->next)
         emit_tac(tac);
-}
-
-static void mark_die(node_t *sym)
-{
-    int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_REF ||
-        kind == SYM_KIND_TMP) {
-        SYM_X_USES(sym).live = false;
-        SYM_X_USES(sym).use_tac = NULL;
-    }
-}
-
-static void mark_live(node_t *sym, struct tac *tac)
-{
-    int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_REF ||
-        kind == SYM_KIND_TMP) {
-        SYM_X_USES(sym).live = true;
-        SYM_X_USES(sym).use_tac = tac;
-    }
-}
-
-static void scan_tac_uses(struct tac *tac)
-{
-    struct operand *result = tac->result;
-    struct operand *l = tac->args[0];
-    struct operand *r = tac->args[1];
-
-    if (result)
-        result->uses = SYM_X_USES(result->sym);
-    if (l)
-        l->uses = SYM_X_USES(l->sym);
-    if (r)
-        r->uses = SYM_X_USES(r->sym);
-    // mark
-    if (result)
-        mark_die(result->sym);
-    if (l)
-        mark_live(l->sym, tac);
-    if (r)
-        mark_live(r->sym, tac);
-}
-
-static void init_sym_uses(node_t *sym)
-{
-    int kind = SYM_X_KIND(sym);
-    if(kind == SYM_KIND_REF ||
-        kind == SYM_KIND_TMP) {
-        SYM_X_USES(sym).live = true;
-        SYM_X_USES(sym).use_tac = NULL;
-    } else {
-        SYM_X_USES(sym).live = false;
-        SYM_X_USES(sym).use_tac = NULL;
-    }
-}
-
-static void init_tacs(struct tac *head)
-{
-    for (struct tac *tac = head; tac; tac = tac->next) {
-        struct operand *result = tac->result;
-        struct operand *l = tac->args[0];
-        struct operand *r = tac->args[1];
-        if (result)
-            init_sym_uses(result->sym);
-        if (l)
-            init_sym_uses(l->sym);
-        if (r)
-            init_sym_uses(r->sym);
-    }
-}
-
-static void scan_tacs(struct tac *head)
-{
-    while (head->next)
-        head = head->next;
-    for (struct tac *tac = head; tac; tac = tac->prev)
-        scan_tac_uses(tac);
-}
-
-static void init_text(node_t *decl)
-{
-    struct tac *head = DECL_X_HEAD(decl);
-    init_tacs(head);
-    scan_tacs(head);
 }
 
 static size_t call_stack_size(node_t *call)
@@ -791,8 +620,6 @@ static void emit_text(struct gdata *gdata)
     
     emit_function_prologue(gdata);
     emit_function_params(decl);
-    // init
-    init_text(decl);
     emit_tacs(DECL_X_HEAD(decl));
     emit_function_epilogue(gdata);
 }
