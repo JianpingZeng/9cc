@@ -419,12 +419,77 @@ static void emit_operand(struct operand *operand)
 
 static void emit_tac(struct tac *tac)
 {
-    static void (*emitter[]) (struct tac *) = {
-#define _rop(a, b, c) c,
-#include "rop.def"  
-    };
-    if (emitter[tac->op])
-        emitter[tac->op](tac);
+    switch (tac->op) {
+    case IR_LABEL:
+        emit_label(tac);
+        break;
+    case IR_GOTO:
+        emit_goto(tac);
+        break;
+    case IR_IF_I:
+    case IR_IF_F:
+    case IR_IF_FALSE_I:
+    case IR_IF_FALSE_F:
+        emit_if(tac);
+        break;
+    case IR_RETURNI:
+    case IR_RETURNF:
+        emit_return(tac);
+        break;
+    case IR_ADDI:
+    case IR_ADDF:
+    case IR_SUBI:
+    case IR_SUBF:
+    case IR_DIVI:
+    case IR_IDIVI:
+    case IR_DIVF:
+    case IR_MULI:
+    case IR_IMULI:
+    case IR_MULF:
+    case IR_MOD:
+    case IR_OR:
+    case IR_AND:
+    case IR_XOR:
+    case IR_LSHIFT:
+    case IR_RSHIFT:
+        emit_bop(tac);
+        break;
+    case IR_NOT:
+    case IR_MINUSI:
+    case IR_MINUSF:
+        emit_uop(tac);
+        break;
+    case IR_ASSIGNI:
+    case IR_ASSIGNF:
+        emit_assign(tac);
+        break;
+    case IR_PARAM:
+        emit_param(tac);
+        break;
+    case IR_CALL:
+        emit_call(tac);
+        break;
+    case IR_CONV_UI_UI:
+    case IR_CONV_UI_SI:
+    case IR_CONV_SI_UI:
+    case IR_CONV_SI_SI:
+        emit_conv_i2i(tac);
+        break;
+    case IR_CONV_SI_F:
+    case IR_CONV_UI_F:
+        emit_conv_i2f(tac);
+        break;
+    case IR_CONV_FF:
+        emit_conv_f2f(tac);
+        break;
+    case IR_CONV_F_SI:
+    case IR_CONV_F_UI:
+        emit_conv_f2i(tac);
+        break;
+    case IR_NONE:
+    default:
+        break;
+    }
 }
 
 static void emit_tacs(struct tac *head)
