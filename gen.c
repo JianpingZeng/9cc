@@ -21,6 +21,9 @@
  */
 
 static FILE *outfp;
+static const char *func_end_label;
+static int func_returns;
+
 static void emit_operand(struct operand *operand);
 
 #define NUM_IARG_REGS  6
@@ -355,8 +358,8 @@ static void emit_call(struct tac *tac)
 static void emit_return(struct tac *tac)
 {
     struct operand *operand = tac->args[0];
-    struct operand *label = tac->result;
-    // TODO: 
+    // TODO:
+    func_returns++;
 }
 
 static void emit_if(struct tac *tac)
@@ -703,10 +706,15 @@ static void emit_function_epilogue(struct gdata *gdata)
 static void emit_text(struct gdata *gdata)
 {
     node_t *decl = gdata->u.decl;
+
+    func_end_label = STMT_X_NEXT(DECL_BODY(decl));
+    func_returns = 0;
     
     emit_function_prologue(gdata);
     emit_function_params(decl);
     emit_tacs(DECL_X_HEAD(decl));
+    if (func_returns)
+        emit_noindent("%s:", func_end_label);
     emit_function_epilogue(gdata);
 }
 

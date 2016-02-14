@@ -27,8 +27,6 @@ static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r
 
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
-static const char *func_end_label;
-static int func_returns;
 static struct vector *extra_lvars;
 static struct table *tmps;
 static struct table *labels;
@@ -1692,20 +1690,17 @@ static void emit_continue_stmt(node_t *stmt)
 static void emit_return_stmt(node_t *stmt)
 {
     node_t *n = STMT_RETURN_EXPR(stmt);
-    struct operand *label = make_label_operand(func_end_label);
     
     if (!n || isnullstmt(n)) {
-        struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, label, ops[0]);
+        struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, NULL, ops[0]);
         emit_tac(tac);
     } else {
         node_t *ty = AST_TYPE(n);
         int op = isfloat(ty) ? IR_RETURNF : IR_RETURNI;
         emit_expr(n);
-        struct tac *tac = make_tac(op, EXPR_X_ADDR(n), NULL, label, ops[TYPE_SIZE(ty)]);
+        struct tac *tac = make_tac(op, EXPR_X_ADDR(n), NULL, NULL, ops[TYPE_SIZE(ty)]);
         emit_tac(tac);
     }
-
-    func_returns++;
 }
 
 static void emit_expr_stmt(node_t *stmt)
@@ -1774,13 +1769,9 @@ static void emit_function(node_t *decl)
     func_tac_head = NULL;
     func_tac_tail = NULL;
     extra_lvars = NULL;
-    func_end_label = NULL;
-    func_returns = 0;
 
-    STMT_X_NEXT(stmt) = func_end_label = gen_label();
+    STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
-    if (func_returns)
-        emit_label(func_end_label);
     DECL_X_HEAD(decl) = func_tac_head;
     // add extra local vars
     if (extra_lvars) {
