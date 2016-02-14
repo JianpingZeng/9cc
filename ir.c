@@ -111,7 +111,7 @@ static struct operand * make_int_operand(long long i)
 {
     struct operand *operand = make_named_operand(strd(i), &constants, CONSTANT);
     SYM_VALUE_I(operand->sym) = i;
-    SYM_X_KIND(operand->sym) = SYM_KIND_LITERAL;
+    SYM_X_KIND(operand->sym) = SYM_KIND_ILITERAL;
     return operand;
 }
 
@@ -119,7 +119,7 @@ static struct operand * make_unsigned_operand(unsigned long long u)
 {
     struct operand *operand = make_named_operand(stru(u), &constants, CONSTANT);
     SYM_VALUE_U(operand->sym) = u;
-    SYM_X_KIND(operand->sym) = SYM_KIND_LITERAL;
+    SYM_X_KIND(operand->sym) = SYM_KIND_ILITERAL;
     return operand;
 }
 
@@ -195,7 +195,7 @@ static struct operand * make_offset_operand(struct operand *l, long offset)
 {
     struct operand *index;
     if (l->index) {
-        if (SYM_X_KIND(l->index) == SYM_KIND_LITERAL) {
+        if (SYM_X_KIND(l->index) == SYM_KIND_ILITERAL) {
             unsigned long x = SYM_VALUE_U(l->index);
             index = make_unsigned_operand(x + offset);
         } else {
@@ -979,7 +979,7 @@ static void emit_member_nonbitfield(node_t *n, node_t *field)
     struct operand *addr = EXPR_X_ADDR(l);
     
     if (addr->index) {
-        if (SYM_X_KIND(addr->index) == SYM_KIND_LITERAL) {
+        if (SYM_X_KIND(addr->index) == SYM_KIND_ILITERAL) {
             unsigned long long i = SYM_VALUE_U(addr->index) + FIELD_OFFSET(field);
             struct operand *index = make_unsigned_operand(i);
             EXPR_X_ADDR(n) = make_subscript_operand(EXPR_X_ADDR(l), index);
@@ -1234,7 +1234,7 @@ static void emit_integer_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     SYM_X_LABEL(sym) = stru(SYM_VALUE_U(sym));
-    SYM_X_KIND(sym) = SYM_KIND_LITERAL;
+    SYM_X_KIND(sym) = SYM_KIND_ILITERAL;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
@@ -1253,7 +1253,7 @@ static void emit_float_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_float_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    SYM_X_KIND(sym) = SYM_KIND_LITERAL;
+    SYM_X_KIND(sym) = SYM_KIND_FLITERAL;
     EXPR_X_ADDR(n) = make_indirection_operand(make_sym_operand(sym));
 }
 

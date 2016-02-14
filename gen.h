@@ -56,7 +56,8 @@ struct gdata {
 
 enum {
     SYM_KIND_LABEL,
-    SYM_KIND_LITERAL,
+    SYM_KIND_ILITERAL,
+    SYM_KIND_FLITERAL,
     SYM_KIND_REF,
     SYM_KIND_TMP,
 };
