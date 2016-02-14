@@ -354,7 +354,9 @@ static void emit_call(struct tac *tac)
 
 static void emit_return(struct tac *tac)
 {
-    
+    struct operand *operand = tac->args[0];
+    struct operand *label = tac->result;
+    // TODO: 
 }
 
 static void emit_if(struct tac *tac)
