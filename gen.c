@@ -336,14 +336,20 @@ static void emit_conv_f2f(struct tac *tac)
     
 }
 
+/*
+  integer params(6): rdi, rsi, rdx, rcx, r8, r9
+  floating params(8): xmm0~xmm7
+ */
+
 static void emit_param(struct tac *tac)
 {
-    
+    struct operand *operand = tac->args[0];
 }
 
 static void emit_call(struct tac *tac)
 {
-    
+    emit("callq %s", SYM_X_LABEL(tac->args[0]->sym));
+    // TODO: clear uses
 }
 
 static void emit_return(struct tac *tac)
@@ -358,12 +364,12 @@ static void emit_if(struct tac *tac)
 
 static void emit_goto(struct tac *tac)
 {
-    
+    emit("jmpq %s", SYM_X_LABEL(tac->result->sym));
 }
 
 static void emit_label(struct tac *tac)
 {
-    
+    emit_noindent("%s:", SYM_X_LABEL(tac->result->sym));
 }
 
 static void emit_assign(struct tac *tac)
@@ -689,7 +695,7 @@ static void emit_function_params(node_t *decl)
 static void emit_function_epilogue(struct gdata *gdata)
 {
     emit("leave");
-    emit("ret");
+    emit("retq");
 }
 
 static void emit_text(struct gdata *gdata)

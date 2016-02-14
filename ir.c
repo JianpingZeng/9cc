@@ -1817,14 +1817,6 @@ static void ir_init(void)
     exts->floats = dict_new();
 }
 
-static const char *glabel(const char *label)
-{
-    if (opts.fleading_underscore)
-        return format("_%s", label);
-    else
-        return label;
-}
-
 struct externals * ir(node_t *tree)
 {
     cc_assert(istudecl(tree) && errors == 0);
@@ -1834,10 +1826,6 @@ struct externals * ir(node_t *tree)
     
     for (int i = 0; i < vec_len(v); i++) {
         node_t *decl = vec_at(v, i);
-        node_t *sym = DECL_SYM(decl);
-
-        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
-        
         if (isfuncdef(decl))
             emit_function(decl);
         else if (isvardecl(decl))
@@ -1847,9 +1835,12 @@ struct externals * ir(node_t *tree)
     return exts;
 }
 
-node_t * reduce(node_t *expr)
+static const char *glabel(const char *label)
 {
-    return expr;
+    if (opts.fleading_underscore)
+        return format("_%s", label);
+    else
+        return label;
 }
 
 static struct vector * filter_global(node_t **v)
@@ -1860,6 +1851,8 @@ static struct vector * filter_global(node_t **v)
     for (int i = 0; i < LIST_LEN(v); i++) {
         node_t *decl = v[i];
         node_t *sym = DECL_SYM(decl);
+
+        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
 
         // skip unused symbols
         if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
@@ -1893,6 +1886,11 @@ static struct vector * filter_global(node_t **v)
     }
     map_free(map);
     return r;
+}
+
+node_t * reduce(node_t *expr)
+{
+    return expr;
 }
 
 //
