@@ -268,9 +268,9 @@ static void emit_param(struct operand *operand)
     emit_tac(tac);
 }
 
-static struct tac * make_call_tac(struct operand *l, int args)
+static struct tac * make_call_tac(struct operand *l, int args, struct operand *result)
 {
-    struct tac *tac = make_tac(IR_CALL, l, NULL, NULL, Quad);
+    struct tac *tac = make_tac(IR_CALL, l, NULL, result, Quad);
     tac->relop = args;
     return tac;
 }
@@ -1077,11 +1077,10 @@ static void emit_call(node_t *n)
     }
 
     if (isvoid(ty)) {
-        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len);
+        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len, NULL);
         emit_tac(tac);
     } else {
-        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len);
-        tac->result = make_tmp_operand();
+        struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len, make_tmp_operand());
         emit_tac(tac);
         EXPR_X_ADDR(n) = tac->result;
     }
