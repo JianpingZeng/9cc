@@ -387,9 +387,9 @@ static void emit_uop_address(node_t *n)
 // ptr + int
 static struct operand * emit_ptr_int(int op,
                                      struct operand *l,
-                                     struct operand *result,
                                      struct operand *index,
                                      size_t step,
+                                     struct operand *result,
                                      int opsize)
 {
     struct tac *tac;
@@ -433,9 +433,9 @@ static void emit_uop_increment(node_t *n, int op)
         if (isptr(ty)) {
             EXPR_X_ADDR(n) = emit_ptr_int(rop,
                                           EXPR_X_ADDR(l),
-                                          EXPR_X_ADDR(l),
                                           make_operand_one(),
                                           TYPE_SIZE(rtype(ty)),
+                                          EXPR_X_ADDR(l),
                                           opsize);
         } else {
             struct tac *tac = make_tac(rop,
@@ -452,9 +452,9 @@ static void emit_uop_increment(node_t *n, int op)
         if (isptr(ty)) {
             emit_ptr_int(rop,
                          EXPR_X_ADDR(l),
-                         EXPR_X_ADDR(l),
                          make_operand_one(),
                          TYPE_SIZE(rtype(ty)),
+                         EXPR_X_ADDR(l),
                          opsize);
         } else {
             
@@ -837,9 +837,9 @@ static void emit_bop_plus(node_t *n)
         node_t *rty = rtype(AST_TYPE(ptr));
         EXPR_X_ADDR(n) = emit_ptr_int(IR_ADDI,
                                       EXPR_X_ADDR(ptr),
-                                      make_tmp_operand(),
                                       EXPR_X_ADDR(i),
                                       TYPE_SIZE(rty),
+                                      make_tmp_operand(),
                                       ops[TYPE_SIZE(AST_TYPE(ptr))]);
     }
 }
@@ -860,9 +860,9 @@ static void emit_bop_minus(node_t *n)
         node_t *rty = rtype(AST_TYPE(l));
         EXPR_X_ADDR(n) = emit_ptr_int(IR_SUBI,
                                       EXPR_X_ADDR(l),
-                                      make_tmp_operand(),
                                       EXPR_X_ADDR(r),
                                       TYPE_SIZE(rty),
+                                      make_tmp_operand(),
                                       ops[TYPE_SIZE(AST_TYPE(l))]);
     }
 }
