@@ -40,11 +40,11 @@ enum {
     FLOAT_REGS
 };
 
-static struct reg iarg_regs[NUM_IARG_REGS];
-static struct reg farg_regs[NUM_FARG_REGS];
-static struct reg int_regs[INT_REGS];
-static struct reg float_regs[FLOAT_REGS];
-static struct reg rsp, rbp, rip;
+static struct reg *iarg_regs[NUM_IARG_REGS];
+static struct reg *farg_regs[NUM_FARG_REGS];
+static struct reg *int_regs[INT_REGS];
+static struct reg *float_regs[FLOAT_REGS];
+static struct reg *rsp, *rbp, *rip;
 static int idx[] = {
     -1, B, W, -1, L, -1, -1, -1, Q
 };
@@ -98,76 +98,83 @@ static struct addr * make_register_addr(struct reg *reg)
     return addr;
 }
 
+static struct reg * mkreg(struct reg *r)
+{
+    struct reg *reg = zmalloc(sizeof(struct reg));
+    *reg = *r;
+    return reg;
+}
+
 static void init_regs(void)
 {
-    rsp = (struct reg){
+    rsp = mkreg(&(struct reg){
         .r[Q] = "%rsp",
         .r[L] = "%esp",
         .r[W] = "%sp"
-    };
+    });
     
-    rbp = (struct reg){
+    rbp = mkreg(&(struct reg){
         .r[Q] = "%rbp",
         .r[L] = "%ebp",
         .r[W] = "%bp"
-    };
+    });
     
-    rip = (struct reg){
+    rip = mkreg(&(struct reg){
         .r[Q] = "%rip",
         .r[L] = "%eip",
         .r[W] = "%ip"
-    };
+    });
     
-    int_regs[RAX] = (struct reg){
+    int_regs[RAX] = mkreg(&(struct reg){
         .r[Q] = "%rax",
         .r[L] = "%eax",
         .r[W] = "%ax",
         .r[B] = "%al"
-    };
+    });
 
-    int_regs[RBX] = (struct reg){
+    int_regs[RBX] = mkreg(&(struct reg){
         .r[Q] = "%rbx",
         .r[L] = "%ebx",
         .r[W] = "%bx",
         .r[B] = "%bl"
-    };
+    });
     
-    int_regs[RCX] = (struct reg){
+    int_regs[RCX] = mkreg(&(struct reg){
         .r[Q] = "%rcx",
         .r[L] = "%ecx",
         .r[W] = "%cx",
         .r[B] = "%cl"
-    };
+    });
     
-    int_regs[RDX] = (struct reg){
+    int_regs[RDX] = mkreg(&(struct reg){
         .r[Q] = "%rdx",
         .r[L] = "%edx",
         .r[W] = "%dx",
         .r[B] = "%dl"
-    };
+    });
 
-    int_regs[RSI] = (struct reg){
+    int_regs[RSI] = mkreg(&(struct reg){
         .r[Q] = "%rsi",
         .r[L] = "%esi",
         .r[W] = "%si",
         .r[B] = "%sil"
-    };
+    });
 
-    int_regs[RDI] = (struct reg){
+    int_regs[RDI] = mkreg(&(struct reg){
         .r[Q] = "%rdi",
         .r[L] = "%edi",
         .r[W] = "%di",
         .r[B] = "%dil"
-    };
+    });
 
     for (int i = R8; i <= R15; i++) {
         int index = i - R8 + 8;
-        int_regs[i] = (struct reg){
+        int_regs[i] = mkreg(&(struct reg){
             .r[Q] = format("%%r%d", index),
             .r[L] = format("%%r%dd", index),
             .r[W] = format("%%r%dw", index),
             .r[B] = format("%%r%db", index)
-        };
+        });
     }
 
     // init integer regs
@@ -181,10 +188,10 @@ static void init_regs(void)
     // init floating regs
     for (int i = XMM0; i <= XMM15; i++) {
         const char *name = format("%%xmm%d", i - XMM0);
-        float_regs[i] = (struct reg){
+        float_regs[i] = mkreg(&(struct reg){
             .r[Q] = name,
             .r[L] = name
-        };
+        });
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
     }
@@ -569,8 +576,8 @@ static void emit_function_prologue(struct gdata *gdata)
         emit(".globl %s", gdata->label);
     emit(".text");
     emit_noindent("%s:", gdata->label);
-    emit("pushq %s", rbp.r[Q]);
-    emit("movq %s, %s", rsp.r[Q], rbp.r[Q]);
+    emit("pushq %s", rbp->r[Q]);
+    emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
 
     size_t localsize = 0;
     // local vars
@@ -583,7 +590,7 @@ static void emit_function_prologue(struct gdata *gdata)
         localsize = ROUNDUP(localsize, align) + size;
         SYM_X_LOFF(sym) = - localsize;
         // addr
-        SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(&rbp, - localsize);
+        SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, - localsize);
     }
     localsize = ROUNDUP(localsize, 16);
 
@@ -602,29 +609,29 @@ static void emit_function_prologue(struct gdata *gdata)
             num_int++;
             if (num_int > NUM_IARG_REGS) {
                 SYM_X_LOFF(sym) = stack_off;
-                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(&rbp, stack_off);
+                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
                 stack_off += ROUNDUP(size, 8);
             } else {
                 localsize = ROUNDUP(localsize, align) + size;
                 SYM_X_LOFF(sym) = - localsize;
-                struct reg ireg = iarg_regs[num_int-1];
-                SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(&ireg);
+                struct reg *ireg = iarg_regs[num_int-1];
+                SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(ireg);
             }
         } else if (isfloat(ty)) {
             num_float++;
             if (num_float > NUM_FARG_REGS) {
                 SYM_X_LOFF(sym) = stack_off;
-                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(&rbp, stack_off);
+                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
                 stack_off += ROUNDUP(size, 8);
             } else {
                 localsize = ROUNDUP(localsize, align) + size;
                 SYM_X_LOFF(sym) = - localsize;
-                struct reg freg = farg_regs[num_float-1];
-                SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(&freg);
+                struct reg *freg = farg_regs[num_float-1];
+                SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(freg);
             }
         } else if (isstruct(ty) || isunion(ty)) {
             SYM_X_LOFF(sym) = stack_off;
-            SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(&rbp, stack_off);
+            SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
             stack_off += ROUNDUP(size, 8);
         } else {
             cc_assert(0);
@@ -636,7 +643,7 @@ static void emit_function_prologue(struct gdata *gdata)
     localsize += extra_stack_size(decl);
 
     if (localsize > 0)
-        emit("subq $%llu, %s", localsize, rsp.r[Q]);
+        emit("subq $%llu, %s", localsize, rsp->r[Q]);
 }
 
 static void emit_function_params(node_t *decl)
@@ -653,21 +660,21 @@ static void emit_function_params(node_t *decl)
                 emit("mov%s %s, %ld(%s)",
                      suffix[idx[size]],
                      reg->r[idx[size]],
-                     SYM_X_LOFF(sym), rbp.r[Q]);
+                     SYM_X_LOFF(sym), rbp->r[Q]);
             } else if (isfloat(ty)) {
                 if (TYPE_KIND(ty) == FLOAT) {
                     emit("movss %s, %ld(%s)",
                          reg->r[idx[size]],
-                         SYM_X_LOFF(sym), rbp.r[Q]);
+                         SYM_X_LOFF(sym), rbp->r[Q]);
                 } else {
                     emit("movsd %s, %ld(%s)",
                          reg->r[idx[size]],
-                         SYM_X_LOFF(sym), rbp.r[Q]);
+                         SYM_X_LOFF(sym), rbp->r[Q]);
                 }
             }
             // reset
             SYM_X_ADDRS(sym)[ADDR_REGISTER] = NULL;
-            SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(&rbp, SYM_X_LOFF(sym));
+            SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, SYM_X_LOFF(sym));
         }
     }
 }
