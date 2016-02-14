@@ -7,6 +7,7 @@ _NOT_ finished yet.
 
 The compiler is designed to be able to compile itself, so it is written in C. And it refuses to use any gnu extension, _ONLY_ pure standard syntax. It is intended to support all C99 language features while keeping the code as simple and small as possible.
 
+
 Source Roadmap:
 
 include		headers files provided by this compiler.
@@ -17,6 +18,11 @@ utils		common utilities.
 
 test		test suite.
 
+
+HOWTO build:
+
+For Linux users:
+
 To build the mcc compiler, run command:
 
 	make
@@ -25,11 +31,13 @@ To run the testing suite, run command:
 
 	make test
 
+
 For Windows users:
 
 To build the mcc compiler, run command:
 
          nmake /F mcc.mk
+
 
 For Mac OS X users:
 
