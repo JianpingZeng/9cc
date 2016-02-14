@@ -821,7 +821,10 @@ static void emit_bop_arith(node_t *n)
 // arith + arith
 // ptr + int
 // int + ptr
-static void emit_bop_plus(node_t *n)
+//
+// arith - arith
+// ptr - int
+static void emit_bop_plus_minus(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
@@ -835,35 +838,13 @@ static void emit_bop_plus(node_t *n)
         node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
         node_t *i = isint(AST_TYPE(l)) ? l : r;
         node_t *rty = rtype(AST_TYPE(ptr));
-        EXPR_X_ADDR(n) = emit_ptr_int(IR_ADDI,
+        int op = EXPR_OP(n) == '+' ? IR_ADDI : IR_SUBI;
+        EXPR_X_ADDR(n) = emit_ptr_int(op,
                                       EXPR_X_ADDR(ptr),
                                       EXPR_X_ADDR(i),
                                       TYPE_SIZE(rty),
                                       make_tmp_operand(),
                                       ops[TYPE_SIZE(AST_TYPE(ptr))]);
-    }
-}
-
-// arith - arith
-// ptr - int
-static void emit_bop_minus(node_t *n)
-{
-    node_t *l = EXPR_OPERAND(n, 0);
-    node_t *r = EXPR_OPERAND(n, 1);
-
-    if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
-        emit_bop_arith(n);
-    } else {
-        emit_expr(l);
-        emit_expr(r);
-
-        node_t *rty = rtype(AST_TYPE(l));
-        EXPR_X_ADDR(n) = emit_ptr_int(IR_SUBI,
-                                      EXPR_X_ADDR(l),
-                                      EXPR_X_ADDR(r),
-                                      TYPE_SIZE(rty),
-                                      make_tmp_operand(),
-                                      ops[TYPE_SIZE(AST_TYPE(l))]);
     }
 }
 
@@ -889,10 +870,8 @@ static void emit_bop(node_t *n)
         emit_bop_arith(n);
         break;
     case '+':
-        emit_bop_plus(n);
-        break;
     case '-':
-        emit_bop_minus(n);
+        emit_bop_plus_minus(n);
         break;
         // scalar
     case '<':
