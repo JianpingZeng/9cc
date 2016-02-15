@@ -1146,7 +1146,11 @@ static void builtin_macros(void)
     define_special("__DATE__", date_handler);
     define_special("__TIME__", time_handler);
 
+#ifdef CONFIG_WINNT
+    include_builtin(BUILD_DIR "\\include\\mcc.h");
+#else
     include_builtin(BUILD_DIR "/include/mcc.h");
+#endif
 }
 
 static void init_env(void)

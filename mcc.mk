@@ -1,9 +1,9 @@
 # makefile for Windows NT
 
-CC=cl /nologo
-LD=cl /nologo
-CFLAGS=/Wall /DBUILD_DIR=$(MAKEDIR)
-LDFLAGS=/MT
+CC=cl /nologo /MT
+LD=link /nologo
+CFLAGS=/D CONFIG_WINNT /D "BUILD_DIR=\".\""
+LDFLAGS=/MACHINE:X64
 UTILS=utils^\
 SYS=sys^\
 O=.obj
@@ -63,6 +63,9 @@ all: $(MCC)
 $(MCC_OBJ): mcc.c
 	$(CC) $(CFLAGS) /c /Fo$@ mcc.c
 	
+$(SYS_OBJ): $(SYS)winnt.c $(SYS_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ $(SYS)winnt.c
+	
 $(UTILS)wrapper$O: $(UTILS)wrapper.c $(UTILS_INC)
 	$(CC) $(CFLAGS) /c /Fo$@ $(UTILS)wrapper.c
 	
@@ -75,15 +78,71 @@ $(UTILS)vector$O: $(UTILS)vector.c	$(UTILS_INC)
 $(UTILS)map$O: $(UTILS)map.c  $(UTILS_INC)
 	$(CC) $(CFLAGS) /c /Fo$@ $(UTILS)map.c
 	
-alloc$O: alloc.c
+$(UTILS)string$O: $(UTILS)string.c  $(UTILS_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ $(UTILS)string.c
+	
+$(UTILS)hideset$O: $(UTILS)hideset.c  $(UTILS_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ $(UTILS)hideset.c
+	
+$(UTILS)dict$O: $(UTILS)dict.c  $(UTILS_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ $(UTILS)dict.c
+	
+alloc$O: alloc.c $(CC1_INC)
 	$(CC) $(CFLAGS) /c /Fo$@ alloc.c
 
-ast$O: ast.c
+ast$O: ast.c $(CC1_INC)
 	$(CC) $(CFLAGS) /c /Fo$@ ast.c
 	
+cc$O: cc.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ cc.c
+	
+cpp$O: cpp.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ cpp.c
+	
+print$O: print.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ print.c
+	
+decl$O: decl.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ decl.c
+	
+error$O: error.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ error.c
+	
+eval$O: eval.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ eval.c
+	
+expr$O: expr.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ expr.c
+	
+gen$O: gen.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ gen.c
+	
+lex$O: lex.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ lex.c
+	
+stmt$O: stmt.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ stmt.c
+	
+sym$O: sym.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ sym.c
+	
+type$O: type.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ type.c
+	
+input$O: input.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ input.c
+	
+initializer$O: initializer.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ initializer.c
+	
+ir$O: ir.c $(CC1_INC)
+	$(CC) $(CFLAGS) /c /Fo$@ ir.c
+	
 $(MCC): $(MCC_OBJ) $(CC1_OBJ) $(SYS_OBJ)
-	$(LD) $(LDFLAGS) /Fe$@ $(MCC_OBJ) $(SYS_OBJ) $(CC1_OBJ)
+	$(LD) $(LDFLAGS) /out:$@ $(MCC_OBJ) $(SYS_OBJ) $(CC1_OBJ)
 
 clean::
 	-del /q *.obj
 	-del /q $(MCC)
+	-del /q $(UTILS)*.obj
+	-del /q $(SYS)*.obj
