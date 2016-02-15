@@ -84,12 +84,20 @@ struct uses {
     bool live;
     struct tac *use_tac;
 };
+
+// displacement(base, index, scale)
+// address = base + displacement + index * scale
+// base: register
+// index: register
+// scale: 1,2,4,8
+// displacement: integer number
+
 struct operand {
     int op;
     node_t *sym;
     node_t *index;
+    int scale;
     struct uses uses;
-    const char *label;
 };
 
 // three-address code

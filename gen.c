@@ -468,9 +468,6 @@ static void emit_bop_mod(struct tac *tac)
 
 static void emit_bop_int(struct tac *tac, const char *op)
 {
-    dispatch_ireg_bop(tac);
-    emit("%s%s %s, %s", op, suffix[idx[tac->opsize]],
-         tac->args[0]->label, tac->args[1]->label);
 }
 
 static void emit_bop_float(struct tac *tac)
