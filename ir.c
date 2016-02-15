@@ -155,14 +155,6 @@ static struct operand * make_indirection_operand(struct operand *l)
     return operand;
 }
 
-static struct operand * make_address_operand(struct operand *l)
-{
-    struct operand *operand = make_sym_operand(l->sym);
-    operand->index = l->index;  // copy index
-    operand->op = IR_ADDRESS;
-    return operand;
-}
-
 static struct tac * make_tac(int op,
                              struct operand *l, struct operand *r,
                              struct operand *result,
@@ -293,6 +285,13 @@ static struct operand * emit_conv_tac(int op, struct operand *l,
     return tac->result;
 }
 
+static struct operand * emit_address_tac(struct operand *l)
+{
+    struct tac *tac = make_tac_r(IR_ADDRESS, l, NULL, ops[Quad]);
+    emit_tac(tac);
+    return tac->result;
+}
+
 static void emit_decl(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
@@ -380,8 +379,8 @@ static void emit_uop_address(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
 
     emit_expr(l);
-
-    EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l));
+    
+    EXPR_X_ADDR(n) = emit_address_tac(EXPR_X_ADDR(l));
 }
 
 // ptr + int
@@ -1172,7 +1171,7 @@ static void func2ptr(node_t *dty, node_t *sty, node_t *n)
 static void array2ptr(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l));
+    EXPR_X_ADDR(n) = emit_address_tac(EXPR_X_ADDR(l));
 }
 
 static void emit_conv(node_t *n)

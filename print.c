@@ -423,11 +423,10 @@ static const char * operand2s(struct operand *operand)
                       SYM_X_LABEL(operand->index));
     case IR_INDIRECTION:
         return format("*%s", SYM_X_LABEL(operand->sym));
-    case IR_ADDRESS:
-        return format("&%s", SYM_X_LABEL(operand->sym));
     case IR_NONE:
-    default:
         return SYM_X_LABEL(operand->sym);
+    default:
+        cc_assert(0);
     }
 }
 
@@ -505,6 +504,7 @@ void print_tac(struct tac *tac)
     case IR_NOT:
     case IR_MINUSI:
     case IR_MINUSF:
+    case IR_ADDRESS:
         putf("%s = %s %s",
               operand2s(tac->result),
               rop2s(tac->op),
@@ -544,7 +544,6 @@ void print_tac(struct tac *tac)
               operand2s(tac->args[0]));
         break;
     case IR_SUBSCRIPT:
-    case IR_ADDRESS:
     case IR_INDIRECTION:
         // operand
         break;
