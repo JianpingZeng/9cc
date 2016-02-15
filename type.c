@@ -37,7 +37,7 @@ static struct metrics longdoublemetrics;
 static struct metrics ptrmetrics;
 static struct metrics zerometrics;
 
-static inline node_t *new_type(void)
+static node_t *new_type(void)
 {
     return alloc_type();
 }

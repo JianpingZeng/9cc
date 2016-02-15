@@ -8,7 +8,7 @@ struct alloc_state {
     void *p;                // first free node in current allocation
 };
 
-static inline void *do_alloc_object(struct alloc_state *s, size_t size)
+static void *do_alloc_object(struct alloc_state *s, size_t size)
 {
     void *ret;
 

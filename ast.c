@@ -16,7 +16,7 @@ const char *nname(node_t * node)
     return node_names[AST_ID(node)];
 }
 
-static inline node_t *new_node(int id)
+static node_t *new_node(int id)
 {
     node_t *n = alloc_node();
     AST_ID(n) = id;

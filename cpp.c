@@ -11,7 +11,7 @@
 
 static struct token *expand(void);
 static struct vector *expandv(struct vector *v);
-static inline void include_file(const char *file, bool std);
+static void include_file(const char *file, bool std);
 static struct map *macros;
 static struct vector *std_include_paths;
 static struct vector *usr_include_paths;
@@ -28,7 +28,7 @@ static struct macro *new_macro(int kind)
     return m;
 }
 
-static inline bool defined(const char *name)
+static bool defined(const char *name)
 {
     return map_get(macros, name);
 }
@@ -449,7 +449,7 @@ static void parameters(struct macro *m)
         m->params = vec_new();
 }
 
-static inline void add_macro(const char *name, struct macro *m)
+static void add_macro(const char *name, struct macro *m)
 {
     static const char *builtins[] = {
         "__STDC__",
@@ -463,7 +463,7 @@ static inline void add_macro(const char *name, struct macro *m)
     map_put(macros, name, m);
 }
 
-static inline void remove_macro(const char *name)
+static void remove_macro(const char *name)
 {
     struct macro *m = map_get(macros, name);
     if (m && m->builtin)
@@ -1066,7 +1066,7 @@ static void define_special(const char *name, void (*handler) (struct token *))
     add_macro(strs(name), m);
 }
 
-static inline void add_include(struct vector *v, const char *name)
+static void add_include(struct vector *v, const char *name)
 {
     vec_push(v, (char *)abspath(name));
 }
@@ -1123,12 +1123,12 @@ static void do_include_file(const char *file, const char *name, bool std)
     }
 }
 
-static inline void include_file(const char *file, bool std)
+static void include_file(const char *file, bool std)
 {
     do_include_file(file, NULL, std);
 }
 
-static inline void include_builtin(const char *file)
+static void include_builtin(const char *file)
 {
     do_include_file(file, "<built-in>", true);
 }

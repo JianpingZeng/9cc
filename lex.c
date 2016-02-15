@@ -26,17 +26,17 @@ int isxalpha(int c)
     return (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 }
 
-static inline int isnewline(int c)
+static int isnewline(int c)
 {
     return c == '\n';
 }
 
-static inline int isdigitletter(int c)
+static int isdigitletter(int c)
 {
     return isdigit(c) || isletter(c);
 }
 
-static inline int iswhitespace(int c)
+static int iswhitespace(int c)
 {
     return c == ' ' || c == '\t' || c == '\f' || c == '\v' || c == '\r';
 }
@@ -59,7 +59,7 @@ static void markc()
     source.column = fs->column;
 }
 
-static inline void mark(struct token *t)
+static void mark(struct token *t)
 {
     source = t->src;
 }
@@ -123,7 +123,7 @@ static void skipline(bool over)
         unreadc(ch);
 }
 
-static inline void line_comment(void)
+static void line_comment(void)
 {
     skipline(false);
 }

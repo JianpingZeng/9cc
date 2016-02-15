@@ -42,6 +42,7 @@ stage1
 stage2
 stage3
 *.stackdump
+*.obj
 
 # etags
 TAGS

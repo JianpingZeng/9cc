@@ -9,7 +9,7 @@ static node_t *initializer(node_t * ty);
 
 #define INIT_OVERRIDE    "initializer overrides prior initialization"
 
-static inline bool first_init(struct token *t)
+static bool first_init(struct token *t)
 {
     return t->id == '[' || t->id == '.' || t->id == '{' || first_expr(t);
 }
@@ -267,7 +267,7 @@ static void scalar_init(node_t * ty, struct vector *v)
     }
 }
 
-static inline bool is_string_vec(node_t *ty, struct vector *v)
+static bool is_string_vec(node_t *ty, struct vector *v)
 {
     return is_string(ty) && vec_len(v) == 1 && issliteral((node_t *)vec_head(v));
 }

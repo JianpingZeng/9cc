@@ -1155,21 +1155,21 @@ static void arith2ptr(node_t *dty, node_t *sty, node_t *n)
     arith2arith(unsignedlongtype, sty, n);
 }
 
-static inline void ptr2ptr(node_t *dty, node_t *sty, node_t *n)
+static void ptr2ptr(node_t *dty, node_t *sty, node_t *n)
 {
    node_t *l = EXPR_OPERAND(n, 0);
    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 //@ function to pointer decay
-static inline void func2ptr(node_t *dty, node_t *sty, node_t *n)
+static void func2ptr(node_t *dty, node_t *sty, node_t *n)
 {
    node_t *l = EXPR_OPERAND(n, 0);
    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 //@ array to pointer decay
-static inline void array2ptr(node_t *dty, node_t *sty, node_t *n)
+static void array2ptr(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l));
@@ -1881,12 +1881,12 @@ static struct vector *__xvalues;
 
 static void emit_initializer(node_t *init);
 
-static inline struct xvalue * alloc_xvalue(void)
+static struct xvalue * alloc_xvalue(void)
 {
     return zmalloc(sizeof(struct xvalue));
 }
 
-static inline struct gdata * alloc_gdata(void)
+static struct gdata * alloc_gdata(void)
 {
     return zmalloc(sizeof(struct gdata));
 }
