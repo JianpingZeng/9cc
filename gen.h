@@ -89,6 +89,7 @@ struct operand {
     node_t *sym;
     node_t *index;
     struct uses uses;
+    const char *label;
 };
 
 // three-address code

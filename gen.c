@@ -24,7 +24,7 @@ static FILE *outfp;
 static const char *func_end_label;
 static int func_returns;
 
-static void emit_operand(struct operand *operand);
+static const char * oplabel(struct operand *operand);
 
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
@@ -197,6 +197,65 @@ static void init_regs(void)
         });
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
+    }
+}
+
+static void reg_add_var(struct reg *reg, node_t *sym)
+{
+    if (!reg->vars)
+        reg->vars = vec_new();
+
+    vec_push(reg->vars, sym);
+}
+
+static void load_operand_to_reg(struct operand *operand,
+                                struct reg *reg,
+                                int opsize)
+{
+    int index = idx[opsize];
+    emit("mov%s %s, %s", suffix[index], oplabel(operand), reg->r[index]);
+}
+
+static void dispatch_ireg_for(struct operand *operand, int opsize)
+{
+    node_t *sym = operand->sym;
+
+    if (SYM_X_ADDRS(sym)[ADDR_REGISTER])
+        return;
+
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
+        struct reg *reg = int_regs[i];
+        if (vec_len(reg->vars) == 0) {
+            // clean reg
+            reg_add_var(reg, sym);
+            SYM_X_ADDRS(sym)[ADDR_REGISTER] = reg;
+            load_operand_to_reg(operand, reg, opsize);
+            return;
+        }
+    }
+
+    die("not implemented yet");
+}
+
+static void dispatch_ireg_uop(struct tac *tac)
+{
+    
+}
+
+static void dispatch_ireg_bop(struct tac *tac)
+{
+    struct operand *l = tac->args[0];
+    struct operand *r = tac->args[1];
+    struct operand *result = tac->result;
+    int opsize = tac->opsize;
+
+    if (SYM_X_KIND(l->sym) == SYM_KIND_ILITERAL) {
+        dispatch_ireg_for(r, opsize);
+    } else if (SYM_X_KIND(r->sym) == SYM_KIND_ILITERAL) {
+        dispatch_ireg_for(l, opsize);
+    } else {
+        dispatch_ireg_for(l, opsize);
+        dispatch_ireg_for(r, opsize);
     }
 }
 
@@ -382,22 +441,59 @@ static void emit_assign(struct tac *tac)
     
 }
 
-static void emit_address(struct tac *tac)
+static const char * oplabel(struct operand *operand)
+{
+    switch (operand->op) {
+    case IR_SUBSCRIPT:
+        break;
+    case IR_INDIRECTION:
+        break;
+    case IR_NONE:
+        {
+            node_t *sym = operand->sym;
+            struct addr *addr0 = SYM_X_ADDRS(sym)[ADDR_REGISTER];
+            struct addr *addr1 = SYM_X_ADDRS(sym)[ADDR_STACK];
+            if (addr0)
+                return addr0->reg->r[Q];
+            else if (addr1)
+                return format("%ld(%s)", addr->offset, addr->reg->r[Q]);
+            else
+                return SYM_X_LABEL(sym);
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
+static void emit_uop_not(struct tac *tac)
 {
     
 }
 
-static void emit_subscript(struct operand *operand)
+static void emit_uop_minus(struct tac *tac)
 {
     
 }
 
-static void emit_indirection(struct operand *operand)
+static void emit_uop_address(struct tac *tac)
 {
     
 }
 
-static void emit_operand(struct operand *operand)
+static void emit_bop_mod(struct tac *tac)
+{
+    
+}
+
+static void emit_bop_int(struct tac *tac, const char *op)
+{
+    dispatch_ireg_bop(tac);
+    emit("%s%s %s, %s", op, suffix[idx[tac->opsize]],
+         tac->args[0]->label, tac->args[1]->label);
+}
+
+static void emit_bop_float(struct tac *tac)
 {
     
 }
@@ -423,29 +519,39 @@ static void emit_tac(struct tac *tac)
         break;
         // bop
     case IR_ADDI:
-    case IR_ADDF:
+        emit_bop_int(tac, "add");
+        break;
     case IR_SUBI:
-    case IR_SUBF:
     case IR_DIVI:
     case IR_IDIVI:
-    case IR_DIVF:
     case IR_MULI:
     case IR_IMULI:
-    case IR_MULF:
-    case IR_MOD:
     case IR_OR:
     case IR_AND:
     case IR_XOR:
     case IR_LSHIFT:
     case IR_RSHIFT:
+        emit_bop_int(tac, "shl");
+        break;
+    case IR_MOD:
+        emit_bop_mod(tac);
+        break;
+    case IR_ADDF:
+    case IR_SUBF:
+    case IR_DIVF:
+    case IR_MULF:
+        emit_bop_float(tac);
         break;
         // uop
     case IR_NOT:
+        emit_uop_not(tac);
+        break;
     case IR_MINUSI:
     case IR_MINUSF:
+        emit_uop_minus(tac);
         break;
     case IR_ADDRESS:
-        emit_address(tac);
+        emit_uop_address(tac);
         break;
     case IR_ASSIGNI:
     case IR_ASSIGNF:
