@@ -1165,17 +1165,21 @@ static void init_include(void)
     std_include_paths = vec_new();
     usr_include_paths = vec_new();
 
-    add_include(std_include_paths, BUILD_DIR "/include");
-
 #ifdef CONFIG_LINUX
 
+    add_include(std_include_paths, BUILD_DIR "/include");
     add_include(std_include_paths, "/usr/include");
     add_include(std_include_paths, "/usr/include/linux");
     add_include(std_include_paths, "/usr/include/x86_64-linux-gnu");
 
 #elif defined CONFIG_DARWIN
 
+    add_include(std_include_paths, BUILD_DIR "/include");
     add_include(std_include_paths, XCODE_DIR "/usr/include");
+
+#elif defined CONFIG_WINNT
+
+    add_include(std_include_paths, BUILD_DIR "\\include");
 
 #endif
 }

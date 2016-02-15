@@ -2,8 +2,8 @@
 
 CC=cl /nologo /MT
 LD=link /nologo
-CFLAGS=/D CONFIG_WINNT /D "BUILD_DIR=\".\""
-LDFLAGS=/MACHINE:X64
+CFLAGS=/D CONFIG_WINNT /D "BUILD_DIR=\"$(MAKEDIR)\""
+LDFLAGS=/MACHINE:X64 rpcrt4.lib shlwapi.lib
 UTILS=utils^\
 SYS=sys^\
 O=.obj
