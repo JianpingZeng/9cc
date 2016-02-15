@@ -443,27 +443,7 @@ static void emit_assign(struct tac *tac)
 
 static const char * oplabel(struct operand *operand)
 {
-    switch (operand->op) {
-    case IR_SUBSCRIPT:
-        break;
-    case IR_INDIRECTION:
-        break;
-    case IR_NONE:
-        {
-            node_t *sym = operand->sym;
-            struct addr *addr0 = SYM_X_ADDRS(sym)[ADDR_REGISTER];
-            struct addr *addr1 = SYM_X_ADDRS(sym)[ADDR_STACK];
-            if (addr0)
-                return addr0->reg->r[Q];
-            else if (addr1)
-                return format("%ld(%s)", addr->offset, addr->reg->r[Q]);
-            else
-                return SYM_X_LABEL(sym);
-        }
-        break;
-    default:
-        cc_assert(0);
-    }
+    return "";
 }
 
 static void emit_uop_not(struct tac *tac)

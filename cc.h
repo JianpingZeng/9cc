@@ -27,12 +27,13 @@ extern void *alloc_macro(void);
 
 // value
 #define VALUE_U(v)    ((v).u)
-#define VALUE_I(v)    ((v).u)
+#define VALUE_I(v)    ((v).i)
 #define VALUE_D(v)    ((v).d)
 #define VALUE_P(v)    ((v).p)
 #define VALUE_G(v)    ((v).g)
 
 union value {
+    long long i;
     unsigned long long u;
     long double d;
     void *p;
