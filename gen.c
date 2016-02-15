@@ -382,51 +382,12 @@ static void emit_assign(struct tac *tac)
     
 }
 
-static void emit_uop(struct tac *tac)
-{
-    switch (tac->op) {
-    case IR_NOT:
-    case IR_MINUSI:
-        break;
-    case IR_MINUSF:
-        break;
-    default:
-        cc_assert(0);
-    }
-}
-
-static void emit_bop(struct tac *tac)
-{
-    switch (tac->op) {
-    case IR_ADDI:
-    case IR_SUBI:
-    case IR_DIVI:
-    case IR_IDIVI:
-    case IR_MULI:
-    case IR_IMULI:
-    case IR_MOD:
-    case IR_OR:
-    case IR_AND:
-    case IR_XOR:
-    case IR_LSHIFT:
-    case IR_RSHIFT:
-        break;
-    case IR_ADDF:
-    case IR_SUBF:
-    case IR_DIVF:
-    case IR_MULF:
-        break;
-    default:
-        cc_assert(0);
-    }
-}
-
-static void emit_subscript(struct operand *operand)
+static void emit_address(struct tac *tac)
 {
     
 }
 
-static void emit_address(struct operand *operand)
+static void emit_subscript(struct operand *operand)
 {
     
 }
@@ -460,6 +421,7 @@ static void emit_tac(struct tac *tac)
     case IR_RETURNF:
         emit_return(tac);
         break;
+        // bop
     case IR_ADDI:
     case IR_ADDF:
     case IR_SUBI:
@@ -476,12 +438,14 @@ static void emit_tac(struct tac *tac)
     case IR_XOR:
     case IR_LSHIFT:
     case IR_RSHIFT:
-        emit_bop(tac);
         break;
+        // uop
     case IR_NOT:
     case IR_MINUSI:
     case IR_MINUSF:
-        emit_uop(tac);
+        break;
+    case IR_ADDRESS:
+        emit_address(tac);
         break;
     case IR_ASSIGNI:
     case IR_ASSIGNF:
@@ -512,7 +476,7 @@ static void emit_tac(struct tac *tac)
         break;
     case IR_NONE:
     default:
-        break;
+        cc_assert(0);
     }
 }
 
