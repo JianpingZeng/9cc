@@ -228,7 +228,7 @@ static void dispatch_ireg_for(struct operand *operand, int opsize)
         if (vec_len(reg->vars) == 0) {
             // clean reg
             reg_add_var(reg, sym);
-            SYM_X_ADDRS(sym)[ADDR_REGISTER] = reg;
+            SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(reg);
             load_operand_to_reg(operand, reg, opsize);
             return;
         }
