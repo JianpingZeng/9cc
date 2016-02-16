@@ -418,11 +418,13 @@ static const char * operand2s(struct operand *operand)
 {
     switch (operand->op) {
     case IR_SUBSCRIPT:
-        return format("%s[%s]",
+        return format("%ld(%s,%s,%d)",
+                      operand->disp,
                       SYM_X_LABEL(operand->sym),
-                      SYM_X_LABEL(operand->index));
+                      operand->index ? SYM_X_LABEL(operand->index) : "",
+                      operand->scale);
     case IR_INDIRECTION:
-        return format("*%s", SYM_X_LABEL(operand->sym));
+        return format("* %s", SYM_X_LABEL(operand->sym));
     case IR_NONE:
         return SYM_X_LABEL(operand->sym);
     default:

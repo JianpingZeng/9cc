@@ -192,61 +192,101 @@ static struct operand * make_indirection_operand(struct operand *l)
     }
 }
 
-static struct operand * do_make_subscript_operand(struct operand *l, struct operand *index, size_t step)
+static struct operand * do_make_subscript_operand2(struct operand *l,
+                                                   struct operand *index,
+                                                   size_t step,
+                                                   long disp)
 {
-    cc_assert(l->op == IR_NONE);
     struct operand *operand = make_sym_operand(l->sym);
     operand->op = IR_SUBSCRIPT;
+    
     if (SYM_X_KIND(index->sym) == SYM_KIND_ILITERAL) {
-        long offset = SYM_VALUE_I(index->sym) * step;
-        struct operand *offset_operand = make_int_operand(offset);
-        operand->index = offset_operand->sym;
+        // disp(base)
+        long d = SYM_VALUE_I(index->sym) * step + disp;
+        operand->disp = d;
+    } else if (step == Byte || step == Word || step == Long || step == Quad) {
+        // disp(base,index,scale)
+        operand->index = index->sym;
+        operand->scale = step;
+        operand->disp = disp;
     } else {
-        struct operand *step_operand = make_unsigned_operand(step);
-        struct tac *tac = make_tac_r(IR_IMULI, index, step_operand, ops[Quad]);
-        emit_tac(tac);
-        operand->index = tac->result->sym;
+        // direct
+        struct tac *tac1 = make_tac_r(IR_IMULI,
+                                      index,
+                                      make_int_operand(step),
+                                      ops[Quad]);
+        emit_tac(tac1);
+        struct tac *tac2 = make_tac_r(IR_ADDI, l, tac1->result, ops[Quad]);
+        emit_tac(tac2);
+        if (disp) {
+            struct tac *tac3 = make_tac_r(IR_ADDI,
+                                          tac2->result,
+                                          make_int_operand(disp),
+                                          ops[Quad]);
+            emit_tac(tac3);
+            operand->sym = tac3->result->sym;
+        } else {
+            operand->sym = tac2->result->sym;
+        }
     }
+
     return operand;
 }
 
-static struct operand * make_subscript_operand(struct operand *l, struct operand *index, size_t step)
+static struct operand * do_make_subscript_operand(struct operand *l,
+                                                  struct operand *index,
+                                                  size_t step,
+                                                  long disp)
+{
+    switch (index->op) {
+    case IR_NONE:
+        return do_make_subscript_operand2(l, index, step, disp);
+    case IR_SUBSCRIPT:
+        {
+            struct tac *tac = make_assign_tac(IR_ASSIGNI,
+                                              make_tmp_operand(),
+                                              index,
+                                              ops[Quad]);
+            emit_tac(tac);
+            return do_make_subscript_operand2(l, tac->result, step, disp);
+        }
+        break;
+    case IR_INDIRECTION:
+        {
+            struct tac *tac = make_assign_tac(IR_ASSIGNI,
+                                              make_tmp_operand(),
+                                              index,
+                                              ops[Quad]);
+            emit_tac(tac);
+            return do_make_subscript_operand2(l, tac->result, step, disp);
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
+static struct operand * make_subscript_operand(struct operand *l,
+                                               struct operand *index,
+                                               size_t step)
 {
     switch (l->op) {
     case IR_NONE:
-        return do_make_subscript_operand(l, index, step);
+        return do_make_subscript_operand(l, index, step, 0);
     case IR_SUBSCRIPT:
-        {
-            struct operand *operand = make_sym_operand(l->sym);
-            operand->op = IR_SUBSCRIPT;
-            
-            node_t *index1 = l->index;
-            if (SYM_X_KIND(index1) == SYM_KIND_ILITERAL &&
-                SYM_X_KIND(index->sym) == SYM_KIND_ILITERAL) {
-                long offset = SYM_VALUE_I(index1) + SYM_VALUE_I(index->sym) * step;
-                operand->index = make_int_operand(offset)->sym;
-            } else if (SYM_X_KIND(index->sym) == SYM_KIND_ILITERAL) {
-                long offset = SYM_VALUE_I(index->sym) * step;
-                struct operand *offset_operand = make_int_operand(offset);
-                struct tac *tac = make_tac_r(IR_ADDI, make_sym_operand(index1), offset_operand, ops[Quad]);
-                emit_tac(tac);
-                operand->index = tac->result->sym;
-            } else {
-                struct operand *step_operand = make_int_operand(step);
-                struct tac *tac = make_tac_r(IR_IMULI, index, step_operand, ops[Quad]);
-                emit_tac(tac);
-                tac = make_tac_r(IR_ADDI, make_sym_operand(index1), tac->result, ops[Quad]);
-                emit_tac(tac);
-                operand->index = tac->result->sym;
-            }
-            return operand;
+        if (l->index) {
+            struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
+            emit_tac(tac);
+            return do_make_subscript_operand(tac->result, index, step, 0);
+        } else {
+            return do_make_subscript_operand(l, index, step, l->disp);
         }
         break;
     case IR_INDIRECTION:
         {
             struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
             emit_tac(tac);
-            return do_make_subscript_operand(tac->result, index, step);
+            return do_make_subscript_operand(tac->result, index, step, 0);
         }
         break;
     default:
@@ -1182,7 +1222,10 @@ static void func2ptr(node_t *dty, node_t *sty, node_t *n)
 static void array2ptr(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    EXPR_X_ADDR(n) = emit_address_tac(EXPR_X_ADDR(l));
+    if (EXPR_X_ADDR(l)->op == IR_NONE)
+        EXPR_X_ADDR(n) = emit_address_tac(EXPR_X_ADDR(l));
+    else
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 static void emit_conv(node_t *n)
