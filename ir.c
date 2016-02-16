@@ -294,9 +294,38 @@ static struct operand * make_subscript_operand(struct operand *l,
     }
 }
 
+static struct operand * do_make_offset_operand(struct operand *l, long offset)
+{
+    struct operand *operand = make_sym_operand(l->sym);
+    operand->op = IR_SUBSCRIPT;
+    operand->disp = offset;
+    return operand;
+}
+
 static struct operand * make_offset_operand(struct operand *l, long offset)
 {
-    return make_subscript_operand(l, make_operand_one(), offset);
+    switch (l->op) {
+    case IR_NONE:
+        return do_make_offset_operand(l, offset);
+    case IR_SUBSCRIPT:
+        if (l->index) {
+            struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
+            emit_tac(tac);
+            return do_make_offset_operand(tac->result, offset);
+        } else {
+            return do_make_offset_operand(l, l->disp + offset);
+        }
+        break;
+    case IR_INDIRECTION:
+        {
+            struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
+            emit_tac(tac);
+            return do_make_offset_operand(tac->result, offset);
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
 }
 
 static void emit_simple_if(int op, struct operand *operand,
