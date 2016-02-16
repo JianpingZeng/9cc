@@ -510,15 +510,19 @@ static struct operand * emit_ptr_int(int op,
     } else {
         struct tac *tac;
         int sup = log2i(step);
-        if (sup == -1)
+        if (sup == -1) {
             // using MUL
             tac = make_tac_r(IR_MULI, index, make_unsigned_operand(step), opsize);
-        else
+            emit_tac(tac);
+            distance = tac->result;
+        } else if (sup > 0) {
             // using SHIFT
             tac = make_tac_r(IR_LSHIFT, index, make_unsigned_operand(sup), opsize);
-    
-        emit_tac(tac);
-        distance = tac->result;
+            emit_tac(tac);
+            distance = tac->result;
+        } else {
+            distance = index;
+        }
     }
     
     struct tac *tac = make_tac(op, l, distance, result, opsize);
