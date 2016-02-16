@@ -94,9 +94,10 @@ struct uses {
 
 struct operand {
     int op;
-    node_t *sym;
-    node_t *index;
     int scale;
+    long disp;
+    node_t *sym;                // base symbol
+    node_t *index;              // index symbol
     struct uses uses;
 };
 
