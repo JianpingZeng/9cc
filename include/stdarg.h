@@ -8,7 +8,7 @@
 #ifndef __STDARG_H
 #define __STDARG_H
 
-// See also: http://www.x86-64.org/documentation/abi.pdf
+// See also: AMD64 ABI Documentation
 
 typedef struct {
     unsigned int gp_offset;
