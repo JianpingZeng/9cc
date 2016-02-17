@@ -1,5 +1,11 @@
 TODO
 
+1. struct indirection assignment
+   *s1 = *s2;
+2. variable length arguments, like 'printf'
+
+//////
+
 1. SYM_X_LABEL 从前端移除
 2. 先完成ir，然后完成register和gen，完成第一个可运行版本
 3. 重构：将语法分析和语义分析分离，使得 cpp, lexer, parser 代码稳定。

@@ -479,7 +479,7 @@ static void emit_uop_indirection(node_t *n)
 
     emit_expr(l);
 
-    if (isfunc(AST_TYPE(n)))
+    if (isfunc(AST_TYPE(n)) || isrecord(AST_TYPE(n)))
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
     else
         EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l));
