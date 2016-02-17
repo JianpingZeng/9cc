@@ -49,11 +49,11 @@ static void builtin_init(void)
     vec_push(voidptr2, ptr_type(voidtype));
     vec_push(voidptr2, ptr_type(voidtype));
     // __builtin_va_list
-    define_builtin_type("__builtin_va_list", ptr_type(chartype));
-    define_builtin_func("__builtin_va_start", voidtype, voidptr2);
-    define_builtin_func("__builtin_va_end", voidtype, voidptr);
-    define_builtin_func("__builtin_va_copy", voidtype, voidptr2);
-    define_builtin_func("__builtin_va_arg", voidtype, voidptr2);
+    define_builtin_type(BUILTIN_VA_LIST, ptr_type(chartype));
+    define_builtin_func(BUILTIN_VA_START, voidtype, voidptr2);
+    define_builtin_func(BUILTIN_VA_END, voidtype, voidptr);
+    define_builtin_func(BUILTIN_VA_COPY, voidtype, voidptr2);
+    define_builtin_func(BUILTIN_VA_ARG, voidtype, voidptr2);
 }
 
 static void translate(void)
