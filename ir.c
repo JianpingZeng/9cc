@@ -537,6 +537,7 @@ static void emit_uop_increment(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *ty = AST_TYPE(n);
     int opsize = ops[TYPE_SIZE(ty)];
+    int assignop = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
     int rop;
     if (EXPR_OP(n) == INCR) {
         if (isfloat(ty))
@@ -561,12 +562,16 @@ static void emit_uop_increment(node_t *n)
                                           EXPR_X_ADDR(l),
                                           opsize);
         } else {
-            struct tac *tac = make_tac(rop,
-                                       EXPR_X_ADDR(l),
-                                       make_operand_one(),
-                                       EXPR_X_ADDR(l),
-                                       opsize);
+            struct tac *tac = make_tac_r(rop,
+                                         EXPR_X_ADDR(l),
+                                         make_operand_one(),
+                                         opsize);
             emit_tac(tac);
+            struct tac *tac2 = make_assign_tac(assignop,
+                                               EXPR_X_ADDR(l),
+                                               tac->result,
+                                               opsize);
+            emit_tac(tac2);
             EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
         }
     } else {
@@ -580,13 +585,16 @@ static void emit_uop_increment(node_t *n)
                          EXPR_X_ADDR(l),
                          opsize);
         } else {
-            
-            struct tac *tac = make_tac(rop,
-                                       EXPR_X_ADDR(l),
-                                       make_operand_one(),
-                                       EXPR_X_ADDR(l),
-                                       opsize);
+            struct tac *tac = make_tac_r(rop,
+                                         EXPR_X_ADDR(l),
+                                         make_operand_one(),
+                                         opsize);
             emit_tac(tac);
+            struct tac *tac2 = make_assign_tac(assignop,
+                                               EXPR_X_ADDR(l),
+                                               tac->result,
+                                               opsize);
+            emit_tac(tac2);
         }
         EXPR_X_ADDR(n) = tmp;
     }
