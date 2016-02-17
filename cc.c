@@ -50,12 +50,12 @@ static void cc_exit(void)
 int cc_main(const char *ifile, const char *ofile)
 {
     atexit(cc_exit);
+    symbol_init();
+    type_init();
     cc_init(ifile, ofile);
     input_init(ifile);
     cpp_init(opts.cpp_options);
-    type_init();
-    symbol_init();
-
+    
     if (opts.E)
         preprocess();
     else
