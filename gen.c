@@ -61,19 +61,6 @@ static struct addr * make_addr_with_type(int kind)
     return addr;
 }
 
-static struct addr * make_memory_addr(void)
-{
-    return make_addr_with_type(ADDR_MEMORY);
-}
-
-static struct addr * make_stack_addr(struct reg *reg, long offset)
-{
-    struct addr *addr = make_addr_with_type(ADDR_STACK);
-    addr->reg = reg;
-    addr->offset = offset;
-    return addr;
-}
-
 static struct addr * make_register_addr(struct reg *reg)
 {
     struct addr *addr = make_addr_with_type(ADDR_REGISTER);
@@ -508,8 +495,6 @@ static void emit_function_prologue(struct gdata *gdata)
         int align = TYPE_ALIGN(ty);
         localsize = ROUNDUP(localsize, align) + size;
         SYM_X_LOFF(sym) = - localsize;
-        // addr
-        SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, - localsize);
     }
     localsize = ROUNDUP(localsize, 16);
 
@@ -528,7 +513,6 @@ static void emit_function_prologue(struct gdata *gdata)
             num_int++;
             if (num_int > NUM_IARG_REGS) {
                 SYM_X_LOFF(sym) = stack_off;
-                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
                 stack_off += ROUNDUP(size, 8);
             } else {
                 localsize = ROUNDUP(localsize, align) + size;
@@ -540,7 +524,6 @@ static void emit_function_prologue(struct gdata *gdata)
             num_float++;
             if (num_float > NUM_FARG_REGS) {
                 SYM_X_LOFF(sym) = stack_off;
-                SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
                 stack_off += ROUNDUP(size, 8);
             } else {
                 localsize = ROUNDUP(localsize, align) + size;
@@ -550,7 +533,6 @@ static void emit_function_prologue(struct gdata *gdata)
             }
         } else if (isstruct(ty) || isunion(ty)) {
             SYM_X_LOFF(sym) = stack_off;
-            SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, stack_off);
             stack_off += ROUNDUP(size, 8);
         } else {
             cc_assert(0);
@@ -593,7 +575,6 @@ static void emit_function_params(node_t *decl)
             }
             // reset
             SYM_X_ADDRS(sym)[ADDR_REGISTER] = NULL;
-            SYM_X_ADDRS(sym)[ADDR_STACK] = make_stack_addr(rbp, SYM_X_LOFF(sym));
         }
     }
 }
