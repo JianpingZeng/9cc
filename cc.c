@@ -15,13 +15,6 @@ static void cc_init(const char *ifile, const char *ofile)
     }
 }
 
-static void define_builtin_type(const char *name, node_t *type)
-{
-    node_t *sym = install(name, &identifiers, GLOBAL);
-    SYM_SCLASS(sym) = TYPEDEF;
-    SYM_TYPE(sym) = type;
-}
-
 static void define_builtin_func(const char *name, node_t *rtype, struct vector *ptypes)
 {
     node_t *ftype = func_type();
@@ -49,7 +42,6 @@ static void builtin_init(void)
     vec_push(voidptr2, ptr_type(voidtype));
     vec_push(voidptr2, ptr_type(voidtype));
     // __builtin_va_list
-    define_builtin_type(BUILTIN_VA_LIST, ptr_type(chartype));
     define_builtin_func(BUILTIN_VA_START, voidtype, voidptr2);
     define_builtin_func(BUILTIN_VA_END, voidtype, voidptr);
     define_builtin_func(BUILTIN_VA_COPY, voidtype, voidptr2);
