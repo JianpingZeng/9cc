@@ -43,3 +43,17 @@
 
 // Standard C source
 #define _ISOC99_SOURCE 1
+
+
+// mcc builtins
+typedef struct __builtin_va_list_tag {
+    unsigned int gp_offset;
+    unsigned int fp_offset;
+    void *overflow_arg_area;
+    void *reg_save_area;
+} __builtin_va_list[1];
+
+void __builtin_va_start(__builtin_va_list, ...);
+void __builtin_va_end(__builtin_va_list);
+void __builtin_va_copy(void *, void *);
+int __builtin_va_arg_class(__builtin_va_list, void *);

@@ -55,7 +55,6 @@ int cc_main(const char *ifile, const char *ofile)
     cc_init(ifile, ofile);
     input_init(ifile);
     cpp_init(opts.cpp_options);
-    builtin_init();
     
     if (opts.E)
         preprocess();

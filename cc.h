@@ -286,12 +286,4 @@ extern void redefinition_error(struct source src, node_t * sym);
 extern void conflicting_types_error(struct source src, node_t * sym);
 extern void field_not_found_error(node_t * ty, const char *name);
 
-// builtin symbol names
-#define BUILTIN_VA_LIST          "__builtin_va_list"
-#define BUILTIN_VA_ARG_CLASS     "__builtin_va_arg_class"
-#define BUILTIN_VA_START         "__builtin_va_start"
-#define BUILTIN_VA_END           "__builtin_va_end"
-#define BUILTIN_VA_COPY          "__builtin_va_copy"
-extern void builtin_init(void);
-
 #endif
