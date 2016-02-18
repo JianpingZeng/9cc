@@ -29,18 +29,18 @@ static void define_builtin_func(const char *name, node_t *rtype, bool varg, ...)
 }
 
 /**
-   typedef struct __va_list_tag {
+   typedef struct __builtin_va_list_tag {
        unsigned int gp_offset;
        unsigned int fp_offset;
        void *overflow_arg_area;
        void *reg_save_area;
-   } *__builtin_va_list;
+   } __builtin_va_list[1];
  */
 
 static node_t * define_builtin_va_list(void)
 {
     struct source src = {.file = "<builtin>", .line = 1, .column = 0};
-    node_t *record = tag_type(STRUCT, BUILTIN_VA_LIST"_tag", src);
+    node_t *record = tag_type(STRUCT, BUILTIN_VA_LIST "_tag", src);
     SYM_DEFINED(record) = true;
     node_t *type = SYM_TYPE(record);
     TYPE_SIZE(type) = 24;
