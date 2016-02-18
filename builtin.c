@@ -12,7 +12,12 @@ static void define_builtin_func(const char *name, node_t *rtype, bool varg, ...)
     va_start(ap, varg);
     for (node_t *ptype; (ptype = va_arg(ap, node_t *)) != NULL; ) {
         node_t *param = anonymous(&identifiers, SCOPE);
-        SYM_TYPE(param) = ptype;
+        if (isfunc(ptype))
+            SYM_TYPE(param) = ptr_type(ptype);
+        else if (isarray(ptype))
+            SYM_TYPE(param) = ptr_type(rtype(ptype));
+        else
+            SYM_TYPE(param) = ptype;
         vec_push(params, param);
     }
     va_end(ap);
@@ -40,7 +45,9 @@ static node_t * define_builtin_va_list(void)
     node_t *type = SYM_TYPE(record);
     TYPE_SIZE(type) = 24;
     
-    node_t *array = ptr_type(type);
+    node_t *array = array_type(type);
+    _TYPE_LEN(array) = 1;
+    _TYPE_SIZE(array) = _TYPE_LEN(array) * TYPE_SIZE(type);
     
     // typedef
     node_t *sym = install(BUILTIN_VA_LIST, &identifiers, GLOBAL);
