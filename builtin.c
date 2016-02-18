@@ -67,5 +67,5 @@ void builtin_init(void)
     define_builtin_func(BUILTIN_VA_START, voidtype, true, va_list_type, NULL);
     define_builtin_func(BUILTIN_VA_END, voidtype, false, va_list_type, NULL);
     define_builtin_func(BUILTIN_VA_COPY, voidtype, false, voidptr, voidptr, NULL);
-    define_builtin_func(BUILTIN_VA_ARG, voidtype, false, va_list_type, voidptr, NULL);
+    define_builtin_func(BUILTIN_VA_ARG_CLASS, inttype, false, va_list_type, voidptr, NULL);
 }
