@@ -5,9 +5,11 @@ static const char *func_end_label;
 static int func_returns;
 
 static const char * oplabel(struct operand *operand);
+static void alloc_params(node_t *ftype);
 
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
+#define REGISTER_SAVE_AREA_SIZE  (NUM_IARG_REGS * 8 + NUM_FARG_REGS * 16)
 
 enum {
     RAX, RBX, RCX, RDX,
@@ -417,6 +419,40 @@ static void emit_tacs(struct tac *head)
         emit_tac(tac);
 }
 
+static void alloc_params(node_t *ftype)
+{
+    if (TYPE_PARAM_ALLOCED(ftype))
+        return;
+    int gp = 0;
+    int fp = 0;
+    long offset = 0;
+    node_t **params = TYPE_PARAMS(ftype);
+    for (int i = 0; i < LIST_LEN(params); i++) {
+        node_t *sym = params[i];
+        node_t *ty = SYM_TYPE(sym);
+        size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
+        if (isint(ty) || isptr(ty)) {
+            gp++;
+            if (gp > NUM_IARG_REGS) {
+                
+            }
+        } else if (isfloat(ty)) {
+            fp++;
+            if (fp > NUM_FARG_REGS) {
+                
+            }
+        } else if (isstruct(ty) || isunion(ty)) {
+            if (size > 16) {
+                // memory
+            } else {
+                
+            }
+        } else {
+            cc_assert(0);
+        }
+    }
+}
+
 static size_t call_stack_size(node_t *call)
 {
     node_t **args = EXPR_ARGS(call);
@@ -456,27 +492,25 @@ static size_t extra_stack_size(node_t *decl)
     return extra_stack_size;
 }
 
-/*
-  stack layout
-
-  High  | ...           |
-        +---------------+ <--- rbp+16
-        | return address|
-        +---------------+ <--- rbp+8
-        | saved rbp     |
-        +---------------+ <--- rbp
-        | local vars    |
-        +---------------+
-        | params        |
-        +---------------+
-        | call params   |
-  Low   +---------------+ <--- rsp
-        | ...           |
- */
+static void emit_register_save_area(void)
+{
+    long offset = -REGISTER_SAVE_AREA_SIZE;
+    for (int i = 0; i < ARRAY_SIZE(iarg_regs); i++, offset += 8) {
+        struct reg *r = iarg_regs[i];
+        emit("movq %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
+    }
+    for (int i = 0; i < ARRAY_SIZE(farg_regs); i++, offset += 16) {
+        struct reg *r = farg_regs[i];
+        emit("movaps %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
+    }
+    cc_assert(offset == 0);
+}
 
 static void emit_function_prologue(struct gdata *gdata)
 {
     node_t *decl = gdata->u.decl;
+    node_t *fsym = DECL_SYM(decl);
+    node_t *ftype = SYM_TYPE(fsym);
     
     if (gdata->global)
         emit(".globl %s", gdata->label);
@@ -486,6 +520,11 @@ static void emit_function_prologue(struct gdata *gdata)
     emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
 
     size_t localsize = 0;
+
+    // register save area
+    if (TYPE_VARG(ftype))
+        localsize += REGISTER_SAVE_AREA_SIZE;
+    
     // local vars
     for (int i = LIST_LEN(DECL_X_LVARS(decl)) - 1; i >= 0; i--) {
         node_t *lvar = DECL_X_LVARS(decl)[i];
@@ -496,7 +535,7 @@ static void emit_function_prologue(struct gdata *gdata)
         localsize = ROUNDUP(localsize, align) + size;
         SYM_X_LOFF(sym) = - localsize;
     }
-    localsize = ROUNDUP(localsize, 16);
+    localsize = ROUNDUP(localsize, 8);
 
     // params
     node_t *ty = SYM_TYPE(DECL_SYM(decl));
@@ -538,11 +577,12 @@ static void emit_function_prologue(struct gdata *gdata)
             cc_assert(0);
         }
     }
-    localsize = ROUNDUP(localsize, 16);
+    localsize = ROUNDUP(localsize, 8);
 
     // calls
     localsize += extra_stack_size(decl);
-
+    localsize = ROUNDUP(localsize, 16);
+    
     if (localsize > 0)
         emit("subq $%llu, %s", localsize, rsp->r[Q]);
 }
@@ -595,11 +635,15 @@ static void emit_function_epilogue(struct gdata *gdata)
 static void emit_text(struct gdata *gdata)
 {
     node_t *decl = gdata->u.decl;
+    node_t *fsym = DECL_SYM(decl);
+    node_t *ftype = SYM_TYPE(fsym);
 
     func_end_label = STMT_X_NEXT(DECL_BODY(decl));
     func_returns = 0;
     
     emit_function_prologue(gdata);
+    if (TYPE_VARG(ftype))
+        emit_register_save_area();
     emit_function_params(decl);
     emit_tacs(DECL_X_HEAD(decl));
     if (func_returns)

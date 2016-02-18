@@ -141,6 +141,7 @@ struct externals {
 #define SYM_X_ADDRS(NODE)     ((NODE)->symbol.x.sym.addrs)
 #define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
+#define SYM_X_PADDR(NODE)     ((NODE)->symbol.x.sym.paddr)
 // decl
 #define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
@@ -165,6 +166,8 @@ union x {
         struct uses uses;
         // addrs
         struct addr *addrs[ADDRS];
+        // param addr
+        struct addr paddr;
     }sym;
     
     struct {
