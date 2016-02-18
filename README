@@ -39,7 +39,7 @@ To build the mcc compiler, run command:
 
 For Mac OS X users:
 
-Nowadays OS X is shipped with Apple's C library headers, which does _NOT_ support a standard compiler.
+Nowadays OS X is shipped with Apple's C library headers, which does _NOT_ support a standard compiler. You can still build the compiler like Linux, but cannot include the standard headers.
 
 
 Reference:
