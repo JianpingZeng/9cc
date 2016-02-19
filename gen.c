@@ -295,13 +295,13 @@ static void emit_builtin_va_copy(struct tac *tac)
 static void emit_call(struct tac *tac)
 {
     const char *name = SYM_NAME(tac->args[0]->sym);
-    if (!strcmp(name, BUILTIN_VA_START))
+    if (!strcmp(name, "__builtin_va_start"))
         emit_builtin_va_start(tac);
-    else if (!strcmp(name, BUILTIN_VA_ARG_CLASS))
+    else if (!strcmp(name, "__builtin_va_arg_class"))
         emit_builtin_va_arg_class(tac);
-    else if (!strcmp(name, BUILTIN_VA_END))
+    else if (!strcmp(name, "__builtin_va_end"))
         emit_builtin_va_end(tac);
-    else if (!strcmp(name, BUILTIN_VA_COPY))
+    else if (!strcmp(name, "__builtin_va_copy"))
         emit_builtin_va_copy(tac);
     else
         emit_nonbuiltin_call(tac);
