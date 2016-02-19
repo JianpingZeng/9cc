@@ -167,7 +167,7 @@ union x {
         // addrs
         struct addr *addrs[ADDRS];
         // param addr
-        struct addr paddr;
+        struct addr *paddr;
     }sym;
     
     struct {

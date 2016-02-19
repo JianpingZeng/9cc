@@ -70,6 +70,13 @@ static struct addr * make_register_addr(struct reg *reg)
     return addr;
 }
 
+static struct addr * make_stack_addr(long offset)
+{
+    struct addr *addr = make_addr_with_type(ADDR_STACK);
+    addr->offset = offset;
+    return addr;
+}
+
 static struct reg * mkreg(struct reg *r)
 {
     struct reg *reg = zmalloc(sizeof(struct reg));
@@ -432,20 +439,27 @@ static void alloc_params(node_t *ftype)
         node_t *ty = SYM_TYPE(sym);
         size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
         if (isint(ty) || isptr(ty)) {
-            gp++;
-            if (gp > NUM_IARG_REGS) {
-                
+            if (gp < NUM_IARG_REGS) {
+                SYM_X_PADDR(sym) = make_register_addr(iarg_regs[gp]);
+                gp++;
+            } else {
+                SYM_X_PADDR(sym) = make_stack_addr(offset);
+                offset += size;
             }
         } else if (isfloat(ty)) {
-            fp++;
-            if (fp > NUM_FARG_REGS) {
-                
+            if (fp < NUM_FARG_REGS) {
+                SYM_X_PADDR(sym) = make_register_addr(farg_regs[fp]);
+                fp++;
+            } else {
+                SYM_X_PADDR(sym) = make_stack_addr(offset);
+                offset += size;
             }
         } else if (isstruct(ty) || isunion(ty)) {
             if (size > 16) {
-                // memory
+                SYM_X_PADDR(sym) = make_stack_addr(offset);
+                offset += size;
             } else {
-                
+                // TODO: 
             }
         } else {
             cc_assert(0);
