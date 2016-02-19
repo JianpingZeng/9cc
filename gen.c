@@ -506,6 +506,7 @@ static void alloc_params(node_t *ftype)
             cc_assert(0);
         }
     }
+    TYPE_PARAM_ALLOCED(ftype) = true;
 }
 
 static size_t call_stack_size(node_t *call)
