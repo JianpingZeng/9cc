@@ -75,6 +75,8 @@ struct addr {
     long offset;
 };
 
+#define MAX_STRUCT_PARAM_SIZE  16
+
 /*
   op = IR_NONE:        sym
   op = IR_SUBSCRIPT:   sym[index]
@@ -167,7 +169,7 @@ union x {
         // addrs
         struct addr *addrs[ADDRS];
         // param addr
-        struct addr *paddr;
+        struct addr *paddr[MAX_STRUCT_PARAM_SIZE >> 3];
     }sym;
     
     struct {

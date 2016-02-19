@@ -37,6 +37,14 @@ static const char *suffix[] = {
     "b", "w", "l", "q"
 };
 
+// Parameter classification
+enum {
+    NO_CLASS,
+    INTEGER_CLASS,
+    SSE_CLASS,
+    MEMORY_CLASS
+};
+
 static void emit(const char *fmt, ...)
 {
     va_list ap;
@@ -426,6 +434,13 @@ static void emit_tacs(struct tac *head)
         emit_tac(tac);
 }
 
+static int calc_param_class(node_t *ty)
+{
+    size_t size = TYPE_SIZE(ty);
+    // TODO:
+    return MEMORY_CLASS;
+}
+
 static void alloc_params(node_t *ftype)
 {
     if (TYPE_PARAM_ALLOCED(ftype))
@@ -440,26 +455,52 @@ static void alloc_params(node_t *ftype)
         size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
         if (isint(ty) || isptr(ty)) {
             if (gp < NUM_IARG_REGS) {
-                SYM_X_PADDR(sym) = make_register_addr(iarg_regs[gp]);
+                SYM_X_PADDR(sym)[0] = make_register_addr(iarg_regs[gp]);
                 gp++;
             } else {
-                SYM_X_PADDR(sym) = make_stack_addr(offset);
+                SYM_X_PADDR(sym)[0] = make_stack_addr(offset);
                 offset += size;
             }
         } else if (isfloat(ty)) {
             if (fp < NUM_FARG_REGS) {
-                SYM_X_PADDR(sym) = make_register_addr(farg_regs[fp]);
+                SYM_X_PADDR(sym)[0] = make_register_addr(farg_regs[fp]);
                 fp++;
             } else {
-                SYM_X_PADDR(sym) = make_stack_addr(offset);
+                SYM_X_PADDR(sym)[0] = make_stack_addr(offset);
                 offset += size;
             }
         } else if (isstruct(ty) || isunion(ty)) {
-            if (size > 16) {
-                SYM_X_PADDR(sym) = make_stack_addr(offset);
+            if (size > MAX_STRUCT_PARAM_SIZE) {
+                SYM_X_PADDR(sym)[0] = make_stack_addr(offset);
                 offset += size;
             } else {
-                // TODO: 
+                int class = calc_param_class(ty);
+                // if no enough register available, pass by memory
+                if (class == INTEGER_CLASS && size > 8 * (NUM_IARG_REGS - gp))
+                    class = MEMORY_CLASS;
+                else if (class == SSE_CLASS && size > 8 * (NUM_FARG_REGS - fp))
+                    class = MEMORY_CLASS;
+                switch (class) {
+                case INTEGER_CLASS:
+                    for (int i = 0; i < (size >> 3); i++, gp++) {
+                        cc_assert(gp < NUM_IARG_REGS);
+                        SYM_X_PADDR(sym)[i] = make_register_addr(iarg_regs[gp]);
+                    }
+                    break;
+                case SSE_CLASS:
+                    for (int i = 0; i < (size >> 3); i++, fp++) {
+                        cc_assert(fp < NUM_FARG_REGS);
+                        SYM_X_PADDR(sym)[i] = make_register_addr(farg_regs[fp]);
+                    }
+                    break;
+                case MEMORY_CLASS:
+                    SYM_X_PADDR(sym)[0] = make_stack_addr(offset);
+                    offset += size;
+                    break;
+                default:
+                    die("unexpected parameter class: %d", class);
+                    break;
+                }
             }
         } else {
             cc_assert(0);
