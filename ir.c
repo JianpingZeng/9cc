@@ -366,12 +366,6 @@ static void emit_goto(const char *label)
     emit_tac(tac);
 }
 
-static void emit_param(struct operand *operand)
-{
-    struct tac *tac = make_tac(IR_PARAM, operand, NULL, NULL, Zero);
-    emit_tac(tac);
-}
-
 static struct tac * make_call_tac(struct operand *l, int args, struct operand *result)
 {
     struct tac *tac = make_tac(IR_CALL, l, NULL, result, Quad);
@@ -1137,7 +1131,7 @@ static void emit_call(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     node_t **args = EXPR_ARGS(n);
     int len = LIST_LEN(args);
-    node_t *ty = AST_TYPE(n);
+    node_t *rty = AST_TYPE(n);
 
     emit_expr(l);
 
@@ -1146,17 +1140,13 @@ static void emit_call(node_t *n)
         emit_expr(arg);
     }
 
-    // in reverse order
-    for (int i = len - 1; i >= 0; i--) {
-        node_t *arg = args[i];
-        emit_param(EXPR_X_ADDR(arg));
-    }
-
-    if (isvoid(ty)) {
+    if (isvoid(rty)) {
         struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len, NULL);
+        tac->call = n;
         emit_tac(tac);
     } else {
         struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len, make_tmp_operand());
+        tac->call = n;
         emit_tac(tac);
         EXPR_X_ADDR(n) = tac->result;
     }

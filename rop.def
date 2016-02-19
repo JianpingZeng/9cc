@@ -52,7 +52,6 @@ _rop(IR_SUBSCRIPT,      "[]")
 _rop(IR_INDIRECTION,    "*")
 
 // function
-_rop(IR_PARAM,          "param")
 _rop(IR_CALL,           "call")
 
 // conv

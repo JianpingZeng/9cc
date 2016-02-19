@@ -268,15 +268,43 @@ static void emit_conv_f2f(struct tac *tac)
   floating params(8): xmm0~xmm7
  */
 
-static void emit_param(struct tac *tac)
+static void emit_nonbuiltin_call(struct tac *tac)
 {
-    struct operand *operand = tac->args[0];
+    node_t *call = tac->call;
+    struct operand *l = tac->args[0];
+    emit("callq %s", SYM_X_LABEL(l->sym));
+    // TODO: clear uses
+}
+
+static void emit_builtin_va_start(struct tac *tac)
+{
+}
+
+static void emit_builtin_va_arg_class(struct tac *tac)
+{
+}
+
+static void emit_builtin_va_end(struct tac *tac)
+{
+}
+
+static void emit_builtin_va_copy(struct tac *tac)
+{
 }
 
 static void emit_call(struct tac *tac)
 {
-    emit("callq %s", SYM_X_LABEL(tac->args[0]->sym));
-    // TODO: clear uses
+    const char *name = SYM_NAME(tac->args[0]->sym);
+    if (!strcmp(name, BUILTIN_VA_START))
+        emit_builtin_va_start(tac);
+    else if (!strcmp(name, BUILTIN_VA_ARG_CLASS))
+        emit_builtin_va_arg_class(tac);
+    else if (!strcmp(name, BUILTIN_VA_END))
+        emit_builtin_va_end(tac);
+    else if (!strcmp(name, BUILTIN_VA_COPY))
+        emit_builtin_va_copy(tac);
+    else
+        emit_nonbuiltin_call(tac);
 }
 
 static void emit_return(struct tac *tac)
@@ -398,9 +426,6 @@ static void emit_tac(struct tac *tac)
     case IR_ASSIGNI:
     case IR_ASSIGNF:
         emit_assign(tac);
-        break;
-    case IR_PARAM:
-        emit_param(tac);
         break;
     case IR_CALL:
         emit_call(tac);

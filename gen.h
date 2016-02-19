@@ -127,6 +127,7 @@ struct tac {
     struct operand *args[2];
     struct operand *result;
     struct tac *next, *prev;
+    node_t *call;               // funcall expr
 };
 
 // externals

@@ -152,8 +152,6 @@ struct ast_decl {
 // literal
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
-// funcall
-#define EXPR_FNAME(NODE)        AST_NAME(NODE)
     
 struct ast_expr {
     struct ast_common common;
