@@ -24,6 +24,8 @@
 extern void *alloc_node(void);
 extern void *alloc_token(void);
 extern void *alloc_macro(void);
+extern void *alloc_operand(void);
+extern void *alloc_tac(void);
 
 // value
 #define VALUE_U(v)    ((v).u)

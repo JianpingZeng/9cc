@@ -80,7 +80,7 @@ static void emit_tac(struct tac *tac)
 
 static struct operand * make_sym_operand(node_t *sym)
 {
-    struct operand *operand = zmalloc(sizeof(struct operand));
+    struct operand *operand = (struct operand *)alloc_operand();
     operand->sym = sym;
     return operand;
 }
@@ -144,7 +144,7 @@ static struct tac * make_tac(int op,
                              struct operand *result,
                              int opsize)
 {
-    struct tac *tac = zmalloc(sizeof(struct tac));
+    struct tac *tac = (struct tac *)alloc_tac();
     tac->op = op;
     tac->args[0] = l;
     tac->args[1] = r;

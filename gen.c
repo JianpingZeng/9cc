@@ -5,7 +5,6 @@ static const char *func_end_label;
 static int func_returns;
 
 static const char * oplabel(struct operand *operand);
-static void alloc_params(node_t *ftype);
 
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
@@ -263,15 +262,101 @@ static void emit_conv_f2f(struct tac *tac)
     
 }
 
+static int calc_param_class(node_t *ty)
+{
+    size_t size = TYPE_SIZE(ty);
+    // TODO:
+    return MEMORY_CLASS;
+}
+
 /*
   integer params(6): rdi, rsi, rdx, rcx, r8, r9
   floating params(8): xmm0~xmm7
  */
 
+static void set_param_addr(node_t *param, int index, struct addr *addr)
+{
+    if (issymbol(param))
+        SYM_X_PADDR(param)[index] = addr;
+    else if (isexpr(param))
+        EXPR_X_ARG_ADDR(param)[index] = addr;
+    else
+        die("unexpected param node type: %s", nname(param));
+}
+
+static void alloc_params(node_t **params)
+{
+    int gp = 0;
+    int fp = 0;
+    long offset = 0;
+    for (int i = 0; i < LIST_LEN(params); i++) {
+        node_t *param = params[i];
+        node_t *ty = AST_TYPE(param);
+        size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
+        if (isint(ty) || isptr(ty)) {
+            if (gp < NUM_IARG_REGS) {
+                set_param_addr(param, 0, make_register_addr(iarg_regs[gp]));
+                gp++;
+            } else {
+                set_param_addr(param, 0, make_stack_addr(offset));
+                offset += size;
+            }
+        } else if (isfloat(ty)) {
+            if (fp < NUM_FARG_REGS) {
+                set_param_addr(param, 0, make_register_addr(farg_regs[fp]));
+                fp++;
+            } else {
+                set_param_addr(param, 0, make_stack_addr(offset));
+                offset += size;
+            }
+        } else if (isstruct(ty) || isunion(ty)) {
+            if (size > MAX_STRUCT_PARAM_SIZE) {
+                set_param_addr(param, 0, make_stack_addr(offset));
+                offset += size;
+            } else {
+                int class = calc_param_class(ty);
+                // if no enough register available, pass by memory
+                if (class == INTEGER_CLASS && size > 8 * (NUM_IARG_REGS - gp))
+                    class = MEMORY_CLASS;
+                else if (class == SSE_CLASS && size > 8 * (NUM_FARG_REGS - fp))
+                    class = MEMORY_CLASS;
+                
+                switch (class) {
+                case INTEGER_CLASS:
+                    for (int i = 0; i < (size >> 3); i++, gp++) {
+                        cc_assert(gp < NUM_IARG_REGS);
+                        set_param_addr(param, i, make_register_addr(iarg_regs[gp]));
+                    }
+                    break;
+                case SSE_CLASS:
+                    for (int i = 0; i < (size >> 3); i++, fp++) {
+                        cc_assert(fp < NUM_FARG_REGS);
+                        set_param_addr(param, i, make_register_addr(farg_regs[fp]));
+                    }
+                    break;
+                case MEMORY_CLASS:
+                    set_param_addr(param, 0, make_stack_addr(offset));
+                    offset += size;
+                    break;
+                default:
+                    die("unexpected parameter class: %d", class);
+                    break;
+                }
+            }
+        } else {
+            cc_assert(0);
+        }
+    }
+}
+
 static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
+    node_t **args = EXPR_ARGS(call);
     struct operand *l = tac->args[0];
+
+    // emit params
+    
     emit("callq %s", SYM_X_LABEL(l->sym));
     // TODO: clear uses
 }
@@ -459,81 +544,6 @@ static void emit_tacs(struct tac *head)
         emit_tac(tac);
 }
 
-static int calc_param_class(node_t *ty)
-{
-    size_t size = TYPE_SIZE(ty);
-    // TODO:
-    return MEMORY_CLASS;
-}
-
-static void alloc_params(node_t *ftype)
-{
-    if (TYPE_PARAM_ALLOCED(ftype))
-        return;
-    int gp = 0;
-    int fp = 0;
-    long offset = 0;
-    node_t **params = TYPE_PARAMS(ftype);
-    for (int i = 0; i < LIST_LEN(params); i++) {
-        node_t *sym = params[i];
-        node_t *ty = SYM_TYPE(sym);
-        size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
-        if (isint(ty) || isptr(ty)) {
-            if (gp < NUM_IARG_REGS) {
-                SYM_X_PADDR(sym)[0] = make_register_addr(iarg_regs[gp]);
-                gp++;
-            } else {
-                SYM_X_PADDR(sym)[0] = make_stack_addr(offset);
-                offset += size;
-            }
-        } else if (isfloat(ty)) {
-            if (fp < NUM_FARG_REGS) {
-                SYM_X_PADDR(sym)[0] = make_register_addr(farg_regs[fp]);
-                fp++;
-            } else {
-                SYM_X_PADDR(sym)[0] = make_stack_addr(offset);
-                offset += size;
-            }
-        } else if (isstruct(ty) || isunion(ty)) {
-            if (size > MAX_STRUCT_PARAM_SIZE) {
-                SYM_X_PADDR(sym)[0] = make_stack_addr(offset);
-                offset += size;
-            } else {
-                int class = calc_param_class(ty);
-                // if no enough register available, pass by memory
-                if (class == INTEGER_CLASS && size > 8 * (NUM_IARG_REGS - gp))
-                    class = MEMORY_CLASS;
-                else if (class == SSE_CLASS && size > 8 * (NUM_FARG_REGS - fp))
-                    class = MEMORY_CLASS;
-                switch (class) {
-                case INTEGER_CLASS:
-                    for (int i = 0; i < (size >> 3); i++, gp++) {
-                        cc_assert(gp < NUM_IARG_REGS);
-                        SYM_X_PADDR(sym)[i] = make_register_addr(iarg_regs[gp]);
-                    }
-                    break;
-                case SSE_CLASS:
-                    for (int i = 0; i < (size >> 3); i++, fp++) {
-                        cc_assert(fp < NUM_FARG_REGS);
-                        SYM_X_PADDR(sym)[i] = make_register_addr(farg_regs[fp]);
-                    }
-                    break;
-                case MEMORY_CLASS:
-                    SYM_X_PADDR(sym)[0] = make_stack_addr(offset);
-                    offset += size;
-                    break;
-                default:
-                    die("unexpected parameter class: %d", class);
-                    break;
-                }
-            }
-        } else {
-            cc_assert(0);
-        }
-    }
-    TYPE_PARAM_ALLOCED(ftype) = true;
-}
-
 static size_t call_stack_size(node_t *call)
 {
     node_t **args = EXPR_ARGS(call);
@@ -585,6 +595,16 @@ static void emit_register_save_area(void)
         emit("movaps %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
     }
     cc_assert(offset == 0);
+}
+
+static void alloc_funcdef_params(node_t *ftype)
+{
+    if (TYPE_PARAM_ALLOCED(ftype))
+        return;
+    // params: list of symbols
+    node_t **params = TYPE_PARAMS(ftype);
+    alloc_params(params);
+    TYPE_PARAM_ALLOCED(ftype) = true;
 }
 
 static void emit_function_prologue(struct gdata *gdata)

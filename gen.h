@@ -73,6 +73,7 @@ struct addr {
     int kind;
     struct reg *reg;
     long offset;
+    size_t size;
 };
 
 #define MAX_STRUCT_PARAM_SIZE  16
@@ -155,6 +156,7 @@ struct externals {
 #define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
 #define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.expr.bfalse)
 #define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.expr.array)
+#define EXPR_X_ARG_ADDR(NODE) ((NODE)->expr.x.expr.aaddr)
 // stmt
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
@@ -187,6 +189,9 @@ union x {
         // label
         const char *btrue;
         const char *bfalse;
+
+        // arg addr
+        struct addr *aaddr[MAX_STRUCT_PARAM_SIZE >> 3];
     }expr;
 
     struct {

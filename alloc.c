@@ -40,3 +40,15 @@ void *alloc_macro(void)
 {
     return do_alloc_object(&macro_state, sizeof(struct macro));
 }
+
+static struct alloc_state operand_state;
+void *alloc_operand(void)
+{
+    return do_alloc_object(&operand_state, sizeof(struct operand));
+}
+
+static struct alloc_state tac_state;
+void *alloc_tac(void)
+{
+    return do_alloc_object(&tac_state, sizeof(struct tac));
+}
