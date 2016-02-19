@@ -19,6 +19,40 @@ Low   +---------------+ <--- rsp
       | red zone      |
 
 
+Case 1: Fixed Arguments
+
+High  | ...           | (1st argument on stack)
+      +---------------+ <--- 16(rbp)
+      | return address|
+      +---------------+ <--- 8(rbp)
+      | saved rbp     |
+      +---------------+ <--- rbp
+      | local vars    |
+      +---------------+
+      | params        | (params in registers)
+      +---------------+
+      | call params   | (for all func calls in this function)
+Low   +---------------+ <--- rsp
+      | red zone      |
+
+
+Case 2: Variable Arguments
+
+High  | ...           | (1st argument on stack)
+      +---------------+ <--- 16(rbp)
+      | return address|
+      +---------------+ <--- 8(rbp)
+      | saved rbp     |
+      +---------------+ <--- rbp
+      | reg save area | (all params in registers)
+      +---------------+
+      | local vars    |
+      +---------------+
+      | call params   | (for all func calls in this function)
+Low   +---------------+ <--- rsp
+      | red zone      |
+
+
 Reference:
 
 - v0.99.6 (Oct 7, 2013): http://www.x86-64.org/documentation/abi.pdf
