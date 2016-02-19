@@ -1129,13 +1129,20 @@ static node_t *funcall(node_t * node)
     node_t **args;
     node_t *ret = NULL;
     struct source src = source;
-
+    const char *fname = NULL;
+    
     SAVE_ERRORS;
     expect('(');
     args = argument_expr_list();
     expect(')');
     if (node == NULL || HAS_ERROR)
         return ret;
+
+    // set funcall name
+    if (AST_ID(node) == REF_EXPR)
+        fname = SYM_NAME(EXPR_SYM(node));
+    
+    node = conv(node);
 
     if (isptrto(AST_TYPE(node), FUNCTION)) {
         node_t *fty = rtype(AST_TYPE(node));
@@ -1144,6 +1151,7 @@ static node_t *funcall(node_t * node)
             ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
             EXPR_ARGS(ret) = (node_t **) vtoa(v);
             AST_SRC(ret) = src;
+            EXPR_FNAME(ret) = fname;
             vec_push(funcalls, ret);
         }
     } else {
@@ -1242,7 +1250,7 @@ static node_t *postfix_expr1(node_t * ret)
             ret = subscript(conv(ret));
             break;
         case '(':
-            ret = funcall(conv(ret));
+            ret = funcall(ret);
             break;
         case '.':
         case DEREF:
