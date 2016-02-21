@@ -69,6 +69,8 @@ enum {
     ADDRS                    // count
 };
 
+#define MAX_STRUCT_PARAM_SIZE  16
+
 struct addr {
     int kind;
     struct reg *reg;
@@ -76,7 +78,14 @@ struct addr {
     size_t size;
 };
 
-#define MAX_STRUCT_PARAM_SIZE  16
+struct paddr {
+    int kind;
+    size_t size;
+    union {
+        struct reg *regs[MAX_STRUCT_PARAM_SIZE >> 3];
+        long offset;
+    } u;
+};
 
 /*
   op = IR_NONE:        sym
@@ -156,7 +165,9 @@ struct externals {
 #define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
 #define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.expr.bfalse)
 #define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.expr.array)
-#define EXPR_X_ARG_ADDR(NODE) ((NODE)->expr.x.expr.aaddr)
+#define EXPR_X_PADDR(NODE)    ((NODE)->expr.x.expr.paddr)
+#define EXPR_X_PARAM_ALLOCED(NODE)     ((NODE)->expr.x.expr.param_allocated)
+#define EXPR_X_STACK_PARAM_SIZE(NODE)  ((NODE)->expr.x.expr.stack_param_size)
 // stmt
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
@@ -172,7 +183,7 @@ union x {
         // addrs
         struct addr *addrs[ADDRS];
         // param addr
-        struct addr *paddr[MAX_STRUCT_PARAM_SIZE >> 3];
+        struct paddr *paddr;
     }sym;
     
     struct {
@@ -191,7 +202,10 @@ union x {
         const char *bfalse;
 
         // arg addr
-        struct addr *aaddr[MAX_STRUCT_PARAM_SIZE >> 3];
+        struct paddr *paddr;
+
+        int param_allocated:1;
+        size_t stack_param_size;
     }expr;
 
     struct {

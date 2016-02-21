@@ -174,7 +174,6 @@ extern bool isrestrict(node_t * ty);
 #define TYPE_PARAMS(ty)          _TYPE_PARAMS(unqual(ty))
 #define TYPE_OLDSTYLE(ty)        _TYPE_OLDSTYLE(unqual(ty))
 #define TYPE_VARG(ty)            _TYPE_VARG(unqual(ty))
-#define TYPE_PARAM_ALLOCED(ty)   _TYPE_PARAM_ALLOCED(ty)
 #define TYPE_TSYM(ty)            _TYPE_TSYM(unqual(ty))
 #define TYPE_FIELDS(ty)          _TYPE_FIELDS(unqual(ty))
 #define TYPE_LIMITS_MAX(ty)      _TYPE_LIMITS_MAX(unpack(unqual(ty)))

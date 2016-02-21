@@ -38,7 +38,6 @@ struct ast_common {
 #define _TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
 #define _TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
 #define _TYPE_VARG(NODE)         ((NODE)->type.u.f.varg)
-#define _TYPE_PARAM_ALLOCED(NODE) ((NODE)->type.u.f.param_allocated)
 #define _TYPE_TSYM(NODE)         ((NODE)->type.u.s.tsym)
 #define _TYPE_FIELDS(NODE)       ((NODE)->type.u.s.fields)
 #define _TYPE_LIMITS_MAX(NODE)   ((NODE)->type.limits.max)
@@ -63,7 +62,6 @@ struct ast_type {
             node_t **params;
             unsigned oldstyle:1;
             unsigned varg:1;
-            unsigned param_allocated:1;
         } f;
         // enum/struct/union
         struct {
