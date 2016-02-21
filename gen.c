@@ -638,71 +638,6 @@ static long get_reg_offset(struct reg *reg)
     cc_assert(0);
 }
 
-static void emit_function_prologue(struct gdata *gdata)
-{
-    node_t *decl = gdata->u.decl;
-    node_t *fsym = DECL_SYM(decl);
-    node_t *ftype = SYM_TYPE(fsym);
-    
-    if (gdata->global)
-        emit(".globl %s", gdata->label);
-    emit(".text");
-    emit_noindent("%s:", gdata->label);
-    emit("pushq %s", rbp->r[Q]);
-    emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
-
-    size_t localsize = 0;
-
-    // register save area
-    if (TYPE_VARG(ftype))
-        localsize += REGISTER_SAVE_AREA_SIZE;
-    
-    // local vars
-    for (int i = LIST_LEN(DECL_X_LVARS(decl)) - 1; i >= 0; i--) {
-        node_t *lvar = DECL_X_LVARS(decl)[i];
-        node_t *sym = DECL_SYM(lvar);
-        node_t *ty = SYM_TYPE(sym);
-        size_t size = TYPE_SIZE(ty);
-        int align = TYPE_ALIGN(ty);
-        localsize = ROUNDUP(localsize + size, align);
-        SYM_X_LOFF(sym) = -localsize;
-    }
-    localsize = ROUNDUP(localsize, 8);
-
-    // params
-    long stack_base_off = 16;
-    node_t **params = TYPE_PARAMS(ftype);
-    alloc_addr_for_params(params);
-    for (int i = 0; i < LIST_LEN(params); i++) {
-        node_t *sym = params[i];
-        node_t *ty = SYM_TYPE(sym);
-        size_t size = TYPE_SIZE(ty);
-        int align = TYPE_ALIGN(ty);
-        struct paddr *paddr = SYM_X_PADDR(sym);
-        if (paddr->kind == ADDR_REGISTER) {
-            if (TYPE_VARG(ftype)) {
-                long offset = get_reg_offset(paddr->u.regs[0]);
-                SYM_X_LOFF(sym) = offset;
-            } else {
-                localsize = ROUNDUP(localsize + size, align);
-                SYM_X_LOFF(sym) = -localsize;
-            }
-        } else if (paddr->kind == ADDR_STACK) {
-            SYM_X_LOFF(sym) = paddr->u.offset + stack_base_off;
-        } else {
-            die("unexpected paddr type: %d", paddr->kind);
-        }
-    }
-    localsize = ROUNDUP(localsize, 8);
-
-    // calls
-    localsize += extra_stack_size(decl);
-    localsize = ROUNDUP(localsize, 16);
-    
-    if (localsize > 0)
-        emit("subq $%llu, %s", localsize, rsp->r[Q]);
-}
-
 static void emit_function_params(node_t *decl)
 {
     node_t *ty = SYM_TYPE(DECL_SYM(decl));
@@ -735,17 +670,81 @@ static void emit_function_params(node_t *decl)
     }
 }
 
-/*
-  leave instruction
-
-  move rbp to rsp
-  pop rbp
- */
-
-static void emit_function_epilogue(struct gdata *gdata)
+static void emit_register_params(node_t *decl)
 {
-    emit("leave");
-    emit("retq");
+    node_t *ftype = SYM_TYPE(DECL_SYM(decl));
+    cc_assert(!TYPE_VARG(ftype));
+    
+    node_t **params = TYPE_PARAMS(ftype);
+    for (int i = 0; i < LIST_LEN(params); i++) {
+        node_t *sym = params[i];
+        node_t *ty = SYM_TYPE(sym); 
+        struct paddr *paddr = SYM_X_PADDR(sym);
+        if (paddr->kind == ADDR_REGISTER) {
+            emit("hehe");
+        }
+    }
+}
+
+static void emit_function_prologue(struct gdata *gdata)
+{
+    node_t *decl = gdata->u.decl;
+    node_t *fsym = DECL_SYM(decl);
+    node_t *ftype = SYM_TYPE(fsym);
+    
+    if (gdata->global)
+        emit(".globl %s", gdata->label);
+    emit(".text");
+    emit_noindent("%s:", gdata->label);
+    emit("pushq %s", rbp->r[Q]);
+    emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
+
+    size_t localsize = 0;
+
+    // register save area
+    if (TYPE_VARG(ftype))
+        localsize += REGISTER_SAVE_AREA_SIZE;
+    
+    // local vars
+    for (int i = LIST_LEN(DECL_X_LVARS(decl)) - 1; i >= 0; i--) {
+        node_t *lvar = DECL_X_LVARS(decl)[i];
+        node_t *sym = DECL_SYM(lvar);
+        node_t *ty = SYM_TYPE(sym);
+        size_t size = TYPE_SIZE(ty);
+        localsize = ROUNDUP(localsize + size, 4);
+        SYM_X_LOFF(sym) = -localsize;
+    }
+
+    // params
+    long stack_base_off = 16;
+    node_t **params = TYPE_PARAMS(ftype);
+    alloc_addr_for_params(params);
+    for (int i = 0; i < LIST_LEN(params); i++) {
+        node_t *sym = params[i];
+        node_t *ty = SYM_TYPE(sym);
+        size_t size = TYPE_SIZE(ty);
+        struct paddr *paddr = SYM_X_PADDR(sym);
+        if (paddr->kind == ADDR_REGISTER) {
+            if (TYPE_VARG(ftype)) {
+                long offset = get_reg_offset(paddr->u.regs[0]);
+                SYM_X_LOFF(sym) = offset;
+            } else {
+                localsize = ROUNDUP(localsize + size, 4);
+                SYM_X_LOFF(sym) = -localsize;
+            }
+        } else if (paddr->kind == ADDR_STACK) {
+            SYM_X_LOFF(sym) = paddr->u.offset + stack_base_off;
+        } else {
+            die("unexpected paddr type: %d", paddr->kind);
+        }
+    }
+
+    // calls
+    localsize += extra_stack_size(decl);
+    localsize = ROUNDUP(localsize, 16);
+    
+    if (localsize > 0)
+        emit("subq $%llu, %s", localsize, rsp->r[Q]);
 }
 
 static void emit_text(struct gdata *gdata)
@@ -760,11 +759,20 @@ static void emit_text(struct gdata *gdata)
     emit_function_prologue(gdata);
     if (TYPE_VARG(ftype))
         emit_register_save_area();
-    emit_function_params(decl);
+    else
+        emit_register_params(decl);
     emit_tacs(DECL_X_HEAD(decl));
+    // function epilogue
     if (func_returns)
         emit_noindent("%s:", func_end_label);
-    emit_function_epilogue(gdata);
+    /*
+      leave instruction
+
+      move rbp to rsp
+      pop rbp
+    */
+    emit("leave");
+    emit("retq");
 }
 
 static void emit_data(struct gdata *gdata)
