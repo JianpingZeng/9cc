@@ -6,6 +6,7 @@ static int func_returns;
 
 static const char * oplabel(struct operand *operand);
 static struct vector * get_classes_for_type(node_t *ty);
+static size_t alloc_funcall_params(node_t *call);
 
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
@@ -265,168 +266,6 @@ static void emit_conv_f2f(struct tac *tac)
   integer params(6): rdi, rsi, rdx, rcx, r8, r9
   floating params(8): xmm0~xmm7
  */
-
-static struct paddr * alloc_paddr(void)
-{
-    return zmalloc(sizeof(struct paddr));
-}
-
-static void set_param_stack_addr(node_t *param, long offset, size_t size)
-{
-    struct paddr *paddr = alloc_paddr();
-    paddr->kind = ADDR_STACK;
-    paddr->size = size;
-    paddr->u.offset = offset;
-    if (issymbol(param))
-        SYM_X_PADDR(param) = paddr;
-    else if (isexpr(param))
-        EXPR_X_PADDR(param) = paddr;
-    else
-        die("unexpected param type: %s", nname(param));
-}
-
-static void set_param_register_addr(node_t *param, struct reg *reg, int index, size_t size)
-{
-    struct paddr *paddr = alloc_paddr();
-    paddr->kind = ADDR_REGISTER;
-    paddr->size = size;
-    paddr->u.regs[index] = reg;
-    if (issymbol(param))
-        SYM_X_PADDR(param) = paddr;
-    else if (isexpr(param))
-        EXPR_X_PADDR(param) = paddr;
-    else
-        die("unexpected param type: %s", nname(param));
-}
-
-// vector of paddrs.
-// each 8-bytes
-
-static int * reduce_classes(struct vector *v)
-{
-    int *class = no_class;
-    for (int i = 0; i < vec_len(v); i++) {
-        int *class1 = vec_at(v, i);
-        if (class == class1)
-            continue;
-        else if (class1 == no_class)
-            continue;
-        else if (class == no_class)
-            class = class1;
-        else if (class == memory_class || class1 == memory_class)
-            class = memory_class;
-        else if (class == integer_class || class1 == integer_class)
-            class = integer_class;
-        else
-            class = sse_class;
-    }
-    if (class == no_class)
-        die("%s: no_class", __func__);
-    return class;
-}
-
-static struct vector * get_classes_for_struct(node_t *ty)
-{
-    struct vector *v = vec_new();
-    struct vector *field_classes = vec_new();
-    int idx = 1;
-    node_t **fields = TYPE_FIELDS(ty);
-    for (int i = 0; i < LIST_LEN(fields); i++) {
-        node_t *field = fields[i];
-        node_t *fty = FIELD_TYPE(field);
-        unsigned align = TYPE_ALIGN(fty);
-        size_t offset = FIELD_OFFSET(field);
-        // if it contains unaligned field, it has class MEMORY
-        if (offset % align != 0) {
-            dlog("field '%s' is not aligned. (offset=%lu,align=%u,size=%lu)",
-                 FIELD_NAME(field), align, TYPE_SIZE(fty));
-            return vec_new1(memory_class);
-        }
-        if (offset < idx * 8) {
-            struct vector *class2 = get_classes_for_type(fty);
-            vec_push(field_classes, reduce_classes(class2));
-        } else {
-            idx++;
-            int *class = reduce_classes(field_classes);
-            // if one of the classes if MEMORY, the whole argument is passed in memory.
-            if (class == memory_class) {
-                return vec_new1(memory_class);
-            } else {
-                vec_push(v, class);
-                vec_clear(field_classes);
-            }
-        }
-    }
-    return v;
-}
-
-static struct vector * get_classes_for_union(node_t *ty)
-{
-    struct vector *v = vec_new();
-    
-    node_t **fields = TYPE_FIELDS(ty);
-    for (int i = 0; i < LIST_LEN(fields); i++) {
-        node_t *field = fields[i];
-        node_t *fty = FIELD_TYPE(field);
-        struct vector *fclass = get_classes_for_type(fty);
-        // TODO: 
-    }
-    return v;
-}
-
-static struct vector * get_classes_for_array(node_t *ty)
-{
-    // TODO:
-    return NULL;
-}
-
-static struct vector * get_classes_for_type(node_t *ty)
-{
-    if (isint(ty) || isptr(ty)) {
-        return vec_new1(integer_class);
-    } else if (isfloat(ty)) {
-        return vec_new1(sse_class);
-    } else if (isstruct(ty) || isunion(ty) || isarray(ty)) {
-        if (TYPE_SIZE(ty) > MAX_STRUCT_PARAM_SIZE)
-            return vec_new1(memory_class);
-        if (isstruct(ty))
-            return get_classes_for_struct(ty);
-        else if (isunion(ty))
-            return get_classes_for_union(ty);
-        else
-            return get_classes_for_array(ty);
-    } else {
-        cc_assert(0);
-    }
-}
-
-// params: list of symbols or expressions, may be NULL
-static size_t alloc_addr_for_params(node_t **params)
-{
-    int gp = 0;
-    int fp = 0;
-    size_t offset = 0;
-    for (int i = 0; i < LIST_LEN(params); i++) {
-        node_t *param = params[i];
-        node_t *ty = AST_TYPE(param);
-        size_t size = TYPE_SIZE(ty);
-        struct vector *classes = get_classes_for_type(ty);
-        // TODO: 
-    }
-    return offset;
-}
-
-static size_t alloc_funcall_params(node_t *call)
-{
-    if (EXPR_X_PARAM_ALLOCED(call))
-        return EXPR_X_STACK_PARAM_SIZE(call);
-    node_t **args = EXPR_ARGS(call);
-    size_t size = alloc_addr_for_params(args);
-    EXPR_X_STACK_PARAM_SIZE(call) = size;
-    EXPR_X_PARAM_ALLOCED(call) = true;
-    return size;
-}
-
 static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
@@ -627,6 +466,231 @@ static void emit_tacs(struct tac *head)
 {
     for (struct tac *tac = head; tac; tac = tac->next)
         emit_tac(tac);
+}
+
+// vector of paddrs.
+// each 8-bytes
+
+static int * reduce_classes(struct vector *v)
+{
+    int *class = no_class;
+    for (int i = 0; i < vec_len(v); i++) {
+        int *class1 = vec_at(v, i);
+        if (class == class1)
+            continue;
+        else if (class1 == no_class)
+            continue;
+        else if (class == no_class)
+            class = class1;
+        else if (class == memory_class || class1 == memory_class)
+            class = memory_class;
+        else if (class == integer_class || class1 == integer_class)
+            class = integer_class;
+        else
+            class = sse_class;
+    }
+    if (class == no_class)
+        die("%s: no_class", __func__);
+    return class;
+}
+
+static struct vector * get_classes_for_struct(node_t *ty)
+{
+    struct vector *v = vec_new();
+    struct vector *field_classes = vec_new();
+    int idx = 1;
+    node_t **fields = TYPE_FIELDS(ty);
+    for (int i = 0; i < LIST_LEN(fields); i++) {
+        node_t *field = fields[i];
+        node_t *fty = FIELD_TYPE(field);
+        unsigned align = TYPE_ALIGN(fty);
+        size_t offset = FIELD_OFFSET(field);
+        // if it contains unaligned field, it has class MEMORY
+        if (offset % align != 0) {
+            dlog("field '%s' is not aligned. (offset=%lu,align=%u,size=%lu)",
+                 FIELD_NAME(field), align, TYPE_SIZE(fty));
+            return vec_new1(memory_class);
+        }
+        if (offset < idx * 8) {
+            struct vector *class2 = get_classes_for_type(fty);
+            vec_push(field_classes, reduce_classes(class2));
+        } else {
+            idx++;
+            int *class = reduce_classes(field_classes);
+            // if one of the classes if MEMORY, the whole argument is passed in memory.
+            if (class == memory_class) {
+                return vec_new1(memory_class);
+            } else {
+                vec_push(v, class);
+                vec_clear(field_classes);
+            }
+        }
+    }
+    return v;
+}
+
+static struct vector * get_classes_for_union(node_t *ty)
+{
+    struct vector *v = vec_new();
+    
+    node_t **fields = TYPE_FIELDS(ty);
+    for (int i = 0; i < LIST_LEN(fields); i++) {
+        node_t *field = fields[i];
+        node_t *fty = FIELD_TYPE(field);
+        struct vector *fclass = get_classes_for_type(fty);
+        // TODO: 
+    }
+    return v;
+}
+
+static struct vector * get_classes_for_array(node_t *ty)
+{
+    // TODO:
+    return NULL;
+}
+
+// each 8-byte has a class: integer_class, sse_class or memory_class.
+// the return vector contains at least 1 element,
+// at most MAX_STRUCT_PARAM_SIZE/8 elements.
+static struct vector * get_classes_for_type(node_t *ty)
+{
+    if (isint(ty) || isptr(ty)) {
+        return vec_new1(integer_class);
+    } else if (isfloat(ty)) {
+        return vec_new1(sse_class);
+    } else if (isstruct(ty) || isunion(ty) || isarray(ty)) {
+        if (TYPE_SIZE(ty) > MAX_STRUCT_PARAM_SIZE)
+            return vec_new1(memory_class);
+        if (isstruct(ty))
+            return get_classes_for_struct(ty);
+        else if (isunion(ty))
+            return get_classes_for_union(ty);
+        else
+            return get_classes_for_array(ty);
+    } else {
+        cc_assert(0);
+    }
+}
+
+static struct paddr * alloc_paddr(void)
+{
+    return zmalloc(sizeof(struct paddr));
+}
+
+static void set_param_stack_addr(node_t *param, long offset, size_t size)
+{
+    struct paddr *paddr = alloc_paddr();
+    paddr->kind = ADDR_STACK;
+    paddr->size = size;
+    paddr->u.offset = offset;
+    if (issymbol(param))
+        SYM_X_PADDR(param) = paddr;
+    else if (isexpr(param))
+        EXPR_X_PADDR(param) = paddr;
+    else
+        die("unexpected param type: %s", nname(param));
+}
+
+static void set_param_register_addr(node_t *param, struct reg *reg, int index, size_t size)
+{
+    struct paddr *paddr = alloc_paddr();
+    paddr->kind = ADDR_REGISTER;
+    paddr->size = size;
+    paddr->u.regs[index] = reg;
+    if (issymbol(param))
+        SYM_X_PADDR(param) = paddr;
+    else if (isexpr(param))
+        EXPR_X_PADDR(param) = paddr;
+    else
+        die("unexpected param type: %s", nname(param));
+}
+
+// params: list of symbols or expressions, may be NULL
+static size_t alloc_addr_for_params(node_t **params)
+{
+    int gp = 0;
+    int fp = 0;
+    size_t offset = 0;
+    const int OFFSET_ALIGN = 8;
+    for (int i = 0; i < LIST_LEN(params); i++) {
+        node_t *param = params[i];
+        node_t *ty = AST_TYPE(param);
+        size_t size = TYPE_SIZE(ty);
+        struct vector *classes = get_classes_for_type(ty);
+        cc_assert(vec_len(classes) >= 1);
+        
+        if (vec_len(classes) == 1) {
+            // register or memory
+            int *class = vec_head(classes);
+            if (class == integer_class) {
+                if (gp < NUM_IARG_REGS) {
+                    set_param_register_addr(param, iarg_regs[gp], 0, size);
+                    gp++;
+                } else {
+                    // memory
+                    set_param_stack_addr(param, offset, size);
+                    offset = ROUNDUP(offset + size, OFFSET_ALIGN);
+                }
+            } else if (class == sse_class) {
+                if (fp < NUM_FARG_REGS) {
+                    set_param_register_addr(param, farg_regs[fp], 0, size);
+                    fp++;
+                } else {
+                    // memory
+                    set_param_stack_addr(param, offset, size);
+                    offset = ROUNDUP(offset + size, OFFSET_ALIGN);
+                }
+            } else if (class == memory_class) {
+                set_param_stack_addr(param, offset, size);
+                offset = ROUNDUP(offset + size, OFFSET_ALIGN);
+            } else {
+                cc_assert(0);
+            }
+        } else {
+            // registers
+            int left_gp = NUM_IARG_REGS - gp;
+            int left_fp = NUM_FARG_REGS - fp;
+            int num_gp = 0;
+            int num_fp = 0;
+            for (int i = 0; i < vec_len(classes); i++) {
+                int *class = vec_at(classes, i);
+                if (class == integer_class)
+                    num_gp++;
+                else if (class == sse_class)
+                    num_fp++;
+                else
+                    cc_assert(0);
+            }
+            if (num_gp > left_gp || num_fp > left_fp) {
+                // no enough registers, passing by memory
+                set_param_stack_addr(param, offset, size);
+                offset = ROUNDUP(offset + size, OFFSET_ALIGN);
+            } else {
+                for (int i = 0; i < vec_len(classes); i++) {
+                    int *class = vec_at(classes, i);
+                    if (class == integer_class) {
+                        set_param_register_addr(param, iarg_regs[gp], i, size);
+                        gp++;
+                    } else if (class == sse_class) {
+                        set_param_register_addr(param, farg_regs[fp], i, size);
+                        fp++;
+                    }
+                }
+            }
+        }
+    }
+    return offset;
+}
+
+static size_t alloc_funcall_params(node_t *call)
+{
+    if (EXPR_X_PARAM_ALLOCED(call))
+        return EXPR_X_STACK_PARAM_SIZE(call);
+    node_t **args = EXPR_ARGS(call);
+    size_t size = alloc_addr_for_params(args);
+    EXPR_X_STACK_PARAM_SIZE(call) = size;
+    EXPR_X_PARAM_ALLOCED(call) = true;
+    return size;
 }
 
 static size_t extra_stack_size(node_t *decl)
