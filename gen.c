@@ -511,7 +511,7 @@ static int * reduce_classes(struct vector *v)
     return class;
 }
 
-// fields in 8-byte
+// fields are packed into a 8-byte element.
 static int * get_class_for_fields(struct vector *fields)
 {
     struct vector *v = vec_new();
@@ -531,6 +531,7 @@ static struct vector * find_slot(struct vector *v, int i)
     return vec_at(v, i);
 }
 
+// divide the struct into 8-byte elements.
 static struct vector * get_classes_for_struct(node_t *ty)
 {
     struct vector *v = vec_new();
@@ -579,12 +580,17 @@ static struct vector * get_classes_for_struct(node_t *ty)
     return ret;
 }
 
+// get each field's classes recursively.
+// then reduce by 8-byte in each column.
+// field0: | class0 | class1 | ...
+// field1: | class0 | ...
 static struct vector * get_classes_for_union(node_t *ty)
 {
     // TODO:
     return vec_new1(no_class);
 }
 
+// the array is in a 8-byte element of a struct or union.
 // the return vector always has 1 element.
 static struct vector * get_classes_for_array(node_t *ty)
 {
@@ -663,6 +669,7 @@ static size_t alloc_addr_for_params(node_t **params)
         size_t size = TYPE_SIZE(ty);
         struct vector *classes = get_classes_for_type(ty);
         cc_assert(vec_len(classes) >= 1);
+        println("%s:", node2s(param));
         print_classes(classes);
         
         if (vec_len(classes) == 1) {
