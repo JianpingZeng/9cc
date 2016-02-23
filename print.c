@@ -701,7 +701,7 @@ static void dotype2s(struct vector *l, struct vector *r)
     struct type2s *s;
     int k;
 
-    if (vec_len(l) == 0)
+    if (vec_empty(l))
         return;
 
     s = vec_tail(l);

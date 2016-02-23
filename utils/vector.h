@@ -35,6 +35,8 @@ extern void *vec_pop_front(struct vector *v);
 
 extern void vec_clear(struct vector *v);
 
+extern int vec_empty(struct vector *v);
+
 extern size_t vec_len(struct vector *v);
 
 extern void *vec_head(struct vector *v);

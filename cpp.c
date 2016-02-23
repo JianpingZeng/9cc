@@ -253,7 +253,7 @@ static void include_line(void)
         }
 
         struct vector *r = expandv(v);
-        if (vec_len(r) == 0) {
+        if (vec_empty(r)) {
             errorf(src, "empty filename");
             return;
         }
@@ -351,7 +351,7 @@ static struct vector *arguments(struct macro *m)
         while (vec_len(v2) && IS_SPACE(vec_tail(v2)))
             vec_pop(v2);
         // if the only arg is empty, then remove it
-        if (vec_len(v) == 1 && vec_len(vec_head(v)) == 0)
+        if (vec_len(v) == 1 && vec_empty(vec_head(v)))
             vec_pop(v);
     }
     // check args and params
@@ -824,10 +824,10 @@ static struct vector *glue(struct vector *ls, struct vector *rs)
     while (vec_len(ls) && IS_SPACE(vec_tail(ls)))
         vec_pop(ls);
 
-    if (vec_len(ls) == 0) {
+    if (vec_empty(ls)) {
         vec_add(r, rs);
         return r;
-    } else if (vec_len(rs) == 0) {
+    } else if (vec_empty(rs)) {
         vec_add(r, ls);
         return r;
     }

@@ -195,7 +195,7 @@ int main(int argc, char **argv)
     if (argc == 1) {
         usage();
         return EXIT_SUCCESS;
-    } else if (vec_len(inputs) == 0) {
+    } else if (vec_empty(inputs)) {
         fprintf(stderr, "no input file.\n");
         return EXIT_FAILURE;
     } else if (output && vec_len(inputs) > 1 && partial) {

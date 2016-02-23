@@ -208,7 +208,7 @@ static void dispatch_ireg_for(struct operand *operand, int opsize)
 
     for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
         struct reg *reg = int_regs[i];
-        if (vec_len(reg->vars) == 0) {
+        if (vec_empty(reg->vars)) {
             // clean reg
             reg_add_var(reg, sym);
             SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(reg);
@@ -471,6 +471,23 @@ static void emit_tacs(struct tac *head)
 // vector of paddrs.
 // each 8-bytes
 
+static void print_classes(struct vector *v)
+{
+    for (int i = 0; i < vec_len(v); i++) {
+        int *class = vec_at(v, i);
+        if (class == no_class)
+            println("no_class");
+        else if (class == integer_class)
+            println("integer_class");
+        else if (class == sse_class)
+            println("sse_class");
+        else if (class == memory_class)
+            println("memory_class");
+        else
+            println("unknown class");
+    }
+}
+
 static int * reduce_classes(struct vector *v)
 {
     int *class = no_class;
@@ -494,59 +511,87 @@ static int * reduce_classes(struct vector *v)
     return class;
 }
 
+// fields in 8-byte
+static int * get_class_for_fields(struct vector *fields)
+{
+    struct vector *v = vec_new();
+    for (int i = 0; i < vec_len(fields); i++) {
+        node_t *field = vec_at(fields, i);
+        node_t *ty = FIELD_TYPE(field);
+        struct vector *classes = get_classes_for_type(ty);
+        vec_add(v, classes);
+    }
+    return reduce_classes(v);
+}
+
+static struct vector * find_slot(struct vector *v, int i)
+{
+    for (int j = vec_len(v); j <= i; j++)
+        vec_push(v, vec_new());
+    return vec_at(v, i);
+}
+
 static struct vector * get_classes_for_struct(node_t *ty)
 {
     struct vector *v = vec_new();
-    struct vector *field_classes = vec_new();
-    int idx = 1;
-    node_t **fields = TYPE_FIELDS(ty);
-    for (int i = 0; i < LIST_LEN(fields); i++) {
-        node_t *field = fields[i];
+    for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
+        node_t *field = TYPE_FIELDS(ty)[i];
         node_t *fty = FIELD_TYPE(field);
         unsigned align = TYPE_ALIGN(fty);
         size_t offset = FIELD_OFFSET(field);
+        
+        if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
+            continue;
+
         // if it contains unaligned field, it has class MEMORY
-        if (offset % align != 0) {
-            dlog("field '%s' is not aligned. (offset=%lu,align=%u,size=%lu)",
-                 FIELD_NAME(field), align, TYPE_SIZE(fty));
+        if (offset % align != 0)
             return vec_new1(memory_class);
-        }
-        if (offset < idx * 8) {
-            struct vector *class2 = get_classes_for_type(fty);
-            vec_push(field_classes, reduce_classes(class2));
+
+        int idx = offset >> 3;
+        struct vector *v2 = find_slot(v, idx);
+        vec_push(v2, field);
+    }
+    // fill empty and overflow
+    for (int i = 0; i < vec_len(v); i++) {
+        struct vector *v2 = vec_at(v, i);
+        struct vector *prev = vec_at_safe(v, i-1);
+        if (vec_empty(v2)) {
+            cc_assert(prev);
+            vec_push(v2, vec_tail(prev));
         } else {
-            idx++;
-            int *class = reduce_classes(field_classes);
-            // if one of the classes if MEMORY, the whole argument is passed in memory.
-            if (class == memory_class) {
-                return vec_new1(memory_class);
-            } else {
-                vec_push(v, class);
-                vec_clear(field_classes);
+            node_t *field = vec_head(v2);
+            size_t offset = FIELD_OFFSET(field);
+            if (offset % 8 != 0) {
+                cc_assert(prev);
+                vec_push_front(v2, vec_tail(prev));
             }
         }
     }
-    return v;
+    // pass each 8-byte recursively
+    struct vector *ret = vec_new();
+    for (int i = 0; i < vec_len(v); i++) {
+        struct vector *fieldv = vec_at(v, i);
+        int *class = get_class_for_fields(fieldv);
+        if (class == memory_class)
+            return vec_new1(memory_class);
+        vec_push(ret, class);
+    }
+    return ret;
 }
 
 static struct vector * get_classes_for_union(node_t *ty)
 {
-    struct vector *v = vec_new();
-    
-    node_t **fields = TYPE_FIELDS(ty);
-    for (int i = 0; i < LIST_LEN(fields); i++) {
-        node_t *field = fields[i];
-        node_t *fty = FIELD_TYPE(field);
-        struct vector *fclass = get_classes_for_type(fty);
-        // TODO: 
-    }
-    return v;
+    // TODO:
+    return vec_new1(no_class);
 }
 
+// the return vector always has 1 element.
 static struct vector * get_classes_for_array(node_t *ty)
 {
-    // TODO:
-    return NULL;
+    node_t *rtype = rtype(ty);
+    struct vector *classes = get_classes_for_type(rtype);
+    int *class = reduce_classes(classes);
+    return vec_new1(class);
 }
 
 // each 8-byte has a class: integer_class, sse_class or memory_class.
@@ -618,6 +663,7 @@ static size_t alloc_addr_for_params(node_t **params)
         size_t size = TYPE_SIZE(ty);
         struct vector *classes = get_classes_for_type(ty);
         cc_assert(vec_len(classes) >= 1);
+        print_classes(classes);
         
         if (vec_len(classes) == 1) {
             // register or memory

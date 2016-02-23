@@ -139,6 +139,13 @@ void vec_clear(struct vector *v)
     v->len = 0;
 }
 
+int vec_empty(struct vector *v)
+{
+    if (v == NULL)
+        return 1;
+    return v->len == 0;
+}
+
 size_t vec_len(struct vector *v)
 {
     if (v == NULL)
