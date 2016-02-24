@@ -524,50 +524,39 @@ static int * get_class_for_fields(struct vector *fields)
     return reduce_classes(v);
 }
 
-static struct vector * find_slot(struct vector *v, int i)
-{
-    for (int j = vec_len(v); j <= i; j++)
-        vec_push(v, vec_new());
-    return vec_at(v, i);
-}
-
 // divide the struct into 8-byte elements.
 static struct vector * get_classes_for_struct(node_t *ty)
 {
     struct vector *v = vec_new();
-    for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
-        node_t *field = TYPE_FIELDS(ty)[i];
-        node_t *fty = FIELD_TYPE(field);
-        unsigned align = TYPE_ALIGN(fty);
-        size_t offset = FIELD_OFFSET(field);
+    size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
+    for (size_t k = 0; k < size; k += 8) {
+        struct vector *v2 = vec_new();
         
-        if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
-            continue;
-
-        // if it contains unaligned field, it has class MEMORY
-        if (offset % align != 0)
-            return vec_new1(memory_class);
-
-        int idx = offset >> 3;
-        struct vector *v2 = find_slot(v, idx);
-        vec_push(v2, field);
-    }
-    // fill empty and overflow
-    for (int i = 0; i < vec_len(v); i++) {
-        struct vector *v2 = vec_at(v, i);
-        struct vector *prev = vec_at_safe(v, i-1);
-        if (vec_empty(v2)) {
-            cc_assert(prev);
-            vec_push(v2, vec_tail(prev));
-        } else {
-            node_t *field = vec_head(v2);
+        for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
+            node_t *field = TYPE_FIELDS(ty)[i];
+            node_t *fty = FIELD_TYPE(field);
+            unsigned align = TYPE_ALIGN(fty);
             size_t offset = FIELD_OFFSET(field);
-            if (offset % 8 != 0) {
-                cc_assert(prev);
-                vec_push_front(v2, vec_tail(prev));
-            }
+            size_t end = offset + TYPE_SIZE(fty);
+        
+            if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
+                continue;
+
+            // if it contains unaligned field, it has class MEMORY
+            if (offset % align != 0)
+                return vec_new1(memory_class);
+
+            if (offset >= k && offset < k+8)
+                vec_push(v2, field);
+            else if (end >= k && end < k+8)
+                vec_push(v2, field);
+            else if (offset < k && end >= k+8)
+                vec_push(v2, field);
         }
+        cc_assert(vec_len(v2) > 0);
+        vec_push(v, v2);
     }
+    
     // pass each 8-byte recursively
     struct vector *ret = vec_new();
     for (int i = 0; i < vec_len(v); i++) {
