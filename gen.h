@@ -18,6 +18,7 @@ enum {
 };
 
 struct reg {
+    int freg:1;
     const char *r[4];
     struct vector *vars;
 };
@@ -82,7 +83,10 @@ struct paddr {
     int kind;
     size_t size;
     union {
-        struct reg *regs[MAX_STRUCT_PARAM_SIZE >> 3];
+        struct {
+            struct reg *reg;
+            struct vector *types;
+        } regs[MAX_STRUCT_PARAM_SIZE >> 3];
         long offset;
     } u;
 };

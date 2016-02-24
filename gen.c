@@ -175,6 +175,7 @@ static void init_regs(void)
     for (int i = XMM0; i <= XMM15; i++) {
         const char *name = format("%%xmm%d", i - XMM0);
         float_regs[i] = mkreg(&(struct reg){
+            .freg = true,
             .r[Q] = name,
             .r[L] = name
         });
@@ -636,7 +637,7 @@ static void set_param_register_addr(node_t *param, struct reg *reg, int index, s
     struct paddr *paddr = alloc_paddr();
     paddr->kind = ADDR_REGISTER;
     paddr->size = size;
-    paddr->u.regs[index] = reg;
+    paddr->u.regs[index].reg = reg;
     if (issymbol(param))
         SYM_X_PADDR(param) = paddr;
     else if (isexpr(param))
@@ -810,16 +811,31 @@ static void emit_function_params(node_t *decl)
 
 static void emit_register_params(node_t *decl)
 {
-    node_t *ftype = SYM_TYPE(DECL_SYM(decl));
-    cc_assert(!TYPE_VARG(ftype));
-    
+    node_t *ftype = SYM_TYPE(DECL_SYM(decl));    
     node_t **params = TYPE_PARAMS(ftype);
     for (int i = 0; i < LIST_LEN(params); i++) {
         node_t *sym = params[i];
-        node_t *ty = SYM_TYPE(sym); 
         struct paddr *paddr = SYM_X_PADDR(sym);
+        long loff = SYM_X_LOFF(sym);
         if (paddr->kind == ADDR_REGISTER) {
-            emit("hehe");
+            size_t sz = paddr->size;
+            int cnt = ROUNDUP(sz, 8) >> 3;
+            for (int i = 0; i < cnt; i++) {
+                struct reg *reg = paddr->u.regs[i].reg;
+                if (sz >= 8) {
+                    emit("movq %s, %d(%s)", reg->r[Q], loff, rbp->r[Q]);
+                    sz -= 8;
+                } else if (sz >= 4) {
+                    emit("movl %s, %d(%s)", reg->r[L], loff, rbp->r[Q]);
+                    sz -= 4;
+                } else if (sz >= 2) {
+                    emit("movw %s, %d(%s)", reg->r[W], loff, rbp->r[Q]);
+                    sz -= 2;
+                } else if (sz >= 1) {
+                    emit("movb %s, %d(%s)", reg->r[B], loff, rbp->r[Q]);
+                    sz -= 1;
+                }
+            }
         }
     }
 }
@@ -864,7 +880,7 @@ static void emit_function_prologue(struct gdata *gdata)
         struct paddr *paddr = SYM_X_PADDR(sym);
         if (paddr->kind == ADDR_REGISTER) {
             if (TYPE_VARG(ftype)) {
-                long offset = get_reg_offset(paddr->u.regs[0]);
+                long offset = get_reg_offset(paddr->u.regs[0].reg);
                 SYM_X_LOFF(sym) = offset;
             } else {
                 localsize = ROUNDUP(localsize + size, 4);
