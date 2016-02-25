@@ -502,81 +502,8 @@ int indexof_field(node_t * ty, node_t * field)
  *
  * The bitfields must be packed as tightly as possible.
  */
-static unsigned struct_size_deprecated(node_t * ty)
-{
-    int offset = 0;
-    int bsize = 0;
-    int max = 1;
-    int maxbits = 0;
-    node_t **fields = TYPE_FIELDS(ty);
-
-    for (int i = 0; i < LIST_LEN(fields); i++) {
-        node_t *field = fields[i];
-        node_t *ty = FIELD_TYPE(field);
-
-        if (FIELD_ISBIT(field)) {
-            int bitsize = FIELD_BITSIZE(field);
-
-            if (!isint(ty))
-                continue;
-            if (bitsize < 0 || (FIELD_NAME(field) && bitsize == 0))
-                continue;
-
-            if (bitsize > BITS(TYPE_SIZE(ty)))
-                bitsize = BITS(TYPE_SIZE(ty));
-
-            if (bitsize == 0) {
-                offset = ROUNDUP(offset, TYPE_SIZE(ty));
-                bsize = ROUNDUP(bsize, BITS(TYPE_SIZE(ty)));
-                continue;
-            }
-
-            maxbits = MAX(maxbits, BITS(TYPE_SIZE(ty)));
-
-            if (bsize == 0 || bitsize + bsize > maxbits) {
-                FIELD_OFFSET(field) = offset = ROUNDUP(offset, TYPE_SIZE(ty));
-                FIELD_BITOFF(field) = 0;
-                offset += TYPE_SIZE(ty);
-                bsize = FIELD_BITSIZE(field);
-            } else {
-                FIELD_OFFSET(field) = FIELD_OFFSET(fields[i - 1]);
-                FIELD_BITOFF(field) = bsize;
-                bsize += bitsize;
-                offset = ROUNDUP(offset, TYPE_SIZE(ty));
-            }
-
-        } else {
-            int align = TYPE_ALIGN(ty);
-            int bitsize = BITS(TYPE_SIZE(ty));
-            int bits = BITS(ROUNDUP(BYTES(bsize), align));
-
-            if (bitsize == 0)
-                goto clear;
-
-            if (bsize == 0 || bits + bitsize > maxbits) {
-                FIELD_OFFSET(field) = offset = ROUNDUP(offset, align);
-                offset += TYPE_SIZE(ty);
-            } else {
-                FIELD_OFFSET(field) = FIELD_OFFSET(fields[i - 1]);
-                bsize = bits + bitsize;
-            }
-
-        clear:
-            bsize = 0;
-            maxbits = 0;
-        }
-
-        max = MAX(max, TYPE_ALIGN(ty));
-    }
-
-    TYPE_ALIGN(ty) = max;
-
-    return ROUNDUP(offset, max);
-}
-
 static unsigned struct_size(node_t * ty)
 {
-    int offset = 0;
     int max = 1;
     node_t *prev = NULL;
     node_t **fields = TYPE_FIELDS(ty);
@@ -597,16 +524,35 @@ static unsigned struct_size(node_t * ty)
                 bitsize = BITS(TYPE_SIZE(ty));
 
             if (bitsize == 0) {
-                // TODO: 
+                if (prev == NULL) {
+                    // the first field
+                    FIELD_OFFSET(field) = 0;
+                    FIELD_BITOFF(field) = 0;
+                } else if (FIELD_ISBIT(prev)) {
+                    int prev_end = FIELD_BITSIZE(prev) + FIELD_BITOFF(prev);
+                    int prev_end_rounded = ROUNDUP(prev_end, 8);
+                    int bytes = prev_end_rounded >> 3;
+                    size_t offset = FIELD_OFFSET(prev) + bytes;
+                    FIELD_OFFSET(field) = offset;
+                    FIELD_BITOFF(field) = 0;
+                    // update bitsize
+                    FIELD_BITSIZE(field) = BITS(ROUNDUP(offset, TYPE_ALIGN(ty)) - offset);
+                } else {
+                    size_t prev_end = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
+                    size_t prev_end_rounded = ROUNDUP(prev_end, TYPE_ALIGN(ty));
+                    FIELD_OFFSET(field) = prev_end;
+                    FIELD_BITOFF(field) = 0;
+                    // update bitsize
+                    FIELD_BITSIZE(field) = BITS(prev_end_rounded - prev_end);
+                }
+                goto next;
             } else {
                 if (prev == NULL) {
                     // the first field
                     FIELD_OFFSET(field) = 0;
                     FIELD_BITOFF(field) = 0;
                 } else if (FIELD_ISBIT(prev)) {
-                    int prev_bitsize = FIELD_BITSIZE(prev);
-                    int prev_bitoff = FIELD_BITOFF(prev);
-                    int prev_end = prev_bitoff + prev_bitsize;
+                    int prev_end = FIELD_BITSIZE(prev) + FIELD_BITOFF(prev);;
                     int prev_end_rounded = ROUNDUP(prev_end, 8);
                     if (bitsize + prev_end <= prev_end_rounded) {
                         FIELD_OFFSET(field) = FIELD_OFFSET(prev);
@@ -621,7 +567,6 @@ static unsigned struct_size(node_t * ty)
                     FIELD_BITOFF(field) = 0;
                 }
             }
-            
         } else {
             int align = TYPE_ALIGN(ty);
 
@@ -641,11 +586,23 @@ static unsigned struct_size(node_t * ty)
         }
 
         max = MAX(max, TYPE_ALIGN(ty));
+    next:
         prev = field;
     }
 
     TYPE_ALIGN(ty) = max;
 
+    size_t offset = 0;
+    if (prev) {
+        if (FIELD_ISBIT(prev)) {
+            int bitsize = FIELD_BITSIZE(prev);
+            int bitoff = FIELD_BITOFF(prev);
+            int bytes = ROUNDUP(bitoff + bitsize, 8) >> 3;
+            offset = FIELD_OFFSET(prev) + bytes;
+        } else {
+            offset = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
+        }
+    }
     return ROUNDUP(offset, max);
 }
 
