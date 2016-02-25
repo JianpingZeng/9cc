@@ -469,9 +469,6 @@ static void emit_tacs(struct tac *head)
         emit_tac(tac);
 }
 
-// vector of paddrs.
-// each 8-bytes
-
 static void print_classes(struct vector *v)
 {
     for (int i = 0; i < vec_len(v); i++) {
@@ -512,7 +509,6 @@ static int * reduce_classes(struct vector *v)
     return class;
 }
 
-// fields are packed into a 8-byte element.
 static int * get_class_for_fields(struct vector *fields)
 {
     struct vector *v = vec_new();
@@ -525,7 +521,6 @@ static int * get_class_for_fields(struct vector *fields)
     return reduce_classes(v);
 }
 
-// divide the struct into 8-byte elements.
 static struct vector * get_classes_for_struct(node_t *ty)
 {
     struct vector *v = vec_new();
@@ -570,10 +565,6 @@ static struct vector * get_classes_for_struct(node_t *ty)
     return ret;
 }
 
-// get each field's classes recursively.
-// then reduce by 8-byte in each column.
-// field0: | class0 | class1 | ...
-// field1: | class0 | ...
 static struct vector * get_classes_for_union(node_t *ty)
 {
     // TODO:
@@ -590,9 +581,6 @@ static struct vector * get_classes_for_array(node_t *ty)
     return vec_new1(class);
 }
 
-// each 8-byte has a class: integer_class, sse_class or memory_class.
-// the return vector contains at least 1 element,
-// at most MAX_STRUCT_PARAM_SIZE/8 elements.
 static struct vector * get_classes_for_type(node_t *ty)
 {
     if (isint(ty) || isptr(ty)) {
@@ -611,6 +599,63 @@ static struct vector * get_classes_for_type(node_t *ty)
     } else {
         cc_assert(0);
     }
+}
+
+static struct vector * get_eightbyte_elements_for_struct(node_t *ty)
+{
+    struct vector *v = vec_new();
+    size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
+    for (size_t k = 0; k < size; k += 8) {
+        struct vector *v2 = vec_new();
+        
+        for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
+            node_t *field = TYPE_FIELDS(ty)[i];
+            node_t *fty = FIELD_TYPE(field);
+            unsigned align = TYPE_ALIGN(fty);
+            size_t offset = FIELD_OFFSET(field);
+            size_t end = offset + TYPE_SIZE(fty);
+
+            // skip zero bitfield
+            if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
+                continue;
+
+            if (offset >= k && offset < k+8)
+                vec_push(v2, field);
+            else if (end >= k && end < k+8)
+                vec_push(v2, field);
+            else if (offset < k && end >= k+8)
+                vec_push(v2, field);
+        }
+        cc_assert(vec_len(v2) > 0);
+        vec_push(v, v2);
+    }
+    return v;
+}
+
+static struct vector * get_eightbyte_elements_for_union(node_t *ty)
+{
+    
+}
+
+static struct vector * get_eightbyte_elements_for_array(node_t *ty)
+{
+    
+}
+
+// divide 'ty' into eightbyte elements.
+// return a vector of elements, each element is a vector of types.
+static struct vector * get_eightbyte_elements(node_t *ty)
+{
+    if (isint(ty) || isptr(ty) || isfloat(ty))
+        return vec_new1(vec_new1(ty));
+    else if (isstruct(ty))
+        return get_eightbyte_elements_for_struct(ty);
+    else if (isunion(ty))
+        return get_eightbyte_elements_for_union(ty);
+    else if (isarray(ty))
+        return get_eightbyte_elements_for_array(ty);
+    else
+        cc_assert(0);
 }
 
 static struct paddr * alloc_paddr(void)
