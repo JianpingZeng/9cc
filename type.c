@@ -502,7 +502,7 @@ int indexof_field(node_t * ty, node_t * field)
  *
  * The bitfields must be packed as tightly as possible.
  */
-static unsigned struct_size(node_t * ty)
+static unsigned struct_size_deprecated(node_t * ty)
 {
     int offset = 0;
     int bsize = 0;
@@ -567,6 +567,81 @@ static unsigned struct_size(node_t * ty)
         }
 
         max = MAX(max, TYPE_ALIGN(ty));
+    }
+
+    TYPE_ALIGN(ty) = max;
+
+    return ROUNDUP(offset, max);
+}
+
+static unsigned struct_size(node_t * ty)
+{
+    int offset = 0;
+    int max = 1;
+    node_t *prev = NULL;
+    node_t **fields = TYPE_FIELDS(ty);
+
+    for (int i = 0; i < LIST_LEN(fields); i++) {
+        node_t *field = fields[i];
+        node_t *ty = FIELD_TYPE(field);
+
+        if (FIELD_ISBIT(field)) {
+            int bitsize = FIELD_BITSIZE(field);
+            
+            if (!isint(ty))
+                continue;
+            if (bitsize < 0 || (FIELD_NAME(field) && bitsize == 0))
+                continue;
+
+            if (bitsize > BITS(TYPE_SIZE(ty)))
+                bitsize = BITS(TYPE_SIZE(ty));
+
+            if (bitsize == 0) {
+                // TODO: 
+            } else {
+                if (prev == NULL) {
+                    // the first field
+                    FIELD_OFFSET(field) = 0;
+                    FIELD_BITOFF(field) = 0;
+                } else if (FIELD_ISBIT(prev)) {
+                    int prev_bitsize = FIELD_BITSIZE(prev);
+                    int prev_bitoff = FIELD_BITOFF(prev);
+                    int prev_end = prev_bitoff + prev_bitsize;
+                    int prev_end_rounded = ROUNDUP(prev_end, 8);
+                    if (bitsize + prev_end <= prev_end_rounded) {
+                        FIELD_OFFSET(field) = FIELD_OFFSET(prev);
+                        FIELD_BITOFF(field) = prev_end;
+                    } else {
+                        int bytes = prev_end_rounded >> 3;
+                        FIELD_OFFSET(field) = FIELD_OFFSET(prev) + bytes;
+                        FIELD_BITOFF(field) = 0;
+                    }
+                } else {
+                    FIELD_OFFSET(field) = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
+                    FIELD_BITOFF(field) = 0;
+                }
+            }
+            
+        } else {
+            int align = TYPE_ALIGN(ty);
+
+            if (prev == NULL) {
+                // the first field
+                FIELD_OFFSET(field) = 0;
+            } else if (FIELD_ISBIT(prev)) {
+                int bitsize = FIELD_BITSIZE(prev);
+                int bitoff = FIELD_BITOFF(prev);
+                int bytes = ROUNDUP(bitoff + bitsize, 8) >> 3;
+                size_t end = FIELD_OFFSET(prev) + bytes;
+                FIELD_OFFSET(field) = ROUNDUP(end, align);
+            } else {
+                size_t end = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
+                FIELD_OFFSET(field) = ROUNDUP(end, align);
+            }
+        }
+
+        max = MAX(max, TYPE_ALIGN(ty));
+        prev = field;
     }
 
     TYPE_ALIGN(ty) = max;
