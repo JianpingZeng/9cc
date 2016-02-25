@@ -533,17 +533,13 @@ static unsigned struct_size(node_t * ty)
                     int prev_end_rounded = ROUNDUP(prev_end, 8);
                     int bytes = prev_end_rounded >> 3;
                     size_t offset = FIELD_OFFSET(prev) + bytes;
-                    FIELD_OFFSET(field) = offset;
+                    FIELD_OFFSET(field) = ROUNDUP(offset, TYPE_ALIGN(ty));
                     FIELD_BITOFF(field) = 0;
-                    // update bitsize
-                    FIELD_BITSIZE(field) = BITS(ROUNDUP(offset, TYPE_ALIGN(ty)) - offset);
                 } else {
                     size_t prev_end = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
                     size_t prev_end_rounded = ROUNDUP(prev_end, TYPE_ALIGN(ty));
-                    FIELD_OFFSET(field) = prev_end;
+                    FIELD_OFFSET(field) = prev_end_rounded;
                     FIELD_BITOFF(field) = 0;
-                    // update bitsize
-                    FIELD_BITSIZE(field) = BITS(prev_end_rounded - prev_end);
                 }
                 goto next;
             } else {
@@ -552,7 +548,7 @@ static unsigned struct_size(node_t * ty)
                     FIELD_OFFSET(field) = 0;
                     FIELD_BITOFF(field) = 0;
                 } else if (FIELD_ISBIT(prev)) {
-                    int prev_end = FIELD_BITSIZE(prev) + FIELD_BITOFF(prev);;
+                    int prev_end = FIELD_BITSIZE(prev) + FIELD_BITOFF(prev);
                     int prev_end_rounded = ROUNDUP(prev_end, 8);
                     if (bitsize + prev_end <= prev_end_rounded) {
                         FIELD_OFFSET(field) = FIELD_OFFSET(prev);
@@ -574,9 +570,8 @@ static unsigned struct_size(node_t * ty)
                 // the first field
                 FIELD_OFFSET(field) = 0;
             } else if (FIELD_ISBIT(prev)) {
-                int bitsize = FIELD_BITSIZE(prev);
-                int bitoff = FIELD_BITOFF(prev);
-                int bytes = ROUNDUP(bitoff + bitsize, 8) >> 3;
+                int prev_end = FIELD_BITSIZE(prev) + FIELD_BITOFF(prev);
+                int bytes = ROUNDUP(prev_end, 8) >> 3;
                 size_t end = FIELD_OFFSET(prev) + bytes;
                 FIELD_OFFSET(field) = ROUNDUP(end, align);
             } else {
