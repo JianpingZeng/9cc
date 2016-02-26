@@ -5,7 +5,6 @@ static const char *func_end_label;
 static int func_returns;
 
 static const char * oplabel(struct operand *operand);
-static struct vector * get_classes_for_type(node_t *ty);
 static size_t alloc_funcall_params(node_t *call);
 
 #define NUM_IARG_REGS  6
@@ -37,12 +36,6 @@ static int idx[] = {
 static const char *suffix[] = {
     "b", "w", "l", "q"
 };
-
-// Parameter classification
-static int *no_class = (int *)1;
-static int *integer_class = (int *)2;
-static int *sse_class = (int *)3;
-static int *memory_class = (int *)4;
 
 static void emit(const char *fmt, ...)
 {
@@ -469,6 +462,18 @@ static void emit_tacs(struct tac *head)
         emit_tac(tac);
 }
 
+// Parameter classification
+static int *no_class = (int *)1;
+static int *integer_class = (int *)2;
+static int *sse_class = (int *)3;
+static int *memory_class = (int *)4;
+
+struct ptype {
+    size_t offset;
+    node_t *type;
+};
+static struct vector * get_types(node_t *ty, size_t offset);
+
 static void print_classes(struct vector *v)
 {
     for (int i = 0; i < vec_len(v); i++) {
@@ -486,11 +491,45 @@ static void print_classes(struct vector *v)
     }
 }
 
-static int * reduce_classes(struct vector *v)
+static void print_types(struct vector *v)
+{
+    for (int i = 0; i < vec_len(v); i++) {
+        struct ptype *ptype = vec_at(v, i);
+        println("offset: %lu, type: %s", ptype->offset, type2s(ptype->type));
+    }
+}
+
+static void print_elements(struct vector *v)
+{
+    for (int i = 0; i < vec_len(v); i++) {
+        println("elements[%d]:", i);
+        struct vector *ptypes = vec_at(v, i);
+        print_types(ptypes);
+    }
+}
+
+static struct ptype * new_ptype(node_t *ty, size_t offset)
+{
+    struct ptype *ptype = zmalloc(sizeof(struct ptype));
+    ptype->offset = offset;
+    ptype->type = ty;
+    return ptype;
+}
+
+static int * get_class(struct vector *ptypes)
 {
     int *class = no_class;
-    for (int i = 0; i < vec_len(v); i++) {
-        int *class1 = vec_at(v, i);
+    for (int i = 0; i < vec_len(ptypes); i++) {
+        struct ptype *ptype = vec_at(ptypes, i);
+        node_t *ty = ptype->type;
+        int *class1 = no_class;
+        if (isint(ty) || isptr(ty))
+            class1 = integer_class;
+        else if (isfloat(ty))
+            class1 = sse_class;
+        else
+            cc_assert(0);
+        // reduce
         if (class == class1)
             continue;
         else if (class1 == no_class)
@@ -509,151 +548,166 @@ static int * reduce_classes(struct vector *v)
     return class;
 }
 
-static int * get_class_for_fields(struct vector *fields)
+static struct vector * get_classes(struct vector *elements)
 {
     struct vector *v = vec_new();
-    for (int i = 0; i < vec_len(fields); i++) {
-        node_t *field = vec_at(fields, i);
-        node_t *ty = FIELD_TYPE(field);
-        struct vector *classes = get_classes_for_type(ty);
-        vec_add(v, classes);
+    for (int i = 0; i < vec_len(elements); i++) {
+        struct vector *ptypes = vec_at(elements, i);
+        int *class = get_class(ptypes);
+        vec_push(v, class);
     }
-    return reduce_classes(v);
+    return v;
 }
 
-static struct vector * get_classes_for_struct(node_t *ty)
+static struct ptype * merge_ptypes(struct ptype *ptype1, struct ptype *ptype2)
 {
-    struct vector *v = vec_new();
-    size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
-    for (size_t k = 0; k < size; k += 8) {
-        struct vector *v2 = vec_new();
-        
-        for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
-            node_t *field = TYPE_FIELDS(ty)[i];
-            node_t *fty = FIELD_TYPE(field);
-            unsigned align = TYPE_ALIGN(fty);
-            size_t offset = FIELD_OFFSET(field);
-            size_t end = offset + TYPE_SIZE(fty);
-        
-            if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
-                continue;
-
-            // if it contains unaligned field, it has class MEMORY
-            if (offset % align != 0)
-                return vec_new1(memory_class);
-
-            if (offset >= k && offset < k+8)
-                vec_push(v2, field);
-            else if (end >= k && end < k+8)
-                vec_push(v2, field);
-            else if (offset < k && end >= k+8)
-                vec_push(v2, field);
-        }
-        cc_assert(vec_len(v2) > 0);
-        vec_push(v, v2);
-    }
+    cc_assert(isscalar(ptype1->type) && isscalar(ptype2->type));
     
-    // pass each 8-byte recursively
-    struct vector *ret = vec_new();
-    for (int i = 0; i < vec_len(v); i++) {
-        struct vector *fieldv = vec_at(v, i);
-        int *class = get_class_for_fields(fieldv);
-        if (class == memory_class)
-            return vec_new1(memory_class);
-        vec_push(ret, class);
-    }
-    return ret;
+    if (isint(ptype1->type) || isptr(ptype1->type))
+        return ptype1;
+    else if (isint(ptype2->type) || isptr(ptype2->type))
+        return ptype2;
+    else
+        return ptype1;
 }
 
-static struct vector * get_classes_for_union(node_t *ty)
+// merge two eightbyte elements.
+static struct vector * merge_element(struct vector *v1, struct vector *v2)
 {
-    // TODO:
-    return vec_new1(no_class);
-}
+    size_t len1 = vec_len(v1);
+    size_t len2 = vec_len(v2);
+    if (len1 == 0)
+        return v2;
+    else if (len2 == 0)
+        return v1;
 
-// the array is in a 8-byte element of a struct or union.
-// the return vector always has 1 element.
-static struct vector * get_classes_for_array(node_t *ty)
-{
-    node_t *rtype = rtype(ty);
-    struct vector *classes = get_classes_for_type(rtype);
-    int *class = reduce_classes(classes);
-    return vec_new1(class);
-}
-
-static struct vector * get_classes_for_type(node_t *ty)
-{
-    if (isint(ty) || isptr(ty)) {
-        return vec_new1(integer_class);
-    } else if (isfloat(ty)) {
-        return vec_new1(sse_class);
-    } else if (isstruct(ty) || isunion(ty) || isarray(ty)) {
-        if (TYPE_SIZE(ty) > MAX_STRUCT_PARAM_SIZE)
-            return vec_new1(memory_class);
-        if (isstruct(ty))
-            return get_classes_for_struct(ty);
-        else if (isunion(ty))
-            return get_classes_for_union(ty);
+    int *class1 = get_class(v1);
+    int *class2 = get_class(v2);
+    if (class1 == integer_class)
+        return v1;
+    else if (class2 == integer_class)
+        return v2;
+    // both sse_class
+    cc_assert(class1 == sse_class && class2 == sse_class);
+    cc_assert(len1 <= 2 && len2 <= 2);
+    if (len1 == 1) {
+        struct ptype *ptype = vec_head(v1);
+        size_t size = TYPE_SIZE(ptype->type);
+        if (size == 8)
+            return v1;
         else
-            return get_classes_for_array(ty);
+            return v2;
+    } else if (len1 == 2) {
+        if (len2 == 1) {
+            struct ptype *ptype = vec_head(v2);
+            size_t size = TYPE_SIZE(ptype->type);
+            if (size == 8)
+                return v2;
+            else
+                return v1;
+        } else {
+            return v1;
+        }
     } else {
         cc_assert(0);
     }
 }
 
-static struct vector * get_eightbyte_elements_for_struct(node_t *ty)
+static struct vector * merge_elements(struct vector *v1, struct vector *v2)
 {
+    cc_assert(vec_len(v1) == vec_len(v2));
+
     struct vector *v = vec_new();
-    size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
-    for (size_t k = 0; k < size; k += 8) {
-        struct vector *v2 = vec_new();
-        
-        for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
-            node_t *field = TYPE_FIELDS(ty)[i];
-            node_t *fty = FIELD_TYPE(field);
-            unsigned align = TYPE_ALIGN(fty);
-            size_t offset = FIELD_OFFSET(field);
-            size_t end = offset + TYPE_SIZE(fty);
-
-            // skip zero bitfield
-            if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
-                continue;
-
-            if (offset >= k && offset < k+8)
-                vec_push(v2, field);
-            else if (end >= k && end < k+8)
-                vec_push(v2, field);
-            else if (offset < k && end >= k+8)
-                vec_push(v2, field);
-        }
-        cc_assert(vec_len(v2) > 0);
+    for (int i = 0; i < vec_len(v1); i++) {
+        struct vector *va = vec_at(v1, i);
+        struct vector *vb = vec_at(v2, i);
+        struct vector *v2 = merge_element(va, vb);
         vec_push(v, v2);
     }
     return v;
 }
 
-static struct vector * get_eightbyte_elements_for_union(node_t *ty)
+// return a vector of vector of struct ptype.
+static struct vector * get_elements(struct vector *ptypes)
 {
-    
+    struct vector *v = vec_new();
+    struct vector *v2 = vec_new();
+    struct ptype *first = vec_head(ptypes);
+    size_t offset = first->offset;
+    for (int i = 0; i < vec_len(ptypes); i++) {
+        struct ptype *ptype = vec_at(ptypes, i);
+        if (ptype->offset < offset + 8) {
+            vec_push(v2, ptype);
+        } else {
+            vec_push(v, v2);
+            v2 = vec_new1(ptype);
+            offset += 8;
+        }
+    }
+    vec_push(v, v2);
+    return v;
 }
 
-static struct vector * get_eightbyte_elements_for_array(node_t *ty)
+static struct vector * get_types_for_union(node_t *ty, size_t offset)
 {
-    
+    size_t cnt = ROUNDUP(TYPE_SIZE(ty), 8) >> 3;
+    struct vector *v1 = vec_new();
+    for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
+        node_t *field = TYPE_FIELDS(ty)[i];
+        node_t *fty = FIELD_TYPE(field);
+        struct vector *v2 = get_types(fty, offset);
+        struct vector *v3 = get_elements(v2);
+        // padding with empty elements
+        for (int j = vec_len(v3); j < cnt; j++)
+            vec_push(v3, vec_new());
+        vec_push(v1, v3);
+    }
+    struct vector *v0 = vec_head(v1);
+    for (int j = 1; j < vec_len(v1); j++)
+        v0 = merge_elements(v0, vec_at(v1, j));
+    struct vector *v = vec_new();
+    for (int i = 0; i < vec_len(v0); i++)
+        vec_add(v, vec_at(v0, i));
+    return v;
 }
 
-// divide 'ty' into eightbyte elements.
-// return a vector of elements, each element is a vector of types.
-static struct vector * get_eightbyte_elements(node_t *ty)
+static struct vector * get_types_for_struct(node_t *ty, size_t offset)
+{
+    struct vector *v = vec_new();
+    for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
+        node_t *field = TYPE_FIELDS(ty)[i];
+        node_t *fty = FIELD_TYPE(field);
+        size_t off = offset + FIELD_OFFSET(field);
+        if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
+            continue;
+        struct vector *v2 = get_types(fty, off);
+        vec_add(v, v2);
+    }
+    return v;
+}
+
+static struct vector * get_types_for_array(node_t *ty, size_t offset)
+{
+    struct vector *v = vec_new();
+    node_t *rty = rtype(ty);
+    for (int i = 0; i < TYPE_LEN(ty); i++) {
+        size_t off = offset + i * TYPE_SIZE(rty);
+        struct vector *v2 = get_types(rty, off);
+        vec_add(v, v2);
+    }
+    return v;
+}
+
+static struct vector * get_types(node_t *ty, size_t offset)
 {
     if (isint(ty) || isptr(ty) || isfloat(ty))
-        return vec_new1(vec_new1(ty));
+        return vec_new1(new_ptype(ty, offset));
     else if (isstruct(ty))
-        return get_eightbyte_elements_for_struct(ty);
+        return get_types_for_struct(ty, offset);
     else if (isunion(ty))
-        return get_eightbyte_elements_for_union(ty);
+        return get_types_for_union(ty, offset);
     else if (isarray(ty))
-        return get_eightbyte_elements_for_array(ty);
+        return get_types_for_array(ty, offset);
     else
         cc_assert(0);
 }
@@ -691,6 +745,12 @@ static void set_param_register_addr(node_t *param, struct reg *reg, int index, s
         die("unexpected param type: %s", nname(param));
 }
 
+static bool is_type_aligned(node_t *ty)
+{
+    // Now all types are aligned.
+    return true;
+}
+
 // params: list of symbols or expressions, may be NULL
 static size_t alloc_addr_for_params(node_t **params)
 {
@@ -702,40 +762,18 @@ static size_t alloc_addr_for_params(node_t **params)
         node_t *param = params[i];
         node_t *ty = AST_TYPE(param);
         size_t size = TYPE_SIZE(ty);
-        struct vector *classes = get_classes_for_type(ty);
-        cc_assert(vec_len(classes) >= 1);
-        println("%s:", node2s(param));
-        print_classes(classes);
-        
-        if (vec_len(classes) == 1) {
-            // register or memory
-            int *class = vec_head(classes);
-            if (class == integer_class) {
-                if (gp < NUM_IARG_REGS) {
-                    set_param_register_addr(param, iarg_regs[gp], 0, size);
-                    gp++;
-                } else {
-                    // memory
-                    set_param_stack_addr(param, offset, size);
-                    offset = ROUNDUP(offset + size, OFFSET_ALIGN);
-                }
-            } else if (class == sse_class) {
-                if (fp < NUM_FARG_REGS) {
-                    set_param_register_addr(param, farg_regs[fp], 0, size);
-                    fp++;
-                } else {
-                    // memory
-                    set_param_stack_addr(param, offset, size);
-                    offset = ROUNDUP(offset + size, OFFSET_ALIGN);
-                }
-            } else if (class == memory_class) {
-                set_param_stack_addr(param, offset, size);
-                offset = ROUNDUP(offset + size, OFFSET_ALIGN);
-            } else {
-                cc_assert(0);
-            }
+        if (size > MAX_STRUCT_PARAM_SIZE || !is_type_aligned(ty)) {
+            // pass by memory
+            set_param_stack_addr(param, offset, size);
+            offset = ROUNDUP(offset + size, OFFSET_ALIGN);
         } else {
-            // registers
+            struct vector *ptypes = get_types(ty, 0);
+            struct vector *elements = get_elements(ptypes);
+            struct vector *classes = get_classes(elements);
+            print_types(ptypes);
+            print_elements(elements);
+            print_classes(classes);
+
             int left_gp = NUM_IARG_REGS - gp;
             int left_fp = NUM_FARG_REGS - fp;
             int num_gp = 0;
@@ -750,7 +788,7 @@ static size_t alloc_addr_for_params(node_t **params)
                     cc_assert(0);
             }
             if (num_gp > left_gp || num_fp > left_fp) {
-                // no enough registers, passing by memory
+                // no enough registers
                 set_param_stack_addr(param, offset, size);
                 offset = ROUNDUP(offset + size, OFFSET_ALIGN);
             } else {
@@ -822,38 +860,6 @@ static long get_reg_offset(struct reg *reg)
     cc_assert(0);
 }
 
-static void emit_function_params(node_t *decl)
-{
-    node_t *ty = SYM_TYPE(DECL_SYM(decl));
-    node_t **args = TYPE_PARAMS(ty);
-    for (int i = 0; i < LIST_LEN(args); i++) {
-        node_t *sym = args[i];
-        node_t *ty = SYM_TYPE(sym);
-        size_t size = TYPE_SIZE(ty);
-        if (SYM_X_ADDRS(sym)[ADDR_REGISTER]) {
-            struct reg *reg = SYM_X_ADDRS(sym)[ADDR_REGISTER]->reg;
-            if (isint(ty) || isptr(ty)) {
-                emit("mov%s %s, %ld(%s)",
-                     suffix[idx[size]],
-                     reg->r[idx[size]],
-                     SYM_X_LOFF(sym), rbp->r[Q]);
-            } else if (isfloat(ty)) {
-                if (TYPE_KIND(ty) == FLOAT) {
-                    emit("movss %s, %ld(%s)",
-                         reg->r[idx[size]],
-                         SYM_X_LOFF(sym), rbp->r[Q]);
-                } else {
-                    emit("movsd %s, %ld(%s)",
-                         reg->r[idx[size]],
-                         SYM_X_LOFF(sym), rbp->r[Q]);
-                }
-            }
-            // reset
-            SYM_X_ADDRS(sym)[ADDR_REGISTER] = NULL;
-        }
-    }
-}
-
 static void emit_register_params(node_t *decl)
 {
     node_t *ftype = SYM_TYPE(DECL_SYM(decl));    
@@ -862,26 +868,7 @@ static void emit_register_params(node_t *decl)
         node_t *sym = params[i];
         struct paddr *paddr = SYM_X_PADDR(sym);
         long loff = SYM_X_LOFF(sym);
-        if (paddr->kind == ADDR_REGISTER) {
-            size_t sz = paddr->size;
-            int cnt = ROUNDUP(sz, 8) >> 3;
-            for (int i = 0; i < cnt; i++) {
-                struct reg *reg = paddr->u.regs[i].reg;
-                if (sz >= 8) {
-                    emit("movq %s, %d(%s)", reg->r[Q], loff, rbp->r[Q]);
-                    sz -= 8;
-                } else if (sz >= 4) {
-                    emit("movl %s, %d(%s)", reg->r[L], loff, rbp->r[Q]);
-                    sz -= 4;
-                } else if (sz >= 2) {
-                    emit("movw %s, %d(%s)", reg->r[W], loff, rbp->r[Q]);
-                    sz -= 2;
-                } else if (sz >= 1) {
-                    emit("movb %s, %d(%s)", reg->r[B], loff, rbp->r[Q]);
-                    sz -= 1;
-                }
-            }
-        }
+        // TODO: 
     }
 }
 
@@ -923,19 +910,7 @@ static void emit_function_prologue(struct gdata *gdata)
         node_t *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
         struct paddr *paddr = SYM_X_PADDR(sym);
-        if (paddr->kind == ADDR_REGISTER) {
-            if (TYPE_VARG(ftype)) {
-                long offset = get_reg_offset(paddr->u.regs[0].reg);
-                SYM_X_LOFF(sym) = offset;
-            } else {
-                localsize = ROUNDUP(localsize + size, 4);
-                SYM_X_LOFF(sym) = -localsize;
-            }
-        } else if (paddr->kind == ADDR_STACK) {
-            SYM_X_LOFF(sym) = paddr->u.offset + stack_base_off;
-        } else {
-            die("unexpected paddr type: %d", paddr->kind);
-        }
+        // TODO: 
     }
 
     // calls
@@ -954,7 +929,7 @@ static void emit_text(struct gdata *gdata)
 
     func_end_label = STMT_X_NEXT(DECL_BODY(decl));
     func_returns = 0;
-    
+
     emit_function_prologue(gdata);
     if (TYPE_VARG(ftype))
         emit_register_save_area();
