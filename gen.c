@@ -731,12 +731,13 @@ static void set_param_stack_addr(node_t *param, long offset, size_t size)
         die("unexpected param type: %s", nname(param));
 }
 
-static void set_param_register_addr(node_t *param, struct reg *reg, int index, size_t size)
+static void set_param_register_addr(node_t *param, struct reg *reg, int index, size_t size, int type)
 {
     struct paddr *paddr = alloc_paddr();
     paddr->kind = ADDR_REGISTER;
     paddr->size = size;
     paddr->u.regs[index].reg = reg;
+    paddr->u.regs[index].type = type;
     if (issymbol(param))
         SYM_X_PADDR(param) = paddr;
     else if (isexpr(param))
@@ -770,9 +771,7 @@ static size_t alloc_addr_for_params(node_t **params)
             struct vector *ptypes = get_types(ty, 0);
             struct vector *elements = get_elements(ptypes);
             struct vector *classes = get_classes(elements);
-            print_types(ptypes);
-            print_elements(elements);
-            print_classes(classes);
+            cc_assert(vec_len(elements) == vec_len(classes));
 
             int left_gp = NUM_IARG_REGS - gp;
             int left_fp = NUM_FARG_REGS - fp;
@@ -795,10 +794,21 @@ static size_t alloc_addr_for_params(node_t **params)
                 for (int i = 0; i < vec_len(classes); i++) {
                     int *class = vec_at(classes, i);
                     if (class == integer_class) {
-                        set_param_register_addr(param, iarg_regs[gp], i, size);
+                        set_param_register_addr(param, iarg_regs[gp], i, size, REG_INT);
                         gp++;
                     } else if (class == sse_class) {
-                        set_param_register_addr(param, farg_regs[fp], i, size);
+                        struct vector *element = vec_at(elements, i);
+                        int len = vec_len(element);
+                        if (len == 1) {
+                            struct ptype *ptype = vec_head(element);
+                            if (TYPE_SIZE(ptype->type) == 4)
+                                set_param_register_addr(param, farg_regs[fp], i, size, REG_SSE_F);
+                            else
+                                set_param_register_addr(param, farg_regs[fp], i, size, REG_SSE_D);
+                        } else {
+                            cc_assert(len == 2);
+                            set_param_register_addr(param, farg_regs[fp], i, size, REG_SSE_FF);
+                        }
                         fp++;
                     }
                 }
@@ -868,7 +878,13 @@ static void emit_register_params(node_t *decl)
         node_t *sym = params[i];
         struct paddr *paddr = SYM_X_PADDR(sym);
         long loff = SYM_X_LOFF(sym);
-        // TODO: 
+        // TODO:
+        if (paddr->kind == ADDR_REGISTER) {
+            size_t size = paddr->size;
+            for (int i = 0; size > 0; i++) {
+                
+            }
+        }
     }
 }
 

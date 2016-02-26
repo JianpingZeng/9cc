@@ -79,13 +79,21 @@ struct addr {
     size_t size;
 };
 
+// REGS type
+enum {
+    REG_INT,
+    REG_SSE_D,
+    REG_SSE_F,
+    REG_SSE_FF
+};
+
 struct paddr {
     int kind;
     size_t size;
     union {
         struct {
+            int type;
             struct reg *reg;
-            struct vector *types;
         } regs[MAX_STRUCT_PARAM_SIZE >> 3];
         long offset;
     } u;
