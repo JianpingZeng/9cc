@@ -848,10 +848,14 @@ static void emit_register_save_area(void)
         struct reg *r = iarg_regs[i];
         emit("movq %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
     }
+    const char *label = gen_label();
+    emit("testb %%al, %%al");
+    emit("je %s", label);
     for (int i = 0; i < ARRAY_SIZE(farg_regs); i++, offset += 16) {
         struct reg *r = farg_regs[i];
         emit("movaps %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
     }
+    emit_noindent("%s:", label);
     cc_assert(offset == 0);
 }
 
