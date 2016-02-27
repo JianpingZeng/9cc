@@ -892,8 +892,10 @@ static void emit_register_params(node_t *decl)
                         emit("movl %s, %ld(%s)", reg->r[L], loff, rbp->r[Q]);
                     else if (size == 2)
                         emit("movw %s, %ld(%s)", reg->r[W], loff, rbp->r[Q]);
-                    else
+                    else if (size == 1)
                         emit("movb %s, %ld(%s)", reg->r[B], loff, rbp->r[Q]);
+                    else
+                        cc_assert(0);
                     break;
                 case REG_SSE_F:
                     emit("movss %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
