@@ -64,10 +64,8 @@ enum {
 };
 
 enum {
-    ADDR_MEMORY,
     ADDR_STACK,
     ADDR_REGISTER,
-    ADDRS                    // count
 };
 
 #define MAX_STRUCT_PARAM_SIZE  16
@@ -163,7 +161,7 @@ struct externals {
 // sym
 #define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.sym.label)
 #define SYM_X_USES(NODE)      ((NODE)->symbol.x.sym.uses)
-#define SYM_X_ADDRS(NODE)     ((NODE)->symbol.x.sym.addrs)
+#define SYM_X_REG(NODE)       ((NODE)->symbol.x.sym.reg)
 #define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 #define SYM_X_PADDR(NODE)     ((NODE)->symbol.x.sym.paddr)
@@ -188,14 +186,10 @@ union x {
     struct {
         const char *label;
         long loff;              // local offset (<0)
-        // kind
-        int kind;
-        // uses
-        struct uses uses;
-        // addrs
-        struct addr *addrs[ADDRS];
-        // param addr
-        struct paddr *paddr;
+        int kind;               // kind
+        struct uses uses;       // uses
+        struct reg *reg;        // reg addr
+        struct paddr *paddr;    // param addr
     }sym;
     
     struct {
@@ -213,8 +207,7 @@ union x {
         const char *btrue;
         const char *bfalse;
 
-        // arg addr
-        struct paddr *paddr;
+        struct paddr *paddr;    // arg addr
 
         int param_allocated:1;
         size_t stack_param_size;

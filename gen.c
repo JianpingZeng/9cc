@@ -56,27 +56,6 @@ static void emit_noindent(const char *fmt, ...)
     va_end(ap);
 }
 
-static struct addr * make_addr_with_type(int kind)
-{
-    struct addr *addr = zmalloc(sizeof(struct addr));
-    addr->kind = kind;
-    return addr;
-}
-
-static struct addr * make_register_addr(struct reg *reg)
-{
-    struct addr *addr = make_addr_with_type(ADDR_REGISTER);
-    addr->reg = reg;
-    return addr;
-}
-
-static struct addr * make_stack_addr(long offset)
-{
-    struct addr *addr = make_addr_with_type(ADDR_STACK);
-    addr->offset = offset;
-    return addr;
-}
-
 static struct reg * mkreg(struct reg *r)
 {
     struct reg *reg = zmalloc(sizeof(struct reg));
@@ -174,65 +153,6 @@ static void init_regs(void)
         });
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
-    }
-}
-
-static void reg_add_var(struct reg *reg, node_t *sym)
-{
-    if (!reg->vars)
-        reg->vars = vec_new();
-
-    vec_push(reg->vars, sym);
-}
-
-static void load_operand_to_reg(struct operand *operand,
-                                struct reg *reg,
-                                int opsize)
-{
-    int index = idx[opsize];
-    emit("mov%s %s, %s", suffix[index], oplabel(operand), reg->r[index]);
-}
-
-static void dispatch_ireg_for(struct operand *operand, int opsize)
-{
-    node_t *sym = operand->sym;
-
-    if (SYM_X_ADDRS(sym)[ADDR_REGISTER])
-        return;
-
-    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
-        struct reg *reg = int_regs[i];
-        if (vec_empty(reg->vars)) {
-            // clean reg
-            reg_add_var(reg, sym);
-            SYM_X_ADDRS(sym)[ADDR_REGISTER] = make_register_addr(reg);
-            load_operand_to_reg(operand, reg, opsize);
-            return;
-        }
-    }
-
-    die("not implemented yet");
-}
-
-static void dispatch_ireg_uop(struct tac *tac)
-{
-    
-}
-
-static void dispatch_ireg_bop(struct tac *tac)
-{
-    struct operand *l = tac->args[0];
-    struct operand *r = tac->args[1];
-    struct operand *result = tac->result;
-    int opsize = tac->opsize;
-
-    if (SYM_X_KIND(l->sym) == SYM_KIND_ILITERAL) {
-        dispatch_ireg_for(r, opsize);
-    } else if (SYM_X_KIND(r->sym) == SYM_KIND_ILITERAL) {
-        dispatch_ireg_for(l, opsize);
-    } else {
-        dispatch_ireg_for(l, opsize);
-        dispatch_ireg_for(r, opsize);
     }
 }
 
@@ -474,40 +394,6 @@ struct ptype {
 };
 static struct vector * get_types(node_t *ty, size_t offset);
 
-static void print_classes(struct vector *v)
-{
-    for (int i = 0; i < vec_len(v); i++) {
-        int *class = vec_at(v, i);
-        if (class == no_class)
-            println("no_class");
-        else if (class == integer_class)
-            println("integer_class");
-        else if (class == sse_class)
-            println("sse_class");
-        else if (class == memory_class)
-            println("memory_class");
-        else
-            println("unknown class");
-    }
-}
-
-static void print_types(struct vector *v)
-{
-    for (int i = 0; i < vec_len(v); i++) {
-        struct ptype *ptype = vec_at(v, i);
-        println("offset: %lu, type: %s", ptype->offset, type2s(ptype->type));
-    }
-}
-
-static void print_elements(struct vector *v)
-{
-    for (int i = 0; i < vec_len(v); i++) {
-        println("elements[%d]:", i);
-        struct vector *ptypes = vec_at(v, i);
-        print_types(ptypes);
-    }
-}
-
 static struct ptype * new_ptype(node_t *ty, size_t offset)
 {
     struct ptype *ptype = zmalloc(sizeof(struct ptype));
@@ -557,18 +443,6 @@ static struct vector * get_classes(struct vector *elements)
         vec_push(v, class);
     }
     return v;
-}
-
-static struct ptype * merge_ptypes(struct ptype *ptype1, struct ptype *ptype2)
-{
-    cc_assert(isscalar(ptype1->type) && isscalar(ptype2->type));
-    
-    if (isint(ptype1->type) || isptr(ptype1->type))
-        return ptype1;
-    else if (isint(ptype2->type) || isptr(ptype2->type))
-        return ptype2;
-    else
-        return ptype1;
 }
 
 // merge two eightbyte elements.
