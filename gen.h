@@ -136,7 +136,6 @@ struct operand {
     long disp;
     node_t *sym;                // base symbol
     node_t *index;              // index symbol
-    struct uses uses;
 };
 
 // three-address code
@@ -150,6 +149,7 @@ struct tac {
     struct operand *result;
     struct tac *next, *prev;
     node_t *call;               // funcall expr
+    struct uses uses[3];
 };
 
 // externals
@@ -172,6 +172,7 @@ struct externals {
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
 #define DECL_X_CALLS(NODE)    ((NODE)->decl.x.decl.calls)
 #define DECL_X_HEAD(NODE)     ((NODE)->decl.x.decl.head)
+#define DECL_X_TAIL(NODE)     ((NODE)->decl.x.decl.tail)
 // expr
 #define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
@@ -199,6 +200,7 @@ union x {
         node_t **svars;        // function static vars
         node_t **calls;        // function calls
         struct tac *head;
+        struct tac *tail;
     }decl;
     
     struct {

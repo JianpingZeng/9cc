@@ -382,6 +382,48 @@ static void emit_tacs(struct tac *head)
         emit_tac(tac);
 }
 
+static void mark_die(node_t *sym)
+{
+    int kind = SYM_X_KIND(sym);
+    if (kind == SYM_KIND_REF || kind == SYM_KIND_TMP) {
+        SYM_X_USES(sym).live = false;
+        SYM_X_USES(sym).next = NULL;
+    }
+}
+
+static void mark_live(node_t *sym, struct tac *tac)
+{
+    int kind = SYM_X_KIND(sym);
+    if (kind == SYM_KIND_REF || kind == SYM_KIND_TMP) {
+        SYM_X_USES(sym).live = true;
+        SYM_X_USES(sym).next = tac;
+    }
+}
+
+static void scan_tacs_uses(struct tac *tail)
+{
+    for (struct tac *tac = tail; tac; tac = tac->prev) {
+        struct operand *result = tac->result;
+        struct operand *l = tac->args[0];
+        struct operand *r = tac->args[1];
+
+        // set
+        if (result)
+            tac->uses[0] = SYM_X_USES(result->sym);
+        if (l)
+            tac->uses[1] = SYM_X_USES(l->sym);
+        if (r)
+            tac->uses[2] = SYM_X_USES(r->sym);
+        // mark
+        if (result)
+            mark_die(result->sym);
+        if (l)
+            mark_live(l->sym, tac);
+        if (r)
+            mark_live(r->sym, tac);
+    }
+}
+
 // Parameter classification
 static int *no_class = (int *)1;
 static int *integer_class = (int *)2;
@@ -865,6 +907,7 @@ static void emit_text(struct gdata *gdata)
         emit_register_save_area();
     else
         emit_register_params(decl);
+    scan_tacs_uses(DECL_X_TAIL(decl));
     emit_tacs(DECL_X_HEAD(decl));
     // function epilogue
     if (func_returns)

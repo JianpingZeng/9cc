@@ -1841,6 +1841,7 @@ static void emit_function(node_t *decl)
     STMT_X_NEXT(stmt) = gen_label();
     emit_stmt(stmt);
     DECL_X_HEAD(decl) = func_tac_head;
+    DECL_X_TAIL(decl) = func_tac_tail;
     // add extra local vars
     if (extra_lvars) {
         struct vector *v = vec_new();

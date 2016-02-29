@@ -434,6 +434,7 @@ static const char * operand2s(struct operand *operand)
 
 void print_tac(struct tac *tac)
 {
+    putf("<%p>: ", tac);
     switch (tac->op) {
     case IR_NONE:
         break;
@@ -547,6 +548,19 @@ void print_tac(struct tac *tac)
     default:
         die("unexpected rop %s", rop2s(tac->op));
     }
+    putf("\t\t");
+    if (tac->result)
+        putf("%s[live:%d,next:%p] ",
+             SYM_X_LABEL(tac->result->sym),
+             tac->uses[0].live, tac->uses[0].next);
+    if (tac->args[0])
+        putf("%s[live:%d,next:%p] ",
+             SYM_X_LABEL(tac->args[0]->sym),
+             tac->uses[1].live, tac->uses[1].next);
+    if (tac->args[1])
+        putf("%s[live:%d,next:%p] ",
+             SYM_X_LABEL(tac->args[1]->sym),
+             tac->uses[2].live, tac->uses[2].next);
     putf("\n");
 }
 
