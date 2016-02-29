@@ -97,37 +97,39 @@ struct paddr {
     } u;
 };
 
-/*
-  op = IR_NONE:        sym
-  op = IR_SUBSCRIPT:   sym[index]
-  op = IR_INDIRECTION: *sym
- */
 struct uses {
     bool live;
-    struct tac *use_tac;
+    struct tac *next;
 };
 
-// displacement(base, index, scale)
-// address = base + displacement + index * scale
-// base: register
-// index: register
-// scale: 1,2,4,8
-// displacement: integer number
-//
-// cases:
-// - Direct operand:            displacement
-// - Indirect operand:          (base)
-// - Base+displacement:         displacement(base)
-//     - index into an array
-//     - access a field of a record
-// - (index*scale)+dispacement: displacement(,index,scale)
-//     - index into an array
-// - Base+index+displacement:   displacement(base, index)
-//     - two dimensional array
-//     - one dimensional array of records
-// - Base+(index*scale)+displacement:  displacement(base,index,scale)
-//     - two dimensional array
+/*
+  displacement(base, index, scale)
+  address = base + displacement + index * scale
+  base: register
+  index: register
+  scale: 1,2,4,8
+  displacement: integer number
+  
+  cases:
+  - Direct operand:            displacement
+  - Indirect operand:          (base)
+  - Base+displacement:         displacement(base)
+      - index into an array
+      - access a field of a record
+  - (index*scale)+dispacement: displacement(,index,scale)
+      - index into an array
+  - Base+index+displacement:   displacement(base, index)
+      - two dimensional array
+      - one dimensional array of records
+  - Base+(index*scale)+displacement:  displacement(base,index,scale)
+      - two dimensional array
+*/
 
+/*
+  op = IR_NONE:        sym
+  op = IR_SUBSCRIPT:   disp(sym,index,scale)
+  op = IR_INDIRECTION: *sym
+ */
 struct operand {
     int op;
     int scale;
