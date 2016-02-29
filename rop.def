@@ -53,6 +53,7 @@ _rop(IR_INDIRECTION,    "*")
 
 // function
 _rop(IR_CALL,           "call")
+_rop(IR_PARAM,          "param")
 
 // conv
 _rop(IR_CONV_UI_UI,     "uint => uint")

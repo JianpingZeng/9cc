@@ -513,6 +513,9 @@ void print_tac(struct tac *tac)
               rop2s(tac->op),
               operand2s(tac->args[0]));
         break;
+    case IR_PARAM:
+        putf("%s %s", rop2s(tac->op), operand2s(tac->args[0]));
+        break;
     case IR_CALL:
         if (tac->result) {
             putf("%s = %s %s, %d",

@@ -180,6 +180,12 @@ static void emit_conv_f2f(struct tac *tac)
   integer params(6): rdi, rsi, rdx, rcx, r8, r9
   floating params(8): xmm0~xmm7
  */
+static void emit_param(struct tac *tac)
+{
+    struct operand *operand = tac->args[0];
+    // TODO: 
+}
+
 static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
@@ -349,6 +355,9 @@ static void emit_tac(struct tac *tac)
     case IR_ASSIGNI:
     case IR_ASSIGNF:
         emit_assign(tac);
+        break;
+    case IR_PARAM:
+        emit_param(tac);
         break;
     case IR_CALL:
         emit_call(tac);
