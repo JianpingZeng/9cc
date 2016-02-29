@@ -434,9 +434,42 @@ static void emit_label(struct tac *tac)
     emit_noindent("%s:", SYM_X_LABEL(tac->result->sym));
 }
 
-static void emit_assign(struct tac *tac)
+static void emit_assignf(struct tac *tac)
 {
     
+}
+
+static void emit_assigni(struct tac *tac)
+{
+    struct operand *result = tac->result;
+    struct operand *l = tac->args[0];
+    int i = idx[tac->opsize];
+    const char *dst = oplabel(result);
+    // TODO:
+    switch (SYM_X_KIND(l->sym)) {
+    case SYM_KIND_ILITERAL:
+        emit("mov%s $%lu, %s", suffix[i], SYM_VALUE_U(l->sym), dst);
+        break;
+    case SYM_KIND_REF:
+        {
+            struct reg *reg = get_one_ireg();
+            emit("mov%s %s, %s", suffix[i], oplabel(l), reg->r[i]);
+            emit("mov%s %s, %s", suffix[i], reg->r[i], dst);
+        }
+        break;
+    case SYM_KIND_TMP:
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
+static void emit_assign(struct tac *tac)
+{
+    if (tac->op == IR_ASSIGNI)
+        emit_assigni(tac);
+    else
+        emit_assignf(tac);
 }
 
 static void emit_uop_not(struct tac *tac)
