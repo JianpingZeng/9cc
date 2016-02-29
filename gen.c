@@ -181,11 +181,11 @@ static void store(node_t *sym, struct reg *reg)
     SYM_X_REG(sym) = NULL;
 }
 
-static struct reg * get_one_ireg(void)
+static struct reg * get_one_reg(struct reg **regs, int size)
 {
     struct reg *min = NULL;
-    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
-        struct reg *reg = int_regs[i];
+    for (int i = 0; i < size; i++) {
+        struct reg *reg = regs[i];
         if (vec_empty(reg->vars))
             return reg;
         if (min == NULL)
@@ -196,9 +196,14 @@ static struct reg * get_one_ireg(void)
     die("not implemented yet.");
 }
 
-static const char * oplabel(struct operand *operand)
+static struct reg * get_one_freg(void)
 {
-    return SYM_X_LABEL(operand->sym);
+    return get_one_reg(float_regs, ARRAY_SIZE(float_regs));
+}
+
+static struct reg * get_one_ireg(void)
+{
+    return get_one_reg(int_regs, ARRAY_SIZE(int_regs));
 }
 
 static bool isgref(node_t *sym)
@@ -224,6 +229,21 @@ static const char * ref_rvalue(node_t *sym)
         return format("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]);
     else
         return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
+}
+
+static const char * oplabel(struct operand *operand)
+{
+    node_t *sym = operand->sym;
+    switch (SYM_X_KIND(sym)) {
+    case SYM_KIND_ILITERAL:
+        return format("$%lu", SYM_VALUE_U(sym));
+    case SYM_KIND_REF:
+        return ref_rvalue(sym);
+    case SYM_KIND_TMP:
+        break;
+    default:
+        return SYM_X_LABEL(sym);
+    }
 }
 
 static void emit_conv_i2i(struct tac *tac)
@@ -259,32 +279,55 @@ static void emit_param_scalar(struct tac *tac, node_t *arg)
     struct paddr *paddr = EXPR_X_PADDR(arg);
     node_t *ty = AST_TYPE(arg);
     int i = idx[TYPE_SIZE(ty)];
+    node_t *sym = operand->sym;
+    struct reg *src = SYM_X_REG(sym);
     if (paddr->kind == ADDR_REGISTER) {
         struct reg *dst = paddr->u.regs[0].reg;
-        node_t *sym = operand->sym;
-        struct reg *src = SYM_X_REG(sym);
         if (src == NULL) {
-            if (SYM_X_KIND(sym) == SYM_KIND_ILITERAL) {
-                emit("mov%s $%lu, %s", suffix[i], SYM_VALUE_U(sym), dst->r[i]);
-            } else if (SYM_X_KIND(sym) == SYM_KIND_REF) {
-                const char *label = ref_rvalue(sym);
-                if (isint(ty) || isptr(ty)) {
-                    emit("mov%s %s, %s", suffix[i], label, dst->r[i]);
-                } else if (isfloat(ty)) {
-                    if (TYPE_SIZE(ty) == 4) {
-                        emit("movss %s, %s", label, dst->r[i]);
-                    } else {
-                        emit("movsd %s, %s", label, dst->r[i]);
-                    }
-                }
-            } else {
-                die("unexpected sym kind: %d (%s)", SYM_X_KIND(sym), SYM_X_LABEL(sym));
+            const char *label = oplabel(operand);
+            if (isint(ty) || isptr(ty)) {
+                emit("mov%s %s, %s", suffix[i], label, dst->r[i]);
+            } else if (isfloat(ty)) {
+                if (TYPE_SIZE(ty) == 4)
+                    emit("movss %s, %s", label, dst->r[i]);
+                else
+                    emit("movsd %s, %s", label, dst->r[i]);
             }
         } else if (src != dst) {
             emit("mov%s %s, %s", suffix[i], src->r[i], dst->r[i]);
         }
     } else if (paddr->kind == ADDR_STACK) {
-        
+        const char *stack;
+        if (paddr->u.offset)
+            stack = format("%ld(%s)", paddr->u.offset, rsp->r[Q]);
+        else
+            stack = format("(%s)", rsp->r[Q]);
+        if (src) {
+            if (isint(ty) || isptr(ty)) {
+                emit("mov%s %s, %s", suffix[i], src->r[i], stack);
+            } else if (isfloat(ty)) {
+                if (TYPE_SIZE(ty) == 4)
+                    emit("movss %s, %s", src->r[i], stack);
+                else
+                    emit("movsd %s, %s", src->r[i], stack);
+            }
+        } else {
+            const char *label = oplabel(operand);
+            if (isint(ty) || isptr(ty)) {
+                struct reg *tmp = get_one_ireg();
+                emit("mov%s %s, %s", suffix[i], label, tmp->r[i]);
+                emit("mov%s %s, %s", suffix[i], tmp->r[i], stack);
+            } else if (isfloat(ty)) {
+                struct reg *tmp = get_one_freg();
+                if (TYPE_SIZE(ty) == 4) {
+                    emit("movss %s, %s", label, tmp->r[Q]);
+                    emit("movss %s, %s", tmp->r[Q], stack);
+                } else {
+                    emit("movsd %s, %s", label, tmp->r[Q]);
+                    emit("movsd %s, %s", tmp->r[Q], stack);
+                }
+            }
+        }
     }
 }
 
@@ -326,10 +369,8 @@ static void emit_nonbuiltin_call(struct tac *tac)
     }
 
     // emit args
-    
     struct pinfo pinfo = alloc_addr_for_params(args);
-    // in reverse order
-    for (int i = len - 1; i >= 0; i--) {
+    for (int i = 0; i < len; i++) {
         node_t *arg = args[i];
         struct tac *param = vec_at(params, i);
         emit_param(param, arg);
@@ -983,7 +1024,7 @@ static void emit_function_prologue(struct gdata *gdata)
         localsize += REGISTER_SAVE_AREA_SIZE;
     
     // local vars
-    for (int i = LIST_LEN(DECL_X_LVARS(decl)) - 1; i >= 0; i--) {
+    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(decl)); i++) {
         node_t *lvar = DECL_X_LVARS(decl)[i];
         node_t *sym = DECL_SYM(lvar);
         node_t *ty = SYM_TYPE(sym);
