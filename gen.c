@@ -4,9 +4,6 @@ static FILE *outfp;
 static const char *func_end_label;
 static int func_returns;
 
-static const char * oplabel(struct operand *operand);
-static size_t alloc_funcall_params(node_t *call);
-
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
 #define REGISTER_SAVE_AREA_SIZE  (NUM_IARG_REGS * 8 + NUM_FARG_REGS * 16)
@@ -36,6 +33,13 @@ static int idx[] = {
 static const char *suffix[] = {
     "b", "w", "l", "q"
 };
+
+struct pinfo {
+    int fp;
+    int gp;
+    size_t size;
+};
+static struct pinfo alloc_addr_for_params(node_t **params);
 
 static void emit(const char *fmt, ...)
 {
@@ -156,6 +160,72 @@ static void init_regs(void)
     }
 }
 
+// LD reg, sym
+static void load(struct reg *reg, node_t *sym)
+{
+    cc_assert(vec_empty(reg->vars));
+    cc_assert(SYM_X_REG(sym) == NULL);
+    
+    if (!reg->vars)
+        reg->vars = vec_new1(sym);
+    else
+        vec_push(reg->vars, sym);
+    SYM_X_REG(sym) = reg;
+}
+
+// ST sym, reg
+static void store(node_t *sym, struct reg *reg)
+{
+    cc_assert(SYM_X_REG(sym));
+
+    SYM_X_REG(sym) = NULL;
+}
+
+static struct reg * get_one_ireg(void)
+{
+    struct reg *min = NULL;
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
+        struct reg *reg = int_regs[i];
+        if (vec_empty(reg->vars))
+            return reg;
+        if (min == NULL)
+            min = reg;
+        else if (vec_len(reg->vars) < vec_len(min->vars))
+            min = reg;
+    }
+    die("not implemented yet.");
+}
+
+static const char * oplabel(struct operand *operand)
+{
+    return SYM_X_LABEL(operand->sym);
+}
+
+static bool isgref(node_t *sym)
+{
+    return has_static_extent(sym) ||
+        SYM_SCOPE(sym) == CONSTANT ||
+        isfunc(SYM_TYPE(sym));
+}
+
+static const char * ref_lvalue(node_t *sym)
+{
+    cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
+    if (isgref(sym))
+        return format("%s", SYM_X_LABEL(sym));
+    else
+        return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
+}
+
+static const char * ref_rvalue(node_t *sym)
+{
+    cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
+    if (isgref(sym))
+        return format("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]);
+    else
+        return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
+}
+
 static void emit_conv_i2i(struct tac *tac)
 {
     
@@ -173,17 +243,72 @@ static void emit_conv_f2i(struct tac *tac)
 
 static void emit_conv_f2f(struct tac *tac)
 {
-    
+    struct operand *result = tac->result;
+    struct operand *l = tac->args[0];
+    if (tac->from_opsize == tac->to_opsize) {
+    }
 }
 
 /*
   integer params(6): rdi, rsi, rdx, rcx, r8, r9
   floating params(8): xmm0~xmm7
  */
-static void emit_param(struct tac *tac)
+static void emit_param_scalar(struct tac *tac, node_t *arg)
 {
     struct operand *operand = tac->args[0];
-    // TODO: 
+    struct paddr *paddr = EXPR_X_PADDR(arg);
+    node_t *ty = AST_TYPE(arg);
+    int i = idx[TYPE_SIZE(ty)];
+    if (paddr->kind == ADDR_REGISTER) {
+        struct reg *dst = paddr->u.regs[0].reg;
+        node_t *sym = operand->sym;
+        struct reg *src = SYM_X_REG(sym);
+        if (src == NULL) {
+            if (SYM_X_KIND(sym) == SYM_KIND_ILITERAL) {
+                emit("mov%s $%lu, %s", suffix[i], SYM_VALUE_U(sym), dst->r[i]);
+            } else if (SYM_X_KIND(sym) == SYM_KIND_REF) {
+                const char *label = ref_rvalue(sym);
+                if (isint(ty) || isptr(ty)) {
+                    emit("mov%s %s, %s", suffix[i], label, dst->r[i]);
+                } else if (isfloat(ty)) {
+                    if (TYPE_SIZE(ty) == 4) {
+                        emit("movss %s, %s", label, dst->r[i]);
+                    } else {
+                        emit("movsd %s, %s", label, dst->r[i]);
+                    }
+                }
+            } else {
+                die("unexpected sym kind: %d (%s)", SYM_X_KIND(sym), SYM_X_LABEL(sym));
+            }
+        } else if (src != dst) {
+            emit("mov%s %s, %s", suffix[i], src->r[i], dst->r[i]);
+        }
+    } else if (paddr->kind == ADDR_STACK) {
+        
+    }
+}
+
+static void emit_param_struct(struct tac *tac, node_t *arg)
+{
+    die("not implemented yet");
+}
+
+static void emit_param_union(struct tac *tac, node_t *arg)
+{
+    die("not implemented yet");
+}
+
+static void emit_param(struct tac *tac, node_t *arg)
+{
+    node_t *ty = AST_TYPE(arg);
+    if (isint(ty) || isptr(ty) || isfloat(ty))
+        emit_param_scalar(tac, arg);
+    else if (isstruct(ty))
+        emit_param_struct(tac, arg);
+    else if (isunion(ty))
+        emit_param_union(tac, arg);
+    else
+        cc_assert(0);
 }
 
 static void emit_nonbuiltin_call(struct tac *tac)
@@ -191,18 +316,28 @@ static void emit_nonbuiltin_call(struct tac *tac)
     node_t *call = tac->call;
     node_t **args = EXPR_ARGS(call);
     struct operand *l = tac->args[0];
+    int len = tac->relop;
+    node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
+    struct vector *params = vec_new();
+    struct tac *t = tac->prev;
+    for (int i = 0; i < len; i++, t = t->prev) {
+        cc_assert(t->op == IR_PARAM);
+        vec_push(params, t);
+    }
 
     // emit args
-    alloc_funcall_params(call);
-    // in reverse order
-    for (int i = LIST_LEN(args) - 1; i >= 0; i--) {
-        node_t *arg = args[i];
-        struct operand *operand = EXPR_X_ADDR(arg);
-        // TODO: 
-    }
     
+    struct pinfo pinfo = alloc_addr_for_params(args);
+    // in reverse order
+    for (int i = len - 1; i >= 0; i--) {
+        node_t *arg = args[i];
+        struct tac *param = vec_at(params, i);
+        emit_param(param, arg);
+    }
+
+    if (TYPE_VARG(ftype))
+        emit("movl $%d, %%eax", pinfo.fp);
     emit("callq %s", SYM_X_LABEL(l->sym));
-    // TODO: clear uses
 }
 
 static void emit_builtin_va_start(struct tac *tac)
@@ -263,11 +398,6 @@ static void emit_assign(struct tac *tac)
     
 }
 
-static const char * oplabel(struct operand *operand)
-{
-    return "";
-}
-
 static void emit_uop_not(struct tac *tac)
 {
     
@@ -280,7 +410,11 @@ static void emit_uop_minus(struct tac *tac)
 
 static void emit_uop_address(struct tac *tac)
 {
-    
+    node_t *sym = tac->args[0]->sym;
+    const char *label = ref_lvalue(sym);
+    struct reg *reg = get_one_ireg();
+    load(reg, tac->result->sym);
+    emit("leaq %s, %s", label, reg->r[Q]);
 }
 
 static void emit_bop_mod(struct tac *tac)
@@ -356,9 +490,6 @@ static void emit_tac(struct tac *tac)
     case IR_ASSIGNF:
         emit_assign(tac);
         break;
-    case IR_PARAM:
-        emit_param(tac);
-        break;
     case IR_CALL:
         emit_call(tac);
         break;
@@ -380,8 +511,10 @@ static void emit_tac(struct tac *tac)
         emit_conv_f2i(tac);
         break;
     case IR_NONE:
+    case IR_PARAM:
     default:
-        cc_assert(0);
+        // skip
+        break;
     }
 }
 
@@ -668,7 +801,7 @@ static bool is_type_aligned(node_t *ty)
 }
 
 // params: list of symbols or expressions, may be NULL
-static size_t alloc_addr_for_params(node_t **params)
+static struct pinfo alloc_addr_for_params(node_t **params)
 {
     int gp = 0;
     int fp = 0;
@@ -740,18 +873,7 @@ static size_t alloc_addr_for_params(node_t **params)
             }
         }
     }
-    return offset;
-}
-
-static size_t alloc_funcall_params(node_t *call)
-{
-    if (EXPR_X_PARAM_ALLOCED(call))
-        return EXPR_X_STACK_PARAM_SIZE(call);
-    node_t **args = EXPR_ARGS(call);
-    size_t size = alloc_addr_for_params(args);
-    EXPR_X_STACK_PARAM_SIZE(call) = size;
-    EXPR_X_PARAM_ALLOCED(call) = true;
-    return size;
+    return (struct pinfo){.fp = fp, .gp = gp, .size = offset};
 }
 
 static size_t extra_stack_size(node_t *decl)
@@ -760,8 +882,8 @@ static size_t extra_stack_size(node_t *decl)
     node_t **calls = DECL_X_CALLS(decl);
     for (int i = 0; i < LIST_LEN(calls); i++) {
         node_t *call = calls[i];
-        size_t size = alloc_funcall_params(call);
-        extra_stack_size = MAX(extra_stack_size, size);
+        struct pinfo pinfo = alloc_addr_for_params(EXPR_ARGS(call));
+        extra_stack_size = MAX(extra_stack_size, pinfo.size);
     }
     return extra_stack_size;
 }

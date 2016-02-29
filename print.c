@@ -551,7 +551,7 @@ void print_tac(struct tac *tac)
     default:
         die("unexpected rop %s", rop2s(tac->op));
     }
-    putf("\t\t");
+    putf("\t");
     if (tac->result)
         putf("%s[live:%d,next:%p] ",
              SYM_X_LABEL(tac->result->sym),

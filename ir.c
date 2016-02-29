@@ -1333,8 +1333,8 @@ static void emit_float_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_float_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    SYM_X_KIND(sym) = SYM_KIND_FLITERAL;
-    EXPR_X_ADDR(n) = make_indirection_operand(make_sym_operand(sym));
+    SYM_X_KIND(sym) = SYM_KIND_REF;
+    EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_string_literal(node_t *n)

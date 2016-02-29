@@ -58,7 +58,6 @@ struct gdata {
 enum {
     SYM_KIND_LABEL,
     SYM_KIND_ILITERAL,
-    SYM_KIND_FLITERAL,
     SYM_KIND_REF,
     SYM_KIND_TMP,
 };
@@ -150,6 +149,7 @@ struct tac {
     struct tac *next, *prev;
     node_t *call;               // funcall expr
     struct uses uses[3];
+    struct reg *regs[3];        // register dispatch
 };
 
 // externals
@@ -179,8 +179,6 @@ struct externals {
 #define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.expr.bfalse)
 #define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.expr.array)
 #define EXPR_X_PADDR(NODE)    ((NODE)->expr.x.expr.paddr)
-#define EXPR_X_PARAM_ALLOCED(NODE)     ((NODE)->expr.x.expr.param_allocated)
-#define EXPR_X_STACK_PARAM_SIZE(NODE)  ((NODE)->expr.x.expr.stack_param_size)
 // stmt
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
@@ -212,9 +210,6 @@ union x {
         const char *bfalse;
 
         struct paddr *paddr;    // arg addr
-
-        int param_allocated:1;
-        size_t stack_param_size;
     }expr;
 
     struct {
