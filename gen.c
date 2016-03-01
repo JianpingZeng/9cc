@@ -206,6 +206,18 @@ static struct reg * get_one_ireg(void)
     return get_one_reg(int_regs, ARRAY_SIZE(int_regs));
 }
 
+static struct reg * get_ireg(struct operand *operand)
+{
+}
+
+// x = y op z
+static void dispatch_ireg_bop(struct tac *tac)
+{
+    struct operand *result = tac->result;
+    struct operand *l = tac->args[0];
+    struct operand *r = tac->args[1];
+}
+
 static bool isgref(node_t *sym)
 {
     return has_static_extent(sym) ||
@@ -248,7 +260,13 @@ static const char * oplabel(struct operand *operand)
 
 static void emit_conv_i2i(struct tac *tac)
 {
-    
+    if (tac->to_opsize > tac->from_opsize) {
+        // widden
+    } else if (tac->to_opsize < tac->from_opsize) {
+        // narrow
+    } else {
+        // equal size
+    }
 }
 
 static void emit_conv_i2f(struct tac *tac)
@@ -496,6 +514,16 @@ static void emit_bop_mod(struct tac *tac)
     
 }
 
+static void emit_bop_lshift(struct tac *tac)
+{
+    
+}
+
+static void emit_bop_rshift(struct tac *tac)
+{
+    
+}
+
 static void emit_bop_int(struct tac *tac, const char *op)
 {
 }
@@ -529,16 +557,34 @@ static void emit_tac(struct tac *tac)
         emit_bop_int(tac, "add");
         break;
     case IR_SUBI:
+        emit_bop_int(tac, "sub");
+        break;
     case IR_DIVI:
+        emit_bop_int(tac, "div");
+        break;
     case IR_IDIVI:
+        emit_bop_int(tac, "idiv");
+        break;
     case IR_MULI:
+        emit_bop_int(tac, "mul");
+        break;
     case IR_IMULI:
+        emit_bop_int(tac, "imul");
+        break;
     case IR_OR:
+        emit_bop_int(tac, "or");
+        break;
     case IR_AND:
+        emit_bop_int(tac, "and");
+        break;
     case IR_XOR:
+        emit_bop_int(tac, "xor");
+        break;
     case IR_LSHIFT:
+        emit_bop_lshift(tac);
+        break;
     case IR_RSHIFT:
-        emit_bop_int(tac, "shl");
+        emit_bop_rshift(tac);
         break;
     case IR_MOD:
         emit_bop_mod(tac);

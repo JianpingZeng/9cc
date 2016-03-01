@@ -135,3 +135,66 @@ uint8 => int8: movzbl, movb
 uint16 => int16: movzwl, movw
 uint32 => int32: movl, movl
 uint64 => int64: movq, movq
+
+
+MOV instruction
+
+1. MOV
+mov + [b,w,l,q]
+
+2. MOVSX/MOVSD: Move with Sign-Extension
+MOVSX r16, r/m8      Move byte to word with sign-extension.
+MOVSX r32, r/m8      Move byte to doubleword with sign-extension.
+MOVSX r64, r/m8      Move byte to quadword with sign-extension.
+MOVSX r32, r/m16     Move word to doubleword with sign-extension.
+MOVSX r64, r/m16     Move word to quadword with sign-extension.
+MOVSXD r64, r/m32    Move doubleword to quadword with sign-extension.
+
+movs + [b,w,l][w,l,q]
+movsbw
+movsbl
+movsbq
+movswl
+movswq
+movslq
+ctlq (CDQE in Intel Manuals, shorthand for "movslq %eax, %rax")
+
+3. MOVZX: Move with Zero-Extend
+MOVZX r16, r/m8         Move byte to word with zero-extension.
+MOVZX r32, r/m8         Move byte to doubleword, zero-extension.
+MOVZX r64, r/m8         Move byte to quadword, zero-extension.
+MOVZX r32, r/m16        Move word to doubleword, zero-extension.
+MOVZX r64, r/m16        Move word to quadword, zero-extension.
+
+movz + [b,w][w,l,q]
+movzbw
+movzbl
+movzbq
+movzwl
+movzwq
+
+
+Shift: SAL/SAR/SHL/SHR
+
+SAL: shift arithmetic left
+SHL: shift logical left
+SAR: shift arithmetic right
+SHR: shift logical right
+
+SHIFT [reg/mem], [imm8/cl]
+
+1. SAL and SHL are the same.
+2. SHR: fill with zeros
+3. SAR: fill with ones
+
+
+Reference:
+
+1. Intel 64 and IA-32 Architecture Software Developer Manuals:
+http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html
+
+2. Using as:
+https://sourceware.org/binutils/docs/as/
+
+3. ASM64 Handout:
+https://www.cs.cmu.edu/~fp/courses/15213-s07/misc/asm64-handout.pdf

@@ -56,3 +56,9 @@ Reference:
 4. DWARF Standard: http://dwarfstd.org/
 
 5. 《Compilers: Principles, Techniques, and Tools》: http://dragonbook.stanford.edu/
+
+6. Intel 64 and IA-32 Architecture Software Developer Manuals:
+http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html
+
+7. Using as:
+https://sourceware.org/binutils/docs/as/
