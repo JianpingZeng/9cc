@@ -146,9 +146,9 @@ static struct tac * make_tac(int op,
 {
     struct tac *tac = (struct tac *)alloc_tac();
     tac->op = op;
-    tac->args[0] = l;
-    tac->args[1] = r;
-    tac->result = result;
+    tac->operands[1] = l;
+    tac->operands[2] = r;
+    tac->operands[0] = result;
     tac->opsize = opsize;
     return tac;
 }
@@ -175,7 +175,7 @@ static struct operand * make_indirection_operand(struct operand *l)
         {
             struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
             emit_tac(tac);
-            struct operand *operand = make_sym_operand(tac->result->sym);
+            struct operand *operand = make_sym_operand(tac->operands[0]->sym);
             operand->op = IR_INDIRECTION;
             return operand;
         }
@@ -216,17 +216,17 @@ static struct operand * do_make_subscript_operand2(struct operand *l,
                                       make_int_operand(step),
                                       ops[Quad]);
         emit_tac(tac1);
-        struct tac *tac2 = make_tac_r(IR_ADDI, l, tac1->result, ops[Quad]);
+        struct tac *tac2 = make_tac_r(IR_ADDI, l, tac1->operands[0], ops[Quad]);
         emit_tac(tac2);
         if (disp) {
             struct tac *tac3 = make_tac_r(IR_ADDI,
-                                          tac2->result,
+                                          tac2->operands[0],
                                           make_int_operand(disp),
                                           ops[Quad]);
             emit_tac(tac3);
-            operand->sym = tac3->result->sym;
+            operand->sym = tac3->operands[0]->sym;
         } else {
-            operand->sym = tac2->result->sym;
+            operand->sym = tac2->operands[0]->sym;
         }
     }
 
@@ -248,7 +248,7 @@ static struct operand * do_make_subscript_operand(struct operand *l,
                                               index,
                                               ops[Quad]);
             emit_tac(tac);
-            return do_make_subscript_operand2(l, tac->result, step, disp);
+            return do_make_subscript_operand2(l, tac->operands[0], step, disp);
         }
         break;
     case IR_INDIRECTION:
@@ -258,7 +258,7 @@ static struct operand * do_make_subscript_operand(struct operand *l,
                                               index,
                                               ops[Quad]);
             emit_tac(tac);
-            return do_make_subscript_operand2(l, tac->result, step, disp);
+            return do_make_subscript_operand2(l, tac->operands[0], step, disp);
         }
         break;
     default:
@@ -277,7 +277,7 @@ static struct operand * make_subscript_operand(struct operand *l,
         if (l->index) {
             struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
             emit_tac(tac);
-            return do_make_subscript_operand(tac->result, index, step, 0);
+            return do_make_subscript_operand(tac->operands[0], index, step, 0);
         } else {
             return do_make_subscript_operand(l, index, step, l->disp);
         }
@@ -286,7 +286,7 @@ static struct operand * make_subscript_operand(struct operand *l,
         {
             struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
             emit_tac(tac);
-            return do_make_subscript_operand(tac->result, index, step, 0);
+            return do_make_subscript_operand(tac->operands[0], index, step, 0);
         }
         break;
     default:
@@ -311,7 +311,7 @@ static struct operand * make_offset_operand(struct operand *l, long offset)
         if (l->index) {
             struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
             emit_tac(tac);
-            return do_make_offset_operand(tac->result, offset);
+            return do_make_offset_operand(tac->operands[0], offset);
         } else {
             return do_make_offset_operand(l, l->disp + offset);
         }
@@ -320,7 +320,7 @@ static struct operand * make_offset_operand(struct operand *l, long offset)
         {
             struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
             emit_tac(tac);
-            return do_make_offset_operand(tac->result, offset);
+            return do_make_offset_operand(tac->operands[0], offset);
         }
         break;
     default:
@@ -350,7 +350,7 @@ static void emit_label(const char *label)
 {
     if (func_tac_tail &&
         func_tac_tail->op == IR_LABEL &&
-        !strcmp(SYM_NAME(func_tac_tail->result->sym), label)) {
+        !strcmp(SYM_NAME(func_tac_tail->operands[0]->sym), label)) {
         // same label, do nothing
     } else {
         struct operand *operand = make_label_operand(label);
@@ -394,14 +394,14 @@ static struct operand * emit_conv_tac(int op, struct operand *l,
 {
     struct tac *tac = make_conv_tac(op, l, from_opsize, to_opsize);
     emit_tac(tac);
-    return tac->result;
+    return tac->operands[0];
 }
 
 static struct operand * emit_address_tac(struct operand *l)
 {
     struct tac *tac = make_tac_r(IR_ADDRESS, l, NULL, ops[Quad]);
     emit_tac(tac);
-    return tac->result;
+    return tac->operands[0];
 }
 
 static void emit_decl(node_t *decl)
@@ -436,7 +436,7 @@ static void emit_uop_bitwise_not(node_t *n)
                                  EXPR_X_ADDR(l), NULL,
                                  ops[TYPE_SIZE(AST_TYPE(n))]);
     emit_tac(tac);
-    EXPR_X_ADDR(n) = tac->result;
+    EXPR_X_ADDR(n) = tac->operands[0];
 }
 
 // int
@@ -460,7 +460,7 @@ static void emit_uop_minus(node_t *n)
                                  EXPR_X_ADDR(l), NULL,
                                  ops[TYPE_SIZE(ty)]);
     emit_tac(tac);
-    EXPR_X_ADDR(n) = tac->result;
+    EXPR_X_ADDR(n) = tac->operands[0];
 }
 
 // arith
@@ -514,12 +514,12 @@ static struct operand * emit_ptr_int(int op,
             // using MUL
             tac = make_tac_r(IR_MULI, index, make_unsigned_operand(step), opsize);
             emit_tac(tac);
-            distance = tac->result;
+            distance = tac->operands[0];
         } else if (sup > 0) {
             // using SHIFT
             tac = make_tac_r(IR_LSHIFT, index, make_unsigned_operand(sup), opsize);
             emit_tac(tac);
-            distance = tac->result;
+            distance = tac->operands[0];
         } else {
             distance = index;
         }
@@ -527,7 +527,7 @@ static struct operand * emit_ptr_int(int op,
     
     struct tac *tac = make_tac(op, l, distance, result, opsize);
     emit_tac(tac);
-    return tac->result;
+    return tac->operands[0];
 }
 
 // scalar
@@ -569,7 +569,7 @@ static void emit_uop_increment(node_t *n)
             emit_tac(tac);
             struct tac *tac2 = make_assign_tac(assignop,
                                                EXPR_X_ADDR(l),
-                                               tac->result,
+                                               tac->operands[0],
                                                opsize);
             emit_tac(tac2);
             EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
@@ -592,7 +592,7 @@ static void emit_uop_increment(node_t *n)
             emit_tac(tac);
             struct tac *tac2 = make_assign_tac(assignop,
                                                EXPR_X_ADDR(l),
-                                               tac->result,
+                                               tac->operands[0],
                                                opsize);
             emit_tac(tac2);
         }
@@ -792,7 +792,7 @@ static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r
     emit_tac(tac1);
     // <<
     struct operand *operand2 = make_unsigned_operand(boff);
-    struct tac *tac2 = make_tac_r(IR_LSHIFT, tac1->result, operand2, opsize);
+    struct tac *tac2 = make_tac_r(IR_LSHIFT, tac1->operands[0], operand2, opsize);
     emit_tac(tac2);
     // &
     unsigned mask2 = ~(mask1 << boff);
@@ -800,10 +800,10 @@ static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r
     struct tac *tac3 = make_tac_r(IR_AND, l, operand3, opsize);
     emit_tac(tac3);
     // |
-    struct tac *tac4 = make_tac_r(IR_OR, tac2->result, tac3->result, opsize);
+    struct tac *tac4 = make_tac_r(IR_OR, tac2->operands[0], tac3->operands[0], opsize);
     emit_tac(tac4);
     // assign
-    emit_scalar_basic(ty, l, tac4->result, offset);
+    emit_scalar_basic(ty, l, tac4->operands[0], offset);
 }
 
 static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
@@ -944,7 +944,7 @@ static void emit_bop_arith(node_t *n)
 
     struct tac *tac = make_tac_r(op, EXPR_X_ADDR(l), EXPR_X_ADDR(r), opsize);
     emit_tac(tac);
-    EXPR_X_ADDR(n) = tac->result;
+    EXPR_X_ADDR(n) = tac->operands[0];
 }
 
 // arith + arith
@@ -1106,14 +1106,14 @@ static void emit_member(node_t *n)
                                          make_unsigned_operand(boff),
                                          opsize);
             emit_tac(tac);
-            result = tac->result;
+            result = tac->operands[0];
         }
         struct tac *tac = make_tac_r(IR_OR,
                                      result,
                                      make_unsigned_operand(mask1),
                                      opsize);
         emit_tac(tac);
-        EXPR_X_ADDR(n) = tac->result;
+        EXPR_X_ADDR(n) = tac->operands[0];
     }
 }
 
@@ -1160,7 +1160,7 @@ static void emit_call(node_t *n)
         struct tac *tac = make_call_tac(EXPR_X_ADDR(l), len, make_tmp_operand());
         tac->call = n;
         emit_tac(tac);
-        EXPR_X_ADDR(n) = tac->result;
+        EXPR_X_ADDR(n) = tac->operands[0];
     }
 }
 

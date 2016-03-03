@@ -3,6 +3,7 @@
 static FILE *outfp;
 static const char *func_end_label;
 static int func_returns;
+static struct map *next_info;
 
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
@@ -213,9 +214,6 @@ static struct reg * get_ireg(struct operand *operand)
 // x = y op z
 static void dispatch_ireg_bop(struct tac *tac)
 {
-    struct operand *result = tac->result;
-    struct operand *l = tac->args[0];
-    struct operand *r = tac->args[1];
 }
 
 static bool isgref(node_t *sym)
@@ -281,10 +279,6 @@ static void emit_conv_f2i(struct tac *tac)
 
 static void emit_conv_f2f(struct tac *tac)
 {
-    struct operand *result = tac->result;
-    struct operand *l = tac->args[0];
-    if (tac->from_opsize == tac->to_opsize) {
-    }
 }
 
 /*
@@ -293,7 +287,7 @@ static void emit_conv_f2f(struct tac *tac)
  */
 static void emit_param_scalar(struct tac *tac, node_t *arg)
 {
-    struct operand *operand = tac->args[0];
+    struct operand *operand = tac->operands[1];
     struct paddr *paddr = EXPR_X_PADDR(arg);
     node_t *ty = AST_TYPE(arg);
     int i = idx[TYPE_SIZE(ty)];
@@ -376,7 +370,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
     node_t **args = EXPR_ARGS(call);
-    struct operand *l = tac->args[0];
+    struct operand *l = tac->operands[1];
     int len = tac->relop;
     node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
     struct vector *params = vec_new();
@@ -417,7 +411,7 @@ static void emit_builtin_va_copy(struct tac *tac)
 
 static void emit_call(struct tac *tac)
 {
-    const char *name = SYM_NAME(tac->args[0]->sym);
+    const char *name = SYM_NAME(tac->operands[1]->sym);
     if (!strcmp(name, "__builtin_va_start"))
         emit_builtin_va_start(tac);
     else if (!strcmp(name, "__builtin_va_arg_class"))
@@ -432,7 +426,7 @@ static void emit_call(struct tac *tac)
 
 static void emit_return(struct tac *tac)
 {
-    struct operand *operand = tac->args[0];
+    struct operand *operand = tac->operands[1];
     // TODO:
     func_returns++;
 }
@@ -444,12 +438,12 @@ static void emit_if(struct tac *tac)
 
 static void emit_goto(struct tac *tac)
 {
-    emit("jmpq %s", SYM_X_LABEL(tac->result->sym));
+    emit("jmpq %s", SYM_X_LABEL(tac->operands[0]->sym));
 }
 
 static void emit_label(struct tac *tac)
 {
-    emit_noindent("%s:", SYM_X_LABEL(tac->result->sym));
+    emit_noindent("%s:", SYM_X_LABEL(tac->operands[0]->sym));
 }
 
 static void emit_assignf(struct tac *tac)
@@ -459,8 +453,8 @@ static void emit_assignf(struct tac *tac)
 
 static void emit_assigni(struct tac *tac)
 {
-    struct operand *result = tac->result;
-    struct operand *l = tac->args[0];
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
     int i = idx[tac->opsize];
     const char *dst = oplabel(result);
     // TODO:
@@ -502,10 +496,10 @@ static void emit_uop_minus(struct tac *tac)
 
 static void emit_uop_address(struct tac *tac)
 {
-    node_t *sym = tac->args[0]->sym;
+    node_t *sym = tac->operands[1]->sym;
     const char *label = ref_lvalue(sym);
     struct reg *reg = get_one_ireg();
-    load(reg, tac->result->sym);
+    load(reg, tac->operands[0]->sym);
     emit("leaq %s, %s", label, reg->r[Q]);
 }
 
@@ -665,24 +659,31 @@ static void mark_live(node_t *sym, struct tac *tac)
 static void scan_tacs_uses(struct tac *tail)
 {
     for (struct tac *tac = tail; tac; tac = tac->prev) {
-        struct operand *result = tac->result;
-        struct operand *l = tac->args[0];
-        struct operand *r = tac->args[1];
+        // struct operand *result = tac->result;
+        // struct operand *l = tac->args[0];
+        // struct operand *r = tac->args[1];
 
-        // set
-        if (result)
-            tac->uses[0] = SYM_X_USES(result->sym);
-        if (l)
-            tac->uses[1] = SYM_X_USES(l->sym);
-        if (r)
-            tac->uses[2] = SYM_X_USES(r->sym);
-        // mark
-        if (result)
-            mark_die(result->sym);
-        if (l)
-            mark_live(l->sym, tac);
-        if (r)
-            mark_live(r->sym, tac);
+        // // set
+        // if (result)
+        //     tac->uses[0] = SYM_X_USES(result->sym);
+        // if (l)
+        //     tac->uses[1] = SYM_X_USES(l->sym);
+        // if (r)
+        //     tac->uses[2] = SYM_X_USES(r->sym);
+        // // mark
+        // if (result)
+        //     mark_die(result->sym);
+        // if (l)
+        //     mark_live(l->sym, tac);
+        // if (r)
+        //     mark_live(r->sym, tac);
+    }
+}
+
+static void scan_init(struct tac *head)
+{
+    for (struct tac *tac = head; tac; tac = tac->next) {
+        
     }
 }
 
@@ -1152,12 +1153,14 @@ static void emit_text(struct gdata *gdata)
 
     func_end_label = STMT_X_NEXT(DECL_BODY(decl));
     func_returns = 0;
+    next_info = map_new();
 
     emit_function_prologue(gdata);
     if (TYPE_VARG(ftype))
         emit_register_save_area();
     else
         emit_register_params(decl);
+    scan_init(DECL_X_HEAD(decl));
     scan_tacs_uses(DECL_X_TAIL(decl));
     emit_tacs(DECL_X_HEAD(decl));
     // function epilogue

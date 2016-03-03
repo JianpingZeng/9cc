@@ -439,18 +439,18 @@ void print_tac(struct tac *tac)
     case IR_NONE:
         break;
     case IR_LABEL:
-        putf("%s:", operand2s(tac->result));
+        putf("%s:", operand2s(tac->operands[0]));
         break;
     case IR_GOTO:
         putf("%s %s",
               rop2s(tac->op),
-              operand2s(tac->result));
+              operand2s(tac->operands[0]));
         break;
     case IR_RETURNI:
     case IR_RETURNF:
         putf("%s %s",
              rop2s(tac->op),
-             tac->args[0] ? operand2s(tac->args[0]) : "");
+             tac->operands[1] ? operand2s(tac->operands[1]) : "");
         break;
     case IR_IF_I:
     case IR_IF_F:
@@ -460,25 +460,25 @@ void print_tac(struct tac *tac)
             // rel if
             putf("%s %s %s %s %s %s",
                   rop2s(tac->op),
-                  operand2s(tac->args[0]),
+                  operand2s(tac->operands[1]),
                   id2s(tac->relop),
-                  operand2s(tac->args[1]),
+                  operand2s(tac->operands[2]),
                   rop2s(IR_GOTO),
-                  operand2s(tac->result));
+                  operand2s(tac->operands[0]));
         } else {
             // simple if
             putf("%s %s %s %s",
                   rop2s(tac->op),
-                  operand2s(tac->args[0]),
+                  operand2s(tac->operands[1]),
                   rop2s(IR_GOTO),
-                  operand2s(tac->result));
+                  operand2s(tac->operands[0]));
         }
         break;
     case IR_ASSIGNI:
     case IR_ASSIGNF:
         putf("%s = %s \t(%s, %u)",
-             operand2s(tac->result),
-             operand2s(tac->args[0]),
+             operand2s(tac->operands[0]),
+             operand2s(tac->operands[1]),
              tac->op == IR_ASSIGNF ? "ASSIGNF" : "ASSIGNI",
              tac->opsize);
         break;
@@ -499,34 +499,34 @@ void print_tac(struct tac *tac)
     case IR_LSHIFT:
     case IR_RSHIFT:
         putf("%s = %s %s %s",
-              operand2s(tac->result),
-              operand2s(tac->args[0]),
+              operand2s(tac->operands[0]),
+              operand2s(tac->operands[1]),
               rop2s(tac->op),
-              operand2s(tac->args[1]));
+              operand2s(tac->operands[2]));
         break;
     case IR_NOT:
     case IR_MINUSI:
     case IR_MINUSF:
     case IR_ADDRESS:
         putf("%s = %s %s",
-              operand2s(tac->result),
+              operand2s(tac->operands[0]),
               rop2s(tac->op),
-              operand2s(tac->args[0]));
+              operand2s(tac->operands[1]));
         break;
     case IR_PARAM:
-        putf("%s %s", rop2s(tac->op), operand2s(tac->args[0]));
+        putf("%s %s", rop2s(tac->op), operand2s(tac->operands[1]));
         break;
     case IR_CALL:
-        if (tac->result) {
+        if (tac->operands[0]) {
             putf("%s = %s %s, %d",
-                      operand2s(tac->result),
+                      operand2s(tac->operands[0]),
                       rop2s(tac->op),
-                      operand2s(tac->args[0]),
+                      operand2s(tac->operands[1]),
                       tac->relop);
         } else {
             putf("%s %s, %d",
                       rop2s(tac->op),
-                      operand2s(tac->args[0]),
+                      operand2s(tac->operands[1]),
                       tac->relop);
         }
         break;
@@ -540,9 +540,9 @@ void print_tac(struct tac *tac)
     case IR_CONV_F_SI:
     case IR_CONV_FF:
         putf("%s = (%s) %s",
-              operand2s(tac->result),
+              operand2s(tac->operands[0]),
               rop2s(tac->op),
-              operand2s(tac->args[0]));
+              operand2s(tac->operands[1]));
         break;
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
@@ -551,19 +551,6 @@ void print_tac(struct tac *tac)
     default:
         die("unexpected rop %s", rop2s(tac->op));
     }
-    putf("\t");
-    if (tac->result)
-        putf("%s[live:%d,next:%p] ",
-             SYM_X_LABEL(tac->result->sym),
-             tac->uses[0].live, tac->uses[0].next);
-    if (tac->args[0])
-        putf("%s[live:%d,next:%p] ",
-             SYM_X_LABEL(tac->args[0]->sym),
-             tac->uses[1].live, tac->uses[1].next);
-    if (tac->args[1])
-        putf("%s[live:%d,next:%p] ",
-             SYM_X_LABEL(tac->args[1]->sym),
-             tac->uses[2].live, tac->uses[2].next);
     putf("\n");
 }
 

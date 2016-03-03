@@ -144,12 +144,9 @@ struct tac {
     int opsize:6;
     int from_opsize:6;
     int to_opsize:6;
-    struct operand *args[2];
-    struct operand *result;
+    struct operand *operands[3];
     struct tac *next, *prev;
     node_t *call;               // funcall expr
-    struct uses uses[3];
-    struct reg *regs[3];        // register dispatch
 };
 
 // externals
