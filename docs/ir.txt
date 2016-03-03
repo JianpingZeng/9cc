@@ -1,0 +1,43 @@
+// 此文档用于记录 mcc IR （中间表示）
+
+三地址形式：x = y op z
+
+分量x,y,z用operand表示。
+
+分成三类运算：
+
+1. 二元操作符：x = y op z
+2. 一元操作符：x = op y
+3. 赋值操作：x = y
+
+Expression
+-----------
+
+primary:
+
+1. ref
+
+2. float literal
+
+3. integer literal
+
+4. string literal
+
+5. compound literal
+
+6. member
+
+7. subscript
+
+unary:
+
+binary:
+
+cond:
+
+Declaration
+-----------
+
+
+Statement
+-----------
