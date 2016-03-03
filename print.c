@@ -551,6 +551,24 @@ void print_tac(struct tac *tac)
     default:
         die("unexpected rop %s", rop2s(tac->op));
     }
+    putf("\t");
+    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+        struct operand *operand = tac->operands[i];
+        if (operand) {
+            if (operand->sym && (SYM_X_KIND(operand->sym) == SYM_KIND_REF ||
+                                 SYM_X_KIND(operand->sym) == SYM_KIND_TMP)) {
+                struct uses *uses = get_uses(operand->sym, tac);
+                putf("[%s:live:%d,next:%p] ",
+                     SYM_X_LABEL(operand->sym), uses->live, uses->next);
+            }
+            if (operand->index && (SYM_X_KIND(operand->index) == SYM_KIND_REF ||
+                                   SYM_X_KIND(operand->index) == SYM_KIND_TMP)) {
+                struct uses *uses = get_uses(operand->index, tac);
+                putf("[%s:live:%d,next:%p] ",
+                     SYM_X_LABEL(operand->index), uses->live, uses->next);
+            }
+        }
+    }
     putf("\n");
 }
 

@@ -660,17 +660,14 @@ static void mark_live(node_t *sym, struct tac *tac)
     }
 }
 
-static struct uses * get_uses(node_t *sym, struct tac *tac)
+struct uses * get_uses(node_t *sym, struct tac *tac)
 {
     struct map *tuple = map_get(next_info, sym);
     struct uses *uses = map_get(tuple, tac);
     return uses;
 }
 
-static struct uses * get_current_uses(node_t *sym)
-{
-    return get_uses(sym, current_tac);
-}
+#define get_current_uses(sym)  get_uses(sym, current_tac)
 
 static void scan_uses(struct tac *tail)
 {
@@ -678,28 +675,32 @@ static void scan_uses(struct tac *tail)
         // set
         for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
             struct operand *operand = tac->operands[i];
-            if (operand->sym) {
-                struct uses *uses = get_uses(operand->sym, tac);
-                *uses = SYM_X_USES(operand->sym);
-            }
-            if (operand->index) {
-                struct uses *uses = get_uses(operand->index, tac);
-                *uses = SYM_X_USES(operand->index);
+            if (operand) {
+                if (operand->sym) {
+                    struct uses *uses = get_uses(operand->sym, tac);
+                    *uses = SYM_X_USES(operand->sym);
+                }
+                if (operand->index) {
+                    struct uses *uses = get_uses(operand->index, tac);
+                    *uses = SYM_X_USES(operand->index);
+                }
             }
         }
         // mark
         for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
             struct operand *operand = tac->operands[i];
-            if (i == 0) {
-                if (operand->sym)
-                    mark_die(operand->sym);
-                if (operand->index)
-                    mark_die(operand->index);
-            } else {
-                if (operand->sym)
-                    mark_live(operand->sym, tac);
-                if (operand->index)
-                    mark_live(operand->index, tac);
+            if (operand) {
+                if (i == 0) {
+                    if (operand->sym)
+                        mark_die(operand->sym);
+                    if (operand->index)
+                        mark_die(operand->index);
+                } else {
+                    if (operand->sym)
+                        mark_live(operand->sym, tac);
+                    if (operand->index)
+                        mark_live(operand->index, tac);
+                }
             }
         }
     }
@@ -711,6 +712,7 @@ static void uses_init_sym(node_t *sym, struct tac *tac)
     struct map *tuple = map_get(next_info, sym);
     if (!tuple) {
         tuple = map_new();
+        tuple->cmpfn = nocmp;
         map_put(next_info, sym, tuple);
     }
     struct uses *uses = zmalloc(sizeof(struct uses));
@@ -722,10 +724,12 @@ static void uses_init(struct tac *head)
     for (struct tac *tac = head; tac; tac = tac->next) {
         for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
             struct operand *operand = tac->operands[i];
-            if (operand->sym)
+            if (operand) {
+                if (operand->sym)
                 uses_init_sym(operand->sym, tac);
-            if (operand->index)
-                uses_init_sym(operand->index, tac);
+                if (operand->index)
+                    uses_init_sym(operand->index, tac);
+            }
         }
     }
 }
@@ -1197,6 +1201,7 @@ static void emit_text(struct gdata *gdata)
     func_end_label = STMT_X_NEXT(DECL_BODY(decl));
     func_returns = 0;
     next_info = map_new();
+    next_info->cmpfn = nocmp;
 
     emit_function_prologue(gdata);
     if (TYPE_VARG(ftype))

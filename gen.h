@@ -219,6 +219,8 @@ union x {
 
 // gen.c
 extern void gen(struct externals *externals, FILE * fp);
+// for print
+extern struct uses * get_uses(node_t *sym, struct tac *tac);
 
 // ir.c
 extern const char *rop2s(int op);
