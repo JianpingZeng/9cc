@@ -435,6 +435,23 @@ static const char * operand2s(struct operand *operand)
 void print_tac(struct tac *tac)
 {
     putf("<%p>: ", tac);
+    switch (tac->opsize) {
+    case Quad:
+        putf("Q: ");
+        break;
+    case Long:
+        putf("L: ");
+        break;
+    case Word:
+        putf("W: ");
+        break;
+    case Byte:
+        putf("B: ");
+        break;
+    default:
+        putf("Z: ");
+        break;
+    }
     switch (tac->op) {
     case IR_NONE:
         break;
@@ -476,11 +493,10 @@ void print_tac(struct tac *tac)
         break;
     case IR_ASSIGNI:
     case IR_ASSIGNF:
-        putf("%s = %s \t(%s, %u)",
+        putf("%s = %s \t(%s)",
              operand2s(tac->operands[0]),
              operand2s(tac->operands[1]),
-             tac->op == IR_ASSIGNF ? "ASSIGNF" : "ASSIGNI",
-             tac->opsize);
+             tac->op == IR_ASSIGNF ? "ASSIGNF" : "ASSIGNI");
         break;
     case IR_ADDI:
     case IR_ADDF:
@@ -550,24 +566,6 @@ void print_tac(struct tac *tac)
         break;
     default:
         die("unexpected rop %s", rop2s(tac->op));
-    }
-    putf("\t");
-    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
-        struct operand *operand = tac->operands[i];
-        if (operand) {
-            if (operand->sym && (SYM_X_KIND(operand->sym) == SYM_KIND_REF ||
-                                 SYM_X_KIND(operand->sym) == SYM_KIND_TMP)) {
-                struct uses *uses = get_uses(operand->sym, tac);
-                putf("[%s:live:%d,next:%p] ",
-                     SYM_X_LABEL(operand->sym), uses->live, uses->next);
-            }
-            if (operand->index && (SYM_X_KIND(operand->index) == SYM_KIND_REF ||
-                                   SYM_X_KIND(operand->index) == SYM_KIND_TMP)) {
-                struct uses *uses = get_uses(operand->index, tac);
-                putf("[%s:live:%d,next:%p] ",
-                     SYM_X_LABEL(operand->index), uses->live, uses->next);
-            }
-        }
     }
     putf("\n");
 }

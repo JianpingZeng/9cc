@@ -42,6 +42,9 @@ struct pinfo {
     size_t size;
 };
 static struct pinfo alloc_addr_for_params(node_t **params);
+static struct uses * get_uses(node_t *sym, struct tac *tac);
+#define get_current_uses(sym)  get_uses(sym, current_tac)
+static const char * oplabel(struct operand *operand);
 
 static void emit(const char *fmt, ...)
 {
@@ -175,12 +178,84 @@ static void load(struct reg *reg, node_t *sym)
     SYM_X_REG(sym) = reg;
 }
 
+static void load_operand(struct reg *reg, struct operand *operand, int opsize)
+{
+    int i = idx[opsize];
+    // TODO: 
+}
+
 // ST sym, reg
 static void store(node_t *sym, struct reg *reg)
 {
     cc_assert(SYM_X_REG(sym));
 
     SYM_X_REG(sym) = NULL;
+}
+
+static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts, struct reg **regs, int size)
+{
+    // already in reg
+    if (SYM_X_REG(sym))
+        return SYM_X_REG(sym);
+    struct vector *candicates = vec_new();
+    for (int i = 0; i < size; i++) {
+        struct reg *ri = regs[i];
+        bool found = false;
+        for (int j = 0; j < vec_len(excepts); j++) {
+            struct reg *rj = vec_at(excepts, j);
+            if (ri == rj) {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            vec_push(candicates, ri);
+    }
+    for (int i = 0; i < vec_len(candicates); i++) {
+        struct reg *reg = vec_at(candicates, i);
+        if (vec_empty(reg->vars))
+            return reg;
+    }
+    struct costs {
+        int sticky:1;
+        int cost:24;
+    } costs[MAX(INT_REGS, FLOAT_REGS)];
+    struct reg *ret = NULL;
+    int index = -1;
+    for (int i = 0; i < vec_len(candicates); i++) {
+        costs[i] = (struct costs){0, 0};
+        struct reg *reg = vec_at(candicates, i);
+        for (int j = 0; j < vec_len(reg->vars); j++) {
+            node_t *v = vec_at(reg->vars, j);
+            struct uses *uses = get_current_uses(v);
+            if (SYM_X_KIND(v) == SYM_KIND_TMP) {
+                costs[i].sticky = true;
+                break;
+            } else if (SYM_X_KIND(v) == SYM_KIND_REF) {
+                // ok
+            } else if (uses->live == false) {
+                // ok
+            } else {
+                // spill
+                costs[i].cost += 1;
+            }
+        }
+
+        if (costs[i].sticky == false) {
+            if (ret == NULL) {
+                ret = reg;
+                index = i;
+            } else if (costs[i].cost < costs[index].cost) {
+                ret = reg;
+                index = i;
+            }
+        }
+    }
+    if (ret == NULL)
+        die("no enough registers");
+    // spill out
+    // TODO:
+    return ret;
 }
 
 static struct reg * get_one_reg(struct reg **regs, int size)
@@ -254,6 +329,29 @@ static const char * oplabel(struct operand *operand)
         break;
     default:
         return SYM_X_LABEL(sym);
+    }
+}
+
+static void emit_operand(struct operand *operand)
+{
+    if (operand->op == IR_SUBSCRIPT) {
+        if (operand->sym) {
+            struct vector *excepts = vec_new();
+            if (operand->index)
+                vec_push_safe(excepts, SYM_X_REG(operand->index));
+            struct reg *reg = dispatch_reg_for(operand->sym, excepts, int_regs, INT_REGS);
+            // TODO: 
+        }
+        if (operand->index) {
+            struct vector *excepts = vec_new();
+            if (operand->sym)
+                vec_push_safe(excepts, SYM_X_REG(operand->sym));
+            struct reg *reg = dispatch_reg_for(operand->index, excepts, int_regs, INT_REGS);
+            // TODO: 
+        }
+    } else if (operand->op == IR_INDIRECTION) {
+        struct reg *reg = dispatch_reg_for(operand->sym, NULL, int_regs, INT_REGS);
+        // TODO: 
     }
 }
 
@@ -521,6 +619,26 @@ static void emit_bop_rshift(struct tac *tac)
 
 static void emit_bop_int(struct tac *tac, const char *op)
 {
+    struct operand *x = tac->operands[0];
+    struct operand *y = tac->operands[1];
+    struct operand *z = tac->operands[2];
+    cc_assert(SYM_X_KIND(x->sym) == SYM_KIND_TMP);
+
+    if (SYM_X_KIND(y->sym) == SYM_KIND_ILITERAL &&
+        SYM_X_KIND(z->sym) == SYM_KIND_ILITERAL) {
+        
+    } else if (SYM_X_KIND(y->sym) == SYM_KIND_ILITERAL) {
+        
+    } else if (SYM_X_KIND(z->sym) == SYM_KIND_ILITERAL) {
+        
+    } else {
+        emit_operand(y);
+        emit_operand(z);
+        struct reg *reg = get_one_ireg();
+        int i = idx[tac->opsize];
+        emit("%s%s %s, %s", op, suffix[i], oplabel(y), reg->r[i]);
+        emit("%s%s %s, %s", op, suffix[i], oplabel(z), reg->r[i]);
+    }
 }
 
 static void emit_bop_float(struct tac *tac)
@@ -660,14 +778,12 @@ static void mark_live(node_t *sym, struct tac *tac)
     }
 }
 
-struct uses * get_uses(node_t *sym, struct tac *tac)
+static struct uses * get_uses(node_t *sym, struct tac *tac)
 {
     struct map *tuple = map_get(next_info, sym);
     struct uses *uses = map_get(tuple, tac);
     return uses;
 }
-
-#define get_current_uses(sym)  get_uses(sym, current_tac)
 
 static void scan_uses(struct tac *tail)
 {
