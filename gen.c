@@ -165,6 +165,46 @@ static void init_regs(void)
     }
 }
 
+static bool isgref(node_t *sym)
+{
+    return has_static_extent(sym) ||
+        SYM_SCOPE(sym) == CONSTANT ||
+        isfunc(SYM_TYPE(sym));
+}
+
+static const char * ref_lvalue(node_t *sym)
+{
+    cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
+    if (isgref(sym))
+        return format("%s", SYM_X_LABEL(sym));
+    else
+        return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
+}
+
+static const char * ref_rvalue(node_t *sym)
+{
+    cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
+    if (isgref(sym))
+        return format("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]);
+    else
+        return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
+}
+
+static const char * oplabel(struct operand *operand)
+{
+    node_t *sym = operand->sym;
+    switch (SYM_X_KIND(sym)) {
+    case SYM_KIND_ILITERAL:
+        return format("$%lu", SYM_VALUE_U(sym));
+    case SYM_KIND_REF:
+        return ref_rvalue(sym);
+    case SYM_KIND_TMP:
+        break;
+    default:
+        return SYM_X_LABEL(sym);
+    }
+}
+
 // LD reg, sym
 static void load(struct reg *reg, node_t *sym)
 {
@@ -211,6 +251,7 @@ static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts, struct
         if (!found)
             vec_push(candicates, ri);
     }
+    // empty
     for (int i = 0; i < vec_len(candicates); i++) {
         struct reg *reg = vec_at(candicates, i);
         if (vec_empty(reg->vars))
@@ -228,13 +269,13 @@ static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts, struct
         for (int j = 0; j < vec_len(reg->vars); j++) {
             node_t *v = vec_at(reg->vars, j);
             struct uses *uses = get_current_uses(v);
-            if (SYM_X_KIND(v) == SYM_KIND_TMP) {
-                costs[i].sticky = true;
-                break;
-            } else if (SYM_X_KIND(v) == SYM_KIND_REF) {
+            if (SYM_X_KIND(v) == SYM_KIND_REF) {
                 // ok
             } else if (uses->live == false) {
                 // ok
+            } else if (SYM_X_KIND(v) == SYM_KIND_TMP) {
+                costs[i].sticky = true;
+                break;
             } else {
                 // spill
                 costs[i].cost += 1;
@@ -242,10 +283,8 @@ static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts, struct
         }
 
         if (costs[i].sticky == false) {
-            if (ret == NULL) {
-                ret = reg;
-                index = i;
-            } else if (costs[i].cost < costs[index].cost) {
+            if (ret == NULL ||
+                costs[i].cost < costs[index].cost) {
                 ret = reg;
                 index = i;
             }
@@ -290,46 +329,6 @@ static struct reg * get_ireg(struct operand *operand)
 // x = y op z
 static void dispatch_ireg_bop(struct tac *tac)
 {
-}
-
-static bool isgref(node_t *sym)
-{
-    return has_static_extent(sym) ||
-        SYM_SCOPE(sym) == CONSTANT ||
-        isfunc(SYM_TYPE(sym));
-}
-
-static const char * ref_lvalue(node_t *sym)
-{
-    cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
-    if (isgref(sym))
-        return format("%s", SYM_X_LABEL(sym));
-    else
-        return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
-}
-
-static const char * ref_rvalue(node_t *sym)
-{
-    cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
-    if (isgref(sym))
-        return format("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]);
-    else
-        return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
-}
-
-static const char * oplabel(struct operand *operand)
-{
-    node_t *sym = operand->sym;
-    switch (SYM_X_KIND(sym)) {
-    case SYM_KIND_ILITERAL:
-        return format("$%lu", SYM_VALUE_U(sym));
-    case SYM_KIND_REF:
-        return ref_rvalue(sym);
-    case SYM_KIND_TMP:
-        break;
-    default:
-        return SYM_X_LABEL(sym);
-    }
 }
 
 static void emit_operand(struct operand *operand)
