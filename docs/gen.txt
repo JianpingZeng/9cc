@@ -1,0 +1,25 @@
+// doc for generator
+
+scan all tacs, scan all symbols:
+
+divide into 4 kinds according to the address type:
+
+1. global: in memory (gvar, gfunc, static, float literal)
+
+2. stack: in stack (local var)
+
+3. tmp: in register
+
+4. literal: integer literal
+
+every symbol has 4 slots for addrs:
+0: immediate
+1: memory
+2: stack
+3: register
+
+every register holds variables:
+{
+symbol;
+size; // for spill
+}

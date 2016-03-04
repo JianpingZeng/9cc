@@ -1,39 +1,194 @@
-// 此文档用于记录 mcc IR （中间表示）
+// mcc intermediate representation
 
-三地址形式：x = y op z
+three address code:
 
-分量x,y,z用operand表示。
+x = y op z
 
-分成三类运算：
+where x, y and z are operands.
 
-1. 二元操作符：x = y op z
-2. 一元操作符：x = op y
-3. 赋值操作：x = y
+kinds of operations:
+
+1. binary： x = y op z
+2. unary：  x = op y
+3. assign： x = y
+
+operand
+---------
+
+1. direct: sym
+2. subscript: disp(sym,index,scale)
+3. indirection: * sym
 
 Expression
 -----------
 
 primary:
+=========
 
 1. ref
+   direct operand
+   SYM_KIND_REF
 
 2. float literal
+   direct operand
+   SYM_KIND_REF
+   constant scope
 
 3. integer literal
+   direct operand
+   SYM_KIND_ILITERAL
+   constant scope
 
 4. string literal
+   direct operand
+   SYM_KIND_REF
+   constant scope
 
 5. compound literal
+   direct operand
+   SYM_KIND_REF
 
 6. member
 
 7. subscript
 
+8. indirection
+
+
 unary:
+========
+
+1. cast/conv
+
+x = cast-op y (where x is a tmp operand)
+
+IR_CONV_UI_UI:  uint => uint
+IR_CONV_SI_SI:  int => int
+IR_CONV_UI_SI:  uint => int
+IR_CONV_SI_UI:  int => uint
+IR_CONV_SI_F:   int => float
+IR_CONV_UI_F:   uint => float
+IR_CONV_F_SI:   float => int
+IR_CONV_F_UI:   float => uint
+IR_CONV_F_F:    float => float
+
+2. address (&)
+
+x = & y (where x is a tmp operand)
+
+IR_ADDRESS:
+
+3. minus (-)
+
+x = - y (where x is a tmp operand)
+
+IR_MINUSI:
+IR_MINUSF:
+
+4. bitwise-not (~)
+
+x = ~ y (where x is a tmp operand)
+
+IR_NOT:
+
 
 binary:
+========
+
+1. add (+)
+arith only
+
+x = y + z (where x is a tmp operand)
+
+IR_ADDI:
+IR_ADDF:
+
+2. minus (-)
+arith only
+
+x = y - z (where x is a tmp operand)
+
+IR_SUBI:
+IR_SUBF:
+
+3. multipy (*)
+arith only
+
+x = y * z (where x is a tmp operand)
+
+IR_MULI:
+IR_MULF:
+IR_IMULI:
+
+4. division (/)
+arith only
+
+x = y / z (where x is a tmp operand)
+
+IR_DIVI:
+IR_DIVF:
+IR_IDIVI:
+
+5. mod (%)
+integer only
+
+x = y % z (where x is a tmp operand)
+
+IR_MOD:
+
+6. bitwise-or (|)
+integer only
+
+x = y | z (where x is a tmp operand)
+
+IR_OR:
+
+7. bitwise-and (&)
+integer only
+
+x = y & z (where x is a tmp operand)
+
+IR_AND:
+
+8. bitwise-xor (^)
+integer only
+
+x = y ^ z (where x is a tmp operand)
+
+IR_XOR:
+
+9. left shift (<<)
+integer only
+
+x = y << z (where x is a tmp operand)
+
+IR_LSHIFT:
+
+10. right shift (>>)
+integer only
+
+x = y >> z (where x is a tmp operand)
+
+IR_RSHIFT:
 
 cond:
+========
+
+call:
+========
+
+x = call y, len (where x is a tmp operand)
+call y, len
+
+assign:
+========
+x = y
+
+IR_ASSIGNI:
+IR_ASSIGNF:
+
+NOTE: x is a lvalue in almost all cases, except in:
+ir.c: emit_uop_increment
 
 Declaration
 -----------
