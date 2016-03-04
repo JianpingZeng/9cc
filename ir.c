@@ -491,8 +491,12 @@ static void emit_uop_address(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
 
     emit_expr(l);
-    
-    EXPR_X_ADDR(n) = emit_address_tac(EXPR_X_ADDR(l));
+
+    struct operand *operand = EXPR_X_ADDR(l);
+    if (operand->op == IR_INDIRECTION)
+        EXPR_X_ADDR(n) = make_sym_operand(operand->sym);
+    else
+        EXPR_X_ADDR(n) = emit_address_tac(operand);
 }
 
 // ptr + int
