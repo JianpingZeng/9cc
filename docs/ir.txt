@@ -95,6 +95,13 @@ IR_CONV_F_F:    float => float
 
 x = & y (where x is a tmp operand)
 
+NOTE: y must be a direct operand;
+      if y is indirection as "*sym": then x = sym.
+      if y is subscript: disp(sym,index,scale): then calculate
+         if sym is tmp:
+         if sym is gref: load address
+         if sym is lref: load address
+
 IR_ADDRESS:
 
 3. minus (-)
