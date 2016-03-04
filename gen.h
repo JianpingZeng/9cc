@@ -17,6 +17,11 @@ enum {
     Q = 3
 };
 
+struct rvar {
+    node_t *sym;
+    size_t size;
+};
+
 struct reg {
     int freg:1;
     const char *r[4];
@@ -67,14 +72,14 @@ enum {
     ADDR_REGISTER,
 };
 
-#define MAX_STRUCT_PARAM_SIZE  16
-
-struct addr {
-    int kind;
-    struct reg *reg;
-    long offset;
-    size_t size;
+enum {
+    SYM_ADDR_IMM,
+    SYM_ADDR_GREF,
+    SYM_ADDR_LREF,
+    SYM_ADDR_TMP
 };
+
+#define MAX_STRUCT_PARAM_SIZE  16
 
 // REGS type
 enum {
@@ -164,6 +169,9 @@ struct externals {
 #define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 #define SYM_X_PADDR(NODE)     ((NODE)->symbol.x.sym.paddr)
+#define SYM_X_ADDRTYPE(NODE)  ((NODE)->symbol.x.sym.addrtype)
+#define SYM_X_MEMORY(NODE)    ((NODE)->symbol.x.sym.mem_addr)
+#define SYM_X_STACK(NODE)     ((NODE)->symbol.x.sym.stack_addr)
 // decl
 #define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
@@ -185,9 +193,12 @@ union x {
         const char *label;
         long loff;              // local offset (<0)
         int kind;               // kind
+        int addrtype;           // addr type
         struct uses uses;       // uses
-        struct reg *reg;        // reg addr
         struct paddr *paddr;    // param addr
+        struct reg *reg;
+        int mem_addr:1;
+        int stack_addr:1;
     }sym;
     
     struct {

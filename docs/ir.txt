@@ -15,9 +15,25 @@ kinds of operations:
 operand
 ---------
 
+symbol in operand: gref/lref/tmp/imm.
+
 1. direct: sym
+
 2. subscript: disp(sym,index,scale)
+   sym _MUST_ be a pointer.
+       - lref has its base address in RBP register by default.
+       - if sym is a gref, it must be loaded to a tmp first.
+       - so sym can only be lref or tmp.
+
 3. indirection: * sym
+
+assignment requirements
+==========
+1. reg = reg
+2. reg = mem
+3. mem = reg
+but mem = mem is _NOT_ allowed, it makes things complex.
+
 
 Expression
 -----------
@@ -49,11 +65,14 @@ primary:
    SYM_KIND_REF
 
 6. member
+   record member offset
 
 7. subscript
+   array subscript
+   by member offset
 
 8. indirection
-
+   indirection of a pointer
 
 unary:
 ========
@@ -187,8 +206,7 @@ x = y
 IR_ASSIGNI:
 IR_ASSIGNF:
 
-NOTE: x is a lvalue in almost all cases, except in:
-ir.c: emit_uop_increment
+NOTE: x and y can not both be mem.
 
 Declaration
 -----------

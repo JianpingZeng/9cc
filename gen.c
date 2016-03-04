@@ -165,17 +165,10 @@ static void init_regs(void)
     }
 }
 
-static bool isgref(node_t *sym)
-{
-    return has_static_extent(sym) ||
-        SYM_SCOPE(sym) == CONSTANT ||
-        isfunc(SYM_TYPE(sym));
-}
-
 static const char * ref_lvalue(node_t *sym)
 {
     cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
-    if (isgref(sym))
+    if (SYM_X_ADDRTYPE(sym) == SYM_ADDR_GREF)
         return format("%s", SYM_X_LABEL(sym));
     else
         return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
@@ -184,7 +177,7 @@ static const char * ref_lvalue(node_t *sym)
 static const char * ref_rvalue(node_t *sym)
 {
     cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
-    if (isgref(sym))
+    if (SYM_X_ADDRTYPE(sym) == SYM_ADDR_GREF)
         return format("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]);
     else
         return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
@@ -232,7 +225,8 @@ static void store(node_t *sym, struct reg *reg)
     SYM_X_REG(sym) = NULL;
 }
 
-static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts, struct reg **regs, int size)
+static struct reg *
+dispatch_reg_for(node_t *sym, struct vector *excepts, struct reg **regs, int size)
 {
     // already in reg
     if (SYM_X_REG(sym))
@@ -568,6 +562,9 @@ static void emit_assigni(struct tac *tac)
         }
         break;
     case SYM_KIND_TMP:
+        {
+            
+        }
         break;
     default:
         cc_assert(0);
@@ -821,7 +818,7 @@ static void scan_uses(struct tac *tail)
     }
 }
 
-static void uses_init_sym(node_t *sym, struct tac *tac)
+static void init_sym_uses(node_t *sym, struct tac *tac)
 {
     mark_die(sym);
     struct map *tuple = map_get(next_info, sym);
@@ -834,16 +831,54 @@ static void uses_init_sym(node_t *sym, struct tac *tac)
     map_put(tuple, tac, uses);
 }
 
-static void uses_init(struct tac *head)
+static bool isgref(node_t *sym)
+{
+    return has_static_extent(sym) ||
+        SYM_SCOPE(sym) == CONSTANT ||
+        isfunc(SYM_TYPE(sym));
+}
+
+static void init_sym_addrs(node_t *sym)
+{
+    switch (SYM_X_KIND(sym)) {
+    case SYM_KIND_ILITERAL:
+        SYM_X_ADDRTYPE(sym) = SYM_ADDR_IMM;
+        break;
+
+    case SYM_KIND_REF:
+        if (isgref(sym)) {
+            SYM_X_ADDRTYPE(sym) = SYM_ADDR_GREF;
+            SYM_X_MEMORY(sym) = true;
+        } else {
+            SYM_X_ADDRTYPE(sym) = SYM_ADDR_LREF;
+            SYM_X_STACK(sym) = true;
+        }
+        break;
+
+    case SYM_KIND_TMP:
+        SYM_X_ADDRTYPE(sym) = SYM_ADDR_TMP;
+        break;
+
+    case SYM_KIND_LABEL:
+    default:
+        break;
+    }
+}
+
+static void init_tacs(struct tac *head)
 {
     for (struct tac *tac = head; tac; tac = tac->next) {
         for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
             struct operand *operand = tac->operands[i];
             if (operand) {
-                if (operand->sym)
-                uses_init_sym(operand->sym, tac);
-                if (operand->index)
-                    uses_init_sym(operand->index, tac);
+                if (operand->sym) {
+                    init_sym_addrs(operand->sym);
+                    init_sym_uses(operand->sym, tac);
+                }
+                if (operand->index) {
+                    init_sym_addrs(operand->index);
+                    init_sym_uses(operand->index, tac);
+                }
             }
         }
     }
@@ -1323,7 +1358,7 @@ static void emit_text(struct gdata *gdata)
         emit_register_save_area();
     else
         emit_register_params(decl);
-    uses_init(DECL_X_HEAD(decl));
+    init_tacs(DECL_X_HEAD(decl));
     scan_uses(DECL_X_TAIL(decl));
     emit_tacs(DECL_X_HEAD(decl));
     // function epilogue
