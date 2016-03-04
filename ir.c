@@ -552,52 +552,38 @@ static void emit_uop_increment(node_t *n)
     }
 
     emit_expr(l);
-    
-    if (prefix) {
-        if (isptr(ty)) {
-            EXPR_X_ADDR(n) = emit_ptr_int(rop,
-                                          EXPR_X_ADDR(l),
-                                          make_operand_one(),
-                                          TYPE_SIZE(rtype(ty)),
-                                          EXPR_X_ADDR(l),
-                                          opsize);
-        } else {
-            struct tac *tac = make_tac_r(rop,
-                                         EXPR_X_ADDR(l),
-                                         make_operand_one(),
-                                         opsize);
-            emit_tac(tac);
-            struct tac *tac2 = make_assign_tac(assignop,
-                                               EXPR_X_ADDR(l),
-                                               tac->operands[0],
-                                               opsize);
-            emit_tac(tac2);
-            EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
-        }
-    } else {
+
+    if (!prefix) {
         struct operand *tmp = make_tmp_operand();
         emit_tac(make_assign_tac(IR_ASSIGNI, tmp, EXPR_X_ADDR(l), opsize));
-        if (isptr(ty)) {
-            emit_ptr_int(rop,
-                         EXPR_X_ADDR(l),
-                         make_operand_one(),
-                         TYPE_SIZE(rtype(ty)),
-                         EXPR_X_ADDR(l),
-                         opsize);
-        } else {
-            struct tac *tac = make_tac_r(rop,
-                                         EXPR_X_ADDR(l),
-                                         make_operand_one(),
-                                         opsize);
-            emit_tac(tac);
-            struct tac *tac2 = make_assign_tac(assignop,
-                                               EXPR_X_ADDR(l),
-                                               tac->operands[0],
-                                               opsize);
-            emit_tac(tac2);
-        }
         EXPR_X_ADDR(n) = tmp;
     }
+
+    if (isptr(ty)) {
+        struct operand *tmp = make_tmp_operand();
+        emit_ptr_int(rop,
+                     EXPR_X_ADDR(l),
+                     make_operand_one(),
+                     TYPE_SIZE(rtype(ty)),
+                     tmp,
+                     opsize);
+        struct tac *tac = make_assign_tac(assignop, EXPR_X_ADDR(l), tmp, opsize);
+        emit_tac(tac);
+    } else {
+        struct tac *tac = make_tac_r(rop,
+                                     EXPR_X_ADDR(l),
+                                     make_operand_one(),
+                                     opsize);
+        emit_tac(tac);
+        struct tac *tac2 = make_assign_tac(assignop,
+                                           EXPR_X_ADDR(l),
+                                           tac->operands[0],
+                                           opsize);
+        emit_tac(tac2);
+    }
+
+    if (prefix)
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 // scalar
