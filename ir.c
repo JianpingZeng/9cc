@@ -554,8 +554,10 @@ static void emit_uop_increment(node_t *n)
     emit_expr(l);
 
     if (!prefix) {
+        //NOTE: assign to a tmp operand
         struct operand *tmp = make_tmp_operand();
-        emit_tac(make_assign_tac(IR_ASSIGNI, tmp, EXPR_X_ADDR(l), opsize));
+        struct tac *tac = make_assign_tac(assignop, tmp, EXPR_X_ADDR(l), opsize);
+        emit_tac(tac);
         EXPR_X_ADDR(n) = tmp;
     }
 
