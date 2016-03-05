@@ -15,7 +15,7 @@ kinds of operations:
 operand
 ---------
 
-symbol in operand: gref/lref/tmp/imm.
+symbol in operand: gref/lref/tmp/imm/label.
 
 1. direct: sym
 
