@@ -1179,6 +1179,7 @@ static void emit_member_nonbitfield(node_t *n, node_t *field)
         }
     }
 
+    cc_assert(SYM_X_KIND(addr->sym) != SYM_KIND_GREF);
     EXPR_X_ADDR(n) = make_offset_operand(addr, FIELD_OFFSET(field));
 }
 
