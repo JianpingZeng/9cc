@@ -167,11 +167,22 @@ static struct tac * make_tac_r(int op,
     return make_tac(op, l, r, make_tmp_operand(), opsize);
 }
 
+static bool is_tmp_operand(struct operand *operand)
+{
+    return operand->op == IR_NONE && SYM_X_KIND(operand->sym) == SYM_KIND_TMP;
+}
+
 static struct tac * make_assign_tac(int op,
                                     struct operand *l, struct operand *r,
                                     int opsize)
 {
-    return make_tac(op, r, NULL, l, opsize);
+    if (!is_tmp_operand(l) && !is_tmp_operand(r)) {
+        struct tac *tac = make_tac_r(op, r, NULL, opsize);
+        emit_tac(tac);
+        return make_tac(op, tac->operands[0], NULL, l, opsize);
+    } else {
+        return make_tac(op, r, NULL, l, opsize);
+    }
 }
 
 static struct operand * make_indirection_operand(struct operand *l)
@@ -406,9 +417,28 @@ static struct operand * emit_conv_tac(int op, struct operand *l,
 
 static struct operand * emit_address_tac(struct operand *l)
 {
-    struct tac *tac = make_tac_r(IR_ADDRESS, l, NULL, ops[Quad]);
-    emit_tac(tac);
-    return tac->operands[0];
+    switch (l->op) {
+    case IR_NONE:
+        {
+            struct tac *tac = make_tac_r(IR_ADDRESS, l, NULL, ops[Quad]);
+            emit_tac(tac);
+            return tac->operands[0];
+        }
+        break;
+    case IR_SUBSCRIPT:
+        {
+            // TODO: 
+        }
+        break;
+    case IR_INDIRECTION:
+        {
+            struct operand *result = make_sym_operand(l->sym);
+            return result;
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
 }
 
 static void emit_decl(node_t *decl)
@@ -499,11 +529,7 @@ static void emit_uop_address(node_t *n)
 
     emit_expr(l);
 
-    struct operand *operand = EXPR_X_ADDR(l);
-    if (operand->op == IR_INDIRECTION)
-        EXPR_X_ADDR(n) = make_sym_operand(operand->sym);
-    else
-        EXPR_X_ADDR(n) = emit_address_tac(operand);
+    EXPR_X_ADDR(n) = emit_address_tac(EXPR_X_ADDR(l));
 }
 
 // ptr + int
@@ -511,7 +537,6 @@ static struct operand * emit_ptr_int(int op,
                                      struct operand *l,
                                      struct operand *index,
                                      size_t step,
-                                     struct operand *result,
                                      int opsize)
 {
     struct operand *distance;
@@ -536,7 +561,7 @@ static struct operand * emit_ptr_int(int op,
         }
     }
     
-    struct tac *tac = make_tac(op, l, distance, result, opsize);
+    struct tac *tac = make_tac_r(op, l, distance, opsize);
     emit_tac(tac);
     return tac->operands[0];
 }
@@ -573,13 +598,11 @@ static void emit_uop_increment(node_t *n)
     }
 
     if (isptr(ty)) {
-        struct operand *tmp = make_tmp_operand();
-        emit_ptr_int(rop,
-                     EXPR_X_ADDR(l),
-                     make_operand_one(),
-                     TYPE_SIZE(rtype(ty)),
-                     tmp,
-                     opsize);
+        struct operand *tmp = emit_ptr_int(rop,
+                                           EXPR_X_ADDR(l),
+                                           make_operand_one(),
+                                           TYPE_SIZE(rtype(ty)),
+                                           opsize);
         struct tac *tac = make_assign_tac(assignop, EXPR_X_ADDR(l), tmp, opsize);
         emit_tac(tac);
     } else {
@@ -971,7 +994,6 @@ static void emit_bop_plus_minus(node_t *n)
                                       EXPR_X_ADDR(ptr),
                                       EXPR_X_ADDR(i),
                                       TYPE_SIZE(rty),
-                                      make_tmp_operand(),
                                       ops[TYPE_SIZE(AST_TYPE(ptr))]);
     }
 }
