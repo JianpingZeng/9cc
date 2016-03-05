@@ -315,8 +315,9 @@ static struct operand * make_subscript_operand(struct operand *l,
     }
 }
 
-static struct operand * do_emit_address_tac(struct operand *l, node_t *index, int scale, long disp)
+static struct operand * do_emit_address_tac(node_t *sym, node_t *index, int scale, long disp)
 {
+    struct operand *l = make_sym_operand(sym);
     if (index) {
         struct operand *index_operand = make_sym_operand(index);
         int i = log2i(scale);
@@ -353,14 +354,14 @@ static struct operand * emit_address_tac(struct operand *l)
         break;
     case IR_SUBSCRIPT:
         if (SYM_X_KIND(l->sym) == SYM_KIND_TMP) {
-            return do_emit_address_tac(l, l->index, l->scale, l->disp);
+            return do_emit_address_tac(l->sym, l->index, l->scale, l->disp);
         } else if (SYM_X_KIND(l->sym) == SYM_KIND_LREF) {
             struct tac *tac = make_tac_r(IR_ADDRESS,
                                          make_sym_operand(l->sym),
                                          NULL,
                                          ops[Quad]);
             emit_tac(tac);
-            return do_emit_address_tac(tac->operands[0], l->index, l->scale, l->disp);
+            return do_emit_address_tac(tac->operands[0]->sym, l->index, l->scale, l->disp);
         } else {
             cc_assert(0);
         }
@@ -1140,12 +1141,44 @@ static void emit_cond(node_t *n)
     }
 }
 
+// s.a
+// s->a
 static void emit_member_nonbitfield(node_t *n, node_t *field)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     emit_expr(l);
 
-    struct operand *addr = EXPR_X_ADDR(l);
+    struct operand *addr = NULL;
+
+    // if l is ptr, change the base address.
+    if (isptr(AST_TYPE(l))) {
+        struct tac *tac = make_assign_tac(IR_ASSIGNI,
+                                          make_tmp_operand(),
+                                          EXPR_X_ADDR(l),
+                                          ops[Quad]);
+        emit_tac(tac);
+        addr = tac->operands[0];
+    } else {
+        addr = EXPR_X_ADDR(l);
+
+        // make gref be a pointer
+        if (SYM_X_KIND(addr->sym) == SYM_KIND_GREF) {
+            cc_assert(addr->op == IR_NONE);
+            // according to sym type
+            // see emit_uop_indirection
+            if (isptr(SYM_TYPE(addr->sym))) {
+                struct tac *tac = make_assign_tac(IR_ASSIGNI,
+                                                  make_tmp_operand(),
+                                                  addr,
+                                                  ops[Quad]);
+                emit_tac(tac);
+                addr = tac->operands[0];
+            } else {
+                addr = emit_address_tac(make_sym_operand(addr->sym));
+            }
+        }
+    }
+
     EXPR_X_ADDR(n) = make_offset_operand(addr, FIELD_OFFSET(field));
 }
 
