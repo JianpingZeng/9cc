@@ -167,8 +167,8 @@ static void init_regs(void)
 
 static const char * ref_lvalue(node_t *sym)
 {
-    cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
-    if (SYM_X_ADDRTYPE(sym) == SYM_ADDR_GREF)
+    cc_assert(SYM_X_KIND(sym) == SYM_KIND_GREF || SYM_X_KIND(sym) == SYM_KIND_LREF);
+    if (SYM_X_KIND(sym) == SYM_KIND_GREF)
         return format("%s", SYM_X_LABEL(sym));
     else
         return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
@@ -176,8 +176,8 @@ static const char * ref_lvalue(node_t *sym)
 
 static const char * ref_rvalue(node_t *sym)
 {
-    cc_assert(SYM_X_KIND(sym) == SYM_KIND_REF);
-    if (SYM_X_ADDRTYPE(sym) == SYM_ADDR_GREF)
+    cc_assert(SYM_X_KIND(sym) == SYM_KIND_GREF || SYM_X_KIND(sym) == SYM_KIND_LREF);
+    if (SYM_X_KIND(sym) == SYM_KIND_GREF)
         return format("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]);
     else
         return format("%ld(%s)", SYM_X_LOFF(sym), rbp->r[Q]);
@@ -187,9 +187,10 @@ static const char * oplabel(struct operand *operand)
 {
     node_t *sym = operand->sym;
     switch (SYM_X_KIND(sym)) {
-    case SYM_KIND_ILITERAL:
+    case SYM_KIND_IMM:
         return format("$%lu", SYM_VALUE_U(sym));
-    case SYM_KIND_REF:
+    case SYM_KIND_GREF:
+    case SYM_KIND_LREF:
         return ref_rvalue(sym);
     case SYM_KIND_TMP:
         break;
@@ -263,7 +264,8 @@ dispatch_reg_for(node_t *sym, struct vector *excepts, struct reg **regs, int siz
         for (int j = 0; j < vec_len(reg->vars); j++) {
             node_t *v = vec_at(reg->vars, j);
             struct uses *uses = get_current_uses(v);
-            if (SYM_X_KIND(v) == SYM_KIND_REF) {
+            if (SYM_X_KIND(v) == SYM_KIND_GREF ||
+                SYM_X_KIND(v) == SYM_KIND_LREF) {
                 // ok
             } else if (uses->live == false) {
                 // ok
@@ -551,10 +553,11 @@ static void emit_assigni(struct tac *tac)
     const char *dst = oplabel(result);
     // TODO:
     switch (SYM_X_KIND(l->sym)) {
-    case SYM_KIND_ILITERAL:
+    case SYM_KIND_IMM:
         emit("mov%s $%lu, %s", suffix[i], SYM_VALUE_U(l->sym), dst);
         break;
-    case SYM_KIND_REF:
+    case SYM_KIND_GREF:
+    case SYM_KIND_LREF:
         {
             struct reg *reg = get_one_ireg();
             emit("mov%s %s, %s", suffix[i], oplabel(l), reg->r[i]);
@@ -620,12 +623,12 @@ static void emit_bop_int(struct tac *tac, const char *op)
     struct operand *z = tac->operands[2];
     cc_assert(SYM_X_KIND(x->sym) == SYM_KIND_TMP);
 
-    if (SYM_X_KIND(y->sym) == SYM_KIND_ILITERAL &&
-        SYM_X_KIND(z->sym) == SYM_KIND_ILITERAL) {
+    if (SYM_X_KIND(y->sym) == SYM_KIND_IMM &&
+        SYM_X_KIND(z->sym) == SYM_KIND_IMM) {
         
-    } else if (SYM_X_KIND(y->sym) == SYM_KIND_ILITERAL) {
+    } else if (SYM_X_KIND(y->sym) == SYM_KIND_IMM) {
         
-    } else if (SYM_X_KIND(z->sym) == SYM_KIND_ILITERAL) {
+    } else if (SYM_X_KIND(z->sym) == SYM_KIND_IMM) {
         
     } else {
         emit_operand(y);
@@ -759,7 +762,9 @@ static void emit_tacs(struct tac *head)
 static void mark_die(node_t *sym)
 {
     int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_REF || kind == SYM_KIND_TMP) {
+    if (kind == SYM_KIND_GREF ||
+        kind == SYM_KIND_LREF ||
+        kind == SYM_KIND_TMP) {
         SYM_X_USES(sym).live = false;
         SYM_X_USES(sym).next = NULL;
     }
@@ -768,7 +773,9 @@ static void mark_die(node_t *sym)
 static void mark_live(node_t *sym, struct tac *tac)
 {
     int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_REF || kind == SYM_KIND_TMP) {
+    if (kind == SYM_KIND_GREF ||
+        kind == SYM_KIND_LREF ||
+        kind == SYM_KIND_TMP) {
         SYM_X_USES(sym).live = true;
         SYM_X_USES(sym).next = tac;
     }
@@ -831,38 +838,12 @@ static void init_sym_uses(node_t *sym, struct tac *tac)
     map_put(tuple, tac, uses);
 }
 
-static bool isgref(node_t *sym)
-{
-    return has_static_extent(sym) ||
-        SYM_SCOPE(sym) == CONSTANT ||
-        isfunc(SYM_TYPE(sym));
-}
-
 static void init_sym_addrs(node_t *sym)
 {
-    switch (SYM_X_KIND(sym)) {
-    case SYM_KIND_ILITERAL:
-        SYM_X_ADDRTYPE(sym) = SYM_ADDR_IMM;
-        break;
-
-    case SYM_KIND_REF:
-        if (isgref(sym)) {
-            SYM_X_ADDRTYPE(sym) = SYM_ADDR_GREF;
-            SYM_X_MEMORY(sym) = true;
-        } else {
-            SYM_X_ADDRTYPE(sym) = SYM_ADDR_LREF;
-            SYM_X_STACK(sym) = true;
-        }
-        break;
-
-    case SYM_KIND_TMP:
-        SYM_X_ADDRTYPE(sym) = SYM_ADDR_TMP;
-        break;
-
-    case SYM_KIND_LABEL:
-    default:
-        break;
-    }
+    if (SYM_X_KIND(sym) == SYM_KIND_GREF)
+        SYM_X_MEMORY(sym) = true;
+    else if (SYM_X_KIND(sym) == SYM_KIND_LREF)
+        SYM_X_STACK(sym) = true;
 }
 
 static void init_tacs(struct tac *head)

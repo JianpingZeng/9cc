@@ -78,6 +78,13 @@ static void emit_tac(struct tac *tac)
     }
 }
 
+static bool isgref(node_t *sym)
+{
+    return has_static_extent(sym) ||
+        SYM_SCOPE(sym) == CONSTANT ||
+        isfunc(SYM_TYPE(sym));
+}
+
 static struct operand * make_sym_operand(node_t *sym)
 {
     struct operand *operand = (struct operand *)alloc_operand();
@@ -111,7 +118,7 @@ static struct operand * make_int_operand(long long i)
 {
     struct operand *operand = make_named_operand(strd(i), &constants, CONSTANT);
     SYM_VALUE_I(operand->sym) = i;
-    SYM_X_KIND(operand->sym) = SYM_KIND_ILITERAL;
+    SYM_X_KIND(operand->sym) = SYM_KIND_IMM;
     return operand;
 }
 
@@ -119,7 +126,7 @@ static struct operand * make_unsigned_operand(unsigned long long u)
 {
     struct operand *operand = make_named_operand(stru(u), &constants, CONSTANT);
     SYM_VALUE_U(operand->sym) = u;
-    SYM_X_KIND(operand->sym) = SYM_KIND_ILITERAL;
+    SYM_X_KIND(operand->sym) = SYM_KIND_IMM;
     return operand;
 }
 
@@ -200,7 +207,7 @@ static struct operand * do_make_subscript_operand2(struct operand *l,
     struct operand *operand = make_sym_operand(l->sym);
     operand->op = IR_SUBSCRIPT;
     
-    if (SYM_X_KIND(index->sym) == SYM_KIND_ILITERAL) {
+    if (SYM_X_KIND(index->sym) == SYM_KIND_IMM) {
         // disp(base)
         long d = SYM_VALUE_I(index->sym) * step + disp;
         operand->disp = d;
@@ -508,7 +515,7 @@ static struct operand * emit_ptr_int(int op,
                                      int opsize)
 {
     struct operand *distance;
-    if (SYM_X_KIND(index->sym) == SYM_KIND_ILITERAL) {
+    if (SYM_X_KIND(index->sym) == SYM_KIND_IMM) {
         size_t i = SYM_VALUE_U(index->sym) * step;
         distance = make_unsigned_operand(i);
     } else {
@@ -1030,7 +1037,7 @@ static struct operand * make_extra_decl(node_t *ty)
     vec_push(extra_lvars, decl);
     
     struct operand *operand = make_sym_operand(sym);
-    SYM_X_KIND(sym) = SYM_KIND_REF;
+    SYM_X_KIND(sym) = SYM_KIND_LREF;
     return operand;
 }
 
@@ -1306,7 +1313,7 @@ static void emit_integer_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
     SYM_X_LABEL(sym) = stru(SYM_VALUE_U(sym));
-    SYM_X_KIND(sym) = SYM_KIND_ILITERAL;
+    SYM_X_KIND(sym) = SYM_KIND_IMM;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
@@ -1325,7 +1332,7 @@ static void emit_float_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_float_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    SYM_X_KIND(sym) = SYM_KIND_REF;
+    SYM_X_KIND(sym) = SYM_KIND_GREF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
@@ -1334,14 +1341,14 @@ static void emit_string_literal(node_t *n)
     node_t *sym = EXPR_SYM(n);
     const char *label = get_string_literal_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
-    SYM_X_KIND(sym) = SYM_KIND_REF;
+    SYM_X_KIND(sym) = SYM_KIND_GREF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 
 static void emit_compound_literal(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
-    SYM_X_KIND(sym) = SYM_KIND_REF;
+    SYM_X_KIND(sym) = SYM_KIND_LREF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 
     node_t *l = EXPR_OPERAND(n, 0);
@@ -1351,7 +1358,7 @@ static void emit_compound_literal(node_t *n)
 static void emit_ref(node_t *n)
 {
     node_t *sym = EXPR_SYM(n);
-    SYM_X_KIND(sym) = SYM_KIND_REF;
+    SYM_X_KIND(sym) = isgref(sym) ? SYM_KIND_GREF : SYM_KIND_LREF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
 

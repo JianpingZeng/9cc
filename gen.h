@@ -61,22 +61,16 @@ struct gdata {
 };
 
 enum {
-    SYM_KIND_LABEL,
-    SYM_KIND_ILITERAL,
-    SYM_KIND_REF,
-    SYM_KIND_TMP,
-};
-
-enum {
     ADDR_STACK,
     ADDR_REGISTER,
 };
 
 enum {
-    SYM_ADDR_IMM,
-    SYM_ADDR_GREF,
-    SYM_ADDR_LREF,
-    SYM_ADDR_TMP
+    SYM_KIND_LABEL,
+    SYM_KIND_IMM,
+    SYM_KIND_GREF,
+    SYM_KIND_LREF,
+    SYM_KIND_TMP
 };
 
 #define MAX_STRUCT_PARAM_SIZE  16
@@ -169,7 +163,6 @@ struct externals {
 #define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 #define SYM_X_PADDR(NODE)     ((NODE)->symbol.x.sym.paddr)
-#define SYM_X_ADDRTYPE(NODE)  ((NODE)->symbol.x.sym.addrtype)
 #define SYM_X_MEMORY(NODE)    ((NODE)->symbol.x.sym.mem_addr)
 #define SYM_X_STACK(NODE)     ((NODE)->symbol.x.sym.stack_addr)
 // decl
@@ -193,7 +186,6 @@ union x {
         const char *label;
         long loff;              // local offset (<0)
         int kind;               // kind
-        int addrtype;           // addr type
         struct uses uses;       // uses
         struct paddr *paddr;    // param addr
         struct reg *reg;
