@@ -386,6 +386,8 @@ static struct operand * do_make_offset_operand(struct operand *l, long offset)
 
 static struct operand * make_offset_operand(struct operand *l, long offset)
 {
+    cc_assert(SYM_X_KIND(l->sym) != SYM_KIND_GREF);
+    
     switch (l->op) {
     case IR_NONE:
         return do_make_offset_operand(l, offset);
