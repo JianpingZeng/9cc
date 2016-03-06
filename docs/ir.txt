@@ -32,7 +32,9 @@ assignment requirements
 1. reg = reg
 2. reg = mem
 3. mem = reg
-but mem = mem is _NOT_ allowed, it makes things complex.
+4. reg = imm
+5. mem = imm
+NOTE: mem = mem is _NOT_ allowed.
 
 
 Expression

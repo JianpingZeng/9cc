@@ -199,6 +199,11 @@ static const char * oplabel(struct operand *operand)
     }
 }
 
+static void drain_reg(struct reg *reg)
+{
+    
+}
+
 // LD reg, sym
 static void load(struct reg *reg, node_t *sym)
 {
@@ -226,8 +231,8 @@ static void store(node_t *sym, struct reg *reg)
     SYM_X_REG(sym) = NULL;
 }
 
-static struct reg *
-dispatch_reg_for(node_t *sym, struct vector *excepts, struct reg **regs, int size)
+static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts,
+                                     struct reg **regs, int size)
 {
     // already in reg
     if (SYM_X_REG(sym))
@@ -482,8 +487,10 @@ static void emit_nonbuiltin_call(struct tac *tac)
         emit_param(param, arg);
     }
 
-    if (TYPE_VARG(ftype))
+    if (TYPE_VARG(ftype)) {
+        drain_reg(int_regs[RAX]);
         emit("movl $%d, %%eax", pinfo.fp);
+    }
     emit("callq %s", SYM_X_LABEL(l->sym));
 }
 
@@ -547,31 +554,11 @@ static void emit_assignf(struct tac *tac)
 
 static void emit_assigni(struct tac *tac)
 {
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
+    struct operand *l = tac->operands[0];
+    struct operand *r = tac->operands[1];
     int i = idx[tac->opsize];
-    const char *dst = oplabel(result);
-    // TODO:
-    switch (SYM_X_KIND(l->sym)) {
-    case SYM_KIND_IMM:
-        emit("mov%s $%lu, %s", suffix[i], SYM_VALUE_U(l->sym), dst);
-        break;
-    case SYM_KIND_GREF:
-    case SYM_KIND_LREF:
-        {
-            struct reg *reg = get_one_ireg();
-            emit("mov%s %s, %s", suffix[i], oplabel(l), reg->r[i]);
-            emit("mov%s %s, %s", suffix[i], reg->r[i], dst);
-        }
-        break;
-    case SYM_KIND_TMP:
-        {
-            
-        }
-        break;
-    default:
-        cc_assert(0);
-    }
+    const char *dst = oplabel(r);
+    
 }
 
 static void emit_assign(struct tac *tac)
