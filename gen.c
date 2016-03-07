@@ -281,9 +281,11 @@ static void store(node_t *sym, struct reg *reg)
 static struct reg * dispatch_reg(node_t *sym, struct vector *excepts,
                                  struct reg **regs, int size)
 {
-    // already in reg
+    // already in reg, return directly
     if (SYM_X_REG(sym))
         return SYM_X_REG(sym);
+
+    // filter excepts out
     struct vector *candicates = vec_new();
     for (int i = 0; i < size; i++) {
         struct reg *ri = regs[i];
@@ -298,50 +300,51 @@ static struct reg * dispatch_reg(node_t *sym, struct vector *excepts,
         if (!found)
             vec_push(candicates, ri);
     }
-    // empty
+    
+    // if exists an empty reg, return directly
     for (int i = 0; i < vec_len(candicates); i++) {
         struct reg *reg = vec_at(candicates, i);
         if (vec_empty(reg->vars))
             return reg;
     }
-    struct costs {
-        int sticky:1;
-        int cost:24;
-    } costs[MAX(INT_REGS, FLOAT_REGS)];
+
+    cc_assert(vec_len(candicates));
+    
+    // all regs are dirty, select one.
     struct reg *ret = NULL;
-    int index = -1;
+    int mincost = 0;
     for (int i = 0; i < vec_len(candicates); i++) {
-        costs[i] = (struct costs){0, 0};
+        int cost = 0;
+        bool sticky = false;
         struct reg *reg = vec_at(candicates, i);
         for (int j = 0; j < vec_len(reg->vars); j++) {
-            node_t *v = vec_at(reg->vars, j);
-            struct uses *uses = get_current_uses(v);
-            if (SYM_X_KIND(v) == SYM_KIND_GREF ||
-                SYM_X_KIND(v) == SYM_KIND_LREF) {
+            struct rvar *v = vec_at(reg->vars, j);
+            struct uses *uses = get_current_uses(v->sym);
+            if (SYM_X_INMEM(v->sym)) {
                 // ok
             } else if (uses->live == false) {
                 // ok
-            } else if (SYM_X_KIND(v) == SYM_KIND_TMP) {
-                costs[i].sticky = true;
+            } else if (SYM_X_KIND(v->sym) == SYM_KIND_TMP) {
+                // if contains a live tmp symbol, skip the whole reg
+                sticky = true;
                 break;
             } else {
                 // spill
-                costs[i].cost += 1;
+                cost += 1;
             }
         }
 
-        if (costs[i].sticky == false) {
-            if (ret == NULL ||
-                costs[i].cost < costs[index].cost) {
+        if (sticky == false) {
+            if (ret == NULL || cost < mincost) {
                 ret = reg;
-                index = i;
+                mincost = cost;
             }
         }
     }
     if (ret == NULL)
         die("no enough registers");
     // spill out
-    // TODO:
+    drain_reg(ret);
     return ret;
 }
 
@@ -641,6 +644,8 @@ static void emit_assigni(struct tac *tac)
         // tmp = imm
         if (SYM_X_REG(l->sym)) {
             emit_assigni_basic(l, r, tac->opsize);
+        } else if (is_direct_mem_operand(r) && SYM_X_REG(r->sym)) {
+            load(SYM_X_REG(r->sym), l->sym, tac->opsize);
         } else {
             // alloc register for tmp operand
             struct vector *excepts = operand_regs(r);
@@ -926,10 +931,9 @@ static void init_sym_uses(node_t *sym, struct tac *tac)
 
 static void init_sym_addrs(node_t *sym)
 {
-    if (SYM_X_KIND(sym) == SYM_KIND_GREF)
-        SYM_X_MEMORY(sym) = true;
-    else if (SYM_X_KIND(sym) == SYM_KIND_LREF)
-        SYM_X_STACK(sym) = true;
+    if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
+        SYM_X_KIND(sym) == SYM_KIND_LREF)
+        SYM_X_INMEM(sym) = true;
 }
 
 static void init_tacs(struct tac *head)

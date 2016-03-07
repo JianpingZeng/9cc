@@ -197,8 +197,8 @@ bool is_mem_operand(struct operand *operand)
 bool is_direct_mem_operand(struct operand *operand)
 {
     return operand->op == IR_NONE &&
-        SYM_X_KIND(operand->sym) == SYM_KIND_GREF ||
-        SYM_X_KIND(operand->sym) == SYM_KIND_LREF;
+        (SYM_X_KIND(operand->sym) == SYM_KIND_GREF ||
+         SYM_X_KIND(operand->sym) == SYM_KIND_LREF);
 }
 
 static struct tac * make_assign_tac(int op,

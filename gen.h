@@ -163,8 +163,7 @@ struct externals {
 #define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 #define SYM_X_PADDR(NODE)     ((NODE)->symbol.x.sym.paddr)
-#define SYM_X_MEMORY(NODE)    ((NODE)->symbol.x.sym.mem_addr)
-#define SYM_X_STACK(NODE)     ((NODE)->symbol.x.sym.stack_addr)
+#define SYM_X_INMEM(NODE)     ((NODE)->symbol.x.sym.inmem)
 // decl
 #define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
@@ -189,8 +188,7 @@ union x {
         struct uses uses;       // uses
         struct paddr *paddr;    // param addr
         struct reg *reg;
-        int mem_addr:1;
-        int stack_addr:1;
+        bool inmem;
     }sym;
     
     struct {
