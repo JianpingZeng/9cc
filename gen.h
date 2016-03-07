@@ -230,5 +230,6 @@ extern node_t * reduce(node_t *expr);
 extern bool is_tmp_operand(struct operand *operand);
 extern bool is_mem_operand(struct operand *operand);
 extern bool is_imm_operand(struct operand *operand);
+extern bool is_direct_mem_operand(struct operand *operand);
 
 #endif

@@ -194,6 +194,13 @@ bool is_mem_operand(struct operand *operand)
     }
 }
 
+bool is_direct_mem_operand(struct operand *operand)
+{
+    return operand->op == IR_NONE &&
+        SYM_X_KIND(operand->sym) == SYM_KIND_GREF ||
+        SYM_X_KIND(operand->sym) == SYM_KIND_LREF;
+}
+
 static struct tac * make_assign_tac(int op,
                                     struct operand *l, struct operand *r,
                                     int opsize)
@@ -252,7 +259,6 @@ static struct operand * do_make_subscript_operand2(struct operand *l,
                                                    size_t step,
                                                    long disp)
 {
-    cc_assert(is_tmp_operand(l));
     cc_assert(index->op == IR_NONE);
     
     struct operand *operand = make_sym_operand(l->sym);

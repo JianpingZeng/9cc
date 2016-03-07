@@ -631,14 +631,21 @@ static void emit_assigni(struct tac *tac)
     struct operand *l = tac->operands[0];
     struct operand *r = tac->operands[1];
     if (is_mem_operand(l)) {
+        // mem = tmp
+        // mem = imm
         emit_assigni_basic(l, r, tac->opsize);
     } else if (is_tmp_operand(l)) {
+        // tmp = mem
+        // tmp = tmp
+        // tmp = imm
         if (SYM_X_REG(l->sym)) {
             emit_assigni_basic(l, r, tac->opsize);
         } else {
             // alloc register for tmp operand
             struct vector *excepts = operand_regs(r);
             struct reg *reg = dispatch_ireg(l->sym, excepts, tac->opsize);
+            if (is_direct_mem_operand(r) && !SYM_X_REG(r->sym))
+                load(reg, r->sym, tac->opsize);
             int i = idx[tac->opsize];
             const char *src = operand2s(r, tac->opsize);
             emit("mov%s %s, %s", suffix[i], src, reg->r[i]);
