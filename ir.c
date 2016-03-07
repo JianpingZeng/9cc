@@ -641,7 +641,10 @@ static void emit_uop_address(node_t *n)
 
     emit_expr(l);
 
-    EXPR_X_ADDR(n) = emit_address_tac(EXPR_X_ADDR(l));
+    if (isfunc(AST_TYPE(l)))
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    else
+        EXPR_X_ADDR(n) = emit_address_tac(EXPR_X_ADDR(l));
 }
 
 // ptr + int
