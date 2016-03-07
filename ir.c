@@ -1351,20 +1351,24 @@ static void int2int(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     int op;
-    
-    if (TYPE_OP(dty) == UNSIGNED && TYPE_OP(sty) == UNSIGNED)
-        op = IR_CONV_UI_UI;
-    else if (TYPE_OP(dty) == UNSIGNED && TYPE_OP(sty) == INT)
-        op = IR_CONV_SI_UI;
-    else if (TYPE_OP(dty) == INT && TYPE_OP(sty) == INT)
-        op = IR_CONV_SI_SI;
-    else
-        op = IR_CONV_UI_SI;
 
-    EXPR_X_ADDR(n) = emit_conv_tac(op,
-                                   EXPR_X_ADDR(l),
-                                   ops[TYPE_SIZE(sty)],
-                                   ops[TYPE_SIZE(dty)]);
+    if (TYPE_SIZE(dty) == TYPE_SIZE(sty)) {
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    } else {
+        if (TYPE_OP(dty) == UNSIGNED && TYPE_OP(sty) == UNSIGNED)
+            op = IR_CONV_UI_UI;
+        else if (TYPE_OP(dty) == UNSIGNED && TYPE_OP(sty) == INT)
+            op = IR_CONV_SI_UI;
+        else if (TYPE_OP(dty) == INT && TYPE_OP(sty) == INT)
+            op = IR_CONV_SI_SI;
+        else
+            op = IR_CONV_UI_SI;
+
+        EXPR_X_ADDR(n) = emit_conv_tac(op,
+                                       EXPR_X_ADDR(l),
+                                       ops[TYPE_SIZE(sty)],
+                                       ops[TYPE_SIZE(dty)]);
+    }
 }
 
 static void int2float(node_t *dty, node_t *sty, node_t *n)
@@ -1392,10 +1396,13 @@ static void float2int(node_t *dty, node_t *sty, node_t *n)
 static void float2float(node_t *dty, node_t *sty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    EXPR_X_ADDR(n) = emit_conv_tac(IR_CONV_FF,
-                                   EXPR_X_ADDR(l),
-                                   ops[TYPE_SIZE(sty)],
-                                   ops[TYPE_SIZE(dty)]);
+    if (TYPE_SIZE(dty) == TYPE_SIZE(sty))
+        EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    else
+        EXPR_X_ADDR(n) = emit_conv_tac(IR_CONV_FF,
+                                       EXPR_X_ADDR(l),
+                                       ops[TYPE_SIZE(sty)],
+                                       ops[TYPE_SIZE(dty)]);
 }
 
 static void arith2arith(node_t *dty, node_t *sty, node_t *n)

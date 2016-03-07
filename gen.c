@@ -391,7 +391,7 @@ static struct reg * get_one_ireg(void)
     return get_reg(int_regs, ARRAY_SIZE(int_regs), NULL);
 }
 
-static void emit_conv_si2si(struct tac *tac)
+static void emit_conv_ii_widden(struct tac *tac, int typeop)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
@@ -399,35 +399,45 @@ static void emit_conv_si2si(struct tac *tac)
     int to_size = tac->to_opsize;
     int from_i = idx[from_size];
     int to_i = idx[to_size];
-    if (from_size < to_size) {
-        // widden
-        const char *src_label = operand2s(l, from_size);
-        struct vector *excepts = operand_regs(l);
-        struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+    // widden
+    const char *src_label = operand2s(l, from_size);
+    struct vector *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+    if (typeop == INT) {
         emit("movs%s%s %s, %s",
              suffix[from_i], suffix[to_i], src_label, reg->r[to_i]);
-    } else if (from_size > to_size) {
-        // narrow
-        const char *src_label = operand2s(l, from_size);
-        struct vector *excepts = operand_regs(l);
-        struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
-        emit("mov%s %s, %s", suffix[to_i], src_label, reg->r[to_i]);
     } else {
-        // equal
-        cc_assert(0);
+        if (from_size == Long)
+            emit("movl %s, %s", src_label, reg->r[from_i]);
+        else
+            emit("movz%s%s %s, %s",
+                 suffix[from_i], suffix[to_i], src_label, reg->r[to_i]);
     }
 }
 
-static void emit_conv_ui2ui(struct tac *tac)
+static void emit_conv_ii_narrow(struct tac *tac, int typeop)
 {
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int from_size = tac->from_opsize;
+    int to_size = tac->to_opsize;
+    int from_i = idx[from_size];
+    int to_i = idx[to_size];
+    // narrow
+    const char *src_label = operand2s(l, from_size);
+    struct vector *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+    emit("mov%s %s, %s", suffix[to_i], src_label, reg->r[to_i]);
 }
 
-static void emit_conv_si2ui(struct tac *tac)
+static void emit_conv_i2i(struct tac *tac, int typeop)
 {
-}
-
-static void emit_conv_ui2si(struct tac *tac)
-{
+    if (tac->from_opsize < tac->to_opsize)
+        emit_conv_ii_widden(tac, typeop);
+    else if (tac->from_opsize > tac->to_opsize)
+        emit_conv_ii_narrow(tac, typeop);
+    else
+        cc_assert(0);
 }
 
 static void emit_conv_si2f(struct tac *tac)
@@ -650,6 +660,9 @@ static void emit_assigni(struct tac *tac)
         // mem = tmp
         // mem = imm
         emit_assigni_basic(l, r, tac->opsize);
+        // POST load
+        if (is_tmp_operand(r) && is_direct_mem_operand(l) && !SYM_X_REG(l->sym))
+            load(SYM_X_REG(r->sym), l->sym, tac->opsize);
     } else if (is_tmp_operand(l)) {
         // tmp = mem
         // tmp = tmp
@@ -838,16 +851,12 @@ static void emit_tac(struct tac *tac)
         emit_call(tac);
         break;
     case IR_CONV_UI_UI:
-        emit_conv_ui2ui(tac);
-        break;
     case IR_CONV_UI_SI:
-        emit_conv_ui2si(tac);
+        emit_conv_i2i(tac, UNSIGNED);
         break;
     case IR_CONV_SI_UI:
-        emit_conv_si2ui(tac);
-        break;
     case IR_CONV_SI_SI:
-        emit_conv_si2si(tac);
+        emit_conv_i2i(tac, INT);
         break;
     case IR_CONV_SI_F:
         emit_conv_si2f(tac);
