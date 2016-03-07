@@ -23,3 +23,41 @@ every register holds variables:
 symbol;
 size; // for spill
 }
+
+//////
+operand
+==============
+sym
+disp(sym,index,scale)
+*sym
+
+
+assignment
+==============
+x = y
+
+NOTE:
+mem = tmp
+mem = imm
+
+// move directly
+
+tmp = mem
+tmp = tmp
+tmp = imm
+
+// get regs in y as Rys
+// alloc reg for tmp as Rx (except: Rys)
+// move y to Rx
+
+
+integer bop
+==============
+x = y op z (where x is a tmp operand)
+
+get regs in y as Rys
+get regs in z as Rzs
+dispatch reg for x as Rx (except: Rys + Rzs)
+[load x to Rx descriptor]
+emit (mov y Rx)
+emit (op z Rx)
