@@ -26,6 +26,10 @@ symbol in operand: gref/lref/tmp/imm/label.
        - so sym can only be lref or tmp.
 
 3. indirection: * sym
+   sym _MUST_ be a tmp symbol.
+       - if sym is tmp, done.
+       - if sym is lref/gref, then load it to a tmp first.
+       - otherwise it's a fatal error.
 
 assignment requirements
 ==========

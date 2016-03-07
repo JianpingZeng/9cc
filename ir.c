@@ -191,7 +191,10 @@ static struct operand * make_indirection_operand(struct operand *l)
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
         {
-            struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
+            struct tac *tac = make_assign_tac(IR_ASSIGNI,
+                                              make_tmp_operand(),
+                                              l,
+                                              ops[Quad]);
             emit_tac(tac);
             struct operand *operand = make_sym_operand(tac->operands[0]->sym);
             operand->op = IR_INDIRECTION;
@@ -199,10 +202,22 @@ static struct operand * make_indirection_operand(struct operand *l)
         }
         break;
     case IR_NONE:
-        {
+        if (SYM_X_KIND(l->sym) == SYM_KIND_TMP) {
             struct operand *operand = make_sym_operand(l->sym);
             operand->op = IR_INDIRECTION;
             return operand;
+        } else if (SYM_X_KIND(l->sym) == SYM_KIND_GREF ||
+                   SYM_X_KIND(l->sym) == SYM_KIND_LREF) {
+            struct tac *tac = make_assign_tac(IR_ASSIGNI,
+                                              make_tmp_operand(),
+                                              l,
+                                              ops[Quad]);
+            emit_tac(tac);
+            struct operand *operand = make_sym_operand(tac->operands[0]->sym);
+            operand->op = IR_INDIRECTION;
+            return operand;
+        } else {
+            cc_assert(0);
         }
         break;
     default:
