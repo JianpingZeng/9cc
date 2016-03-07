@@ -166,6 +166,17 @@ static void init_regs(void)
     }
 }
 
+static void dump_operand(struct operand *operand)
+{
+    println("%p: op:%s,%ld(%s,%s,%d), kind: %d, reg: %s",
+            operand, rop2s(operand->op),operand->disp,
+            SYM_X_LABEL(operand->sym),
+            operand->index ? SYM_X_LABEL(operand->index) : "",
+            operand->scale,
+            SYM_X_KIND(operand->sym),
+            SYM_X_REG(operand->sym) ? SYM_X_REG(operand->sym)->r[Q] : "");
+}
+
 static struct vector * operand_regs(struct operand *operand)
 {
     struct vector *v = vec_new();
@@ -578,13 +589,13 @@ static void emit_nonbuiltin_call(struct tac *tac)
         emit_param(param, arg);
     }
 
-    if (TYPE_VARG(ftype)) {
+    if (TYPE_VARG(ftype) || TYPE_OLDSTYLE(ftype)) {
         drain_reg(int_regs[RAX]);
         emit("movb $%d, %%al", pinfo.fp);
     }
 
     // TODO: direct / indirect
-    emit("callq %s", SYM_X_LABEL(l->sym));
+    emit("call %s", SYM_X_LABEL(l->sym));
 }
 
 static void emit_builtin_va_start(struct tac *tac)
