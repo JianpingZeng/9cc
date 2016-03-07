@@ -2,6 +2,9 @@
 
 X86_64 registers
 
+General registers
+==================
+
 64-bit  32-bit  16-bit  8-bit
 rax     eax     ax      al,ah
 rbx     ebx     bx      bl,bh
@@ -15,11 +18,13 @@ rip     eip     ip
 r8~r15
 
 Segment registers
+==================
 
 cs,ds,es,fs,gs,ss
 
 
 Integer Conversion
+====================
 
 1. signed => signed
 
@@ -138,6 +143,7 @@ uint64 => int64: movq, movq
 
 
 MOV instruction
+================
 
 1. MOV
 mov + [b,w,l,q]
@@ -188,7 +194,65 @@ SHIFT [reg/mem], [imm8/cl]
 3. SAR: fill with ones
 
 
-Reference:
+Arithmetic Instructions
+========================
+1. ADD: x = y + z
+2. SUB: x = y - z
+3. MUL: x = y * z
+   INTEGER MUL
+   3.1 unsigned mul
+       MUL r/m8         multipy (AX <- AL * r/m8)
+       MUL r/m16        multipy (DX:AX <- AX * r/m16)
+       MUL r/m32        multipy (EDX:EAX <- EAX * r/m32)
+       MUL r/m64        multipy (RDX:RAX <- RAX * r/m64)
+
+   3.2 signed mul
+       IMUL r/m8        AX <- AL * r/m8
+       IMUL r/m16       DX:AX <- AX * r/m16
+       IMUL r/m32       EDX:EAX <- EAX * r/m32
+       IMUL r/m64       RDX:RAX <- RAX * r/m64
+
+       IMUL r16, r/m16  word register <- word register * r/m16
+       IMUL r32, r/m32  doubleword register <- doubleword register * r/m32
+       IMUL r64, r/m64  quadword register <- quadword register * r/m64
+
+       IMUL r16, r/m16, imm8     word register <- r/m16 * imm8
+       IMUL r16, r/m16, imm16    word register <- r/m16 * imm16
+       IMUL r32, r/m32, imm8     doubleword register <- r/m32 * imm8
+       IMUL r32, r/m32, imm32    doubleword register <- r/m32 * imm32
+       IMUL r64, r/m64, imm8     quadword register <- r/m64 * imm8
+       IMUL r64, r/m64, imm32    quadword register <- r/m64 * imm32
+
+   FLOATING MUL
+
+4. DIV: x = y / z
+   INTEGER DIV
+   4.1 unsigned divide
+       DIV r/m8         divide AX by r/m8, AL <- quotient, AH <- reminder
+       DIV r/m16        divide DX:AX by r/m16, AX <- quotient, DX <- reminder
+       DIV r/m32        divide EDX:EAX by r/m32, EAX <- quotient, EDX <- reminder
+       DIV r/m64        divide RDX:RAX by r/m64, RAX <- quotient, RDX <- reminder
+
+   4.2 signed divide
+       IDIV r/m8         divide AX by r/m8, AL <- quotient, AH <- reminder
+       IDIV r/m16        divide DX:AX by r/m16, AX <- quotient, DX <- reminder
+       IDIV r/m32        divide EDX:EAX by r/m32, EAX <- quotient, EDX <- reminder
+       IDIV r/m64        divide RDX:RAX by r/m64, RAX <- quotient, RDX <- reminder
+
+   FLOATING DIV
+
+5. MOD: x = y % z               (integer only)
+   NOTE: the same as integer divide.
+   
+6. Bitwise-OR:  x = y | z       (integer only)
+7. Bitwise-AND: x = y & z       (integer only)
+8. Bitwise-XOR: x = y ^ z       (integer only)
+9. Left-SHIFT:   x = y << z     (integer only)
+10. Right-SHIFT: x = y >> z     (integer only)
+
+
+Reference
+===========
 
 1. Intel 64 and IA-32 Architecture Software Developer Manuals:
 http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html
