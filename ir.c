@@ -167,16 +167,34 @@ static struct tac * make_tac_r(int op,
     return make_tac(op, l, r, make_tmp_operand(), opsize);
 }
 
-static bool is_tmp_operand(struct operand *operand)
+bool is_tmp_operand(struct operand *operand)
 {
     return operand->op == IR_NONE && SYM_X_KIND(operand->sym) == SYM_KIND_TMP;
+}
+
+bool is_imm_operand(struct operand *operand)
+{
+    return operand->op == IR_NONE && SYM_X_KIND(operand->sym) == SYM_KIND_IMM;
+}
+
+bool is_mem_operand(struct operand *operand)
+{
+    switch (operand->op) {
+    case IR_SUBSCRIPT:
+    case IR_INDIRECTION:
+        return true;
+    case IR_NONE:
+        return !is_tmp_operand(operand) && !is_imm_operand(operand);
+    default:
+        cc_assert(0);
+    }
 }
 
 static struct tac * make_assign_tac(int op,
                                     struct operand *l, struct operand *r,
                                     int opsize)
 {
-    if (!is_tmp_operand(l) && !is_tmp_operand(r)) {
+    if (is_mem_operand(l) && is_mem_operand(r)) {
         struct tac *tac = make_tac_r(op, r, NULL, opsize);
         emit_tac(tac);
         return make_tac(op, tac->operands[0], NULL, l, opsize);

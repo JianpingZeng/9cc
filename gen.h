@@ -227,5 +227,8 @@ extern void gen(struct externals *externals, FILE * fp);
 extern const char *rop2s(int op);
 extern struct externals * ir(node_t *tree);
 extern node_t * reduce(node_t *expr);
+extern bool is_tmp_operand(struct operand *operand);
+extern bool is_mem_operand(struct operand *operand);
+extern bool is_imm_operand(struct operand *operand);
 
 #endif
