@@ -184,7 +184,8 @@ bool is_mem_operand(struct operand *operand)
     case IR_INDIRECTION:
         return true;
     case IR_NONE:
-        return !is_tmp_operand(operand) && !is_imm_operand(operand);
+        return SYM_X_KIND(operand->sym) == SYM_KIND_GREF ||
+            SYM_X_KIND(operand->sym) == SYM_KIND_LREF;
     default:
         cc_assert(0);
     }
