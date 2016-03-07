@@ -191,18 +191,23 @@ static const char * operand2s(struct operand *operand, int opsize)
 {
     switch (operand->op) {
     case IR_NONE:
-        if (SYM_X_REG(operand->sym))
+        if (SYM_X_REG(operand->sym)) {
             return format("%s", SYM_X_REG(operand->sym)->r[idx[opsize]]);
-        else if (SYM_X_KIND(operand->sym) == SYM_KIND_IMM)
+        } else if (SYM_X_KIND(operand->sym) == SYM_KIND_IMM) {
             return format("$%lu", SYM_VALUE_U(operand->sym));
-        else if (SYM_X_KIND(operand->sym) == SYM_KIND_LREF)
+        } else if (SYM_X_KIND(operand->sym) == SYM_KIND_LREF) {
             return format("%ld(%s)", SYM_X_LOFF(operand->sym), rbp->r[Q]);
-        else if (SYM_X_KIND(operand->sym) == SYM_KIND_GREF)
-            return format("%s(%s)", SYM_X_LABEL(operand->sym), rip->r[Q]);
-        else if (SYM_X_KIND(operand->sym) == SYM_KIND_TMP)
+        } else if (SYM_X_KIND(operand->sym) == SYM_KIND_GREF) {
+            if (isfunc(SYM_TYPE(operand->sym)))
+                return format("$%s", SYM_X_LABEL(operand->sym));
+            else
+                return format("%s(%s)", SYM_X_LABEL(operand->sym), rip->r[Q]);
+        } else if (SYM_X_KIND(operand->sym) == SYM_KIND_TMP) {
+            cc_assert(SYM_X_REG(operand->sym));
             return format("%s", SYM_X_REG(operand->sym)->r[idx[opsize]]);
-        else
+        } else {
             cc_assert(0);
+        }
         break;
     case IR_SUBSCRIPT:
         {
@@ -595,7 +600,24 @@ static void emit_nonbuiltin_call(struct tac *tac)
     }
 
     // TODO: direct / indirect
-    emit("call %s", SYM_X_LABEL(l->sym));
+    switch (l->op) {
+    case IR_NONE:
+        if (SYM_X_KIND(l->sym) == SYM_KIND_GREF) {
+            if (isfunc(SYM_TYPE(l->sym)))
+                emit("call %s", SYM_X_LABEL(l->sym));
+            else
+                emit("call %s", operand2s(l, Quad));
+        } else {
+            emit("call *%s", operand2s(l, Quad));
+        }
+        break;
+    case IR_SUBSCRIPT:
+    case IR_INDIRECTION:
+        emit("call *%s", operand2s(l, Quad));
+        break;
+    default:
+        cc_assert(0);
+    }
 }
 
 static void emit_builtin_va_start(struct tac *tac)
