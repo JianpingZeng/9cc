@@ -24,6 +24,9 @@ static void emit_member_nonbitfield(node_t *n, node_t *field);
 static struct vector * filter_global(node_t **v);
 static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
                                 long offset, node_t *bfield, bool sty);
+static struct operand * emit_conv_tac(int op, struct operand *l,
+                                      int from_opsize,
+                                      int to_opsize);
 
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
@@ -249,6 +252,9 @@ static struct operand * do_make_subscript_operand2(struct operand *l,
                                                    size_t step,
                                                    long disp)
 {
+    cc_assert(is_tmp_operand(l));
+    cc_assert(index->op == IR_NONE);
+    
     struct operand *operand = make_sym_operand(l->sym);
     operand->op = IR_SUBSCRIPT;
     
@@ -258,7 +264,30 @@ static struct operand * do_make_subscript_operand2(struct operand *l,
         operand->disp = d;
     } else if (step == Byte || step == Word || step == Long || step == Quad) {
         // disp(base,index,scale)
-        operand->index = index->sym;
+
+        // NOTE: index _MUST_ be a tmp operand.
+        if (SYM_X_KIND(index->sym) == SYM_KIND_TMP) {
+            operand->index = index->sym;
+        } else {
+            // cast to Quad
+            node_t *sty = SYM_TYPE(index->sym);
+            node_t *dty = longtype;
+            if (eqarith(sty, dty)) {
+                struct tac *tac = make_assign_tac(IR_ASSIGNI,
+                                                  make_tmp_operand(),
+                                                  index,
+                                                  ops[Quad]);
+                emit_tac(tac);
+                operand->index = tac->operands[0]->sym;
+            } else {
+                int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_SI : IR_CONV_SI_SI;
+                struct operand *result = emit_conv_tac(op,
+                                                       index,
+                                                       ops[TYPE_SIZE(sty)],
+                                                       ops[TYPE_SIZE(dty)]);
+                operand->index = result->sym;
+            }
+        }
         operand->scale = step;
         operand->disp = disp;
     } else {

@@ -19,7 +19,7 @@ enum {
 
 struct rvar {
     node_t *sym;
-    size_t size;
+    int size;
 };
 
 struct reg {

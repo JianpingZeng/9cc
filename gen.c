@@ -45,6 +45,8 @@ static struct pinfo alloc_addr_for_params(node_t **params);
 static struct uses * get_uses(node_t *sym, struct tac *tac);
 #define get_current_uses(sym)  get_uses(sym, current_tac)
 
+#define COMMENT(str)    "\t# "##str
+
 static void emit(const char *fmt, ...)
 {
     va_list ap;
@@ -163,6 +165,7 @@ static void init_regs(void)
             farg_regs[i - XMM0] = float_regs[i];
     }
 }
+
 static struct vector * operand_regs(struct operand *operand)
 {
     struct vector *v = vec_new();
@@ -243,16 +246,26 @@ static void drain_reg(struct reg *reg)
     
 }
 
+static struct rvar * new_rvar(node_t *sym, int size)
+{
+    struct rvar *var = zmalloc(sizeof(struct rvar));
+    var->sym = sym;
+    var->size = size;
+    return var;
+}
+
 // LD reg, sym
-static void load(struct reg *reg, node_t *sym)
+static void load(struct reg *reg, node_t *sym, int opsize)
 {
     cc_assert(vec_empty(reg->vars));
     cc_assert(SYM_X_REG(sym) == NULL);
+
+    struct rvar *var = new_rvar(sym, opsize);
     
     if (!reg->vars)
-        reg->vars = vec_new1(sym);
+        reg->vars = vec_new1(var);
     else
-        vec_push(reg->vars, sym);
+        vec_push(reg->vars, var);
     SYM_X_REG(sym) = reg;
 }
 
@@ -264,8 +277,8 @@ static void store(node_t *sym, struct reg *reg)
     SYM_X_REG(sym) = NULL;
 }
 
-static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts,
-                                     struct reg **regs, int size)
+static struct reg * dispatch_reg(node_t *sym, struct vector *excepts,
+                                 struct reg **regs, int size)
 {
     // already in reg
     if (SYM_X_REG(sym))
@@ -331,11 +344,11 @@ static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts,
     return ret;
 }
 
-static struct reg * dispatch_ireg_for(node_t *sym, struct vector *excepts)
+static struct reg * dispatch_ireg(node_t *sym, struct vector *excepts, int opsize)
 {
-    struct reg *reg = dispatch_reg_for(sym, excepts, int_regs, INT_REGS);
+    struct reg *reg = dispatch_reg(sym, excepts, int_regs, INT_REGS);
     if (!SYM_X_REG(sym))
-        load(reg, sym);
+        load(reg, sym, opsize);
     return reg;
 }
 
@@ -364,23 +377,61 @@ static struct reg * get_one_ireg(void)
     return get_one_reg(int_regs, ARRAY_SIZE(int_regs));
 }
 
-static void emit_conv_i2i(struct tac *tac)
+static void emit_conv_si2si(struct tac *tac)
 {
-    if (tac->to_opsize > tac->from_opsize) {
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int from_size = tac->from_opsize;
+    int to_size = tac->to_opsize;
+    int from_i = idx[from_size];
+    int to_i = idx[to_size];
+    if (from_size < to_size) {
         // widden
-    } else if (tac->to_opsize < tac->from_opsize) {
+        const char *src_label = operand2s(l, from_size);
+        struct vector *excepts = operand_regs(l);
+        struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+        emit("movs%s%s %s, %s",
+             suffix[from_i], suffix[to_i], src_label, reg->r[to_i]);
+    } else if (from_size > to_size) {
         // narrow
+        const char *src_label = operand2s(l, from_size);
+        struct vector *excepts = operand_regs(l);
+        struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+        emit("mov%s %s, %s", suffix[to_i], src_label, reg->r[to_i]);
     } else {
-        // equal size
+        // equal
+        cc_assert(0);
     }
 }
 
-static void emit_conv_i2f(struct tac *tac)
+static void emit_conv_ui2ui(struct tac *tac)
+{
+}
+
+static void emit_conv_si2ui(struct tac *tac)
+{
+}
+
+static void emit_conv_ui2si(struct tac *tac)
+{
+}
+
+static void emit_conv_si2f(struct tac *tac)
 {
     
 }
 
-static void emit_conv_f2i(struct tac *tac)
+static void emit_conv_ui2f(struct tac *tac)
+{
+    
+}
+
+static void emit_conv_f2si(struct tac *tac)
+{
+    
+}
+
+static void emit_conv_f2ui(struct tac *tac)
 {
     
 }
@@ -587,7 +638,7 @@ static void emit_assigni(struct tac *tac)
         } else {
             // alloc register for tmp operand
             struct vector *excepts = operand_regs(r);
-            struct reg *reg = dispatch_ireg_for(l->sym, excepts);
+            struct reg *reg = dispatch_ireg(l->sym, excepts, tac->opsize);
             int i = idx[tac->opsize];
             const char *src = operand2s(r, tac->opsize);
             emit("mov%s %s, %s", suffix[i], src, reg->r[i]);
@@ -621,7 +672,7 @@ static void emit_uop_address(struct tac *tac)
     struct operand *l = tac->operands[1];
     const char *src_label = operand2s(l, Quad);
     struct reg *reg = get_one_ireg();
-    load(reg, result->sym);
+    load(reg, result->sym, Quad);
     emit("leaq %s, %s", src_label, reg->r[Q]);
 }
 
@@ -648,7 +699,7 @@ static void emit_bop_int(struct tac *tac, const char *op)
     struct vector *vl = operand_regs(l);
     struct vector *vr = operand_regs(r);
     vec_add(vl, vr);
-    struct reg *reg = dispatch_ireg_for(result->sym, vl);
+    struct reg *reg = dispatch_ireg(result->sym, vl, tac->opsize);
     int i = idx[tac->opsize];
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
@@ -742,21 +793,31 @@ static void emit_tac(struct tac *tac)
         emit_call(tac);
         break;
     case IR_CONV_UI_UI:
+        emit_conv_ui2ui(tac);
+        break;
     case IR_CONV_UI_SI:
+        emit_conv_ui2si(tac);
+        break;
     case IR_CONV_SI_UI:
+        emit_conv_si2ui(tac);
+        break;
     case IR_CONV_SI_SI:
-        emit_conv_i2i(tac);
+        emit_conv_si2si(tac);
         break;
     case IR_CONV_SI_F:
+        emit_conv_si2f(tac);
+        break;
     case IR_CONV_UI_F:
-        emit_conv_i2f(tac);
+        emit_conv_ui2f(tac);
+        break;
+    case IR_CONV_F_SI:
+        emit_conv_f2si(tac);
+        break;
+    case IR_CONV_F_UI:
+        emit_conv_f2ui(tac);
         break;
     case IR_CONV_FF:
         emit_conv_f2f(tac);
-        break;
-    case IR_CONV_F_SI:
-    case IR_CONV_F_UI:
-        emit_conv_f2i(tac);
         break;
     case IR_NONE:
     case IR_PARAM:

@@ -163,7 +163,7 @@ movsbq
 movswl
 movswq
 movslq
-ctlq (CDQE in Intel Manuals, shorthand for "movslq %eax, %rax")
+cltq (CDQE in Intel Manuals, shorthand for "movslq %eax, %rax")
 
 3. MOVZX: Move with Zero-Extend
 MOVZX r16, r/m8         Move byte to word with zero-extension.
@@ -178,20 +178,6 @@ movzbl
 movzbq
 movzwl
 movzwq
-
-
-Shift: SAL/SAR/SHL/SHR
-
-SAL: shift arithmetic left
-SHL: shift logical left
-SAR: shift arithmetic right
-SHR: shift logical right
-
-SHIFT [reg/mem], [imm8/cl]
-
-1. SAL and SHL are the same.
-2. SHR: fill with zeros
-3. SAR: fill with ones
 
 
 Arithmetic Instructions
@@ -245,11 +231,39 @@ Arithmetic Instructions
    NOTE: the same as integer divide.
    
 6. Bitwise-OR:  x = y | z       (integer only)
+   OR r/m8, imm8
+   OR r8, r/m8
+
+   OR r/m16, imm8    
+   OR r/m16, imm16
+   OR r16, r/m16
+   
+   OR r/m32, imm8
+   OR r/m32, imm32
+   OR r32, r/m32
+
+   OR r/m64, imm8
+   OR r/m64, imm32
+   OR r64, r/m64
+
 7. Bitwise-AND: x = y & z       (integer only)
 8. Bitwise-XOR: x = y ^ z       (integer only)
 9. Left-SHIFT:   x = y << z     (integer only)
 10. Right-SHIFT: x = y >> z     (integer only)
 
+Shift: SAL/SAR/SHL/SHR
+=======================
+
+SAL: shift arithmetic left
+SHL: shift logical left
+SAR: shift arithmetic right
+SHR: shift logical right
+
+SHIFT [reg/mem], [imm8/cl]
+
+1. SAL and SHL are the same.
+2. SHR: fill with zeros
+3. SAR: fill with ones
 
 Reference
 ===========
