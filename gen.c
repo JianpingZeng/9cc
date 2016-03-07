@@ -180,7 +180,9 @@ static const char * operand2s(struct operand *operand, int opsize)
 {
     switch (operand->op) {
     case IR_NONE:
-        if (SYM_X_KIND(operand->sym) == SYM_KIND_IMM)
+        if (SYM_X_REG(operand->sym))
+            return format("%s", SYM_X_REG(operand->sym)->r[idx[opsize]]);
+        else if (SYM_X_KIND(operand->sym) == SYM_KIND_IMM)
             return format("$%lu", SYM_VALUE_U(operand->sym));
         else if (SYM_X_KIND(operand->sym) == SYM_KIND_LREF)
             return format("%ld(%s)", SYM_X_LOFF(operand->sym), rbp->r[Q]);
@@ -257,7 +259,6 @@ static struct rvar * new_rvar(node_t *sym, int size)
 // LD reg, sym
 static void load(struct reg *reg, node_t *sym, int opsize)
 {
-    cc_assert(vec_empty(reg->vars));
     cc_assert(SYM_X_REG(sym) == NULL);
 
     struct rvar *var = new_rvar(sym, opsize);
@@ -644,11 +645,12 @@ static void emit_assigni(struct tac *tac)
             // alloc register for tmp operand
             struct vector *excepts = operand_regs(r);
             struct reg *reg = dispatch_ireg(l->sym, excepts, tac->opsize);
-            if (is_direct_mem_operand(r) && !SYM_X_REG(r->sym))
-                load(reg, r->sym, tac->opsize);
             int i = idx[tac->opsize];
             const char *src = operand2s(r, tac->opsize);
             emit("mov%s %s, %s", suffix[i], src, reg->r[i]);
+            // POST load
+            if (is_direct_mem_operand(r) && !SYM_X_REG(r->sym))
+                load(reg, r->sym, tac->opsize);
         }
     } else {
         cc_assert(0);
