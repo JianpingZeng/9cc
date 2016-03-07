@@ -333,7 +333,10 @@ static struct reg * dispatch_reg_for(node_t *sym, struct vector *excepts,
 
 static struct reg * dispatch_ireg_for(node_t *sym, struct vector *excepts)
 {
-    return dispatch_reg_for(sym, excepts, int_regs, INT_REGS);
+    struct reg *reg = dispatch_reg_for(sym, excepts, int_regs, INT_REGS);
+    if (!SYM_X_REG(sym))
+        load(reg, sym);
+    return reg;
 }
 
 static struct reg * get_one_reg(struct reg **regs, int size)
@@ -585,7 +588,6 @@ static void emit_assigni(struct tac *tac)
             // alloc register for tmp operand
             struct vector *excepts = operand_regs(r);
             struct reg *reg = dispatch_ireg_for(l->sym, excepts);
-            load(reg, l->sym);
             int i = idx[tac->opsize];
             const char *src = operand2s(r, tac->opsize);
             emit("mov%s %s, %s", suffix[i], src, reg->r[i]);
@@ -647,7 +649,6 @@ static void emit_bop_int(struct tac *tac, const char *op)
     struct vector *vr = operand_regs(r);
     vec_add(vl, vr);
     struct reg *reg = dispatch_ireg_for(result->sym, vl);
-    load(reg, result->sym);
     int i = idx[tac->opsize];
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
