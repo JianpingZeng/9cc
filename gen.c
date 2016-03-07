@@ -45,7 +45,7 @@ static struct pinfo alloc_addr_for_params(node_t **params);
 static struct uses * get_uses(node_t *sym, struct tac *tac);
 #define get_current_uses(sym)  get_uses(sym, current_tac)
 
-#define COMMENT(str)    "\t# "##str
+#define COMMENT(str)    "\t# " str
 
 static void emit(const char *fmt, ...)
 {
@@ -243,11 +243,6 @@ static const char * operand2s(struct operand *operand, int opsize)
     }
 }
 
-static void drain_reg(struct reg *reg)
-{
-    
-}
-
 static struct rvar * new_rvar(node_t *sym, int size)
 {
     struct rvar *var = zmalloc(sizeof(struct rvar));
@@ -271,11 +266,33 @@ static void load(struct reg *reg, node_t *sym, int opsize)
 }
 
 // ST sym, reg
-static void store(node_t *sym, struct reg *reg)
+static void store(node_t *sym)
 {
     cc_assert(SYM_X_REG(sym));
 
     SYM_X_REG(sym) = NULL;
+    SYM_X_INMEM(sym) = true;
+}
+
+static void drain_reg(struct reg *reg)
+{
+    for (int i = 0; i < vec_len(reg->vars); i++) {
+        struct rvar *v = vec_at(reg->vars, i);
+        node_t *sym = v->sym;
+        int i = idx[v->size];
+        if (SYM_X_KIND(sym) == SYM_KIND_GREF &&
+            !SYM_X_INMEM(sym)) {
+            emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"), v->size,
+                 suffix[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q]);
+            store(sym);
+        } else if (SYM_X_KIND(sym) == SYM_KIND_LREF &&
+                   !SYM_X_INMEM(sym)) {
+            emit("mov%s %s, %ld(%s)" COMMENT("%d bytes spill"), v->size,
+                 suffix[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q]);
+            store(sym);
+        }
+    }
+    vec_clear(reg->vars);
 }
 
 static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts)
@@ -555,6 +572,8 @@ static void emit_nonbuiltin_call(struct tac *tac)
         drain_reg(int_regs[RAX]);
         emit("movb $%d, %%al", pinfo.fp);
     }
+
+    // TODO: direct / indirect
     emit("callq %s", SYM_X_LABEL(l->sym));
 }
 
@@ -683,21 +702,6 @@ static void emit_uop_address(struct tac *tac)
     emit("leaq %s, %s", src_label, reg->r[Q]);
 }
 
-static void emit_bop_mod(struct tac *tac)
-{
-    
-}
-
-static void emit_bop_lshift(struct tac *tac)
-{
-    
-}
-
-static void emit_bop_rshift(struct tac *tac)
-{
-    
-}
-
 static void emit_bop_int(struct tac *tac, const char *op)
 {
     struct operand *result = tac->operands[0];
@@ -712,6 +716,40 @@ static void emit_bop_int(struct tac *tac, const char *op)
     const char *r_label = operand2s(r, tac->opsize);
     emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
     emit("%s%s %s, %s", op, suffix[i], r_label, reg->r[i]);
+}
+
+static void emit_bop_int_div(struct tac *tac)
+{
+}
+
+static void emit_bop_int_idiv(struct tac *tac)
+{
+    
+}
+
+static void emit_bop_int_mul(struct tac *tac)
+{
+    
+}
+
+static void emit_bop_int_imul(struct tac *tac)
+{
+    
+}
+
+static void emit_bop_mod(struct tac *tac)
+{
+    
+}
+
+static void emit_bop_lshift(struct tac *tac)
+{
+    
+}
+
+static void emit_bop_rshift(struct tac *tac)
+{
+    
 }
 
 static void emit_bop_float(struct tac *tac)
@@ -746,16 +784,16 @@ static void emit_tac(struct tac *tac)
         emit_bop_int(tac, "sub");
         break;
     case IR_DIVI:
-        emit_bop_int(tac, "div");
+        emit_bop_int_div(tac);
         break;
     case IR_IDIVI:
-        emit_bop_int(tac, "idiv");
+        emit_bop_int_idiv(tac);
         break;
     case IR_MULI:
-        emit_bop_int(tac, "mul");
+        emit_bop_int_mul(tac);
         break;
     case IR_IMULI:
-        emit_bop_int(tac, "imul");
+        emit_bop_int_imul(tac);
         break;
     case IR_OR:
         emit_bop_int(tac, "or");
