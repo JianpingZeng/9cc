@@ -278,7 +278,7 @@ static struct operand * do_make_subscript_operand2(struct operand *l,
             // cast to Quad
             node_t *sty = SYM_TYPE(index->sym);
             node_t *dty = longtype;
-            if (eqarith(sty, dty)) {
+            if (TYPE_SIZE(sty) == TYPE_SIZE(dty)) {
                 struct tac *tac = make_assign_tac(IR_ASSIGNI,
                                                   make_tmp_operand(),
                                                   index,
