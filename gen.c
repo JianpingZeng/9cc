@@ -278,16 +278,11 @@ static void store(node_t *sym, struct reg *reg)
     SYM_X_REG(sym) = NULL;
 }
 
-static struct reg * dispatch_reg(node_t *sym, struct vector *excepts,
-                                 struct reg **regs, int size)
+static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts)
 {
-    // already in reg, return directly
-    if (SYM_X_REG(sym))
-        return SYM_X_REG(sym);
-
     // filter excepts out
     struct vector *candicates = vec_new();
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < count; i++) {
         struct reg *ri = regs[i];
         bool found = false;
         for (int j = 0; j < vec_len(excepts); j++) {
@@ -348,37 +343,35 @@ static struct reg * dispatch_reg(node_t *sym, struct vector *excepts,
     return ret;
 }
 
-static struct reg * dispatch_ireg(node_t *sym, struct vector *excepts, int opsize)
+static struct reg * dispatch_reg(struct reg **regs, int count, struct vector *excepts,
+                                 node_t *sym, int opsize)
 {
-    struct reg *reg = dispatch_reg(sym, excepts, int_regs, INT_REGS);
-    if (!SYM_X_REG(sym))
-        load(reg, sym, opsize);
+    // already in reg, return directly
+    if (SYM_X_REG(sym))
+        return SYM_X_REG(sym);
+    struct reg *reg = get_reg(regs, count, excepts);
+    load(reg, sym, opsize);
     return reg;
 }
 
-static struct reg * get_one_reg(struct reg **regs, int size)
+static struct reg * dispatch_ireg(node_t *sym, struct vector *excepts, int opsize)
 {
-    struct reg *min = NULL;
-    for (int i = 0; i < size; i++) {
-        struct reg *reg = regs[i];
-        if (vec_empty(reg->vars))
-            return reg;
-        if (min == NULL)
-            min = reg;
-        else if (vec_len(reg->vars) < vec_len(min->vars))
-            min = reg;
-    }
-    die("not implemented yet.");
+    return dispatch_reg(int_regs, ARRAY_SIZE(int_regs), excepts, sym, opsize);
+}
+
+static struct reg * dispatch_freg(node_t *sym, struct vector *excepts, int opsize)
+{
+    return dispatch_reg(float_regs, ARRAY_SIZE(float_regs), excepts, sym, opsize);
 }
 
 static struct reg * get_one_freg(void)
 {
-    return get_one_reg(float_regs, ARRAY_SIZE(float_regs));
+    return get_reg(float_regs, ARRAY_SIZE(float_regs), NULL);
 }
 
 static struct reg * get_one_ireg(void)
 {
-    return get_one_reg(int_regs, ARRAY_SIZE(int_regs));
+    return get_reg(int_regs, ARRAY_SIZE(int_regs), NULL);
 }
 
 static void emit_conv_si2si(struct tac *tac)
