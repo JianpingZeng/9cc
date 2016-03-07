@@ -282,13 +282,13 @@ static void drain_reg(struct reg *reg)
         int i = idx[v->size];
         if (SYM_X_KIND(sym) == SYM_KIND_GREF &&
             !SYM_X_INMEM(sym)) {
-            emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"), v->size,
-                 suffix[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q]);
+            emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"),
+                 suffix[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
             store(sym);
         } else if (SYM_X_KIND(sym) == SYM_KIND_LREF &&
                    !SYM_X_INMEM(sym)) {
-            emit("mov%s %s, %ld(%s)" COMMENT("%d bytes spill"), v->size,
-                 suffix[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q]);
+            emit("mov%s %s, %ld(%s)" COMMENT("%d bytes spill"),
+                 suffix[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
             store(sym);
         }
     }
