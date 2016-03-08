@@ -414,19 +414,18 @@ static struct reg * get_one_ireg(struct vector *excepts)
 
 static bool is_in_tac(node_t *sym, struct tac *tac)
 {
-    struct operand *l = tac->operands[1];
-    struct operand *r = tac->operands[2];
-    if (l && (sym == l->sym || sym == l->index))
-        return true;
-    if (r && (sym == r->sym || sym == r->index))
-        return true;
+    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+        struct operand *operand = tac->operands[i];
+        if (operand && (sym == operand->sym || sym == operand->index))
+            return true;
+    }
     return false;
 }
 
 static void do_drain_reg(struct reg *reg, struct vector *excepts)
 {
-    for (int i = 0; i < vec_len(reg->vars); i++) {
-        struct rvar *v = vec_at(reg->vars, i);
+    for (int j = 0; j < vec_len(reg->vars); j++) {
+        struct rvar *v = vec_at(reg->vars, j);
         node_t *sym = v->sym;
         int i = idx[v->size];
         // always clear
@@ -677,6 +676,19 @@ static void emit_param(struct tac *tac, node_t *arg)
         cc_assert(0);
 }
 
+static void drain_args_regs(int gp, int fp)
+{
+    struct vector *gv = vec_new();
+    for (int i = 0; i < gp; i++)
+        vec_push(gv, iarg_regs[i]);
+    drain_regs(gv);
+
+    struct vector *fv = vec_new();
+    for (int i = 0; i < fp; i++)
+        vec_push(fv, farg_regs[i]);
+    drain_regs(fv);
+}
+
 static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
@@ -691,9 +703,14 @@ static void emit_nonbuiltin_call(struct tac *tac)
         cc_assert(t->op == IR_PARAM);
         vec_push(params, t);
     }
+
+    // TODO: reset current tac here to make next uses live for params
+    current_tac = t;
     
     // emit args
     struct pinfo pinfo = alloc_addr_for_params(args);
+    // drain regs
+    drain_args_regs(pinfo.gp, pinfo.fp);
     for (int i = 0; i < len; i++) {
         node_t *arg = args[i];
         struct tac *param = vec_at(params, i);
