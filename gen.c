@@ -424,6 +424,7 @@ static bool is_in_tac(node_t *sym, struct tac *tac)
 
 static void do_drain_reg(struct reg *reg, struct vector *excepts)
 {
+    struct reg *new_reg = NULL;
     for (int j = 0; j < vec_len(reg->vars); j++) {
         struct rvar *v = vec_at(reg->vars, j);
         node_t *sym = v->sym;
@@ -431,27 +432,39 @@ static void do_drain_reg(struct reg *reg, struct vector *excepts)
         // always clear
         SYM_X_REG(sym) = NULL;
         struct uses *uses = get_current_uses(sym);
-        
-        if (SYM_X_KIND(sym) == SYM_KIND_GREF &&
-            !SYM_X_INMEM(sym)) {
-            emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"),
-                 suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
-            store(sym);
-        } else if (SYM_X_KIND(sym) == SYM_KIND_LREF &&
-                   !SYM_X_INMEM(sym)) {
-            emit("mov%s %s, %ld(%s)" COMMENT("%d bytes spill"),
-                 suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
-            store(sym);
-        } else if (SYM_X_KIND(sym) == SYM_KIND_TMP &&
-                   (is_in_tac(sym, current_tac) || uses->live)) {
-            // sticky
-            struct reg *r;
-            if (reg->freg)
-                r = dispatch_freg(sym, excepts, v->size);
-            else
-                r = dispatch_ireg(sym, excepts, v->size);
-            emit("mov%s %s, %s" COMMENT("%d bytes spill"),
-                 suffixi[i], reg->r[i], r->r[i], v->size);
+
+        switch (SYM_X_KIND(sym)) {
+        case SYM_KIND_GREF:
+            if (!SYM_X_INMEM(sym)) {
+                emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"),
+                     suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
+                store(sym);
+            }
+            break;
+        case SYM_KIND_LREF:
+            if (!SYM_X_INMEM(sym)) {
+                emit("mov%s %s, %ld(%s)" COMMENT("%d bytes spill"),
+                     suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
+                store(sym);
+            }
+            break;
+        case SYM_KIND_TMP:
+            if (is_in_tac(sym, current_tac) || uses->live) {
+                // sticky
+                if (!new_reg) {
+                    if (reg->freg)
+                        new_reg = dispatch_freg(sym, excepts, v->size);
+                    else
+                        new_reg = dispatch_ireg(sym, excepts, v->size);
+                    emit("mov%s %s, %s" COMMENT("%d bytes spill"),
+                         suffixi[i], reg->r[i], new_reg->r[i], v->size);
+                } else {
+                    load(new_reg, sym, v->size);
+                }
+            }
+            break;
+        default:
+            break;
         }
     }
     if (reg->vars)
