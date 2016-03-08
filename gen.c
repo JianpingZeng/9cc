@@ -418,7 +418,6 @@ static void drain_reg(struct reg *reg)
         // always clear
         SYM_X_REG(sym) = NULL;
 
-        // TODO: float regs
         if (SYM_X_KIND(sym) == SYM_KIND_GREF &&
             !SYM_X_INMEM(sym)) {
             emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"),
@@ -433,21 +432,13 @@ static void drain_reg(struct reg *reg)
                    is_in_tac(sym, current_tac)) {
             // sticky
             struct vector *excepts = vec_new1(reg);
-            if (reg->freg) {
-                struct reg *r = dispatch_freg(sym, excepts, v->size);
-                if (v->size == Quad)
-                    emit("movsd %s, %s" COMMENT("%d bytes spill"),
-                         reg->r[i], r->r[i], v->size);
-                else if (v->size == Long)
-                    emit("movss %s, %s" COMMENT("%d bytes spill"),
-                         reg->r[i], r->r[i], v->size);
-                else
-                    cc_assert(0);
-            } else {
-                struct reg *r = dispatch_ireg(sym, excepts, v->size);
-                emit("mov%s %s, %s" COMMENT("%d bytes spill"),
-                     suffix[i], reg->r[i], r->r[i], v->size);
-            }
+            struct reg *r;
+            if (reg->freg)
+                r = dispatch_freg(sym, excepts, v->size);
+            else
+                r = dispatch_ireg(sym, excepts, v->size);
+            emit("mov%s %s, %s" COMMENT("%d bytes spill"),
+                 suffix[i], reg->r[i], r->r[i], v->size);
         }
     }
     if (reg->vars)
