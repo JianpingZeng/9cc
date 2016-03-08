@@ -562,6 +562,8 @@ static void emit_decl(node_t *decl)
         return;
     else if (!init)
         return;
+    else if (SYM_REFS(sym) == 0)
+        return;
     
     struct operand *l = make_sym_operand(sym);
     // set sym x kind
@@ -1702,13 +1704,14 @@ static void emit_rel_expr(node_t *n)
     int relop = EXPR_OP(n);
     node_t *ty = AST_TYPE(n);
     int opsize = ops[TYPE_SIZE(ty)];
+    bool floating = isfloat(AST_TYPE(l));
 
     emit_expr(l);
     emit_expr(r);
 
     if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
         
-        int op = isfloat(ty) ? IR_IF_F : IR_IF_I;
+        int op = floating ? IR_IF_F : IR_IF_I;
         emit_rel_if(op,
                     relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
                     EXPR_X_TRUE(n),
@@ -1717,7 +1720,7 @@ static void emit_rel_expr(node_t *n)
         
     } else if (EXPR_X_TRUE(n) != fall) {
 
-        int op = isfloat(ty) ? IR_IF_F : IR_IF_I;
+        int op = floating ? IR_IF_F : IR_IF_I;
         emit_rel_if(op,
                     relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
                     EXPR_X_TRUE(n),
@@ -1725,7 +1728,7 @@ static void emit_rel_expr(node_t *n)
         
     } else if (EXPR_X_FALSE(n) != fall) {
 
-        int op = isfloat(ty) ? IR_IF_FALSE_F : IR_IF_FALSE_I;
+        int op = floating ? IR_IF_FALSE_F : IR_IF_FALSE_I;
         emit_rel_if(op,
                     relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
                     EXPR_X_FALSE(n),

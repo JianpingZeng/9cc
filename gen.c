@@ -38,6 +38,9 @@ static const char *suffix[] = {
 static const char *suffixf[] = {
     "", "", "ss", "sd"
 };
+static const char *suffixp[] = {
+    "", "", "ps", "pd"
+};
 
 struct pinfo {
     int fp;
@@ -714,7 +717,8 @@ static void emit_return(struct tac *tac)
     func_returns++;
 }
 
-static void emit_ifi(struct tac *tac, bool reverse)
+// TODO: floating
+static void emit_if(struct tac *tac, bool reverse, bool floating)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
@@ -724,11 +728,19 @@ static void emit_ifi(struct tac *tac, bool reverse)
         struct vector *vl = operand_regs(l);
         struct vector *vr = operand_regs(r);
         vec_add(vl, vr);
-        struct reg *reg = get_one_ireg(vl);
         const char *l_label = operand2s(l, tac->opsize);
         const char *r_label = operand2s(r, tac->opsize);
-        emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
-        emit("cmp%s %s, %s", suffix[i], r_label, reg->r[i]);
+        struct reg *reg;
+        if (floating) {
+            reg = get_one_freg(vl);
+            emit("mov%s %s, %s", suffixf[i], l_label, reg->r[i]);
+            emit("ucomi%s %s, %s", suffixf[i], r_label, reg->r[i]);
+        } else {
+            reg = get_one_ireg(vl);
+            emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
+            emit("cmp%s %s, %s", suffix[i], r_label, reg->r[i]);
+        }
+        
         const char *jop;
         switch (tac->relop) {
         case '>':
@@ -754,32 +766,37 @@ static void emit_ifi(struct tac *tac, bool reverse)
         }
         emit("%s %s", jop, SYM_X_LABEL(result->sym));
     } else {
-        emit("cmp%s $0, %s", suffix[i], operand2s(l, tac->opsize));
-        if (reverse)
-            emit("je %s", SYM_X_LABEL(result->sym));
-        else
-            emit("jne %s", SYM_X_LABEL(result->sym));
+        if (floating) {
+            struct reg *r = get_one_freg(NULL);
+            emit("xor%s %s, %s", suffixp[i], r->r[i], r->r[i]);
+            emit("ucomi%s %s, %s", suffixf[i], operand2s(l, tac->opsize), r->r[i]);
+        } else {
+            emit("cmp%s $0, %s", suffix[i], operand2s(l, tac->opsize));
+        }
+        
+        const char *jop = reverse ? "je" : "jne";
+        emit("%s %s", jop, SYM_X_LABEL(result->sym));
     }
 }
 
 static void emit_if_i(struct tac *tac)
 {
-    emit_ifi(tac, false);
+    emit_if(tac, false, false);
 }
 
 static void emit_iffalse_i(struct tac *tac)
 {
-    emit_ifi(tac, true);
+    emit_if(tac, true, false);
 }
 
 static void emit_if_f(struct tac *tac)
 {
-    
+    emit_if(tac, false, true);
 }
 
 static void emit_iffalse_f(struct tac *tac)
 {
-    
+    emit_if(tac, true, true);
 }
 
 static void emit_goto(struct tac *tac)
@@ -879,7 +896,14 @@ static void emit_uop_minus_i(struct tac *tac)
 
 static void emit_uop_minus_f(struct tac *tac)
 {
-    
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int i = idx[tac->opsize];
+    struct vector *excepts = operand_regs(l);
+    struct reg *reg = dispatch_freg(result->sym, excepts, tac->opsize);
+    const char *l_label = operand2s(l, tac->opsize);
+    emit("xor%s %s, %s", suffixp[i], reg->r[i], reg->r[i]);
+    emit("sub%s %s, %s", suffixf[i], l_label, reg->r[i]);
 }
 
 static void emit_uop_address(struct tac *tac)

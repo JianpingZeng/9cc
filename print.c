@@ -460,8 +460,8 @@ void print_tac(struct tac *tac)
         break;
     case IR_GOTO:
         putf("%s %s",
-              rop2s(tac->op),
-              operand2s(tac->operands[0]));
+             rop2s(tac->op),
+             operand2s(tac->operands[0]));
         break;
     case IR_RETURNI:
     case IR_RETURNF:
@@ -476,20 +476,24 @@ void print_tac(struct tac *tac)
         if (tac->relop) {
             // rel if
             putf("%s %s %s %s %s %s",
-                  rop2s(tac->op),
-                  operand2s(tac->operands[1]),
-                  id2s(tac->relop),
-                  operand2s(tac->operands[2]),
-                  rop2s(IR_GOTO),
-                  operand2s(tac->operands[0]));
+                 rop2s(tac->op),
+                 operand2s(tac->operands[1]),
+                 id2s(tac->relop),
+                 operand2s(tac->operands[2]),
+                 rop2s(IR_GOTO),
+                 operand2s(tac->operands[0]));
         } else {
             // simple if
             putf("%s %s %s %s",
-                  rop2s(tac->op),
-                  operand2s(tac->operands[1]),
-                  rop2s(IR_GOTO),
-                  operand2s(tac->operands[0]));
+                 rop2s(tac->op),
+                 operand2s(tac->operands[1]),
+                 rop2s(IR_GOTO),
+                 operand2s(tac->operands[0]));
         }
+        if (tac->op == IR_IF_I || tac->op == IR_IF_FALSE_I)
+            putf(" \t(Integer)");
+        else
+            putf(" \t(Float)");
         break;
     case IR_ASSIGNI:
     case IR_ASSIGNF:
@@ -515,19 +519,19 @@ void print_tac(struct tac *tac)
     case IR_LSHIFT:
     case IR_RSHIFT:
         putf("%s = %s %s %s",
-              operand2s(tac->operands[0]),
-              operand2s(tac->operands[1]),
-              rop2s(tac->op),
-              operand2s(tac->operands[2]));
+             operand2s(tac->operands[0]),
+             operand2s(tac->operands[1]),
+             rop2s(tac->op),
+             operand2s(tac->operands[2]));
         break;
     case IR_NOT:
     case IR_MINUSI:
     case IR_MINUSF:
     case IR_ADDRESS:
         putf("%s = %s %s",
-              operand2s(tac->operands[0]),
-              rop2s(tac->op),
-              operand2s(tac->operands[1]));
+             operand2s(tac->operands[0]),
+             rop2s(tac->op),
+             operand2s(tac->operands[1]));
         break;
     case IR_PARAM:
         putf("%s %s", rop2s(tac->op), operand2s(tac->operands[1]));
@@ -535,15 +539,15 @@ void print_tac(struct tac *tac)
     case IR_CALL:
         if (tac->operands[0]) {
             putf("%s = %s %s, %d",
-                      operand2s(tac->operands[0]),
-                      rop2s(tac->op),
-                      operand2s(tac->operands[1]),
-                      tac->relop);
+                 operand2s(tac->operands[0]),
+                 rop2s(tac->op),
+                 operand2s(tac->operands[1]),
+                 tac->relop);
         } else {
             putf("%s %s, %d",
-                      rop2s(tac->op),
-                      operand2s(tac->operands[1]),
-                      tac->relop);
+                 rop2s(tac->op),
+                 operand2s(tac->operands[1]),
+                 tac->relop);
         }
         break;
     case IR_CONV_UI_UI:
@@ -556,9 +560,9 @@ void print_tac(struct tac *tac)
     case IR_CONV_F_SI:
     case IR_CONV_FF:
         putf("%s = (%s) %s",
-              operand2s(tac->operands[0]),
-              rop2s(tac->op),
-              operand2s(tac->operands[1]));
+             operand2s(tac->operands[0]),
+             rop2s(tac->op),
+             operand2s(tac->operands[1]));
         break;
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
