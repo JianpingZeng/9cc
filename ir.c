@@ -562,8 +562,6 @@ static void emit_decl(node_t *decl)
         return;
     else if (!init)
         return;
-    else if (SYM_REFS(sym) == 0)
-        return;
     
     struct operand *l = make_sym_operand(sym);
     // set sym x kind

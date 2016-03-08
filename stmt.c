@@ -3,7 +3,7 @@
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
 static node_t ** filter_decls(node_t **decls);
-static void filter_unused(void);
+static void warning_unused(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -623,7 +623,7 @@ void func_body(node_t *decl)
     // check goto labels
     backfill_labels();
     // check unused
-    filter_unused();
+    warning_unused();
 
     // save
     DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
@@ -649,23 +649,23 @@ static node_t ** filter_decls(node_t **decls)
     return decls;
 }
 
-static void filter_unused(void)
+static void warning_unused(void)
 {
     for (int i = 0; i < vec_len(allvars); i++) {
         node_t *decl = vec_at(allvars, i);
         node_t *sym = DECL_SYM(decl);
 
+        // ONLY warning, not filter out
+        // because it may contains side-effect such as function calls.
         if (SYM_REFS(sym) == 0) {
             if (!SYM_PREDEFINE(sym))
-                warningf(AST_SRC(sym),
-                         "unused variable '%s'", SYM_NAME(sym));
+                warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+        }
+        if (SYM_SCLASS(sym) == STATIC) {
+            SYM_X_LABEL(sym) = gen_static_label();
+            vec_push(staticvars, decl);
         } else {
-            if (SYM_SCLASS(sym) == STATIC) {
-                SYM_X_LABEL(sym) = gen_static_label();
-                vec_push(staticvars, decl);
-            } else {
-                vec_push(localvars, decl);
-            }
+            vec_push(localvars, decl);
         }
     }
 }
