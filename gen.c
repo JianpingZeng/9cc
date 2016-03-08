@@ -173,6 +173,18 @@ static void init_regs(void)
     }
 }
 
+static void reset_regs(void)
+{
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
+        struct reg *reg = int_regs[i];
+        reg->vars = NULL;
+    }
+    for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
+        struct reg *reg = float_regs[i];
+        reg->vars = NULL;
+    }
+}
+
 static void dump_operand(struct operand *operand)
 {
     println("%p: op:%s,%ld(%s,%s,%d), kind: %d, reg: %s",
@@ -411,8 +423,7 @@ static bool is_in_tac(node_t *sym, struct tac *tac)
     return false;
 }
 
-// maybe sticky
-static void drain_reg(struct reg *reg)
+static void do_drain_reg(struct reg *reg, struct vector *excepts)
 {
     for (int i = 0; i < vec_len(reg->vars); i++) {
         struct rvar *v = vec_at(reg->vars, i);
@@ -420,7 +431,8 @@ static void drain_reg(struct reg *reg)
         int i = idx[v->size];
         // always clear
         SYM_X_REG(sym) = NULL;
-
+        struct uses *uses = get_current_uses(sym);
+        
         if (SYM_X_KIND(sym) == SYM_KIND_GREF &&
             !SYM_X_INMEM(sym)) {
             emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"),
@@ -432,9 +444,8 @@ static void drain_reg(struct reg *reg)
                  suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
             store(sym);
         } else if (SYM_X_KIND(sym) == SYM_KIND_TMP &&
-                   is_in_tac(sym, current_tac)) {
+                   (is_in_tac(sym, current_tac) || uses->live)) {
             // sticky
-            struct vector *excepts = vec_new1(reg);
             struct reg *r;
             if (reg->freg)
                 r = dispatch_freg(sym, excepts, v->size);
@@ -446,6 +457,20 @@ static void drain_reg(struct reg *reg)
     }
     if (reg->vars)
         vec_clear(reg->vars);
+}
+
+static void drain_regs(struct vector *regs)
+{
+    for (int i = 0; i < vec_len(regs); i++) {
+        struct reg *reg = vec_at(regs, i);
+        do_drain_reg(reg, regs);
+    }
+}
+
+// maybe sticky
+static void drain_reg(struct reg *reg)
+{
+    do_drain_reg(reg, vec_new1(reg));
 }
 
 static void emit_conv_ii_widden(struct tac *tac, int typeop)
@@ -460,6 +485,13 @@ static void emit_conv_ii_widden(struct tac *tac, int typeop)
     const char *src_label = operand2s(l, from_size);
     struct vector *excepts = operand_regs(l);
     struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+    if (is_imm_operand(l)) {
+        vec_push(excepts, reg);
+        struct reg *src_reg = dispatch_ireg(l->sym, excepts, from_size);
+        emit("mov%s %s, %s", suffixi[from_i], src_label, src_reg->r[from_i]);
+        // reset
+        src_label = operand2s(l, from_size);
+    }
     if (typeop == INT) {
         emit("movs%s%s %s, %s",
              suffixi[from_i], suffixi[to_i], src_label, reg->r[to_i]);
@@ -649,6 +681,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
     node_t **args = EXPR_ARGS(call);
+    struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int len = tac->relop;
     node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
@@ -677,6 +710,9 @@ static void emit_nonbuiltin_call(struct tac *tac)
         emit("call %s", SYM_X_LABEL(l->sym));
     else
         emit("call *%s", operand2s(l, Quad));
+
+    if (result)
+        load(int_regs[RAX], result->sym, tac->opsize);
 }
 
 static void emit_builtin_va_start(struct tac *tac)
@@ -941,12 +977,16 @@ static void emit_bop_int_mul_div(struct tac *tac, const char *op)
     struct reg *rax = int_regs[RAX];
     struct reg *rdx = int_regs[RDX];
     int i = idx[tac->opsize];
-    drain_reg(rax);
     if (tac->opsize > Byte) {
-        drain_reg(rdx);
+        struct vector *regs = vec_new();
+        vec_push(regs, rax);
+        vec_push(regs, rdx);
+        drain_regs(regs);
         if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
             tac->op == IR_MOD || tac->op == IR_IMOD)
             emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
+    } else {
+        drain_reg(rax);
     }
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
@@ -1182,6 +1222,7 @@ static void mark_live(node_t *sym, struct tac *tac)
 static struct uses * get_uses(node_t *sym, struct tac *tac)
 {
     struct map *tuple = dict_get(next_info, sym);
+    cc_assert(tuple);
     struct uses *uses = map_get(tuple, tac);
     cc_assert(uses);
     return uses;
@@ -1189,30 +1230,34 @@ static struct uses * get_uses(node_t *sym, struct tac *tac)
 
 static void scan_uses(struct tac *tail)
 {
+    struct vector *keys = next_info->keys;
     for (struct tac *tac = tail; tac; tac = tac->prev) {
         // set
-        for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
-            struct operand *operand = tac->operands[i];
-            if (operand) {
-                if (operand->sym) {
-                    struct uses *uses = get_uses(operand->sym, tac);
-                    *uses = SYM_X_USES(operand->sym);
-                }
-                if (operand->index) {
-                    struct uses *uses = get_uses(operand->index, tac);
-                    *uses = SYM_X_USES(operand->index);
-                }
-            }
+        for (int i = 0; i < vec_len(keys); i++) {
+            node_t *sym = vec_at(keys, i);
+            struct map *tuple = dict_get(next_info, sym);
+            struct uses *uses = map_get(tuple, tac);
+            *uses = SYM_X_USES(sym);
         }
+        
         // mark
         for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
             struct operand *operand = tac->operands[i];
             if (operand) {
                 if (i == 0) {
-                    if (operand->sym)
-                        mark_die(operand->sym);
-                    if (operand->index)
-                        mark_die(operand->index);
+                    switch (operand->op) {
+                    case IR_NONE:
+                        if (operand->sym)
+                            mark_die(operand->sym);
+                        break;
+                    case IR_SUBSCRIPT:
+                    case IR_INDIRECTION:
+                        if (operand->sym)
+                            mark_live(operand->sym, tac);
+                        if (operand->index)
+                            mark_live(operand->index, tac);
+                        break;
+                    }
                 } else {
                     if (operand->sym)
                         mark_live(operand->sym, tac);
@@ -1224,7 +1269,7 @@ static void scan_uses(struct tac *tail)
     }
 }
 
-static void init_sym_uses(node_t *sym, struct tac *tac)
+static void init_sym_uses(node_t *sym)
 {
     mark_die(sym);
     struct map *tuple = dict_get(next_info, sym);
@@ -1250,11 +1295,11 @@ static void init_tacs(struct tac *head)
             if (operand) {
                 if (operand->sym) {
                     init_sym_addrs(operand->sym);
-                    init_sym_uses(operand->sym, tac);
+                    init_sym_uses(operand->sym);
                 }
                 if (operand->index) {
                     init_sym_addrs(operand->index);
-                    init_sym_uses(operand->index, tac);
+                    init_sym_uses(operand->index);
                 }
             }
         }
@@ -1737,6 +1782,7 @@ static void emit_text(struct gdata *gdata)
     func_returns = 0;
     next_info = dict_new();
     next_info->map->cmpfn = nocmp;
+    reset_regs();
 
     emit_function_prologue(gdata);
     if (TYPE_VARG(ftype))
@@ -1794,8 +1840,9 @@ static void emit_data(struct gdata *gdata)
 
 static void emit_bss(struct gdata *gdata)
 {
-    emit("%s %s,%llu,%d",
-         gdata->global ? ".comm" : ".lcomm",
+    if (!gdata->global)
+        emit(".local %s", gdata->label);
+    emit(".comm %s,%llu,%d",
          gdata->label,
          gdata->size,
          gdata->align);
