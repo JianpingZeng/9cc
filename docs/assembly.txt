@@ -183,6 +183,14 @@ movzwq
 Arithmetic Instructions
 ========================
 1. ADD: x = y + z
+   INTEGER ADD
+   ADD AL, imm8         add imm8 to AL
+   ADD AX, imm16        add imm16 to AX
+   ADD EAX, imm32       add imm32 to EAX
+   ADD RAX, imm32       add imm32 sign-extended to 64-bit to RAX
+
+   ...
+
 2. SUB: x = y - z
 3. MUL: x = y * z
    INTEGER MUL
@@ -247,8 +255,17 @@ Arithmetic Instructions
    OR r64, r/m64
 
 7. Bitwise-AND: x = y & z       (integer only)
+
+
 8. Bitwise-XOR: x = y ^ z       (integer only)
+
+
 9. Left-SHIFT:   x = y << z     (integer only)
+SAL: shift arithmetic left
+SHL: shift logical left
+
+NOTE: SAL and SHL are the same.
+
 10. Right-SHIFT: x = y >> z     (integer only)
 
 Shift: SAL/SAR/SHL/SHR
