@@ -921,6 +921,7 @@ static void emit_scalar(node_t *ty, struct operand *l, node_t *r, long offset, b
     emit_scalar_basic(ty, l, EXPR_X_ADDR(r), offset, sty);
 }
 
+// TODO: operand size
 static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
                                 long offset, node_t *bfield, bool sty)
 {
@@ -933,16 +934,22 @@ static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r
     struct tac *tac1 = make_tac_r(IR_AND, r, operand1, opsize);
     emit_tac(tac1);
     // <<
-    struct operand *operand2 = make_unsigned_operand(boff);
-    struct tac *tac2 = make_tac_r(IR_LSHIFT, tac1->operands[0], operand2, opsize);
-    emit_tac(tac2);
+    struct operand *result2;
+    if (boff) {
+        struct operand *operand2 = make_unsigned_operand(boff);
+        struct tac *tac2 = make_tac_r(IR_LSHIFT, tac1->operands[0], operand2, opsize);
+        emit_tac(tac2);
+        result2 = tac2->operands[0];
+    } else {
+        result2 = tac1->operands[0];
+    }
     // &
     unsigned mask2 = ~(mask1 << boff);
     struct operand *operand3 = make_unsigned_operand(mask2);
     struct tac *tac3 = make_tac_r(IR_AND, l, operand3, opsize);
     emit_tac(tac3);
     // |
-    struct tac *tac4 = make_tac_r(IR_OR, tac2->operands[0], tac3->operands[0], opsize);
+    struct tac *tac4 = make_tac_r(IR_OR, result2, tac3->operands[0], opsize);
     emit_tac(tac4);
     // assign
     emit_scalar_basic(ty, l, tac4->operands[0], offset, sty);
