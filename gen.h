@@ -143,6 +143,7 @@ struct tac {
     int opsize:6;
     int from_opsize:6;
     int to_opsize:6;
+    int sign:1;
     struct operand *operands[3];
     struct tac *next, *prev;
     node_t *call;               // funcall expr

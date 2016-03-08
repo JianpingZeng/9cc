@@ -22,126 +22,6 @@ Segment registers
 
 cs,ds,es,fs,gs,ss
 
-
-Integer Conversion
-====================
-
-1. signed => signed
-
-widden
-
-int8 => int64: movsbq (Signed+Byte+Quad)
-int8 => int32: movsbl (Signed+Byte+Long)
-int8 => int16: movsbw (Signed+Byte+Word)
-
-int16 => int64: movswq (Signed+Word+Quad)
-int16 => int32: movswl (Signed+Word+Long)
-
-int32 => int64: cltq (Convert+Long+To+Quad)
-
-narrow
-
-int64 => int32: movq, movl
-int64 => int16: movq, movw
-int64 => int8: movq, movb
-
-int32 => int16: movl, movw
-int32 => int8: movl, movb
-
-int16 => int8: movzwl, movb
-
-2. unsigned => unsigned
-
-widden
-
-uint8 => uint64: movzbl, movq
-uint8 => uint32: movzbl, movl
-uint8 => uint16: movzbl, movw
-
-uint16 => uint64: movzwl, movq
-uint16 => uint32: movzwl, movl
-
-uint32 => uint64: movl, movq
-
-
-narrow
-
-uint64 => uint32: movq, movl
-uint64 => uint16: movq, movw
-uint64 => uint8: movq, movb
-
-uint32 => uint16: movl, movw
-uint32 => uint8: movl, movb
-
-uint16 => uint8: movzwl, movb
-
-3. signed => unsigned
-
-widden
-
-int8 => uint16: movsbw, movw
-int8 => uint32: movsbl, movl
-int8 => uint64: movsbq, movq
-
-int16 => uint32: movswl, movl
-int16 => uint64: movswq, movq
-
-int32 => uint64: movl, cltq
-
-
-narrow
-
-int64 => uint8: movq, movb
-int64 => uint16: movq, movw
-int64 => uint32: movq, movl
-
-int32 => uint8: movl, movb
-int32 => uint16: movl, movw
-
-int16 => uint8: movzwl, movb
-
-
-equal
-
-int8 => uint8: movzbl, movb
-int16 => uint16: movzwl, movw
-int32 => uint32: movl, movl
-int64 => uint64: movq, movq
-
-4. unsigned => signed
-
-widden
-
-uint8 => int16: movzbl, movw
-uint8 => int32: movzbl, movl
-uint8 => int64: movzbl, movq
-
-uint16 => int32: movzwl, movl
-uint16 => int64: movzwl, movq
-
-uint32 => int64: movl, movq
-
-
-narrow
-
-uint64 => int8: movq, movb
-uint64 => int16: movq, movw
-uint64 => int32: movq, movl
-
-uint32 => int8: movl, movb
-uint32 => int16: movl, movw
-
-uint16 => int8: movzwl, movb
-
-
-equal
-
-uint8 => int8: movzbl, movb
-uint16 => int16: movzwl, movw
-uint32 => int32: movl, movl
-uint64 => int64: movq, movq
-
-
 MOV instruction
 ================
 
@@ -285,81 +165,173 @@ SHIFT [reg/mem], [imm8/cl]
 
 Jcc: Jump if Condition Is Met
 ==============================
-1. JA: Jump if above (CF=0 and ZF=0)
-   JA rel8              jump short
-   JA rel16             jump near. Not supported in 64-bit mode.
-   JA rel32             jump near
+1. JA: Jump if above (CF=0 and ZF=0)    >
+   JA rel8           jump short
+   JA rel16          jump near. Not supported in 64-bit mode.
+   JA rel32          jump near
 
-2. JAE: Jump if above or equal (CF=0)
+2. JAE: Jump if above or equal (CF=0)   >=
    JAE rel8           jump short
    JAE rel16          jump near. Not supported in 64-bit mode.
    JAE rel32          jump near
 
-3. JNA: Jump if not above
+3. JNA: Jump if not above (CF=1 or ZF=1)        <=
+   JNA rel8         jump short
+   JNA rel16        jump near. Not supported in 64-bit mode.
+   JNA rel32        jump near
 
-4. JNAE: Jump if not above or equal
+4. JNAE: Jump if not above or equal (CF=1)      <
+   JNAE rel8         jump short
+   JNAE rel16        jump near. Not supported in 64-bit mode.
+   JNAE rel32        jump near
 
-5. JB: Jump if below (CF=1)
+5. JB: Jump if below (CF=1)                     <
    JB rel8              jump short
    JB rel16             jump near. Not supported in 64-bit mode.
    JB rel32             jump near
 
-6. JBE: Jump if below or equal (CF=1 or ZF=1)
+6. JBE: Jump if below or equal (CF=1 or ZF=1)   <=
    JBE rel8           jump short
    JBE rel16          jump near. Not supported in 64-bit mode.
    JBE rel32          jump near
 
-7. JNB: Jump if not below
+7. JNB: Jump if not below (CF=0)        >=
+   JNB rel8           jump short
+   JNB rel16          jump near. Not supported in 64-bit mode.
+   JNB rel32          jump near
 
-8. JNBE: Jump if not below or equal
+8. JNBE: Jump if not below or equal (CF=0 and ZF=0)    >
+   JNBE rel8           jump short
+   JNBE rel16          jump near. Not supported in 64-bit mode.
+   JNBE rel32          jump near
 
-9. JG: Jump if greater (ZF=0 and SF=0F)
+9. JG: Jump if greater (ZF=0 and SF=0F)         >
    JG rel8              jump short
    JG rel16             jump near. Not supported in 64-bit mode.
    JG rel32             jump near
 
-10. JGE: Jump if greater or equal
+10. JGE: Jump if greater or equal (SF=0F)       >=
+   JGE rel8              jump short
+   JGE rel16             jump near. Not supported in 64-bit mode.
+   JGE rel32             jump near
 
+11. JNG: Jump if not greater (ZF=1 or SF!=0F)   <=
+   JNG rel8              jump short
+   JNG rel16             jump near. Not supported in 64-bit mode.
+   JNG rel32             jump near
 
-11. JNG: Jump if not greater
+12. JNGE: Jump if not greater or equal (SF!=0F) <
+   JNGE rel8              jump short
+   JNGE rel16             jump near. Not supported in 64-bit mode.
+   JNGE rel32             jump near
 
-12. JNGE: Jump if not greater or equal
+13. JL: Jump if less (SF!=0F)  <
+   JL rel8              jump short
+   JL rel16             jump near. Not supported in 64-bit mode.
+   JL rel32             jump near
 
-13. JL:
+14. JLE: Jump if less or equal (ZF=1 or SF!=0F)   <=
+   JLE rel8              jump short
+   JLE rel16             jump near. Not supported in 64-bit mode.
+   JLE rel32             jump near
 
-14. JLE:
+15. JNL: Jump if not less (SF=0F)       >=
+   JNL rel8              jump short
+   JNL rel16             jump near. Not supported in 64-bit mode.
+   JNL rel32             jump near
 
-15. JNL:
+16. JNLE: Jump if not less or equal (ZF=0 and SF=0F)         >
+   JNLE rel8              jump short
+   JNLE rel16             jump near. Not supported in 64-bit mode.
+   JNLE rel32             jump near
 
-16. JNLE:
+17. JE: Jump if equal (ZF=1)             ==
+    JE rel8           jump short
+    JE rel16          jump near. Not supported in 64-bit mode.
+    JE rel32          jump near
 
-17. JE:
+18. JNE: Jump if not equal (ZF=0)       !=
+    JNE rel8           jump short
+    JNE rel16          jump near. Not supported in 64-bit mode.
+    JNE rel32          jump near
 
-18. JNE:
+19. JZ: Jump if zero (ZF=1)             == 0
+    JZ rel8           jump short
+    JZ rel16          jump near. Not supported in 64-bit mode.
+    JZ rel32          jump near
 
-19. JZ:
+20. JNZ: Jump if not zero (ZF=0)        != 0
+    JNZ rel8           jump short
+    JNZ rel16          jump near. Not supported in 64-bit mode.
+    JNZ rel32          jump near
 
-20. JNZ:
+----------------------------------------
+NOTE:
+(Unsigned)
+JA, JNBE: >             (CF=0 and ZF=0)
+JAE, JNB: >=            (CF=0)
+JB, JNAE: <             (CF=1)
+JBE, JNA: <=            (CF=1 or ZF=1)
 
-21. JC:
+(Signed)
+JG, JNLE: >             (ZF=0 and SF=0F)
+JGE, JNL: >=            (SF=0F)
+JL, JNGE: <             (SF!=0F)
+JLE, JNG: <=            (ZF=1 or SF!=0F)
 
-22. JNC:
+JE, JZ:   ==, ==0       (ZF=1)
+JNE, JNZ: !=, !=0       (ZF=0)
+-----------------------------------------
 
-23. JO:
+21. JC: Jump if carry (CF=1)
+    JC rel8           jump short
+    JC rel16          jump near. Not supported in 64-bit mode.
+    JC rel32          jump near
 
-24. JNO:
+22. JNC: Jump if not carry (CF=0)
+    JNC rel8           jump short
+    JNC rel16          jump near. Not supported in 64-bit mode.
+    JNC rel32          jump near
 
-25. JP:
+23. JO: Jump if overflow (OF=1)
+    JO rel8           jump short
+    JO rel16          jump near. Not supported in 64-bit mode.
+    JO rel32          jump near
 
-26. JNP:
+24. JNO: Jump if not overflow (OF=0)
+    JNO rel8           jump short
+    JNO rel16          jump near. Not supported in 64-bit mode.
+    JNO rel32          jump near
 
-27. JS:
+25. JP: Jump if parity (PF=1)
+    JP rel8           jump short
+    JP rel16          jump near. Not supported in 64-bit mode.
+    JP rel32          jump near
 
-28. JNS:
+26. JNP: Jump if not parity (PF=0)
+    JNP rel8           jump short
+    JNP rel16          jump near. Not supported in 64-bit mode.
+    JNP rel32          jump near
 
-29. JPE:
+27. JS: Jump if sign (SF=1)
+    JS rel8           jump short
+    JS rel16          jump near. Not supported in 64-bit mode.
+    JS rel32          jump near
 
-30. JPO:
+28. JNS: Jump if not sign (SF=0)
+    JNS rel8           jump short
+    JNS rel16          jump near. Not supported in 64-bit mode.
+    JNS rel32          jump near
+
+29. JPE: Jump if parity even (PF=1)
+    JPE rel8           jump short
+    JPE rel16          jump near. Not supported in 64-bit mode.
+    JPE rel32          jump near
+
+30. JPO: Jump if parity odd (PF=0)
+    JPO rel8           jump short
+    JPO rel16          jump near. Not supported in 64-bit mode.
+    JPO rel32          jump near
 
 Reference
 ===========

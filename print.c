@@ -494,6 +494,7 @@ void print_tac(struct tac *tac)
             putf(" \t(Integer)");
         else
             putf(" \t(Float)");
+        putf(" (%s)", tac->sign ? "SIGNED" : "UNSIGNED");
         break;
     case IR_ASSIGNI:
     case IR_ASSIGNF:

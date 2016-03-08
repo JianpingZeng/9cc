@@ -482,21 +482,25 @@ static struct operand * make_offset_operand(struct operand *l, long offset)
     }
 }
 
-static void emit_simple_if(int op, struct operand *operand,
+static void emit_simple_if(int op, bool sign,
+                           struct operand *operand,
                            const char *label, int opsize)
 {
     struct tac *tac = make_tac(op, operand, NULL, make_label_operand(label), opsize);
+    tac->sign = sign;
     emit_tac(tac);
 }
 
 static void emit_rel_if(int op,
                         int relop,
+                        bool sign,
                         struct operand *rel_l, struct operand *rel_r,
                         const char *label,
                         int opsize)
 {
     struct tac *tac = make_tac(op, rel_l, rel_r, make_label_operand(label), opsize);
     tac->relop = relop;
+    tac->sign = sign;
     emit_tac(tac);
 }
 
@@ -1703,6 +1707,7 @@ static void emit_rel_expr(node_t *n)
     node_t *ty = AST_TYPE(n);
     int opsize = ops[TYPE_SIZE(ty)];
     bool floating = isfloat(AST_TYPE(l));
+    bool sign = TYPE_OP(AST_TYPE(l)) == INT;
 
     emit_expr(l);
     emit_expr(r);
@@ -1711,7 +1716,9 @@ static void emit_rel_expr(node_t *n)
         
         int op = floating ? IR_IF_F : IR_IF_I;
         emit_rel_if(op,
-                    relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    relop,
+                    sign,
+                    EXPR_X_ADDR(l), EXPR_X_ADDR(r),
                     EXPR_X_TRUE(n),
                     opsize);
         emit_goto(EXPR_X_FALSE(n));
@@ -1720,7 +1727,9 @@ static void emit_rel_expr(node_t *n)
 
         int op = floating ? IR_IF_F : IR_IF_I;
         emit_rel_if(op,
-                    relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    relop,
+                    sign,
+                    EXPR_X_ADDR(l), EXPR_X_ADDR(r),
                     EXPR_X_TRUE(n),
                     opsize);
         
@@ -1728,7 +1737,9 @@ static void emit_rel_expr(node_t *n)
 
         int op = floating ? IR_IF_FALSE_F : IR_IF_FALSE_I;
         emit_rel_if(op,
-                    relop, EXPR_X_ADDR(l), EXPR_X_ADDR(r),
+                    relop,
+                    sign,
+                    EXPR_X_ADDR(l), EXPR_X_ADDR(r),
                     EXPR_X_FALSE(n),
                     opsize);
     } else {
@@ -1755,22 +1766,23 @@ static void emit_bool_expr(node_t *n)
         node_t *ty = AST_TYPE(n);
         int opsize = ops[TYPE_SIZE(ty)];
         struct operand *test = EXPR_X_ADDR(n);
+        bool sign = TYPE_OP(ty) == INT;
         
         if (EXPR_X_TRUE(n) != fall && EXPR_X_FALSE(n) != fall) {
             
             int op = isfloat(ty) ? IR_IF_F : IR_IF_I;
-            emit_simple_if(op, test, EXPR_X_TRUE(n), opsize);
+            emit_simple_if(op, sign, test, EXPR_X_TRUE(n), opsize);
             emit_goto(EXPR_X_FALSE(n));
             
         } else if (EXPR_X_TRUE(n) != fall) {
             
             int op = isfloat(ty) ? IR_IF_F : IR_IF_I;
-            emit_simple_if(op, test, EXPR_X_TRUE(n), opsize);
+            emit_simple_if(op, sign, test, EXPR_X_TRUE(n), opsize);
             
         } else if (EXPR_X_FALSE(n) != fall) {
             
             int op = isfloat(ty) ? IR_IF_FALSE_F : IR_IF_FALSE_I;
-            emit_simple_if(op, test, EXPR_X_FALSE(n), opsize);
+            emit_simple_if(op, sign, test, EXPR_X_FALSE(n), opsize);
             
         } else {
             // both fall: do nothing
@@ -1905,12 +1917,15 @@ static void emit_for_stmt(node_t *stmt)
 static void emit_switch_jmp(node_t *cond, node_t *case_stmt)
 {
     node_t *ty = AST_TYPE(cond);
+    bool sign = TYPE_OP(ty) == INT;
     struct operand *cond_operand = EXPR_X_ADDR(cond);
     struct operand *case_operand = make_int_operand(STMT_CASE_INDEX(case_stmt));
     STMT_X_LABEL(case_stmt) = gen_label();
 
     emit_rel_if(IR_IF_I,
-                EQ, cond_operand, case_operand,
+                EQ,
+                sign,
+                cond_operand, case_operand,
                 STMT_X_LABEL(case_stmt),
                 ops[TYPE_SIZE(ty)]);
 }

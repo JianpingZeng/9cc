@@ -783,13 +783,13 @@ static void emit_return(struct tac *tac)
     func_returns++;
 }
 
-// TODO: floating
 static void emit_if(struct tac *tac, bool reverse, bool floating)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
     int i = idx[tac->opsize];
+    bool sign = tac->sign;
     if (tac->relop) {
         struct vector *vl = operand_regs(l);
         struct vector *vr = operand_regs(r);
@@ -810,16 +810,28 @@ static void emit_if(struct tac *tac, bool reverse, bool floating)
         const char *jop;
         switch (tac->relop) {
         case '>':
-            jop = reverse ? "jle" : "jg";
+            if (reverse)
+                jop = sign ? "jle" : "jbe";
+            else
+                jop = sign ? "jg" : "ja";
             break;
         case '<':
-            jop = reverse ? "jge" : "jl";
+            if (reverse)
+                jop = sign ? "jge" : "jae";
+            else
+                jop = sign ? "jl" : "jb";
             break;
         case GEQ:
-            jop = reverse ? "jl" : "jge";
+            if (reverse)
+                jop = sign ? "jl" : "jb";
+            else
+                jop = sign ? "jge" : "jae";
             break;
         case LEQ:
-            jop = reverse ? "jg" : "jle";
+            if (reverse)
+                jop = sign ? "jg" : "ja";
+            else
+                jop = sign ? "jle" : "jbe";
             break;
         case NEQ:
             jop = reverse ? "je" : "jne";
