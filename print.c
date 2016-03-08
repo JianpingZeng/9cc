@@ -513,11 +513,14 @@ void print_tac(struct tac *tac)
     case IR_MULI:
     case IR_IMULI:
     case IR_MOD:
+    case IR_IMOD:
     case IR_OR:
     case IR_AND:
     case IR_XOR:
     case IR_LSHIFT:
     case IR_RSHIFT:
+    case IR_ILSHIFT:
+    case IR_IRSHIFT:
         putf("%s = %s %s %s",
              operand2s(tac->operands[0]),
              operand2s(tac->operands[1]),
