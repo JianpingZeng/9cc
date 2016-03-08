@@ -32,7 +32,7 @@ static struct reg *rsp, *rbp, *rip;
 static int idx[] = {
     -1, B, W, -1, L, -1, -1, -1, Q
 };
-static const char *suffix[] = {
+static const char *suffixi[] = {
     "b", "w", "l", "q"
 };
 static const char *suffixf[] = {
@@ -424,12 +424,12 @@ static void drain_reg(struct reg *reg)
         if (SYM_X_KIND(sym) == SYM_KIND_GREF &&
             !SYM_X_INMEM(sym)) {
             emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"),
-                 suffix[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
+                 suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
             store(sym);
         } else if (SYM_X_KIND(sym) == SYM_KIND_LREF &&
                    !SYM_X_INMEM(sym)) {
             emit("mov%s %s, %ld(%s)" COMMENT("%d bytes spill"),
-                 suffix[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
+                 suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
             store(sym);
         } else if (SYM_X_KIND(sym) == SYM_KIND_TMP &&
                    is_in_tac(sym, current_tac)) {
@@ -441,7 +441,7 @@ static void drain_reg(struct reg *reg)
             else
                 r = dispatch_ireg(sym, excepts, v->size);
             emit("mov%s %s, %s" COMMENT("%d bytes spill"),
-                 suffix[i], reg->r[i], r->r[i], v->size);
+                 suffixi[i], reg->r[i], r->r[i], v->size);
         }
     }
     if (reg->vars)
@@ -462,13 +462,13 @@ static void emit_conv_ii_widden(struct tac *tac, int typeop)
     struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
     if (typeop == INT) {
         emit("movs%s%s %s, %s",
-             suffix[from_i], suffix[to_i], src_label, reg->r[to_i]);
+             suffixi[from_i], suffixi[to_i], src_label, reg->r[to_i]);
     } else {
         if (from_size == Long)
             emit("movl %s, %s", src_label, reg->r[from_i]);
         else
             emit("movz%s%s %s, %s",
-                 suffix[from_i], suffix[to_i], src_label, reg->r[to_i]);
+                 suffixi[from_i], suffixi[to_i], src_label, reg->r[to_i]);
     }
 }
 
@@ -483,7 +483,7 @@ static void emit_conv_ii_narrow(struct tac *tac, int typeop)
     const char *src_label = operand2s(l, from_size);
     struct vector *excepts = operand_regs(l);
     struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
-    emit("mov%s %s, %s", suffix[to_i], src_label, reg->r[to_i]);
+    emit("mov%s %s, %s", suffixi[to_i], src_label, reg->r[to_i]);
 }
 
 static void emit_conv_i2i(struct tac *tac, int typeop)
@@ -507,7 +507,7 @@ static void emit_conv_tof(struct tac *tac, const char *op)
     const char *src_label = operand2s(l, from_size);
     if (is_imm_operand(l)) {
         struct reg *reg = dispatch_ireg(l->sym, NULL, from_size);
-        emit("mov%s %s, %s", suffix[from_i], src_label, reg->r[from_i]);
+        emit("mov%s %s, %s", suffixi[from_i], src_label, reg->r[from_i]);
         // reset
         src_label = operand2s(l, from_size);
     }
@@ -577,7 +577,7 @@ static void emit_param_scalar(struct tac *tac, node_t *arg)
                     else
                         emit("movsd %s, %s", src_label, dst->r[i]);
                 } else {
-                    emit("mov%s %s, %s", suffix[i], src_label, dst->r[i]);
+                    emit("mov%s %s, %s", suffixi[i], src_label, dst->r[i]);
                 }
             }
         }
@@ -596,7 +596,7 @@ static void emit_param_scalar(struct tac *tac, node_t *arg)
                     else
                         emit("movsd %s, %s", src->r[i], stack);
                 } else {
-                    emit("mov%s %s, %s", suffix[i], src->r[i], stack);
+                    emit("mov%s %s, %s", suffixi[i], src->r[i], stack);
                 }
             } else {
                 const char *src_label = operand2s(operand, TYPE_SIZE(ty));
@@ -611,8 +611,8 @@ static void emit_param_scalar(struct tac *tac, node_t *arg)
                     }
                 } else {
                     struct reg *tmp = get_one_ireg(NULL);
-                    emit("mov%s %s, %s", suffix[i], src_label, tmp->r[i]);
-                    emit("mov%s %s, %s", suffix[i], tmp->r[i], stack);
+                    emit("mov%s %s, %s", suffixi[i], src_label, tmp->r[i]);
+                    emit("mov%s %s, %s", suffixi[i], tmp->r[i], stack);
                 }
             }
         }
@@ -737,8 +737,8 @@ static void emit_if(struct tac *tac, bool reverse, bool floating)
             emit("ucomi%s %s, %s", suffixf[i], r_label, reg->r[i]);
         } else {
             reg = get_one_ireg(vl);
-            emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
-            emit("cmp%s %s, %s", suffix[i], r_label, reg->r[i]);
+            emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
+            emit("cmp%s %s, %s", suffixi[i], r_label, reg->r[i]);
         }
         
         const char *jop;
@@ -771,7 +771,7 @@ static void emit_if(struct tac *tac, bool reverse, bool floating)
             emit("xor%s %s, %s", suffixp[i], r->r[i], r->r[i]);
             emit("ucomi%s %s, %s", suffixf[i], operand2s(l, tac->opsize), r->r[i]);
         } else {
-            emit("cmp%s $0, %s", suffix[i], operand2s(l, tac->opsize));
+            emit("cmp%s $0, %s", suffixi[i], operand2s(l, tac->opsize));
         }
         
         const char *jop = reverse ? "je" : "jne";
@@ -815,12 +815,8 @@ static void emit_assign_basic(struct operand *l, struct operand *r,
     const char *dst = operand2s(l, opsize);
     const char *src = operand2s(r, opsize);
     int i = idx[opsize];
-    const char *sfix;
-    if (assignf)
-        sfix = suffixf[i];
-    else
-        sfix = suffix[i];
-    emit("mov%s %s, %s", sfix, src, dst);
+    const char **suffix = assignf ? suffixf : suffixi;
+    emit("mov%s %s, %s", suffix[i], src, dst);
 }
 
 static void emit_assign(struct tac *tac)
@@ -856,12 +852,8 @@ static void emit_assign(struct tac *tac)
                 reg = dispatch_ireg(l->sym, excepts, tac->opsize);
             int i = idx[tac->opsize];
             const char *src = operand2s(r, tac->opsize);
-            const char *sfix;
-            if (assignf)
-                sfix = suffixf[i];
-            else
-                sfix = suffix[i];
-            emit("mov%s %s, %s", sfix, src, reg->r[i]);
+            const char **suffix = assignf ? suffixf : suffixi;
+            emit("mov%s %s, %s", suffix[i], src, reg->r[i]);
             // POST load
             if (is_direct_mem_operand(r) && !SYM_X_REG(r->sym))
                 load(reg, r->sym, tac->opsize);
@@ -879,8 +871,8 @@ static void emit_uop_int(struct tac *tac, const char *op)
     struct vector *excepts = operand_regs(l);
     struct reg *reg = dispatch_ireg(result->sym, excepts, tac->opsize);
     const char *l_label = operand2s(l, tac->opsize);
-    emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
-    emit("%s%s %s", op, suffix[i], reg->r[i]);
+    emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
+    emit("%s%s %s", op, suffixi[i], reg->r[i]);
 }
 
 // int: bitwise not ~
@@ -932,13 +924,9 @@ static void emit_bop_arith(struct tac *tac, const char *op, bool floating)
     int i = idx[tac->opsize];
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
-    const char **sfix;
-    if (floating)
-        sfix = suffixf;
-    else
-        sfix = suffix;
-    emit("mov%s %s, %s", sfix[i], l_label, reg->r[i]);
-    emit("%s%s %s, %s", op, sfix[i], r_label, reg->r[i]);
+    const char **suffix = floating ? suffixf : suffixi;
+    emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
+    emit("%s%s %s, %s", op, suffix[i], r_label, reg->r[i]);
 }
 
 static void emit_bop_int(struct tac *tac, const char *op)
@@ -958,12 +946,12 @@ static void emit_bop_int_mul_div(struct tac *tac, const char *op)
         drain_reg(rdx);
         if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
             tac->op == IR_MOD || tac->op == IR_IMOD)
-            emit("mov%s $0, %s", suffix[i], rdx->r[i]);
+            emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
     }
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
-    emit("mov%s %s, %s", suffix[i], l_label, rax->r[i]);
-    emit("%s%s %s", op, suffix[i], r_label);
+    emit("mov%s %s, %s", suffixi[i], l_label, rax->r[i]);
+    emit("%s%s %s", op, suffixi[i], r_label);
 }
 
 static void emit_bop_int_imul(struct tac *tac)
@@ -1018,9 +1006,9 @@ static void emit_bop_shift(struct tac *tac, const char *op)
     vec_add(excepts, vl);
     vec_add(excepts, vr);
     struct reg *reg = dispatch_ireg(result->sym, excepts, tac->opsize);
-    emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
-    emit("mov%s %s, %s", suffix[i], r_label, rcx->r[i]);
-    emit("%s%s %s, %s", op, suffix[i], rcx->r[B], reg->r[i]);
+    emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
+    emit("mov%s %s, %s", suffixi[i], r_label, rcx->r[i]);
+    emit("%s%s %s, %s", op, suffixi[i], rcx->r[B], reg->r[i]);
 }
 
 static void emit_bop_float(struct tac *tac, const char *op)
