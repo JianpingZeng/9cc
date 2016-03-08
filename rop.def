@@ -32,11 +32,14 @@ _rop(IR_MULF,           "*")
                            
 // integer                 
 _rop(IR_MOD,            "%")
+_rop(IR_IMOD,           "%")
 _rop(IR_OR,             "|")
 _rop(IR_AND,            "&")
 _rop(IR_XOR,            "^")
 _rop(IR_LSHIFT,         "<<")
+_rop(IR_ILSHIFT,        "<<")
 _rop(IR_RSHIFT,         ">>")
+_rop(IR_IRSHIFT,        ">>")
 
 _rop(IR_ASSIGNI,        "=")
 _rop(IR_ASSIGNF,        "=")

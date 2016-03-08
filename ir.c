@@ -1082,7 +1082,10 @@ static int bop2rop(int op, node_t *ty)
             return IR_IDIVI;
         // int
     case '%':
-        return IR_MOD;
+        if (TYPE_OP(ty) == UNSIGNED)
+            return IR_MOD;
+        else
+            return IR_IMOD;
     case '|':
         return IR_OR;
     case '&':
@@ -1090,9 +1093,15 @@ static int bop2rop(int op, node_t *ty)
     case '^':
         return IR_XOR;
     case LSHIFT:
-        return IR_LSHIFT;
+        if (TYPE_OP(ty) == UNSIGNED)
+            return IR_LSHIFT;
+        else
+            return IR_ILSHIFT;
     case RSHIFT:
-        return IR_RSHIFT;
+        if (TYPE_OP(ty) == UNSIGNED)
+            return IR_RSHIFT;
+        else
+            return IR_IRSHIFT;
     default:
         cc_assert(0);
     }
