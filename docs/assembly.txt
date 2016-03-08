@@ -282,6 +282,85 @@ SHIFT [reg/mem], [imm8/cl]
 2. SHR: fill with zeros
 3. SAR: fill with ones
 
+
+Jcc: Jump if Condition Is Met
+==============================
+1. JA: Jump if above (CF=0 and ZF=0)
+   JA rel8              jump short
+   JA rel16             jump near. Not supported in 64-bit mode.
+   JA rel32             jump near
+
+2. JAE: Jump if above or equal (CF=0)
+   JAE rel8           jump short
+   JAE rel16          jump near. Not supported in 64-bit mode.
+   JAE rel32          jump near
+
+3. JNA: Jump if not above
+
+4. JNAE: Jump if not above or equal
+
+5. JB: Jump if below (CF=1)
+   JB rel8              jump short
+   JB rel16             jump near. Not supported in 64-bit mode.
+   JB rel32             jump near
+
+6. JBE: Jump if below or equal (CF=1 or ZF=1)
+   JBE rel8           jump short
+   JBE rel16          jump near. Not supported in 64-bit mode.
+   JBE rel32          jump near
+
+7. JNB: Jump if not below
+
+8. JNBE: Jump if not below or equal
+
+9. JG: Jump if greater (ZF=0 and SF=0F)
+   JG rel8              jump short
+   JG rel16             jump near. Not supported in 64-bit mode.
+   JG rel32             jump near
+
+10. JGE: Jump if greater or equal
+
+
+11. JNG: Jump if not greater
+
+12. JNGE: Jump if not greater or equal
+
+13. JL:
+
+14. JLE:
+
+15. JNL:
+
+16. JNLE:
+
+17. JE:
+
+18. JNE:
+
+19. JZ:
+
+20. JNZ:
+
+21. JC:
+
+22. JNC:
+
+23. JO:
+
+24. JNO:
+
+25. JP:
+
+26. JNP:
+
+27. JS:
+
+28. JNS:
+
+29. JPE:
+
+30. JPO:
+
 Reference
 ===========
 
