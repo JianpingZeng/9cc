@@ -452,12 +452,16 @@ static void do_drain_reg(struct reg *reg, struct vector *excepts)
             if (is_in_tac(sym, current_tac) || uses->live) {
                 // sticky
                 if (!new_reg) {
-                    if (reg->freg)
+                    const char **suffix;
+                    if (reg->freg) {
                         new_reg = dispatch_freg(sym, excepts, v->size);
-                    else
+                        suffix = suffixf;
+                    } else {
                         new_reg = dispatch_ireg(sym, excepts, v->size);
+                        suffix = suffixi;
+                    }
                     emit("mov%s %s, %s" COMMENT("%d bytes spill"),
-                         suffixi[i], reg->r[i], new_reg->r[i], v->size);
+                         suffix[i], reg->r[i], new_reg->r[i], v->size);
                 } else {
                     load(new_reg, sym, v->size);
                 }
