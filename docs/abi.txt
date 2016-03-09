@@ -14,6 +14,8 @@ High  | ...           | (1st argument on stack)
       +---------------+
       | params        |
       +---------------+
+      | call returns  |
+      +---------------+
       | call params   | (for all func calls in this function)
 Low   +---------------+ <--- rsp
       | red zone      |
@@ -31,6 +33,8 @@ High  | ...           | (1st argument on stack)
       +---------------+
       | params        | (params in registers)
       +---------------+
+      | call returns  |
+      +---------------+
       | call params   | (for all func calls in this function)
 Low   +---------------+ <--- rsp
       | red zone      |
@@ -47,6 +51,8 @@ High  | ...           | (1st argument on stack)
       | reg save area | (all params in registers)
       +---------------+
       | local vars    |
+      +---------------+
+      | call returns  |
       +---------------+
       | call params   | (for all func calls in this function)
 Low   +---------------+ <--- rsp

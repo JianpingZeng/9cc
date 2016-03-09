@@ -3,6 +3,7 @@
 static FILE *outfp;
 static const char *func_end_label;
 static int func_returns;
+static long func_return_loff;
 static struct dict *next_info;
 static struct tac *current_tac;
 
@@ -48,7 +49,7 @@ struct pinfo {
     size_t size;
 };
 static void drain_reg(struct reg *reg);
-static struct pinfo alloc_addr_for_params(node_t **params);
+static struct pinfo alloc_addr_for_params(node_t *ftype, node_t **params);
 static struct uses * get_uses(node_t *sym, struct tac *tac);
 #define get_current_uses(sym)  get_uses(sym, current_tac)
 
@@ -725,7 +726,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
     current_tac = t;
     
     // emit args
-    struct pinfo pinfo = alloc_addr_for_params(args);
+    struct pinfo pinfo = alloc_addr_for_params(ftype, args);
     // drain regs
     drain_args_regs(pinfo.gp, pinfo.fp);
     for (int i = 0; i < len; i++) {
@@ -1595,7 +1596,7 @@ static bool is_type_aligned(node_t *ty)
 }
 
 // params: list of symbols or expressions, may be NULL
-static struct pinfo alloc_addr_for_params(node_t **params)
+static struct pinfo alloc_addr_for_params(node_t *ftype, node_t **params)
 {
     int gp = 0;
     int fp = 0;
@@ -1670,13 +1671,27 @@ static struct pinfo alloc_addr_for_params(node_t **params)
     return (struct pinfo){.fp = fp, .gp = gp, .size = offset};
 }
 
-static size_t extra_stack_size(node_t *decl)
+static size_t call_returns_size(node_t *decl)
 {
     size_t extra_stack_size = 0;
     node_t **calls = DECL_X_CALLS(decl);
     for (int i = 0; i < LIST_LEN(calls); i++) {
         node_t *call = calls[i];
-        struct pinfo pinfo = alloc_addr_for_params(EXPR_ARGS(call));
+        node_t *rty = AST_TYPE(call);
+        if (isrecord(rty))
+            extra_stack_size = MAX(extra_stack_size, TYPE_SIZE(rty));
+    }
+    return extra_stack_size;
+}
+
+static size_t call_params_size(node_t *decl)
+{
+    size_t extra_stack_size = 0;
+    node_t **calls = DECL_X_CALLS(decl);
+    for (int i = 0; i < LIST_LEN(calls); i++) {
+        node_t *call = calls[i];
+        node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
+        struct pinfo pinfo = alloc_addr_for_params(ftype, EXPR_ARGS(call));
         extra_stack_size = MAX(extra_stack_size, pinfo.size);
     }
     return extra_stack_size;
@@ -1789,7 +1804,7 @@ static void emit_function_prologue(struct gdata *gdata)
     // params
     long stack_base_off = 16;
     node_t **params = TYPE_PARAMS(ftype);
-    alloc_addr_for_params(params);
+    alloc_addr_for_params(ftype, params);
     for (int i = 0; i < LIST_LEN(params); i++) {
         node_t *sym = params[i];
         node_t *ty = SYM_TYPE(sym);
@@ -1810,8 +1825,15 @@ static void emit_function_prologue(struct gdata *gdata)
         }
     }
 
-    // calls
-    localsize += extra_stack_size(decl);
+    // call returns
+    size_t returns_size = call_returns_size(decl);
+    if (returns_size) {
+        localsize = ROUNDUP(localsize + returns_size, 8);
+        func_return_loff = -localsize;
+    }
+    
+    // call params
+    localsize += call_params_size(decl);
     localsize = ROUNDUP(localsize, 16);
     
     if (localsize > 0)
@@ -1824,11 +1846,13 @@ static void emit_text(struct gdata *gdata)
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
 
+    // reset func context
     func_end_label = STMT_X_NEXT(DECL_BODY(decl));
     func_returns = 0;
     next_info = dict_new();
     next_info->map->cmpfn = nocmp;
     reset_regs();
+    func_return_loff = 0;
 
     emit_function_prologue(gdata);
     if (TYPE_VARG(ftype))
