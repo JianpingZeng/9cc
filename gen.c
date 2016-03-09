@@ -43,10 +43,23 @@ static const char *suffixp[] = {
     "", "", "ps", "pd"
 };
 
+// Parameter classification
+static int *no_class = (int *)1;
+static int *integer_class = (int *)2;
+static int *sse_class = (int *)3;
+static int *memory_class = (int *)4;
+
+struct ptype {
+    size_t offset;
+    node_t *type;
+};
+static struct vector * get_types(node_t *ty, size_t offset);
+
 struct pinfo {
     int fp;
     int gp;
     size_t size;
+    struct vector *ret_classes;
 };
 static void drain_reg(struct reg *reg);
 static struct pinfo alloc_addr_for_params(node_t *ftype, node_t **params);
@@ -1362,16 +1375,6 @@ static void init_tacs(struct tac *head)
 }
 
 // Parameter classification
-static int *no_class = (int *)1;
-static int *integer_class = (int *)2;
-static int *sse_class = (int *)3;
-static int *memory_class = (int *)4;
-
-struct ptype {
-    size_t offset;
-    node_t *type;
-};
-static struct vector * get_types(node_t *ty, size_t offset);
 
 static struct ptype * new_ptype(node_t *ty, size_t offset)
 {
@@ -1602,6 +1605,23 @@ static struct pinfo alloc_addr_for_params(node_t *ftype, node_t **params)
     int fp = 0;
     size_t offset = 0;
     const int OFFSET_ALIGN = 8;
+    struct vector *ret_classes = NULL;
+
+    // return type
+    node_t *rtype = rtype(ftype);
+    if (!isvoid(rtype)) {
+        if (TYPE_SIZE(rtype) > MAX_STRUCT_PARAM_SIZE) {
+            // memory, passing as the first argument (pointer)
+            ret_classes = vec_new1(memory_class);
+            gp++;
+        } else {
+            // registers
+            struct vector *ptypes = get_types(rtype, 0);
+            struct vector *elements = get_elements(ptypes);
+            ret_classes = get_classes(elements);
+        }
+    }
+    
     for (int i = 0; i < LIST_LEN(params); i++) {
         node_t *param = params[i];
         node_t *ty = AST_TYPE(param);
@@ -1668,7 +1688,7 @@ static struct pinfo alloc_addr_for_params(node_t *ftype, node_t **params)
             }
         }
     }
-    return (struct pinfo){.fp = fp, .gp = gp, .size = offset};
+    return (struct pinfo){.fp = fp, .gp = gp, .size = offset, .ret_classes = ret_classes};
 }
 
 static size_t call_returns_size(node_t *decl)
@@ -1804,7 +1824,8 @@ static void emit_function_prologue(struct gdata *gdata)
     // params
     long stack_base_off = 16;
     node_t **params = TYPE_PARAMS(ftype);
-    alloc_addr_for_params(ftype, params);
+    struct pinfo pinfo = alloc_addr_for_params(ftype, params);
+    // TODO: 
     for (int i = 0; i < LIST_LEN(params); i++) {
         node_t *sym = params[i];
         node_t *ty = SYM_TYPE(sym);
