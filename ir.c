@@ -900,11 +900,11 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
     }
 }
 
-static void emit_scalar_basic(node_t *ty, struct operand *l, struct operand *r,
+static void emit_scalar_basic(node_t *ty, int opsize,
+                              struct operand *l, struct operand *r,
                               long offset, bool sty)
 {
     int op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
-    int opsize = ops[TYPE_SIZE(ty)];
     if (offset || sty) {
         struct operand *x = make_offset_operand(l, offset);
         struct tac *tac = make_assign_tac(op, x, r, opsize);
@@ -918,41 +918,127 @@ static void emit_scalar_basic(node_t *ty, struct operand *l, struct operand *r,
 static void emit_scalar(node_t *ty, struct operand *l, node_t *r, long offset, bool sty)
 {
     emit_expr(r);
-    emit_scalar_basic(ty, l, EXPR_X_ADDR(r), offset, sty);
+    emit_scalar_basic(ty, ops[TYPE_SIZE(ty)], l, EXPR_X_ADDR(r), offset, sty);
 }
 
-// TODO: operand size
+static int get_bfield_opsize(node_t *bfield)
+{
+    int boff = FIELD_BITOFF(bfield);
+    int bsize = FIELD_BITSIZE(bfield);
+    int bytes = BYTES(boff + bsize);
+    if (bytes == 1)
+        return Byte;
+    else if (bytes == 2)
+        return Word;
+    else if (bytes <= 4)
+        return Long;
+    else
+        return Quad;
+}
+
+static struct operand * get_bfield_mask1(node_t *bfield)
+{
+    int bsize = FIELD_BITSIZE(bfield);
+    int opsize = get_bfield_opsize(bfield);
+    switch (opsize) {
+    case Byte:
+        {
+            unsigned char mask1 = (1 << bsize) - 1;
+            return make_unsigned_operand(mask1);
+        }
+        break;
+    case Word:
+        {
+            unsigned short mask1 = (1 << bsize) - 1;
+            return make_unsigned_operand(mask1);
+        }
+        break;
+    case Long:
+        {
+            unsigned int mask1 = (1 << bsize) - 1;
+            return make_unsigned_operand(mask1);
+        }
+        break;
+    case Quad:
+        {
+            unsigned long mask1 = (1 << bsize) - 1;
+            return make_unsigned_operand(mask1);
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
+static struct operand * get_bfield_mask2(node_t *bfield)
+{
+    int boff = FIELD_BITOFF(bfield);
+    int bsize = FIELD_BITSIZE(bfield);
+    int opsize = get_bfield_opsize(bfield);
+    switch (opsize) {
+    case Byte:
+        {
+            unsigned char mask1 = (1 << bsize) - 1;
+            unsigned char mask2 = ~(mask1 << boff);
+            return make_unsigned_operand(mask2);
+        }
+        break;
+    case Word:
+        {
+            unsigned short mask1 = (1 << bsize) - 1;
+            unsigned short mask2 = ~(mask1 << boff);
+            return make_unsigned_operand(mask2);
+        }
+        break;
+    case Long:
+        {
+            unsigned int mask1 = (1 << bsize) - 1;
+            unsigned int mask2 = ~(mask1 << boff);
+            return make_unsigned_operand(mask2);
+        }
+        break;
+    case Quad:
+        {
+            unsigned long mask1 = (1 << bsize) - 1;
+            unsigned long mask2 = ~(mask1 << boff);
+            return make_unsigned_operand(mask2);
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
 static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
                                 long offset, node_t *bfield, bool sty)
 {
     int boff = FIELD_BITOFF(bfield);
-    int bsize = FIELD_BITSIZE(bfield);
-    unsigned long mask1 = (1UL << bsize) - 1;
-    int opsize = boff + bsize <= 32 ? ops[4] : ops[8];
+    int opsize = ops[get_bfield_opsize(bfield)];
+    struct operand *mask1_operand = get_bfield_mask1(bfield);
+    struct operand *mask2_operand = get_bfield_mask2(bfield);
+
     // &
-    struct operand *operand1 = make_unsigned_operand(mask1);
-    struct tac *tac1 = make_tac_r(IR_AND, r, operand1, opsize);
+    struct tac *tac1 = make_tac_r(IR_AND, r, mask1_operand, opsize);
     emit_tac(tac1);
     // <<
-    struct operand *result2;
+    struct operand *operand2;
     if (boff) {
-        struct operand *operand2 = make_unsigned_operand(boff);
-        struct tac *tac2 = make_tac_r(IR_LSHIFT, tac1->operands[0], operand2, opsize);
+        struct operand *boff_operand = make_unsigned_operand(boff);
+        struct tac *tac2 = make_tac_r(IR_LSHIFT, tac1->operands[0], boff_operand, opsize);
         emit_tac(tac2);
-        result2 = tac2->operands[0];
+        operand2 = tac2->operands[0];
     } else {
-        result2 = tac1->operands[0];
+        operand2 = tac1->operands[0];
     }
     // &
-    unsigned mask2 = ~(mask1 << boff);
-    struct operand *operand3 = make_unsigned_operand(mask2);
-    struct tac *tac3 = make_tac_r(IR_AND, l, operand3, opsize);
+    struct operand *field_operand = make_offset_operand(l, offset);
+    struct tac *tac3 = make_tac_r(IR_AND, field_operand, mask2_operand, opsize);
     emit_tac(tac3);
     // |
-    struct tac *tac4 = make_tac_r(IR_OR, result2, tac3->operands[0], opsize);
+    struct tac *tac4 = make_tac_r(IR_OR, operand2, tac3->operands[0], opsize);
     emit_tac(tac4);
     // assign
-    emit_scalar_basic(ty, l, tac4->operands[0], offset, sty);
+    emit_scalar_basic(ty, opsize, l, tac4->operands[0], offset, sty);
 }
 
 static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
@@ -1294,33 +1380,48 @@ static void emit_member_nonbitfield(node_t *n, node_t *field)
     EXPR_X_ADDR(n) = make_offset_operand(addr, FIELD_OFFSET(field));
 }
 
+static void emit_member_bitfield(node_t *n, node_t *field)
+{
+    int boff = FIELD_BITOFF(field);
+    int size = get_bfield_opsize(field);
+    struct operand *mask1_operand = get_bfield_mask1(field);
+    struct operand *result = EXPR_X_ADDR(n);
+    if (boff) {
+        struct tac *tac = make_tac_r(IR_RSHIFT,
+                                     result,
+                                     make_unsigned_operand(boff),
+                                     ops[size]);
+        emit_tac(tac);
+        result = tac->operands[0];
+    }
+    struct tac *tac = make_tac_r(IR_AND,
+                                 result,
+                                 mask1_operand,
+                                 ops[size]);
+    emit_tac(tac);
+
+    // extend: type conv
+    node_t *ty = FIELD_TYPE(field);
+    if (size != TYPE_SIZE(ty)) {
+        int rop = TYPE_OP(ty) == UNSIGNED ? IR_CONV_UI_UI : IR_CONV_SI_SI;
+        tac = make_conv_tac(rop,
+                            tac->operands[0],
+                            ops[size],
+                            ops[TYPE_SIZE(ty)]);
+        emit_tac(tac);
+    }
+    
+    EXPR_X_ADDR(n) = tac->operands[0];
+}
+
 static void emit_member(node_t *n)
 {
     node_t *field = fieldof(n);
     emit_member_nonbitfield(n, field);
 
     // if it's a bit-field
-    if (FIELD_ISBIT(field)) {
-        int boff = FIELD_BITOFF(field);
-        int bsize = FIELD_BITSIZE(field);
-        unsigned long mask1 = (1UL << bsize) - 1;
-        int opsize = boff + bsize <= 32 ? ops[4] : ops[8];
-        struct operand *result = EXPR_X_ADDR(n);
-        if (boff) {
-            struct tac *tac = make_tac_r(IR_RSHIFT,
-                                         result,
-                                         make_unsigned_operand(boff),
-                                         opsize);
-            emit_tac(tac);
-            result = tac->operands[0];
-        }
-        struct tac *tac = make_tac_r(IR_OR,
-                                     result,
-                                     make_unsigned_operand(mask1),
-                                     opsize);
-        emit_tac(tac);
-        EXPR_X_ADDR(n) = tac->operands[0];
-    }
+    if (FIELD_ISBIT(field))
+        emit_member_bitfield(n, field);
 }
 
 static void emit_subscript(node_t *n)

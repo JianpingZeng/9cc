@@ -3,6 +3,7 @@ TODO
 1. struct indirection assignment
    *s1 = *s2;
 2. variable length arguments, like 'printf'
+3. bitfield: overflow assignment's extend (sign/unsign).
 
 //////
 

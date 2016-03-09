@@ -436,14 +436,14 @@ static void do_drain_reg(struct reg *reg, struct vector *excepts)
         switch (SYM_X_KIND(sym)) {
         case SYM_KIND_GREF:
             if (!SYM_X_INMEM(sym)) {
-                emit("mov%s %s, %s(%s)" COMMENT("%d bytes spill"),
+                emit("mov%s %s, %s(%s)" COMMENT("%d-byte spill"),
                      suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
                 store(sym);
             }
             break;
         case SYM_KIND_LREF:
             if (!SYM_X_INMEM(sym)) {
-                emit("mov%s %s, %ld(%s)" COMMENT("%d bytes spill"),
+                emit("mov%s %s, %ld(%s)" COMMENT("%d-byte spill"),
                      suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
                 store(sym);
             }
@@ -460,7 +460,7 @@ static void do_drain_reg(struct reg *reg, struct vector *excepts)
                         new_reg = dispatch_ireg(sym, excepts, v->size);
                         suffix = suffixi;
                     }
-                    emit("mov%s %s, %s" COMMENT("%d bytes spill"),
+                    emit("mov%s %s, %s" COMMENT("%d-byte spill"),
                          suffix[i], reg->r[i], new_reg->r[i], v->size);
                 } else {
                     load(new_reg, sym, v->size);
