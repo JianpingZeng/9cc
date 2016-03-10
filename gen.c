@@ -79,6 +79,7 @@ static long calls_return_loff;
 static struct pinfo *func_pinfo;
 static struct dict *next_info;
 static struct tac *current_tac;
+static node_t *current_ftype;
 
 static void emit(const char *fmt, ...)
 {
@@ -873,10 +874,38 @@ static void emit_return(struct tac *tac)
                 emit("movq %s, %s", src_label, tmp->r[Q]);
                 emit("movq %s, %s", tmp->r[Q], dst_label);
             }
-        } else {
+        } else if (retaddr->kind == ADDR_REGISTER) {
             // by register
             // integer registers: rax, rdx
             // sse registers: xmm0, xmm1
+            node_t *rtype = rtype(current_ftype);
+            if (isstruct(rtype) || isunion(rtype)) {
+                
+            } else {
+                // scalar
+                struct reg *reg = retaddr->u.regs[0].reg;
+                // drain reg
+                drain_reg(reg);
+                
+                int opsize = TYPE_SIZE(rtype);
+                int i = idx[opsize];
+                if (isint(rtype) || isptr(rtype)) {
+                    if (opsize < 4) {
+                        // extend to 32bits
+                        bool sign = TYPE_OP(rtype) == INT;
+                        if (sign)
+                            emit("movs%sl %s, %s", suffixi[i], operand2s(l, opsize), reg->r[L]);
+                        else
+                            emit("movz%sl %s, %s", suffixi[i], operand2s(l, opsize), reg->r[L]);
+                    } else {
+                        emit("mov%s %s, %s", suffixi[i], operand2s(l, opsize), reg->r[i]);
+                    }
+                } else if (isfloat(rtype)) {
+                    emit("mov%s %s, %s", suffixf[i], operand2s(l, opsize), reg->r[i]);
+                } else {
+                    cc_assert(0);
+                }
+            }
         }
     }
     // if it's the last tac, don't emit a jump
@@ -2031,6 +2060,7 @@ static void emit_text(struct gdata *gdata)
     reset_regs();
     calls_return_loff = 0;
     func_pinfo = NULL;
+    current_ftype = ftype;
 
     emit_function_prologue(gdata);
     if (TYPE_VARG(ftype))

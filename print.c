@@ -434,7 +434,6 @@ static const char * operand2s(struct operand *operand)
 
 void print_tac(struct tac *tac)
 {
-    putf("<%p>: ", tac);
     switch (tac->opsize) {
     case Quad:
         putf("Q: ");
