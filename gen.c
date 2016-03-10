@@ -1,15 +1,10 @@
 #include "cc.h"
 
-static FILE *outfp;
-static const char *func_end_label;
-static int func_returns;
-static long func_return_loff;
-static struct dict *next_info;
-static struct tac *current_tac;
-
 #define NUM_IARG_REGS  6
 #define NUM_FARG_REGS  8
 #define REGISTER_SAVE_AREA_SIZE  (NUM_IARG_REGS * 8 + NUM_FARG_REGS * 16)
+#define NUM_RET_IREGS  2
+#define NUM_RET_FREGS  2
 
 enum {
     RAX, RBX, RCX, RDX,
@@ -29,6 +24,8 @@ static struct reg *iarg_regs[NUM_IARG_REGS];
 static struct reg *farg_regs[NUM_FARG_REGS];
 static struct reg *int_regs[INT_REGS];
 static struct reg *float_regs[FLOAT_REGS];
+static struct reg *ret_iregs[NUM_RET_IREGS];
+static struct reg *ret_fregs[NUM_RET_FREGS];
 static struct reg *rsp, *rbp, *rip;
 static int idx[] = {
     -1, B, W, -1, L, -1, -1, -1, Q
@@ -55,18 +52,33 @@ struct ptype {
 };
 static struct vector * get_types(node_t *ty, size_t offset);
 
+struct pnode {
+    node_t *param;              // symbol or expr
+    struct paddr *paddr;        // paddr of the param
+};
+
 struct pinfo {
-    int fp;
-    int gp;
-    size_t size;
-    struct vector *ret_classes;
+    int fp;                     // number of fp used
+    int gp;                     // number of gp used
+    size_t size;                // size of params on stack
+    struct vector *pnodes;      // param nodes
+    struct paddr *retaddr;      // return addr
 };
 static void drain_reg(struct reg *reg);
-static struct pinfo alloc_addr_for_params(node_t *ftype, node_t **params);
+static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params);
+static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params);
 static struct uses * get_uses(node_t *sym, struct tac *tac);
 #define get_current_uses(sym)  get_uses(sym, current_tac)
 
 #define COMMENT(str)    "\t\t## " str
+
+static FILE *outfp;
+static const char *func_end_label;
+static size_t func_returns;
+static long calls_return_loff;
+static struct pinfo *func_pinfo;
+static struct dict *next_info;
+static struct tac *current_tac;
 
 static void emit(const char *fmt, ...)
 {
@@ -174,6 +186,10 @@ static void init_regs(void)
     iarg_regs[4] = int_regs[R8];
     iarg_regs[5] = int_regs[R9];
 
+    // init integer return regs
+    ret_iregs[0] = int_regs[RAX];
+    ret_iregs[1] = int_regs[RDX];
+
     // init floating regs
     for (int i = XMM0; i <= XMM15; i++) {
         const char *name = format("%%xmm%d", i - XMM0);
@@ -185,6 +201,10 @@ static void init_regs(void)
         if (i <= XMM7)
             farg_regs[i - XMM0] = float_regs[i];
     }
+
+    // init floating return regs
+    ret_fregs[0] = float_regs[XMM0];
+    ret_fregs[1] = float_regs[XMM1];
 }
 
 static void reset_regs(void)
@@ -619,10 +639,11 @@ static void emit_conv_f2f(struct tac *tac)
   integer params(6): rdi, rsi, rdx, rcx, r8, r9
   floating params(8): xmm0~xmm7
  */
-static void emit_param_scalar(struct tac *tac, node_t *arg)
+static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
 {
     struct operand *operand = tac->operands[1];
-    struct paddr *paddr = EXPR_X_PADDR(arg);
+    node_t *arg = pnode->param;
+    struct paddr *paddr = pnode->paddr;
     node_t *ty = AST_TYPE(arg);
     int i = idx[TYPE_SIZE(ty)];
     node_t *sym = operand->sym;
@@ -684,25 +705,25 @@ static void emit_param_scalar(struct tac *tac, node_t *arg)
     }
 }
 
-static void emit_param_struct(struct tac *tac, node_t *arg)
+static void emit_param_struct(struct tac *tac, struct pnode *pnode)
 {
     die("not implemented yet");
 }
 
-static void emit_param_union(struct tac *tac, node_t *arg)
+static void emit_param_union(struct tac *tac, struct pnode *pnode)
 {
     die("not implemented yet");
 }
 
-static void emit_param(struct tac *tac, node_t *arg)
+static void emit_param(struct tac *tac, struct pnode *pnode)
 {
-    node_t *ty = AST_TYPE(arg);
+    node_t *ty = AST_TYPE(pnode->param);
     if (isint(ty) || isptr(ty) || isfloat(ty))
-        emit_param_scalar(tac, arg);
+        emit_param_scalar(tac, pnode);
     else if (isstruct(ty))
-        emit_param_struct(tac, arg);
+        emit_param_struct(tac, pnode);
     else if (isunion(ty))
-        emit_param_union(tac, arg);
+        emit_param_union(tac, pnode);
     else
         cc_assert(0);
 }
@@ -739,18 +760,18 @@ static void emit_nonbuiltin_call(struct tac *tac)
     current_tac = t;
     
     // emit args
-    struct pinfo pinfo = alloc_addr_for_params(ftype, args);
+    struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
     // drain regs
-    drain_args_regs(pinfo.gp, pinfo.fp);
-    for (int i = 0; i < len; i++) {
-        node_t *arg = args[i];
+    drain_args_regs(pinfo->gp, pinfo->fp);
+    for (int i = 0; i < vec_len(pinfo->pnodes); i++) {
+        struct pnode *pnode = vec_at(pinfo->pnodes, i);
         struct tac *param = vec_at(params, i);
-        emit_param(param, arg);
+        emit_param(param, pnode);
     }
     
     if (TYPE_VARG(ftype) || TYPE_OLDSTYLE(ftype)) {
         drain_reg(int_regs[RAX]);
-        emit("movb $%d, %%al", pinfo.fp);
+        emit("movb $%d, %%al", pinfo->fp);
     }
 
     // direct / indirect
@@ -796,8 +817,24 @@ static void emit_call(struct tac *tac)
 
 static void emit_return(struct tac *tac)
 {
-    struct operand *operand = tac->operands[1];
-    // TODO:
+    struct operand *l = tac->operands[1];
+    // non-void return
+    if (l) {
+        struct paddr *retaddr = func_pinfo->retaddr;
+        if (retaddr->kind == ADDR_STACK) {
+            // by memory
+            // copy l to the address pointed by the implicit first argument
+            // rax will contain the address that has passed in by caller in rdi.
+            struct pnode *pnode = vec_head(func_pinfo->pnodes);
+            node_t *sym = pnode->param;
+            // TODO: 
+        } else {
+            // by register
+            // integer registers: rax, rdx
+            // sse registers: xmm0, xmm1
+        }
+    }
+    emit("jmp %s", func_end_label);
     func_returns++;
 }
 
@@ -1568,67 +1605,149 @@ static struct vector * get_types(node_t *ty, size_t offset)
         cc_assert(0);
 }
 
-static struct paddr * alloc_paddr(void)
-{
-    return zmalloc(sizeof(struct paddr));
-}
-
-static void set_param_addr(node_t *param, struct paddr *paddr)
-{
-    if (issymbol(param))
-        SYM_X_PADDR(param) = paddr;
-    else if (isexpr(param))
-        EXPR_X_PADDR(param) = paddr;
-    else
-        die("unexpected param type: %s", nname(param));
-}
-
-static void set_param_stack_addr(node_t *param, long offset, size_t size)
-{
-    struct paddr *paddr = alloc_paddr();
-    paddr->kind = ADDR_STACK;
-    paddr->size = size;
-    paddr->u.offset = offset;
-    set_param_addr(param, paddr);
-}
-
 static bool is_type_aligned(node_t *ty)
 {
     // Now all types are aligned.
     return true;
 }
 
+static struct pinfo * new_pinfo(struct pinfo *pinfo)
+{
+    struct pinfo *ret = zmalloc(sizeof(struct pinfo));
+    *ret = *pinfo;
+    return ret;
+}
+
+static struct paddr * alloc_paddr(void)
+{
+    return zmalloc(sizeof(struct paddr));
+}
+
+static struct pnode * new_pnode(node_t *param)
+{
+    struct pnode *pnode = zmalloc(sizeof(struct pnode));
+    pnode->param = param;
+    pnode->paddr = alloc_paddr();
+    return pnode;
+}
+
+static node_t * new_tmp_param(bool call)
+{
+    node_t *sym = gen_tmp_sym();
+    SYM_TYPE(sym) = ptr_type(voidtype);
+    SYM_SCOPE(sym) = call ? LOCAL : PARAM;
+    SYM_X_KIND(sym) = SYM_KIND_LREF;
+    SYM_X_INMEM(sym) = true;
+    
+    if (call) {
+        // expr
+        node_t *expr = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
+        EXPR_SYM(expr) = sym;
+        return expr;
+    } else {
+        // symbol
+        return sym;
+    }
+}
+
+static void set_param_stack_addr(struct paddr *paddr, long offset, size_t size)
+{
+    paddr->kind = ADDR_STACK;
+    paddr->size = size;
+    paddr->u.offset = offset;
+}
+
+static void set_param_reg_addr(struct paddr *paddr, int index,
+                               struct reg *reg, int type)
+{
+    paddr->kind = ADDR_REGISTER;
+    paddr->u.regs[index].reg = reg;
+    paddr->u.regs[index].type = type;
+}
+
+static void traverse_classes(struct vector *classes,
+                             struct vector *elements,
+                             struct paddr *paddr,
+                             struct reg **iregs, int *gp,
+                             struct reg **fregs, int *fp)
+{
+    for (int i = 0; i < vec_len(classes); i++) {
+        int *class = vec_at(classes, i);
+        struct vector *element = vec_at(elements, i);
+        if (class == integer_class) {
+            set_param_reg_addr(paddr, i, iregs[*gp], REG_INT);
+            (*gp)++;
+        } else if (class == sse_class) {
+            int len = vec_len(element);
+            if (len == 1) {
+                struct ptype *ptype = vec_head(element);
+                if (TYPE_SIZE(ptype->type) == 4)
+                    set_param_reg_addr(paddr, i, fregs[*fp], REG_SSE_F);
+                else
+                    set_param_reg_addr(paddr, i, fregs[*fp], REG_SSE_D);
+            } else if (len == 2) {
+                set_param_reg_addr(paddr, i, fregs[*fp], REG_SSE_FF);
+            } else {
+                cc_assert(0);
+            }
+            (*fp)++;
+        }
+    }
+}
+
 // params: list of symbols or expressions, may be NULL
-static struct pinfo alloc_addr_for_params(node_t *ftype, node_t **params)
+static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool call)
 {
     int gp = 0;
     int fp = 0;
     size_t offset = 0;
     const int OFFSET_ALIGN = 8;
-    struct vector *ret_classes = NULL;
+    struct vector *pnodes = vec_new();
+    struct paddr *retaddr = NULL;
 
     // return type
     node_t *rtype = rtype(ftype);
     if (!isvoid(rtype)) {
+        retaddr = alloc_paddr();
+        retaddr->size = TYPE_SIZE(rtype);
+        
         if (TYPE_SIZE(rtype) > MAX_STRUCT_PARAM_SIZE) {
             // memory, passing as the first argument (pointer)
-            ret_classes = vec_new1(memory_class);
+            node_t *param = new_tmp_param(call);
+            struct pnode *pnode = new_pnode(param);
+            vec_push(pnodes, pnode);
+
+            // param addr
+            pnode->paddr->size = TYPE_SIZE(AST_TYPE(param));
+            set_param_reg_addr(pnode->paddr, 0, iarg_regs[gp], REG_INT);
             gp++;
+
+            // ret addr
+            retaddr->kind = ADDR_STACK;
         } else {
             // registers
             struct vector *ptypes = get_types(rtype, 0);
             struct vector *elements = get_elements(ptypes);
-            ret_classes = get_classes(elements);
+            struct vector *classes = get_classes(elements);
+            int ret_gp = 0;
+            int ret_fp = 0;
+            
+            retaddr->kind = ADDR_REGISTER;
+            traverse_classes(classes, elements, retaddr,
+                             ret_iregs, &ret_gp, ret_fregs, &ret_fp);
         }
     }
     
     for (int i = 0; i < LIST_LEN(params); i++) {
         node_t *param = params[i];
+        struct pnode *pnode = new_pnode(param);
+        vec_push(pnodes, pnode);
+        
         node_t *ty = AST_TYPE(param);
         size_t size = TYPE_SIZE(ty);
         if (size > MAX_STRUCT_PARAM_SIZE || !is_type_aligned(ty)) {
             // pass by memory
-            set_param_stack_addr(param, offset, size);
+            set_param_stack_addr(pnode->paddr, offset, size);
             offset = ROUNDUP(offset + size, OFFSET_ALIGN);
         } else {
             struct vector *ptypes = get_types(ty, 0);
@@ -1651,44 +1770,33 @@ static struct pinfo alloc_addr_for_params(node_t *ftype, node_t **params)
             }
             if (num_gp > left_gp || num_fp > left_fp) {
                 // no enough registers
-                set_param_stack_addr(param, offset, size);
+                set_param_stack_addr(pnode->paddr, offset, size);
                 offset = ROUNDUP(offset + size, OFFSET_ALIGN);
             } else {
-                struct paddr *paddr = alloc_paddr();
-                paddr->kind = ADDR_REGISTER;
-                paddr->size = size;
-                set_param_addr(param, paddr);
-                for (int i = 0; i < vec_len(classes); i++) {
-                    int *class = vec_at(classes, i);
-                    struct vector *element = vec_at(elements, i);
-                    
-                    if (class == integer_class) {
-                        paddr->u.regs[i].reg = iarg_regs[gp];
-                        paddr->u.regs[i].type = REG_INT;
-                        gp++;
-                    } else if (class == sse_class) {
-                        int len = vec_len(element);
-                        if (len == 1) {
-                            struct ptype *ptype = vec_head(element);
-                            if (TYPE_SIZE(ptype->type) == 4) {
-                                paddr->u.regs[i].reg = farg_regs[fp];
-                                paddr->u.regs[i].type = REG_SSE_F;
-                            } else {
-                                paddr->u.regs[i].reg = farg_regs[fp];
-                                paddr->u.regs[i].type = REG_SSE_D;
-                            }
-                        } else {
-                            cc_assert(len == 2);
-                            paddr->u.regs[i].reg = farg_regs[fp];
-                            paddr->u.regs[i].type = REG_SSE_FF;
-                        }
-                        fp++;
-                    }
-                }
+                pnode->paddr->kind = ADDR_REGISTER;
+                pnode->paddr->size = size;
+                traverse_classes(classes, elements, pnode->paddr,
+                                 iarg_regs, &gp, farg_regs, &fp);
             }
         }
     }
-    return (struct pinfo){.fp = fp, .gp = gp, .size = offset, .ret_classes = ret_classes};
+    return new_pinfo(&(struct pinfo) {
+        .fp = fp,
+        .gp = gp,
+        .size = offset,
+        .pnodes = pnodes,
+        .retaddr = retaddr
+    });
+}
+
+static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params)
+{
+    return alloc_addr_for_params(ftype, params, true);
+}
+
+static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params)
+{
+    return alloc_addr_for_params(ftype, params, false);
 }
 
 static size_t call_returns_size(node_t *decl)
@@ -1711,8 +1819,8 @@ static size_t call_params_size(node_t *decl)
     for (int i = 0; i < LIST_LEN(calls); i++) {
         node_t *call = calls[i];
         node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
-        struct pinfo pinfo = alloc_addr_for_params(ftype, EXPR_ARGS(call));
-        extra_stack_size = MAX(extra_stack_size, pinfo.size);
+        struct pinfo *pinfo = alloc_addr_for_funcall(ftype, EXPR_ARGS(call));
+        extra_stack_size = MAX(extra_stack_size, pinfo->size);
     }
     return extra_stack_size;
 }
@@ -1752,11 +1860,10 @@ static long get_reg_offset(struct reg *reg)
 
 static void emit_register_params(node_t *decl)
 {
-    node_t *ftype = SYM_TYPE(DECL_SYM(decl));    
-    node_t **params = TYPE_PARAMS(ftype);
-    for (int i = 0; i < LIST_LEN(params); i++) {
-        node_t *sym = params[i];
-        struct paddr *paddr = SYM_X_PADDR(sym);
+    for (int i = 0; i < vec_len(func_pinfo->pnodes); i++) {
+        struct pnode *pnode = vec_at(func_pinfo->pnodes, i);
+        node_t *sym = pnode->param;
+        struct paddr *paddr = pnode->paddr;
         if (paddr->kind == ADDR_REGISTER) {
             long loff = SYM_X_LOFF(sym);
             size_t size = paddr->size;
@@ -1824,13 +1931,13 @@ static void emit_function_prologue(struct gdata *gdata)
     // params
     long stack_base_off = 16;
     node_t **params = TYPE_PARAMS(ftype);
-    struct pinfo pinfo = alloc_addr_for_params(ftype, params);
-    // TODO: 
-    for (int i = 0; i < LIST_LEN(params); i++) {
-        node_t *sym = params[i];
+    func_pinfo = alloc_addr_for_funcdef(ftype, params);
+    for (int i = 0; i < vec_len(func_pinfo->pnodes); i++) {
+        struct pnode *pnode = vec_at(func_pinfo->pnodes, i);
+        node_t *sym = pnode->param;
+        struct paddr *paddr = pnode->paddr;
         node_t *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
-        struct paddr *paddr = SYM_X_PADDR(sym);
         if (paddr->kind == ADDR_REGISTER) {
             if (TYPE_VARG(ftype)) {
                 long offset = get_reg_offset(paddr->u.regs[0].reg);
@@ -1850,7 +1957,7 @@ static void emit_function_prologue(struct gdata *gdata)
     size_t returns_size = call_returns_size(decl);
     if (returns_size) {
         localsize = ROUNDUP(localsize + returns_size, 8);
-        func_return_loff = -localsize;
+        calls_return_loff = -localsize;
     }
     
     // call params
@@ -1873,7 +1980,8 @@ static void emit_text(struct gdata *gdata)
     next_info = dict_new();
     next_info->map->cmpfn = nocmp;
     reset_regs();
-    func_return_loff = 0;
+    calls_return_loff = 0;
+    func_pinfo = NULL;
 
     emit_function_prologue(gdata);
     if (TYPE_VARG(ftype))

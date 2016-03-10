@@ -163,7 +163,6 @@ struct externals {
 #define SYM_X_REG(NODE)       ((NODE)->symbol.x.sym.reg)
 #define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
-#define SYM_X_PADDR(NODE)     ((NODE)->symbol.x.sym.paddr)
 #define SYM_X_INMEM(NODE)     ((NODE)->symbol.x.sym.inmem)
 // decl
 #define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
@@ -176,7 +175,6 @@ struct externals {
 #define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
 #define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.expr.bfalse)
 #define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.expr.array)
-#define EXPR_X_PADDR(NODE)    ((NODE)->expr.x.expr.paddr)
 // stmt
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
@@ -187,7 +185,6 @@ union x {
         long loff;              // local offset (<0)
         int kind;               // kind
         struct uses uses;       // uses
-        struct paddr *paddr;    // param addr
         struct reg *reg;
         bool inmem;
     }sym;
@@ -207,8 +204,6 @@ union x {
         // label
         const char *btrue;
         const char *bfalse;
-
-        struct paddr *paddr;    // arg addr
     }expr;
 
     struct {
