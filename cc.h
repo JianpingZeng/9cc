@@ -234,6 +234,9 @@ extern bool is_anonymous(const char *name);
 // create an anonymous symbol
 extern node_t *anonymous(struct table **tpp, int scope);
 
+// generate a tmp symbol
+extern node_t *gen_tmp_sym(void);
+
 // look up a symbol from this table to previous one, and so on
 extern node_t *lookup(const char *name, struct table *table);
 

@@ -1298,11 +1298,8 @@ static struct operand * make_extra_decl(node_t *ty)
     if (!extra_lvars)
         extra_lvars = vec_new();
 
-    const char *name = gen_tmpname();
-    node_t *sym = alloc_symbol();
-    SYM_NAME(sym) = SYM_X_LABEL(sym) = name;
+    node_t *sym = gen_tmp_sym();
     SYM_TYPE(sym) = ty;
-    SYM_REFS(sym)++;
     // set scope as LOCAL
     SYM_SCOPE(sym) = LOCAL;
 
@@ -2116,7 +2113,9 @@ static void emit_return_stmt(node_t *stmt)
         node_t *ty = AST_TYPE(n);
         int op = isfloat(ty) ? IR_RETURNF : IR_RETURNI;
         emit_expr(n);
-        struct tac *tac = make_tac(op, EXPR_X_ADDR(n), NULL, NULL, ops[TYPE_SIZE(ty)]);
+        // update gref
+        struct operand *addr = update_gref(EXPR_X_ADDR(n));
+        struct tac *tac = make_tac(op, addr, NULL, NULL, ops[TYPE_SIZE(ty)]);
         emit_tac(tac);
     }
 }

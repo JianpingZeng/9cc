@@ -70,6 +70,15 @@ node_t *anonymous(struct table **tpp, int scope)
     return install(strs(format("@%ld", i++)), tpp, scope);
 }
 
+node_t *gen_tmp_sym(void)
+{
+    const char *name = gen_tmpname();
+    node_t *sym = alloc_symbol();
+    SYM_NAME(sym) = SYM_X_LABEL(sym) = name;
+    SYM_REFS(sym)++;
+    return sym;
+}
+
 node_t *lookup(const char *name, struct table * table)
 {
     cc_assert(name);
