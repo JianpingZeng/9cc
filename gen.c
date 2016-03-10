@@ -815,6 +815,24 @@ static void emit_call(struct tac *tac)
         emit_nonbuiltin_call(tac);
 }
 
+static struct operand * make_ret_offset_operand(struct operand *operand, long offset)
+{
+    switch (operand->op) {
+    case IR_NONE:
+    case IR_SUBSCRIPT:
+        {
+            struct operand *ret = alloc_operand();
+            *ret = *operand;
+            ret->op = IR_SUBSCRIPT;
+            ret->disp += offset;
+            return ret;
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
 static void emit_return(struct tac *tac)
 {
     struct operand *l = tac->operands[1];
@@ -827,15 +845,45 @@ static void emit_return(struct tac *tac)
             // rax will contain the address that has passed in by caller in rdi.
             struct pnode *pnode = vec_head(func_pinfo->pnodes);
             node_t *sym = pnode->param;
-            // TODO: 
+            struct reg *rax = int_regs[RAX];
+
+            struct vector *excepts = operand_regs(l);
+             // drain rax
+            do_drain_reg(rax, excepts);
+            
+            vec_push(excepts, rax);
+            struct reg *tmp = get_one_ireg(excepts);
+
+            // set destination base address
+            emit("movq %ld(%s), %s", SYM_X_LOFF(sym), rbp->r[Q], rax->r[Q]);
+
+            // Can't be IR_INDIRECTION (see ir.c: emit_uop_indirection)
+            cc_assert(l->op == IR_NONE || l->op == IR_SUBSCRIPT);
+            // emit bytes
+            // rounded by 8 bytes. (see emit_function_prologue)
+            size_t size = ROUNDUP(retaddr->size, 8);
+            for (size_t i = 0; i < size; i += 8) {
+                struct operand *operand = make_ret_offset_operand(l, i);
+                const char *src_label = operand2s(operand, Quad);
+                const char *dst_label;
+                if (i)
+                    dst_label = format("%ld(%s)", i, rax->r[Q]);
+                else
+                    dst_label = format("(%s)", rax->r[Q]);
+                emit("movq %s, %s", src_label, tmp->r[Q]);
+                emit("movq %s, %s", tmp->r[Q], dst_label);
+            }
         } else {
             // by register
             // integer registers: rax, rdx
             // sse registers: xmm0, xmm1
         }
     }
-    emit("jmp %s", func_end_label);
-    func_returns++;
+    // if it's the last tac, don't emit a jump
+    if (tac->next) {
+        emit("jmp %s", func_end_label);
+        func_returns++;
+    }
 }
 
 static void emit_if(struct tac *tac, bool reverse, bool floating)
@@ -1956,6 +2004,7 @@ static void emit_function_prologue(struct gdata *gdata)
     // call returns
     size_t returns_size = call_returns_size(decl);
     if (returns_size) {
+        // rounded by 8 bytes. (see emit_return)
         localsize = ROUNDUP(localsize + returns_size, 8);
         calls_return_loff = -localsize;
     }
