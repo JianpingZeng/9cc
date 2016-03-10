@@ -910,32 +910,93 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
     size_t size = retaddr->size;
     int cnt = ROUNDUP(retaddr->size, 8) >> 3;
     long loff = 0;
+
+    // calculate excepts
+    struct vector *excepts = vec_new();
+    vec_add(excepts, operand_regs(l));
+    for (int i = 0; i < cnt; i++) {
+        struct reg *reg = retaddr->u.regs[i].reg;
+        vec_push(excepts, reg);
+    }
+    
     for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
         int type = retaddr->u.regs[i].type;
         struct reg *reg = retaddr->u.regs[i].reg;
         struct operand *operand = make_ret_offset_operand(l, loff);
         switch (type) {
-        // case REG_INT:
-        //     if (size > 4)
-        //         emit("movq %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
-        //     else if (size > 2)
-        //         emit("movl %s, %ld(%s)", reg->r[L], loff, rbp->r[Q]);
-        //     else if (size == 2)
-        //         emit("movw %s, %ld(%s)", reg->r[W], loff, rbp->r[Q]);
-        //     else if (size == 1)
-        //         emit("movb %s, %ld(%s)", reg->r[B], loff, rbp->r[Q]);
-        //     else
-        //         cc_assert(0);
-        //     break;
-        // case REG_SSE_F:
-        //     emit("movss %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
-        //     break;
-        // case REG_SSE_D:
-        //     emit("movsd %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
-        //     break;
-        // case REG_SSE_FF:
-        //     emit("movlps %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
-        //     break;
+        case REG_INT:
+            switch (size) {
+            case 1:
+            case 2:
+                {
+                    // TODO: 
+                }
+                break;
+            case 3:
+                {
+                    // TODO: 
+                }
+                break;
+            case 4:
+                {
+                    // TODO: 
+                }
+                break;
+            case 5:
+            case 6:
+                {
+                    int opsize = size == 5 ? Byte : Word;
+                    int i = idx[opsize];
+                    struct operand *operand1 = make_ret_offset_operand(l, loff + 4);
+                    struct reg *tmp1 = get_one_ireg(excepts);
+                    emit("movz%sl %s, %s", suffixi[i], operand2s(operand1, opsize), tmp1->r[L]);
+                    emit("shlq $32, %s", tmp1->r[Q]);
+
+                    vec_push(excepts, tmp1);
+                    struct reg *tmp2 = get_one_ireg(excepts);
+                    emit("movl %s, %s", operand2s(operand, Long), tmp2->r[L]);
+                    emit("orq %s, %s", tmp2->r[Q], tmp1->r[Q]);
+
+                    emit("movq %s, %s", tmp1->r[Q], reg->r[Q]);
+                }
+                break;
+            case 7:
+                {
+                    struct operand *operand1 = make_ret_offset_operand(l, loff + 6);
+                    struct reg *tmp1 = get_one_ireg(excepts);
+                    emit("movzbl %s, %s", operand2s(operand1, Byte), tmp1->r[L]);
+                    emit("shlq $16, %s", tmp1->r[Q]);
+
+                    vec_push(excepts, tmp1);
+                    struct operand *operand2 = make_ret_offset_operand(l, loff + 4);
+                    struct reg *tmp2 = get_one_ireg(excepts);
+                    emit("movzwl %s, %s", operand2s(operand2, Word), tmp2->r[L]);
+
+                    emit("orl %s, %s", tmp1->r[L], tmp2->r[L]);
+                    emit("shlq $32, %s", tmp2->r[Q]);
+
+                    // reuse tmp1 here
+                    emit("movl %s, %s", operand2s(operand, Long), tmp1->r[L]);
+                    emit("orq %s, %s", tmp2->r[Q], tmp1->r[Q]);
+
+                    emit("movq %s, %s", tmp1->r[Q], reg->r[Q]);
+                }
+                break;
+                // >=8
+            default:
+                emit("movq %s, %s", operand2s(operand, Quad), reg->r[Q]);
+                break;
+            }
+            break;
+        case REG_SSE_F:
+            emit("movss %s, %s", operand2s(operand, Quad), reg->r[Q]);
+            break;
+        case REG_SSE_D:
+            emit("movsd %s, %s", operand2s(operand, Quad), reg->r[Q]);
+            break;
+        case REG_SSE_FF:
+            emit("movlps %s, %s", operand2s(operand, Quad), reg->r[Q]);
+            break;
         }
     }
 }
