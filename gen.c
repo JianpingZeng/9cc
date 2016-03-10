@@ -789,18 +789,22 @@ static void emit_nonbuiltin_call(struct tac *tac)
 
 static void emit_builtin_va_start(struct tac *tac)
 {
+    die("not implemented yet");
 }
 
 static void emit_builtin_va_arg_class(struct tac *tac)
 {
+    die("not implemented yet");
 }
 
 static void emit_builtin_va_end(struct tac *tac)
 {
+    die("not implemented yet");
 }
 
 static void emit_builtin_va_copy(struct tac *tac)
 {
+    die("not implemented yet");
 }
 
 static void emit_call(struct tac *tac)
@@ -905,9 +909,11 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
 {
     size_t size = retaddr->size;
     int cnt = ROUNDUP(retaddr->size, 8) >> 3;
-    for (int i = 0; i < cnt; i++, size -= 8) {
+    long loff = 0;
+    for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
         int type = retaddr->u.regs[i].type;
         struct reg *reg = retaddr->u.regs[i].reg;
+        struct operand *operand = make_ret_offset_operand(l, loff);
         switch (type) {
         // case REG_INT:
         //     if (size > 4)
