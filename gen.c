@@ -5,6 +5,7 @@
 #define REGISTER_SAVE_AREA_SIZE  (NUM_IARG_REGS * 8 + NUM_FARG_REGS * 16)
 #define NUM_RET_IREGS  2
 #define NUM_RET_FREGS  2
+#define STACK_PARAM_BASE_OFF  16
 
 enum {
     RAX, RBX, RCX, RDX,
@@ -640,6 +641,7 @@ static void emit_conv_f2f(struct tac *tac)
   integer params(6): rdi, rsi, rdx, rcx, r8, r9
   floating params(8): xmm0~xmm7
  */
+// TODO: first struct param, get regs excepts
 static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
 {
     struct operand *operand = tac->operands[1];
@@ -834,6 +836,104 @@ static struct operand * make_ret_offset_operand(struct operand *operand, long of
     }
 }
 
+static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
+{
+    // by memory
+    // copy l to the address pointed by the implicit first argument
+    // rax will contain the address that has passed in by caller in rdi.
+    struct pnode *pnode = vec_head(func_pinfo->pnodes);
+    node_t *sym = pnode->param;
+    struct reg *rax = int_regs[RAX];
+
+    struct vector *excepts = operand_regs(l);
+    // drain rax
+    do_drain_reg(rax, excepts);
+    
+    vec_push(excepts, rax);
+    struct reg *tmp = get_one_ireg(excepts);
+
+    // set destination base address
+    emit("movq %ld(%s), %s", SYM_X_LOFF(sym), rbp->r[Q], rax->r[Q]);
+
+    // Can't be IR_INDIRECTION (see ir.c: emit_uop_indirection)
+    cc_assert(l->op == IR_NONE || l->op == IR_SUBSCRIPT);
+    // emit bytes
+    // rounded by 8 bytes. (see emit_function_prologue)
+    size_t size = ROUNDUP(retaddr->size, 8);
+    for (size_t i = 0; i < size; i += 8) {
+        struct operand *operand = make_ret_offset_operand(l, i);
+        const char *src_label = operand2s(operand, Quad);
+        const char *dst_label;
+        if (i)
+            dst_label = format("%ld(%s)", i, rax->r[Q]);
+        else
+            dst_label = format("(%s)", rax->r[Q]);
+        emit("movq %s, %s", src_label, tmp->r[Q]);
+        emit("movq %s, %s", tmp->r[Q], dst_label);
+    }
+}
+
+static void emit_return_by_registers_scalar(struct operand *l, struct paddr *retaddr)
+{
+    // scalar
+    node_t *rtype = rtype(current_ftype);
+    struct reg *reg = retaddr->u.regs[0].reg;
+    // drain reg
+    drain_reg(reg);
+    
+    int opsize = TYPE_SIZE(rtype);
+    int i = idx[opsize];
+    if (isint(rtype) || isptr(rtype)) {
+        if (opsize < 4) {
+            // extend to 32bits
+            bool sign = TYPE_OP(rtype) == INT;
+            if (sign)
+                emit("movs%sl %s, %s", suffixi[i], operand2s(l, opsize), reg->r[L]);
+            else
+                emit("movz%sl %s, %s", suffixi[i], operand2s(l, opsize), reg->r[L]);
+        } else {
+            emit("mov%s %s, %s", suffixi[i], operand2s(l, opsize), reg->r[i]);
+        }
+    } else if (isfloat(rtype)) {
+        emit("mov%s %s, %s", suffixf[i], operand2s(l, opsize), reg->r[i]);
+    } else {
+        cc_assert(0);
+    }
+}
+
+static void emit_return_by_registers_record(struct operand *l, struct paddr *retaddr)
+{
+    size_t size = retaddr->size;
+    int cnt = ROUNDUP(retaddr->size, 8) >> 3;
+    for (int i = 0; i < cnt; i++, size -= 8) {
+        int type = retaddr->u.regs[i].type;
+        struct reg *reg = retaddr->u.regs[i].reg;
+        switch (type) {
+        // case REG_INT:
+        //     if (size > 4)
+        //         emit("movq %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
+        //     else if (size > 2)
+        //         emit("movl %s, %ld(%s)", reg->r[L], loff, rbp->r[Q]);
+        //     else if (size == 2)
+        //         emit("movw %s, %ld(%s)", reg->r[W], loff, rbp->r[Q]);
+        //     else if (size == 1)
+        //         emit("movb %s, %ld(%s)", reg->r[B], loff, rbp->r[Q]);
+        //     else
+        //         cc_assert(0);
+        //     break;
+        // case REG_SSE_F:
+        //     emit("movss %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
+        //     break;
+        // case REG_SSE_D:
+        //     emit("movsd %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
+        //     break;
+        // case REG_SSE_FF:
+        //     emit("movlps %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
+        //     break;
+        }
+    }
+}
+
 static void emit_return(struct tac *tac)
 {
     struct operand *l = tac->operands[1];
@@ -841,71 +941,16 @@ static void emit_return(struct tac *tac)
     if (l) {
         struct paddr *retaddr = func_pinfo->retaddr;
         if (retaddr->kind == ADDR_STACK) {
-            // by memory
-            // copy l to the address pointed by the implicit first argument
-            // rax will contain the address that has passed in by caller in rdi.
-            struct pnode *pnode = vec_head(func_pinfo->pnodes);
-            node_t *sym = pnode->param;
-            struct reg *rax = int_regs[RAX];
-
-            struct vector *excepts = operand_regs(l);
-             // drain rax
-            do_drain_reg(rax, excepts);
-            
-            vec_push(excepts, rax);
-            struct reg *tmp = get_one_ireg(excepts);
-
-            // set destination base address
-            emit("movq %ld(%s), %s", SYM_X_LOFF(sym), rbp->r[Q], rax->r[Q]);
-
-            // Can't be IR_INDIRECTION (see ir.c: emit_uop_indirection)
-            cc_assert(l->op == IR_NONE || l->op == IR_SUBSCRIPT);
-            // emit bytes
-            // rounded by 8 bytes. (see emit_function_prologue)
-            size_t size = ROUNDUP(retaddr->size, 8);
-            for (size_t i = 0; i < size; i += 8) {
-                struct operand *operand = make_ret_offset_operand(l, i);
-                const char *src_label = operand2s(operand, Quad);
-                const char *dst_label;
-                if (i)
-                    dst_label = format("%ld(%s)", i, rax->r[Q]);
-                else
-                    dst_label = format("(%s)", rax->r[Q]);
-                emit("movq %s, %s", src_label, tmp->r[Q]);
-                emit("movq %s, %s", tmp->r[Q], dst_label);
-            }
+            emit_return_by_stack(l, retaddr);
         } else if (retaddr->kind == ADDR_REGISTER) {
             // by register
             // integer registers: rax, rdx
             // sse registers: xmm0, xmm1
             node_t *rtype = rtype(current_ftype);
-            if (isstruct(rtype) || isunion(rtype)) {
-                
-            } else {
-                // scalar
-                struct reg *reg = retaddr->u.regs[0].reg;
-                // drain reg
-                drain_reg(reg);
-                
-                int opsize = TYPE_SIZE(rtype);
-                int i = idx[opsize];
-                if (isint(rtype) || isptr(rtype)) {
-                    if (opsize < 4) {
-                        // extend to 32bits
-                        bool sign = TYPE_OP(rtype) == INT;
-                        if (sign)
-                            emit("movs%sl %s, %s", suffixi[i], operand2s(l, opsize), reg->r[L]);
-                        else
-                            emit("movz%sl %s, %s", suffixi[i], operand2s(l, opsize), reg->r[L]);
-                    } else {
-                        emit("mov%s %s, %s", suffixi[i], operand2s(l, opsize), reg->r[i]);
-                    }
-                } else if (isfloat(rtype)) {
-                    emit("mov%s %s, %s", suffixf[i], operand2s(l, opsize), reg->r[i]);
-                } else {
-                    cc_assert(0);
-                }
-            }
+            if (isstruct(rtype) || isunion(rtype))
+                emit_return_by_registers_record(l, retaddr);
+            else
+                emit_return_by_registers_scalar(l, retaddr);
         }
     }
     // if it's the last tac, don't emit a jump
@@ -2006,7 +2051,6 @@ static void emit_function_prologue(struct gdata *gdata)
     }
 
     // params
-    long stack_base_off = 16;
     node_t **params = TYPE_PARAMS(ftype);
     func_pinfo = alloc_addr_for_funcdef(ftype, params);
     for (int i = 0; i < vec_len(func_pinfo->pnodes); i++) {
@@ -2024,7 +2068,7 @@ static void emit_function_prologue(struct gdata *gdata)
                 SYM_X_LOFF(sym) = -localsize;
             }
         } else if (paddr->kind == ADDR_STACK) {
-            SYM_X_LOFF(sym) = paddr->u.offset + stack_base_off;
+            SYM_X_LOFF(sym) = paddr->u.offset + STACK_PARAM_BASE_OFF;
         } else {
             die("unexpected paddr type: %d", paddr->kind);
         }
