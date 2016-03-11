@@ -121,8 +121,8 @@ char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
 
 const char *mktmpdir()
 {
-    static char template[] = "/tmp/mcc.temp.XXXXXXXXXX";
-    int len = strlen("/tmp/mcc.temp.");
+    static char template[] = "/tmp/mcc.tmp.XXXXXXXXXX";
+    int len = strlen("/tmp/mcc.tmp.");
     // reset suffix every time
     memset(template + len, 'X', strlen(template) - len);
     return mkdtemp(template);
