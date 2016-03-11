@@ -22,8 +22,18 @@ struct rvar {
     int size;
 };
 
+/*
+  If the callee wishes to use _preserved_ registers, it must restore
+  their original values before returning control to the caller.
+  All others must be saved by the caller if it wishes to preserve
+  their values.
+
+  See the AMD64 ABI documentation for more details.
+ */
+
 struct reg {
     int freg:1;
+    int preserved:1;              // preserved across function calls
     const char *r[4];
     struct vector *vars;
 };

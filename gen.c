@@ -192,6 +192,15 @@ static void init_regs(void)
     ret_iregs[0] = int_regs[RAX];
     ret_iregs[1] = int_regs[RDX];
 
+    // preserved regs
+    rsp->preserved = true;
+    rbp->preserved = true;
+    int_regs[RBX]->preserved = true;
+    int_regs[R12]->preserved = true;
+    int_regs[R13]->preserved = true;
+    int_regs[R14]->preserved = true;
+    int_regs[R15]->preserved = true;
+
     // init floating regs
     for (int i = XMM0; i <= XMM15; i++) {
         const char *name = format("%%xmm%d", i - XMM0);
