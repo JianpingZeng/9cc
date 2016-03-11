@@ -744,6 +744,107 @@ static void drain_args_regs(int gp, int fp)
     drain_regs(fv);
 }
 
+static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct operand *result)
+{
+    if (retaddr->kind == ADDR_STACK) {
+        // memory
+        // rax contains the address
+        SYM_X_LOFF(result->sym) = calls_return_loff;
+        SYM_X_KIND(result->sym) = SYM_KIND_LREF;
+        load(int_regs[RAX], result->sym, Quad);
+    } else if (retaddr->kind == ADDR_REGISTER) {
+        node_t *rty = rtype(ftype);
+        if (isstruct(rty) || isunion(rty)) {
+            // move from regs to stack
+            size_t size = retaddr->size;
+            long loff = 0;
+            int cnt = ROUNDUP(retaddr->size, 8) >> 3;
+            for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
+                struct reg *reg = retaddr->u.regs[i].reg;
+                int type = retaddr->u.regs[i].type;
+                switch (type) {
+                case REG_INT:
+                    switch (size) {
+                    case 1:
+                    case 2:
+                        {
+                            int opsize = size == 1 ? Byte : Word;
+                            int i = idx[opsize];
+                            emit("mov%s %s, %ld(%s)",
+                                 suffixi[i], reg->r[i], loff + calls_return_loff, rbp->r[Q]);
+                        }
+                        break;
+                    case 3:
+                        {
+                            emit("movw %s, %ld(%s)",
+                                 reg->r[W], loff + calls_return_loff, rbp->r[Q]);
+                            emit("shrl $16, %s", reg->r[L]);
+                            emit("movb %s, %ld(%s)",
+                                 reg->r[B], loff + calls_return_loff + 2, rbp->r[Q]);
+                        }
+                        break;
+                    case 4:
+                        emit("movl %s, %ld(%s)",
+                             reg->r[L], loff + calls_return_loff, rbp->r[Q]);
+                        break;
+                    case 5:
+                    case 6:
+                        {
+                            int opsize = size == 5 ? Byte : Word;
+                            int i = idx[opsize];
+                            emit("movl %s, %ld(%s)",
+                                 reg->r[L], loff + calls_return_loff, rbp->r[Q]);
+                            emit("shrq $32, %s", reg->r[Q]);
+                            emit("mov%s %s, %ld(%s)",
+                                 suffixi[i], reg->r[i], loff + calls_return_loff + 4, rbp->r[Q]);
+                        }
+                        break;
+                    case 7:
+                        {
+                            emit("movl %s, %ld(%s)",
+                                 reg->r[L], loff + calls_return_loff, rbp->r[Q]);
+                            emit("shrq $32, %s", reg->r[Q]);
+                            emit("movw %s, %ld(%s)",
+                                 reg->r[W], loff + calls_return_loff + 4, rbp->r[Q]);
+                            emit("shrl $16, %s", reg->r[L]);
+                            emit("movb %s, %ld(%s)",
+                                 reg->r[B], loff + calls_return_loff + 6, rbp->r[Q]);
+                        }
+                        break;
+                        // >= 8
+                    default:
+                        emit("movq %s, %ld(%s)",
+                             reg->r[Q], loff + calls_return_loff, rbp->r[Q]);
+                        break;
+                    }
+                    break;
+                case REG_SSE_F:
+                    emit("movss %s, %ld(%s)",
+                         reg->r[Q], loff + calls_return_loff, rbp->r[Q]);
+                    break;
+                case REG_SSE_D:
+                    emit("movsd %s, %ld(%s)",
+                         reg->r[Q], loff + calls_return_loff, rbp->r[Q]);
+                    break;
+                case REG_SSE_FF:
+                    emit("movlps %s, %ld(%s)",
+                         reg->r[Q], loff + calls_return_loff, rbp->r[Q]);
+                    break;
+                }
+            }
+            SYM_X_LOFF(result->sym) = calls_return_loff;
+            SYM_X_KIND(result->sym) = SYM_KIND_LREF;
+        } else {
+            // scalar
+            struct reg *reg = retaddr->u.regs[0].reg;
+            if (TYPE_SIZE(rty) == Quad)
+                load(reg, result->sym, Quad);
+            else
+                load(reg, result->sym, Long);
+        }
+    }
+}
+
 static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
@@ -766,16 +867,24 @@ static void emit_nonbuiltin_call(struct tac *tac)
     struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
     // drain regs
     drain_args_regs(pinfo->gp, pinfo->fp);
-    for (int i = 0; i < vec_len(pinfo->pnodes); i++) {
+    for (int i = 0, sub = 0; i < vec_len(pinfo->pnodes); i++) {
         struct pnode *pnode = vec_at(pinfo->pnodes, i);
-        struct tac *param = vec_at(params, i);
-        emit_param(param, pnode);
+        if (i == 0 && pinfo->retaddr && pinfo->retaddr->kind == ADDR_STACK) {
+            struct reg *reg = iarg_regs[0];
+            emit("leaq %ld(%s), %s", calls_return_loff, rbp->r[Q], reg->r[Q]);
+            sub = 1;
+        } else {
+            struct tac *param = vec_at(params, i - sub);
+            emit_param(param, pnode);
+        }
     }
     
     if (TYPE_VARG(ftype) || TYPE_OLDSTYLE(ftype)) {
         drain_reg(int_regs[RAX]);
         emit("movb $%d, %%al", pinfo->fp);
     }
+
+    // TODO: drain regs in retaddr
 
     // direct / indirect
     if (l->op == IR_NONE && SYM_X_KIND(l->sym) == SYM_KIND_GREF)
@@ -784,7 +893,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
         emit("call *%s", operand2s(l, Quad));
 
     if (result)
-        load(int_regs[RAX], result->sym, tac->opsize);
+        emit_call_epilogue(ftype, pinfo->retaddr, result);
 }
 
 static void emit_builtin_va_start(struct tac *tac)
