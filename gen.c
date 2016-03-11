@@ -916,6 +916,8 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
     vec_add(excepts, operand_regs(l));
     for (int i = 0; i < cnt; i++) {
         struct reg *reg = retaddr->u.regs[i].reg;
+        // drain regs
+        do_drain_reg(reg, excepts);
         vec_push(excepts, reg);
     }
     
