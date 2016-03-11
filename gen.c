@@ -646,6 +646,24 @@ static void emit_conv_f2f(struct tac *tac)
         cc_assert(0);
 }
 
+static struct operand * make_ret_offset_operand(struct operand *operand, long offset)
+{
+    switch (operand->op) {
+    case IR_NONE:
+    case IR_SUBSCRIPT:
+        {
+            struct operand *ret = alloc_operand();
+            *ret = *operand;
+            ret->op = IR_SUBSCRIPT;
+            ret->disp += offset;
+            return ret;
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
+}
+
 /*
   integer params(6): rdi, rsi, rdx, rcx, r8, r9
   floating params(8): xmm0~xmm7
@@ -717,14 +735,59 @@ static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
     }
 }
 
-static void emit_param_struct(struct tac *tac, struct pnode *pnode)
+static void emit_param_record(struct tac *tac, struct pnode *pnode)
 {
-    die("not implemented yet");
-}
-
-static void emit_param_union(struct tac *tac, struct pnode *pnode)
-{
-    die("not implemented yet");
+    struct operand *operand = tac->operands[1];
+    struct paddr *paddr = pnode->paddr;
+    size_t size = paddr->size;
+    int cnt = ROUNDUP(size, 8) >> 3;
+    
+    if (paddr->kind == ADDR_STACK) {
+        struct vector *excepts = operand_regs(operand);
+        struct reg *tmp = get_one_ireg(excepts);
+        
+        long loff = paddr->u.offset;
+        for (int i = 0; i < cnt; i++) {
+            long offset = i << 3;
+            struct operand *src = make_ret_offset_operand(operand, offset);
+            const char *src_label = operand2s(src, Quad);
+            emit("movq %s, %s", src_label, tmp->r[Q]);
+            if (loff + offset)
+                emit("movq %s, %ld(%s)", tmp->r[Q], loff + offset, rsp->r[Q]);
+            else
+                emit("movq %s, (%s)", tmp->r[Q], rsp->r[Q]);
+        }
+    } else if (paddr->kind == ADDR_REGISTER) {
+        long loff = 0;
+        for (int i = 0; i < cnt; i++ , loff += 8, size -= 8) {
+            struct reg *reg = paddr->u.regs[i].reg;
+            int type = paddr->u.regs[i].type;
+            struct operand *src = make_ret_offset_operand(operand, loff);
+            switch (type) {
+            case REG_INT:
+                if (size > 4)
+                    emit("movq %s, %s", operand2s(src, Quad), reg->r[Q]);
+                else if (size > 2)
+                    emit("movl %s, %s", operand2s(src, Long), reg->r[L]);
+                else if (size == 2)
+                    emit("movzwl %s, %s", operand2s(src, Word), reg->r[L]);
+                else if (size == 1)
+                    emit("movzbl %s, %s", operand2s(src, Quad), reg->r[L]);
+                else
+                    cc_assert(0);
+                break;
+            case REG_SSE_F:
+                emit("movss %s, %s", operand2s(src, Long), reg->r[Q]);
+                break;
+            case REG_SSE_D:
+                emit("movsd %s, %s", operand2s(src, Quad), reg->r[Q]);
+                break;
+            case REG_SSE_FF:
+                emit("movq %s, %s ", operand2s(src, Quad), reg->r[Q]);
+                break;
+            }
+        }
+    }
 }
 
 static void emit_param(struct tac *tac, struct pnode *pnode)
@@ -732,10 +795,8 @@ static void emit_param(struct tac *tac, struct pnode *pnode)
     node_t *ty = AST_TYPE(pnode->param);
     if (isint(ty) || isptr(ty) || isfloat(ty))
         emit_param_scalar(tac, pnode);
-    else if (isstruct(ty))
-        emit_param_struct(tac, pnode);
-    else if (isunion(ty))
-        emit_param_union(tac, pnode);
+    else if (isstruct(ty) || isunion(ty))
+        emit_param_record(tac, pnode);
     else
         cc_assert(0);
 }
@@ -938,24 +999,6 @@ static void emit_call(struct tac *tac)
         emit_builtin_va_copy(tac);
     else
         emit_nonbuiltin_call(tac);
-}
-
-static struct operand * make_ret_offset_operand(struct operand *operand, long offset)
-{
-    switch (operand->op) {
-    case IR_NONE:
-    case IR_SUBSCRIPT:
-        {
-            struct operand *ret = alloc_operand();
-            *ret = *operand;
-            ret->op = IR_SUBSCRIPT;
-            ret->disp += offset;
-            return ret;
-        }
-        break;
-    default:
-        cc_assert(0);
-    }
 }
 
 static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)

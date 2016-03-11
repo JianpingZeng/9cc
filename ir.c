@@ -1448,6 +1448,8 @@ static void emit_call(node_t *n)
     for (int i = 0; i < len; i++) {
         node_t *arg = args[i];
         emit_expr(arg);
+        // update gref
+        EXPR_X_ADDR(arg) = update_gref(EXPR_X_ADDR(arg));
     }
 
     // in reverse order
