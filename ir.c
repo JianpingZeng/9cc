@@ -2005,9 +2005,9 @@ static void emit_for_stmt(node_t *stmt)
         emit_bool_expr(cond);
     }
 
-    SET_LOOP_CONTEXT(beg, STMT_X_NEXT(stmt));
+    SET_LOOP_CONTEXT(mid, STMT_X_NEXT(stmt));
     
-    STMT_X_NEXT(body) = STMT_X_NEXT(stmt);
+    STMT_X_NEXT(body) = mid;
     emit_stmt(body);
 
     RESTORE_LOOP_CONTEXT();
