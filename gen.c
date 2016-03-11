@@ -1698,6 +1698,7 @@ static struct uses * get_uses(node_t *sym, struct tac *tac)
     return uses;
 }
 
+// TODO: very slow
 static void scan_uses(struct tac *tail)
 {
     struct vector *keys = next_info->keys;
