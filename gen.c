@@ -361,6 +361,18 @@ static void store(node_t *sym)
     SYM_X_INMEM(sym) = true;
 }
 
+static bool is_in_tac(node_t *sym, struct tac *tac)
+{
+    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+        struct operand *operand = tac->operands[i];
+        if (operand && (sym == operand->sym || sym == operand->index))
+            return true;
+    }
+    return false;
+}
+
+// BUG: the 'ret' drain_reg may call get_reg again (a dead loop)
+// BUG: no enough registers
 static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts)
 {
     // filter excepts out
@@ -400,7 +412,8 @@ static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts
             struct uses *uses = get_current_uses(v->sym);
             if (SYM_X_INMEM(v->sym)) {
                 // ok
-            } else if (uses->live == false) {
+            } else if (uses->live == false &&
+                       !is_in_tac(v->sym, current_tac)) {
                 // ok
             } else if (SYM_X_KIND(v->sym) == SYM_KIND_TMP) {
                 // if contains a live tmp symbol, skip the whole reg
@@ -455,16 +468,6 @@ static struct reg * get_one_freg(struct vector *excepts)
 static struct reg * get_one_ireg(struct vector *excepts)
 {
     return get_reg(int_regs, ARRAY_SIZE(int_regs), excepts);
-}
-
-static bool is_in_tac(node_t *sym, struct tac *tac)
-{
-    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
-        struct operand *operand = tac->operands[i];
-        if (operand && (sym == operand->sym || sym == operand->index))
-            return true;
-    }
-    return false;
 }
 
 static void do_drain_reg(struct reg *reg, struct vector *excepts)
