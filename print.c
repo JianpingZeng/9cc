@@ -562,10 +562,12 @@ void print_tac(struct tac *tac)
     case IR_CONV_F_UI:
     case IR_CONV_F_SI:
     case IR_CONV_FF:
-        putf("%s = (%s) %s",
+        putf("%s = (%s) %s \t(%d => %d)",
              operand2s(tac->operands[0]),
              rop2s(tac->op),
-             operand2s(tac->operands[1]));
+             operand2s(tac->operands[1]),
+             tac->from_opsize,
+             tac->to_opsize);
         break;
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
