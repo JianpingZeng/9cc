@@ -929,18 +929,24 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
             case 1:
             case 2:
                 {
-                    // TODO: 
+                    int opsize = size == 1 ? Byte : Word;
+                    int i = idx[opsize];
+                    emit("mov%s %s, %s", suffixi[i], operand2s(operand, opsize), reg->r[i]);
                 }
                 break;
             case 3:
                 {
-                    // TODO: 
+                    struct operand *operand1 = make_ret_offset_operand(l, loff + 2);
+                    struct reg *tmp1 = get_one_ireg(excepts);
+                    emit("movzbl %s, %s", operand2s(operand1, Byte), tmp1->r[L]);
+                    emit("shll $16, %s", tmp1->r[L]);
+
+                    emit("movzwl %s, %s", operand2s(operand, Long), reg->r[L]);
+                    emit("orl %s, %s", tmp1->r[L], reg->r[L]);
                 }
                 break;
             case 4:
-                {
-                    // TODO: 
-                }
+                emit("movl %s, %s", operand2s(operand, Long), reg->r[L]);
                 break;
             case 5:
             case 6:
