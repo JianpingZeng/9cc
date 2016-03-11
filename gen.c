@@ -569,11 +569,10 @@ static void emit_conv_ii_narrow(struct tac *tac, int typeop)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    int from_size = tac->from_opsize;
     int to_size = tac->to_opsize;
     int to_i = idx[to_size];
     // narrow
-    const char *src_label = operand2s(l, from_size);
+    const char *src_label = operand2s(l, to_size);
     struct vector *excepts = operand_regs(l);
     struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
     emit("mov%s %s, %s", suffixi[to_i], src_label, reg->r[to_i]);
@@ -1240,7 +1239,14 @@ static void emit_if(struct tac *tac, bool reverse, bool floating)
             emit("xor%s %s, %s", suffixp[i], r->r[i], r->r[i]);
             emit("ucomi%s %s, %s", suffixf[i], operand2s(l, tac->opsize), r->r[i]);
         } else {
-            emit("cmp%s $0, %s", suffixi[i], operand2s(l, tac->opsize));
+            if (is_imm_operand(l)) {
+                // TODO: optimize
+                struct reg *r = get_one_ireg(NULL);
+                emit("xor%s %s, %s", suffixi[i], r->r[i], r->r[i]);
+                emit("cmp%s %s, %s", suffixi[i], operand2s(l, tac->opsize), r->r[i]);
+            } else {
+                emit("cmp%s $0, %s", suffixi[i], operand2s(l, tac->opsize));
+            }
         }
         
         const char *jop = reverse ? "je" : "jne";
@@ -1371,10 +1377,29 @@ static void emit_uop_address(struct tac *tac)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    const char *src_label = operand2s(l, Quad);
-    struct reg *reg = get_one_ireg(NULL);
+    struct vector *excepts = operand_regs(l);
+    struct reg *reg = get_one_ireg(excepts);
     load(reg, result->sym, Quad);
-    emit("leaq %s, %s", src_label, reg->r[Q]);
+    // gref func
+    switch (l->op) {
+    case IR_NONE:
+        if (SYM_X_KIND(l->sym) == SYM_KIND_GREF)
+            emit("leaq %s(%s), %s", SYM_X_LABEL(l->sym), rip->r[Q], reg->r[Q]);
+        else if (SYM_X_KIND(l->sym) == SYM_KIND_LREF)
+            emit("leaq %ld(%s), %s", SYM_X_LOFF(l->sym), rbp->r[Q], reg->r[Q]);
+        else
+            cc_assert(0);
+        break;
+    case IR_SUBSCRIPT:
+    case IR_INDIRECTION:
+        {
+            const char *src_label = operand2s(l, Quad);
+            emit("leaq %s, %s", src_label, reg->r[Q]);
+        }
+        break;
+    default:
+        cc_assert(0);
+    }
 }
 
 static void emit_bop_arith(struct tac *tac, const char *op, bool floating)
@@ -1424,7 +1449,16 @@ static void emit_bop_int_mul_div(struct tac *tac, const char *op)
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
     emit("mov%s %s, %s", suffixi[i], l_label, rax->r[i]);
-    emit("%s%s %s", op, suffixi[i], r_label);
+    if (is_imm_operand(r)) {
+        struct vector *excepts = operand_regs(l);
+        vec_push(excepts, rax);
+        vec_push(excepts, rdx);
+        struct reg *reg = dispatch_ireg(r->sym, excepts, tac->opsize);
+        emit("mov%s %s, %s", suffixi[i], r_label, reg->r[i]);
+        emit("%s%s %s", op, suffixi[i], reg->r[i]);
+    } else {
+        emit("%s%s %s", op, suffixi[i], r_label);
+    }
 }
 
 static void emit_bop_int_imul(struct tac *tac)
