@@ -668,7 +668,6 @@ static struct operand * make_ret_offset_operand(struct operand *operand, long of
   integer params(6): rdi, rsi, rdx, rcx, r8, r9
   floating params(8): xmm0~xmm7
  */
-// TODO: first struct param, get regs excepts
 static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
 {
     struct operand *operand = tac->operands[1];
@@ -678,60 +677,39 @@ static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
     int i = idx[TYPE_SIZE(ty)];
     node_t *sym = operand->sym;
     struct reg *src = SYM_X_REG(sym);
-    switch (paddr->kind) {
-    case ADDR_REGISTER:
-        {
-            const char *src_label = operand2s(operand, TYPE_SIZE(ty));
-            struct reg *dst = paddr->u.regs[0].reg;
-            if (src == NULL || src != dst) {
-                if (isfloat(ty)) {
-                    if (TYPE_SIZE(ty) == 4)
-                        emit("movss %s, %s", src_label, dst->r[i]);
-                    else
-                        emit("movsd %s, %s", src_label, dst->r[i]);
-                } else {
-                    emit("mov%s %s, %s", suffixi[i], src_label, dst->r[i]);
-                }
-            }
-        }
-        break;
-    case ADDR_STACK:
-        {
-            const char *stack;
-            if (paddr->u.offset)
-                stack = format("%ld(%s)", paddr->u.offset, rsp->r[Q]);
+
+    if (paddr->kind == ADDR_REGISTER) {
+        const char *src_label = operand2s(operand, TYPE_SIZE(ty));
+        struct reg *dst = paddr->u.regs[0].reg;
+        if (src == NULL || src != dst) {
+            if (isfloat(ty))
+                emit("mov%s %s, %s", suffixf[i], src_label, dst->r[i]);
             else
-                stack = format("(%s)", rsp->r[Q]);
-            if (src) {
-                if (isfloat(ty)) {
-                    if (TYPE_SIZE(ty) == 4)
-                        emit("movss %s, %s", src->r[i], stack);
-                    else
-                        emit("movsd %s, %s", src->r[i], stack);
-                } else {
-                    emit("mov%s %s, %s", suffixi[i], src->r[i], stack);
-                }
+                emit("mov%s %s, %s", suffixi[i], src_label, dst->r[i]);
+        }
+    } else if (paddr->kind == ADDR_STACK) {
+        const char *stack;
+        if (paddr->u.offset)
+            stack = format("%ld(%s)", paddr->u.offset, rsp->r[Q]);
+        else
+            stack = format("(%s)", rsp->r[Q]);
+        if (src) {
+            if (isfloat(ty))
+                emit("mov%s %s, %s", suffixf[i], src->r[i], stack);
+            else
+                emit("mov%s %s, %s", suffixi[i], src->r[i], stack);
+        } else {
+            const char *src_label = operand2s(operand, TYPE_SIZE(ty));
+            if (isfloat(ty)) {
+                struct reg *tmp = get_one_freg(NULL);
+                emit("mov%s %s, %s", suffixf[i], src_label, tmp->r[i]);
+                emit("mov%s %s, %s", suffixf[i], tmp->r[i], stack);
             } else {
-                const char *src_label = operand2s(operand, TYPE_SIZE(ty));
-                if (isfloat(ty)) {
-                    struct reg *tmp = get_one_freg(NULL);
-                    if (TYPE_SIZE(ty) == 4) {
-                        emit("movss %s, %s", src_label, tmp->r[Q]);
-                        emit("movss %s, %s", tmp->r[Q], stack);
-                    } else {
-                        emit("movsd %s, %s", src_label, tmp->r[Q]);
-                        emit("movsd %s, %s", tmp->r[Q], stack);
-                    }
-                } else {
-                    struct reg *tmp = get_one_ireg(NULL);
-                    emit("mov%s %s, %s", suffixi[i], src_label, tmp->r[i]);
-                    emit("mov%s %s, %s", suffixi[i], tmp->r[i], stack);
-                }
+                struct reg *tmp = get_one_ireg(NULL);
+                emit("mov%s %s, %s", suffixi[i], src_label, tmp->r[i]);
+                emit("mov%s %s, %s", suffixi[i], tmp->r[i], stack);
             }
         }
-        break;
-    default:
-        cc_assert(0);
     }
 }
 
