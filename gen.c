@@ -52,6 +52,8 @@ struct ptype {
     node_t *type;
 };
 static struct vector * get_types(node_t *ty, size_t offset);
+static struct vector * get_elements(struct vector *ptypes);
+static struct vector * get_classes(struct vector *elements);
 
 struct pnode {
     node_t *param;              // symbol or expr
@@ -344,6 +346,9 @@ static struct rvar * new_rvar(node_t *sym, int size)
 static void load(struct reg *reg, node_t *sym, int opsize)
 {
     cc_assert(SYM_X_REG(sym) == NULL);
+    if (SYM_X_KIND(sym) == SYM_KIND_IMM ||
+        SYM_X_KIND(sym) == SYM_KIND_LABEL)
+        return;
 
     struct rvar *var = new_rvar(sym, opsize);
     
@@ -554,7 +559,7 @@ static void emit_conv_ii_widden(struct tac *tac, int typeop)
         struct reg *src_reg = dispatch_ireg(l->sym, excepts, from_size);
         emit("mov%s %s, %s", suffixi[from_i], src_label, src_reg->r[from_i]);
         // reset
-        src_label = operand2s(l, from_size);
+        src_label = src_reg->r[from_i];
     }
     if (typeop == INT) {
         emit("movs%s%s %s, %s",
@@ -604,7 +609,7 @@ static void emit_conv_tof(struct tac *tac, const char *op)
         struct reg *reg = dispatch_ireg(l->sym, NULL, from_size);
         emit("mov%s %s, %s", suffixi[from_i], src_label, reg->r[from_i]);
         // reset
-        src_label = operand2s(l, from_size);
+        src_label = reg->r[from_i];
     }
     struct vector *excepts = operand_regs(l);
     struct reg *reg = dispatch_freg(result->sym, excepts, to_size);
@@ -989,9 +994,38 @@ static void emit_builtin_va_start(struct tac *tac)
     emit("movq %s, %s", reg->r[Q], operand2s(operand4, Quad));
 }
 
+// return the address of the argument.
 static void emit_builtin_va_arg_p(struct tac *tac)
 {
-    die("not implemented yet");
+    node_t *call = tac->call;
+    node_t **args = EXPR_ARGS(call);
+    struct operand *l = EXPR_X_ADDR(args[0]);
+    struct operand *result = tac->operands[0];
+    // get real type
+    node_t *arg1 = args[1];
+    cc_assert(AST_ID(arg1) == CONV_EXPR);
+    node_t *ty = rtype(AST_TYPE(EXPR_OPERAND(arg1, 0)));
+    if (TYPE_SIZE(ty) > MAX_STRUCT_PARAM_SIZE) {
+        // by meory
+        size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
+        struct operand *operand = make_ret_offset_operand(l, 8);
+        const char *dst_label = operand2s(operand, Quad);
+        struct vector *excepts = operand_regs(l);
+        struct reg *tmp1 = get_one_ireg(excepts);
+        vec_push(excepts, tmp1);
+        struct reg *tmp2 = get_one_ireg(excepts);
+        emit("movq %s, %s", dst_label, tmp1->r[Q]);
+        emit("movq %s, %s", tmp1->r[Q], tmp2->r[Q]);
+        emit("addq $%lu, %s", size, tmp1->r[Q]);
+        emit("movq %s, %s", tmp1->r[Q], dst_label);
+        load(tmp2, result->sym, Quad);
+    } else {
+        // by registers or memory (no enough registers)
+        struct vector *ptypes = get_types(ty, 0);
+        struct vector *elements = get_elements(ptypes);
+        struct vector *classes = get_classes(elements);
+        // TODO: 
+    }
 }
 
 static void emit_call(struct tac *tac)
