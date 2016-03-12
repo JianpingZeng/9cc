@@ -53,7 +53,8 @@ typedef struct __builtin_va_list_tag {
     void *reg_save_area;
 } __builtin_va_list[1];
 
+#define __builtin_va_copy(dst, src)    ((dst)[0] = (src)[0])
+#define __builtin_va_end(ap)
+
 void __builtin_va_start(__builtin_va_list, ...);
-void __builtin_va_end(__builtin_va_list);
-void __builtin_va_copy(void *, void *);
 int __builtin_va_arg_class(__builtin_va_list, void *);

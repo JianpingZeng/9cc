@@ -956,16 +956,6 @@ static void emit_builtin_va_arg_class(struct tac *tac)
     die("not implemented yet");
 }
 
-static void emit_builtin_va_end(struct tac *tac)
-{
-    die("not implemented yet");
-}
-
-static void emit_builtin_va_copy(struct tac *tac)
-{
-    die("not implemented yet");
-}
-
 static void emit_call(struct tac *tac)
 {
     const char *name = SYM_NAME(tac->operands[1]->sym);
@@ -973,10 +963,6 @@ static void emit_call(struct tac *tac)
         emit_builtin_va_start(tac);
     else if (!strcmp(name, "__builtin_va_arg_class"))
         emit_builtin_va_arg_class(tac);
-    else if (!strcmp(name, "__builtin_va_end"))
-        emit_builtin_va_end(tac);
-    else if (!strcmp(name, "__builtin_va_copy"))
-        emit_builtin_va_copy(tac);
     else
         emit_nonbuiltin_call(tac);
 }
