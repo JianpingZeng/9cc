@@ -798,7 +798,7 @@ static void do_emit_zeros(node_t *ty, struct operand *l, long *offset,
                           size_t *bytes, unsigned size)
 {
     cc_assert(size <= 8);
-    
+
     while (*bytes >= size) {
         int op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
         int opsize = ops[size];
@@ -877,7 +877,8 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
             node_t *field = fields[LIST_LEN(inits)];
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
-            emit_zeros(FIELD_TYPE(field), l, off, bytes);
+            // as integer
+            emit_zeros(inttype, l, off, bytes);
         }
     } else if (isarray(ty)) {
         node_t *rty = rtype(ty);
@@ -2085,8 +2086,9 @@ static void emit_default_stmt(node_t *stmt)
 
 static void emit_label_stmt(node_t *stmt)
 {
-    emit_label(STMT_X_LABEL(stmt));
     node_t *body = STMT_LABEL_BODY(stmt);
+    emit_label(STMT_X_LABEL(stmt));
+    //set body next
     STMT_X_NEXT(body) = STMT_X_NEXT(stmt);
     emit_stmt(body);
 }
