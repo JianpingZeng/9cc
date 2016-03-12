@@ -946,9 +946,47 @@ static void emit_nonbuiltin_call(struct tac *tac)
         emit_call_epilogue(ftype, pinfo->retaddr, result);
 }
 
+/*
+  Initialize the va_list structure.
+
+  struct __builtin_va_list_tag {
+    unsigned int gp_offset;
+    unsigned int fp_offset;
+    void *overflow_arg_area;
+    void *reg_save_area;
+  };
+ */
 static void emit_builtin_va_start(struct tac *tac)
 {
-    die("not implemented yet");
+    node_t *call = tac->call;
+    node_t **args = EXPR_ARGS(call);
+    struct operand *l = EXPR_X_ADDR(args[0]);
+    struct pinfo *pinfo = func_pinfo;
+    unsigned int gp_offset = pinfo->gp << 3;
+    unsigned int fp_offset = 48 + (pinfo->fp << 4);
+    long overflow_arg_area = STACK_PARAM_BASE_OFF;
+    long reg_save_area = -REGISTER_SAVE_AREA_SIZE;
+
+    struct vector *excepts = operand_regs(l);
+    struct reg *reg = get_one_ireg(excepts);
+
+    // gp_offset
+    struct operand *operand1 = make_ret_offset_operand(l, 0);
+    emit("movl $%d, %s", gp_offset, operand2s(operand1, Long));
+
+    // fp_offset
+    struct operand *operand2 = make_ret_offset_operand(l, 4);
+    emit("movl $%d, %s", fp_offset, operand2s(operand2, Long));
+
+    // overflow_arg_area
+    struct operand *operand3 = make_ret_offset_operand(l, 8);
+    emit("leaq %ld(%s), %s", overflow_arg_area, rbp->r[Q], reg->r[Q]);
+    emit("movq %s, %s", reg->r[Q], operand2s(operand3, Quad));
+
+    // reg_save_area
+    struct operand *operand4 = make_ret_offset_operand(l, 16);
+    emit("leaq %ld(%s), %s", reg_save_area, rbp->r[Q], reg->r[Q]);
+    emit("movq %s, %s", reg->r[Q], operand2s(operand4, Quad));
 }
 
 static void emit_builtin_va_arg_p(struct tac *tac)
