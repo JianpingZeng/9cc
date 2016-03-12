@@ -1031,9 +1031,9 @@ static void emit_builtin_va_arg_p(struct tac *tac)
 static void emit_call(struct tac *tac)
 {
     const char *name = SYM_NAME(tac->operands[1]->sym);
-    if (!strcmp(name, "__builtin_va_start"))
+    if (!strcmp(name, BUILTIN_VA_START))
         emit_builtin_va_start(tac);
-    else if (!strcmp(name, "__builtin_va_arg_p"))
+    else if (!strcmp(name, BUILTIN_VA_ARG_P))
         emit_builtin_va_arg_p(tac);
     else
         emit_nonbuiltin_call(tac);

@@ -290,4 +290,7 @@ extern void redefinition_error(struct source src, node_t * sym);
 extern void conflicting_types_error(struct source src, node_t * sym);
 extern void field_not_found_error(node_t * ty, const char *name);
 
+#define BUILTIN_VA_START    "__builtin_va_start"
+#define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
+
 #endif
