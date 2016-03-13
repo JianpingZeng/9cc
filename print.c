@@ -1053,3 +1053,24 @@ void print_node_size(void)
 }
 
 // TODO: typedef names
+
+// debug
+void dump_operand(struct operand *operand)
+{
+    println("%p: op:%s,%ld(%s,%s,%d), kind: %d, reg: %s",
+            operand, rop2s(operand->op),operand->disp,
+            SYM_X_LABEL(operand->sym),
+            operand->index ? SYM_X_LABEL(operand->index) : "",
+            operand->scale,
+            SYM_X_KIND(operand->sym),
+            SYM_X_REG(operand->sym) ? SYM_X_REG(operand->sym)->r[Q] : "");
+}
+
+void dump_reg(struct reg *reg)
+{
+    println("dump %s:", reg->r[Q]);
+    for (int i = 0; i < vec_len(reg->vars); i++) {
+        struct rvar *v = vec_at(reg->vars, i);
+        println("[%d] %s, %d", i, SYM_X_LABEL(v->sym), v->size);
+    }
+}

@@ -1124,6 +1124,51 @@ static node_t **argument_expr_list(void)
     return args;
 }
 
+static node_t *flatten_call(node_t *node)
+{
+    switch (AST_ID(node)) {
+    case CONV_EXPR:
+    case CAST_EXPR:
+    case PAREN_EXPR:
+        return flatten_call(EXPR_OPERAND(node, 0));
+    case UNARY_OPERATOR:
+        if (EXPR_OP(node) == '&' || EXPR_OP(node) == '*')
+            return flatten_call(EXPR_OPERAND(node, 0));
+        else
+            return node;
+    default:
+        return node;
+    }
+}
+
+static void builtin_funcall(node_t *call, node_t *ref)
+{
+    const char *fname = SYM_NAME(EXPR_SYM(ref));
+    if (!strcmp(fname, BUILTIN_VA_ARG_P)) {
+        // __builtin_va_arg_p
+        node_t **args = EXPR_ARGS(call);
+        cc_assert(isptr(AST_TYPE(args[1])));
+        node_t *ty = rtype(AST_TYPE(args[1]));
+        // save the type
+        EXPR_VA_ARG_TYPE(call) = ty;
+        
+        if (isrecord(ty) && TYPE_SIZE(ty) <= MAX_STRUCT_PARAM_SIZE) {
+            const char *label = gen_tmpname();
+            node_t *decl = make_localvar(label, ty, 0);
+            node_t *sym = DECL_SYM(decl);
+            // passing address
+            node_t *operand = ast_expr(REF_EXPR, ty, NULL, NULL);
+            EXPR_SYM(operand) = sym;
+            SYM_REFS(sym)++;
+            // update arg1
+            args[1] = ast_uop('&', ptr_type(ty), operand);
+        } else {
+            // update arg1 to NULL
+            args[1] = NULL;
+        }
+    }
+}
+
 static node_t *funcall(node_t * node)
 {
     node_t **args;
@@ -1145,6 +1190,10 @@ static node_t *funcall(node_t * node)
             EXPR_ARGS(ret) = (node_t **) vtoa(v);
             AST_SRC(ret) = src;
             vec_push(funcalls, ret);
+            // handle builtin calls
+            node_t *tmp = flatten_call(node);
+            if (AST_ID(tmp) == REF_EXPR && isfunc(AST_TYPE(tmp)))
+                builtin_funcall(ret, tmp);
         }
     } else {
         ensure_type(node, isfunc);

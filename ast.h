@@ -150,6 +150,8 @@ struct ast_decl {
 // literal
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
+// va_arg
+#define EXPR_VA_ARG_TYPE(NODE)  EXPR_OPERAND(NODE, 1)
     
 struct ast_expr {
     struct ast_common common;

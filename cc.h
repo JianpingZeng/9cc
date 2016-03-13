@@ -256,6 +256,8 @@ extern void print_ir(struct externals * tree);
 extern const char *type2s(node_t * ty);
 extern const char *node2s(node_t * node);
 extern void print_node_size(void);
+extern void dump_operand(struct operand *operand);
+extern void dump_reg(struct reg *reg);
 
 // error.c
 enum {

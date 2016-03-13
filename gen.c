@@ -232,26 +232,6 @@ static void reset_regs(void)
     }
 }
 
-static void dump_operand(struct operand *operand)
-{
-    println("%p: op:%s,%ld(%s,%s,%d), kind: %d, reg: %s",
-            operand, rop2s(operand->op),operand->disp,
-            SYM_X_LABEL(operand->sym),
-            operand->index ? SYM_X_LABEL(operand->index) : "",
-            operand->scale,
-            SYM_X_KIND(operand->sym),
-            SYM_X_REG(operand->sym) ? SYM_X_REG(operand->sym)->r[Q] : "");
-}
-
-static void dump_reg(struct reg *reg)
-{
-    println("dump %s:", reg->r[Q]);
-    for (int i = 0; i < vec_len(reg->vars); i++) {
-        struct rvar *v = vec_at(reg->vars, i);
-        println("[%d] %s, %d", i, SYM_X_LABEL(v->sym), v->size);
-    }
-}
-
 static struct vector * operand_regs(struct operand *operand)
 {
     struct vector *v = vec_new();
@@ -1001,10 +981,7 @@ static void emit_builtin_va_arg_p(struct tac *tac)
     node_t **args = EXPR_ARGS(call);
     struct operand *l = EXPR_X_ADDR(args[0]);
     struct operand *result = tac->operands[0];
-    // get real type
-    node_t *arg1 = args[1];
-    cc_assert(AST_ID(arg1) == CONV_EXPR);
-    node_t *ty = rtype(AST_TYPE(EXPR_OPERAND(arg1, 0)));
+    node_t *ty = EXPR_VA_ARG_TYPE(call);
     if (TYPE_SIZE(ty) > MAX_STRUCT_PARAM_SIZE) {
         // by meory
         size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
@@ -1019,16 +996,8 @@ static void emit_builtin_va_arg_p(struct tac *tac)
         emit("addq $%lu, %s", size, tmp1->r[Q]);
         emit("movq %s, %s", tmp1->r[Q], dst_label);
         load(tmp2, result->sym, Quad);
-    } else if (isrecord(ty)) {
-        // by registers or memory (no enough registers)
-        // struct/union
-        struct vector *ptypes = get_types(ty, 0);
-        struct vector *elements = get_elements(ptypes);
-        struct vector *classes = get_classes(elements);
-        // TODO: 
     } else {
         // by registers or memory (no enough registers)
-        // scalar
         struct operand *gp_operand = make_ret_offset_operand(l, 0);
         struct operand *fp_operand = make_ret_offset_operand(l, 4);
         struct operand *over_area_operand = make_ret_offset_operand(l, 8);
@@ -1039,47 +1008,147 @@ static void emit_builtin_va_arg_p(struct tac *tac)
         const char *over_area_label = operand2s(over_area_operand, Quad);
         const char *reg_area_label = operand2s(reg_area_operand, Quad);
         
-        struct vector *excepts = operand_regs(l);
-        struct reg *tmp1 = get_one_ireg(excepts);
-        vec_push(excepts, tmp1);
-        struct reg *tmp2 = get_one_ireg(excepts);
-        
         const char *mem_label = gen_label();
         const char *out_label = gen_label();
-        const char *offset_label;
-        int offset_max;
-        int add_size;
-        if (isfloat(ty)) {
-            offset_label = fp_label;
-            offset_max = 176;
-            add_size = 16;
+        
+        if (isrecord(ty)) {
+            // struct/union
+            struct operand *r = EXPR_X_ADDR(args[1]);
+            struct vector *excepts = operand_regs(l);
+            vec_add(excepts, operand_regs(r));
+            struct reg *tmp1 = get_one_ireg(excepts);
+            vec_push(excepts, tmp1);
+            struct reg *tmp2 = get_one_ireg(excepts);
+            
+            struct vector *ptypes = get_types(ty, 0);
+            struct vector *elements = get_elements(ptypes);
+            struct vector *classes = get_classes(elements);
+            size_t size = TYPE_SIZE(ty);
+            int gp = 0;
+            int fp = 0;
+            for (int i = 0; i < vec_len(classes); i++) {
+                int *class = vec_at(classes, i);
+                if (class == integer_class)
+                    gp++;
+                else if (class == sse_class)
+                    fp++;
+                else
+                    cc_assert(0);
+            }
+            unsigned gp_offset_max = 48 - (gp-1) * 8;
+            unsigned fp_offset_max = 176 - (fp-1) * 16;
+            if (gp > 0) {
+                emit("movl %s, %s", gp_label, tmp1->r[L]);
+                emit("cmpl $%u, %s", gp_offset_max, tmp1->r[L]);
+                emit("jnb %s", mem_label);
+            }
+            if (fp > 0) {
+                emit("movl %s, %s", fp_label, tmp1->r[L]);
+                emit("cmpl $%u, %s", fp_offset_max, tmp1->r[L]);
+                emit("jnb %s", mem_label);
+            }
+            // register
+            if (gp > 0 && fp > 0) {
+                vec_push(excepts, tmp2);
+                struct reg *tmp3 = get_one_ireg(excepts);
+                // TODO: assume vec_len == 2
+                cc_assert(vec_len(classes) == 2);
+                bool tmp2_used = false;
+                for (int i = 0; i < vec_len(classes); i++) {
+                    int *class = vec_at(classes, i);
+                    if (class == integer_class) {
+                        emit("movq %s, %s", reg_area_label, tmp1->r[Q]);
+                        struct reg *tmp = tmp2_used ? tmp3 : tmp2;
+                        emit("movl %s, %s", gp_label, tmp->r[L]);
+                        emit("addq %s, %s", tmp1->r[Q], tmp->r[Q]);
+                        tmp2_used = true;
+                    } else if (class == sse_class) {
+                        emit("movq %s, %s", reg_area_label, tmp1->r[Q]);
+                        struct reg *tmp = tmp2_used ? tmp3 : tmp2;
+                        emit("movl %s, %s", fp_label, tmp->r[L]);
+                        emit("addq %s, %s", tmp1->r[Q], tmp->r[Q]);
+                        tmp2_used = true;
+                    }
+                }
+                struct reg *dst_reg = SYM_X_REG(r->sym);
+                emit("movq (%s), %s", tmp2->r[Q], tmp2->r[Q]);
+                emit("movq %s, (%s)", tmp2->r[Q], dst_reg->r[Q]);
+                emit("movq (%s), %s", tmp3->r[Q], tmp3->r[Q]);
+                emit("movq %s, 8(%s)", tmp3->r[Q], dst_reg->r[Q]);
+                emit("movq %s, %s", dst_reg->r[Q], tmp1->r[Q]);
+            } else if (gp > 0) {
+                emit("movq %s, %s", reg_area_label, tmp1->r[Q]);
+                emit("movl %s, %s", gp_label, tmp2->r[L]);
+                emit("addq %s, %s", tmp2->r[Q], tmp1->r[Q]);
+            } else if (fp > 0) {
+                emit("movq %s, %s", reg_area_label, tmp1->r[Q]);
+                emit("movl %s, %s", fp_label, tmp2->r[L]);
+                emit("addq %s, %s", tmp2->r[Q], tmp1->r[Q]);
+            }
+
+            if (gp > 0) {
+                emit("movl %s, %s", gp_label, tmp2->r[L]);
+                emit("addl $%u, %s", gp << 3, tmp2->r[L]);
+                emit("movl %s, %s", tmp2->r[L], gp_label);
+            }
+            if (fp > 0) {
+                emit("movl %s, %s", fp_label, tmp2->r[L]);
+                emit("addl $%u, %s", fp << 4, tmp2->r[L]);
+                emit("movl %s, %s", tmp2->r[L], fp_label);
+            }
+            emit("jmp %s", out_label);
+            
+            // memory
+            emit_noindent("%s:", mem_label);
+            emit("movq %s, %s", over_area_label, tmp1->r[Q]);
+            emit("leaq %lu(%s), %s", ROUNDUP(size, 8), tmp1->r[Q], tmp2->r[Q]);
+            emit("movq %s, %s", tmp2->r[Q], over_area_label);
+            
+            // end
+            emit_noindent("%s:", out_label);
+            load(tmp1, result->sym, Quad);
         } else {
-            offset_label = gp_label;
-            offset_max = 48;
-            add_size = 8;
+            // scalar
+            struct vector *excepts = operand_regs(l);
+            struct reg *tmp1 = get_one_ireg(excepts);
+            vec_push(excepts, tmp1);
+            struct reg *tmp2 = get_one_ireg(excepts);
+            
+            const char *offset_label;
+            unsigned offset_max;
+            int add_size;
+            if (isfloat(ty)) {
+                offset_label = fp_label;
+                offset_max = 176;
+                add_size = 16;
+            } else {
+                offset_label = gp_label;
+                offset_max = 48;
+                add_size = 8;
+            }
+
+            emit("movl %s, %s", offset_label, tmp1->r[L]);
+            emit("cmpl $%u, %s", offset_max, tmp1->r[L]);
+            emit("jnb %s", mem_label);
+
+            // register
+            emit("movq %s, %s", reg_area_label, tmp1->r[Q]);
+            emit("movl %s, %s", offset_label, tmp2->r[L]);
+            emit("addq %s, %s", tmp2->r[Q], tmp1->r[Q]);
+            emit("addl $%d, %s", add_size, tmp2->r[L]);
+            emit("movl %s, %s", tmp2->r[L], offset_label);
+            emit("jmp %s", out_label);
+
+            // memory
+            emit_noindent("%s:", mem_label);
+            emit("movq %s, %s", over_area_label, tmp1->r[Q]);
+            emit("leaq 8(%s), %s", tmp1->r[Q], tmp2->r[Q]);
+            emit("movq %s, %s", tmp2->r[Q], over_area_label);
+
+            // end
+            emit_noindent("%s:", out_label);
+            load(tmp1, result->sym, TYPE_SIZE(ty));
         }
-
-        emit("movl %s, %s", offset_label, tmp1->r[L]);
-        emit("cmpl $%d, %s", offset_max, tmp1->r[L]);
-        emit("jnb %s", mem_label);
-
-        // register
-        emit("movq %s, %s", reg_area_label, tmp1->r[Q]);
-        emit("movl %s, %s", offset_label, tmp2->r[L]);
-        emit("addq %s, %s", tmp2->r[Q], tmp1->r[Q]);
-        emit("addl $%d, %s", add_size, tmp2->r[L]);
-        emit("movl %s, %s", tmp2->r[L], offset_label);
-        emit("jmp %s", out_label);
-
-        // memory
-        emit_noindent("%s:", mem_label);
-        emit("movq %s, %s", over_area_label, tmp1->r[Q]);
-        emit("leaq 8(%s), %s", tmp1->r[Q], tmp2->r[Q]);
-        emit("movq %s, %s", tmp2->r[Q], over_area_label);
-
-        // end
-        emit_noindent("%s:", out_label);
-        load(tmp1, result->sym, TYPE_SIZE(ty));
     }
 }
 
