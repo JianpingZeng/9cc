@@ -2120,10 +2120,16 @@ static void emit_return_stmt(node_t *stmt)
         node_t *ty = AST_TYPE(n);
         int op = isfloat(ty) ? IR_RETURNF : IR_RETURNI;
         emit_expr(n);
-        // update gref
-        struct operand *addr = update_gref(EXPR_X_ADDR(n));
-        struct tac *tac = make_tac(op, addr, NULL, NULL, ops[Zero]);
-        emit_tac(tac);
+        // may be void
+        if (EXPR_X_ADDR(n)) {
+            // update gref
+            struct operand *addr = update_gref(EXPR_X_ADDR(n));
+            struct tac *tac = make_tac(op, addr, NULL, NULL, ops[Zero]);
+            emit_tac(tac);
+        } else {
+            struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, NULL, ops[Zero]);
+            emit_tac(tac);
+        }
     }
 }
 
