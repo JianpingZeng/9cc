@@ -1019,12 +1019,67 @@ static void emit_builtin_va_arg_p(struct tac *tac)
         emit("addq $%lu, %s", size, tmp1->r[Q]);
         emit("movq %s, %s", tmp1->r[Q], dst_label);
         load(tmp2, result->sym, Quad);
-    } else {
+    } else if (isrecord(ty)) {
         // by registers or memory (no enough registers)
+        // struct/union
         struct vector *ptypes = get_types(ty, 0);
         struct vector *elements = get_elements(ptypes);
         struct vector *classes = get_classes(elements);
         // TODO: 
+    } else {
+        // by registers or memory (no enough registers)
+        // scalar
+        struct operand *gp_operand = make_ret_offset_operand(l, 0);
+        struct operand *fp_operand = make_ret_offset_operand(l, 4);
+        struct operand *over_area_operand = make_ret_offset_operand(l, 8);
+        struct operand *reg_area_operand = make_ret_offset_operand(l, 16);
+        
+        const char *gp_label = operand2s(gp_operand, Long);
+        const char *fp_label = operand2s(fp_operand, Long);
+        const char *over_area_label = operand2s(over_area_operand, Quad);
+        const char *reg_area_label = operand2s(reg_area_operand, Quad);
+        
+        struct vector *excepts = operand_regs(l);
+        struct reg *tmp1 = get_one_ireg(excepts);
+        vec_push(excepts, tmp1);
+        struct reg *tmp2 = get_one_ireg(excepts);
+        
+        const char *mem_label = gen_label();
+        const char *out_label = gen_label();
+        const char *offset_label;
+        int offset_max;
+        int add_size;
+        if (isfloat(ty)) {
+            offset_label = fp_label;
+            offset_max = 176;
+            add_size = 16;
+        } else {
+            offset_label = gp_label;
+            offset_max = 48;
+            add_size = 8;
+        }
+
+        emit("movl %s, %s", offset_label, tmp1->r[L]);
+        emit("cmpl $%d, %s", offset_max, tmp1->r[L]);
+        emit("jnb %s", mem_label);
+
+        // register
+        emit("movq %s, %s", reg_area_label, tmp1->r[Q]);
+        emit("movl %s, %s", offset_label, tmp2->r[L]);
+        emit("addq %s, %s", tmp2->r[Q], tmp1->r[Q]);
+        emit("addl $%d, %s", add_size, tmp2->r[L]);
+        emit("movl %s, %s", tmp2->r[L], offset_label);
+        emit("jmp %s", out_label);
+
+        // memory
+        emit_noindent("%s:", mem_label);
+        emit("movq %s, %s", over_area_label, tmp1->r[Q]);
+        emit("leaq 8(%s), %s", tmp1->r[Q], tmp2->r[Q]);
+        emit("movq %s, %s", tmp2->r[Q], over_area_label);
+
+        // end
+        emit_noindent("%s:", out_label);
+        load(tmp1, result->sym, TYPE_SIZE(ty));
     }
 }
 
