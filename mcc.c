@@ -213,6 +213,7 @@ int main(int argc, char **argv)
         const char *ifile = vec_at(inputs, i);
         const char *iname = basename(xstrdup(ifile));
         const char *ofile = NULL;
+        const char *suffix = file_suffix(ifile);
         int ret;
         if (opts.E || opts.ast_dump || opts.ir_dump) {
             if (output)
@@ -235,15 +236,21 @@ int main(int argc, char **argv)
             if (ret == 0)
                 ret = assemble(sfile, ofile);
         } else {
-            const char *sfile =
-                tempname(tmpdir, replace_suffix(ifile, "s"));
-            ret = translate(ifile, sfile);
-            if (ret == 0) {
-                ofile =
-                    tempname(tmpdir,
-                             replace_suffix(ifile, "o"));
-                ret = assemble(sfile, ofile);
+            // base on suffix
+            if (suffix && !strcmp(suffix, "o")) {
+                vec_push(objects, (char *)ifile);
+            } else if (suffix && !strcmp(suffix, "s")) {
+                ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
+                ret = assemble(ifile, ofile);
                 vec_push(objects, (char *)ofile);
+            } else {
+                const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
+                ret = translate(ifile, sfile);
+                if (ret == 0) {
+                    ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
+                    ret = assemble(sfile, ofile);
+                    vec_push(objects, (char *)ofile);
+                }
             }
         }
         if (ret == EXIT_FAILURE)

@@ -14,6 +14,7 @@ extern const char *replace_suffix(const char *path, const char *suffix);
 extern const char *join(const char *dir, const char *name);
 extern char *dirname(const char *path);
 extern char *basename(const char *path);
+extern const char *file_suffix(const char *path);
 
 // process
 extern int callsys(const char *file, char **argv);

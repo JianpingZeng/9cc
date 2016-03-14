@@ -231,6 +231,14 @@ const char *replace_suffix(const char *path, const char *suffix)
     return p;
 }
 
+const char *file_suffix(const char *path)
+{
+    const char *dot = strrchr(path, '.');
+    if (!dot || *dot == '\0')
+        return NULL;
+    return dot + 1;
+}
+
 int rmdir(const char *dir)
 {
     char command[64];
