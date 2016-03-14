@@ -159,6 +159,14 @@ struct tac {
     node_t *call;               // funcall expr
 };
 
+// basic block
+struct block {
+    const char *label;
+    struct tac *head;
+    struct tac *tail;
+    struct block *branches[2];
+};
+
 // externals
 struct externals {
     struct vector *gdatas;

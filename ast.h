@@ -245,6 +245,7 @@ extern const char *gen_tmpname_r(void);
 extern const char *gen_static_label(void);
 extern const char *gen_compound_label(void);
 extern const char *gen_sliteral_label(void);
+extern const char *gen_block_label(void);
 
 extern node_t *copy_node(node_t * node);
 

@@ -140,3 +140,9 @@ const char *gen_sliteral_label(void)
     static size_t i;
     return format(".LC%llu", i++);
 }
+
+const char *gen_block_label(void)
+{
+    static size_t i;
+    return format(".LBB_%llu", i++);
+}

@@ -39,6 +39,7 @@ CC1_OBJ=alloc.o \
 	input.o \
 	initializer.o \
 	ir.o \
+	block.o \
         $(UTILS_OBJ)
 
 CC1_INC=cc.h \
