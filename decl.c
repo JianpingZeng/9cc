@@ -621,6 +621,18 @@ static void fields(node_t * sym)
             if (token->id == ':') {
                 bitfield(field);
                 FIELD_TYPE(field) = basety;
+            } else if (token->id == ';' &&
+                       isrecord(basety) &&
+                       is_anonymous(TYPE_TAG(basety))) {
+                //C11: anonymous record
+                size_t len = LIST_LEN(TYPE_FIELDS(basety));
+                for (int i = 0; i < len; i++) {
+                    node_t *field = TYPE_FIELDS(basety)[i];
+                    vec_push(v, field);
+                    if (i < len - 1)
+                        ensure_field(field, vec_len(v), false);
+                }
+                goto next;
             } else {
                 node_t *ty = NULL;
                 struct token *id = NULL;
@@ -651,10 +663,9 @@ static void fields(node_t * sym)
             expect(',');
             ensure_field(field, vec_len(v), false);
         }
-
+    next:
         match(';', follow);
-        ensure_field(vec_tail(v), vec_len(v),
-                     isstruct(sty) && !first_decl(token));
+        ensure_field(vec_tail(v), vec_len(v), isstruct(sty) && !first_decl(token));
     } while (first_decl(token));
 
     TYPE_FIELDS(sty) = (node_t **) vtoa(v);
