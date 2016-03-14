@@ -239,6 +239,7 @@ int main(int argc, char **argv)
             // base on suffix
             if (suffix && !strcmp(suffix, "o")) {
                 vec_push(objects, (char *)ifile);
+                ret = EXIT_SUCCESS;
             } else if (suffix && !strcmp(suffix, "s")) {
                 ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
                 ret = assemble(ifile, ofile);

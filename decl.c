@@ -608,7 +608,9 @@ static void fields(node_t * sym)
     node_t *sty = SYM_TYPE(sym);
 
     if (!first_decl(token)) {
-        error("expect type name or qualifiers");
+        // supports empty record
+        if (token->id != '}')
+            error("expect type name or qualifiers");
         return;
     }
     
