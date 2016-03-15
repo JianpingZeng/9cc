@@ -576,10 +576,13 @@ static void backfill_labels(void)
         node_t *goto_stmt = vec_at(gotos, i);
         const char *name = STMT_LABEL_NAME(goto_stmt);
         node_t *label_stmt = map_get(labels, name);
-        if (label_stmt)
+        if (label_stmt) {
             STMT_X_LABEL(goto_stmt) = STMT_X_LABEL(label_stmt);
-        else
+            // update refs
+            STMT_LABEL_REFS(label_stmt)++;
+        } else {
             errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", name);
+        }
     }
 }
 

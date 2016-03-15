@@ -436,19 +436,19 @@ void print_tac(struct tac *tac)
 {
     switch (tac->opsize) {
     case Quad:
-        putf("Q: ");
+        putf("[Q] ");
         break;
     case Long:
-        putf("L: ");
+        putf("[L] ");
         break;
     case Word:
-        putf("W: ");
+        putf("[W] ");
         break;
     case Byte:
-        putf("B: ");
+        putf("[B] ");
         break;
     default:
-        putf("Z: ");
+        putf("[Z] ");
         break;
     }
     switch (tac->op) {

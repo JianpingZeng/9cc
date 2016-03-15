@@ -2087,7 +2087,9 @@ static void emit_default_stmt(node_t *stmt)
 static void emit_label_stmt(node_t *stmt)
 {
     node_t *body = STMT_LABEL_BODY(stmt);
-    emit_label(STMT_X_LABEL(stmt));
+    // only emit the label refed.
+    if (STMT_LABEL_REFS(stmt))
+        emit_label(STMT_X_LABEL(stmt));
     //set body next
     STMT_X_NEXT(body) = STMT_X_NEXT(stmt);
     emit_stmt(body);
