@@ -160,11 +160,10 @@ struct tac {
 };
 
 // basic block
-struct block {
+struct basic_block {
     const char *label;
     struct tac *head;
-    struct tac *tail;
-    struct block *branches[2];
+    struct basic_block *successors[2];
 };
 
 // externals

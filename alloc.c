@@ -52,3 +52,9 @@ void *alloc_tac(void)
 {
     return do_alloc_object(&tac_state, sizeof(struct tac));
 }
+
+static struct alloc_state basic_block_state;
+void *alloc_basic_block(void)
+{
+    return do_alloc_object(&basic_block_state, sizeof(struct basic_block));
+}

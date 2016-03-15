@@ -192,6 +192,7 @@ struct ast_expr {
 // label stmt
 #define STMT_LABEL_NAME(NODE)   AST_NAME(NODE)
 #define STMT_LABEL_BODY(NODE)   ((NODE)->stmt.list[0])
+#define STMT_LABEL_REFS(NODE)   ((NODE)->stmt.index)
 
 // while stmt
 #define STMT_WHILE_COND(NODE)   ((NODE)->stmt.list[0])
