@@ -96,31 +96,44 @@ static struct operand * make_sym_operand(node_t *sym)
     return operand;
 }
 
-static struct operand * make_named_operand(const char *name, struct table **table, int scope)
+static node_t * make_named_sym(const char *name, struct table **table, int scope)
 {
-    node_t *sym = lookup(name, *table);
+   node_t *sym = lookup(name, *table);
     if (!sym)
         sym = install(name, table, scope);
-    return make_sym_operand(sym);
+    return sym;
 }
 
-struct operand * make_tmp_named_operand(const char *name)
+node_t * make_label_sym(const char *name)
 {
-    struct operand *operand = make_named_operand(name, &tmps, GLOBAL);
-    SYM_X_KIND(operand->sym) = SYM_KIND_TMP;
-    return operand;
+    node_t *sym = make_named_sym(name, &labels, GLOBAL);
+    SYM_X_KIND(sym) = SYM_KIND_LABEL;
+    return sym;
+}
+
+static node_t * make_tmp_sym(void)
+{
+    node_t *sym = make_named_sym(gen_tmpname_r(), &tmps, GLOBAL);
+    SYM_X_KIND(sym) = SYM_KIND_TMP;
+    return sym;
+}
+
+static struct operand * make_named_operand(const char *name, struct table **table, int scope)
+{
+    node_t *sym = make_named_sym(name, table, scope);
+    return make_sym_operand(sym);
 }
 
 static struct operand * make_tmp_operand(void)
 {
-    return make_tmp_named_operand(gen_tmpname_r());
+    node_t *sym = make_tmp_sym();
+    return make_sym_operand(sym);
 }
 
 static struct operand * make_label_operand(const char *label)
 {
-    struct operand *operand = make_named_operand(label, &labels, GLOBAL);
-    SYM_X_KIND(operand->sym) = SYM_KIND_LABEL;
-    return operand;
+    node_t *sym = make_label_sym(label);
+    return make_sym_operand(sym);
 }
 
 static struct operand * make_int_operand(long long i)

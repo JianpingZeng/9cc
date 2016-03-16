@@ -253,7 +253,7 @@ extern bool is_tmp_operand(struct operand *operand);
 extern bool is_mem_operand(struct operand *operand);
 extern bool is_imm_operand(struct operand *operand);
 extern bool is_direct_mem_operand(struct operand *operand);
-extern struct operand * make_tmp_named_operand(const char *name);
+extern node_t * make_label_sym(const char *name);
 
 // block.c
 extern void construct_basic_blocks(node_t *decl, struct tac *head);

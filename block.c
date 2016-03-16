@@ -87,7 +87,7 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
         struct basic_block *blk = vec_at(branch_blks, i);
         const char *label = SYM_X_LABEL(tac->operands[0]->sym);
         struct basic_block *block = map_get(map, label);
-        tac->operands[0] = make_tmp_named_operand(block->label);
+        tac->operands[0]->sym = make_label_sym(block->label);
         block->tag = BLOCK_JUMPING_DEST;
         blk->successors[1] = block;
     }
