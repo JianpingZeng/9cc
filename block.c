@@ -24,7 +24,8 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
     map->cmpfn = nocmp;
     map_put(map, end_label, end);
 
-    struct vector *branches = vec_new();
+    struct vector *branch_tacs = vec_new();
+    struct vector *branch_blks = vec_new();
     struct basic_block **current = &start;
 
     for (struct tac *tac = head; tac; ) {
@@ -47,7 +48,8 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
             tac->op == IR_RETURNI ||
             tac->op == IR_RETURNF) {
 
-            vec_push(branches, tac);
+            vec_push(branch_tacs, tac);
+            vec_push(branch_blks, entry);
             
             struct tac *next = tac->next;
             tac->next = NULL;
@@ -80,12 +82,14 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
         }
     }
 
-    for (int i = 0; i < vec_len(branches); i++) {
-        struct tac *tac = vec_at(branches, i);
+    for (int i = 0; i < vec_len(branch_tacs); i++) {
+        struct tac *tac = vec_at(branch_tacs, i);
+        struct basic_block *blk = vec_at(branch_blks, i);
         const char *label = SYM_X_LABEL(tac->operands[0]->sym);
         struct basic_block *block = map_get(map, label);
         tac->operands[0] = make_tmp_named_operand(block->label);
-        block->tag = BLOCK_JUMPING;
+        block->tag = BLOCK_JUMPING_DEST;
+        blk->successors[1] = block;
     }
 
     struct basic_block *entry = *current;

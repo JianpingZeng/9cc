@@ -164,7 +164,7 @@ enum {
     BLOCK_NONE,
     BLOCK_START,               // entry
     BLOCK_END,                 // exit
-    BLOCK_JUMPING,             // jumping destination
+    BLOCK_JUMPING_DEST,        // jumping destination
 };
 
 // basic block
