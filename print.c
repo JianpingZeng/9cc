@@ -606,6 +606,14 @@ static void print_data(struct gdata *gdata)
     }
 }
 
+static void print_basic_block(struct basic_block *block)
+{
+    if (block->head)
+        putln("%s:", block->label);
+    for (struct tac *tac = block->head; tac; tac = tac->next)
+        print_tac(tac);
+}
+
 static void print_bss(struct gdata *gdata)
 {
     putln("%s,%llu,%d",
@@ -616,9 +624,9 @@ static void print_text(struct gdata *gdata)
 {
     node_t *decl = gdata->u.decl;
     putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
-    struct tac *head = DECL_X_HEAD(decl);
-    for (struct tac *tac = head; tac; tac = tac->next)
-        print_tac(tac);
+    for (struct basic_block *block = DECL_X_BASIC_BLOCK(decl);
+         block; block = block->successors[0])
+        print_basic_block(block);
     putln("");
 }
 

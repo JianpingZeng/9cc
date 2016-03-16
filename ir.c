@@ -31,6 +31,7 @@ static struct operand * emit_conv_tac(int op, struct operand *l,
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
 static struct vector *extra_lvars;
+static const char *func_end_label;
 static struct table *tmps;
 static struct table *labels;
 static struct externals *exts;
@@ -103,11 +104,16 @@ static struct operand * make_named_operand(const char *name, struct table **tabl
     return make_sym_operand(sym);
 }
 
-static struct operand * make_tmp_operand(void)
+struct operand * make_tmp_named_operand(const char *name)
 {
-    struct operand *operand = make_named_operand(gen_tmpname_r(), &tmps, GLOBAL);
+    struct operand *operand = make_named_operand(name, &tmps, GLOBAL);
     SYM_X_KIND(operand->sym) = SYM_KIND_TMP;
     return operand;
+}
+
+static struct operand * make_tmp_operand(void)
+{
+    return make_tmp_named_operand(gen_tmpname_r());
 }
 
 static struct operand * make_label_operand(const char *label)
@@ -2114,9 +2120,10 @@ static void emit_continue_stmt(node_t *stmt)
 static void emit_return_stmt(node_t *stmt)
 {
     node_t *n = STMT_RETURN_EXPR(stmt);
+    struct operand *result = make_label_operand(func_end_label);
     
     if (!n || isnullstmt(n)) {
-        struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, NULL, ops[Zero]);
+        struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, result, ops[Zero]);
         emit_tac(tac);
     } else {
         node_t *ty = AST_TYPE(n);
@@ -2126,10 +2133,10 @@ static void emit_return_stmt(node_t *stmt)
         if (EXPR_X_ADDR(n)) {
             // update gref
             struct operand *addr = update_gref(EXPR_X_ADDR(n));
-            struct tac *tac = make_tac(op, addr, NULL, NULL, ops[Zero]);
+            struct tac *tac = make_tac(op, addr, NULL, result, ops[Zero]);
             emit_tac(tac);
         } else {
-            struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, NULL, ops[Zero]);
+            struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, result, ops[Zero]);
             emit_tac(tac);
         }
     }
@@ -2202,8 +2209,9 @@ static void emit_function(node_t *decl)
     func_tac_tail = NULL;
     extra_lvars = NULL;
 
-    STMT_X_NEXT(stmt) = gen_label();
+    STMT_X_NEXT(stmt) = func_end_label = gen_label();
     emit_stmt(stmt);
+    construct_basic_blocks(decl, func_tac_head);
     DECL_X_HEAD(decl) = func_tac_head;
     DECL_X_TAIL(decl) = func_tac_tail;
     // add extra local vars

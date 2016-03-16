@@ -159,8 +159,17 @@ struct tac {
     node_t *call;               // funcall expr
 };
 
+// basic block tag
+enum {
+    BLOCK_NONE,
+    BLOCK_START,               // entry
+    BLOCK_END,                 // exit
+    BLOCK_JUMPING,             // jumping destination
+};
+
 // basic block
 struct basic_block {
+    int tag;
     const char *label;
     struct tac *head;
     struct basic_block *successors[2];
@@ -187,6 +196,7 @@ struct externals {
 #define DECL_X_CALLS(NODE)    ((NODE)->decl.x.decl.calls)
 #define DECL_X_HEAD(NODE)     ((NODE)->decl.x.decl.head)
 #define DECL_X_TAIL(NODE)     ((NODE)->decl.x.decl.tail)
+#define DECL_X_BASIC_BLOCK(NODE)  ((NODE)->decl.x.decl.basic_block)
 // expr
 #define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
@@ -210,6 +220,7 @@ union x {
         node_t **lvars;        // function local vars
         node_t **svars;        // function static vars
         node_t **calls;        // function calls
+        struct basic_block *basic_block;
         struct tac *head;
         struct tac *tail;
     }decl;
@@ -242,5 +253,9 @@ extern bool is_tmp_operand(struct operand *operand);
 extern bool is_mem_operand(struct operand *operand);
 extern bool is_imm_operand(struct operand *operand);
 extern bool is_direct_mem_operand(struct operand *operand);
+extern struct operand * make_tmp_named_operand(const char *name);
+
+// block.c
+extern void construct_basic_blocks(node_t *decl, struct tac *head);
 
 #endif

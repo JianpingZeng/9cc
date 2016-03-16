@@ -7,51 +7,91 @@ static struct basic_block * new_basic_block(void)
     return block;
 }
 
-bool is_basic_block_empty(struct basic_block *block)
+void construct_basic_blocks(node_t *decl, struct tac *head)
 {
-    return block->head == NULL;
-}
+    const char *start_label = SYM_X_LABEL(DECL_SYM(decl));
+    const char *end_label = STMT_X_NEXT(DECL_BODY(decl));
 
-struct basic_block * construct_basic_blocks(struct tac *head)
-{
-    struct basic_block *start = new_basic_block();
-    struct basic_block *end = new_basic_block();
-    struct basic_block *current = start;
+    struct basic_block *start = alloc_basic_block();
+    start->label = start_label;
+    start->tag = BLOCK_START;
+    struct basic_block *end = alloc_basic_block();
+    end->label = end_label;
+    end->tag = BLOCK_END;
+
     // map: label => basic_block
     struct map *map = map_new();
     map->cmpfn = nocmp;
-    
-    for (struct tac *tac = head; tac; tac = tac->next) {
+    map_put(map, end_label, end);
+
+    struct vector *branches = vec_new();
+    struct basic_block **current = &start;
+
+    for (struct tac *tac = head; tac; ) {
+        struct basic_block *entry = *current;
+        
         if (tac == head) {
             struct basic_block *block = new_basic_block();
             block->head = tac;
             // update current
-            current->successors[0] = block;
-            current = block;
-        } else if (tac->op == IR_IF_F ||
-                   tac->op == IR_IF_I ||
-                   tac->op == IR_IF_FALSE_F ||
-                   tac->op == IR_IF_FALSE_I ||
-                   tac->op == IR_GOTO) {
-            current->tail = tac;
-            struct basic_block *block = new_basic_block();
-            block->head = tac->next;
-            // update current
-            current->successors[0] = block;
-            current = block;
-        } else if (tac->op == IR_RETURNI ||
-                   tac->op == IR_RETURNF) {
+            entry->successors[0] = block;
+            current = & entry->successors[0];
+            entry = *current;
+        }
 
+        if (tac->op == IR_IF_F ||
+            tac->op == IR_IF_I ||
+            tac->op == IR_IF_FALSE_F ||
+            tac->op == IR_IF_FALSE_I ||
+            tac->op == IR_GOTO ||
+            tac->op == IR_RETURNI ||
+            tac->op == IR_RETURNF) {
+
+            vec_push(branches, tac);
+            
+            struct tac *next = tac->next;
+            tac->next = NULL;
+            if (next) {
+                struct basic_block *block = new_basic_block();
+                block->head = next;
+                // update current
+                entry->successors[0] = block;
+                current = & entry->successors[0];
+            }
+            tac = next;
         } else if (tac->op == IR_LABEL) {
             // new block
-            struct basic_block *block = new_basic_block();
-            block->head = tac;
-            while (tac && tac->op == IR_LABEL)
+            if (entry->head != tac) {
+                struct basic_block *block = new_basic_block();
+                // update current
+                entry->successors[0] = block;
+                current = & entry->successors[0];
+                entry = *current;
+            }
+            while (tac && tac->op == IR_LABEL) {
+                const char *label = SYM_X_LABEL(tac->operands[0]->sym);
+                map_put(map, label, entry);
                 tac = tac->next;
-        } else if (tac->op == IR_CALL) {
-            // function call
+            }
+            entry->head = tac;
         } else {
-            // do nothing
+            // do nothing, just goto next
+            tac = tac->next;
         }
     }
+
+    for (int i = 0; i < vec_len(branches); i++) {
+        struct tac *tac = vec_at(branches, i);
+        const char *label = SYM_X_LABEL(tac->operands[0]->sym);
+        struct basic_block *block = map_get(map, label);
+        tac->operands[0] = make_tmp_named_operand(block->label);
+        block->tag = BLOCK_JUMPING;
+    }
+
+    struct basic_block *entry = *current;
+    if (!entry->head && entry != start)
+        *current = end;
+    else
+        entry->successors[0] = end;
+    DECL_X_BASIC_BLOCK(decl) = start;
 }
