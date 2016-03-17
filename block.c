@@ -1,5 +1,61 @@
 #include "cc.h"
 
+static void analyze_sym(node_t *sym, struct dict *dict, struct basic_block *blk)
+{
+    // tmp sym
+    if (SYM_X_KIND(sym) != SYM_KIND_TMP)
+        return;
+    
+    struct vector *blks = dict_get(dict, sym);
+    if (!blks) {
+        blks = vec_new();
+        dict_put(dict, sym, blks);
+    }
+    bool found = false;
+    for (int i = 0; i < vec_len(blks); i++) {
+        struct basic_block *block = vec_at(blks, i);
+        if (block == blk) {
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        vec_push(blks, blk);
+}
+
+static void analyze_tmps(struct basic_block *head)
+{
+    const char *start_label = head->label;
+    
+    struct dict *dict = dict_new();
+    dict->map->cmpfn = nocmp;
+    
+    for (struct basic_block *blk = head; blk; blk = blk->successors[0]) {
+        for (struct tac *tac = blk->head; tac; tac = tac->next) {
+            for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+                struct operand *operand = tac->operands[i];
+                if (operand) {
+                    analyze_sym(operand->sym, dict, blk);
+                    if (operand->index)
+                        analyze_sym(operand->index, dict, blk);
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < vec_len(dict->keys); i++) {
+        node_t *sym = vec_at(dict->keys, i);
+        struct vector *blks = dict_get(dict, sym);
+        if (vec_len(blks) > 1) {
+            println("%s: %s: ", start_label, SYM_X_LABEL(sym));
+            for (int i = 0; i < vec_len(blks); i++) {
+                struct basic_block *blk = vec_at(blks, i);
+                println("%s", blk->label);
+            }
+        }
+    }
+}
+
 static struct basic_block * new_basic_block(void)
 {
     struct basic_block *block = alloc_basic_block();
@@ -28,7 +84,8 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
     struct vector *branch_blks = vec_new();
     struct basic_block **current = &start;
 
-    for (struct tac *tac = head; tac; ) {
+    for (struct tac **ptac = &head; *ptac; ) {
+        struct tac *tac = *ptac;
         struct basic_block *entry = *current;
         
         if (tac == head) {
@@ -60,9 +117,10 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
                 entry->successors[0] = block;
                 current = & entry->successors[0];
             }
-            tac = next;
+            ptac = & next;
         } else if (tac->op == IR_LABEL) {
             // new block
+            *ptac = NULL;
             if (entry->head != tac) {
                 struct basic_block *block = new_basic_block();
                 // update current
@@ -76,9 +134,10 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
                 tac = tac->next;
             }
             entry->head = tac;
+            ptac = & tac;
         } else {
             // do nothing, just goto next
-            tac = tac->next;
+            ptac = & tac->next;
         }
     }
 
