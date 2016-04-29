@@ -13,6 +13,7 @@ UTILS_OBJ=$(UTILS)wrapper.o \
         $(UTILS)map.o \
         $(UTILS)string.o \
 	$(UTILS)hideset.o \
+	$(UTILS)set.o \
 	$(UTILS)dict.o
 
 UTILS_INC= $(UTILS)strbuf.h \
@@ -20,6 +21,7 @@ UTILS_INC= $(UTILS)strbuf.h \
 	$(UTILS)map.h \
 	$(UTILS)hideset.h \
 	$(UTILS)dict.h \
+	$(UTILS)set.h \
 	$(UTILS)utils.h
 
 CC1_OBJ=alloc.o \
@@ -112,10 +114,23 @@ stage3: stage2
 bootstrap: stage3
 	cmp stage2 stage3
 
+TESTS := $(patsubst %.c, %.bin, $(wildcard test/test_*.c))
+
+test/%.o: test/%.c
+	$(CC) -Wall -std=c99 -o $@ -c $<
+
+test/%.bin: test/%.o test/main.o $(UTILS_OBJ)
+	$(CC) $(LDFLAGS) -o $@ $< test/main.o $(UTILS_OBJ)
+
+test: $(TESTS)
+	@for test in $(TESTS); do \
+		./$$test && exit; \
+	done
+
 clean:
-	@rm -f *.o *~ $(MCC) $(SYS)*.o $(SYS)*~ $(UTILS)*.o $(UTILS)*~ include/*~ mcc.exe*
+	@rm -f *.o *~ $(MCC) $(SYS)*.o $(SYS)*~ $(UTILS)*.o $(UTILS)*~ include/*~ mcc.exe* $(TESTS) test/*.o test/*~
 
 distclean: clean
 	@rm -f stage1 stage2 stage3
 
-.PHONY: all clean distclean
+.PHONY: all clean distclean test

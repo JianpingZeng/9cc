@@ -48,5 +48,7 @@ extern bool starts_with(const char *s, const char *prefix);
 #include "hideset.h"
 // dict.c
 #include "dict.h"
+// set.c
+#include "set.h"
 
 #endif
