@@ -12,6 +12,15 @@ void test1()
     struct set *set2 = set_new();
     set_add(set1, pa);
     set_add(set2, pb);
+
+    assert_true(set_len(set1) == 1);
+    assert_true(set_len(set2) == 1);
+
+    struct set *set3 = set_union(set1, set2);
+    assert_true(set_len(set3) == 2);
+
+    set_add(set1, pa);
+    assert_true(set_len(set1) == 1);
 }
 
 void testmain()
