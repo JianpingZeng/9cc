@@ -21,59 +21,59 @@ void ffail(char *file, int line, char *msg, ...)
     exit(1);
 }
 
-void fexpectb(char *file, int line, bool result)
+void fexpectb(char *file, int line, char *msg, bool result)
 {
     if (result)
         return;
-    ffail(file, line, "expression got false");
+    ffail(file, line, "expression got false: %s", msg);
     exit(1);
 }
 
-void fexpecti(char *file, int line, long a, long b)
+void fexpecti(char *file, int line, char *msg, long a, long b)
 {
     if (a == b)
         return;
-    ffail(file, line, "%ld expected, but got %ld\n", b, a);
+    ffail(file, line, "%ld expected, but got %ld: %s", b, a, msg);
     exit(1);
 }
 
-void fexpectu(char *file, int line, unsigned long a, unsigned long b)
+void fexpectu(char *file, int line, char *msg, unsigned long a, unsigned long b)
 {
     if (a == b)
         return;
-    ffail(file, line, "%lu expected, but got %lu\n", b, a);
+    ffail(file, line, "%lu expected, but got %lu: %s", b, a, msg);
     exit(1);
 }
 
-void fexpects(char *file, int line, const char *a, const char *b)
+void fexpects(char *file, int line, char *msg, const char *a, const char *b)
 {
     if (!strcmp(a, b))
         return;
-    ffail(file, line, "\"%s\" expected, but got \"%s\"\n", b, a);
+    ffail(file, line, "\"%s\" expected, but got \"%s\": %s", b, a, msg);
     exit(1);
 }
 
-void fexpectf(char *file, int line, float a, float b)
+void fexpectf(char *file, int line, char *msg, float a, float b)
 {
     if (a == b)
         return;
-    ffail(file, line, "%f expected, but got %f\n", b, a);
+    ffail(file, line, "%f expected, but got %f: %s", b, a, msg);
     exit(1);
 }
 
-void fexpectd(char *file, int line, double a, double b)
+void fexpectd(char *file, int line, char *msg, double a, double b)
 {
     if (a == b)
         return;
-    ffail(file, line, "%lf expected, but got %lf\n", b, a);
+    ffail(file, line, "%lf expected, but got %lf: %s", b, a, msg);
     exit(1);
 }
 
-void fexpectp(char *file, int line, void *a, void *b)
+void fexpectp(char *file, int line, char *msg, void *a, void *b)
 {
     if (a == b)
         return;
-    ffail(file, line, "%p expected, but got %p\n", b, a);
+    ffail(file, line, "%p expected, but got %p: %s", b, a, msg);
     exit(1);
 }
 
