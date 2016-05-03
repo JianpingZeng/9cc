@@ -630,38 +630,38 @@ static void print_text(struct gdata *gdata)
     putln("");
 }
 
-static void print_compounds(struct dict *compounds)
+static void print_compounds(struct map *compounds)
 {
     struct vector *keys = compounds->keys;
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(compounds->keys, i);
-            struct gdata *gdata = dict_get(compounds, label);
+            struct gdata *gdata = map_get(compounds, label);
             print_data(gdata);
         }
     }
 }
 
-static void print_strings(struct dict *strings)
+static void print_strings(struct map *strings)
 {
     struct vector *keys = strings->keys;
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *name = vec_at(strings->keys, i);
-            const char *label = dict_get(strings, name);
+            const char *label = map_get(strings, name);
             putln("%s:", label);
             putln(".string %s", name);
         }
     }
 }
 
-static void print_floats(struct dict *floats)
+static void print_floats(struct map *floats)
 {
     struct vector *keys = floats->keys;
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *name = vec_at(floats->keys, i);
-            const char *label = dict_get(floats, name);
+            const char *label = map_get(floats, name);
             node_t *sym = lookup(name, constants);
             cc_assert(sym);
             node_t *ty = SYM_TYPE(sym);

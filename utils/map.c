@@ -90,6 +90,8 @@ static void map_add(struct map *map, const void *key, void *value)
     map->size++;
     if (map->size > map->grow_at)
         rehash(map, map->tablesize << MAP_RESIZE_BITS);
+    // add to keys
+    vec_push(map->keys, (void *)key);
 }
 
 struct map *map_new(void)
@@ -97,6 +99,7 @@ struct map *map_new(void)
     struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
     map->cmpfn = cmp;
+    map->keys = vec_new();
     alloc_map(map, MAP_INIT_SIZE);
     return map;
 }
@@ -114,6 +117,7 @@ void map_free(struct map *map)
         }
     }
     free(map->table);
+    free(map->keys);
     free(map);
 }
 

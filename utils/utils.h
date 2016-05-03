@@ -38,16 +38,14 @@ extern char *xstrdup(const char *str);
 extern char *xstrndup(const char *str, size_t n);
 extern bool starts_with(const char *s, const char *prefix);
 
-// map.c
-#include "map.h"
 // vector.c
 #include "vector.h"
+// map.c
+#include "map.h"
 // strbuf.c
 #include "strbuf.h"
 // hideset.c
 #include "hideset.h"
-// dict.c
-#include "dict.h"
 // set.c
 #include "set.h"
 

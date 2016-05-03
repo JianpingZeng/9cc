@@ -1665,10 +1665,10 @@ static void emit_integer_literal(node_t *n)
 
 static const char *get_float_label(const char *name)
 {
-    const char *label = dict_get(exts->floats, name);
+    const char *label = map_get(exts->floats, name);
     if (!label) {
         label = gen_sliteral_label();
-        dict_put(exts->floats, name, (void *)label);
+        map_put(exts->floats, name, (void *)label);
     }
     return label;
 }
@@ -2253,9 +2253,9 @@ static void ir_init(void)
     labels = new_table(NULL, GLOBAL);
     exts = zmalloc(sizeof(struct externals));
     exts->gdatas = vec_new();
-    exts->strings = dict_new();
-    exts->compounds = dict_new();
-    exts->floats = dict_new();
+    exts->strings = map_new();
+    exts->compounds = map_new();
+    exts->floats = map_new();
 }
 
 struct externals * ir(node_t *tree)
@@ -2392,10 +2392,10 @@ static void emit_funcdef_gdata(node_t *decl)
 
 static const char *get_string_literal_label(const char *name)
 {
-    const char *label = dict_get(exts->strings, name);
+    const char *label = map_get(exts->strings, name);
     if (!label) {
         label = gen_sliteral_label();
-        dict_put(exts->strings, name, (void *)label);
+        map_put(exts->strings, name, (void *)label);
     }
     return label;
 }
@@ -2427,7 +2427,7 @@ static const char *get_compound_literal_label(node_t *n)
     
     const char *label = gen_compound_label();
     struct gdata *gdata = emit_compound_literal_label(label, n);
-    dict_put(exts->compounds, label, gdata);
+    map_put(exts->compounds, label, gdata);
     return label;
 }
 

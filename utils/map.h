@@ -12,6 +12,7 @@ struct map {
     unsigned grow_at, shrink_at;
     struct map_entry **table;
     int (*cmpfn) (const void *key1, const void *key2);
+    struct vector *keys;
 };
 
 extern struct map *map_new(void);

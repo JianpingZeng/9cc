@@ -4,7 +4,7 @@
 /// pointers set
 
 struct set {
-    struct dict *dict;
+    struct map *map;
 };
 
 extern struct set *set_new(void);

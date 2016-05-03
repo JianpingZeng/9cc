@@ -13,14 +13,12 @@ UTILS_OBJ=$(UTILS)wrapper.o \
         $(UTILS)map.o \
         $(UTILS)string.o \
 	$(UTILS)hideset.o \
-	$(UTILS)set.o \
-	$(UTILS)dict.o
+	$(UTILS)set.o
 
 UTILS_INC= $(UTILS)strbuf.h \
 	$(UTILS)vector.h \
 	$(UTILS)map.h \
 	$(UTILS)hideset.h \
-	$(UTILS)dict.h \
 	$(UTILS)set.h \
 	$(UTILS)utils.h
 

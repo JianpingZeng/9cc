@@ -178,9 +178,9 @@ struct basic_block {
 // externals
 struct externals {
     struct vector *gdatas;
-    struct dict *strings;
-    struct dict *compounds;
-    struct dict *floats;
+    struct map *strings;
+    struct map *compounds;
+    struct map *floats;
 };
 
 // sym

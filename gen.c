@@ -80,7 +80,7 @@ static const char *func_end_label;
 static size_t func_returns;
 static long calls_return_loff;
 static struct pinfo *func_pinfo;
-static struct dict *next_info;
+static struct map *next_info;
 static struct tac *current_tac;
 static node_t *current_ftype;
 
@@ -1873,7 +1873,7 @@ static void mark_live(node_t *sym, struct tac *tac)
 
 static struct uses * get_uses(node_t *sym, struct tac *tac)
 {
-    struct map *tuple = dict_get(next_info, sym);
+    struct map *tuple = map_get(next_info, sym);
     cc_assert(tuple);
     struct uses *uses = map_get(tuple, tac);
     cc_assert(uses);
@@ -1888,7 +1888,7 @@ static void scan_uses(struct tac *tail)
         // set
         for (int i = 0; i < vec_len(keys); i++) {
             node_t *sym = vec_at(keys, i);
-            struct map *tuple = dict_get(next_info, sym);
+            struct map *tuple = map_get(next_info, sym);
             struct uses *uses = map_get(tuple, tac);
             *uses = SYM_X_USES(sym);
         }
@@ -1925,11 +1925,11 @@ static void scan_uses(struct tac *tail)
 static void init_sym_uses(node_t *sym)
 {
     mark_die(sym);
-    struct map *tuple = dict_get(next_info, sym);
+    struct map *tuple = map_get(next_info, sym);
     if (!tuple) {
         tuple = map_new();
         tuple->cmpfn = nocmp;
-        dict_put(next_info, sym, tuple);
+        map_put(next_info, sym, tuple);
     }
 }
 
@@ -1957,12 +1957,14 @@ static void init_tacs(struct tac *head)
             }
         }
     }
-    struct vector *values = dict_values(next_info);
-    for (int i = 0; i < vec_len(values); i++) {
-        struct map *tuple = vec_at(values, i);
-        for (struct tac *tac = head; tac; tac = tac->next) {
-            struct uses *uses = zmalloc(sizeof(struct uses));
-            map_put(tuple, tac, uses);
+    for (int i = 0; i < vec_len(next_info->keys); i++) {
+        const void *key = vec_at(next_info->keys, i);
+        struct map *tuple = map_get(next_info, key);
+        if (tuple) {
+            for (struct tac *tac = head; tac; tac = tac->next) {
+                struct uses *uses = zmalloc(sizeof(struct uses));
+                map_put(tuple, tac, uses);
+            }
         }
     }
 }
@@ -2533,8 +2535,8 @@ static void emit_text(struct gdata *gdata)
     // reset func context
     func_end_label = STMT_X_NEXT(DECL_BODY(decl));
     func_returns = 0;
-    next_info = dict_new();
-    next_info->map->cmpfn = nocmp;
+    next_info = map_new();
+    next_info->cmpfn = nocmp;
     reset_regs();
     calls_return_loff = 0;
     func_pinfo = NULL;
@@ -2604,40 +2606,40 @@ static void emit_bss(struct gdata *gdata)
          gdata->align);
 }
 
-static void emit_compounds(struct dict *compounds)
+static void emit_compounds(struct map *compounds)
 {
     struct vector *keys = compounds->keys;
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(compounds->keys, i);
-            struct gdata *gdata = dict_get(compounds, label);
+            struct gdata *gdata = map_get(compounds, label);
             emit_data(gdata);
         }
     }
 }
 
-static void emit_strings(struct dict *strings)
+static void emit_strings(struct map *strings)
 {
     struct vector *keys = strings->keys;
     if (vec_len(keys)) {
         emit(".section .rodata");
         for (int i = 0; i < vec_len(keys); i++) {
             const char *name = vec_at(strings->keys, i);
-            const char *label = dict_get(strings, name);
+            const char *label = map_get(strings, name);
             emit_noindent("%s:", label);
             emit(".asciz %s", name);
         }
     }
 }
 
-static void emit_floats(struct dict *floats)
+static void emit_floats(struct map *floats)
 {
     struct vector *keys = floats->keys;
     if (vec_len(keys)) {
         emit(".section .rodata");
         for (int i = 0; i < vec_len(keys); i++) {
             const char *name = vec_at(floats->keys, i);
-            const char *label = dict_get(floats, name);
+            const char *label = map_get(floats, name);
             node_t *sym = lookup(name, constants);
             cc_assert(sym);
             node_t *ty = SYM_TYPE(sym);

@@ -8,13 +8,13 @@ static char value;
 struct set *set_new(void)
 {
     struct set *set = zmalloc(sizeof(struct set));
-    set->dict = dict_new();
+    set->map = map_new();
     return set;
 }
 
 void set_free(struct set *set)
 {
-    dict_free(set->dict);
+    map_free(set->map);
     free(set);
 }
 
@@ -30,18 +30,18 @@ struct set *set_copy(struct set *set)
 void set_add(struct set *set, void *element)
 {
     assert(element);
-    dict_put(set->dict, element, &value);
+    map_put(set->map, element, &value);
 }
 
 void set_remove(struct set *set, void *element)
 {
-    dict_put(set->dict, element, NULL);
+    map_put(set->map, element, NULL);
 }
 
 bool set_has(struct set *set, void *element)
 {
     assert(element);
-    return dict_get(set->dict, element) != NULL;
+    return map_get(set->map, element) != NULL;
 }
 
 struct set *set_union(struct set *set1, struct set *set2)
@@ -78,10 +78,10 @@ struct set *set_intersection(struct set *set1, struct set *set2)
 
 struct vector *set_objects(struct set *set)
 {
-    return set ? set->dict->keys : NULL;
+    return set ? set->map->keys : NULL;
 }
 
 size_t set_len(struct set *set)
 {
-    return set ? vec_len(set->dict->keys) : 0;
+    return set ? vec_len(set->map->keys) : 0;
 }
