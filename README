@@ -23,11 +23,16 @@ test		Test suite.
 
 HOWTO build:
 
-For Linux users:
+`cmake` is required to build the mcc compiler, run command:
 
-To build the mcc compiler, run command:
+	mkdir build
+        cd build
+        cmake ..
+        make
 
-	make
+To run the testing suite:
+
+        make test
 
 For Mac OS X users:
 
