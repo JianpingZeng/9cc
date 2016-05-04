@@ -1,7 +1,3 @@
-// for mkdtemp, dirname, basename,
-// localtime_r
-#define _BSD_SOURCE
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -18,106 +14,12 @@
 #include <sys/utsname.h>
 
 #if defined CONFIG_DARWIN
-// trace
-#include <execinfo.h>
-#include <signal.h>
-
-static void handler(int sig)
-{
-    void *array[20];
-    size_t size;
-
-    size = backtrace(array, sizeof array / sizeof array[0]);
-
-    fprintf(stderr, "Stack trace:\n");
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
-    exit(EXIT_FAILURE);
-}
-
-void setup_sys()
-{
-    signal(SIGSEGV, handler);
-    signal(SIGABRT, handler);
-}
-
+#include "darwin.h"
 #elif defined CONFIG_LINUX
-
-#define UNW_LOCAL_ONLY
-#include <libunwind.h>
-
-static void handler(int sig)
-{
-    unw_cursor_t cursor;
-    unw_context_t uc;
-    unw_word_t offp;
-    char buf[128];
-    int i = 0;
-
-    fprintf(stderr, "Stack trace:\n");
-    unw_getcontext(&uc);
-    unw_init_local(&cursor, &uc);
-    
-    while (unw_step(&cursor) > 0) {
-        int ret = unw_get_proc_name(&cursor, buf, sizeof buf/sizeof buf[0], &offp);
-        if (ret == 0) {
-            printf("%d\t%s + %ld\n", i, buf, offp);
-        } else {
-            printf("%d\t???\n", i);
-        }
-        i++;
-    }
-    
-    exit(EXIT_FAILURE);
-}
-
-void setup_sys()
-{
-    signal(SIGSEGV, handler);
-    signal(SIGABRT, handler);
-}
-
-#else
-
-void setup_sys()
-{
-}
-
-#endif
-
-/**
- * $0: output file
- * $1: input files
- * $2: additional options
- */
-
-#ifdef CONFIG_LINUX
-char *ld[] = {
-    "ld",
-    "-A", "x86_64",
-    "-o", "$0",
-    "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
-    "/usr/lib/x86_64-linux-gnu/crt1.o",
-    "/usr/lib/x86_64-linux-gnu/crti.o",
-    "$1", "$2",
-    "-lc", "-lm",
-    "/usr/lib/x86_64-linux-gnu/crtn.o",
-    NULL
-};
-#elif defined CONFIG_DARWIN
-char *ld[] = {
-    "ld",
-    "-o", "$0",
-    "$1", "$2",
-    "-lc", "-lm",
-    "-macosx_version_min", OSX_SDK_VERSION,
-    "-arch", "x86_64",
-    NULL
-};
+#include "linux.h"
 #else
 #error "architecture not defined"
 #endif
-
-char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
 
 const char *mktmpdir()
 {
