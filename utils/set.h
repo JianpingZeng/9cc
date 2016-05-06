@@ -16,6 +16,6 @@ extern bool set_has(struct set *set, void *element);
 extern struct set *set_union(struct set *set1, struct set *set2);
 extern struct set *set_intersection(struct set *set1, struct set *set2);
 extern struct vector *set_objects(struct set *set);
-extern size_t set_len(struct set *set);
+extern size_t set_size(struct set *set);
 
 #endif

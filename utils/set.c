@@ -9,6 +9,7 @@ struct set *set_new(void)
 {
     struct set *set = zmalloc(sizeof(struct set));
     set->map = map_new();
+    set->map->cmpfn = nocmp;
     return set;
 }
 
@@ -35,6 +36,7 @@ void set_add(struct set *set, void *element)
 
 void set_remove(struct set *set, void *element)
 {
+    assert(element);
     map_put(set->map, element, NULL);
 }
 
@@ -58,10 +60,6 @@ struct set *set_union(struct set *set1, struct set *set2)
 
 struct set *set_intersection(struct set *set1, struct set *set2)
 {
-    if (!set1 || !set2)
-        return NULL;
-    if (!set_len(set1) || !set_len(set2))
-        return NULL;
     struct set *set = set_new();
     struct vector *objects1 = set_objects(set1);
     struct vector *objects2 = set_objects(set2);
@@ -81,7 +79,7 @@ struct vector *set_objects(struct set *set)
     return set ? map_keys(set->map) : NULL;
 }
 
-size_t set_len(struct set *set)
+size_t set_size(struct set *set)
 {
     return set ? set->map->size : 0;
 }
