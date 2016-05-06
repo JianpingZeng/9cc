@@ -173,6 +173,10 @@ struct basic_block {
     const char *label;
     struct tac *head;
     struct basic_block *successors[2];
+    struct set *use;
+    struct set *def;
+    struct set *in;
+    struct set *out;
 };
 
 // externals

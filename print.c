@@ -606,12 +606,39 @@ static void print_data(struct gdata *gdata)
     }
 }
 
+static void print_sym_set(struct set *set)
+{
+    struct vector *objs = set_objects(set);
+    for (size_t i = 0; i < vec_len(objs); i++) {
+        node_t *sym = vec_at(objs, i);
+        putf("%s", SYM_X_LABEL(sym));
+        if (i < vec_len(objs) - 1)
+            putf(", ");
+    }
+}
+
 static void print_basic_block(struct basic_block *block)
 {
     if (block->head)
         putln("%s:", block->label);
     for (struct tac *tac = block->head; tac; tac = tac->next)
         print_tac(tac);
+    
+    putf("def: ");
+    print_sym_set(block->def);
+    putf("\n");
+
+    putf("use: ");
+    print_sym_set(block->use);
+    putf("\n");
+
+    putf("in: ");
+    print_sym_set(block->in);
+    putf("\n");
+
+    putf("out: ");
+    print_sym_set(block->out);
+    putf("\n");
 }
 
 static void print_bss(struct gdata *gdata)

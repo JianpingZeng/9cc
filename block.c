@@ -1,10 +1,94 @@
 #include "cc.h"
 
+#define REF_SYM(sym)  (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
+                       SYM_X_KIND(sym) == SYM_KIND_LREF ||\
+                       SYM_X_KIND(sym) == SYM_KIND_TMP)
+
 static struct basic_block * new_basic_block(void)
 {
     struct basic_block *block = alloc_basic_block();
     block->label = gen_block_label();
+    block->use = set_new();
+    block->def = set_new();
+    block->in = set_new();
+    block->out = set_new();
     return block;
+}
+
+/**
+ * def[B]: the set of variables defined (i.e., definitely assigned values) in B
+ *         prior to any use of that variable in B.
+ * use[B]: the set of variables whose values may be used in B prior to any
+ *         definition of that variable.
+ */
+static void calculate_use_def(struct basic_block *start)
+{
+    for (struct basic_block *block = start; block; block = block->successors[0]) {
+        for (struct tac *tac = block->head; tac; tac = tac->next) {
+            for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+                struct operand *operand = tac->operands[i];
+                if (operand) {
+                    if (i == 0) {
+                        // result
+                        if (operand->sym && REF_SYM(operand->sym)) {
+                            if (!set_has(block->use, operand->sym))
+                                set_add(block->def, operand->sym);
+                        }
+                        if (operand->index && REF_SYM(operand->index)) {
+                            if (!set_has(block->def, operand->index))
+                                set_add(block->use, operand->index);
+                        }
+                    } else {
+                        if (operand->sym && REF_SYM(operand->sym)) {
+                            if (!set_has(block->def, operand->sym))
+                                set_add(block->use, operand->sym);
+                        }
+                        if (operand->index && REF_SYM(operand->index)) {
+                            if (!set_has(block->def, operand->index))
+                                set_add(block->use, operand->index);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Algorithm of IN[B] and OUT[B]
+ *
+ * IN[EXIT] = ∅;
+ * for (each basic block except EXIT) IN[B] = ∅;
+ * while (any IN[B] has changed) {
+ *     for (each basic block except EXIT) {
+ *         OUT[B] = ∪ IN[S], while S is a successor of B;
+ *         IN[B] = use[B] ∪ (OUT[B] - def[B]);
+ *     }
+ * }
+ */
+static void calculate_in_out(struct basic_block *start)
+{
+    bool changed;
+    do {
+        changed = false;
+        for (struct basic_block *block = start; block; block = block->successors[0]) {
+            if (block->tag == BLOCK_END)
+                break;
+            struct set *outs = NULL;
+            for (int i = 0; i < ARRAY_SIZE(block->successors); i++) {
+                struct basic_block *successor = block->successors[i];
+                if (successor)
+                    outs = set_union(outs, successor->in);
+            }
+            struct set *set1 = set_substract(outs, block->def);
+            struct set *ins = set_union(block->use, set1);
+            if (!changed) {
+                changed = !set_equal(block->in, ins);
+            }
+            block->out = outs;
+            block->in = ins;
+        }
+    } while (changed);
 }
 
 void construct_basic_blocks(node_t *decl, struct tac *head)
@@ -101,4 +185,9 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
     else
         entry->successors[0] = end;
     DECL_X_BASIC_BLOCK(decl) = start;
+
+    // calculate use[B] and def[B]
+    calculate_use_def(start);
+    // calculate IN[B] and OUT[B]
+    calculate_in_out(start);
 }

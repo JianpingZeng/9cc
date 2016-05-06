@@ -40,6 +40,18 @@ void set_remove(struct set *set, void *element)
     map_put(set->map, element, NULL);
 }
 
+struct set *set_substract(struct set *set1, struct set *set2)
+{
+    struct set *set = set_new();
+    struct vector *objects1 = set_objects(set1);
+    for (size_t i = 0; i < vec_len(objects1); i++) {
+        void *obj1 = vec_at(objects1, i);
+        if (!set_has(set2, obj1))
+            set_add(set, obj1);
+    }
+    return set;
+}
+
 bool set_has(struct set *set, void *element)
 {
     assert(element);
@@ -78,4 +90,17 @@ struct vector *set_objects(struct set *set)
 size_t set_size(struct set *set)
 {
     return set ? set->map->size : 0;
+}
+
+bool set_equal(struct set *set1, struct set *set2)
+{
+    if (set_size(set1) != set_size(set2))
+        return false;
+    struct vector *objects1 = set_objects(set1);
+    for (size_t i = 0; i < vec_len(objects1); i++) {
+        void *obj1 = vec_at(objects1, i);
+        if (!set_has(set2, obj1))
+            return false;
+    }
+    return true;
 }
