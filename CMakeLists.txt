@@ -38,10 +38,7 @@ set(MCC_SRC mcc.c)
 
 add_definitions(-DBUILD_DIR="${CMAKE_SOURCE_DIR}")
 
-## define _BSD_SOURCE for mkdtemp, dirname, basename, localtime_r
-
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  add_definitions(-D_BSD_SOURCE)
   add_definitions(-DCONFIG_COLOR_TERM)
   add_definitions(-DCONFIG_DARWIN)
   add_compile_options(-Wall -std=c99)
@@ -59,7 +56,6 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_definitions(-DOSX_SDK_VERSION="${OSX_SDK_VERSION}")
   set(SYS_SRC ${SYS}unix.c)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  add_definitions(-D_BSD_SOURCE)
   add_definitions(-DCONFIG_COLOR_TERM)
   add_definitions(-DCONFIG_LINUX)
   add_compile_options(-Wall -std=c99)

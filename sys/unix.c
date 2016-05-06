@@ -1,3 +1,5 @@
+// define _BSD_SOURCE for mkdtemp, dirname, basename, localtime_r
+#define _BSD_SOURCE
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
