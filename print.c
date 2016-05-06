@@ -632,10 +632,10 @@ static void print_text(struct gdata *gdata)
 
 static void print_compounds(struct map *compounds)
 {
-    struct vector *keys = compounds->keys;
+    struct vector *keys = map_keys(compounds);
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
-            const char *label = vec_at(compounds->keys, i);
+            const char *label = vec_at(keys, i);
             struct gdata *gdata = map_get(compounds, label);
             print_data(gdata);
         }
@@ -644,10 +644,10 @@ static void print_compounds(struct map *compounds)
 
 static void print_strings(struct map *strings)
 {
-    struct vector *keys = strings->keys;
+    struct vector *keys = map_keys(strings);
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
-            const char *name = vec_at(strings->keys, i);
+            const char *name = vec_at(keys, i);
             const char *label = map_get(strings, name);
             putln("%s:", label);
             putln(".string %s", name);
@@ -657,10 +657,10 @@ static void print_strings(struct map *strings)
 
 static void print_floats(struct map *floats)
 {
-    struct vector *keys = floats->keys;
+    struct vector *keys = map_keys(floats);
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
-            const char *name = vec_at(floats->keys, i);
+            const char *name = vec_at(keys, i);
             const char *label = map_get(floats, name);
             node_t *sym = lookup(name, constants);
             cc_assert(sym);

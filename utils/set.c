@@ -78,10 +78,10 @@ struct set *set_intersection(struct set *set1, struct set *set2)
 
 struct vector *set_objects(struct set *set)
 {
-    return set ? set->map->keys : NULL;
+    return set ? map_keys(set->map) : NULL;
 }
 
 size_t set_len(struct set *set)
 {
-    return set ? vec_len(set->map->keys) : 0;
+    return set ? set->map->size : 0;
 }

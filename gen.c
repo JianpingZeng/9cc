@@ -1883,7 +1883,7 @@ static struct uses * get_uses(node_t *sym, struct tac *tac)
 // TODO: very slow
 static void scan_uses(struct tac *tail)
 {
-    struct vector *keys = next_info->keys;
+    struct vector *keys = map_keys(next_info);
     for (struct tac *tac = tail; tac; tac = tac->prev) {
         // set
         for (int i = 0; i < vec_len(keys); i++) {
@@ -1957,8 +1957,9 @@ static void init_tacs(struct tac *head)
             }
         }
     }
-    for (int i = 0; i < vec_len(next_info->keys); i++) {
-        const void *key = vec_at(next_info->keys, i);
+    struct vector *keys = map_keys(next_info);
+    for (int i = 0; i < vec_len(keys); i++) {
+        const void *key = vec_at(keys, i);
         struct map *tuple = map_get(next_info, key);
         if (tuple) {
             for (struct tac *tac = head; tac; tac = tac->next) {
@@ -2608,10 +2609,10 @@ static void emit_bss(struct gdata *gdata)
 
 static void emit_compounds(struct map *compounds)
 {
-    struct vector *keys = compounds->keys;
+    struct vector *keys = map_keys(compounds);
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
-            const char *label = vec_at(compounds->keys, i);
+            const char *label = vec_at(keys, i);
             struct gdata *gdata = map_get(compounds, label);
             emit_data(gdata);
         }
@@ -2620,11 +2621,11 @@ static void emit_compounds(struct map *compounds)
 
 static void emit_strings(struct map *strings)
 {
-    struct vector *keys = strings->keys;
+    struct vector *keys = map_keys(strings);
     if (vec_len(keys)) {
         emit(".section .rodata");
         for (int i = 0; i < vec_len(keys); i++) {
-            const char *name = vec_at(strings->keys, i);
+            const char *name = vec_at(keys, i);
             const char *label = map_get(strings, name);
             emit_noindent("%s:", label);
             emit(".asciz %s", name);
@@ -2634,11 +2635,11 @@ static void emit_strings(struct map *strings)
 
 static void emit_floats(struct map *floats)
 {
-    struct vector *keys = floats->keys;
+    struct vector *keys = map_keys(floats);
     if (vec_len(keys)) {
         emit(".section .rodata");
         for (int i = 0; i < vec_len(keys); i++) {
-            const char *name = vec_at(floats->keys, i);
+            const char *name = vec_at(keys, i);
             const char *label = map_get(floats, name);
             node_t *sym = lookup(name, constants);
             cc_assert(sym);

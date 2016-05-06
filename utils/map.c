@@ -90,8 +90,6 @@ static void map_add(struct map *map, const void *key, void *value)
     map->size++;
     if (map->size > map->grow_at)
         rehash(map, map->tablesize << MAP_RESIZE_BITS);
-    // add to keys
-    vec_push(map->keys, (void *)key);
 }
 
 struct map *map_new(void)
@@ -99,7 +97,6 @@ struct map *map_new(void)
     struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
     map->cmpfn = cmp;
-    map->keys = vec_new();
     alloc_map(map, MAP_INIT_SIZE);
     return map;
 }
@@ -108,7 +105,7 @@ void map_free(struct map *map)
 {
     if (!map)
         return;
-    for (int i = 0; i < map->tablesize; i++) {
+    for (unsigned i = 0; i < map->tablesize; i++) {
         struct map_entry *entry = map->table[i];
         while (entry) {
             struct map_entry *next = entry->next;
@@ -117,7 +114,6 @@ void map_free(struct map *map)
         }
     }
     free(map->table);
-    free(map->keys);
     free(map);
 }
 
@@ -132,4 +128,19 @@ void map_put(struct map *map, const void *key, void *value)
     map_remove(map, key);
     if (value)
         map_add(map, key, value);
+}
+
+struct vector *map_keys(struct map *map)
+{
+    if (!map || map->size == 0)
+        return NULL;
+    struct vector *v = vec_new();
+    for (unsigned i = 0; i < map->tablesize; i++) {
+        struct map_entry *entry = map->table[i];
+        while (entry) {
+            vec_push(v, (void *)entry->key);
+            entry = entry->next;
+        }
+    }
+    return v;
 }

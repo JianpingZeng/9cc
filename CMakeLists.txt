@@ -69,6 +69,15 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   add_definitions(-DCONFIG_WINNT)
   set(SYS_SRC ${SYS}winnt.c)
   set(LINK_LIBRARIES Shlwapi Rpcrt4)
+  ## Guess VCINSTALLDIR
+  if ("$ENV{VCINSTALLDIR}" STREQUAL "")
+     string(REGEX REPLACE "/bin/[^/]*$" "" VCINSTALLDIR "${CMAKE_C_COMPILER}")
+  else()
+     set(VCINSTALLDIR $ENV{VCINSTALLDIR})
+  endif()
+  file(GLOB bat ${VCINSTALLDIR}/vcvarsall.bat)
+  ##TODO: run vcvarsall.bat...
+  ##
 else()
   message(FATAL_ERROR "unknown platform")
 endif()
