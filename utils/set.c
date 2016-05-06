@@ -43,7 +43,7 @@ void set_remove(struct set *set, void *element)
 bool set_has(struct set *set, void *element)
 {
     assert(element);
-    return map_get(set->map, element) != NULL;
+    return set ? map_get(set->map, element) != NULL : false;
 }
 
 struct set *set_union(struct set *set1, struct set *set2)
@@ -62,14 +62,10 @@ struct set *set_intersection(struct set *set1, struct set *set2)
 {
     struct set *set = set_new();
     struct vector *objects1 = set_objects(set1);
-    struct vector *objects2 = set_objects(set2);
     for (size_t i = 0; i < vec_len(objects1); i++) {
         void *obj1 = vec_at(objects1, i);
-        for (size_t j = 0; j < vec_len(objects2); j++) {
-            void *obj2 = vec_at(objects2, j);
-            if (obj1 == obj2)
-                set_add(set, obj1);
-        }
+        if (set_has(set2, obj1))
+            set_add(set, obj1);
     }
     return set;
 }
