@@ -1971,16 +1971,16 @@ static void emit_register_params(node_t *decl)
     }
 }
 
-static void emit_function_prologue(struct gdata *gdata)
+static void emit_function_prologue(struct gsection *section)
 {
-    node_t *decl = gdata->u.decl;
+    node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
     
-    if (gdata->global)
-        emit(".globl %s", gdata->label);
+    if (section->global)
+        emit(".globl %s", section->label);
     emit(".text");
-    emit_noindent("%s:", gdata->label);
+    emit_noindent("%s:", section->label);
     emit("pushq %s", rbp->r[Q]);
     emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
 
@@ -2040,9 +2040,9 @@ static void emit_function_prologue(struct gdata *gdata)
         emit("subq $%llu, %s", localsize, rsp->r[Q]);
 }
 
-static void emit_text(struct gdata *gdata)
+static void emit_text(struct gsection *section)
 {
-    node_t *decl = gdata->u.decl;
+    node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
 
@@ -2054,7 +2054,7 @@ static void emit_text(struct gdata *gdata)
     fcon.pinfo = NULL;
     fcon.current_ftype = ftype;
 
-    emit_function_prologue(gdata);
+    emit_function_prologue(section);
     if (TYPE_VARG(ftype))
         emit_register_save_area();
     else
@@ -2074,16 +2074,16 @@ static void emit_text(struct gdata *gdata)
     emit("ret");
 }
 
-static void emit_data(struct gdata *gdata)
+static void emit_data(struct gsection *section)
 {
-    if (gdata->global)
-        emit(".globl %s", gdata->label);
+    if (section->global)
+        emit(".globl %s", section->label);
     emit(".data");
-    if (gdata->align > 1)
-        emit(".align %d", gdata->align);
-    emit_noindent("%s:", gdata->label);
-    for (int i = 0; i < LIST_LEN(gdata->u.xvalues); i++) {
-        struct xvalue *value = gdata->u.xvalues[i];
+    if (section->align > 1)
+        emit(".align %d", section->align);
+    emit_noindent("%s:", section->label);
+    for (int i = 0; i < LIST_LEN(section->u.xvalues); i++) {
+        struct xvalue *value = section->u.xvalues[i];
         switch (value->size) {
         case Zero:
             emit(".zero %s", value->name);
@@ -2107,14 +2107,14 @@ static void emit_data(struct gdata *gdata)
     }
 }
 
-static void emit_bss(struct gdata *gdata)
+static void emit_bss(struct gsection *section)
 {
-    if (!gdata->global)
-        emit(".local %s", gdata->label);
+    if (!section->global)
+        emit(".local %s", section->label);
     emit(".comm %s,%llu,%d",
-         gdata->label,
-         gdata->size,
-         gdata->align);
+         section->label,
+         section->size,
+         section->align);
 }
 
 static void emit_compounds(struct map *compounds)
@@ -2123,8 +2123,8 @@ static void emit_compounds(struct map *compounds)
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(keys, i);
-            struct gdata *gdata = map_get(compounds, label);
-            emit_data(gdata);
+            struct gsection *section = map_get(compounds, label);
+            emit_data(section);
         }
     }
 }
@@ -2188,17 +2188,17 @@ void gen(struct externals *exts, FILE * fp)
     cc_assert(errors == 0 && fp);
     
     gen_init(fp);
-    for (int i = 0; i < vec_len(exts->gdatas); i++) {
-        struct gdata *gdata = vec_at(exts->gdatas, i);
-        switch (gdata->id) {
-        case GDATA_BSS:
-            emit_bss(gdata);
+    for (int i = 0; i < vec_len(exts->gsections); i++) {
+        struct gsection *section = vec_at(exts->gsections, i);
+        switch (section->id) {
+        case GSECTION_BSS:
+            emit_bss(section);
             break;
-        case GDATA_DATA:
-            emit_data(gdata);
+        case GSECTION_DATA:
+            emit_data(section);
             break;
-        case GDATA_TEXT:
-            emit_text(gdata);
+        case GSECTION_TEXT:
+            emit_text(section);
             break;
         default:
             cc_assert(0);

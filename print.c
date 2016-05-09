@@ -579,11 +579,11 @@ void print_tac(struct tac *tac)
     putf("\n");
 }
 
-static void print_data(struct gdata *gdata)
+static void print_data(struct gsection *section)
 {
-    putln("%s:", gdata->label);
-    for (int i = 0; i < LIST_LEN(gdata->u.xvalues); i++) {
-        struct xvalue *value = gdata->u.xvalues[i];
+    putln("%s:", section->label);
+    for (int i = 0; i < LIST_LEN(section->u.xvalues); i++) {
+        struct xvalue *value = section->u.xvalues[i];
         switch (value->size) {
         case Zero:
             putln(".zero %s", value->name);
@@ -641,15 +641,15 @@ static void print_basic_block(struct basic_block *block)
     putf("\n");
 }
 
-static void print_bss(struct gdata *gdata)
+static void print_bss(struct gsection *section)
 {
     putln("%s,%llu,%d",
-          gdata->label, gdata->size, gdata->align);
+          section->label, section->size, section->align);
 }
 
-static void print_text(struct gdata *gdata)
+static void print_text(struct gsection *section)
 {
-    node_t *decl = gdata->u.decl;
+    node_t *decl = section->u.decl;
     putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
     for (struct basic_block *block = DECL_X_BASIC_BLOCK(decl);
          block; block = block->successors[0])
@@ -663,8 +663,8 @@ static void print_compounds(struct map *compounds)
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(keys, i);
-            struct gdata *gdata = map_get(compounds, label);
-            print_data(gdata);
+            struct gsection *section = map_get(compounds, label);
+            print_data(section);
         }
     }
 }
@@ -716,17 +716,17 @@ static void print_floats(struct map *floats)
 
 void print_ir(struct externals *exts)
 {
-    for (int i = 0; i < vec_len(exts->gdatas); i++) {
-        struct gdata *gdata = vec_at(exts->gdatas, i);
-        switch (gdata->id) {
-        case GDATA_TEXT:
-            print_text(gdata);
+    for (int i = 0; i < vec_len(exts->gsections); i++) {
+        struct gsection *section = vec_at(exts->gsections, i);
+        switch (section->id) {
+        case GSECTION_TEXT:
+            print_text(section);
             break;
-        case GDATA_DATA:
-            print_data(gdata);
+        case GSECTION_DATA:
+            print_data(section);
             break;
-        case GDATA_BSS:
-            print_bss(gdata);
+        case GSECTION_BSS:
+            print_bss(section);
             break;
         default:
             cc_assert(0);
