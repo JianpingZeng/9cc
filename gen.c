@@ -52,6 +52,7 @@ static void drain_regs(struct vector *regs);
 static void do_drain_reg(struct reg *reg, struct vector *excepts);
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
+static void alloc_reg(struct tac *tac);
 
 // Parameter Classification
 static int *no_class = (int *)1;
@@ -1352,7 +1353,7 @@ static void emit_bop_int(struct tac *tac, const char *op)
     emit_bop_arith(tac, op, false);
 }
 
-static void emit_bop_int_mul_div(struct tac *tac, const char *op)
+static void emit_int_mul_div(struct tac *tac, const char *op)
 {
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
@@ -1385,42 +1386,42 @@ static void emit_bop_int_mul_div(struct tac *tac, const char *op)
     }
 }
 
-static void emit_bop_int_imul(struct tac *tac)
+static void emit_int_imul(struct tac *tac)
 {
-    emit_bop_int_mul_div(tac, "imul");
+    emit_int_mul_div(tac, "imul");
     load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
-static void emit_bop_int_mul(struct tac *tac)
+static void emit_int_mul(struct tac *tac)
 {
-    emit_bop_int_imul(tac);
+    emit_int_imul(tac);
 }
 
-static void emit_bop_int_div(struct tac *tac)
+static void emit_int_div(struct tac *tac)
 {
-    emit_bop_int_mul_div(tac, "div");
+    emit_int_mul_div(tac, "div");
     load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
-static void emit_bop_int_idiv(struct tac *tac)
+static void emit_int_idiv(struct tac *tac)
 {
-    emit_bop_int_mul_div(tac, "idiv");
+    emit_int_mul_div(tac, "idiv");
     load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
-static void emit_bop_mod(struct tac *tac)
+static void emit_mod(struct tac *tac)
 {
-    emit_bop_int_mul_div(tac, "div");
+    emit_int_mul_div(tac, "div");
     load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
 }
 
-static void emit_bop_imod(struct tac *tac)
+static void emit_imod(struct tac *tac)
 {
-    emit_bop_int_mul_div(tac, "idiv");
+    emit_int_mul_div(tac, "idiv");
     load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
 }
 
-static void emit_bop_shift(struct tac *tac, const char *op)
+static void emit_shift(struct tac *tac, const char *op)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
@@ -1480,22 +1481,22 @@ static void emit_tac(struct tac *tac)
         emit_bop_int(tac, "sub");
         break;
     case IR_DIVI:
-        emit_bop_int_div(tac);
+        emit_int_div(tac);
         break;
     case IR_IDIVI:
-        emit_bop_int_idiv(tac);
+        emit_int_idiv(tac);
         break;
     case IR_MOD:
-        emit_bop_mod(tac);
+        emit_mod(tac);
         break;
     case IR_IMOD:
-        emit_bop_imod(tac);
+        emit_imod(tac);
         break;
     case IR_MULI:
-        emit_bop_int_mul(tac);
+        emit_int_mul(tac);
         break;
     case IR_IMULI:
-        emit_bop_int_imul(tac);
+        emit_int_imul(tac);
         break;
     case IR_OR:
         emit_bop_int(tac, "or");
@@ -1508,13 +1509,13 @@ static void emit_tac(struct tac *tac)
         break;
     case IR_LSHIFT:
     case IR_ILSHIFT:
-        emit_bop_shift(tac, "shl");
+        emit_shift(tac, "shl");
         break;
     case IR_RSHIFT:
-        emit_bop_shift(tac, "shr");
+        emit_shift(tac, "shr");
         break;
     case IR_IRSHIFT:
-        emit_bop_shift(tac, "sar");
+        emit_shift(tac, "sar");
         break;
     case IR_ADDF:
         emit_bop_float(tac, "add");
@@ -1610,6 +1611,7 @@ static void emit_basic_blocks(struct basic_block *start)
         for (struct tac *tac = block->head; tac; tac = tac->next) {
             // set current tac
             fcon.current_tac = tac;
+            alloc_reg(tac);
             emit_tac(tac);
         }
     }
@@ -2305,6 +2307,211 @@ static void drain_regs(struct vector *regs)
 static void drain_reg(struct reg *reg)
 {
     do_drain_reg(reg, vec_new1(reg));
+}
+
+static void alloc_reg_if(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_return(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_bop_int(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_int_div(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_int_idiv(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_mod(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_imod(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_int_mul(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_int_imul(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_shift(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_bop_float(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_uop_not(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_uop_minus_i(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_uop_minus_f(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_uop_address(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_assign(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_call(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_conv_i2i(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_conv_i2f(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_conv_f2i(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_conv_f2f(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg(struct tac *tac)
+{
+    switch (tac->op) {
+    case IR_LABEL:
+    case IR_GOTO:
+        // do nothing
+        break;
+    case IR_IF_I:
+    case IR_IF_F:
+    case IR_IF_FALSE_I:
+    case IR_IF_FALSE_F:
+        alloc_reg_if(tac);
+        break;
+    case IR_RETURNI:
+    case IR_RETURNF:
+        alloc_reg_return(tac);
+        break;
+        // bop
+    case IR_ADDI:
+    case IR_SUBI:
+    case IR_OR:
+    case IR_AND:
+    case IR_XOR:
+        alloc_reg_bop_int(tac);
+        break;
+    case IR_DIVI:
+        alloc_reg_int_div(tac);
+        break;
+    case IR_IDIVI:
+        alloc_reg_int_idiv(tac);
+        break;
+    case IR_MOD:
+        alloc_reg_mod(tac);
+        break;
+    case IR_IMOD:
+        alloc_reg_imod(tac);
+        break;
+    case IR_MULI:
+        alloc_reg_int_mul(tac);
+        break;
+    case IR_IMULI:
+        alloc_reg_int_imul(tac);
+        break;
+    case IR_LSHIFT:
+    case IR_ILSHIFT:
+    case IR_RSHIFT:
+    case IR_IRSHIFT:
+        alloc_reg_shift(tac);
+        break;
+    case IR_ADDF:
+    case IR_SUBF:
+    case IR_DIVF:
+    case IR_MULF:
+        alloc_reg_bop_float(tac);
+        break;
+        // uop
+    case IR_NOT:
+        alloc_reg_uop_not(tac);
+        break;
+    case IR_MINUSI:
+        alloc_reg_uop_minus_i(tac);
+        break;
+    case IR_MINUSF:
+        alloc_reg_uop_minus_f(tac);
+        break;
+    case IR_ADDRESS:
+        alloc_reg_uop_address(tac);
+        break;
+    case IR_ASSIGNI:
+    case IR_ASSIGNF:
+        alloc_reg_assign(tac);
+        break;
+    case IR_CALL:
+        alloc_reg_call(tac);
+        break;
+    case IR_CONV_UI_UI:
+    case IR_CONV_UI_SI:
+    case IR_CONV_SI_UI:
+    case IR_CONV_SI_SI:
+        alloc_reg_conv_i2i(tac);
+        break;
+    case IR_CONV_SI_F:
+    case IR_CONV_UI_F:
+        alloc_reg_conv_i2f(tac);
+        break;
+    case IR_CONV_F_SI:
+    case IR_CONV_F_UI:
+        alloc_reg_conv_f2i(tac);
+        break;
+    case IR_CONV_FF:
+        alloc_reg_conv_f2f(tac);
+        break;
+    case IR_NONE:
+    case IR_PARAM:
+    default:
+        // skip
+        break;
+    }
 }
 
 ///
