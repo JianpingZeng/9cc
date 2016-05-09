@@ -155,6 +155,7 @@ struct tac {
     int to_opsize:6;
     int sign:1;
     struct operand *operands[3];
+    struct uses uses[6];
     struct tac *next, *prev;
     node_t *call;               // funcall expr
 };
