@@ -70,19 +70,19 @@ struct pinfo {
 static void drain_reg(struct reg *reg);
 static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params);
 static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params);
-static struct uses * get_uses(node_t *sym, struct tac *tac);
-#define get_current_uses(sym)  get_uses(sym, current_tac)
 
 #define COMMENT(str)    "\t\t## " str
 
 static FILE *outfp;
-static const char *func_end_label;
-static size_t func_returns;
-static long calls_return_loff;
-static struct pinfo *func_pinfo;
-static struct map *next_info;
-static struct tac *current_tac;
-static node_t *current_ftype;
+// function context
+static struct {
+    const char *end_label;
+    size_t returns;
+    long calls_return_loff;
+    struct pinfo *pinfo;
+    struct tac *current_tac;
+    node_t *current_ftype;
+} fcon;
 
 static void emit(const char *fmt, ...)
 {
@@ -394,11 +394,11 @@ static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts
         struct reg *reg = vec_at(candicates, i);
         for (int j = 0; j < vec_len(reg->vars); j++) {
             struct rvar *v = vec_at(reg->vars, j);
-            struct uses *uses = get_current_uses(v->sym);
+            struct uses uses = SYM_X_USES(v->sym);
             if (SYM_X_INMEM(v->sym)) {
                 // ok
-            } else if (uses->live == false &&
-                       !is_in_tac(v->sym, current_tac)) {
+            } else if (uses.live == false &&
+                       !is_in_tac(v->sym, fcon.current_tac)) {
                 // ok
             } else if (SYM_X_KIND(v->sym) == SYM_KIND_TMP) {
                 // if contains a live tmp symbol, skip the whole reg
@@ -464,7 +464,7 @@ static void do_drain_reg(struct reg *reg, struct vector *excepts)
         int i = idx[v->size];
         // always clear
         SYM_X_REG(sym) = NULL;
-        struct uses *uses = get_current_uses(sym);
+        struct uses uses = SYM_X_USES(sym);
 
         switch (SYM_X_KIND(sym)) {
         case SYM_KIND_GREF:
@@ -482,7 +482,7 @@ static void do_drain_reg(struct reg *reg, struct vector *excepts)
             }
             break;
         case SYM_KIND_TMP:
-            if (is_in_tac(sym, current_tac) || uses->live) {
+            if (is_in_tac(sym, fcon.current_tac) || uses.live) {
                 // sticky
                 if (!new_reg) {
                     const char **suffix;
@@ -784,7 +784,7 @@ static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct oper
     if (retaddr->kind == ADDR_STACK) {
         // memory
         // rax contains the address
-        SYM_X_LOFF(result->sym) = calls_return_loff;
+        SYM_X_LOFF(result->sym) = fcon.calls_return_loff;
         SYM_X_KIND(result->sym) = SYM_KIND_LREF;
         load(int_regs[RAX], result->sym, Quad);
     } else if (retaddr->kind == ADDR_REGISTER) {
@@ -806,21 +806,21 @@ static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct oper
                             int opsize = size == 1 ? Byte : Word;
                             int i = idx[opsize];
                             emit("mov%s %s, %ld(%s)",
-                                 suffixi[i], reg->r[i], loff + calls_return_loff, rbp->r[Q]);
+                                 suffixi[i], reg->r[i], loff + fcon.calls_return_loff, rbp->r[Q]);
                         }
                         break;
                     case 3:
                         {
                             emit("movw %s, %ld(%s)",
-                                 reg->r[W], loff + calls_return_loff, rbp->r[Q]);
+                                 reg->r[W], loff + fcon.calls_return_loff, rbp->r[Q]);
                             emit("shrl $16, %s", reg->r[L]);
                             emit("movb %s, %ld(%s)",
-                                 reg->r[B], loff + calls_return_loff + 2, rbp->r[Q]);
+                                 reg->r[B], loff + fcon.calls_return_loff + 2, rbp->r[Q]);
                         }
                         break;
                     case 4:
                         emit("movl %s, %ld(%s)",
-                             reg->r[L], loff + calls_return_loff, rbp->r[Q]);
+                             reg->r[L], loff + fcon.calls_return_loff, rbp->r[Q]);
                         break;
                     case 5:
                     case 6:
@@ -828,46 +828,46 @@ static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct oper
                             int opsize = size == 5 ? Byte : Word;
                             int i = idx[opsize];
                             emit("movl %s, %ld(%s)",
-                                 reg->r[L], loff + calls_return_loff, rbp->r[Q]);
+                                 reg->r[L], loff + fcon.calls_return_loff, rbp->r[Q]);
                             emit("shrq $32, %s", reg->r[Q]);
                             emit("mov%s %s, %ld(%s)",
-                                 suffixi[i], reg->r[i], loff + calls_return_loff + 4, rbp->r[Q]);
+                                 suffixi[i], reg->r[i], loff + fcon.calls_return_loff + 4, rbp->r[Q]);
                         }
                         break;
                     case 7:
                         {
                             emit("movl %s, %ld(%s)",
-                                 reg->r[L], loff + calls_return_loff, rbp->r[Q]);
+                                 reg->r[L], loff + fcon.calls_return_loff, rbp->r[Q]);
                             emit("shrq $32, %s", reg->r[Q]);
                             emit("movw %s, %ld(%s)",
-                                 reg->r[W], loff + calls_return_loff + 4, rbp->r[Q]);
+                                 reg->r[W], loff + fcon.calls_return_loff + 4, rbp->r[Q]);
                             emit("shrl $16, %s", reg->r[L]);
                             emit("movb %s, %ld(%s)",
-                                 reg->r[B], loff + calls_return_loff + 6, rbp->r[Q]);
+                                 reg->r[B], loff + fcon.calls_return_loff + 6, rbp->r[Q]);
                         }
                         break;
                         // >= 8
                     default:
                         emit("movq %s, %ld(%s)",
-                             reg->r[Q], loff + calls_return_loff, rbp->r[Q]);
+                             reg->r[Q], loff + fcon.calls_return_loff, rbp->r[Q]);
                         break;
                     }
                     break;
                 case REG_SSE_F:
                     emit("movss %s, %ld(%s)",
-                         reg->r[Q], loff + calls_return_loff, rbp->r[Q]);
+                         reg->r[Q], loff + fcon.calls_return_loff, rbp->r[Q]);
                     break;
                 case REG_SSE_D:
                     emit("movsd %s, %ld(%s)",
-                         reg->r[Q], loff + calls_return_loff, rbp->r[Q]);
+                         reg->r[Q], loff + fcon.calls_return_loff, rbp->r[Q]);
                     break;
                 case REG_SSE_FF:
                     emit("movlps %s, %ld(%s)",
-                         reg->r[Q], loff + calls_return_loff, rbp->r[Q]);
+                         reg->r[Q], loff + fcon.calls_return_loff, rbp->r[Q]);
                     break;
                 }
             }
-            SYM_X_LOFF(result->sym) = calls_return_loff;
+            SYM_X_LOFF(result->sym) = fcon.calls_return_loff;
             SYM_X_KIND(result->sym) = SYM_KIND_LREF;
         } else {
             // scalar
@@ -896,7 +896,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
     }
 
     // TODO: reset current tac here to make next uses live for params
-    current_tac = t;
+    fcon.current_tac = t;
     
     // emit args
     struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
@@ -906,7 +906,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
         struct pnode *pnode = vec_at(pinfo->pnodes, i);
         if (i == 0 && pinfo->retaddr && pinfo->retaddr->kind == ADDR_STACK) {
             struct reg *reg = iarg_regs[0];
-            emit("leaq %ld(%s), %s", calls_return_loff, rbp->r[Q], reg->r[Q]);
+            emit("leaq %ld(%s), %s", fcon.calls_return_loff, rbp->r[Q], reg->r[Q]);
             sub = 1;
         } else {
             struct tac *param = vec_at(params, i - sub);
@@ -946,7 +946,7 @@ static void emit_builtin_va_start(struct tac *tac)
     node_t *call = tac->call;
     node_t **args = EXPR_ARGS(call);
     struct operand *l = EXPR_X_ADDR(args[0]);
-    struct pinfo *pinfo = func_pinfo;
+    struct pinfo *pinfo = fcon.pinfo;
     unsigned int gp_offset = pinfo->gp << 3;
     unsigned int fp_offset = 48 + (pinfo->fp << 4);
     long overflow_arg_area = STACK_PARAM_BASE_OFF;
@@ -1168,7 +1168,7 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
     // by memory
     // copy l to the address pointed by the implicit first argument
     // rax will contain the address that has passed in by caller in rdi.
-    struct pnode *pnode = vec_head(func_pinfo->pnodes);
+    struct pnode *pnode = vec_head(fcon.pinfo->pnodes);
     node_t *sym = pnode->param;
     struct reg *rax = int_regs[RAX];
 
@@ -1203,7 +1203,7 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
 static void emit_return_by_registers_scalar(struct operand *l, struct paddr *retaddr)
 {
     // scalar
-    node_t *rtype = rtype(current_ftype);
+    node_t *rtype = rtype(fcon.current_ftype);
     struct reg *reg = retaddr->u.regs[0].reg;
     // drain reg
     drain_reg(reg);
@@ -1337,14 +1337,14 @@ static void emit_return(struct tac *tac)
     struct operand *l = tac->operands[1];
     // non-void return
     if (l) {
-        struct paddr *retaddr = func_pinfo->retaddr;
+        struct paddr *retaddr = fcon.pinfo->retaddr;
         if (retaddr->kind == ADDR_STACK) {
             emit_return_by_stack(l, retaddr);
         } else if (retaddr->kind == ADDR_REGISTER) {
             // by register
             // integer registers: rax, rdx
             // sse registers: xmm0, xmm1
-            node_t *rtype = rtype(current_ftype);
+            node_t *rtype = rtype(fcon.current_ftype);
             if (isstruct(rtype) || isunion(rtype))
                 emit_return_by_registers_record(l, retaddr);
             else
@@ -1353,8 +1353,8 @@ static void emit_return(struct tac *tac)
     }
     // if it's the last tac, don't emit a jump
     if (tac->next) {
-        emit("jmp %s", func_end_label);
-        func_returns++;
+        emit("jmp %s", fcon.end_label);
+        fcon.returns++;
     }
 }
 
@@ -1844,92 +1844,8 @@ static void emit_tacs(struct tac *head)
 {
     for (struct tac *tac = head; tac; tac = tac->next) {
         // set current tac
-        current_tac = tac;
+        fcon.current_tac = tac;
         emit_tac(tac);
-    }
-}
-
-static void mark_die(node_t *sym)
-{
-    int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_GREF ||
-        kind == SYM_KIND_LREF ||
-        kind == SYM_KIND_TMP) {
-        SYM_X_USES(sym).live = false;
-        SYM_X_USES(sym).next = NULL;
-    }
-}
-
-static void mark_live(node_t *sym, struct tac *tac)
-{
-    int kind = SYM_X_KIND(sym);
-    if (kind == SYM_KIND_GREF ||
-        kind == SYM_KIND_LREF ||
-        kind == SYM_KIND_TMP) {
-        SYM_X_USES(sym).live = true;
-        SYM_X_USES(sym).next = tac;
-    }
-}
-
-static struct uses * get_uses(node_t *sym, struct tac *tac)
-{
-    struct map *tuple = map_get(next_info, sym);
-    cc_assert(tuple);
-    struct uses *uses = map_get(tuple, tac);
-    cc_assert(uses);
-    return uses;
-}
-
-// TODO: very slow
-static void scan_uses(struct tac *tail)
-{
-    struct vector *keys = map_keys(next_info);
-    for (struct tac *tac = tail; tac; tac = tac->prev) {
-        // set
-        for (int i = 0; i < vec_len(keys); i++) {
-            node_t *sym = vec_at(keys, i);
-            struct map *tuple = map_get(next_info, sym);
-            struct uses *uses = map_get(tuple, tac);
-            *uses = SYM_X_USES(sym);
-        }
-        
-        // mark
-        for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
-            struct operand *operand = tac->operands[i];
-            if (operand) {
-                if (i == 0) {
-                    switch (operand->op) {
-                    case IR_NONE:
-                        if (operand->sym)
-                            mark_die(operand->sym);
-                        break;
-                    case IR_SUBSCRIPT:
-                    case IR_INDIRECTION:
-                        if (operand->sym)
-                            mark_live(operand->sym, tac);
-                        if (operand->index)
-                            mark_live(operand->index, tac);
-                        break;
-                    }
-                } else {
-                    if (operand->sym)
-                        mark_live(operand->sym, tac);
-                    if (operand->index)
-                        mark_live(operand->index, tac);
-                }
-            }
-        }
-    }
-}
-
-static void init_sym_uses(node_t *sym)
-{
-    mark_die(sym);
-    struct map *tuple = map_get(next_info, sym);
-    if (!tuple) {
-        tuple = map_new();
-        tuple->cmpfn = nocmp;
-        map_put(next_info, sym, tuple);
     }
 }
 
@@ -1946,28 +1862,352 @@ static void init_tacs(struct tac *head)
         for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
             struct operand *operand = tac->operands[i];
             if (operand) {
-                if (operand->sym) {
+                if (operand->sym)
                     init_sym_addrs(operand->sym);
-                    init_sym_uses(operand->sym);
-                }
-                if (operand->index) {
+                if (operand->index)
                     init_sym_addrs(operand->index);
-                    init_sym_uses(operand->index);
+            }
+        }
+    }
+}
+
+static size_t call_returns_size(node_t *decl)
+{
+    size_t extra_stack_size = 0;
+    node_t **calls = DECL_X_CALLS(decl);
+    for (int i = 0; i < LIST_LEN(calls); i++) {
+        node_t *call = calls[i];
+        node_t *rty = AST_TYPE(call);
+        if (isrecord(rty))
+            extra_stack_size = MAX(extra_stack_size, TYPE_SIZE(rty));
+    }
+    return extra_stack_size;
+}
+
+static size_t call_params_size(node_t *decl)
+{
+    size_t extra_stack_size = 0;
+    node_t **calls = DECL_X_CALLS(decl);
+    for (int i = 0; i < LIST_LEN(calls); i++) {
+        node_t *call = calls[i];
+        node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
+        struct pinfo *pinfo = alloc_addr_for_funcall(ftype, EXPR_ARGS(call));
+        extra_stack_size = MAX(extra_stack_size, pinfo->size);
+    }
+    return extra_stack_size;
+}
+
+static void emit_register_save_area(void)
+{
+    long offset = -REGISTER_SAVE_AREA_SIZE;
+    for (int i = 0; i < ARRAY_SIZE(iarg_regs); i++, offset += 8) {
+        struct reg *r = iarg_regs[i];
+        emit("movq %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
+    }
+    const char *label = gen_label();
+    emit("testb %%al, %%al");
+    emit("je %s", label);
+    for (int i = 0; i < ARRAY_SIZE(farg_regs); i++, offset += 16) {
+        struct reg *r = farg_regs[i];
+        emit("movaps %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
+    }
+    emit_noindent("%s:", label);
+    cc_assert(offset == 0);
+}
+
+static long get_reg_offset(struct reg *reg)
+{
+    for (int i = 0; i < ARRAY_SIZE(iarg_regs); i++) {
+        struct reg *ireg = iarg_regs[i];
+        if (reg == ireg)
+            return -176 + (i << 3);
+    }
+    for (int i = 0; i < ARRAY_SIZE(farg_regs); i++) {
+        struct reg *freg = farg_regs[i];
+        if (reg == freg)
+            return -128 + (i << 4);
+    }
+    cc_assert(0);
+}
+
+static void emit_register_params(node_t *decl)
+{
+    for (int i = 0; i < vec_len(fcon.pinfo->pnodes); i++) {
+        struct pnode *pnode = vec_at(fcon.pinfo->pnodes, i);
+        node_t *sym = pnode->param;
+        struct paddr *paddr = pnode->paddr;
+        if (paddr->kind == ADDR_REGISTER) {
+            long loff = SYM_X_LOFF(sym);
+            size_t size = paddr->size;
+            int cnt = ROUNDUP(paddr->size, 8) >> 3;
+            for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
+                int type = paddr->u.regs[i].type;
+                struct reg *reg = paddr->u.regs[i].reg;
+                switch (type) {
+                case REG_INT:
+                    if (size > 4)
+                        emit("movq %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
+                    else if (size > 2)
+                        emit("movl %s, %ld(%s)", reg->r[L], loff, rbp->r[Q]);
+                    else if (size == 2)
+                        emit("movw %s, %ld(%s)", reg->r[W], loff, rbp->r[Q]);
+                    else if (size == 1)
+                        emit("movb %s, %ld(%s)", reg->r[B], loff, rbp->r[Q]);
+                    else
+                        cc_assert(0);
+                    break;
+                case REG_SSE_F:
+                    emit("movss %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
+                    break;
+                case REG_SSE_D:
+                    emit("movsd %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
+                    break;
+                case REG_SSE_FF:
+                    emit("movlps %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
+                    break;
                 }
             }
         }
     }
-    struct vector *keys = map_keys(next_info);
-    for (int i = 0; i < vec_len(keys); i++) {
-        const void *key = vec_at(keys, i);
-        struct map *tuple = map_get(next_info, key);
-        if (tuple) {
-            for (struct tac *tac = head; tac; tac = tac->next) {
-                struct uses *uses = zmalloc(sizeof(struct uses));
-                map_put(tuple, tac, uses);
+}
+
+static void emit_function_prologue(struct gdata *gdata)
+{
+    node_t *decl = gdata->u.decl;
+    node_t *fsym = DECL_SYM(decl);
+    node_t *ftype = SYM_TYPE(fsym);
+    
+    if (gdata->global)
+        emit(".globl %s", gdata->label);
+    emit(".text");
+    emit_noindent("%s:", gdata->label);
+    emit("pushq %s", rbp->r[Q]);
+    emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
+
+    size_t localsize = 0;
+
+    // register save area
+    if (TYPE_VARG(ftype))
+        localsize += REGISTER_SAVE_AREA_SIZE;
+    
+    // local vars
+    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(decl)); i++) {
+        node_t *lvar = DECL_X_LVARS(decl)[i];
+        node_t *sym = DECL_SYM(lvar);
+        node_t *ty = SYM_TYPE(sym);
+        size_t size = TYPE_SIZE(ty);
+        localsize = ROUNDUP(localsize + size, 4);
+        SYM_X_LOFF(sym) = -localsize;
+    }
+
+    // params
+    node_t **params = TYPE_PARAMS(ftype);
+    fcon.pinfo = alloc_addr_for_funcdef(ftype, params);
+    for (int i = 0; i < vec_len(fcon.pinfo->pnodes); i++) {
+        struct pnode *pnode = vec_at(fcon.pinfo->pnodes, i);
+        node_t *sym = pnode->param;
+        struct paddr *paddr = pnode->paddr;
+        node_t *ty = SYM_TYPE(sym);
+        size_t size = TYPE_SIZE(ty);
+        if (paddr->kind == ADDR_REGISTER) {
+            if (TYPE_VARG(ftype)) {
+                long offset = get_reg_offset(paddr->u.regs[0].reg);
+                SYM_X_LOFF(sym) = offset;
+            } else {
+                localsize = ROUNDUP(localsize + size, 4);
+                SYM_X_LOFF(sym) = -localsize;
+            }
+        } else if (paddr->kind == ADDR_STACK) {
+            SYM_X_LOFF(sym) = paddr->u.offset + STACK_PARAM_BASE_OFF;
+        } else {
+            die("unexpected paddr type: %d", paddr->kind);
+        }
+    }
+
+    // call returns
+    size_t returns_size = call_returns_size(decl);
+    if (returns_size) {
+        // rounded by 8 bytes. (see emit_return)
+        localsize = ROUNDUP(localsize + returns_size, 8);
+        fcon.calls_return_loff = -localsize;
+    }
+    
+    // call params
+    localsize += call_params_size(decl);
+    localsize = ROUNDUP(localsize, 16);
+    
+    if (localsize > 0)
+        emit("subq $%llu, %s", localsize, rsp->r[Q]);
+}
+
+static void emit_text(struct gdata *gdata)
+{
+    node_t *decl = gdata->u.decl;
+    node_t *fsym = DECL_SYM(decl);
+    node_t *ftype = SYM_TYPE(fsym);
+
+    reset_regs();
+    // reset func context
+    fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
+    fcon.returns = 0;
+    fcon.calls_return_loff = 0;
+    fcon.pinfo = NULL;
+    fcon.current_ftype = ftype;
+
+    emit_function_prologue(gdata);
+    if (TYPE_VARG(ftype))
+        emit_register_save_area();
+    else
+        emit_register_params(decl);
+    init_tacs(DECL_X_HEAD(decl));
+    emit_tacs(DECL_X_HEAD(decl));
+    // function epilogue
+    if (fcon.returns)
+        emit_noindent("%s:", fcon.end_label);
+    /*
+      leave instruction
+
+      move rbp to rsp
+      pop rbp
+    */
+    emit("leave");
+    emit("ret");
+}
+
+static void emit_data(struct gdata *gdata)
+{
+    if (gdata->global)
+        emit(".globl %s", gdata->label);
+    emit(".data");
+    if (gdata->align > 1)
+        emit(".align %d", gdata->align);
+    emit_noindent("%s:", gdata->label);
+    for (int i = 0; i < LIST_LEN(gdata->u.xvalues); i++) {
+        struct xvalue *value = gdata->u.xvalues[i];
+        switch (value->size) {
+        case Zero:
+            emit(".zero %s", value->name);
+            break;
+        case Byte:
+            emit(".byte %s", value->name);
+            break;
+        case Word:
+            emit(".short %s", value->name);
+            break;
+        case Long:
+            emit(".long %s", value->name);
+            break;
+        case Quad:
+            emit(".quad %s", value->name);
+            break;
+        default:
+            die("unknown size");
+            break;
+        }
+    }
+}
+
+static void emit_bss(struct gdata *gdata)
+{
+    if (!gdata->global)
+        emit(".local %s", gdata->label);
+    emit(".comm %s,%llu,%d",
+         gdata->label,
+         gdata->size,
+         gdata->align);
+}
+
+static void emit_compounds(struct map *compounds)
+{
+    struct vector *keys = map_keys(compounds);
+    if (vec_len(keys)) {
+        for (int i = 0; i < vec_len(keys); i++) {
+            const char *label = vec_at(keys, i);
+            struct gdata *gdata = map_get(compounds, label);
+            emit_data(gdata);
+        }
+    }
+}
+
+static void emit_strings(struct map *strings)
+{
+    struct vector *keys = map_keys(strings);
+    if (vec_len(keys)) {
+        emit(".section .rodata");
+        for (int i = 0; i < vec_len(keys); i++) {
+            const char *name = vec_at(keys, i);
+            const char *label = map_get(strings, name);
+            emit_noindent("%s:", label);
+            emit(".asciz %s", name);
+        }
+    }
+}
+
+static void emit_floats(struct map *floats)
+{
+    struct vector *keys = map_keys(floats);
+    if (vec_len(keys)) {
+        emit(".section .rodata");
+        for (int i = 0; i < vec_len(keys); i++) {
+            const char *name = vec_at(keys, i);
+            const char *label = map_get(floats, name);
+            node_t *sym = lookup(name, constants);
+            cc_assert(sym);
+            node_t *ty = SYM_TYPE(sym);
+            emit(".align %d", TYPE_ALIGN(ty));
+            emit_noindent("%s:", label);
+            switch (TYPE_KIND(ty)) {
+            case FLOAT:
+                {
+                    float f = SYM_VALUE_D(sym);
+                    emit(".long %u", *(uint32_t *)&f);
+                }
+                break;
+            case DOUBLE:
+            case LONG+DOUBLE:
+                {
+                    double d = SYM_VALUE_D(sym);
+                    emit(".quad %llu", *(uint64_t *)&d);
+                }
+                break;
+            default:
+                cc_assert(0);
             }
         }
     }
+}
+
+static void gen_init(FILE *fp)
+{
+    outfp = fp;
+    init_regs();
+}
+
+void gen(struct externals *exts, FILE * fp)
+{
+    cc_assert(errors == 0 && fp);
+    
+    gen_init(fp);
+    for (int i = 0; i < vec_len(exts->gdatas); i++) {
+        struct gdata *gdata = vec_at(exts->gdatas, i);
+        switch (gdata->id) {
+        case GDATA_BSS:
+            emit_bss(gdata);
+            break;
+        case GDATA_DATA:
+            emit_data(gdata);
+            break;
+        case GDATA_TEXT:
+            emit_text(gdata);
+            break;
+        default:
+            cc_assert(0);
+        }
+    }
+    emit_compounds(exts->compounds);
+    emit_strings(exts->strings);
+    emit_floats(exts->floats);
+    emit(".ident \"mcc: %d.%d\"", MAJOR(version), MINOR(version));
 }
 
 // Parameter classification
@@ -2356,346 +2596,4 @@ static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params)
 static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params)
 {
     return alloc_addr_for_params(ftype, params, false);
-}
-
-static size_t call_returns_size(node_t *decl)
-{
-    size_t extra_stack_size = 0;
-    node_t **calls = DECL_X_CALLS(decl);
-    for (int i = 0; i < LIST_LEN(calls); i++) {
-        node_t *call = calls[i];
-        node_t *rty = AST_TYPE(call);
-        if (isrecord(rty))
-            extra_stack_size = MAX(extra_stack_size, TYPE_SIZE(rty));
-    }
-    return extra_stack_size;
-}
-
-static size_t call_params_size(node_t *decl)
-{
-    size_t extra_stack_size = 0;
-    node_t **calls = DECL_X_CALLS(decl);
-    for (int i = 0; i < LIST_LEN(calls); i++) {
-        node_t *call = calls[i];
-        node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
-        struct pinfo *pinfo = alloc_addr_for_funcall(ftype, EXPR_ARGS(call));
-        extra_stack_size = MAX(extra_stack_size, pinfo->size);
-    }
-    return extra_stack_size;
-}
-
-static void emit_register_save_area(void)
-{
-    long offset = -REGISTER_SAVE_AREA_SIZE;
-    for (int i = 0; i < ARRAY_SIZE(iarg_regs); i++, offset += 8) {
-        struct reg *r = iarg_regs[i];
-        emit("movq %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
-    }
-    const char *label = gen_label();
-    emit("testb %%al, %%al");
-    emit("je %s", label);
-    for (int i = 0; i < ARRAY_SIZE(farg_regs); i++, offset += 16) {
-        struct reg *r = farg_regs[i];
-        emit("movaps %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
-    }
-    emit_noindent("%s:", label);
-    cc_assert(offset == 0);
-}
-
-static long get_reg_offset(struct reg *reg)
-{
-    for (int i = 0; i < ARRAY_SIZE(iarg_regs); i++) {
-        struct reg *ireg = iarg_regs[i];
-        if (reg == ireg)
-            return -176 + (i << 3);
-    }
-    for (int i = 0; i < ARRAY_SIZE(farg_regs); i++) {
-        struct reg *freg = farg_regs[i];
-        if (reg == freg)
-            return -128 + (i << 4);
-    }
-    cc_assert(0);
-}
-
-static void emit_register_params(node_t *decl)
-{
-    for (int i = 0; i < vec_len(func_pinfo->pnodes); i++) {
-        struct pnode *pnode = vec_at(func_pinfo->pnodes, i);
-        node_t *sym = pnode->param;
-        struct paddr *paddr = pnode->paddr;
-        if (paddr->kind == ADDR_REGISTER) {
-            long loff = SYM_X_LOFF(sym);
-            size_t size = paddr->size;
-            int cnt = ROUNDUP(paddr->size, 8) >> 3;
-            for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
-                int type = paddr->u.regs[i].type;
-                struct reg *reg = paddr->u.regs[i].reg;
-                switch (type) {
-                case REG_INT:
-                    if (size > 4)
-                        emit("movq %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
-                    else if (size > 2)
-                        emit("movl %s, %ld(%s)", reg->r[L], loff, rbp->r[Q]);
-                    else if (size == 2)
-                        emit("movw %s, %ld(%s)", reg->r[W], loff, rbp->r[Q]);
-                    else if (size == 1)
-                        emit("movb %s, %ld(%s)", reg->r[B], loff, rbp->r[Q]);
-                    else
-                        cc_assert(0);
-                    break;
-                case REG_SSE_F:
-                    emit("movss %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
-                    break;
-                case REG_SSE_D:
-                    emit("movsd %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
-                    break;
-                case REG_SSE_FF:
-                    emit("movlps %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
-                    break;
-                }
-            }
-        }
-    }
-}
-
-static void emit_function_prologue(struct gdata *gdata)
-{
-    node_t *decl = gdata->u.decl;
-    node_t *fsym = DECL_SYM(decl);
-    node_t *ftype = SYM_TYPE(fsym);
-    
-    if (gdata->global)
-        emit(".globl %s", gdata->label);
-    emit(".text");
-    emit_noindent("%s:", gdata->label);
-    emit("pushq %s", rbp->r[Q]);
-    emit("movq %s, %s", rsp->r[Q], rbp->r[Q]);
-
-    size_t localsize = 0;
-
-    // register save area
-    if (TYPE_VARG(ftype))
-        localsize += REGISTER_SAVE_AREA_SIZE;
-    
-    // local vars
-    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(decl)); i++) {
-        node_t *lvar = DECL_X_LVARS(decl)[i];
-        node_t *sym = DECL_SYM(lvar);
-        node_t *ty = SYM_TYPE(sym);
-        size_t size = TYPE_SIZE(ty);
-        localsize = ROUNDUP(localsize + size, 4);
-        SYM_X_LOFF(sym) = -localsize;
-    }
-
-    // params
-    node_t **params = TYPE_PARAMS(ftype);
-    func_pinfo = alloc_addr_for_funcdef(ftype, params);
-    for (int i = 0; i < vec_len(func_pinfo->pnodes); i++) {
-        struct pnode *pnode = vec_at(func_pinfo->pnodes, i);
-        node_t *sym = pnode->param;
-        struct paddr *paddr = pnode->paddr;
-        node_t *ty = SYM_TYPE(sym);
-        size_t size = TYPE_SIZE(ty);
-        if (paddr->kind == ADDR_REGISTER) {
-            if (TYPE_VARG(ftype)) {
-                long offset = get_reg_offset(paddr->u.regs[0].reg);
-                SYM_X_LOFF(sym) = offset;
-            } else {
-                localsize = ROUNDUP(localsize + size, 4);
-                SYM_X_LOFF(sym) = -localsize;
-            }
-        } else if (paddr->kind == ADDR_STACK) {
-            SYM_X_LOFF(sym) = paddr->u.offset + STACK_PARAM_BASE_OFF;
-        } else {
-            die("unexpected paddr type: %d", paddr->kind);
-        }
-    }
-
-    // call returns
-    size_t returns_size = call_returns_size(decl);
-    if (returns_size) {
-        // rounded by 8 bytes. (see emit_return)
-        localsize = ROUNDUP(localsize + returns_size, 8);
-        calls_return_loff = -localsize;
-    }
-    
-    // call params
-    localsize += call_params_size(decl);
-    localsize = ROUNDUP(localsize, 16);
-    
-    if (localsize > 0)
-        emit("subq $%llu, %s", localsize, rsp->r[Q]);
-}
-
-static void emit_text(struct gdata *gdata)
-{
-    node_t *decl = gdata->u.decl;
-    node_t *fsym = DECL_SYM(decl);
-    node_t *ftype = SYM_TYPE(fsym);
-
-    // reset func context
-    func_end_label = STMT_X_NEXT(DECL_BODY(decl));
-    func_returns = 0;
-    next_info = map_new();
-    next_info->cmpfn = nocmp;
-    reset_regs();
-    calls_return_loff = 0;
-    func_pinfo = NULL;
-    current_ftype = ftype;
-
-    emit_function_prologue(gdata);
-    if (TYPE_VARG(ftype))
-        emit_register_save_area();
-    else
-        emit_register_params(decl);
-    init_tacs(DECL_X_HEAD(decl));
-    scan_uses(DECL_X_TAIL(decl));
-    emit_tacs(DECL_X_HEAD(decl));
-    // function epilogue
-    if (func_returns)
-        emit_noindent("%s:", func_end_label);
-    /*
-      leave instruction
-
-      move rbp to rsp
-      pop rbp
-    */
-    emit("leave");
-    emit("ret");
-}
-
-static void emit_data(struct gdata *gdata)
-{
-    if (gdata->global)
-        emit(".globl %s", gdata->label);
-    emit(".data");
-    if (gdata->align > 1)
-        emit(".align %d", gdata->align);
-    emit_noindent("%s:", gdata->label);
-    for (int i = 0; i < LIST_LEN(gdata->u.xvalues); i++) {
-        struct xvalue *value = gdata->u.xvalues[i];
-        switch (value->size) {
-        case Zero:
-            emit(".zero %s", value->name);
-            break;
-        case Byte:
-            emit(".byte %s", value->name);
-            break;
-        case Word:
-            emit(".short %s", value->name);
-            break;
-        case Long:
-            emit(".long %s", value->name);
-            break;
-        case Quad:
-            emit(".quad %s", value->name);
-            break;
-        default:
-            die("unknown size");
-            break;
-        }
-    }
-}
-
-static void emit_bss(struct gdata *gdata)
-{
-    if (!gdata->global)
-        emit(".local %s", gdata->label);
-    emit(".comm %s,%llu,%d",
-         gdata->label,
-         gdata->size,
-         gdata->align);
-}
-
-static void emit_compounds(struct map *compounds)
-{
-    struct vector *keys = map_keys(compounds);
-    if (vec_len(keys)) {
-        for (int i = 0; i < vec_len(keys); i++) {
-            const char *label = vec_at(keys, i);
-            struct gdata *gdata = map_get(compounds, label);
-            emit_data(gdata);
-        }
-    }
-}
-
-static void emit_strings(struct map *strings)
-{
-    struct vector *keys = map_keys(strings);
-    if (vec_len(keys)) {
-        emit(".section .rodata");
-        for (int i = 0; i < vec_len(keys); i++) {
-            const char *name = vec_at(keys, i);
-            const char *label = map_get(strings, name);
-            emit_noindent("%s:", label);
-            emit(".asciz %s", name);
-        }
-    }
-}
-
-static void emit_floats(struct map *floats)
-{
-    struct vector *keys = map_keys(floats);
-    if (vec_len(keys)) {
-        emit(".section .rodata");
-        for (int i = 0; i < vec_len(keys); i++) {
-            const char *name = vec_at(keys, i);
-            const char *label = map_get(floats, name);
-            node_t *sym = lookup(name, constants);
-            cc_assert(sym);
-            node_t *ty = SYM_TYPE(sym);
-            emit(".align %d", TYPE_ALIGN(ty));
-            emit_noindent("%s:", label);
-            switch (TYPE_KIND(ty)) {
-            case FLOAT:
-                {
-                    float f = SYM_VALUE_D(sym);
-                    emit(".long %u", *(uint32_t *)&f);
-                }
-                break;
-            case DOUBLE:
-            case LONG+DOUBLE:
-                {
-                    double d = SYM_VALUE_D(sym);
-                    emit(".quad %llu", *(uint64_t *)&d);
-                }
-                break;
-            default:
-                cc_assert(0);
-            }
-        }
-    }
-}
-
-static void gen_init(FILE *fp)
-{
-    outfp = fp;
-    init_regs();
-}
-
-void gen(struct externals *exts, FILE * fp)
-{
-    cc_assert(errors == 0 && fp);
-    
-    gen_init(fp);
-    for (int i = 0; i < vec_len(exts->gdatas); i++) {
-        struct gdata *gdata = vec_at(exts->gdatas, i);
-        switch (gdata->id) {
-        case GDATA_BSS:
-            emit_bss(gdata);
-            break;
-        case GDATA_DATA:
-            emit_data(gdata);
-            break;
-        case GDATA_TEXT:
-            emit_text(gdata);
-            break;
-        default:
-            cc_assert(0);
-        }
-    }
-    emit_compounds(exts->compounds);
-    emit_strings(exts->strings);
-    emit_floats(exts->floats);
-    emit(".ident \"mcc: %d.%d\"", MAJOR(version), MINOR(version));
 }
