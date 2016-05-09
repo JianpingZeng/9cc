@@ -1345,17 +1345,9 @@ static void emit_conv_tof(struct tac *tac, const char *op)
     struct operand *l = tac->operands[1];
     int from_size = tac->from_opsize;
     int to_size = tac->to_opsize;
-    int from_i = idx[from_size];
     int to_i = idx[to_size];
     const char *src_label = operand2s(l, from_size);
-    if (is_imm_operand(l)) {
-        struct reg *reg = dispatch_ireg(l->sym, NULL, from_size);
-        emit("mov%s %s, %s", suffixi[from_i], src_label, reg->r[from_i]);
-        // reset
-        src_label = reg->r[from_i];
-    }
-    struct vector *excepts = operand_regs(l);
-    struct reg *reg = dispatch_freg(result->sym, excepts, to_size);
+    struct reg *reg = SYM_X_REG(result->sym);
     emit("%s2%s %s, %s", op, suffixf[to_i], src_label, reg->r[to_i]);
 }
 
@@ -1376,8 +1368,7 @@ static void emit_conv_f2si(struct tac *tac)
     int from_size = tac->from_opsize;
     int from_i = idx[from_size];
     const char *src_label = operand2s(l, from_size);
-    struct vector *excepts = operand_regs(l);
-    struct reg *reg = dispatch_ireg(result->sym, excepts, from_size);
+    struct reg *reg = SYM_X_REG(result->sym);
     emit("cvtt%s2si %s, %s", suffixf[from_i], src_label, reg->r[from_i]);
 }
 
@@ -2452,17 +2443,36 @@ static void alloc_reg_conv_i2i(struct tac *tac)
 
 static void alloc_reg_conv_i2f(struct tac *tac)
 {
-    
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int from_size = tac->from_opsize;
+    int to_size = tac->to_opsize;
+    int from_i = idx[from_size];
+    if (is_imm_operand(l)) {
+        const char *src_label = operand2s(l, from_size);
+        struct reg *reg = dispatch_ireg(l->sym, NULL, from_size);
+        emit("mov%s %s, %s", suffixi[from_i], src_label, reg->r[from_i]);
+    }
+    struct vector *excepts = operand_regs(l);
+    dispatch_freg(result->sym, excepts, to_size);
 }
 
 static void alloc_reg_conv_f2i(struct tac *tac)
 {
-    
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int from_size = tac->from_opsize;
+    struct vector *excepts = operand_regs(l);
+    dispatch_ireg(result->sym, excepts, from_size);
 }
 
 static void alloc_reg_conv_f2f(struct tac *tac)
 {
-    
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int to_size = tac->to_opsize;
+    struct vector *excepts = operand_regs(l);
+    dispatch_freg(result->sym, excepts, to_size);
 }
 
 static void alloc_reg(struct tac *tac)
