@@ -200,7 +200,6 @@ struct externals {
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
 #define DECL_X_CALLS(NODE)    ((NODE)->decl.x.decl.calls)
 #define DECL_X_HEAD(NODE)     ((NODE)->decl.x.decl.head)
-#define DECL_X_TAIL(NODE)     ((NODE)->decl.x.decl.tail)
 #define DECL_X_BASIC_BLOCK(NODE)  ((NODE)->decl.x.decl.basic_block)
 // expr
 #define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.expr.addr)

@@ -1,11 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <limits.h>
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdbool.h>
 #include "utils.h"
 
 #define STRING_INIT_SIZE    32

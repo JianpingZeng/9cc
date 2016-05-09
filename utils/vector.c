@@ -1,7 +1,3 @@
-#include <string.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include "utils.h"
 
 #define VEC_INIT_SIZE   16

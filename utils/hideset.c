@@ -1,6 +1,3 @@
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
 #include "utils.h"
 
 struct hideset *hideset_add(struct hideset *s, const char *name)

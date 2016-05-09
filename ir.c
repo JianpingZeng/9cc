@@ -2226,7 +2226,6 @@ static void emit_function(node_t *decl)
     emit_stmt(stmt);
     construct_basic_blocks(decl, func_tac_head);
     DECL_X_HEAD(decl) = func_tac_head;
-    DECL_X_TAIL(decl) = func_tac_tail;
     // add extra local vars
     if (extra_lvars) {
         struct vector *v = vec_new();

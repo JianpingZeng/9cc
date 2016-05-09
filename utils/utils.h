@@ -1,6 +1,15 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <limits.h>
+#include <ctype.h>
+#include <stdarg.h>
+#include <stdbool.h>
+
 #define ONES(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
 
 #define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
@@ -33,6 +42,7 @@ extern char *strs(const char *str);
 extern char *strn(const char *src, size_t len);
 extern char *strd(long long n);
 extern char *stru(unsigned long long n);
+extern char *vformat(const char *fmt, va_list ap);
 extern char *format(const char *fmt, ...);
 extern char *xstrdup(const char *str);
 extern char *xstrndup(const char *str, size_t n);

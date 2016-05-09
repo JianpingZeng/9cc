@@ -1,9 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <string.h>
 #include "utils.h"
 
 #define FNV32_BASIS ((unsigned) 0x811c9dc5)
@@ -112,7 +106,7 @@ char *stru(unsigned long long n)
     return strn(s, str + sizeof(str) - s);
 }
 
-static char *vformat(const char *fmt, va_list ap)
+char *vformat(const char *fmt, va_list ap)
 {
     size_t size = 128;
     void *buffer = NULL;
