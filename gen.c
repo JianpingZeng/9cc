@@ -1268,8 +1268,7 @@ static void emit_uop_int(struct tac *tac, const char *op)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int i = idx[tac->opsize];
-    struct vector *excepts = operand_regs(l);
-    struct reg *reg = dispatch_ireg(result->sym, excepts, tac->opsize);
+    struct reg *reg = SYM_X_REG(result->sym);
     const char *l_label = operand2s(l, tac->opsize);
     emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
     emit("%s%s %s", op, suffixi[i], reg->r[i]);
@@ -1291,8 +1290,7 @@ static void emit_uop_minus_f(struct tac *tac)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int i = idx[tac->opsize];
-    struct vector *excepts = operand_regs(l);
-    struct reg *reg = dispatch_freg(result->sym, excepts, tac->opsize);
+    struct reg *reg = SYM_X_REG(result->sym);
     const char *l_label = operand2s(l, tac->opsize);
     emit("xor%s %s, %s", suffixp[i], reg->r[i], reg->r[i]);
     emit("sub%s %s, %s", suffixf[i], l_label, reg->r[i]);
@@ -1302,9 +1300,7 @@ static void emit_uop_address(struct tac *tac)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    struct vector *excepts = operand_regs(l);
-    struct reg *reg = get_one_ireg(excepts);
-    load(reg, result->sym, Quad);
+    struct reg *reg = SYM_X_REG(result->sym);
     // gref func
     switch (l->op) {
     case IR_NONE:
@@ -1332,18 +1328,11 @@ static void emit_bop_arith(struct tac *tac, const char *op, bool floating)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
-    struct vector *vl = operand_regs(l);
-    struct vector *vr = operand_regs(r);
-    vec_add(vl, vr);
-    struct reg *reg;
-    if (floating)
-        reg = dispatch_freg(result->sym, vl, tac->opsize);
-    else
-        reg = dispatch_ireg(result->sym, vl, tac->opsize);
     int i = idx[tac->opsize];
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
     const char **suffix = floating ? suffixf : suffixi;
+    struct reg *reg = SYM_X_REG(result->sym);
     emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
     emit("%s%s %s, %s", op, suffix[i], r_label, reg->r[i]);
 }
@@ -1358,67 +1347,42 @@ static void emit_int_mul_div(struct tac *tac, const char *op)
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
     struct reg *rax = int_regs[RAX];
-    struct reg *rdx = int_regs[RDX];
     int i = idx[tac->opsize];
-    if (tac->opsize > Byte) {
-        struct vector *regs = vec_new();
-        vec_push(regs, rax);
-        vec_push(regs, rdx);
-        drain_regs(regs);
-        if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
-            tac->op == IR_MOD || tac->op == IR_IMOD)
-            emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
-    } else {
-        drain_reg(rax);
-    }
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
     emit("mov%s %s, %s", suffixi[i], l_label, rax->r[i]);
-    if (is_imm_operand(r)) {
-        struct vector *excepts = operand_regs(l);
-        vec_push(excepts, rax);
-        vec_push(excepts, rdx);
-        struct reg *reg = dispatch_ireg(r->sym, excepts, tac->opsize);
-        emit("mov%s %s, %s", suffixi[i], r_label, reg->r[i]);
-        emit("%s%s %s", op, suffixi[i], reg->r[i]);
-    } else {
-        emit("%s%s %s", op, suffixi[i], r_label);
-    }
+    emit("%s%s %s", op, suffixi[i], r_label);
 }
 
 static void emit_int_imul(struct tac *tac)
 {
     emit_int_mul_div(tac, "imul");
-    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_int_mul(struct tac *tac)
 {
-    emit_int_imul(tac);
+    // the same as 'imul'
+    emit_int_mul_div(tac, "imul");
 }
 
 static void emit_int_div(struct tac *tac)
 {
     emit_int_mul_div(tac, "div");
-    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_int_idiv(struct tac *tac)
 {
     emit_int_mul_div(tac, "idiv");
-    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_mod(struct tac *tac)
 {
     emit_int_mul_div(tac, "div");
-    load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_imod(struct tac *tac)
 {
     emit_int_mul_div(tac, "idiv");
-    load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_shift(struct tac *tac, const char *op)
@@ -1428,16 +1392,9 @@ static void emit_shift(struct tac *tac, const char *op)
     struct operand *r = tac->operands[2];
     struct reg *rcx = int_regs[RCX];
     int i = idx[tac->opsize];
-    drain_reg(rcx);
-    struct vector *vl = operand_regs(l);
-    struct vector *vr = operand_regs(r);
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
-    struct vector *excepts = vec_new();
-    vec_push(excepts, rcx);
-    vec_add(excepts, vl);
-    vec_add(excepts, vr);
-    struct reg *reg = dispatch_ireg(result->sym, excepts, tac->opsize);
+    struct reg *reg = SYM_X_REG(result->sym);
     emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
     emit("mov%s %s, %s", suffixi[i], r_label, rcx->r[i]);
     emit("%s%s %s, %s", op, suffixi[i], rcx->r[B], reg->r[i]);
@@ -2309,79 +2266,162 @@ static void drain_reg(struct reg *reg)
     do_drain_reg(reg, vec_new1(reg));
 }
 
-static void alloc_reg_if(struct tac *tac)
+// if(False) x relop y goto z
+static void alloc_reg_if_relop(struct tac *tac, bool reverse, bool floating)
 {
-    
 }
 
-static void alloc_reg_return(struct tac *tac)
+// if(False) x goto z
+static void alloc_reg_if_simple(struct tac *tac, bool reverse, bool floating)
 {
-    
+}
+
+static void alloc_reg_if(struct tac *tac)
+{
+    bool reverse = tac->op == IR_IF_FALSE_I || tac->op == IR_IF_FALSE_F;
+    bool floating = tac->op == IR_IF_F || tac->op == IR_IF_FALSE_F;
+    if (tac->relop)
+        alloc_reg_if_relop(tac, reverse, floating);
+    else
+        alloc_reg_if_simple(tac, reverse, floating);
+}
+
+static void alloc_reg_bop_arith(struct tac *tac, bool floating)
+{
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    struct operand *r = tac->operands[2];
+    struct vector *vl = operand_regs(l);
+    struct vector *vr = operand_regs(r);
+    vec_add(vl, vr);
+    if (floating)
+        dispatch_freg(result->sym, vl, tac->opsize);
+    else
+        dispatch_ireg(result->sym, vl, tac->opsize);
 }
 
 static void alloc_reg_bop_int(struct tac *tac)
 {
-    
+    alloc_reg_bop_arith(tac, false);
+}
+
+static void alloc_reg_int_mul_div(struct tac *tac)
+{
+    struct operand *l = tac->operands[1];
+    struct operand *r = tac->operands[2];
+    struct reg *rax = int_regs[RAX];
+    struct reg *rdx = int_regs[RDX];
+    int i = idx[tac->opsize];
+    if (tac->opsize > Byte) {
+        struct vector *regs = vec_new();
+        vec_push(regs, rax);
+        vec_push(regs, rdx);
+        drain_regs(regs);
+        if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
+            tac->op == IR_MOD || tac->op == IR_IMOD)
+            emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
+    } else {
+        drain_reg(rax);
+    }
+    if (is_imm_operand(r)) {
+        const char *r_label = operand2s(r, tac->opsize);
+        struct vector *excepts = operand_regs(l);
+        vec_push(excepts, rax);
+        vec_push(excepts, rdx);
+        struct reg *reg = dispatch_ireg(r->sym, excepts, tac->opsize);
+        emit("mov%s %s, %s", suffixi[i], r_label, reg->r[i]);
+    }
 }
 
 static void alloc_reg_int_div(struct tac *tac)
 {
-    
+    alloc_reg_int_mul_div(tac);
+    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void alloc_reg_int_idiv(struct tac *tac)
 {
-    
+    alloc_reg_int_mul_div(tac);
+    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void alloc_reg_mod(struct tac *tac)
 {
-    
+    alloc_reg_int_mul_div(tac);
+    load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void alloc_reg_imod(struct tac *tac)
 {
-    
+    alloc_reg_int_mul_div(tac);
+    load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void alloc_reg_int_mul(struct tac *tac)
 {
-    
+    alloc_reg_int_mul_div(tac);
+    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void alloc_reg_int_imul(struct tac *tac)
 {
-    
+    alloc_reg_int_mul_div(tac);
+    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void alloc_reg_shift(struct tac *tac)
 {
-    
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    struct operand *r = tac->operands[2];
+    struct reg *rcx = int_regs[RCX];
+    drain_reg(rcx);
+    struct vector *vl = operand_regs(l);
+    struct vector *vr = operand_regs(r);
+    struct vector *excepts = vec_new();
+    vec_push(excepts, rcx);
+    vec_add(excepts, vl);
+    vec_add(excepts, vr);
+    dispatch_ireg(result->sym, excepts, tac->opsize);
 }
 
 static void alloc_reg_bop_float(struct tac *tac)
 {
-    
+    alloc_reg_bop_arith(tac, true);
+}
+
+static void alloc_reg_uop(struct tac *tac, bool floating)
+{
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    struct vector *excepts = operand_regs(l);
+    if (floating)
+        dispatch_freg(result->sym, excepts, tac->opsize);
+    else
+        dispatch_ireg(result->sym, excepts, tac->opsize);
 }
 
 static void alloc_reg_uop_not(struct tac *tac)
 {
-    
+    alloc_reg_uop(tac, false);
 }
 
 static void alloc_reg_uop_minus_i(struct tac *tac)
 {
-    
+    alloc_reg_uop(tac, false);
 }
 
 static void alloc_reg_uop_minus_f(struct tac *tac)
 {
-    
+    alloc_reg_uop(tac, true);
 }
 
 static void alloc_reg_uop_address(struct tac *tac)
 {
-    
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    struct vector *excepts = operand_regs(l);
+    dispatch_ireg(result->sym, excepts, Quad);
 }
 
 static void alloc_reg_assign(struct tac *tac)
@@ -2390,6 +2430,11 @@ static void alloc_reg_assign(struct tac *tac)
 }
 
 static void alloc_reg_call(struct tac *tac)
+{
+    
+}
+
+static void alloc_reg_return(struct tac *tac)
 {
     
 }
