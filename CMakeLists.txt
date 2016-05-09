@@ -29,7 +29,6 @@ set(CC1_SRC
   sym.c
   type.c
   input.c
-  initializer.c
   ir.c
   block.c
 )

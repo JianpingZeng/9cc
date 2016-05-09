@@ -1,0 +1,25 @@
+
+ +--------------------+
+ | function prologue  |
+ +--------------------+
+ | register save area |
+ |        or          |
+ | register params    |
+ +--------------------+
+ |      ......        |
+ +--------------------+
+ | function epilogue  |
+ +--------------------+
+
+function prologue:
+         push %rbp
+         mov %rsp, %rbp
+         <placeholder to push preserved registers>
+         sub $<placeholder for stack size>, %rsp
+
+
+function epilogue:
+         <placeholder to add rsp>
+         <placeholder to pop preserved registers>
+         leave
+         ret
