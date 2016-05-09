@@ -40,8 +40,20 @@ static const char *suffixf[] = {
 static const char *suffixp[] = {
     "", "", "ps", "pd"
 };
+// Register Allocation
+static void init_regs(void);
+static void reset_regs(void);
+static struct reg * dispatch_ireg(node_t *sym, struct vector *excepts, int opsize);
+static struct reg * dispatch_freg(node_t *sym, struct vector *excepts, int opsize);
+static struct reg * get_one_ireg(struct vector *excepts);
+static struct reg * get_one_freg(struct vector *excepts);
+static void drain_reg(struct reg *reg);
+static void drain_regs(struct vector *regs);
+static void do_drain_reg(struct reg *reg, struct vector *excepts);
+static void load(struct reg *reg, node_t *sym, int opsize);
+static void store(node_t *sym);
 
-// Parameter classification
+// Parameter Classification
 static int *no_class = (int *)1;
 static int *integer_class = (int *)2;
 static int *sse_class = (int *)3;
@@ -67,168 +79,102 @@ struct pinfo {
     struct vector *pnodes;      // param nodes
     struct paddr *retaddr;      // return addr
 };
-static void drain_reg(struct reg *reg);
 static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params);
 static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params);
 
 #define COMMENT(str)    "\t\t## " str
 
 static FILE *outfp;
+
+// placeholder instruction id
+enum {
+    INST_PRESERVED_REG_PUSH = 1,
+    INST_PRESERVED_REG_POP,
+    INST_STACK_SUB,
+    INST_STACK_ADD,
+};
+
 // function context
 static struct {
     const char *end_label;
     size_t returns;
     long calls_return_loff;
     struct pinfo *pinfo;
+    struct basic_block *current_block;
     struct tac *current_tac;
     node_t *current_ftype;
+    struct vector *instructions;
+    size_t localsize;
+    struct set *preserved_regs;
 } fcon;
 
-static void emit(const char *fmt, ...)
+typedef void (*emitter) (const char *, ...);
+static emitter emit, emit_noindent;
+
+static void vemit1(const char *prefix, const char *fmt, va_list ap)
+{
+    if (prefix)
+        fprintf(outfp, "%s", prefix);
+    vfprintf(outfp, fmt, ap);
+    fprintf(outfp, "\n");
+}
+
+static void emit1(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(outfp, "\t");
-    vfprintf(outfp, fmt, ap);
-    fprintf(outfp, "\n");
+    vemit1("\t", fmt, ap);
     va_end(ap);
 }
 
-static void emit_noindent(const char *fmt, ...)
+static void emit_noindent1(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(outfp, fmt, ap);
-    fprintf(outfp, "\n");
+    vemit1(NULL, fmt, ap);
     va_end(ap);
 }
 
-static struct reg * mkreg(struct reg *r)
+static void vemit2(const char *prefix, const char *fmt, va_list ap)
 {
-    struct reg *reg = zmalloc(sizeof(struct reg));
-    *reg = *r;
-    return reg;
+    if (prefix)
+        fmt = format("%s%s", prefix, fmt);
+    char *ret = vformat(fmt, ap);
+    vec_push(fcon.instructions, ret);
 }
 
-static void init_regs(void)
+static void emit2(const char *fmt, ...)
 {
-    rsp = mkreg(&(struct reg){
-        .r[Q] = "%rsp",
-        .r[L] = "%esp",
-        .r[W] = "%sp"
-    });
-    
-    rbp = mkreg(&(struct reg){
-        .r[Q] = "%rbp",
-        .r[L] = "%ebp",
-        .r[W] = "%bp"
-    });
-    
-    rip = mkreg(&(struct reg){
-        .r[Q] = "%rip",
-        .r[L] = "%eip",
-        .r[W] = "%ip"
-    });
-    
-    int_regs[RAX] = mkreg(&(struct reg){
-        .r[Q] = "%rax",
-        .r[L] = "%eax",
-        .r[W] = "%ax",
-        .r[B] = "%al"
-    });
-
-    int_regs[RBX] = mkreg(&(struct reg){
-        .r[Q] = "%rbx",
-        .r[L] = "%ebx",
-        .r[W] = "%bx",
-        .r[B] = "%bl"
-    });
-    
-    int_regs[RCX] = mkreg(&(struct reg){
-        .r[Q] = "%rcx",
-        .r[L] = "%ecx",
-        .r[W] = "%cx",
-        .r[B] = "%cl"
-    });
-    
-    int_regs[RDX] = mkreg(&(struct reg){
-        .r[Q] = "%rdx",
-        .r[L] = "%edx",
-        .r[W] = "%dx",
-        .r[B] = "%dl"
-    });
-
-    int_regs[RSI] = mkreg(&(struct reg){
-        .r[Q] = "%rsi",
-        .r[L] = "%esi",
-        .r[W] = "%si",
-        .r[B] = "%sil"
-    });
-
-    int_regs[RDI] = mkreg(&(struct reg){
-        .r[Q] = "%rdi",
-        .r[L] = "%edi",
-        .r[W] = "%di",
-        .r[B] = "%dil"
-    });
-
-    for (int i = R8; i <= R15; i++) {
-        int index = i - R8 + 8;
-        int_regs[i] = mkreg(&(struct reg){
-            .r[Q] = format("%%r%d", index),
-            .r[L] = format("%%r%dd", index),
-            .r[W] = format("%%r%dw", index),
-            .r[B] = format("%%r%db", index)
-        });
-    }
-
-    // init integer regs
-    iarg_regs[0] = int_regs[RDI];
-    iarg_regs[1] = int_regs[RSI];
-    iarg_regs[2] = int_regs[RDX];
-    iarg_regs[3] = int_regs[RCX];
-    iarg_regs[4] = int_regs[R8];
-    iarg_regs[5] = int_regs[R9];
-
-    // init integer return regs
-    ret_iregs[0] = int_regs[RAX];
-    ret_iregs[1] = int_regs[RDX];
-
-    // preserved regs
-    rsp->preserved = true;
-    rbp->preserved = true;
-    int_regs[RBX]->preserved = true;
-    int_regs[R12]->preserved = true;
-    int_regs[R13]->preserved = true;
-    int_regs[R14]->preserved = true;
-    int_regs[R15]->preserved = true;
-
-    // init floating regs
-    for (int i = XMM0; i <= XMM15; i++) {
-        const char *name = format("%%xmm%d", i - XMM0);
-        float_regs[i] = mkreg(&(struct reg){
-            .freg = true,
-            .r[Q] = name,
-            .r[L] = name
-        });
-        if (i <= XMM7)
-            farg_regs[i - XMM0] = float_regs[i];
-    }
-
-    // init floating return regs
-    ret_fregs[0] = float_regs[XMM0];
-    ret_fregs[1] = float_regs[XMM1];
+    va_list ap;
+    va_start(ap, fmt);
+    vemit2("\t", fmt, ap);
+    va_end(ap);
 }
 
-static void reset_regs(void)
+static void emit_noindent2(const char *fmt, ...)
 {
-    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
-        struct reg *reg = int_regs[i];
-        reg->vars = NULL;
-    }
-    for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
-        struct reg *reg = float_regs[i];
-        reg->vars = NULL;
+    va_list ap;
+    va_start(ap, fmt);
+    vemit2(NULL, fmt, ap);
+    va_end(ap);
+}
+
+static void emit_placeholder(int id)
+{
+    char *message = format("<<<%d", id);
+    vec_push(fcon.instructions, message);
+}
+
+static void finalize_text(void)
+{
+    for (size_t i = 0; i < vec_len(fcon.instructions); i++) {
+        char *inst = vec_at(fcon.instructions, i);
+        if (starts_with(inst, "<<<")) {
+            int id = atoi(inst + 3);
+            // TODO: 
+        } else {
+            fprintf(outfp, "%s\n", inst);
+        }
     }
 }
 
@@ -268,6 +214,7 @@ static const char * operand2s(struct operand *operand, int opsize)
         {
             node_t *sym = operand->sym;
             node_t *index = operand->index;
+            cc_assert(SYM_X_REG(sym));
             if (SYM_X_KIND(sym) == SYM_KIND_LREF) {
                 long offset = SYM_X_LOFF(sym) + operand->disp;
                 if (index) {
@@ -312,214 +259,6 @@ static const char * operand2s(struct operand *operand, int opsize)
     default:
         cc_assert(0);
     }
-}
-
-static struct rvar * new_rvar(node_t *sym, int size)
-{
-    struct rvar *var = zmalloc(sizeof(struct rvar));
-    var->sym = sym;
-    var->size = size;
-    return var;
-}
-
-// LD reg, sym
-static void load(struct reg *reg, node_t *sym, int opsize)
-{
-    cc_assert(SYM_X_REG(sym) == NULL);
-    if (SYM_X_KIND(sym) == SYM_KIND_IMM ||
-        SYM_X_KIND(sym) == SYM_KIND_LABEL)
-        return;
-
-    struct rvar *var = new_rvar(sym, opsize);
-    
-    if (!reg->vars)
-        reg->vars = vec_new1(var);
-    else
-        vec_push(reg->vars, var);
-    SYM_X_REG(sym) = reg;
-}
-
-// ST sym, reg
-static void store(node_t *sym)
-{
-    SYM_X_REG(sym) = NULL;
-    SYM_X_INMEM(sym) = true;
-}
-
-static bool is_in_tac(node_t *sym, struct tac *tac)
-{
-    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
-        struct operand *operand = tac->operands[i];
-        if (operand && (sym == operand->sym || sym == operand->index))
-            return true;
-    }
-    return false;
-}
-
-// BUG: the 'ret' drain_reg may call get_reg again (a dead loop)
-// BUG: no enough registers
-static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts)
-{
-    // filter excepts out
-    struct vector *candicates = vec_new();
-    for (int i = 0; i < count; i++) {
-        struct reg *ri = regs[i];
-        bool found = false;
-        for (int j = 0; j < vec_len(excepts); j++) {
-            struct reg *rj = vec_at(excepts, j);
-            if (ri == rj) {
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-            vec_push(candicates, ri);
-    }
-    
-    // if exists an empty reg, return directly
-    for (int i = 0; i < vec_len(candicates); i++) {
-        struct reg *reg = vec_at(candicates, i);
-        if (vec_empty(reg->vars))
-            return reg;
-    }
-
-    cc_assert(vec_len(candicates));
-    
-    // all regs are dirty, select one.
-    struct reg *ret = NULL;
-    int mincost = 0;
-    for (int i = 0; i < vec_len(candicates); i++) {
-        int cost = 0;
-        bool sticky = false;
-        struct reg *reg = vec_at(candicates, i);
-        for (int j = 0; j < vec_len(reg->vars); j++) {
-            struct rvar *v = vec_at(reg->vars, j);
-            struct uses uses = SYM_X_USES(v->sym);
-            if (SYM_X_INMEM(v->sym)) {
-                // ok
-            } else if (uses.live == false &&
-                       !is_in_tac(v->sym, fcon.current_tac)) {
-                // ok
-            } else if (SYM_X_KIND(v->sym) == SYM_KIND_TMP) {
-                // if contains a live tmp symbol, skip the whole reg
-                sticky = true;
-                break;
-            } else {
-                // spill
-                cost += 1;
-            }
-        }
-
-        if (sticky == false) {
-            if (ret == NULL || cost < mincost) {
-                ret = reg;
-                mincost = cost;
-            }
-        }
-    }
-    if (ret == NULL)
-        die("no enough registers");
-    // spill out
-    drain_reg(ret);
-    return ret;
-}
-
-static struct reg * dispatch_reg(struct reg **regs, int count, struct vector *excepts,
-                                 node_t *sym, int opsize)
-{
-    // already in reg, return directly
-    if (SYM_X_REG(sym))
-        return SYM_X_REG(sym);
-    struct reg *reg = get_reg(regs, count, excepts);
-    load(reg, sym, opsize);
-    return reg;
-}
-
-static struct reg * dispatch_ireg(node_t *sym, struct vector *excepts, int opsize)
-{
-    return dispatch_reg(int_regs, ARRAY_SIZE(int_regs), excepts, sym, opsize);
-}
-
-static struct reg * dispatch_freg(node_t *sym, struct vector *excepts, int opsize)
-{
-    return dispatch_reg(float_regs, ARRAY_SIZE(float_regs), excepts, sym, opsize);
-}
-
-static struct reg * get_one_freg(struct vector *excepts)
-{
-    return get_reg(float_regs, ARRAY_SIZE(float_regs), excepts);
-}
-
-static struct reg * get_one_ireg(struct vector *excepts)
-{
-    return get_reg(int_regs, ARRAY_SIZE(int_regs), excepts);
-}
-
-static void do_drain_reg(struct reg *reg, struct vector *excepts)
-{
-    struct reg *new_reg = NULL;
-    for (int j = 0; j < vec_len(reg->vars); j++) {
-        struct rvar *v = vec_at(reg->vars, j);
-        node_t *sym = v->sym;
-        int i = idx[v->size];
-        // always clear
-        SYM_X_REG(sym) = NULL;
-        struct uses uses = SYM_X_USES(sym);
-
-        switch (SYM_X_KIND(sym)) {
-        case SYM_KIND_GREF:
-            if (!SYM_X_INMEM(sym)) {
-                emit("mov%s %s, %s(%s)" COMMENT("%d-byte spill"),
-                     suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
-                store(sym);
-            }
-            break;
-        case SYM_KIND_LREF:
-            if (!SYM_X_INMEM(sym)) {
-                emit("mov%s %s, %ld(%s)" COMMENT("%d-byte spill"),
-                     suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
-                store(sym);
-            }
-            break;
-        case SYM_KIND_TMP:
-            if (is_in_tac(sym, fcon.current_tac) || uses.live) {
-                // sticky
-                if (!new_reg) {
-                    const char **suffix;
-                    if (reg->freg) {
-                        new_reg = dispatch_freg(sym, excepts, v->size);
-                        suffix = suffixf;
-                    } else {
-                        new_reg = dispatch_ireg(sym, excepts, v->size);
-                        suffix = suffixi;
-                    }
-                    emit("mov%s %s, %s" COMMENT("%d-byte spill"),
-                         suffix[i], reg->r[i], new_reg->r[i], v->size);
-                } else {
-                    load(new_reg, sym, v->size);
-                }
-            }
-            break;
-        default:
-            break;
-        }
-    }
-    if (reg->vars)
-        vec_clear(reg->vars);
-}
-
-static void drain_regs(struct vector *regs)
-{
-    for (int i = 0; i < vec_len(regs); i++) {
-        struct reg *reg = vec_at(regs, i);
-        do_drain_reg(reg, regs);
-    }
-}
-
-// maybe sticky
-static void drain_reg(struct reg *reg)
-{
-    do_drain_reg(reg, vec_new1(reg));
 }
 
 static void emit_conv_ii_widden(struct tac *tac, int typeop)
@@ -1840,15 +1579,6 @@ static void emit_tac(struct tac *tac)
     }
 }
 
-static void emit_tacs(struct tac *head)
-{
-    for (struct tac *tac = head; tac; tac = tac->next) {
-        // set current tac
-        fcon.current_tac = tac;
-        emit_tac(tac);
-    }
-}
-
 static void init_sym_addrs(node_t *sym)
 {
     if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
@@ -1856,17 +1586,31 @@ static void init_sym_addrs(node_t *sym)
         SYM_X_INMEM(sym) = true;
 }
 
-static void init_tacs(struct tac *head)
+static void init_basic_blocks(struct basic_block *start)
 {
-    for (struct tac *tac = head; tac; tac = tac->next) {
-        for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
-            struct operand *operand = tac->operands[i];
-            if (operand) {
-                if (operand->sym)
-                    init_sym_addrs(operand->sym);
-                if (operand->index)
-                    init_sym_addrs(operand->index);
+    for (struct basic_block *block = start; block; block = block->successors[0]) {
+        for (struct tac *tac = block->head; tac; tac = tac->next) {
+            for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+                struct operand *operand = tac->operands[i];
+                if (operand) {
+                    if (operand->sym)
+                        init_sym_addrs(operand->sym);
+                    if (operand->index)
+                        init_sym_addrs(operand->index);
+                }
             }
+        }
+    }
+}
+
+static void emit_basic_blocks(struct basic_block *start)
+{
+    for (struct basic_block *block = start; block; block = block->successors[0]) {
+        fcon.current_block = block;
+        for (struct tac *tac = block->head; tac; tac = tac->next) {
+            // set current tac
+            fcon.current_tac = tac;
+            emit_tac(tac);
         }
     }
 }
@@ -2035,35 +1779,17 @@ static void emit_function_prologue(struct gsection *section)
     // call params
     localsize += call_params_size(decl);
     localsize = ROUNDUP(localsize, 16);
+    fcon.localsize = localsize;
     
-    if (localsize > 0)
-        emit("subq $%llu, %s", localsize, rsp->r[Q]);
+    emit_placeholder(INST_PRESERVED_REG_PUSH);
+    emit_placeholder(INST_STACK_SUB);
 }
 
-static void emit_text(struct gsection *section)
+static void emit_function_epilogue(void)
 {
-    node_t *decl = section->u.decl;
-    node_t *fsym = DECL_SYM(decl);
-    node_t *ftype = SYM_TYPE(fsym);
-
-    reset_regs();
-    // reset func context
-    fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
-    fcon.returns = 0;
-    fcon.calls_return_loff = 0;
-    fcon.pinfo = NULL;
-    fcon.current_ftype = ftype;
-
-    emit_function_prologue(section);
-    if (TYPE_VARG(ftype))
-        emit_register_save_area();
-    else
-        emit_register_params(decl);
-    init_tacs(DECL_X_HEAD(decl));
-    emit_tacs(DECL_X_HEAD(decl));
     // function epilogue
-    if (fcon.returns)
-        emit_noindent("%s:", fcon.end_label);
+    emit_placeholder(INST_STACK_ADD);
+    emit_placeholder(INST_PRESERVED_REG_POP);
     /*
       leave instruction
 
@@ -2072,6 +1798,47 @@ static void emit_text(struct gsection *section)
     */
     emit("leave");
     emit("ret");
+}
+
+static void emit_text(struct gsection *section)
+{
+    node_t *decl = section->u.decl;
+    node_t *fsym = DECL_SYM(decl);
+    node_t *ftype = SYM_TYPE(fsym);
+
+    // save emitters
+    emitter saved_emit = emit, saved_emit_noindent = emit_noindent;
+    emit = emit2, emit_noindent = emit_noindent2;
+    
+    // reset registers
+    reset_regs();
+    // reset func context
+    {
+        fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
+        fcon.returns = 0;
+        fcon.calls_return_loff = 0;
+        fcon.pinfo = NULL;
+        fcon.current_ftype = ftype;
+        fcon.instructions = vec_new();
+        fcon.localsize = 0;
+        fcon.preserved_regs = set_new();
+    }
+
+    emit_function_prologue(section);
+    if (TYPE_VARG(ftype))
+        emit_register_save_area();
+    else
+        emit_register_params(decl);
+    init_basic_blocks(DECL_X_BASIC_BLOCK(decl));
+    emit_basic_blocks(DECL_X_BASIC_BLOCK(decl));
+    // function epilogue
+    if (fcon.returns)
+        emit_noindent("%s:", fcon.end_label);
+    emit_function_epilogue();
+    
+    finalize_text();
+    // restore emitters
+    emit = saved_emit, emit_noindent = saved_emit_noindent;
 }
 
 static void emit_data(struct gsection *section)
@@ -2179,6 +1946,8 @@ static void emit_floats(struct map *floats)
 
 static void gen_init(FILE *fp)
 {
+    emit = emit1;
+    emit_noindent = emit_noindent1;
     outfp = fp;
     init_regs();
 }
@@ -2210,7 +1979,337 @@ void gen(struct externals *exts, FILE * fp)
     emit(".ident \"mcc: %d.%d\"", MAJOR(version), MINOR(version));
 }
 
-// Parameter classification
+///
+/// Register Allocation
+///
+
+static inline struct reg * mkreg(void)
+{
+    return zmalloc(sizeof(struct reg));
+}
+
+static void init_regs(void)
+{
+    rsp = mkreg();
+    rsp->r[Q] = "%rsp";
+    rsp->r[L] = "%esp";
+    rsp->r[W] = "%sp";
+
+    rbp = mkreg();
+    rbp->r[Q] = "%rbp";
+    rbp->r[L] = "%ebp";
+    rbp->r[W] = "%bp";
+    
+    rip = mkreg();
+    rip->r[Q] = "%rip";
+    rip->r[L] = "%eip";
+    rip->r[W] = "%ip";
+    
+    int_regs[RAX] = mkreg();
+    int_regs[RAX]->r[Q] = "%rax";
+    int_regs[RAX]->r[L] = "%eax";
+    int_regs[RAX]->r[W] = "%ax";
+    int_regs[RAX]->r[B] = "%al";
+
+    int_regs[RBX] = mkreg();
+    int_regs[RBX]->r[Q] = "%rbx";
+    int_regs[RBX]->r[L] = "%ebx";
+    int_regs[RBX]->r[W] = "%bx";
+    int_regs[RBX]->r[B] = "%bl";
+    
+    int_regs[RCX] = mkreg();
+    int_regs[RCX]->r[Q] = "%rcx";
+    int_regs[RCX]->r[L] = "%ecx";
+    int_regs[RCX]->r[W] = "%cx";
+    int_regs[RCX]->r[B] = "%cl";
+    
+    int_regs[RDX] = mkreg();
+    int_regs[RDX]->r[Q] = "%rdx";
+    int_regs[RDX]->r[L] = "%edx";
+    int_regs[RDX]->r[W] = "%dx";
+    int_regs[RDX]->r[B] = "%dl";
+
+    int_regs[RSI] = mkreg();
+    int_regs[RSI]->r[Q] = "%rsi";
+    int_regs[RSI]->r[L] = "%esi";
+    int_regs[RSI]->r[W] = "%si";
+    int_regs[RSI]->r[B] = "%sil";
+
+    int_regs[RDI] = mkreg();
+    int_regs[RDI]->r[Q] = "%rdi";
+    int_regs[RDI]->r[L] = "%edi";
+    int_regs[RDI]->r[W] = "%di";
+    int_regs[RDI]->r[B] = "%dil";
+
+    for (int i = R8; i <= R15; i++) {
+        int index = i - R8 + 8;
+        int_regs[i] = mkreg();
+        int_regs[i]->r[Q] = format("%%r%d", index);
+        int_regs[i]->r[L] = format("%%r%dd", index);
+        int_regs[i]->r[W] = format("%%r%dw", index);
+        int_regs[i]->r[B] = format("%%r%db", index);
+    }
+
+    // init integer regs
+    iarg_regs[0] = int_regs[RDI];
+    iarg_regs[1] = int_regs[RSI];
+    iarg_regs[2] = int_regs[RDX];
+    iarg_regs[3] = int_regs[RCX];
+    iarg_regs[4] = int_regs[R8];
+    iarg_regs[5] = int_regs[R9];
+
+    // init integer return regs
+    ret_iregs[0] = int_regs[RAX];
+    ret_iregs[1] = int_regs[RDX];
+
+    // preserved regs
+    rsp->preserved = true;
+    rbp->preserved = true;
+    int_regs[RBX]->preserved = true;
+    int_regs[R12]->preserved = true;
+    int_regs[R13]->preserved = true;
+    int_regs[R14]->preserved = true;
+    int_regs[R15]->preserved = true;
+
+    // init floating regs
+    for (int i = XMM0; i <= XMM15; i++) {
+        const char *name = format("%%xmm%d", i - XMM0);
+        float_regs[i] = mkreg();
+        float_regs[i]->freg = true;
+        float_regs[i]->r[Q] = name;
+        float_regs[i]->r[L] = name;
+        if (i <= XMM7)
+            farg_regs[i - XMM0] = float_regs[i];
+    }
+
+    // init floating return regs
+    ret_fregs[0] = float_regs[XMM0];
+    ret_fregs[1] = float_regs[XMM1];
+}
+
+static void reset_regs(void)
+{
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
+        struct reg *reg = int_regs[i];
+        reg->vars = NULL;
+    }
+    for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
+        struct reg *reg = float_regs[i];
+        reg->vars = NULL;
+    }
+}
+
+static struct rvar * new_rvar(node_t *sym, int size)
+{
+    struct rvar *var = zmalloc(sizeof(struct rvar));
+    var->sym = sym;
+    var->size = size;
+    return var;
+}
+
+// LD reg, sym
+static void load(struct reg *reg, node_t *sym, int opsize)
+{
+    cc_assert(SYM_X_REG(sym) == NULL);
+    if (SYM_X_KIND(sym) == SYM_KIND_IMM ||
+        SYM_X_KIND(sym) == SYM_KIND_LABEL)
+        return;
+
+    struct rvar *var = new_rvar(sym, opsize);
+    
+    if (!reg->vars)
+        reg->vars = vec_new1(var);
+    else
+        vec_push(reg->vars, var);
+    SYM_X_REG(sym) = reg;
+}
+
+// ST sym, reg
+static void store(node_t *sym)
+{
+    SYM_X_REG(sym) = NULL;
+    SYM_X_INMEM(sym) = true;
+}
+
+static bool is_in_tac(node_t *sym, struct tac *tac)
+{
+    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+        struct operand *operand = tac->operands[i];
+        if (operand && (sym == operand->sym || sym == operand->index))
+            return true;
+    }
+    return false;
+}
+
+// BUG: the 'ret' drain_reg may call get_reg again (a dead loop)
+// BUG: no enough registers
+static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts)
+{
+    // filter excepts out
+    struct vector *candicates = vec_new();
+    for (int i = 0; i < count; i++) {
+        struct reg *ri = regs[i];
+        bool found = false;
+        for (int j = 0; j < vec_len(excepts); j++) {
+            struct reg *rj = vec_at(excepts, j);
+            if (ri == rj) {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            vec_push(candicates, ri);
+    }
+    
+    // if exists an empty reg, return directly
+    for (int i = 0; i < vec_len(candicates); i++) {
+        struct reg *reg = vec_at(candicates, i);
+        if (vec_empty(reg->vars))
+            return reg;
+    }
+
+    cc_assert(vec_len(candicates));
+    
+    // all regs are dirty, select one.
+    struct reg *ret = NULL;
+    int mincost = 0;
+    for (int i = 0; i < vec_len(candicates); i++) {
+        int cost = 0;
+        bool sticky = false;
+        struct reg *reg = vec_at(candicates, i);
+        for (int j = 0; j < vec_len(reg->vars); j++) {
+            struct rvar *v = vec_at(reg->vars, j);
+            struct uses uses = SYM_X_USES(v->sym);
+            if (SYM_X_INMEM(v->sym)) {
+                // ok
+            } else if (uses.live == false &&
+                       !is_in_tac(v->sym, fcon.current_tac)) {
+                // ok
+            } else if (SYM_X_KIND(v->sym) == SYM_KIND_TMP) {
+                // if contains a live tmp symbol, skip the whole reg
+                sticky = true;
+                break;
+            } else {
+                // spill
+                cost += 1;
+            }
+        }
+
+        if (sticky == false) {
+            if (ret == NULL || cost < mincost) {
+                ret = reg;
+                mincost = cost;
+            }
+        }
+    }
+    if (ret == NULL)
+        die("no enough registers");
+    // spill out
+    drain_reg(ret);
+    return ret;
+}
+
+static struct reg * dispatch_reg(struct reg **regs, int count, struct vector *excepts,
+                                 node_t *sym, int opsize)
+{
+    // already in reg, return directly
+    if (SYM_X_REG(sym))
+        return SYM_X_REG(sym);
+    struct reg *reg = get_reg(regs, count, excepts);
+    load(reg, sym, opsize);
+    return reg;
+}
+
+static struct reg * dispatch_ireg(node_t *sym, struct vector *excepts, int opsize)
+{
+    return dispatch_reg(int_regs, ARRAY_SIZE(int_regs), excepts, sym, opsize);
+}
+
+static struct reg * dispatch_freg(node_t *sym, struct vector *excepts, int opsize)
+{
+    return dispatch_reg(float_regs, ARRAY_SIZE(float_regs), excepts, sym, opsize);
+}
+
+static struct reg * get_one_freg(struct vector *excepts)
+{
+    return get_reg(float_regs, ARRAY_SIZE(float_regs), excepts);
+}
+
+static struct reg * get_one_ireg(struct vector *excepts)
+{
+    return get_reg(int_regs, ARRAY_SIZE(int_regs), excepts);
+}
+
+static void do_drain_reg(struct reg *reg, struct vector *excepts)
+{
+    struct reg *new_reg = NULL;
+    for (int j = 0; j < vec_len(reg->vars); j++) {
+        struct rvar *v = vec_at(reg->vars, j);
+        node_t *sym = v->sym;
+        int i = idx[v->size];
+        // always clear
+        SYM_X_REG(sym) = NULL;
+        struct uses uses = SYM_X_USES(sym);
+
+        switch (SYM_X_KIND(sym)) {
+        case SYM_KIND_GREF:
+            if (!SYM_X_INMEM(sym)) {
+                emit("mov%s %s, %s(%s)" COMMENT("%d-byte spill"),
+                     suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
+                store(sym);
+            }
+            break;
+        case SYM_KIND_LREF:
+            if (!SYM_X_INMEM(sym)) {
+                emit("mov%s %s, %ld(%s)" COMMENT("%d-byte spill"),
+                     suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
+                store(sym);
+            }
+            break;
+        case SYM_KIND_TMP:
+            if (is_in_tac(sym, fcon.current_tac) || uses.live) {
+                // sticky
+                if (!new_reg) {
+                    const char **suffix;
+                    if (reg->freg) {
+                        new_reg = dispatch_freg(sym, excepts, v->size);
+                        suffix = suffixf;
+                    } else {
+                        new_reg = dispatch_ireg(sym, excepts, v->size);
+                        suffix = suffixi;
+                    }
+                    emit("mov%s %s, %s" COMMENT("%d-byte spill"),
+                         suffix[i], reg->r[i], new_reg->r[i], v->size);
+                } else {
+                    load(new_reg, sym, v->size);
+                }
+            }
+            break;
+        default:
+            break;
+        }
+    }
+    if (reg->vars)
+        vec_clear(reg->vars);
+}
+
+static void drain_regs(struct vector *regs)
+{
+    for (int i = 0; i < vec_len(regs); i++) {
+        struct reg *reg = vec_at(regs, i);
+        do_drain_reg(reg, regs);
+    }
+}
+
+// maybe sticky
+static void drain_reg(struct reg *reg)
+{
+    do_drain_reg(reg, vec_new1(reg));
+}
+
+///
+/// Parameter Classification
+///
 
 static struct ptype * new_ptype(node_t *ty, size_t offset)
 {
