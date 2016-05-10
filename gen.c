@@ -1351,17 +1351,12 @@ static void emit_conv_tof(struct tac *tac, const char *op)
     emit("%s2%s %s, %s", op, suffixf[to_i], src_label, reg->r[to_i]);
 }
 
-static void emit_conv_si2f(struct tac *tac)
+static void emit_conv_i2f(struct tac *tac)
 {
     emit_conv_tof(tac, "cvtsi");
 }
 
-static void emit_conv_ui2f(struct tac *tac)
-{
-    emit_conv_tof(tac, "cvtsi");
-}
-
-static void emit_conv_f2si(struct tac *tac)
+static void emit_conv_f2i(struct tac *tac)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
@@ -1370,11 +1365,6 @@ static void emit_conv_f2si(struct tac *tac)
     const char *src_label = operand2s(l, from_size);
     struct reg *reg = SYM_X_REG(result->sym);
     emit("cvtt%s2si %s, %s", suffixf[from_i], src_label, reg->r[from_i]);
-}
-
-static void emit_conv_f2ui(struct tac *tac)
-{
-    emit_conv_f2si(tac);
 }
 
 static void emit_conv_f2f(struct tac *tac)
@@ -1497,16 +1487,12 @@ static void emit_tac(struct tac *tac)
         emit_conv_i2i(tac, INT);
         break;
     case IR_CONV_SI_F:
-        emit_conv_si2f(tac);
-        break;
     case IR_CONV_UI_F:
-        emit_conv_ui2f(tac);
+        emit_conv_i2f(tac);
         break;
     case IR_CONV_F_SI:
-        emit_conv_f2si(tac);
-        break;
     case IR_CONV_F_UI:
-        emit_conv_f2ui(tac);
+        emit_conv_f2i(tac);
         break;
     case IR_CONV_FF:
         emit_conv_f2f(tac);
