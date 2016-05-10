@@ -43,8 +43,6 @@ static const char *suffixp[] = {
 // Register Allocation
 static void init_regs(void);
 static void reset_regs(void);
-static struct reg * dispatch_ireg(node_t *sym, struct set *excepts, int opsize);
-static struct reg * dispatch_freg(node_t *sym, struct set *excepts, int opsize);
 static struct reg * get_one_ireg(struct set *excepts);
 static struct reg * get_one_freg(struct set *excepts);
 static void drain_reg(struct reg *reg);
@@ -1127,13 +1125,7 @@ static void emit_assign(struct tac *tac)
         } else if (is_direct_mem_operand(r) && SYM_X_REG(r->sym)) {
             load(SYM_X_REG(r->sym), l->sym, tac->opsize);
         } else {
-            // alloc register for tmp operand
-            struct set *excepts = operand_regs(r);
-            struct reg *reg;
-            if (assignf)
-                reg = dispatch_freg(l->sym, excepts, tac->opsize);
-            else
-                reg = dispatch_ireg(l->sym, excepts, tac->opsize);
+            struct reg *reg = SYM_X_REG(l->sym);
             int i = idx[tac->opsize];
             const char *src = operand2s(r, tac->opsize);
             const char **suffix = assignf ? suffixf : suffixi;
@@ -2388,7 +2380,21 @@ static void alloc_reg_uop_address(struct tac *tac)
 
 static void alloc_reg_assign(struct tac *tac)
 {
-    
+    bool assignf = tac->op == IR_ASSIGNF;
+    struct operand *l = tac->operands[0];
+    struct operand *r = tac->operands[1];
+    if (!is_tmp_operand(l))
+        return;
+    if (SYM_X_REG(l->sym))
+        return;
+    if (is_direct_mem_operand(r) && SYM_X_REG(r->sym))
+        return;
+    // alloc register for tmp operand
+    struct set *excepts = operand_regs(r);
+    if (assignf)
+        dispatch_freg(l->sym, excepts, tac->opsize);
+    else
+        dispatch_ireg(l->sym, excepts, tac->opsize);
 }
 
 static void alloc_reg_call(struct tac *tac)
