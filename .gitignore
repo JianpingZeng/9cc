@@ -60,6 +60,3 @@ GTAGS
 
 # flymake
 nul
-
-# cmake build dir
-build
