@@ -43,13 +43,13 @@ static const char *suffixp[] = {
 // Register Allocation
 static void init_regs(void);
 static void reset_regs(void);
-static struct reg * dispatch_ireg(node_t *sym, struct vector *excepts, int opsize);
-static struct reg * dispatch_freg(node_t *sym, struct vector *excepts, int opsize);
-static struct reg * get_one_ireg(struct vector *excepts);
-static struct reg * get_one_freg(struct vector *excepts);
+static struct reg * dispatch_ireg(node_t *sym, struct set *excepts, int opsize);
+static struct reg * dispatch_freg(node_t *sym, struct set *excepts, int opsize);
+static struct reg * get_one_ireg(struct set *excepts);
+static struct reg * get_one_freg(struct set *excepts);
 static void drain_reg(struct reg *reg);
-static void drain_regs(struct vector *regs);
-static void do_drain_reg(struct reg *reg, struct vector *excepts);
+static void drain_regs(struct set *regs);
+static void do_drain_reg(struct reg *reg, struct set *excepts);
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
 static void alloc_reg(struct tac *tac);
@@ -179,13 +179,13 @@ static void finalize_text(void)
     }
 }
 
-static struct vector * operand_regs(struct operand *operand)
+static struct set * operand_regs(struct operand *operand)
 {
-    struct vector *v = vec_new();
+    struct set *v = set_new();
     if (operand->sym && SYM_X_REG(operand->sym))
-        vec_push(v, SYM_X_REG(operand->sym));
+        set_add(v, SYM_X_REG(operand->sym));
     if (operand->index && SYM_X_REG(operand->index))
-        vec_push(v, SYM_X_REG(operand->index));
+        set_add(v, SYM_X_REG(operand->index));
     return v;
 }
 
@@ -337,7 +337,7 @@ static void emit_param_record(struct tac *tac, struct pnode *pnode)
     int cnt = ROUNDUP(size, 8) >> 3;
     
     if (paddr->kind == ADDR_STACK) {
-        struct vector *excepts = operand_regs(operand);
+        struct set *excepts = operand_regs(operand);
         struct reg *tmp = get_one_ireg(excepts);
         
         long loff = paddr->u.offset;
@@ -397,14 +397,14 @@ static void emit_param(struct tac *tac, struct pnode *pnode)
 
 static void drain_args_regs(int gp, int fp)
 {
-    struct vector *gv = vec_new();
+    struct set *gv = set_new();
     for (int i = 0; i < gp; i++)
-        vec_push(gv, iarg_regs[i]);
+        set_add(gv, iarg_regs[i]);
     drain_regs(gv);
 
-    struct vector *fv = vec_new();
+    struct set *fv = set_new();
     for (int i = 0; i < fp; i++)
-        vec_push(fv, farg_regs[i]);
+        set_add(fv, farg_regs[i]);
     drain_regs(fv);
 }
 
@@ -581,7 +581,7 @@ static void emit_builtin_va_start(struct tac *tac)
     long overflow_arg_area = STACK_PARAM_BASE_OFF;
     long reg_save_area = -REGISTER_SAVE_AREA_SIZE;
 
-    struct vector *excepts = operand_regs(l);
+    struct set *excepts = operand_regs(l);
     struct reg *reg = get_one_ireg(excepts);
 
     // gp_offset
@@ -616,9 +616,9 @@ static void emit_builtin_va_arg_p(struct tac *tac)
         size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
         struct operand *operand = make_ret_offset_operand(l, 8);
         const char *dst_label = operand2s(operand, Quad);
-        struct vector *excepts = operand_regs(l);
+        struct set *excepts = operand_regs(l);
         struct reg *tmp1 = get_one_ireg(excepts);
-        vec_push(excepts, tmp1);
+        set_add(excepts, tmp1);
         struct reg *tmp2 = get_one_ireg(excepts);
         emit("movq %s, %s", dst_label, tmp1->r[Q]);
         emit("movq %s, %s", tmp1->r[Q], tmp2->r[Q]);
@@ -643,10 +643,11 @@ static void emit_builtin_va_arg_p(struct tac *tac)
         if (isrecord(ty)) {
             // struct/union
             struct operand *r = EXPR_X_ADDR(args[1]);
-            struct vector *excepts = operand_regs(l);
-            vec_add(excepts, operand_regs(r));
+            struct set *excepts1 = operand_regs(l);
+            struct set *excepts2 = operand_regs(r);
+            struct set *excepts = set_union(excepts1, excepts2);
             struct reg *tmp1 = get_one_ireg(excepts);
-            vec_push(excepts, tmp1);
+            set_add(excepts, tmp1);
             struct reg *tmp2 = get_one_ireg(excepts);
             
             struct vector *ptypes = get_types(ty, 0);
@@ -678,7 +679,7 @@ static void emit_builtin_va_arg_p(struct tac *tac)
             }
             // register
             if (gp > 0 && fp > 0) {
-                vec_push(excepts, tmp2);
+                set_add(excepts, tmp2);
                 struct reg *tmp3 = get_one_ireg(excepts);
                 // TODO: assume vec_len == 2
                 cc_assert(vec_len(classes) == 2);
@@ -738,9 +739,9 @@ static void emit_builtin_va_arg_p(struct tac *tac)
             load(tmp1, result->sym, Quad);
         } else {
             // scalar
-            struct vector *excepts = operand_regs(l);
+            struct set *excepts = operand_regs(l);
             struct reg *tmp1 = get_one_ireg(excepts);
-            vec_push(excepts, tmp1);
+            set_add(excepts, tmp1);
             struct reg *tmp2 = get_one_ireg(excepts);
             
             const char *offset_label;
@@ -801,11 +802,11 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
     node_t *sym = pnode->param;
     struct reg *rax = int_regs[RAX];
 
-    struct vector *excepts = operand_regs(l);
+    struct set *excepts = operand_regs(l);
     // drain rax
     do_drain_reg(rax, excepts);
     
-    vec_push(excepts, rax);
+    set_add(excepts, rax);
     struct reg *tmp = get_one_ireg(excepts);
 
     // set destination base address
@@ -864,13 +865,12 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
     long loff = 0;
 
     // calculate excepts
-    struct vector *excepts = vec_new();
-    vec_add(excepts, operand_regs(l));
+    struct set *excepts = operand_regs(l);
     for (int i = 0; i < cnt; i++) {
         struct reg *reg = retaddr->u.regs[i].reg;
         // drain regs
         do_drain_reg(reg, excepts);
-        vec_push(excepts, reg);
+        set_add(excepts, reg);
     }
     
     for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
@@ -912,7 +912,7 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
                     emit("movz%sl %s, %s", suffixi[i], operand2s(operand1, opsize), tmp1->r[L]);
                     emit("shlq $32, %s", tmp1->r[Q]);
 
-                    vec_push(excepts, tmp1);
+                    set_add(excepts, tmp1);
                     struct reg *tmp2 = get_one_ireg(excepts);
                     emit("movl %s, %s", operand2s(operand, Long), tmp2->r[L]);
                     emit("orq %s, %s", tmp2->r[Q], tmp1->r[Q]);
@@ -927,7 +927,7 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
                     emit("movzbl %s, %s", operand2s(operand1, Byte), tmp1->r[L]);
                     emit("shlq $16, %s", tmp1->r[Q]);
 
-                    vec_push(excepts, tmp1);
+                    set_add(excepts, tmp1);
                     struct operand *operand2 = make_ret_offset_operand(l, loff + 4);
                     struct reg *tmp2 = get_one_ireg(excepts);
                     emit("movzwl %s, %s", operand2s(operand2, Word), tmp2->r[L]);
@@ -995,18 +995,18 @@ static void emit_if(struct tac *tac, bool reverse, bool floating)
     int i = idx[tac->opsize];
     bool sign = tac->sign;
     if (tac->relop) {
-        struct vector *vl = operand_regs(l);
-        struct vector *vr = operand_regs(r);
-        vec_add(vl, vr);
+        struct set *vl = operand_regs(l);
+        struct set *vr = operand_regs(r);
+        struct set *excepts = set_union(vl, vr);
         const char *l_label = operand2s(l, tac->opsize);
         const char *r_label = operand2s(r, tac->opsize);
         struct reg *reg;
         if (floating) {
-            reg = get_one_freg(vl);
+            reg = get_one_freg(excepts);
             emit("mov%s %s, %s", suffixf[i], l_label, reg->r[i]);
             emit("ucomi%s %s, %s", suffixf[i], r_label, reg->r[i]);
         } else {
-            reg = get_one_ireg(vl);
+            reg = get_one_ireg(excepts);
             emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
             emit("cmp%s %s, %s", suffixi[i], r_label, reg->r[i]);
         }
@@ -1133,7 +1133,7 @@ static void emit_assign(struct tac *tac)
             load(SYM_X_REG(r->sym), l->sym, tac->opsize);
         } else {
             // alloc register for tmp operand
-            struct vector *excepts = operand_regs(r);
+            struct set *excepts = operand_regs(r);
             struct reg *reg;
             if (assignf)
                 reg = dispatch_freg(l->sym, excepts, tac->opsize);
@@ -2057,11 +2057,10 @@ static void load(struct reg *reg, node_t *sym, int opsize)
         return;
 
     struct rvar *var = new_rvar(sym, opsize);
-    
+
     if (!reg->vars)
-        reg->vars = vec_new1(var);
-    else
-        vec_push(reg->vars, var);
+        reg->vars = set_new();
+    set_add(reg->vars, var);
     SYM_X_REG(sym) = reg;
 }
 
@@ -2084,28 +2083,20 @@ static bool is_in_tac(node_t *sym, struct tac *tac)
 
 // BUG: the 'ret' drain_reg may call get_reg again (a dead loop)
 // BUG: no enough registers
-static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts)
+static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
 {
     // filter excepts out
     struct vector *candicates = vec_new();
     for (int i = 0; i < count; i++) {
         struct reg *ri = regs[i];
-        bool found = false;
-        for (int j = 0; j < vec_len(excepts); j++) {
-            struct reg *rj = vec_at(excepts, j);
-            if (ri == rj) {
-                found = true;
-                break;
-            }
-        }
-        if (!found)
+        if (!set_has(excepts, ri))
             vec_push(candicates, ri);
     }
     
     // if exists an empty reg, return directly
     for (int i = 0; i < vec_len(candicates); i++) {
         struct reg *reg = vec_at(candicates, i);
-        if (vec_empty(reg->vars))
+        if (set_empty(reg->vars))
             return reg;
     }
 
@@ -2118,8 +2109,9 @@ static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts
         int cost = 0;
         bool sticky = false;
         struct reg *reg = vec_at(candicates, i);
-        for (int j = 0; j < vec_len(reg->vars); j++) {
-            struct rvar *v = vec_at(reg->vars, j);
+        struct vector *vars = set_objects(reg->vars);
+        for (int j = 0; j < vec_len(vars); j++) {
+            struct rvar *v = vec_at(vars, j);
             struct uses uses = SYM_X_USES(v->sym);
             if (SYM_X_INMEM(v->sym)) {
                 // ok
@@ -2150,7 +2142,7 @@ static struct reg * get_reg(struct reg **regs, int count, struct vector *excepts
     return ret;
 }
 
-static struct reg * dispatch_reg(struct reg **regs, int count, struct vector *excepts,
+static struct reg * dispatch_reg(struct reg **regs, int count, struct set *excepts,
                                  node_t *sym, int opsize)
 {
     // already in reg, return directly
@@ -2161,31 +2153,32 @@ static struct reg * dispatch_reg(struct reg **regs, int count, struct vector *ex
     return reg;
 }
 
-static struct reg * dispatch_ireg(node_t *sym, struct vector *excepts, int opsize)
+static struct reg * dispatch_ireg(node_t *sym, struct set *excepts, int opsize)
 {
     return dispatch_reg(int_regs, ARRAY_SIZE(int_regs), excepts, sym, opsize);
 }
 
-static struct reg * dispatch_freg(node_t *sym, struct vector *excepts, int opsize)
+static struct reg * dispatch_freg(node_t *sym, struct set *excepts, int opsize)
 {
     return dispatch_reg(float_regs, ARRAY_SIZE(float_regs), excepts, sym, opsize);
 }
 
-static struct reg * get_one_freg(struct vector *excepts)
+static struct reg * get_one_freg(struct set *excepts)
 {
     return get_reg(float_regs, ARRAY_SIZE(float_regs), excepts);
 }
 
-static struct reg * get_one_ireg(struct vector *excepts)
+static struct reg * get_one_ireg(struct set *excepts)
 {
     return get_reg(int_regs, ARRAY_SIZE(int_regs), excepts);
 }
 
-static void do_drain_reg(struct reg *reg, struct vector *excepts)
+static void do_drain_reg(struct reg *reg, struct set *excepts)
 {
     struct reg *new_reg = NULL;
-    for (int j = 0; j < vec_len(reg->vars); j++) {
-        struct rvar *v = vec_at(reg->vars, j);
+    struct vector *vars = set_objects(reg->vars);
+    for (int j = 0; j < vec_len(vars); j++) {
+        struct rvar *v = vec_at(vars, j);
         node_t *sym = v->sym;
         int i = idx[v->size];
         // always clear
@@ -2231,13 +2224,14 @@ static void do_drain_reg(struct reg *reg, struct vector *excepts)
         }
     }
     if (reg->vars)
-        vec_clear(reg->vars);
+        set_clear(reg->vars);
 }
 
-static void drain_regs(struct vector *regs)
+static void drain_regs(struct set *regs)
 {
-    for (int i = 0; i < vec_len(regs); i++) {
-        struct reg *reg = vec_at(regs, i);
+    struct vector *objects = set_objects(regs);
+    for (int i = 0; i < vec_len(objects); i++) {
+        struct reg *reg = vec_at(objects, i);
         do_drain_reg(reg, regs);
     }
 }
@@ -2245,7 +2239,7 @@ static void drain_regs(struct vector *regs)
 // maybe sticky
 static void drain_reg(struct reg *reg)
 {
-    do_drain_reg(reg, vec_new1(reg));
+    do_drain_reg(reg, set_new1(reg));
 }
 
 // if(False) x relop y goto z
@@ -2273,13 +2267,13 @@ static void alloc_reg_bop_arith(struct tac *tac, bool floating)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
-    struct vector *vl = operand_regs(l);
-    struct vector *vr = operand_regs(r);
-    vec_add(vl, vr);
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *excepts = set_union(vl, vr);
     if (floating)
-        dispatch_freg(result->sym, vl, tac->opsize);
+        dispatch_freg(result->sym, excepts, tac->opsize);
     else
-        dispatch_ireg(result->sym, vl, tac->opsize);
+        dispatch_ireg(result->sym, excepts, tac->opsize);
 }
 
 static void alloc_reg_bop_int(struct tac *tac)
@@ -2295,9 +2289,9 @@ static void alloc_reg_int_mul_div(struct tac *tac)
     struct reg *rdx = int_regs[RDX];
     int i = idx[tac->opsize];
     if (tac->opsize > Byte) {
-        struct vector *regs = vec_new();
-        vec_push(regs, rax);
-        vec_push(regs, rdx);
+        struct set *regs = set_new();
+        set_add(regs, rax);
+        set_add(regs, rdx);
         drain_regs(regs);
         if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
             tac->op == IR_MOD || tac->op == IR_IMOD)
@@ -2307,9 +2301,9 @@ static void alloc_reg_int_mul_div(struct tac *tac)
     }
     if (is_imm_operand(r)) {
         const char *r_label = operand2s(r, tac->opsize);
-        struct vector *excepts = operand_regs(l);
-        vec_push(excepts, rax);
-        vec_push(excepts, rdx);
+        struct set *excepts = operand_regs(l);
+        set_add(excepts, rax);
+        set_add(excepts, rdx);
         struct reg *reg = dispatch_ireg(r->sym, excepts, tac->opsize);
         emit("mov%s %s, %s", suffixi[i], r_label, reg->r[i]);
     }
@@ -2358,12 +2352,10 @@ static void alloc_reg_shift(struct tac *tac)
     struct operand *r = tac->operands[2];
     struct reg *rcx = int_regs[RCX];
     drain_reg(rcx);
-    struct vector *vl = operand_regs(l);
-    struct vector *vr = operand_regs(r);
-    struct vector *excepts = vec_new();
-    vec_push(excepts, rcx);
-    vec_add(excepts, vl);
-    vec_add(excepts, vr);
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *excepts = set_union(vl, vr);
+    set_add(excepts, rcx);
     dispatch_ireg(result->sym, excepts, tac->opsize);
 }
 
@@ -2376,7 +2368,7 @@ static void alloc_reg_uop(struct tac *tac, bool floating)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    struct vector *excepts = operand_regs(l);
+    struct set *excepts = operand_regs(l);
     if (floating)
         dispatch_freg(result->sym, excepts, tac->opsize);
     else
@@ -2402,7 +2394,7 @@ static void alloc_reg_uop_address(struct tac *tac)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    struct vector *excepts = operand_regs(l);
+    struct set *excepts = operand_regs(l);
     dispatch_ireg(result->sym, excepts, Quad);
 }
 
@@ -2429,12 +2421,12 @@ static void alloc_reg_conv_i2i(struct tac *tac)
     int to_size = tac->to_opsize;
     int from_i = idx[from_size];
     const char *src_label = operand2s(l, to_size);
-    struct vector *excepts = operand_regs(l);
+    struct set *excepts = operand_regs(l);
     struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
     // widden
     if (tac->from_opsize < tac->to_opsize) {
         if (is_imm_operand(l)) {
-            vec_push(excepts, reg);
+            set_add(excepts, reg);
             struct reg *src_reg = dispatch_ireg(l->sym, excepts, from_size);
             emit("mov%s %s, %s", suffixi[from_i], src_label, src_reg->r[from_i]);
         }
@@ -2453,7 +2445,7 @@ static void alloc_reg_conv_i2f(struct tac *tac)
         struct reg *reg = dispatch_ireg(l->sym, NULL, from_size);
         emit("mov%s %s, %s", suffixi[from_i], src_label, reg->r[from_i]);
     }
-    struct vector *excepts = operand_regs(l);
+    struct set *excepts = operand_regs(l);
     dispatch_freg(result->sym, excepts, to_size);
 }
 
@@ -2462,7 +2454,7 @@ static void alloc_reg_conv_f2i(struct tac *tac)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int from_size = tac->from_opsize;
-    struct vector *excepts = operand_regs(l);
+    struct set *excepts = operand_regs(l);
     dispatch_ireg(result->sym, excepts, from_size);
 }
 
@@ -2471,7 +2463,7 @@ static void alloc_reg_conv_f2f(struct tac *tac)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int to_size = tac->to_opsize;
-    struct vector *excepts = operand_regs(l);
+    struct set *excepts = operand_regs(l);
     dispatch_freg(result->sym, excepts, to_size);
 }
 

@@ -35,7 +35,7 @@ struct reg {
     int freg:1;
     int preserved:1;              // preserved across function calls
     const char *r[4];
-    struct vector *vars;
+    struct set *vars;
 };
 
 // op
