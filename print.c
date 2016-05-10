@@ -434,6 +434,7 @@ static const char * operand2s(struct operand *operand)
 
 void print_tac(struct tac *tac)
 {
+    putf(GREEN_COLOR "<%p>", tac);
     switch (tac->opsize) {
     case Quad:
         putf("[Q] ");
@@ -574,7 +575,36 @@ void print_tac(struct tac *tac)
     default:
         die("unexpected rop %s", rop2s(tac->op));
     }
-    putf("\n");
+    putf("\n" RESET);
+}
+
+#define REF_SYM(sym) (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
+                      SYM_X_KIND(sym) == SYM_KIND_LREF ||\
+                      SYM_X_KIND(sym) == SYM_KIND_TMP)
+
+static void print_use(struct tac *tac)
+{
+    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+        struct operand *operand = tac->operands[i];
+        if (operand) {
+            if (operand->sym && REF_SYM(operand->sym)) {
+                struct uses use = tac->uses[i*2];
+                putf("%s: ", SYM_X_LABEL(operand->sym));
+                if (use.live)
+                    putln("live at %p", use.next);
+                else
+                    putln("die");
+            }
+            if (operand->index && REF_SYM(operand->index)) {
+                struct uses use = tac->uses[i*2+1];
+                putf("%s: ", SYM_X_LABEL(operand->index));
+                if (use.live)
+                    putln("live at %p", use.next);
+                else
+                    putln("die");
+            }
+        }
+    }
 }
 
 static void print_data(struct gsection *section)
@@ -618,9 +648,11 @@ static void print_sym_set(struct set *set)
 static void print_basic_block(struct basic_block *block)
 {
     if (block->head)
-        putln("%s:", block->label);
-    for (struct tac *tac = block->head; tac; tac = tac->next)
+        putln(RED("%s:"), block->label);
+    for (struct tac *tac = block->head; tac; tac = tac->next) {
         print_tac(tac);
+        print_use(tac);
+    }
     
     putf("def: ");
     print_sym_set(block->def);
