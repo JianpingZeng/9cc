@@ -10,6 +10,13 @@ struct set *set_new(void)
     return set;
 }
 
+struct set *set_new1(void *element)
+{
+    struct set *set = set_new();
+    set_add(set, element);
+    return set;
+}
+
 void set_free(struct set *set)
 {
     map_free(set->map);
@@ -100,4 +107,16 @@ bool set_equal(struct set *set1, struct set *set2)
             return false;
     }
     return true;
+}
+
+bool set_empty(struct set *set)
+{
+    return set_size(set) == 0;
+}
+
+void set_clear(struct set *set)
+{
+    map_free(set->map);
+    set->map = map_new();
+    set->map->cmpfn = nocmp;
 }
