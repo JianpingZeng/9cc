@@ -1104,8 +1104,9 @@ void dump_operand(struct operand *operand)
 void dump_reg(struct reg *reg)
 {
     println("dump %s:", reg->r[Q]);
-    for (int i = 0; i < vec_len(reg->vars); i++) {
-        struct rvar *v = vec_at(reg->vars, i);
+    struct vector *vars = set_objects(reg->vars);
+    for (int i = 0; i < vec_len(vars); i++) {
+        struct rvar *v = vec_at(vars, i);
         println("[%d] %s, %d", i, SYM_X_LABEL(v->sym), v->size);
     }
 }
