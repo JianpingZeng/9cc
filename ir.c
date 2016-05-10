@@ -525,15 +525,10 @@ static void emit_rel_if(int op,
 
 static void emit_label(const char *label)
 {
-    if (func_tac_tail &&
-        func_tac_tail->op == IR_LABEL &&
-        !strcmp(SYM_NAME(func_tac_tail->operands[0]->sym), label)) {
-        // same label, do nothing
-    } else {
-        struct operand *operand = make_label_operand(label);
-        struct tac *tac = make_tac(IR_LABEL, NULL, NULL, operand, Zero);
-        emit_tac(tac);
-    }
+    //NOTE: maybe duplicate, but don't care...
+    struct operand *operand = make_label_operand(label);
+    struct tac *tac = make_tac(IR_LABEL, NULL, NULL, operand, Zero);
+    emit_tac(tac);
 }
 
 static void emit_goto(const char *label)
