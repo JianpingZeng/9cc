@@ -1093,11 +1093,6 @@ static void emit_goto(struct tac *tac)
     emit("jmp %s", SYM_X_LABEL(tac->operands[0]->sym));
 }
 
-static void emit_label(struct tac *tac)
-{
-    emit_noindent("%s:", SYM_X_LABEL(tac->operands[0]->sym));
-}
-
 static void emit_assign_basic(struct operand *l, struct operand *r,
                               int opsize, bool assignf)
 {
@@ -1380,9 +1375,6 @@ static void emit_conv_f2f(struct tac *tac)
 static void emit_tac(struct tac *tac)
 {
     switch (tac->op) {
-    case IR_LABEL:
-        emit_label(tac);
-        break;
     case IR_GOTO:
         emit_goto(tac);
         break;
@@ -1499,10 +1491,16 @@ static void emit_tac(struct tac *tac)
         break;
     case IR_NONE:
     case IR_PARAM:
+    case IR_LABEL:
     default:
         // skip
         break;
     }
+}
+
+static void finalize_basic_block(struct basic_block *block)
+{
+    // TODO: 
 }
 
 static void init_sym_addrs(node_t *sym)
@@ -1533,12 +1531,16 @@ static void emit_basic_blocks(struct basic_block *start)
 {
     for (struct basic_block *block = start; block; block = block->successors[0]) {
         fcon.current_block = block;
+        if (block->label)
+            emit_noindent("%s:", block->label);
         for (struct tac *tac = block->head; tac; tac = tac->next) {
             // set current tac
             fcon.current_tac = tac;
             alloc_reg(tac);
             emit_tac(tac);
         }
+        if (block->tag != BLOCK_START && block->tag != BLOCK_END)
+            finalize_basic_block(block);
     }
 }
 
