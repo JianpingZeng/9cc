@@ -541,16 +541,14 @@ void print_tac(struct tac *tac)
         break;
     case IR_CALL:
         if (tac->operands[0]) {
-            putf("%s = %s %s, %d",
+            putf("%s = %s %s",
                  operand2s(tac->operands[0]),
                  rop2s(tac->op),
-                 operand2s(tac->operands[1]),
-                 tac->relop);
+                 operand2s(tac->operands[1]));
         } else {
-            putf("%s %s, %d",
+            putf("%s %s",
                  rop2s(tac->op),
-                 operand2s(tac->operands[1]),
-                 tac->relop);
+                 operand2s(tac->operands[1]));
         }
         break;
     case IR_CONV_UI_UI:

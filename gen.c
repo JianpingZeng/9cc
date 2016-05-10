@@ -513,13 +513,13 @@ static void emit_nonbuiltin_call(struct tac *tac)
     node_t **args = EXPR_ARGS(call);
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    int len = tac->relop;
+    size_t len = LIST_LEN(args);
     node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
     struct vector *params = vec_new();
     struct tac *t = tac->prev;
-    for (int i = 0; i < len; i++, t = t->prev) {
+    for (size_t i = 0; i < len; i++, t = t->prev) {
         cc_assert(t->op == IR_PARAM);
-        vec_push(params, t);
+        vec_push(params, t);    // in reverse order
     }
 
     // TODO: reset current tac here to make next uses live for params
@@ -529,16 +529,16 @@ static void emit_nonbuiltin_call(struct tac *tac)
     struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
     // drain regs
     drain_args_regs(pinfo->gp, pinfo->fp);
-    for (int i = 0, sub = 0; i < vec_len(pinfo->pnodes); i++) {
+    size_t k = 0;
+    if (pinfo->retaddr && pinfo->retaddr->kind == ADDR_STACK) {
+        struct reg *reg = iarg_regs[0];
+        emit("leaq %ld(%s), %s", fcon.calls_return_loff, rbp->r[Q], reg->r[Q]);
+        k = 1;
+    }
+    for (size_t i = k; i < vec_len(pinfo->pnodes); i++) {
         struct pnode *pnode = vec_at(pinfo->pnodes, i);
-        if (i == 0 && pinfo->retaddr && pinfo->retaddr->kind == ADDR_STACK) {
-            struct reg *reg = iarg_regs[0];
-            emit("leaq %ld(%s), %s", fcon.calls_return_loff, rbp->r[Q], reg->r[Q]);
-            sub = 1;
-        } else {
-            struct tac *param = vec_at(params, i - sub);
-            emit_param(param, pnode);
-        }
+        struct tac *param = vec_at(params, (len-1) - (i-k));
+        emit_param(param, pnode);
     }
     
     if (TYPE_VARG(ftype) || TYPE_OLDSTYLE(ftype)) {
@@ -2237,23 +2237,22 @@ static void drain_reg(struct reg *reg)
 }
 
 // if(False) x relop y goto z
-static void alloc_reg_if_relop(struct tac *tac, bool reverse, bool floating)
+static void alloc_reg_if_relop(struct tac *tac, bool floating)
 {
 }
 
 // if(False) x goto z
-static void alloc_reg_if_simple(struct tac *tac, bool reverse, bool floating)
+static void alloc_reg_if_simple(struct tac *tac, bool floating)
 {
 }
 
 static void alloc_reg_if(struct tac *tac)
 {
-    bool reverse = tac->op == IR_IF_FALSE_I || tac->op == IR_IF_FALSE_F;
     bool floating = tac->op == IR_IF_F || tac->op == IR_IF_FALSE_F;
     if (tac->relop)
-        alloc_reg_if_relop(tac, reverse, floating);
+        alloc_reg_if_relop(tac, floating);
     else
-        alloc_reg_if_simple(tac, reverse, floating);
+        alloc_reg_if_simple(tac, floating);
 }
 
 static void alloc_reg_bop_arith(struct tac *tac, bool floating)

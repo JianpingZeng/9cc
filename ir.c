@@ -544,10 +544,10 @@ static void emit_param(struct operand *operand)
     emit_tac(tac);
 }
 
-static struct tac * make_call_tac(struct operand *l, int args, struct operand *result)
+static struct tac * make_call_tac(struct operand *l, struct operand *result, node_t *call)
 {
     struct tac *tac = make_tac(IR_CALL, l, NULL, result, Quad);
-    tac->relop = args;
+    tac->call = call;
     return tac;
 }
 
@@ -1460,15 +1460,14 @@ static void emit_call(node_t *n)
 
     emit_expr(l);
 
-    for (int i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         node_t *arg = args[i];
         emit_expr(arg);
         // update gref
         EXPR_X_ADDR(arg) = update_gref(EXPR_X_ADDR(arg));
     }
 
-    // in reverse order
-    for (int i = len - 1; i >= 0; i--) {
+    for (size_t i = 0; i < len; i++) {
         node_t *arg = args[i];
         emit_param(EXPR_X_ADDR(arg));
     }
@@ -1486,12 +1485,10 @@ static void emit_call(node_t *n)
     }
 
     if (isvoid(rty)) {
-        struct tac *tac = make_call_tac(call_operand, len, NULL);
-        tac->call = n;
+        struct tac *tac = make_call_tac(call_operand, NULL, n);
         emit_tac(tac);
     } else {
-        struct tac *tac = make_call_tac(call_operand, len, make_tmp_operand());
-        tac->call = n;
+        struct tac *tac = make_call_tac(call_operand, make_tmp_operand(), n);
         emit_tac(tac);
         EXPR_X_ADDR(n) = tac->operands[0];
     }
