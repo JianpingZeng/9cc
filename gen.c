@@ -985,85 +985,99 @@ static void emit_return(struct tac *tac)
     }
 }
 
-static void emit_if(struct tac *tac, bool reverse, bool floating)
+// if x relop y goto dest
+static void emit_if_relop(struct tac *tac, bool reverse, bool floating)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
     int i = idx[tac->opsize];
     bool sign = tac->sign;
-    if (tac->relop) {
-        struct set *vl = operand_regs(l);
-        struct set *vr = operand_regs(r);
-        struct set *excepts = set_union(vl, vr);
-        const char *l_label = operand2s(l, tac->opsize);
-        const char *r_label = operand2s(r, tac->opsize);
-        struct reg *reg;
-        if (floating) {
-            reg = get_one_freg(excepts);
-            emit("mov%s %s, %s", suffixf[i], l_label, reg->r[i]);
-            emit("ucomi%s %s, %s", suffixf[i], r_label, reg->r[i]);
-        } else {
-            reg = get_one_ireg(excepts);
-            emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
-            emit("cmp%s %s, %s", suffixi[i], r_label, reg->r[i]);
-        }
-        
-        const char *jop;
-        switch (tac->relop) {
-        case '>':
-            if (reverse)
-                jop = sign ? "jle" : "jbe";
-            else
-                jop = sign ? "jg" : "ja";
-            break;
-        case '<':
-            if (reverse)
-                jop = sign ? "jge" : "jae";
-            else
-                jop = sign ? "jl" : "jb";
-            break;
-        case GEQ:
-            if (reverse)
-                jop = sign ? "jl" : "jb";
-            else
-                jop = sign ? "jge" : "jae";
-            break;
-        case LEQ:
-            if (reverse)
-                jop = sign ? "jg" : "ja";
-            else
-                jop = sign ? "jle" : "jbe";
-            break;
-        case NEQ:
-            jop = reverse ? "je" : "jne";
-            break;
-        case EQ:
-            jop = reverse ? "jne" : "je";
-            break;
-        default:
-            cc_assert(0);
-        }
-        emit("%s %s", jop, SYM_X_LABEL(result->sym));
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *excepts = set_union(vl, vr);
+    const char *l_label = operand2s(l, tac->opsize);
+    const char *r_label = operand2s(r, tac->opsize);
+    struct reg *reg;
+    if (floating) {
+        reg = get_one_freg(excepts);
+        emit("mov%s %s, %s", suffixf[i], l_label, reg->r[i]);
+        emit("ucomi%s %s, %s", suffixf[i], r_label, reg->r[i]);
     } else {
-        if (floating) {
-            struct reg *r = get_one_freg(NULL);
-            emit("xor%s %s, %s", suffixp[i], r->r[i], r->r[i]);
-            emit("ucomi%s %s, %s", suffixf[i], operand2s(l, tac->opsize), r->r[i]);
-        } else {
-            if (is_imm_operand(l)) {
-                // TODO: optimize
-                struct reg *r = get_one_ireg(NULL);
-                emit("xor%s %s, %s", suffixi[i], r->r[i], r->r[i]);
-                emit("cmp%s %s, %s", suffixi[i], operand2s(l, tac->opsize), r->r[i]);
-            } else {
-                emit("cmp%s $0, %s", suffixi[i], operand2s(l, tac->opsize));
-            }
-        }
-        
-        const char *jop = reverse ? "je" : "jne";
-        emit("%s %s", jop, SYM_X_LABEL(result->sym));
+        reg = get_one_ireg(excepts);
+        emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
+        emit("cmp%s %s, %s", suffixi[i], r_label, reg->r[i]);
     }
+        
+    const char *jop;
+    switch (tac->relop) {
+    case '>':
+        if (reverse)
+            jop = sign ? "jle" : "jbe";
+        else
+            jop = sign ? "jg" : "ja";
+        break;
+    case '<':
+        if (reverse)
+            jop = sign ? "jge" : "jae";
+        else
+            jop = sign ? "jl" : "jb";
+        break;
+    case GEQ:
+        if (reverse)
+            jop = sign ? "jl" : "jb";
+        else
+            jop = sign ? "jge" : "jae";
+        break;
+    case LEQ:
+        if (reverse)
+            jop = sign ? "jg" : "ja";
+        else
+            jop = sign ? "jle" : "jbe";
+        break;
+    case NEQ:
+        jop = reverse ? "je" : "jne";
+        break;
+    case EQ:
+        jop = reverse ? "jne" : "je";
+        break;
+    default:
+        cc_assert(0);
+    }
+    emit("%s %s", jop, SYM_X_LABEL(result->sym));
+}
+
+// if x goto dest
+static void emit_if_simple(struct tac *tac, bool reverse, bool floating)
+{
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int i = idx[tac->opsize];
+    if (floating) {
+        struct reg *r = get_one_freg(NULL);
+        emit("xor%s %s, %s", suffixp[i], r->r[i], r->r[i]);
+        emit("ucomi%s %s, %s", suffixf[i], operand2s(l, tac->opsize), r->r[i]);
+    } else {
+        if (is_imm_operand(l)) {
+            // TODO: optimize
+            struct reg *r = get_one_ireg(NULL);
+            emit("xor%s %s, %s", suffixi[i], r->r[i], r->r[i]);
+            emit("cmp%s %s, %s", suffixi[i], operand2s(l, tac->opsize), r->r[i]);
+        } else {
+            emit("cmp%s $0, %s", suffixi[i], operand2s(l, tac->opsize));
+        }
+    }
+        
+    const char *jop = reverse ? "je" : "jne";
+    emit("%s %s", jop, SYM_X_LABEL(result->sym));
+}
+
+static void emit_if(struct tac *tac, bool reverse, bool floating)
+{
+    if (tac->relop)
+        emit_if_relop(tac, reverse, floating);
+    else
+        emit_if_simple(tac, reverse, floating);
 }
 
 static void emit_if_i(struct tac *tac)
