@@ -96,7 +96,6 @@ enum {
 // function context
 static struct {
     const char *end_label;
-    size_t returns;
     long calls_return_loff;
     struct pinfo *pinfo;
     struct basic_block *current_block;
@@ -978,11 +977,7 @@ static void emit_return(struct tac *tac)
                 emit_return_by_registers_scalar(l, retaddr);
         }
     }
-    // if it's the last tac, don't emit a jump
-    if (tac->next) {
-        emit("jmp %s", fcon.end_label);
-        fcon.returns++;
-    }
+    emit("jmp %s", fcon.end_label);
 }
 
 // if x relop y goto dest
@@ -1550,7 +1545,7 @@ static void emit_basic_blocks(struct basic_block *start)
 {
     for (struct basic_block *block = start; block; block = block->successors[0]) {
         fcon.current_block = block;
-        if (block->label)
+        if (block->label && block->tag == BLOCK_JUMPING_DEST)
             emit_noindent("%s:", block->label);
         for (struct tac *tac = block->head; tac; tac = tac->next) {
             // set current tac
@@ -1764,7 +1759,6 @@ static void emit_text(struct gsection *section)
     // reset func context
     {
         fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
-        fcon.returns = 0;
         fcon.calls_return_loff = 0;
         fcon.pinfo = NULL;
         fcon.current_ftype = ftype;
@@ -1780,9 +1774,6 @@ static void emit_text(struct gsection *section)
         emit_register_params(decl);
     init_basic_blocks(DECL_X_BASIC_BLOCK(decl));
     emit_basic_blocks(DECL_X_BASIC_BLOCK(decl));
-    // function epilogue
-    if (fcon.returns)
-        emit_noindent("%s:", fcon.end_label);
     emit_function_epilogue();
     
     finalize_text();
