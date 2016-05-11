@@ -1507,19 +1507,6 @@ static void finalize_basic_block(struct basic_block *block)
     // TODO: 
 }
 
-static void update_use(struct tac *tac)
-{
-    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
-        struct operand *operand = tac->operands[i];
-        if (operand) {
-            if (operand->sym)
-                SYM_X_USES(operand->sym) = tac->uses[i*2];
-            if (operand->index)
-                SYM_X_USES(operand->index) = tac->uses[i*2+1];
-        }
-    }
-}
-
 static void init_sym_addrs(node_t *sym)
 {
     if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
@@ -1554,7 +1541,6 @@ static void emit_basic_blocks(struct basic_block *start)
             // set current tac
             fcon.current_tac = tac;
             alloc_reg(tac);
-            update_use(tac);
             emit_tac(tac);
         }
         if (block->tag != BLOCK_START && block->tag != BLOCK_END)
@@ -2490,6 +2476,19 @@ static void alloc_reg_conv_f2f(struct tac *tac)
     dispatch_freg(result->sym, excepts, to_size);
 }
 
+static void update_use(struct tac *tac)
+{
+    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+        struct operand *operand = tac->operands[i];
+        if (operand) {
+            if (operand->sym)
+                SYM_X_USES(operand->sym) = tac->uses[i*2];
+            if (operand->index)
+                SYM_X_USES(operand->index) = tac->uses[i*2+1];
+        }
+    }
+}
+
 static void alloc_reg(struct tac *tac)
 {
     switch (tac->op) {
@@ -2588,6 +2587,7 @@ static void alloc_reg(struct tac *tac)
         // skip
         break;
     }
+    update_use(tac);
 }
 
 ///
