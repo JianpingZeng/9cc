@@ -214,8 +214,6 @@ static const char * operand2s(struct operand *operand, int opsize)
         {
             node_t *sym = operand->sym;
             node_t *index = operand->index;
-            assertf(SYM_X_REG(sym), "symbol '%s' not in register",
-                    SYM_X_LABEL(sym));
             if (SYM_X_KIND(sym) == SYM_KIND_LREF) {
                 long offset = SYM_X_LOFF(sym) + operand->disp;
                 if (index) {
@@ -2587,7 +2585,8 @@ static void alloc_reg(struct tac *tac)
         // skip
         break;
     }
-    update_use(tac);
+    if (tac->op != IR_PARAM)
+        update_use(tac);
 }
 
 ///
