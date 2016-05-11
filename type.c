@@ -256,11 +256,11 @@ int qual_union(node_t * ty1, node_t * ty2)
 
 node_t *qual(int t, node_t * ty)
 {
-    cc_assert(ty);
+    assert(ty);
     if (t == 0)
         return ty;
     
-    cc_assert(isconst1(t) || isvolatile1(t) || isrestrict1(t));
+    assert(isconst1(t) || isvolatile1(t) || isrestrict1(t));
     
     node_t *qty = new_type();
     if (isqual(ty))
@@ -461,7 +461,7 @@ bool eqtype(node_t * ty1, node_t * ty2)
         }
 
     default:
-        cc_assert(0);
+        assert(0);
         return false;
     }
 }
@@ -490,7 +490,7 @@ int indexof_field(node_t * ty, node_t * field)
         if (field == f)
             return i;
     }
-    cc_assert(0);
+    assert(0);
     return -1;
 }
 
@@ -713,8 +713,8 @@ bool isrestrict(node_t * ty)
 
 bool eqarith(node_t * ty1, node_t * ty2)
 {
-    cc_assert(isarith(ty1));
-    cc_assert(isarith(ty2));
+    assert(isarith(ty1));
+    assert(isarith(ty2));
 
     return TYPE_KIND(ty1) == TYPE_KIND(ty2) &&
         TYPE_OP(ty1) == TYPE_OP(ty2);

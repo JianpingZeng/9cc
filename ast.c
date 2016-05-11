@@ -11,7 +11,7 @@ const char *nname(node_t * node)
     if (node == NULL)
         return "<NULL>";
 
-    cc_assert(AST_ID(node) > BEGIN_NODE_ID && AST_ID(node) < END_NODE_ID);
+    assert(AST_ID(node) > BEGIN_NODE_ID && AST_ID(node) < END_NODE_ID);
 
     return node_names[AST_ID(node)];
 }
@@ -40,7 +40,7 @@ void *alloc_field(void)
 
 node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r)
 {
-    cc_assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
+    assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
     node_t *expr = new_node(id);
     EXPR_OPERAND(expr, 0) = l;
     EXPR_OPERAND(expr, 1) = r;
@@ -50,7 +50,7 @@ node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r)
 
 node_t *ast_decl(int id)
 {
-    cc_assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
+    assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
     node_t *decl = new_node(id);
     return decl;
 }
@@ -92,7 +92,7 @@ node_t *ast_vinit(void)
 
 node_t *ast_stmt(int id, struct source src)
 {
-    cc_assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
+    assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
     node_t *stmt = new_node(id);
     AST_SRC(stmt) = src;
     return stmt;

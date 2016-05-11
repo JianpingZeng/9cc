@@ -156,12 +156,12 @@ static node_t *arith2arith(node_t * dty, node_t * l)
             VALUE_D(dst_val) = VALUE_D(src_val);
         return float_literal_node(dty, dst_val);
     }
-    cc_assert(0);
+    assert(0);
 }
 
 static node_t *arith2ptr(node_t * dty, node_t * l)
 {
-    cc_assert(isint(AST_TYPE(l)));
+    assert(isint(AST_TYPE(l)));
     if (!isiliteral(l))
         return NULL;
     // int => ptr
@@ -170,7 +170,7 @@ static node_t *arith2ptr(node_t * dty, node_t * l)
 
 static node_t *ptr2arith(node_t * dty, node_t * l)
 {
-    cc_assert(isint(dty));
+    assert(isint(dty));
     if (!isiliteral(l))
         return NULL;
     // ptr => int
@@ -192,7 +192,7 @@ static node_t *ptr2ptr(node_t * dty, node_t * l)
 
 static node_t *func2ptr(node_t * dty, node_t * l)
 {
-    cc_assert(AST_ID(l) == REF_EXPR);
+    assert(AST_ID(l) == REF_EXPR);
     l = copy_node(l);
     AST_TYPE(l) = dty;
     return l;
@@ -200,7 +200,7 @@ static node_t *func2ptr(node_t * dty, node_t * l)
 
 static node_t *array2ptr(node_t * dty, node_t * l)
 {
-    cc_assert(AST_ID(l) == REF_EXPR || issliteral(l));
+    assert(AST_ID(l) == REF_EXPR || issliteral(l));
     if (AST_ID(l) == REF_EXPR && !has_static_extent(EXPR_SYM(l)))
         return NULL;
     l = copy_node(l);
@@ -245,7 +245,7 @@ static node_t *cast(node_t * dty, node_t * l)
 // 'expr' was evaluated and _NOT_ null.
 static bool scalar_bool(node_t * expr)
 {
-    cc_assert(isiliteral(expr) || isfliteral(expr));
+    assert(isiliteral(expr) || isfliteral(expr));
 
     if (isiliteral(expr))
         return ILITERAL_VALUE(expr) != 0;
@@ -262,7 +262,7 @@ static node_t *address_uop(node_t * expr)
     if (issliteral(l) || AST_ID(l) == INITS_EXPR) {
         return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);
     } else if (AST_ID(l) == UNARY_OPERATOR) {
-        cc_assert(EXPR_OP(l) == '*');
+        assert(EXPR_OP(l) == '*');
         return EXPR_OPERAND(l, 0);
     } else if (AST_ID(l) == REF_EXPR) {
         node_t *sym = EXPR_SYM(l);
@@ -271,7 +271,7 @@ static node_t *address_uop(node_t * expr)
         return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);
     }
     die("%s", node2s(l));
-    cc_assert(0);
+    assert(0);
 }
 
 static node_t *sizeof_uop(node_t * expr)
@@ -299,7 +299,7 @@ static node_t *scalar_uop(int op, node_t * ty, node_t * l)
             return VALUE_D(lval) ==
                 0 ? one_literal() : zero_literal();
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -323,7 +323,7 @@ static node_t *arith_uop(int op, node_t * ty, node_t * l)
             return float_literal_node(ty, rval);
         }
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -340,7 +340,7 @@ static node_t *int_uop(int op, node_t * ty, node_t * l)
         VALUE_U(rval) = ~VALUE_U(lval);
         return int_literal_node(ty, rval);
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -349,7 +349,7 @@ static node_t *scalar_bop(int op, node_t * ty, node_t * l, node_t * r)
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
 
-    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
+    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -397,7 +397,7 @@ static node_t *scalar_bop(int op, node_t * ty, node_t * l, node_t * r)
         SCALAR_OP(!=);
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -415,8 +415,8 @@ static node_t *ptr_int_bop(int op, node_t * ty, node_t * ptr, node_t * i)
         int op1 = EXPR_OP(l);
         node_t *r1 = EXPR_OPERAND(l, 1);
 
-        cc_assert(op1 == '+' || op1 == '-');
-        cc_assert(isiliteral(r1));
+        assert(op1 == '+' || op1 == '-');
+        assert(isiliteral(r1));
 
         node_t *n;
         if (op == op1) {
@@ -441,10 +441,10 @@ static node_t *arith_bop(int op, node_t * ty, node_t * l, node_t * r)
     else if (!isiliteral(r) && !isfliteral(r))
         return NULL;
 
-    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
-    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
-    cc_assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(AST_TYPE(r)));
-    cc_assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(ty));
+    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
+    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
+    assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(AST_TYPE(r)));
+    assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(ty));
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -473,7 +473,7 @@ static node_t *arith_bop(int op, node_t * ty, node_t * l, node_t * r)
         ARITH_BOP(/);
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 
     if (is_int)
@@ -487,10 +487,10 @@ static node_t *int_bop(int op, node_t * ty, node_t * l, node_t * r)
     if (!isiliteral(l) || !isiliteral(r))
         return NULL;
 
-    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
-    cc_assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
-    cc_assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(AST_TYPE(r)));
-    cc_assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(ty));
+    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
+    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
+    assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(AST_TYPE(r)));
+    assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(ty));
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -518,7 +518,7 @@ static node_t *int_bop(int op, node_t * ty, node_t * l, node_t * r)
         INT_BOP(^);
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 
     return int_literal_node(ty, val);
@@ -526,7 +526,7 @@ static node_t *int_bop(int op, node_t * ty, node_t * l, node_t * r)
 
 static node_t *doeval(node_t * expr)
 {
-    cc_assert(isexpr(expr));
+    assert(isexpr(expr));
     switch (AST_ID(expr)) {
     case BINARY_OPERATOR:
         {
@@ -561,8 +561,8 @@ static node_t *doeval(node_t * expr)
             case NEQ:
             dispatch:
                 bop = dispatch_bop(op);
-                cc_assert(bop->is(AST_TYPE(l)));
-                cc_assert(bop->is(AST_TYPE(r)));
+                assert(bop->is(AST_TYPE(l)));
+                assert(bop->is(AST_TYPE(r)));
                 l = doeval(l);
                 if (!l)
                     return NULL;
@@ -579,8 +579,8 @@ static node_t *doeval(node_t * expr)
                     node_t *ptr =
                         isptr(AST_TYPE(l)) ? l : r;
                     node_t *i = ptr == l ? r : l;
-                    cc_assert(isptr(AST_TYPE(ptr)));
-                    cc_assert(isint(AST_TYPE(i)));
+                    assert(isptr(AST_TYPE(ptr)));
+                    assert(isint(AST_TYPE(i)));
                     return ptr_int_bop(op, AST_TYPE(expr),
                                        ptr, i);
                 }
@@ -588,7 +588,7 @@ static node_t *doeval(node_t * expr)
                 if (!isptr(AST_TYPE(l)))
                     goto dispatch;
                 // ptr - int
-                cc_assert(isint(AST_TYPE(r)));
+                assert(isint(AST_TYPE(r)));
                 return ptr_int_bop(op, AST_TYPE(expr), l, r);
             case AND:
             case OR:
@@ -601,7 +601,7 @@ static node_t *doeval(node_t * expr)
                     return one_literal();
                 return doeval(r);
             default:
-                cc_assert(0);
+                assert(0);
             }
         }
         break;
@@ -622,7 +622,7 @@ static node_t *doeval(node_t * expr)
             case '~':
             case '!':
                 uop = dispatch_uop(op);
-                cc_assert(uop->is(AST_TYPE(l)));
+                assert(uop->is(AST_TYPE(l)));
                 l = doeval(l);
                 if (!l)
                     return NULL;
@@ -630,7 +630,7 @@ static node_t *doeval(node_t * expr)
             case SIZEOF:
                 return sizeof_uop(expr);
             default:
-                cc_assert(0);
+                assert(0);
             }
         }
         break;
@@ -680,8 +680,8 @@ static node_t *doeval(node_t * expr)
             node_t *r = EXPR_OPERAND(expr, 1);
             node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
             node_t *i = isint(AST_TYPE(r)) ? r : l;
-            cc_assert(isptr(AST_TYPE(ptr)));
-            cc_assert(isint(AST_TYPE(i)));
+            assert(isptr(AST_TYPE(ptr)));
+            assert(isint(AST_TYPE(i)));
             node_t *p = ptr_int_bop('+', AST_TYPE(ptr), ptr, i);
             return ast_uop('*', AST_TYPE(expr), p);
         }
@@ -700,7 +700,7 @@ static node_t *doeval(node_t * expr)
         return NULL;
     case VINIT_EXPR:
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 

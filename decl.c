@@ -203,7 +203,7 @@ static node_t *specifiers(int *sclass, int *fspec)
                        "duplicate type specifier '%s'",
                        name);
             } else {
-                cc_assert(0);
+                assert(0);
             }
         }
 
@@ -288,7 +288,7 @@ static void array_qualifiers(node_t * atype)
             break;
 
         default:
-            cc_assert(0);
+            assert(0);
         }
 
         if (*p != 0)
@@ -433,7 +433,7 @@ static void parse_assign(node_t *atype)
         // try evaluate the length
         node_t *ret = eval(assign, longtype);
         if (ret) {
-            cc_assert(isiliteral(ret));
+            assert(isiliteral(ret));
             TYPE_LEN(atype) = ILITERAL_VALUE(ret);
             if ((long)ILITERAL_VALUE(ret) < 0)
                 error("array has negative size");
@@ -681,7 +681,7 @@ static node_t *ptr_decl(void)
     node_t *ret = NULL;
     int con, vol, res, type;
 
-    cc_assert(token->id == '*');
+    assert(token->id == '*');
 
     for (;;) {
         int *p, t = token->id;
@@ -747,7 +747,7 @@ static void param_declarator(node_t ** ty, struct token **id)
             expect(')');
             if (token->id == '(' || token->id == '[') {
                 node_t *faty;
-                cc_assert(id);
+                assert(id);
                 if (*id) {
                     faty = func_or_array(false, NULL);
                 } else {
@@ -767,7 +767,7 @@ static void param_declarator(node_t ** ty, struct token **id)
 
 static void abstract_declarator(node_t ** ty)
 {
-    cc_assert(ty);
+    assert(ty);
 
     if (token->id == '*' || token->id == '(' || token->id == '[') {
         if (token->id == '*') {
@@ -805,7 +805,7 @@ static void declarator(node_t ** ty, struct token **id, int *params)
 {
     int follow[] = { ',', '=', IF, 0 };
 
-    cc_assert(ty && id);
+    assert(ty && id);
     
     if (token->id == '*') {
         node_t *pty = ptr_decl();
@@ -977,7 +977,7 @@ node_t *typename(void)
 
 node_t **declaration(void)
 {
-    cc_assert(SCOPE >= LOCAL);
+    assert(SCOPE >= LOCAL);
     return (node_t **) vtoa(decls(localdecl));
 }
 
@@ -988,7 +988,7 @@ node_t *translation_unit(void)
 
     for (gettok(); token->id != EOI;) {
         if (first_decl(token)) {
-            cc_assert(SCOPE == GLOBAL);
+            assert(SCOPE == GLOBAL);
             vec_add(v, decls(globaldecl));
         } else {
             if (token->id == ';')
@@ -1204,7 +1204,7 @@ static void ensure_inline(node_t *ty, int fspec, struct source src)
 
 static void check_oldstyle(node_t *ftype)
 {
-    cc_assert(isfunc(ftype));
+    assert(isfunc(ftype));
     
     if (TYPE_PARAMS(ftype) && TYPE_OLDSTYLE(ftype))
         error("a parameter list without types is only allowed "
@@ -1215,8 +1215,8 @@ static node_t * typedefdecl(struct token *t, node_t * ty, int fspec, int kind)
 {
     int sclass = TYPEDEF;
 
-    cc_assert(t);
-    cc_assert(kind != PARAM);
+    assert(t);
+    assert(kind != PARAM);
     
     const char *id = t->name;
     struct source src = t->src;
@@ -1332,8 +1332,8 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass,
     const char *id = t->name;
     struct source src = t->src;
 
-    cc_assert(id);
-    cc_assert(SCOPE >= LOCAL);
+    assert(id);
+    assert(SCOPE >= LOCAL);
 
     // typedef
     if (sclass == TYPEDEF)
@@ -1382,8 +1382,8 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
     const char *id = t->name;
     struct source src = t->src;
 
-    cc_assert(id);
-    cc_assert(SCOPE == GLOBAL);
+    assert(id);
+    assert(SCOPE == GLOBAL);
 
     // typedef
     if (sclass == TYPEDEF)
@@ -1441,7 +1441,7 @@ static void oldstyle_decls(node_t *ftype)
         node_t *decl = (node_t *) vec_at(v, i);
         node_t *sym = DECL_SYM(decl);
 
-        cc_assert(SYM_NAME(sym));
+        assert(SYM_NAME(sym));
         if (!isvardecl(decl)) {
             warningf(AST_SRC(sym), "empty declaraion");
         } else if (TYPE_PARAMS(ftype)) {
@@ -1502,7 +1502,7 @@ static void make_funcdecl(node_t *sym, node_t *ty, int sclass, struct source src
 static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
                        int fspec)
 {
-    cc_assert(SCOPE == PARAM);
+    assert(SCOPE == PARAM);
     
     node_t *decl = ast_decl(FUNC_DECL);
 

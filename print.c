@@ -383,7 +383,7 @@ static void print_stmt(node_t * node, struct print_context context)
     case NULL_STMT:
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -405,7 +405,7 @@ static void print_tree1(struct print_context context)
     else if (isstmt(node))
         print_stmt(node, context);
     else
-        cc_assert(0);
+        assert(0);
 }
 
 void print_tree(node_t * tree)
@@ -428,7 +428,7 @@ static const char * operand2s(struct operand *operand)
     case IR_NONE:
         return SYM_X_LABEL(operand->sym);
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -575,7 +575,7 @@ void print_tac(struct tac *tac)
     default:
         die("unexpected rop %s", rop2s(tac->op));
     }
-    putf("\n" RESET);
+    putf(RESET "\n");
 }
 
 #define REF_SYM(sym) (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
@@ -629,7 +629,7 @@ static void print_data(struct gsection *section)
             putln(".quad %s", value->name);
             break;
         default:
-            cc_assert(0);
+            assert(0);
         }
     }
 }
@@ -720,7 +720,7 @@ static void print_floats(struct map *floats)
             const char *name = vec_at(keys, i);
             const char *label = map_get(floats, name);
             node_t *sym = lookup(name, constants);
-            cc_assert(sym);
+            assert(sym);
             node_t *ty = SYM_TYPE(sym);
             putln("%s:", label);
             switch (TYPE_KIND(ty)) {
@@ -738,7 +738,7 @@ static void print_floats(struct map *floats)
                 }
                 break;
             default:
-                cc_assert(0);
+                assert(0);
             }
         }
     }
@@ -759,7 +759,7 @@ void print_ir(struct externals *exts)
             print_bss(section);
             break;
         default:
-            cc_assert(0);
+            assert(0);
         }
     }
     print_compounds(exts->compounds);
@@ -966,7 +966,7 @@ const char *type2s(node_t * ty)
  */
 static const char *expr2s(node_t * node)
 {
-    cc_assert(isexpr(node));
+    assert(isexpr(node));
 
     struct strbuf *s = strbuf_new();
     int id = AST_ID(node);
@@ -1005,7 +1005,7 @@ static const char *expr2s(node_t * node)
                 strbuf_cats(s, expr2s(l));
             break;
         default:
-            cc_assert(0);
+            assert(0);
         }
         break;
     case SUBSCRIPT_EXPR:
@@ -1075,7 +1075,7 @@ static const char *expr2s(node_t * node)
         strbuf_cats(s, "{initializer}");
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
     return STR(strbuf_str(s));
 }

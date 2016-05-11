@@ -41,6 +41,7 @@ static const char *suffixp[] = {
     "", "", "ps", "pd"
 };
 // Register Allocation
+static void dump_regs(void);
 static void init_regs(void);
 static void reset_regs(void);
 static struct reg * get_one_ireg(struct set *excepts);
@@ -202,17 +203,19 @@ static const char * operand2s(struct operand *operand, int opsize)
             else
                 return format("%s(%s)", SYM_X_LABEL(operand->sym), rip->r[Q]);
         } else if (SYM_X_KIND(operand->sym) == SYM_KIND_TMP) {
-            cc_assert(SYM_X_REG(operand->sym));
+            assertf(SYM_X_REG(operand->sym), "symbol '%s' not in register",
+                    SYM_X_LABEL(operand->sym));
             return format("%s", SYM_X_REG(operand->sym)->r[idx[opsize]]);
         } else {
-            cc_assert(0);
+            assert(0);
         }
         break;
     case IR_SUBSCRIPT:
         {
             node_t *sym = operand->sym;
             node_t *index = operand->index;
-            cc_assert(SYM_X_REG(sym));
+            assertf(SYM_X_REG(sym), "symbol '%s' not in register",
+                    SYM_X_LABEL(sym));
             if (SYM_X_KIND(sym) == SYM_KIND_LREF) {
                 long offset = SYM_X_LOFF(sym) + operand->disp;
                 if (index) {
@@ -248,14 +251,14 @@ static const char * operand2s(struct operand *operand, int opsize)
                         return format("(%s)", SYM_X_REG(sym)->r[Q]);
                 }
             } else {
-                cc_assert(0);
+                assert(0);
             }
         }
         break;
     case IR_INDIRECTION:
         return format("(%s)", SYM_X_REG(operand->sym)->r[Q]);
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -273,7 +276,7 @@ static struct operand * make_ret_offset_operand(struct operand *operand, long of
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -365,7 +368,7 @@ static void emit_param_record(struct tac *tac, struct pnode *pnode)
                 else if (size == 1)
                     emit("movzbl %s, %s", operand2s(src, Quad), reg->r[L]);
                 else
-                    cc_assert(0);
+                    assert(0);
                 break;
             case REG_SSE_F:
                 emit("movss %s, %s", operand2s(src, Long), reg->r[Q]);
@@ -389,7 +392,7 @@ static void emit_param(struct tac *tac, struct pnode *pnode)
     else if (isstruct(ty) || isunion(ty))
         emit_param_record(tac, pnode);
     else
-        cc_assert(0);
+        assert(0);
 }
 
 static void drain_args_regs(int gp, int fp)
@@ -517,7 +520,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
     struct vector *params = vec_new();
     struct tac *t = tac->prev;
     for (size_t i = 0; i < len; i++, t = t->prev) {
-        cc_assert(t->op == IR_PARAM);
+        assert(t->op == IR_PARAM);
         vec_push(params, t);    // in reverse order
     }
 
@@ -660,7 +663,7 @@ static void emit_builtin_va_arg_p(struct tac *tac)
                 else if (class == sse_class)
                     fp++;
                 else
-                    cc_assert(0);
+                    assert(0);
             }
             unsigned gp_offset_max = 48 - (gp-1) * 8;
             unsigned fp_offset_max = 176 - (fp-1) * 16;
@@ -679,7 +682,7 @@ static void emit_builtin_va_arg_p(struct tac *tac)
                 set_add(excepts, tmp2);
                 struct reg *tmp3 = get_one_ireg(excepts);
                 // TODO: assume vec_len == 2
-                cc_assert(vec_len(classes) == 2);
+                assert(vec_len(classes) == 2);
                 bool tmp2_used = false;
                 for (int i = 0; i < vec_len(classes); i++) {
                     int *class = vec_at(classes, i);
@@ -810,7 +813,7 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
     emit("movq %ld(%s), %s", SYM_X_LOFF(sym), rbp->r[Q], rax->r[Q]);
 
     // Can't be IR_INDIRECTION (see ir.c: emit_uop_indirection)
-    cc_assert(l->op == IR_NONE || l->op == IR_SUBSCRIPT);
+    assert(l->op == IR_NONE || l->op == IR_SUBSCRIPT);
     // emit bytes
     // rounded by 8 bytes. (see emit_function_prologue)
     size_t size = ROUNDUP(retaddr->size, 8);
@@ -851,7 +854,7 @@ static void emit_return_by_registers_scalar(struct operand *l, struct paddr *ret
     } else if (isfloat(rtype)) {
         emit("mov%s %s, %s", suffixf[i], operand2s(l, opsize), reg->r[i]);
     } else {
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -1037,7 +1040,7 @@ static void emit_if_relop(struct tac *tac, bool reverse, bool floating)
         jop = reverse ? "jne" : "je";
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
     emit("%s %s", jop, SYM_X_LABEL(result->sym));
 }
@@ -1144,7 +1147,7 @@ static void emit_assign(struct tac *tac)
                 load(reg, r->sym, tac->opsize);
         }
     } else {
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -1194,7 +1197,7 @@ static void emit_uop_address(struct tac *tac)
         else if (SYM_X_KIND(l->sym) == SYM_KIND_LREF)
             emit("leaq %ld(%s), %s", SYM_X_LOFF(l->sym), rbp->r[Q], reg->r[Q]);
         else
-            cc_assert(0);
+            assert(0);
         break;
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
@@ -1204,7 +1207,7 @@ static void emit_uop_address(struct tac *tac)
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -1332,7 +1335,7 @@ static void emit_conv_i2i(struct tac *tac, int typeop)
     else if (tac->from_opsize > tac->to_opsize)
         emit_conv_ii_narrow(tac, typeop);
     else
-        cc_assert(0);
+        assert(0);
 }
 
 static void emit_conv_tof(struct tac *tac, const char *op)
@@ -1370,7 +1373,7 @@ static void emit_conv_f2f(struct tac *tac)
     else if (tac->from_opsize == Quad && tac->to_opsize == Long)
         emit_conv_tof(tac, "cvtsd");
     else
-        cc_assert(0);
+        assert(0);
 }
 
 static void emit_tac(struct tac *tac)
@@ -1600,7 +1603,7 @@ static void emit_register_save_area(void)
         emit("movaps %s, %ld(%s)", r->r[Q], offset, rbp->r[Q]);
     }
     emit_noindent("%s:", label);
-    cc_assert(offset == 0);
+    assert(offset == 0);
 }
 
 static long get_reg_offset(struct reg *reg)
@@ -1615,7 +1618,7 @@ static long get_reg_offset(struct reg *reg)
         if (reg == freg)
             return -128 + (i << 4);
     }
-    cc_assert(0);
+    assert(0);
 }
 
 static void emit_register_params(node_t *decl)
@@ -1642,7 +1645,7 @@ static void emit_register_params(node_t *decl)
                     else if (size == 1)
                         emit("movb %s, %ld(%s)", reg->r[B], loff, rbp->r[Q]);
                     else
-                        cc_assert(0);
+                        assert(0);
                     break;
                 case REG_SSE_F:
                     emit("movss %s, %ld(%s)", reg->r[Q], loff, rbp->r[Q]);
@@ -1859,7 +1862,7 @@ static void emit_floats(struct map *floats)
             const char *name = vec_at(keys, i);
             const char *label = map_get(floats, name);
             node_t *sym = lookup(name, constants);
-            cc_assert(sym);
+            assert(sym);
             node_t *ty = SYM_TYPE(sym);
             emit(".align %d", TYPE_ALIGN(ty));
             emit_noindent("%s:", label);
@@ -1878,7 +1881,7 @@ static void emit_floats(struct map *floats)
                 }
                 break;
             default:
-                cc_assert(0);
+                assert(0);
             }
         }
     }
@@ -1894,7 +1897,7 @@ static void gen_init(FILE *fp)
 
 void gen(struct externals *exts, FILE * fp)
 {
-    cc_assert(errors == 0 && fp);
+    assert(errors == 0 && fp);
     
     gen_init(fp);
     for (int i = 0; i < vec_len(exts->gsections); i++) {
@@ -1910,7 +1913,7 @@ void gen(struct externals *exts, FILE * fp)
             emit_text(section);
             break;
         default:
-            cc_assert(0);
+            assert(0);
         }
     }
     emit_compounds(exts->compounds);
@@ -1922,6 +1925,14 @@ void gen(struct externals *exts, FILE * fp)
 ///
 /// Register Allocation
 ///
+
+static void dump_regs(void)
+{
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++)
+        dump_reg(int_regs[i]);
+    for (int i = 0; i < ARRAY_SIZE(float_regs); i++)
+        dump_reg(float_regs[i]);
+}
 
 static inline struct reg * mkreg(void)
 {
@@ -2050,7 +2061,7 @@ static struct rvar * new_rvar(node_t *sym, int size)
 // LD reg, sym
 static void load(struct reg *reg, node_t *sym, int opsize)
 {
-    cc_assert(SYM_X_REG(sym) == NULL);
+    assert(SYM_X_REG(sym) == NULL);
     if (SYM_X_KIND(sym) == SYM_KIND_IMM ||
         SYM_X_KIND(sym) == SYM_KIND_LABEL)
         return;
@@ -2099,7 +2110,7 @@ static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
             return reg;
     }
 
-    cc_assert(vec_len(candicates));
+    assert(vec_len(candicates));
     
     // all regs are dirty, select one.
     struct reg *ret = NULL;
@@ -2603,7 +2614,7 @@ static int * get_class(struct vector *ptypes)
         else if (isfloat(ty))
             class1 = sse_class;
         else
-            cc_assert(0);
+            assert(0);
         // reduce
         if (class == class1)
             continue;
@@ -2651,8 +2662,8 @@ static struct vector * merge_element(struct vector *v1, struct vector *v2)
     else if (class2 == integer_class)
         return v2;
     // both sse_class
-    cc_assert(class1 == sse_class && class2 == sse_class);
-    cc_assert(len1 <= 2 && len2 <= 2);
+    assert(class1 == sse_class && class2 == sse_class);
+    assert(len1 <= 2 && len2 <= 2);
     if (len1 == 1) {
         struct ptype *ptype = vec_head(v1);
         size_t size = TYPE_SIZE(ptype->type);
@@ -2672,13 +2683,13 @@ static struct vector * merge_element(struct vector *v1, struct vector *v2)
             return v1;
         }
     } else {
-        cc_assert(0);
+        assert(0);
     }
 }
 
 static struct vector * merge_elements(struct vector *v1, struct vector *v2)
 {
-    cc_assert(vec_len(v1) == vec_len(v2));
+    assert(vec_len(v1) == vec_len(v2));
 
     struct vector *v = vec_new();
     for (int i = 0; i < vec_len(v1); i++) {
@@ -2772,7 +2783,7 @@ static struct vector * get_types(node_t *ty, size_t offset)
     else if (isarray(ty))
         return get_types_for_array(ty, offset);
     else
-        cc_assert(0);
+        assert(0);
 }
 
 static bool is_type_aligned(node_t *ty)
@@ -2858,7 +2869,7 @@ static void traverse_classes(struct vector *classes,
             } else if (len == 2) {
                 set_param_reg_addr(paddr, i, fregs[*fp], REG_SSE_FF);
             } else {
-                cc_assert(0);
+                assert(0);
             }
             (*fp)++;
         }
@@ -2923,7 +2934,7 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool
             struct vector *ptypes = get_types(ty, 0);
             struct vector *elements = get_elements(ptypes);
             struct vector *classes = get_classes(elements);
-            cc_assert(vec_len(elements) == vec_len(classes));
+            assert(vec_len(elements) == vec_len(classes));
 
             int left_gp = NUM_IARG_REGS - gp;
             int left_fp = NUM_FARG_REGS - fp;
@@ -2936,7 +2947,7 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool
                 else if (class == sse_class)
                     num_fp++;
                 else
-                    cc_assert(0);
+                    assert(0);
             }
             if (num_gp > left_gp || num_fp > left_fp) {
                 // no enough registers

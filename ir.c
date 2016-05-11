@@ -65,7 +65,7 @@ static int ops[] = {
 
 const char *rop2s(int op)
 {
-    cc_assert(op >= IR_NONE && op < IR_END);
+    assert(op >= IR_NONE && op < IR_END);
     return rops[op];
 }
 
@@ -209,7 +209,7 @@ bool is_mem_operand(struct operand *operand)
         return SYM_X_KIND(operand->sym) == SYM_KIND_GREF ||
             SYM_X_KIND(operand->sym) == SYM_KIND_LREF;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -265,11 +265,11 @@ static struct operand * make_indirection_operand(struct operand *l)
             operand->op = IR_INDIRECTION;
             return operand;
         } else {
-            cc_assert(0);
+            assert(0);
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -278,7 +278,7 @@ static struct operand * do_make_subscript_operand2(struct operand *l,
                                                    size_t step,
                                                    long disp)
 {
-    cc_assert(index->op == IR_NONE);
+    assert(index->op == IR_NONE);
     
     struct operand *operand = make_sym_operand(l->sym);
     operand->op = IR_SUBSCRIPT;
@@ -368,7 +368,7 @@ static struct operand * do_make_subscript_operand(struct operand *l,
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -377,7 +377,7 @@ static struct operand * make_subscript_operand(struct operand *l,
                                                size_t step)
 {
     // l MUST be tmp or lref.
-    cc_assert(SYM_X_KIND(l->sym) != SYM_KIND_GREF);
+    assert(SYM_X_KIND(l->sym) != SYM_KIND_GREF);
     
     switch (l->op) {
     case IR_NONE:
@@ -399,7 +399,7 @@ static struct operand * make_subscript_operand(struct operand *l,
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -451,7 +451,7 @@ static struct operand * emit_address_tac(struct operand *l)
             emit_tac(tac);
             return do_emit_address_tac(tac->operands[0]->sym, l->index, l->scale, l->disp);
         } else {
-            cc_assert(0);
+            assert(0);
         }
         break;
     case IR_INDIRECTION:
@@ -461,7 +461,7 @@ static struct operand * emit_address_tac(struct operand *l)
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -475,7 +475,7 @@ static struct operand * do_make_offset_operand(struct operand *l, long offset)
 
 static struct operand * make_offset_operand(struct operand *l, long offset)
 {
-    cc_assert(SYM_X_KIND(l->sym) != SYM_KIND_GREF);
+    assert(SYM_X_KIND(l->sym) != SYM_KIND_GREF);
     
     switch (l->op) {
     case IR_NONE:
@@ -497,7 +497,7 @@ static struct operand * make_offset_operand(struct operand *l, long offset)
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -790,7 +790,7 @@ static void emit_uop(node_t *n)
         emit_uop_sizeof(n);
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -803,7 +803,7 @@ static node_t * fieldof(node_t *n)
     node_t *ty = AST_TYPE(l);
     if (isptr(ty))
         ty = rtype(ty);
-    cc_assert(isrecord(ty));
+    assert(isrecord(ty));
     node_t *field = find_field(ty, name);
     return field;
 }
@@ -811,7 +811,7 @@ static node_t * fieldof(node_t *n)
 static void do_emit_zeros(node_t *ty, struct operand *l, long *offset,
                           size_t *bytes, unsigned size)
 {
-    cc_assert(size <= 8);
+    assert(size <= 8);
 
     while (*bytes >= size) {
         int op = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
@@ -831,14 +831,14 @@ static void emit_zeros(node_t *ty, struct operand *l, long offset, size_t bytes)
     do_emit_zeros(ty, l, &offset, &bytes, 4);
     do_emit_zeros(ty, l, &offset, &bytes, 2);
     do_emit_zeros(ty, l, &offset, &bytes, 1);
-    cc_assert(bytes == 0);
+    assert(bytes == 0);
 }
 
 static void do_emit_bytes(struct operand *l, long *loffset,
                           struct operand *r, long *roffset,
                           size_t *bytes, unsigned size)
 {
-    cc_assert(size <= 8);
+    assert(size <= 8);
 
     while (*bytes >= size) {
         int op = IR_ASSIGNI;
@@ -860,12 +860,12 @@ static void emit_bytes(struct operand *l, long offset, struct operand *r, size_t
     do_emit_bytes(l, &offset, r, &roffset, &bytes, 4);
     do_emit_bytes(l, &offset, r, &roffset, &bytes, 2);
     do_emit_bytes(l, &offset, r, &roffset, &bytes, 1);
-    cc_assert(bytes == 0);
+    assert(bytes == 0);
 }
 
 static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bool sty)
 {
-    cc_assert(AST_ID(r) == INITS_EXPR);
+    assert(AST_ID(r) == INITS_EXPR);
 
     if (isstruct(ty) || isunion(ty)) {
         node_t **inits = EXPR_INITS(r);
@@ -911,7 +911,7 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
             emit_zeros(rty, l, off, bytes);
         }
     } else {
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -981,7 +981,7 @@ static struct operand * get_bfield_mask1(node_t *bfield)
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -1020,7 +1020,7 @@ static struct operand * get_bfield_mask2(node_t *bfield)
         }
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -1068,7 +1068,7 @@ static struct operand * update_gref(struct operand *l)
     struct operand *addr = l;
     // make gref be a pointer
     if (SYM_X_KIND(l->sym) == SYM_KIND_GREF) {
-        cc_assert(l->op == IR_NONE);
+        assert(l->op == IR_NONE);
         // according to sym type
         // see emit_uop_indirection
         if (isptr(SYM_TYPE(l->sym))) {
@@ -1089,7 +1089,7 @@ static struct operand * update_gref(struct operand *l)
 static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty)
 {
-    cc_assert(ty);
+    assert(ty);
 
     // l gref
     if ((isstruct(ty) || isunion(ty) || isarray(ty)))
@@ -1113,7 +1113,7 @@ static void emit_assign(node_t *ty, struct operand *l, node_t *r,
             struct operand *r1 = update_gref(EXPR_X_ADDR(r));
             emit_bytes(l, offset, r1, TYPE_SIZE(ty));
         } else {
-            cc_assert(0);
+            assert(0);
         }
     } else {
         if (bfield)
@@ -1215,7 +1215,7 @@ static int bop2rop(int op, node_t *ty)
         else
             return IR_IRSHIFT;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -1302,13 +1302,13 @@ static void emit_bop(node_t *n)
         emit_bop_bool(n);
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
 static struct operand * make_extra_decl(node_t *ty)
 {
-    cc_assert(isrecord(ty));
+    assert(isrecord(ty));
     
     if (!extra_lvars)
         extra_lvars = vec_new();
@@ -1388,7 +1388,7 @@ static void emit_member_nonbitfield(node_t *n, node_t *field)
         addr = update_gref(addr);
     }
 
-    cc_assert(SYM_X_KIND(addr->sym) != SYM_KIND_GREF);
+    assert(SYM_X_KIND(addr->sym) != SYM_KIND_GREF);
     EXPR_X_ADDR(n) = make_offset_operand(addr, FIELD_OFFSET(field));
 }
 
@@ -1567,20 +1567,20 @@ static void arith2arith(node_t *dty, node_t *sty, node_t *n)
         else if (isfloat(sty) && isfloat(dty))
             float2float(dty, sty, n);
         else
-            cc_assert(0);
+            assert(0);
     }
 }
 
 static void ptr2arith(node_t *dty, node_t *sty, node_t *n)
 {
-    cc_assert(isint(dty));
+    assert(isint(dty));
 
     arith2arith(dty, unsignedlongtype, n);
 }
 
 static void arith2ptr(node_t *dty, node_t *sty, node_t *n)
 {
-    cc_assert(isint(sty));
+    assert(isint(sty));
 
     arith2arith(unsignedlongtype, sty, n);
 }
@@ -1622,7 +1622,7 @@ static void emit_conv(node_t *n)
         else if (isptr(sty))
             ptr2arith(dty, sty, n);
         else
-            cc_assert(0);
+            assert(0);
     } else if (isptr(dty)) {
         if (isptr(sty))
             ptr2ptr(dty, sty, n);
@@ -1633,7 +1633,7 @@ static void emit_conv(node_t *n)
         else if (isarray(sty))
             array2ptr(dty, sty, n);
         else
-            cc_assert(0);
+            assert(0);
     } else {
         // nothing
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
@@ -1702,7 +1702,7 @@ static void emit_ref(node_t *n)
 
 static void emit_expr(node_t *n)
 {
-    cc_assert(isexpr(n));
+    assert(isexpr(n));
 
     switch (AST_ID(n)) {
     case BINARY_OPERATOR:
@@ -1751,7 +1751,7 @@ static void emit_expr(node_t *n)
     case INITS_EXPR:
     case VINIT_EXPR:
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -1922,7 +1922,7 @@ static void emit_compound_stmt(node_t *stmt)
         } else if (isexpr(node)) {
             emit_expr(node);
         } else {
-            cc_assert(0);
+            assert(0);
         }
     }
 }
@@ -2202,7 +2202,7 @@ static void emit_stmt(node_t *stmt)
         // do nothing
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -2230,7 +2230,7 @@ static void emit_function(node_t *decl)
 
 static void emit_globalvar(node_t *n)
 {
-    cc_assert(isdecl(n));
+    assert(isdecl(n));
     
     if (DECL_BODY(n))
         emit_data(n);
@@ -2251,7 +2251,7 @@ static void ir_init(void)
 
 struct externals * ir(node_t *tree)
 {
-    cc_assert(istudecl(tree) && errors == 0);
+    assert(istudecl(tree) && errors == 0);
 
     ir_init();
     struct vector *v = filter_global(DECL_EXTS(tree));
@@ -2414,7 +2414,7 @@ static struct gsection *emit_compound_literal_label(const char *label, node_t *i
 
 static const char *get_compound_literal_label(node_t *n)
 {
-    cc_assert(AST_ID(n) == INITS_EXPR);
+    assert(AST_ID(n) == INITS_EXPR);
     
     const char *label = gen_compound_label();
     struct gsection *section = emit_compound_literal_label(label, n);
@@ -2432,18 +2432,18 @@ static const char *get_ptr_label(node_t *n)
     case BINARY_OPERATOR:
         return get_ptr_label(EXPR_OPERAND(n, 0));
     case UNARY_OPERATOR:
-        cc_assert(EXPR_OP(n) == '&');
+        assert(EXPR_OP(n) == '&');
         return get_ptr_label(EXPR_OPERAND(n, 0));
     case INITS_EXPR:
         return get_compound_literal_label(n);
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
 static void emit_struct_initializer(node_t *n)
 {
-    cc_assert(AST_ID(n) == INITS_EXPR);
+    assert(AST_ID(n) == INITS_EXPR);
     node_t *ty = AST_TYPE(n);
     node_t **fields = TYPE_FIELDS(ty);
     node_t **inits = EXPR_INITS(n);
@@ -2516,7 +2516,7 @@ static void emit_array_initializer(node_t *n)
         const char *label = get_ptr_label(n);
         emit_xvalue(Quad, label);
     } else {
-        cc_assert(AST_ID(n) == INITS_EXPR);
+        assert(AST_ID(n) == INITS_EXPR);
         int i;
         for (i = 0; i < LIST_LEN(EXPR_INITS(n)); i++) {
             node_t *init = EXPR_INITS(n)[i];

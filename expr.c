@@ -31,7 +31,7 @@ static void ensure_type(node_t * node, bool(*is) (node_t *))
     else if (is == isptr)
         name = "pointer";
     else
-        cc_assert(0);
+        assert(0);
 
     if (!is(AST_TYPE(node)))
         errorf(AST_SRC(node), "expect type '%s', not '%s'", name,
@@ -120,8 +120,8 @@ static bool is_bitfield(node_t * node)
 
 static node_t *wrap(node_t * ty, node_t * node)
 {
-    cc_assert(isarith(ty));
-    cc_assert(isarith(AST_TYPE(node)));
+    assert(isarith(ty));
+    assert(isarith(AST_TYPE(node)));
 
     if (eqarith(ty, AST_TYPE(node)))
         return node;
@@ -205,11 +205,11 @@ static node_t *conva(node_t * node)
 // Universal Binary Conversion
 static node_t *conv2(node_t * l, node_t * r)
 {
-    cc_assert(isarith(l));
-    cc_assert(isarith(r));
+    assert(isarith(l));
+    assert(isarith(r));
 
-    cc_assert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
-    cc_assert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
+    assert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
+    assert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
 
     node_t *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
     if (isfloat(l) || isfloat(r) || TYPE_OP(l) == TYPE_OP(r))
@@ -217,7 +217,7 @@ static node_t *conv2(node_t * l, node_t * r)
 
     node_t *u = TYPE_OP(l) == UNSIGNED ? l : r;
     node_t *s = TYPE_OP(l) == INT ? l : r;
-    cc_assert(unqual(s) == s);
+    assert(unqual(s) == s);
 
     if (TYPE_RANK(u) >= TYPE_RANK(s))
         return u;
@@ -359,7 +359,7 @@ static unsigned escape(const char **ps)
 {
     unsigned c = 0;
     const char *s = *ps;
-    cc_assert(*s == '\\');
+    assert(*s == '\\');
     s += 1;
     switch (*s++) {
     case 'a':
@@ -658,7 +658,7 @@ static void integer_constant(struct token *t, node_t * sym)
         SYM_VALUE_U(sym) = n;
         break;
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -680,7 +680,7 @@ static void float_constant(struct token *t, node_t * sym)
     struct strbuf *s = strbuf_new();
 
     if (pc[0] == '.') {
-        cc_assert(isdigit(pc[1]));
+        assert(isdigit(pc[1]));
         goto dotted;
     } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
         // base 16
@@ -691,7 +691,7 @@ static void float_constant(struct token *t, node_t * sym)
                 error("hexadecimal floating constants require a significand");
             goto dotted_hex;
         } else {
-            cc_assert(isxdigit(*pc));
+            assert(isxdigit(*pc));
 
             const char *rpc = pc;
             while (isxdigit(*rpc))
@@ -724,7 +724,7 @@ static void float_constant(struct token *t, node_t * sym)
         }
     } else {
         // base 10
-        cc_assert(isdigit(pc[0]));
+        assert(isdigit(pc[0]));
 
         const char *rpc = pc;
         while (isdigit(*rpc))
@@ -810,7 +810,7 @@ static void number_constant(struct token *t, node_t * sym)
         }
     } else {
         // Oct/Dec
-        cc_assert(isdigit(*pc));
+        assert(isdigit(*pc));
 
         while (isdigit(*pc))
             pc++;
@@ -833,7 +833,7 @@ static void string_constant(struct token *t, node_t * sym)
         size_t wlen = mbstowcs(ws, s + 2, len);
         if (errno == EILSEQ)
             error("invalid multibyte sequence: %s", s);
-        cc_assert(wlen <= len + 1);
+        assert(wlen <= len + 1);
         ty = array_type(wchartype);
         TYPE_LEN(ty) = wlen;
         set_typesize(ty);
@@ -924,7 +924,7 @@ static void argcast1(node_t * fty, node_t ** args, struct vector *v)
 static struct vector *argscast(node_t * fty, node_t ** args)
 {
     struct vector *v = vec_new();
-    cc_assert(isfunc(fty));
+    assert(isfunc(fty));
 
     /* There are 5 cases:
      *
@@ -955,7 +955,7 @@ static struct vector *argscast(node_t * fty, node_t ** args)
         }
 
         bool vargs = TYPE_VARG(fty);
-        cc_assert(len1 >= 1);
+        assert(len1 >= 1);
         if (len1 <= len2) {
             if (!vargs && len1 < len2) {
                 error("too many arguments to function call, expected %d, have %d", len1, len2);
@@ -1147,7 +1147,7 @@ static void builtin_funcall(node_t *call, node_t *ref)
     if (!strcmp(fname, BUILTIN_VA_ARG_P)) {
         // __builtin_va_arg_p
         node_t **args = EXPR_ARGS(call);
-        cc_assert(isptr(AST_TYPE(args[1])));
+        assert(isptr(AST_TYPE(args[1])));
         node_t *ty = rtype(AST_TYPE(args[1]));
         // save the type
         EXPR_VA_ARG_TYPE(call) = ty;
@@ -1247,7 +1247,7 @@ static node_t *direction(node_t * node)
 
 static void ensure_additive_ptr(node_t * node)
 {
-    cc_assert(isptr(AST_TYPE(node)));
+    assert(isptr(AST_TYPE(node)));
     node_t *rty = rtype(AST_TYPE(node));
     if (isfunc(rty) || isincomplete(rty))
         errorf(AST_SRC(node),
@@ -1302,7 +1302,7 @@ static node_t *postfix_expr1(node_t * ret)
             ret = post_increment(ret);
             break;
         default:
-            cc_assert(0);
+            assert(0);
         }
     }
 
@@ -1962,7 +1962,7 @@ node_t *bop(int op, node_t * l, node_t * r)
         break;
     default:
         error("unknown op '%s'", id2s(op));
-        cc_assert(0);
+        assert(0);
     }
     return node;
 }
@@ -2024,7 +2024,7 @@ static int splitop(int op)
     case XOREQ:
         return '^';
     default:
-        cc_assert(0);
+        assert(0);
     }
 }
 
@@ -2070,7 +2070,7 @@ static node_t *assignop(int op, node_t * l, node_t * r)
 
 static bool is_nullptr(node_t * node)
 {
-    cc_assert(isptr(AST_TYPE(node)) || isint(AST_TYPE(node)));
+    assert(isptr(AST_TYPE(node)) || isint(AST_TYPE(node)));
 
     node_t *cnst = eval(node, inttype);
     if (cnst == NULL)
@@ -2098,7 +2098,7 @@ long intexpr1(node_t * ty)
         errorf(src, "expression is not a compile-time constant");
         return 0;
     }
-    cc_assert(isiliteral(cnst));
+    assert(isiliteral(cnst));
     return ILITERAL_VALUE(cnst);
 }
 

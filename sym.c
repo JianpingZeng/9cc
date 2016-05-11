@@ -50,7 +50,7 @@ void exit_scope(void)
         free_table(identifiers);
         identifiers = up;
     }
-    cc_assert(level >= GLOBAL);
+    assert(level >= GLOBAL);
     level--;
 }
 
@@ -81,7 +81,7 @@ node_t *gen_tmp_sym(void)
 
 node_t *lookup(const char *name, struct table * table)
 {
-    cc_assert(name);
+    assert(name);
     node_t *s = NULL;
 
     for (struct table * t = table; t; t = t->up) {
@@ -104,7 +104,7 @@ node_t *install(const char *name, struct table ** tpp, int scope)
             tp = tp->up;
     }
 
-    cc_assert(tp);
+    assert(tp);
 
     sym = alloc_symbol();
     SYM_SCOPE(sym) = scope;

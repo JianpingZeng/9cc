@@ -334,7 +334,7 @@ static struct vector *arguments(struct macro *m)
         t = lex();
         if (t->id == ')' || t->id == EOI)
             break;
-        cc_assert(t->id == ',');
+        assert(t->id == ',');
         vec_push(commas, t);
     }
     if (t->id != ')')
@@ -997,7 +997,7 @@ static struct token *expand(void)
             struct vector *args = arguments(m);
             if (NO_ERROR) {
                 struct token *rparen = skip_spaces();
-                cc_assert(rparen->id == ')');
+                assert(rparen->id == ')');
                 struct hideset *hdset =
                     hideset_add(hideset_intersection
                                 (t->hideset, rparen->hideset),
