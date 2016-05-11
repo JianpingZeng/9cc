@@ -14,6 +14,7 @@ SYS_OBJ =
 SYS_INC =
 CONFIG_FLAGS =
 KERNEL := $(shell uname)
+RM = @rm -f
 
 UTILS_OBJ += $(utils_dir)wrapper.o
 UTILS_OBJ += $(utils_dir)strbuf.o
@@ -133,9 +134,13 @@ test: $(TESTS)
 	done
 
 clean:
-	@rm -f *.o *~ $(MCC) $(sys_dir)*.o $(sys_dir)*~ $(utils_dir)*.o $(utils_dir)*~ include/*~ mcc.exe* $(TESTS) test/*.o test/*~
+	$(RM) *.o *~ $(MCC)
+	$(RM) $(sys_dir)*.o $(sys_dir)*~
+	$(RM) $(utils_dir)*.o $(utils_dir)*~
+	$(RM) $(TESTS) test/*.o test/*~
+	$(RM) include/*~ mcc.exe*
 
 distclean: clean
-	@rm -f stage1 stage2 stage3
+	$(RM) stage1 stage2 stage3
 
 .PHONY: all clean distclean test
