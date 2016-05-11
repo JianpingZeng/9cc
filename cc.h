@@ -256,6 +256,7 @@ extern const char *node2s(node_t * node);
 extern void print_node_size(void);
 extern void dump_operand(struct operand *operand);
 extern void dump_reg(struct reg *reg);
+extern void dump_tacs(struct tac *tac);
 
 // error.c
 enum {

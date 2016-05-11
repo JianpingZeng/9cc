@@ -1140,3 +1140,9 @@ void dump_reg(struct reg *reg)
         println("[%d] %s, %d", i, SYM_X_LABEL(v->sym), v->size);
     }
 }
+
+void dump_tacs(struct tac *head)
+{
+    for (struct tac *tac = head; tac; tac = tac->next)
+        print_tac(tac);
+}

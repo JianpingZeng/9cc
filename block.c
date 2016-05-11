@@ -162,8 +162,12 @@ static void scan_next_use(struct basic_block *block)
             if (operand) {
                 if (i == 0) {
                     // die
-                    if (operand->sym)
-                        mark_die(operand->sym);
+                    if (operand->sym) {
+                        if (operand->op == IR_SUBSCRIPT)
+                            mark_live(operand->sym, tac);
+                        else
+                            mark_die(operand->sym);
+                    }
                     if (operand->index)
                         mark_live(operand->index, tac);
                 } else {
