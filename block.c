@@ -1,9 +1,5 @@
 #include "cc.h"
 
-#define REF_SYM(sym)  (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
-                       SYM_X_KIND(sym) == SYM_KIND_LREF ||\
-                       SYM_X_KIND(sym) == SYM_KIND_TMP)
-
 static struct basic_block * new_basic_block(void)
 {
     struct basic_block *block = alloc_basic_block();

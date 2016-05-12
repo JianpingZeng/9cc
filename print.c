@@ -578,10 +578,6 @@ void print_tac(struct tac *tac)
     putf(RESET "\n");
 }
 
-#define REF_SYM(sym) (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
-                      SYM_X_KIND(sym) == SYM_KIND_LREF ||\
-                      SYM_X_KIND(sym) == SYM_KIND_TMP)
-
 static void print_use(struct tac *tac)
 {
     for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
