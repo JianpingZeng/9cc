@@ -47,8 +47,8 @@ static void reset_regs(void);
 static struct reg * get_one_ireg(struct set *excepts);
 static struct reg * get_one_freg(struct set *excepts);
 static void drain_reg(struct reg *reg);
+static void drain_reg_ex(struct reg *reg, struct set *excepts);
 static void drain_regs(struct set *regs);
-static void do_drain_reg(struct reg *reg, struct set *excepts);
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
 static void alloc_reg(struct tac *tac);
@@ -809,7 +809,7 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
 
     struct set *excepts = operand_regs(l);
     // drain rax
-    do_drain_reg(rax, excepts);
+    drain_reg_ex(rax, excepts);
     
     set_add(excepts, rax);
     struct reg *tmp = get_one_ireg(excepts);
@@ -874,7 +874,7 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
     for (int i = 0; i < cnt; i++) {
         struct reg *reg = retaddr->u.regs[i].reg;
         // drain regs
-        do_drain_reg(reg, excepts);
+        drain_reg_ex(reg, excepts);
         set_add(excepts, reg);
     }
     
@@ -2173,7 +2173,7 @@ static struct reg * get_one_ireg(struct set *excepts)
     return get_reg(int_regs, ARRAY_SIZE(int_regs), excepts);
 }
 
-static void do_drain_reg(struct reg *reg, struct set *excepts)
+static void drain_reg_ex(struct reg *reg, struct set *excepts)
 {
     struct reg *new_reg = NULL;
     struct vector *vars = set_objects(reg->vars);
@@ -2232,14 +2232,14 @@ static void drain_regs(struct set *regs)
     struct vector *objects = set_objects(regs);
     for (int i = 0; i < vec_len(objects); i++) {
         struct reg *reg = vec_at(objects, i);
-        do_drain_reg(reg, regs);
+        drain_reg_ex(reg, regs);
     }
 }
 
 // maybe sticky
 static void drain_reg(struct reg *reg)
 {
-    do_drain_reg(reg, set_new1(reg));
+    drain_reg_ex(reg, set_new1(reg));
 }
 
 // if(False) x relop y goto z
