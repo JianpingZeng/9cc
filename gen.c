@@ -110,6 +110,13 @@ static struct {
 typedef void (*emitter) (const char *, ...);
 static emitter emit, emit_noindent;
 
+#define USING_EMITTER(e, en) \
+    emitter __saved_emit = emit, __saved_emit_noindent = emit_noindent; \
+    emit = e, emit_noindent = en
+
+#define RESTORE_EMITTER() \
+    emit = __saved_emit, emit_noindent = __saved_emit_noindent
+
 static void vemit1(const char *prefix, const char *fmt, va_list ap)
 {
     if (prefix)
@@ -1738,8 +1745,7 @@ static void emit_text(struct gsection *section)
     node_t *ftype = SYM_TYPE(fsym);
 
     // save emitters
-    emitter saved_emit = emit, saved_emit_noindent = emit_noindent;
-    emit = emit2, emit_noindent = emit_noindent2;
+    USING_EMITTER(emit2, emit_noindent2);
     
     // reset registers
     reset_regs();
@@ -1765,7 +1771,7 @@ static void emit_text(struct gsection *section)
     
     finalize_text();
     // restore emitters
-    emit = saved_emit, emit_noindent = saved_emit_noindent;
+    RESTORE_EMITTER();
 }
 
 static void emit_data(struct gsection *section)
