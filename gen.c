@@ -175,6 +175,8 @@ static void emit_placeholder(int id)
 static void finalize_text(void)
 {
     struct vector *preserved_regs = set_objects(fcon.preserved_regs);
+    size_t localsize = ROUNDUP(fcon.localsize, 16);
+    
     for (size_t i = 0; i < vec_len(fcon.instructions); i++) {
         char *inst = vec_at(fcon.instructions, i);
         if (starts_with(inst, "<<<")) {
@@ -182,9 +184,9 @@ static void finalize_text(void)
             switch (id) {
             case INST_STACK_SUB:
                 if (fcon.orig_localsize == fcon.localsize)
-                    emit1("subq $%lu, %s", fcon.localsize, rsp->r[Q]);
+                    emit1("subq $%lu, %s", localsize, rsp->r[Q]);
                 else
-                    emit1("subq $%lu, %s" COMMENT("extended"), fcon.localsize, rsp->r[Q]);
+                    emit1("subq $%lu, %s" COMMENT("extended"), localsize, rsp->r[Q]);
                 break;
             case INST_PRESERVED_REG_PUSH:
                 for (size_t i = 0; i < vec_len(preserved_regs); i++) {
@@ -199,9 +201,8 @@ static void finalize_text(void)
                 }
                 break;
             case INST_STACK_ADD:
-                if (vec_len(preserved_regs)) {
-                    emit1("addq $%lu, %s", fcon.localsize, rsp->r[Q]);
-                }
+                if (vec_len(preserved_regs))
+                    emit1("addq $%lu, %s", localsize, rsp->r[Q]);
                 break;
             default:
                 assert(0);
@@ -1785,7 +1786,6 @@ static void emit_function_prologue(struct gsection *section)
     
     // call params
     localsize += call_params_size(decl);
-    localsize = ROUNDUP(localsize, 16);
     fcon.localsize = fcon.orig_localsize = localsize;
     
     emit_placeholder(INST_PRESERVED_REG_PUSH);
@@ -1812,23 +1812,21 @@ static void emit_text(struct gsection *section)
     node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
-
-    // save emitters
-    USING_EMITTER(emit2, emit_noindent2);
     
     // reset registers
     reset_regs();
     // reset func context
-    {
-        fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
-        fcon.calls_return_loff = 0;
-        fcon.pinfo = NULL;
-        fcon.current_ftype = ftype;
-        fcon.instructions = vec_new();
-        fcon.localsize = fcon.orig_localsize = 0;
-        fcon.preserved_regs = set_new();
-    }
+    fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
+    fcon.calls_return_loff = 0;
+    fcon.pinfo = NULL;
+    fcon.current_ftype = ftype;
+    fcon.instructions = vec_new();
+    fcon.localsize = fcon.orig_localsize = 0;
+    fcon.preserved_regs = set_new();
 
+    // save emitters
+    USING_EMITTER(emit2, emit_noindent2);
+    
     emit_function_prologue(section);
     if (TYPE_VARG(ftype))
         emit_register_save_area();
