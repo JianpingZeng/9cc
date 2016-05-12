@@ -52,6 +52,7 @@ static void drain_regs(struct set *regs);
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
 static void alloc_reg(struct tac *tac);
+static struct rvar *find_var(struct reg *reg, node_t *sym);
 
 // Parameter Classification
 static int *no_class = (int *)1;
@@ -103,7 +104,7 @@ static struct {
     struct tac *current_tac;
     node_t *current_ftype;
     struct vector *instructions;
-    size_t localsize;
+    size_t orig_localsize, localsize;
     struct set *preserved_regs;
 } fcon;
 
@@ -173,11 +174,38 @@ static void emit_placeholder(int id)
 
 static void finalize_text(void)
 {
+    struct vector *preserved_regs = set_objects(fcon.preserved_regs);
     for (size_t i = 0; i < vec_len(fcon.instructions); i++) {
         char *inst = vec_at(fcon.instructions, i);
         if (starts_with(inst, "<<<")) {
             int id = atoi(inst + 3);
-            // TODO: 
+            switch (id) {
+            case INST_STACK_SUB:
+                if (fcon.orig_localsize == fcon.localsize)
+                    emit1("subq $%lu, %s", fcon.localsize, rsp->r[Q]);
+                else
+                    emit1("subq $%lu, %s" COMMENT("extended"), fcon.localsize, rsp->r[Q]);
+                break;
+            case INST_PRESERVED_REG_PUSH:
+                for (size_t i = 0; i < vec_len(preserved_regs); i++) {
+                    struct reg *reg = vec_at(preserved_regs, i);
+                    emit1("pushq %s", reg->r[Q]);
+                }
+                break;
+            case INST_PRESERVED_REG_POP:
+                for (int i = vec_len(preserved_regs) - 1; i >= 0; i--) {
+                    struct reg *reg = vec_at(preserved_regs, i);
+                    emit1("popq %s", reg->r[Q]);
+                }
+                break;
+            case INST_STACK_ADD:
+                if (vec_len(preserved_regs)) {
+                    emit1("addq $%lu, %s", fcon.localsize, rsp->r[Q]);
+                }
+                break;
+            default:
+                assert(0);
+            }
         } else {
             fprintf(outfp, "%s\n", inst);
         }
@@ -1507,9 +1535,50 @@ static void emit_tac(struct tac *tac)
     }
 }
 
+static void spill(node_t *sym)
+{
+    struct reg *reg = SYM_X_REG(sym);
+    if (SYM_X_INMEM(sym) || !reg)
+        return;
+
+    struct rvar *v = find_var(reg, sym);
+    int i = idx[v->size];
+    
+    switch (SYM_X_KIND(sym)) {
+    case SYM_KIND_GREF:
+        {
+            emit("mov%s %s, %s(%s)" COMMENT("%d-byte spill"),
+                 suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
+            SYM_X_INMEM(sym) = true;
+        }
+        break;
+    case SYM_KIND_TMP:
+        if (!SYM_X_LOFF(sym)) {
+            fcon.localsize = ROUNDUP(fcon.localsize + v->size, 4);
+            SYM_X_LOFF(sym) = -fcon.localsize;
+            // change to LREF
+            SYM_X_KIND(sym) = SYM_KIND_LREF;
+        }
+        // fall through
+    case SYM_KIND_LREF:
+        {
+            emit("mov%s %s, %ld(%s)" COMMENT("%d-byte spill"),
+                 suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
+            SYM_X_INMEM(sym) = true;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 static void finalize_basic_block(struct basic_block *block)
 {
-    // TODO: 
+    struct vector *outs = set_objects(block->out);
+    for (size_t i = 0; i < vec_len(outs); i++) {
+        node_t *sym = vec_at(outs, i);
+        spill(sym);
+    }
 }
 
 static void init_sym_addrs(node_t *sym)
@@ -1717,7 +1786,7 @@ static void emit_function_prologue(struct gsection *section)
     // call params
     localsize += call_params_size(decl);
     localsize = ROUNDUP(localsize, 16);
-    fcon.localsize = localsize;
+    fcon.localsize = fcon.orig_localsize = localsize;
     
     emit_placeholder(INST_PRESERVED_REG_PUSH);
     emit_placeholder(INST_STACK_SUB);
@@ -1756,7 +1825,7 @@ static void emit_text(struct gsection *section)
         fcon.pinfo = NULL;
         fcon.current_ftype = ftype;
         fcon.instructions = vec_new();
-        fcon.localsize = 0;
+        fcon.localsize = fcon.orig_localsize = 0;
         fcon.preserved_regs = set_new();
     }
 
@@ -2071,6 +2140,17 @@ static void store(node_t *sym)
     SYM_X_INMEM(sym) = true;
 }
 
+struct rvar *find_var(struct reg *reg, node_t *sym)
+{
+    struct vector *objs = set_objects(reg->vars);
+    for (size_t i = 0; i < vec_len(objs); i++) {
+        struct rvar *var = vec_at(objs, i);
+        if (var->sym == sym)
+            return var;
+    }
+    return NULL;
+}
+
 static bool is_in_tac(node_t *sym, struct tac *tac)
 {
     for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
@@ -2188,14 +2268,14 @@ static void drain_reg_ex(struct reg *reg, struct set *excepts)
         switch (SYM_X_KIND(sym)) {
         case SYM_KIND_GREF:
             if (!SYM_X_INMEM(sym)) {
-                emit("mov%s %s, %s(%s)" COMMENT("%d-byte spill"),
+                emit("mov%s %s, %s(%s)" COMMENT("%d-byte Spill"),
                      suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
                 store(sym);
             }
             break;
         case SYM_KIND_LREF:
             if (!SYM_X_INMEM(sym)) {
-                emit("mov%s %s, %ld(%s)" COMMENT("%d-byte spill"),
+                emit("mov%s %s, %ld(%s)" COMMENT("%d-byte Spill"),
                      suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
                 store(sym);
             }
@@ -2212,7 +2292,7 @@ static void drain_reg_ex(struct reg *reg, struct set *excepts)
                         new_reg = dispatch_ireg(sym, excepts, v->size);
                         suffix = suffixi;
                     }
-                    emit("mov%s %s, %s" COMMENT("%d-byte spill"),
+                    emit("mov%s %s, %s" COMMENT("%d-byte Spill"),
                          suffix[i], reg->r[i], new_reg->r[i], v->size);
                 } else {
                     load(new_reg, sym, v->size);
