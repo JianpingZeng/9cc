@@ -21,9 +21,9 @@ static struct basic_block * new_basic_block(void)
  * use[B]: the set of variables whose values may be used in B prior to any
  *         definition of that variable.
  */
-static void calculate_use_def(struct basic_block *start)
+static void calculate_use_def(struct basic_block *block)
 {
-    for (struct basic_block *block = start; block; block = block->successors[0]) {
+    FOR_EACH_BB(block) {
         for (struct tac *tac = block->head; tac; tac = tac->next) {
             for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
                 struct operand *operand = tac->operands[i];
@@ -66,12 +66,12 @@ static void calculate_use_def(struct basic_block *start)
  *     }
  * }
  */
-static void calculate_in_out(struct basic_block *start)
+static void calculate_in_out(struct basic_block *block)
 {
     bool changed;
     do {
         changed = false;
-        for (struct basic_block *block = start; block; block = block->successors[0]) {
+        FOR_EACH_BB(block) {
             if (block->tag == BLOCK_END)
                 break;
             struct set *outs = NULL;
@@ -182,9 +182,9 @@ static void scan_next_use(struct basic_block *block)
     }
 }
 
-static void calculate_next_use(struct basic_block *start)
+static void calculate_next_use(struct basic_block *block)
 {
-    for (struct basic_block *block = start; block; block = block->successors[0]) {
+    FOR_EACH_BB(block) {
         init_next_use(block);
         scan_next_use(block);
     }

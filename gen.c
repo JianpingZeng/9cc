@@ -1519,9 +1519,9 @@ static void init_sym_addrs(node_t *sym)
         SYM_X_INMEM(sym) = true;
 }
 
-static void init_basic_blocks(struct basic_block *start)
+static void init_basic_blocks(struct basic_block *block)
 {
-    for (struct basic_block *block = start; block; block = block->successors[0]) {
+    FOR_EACH_BB(block) {
         for (struct tac *tac = block->head; tac; tac = tac->next) {
             for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
                 struct operand *operand = tac->operands[i];
@@ -1536,9 +1536,9 @@ static void init_basic_blocks(struct basic_block *start)
     }
 }
 
-static void emit_basic_blocks(struct basic_block *start)
+static void emit_basic_blocks(struct basic_block *block)
 {
-    for (struct basic_block *block = start; block; block = block->successors[0]) {
+    FOR_EACH_BB(block) {
         fcon.current_block = block;
         if (block->label && block->tag == BLOCK_JUMPING_DEST)
             emit_noindent("%s:", block->label);
