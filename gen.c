@@ -638,6 +638,13 @@ static void emit_builtin_va_start(struct tac *tac)
     emit("movq %s, %s", reg->r[Q], operand2s(operand4, Quad));
 }
 
+/*
+  va_arg(ap, type)
+  
+  tmp = ap.overflow_arg_area;
+  ap.overflow_arg_area += sizeof type;
+  result = tmp;
+*/
 static void emit_builtin_va_arg_p_memory(struct tac *tac)
 {
     node_t *call = tac->call;
@@ -645,13 +652,7 @@ static void emit_builtin_va_arg_p_memory(struct tac *tac)
     struct operand *l = EXPR_X_ADDR(args[0]);
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
-    /*
-      va_arg(ap, type)
-          
-      tmp = ap.overflow_arg_area;
-      ap.overflow_arg_area += sizeof type;
-      result = tmp;
-    */
+    
     size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
     struct operand *operand = make_ret_offset_operand(l, 8);
     const char *dst_label = operand2s(operand, Quad);
@@ -785,6 +786,24 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
     load(tmp1, result->sym, Quad);
 }
 
+/*
+  integer:
+
+  if (ap.gp_offset <= 48) {
+      // register
+      tmp = ap.reg_save_area + ap.gp_offset;
+      ap.gp_offset += 8;
+      result = tmp;
+  } else {
+      // memory
+      tmp = ap.overflow_arg_area;
+      ap.overflow_arg_area += 8;
+      result = tmp;
+  }
+
+  floating:
+  
+ */
 static void emit_builtin_va_arg_p_scalar(struct tac *tac)
 {
     node_t *call = tac->call;
