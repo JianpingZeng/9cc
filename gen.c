@@ -667,6 +667,49 @@ static void emit_builtin_va_arg_p_memory(struct tac *tac)
     load(tmp2, result->sym, Quad);
 }
 
+/**
+ count record type's gp, fp;
+ size = type size of 'ty' (arg1)
+
+ if (gp > 0) {
+     gp_offset_max = 48 - (gp-1)*8;
+     if (ap.gp_offset >= gp_offset_max)
+         goto mem;
+ }
+ if (fp > 0) {
+     fp_offset_max = 176 - (fp-1)*16;
+     if (ap.fp_offset >= fp_offset_max)
+         goto mem;
+ }
+
+ if (gp > 0 && fp > 0) {
+     tmp2 = ap.reg_save_area + ap.gp_offset;
+     tmp3 = ap.reg_save_area + ap.fp_offset;
+     dst[0] = *tmp2;
+     dst[1] = *tmp3;
+     tmp = dst;
+ } else if (gp > 0) {
+     tmp = ap.reg_save_area + ap.gp_offset;
+ } else if (fp > 0) {
+     tmp = ap.ref_save_area + ap.fp_offset;
+ }
+
+ if (gp > 0) {
+     ap.gp_offset += gp << 3;
+ }
+ if (fp > 0) {
+     ap.fp_offset += fp << 4;
+ }
+ goto out;
+
+ mem:
+ tmp = ap.overflow_arg_area;
+ ap.overflow_arg_area += ROUNDUP(size, 8);
+
+ out:
+ result = tmp;
+ 
+ */
 static void emit_builtin_va_arg_p_record(struct tac *tac)
 {
     node_t *call = tac->call;
@@ -712,14 +755,15 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
         else
             assert(0);
     }
-    unsigned gp_offset_max = 48 - (gp-1) * 8;
-    unsigned fp_offset_max = 176 - (fp-1) * 16;
+    
     if (gp > 0) {
+        unsigned gp_offset_max = 48 - (gp-1) * 8;
         emit("movl %s, %s", gp_label, tmp1->r[L]);
         emit("cmpl $%u, %s", gp_offset_max, tmp1->r[L]);
         emit("jnb %s", mem_label);
     }
     if (fp > 0) {
+        unsigned fp_offset_max = 176 - (fp-1) * 16;
         emit("movl %s, %s", fp_label, tmp1->r[L]);
         emit("cmpl $%u, %s", fp_offset_max, tmp1->r[L]);
         emit("jnb %s", mem_label);
