@@ -2988,11 +2988,9 @@ static bool is_type_aligned(node_t *ty)
     return true;
 }
 
-static struct pinfo * new_pinfo(struct pinfo *pinfo)
+static struct pinfo * alloc_pinfo(void)
 {
-    struct pinfo *ret = zmalloc(sizeof(struct pinfo));
-    *ret = *pinfo;
-    return ret;
+    return zmalloc(sizeof(struct pinfo));
 }
 
 static struct paddr * alloc_paddr(void)
@@ -3157,13 +3155,14 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool
             }
         }
     }
-    return new_pinfo(&(struct pinfo) {
-        .fp = fp,
-        .gp = gp,
-        .size = offset,
-        .pnodes = pnodes,
-        .retaddr = retaddr
-    });
+
+    struct pinfo *pinfo = alloc_pinfo();
+    pinfo->fp = fp;
+    pinfo->gp = gp;
+    pinfo->size = offset;
+    pinfo->pnodes = pnodes;
+    pinfo->retaddr = retaddr;
+    return pinfo;
 }
 
 static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params)
