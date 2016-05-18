@@ -48,7 +48,6 @@ static struct reg * get_one_ireg(struct set *excepts);
 static struct reg * get_one_freg(struct set *excepts);
 static void drain_reg(struct reg *reg);
 static void drain_reg_ex(struct reg *reg, struct set *excepts);
-static void drain_regs(struct set *regs);
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
 static void alloc_reg(struct tac *tac);
@@ -325,40 +324,29 @@ static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
     struct paddr *paddr = pnode->paddr;
     node_t *ty = AST_TYPE(arg);
     int i = idx[TYPE_SIZE(ty)];
-    node_t *sym = operand->sym;
-    struct reg *src = SYM_X_REG(sym);
+    const char *src_label = operand2s(operand, TYPE_SIZE(ty));
 
     if (paddr->kind == ADDR_REGISTER) {
-        const char *src_label = operand2s(operand, TYPE_SIZE(ty));
         struct reg *dst = paddr->u.regs[0].reg;
-        if (src == NULL || src != dst) {
-            if (isfloat(ty))
-                emit("mov%s %s, %s", suffixf[i], src_label, dst->r[i]);
-            else
-                emit("mov%s %s, %s", suffixi[i], src_label, dst->r[i]);
-        }
+        if (isfloat(ty))
+            emit("mov%s %s, %s", suffixf[i], src_label, dst->r[i]);
+        else
+            emit("mov%s %s, %s", suffixi[i], src_label, dst->r[i]);
     } else if (paddr->kind == ADDR_STACK) {
         const char *stack;
         if (paddr->u.offset)
             stack = format("%ld(%s)", paddr->u.offset, rsp->r[Q]);
         else
             stack = format("(%s)", rsp->r[Q]);
-        if (src) {
-            if (isfloat(ty))
-                emit("mov%s %s, %s", suffixf[i], src->r[i], stack);
-            else
-                emit("mov%s %s, %s", suffixi[i], src->r[i], stack);
+
+        if (isfloat(ty)) {
+            struct reg *tmp = get_one_freg(NULL);
+            emit("mov%s %s, %s", suffixf[i], src_label, tmp->r[i]);
+            emit("mov%s %s, %s", suffixf[i], tmp->r[i], stack);
         } else {
-            const char *src_label = operand2s(operand, TYPE_SIZE(ty));
-            if (isfloat(ty)) {
-                struct reg *tmp = get_one_freg(NULL);
-                emit("mov%s %s, %s", suffixf[i], src_label, tmp->r[i]);
-                emit("mov%s %s, %s", suffixf[i], tmp->r[i], stack);
-            } else {
-                struct reg *tmp = get_one_ireg(NULL);
-                emit("mov%s %s, %s", suffixi[i], src_label, tmp->r[i]);
-                emit("mov%s %s, %s", suffixi[i], tmp->r[i], stack);
-            }
+            struct reg *tmp = get_one_ireg(NULL);
+            emit("mov%s %s, %s", suffixi[i], src_label, tmp->r[i]);
+            emit("mov%s %s, %s", suffixi[i], tmp->r[i], stack);
         }
     }
 }
@@ -429,17 +417,19 @@ static void emit_param(struct tac *tac, struct pnode *pnode)
         assert(0);
 }
 
-static void drain_args_regs(int gp, int fp)
+static void do_drain_nonpreserved_regs(struct reg **regs, int count)
 {
-    struct set *gv = set_new();
-    for (int i = 0; i < gp; i++)
-        set_add(gv, iarg_regs[i]);
-    drain_regs(gv);
+    for (int i = 0; i < count; i++) {
+        struct reg *reg = regs[i];
+        if (!reg->preserved)
+            drain_reg(reg);
+    }
+}
 
-    struct set *fv = set_new();
-    for (int i = 0; i < fp; i++)
-        set_add(fv, farg_regs[i]);
-    drain_regs(fv);
+static void drain_nonpreserved_regs(void)
+{
+    do_drain_nonpreserved_regs(int_regs, ARRAY_SIZE(int_regs));
+    do_drain_nonpreserved_regs(float_regs, ARRAY_SIZE(float_regs));
 }
 
 static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct operand *result)
@@ -469,7 +459,8 @@ static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct oper
                             int opsize = size == 1 ? Byte : Word;
                             int i = idx[opsize];
                             emit("mov%s %s, %ld(%s)",
-                                 suffixi[i], reg->r[i], loff + fcon.calls_return_loff, rbp->r[Q]);
+                                 suffixi[i], reg->r[i],
+                                 loff + fcon.calls_return_loff, rbp->r[Q]);
                         }
                         break;
                     case 3:
@@ -494,7 +485,8 @@ static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct oper
                                  reg->r[L], loff + fcon.calls_return_loff, rbp->r[Q]);
                             emit("shrq $32, %s", reg->r[Q]);
                             emit("mov%s %s, %ld(%s)",
-                                 suffixi[i], reg->r[i], loff + fcon.calls_return_loff + 4, rbp->r[Q]);
+                                 suffixi[i], reg->r[i],
+                                 loff + fcon.calls_return_loff + 4, rbp->r[Q]);
                         }
                         break;
                     case 7:
@@ -560,11 +552,12 @@ static void emit_nonbuiltin_call(struct tac *tac)
 
     // TODO: reset current tac here to make next uses live for params
     fcon.current_tac = t;
+
+    // drain all non-preserved registers
+    drain_nonpreserved_regs();
     
     // emit args
     struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
-    // drain regs
-    drain_args_regs(pinfo->gp, pinfo->fp);
     size_t k = 0;
     if (pinfo->retaddr && pinfo->retaddr->kind == ADDR_STACK) {
         struct reg *reg = iarg_regs[0];
@@ -592,6 +585,8 @@ static void emit_nonbuiltin_call(struct tac *tac)
 
     if (result)
         emit_call_epilogue(ftype, pinfo->retaddr, result);
+
+    // TODO: update use of params
 }
 
 /*
