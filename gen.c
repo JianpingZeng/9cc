@@ -52,6 +52,7 @@ static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
 static void alloc_reg(struct tac *tac);
 static struct rvar *find_var(struct reg *reg, node_t *sym);
+static void update_use(struct tac *tac);
 
 // Parameter Classification
 static int *no_class = (int *)1;
@@ -550,9 +551,6 @@ static void emit_nonbuiltin_call(struct tac *tac)
         vec_push(params, t);    // in reverse order
     }
 
-    // TODO: reset current tac here to make next uses live for params
-    fcon.current_tac = t;
-
     // drain all non-preserved registers
     drain_nonpreserved_regs();
     
@@ -560,7 +558,9 @@ static void emit_nonbuiltin_call(struct tac *tac)
     struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
     size_t k = 0;
     if (pinfo->retaddr && pinfo->retaddr->kind == ADDR_STACK) {
-        struct reg *reg = iarg_regs[0];
+        struct pnode *pnode = vec_at(pinfo->pnodes, 0);
+        struct reg *reg = pnode->paddr->u.regs[0].reg;
+        assert(reg == iarg_regs[0]);
         emit("leaq %ld(%s), %s", fcon.calls_return_loff, rbp->r[Q], reg->r[Q]);
         k = 1;
     }
@@ -575,8 +575,6 @@ static void emit_nonbuiltin_call(struct tac *tac)
         emit("movb $%d, %%al", pinfo->fp);
     }
 
-    // TODO: drain regs in retaddr
-
     // direct / indirect
     if (l->op == IR_NONE && SYM_X_KIND(l->sym) == SYM_KIND_GREF)
         emit("call %s", SYM_X_LABEL(l->sym));
@@ -586,7 +584,11 @@ static void emit_nonbuiltin_call(struct tac *tac)
     if (result)
         emit_call_epilogue(ftype, pinfo->retaddr, result);
 
-    // TODO: update use of params
+    // update use of params
+    for (int i = vec_len(params) - 1; i >= 0; i--) {
+        struct tac *tac = vec_at(params, i);
+        update_use(tac);
+    }
 }
 
 /*
