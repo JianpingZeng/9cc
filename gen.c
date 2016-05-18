@@ -569,11 +569,10 @@ static void emit_nonbuiltin_call(struct tac *tac)
         struct tac *param = vec_at(params, (len-1) - (i-k));
         emit_param(param, pnode);
     }
-    
-    if (TYPE_VARG(ftype) || TYPE_OLDSTYLE(ftype)) {
-        drain_reg(int_regs[RAX]);
-        emit("movb $%d, %%al", pinfo->fp);
-    }
+
+    // set fp to rax (al)
+    if (TYPE_VARG(ftype) || TYPE_OLDSTYLE(ftype))
+        emit("movb $%d, %s", pinfo->fp, int_regs[RAX]->r[B]);
 
     // direct / indirect
     if (l->op == IR_NONE && SYM_X_KIND(l->sym) == SYM_KIND_GREF)
