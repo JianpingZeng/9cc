@@ -44,6 +44,9 @@ a.out
 stage1
 stage2
 stage3
+cc1_stage1
+cc1_stage2
+cc1_stage3
 *.stackdump
 *.obj
 
