@@ -159,10 +159,10 @@ static void scan_next_use(struct basic_block *block)
                 if (i == 0) {
                     // die
                     if (operand->sym) {
-                        if (operand->op == IR_SUBSCRIPT)
-                            mark_live(operand->sym, tac);
-                        else
+                        if (operand->op == IR_NONE)
                             mark_die(operand->sym);
+                        else
+                            mark_live(operand->sym, tac);
                     }
                     if (operand->index)
                         mark_live(operand->index, tac);
