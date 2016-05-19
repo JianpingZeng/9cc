@@ -152,6 +152,6 @@ clean: objclean
 	$(RM) $(MCC) $(CC1)
 
 distclean: clean
-	$(RM) stage1 stage2 stage3 cc1_stage cc2_stage2 cc3_stage
+	$(RM) stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3
 
 .PHONY: all clean distclean objclean test
