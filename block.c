@@ -275,10 +275,7 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
     }
 
     struct basic_block *entry = *current;
-    if (!entry->head && entry != start)
-        *current = end;
-    else
-        entry->successors[0] = end;
+    entry->successors[0] = end;
     DECL_X_BASIC_BLOCK(decl) = start;
 
     // calculate use[B] and def[B]
