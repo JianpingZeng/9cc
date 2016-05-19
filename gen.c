@@ -2283,16 +2283,6 @@ struct rvar *find_var(struct reg *reg, node_t *sym)
     return NULL;
 }
 
-static bool is_in_tac(node_t *sym, struct tac *tac)
-{
-    for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
-        struct operand *operand = tac->operands[i];
-        if (operand && (sym == operand->sym || sym == operand->index))
-            return true;
-    }
-    return false;
-}
-
 static void push_excepts(struct set *excepts)
 {
     if (!rexcepts)
@@ -2338,7 +2328,7 @@ static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
             struct uses uses = SYM_X_USES(v->sym);
             if (SYM_X_INMEM(v->sym))
                 continue;       // done
-            if (!uses.live && !is_in_tac(v->sym, fcon.current_tac))
+            if (!uses.live)
                 continue;       // done
             // spill
             cost += 1;
