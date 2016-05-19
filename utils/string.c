@@ -147,6 +147,7 @@ char *xstrndup(const char *str, size_t n)
 {
     char *ret = xmalloc(n + 1);
     strncpy(ret, str, n);
+    ret[n] = '\0';
     return ret;
 }
 

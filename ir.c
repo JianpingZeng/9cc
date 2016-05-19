@@ -1467,11 +1467,6 @@ static void emit_call(node_t *n)
         EXPR_X_ADDR(arg) = update_gref(EXPR_X_ADDR(arg));
     }
 
-    for (size_t i = 0; i < len; i++) {
-        node_t *arg = args[i];
-        emit_param(EXPR_X_ADDR(arg));
-    }
-
     struct operand *call_operand = EXPR_X_ADDR(l);
     if (call_operand->op == IR_NONE &&
         SYM_X_KIND(call_operand->sym) == SYM_KIND_GREF &&
@@ -1484,6 +1479,12 @@ static void emit_call(node_t *n)
         call_operand = tac->operands[0];
     }
 
+    // parameters
+    for (size_t i = 0; i < len; i++) {
+        node_t *arg = args[i];
+        emit_param(EXPR_X_ADDR(arg));
+    }
+    
     if (isvoid(rty)) {
         struct tac *tac = make_call_tac(call_operand, NULL, n);
         emit_tac(tac);
