@@ -40,6 +40,8 @@ static void parse_opts(int argc, char *argv[])
 
 static void cc_init(const char *ifile, const char *ofile)
 {
+    if (!ifile)
+        exit(EXIT_FAILURE);
     if (ofile) {
         outfp = fopen(ofile, "w");
         if (outfp == NULL) {
@@ -79,7 +81,7 @@ static void preprocess(void)
 
 static void cc_exit(void)
 {
-    if (outfp != stdout)
+    if (outfp && outfp != stdout)
         fclose(outfp);
 }
 
