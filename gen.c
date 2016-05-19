@@ -47,12 +47,13 @@ static void reset_regs(void);
 static struct reg * get_one_ireg(struct set *excepts);
 static struct reg * get_one_freg(struct set *excepts);
 static void drain_reg(struct reg *reg);
-static void drain_reg_ex(struct reg *reg, struct set *excepts);
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
 static void alloc_reg(struct tac *tac);
 static struct rvar *find_var(struct reg *reg, node_t *sym);
 static void update_use(struct tac *tac);
+static void push_excepts(struct set *excepts);
+static void pop_excepts(void);
 
 // Parameter Classification
 static int *no_class = (int *)1;
@@ -945,9 +946,10 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
     node_t *sym = pnode->param;
     struct reg *rax = int_regs[RAX];
 
+    // TODO: add to excepts
     struct set *excepts = operand_regs(l);
     // drain rax
-    drain_reg_ex(rax, excepts);
+    drain_reg(rax);
     
     set_add(excepts, rax);
     struct reg *tmp = get_one_ireg(excepts);
@@ -1007,13 +1009,11 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
     int cnt = ROUNDUP(retaddr->size, 8) >> 3;
     long loff = 0;
 
-    // calculate excepts
+    //TODO: calculate excepts
     struct set *excepts = operand_regs(l);
     for (int i = 0; i < cnt; i++) {
         struct reg *reg = retaddr->u.regs[i].reg;
-        // drain regs
-        drain_reg_ex(reg, excepts);
-        set_add(excepts, reg);
+        drain_reg(reg);
     }
     
     for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
@@ -1645,13 +1645,10 @@ static void emit_tac(struct tac *tac)
     }
 }
 
-static void spill(node_t *sym)
+static void do_spill(struct rvar *v)
 {
+    node_t *sym = v->sym;
     struct reg *reg = SYM_X_REG(sym);
-    if (SYM_X_INMEM(sym) || !reg)
-        return;
-
-    struct rvar *v = find_var(reg, sym);
     int i = idx[v->size];
     
     switch (SYM_X_KIND(sym)) {
@@ -1680,6 +1677,33 @@ static void spill(node_t *sym)
     default:
         break;
     }
+}
+
+static void spillv(struct rvar *v)
+{
+    node_t *sym = v->sym;
+    struct reg *reg = SYM_X_REG(sym);
+    if (!reg)
+        return;
+    if (SYM_X_INMEM(sym)) {
+        SYM_X_REG(sym) = NULL;
+        return;
+    }
+
+    // not in memory and in register
+    do_spill(v);
+    // clear SYM_X_REG
+    SYM_X_REG(sym) = NULL;
+}
+
+static void spill(node_t *sym)
+{
+    struct reg *reg = SYM_X_REG(sym);
+    if (SYM_X_INMEM(sym) || !reg)
+        return;
+
+    struct rvar *v = find_var(reg, sym);
+    do_spill(v);
 }
 
 static void finalize_basic_block(struct basic_block *block)
@@ -2091,6 +2115,7 @@ void gen(struct externals *exts, FILE * fp)
 ///
 /// Register Allocation
 ///
+static struct vector *rexcepts;
 
 static void dump_regs(void)
 {
@@ -2268,6 +2293,19 @@ static bool is_in_tac(node_t *sym, struct tac *tac)
     return false;
 }
 
+static void push_excepts(struct set *excepts)
+{
+    if (!rexcepts)
+        rexcepts = vec_new();
+    vec_push(rexcepts, excepts);
+}
+
+static void pop_excepts(void)
+{
+    if (rexcepts)
+        vec_pop(rexcepts);
+}
+
 // BUG: the 'ret' drain_reg may call get_reg again (a dead loop)
 // BUG: no enough registers
 static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
@@ -2360,73 +2398,16 @@ static struct reg * get_one_ireg(struct set *excepts)
     return get_reg(int_regs, ARRAY_SIZE(int_regs), excepts);
 }
 
-static void drain_reg_ex(struct reg *reg, struct set *excepts)
-{
-    struct reg *new_reg = NULL;
-    struct vector *vars = set_objects(reg->vars);
-    for (int j = 0; j < vec_len(vars); j++) {
-        struct rvar *v = vec_at(vars, j);
-        node_t *sym = v->sym;
-        int i = idx[v->size];
-        // always clear
-        SYM_X_REG(sym) = NULL;
-        struct uses uses = SYM_X_USES(sym);
-
-        switch (SYM_X_KIND(sym)) {
-        case SYM_KIND_GREF:
-            if (!SYM_X_INMEM(sym)) {
-                emit("mov%s %s, %s(%s)" COMMENT("%d-byte Spill"),
-                     suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
-                store(sym);
-            }
-            break;
-        case SYM_KIND_LREF:
-            if (!SYM_X_INMEM(sym)) {
-                emit("mov%s %s, %ld(%s)" COMMENT("%d-byte Spill"),
-                     suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
-                store(sym);
-            }
-            break;
-        case SYM_KIND_TMP:
-            if (is_in_tac(sym, fcon.current_tac) || uses.live) {
-                // sticky
-                if (!new_reg) {
-                    const char **suffix;
-                    if (reg->freg) {
-                        new_reg = dispatch_freg(sym, excepts, v->size);
-                        suffix = suffixf;
-                    } else {
-                        new_reg = dispatch_ireg(sym, excepts, v->size);
-                        suffix = suffixi;
-                    }
-                    emit("mov%s %s, %s" COMMENT("%d-byte Spill"),
-                         suffix[i], reg->r[i], new_reg->r[i], v->size);
-                } else {
-                    load(new_reg, sym, v->size);
-                }
-            }
-            break;
-        default:
-            break;
-        }
-    }
-    if (reg->vars)
-        set_clear(reg->vars);
-}
-
-static void drain_regs(struct set *regs)
-{
-    struct vector *objects = set_objects(regs);
-    for (int i = 0; i < vec_len(objects); i++) {
-        struct reg *reg = vec_at(objects, i);
-        drain_reg_ex(reg, regs);
-    }
-}
-
 // maybe sticky
 static void drain_reg(struct reg *reg)
 {
-    drain_reg_ex(reg, set_new1(reg));
+    struct vector *vars = set_objects(reg->vars);
+    for (size_t i = 0; i < vec_len(vars); i++) {
+        struct rvar *v = vec_at(vars, i);
+        spillv(v);
+    }
+    if (reg->vars)
+        set_clear(reg->vars);
 }
 
 // if(False) x relop y goto z
@@ -2475,10 +2456,9 @@ static void alloc_reg_int_mul_div(struct tac *tac)
     struct reg *rdx = int_regs[RDX];
     int i = idx[tac->opsize];
     if (tac->opsize > Byte) {
-        struct set *regs = set_new();
-        set_add(regs, rax);
-        set_add(regs, rdx);
-        drain_regs(regs);
+        drain_reg(rax);
+        drain_reg(rdx);
+        // TODO: add to excepts
         if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
             tac->op == IR_MOD || tac->op == IR_IMOD)
             emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
