@@ -1,7 +1,13 @@
 #include "cc.h"
 
 #define STR(str)  ((str) ? (str) : "<null>")
-#define OUTFD     stdout
+static FILE *outfd;
+#define SET_OUTFD(fd) \
+    FILE *_saved_fd = outfd; \
+    outfd = fd
+
+#define RESTORE_OUTFD() \
+    outfd = _saved_fd
 
 struct print_context {
     int level;
@@ -10,20 +16,28 @@ struct print_context {
 
 static void print_tree1(struct print_context context);
 
+static void ensure_outfd(void)
+{
+    if (!outfd)
+        outfd = stdout;
+}
+
 static void putf(const char *fmt, ...)
 {
+    ensure_outfd();
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(OUTFD, fmt, ap);
+    vfprintf(outfd, fmt, ap);
     va_end(ap);
 }
 
 static void putln(const char *fmt, ...)
 {
+    ensure_outfd();
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(OUTFD, fmt, ap);
-    fprintf(OUTFD, "\n");
+    vfprintf(outfd, fmt, ap);
+    fprintf(outfd, "\n");
     va_end(ap);
 }
 
@@ -643,7 +657,7 @@ static void print_sym_set(struct set *set)
 
 static void print_basic_block(struct basic_block *block)
 {
-    if (block->head)
+    if (block->label)
         putln(RED("%s:"), block->label);
     for (struct tac *tac = block->head; tac; tac = tac->next) {
         print_tac(tac);
@@ -1119,6 +1133,7 @@ void print_node_size(void)
 // debug
 void dump_operand(struct operand *operand)
 {
+    SET_OUTFD(stderr);
     println("%p: op:%s,%ld(%s,%s,%d), kind: %d, reg: %s",
             operand, rop2s(operand->op),operand->disp,
             SYM_X_LABEL(operand->sym),
@@ -1126,20 +1141,25 @@ void dump_operand(struct operand *operand)
             operand->scale,
             SYM_X_KIND(operand->sym),
             SYM_X_REG(operand->sym) ? SYM_X_REG(operand->sym)->r[Q] : "");
+    RESTORE_OUTFD();
 }
 
 void dump_reg(struct reg *reg)
 {
+    SET_OUTFD(stderr);
     println("dump %s:", reg->r[Q]);
     struct vector *vars = set_objects(reg->vars);
     for (int i = 0; i < vec_len(vars); i++) {
         struct rvar *v = vec_at(vars, i);
         println("[%d] %s, %d", i, SYM_X_LABEL(v->sym), v->size);
     }
+    RESTORE_OUTFD();
 }
 
 void dump_tacs(struct tac *head)
 {
+    SET_OUTFD(stderr);
     for (struct tac *tac = head; tac; tac = tac->next)
         print_tac(tac);
+    RESTORE_OUTFD();
 }
