@@ -1685,13 +1685,14 @@ static void spillv(struct rvar *v)
     struct reg *reg = SYM_X_REG(sym);
     if (!reg)
         return;
-    if (SYM_X_INMEM(sym)) {
-        SYM_X_REG(sym) = NULL;
-        return;
-    }
-
+    if (SYM_X_INMEM(sym))
+        goto done;
+    if (!SYM_X_USES(sym).live &&
+        !set_has(fcon.current_block->out, sym))
+        goto done;
     // not in memory and in register
     do_spill(v);
+ done:
     // clear SYM_X_REG
     SYM_X_REG(sym) = NULL;
 }
