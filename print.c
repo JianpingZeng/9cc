@@ -456,10 +456,10 @@ void print_tac(struct tac *tac)
     case IR_NONE:
         break;
     case IR_LABEL:
-        putf("%s:", operand2s(tac->operands[0]));
+        putf(RED("%s:"), operand2s(tac->operands[0]));
         break;
     case IR_GOTO:
-        putf("%s %s",
+        putf("%s " YELLOW("%s"),
              rop2s(tac->op),
              operand2s(tac->operands[0]));
         break;
@@ -475,7 +475,7 @@ void print_tac(struct tac *tac)
     case IR_IF_FALSE_F:
         if (tac->relop) {
             // rel if
-            putf("%s %s %s %s %s %s",
+            putf("%s %s %s %s %s " YELLOW("%s"),
                  rop2s(tac->op),
                  operand2s(tac->operands[1]),
                  id2s(tac->relop),
@@ -484,7 +484,7 @@ void print_tac(struct tac *tac)
                  operand2s(tac->operands[0]));
         } else {
             // simple if
-            putf("%s %s %s %s",
+            putf("%s %s %s " YELLOW("%s"),
                  rop2s(tac->op),
                  operand2s(tac->operands[1]),
                  rop2s(IR_GOTO),
