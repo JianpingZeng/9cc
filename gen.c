@@ -2306,60 +2306,50 @@ static void pop_excepts(void)
         vec_pop(rexcepts);
 }
 
-// BUG: the 'ret' drain_reg may call get_reg again (a dead loop)
-// BUG: no enough registers
 static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
 {
     // filter excepts out
     struct vector *candicates = vec_new();
     for (int i = 0; i < count; i++) {
         struct reg *ri = regs[i];
-        if (!set_has(excepts, ri))
-            vec_push(candicates, ri);
-    }
-    
-    // if exists an empty reg, return directly
-    for (int i = 0; i < vec_len(candicates); i++) {
-        struct reg *reg = vec_at(candicates, i);
-        if (set_empty(reg->vars))
-            return reg;
+        if (set_has(excepts, ri))
+            continue;
+        for (int j = 0; j < vec_len(rexcepts); j++) {
+            struct set *re = vec_at(rexcepts, j);
+            if (set_has(re, ri))
+                goto next;
+        }
+        vec_push(candicates, ri);
+    next:;
     }
 
-    assert(vec_len(candicates));
-    
-    // all regs are dirty, select one.
     struct reg *ret = NULL;
     int mincost = 0;
     for (int i = 0; i < vec_len(candicates); i++) {
-        int cost = 0;
-        bool sticky = false;
         struct reg *reg = vec_at(candicates, i);
+        // if exists an empty reg, return directly
+        if (set_empty(reg->vars))
+            return reg;
+        // dirty
+        int cost = 0;
         struct vector *vars = set_objects(reg->vars);
         for (int j = 0; j < vec_len(vars); j++) {
             struct rvar *v = vec_at(vars, j);
             struct uses uses = SYM_X_USES(v->sym);
-            if (SYM_X_INMEM(v->sym)) {
-                // ok
-            } else if (uses.live == false &&
-                       !is_in_tac(v->sym, fcon.current_tac)) {
-                // ok
-            } else if (SYM_X_KIND(v->sym) == SYM_KIND_TMP) {
-                // if contains a live tmp symbol, skip the whole reg
-                sticky = true;
-                break;
-            } else {
-                // spill
-                cost += 1;
-            }
+            if (SYM_X_INMEM(v->sym))
+                continue;       // done
+            if (!uses.live && !is_in_tac(v->sym, fcon.current_tac))
+                continue;       // done
+            // spill
+            cost += 1;
         }
-
-        if (sticky == false) {
-            if (ret == NULL || cost < mincost) {
-                ret = reg;
-                mincost = cost;
-            }
+        if (ret == NULL || cost < mincost) {
+            ret = reg;
+            mincost = cost;
         }
     }
+
+    // oops...
     if (ret == NULL)
         die("no enough registers");
     // spill out
