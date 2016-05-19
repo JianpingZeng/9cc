@@ -17,8 +17,33 @@
 static const char *progname;
 static struct vector *inputs;
 static const char *output;
-int version = VERSION(0, 0);
-struct options opts;
+static int version = VERSION(0, 1);
+static struct {
+    int c:1;
+    int E:1;
+    int S:1;
+    int ast_dump:1;
+    int ir_dump:1;
+    /* Linker options
+       -l
+       -L
+     */
+    struct vector *ld_options;
+
+    /* C Preprocessor options
+       -I
+       -D
+       -U
+     */
+    /* Compiler options
+       -ast-dump
+       -ir-dump
+       -fleading_underscore
+       -Wall
+       -Werror
+     */
+    struct vector *cc_options;
+} opts;
 
 static void usage(void)
 {
@@ -47,11 +72,12 @@ static void usage(void)
 
 static void init_env(void)
 {
-    opts.cpp_options = vec_new();
     opts.ld_options = vec_new();
+    opts.cc_options = vec_new();
 #ifdef CONFIG_DARWIN
-    opts.fleading_underscore = true;
+    vec_push(opts.cc_options, "-fleading_underscore");
 #endif
+    vec_push(opts.cc_options, format("-fversion=%d", version));
     inputs = vec_new();
 }
 
@@ -67,33 +93,34 @@ static void parse_opts(int argc, char *argv[])
                     fprintf(stderr,
                             "warning: output file overwritten\n");
                 output = argv[i];
-            } else if (!strcmp(arg, "-ast-dump")) {
-                opts.ast_dump = true;
-            } else if (!strcmp(arg, "-ir-dump")) {
-                opts.ir_dump = true;
-            } else if (!strcmp(arg, "-c")) {
-                opts.c = true;
-            } else if (!strcmp(arg, "-E")) {
-                opts.E = true;
-            } else if (!strcmp(arg, "-S")) {
-                opts.S = true;
             } else if (!strcmp(arg, "-h") ||
                        !strcmp(arg, "--help") ||
                        !strcmp(arg, "-v") ||
                        !strcmp(arg, "--version")) {
                 usage();
                 exit(EXIT_FAILURE);
-            } else if (!strncmp(arg, "-I", 2) ||
+            } else if (!strcmp(arg, "-c")) {
+                opts.c = true;
+            } else if (!strcmp(arg, "-E")) {
+                opts.E = true;
+                vec_push(opts.cc_options, arg);
+            } else if (!strcmp(arg, "-S")) {
+                opts.S = true;
+            } else if (!strcmp(arg, "-ast-dump")) {
+                opts.ast_dump = true;
+                vec_push(opts.cc_options, arg);
+            } else if (!strcmp(arg, "-ir-dump")) {
+                opts.ir_dump = true;
+                vec_push(opts.cc_options, arg);
+            } else if (!strcmp(arg, "-Wall") ||
+                       !strcmp(arg, "-Werror") ||
+                       !strncmp(arg, "-I", 2) ||
                        !strncmp(arg, "-D", 2) ||
                        !strncmp(arg, "-U", 2)) {
-                vec_push(opts.cpp_options, arg);
+                vec_push(opts.cc_options, arg);
             } else if (!strncmp(arg, "-l", 2)
                        || !strncmp(arg, "-L", 2)) {
                 vec_push(opts.ld_options, arg);
-            } else if (!strcmp(arg, "-Wall")) {
-                opts.Wall = true;
-            } else if (!strcmp(arg, "-Werror")) {
-                opts.Werror = true;
             } else {
                 fprintf(stderr,
                         "warning: ignored unknown option: %s\n",
@@ -119,15 +146,6 @@ static const char *tempname(const char *dir, const char *hint)
         goto beg;
     }
     return path;
-}
-
-// 'program' runs in a separate process
-static int program(void *context)
-{
-    struct vector *v = (struct vector *)context;
-    const char *ifile = (const char *)vec_at(v, 0);
-    const char *ofile = (const char *)vec_at_safe(v, 1);
-    return cc_main(ifile, ofile);
 }
 
 static char **compose(char *argv[], struct vector *ifiles, const char *ofile,
@@ -167,16 +185,16 @@ static int link(struct vector *ifiles, const char *ofile,
 
 static int assemble(const char *ifile, const char *ofile)
 {
-    struct vector *v = vec_new1((char *)ifile);
-    return callsys(as[0], compose(as, v, ofile, NULL));
+    struct vector *ifiles = vec_new1((char *)ifile);
+    return callsys(as[0], compose(as, ifiles, ofile, NULL));
 }
 
-static int translate(const char *ifile, const char *ofile)
+static int translate(const char *ifile, const char *ofile,
+                     struct vector *options)
 {
-    struct vector *v = vec_new();
-    vec_push(v, (char *)ifile);
-    vec_push_safe(v, (char *)ofile);
-    return runproc(program, v);
+    struct vector *ifiles = vec_new1((char *)ifile);
+    char *cc1 = format("./%s", cc[0]);
+    return callsys(cc1, compose(cc, ifiles, ofile, options));
 }
 
 int main(int argc, char **argv)
@@ -209,6 +227,9 @@ int main(int argc, char **argv)
 
     struct vector *objects = vec_new();
 
+    // construct compiler options
+    struct vector *cc_options = opts.cc_options;
+
     for (int i = 0; i < vec_len(inputs); i++) {
         const char *ifile = vec_at(inputs, i);
         const char *iname = basename(xstrdup(ifile));
@@ -218,13 +239,13 @@ int main(int argc, char **argv)
         if (opts.E || opts.ast_dump || opts.ir_dump) {
             if (output)
                 ofile = output;
-            ret = translate(ifile, ofile);
+            ret = translate(ifile, ofile, cc_options);
         } else if (opts.S) {
             if (output)
                 ofile = output;
             else
                 ofile = replace_suffix(iname, "s");
-            ret = translate(ifile, ofile);
+            ret = translate(ifile, ofile, cc_options);
         } else if (opts.c) {
             if (output)
                 ofile = output;
@@ -232,7 +253,7 @@ int main(int argc, char **argv)
                 ofile = replace_suffix(iname, "o");
             const char *sfile =
                 tempname(tmpdir, replace_suffix(ifile, "s"));
-            ret = translate(ifile, sfile);
+            ret = translate(ifile, sfile, cc_options);
             if (ret == 0)
                 ret = assemble(sfile, ofile);
         } else {
@@ -246,7 +267,7 @@ int main(int argc, char **argv)
                 vec_push(objects, (char *)ofile);
             } else {
                 const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
-                ret = translate(ifile, sfile);
+                ret = translate(ifile, sfile, cc_options);
                 if (ret == 0) {
                     ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
                     ret = assemble(sfile, ofile);

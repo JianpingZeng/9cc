@@ -81,28 +81,6 @@ int callsys(const char *file, char **argv)
     return ret;
 }
 
-int runproc(int (*proc) (void *), void *context)
-{
-    pid_t pid;
-    int ret = EXIT_SUCCESS;
-    pid = fork();
-    if (pid == 0) {
-        // child process
-        exit(proc(context));
-    } else if (pid > 0) {
-        int status;
-        int n;
-        while ((n = waitpid(pid, &status, 0)) != pid || (n == -1 && errno == EINTR)) ;        // may be EINTR by a signal, so loop it.
-        if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
-            ret = EXIT_FAILURE;
-    } else {
-        perror("Can't fork");
-        ret = EXIT_FAILURE;
-    }
-
-    return ret;
-}
-
 /* TODO:
  *  Functions below are quick and dirty, not robust at all.
  *  

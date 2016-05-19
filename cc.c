@@ -1,6 +1,42 @@
 #include "cc.h"
 
 static FILE *outfp;
+static const char *ifile, *ofile;
+struct cc_options opts;
+
+static void parse_opts(int argc, char *argv[])
+{
+    opts.cpp_options = vec_new();
+    for (int i = 1; i < argc; i++) {
+        const char *arg = argv[i];
+        if (!strcmp(arg, "-o")) {
+            if (++i >= argc)
+                die("missing target file while -o option given");
+            ofile = argv[i];
+        } else if (arg[0] == '-') {
+            if (!strncmp(arg, "-I", 2) ||
+                !strncmp(arg, "-D", 2) ||
+                !strncmp(arg, "-U", 2))
+                vec_push(opts.cpp_options, (char *)arg);
+            else if (!strcmp(arg, "-ast-dump"))
+                opts.ast_dump = true;
+            else if (!strcmp(arg, "-ir-dump"))
+                opts.ir_dump = true;
+            else if (!strcmp(arg, "-Werror"))
+                opts.Werror = true;
+            else if (!strcmp(arg, "-Wall"))
+                opts.Wall = true;
+            else if (!strcmp(arg, "-E"))
+                opts.E = true;
+            else if (!strcmp(arg, "-fleading_underscore"))
+                opts.fleading_underscore = true;
+            else if (!strncmp(arg, "-fversion=", 10))
+                opts.version = atoi(arg+10);
+        } else {
+            ifile = arg;
+        }
+    }
+}
 
 static void cc_init(const char *ifile, const char *ofile)
 {
@@ -47,8 +83,9 @@ static void cc_exit(void)
         fclose(outfp);
 }
 
-int cc_main(const char *ifile, const char *ofile)
+int main(int argc, char *argv[])
 {
+    parse_opts(argc, argv);
     atexit(cc_exit);
     symbol_init();
     type_init();

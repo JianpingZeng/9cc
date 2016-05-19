@@ -36,6 +36,8 @@ src/main/c/mcc.vsproj/mcc/Release
 *.o
 mcc
 mcc.exe
+cc1
+cc1.exe
 a.out
 *.a
 *.bin

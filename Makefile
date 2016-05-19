@@ -4,6 +4,7 @@ CFLAGS_COMMON = -Wall -std=c99 -DBUILD_DIR='"$(shell pwd)"' -g
 CFLAGS = $(CFLAGS_COMMON)
 LDFLAGS =
 MCC = mcc
+CC1 = cc1
 utils_dir = utils/
 sys_dir = sys/
 UTILS_OBJ =
@@ -88,10 +89,13 @@ endif
 
 CFLAGS += $(CONFIG_FLAGS)
 
-all: $(MCC)
+all: $(MCC) $(CC1)
 
-$(MCC): $(MCC_OBJ) $(CC1_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
-	$(CC) $(MCC_OBJ) $(SYS_OBJ) $(UTILS_OBJ) $(CC1_OBJ) $(LDFLAGS) -o $@
+$(MCC): $(MCC_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
+	$(CC) $(MCC_OBJ) $(SYS_OBJ) $(UTILS_OBJ) $(LDFLAGS) -o $@
+
+$(CC1): $(CC1_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
+	$(CC) $(CC1_OBJ) $(UTILS_OBJ) $(SYS_OBJ) $(LDFLAGS) -o $@
 
 $(CC1_OBJ): $(CC1_INC)
 
@@ -134,7 +138,7 @@ test: $(TESTS)
 	done
 
 clean:
-	$(RM) *.o *~ $(MCC)
+	$(RM) *.o *~ $(MCC) $(CC1)
 	$(RM) $(sys_dir)*.o $(sys_dir)*~
 	$(RM) $(utils_dir)*.o $(utils_dir)*~
 	$(RM) $(TESTS) test/*.o test/*~

@@ -20,6 +20,18 @@
 #include "mcc.h"
 #include "utils/utils.h"
 
+struct cc_options {
+    int E:1;
+    int ast_dump:1;
+    int ir_dump:1;
+    int fleading_underscore:1;
+    int Wall:1;
+    int Werror:1;
+    int version;
+    struct vector *cpp_options;
+};
+extern struct cc_options opts;
+
 // alloc.c
 extern void *alloc_node(void);
 extern void *alloc_token(void);
