@@ -46,10 +46,11 @@ static void init_regs(void);
 static void reset_regs(void);
 static struct reg * get_one_ireg(struct set *excepts);
 static struct reg * get_one_freg(struct set *excepts);
+static struct reg * dispatch_ireg(node_t *sym, struct set *excepts, int opsize);
+static struct reg * dispatch_freg(node_t *sym, struct set *excepts, int opsize);
 static void drain_reg(struct reg *reg);
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
-static void alloc_reg(struct tac *tac);
 static struct rvar *find_var(struct reg *reg, node_t *sym);
 static void update_use(struct tac *tac);
 static void push_excepts(struct set *excepts);
@@ -1199,7 +1200,13 @@ static void emit_assign(struct tac *tac)
         } else if (is_direct_mem_operand(r) && SYM_X_REG(r->sym)) {
             load(SYM_X_REG(r->sym), l->sym, tac->opsize);
         } else {
-            struct reg *reg = SYM_X_REG(l->sym);
+            // alloc register for tmp operand
+            struct set *excepts = operand_regs(r);
+            struct reg *reg;
+            if (assignf)
+                reg = dispatch_freg(l->sym, excepts, tac->opsize);
+            else
+                reg = dispatch_ireg(l->sym, excepts, tac->opsize);
             int i = idx[tac->opsize];
             const char *src = operand2s(r, tac->opsize);
             const char **suffix = assignf ? suffixf : suffixi;
@@ -1218,7 +1225,8 @@ static void emit_uop_int(struct tac *tac, const char *op)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int i = idx[tac->opsize];
-    struct reg *reg = SYM_X_REG(result->sym);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, tac->opsize);
     const char *l_label = operand2s(l, tac->opsize);
     emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
     emit("%s%s %s", op, suffixi[i], reg->r[i]);
@@ -1240,7 +1248,8 @@ static void emit_uop_minus_f(struct tac *tac)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int i = idx[tac->opsize];
-    struct reg *reg = SYM_X_REG(result->sym);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_freg(result->sym, excepts, tac->opsize);
     const char *l_label = operand2s(l, tac->opsize);
     emit("xor%s %s, %s", suffixp[i], reg->r[i], reg->r[i]);
     emit("sub%s %s, %s", suffixf[i], l_label, reg->r[i]);
@@ -1250,7 +1259,9 @@ static void emit_uop_address(struct tac *tac)
 {
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    struct reg *reg = SYM_X_REG(result->sym);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = get_one_ireg(excepts);
+    load(reg, result->sym, Quad);
     // gref func
     switch (l->op) {
     case IR_NONE:
@@ -1278,11 +1289,18 @@ static void emit_bop_arith(struct tac *tac, const char *op, bool floating)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *excepts = set_union(vl, vr);
+    struct reg *reg;
+    if (floating)
+        reg = dispatch_freg(result->sym, excepts, tac->opsize);
+    else
+        reg = dispatch_ireg(result->sym, excepts, tac->opsize);
     int i = idx[tac->opsize];
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
     const char **suffix = floating ? suffixf : suffixi;
-    struct reg *reg = SYM_X_REG(result->sym);
     emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
     emit("%s%s %s, %s", op, suffix[i], r_label, reg->r[i]);
 }
@@ -1297,42 +1315,66 @@ static void emit_int_mul_div(struct tac *tac, const char *op)
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
     struct reg *rax = int_regs[RAX];
+    struct reg *rdx = int_regs[RDX];
     int i = idx[tac->opsize];
+    if (tac->opsize > Byte) {
+        drain_reg(rax);
+        drain_reg(rdx);
+        if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
+            tac->op == IR_MOD || tac->op == IR_IMOD)
+            emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
+    } else {
+        drain_reg(rax);
+    }
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
     emit("mov%s %s, %s", suffixi[i], l_label, rax->r[i]);
-    emit("%s%s %s", op, suffixi[i], r_label);
+    if (is_imm_operand(r)) {
+        struct set *excepts = operand_regs(l);
+        set_add(excepts, rax);
+        set_add(excepts, rdx);
+        struct reg *reg = dispatch_ireg(r->sym, excepts, tac->opsize);
+        emit("mov%s %s, %s", suffixi[i], r_label, reg->r[i]);
+        emit("%s%s %s", op, suffixi[i], reg->r[i]);
+    } else {
+        emit("%s%s %s", op, suffixi[i], r_label);
+    }
 }
 
 static void emit_int_imul(struct tac *tac)
 {
     emit_int_mul_div(tac, "imul");
+    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_int_mul(struct tac *tac)
 {
     // the same as 'imul'
-    emit_int_mul_div(tac, "imul");
+    emit_int_imul(tac);
 }
 
 static void emit_int_div(struct tac *tac)
 {
     emit_int_mul_div(tac, "div");
+    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_int_idiv(struct tac *tac)
 {
     emit_int_mul_div(tac, "idiv");
+    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_mod(struct tac *tac)
 {
     emit_int_mul_div(tac, "div");
+    load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_imod(struct tac *tac)
 {
     emit_int_mul_div(tac, "idiv");
+    load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
 }
 
 static void emit_shift(struct tac *tac, const char *op)
@@ -1342,9 +1384,14 @@ static void emit_shift(struct tac *tac, const char *op)
     struct operand *r = tac->operands[2];
     struct reg *rcx = int_regs[RCX];
     int i = idx[tac->opsize];
+    drain_reg(rcx);
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *excepts = set_union(vl, vr);
+    set_add(excepts, rcx);
     const char *l_label = operand2s(l, tac->opsize);
     const char *r_label = operand2s(r, tac->opsize);
-    struct reg *reg = SYM_X_REG(result->sym);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, tac->opsize);
     emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
     emit("mov%s %s, %s", suffixi[i], r_label, rcx->r[i]);
     emit("%s%s %s, %s", op, suffixi[i], rcx->r[B], reg->r[i]);
@@ -1365,7 +1412,15 @@ static void emit_conv_ii_widden(struct tac *tac, int typeop)
     int to_i = idx[to_size];
     // widden
     const char *src_label = operand2s(l, from_size);
-    struct reg *reg = SYM_X_REG(result->sym);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+    if (is_imm_operand(l)) {
+        set_add(excepts, reg);
+        struct reg *src_reg = dispatch_ireg(l->sym, excepts, from_size);
+        emit("mov%s %s, %s", suffixi[from_i], src_label, src_reg->r[from_i]);
+        // reset
+        src_label = src_reg->r[from_i];
+    }
     if (typeop == INT) {
         emit("movs%s%s %s, %s",
              suffixi[from_i], suffixi[to_i], src_label, reg->r[to_i]);
@@ -1386,7 +1441,8 @@ static void emit_conv_ii_narrow(struct tac *tac, int typeop)
     int to_i = idx[to_size];
     // narrow
     const char *src_label = operand2s(l, to_size);
-    struct reg *reg = SYM_X_REG(result->sym);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
     emit("mov%s %s, %s", suffixi[to_i], src_label, reg->r[to_i]);
 }
 
@@ -1406,9 +1462,17 @@ static void emit_conv_tof(struct tac *tac, const char *op)
     struct operand *l = tac->operands[1];
     int from_size = tac->from_opsize;
     int to_size = tac->to_opsize;
+    int from_i = idx[from_size];
     int to_i = idx[to_size];
     const char *src_label = operand2s(l, from_size);
-    struct reg *reg = SYM_X_REG(result->sym);
+    if (is_imm_operand(l)) {
+        struct reg *reg = dispatch_ireg(l->sym, NULL, from_size);
+        emit("mov%s %s, %s", suffixi[from_i], src_label, reg->r[from_i]);
+        // reset
+        src_label = reg->r[from_i];
+    }
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_freg(result->sym, excepts, to_size);
     emit("%s2%s %s, %s", op, suffixf[to_i], src_label, reg->r[to_i]);
 }
 
@@ -1424,7 +1488,8 @@ static void emit_conv_f2i(struct tac *tac)
     int from_size = tac->from_opsize;
     int from_i = idx[from_size];
     const char *src_label = operand2s(l, from_size);
-    struct reg *reg = SYM_X_REG(result->sym);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, from_size);
     emit("cvtt%s2si %s, %s", suffixf[from_i], src_label, reg->r[from_i]);
 }
 
@@ -1683,8 +1748,9 @@ static void emit_basic_blocks(struct basic_block *block)
         for (struct tac *tac = block->head; tac; tac = tac->next) {
             // set current tac
             fcon.current_tac = tac;
-            alloc_reg(tac);
             emit_tac(tac);
+            if (tac->op != IR_PARAM)
+                update_use(tac);
         }
         if (block->tag != BLOCK_START && block->tag != BLOCK_END)
             finalize_basic_block(block);
@@ -2279,6 +2345,9 @@ static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
         die("no enough registers");
     // spill out
     drain_reg(ret);
+    // preserved regs
+    if (ret->preserved)
+        set_add(fcon.preserved_regs, ret);
     return ret;
 }
 
@@ -2436,239 +2505,6 @@ static const char * operand2s(struct operand *operand, int opsize)
     }
 }
 
-// if(False) x relop y goto z
-static void alloc_reg_if_relop(struct tac *tac, bool floating)
-{
-}
-
-// if(False) x goto z
-static void alloc_reg_if_simple(struct tac *tac, bool floating)
-{
-}
-
-static void alloc_reg_call(struct tac *tac)
-{
-}
-
-static void alloc_reg_return(struct tac *tac)
-{
-}
-
-static void alloc_reg_if(struct tac *tac)
-{
-    bool floating = tac->op == IR_IF_F || tac->op == IR_IF_FALSE_F;
-    if (tac->relop)
-        alloc_reg_if_relop(tac, floating);
-    else
-        alloc_reg_if_simple(tac, floating);
-}
-
-static void alloc_reg_bop_arith(struct tac *tac, bool floating)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    struct operand *r = tac->operands[2];
-    struct set *vl = operand_regs(l);
-    struct set *vr = operand_regs(r);
-    struct set *excepts = set_union(vl, vr);
-    if (floating)
-        dispatch_freg(result->sym, excepts, tac->opsize);
-    else
-        dispatch_ireg(result->sym, excepts, tac->opsize);
-}
-
-static void alloc_reg_bop_int(struct tac *tac)
-{
-    alloc_reg_bop_arith(tac, false);
-}
-
-static void alloc_reg_int_mul_div(struct tac *tac)
-{
-    struct operand *l = tac->operands[1];
-    struct operand *r = tac->operands[2];
-    struct reg *rax = int_regs[RAX];
-    struct reg *rdx = int_regs[RDX];
-    int i = idx[tac->opsize];
-    drain_reg(rax);
-    if (tac->opsize > Byte) {
-        drain_reg(rdx);
-        // TODO: add to excepts
-        if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
-            tac->op == IR_MOD || tac->op == IR_IMOD)
-            emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
-    }
-    if (is_imm_operand(r)) {
-        const char *r_label = operand2s(r, tac->opsize);
-        struct set *excepts = operand_regs(l);
-        set_add(excepts, rax);
-        set_add(excepts, rdx);
-        struct reg *reg = dispatch_ireg(r->sym, excepts, tac->opsize);
-        emit("mov%s %s, %s", suffixi[i], r_label, reg->r[i]);
-    }
-}
-
-static void alloc_reg_int_div(struct tac *tac)
-{
-    alloc_reg_int_mul_div(tac);
-    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
-}
-
-static void alloc_reg_int_idiv(struct tac *tac)
-{
-    alloc_reg_int_mul_div(tac);
-    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
-}
-
-static void alloc_reg_mod(struct tac *tac)
-{
-    alloc_reg_int_mul_div(tac);
-    load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
-}
-
-static void alloc_reg_imod(struct tac *tac)
-{
-    alloc_reg_int_mul_div(tac);
-    load(int_regs[RDX], tac->operands[0]->sym, tac->opsize);
-}
-
-static void alloc_reg_int_mul(struct tac *tac)
-{
-    alloc_reg_int_mul_div(tac);
-    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
-}
-
-static void alloc_reg_int_imul(struct tac *tac)
-{
-    alloc_reg_int_mul_div(tac);
-    load(int_regs[RAX], tac->operands[0]->sym, tac->opsize);
-}
-
-static void alloc_reg_shift(struct tac *tac)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    struct operand *r = tac->operands[2];
-    struct reg *rcx = int_regs[RCX];
-    drain_reg(rcx);
-    struct set *vl = operand_regs(l);
-    struct set *vr = operand_regs(r);
-    struct set *excepts = set_union(vl, vr);
-    set_add(excepts, rcx);
-    dispatch_ireg(result->sym, excepts, tac->opsize);
-}
-
-static void alloc_reg_bop_float(struct tac *tac)
-{
-    alloc_reg_bop_arith(tac, true);
-}
-
-static void alloc_reg_uop(struct tac *tac, bool floating)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    struct set *excepts = operand_regs(l);
-    if (floating)
-        dispatch_freg(result->sym, excepts, tac->opsize);
-    else
-        dispatch_ireg(result->sym, excepts, tac->opsize);
-}
-
-static void alloc_reg_uop_not(struct tac *tac)
-{
-    alloc_reg_uop(tac, false);
-}
-
-static void alloc_reg_uop_minus_i(struct tac *tac)
-{
-    alloc_reg_uop(tac, false);
-}
-
-static void alloc_reg_uop_minus_f(struct tac *tac)
-{
-    alloc_reg_uop(tac, true);
-}
-
-static void alloc_reg_uop_address(struct tac *tac)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    struct set *excepts = operand_regs(l);
-    dispatch_ireg(result->sym, excepts, Quad);
-}
-
-static void alloc_reg_assign(struct tac *tac)
-{
-    bool assignf = tac->op == IR_ASSIGNF;
-    struct operand *l = tac->operands[0];
-    struct operand *r = tac->operands[1];
-    if (!is_tmp_operand(l))
-        return;
-    if (SYM_X_REG(l->sym))
-        return;
-    if (is_direct_mem_operand(r) && SYM_X_REG(r->sym))
-        return;
-    // alloc register for tmp operand
-    struct set *excepts = operand_regs(r);
-    if (assignf)
-        dispatch_freg(l->sym, excepts, tac->opsize);
-    else
-        dispatch_ireg(l->sym, excepts, tac->opsize);
-}
-
-static void alloc_reg_conv_i2i(struct tac *tac)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    int from_size = tac->from_opsize;
-    int to_size = tac->to_opsize;
-    int from_i = idx[from_size];
-    const char *src_label = operand2s(l, to_size);
-    struct set *excepts = operand_regs(l);
-    struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
-    // widden
-    if (tac->from_opsize < tac->to_opsize) {
-        if (is_imm_operand(l)) {
-            set_add(excepts, reg);
-            struct reg *src_reg = dispatch_ireg(l->sym, excepts, from_size);
-            emit("mov%s %s, %s", suffixi[from_i], src_label, src_reg->r[from_i]);
-        }
-    }
-}
-
-static void alloc_reg_conv_i2f(struct tac *tac)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    int from_size = tac->from_opsize;
-    int to_size = tac->to_opsize;
-    int from_i = idx[from_size];
-    if (is_imm_operand(l)) {
-        const char *src_label = operand2s(l, from_size);
-        struct reg *reg = dispatch_ireg(l->sym, NULL, from_size);
-        emit("mov%s %s, %s", suffixi[from_i], src_label, reg->r[from_i]);
-    }
-    struct set *excepts = operand_regs(l);
-    dispatch_freg(result->sym, excepts, to_size);
-}
-
-static void alloc_reg_conv_f2i(struct tac *tac)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    int from_size = tac->from_opsize;
-    struct set *excepts = operand_regs(l);
-    dispatch_ireg(result->sym, excepts, from_size);
-}
-
-static void alloc_reg_conv_f2f(struct tac *tac)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    int to_size = tac->to_opsize;
-    struct set *excepts = operand_regs(l);
-    dispatch_freg(result->sym, excepts, to_size);
-}
-
 static void update_use(struct tac *tac)
 {
     for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
@@ -2680,108 +2516,6 @@ static void update_use(struct tac *tac)
                 SYM_X_USES(operand->index) = tac->uses[i*2+1];
         }
     }
-}
-
-static void alloc_reg(struct tac *tac)
-{
-    switch (tac->op) {
-    case IR_LABEL:
-    case IR_GOTO:
-        // do nothing
-        break;
-    case IR_IF_I:
-    case IR_IF_F:
-    case IR_IF_FALSE_I:
-    case IR_IF_FALSE_F:
-        alloc_reg_if(tac);
-        break;
-    case IR_RETURNI:
-    case IR_RETURNF:
-        alloc_reg_return(tac);
-        break;
-        // bop
-    case IR_ADDI:
-    case IR_SUBI:
-    case IR_OR:
-    case IR_AND:
-    case IR_XOR:
-        alloc_reg_bop_int(tac);
-        break;
-    case IR_DIVI:
-        alloc_reg_int_div(tac);
-        break;
-    case IR_IDIVI:
-        alloc_reg_int_idiv(tac);
-        break;
-    case IR_MOD:
-        alloc_reg_mod(tac);
-        break;
-    case IR_IMOD:
-        alloc_reg_imod(tac);
-        break;
-    case IR_MULI:
-        alloc_reg_int_mul(tac);
-        break;
-    case IR_IMULI:
-        alloc_reg_int_imul(tac);
-        break;
-    case IR_LSHIFT:
-    case IR_ILSHIFT:
-    case IR_RSHIFT:
-    case IR_IRSHIFT:
-        alloc_reg_shift(tac);
-        break;
-    case IR_ADDF:
-    case IR_SUBF:
-    case IR_DIVF:
-    case IR_MULF:
-        alloc_reg_bop_float(tac);
-        break;
-        // uop
-    case IR_NOT:
-        alloc_reg_uop_not(tac);
-        break;
-    case IR_MINUSI:
-        alloc_reg_uop_minus_i(tac);
-        break;
-    case IR_MINUSF:
-        alloc_reg_uop_minus_f(tac);
-        break;
-    case IR_ADDRESS:
-        alloc_reg_uop_address(tac);
-        break;
-    case IR_ASSIGNI:
-    case IR_ASSIGNF:
-        alloc_reg_assign(tac);
-        break;
-    case IR_CALL:
-        alloc_reg_call(tac);
-        break;
-    case IR_CONV_UI_UI:
-    case IR_CONV_UI_SI:
-    case IR_CONV_SI_UI:
-    case IR_CONV_SI_SI:
-        alloc_reg_conv_i2i(tac);
-        break;
-    case IR_CONV_SI_F:
-    case IR_CONV_UI_F:
-        alloc_reg_conv_i2f(tac);
-        break;
-    case IR_CONV_F_SI:
-    case IR_CONV_F_UI:
-        alloc_reg_conv_f2i(tac);
-        break;
-    case IR_CONV_FF:
-        alloc_reg_conv_f2f(tac);
-        break;
-    case IR_NONE:
-    case IR_PARAM:
-    default:
-        // skip
-        break;
-    }
-    if (tac->op != IR_PARAM)
-        update_use(tac);
 }
 
 ///
