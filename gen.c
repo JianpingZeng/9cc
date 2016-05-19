@@ -54,6 +54,8 @@ static struct rvar *find_var(struct reg *reg, node_t *sym);
 static void update_use(struct tac *tac);
 static void push_excepts(struct set *excepts);
 static void pop_excepts(void);
+static struct set * operand_regs(struct operand *operand);
+static const char * operand2s(struct operand *operand, int opsize);
 
 // Parameter Classification
 static int *no_class = (int *)1;
@@ -192,13 +194,13 @@ static void finalize_text(void)
             case INST_PRESERVED_REG_PUSH:
                 for (size_t i = 0; i < vec_len(preserved_regs); i++) {
                     struct reg *reg = vec_at(preserved_regs, i);
-                    emit1("pushq %s", reg->r[Q]);
+                    emit1("pushq %s" COMMENT("push preserved regs"), reg->r[Q]);
                 }
                 break;
             case INST_PRESERVED_REG_POP:
                 for (int i = vec_len(preserved_regs) - 1; i >= 0; i--) {
                     struct reg *reg = vec_at(preserved_regs, i);
-                    emit1("popq %s", reg->r[Q]);
+                    emit1("popq %s" COMMENT("pop preserved regs"), reg->r[Q]);
                 }
                 break;
             case INST_STACK_ADD:
@@ -211,89 +213,6 @@ static void finalize_text(void)
         } else {
             fprintf(outfp, "%s\n", inst);
         }
-    }
-}
-
-static struct set * operand_regs(struct operand *operand)
-{
-    struct set *v = set_new();
-    if (operand->sym && SYM_X_REG(operand->sym))
-        set_add(v, SYM_X_REG(operand->sym));
-    if (operand->index && SYM_X_REG(operand->index))
-        set_add(v, SYM_X_REG(operand->index));
-    return v;
-}
-
-static const char * operand2s(struct operand *operand, int opsize)
-{
-    switch (operand->op) {
-    case IR_NONE:
-        if (SYM_X_REG(operand->sym)) {
-            return format("%s", SYM_X_REG(operand->sym)->r[idx[opsize]]);
-        } else if (SYM_X_KIND(operand->sym) == SYM_KIND_IMM) {
-            return format("$%lu", SYM_VALUE_U(operand->sym));
-        } else if (SYM_X_KIND(operand->sym) == SYM_KIND_LREF) {
-            return format("%ld(%s)", SYM_X_LOFF(operand->sym), rbp->r[Q]);
-        } else if (SYM_X_KIND(operand->sym) == SYM_KIND_GREF) {
-            if (isfunc(SYM_TYPE(operand->sym)))
-                return format("$%s", SYM_X_LABEL(operand->sym));
-            else
-                return format("%s(%s)", SYM_X_LABEL(operand->sym), rip->r[Q]);
-        } else if (SYM_X_KIND(operand->sym) == SYM_KIND_TMP) {
-            assertf(SYM_X_REG(operand->sym), "symbol '%s' not in register",
-                    SYM_X_LABEL(operand->sym));
-            return format("%s", SYM_X_REG(operand->sym)->r[idx[opsize]]);
-        } else {
-            assert(0);
-        }
-        break;
-    case IR_SUBSCRIPT:
-        {
-            node_t *sym = operand->sym;
-            node_t *index = operand->index;
-            if (SYM_X_KIND(sym) == SYM_KIND_LREF) {
-                long offset = SYM_X_LOFF(sym) + operand->disp;
-                if (index) {
-                    if (offset)
-                        return format("%ld(%s,%s,%d)",
-                                      offset, rbp->r[Q],
-                                      SYM_X_REG(index)->r[Q], operand->scale);
-                    else
-                        return format("(%s,%s,%d)",
-                                      rbp->r[Q],
-                                      SYM_X_REG(index)->r[Q], operand->scale);
-                } else {
-                    if (offset)
-                        return format("%ld(%s)", offset, rbp->r[Q]);
-                    else
-                        return format("(%s)", rbp->r[Q]);
-                }
-            } else if (SYM_X_KIND(sym) == SYM_KIND_TMP) {
-                long offset = operand->disp;
-                if (index) {
-                    if (offset)
-                        return format("%ld(%s,%s,%d)",
-                                      offset, SYM_X_REG(sym)->r[Q],
-                                      SYM_X_REG(index)->r[Q], operand->scale);
-                    else
-                        return format("(%s,%s,%d)",
-                                      SYM_X_REG(sym)->r[Q],
-                                      SYM_X_REG(index)->r[Q], operand->scale);
-                } else {
-                    if (offset)
-                        return format("%ld(%s)", offset, SYM_X_REG(sym)->r[Q]);
-                    else
-                        return format("(%s)", SYM_X_REG(sym)->r[Q]);
-                }
-            } else {
-                assert(0);
-            }
-        }
-        break;
-    case IR_INDIRECTION:
-        return format("(%s)", SYM_X_REG(operand->sym)->r[Q]);
-    default:
-        assert(0);
     }
 }
 
@@ -1679,6 +1598,20 @@ static void do_spill(struct rvar *v)
     }
 }
 
+static bool in_current_tac(node_t *sym)
+{
+    for (int i = 0; i < ARRAY_SIZE(fcon.current_tac->operands); i++) {
+        struct operand *operand = fcon.current_tac->operands[i];
+        if (operand) {
+            if (operand->sym == sym)
+                return true;
+            if (operand->index == sym)
+                return true;
+        }
+    }
+    return false;
+}
+
 static void spillv(struct rvar *v)
 {
     node_t *sym = v->sym;
@@ -1688,7 +1621,8 @@ static void spillv(struct rvar *v)
     if (SYM_X_INMEM(sym))
         goto done;
     if (!SYM_X_USES(sym).live &&
-        !set_has(fcon.current_block->out, sym))
+        !set_has(fcon.current_block->out, sym) &&
+        !in_current_tac(sym))
         goto done;
     // not in memory and in register
     do_spill(v);
@@ -2391,6 +2325,117 @@ static void drain_reg(struct reg *reg)
         set_clear(reg->vars);
 }
 
+static struct set * operand_regs(struct operand *operand)
+{
+    struct set *v = set_new();
+    if (operand->sym && SYM_X_REG(operand->sym))
+        set_add(v, SYM_X_REG(operand->sym));
+    if (operand->index && SYM_X_REG(operand->index))
+        set_add(v, SYM_X_REG(operand->index));
+    return v;
+}
+
+static void try_load_tmp(node_t *sym, struct set *excepts, int opsize)
+{
+    if (!SYM_X_REG(sym)) {
+        assertf(SYM_X_INMEM(sym), "symbol '%s' not in memory",
+                SYM_X_LABEL(sym));
+        dispatch_ireg(sym, excepts, opsize);
+        emit("movq %ld(%s), %s" COMMENT("load back"),
+             SYM_X_LOFF(sym), rbp->r[Q], SYM_X_REG(sym)->r[Q]);
+    }
+}
+
+static const char *operand2s_none(struct operand *operand, int opsize)
+{
+    int i = idx[opsize];
+    if (SYM_X_REG(operand->sym)) {
+        return format("%s", SYM_X_REG(operand->sym)->r[i]);
+    } else if (SYM_X_KIND(operand->sym) == SYM_KIND_IMM) {
+        return format("$%lu", SYM_VALUE_U(operand->sym));
+    } else if (SYM_X_KIND(operand->sym) == SYM_KIND_LREF) {
+        return format("%ld(%s)", SYM_X_LOFF(operand->sym), rbp->r[Q]);
+    } else if (SYM_X_KIND(operand->sym) == SYM_KIND_GREF) {
+        if (isfunc(SYM_TYPE(operand->sym)))
+            return format("$%s", SYM_X_LABEL(operand->sym));
+        else
+            return format("%s(%s)", SYM_X_LABEL(operand->sym), rip->r[Q]);
+    } else if (SYM_X_KIND(operand->sym) == SYM_KIND_TMP) {
+        assertf(SYM_X_REG(operand->sym), "symbol '%s' not in register",
+                SYM_X_LABEL(operand->sym));
+        return format("%s", SYM_X_REG(operand->sym)->r[i]);
+    } else {
+        assert(0);
+    }
+}
+
+static const char *operand2s_subscript(struct operand *operand, int opsize)
+{
+    node_t *sym = operand->sym;
+    node_t *index = operand->index;
+    if (SYM_X_KIND(sym) == SYM_KIND_LREF) {
+        long offset = SYM_X_LOFF(sym) + operand->disp;
+        if (index) {
+            try_load_tmp(index, NULL, Quad);
+            if (offset)
+                return format("%ld(%s,%s,%d)",
+                              offset, rbp->r[Q],
+                              SYM_X_REG(index)->r[Q], operand->scale);
+            else
+                return format("(%s,%s,%d)",
+                              rbp->r[Q],
+                              SYM_X_REG(index)->r[Q], operand->scale);
+        } else {
+            if (offset)
+                return format("%ld(%s)", offset, rbp->r[Q]);
+            else
+                return format("(%s)", rbp->r[Q]);
+        }
+    } else if (SYM_X_KIND(sym) == SYM_KIND_TMP) {
+        long offset = operand->disp;
+        try_load_tmp(sym, NULL, Quad);
+        if (index) {
+            try_load_tmp(index, set_new1(SYM_X_REG(sym)), Quad);
+            if (offset)
+                return format("%ld(%s,%s,%d)",
+                              offset, SYM_X_REG(sym)->r[Q],
+                              SYM_X_REG(index)->r[Q], operand->scale);
+            else
+                return format("(%s,%s,%d)",
+                              SYM_X_REG(sym)->r[Q],
+                              SYM_X_REG(index)->r[Q], operand->scale);
+        } else {
+            if (offset)
+                return format("%ld(%s)", offset, SYM_X_REG(sym)->r[Q]);
+            else
+                return format("(%s)", SYM_X_REG(sym)->r[Q]);
+        }
+    } else {
+        assert(0);
+    }
+}
+
+static const char * operand2s_indirection(struct operand *operand, int opsize)
+{
+    assert(operand->index == NULL);
+    try_load_tmp(operand->sym, NULL, Quad);
+    return format("(%s)", SYM_X_REG(operand->sym)->r[Q]);
+}
+
+static const char * operand2s(struct operand *operand, int opsize)
+{
+    switch (operand->op) {
+    case IR_NONE:
+        return operand2s_none(operand, opsize);
+    case IR_SUBSCRIPT:
+        return operand2s_subscript(operand, opsize);
+    case IR_INDIRECTION:
+        return operand2s_indirection(operand, opsize);
+    default:
+        assert(0);
+    }
+}
+
 // if(False) x relop y goto z
 static void alloc_reg_if_relop(struct tac *tac, bool floating)
 {
@@ -2398,6 +2443,14 @@ static void alloc_reg_if_relop(struct tac *tac, bool floating)
 
 // if(False) x goto z
 static void alloc_reg_if_simple(struct tac *tac, bool floating)
+{
+}
+
+static void alloc_reg_call(struct tac *tac)
+{
+}
+
+static void alloc_reg_return(struct tac *tac)
 {
 }
 
@@ -2436,15 +2489,13 @@ static void alloc_reg_int_mul_div(struct tac *tac)
     struct reg *rax = int_regs[RAX];
     struct reg *rdx = int_regs[RDX];
     int i = idx[tac->opsize];
+    drain_reg(rax);
     if (tac->opsize > Byte) {
-        drain_reg(rax);
         drain_reg(rdx);
         // TODO: add to excepts
         if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
             tac->op == IR_MOD || tac->op == IR_IMOD)
             emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
-    } else {
-        drain_reg(rax);
     }
     if (is_imm_operand(r)) {
         const char *r_label = operand2s(r, tac->opsize);
@@ -2562,16 +2613,6 @@ static void alloc_reg_assign(struct tac *tac)
         dispatch_freg(l->sym, excepts, tac->opsize);
     else
         dispatch_ireg(l->sym, excepts, tac->opsize);
-}
-
-static void alloc_reg_call(struct tac *tac)
-{
-    
-}
-
-static void alloc_reg_return(struct tac *tac)
-{
-    
 }
 
 static void alloc_reg_conv_i2i(struct tac *tac)

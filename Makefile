@@ -107,22 +107,26 @@ $(UTILS_OBJ): $(UTILS_INC)
 # Bootstrap
 #
 stage1:
-	$(MAKE) clean
-	$(MAKE) CC=cc $(MCC)
+	$(MAKE) objclean
+	$(MAKE) CC=cc
 	mv mcc stage1
+	cp cc1 cc1_stage1
 
 stage2: stage1
-	$(MAKE) clean
-	$(MAKE) CC=./stage1 $(MCC)
+	$(MAKE) objclean
+	$(MAKE) CC=./stage1
 	mv mcc stage2
+	cp cc1 cc1_stage2
 
 stage3: stage2
-	$(MAKE) clean
-	$(MAKE) CC=./stage2 $(MCC)
+	$(MAKE) objclean
+	$(MAKE) CC=./stage2
 	mv mcc stage3
+	cp cc1 cc1_stage3
 
 bootstrap: stage3
 	cmp stage2 stage3
+	cmp cc1_stage2 cc1_stage3
 
 TESTS := $(patsubst %.c, %.bin, $(wildcard test/test_*.c))
 
@@ -137,14 +141,17 @@ test: $(TESTS)
 		./$$test && exit; \
 	done
 
-clean:
-	$(RM) *.o *~ $(MCC) $(CC1)
+objclean:
+	$(RM) *.o *~
 	$(RM) $(sys_dir)*.o $(sys_dir)*~
 	$(RM) $(utils_dir)*.o $(utils_dir)*~
 	$(RM) $(TESTS) test/*.o test/*~
 	$(RM) include/*~ mcc.exe*
 
-distclean: clean
-	$(RM) stage1 stage2 stage3
+clean: objclean
+	$(RM) $(MCC) $(CC1)
 
-.PHONY: all clean distclean test
+distclean: clean
+	$(RM) stage1 stage2 stage3 cc1_stage cc2_stage2 cc3_stage
+
+.PHONY: all clean distclean objclean test
