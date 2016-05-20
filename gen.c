@@ -49,6 +49,10 @@ static struct reg * get_one_freg(struct set *excepts);
 static struct reg * dispatch_ireg(node_t *sym, struct set *excepts, int opsize);
 static struct reg * dispatch_freg(node_t *sym, struct set *excepts, int opsize);
 static void drain_reg(struct reg *reg);
+static void clear_reg(struct reg *reg);
+static bool if_preserved(struct reg *reg);
+static bool if_nonpreserved(struct reg *reg);
+static void for_each_reg(bool (*cond) (struct reg *), void (*action) (struct reg *));
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
 static struct rvar *find_var(struct reg *reg, node_t *sym);
@@ -340,19 +344,14 @@ static void emit_param(struct tac *tac, struct pnode *pnode)
         assert(0);
 }
 
-static void do_drain_nonpreserved_regs(struct reg **regs, int count)
+static struct set * get_pinfo_regs(struct pinfo *pinfo)
 {
-    for (int i = 0; i < count; i++) {
-        struct reg *reg = regs[i];
-        if (!reg->preserved)
-            drain_reg(reg);
-    }
-}
-
-static void drain_nonpreserved_regs(void)
-{
-    do_drain_nonpreserved_regs(int_regs, ARRAY_SIZE(int_regs));
-    do_drain_nonpreserved_regs(float_regs, ARRAY_SIZE(float_regs));
+    struct set *set = set_new();
+    for (int i = 0; i < pinfo->gp; i++)
+        set_add(set, iarg_regs[i]);
+    for (int i = 0; i < pinfo->fp; i++)
+        set_add(set, farg_regs[i]);
+    return set;
 }
 
 static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct operand *result)
@@ -473,11 +472,15 @@ static void emit_nonbuiltin_call(struct tac *tac)
         vec_push(params, t);    // in reverse order
     }
 
+    struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
+
     // drain all non-preserved registers
-    drain_nonpreserved_regs();
+    for_each_reg(if_nonpreserved, drain_reg);
+    // push excepts
+    struct set *excepts = get_pinfo_regs(pinfo);
+    push_excepts(excepts);
     
     // emit args
-    struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
     size_t k = 0;
     if (pinfo->retaddr && pinfo->retaddr->kind == ADDR_STACK) {
         struct pnode *pnode = vec_at(pinfo->pnodes, 0);
@@ -501,6 +504,11 @@ static void emit_nonbuiltin_call(struct tac *tac)
         emit("call %s", SYM_X_LABEL(l->sym));
     else
         emit("call *%s", operand2s(l, Quad));
+
+    // pop excepts
+    pop_excepts();
+    // clear nonpreserved regs
+    for_each_reg(if_nonpreserved, clear_reg);
 
     if (result)
         emit_call_epilogue(ftype, pinfo->retaddr, result);
@@ -2306,7 +2314,7 @@ static void pop_excepts(void)
 static struct reg * return_reg(struct reg *reg)
 {
     // preserved regs
-    if (reg->preserved)
+    if (if_preserved(reg))
         set_add(fcon.preserved_regs, reg);
     return reg;
 }
@@ -2403,6 +2411,44 @@ static void drain_reg(struct reg *reg)
     }
     if (reg->vars)
         set_clear(reg->vars);
+}
+
+static void clear_reg(struct reg *reg)
+{
+    struct vector *vars = set_objects(reg->vars);
+    for (size_t i = 0; i < vec_len(vars); i++) {
+        struct rvar *v = vec_at(vars, i);
+        node_t *sym = v->sym;
+        // must be in memory
+        assert(SYM_X_INMEM(sym));
+        SYM_X_REG(sym) = NULL;
+    }
+    if (reg->vars)
+        set_clear(reg->vars);
+}
+
+static bool if_preserved(struct reg *reg)
+{
+    return reg->preserved;
+}
+
+static bool if_nonpreserved(struct reg *reg)
+{
+    return !reg->preserved;
+}
+
+static void for_each_reg(bool (*cond) (struct reg *), void (*action) (struct reg *))
+{
+    for (int i = 0; i < ARRAY_SIZE(int_regs); i++) {
+        struct reg *reg = int_regs[i];
+        if (cond(reg))
+            action(reg);
+    }
+    for (int i = 0; i < ARRAY_SIZE(float_regs); i++) {
+        struct reg *reg = float_regs[i];
+        if (cond(reg))
+            action(reg);
+    }
 }
 
 static struct set * operand_regs(struct operand *operand)
