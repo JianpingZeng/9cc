@@ -1,6 +1,7 @@
 ABI (Application Binary Interface)
 
-Function Stack Frame Layout:
+Function Stack Frame Layout
+=============================
 
 High  | ...           | (1st argument on stack)
       +---------------+ <--- 16(rbp)
@@ -91,7 +92,53 @@ High  | xmm7          |
 Low   +---------------+ -176(rbp)
 
 
-Reference:
+x86_64 Registers
+==================
+
+General Purpose Registers:
+
+REG     ARG     RETURN          PRESERVED
+-------------------------------------------------
+rax             ret iarg 1
+rbx                             callee preserved
+rbp                             callee preserved
+rsp                             callee preserved
+rdi     iarg 1
+rsi     iarg 2
+rdx     iarg 3  ret iarg 2
+rcx     iarg 4
+r8      iarg 5
+r9      iarg 6
+r10
+r11
+r12                             callee preserved
+r13                             callee preserved
+r14                             callee preserved
+r15                             callee preserved
+
+XMM Registers:
+
+REG     ARG     RETURN          PRESERVED
+-------------------------------------------------
+xmm0    farg 1  ret farg 1
+xmm1    farg 2  ret farg 2
+xmm2    farg 3
+xmm3    farg 4
+xmm4    farg 5
+xmm5    farg 6
+xmm6    farg 7
+xmm7    farg 8
+xmm8
+xmm9
+xmm10
+xmm11
+xmm12
+xmm13
+xmm14
+xmm15
+
+Reference
+===========
 
 - v0.99.6 (Oct 7, 2013): http://www.x86-64.org/documentation/abi.pdf
 - v0.90 (Dec 2, 2003): http://people.freebsd.org/~obrien/amd64-elf-abi.pdf
