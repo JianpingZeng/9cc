@@ -1063,6 +1063,7 @@ static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
     emit_bitfield_basic(ty, l, EXPR_X_ADDR(r), offset, bfield, sty);
 }
 
+// BUG:
 static struct operand * update_gref(struct operand *l)
 {
     struct operand *addr = l;
