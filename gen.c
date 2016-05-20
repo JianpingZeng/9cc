@@ -88,6 +88,7 @@ static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params);
 static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params);
 
 #define COMMENT(str)    "\t\t## " str
+#define COMMENT1(str)   "## " str
 
 static FILE *outfp;
 
@@ -536,6 +537,8 @@ static void emit_builtin_va_start(struct tac *tac)
     struct set *excepts = operand_regs(l);
     struct reg *reg = get_one_ireg(excepts);
 
+    emit(COMMENT1("va_start begin"));
+
     // gp_offset
     struct operand *operand1 = make_ret_offset_operand(l, 0);
     emit("movl $%d, %s", gp_offset, operand2s(operand1, Long));
@@ -553,6 +556,8 @@ static void emit_builtin_va_start(struct tac *tac)
     struct operand *operand4 = make_ret_offset_operand(l, 16);
     emit("leaq %ld(%s), %s", reg_save_area, rbp->r[Q], reg->r[Q]);
     emit("movq %s, %s", reg->r[Q], operand2s(operand4, Quad));
+
+    emit(COMMENT1("va_start end"));
 }
 
 /*
@@ -834,6 +839,7 @@ static void emit_builtin_va_arg_p(struct tac *tac)
 {
     node_t *call = tac->call;
     node_t *ty = EXPR_VA_ARG_TYPE(call);
+    emit(COMMENT1("va_arg"));
     if (TYPE_SIZE(ty) > MAX_STRUCT_PARAM_SIZE) {
         // by meory
         emit_builtin_va_arg_p_memory(tac);

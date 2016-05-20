@@ -110,19 +110,22 @@ stage1:
 	$(MAKE) objclean
 	$(MAKE) CC=cc
 	mv mcc stage1
-	cp cc1 cc1_stage1
+	mv cc1 cc1_stage1
+	ln -s cc1_stage1 cc1
 
 stage2: stage1
 	$(MAKE) objclean
 	$(MAKE) CC=./stage1
 	mv mcc stage2
-	cp cc1 cc1_stage2
+	mv cc1 cc1_stage2
+	ln -s cc1_stage2 cc1
 
 stage3: stage2
 	$(MAKE) objclean
 	$(MAKE) CC=./stage2
 	mv mcc stage3
-	cp cc1 cc1_stage3
+	mv cc1 cc1_stage3
+	ln -s cc1_stage3 cc1
 
 bootstrap: stage3
 	cmp stage2 stage3
