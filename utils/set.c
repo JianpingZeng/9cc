@@ -5,8 +5,7 @@ static char value;
 struct set *set_new(void)
 {
     struct set *set = zmalloc(sizeof(struct set));
-    set->map = map_new();
-    set->map->cmpfn = nocmp;
+    set->map = map_newf(nocmp);
     return set;
 }
 
@@ -117,6 +116,5 @@ bool set_empty(struct set *set)
 void set_clear(struct set *set)
 {
     map_free(set->map);
-    set->map = map_new();
-    set->map->cmpfn = nocmp;
+    set->map = map_newf(nocmp);
 }

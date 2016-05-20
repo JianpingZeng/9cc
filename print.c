@@ -617,7 +617,7 @@ static void print_use(struct tac *tac)
     }
 }
 
-static void print_data(struct gsection *section)
+static void print_data(struct section *section)
 {
     putln("%s:", section->label);
     for (int i = 0; i < LIST_LEN(section->u.xvalues); i++) {
@@ -681,13 +681,13 @@ static void print_basic_block(struct basic_block *block)
     putf("\n");
 }
 
-static void print_bss(struct gsection *section)
+static void print_bss(struct section *section)
 {
     putln("%s,%llu,%d",
           section->label, section->size, section->align);
 }
 
-static void print_text(struct gsection *section)
+static void print_text(struct section *section)
 {
     node_t *decl = section->u.decl;
     putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
@@ -704,7 +704,7 @@ static void print_compounds(struct map *compounds)
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(keys, i);
-            struct gsection *section = map_get(compounds, label);
+            struct section *section = map_get(compounds, label);
             print_data(section);
         }
     }
@@ -757,16 +757,16 @@ static void print_floats(struct map *floats)
 
 void print_ir(struct externals *exts)
 {
-    for (int i = 0; i < vec_len(exts->gsections); i++) {
-        struct gsection *section = vec_at(exts->gsections, i);
+    for (int i = 0; i < vec_len(exts->sections); i++) {
+        struct section *section = vec_at(exts->sections, i);
         switch (section->id) {
-        case GSECTION_TEXT:
+        case SECTION_TEXT:
             print_text(section);
             break;
-        case GSECTION_DATA:
+        case SECTION_DATA:
             print_data(section);
             break;
-        case GSECTION_BSS:
+        case SECTION_BSS:
             print_bss(section);
             break;
         default:

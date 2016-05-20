@@ -1863,7 +1863,7 @@ static void emit_register_params(node_t *decl)
     }
 }
 
-static void emit_function_prologue(struct gsection *section)
+static void emit_function_prologue(struct section *section)
 {
     node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
@@ -1947,7 +1947,7 @@ static void emit_function_epilogue(void)
     emit("ret");
 }
 
-static void emit_text(struct gsection *section)
+static void emit_text(struct section *section)
 {
     node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
@@ -1981,7 +1981,7 @@ static void emit_text(struct gsection *section)
     RESTORE_EMITTER();
 }
 
-static void emit_data(struct gsection *section)
+static void emit_data(struct section *section)
 {
     if (section->global)
         emit(".globl %s", section->label);
@@ -2014,7 +2014,7 @@ static void emit_data(struct gsection *section)
     }
 }
 
-static void emit_bss(struct gsection *section)
+static void emit_bss(struct section *section)
 {
     if (!section->global)
         emit(".local %s", section->label);
@@ -2030,7 +2030,7 @@ static void emit_compounds(struct map *compounds)
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(keys, i);
-            struct gsection *section = map_get(compounds, label);
+            struct section *section = map_get(compounds, label);
             emit_data(section);
         }
     }
@@ -2097,16 +2097,16 @@ void gen(struct externals *exts, FILE * fp)
     assert(errors == 0 && fp);
     
     gen_init(fp);
-    for (int i = 0; i < vec_len(exts->gsections); i++) {
-        struct gsection *section = vec_at(exts->gsections, i);
+    for (int i = 0; i < vec_len(exts->sections); i++) {
+        struct section *section = vec_at(exts->sections, i);
         switch (section->id) {
-        case GSECTION_BSS:
+        case SECTION_BSS:
             emit_bss(section);
             break;
-        case GSECTION_DATA:
+        case SECTION_DATA:
             emit_data(section);
             break;
-        case GSECTION_TEXT:
+        case SECTION_TEXT:
             emit_text(section);
             break;
         default:

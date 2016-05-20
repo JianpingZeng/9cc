@@ -199,8 +199,7 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
     end->tag = BLOCK_END;
 
     // map: label => basic_block
-    struct map *map = map_new();
-    map->cmpfn = nocmp;
+    struct map *map = map_newf(nocmp);
     map_put(map, end_label, end);
 
     struct vector *branch_tacs = vec_new();

@@ -17,7 +17,7 @@ static void emit_bool_expr(node_t *n);
 static void emit_bop_bool(node_t *n);
 static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
-static void emit_funcdef_gsection(node_t *decl);
+static void emit_funcdef_section(node_t *decl);
 static const char *get_string_literal_label(const char *name);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset, node_t *bfield, bool sty);
 static void emit_member_nonbitfield(node_t *n, node_t *field);
@@ -98,7 +98,7 @@ static struct operand * make_sym_operand(node_t *sym)
 
 static node_t * make_named_sym(const char *name, struct table **table, int scope)
 {
-   node_t *sym = lookup(name, *table);
+    node_t *sym = lookup(name, *table);
     if (!sym)
         sym = install(name, table, scope);
     return sym;
@@ -1589,15 +1589,15 @@ static void arith2ptr(node_t *dty, node_t *sty, node_t *n)
 
 static void ptr2ptr(node_t *dty, node_t *sty, node_t *n)
 {
-   node_t *l = EXPR_OPERAND(n, 0);
-   EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    node_t *l = EXPR_OPERAND(n, 0);
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 //@ function to pointer decay
 static void func2ptr(node_t *dty, node_t *sty, node_t *n)
 {
-   node_t *l = EXPR_OPERAND(n, 0);
-   EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
+    node_t *l = EXPR_OPERAND(n, 0);
+    EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 //@ array to pointer decay
@@ -2227,7 +2227,7 @@ static void emit_function(node_t *decl)
         vec_add(v, extra_lvars);
         DECL_X_LVARS(decl) = (node_t **)vtoa(v);
     }
-    emit_funcdef_gsection(decl);
+    emit_funcdef_section(decl);
 }
 
 static void emit_globalvar(node_t *n)
@@ -2245,7 +2245,7 @@ static void ir_init(void)
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
     exts = zmalloc(sizeof(struct externals));
-    exts->gsections = vec_new();
+    exts->sections = vec_new();
     exts->strings = map_new();
     exts->compounds = map_new();
     exts->floats = map_new();
@@ -2280,8 +2280,7 @@ static const char *glabel(const char *label)
 static struct vector * filter_global(node_t **v)
 {
     struct vector *r = vec_new();
-    struct map *map = map_new();
-    map->cmpfn = nocmp;
+    struct map *map = map_newf(nocmp);
     for (int i = 0; i < LIST_LEN(v); i++) {
         node_t *decl = v[i];
         node_t *sym = DECL_SYM(decl);
@@ -2332,11 +2331,11 @@ node_t * reduce(node_t *expr)
 //
 static struct vector *__xvalues;
 
-#define SET_GSECTION_CONTEXT()                     \
+#define SET_SECTION_CONTEXT()                   \
     struct vector *__saved_xvalues = __xvalues; \
     __xvalues = vec_new()
 
-#define RESTORE_GSECTION_CONTEXT()                 \
+#define RESTORE_SECTION_CONTEXT()               \
     vec_free(__xvalues);                        \
     __xvalues = __saved_xvalues
 
@@ -2349,9 +2348,9 @@ static struct xvalue * alloc_xvalue(void)
     return zmalloc(sizeof(struct xvalue));
 }
 
-static struct gsection * alloc_gsection(void)
+static struct section * alloc_section(void)
 {
-    return zmalloc(sizeof(struct gsection));
+    return zmalloc(sizeof(struct section));
 }
 
 static void emit_xvalue(int size, const char *name)
@@ -2367,20 +2366,20 @@ static void emit_zero(size_t bytes)
     emit_xvalue(Zero, format("%llu", bytes));
 }
 
-static void emit_gsection(struct gsection *data)
+static void emit_section(struct section *data)
 {
-    vec_push(exts->gsections, data);
+    vec_push(exts->sections, data);
 }
 
-static void emit_funcdef_gsection(node_t *decl)
+static void emit_funcdef_section(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
-    struct gsection *section = alloc_gsection();
-    section->id = GSECTION_TEXT;
+    struct section *section = alloc_section();
+    section->id = SECTION_TEXT;
     section->global = SYM_SCLASS(sym) == STATIC ? false : true;
     section->label = SYM_X_LABEL(sym);
     section->u.decl = decl;
-    emit_gsection(section);
+    emit_section(section);
 }
 
 static const char *get_string_literal_label(const char *name)
@@ -2393,23 +2392,23 @@ static const char *get_string_literal_label(const char *name)
     return label;
 }
 
-static struct gsection *emit_compound_literal_label(const char *label, node_t *init)
+static struct section *emit_compound_literal_label(const char *label, node_t *init)
 {
     node_t *ty = AST_TYPE(init);
     
-    struct gsection *section = alloc_gsection();
-    section->id = GSECTION_DATA;
+    struct section *section = alloc_section();
+    section->id = SECTION_DATA;
     section->label = label;
     section->size = TYPE_SIZE(ty);
     section->align = TYPE_ALIGN(ty);
 
-    SET_GSECTION_CONTEXT();
+    SET_SECTION_CONTEXT();
 
     emit_initializer(init);
 
     section->u.xvalues = (struct xvalue **)vtoa(XVALUES);
 
-    RESTORE_GSECTION_CONTEXT();
+    RESTORE_SECTION_CONTEXT();
 
     return section;
 }
@@ -2419,7 +2418,7 @@ static const char *get_compound_literal_label(node_t *n)
     assert(AST_ID(n) == INITS_EXPR);
     
     const char *label = gen_compound_label();
-    struct gsection *section = emit_compound_literal_label(label, n);
+    struct section *section = emit_compound_literal_label(label, n);
     map_put(exts->compounds, label, section);
     return label;
 }
@@ -2630,7 +2629,7 @@ static void emit_initializer(node_t *init)
         die("unexpected initializer type: %s", type2s(ty));
 }
 
-static void set_gsection_basic(struct gsection *section, node_t *decl)
+static void set_section_basic(struct section *section, node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
@@ -2643,26 +2642,26 @@ static void set_gsection_basic(struct gsection *section, node_t *decl)
 
 static void emit_bss(node_t *decl)
 {
-    struct gsection *section = alloc_gsection();
-    section->id = GSECTION_BSS;
-    set_gsection_basic(section, decl);
-    emit_gsection(section);
+    struct section *section = alloc_section();
+    section->id = SECTION_BSS;
+    set_section_basic(section, decl);
+    emit_section(section);
 }
 
 static void emit_data(node_t *decl)
 {
-    struct gsection *section = alloc_gsection();
-    section->id = GSECTION_DATA;
-    set_gsection_basic(section, decl);
+    struct section *section = alloc_section();
+    section->id = SECTION_DATA;
+    set_section_basic(section, decl);
     
     // enter context
-    SET_GSECTION_CONTEXT();
+    SET_SECTION_CONTEXT();
 
     emit_initializer(DECL_BODY(decl));
-    emit_gsection(section);
+    emit_section(section);
 
     section->u.xvalues = (struct xvalue **)vtoa(XVALUES);
     
     // exit context
-    RESTORE_GSECTION_CONTEXT();
+    RESTORE_SECTION_CONTEXT();
 }

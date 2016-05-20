@@ -46,9 +46,9 @@ enum {
 };
 
 enum {
-    GSECTION_BSS,
-    GSECTION_DATA,
-    GSECTION_TEXT
+    SECTION_BSS,
+    SECTION_DATA,
+    SECTION_TEXT
 };
 
 struct xvalue {
@@ -56,7 +56,7 @@ struct xvalue {
     const char *name;
 };
 
-struct gsection {
+struct section {
     int id:3;
     int global:1;
     int align:6;
@@ -182,7 +182,7 @@ struct basic_block {
 
 // externals
 struct externals {
-    struct vector *gsections;
+    struct vector *sections;
     struct map *strings;
     struct map *compounds;
     struct map *floats;

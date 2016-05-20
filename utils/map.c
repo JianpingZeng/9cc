@@ -98,6 +98,14 @@ struct map *map_new(void)
     return map;
 }
 
+struct map *map_newf(int (*cmp) (const void *, const void *))
+{
+    struct map *map = map_new();
+    if (cmp)
+        map->cmpfn = cmp;
+    return map;
+}
+
 void map_free(struct map *map)
 {
     if (!map)
