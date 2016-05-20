@@ -1724,8 +1724,10 @@ static void finalize_basic_block(struct basic_block *block)
 static void init_sym_addrs(node_t *sym)
 {
     if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
-        SYM_X_KIND(sym) == SYM_KIND_LREF)
+        SYM_X_KIND(sym) == SYM_KIND_LREF) {
         SYM_X_INMEM(sym) = true;
+        SYM_X_REG(sym) = NULL;
+    }
 }
 
 static void init_basic_blocks(struct basic_block *block)
