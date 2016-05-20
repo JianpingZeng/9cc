@@ -1653,8 +1653,6 @@ static void do_spill(struct rvar *v)
         if (!SYM_X_LOFF(sym)) {
             fcon.localsize = ROUNDUP(fcon.localsize + v->size, 4);
             SYM_X_LOFF(sym) = -fcon.localsize;
-            // change to LREF
-            SYM_X_KIND(sym) = SYM_KIND_LREF;
         }
         // fall through
     case SYM_KIND_LREF:
@@ -2305,6 +2303,14 @@ static void pop_excepts(void)
         vec_pop(rexcepts);
 }
 
+static struct reg * return_reg(struct reg *reg)
+{
+    // preserved regs
+    if (reg->preserved)
+        set_add(fcon.preserved_regs, reg);
+    return reg;
+}
+
 static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
 {
     // filter excepts out
@@ -2328,7 +2334,7 @@ static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
         struct reg *reg = vec_at(candicates, i);
         // if exists an empty reg, return directly
         if (set_empty(reg->vars))
-            return reg;
+            return return_reg(reg);
         // dirty
         int cost = 0;
         struct vector *vars = set_objects(reg->vars);
@@ -2353,10 +2359,7 @@ static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
         die("no enough registers");
     // spill out
     drain_reg(ret);
-    // preserved regs
-    if (ret->preserved)
-        set_add(fcon.preserved_regs, ret);
-    return ret;
+    return return_reg(ret);
 }
 
 static struct reg * dispatch_reg(struct reg **regs, int count, struct set *excepts,
@@ -2414,6 +2417,7 @@ static struct set * operand_regs(struct operand *operand)
 
 static void try_load_tmp(node_t *sym, struct set *excepts, int opsize)
 {
+    assert(SYM_X_KIND(sym) == SYM_KIND_TMP);
     if (!SYM_X_REG(sym)) {
         assertf(SYM_X_INMEM(sym), "symbol '%s' not in memory",
                 SYM_X_LABEL(sym));
@@ -2438,8 +2442,7 @@ static const char *operand2s_none(struct operand *operand, int opsize)
         else
             return format("%s(%s)", SYM_X_LABEL(operand->sym), rip->r[Q]);
     } else if (SYM_X_KIND(operand->sym) == SYM_KIND_TMP) {
-        assertf(SYM_X_REG(operand->sym), "symbol '%s' not in register",
-                SYM_X_LABEL(operand->sym));
+        try_load_tmp(operand->sym, NULL, opsize);
         return format("%s", SYM_X_REG(operand->sym)->r[i]);
     } else {
         assert(0);
@@ -2494,6 +2497,7 @@ static const char *operand2s_subscript(struct operand *operand, int opsize)
 
 static const char * operand2s_indirection(struct operand *operand, int opsize)
 {
+    assert(SYM_X_KIND(operand->sym) == SYM_KIND_TMP);
     assert(operand->index == NULL);
     try_load_tmp(operand->sym, NULL, Quad);
     return format("(%s)", SYM_X_REG(operand->sym)->r[Q]);
