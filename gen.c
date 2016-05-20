@@ -213,7 +213,7 @@ static void finalize_text(void)
                 assert(0);
             }
         } else {
-            fprintf(outfp, "%s\n", inst);
+            emit_noindent1("%s", inst);
         }
     }
 }
