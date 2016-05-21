@@ -1346,29 +1346,46 @@ static void emit_bop_float(struct tac *tac, const char *op)
     emit_bop_arith(tac, op, true);
 }
 
+// result in rax, rdx
 static void emit_int_mul_div(struct tac *tac, const char *op)
 {
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
+    int i = idx[tac->opsize];
     struct reg *rax = int_regs[RAX];
     struct reg *rdx = int_regs[RDX];
-    int i = idx[tac->opsize];
+    struct set *excepts = set_new();
+
+    // drain rax
+    drain_reg(rax);
+    set_add(excepts, rax);
+
+    // drain rdx
     if (tac->opsize > Byte) {
-        drain_reg(rax);
         drain_reg(rdx);
+        set_add(excepts, rdx);
+        // clear rdx
         if (tac->op == IR_DIVI || tac->op == IR_IDIVI ||
             tac->op == IR_MOD || tac->op == IR_IMOD)
             emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
-    } else {
-        drain_reg(rax);
     }
+
+    // get labels
+    push_excepts(excepts);
     const char *l_label = operand2s(l, tac->opsize);
+    pop_excepts();
+
+    struct set *vl = operand_regs(l);
+    excepts = set_union(excepts, vl);
+    push_excepts(excepts);
     const char *r_label = operand2s(r, tac->opsize);
+    pop_excepts();
+    
     emit("mov%s %s, %s", suffixi[i], l_label, rax->r[i]);
+
     if (is_imm_operand(r)) {
-        struct set *excepts = operand_regs(l);
-        set_add(excepts, rax);
-        set_add(excepts, rdx);
+        struct set *vr = operand_regs(r);
+        excepts = set_union(excepts, vr);
         struct reg *reg = dispatch_ireg(r->sym, excepts, tac->opsize);
         emit("mov%s %s, %s", suffixi[i], r_label, reg->r[i]);
         emit("%s%s %s", op, suffixi[i], reg->r[i]);
@@ -1423,9 +1440,8 @@ static void emit_shift(struct tac *tac, const char *op)
     struct reg *rcx = int_regs[RCX];
     drain_reg(rcx);
 
-    struct set *excepts = set_new1(rcx);
-
     // get labels
+    struct set *excepts = set_new1(rcx);
     push_excepts(excepts);
     const char *l_label = operand2s(l, tac->opsize);
     pop_excepts();
