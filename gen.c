@@ -1446,20 +1446,24 @@ static void emit_shift(struct tac *tac, const char *op)
     struct reg *rcx = int_regs[RCX];
     drain_reg(rcx);
 
-    // get labels
-    struct set *excepts = set_new1(rcx);
+    // get labels    
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *excepts = set_union(vl, vr);
+    set_add(excepts, rcx);
+    
     push_excepts(excepts);
     const char *l_label = operand2s(l, tac->opsize);
     pop_excepts();
 
-    struct set *vl = operand_regs(l);
+    vl = operand_regs(l);
     excepts = set_union(excepts, vl);
     push_excepts(excepts);
     const char *r_label = operand2s(r, tac->opsize);
     pop_excepts();
 
     // dispatch reg for result
-    struct set *vr = operand_regs(r);
+    vr = operand_regs(r);
     excepts = set_union(excepts, vr);
     struct reg *reg = dispatch_ireg(result->sym, excepts, tac->opsize);
 
