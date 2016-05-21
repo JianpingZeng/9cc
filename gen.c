@@ -1320,18 +1320,24 @@ static void emit_bop_arith(struct tac *tac, const char *op, bool floating)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     struct operand *r = tac->operands[2];
-    struct set *vl = operand_regs(l);
+    const char **suffix = floating ? suffixf : suffixi;
+    int i = idx[tac->opsize];
+    
+    const char *l_label = operand2s(l, tac->opsize);
+    struct set *excepts = operand_regs(l);
+
+    push_excepts(excepts);
+    const char *r_label = operand2s(r, tac->opsize);
+    pop_excepts();
+    
     struct set *vr = operand_regs(r);
-    struct set *excepts = set_union(vl, vr);
+    excepts = set_union(excepts, vr);
     struct reg *reg;
     if (floating)
         reg = dispatch_freg(result->sym, excepts, tac->opsize);
     else
         reg = dispatch_ireg(result->sym, excepts, tac->opsize);
-    int i = idx[tac->opsize];
-    const char *l_label = operand2s(l, tac->opsize);
-    const char *r_label = operand2s(r, tac->opsize);
-    const char **suffix = floating ? suffixf : suffixi;
+    
     emit("mov%s %s, %s", suffix[i], l_label, reg->r[i]);
     emit("%s%s %s, %s", op, suffix[i], r_label, reg->r[i]);
 }
@@ -2519,6 +2525,7 @@ static void try_load_tmp(node_t *sym, struct set *excepts, int opsize)
     }
 }
 
+// sym
 static const char *operand2s_none(struct operand *operand, int opsize)
 {
     int i = idx[opsize];
@@ -2541,52 +2548,62 @@ static const char *operand2s_none(struct operand *operand, int opsize)
     }
 }
 
+// disp(sym, index, scale)
 static const char *operand2s_subscript(struct operand *operand, int opsize)
 {
     node_t *sym = operand->sym;
     node_t *index = operand->index;
-    if (SYM_X_KIND(sym) == SYM_KIND_LREF) {
-        long offset = SYM_X_LOFF(sym) + operand->disp;
-        if (index) {
-            try_load_tmp(index, NULL, Quad);
-            if (offset)
-                return format("%ld(%s,%s,%d)",
-                              offset, rbp->r[Q],
-                              SYM_X_REG(index)->r[Q], operand->scale);
-            else
-                return format("(%s,%s,%d)",
-                              rbp->r[Q],
-                              SYM_X_REG(index)->r[Q], operand->scale);
-        } else {
-            if (offset)
-                return format("%ld(%s)", offset, rbp->r[Q]);
-            else
-                return format("(%s)", rbp->r[Q]);
+    switch (SYM_X_KIND(sym)) {
+    case SYM_KIND_LREF:
+        {
+            long offset = SYM_X_LOFF(sym) + operand->disp;
+            if (index) {
+                try_load_tmp(index, NULL, Quad);
+                if (offset)
+                    return format("%ld(%s,%s,%d)",
+                                  offset, rbp->r[Q], SYM_X_REG(index)->r[Q], operand->scale);
+                else
+                    return format("(%s,%s,%d)",
+                                  rbp->r[Q], SYM_X_REG(index)->r[Q], operand->scale);
+            } else {
+                if (offset)
+                    return format("%ld(%s)", offset, rbp->r[Q]);
+                else
+                    return format("(%s)", rbp->r[Q]);
+            }
         }
-    } else if (SYM_X_KIND(sym) == SYM_KIND_TMP) {
-        long offset = operand->disp;
-        try_load_tmp(sym, NULL, Quad);
-        if (index) {
-            try_load_tmp(index, set_new1(SYM_X_REG(sym)), Quad);
-            if (offset)
-                return format("%ld(%s,%s,%d)",
-                              offset, SYM_X_REG(sym)->r[Q],
-                              SYM_X_REG(index)->r[Q], operand->scale);
-            else
-                return format("(%s,%s,%d)",
-                              SYM_X_REG(sym)->r[Q],
-                              SYM_X_REG(index)->r[Q], operand->scale);
-        } else {
-            if (offset)
-                return format("%ld(%s)", offset, SYM_X_REG(sym)->r[Q]);
-            else
-                return format("(%s)", SYM_X_REG(sym)->r[Q]);
+        break;
+    case SYM_KIND_TMP:
+        {
+            long offset = operand->disp;
+            if (index) {
+                struct set *excepts = set_new();
+                if (SYM_X_REG(index))
+                    set_add(excepts, SYM_X_REG(index));
+                try_load_tmp(sym, excepts, Quad);
+                set_add(excepts, SYM_X_REG(sym));
+                try_load_tmp(index, excepts, Quad);
+                if (offset)
+                    return format("%ld(%s,%s,%d)",
+                                  offset, SYM_X_REG(sym)->r[Q], SYM_X_REG(index)->r[Q], operand->scale);
+                else
+                    return format("(%s,%s,%d)",
+                                  SYM_X_REG(sym)->r[Q], SYM_X_REG(index)->r[Q], operand->scale);
+            } else {
+                try_load_tmp(sym, NULL, Quad);
+                if (offset)
+                    return format("%ld(%s)", offset, SYM_X_REG(sym)->r[Q]);
+                else
+                    return format("(%s)", SYM_X_REG(sym)->r[Q]);
+            }
         }
-    } else {
+        break;
+    default:
         assert(0);
     }
 }
 
+// *sym
 static const char * operand2s_indirection(struct operand *operand, int opsize)
 {
     assert(SYM_X_KIND(operand->sym) == SYM_KIND_TMP);
