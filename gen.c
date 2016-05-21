@@ -354,106 +354,123 @@ static struct set * get_pinfo_regs(struct pinfo *pinfo)
     return set;
 }
 
+static void copy_retval_to_register_record(node_t *rty,
+                                           struct paddr *retaddr,
+                                           struct operand *result)
+{
+    // move from regs to stack
+    size_t size = retaddr->size;
+    long loff = 0;
+    long base_loff = fcon.calls_return_loff;
+    int cnt = ROUNDUP(retaddr->size, 8) >> 3;
+    for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
+        struct reg *reg = retaddr->u.regs[i].reg;
+        int type = retaddr->u.regs[i].type;
+        switch (type) {
+        case REG_INT:
+            switch (size) {
+            case 1:
+            case 2:
+                {
+                    int opsize = size == 1 ? Byte : Word;
+                    int i = idx[opsize];
+                    emit("mov%s %s, %ld(%s)",
+                         suffixi[i], reg->r[i], loff + base_loff, rbp->r[Q]);
+                }
+                break;
+            case 3:
+                {
+                    emit("movw %s, %ld(%s)",
+                         reg->r[W], loff + base_loff, rbp->r[Q]);
+                    emit("shrl $16, %s", reg->r[L]);
+                    emit("movb %s, %ld(%s)",
+                         reg->r[B], loff + base_loff + 2, rbp->r[Q]);
+                }
+                break;
+            case 4:
+                emit("movl %s, %ld(%s)",
+                     reg->r[L], loff + base_loff, rbp->r[Q]);
+                break;
+            case 5:
+            case 6:
+                {
+                    int opsize = size == 5 ? Byte : Word;
+                    int i = idx[opsize];
+                    emit("movl %s, %ld(%s)",
+                         reg->r[L], loff + base_loff, rbp->r[Q]);
+                    emit("shrq $32, %s", reg->r[Q]);
+                    emit("mov%s %s, %ld(%s)",
+                         suffixi[i], reg->r[i], loff + base_loff + 4, rbp->r[Q]);
+                }
+                break;
+            case 7:
+                {
+                    emit("movl %s, %ld(%s)",
+                         reg->r[L], loff + base_loff, rbp->r[Q]);
+                    emit("shrq $32, %s", reg->r[Q]);
+                    emit("movw %s, %ld(%s)",
+                         reg->r[W], loff + base_loff + 4, rbp->r[Q]);
+                    emit("shrl $16, %s", reg->r[L]);
+                    emit("movb %s, %ld(%s)",
+                         reg->r[B], loff + base_loff + 6, rbp->r[Q]);
+                }
+                break;
+                // >= 8
+            default:
+                emit("movq %s, %ld(%s)",
+                     reg->r[Q], loff + base_loff, rbp->r[Q]);
+                break;
+            }
+            break;
+        case REG_SSE_F:
+            emit("movss %s, %ld(%s)",
+                 reg->r[Q], loff + base_loff, rbp->r[Q]);
+            break;
+        case REG_SSE_D:
+            emit("movsd %s, %ld(%s)",
+                 reg->r[Q], loff + base_loff, rbp->r[Q]);
+            break;
+        case REG_SSE_FF:
+            emit("movlps %s, %ld(%s)",
+                 reg->r[Q], loff + base_loff, rbp->r[Q]);
+            break;
+        }
+    }
+    SYM_X_LOFF(result->sym) = fcon.calls_return_loff;
+    SYM_X_KIND(result->sym) = SYM_KIND_LREF;
+}
+
+static void copy_retval_to_register_scalar(node_t *rty,
+                                           struct paddr *retaddr,
+                                           struct operand *result)
+{
+    struct reg *reg = retaddr->u.regs[0].reg;
+    if (TYPE_SIZE(rty) == Quad)
+        load(reg, result->sym, Quad);
+    else
+        load(reg, result->sym, Long);
+}
+
+static void copy_retval_to_stack(struct paddr *retaddr, struct operand *result)
+{
+    SYM_X_LOFF(result->sym) = fcon.calls_return_loff;
+    SYM_X_KIND(result->sym) = SYM_KIND_LREF;
+    load(int_regs[RAX], result->sym, Quad);
+}
+
 static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct operand *result)
 {
     if (retaddr->kind == ADDR_STACK) {
         // memory
         // rax contains the address
-        SYM_X_LOFF(result->sym) = fcon.calls_return_loff;
-        SYM_X_KIND(result->sym) = SYM_KIND_LREF;
-        load(int_regs[RAX], result->sym, Quad);
+        copy_retval_to_stack(retaddr, result);
     } else if (retaddr->kind == ADDR_REGISTER) {
+        // register
         node_t *rty = rtype(ftype);
-        if (isstruct(rty) || isunion(rty)) {
-            // move from regs to stack
-            size_t size = retaddr->size;
-            long loff = 0;
-            int cnt = ROUNDUP(retaddr->size, 8) >> 3;
-            for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
-                struct reg *reg = retaddr->u.regs[i].reg;
-                int type = retaddr->u.regs[i].type;
-                switch (type) {
-                case REG_INT:
-                    switch (size) {
-                    case 1:
-                    case 2:
-                        {
-                            int opsize = size == 1 ? Byte : Word;
-                            int i = idx[opsize];
-                            emit("mov%s %s, %ld(%s)",
-                                 suffixi[i], reg->r[i],
-                                 loff + fcon.calls_return_loff, rbp->r[Q]);
-                        }
-                        break;
-                    case 3:
-                        {
-                            emit("movw %s, %ld(%s)",
-                                 reg->r[W], loff + fcon.calls_return_loff, rbp->r[Q]);
-                            emit("shrl $16, %s", reg->r[L]);
-                            emit("movb %s, %ld(%s)",
-                                 reg->r[B], loff + fcon.calls_return_loff + 2, rbp->r[Q]);
-                        }
-                        break;
-                    case 4:
-                        emit("movl %s, %ld(%s)",
-                             reg->r[L], loff + fcon.calls_return_loff, rbp->r[Q]);
-                        break;
-                    case 5:
-                    case 6:
-                        {
-                            int opsize = size == 5 ? Byte : Word;
-                            int i = idx[opsize];
-                            emit("movl %s, %ld(%s)",
-                                 reg->r[L], loff + fcon.calls_return_loff, rbp->r[Q]);
-                            emit("shrq $32, %s", reg->r[Q]);
-                            emit("mov%s %s, %ld(%s)",
-                                 suffixi[i], reg->r[i],
-                                 loff + fcon.calls_return_loff + 4, rbp->r[Q]);
-                        }
-                        break;
-                    case 7:
-                        {
-                            emit("movl %s, %ld(%s)",
-                                 reg->r[L], loff + fcon.calls_return_loff, rbp->r[Q]);
-                            emit("shrq $32, %s", reg->r[Q]);
-                            emit("movw %s, %ld(%s)",
-                                 reg->r[W], loff + fcon.calls_return_loff + 4, rbp->r[Q]);
-                            emit("shrl $16, %s", reg->r[L]);
-                            emit("movb %s, %ld(%s)",
-                                 reg->r[B], loff + fcon.calls_return_loff + 6, rbp->r[Q]);
-                        }
-                        break;
-                        // >= 8
-                    default:
-                        emit("movq %s, %ld(%s)",
-                             reg->r[Q], loff + fcon.calls_return_loff, rbp->r[Q]);
-                        break;
-                    }
-                    break;
-                case REG_SSE_F:
-                    emit("movss %s, %ld(%s)",
-                         reg->r[Q], loff + fcon.calls_return_loff, rbp->r[Q]);
-                    break;
-                case REG_SSE_D:
-                    emit("movsd %s, %ld(%s)",
-                         reg->r[Q], loff + fcon.calls_return_loff, rbp->r[Q]);
-                    break;
-                case REG_SSE_FF:
-                    emit("movlps %s, %ld(%s)",
-                         reg->r[Q], loff + fcon.calls_return_loff, rbp->r[Q]);
-                    break;
-                }
-            }
-            SYM_X_LOFF(result->sym) = fcon.calls_return_loff;
-            SYM_X_KIND(result->sym) = SYM_KIND_LREF;
-        } else {
-            // scalar
-            struct reg *reg = retaddr->u.regs[0].reg;
-            if (TYPE_SIZE(rty) == Quad)
-                load(reg, result->sym, Quad);
-            else
-                load(reg, result->sym, Long);
-        }
+        if (isstruct(rty) || isunion(rty))
+            copy_retval_to_register_record(rty, retaddr, result);
+        else
+            copy_retval_to_register_scalar(rty, retaddr, result);
     }
 }
 
