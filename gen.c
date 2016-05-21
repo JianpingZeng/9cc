@@ -1376,21 +1376,25 @@ static void emit_int_mul_div(struct tac *tac, const char *op)
             emit("mov%s $0, %s", suffixi[i], rdx->r[i]);
     }
 
-    // get labels
+    // l label
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *v = set_union(vl, vr);
+    excepts = set_union(excepts, v);
     push_excepts(excepts);
     const char *l_label = operand2s(l, tac->opsize);
     pop_excepts();
 
-    struct set *vl = operand_regs(l);
+    // r label
+    vl = operand_regs(l);
     excepts = set_union(excepts, vl);
     push_excepts(excepts);
     const char *r_label = operand2s(r, tac->opsize);
     pop_excepts();
     
     emit("mov%s %s, %s", suffixi[i], l_label, rax->r[i]);
-
     if (is_imm_operand(r)) {
-        struct set *vr = operand_regs(r);
+        vr = operand_regs(r);
         excepts = set_union(excepts, vr);
         struct reg *reg = dispatch_ireg(r->sym, excepts, tac->opsize);
         emit("mov%s %s, %s", suffixi[i], r_label, reg->r[i]);
