@@ -1306,7 +1306,10 @@ static void emit_uop_address(struct tac *tac)
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
         {
+            struct set *excepts = set_new1(reg);
+            push_excepts(excepts);
             const char *src_label = operand2s(l, Quad);
+            pop_excepts();
             emit("leaq %s, %s", src_label, reg->r[Q]);
         }
         break;
