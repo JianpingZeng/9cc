@@ -1256,9 +1256,9 @@ static void emit_uop_int(struct tac *tac, const char *op)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int i = idx[tac->opsize];
+    const char *l_label = operand2s(l, tac->opsize);
     struct set *excepts = operand_regs(l);
     struct reg *reg = dispatch_ireg(result->sym, excepts, tac->opsize);
-    const char *l_label = operand2s(l, tac->opsize);
     emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
     emit("%s%s %s", op, suffixi[i], reg->r[i]);
 }
