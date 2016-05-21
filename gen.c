@@ -1341,6 +1341,11 @@ static void emit_bop_int(struct tac *tac, const char *op)
     emit_bop_arith(tac, op, false);
 }
 
+static void emit_bop_float(struct tac *tac, const char *op)
+{
+    emit_bop_arith(tac, op, true);
+}
+
 static void emit_int_mul_div(struct tac *tac, const char *op)
 {
     struct operand *l = tac->operands[1];
@@ -1428,11 +1433,6 @@ static void emit_shift(struct tac *tac, const char *op)
     emit("%s%s %s, %s", op, suffixi[i], rcx->r[B], reg->r[i]);
 }
 
-static void emit_bop_float(struct tac *tac, const char *op)
-{
-    emit_bop_arith(tac, op, true);
-}
-
 static void emit_conv_ii_widden(struct tac *tac, int typeop)
 {
     struct operand *result = tac->operands[0];
@@ -1487,6 +1487,18 @@ static void emit_conv_i2i(struct tac *tac, int typeop)
         assert(0);
 }
 
+static void emit_conv_f2i(struct tac *tac)
+{
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int from_size = tac->from_opsize;
+    int from_i = idx[from_size];
+    const char *src_label = operand2s(l, from_size);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, from_size);
+    emit("cvtt%s2si %s, %s", suffixf[from_i], src_label, reg->r[from_i]);
+}
+
 static void emit_conv_tof(struct tac *tac, const char *op)
 {
     struct operand *result = tac->operands[0];
@@ -1510,18 +1522,6 @@ static void emit_conv_tof(struct tac *tac, const char *op)
 static void emit_conv_i2f(struct tac *tac)
 {
     emit_conv_tof(tac, "cvtsi");
-}
-
-static void emit_conv_f2i(struct tac *tac)
-{
-    struct operand *result = tac->operands[0];
-    struct operand *l = tac->operands[1];
-    int from_size = tac->from_opsize;
-    int from_i = idx[from_size];
-    const char *src_label = operand2s(l, from_size);
-    struct set *excepts = operand_regs(l);
-    struct reg *reg = dispatch_ireg(result->sym, excepts, from_size);
-    emit("cvtt%s2si %s, %s", suffixf[from_i], src_label, reg->r[from_i]);
 }
 
 static void emit_conv_f2f(struct tac *tac)
