@@ -1322,15 +1322,22 @@ static void emit_bop_arith(struct tac *tac, const char *op, bool floating)
     struct operand *r = tac->operands[2];
     const char **suffix = floating ? suffixf : suffixi;
     int i = idx[tac->opsize];
-    
-    const char *l_label = operand2s(l, tac->opsize);
-    struct set *excepts = operand_regs(l);
 
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *excepts = set_union(vl, vr);
+
+    push_excepts(excepts);
+    const char *l_label = operand2s(l, tac->opsize);
+    pop_excepts();
+
+    vl = operand_regs(l);
+    excepts = set_union(excepts, vl);
     push_excepts(excepts);
     const char *r_label = operand2s(r, tac->opsize);
     pop_excepts();
     
-    struct set *vr = operand_regs(r);
+    vr = operand_regs(r);
     excepts = set_union(excepts, vr);
     struct reg *reg;
     if (floating)
