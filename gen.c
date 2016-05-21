@@ -1279,9 +1279,9 @@ static void emit_uop_minus_f(struct tac *tac)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int i = idx[tac->opsize];
+    const char *l_label = operand2s(l, tac->opsize);
     struct set *excepts = operand_regs(l);
     struct reg *reg = dispatch_freg(result->sym, excepts, tac->opsize);
-    const char *l_label = operand2s(l, tac->opsize);
     emit("xor%s %s, %s", suffixp[i], reg->r[i], reg->r[i]);
     emit("sub%s %s, %s", suffixf[i], l_label, reg->r[i]);
 }
