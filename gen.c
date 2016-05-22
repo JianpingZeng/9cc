@@ -562,28 +562,32 @@ static void emit_builtin_va_start(struct tac *tac)
     long overflow_arg_area = STACK_PARAM_BASE_OFF;
     long reg_save_area = -REGISTER_SAVE_AREA_SIZE;
 
-    struct set *excepts = operand_regs(l);
-    struct reg *reg = get_one_ireg(excepts);
-
     emit(COMMENT1("va_start begin"));
 
     // gp_offset
     struct operand *operand1 = make_ret_offset_operand(l, 0);
-    emit("movl $%d, %s", gp_offset, operand2s(operand1, Long));
+    const char *label1 = operand2s(operand1, Long);
+    emit("movl $%d, %s", gp_offset, label1);
 
     // fp_offset
     struct operand *operand2 = make_ret_offset_operand(l, 4);
-    emit("movl $%d, %s", fp_offset, operand2s(operand2, Long));
+    const char *label2 = operand2s(operand2, Long);
+    emit("movl $%d, %s", fp_offset, label2);
 
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = get_one_ireg(excepts);
+    
     // overflow_arg_area
     struct operand *operand3 = make_ret_offset_operand(l, 8);
+    const char *label3 = operand2s(operand3, Quad);
     emit("leaq %ld(%s), %s", overflow_arg_area, rbp->r[Q], reg->r[Q]);
-    emit("movq %s, %s", reg->r[Q], operand2s(operand3, Quad));
+    emit("movq %s, %s", reg->r[Q], label3);
 
     // reg_save_area
     struct operand *operand4 = make_ret_offset_operand(l, 16);
+    const char *label4 = operand2s(operand4, Quad);
     emit("leaq %ld(%s), %s", reg_save_area, rbp->r[Q], reg->r[Q]);
-    emit("movq %s, %s", reg->r[Q], operand2s(operand4, Quad));
+    emit("movq %s, %s", reg->r[Q], label4);
 
     emit(COMMENT1("va_start end"));
 }
@@ -602,14 +606,15 @@ static void emit_builtin_va_arg_p_memory(struct tac *tac)
     struct operand *l = EXPR_X_ADDR(args[0]);
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
-    
     size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
+
     struct operand *operand = make_ret_offset_operand(l, 8);
     const char *dst_label = operand2s(operand, Quad);
     struct set *excepts = operand_regs(l);
     struct reg *tmp1 = get_one_ireg(excepts);
     set_add(excepts, tmp1);
     struct reg *tmp2 = get_one_ireg(excepts);
+
     emit("movq %s, %s", dst_label, tmp1->r[Q]);
     emit("movq %s, %s", tmp1->r[Q], tmp2->r[Q]);
     emit("addq $%lu, %s", size, tmp1->r[Q]);
