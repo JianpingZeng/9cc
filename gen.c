@@ -903,15 +903,10 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
     // rax will contain the address that has passed in by caller in rdi.
     struct pnode *pnode = vec_head(fcon.pinfo->pnodes);
     node_t *sym = pnode->param;
-    struct reg *rax = int_regs[RAX];
-
-    // TODO: add to excepts
+    struct reg *rax = int_regs[RAX];    
     struct set *excepts = operand_regs(l);
-    // drain rax
-    drain_reg(rax);
-    
-    set_add(excepts, rax);
     struct reg *tmp = get_one_ireg(excepts);
+    set_add(excepts, tmp);
 
     // set destination base address
     emit("movq %ld(%s), %s", SYM_X_LOFF(sym), rbp->r[Q], rax->r[Q]);
@@ -923,8 +918,10 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
     size_t size = ROUNDUP(retaddr->size, 8);
     for (size_t i = 0; i < size; i += 8) {
         struct operand *operand = make_ret_offset_operand(l, i);
-        const char *src_label = operand2s(operand, Quad);
         const char *dst_label;
+        push_excepts(excepts);
+        const char *src_label = operand2s(operand, Quad);
+        pop_excepts();
         if (i)
             dst_label = format("%ld(%s)", i, rax->r[Q]);
         else
@@ -938,25 +935,24 @@ static void emit_return_by_registers_scalar(struct operand *l, struct paddr *ret
 {
     // scalar
     node_t *rtype = rtype(fcon.current_ftype);
-    struct reg *reg = retaddr->u.regs[0].reg;
-    // drain reg
-    drain_reg(reg);
-    
     int opsize = TYPE_SIZE(rtype);
     int i = idx[opsize];
+    const char *l_label = operand2s(l, opsize);
+    struct reg *reg = retaddr->u.regs[0].reg;
+
     if (isint(rtype) || isptr(rtype)) {
         if (opsize < 4) {
             // extend to 32bits
             bool sign = TYPE_OP(rtype) == INT;
             if (sign)
-                emit("movs%sl %s, %s", suffixi[i], operand2s(l, opsize), reg->r[L]);
+                emit("movs%sl %s, %s", suffixi[i], l_label, reg->r[L]);
             else
-                emit("movz%sl %s, %s", suffixi[i], operand2s(l, opsize), reg->r[L]);
+                emit("movz%sl %s, %s", suffixi[i], l_label, reg->r[L]);
         } else {
-            emit("mov%s %s, %s", suffixi[i], operand2s(l, opsize), reg->r[i]);
+            emit("mov%s %s, %s", suffixi[i], l_label, reg->r[i]);
         }
     } else if (isfloat(rtype)) {
-        emit("mov%s %s, %s", suffixf[i], operand2s(l, opsize), reg->r[i]);
+        emit("mov%s %s, %s", suffixf[i], l_label, reg->r[i]);
     } else {
         assert(0);
     }
@@ -967,13 +963,6 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
     size_t size = retaddr->size;
     int cnt = ROUNDUP(retaddr->size, 8) >> 3;
     long loff = 0;
-
-    //TODO: calculate excepts
-    struct set *excepts = operand_regs(l);
-    for (int i = 0; i < cnt; i++) {
-        struct reg *reg = retaddr->u.regs[i].reg;
-        drain_reg(reg);
-    }
     
     for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
         int type = retaddr->u.regs[i].type;
@@ -993,12 +982,16 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
             case 3:
                 {
                     struct operand *operand1 = make_ret_offset_operand(l, loff + 2);
-                    struct reg *tmp1 = get_one_ireg(excepts);
-                    emit("movzbl %s, %s", operand2s(operand1, Byte), tmp1->r[L]);
-                    emit("shll $16, %s", tmp1->r[L]);
+                    const char *label = operand2s(operand, Long);
+                    const char *label1 = operand2s(operand1, Byte);
+                    struct set *excepts = operand_regs(operand);
+                    struct reg *tmp = get_one_ireg(excepts);
+                    
+                    emit("movzbl %s, %s", label1, tmp->r[L]);
+                    emit("shll $16, %s", tmp->r[L]);
 
-                    emit("movzwl %s, %s", operand2s(operand, Long), reg->r[L]);
-                    emit("orl %s, %s", tmp1->r[L], reg->r[L]);
+                    emit("movzwl %s, %s", label, reg->r[L]);
+                    emit("orl %s, %s", tmp->r[L], reg->r[L]);
                 }
                 break;
             case 4:
@@ -1010,6 +1003,7 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
                     int opsize = size == 5 ? Byte : Word;
                     int i = idx[opsize];
                     struct operand *operand1 = make_ret_offset_operand(l, loff + 4);
+                    struct set *excepts = operand_regs(operand);
                     struct reg *tmp1 = get_one_ireg(excepts);
                     emit("movz%sl %s, %s", suffixi[i], operand2s(operand1, opsize), tmp1->r[L]);
                     emit("shlq $32, %s", tmp1->r[Q]);
@@ -1025,6 +1019,7 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
             case 7:
                 {
                     struct operand *operand1 = make_ret_offset_operand(l, loff + 6);
+                    struct set *excepts = operand_regs(operand);
                     struct reg *tmp1 = get_one_ireg(excepts);
                     emit("movzbl %s, %s", operand2s(operand1, Byte), tmp1->r[L]);
                     emit("shlq $16, %s", tmp1->r[Q]);
@@ -1063,6 +1058,18 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
     }
 }
 
+struct set * get_return_regs(struct paddr *retaddr)
+{
+    struct set *regs = set_new();
+    int cnt = ROUNDUP(retaddr->size, 8) >> 3;
+    for (int i = 0; i < cnt; i++) {
+        struct reg *reg = retaddr->u.regs[i].reg;
+        set_add(regs, reg);
+    }
+    return regs;
+}
+
+// return regs: rax, rdx, xmm0, xmm1
 static void emit_return(struct tac *tac)
 {
     struct operand *l = tac->operands[1];
@@ -1070,16 +1077,32 @@ static void emit_return(struct tac *tac)
     if (l) {
         struct paddr *retaddr = fcon.pinfo->retaddr;
         if (retaddr->kind == ADDR_STACK) {
+            // by stack
+            // rax contains the address
+            struct reg *rax = int_regs[RAX];
+            drain_reg(rax);
+            push_excepts(set_new1(rax));
             emit_return_by_stack(l, retaddr);
+            pop_excepts();
         } else if (retaddr->kind == ADDR_REGISTER) {
             // by register
             // integer registers: rax, rdx
             // sse registers: xmm0, xmm1
+            struct set *excepts = get_return_regs(retaddr);
+            struct vector *regs = set_objects(excepts);
+            for (int i = 0; i < vec_len(regs); i++) {
+                struct reg *reg = vec_at(regs, i);
+                drain_reg(reg);
+            }
+            push_excepts(excepts);
+
             node_t *rtype = rtype(fcon.current_ftype);
             if (isstruct(rtype) || isunion(rtype))
                 emit_return_by_registers_record(l, retaddr);
             else
                 emit_return_by_registers_scalar(l, retaddr);
+
+            pop_excepts();
         }
     }
     emit("jmp %s", fcon.end_label);
