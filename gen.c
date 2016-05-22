@@ -1085,11 +1085,26 @@ static void emit_if_relop(struct tac *tac, bool reverse, bool floating)
     struct operand *r = tac->operands[2];
     int i = idx[tac->opsize];
     bool sign = tac->sign;
+
     struct set *vl = operand_regs(l);
     struct set *vr = operand_regs(r);
     struct set *excepts = set_union(vl, vr);
+
+    // l label
+    push_excepts(excepts);
     const char *l_label = operand2s(l, tac->opsize);
+    pop_excepts();
+
+    // r label
+    vl = operand_regs(l);
+    excepts = set_union(excepts, vl);
+    push_excepts(excepts);
     const char *r_label = operand2s(r, tac->opsize);
+    pop_excepts();
+
+    vr = operand_regs(r);
+    excepts = set_union(excepts, vr);
+    
     struct reg *reg;
     if (floating) {
         reg = get_one_freg(excepts);
@@ -1145,23 +1160,31 @@ static void emit_if_simple(struct tac *tac, bool reverse, bool floating)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     int i = idx[tac->opsize];
+    const char *l_label = operand2s(l, tac->opsize);
+    
     if (floating) {
-        struct reg *r = get_one_freg(NULL);
+        struct set *excepts = operand_regs(l);
+        struct reg *r = get_one_freg(excepts);
         emit("xor%s %s, %s", suffixp[i], r->r[i], r->r[i]);
-        emit("ucomi%s %s, %s", suffixf[i], operand2s(l, tac->opsize), r->r[i]);
+        emit("ucomi%s %s, %s", suffixf[i], l_label, r->r[i]);
+        const char *jop = reverse ? "je" : "jne";
+        emit("%s %s", jop, SYM_X_LABEL(result->sym));
     } else {
         if (is_imm_operand(l)) {
-            // TODO: optimize
-            struct reg *r = get_one_ireg(NULL);
-            emit("xor%s %s, %s", suffixi[i], r->r[i], r->r[i]);
-            emit("cmp%s %s, %s", suffixi[i], operand2s(l, tac->opsize), r->r[i]);
+            long value = SYM_VALUE_I(l->sym);
+            if (reverse) {
+                if (!value)
+                    emit("jmp %s", SYM_X_LABEL(result->sym));
+            } else {
+                if (value)
+                    emit("jmp %s", SYM_X_LABEL(result->sym));
+            }
         } else {
-            emit("cmp%s $0, %s", suffixi[i], operand2s(l, tac->opsize));
+            emit("cmp%s $0, %s", suffixi[i], l_label);
+            const char *jop = reverse ? "je" : "jne";
+            emit("%s %s", jop, SYM_X_LABEL(result->sym));
         }
     }
-        
-    const char *jop = reverse ? "je" : "jne";
-    emit("%s %s", jop, SYM_X_LABEL(result->sym));
 }
 
 static void emit_if(struct tac *tac, bool reverse, bool floating)
