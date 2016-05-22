@@ -41,7 +41,6 @@ static const char *suffixp[] = {
     "", "", "ps", "pd"
 };
 // Register Allocation
-static void dump_regs(void);
 static void init_regs(void);
 static void reset_regs(void);
 static struct reg * get_one_ireg(struct set *excepts);
@@ -1227,10 +1226,22 @@ static void emit_goto(struct tac *tac)
 static void emit_assign_basic(struct operand *l, struct operand *r,
                               int opsize, bool assignf)
 {
+    struct set *vl = operand_regs(l);
+    struct set *vr = operand_regs(r);
+    struct set *excepts = set_union(vl, vr);
+    
+    push_excepts(excepts);
     const char *dst = operand2s(l, opsize);
+    pop_excepts();
+
+    vl = operand_regs(l);
+    excepts = set_union(excepts, vl);
+    push_excepts(excepts);
     const char *src = operand2s(r, opsize);
-    int i = idx[opsize];
+    pop_excepts();
+    
     const char **suffix = assignf ? suffixf : suffixi;
+    int i = idx[opsize];
     emit("mov%s %s, %s", suffix[i], src, dst);
 }
 
@@ -1259,14 +1270,15 @@ static void emit_assign(struct tac *tac)
             load(SYM_X_REG(r->sym), l->sym, tac->opsize);
         } else {
             // alloc register for tmp operand
+            int i = idx[tac->opsize];
+            const char *src = operand2s(r, tac->opsize);
             struct set *excepts = operand_regs(r);
             struct reg *reg;
             if (assignf)
                 reg = dispatch_freg(l->sym, excepts, tac->opsize);
             else
                 reg = dispatch_ireg(l->sym, excepts, tac->opsize);
-            int i = idx[tac->opsize];
-            const char *src = operand2s(r, tac->opsize);
+            
             const char **suffix = assignf ? suffixf : suffixi;
             emit("mov%s %s, %s", suffix[i], src, reg->r[i]);
             // POST load
@@ -2228,14 +2240,6 @@ void gen(struct externals *exts, FILE * fp)
 /// Register Allocation
 ///
 static struct vector *rexcepts;
-
-static void dump_regs(void)
-{
-    for (int i = 0; i < ARRAY_SIZE(int_regs); i++)
-        dump_reg(int_regs[i]);
-    for (int i = 0; i < ARRAY_SIZE(float_regs); i++)
-        dump_reg(float_regs[i]);
-}
 
 static inline struct reg * mkreg(void)
 {
