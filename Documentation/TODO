@@ -1,6 +1,12 @@
 TODO
 
 //
+1. test/qsort.c
+2. make stage2 (block.c: caused by "head->prev = NULL", block'out)
+3. spill float reg
+4. ir refactor
+
+//
 1. scan_uses: rewrite
 2. register overflow and save
 3. C11: unnamed struct/union in struct/union (for bootstrap)

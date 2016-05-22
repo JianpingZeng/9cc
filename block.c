@@ -213,6 +213,7 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
         if (tac == head) {
             struct basic_block *block = new_basic_block();
             block->head = tac;
+            block->head->prev = NULL;
             // update current
             entry->successors[0] = block;
             current = & entry->successors[0];
@@ -235,6 +236,7 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
             if (next) {
                 struct basic_block *block = new_basic_block();
                 block->head = next;
+                block->head->prev = NULL;
                 // update current
                 entry->successors[0] = block;
                 current = & entry->successors[0];
@@ -256,6 +258,8 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
                 tac = tac->next;
             }
             entry->head = tac;
+            if (entry->head)
+                entry->head->prev = NULL;
             ptac = & tac;
         } else {
             // do nothing, just goto next

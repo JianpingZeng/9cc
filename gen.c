@@ -60,7 +60,7 @@ static void push_excepts(struct set *excepts);
 static void pop_excepts(void);
 static struct set * operand_regs(struct operand *operand);
 static const char * operand2s(struct operand *operand, int opsize);
-static const char * operand2s_l(struct operand *operand, int opsize);
+static const char *operand2s_none_ex(struct operand *operand, int opsize, bool mem);
 
 // Parameter Classification
 static int *no_class = (int *)1;
@@ -1260,7 +1260,11 @@ static void emit_assign_basic(struct operand *l, struct operand *r,
     struct set *excepts = set_union(vl, vr);
     
     push_excepts(excepts);
-    const char *dst = operand2s_l(l, opsize);
+    const char *dst;
+    if (is_direct_mem_operand(l))
+        dst = operand2s_none_ex(l, opsize, true);
+    else
+        dst = operand2s(l, opsize);
     pop_excepts();
 
     vl = operand_regs(l);
@@ -2702,20 +2706,6 @@ static const char * operand2s(struct operand *operand, int opsize)
     switch (operand->op) {
     case IR_NONE:
         return operand2s_none(operand, opsize);
-    case IR_SUBSCRIPT:
-        return operand2s_subscript(operand, opsize);
-    case IR_INDIRECTION:
-        return operand2s_indirection(operand, opsize);
-    default:
-        assert(0);
-    }
-}
-
-static const char * operand2s_l(struct operand *operand, int opsize)
-{
-    switch (operand->op) {
-    case IR_NONE:
-        return operand2s_none_ex(operand, opsize, true);
     case IR_SUBSCRIPT:
         return operand2s_subscript(operand, opsize);
     case IR_INDIRECTION:
