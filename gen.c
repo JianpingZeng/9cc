@@ -60,6 +60,7 @@ static void push_excepts(struct set *excepts);
 static void pop_excepts(void);
 static struct set * operand_regs(struct operand *operand);
 static const char * operand2s(struct operand *operand, int opsize);
+static const char * operand2s_l(struct operand *operand, int opsize);
 
 // Parameter Classification
 static int *no_class = (int *)1;
@@ -1259,7 +1260,7 @@ static void emit_assign_basic(struct operand *l, struct operand *r,
     struct set *excepts = set_union(vl, vr);
     
     push_excepts(excepts);
-    const char *dst = operand2s(l, opsize);
+    const char *dst = operand2s_l(l, opsize);
     pop_excepts();
 
     vl = operand_regs(l);
@@ -1853,6 +1854,8 @@ static void spill(node_t *sym)
 
     struct rvar *v = find_var(reg, sym);
     do_spill(v);
+    // clear SYM_X_REG
+    SYM_X_REG(sym) = NULL;
 }
 
 static void finalize_basic_block(struct basic_block *block)
@@ -2603,10 +2606,10 @@ static void try_load_tmp(node_t *sym, struct set *excepts, int opsize)
 }
 
 // sym
-static const char *operand2s_none(struct operand *operand, int opsize)
+static const char *operand2s_none_ex(struct operand *operand, int opsize, bool mem)
 {
     int i = idx[opsize];
-    if (SYM_X_REG(operand->sym)) {
+    if (SYM_X_REG(operand->sym) && !mem) {
         return format("%s", SYM_X_REG(operand->sym)->r[i]);
     } else if (SYM_X_KIND(operand->sym) == SYM_KIND_IMM) {
         return format("$%lu", SYM_VALUE_U(operand->sym));
@@ -2623,6 +2626,11 @@ static const char *operand2s_none(struct operand *operand, int opsize)
     } else {
         assert(0);
     }
+}
+
+static const char *operand2s_none(struct operand *operand, int opsize)
+{
+    return operand2s_none_ex(operand, opsize, false);
 }
 
 // disp(sym, index, scale)
@@ -2694,6 +2702,20 @@ static const char * operand2s(struct operand *operand, int opsize)
     switch (operand->op) {
     case IR_NONE:
         return operand2s_none(operand, opsize);
+    case IR_SUBSCRIPT:
+        return operand2s_subscript(operand, opsize);
+    case IR_INDIRECTION:
+        return operand2s_indirection(operand, opsize);
+    default:
+        assert(0);
+    }
+}
+
+static const char * operand2s_l(struct operand *operand, int opsize)
+{
+    switch (operand->op) {
+    case IR_NONE:
+        return operand2s_none_ex(operand, opsize, true);
     case IR_SUBSCRIPT:
         return operand2s_subscript(operand, opsize);
     case IR_INDIRECTION:
