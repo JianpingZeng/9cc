@@ -266,12 +266,13 @@ static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
         else
             stack = format("(%s)", rsp->r[Q]);
 
+        struct set *excepts = operand_regs(operand);
         if (isfloat(ty)) {
-            struct reg *tmp = get_one_freg(NULL);
+            struct reg *tmp = get_one_freg(excepts);
             emit("mov%s %s, %s", suffixf[i], src_label, tmp->r[i]);
             emit("mov%s %s, %s", suffixf[i], tmp->r[i], stack);
         } else {
-            struct reg *tmp = get_one_ireg(NULL);
+            struct reg *tmp = get_one_ireg(excepts);
             emit("mov%s %s, %s", suffixi[i], src_label, tmp->r[i]);
             emit("mov%s %s, %s", suffixi[i], tmp->r[i], stack);
         }
@@ -288,12 +289,15 @@ static void emit_param_record(struct tac *tac, struct pnode *pnode)
     if (paddr->kind == ADDR_STACK) {
         struct set *excepts = operand_regs(operand);
         struct reg *tmp = get_one_ireg(excepts);
+        excepts = set_new1(tmp);
         
         long loff = paddr->u.offset;
         for (int i = 0; i < cnt; i++) {
             long offset = i << 3;
-            struct operand *src = make_ret_offset_operand(operand, offset);
+            struct operand *src = make_ret_offset_operand(operand, offset);            
+            push_excepts(excepts);
             const char *src_label = operand2s(src, Quad);
+            pop_excepts();
             emit("movq %s, %s", src_label, tmp->r[Q]);
             if (loff + offset)
                 emit("movq %s, %ld(%s)", tmp->r[Q], loff + offset, rsp->r[Q]);
