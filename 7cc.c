@@ -121,6 +121,10 @@ static void parse_opts(int argc, char *argv[])
             } else if (!strncmp(arg, "-l", 2)
                        || !strncmp(arg, "-L", 2)) {
                 vec_push(opts.ld_options, arg);
+            } else if (!strcmp(arg, "-g") ||
+                       !strncmp(arg, "-std=", 5) ||
+                       !strncmp(arg, "-O", 2)) {
+                // just ignore without any hint
             } else {
                 fprintf(stderr,
                         "warning: ignored unknown option: %s\n",
