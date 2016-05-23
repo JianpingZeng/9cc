@@ -3,7 +3,7 @@ TODO
 //
 1. DONE: test/qsort.c
 2. DONE: make stage2 (block.c: caused by "head->prev = NULL", block'out)
-3. spill float reg
+3. DONE: spill float reg
 4. ir refactor
 
 //

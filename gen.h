@@ -195,6 +195,7 @@ struct externals {
 #define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 #define SYM_X_INMEM(NODE)     ((NODE)->symbol.x.sym.inmem)
+#define SYM_X_FREG(NODE)      ((NODE)->symbol.x.sym.freg)
 // decl
 #define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
 #define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
@@ -218,6 +219,7 @@ union x {
         struct uses uses;       // uses
         struct reg *reg;
         bool inmem;
+        bool freg;              // spilled from a floating reg
     }sym;
     
     struct {

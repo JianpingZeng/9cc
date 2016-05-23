@@ -1797,6 +1797,7 @@ static void do_spill(struct rvar *v)
             emit("mov%s %s, %s(%s)" COMMENT("%d-byte spill"),
                  suffixi[i], reg->r[i], SYM_X_LABEL(sym), rip->r[Q], v->size);
             SYM_X_INMEM(sym) = true;
+            SYM_X_FREG(sym) = reg->freg;
         }
         break;
     case SYM_KIND_TMP:
@@ -1810,6 +1811,7 @@ static void do_spill(struct rvar *v)
             emit("mov%s %s, %ld(%s)" COMMENT("%d-byte spill"),
                  suffixi[i], reg->r[i], SYM_X_LOFF(sym), rbp->r[Q], v->size);
             SYM_X_INMEM(sym) = true;
+            SYM_X_FREG(sym) = reg->freg;
         }
         break;
     default:
@@ -2605,7 +2607,12 @@ static void try_load_tmp(node_t *sym, struct set *excepts, int opsize)
     if (!SYM_X_REG(sym)) {
         assertf(SYM_X_INMEM(sym), "symbol '%s' not in memory",
                 SYM_X_LABEL(sym));
-        dispatch_ireg(sym, excepts, opsize);
+        if (SYM_X_FREG(sym))
+            dispatch_freg(sym, excepts, opsize);
+        else
+            dispatch_ireg(sym, excepts, opsize);
+        // clear
+        SYM_X_FREG(sym) = false;
         emit("movq %ld(%s), %s" COMMENT("load back"),
              SYM_X_LOFF(sym), rbp->r[Q], SYM_X_REG(sym)->r[Q]);
     }
