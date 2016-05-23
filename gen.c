@@ -1853,11 +1853,13 @@ static void spillv(struct rvar *v)
 static void spill(node_t *sym)
 {
     struct reg *reg = SYM_X_REG(sym);
-    if (SYM_X_INMEM(sym) || !reg)
+    if (!reg)
         return;
-
+    if (SYM_X_INMEM(sym))
+        goto done;
     struct rvar *v = find_var(reg, sym);
     do_spill(v);
+ done:
     // clear SYM_X_REG
     SYM_X_REG(sym) = NULL;
 }
