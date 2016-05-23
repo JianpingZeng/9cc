@@ -19,7 +19,7 @@ static struct basic_block * new_basic_block(void)
  */
 static void calculate_use_def(struct basic_block *block)
 {
-    FOR_EACH_BB(block) {
+    for (; block; block = block->successors[0]) {
         for (struct tac *tac = block->head; tac; tac = tac->next) {
             for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
                 struct operand *operand = tac->operands[i];
@@ -27,8 +27,13 @@ static void calculate_use_def(struct basic_block *block)
                     if (i == 0) {
                         // result
                         if (operand->sym && REF_SYM(operand->sym)) {
-                            if (!set_has(block->use, operand->sym))
-                                set_add(block->def, operand->sym);
+                            if (operand->op == IR_NONE) {
+                                if (!set_has(block->use, operand->sym))
+                                    set_add(block->def, operand->sym);
+                            } else {
+                                if (!set_has(block->def, operand->sym))
+                                    set_add(block->use, operand->sym);
+                            }
                         }
                         if (operand->index && REF_SYM(operand->index)) {
                             if (!set_has(block->def, operand->index))
@@ -62,12 +67,12 @@ static void calculate_use_def(struct basic_block *block)
  *     }
  * }
  */
-static void calculate_in_out(struct basic_block *block)
+static void calculate_in_out(struct basic_block *start)
 {
     bool changed;
     do {
         changed = false;
-        FOR_EACH_BB(block) {
+        for (struct basic_block *block = start; block; block = block->successors[0]) {
             if (block->tag == BLOCK_END)
                 break;
             struct set *outs = NULL;
@@ -180,7 +185,7 @@ static void scan_next_use(struct basic_block *block)
 
 static void calculate_next_use(struct basic_block *block)
 {
-    FOR_EACH_BB(block) {
+    for (; block; block = block->successors[0]) {
         init_next_use(block);
         scan_next_use(block);
     }

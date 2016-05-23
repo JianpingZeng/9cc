@@ -692,9 +692,8 @@ static void print_text(struct section *section)
     node_t *decl = section->u.decl;
     putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
     struct basic_block *block = DECL_X_BASIC_BLOCK(decl);
-    FOR_EACH_BB(block) {
+    for (; block; block = block->successors[0])
         print_basic_block(block);
-    }
     putln("");
 }
 

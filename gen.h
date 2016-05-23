@@ -261,8 +261,6 @@ extern node_t * make_label_sym(const char *name);
 
 // block.c
 extern void construct_basic_blocks(node_t *decl, struct tac *head);
-#define FOR_EACH_BB(bb)  for (; bb; bb = bb->successors[0])
-
 #define REF_SYM(sym)  (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
                        SYM_X_KIND(sym) == SYM_KIND_LREF ||\
                        SYM_X_KIND(sym) == SYM_KIND_TMP)
