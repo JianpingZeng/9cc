@@ -22,6 +22,7 @@ int main()
 {
     int len = sizeof(a) / sizeof(a[0]);
     quicksort(0, len-1);
+    printf("quick sort: ");
     for (int i = 0; i < len; i++)
         printf("%d ", a[i]);
     printf("\n");
