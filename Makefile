@@ -1,9 +1,9 @@
-# Makefile for mcc
+# Makefile for 7cc
 
 CFLAGS_COMMON = -Wall -std=c99 -DBUILD_DIR='"$(shell pwd)"' -g
 CFLAGS = $(CFLAGS_COMMON)
 LDFLAGS =
-MCC = mcc
+7CC = 7cc
 CC1 = cc1
 utils_dir = utils/
 sys_dir = sys/
@@ -52,7 +52,7 @@ CC1_OBJ += block.o
 
 CC1_INC += cc.h
 CC1_INC += ast.h
-CC1_INC += mcc.h
+CC1_INC += 7cc.h
 CC1_INC += lex.h
 CC1_INC += gen.h
 CC1_INC += node.def
@@ -62,7 +62,7 @@ CC1_INC += rop.def
 SYS_OBJ += $(sys_dir)unix.o
 SYS_INC += $(sys_dir)sys.h
 
-MCC_OBJ = mcc.o
+7CC_OBJ = 7cc.o
 
 CONFIG_FLAGS += -DCONFIG_COLOR_TERM
 
@@ -89,10 +89,10 @@ endif
 
 CFLAGS += $(CONFIG_FLAGS)
 
-all: $(MCC) $(CC1)
+all: $(7CC) $(CC1)
 
-$(MCC): $(MCC_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
-	$(CC) $(MCC_OBJ) $(SYS_OBJ) $(UTILS_OBJ) $(LDFLAGS) -o $@
+$(7CC): $(7CC_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
+	$(CC) $(7CC_OBJ) $(SYS_OBJ) $(UTILS_OBJ) $(LDFLAGS) -o $@
 
 $(CC1): $(CC1_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
 	$(CC) $(CC1_OBJ) $(UTILS_OBJ) $(SYS_OBJ) $(LDFLAGS) -o $@
@@ -109,21 +109,21 @@ $(UTILS_OBJ): $(UTILS_INC)
 stage1:
 	$(MAKE) objclean
 	$(MAKE) CC=cc
-	mv mcc stage1
+	mv 7cc stage1
 	mv cc1 cc1_stage1
 	ln -s cc1_stage1 cc1
 
 stage2: stage1
 	$(MAKE) objclean
 	$(MAKE) CC=./stage1
-	mv mcc stage2
+	mv 7cc stage2
 	mv cc1 cc1_stage2
 	ln -s cc1_stage2 cc1
 
 stage3: stage2
 	$(MAKE) objclean
 	$(MAKE) CC=./stage2
-	mv mcc stage3
+	mv 7cc stage3
 	mv cc1 cc1_stage3
 	ln -s cc1_stage3 cc1
 
@@ -149,10 +149,10 @@ objclean:
 	$(RM) $(sys_dir)*.o $(sys_dir)*~
 	$(RM) $(utils_dir)*.o $(utils_dir)*~
 	$(RM) $(TESTS) test/*.o test/*~
-	$(RM) include/*~ mcc.exe*
+	$(RM) include/*~ 7cc.exe*
 
 clean: objclean
-	$(RM) $(MCC) $(CC1)
+	$(RM) $(7CC) $(CC1)
 
 distclean: clean
 	$(RM) stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3

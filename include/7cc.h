@@ -45,7 +45,7 @@
 #define _ISOC99_SOURCE 1
 
 
-// mcc builtins
+// builtins
 typedef struct __builtin_va_list_tag {
     unsigned int gp_offset;
     unsigned int fp_offset;

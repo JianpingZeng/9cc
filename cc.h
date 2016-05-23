@@ -17,7 +17,7 @@
 #include <ctype.h>
 #include <stdint.h>
 
-#include "mcc.h"
+#include "7cc.h"
 #include "utils/utils.h"
 
 struct cc_options {

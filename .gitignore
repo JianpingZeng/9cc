@@ -27,15 +27,11 @@ DerivedData
 #CocoaPods
 Pods
 
-# Visual Studio
-src/main/c/mcc.vsproj/mcc/Debug
-src/main/c/mcc.vsproj/mcc/Release
-
 # compile
 *.s
 *.o
-mcc
-mcc.exe
+7cc
+7cc.exe
 cc1
 cc1.exe
 a.out

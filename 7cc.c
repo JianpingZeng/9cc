@@ -1,5 +1,5 @@
 /*
- * mcc
+ * 7cc
  * driver of the c compiler
  */
 #include <stdio.h>
@@ -11,7 +11,7 @@
 #include <time.h>
 #include <ctype.h>
 #include "sys/sys.h"
-#include "mcc.h"
+#include "7cc.h"
 #include "utils/utils.h"
 
 static const char *progname;
@@ -48,8 +48,8 @@ static struct {
 static void usage(void)
 {
     fprintf(stderr,
-            "OVERVIEW: mcc - A Standard C Compiler v%d.%d\n\n"
-            "USAGE: mcc [options] <files>\n\n"
+            "OVERVIEW: 7cc - A Standard C Compiler v%d.%d\n\n"
+            "USAGE: 7cc [options] <files>\n\n"
             "OPTIONS:\n", MAJOR(version), MINOR(version));
     fprintf(stderr,
             "  -ast-dump       Only print abstract syntax tree\n"
@@ -222,7 +222,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     } else if (output && vec_len(inputs) > 1 && partial) {
         fprintf(stderr,
-                "mcc: cannot specify -o when generating multiple output files\n");
+                "7cc: cannot specify -o when generating multiple output files\n");
         return EXIT_FAILURE;
     }
 

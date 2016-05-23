@@ -1,4 +1,4 @@
-// mcc intermediate representation
+// intermediate representation
 
 three address code:
 

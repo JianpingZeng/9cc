@@ -1,7 +1,7 @@
 Copyright (C) 2015 Guiyang Huang
 See the COPYING file for license conditions.
 
-mcc - a standard C compiler
+7cc - a standard C compiler
 
 _NOT_ finished yet.
 
@@ -25,7 +25,7 @@ HOWTO build:
 
 For Linux users:
 
-To build the mcc compiler, run command:
+To build the compiler, run command:
 
 	make
 

@@ -25,8 +25,8 @@
 
 const char *mktmpdir()
 {
-    static char template[] = "/tmp/mcc.tmp.XXXXXXXXXX";
-    int len = strlen("/tmp/mcc.tmp.");
+    static char template[] = "/tmp/7cc.tmp.XXXXXXXXXX";
+    int len = strlen("/tmp/7cc.tmp.");
     // reset suffix every time
     memset(template + len, 'X', strlen(template) - len);
     return mkdtemp(template);
