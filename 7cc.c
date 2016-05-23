@@ -109,7 +109,7 @@ static void parse_opts(int argc, char *argv[])
             } else if (!strcmp(arg, "-ast-dump")) {
                 opts.ast_dump = true;
                 vec_push(opts.cc_options, arg);
-            } else if (!strcmp(arg, "-ir-dump")) {
+            } else if (!strncmp(arg, "-ir-dump", 8)) {
                 opts.ir_dump = true;
                 vec_push(opts.cc_options, arg);
             } else if (!strcmp(arg, "-Wall") ||

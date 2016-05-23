@@ -27,6 +27,7 @@ struct cc_options {
     int fleading_underscore:1;
     int Wall:1;
     int Werror:1;
+    int ir_dump_level:8;
     int version;
     struct vector *cpp_options;
 };

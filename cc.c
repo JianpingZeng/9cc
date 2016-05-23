@@ -16,22 +16,25 @@ static void parse_opts(int argc, char *argv[])
         } else if (arg[0] == '-') {
             if (!strncmp(arg, "-I", 2) ||
                 !strncmp(arg, "-D", 2) ||
-                !strncmp(arg, "-U", 2))
+                !strncmp(arg, "-U", 2)) {
                 vec_push(opts.cpp_options, (char *)arg);
-            else if (!strcmp(arg, "-ast-dump"))
+            } else if (!strcmp(arg, "-ast-dump")) {
                 opts.ast_dump = true;
-            else if (!strcmp(arg, "-ir-dump"))
+            } else if (!strncmp(arg, "-ir-dump", 8)) {
                 opts.ir_dump = true;
-            else if (!strcmp(arg, "-Werror"))
+                if (strlen(arg) > 8)
+                    opts.ir_dump_level = atoi(arg+8);
+            } else if (!strcmp(arg, "-Werror")) {
                 opts.Werror = true;
-            else if (!strcmp(arg, "-Wall"))
+            } else if (!strcmp(arg, "-Wall")) {
                 opts.Wall = true;
-            else if (!strcmp(arg, "-E"))
+            } else if (!strcmp(arg, "-E")) {
                 opts.E = true;
-            else if (!strcmp(arg, "-fleading_underscore"))
+            } else if (!strcmp(arg, "-fleading_underscore")) {
                 opts.fleading_underscore = true;
-            else if (!strncmp(arg, "-fversion=", 10))
+            } else if (!strncmp(arg, "-fversion=", 10)) {
                 opts.version = atoi(arg+10);
+            }
         } else {
             ifile = arg;
         }

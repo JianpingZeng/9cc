@@ -661,24 +661,27 @@ static void print_basic_block(struct basic_block *block)
         putln(RED("%s:"), block->label);
     for (struct tac *tac = block->head; tac; tac = tac->next) {
         print_tac(tac);
-        print_use(tac);
+        if (opts.ir_dump_level >= 1)
+            print_use(tac);
     }
-    
-    putf("def: ");
-    print_sym_set(block->def);
-    putf("\n");
 
-    putf("use: ");
-    print_sym_set(block->use);
-    putf("\n");
+    if (opts.ir_dump_level >= 1) {
+        putf("def: ");
+        print_sym_set(block->def);
+        putf("\n");
 
-    putf("in: ");
-    print_sym_set(block->in);
-    putf("\n");
+        putf("use: ");
+        print_sym_set(block->use);
+        putf("\n");
 
-    putf("out: ");
-    print_sym_set(block->out);
-    putf("\n");
+        putf("in: ");
+        print_sym_set(block->in);
+        putf("\n");
+
+        putf("out: ");
+        print_sym_set(block->out);
+        putf("\n");
+    }
 }
 
 static void print_bss(struct section *section)
