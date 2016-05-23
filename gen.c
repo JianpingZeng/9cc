@@ -106,14 +106,19 @@ enum {
 
 // function context
 static struct {
+    // function end label
     const char *end_label;
+    // return value by stack (provided by caller, negative)
     long calls_return_loff;
     struct pinfo *pinfo;
     struct basic_block *current_block;
     struct tac *current_tac;
     node_t *current_ftype;
+    // instructions
     struct vector *instructions;
+    // stack size (positive)
     size_t orig_localsize, localsize;
+    // allocated preserved registers
     struct set *preserved_regs;
 } fcon;
 
@@ -1819,20 +1824,6 @@ static void do_spill(struct rvar *v)
     }
 }
 
-static bool in_current_tac(node_t *sym)
-{
-    for (int i = 0; i < ARRAY_SIZE(fcon.current_tac->operands); i++) {
-        struct operand *operand = fcon.current_tac->operands[i];
-        if (operand) {
-            if (operand->sym == sym)
-                return true;
-            if (operand->index == sym)
-                return true;
-        }
-    }
-    return false;
-}
-
 static void spillv(struct rvar *v)
 {
     node_t *sym = v->sym;
@@ -1842,8 +1833,7 @@ static void spillv(struct rvar *v)
     if (SYM_X_INMEM(sym))
         goto done;
     if (!SYM_X_USES(sym).live &&
-        !set_has(fcon.current_block->out, sym) &&
-        !in_current_tac(sym))
+        !set_has(fcon.current_block->out, sym))
         goto done;
     // not in memory and in register
     do_spill(v);
@@ -2111,10 +2101,12 @@ static void emit_text(struct section *section)
     
     // reset registers
     reset_regs();
-    // reset func context
+    // reset function context
     fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
     fcon.calls_return_loff = 0;
     fcon.pinfo = NULL;
+    fcon.current_block = NULL;
+    fcon.current_tac = NULL;
     fcon.current_ftype = ftype;
     fcon.instructions = vec_new();
     fcon.localsize = fcon.orig_localsize = 0;
