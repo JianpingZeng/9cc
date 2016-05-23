@@ -1,5 +1,5 @@
-#ifndef _MCC_H
-#define _MCC_H
+#ifndef _7CC_H
+#define _7CC_H
 
 #ifdef CONFIG_COLOR_TERM
 
