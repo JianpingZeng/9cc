@@ -10,6 +10,7 @@ enum {
     Quad = 8,
 };
 
+// operand size index
 enum {
     B = 0,
     W = 1,

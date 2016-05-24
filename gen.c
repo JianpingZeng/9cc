@@ -49,8 +49,8 @@ static struct reg * dispatch_ireg(node_t *sym, struct set *excepts, int opsize);
 static struct reg * dispatch_freg(node_t *sym, struct set *excepts, int opsize);
 static void drain_reg(struct reg *reg);
 static void clear_reg(struct reg *reg);
-static bool if_preserved(struct reg *reg);
-static bool if_nonpreserved(struct reg *reg);
+static bool is_preserved(struct reg *reg);
+static bool is_nonpreserved(struct reg *reg);
 static void for_each_reg(bool (*cond) (struct reg *), void (*action) (struct reg *));
 static void load(struct reg *reg, node_t *sym, int opsize);
 static void store(node_t *sym);
@@ -501,7 +501,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
     struct pinfo *pinfo = alloc_addr_for_funcall(ftype, args);
 
     // drain all non-preserved registers
-    for_each_reg(if_nonpreserved, drain_reg);
+    for_each_reg(is_nonpreserved, drain_reg);
     // push excepts
     struct set *excepts = get_pinfo_regs(pinfo);
     push_excepts(excepts);
@@ -534,7 +534,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
     // pop excepts
     pop_excepts();
     // clear nonpreserved regs
-    for_each_reg(if_nonpreserved, clear_reg);
+    for_each_reg(is_nonpreserved, clear_reg);
 
     if (result)
         emit_call_epilogue(ftype, pinfo->retaddr, result);
@@ -2066,7 +2066,7 @@ static long get_reg_offset(struct reg *reg)
     assert(0);
 }
 
-static void emit_register_params(node_t *decl)
+static void emit_register_params(void)
 {
     for (int i = 0; i < vec_len(fcon.pinfo->pnodes); i++) {
         struct pnode *pnode = vec_at(fcon.pinfo->pnodes, i);
@@ -2107,6 +2107,21 @@ static void emit_register_params(node_t *decl)
     }
 }
 
+static void emit_function_epilogue(void)
+{
+    // function epilogue
+    emit_placeholder(INST_STACK_ADD);
+    emit_placeholder(INST_PRESERVED_REG_POP);
+    /*
+      leave instruction
+
+      move rbp to rsp
+      pop rbp
+    */
+    emit("leave");
+    emit("ret");
+}
+
 static void emit_function_prologue(struct section *section)
 {
     node_t *decl = section->u.decl;
@@ -2137,8 +2152,6 @@ static void emit_function_prologue(struct section *section)
     }
 
     // params
-    node_t **params = TYPE_PARAMS(ftype);
-    fcon.pinfo = alloc_addr_for_funcdef(ftype, params);
     for (int i = 0; i < vec_len(fcon.pinfo->pnodes); i++) {
         struct pnode *pnode = vec_at(fcon.pinfo->pnodes, i);
         node_t *sym = pnode->param;
@@ -2176,39 +2189,25 @@ static void emit_function_prologue(struct section *section)
     emit_placeholder(INST_STACK_SUB);
 }
 
-static void emit_function_epilogue(void)
-{
-    // function epilogue
-    emit_placeholder(INST_STACK_ADD);
-    emit_placeholder(INST_PRESERVED_REG_POP);
-    /*
-      leave instruction
-
-      move rbp to rsp
-      pop rbp
-    */
-    emit("leave");
-    emit("ret");
-}
-
 static void emit_text(struct section *section)
 {
     node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
+    node_t **params = TYPE_PARAMS(ftype);
     
     // reset registers
     reset_regs();
     // reset function context
     fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
     fcon.calls_return_loff = 0;
-    fcon.pinfo = NULL;
     fcon.current_block = NULL;
     fcon.current_tac = NULL;
     fcon.current_ftype = ftype;
     fcon.instructions = vec_new();
     fcon.localsize = fcon.orig_localsize = 0;
     fcon.preserved_regs = set_new();
+    fcon.pinfo = alloc_addr_for_funcdef(ftype, params);
 
     // save emitters
     USING_EMITTER(emit2, emit_noindent2);
@@ -2217,7 +2216,7 @@ static void emit_text(struct section *section)
     if (TYPE_VARG(ftype))
         emit_register_save_area();
     else
-        emit_register_params(decl);
+        emit_register_params();
     init_basic_blocks(DECL_X_BASIC_BLOCK(decl));
     emit_basic_blocks(DECL_X_BASIC_BLOCK(decl));
     emit_function_epilogue();
@@ -2498,14 +2497,13 @@ static struct rvar * new_rvar(node_t *sym, int size)
 static void load(struct reg *reg, node_t *sym, int opsize)
 {
     assert(SYM_X_REG(sym) == NULL);
-    if (SYM_X_KIND(sym) == SYM_KIND_IMM ||
-        SYM_X_KIND(sym) == SYM_KIND_LABEL)
+    if (!REF_SYM(sym))
         return;
-
-    struct rvar *var = new_rvar(sym, opsize);
-
+    
     if (!reg->vars)
         reg->vars = set_new();
+
+    struct rvar *var = new_rvar(sym, opsize);
     set_add(reg->vars, var);
     SYM_X_REG(sym) = reg;
 }
@@ -2544,7 +2542,7 @@ static void pop_excepts(void)
 static struct reg * return_reg(struct reg *reg)
 {
     // preserved regs
-    if (if_preserved(reg))
+    if (is_preserved(reg))
         set_add(fcon.preserved_regs, reg);
     return reg;
 }
@@ -2631,7 +2629,6 @@ static struct reg * get_one_ireg(struct set *excepts)
     return get_reg(int_regs, ARRAY_SIZE(int_regs), excepts);
 }
 
-// maybe sticky
 static void drain_reg(struct reg *reg)
 {
     struct vector *vars = set_objects(reg->vars);
@@ -2657,12 +2654,12 @@ static void clear_reg(struct reg *reg)
         set_clear(reg->vars);
 }
 
-static bool if_preserved(struct reg *reg)
+static bool is_preserved(struct reg *reg)
 {
     return reg->preserved;
 }
 
-static bool if_nonpreserved(struct reg *reg)
+static bool is_nonpreserved(struct reg *reg)
 {
     return !reg->preserved;
 }
