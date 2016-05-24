@@ -1634,6 +1634,8 @@ static void emit_conv(node_t *n)
             array2ptr(dty, sty, n);
         else
             assert(0);
+    } else if (isvoid(dty)) {
+        EXPR_X_ADDR(n) = NULL;
     } else {
         // nothing
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
