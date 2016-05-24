@@ -15,16 +15,6 @@
 // uname
 #include <sys/utsname.h>
 
-#include "../utils/utils.h"
-
-#if defined CONFIG_DARWIN
-#include "darwin.h"
-#elif defined CONFIG_LINUX
-#include "linux.h"
-#else
-#error "architecture not defined"
-#endif
-
 const char *mktmpdir()
 {
     static char template[] = "/tmp/7cc.tmp.XXXXXXXXXX";

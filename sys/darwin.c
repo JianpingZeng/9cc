@@ -1,6 +1,9 @@
+#define _BSD_SOURCE
+#include <unistd.h>
 // trace
 #include <execinfo.h>
 #include <signal.h>
+#include "../utils/utils.h"
 
 static void handler(int sig)
 {
@@ -44,5 +47,5 @@ const char **sys_include_dirs(void)
     struct vector *v = vec_new();
     vec_push(v, BUILD_DIR "/include");
     vec_push(v, XCODE_DIR "/usr/include");
-    return (const char **)vtoa(a);
+    return (const char **)vtoa(v);
 }

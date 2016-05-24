@@ -1,5 +1,7 @@
+#define _BSD_SOURCE
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
+#include "../utils/utils.h"
 
 static void handler(int sig)
 {

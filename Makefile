@@ -59,7 +59,6 @@ CC1_INC += node.def
 CC1_INC += token.def
 CC1_INC += rop.def
 
-SYS_OBJ += $(sys_dir)unix.o
 SYS_INC += $(sys_dir)sys.h
 
 7CC_OBJ = 7cc.o
@@ -68,13 +67,15 @@ CONFIG_FLAGS += -DCONFIG_COLOR_TERM
 
 ifeq (Linux, $(KERNEL))
 
-SYS_INC += $(sys_dir)linux.h
+SYS_OBJ += $(sys_dir)unix.o
+SYS_OBJ += $(sys_dir)linux.o
 CONFIG_FLAGS += -DCONFIG_LINUX
 LDFLAGS += -lunwind
 
 else ifeq (Darwin, $(KERNEL))
 
-SYS_INC += $(sys_dir)darwin.h
+SYS_OBJ += $(sys_dir)unix.o
+SYS_OBJ += $(sys_dir)darwin.o
 CONFIG_FLAGS += -DCONFIG_DARWIN
 XCODE_SDK_DIR := $(shell xcrun --show-sdk-path)
 OSX_SDK_VERSION := $(shell xcrun --show-sdk-version)
