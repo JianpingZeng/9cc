@@ -1160,9 +1160,9 @@ static void init_include(void)
     std_include_paths = vec_new();
     usr_include_paths = vec_new();
     // add system include paths
-    const char **sys_include_paths = sys_include_dirs();
-    for (int i = 0; sys_include_paths[i]; i++) {
-        const char *dir = sys_include_paths[i];
+    struct vector *sys_include_paths = sys_include_dirs();
+    for (int i = 0; i < vec_len(sys_include_paths); i++) {
+        const char *dir = vec_at(sys_include_paths, i);
         add_include(std_include_paths, dir);
     }
 }

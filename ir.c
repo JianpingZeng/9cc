@@ -21,7 +21,7 @@ static void emit_funcdef_section(node_t *decl);
 static const char *get_string_literal_label(const char *name);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset, node_t *bfield, bool sty);
 static void emit_member_nonbitfield(node_t *n, node_t *field);
-static struct vector * filter_global(node_t **v);
+static struct vector * filter_global(struct vector *v);
 static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
                                 long offset, node_t *bfield, bool sty);
 static struct operand * emit_conv_tac(int op, struct operand *l,
@@ -585,10 +585,12 @@ static void emit_decl(node_t *decl)
     emit_assign(SYM_TYPE(sym), l, init, 0, NULL, false);
 }
 
-static void emit_decls(node_t **decls)
+static void emit_decls(struct vector *decls)
 {
-    for (int i = 0; i < LIST_LEN(decls); i++)
-        emit_decl(decls[i]);
+    for (int i = 0; i < vec_len(decls); i++) {
+        node_t *decl = vec_at(decls, i);
+        emit_decl(decl);
+    }
 }
 
 // int
@@ -866,11 +868,11 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
     assert(AST_ID(r) == INITS_EXPR);
 
     if (isstruct(ty) || isunion(ty)) {
-        node_t **inits = EXPR_INITS(r);
-        node_t **fields = TYPE_FIELDS(ty);
-        for (int i = 0; i < LIST_LEN(inits); i++) {
-            node_t *init = inits[i];
-            node_t *field = fields[i];
+        struct vector *inits = EXPR_INITS(r);
+        struct vector *fields = TYPE_FIELDS(ty);
+        for (int i = 0; i < vec_len(inits); i++) {
+            node_t *init = vec_at(inits, i);
+            node_t *field = vec_at(fields, i);
             node_t *rty = FIELD_TYPE(field);
             long off = offset + FIELD_OFFSET(field);
             if (FIELD_ISBIT(field)) {
@@ -885,8 +887,8 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
                     emit_assign(rty, l, init, off, NULL, sty);
             }
         }
-        if (LIST_LEN(inits) < LIST_LEN(fields)) {
-            node_t *field = fields[LIST_LEN(inits)];
+        if (vec_len(inits) < vec_len(fields)) {
+            node_t *field = vec_at(fields, vec_len(inits));
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
             // as integer
@@ -894,17 +896,17 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
         }
     } else if (isarray(ty)) {
         node_t *rty = rtype(ty);
-        node_t **inits = EXPR_INITS(r);
-        for (int i = 0; i < LIST_LEN(inits); i++) {
-            node_t *init = inits[i];
+        struct vector *inits = EXPR_INITS(r);
+        for (int i = 0; i < vec_len(inits); i++) {
+            node_t *init = vec_at(inits, i);
             long off = offset + i * TYPE_SIZE(rty);
             if (AST_ID(init) == VINIT_EXPR)
                 emit_zeros(rty, l, off, TYPE_SIZE(rty));
             else
                 emit_assign(rty, l, init, off, NULL, sty);
         }
-        if (LIST_LEN(inits) < TYPE_LEN(ty)) {
-            long off = offset + LIST_LEN(inits) * TYPE_SIZE(rty);
+        if (vec_len(inits) < TYPE_LEN(ty)) {
+            long off = offset + vec_len(inits) * TYPE_SIZE(rty);
             size_t bytes = TYPE_SIZE(ty) - off;
             emit_zeros(rty, l, off, bytes);
         }
@@ -1453,14 +1455,14 @@ static void emit_subscript(node_t *n)
 static void emit_call(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    node_t **args = EXPR_ARGS(n);
-    int len = LIST_LEN(args);
+    struct vector *args = EXPR_ARGS(n);
+    int len = vec_len(args);
     node_t *rty = AST_TYPE(n);
 
     emit_expr(l);
 
     for (size_t i = 0; i < len; i++) {
-        node_t *arg = args[i];
+        node_t *arg = vec_at(args, i);
         emit_expr(arg);
         // update gref
         EXPR_X_ADDR(arg) = update_gref(EXPR_X_ADDR(arg));
@@ -1480,7 +1482,7 @@ static void emit_call(node_t *n)
 
     // parameters
     for (size_t i = 0; i < len; i++) {
-        node_t *arg = args[i];
+        node_t *arg = vec_at(args, i);
         emit_param(EXPR_X_ADDR(arg));
     }
     
@@ -1913,9 +1915,9 @@ static void emit_bool_expr(node_t *n)
 
 static void emit_compound_stmt(node_t *stmt)
 {
-    node_t **blks = STMT_BLKS(stmt);
-    for (int i = 0; i < LIST_LEN(blks); i++) {
-        node_t *node = blks[i];
+    struct vector *blks = STMT_BLKS(stmt);
+    for (int i = 0; i < vec_len(blks); i++) {
+        node_t *node = vec_at(blks, i);
         if (isdecl(node)) {
             emit_decl(node);
         } else if (isstmt(node)) {
@@ -1997,7 +1999,7 @@ static void emit_do_while_stmt(node_t *stmt)
 
 static void emit_for_stmt(node_t *stmt)
 {
-    node_t **decl = STMT_FOR_DECL(stmt);
+    struct vector *decl = STMT_FOR_DECL(stmt);
     node_t *init = STMT_FOR_INIT(stmt);
     node_t *cond = STMT_FOR_COND(stmt);
     node_t *ctrl = STMT_FOR_CTRL(stmt);
@@ -2055,12 +2057,12 @@ static void emit_switch_stmt(node_t *stmt)
 {
     node_t *expr = STMT_SWITCH_EXPR(stmt);
     node_t *body = STMT_SWITCH_BODY(stmt);
-    node_t **cases = STMT_SWITCH_CASES(stmt);
+    struct vector *cases = STMT_SWITCH_CASES(stmt);
 
     emit_expr(expr);
     
-    for (int i = 0; i < LIST_LEN(cases); i++) {
-        node_t *case_stmt = cases[i];
+    for (int i = 0; i < vec_len(cases); i++) {
+        node_t *case_stmt = vec_at(cases, i);
         emit_switch_jmp(expr, case_stmt);
     }
 
@@ -2222,10 +2224,8 @@ static void emit_function(node_t *decl)
     DECL_X_HEAD(decl) = func_tac_head;
     // add extra local vars
     if (extra_lvars) {
-        struct vector *v = vec_new();
-        vec_add_array(v, (void **)DECL_X_LVARS(decl));
+        struct vector *v = DECL_X_LVARS(decl);
         vec_add(v, extra_lvars);
-        DECL_X_LVARS(decl) = (node_t **)vtoa(v);
     }
     emit_funcdef_section(decl);
 }
@@ -2277,12 +2277,12 @@ static const char *glabel(const char *label)
         return label;
 }
 
-static struct vector * filter_global(node_t **v)
+static struct vector * filter_global(struct vector *v)
 {
     struct vector *r = vec_new();
     struct map *map = map_newf(nocmp);
-    for (int i = 0; i < LIST_LEN(v); i++) {
-        node_t *decl = v[i];
+    for (int i = 0; i < vec_len(v); i++) {
+        node_t *decl = vec_at(v, i);
         node_t *sym = DECL_SYM(decl);
 
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
@@ -2302,7 +2302,7 @@ static struct vector * filter_global(node_t **v)
         
         if (isfuncdef(decl)) {
             vec_push(r, decl);
-            vec_add_array(r, (void **)DECL_X_SVARS(decl));
+            vec_add(r, DECL_X_SVARS(decl));
         } else if (isvardecl(decl)) {
             node_t *sym = DECL_SYM(decl);
             if (SYM_SCLASS(sym) == EXTERN)
@@ -2336,7 +2336,6 @@ static struct vector *__xvalues;
     __xvalues = vec_new()
 
 #define RESTORE_SECTION_CONTEXT()               \
-    vec_free(__xvalues);                        \
     __xvalues = __saved_xvalues
 
 #define XVALUES   (__xvalues)
@@ -2406,7 +2405,7 @@ static struct section *emit_compound_literal_label(const char *label, node_t *in
 
     emit_initializer(init);
 
-    section->u.xvalues = (struct xvalue **)vtoa(XVALUES);
+    section->u.xvalues = XVALUES;
 
     RESTORE_SECTION_CONTEXT();
 
@@ -2446,19 +2445,23 @@ static void emit_struct_initializer(node_t *n)
 {
     assert(AST_ID(n) == INITS_EXPR);
     node_t *ty = AST_TYPE(n);
-    node_t **fields = TYPE_FIELDS(ty);
-    node_t **inits = EXPR_INITS(n);
-    for (int i = 0; i < LIST_LEN(inits); i++) {
-        node_t *init = inits[i];
-        node_t *field = fields[i];
+    struct vector *fields = TYPE_FIELDS(ty);
+    struct vector *inits = EXPR_INITS(n);
+    for (int i = 0; i < vec_len(inits); i++) {
+        node_t *init = vec_at(inits, i);
+        node_t *field = vec_at(fields, i);
         size_t offset = FIELD_OFFSET(field);
         if (FIELD_ISBIT(field)) {
             int old_bits = 0;
             unsigned long long old_byte = 0;
-            for (; i < LIST_LEN(inits); i++) {
-                node_t *next = i < LIST_LEN(inits) - 1 ? fields[i + 1] : NULL;
-                field = fields[i];
-                init = inits[i];
+            for (; i < vec_len(inits); i++) {
+                node_t *next;
+                if (i < vec_len(inits) - 1)
+                    next = vec_at(fields, i+1);
+                else
+                    next = NULL;
+                field = vec_at(fields, i);
+                init = vec_at(inits, i);
                 if (next
                     && FIELD_OFFSET(field) !=
                     FIELD_OFFSET(next))
@@ -2500,7 +2503,11 @@ static void emit_struct_initializer(node_t *n)
             }
         }
         // pack
-        node_t *next = i < LIST_LEN(inits) - 1 ? fields[i + 1] : NULL;
+        node_t *next;
+        if (i < vec_len(inits) - 1)
+            next = vec_at(fields, i+1);
+        else
+            next = NULL;
         size_t end;
         if (next)
             end = FIELD_OFFSET(next);
@@ -2519,8 +2526,8 @@ static void emit_array_initializer(node_t *n)
     } else {
         assert(AST_ID(n) == INITS_EXPR);
         int i;
-        for (i = 0; i < LIST_LEN(EXPR_INITS(n)); i++) {
-            node_t *init = EXPR_INITS(n)[i];
+        for (i = 0; i < vec_len(EXPR_INITS(n)); i++) {
+            node_t *init = vec_at(EXPR_INITS(n), i);
             if (AST_ID(init) == VINIT_EXPR)
                 emit_zero(TYPE_SIZE(rtype(AST_TYPE(n))));
             else
@@ -2660,7 +2667,7 @@ static void emit_data(node_t *decl)
     emit_initializer(DECL_BODY(decl));
     emit_section(section);
 
-    section->u.xvalues = (struct xvalue **)vtoa(XVALUES);
+    section->u.xvalues = XVALUES;
     
     // exit context
     RESTORE_SECTION_CONTEXT();

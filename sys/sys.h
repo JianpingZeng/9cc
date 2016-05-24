@@ -25,7 +25,7 @@ extern void set_localtime(const time_t * timep, struct tm *result);
 extern char *ld[];
 extern char *as[];
 extern char *cc[];
-extern const char **sys_include_dirs(void);
+extern struct vector *sys_include_dirs(void);
 
 #ifdef CONFIG_WINNT
     #define BUILTIN_HEADER  BUILD_DIR "\\include\\7cc.h"

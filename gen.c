@@ -88,8 +88,8 @@ struct pinfo {
     struct vector *pnodes;      // param nodes
     struct paddr *retaddr;      // return addr
 };
-static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params);
-static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params);
+static struct pinfo * alloc_addr_for_funcall(node_t *ftype, struct vector *params);
+static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, struct vector *params);
 
 #define COMMENT(str)    "\t\t## " str
 #define COMMENT1(str)   "## " str
@@ -486,10 +486,10 @@ static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct oper
 static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
+    struct vector *args = EXPR_ARGS(call);
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    size_t len = LIST_LEN(args);
+    size_t len = vec_len(args);
     node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
     struct vector *params = vec_new();
     struct tac *t = tac->prev;
@@ -560,8 +560,9 @@ static void emit_nonbuiltin_call(struct tac *tac)
 static void emit_builtin_va_start(struct tac *tac)
 {
     node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
-    struct operand *l = EXPR_X_ADDR(args[0]);
+    struct vector *args = EXPR_ARGS(call);
+    node_t *arg0 = vec_head(args);
+    struct operand *l = EXPR_X_ADDR(arg0);
     struct pinfo *pinfo = fcon.pinfo;
     unsigned int gp_offset = pinfo->gp << 3;
     unsigned int fp_offset = 48 + (pinfo->fp << 4);
@@ -608,8 +609,9 @@ static void emit_builtin_va_start(struct tac *tac)
 static void emit_builtin_va_arg_p_memory(struct tac *tac)
 {
     node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
-    struct operand *l = EXPR_X_ADDR(args[0]);
+    struct vector *args = EXPR_ARGS(call);
+    node_t *arg0 = vec_head(args);
+    struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
     size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
@@ -674,8 +676,9 @@ static void emit_builtin_va_arg_p_memory(struct tac *tac)
 static void emit_builtin_va_arg_p_record(struct tac *tac)
 {
     node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
-    struct operand *l = EXPR_X_ADDR(args[0]);
+    struct vector *args = EXPR_ARGS(call);
+    node_t *arg0 = vec_head(args);
+    struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
     
@@ -693,7 +696,8 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
     const char *out_label = gen_label();
 
     // struct/union
-    struct operand *r = EXPR_X_ADDR(args[1]);
+    node_t *arg1 = vec_at(args, 1);
+    struct operand *r = EXPR_X_ADDR(arg1);
     struct set *excepts1 = operand_regs(l);
     struct set *excepts2 = operand_regs(r);
     struct set *excepts = set_union(excepts1, excepts2);
@@ -812,8 +816,9 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
 static void emit_builtin_va_arg_p_scalar(struct tac *tac)
 {
     node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
-    struct operand *l = EXPR_X_ADDR(args[0]);
+    struct vector *args = EXPR_ARGS(call);
+    node_t *arg0 = vec_head(args);
+    struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
     
@@ -2010,9 +2015,9 @@ static void emit_basic_blocks(struct basic_block *start)
 static size_t call_returns_size(node_t *decl)
 {
     size_t extra_stack_size = 0;
-    node_t **calls = DECL_X_CALLS(decl);
-    for (int i = 0; i < LIST_LEN(calls); i++) {
-        node_t *call = calls[i];
+    struct vector *calls = DECL_X_CALLS(decl);
+    for (int i = 0; i < vec_len(calls); i++) {
+        node_t *call = vec_at(calls, i);
         node_t *rty = AST_TYPE(call);
         if (isrecord(rty))
             extra_stack_size = MAX(extra_stack_size, TYPE_SIZE(rty));
@@ -2023,9 +2028,9 @@ static size_t call_returns_size(node_t *decl)
 static size_t call_params_size(node_t *decl)
 {
     size_t extra_stack_size = 0;
-    node_t **calls = DECL_X_CALLS(decl);
-    for (int i = 0; i < LIST_LEN(calls); i++) {
-        node_t *call = calls[i];
+    struct vector *calls = DECL_X_CALLS(decl);
+    for (int i = 0; i < vec_len(calls); i++) {
+        node_t *call = vec_at(calls, i);
         node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
         struct pinfo *pinfo = alloc_addr_for_funcall(ftype, EXPR_ARGS(call));
         extra_stack_size = MAX(extra_stack_size, pinfo->size);
@@ -2142,8 +2147,8 @@ static void emit_function_prologue(struct section *section)
         localsize += REGISTER_SAVE_AREA_SIZE;
     
     // local vars
-    for (int i = 0; i < LIST_LEN(DECL_X_LVARS(decl)); i++) {
-        node_t *lvar = DECL_X_LVARS(decl)[i];
+    for (int i = 0; i < vec_len(DECL_X_LVARS(decl)); i++) {
+        node_t *lvar = vec_at(DECL_X_LVARS(decl), i);
         node_t *sym = DECL_SYM(lvar);
         node_t *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
@@ -2194,7 +2199,7 @@ static void emit_text(struct section *section)
     node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
-    node_t **params = TYPE_PARAMS(ftype);
+    struct vector *params = TYPE_PARAMS(ftype);
     
     // reset registers
     reset_regs();
@@ -2234,8 +2239,8 @@ static void emit_data(struct section *section)
     if (section->align > 1)
         emit(".align %d", section->align);
     emit_noindent("%s:", section->label);
-    for (int i = 0; i < LIST_LEN(section->u.xvalues); i++) {
-        struct xvalue *value = section->u.xvalues[i];
+    for (int i = 0; i < vec_len(section->u.xvalues); i++) {
+        struct xvalue *value = vec_at(section->u.xvalues, i);
         switch (value->size) {
         case Zero:
             emit(".zero %s", value->name);
@@ -2960,8 +2965,8 @@ static struct vector * get_types_for_union(node_t *ty, size_t offset)
 {
     size_t cnt = ROUNDUP(TYPE_SIZE(ty), 8) >> 3;
     struct vector *v1 = vec_new();
-    for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
-        node_t *field = TYPE_FIELDS(ty)[i];
+    for (int i = 0; i < vec_len(TYPE_FIELDS(ty)); i++) {
+        node_t *field = vec_at(TYPE_FIELDS(ty), i);
         node_t *fty = FIELD_TYPE(field);
         struct vector *v2 = get_types(fty, offset);
         struct vector *v3 = get_elements(v2);
@@ -2982,8 +2987,8 @@ static struct vector * get_types_for_union(node_t *ty, size_t offset)
 static struct vector * get_types_for_struct(node_t *ty, size_t offset)
 {
     struct vector *v = vec_new();
-    for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
-        node_t *field = TYPE_FIELDS(ty)[i];
+    for (int i = 0; i < vec_len(TYPE_FIELDS(ty)); i++) {
+        node_t *field = vec_at(TYPE_FIELDS(ty), i);
         node_t *fty = FIELD_TYPE(field);
         size_t off = offset + FIELD_OFFSET(field);
         if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
@@ -3109,7 +3114,7 @@ static void traverse_classes(struct vector *classes,
 }
 
 // params: list of symbols or expressions, may be NULL
-static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool call)
+static struct pinfo * alloc_addr_for_params(node_t *ftype, struct vector *params, bool call)
 {
     int gp = 0;
     int fp = 0;
@@ -3151,8 +3156,8 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool
         }
     }
     
-    for (int i = 0; i < LIST_LEN(params); i++) {
-        node_t *param = params[i];
+    for (int i = 0; i < vec_len(params); i++) {
+        node_t *param = vec_at(params, i);
         struct pnode *pnode = new_pnode(param);
         vec_push(pnodes, pnode);
         
@@ -3203,12 +3208,12 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool
     return pinfo;
 }
 
-static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params)
+static struct pinfo * alloc_addr_for_funcall(node_t *ftype, struct vector *params)
 {
     return alloc_addr_for_params(ftype, params, true);
 }
 
-static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params)
+static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, struct vector *params)
 {
     return alloc_addr_for_params(ftype, params, false);
 }

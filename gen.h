@@ -65,7 +65,7 @@ struct section {
     size_t size;
     union {
         // data
-        struct xvalue **xvalues;
+        struct vector *xvalues;
         // decl
         node_t *decl;
     } u;
@@ -224,9 +224,9 @@ union x {
     }sym;
     
     struct {
-        node_t **lvars;        // function local vars
-        node_t **svars;        // function static vars
-        node_t **calls;        // function calls
+        struct vector *lvars;        // function local vars
+        struct vector *svars;        // function static vars
+        struct vector *calls;        // function calls
         struct basic_block *basic_block;
         struct tac *head;
         struct tac *tail;

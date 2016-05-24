@@ -889,11 +889,11 @@ node_t *new_string_literal(const char *string)
     return expr;
 }
 
-static void argcast1(node_t * fty, node_t ** args, struct vector *v)
+static void argcast1(node_t * fty, struct vector * args, struct vector *v)
 {
-    node_t **params = TYPE_PARAMS(fty);
-    int len1 = LIST_LEN(params);
-    int len2 = LIST_LEN(args);
+    struct vector *params = TYPE_PARAMS(fty);
+    int len1 = vec_len(params);
+    int len2 = vec_len(args);
     bool oldstyle = TYPE_OLDSTYLE(fty);
     int cmp1;
 
@@ -903,9 +903,11 @@ static void argcast1(node_t * fty, node_t ** args, struct vector *v)
         cmp1 = len1;
 
     for (int i = 0; i < cmp1; i++) {
-        node_t *dst = SYM_TYPE(params[i]);
-        node_t *src = AST_TYPE(args[i]);
-        node_t *ret = assignconv(dst, args[i]);
+        node_t *param = vec_at(params, i);
+        node_t *arg = vec_at(args, i);
+        node_t *dst = SYM_TYPE(param);
+        node_t *src = AST_TYPE(arg);
+        node_t *ret = assignconv(dst, arg);
         if (ret) {
             vec_push(v, ret);
         } else {
@@ -917,11 +919,13 @@ static void argcast1(node_t * fty, node_t ** args, struct vector *v)
                       type2s(dst));
         }
     }
-    for (int i = cmp1; i < len2; i++)
-        vec_push(v, conva(args[i]));
+    for (int i = cmp1; i < len2; i++) {
+        node_t *arg = vec_at(args, i);
+        vec_push(v, conva(arg));
+    }
 }
 
-static struct vector *argscast(node_t * fty, node_t ** args)
+static struct vector *argscast(node_t * fty, struct vector * args)
 {
     struct vector *v = vec_new();
     assert(isfunc(fty));
@@ -935,9 +939,9 @@ static struct vector *argscast(node_t * fty, node_t ** args)
      * 5. no function declaration/definition found
      */
 
-    node_t **params = TYPE_PARAMS(fty);
-    int len1 = LIST_LEN(params);
-    int len2 = LIST_LEN(args);
+    struct vector *params = TYPE_PARAMS(fty);
+    int len1 = vec_len(params);
+    int len2 = vec_len(args);
 
     if (TYPE_OLDSTYLE(fty)) {
         if (len1 > len2)
@@ -1104,9 +1108,9 @@ static node_t *subscript(node_t * node)
     return ret;
 }
 
-static node_t **argument_expr_list(void)
+static struct vector *argument_expr_list(void)
 {
-    node_t **args = NULL;
+    struct vector *args = NULL;
 
     if (first_expr(token)) {
         struct vector *v = vec_new();
@@ -1116,7 +1120,7 @@ static node_t **argument_expr_list(void)
                 break;
             expect(',');
         }
-        args = (node_t **) vtoa(v);
+        args = v;
     } else if (token->id != ')') {
         error("expect assignment expression");
     }
@@ -1146,9 +1150,10 @@ static void builtin_funcall(node_t *call, node_t *ref)
     const char *fname = SYM_NAME(EXPR_SYM(ref));
     if (!strcmp(fname, BUILTIN_VA_ARG_P)) {
         // __builtin_va_arg_p
-        node_t **args = EXPR_ARGS(call);
-        assert(isptr(AST_TYPE(args[1])));
-        node_t *ty = rtype(AST_TYPE(args[1]));
+        struct vector *args = EXPR_ARGS(call);
+        node_t *arg1 = vec_at(args, 1);
+        assert(isptr(AST_TYPE(arg1)));
+        node_t *ty = rtype(AST_TYPE(arg1));
         // save the type
         EXPR_VA_ARG_TYPE(call) = ty;
         
@@ -1161,17 +1166,17 @@ static void builtin_funcall(node_t *call, node_t *ref)
             EXPR_SYM(operand) = sym;
             SYM_REFS(sym)++;
             // update arg1
-            args[1] = ast_uop('&', ptr_type(ty), operand);
+            vec_set(args, 1, ast_uop('&', ptr_type(ty), operand));
         } else {
             // update arg1 to NULL
-            args[1] = NULL;
+            vec_set(args, 1, NULL);
         }
     }
 }
 
 static node_t *funcall(node_t * node)
 {
-    node_t **args;
+    struct vector *args;
     node_t *ret = NULL;
     struct source src = source;
     
@@ -1187,7 +1192,7 @@ static node_t *funcall(node_t * node)
         struct vector *v;
         if ((v = argscast(fty, args))) {
             ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
-            EXPR_ARGS(ret) = (node_t **) vtoa(v);
+            EXPR_ARGS(ret) = v;
             AST_SRC(ret) = src;
             vec_push(funcalls, ret);
             // handle builtin calls

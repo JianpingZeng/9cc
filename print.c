@@ -108,7 +108,7 @@ static void print_decl(node_t * node, struct print_context context)
              AST_SRC(sym).column);
     }
     if (isfuncdef(node))
-        putf("%llu localvars ", LIST_LEN(DECL_X_LVARS(node)));
+        putf("%llu localvars ", vec_len(DECL_X_LVARS(node)));
     putf("\n");
 
     level = context.level + 1;
@@ -116,10 +116,11 @@ static void print_decl(node_t * node, struct print_context context)
     switch (AST_ID(node)) {
     case TU_DECL:
         {
-            node_t **exts = DECL_EXTS(node);
+            struct vector *exts = DECL_EXTS(node);
             if (exts) {
-                for (int i = 0; exts[i]; i++) {
-                    struct print_context con = {level, exts[i]};
+                for (int i = 0; i < vec_len(exts); i++) {
+                    node_t *ext = vec_at(exts, i);
+                    struct print_context con = {level, ext};
                     print_tree1(con);
                 }
             }
@@ -129,9 +130,9 @@ static void print_decl(node_t * node, struct print_context context)
     case UNION_DECL:
         {
             node_t *ty = SYM_TYPE(sym);
-            node_t **fields = TYPE_FIELDS(ty);
-            for (int i = 0; i < LIST_LEN(fields); i++) {
-                node_t *field = fields[i];
+            struct vector *fields = TYPE_FIELDS(ty);
+            for (int i = 0; i < vec_len(fields); i++) {
+                node_t *field = vec_at(fields, i);
                 struct print_context con = {level, field};
                 print_tree1(con);
             }
@@ -188,17 +189,19 @@ static void print_expr(node_t * node, struct print_context context)
             struct print_context con = { level, func };
             print_tree1(con);
         }
-        node_t **args = EXPR_ARGS(node);
+        struct vector *args = EXPR_ARGS(node);
         if (args) {
-            for (int i = 0; args[i]; i++) {
-                struct print_context con = { level, args[i] };
+            for (int i = 0; i < vec_len(args); i++) {
+                node_t *arg = vec_at(args, i);
+                struct print_context con = { level, arg };
                 print_tree1(con);
             }
         }
     } else if (AST_ID(node) == INITS_EXPR) {
-        node_t **inits = EXPR_INITS(node);
-        for (int i = 0; inits && inits[i]; i++) {
-            struct print_context con = { level, inits[i] };
+        struct vector *inits = EXPR_INITS(node);
+        for (int i = 0; i < vec_len(inits); i++) {
+            node_t *init = vec_at(inits, i);
+            struct print_context con = { level, init };
             print_tree1(con);
         }
     } else {
@@ -235,23 +238,25 @@ static void print_stmt(node_t * node, struct print_context context)
     switch (AST_ID(node)) {
     case COMPOUND_STMT:
         {
-            node_t **blks = STMT_BLKS(node);
-            for (int i = 0; i < LIST_LEN(blks); i++) {
-                struct print_context con = {level, blks[i]};
+            struct vector *blks = STMT_BLKS(node);
+            for (int i = 0; i < vec_len(blks); i++) {
+                node_t *blk = vec_at(blks, i);
+                struct print_context con = {level, blk};
                 print_tree1(con);
             }
         }
         break;
     case FOR_STMT:
         {
-            node_t **decl = STMT_FOR_DECL(node);
+            struct vector *decl = STMT_FOR_DECL(node);
             node_t *init = STMT_FOR_INIT(node);
             node_t *cond = STMT_FOR_COND(node);
             node_t *ctrl = STMT_FOR_CTRL(node);
             node_t *body = STMT_FOR_BODY(node);
             if (decl) {
-                for (int i=0; decl[i]; i++) {
-                    struct print_context con = {level, decl[i]};
+                for (int i=0; i < vec_len(decl); i++) {
+                    node_t *dcl = vec_at(decl, i);
+                    struct print_context con = {level, dcl};
                     print_tree1(con);
                 }
             } else if (init) {
@@ -620,8 +625,8 @@ static void print_use(struct tac *tac)
 static void print_data(struct section *section)
 {
     putln("%s:", section->label);
-    for (int i = 0; i < LIST_LEN(section->u.xvalues); i++) {
-        struct xvalue *value = section->u.xvalues[i];
+    for (int i = 0; i < vec_len(section->u.xvalues); i++) {
+        struct xvalue *value = vec_at(section->u.xvalues, i);
         switch (value->size) {
         case Zero:
             putln(".zero %s", value->name);
@@ -847,15 +852,15 @@ static void dotype2s(struct vector *l, struct vector *r)
         break;
     case FUNCTION:
         {
-            node_t **params = TYPE_PARAMS(s->type);
-            int len = LIST_LEN(params);
+            struct vector *params = TYPE_PARAMS(s->type);
+            int len = vec_len(params);
             vec_push(r, paren(FSPACE, NULL));
             vec_push(r, paren(LPAREN, s->type));
-            for (int i = 0; params && params[i]; i++) {
-                node_t *ty = SYM_TYPE(params[i]);
+            for (int i = 0; i < len; i++) {
+                node_t *param = vec_at(params, i);
+                node_t *ty = SYM_TYPE(param);
                 struct vector *v = type2s1(ty);
                 vec_add(r, v);
-                vec_free(v);
                 if (i < len - 1) {
                     vec_push(r, paren(FCOMMA, NULL));
                     vec_push(r, paren(FSPACE, NULL));
@@ -909,10 +914,8 @@ static struct vector *type2s1(node_t * ty)
 
     l = vec_reverse(v);
     r = vec_new();
-    vec_free(v);
 
     dotype2s(l, r);
-    vec_free(l);
     return r;
 }
 
@@ -1045,13 +1048,14 @@ static const char *expr2s(node_t * node)
     case CALL_EXPR:
         {
             const char *func = expr2s(l);
-            node_t **args = EXPR_ARGS(node);
+            struct vector *args = EXPR_ARGS(node);
             strbuf_cats(s, func);
             strbuf_cats(s, "(");
-            for (int i = 0; i < LIST_LEN(args); i++) {
-                const char *s1 = expr2s(args[i]);
+            for (int i = 0; i < vec_len(args); i++) {
+                node_t *arg = vec_at(args, i);
+                const char *s1 = expr2s(arg);
                 strbuf_cats(s, s1);
-                if (i != LIST_LEN(args) - 1)
+                if (i != vec_len(args) - 1)
                     strbuf_cats(s, ", ");
             }
             strbuf_cats(s, ")");

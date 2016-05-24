@@ -59,6 +59,8 @@ void vec_set(struct vector *v, int index, void *val)
 {
     assert(index >= 0 && index < v->len);
     v->mem[index] = val;
+    if (val == NULL)
+        v->len = index;
 }
 
 void vec_set_safe(struct vector *v, int index, void *val)
@@ -155,6 +157,15 @@ struct vector *vec_reverse(struct vector *v)
     for (int i = vec_len(v) - 1; i >= 0; i--)
         vec_push(r, vec_at(v, i));
     return r;
+}
+
+struct vector *vec_copy(struct vector *v)
+{
+    if (v == NULL)
+        return NULL;
+    struct vector *copy = vec_new();
+    vec_add(copy, v);
+    return copy;
 }
 
 // Add elements to vector from a null-terminated array

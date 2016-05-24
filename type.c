@@ -364,20 +364,20 @@ node_t *tag_type(int t, const char *tag, struct source src)
     return sym;
 }
 
-static bool eqparams(node_t ** params1, node_t ** params2)
+static bool eqparams(struct vector * params1, struct vector * params2)
 {
     if (params1 == params2) {
         return true;
     } else if (params1 == NULL || params2 == NULL) {
         return false;
     } else {
-        int len1 = LIST_LEN(params1);
-        int len2 = LIST_LEN(params2);
+        int len1 = vec_len(params1);
+        int len2 = vec_len(params2);
         if (len1 != len2)
             return false;
         for (int i = 0; i < len1; i++) {
-            node_t *sym1 = params1[i];
-            node_t *sym2 = params2[i];
+            node_t *sym1 = vec_at(params1, i);
+            node_t *sym2 = vec_at(params2, i);
             if (sym1 == sym2)
                 continue;
             else if (sym1 == NULL || sym2 == NULL)
@@ -444,8 +444,8 @@ bool eqtype(node_t * ty1, node_t * ty2)
             if (TYPE_VARG(newty))
                 return false;
             
-            for (int i = 0; i < LIST_LEN(_TYPE_PARAMS(newty)); i++) {
-                node_t *sym = _TYPE_PARAMS(newty)[i];
+            for (int i = 0; i < vec_len(_TYPE_PARAMS(newty)); i++) {
+                node_t *sym = vec_at(_TYPE_PARAMS(newty), i);
                 node_t *ty = SYM_TYPE(sym);
                 if (TYPE_KIND(ty) == _BOOL ||
                     TYPE_KIND(ty) == CHAR ||
@@ -470,12 +470,12 @@ node_t *find_field(node_t * sty, const char *name)
 {
     int i;
     node_t *ty = unqual(sty);
-    int len = LIST_LEN(TYPE_FIELDS(ty));
+    int len = vec_len(TYPE_FIELDS(ty));
 
     if (name == NULL)
         return NULL;
     for (i = 0; i < len; i++) {
-        node_t *field = TYPE_FIELDS(ty)[i];
+        node_t *field = vec_at(TYPE_FIELDS(ty), i);
         if (FIELD_NAME(field) && !strcmp(name, FIELD_NAME(field)))
             return field;
     }
@@ -485,8 +485,8 @@ node_t *find_field(node_t * sty, const char *name)
 
 int indexof_field(node_t * ty, node_t * field)
 {
-    for (int i = 0; i < LIST_LEN(TYPE_FIELDS(ty)); i++) {
-        node_t *f = TYPE_FIELDS(ty)[i];
+    for (int i = 0; i < vec_len(TYPE_FIELDS(ty)); i++) {
+        node_t *f = vec_at(TYPE_FIELDS(ty), i);
         if (field == f)
             return i;
     }
@@ -506,10 +506,10 @@ static unsigned struct_size(node_t * ty)
 {
     int max = 1;
     node_t *prev = NULL;
-    node_t **fields = TYPE_FIELDS(ty);
+    struct vector *fields = TYPE_FIELDS(ty);
 
-    for (int i = 0; i < LIST_LEN(fields); i++) {
-        node_t *field = fields[i];
+    for (int i = 0; i < vec_len(fields); i++) {
+        node_t *field = vec_at(fields, i);
         node_t *ty = FIELD_TYPE(field);
 
         if (FIELD_ISBIT(field)) {
@@ -605,10 +605,10 @@ static unsigned union_size(node_t * ty)
 {
     int max = 1;
     int size = 0;
-    node_t **fields = TYPE_FIELDS(ty);
+    struct vector *fields = TYPE_FIELDS(ty);
 
-    for (int i = 0; i < LIST_LEN(fields); i++) {
-        node_t *field = fields[i];
+    for (int i = 0; i < vec_len(fields); i++) {
+        node_t *field = vec_at(fields, i);
         node_t *ty = FIELD_TYPE(field);
         int tysize = TYPE_SIZE(ty);
 

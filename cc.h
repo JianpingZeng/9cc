@@ -98,7 +98,7 @@ extern node_t *new_integer_literal(int i);
 extern node_t *new_string_literal(const char *string);
 
 // decl.c
-extern node_t **declaration(void);
+extern struct vector *declaration(void);
 extern node_t *translation_unit(void);
 extern node_t *typename(void);
 extern int first_decl(struct token *t);

@@ -57,12 +57,12 @@ char *ld[] = {
 char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
 char *cc[] = { "cc1", "$1", "$2", "-o", "$0", NULL };
 
-const char **sys_include_dirs(void)
+struct vector *sys_include_dirs(void)
 {
     struct vector *v = vec_new();
     vec_push(v, BUILD_DIR "/include");
     vec_push(v, "/usr/include");
     vec_push(v, "/usr/include/linux");
     vec_push(v, "/usr/include/x86_64-linux-gnu");
-    return (const char **)vtoa(v);
+    return v;
 }

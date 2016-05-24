@@ -2,7 +2,7 @@
 
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
-static node_t ** filter_decls(node_t **decls);
+static struct vector * filter_decls(struct vector *decls);
 static void warning_unused(void);
 
 static node_t *__loop;
@@ -29,7 +29,6 @@ static node_t *__switch_ty;
     __switch_ty = ty
 
 #define RESTORE_SWITCH_CONTEXT()                \
-    vec_free(__cases);                          \
     __switch = __saved_sw;                      \
     __cases = __saved_cases;                    \
     __default = __saved_default;                \
@@ -256,7 +255,7 @@ static node_t *switch_stmt(void)
     if (NO_ERROR) {
         STMT_SWITCH_EXPR(ret) = expr;
         STMT_SWITCH_BODY(ret) = body;
-        STMT_SWITCH_CASES(ret) = (node_t **) vtoa(CASES);
+        STMT_SWITCH_CASES(ret) = CASES;
         STMT_SWITCH_DEFAULT(ret) = DEFLT;
     } else {
         ret = NULL;
@@ -533,13 +532,13 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token))
             // declaration
-            vec_add_array(v, (void **)filter_decls(declaration()));
+            vec_add(v, filter_decls(declaration()));
         else
             // statement
             vec_push_safe(v, statement());
     }
 
-    STMT_BLKS(ret) = (node_t **)vtoa(v);
+    STMT_BLKS(ret) = v;
 
     expect('}');
     exit_scope();
@@ -600,19 +599,14 @@ static void set_funcdef_context(node_t *fty, const char *name)
 
 static void restore_funcdef_context(void)
 {
-    vec_free(gotos);
     gotos = NULL;
     map_free(labels);
     labels = NULL;
     functype = NULL;
     funcname = NULL;
-    vec_free(staticvars);
     staticvars = NULL;
-    vec_free(localvars);
     localvars = NULL;
-    vec_free(allvars);
     allvars = NULL;
-    vec_free(funcalls);
     funcalls = NULL;
 }
 
@@ -629,19 +623,19 @@ void func_body(node_t *decl)
     warning_unused();
 
     // save
-    DECL_X_LVARS(decl) = (node_t **)vtoa(localvars);
-    DECL_X_SVARS(decl) = (node_t **)vtoa(staticvars);
-    DECL_X_CALLS(decl) = (node_t **)vtoa(funcalls);
+    DECL_X_LVARS(decl) = localvars;
+    DECL_X_SVARS(decl) = staticvars;
+    DECL_X_CALLS(decl) = funcalls;
     
     restore_funcdef_context();
 
     DECL_BODY(decl) = stmt;
 }
 
-static node_t ** filter_decls(node_t **decls)
+static struct vector * filter_decls(struct vector *decls)
 {
-    for (int i = 0; i < LIST_LEN(decls); i++) {
-        node_t *decl = decls[i];
+    for (int i = 0; i < vec_len(decls); i++) {
+        node_t *decl = vec_at(decls, i);
         node_t *sym = DECL_SYM(decl);
 
         if (!isvardecl(decl) || SYM_SCLASS(sym) == EXTERN)

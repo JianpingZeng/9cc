@@ -155,10 +155,11 @@ static const char *tempname(const char *dir, const char *hint)
 static char **compose(char *argv[], struct vector *ifiles, const char *ofile,
                       struct vector *options)
 {
-    size_t ac = LIST_LEN(argv) + vec_len(ifiles) + vec_len(options);
+    size_t argc = LIST_LEN(argv);
+    size_t ac = argc + vec_len(ifiles) + vec_len(options);
     char **av = xmalloc(ac * sizeof(char *));
     int j = 0;
-    for (int i = 0; i < LIST_LEN(argv); i++) {
+    for (int i = 0; i < argc; i++) {
         char *arg = argv[i];
         if (arg[0] == '$' && isdigit(arg[1])) {
             int k = arg[1] - '0';

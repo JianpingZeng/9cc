@@ -326,7 +326,7 @@ static void exit_params(void)
     exit_scope();
 }
 
-static node_t **prototype(node_t *ftype)
+static struct vector *prototype(node_t *ftype)
 {
     struct vector *v = vec_new();
     TYPE_OLDSTYLE(ftype) = 0;
@@ -367,10 +367,10 @@ static node_t **prototype(node_t *ftype)
             break;
         }
     }
-    return (node_t **)vtoa(v);
+    return v;
 }
 
-static node_t **oldstyle(node_t *ftype)
+static struct vector *oldstyle(node_t *ftype)
 {
     struct vector *v = vec_new();
     TYPE_OLDSTYLE(ftype) = 1;
@@ -387,12 +387,12 @@ static node_t **oldstyle(node_t *ftype)
     if (SCOPE > PARAM)
         error("a parameter list without types is only allowed "
               "in a function definition");
-    return (node_t **)vtoa(v);
+    return v;
 }
 
-static node_t **parameters(node_t * ftype, int *params)
+static struct vector *parameters(node_t * ftype, int *params)
 {
-    node_t **ret = NULL;
+    struct vector *ret = NULL;
 
     enter_params();
 
@@ -629,9 +629,9 @@ static void fields(node_t * sym)
                        isrecord(basety) &&
                        is_anonymous(TYPE_TAG(basety))) {
                 //C11: anonymous record
-                size_t len = LIST_LEN(TYPE_FIELDS(basety));
+                size_t len = vec_len(TYPE_FIELDS(basety));
                 for (int i = 0; i < len; i++) {
-                    node_t *field = TYPE_FIELDS(basety)[i];
+                    node_t *field = vec_at(TYPE_FIELDS(basety), i);
                     vec_push(v, field);
                     if (i < len - 1)
                         ensure_field(field, vec_len(v), false);
@@ -672,7 +672,7 @@ static void fields(node_t * sym)
         ensure_field(vec_tail(v), vec_len(v), isstruct(sty) && !first_decl(token));
     } while (first_decl(token));
 
-    TYPE_FIELDS(sty) = (node_t **) vtoa(v);
+    TYPE_FIELDS(sty) = v;
     set_typesize(sty);
 }
 
@@ -975,10 +975,10 @@ node_t *typename(void)
     return ty;
 }
 
-node_t **declaration(void)
+struct vector *declaration(void)
 {
     assert(SCOPE >= LOCAL);
-    return (node_t **) vtoa(decls(localdecl));
+    return decls(localdecl);
 }
 
 node_t *translation_unit(void)
@@ -999,7 +999,7 @@ node_t *translation_unit(void)
         }
     }
 
-    DECL_EXTS(ret) = (node_t **)vtoa(v);
+    DECL_EXTS(ret) = v;
     return ret;
 }
 
@@ -1106,11 +1106,13 @@ static void ensure_main(node_t *ftype, const char *name,
         return;
     
     node_t *rty = rtype(ftype);
-    node_t **params = TYPE_PARAMS(ftype);
+    struct vector *params = TYPE_PARAMS(ftype);
+    size_t len = vec_len(params);
     if (rty != inttype)
         errorf(src, "return type of 'main' is not 'int'");
-    for (int i = 0; i < MIN(3, LIST_LEN(params)); i++) {
-        node_t *ty = SYM_TYPE(params[i]);
+    for (int i = 0; i < MIN(3, len); i++) {
+        node_t *param = vec_at(params, i);
+        node_t *ty = SYM_TYPE(param);
         if (i == 0) {
             if (ty != inttype)
                 errorf(src,
@@ -1123,10 +1125,10 @@ static void ensure_main(node_t *ftype, const char *name,
                        i == 1 ? "second" : "third");
         }
     }
-    if (LIST_LEN(params) == 1 || LIST_LEN(params) > 3)
+    if (len == 1 || len > 3)
         errorf(src,
                "expect 0, 2 or 3 parameters for 'main', have %d",
-               LIST_LEN(params));
+               len);
 }
 
 static void ensure_func(node_t * ftype, struct source src)
@@ -1446,8 +1448,8 @@ static void oldstyle_decls(node_t *ftype)
             warningf(AST_SRC(sym), "empty declaraion");
         } else if (TYPE_PARAMS(ftype)) {
             node_t *p = NULL;
-            for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
-                node_t *s = TYPE_PARAMS(ftype)[i];
+            for (int i = 0; i < vec_len(TYPE_PARAMS(ftype)); i++) {
+                node_t *s = vec_at(TYPE_PARAMS(ftype), i);
                 if (SYM_NAME(s)
                     && !strcmp(SYM_NAME(s),
                                SYM_NAME(sym))) {
@@ -1472,8 +1474,8 @@ static void oldstyle_decls(node_t *ftype)
 
 static void ensure_params(node_t *ftype)
 {
-    for (int i = 0; i < LIST_LEN(TYPE_PARAMS(ftype)); i++) {
-        node_t *sym = TYPE_PARAMS(ftype)[i];
+    for (int i = 0; i < vec_len(TYPE_PARAMS(ftype)); i++) {
+        node_t *sym = vec_at(TYPE_PARAMS(ftype), i);
         node_t *ty = SYM_TYPE(sym);
         SYM_DEFINED(sym) = true;
         // params id is required in prototype
@@ -1675,8 +1677,10 @@ static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
         if (isarray(ty)) {
             rty = rtype(ty);
         } else {
-            if (TYPE_FIELDS(ty))
-                rty = FIELD_TYPE(TYPE_FIELDS(ty)[0]);
+            if (vec_len(TYPE_FIELDS(ty))) {
+                node_t *field = vec_head(TYPE_FIELDS(ty));
+                rty = FIELD_TYPE(field);
+            }
         }
 
         if (rty) {
@@ -1689,7 +1693,7 @@ static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
             else
                 vec_push_safe(v1, init_elem_conv(rty, node));
 
-            EXPR_INITS(n1) = (node_t **) vtoa(v1);
+            EXPR_INITS(n1) = v1;
         }
     }
 }
@@ -1704,11 +1708,11 @@ static void scalar_set(node_t * ty, struct vector *v, int i, node_t * node)
         warningf(AST_SRC(node), INIT_OVERRIDE);
 
     if (AST_ID(node) == INITS_EXPR) {
-        node_t **inits;
+        struct vector *inits;
     loop:
         inits = EXPR_INITS(node);
-        if (inits) {
-            node = inits[0];
+        if (vec_len(inits)) {
+            node = vec_head(inits);
             if (AST_ID(node) == INITS_EXPR)
                 goto loop;
             vec_set_safe(v, i, init_elem_conv(ty, node));
@@ -1721,7 +1725,7 @@ static void scalar_set(node_t * ty, struct vector *v, int i, node_t * node)
 static void struct_init(node_t * ty, bool brace, struct vector *v)
 {
     bool designated = false;
-    int len = LIST_LEN(TYPE_FIELDS(ty));
+    int len = vec_len(TYPE_FIELDS(ty));
 
     for (int i = 0;; i++) {
         node_t *fieldty = NULL;
@@ -1747,8 +1751,10 @@ static void struct_init(node_t * ty, bool brace, struct vector *v)
         if (i >= len)
             break;
 
-        if (!designated)
-            fieldty = FIELD_TYPE(TYPE_FIELDS(ty)[i]);
+        if (!designated) {
+            node_t *field = vec_at(TYPE_FIELDS(ty), i);
+            fieldty = FIELD_TYPE(field);
+        }
         elem_init(ty, fieldty, designated, v, i);
         designated = false;
 
@@ -1874,7 +1880,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
             node_t *n = find_elem(v, i);
             struct vector *v1 = vec_new();
             if (AST_ID(n) == INITS_EXPR) {
-                vec_add_array(v1, (void **)EXPR_INITS(n));
+                vec_add(v1, EXPR_INITS(n));
             } else if (AST_ID(n) == STRING_LITERAL) {
                 vec_push(v1, n);
             }
@@ -1892,7 +1898,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
                     n = ast_inits(ty, source);
                     vec_set(v, i, n);
                 }
-                EXPR_INITS(n) = (node_t **) vtoa(v1);
+                EXPR_INITS(n) = v1;
             }
         }
     } else {
@@ -1952,7 +1958,7 @@ node_t *initializer_list(node_t * ty)
     }
 
     match('}', follow);
-    EXPR_INITS(ret) = (node_t **) vtoa(v);
+    EXPR_INITS(ret) = v;
     return ret;
 }
 
