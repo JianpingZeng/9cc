@@ -15,6 +15,8 @@
 // uname
 #include <sys/utsname.h>
 
+#include "../utils/utils.h"
+
 #if defined CONFIG_DARWIN
 #include "darwin.h"
 #elif defined CONFIG_LINUX

@@ -1145,12 +1145,7 @@ static void builtin_macros(void)
     define_special("__LINE__", line_handler);
     define_special("__DATE__", date_handler);
     define_special("__TIME__", time_handler);
-
-#ifdef CONFIG_WINNT
-    include_builtin(BUILD_DIR "\\include\\7cc.h");
-#else
-    include_builtin(BUILD_DIR "/include/7cc.h");
-#endif
+    include_builtin(BUILTIN_HEADER);
 }
 
 static void init_env(void)
@@ -1164,24 +1159,12 @@ static void init_include(void)
 {
     std_include_paths = vec_new();
     usr_include_paths = vec_new();
-
-#ifdef CONFIG_LINUX
-
-    add_include(std_include_paths, BUILD_DIR "/include");
-    add_include(std_include_paths, "/usr/include");
-    add_include(std_include_paths, "/usr/include/linux");
-    add_include(std_include_paths, "/usr/include/x86_64-linux-gnu");
-
-#elif defined CONFIG_DARWIN
-
-    add_include(std_include_paths, BUILD_DIR "/include");
-    add_include(std_include_paths, XCODE_DIR "/usr/include");
-
-#elif defined CONFIG_WINNT
-
-    add_include(std_include_paths, BUILD_DIR "\\include");
-
-#endif
+    // add system include paths
+    const char **sys_include_paths = sys_include_dirs();
+    for (int i = 0; sys_include_paths[i]; i++) {
+        const char *dir = sys_include_paths[i];
+        add_include(std_include_paths, dir);
+    }
 }
 
 static void parseopts(struct vector *options)
