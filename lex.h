@@ -61,7 +61,6 @@ extern void file_stub(struct file *f);
 extern void file_unstub(void);
 
 extern bool is_original_file(const char *file);
-extern struct file *original_file(void);
 extern struct file *current_file(void);
 
 extern void if_sentinel(struct ifstub *i);

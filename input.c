@@ -4,6 +4,7 @@
 #define RBUFSIZE     4096
 
 static struct vector *files;
+static const char *original;
 
 enum {
     FILE_KIND_REGULAR = 1,
@@ -17,8 +18,7 @@ enum {
 
 bool is_original_file(const char *file)
 {
-    struct file *original = original_file();
-    if (original && !strcmp(original->file, file))
+    if (original && !strcmp(original, file))
         return true;
     else
         return false;
@@ -259,11 +259,6 @@ static void close_file(struct file *fs)
         current_file()->bol = true;
 }
 
-struct file *original_file(void)
-{
-    return vec_head(files);
-}
-
 struct file *current_file(void)
 {
     return vec_tail(files);
@@ -338,6 +333,7 @@ struct ifstub *current_ifstub(void)
 
 void input_init(const char *file)
 {
+    original = file;
     files = vec_new();
     file_sentinel(with_file(file, file));
 }
