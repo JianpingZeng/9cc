@@ -1874,9 +1874,9 @@ static void init_sym_addrs(node_t *sym)
     }
 }
 
-static void init_basic_blocks(struct basic_block *block)
+static void init_basic_blocks(struct basic_block *start)
 {
-    for (; block; block = block->successors[0]) {
+    for (struct basic_block *block = start; block; block = block->successors[0]) {
         for (struct tac *tac = block->head; tac; tac = tac->next) {
             for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
                 struct operand *operand = tac->operands[i];
@@ -1891,10 +1891,108 @@ static void init_basic_blocks(struct basic_block *block)
     }
 }
 
-static void emit_basic_blocks(struct basic_block *block)
+/**
+ * Next-use information
+ */
+static void mark_die(node_t *sym)
 {
-    for (; block; block = block->successors[0]) {
+    if (REF_SYM(sym)) {
+        SYM_X_USES(sym).live = false;
+        SYM_X_USES(sym).next = NULL;
+    }
+}
+
+static void mark_live(node_t *sym, struct tac *tac)
+{
+    if (REF_SYM(sym)) {
+        SYM_X_USES(sym).live = true;
+        SYM_X_USES(sym).next = tac;
+    }
+}
+
+static void init_use(node_t *sym)
+{
+    if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
+        SYM_X_KIND(sym) == SYM_KIND_LREF) {
+        SYM_X_USES(sym).live = true;
+        SYM_X_USES(sym).next = NULL;
+    } else if (SYM_X_KIND(sym) == SYM_KIND_TMP) {
+        SYM_X_USES(sym).live = false;
+        SYM_X_USES(sym).next = NULL;
+    }
+}
+
+static void init_next_use(struct basic_block *block)
+{
+    for (struct tac *tac = block->head; tac; tac = tac->next) {
+        for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+            struct operand *operand = tac->operands[i];
+            if (operand) {
+                if (operand->sym)
+                    init_use(operand->sym);
+                if (operand->index)
+                    init_use(operand->index);
+            }
+        }
+    }
+}
+
+static void scan_next_use(struct basic_block *block)
+{
+    struct tac *tail;
+    for (tail = block->head; tail; tail = tail->next) {
+        if (tail->next == NULL)
+            break;
+    }
+    for (struct tac *tac = tail; tac; tac = tac->prev) {
+        // set
+        for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+            struct operand *operand = tac->operands[i];
+            if (operand) {
+                if (operand->sym)
+                    tac->uses[i*2] = SYM_X_USES(operand->sym);
+                if (operand->index)
+                    tac->uses[i*2+1] = SYM_X_USES(operand->index);
+            }
+        }
+        
+        // mark
+        for (int i = 0; i < ARRAY_SIZE(tac->operands); i++) {
+            struct operand *operand = tac->operands[i];
+            if (operand) {
+                if (i == 0) {
+                    // die
+                    if (operand->sym) {
+                        if (operand->op == IR_NONE)
+                            mark_die(operand->sym);
+                        else
+                            mark_live(operand->sym, tac);
+                    }
+                    if (operand->index)
+                        mark_live(operand->index, tac);
+                } else {
+                    // live at tac
+                    if (operand->sym)
+                        mark_live(operand->sym, tac);
+                    if (operand->index)
+                        mark_live(operand->index, tac);
+                }
+            }
+        }
+    }
+}
+
+static void calculate_next_use(struct basic_block *block)
+{
+    init_next_use(block);
+    scan_next_use(block);
+}
+
+static void emit_basic_blocks(struct basic_block *start)
+{
+    for (struct basic_block *block = start; block; block = block->successors[0]) {
         fcon.current_block = block;
+        calculate_next_use(block);
         if (block->label && block->tag == BLOCK_JUMPING_DEST)
             emit_noindent("%s:", block->label);
         for (struct tac *tac = block->head; tac; tac = tac->next) {
