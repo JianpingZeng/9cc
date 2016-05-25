@@ -1496,7 +1496,7 @@ static void emit_call(node_t *n)
     }
 }
 
-static void int2int(node_t *dty, node_t *sty, node_t *n)
+static void int2int(node_t *sty, node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     int op;
@@ -1520,7 +1520,7 @@ static void int2int(node_t *dty, node_t *sty, node_t *n)
     }
 }
 
-static void int2float(node_t *dty, node_t *sty, node_t *n)
+static void int2float(node_t *sty, node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_F : IR_CONV_SI_F;
@@ -1531,7 +1531,7 @@ static void int2float(node_t *dty, node_t *sty, node_t *n)
                                    ops[TYPE_SIZE(dty)]);
 }
 
-static void float2int(node_t *dty, node_t *sty, node_t *n)
+static void float2int(node_t *sty, node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     int op = TYPE_OP(dty) == UNSIGNED ? IR_CONV_F_UI : IR_CONV_F_SI;
@@ -1542,7 +1542,7 @@ static void float2int(node_t *dty, node_t *sty, node_t *n)
                                    ops[TYPE_SIZE(dty)]);
 }
 
-static void float2float(node_t *dty, node_t *sty, node_t *n)
+static void float2float(node_t *sty, node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     if (TYPE_SIZE(dty) == TYPE_SIZE(sty))
@@ -1554,54 +1554,54 @@ static void float2float(node_t *dty, node_t *sty, node_t *n)
                                        ops[TYPE_SIZE(dty)]);
 }
 
-static void arith2arith(node_t *dty, node_t *sty, node_t *n)
+static void arith2arith(node_t *sty, node_t *dty, node_t *n)
 {
     if (eqarith(sty, dty)) {
         node_t *l = EXPR_OPERAND(n, 0);
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
     } else {
         if (isint(sty) && isint(dty))
-            int2int(dty, sty, n);
+            int2int(sty, dty, n);
         else if (isint(sty) && isfloat(dty))
-            int2float(dty, sty, n);
+            int2float(sty, dty, n);
         else if (isfloat(sty) && isint(dty))
-            float2int(dty, sty, n);
+            float2int(sty, dty, n);
         else if (isfloat(sty) && isfloat(dty))
-            float2float(dty, sty, n);
+            float2float(sty, dty, n);
         else
             assert(0);
     }
 }
 
-static void ptr2arith(node_t *dty, node_t *sty, node_t *n)
+static void ptr2arith(node_t *sty, node_t *dty, node_t *n)
 {
     assert(isint(dty));
 
-    arith2arith(dty, unsignedlongtype, n);
+    arith2arith(unsignedlongtype, dty, n);
 }
 
-static void arith2ptr(node_t *dty, node_t *sty, node_t *n)
+static void arith2ptr(node_t *sty, node_t *dty, node_t *n)
 {
     assert(isint(sty));
 
-    arith2arith(unsignedlongtype, sty, n);
+    arith2arith(sty, unsignedlongtype, n);
 }
 
-static void ptr2ptr(node_t *dty, node_t *sty, node_t *n)
+static void ptr2ptr(node_t *sty, node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 //@ function to pointer decay
-static void func2ptr(node_t *dty, node_t *sty, node_t *n)
+static void func2ptr(node_t *sty, node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 //@ array to pointer decay
-static void array2ptr(node_t *dty, node_t *sty, node_t *n)
+static void array2ptr(node_t *sty, node_t *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     if (EXPR_X_ADDR(l)->op == IR_NONE)
@@ -1620,20 +1620,20 @@ static void emit_conv(node_t *n)
 
     if (isarith(dty)) {
         if (isarith(sty))
-            arith2arith(dty, sty, n);
+            arith2arith(sty, dty, n);
         else if (isptr(sty))
-            ptr2arith(dty, sty, n);
+            ptr2arith(sty, dty, n);
         else
             assert(0);
     } else if (isptr(dty)) {
         if (isptr(sty))
-            ptr2ptr(dty, sty, n);
+            ptr2ptr(sty, dty, n);
         else if (isarith(sty))
-            arith2ptr(dty, sty, n);
+            arith2ptr(sty, dty, n);
         else if (isfunc(sty))
-            func2ptr(dty, sty, n);
+            func2ptr(sty, dty, n);
         else if (isarray(sty))
-            array2ptr(dty, sty, n);
+            array2ptr(sty, dty, n);
         else
             assert(0);
     } else if (isvoid(dty)) {
