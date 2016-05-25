@@ -1,5 +1,18 @@
 TODO
 
+NEED REVIEW:
+
+emit_uop_indirection (*)
+emit_uop_address (&)
+
+emit_bop_assign (=)
+
+emit_member (. ->)
+emit_subscript ([])
+func2ptr
+array2ptr
+emit_call
+
 //
 1. ir refactor
 2. using profile
