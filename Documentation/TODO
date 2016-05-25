@@ -1,10 +1,8 @@
 TODO
 
 //
-1. DONE: test/qsort.c
-2. DONE: make stage2 (block.c: caused by "head->prev = NULL", block'out)
-3. DONE: spill float reg
-4. ir refactor
+1. ir refactor
+2. using profile
 
 //
 1. scan_uses: rewrite

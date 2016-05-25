@@ -1923,8 +1923,6 @@ static void emit_compound_stmt(node_t *stmt)
         } else if (isstmt(node)) {
             STMT_X_NEXT(node) = gen_label();
             emit_stmt(node);
-        } else if (isexpr(node)) {
-            emit_expr(node);
         } else {
             assert(0);
         }
