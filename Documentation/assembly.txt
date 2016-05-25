@@ -333,6 +333,20 @@ JNE, JNZ: !=, !=0       (ZF=0)
     JPO rel16          jump near. Not supported in 64-bit mode.
     JPO rel32          jump near
 
+
+x86-64 Addessing Model
+========================
+
+section:[base + index*scale + disp]
+section:disp(base, index, scale)
+
+disp(rip)
+sym(rip)
+sym(,index,scale)
+
+1. https://sourceware.org/binutils/docs/as/i386_002dMemory.html#i386_002dMemory
+2. http://www.x86-64.org/documentation/assembly.html
+
 Reference
 ===========
 
