@@ -1,6 +1,7 @@
 #ifndef _SYS_H
 #define _SYS_H
 
+// setup
 extern void setup_sys();
 
 // path
@@ -22,10 +23,12 @@ extern int callsys(const char *file, char **argv);
 // time
 extern void set_localtime(const time_t * timep, struct tm *result);
 
+// include
+extern struct vector *sys_include_dirs(void);
+
 extern char *ld[];
 extern char *as[];
 extern char *cc[];
-extern struct vector *sys_include_dirs(void);
 
 #ifdef CONFIG_WINNT
     #define BUILTIN_HEADER  BUILD_DIR "\\include\\7cc.h"
