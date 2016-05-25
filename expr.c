@@ -118,6 +118,20 @@ static bool is_bitfield(node_t * node)
     return field && FIELD_ISBIT(field);
 }
 
+static const char * castname(node_t *ty, node_t *l)
+{
+    if (isfloat(ty) && isfloat(AST_TYPE(l)))
+	return FloatCast;
+    else if (isfloat(ty) && isint(AST_TYPE(l)))
+        return IntegerToFloatCast;
+    else if (isint(ty) && isint(AST_TYPE(l)))
+	return IntegralCast;
+    else if (isint(ty) && isfloat(AST_TYPE(l)))
+	return FloatToIntegerCast;
+    else
+	return BitCast;
+}
+
 static node_t *wrap(node_t * ty, node_t * node)
 {
     assert(isarith(ty));
@@ -126,7 +140,7 @@ static node_t *wrap(node_t * ty, node_t * node)
     if (eqarith(ty, AST_TYPE(node)))
         return node;
     else
-        return ast_conv(ty, node);
+        return ast_conv(ty, node, castname(ty, node));
 }
 
 static node_t *bitconv(node_t * ty, node_t * node)
@@ -134,7 +148,7 @@ static node_t *bitconv(node_t * ty, node_t * node)
     if (eqtype(ty, AST_TYPE(node)))
         return node;
     else
-        return ast_conv(ty, node);
+        return ast_conv(ty, node, castname(ty, node));
 }
 
 static node_t *decay(node_t * node)
@@ -142,11 +156,11 @@ static node_t *decay(node_t * node)
     switch (TYPE_KIND(AST_TYPE(node))) {
     case FUNCTION:
         // FunctionToPointerDecay
-        return ast_conv(ptr_type(AST_TYPE(node)), node);
+        return ast_conv(ptr_type(AST_TYPE(node)), node, FunctionToPointerDecay);
 
     case ARRAY:
         // ArrayToPointerDecay
-        return ast_conv(ptr_type(rtype(AST_TYPE(node))), node);
+        return ast_conv(ptr_type(rtype(AST_TYPE(node))), node, ArrayToPointerDecay);
 
     default:
         return node;
@@ -156,7 +170,7 @@ static node_t *decay(node_t * node)
 static node_t *ltor(node_t * node)
 {
     // LValueToRValue
-    return ast_conv(unqual(AST_TYPE(node)), node);
+    return ast_conv(unqual(AST_TYPE(node)), node, LValueToRValue);
 }
 
 // Universal Unary Conversion
@@ -171,10 +185,10 @@ static node_t *conv(node_t * node)
     case _BOOL:
     case CHAR:
     case SHORT:
-        return ast_conv(inttype, node);
+        return ast_conv(inttype, node, IntegralCast);
 
     case ENUM:
-        return ast_conv(rtype(AST_TYPE(node)), node);
+        return ast_conv(rtype(AST_TYPE(node)), node, IntegralCast);
 
     case FUNCTION:
     case ARRAY:
@@ -195,7 +209,7 @@ static node_t *conva(node_t * node)
 
     switch (TYPE_KIND(AST_TYPE(node))) {
     case FLOAT:
-        return ast_conv(doubletype, node);
+        return ast_conv(doubletype, node, FloatCast);
 
     default:
         return conv(node);
@@ -274,7 +288,7 @@ node_t *assignconv(node_t * ty, node_t * node)
     if (isarith(ty) && isarith(ty2)) {
         return wrap(ty, node);
     } else if (isbool(ty) && isptr(ty2)) {
-        return ast_conv(ty, node);
+        return ast_conv(ty, node, PointerToBoolean);
     } else if ((isstruct(ty) && isstruct(ty2)) ||
                (isunion(ty) && isunion(ty2))) {
         if (eqtype(unqual(ty), unqual(ty2)))
@@ -1926,14 +1940,8 @@ node_t *bop(int op, node_t * l, node_t * r)
             } else if (op == EQ || op == NEQ) {
                 if (isptrto(AST_TYPE(l), VOID)
                     || isptrto(AST_TYPE(r), VOID)) {
-                    node_t *l1 =
-                        isptrto(AST_TYPE(l),
-                                VOID) ? l :
-                        ast_conv(ptr_type(voidtype), l);
-                    node_t *r1 =
-                        isptrto(AST_TYPE(r),
-                                VOID) ? r :
-                        ast_conv(ptr_type(voidtype), r);
+                    node_t *l1 = isptrto(AST_TYPE(l), VOID) ? l : ast_conv(ptr_type(voidtype), l, BitCast);
+                    node_t *r1 = isptrto(AST_TYPE(r), VOID) ? r : ast_conv(ptr_type(voidtype), r, BitCast);
                     node = ast_bop(op, inttype, l1, r1);
                 } else if (is_nullptr(l) || is_nullptr(r)) {
                     node = ast_bop(op, inttype, l, r);
@@ -1950,16 +1958,12 @@ node_t *bop(int op, node_t * l, node_t * r)
             // ptr op int
             ensure_type(r, isint);
             if (NO_ERROR)
-                node =
-                    ast_bop(op, inttype, l,
-                            ast_conv(AST_TYPE(l), r));
+                node = ast_bop(op, inttype, l, ast_conv(AST_TYPE(l), r, IntegerToPointerCast));
         } else if (isptr(AST_TYPE(r))) {
             // int op ptr
             ensure_type(l, isint);
             if (NO_ERROR)
-                node =
-                    ast_bop(op, inttype,
-                            ast_conv(AST_TYPE(r), l), r);
+                node = ast_bop(op, inttype, ast_conv(AST_TYPE(r), l, IntegerToPointerCast), r);
         } else {
             error("comparison of invalid types ('%s' and '%s')",
                   type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));

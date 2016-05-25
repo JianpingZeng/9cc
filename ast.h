@@ -234,7 +234,7 @@ extern node_t *ast_decl(int id);
 extern node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r);
 extern node_t *ast_uop(int op, node_t * ty, node_t * l);
 extern node_t *ast_bop(int op, node_t * ty, node_t * l, node_t * r);
-extern node_t *ast_conv(node_t * ty, node_t * l);
+extern node_t *ast_conv(node_t * ty, node_t * l, const char *name);
 extern node_t *ast_inits(node_t * ty, struct source src);
 extern node_t *ast_vinit(void);
 // stmt
@@ -271,5 +271,18 @@ extern node_t *copy_node(node_t * node);
 
 // stmt
 #define isnullstmt(n)  (AST_ID(n) == NULL_STMT)
+
+// cast name
+#define BitCast                 "BitCast"
+#define LValueToRValue          "LValueToRValue"
+#define FunctionToPointerDecay  "FunctionToPointerDecay"
+#define ArrayToPointerDecay     "ArrayToPointerDecay"
+#define IntegralCast            "IntegralCast"
+#define FloatCast               "FloatingCast"
+#define IntegerToFloatCast      "IntegralToFloating"
+#define FloatToIntegerCast      "FloatingToIntegral"
+#define PointerToBoolean        "PointerToBoolean"
+#define IntegerToPointerCast    "IntegerToPointer"
+#define PointerToIntegerCast    "PointerToInteger"
 
 #endif
