@@ -260,21 +260,25 @@ static struct operand * make_address_operand(struct operand *l)
     }
 }
 
+static struct operand * make_indirection_operand1(struct operand *l)
+{
+    assert(SYM_X_KIND(l->sym) == SYM_KIND_TMP);
+    struct operand *operand = make_sym_operand(l->sym);
+    operand->op = IR_INDIRECTION;
+    return operand;
+}
+
 static struct operand * make_indirection_operand(struct operand *l)
 {
     if (l->op == IR_NONE && SYM_X_KIND(l->sym) == SYM_KIND_TMP) {
-        struct operand *operand = make_sym_operand(l->sym);
-        operand->op = IR_INDIRECTION;
-        return operand;
+        return make_indirection_operand1(l);
     } else {
         struct tac *tac = make_assign_tac(IR_ASSIGNI,
                                           make_tmp_operand(),
                                           l,
                                           ops[Quad]);
         emit_tac(tac);
-        struct operand *operand = make_sym_operand(tac->operands[0]->sym);
-        operand->op = IR_INDIRECTION;
-        return operand;
+        return make_indirection_operand1(tac->operands[0]);
     }
 }
 
