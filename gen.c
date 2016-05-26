@@ -2744,6 +2744,30 @@ static const char *operand2s_subscript(struct operand *operand, int opsize)
     node_t *sym = operand->sym;
     node_t *index = operand->index;
     switch (SYM_X_KIND(sym)) {
+    case SYM_KIND_GREF:
+        {
+            long offset = operand->disp;
+            if (index) {
+                try_load_tmp(index, NULL, Quad);
+                if (offset > 0)
+                    return format("%s+%ld(,%s,%d)",
+                                  SYM_X_LABEL(sym), offset, SYM_X_REG(index)->r[Q], operand->scale);
+                else if (offset < 0)
+                    return format("%s%ld(,%s,%d)",
+                                  SYM_X_LABEL(sym), offset, SYM_X_REG(index)->r[Q], operand->scale);
+                else
+                    return format("%s(,%s,%d)",
+                                  SYM_X_LABEL(sym), SYM_X_REG(index)->r[Q], operand->scale);
+            } else {
+                if (offset > 0)
+                    return format("%s+%ld(%s)", SYM_X_LABEL(sym), offset, rip->r[Q]);
+                else if (offset < 0)
+                    return format("%s%ld(%s)", SYM_X_LABEL(sym), offset, rip->r[Q]);
+                else
+                    return format("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]);
+            }
+        }
+        break;
     case SYM_KIND_LREF:
         {
             long offset = SYM_X_LOFF(sym) + operand->disp;
