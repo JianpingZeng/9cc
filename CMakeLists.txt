@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8)
 
 set(UTILS utils/)
 set(SYS sys/)
+set(TARGET 7cc)
+set(CC1 cc1)
 
 set(UTILS_SRC
   ${UTILS}wrapper.c
@@ -85,11 +87,19 @@ else()
   message(FATAL_ERROR "unknown platform")
 endif()
 
-add_executable(7cc ${7CC_SRC} ${UTILS_SRC} ${SYS_SRC})
-target_link_libraries(7cc ${LINK_LIBRARIES})
+# 7cc
+add_executable(${TARGET} ${7CC_SRC} ${UTILS_SRC} ${SYS_SRC})
+target_link_libraries(${TARGET} ${LINK_LIBRARIES})
 
-add_executable(cc1 ${CC1_SRC} ${UTILS_SRC} ${SYS_SRC})
-target_link_libraries(cc1 ${LINK_LIBRARIES})
+# cc1
+add_executable(${CC1} ${CC1_SRC} ${UTILS_SRC} ${SYS_SRC})
+target_link_libraries(${CC1} ${LINK_LIBRARIES})
+
+# stage1
+
+# stage2
+
+# stage3
 
 ## Testing
 enable_testing()
