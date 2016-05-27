@@ -449,39 +449,12 @@ static struct operand * make_subscript_operand(struct operand *l,
     }
 }
 
-static struct operand * make_offset_operand1(struct operand *l, long offset)
-{
-    struct operand *operand = make_sym_operand(l->sym);
-    operand->op = IR_SUBSCRIPT;
-    operand->disp = offset;
-    return operand;
-}
-
 static struct operand * make_offset_operand(struct operand *l, long offset)
 {
-    assert(SYM_X_KIND(l->sym) != SYM_KIND_GREF);
-    switch (l->op) {
-    case IR_NONE:
-        return make_offset_operand1(l, offset);
-    case IR_SUBSCRIPT:
-        if (l->index) {
-            struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
-            emit_tac(tac);
-            return make_offset_operand1(tac->operands[0], offset);
-        } else {
-            return make_offset_operand1(l, l->disp + offset);
-        }
-        break;
-    case IR_INDIRECTION:
-        {
-            struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
-            emit_tac(tac);
-            return make_offset_operand1(tac->operands[0], offset);
-        }
-        break;
-    default:
-        assert(0);
-    }
+    assert(canbe_subscript_base(l->sym));
+    struct operand *operand = copy_operand(l);
+    operand->disp += offset;
+    return operand;
 }
 
 static struct operand * make_member_operand(struct operand *l, long offset)
@@ -497,12 +470,7 @@ static struct operand * make_member_operand(struct operand *l, long offset)
         }
         break;
     case IR_SUBSCRIPT:
-        {
-            struct operand *operand = copy_operand(l);
-            operand->disp += offset;
-            return operand;
-        }
-        break;
+        return make_offset_operand(l, offset);
     default:
         assert(0);
     }
