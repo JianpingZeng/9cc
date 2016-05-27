@@ -1078,7 +1078,7 @@ static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
   r - right node (_NOT_ evaluated)
   offset - offset to assign
   bfield - not NULL only if left node is a bitfield
-  sty - struct/union type that contains the left node
+  sty - when offset == 0, it means whether offset is zero or not exist.
  */
 static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty)
