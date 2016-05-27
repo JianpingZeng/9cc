@@ -227,7 +227,7 @@ static void finalize_text(void)
     }
 }
 
-static struct operand * make_ret_offset_operand(struct operand *operand, long offset)
+static struct operand * make_offset_operand(struct operand *operand, long offset)
 {
     switch (operand->op) {
     case IR_NONE:
@@ -299,7 +299,7 @@ static void emit_param_record(struct tac *tac, struct pnode *pnode)
         long loff = paddr->u.offset;
         for (int i = 0; i < cnt; i++) {
             long offset = i << 3;
-            struct operand *src = make_ret_offset_operand(operand, offset);            
+            struct operand *src = make_offset_operand(operand, offset);
             push_excepts(excepts);
             const char *src_label = operand2s(src, Quad);
             pop_excepts();
@@ -314,7 +314,7 @@ static void emit_param_record(struct tac *tac, struct pnode *pnode)
         for (int i = 0; i < cnt; i++ , loff += 8, size -= 8) {
             struct reg *reg = paddr->u.regs[i].reg;
             int type = paddr->u.regs[i].type;
-            struct operand *src = make_ret_offset_operand(operand, loff);
+            struct operand *src = make_offset_operand(operand, loff);
             switch (type) {
             case REG_INT:
                 if (size > 4)
@@ -572,12 +572,12 @@ static void emit_builtin_va_start(struct tac *tac)
     emit(COMMENT1("va_start begin"));
 
     // gp_offset
-    struct operand *operand1 = make_ret_offset_operand(l, 0);
+    struct operand *operand1 = make_offset_operand(l, 0);
     const char *label1 = operand2s(operand1, Long);
     emit("movl $%d, %s", gp_offset, label1);
 
     // fp_offset
-    struct operand *operand2 = make_ret_offset_operand(l, 4);
+    struct operand *operand2 = make_offset_operand(l, 4);
     const char *label2 = operand2s(operand2, Long);
     emit("movl $%d, %s", fp_offset, label2);
 
@@ -585,13 +585,13 @@ static void emit_builtin_va_start(struct tac *tac)
     struct reg *reg = get_one_ireg(excepts);
     
     // overflow_arg_area
-    struct operand *operand3 = make_ret_offset_operand(l, 8);
+    struct operand *operand3 = make_offset_operand(l, 8);
     const char *label3 = operand2s(operand3, Quad);
     emit("leaq %ld(%s), %s", overflow_arg_area, rbp->r[Q], reg->r[Q]);
     emit("movq %s, %s", reg->r[Q], label3);
 
     // reg_save_area
-    struct operand *operand4 = make_ret_offset_operand(l, 16);
+    struct operand *operand4 = make_offset_operand(l, 16);
     const char *label4 = operand2s(operand4, Quad);
     emit("leaq %ld(%s), %s", reg_save_area, rbp->r[Q], reg->r[Q]);
     emit("movq %s, %s", reg->r[Q], label4);
@@ -616,7 +616,7 @@ static void emit_builtin_va_arg_p_memory(struct tac *tac)
     node_t *ty = EXPR_VA_ARG_TYPE(call);
     size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
 
-    struct operand *operand = make_ret_offset_operand(l, 8);
+    struct operand *operand = make_offset_operand(l, 8);
     const char *dst_label = operand2s(operand, Quad);
     struct set *excepts = operand_regs(l);
     struct reg *tmp1 = get_one_ireg(excepts);
@@ -682,10 +682,10 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
     
-    struct operand *gp_operand = make_ret_offset_operand(l, 0);
-    struct operand *fp_operand = make_ret_offset_operand(l, 4);
-    struct operand *over_area_operand = make_ret_offset_operand(l, 8);
-    struct operand *reg_area_operand = make_ret_offset_operand(l, 16);
+    struct operand *gp_operand = make_offset_operand(l, 0);
+    struct operand *fp_operand = make_offset_operand(l, 4);
+    struct operand *over_area_operand = make_offset_operand(l, 8);
+    struct operand *reg_area_operand = make_offset_operand(l, 16);
         
     const char *gp_label = operand2s(gp_operand, Long);
     const char *fp_label = operand2s(fp_operand, Long);
@@ -822,10 +822,10 @@ static void emit_builtin_va_arg_p_scalar(struct tac *tac)
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
     
-    struct operand *gp_operand = make_ret_offset_operand(l, 0);
-    struct operand *fp_operand = make_ret_offset_operand(l, 4);
-    struct operand *over_area_operand = make_ret_offset_operand(l, 8);
-    struct operand *reg_area_operand = make_ret_offset_operand(l, 16);
+    struct operand *gp_operand = make_offset_operand(l, 0);
+    struct operand *fp_operand = make_offset_operand(l, 4);
+    struct operand *over_area_operand = make_offset_operand(l, 8);
+    struct operand *reg_area_operand = make_offset_operand(l, 16);
         
     const char *gp_label = operand2s(gp_operand, Long);
     const char *fp_label = operand2s(fp_operand, Long);
@@ -928,7 +928,7 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
     // rounded by 8 bytes. (see emit_function_prologue)
     size_t size = ROUNDUP(retaddr->size, 8);
     for (size_t i = 0; i < size; i += 8) {
-        struct operand *operand = make_ret_offset_operand(l, i);
+        struct operand *operand = make_offset_operand(l, i);
         const char *dst_label;
         push_excepts(excepts);
         const char *src_label = operand2s(operand, Quad);
@@ -978,7 +978,7 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
     for (int i = 0; i < cnt; i++, loff += 8, size -= 8) {
         int type = retaddr->u.regs[i].type;
         struct reg *reg = retaddr->u.regs[i].reg;
-        struct operand *operand = make_ret_offset_operand(l, loff);
+        struct operand *operand = make_offset_operand(l, loff);
         switch (type) {
         case REG_INT:
             switch (size) {
@@ -992,7 +992,7 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
                 break;
             case 3:
                 {
-                    struct operand *operand1 = make_ret_offset_operand(l, loff + 2);
+                    struct operand *operand1 = make_offset_operand(l, loff + 2);
                     const char *label = operand2s(operand, Long);
                     const char *label1 = operand2s(operand1, Byte);
                     struct set *excepts = operand_regs(operand);
@@ -1013,7 +1013,7 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
                 {
                     int opsize = size == 5 ? Byte : Word;
                     int i = idx[opsize];
-                    struct operand *operand1 = make_ret_offset_operand(l, loff + 4);
+                    struct operand *operand1 = make_offset_operand(l, loff + 4);
                     struct set *excepts = operand_regs(operand);
                     struct reg *tmp1 = get_one_ireg(excepts);
                     emit("movz%sl %s, %s", suffixi[i], operand2s(operand1, opsize), tmp1->r[L]);
@@ -1029,14 +1029,14 @@ static void emit_return_by_registers_record(struct operand *l, struct paddr *ret
                 break;
             case 7:
                 {
-                    struct operand *operand1 = make_ret_offset_operand(l, loff + 6);
+                    struct operand *operand1 = make_offset_operand(l, loff + 6);
                     struct set *excepts = operand_regs(operand);
                     struct reg *tmp1 = get_one_ireg(excepts);
                     emit("movzbl %s, %s", operand2s(operand1, Byte), tmp1->r[L]);
                     emit("shlq $16, %s", tmp1->r[Q]);
 
                     set_add(excepts, tmp1);
-                    struct operand *operand2 = make_ret_offset_operand(l, loff + 4);
+                    struct operand *operand2 = make_offset_operand(l, loff + 4);
                     struct reg *tmp2 = get_one_ireg(excepts);
                     emit("movzwl %s, %s", operand2s(operand2, Word), tmp2->r[L]);
 

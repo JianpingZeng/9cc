@@ -452,9 +452,27 @@ static struct operand * make_subscript_operand(struct operand *l,
 static struct operand * make_offset_operand(struct operand *l, long offset)
 {
     assert(canbe_subscript_base(l->sym));
-    struct operand *operand = copy_operand(l);
-    operand->disp += offset;
-    return operand;
+
+    switch (l->op) {
+    case IR_NONE:
+        {
+            struct operand *operand = make_sym_operand(l->sym);
+            operand->op = IR_SUBSCRIPT;
+            operand->disp = offset;
+            return operand;
+        }
+        break;
+    case IR_SUBSCRIPT:
+        {
+            struct operand *operand = copy_operand(l);
+            operand->disp += offset;
+            return operand;
+        }
+        break;
+    case IR_INDIRECTION:
+    default:
+        assert(0);
+    }
 }
 
 static struct operand * make_member_operand(struct operand *l, long offset)
@@ -1040,6 +1058,17 @@ static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
     emit_bitfield_basic(ty, l, EXPR_X_ADDR(r), offset, bfield, sty);
 }
 
+// update if needed
+static struct operand * update_base(struct operand *operand)
+{
+    if (operand->op == IR_INDIRECTION) {
+        struct operand *ret = make_sym_operand(operand->sym);
+        return ret;
+    } else {
+        return operand;
+    }
+}
+
 /*
   ty - type of left node
   l - left operand
@@ -1052,20 +1081,27 @@ static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty)
 {
     assert(ty);
+
+    if (isstruct(ty) || isunion(ty) || isarray(ty))
+        l = update_base(l);
     
     if (isstruct(ty) || isunion(ty)) {
         if (AST_ID(r) == INITS_EXPR) {
             emit_inits(ty, l, r, offset, true);
         } else {
             emit_expr(r);
-            emit_bytes(l, offset, EXPR_X_ADDR(r), TYPE_SIZE(ty));
+            // r
+            struct operand *r1 = update_base(EXPR_X_ADDR(r));
+            emit_bytes(l, offset, r1, TYPE_SIZE(ty));
         }
     } else if (isarray(ty)) {
         if (AST_ID(r) == INITS_EXPR) {
             emit_inits(ty, l, r, offset, true);
         } else if (AST_ID(r) == STRING_LITERAL) {
             emit_expr(r);
-            emit_bytes(l, offset, EXPR_X_ADDR(r), TYPE_SIZE(ty));
+            // r
+            struct operand *r1 = update_base(EXPR_X_ADDR(r));
+            emit_bytes(l, offset, r1, TYPE_SIZE(ty));
         } else {
             assert(0);
         }
@@ -1412,6 +1448,10 @@ static void emit_call(node_t *n)
     for (size_t i = 0; i < len; i++) {
         node_t *arg = vec_at(args, i);
         emit_expr(arg);
+        // update
+        node_t *ty = AST_TYPE(arg);
+        if (isstruct(ty) || isunion(ty))
+            EXPR_X_ADDR(arg) = update_base(EXPR_X_ADDR(arg));
     }
 
     struct operand *call_operand = EXPR_X_ADDR(l);
@@ -2081,7 +2121,11 @@ static void emit_return_stmt(node_t *stmt)
         emit_expr(n);
         // may be void
         if (EXPR_X_ADDR(n)) {
-            struct tac *tac = make_tac(op, EXPR_X_ADDR(n), NULL, result, ops[Zero]);
+            // update
+            struct operand *addr = EXPR_X_ADDR(n);
+            if (isstruct(ty) || isunion(ty))
+                addr = update_base(addr);
+            struct tac *tac = make_tac(op, addr, NULL, result, ops[Zero]);
             emit_tac(tac);
         } else {
             struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, result, ops[Zero]);
