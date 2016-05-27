@@ -484,32 +484,23 @@ static struct operand * make_offset_operand(struct operand *l, long offset)
     }
 }
 
-static struct operand * make_member_operand1(struct operand *l, long offset)
-{
-    struct operand *operand = make_sym_operand(l->sym);
-    operand->op = IR_SUBSCRIPT;
-    operand->disp = offset;
-    return operand;
-}
-
-// BUG:
 static struct operand * make_member_operand(struct operand *l, long offset)
 {
     switch (l->op) {
     case IR_NONE:
-        return make_member_operand1(l, offset);
+    case IR_INDIRECTION:
+        {
+            struct operand *operand = make_sym_operand(l->sym);
+            operand->op = IR_SUBSCRIPT;
+            operand->disp = offset;
+            return operand;
+        }
+        break;
     case IR_SUBSCRIPT:
         {
             struct operand *operand = copy_operand(l);
             operand->disp += offset;
             return operand;
-        }
-        break;
-    case IR_INDIRECTION:
-        {
-            struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
-            emit_tac(tac);
-            return make_member_operand1(tac->operands[0], offset);
         }
         break;
     default:
@@ -664,7 +655,7 @@ static void emit_uop_indirection(node_t *n)
 
     emit_expr(l);
 
-    if (isfunc(AST_TYPE(n)) || isrecord(AST_TYPE(n)))
+    if (isfunc(AST_TYPE(n)))
         EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
     else
         EXPR_X_ADDR(n) = make_indirection_operand(EXPR_X_ADDR(l));
