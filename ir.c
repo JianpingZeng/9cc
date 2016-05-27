@@ -1095,7 +1095,14 @@ static struct operand * update_gref(struct operand *l)
     return addr;
 }
 
-// r is _NOT_ evaluated.
+/*
+  ty - type of left node
+  l - left operand
+  r - right node (_NOT_ evaluated)
+  offset - offset to assign
+  bfield - not NULL only if left node is a bitfield
+  sty - struct/union type that contains the left node
+ */
 static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty)
 {
