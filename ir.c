@@ -1072,29 +1072,6 @@ static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
     emit_bitfield_basic(ty, l, EXPR_X_ADDR(r), offset, bfield, sty);
 }
 
-// BUG:
-static struct operand * update_gref(struct operand *l)
-{
-    struct operand *addr = l;
-    // make gref be a pointer
-    if (SYM_X_KIND(l->sym) == SYM_KIND_GREF) {
-        assert(l->op == IR_NONE);
-        // according to sym type
-        // see emit_uop_indirection
-        if (isptr(SYM_TYPE(l->sym))) {
-            struct tac *tac = make_assign_tac(IR_ASSIGNI,
-                                              make_tmp_operand(),
-                                              addr,
-                                              ops[Quad]);
-            emit_tac(tac);
-            addr = tac->operands[0];
-        } else {
-            addr = make_address_operand(make_sym_operand(l->sym));
-        }
-    }
-    return addr;
-}
-
 /*
   ty - type of left node
   l - left operand
@@ -1107,28 +1084,20 @@ static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty)
 {
     assert(ty);
-
-    // l gref
-    if ((isstruct(ty) || isunion(ty) || isarray(ty)))
-        l = update_gref(l);
     
     if (isstruct(ty) || isunion(ty)) {
         if (AST_ID(r) == INITS_EXPR) {
             emit_inits(ty, l, r, offset, true);
         } else {
             emit_expr(r);
-            // r gref
-            struct operand * r1 = update_gref(EXPR_X_ADDR(r));
-            emit_bytes(l, offset, r1, TYPE_SIZE(ty));
+            emit_bytes(l, offset, EXPR_X_ADDR(r), TYPE_SIZE(ty));
         }
     } else if (isarray(ty)) {
         if (AST_ID(r) == INITS_EXPR) {
             emit_inits(ty, l, r, offset, true);
         } else if (AST_ID(r) == STRING_LITERAL) {
             emit_expr(r);
-            // r gref
-            struct operand *r1 = update_gref(EXPR_X_ADDR(r));
-            emit_bytes(l, offset, r1, TYPE_SIZE(ty));
+            emit_bytes(l, offset, EXPR_X_ADDR(r), TYPE_SIZE(ty));
         } else {
             assert(0);
         }
