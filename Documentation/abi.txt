@@ -3,25 +3,6 @@ ABI (Application Binary Interface)
 Function Stack Frame Layout
 =============================
 
-High  | ...           | (1st argument on stack)
-      +---------------+ <--- 16(rbp)
-      | return address|
-      +---------------+ <--- 8(rbp)
-      | saved rbp     |
-      +---------------+ <--- rbp
-      | reg save area |
-      +---------------+ (optional, only for variable args)
-      | local vars    |
-      +---------------+
-      | params        |
-      +---------------+
-      | call returns  |
-      +---------------+
-      | call params   | (for all func calls in this function)
-Low   +---------------+ <--- rsp
-      | red zone      |
-
-
 Case 1: Fixed Arguments
 
 High  | ...           | (1st argument on stack)
@@ -30,6 +11,8 @@ High  | ...           | (1st argument on stack)
       +---------------+ <--- 8(rbp)
       | saved rbp     |
       +---------------+ <--- rbp
+      | preserved regs|
+      +---------------+
       | local vars    |
       +---------------+
       | params        | (params in registers)
@@ -49,6 +32,8 @@ High  | ...           | (1st argument on stack)
       +---------------+ <--- 8(rbp)
       | saved rbp     |
       +---------------+ <--- rbp
+      | preserved regs|
+      +---------------+
       | reg save area | (all params in registers)
       +---------------+
       | local vars    |
