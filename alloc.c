@@ -58,3 +58,15 @@ void *alloc_basic_block(void)
 {
     return do_alloc_object(&basic_block_state, sizeof(struct basic_block));
 }
+
+static struct alloc_state reladdr_state;
+void *alloc_reladdr(void)
+{
+    return do_alloc_object(&reladdr_state, sizeof(struct reladdr));
+}
+
+static struct alloc_state opcode_state;
+void *alloc_opcode(void)
+{
+    return do_alloc_object(&opcode_state, sizeof(struct opcode));
+}

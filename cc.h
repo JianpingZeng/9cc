@@ -40,6 +40,8 @@ extern void *alloc_macro(void);
 extern void *alloc_operand(void);
 extern void *alloc_tac(void);
 extern void *alloc_basic_block(void);
+extern void *alloc_reladdr(void);
+extern void *alloc_opcode(void);
 
 // value
 #define VALUE_U(v)    ((v).u)

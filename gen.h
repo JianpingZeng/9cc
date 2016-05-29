@@ -249,7 +249,29 @@ union x {
     }stmt;
 };
 
+// reladdr kind
+enum {
+    RELADDR_NONE,
+    RELADDR_IMM,
+    RELADDR_SUBSCRIPT,
+};
+
 // gen.c
+struct reladdr {
+    int kind;
+    int scale;
+    long disp;
+    const char *base;
+    const char *index;
+};
+
+struct opcode {
+    const char *op;
+    const char *extra;
+    const char *suffix;
+    struct reladdr *operands[2];
+};
+
 extern void gen(struct externals *externals, FILE * fp);
 
 // ir.c
