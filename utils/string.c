@@ -151,7 +151,7 @@ char *xstrndup(const char *str, size_t n)
     return ret;
 }
 
-bool starts_with(const char *s, const char *prefix)
+bool has_prefix(const char *s, const char *prefix)
 {
     if (!s || !prefix)
         return false;

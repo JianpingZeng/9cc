@@ -46,7 +46,7 @@ extern char *vformat(const char *fmt, va_list ap);
 extern char *format(const char *fmt, ...);
 extern char *xstrdup(const char *str);
 extern char *xstrndup(const char *str, size_t n);
-extern bool starts_with(const char *s, const char *prefix);
+extern bool has_prefix(const char *s, const char *prefix);
 
 // vector.c
 #include "vector.h"

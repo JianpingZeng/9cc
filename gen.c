@@ -193,7 +193,7 @@ static void finalize_text(void)
     
     for (size_t i = 0; i < vec_len(fcon.instructions); i++) {
         char *inst = vec_at(fcon.instructions, i);
-        if (starts_with(inst, "<<<")) {
+        if (has_prefix(inst, "<<<")) {
             int id = atoi(inst + 3);
             switch (id) {
             case INST_STACK_SUB:
