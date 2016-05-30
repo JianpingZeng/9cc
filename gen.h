@@ -265,10 +265,18 @@ struct reladdr {
     const char *index;
 };
 
+// opcode kind
+enum {
+    OPCODE_NONE,
+    OPCODE_LABEL,
+    OPCODE_MACRO,
+};
+
 struct opcode {
+    int kind;
     const char *op;
-    const char *extra;
     const char *suffix;
+    const char *comment;
     struct reladdr *operands[2];
 };
 
