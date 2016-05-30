@@ -61,6 +61,7 @@ static void pop_excepts(void);
 static struct set * operand_regs(struct operand *operand);
 static struct reladdr * operand2s(struct operand *operand, int opsize);
 static struct reladdr *operand2s_none_ex(struct operand *operand, int opsize, bool mem);
+static void at_exit_basic_block(void);
 
 // Parameter Classification
 static int *no_class = (int *)1;
@@ -258,6 +259,13 @@ static void lab(const char *label)
 static void jmp(const char *label)
 {
     xx(OP_JMP, NULL, rs(label), NULL);
+}
+
+// jump to
+static void jump(const char *op, const char *label)
+{
+    at_exit_basic_block();
+    xx(op, NULL, rs(label), NULL);
 }
 
 // macro
@@ -1375,7 +1383,7 @@ static void emit_return(struct tac *tac)
             pop_excepts();
         }
     }
-    jmp(fcon.end_label);
+    jump(OP_JMP, fcon.end_label);
 }
 
 // if x relop y goto dest
@@ -1452,7 +1460,7 @@ static void emit_if_relop(struct tac *tac, bool reverse, bool floating)
     default:
         assert(0);
     }
-    xx(jop, NULL, rs(SYM_X_LABEL(result->sym)), NULL);
+    jump(jop, SYM_X_LABEL(result->sym));
 }
 
 // if x goto dest
@@ -1469,21 +1477,21 @@ static void emit_if_simple(struct tac *tac, bool reverse, bool floating)
         xx(OP_XOR, suffixp[i], rs(r->r[i]), rs(r->r[i]));
         xx(OP_UCOMI, suffixf[i], l_label, rs(r->r[i]));
         const char *jop = reverse ? OP_JE : OP_JNE;
-        xx(jop, NULL, rs(SYM_X_LABEL(result->sym)), NULL);
+        jump(jop, SYM_X_LABEL(result->sym));
     } else {
         if (is_imm_operand(l)) {
             long value = SYM_VALUE_I(l->sym);
             if (reverse) {
                 if (!value)
-                    jmp(SYM_X_LABEL(result->sym));
+                    jump(OP_JMP, SYM_X_LABEL(result->sym));
             } else {
                 if (value)
-                    jmp(SYM_X_LABEL(result->sym));
+                    jump(OP_JMP, SYM_X_LABEL(result->sym));
             }
         } else {
             xx(OP_CMP, suffixi[i], imm(0), l_label);
             const char *jop = reverse ? OP_JE : OP_JNE;
-            xx(jop, NULL, rs(SYM_X_LABEL(result->sym)), NULL);
+            jump(jop, SYM_X_LABEL(result->sym));
         }
     }
 }
@@ -1518,7 +1526,7 @@ static void emit_iffalse_f(struct tac *tac)
 
 static void emit_goto(struct tac *tac)
 {
-    jmp(SYM_X_LABEL(tac->operands[0]->sym));
+    jump(OP_JMP, SYM_X_LABEL(tac->operands[0]->sym));
 }
 
 static void emit_assign_basic(struct operand *l, struct operand *r,
@@ -2131,6 +2139,13 @@ static void finalize_basic_block(struct basic_block *block)
         node_t *sym = vec_at(outs, i);
         spill(sym);
     }
+}
+
+static void at_exit_basic_block(void)
+{
+    struct basic_block *block = fcon.current_block;
+    if (block->tag != BLOCK_START && block->tag != BLOCK_END)
+        finalize_basic_block(block);
 }
 
 static void init_sym_addrs(node_t *sym)
