@@ -1555,6 +1555,30 @@ static void emit_assign_basic(struct operand *l, struct operand *r,
     xx(OP_MOV, suffix[i], src, dst);
 }
 
+static void emit_assign_spill_tmp(struct operand *l, struct operand *r,
+                                  int opsize, bool assignf)
+{
+    struct reladdr *src = operand2s(r, opsize);
+    struct reladdr *dst = subst(rbp->r[Q], SYM_X_LOFF(l->sym));
+    const char **suffix = assignf ? suffixf : suffixi;
+    int i = idx[opsize];
+
+    if (is_mem_operand(r)) {
+        struct set *vl = operand_regs(l);
+        struct set *vr = operand_regs(r);
+        struct set *excepts = set_union(vl, vr);
+        struct reg *reg;
+        if (assignf)
+            reg = get_one_freg(excepts);
+        else
+            reg = get_one_ireg(excepts);
+        xx(OP_MOV, suffix[i], src, rs(reg->r[i]));
+        src = rs(reg->r[i]);
+    }
+    
+    xx(OP_MOV, suffix[i], src, dst);
+}
+
 static void emit_assign(struct tac *tac)
 {
     bool assignf = tac->op == IR_ASSIGNF;
@@ -1574,7 +1598,10 @@ static void emit_assign(struct tac *tac)
         // tmp = mem
         // tmp = tmp
         // tmp = imm
-        if (SYM_X_REG(l->sym)) {
+        if (SYM_X_LOFF(l->sym)) {
+            // a spill tmp (treated as mem)
+            emit_assign_spill_tmp(l, r, tac->opsize, assignf);
+        } else if (SYM_X_REG(l->sym)) {
             emit_assign_basic(l, r, tac->opsize, assignf);
         } else if (is_direct_mem_operand(r) && SYM_X_REG(r->sym)) {
             load(SYM_X_REG(r->sym), l->sym, tac->opsize);
