@@ -27,7 +27,6 @@ static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r
 static struct operand * emit_conv_tac(int op, struct operand *l,
                                       int from_opsize,
                                       int to_opsize);
-static struct operand * make_extra_decl(node_t *ty);
 
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
@@ -1130,7 +1129,7 @@ static void emit_bop_bool(node_t *n)
     EXPR_X_TRUE(n) = fall;
     EXPR_X_FALSE(n) = gen_label();
     const char *label = gen_label();
-    struct operand *result = make_extra_decl(AST_TYPE(n));
+    struct operand *result = make_tmp_operand();
     emit_bool_expr(n);
     // true
     emit_tac(make_assign_tac(IR_ASSIGNI, result, make_operand_one(), opsize));
@@ -1281,7 +1280,9 @@ static void emit_bop(node_t *n)
 }
 
 static struct operand * make_extra_decl(node_t *ty)
-{    
+{
+    assert(isrecord(ty));
+
     if (!extra_lvars)
         extra_lvars = vec_new();
 
