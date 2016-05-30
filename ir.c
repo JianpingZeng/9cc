@@ -398,15 +398,6 @@ static struct operand * make_subscript_operand1(struct operand *l,
     case IR_NONE:
         return make_subscript_operand2(l, index, step, disp);
     case IR_SUBSCRIPT:
-        {
-            struct tac *tac = make_assign_tac(IR_ASSIGNI,
-                                              make_tmp_operand(),
-                                              index,
-                                              ops[Quad]);
-            emit_tac(tac);
-            return make_subscript_operand2(l, tac->operands[0], step, disp);
-        }
-        break;
     case IR_INDIRECTION:
         {
             struct tac *tac = make_assign_tac(IR_ASSIGNI,
