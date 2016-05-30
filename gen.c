@@ -2961,10 +2961,11 @@ static void try_load_tmp(node_t *sym, struct set *excepts, int opsize)
             dispatch_ireg(sym, excepts, opsize);
         // clear
         SYM_X_FREG(sym) = false;
-        yy(OP_MOV, suffixi[Q],
+        int i = idx[opsize];
+        yy(OP_MOV, suffixi[i],
            subst(rbp->r[Q], SYM_X_LOFF(sym)),
-           rs(SYM_X_REG(sym)->r[Q]),
-           "load back");
+           rs(SYM_X_REG(sym)->r[i]),
+           format("%d-byte reload", opsize));
     }
 }
 

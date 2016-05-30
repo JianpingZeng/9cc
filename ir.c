@@ -1809,8 +1809,7 @@ static void emit_rel_expr(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
     int relop = EXPR_OP(n);
-    node_t *ty = AST_TYPE(n);
-    int opsize = ops[TYPE_SIZE(ty)];
+    int opsize = ops[TYPE_SIZE(AST_TYPE(l))];
     bool floating = isfloat(AST_TYPE(l));
     bool sign = TYPE_OP(AST_TYPE(l)) == INT;
 
