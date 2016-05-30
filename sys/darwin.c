@@ -1,27 +1,4 @@
-#define _BSD_SOURCE
-#include <unistd.h>
-// trace
-#include <execinfo.h>
-#include <signal.h>
 #include "../utils/utils.h"
-
-static void handler(int sig)
-{
-    void *array[20];
-    size_t size;
-
-    size = backtrace(array, sizeof array / sizeof array[0]);
-
-    fprintf(stderr, "Stack trace:\n");
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
-    exit(EXIT_FAILURE);
-}
-
-void setup_sys()
-{
-    signal(SIGSEGV, handler);
-    signal(SIGABRT, handler);
-}
 
 /**
  * $0: output file
