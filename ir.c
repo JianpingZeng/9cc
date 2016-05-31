@@ -19,8 +19,10 @@ static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
 static void emit_funcdef_section(node_t *decl);
 static const char *get_string_literal_label(const char *name);
-static void emit_assign(node_t *ty, struct operand *l, node_t *r, long offset, node_t *bfield, bool sty);
+static void emit_assign(node_t *ty, struct operand *l, node_t *r,
+                        long offset, node_t *bfield, bool sty);
 static void emit_member_nonbitfield(node_t *n, node_t *field);
+static void emit_member_bitfield(node_t *n, node_t *field);
 static struct vector * filter_global(struct vector *v);
 static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
                                 long offset, node_t *bfield, bool sty);
@@ -705,6 +707,42 @@ static struct operand * emit_ptr_int(int op,
     return tac->operands[0];
 }
 
+static node_t * fieldof(node_t *n)
+{
+    if (AST_ID(n) != MEMBER_EXPR)
+        return NULL;
+    const char *name = AST_NAME(n);
+    node_t *l = EXPR_OPERAND(n, 0);
+    node_t *ty = AST_TYPE(l);
+    if (isptr(ty))
+        ty = rtype(ty);
+    assert(isrecord(ty));
+    node_t *field = find_field(ty, name);
+    return field;
+}
+
+static void emit_uop_increment_bitfield(node_t *n, node_t *nl,
+                                        node_t *field, bool prefix,
+                                        int opsize, int rop)
+{
+    node_t *ty = AST_TYPE(n);
+    emit_member_nonbitfield(nl, field);
+    struct operand *lvalue = EXPR_X_ADDR(nl);
+    emit_member_bitfield(nl, field);
+    struct operand *rvalue = EXPR_X_ADDR(nl);
+
+    struct tac *tac = make_tac_r(rop,
+                                 rvalue,
+                                 make_operand_one(),
+                                 opsize);
+    emit_tac(tac);
+    emit_bitfield_basic(ty, lvalue, tac->operands[0], 0, field, false);
+    if (prefix)
+        EXPR_X_ADDR(n) = tac->operands[0];
+    else
+        EXPR_X_ADDR(n) = rvalue;
+}
+
 // scalar
 static void emit_uop_increment(node_t *n)
 {
@@ -724,6 +762,18 @@ static void emit_uop_increment(node_t *n)
             rop = IR_SUBF;
         else
             rop = IR_SUBI;
+    }
+
+    // try to get bit-field
+    // NOTE: skip PAREN_EXPR
+    node_t *nl = l;
+    while (AST_ID(nl) == PAREN_EXPR)
+        nl = EXPR_OPERAND(nl, 0);
+    node_t *field = fieldof(nl);
+    if (field && FIELD_ISBIT(field)) {
+        // increment of a bit-field
+        emit_uop_increment_bitfield(n, nl, field, prefix, opsize, rop);
+        return;
     }
 
     emit_expr(l);
@@ -798,20 +848,6 @@ static void emit_uop(node_t *n)
     default:
         assert(0);
     }
-}
-
-static node_t * fieldof(node_t *n)
-{
-    if (AST_ID(n) != MEMBER_EXPR)
-        return NULL;
-    const char *name = AST_NAME(n);
-    node_t *l = EXPR_OPERAND(n, 0);
-    node_t *ty = AST_TYPE(l);
-    if (isptr(ty))
-        ty = rtype(ty);
-    assert(isrecord(ty));
-    node_t *field = find_field(ty, name);
-    return field;
 }
 
 static void do_emit_zeros(node_t *ty, struct operand *l, long *offset,
