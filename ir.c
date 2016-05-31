@@ -309,7 +309,8 @@ static bool canbe_subscript_base(node_t *sym)
 static struct operand * make_subscript_operand2(struct operand *l,
                                                 struct operand *index,
                                                 size_t step,
-                                                long disp)
+                                                long disp,
+                                                node_t *indexty)
 {
     assert(l->op == IR_NONE);
     assert(index->op == IR_NONE);
@@ -336,32 +337,47 @@ static struct operand * make_subscript_operand2(struct operand *l,
         // disp(base,index,scale)
 
         // NOTE: index _MUST_ be a tmp operand.
-        if (SYM_X_KIND(index->sym) == SYM_KIND_TMP) {
-            operand->index = index->sym;
-        } else {
-            // cast to Quad
-            node_t *sty = SYM_TYPE(index->sym);
-            node_t *dty = longtype;
-            if (TYPE_SIZE(sty) == TYPE_SIZE(dty)) {
+        node_t *sty = indexty;
+        node_t *dty = longtype;
+
+        // cast to Quad
+        if (TYPE_SIZE(sty) == TYPE_SIZE(dty)) {
+            if (SYM_X_KIND(index->sym) == SYM_KIND_TMP) {
+                operand->index = index->sym;
+            } else {
                 struct tac *tac = make_assign_tac(IR_ASSIGNI,
                                                   make_tmp_operand(),
                                                   index,
                                                   ops[Quad]);
                 emit_tac(tac);
                 operand->index = tac->operands[0]->sym;
-            } else {
-                int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_SI : IR_CONV_SI_SI;
-                struct operand *result = emit_conv_tac(op,
-                                                       index,
-                                                       ops[TYPE_SIZE(sty)],
-                                                       ops[TYPE_SIZE(dty)]);
-                operand->index = result->sym;
             }
+        } else {
+            int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_SI : IR_CONV_SI_SI;
+            struct operand *result = emit_conv_tac(op,
+                                                   index,
+                                                   ops[TYPE_SIZE(sty)],
+                                                   ops[TYPE_SIZE(dty)]);
+            operand->index = result->sym;
         }
+        
         operand->scale = step;
         operand->disp = disp;
     } else {
         // direct
+        node_t *sty = indexty;
+        node_t *dty = longtype;
+
+        // cast to Quad
+        if (TYPE_SIZE(sty) != TYPE_SIZE(dty)) {
+            int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_SI : IR_CONV_SI_SI;
+            struct operand *result = emit_conv_tac(op,
+                                                   index,
+                                                   ops[TYPE_SIZE(sty)],
+                                                   ops[TYPE_SIZE(dty)]);
+            index = result;
+        }
+        
         struct tac *tac1 = make_tac_r(IR_IMULI,
                                       index,
                                       make_int_operand(step),
@@ -389,22 +405,33 @@ static struct operand * make_subscript_operand2(struct operand *l,
 static struct operand * make_subscript_operand1(struct operand *l,
                                                 struct operand *index,
                                                 size_t step,
-                                                long disp)
+                                                long disp,
+                                                node_t *indexty)
 {
     assert(l->op == IR_NONE);
     
     switch (index->op) {
     case IR_NONE:
-        return make_subscript_operand2(l, index, step, disp);
+        return make_subscript_operand2(l, index, step, disp, indexty);
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
-        {
+        if (TYPE_SIZE(indexty) == Quad) {
             struct tac *tac = make_assign_tac(IR_ASSIGNI,
                                               make_tmp_operand(),
                                               index,
                                               ops[Quad]);
             emit_tac(tac);
-            return make_subscript_operand2(l, tac->operands[0], step, disp);
+            return make_subscript_operand2(l, tac->operands[0], step, disp, indexty);
+        } else {
+            // cast to Quad
+            node_t *sty = indexty;
+            node_t *dty = longtype;
+            int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_SI : IR_CONV_SI_SI;
+            struct operand *result = emit_conv_tac(op,
+                                                   index,
+                                                   ops[TYPE_SIZE(sty)],
+                                                   ops[TYPE_SIZE(dty)]);
+            return make_subscript_operand2(l, result, step, disp, longtype);
         }
         break;
     default:
@@ -414,17 +441,18 @@ static struct operand * make_subscript_operand1(struct operand *l,
 
 static struct operand * make_subscript_operand(struct operand *l,
                                                struct operand *index,
-                                               size_t step)
+                                               size_t step,
+                                               node_t *indexty)
 {
     switch (l->op) {
     case IR_NONE:
-        return make_subscript_operand1(l, index, step, 0);
+        return make_subscript_operand1(l, index, step, 0, indexty);
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
         {
             struct tac *tac = make_assign_tac(IR_ASSIGNI, make_tmp_operand(), l, ops[Quad]);
             emit_tac(tac);
-            return make_subscript_operand1(tac->operands[0], index, step, 0);
+            return make_subscript_operand1(tac->operands[0], index, step, 0, indexty);
         }
         break;
     default:
@@ -1424,7 +1452,7 @@ static void emit_subscript(node_t *n)
     node_t *i = ptr == l ? r : l;
     node_t *rty = rtype(AST_TYPE(ptr));
     struct operand *addr = EXPR_X_ADDR(ptr);
-    EXPR_X_ADDR(n) = make_subscript_operand(addr, EXPR_X_ADDR(i), TYPE_SIZE(rty));
+    EXPR_X_ADDR(n) = make_subscript_operand(addr, EXPR_X_ADDR(i), TYPE_SIZE(rty), AST_TYPE(i));
 }
 
 static void emit_call(node_t *n)
