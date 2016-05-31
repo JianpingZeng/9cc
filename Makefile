@@ -65,6 +65,12 @@ SYS_INC += $(sys_dir)sys.h
 
 CONFIG_FLAGS += -DCONFIG_COLOR_TERM
 
+ifneq (, ${STAGE})
+
+CONFIG_FLAGS += -DSTAGE=${STAGE}
+
+endif
+
 ifeq (Linux, $(KERNEL))
 
 SYS_OBJ += $(sys_dir)unix.o
@@ -108,21 +114,21 @@ $(UTILS_OBJ): $(UTILS_INC)
 #
 stage1:
 	$(MAKE) objclean
-	$(MAKE) CC=cc
+	$(MAKE) CC=cc STAGE=1
 	mv 7cc stage1
 	mv cc1 cc1_stage1
 	ln -s cc1_stage1 cc1
 
 stage2: stage1
 	$(MAKE) objclean
-	$(MAKE) CC=./stage1
+	$(MAKE) CC=./stage1 STAGE=2
 	mv 7cc stage2
 	mv cc1 cc1_stage2
 	ln -s cc1_stage2 cc1
 
 stage3: stage2
 	$(MAKE) objclean
-	$(MAKE) CC=./stage2
+	$(MAKE) CC=./stage2 STAGE=3
 	mv 7cc stage3
 	mv cc1 cc1_stage3
 	ln -s cc1_stage3 cc1
