@@ -270,7 +270,7 @@ static struct operand * make_indirection_operand1(struct operand *l)
 
 static struct operand * make_indirection_operand(struct operand *l)
 {
-    if (l->op == IR_NONE && SYM_X_KIND(l->sym) == SYM_KIND_TMP) {
+    if (is_tmp_operand(l)) {
         return make_indirection_operand1(l);
     } else {
         struct tac *tac = make_assign_tac(IR_ASSIGNI,
