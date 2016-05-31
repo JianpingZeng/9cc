@@ -1100,12 +1100,18 @@ static void emit_bop_assign(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
+
+    // try to get bit-field
+    // NOTE: skip PAREN_EXPR
+    node_t *nl = l;
+    while (AST_ID(nl) == PAREN_EXPR)
+        nl = EXPR_OPERAND(nl, 0);
     
-    node_t *field = fieldof(l);
+    node_t *field = fieldof(nl);
     if (field && FIELD_ISBIT(field)) {
         // if it's a bit-field
-        emit_member_nonbitfield(l, field);
-        emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r, 0, field, false);
+        emit_member_nonbitfield(nl, field);
+        emit_assign(AST_TYPE(nl), EXPR_X_ADDR(nl), r, 0, field, false);
     } else {
         emit_expr(l);
         emit_assign(AST_TYPE(l), EXPR_X_ADDR(l), r, 0, NULL, false);
@@ -1341,6 +1347,8 @@ static void emit_cond(node_t *n)
 // s->a
 static void emit_member_nonbitfield(node_t *n, node_t *field)
 {
+    assert(AST_ID(n) == MEMBER_EXPR);
+    
     node_t *l = EXPR_OPERAND(n, 0);
     emit_expr(l);
 
