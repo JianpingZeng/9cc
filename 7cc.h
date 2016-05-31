@@ -3,28 +3,28 @@
 
 #ifdef CONFIG_COLOR_TERM
 
-#define RESET    "\e[0m"
-#define CLEAR    "\e[1;38m"
+#define RESET    "\033[0m"
+#define CLEAR    "\033[1;38m"
 
 // regular
-#define BLACK_COLOR    "\e[0;30m"
-#define RED_COLOR      "\e[0;31m"
-#define GREEN_COLOR    "\e[0;32m"
-#define YELLOW_COLOR   "\e[0;33m"
-#define BLUE_COLOR     "\e[0;34m"
-#define PURPLE_COLOR   "\e[0;35m"
-#define CYAN_COLOR     "\e[0;36m"
-#define WHITE_COLOR    "\e[0;37m"
+#define BLACK_COLOR    "\033[0;30m"
+#define RED_COLOR      "\033[0;31m"
+#define GREEN_COLOR    "\033[0;32m"
+#define YELLOW_COLOR   "\033[0;33m"
+#define BLUE_COLOR     "\033[0;34m"
+#define PURPLE_COLOR   "\033[0;35m"
+#define CYAN_COLOR     "\033[0;36m"
+#define WHITE_COLOR    "\033[0;37m"
 
 // bold
-#define BLACK_BOLD_COLOR    "\e[1;30m"
-#define RED_BOLD_COLOR      "\e[1;31m"
-#define GREEN_BOLD_COLOR    "\e[1;32m"
-#define YELLOW_BOLD_COLOR   "\e[1;33m"
-#define BLUE_BOLD_COLOR     "\e[1;34m"
-#define PURPLE_BOLD_COLOR   "\e[1;35m"
-#define CYAN_BOLD_COLOR     "\e[1;36m"
-#define WHITE_BOLD_COLOR    "\e[1;37m"
+#define BLACK_BOLD_COLOR    "\033[1;30m"
+#define RED_BOLD_COLOR      "\033[1;31m"
+#define GREEN_BOLD_COLOR    "\033[1;32m"
+#define YELLOW_BOLD_COLOR   "\033[1;33m"
+#define BLUE_BOLD_COLOR     "\033[1;34m"
+#define PURPLE_BOLD_COLOR   "\033[1;35m"
+#define CYAN_BOLD_COLOR     "\033[1;36m"
+#define WHITE_BOLD_COLOR    "\033[1;37m"
 
 #else
 
