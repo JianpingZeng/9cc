@@ -2499,9 +2499,7 @@ static void emit_struct_initializer(node_t *n)
                     next = NULL;
                 field = vec_at(fields, i);
                 init = vec_at(inits, i);
-                if (next
-                    && FIELD_OFFSET(field) !=
-                    FIELD_OFFSET(next))
+                if (next && FIELD_OFFSET(field) != FIELD_OFFSET(next))
                     break;
                 int bits = FIELD_BITSIZE(field);
                 unsigned long long byte = 0;
@@ -2509,10 +2507,8 @@ static void emit_struct_initializer(node_t *n)
                     byte = ILITERAL_VALUE(init);
                 while (bits + old_bits >= 8) {
                     unsigned char val;
-                    unsigned char l =
-                        byte & ~(~0 << (8 - old_bits));
-                    unsigned char r =
-                        old_byte & ~(~0 << old_bits);
+                    unsigned char l = byte & ~(~0 << (8 - old_bits));
+                    unsigned char r = old_byte & ~(~0 << old_bits);
                     val = (l << old_bits) | r;
                     old_bits = 0;
                     old_byte = 0;
