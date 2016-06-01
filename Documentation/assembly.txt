@@ -347,6 +347,23 @@ sym(,index,scale)
 1. https://sourceware.org/binutils/docs/as/i386_002dMemory.html#i386_002dMemory
 2. http://www.x86-64.org/documentation/assembly.html
 
+
+
+64-Bit Difference
+==================
+
+Intel Manual Volume 1: 3.4.1.1 General-Purpose Registers in 64-Bit Mode
+
+When in 64-bit mode, operand size determines the number of valid bits in the
+destination general-purpose register:
+
+- 64-bit operands generate a 64-bit result in the destination general-purpose register.
+- 32-bit operands generate a 32-bit result, zero-extended to a 64-bit result in the
+  destination general-purpose register.
+- 8-bit and 16-bit operands generate an 8-bit or 16-bit result. The upper 56 bits or
+  48 bits of the destination general-purpose register are not modified by the operation.
+
+
 Reference
 ===========
 
