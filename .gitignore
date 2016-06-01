@@ -64,3 +64,6 @@ nul
 
 # cmake build dir
 build
+
+# depend
+.depend
