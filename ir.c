@@ -1488,7 +1488,8 @@ static void emit_subscript(node_t *n)
     node_t *i = ptr == l ? r : l;
     node_t *rty = rtype(AST_TYPE(ptr));
     struct operand *addr = EXPR_X_ADDR(ptr);
-    EXPR_X_ADDR(n) = make_subscript_operand(addr, EXPR_X_ADDR(i), TYPE_SIZE(rty), AST_TYPE(i));
+    EXPR_X_ADDR(n) = make_subscript_operand(addr, EXPR_X_ADDR(i),
+                                            TYPE_SIZE(rty), AST_TYPE(i));
 }
 
 static void emit_call(node_t *n)
@@ -2384,9 +2385,11 @@ static struct xvalue * alloc_xvalue(void)
     return zmalloc(sizeof(struct xvalue));
 }
 
-static struct section * alloc_section(void)
+static struct section * new_section(int id)
 {
-    return zmalloc(sizeof(struct section));
+    struct section *section = zmalloc(sizeof(struct section));
+    section->id = id;
+    return section;
 }
 
 static void emit_xvalue(int size, const char *name)
@@ -2410,8 +2413,7 @@ static void emit_section(struct section *data)
 static void emit_funcdef_section(node_t *decl)
 {
     node_t *sym = DECL_SYM(decl);
-    struct section *section = alloc_section();
-    section->id = SECTION_TEXT;
+    struct section *section = new_section(SECTION_TEXT);
     section->global = SYM_SCLASS(sym) == STATIC ? false : true;
     section->label = SYM_X_LABEL(sym);
     section->u.decl = decl;
@@ -2432,8 +2434,7 @@ static struct section *emit_compound_literal_label(const char *label, node_t *in
 {
     node_t *ty = AST_TYPE(init);
     
-    struct section *section = alloc_section();
-    section->id = SECTION_DATA;
+    struct section *section = new_section(SECTION_DATA);
     section->label = label;
     section->size = TYPE_SIZE(ty);
     section->align = TYPE_ALIGN(ty);
@@ -2682,16 +2683,14 @@ static void set_section_basic(struct section *section, node_t *decl)
 
 static void emit_bss(node_t *decl)
 {
-    struct section *section = alloc_section();
-    section->id = SECTION_BSS;
+    struct section *section = new_section(SECTION_BSS);
     set_section_basic(section, decl);
     emit_section(section);
 }
 
 static void emit_data(node_t *decl)
 {
-    struct section *section = alloc_section();
-    section->id = SECTION_DATA;
+    struct section *section = new_section(SECTION_DATA);
     set_section_basic(section, decl);
     
     // enter context
