@@ -417,23 +417,26 @@ static struct operand * make_subscript_operand1(struct operand *l,
         return make_subscript_operand2(l, index, step, disp, indexty);
     case IR_SUBSCRIPT:
     case IR_INDIRECTION:
-        if (TYPE_SIZE(indexty) == Quad) {
-            struct tac *tac = make_assign_tac(IR_ASSIGNI,
-                                              make_tmp_operand(),
-                                              index,
-                                              ops[Quad]);
-            emit_tac(tac);
-            return make_subscript_operand2(l, tac->operands[0], step, disp, indexty);
-        } else {
+        {
             // cast to Quad
             node_t *sty = indexty;
             node_t *dty = longtype;
-            int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_SI : IR_CONV_SI_SI;
-            struct operand *result = emit_conv_tac(op,
-                                                   index,
-                                                   ops[TYPE_SIZE(sty)],
-                                                   ops[TYPE_SIZE(dty)]);
-            return make_subscript_operand2(l, result, step, disp, longtype);
+
+            if (TYPE_SIZE(sty) == TYPE_SIZE(dty)) {
+                struct tac *tac = make_assign_tac(IR_ASSIGNI,
+                                                  make_tmp_operand(),
+                                                  index,
+                                                  ops[Quad]);
+                emit_tac(tac);
+                return make_subscript_operand2(l, tac->operands[0], step, disp, indexty);
+            } else {
+                int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_SI : IR_CONV_SI_SI;
+                struct operand *result = emit_conv_tac(op,
+                                                       index,
+                                                       ops[TYPE_SIZE(sty)],
+                                                       ops[TYPE_SIZE(dty)]);
+                return make_subscript_operand2(l, result, step, disp, longtype);
+            }
         }
         break;
     default:
