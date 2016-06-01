@@ -2559,17 +2559,18 @@ static void emit_array_initializer(node_t *n)
         emit_xvalue(Quad, label);
     } else {
         assert(AST_ID(n) == INITS_EXPR);
+        node_t *rty = rtype(AST_TYPE(n));
         int i;
         for (i = 0; i < vec_len(EXPR_INITS(n)); i++) {
             node_t *init = vec_at(EXPR_INITS(n), i);
             if (AST_ID(init) == VINIT_EXPR)
-                emit_zero(TYPE_SIZE(rtype(AST_TYPE(n))));
+                emit_zero(TYPE_SIZE(rty));
             else
                 emit_initializer(init);
         }
         int left = TYPE_LEN(AST_TYPE(n)) - i;
         if (left > 0)
-            emit_zero(left * TYPE_SIZE(rtype(AST_TYPE(n))));
+            emit_zero(left * TYPE_SIZE(rty));
     }
 }
 
