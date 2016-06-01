@@ -2490,44 +2490,45 @@ static void emit_struct_initializer(node_t *n)
         node_t *field = vec_at(fields, i);
         size_t offset = FIELD_OFFSET(field);
         if (FIELD_ISBIT(field)) {
-            int old_bits = 0;
-            unsigned long long old_byte = 0;
-            for (; i < vec_len(inits); i++) {
-                node_t *next;
-                if (i < vec_len(inits) - 1)
-                    next = vec_at(fields, i+1);
-                else
-                    next = NULL;
-                field = vec_at(fields, i);
-                init = vec_at(inits, i);
-                if (next && FIELD_OFFSET(field) != FIELD_OFFSET(next))
-                    break;
-                int bits = FIELD_BITSIZE(field);
-                unsigned long long byte = 0;
-                if (isiliteral(init))
-                    byte = ILITERAL_VALUE(init);
-                while (bits + old_bits >= 8) {
-                    unsigned char val;
-                    unsigned char l = byte & ~(~0 << (8 - old_bits));
+            if (FIELD_BITSIZE(field)) {
+                int old_bits = 0;
+                unsigned long long old_byte = 0;
+                for (; i < vec_len(inits); i++) {
+                    field = vec_at(fields, i);
+                    init = vec_at(inits, i);
+                    int bits = FIELD_BITSIZE(field);
+                    unsigned long long byte = 0;
+                    if (isiliteral(init))
+                        byte = ILITERAL_VALUE(init);
+                    while (bits + old_bits >= 8) {
+                        unsigned char val;
+                        unsigned char l = byte & ~(~0 << (8 - old_bits));
+                        unsigned char r = old_byte & ~(~0 << old_bits);
+                        val = (l << old_bits) | r;
+                        emit_xvalue(Byte, format("%d", val));
+                        
+                        old_bits = 0;
+                        old_byte = 0;
+                        bits -= 8;
+                        byte >>= 8;
+                        offset += 1;
+                    }
+                    old_bits += bits;
+                    old_byte += byte;
+                    // next
+                    node_t *next = i < vec_len(inits) - 1 ? vec_at(fields, i+1) : NULL;
+                    if (next && FIELD_OFFSET(field) != FIELD_OFFSET(next))
+                        break;
+                }
+                if (old_bits) {
                     unsigned char r = old_byte & ~(~0 << old_bits);
-                    val = (l << old_bits) | r;
-                    old_bits = 0;
-                    old_byte = 0;
-                    bits -= 8 - old_bits;
-                    byte >>= 8 - old_bits;
-                    emit_xvalue(Byte, format("%d", val));
+                    emit_xvalue(Byte, format("%d", r));
                     offset += 1;
                 }
-                old_bits += bits;
-                old_byte += byte;
-            }
-            if (old_bits) {
-                unsigned char r = old_byte & ~(~0 << old_bits);
-                emit_xvalue(Byte, format("%d", r));
-                offset += 1;
             }
         } else {
             node_t *fty = FIELD_TYPE(field);
+            // maybe zero (flexible array at last)
             if (TYPE_SIZE(fty)) {
                 if (AST_ID(init) == VINIT_EXPR)
                     emit_zero(TYPE_SIZE(fty));
@@ -2537,16 +2538,8 @@ static void emit_struct_initializer(node_t *n)
             }
         }
         // pack
-        node_t *next;
-        if (i < vec_len(inits) - 1)
-            next = vec_at(fields, i+1);
-        else
-            next = NULL;
-        size_t end;
-        if (next)
-            end = FIELD_OFFSET(next);
-        else
-            end = TYPE_SIZE(ty);
+        node_t *next = i < vec_len(inits) - 1 ? vec_at(fields, i+1) : NULL;
+        size_t end = next ? FIELD_OFFSET(next) : TYPE_SIZE(ty);
         if (end - offset)
             emit_zero(end - offset);
     }
