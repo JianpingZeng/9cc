@@ -95,7 +95,7 @@ endif
 
 CFLAGS += $(CONFIG_FLAGS)
 
-all: $(7CC) $(CC1)
+all:: $(7CC) $(CC1)
 
 $(7CC): $(7CC_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
 	$(CC) $(7CC_OBJ) $(SYS_OBJ) $(UTILS_OBJ) $(LDFLAGS) -o $@
@@ -145,22 +145,21 @@ test/%.o: test/%.c
 test/%.bin: test/%.o test/main.o $(UTILS_OBJ)
 	$(CC) $(LDFLAGS) -o $@ $< test/main.o $(UTILS_OBJ)
 
-test: $(TESTS)
+test:: $(TESTS)
 	@for test in $(TESTS); do \
 		./$$test && exit; \
 	done
 
-objclean:
+objclean::
 	$(RM) *.o *~
 	$(RM) $(sys_dir)*.o $(sys_dir)*~
 	$(RM) $(utils_dir)*.o $(utils_dir)*~
 	$(RM) $(TESTS) test/*.o test/*~
 	$(RM) include/*~ 7cc.exe*
 
-clean: objclean
+clean:: objclean
 	$(RM) $(7CC) $(CC1)
 
-distclean: clean
+distclean:: clean
 	$(RM) stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3
 
-.PHONY: all clean distclean objclean test
