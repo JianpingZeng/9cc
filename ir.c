@@ -1303,9 +1303,22 @@ static void emit_bop_plus_minus(node_t *n)
         node_t *i = isint(AST_TYPE(l)) ? l : r;
         node_t *rty = rtype(AST_TYPE(ptr));
         int op = EXPR_OP(n) == '+' ? IR_ADDI : IR_SUBI;
+
+        // cast to Quad (only if signed)
+        struct operand *index = EXPR_X_ADDR(i);
+        node_t *sty = AST_TYPE(i);
+        node_t *dty = longtype;
+        if (TYPE_OP(sty) == INT &&
+            TYPE_SIZE(sty) != TYPE_SIZE(dty)) {
+            index = emit_conv_tac(IR_CONV_SI_SI,
+                                  EXPR_X_ADDR(i),
+                                  ops[TYPE_SIZE(sty)],
+                                  ops[TYPE_SIZE(dty)]);
+        }
+        
         EXPR_X_ADDR(n) = emit_ptr_int(op,
                                       EXPR_X_ADDR(ptr),
-                                      EXPR_X_ADDR(i),
+                                      index,
                                       TYPE_SIZE(rty),
                                       ops[TYPE_SIZE(AST_TYPE(ptr))]);
     }
