@@ -580,6 +580,7 @@ void print_tac(struct tac *tac)
     case IR_CONV_F_UI:
     case IR_CONV_F_SI:
     case IR_CONV_FF:
+    case IR_CONV_P_B:
         putf("%s = (%s) %s \t(%d => %d)",
              operand2s(tac->operands[0]),
              rop2s(tac->op),

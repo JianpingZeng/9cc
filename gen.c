@@ -134,6 +134,7 @@ static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, struct vector *param
 #define OP_RET    "ret"
 #define OP_PUSH   "push"
 #define OP_POP    "pop"
+#define OP_SETNE  "setne"
 
 static FILE *outfp;
 
@@ -1963,6 +1964,23 @@ static void emit_conv_f2f(struct tac *tac)
         assert(0);
 }
 
+static void emit_conv_p2b(struct tac *tac)
+{
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int from_size = tac->from_opsize;
+    int to_size = tac->to_opsize;
+    int from_i = idx[from_size];
+    int to_i = idx[to_size];
+    struct reladdr *src_label = operand2s(l, from_size);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+    struct reladdr *dst_label = rs(reg->r[from_i]);
+    xx(OP_MOV, suffixi[from_i], src_label, dst_label);
+    xx(OP_TEST, suffixi[from_i], dst_label, dst_label);
+    xx(OP_SETNE, NULL, rs(reg->r[to_i]), NULL);
+}
+
 static void emit_tac(struct tac *tac)
 {
     switch (tac->op) {
@@ -2079,6 +2097,9 @@ static void emit_tac(struct tac *tac)
         break;
     case IR_CONV_FF:
         emit_conv_f2f(tac);
+        break;
+    case IR_CONV_P_B:
+        emit_conv_p2b(tac);
         break;
     case IR_NONE:
     case IR_PARAM:

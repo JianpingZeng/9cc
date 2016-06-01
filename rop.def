@@ -72,4 +72,6 @@ _rop(IR_CONV_FF,        "float => float")
 _rop(IR_CONV_F_UI,      "float => uint")
 _rop(IR_CONV_F_SI,      "float => int")
 
+_rop(IR_CONV_P_B,       "ptr => bool")
+
 #undef _rop

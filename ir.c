@@ -1631,6 +1631,17 @@ static void arith2arith(node_t *sty, node_t *dty, node_t *n)
     }
 }
 
+static void ptr2bool(node_t *sty, node_t *dty, node_t *n)
+{
+    assert(isbool(dty));
+
+    node_t *l = EXPR_OPERAND(n, 0);
+    EXPR_X_ADDR(n) = emit_conv_tac(IR_CONV_P_B,
+                                   EXPR_X_ADDR(l),
+                                   ops[TYPE_SIZE(sty)],
+                                   ops[TYPE_SIZE(dty)]);
+}
+
 static void ptr2arith(node_t *sty, node_t *dty, node_t *n)
 {
     assert(isint(dty));
@@ -1674,12 +1685,16 @@ static void emit_conv(node_t *n)
     emit_expr(l);
 
     if (isarith(dty)) {
-        if (isarith(sty))
+        if (isarith(sty)) {
             arith2arith(sty, dty, n);
-        else if (isptr(sty))
-            ptr2arith(sty, dty, n);
-        else
+        } else if (isptr(sty)) {
+            if (isbool(dty))
+                ptr2bool(sty, dty, n);
+            else
+                ptr2arith(sty, dty, n);
+        } else {
             assert(0);
+        }
     } else if (isptr(dty)) {
         if (isptr(sty))
             ptr2ptr(sty, dty, n);
