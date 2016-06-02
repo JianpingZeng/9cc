@@ -10,8 +10,9 @@ for src in *.c utils/*.c sys/unix.c sys/linux.c
 do
     f1=/tmp/7cc/`basename $src`.1.i
     f2=/tmp/7cc/`basename $src`.2.i
-    ./cc1_stage1 -ir-dump -fversion=1 -DCONFIG_LINUX -DCONFIG_COLOR_TERM -DBUILD_DIR='"/mnt/hgfs/下载/7cc"' $src > $f1
-    ./cc1_stage2 -ir-dump -fversion=1 -DCONFIG_LINUX -DCONFIG_COLOR_TERM -DBUILD_DIR='"/mnt/hgfs/下载/7cc"' $src > $f2
+    dir=`pwd`
+    ./cc1_stage1 -ir-dump -fversion=1 -DCONFIG_LINUX -DCONFIG_COLOR_TERM -DBUILD_DIR='"$dir"' $src > $f1
+    ./cc1_stage2 -ir-dump -fversion=1 -DCONFIG_LINUX -DCONFIG_COLOR_TERM -DBUILD_DIR='"$dir"' $src > $f2
 
     if [ "$1" == "-v" ]; then
         diff $f1 $f2
