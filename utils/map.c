@@ -43,17 +43,12 @@ static int cmp(const void *key1, const void *key2)
     return strcmp(key1, key2);
 }
 
-int nocmp(const void *key1, const void *key2)
-{
-    return 1;
-}
-
 static int eqentry(struct map *map, struct map_entry *entry, const void *key)
 {
-    if (map->cmpfn == nocmp)
-        return entry->key == key;
-    else
+    if (map->cmpfn)
         return entry->key == key || !map->cmpfn(entry->key, key);
+    else
+        return entry->key == key;
 }
 
 static struct map_entry **find_entry(struct map *map, const void *key)
@@ -104,8 +99,7 @@ struct map *map_new(void)
 struct map *map_newf(int (*cmp) (const void *, const void *))
 {
     struct map *map = map_new();
-    if (cmp)
-        map->cmpfn = cmp;
+    map->cmpfn = cmp;
     return map;
 }
 

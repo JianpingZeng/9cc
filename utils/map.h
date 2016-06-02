@@ -24,8 +24,6 @@ extern void *map_get(struct map *map, const void *key);
 
 extern void map_put(struct map *map, const void *key, void *value);
 
-extern int nocmp(const void *key1, const void *key2);
-
 extern struct vector *map_keys(struct map *map);
 
 #endif

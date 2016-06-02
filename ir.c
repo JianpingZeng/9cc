@@ -2374,7 +2374,7 @@ static const char *glabel(const char *label)
 static struct vector * filter_global(struct vector *v)
 {
     struct vector *r = vec_new();
-    struct map *map = map_newf(nocmp);
+    struct map *map = map_newf(NULL);
     for (int i = 0; i < vec_len(v); i++) {
         node_t *decl = vec_at(v, i);
         node_t *sym = DECL_SYM(decl);
