@@ -135,6 +135,7 @@ static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, struct vector *param
 #define OP_PUSH   "push"
 #define OP_POP    "pop"
 #define OP_SETNE  "setne"
+#define OP_SETP   "setp"
 
 static FILE *outfp;
 
@@ -1981,6 +1982,45 @@ static void emit_conv_p2b(struct tac *tac)
     xx(OP_SETNE, NULL, rs(reg->r[to_i]), NULL);
 }
 
+static void emit_conv_i2b(struct tac *tac)
+{
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int from_size = tac->from_opsize;
+    int to_size = tac->to_opsize;
+    int from_i = idx[from_size];
+    int to_i = idx[to_size];
+    struct reladdr *src_label = operand2s(l, from_size);
+    struct set *excepts = operand_regs(l);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+    xx(OP_CMP, suffixi[from_i], imm(0), src_label);
+    xx(OP_SETNE, NULL, rs(reg->r[to_i]), NULL);
+}
+
+static void emit_conv_f2b(struct tac *tac)
+{
+    struct operand *result = tac->operands[0];
+    struct operand *l = tac->operands[1];
+    int from_size = tac->from_opsize;
+    int to_size = tac->to_opsize;
+    int from_i = idx[from_size];
+    int to_i = idx[to_size];
+    struct reladdr *src_label = operand2s(l, from_size);
+    struct set *excepts = operand_regs(l);
+    struct reg *ftmp = get_one_freg(excepts);
+    xx(OP_XOR, suffixp[from_i], rs(ftmp->r[from_i]), rs(ftmp->r[from_i]));
+    xx(OP_UCOMI, suffixf[from_i], rs(ftmp->r[from_i]), src_label);
+    set_add(excepts, ftmp);
+    struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
+    set_add(excepts, reg);
+    struct reg *tmp = get_one_ireg(excepts);
+    // handle negative zero
+    xx(OP_SETNE, NULL, rs(reg->r[to_i]), NULL);
+    xx(OP_SETP, NULL, rs(tmp->r[to_i]), NULL);
+    xx(OP_OR, suffixi[to_i], rs(tmp->r[to_i]), rs(reg->r[to_i]));
+    xx(OP_AND, suffixi[to_i], imm(1), rs(reg->r[to_i]));
+}
+
 static void emit_tac(struct tac *tac)
 {
     switch (tac->op) {
@@ -2100,6 +2140,12 @@ static void emit_tac(struct tac *tac)
         break;
     case IR_CONV_P_B:
         emit_conv_p2b(tac);
+        break;
+    case IR_CONV_I_B:
+        emit_conv_i2b(tac);
+        break;
+    case IR_CONV_F_B:
+        emit_conv_f2b(tac);
         break;
     case IR_NONE:
     case IR_PARAM:
