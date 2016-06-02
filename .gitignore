@@ -67,3 +67,6 @@ build
 
 # depend
 .depend
+
+# gprof
+gmon.out

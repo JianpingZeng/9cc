@@ -139,7 +139,7 @@ struct vector *map_keys(struct map *map)
 {
     if (!map || map->size == 0)
         return NULL;
-    struct vector *v = vec_new();
+    struct vector *v = vec_newn(map->size);
     for (unsigned i = 0; i < map->tablesize; i++) {
         struct map_entry *entry = map->table[i];
         while (entry) {

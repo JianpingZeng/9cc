@@ -11,6 +11,8 @@ extern struct vector *vec_new(void);
 
 extern struct vector *vec_new1(void *val);
 
+extern struct vector *vec_newn(size_t capacity);
+
 extern void vec_free(struct vector *v);
 
 extern void vec_purge(struct vector *v);

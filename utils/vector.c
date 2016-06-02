@@ -25,6 +25,16 @@ struct vector *vec_new1(void *val)
     return v;
 }
 
+struct vector *vec_newn(size_t capacity)
+{
+    struct vector *v = xmalloc(sizeof(struct vector));
+    v->mem = NULL;
+    v->len = 0;
+    v->alloc = MAX(VEC_INIT_SIZE, capacity);
+    vec_grow(v);
+    return v;
+}
+
 void vec_free(struct vector *v)
 {
     free(v->mem);
