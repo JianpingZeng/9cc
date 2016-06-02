@@ -453,7 +453,7 @@ static const char * operand2s(struct operand *operand)
 
 void print_tac(struct tac *tac)
 {
-    putf(GREEN_COLOR "<%p>", tac);
+    putf(GREEN_COLOR);
     switch (tac->opsize) {
     case Quad:
         putf("[Q] ");

@@ -22,7 +22,5 @@ do
     fi
 done
 
-rm -rf /tmp/7cc
-
 echo "$ok success, $fail failed."
 
