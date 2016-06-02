@@ -4,17 +4,14 @@
 
 static void vec_grow(struct vector *v)
 {
-    void *oldmem = v->mem;
     v->alloc <<= 1;
-    v->mem = xmalloc(v->alloc * sizeof(void *));
-    memcpy(v->mem, oldmem, v->len * sizeof(void *));
-    if (v->len > 0)
-        free(oldmem);
+    v->mem = xrealloc(v->mem, v->alloc * sizeof(void *));
 }
 
 struct vector *vec_new(void)
 {
     struct vector *v = xmalloc(sizeof(struct vector));
+    v->mem = NULL;
     v->len = 0;
     v->alloc = VEC_INIT_SIZE;
     vec_grow(v);

@@ -1991,6 +1991,12 @@ static void emit_conv_i2b(struct tac *tac)
     int from_i = idx[from_size];
     int to_i = idx[to_size];
     struct reladdr *src_label = operand2s(l, from_size);
+    if (is_imm_operand(l)) {
+        struct reg *reg = dispatch_ireg(l->sym, NULL, from_size);
+        xx(OP_MOV, suffixi[from_i], src_label, rs(reg->r[from_i]));
+        // reset
+        src_label = rs(reg->r[from_i]);
+    }
     struct set *excepts = operand_regs(l);
     struct reg *reg = dispatch_ireg(result->sym, excepts, to_size);
     xx(OP_CMP, suffixi[from_i], imm(0), src_label);
