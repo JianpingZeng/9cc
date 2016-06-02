@@ -16,7 +16,10 @@ static void alloc_map(struct map *map, unsigned size)
 
 static unsigned bucket(struct map *map, const void *key)
 {
-    return strhash(key) & (map->tablesize - 1);
+    if (map->cmpfn)
+        return strhash(key) & (map->tablesize - 1);
+    else
+        return (unsigned)key & (map->tablesize - 1);
 }
 
 static void rehash(struct map *map, unsigned newsize)
