@@ -30,10 +30,6 @@ extern char *ld[];
 extern char *as[];
 extern char *cc[];
 
-#ifdef CONFIG_WINNT
-    #define BUILTIN_HEADER  BUILD_DIR "\\include\\7cc.h"
-#else
-    #define BUILTIN_HEADER  BUILD_DIR "/include/7cc.h"
-#endif
+#define BUILTIN_HEADER "7cc.h"
 
 #endif
