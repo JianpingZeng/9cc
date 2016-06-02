@@ -655,7 +655,9 @@ static void warning_unused(void)
         // ONLY warning, not filter out
         // because it may contains side-effect such as function calls.
         if (SYM_REFS(sym) == 0) {
-            if (!SYM_PREDEFINE(sym))
+            if (SYM_PREDEFINE(sym))
+                continue;       // filter-out predefined symbols
+            else
                 warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
         }
         if (SYM_SCLASS(sym) == STATIC) {
