@@ -1,7 +1,6 @@
 # Makefile for 7cc
 
-CFLAGS_COMMON = -Wall -std=c99 -DBUILD_DIR='"$(shell pwd)"' -g
-CFLAGS = $(CFLAGS_COMMON)
+CFLAGS = -Wall -std=c99 -DBUILD_DIR='"$(shell pwd)"' -g
 LDFLAGS =
 7CC = 7cc
 CC1 = cc1

@@ -50,7 +50,10 @@ int nocmp(const void *key1, const void *key2)
 
 static int eqentry(struct map *map, struct map_entry *entry, const void *key)
 {
-    return entry->key == key || !map->cmpfn(entry->key, key);
+    if (map->cmpfn == nocmp)
+        return entry->key == key;
+    else
+        return entry->key == key || !map->cmpfn(entry->key, key);
 }
 
 static struct map_entry **find_entry(struct map *map, const void *key)
