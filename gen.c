@@ -2180,11 +2180,24 @@ static void spill(node_t *sym)
     SYM_X_REG(sym) = NULL;
 }
 
+static int sort_symbol(node_t *sym1, node_t *sym2)
+{
+    return strcmp(SYM_X_LABEL(sym1), SYM_X_LABEL(sym2));
+}
+
+static int sort_out(const void *val1, const void *val2)
+{
+    node_t *sym1 = * (node_t **) val1;
+    node_t *sym2 = * (node_t **) val2;
+    return sort_symbol(sym1, sym2);
+}
+
 static void finalize_basic_block(struct basic_block *block)
 {
     struct vector *outs = set_objects(block->out);
-    for (size_t i = 0; i < vec_len(outs); i++) {
-        node_t *sym = vec_at(outs, i);
+    struct vector *sorted = vec_sort(outs, sort_out);
+    for (size_t i = 0; i < vec_len(sorted); i++) {
+        node_t *sym = vec_at(sorted, i);
         spill(sym);
     }
 }
@@ -2958,11 +2971,19 @@ static struct reg * get_one_ireg(struct set *excepts)
     return get_reg(int_regs, ARRAY_SIZE(int_regs), excepts);
 }
 
+static int sort_var(const void *val1, const void *val2)
+{
+    struct rvar *v1 = *(struct rvar **)val1;
+    struct rvar *v2 = *(struct rvar **)val2;
+    return sort_symbol(v1->sym, v2->sym);
+}
+
 static void drain_reg(struct reg *reg)
 {
     struct vector *vars = set_objects(reg->vars);
-    for (size_t i = 0; i < vec_len(vars); i++) {
-        struct rvar *v = vec_at(vars, i);
+    struct vector *sorted = vec_sort(vars, sort_var);
+    for (size_t i = 0; i < vec_len(sorted); i++) {
+        struct rvar *v = vec_at(sorted, i);
         spillv(v);
     }
     if (reg->vars)

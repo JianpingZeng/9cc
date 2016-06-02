@@ -147,7 +147,7 @@ test/%.bin: test/%.o test/main.o $(UTILS_OBJ)
 
 test:: $(TESTS)
 	@for test in $(TESTS); do \
-		./$$test && exit; \
+		./$$test || exit; \
 	done
 
 objclean::

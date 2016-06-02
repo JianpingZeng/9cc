@@ -168,6 +168,15 @@ struct vector *vec_copy(struct vector *v)
     return copy;
 }
 
+struct vector *vec_sort(struct vector *v, int (*sort) (const void *val1, const void *val2))
+{
+    if (vec_empty(v))
+        return NULL;
+    struct vector *r = vec_copy(v);
+    qsort(r->mem, r->len, sizeof(void *), sort);
+    return r;
+}
+
 // Add elements to vector from a null-terminated array
 void vec_add_array(struct vector *v, void **array)
 {

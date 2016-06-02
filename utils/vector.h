@@ -49,6 +49,8 @@ extern struct vector *vec_reverse(struct vector *v);
 
 extern struct vector *vec_copy(struct vector *v);
 
+extern struct vector *vec_sort(struct vector *v, int (*sort) (const void *val1, const void *val2));
+
 extern void **vtoa(struct vector *v);
 
 extern void vec_add_array(struct vector *v, void **array);
