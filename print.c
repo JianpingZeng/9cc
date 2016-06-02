@@ -644,6 +644,9 @@ static void print_data(struct section *section)
         case Quad:
             putln(".quad %s", value->name);
             break;
+        case ASCIZ:
+            putln(".asciz %s", value->name);
+            break;
         default:
             assert(0);
         }

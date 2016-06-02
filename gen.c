@@ -2559,6 +2559,8 @@ static void emit_data(struct section *section)
     emit(".data");
     if (section->align > 1)
         emit(".align %d", section->align);
+    if (section->array)
+        emit(".size %s, %lu", section->label, section->size);
     emit_noindent("%s:", section->label);
     for (int i = 0; i < vec_len(section->u.xvalues); i++) {
         struct xvalue *value = vec_at(section->u.xvalues, i);
@@ -2577,6 +2579,9 @@ static void emit_data(struct section *section)
             break;
         case Quad:
             emit(".quad %s", value->name);
+            break;
+        case ASCIZ:
+            emit(".asciz %s", value->name);
             break;
         default:
             die("unknown size");

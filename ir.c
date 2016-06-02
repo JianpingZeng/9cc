@@ -2579,8 +2579,13 @@ static void emit_struct_initializer(node_t *n)
 static void emit_array_initializer(node_t *n)
 {
     if (issliteral(n)) {
-        const char *label = get_ptr_label(n);
-        emit_xvalue(Quad, label);
+        const char *name = SYM_NAME(EXPR_SYM(n));
+        emit_xvalue(ASCIZ, name);
+        int tysize = TYPE_SIZE(AST_TYPE(n));
+        // end with '\0'
+        int len = strlen(name) - 1;
+        if (tysize - len)
+            emit_zero(tysize - len);
     } else {
         assert(AST_ID(n) == INITS_EXPR);
         node_t *rty = rtype(AST_TYPE(n));
@@ -2725,6 +2730,9 @@ static void emit_data(node_t *decl)
     emit_section(section);
 
     section->u.xvalues = XVALUES;
+    // array
+    if (isarray(AST_TYPE(DECL_SYM(decl))))
+        section->array = true;
     
     // exit context
     RESTORE_SECTION_CONTEXT();

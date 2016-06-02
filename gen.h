@@ -52,6 +52,10 @@ enum {
     SECTION_TEXT
 };
 
+enum {
+    ASCIZ = Quad + 1
+};
+
 struct xvalue {
     int size;
     const char *name;
@@ -61,6 +65,7 @@ struct section {
     int id:3;
     int global:1;
     int align:6;
+    int array:1;
     const char *label;
     size_t size;
     union {
