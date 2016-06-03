@@ -42,7 +42,7 @@ static node_t *new_type(void)
     return alloc_type();
 }
 
-static node_t *install_type(const char *name, int kind, struct metrics m)
+static node_t *install_type(const char *name, int kind, struct metrics m, int op)
 {
     node_t *ty = new_type();
 
@@ -51,7 +51,7 @@ static node_t *install_type(const char *name, int kind, struct metrics m)
     _TYPE_SIZE(ty) = m.size;
     _TYPE_ALIGN(ty) = m.align;
     _TYPE_RANK(ty) = m.rank;
-    switch (TYPE_OP(ty)) {
+    switch (op) {
     case INT:
         VALUE_I(_TYPE_LIMITS_MAX(ty)) = ONES(_TYPE_SIZE(ty)) >> 1;
         VALUE_I(_TYPE_LIMITS_MIN(ty)) =
@@ -103,7 +103,7 @@ static void metrics_init(void)
 void type_init(void)
 {
     metrics_init();
-#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, metrics)
+#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, metrics, op)
 
     // type                     name                    kind            metrics            op
 
