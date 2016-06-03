@@ -145,9 +145,18 @@ void *map_get(struct map *map, const void *key)
 
 void map_put(struct map *map, const void *key, void *value)
 {
-    map_remove(map, key);
-    if (value)
-        map_add(map, key, value);
+    if (value) {
+        struct map_entry **entry = find_entry(map, key);
+        if (!*entry) {
+            map_add(map, key, value);
+        } else {
+            // just replace the value
+            struct map_entry *old = *entry;
+            old->value = value;
+        }
+    } else {
+        map_remove(map, key);
+    }
 }
 
 struct vector *map_keys(struct map *map)

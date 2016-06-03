@@ -1,6 +1,6 @@
 #include "utils.h"
 
-#define VEC_INIT_SIZE   16
+#define VEC_INIT_SIZE   64
 
 static void vec_grow(struct vector *v)
 {
