@@ -48,6 +48,12 @@ extern char *xstrdup(const char *str);
 extern char *xstrndup(const char *str, size_t n);
 extern bool has_prefix(const char *s, const char *prefix);
 
+// alloc.c
+extern void *alloc_set(void);
+extern void *alloc_map(void);
+extern void *alloc_map_entry(void);
+extern void *alloc_vector(void);
+
 // vector.c
 #include "vector.h"
 // map.c

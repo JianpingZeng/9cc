@@ -20,8 +20,6 @@ extern struct map *map_new(void);
 
 extern struct map *map_newf(int (*cmp) (const void *, const void *));
 
-extern void map_free(struct map *map);
-
 extern void *map_get(struct map *map, const void *key);
 
 extern void map_put(struct map *map, const void *key, void *value);

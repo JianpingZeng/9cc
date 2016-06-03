@@ -23,6 +23,7 @@ UTILS_OBJ += $(utils_dir)map.o
 UTILS_OBJ += $(utils_dir)string.o
 UTILS_OBJ += $(utils_dir)hideset.o
 UTILS_OBJ += $(utils_dir)set.o
+UTILS_OBJ += $(utils_dir)alloc.o
 
 UTILS_INC += $(utils_dir)strbuf.h
 UTILS_INC += $(utils_dir)vector.h
