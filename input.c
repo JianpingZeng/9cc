@@ -247,16 +247,11 @@ static void close_file(struct file *fs)
 {
     if (fs->kind == FILE_KIND_REGULAR)
         fclose(fs->fp);
-    else if (fs->kind == FILE_KIND_STRING)
-        free((void *)fs->file);
-    free(fs->buf);
-    vec_free(fs->ifstubs);
-    vec_free(fs->buffer);
-    vec_free(fs->tokens);
-    free(fs);
+    
     // reset current 'bol'
-    if (current_file())
-        current_file()->bol = true;
+    struct file *current = current_file();
+    if (current)
+        current->bol = true;
 }
 
 struct file *current_file(void)

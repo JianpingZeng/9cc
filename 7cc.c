@@ -261,7 +261,7 @@ int main(int argc, char **argv)
             else
                 ofile = replace_suffix(iname, "o");
             // base on suffix
-            if (suffix && !strcasecmp(suffix, "s")) {
+            if (suffix && !strcmp(suffix, "s")) {
                 ret = assemble(ifile, ofile);
             } else {
                 const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
             if (suffix && !strcmp(suffix, "o")) {
                 vec_push(objects, (char *)ifile);
                 ret = EXIT_SUCCESS;
-            } else if (suffix && !strcasecmp(suffix, "s")) {
+            } else if (suffix && !strcmp(suffix, "s")) {
                 ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
                 ret = assemble(ifile, ofile);
                 vec_push(objects, (char *)ofile);
