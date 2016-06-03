@@ -236,7 +236,6 @@ struct table {
 
 // sym
 extern struct table *new_table(struct table *up, int scope);
-extern void free_table(struct table *t);
 extern void symbol_init(void);
 extern int scopelevel(void);
 extern void enter_scope(void);
