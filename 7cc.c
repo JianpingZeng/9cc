@@ -260,17 +260,21 @@ int main(int argc, char **argv)
                 ofile = output;
             else
                 ofile = replace_suffix(iname, "o");
-            const char *sfile =
-                tempname(tmpdir, replace_suffix(ifile, "s"));
-            ret = translate(ifile, sfile, cc_options);
-            if (ret == 0)
-                ret = assemble(sfile, ofile);
+            // base on suffix
+            if (suffix && !strcasecmp(suffix, "s")) {
+                ret = assemble(ifile, ofile);
+            } else {
+                const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
+                ret = translate(ifile, sfile, cc_options);
+                if (ret == 0)
+                    ret = assemble(sfile, ofile);
+            }
         } else {
             // base on suffix
             if (suffix && !strcmp(suffix, "o")) {
                 vec_push(objects, (char *)ifile);
                 ret = EXIT_SUCCESS;
-            } else if (suffix && !strcmp(suffix, "s")) {
+            } else if (suffix && !strcasecmp(suffix, "s")) {
                 ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
                 ret = assemble(ifile, ofile);
                 vec_push(objects, (char *)ofile);
