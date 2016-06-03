@@ -104,6 +104,11 @@ size_t set_size(struct set *set)
     return set ? set->map->size : 0;
 }
 
+bool set_empty(struct set *set)
+{
+    return set ? set->map->size == 0 : true;
+}
+
 bool set_equal(struct set *set1, struct set *set2)
 {
     if (set_size(set1) != set_size(set2))
@@ -115,10 +120,5 @@ bool set_equal(struct set *set1, struct set *set2)
             return false;
     }
     return true;
-}
-
-bool set_empty(struct set *set)
-{
-    return set_size(set) == 0;
 }
 
