@@ -3038,8 +3038,7 @@ static void drain_reg(struct reg *reg)
         struct rvar *v = vec_at(sorted, i);
         spillv(v);
     }
-    if (reg->vars)
-        set_clear(reg->vars);
+    reg->vars = NULL;
 }
 
 static void clear_reg(struct reg *reg)
@@ -3052,8 +3051,7 @@ static void clear_reg(struct reg *reg)
         assert(SYM_X_INMEM(sym));
         SYM_X_REG(sym) = NULL;
     }
-    if (reg->vars)
-        set_clear(reg->vars);
+    reg->vars = NULL;
 }
 
 static bool is_preserved(struct reg *reg)

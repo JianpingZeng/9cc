@@ -21,6 +21,5 @@ extern struct vector *set_objects(struct set *set);
 extern size_t set_size(struct set *set);
 extern bool set_equal(struct set *set1, struct set *set2);
 extern bool set_empty(struct set *set);
-extern void set_clear(struct set *set);
 
 #endif
