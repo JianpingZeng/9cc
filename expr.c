@@ -1252,9 +1252,13 @@ static node_t *direction(node_t * node)
             field_not_found_error(ty, name);
     }
     if (NO_ERROR) {
-        // The result has the union of both sets of qualifiers.
-        int q = qual_union(AST_TYPE(node), AST_TYPE(field));
-        ret = ast_expr(MEMBER_EXPR, qual(q, FIELD_TYPE(field)), node,  NULL);
+        if (opts.ansi) {
+            // The result has the union of both sets of qualifiers.
+            int q = qual_union(AST_TYPE(node), AST_TYPE(field));
+            ret = ast_expr(MEMBER_EXPR, qual(q, FIELD_TYPE(field)), node,  NULL);
+        } else {
+            ret = ast_expr(MEMBER_EXPR,  FIELD_TYPE(field), node,  NULL);
+        }
         AST_NAME(ret) = FIELD_NAME(field);
         EXPR_OP(ret) = t;
         AST_SRC(ret) = src;
@@ -1790,6 +1794,12 @@ static node_t *cond_expr1(node_t * cond)
                       type2s(ty2));
             }
         }
+    } else if (((isptr(ty1) && isint(ty2)) ||
+                (isint(ty1) && isptr(ty2))) && !opts.ansi) {
+        node_t *pty = isptr(ty1) ? ty1 : ty2;
+        ty = pty;
+        then = bitconv(ty, then);
+        els = bitconv(ty, els);
     } else {
         error("type mismatch in conditional expression: '%s' and '%s'",
               type2s(ty1), type2s(ty2));
@@ -1920,8 +1930,7 @@ node_t *bop(int op, node_t * l, node_t * r)
             ensure_type(r, isarith);
             if (NO_ERROR) {
                 ty = conv2(AST_TYPE(l), AST_TYPE(r));
-                node =
-                    ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
+                node = ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
             }
         }
         break;
@@ -1946,9 +1955,14 @@ node_t *bop(int op, node_t * l, node_t * r)
                     node = ast_bop(op, inttype, l, r);
                 }
             }
-            if (!node)
-                error("comparison of incompatible pointer types ('%s' and '%s')",
-                     type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
+            
+            if (!node) {
+                if (!opts.ansi)
+                    node = ast_bop(op, inttype, l, ast_conv(AST_TYPE(l), r, BitCast));
+                else
+                    error("comparison of incompatible pointer types ('%s' and '%s')",
+                          type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
+            }
         } else if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
             // both arith
             ty = conv2(AST_TYPE(l), AST_TYPE(r));

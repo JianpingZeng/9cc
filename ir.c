@@ -2530,7 +2530,7 @@ static const char *get_ptr_label(node_t *n)
     case INITS_EXPR:
         return get_compound_literal_label(n);
     default:
-        assert(0);
+        assertf(0, "unexpected ast node '%s'", nname(n));
     }
 }
 
