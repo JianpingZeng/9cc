@@ -1,4 +1,5 @@
 #include "cc.h"
+#include "sys/sys.h"
 
 static FILE *outfp;
 static const char *ifile, *ofile;
@@ -88,8 +89,9 @@ static void cc_exit(void)
 
 int main(int argc, char *argv[])
 {
-    parse_opts(argc, argv);
+    setup_sys();
     atexit(cc_exit);
+    parse_opts(argc, argv);
     symbol_init();
     type_init();
     cc_init(ifile, ofile);

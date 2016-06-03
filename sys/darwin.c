@@ -1,3 +1,8 @@
+#define _BSD_SOURCE
+#include <unistd.h>
+// trace
+#include <execinfo.h>
+#include <signal.h>
 #include "../utils/utils.h"
 
 /**
@@ -25,4 +30,22 @@ struct vector *sys_include_dirs(void)
     vec_push(v, BUILD_DIR "/include");
     vec_push(v, XCODE_DIR "/usr/include");
     return v;
+}
+
+static void handler(int sig)
+{
+    void *array[20];
+    size_t size;
+
+    size = backtrace(array, sizeof array / sizeof array[0]);
+
+    fprintf(stderr, "Stack trace:\n");
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(EXIT_FAILURE);
+}
+
+void setup_sys()
+{
+    signal(SIGSEGV, handler);
+    signal(SIGABRT, handler);
 }

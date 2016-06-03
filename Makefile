@@ -79,6 +79,7 @@ ifeq (Linux, $(KERNEL))
 SYS_OBJ += $(sys_dir)unix.o
 SYS_OBJ += $(sys_dir)linux.o
 CONFIG_FLAGS += -DCONFIG_LINUX -DCONFIG_COLOR_TERM
+LDFLAGS += -lunwind
 
 else ifeq (Darwin, $(KERNEL))
 
