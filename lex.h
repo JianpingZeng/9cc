@@ -110,7 +110,6 @@ struct macro {
 
 extern void cpp_init(struct vector *options);
 extern struct token *get_pptok(void);
-extern struct vector *all_pptoks(void);
 
 // lex.c
 extern struct source source;

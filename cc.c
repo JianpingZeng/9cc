@@ -75,11 +75,9 @@ static void translate(void)
 
 static void preprocess(void)
 {
-    struct vector *v = all_pptoks();
-    for (int i = 0; i < vec_len(v); i++) {
-        struct token *t = vec_at(v, i);
+    struct token *t = get_pptok();
+    for (; t->id != EOI; t = get_pptok())
         fprintf(outfp, "%s", t->name);
-    }
 }
 
 static void cc_exit(void)
