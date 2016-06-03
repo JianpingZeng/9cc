@@ -62,11 +62,14 @@ SYS_INC += $(sys_dir)sys.h
 
 7CC_OBJ = 7cc.o
 
-CONFIG_FLAGS += -DCONFIG_COLOR_TERM
-
 ifneq (, ${STAGE})
 
 CONFIG_FLAGS += -DSTAGE=${STAGE}
+
+else
+
+CFLAGS += -pg
+LDFLAGS += -pg
 
 endif
 
@@ -74,13 +77,13 @@ ifeq (Linux, $(KERNEL))
 
 SYS_OBJ += $(sys_dir)unix.o
 SYS_OBJ += $(sys_dir)linux.o
-CONFIG_FLAGS += -DCONFIG_LINUX
+CONFIG_FLAGS += -DCONFIG_LINUX -DCONFIG_COLOR_TERM
 
 else ifeq (Darwin, $(KERNEL))
 
 SYS_OBJ += $(sys_dir)unix.o
 SYS_OBJ += $(sys_dir)darwin.o
-CONFIG_FLAGS += -DCONFIG_DARWIN
+CONFIG_FLAGS += -DCONFIG_DARWIN -DCONFIG_COLOR_TERM
 XCODE_SDK_DIR := $(shell xcrun --show-sdk-path)
 OSX_SDK_VERSION := $(shell xcrun --show-sdk-version)
 CONFIG_FLAGS += -DXCODE_DIR='"$(XCODE_SDK_DIR)"'
