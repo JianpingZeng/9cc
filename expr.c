@@ -153,6 +153,7 @@ static node_t *bitconv(node_t * ty, node_t * node)
 
 static node_t *decay(node_t * node)
 {
+    assert(node);
     switch (TYPE_KIND(AST_TYPE(node))) {
     case FUNCTION:
         // FunctionToPointerDecay
@@ -1550,9 +1551,10 @@ static node_t *cast_expr(void)
         }
 
         node_t *ret = NULL;
-        node_t *cast = decay(cast_expr());
+        node_t *cast = cast_expr();
         if (cast == NULL)
             return ret;
+        cast = decay(cast);
 
         if (is_castable(ty, AST_TYPE(cast))) {
             ret = ast_expr(CAST_EXPR, ty, cast, NULL);
