@@ -17,7 +17,7 @@
 static const char *progname;
 static struct vector *inputs;
 static const char *output;
-static int version = VERSION(0, 1);
+static int version = VERSION(0, 1, 0);
 static struct {
     int c:1;
     int E:1;
@@ -48,9 +48,9 @@ static struct {
 static void usage(void)
 {
     fprintf(stderr,
-            "OVERVIEW: 7cc - A Standard C Compiler v%d.%d\n\n"
+            "OVERVIEW: 7cc - A Standard C Compiler v%d.%d.%d\n\n"
             "USAGE: 7cc [options] <files>\n\n"
-            "OPTIONS:\n", MAJOR(version), MINOR(version));
+            "OPTIONS:\n", MAJOR(version), MINOR(version), PATCH(version));
     fprintf(stderr,
             "  -ast-dump       Only print abstract syntax tree\n"
             "  -ir-dump        Only print intermediate representation\n"

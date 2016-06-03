@@ -2755,7 +2755,8 @@ void gen(struct externals *exts, FILE * fp)
     emit_compounds(exts->compounds);
     emit_strings(exts->strings);
     emit_floats(exts->floats);
-    emit(".ident \"7cc: %d.%d\"", MAJOR(opts.version), MINOR(opts.version));
+    emit(".ident \"7cc: %d.%d.%d\"",
+         MAJOR(opts.version), MINOR(opts.version), PATCH(opts.version));
 }
 
 ///

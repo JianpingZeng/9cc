@@ -69,8 +69,9 @@
 #define CYAN_BOLD(str)     CYAN_BOLD_COLOR str RESET
 #define WHITE_BOLD(str)    WHITE_BOLD_COLOR str RESET
 
-#define VERSION(major, minor)  (((major) << 16) | (minor))
-#define MAJOR(version)         ((version) >> 16)
-#define MINOR(version)         ((version) & 0xFFFF)
+#define VERSION(major, minor, patch)  (((major) << 16) | ((minor) << 8) | (patch))
+#define MAJOR(version)                ((version) >> 16)
+#define MINOR(version)                (((version) & 0xFF00) >> 8)
+#define PATCH(version)                ((version) & 0xFF)
 
 #endif
