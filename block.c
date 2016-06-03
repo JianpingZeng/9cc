@@ -79,12 +79,12 @@ static void calculate_in_out(struct basic_block *start)
             for (int i = 0; i < ARRAY_SIZE(block->successors); i++) {
                 struct basic_block *successor = block->successors[i];
                 if (successor)
-                    outs = set_union(outs, successor->in);
+                    outs = set_union_q(outs, successor->in);
             }
-            struct set *set1 = set_substract(outs, block->def);
-            struct set *ins = set_union(block->use, set1);
+            struct set *set1 = set_substract_q(outs, block->def);
+            struct set *ins = set_union_q(set1, block->use);
             if (!changed) {
-                changed = !set_equal(block->in, ins);
+                changed = !set_equal(ins, block->in);
             }
             block->out = outs;
             block->in = ins;

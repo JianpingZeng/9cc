@@ -27,7 +27,7 @@ struct set *set_copy(struct set *set)
     struct set *s = set_new();
     if (set) {
         for (struct map_entry *entry = set->map->all; entry; entry = entry->all)
-            set_add(s, entry->key);
+            map_put(s->map, entry->key, (void *)entry->key);
     }
     return s;
 }
@@ -42,6 +42,12 @@ void set_remove(struct set *set, const void *element)
 {
     assert(element);
     map_put(set->map, element, NULL);
+}
+
+bool set_has(struct set *set, const void *element)
+{
+    assert(element);
+    return set ? map_get(set->map, element) != NULL : false;
 }
 
 struct set *set_substract(struct set *set1, struct set *set2)
@@ -60,10 +66,23 @@ struct set *set_substract(struct set *set1, struct set *set2)
     }
 }
 
-bool set_has(struct set *set, const void *element)
+// quick version: set1 will be changed and returned.
+struct set *set_substract_q(struct set *set1, struct set *set2)
 {
-    assert(element);
-    return set ? map_get(set->map, element) != NULL : false;
+    bool set1_empty = !set1 || set1->map->size == 0;
+    bool set2_empty = !set2 || set2->map->size == 0;
+    if (set1_empty) {
+        return NULL;
+    } else if (set2_empty) {
+        return set1;
+    } else {
+        struct set *set = set_new();
+        for (struct map_entry *entry = set1->map->all; entry; entry = entry->all) {
+            if (!set_has(set2, entry->key))
+                set_add(set, entry->key);
+        }
+        return set;
+    }
 }
 
 struct set *set_union(struct set *set1, struct set *set2)
@@ -78,6 +97,22 @@ struct set *set_union(struct set *set1, struct set *set2)
             set_add(set, entry->key);
     }
     return set;
+}
+
+// quick version: set1 will be changed and returned.
+struct set *set_union_q(struct set *set1, struct set *set2)
+{
+    bool set1_empty = !set1 || set1->map->size == 0;
+    bool set2_empty = !set2 || set2->map->size == 0;
+    if (set1_empty) {
+        return set2_empty ? NULL : set_copy(set2);
+    } else if (set2_empty) {
+        return set1;
+    } else {
+        for (struct map_entry *entry = set2->map->all; entry; entry = entry->all)
+            map_put(set1->map, entry->key, (void *)entry->key);
+        return set1;
+    }
 }
 
 struct set *set_intersection(struct set *set1, struct set *set2)
