@@ -62,6 +62,15 @@ static struct map_entry **find_entry(struct map *map, const void *key)
     return entry;
 }
 
+static struct map_entry **find_all(struct map *map, struct map_entry *entry)
+{
+    for (struct map_entry **p = &map->all; *p; p = &(*p)->all) {
+        if (*p == entry)
+            return p;
+    }
+    return NULL;
+}
+
 static void map_remove(struct map *map, const void *key)
 {
     struct map_entry **entry = find_entry(map, key);
@@ -70,6 +79,9 @@ static void map_remove(struct map *map, const void *key)
 
     struct map_entry *old = *entry;
     *entry = old->next;
+    // all link
+    struct map_entry **all = find_all(map, old);
+    *all = old->all;
     free(old);
 
     map->size--;
@@ -86,6 +98,9 @@ static void map_add(struct map *map, const void *key, void *value)
     entry->next = map->table[b];
     map->table[b] = entry;
     map->size++;
+    // all link
+    entry->all = map->all;
+    map->all = entry;
     if (map->size > map->grow_at)
         rehash(map, map->tablesize << MAP_RESIZE_BITS);
 }
@@ -140,12 +155,17 @@ struct vector *map_keys(struct map *map)
     if (!map || map->size == 0)
         return NULL;
     struct vector *v = vec_newn(map->size);
-    for (unsigned i = 0; i < map->tablesize; i++) {
-        struct map_entry *entry = map->table[i];
-        while (entry) {
-            vec_push(v, (void *)entry->key);
-            entry = entry->next;
-        }
-    }
+    for (struct map_entry *entry = map->all; entry; entry = entry->all)
+        vec_push(v, (void *)entry->key);
+    return v;
+}
+
+struct vector *map_objs(struct map *map)
+{
+    if (!map || map->size == 0)
+        return NULL;
+    struct vector *v = vec_newn(map->size);
+    for (struct map_entry *entry = map->all; entry; entry = entry->all)
+        vec_push(v, (void *)entry->value);
     return v;
 }
