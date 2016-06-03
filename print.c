@@ -937,7 +937,6 @@ static void qualstr(struct strbuf *s, int q)
 
 const char *type2s(node_t * ty)
 {
-    const char *ret;
     struct strbuf *buf = strbuf_new();
     struct vector *v = type2s1(ty);
     for (int i = 0; i < vec_len(v); i++) {
@@ -977,10 +976,7 @@ const char *type2s(node_t * ty)
         }
     }
 
-    ret = strbuf_str(strbuf_strip(buf));
-    strbuf_free(buf);
-    vec_purge(v);
-    return ret;
+    return strbuf_str(strbuf_strip(buf));
 }
 
 /**

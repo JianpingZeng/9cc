@@ -790,8 +790,6 @@ static void float_constant(struct token *t, node_t * sym)
 
     if (errno == ERANGE)
         error("float constant overflow: %s", s);
-
-    strbuf_free(s);
 }
 
 static void number_constant(struct token *t, node_t * sym)
@@ -851,7 +849,6 @@ static void string_constant(struct token *t, node_t * sym)
         ty = array_type(wchartype);
         TYPE_LEN(ty) = wlen;
         set_typesize(ty);
-        free(ws);
     } else {
         ty = array_type(chartype);
         TYPE_LEN(ty) = strlen(s) - 1;

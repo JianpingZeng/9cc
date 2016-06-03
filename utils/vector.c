@@ -41,13 +41,6 @@ void vec_free(struct vector *v)
     free(v);
 }
 
-void vec_purge(struct vector *v)
-{
-    for (int i = 0; i < v->len; i++)
-        free(v->mem[i]);
-    vec_free(v);
-}
-
 void *vec_at(struct vector *v, int index)
 {
     assert(index >= 0 && index < v->len);

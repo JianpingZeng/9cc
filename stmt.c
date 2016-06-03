@@ -600,7 +600,6 @@ static void set_funcdef_context(node_t *fty, const char *name)
 static void restore_funcdef_context(void)
 {
     gotos = NULL;
-    map_free(labels);
     labels = NULL;
     functype = NULL;
     funcname = NULL;

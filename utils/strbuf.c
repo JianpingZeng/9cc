@@ -4,19 +4,13 @@
 
 static void strbuf_grow(struct strbuf *s, size_t len)
 {
-    char *oldstr = s->str;
     s->alloc = len << 1;
-    s->str = xmalloc(s->alloc);
-    memcpy(s->str, oldstr, s->len);
-    s->str[s->len] = '\0';
-    if (s->len > 0)
-        free(oldstr);
+    s->str = xrealloc(s->str, s->alloc);
 }
 
 struct strbuf *strbuf_new(void)
 {
-    struct strbuf *s = xmalloc(sizeof(struct strbuf));
-    s->len = 0;
+    struct strbuf *s = zmalloc(sizeof(struct strbuf));
     strbuf_grow(s, STRING_INIT_SIZE);
     return s;
 }

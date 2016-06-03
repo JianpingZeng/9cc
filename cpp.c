@@ -1184,16 +1184,10 @@ static void parseopts(struct vector *options)
                 char *name = xstrndup(content, ptr - content);
                 if (ptr - content < strlen(content) - 1) {
                     char *value = xstrdup(ptr + 1);
-                    strbuf_cats(s,
-                                format("#define %s %s\n",
-                                       name, value));
-                    free(value);
+                    strbuf_cats(s, format("#define %s %s\n", name, value));
                 } else {
-                    strbuf_cats(s,
-                                format("#define %s\n",
-                                       name));
+                    strbuf_cats(s, format("#define %s\n", name));
                 }
-                free(name);
             } else {
                 strbuf_cats(s, format("#define %s\n", content));
             }
@@ -1204,8 +1198,6 @@ static void parseopts(struct vector *options)
 
     if (strbuf_len(s))
         include_command_line(s->str);
-
-    strbuf_free(s);
 }
 
 void cpp_init(struct vector *options)

@@ -124,6 +124,5 @@ bool set_empty(struct set *set)
 
 void set_clear(struct set *set)
 {
-    map_free(set->map);
     set->map = map_newf(NULL);
 }

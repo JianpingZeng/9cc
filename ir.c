@@ -2411,7 +2411,6 @@ static struct vector * filter_global(struct vector *v)
             }
         }
     }
-    map_free(map);
     return r;
 }
 
