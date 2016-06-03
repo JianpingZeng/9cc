@@ -558,7 +558,7 @@ static void predefined_ids(void)
          * static const char __func__[] = "function-name";
          *
          */
-        const char *name = strs("__func__");
+        const char *name = "__func__";
         node_t *type = array_type(qual(CONST, chartype));
         node_t *decl = make_localvar(name, type, STATIC);
         SYM_PREDEFINE(DECL_SYM(decl)) = true;

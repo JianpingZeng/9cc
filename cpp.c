@@ -1063,7 +1063,7 @@ static void define_special(const char *name, void (*handler) (struct token *))
 {
     struct macro *m = new_macro(MACRO_SPECIAL);
     m->handler = handler;
-    add_macro(strs(name), m);
+    add_macro(name, m);
 }
 
 static void add_include(struct vector *v, const char *name)

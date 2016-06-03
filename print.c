@@ -977,7 +977,7 @@ const char *type2s(node_t * ty)
         }
     }
 
-    ret = strs(strbuf_strip(buf)->str);
+    ret = strbuf_str(strbuf_strip(buf));
     strbuf_free(buf);
     vec_purge(v);
     return ret;

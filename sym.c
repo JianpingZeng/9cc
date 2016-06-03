@@ -67,7 +67,7 @@ bool is_anonymous(const char *name)
 node_t *anonymous(struct table **tpp, int scope)
 {
     static long i;
-    return install(strs(format("@%ld", i++)), tpp, scope);
+    return install(format("@%ld", i++), tpp, scope);
 }
 
 node_t *gen_tmp_sym(void)

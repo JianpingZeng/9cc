@@ -46,7 +46,7 @@ static node_t *install_type(const char *name, int kind, struct metrics m)
 {
     node_t *ty = new_type();
 
-    _TYPE_NAME(ty) = strs(name);
+    _TYPE_NAME(ty) = name;
     _TYPE_KIND(ty) = kind;
     _TYPE_SIZE(ty) = m.size;
     _TYPE_ALIGN(ty) = m.align;
