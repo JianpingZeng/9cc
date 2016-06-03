@@ -15,5 +15,5 @@ do
     dir=`pwd`
     echo "Profiling $src ..."
     ./cc1 -fversion=1 -DCONFIG_LINUX -DCONFIG_COLOR_TERM -DBUILD_DIR='"$dir"' $src -o $f1
-    gprof ./cc1 gmon.out -p > $f2
+    gprof ./cc1 gmon.out > $f2
 done
