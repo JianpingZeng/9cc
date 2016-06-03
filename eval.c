@@ -269,9 +269,11 @@ static node_t *address_uop(node_t * expr)
         if (!has_static_extent(sym))
             return NULL;
         return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);
+    } else if (isiliteral(l) &&
+               AST_ID(EXPR_OPERAND(expr, 0)) == MEMBER_EXPR) {
+        return l;
     }
-    die("%s", node2s(l));
-    assert(0);
+    assertf(0, "%s", node2s(l));
 }
 
 static node_t *sizeof_uop(node_t * expr)
@@ -693,6 +695,21 @@ static node_t *doeval(node_t * expr)
     case STRING_LITERAL:
         return expr;
     case MEMBER_EXPR:
+        {
+            node_t *l = EXPR_OPERAND(expr, 0);
+            node_t *ty = AST_TYPE(l);
+            l = doeval(l);
+            if (!l || !isiliteral(l))
+                return NULL;
+            ty = isptr(ty) ? rtype(ty) : ty;
+            assert(isrecord(ty));
+            node_t *field = find_field(ty, AST_NAME(expr));
+            assert(field);
+            long off = FIELD_OFFSET(field) + SYM_VALUE_I(EXPR_SYM(l));
+            union value v = {.i = off};
+            return int_literal_node(longtype, v);
+        }
+        break;
     case CALL_EXPR:
         return NULL;
     case VINIT_EXPR:
