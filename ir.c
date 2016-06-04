@@ -2633,39 +2633,40 @@ static void emit_address_initializer(node_t *init)
     if (isiliteral(init)) {
         emit_xvalue(Quad, format("%llu", ILITERAL_VALUE(init)));
     } else {
-        const char *label = get_ptr_label(init);
         if (AST_ID(init) == BINARY_OPERATOR) {
+            node_t *l = EXPR_OPERAND(init, 0);
             node_t *r = EXPR_OPERAND(init, 1);
             int op = EXPR_OP(init);
             size_t size = TYPE_SIZE(rtype(ty));
-            if (op == '+') {
-                if (TYPE_OP(AST_TYPE(r)) == INT) {
-                    long long i = ILITERAL_VALUE(r);
-                    if (i < 0)
-                        emit_xvalue(Quad,
-                                    format("%s%lld", label, i * size));
-                    else
-                        emit_xvalue(Quad,
-                                    format("%s+%lld", label, i * size));
-                } else {
-                    emit_xvalue(Quad,
-                                format("%s+%llu", label, ILITERAL_VALUE(r) * size));
-                }
+            if (isiliteral(l)) {
+                long long i = ILITERAL_VALUE(l) + ILITERAL_VALUE(r);
+                emit_xvalue(Quad, format("%lld", i));
             } else {
-                if (TYPE_OP(AST_TYPE(r)) == INT) {
-                    long long i = ILITERAL_VALUE(r);
-                    if (i < 0)
-                        emit_xvalue(Quad,
-                                    format("%s+%lld", label, -i * size));
-                    else
-                        emit_xvalue(Quad,
-                                    format("%s-%lld", label, i * size));
+                const char *label = get_ptr_label(init);
+                if (op == '+') {
+                    if (TYPE_OP(AST_TYPE(r)) == INT) {
+                        long long i = ILITERAL_VALUE(r);
+                        if (i < 0)
+                            emit_xvalue(Quad, format("%s%lld", label, i * size));
+                        else
+                            emit_xvalue(Quad, format("%s+%lld", label, i * size));
+                    } else {
+                        emit_xvalue(Quad, format("%s+%llu", label, ILITERAL_VALUE(r) * size));
+                    }
                 } else {
-                    emit_xvalue(Quad,
-                                format("%s-%llu", label, ILITERAL_VALUE(r) * size));
+                    if (TYPE_OP(AST_TYPE(r)) == INT) {
+                        long long i = ILITERAL_VALUE(r);
+                        if (i < 0)
+                            emit_xvalue(Quad, format("%s+%lld", label, -i * size));
+                        else
+                            emit_xvalue(Quad, format("%s-%lld", label, i * size));
+                    } else {
+                        emit_xvalue(Quad, format("%s-%llu", label, ILITERAL_VALUE(r) * size));
+                    }
                 }
             }
         } else {
+            const char *label = get_ptr_label(init);
             emit_xvalue(Quad, label);
         }
     }
