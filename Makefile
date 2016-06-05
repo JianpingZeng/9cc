@@ -70,8 +70,8 @@ CONFIG_FLAGS += -DSTAGE=${STAGE}
 else
 
 CFLAGS += -g
-CFLAGS += -pg
-LDFLAGS += -pg
+# CFLAGS += -pg
+# LDFLAGS += -pg
 
 endif
 
