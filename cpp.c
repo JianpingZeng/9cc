@@ -655,7 +655,7 @@ static void line_line(void)
     if (t2->id == SCONSTANT) {
         name = format("# %s %s\n", t->name, t2->name);
     } else {
-        name = format("# %s \"%s\"\n", t->name, current_file()->name);
+        name = format("# %s \"%s\"\n", t->name, current_file->name);
         unget(t2);
     }
     skipline();
@@ -1021,7 +1021,7 @@ static struct token *expand(void)
 
 static void file_handler(struct token *t)
 {
-    const char *file = current_file()->name;
+    const char *file = current_file->name;
     const char *name = format("\"%s\"", file);
     struct token *tok = new_token(&(struct token){.id = SCONSTANT,.name =
                 name,.src = t->src });
@@ -1030,7 +1030,7 @@ static void file_handler(struct token *t)
 
 static void line_handler(struct token *t)
 {
-    unsigned line = current_file()->line;
+    unsigned line = current_file->line;
     const char *name = strd(line);
     struct token *tok = new_token(&(struct token){.id = NCONSTANT,.name =
                 name,.src = t->src });
@@ -1097,7 +1097,7 @@ static const char *find_header(const char *name, bool isstd)
          * the contents of path, so it may be desirable
          * to pass a copy when calling one of these functions.
          */
-        vec_push(paths, dirname(xstrdup(current_file()->name)));
+        vec_push(paths, dirname(xstrdup(current_file->name)));
         vec_add(paths, std_include_paths);
     }
     for (int i = 0; i < vec_len(paths); i++) {
@@ -1114,7 +1114,7 @@ static void do_include_file(const char *file, const char *name, bool std)
     const char *path = find_header(file, std);
     if (path) {
         file_sentinel(with_file(path, name ? name : path));
-        unget(lineno(1, current_file()->name));
+        unget(lineno(1, current_file->name));
     } else {
         if (file)
             fatal("'%s' file not found", file);
@@ -1136,7 +1136,7 @@ static void include_builtin(const char *file)
 static void include_command_line(const char *command)
 {
     file_sentinel(with_string(command, "<command-line>"));
-    unget(lineno(1, current_file()->name));
+    unget(lineno(1, current_file->name));
 }
 
 static void builtin_macros(void)
@@ -1203,7 +1203,7 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new();
-    lineno0 = lineno(1, current_file()->name);
+    lineno0 = lineno(1, current_file->name);
     init_env();
     init_include();
     builtin_macros();
@@ -1221,13 +1221,13 @@ struct token *get_pptok(void)
             if (stub)
                 errorf(stub->src,
                        "unterminated conditional directive");
-            if (current_file()->stub) {
+            if (current_file->stub) {
                 return t;
             } else {
                 file_unsentinel();
-                if (current_file())
-                    return lineno(current_file()->line,
-                                  current_file()->name);
+                if (current_file)
+                    return lineno(current_file->line,
+                                  current_file->name);
                 else
                     return t;
             }
@@ -1239,4 +1239,3 @@ struct token *get_pptok(void)
         return t;
     }
 }
-

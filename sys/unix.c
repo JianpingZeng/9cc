@@ -53,16 +53,15 @@ int callsys(const char *file, char **argv)
 {
     pid_t pid;
     int ret = EXIT_SUCCESS;
-    pid = fork();
+    pid = vfork();
     if (pid == 0) {
         // child process
         execvp(file, argv);
-        fprintf(stderr, "%s: %s\n", strerror(errno), file);
-        exit(EXIT_FAILURE);
     } else if (pid > 0) {
         int status;
         int n;
-        while ((n = waitpid(pid, &status, 0)) != pid || (n == -1 && errno == EINTR)) ;        // may be EINTR by a signal, so loop it.
+        while ((n = waitpid(pid, &status, 0)) != pid || (n == -1 && errno == EINTR))
+            ; // may be EINTR by a signal, so loop it.
         if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
             ret = EXIT_FAILURE;
     } else {

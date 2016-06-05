@@ -1,7 +1,21 @@
 #include "cc.h"
 
+enum {
+    BLANK = 01, NEWLINE = 02, LETTER = 04,
+    DIGIT = 010, HEX = 020, OTHER = 040,
+};
+
+static unsigned char map[256] = {
+#define _a(a, b, c, d)  c,
+#define _x(a, b, c, d)
+#define _t(a, b, c)
+#define _k(a, b, c)
+#include "token.def"
+    OTHER,
+};
+
 static const char *tnames[] = {
-#define _a(a, b, c)     b,
+#define _a(a, b, c, d)  b,
 #define _x(a, b, c, d)  b,
 #define _t(a, b, c)     b,
 #define _k(a, b, c)     b,
@@ -14,36 +28,24 @@ struct token *newline_token = &(struct token){.id = '\n',.name = "\n" };
 
 struct source source;
 
-#define BOL    (current_file()->bol)
+#define iswhitespace(ch)  (map[ch] & BLANK)
+#define isnewline(ch)     (map[ch] & NEWLINE)
+#define isdigitletter(ch) (map[ch] & (DIGIT|LETTER))
+#define mark(t)           source = t->src
 
 int isletter(int c)
 {
-    return isalpha(c) || c == '_';
+    return map[c] & LETTER;
 }
 
 int isxalpha(int c)
 {
-    return (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-}
-
-static int isnewline(int c)
-{
-    return c == '\n';
-}
-
-static int isdigitletter(int c)
-{
-    return isdigit(c) || isletter(c);
-}
-
-static int iswhitespace(int c)
-{
-    return c == ' ' || c == '\t' || c == '\f' || c == '\v' || c == '\r';
+    return map[c] & HEX;
 }
 
 static struct source chsrc()
 {
-    struct file *fs = current_file();
+    struct file *fs = current_file;
     struct source src;
     src.file = fs->name;
     src.line = fs->line;
@@ -53,15 +55,48 @@ static struct source chsrc()
 
 static void markc()
 {
-    struct file *fs = current_file();
+    struct file *fs = current_file;
     source.file = fs->name;
     source.line = fs->line;
     source.column = fs->column;
 }
 
-static void mark(struct token *t)
+static void unreadc(int c)
 {
-    source = t->src;
+    struct file *fs = current_file;
+    if (c == EOI || fs->pc == fs->buf)
+        return;
+    if (fs->pc[-1] != c)
+        fatal("an unbuffered character '\\0%o", c);
+    if (fs->pc[-1] == '\n') {
+        fs->line--;
+    } else {
+        fs->column--;
+    }
+    fs->pc--;
+}
+
+static int readc(void)
+{
+    struct file *fs = current_file;
+ beg:
+    if (fs->pc >= fs->pe)
+        return EOI;
+    if (fs->pc[0] == '\\' && fs->pc[1] == '\n') {
+        fs->pc += 2;
+        fs->line++;
+        fs->column = 0;
+        goto beg;
+    } else {
+        if (*fs->pc == '\n') {
+            fs->line++;
+            fs->column = 0;
+        } else {
+            fs->column++;
+        }
+        // convert to unsigned char first
+        return (unsigned char)(*fs->pc++);
+    }
 }
 
 static bool next(int c)
@@ -89,27 +124,18 @@ struct token *new_token(struct token *tok)
     return t;
 }
 
-static struct token *make_token(struct token *tok)
+static struct token *make_token2(int id, const char *name)
 {
-    struct token *t = new_token(tok);
+    struct token *t = alloc_token();
+    t->id = id;
+    t->name = name ? name : id2s(id);
     t->src = source;
-    t->bol = BOL;
-    BOL = false;
+    t->bol = current_file->bol;
+    current_file->bol = false;
     return t;
 }
 
-static void readch(struct strbuf *s, int (*is) (int))
-{
-    for (;;) {
-        int ch = readc();
-        if (!is(ch)) {
-            unreadc(ch);
-            break;
-        }
-        if (s)
-            strbuf_catc(s, ch);
-    }
-}
+#define make_token(id)  make_token2(id, NULL)
 
 static void skipline(bool over)
 {
@@ -160,8 +186,7 @@ static struct token *ppnumber(int c)
             strbuf_catc(s, ch);
         }
     }
-    return make_token(&(struct token) {
-            .id = NCONSTANT,.name = strbuf_str(s)});
+    return make_token2(NCONSTANT,  strbuf_str(s));
 }
 
 static struct token *sequence(bool wide, int sep)
@@ -191,32 +216,42 @@ static struct token *sequence(bool wide, int sep)
     strbuf_catc(s, sep);
 
     if (is_char)
-        return make_token(&(struct token) {
-                .id = NCONSTANT,.name = strbuf_str(s)});
+        return make_token2(NCONSTANT, strbuf_str(s));
     else
-        return make_token(&(struct token) {
-                .id = SCONSTANT,.name = strbuf_str(s)});
+        return make_token2(SCONSTANT, strbuf_str(s));
 }
 
 static struct token *identifier(int c)
 {
     struct strbuf *s = strbuf_new();
     strbuf_catc(s, c);
-    readch(s, isdigitletter);
-    return make_token(&(struct token) {
-            .id = ID,.name = strbuf_str(s)});
+    for (;;) {
+        int ch = readc();
+        if (!isdigitletter(ch)) {
+            unreadc(ch);
+            break;
+        }
+        strbuf_catc(s, ch);
+    }
+    return make_token2(ID, strbuf_str(s));
 }
 
 static struct token *newline(void)
 {
-    BOL = true;
+    current_file->bol = true;
     newline_token->src = source;
     return newline_token;
 }
 
 static struct token *spaces(int c)
 {
-    readch(NULL, iswhitespace);
+    for (;;) {
+        int ch = readc();
+        if (!iswhitespace(ch)) {
+            unreadc(ch);
+            break;
+        }
+    }
     space_token->src = source;
     return space_token;
 }
@@ -253,150 +288,111 @@ struct token *dolex(void)
                 block_comment();
                 continue;
             } else if (next('=')) {
-                return make_token(&(struct token) {
-                        .id = DIVEQ});
+                return make_token(DIVEQ);
             } else {
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
             }
 
         case '+':
             if (next('+'))
-                return make_token(&(struct token) {
-                        .id = INCR});
+                return make_token(INCR);
             else if (next('='))
-                return make_token(&(struct token) {
-                        .id = ADDEQ});
+                return make_token(ADDEQ);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '-':
             if (next('-'))
-                return make_token(&(struct token) {
-                        .id = DECR});
+                return make_token(DECR);
             else if (next('='))
-                return make_token(&(struct token) {
-                        .id = MINUSEQ});
+                return make_token(MINUSEQ);
             else if (next('>'))
-                return make_token(&(struct token) {
-                        .id = DEREF});
+                return make_token(DEREF);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '*':
             if (next('='))
-                return make_token(&(struct token) {
-                        .id = MULEQ});
+                return make_token(MULEQ);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '=':
             if (next('='))
-                return make_token(&(struct token) {
-                        .id = EQ});
+                return make_token(EQ);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '!':
             if (next('='))
-                return make_token(&(struct token) {
-                        .id = NEQ}
-                    );
+                return make_token(NEQ);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '%':
             if (next('=')) {
-                return make_token(&(struct token) {
-                        .id = MODEQ});
+                return make_token(MODEQ);
             } else if (next('>')) {
-                return make_token(&(struct token) {
-                        .id = '}'});
+                return make_token('}');
             } else if (next(':')) {
                 if (next('%')) {
                     if (next(':'))
-                        return make_token(&(struct token) {
-                                .id = SHARPSHARP});
+                        return make_token(SHARPSHARP);
                     unreadc('%');
                 }
-                return make_token(&(struct token) {
-                        .id = '#'});
+                return make_token('#');
             } else {
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
             }
 
         case '^':
             if (next('='))
-                return make_token(&(struct token) {
-                        .id = XOREQ});
+                return make_token(XOREQ);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '&':
             if (next('='))
-                return make_token(&(struct token) {
-                        .id = BANDEQ});
+                return make_token(BANDEQ);
             else if (next('&'))
-                return make_token(&(struct token) {
-                        .id = AND});
+                return make_token(AND);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '|':
             if (next('='))
-                return make_token(&(struct token) {
-                        .id = BOREQ});
+                return make_token(BOREQ);
             else if (next('|'))
-                return make_token(&(struct token) {
-                        .id = OR});
+                return make_token(OR);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '<':
             if (next('=')) {
-                return make_token(&(struct token) {
-                        .id = LEQ});
+                return make_token(LEQ);
             } else if (next('<')) {
                 if (next('='))
-                    return make_token(&(struct token) {
-                            .id = LSHIFTEQ});
+                    return make_token(LSHIFTEQ);
                 else
-                    return make_token(&(struct token) {
-                            .id = LSHIFT});
+                    return make_token(LSHIFT);
             } else if (next('%')) {
-                return make_token(&(struct token) {
-                        .id = '{'});
+                return make_token('{');
             } else if (next(':')) {
-                return make_token(&(struct token) {
-                        .id = '['});
+                return make_token('[');
             } else {
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
             }
 
         case '>':
             if (next('=')) {
-                return make_token(&(struct token) {
-                        .id = GEQ});
+                return make_token(GEQ);
             } else if (next('>')) {
                 if (next('='))
-                    return make_token(&(struct token) {
-                            .id = RSHIFTEQ});
+                    return make_token(RSHIFTEQ);
                 else
-                    return make_token(&(struct token) {
-                            .id = RSHIFT});
+                    return make_token(RSHIFT);
             } else {
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
             }
 
         case '(':
@@ -409,24 +405,19 @@ struct token *dolex(void)
         case ';':
         case '~':
         case '?':
-            return make_token(&(struct token) {
-                    .id = rpc});
+            return make_token(rpc);
 
         case ':':
             if (next('>'))
-                return make_token(&(struct token) {
-                        .id = ']'});
+                return make_token(']');
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
         case '#':
             if (next('#'))
-                return make_token(&(struct token) {
-                        .id = SHARPSHARP});
+                return make_token(SHARPSHARP);
             else
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
 
             // constants
         case '\'':
@@ -450,16 +441,13 @@ struct token *dolex(void)
         case '.':
             if (next('.')) {
                 if (next('.'))
-                    return make_token(&(struct token) {
-                            .id = ELLIPSIS});
+                    return make_token(ELLIPSIS);
                 unreadc('.');
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
             } else if (isdigit(peek())) {
                 return ppnumber(rpc);
             } else {
-                return make_token(&(struct token) {
-                        .id = rpc});
+                return make_token(rpc);
             }
 
             // identifiers
@@ -578,7 +566,7 @@ struct token *header_name(void)
 
 void unget(struct token *t)
 {
-    vec_push(current_file()->buffer, t);
+    vec_push(current_file->buffer, t);
 }
 
 static void skip_sequence(int sep)
@@ -690,9 +678,9 @@ void skip_ifstub(void)
 
 struct token *lex(void)
 {
-    struct vector *v = current_file()->buffer;
+    struct vector *v = current_file->buffer;
     struct token *t;
-    if (vec_len(v))
+    if (v && vec_len(v))
         t = vec_pop(v);
     else
         t = dolex();
@@ -716,7 +704,7 @@ const char *id2s(int t)
 
 static void unget_token(struct token *t)
 {
-    vec_push(current_file()->tokens, t);
+    vec_push(current_file->tokens, t);
 }
 
 static struct token *do_one_token(void)
@@ -731,8 +719,8 @@ static struct token *do_one_token(void)
 
 static struct token *one_token(void)
 {
-    if (vec_len(current_file()->tokens))
-        return vec_pop(current_file()->tokens);
+    if (vec_len(current_file->tokens))
+        return vec_pop(current_file->tokens);
     else
         return do_one_token();
 }
@@ -802,7 +790,7 @@ static struct token *do_cctoken(void)
  */
 
 static int kinds[] = {
-#define _a(a, b, c)     c,
+#define _a(a, b, c, d)  d,
 #define _x(a, b, c, d)  c,
 #define _t(a, b, c)     c,
 #define _k(a, b, c)     c,
@@ -810,7 +798,7 @@ static int kinds[] = {
 };
 
 static const char *kws[] = {
-#define _a(a, b, c)
+#define _a(a, b, c, d)
 #define _x(a, b, c, d)
 #define _t(a, b, c)
 #define _k(a, b, c)  b,
@@ -818,7 +806,7 @@ static const char *kws[] = {
 };
 
 static int kwi[] = {
-#define _a(a, b, c)
+#define _a(a, b, c, d)
 #define _x(a, b, c, d)
 #define _t(a, b, c)
 #define _k(a, b, c)  a,

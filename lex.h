@@ -9,36 +9,21 @@ struct source {
 };
 
 // input.c
-#define MAX_UNREADC  8
-
-struct cc_char {
-    bool dirty:1;
-    int ch:16;
-    unsigned line;
-    unsigned column;
-};
-
 struct file {
     int kind:3;
-    bool bol:1;                // beginning of line
-    bool stub:1;
-    int histp:8;
-    int charp:8;
+    int bol:1;                 // beginning of line
+    int stub:1;
     char *buf;
-    char *pc;
-    char *pe;
-    long bread;
-    FILE *fp;                // FILE handle
-    size_t pos;                // input string position
-    const char *file;        // file name or input string
-    const char *name;        // buffer name
+    char *pc;                   // current position
+    char *pe;                   // end position
+    FILE *fp;                   // FILE handle
+    const char *file;           // file name or input string
+    const char *name;           // buffer name
     unsigned line;
     unsigned column;
     struct vector *ifstubs;
-    struct cc_char hists[MAX_UNREADC + 1];        // readc history
-    struct cc_char chars[MAX_UNREADC];        // readc ungets
-    struct vector *buffer;        // lex ungets
-    struct vector *tokens;        // parser ungets
+    struct vector *buffer;      // lex ungets
+    struct vector *tokens;      // parser ungets
 };
 
 struct ifstub {
@@ -48,8 +33,6 @@ struct ifstub {
 };
 
 extern void input_init(const char *file);
-extern int readc(void);
-extern void unreadc(int c);
 
 extern struct file *with_string(const char *input, const char *name);
 extern struct file *with_file(const char *file, const char *name);
@@ -61,7 +44,7 @@ extern void file_stub(struct file *f);
 extern void file_unstub(void);
 
 extern bool is_original_file(const char *file);
-extern struct file *current_file(void);
+extern struct file *current_file;
 
 extern void if_sentinel(struct ifstub *i);
 extern void if_unsentinel(void);
@@ -69,7 +52,7 @@ extern struct ifstub *new_ifstub(struct ifstub *i);
 extern struct ifstub *current_ifstub(void);
 
 enum {
-#define _a(a, b, c)     a,
+#define _a(a, b, c, d)  a,
 #define _x(a, b, c, d)  a=d,
 #define _t(a, b, c)     a,
 #define _k(a, b, c)     a,
