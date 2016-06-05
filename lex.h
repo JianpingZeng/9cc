@@ -3,24 +3,32 @@
 
 // source
 struct source {
-    unsigned line;
-    unsigned column;
+    unsigned int line;
+    unsigned int column;
     const char *file;
+};
+
+struct line_note {
+    char *pos;
+    int type;
 };
 
 // input.c
 struct file {
-    int kind:3;
-    int bol:1;                 // beginning of line
-    int stub:1;
-    char *buf;
-    char *pc;                   // current position
-    char *pe;                   // end position
-    FILE *fp;                   // FILE handle
-    const char *file;           // file name or input string
+    unsigned char kind;        // kind (regular/string)
+    bool bol;                  // beginning of line
+    bool stub;
+    bool need_line;
     const char *name;           // buffer name
-    unsigned line;
-    unsigned column;
+    const char *buf;            // entire buffer
+    const char *pc;             // current position
+    const char *limit;          // end position
+    const char *line_base;      // start of current physical line
+    const char *next_line;      // start of to-be-cleaned logical line
+    struct line_note *notes;    // array of notes
+    unsigned int cur_note;      // current note
+    unsigned int notes_used;    // number of notes
+    unsigned int notes_alloc;   // number of notes allocated
     struct vector *ifstubs;
     struct vector *buffer;      // lex ungets
     struct vector *tokens;      // parser ungets
@@ -28,7 +36,7 @@ struct file {
 
 struct ifstub {
     int id:10;
-    bool b:1;
+    bool b;
     struct source src;
 };
 

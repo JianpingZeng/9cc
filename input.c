@@ -28,68 +28,12 @@ static void warning_no_newline(const char *file)
 
 static struct file *new_file(void)
 {
-    /**
-     * NOTE:
-     * If it's a temp buffer:
-     * 1. _NOT_ allocate buf (save memory)
-     * 2. _NOT_ add newline at the end
-     * Otherwise the buffer will generate an
-     * additional newline when expanding a macro.
-     */
     struct file *fs = zmalloc(sizeof(struct file));
-    fs->line = 1;
-    fs->column = 0;
     fs->bol = true;
+    fs->need_line = true;
     fs->ifstubs = vec_new();
     fs->buffer = vec_new();
     fs->tokens = vec_new();
-    return fs;
-}
-
-static struct file *open_regular(const char *file)
-{
-    struct file *fs = new_file();
-    fs->kind = FILE_KIND_REGULAR;
-    FILE *fp = fopen(file, "r");
-    if (fp == NULL)
-        die("%s: %s", file, strerror(errno));
-    fs->fp = fp;
-    fs->file = file;
-    // read the content
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    fs->buf = xmalloc(size + 2);
-    if (fread(fs->buf, size, 1, fp) != 1)
-        die("%s: %s", file, strerror(errno));
-    fclose(fp);
-    fs->pc = fs->buf;
-    /**
-     * Add a newline character to the end if the
-     * file doesn't have one, thus the include
-     * directive would work well.
-     */
-    fs->buf[size] = '\n';
-    fs->buf[size + 1] = '\n';
-    if (fs->buf[size - 1] != '\n') {
-        warning_no_newline(file);
-        fs->pe = &fs->buf[size + 1];
-    } else {
-        fs->pe = &fs->buf[size];
-    }
-    return fs;
-}
-
-static struct file *open_string(const char *string)
-{
-    struct file *fs = new_file();
-    size_t len = strlen(string);
-    fs->kind = FILE_KIND_STRING;
-    fs->file = "<anonymous-string>";
-    fs->buf = xstrdup(string);
-    fs->buf[len] = '\n';
-    fs->pc = fs->buf;
-    fs->pe = &fs->buf[len];
     return fs;
 }
 
@@ -101,6 +45,73 @@ static void close_file(struct file *fs)
     struct file *current = current_file;
     if (current)
         current->bol = true;
+}
+
+struct file *with_file(const char *file)
+{
+    struct file *fs = new_file();
+    fs->kind = FILE_KIND_REGULAR;
+    fs->name = file;
+    
+    FILE *fp = fopen(file, "r");
+    if (fp == NULL)
+        die("%s: %s", file, strerror(errno));
+    // read the content
+    fseek(fp, 0, SEEK_END);
+    long size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    fs->buf = xmalloc(size + 2);
+    if (fread(fs->buf, size, 1, fp) != 1)
+        die("%s: %s", file, strerror(errno));
+    fclose(fp);
+
+    fs->pc = fs->line_base = fs->next_line = fs->buf;
+    /**
+     * Add a newline character to the end if the
+     * file doesn't have one, thus the include
+     * directive would work well.
+     */
+    char *d = (char *)fs->buf;
+    d[size] = d[size + 1] = '\n';
+    if (fs->buf[size - 1] != '\n') {
+        warning_no_newline(file);
+        fs->limit = &fs->buf[size + 1];
+    } else {
+        fs->limit = &fs->buf[size];
+    }
+    return fs;
+}
+
+struct file *with_string(const char *input, const char *name)
+{
+    /**
+     * NOTE:
+     * If it's a temp buffer:
+     * _NOT_ add newline at the end
+     * Otherwise the buffer will generate an
+     * additional newline when expanding a macro.
+     */
+    struct file *fs = new_file();
+    size_t len = strlen(string);
+    fs->kind = FILE_KIND_STRING;
+    fs->name = name ? name : "<anonymous-string>";
+    fs->buf = xstrdup(string);
+    char *d = (char *)fs->buf;
+    d[len] = '\n';
+    fs->pc = fs->line_base = fs->next_line = fs->buf;
+    fs->limit = &fs->buf[len];
+    return fs;
+}
+
+struct file *with_buffer(struct vector *v)
+{
+    struct file *fs = new_file();
+    fs->kind = FILE_KIND_STRING;
+    fs->name = current_file->name;
+    fs->line = current_file->line;
+    fs->column = current_file->column;
+    vec_add(fs->buffer, v);
+    return fs;
 }
 
 void file_sentinel(struct file *fs)
@@ -125,31 +136,6 @@ void file_stub(struct file *fs)
 void file_unstub(void)
 {
     file_unsentinel();
-}
-
-struct file *with_string(const char *input, const char *name)
-{
-    struct file *fs = open_string(input);
-    fs->name = name ? name : "<anonymous-string>";
-    return fs;
-}
-
-struct file *with_file(const char *file, const char *name)
-{
-    struct file *fs = open_regular(file);
-    fs->name = name ? name : "<anonymous-file>";
-    return fs;
-}
-
-struct file *with_buffer(struct vector *v)
-{
-    struct file *fs = new_file();
-    fs->kind = FILE_KIND_STRING;
-    fs->name = current_file->name;
-    fs->line = current_file->line;
-    fs->column = current_file->column;
-    vec_add(fs->buffer, v);
-    return fs;
 }
 
 struct ifstub *new_ifstub(struct ifstub *i)
