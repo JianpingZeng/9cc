@@ -719,7 +719,7 @@ static struct token *do_one_token(void)
 
 static struct token *one_token(void)
 {
-    if (vec_len(current_file->tokens))
+    if (current_file->tokens && current_file->tokens->len)
         return vec_pop(current_file->tokens);
     else
         return do_one_token();
