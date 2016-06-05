@@ -680,7 +680,7 @@ struct token *lex(void)
 {
     struct vector *v = current_file->buffer;
     struct token *t;
-    if (v && vec_len(v))
+    if (v && v->len)
         t = vec_pop(v);
     else
         t = dolex();
