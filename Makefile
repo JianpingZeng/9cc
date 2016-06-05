@@ -1,6 +1,6 @@
 # Makefile for 7cc
 
-CFLAGS = -Wall -std=c99 -DBUILD_DIR='"$(shell pwd)"' -g
+CFLAGS = -Wall -std=c99 -DBUILD_DIR='"$(shell pwd)"'
 LDFLAGS =
 7CC = 7cc
 CC1 = cc1
@@ -69,6 +69,7 @@ CONFIG_FLAGS += -DSTAGE=${STAGE}
 
 else
 
+CFLAGS += -g
 CFLAGS += -pg
 LDFLAGS += -pg
 
