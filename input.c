@@ -60,7 +60,9 @@ static struct file *open_regular(const char *file)
     long size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
     fs->buf = xmalloc(size + 2);
-    fread(fs->buf, size, 1, fp);
+    if (fread(fs->buf, size, 1, fp) != 1)
+        die("%s: %s", file, strerror(errno));
+    fclose(fp);
     fs->pc = fs->buf;
     /**
      * Add a newline character to the end if the
@@ -93,8 +95,6 @@ static struct file *open_string(const char *string)
 
 static void close_file(struct file *fs)
 {
-    if (fs->kind == FILE_KIND_REGULAR)
-        fclose(fs->fp);
     free(fs->buf);
     free(fs);
     // reset current 'bol'
