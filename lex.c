@@ -61,58 +61,80 @@ static void markc()
     source.column = fs->column;
 }
 
-static void unreadc(int c)
+static void add_line_note(struct file *fs, const char *pos, int type)
 {
-    struct file *fs = current_file;
-    if (c == EOI || fs->pc == fs->buf)
-        return;
-    if (fs->pc[-1] != c)
-        fatal("an unbuffered character '\\0%o", c);
-    if (fs->pc[-1] == '\n') {
-        fs->line--;
-    } else {
-        fs->column--;
+    if (fs->notes_used == fs->notes_alloc) {
+        fs->notes_alloc = fs->notes_alloc * 2 + 200;
+        fs->notes = xrealloc(fs->notes, fs->notes_alloc);
     }
-    fs->pc--;
+    fs->notes[fs->notes_used].pos = pos;
+    fs->notes[fs->notes_used].type = type;
+    fs->notes_used++;
 }
 
-static int readc(void)
+static void process_line_notes(struct file *fs)
 {
-    struct file *fs = current_file;
- beg:
-    if (fs->pc >= fs->pe)
-        return EOI;
-    if (fs->pc[0] == '\\' && fs->pc[1] == '\n') {
-        fs->pc += 2;
-        fs->line++;
-        fs->column = 0;
-        goto beg;
-    } else {
-        if (*fs->pc == '\n') {
-            fs->line++;
-            fs->column = 0;
-        } else {
-            fs->column++;
+    
+}
+
+// return an unescaped logical line.
+static void next_clean_line(struct file *fs)
+{
+    const char *s;
+    char *d;
+    char c;
+    const char *pbackslash = NULL;
+    
+    fs->cur_note = fs->notes_used = 0;
+    fs->cur = fs->line_base = fs->next_line;
+    fs->need_line = false;
+    s = fs->next_line;
+
+    while (1) {
+        // search '\n', '\\'
+        while (*s != '\n' && *s != '\\')
+            s++;
+
+        char c = *s;
+        if (c == '\\')
+            pbackslash = s++;
+        else
+            break;
+    }
+
+    // d must be '\n'
+    d = (char *)s;
+
+    if (d == fs->limit)
+        goto done;
+    if (pbackslash == NULL)
+        goto done;
+    if (d - 1 != pbackslash)
+        goto done;
+
+    // Have an escaped newline
+    add_line_note(fs, d - 1, '\\');
+    d -= 2;
+
+    while (1) {
+        c = *++s;
+        *++d = c;
+
+        if (c == '\n') {
+            if (s == fs->limit)
+                break;
+            if (d[-1] != '\\')
+                break;
+
+            add_line_note(fs, d - 1, '\\');
+            d -= 2;
         }
-        // convert to unsigned char first
-        return (unsigned char)(*fs->pc++);
     }
-}
-
-static bool next(int c)
-{
-    int ch = readc();
-    if (ch == c)
-        return true;
-    unreadc(ch);
-    return false;
-}
-
-static int peek(void)
-{
-    int ch = readc();
-    unreadc(ch);
-    return ch;
+    
+ done:
+    *d = '\n';
+    add_line_note(fs, d + 1, '\n');
+    fs->next_line = s + 1;
 }
 
 struct token *new_token(struct token *tok)
@@ -137,139 +159,118 @@ static struct token *make_token2(int id, const char *name)
 
 #define make_token(id)  make_token2(id, NULL)
 
-static void skipline(bool over)
+static void line_comment(struct file *fs)
 {
+    while (*fs->cur != '\n')
+        fs->cur++;
+    process_line_notes(fs);
+}
+
+static void block_comment(struct file *fs)
+{
+    const char *rpc = fs->cur;
+    char ch;
+    rpc++;
+    
+    for (;;) {
+        ch = *rpc++;
+        if (ch == '/' && rpc[-2] == '*') {
+            break;
+        } else if (ch == '\n') {
+            process_line_notes(fs);
+            if (rpc >= fs->limit)
+                break;
+            next_clean_line(fs);
+            rpc = fs->cur;
+        }
+    }
+
+    if (rpc >= fs->limit)
+        error("unterminated /* comment");
+    fs->cur = rpc;
+    process_line_notes(fs);
+}
+
+static struct token *ppnumber(struct file *fs)
+{
+    const char *rpc = fs->cur - 1;
     int ch;
     for (;;) {
-        ch = readc();
-        if (isnewline(ch) || ch == EOI)
+        ch = *fs->cur++;
+        if (!isdigitletter(ch) && ch != '.')
             break;
+        bool is_float = strchr("eEpP", ch) && strchr("+-", *fs->cur);
+        if (is_float)
+            fs->cur++;
     }
-    if (isnewline(ch) && !over)
-        unreadc(ch);
+    const char *name = xstrndup(rpc, fs->cur - rpc);
+    return make_token2(NCONSTANT,  name);
 }
 
-static void line_comment(void)
+static struct token *sequence(struct file *fs, bool wide, int sep)
 {
-    skipline(false);
-}
-
-static void block_comment(void)
-{
-    for (;;) {
-        int ch = readc();
-        if (ch == '*' && next('/'))
-            break;
-        if (ch == EOI) {
-            error("unterminated /* comment");
-            break;
-        }
-    }
-}
-
-static struct token *ppnumber(int c)
-{
-    struct strbuf *s = strbuf_new();
-    strbuf_catc(s, c);
-    for (;;) {
-        int ch = readc();
-        if (!isdigitletter(ch) && ch != '.') {
-            unreadc(ch);
-            break;
-        }
-        bool is_float = strchr("eEpP", ch) && strchr("+-", peek());
-        if (is_float) {
-            strbuf_catc(s, ch);
-            ch = readc();
-            strbuf_catc(s, ch);
-        } else {
-            strbuf_catc(s, ch);
-        }
-    }
-    return make_token2(NCONSTANT,  strbuf_str(s));
-}
-
-static struct token *sequence(bool wide, int sep)
-{
-    struct strbuf *s = strbuf_new();
-
-    if (wide)
-        strbuf_catc(s, 'L');
-    strbuf_catc(s, sep);
-
+    const char *rpc = fs->cur - 1;
+    bool is_char = sep == '\'';
+    const char *name;
     int ch;
     for (;;) {
-        ch = readc();
-        if (ch == sep || isnewline(ch) || ch == EOI)
+        ch = *fs->cur++;
+        if (ch == sep || isnewline(ch))
             break;
-        if (ch == '\\') {
-            strbuf_catc(s, '\\');
-            ch = readc();
-        }
-        strbuf_catc(s, ch);
+        if (ch == '\\')
+            fs->cur++;
     }
 
-    bool is_char = sep == '\'' ? true : false;
-    const char *name = is_char ? "character" : "string";
-    if (ch != sep)
-        error("untermiated %s constant: %s", name, s->str);
-    strbuf_catc(s, sep);
+    if (ch != sep) {
+        char *str = xstrndup(rpc, fs->cur - rpc + 1);
+        str[fs->cur - rpc] = sep;
+        name = str;
+        error("untermiated %s constant: %s",
+              is_char ? "character" : "string", name);
+    } else {
+        name = xstrndup(rpc, fs->cur - rpc);
+    }
 
     if (is_char)
-        return make_token2(NCONSTANT, strbuf_str(s));
+        return make_token2(NCONSTANT, name);
     else
-        return make_token2(SCONSTANT, strbuf_str(s));
+        return make_token2(SCONSTANT, name);
 }
 
-static struct token *identifier(int c)
+static struct token *identifier(struct file *fs)
 {
-    struct strbuf *s = strbuf_new();
-    strbuf_catc(s, c);
-    for (;;) {
-        int ch = readc();
-        if (!isdigitletter(ch)) {
-            unreadc(ch);
-            break;
-        }
-        strbuf_catc(s, ch);
-    }
-    return make_token2(ID, strbuf_str(s));
-}
-
-static struct token *newline(void)
-{
-    current_file->bol = true;
-    newline_token->src = source;
-    return newline_token;
-}
-
-static struct token *spaces(int c)
-{
-    for (;;) {
-        int ch = readc();
-        if (!iswhitespace(ch)) {
-            unreadc(ch);
-            break;
-        }
-    }
-    space_token->src = source;
-    return space_token;
+    const char *rpc = fs->cur - 1;
+    while (isdigitletter(*fs->cur))
+        fs->cur++;
+    const char *name = xstrndup(rpc, fs->cur - rpc);
+    return make_token2(ID, name);
 }
 
 struct token *dolex(void)
 {
-    register int rpc;
+    register const char *rpc;
+    struct file *fs = current_file;
+
+    if (fs->need_line)
+        next_clean_line(fs);
 
     for (;;) {
-        rpc = readc();
+        if (fs->cur >= fs->notes[fs->cur_note].pos)
+            process_line_notes(fs);
+        
+        rpc = fs->cur++;
         markc();
 
-        switch (rpc) {
-        case EOI:
-            return eoi_token;
-
+        switch (*rpc) {
         case '\n':
-            return newline();
+            if (rpc >= fs->limit) {
+                return eoi_token;
+            } else {
+                fs->need_line = true;
+                current_file->bol = true;
+                newline_token->src = source;
+                return newline_token;
+            }
 
             // spaces
         case '\t':
@@ -277,122 +278,156 @@ struct token *dolex(void)
         case '\f':
         case '\r':
         case ' ':
-            return spaces(rpc);
+            do
+                rpc++;
+            while (iswhitespace(*rpc));
+            fs->cur = rpc;
+            space_token->src = source;
+            return space_token;
 
             // punctuators
         case '/':
-            if (next('/')) {
-                line_comment();
+            if (rpc[1] == '/') {
+                line_comment(fs);
                 continue;
-            } else if (next('*')) {
-                block_comment();
+            } else if (rpc[1] == '*') {
+                block_comment(fs);
                 continue;
-            } else if (next('=')) {
+            } else if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(DIVEQ);
             } else {
-                return make_token(rpc);
+                return make_token('/');
             }
 
         case '+':
-            if (next('+'))
+            if (rpc[1] == '+') {
+                fs->cur++;
                 return make_token(INCR);
-            else if (next('='))
+            } else if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(ADDEQ);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('+');
+            }
 
         case '-':
-            if (next('-'))
+            if (rpc[1] == '-') {
+                fs->cur++;
                 return make_token(DECR);
-            else if (next('='))
+            } else if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(MINUSEQ);
-            else if (next('>'))
+            } else if (rpc[1] == '>') {
+                fs->cur++;
                 return make_token(DEREF);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('-');
+            }
 
         case '*':
-            if (next('='))
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(MULEQ);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('*');
+            }
 
         case '=':
-            if (next('='))
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(EQ);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('=');
+            }
 
         case '!':
-            if (next('='))
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(NEQ);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('!');
+            }
 
         case '%':
-            if (next('=')) {
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(MODEQ);
-            } else if (next('>')) {
+            } else if (rpc[1] == '>') {
+                fs->cur++;
                 return make_token('}');
-            } else if (next(':')) {
-                if (next('%')) {
-                    if (next(':'))
-                        return make_token(SHARPSHARP);
-                    unreadc('%');
-                }
+            } else if (rpc[1] == ':' && rpc[2] == '%' && rpc[3] == ':') {
+                fs->cur += 3;
+                return make_token(SHARPSHARP);
+            } else if (rpc[1] == ':') {
+                fs->cur++;
                 return make_token('#');
             } else {
-                return make_token(rpc);
+                return make_token('%');
             }
 
         case '^':
-            if (next('='))
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(XOREQ);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('^');
+            }
 
         case '&':
-            if (next('='))
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(BANDEQ);
-            else if (next('&'))
+            } else if (rpc[1] == '&') {
+                fs->cur++;
                 return make_token(AND);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('&');
+            }
 
         case '|':
-            if (next('='))
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(BOREQ);
-            else if (next('|'))
+            } else if (rpc[1] == '|') {
+                fs->cur++;
                 return make_token(OR);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('|');
+            }
 
         case '<':
-            if (next('=')) {
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(LEQ);
-            } else if (next('<')) {
-                if (next('='))
-                    return make_token(LSHIFTEQ);
-                else
-                    return make_token(LSHIFT);
-            } else if (next('%')) {
+            } else if (rpc[1] == '<' && rpc[2] == '=') {
+                fs->cur += 2;
+                return make_token(LSHIFTEQ);
+            } else if (rpc[1] == '<') {
+                fs->cur++;
+                return make_token(LSHIFT);
+            } else if (rpc[1] == '%') {
+                fs->cur++;
                 return make_token('{');
-            } else if (next(':')) {
+            } else if (rpc[1] == ':') {
+                fs->cur++;
                 return make_token('[');
             } else {
-                return make_token(rpc);
+                return make_token('<');
             }
 
         case '>':
-            if (next('=')) {
+            if (rpc[1] == '=') {
+                fs->cur++;
                 return make_token(GEQ);
-            } else if (next('>')) {
-                if (next('='))
-                    return make_token(RSHIFTEQ);
-                else
-                    return make_token(RSHIFT);
+            } else if (rpc[1] == '>' && rpc[2] == '=') {
+                fs->cur += 2;
+                return make_token(RSHIFTEQ);
+            } else if (rpc[1] == '>') {
+                fs->cur++;
+                return make_token(RSHIFT);
             } else {
-                return make_token(rpc);
+                return make_token('>');
             }
 
         case '(':
@@ -405,26 +440,30 @@ struct token *dolex(void)
         case ';':
         case '~':
         case '?':
-            return make_token(rpc);
+            return make_token(*rpc);
 
         case ':':
-            if (next('>'))
+            if (rpc[1] == '>') {
+                fs->cur++;
                 return make_token(']');
-            else
-                return make_token(rpc);
+            } else {
+                return make_token(':');
+            }
 
         case '#':
-            if (next('#'))
+            if (rpc[1] == '#') {
+                fs->cur++;
                 return make_token(SHARPSHARP);
-            else
-                return make_token(rpc);
+            } else {
+                return make_token('#');
+            }
 
             // constants
         case '\'':
-            return sequence(false, '\'');
+            return sequence(fs, false, '\'');
 
         case '"':
-            return sequence(false, '"');
+            return sequence(fs, false, '"');
 
         case '0':
         case '1':
@@ -436,26 +475,24 @@ struct token *dolex(void)
         case '7':
         case '8':
         case '9':
-            return ppnumber(rpc);
+            return ppnumber(fs);
 
         case '.':
-            if (next('.')) {
-                if (next('.'))
-                    return make_token(ELLIPSIS);
-                unreadc('.');
-                return make_token(rpc);
-            } else if (isdigit(peek())) {
-                return ppnumber(rpc);
+            if (rpc[1] == '.' && rpc[2] == '.') {
+                fs->cur += 2;
+                return make_token(ELLIPSIS);
+            } else if (isdigit(rpc[1])) {
+                return ppnumber(fs);
             } else {
-                return make_token(rpc);
+                return make_token('.');
             }
 
             // identifiers
         case 'L':
-            if (next('\''))
-                return sequence(true, '\'');
-            else if (next('"'))
-                return sequence(true, '"');
+            if (rpc[1] == '\'')
+                return sequence(fs, true, '\'');
+            else if (rpc[1] == '"')
+                return sequence(fs, true, '"');
             // go through
         case 'a':
         case 'b':
@@ -509,57 +546,69 @@ struct token *dolex(void)
         case 'Y':
         case 'Z':
         case '_':
-            return identifier(rpc);
+            return identifier(fs);
 
         default:
             // illegal character
-            if (isgraph(rpc))
-                error("illegal character '%c'", rpc);
+            if (isgraph(*rpc))
+                error("illegal character '%c'", *rpc);
             else
-                error("illegal character '\\0%o'", rpc);
+                error("illegal character '\\0%o'", *rpc);
         }
     }
 }
 
-static const char *hq_char_sequence(int sep)
+static void skipline(struct file *fs, bool over)
 {
-    struct strbuf *s = strbuf_new();
+    while (*fs->cur != '\n')
+        fs->cur++;
+    if (over) {
+        process_line_notes(fs);
+        next_clean_line(fs);
+    }
+}
+
+static const char *hq_char_sequence(struct file *fs, int sep)
+{
+    const char *rpc = fs->cur - 1;
     int ch;
+    const char *name;
 
     for (;;) {
-        ch = readc();
-        if (ch == sep || isnewline(ch) || ch == EOI)
+        ch = *fs->cur++;
+        if (ch == sep || isnewline(ch))
             break;
-        strbuf_catc(s, ch);
     }
 
     if (ch != sep)
         error("missing '%c' in header name", sep);
 
-    skipline(true);
-    return strbuf_str(s);
+    name = xstrndup(rpc, fs->cur - rpc);
+    skipline(fs, true);
+    return name;
 }
 
 struct token *header_name(void)
 {
-    int ch;
- beg:
-    ch = readc();
-    if (iswhitespace(ch))
-        goto beg;
+    struct file *fs = current_file;
+
+    while (iswhitespace(*fs->cur))
+        fs->cur++;
+
+    char ch = *fs->cur++;
 
     markc();
     if (ch == '<') {
-        const char *name = hq_char_sequence('>');
+        const char *name = hq_char_sequence(fs, '>');
         return new_token(&(struct token) {
                 .name = name,.kind = '<'});
     } else if (ch == '"') {
-        const char *name = hq_char_sequence('"');
+        const char *name = hq_char_sequence(fs, '"');
         return new_token(&(struct token) {
                 .name = name,.kind = '"'});
     } else {
         // pptokens
-        unreadc(ch);
+        fs->cur--;
         return NULL;
     }
 }
@@ -569,45 +618,47 @@ void unget(struct token *t)
     vec_push(current_file->buffer, t);
 }
 
-static void skip_sequence(int sep)
+static void skip_sequence(struct file *fs, int sep)
 {
     int ch;
     for (;;) {
-        ch = readc();
-        if (ch == sep || isnewline(ch) || ch == EOI)
+        ch = *fs->cur++;
+        if (ch == sep || isnewline(ch))
             break;
         if (ch == '\\')
-            readc();
+            fs->cur++;
     }
     if (ch != sep)
-        unreadc(ch);
+        fs->cur--;
 }
 
-void skip_spaces(void)
+static void skip_spaces(struct file *fs)
 {
     // skip spaces, including comments
     int ch;
 
- beg:
-    ch = readc();
-    if (iswhitespace(ch)) {
-        goto beg;
-    } else if (ch == '/') {
-        if (next('/')) {
-            line_comment();
-            goto beg;
-        } else if (next('*')) {
-            block_comment();
-            goto beg;
+    for (;;) {
+        ch = *fs->cur++;
+        if (iswhitespace(ch))
+            continue;
+        if (ch == '/' && *fs->cur == '/') {
+            line_comment(fs);
+            continue;
         }
+        if (ch == '/' && *fs->cur == '*') {
+            block_comment(fs);
+            continue;
+        }
+        break;
     }
-    unreadc(ch);
+    fs->cur--;
 }
 
 void skip_ifstub(void)
 {
     /* Skip part of conditional group.
      */
+    struct file *fs = current_file;
     unsigned lines = 0;
     bool bol = true;
     int nest = 0;
@@ -616,9 +667,9 @@ void skip_ifstub(void)
     assert(IS_NEWLINE(t0) || t0->id == EOI);
     for (;;) {
         // skip spaces
-        skip_spaces();
-        int ch = readc();
-        if (ch == EOI)
+        skip_spaces(fs);
+        int ch = *fs->cur++;
+        if (fs->cur >= fs->limit)
             break;
         if (isnewline(ch)) {
             bol = true;
@@ -626,7 +677,7 @@ void skip_ifstub(void)
             continue;
         }
         if (ch == '\'' || ch == '"') {
-            skip_sequence(ch);
+            skip_sequence(fs, ch);
             bol = false;
             continue;
         }
@@ -669,7 +720,7 @@ void skip_ifstub(void)
             nest--;
             bol = false;
         }
-        skipline(false);
+        skipline(fs, false);
     }
 
     while (lines-- > 0)

@@ -9,7 +9,7 @@ struct source {
 };
 
 struct line_note {
-    char *pos;
+    const char *pos;
     int type;
 };
 
@@ -19,9 +19,10 @@ struct file {
     bool bol;                  // beginning of line
     bool stub;
     bool need_line;
+    const char *file;           // file name
     const char *name;           // buffer name
     const char *buf;            // entire buffer
-    const char *pc;             // current position
+    const char *cur;            // current position
     const char *limit;          // end position
     const char *line_base;      // start of current physical line
     const char *next_line;      // start of to-be-cleaned logical line
@@ -32,6 +33,7 @@ struct file {
     struct vector *ifstubs;
     struct vector *buffer;      // lex ungets
     struct vector *tokens;      // parser ungets
+    unsigned line, column;
 };
 
 struct ifstub {

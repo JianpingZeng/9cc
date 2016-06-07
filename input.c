@@ -39,7 +39,7 @@ static struct file *new_file(void)
 
 static void close_file(struct file *fs)
 {
-    free(fs->buf);
+    free((void *)fs->buf);
     free(fs);
     // reset current 'bol'
     struct file *current = current_file;
@@ -47,11 +47,12 @@ static void close_file(struct file *fs)
         current->bol = true;
 }
 
-struct file *with_file(const char *file)
+struct file *with_file(const char *file, const char *name)
 {
     struct file *fs = new_file();
     fs->kind = FILE_KIND_REGULAR;
-    fs->name = file;
+    fs->file = file;
+    fs->name = name;
     
     FILE *fp = fopen(file, "r");
     if (fp == NULL)
@@ -61,17 +62,18 @@ struct file *with_file(const char *file)
     long size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
     fs->buf = xmalloc(size + 2);
-    if (fread(fs->buf, size, 1, fp) != 1)
+
+    char *d = (char *)fs->buf;
+    if (fread(d, size, 1, fp) != 1)
         die("%s: %s", file, strerror(errno));
     fclose(fp);
 
-    fs->pc = fs->line_base = fs->next_line = fs->buf;
+    fs->cur = fs->line_base = fs->next_line = fs->buf;
     /**
      * Add a newline character to the end if the
      * file doesn't have one, thus the include
      * directive would work well.
      */
-    char *d = (char *)fs->buf;
     d[size] = d[size + 1] = '\n';
     if (fs->buf[size - 1] != '\n') {
         warning_no_newline(file);
@@ -92,13 +94,13 @@ struct file *with_string(const char *input, const char *name)
      * additional newline when expanding a macro.
      */
     struct file *fs = new_file();
-    size_t len = strlen(string);
+    size_t len = strlen(input);
     fs->kind = FILE_KIND_STRING;
     fs->name = name ? name : "<anonymous-string>";
-    fs->buf = xstrdup(string);
+    fs->buf = xstrdup(input);
     char *d = (char *)fs->buf;
     d[len] = '\n';
-    fs->pc = fs->line_base = fs->next_line = fs->buf;
+    fs->cur = fs->line_base = fs->next_line = fs->buf;
     fs->limit = &fs->buf[len];
     return fs;
 }
