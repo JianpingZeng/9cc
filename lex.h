@@ -104,7 +104,15 @@ struct macro {
 extern void cpp_init(struct vector *options);
 extern struct token *get_pptok(void);
 
+extern int gettok(void);
+extern struct token *lookahead(void);
+extern void expect(int t);
+extern void match(int t, int follow[]);
+extern int skipto(int (*test[]) (struct token *));
+extern const char *unwrap_scon(const char *name);
+
 // lex.c
+#define MARK(t)  source = t->src
 extern struct source source;
 extern struct token *token;
 extern struct token *ahead_token;
@@ -123,14 +131,7 @@ extern void unget(struct file *fs, struct token *t);
 extern struct token *header_name(struct file *fs);
 extern struct token *new_token(struct token *tok);
 extern void skip_ifstub(struct file *fs);
-
-extern int gettok(void);
-extern struct token *lookahead(void);
-extern void expect(int t);
-extern void match(int t, int follow[]);
-extern int skipto(int (*test[]) (struct token *));
 extern const char *id2s(int t);
-extern const char *unwrap_scon(const char *name);
 
 #define FARRAY(...)  ((int (*[]) (struct token *)){__VA_ARGS__, NULL})
 
