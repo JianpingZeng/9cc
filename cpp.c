@@ -46,10 +46,13 @@ static struct token *skip_spaces(void)
 static void skipline(void)
 {
     struct token *t;
- beg:
-    t = lex(current_file);
-    if (!IS_NEWLINE(t))
-        goto beg;
+    for (;;) {
+        t = lex(current_file);
+        if (t->id == EOI)
+            return;
+        if (IS_NEWLINE(t))
+            break;
+    }
     unget(current_file, t);
 }
 
@@ -198,7 +201,7 @@ static void endif_line(void)
         error("#endif without #if");
     struct token *t = skip_spaces();
     if (!IS_NEWLINE(t)) {
-        error("extra tokens '%s' in #endif");
+        error("extra tokens in #endif");
         skipline();
     } else {
         unget(current_file, t);
