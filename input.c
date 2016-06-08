@@ -7,6 +7,7 @@ struct file *current_file;
 enum {
     FILE_KIND_REGULAR = 1,
     FILE_KIND_STRING,
+    FILE_KIND_BUFFER,
 };
 
 bool is_original_file(const char *file)
@@ -17,20 +18,13 @@ bool is_original_file(const char *file)
         return false;
 }
 
-static void warning_no_newline(const char *file)
-{
-    if (is_original_file(file))
-        fprintf(stderr,
-                CLEAR "%s: " RESET PURPLE("warning: ")
-                "No newline at end of file\n",
-                file);
-}
-
 static struct file *new_file(void)
 {
     struct file *fs = zmalloc(sizeof(struct file));
     fs->bol = true;
     fs->need_line = true;
+    fs->line = 1;
+    fs->column = 0;
     fs->ifstubs = vec_new();
     fs->buffer = vec_new();
     fs->tokens = vec_new();
@@ -61,7 +55,7 @@ struct file *with_file(const char *file, const char *name)
     fseek(fp, 0, SEEK_END);
     long size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
-    fs->buf = xmalloc(size + 2);
+    fs->buf = xmalloc(size + 1);
 
     char *d = (char *)fs->buf;
     if (fread(d, size, 1, fp) != 1)
@@ -74,13 +68,8 @@ struct file *with_file(const char *file, const char *name)
      * file doesn't have one, thus the include
      * directive would work well.
      */
-    d[size] = d[size + 1] = '\n';
-    if (fs->buf[size - 1] != '\n') {
-        warning_no_newline(file);
-        fs->limit = &fs->buf[size + 1];
-    } else {
-        fs->limit = &fs->buf[size];
-    }
+    d[size] = '\n';
+    fs->limit = &fs->buf[size];
     return fs;
 }
 
@@ -98,9 +87,9 @@ struct file *with_string(const char *input, const char *name)
     fs->kind = FILE_KIND_STRING;
     fs->name = name ? name : "<anonymous-string>";
     fs->buf = xstrdup(input);
+    fs->cur = fs->line_base = fs->next_line = fs->buf;
     char *d = (char *)fs->buf;
     d[len] = '\n';
-    fs->cur = fs->line_base = fs->next_line = fs->buf;
     fs->limit = &fs->buf[len];
     return fs;
 }
@@ -108,10 +97,11 @@ struct file *with_string(const char *input, const char *name)
 struct file *with_buffer(struct vector *v)
 {
     struct file *fs = new_file();
-    fs->kind = FILE_KIND_STRING;
+    fs->kind = FILE_KIND_BUFFER;
     fs->name = current_file->name;
     fs->line = current_file->line;
     fs->column = current_file->column;
+    fs->need_line = false;
     vec_add(fs->buffer, v);
     return fs;
 }

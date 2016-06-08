@@ -32,6 +32,18 @@ struct source source;
 #define isnewline(ch)     (map[ch] & NEWLINE)
 #define isdigitletter(ch) (map[ch] & (DIGIT|LETTER))
 #define mark(t)           source = t->src
+#define INCLINE(fs, col)  do {                  \
+        fs->line++;                             \
+        fs->column = col;                       \
+    } while (0)
+
+#define markc(fs)  do {                         \
+        source.file = fs->name;                 \
+        source.line = fs->line;                 \
+        source.column = fs->column;             \
+    } while (0)
+
+#define SET_COLUMN(fs, col)  fs->column = col
 
 int isletter(int c)
 {
@@ -43,22 +55,13 @@ int isxalpha(int c)
     return map[c] & HEX;
 }
 
-static struct source chsrc()
+static struct source chsrc(struct file *fs)
 {
-    struct file *fs = current_file;
     struct source src;
     src.file = fs->name;
     src.line = fs->line;
     src.column = fs->column;
     return src;
-}
-
-static void markc()
-{
-    struct file *fs = current_file;
-    source.file = fs->name;
-    source.line = fs->line;
-    source.column = fs->column;
 }
 
 static void add_line_note(struct file *fs, const char *pos, int type)
@@ -74,7 +77,21 @@ static void add_line_note(struct file *fs, const char *pos, int type)
 
 static void process_line_notes(struct file *fs)
 {
-    
+    for (;;) {
+        struct line_note *note = &fs->notes[fs->cur_note];
+
+        if (note->pos > fs->cur)
+            break;
+
+        fs->cur_note++;
+        
+        if (note->type == '\\') {
+            fs->line_base = note->pos;
+            INCLINE(fs, 0);
+        } else {
+            assertf(0, "unexpected line note type:%d", note->type);
+        }
+    }
 }
 
 // return an unescaped logical line.
@@ -89,7 +106,7 @@ static void next_clean_line(struct file *fs)
     fs->cur = fs->line_base = fs->next_line;
     fs->need_line = false;
     s = fs->next_line;
-
+    
     while (1) {
         // search '\n', '\\'
         while (*s != '\n' && *s != '\\')
@@ -115,7 +132,7 @@ static void next_clean_line(struct file *fs)
     // Have an escaped newline
     add_line_note(fs, d - 1, '\\');
     d -= 2;
-
+    
     while (1) {
         c = *++s;
         *++d = c;
@@ -133,6 +150,7 @@ static void next_clean_line(struct file *fs)
     
  done:
     *d = '\n';
+    /* a sentinel note that should never be processed. */
     add_line_note(fs, d + 1, '\n');
     fs->next_line = s + 1;
 }
@@ -146,18 +164,18 @@ struct token *new_token(struct token *tok)
     return t;
 }
 
-static struct token *make_token2(int id, const char *name)
+static struct token *make_token2(struct file *fs, int id, const char *name)
 {
     struct token *t = alloc_token();
     t->id = id;
     t->name = name ? name : id2s(id);
     t->src = source;
-    t->bol = current_file->bol;
-    current_file->bol = false;
+    t->bol = fs->bol;
+    fs->bol = false;
     return t;
 }
 
-#define make_token(id)  make_token2(id, NULL)
+#define make_token(fs, id)  make_token2(fs, id, NULL)
 
 static void line_comment(struct file *fs)
 {
@@ -166,6 +184,7 @@ static void line_comment(struct file *fs)
     process_line_notes(fs);
 }
 
+// fs->cur points to the initial asterisk of the comment.
 static void block_comment(struct file *fs)
 {
     const char *rpc = fs->cur;
@@ -177,34 +196,39 @@ static void block_comment(struct file *fs)
         if (ch == '/' && rpc[-2] == '*') {
             break;
         } else if (ch == '\n') {
+            fs->cur = rpc - 1;
             process_line_notes(fs);
-            if (rpc >= fs->limit)
-                break;
+            if (fs->next_line >= fs->limit) {
+                error("unterminated /* comment");
+                return;
+            }
             next_clean_line(fs);
+            INCLINE(fs, 0);
             rpc = fs->cur;
         }
     }
 
-    if (rpc >= fs->limit)
-        error("unterminated /* comment");
     fs->cur = rpc;
     process_line_notes(fs);
 }
 
+// fs->cur points at prior initial digit or dot.
 static struct token *ppnumber(struct file *fs)
 {
     const char *rpc = fs->cur - 1;
     int ch;
     for (;;) {
         ch = *fs->cur++;
-        if (!isdigitletter(ch) && ch != '.')
+        if (!isdigitletter(ch) && ch != '.') {
+            fs->cur--;
             break;
+        }
         bool is_float = strchr("eEpP", ch) && strchr("+-", *fs->cur);
         if (is_float)
             fs->cur++;
     }
     const char *name = xstrndup(rpc, fs->cur - rpc);
-    return make_token2(NCONSTANT,  name);
+    return make_token2(fs, NCONSTANT,  name);
 }
 
 static struct token *sequence(struct file *fs, bool wide, int sep)
@@ -232,9 +256,9 @@ static struct token *sequence(struct file *fs, bool wide, int sep)
     }
 
     if (is_char)
-        return make_token2(NCONSTANT, name);
+        return make_token2(fs, NCONSTANT, name);
     else
-        return make_token2(SCONSTANT, name);
+        return make_token2(fs, SCONSTANT, name);
 }
 
 static struct token *identifier(struct file *fs)
@@ -243,23 +267,25 @@ static struct token *identifier(struct file *fs)
     while (isdigitletter(*fs->cur))
         fs->cur++;
     const char *name = xstrndup(rpc, fs->cur - rpc);
-    return make_token2(ID, name);
+    return make_token2(fs, ID, name);
 }
 
-struct token *dolex(void)
+static struct token *dolex(struct file *fs)
 {
     register const char *rpc;
-    struct file *fs = current_file;
 
     if (fs->need_line)
         next_clean_line(fs);
-
+    // fs->buf maybe NULL
+    if (fs->cur >= fs->limit)
+        return eoi_token;
+    
     for (;;) {
         if (fs->cur >= fs->notes[fs->cur_note].pos)
             process_line_notes(fs);
-        
+        SET_COLUMN(fs, fs->cur - fs->line_base);
         rpc = fs->cur++;
-        markc();
+        markc(fs);
 
         switch (*rpc) {
         case '\n':
@@ -267,8 +293,9 @@ struct token *dolex(void)
                 return eoi_token;
             } else {
                 fs->need_line = true;
-                current_file->bol = true;
+                fs->bol = true;
                 newline_token->src = source;
+                INCLINE(fs, 0);
                 return newline_token;
             }
 
@@ -295,139 +322,139 @@ struct token *dolex(void)
                 continue;
             } else if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(DIVEQ);
+                return make_token(fs, DIVEQ);
             } else {
-                return make_token('/');
+                return make_token(fs, '/');
             }
 
         case '+':
             if (rpc[1] == '+') {
                 fs->cur++;
-                return make_token(INCR);
+                return make_token(fs, INCR);
             } else if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(ADDEQ);
+                return make_token(fs, ADDEQ);
             } else {
-                return make_token('+');
+                return make_token(fs, '+');
             }
 
         case '-':
             if (rpc[1] == '-') {
                 fs->cur++;
-                return make_token(DECR);
+                return make_token(fs, DECR);
             } else if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(MINUSEQ);
+                return make_token(fs, MINUSEQ);
             } else if (rpc[1] == '>') {
                 fs->cur++;
-                return make_token(DEREF);
+                return make_token(fs, DEREF);
             } else {
-                return make_token('-');
+                return make_token(fs, '-');
             }
 
         case '*':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(MULEQ);
+                return make_token(fs, MULEQ);
             } else {
-                return make_token('*');
+                return make_token(fs, '*');
             }
 
         case '=':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(EQ);
+                return make_token(fs, EQ);
             } else {
-                return make_token('=');
+                return make_token(fs, '=');
             }
 
         case '!':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(NEQ);
+                return make_token(fs, NEQ);
             } else {
-                return make_token('!');
+                return make_token(fs, '!');
             }
 
         case '%':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(MODEQ);
+                return make_token(fs, MODEQ);
             } else if (rpc[1] == '>') {
                 fs->cur++;
-                return make_token('}');
+                return make_token(fs, '}');
             } else if (rpc[1] == ':' && rpc[2] == '%' && rpc[3] == ':') {
                 fs->cur += 3;
-                return make_token(SHARPSHARP);
+                return make_token(fs, SHARPSHARP);
             } else if (rpc[1] == ':') {
                 fs->cur++;
-                return make_token('#');
+                return make_token(fs, '#');
             } else {
-                return make_token('%');
+                return make_token(fs, '%');
             }
 
         case '^':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(XOREQ);
+                return make_token(fs, XOREQ);
             } else {
-                return make_token('^');
+                return make_token(fs, '^');
             }
 
         case '&':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(BANDEQ);
+                return make_token(fs, BANDEQ);
             } else if (rpc[1] == '&') {
                 fs->cur++;
-                return make_token(AND);
+                return make_token(fs, AND);
             } else {
-                return make_token('&');
+                return make_token(fs, '&');
             }
 
         case '|':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(BOREQ);
+                return make_token(fs, BOREQ);
             } else if (rpc[1] == '|') {
                 fs->cur++;
-                return make_token(OR);
+                return make_token(fs, OR);
             } else {
-                return make_token('|');
+                return make_token(fs, '|');
             }
 
         case '<':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(LEQ);
+                return make_token(fs, LEQ);
             } else if (rpc[1] == '<' && rpc[2] == '=') {
                 fs->cur += 2;
-                return make_token(LSHIFTEQ);
+                return make_token(fs, LSHIFTEQ);
             } else if (rpc[1] == '<') {
                 fs->cur++;
-                return make_token(LSHIFT);
+                return make_token(fs, LSHIFT);
             } else if (rpc[1] == '%') {
                 fs->cur++;
-                return make_token('{');
+                return make_token(fs, '{');
             } else if (rpc[1] == ':') {
                 fs->cur++;
-                return make_token('[');
+                return make_token(fs, '[');
             } else {
-                return make_token('<');
+                return make_token(fs, '<');
             }
 
         case '>':
             if (rpc[1] == '=') {
                 fs->cur++;
-                return make_token(GEQ);
+                return make_token(fs, GEQ);
             } else if (rpc[1] == '>' && rpc[2] == '=') {
                 fs->cur += 2;
-                return make_token(RSHIFTEQ);
+                return make_token(fs, RSHIFTEQ);
             } else if (rpc[1] == '>') {
                 fs->cur++;
-                return make_token(RSHIFT);
+                return make_token(fs, RSHIFT);
             } else {
-                return make_token('>');
+                return make_token(fs, '>');
             }
 
         case '(':
@@ -440,22 +467,22 @@ struct token *dolex(void)
         case ';':
         case '~':
         case '?':
-            return make_token(*rpc);
+            return make_token(fs, *rpc);
 
         case ':':
             if (rpc[1] == '>') {
                 fs->cur++;
-                return make_token(']');
+                return make_token(fs, ']');
             } else {
-                return make_token(':');
+                return make_token(fs, ':');
             }
 
         case '#':
             if (rpc[1] == '#') {
                 fs->cur++;
-                return make_token(SHARPSHARP);
+                return make_token(fs, SHARPSHARP);
             } else {
-                return make_token('#');
+                return make_token(fs, '#');
             }
 
             // constants
@@ -480,11 +507,11 @@ struct token *dolex(void)
         case '.':
             if (rpc[1] == '.' && rpc[2] == '.') {
                 fs->cur += 2;
-                return make_token(ELLIPSIS);
+                return make_token(fs, ELLIPSIS);
             } else if (isdigit(rpc[1])) {
                 return ppnumber(fs);
             } else {
-                return make_token('.');
+                return make_token(fs, '.');
             }
 
             // identifiers
@@ -563,21 +590,23 @@ static void skipline(struct file *fs, bool over)
     while (*fs->cur != '\n')
         fs->cur++;
     if (over) {
-        process_line_notes(fs);
+        INCLINE(fs, 0);
         next_clean_line(fs);
     }
 }
 
 static const char *hq_char_sequence(struct file *fs, int sep)
 {
-    const char *rpc = fs->cur - 1;
+    const char *rpc = fs->cur;
     int ch;
     const char *name;
 
     for (;;) {
         ch = *fs->cur++;
-        if (ch == sep || isnewline(ch))
+        if (ch == sep || isnewline(ch)) {
+            fs->cur--;
             break;
+        }
     }
 
     if (ch != sep)
@@ -588,24 +617,24 @@ static const char *hq_char_sequence(struct file *fs, int sep)
     return name;
 }
 
-struct token *header_name(void)
+struct token *header_name(struct file *fs)
 {
-    struct file *fs = current_file;
-
     while (iswhitespace(*fs->cur))
         fs->cur++;
 
+    SET_COLUMN(fs, fs->cur - fs->line_base);
     char ch = *fs->cur++;
 
-    markc();
+    // mark for 'error/warning etc.'
+    markc(fs);
     if (ch == '<') {
         const char *name = hq_char_sequence(fs, '>');
         return new_token(&(struct token) {
-                .name = name,.kind = '<'});
+                .name = name, .kind = ch});
     } else if (ch == '"') {
         const char *name = hq_char_sequence(fs, '"');
         return new_token(&(struct token) {
-                .name = name,.kind = '"'});
+                .name = name, .kind = ch});
     } else {
         // pptokens
         fs->cur--;
@@ -613,9 +642,9 @@ struct token *header_name(void)
     }
 }
 
-void unget(struct token *t)
+void unget(struct file *fs, struct token *t)
 {
-    vec_push(current_file->buffer, t);
+    vec_push(fs->buffer, t);
 }
 
 static void skip_sequence(struct file *fs, int sep)
@@ -654,18 +683,19 @@ static void skip_spaces(struct file *fs)
     fs->cur--;
 }
 
-void skip_ifstub(void)
+/* Skip part of conditional group.
+ */
+void skip_ifstub(struct file *fs)
 {
-    /* Skip part of conditional group.
-     */
-    struct file *fs = current_file;
     unsigned lines = 0;
     bool bol = true;
     int nest = 0;
-    struct token *t0 = lex();
+    struct token *t0 = lex(fs);
     lines++;
     assert(IS_NEWLINE(t0) || t0->id == EOI);
     for (;;) {
+        if (fs->need_line)
+            next_clean_line(fs);
         // skip spaces
         skip_spaces(fs);
         int ch = *fs->cur++;
@@ -674,6 +704,7 @@ void skip_ifstub(void)
         if (isnewline(ch)) {
             bol = true;
             lines++;
+            fs->need_line = true;
             continue;
         }
         if (ch == '\'' || ch == '"') {
@@ -685,35 +716,37 @@ void skip_ifstub(void)
             bol = false;
             continue;
         }
-        struct source src = chsrc();
-        struct token *t = lex();
+        struct source src = chsrc(fs);
+        struct token *t = lex(fs);
         while (IS_SPACE(t))
-            t = lex();
+            t = lex(fs);
         if (t->id != ID) {
             if (IS_NEWLINE(t)) {
                 bol = true;
                 lines++;
+                fs->need_line = true;
             } else {
                 bol = false;
             }
             continue;
         }
         const char *name = t->name;
-        if (!strcmp(name, "if") || !strcmp(name, "ifdef")
-            || !strcmp(name, "ifndef")) {
+        if (!strcmp(name, "if") ||
+            !strcmp(name, "ifdef") ||
+            !strcmp(name, "ifndef")) {
             nest++;
             bol = false;
             continue;
         }
         if (!nest &&
-            (!strcmp(name, "elif") || !strcmp(name, "else")
-             || !strcmp(name, "endif"))) {
+            (!strcmp(name, "elif") ||
+             !strcmp(name, "else") ||
+             !strcmp(name, "endif"))) {
             // found
-            unget(t);
-            struct token *t0 = new_token(&(struct token){.id =
-                        '#',.src = src,.bol =
-                        true });
-            unget(t0);
+            unget(fs, t);
+            struct token *t0 = new_token(&(struct token){
+                    .id = '#', .src = src, .bol = true });
+            unget(fs, t0);
             break;
         }
         if (nest && !strcmp(name, "endif")) {
@@ -724,17 +757,17 @@ void skip_ifstub(void)
     }
 
     while (lines-- > 0)
-        unget(newline_token);
+        unget(fs, newline_token);
 }
 
-struct token *lex(void)
+struct token *lex(struct file *fs)
 {
-    struct vector *v = current_file->buffer;
+    struct vector *v = fs->buffer;
     struct token *t;
     if (v && v->len)
         t = vec_pop(v);
     else
-        t = dolex();
+        t = dolex(fs);
     mark(t);
     return t;
 }
@@ -753,33 +786,24 @@ const char *id2s(int t)
         return "(null)";
 }
 
-static void unget_token(struct token *t)
-{
-    vec_push(current_file->tokens, t);
-}
-
-static struct token *do_one_token(void)
-{
-    for (;;) {
-        struct token *t = get_pptok();
-        if (IS_SPACE(t) || IS_NEWLINE(t) || IS_LINENO(t))
-            continue;
-        return t;
-    }
-}
-
 static struct token *one_token(void)
 {
-    if (current_file->tokens && current_file->tokens->len)
+    if (current_file->tokens && current_file->tokens->len) {
         return vec_pop(current_file->tokens);
-    else
-        return do_one_token();
+    } else {
+        for (;;) {
+            struct token *t = get_pptok();
+            if (IS_SPACE(t) || IS_NEWLINE(t) || IS_LINENO(t))
+                continue;
+            return t;
+        }
+    }
 }
 
 static struct token *peek_token(void)
 {
     struct token *t = one_token();
-    unget_token(t);
+    vec_push(current_file->tokens, t);
     return t;
 }
 

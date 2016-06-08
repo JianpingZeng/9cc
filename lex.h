@@ -118,11 +118,11 @@ extern int isxalpha(int c);
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 #define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
 
-extern struct token *lex(void);
-extern void unget(struct token *t);
-extern struct token *header_name(void);
+extern struct token *lex(struct file *fs);
+extern void unget(struct file *fs, struct token *t);
+extern struct token *header_name(struct file *fs);
 extern struct token *new_token(struct token *tok);
-extern void skip_ifstub(void);
+extern void skip_ifstub(struct file *fs);
 
 extern int gettok(void);
 extern struct token *lookahead(void);
@@ -131,8 +131,6 @@ extern void match(int t, int follow[]);
 extern int skipto(int (*test[]) (struct token *));
 extern const char *id2s(int t);
 extern const char *unwrap_scon(const char *name);
-
-extern void print_buffer_stat(void);
 
 #define FARRAY(...)  ((int (*[]) (struct token *)){__VA_ARGS__, NULL})
 
