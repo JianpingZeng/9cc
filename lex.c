@@ -238,6 +238,7 @@ static struct token *sequence(struct file *fs, bool wide, int sep)
 {
     const unsigned char *rpc = fs->cur - 1;
     bool is_char = sep == '\'';
+    if (wide) fs->cur++;
     const char *name;
     int ch;
     for (;;) {

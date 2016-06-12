@@ -625,11 +625,11 @@ static void undef_line(void)
     }
     remove_macro(t->name);
     t = skip_spaces();
-    if (!IS_NEWLINE(t)) {
+    if (IS_NEWLINE(t)) {
+        unget(current_file, t);
+    } else if (t->id != EOI) {
         warning("extra tokens at the end of #undef directive");
         skipline();
-    } else {
-        unget(current_file, t);
     }
 }
 
@@ -1247,6 +1247,9 @@ struct token *get_pptok(void)
         return t;
     }
 }
+
+/* Parser tokens
+ */
 
 static struct token *one_token(void)
 {
