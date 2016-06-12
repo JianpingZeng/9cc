@@ -73,7 +73,7 @@ static void add_line_note(struct file *fs, const unsigned char *pos, int type)
 {
     if (fs->notes_used == fs->notes_alloc) {
         fs->notes_alloc = fs->notes_alloc * 2 + 200;
-        fs->notes = xrealloc(fs->notes, fs->notes_alloc);
+        fs->notes = xrealloc(fs->notes, fs->notes_alloc * sizeof(struct line_note));
     }
     fs->notes[fs->notes_used].pos = pos;
     fs->notes[fs->notes_used].type = type;
