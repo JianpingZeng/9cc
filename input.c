@@ -57,7 +57,7 @@ struct file *with_file(const char *file, const char *name)
     fseek(fp, 0, SEEK_SET);
     fs->buf = xmalloc(size + 1);
 
-    char *d = (char *)fs->buf;
+    unsigned char *d = (unsigned char *)fs->buf;
     if (fread(d, size, 1, fp) != 1)
         die("%s: %s", file, strerror(errno));
     fclose(fp);
@@ -86,9 +86,9 @@ struct file *with_string(const char *input, const char *name)
     size_t len = strlen(input);
     fs->kind = FILE_KIND_STRING;
     fs->name = name ? name : "<anonymous-string>";
-    fs->buf = xstrdup(input);
+    fs->buf = (const unsigned char *)xstrdup(input);
     fs->cur = fs->line_base = fs->next_line = fs->buf;
-    char *d = (char *)fs->buf;
+    unsigned char *d = (unsigned char *)fs->buf;
     d[len] = '\n';
     fs->limit = &fs->buf[len];
     return fs;

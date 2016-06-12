@@ -9,30 +9,30 @@ struct source {
 };
 
 struct line_note {
-    const char *pos;
+    const unsigned char *pos;
     int type;
 };
 
 // input.c
 struct file {
-    unsigned char kind;        // kind (regular/string)
-    bool bol;                  // beginning of line
+    unsigned char kind;                  // kind (regular/string)
+    bool bol;                            // beginning of line
     bool stub;
     bool need_line;
-    const char *file;           // file name
-    const char *name;           // buffer name
-    const char *buf;            // entire buffer
-    const char *cur;            // current position
-    const char *limit;          // end position
-    const char *line_base;      // start of current physical line
-    const char *next_line;      // start of to-be-cleaned logical line
-    struct line_note *notes;    // array of notes
-    unsigned int cur_note;      // current note
-    unsigned int notes_used;    // number of notes
-    unsigned int notes_alloc;   // number of notes allocated
+    const char *file;                    // file name
+    const char *name;                    // buffer name
+    const unsigned char *buf;            // entire buffer
+    const unsigned char *cur;            // current position
+    const unsigned char *limit;          // end position
+    const unsigned char *line_base;      // start of current physical line
+    const unsigned char *next_line;      // start of to-be-cleaned logical line
+    struct line_note *notes;             // array of notes
+    unsigned int cur_note;               // current note
+    unsigned int notes_used;             // number of notes
+    unsigned int notes_alloc;            // number of notes allocated
     struct vector *ifstubs;
-    struct vector *buffer;      // lex ungets
-    struct vector *tokens;      // parser ungets
+    struct vector *buffer;               // lex ungets
+    struct vector *tokens;               // parser ungets
     unsigned line, column;
 };
 

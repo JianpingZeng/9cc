@@ -69,7 +69,7 @@ int isxalpha(int c)
     return map[c] & HEX;
 }
 
-static void add_line_note(struct file *fs, const char *pos, int type)
+static void add_line_note(struct file *fs, const unsigned char *pos, int type)
 {
     if (fs->notes_used == fs->notes_alloc) {
         fs->notes_alloc = fs->notes_alloc * 2 + 200;
@@ -102,10 +102,10 @@ static void process_line_notes(struct file *fs)
 // return an unescaped logical line.
 static void next_clean_line(struct file *fs)
 {
-    const char *s;
-    char *d;
-    char c;
-    const char *pbackslash = NULL;
+    const unsigned char *s;
+    unsigned char *d;
+    unsigned char c;
+    const unsigned char *pbackslash = NULL;
     
     fs->cur_note = fs->notes_used = 0;
     fs->cur = fs->line_base = fs->next_line;
@@ -117,7 +117,7 @@ static void next_clean_line(struct file *fs)
         while (*s != '\n' && *s != '\\')
             s++;
 
-        char c = *s;
+        c = *s;
         if (c == '\\')
             pbackslash = s++;
         else
@@ -125,7 +125,7 @@ static void next_clean_line(struct file *fs)
     }
 
     // d must be '\n'
-    d = (char *)s;
+    d = (unsigned char *)s;
 
     if (d == fs->limit)
         goto done;
@@ -190,8 +190,8 @@ static void line_comment(struct file *fs)
 // fs->cur points to the initial asterisk of the comment.
 static void block_comment(struct file *fs)
 {
-    const char *rpc = fs->cur;
-    char ch;
+    const unsigned char *rpc = fs->cur;
+    unsigned char ch;
     rpc++;
     
     for (;;) {
@@ -218,7 +218,7 @@ static void block_comment(struct file *fs)
 // fs->cur points at prior initial digit or dot.
 static struct token *ppnumber(struct file *fs)
 {
-    const char *rpc = fs->cur - 1;
+    const unsigned char *rpc = fs->cur - 1;
     int ch;
     for (;;) {
         ch = *fs->cur++;
@@ -230,13 +230,13 @@ static struct token *ppnumber(struct file *fs)
         if (is_float)
             fs->cur++;
     }
-    const char *name = xstrndup(rpc, fs->cur - rpc);
+    const char *name = xstrndup((const char *)rpc, fs->cur - rpc);
     return make_token2(fs, NCONSTANT,  name);
 }
 
 static struct token *sequence(struct file *fs, bool wide, int sep)
 {
-    const char *rpc = fs->cur - 1;
+    const unsigned char *rpc = fs->cur - 1;
     bool is_char = sep == '\'';
     const char *name;
     int ch;
@@ -249,13 +249,13 @@ static struct token *sequence(struct file *fs, bool wide, int sep)
     }
 
     if (ch != sep) {
-        char *str = xstrndup(rpc, fs->cur - rpc + 1);
+        char *str = xstrndup((const char *)rpc, fs->cur - rpc + 1);
         str[fs->cur - rpc] = sep;
         name = str;
         error("untermiated %s constant: %s",
               is_char ? "character" : "string", name);
     } else {
-        name = xstrndup(rpc, fs->cur - rpc);
+        name = xstrndup((const char *)rpc, fs->cur - rpc);
     }
 
     if (is_char)
@@ -266,16 +266,16 @@ static struct token *sequence(struct file *fs, bool wide, int sep)
 
 static struct token *identifier(struct file *fs)
 {
-    const char *rpc = fs->cur - 1;
+    const unsigned char *rpc = fs->cur - 1;
     while (isdigitletter(*fs->cur))
         fs->cur++;
-    const char *name = xstrndup(rpc, fs->cur - rpc);
+    const char *name = xstrndup((const char *)rpc, fs->cur - rpc);
     return make_token2(fs, ID, name);
 }
 
 static struct token *dolex(struct file *fs)
 {
-    register const char *rpc;
+    register const unsigned char *rpc;
 
     if (fs->need_line)
         next_clean_line(fs);
@@ -600,7 +600,7 @@ static void skipline(struct file *fs, bool over)
 
 static const char *hq_char_sequence(struct file *fs, int sep)
 {
-    const char *rpc = fs->cur;
+    const unsigned char *rpc = fs->cur;
     int ch;
     const char *name;
 
@@ -615,7 +615,7 @@ static const char *hq_char_sequence(struct file *fs, int sep)
     if (ch != sep)
         error("missing '%c' in header name", sep);
 
-    name = xstrndup(rpc, fs->cur - rpc);
+    name = xstrndup((const char *)rpc, fs->cur - rpc);
     skipline(fs, true);
     return name;
 }
