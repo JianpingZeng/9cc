@@ -754,12 +754,9 @@ static struct source chsrc(struct file *fs)
  */
 void skip_ifstub(struct file *fs)
 {
-    unsigned lines = 0;
     bool bol = true;
     int nest = 0;
-    struct token *t0 = lex(fs);
-    lines++;
-    assert(IS_NEWLINE(t0) || t0->id == EOI);
+    assert(vec_len(fs->buffer) == 0);
     for (;;) {
         if (fs->need_line)
             next_clean_line(fs);
@@ -770,7 +767,6 @@ void skip_ifstub(struct file *fs)
             break;
         if (isnewline(ch)) {
             bol = true;
-            lines++;
             fs->need_line = true;
             continue;
         }
@@ -790,7 +786,6 @@ void skip_ifstub(struct file *fs)
         if (t->id != ID) {
             if (IS_NEWLINE(t)) {
                 bol = true;
-                lines++;
                 fs->need_line = true;
             } else {
                 bol = false;
@@ -822,9 +817,6 @@ void skip_ifstub(struct file *fs)
         }
         skipline(fs, false);
     }
-
-    while (lines-- > 0)
-        unget(fs, newline_token);
 }
 
 struct token *lex(struct file *fs)

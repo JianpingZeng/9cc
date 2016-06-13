@@ -19,8 +19,6 @@ static struct tm now;
 static struct token *token_zero = &(struct token){.id = NCONSTANT,.name = "0" };
 static struct token *token_one = &(struct token){.id = NCONSTANT,.name = "1" };
 
-static struct token *lineno0;
-
 static struct macro *new_macro(int kind)
 {
     struct macro *m = alloc_macro();
@@ -51,12 +49,11 @@ static void skipline(void)
     struct token *t;
     for (;;) {
         t = lex(current_file);
-        if (t->id == EOI)
-            return;
         if (IS_NEWLINE(t))
             break;
+        if (t->id == EOI)
+            break;
     }
-    unget(current_file, t);
 }
 
 static struct token *peek(void)
@@ -121,7 +118,6 @@ static struct vector *read_if_tokens(void)
         else
             vec_push(v, t);
     }
-    unget(current_file, t);
     return v;
 }
 
@@ -182,14 +178,10 @@ static void else_group(void)
     if (stub == NULL)
         error("#else without #if");
     struct token *t = skip_spaces();
-    if (t->id == EOI)
-        return;
-    if (!IS_NEWLINE(t)) {
+    if (!IS_NEWLINE(t) && t->id != EOI) {
         error("extra tokens in #else directive");
         skipline();
-        t = skip_spaces();
     }
-    unget(current_file, t);
     if (stub) {
         if (stub->b)
             skip_ifstub(current_file);
@@ -205,9 +197,7 @@ static void endif_line(void)
     else
         error("#endif without #if");
     struct token *t = skip_spaces();
-    if (IS_NEWLINE(t)) {
-        unget(current_file, t);
-    } else if (t->id != EOI) {
+    if (!IS_NEWLINE(t) && t->id != EOI) {
         error("extra tokens in #endif");
         skipline();
     }
@@ -225,9 +215,7 @@ static void do_ifdef_section(int id)
                 .id = id,.src = src,.b = !skip});
     
     t = skip_spaces();
-    if (IS_NEWLINE(t)) {
-        unget(current_file, t);
-    } else if (t->id != EOI) {
+    if (!IS_NEWLINE(t) && t->id != EOI) {
         error("extra tokens in '%s' directive", id2s(id));
         skipline();
     }
@@ -564,7 +552,6 @@ static struct vector *replacement_list(void)
             goto beg;
         }
     }
-    unget(current_file, t);
     return v;
 }
 
@@ -626,9 +613,7 @@ static void undef_line(void)
     }
     remove_macro(t->name);
     t = skip_spaces();
-    if (IS_NEWLINE(t)) {
-        unget(current_file, t);
-    } else if (t->id != EOI) {
+    if (!IS_NEWLINE(t) && t->id != EOI) {
         warning("extra tokens at the end of #undef directive");
         skipline();
     }
@@ -694,7 +679,6 @@ static void do_message_line(int level)
             break;
         vec_push(v, t);
     }
-    unget(current_file, t);
 
     const char *message = tokens2s(v);
     if (level == WRN)
@@ -722,17 +706,14 @@ static void pragma_line(void)
         if (IS_NEWLINE(t) || t->id == EOI)
             break;
     }
-    unget(current_file, t);
     warningf(src, "pragma directive not supported yet");
 }
 
 static void directive(void)
 {
     struct token *t = skip_spaces();
-    if (IS_NEWLINE(t)) {
-        unget(current_file, t);
+    if (IS_NEWLINE(t) || t->id == EOI)
         return;
-    }
     // TODO: must be an integer, not floating
     if (t->id == NCONSTANT) {
         unget(current_file, t);
@@ -1211,7 +1192,6 @@ static void parseopts(struct vector *options)
 void cpp_init(struct vector *options)
 {
     macros = map_new();
-    lineno0 = lineno(1, current_file->name);
     init_env();
     init_include();
     builtin_macros();
