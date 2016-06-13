@@ -3,6 +3,7 @@
 // trace
 #include <execinfo.h>
 #include <signal.h>
+#include "../config.h"
 #include "../utils/utils.h"
 
 /**

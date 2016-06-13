@@ -70,3 +70,5 @@ build
 
 # gprof
 gmon.out
+
+config.h

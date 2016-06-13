@@ -1,6 +1,8 @@
 #ifndef _7CC_H
 #define _7CC_H
 
+#include "config.h"
+
 #ifdef CONFIG_COLOR_TERM
 
 #define RESET    "\033[0m"

@@ -1,6 +1,7 @@
 #define _BSD_SOURCE
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
+#include "../config.h"
 #include "../utils/utils.h"
 
 /**

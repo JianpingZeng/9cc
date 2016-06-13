@@ -99,7 +99,7 @@ static void process_line_notes(struct file *fs)
     }
 }
 
-#ifdef __GNUC__
+#if defined (__GNUC__) && defined (CONFIG_LINUX) && HAVE_SSE2
 
 #include <xmmintrin.h>
 
