@@ -200,30 +200,6 @@ void attach_type(node_t ** typelist, node_t * type)
     }
 }
 
-bool isconst1(int kind)
-{
-    return kind == CONST ||
-        kind == CONST + VOLATILE ||
-        kind == CONST + RESTRICT ||
-        kind == CONST + VOLATILE + RESTRICT;
-}
-
-bool isvolatile1(int kind)
-{
-    return kind == VOLATILE ||
-        kind == VOLATILE + CONST ||
-        kind == VOLATILE + RESTRICT ||
-        kind == CONST + VOLATILE + RESTRICT;
-}
-
-bool isrestrict1(int kind)
-{
-    return kind == RESTRICT ||
-        kind == RESTRICT + CONST ||
-        kind == RESTRICT + VOLATILE ||
-        kind == CONST + VOLATILE + RESTRICT;
-}
-
 static int combine(int qual1, int qual2)
 {
     int ret = 0;
@@ -694,21 +670,6 @@ node_t *compose(node_t * ty1, node_t * ty2)
     } else {
         return ty1;
     }
-}
-
-bool isconst(node_t * ty)
-{
-    return isconst1(_TYPE_KIND(ty));
-}
-
-bool isvolatile(node_t * ty)
-{
-    return isvolatile1(_TYPE_KIND(ty));
-}
-
-bool isrestrict(node_t * ty)
-{
-    return isrestrict1(_TYPE_KIND(ty));
 }
 
 bool eqarith(node_t * ty1, node_t * ty2)

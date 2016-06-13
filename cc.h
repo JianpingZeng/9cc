@@ -164,13 +164,24 @@ extern node_t *booltype;        // bool
 #define BITS(bytes)     (CHAR_BIT * (bytes))
 #define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
 
-extern bool isconst1(int kind);
-extern bool isvolatile1(int kind);
-extern bool isrestrict1(int kind);
+#define isconst1(kind)     ((kind) == CONST ||                          \
+                            (kind) == CONST + VOLATILE ||               \
+                            (kind) == CONST + RESTRICT ||               \
+                            (kind) == CONST + VOLATILE + RESTRICT)
 
-extern bool isconst(node_t * ty);
-extern bool isvolatile(node_t * ty);
-extern bool isrestrict(node_t * ty);
+#define isvolatile1(kind)  ((kind) == VOLATILE ||                       \
+                            (kind) == VOLATILE + CONST ||               \
+                            (kind) == VOLATILE + RESTRICT ||            \
+                            (kind) == CONST + VOLATILE + RESTRICT)
+
+#define isrestrict1(kind)  ((kind) == RESTRICT ||                       \
+                            (kind) == RESTRICT + CONST ||               \
+                            (kind) == RESTRICT + VOLATILE ||            \
+                            (kind) == CONST + VOLATILE + RESTRICT)
+
+#define isconst(ty)     isconst1(_TYPE_KIND(ty))
+#define isvolatile(ty)  isvolatile1(_TYPE_KIND(ty))
+#define isrestrict(ty)  isrestrict1(_TYPE_KIND(ty))
 
 #define isinline(ty)    (_TYPE_INLINE(ty))
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
