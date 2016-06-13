@@ -58,7 +58,6 @@ extern struct file *current_file;
 
 extern void if_sentinel(struct ifstub *i);
 extern void if_unsentinel(void);
-extern struct ifstub *new_ifstub(struct ifstub *i);
 extern struct ifstub *current_ifstub(void);
 
 enum {

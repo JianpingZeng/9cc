@@ -99,6 +99,61 @@ static void process_line_notes(struct file *fs)
     }
 }
 
+#ifdef __GNUC__
+
+#include <xmmintrin.h>
+
+static unsigned char repl_chars[2][16] __attribute__((aligned(16))) = {
+    { '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n',
+      '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n' },
+    { '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\',
+      '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\' }
+};
+
+const unsigned char *search_line_fast(const unsigned char *s,
+                                      const unsigned char *limit)
+{
+    const __v16qi repl_nl = *(const __v16qi *)repl_chars[0];
+    const __v16qi repl_bk = *(const __v16qi *)repl_chars[1];
+    unsigned int mask, misalign, result;
+    const __v16qi *p;
+    __v16qi data, t;
+
+    misalign = (uint64_t)s & 15;
+    p = (const __v16qi *)((uint64_t)s & -16);
+    data = *p;
+    mask = -1u << misalign;
+
+    goto start;
+    do {
+        data = *++p;
+        mask = -1;
+        
+    start:
+        // aligned
+        t = __builtin_ia32_pcmpeqb128(data, repl_nl);
+        t |= __builtin_ia32_pcmpeqb128(data, repl_bk);
+        result = __builtin_ia32_pmovmskb128(t);
+        result &= mask;
+        
+    } while (!result);
+
+    result = __builtin_ctz(result);
+    return (const unsigned char *)p + result;
+}
+
+#else
+
+const unsigned char *search_line_fast(const unsigned char *s,
+                                      const unsigned char *limit)
+{
+    while (*s != '\n' && *s != '\\')
+            s++;
+    return s;
+}
+
+#endif
+
 // return an unescaped logical line.
 static void next_clean_line(struct file *fs)
 {
@@ -114,8 +169,7 @@ static void next_clean_line(struct file *fs)
     
     while (1) {
         // search '\n', '\\'
-        while (*s != '\n' && *s != '\\')
-            s++;
+        s = search_line_fast(s, fs->limit);
 
         c = *s;
         if (c == '\\')

@@ -154,8 +154,8 @@ static void if_section(void)
 {
     struct source src = source;
     bool b = eval_constexpr();
-    if_sentinel(new_ifstub(&(struct ifstub) {
-                .id = IF,.src = src,.b = b}));
+    if_sentinel(&(struct ifstub) {
+                .id = IF,.src = src,.b = b});
     if (!b)
         skip_ifstub(current_file);
 }
@@ -220,16 +220,17 @@ static void do_ifdef_section(int id)
     if (t->id != ID)
         fatal("expect identifier");
     bool b = defined(t->name);
+    bool skip = id == IFDEF ? !b : b;
+    if_sentinel(&(struct ifstub) {
+                .id = id,.src = src,.b = !skip});
+    
     t = skip_spaces();
-    if (!IS_NEWLINE(t)) {
+    if (IS_NEWLINE(t)) {
+        unget(current_file, t);
+    } else if (t->id != EOI) {
         error("extra tokens in '%s' directive", id2s(id));
         skipline();
-        t = skip_spaces();
     }
-    unget(current_file, t);
-    bool skip = id == IFDEF ? !b : b;
-    if_sentinel(new_ifstub(&(struct ifstub) {
-                .id = id,.src = src,.b = !skip}));
     if (skip)
         skip_ifstub(current_file);
 }
@@ -954,8 +955,7 @@ static struct vector *subst(struct macro *m, struct vector *args,
                 struct token *t2 = vec_at_safe(body, i + 2);
                 int index2 = inparams(t2, m);
                 if (index2 >= 0) {
-                    struct vector *iv2 =
-                        select(args, index2);
+                    struct vector *iv2 = select(args, index2);
                     vec_add(r, iv2);
                     i++;
                 }

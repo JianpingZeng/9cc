@@ -130,16 +130,11 @@ void file_unstub(void)
     file_unsentinel();
 }
 
-struct ifstub *new_ifstub(struct ifstub *i)
+void if_sentinel(struct ifstub *i)
 {
     struct ifstub *ic = zmalloc(sizeof(struct ifstub));
     memcpy(ic, i, sizeof(struct ifstub));
-    return ic;
-}
-
-void if_sentinel(struct ifstub *i)
-{
-    vec_push(current_file->ifstubs, i);
+    vec_push(current_file->ifstubs, ic);
 }
 
 void if_unsentinel(void)
