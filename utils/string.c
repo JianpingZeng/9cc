@@ -3,14 +3,6 @@
 #define FNV32_BASIS ((unsigned) 0x811c9dc5)
 #define FNV32_PRIME ((unsigned) 0x01000193)
 
-struct str_table {
-    struct str_bucket {
-        char *str;
-        size_t len;
-        struct str_bucket *next;
-    } *buckets[1024];
-};
-
 // FNV-1a
 unsigned strhash(const char *s)
 {
@@ -20,6 +12,46 @@ unsigned strhash(const char *s)
         hash *= FNV32_PRIME;
     }
     return hash;
+}
+
+static unsigned strhashn(const char *s, size_t len)
+{
+    unsigned hash = HASHSTEP(0, *s);
+    for (size_t i = 0; i < len; i++)
+        hash = HASHSTEP(hash, *++s);
+    hash = HASHFINISH(hash, len);
+    return hash;
+}
+
+char *strnh(const char *src, size_t len, unsigned int hash)
+{
+    static struct str_table *table;
+    struct str_bucket *ps;
+
+    if (src == NULL || len <= 0)
+        return NULL;
+
+    if (!table)
+        table = zmalloc(sizeof(struct str_table));
+
+    hash = hash & (ARRAY_SIZE(table->buckets) - 1);
+    for (ps = table->buckets[hash]; ps; ps = ps->next) {
+        if (ps->len == len &&
+            !memcmp(src, ps->str, len))
+            return ps->str;
+    }
+
+    // alloc
+    char *dst = xmalloc(len + 1);
+    ps = xmalloc(sizeof(struct str_bucket));
+    ps->str = dst;
+    ps->len = len;
+    memcpy(dst, src, len);
+    dst[len] = '\0';
+    ps->next = table->buckets[hash];
+    table->buckets[hash] = ps;
+
+    return ps->str;
 }
 
 char *strn(const char *src, size_t len)
@@ -35,7 +67,7 @@ char *strn(const char *src, size_t len)
     if (!table)
         table = zmalloc(sizeof(struct str_table));
 
-    hash = strhash(src) & (ARRAY_SIZE(table->buckets) - 1);
+    hash = strhashn(src, len) & (ARRAY_SIZE(table->buckets) - 1);
     for (ps = table->buckets[hash]; ps; ps = ps->next) {
         if (ps->len == len) {
             const char *s1 = src;

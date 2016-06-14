@@ -741,15 +741,6 @@ void unget(struct file *fs, struct token *t)
     vec_push(fs->buffer, t);
 }
 
-static struct source chsrc(struct file *fs)
-{
-    struct source src;
-    src.file = fs->name;
-    src.line = fs->line;
-    src.column = fs->column;
-    return src;
-}
-
 /* Skip part of conditional group.
  */
 void skip_ifstub(struct file *fs)
@@ -779,7 +770,10 @@ void skip_ifstub(struct file *fs)
             bol = false;
             continue;
         }
-        struct source src = chsrc(fs);
+        struct source src = {
+            .file = fs->name,
+            .line = fs->line,
+            .column = fs->column };
         struct token *t = lex(fs);
         while (IS_SPACE(t))
             t = lex(fs);

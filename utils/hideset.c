@@ -2,7 +2,7 @@
 
 struct hideset *hideset_add(struct hideset *s, const char *name)
 {
-    struct hideset *r = zmalloc(sizeof(struct hideset));
+    struct hideset *r = alloc_hideset();
     r->name = name;
     r->next = s;
     return r;

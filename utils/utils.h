@@ -37,8 +37,20 @@ extern void *zmalloc(size_t size);
 extern int log2i(size_t i);
 
 // string.c
+struct str_table {
+    struct str_bucket {
+        char *str;
+        size_t len;
+        struct str_bucket *next;
+    } *buckets[1024];
+};
+
+#define HASHSTEP(r, c)  ((r) * 67 + ((c) - 133))
+#define HASHFINISH(r, len)  ((r) + (len))
+
 extern unsigned strhash(const char *s);
 extern char *strs(const char *str);
+extern char *strnh(const char *src, size_t len, unsigned int hash);
 extern char *strn(const char *src, size_t len);
 extern char *strd(long long n);
 extern char *stru(unsigned long long n);
@@ -53,6 +65,7 @@ extern void *alloc_set(void);
 extern void *alloc_map(void);
 extern void *alloc_map_entry(void);
 extern void *alloc_vector(void);
+extern void *alloc_hideset(void);
 
 // vector.c
 #include "vector.h"

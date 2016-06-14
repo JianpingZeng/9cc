@@ -378,13 +378,14 @@ static struct vector *arguments(struct macro *m)
 static int inparams(struct token *t, struct macro *m)
 {
     struct vector *params = m->params;
+    size_t len = vec_len(params);
     if (t->id != ID)
         return -1;
     if (!strcmp(t->name, "__VA_ARGS__") && m->vararg)
-        return vec_len(params);
+        return len;
     if (!params)
         return -1;
-    for (int i = 0; i < vec_len(params); i++) {
+    for (int i = 0; i < len; i++) {
         struct token *p = vec_at(params, i);
         if (!strcmp(t->name, p->name))
             return i;
