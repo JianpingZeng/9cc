@@ -14,13 +14,14 @@ unsigned strhash(const char *s)
     return hash;
 }
 
-static unsigned strhashn(const char *s, size_t len)
+static unsigned int strhashn(const unsigned char *s, size_t len)
 {
-    unsigned hash = HASHSTEP(0, *s);
-    for (size_t i = 0; i < len; i++)
-        hash = HASHSTEP(hash, *++s);
-    hash = HASHFINISH(hash, len);
-    return hash;
+    size_t n = len;
+    unsigned int hash = 0;
+    while (n--)
+        hash = HASHSTEP(hash, *s++);
+    
+    return HASHFINISH(hash, len);
 }
 
 char *strnh(const char *src, size_t len, unsigned int hash)
@@ -56,42 +57,7 @@ char *strnh(const char *src, size_t len, unsigned int hash)
 
 char *strn(const char *src, size_t len)
 {
-    static struct str_table *table;
-    struct str_bucket *ps;
-    register unsigned int hash;
-    const char *end = src + len;
-
-    if (src == NULL || len <= 0)
-        return NULL;
-
-    if (!table)
-        table = zmalloc(sizeof(struct str_table));
-
-    hash = strhashn(src, len) & (ARRAY_SIZE(table->buckets) - 1);
-    for (ps = table->buckets[hash]; ps; ps = ps->next) {
-        if (ps->len == len) {
-            const char *s1 = src;
-            char *s2 = ps->str;
-            do {
-                if (s1 == end)
-                    return ps->str;
-            } while (*s1++ == *s2++);
-        }
-    }
-
-    // alloc
-    {
-        char *dst = zmalloc(len + 1);
-        ps = zmalloc(sizeof(struct str_bucket));
-        ps->len = len;
-        for (ps->str = dst; src < end;)
-            *dst++ = *src++;
-        *dst++ = '\0';
-        ps->next = table->buckets[hash];
-        table->buckets[hash] = ps;
-
-        return ps->str;
-    }
+    return strnh(src, len, strhashn((const unsigned char *)src, len));
 }
 
 char *strs(const char *str)
