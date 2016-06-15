@@ -43,7 +43,6 @@ struct source source;
     } while (0)
 
 #define SET_COLUMN(fs, col)  fs->column = col
-#define make_token(fs, id)  make_token2(fs, id, NULL)
 
 const char *id2s(int t)
 {
@@ -331,6 +330,8 @@ static struct token *identifier(struct file *fs)
 static struct token *dolex(struct file *fs)
 {
     register const unsigned char *rpc;
+    int id;
+    struct token *result;
 
     if (fs->need_line)
         next_clean_line(fs);
@@ -338,309 +339,279 @@ static struct token *dolex(struct file *fs)
     if (fs->cur >= fs->limit)
         return eoi_token;
     
-    for (;;) {
-        if (fs->cur >= fs->notes[fs->cur_note].pos)
-            process_line_notes(fs);
-        SET_COLUMN(fs, fs->cur - fs->line_base);
-        rpc = fs->cur++;
-        markc(fs);
+ start:
+    if (fs->cur >= fs->notes[fs->cur_note].pos)
+        process_line_notes(fs);
+    SET_COLUMN(fs, fs->cur - fs->line_base);
+    rpc = fs->cur++;
+    markc(fs);
 
-        switch (*rpc) {
-        case '\n':
-            if (rpc >= fs->limit) {
-                return eoi_token;
-            } else {
-                fs->need_line = true;
-                fs->bol = true;
-                newline_token->src = source;
-                INCLINE(fs, 0);
-                return newline_token;
-            }
-
-            // spaces
-        case '\t':
-        case '\v':
-        case '\f':
-        case '\r':
-        case ' ':
-            do
-                rpc++;
-            while (iswhitespace(*rpc));
-            fs->cur = rpc;
-            space_token->src = source;
-            return space_token;
-
-            // punctuators
-        case '/':
-            if (rpc[1] == '/') {
-                line_comment(fs);
-                continue;
-            } else if (rpc[1] == '*') {
-                block_comment(fs);
-                continue;
-            } else if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, DIVEQ);
-            } else {
-                return make_token(fs, '/');
-            }
-
-        case '+':
-            if (rpc[1] == '+') {
-                fs->cur++;
-                return make_token(fs, INCR);
-            } else if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, ADDEQ);
-            } else {
-                return make_token(fs, '+');
-            }
-
-        case '-':
-            if (rpc[1] == '-') {
-                fs->cur++;
-                return make_token(fs, DECR);
-            } else if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, MINUSEQ);
-            } else if (rpc[1] == '>') {
-                fs->cur++;
-                return make_token(fs, DEREF);
-            } else {
-                return make_token(fs, '-');
-            }
-
-        case '*':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, MULEQ);
-            } else {
-                return make_token(fs, '*');
-            }
-
-        case '=':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, EQ);
-            } else {
-                return make_token(fs, '=');
-            }
-
-        case '!':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, NEQ);
-            } else {
-                return make_token(fs, '!');
-            }
-
-        case '%':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, MODEQ);
-            } else if (rpc[1] == '>') {
-                fs->cur++;
-                return make_token(fs, '}');
-            } else if (rpc[1] == ':' && rpc[2] == '%' && rpc[3] == ':') {
-                fs->cur += 3;
-                return make_token(fs, SHARPSHARP);
-            } else if (rpc[1] == ':') {
-                fs->cur++;
-                return make_token(fs, '#');
-            } else {
-                return make_token(fs, '%');
-            }
-
-        case '^':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, XOREQ);
-            } else {
-                return make_token(fs, '^');
-            }
-
-        case '&':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, BANDEQ);
-            } else if (rpc[1] == '&') {
-                fs->cur++;
-                return make_token(fs, AND);
-            } else {
-                return make_token(fs, '&');
-            }
-
-        case '|':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, BOREQ);
-            } else if (rpc[1] == '|') {
-                fs->cur++;
-                return make_token(fs, OR);
-            } else {
-                return make_token(fs, '|');
-            }
-
-        case '<':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, LEQ);
-            } else if (rpc[1] == '<' && rpc[2] == '=') {
-                fs->cur += 2;
-                return make_token(fs, LSHIFTEQ);
-            } else if (rpc[1] == '<') {
-                fs->cur++;
-                return make_token(fs, LSHIFT);
-            } else if (rpc[1] == '%') {
-                fs->cur++;
-                return make_token(fs, '{');
-            } else if (rpc[1] == ':') {
-                fs->cur++;
-                return make_token(fs, '[');
-            } else {
-                return make_token(fs, '<');
-            }
-
-        case '>':
-            if (rpc[1] == '=') {
-                fs->cur++;
-                return make_token(fs, GEQ);
-            } else if (rpc[1] == '>' && rpc[2] == '=') {
-                fs->cur += 2;
-                return make_token(fs, RSHIFTEQ);
-            } else if (rpc[1] == '>') {
-                fs->cur++;
-                return make_token(fs, RSHIFT);
-            } else {
-                return make_token(fs, '>');
-            }
-
-        case '(':
-        case ')':
-        case '{':
-        case '}':
-        case '[':
-        case ']':
-        case ',':
-        case ';':
-        case '~':
-        case '?':
-            return make_token(fs, *rpc);
-
-        case ':':
-            if (rpc[1] == '>') {
-                fs->cur++;
-                return make_token(fs, ']');
-            } else {
-                return make_token(fs, ':');
-            }
-
-        case '#':
-            if (rpc[1] == '#') {
-                fs->cur++;
-                return make_token(fs, SHARPSHARP);
-            } else {
-                return make_token(fs, '#');
-            }
-
-            // constants
-        case '\'':
-            return sequence(fs, false, '\'');
-
-        case '"':
-            return sequence(fs, false, '"');
-
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-            return ppnumber(fs);
-
-        case '.':
-            if (rpc[1] == '.' && rpc[2] == '.') {
-                fs->cur += 2;
-                return make_token(fs, ELLIPSIS);
-            } else if (isdigit(rpc[1])) {
-                return ppnumber(fs);
-            } else {
-                return make_token(fs, '.');
-            }
-
-            // identifiers
-        case 'L':
-            if (rpc[1] == '\'')
-                return sequence(fs, true, '\'');
-            else if (rpc[1] == '"')
-                return sequence(fs, true, '"');
-            // go through
-        case 'a':
-        case 'b':
-        case 'c':
-        case 'd':
-        case 'e':
-        case 'f':
-        case 'g':
-        case 'h':
-        case 'i':
-        case 'j':
-        case 'k':
-        case 'l':
-        case 'm':
-        case 'n':
-        case 'o':
-        case 'p':
-        case 'q':
-        case 'r':
-        case 's':
-        case 't':
-        case 'u':
-        case 'v':
-        case 'w':
-        case 'x':
-        case 'y':
-        case 'z':
-        case 'A':
-        case 'B':
-        case 'C':
-        case 'D':
-        case 'E':
-        case 'F':
-        case 'G':
-        case 'H':
-        case 'I':
-        case 'J':
-        case 'K':
-        case 'M':
-        case 'N':
-        case 'O':
-        case 'P':
-        case 'Q':
-        case 'R':
-        case 'S':
-        case 'T':
-        case 'U':
-        case 'V':
-        case 'W':
-        case 'X':
-        case 'Y':
-        case 'Z':
-        case '_':
-            return identifier(fs);
-
-        default:
-            // illegal character
-            if (isgraph(*rpc))
-                error("illegal character '%c'", *rpc);
-            else
-                error("illegal character '\\0%o'", *rpc);
+    switch (*rpc) {
+    case '\n':
+        if (rpc >= fs->limit) {
+            return eoi_token;
+        } else {
+            fs->need_line = true;
+            fs->bol = true;
+            newline_token->src = source;
+            INCLINE(fs, 0);
+            return newline_token;
         }
+
+        // spaces
+    case '\t':
+    case '\v':
+    case '\f':
+    case '\r':
+    case ' ':
+        do
+            rpc++;
+        while (iswhitespace(*rpc));
+        fs->cur = rpc;
+        space_token->src = source;
+        return space_token;
+
+        // punctuators
+    case '/':
+        if (rpc[1] == '/') {
+            line_comment(fs);
+            goto start;
+        } else if (rpc[1] == '*') {
+            block_comment(fs);
+            goto start;
+        } else if (rpc[1] == '=') {
+            fs->cur++;
+            id = DIVEQ;
+        } else {
+            id = '/';
+        }
+        break;
+
+    case '+':
+        if (rpc[1] == '+') {
+            fs->cur++;
+            id = INCR;
+        } else if (rpc[1] == '=') {
+            fs->cur++;
+            id = ADDEQ;
+        } else {
+            id = '+';
+        }
+        break;
+
+    case '-':
+        if (rpc[1] == '-') {
+            fs->cur++;
+            id = DECR;
+        } else if (rpc[1] == '=') {
+            fs->cur++;
+            id = MINUSEQ;
+        } else if (rpc[1] == '>') {
+            fs->cur++;
+            id = DEREF;
+        } else {
+            id = '-';
+        }
+        break;
+
+    case '*':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = MULEQ;
+        } else {
+            id = '*';
+        }
+        break;
+
+    case '=':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = EQ;
+        } else {
+            id = '=';
+        }
+        break;
+
+    case '!':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = NEQ;
+        } else {
+            id = '!';
+        }
+        break;
+
+    case '%':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = MODEQ;
+        } else if (rpc[1] == '>') {
+            fs->cur++;
+            id = '}';
+        } else if (rpc[1] == ':' && rpc[2] == '%' && rpc[3] == ':') {
+            fs->cur += 3;
+            id = SHARPSHARP;
+        } else if (rpc[1] == ':') {
+            fs->cur++;
+            id = '#';
+        } else {
+            id = '%';
+        }
+        break;
+
+    case '^':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = XOREQ;
+        } else {
+            id = '^';
+        }
+        break;
+
+    case '&':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = BANDEQ;
+        } else if (rpc[1] == '&') {
+            fs->cur++;
+            id = AND;
+        } else {
+            id = '&';
+        }
+        break;
+
+    case '|':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = BOREQ;
+        } else if (rpc[1] == '|') {
+            fs->cur++;
+            id = OR;
+        } else {
+            id = '|';
+        }
+        break;
+
+    case '<':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = LEQ;
+        } else if (rpc[1] == '<' && rpc[2] == '=') {
+            fs->cur += 2;
+            id = LSHIFTEQ;
+        } else if (rpc[1] == '<') {
+            fs->cur++;
+            id = LSHIFT;
+        } else if (rpc[1] == '%') {
+            fs->cur++;
+            id = '{';
+        } else if (rpc[1] == ':') {
+            fs->cur++;
+            id = '[';
+        } else {
+            id = '<';
+        }
+        break;
+
+    case '>':
+        if (rpc[1] == '=') {
+            fs->cur++;
+            id = GEQ;
+        } else if (rpc[1] == '>' && rpc[2] == '=') {
+            fs->cur += 2;
+            id = RSHIFTEQ;
+        } else if (rpc[1] == '>') {
+            fs->cur++;
+            id = RSHIFT;
+        } else {
+            id = '>';
+        }
+        break;
+
+    case '(': case ')':
+    case '{': case '}':
+    case '[': case ']':
+    case ',': case ';':case '~': case '?':
+        id = *rpc;
+        break;
+
+    case ':':
+        if (rpc[1] == '>') {
+            fs->cur++;
+            id = ']';
+        } else {
+            id = ':';
+        }
+        break;
+
+    case '#':
+        if (rpc[1] == '#') {
+            fs->cur++;
+            id = SHARPSHARP;
+        } else {
+            id = '#';
+        }
+        break;
+
+        // constants
+    case '\'':
+        return sequence(fs, false, '\'');
+
+    case '"':
+        return sequence(fs, false, '"');
+
+    case '0': case '1': case '2': case '3': case '4':
+    case '5': case '6': case '7': case '8': case '9':
+        return ppnumber(fs);
+
+    case '.':
+        if (rpc[1] == '.' && rpc[2] == '.') {
+            fs->cur += 2;
+            id = ELLIPSIS;
+        } else if (isdigit(rpc[1])) {
+            return ppnumber(fs);
+        } else {
+            id = '.';
+        }
+        break;
+
+        // identifiers
+    case 'L':
+        if (rpc[1] == '\'')
+            return sequence(fs, true, '\'');
+        else if (rpc[1] == '"')
+            return sequence(fs, true, '"');
+        // go through
+    case '_':
+    case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
+    case 'g': case 'h': case 'i': case 'j': case 'k': case 'l':
+    case 'm': case 'n': case 'o': case 'p': case 'q': case 'r':
+    case 's': case 't': case 'u': case 'v': case 'w': case 'x':
+    case 'y': case 'z':
+    case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+    case 'G': case 'H': case 'I': case 'J': case 'K':
+    case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R':
+    case 'S': case 'T': case 'U': case 'V': case 'W': case 'X':
+    case 'Y': case 'Z':
+        return identifier(fs);
+
+    default:
+        // illegal character
+        if (isgraph(*rpc))
+            error("illegal character '%c'", *rpc);
+        else
+            error("illegal character '\\0%o'", *rpc);
+        goto start;
     }
+
+    // done
+    result = alloc_token();
+    result->id = id;
+    result->name = id2s(id);
+    result->src = source;
+    result->bol = fs->bol;
+    fs->bol = false;
+    return result;
 }
 
 static void skipline(struct file *fs, bool over)

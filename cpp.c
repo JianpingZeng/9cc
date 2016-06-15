@@ -223,15 +223,8 @@ static void do_ifdef_section(int id)
         skip_ifstub(current_file);
 }
 
-static void ifdef_section(void)
-{
-    do_ifdef_section(IFDEF);
-}
-
-static void ifndef_section(void)
-{
-    do_ifdef_section(IFNDEF);
-}
+#define ifdef_section()  do_ifdef_section(IFDEF)
+#define ifndef_section() do_ifdef_section(IFNDEF)
 
 static void include_line(void)
 {
@@ -1451,4 +1444,9 @@ int skipto(int (*test[]) (struct token *))
     else
         die("nothing skipped, may be an internal error");
     return cnt;
+}
+
+void dump_macro_map(void)
+{
+    map_dump(macros);
 }

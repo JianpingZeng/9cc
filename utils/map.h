@@ -6,6 +6,10 @@ struct map_entry {
     void *value;
     struct map_entry *next;
     struct map_entry *all;
+#ifdef CONFIG_MAP_STATISTICS
+    // statistics
+    unsigned int searches;
+#endif
 };
 
 struct map {
@@ -27,5 +31,7 @@ extern void map_put(struct map *map, const void *key, void *value);
 extern struct vector *map_keys(struct map *map);
 
 extern struct vector *map_objs(struct map *map);
+
+extern void map_dump(struct map *map);
 
 #endif

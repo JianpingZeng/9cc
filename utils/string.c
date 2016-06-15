@@ -14,20 +14,21 @@ unsigned strhash(const char *s)
     return hash;
 }
 
-static unsigned int strhashn(const unsigned char *s, size_t len)
+unsigned strhashn(const char *s, size_t len)
 {
-    size_t n = len;
-    unsigned int hash = 0;
-    while (n--)
-        hash = HASHSTEP(hash, *s++);
-    
-    return HASHFINISH(hash, len);
+    unsigned hash = FNV32_BASIS;
+    for (size_t i = 0; i < len; i++, s++) {
+        hash ^= *s;
+        hash *= FNV32_PRIME;
+    }
+    return hash;
 }
 
-char *strnh(const char *src, size_t len, unsigned int hash)
+char *strn(const char *src, size_t len)
 {
     static struct str_table *table;
     struct str_bucket *ps;
+    unsigned int hash;
 
     if (src == NULL || len <= 0)
         return NULL;
@@ -35,6 +36,7 @@ char *strnh(const char *src, size_t len, unsigned int hash)
     if (!table)
         table = zmalloc(sizeof(struct str_table));
 
+    hash = strhashn(src, len);
     hash = hash & (ARRAY_SIZE(table->buckets) - 1);
     for (ps = table->buckets[hash]; ps; ps = ps->next) {
         if (ps->len == len &&
@@ -53,11 +55,6 @@ char *strnh(const char *src, size_t len, unsigned int hash)
     table->buckets[hash] = ps;
 
     return ps->str;
-}
-
-char *strn(const char *src, size_t len)
-{
-    return strnh(src, len, strhashn((const unsigned char *)src, len));
 }
 
 char *strs(const char *str)

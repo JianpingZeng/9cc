@@ -8,6 +8,30 @@ struct source {
     const char *file;
 };
 
+enum {
+#define _a(a, b, c, d)  a,
+#define _x(a, b, c, d)  a=d,
+#define _t(a, b, c)     a,
+#define _k(a, b, c)     a,
+#include "token.def"
+    TOKEND
+};
+
+#include "imap.h"
+
+#define ID_BITS    10
+
+// token
+struct token {
+    int id:ID_BITS;
+    int kind:ID_BITS;
+    bool bol;                // beginning of line
+    bool space;                // leading space
+    const char *name;
+    struct source src;
+    struct hideset *hideset;
+};
+
 struct line_note {
     const unsigned char *pos;
     int type;
@@ -34,6 +58,7 @@ struct file {
     struct vector *buffer;               // lex ungets
     struct vector *tokens;               // parser ungets
     unsigned line, column;
+    struct ident_map *ident_map; // identifier hash map
 };
 
 struct ifstub {
@@ -59,28 +84,6 @@ extern struct file *current_file;
 extern void if_sentinel(struct ifstub *i);
 extern void if_unsentinel(void);
 extern struct ifstub *current_ifstub(void);
-
-enum {
-#define _a(a, b, c, d)  a,
-#define _x(a, b, c, d)  a=d,
-#define _t(a, b, c)     a,
-#define _k(a, b, c)     a,
-#include "token.def"
-    TOKEND
-};
-
-#define ID_BITS    10
-
-// token
-struct token {
-    int id:ID_BITS;
-    int kind:ID_BITS;
-    bool bol:1;                // beginning of line
-    bool space:1;                // leading space
-    const char *name;
-    struct source src;
-    struct hideset *hideset;
-};
 
 // cpp.c
 // macro kind
@@ -109,6 +112,8 @@ extern void expect(int t);
 extern void match(int t, int follow[]);
 extern int skipto(int (*test[]) (struct token *));
 extern const char *unwrap_scon(const char *name);
+
+extern void dump_macro_map(void);
 
 // lex.c
 #define MARK(t)  source = t->src

@@ -51,6 +51,7 @@ CC1_OBJ += type.o
 CC1_OBJ += input.o
 CC1_OBJ += ir.o
 CC1_OBJ += block.o
+CC1_OBJ += imap.o
 
 CC1_INC += cc.h
 CC1_INC += ast.h
@@ -60,6 +61,7 @@ CC1_INC += gen.h
 CC1_INC += node.def
 CC1_INC += token.def
 CC1_INC += rop.def
+CC1_INC += imap.h
 
 SYS_INC += $(sys_dir)sys.h
 

@@ -45,12 +45,9 @@ struct str_table {
     } *buckets[1024];
 };
 
-#define HASHSTEP(r, c)  ((r) * 67 + ((c) - 133))
-#define HASHFINISH(r, len)  ((r) + (len))
-
 extern unsigned strhash(const char *s);
+extern unsigned strhashn(const char *s, size_t len);
 extern char *strs(const char *str);
-extern char *strnh(const char *src, size_t len, unsigned int hash);
 extern char *strn(const char *src, size_t len);
 extern char *strd(long long n);
 extern char *stru(unsigned long long n);
@@ -66,6 +63,10 @@ extern void *alloc_map(void);
 extern void *alloc_map_entry(void);
 extern void *alloc_vector(void);
 extern void *alloc_hideset(void);
+
+extern void *allocate(size_t size, int area);
+#define unaligned_alloc(size)  allocate(size, 0)
+#define aligned_alloc(size)  allocate(size, 1)
 
 // vector.c
 #include "vector.h"
