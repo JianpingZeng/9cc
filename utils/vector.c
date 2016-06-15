@@ -11,10 +11,9 @@ static void vec_grow(struct vector *v)
 struct vector *vec_new(void)
 {
     struct vector *v = alloc_vector();
-    v->mem = NULL;
     v->len = 0;
     v->alloc = VEC_INIT_SIZE;
-    vec_grow(v);
+    v->mem = xmalloc(v->alloc * sizeof(void *));
     return v;
 }
 
@@ -28,10 +27,9 @@ struct vector *vec_new1(void *val)
 struct vector *vec_newn(size_t capacity)
 {
     struct vector *v = alloc_vector();
-    v->mem = NULL;
     v->len = 0;
     v->alloc = MAX(VEC_INIT_SIZE, capacity);
-    vec_grow(v);
+    v->mem = xmalloc(v->alloc * sizeof(void *));
     return v;
 }
 
@@ -79,8 +77,9 @@ void *vec_tail(struct vector *v)
 
 void vec_add(struct vector *v, struct vector *v2)
 {
-    for (int i = 0; i < vec_len(v2); i++)
-        vec_push(v, vec_at(v2, i));
+    size_t len2 = vec_len(v2);
+    for (size_t i = 0; i < len2; i++)
+        vec_push(v, v2->mem[i]);
 }
 
 void vec_push(struct vector *v, void *val)

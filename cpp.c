@@ -351,19 +351,22 @@ static struct vector *arguments(struct macro *m)
         if (vec_len(v) == 1 && vec_empty(vec_head(v)))
             vec_pop(v);
     }
+
+    size_t lenv = vec_len(v);
+    size_t lenp = vec_len(m->params);
     // check args and params
-    if (vec_len(v) < vec_len(m->params)) {
+    if (lenv < lenp) {
         error("too few arguments provided to function-like macro invocation");
-    } else if (vec_len(v) > vec_len(m->params)) {
+    } else if (lenv > lenp) {
         if (m->vararg) {
             // merge 'variable arguments'
             struct vector *v2 = vec_new();
-            for (int i = vec_len(m->params); i < vec_len(v); i++) {
+            for (int i = lenp; i < lenv; i++) {
                 vec_add(v2, vec_at(v, i));
-                if (i != vec_len(v) - 1)
+                if (i != lenv - 1)
                     vec_push(v2, vec_at(commas, i));
             }
-            int i = vec_len(v) - vec_len(m->params);
+            int i = lenv - lenp;
             while (i--)
                 vec_pop(v);
             vec_push(v, v2);
@@ -475,26 +478,32 @@ static void ensure_macro_def(struct token *t, struct macro *m)
     // check redefinition
     const char *name = t->name;
     struct macro *m1 = map_get(macros, name);
+    size_t len1p = vec_len(m->params);
+    size_t len1b = vec_len(m->body);
+    
     if (m1) {
         if (m1->builtin) {
             errorf(t->src, "Can't redefine predefined macro '%s'",
                    name);
         } else {
+            size_t len2p = vec_len(m1->params);
+            size_t len2b = vec_len(m1->body);
+            
             // compare definition
             if (m->kind != m1->kind ||
                 m->vararg != m1->vararg ||
-                vec_len(m->params) != vec_len(m1->params) ||
-                vec_len(m->body) != vec_len(m1->body))
+                len1p != len2p ||
+                len1b != len2b)
                 goto redef;
 
-            for (int i = 0; i < vec_len(m->params); i++) {
+            for (size_t i = 0; i < len1p; i++) {
                 struct token *t1 = vec_at(m->params, i);
                 struct token *t2 = vec_at(m1->params, i);
                 if (strcmp(t1->name, t2->name))
                     goto redef;
             }
 
-            for (int i = 0; i < vec_len(m->body); i++) {
+            for (size_t i = 0; i < len1b; i++) {
                 struct token *t1 = vec_at(m->body, i);
                 struct token *t2 = vec_at(m1->body, i);
                 if (strcmp(t1->name, t2->name))
@@ -515,7 +524,7 @@ static void ensure_macro_def(struct token *t, struct macro *m)
     if (!strcmp(name, "defined"))
         errorf(t->src, "'defined' cannot be used as a macro name");
 
-    for (int i = 0; i < vec_len(m->body); i++) {
+    for (size_t i = 0; i < len1b; i++) {
         struct token *t = vec_at(m->body, i);
         if (t->id == SHARPSHARP) {
             if (i == 0)
@@ -526,8 +535,9 @@ static void ensure_macro_def(struct token *t, struct macro *m)
                        "'##' cannot appear at the end of a replacement list");
         } else if (t->id == '#') {
             struct token *t1 = vec_at_safe(m->body, i + 1);
-            if (m->kind != MACRO_FUNC || t1 == NULL
-                || inparams(t1, m) < 0)
+            if (m->kind != MACRO_FUNC ||
+                t1 == NULL ||
+                inparams(t1, m) < 0)
                 errorf(t->src,
                        "'#' is not followed by a macro parameter");
         }
@@ -797,7 +807,8 @@ static struct token *with_temp_lex(const char *input)
 
 static struct vector *hsadd(struct vector *r, struct hideset *hideset)
 {
-    for (int i = 0; i < vec_len(r); i++) {
+    size_t len = vec_len(r);
+    for (size_t i = 0; i < len; i++) {
         struct token *t = vec_at(r, i);
         t->hideset = hideset_union(t->hideset, hideset);
     }
@@ -892,10 +903,11 @@ static struct vector *subst(struct macro *m, struct vector *args,
 {
     struct vector *r = vec_new();
     struct vector *body = m->body;
+    size_t len = vec_len(body);
 
 #define PUSH_SPACE(r, t)    if (t->space) vec_push(r, space_token)
 
-    for (int i = 0; i < vec_len(body); i++) {
+    for (size_t i = 0; i < len; i++) {
         struct token *t0 = vec_at(body, i);
         struct token *t1 = vec_at_safe(body, i + 1);
         int index;
@@ -961,7 +973,9 @@ static struct vector *subst(struct macro *m, struct vector *args,
 
 static struct token *expand(void)
 {
-    struct token *t = lex(current_file);
+    struct token *t;
+ start:
+    t = lex(current_file);
     if (t->id != ID)
         return t;
 
@@ -976,7 +990,7 @@ static struct token *expand(void)
             struct hideset *hdset = hideset_add(t->hideset, name);
             struct vector *v = subst(m, NULL, hdset);
             ungetv(v);
-            return expand();
+            goto start;
         }
     case MACRO_FUNC:
         {
@@ -994,7 +1008,7 @@ static struct token *expand(void)
                                 name);
                 struct vector *v = subst(m, args, hdset);
                 ungetv(v);
-                return expand();
+                goto start;
             } else {
                 return t;
             }
@@ -1002,7 +1016,7 @@ static struct token *expand(void)
         break;
     case MACRO_SPECIAL:
         m->handler(t);
-        return expand();
+        goto start;
     default:
         die("unkown macro type %d", m->kind);
         return t;
