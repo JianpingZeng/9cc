@@ -19,17 +19,7 @@ static struct tm now;
 static struct token *token_zero = &(struct token){.id = NCONSTANT,.name = "0" };
 static struct token *token_one = &(struct token){.id = NCONSTANT,.name = "1" };
 
-static struct macro *new_macro(int kind)
-{
-    struct macro *m = alloc_macro();
-    m->kind = kind;
-    return m;
-}
-
-static bool defined(const char *name)
-{
-    return map_get(macros, name);
-}
+#define DEFINED(name)  map_get(macros, name)
 
 static struct token *skip_spaces(void)
 {
@@ -78,12 +68,12 @@ static struct token *defined_op(struct token *t)
      */
     struct token *t1 = skip_spaces();
     if (t1->id == ID) {
-        return defined(t1->name) ? token_one : token_zero;
+        return DEFINED(t1->name) ? token_one : token_zero;
     } else if (t1->id == '(') {
         struct token *t2 = skip_spaces();
         struct token *t3 = skip_spaces();
         if (t2->id == ID && t3->id == ')') {
-            return defined(t2->name) ? token_one : token_zero;
+            return DEFINED(t2->name) ? token_one : token_zero;
         } else {
             errorf(t->src,
                    "expect 'identifier )' after 'defined ('");
@@ -209,7 +199,7 @@ static void do_ifdef_section(int id)
     struct token *t = skip_spaces();
     if (t->id != ID)
         fatal("expect identifier");
-    bool b = defined(t->name);
+    bool b = DEFINED(t->name);
     bool skip = id == IFDEF ? !b : b;
     if_sentinel(&(struct ifstub) {
                 .id = id,.src = src,.b = !skip});
@@ -561,8 +551,9 @@ static struct vector *replacement_list(void)
 
 static void define_objlike_macro(struct token *t)
 {
-    struct macro *m = new_macro(MACRO_OBJ);
+    struct macro *m = alloc_macro();
     SAVE_ERRORS;
+    m->kind = MACRO_OBJ;
     m->src = t->src;
     m->body = replacement_list();
     ensure_macro_def(t, m);
@@ -572,8 +563,9 @@ static void define_objlike_macro(struct token *t)
 
 static void define_funclike_macro(struct token *t)
 {
-    struct macro *m = new_macro(MACRO_FUNC);
+    struct macro *m = alloc_macro();
     SAVE_ERRORS;
+    m->kind = MACRO_FUNC;
     m->src = t->src;
     parameters(m);
     m->body = replacement_list();
@@ -1058,7 +1050,8 @@ static void time_handler(struct token *t)
 
 static void define_special(const char *name, void (*handler) (struct token *))
 {
-    struct macro *m = new_macro(MACRO_SPECIAL);
+    struct macro *m = alloc_macro();
+    m->kind = MACRO_SPECIAL;
     m->handler = handler;
     add_macro(name, m);
 }
