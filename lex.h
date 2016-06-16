@@ -118,9 +118,9 @@ enum {
 };
 
 struct macro {
-    int kind:3;
-    bool vararg:1;
-    bool builtin:1;
+    int kind:4;
+    bool vararg;
+    bool builtin;
     struct vector *body;
     struct vector *params;
     // special macro handler
