@@ -713,34 +713,21 @@ static void directive(struct file *pfile)
     }
     if (t->id != ID)
         goto err;
-    if (!strcmp(t->name, "if"))
-        do_if(pfile);
-    else if (!strcmp(t->name, "ifdef"))
-        do_ifdef(pfile);
-    else if (!strcmp(t->name, "ifndef"))
-        do_ifndef(pfile);
-    else if (!strcmp(t->name, "elif"))
-        do_elif(pfile);
-    else if (!strcmp(t->name, "else"))
-        do_else(pfile);
-    else if (!strcmp(t->name, "endif"))
-        do_endif(pfile);
-    else if (!strcmp(t->name, "include"))
-        do_include(pfile);
-    else if (!strcmp(t->name, "define"))
-        do_define(pfile);
-    else if (!strcmp(t->name, "undef"))
-        do_undef(pfile);
-    else if (!strcmp(t->name, "line"))
-        do_lineno(pfile);
-    else if (!strcmp(t->name, "error"))
-        do_error(pfile);
-    else if (!strcmp(t->name, "pragma"))
-        do_pragma(pfile);
-    else if (!strcmp(t->name, "warning"))
-        do_warning(pfile);
-    else
-        goto err;
+
+    if (!strcmp(t->name, "if")) do_if(pfile);
+    else if (!strcmp(t->name, "ifdef")) do_ifdef(pfile);
+    else if (!strcmp(t->name, "ifndef")) do_ifndef(pfile);
+    else if (!strcmp(t->name, "elif")) do_elif(pfile);
+    else if (!strcmp(t->name, "else")) do_else(pfile);
+    else if (!strcmp(t->name, "endif")) do_endif(pfile);
+    else if (!strcmp(t->name, "include")) do_include(pfile);
+    else if (!strcmp(t->name, "define")) do_define(pfile);
+    else if (!strcmp(t->name, "undef")) do_undef(pfile);
+    else if (!strcmp(t->name, "line")) do_lineno(pfile);
+    else if (!strcmp(t->name, "error")) do_error(pfile);
+    else if (!strcmp(t->name, "pragma")) do_pragma(pfile);
+    else if (!strcmp(t->name, "warning")) do_warning(pfile);
+    else goto err;
     return;
  err:
     warning("unknown preprocess directive '%s'", t->name);
