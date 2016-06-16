@@ -139,7 +139,6 @@ static struct file *new_file(const char *file)
     struct file *pfile = zmalloc(sizeof(struct file));
     pfile->file = file;
     pfile->tokens = vec_new();
-    pfile->macros = map_new();
     pfile->std_include_paths = vec_new();
     pfile->usr_include_paths = vec_new();
     // 2^13: 8k slots

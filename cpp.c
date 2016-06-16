@@ -16,9 +16,14 @@ static void include_file(struct file *pfile,
 static struct token *token_zero = &(struct token){.id = NCONSTANT, .lexeme = "0" };
 static struct token *token_one = &(struct token){.id = NCONSTANT, .lexeme = "1" };
 
-static inline bool defined(struct file *pfile, const char *name)
+#define IMAP_LOOKUP_HASH(imap, id, opt) \
+    (struct cpp_ident *)imap_lookup_with_hash(imap, id->str, id->len, id->hash, opt)
+
+static inline bool defined(struct file *pfile, struct token *t)
 {
-    return map_get(pfile->macros, name);
+    struct ident *id = t->value.ident;
+    struct cpp_ident *ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
+    return ident && ident->type == CT_MACRO;
 }
 
 static struct token *skip_spaces(struct file *pfile)
@@ -68,12 +73,12 @@ static struct token *defined_op(struct file *pfile, struct token *t)
      */
     struct token *t1 = skip_spaces(pfile);
     if (t1->id == ID) {
-        return defined(pfile, t1->lexeme) ? token_one : token_zero;
+        return defined(pfile, t1) ? token_one : token_zero;
     } else if (t1->id == '(') {
         struct token *t2 = skip_spaces(pfile);
         struct token *t3 = skip_spaces(pfile);
         if (t2->id == ID && t3->id == ')') {
-            return defined(pfile, t2->lexeme) ? token_one : token_zero;
+            return defined(pfile, t2) ? token_one : token_zero;
         } else {
             errorf(t->src,
                    "expect 'identifier )' after 'defined ('");
@@ -201,7 +206,7 @@ static void do_ifdef_section(struct file *pfile, int id)
     if (t->id != ID)
         fatal("expect identifier");
 
-    bool b = defined(pfile, t->lexeme);
+    bool b = defined(pfile, t);
     bool skip = id == IFDEF ? !b : b;
 
     if_sentinel(pfile, &(struct ifstub) {.id = id,.src = src,.b = !skip});
@@ -435,27 +440,45 @@ static void parameters(struct file *pfile, struct macro *m)
         m->params = vec_new();
 }
 
-static void add_macro(struct file *pfile, const char *name, struct macro *m)
+static struct macro *lookup_macro(struct file *pfile, struct token *t)
+{
+    
+}
+
+static void add_macro(struct file *pfile, struct ident *id, struct macro *m)
 {
     static const char *builtins[] = {
         "__STDC__",
         "__STDC_VERSION__",
         "__STDC_HOSTED__"
     };
+    struct cpp_ident *ident;
+    
     for (int i = 0; i < ARRAY_SIZE(builtins); i++) {
-        if (!strcmp(name, builtins[i]))
+        if (!strcmp((const char *)id->str, builtins[i]))
             m->builtin = true;
     }
-    map_put(pfile->macros, name, m);
+    ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_CREATE);
+    ident->type = CT_MACRO;
+    ident->value.macro = m;
 }
 
-static void remove_macro(struct file *pfile, const char *name)
+static void remove_macro(struct file *pfile, struct token *t)
 {
-    struct macro *m = map_get(pfile->macros, name);
-    if (m && m->builtin)
-        error("Can't undefine predefined macro '%s'", name);
-    else
-        map_put(pfile->macros, name, NULL);
+    struct ident *id = t->value.ident;
+    struct cpp_ident *ident;
+
+    ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
+
+    if (ident && ident->type == CT_MACRO) {
+        struct macro *m = ident->value.macro;
+        if (m->builtin) {
+            error("Can't undefine predefined macro '%s'", t->lexeme);
+        } else {
+            ident->type = 0;
+            ident->value.macro = NULL;
+        }
+    }
 }
 
 static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *m)
@@ -560,7 +583,7 @@ static void define_objlike_macro(struct file *pfile, struct token *t)
     m->body = replacement_list(pfile);
     ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
-        add_macro(pfile, t->lexeme, m);
+        add_macro(pfile, t, m);
 }
 
 static void define_funclike_macro(struct file *pfile, struct token *t)
@@ -609,7 +632,7 @@ static void do_undef(struct file *pfile)
         skipline(pfile);
         return;
     }
-    remove_macro(pfile, t->lexeme);
+    remove_macro(pfile, t);
     t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         warning("extra tokens at the end of #undef directive");
@@ -953,10 +976,18 @@ static struct token *expand(struct file *pfile)
     if (t->id != ID)
         return t;
 
-    const char *name = t->lexeme;
-    struct macro *m = map_get(pfile->macros, name);
-    if (m == NULL || hideset_has(t->hideset, name))
+    struct ident *id = t->value.ident;
+    const unsigned char *name = id->str;
+    struct cpp_ident *ident;
+
+    ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
+
+    if (ident == NULL ||
+        ident->type != CT_MACRO ||
+        hideset_has(t->hideset, name))
         return t;
+
+    struct macro *m = ident->value.macro;
 
     switch (m->kind) {
     case MACRO_OBJ:

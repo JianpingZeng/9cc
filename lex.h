@@ -33,10 +33,13 @@ struct token {
     int id:ID_BITS;
     int kind:ID_BITS;
     bool bol;                // beginning of line
-    bool space;                // leading space
+    bool space;              // leading space
     const char *lexeme;
     struct source src;
     struct hideset *hideset;
+    union {
+        struct ident *ident;
+    } value;
 };
 
 struct line_note {
@@ -77,8 +80,7 @@ struct file {
     const char *file;           // file name
     struct buffer *current;     // current buffer (top of buffer stack)
     struct vector *tokens;      // parser ungets
-    struct imap *imap; // identifier hash map
-    struct map *macros;
+    struct imap *imap;          // identifier hash map
     struct vector *std_include_paths;
     struct vector *usr_include_paths;
     // current timestamp

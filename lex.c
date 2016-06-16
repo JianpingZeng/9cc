@@ -31,7 +31,7 @@ struct source source;
         fs->column = col;                       \
     } while (0)
 
-#define markc(fs)  do {                         \
+#define MARKC(fs)  do {                         \
         source.file = fs->name;                 \
         source.line = fs->line;                 \
         source.column = fs->column;             \
@@ -217,11 +217,11 @@ struct token *new_token(struct token *tok)
     return t;
 }
 
-static struct token *make_token2(struct buffer *pb, int id, const char *name)
+static struct token *make_token(struct buffer *pb, int id, const char *name)
 {
     struct token *t = alloc_token();
     t->id = id;
-    t->lexeme = name ? name : id2s(id);
+    t->lexeme = name;
     t->src = source;
     t->bol = pb->bol;
     pb->bol = false;
@@ -282,7 +282,7 @@ static struct token *ppnumber(struct file *pfile)
             pb->cur++;
     }
     const char *name = xstrndup((const char *)rpc, pb->cur - rpc);
-    return make_token2(pb, NCONSTANT,  name);
+    return make_token(pb, NCONSTANT,  name);
 }
 
 static struct token *sequence(struct file *pfile, bool wide, int sep)
@@ -312,19 +312,26 @@ static struct token *sequence(struct file *pfile, bool wide, int sep)
     }
 
     if (is_char)
-        return make_token2(pb, NCONSTANT, name);
+        return make_token(pb, NCONSTANT, name);
     else
-        return make_token2(pb, SCONSTANT, name);
+        return make_token(pb, SCONSTANT, name);
 }
 
-static struct token *identifier(struct file *pfile)
+static struct ident *identifier(struct file *pfile)
 {
     struct buffer *pb = pfile->current;
     const unsigned char *rpc = pb->cur - 1;
-    while (isdigitletter(*pb->cur))
+    unsigned int hash = IMAP_HASHSTEP(0, *rpc);
+    unsigned int len;
+    
+    while (isdigitletter(*pb->cur)) {
+        hash = IMAP_HASHSTEP(hash, *pb->cur);
         pb->cur++;
-    const char *name = xstrndup((const char *)rpc, pb->cur - rpc);
-    return make_token2(pb, ID, name);
+    }
+    len = pb->cur - rpc;
+    hash = IMAP_HASHFINISH(hash, len);
+    return imap_lookup_with_hash(pfile->imap,
+                                 rpc, len, hash, IMAP_CREATE);
 }
 
 static struct token *dolex(struct file *pfile)
@@ -332,6 +339,8 @@ static struct token *dolex(struct file *pfile)
     register const unsigned char *rpc;
     int id;
     struct token *result;
+    const char *name = NULL;
+    struct ident *ident = NULL;
     struct buffer *pb = pfile->current;
 
     if (pb->need_line)
@@ -345,7 +354,7 @@ static struct token *dolex(struct file *pfile)
         process_line_notes(pb);
     SET_COLUMN(pb, pb->cur - pb->line_base);
     rpc = pb->cur++;
-    markc(pb);
+    MARKC(pb);
 
     switch (*rpc) {
     case '\n':
@@ -594,7 +603,10 @@ static struct token *dolex(struct file *pfile)
     case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R':
     case 'S': case 'T': case 'U': case 'V': case 'W': case 'X':
     case 'Y': case 'Z':
-        return identifier(pfile);
+        id = ID;
+        ident = identifier(pfile);
+        name = (const char *)ident->str;
+        break;
 
     default:
         // illegal character
@@ -608,7 +620,8 @@ static struct token *dolex(struct file *pfile)
     // done
     result = alloc_token();
     result->id = id;
-    result->lexeme = id2s(id);
+    result->lexeme = name ? name : id2s(id);
+    result->value.ident = ident;
     result->src = source;
     result->bol = pb->bol;
     pb->bol = false;
@@ -660,7 +673,7 @@ struct token *header_name(struct file *pfile)
     char ch = *pb->cur++;
 
     // mark for 'error/warning etc.'
-    markc(pb);
+    MARKC(pb);
     if (ch == '<') {
         const char *name = hq_char_sequence(pfile, '>');
         return new_token(&(struct token) {
