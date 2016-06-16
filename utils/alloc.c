@@ -52,36 +52,3 @@ void *alloc_hideset(void)
 {
     return do_alloc_object(&hideset_state, sizeof(struct hideset));
 }
-
-struct alloc_buf {
-    struct alloc_buf *next;
-    void *base, *cur, *limit;
-};
-
-static struct alloc_buf bufs[] = { {NULL}, {NULL}};
-static struct alloc_buf *area[] = { &bufs[0], &bufs[1]};
-#define MIN_BUF_SIZE 8000
-
-void *allocate(size_t size, int n)
-{
-    void *result;
-    struct alloc_buf *ap = area[n];
-    if (size > ap->limit - ap->cur) {
-        size_t len = size;
-        size_t hlen = sizeof(struct alloc_buf);
-        struct alloc_buf *head;
-        char *base;
-        if (len < MIN_BUF_SIZE)
-            len = MIN_BUF_SIZE;
-        head = xmalloc(hlen + len);
-        base = (char *)head + hlen;
-        head->base = base;
-        head->cur = base;
-        head->limit = base + len;
-        head->next = ap;
-        area[n] = ap = head;
-    }
-    result = ap->cur;
-    ap->cur = (char *)ap->cur + size;
-    return result;
-}

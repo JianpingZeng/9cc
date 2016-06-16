@@ -64,10 +64,6 @@ extern void *alloc_map_entry(void);
 extern void *alloc_vector(void);
 extern void *alloc_hideset(void);
 
-extern void *allocate(size_t size, int area);
-#define unaligned_alloc(size)  allocate(size, 0)
-#define aligned_alloc(size)  allocate(size, 1)
-
 // vector.c
 #include "vector.h"
 // map.c
