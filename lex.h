@@ -140,8 +140,6 @@ extern void match(int t, int follow[]);
 extern int skipto(int (*test[]) (struct token *));
 extern const char *unwrap_scon(const char *name);
 
-extern void dump_macro_map(struct file *pfile);
-
 // lex.c
 #define MARK(t)  source = t->src
 extern struct source source;

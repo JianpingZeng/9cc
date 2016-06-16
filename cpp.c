@@ -1208,8 +1208,3 @@ struct token *get_pptok(struct file *pfile)
         return t;
     }
 }
-
-void dump_macro_map(struct file *pfile)
-{
-    map_dump(pfile->macros);
-}
