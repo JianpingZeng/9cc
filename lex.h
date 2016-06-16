@@ -38,7 +38,12 @@ struct line_note {
 };
 
 // input.c
-struct file {
+
+// buffer kind
+enum { BK_REGULAR = 1, BK_STRING, BK_TOKEN };
+
+// A buffer represents a file's content.
+struct buffer {
     unsigned char kind;                  // kind (regular/string)
     bool bol;                            // beginning of line
     bool stub;
@@ -55,11 +60,20 @@ struct file {
     unsigned int notes_used;             // number of notes
     unsigned int notes_alloc;            // number of notes allocated
     struct vector *ifstubs;
-    struct vector *buffer;               // lex ungets
-    struct vector *tokens;               // parser ungets
+    struct vector *ungets;               // lex ungets
     unsigned line, column;
+};
+
+// The file read by preprocessor.
+struct file {
+    const char *file;           // file name
+    struct vector *buffers;
+    struct buffer *current;     // current buffer
+    struct vector *tokens;      // parser ungets
     struct ident_map *ident_map; // identifier hash map
 };
+
+extern struct file *cpp_file;
 
 struct ifstub {
     int id:10;
@@ -69,21 +83,21 @@ struct ifstub {
 
 extern void input_init(const char *file);
 
-extern struct file *with_string(const char *input, const char *name);
-extern struct file *with_file(const char *file, const char *name);
-extern struct file *with_buffer(struct vector *v);
+extern struct buffer *with_string(const char *input, const char *name);
+extern struct buffer *with_file(const char *file, const char *name);
+extern struct buffer *with_tokens(struct vector *v, struct buffer *cur);
 
-extern void file_sentinel(struct file *f);
-extern void file_unsentinel(void);
-extern void file_stub(struct file *f);
-extern void file_unstub(void);
+enum buffer_sentinel_option { BS_NONE = 0, BS_STUB };
 
-extern bool is_original_file(const char *file);
-extern struct file *current_file;
+extern void buffer_sentinel(struct file *pfile, struct buffer *pb,
+                          enum buffer_sentinel_option opt);
+extern void buffer_unsentinel(struct file *pfile);
 
-extern void if_sentinel(struct ifstub *i);
-extern void if_unsentinel(void);
-extern struct ifstub *current_ifstub(void);
+extern void if_sentinel(struct file *pfile, struct ifstub *i);
+extern void if_unsentinel(struct file *pfile);
+extern struct ifstub *current_ifstub(struct file *pfile);
+
+extern bool is_original_file(struct file *pfile, const char *file);
 
 // cpp.c
 // macro kind
@@ -99,12 +113,13 @@ struct macro {
     bool builtin:1;
     struct vector *body;
     struct vector *params;
-    void (*handler) (struct token *);        // special macro handler
+    // special macro handler
+    void (*handler) (struct file *, struct token *);
     struct source src;
 };
 
-extern void cpp_init(struct vector *options);
-extern struct token *get_pptok(void);
+extern void cpp_init(struct file *pfile, struct vector *options);
+extern struct token *get_pptok(struct file *pfile);
 
 extern int gettok(void);
 extern struct token *lookahead(void);
@@ -130,11 +145,11 @@ extern int isxalpha(int c);
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 #define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
 
-extern struct token *lex(struct file *fs);
-extern void unget(struct file *fs, struct token *t);
-extern struct token *header_name(struct file *fs);
+extern struct token *lex(struct file *pfile);
+extern void unget(struct file *pfile, struct token *t);
+extern struct token *header_name(struct file *pfile);
 extern struct token *new_token(struct token *tok);
-extern void skip_ifstub(struct file *fs);
+extern void skip_ifstub(struct file *pfile);
 extern const char *id2s(int t);
 
 #define FARRAY(...)  ((int (*[]) (struct token *)){__VA_ARGS__, NULL})

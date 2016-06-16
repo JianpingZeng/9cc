@@ -1,52 +1,31 @@
 #include "cc.h"
 
-static struct vector *files;
-static const char *original;
-struct file *current_file;
+struct file *cpp_file;
 
-enum {
-    FILE_KIND_REGULAR = 1,
-    FILE_KIND_STRING,
-    FILE_KIND_BUFFER,
-};
-
-bool is_original_file(const char *file)
+static struct buffer *new_buffer(void)
 {
-    if (original && !strcmp(original, file))
-        return true;
-    else
-        return false;
+    struct buffer *pb = zmalloc(sizeof(struct buffer));
+    pb->bol = true;
+    pb->need_line = true;
+    pb->line = 1;
+    pb->column = 0;
+    pb->ifstubs = vec_new();
+    pb->ungets = vec_new();
+    return pb;
 }
 
-static struct file *new_file(void)
+static void close_buffer(struct buffer *pb)
 {
-    struct file *fs = zmalloc(sizeof(struct file));
-    fs->bol = true;
-    fs->need_line = true;
-    fs->line = 1;
-    fs->column = 0;
-    fs->ifstubs = vec_new();
-    fs->buffer = vec_new();
-    fs->tokens = vec_new();
-    return fs;
+    free((void *)pb->buf);
+    free(pb);
 }
 
-static void close_file(struct file *fs)
+struct buffer *with_file(const char *file, const char *name)
 {
-    free((void *)fs->buf);
-    free(fs);
-    // reset current 'bol'
-    struct file *current = current_file;
-    if (current)
-        current->bol = true;
-}
-
-struct file *with_file(const char *file, const char *name)
-{
-    struct file *fs = new_file();
-    fs->kind = FILE_KIND_REGULAR;
-    fs->file = file;
-    fs->name = name;
+    struct buffer *pb = new_buffer();
+    pb->kind = BK_REGULAR;
+    pb->file = file;
+    pb->name = name;
     
     FILE *fp = fopen(file, "r");
     if (fp == NULL)
@@ -55,25 +34,25 @@ struct file *with_file(const char *file, const char *name)
     fseek(fp, 0, SEEK_END);
     long size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
-    fs->buf = xmalloc(size + 1);
+    pb->buf = xmalloc(size + 1);
 
-    unsigned char *d = (unsigned char *)fs->buf;
+    unsigned char *d = (unsigned char *)pb->buf;
     if (fread(d, size, 1, fp) != 1)
         die("%s: %s", file, strerror(errno));
     fclose(fp);
 
-    fs->cur = fs->line_base = fs->next_line = fs->buf;
+    pb->cur = pb->line_base = pb->next_line = pb->buf;
     /**
      * Add a newline character to the end if the
      * file doesn't have one, thus the include
      * directive would work well.
      */
     d[size] = '\n';
-    fs->limit = &fs->buf[size];
-    return fs;
+    pb->limit = &pb->buf[size];
+    return pb;
 }
 
-struct file *with_string(const char *input, const char *name)
+struct buffer *with_string(const char *input, const char *name)
 {
     /**
      * NOTE:
@@ -82,74 +61,85 @@ struct file *with_string(const char *input, const char *name)
      * Otherwise the buffer will generate an
      * additional newline when expanding a macro.
      */
-    struct file *fs = new_file();
+    struct buffer *pb = new_buffer();
     size_t len = strlen(input);
-    fs->kind = FILE_KIND_STRING;
-    fs->name = name ? name : "<anonymous-string>";
-    fs->buf = (const unsigned char *)xstrdup(input);
-    fs->cur = fs->line_base = fs->next_line = fs->buf;
-    unsigned char *d = (unsigned char *)fs->buf;
+    pb->kind = BK_STRING;
+    pb->name = name ? name : "<anonymous-string>";
+    pb->buf = (const unsigned char *)xstrdup(input);
+    pb->cur = pb->line_base = pb->next_line = pb->buf;
+    unsigned char *d = (unsigned char *)pb->buf;
     d[len] = '\n';
-    fs->limit = &fs->buf[len];
-    return fs;
+    pb->limit = &pb->buf[len];
+    return pb;
 }
 
-struct file *with_buffer(struct vector *v)
+struct buffer *with_tokens(struct vector *v, struct buffer *cur)
 {
-    struct file *fs = new_file();
-    fs->kind = FILE_KIND_BUFFER;
-    fs->name = current_file->name;
-    fs->line = current_file->line;
-    fs->column = current_file->column;
-    fs->need_line = false;
-    vec_add(fs->buffer, v);
-    return fs;
+    struct buffer *pb = new_buffer();
+    pb->kind = BK_TOKEN;
+    pb->name = cur->name;
+    pb->line = cur->line;
+    pb->column = cur->column;
+    pb->need_line = false;
+    vec_add(pb->ungets, v);
+    return pb;
 }
 
-void file_sentinel(struct file *fs)
+void buffer_sentinel(struct file *pfile, struct buffer *pb,
+                   enum buffer_sentinel_option opt)
 {
-    vec_push(files, fs);
-    current_file = fs;
+    if (opt == BS_STUB)
+        pb->stub = true;
+    vec_push(pfile->buffers, pb);
+    pfile->current = pb;
 }
 
-void file_unsentinel(void)
+void buffer_unsentinel(struct file *pfile)
 {
-    struct file *fs = vec_pop(files);
-    current_file = vec_tail(files);
-    close_file(fs);
+    struct buffer *pb = vec_pop(pfile->buffers);
+    close_buffer(pb);
+    pfile->current = vec_tail(pfile->buffers);
+    // reset current 'bol'
+    if (pfile->current)
+        pfile->current->bol = true;
 }
 
-void file_stub(struct file *fs)
-{
-    fs->stub = true;
-    file_sentinel(fs);
-}
-
-void file_unstub(void)
-{
-    file_unsentinel();
-}
-
-void if_sentinel(struct ifstub *i)
+void if_sentinel(struct file *pfile, struct ifstub *i)
 {
     struct ifstub *ic = zmalloc(sizeof(struct ifstub));
     memcpy(ic, i, sizeof(struct ifstub));
-    vec_push(current_file->ifstubs, ic);
+    vec_push(pfile->current->ifstubs, ic);
 }
 
-void if_unsentinel(void)
+void if_unsentinel(struct file *pfile)
 {
-    vec_pop(current_file->ifstubs);
+    vec_pop(pfile->current->ifstubs);
 }
 
-struct ifstub *current_ifstub(void)
+struct ifstub *current_ifstub(struct file *pfile)
 {
-    return vec_tail(current_file->ifstubs);
+    return vec_tail(pfile->current->ifstubs);
+}
+
+bool is_original_file(struct file *pfile, const char *file)
+{
+    if (!strcmp(pfile->file, file))
+        return true;
+    else
+        return false;
+}
+
+static struct file *new_file(const char *file)
+{
+    struct file *pfile = zmalloc(sizeof(struct file));
+    pfile->file = file;
+    pfile->buffers = vec_new();
+    pfile->tokens = vec_new();
+    return pfile;
 }
 
 void input_init(const char *file)
 {
-    original = file;
-    files = vec_new();
-    file_sentinel(with_file(file, file));
+    cpp_file = new_file(file);
+    buffer_sentinel(cpp_file, with_file(file, file), BS_NONE);
 }

@@ -13,7 +13,8 @@
 #define IMAP_HASHFINISH(h, len)  ((h) + (len))
 
 enum imap_lookup_option {
-    IMAP_CREATE = 0,
+    IMAP_SEARCH = 0,
+    IMAP_CREATE
 };
 
 // An identifier

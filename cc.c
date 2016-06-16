@@ -78,8 +78,8 @@ static void translate(void)
 
 static void preprocess(void)
 {
-    struct token *t = get_pptok();
-    for (; t->id != EOI; t = get_pptok())
+    struct token *t = get_pptok(cpp_file);
+    for (; t->id != EOI; t = get_pptok(cpp_file))
         fprintf(outfp, "%s", t->name);
 }
 
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     type_init();
     cc_init(ifile, ofile);
     input_init(ifile);
-    cpp_init(opts.cpp_options);
+    cpp_init(cpp_file, opts.cpp_options);
     
     if (opts.E)
         preprocess();

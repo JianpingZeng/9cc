@@ -9,9 +9,10 @@
  *
  */
 
-static struct token *expand(void);
-static struct vector *expandv(struct vector *v);
-static void include_file(const char *file, bool std);
+static struct token *expand(struct file *pfile);
+static struct vector *expandv(struct file *pfile, struct vector *v);
+static void include_file(struct file *pfile,
+                         const char *file, const char *name, bool std);
 static struct map *macros;
 static struct vector *std_include_paths;
 static struct vector *usr_include_paths;
@@ -19,13 +20,16 @@ static struct tm now;
 static struct token *token_zero = &(struct token){.id = NCONSTANT,.name = "0" };
 static struct token *token_one = &(struct token){.id = NCONSTANT,.name = "1" };
 
-#define DEFINED(name)  map_get(macros, name)
+static inline bool defined(struct file *pfile, const char *name)
+{
+    return map_get(macros, name);
+}
 
-static struct token *skip_spaces(void)
+static struct token *skip_spaces(struct file *pfile)
 {
     struct token *t;
     for (;;) {
-        t = lex(current_file);
+        t = lex(pfile);
         if (t->id == EOI)
             break;
         if (!IS_SPACE(t))
@@ -34,11 +38,11 @@ static struct token *skip_spaces(void)
     return t;
 }
 
-static void skipline(void)
+static void skipline(struct file *pfile)
 {
     struct token *t;
     for (;;) {
-        t = lex(current_file);
+        t = lex(pfile);
         if (IS_NEWLINE(t))
             break;
         if (t->id == EOI)
@@ -46,39 +50,39 @@ static void skipline(void)
     }
 }
 
-static struct token *peek(void)
+static struct token *peek(struct file *pfile)
 {
-    struct token *t = skip_spaces();
-    unget(current_file, t);
+    struct token *t = skip_spaces(pfile);
+    unget(pfile, t);
     return t;
 }
 
-static void ungetv(struct vector *v)
+static void ungetv(struct file *pfile, struct vector *v)
 {
     for (int i = vec_len(v) - 1; i >= 0; i--)
-        unget(current_file, vec_at(v, i));
+        unget(pfile, vec_at(v, i));
 }
 
-static struct token *defined_op(struct token *t)
+static struct token *defined_op(struct file *pfile, struct token *t)
 {
     /* 'defined' operator:
      *
      * 1. defined identifier
      * 2. defined ( identifier )
      */
-    struct token *t1 = skip_spaces();
+    struct token *t1 = skip_spaces(pfile);
     if (t1->id == ID) {
-        return DEFINED(t1->name) ? token_one : token_zero;
+        return defined(pfile, t1->name) ? token_one : token_zero;
     } else if (t1->id == '(') {
-        struct token *t2 = skip_spaces();
-        struct token *t3 = skip_spaces();
+        struct token *t2 = skip_spaces(pfile);
+        struct token *t3 = skip_spaces(pfile);
         if (t2->id == ID && t3->id == ')') {
-            return DEFINED(t2->name) ? token_one : token_zero;
+            return defined(pfile, t2->name) ? token_one : token_zero;
         } else {
             errorf(t->src,
                    "expect 'identifier )' after 'defined ('");
-            unget(current_file, t3);
-            unget(current_file, t2);
+            unget(pfile, t3);
+            unget(pfile, t2);
             return t;
         }
     } else {
@@ -88,18 +92,18 @@ static struct token *defined_op(struct token *t)
 }
 
 // read _expanded_ tokens
-static struct vector *read_if_tokens(void)
+static struct vector *read_if_tokens(struct file *pfile)
 {
     struct vector *v = vec_new();
     struct token *t;
     for (;;) {
-        t = expand();
+        t = expand(pfile);
         if (IS_NEWLINE(t) || t->id == EOI)
             break;
         if (IS_SPACE(t))
             continue;
         if (t->id == ID && !strcmp(t->name, "defined"))
-            vec_push(v, defined_op(t));
+            vec_push(v, defined_op(pfile, t));
         else if (t->id == ID)
             // C99 6.10.1.3 says that remaining identifiers
             // should be replaced with pp-number 0.
@@ -111,10 +115,10 @@ static struct vector *read_if_tokens(void)
     return v;
 }
 
-static bool eval_constexpr(void)
+static bool eval_constexpr(struct file *pfile)
 {
     SAVE_ERRORS;
-    struct vector *tokens = read_if_tokens();
+    struct vector *tokens = read_if_tokens(pfile);
     if (HAS_ERROR)
         return false;
 
@@ -125,9 +129,11 @@ static bool eval_constexpr(void)
     // create a temp file
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
-    file_stub(with_buffer(vec_reverse(tokens)));
+    buffer_sentinel(pfile,
+                    with_tokens(vec_reverse(tokens), pfile->current),
+                    BS_STUB);
     bool ret = eval_cpp_cond();
-    file_unstub();
+    buffer_unsentinel(pfile);
 
     // restore context
     token = saved_token;
@@ -136,103 +142,103 @@ static bool eval_constexpr(void)
     return ret;
 }
 
-static void if_section(void)
+static void do_if(struct file *pfile)
 {
     struct source src = source;
-    bool b = eval_constexpr();
-    if_sentinel(&(struct ifstub) {
-                .id = IF,.src = src,.b = b});
+    bool b = eval_constexpr(pfile);
+    if_sentinel(pfile, &(struct ifstub) {.id = IF,.src = src,.b = b});
     if (!b)
-        skip_ifstub(current_file);
+        skip_ifstub(pfile);
 }
 
-static void elif_group(void)
+static void do_elif(struct file *pfile)
 {
-    struct ifstub *stub = current_ifstub();
+    struct ifstub *stub = current_ifstub(pfile);
     if (stub == NULL)
         error("#elif without #if");
-    bool b = eval_constexpr();
+    bool b = eval_constexpr(pfile);
     if (stub) {
         if (stub->b || !b)
-            skip_ifstub(current_file);
+            skip_ifstub(pfile);
         else
             stub->b = true;
     } else if (!b) {
-        skip_ifstub(current_file);
+        skip_ifstub(pfile);
     }
 }
 
-static void else_group(void)
+static void do_else(struct file *pfile)
 {
-    struct ifstub *stub = current_ifstub();
+    struct ifstub *stub = current_ifstub(pfile);
     if (stub == NULL)
         error("#else without #if");
-    struct token *t = skip_spaces();
+    struct token *t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         error("extra tokens in #else directive");
-        skipline();
+        skipline(pfile);
     }
     if (stub) {
         if (stub->b)
-            skip_ifstub(current_file);
+            skip_ifstub(pfile);
         else
             stub->b = true;
     }
 }
 
-static void endif_line(void)
+static void do_endif(struct file *pfile)
 {
-    if (current_ifstub())
-        if_unsentinel();
+    if (current_ifstub(pfile))
+        if_unsentinel(pfile);
     else
         error("#endif without #if");
-    struct token *t = skip_spaces();
+    struct token *t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         error("extra tokens in #endif");
-        skipline();
+        skipline(pfile);
     }
 }
 
-static void do_ifdef_section(int id)
+static void do_ifdef_section(struct file *pfile, int id)
 {
     struct source src = source;
-    struct token *t = skip_spaces();
+    struct token *t = skip_spaces(pfile);
     if (t->id != ID)
         fatal("expect identifier");
-    bool b = DEFINED(t->name);
+
+    bool b = defined(pfile, t->name);
     bool skip = id == IFDEF ? !b : b;
-    if_sentinel(&(struct ifstub) {
-                .id = id,.src = src,.b = !skip});
+
+    if_sentinel(pfile, &(struct ifstub) {.id = id,.src = src,.b = !skip});
     
-    t = skip_spaces();
+    t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         error("extra tokens in '%s' directive", id2s(id));
-        skipline();
+        skipline(pfile);
     }
     if (skip)
-        skip_ifstub(current_file);
+        skip_ifstub(pfile);
 }
 
-#define ifdef_section()  do_ifdef_section(IFDEF)
-#define ifndef_section() do_ifdef_section(IFNDEF)
+#define do_ifdef(pfile)  do_ifdef_section(pfile, IFDEF)
+#define do_ifndef(pfile)  do_ifdef_section(pfile, IFNDEF)
 
-static void include_line(void)
+static void do_include(struct file *pfile)
 {
-    struct token *t = header_name(current_file);
+    struct token *t = header_name(pfile);
     if (t) {
-        include_file(t->name, t->kind == '<');
+        include_file(pfile, t->name, NULL, t->kind == '<');
     } else {
         // # include pptokens newline
         struct source src = source;
         struct vector *v = vec_new();
         for (;;) {
-            struct token *t = skip_spaces();
+            struct token *t = skip_spaces(pfile);
             if (IS_NEWLINE(t) || t->id == EOI)
                 break;
             vec_push(v, t);
         }
 
-        struct vector *r = expandv(v);
+        struct vector *r = expandv(pfile, v);
         if (vec_empty(r)) {
             errorf(src, "empty filename");
             return;
@@ -240,7 +246,7 @@ static void include_line(void)
 
         struct token *tok = vec_head(r);
         if (tok->id == SCONSTANT) {
-            include_file(unwrap_scon(tok->name), false);
+            include_file(pfile, unwrap_scon(tok->name), NULL, false);
             for (int i = 1; i < vec_len(r); i++) {
                 struct token *t = vec_at(r, i);
                 if (!IS_SPACE(t)) {
@@ -264,14 +270,14 @@ static void include_line(void)
             else if (strbuf_len(s) == 0)
                 errorf(src, "empty filename");
             else
-                include_file(s->str, true);
+                include_file(pfile, s->str, NULL, true);
         } else {
             errorf(src, "expected \"FILENAME\" or <FILENAME>");
         }
     }
 }
 
-static struct vector *arg(void)
+static struct vector *arg(struct file *pfile)
 {
     struct vector *v = vec_new();
     int parens = 0;
@@ -282,7 +288,7 @@ static struct vector *arg(void)
          * Merge multiple spaces to one,
          * treat newline as space here.
          */
-        t = lex(current_file);
+        t = lex(pfile);
         if (IS_SPACE(t) || IS_NEWLINE(t)) {
             space = true;
             continue;
@@ -299,19 +305,19 @@ static struct vector *arg(void)
         vec_push(v, t);
         space = false;
     }
-    unget(current_file, t);
+    unget(pfile, t);
     return v;
 }
 
-static struct vector *arguments(struct macro *m)
+static struct vector *arguments(struct file *pfile, struct macro *m)
 {
     struct vector *v = vec_new();
     struct vector *commas = vec_new();
     struct token *t;
     for (;;) {
-        struct vector *r = arg();
+        struct vector *r = arg(pfile);
         vec_push(v, r);
-        t = lex(current_file);
+        t = lex(pfile);
         if (t->id == ')' || t->id == EOI)
             break;
         assert(t->id == ',');
@@ -320,7 +326,7 @@ static struct vector *arguments(struct macro *m)
     if (t->id != ')')
         error("unterminated function-like macro invocation");
     else
-        unget(current_file, t);
+        unget(pfile, t);
 
     // remove leading and trailing space
     if (vec_len(v)) {
@@ -379,18 +385,18 @@ static int inparams(struct token *t, struct macro *m)
     return -1;
 }
 
-static void parameters(struct macro *m)
+static void parameters(struct file *pfile, struct macro *m)
 {
-    struct token *t = skip_spaces();
+    struct token *t = skip_spaces(pfile);
     if (t->id == ')') {
         // ()
     } else if (t->id == ELLIPSIS) {
         // (...)
         m->vararg = true;
-        t = skip_spaces();
+        t = skip_spaces(pfile);
         if (t->id != ')') {
             error("expect ')'");
-            unget(current_file, t);
+            unget(pfile, t);
         }
     } else if (t->id == ID) {
         // (a,b,c,...)
@@ -408,32 +414,32 @@ static void parameters(struct macro *m)
                 vec_push(v, t);
             } else if (t->id == ELLIPSIS) {
                 m->vararg = true;
-                t = skip_spaces();
+                t = skip_spaces(pfile);
                 break;
             } else {
                 error("expect identifier or ...");
             }
-            t = skip_spaces();
+            t = skip_spaces(pfile);
             if (t->id != ',')
                 break;
-            t = skip_spaces();
+            t = skip_spaces(pfile);
         }
         if (t->id != ')') {
             errorf(t->src, "unterminated macro parameter list");
-            unget(current_file, t);
+            unget(pfile, t);
         }
         m->params = v;
     } else {
         error("expect identifier list or ')' or ...");
-        unget(current_file, t);
-        skipline();
+        unget(pfile, t);
+        skipline(pfile);
     }
     // create an empty vector if params == 0
     if (!m->params)
         m->params = vec_new();
 }
 
-static void add_macro(const char *name, struct macro *m)
+static void add_macro(struct file *pfile, const char *name, struct macro *m)
 {
     static const char *builtins[] = {
         "__STDC__",
@@ -447,7 +453,7 @@ static void add_macro(const char *name, struct macro *m)
     map_put(macros, name, m);
 }
 
-static void remove_macro(const char *name)
+static void remove_macro(struct file *pfile, const char *name)
 {
     struct macro *m = map_get(macros, name);
     if (m && m->builtin)
@@ -456,7 +462,7 @@ static void remove_macro(const char *name)
         map_put(macros, name, NULL);
 }
 
-static void ensure_macro_def(struct token *t, struct macro *m)
+static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *m)
 {
     // check redefinition
     const char *name = t->name;
@@ -527,10 +533,10 @@ static void ensure_macro_def(struct token *t, struct macro *m)
     }
 }
 
-static struct vector *replacement_list(void)
+static struct vector *replacement_list(struct file *pfile)
 {
     struct vector *v = vec_new();
-    struct token *t = skip_spaces();
+    struct token *t = skip_spaces(pfile);
     bool space = false;
     for (;;) {
         if (IS_NEWLINE(t) || t->id == EOI)
@@ -540,7 +546,7 @@ static struct vector *replacement_list(void)
         // skip spaces and record
         space = false;
     beg:
-        t = lex(current_file);
+        t = lex(pfile);
         if (IS_SPACE(t)) {
             space = true;
             goto beg;
@@ -549,73 +555,73 @@ static struct vector *replacement_list(void)
     return v;
 }
 
-static void define_objlike_macro(struct token *t)
+static void define_objlike_macro(struct file *pfile, struct token *t)
 {
     struct macro *m = alloc_macro();
     SAVE_ERRORS;
     m->kind = MACRO_OBJ;
     m->src = t->src;
-    m->body = replacement_list();
-    ensure_macro_def(t, m);
+    m->body = replacement_list(pfile);
+    ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
-        add_macro(t->name, m);
+        add_macro(pfile, t->name, m);
 }
 
-static void define_funclike_macro(struct token *t)
+static void define_funclike_macro(struct file *pfile, struct token *t)
 {
     struct macro *m = alloc_macro();
     SAVE_ERRORS;
     m->kind = MACRO_FUNC;
     m->src = t->src;
-    parameters(m);
-    m->body = replacement_list();
-    ensure_macro_def(t, m);
+    parameters(pfile, m);
+    m->body = replacement_list(pfile);
+    ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
-        add_macro(t->name, m);
+        add_macro(pfile, t->name, m);
 }
 
-static struct token *read_identifier(void)
+static struct token *read_identifier(struct file *pfile)
 {
-    struct token *t = skip_spaces();
+    struct token *t = skip_spaces(pfile);
     if (t->id != ID) {
         error("expect identifier at '%s'", t->name);
-        unget(current_file, t);
+        unget(pfile, t);
     }
     return t;
 }
 
-static void define_line(void)
+static void do_define(struct file *pfile)
 {
-    struct token *id = read_identifier();
+    struct token *id = read_identifier(pfile);
     if (id->id != ID) {
-        skipline();
+        skipline(pfile);
         return;
     }
-    struct token *t = lex(current_file);
+    struct token *t = lex(pfile);
     if (t->id == '(') {
-        define_funclike_macro(id);
+        define_funclike_macro(pfile, id);
     } else {
-        unget(current_file, t);
-        define_objlike_macro(id);
+        unget(pfile, t);
+        define_objlike_macro(pfile, id);
     }
 }
 
-static void undef_line(void)
+static void do_undef(struct file *pfile)
 {
-    struct token *t = read_identifier();
+    struct token *t = read_identifier(pfile);
     if (t->id != ID) {
-        skipline();
+        skipline(pfile);
         return;
     }
-    remove_macro(t->name);
-    t = skip_spaces();
+    remove_macro(pfile, t->name);
+    t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         warning("extra tokens at the end of #undef directive");
-        skipline();
+        skipline(pfile);
     }
 }
 
-static void line_line(void)
+static void do_lineno(struct file *pfile)
 {
     /* line directive:
      *
@@ -632,24 +638,24 @@ static void line_line(void)
      */
     // TODO: 3rd format
 
-    struct token *t = skip_spaces();
+    struct token *t = skip_spaces(pfile);
     // TODO: must be an integer, not floating
     if (t->id != NCONSTANT) {
         error("expect integer constant");
-        unget(current_file, t);
-        skipline();
+        unget(pfile, t);
+        skipline(pfile);
         return;
     }
     const char *name;
-    struct token *t2 = skip_spaces();
+    struct token *t2 = skip_spaces(pfile);
     if (t2->id == SCONSTANT) {
         name = format("# %s %s\n", t->name, t2->name);
     } else {
-        name = format("# %s \"%s\"\n", t->name, current_file->name);
-        unget(current_file, t2);
+        name = format("# %s \"%s\"\n", t->name, pfile->current->name);
+        unget(pfile, t2);
     }
-    skipline();
-    unget(current_file, new_token(&(struct token) {
+    skipline(pfile);
+    unget(pfile, new_token(&(struct token) {
                 .id = LINENO,.name = name}));
 }
 
@@ -664,13 +670,13 @@ static const char *tokens2s(struct vector *v)
     return ret ? ret : "";
 }
 
-static void do_message_line(int level)
+static void do_message_line(struct file *pfile, int level)
 {
     struct source src = source;
     struct vector *v = vec_new();
     struct token *t;
     for (;;) {
-        t = lex(current_file);
+        t = lex(pfile);
         if (IS_NEWLINE(t) || t->id == EOI)
             break;
         vec_push(v, t);
@@ -683,110 +689,108 @@ static void do_message_line(int level)
         errorf(src, message);
 }
 
-static void error_line(void)
-{
-    do_message_line(ERR);
-}
+#define do_error(pfile)  do_message_line(pfile, ERR)
+#define do_warning(pfile)  do_message_line(pfile, WRN)
 
-static void warning_line(void)
-{
-    do_message_line(WRN);
-}
-
-static void pragma_line(void)
+static void do_pragma(struct file *pfile)
 {
     struct source src = source;
     struct token *t;
     for (;;) {
-        t = skip_spaces();
+        t = skip_spaces(pfile);
         if (IS_NEWLINE(t) || t->id == EOI)
             break;
     }
     warningf(src, "pragma directive not supported yet");
 }
 
-static void directive(void)
+static void directive(struct file *pfile)
 {
-    struct token *t = skip_spaces();
+    struct token *t = skip_spaces(pfile);
     if (IS_NEWLINE(t) || t->id == EOI)
         return;
     // TODO: must be an integer, not floating
     if (t->id == NCONSTANT) {
-        unget(current_file, t);
-        line_line();
+        unget(pfile, t);
+        do_lineno(pfile);
         return;
     }
     if (t->id != ID)
         goto err;
     if (!strcmp(t->name, "if"))
-        if_section();
+        do_if(pfile);
     else if (!strcmp(t->name, "ifdef"))
-        ifdef_section();
+        do_ifdef(pfile);
     else if (!strcmp(t->name, "ifndef"))
-        ifndef_section();
+        do_ifndef(pfile);
     else if (!strcmp(t->name, "elif"))
-        elif_group();
+        do_elif(pfile);
     else if (!strcmp(t->name, "else"))
-        else_group();
+        do_else(pfile);
     else if (!strcmp(t->name, "endif"))
-        endif_line();
+        do_endif(pfile);
     else if (!strcmp(t->name, "include"))
-        include_line();
+        do_include(pfile);
     else if (!strcmp(t->name, "define"))
-        define_line();
+        do_define(pfile);
     else if (!strcmp(t->name, "undef"))
-        undef_line();
+        do_undef(pfile);
     else if (!strcmp(t->name, "line"))
-        line_line();
+        do_lineno(pfile);
     else if (!strcmp(t->name, "error"))
-        error_line();
+        do_error(pfile);
     else if (!strcmp(t->name, "pragma"))
-        pragma_line();
+        do_pragma(pfile);
     else if (!strcmp(t->name, "warning"))
-        warning_line();
+        do_warning(pfile);
     else
         goto err;
     return;
  err:
     warning("unknown preprocess directive '%s'", t->name);
-    skipline();
+    skipline(pfile);
 }
 
-static struct vector *expandv(struct vector *v)
+static struct vector *expandv(struct file *pfile, struct vector *v)
 {
     struct vector *r = vec_new();
 
     // create a temp file
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
-    file_stub(with_buffer(vec_reverse(v)));
+    buffer_sentinel(pfile,
+                    with_tokens(vec_reverse(v), pfile->current),
+                    BS_STUB);
     for (;;) {
-        struct token *t = expand();
+        struct token *t = expand(pfile);
         if (t->id == EOI)
             break;
         vec_push(r, t);
     }
-    file_unstub();
+    buffer_unsentinel(pfile);
 
     return r;
 }
 
 // parse the input string to a token
-static struct token *with_temp_lex(const char *input)
+static struct token *with_temp_lex(struct file *pfile, const char *input)
 {
     struct source src = source;
-    file_stub(with_string(input, "lex"));
-    struct token *t = lex(current_file);
-    struct token *t1 = lex(current_file);
+
+    buffer_sentinel(pfile, with_string(input, "lex"), BS_STUB);
+
+    struct token *t = lex(pfile);
+    struct token *t1 = lex(pfile);
     if (!IS_NEWLINE(t1))
-        unget(current_file, t1);
-    if (peek()->id != EOI) {
-        struct token *t2 = lex(current_file);
+        unget(pfile, t1);
+    if (peek(pfile)->id != EOI) {
+        struct token *t2 = lex(pfile);
         errorf(src,
                "pasting formed '%s%s', an invalid preprocessing token",
                t->name, t2->name);
     }
-    file_unstub();
+    
+    buffer_unsentinel(pfile);
     return t;
 }
 
@@ -804,7 +808,7 @@ static struct vector *hsadd(struct vector *r, struct hideset *hideset)
  * Paste last of left side with first of right side.
  * The 'rs' is selected with no leading spaces and trailing spaces.
  */
-static struct vector *glue(struct vector *ls, struct vector *rs)
+static struct vector *glue(struct file *pfile, struct vector *ls, struct vector *rs)
 {
     struct vector *r = vec_new();
 
@@ -822,7 +826,7 @@ static struct vector *glue(struct vector *ls, struct vector *rs)
     struct token *ltok = vec_pop(ls);
     struct token *rtok = vec_pop_front(rs);
     const char *str = format("%s%s", ltok->name, rtok->name);
-    struct token *t = with_temp_lex(str);
+    struct token *t = with_temp_lex(pfile, str);
     t->hideset = hideset_intersection(ltok->hideset, rtok->hideset);
 
     vec_add(r, ls);
@@ -883,7 +887,9 @@ static struct vector *select(struct vector *args, int index)
     return v;
 }
 
-static struct vector *subst(struct macro *m, struct vector *args,
+static struct vector *subst(struct file *pfile,
+                            struct macro *m,
+                            struct vector *args,
                             struct hideset *hideset)
 {
     struct vector *r = vec_new();
@@ -910,13 +916,13 @@ static struct vector *subst(struct macro *m, struct vector *args,
 
             struct vector *iv = select(args, index);
             if (vec_len(iv))
-                r = glue(r, iv);
+                r = glue(pfile, r, iv);
             i++;
 
         } else if (t0->id == SHARPSHARP && t1) {
 
             hideset = t1->hideset;
-            r = glue(r, vec_new1(t1));
+            r = glue(pfile, r, vec_new1(t1));
             i++;
 
         } else if ((index = inparams(t0, m)) >= 0
@@ -944,7 +950,7 @@ static struct vector *subst(struct macro *m, struct vector *args,
         } else if ((index = inparams(t0, m)) >= 0) {
 
             struct vector *iv = select(args, index);
-            struct vector *ov = expandv(iv);
+            struct vector *ov = expandv(pfile, iv);
             PUSH_SPACE(r, t0);
             vec_add(r, ov);
 
@@ -956,11 +962,11 @@ static struct vector *subst(struct macro *m, struct vector *args,
     return hsadd(r, hideset);
 }
 
-static struct token *expand(void)
+static struct token *expand(struct file *pfile)
 {
     struct token *t;
  start:
-    t = lex(current_file);
+    t = lex(pfile);
     if (t->id != ID)
         return t;
 
@@ -973,26 +979,26 @@ static struct token *expand(void)
     case MACRO_OBJ:
         {
             struct hideset *hdset = hideset_add(t->hideset, name);
-            struct vector *v = subst(m, NULL, hdset);
-            ungetv(v);
+            struct vector *v = subst(pfile, m, NULL, hdset);
+            ungetv(pfile, v);
             goto start;
         }
     case MACRO_FUNC:
         {
-            if (peek()->id != '(')
+            if (peek(pfile)->id != '(')
                 return t;
             SAVE_ERRORS;
-            skip_spaces();
-            struct vector *args = arguments(m);
+            skip_spaces(pfile);
+            struct vector *args = arguments(pfile, m);
             if (NO_ERROR) {
-                struct token *rparen = skip_spaces();
+                struct token *rparen = skip_spaces(pfile);
                 assert(rparen->id == ')');
                 struct hideset *hdset =
                     hideset_add(hideset_intersection
                                 (t->hideset, rparen->hideset),
                                 name);
-                struct vector *v = subst(m, args, hdset);
-                ungetv(v);
+                struct vector *v = subst(pfile, m, args, hdset);
+                ungetv(pfile, v);
                 goto start;
             } else {
                 return t;
@@ -1000,7 +1006,7 @@ static struct token *expand(void)
         }
         break;
     case MACRO_SPECIAL:
-        m->handler(t);
+        m->handler(pfile, t);
         goto start;
     default:
         die("unkown macro type %d", m->kind);
@@ -1008,52 +1014,54 @@ static struct token *expand(void)
     }
 }
 
-static void file_handler(struct token *t)
+static void file_handler(struct file *pfile, struct token *t)
 {
-    const char *file = current_file->name;
+    const char *file = pfile->current->name;
     const char *name = format("\"%s\"", file);
-    struct token *tok = new_token(&(struct token){.id = SCONSTANT,.name =
-                name,.src = t->src });
-    unget(current_file, tok);
+    struct token *tok = new_token(&(struct token){
+            .id = SCONSTANT, .name = name, .src = t->src });
+    unget(pfile, tok);
 }
 
-static void line_handler(struct token *t)
+static void line_handler(struct file *pfile, struct token *t)
 {
-    unsigned line = current_file->line;
+    unsigned line = pfile->current->line;
     const char *name = strd(line);
-    struct token *tok = new_token(&(struct token){.id = NCONSTANT,.name =
-                name,.src = t->src });
-    unget(current_file, tok);
+    struct token *tok = new_token(&(struct token){
+            .id = NCONSTANT, .name = name, .src = t->src });
+    unget(pfile, tok);
 }
 
-static void date_handler(struct token *t)
+static void date_handler(struct file *pfile, struct token *t)
 {
     // mmm dd yyyy
     char ch[20];
     strftime(ch, sizeof(ch), "%b %e %Y", &now);
     const char *name = format("\"%s\"", ch);
-    struct token *tok = new_token(&(struct token){.id = SCONSTANT,.name =
-                name,.src = t->src });
-    unget(current_file, tok);
+    struct token *tok = new_token(&(struct token){
+            .id = SCONSTANT, .name = name, .src = t->src });
+    unget(pfile, tok);
 }
 
-static void time_handler(struct token *t)
+static void time_handler(struct file *pfile, struct token *t)
 {
     // hh:mm:ss
     char ch[10];
     strftime(ch, sizeof(ch), "%T", &now);
     const char *name = format("\"%s\"", ch);
-    struct token *tok = new_token(&(struct token){.id = SCONSTANT,.name =
-                name,.src = t->src });
-    unget(current_file, tok);
+    struct token *tok = new_token(&(struct token){
+            .id = SCONSTANT, .name = name, .src = t->src });
+    unget(pfile, tok);
 }
 
-static void define_special(const char *name, void (*handler) (struct token *))
+static void define_special(struct file *pfile,
+                           const char *name,
+                           void (*handler) (struct file *, struct token *))
 {
     struct macro *m = alloc_macro();
     m->kind = MACRO_SPECIAL;
     m->handler = handler;
-    add_macro(name, m);
+    add_macro(pfile, name, m);
 }
 
 static void add_include(struct vector *v, const char *name)
@@ -1064,12 +1072,12 @@ static void add_include(struct vector *v, const char *name)
 static struct token *lineno(unsigned line, const char *file)
 {
     const char *name = format("# %u \"%s\"\n", line, file);
-    struct token *t = new_token(&(struct token){.id = LINENO,.name =
-                name,.src.file = "<built-in>" });
+    struct token *t = new_token(&(struct token){
+            .id = LINENO, .name = name, .src.file = "<built-in>" });
     return t;
 }
 
-static const char *find_header(const char *name, bool isstd)
+static const char *find_header(struct file *pfile, const char *name, bool isstd)
 {
     if (name == NULL)
         return NULL;
@@ -1087,7 +1095,8 @@ static const char *find_header(const char *name, bool isstd)
          * the contents of path, so it may be desirable
          * to pass a copy when calling one of these functions.
          */
-        vec_push(paths, dirname(xstrdup(current_file->name)));
+        const char *curfile = xstrdup(pfile->current->file);
+        vec_push(paths, dirname(curfile));
         vec_add(paths, std_include_paths);
     }
     for (int i = 0; i < vec_len(paths); i++) {
@@ -1099,12 +1108,13 @@ static const char *find_header(const char *name, bool isstd)
     return NULL;
 }
 
-static void do_include_file(const char *file, const char *name, bool std)
+static void include_file(struct file *pfile,
+                         const char *file, const char *name, bool std)
 {
-    const char *path = find_header(file, std);
+    const char *path = find_header(pfile, file, std);
     if (path) {
-        file_sentinel(with_file(path, name ? name : path));
-        unget(current_file, lineno(1, current_file->name));
+        buffer_sentinel(pfile, with_file(path, name ? name : path), BS_NONE);
+        unget(pfile, lineno(1, pfile->current->name));
     } else {
         if (file)
             fatal("'%s' file not found", file);
@@ -1113,29 +1123,19 @@ static void do_include_file(const char *file, const char *name, bool std)
     }
 }
 
-static void include_file(const char *file, bool std)
+static void include_cmdline(struct file *pfile, const char *command)
 {
-    do_include_file(file, NULL, std);
+    buffer_sentinel(pfile, with_string(command, "<command-line>"), BS_NONE);
+    unget(pfile, lineno(1, pfile->current->name));
 }
 
-static void include_builtin(const char *file)
+static void builtin_macros(struct file *pfile)
 {
-    do_include_file(file, "<built-in>", true);
-}
-
-static void include_command_line(const char *command)
-{
-    file_sentinel(with_string(command, "<command-line>"));
-    unget(current_file, lineno(1, current_file->name));
-}
-
-static void builtin_macros(void)
-{
-    define_special("__FILE__", file_handler);
-    define_special("__LINE__", line_handler);
-    define_special("__DATE__", date_handler);
-    define_special("__TIME__", time_handler);
-    include_builtin(BUILTIN_HEADER);
+    define_special(pfile, "__FILE__", file_handler);
+    define_special(pfile, "__LINE__", line_handler);
+    define_special(pfile, "__DATE__", date_handler);
+    define_special(pfile, "__TIME__", time_handler);
+    include_file(pfile, BUILTIN_HEADER, "<built-in>", true);
 }
 
 static void init_env(void)
@@ -1157,7 +1157,7 @@ static void init_include(void)
     }
 }
 
-static void parseopts(struct vector *options)
+static void parseopts(struct file *pfile, struct vector *options)
 {
     struct strbuf *s = strbuf_new();
 
@@ -1187,256 +1187,45 @@ static void parseopts(struct vector *options)
     }
 
     if (strbuf_len(s))
-        include_command_line(s->str);
+        include_cmdline(pfile, s->str);
 }
 
-void cpp_init(struct vector *options)
+void cpp_init(struct file *pfile, struct vector *options)
 {
     macros = map_new();
     init_env();
     init_include();
-    builtin_macros();
-    parseopts(options);
+    builtin_macros(pfile);
+    parseopts(pfile, options);
 }
 
 /* Getting one expanded token.
  */
-struct token *get_pptok(void)
+struct token *get_pptok(struct file *pfile)
 {
     for (;;) {
-        struct token *t = expand();
+        struct token *t = expand(pfile);
         if (t->id == EOI) {
-            struct ifstub *stub = current_ifstub();
+            struct ifstub *stub = current_ifstub(pfile);
             if (stub)
-                errorf(stub->src,
-                       "unterminated conditional directive");
-            if (current_file->stub) {
+                errorf(stub->src, "unterminated conditional directive");
+            if (pfile->current->stub) {
                 return t;
             } else {
-                file_unsentinel();
-                if (current_file)
-                    return lineno(current_file->line,
-                                  current_file->name);
+                buffer_unsentinel(pfile);
+                if (pfile->current)
+                    return lineno(pfile->current->line,
+                                  pfile->current->name);
                 else
                     return t;
             }
         }
         if (t->id == '#' && t->bol) {
-            directive();
+            directive(pfile);
             continue;
         }
         return t;
     }
-}
-
-/* Parser tokens
- */
-
-static struct token *one_token(void)
-{
-    if (current_file->tokens && current_file->tokens->len) {
-        return vec_pop(current_file->tokens);
-    } else {
-        for (;;) {
-            struct token *t = get_pptok();
-            if (IS_SPACE(t) || IS_NEWLINE(t) || IS_LINENO(t))
-                continue;
-            return t;
-        }
-    }
-}
-
-static struct token *peek_token(void)
-{
-    struct token *t = one_token();
-    vec_push(current_file->tokens, t);
-    return t;
-}
-
-const char *unwrap_scon(const char *name)
-{
-    struct strbuf *s = strbuf_new();
-
-    if (name[0] == '"')
-        strbuf_catn(s, name + 1, strlen(name) - 2);
-    else
-        strbuf_catn(s, name + 2, strlen(name) - 3);
-
-    return strbuf_str(s);
-}
-
-static struct token *combine_scons(struct vector *v, bool wide)
-{
-    struct token *t = new_token(vec_head(v));
-    struct strbuf *s = strbuf_new();
-    if (wide)
-        strbuf_catc(s, 'L');
-    strbuf_catc(s, '"');
-    for (int i = 0; i < vec_len(v); i++) {
-        struct token *ti = vec_at(v, i);
-        const char *name = unwrap_scon(ti->name);
-        if (name)
-            strbuf_cats(s, name);
-    }
-    strbuf_catc(s, '"');
-    t->name = strbuf_str(s);
-    return t;
-}
-
-static struct token *do_cctoken(void)
-{
-    struct token *t = one_token();
-    if (t->id == SCONSTANT) {
-        struct vector *v = vec_new1(t);
-        struct token *t1 = peek_token();
-        bool wide = t->name[0] == 'L';
-        while (t1->id == SCONSTANT) {
-            if (t1->name[0] == 'L')
-                wide = true;
-            vec_push(v, one_token());
-            t1 = peek_token();
-        }
-        if (vec_len(v) > 1)
-            return combine_scons(v, wide);
-    }
-    return t;
-}
-
-/* Parser interfaces
- *
- * 1. gettok
- * 2. lookahead
- * 3. expect
- * 4. match
- */
-
-static int kinds[] = {
-#define _a(a, b, c, d)  d,
-#define _x(a, b, c, d)  c,
-#define _t(a, b, c)     c,
-#define _k(a, b, c)     c,
-#include "token.def"
-};
-
-static const char *kws[] = {
-#define _a(a, b, c, d)
-#define _x(a, b, c, d)
-#define _t(a, b, c)
-#define _k(a, b, c)  b,
-#include "token.def"
-};
-
-static int kwi[] = {
-#define _a(a, b, c, d)
-#define _x(a, b, c, d)
-#define _t(a, b, c)
-#define _k(a, b, c)  a,
-#include "token.def"
-};
-
-struct token *token;
-struct token *ahead_token;
-
-static int tkind(int t)
-{
-    if (t < 0)
-        return 0;
-    else if (t < 128)
-        return kinds[t];
-    else if (t >= ID && t < TOKEND)
-        return kinds[128 + t - ID];
-    else
-        return 0;
-}
-
-static struct token *cctoken(void)
-{
-    struct token *t = do_cctoken();
-    // keywords
-    if (t->id == ID) {
-        for (int i = 0; i < ARRAY_SIZE(kws); i++) {
-            if (!strcmp(t->name, kws[i])) {
-                t->id = kwi[i];
-                break;
-            }
-        }
-    }
-    // set kind finally
-    t->kind = tkind(t->id);
-    return t;
-}
-
-int gettok(void)
-{
-    if (ahead_token) {
-        token = ahead_token;
-        ahead_token = NULL;
-    } else {
-        token = cctoken();
-    }
-    MARK(token);
-    return token->id;
-}
-
-struct token *lookahead(void)
-{
-    if (ahead_token == NULL) {
-        ahead_token = cctoken();
-        // restore source
-        MARK(token);
-    }
-    return ahead_token;
-}
-
-void expect(int t)
-{
-    if (token->id == t)
-        gettok();
-    else
-        error("expect token '%s'", id2s(t));
-}
-
-void match(int t, int follow[])
-{
-    if (token->id == t) {
-        gettok();
-    } else {
-        int n;
-        expect(t);
-        for (n = 0; token->id != EOI; gettok()) {
-            int *k;
-            for (k = follow; *k && *k != token->kind; k++)
-                ;        // continue
-            if (*k == token->kind)
-                break;
-        }
-
-        if (n > 0)
-            fprintf(stderr, "%d tokens skipped.\n", n);
-    }
-}
-
-int skipto(int (*test[]) (struct token *))
-{
-    struct token *t = token;
-    int cnt;
-    for (cnt = 0; token->id != EOI; cnt++, gettok()) {
-        for (int i = 0; test[i]; i++)
-            if (test[i](token))
-                goto out;
-    }
- out:
-    if (cnt > 1)
-        errorf(t->src,
-               "invalid token '%s', %d tokens skipped",
-               t->name, cnt);
-    else if (cnt)
-        errorf(t->src,
-               "invalid token '%s'",
-               t->name);
-    else
-        die("nothing skipped, may be an internal error");
-    return cnt;
 }
 
 void dump_macro_map(void)
