@@ -51,7 +51,7 @@ enum { BK_REGULAR = 1, BK_STRING, BK_TOKEN };
 
 // A buffer represents a file's content.
 struct buffer {
-    unsigned char kind;                  // kind (regular/string)
+    int kind:8;                          // kind (regular/string)
     bool bol;                            // beginning of line
     bool stub;
     bool need_line;
@@ -69,7 +69,7 @@ struct buffer {
     struct vector *ifstubs;
     struct vector *ungets;               // lex ungets
     unsigned line, column;
-    struct buffer *prev;        // previous buffer
+    struct buffer *prev;                 // previous buffer
 };
 
 // The file read by preprocessor.
