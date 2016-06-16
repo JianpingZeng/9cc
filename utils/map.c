@@ -94,7 +94,7 @@ static void map_remove(struct map *map, const void *key)
 static void map_add(struct map *map, const void *key, void *value)
 {
     unsigned b = bucket(map, key);
-    struct map_entry *entry = alloc_map_entry();
+    struct map_entry *entry = zmalloc(sizeof(struct map_entry));
     entry->key = key;
     entry->value = value;
     entry->next = map->table[b];
@@ -109,11 +109,25 @@ static void map_add(struct map *map, const void *key, void *value)
 
 struct map *map_new(void)
 {
-    struct map *map = alloc_map();
+    struct map *map = zmalloc(sizeof(struct map));
     map->size = 0;
     map->cmpfn = cmp;
     do_alloc_map(map, MAP_INIT_SIZE);
     return map;
+}
+
+void map_free(struct map *map)
+{
+    for (unsigned i = 0; i < map->tablesize; i++) {
+        struct map_entry *entry = map->table[i];
+        while (entry) {
+            struct map_entry *next = entry->next;
+            free(entry);
+            entry = next;
+        }
+    }
+    free(map->table);
+    free(map);
 }
 
 struct map *map_newf(int (*cmp) (const void *, const void *))
