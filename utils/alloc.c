@@ -46,9 +46,3 @@ void *alloc_map_entry(void)
 {
     return do_alloc_object(&map_entry_state, sizeof(struct map_entry));
 }
-
-static struct alloc_state hideset_state;
-void *alloc_hideset(void)
-{
-    return do_alloc_object(&hideset_state, sizeof(struct hideset));
-}

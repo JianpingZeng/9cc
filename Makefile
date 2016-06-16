@@ -23,14 +23,12 @@ UTILS_OBJ += $(utils_dir)strbuf.o
 UTILS_OBJ += $(utils_dir)vector.o
 UTILS_OBJ += $(utils_dir)map.o
 UTILS_OBJ += $(utils_dir)string.o
-UTILS_OBJ += $(utils_dir)hideset.o
 UTILS_OBJ += $(utils_dir)set.o
 UTILS_OBJ += $(utils_dir)alloc.o
 
 UTILS_INC += $(utils_dir)strbuf.h
 UTILS_INC += $(utils_dir)vector.h
 UTILS_INC += $(utils_dir)map.h
-UTILS_INC += $(utils_dir)hideset.h
 UTILS_INC += $(utils_dir)set.h
 UTILS_INC += $(utils_dir)utils.h
 
@@ -51,6 +49,7 @@ CC1_OBJ += type.o
 CC1_OBJ += input.o
 CC1_OBJ += ir.o
 CC1_OBJ += block.o
+CC1_OBJ += hideset.o
 CC1_OBJ += imap.o
 
 CC1_INC += cc.h
@@ -61,6 +60,7 @@ CC1_INC += gen.h
 CC1_INC += node.def
 CC1_INC += token.def
 CC1_INC += rop.def
+CC1_INC += hideset.h
 CC1_INC += imap.h
 
 SYS_INC += $(sys_dir)sys.h

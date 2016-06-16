@@ -1,6 +1,8 @@
 #ifndef _LEX_H
 #define _LEX_H
 
+#include "hideset.h"
+
 // source
 struct source {
     unsigned int line;

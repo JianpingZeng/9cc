@@ -70,3 +70,9 @@ void *alloc_opcode(void)
 {
     return do_alloc_object(&opcode_state, sizeof(struct opcode));
 }
+
+static struct alloc_state hideset_state;
+void *alloc_hideset(void)
+{
+    return do_alloc_object(&hideset_state, sizeof(struct hideset));
+}

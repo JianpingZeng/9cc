@@ -70,8 +70,6 @@ extern void *alloc_hideset(void);
 #include "map.h"
 // strbuf.c
 #include "strbuf.h"
-// hideset.c
-#include "hideset.h"
 // set.c
 #include "set.h"
 
