@@ -76,3 +76,9 @@ void *alloc_hideset(void)
 {
     return do_alloc_object(&hideset_state, sizeof(struct hideset));
 }
+
+static struct alloc_state cpp_ident_state;
+void *alloc_cpp_ident(void)
+{
+    return do_alloc_object(&cpp_ident_state, sizeof(struct cpp_ident));
+}

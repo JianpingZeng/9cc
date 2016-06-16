@@ -129,6 +129,11 @@ bool is_original_file(struct file *pfile, const char *file)
         return false;
 }
 
+static inline struct ident *alloc_cpp_ident_entry(struct imap *imap)
+{
+    return alloc_cpp_ident();
+}
+
 static struct file *new_file(const char *file)
 {
     struct file *pfile = zmalloc(sizeof(struct file));
@@ -137,6 +142,9 @@ static struct file *new_file(const char *file)
     pfile->macros = map_new();
     pfile->std_include_paths = vec_new();
     pfile->usr_include_paths = vec_new();
+    // 2^13: 8k slots
+    pfile->imap = imap_new(13);
+    pfile->imap->alloc_entry = alloc_cpp_ident_entry;
     return pfile;
 }
 

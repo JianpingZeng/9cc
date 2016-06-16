@@ -44,6 +44,7 @@ extern void *alloc_basic_block(void);
 extern void *alloc_reladdr(void);
 extern void *alloc_opcode(void);
 extern void *alloc_hideset(void);
+extern void *alloc_cpp_ident(void);
 
 // value
 #define VALUE_U(v)    ((v).u)

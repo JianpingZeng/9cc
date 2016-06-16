@@ -130,6 +130,17 @@ struct macro {
     struct source src;
 };
 
+// cpp_ident type
+enum { CT_MACRO = 1 };
+
+struct cpp_ident {
+    struct ident id;
+    int type:8;
+    union {
+        struct macro *macro;
+    } value;
+};
+
 extern void cpp_init(struct file *pfile, struct vector *options);
 extern struct token *get_pptok(struct file *pfile);
 
