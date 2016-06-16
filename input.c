@@ -135,6 +135,9 @@ static struct file *new_file(const char *file)
     pfile->file = file;
     pfile->buffers = vec_new();
     pfile->tokens = vec_new();
+    pfile->macros = map_new();
+    pfile->std_include_paths = vec_new();
+    pfile->usr_include_paths = vec_new();
     return pfile;
 }
 

@@ -9,6 +9,11 @@ struct source {
 };
 
 enum {
+    BLANK = 01, NEWLINE = 02, LETTER = 04,
+    DIGIT = 010, HEX = 020, OTHER = 040,
+};
+
+enum {
 #define _a(a, b, c, d)  a,
 #define _x(a, b, c, d)  a=d,
 #define _t(a, b, c)     a,
@@ -71,12 +76,17 @@ struct file {
     struct buffer *current;     // current buffer
     struct vector *tokens;      // parser ungets
     struct ident_map *ident_map; // identifier hash map
+    struct map *macros;
+    struct vector *std_include_paths;
+    struct vector *usr_include_paths;
+    // current timestamp
+    struct tm now;
 };
 
 extern struct file *cpp_file;
 
 struct ifstub {
-    int id:10;
+    int id:ID_BITS;
     bool b;
     struct source src;
 };
@@ -128,14 +138,13 @@ extern void match(int t, int follow[]);
 extern int skipto(int (*test[]) (struct token *));
 extern const char *unwrap_scon(const char *name);
 
-extern void dump_macro_map(void);
+extern void dump_macro_map(struct file *pfile);
 
 // lex.c
 #define MARK(t)  source = t->src
 extern struct source source;
 extern struct token *token;
 extern struct token *ahead_token;
-extern struct token *newline_token;
 extern struct token *space_token;
 
 extern int isletter(int c);

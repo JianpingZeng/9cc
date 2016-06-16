@@ -1,10 +1,5 @@
 #include "cc.h"
 
-enum {
-    BLANK = 01, NEWLINE = 02, LETTER = 04,
-    DIGIT = 010, HEX = 020, OTHER = 040,
-};
-
 static unsigned char map[256] = {
 #define _a(a, b, c, d)  c,
 #define _x(a, b, c, d)
@@ -23,8 +18,8 @@ static const char *tnames[] = {
 };
 
 static struct token *eoi_token = &(struct token){.id = EOI,.name = "EOI" };
+static struct token *newline_token = &(struct token){.id = '\n',.name = "\n" };
 struct token *space_token = &(struct token){.id = ' ',.name = " " };
-struct token *newline_token = &(struct token){.id = '\n',.name = "\n" };
 
 struct source source;
 

@@ -13,16 +13,12 @@ static struct token *expand(struct file *pfile);
 static struct vector *expandv(struct file *pfile, struct vector *v);
 static void include_file(struct file *pfile,
                          const char *file, const char *name, bool std);
-static struct map *macros;
-static struct vector *std_include_paths;
-static struct vector *usr_include_paths;
-static struct tm now;
 static struct token *token_zero = &(struct token){.id = NCONSTANT,.name = "0" };
 static struct token *token_one = &(struct token){.id = NCONSTANT,.name = "1" };
 
 static inline bool defined(struct file *pfile, const char *name)
 {
-    return map_get(macros, name);
+    return map_get(pfile->macros, name);
 }
 
 static struct token *skip_spaces(struct file *pfile)
@@ -450,23 +446,23 @@ static void add_macro(struct file *pfile, const char *name, struct macro *m)
         if (!strcmp(name, builtins[i]))
             m->builtin = true;
     }
-    map_put(macros, name, m);
+    map_put(pfile->macros, name, m);
 }
 
 static void remove_macro(struct file *pfile, const char *name)
 {
-    struct macro *m = map_get(macros, name);
+    struct macro *m = map_get(pfile->macros, name);
     if (m && m->builtin)
         error("Can't undefine predefined macro '%s'", name);
     else
-        map_put(macros, name, NULL);
+        map_put(pfile->macros, name, NULL);
 }
 
 static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *m)
 {
     // check redefinition
     const char *name = t->name;
-    struct macro *m1 = map_get(macros, name);
+    struct macro *m1 = map_get(pfile->macros, name);
     size_t len1p = vec_len(m->params);
     size_t len1b = vec_len(m->body);
     
@@ -971,7 +967,7 @@ static struct token *expand(struct file *pfile)
         return t;
 
     const char *name = t->name;
-    struct macro *m = map_get(macros, name);
+    struct macro *m = map_get(pfile->macros, name);
     if (m == NULL || hideset_has(t->hideset, name))
         return t;
 
@@ -1036,7 +1032,7 @@ static void date_handler(struct file *pfile, struct token *t)
 {
     // mmm dd yyyy
     char ch[20];
-    strftime(ch, sizeof(ch), "%b %e %Y", &now);
+    strftime(ch, sizeof(ch), "%b %e %Y", &pfile->now);
     const char *name = format("\"%s\"", ch);
     struct token *tok = new_token(&(struct token){
             .id = SCONSTANT, .name = name, .src = t->src });
@@ -1047,7 +1043,7 @@ static void time_handler(struct file *pfile, struct token *t)
 {
     // hh:mm:ss
     char ch[10];
-    strftime(ch, sizeof(ch), "%T", &now);
+    strftime(ch, sizeof(ch), "%T", &pfile->now);
     const char *name = format("\"%s\"", ch);
     struct token *tok = new_token(&(struct token){
             .id = SCONSTANT, .name = name, .src = t->src });
@@ -1082,11 +1078,12 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
     if (name == NULL)
         return NULL;
 
-    struct vector *paths = vec_new();
+    struct vector *paths;
     if (isstd) {
-        vec_add(paths, std_include_paths);
+        paths = pfile->std_include_paths;
     } else {
-        vec_add(paths, usr_include_paths);
+        paths = vec_new();
+        vec_add(paths, pfile->usr_include_paths);
         // try current path
         /**
          * NOTE!!!
@@ -1097,7 +1094,7 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
          */
         const char *curfile = xstrdup(pfile->current->file);
         vec_push(paths, dirname(curfile));
-        vec_add(paths, std_include_paths);
+        vec_add(paths, pfile->std_include_paths);
     }
     for (int i = 0; i < vec_len(paths); i++) {
         const char *dir = vec_at(paths, i);
@@ -1138,22 +1135,20 @@ static void builtin_macros(struct file *pfile)
     include_file(pfile, BUILTIN_HEADER, "<built-in>", true);
 }
 
-static void init_env(void)
+static void init_env(struct file *pfile)
 {
     setlocale(LC_ALL, "C");
     time_t t = time(NULL);
-    set_localtime(&t, &now);
+    set_localtime(&t, &pfile->now);
 }
 
-static void init_include(void)
+static void init_include(struct file *pfile)
 {
-    std_include_paths = vec_new();
-    usr_include_paths = vec_new();
     // add system include paths
     struct vector *sys_include_paths = sys_include_dirs();
     for (int i = 0; i < vec_len(sys_include_paths); i++) {
         const char *dir = vec_at(sys_include_paths, i);
-        add_include(std_include_paths, dir);
+        add_include(pfile->std_include_paths, dir);
     }
 }
 
@@ -1166,7 +1161,7 @@ static void parseopts(struct file *pfile, struct vector *options)
         if (strlen(arg) < 3)
             continue;
         if (!strncmp(arg, "-I", 2)) {
-            add_include(usr_include_paths, arg + 2);
+            add_include(pfile->usr_include_paths, arg + 2);
         } else if (!strncmp(arg, "-D", 2)) {
             const char *content = arg + 2;
             char *ptr = strchr(content, '=');
@@ -1192,9 +1187,8 @@ static void parseopts(struct file *pfile, struct vector *options)
 
 void cpp_init(struct file *pfile, struct vector *options)
 {
-    macros = map_new();
-    init_env();
-    init_include();
+    init_env(pfile);
+    init_include(pfile);
     builtin_macros(pfile);
     parseopts(pfile, options);
 }
@@ -1228,7 +1222,7 @@ struct token *get_pptok(struct file *pfile)
     }
 }
 
-void dump_macro_map(void)
+void dump_macro_map(struct file *pfile)
 {
-    map_dump(macros);
+    map_dump(pfile->macros);
 }
