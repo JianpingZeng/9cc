@@ -1113,7 +1113,7 @@ static void include_cmdline(struct file *pfile, const char *command)
     unget(pfile, lineno(1, pfile->current->name));
 }
 
-static void builtin_macros(struct file *pfile)
+static void init_builtin_macros(struct file *pfile)
 {
     define_special(pfile, "__FILE__", file_handler);
     define_special(pfile, "__LINE__", line_handler);
@@ -1176,7 +1176,7 @@ void cpp_init(struct file *pfile, struct vector *options)
 {
     init_env(pfile);
     init_include(pfile);
-    builtin_macros(pfile);
+    init_builtin_macros(pfile);
     parseopts(pfile, options);
 }
 
