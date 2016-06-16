@@ -69,13 +69,13 @@ struct buffer {
     struct vector *ifstubs;
     struct vector *ungets;               // lex ungets
     unsigned line, column;
+    struct buffer *prev;        // previous buffer
 };
 
 // The file read by preprocessor.
 struct file {
     const char *file;           // file name
-    struct vector *buffers;
-    struct buffer *current;     // current buffer
+    struct buffer *current;     // current buffer (top of buffer stack)
     struct vector *tokens;      // parser ungets
     struct ident_map *ident_map; // identifier hash map
     struct map *macros;

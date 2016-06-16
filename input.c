@@ -90,15 +90,15 @@ void buffer_sentinel(struct file *pfile, struct buffer *pb,
 {
     if (opt == BS_STUB)
         pb->stub = true;
-    vec_push(pfile->buffers, pb);
+    pb->prev = pfile->current;
     pfile->current = pb;
 }
 
 void buffer_unsentinel(struct file *pfile)
 {
-    struct buffer *pb = vec_pop(pfile->buffers);
-    close_buffer(pb);
-    pfile->current = vec_tail(pfile->buffers);
+    struct buffer *prev = pfile->current->prev;
+    close_buffer(pfile->current);
+    pfile->current = prev;
     // reset current 'bol'
     if (pfile->current)
         pfile->current->bol = true;
@@ -133,7 +133,6 @@ static struct file *new_file(const char *file)
 {
     struct file *pfile = zmalloc(sizeof(struct file));
     pfile->file = file;
-    pfile->buffers = vec_new();
     pfile->tokens = vec_new();
     pfile->macros = map_new();
     pfile->std_include_paths = vec_new();
