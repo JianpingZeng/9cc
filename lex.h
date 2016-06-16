@@ -77,7 +77,7 @@ struct file {
     const char *file;           // file name
     struct buffer *current;     // current buffer (top of buffer stack)
     struct vector *tokens;      // parser ungets
-    struct ident_map *ident_map; // identifier hash map
+    struct imap *imap; // identifier hash map
     struct map *macros;
     struct vector *std_include_paths;
     struct vector *usr_include_paths;
