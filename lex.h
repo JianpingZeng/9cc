@@ -34,7 +34,7 @@ struct token {
     int kind:ID_BITS;
     bool bol;                // beginning of line
     bool space;                // leading space
-    const char *name;
+    const char *lexeme;
     struct source src;
     struct hideset *hideset;
 };

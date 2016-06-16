@@ -17,9 +17,9 @@ static const char *tnames[] = {
 #include "token.def"
 };
 
-static struct token *eoi_token = &(struct token){.id = EOI,.name = "EOI" };
-static struct token *newline_token = &(struct token){.id = '\n',.name = "\n" };
-struct token *space_token = &(struct token){.id = ' ',.name = " " };
+static struct token *eoi_token = &(struct token){.id = EOI, .lexeme = "EOI"};
+static struct token *newline_token = &(struct token){.id = '\n', .lexeme = "\n"};
+struct token *space_token = &(struct token){.id = ' ', .lexeme = " "};
 
 struct source source;
 
@@ -212,8 +212,8 @@ struct token *new_token(struct token *tok)
 {
     struct token *t = alloc_token();
     memcpy(t, tok, sizeof(struct token));
-    if (!tok->name)
-        t->name = id2s(tok->id);
+    if (!tok->lexeme)
+        t->lexeme = id2s(tok->id);
     return t;
 }
 
@@ -221,7 +221,7 @@ static struct token *make_token2(struct buffer *pb, int id, const char *name)
 {
     struct token *t = alloc_token();
     t->id = id;
-    t->name = name ? name : id2s(id);
+    t->lexeme = name ? name : id2s(id);
     t->src = source;
     t->bol = pb->bol;
     pb->bol = false;
@@ -608,7 +608,7 @@ static struct token *dolex(struct file *pfile)
     // done
     result = alloc_token();
     result->id = id;
-    result->name = id2s(id);
+    result->lexeme = id2s(id);
     result->src = source;
     result->bol = pb->bol;
     pb->bol = false;
@@ -664,11 +664,11 @@ struct token *header_name(struct file *pfile)
     if (ch == '<') {
         const char *name = hq_char_sequence(pfile, '>');
         return new_token(&(struct token) {
-                .name = name, .kind = ch});
+                .lexeme = name, .kind = ch});
     } else if (ch == '"') {
         const char *name = hq_char_sequence(pfile, '"');
         return new_token(&(struct token) {
-                .name = name, .kind = ch});
+                .lexeme = name, .kind = ch});
     } else {
         // pptokens
         pb->cur--;
@@ -765,7 +765,7 @@ void skip_ifstub(struct file *pfile)
             }
             continue;
         }
-        const char *name = t->name;
+        const char *name = t->lexeme;
         if (!strcmp(name, "if") ||
             !strcmp(name, "ifdef") ||
             !strcmp(name, "ifndef")) {
@@ -849,12 +849,12 @@ static struct token *combine_scons(struct vector *v, bool wide)
     strbuf_catc(s, '"');
     for (int i = 0; i < vec_len(v); i++) {
         struct token *ti = vec_at(v, i);
-        const char *name = unwrap_scon(ti->name);
+        const char *name = unwrap_scon(ti->lexeme);
         if (name)
             strbuf_cats(s, name);
     }
     strbuf_catc(s, '"');
-    t->name = strbuf_str(s);
+    t->lexeme = strbuf_str(s);
     return t;
 }
 
@@ -864,9 +864,9 @@ static struct token *do_cctoken(struct file *pfile)
     if (t->id == SCONSTANT) {
         struct vector *v = vec_new1(t);
         struct token *t1 = peek_token(pfile);
-        bool wide = t->name[0] == 'L';
+        bool wide = t->lexeme[0] == 'L';
         while (t1->id == SCONSTANT) {
-            if (t1->name[0] == 'L')
+            if (t1->lexeme[0] == 'L')
                 wide = true;
             vec_push(v, one_token(pfile));
             t1 = peek_token(pfile);
@@ -922,7 +922,7 @@ static struct token *cctoken(struct file *pfile)
     // keywords
     if (t->id == ID) {
         for (int i = 0; i < ARRAY_SIZE(kws); i++) {
-            if (!strcmp(t->name, kws[i])) {
+            if (!strcmp(t->lexeme, kws[i])) {
                 t->id = kwi[i];
                 break;
             }
@@ -996,11 +996,11 @@ int skipto(int (*test[]) (struct token *))
     if (cnt > 1)
         errorf(t->src,
                "invalid token '%s', %d tokens skipped",
-               t->name, cnt);
+               t->lexeme, cnt);
     else if (cnt)
         errorf(t->src,
                "invalid token '%s'",
-               t->name);
+               t->lexeme);
     else
         die("nothing skipped, may be an internal error");
     return cnt;
