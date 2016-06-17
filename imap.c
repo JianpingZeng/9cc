@@ -85,7 +85,11 @@ struct ident *imap_lookup_with_hash(struct imap *imap,
 
     result->len = len;
     result->hash = hash;
-    result->str = (const unsigned char *)xstrndup((const char *)str, len);
+    
+    char *d = xmalloc(len + 1);
+    memcpy(d, str, len);
+    d[len] = '\0';
+    result->str = (const unsigned char *)d;
 
     if (++imap->nelements * 4 >= imap->nslots * 3)
         imap_expand(imap);

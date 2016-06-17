@@ -32,20 +32,20 @@ struct buffer *with_file(const char *file)
     fseek(fp, 0, SEEK_END);
     long size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
+    
     pb->buf = xmalloc(size + 1);
-
-    unsigned char *d = (unsigned char *)pb->buf;
+    char *d = (char *)pb->buf;
     if (fread(d, size, 1, fp) != 1)
         die("%s: %s", file, strerror(errno));
     fclose(fp);
-
-    pb->cur = pb->line_base = pb->next_line = pb->buf;
+    
     /**
      * Add a newline character to the end if the
      * file doesn't have one, thus the include
      * directive would work well.
      */
     d[size] = '\n';
+    pb->cur = pb->line_base = pb->next_line = pb->buf;
     pb->limit = &pb->buf[size];
     return pb;
 }
@@ -63,10 +63,11 @@ struct buffer *with_string(const char *input, const char *name)
     size_t len = strlen(input);
     pb->kind = BK_STRING;
     pb->name = name ? name : "<anonymous-string>";
-    pb->buf = (const unsigned char *)xstrdup(input);
-    pb->cur = pb->line_base = pb->next_line = pb->buf;
-    unsigned char *d = (unsigned char *)pb->buf;
+    pb->buf = xmalloc(len + 1);
+    char *d = (char *)pb->buf;
+    memcpy(d, input, len);
     d[len] = '\n';
+    pb->cur = pb->line_base = pb->next_line = pb->buf;
     pb->limit = &pb->buf[len];
     return pb;
 }
