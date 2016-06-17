@@ -82,7 +82,6 @@ ifeq (Linux, $(KERNEL))
 
 SYS_OBJ += $(sys_dir)unix.o
 SYS_OBJ += $(sys_dir)linux.o
-LDFLAGS += -lunwind
 
 cpu_has = $(shell cat /proc/cpuinfo|grep ^flags|awk '{if (match($$0, $(1))) {print 1} else {print 0}}')
 HAVE_MMX = $(call cpu_has, /mmx/)
