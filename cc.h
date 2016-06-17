@@ -36,7 +36,6 @@ extern struct cc_options opts;
 
 // alloc.c
 extern void *alloc_node(void);
-extern void *alloc_token(void);
 extern void *alloc_macro(void);
 extern void *alloc_operand(void);
 extern void *alloc_tac(void);

@@ -42,6 +42,13 @@ struct token {
     } value;
 };
 
+// tokens
+struct tokenrun {
+    struct token *base;
+    struct token *limit;
+    struct tokenrun *prev;
+};
+
 struct line_note {
     const unsigned char *pos;
     int type;
@@ -82,6 +89,8 @@ struct file {
     struct imap *imap;          // identifier hash map
     struct vector *std_include_paths;
     struct vector *usr_include_paths;
+    struct tokenrun *tokenrun;
+    struct token *cur_token;
     // current timestamp
     struct tm now;
 };
@@ -157,6 +166,8 @@ extern int isxalpha(int c);
 #define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 #define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
+
+struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count);
 
 extern struct token *lex(struct file *pfile);
 extern void unget(struct file *pfile, struct token *t);

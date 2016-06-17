@@ -29,12 +29,6 @@ void *alloc_node(void)
     return do_alloc_object(&node_state, sizeof(node_t));
 }
 
-static struct alloc_state token_state;
-void *alloc_token(void)
-{
-    return do_alloc_object(&token_state, sizeof(struct token));
-}
-
 static struct alloc_state macro_state;
 void *alloc_macro(void)
 {
