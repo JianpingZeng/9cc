@@ -146,7 +146,6 @@ extern void cpp_init(struct file *pfile, struct vector *options);
 extern struct token *get_pptok(struct file *pfile);
 
 // lex.c
-#define MARK(t)  source = t->src
 extern struct source source;
 extern struct token *token;
 extern struct token *ahead_token;

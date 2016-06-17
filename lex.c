@@ -31,6 +31,8 @@ struct source source;
         fs->column = col;                       \
     } while (0)
 
+#define MARK(t)  source = t->src
+
 #define MARKC(fs)  do {                         \
         source.file = fs->name;                 \
         source.line = fs->line;                 \
