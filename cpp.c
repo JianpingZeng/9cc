@@ -440,9 +440,16 @@ static void parameters(struct file *pfile, struct macro *m)
         m->params = vec_new();
 }
 
-static struct macro *lookup_macro(struct file *pfile, struct token *t)
+static struct cpp_ident *lookup_macro(struct file *pfile, struct token *t)
 {
-    
+    struct ident *id = t->value.ident;
+    struct cpp_ident *ident;
+
+    ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
+    if (ident && ident->type == CT_MACRO)
+        return ident;
+    else
+        return NULL;
 }
 
 static void add_macro(struct file *pfile, struct ident *id, struct macro *m)
@@ -452,25 +459,31 @@ static void add_macro(struct file *pfile, struct ident *id, struct macro *m)
         "__STDC_VERSION__",
         "__STDC_HOSTED__"
     };
-    struct cpp_ident *ident;
-    
     for (int i = 0; i < ARRAY_SIZE(builtins); i++) {
         if (!strcmp((const char *)id->str, builtins[i]))
             m->builtin = true;
     }
+    struct cpp_ident *ident;
     ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_CREATE);
     ident->type = CT_MACRO;
     ident->value.macro = m;
 }
 
+static void add_macro_with_name(struct file *pfile, const char *name, struct macro *m)
+{
+    struct ident *id = imap_lookup(pfile->imap,
+                                   (const unsigned char *)name,
+                                   strlen(name), IMAP_CREATE);
+    add_macro(pfile, id, m);
+}
+
 static void remove_macro(struct file *pfile, struct token *t)
 {
-    struct ident *id = t->value.ident;
     struct cpp_ident *ident;
 
-    ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
+    ident = lookup_macro(pfile, t);
 
-    if (ident && ident->type == CT_MACRO) {
+    if (ident) {
         struct macro *m = ident->value.macro;
         if (m->builtin) {
             error("Can't undefine predefined macro '%s'", t->lexeme);
@@ -485,7 +498,8 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
 {
     // check redefinition
     const char *name = t->lexeme;
-    struct macro *m1 = map_get(pfile->macros, name);
+    struct cpp_ident *ident = lookup_macro(pfile, t);
+    struct macro *m1 = ident ? ident->value.macro : NULL;
     size_t len1p = vec_len(m->params);
     size_t len1b = vec_len(m->body);
     
@@ -583,7 +597,7 @@ static void define_objlike_macro(struct file *pfile, struct token *t)
     m->body = replacement_list(pfile);
     ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
-        add_macro(pfile, t, m);
+        add_macro(pfile, t->value.ident, m);
 }
 
 static void define_funclike_macro(struct file *pfile, struct token *t)
@@ -596,7 +610,7 @@ static void define_funclike_macro(struct file *pfile, struct token *t)
     m->body = replacement_list(pfile);
     ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
-        add_macro(pfile, t->lexeme, m);
+        add_macro(pfile, t->value.ident, m);
 }
 
 static struct token *read_identifier(struct file *pfile)
@@ -1075,7 +1089,7 @@ static void define_special(struct file *pfile,
     struct macro *m = alloc_macro();
     m->kind = MACRO_SPECIAL;
     m->handler = handler;
-    add_macro(pfile, name, m);
+    add_macro_with_name(pfile, name, m);
 }
 
 static void add_include(struct vector *v, const char *name)

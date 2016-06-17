@@ -1,6 +1,6 @@
 #include "cc.h"
 
-struct hideset *hideset_add(struct hideset *s, const char *name)
+struct hideset *hideset_add(struct hideset *s, const unsigned char *name)
 {
     struct hideset *r = alloc_hideset();
     r->name = name;
@@ -8,10 +8,10 @@ struct hideset *hideset_add(struct hideset *s, const char *name)
     return r;
 }
 
-bool hideset_has(struct hideset * s, const char *name)
+bool hideset_has(struct hideset * s, const unsigned char *name)
 {
     for (; s; s = s->next) {
-        if (!strcmp(s->name, name))
+        if (s->name == name)
             return true;
     }
     return false;
