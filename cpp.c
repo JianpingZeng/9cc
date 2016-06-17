@@ -11,8 +11,7 @@
 
 static struct token *expand(struct file *pfile);
 static struct vector *expandv(struct file *pfile, struct vector *v);
-static void include_file(struct file *pfile,
-                         const char *file, const char *name, bool std);
+static void include_file(struct file *pfile, const char *file, bool std);
 static struct token *token_zero = &(struct token){.id = NCONSTANT, .lexeme = "0" };
 static struct token *token_one = &(struct token){.id = NCONSTANT, .lexeme = "1" };
 
@@ -227,7 +226,7 @@ static void do_include(struct file *pfile)
 {
     struct token *t = header_name(pfile);
     if (t) {
-        include_file(pfile, t->lexeme, NULL, t->kind == '<');
+        include_file(pfile, t->lexeme, t->kind == '<');
     } else {
         // # include pptokens newline
         struct source src = source;
@@ -247,7 +246,7 @@ static void do_include(struct file *pfile)
 
         struct token *tok = vec_head(r);
         if (tok->id == SCONSTANT) {
-            include_file(pfile, unwrap_scon(tok->lexeme), NULL, false);
+            include_file(pfile, unwrap_scon(tok->lexeme), false);
             for (int i = 1; i < vec_len(r); i++) {
                 struct token *t = vec_at(r, i);
                 if (!IS_SPACE(t)) {
@@ -271,7 +270,7 @@ static void do_include(struct file *pfile)
             else if (strbuf_len(s) == 0)
                 errorf(src, "empty filename");
             else
-                include_file(pfile, s->str, NULL, true);
+                include_file(pfile, s->str, true);
         } else {
             errorf(src, "expected \"FILENAME\" or <FILENAME>");
         }
@@ -811,8 +810,9 @@ static struct token *with_temp_lex(struct file *pfile, const char *input)
                "pasting formed '%s%s', an invalid preprocessing token",
                t->lexeme, t2->lexeme);
     }
-    
+
     buffer_unsentinel(pfile);
+    
     return t;
 }
 
@@ -1139,14 +1139,11 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
     return NULL;
 }
 
-static void include_file(struct file *pfile,
-                         const char *file, const char *name, bool std)
+static void include_file(struct file *pfile, const char *file, bool std)
 {
     const char *path = find_header(pfile, file, std);
     if (path) {
-        buffer_sentinel(pfile,
-                        with_file(path, name ? name : path),
-                        BS_CONTINUOUS);
+        buffer_sentinel(pfile, with_file(path), BS_CONTINUOUS);
         unget(pfile, lineno(1, pfile->current->name));
     } else {
         if (file)
@@ -1170,7 +1167,7 @@ static void init_builtin_macros(struct file *pfile)
     define_special(pfile, "__LINE__", line_handler);
     define_special(pfile, "__DATE__", date_handler);
     define_special(pfile, "__TIME__", time_handler);
-    include_file(pfile, BUILTIN_HEADER, "<built-in>", true);
+    include_file(pfile, BUILTIN_HEADER, true);
 }
 
 static void init_env(struct file *pfile)

@@ -13,17 +13,17 @@ static struct buffer *new_buffer(void)
     return pb;
 }
 
-static void close_buffer(struct buffer *pb)
+static void free_buffer(struct buffer *pb)
 {
     free((void *)pb->buf);
     free(pb);
 }
 
-struct buffer *with_file(const char *file, const char *name)
+struct buffer *with_file(const char *file)
 {
     struct buffer *pb = new_buffer();
     pb->kind = BK_REGULAR;
-    pb->name = name;
+    pb->name = file;
     
     FILE *fp = fopen(file, "r");
     if (fp == NULL)
@@ -95,7 +95,7 @@ void buffer_sentinel(struct file *pfile, struct buffer *pb,
 void buffer_unsentinel(struct file *pfile)
 {
     struct buffer *prev = pfile->current->prev;
-    close_buffer(pfile->current);
+    free_buffer(pfile->current);
     pfile->current = prev;
     // reset current 'bol'
     if (pfile->current)
@@ -145,5 +145,5 @@ static struct file *new_file(const char *file)
 void input_init(const char *file)
 {
     cpp_file = new_file(file);
-    buffer_sentinel(cpp_file, with_file(file, file), BS_CONTINUOUS);
+    buffer_sentinel(cpp_file, with_file(file), BS_CONTINUOUS);
 }
