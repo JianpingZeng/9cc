@@ -56,7 +56,7 @@ enum { BK_REGULAR = 1, BK_STRING, BK_TOKEN };
 struct buffer {
     int kind:8;                          // kind (regular/string)
     bool bol;                            // beginning of line
-    bool stub;
+    bool return_eoi;                     // return eoi when reach the end
     bool need_line;
     const char *name;                    // buffer name
     const unsigned char *buf;            // entire buffer
@@ -68,7 +68,7 @@ struct buffer {
     unsigned int cur_note;               // current note
     unsigned int notes_used;             // number of notes
     unsigned int notes_alloc;            // number of notes allocated
-    struct ifstack *ifstack;
+    struct ifstack *ifstack;             // top of 'if' stack
     struct vector *ungets;               // lex ungets
     unsigned line, column;
     struct buffer *prev;                 // previous buffer
@@ -101,7 +101,7 @@ extern struct buffer *with_string(const char *input, const char *name);
 extern struct buffer *with_file(const char *file, const char *name);
 extern struct buffer *with_tokens(struct vector *v, struct buffer *cur);
 
-enum buffer_sentinel_option { BS_NONE = 0, BS_STUB };
+enum buffer_sentinel_option { BS_CONTINUOUS = 0, BS_RETURN_EOI };
 
 extern void buffer_sentinel(struct file *pfile, struct buffer *pb,
                           enum buffer_sentinel_option opt);
@@ -145,13 +145,6 @@ struct cpp_ident {
 extern void cpp_init(struct file *pfile, struct vector *options);
 extern struct token *get_pptok(struct file *pfile);
 
-extern int gettok(void);
-extern struct token *lookahead(void);
-extern void expect(int t);
-extern void match(int t, int follow[]);
-extern int skipto(int (*test[]) (struct token *));
-extern const char *unwrap_scon(const char *name);
-
 // lex.c
 #define MARK(t)  source = t->src
 extern struct source source;
@@ -170,8 +163,15 @@ extern struct token *lex(struct file *pfile);
 extern void unget(struct file *pfile, struct token *t);
 extern struct token *header_name(struct file *pfile);
 extern struct token *new_token(struct token *tok);
-extern void skip_ifstub(struct file *pfile);
+extern void skip_ifstack(struct file *pfile);
 extern const char *id2s(int t);
+
+extern int gettok(void);
+extern struct token *lookahead(void);
+extern void expect(int t);
+extern void match(int t, int follow[]);
+extern int skipto(int (*test[]) (struct token *));
+extern const char *unwrap_scon(const char *name);
 
 #define FARRAY(...)  ((int (*[]) (struct token *)){__VA_ARGS__, NULL})
 

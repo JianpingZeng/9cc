@@ -86,8 +86,8 @@ struct buffer *with_tokens(struct vector *v, struct buffer *cur)
 void buffer_sentinel(struct file *pfile, struct buffer *pb,
                    enum buffer_sentinel_option opt)
 {
-    if (opt == BS_STUB)
-        pb->stub = true;
+    if (opt == BS_RETURN_EOI)
+        pb->return_eoi = true;
     pb->prev = pfile->current;
     pfile->current = pb;
 }
@@ -145,5 +145,5 @@ static struct file *new_file(const char *file)
 void input_init(const char *file)
 {
     cpp_file = new_file(file);
-    buffer_sentinel(cpp_file, with_file(file, file), BS_NONE);
+    buffer_sentinel(cpp_file, with_file(file, file), BS_CONTINUOUS);
 }

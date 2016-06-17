@@ -734,7 +734,7 @@ void unget(struct file *pfile, struct token *t)
 
 /* Skip part of conditional group.
  */
-void skip_ifstub(struct file *pfile)
+void skip_ifstack(struct file *pfile)
 {
     struct buffer *pb = pfile->current;
     bool bol = true;

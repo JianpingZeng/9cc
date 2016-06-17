@@ -132,7 +132,7 @@ static bool eval_constexpr(struct file *pfile)
     // generate 'unterminated conditional directive'
     buffer_sentinel(pfile,
                     with_tokens(vec_reverse(tokens), pfile->current),
-                    BS_STUB);
+                    BS_RETURN_EOI);
     bool ret = eval_cpp_cond();
     buffer_unsentinel(pfile);
 
@@ -149,40 +149,40 @@ static void do_if(struct file *pfile)
     bool b = eval_constexpr(pfile);
     if_sentinel(pfile, &(struct ifstack){.id = IF,.src = src,.b = b});
     if (!b)
-        skip_ifstub(pfile);
+        skip_ifstack(pfile);
 }
 
 static void do_elif(struct file *pfile)
 {
-    struct ifstack *stub = pfile->current->ifstack;
-    if (stub == NULL)
+    struct ifstack *stack = pfile->current->ifstack;
+    if (stack == NULL)
         error("#elif without #if");
     bool b = eval_constexpr(pfile);
-    if (stub) {
-        if (stub->b || !b)
-            skip_ifstub(pfile);
+    if (stack) {
+        if (stack->b || !b)
+            skip_ifstack(pfile);
         else
-            stub->b = true;
+            stack->b = true;
     } else if (!b) {
-        skip_ifstub(pfile);
+        skip_ifstack(pfile);
     }
 }
 
 static void do_else(struct file *pfile)
 {
-    struct ifstack *stub = pfile->current->ifstack;
-    if (stub == NULL)
+    struct ifstack *stack = pfile->current->ifstack;
+    if (stack == NULL)
         error("#else without #if");
     struct token *t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         error("extra tokens in #else directive");
         skipline(pfile);
     }
-    if (stub) {
-        if (stub->b)
-            skip_ifstub(pfile);
+    if (stack) {
+        if (stack->b)
+            skip_ifstack(pfile);
         else
-            stub->b = true;
+            stack->b = true;
     }
 }
 
@@ -217,7 +217,7 @@ static void do_ifdef_section(struct file *pfile, int id)
         skipline(pfile);
     }
     if (skip)
-        skip_ifstub(pfile);
+        skip_ifstack(pfile);
 }
 
 #define do_ifdef(pfile)  do_ifdef_section(pfile, IFDEF)
@@ -780,7 +780,7 @@ static struct vector *expandv(struct file *pfile, struct vector *v)
     // generate 'unterminated conditional directive'
     buffer_sentinel(pfile,
                     with_tokens(vec_reverse(v), pfile->current),
-                    BS_STUB);
+                    BS_RETURN_EOI);
     for (;;) {
         struct token *t = expand(pfile);
         if (t->id == EOI)
@@ -797,7 +797,9 @@ static struct token *with_temp_lex(struct file *pfile, const char *input)
 {
     struct source src = source;
 
-    buffer_sentinel(pfile, with_string(input, "lex"), BS_STUB);
+    buffer_sentinel(pfile,
+                    with_string(input, "lex"),
+                    BS_RETURN_EOI);
 
     struct token *t = lex(pfile);
     struct token *t1 = lex(pfile);
@@ -1142,7 +1144,9 @@ static void include_file(struct file *pfile,
 {
     const char *path = find_header(pfile, file, std);
     if (path) {
-        buffer_sentinel(pfile, with_file(path, name ? name : path), BS_NONE);
+        buffer_sentinel(pfile,
+                        with_file(path, name ? name : path),
+                        BS_CONTINUOUS);
         unget(pfile, lineno(1, pfile->current->name));
     } else {
         if (file)
@@ -1154,7 +1158,9 @@ static void include_file(struct file *pfile,
 
 static void include_cmdline(struct file *pfile, const char *command)
 {
-    buffer_sentinel(pfile, with_string(command, "<command-line>"), BS_NONE);
+    buffer_sentinel(pfile,
+                    with_string(command, "<command-line>"),
+                    BS_CONTINUOUS);
     unget(pfile, lineno(1, pfile->current->name));
 }
 
@@ -1232,10 +1238,10 @@ struct token *get_pptok(struct file *pfile)
     for (;;) {
         struct token *t = expand(pfile);
         if (t->id == EOI) {
-            struct ifstack *stub = pfile->current->ifstack;
-            if (stub)
-                errorf(stub->src, "unterminated conditional directive");
-            if (pfile->current->stub) {
+            struct ifstack *stack = pfile->current->ifstack;
+            if (stack)
+                errorf(stack->src, "unterminated conditional directive");
+            if (pfile->current->return_eoi) {
                 return t;
             } else {
                 buffer_unsentinel(pfile);
