@@ -1039,8 +1039,7 @@ static struct token *expand(struct file *pfile)
         m->handler(pfile, t);
         goto start;
     default:
-        die("unkown macro type %d", m->kind);
-        return t;
+        assertf(0, "unkown macro type %d", m->kind);
     }
 }
 
