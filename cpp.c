@@ -792,12 +792,12 @@ static struct vector *expandv(struct file *pfile, struct vector *v)
 }
 
 // parse the input string to a token
-static struct token *with_temp_lex(struct file *pfile, const char *input)
+static struct token *with_tmp_lex(struct file *pfile, const char *input)
 {
     struct source src = source;
 
     buffer_sentinel(pfile,
-                    with_string(input, "lex"),
+                    with_string(input, "<lex>"),
                     BS_RETURN_EOI);
 
     struct token *t = lex(pfile);
@@ -848,7 +848,7 @@ static struct vector *glue(struct file *pfile, struct vector *ls, struct vector 
     struct token *ltok = vec_pop(ls);
     struct token *rtok = vec_pop_front(rs);
     const char *str = format("%s%s", ltok->lexeme, rtok->lexeme);
-    struct token *t = with_temp_lex(pfile, str);
+    struct token *t = with_tmp_lex(pfile, str);
     t->hideset = hideset_intersection(ltok->hideset, rtok->hideset);
 
     vec_add(r, ls);
@@ -1109,9 +1109,6 @@ static struct token *lineno(unsigned line, const char *file)
 
 static const char *find_header(struct file *pfile, const char *name, bool isstd)
 {
-    if (name == NULL)
-        return NULL;
-
     struct vector *paths;
     if (isstd)
         paths = pfile->std_include_paths;
@@ -1146,15 +1143,20 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
 
 static void include_file(struct file *pfile, const char *file, bool std)
 {
-    const char *path = find_header(pfile, file, std);
+    const char *path;
+
+    if (!file) {
+        error("empty filename");
+        return;
+    }
+    
+    path = find_header(pfile, file, std);
+
     if (path) {
         buffer_sentinel(pfile, with_file(path), BS_CONTINUOUS);
         unget(pfile, lineno(1, pfile->current->name));
     } else {
-        if (file)
-            fatal("'%s' file not found", file);
-        else
-            error("empty filename");
+        fatal("'%s' file not found", file);
     }
 }
 
