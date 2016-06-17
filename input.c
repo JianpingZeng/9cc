@@ -9,7 +9,6 @@ static struct buffer *new_buffer(void)
     pb->need_line = true;
     pb->line = 1;
     pb->column = 0;
-    pb->ifstubs = vec_new();
     pb->ungets = vec_new();
     return pb;
 }
@@ -24,7 +23,6 @@ struct buffer *with_file(const char *file, const char *name)
 {
     struct buffer *pb = new_buffer();
     pb->kind = BK_REGULAR;
-    pb->file = file;
     pb->name = name;
     
     FILE *fp = fopen(file, "r");
@@ -104,21 +102,18 @@ void buffer_unsentinel(struct file *pfile)
         pfile->current->bol = true;
 }
 
-void if_sentinel(struct file *pfile, struct ifstub *i)
+void if_sentinel(struct file *pfile, struct ifstack *i)
 {
-    struct ifstub *ic = zmalloc(sizeof(struct ifstub));
-    memcpy(ic, i, sizeof(struct ifstub));
-    vec_push(pfile->current->ifstubs, ic);
+    struct ifstack *ic = xmalloc(sizeof(struct ifstack));
+    memcpy(ic, i, sizeof(struct ifstack));
+    ic->prev = pfile->current->ifstack;
+    pfile->current->ifstack = ic;
 }
 
 void if_unsentinel(struct file *pfile)
 {
-    vec_pop(pfile->current->ifstubs);
-}
-
-struct ifstub *current_ifstub(struct file *pfile)
-{
-    return vec_tail(pfile->current->ifstubs);
+    struct ifstack *prev = pfile->current->ifstack->prev;
+    pfile->current->ifstack = prev;
 }
 
 bool is_original_file(struct file *pfile, const char *file)

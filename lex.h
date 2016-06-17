@@ -58,7 +58,6 @@ struct buffer {
     bool bol;                            // beginning of line
     bool stub;
     bool need_line;
-    const char *file;                    // file name
     const char *name;                    // buffer name
     const unsigned char *buf;            // entire buffer
     const unsigned char *cur;            // current position
@@ -69,7 +68,7 @@ struct buffer {
     unsigned int cur_note;               // current note
     unsigned int notes_used;             // number of notes
     unsigned int notes_alloc;            // number of notes allocated
-    struct vector *ifstubs;
+    struct ifstack *ifstack;
     struct vector *ungets;               // lex ungets
     unsigned line, column;
     struct buffer *prev;                 // previous buffer
@@ -89,10 +88,11 @@ struct file {
 
 extern struct file *cpp_file;
 
-struct ifstub {
+struct ifstack {
     int id:ID_BITS;
     bool b;
     struct source src;
+    struct ifstack *prev;
 };
 
 extern void input_init(const char *file);
@@ -107,9 +107,8 @@ extern void buffer_sentinel(struct file *pfile, struct buffer *pb,
                           enum buffer_sentinel_option opt);
 extern void buffer_unsentinel(struct file *pfile);
 
-extern void if_sentinel(struct file *pfile, struct ifstub *i);
+extern void if_sentinel(struct file *pfile, struct ifstack *i);
 extern void if_unsentinel(struct file *pfile);
-extern struct ifstub *current_ifstub(struct file *pfile);
 
 extern bool is_original_file(struct file *pfile, const char *file);
 

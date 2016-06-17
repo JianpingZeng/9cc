@@ -147,14 +147,14 @@ static void do_if(struct file *pfile)
 {
     struct source src = source;
     bool b = eval_constexpr(pfile);
-    if_sentinel(pfile, &(struct ifstub) {.id = IF,.src = src,.b = b});
+    if_sentinel(pfile, &(struct ifstack){.id = IF,.src = src,.b = b});
     if (!b)
         skip_ifstub(pfile);
 }
 
 static void do_elif(struct file *pfile)
 {
-    struct ifstub *stub = current_ifstub(pfile);
+    struct ifstack *stub = pfile->current->ifstack;
     if (stub == NULL)
         error("#elif without #if");
     bool b = eval_constexpr(pfile);
@@ -170,7 +170,7 @@ static void do_elif(struct file *pfile)
 
 static void do_else(struct file *pfile)
 {
-    struct ifstub *stub = current_ifstub(pfile);
+    struct ifstack *stub = pfile->current->ifstack;
     if (stub == NULL)
         error("#else without #if");
     struct token *t = skip_spaces(pfile);
@@ -188,7 +188,7 @@ static void do_else(struct file *pfile)
 
 static void do_endif(struct file *pfile)
 {
-    if (current_ifstub(pfile))
+    if (pfile->current->ifstack)
         if_unsentinel(pfile);
     else
         error("#endif without #if");
@@ -209,7 +209,7 @@ static void do_ifdef_section(struct file *pfile, int id)
     bool b = defined(pfile, t);
     bool skip = id == IFDEF ? !b : b;
 
-    if_sentinel(pfile, &(struct ifstub) {.id = id,.src = src,.b = !skip});
+    if_sentinel(pfile, &(struct ifstack){.id = id,.src = src,.b = !skip});
     
     t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
@@ -1124,7 +1124,7 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
          * the contents of path, so it may be desirable
          * to pass a copy when calling one of these functions.
          */
-        const char *curfile = xstrdup(pfile->current->file);
+        const char *curfile = xstrdup(pfile->current->name);
         vec_push(paths, dirname(curfile));
         vec_add(paths, pfile->std_include_paths);
     }
@@ -1232,7 +1232,7 @@ struct token *get_pptok(struct file *pfile)
     for (;;) {
         struct token *t = expand(pfile);
         if (t->id == EOI) {
-            struct ifstub *stub = current_ifstub(pfile);
+            struct ifstack *stub = pfile->current->ifstack;
             if (stub)
                 errorf(stub->src, "unterminated conditional directive");
             if (pfile->current->stub) {
