@@ -1113,11 +1113,20 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
         return NULL;
 
     struct vector *paths;
-    if (isstd) {
+    if (isstd)
         paths = pfile->std_include_paths;
-    } else {
-        paths = vec_new();
-        vec_add(paths, pfile->usr_include_paths);
+    else
+        paths = pfile->usr_include_paths;
+
+    size_t len = vec_len(paths);
+    for (size_t i = 0; i < len; i++) {
+        const char *dir = vec_at(paths, i);
+        const char *file = join(dir, name);
+        if (file_exists(file))
+            return file;
+    }
+
+    if (!isstd) {
         // try current path
         /**
          * NOTE!!!
@@ -1127,12 +1136,8 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
          * to pass a copy when calling one of these functions.
          */
         const char *curfile = xstrdup(pfile->current->name);
-        vec_push(paths, dirname(curfile));
-        vec_add(paths, pfile->std_include_paths);
-    }
-    for (int i = 0; i < vec_len(paths); i++) {
-        const char *dir = vec_at(paths, i);
-        const char *file = join(dir, name);
+        const char *curdir = dirname(curfile);
+        const char *file = join(curdir, name);
         if (file_exists(file))
             return file;
     }
