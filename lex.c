@@ -210,23 +210,21 @@ static void next_clean_line(struct buffer *pb)
     pb->next_line = s + 1;
 }
 
+struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count)
+{
+    struct tokenrun *run = xmalloc(sizeof(struct tokenrun));
+    run->base = zmalloc(count * sizeof(struct token));
+    run->limit = run->base + count;
+    run->prev = prev;
+    return run;
+}
+
 struct token *new_token(struct token *tok)
 {
-    struct token *t = alloc_token();
+    struct token *t = xmalloc(sizeof(struct token));
     memcpy(t, tok, sizeof(struct token));
     if (!tok->lexeme)
         t->lexeme = id2s(tok->id);
-    return t;
-}
-
-static struct token *make_token(struct buffer *pb, int id, const char *name)
-{
-    struct token *t = alloc_token();
-    t->id = id;
-    t->lexeme = name;
-    t->src = source;
-    t->bol = pb->bol;
-    pb->bol = false;
     return t;
 }
 
@@ -268,7 +266,7 @@ static void block_comment(struct file *pfile)
 }
 
 // fs->cur points at prior initial digit or dot.
-static struct token *ppnumber(struct file *pfile)
+static const char *ppnumber(struct file *pfile)
 {
     struct buffer *pb = pfile->current;
     const unsigned char *rpc = pb->cur - 1;
@@ -283,11 +281,10 @@ static struct token *ppnumber(struct file *pfile)
         if (is_float)
             pb->cur++;
     }
-    const char *name = xstrndup((const char *)rpc, pb->cur - rpc);
-    return make_token(pb, NCONSTANT,  name);
+    return xstrndup((const char *)rpc, pb->cur - rpc);
 }
 
-static struct token *sequence(struct file *pfile, bool wide, int sep)
+static const char *sequence(struct file *pfile, bool wide, int sep)
 {
     struct buffer *pb = pfile->current;
     const unsigned char *rpc = pb->cur - 1;
@@ -313,10 +310,7 @@ static struct token *sequence(struct file *pfile, bool wide, int sep)
         name = xstrndup((const char *)rpc, pb->cur - rpc);
     }
 
-    if (is_char)
-        return make_token(pb, NCONSTANT, name);
-    else
-        return make_token(pb, SCONSTANT, name);
+    return name;
 }
 
 static struct ident *identifier(struct file *pfile)
@@ -567,21 +561,28 @@ static struct token *dolex(struct file *pfile)
 
         // constants
     case '\'':
-        return sequence(pfile, false, '\'');
+        id = NCONSTANT;
+        name = sequence(pfile, false, '\'');
+        break;
 
     case '"':
-        return sequence(pfile, false, '"');
+        id = SCONSTANT;
+        name = sequence(pfile, false, '"');
+        break;
 
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-        return ppnumber(pfile);
+        id = NCONSTANT;
+        name = ppnumber(pfile);
+        break;
 
     case '.':
         if (rpc[1] == '.' && rpc[2] == '.') {
             pb->cur += 2;
             id = ELLIPSIS;
         } else if (isdigit(rpc[1])) {
-            return ppnumber(pfile);
+            id = NCONSTANT;
+            name = ppnumber(pfile);
         } else {
             id = '.';
         }
@@ -589,10 +590,15 @@ static struct token *dolex(struct file *pfile)
 
         // identifiers
     case 'L':
-        if (rpc[1] == '\'')
-            return sequence(pfile, true, '\'');
-        else if (rpc[1] == '"')
-            return sequence(pfile, true, '"');
+        if (rpc[1] == '\'') {
+            id = NCONSTANT;
+            name = sequence(pfile, true, '\'');
+            break;
+        } else if (rpc[1] == '"') {
+            id = SCONSTANT;
+            name = sequence(pfile, true, '"');
+            break;
+        }
         // go through
     case '_':
     case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
@@ -620,7 +626,11 @@ static struct token *dolex(struct file *pfile)
     }
 
     // done
-    result = alloc_token();
+    if (pfile->cur_token == pfile->tokenrun->limit) {
+        pfile->tokenrun = next_tokenrun(pfile->tokenrun, 1024);
+        pfile->cur_token = pfile->tokenrun->base;
+    }
+    result = pfile->cur_token++;
     result->id = id;
     result->lexeme = name ? name : id2s(id);
     result->value.ident = ident;
