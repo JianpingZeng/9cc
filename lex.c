@@ -627,7 +627,7 @@ static struct token *dolex(struct file *pfile)
 
     // done
     if (pfile->cur_token == pfile->tokenrun->limit) {
-        pfile->tokenrun = next_tokenrun(pfile->tokenrun, 250);
+        pfile->tokenrun = next_tokenrun(pfile->tokenrun, 1024);
         pfile->cur_token = pfile->tokenrun->base;
     }
     result = pfile->cur_token++;

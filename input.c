@@ -141,7 +141,7 @@ static struct file *new_file(const char *file)
     pfile->imap = imap_new(13);
     pfile->imap->alloc_entry = alloc_cpp_ident_entry;
     // tokenrun
-    pfile->tokenrun = next_tokenrun(NULL, 250);
+    pfile->tokenrun = next_tokenrun(NULL, 1024);
     pfile->cur_token = pfile->tokenrun->base;
     return pfile;
 }
