@@ -387,6 +387,7 @@ static int inparams(struct token *t, struct macro *m)
 
 static void parameters(struct file *pfile, struct macro *m)
 {
+    struct vector *v = vec_new();
     struct token *t = skip_spaces(pfile);
     if (t->id == ')') {
         // ()
@@ -400,7 +401,6 @@ static void parameters(struct file *pfile, struct macro *m)
         }
     } else if (t->id == ID) {
         // (a,b,c,...)
-        struct vector *v = vec_new();
         for (;;) {
             if (t->id == ID) {
                 for (int i = 0; i < vec_len(v); i++) {
@@ -428,15 +428,12 @@ static void parameters(struct file *pfile, struct macro *m)
             errorf(t->src, "unterminated macro parameter list");
             unget(pfile, t);
         }
-        m->params = v;
     } else {
         error("expect identifier list or ')' or ...");
         unget(pfile, t);
         skipline(pfile);
     }
-    // create an empty vector if params == 0
-    if (!m->params)
-        m->params = vec_new();
+    m->params = v;
 }
 
 static struct cpp_ident *lookup_macro(struct file *pfile, struct token *t)
