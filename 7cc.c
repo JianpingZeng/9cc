@@ -116,8 +116,8 @@ static void parse_opts(int argc, char *argv[])
                        !strncmp(arg, "-D", 2) ||
                        !strncmp(arg, "-U", 2)) {
                 vec_push(opts.cc_options, arg);
-            } else if (!strncmp(arg, "-l", 2)
-                       || !strncmp(arg, "-L", 2)) {
+            } else if (!strncmp(arg, "-l", 2) ||
+                       !strncmp(arg, "-L", 2)) {
                 vec_push(opts.ld_options, arg);
             } else if (!strcmp(arg, "-g") ||
                        !strncmp(arg, "-std=", 5) ||
