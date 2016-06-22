@@ -17,7 +17,6 @@
 static const char *progname;
 static struct vector *inputs;
 static const char *output;
-static int version = VERSION(0, 1, 0);
 static struct {
     int c:1;
     int E:1;
@@ -48,9 +47,9 @@ static struct {
 static void usage(void)
 {
     fprintf(stderr,
-            "OVERVIEW: 7cc - A Standard C Compiler v%d.%d.%d\n\n"
+            "OVERVIEW: 7cc - A Standard C Compiler v%s\n\n"
             "USAGE: 7cc [options] <files>\n\n"
-            "OPTIONS:\n", MAJOR(version), MINOR(version), PATCH(version));
+            "OPTIONS:\n", VERSION);
     fprintf(stderr,
             "  -ast-dump       Only print abstract syntax tree\n"
             "  -ir-dump        Only print intermediate representation\n"
@@ -77,7 +76,6 @@ static void init_env(void)
 #ifdef CONFIG_DARWIN
     vec_push(opts.cc_options, "-fleading_underscore");
 #endif
-    vec_push(opts.cc_options, format("-fversion=%d", version));
     inputs = vec_new();
 }
 

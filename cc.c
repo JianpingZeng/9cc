@@ -33,8 +33,6 @@ static void parse_opts(int argc, char *argv[])
                 opts.E = true;
             } else if (!strcmp(arg, "-fleading_underscore")) {
                 opts.fleading_underscore = true;
-            } else if (!strncmp(arg, "-fversion=", 10)) {
-                opts.version = atoi(arg+10);
             } else if (!strcmp(arg, "-ansi")) {
                 opts.ansi = true;
             }

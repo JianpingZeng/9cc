@@ -29,7 +29,6 @@ struct cc_options {
     int Werror:1;
     int ansi:1;
     int ir_dump_level:8;
-    int version;
     struct vector *cpp_options;
 };
 extern struct cc_options opts;
