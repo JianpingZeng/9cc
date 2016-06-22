@@ -370,13 +370,12 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
 static int inparams(struct token *t, struct macro *m)
 {
     struct vector *params = m->params;
-    size_t len = vec_len(params);
-    if (t->id != ID)
+    if (t->id != ID || !params)
         return -1;
+
+    size_t len = vec_len(params);
     if (!strcmp(t->lexeme, "__VA_ARGS__") && m->vararg)
         return len;
-    if (!params)
-        return -1;
     for (int i = 0; i < len; i++) {
         struct token *p = vec_at(params, i);
         if (!strcmp(t->lexeme, p->lexeme))
