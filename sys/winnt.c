@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <time.h>
 #include <errno.h>
 // windows headers
 #include <windows.h>
