@@ -29,25 +29,6 @@ int file_exists(const char *path)
     return stat(path, &st) == 0;
 }
 
-int file_size(const char *path)
-{
-    struct stat st;
-    if (stat(path, &st) == 0)
-        return st.st_size;
-    else
-        return -1;
-}
-
-int isdir(const char *path)
-{
-    if (path == NULL)
-        return 0;
-    struct stat st;
-    if (stat(path, &st) != 0)
-        return 0;
-    return S_ISDIR(st.st_mode);
-}
-
 int callsys(const char *file, char **argv)
 {
     pid_t pid;

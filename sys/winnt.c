@@ -41,24 +41,6 @@ int file_exists(const char *path)
     return PathFileExists(path);
 }
 
-int file_size(const char *path)
-{
-    HANDLE hfile = OpenFile(path, NULL, OF_READ);
-    LARGE_INTEGER size;
-    if (GetFileSizeEx(hfile, &size)) {
-        CloseHandle(hfile);
-        return size.QuadPart;
-    } else {
-        CloseHandle(hfile);
-        return 0;
-    }
-}
-
-int isdir(const char *path)
-{
-    
-}
-
 int rmdir(const char *dir)
 {
     int success = RemoveDirectory(dir);
