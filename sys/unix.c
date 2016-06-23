@@ -9,7 +9,6 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <time.h>
 // dirname, basename
 #include <libgen.h>
 // uname
@@ -165,9 +164,4 @@ const char *join(const char *dir, const char *name)
     p[len1 + 1 + len2] = '\0';
 
     return p;
-}
-
-void set_localtime(const time_t * timep, struct tm *result)
-{
-    localtime_r(timep, result);
 }

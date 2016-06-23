@@ -20,9 +20,6 @@ extern const char *file_suffix(const char *path);
 // process
 extern int callsys(const char *file, char **argv);
 
-// time
-extern void set_localtime(const time_t * timep, struct tm *result);
-
 // include
 extern struct vector *sys_include_dirs(void);
 

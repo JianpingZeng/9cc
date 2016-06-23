@@ -1168,15 +1168,14 @@ static void init_env(struct file *pfile)
 {
     setlocale(LC_ALL, "C");
     time_t t = time(NULL);
-    struct tm now;
-    set_localtime(&t, &now);
+    struct tm *now = localtime(&t);
     // mmm dd yyyy
     char datestr[20];
-    strftime(datestr, sizeof(datestr), "%b %e %Y", &now);
+    strftime(datestr, sizeof(datestr), "%b %e %Y", now);
     pfile->date = format("\"%s\"", datestr);
     // hh:mm:ss
     char timestr[10];
-    strftime(timestr, sizeof(timestr), "%T", &now);
+    strftime(timestr, sizeof(timestr), "%T", now);
     pfile->time = format("\"%s\"", timestr);
 }
 

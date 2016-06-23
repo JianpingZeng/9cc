@@ -15,7 +15,6 @@ char *cc[] = {"cc1", NULL};
 
 void setup_sys()
 {
-    
 }
 
 const char *mktmpdir()
@@ -130,11 +129,6 @@ const char *file_suffix(const char *path)
     if (!dot || *dot == '\0')
         return NULL;
     return dot + 1;
-}
-
-void set_localtime(const time_t * timep, struct tm *result)
-{
-    
 }
 
 struct vector *sys_include_dirs(void)
