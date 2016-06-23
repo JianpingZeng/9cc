@@ -701,44 +701,6 @@ struct token *header_name(struct file *pfile)
     }
 }
 
-static void skip_sequence(struct file *pfile, int sep)
-{
-    struct buffer *pb = pfile->current;
-    int ch;
-    for (;;) {
-        ch = *pb->cur++;
-        if (ch == sep || isnewline(ch))
-            break;
-        if (ch == '\\')
-            pb->cur++;
-    }
-    if (ch != sep)
-        pb->cur--;
-}
-
-static void skip_spaces(struct file *pfile)
-{
-    // skip spaces, including comments
-    struct buffer *pb = pfile->current;
-    int ch;
-
-    for (;;) {
-        ch = *pb->cur++;
-        if (iswhitespace(ch))
-            continue;
-        if (ch == '/' && *pb->cur == '/') {
-            line_comment(pfile);
-            continue;
-        }
-        if (ch == '/' && *pb->cur == '*') {
-            block_comment(pfile);
-            continue;
-        }
-        break;
-    }
-    pb->cur--;
-}
-
 void unget(struct file *pfile, struct token *t)
 {
     vec_push(pfile->current->ungets, t);
@@ -749,53 +711,24 @@ void unget(struct file *pfile, struct token *t)
 void skip_ifstack(struct file *pfile)
 {
     struct buffer *pb = pfile->current;
-    bool bol = true;
     int nest = 0;
     assert(vec_len(pb->ungets) == 0);
     for (;;) {
-        if (pb->need_line)
-            next_clean_line(pb);
-        // skip spaces
-        skip_spaces(pfile);
-        int ch = *pb->cur++;
-        if (pb->cur >= pb->limit)
+        struct token *t0 = dolex(pfile);
+        if (t0->id == EOI)
             break;
-        if (isnewline(ch)) {
-            bol = true;
-            pb->need_line = true;
+        if (t0->id != '#' || !t0->bol)
             continue;
-        }
-        if (ch == '\'' || ch == '"') {
-            skip_sequence(pfile, ch);
-            bol = false;
-            continue;
-        }
-        if (ch != '#' || !bol) {
-            bol = false;
-            continue;
-        }
-        struct source src = {
-            .file = pb->name,
-            .line = pb->line,
-            .column = pb->column };
-        struct token *t = lex(pfile);
+        struct token *t = dolex(pfile);
         while (IS_SPACE(t))
-            t = lex(pfile);
-        if (t->id != ID) {
-            if (IS_NEWLINE(t)) {
-                bol = true;
-                pb->need_line = true;
-            } else {
-                bol = false;
-            }
+            t = dolex(pfile);
+        if (t->id != ID)
             continue;
-        }
         const char *name = t->lexeme;
         if (!strcmp(name, "if") ||
             !strcmp(name, "ifdef") ||
             !strcmp(name, "ifndef")) {
             nest++;
-            bol = false;
             continue;
         }
         if (!nest &&
@@ -804,15 +737,11 @@ void skip_ifstack(struct file *pfile)
              !strcmp(name, "endif"))) {
             // found
             unget(pfile, t);
-            struct token *t0 = new_token(&(struct token){
-                    .id = '#', .src = src, .bol = true });
             unget(pfile, t0);
             break;
         }
-        if (nest && !strcmp(name, "endif")) {
+        if (nest && !strcmp(name, "endif"))
             nest--;
-            bol = false;
-        }
         skipline(pfile, false);
     }
 }
