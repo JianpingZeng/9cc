@@ -1,27 +1,9 @@
-TODO
 
-NEED REVIEW:
+v0.3.0-dev schedule
 
-emit_uop_indirection (*)
-emit_uop_address (&)
-
-emit_bop_assign (=)
-
-emit_member (. ->)
-emit_subscript ([])
-func2ptr
-array2ptr
-emit_call
-
-//
-1. ir refactor
-2. using profile
-
-//
-1. scan_uses: rewrite
-2. register overflow and save
-3. C11: unnamed struct/union in struct/union (for bootstrap)
-
+1. port to Windows
+2. improve cpp performance
+3. split libcpp
 
 
 // preprocessor
@@ -30,7 +12,6 @@ TODO - line pptokens
 TODO - pragma
 
 // parser
-
 
 // backend
 TODO - long double
