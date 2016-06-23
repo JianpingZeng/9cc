@@ -91,8 +91,8 @@ struct file {
     struct vector *usr_include_paths;
     struct tokenrun *tokenrun;
     struct token *cur_token;
-    // current timestamp
-    struct tm now;
+    const char *date;            // current date string (quoted)
+    const char *time;            // current time string (quoted)
 };
 
 extern struct file *cpp_file;

@@ -1059,23 +1059,15 @@ static void line_handler(struct file *pfile, struct token *t)
 
 static void date_handler(struct file *pfile, struct token *t)
 {
-    // mmm dd yyyy
-    char ch[20];
-    strftime(ch, sizeof(ch), "%b %e %Y", &pfile->now);
-    const char *name = format("\"%s\"", ch);
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .lexeme = name, .src = t->src });
+            .id = SCONSTANT, .lexeme = pfile->date, .src = t->src });
     unget(pfile, tok);
 }
 
 static void time_handler(struct file *pfile, struct token *t)
 {
-    // hh:mm:ss
-    char ch[10];
-    strftime(ch, sizeof(ch), "%T", &pfile->now);
-    const char *name = format("\"%s\"", ch);
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .lexeme = name, .src = t->src });
+            .id = SCONSTANT, .lexeme = pfile->time, .src = t->src });
     unget(pfile, tok);
 }
 
@@ -1176,7 +1168,16 @@ static void init_env(struct file *pfile)
 {
     setlocale(LC_ALL, "C");
     time_t t = time(NULL);
-    set_localtime(&t, &pfile->now);
+    struct tm now;
+    set_localtime(&t, &now);
+    // mmm dd yyyy
+    char datestr[20];
+    strftime(datestr, sizeof(datestr), "%b %e %Y", &now);
+    pfile->date = format("\"%s\"", datestr);
+    // hh:mm:ss
+    char timestr[10];
+    strftime(timestr, sizeof(timestr), "%T", &now);
+    pfile->time = format("\"%s\"", timestr);
 }
 
 static void init_include(struct file *pfile)
