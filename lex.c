@@ -682,18 +682,16 @@ struct token *header_name(struct file *pfile)
         pb->cur++;
 
     SET_COLUMN(pb, pb->cur - pb->line_base);
-    char ch = *pb->cur++;
+    int ch = *pb->cur++;
 
     // mark for 'error/warning etc.'
     MARKC(pb);
     if (ch == '<') {
         const char *name = hq_char_sequence(pfile, '>');
-        return new_token(&(struct token) {
-                .lexeme = name, .kind = ch});
+        return new_token(&(struct token){.lexeme = name, .kind = ch});
     } else if (ch == '"') {
         const char *name = hq_char_sequence(pfile, '"');
-        return new_token(&(struct token) {
-                .lexeme = name, .kind = ch});
+        return new_token(&(struct token){.lexeme = name, .kind = ch});
     } else {
         // pptokens
         pb->cur--;

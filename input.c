@@ -27,7 +27,7 @@ struct buffer *with_file(const char *file)
     
     FILE *fp = fopen(file, "r");
     if (fp == NULL)
-        die("%s: %s", file, strerror(errno));
+        die("Can't open file: %s", file);
     // read the content
     fseek(fp, 0, SEEK_END);
     long size = ftell(fp);
@@ -36,7 +36,7 @@ struct buffer *with_file(const char *file)
     pb->buf = xmalloc(size + 1);
     char *d = (char *)pb->buf;
     if (fread(d, size, 1, fp) != 1)
-        die("%s: %s", file, strerror(errno));
+        die("Can't read file: %s", file);
     fclose(fp);
     
     /**
