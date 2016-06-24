@@ -7,10 +7,13 @@
 #include <windows.h>
 #include <rpc.h>
 #include <shlwapi.h>
+#include <process.h>
+
+#include "../config.h"
 
 char *ld[] = {"link", NULL};
 char *as[] = {"masm", NULL};
-char *cc[] = {"cc1", NULL};
+char *cc[] = { "cc1.exe", "$1", "$2", "-o", "$0", NULL };
 
 void setup_sys()
 {
@@ -33,7 +36,13 @@ const char *mktmpdir()
 
 int callsys(const char *file, char **argv)
 {
-    
+    int ret = EXIT_SUCCESS;
+    int status = _spawnvp(_P_WAIT, file, (const char *const *)argv);
+    if (status == -1) {
+        perror("Can't _spawnvp");
+        ret = EXIT_FAILURE;
+    }
+    return ret;
 }
 
 int file_exists(const char *path)
@@ -114,5 +123,7 @@ const char *file_suffix(const char *path)
 
 struct vector *sys_include_dirs(void)
 {
-    
+    struct vector *v = vec_new();
+    vec_push(v, BUILD_DIR "\\include");
+    return v;
 }

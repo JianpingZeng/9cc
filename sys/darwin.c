@@ -23,7 +23,7 @@ char *ld[] = {
 };
 
 char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
-char *cc[] = { "cc1", "$1", "$2", "-o", "$0", NULL };
+char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
 
 struct vector *sys_include_dirs(void)
 {

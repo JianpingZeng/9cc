@@ -196,12 +196,8 @@ static int translate(const char *ifile, const char *ofile,
                      struct vector *options)
 {
     struct vector *ifiles = vec_new1((char *)ifile);
-    char *cc1 = format("./%s", cc[0]);
-    if (ofile)
-        cc[3] = "-o";
-    else
-        cc[3] = NULL;
-    return callsys(cc1, compose(cc, ifiles, ofile, options));
+    cc[3] = ofile ? "-o" : NULL;
+    return callsys(cc[0], compose(cc, ifiles, ofile, options));
 }
 
 int main(int argc, char **argv)
