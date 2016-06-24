@@ -1,4 +1,5 @@
 #include "cc.h"
+#include "sys/sys.h"
 
 struct file *cpp_file;
 
@@ -24,29 +25,70 @@ struct buffer *with_file(const char *file)
     struct buffer *pb = new_buffer();
     pb->kind = BK_REGULAR;
     pb->name = file;
-    
-    FILE *fp = fopen(file, "r");
+
+    //NOTE: must be binary in Windows
+    FILE *fp = fopen(file, "rb");
     if (fp == NULL)
         die("Can't open file: %s", file);
     // read the content
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    
-    pb->buf = xmalloc(size + 1);
-    char *d = (char *)pb->buf;
+    long size = file_size(file);
+    char *d = xmalloc(size + 1);
+#ifdef CONFIG_WINNT
+    long offset = 0;
+    long bytes = size;
+    while (bytes > 0) {
+        size_t n = fread(d + offset, 1, bytes, fp);
+        if (n == 0) {
+            if (feof(fp))
+                break;
+            else
+                die("Can't read file: %s", file);
+        } else {
+            offset += n;
+            bytes -= n;
+        } 
+    }
+#else
     if (fread(d, size, 1, fp) != 1)
         die("Can't read file: %s", file);
+#endif
     fclose(fp);
-    
+
     /**
      * Add a newline character to the end if the
      * file doesn't have one, thus the include
      * directive would work well.
      */
     d[size] = '\n';
+
+    pb->buf = (const unsigned char *)d;
     pb->cur = pb->line_base = pb->next_line = pb->buf;
     pb->limit = &pb->buf[size];
+
+#if 0
+    // dump file
+    if (!strcmp("ConcurrencySal.h", basename(file))) {
+        int i = 0;
+        int step = 16;
+        for (; i < size - step + 1; i += step) {
+            fprintf(stderr, "%07x ", i);
+            int cnt = step / 2;
+            for (int j = 0; j < cnt; j++) {
+                char c1 = d[i + j * 2];
+                char c2 = d[i + j * 2 + 1];
+                fprintf(stderr, "%02x%02x ", c1, c2);
+            }
+            fprintf(stderr, "\n");
+        }
+        fprintf(stderr, "%07x ", i);
+        for (; i < size; i++) {
+            char c = d[i];
+            fprintf(stderr, "%02x ", c);
+        }
+        fprintf(stderr, "\n");
+    }
+#endif
+    
     return pb;
 }
 
