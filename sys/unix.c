@@ -29,6 +29,15 @@ int file_exists(const char *path)
     return stat(path, &st) == 0;
 }
 
+long file_size(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) == 0)
+        return st.st_size;
+    else
+        return 0;
+}
+
 int callsys(const char *file, char **argv)
 {
     pid_t pid;

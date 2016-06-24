@@ -7,6 +7,7 @@ extern void setup_sys();
 // path
 extern const char *mktmpdir();
 extern int file_exists(const char *path);
+extern long file_size(const char *path);
 extern int rmdir(const char *dir);
 extern const char *abspath(const char *path);
 extern const char *replace_suffix(const char *path, const char *suffix);

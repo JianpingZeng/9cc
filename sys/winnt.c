@@ -8,6 +8,10 @@
 #include <rpc.h>
 #include <shlwapi.h>
 #include <process.h>
+#include <io.h>
+#include <share.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "../config.h"
 
@@ -48,6 +52,22 @@ int callsys(const char *file, char **argv)
 int file_exists(const char *path)
 {
     return PathFileExists(path);
+}
+
+long file_size(const char *path)
+{
+    int fd;
+    long size;
+    _sopen_s(&fd, path, _O_RDONLY, _SH_DENYWR, _S_IREAD);
+    if (fd == -1)
+        return 0;
+    size = _filelengthi64(fd);
+    if (size == -1) {
+        _close(fd);
+        return 0;
+    }
+    _close(fd);
+    return size;
 }
 
 int rmdir(const char *dir)
