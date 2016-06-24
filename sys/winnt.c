@@ -121,9 +121,30 @@ const char *file_suffix(const char *path)
     return dot + 1;
 }
 
+static struct vector *split_paths(const char *path)
+{
+    struct vector *v = vec_new();
+    const char *s = path;
+    const char *b = s;
+    while (*s) {
+        if (*s == ';') {
+            int size = s - b + 1;
+            char *d = malloc(size);
+            strncpy(d, b, size - 1);
+            d[size - 1] = '\0';
+            vec_push(v, d);
+            b = ++s;
+        } else {
+            s++;
+        }
+    }
+    return v;
+}
+
 struct vector *sys_include_dirs(void)
 {
     struct vector *v = vec_new();
     vec_push(v, BUILD_DIR "\\include");
+    vec_add(v, split_paths(NT_INCLUDE_DIR));
     return v;
 }
