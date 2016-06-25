@@ -99,9 +99,11 @@ static void process_line_notes(struct buffer *pb)
 
 #include <xmmintrin.h>
 
-static unsigned char repl_chars[2][16] __attribute__((aligned(16))) = {
+static unsigned char repl_chars[3][16] __attribute__((aligned(16))) = {
     { '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n',
       '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n' },
+    { '\r', '\r', '\r', '\r', '\r', '\r', '\r', '\r',
+      '\r', '\r', '\r', '\r', '\r', '\r', '\r', '\r' },
     { '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\',
       '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\' }
 };
@@ -110,7 +112,8 @@ const unsigned char *search_line_fast(const unsigned char *s,
                                       const unsigned char *limit)
 {
     const __v16qi repl_nl = *(const __v16qi *)repl_chars[0];
-    const __v16qi repl_bk = *(const __v16qi *)repl_chars[1];
+    const __v16qi repl_cr = *(const __v16qi *)repl_chars[1];
+    const __v16qi repl_bs = *(const __v16qi *)repl_chars[2];
     unsigned int mask, misalign, result;
     const __v16qi *p;
     __v16qi data, t;
@@ -128,7 +131,8 @@ const unsigned char *search_line_fast(const unsigned char *s,
     start:
         // aligned
         t = __builtin_ia32_pcmpeqb128(data, repl_nl);
-        t |= __builtin_ia32_pcmpeqb128(data, repl_bk);
+        t |= __builtin_ia32_pcmpeqb128(data, repl_cr);
+        t |= __builtin_ia32_pcmpeqb128(data, repl_bs);
         result = __builtin_ia32_pmovmskb128(t);
         result &= mask;
         
@@ -143,7 +147,7 @@ const unsigned char *search_line_fast(const unsigned char *s,
 const unsigned char *search_line_fast(const unsigned char *s,
                                       const unsigned char *limit)
 {
-    while (*s != '\n' && *s != '\\')
+    while (*s != '\n' && *s != '\\' && *s != '\r')
             s++;
     return s;
 }
@@ -164,7 +168,7 @@ static void next_clean_line(struct buffer *pb)
     s = pb->next_line;
     
     while (1) {
-        // search '\n', '\\'
+        // search '\n', '\\', '\r'
         s = search_line_fast(s, pb->limit);
 
         c = *s;
@@ -174,11 +178,16 @@ static void next_clean_line(struct buffer *pb)
             break;
     }
 
-    // d must be '\n'
+    // d must be '\n' or '\r'
     d = (unsigned char *)s;
 
     if (d == pb->limit)
         goto done;
+    if (c == '\r' && s[1] == '\n') {
+        s++;
+        if (s == pb->limit)
+            goto done;
+    }
     if (pbackslash == NULL)
         goto done;
     if (d - 1 != pbackslash)
@@ -192,7 +201,9 @@ static void next_clean_line(struct buffer *pb)
         c = *++s;
         *++d = c;
 
-        if (c == '\n') {
+        if (c == '\n' || c == '\r') {
+            if (c == '\r' && s != pb->limit && s[1] == '\n')
+                s++;
             if (s == pb->limit)
                 break;
             if (d[-1] != '\\')
