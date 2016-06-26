@@ -48,8 +48,6 @@ LIBCPP_OBJ += $(libcpp_dir)lex.o
 
 LIBCPP_INC += $(libcpp_dir)lex.h
 LIBCPP_INC += $(libcpp_dir)token.def
-LIBCPP_INC += $(libcpp_dir)hideset.h
-LIBCPP_INC += $(libcpp_dir)imap.h
 LIBCPP_INC += $(libcpp_dir)internal.h
 
 CC1_OBJ += alloc.o
