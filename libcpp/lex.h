@@ -189,8 +189,10 @@ struct macro {
     int kind:4;
     bool vararg;
     bool builtin;
+    unsigned int nparams;
+    struct token **params;
+    unsigned int nbody;
     struct token **body;
-    struct vector *params;
     // special macro handler
     void (*handler) (struct file *, struct token *);
     struct source src;

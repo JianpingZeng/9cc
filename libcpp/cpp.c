@@ -381,7 +381,7 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
     }
 
     size_t lenv = vec_len(v);
-    size_t lenp = vec_len(m->params);
+    size_t lenp = m->nparams;
     // check args and params
     if (lenv < lenp) {
         cpp_error("too few arguments provided to function-like macro invocation");
@@ -408,15 +408,14 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
 
 static int inparams(struct token *t, struct macro *m)
 {
-    struct vector *params = m->params;
-    if (t->id != ID || !params)
+    if (t->id != ID)
         return -1;
 
-    size_t len = vec_len(params);
+    size_t len = m->nparams;
     if (!strcmp(t->lexeme, "__VA_ARGS__") && m->vararg)
         return len;
-    for (int i = 0; i < len; i++) {
-        struct token *p = vec_at(params, i);
+    for (size_t i = 0; i < len; i++) {
+        struct token *p = m->params[i];
         if (!strcmp(t->lexeme, p->lexeme))
             return i;
     }
@@ -425,11 +424,16 @@ static int inparams(struct token *t, struct macro *m)
 
 static void parameters(struct file *pfile, struct macro *m)
 {
-    struct vector *v = vec_new();
+    unsigned int n = 16;
+    unsigned int i = 0;
+    struct token **v = NULL;
     struct token *t = skip_spaces(pfile);
-    if (t->id == ')') {
+
+    switch (t->id) {
+    case ')':
         // ()
-    } else if (t->id == ELLIPSIS) {
+        break;
+    case ELLIPSIS:
         // (...)
         m->vararg = true;
         t = skip_spaces(pfile);
@@ -437,19 +441,25 @@ static void parameters(struct file *pfile, struct macro *m)
             cpp_error("expect ')'");
             unget(pfile, t);
         }
-    } else if (t->id == ID) {
+        break;
+    case ID:
+        v = xmalloc(n * sizeof(struct token *));
         // (a,b,c,...)
         for (;;) {
             if (t->id == ID) {
-                for (int i = 0; i < vec_len(v); i++) {
-                    struct token *t1 = vec_at(v, i);
+                for (unsigned int j = 0; j < i; j++) {
+                    struct token *t1 = v[j];
                     if (!strcmp(t->lexeme, t1->lexeme)) {
                         cpp_error("duplicate macro paramter name '%s'",
                              t->lexeme);
                         break;
                     }
                 }
-                vec_push(v, t);
+                if (i >= n) {
+                    n <<= 1;
+                    v = xrealloc(v, n * sizeof(struct token *));
+                }
+                v[i++] = t;
             } else if (t->id == ELLIPSIS) {
                 m->vararg = true;
                 t = skip_spaces(pfile);
@@ -466,11 +476,14 @@ static void parameters(struct file *pfile, struct macro *m)
             cpp_errorf(t->src, "unterminated macro parameter list");
             unget(pfile, t);
         }
-    } else {
+        break;
+    default:
         cpp_error("expect identifier list or ')' or ...");
         unget(pfile, t);
         skipline(pfile);
+        break;
     }
+    m->nparams = i;
     m->params = v;
 }
 
@@ -534,16 +547,16 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
     const char *name = t->lexeme;
     struct cpp_ident *ident = lookup_macro(pfile, t);
     struct macro *m1 = ident ? ident->value.macro : NULL;
-    size_t len1p = vec_len(m->params);
-    size_t len1b = LIST_LEN(m->body);
+    size_t len1p = m->nparams;
+    size_t len1b = m->nbody;
     
     if (m1) {
         if (m1->builtin) {
             cpp_errorf(t->src, "Can't redefine predefined macro '%s'",
                    name);
         } else {
-            size_t len2p = vec_len(m1->params);
-            size_t len2b = LIST_LEN(m1->body);
+            size_t len2p = m1->nparams;
+            size_t len2b = m1->nbody;
             
             // compare definition
             if (m->kind != m1->kind ||
@@ -553,8 +566,8 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
                 goto redef;
 
             for (size_t i = 0; i < len1p; i++) {
-                struct token *t1 = vec_at(m->params, i);
-                struct token *t2 = vec_at(m1->params, i);
+                struct token *t1 = m->params[i];
+                struct token *t2 = m1->params[i];
                 if (strcmp(t1->lexeme, t2->lexeme))
                     goto redef;
             }
@@ -611,7 +624,7 @@ static void replacement_list(struct file *pfile, struct macro *m)
         if (IS_NEWLINE(t) || t->id == EOI)
             break;
         t->space = space;
-        if (i >= n - 1) {
+        if (i >= n) {
             n <<= 1;
             v = xrealloc(v, n * sizeof(struct token *));
         }
@@ -625,7 +638,7 @@ static void replacement_list(struct file *pfile, struct macro *m)
             goto beg;
         }
     }
-    v[i] = NULL;
+    m->nbody = i;
     m->body = v;
 }
 
@@ -958,7 +971,7 @@ static struct vector *subst(struct file *pfile,
 {
     struct vector *r = vec_new();
     struct token **body = m->body;
-    size_t len = LIST_LEN(m->body);
+    size_t len = m->nbody;
 
 #define PUSH_SPACE(r, t)    if (t->space) vec_push(r, space_token)
 
