@@ -273,7 +273,7 @@ static node_t *address_uop(node_t * expr)
                AST_ID(EXPR_OPERAND(expr, 0)) == MEMBER_EXPR) {
         return l;
     }
-    assertf(0, "%s", node2s(l));
+    assert(0);
 }
 
 static node_t *sizeof_uop(node_t * expr)

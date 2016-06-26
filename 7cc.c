@@ -10,8 +10,8 @@
 #include <stdbool.h>
 #include <time.h>
 #include <ctype.h>
+#include "config.h"
 #include "sys/sys.h"
-#include "7cc.h"
 #include "utils/utils.h"
 
 static const char *progname;

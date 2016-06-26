@@ -1,11 +1,20 @@
-#include "cc.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <assert.h>
+#include "config.h"
+#include "color.h"
+#include "error.h"
 
-unsigned errors;
-unsigned warnings;
+unsigned int errors;
+unsigned int warnings;
 
 #define MAX_ERRORS 32
 
-static void cc_print_lead(int tag, struct source src, const char *fmt,
+static void cc_print_lead(int tag,
+                          const char *file,
+                          unsigned int line, unsigned int column,
+                          const char *fmt,
                           va_list ap)
 {
     const char *lead;
@@ -23,16 +32,31 @@ static void cc_print_lead(int tag, struct source src, const char *fmt,
         assert(0);
     }
 
-    fprintf(stderr, CLEAR "%s:%u:%u:" RESET " %s ", src.file, src.line,
-            src.column, lead);
+    fprintf(stderr, CLEAR "%s:%u:%u:" RESET " %s ", file, line,
+            column, lead);
     fprintf(stderr, CLEAR);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, RESET);
     fprintf(stderr, "\n");
 }
 
-static void increse_error_count(void)
+void warning(const char *file, unsigned int line, unsigned int column,
+             const char *fmt, ...)
 {
+    va_list ap;
+    va_start(ap, fmt);
+    cc_print_lead(WRN, file, line, column, fmt, ap);
+    va_end(ap);
+    ++warnings;
+}
+
+void error(const char *file, unsigned int line, unsigned int column,
+           const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    cc_print_lead(ERR, file, line, column, fmt, ap);
+    va_end(ap);
     ++errors;
     if (errors >= MAX_ERRORS) {
         fprintf(stderr, "Too many errors.\n");
@@ -40,57 +64,12 @@ static void increse_error_count(void)
     }
 }
 
-void warningf(struct source src, const char *fmt, ...)
+void fatal(const char *file, unsigned int line, unsigned int column,
+           const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    if (opts.Werror)
-        cc_print_lead(ERR, src, fmt, ap);
-    else
-        cc_print_lead(WRN, src, fmt, ap);
-    va_end(ap);
-    if (opts.Werror)
-        increse_error_count();
-    else
-        ++warnings;
-}
-
-void errorf(struct source src, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    cc_print_lead(ERR, src, fmt, ap);
-    va_end(ap);
-    increse_error_count();
-}
-
-void fatalf(struct source src, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    cc_print_lead(FTL, src, fmt, ap);
+    cc_print_lead(FTL, file, line, column, fmt, ap);
     va_end(ap);
     exit(EXIT_FAILURE);
-}
-
-void redefinition_error(struct source src, node_t * sym)
-{
-    errorf(src, "redefinition of '%s', previous definition at %s:%u:%u",
-           SYM_NAME(sym), AST_SRC(sym).file, AST_SRC(sym).line,
-           AST_SRC(sym).column);
-}
-
-void conflicting_types_error(struct source src, node_t * sym)
-{
-    errorf(src, "conflicting types for '%s', previous at %s:%u:%u",
-           SYM_NAME(sym), AST_SRC(sym).file, AST_SRC(sym).line,
-           AST_SRC(sym).column);
-}
-
-void field_not_found_error(node_t * ty, const char *name)
-{
-    if (isincomplete(ty))
-        error("incomplete definition of type '%s'", type2s(ty));
-    else
-        error("'%s' has no field named '%s'", type2s(ty), name);
 }

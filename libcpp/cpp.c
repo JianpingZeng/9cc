@@ -1,5 +1,4 @@
-#include "cc.h"
-#include "sys/sys.h"
+#include "internal.h"
 
 /* ACKNOWLEDGE
  *
@@ -79,14 +78,14 @@ static struct token *defined_op(struct file *pfile, struct token *t)
         if (t2->id == ID && t3->id == ')') {
             return defined(pfile, t2) ? token_one : token_zero;
         } else {
-            errorf(t->src,
+            cpp_errorf(t->src,
                    "expect 'identifier )' after 'defined ('");
             unget(pfile, t3);
             unget(pfile, t2);
             return t;
         }
     } else {
-        errorf(t->src, "expect identifier or ( after defined operator");
+        cpp_errorf(t->src, "expect identifier or ( after defined operator");
         return t;
     }
 }
@@ -155,7 +154,7 @@ static void do_elif(struct file *pfile)
 {
     struct ifstack *stack = pfile->current->ifstack;
     if (stack == NULL)
-        error("#elif without #if");
+        cpp_error("#elif without #if");
     bool b = eval_constexpr(pfile);
     if (stack) {
         if (stack->b || !b)
@@ -171,10 +170,10 @@ static void do_else(struct file *pfile)
 {
     struct ifstack *stack = pfile->current->ifstack;
     if (stack == NULL)
-        error("#else without #if");
+        cpp_error("#else without #if");
     struct token *t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
-        error("extra tokens in #else directive");
+        cpp_error("extra tokens in #else directive");
         skipline(pfile);
     }
     if (stack) {
@@ -190,10 +189,10 @@ static void do_endif(struct file *pfile)
     if (pfile->current->ifstack)
         if_unsentinel(pfile);
     else
-        error("#endif without #if");
+        cpp_error("#endif without #if");
     struct token *t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
-        error("extra tokens in #endif");
+        cpp_error("extra tokens in #endif");
         skipline(pfile);
     }
 }
@@ -203,7 +202,7 @@ static void do_ifdef_section(struct file *pfile, int id)
     struct source src = source;
     struct token *t = skip_spaces(pfile);
     if (t->id != ID)
-        fatal("expect identifier");
+        cpp_fatal("expect identifier");
 
     bool b = defined(pfile, t);
     bool skip = id == IFDEF ? !b : b;
@@ -212,7 +211,7 @@ static void do_ifdef_section(struct file *pfile, int id)
     
     t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
-        error("extra tokens in '%s' directive", id2s(id));
+        cpp_error("extra tokens in '%s' directive", id2s(id));
         skipline(pfile);
     }
     if (skip)
@@ -240,7 +239,7 @@ static void do_include(struct file *pfile)
 
         struct vector *r = expandv(pfile, v);
         if (vec_empty(r)) {
-            errorf(src, "empty filename");
+            cpp_errorf(src, "empty filename");
             return;
         }
 
@@ -250,7 +249,7 @@ static void do_include(struct file *pfile)
             for (int i = 1; i < vec_len(r); i++) {
                 struct token *t = vec_at(r, i);
                 if (!IS_SPACE(t)) {
-                    errorf(t->src,
+                    cpp_errorf(t->src,
                            "extra tokens at end of #include directive '%s'",
                            t->lexeme);
                     break;
@@ -265,14 +264,14 @@ static void do_include(struct file *pfile)
             }
             strbuf_strip(s);
             if (tail->id != '>')
-                errorf(src,
+                cpp_errorf(src,
                        "expected \"FILENAME\" or <FILENAME>");
             else if (strbuf_len(s) == 0)
-                errorf(src, "empty filename");
+                cpp_errorf(src, "empty filename");
             else
                 include_file(pfile, s->str, true);
         } else {
-            errorf(src, "expected \"FILENAME\" or <FILENAME>");
+            cpp_errorf(src, "expected \"FILENAME\" or <FILENAME>");
         }
     }
 }
@@ -324,7 +323,7 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
         vec_push(commas, t);
     }
     if (t->id != ')')
-        error("unterminated function-like macro invocation");
+        cpp_error("unterminated function-like macro invocation");
     else
         unget(pfile, t);
 
@@ -345,7 +344,7 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
     size_t lenp = vec_len(m->params);
     // check args and params
     if (lenv < lenp) {
-        error("too few arguments provided to function-like macro invocation");
+        cpp_error("too few arguments provided to function-like macro invocation");
     } else if (lenv > lenp) {
         if (m->vararg) {
             // merge 'variable arguments'
@@ -360,7 +359,7 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
                 vec_pop(v);
             vec_push(v, v2);
         } else {
-            error("too many arguments provided to function-like macro invocation");
+            cpp_error("too many arguments provided to function-like macro invocation");
         }
     }
 
@@ -395,7 +394,7 @@ static void parameters(struct file *pfile, struct macro *m)
         m->vararg = true;
         t = skip_spaces(pfile);
         if (t->id != ')') {
-            error("expect ')'");
+            cpp_error("expect ')'");
             unget(pfile, t);
         }
     } else if (t->id == ID) {
@@ -405,7 +404,7 @@ static void parameters(struct file *pfile, struct macro *m)
                 for (int i = 0; i < vec_len(v); i++) {
                     struct token *t1 = vec_at(v, i);
                     if (!strcmp(t->lexeme, t1->lexeme)) {
-                        error("duplicate macro paramter name '%s'",
+                        cpp_error("duplicate macro paramter name '%s'",
                              t->lexeme);
                         break;
                     }
@@ -416,7 +415,7 @@ static void parameters(struct file *pfile, struct macro *m)
                 t = skip_spaces(pfile);
                 break;
             } else {
-                error("expect identifier or ...");
+                cpp_error("expect identifier or ...");
             }
             t = skip_spaces(pfile);
             if (t->id != ',')
@@ -424,11 +423,11 @@ static void parameters(struct file *pfile, struct macro *m)
             t = skip_spaces(pfile);
         }
         if (t->id != ')') {
-            errorf(t->src, "unterminated macro parameter list");
+            cpp_errorf(t->src, "unterminated macro parameter list");
             unget(pfile, t);
         }
     } else {
-        error("expect identifier list or ')' or ...");
+        cpp_error("expect identifier list or ')' or ...");
         unget(pfile, t);
         skipline(pfile);
     }
@@ -481,7 +480,7 @@ static void remove_macro(struct file *pfile, struct token *t)
     if (ident) {
         struct macro *m = ident->value.macro;
         if (m->builtin) {
-            error("Can't undefine predefined macro '%s'", t->lexeme);
+            cpp_error("Can't undefine predefined macro '%s'", t->lexeme);
         } else {
             ident->type = 0;
             ident->value.macro = NULL;
@@ -500,7 +499,7 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
     
     if (m1) {
         if (m1->builtin) {
-            errorf(t->src, "Can't redefine predefined macro '%s'",
+            cpp_errorf(t->src, "Can't redefine predefined macro '%s'",
                    name);
         } else {
             size_t len2p = vec_len(m1->params);
@@ -530,7 +529,7 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
             return;
 
         redef:
-            errorf(t->src,
+            cpp_errorf(t->src,
                    "'%s' macro redefinition, previous definition at %s:%u:%u",
                    name, m1->src.file, m1->src.line,
                    m1->src.column);
@@ -539,23 +538,23 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
     }
 
     if (!strcmp(name, "defined"))
-        errorf(t->src, "'defined' cannot be used as a macro name");
+        cpp_errorf(t->src, "'defined' cannot be used as a macro name");
 
     for (size_t i = 0; i < len1b; i++) {
         struct token *t = vec_at(m->body, i);
         if (t->id == SHARPSHARP) {
             if (i == 0)
-                errorf(t->src,
+                cpp_errorf(t->src,
                        "'##' cannot appear at the beginning of a replacement list");
             else if (i == vec_len(m->body) - 1)
-                errorf(t->src,
+                cpp_errorf(t->src,
                        "'##' cannot appear at the end of a replacement list");
         } else if (t->id == '#') {
             struct token *t1 = vec_at_safe(m->body, i + 1);
             if (m->kind != MACRO_FUNC ||
                 t1 == NULL ||
                 inparams(t1, m) < 0)
-                errorf(t->src,
+                cpp_errorf(t->src,
                        "'#' is not followed by a macro parameter");
         }
     }
@@ -612,7 +611,7 @@ static struct token *read_identifier(struct file *pfile)
 {
     struct token *t = skip_spaces(pfile);
     if (t->id != ID) {
-        error("expect identifier at '%s'", t->lexeme);
+        cpp_error("expect identifier at '%s'", t->lexeme);
         unget(pfile, t);
     }
     return t;
@@ -644,7 +643,7 @@ static void do_undef(struct file *pfile)
     remove_macro(pfile, t);
     t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
-        warning("extra tokens at the end of #undef directive");
+        cpp_warning("extra tokens at the end of #undef directive");
         skipline(pfile);
     }
 }
@@ -669,7 +668,7 @@ static void do_lineno(struct file *pfile)
     struct token *t = skip_spaces(pfile);
     // TODO: must be an integer, not floating
     if (t->id != NCONSTANT) {
-        error("expect integer constant");
+        cpp_error("expect integer constant");
         unget(pfile, t);
         skipline(pfile);
         return;
@@ -712,9 +711,9 @@ static void do_message_line(struct file *pfile, int level)
 
     const char *message = tokens2s(v);
     if (level == WRN)
-        warningf(src, message);
+        cpp_warningf(src, message);
     else
-        errorf(src, message);
+        cpp_errorf(src, message);
 }
 
 #define do_error(pfile)  do_message_line(pfile, ERR)
@@ -729,7 +728,7 @@ static void do_pragma(struct file *pfile)
         if (IS_NEWLINE(t) || t->id == EOI)
             break;
     }
-    warningf(src, "pragma directive not supported yet");
+    cpp_warningf(src, "pragma directive not supported yet");
 }
 
 static void directive(struct file *pfile)
@@ -762,7 +761,7 @@ static void directive(struct file *pfile)
     else goto err;
     return;
  err:
-    warning("unknown preprocess directive '%s'", t->lexeme);
+    cpp_warning("unknown preprocess directive '%s'", t->lexeme);
     skipline(pfile);
 }
 
@@ -802,7 +801,7 @@ static struct token *with_tmp_lex(struct file *pfile, const char *input)
         unget(pfile, t1);
     if (peek(pfile)->id != EOI) {
         struct token *t2 = lex(pfile);
-        errorf(src,
+        cpp_errorf(src,
                "pasting formed '%s%s', an invalid preprocessing token",
                t->lexeme, t2->lexeme);
     }
@@ -1035,7 +1034,7 @@ static struct token *expand(struct file *pfile)
         m->handler(pfile, t);
         goto start;
     default:
-        assertf(0, "unkown macro type %d", m->kind);
+        assert(0);
     }
 }
 
@@ -1133,7 +1132,7 @@ static void include_file(struct file *pfile, const char *file, bool std)
     const char *path;
 
     if (!file) {
-        error("empty filename");
+        cpp_error("empty filename");
         return;
     }
     
@@ -1143,7 +1142,7 @@ static void include_file(struct file *pfile, const char *file, bool std)
         buffer_sentinel(pfile, with_file(path), BS_CONTINUOUS);
         unget(pfile, lineno(1, pfile->current->name));
     } else {
-        fatal("'%s' file not found", file);
+        cpp_fatal("'%s' file not found", file);
     }
 }
 
@@ -1239,7 +1238,7 @@ struct token *get_pptok(struct file *pfile)
         if (t->id == EOI) {
             struct ifstack *stack = pfile->current->ifstack;
             if (stack)
-                errorf(stack->src, "unterminated conditional directive");
+                cpp_errorf(stack->src, "unterminated conditional directive");
             if (pfile->current->return_eoi) {
                 return t;
             } else {

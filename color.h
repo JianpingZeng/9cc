@@ -1,7 +1,5 @@
-#ifndef _7CC_H
-#define _7CC_H
-
-#include "config.h"
+#ifndef _COLOR_H
+#define _COLOR_H
 
 #ifdef CONFIG_COLOR_TERM
 

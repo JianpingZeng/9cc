@@ -1,5 +1,4 @@
-#include "cc.h"
-#include "sys/sys.h"
+#include "internal.h"
 
 struct file *cpp_file;
 

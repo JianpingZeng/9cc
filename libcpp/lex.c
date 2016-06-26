@@ -1,4 +1,4 @@
-#include "cc.h"
+#include "internal.h"
 
 static unsigned char map[256] = {
 #define _a(a, b, c, d)  c,
@@ -6,8 +6,8 @@ static unsigned char map[256] = {
 #define _t(a, b, c)
 #define _k(a, b, c)
 #include "token.def"
-    OTHER,
-};
+OTHER,
+    };
 
 static const char *tnames[] = {
 #define _a(a, b, c, d)  b,
@@ -90,7 +90,7 @@ static void process_line_notes(struct buffer *pb)
             pb->line_base = note->pos;
             INCLINE(pb, 0);
         } else {
-            assertf(0, "unexpected line note type:%d", note->type);
+            assert(0);
         }
     }
 }
@@ -148,7 +148,7 @@ const unsigned char *search_line_fast(const unsigned char *s,
                                       const unsigned char *limit)
 {
     while (*s != '\n' && *s != '\\' && *s != '\r')
-            s++;
+        s++;
     return s;
 }
 
@@ -263,7 +263,7 @@ static void block_comment(struct file *pfile)
             pb->cur = rpc - 1;
             process_line_notes(pb);
             if (pb->next_line >= pb->limit) {
-                error("unterminated /* comment");
+                cpp_error("unterminated /* comment");
                 return;
             }
             next_clean_line(pb);
@@ -315,8 +315,8 @@ static const char *sequence(struct file *pfile, bool wide, int sep)
         char *str = xstrndup((const char *)rpc, pb->cur - rpc + 1);
         str[pb->cur - rpc] = sep;
         name = str;
-        error("untermiated %s constant: %s",
-              is_char ? "character" : "string", name);
+        cpp_error("untermiated %s constant: %s",
+                  is_char ? "character" : "string", name);
     } else {
         name = xstrndup((const char *)rpc, pb->cur - rpc);
     }
@@ -630,9 +630,9 @@ static struct token *dolex(struct file *pfile)
     default:
         // illegal character
         if (isgraph(*rpc))
-            error("illegal character '%c'", *rpc);
+            cpp_error("illegal character '%c'", *rpc);
         else
-            error("illegal character '\\0%o'", *rpc);
+            cpp_error("illegal character '\\0%o'", *rpc);
         goto start;
     }
 
@@ -678,7 +678,7 @@ static const char *hq_char_sequence(struct file *pfile, int sep)
     }
 
     if (ch != sep)
-        error("missing '%c' in header name", sep);
+        cpp_error("missing '%c' in header name", sep);
 
     name = xstrndup((const char *)rpc, pb->cur - rpc);
     skipline(pfile, true);
@@ -923,7 +923,7 @@ void expect(int t)
     if (token->id == t)
         gettok();
     else
-        error("expect token '%s'", id2s(t));
+        cpp_error("expect token '%s'", id2s(t));
 }
 
 void match(int t, int follow[])
@@ -957,13 +957,13 @@ int skipto(int (*test[]) (struct token *))
     }
  out:
     if (cnt > 1)
-        errorf(t->src,
-               "invalid token '%s', %d tokens skipped",
-               t->lexeme, cnt);
+        cpp_errorf(t->src,
+                   "invalid token '%s', %d tokens skipped",
+                   t->lexeme, cnt);
     else if (cnt)
-        errorf(t->src,
-               "invalid token '%s'",
-               t->lexeme);
+        cpp_errorf(t->src,
+                   "invalid token '%s'",
+                   t->lexeme);
     else
         die("nothing skipped, may be an internal error");
     return cnt;

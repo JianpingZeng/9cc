@@ -2386,9 +2386,9 @@ static struct vector * filter_global(struct vector *v)
             // but warning only when top file
             if (is_original_file(cpp_file, AST_SRC(sym).file)) {
                 if (isfuncdef(decl))
-                    warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+                    cc_warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
                 else if (isvardecl(decl))
-                    warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+                    cc_warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
             }
             
             continue;
@@ -2530,7 +2530,7 @@ static const char *get_ptr_label(node_t *n)
     case INITS_EXPR:
         return get_compound_literal_label(n);
     default:
-        assertf(0, "unexpected ast node '%s'", nname(n));
+        assert(0);
     }
 }
 

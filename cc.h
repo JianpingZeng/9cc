@@ -17,8 +17,24 @@
 #include <ctype.h>
 #include <stdint.h>
 
-#include "7cc.h"
+#include "config.h"
+#include "color.h"
 #include "utils/utils.h"
+#include "libcpp/lex.h"
+
+// alloc.c
+extern void *alloc_node(void);
+extern void *alloc_macro(void);
+extern void *alloc_operand(void);
+extern void *alloc_tac(void);
+extern void *alloc_basic_block(void);
+extern void *alloc_reladdr(void);
+extern void *alloc_opcode(void);
+extern void *alloc_hideset(void);
+extern void *alloc_cpp_ident(void);
+
+// error.c
+#include "error.h"
 
 struct cc_options {
     int E:1;
@@ -32,17 +48,6 @@ struct cc_options {
     struct vector *cpp_options;
 };
 extern struct cc_options opts;
-
-// alloc.c
-extern void *alloc_node(void);
-extern void *alloc_macro(void);
-extern void *alloc_operand(void);
-extern void *alloc_tac(void);
-extern void *alloc_basic_block(void);
-extern void *alloc_reladdr(void);
-extern void *alloc_opcode(void);
-extern void *alloc_hideset(void);
-extern void *alloc_cpp_ident(void);
 
 // value
 #define VALUE_U(v)    ((v).u)
@@ -58,8 +63,6 @@ union value {
     void *p;
     void (*g) ();
 };
-
-#include "lex.h"
 
 /**
  * The coding style tends to avoid typedefs, because
@@ -112,6 +115,10 @@ extern node_t *make_localdecl(const char *name, node_t * ty, int sclass);
 extern node_t *initializer_list(node_t * ty);
 extern void init_string(node_t * ty, node_t * node);
 extern bool has_static_extent(node_t * sym);
+
+extern void redefinition_error(struct source src, node_t * sym);
+extern void conflicting_types_error(struct source src, node_t * sym);
+extern void field_not_found_error(node_t * ty, const char *name);
 
 // stmt.c
 extern struct vector *funcalls;
@@ -285,39 +292,14 @@ extern void dump_reg(struct reg *reg);
 extern void dump_tacs(struct tac *tac);
 extern void print_source(struct source src);
 
-// error.c
-enum {
-    WRN = 1,                // warning
-    ERR,                    // error
-    FTL,                    // fatal
-};
-extern unsigned errors;
-extern unsigned warnings;
-extern void warningf(struct source src, const char *fmt, ...);
-extern void errorf(struct source src, const char *fmt, ...);
-extern void fatalf(struct source src, const char *fmt, ...);
-#define warning(...)  warningf(source, __VA_ARGS__)
-#define error(...)    errorf(source, __VA_ARGS__)
-#define fatal(...)    fatalf(source, __VA_ARGS__)
-
-#define SAVE_ERRORS    unsigned err = errors
-#define NO_ERROR       (err == errors)
-#define HAS_ERROR      (err != errors)
-
-#define assertf(condtion, desc, ...)            \
-    do {                                        \
-        if (!(condtion)) {                      \
-            derror(desc, __VA_ARGS__);          \
-            assert(condtion);                   \
-        }                                       \
-    } while (0)
+#define cc_warningf(s, ...)  warning(s.file, s.line, s.column, __VA_ARGS__)
+#define cc_errorf(s, ...)  error(s.file, s.line, s.column, __VA_ARGS__)
+#define cc_fatalf(s, ...)  fatal(s.file, s.line, s.column, __VA_ARGS__)
+#define cc_warning(...)  cc_warningf(source, __VA_ARGS__)
+#define cc_error(...)  cc_errorf(source, __VA_ARGS__)
+#define cc_fatal(...)  cc_fatalf(source, __VA_ARGS__)
 
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
-
-extern void redefinition_error(struct source src, node_t * sym);
-extern void conflicting_types_error(struct source src, node_t * sym);
-extern void field_not_found_error(node_t * ty, const char *name);
-
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
 

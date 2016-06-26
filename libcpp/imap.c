@@ -1,5 +1,4 @@
-#include "utils/utils.h"
-#include "imap.h"
+#include "internal.h"
 
 static void imap_expand(struct imap *imap);
 
