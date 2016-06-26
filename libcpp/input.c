@@ -63,31 +63,6 @@ struct buffer *with_file(const char *file)
     pb->buf = (const unsigned char *)d;
     pb->cur = pb->line_base = pb->next_line = pb->buf;
     pb->limit = &pb->buf[size];
-
-#if 0
-    // dump file
-    if (!strcmp("ConcurrencySal.h", basename(file))) {
-        int i = 0;
-        int step = 16;
-        for (; i < size - step + 1; i += step) {
-            fprintf(stderr, "%07x ", i);
-            int cnt = step / 2;
-            for (int j = 0; j < cnt; j++) {
-                char c1 = d[i + j * 2];
-                char c2 = d[i + j * 2 + 1];
-                fprintf(stderr, "%02x%02x ", c1, c2);
-            }
-            fprintf(stderr, "\n");
-        }
-        fprintf(stderr, "%07x ", i);
-        for (; i < size; i++) {
-            char c = d[i];
-            fprintf(stderr, "%02x ", c);
-        }
-        fprintf(stderr, "\n");
-    }
-#endif
-    
     return pb;
 }
 
