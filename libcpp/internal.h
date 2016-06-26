@@ -10,12 +10,11 @@
 #include "lex.h"
 #include "../utils/utils.h"
 #include "../sys/sys.h"
+#include "../error.h"
 
 extern void *alloc_macro(void);
 extern void *alloc_hideset(void);
 extern void *alloc_cpp_ident(void);
 extern bool eval_cpp_cond(void);
-
-#include "../error.h"
 
 #endif

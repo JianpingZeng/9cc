@@ -2,6 +2,7 @@
 #define _LEX_H
 
 #include "hideset.h"
+#include "imap.h"
 
 // source
 struct source {
@@ -23,8 +24,6 @@ enum {
 #include "token.def"
     TOKEND
 };
-
-#include "imap.h"
 
 #define ID_BITS    10
 
