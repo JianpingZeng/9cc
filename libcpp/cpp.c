@@ -1281,12 +1281,15 @@ static void parseopts(struct file *pfile, struct vector *options)
         include_cmdline(pfile, s->str);
 }
 
-void cpp_init(struct file *pfile, struct vector *options)
+void cpp_init(const char *file, struct vector *options)
 {
-    init_env(pfile);
-    init_include(pfile);
-    init_builtin_macros(pfile);
-    parseopts(pfile, options);
+    cpp_file = new_file(file);
+    buffer_sentinel(cpp_file, with_file(file), BS_CONTINUOUS);
+
+    init_env(cpp_file);
+    init_include(cpp_file);
+    init_builtin_macros(cpp_file);
+    parseopts(cpp_file, options);
 }
 
 /* Getting one expanded token.

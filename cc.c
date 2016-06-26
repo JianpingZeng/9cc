@@ -95,8 +95,7 @@ int main(int argc, char *argv[])
     symbol_init();
     type_init();
     cc_init(ifile, ofile);
-    input_init(ifile);
-    cpp_init(cpp_file, opts.cpp_options);
+    cpp_init(ifile, opts.cpp_options);
     
     if (opts.E)
         preprocess();

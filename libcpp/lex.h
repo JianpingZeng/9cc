@@ -160,7 +160,7 @@ struct ifstack {
     struct ifstack *prev;
 };
 
-extern void input_init(const char *file);
+extern struct file *new_file(const char *file);
 
 extern struct buffer *with_string(const char *input, const char *name);
 extern struct buffer *with_file(const char *file);
@@ -209,7 +209,7 @@ struct cpp_ident {
     } value;
 };
 
-extern void cpp_init(struct file *pfile, struct vector *options);
+extern void cpp_init(const char *file, struct vector *options);
 extern struct token *get_pptok(struct file *pfile);
 
 // lex.c

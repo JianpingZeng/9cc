@@ -171,7 +171,7 @@ static inline struct ident *alloc_cpp_ident_entry(struct imap *imap)
     return alloc_cpp_ident();
 }
 
-static struct file *new_file(const char *file)
+struct file *new_file(const char *file)
 {
     struct file *pfile = zmalloc(sizeof(struct file));
     pfile->file = file;
@@ -185,10 +185,4 @@ static struct file *new_file(const char *file)
     pfile->tokenrun = next_tokenrun(NULL, 1024);
     pfile->cur_token = pfile->tokenrun->base;
     return pfile;
-}
-
-void input_init(const char *file)
-{
-    cpp_file = new_file(file);
-    buffer_sentinel(cpp_file, with_file(file), BS_CONTINUOUS);
 }
