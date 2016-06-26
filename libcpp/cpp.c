@@ -535,7 +535,7 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
     struct cpp_ident *ident = lookup_macro(pfile, t);
     struct macro *m1 = ident ? ident->value.macro : NULL;
     size_t len1p = vec_len(m->params);
-    size_t len1b = vec_len(m->body);
+    size_t len1b = LIST_LEN(m->body);
     
     if (m1) {
         if (m1->builtin) {
@@ -543,7 +543,7 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
                    name);
         } else {
             size_t len2p = vec_len(m1->params);
-            size_t len2b = vec_len(m1->body);
+            size_t len2b = LIST_LEN(m1->body);
             
             // compare definition
             if (m->kind != m1->kind ||
@@ -560,8 +560,8 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
             }
 
             for (size_t i = 0; i < len1b; i++) {
-                struct token *t1 = vec_at(m->body, i);
-                struct token *t2 = vec_at(m1->body, i);
+                struct token *t1 = m->body[i];
+                struct token *t2 = m1->body[i];
                 if (strcmp(t1->lexeme, t2->lexeme))
                     goto redef;
             }
@@ -581,16 +581,16 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
         cpp_errorf(t->src, "'defined' cannot be used as a macro name");
 
     for (size_t i = 0; i < len1b; i++) {
-        struct token *t = vec_at(m->body, i);
+        struct token *t = m->body[i];
         if (t->id == SHARPSHARP) {
             if (i == 0)
                 cpp_errorf(t->src,
                        "'##' cannot appear at the beginning of a replacement list");
-            else if (i == vec_len(m->body) - 1)
+            else if (i == len1b - 1)
                 cpp_errorf(t->src,
                        "'##' cannot appear at the end of a replacement list");
         } else if (t->id == '#') {
-            struct token *t1 = vec_at_safe(m->body, i + 1);
+            struct token *t1 = i + 1 < len1b ? m->body[i+1] : NULL;
             if (m->kind != MACRO_FUNC ||
                 t1 == NULL ||
                 inparams(t1, m) < 0)
@@ -600,16 +600,22 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
     }
 }
 
-static struct vector *replacement_list(struct file *pfile)
+static void replacement_list(struct file *pfile, struct macro *m)
 {
-    struct vector *v = vec_new();
+    unsigned int n = 64;
+    unsigned int i = 0;
+    struct token **v = xmalloc(n * sizeof(struct token *));
     struct token *t = skip_spaces(pfile);
     bool space = false;
     for (;;) {
         if (IS_NEWLINE(t) || t->id == EOI)
             break;
         t->space = space;
-        vec_push(v, t);
+        if (i >= n - 1) {
+            n <<= 1;
+            v = xrealloc(v, n * sizeof(struct token *));
+        }
+        v[i++] = t;
         // skip spaces and record
         space = false;
     beg:
@@ -619,7 +625,8 @@ static struct vector *replacement_list(struct file *pfile)
             goto beg;
         }
     }
-    return v;
+    v[i] = NULL;
+    m->body = v;
 }
 
 static void define_objlike_macro(struct file *pfile, struct token *t)
@@ -628,7 +635,7 @@ static void define_objlike_macro(struct file *pfile, struct token *t)
     SAVE_ERRORS;
     m->kind = MACRO_OBJ;
     m->src = t->src;
-    m->body = replacement_list(pfile);
+    replacement_list(pfile, m);
     ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
         add_macro(pfile, t->value.ident, m);
@@ -641,7 +648,7 @@ static void define_funclike_macro(struct file *pfile, struct token *t)
     m->kind = MACRO_FUNC;
     m->src = t->src;
     parameters(pfile, m);
-    m->body = replacement_list(pfile);
+    replacement_list(pfile, m);
     ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
         add_macro(pfile, t->value.ident, m);
@@ -950,14 +957,14 @@ static struct vector *subst(struct file *pfile,
                             struct hideset *hideset)
 {
     struct vector *r = vec_new();
-    struct vector *body = m->body;
-    size_t len = vec_len(body);
+    struct token **body = m->body;
+    size_t len = LIST_LEN(m->body);
 
 #define PUSH_SPACE(r, t)    if (t->space) vec_push(r, space_token)
 
     for (size_t i = 0; i < len; i++) {
-        struct token *t0 = vec_at(body, i);
-        struct token *t1 = vec_at_safe(body, i + 1);
+        struct token *t0 = body[i];
+        struct token *t1 = i + 1 < len ? body[i+1] : NULL;
         int index;
 
         if (t0->id == '#' && (index = inparams(t1, m)) >= 0) {
@@ -994,7 +1001,7 @@ static struct vector *subst(struct file *pfile,
                 // add a space
                 vec_push(r, space_token);
 
-                struct token *t2 = vec_at_safe(body, i + 2);
+                struct token *t2 = i + 2 < len ? body[i+2] : NULL;
                 int index2 = inparams(t2, m);
                 if (index2 >= 0) {
                     struct vector *iv2 = select(args, index2);

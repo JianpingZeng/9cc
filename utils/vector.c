@@ -190,11 +190,12 @@ void **vtoa(struct vector *v)
     return array;
 }
 
-int array_len(void **array)
+size_t array_len(void **array)
 {
-    int i;
+    size_t i = 0;
     if (array == NULL)
         return 0;
-    for (i = 0; array[i]; i++) ;
+    while (array[i])
+        i++;
     return i;
 }

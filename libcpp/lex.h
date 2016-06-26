@@ -189,7 +189,7 @@ struct macro {
     int kind:4;
     bool vararg;
     bool builtin;
-    struct vector *body;
+    struct token **body;
     struct vector *params;
     // special macro handler
     void (*handler) (struct file *, struct token *);

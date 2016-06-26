@@ -53,8 +53,8 @@ extern void **vtoa(struct vector *v);
 
 extern void vec_add_array(struct vector *v, void **array);
 
-extern int array_len(void **array);
+extern size_t array_len(void **array);
 
-#define LIST_LEN(list)    (array_len((void **)(list)))
+#define LIST_LEN(list)  array_len((void **)(list))
 
 #endif
