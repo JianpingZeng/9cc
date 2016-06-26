@@ -17,6 +17,39 @@ static struct token *token_one = &(struct token){.id = NCONSTANT, .lexeme = "1" 
 #define IMAP_LOOKUP_HASH(imap, id, opt) \
     (struct cpp_ident *)imap_lookup_with_hash(imap, id->str, id->len, id->hash, opt)
 
+static void do_if(struct file *);
+static void do_ifdef(struct file *);
+static void do_ifndef(struct file *);
+static void do_elif(struct file *);
+static void do_else(struct file *);
+static void do_endif(struct file *);
+static void do_include(struct file *);
+static void do_define(struct file *);
+static void do_undef(struct file *);
+static void do_line(struct file *);
+static void do_error(struct file *);
+static void do_warning(struct file *);
+static void do_pragma(struct file *);
+
+static struct directive_table {
+    const char *name;
+    void (*handler) (struct file *);
+} directive_table[] = {
+    { "if",      do_if },
+    { "ifdef",   do_ifdef },
+    { "ifndef",  do_ifndef },
+    { "elif",    do_elif },
+    { "else",    do_else },
+    { "endif",   do_endif },
+    { "include", do_include },
+    { "define",  do_define },
+    { "undef",   do_undef },
+    { "line",    do_line },
+    { "error",   do_error },
+    { "warning", do_warning },
+    { "pragma",  do_pragma }
+};
+
 static inline bool defined(struct file *pfile, struct token *t)
 {
     struct ident *id = t->value.ident;
@@ -218,8 +251,15 @@ static void do_ifdef_section(struct file *pfile, int id)
         skip_ifstack(pfile);
 }
 
-#define do_ifdef(pfile)  do_ifdef_section(pfile, IFDEF)
-#define do_ifndef(pfile)  do_ifdef_section(pfile, IFNDEF)
+static inline void do_ifdef(struct file *pfile)
+{
+    do_ifdef_section(pfile, IFDEF);
+}
+
+static inline void do_ifndef(struct file *pfile)
+{
+    do_ifdef_section(pfile, IFNDEF);
+}
 
 static void do_include(struct file *pfile)
 {
@@ -648,7 +688,7 @@ static void do_undef(struct file *pfile)
     }
 }
 
-static void do_lineno(struct file *pfile)
+static void do_line(struct file *pfile)
 {
     /* line directive:
      *
@@ -716,8 +756,15 @@ static void do_message_line(struct file *pfile, int level)
         cpp_errorf(src, message);
 }
 
-#define do_error(pfile)  do_message_line(pfile, ERR)
-#define do_warning(pfile)  do_message_line(pfile, WRN)
+static inline void do_error(struct file *pfile)
+{
+    do_message_line(pfile, ERR);
+}
+
+static inline void do_warning(struct file *pfile)
+{
+    do_message_line(pfile, WRN);
+}
 
 static void do_pragma(struct file *pfile)
 {
@@ -739,27 +786,20 @@ static void directive(struct file *pfile)
     // TODO: must be an integer, not floating
     if (t->id == NCONSTANT) {
         unget(pfile, t);
-        do_lineno(pfile);
+        do_line(pfile);
         return;
     }
     if (t->id != ID)
         goto err;
 
-    if (!strcmp(t->lexeme, "if")) do_if(pfile);
-    else if (!strcmp(t->lexeme, "ifdef")) do_ifdef(pfile);
-    else if (!strcmp(t->lexeme, "ifndef")) do_ifndef(pfile);
-    else if (!strcmp(t->lexeme, "elif")) do_elif(pfile);
-    else if (!strcmp(t->lexeme, "else")) do_else(pfile);
-    else if (!strcmp(t->lexeme, "endif")) do_endif(pfile);
-    else if (!strcmp(t->lexeme, "include")) do_include(pfile);
-    else if (!strcmp(t->lexeme, "define")) do_define(pfile);
-    else if (!strcmp(t->lexeme, "undef")) do_undef(pfile);
-    else if (!strcmp(t->lexeme, "line")) do_lineno(pfile);
-    else if (!strcmp(t->lexeme, "error")) do_error(pfile);
-    else if (!strcmp(t->lexeme, "pragma")) do_pragma(pfile);
-    else if (!strcmp(t->lexeme, "warning")) do_warning(pfile);
-    else goto err;
-    return;
+    int len = ARRAY_SIZE(directive_table);
+    for (int i = 0; i < len; i++) {
+        struct directive_table tb = directive_table[i];
+        if (!strcmp(t->lexeme, tb.name)) {
+            tb.handler(pfile);
+            return;
+        }
+    }
  err:
     cpp_warning("unknown preprocess directive '%s'", t->lexeme);
     skipline(pfile);
