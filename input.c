@@ -1,4 +1,4 @@
-#include "internal.h"
+#include "cpp.h"
 
 struct file *cpp_file;
 

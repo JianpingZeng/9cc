@@ -12,7 +12,6 @@ LDFLAGS =
 CC1 = cc1
 utils_dir = utils/
 sys_dir = sys/
-libcpp_dir = libcpp/
 UTILS_OBJ =
 UTILS_INC =
 LIBCPP_OBJ =
@@ -40,15 +39,15 @@ UTILS_INC += $(utils_dir)map.h
 UTILS_INC += $(utils_dir)set.h
 UTILS_INC += $(utils_dir)utils.h
 
-LIBCPP_OBJ += $(libcpp_dir)cpp.o
-LIBCPP_OBJ += $(libcpp_dir)hideset.o
-LIBCPP_OBJ += $(libcpp_dir)imap.o
-LIBCPP_OBJ += $(libcpp_dir)input.o
-LIBCPP_OBJ += $(libcpp_dir)lex.o
+LIBCPP_OBJ += cpp.o
+LIBCPP_OBJ += hideset.o
+LIBCPP_OBJ += imap.o
+LIBCPP_OBJ += input.o
+LIBCPP_OBJ += lex.o
 
-LIBCPP_INC += $(libcpp_dir)lex.h
-LIBCPP_INC += $(libcpp_dir)token.def
-LIBCPP_INC += $(libcpp_dir)internal.h
+LIBCPP_INC += lex.h
+LIBCPP_INC += token.def
+LIBCPP_INC += cpp.h
 
 CC1_OBJ += alloc.o
 CC1_OBJ += error.o
@@ -217,7 +216,6 @@ objclean::
 	$(RM) *.o *~
 	$(RM) $(sys_dir)*.o $(sys_dir)*~
 	$(RM) $(utils_dir)*.o $(utils_dir)*~
-	$(RM) $(libcpp_dir)*.o $(libcpp_dir)*~
 	$(RM) $(TESTS) test/*.o test/*~
 	$(RM) include/*~ 7cc.exe*
 

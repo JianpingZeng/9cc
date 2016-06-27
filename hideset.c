@@ -1,4 +1,4 @@
-#include "internal.h"
+#include "cpp.h"
 
 struct hideset *hideset_add(struct hideset *s, const unsigned char *name)
 {

@@ -20,7 +20,7 @@
 #include "config.h"
 #include "color.h"
 #include "utils/utils.h"
-#include "libcpp/lex.h"
+#include "lex.h"
 
 // alloc.c
 extern void *alloc_node(void);
