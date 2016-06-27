@@ -83,9 +83,9 @@ static void calculate_in_out(struct basic_block *start)
             }
             struct set *set1 = set_substract_q(outs, block->def);
             struct set *ins = set_union_q(set1, block->use);
-            if (!changed) {
+            if (!changed)
                 changed = !set_equal(ins, block->in);
-            }
+            
             block->out = outs;
             block->in = ins;
         }
