@@ -386,7 +386,7 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
     if (lenv < lenp) {
         cpp_error("too few arguments provided to function-like macro invocation");
     } else if (lenv > lenp) {
-        if (m->vararg) {
+        if (m->varg) {
             // merge 'variable arguments'
             struct vector *v2 = vec_new();
             for (int i = lenp; i < lenv; i++) {
@@ -406,22 +406,6 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
     return v;
 }
 
-static int inparams(struct token *t, struct macro *m)
-{
-    if (t->id != ID)
-        return -1;
-
-    size_t len = m->nparams;
-    if (!strcmp(t->lexeme, "__VA_ARGS__") && m->vararg)
-        return len;
-    for (size_t i = 0; i < len; i++) {
-        struct token *p = m->params[i];
-        if (!strcmp(t->lexeme, p->lexeme))
-            return i;
-    }
-    return -1;
-}
-
 static void parameters(struct file *pfile, struct macro *m)
 {
     unsigned int n = 16;
@@ -435,7 +419,7 @@ static void parameters(struct file *pfile, struct macro *m)
         break;
     case ELLIPSIS:
         // (...)
-        m->vararg = true;
+        m->varg = true;
         t = skip_spaces(pfile);
         if (t->id != ')') {
             cpp_error("expect ')'");
@@ -459,9 +443,11 @@ static void parameters(struct file *pfile, struct macro *m)
                     n <<= 1;
                     v = xrealloc(v, n * sizeof(struct token *));
                 }
+                t->param = true;
+                t->pos = i;
                 v[i++] = t;
             } else if (t->id == ELLIPSIS) {
-                m->vararg = true;
+                m->varg = true;
                 t = skip_spaces(pfile);
                 break;
             } else {
@@ -560,7 +546,7 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
             
             // compare definition
             if (m->kind != m1->kind ||
-                m->vararg != m1->vararg ||
+                m->varg != m1->varg ||
                 len1p != len2p ||
                 len1b != len2b)
                 goto redef;
@@ -606,7 +592,7 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
             struct token *t1 = i + 1 < len1b ? m->body[i+1] : NULL;
             if (m->kind != MACRO_FUNC ||
                 t1 == NULL ||
-                inparams(t1, m) < 0)
+                !t1->param)
                 cpp_errorf(t->src,
                        "'#' is not followed by a macro parameter");
         }
@@ -627,6 +613,20 @@ static void replacement_list(struct file *pfile, struct macro *m)
         if (i >= n) {
             n <<= 1;
             v = xrealloc(v, n * sizeof(struct token *));
+        }
+        if (m->kind == MACRO_FUNC && t->id == ID) {
+            if (m->varg && !strcmp(t->lexeme, "__VA_ARGS__")) {
+                t->param = true;
+                t->pos = m->nparams;
+            } else {
+                for (size_t i = 0; i < m->nparams; i++) {
+                    struct token *t0 = m->params[i];
+                    if (!strcmp(t->lexeme, t0->lexeme)) {
+                        t->param = true;
+                        t->pos = t0->pos;
+                    }
+                }
+            }
         }
         v[i++] = t;
         // skip spaces and record
@@ -978,20 +978,19 @@ static struct vector *subst(struct file *pfile,
     for (size_t i = 0; i < len; i++) {
         struct token *t0 = body[i];
         struct token *t1 = i + 1 < len ? body[i+1] : NULL;
-        int index;
+        bool t0_inparams = t0->param;
+        bool t1_inparams = t1 && t1->param;
 
-        if (t0->id == '#' && (index = inparams(t1, m)) >= 0) {
-
-            struct vector *iv = select(args, index);
+        if (t0->id == '#' && t1_inparams) {
+            struct vector *iv = select(args, t1->pos);
             struct token *ot = stringize(iv);
             PUSH_SPACE(r, t0);
             vec_push(r, ot);
             i++;
 
-        } else if (t0->id == SHARPSHARP
-                   && (index = inparams(t1, m)) >= 0) {
+        } else if (t0->id == SHARPSHARP && t1_inparams) {
 
-            struct vector *iv = select(args, index);
+            struct vector *iv = select(args, t1->pos);
             if (vec_len(iv))
                 r = glue(pfile, r, iv);
             i++;
@@ -1002,11 +1001,10 @@ static struct vector *subst(struct file *pfile,
             r = glue(pfile, r, vec_new1(t1));
             i++;
 
-        } else if ((index = inparams(t0, m)) >= 0
-                   && (t1 && t1->id == SHARPSHARP)) {
+        } else if (t0_inparams && (t1 && t1->id == SHARPSHARP)) {
 
             hideset = t1->hideset;
-            struct vector *iv = select(args, index);
+            struct vector *iv = select(args, t0->pos);
             if (vec_len(iv)) {
                 PUSH_SPACE(r, t0);
                 vec_add(r, iv);
@@ -1015,18 +1013,18 @@ static struct vector *subst(struct file *pfile,
                 vec_push(r, space_token);
 
                 struct token *t2 = i + 2 < len ? body[i+2] : NULL;
-                int index2 = inparams(t2, m);
-                if (index2 >= 0) {
-                    struct vector *iv2 = select(args, index2);
+                bool t2_inparams = t2 && t2->param;
+                if (t2_inparams) {
+                    struct vector *iv2 = select(args, t2->pos);
                     vec_add(r, iv2);
                     i++;
                 }
                 i++;
             }
 
-        } else if ((index = inparams(t0, m)) >= 0) {
+        } else if (t0_inparams) {
 
-            struct vector *iv = select(args, index);
+            struct vector *iv = select(args, t0->pos);
             struct vector *ov = expandv(pfile, iv);
             PUSH_SPACE(r, t0);
             vec_add(r, ov);

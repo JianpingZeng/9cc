@@ -90,6 +90,8 @@ struct token {
     int kind:ID_BITS;
     bool bol;                // beginning of line
     bool space;              // leading space
+    bool param;              // macro param
+    unsigned int pos;        // param posistion
     const char *lexeme;
     struct source src;
     struct hideset *hideset;
@@ -187,7 +189,7 @@ enum {
 
 struct macro {
     int kind:4;
-    bool vararg;
+    bool varg;
     bool builtin;
     unsigned int nparams;
     struct token **params;
