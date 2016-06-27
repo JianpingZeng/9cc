@@ -6,7 +6,9 @@
 #include <time.h>
 #include <locale.h>
 #include <assert.h>
+#include <stdint.h>
 
+#include "config.h"
 #include "lex.h"
 #include "utils/utils.h"
 #include "sys/sys.h"

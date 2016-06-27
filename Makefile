@@ -100,6 +100,12 @@ HAVE_SSE2 = $(call cpu_has, /sse2/)
 HAVE_SSE4_2 = $(call cpu_has, /sse4_2/)
 HAVE_AVX = $(call cpu_has, /avx/)
 
+ifeq ($(HAVE_SSE4_2), 1)
+
+CFLAGS += -msse4.2
+
+endif
+
 else ifeq (Darwin, $(KERNEL))
 
 SYS_OBJ += $(sys_dir)unix.o

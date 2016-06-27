@@ -6,8 +6,8 @@ static unsigned char map[256] = {
 #define _t(a, b, c)
 #define _k(a, b, c)
 #include "token.def"
-OTHER,
-    };
+    OTHER,
+};
 
 static const char *tnames[] = {
 #define _a(a, b, c, d)  b,
@@ -108,7 +108,7 @@ static unsigned char repl_chars[3][16] __attribute__((aligned(16))) = {
       '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\' }
 };
 
-const unsigned char *search_line_fast(const unsigned char *s,
+const unsigned char *search_line_sse2(const unsigned char *s,
                                       const unsigned char *limit)
 {
     const __v16qi repl_nl = *(const __v16qi *)repl_chars[0];
@@ -118,8 +118,8 @@ const unsigned char *search_line_fast(const unsigned char *s,
     const __v16qi *p;
     __v16qi data, t;
 
-    misalign = (uint64_t)s & 15;
-    p = (const __v16qi *)((uint64_t)s & -16);
+    misalign = (uintptr_t)s & 15;
+    p = (const __v16qi *)((uintptr_t)s & -16);
     data = *p;
     mask = -1u << misalign;
 
@@ -141,6 +141,56 @@ const unsigned char *search_line_fast(const unsigned char *s,
     result = __builtin_ctz(result);
     return (const unsigned char *)p + result;
 }
+
+#if HAVE_SSE4_2
+
+#include <smmintrin.h>
+
+const unsigned char *search_line_sse42(const unsigned char *s,
+                                       const unsigned char *limit)
+{
+    static const __v16qi search = { '\n', '\r', '\\' };
+
+    uintptr_t si = (uintptr_t)s;
+    uintptr_t index;
+
+    /* Check for unaligned input.  */
+    if (si & 15)
+        {
+            __v16qi sv;
+
+            if (__builtin_expect (limit - s < 16, 0)
+                && __builtin_expect ((si & 0xfff) > 0xff0, 0))
+                return search_line_sse2 (s, limit);
+            
+            sv = __builtin_ia32_loaddqu ((const char *) s);
+            index = __builtin_ia32_pcmpestri128 (search, 3, sv, 16, 0);
+
+            if (__builtin_expect (index < 16, 0))
+                goto found;
+            
+            s = (const unsigned char *)((si + 15) & -16);
+        }
+
+    s -= 16;
+    __asm (".balign 16\n"
+           "0:add $16, %1\n"
+           "%vpcmpestri\t$0, (%1), %2\n"
+           "jnc 0b"
+           : "=&c"(index), "+r"(s)
+           : "x"(search), "a"(3), "d"(16));
+
+ found:
+    return s + index;
+}
+
+#define search_line_fast  search_line_sse42
+
+#else
+
+#define search_line_fast  search_line_sse2
+
+#endif /* HAVE_SSE42 */
 
 #else
 
