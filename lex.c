@@ -760,11 +760,6 @@ struct token *header_name(struct file *pfile)
     }
 }
 
-void unget(struct file *pfile, struct token *t)
-{
-    vec_push(pfile->current->ungets, t);
-}
-
 /* Skip part of conditional group.
  */
 void skip_ifstack(struct file *pfile)

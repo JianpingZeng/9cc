@@ -89,6 +89,11 @@ static struct token *peek(struct file *pfile)
     return t;
 }
 
+void unget(struct file *pfile, struct token *t)
+{
+    vec_push(pfile->current->ungets, t);
+}
+
 static void ungetv(struct file *pfile, struct vector *v)
 {
     for (int i = vec_len(v) - 1; i >= 0; i--)

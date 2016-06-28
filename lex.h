@@ -213,6 +213,7 @@ struct cpp_ident {
 
 extern void cpp_init(const char *file, struct vector *options);
 extern struct token *get_pptok(struct file *pfile);
+extern void unget(struct file *pfile, struct token *t);
 
 // lex.c
 extern struct source source;
@@ -230,7 +231,6 @@ extern int isxalpha(int c);
 struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count);
 
 extern struct token *lex(struct file *pfile);
-extern void unget(struct file *pfile, struct token *t);
 extern struct token *header_name(struct file *pfile);
 extern struct token *new_token(struct token *tok);
 extern void skip_ifstack(struct file *pfile);
