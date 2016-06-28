@@ -58,10 +58,7 @@ static struct map_entry **find_entry(struct map *map, const void *key)
     struct map_entry **entry = &map->table[bucket(map, key)];
     while (*entry && !eqentry(map, *entry, key))
         entry = &(*entry)->next;
-#ifdef CONFIG_MAP_STATISTICS
-    if (*entry)
-        (*entry)->searches++;
-#endif
+
     return entry;
 }
 
@@ -177,43 +174,4 @@ struct vector *map_objs(struct map *map)
     for (struct map_entry *entry = map->all; entry; entry = entry->all)
         vec_push(v, (void *)entry->value);
     return v;
-}
-
-void map_dump(struct map *map)
-{
-#ifdef CONFIG_MAP_STATISTICS
-    unsigned int emax = 0;
-    unsigned int emax_i = 0;
-    unsigned int smax = 0;
-    unsigned int smax_i = 0;
-    unsigned int smax_c = 0;
-    unsigned int total_search = 0;
-    for (unsigned int i = 0; i < map->tablesize; i++) {
-        struct map_entry *entry = map->table[i];
-        unsigned int c = 0;
-        unsigned int s = 0;
-        while (entry) {
-            c++;
-            s += entry->searches;
-            entry = entry->next;
-        }
-        if (c > emax) {
-            emax = c;
-            emax_i = i;
-        }
-        if (s > smax) {
-            smax = s;
-            smax_i = i;
-            smax_c = c;
-        }
-        total_search += s;
-    }
-    println("buckets: %u", map->tablesize);
-    println("entries: %u", map->size);
-    println("max entry count: %u @bucket[%u]",
-            emax, emax_i);
-    println("max search count: %u @bucket[%u] with %u entries",
-            smax, smax_i, smax_c);
-    println("total search: %u", total_search);
-#endif
 }
