@@ -227,7 +227,5 @@ objclean::
 
 clean:: objclean
 	$(RM) $(7CC) $(CC1)
-
-distclean:: clean
 	$(RM) stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3 $(CONFIG_H)
 
