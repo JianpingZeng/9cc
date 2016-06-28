@@ -128,7 +128,6 @@ static void imap_expand(struct imap *imap)
     free(imap->table);
     imap->table = ntable;
     imap->nslots = size;
-    imap->expansions++;
 }
 
 void imap_foreach(struct imap *imap, imap_cb cb, const void *context)
@@ -153,5 +152,4 @@ void imap_dump(struct imap *imap)
     println("nelements: %u", imap->nelements);
     println("searches: %u", imap->searches);
     println("collisions: %u", imap->collisions);
-    println("expandsions: %u", imap->expansions);
 }

@@ -43,7 +43,6 @@ struct imap {
     // Statistics
     unsigned int searches;
     unsigned int collisions;
-    unsigned int expansions;
 };
 
 extern struct imap *imap_new(unsigned int cap);
