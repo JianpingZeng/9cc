@@ -32,25 +32,8 @@ struct buffer *with_file(const char *file)
     // read the content
     long size = file_size(file);
     char *d = xmalloc(size + 1);
-#ifdef CONFIG_WINNT
-    long offset = 0;
-    long bytes = size;
-    while (bytes > 0) {
-        size_t n = fread(d + offset, 1, bytes, fp);
-        if (n == 0) {
-            if (feof(fp))
-                break;
-            else
-                die("Can't read file: %s", file);
-        } else {
-            offset += n;
-            bytes -= n;
-        } 
-    }
-#else
     if (fread(d, size, 1, fp) != 1)
         die("Can't read file: %s", file);
-#endif
     fclose(fp);
 
     /**
