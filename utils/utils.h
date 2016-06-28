@@ -37,14 +37,6 @@ extern void *zmalloc(size_t size);
 extern int log2i(size_t i);
 
 // string.c
-struct str_table {
-    struct str_bucket {
-        char *str;
-        size_t len;
-        struct str_bucket *next;
-    } *buckets[1024];
-};
-
 extern unsigned strhash(const char *s);
 extern unsigned strhashn(const char *s, size_t len);
 extern char *strs(const char *str);

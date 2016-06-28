@@ -3,6 +3,14 @@
 #define FNV32_BASIS ((unsigned) 0x811c9dc5)
 #define FNV32_PRIME ((unsigned) 0x01000193)
 
+struct str_table {
+    struct str_bucket {
+        char *str;
+        size_t len;
+        struct str_bucket *next;
+    } *buckets[1024];
+};
+
 // FNV-1a
 unsigned strhash(const char *s)
 {
