@@ -413,7 +413,7 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
 
 static void parameters(struct file *pfile, struct macro *m)
 {
-    unsigned int n = 16;
+    unsigned int n = 0;
     unsigned int i = 0;
     struct token **v = NULL;
     struct token *t = skip_spaces(pfile);
@@ -432,7 +432,6 @@ static void parameters(struct file *pfile, struct macro *m)
         }
         break;
     case ID:
-        v = xmalloc(n * sizeof(struct token *));
         // (a,b,c,...)
         for (;;) {
             if (t->id == ID) {
@@ -445,7 +444,7 @@ static void parameters(struct file *pfile, struct macro *m)
                     }
                 }
                 if (i >= n) {
-                    n <<= 1;
+                    n = n * 2 + 16;
                     v = xrealloc(v, n * sizeof(struct token *));
                 }
                 t->param = true;
@@ -606,9 +605,9 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
 
 static void replacement_list(struct file *pfile, struct macro *m)
 {
-    unsigned int n = 64;
+    unsigned int n = 0;
     unsigned int i = 0;
-    struct token **v = xmalloc(n * sizeof(struct token *));
+    struct token **v = NULL;
     struct token *t = skip_spaces(pfile);
     bool space = false;
     for (;;) {
@@ -616,7 +615,7 @@ static void replacement_list(struct file *pfile, struct macro *m)
             break;
         t->space = space;
         if (i >= n) {
-            n <<= 1;
+            n = n * 2 + 64;
             v = xrealloc(v, n * sizeof(struct token *));
         }
         if (m->kind == MACRO_FUNC && t->id == ID) {
