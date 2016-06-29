@@ -91,7 +91,7 @@ static struct token *peek(struct file *pfile)
 
 void unget(struct file *pfile, struct token *t)
 {
-    vec_push(pfile->current->ungets, t);
+    vec_push(pfile->buffer->ungets, t);
 }
 
 static void ungetv(struct file *pfile, struct vector *v)
@@ -167,7 +167,7 @@ static bool eval_constexpr(struct file *pfile)
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
     buffer_sentinel(pfile,
-                    with_tokens(vec_reverse(tokens), pfile->current),
+                    with_tokens(vec_reverse(tokens), pfile->buffer),
                     BS_RETURN_EOI);
     bool ret = eval_cpp_cond();
     buffer_unsentinel(pfile);
@@ -190,7 +190,7 @@ static void do_if(struct file *pfile)
 
 static void do_elif(struct file *pfile)
 {
-    struct ifstack *stack = pfile->current->ifstack;
+    struct ifstack *stack = pfile->buffer->ifstack;
     if (stack == NULL)
         cpp_error("#elif without #if");
     bool b = eval_constexpr(pfile);
@@ -206,7 +206,7 @@ static void do_elif(struct file *pfile)
 
 static void do_else(struct file *pfile)
 {
-    struct ifstack *stack = pfile->current->ifstack;
+    struct ifstack *stack = pfile->buffer->ifstack;
     if (stack == NULL)
         cpp_error("#else without #if");
     struct token *t = skip_spaces(pfile);
@@ -224,7 +224,7 @@ static void do_else(struct file *pfile)
 
 static void do_endif(struct file *pfile)
 {
-    if (pfile->current->ifstack)
+    if (pfile->buffer->ifstack)
         if_unsentinel(pfile);
     else
         cpp_error("#endif without #if");
@@ -743,7 +743,7 @@ static void do_line(struct file *pfile)
     if (t2->id == SCONSTANT) {
         name = format("# %s %s\n", t->lexeme, t2->lexeme);
     } else {
-        name = format("# %s \"%s\"\n", t->lexeme, pfile->current->name);
+        name = format("# %s \"%s\"\n", t->lexeme, pfile->buffer->name);
         unget(pfile, t2);
     }
     skipline(pfile);
@@ -838,7 +838,7 @@ static struct vector *expandv(struct file *pfile, struct vector *v)
     // so that get_pptok will not
     // generate 'unterminated conditional directive'
     buffer_sentinel(pfile,
-                    with_tokens(vec_reverse(v), pfile->current),
+                    with_tokens(vec_reverse(v), pfile->buffer),
                     BS_RETURN_EOI);
     for (;;) {
         struct token *t = expand(pfile);
@@ -1103,7 +1103,7 @@ static struct token *expand(struct file *pfile)
 
 static void file_handler(struct file *pfile, struct token *t)
 {
-    const char *file = pfile->current->name;
+    const char *file = pfile->buffer->name;
     const char *name = format("\"%s\"", file);
     struct token *tok = new_token(&(struct token){
             .id = SCONSTANT, .lexeme = name, .src = t->src });
@@ -1112,7 +1112,7 @@ static void file_handler(struct file *pfile, struct token *t)
 
 static void line_handler(struct file *pfile, struct token *t)
 {
-    unsigned line = pfile->current->line;
+    unsigned line = pfile->buffer->line;
     const char *name = strd(line);
     struct token *tok = new_token(&(struct token){
             .id = NCONSTANT, .lexeme = name, .src = t->src });
@@ -1181,7 +1181,7 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
          * the contents of path, so it may be desirable
          * to pass a copy when calling one of these functions.
          */
-        const char *curfile = xstrdup(pfile->current->name);
+        const char *curfile = xstrdup(pfile->buffer->name);
         const char *curdir = dirname(curfile);
         const char *file = join(curdir, name);
         if (file_exists(file))
@@ -1203,7 +1203,7 @@ static void include_file(struct file *pfile, const char *file, bool std)
 
     if (path) {
         buffer_sentinel(pfile, with_file(path), BS_CONTINUOUS);
-        unget(pfile, lineno(1, pfile->current->name));
+        unget(pfile, lineno(1, pfile->buffer->name));
     } else {
         cpp_fatal("'%s' file not found", file);
     }
@@ -1214,7 +1214,7 @@ static void include_cmdline(struct file *pfile, const char *command)
     buffer_sentinel(pfile,
                     with_string(command, "<command-line>"),
                     BS_CONTINUOUS);
-    unget(pfile, lineno(1, pfile->current->name));
+    unget(pfile, lineno(1, pfile->buffer->name));
 }
 
 static void init_builtin_macros(struct file *pfile)
@@ -1302,16 +1302,16 @@ struct token *get_pptok(struct file *pfile)
     for (;;) {
         struct token *t = expand(pfile);
         if (t->id == EOI) {
-            struct ifstack *stack = pfile->current->ifstack;
+            struct ifstack *stack = pfile->buffer->ifstack;
             if (stack)
                 cpp_errorf(stack->src, "unterminated conditional directive");
-            if (pfile->current->return_eoi) {
+            if (pfile->buffer->return_eoi) {
                 return t;
             } else {
                 buffer_unsentinel(pfile);
-                if (pfile->current)
-                    return lineno(pfile->current->line,
-                                  pfile->current->name);
+                if (pfile->buffer)
+                    return lineno(pfile->buffer->line,
+                                  pfile->buffer->name);
                 else
                     return t;
             }

@@ -141,7 +141,7 @@ struct buffer {
 // The file read by preprocessor.
 struct file {
     const char *file;           // file name
-    struct buffer *current;     // current buffer (top of buffer stack)
+    struct buffer *buffer;      // current buffer (top of buffer stack)
     struct vector *tokens;      // parser ungets
     struct imap *imap;          // identifier hash map
     struct vector *std_include_paths;

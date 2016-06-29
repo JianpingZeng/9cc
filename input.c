@@ -88,32 +88,32 @@ void buffer_sentinel(struct file *pfile, struct buffer *pb,
 {
     if (opt == BS_RETURN_EOI)
         pb->return_eoi = true;
-    pb->prev = pfile->current;
-    pfile->current = pb;
+    pb->prev = pfile->buffer;
+    pfile->buffer = pb;
 }
 
 void buffer_unsentinel(struct file *pfile)
 {
-    struct buffer *prev = pfile->current->prev;
-    free_buffer(pfile->current);
-    pfile->current = prev;
+    struct buffer *prev = pfile->buffer->prev;
+    free_buffer(pfile->buffer);
+    pfile->buffer = prev;
     // reset current 'bol'
-    if (pfile->current)
-        pfile->current->bol = true;
+    if (pfile->buffer)
+        pfile->buffer->bol = true;
 }
 
 void if_sentinel(struct file *pfile, struct ifstack *i)
 {
     struct ifstack *ic = xmalloc(sizeof(struct ifstack));
     memcpy(ic, i, sizeof(struct ifstack));
-    ic->prev = pfile->current->ifstack;
-    pfile->current->ifstack = ic;
+    ic->prev = pfile->buffer->ifstack;
+    pfile->buffer->ifstack = ic;
 }
 
 void if_unsentinel(struct file *pfile)
 {
-    struct ifstack *prev = pfile->current->ifstack->prev;
-    pfile->current->ifstack = prev;
+    struct ifstack *prev = pfile->buffer->ifstack->prev;
+    pfile->buffer->ifstack = prev;
 }
 
 bool is_original_file(struct file *pfile, const char *file)

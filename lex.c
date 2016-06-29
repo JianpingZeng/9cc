@@ -291,7 +291,7 @@ struct token *new_token(struct token *tok)
 
 static void line_comment(struct file *pfile)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     while (*pb->cur != '\n')
         pb->cur++;
     process_line_notes(pb);
@@ -300,7 +300,7 @@ static void line_comment(struct file *pfile)
 // fs->cur points to the initial asterisk of the comment.
 static void block_comment(struct file *pfile)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     const unsigned char *rpc = pb->cur;
     unsigned char ch;
     rpc++;
@@ -329,7 +329,7 @@ static void block_comment(struct file *pfile)
 // fs->cur points at prior initial digit or dot.
 static const char *ppnumber(struct file *pfile)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     const unsigned char *rpc = pb->cur - 1;
     int ch;
     for (;;) {
@@ -347,7 +347,7 @@ static const char *ppnumber(struct file *pfile)
 
 static const char *sequence(struct file *pfile, bool wide, int sep)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     const unsigned char *rpc = pb->cur - 1;
     bool is_char = sep == '\'';
     if (wide) pb->cur++;
@@ -376,7 +376,7 @@ static const char *sequence(struct file *pfile, bool wide, int sep)
 
 static struct ident *identifier(struct file *pfile)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     const unsigned char *rpc = pb->cur - 1;
     unsigned int hash = IMAP_HASHSTEP(0, *rpc);
     unsigned int len;
@@ -398,7 +398,7 @@ static struct token *dolex(struct file *pfile)
     struct token *result;
     const char *name = NULL;
     struct ident *ident = NULL;
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
 
     if (pb->need_line)
         next_clean_line(pb);
@@ -703,7 +703,7 @@ static struct token *dolex(struct file *pfile)
 
 static void skipline(struct file *pfile, bool over)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     while (*pb->cur != '\n')
         pb->cur++;
     if (over) {
@@ -714,7 +714,7 @@ static void skipline(struct file *pfile, bool over)
 
 static const char *hq_char_sequence(struct file *pfile, int sep)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     const unsigned char *rpc = pb->cur;
     int ch;
     const char *name;
@@ -737,7 +737,7 @@ static const char *hq_char_sequence(struct file *pfile, int sep)
 
 struct token *header_name(struct file *pfile)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     
     while (iswhitespace(*pb->cur))
         pb->cur++;
@@ -764,7 +764,7 @@ struct token *header_name(struct file *pfile)
  */
 void skip_ifstack(struct file *pfile)
 {
-    struct buffer *pb = pfile->current;
+    struct buffer *pb = pfile->buffer;
     int nest = 0;
     assert(vec_len(pb->ungets) == 0);
     for (;;) {
@@ -802,7 +802,7 @@ void skip_ifstack(struct file *pfile)
 
 struct token *lex(struct file *pfile)
 {
-    struct vector *v = pfile->current->ungets;
+    struct vector *v = pfile->buffer->ungets;
     struct token *t;
     if (v && v->len)
         t = vec_pop(v);
