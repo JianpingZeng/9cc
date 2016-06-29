@@ -8,7 +8,7 @@
 
 static void do_alloc_map(struct map *map, unsigned size)
 {
-    map->table = zmalloc(size * sizeof(struct map_entry *));
+    map->table = xcalloc(size, sizeof(struct map_entry *));
     map->tablesize = size;
     map->grow_at = (unsigned)(size * MAP_GROW_FACTOR / 100);
     map->shrink_at = map->grow_at / ((1 << MAP_RESIZE_BITS) + 1);

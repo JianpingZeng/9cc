@@ -18,7 +18,7 @@ struct imap *imap_new(unsigned int cap)
     struct imap *imap = zmalloc(sizeof(struct imap));
     unsigned int nslots = 1 << cap;
     imap->nslots = nslots;
-    imap->table = zmalloc(nslots * sizeof(struct ident *));
+    imap->table = xcalloc(nslots, sizeof(struct ident *));
     return imap;
 }
 
