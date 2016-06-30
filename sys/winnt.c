@@ -2,20 +2,25 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <time.h>
 #include <errno.h>
 // windows headers
 #include <windows.h>
 #include <rpc.h>
 #include <shlwapi.h>
+#include <process.h>
+#include <io.h>
+#include <share.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include "../config.h"
 
 char *ld[] = {"link", NULL};
 char *as[] = {"masm", NULL};
-char *cc[] = {"cc1", NULL};
+char *cc[] = { "cc1.exe", "$1", "$2", "-o", "$0", NULL };
 
 void setup_sys()
 {
-    
 }
 
 const char *mktmpdir()
@@ -35,7 +40,13 @@ const char *mktmpdir()
 
 int callsys(const char *file, char **argv)
 {
-    
+    int ret = EXIT_SUCCESS;
+    int status = _spawnvp(_P_WAIT, file, (const char *const *)argv);
+    if (status == -1) {
+        perror("Can't _spawnvp");
+        ret = EXIT_FAILURE;
+    }
+    return ret;
 }
 
 int file_exists(const char *path)
@@ -43,22 +54,20 @@ int file_exists(const char *path)
     return PathFileExists(path);
 }
 
-int file_size(const char *path)
+long file_size(const char *path)
 {
-    HANDLE hfile = OpenFile(path, NULL, OF_READ);
-    LARGE_INTEGER size;
-    if (GetFileSizeEx(hfile, &size)) {
-        CloseHandle(hfile);
-        return size.QuadPart;
-    } else {
-        CloseHandle(hfile);
+    int fd;
+    long size;
+    _sopen_s(&fd, path, _O_RDONLY, _SH_DENYWR, _S_IREAD);
+    if (fd == -1)
+        return 0;
+    size = _filelengthi64(fd);
+    if (size == -1) {
+        _close(fd);
         return 0;
     }
-}
-
-int isdir(const char *path)
-{
-    
+    _close(fd);
+    return size;
 }
 
 int rmdir(const char *dir)
@@ -132,12 +141,30 @@ const char *file_suffix(const char *path)
     return dot + 1;
 }
 
-void set_localtime(const time_t * timep, struct tm *result)
+static struct vector *split_paths(const char *path)
 {
-    
+    struct vector *v = vec_new();
+    const char *s = path;
+    const char *b = s;
+    while (*s) {
+        if (*s == ';') {
+            int size = s - b + 1;
+            char *d = malloc(size);
+            strncpy(d, b, size - 1);
+            d[size - 1] = '\0';
+            vec_push(v, d);
+            b = ++s;
+        } else {
+            s++;
+        }
+    }
+    return v;
 }
 
 struct vector *sys_include_dirs(void)
 {
-    
+    struct vector *v = vec_new();
+    vec_push(v, BUILD_DIR "\\include");
+    vec_add(v, split_paths(NT_INCLUDE_DIR));
+    return v;
 }

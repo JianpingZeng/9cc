@@ -3,6 +3,7 @@
 // trace
 #include <execinfo.h>
 #include <signal.h>
+#include "../config.h"
 #include "../utils/utils.h"
 
 /**
@@ -22,7 +23,7 @@ char *ld[] = {
 };
 
 char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
-char *cc[] = { "cc1", "$1", "$2", "-o", "$0", NULL };
+char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
 
 struct vector *sys_include_dirs(void)
 {

@@ -2755,8 +2755,7 @@ void gen(struct externals *exts, FILE * fp)
     emit_compounds(exts->compounds);
     emit_strings(exts->strings);
     emit_floats(exts->floats);
-    emit(".ident \"7cc: %d.%d.%d\"",
-         MAJOR(opts.version), MINOR(opts.version), PATCH(opts.version));
+    emit(".ident \"7cc: %s\"", VERSION);
 }
 
 ///
@@ -3093,8 +3092,7 @@ static void try_load_tmp(node_t *sym, struct set *excepts, int opsize)
 {
     assert(SYM_X_KIND(sym) == SYM_KIND_TMP);
     if (!SYM_X_REG(sym)) {
-        assertf(SYM_X_INMEM(sym), "symbol '%s' not in memory",
-                SYM_X_LABEL(sym));
+        assert(SYM_X_INMEM(sym));
         if (SYM_X_FREG(sym))
             dispatch_freg(sym, excepts, opsize);
         else

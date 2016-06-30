@@ -10,14 +10,13 @@
 #include <stdbool.h>
 #include <time.h>
 #include <ctype.h>
+#include "config.h"
 #include "sys/sys.h"
-#include "7cc.h"
 #include "utils/utils.h"
 
 static const char *progname;
 static struct vector *inputs;
 static const char *output;
-static int version = VERSION(0, 1, 0);
 static struct {
     int c:1;
     int E:1;
@@ -48,9 +47,9 @@ static struct {
 static void usage(void)
 {
     fprintf(stderr,
-            "OVERVIEW: 7cc - A Standard C Compiler v%d.%d.%d\n\n"
+            "OVERVIEW: 7cc - A Standard C Compiler v%s\n\n"
             "USAGE: 7cc [options] <files>\n\n"
-            "OPTIONS:\n", MAJOR(version), MINOR(version), PATCH(version));
+            "OPTIONS:\n", VERSION);
     fprintf(stderr,
             "  -ast-dump       Only print abstract syntax tree\n"
             "  -ir-dump        Only print intermediate representation\n"
@@ -77,7 +76,6 @@ static void init_env(void)
 #ifdef CONFIG_DARWIN
     vec_push(opts.cc_options, "-fleading_underscore");
 #endif
-    vec_push(opts.cc_options, format("-fversion=%d", version));
     inputs = vec_new();
 }
 
@@ -118,8 +116,8 @@ static void parse_opts(int argc, char *argv[])
                        !strncmp(arg, "-D", 2) ||
                        !strncmp(arg, "-U", 2)) {
                 vec_push(opts.cc_options, arg);
-            } else if (!strncmp(arg, "-l", 2)
-                       || !strncmp(arg, "-L", 2)) {
+            } else if (!strncmp(arg, "-l", 2) ||
+                       !strncmp(arg, "-L", 2)) {
                 vec_push(opts.ld_options, arg);
             } else if (!strcmp(arg, "-g") ||
                        !strncmp(arg, "-std=", 5) ||
@@ -198,12 +196,8 @@ static int translate(const char *ifile, const char *ofile,
                      struct vector *options)
 {
     struct vector *ifiles = vec_new1((char *)ifile);
-    char *cc1 = format("./%s", cc[0]);
-    if (ofile)
-        cc[3] = "-o";
-    else
-        cc[3] = NULL;
-    return callsys(cc1, compose(cc, ifiles, ofile, options));
+    cc[3] = ofile ? "-o" : NULL;
+    return callsys(cc[0], compose(cc, ifiles, ofile, options));
 }
 
 int main(int argc, char **argv)

@@ -15,6 +15,12 @@ struct table *new_table(struct table *up, int scope)
     return t;
 }
 
+static void free_table(struct table *t)
+{
+    map_free(t->map);
+    free(t);
+}
+
 void symbol_init(void)
 {
     identifiers = new_table(NULL, GLOBAL);
@@ -36,10 +42,12 @@ void exit_scope(void)
 {
     if (tags->scope == level) {
         struct table *up = tags->up;
+        free_table(tags);
         tags = up;
     }
     if (identifiers->scope == level) {
         struct table *up = identifiers->up;
+        free_table(identifiers);
         identifiers = up;
     }
     assert(level >= GLOBAL);

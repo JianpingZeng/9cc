@@ -29,12 +29,6 @@ void *alloc_node(void)
     return do_alloc_object(&node_state, sizeof(node_t));
 }
 
-static struct alloc_state token_state;
-void *alloc_token(void)
-{
-    return do_alloc_object(&token_state, sizeof(struct token));
-}
-
 static struct alloc_state macro_state;
 void *alloc_macro(void)
 {
@@ -69,4 +63,16 @@ static struct alloc_state opcode_state;
 void *alloc_opcode(void)
 {
     return do_alloc_object(&opcode_state, sizeof(struct opcode));
+}
+
+static struct alloc_state hideset_state;
+void *alloc_hideset(void)
+{
+    return do_alloc_object(&hideset_state, sizeof(struct hideset));
+}
+
+static struct alloc_state cpp_ident_state;
+void *alloc_cpp_ident(void)
+{
+    return do_alloc_object(&cpp_ident_state, sizeof(struct cpp_ident));
 }

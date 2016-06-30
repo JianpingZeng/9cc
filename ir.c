@@ -915,7 +915,8 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
     if (isstruct(ty) || isunion(ty)) {
         struct vector *inits = EXPR_INITS(r);
         struct vector *fields = TYPE_FIELDS(ty);
-        for (int i = 0; i < vec_len(inits); i++) {
+        size_t ninits = vec_len(inits);
+        for (int i = 0; i < ninits; i++) {
             node_t *init = vec_at(inits, i);
             node_t *field = vec_at(fields, i);
             node_t *rty = FIELD_TYPE(field);
@@ -932,8 +933,9 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
                     emit_assign(rty, l, init, off, NULL, sty);
             }
         }
-        if (vec_len(inits) < vec_len(fields)) {
-            node_t *field = vec_at(fields, vec_len(inits));
+        size_t nfields = isstruct(ty) ? vec_len(fields) : 1;
+        if (ninits < nfields) {
+            node_t *field = vec_at(fields, ninits);
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
             // as integer
@@ -1304,13 +1306,13 @@ static void emit_bop_plus_minus(node_t *n)
         node_t *rty = rtype(AST_TYPE(ptr));
         int op = EXPR_OP(n) == '+' ? IR_ADDI : IR_SUBI;
 
-        // cast to Quad (only if signed)
+        // cast to Quad
         struct operand *index = EXPR_X_ADDR(i);
         node_t *sty = AST_TYPE(i);
         node_t *dty = longtype;
-        if (TYPE_OP(sty) == INT &&
-            TYPE_SIZE(sty) != TYPE_SIZE(dty)) {
-            index = emit_conv_tac(IR_CONV_SI_SI,
+        if (TYPE_SIZE(sty) != TYPE_SIZE(dty)) {
+            int rop = TYPE_OP(sty) == INT ? IR_CONV_SI_SI : IR_CONV_UI_SI;
+            index = emit_conv_tac(rop,
                                   EXPR_X_ADDR(i),
                                   ops[TYPE_SIZE(sty)],
                                   ops[TYPE_SIZE(dty)]);
@@ -2384,11 +2386,11 @@ static struct vector * filter_global(struct vector *v)
         // skip unused symbols
         if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
             // but warning only when top file
-            if (is_original_file(AST_SRC(sym).file)) {
+            if (is_original_file(cpp_file, AST_SRC(sym).file)) {
                 if (isfuncdef(decl))
-                    warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+                    cc_warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
                 else if (isvardecl(decl))
-                    warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+                    cc_warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
             }
             
             continue;
@@ -2530,7 +2532,7 @@ static const char *get_ptr_label(node_t *n)
     case INITS_EXPR:
         return get_compound_literal_label(n);
     default:
-        assertf(0, "unexpected ast node '%s'", nname(n));
+        assert(0);
     }
 }
 

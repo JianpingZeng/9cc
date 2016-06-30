@@ -1,17 +1,17 @@
-#include "utils.h"
+#include "cpp.h"
 
-struct hideset *hideset_add(struct hideset *s, const char *name)
+struct hideset *hideset_add(struct hideset *s, const unsigned char *name)
 {
-    struct hideset *r = zmalloc(sizeof(struct hideset));
+    struct hideset *r = alloc_hideset();
     r->name = name;
     r->next = s;
     return r;
 }
 
-bool hideset_has(struct hideset * s, const char *name)
+bool hideset_has(struct hideset * s, const unsigned char *name)
 {
     for (; s; s = s->next) {
-        if (!strcmp(s->name, name))
+        if (s->name == name)
             return true;
     }
     return false;

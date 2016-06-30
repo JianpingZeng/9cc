@@ -4,7 +4,7 @@ static char value;
 
 struct set *set_new(void)
 {
-    struct set *set = alloc_set();
+    struct set *set = zmalloc(sizeof(struct set));
     set->map = map_newf(NULL);
     return set;
 }

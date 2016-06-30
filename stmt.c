@@ -64,7 +64,7 @@ static node_t *expr_stmt(void)
         else
             ret = NULL;
     } else {
-        error("missing statement before '%s'", token->name);
+        cc_error("missing statement before '%s'", tok2s(token));
     }
     
     expect(';');
@@ -275,13 +275,13 @@ static void check_case_duplicates(node_t * node)
     for (int i = vec_len(CASES) - 1; i >= 0; i--) {
         node_t *n = vec_at(CASES, i);
         if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
-            errorf(AST_SRC(node),
-                   "duplicate case value '%lld', "
-                   "previous case defined here: %s:%u:%u",
-                   STMT_CASE_INDEX(node),
-                   AST_SRC(n).file,
-                   AST_SRC(n).line,
-                   AST_SRC(n).column);
+            cc_errorf(AST_SRC(node),
+                      "duplicate case value '%lld', "
+                      "previous case defined here: %s:%u:%u",
+                      STMT_CASE_INDEX(node),
+                      AST_SRC(n).file,
+                      AST_SRC(n).line,
+                      AST_SRC(n).column);
             break;
         }
     }
@@ -298,7 +298,7 @@ static node_t *case_stmt(void)
     expect(':');
 
     if (!IN_SWITCH)
-        errorf(AST_SRC(ret), "'case' statement not in switch statement");
+        cc_errorf(AST_SRC(ret), "'case' statement not in switch statement");
 
     // only check when intexpr is okay.
     if (NO_ERROR) {
@@ -328,15 +328,15 @@ static node_t *default_stmt(void)
 
     // print before parsing statement
     if (!IN_SWITCH)
-        errorf(AST_SRC(ret), "'default' statement not in switch statement");
+        cc_errorf(AST_SRC(ret), "'default' statement not in switch statement");
 
     if (DEFLT)
-        errorf(AST_SRC(ret),
-               "multiple default labels in one switch, "
-               "previous case defined here:%s:%u:%u",
-               AST_SRC(DEFLT).file,
-               AST_SRC(DEFLT).line,
-               AST_SRC(DEFLT).column);
+        cc_errorf(AST_SRC(ret),
+                  "multiple default labels in one switch, "
+                  "previous case defined here:%s:%u:%u",
+                  AST_SRC(DEFLT).file,
+                  AST_SRC(DEFLT).line,
+                  AST_SRC(DEFLT).column);
 
     DEFLT = ret;
     
@@ -357,7 +357,8 @@ static node_t *label_stmt(void)
     const char *name;
 
     SAVE_ERRORS;
-    name = token->name;
+    if (token->id == ID)
+        name = TOK_IDENT_STR(token);
     expect(ID);
     expect(':');
 
@@ -365,13 +366,13 @@ static node_t *label_stmt(void)
     if (NO_ERROR) {
         node_t *n = map_get(labels, name);
         if (n)
-            errorf(AST_SRC(ret),
-                   "redefinition of label '%s', "
-                   "previous label defined here:%s:%u:%u",
-                   name,
-                   AST_SRC(n).file,
-                   AST_SRC(n).line,
-                   AST_SRC(n).column);
+            cc_errorf(AST_SRC(ret),
+                      "redefinition of label '%s', "
+                      "previous label defined here:%s:%u:%u",
+                      name,
+                      AST_SRC(n).file,
+                      AST_SRC(n).line,
+                      AST_SRC(n).column);
         map_put(labels, name, ret);
         STMT_LABEL_NAME(ret) = name;
     }
@@ -394,7 +395,8 @@ static node_t *goto_stmt(void)
 
     SAVE_ERRORS;
     expect(GOTO);
-    STMT_LABEL_NAME(ret) = token->name;
+    if (token->id == ID)
+        STMT_LABEL_NAME(ret) = TOK_IDENT_STR(token);
     expect(ID);
     expect(';');
 
@@ -415,8 +417,8 @@ static node_t *break_stmt(void)
     expect(';');
 
     if (!IN_LOOP && !IN_SWITCH)
-        errorf(AST_SRC(ret),
-               "'break' statement not in loop or switch statement");
+        cc_errorf(AST_SRC(ret),
+                  "'break' statement not in loop or switch statement");
 
     if (!NO_ERROR)
         ret = NULL;
@@ -433,8 +435,8 @@ static node_t *continue_stmt(void)
     expect(';');
 
     if (!IN_LOOP)
-        errorf(AST_SRC(ret),
-               "'continue' statement not in loop statement");
+        cc_errorf(AST_SRC(ret),
+                  "'continue' statement not in loop statement");
 
     if (!NO_ERROR)
         ret = NULL;
@@ -450,18 +452,18 @@ static node_t *ensure_return(node_t * expr, struct source src)
 
     if (isvoid(rtype(functype))) {
         if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
-            errorf(src, "void function should not return a value");
+            cc_errorf(src, "void function should not return a value");
     } else {
         if (!isnullstmt(expr)) {
             node_t *ty1 = AST_TYPE(expr);
             node_t *ty2 = rtype(functype);
             if (!(expr = assignconv(ty2, expr)))
-                errorf(src,
-                       "returning '%s' from function "
-                       "with incompatible result type '%s'",
-                       type2s(ty1), type2s(ty2));
+                cc_errorf(src,
+                          "returning '%s' from function "
+                          "with incompatible result type '%s'",
+                          type2s(ty1), type2s(ty2));
         } else {
-            errorf(src, "non-void function should return a value");
+            cc_errorf(src, "non-void function should return a value");
         }
     }
     return expr;
@@ -586,7 +588,7 @@ static void backfill_labels(void)
             // update refs
             STMT_LABEL_REFS(label_stmt)++;
         } else {
-            errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", name);
+            cc_errorf(AST_SRC(goto_stmt), "use of undeclared label '%s'", name);
         }
     }
 }
@@ -663,7 +665,7 @@ static void warning_unused(void)
             if (SYM_PREDEFINE(sym))
                 continue;       // filter-out predefined symbols
             else
-                warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+                cc_warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
         }
         if (SYM_SCLASS(sym) == STATIC) {
             SYM_X_LABEL(sym) = gen_static_label();

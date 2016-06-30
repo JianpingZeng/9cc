@@ -1,182 +1,146 @@
-#include "cc.h"
+#include "cpp.h"
 
-static struct vector *files;
-static const char *original;
-struct file *current_file;
+struct file *cpp_file;
 
-enum {
-    FILE_KIND_REGULAR = 1,
-    FILE_KIND_STRING,
-};
-
-bool is_original_file(const char *file)
+static struct buffer *new_buffer(void)
 {
-    if (original && !strcmp(original, file))
-        return true;
-    else
-        return false;
+    struct buffer *pb = zmalloc(sizeof(struct buffer));
+    pb->bol = true;
+    pb->need_line = true;
+    pb->line = 1;
+    pb->column = 0;
+    pb->ungets = vec_new();
+    return pb;
 }
 
-static void warning_no_newline(const char *file)
+static void free_buffer(struct buffer *pb)
 {
-    if (is_original_file(file))
-        fprintf(stderr,
-                CLEAR "%s: " RESET PURPLE("warning: ")
-                "No newline at end of file\n",
-                file);
+    free((void *)pb->buf);
+    free(pb);
 }
 
-static struct file *new_file(void)
+struct buffer *with_file(const char *file)
 {
-    /**
-     * NOTE:
-     * If it's a temp buffer:
-     * 1. _NOT_ allocate buf (save memory)
-     * 2. _NOT_ add newline at the end
-     * Otherwise the buffer will generate an
-     * additional newline when expanding a macro.
-     */
-    struct file *fs = zmalloc(sizeof(struct file));
-    fs->line = 1;
-    fs->column = 0;
-    fs->bol = true;
-    fs->ifstubs = vec_new();
-    fs->buffer = vec_new();
-    fs->tokens = vec_new();
-    return fs;
-}
+    struct buffer *pb = new_buffer();
+    pb->kind = BK_REGULAR;
+    pb->name = file;
 
-static struct file *open_regular(const char *file)
-{
-    struct file *fs = new_file();
-    fs->kind = FILE_KIND_REGULAR;
-    FILE *fp = fopen(file, "r");
+    //NOTE: must be binary in Windows
+    FILE *fp = fopen(file, "rb");
     if (fp == NULL)
-        die("%s: %s", file, strerror(errno));
-    fs->fp = fp;
-    fs->file = file;
+        die("Can't open file: %s", file);
     // read the content
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    fs->buf = xmalloc(size + 2);
-    if (fread(fs->buf, size, 1, fp) != 1)
-        die("%s: %s", file, strerror(errno));
+    long size = file_size(file);
+    char *d = xmalloc(size + 1);
+    if (fread(d, size, 1, fp) != 1)
+        die("Can't read file: %s", file);
     fclose(fp);
-    fs->pc = fs->buf;
+
     /**
      * Add a newline character to the end if the
      * file doesn't have one, thus the include
      * directive would work well.
      */
-    fs->buf[size] = '\n';
-    fs->buf[size + 1] = '\n';
-    if (fs->buf[size - 1] != '\n') {
-        warning_no_newline(file);
-        fs->pe = &fs->buf[size + 1];
-    } else {
-        fs->pe = &fs->buf[size];
-    }
-    return fs;
+    d[size] = '\n';
+
+    pb->buf = (const unsigned char *)d;
+    pb->cur = pb->line_base = pb->next_line = pb->buf;
+    pb->limit = &pb->buf[size];
+    return pb;
 }
 
-static struct file *open_string(const char *string)
+struct buffer *with_string(const char *input, const char *name)
 {
-    struct file *fs = new_file();
-    size_t len = strlen(string);
-    fs->kind = FILE_KIND_STRING;
-    fs->file = "<anonymous-string>";
-    fs->buf = xstrdup(string);
-    fs->buf[len] = '\n';
-    fs->pc = fs->buf;
-    fs->pe = &fs->buf[len];
-    return fs;
+    /**
+     * NOTE:
+     * If it's a temp buffer:
+     * _NOT_ add newline at the end
+     * Otherwise the buffer will generate an
+     * additional newline when expanding a macro.
+     */
+    struct buffer *pb = new_buffer();
+    size_t len = strlen(input);
+    pb->kind = BK_STRING;
+    pb->name = name ? name : "<anonymous-string>";
+    pb->buf = xmalloc(len + 1);
+    char *d = (char *)pb->buf;
+    memcpy(d, input, len);
+    d[len] = '\n';
+    pb->cur = pb->line_base = pb->next_line = pb->buf;
+    pb->limit = &pb->buf[len];
+    return pb;
 }
 
-static void close_file(struct file *fs)
+struct buffer *with_tokens(struct vector *v, struct buffer *cur)
 {
-    free(fs->buf);
-    free(fs);
+    struct buffer *pb = new_buffer();
+    pb->kind = BK_TOKEN;
+    pb->name = cur->name;
+    pb->line = cur->line;
+    pb->column = cur->column;
+    pb->need_line = false;
+    vec_add(pb->ungets, v);
+    return pb;
+}
+
+void buffer_sentinel(struct file *pfile, struct buffer *pb,
+                   enum buffer_sentinel_option opt)
+{
+    if (opt == BS_RETURN_EOI)
+        pb->return_eoi = true;
+    pb->prev = pfile->buffer;
+    pfile->buffer = pb;
+}
+
+void buffer_unsentinel(struct file *pfile)
+{
+    struct buffer *prev = pfile->buffer->prev;
+    free_buffer(pfile->buffer);
+    pfile->buffer = prev;
     // reset current 'bol'
-    struct file *current = current_file;
-    if (current)
-        current->bol = true;
+    if (pfile->buffer)
+        pfile->buffer->bol = true;
 }
 
-void file_sentinel(struct file *fs)
+void if_sentinel(struct file *pfile, struct ifstack *i)
 {
-    vec_push(files, fs);
-    current_file = fs;
+    struct ifstack *ic = xmalloc(sizeof(struct ifstack));
+    memcpy(ic, i, sizeof(struct ifstack));
+    ic->prev = pfile->buffer->ifstack;
+    pfile->buffer->ifstack = ic;
 }
 
-void file_unsentinel(void)
+void if_unsentinel(struct file *pfile)
 {
-    struct file *fs = vec_pop(files);
-    current_file = vec_tail(files);
-    close_file(fs);
+    struct ifstack *prev = pfile->buffer->ifstack->prev;
+    pfile->buffer->ifstack = prev;
 }
 
-void file_stub(struct file *fs)
+bool is_original_file(struct file *pfile, const char *file)
 {
-    fs->stub = true;
-    file_sentinel(fs);
+    if (!strcmp(pfile->file, file))
+        return true;
+    else
+        return false;
 }
 
-void file_unstub(void)
+static inline struct ident *alloc_cpp_ident_entry(struct imap *imap)
 {
-    file_unsentinel();
+    return alloc_cpp_ident();
 }
 
-struct file *with_string(const char *input, const char *name)
+struct file *new_file(const char *file)
 {
-    struct file *fs = open_string(input);
-    fs->name = name ? name : "<anonymous-string>";
-    return fs;
-}
-
-struct file *with_file(const char *file, const char *name)
-{
-    struct file *fs = open_regular(file);
-    fs->name = name ? name : "<anonymous-file>";
-    return fs;
-}
-
-struct file *with_buffer(struct vector *v)
-{
-    struct file *fs = new_file();
-    fs->kind = FILE_KIND_STRING;
-    fs->name = current_file->name;
-    fs->line = current_file->line;
-    fs->column = current_file->column;
-    vec_add(fs->buffer, v);
-    return fs;
-}
-
-struct ifstub *new_ifstub(struct ifstub *i)
-{
-    struct ifstub *ic = zmalloc(sizeof(struct ifstub));
-    memcpy(ic, i, sizeof(struct ifstub));
-    return ic;
-}
-
-void if_sentinel(struct ifstub *i)
-{
-    vec_push(current_file->ifstubs, i);
-}
-
-void if_unsentinel(void)
-{
-    vec_pop(current_file->ifstubs);
-}
-
-struct ifstub *current_ifstub(void)
-{
-    return vec_tail(current_file->ifstubs);
-}
-
-void input_init(const char *file)
-{
-    original = file;
-    files = vec_new();
-    file_sentinel(with_file(file, file));
+    struct file *pfile = zmalloc(sizeof(struct file));
+    pfile->file = file;
+    pfile->tokens = vec_new();
+    pfile->std_include_paths = vec_new();
+    pfile->usr_include_paths = vec_new();
+    // 2^13: 8k slots
+    pfile->imap = imap_new(13);
+    pfile->imap->alloc_entry = alloc_cpp_ident_entry;
+    // tokenrun
+    pfile->tokenrun = next_tokenrun(NULL, 1024);
+    pfile->cur_token = pfile->tokenrun->base;
+    return pfile;
 }

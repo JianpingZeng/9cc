@@ -34,7 +34,7 @@ static void ensure_type(node_t * node, bool(*is) (node_t *))
         assert(0);
 
     if (!is(AST_TYPE(node)))
-        errorf(AST_SRC(node), "expect type '%s', not '%s'", name,
+        cc_errorf(AST_SRC(node), "expect type '%s', not '%s'", name,
                type2s(AST_TYPE(node)));
 }
 
@@ -89,7 +89,7 @@ bool islvalue(node_t * node)
 static void ensure_lvalue(node_t * node)
 {
     if (!islvalue(node))
-        errorf(AST_SRC(node), "expect lvalue at '%s'", node2s(node));
+        cc_errorf(AST_SRC(node), "expect lvalue at '%s'", node2s(node));
 }
 
 static void ensure_assignable(node_t * node)
@@ -97,13 +97,13 @@ static void ensure_assignable(node_t * node)
     node_t *ty = AST_TYPE(node);
     struct source src = AST_SRC(node);
     if (!islvalue(node))
-        errorf(src, "expression is not assignable '%s'", node2s(node));
+        cc_errorf(src, "expression is not assignable '%s'", node2s(node));
     else if (AST_ID(node) == PAREN_EXPR)
         ensure_assignable(EXPR_OPERAND(node, 0));
     else if (isarray(ty))
-        errorf(src, "array type '%s' is not assignable", type2s(ty));
+        cc_errorf(src, "array type '%s' is not assignable", type2s(ty));
     else if (isconst(ty))
-        errorf(src, "read-only variable '%s' is not assignable",
+        cc_errorf(src, "read-only variable '%s' is not assignable",
                node2s(node));
 }
 
@@ -429,7 +429,7 @@ static unsigned escape(const char **ps)
                 }
                 if (c >> (BITS(TYPE_SIZE(wchartype)) - 4)) {
                     overflow = 1;
-                    error("hex escape sequence out of range");
+                    cc_error("hex escape sequence out of range");
                 } else {
                     if (isdigit(*s))
                         c = (c << 4) + *s - '0';
@@ -467,7 +467,7 @@ static unsigned escape(const char **ps)
 
 static void char_constant(struct token *t, node_t * sym)
 {
-    const char *s = t->name;
+    const char *s = TOK_LITERAL_STR(t);
     bool wide = s[0] == 'L';
     unsigned long long c = 0;
     char ws[MB_LEN_MAX];
@@ -485,7 +485,7 @@ static void char_constant(struct token *t, node_t * sym)
         } else {
             if (wide) {
                 if (len >= MB_LEN_MAX)
-                    error("multibyte character overflow");
+                    cc_error("multibyte character overflow");
                 else
                     ws[len++] = (char)*s++;
             } else {
@@ -496,15 +496,15 @@ static void char_constant(struct token *t, node_t * sym)
     }
 
     if (!char_rec && !len)
-        error("incomplete character constant: %s", t->name);
+        cc_error("incomplete character constant: %s", tok2s(t));
     else if (overflow)
-        error("extraneous characters in character constant: %s",
-              t->name);
+        cc_error("extraneous characters in character constant: %s",
+                 tok2s(t));
     else if ((!wide && c > UINTEGER_MAX(unsignedchartype))
              || (wide && c > UINTEGER_MAX(wchartype)))
-        error("character constant overflow: %s", t->name);
+        cc_error("character constant overflow: %s", tok2s(t));
     else if (len && mbtowc((wchar_t *) & c, ws, len) != len)
-        error("illegal multi-character sequence");
+        cc_error("illegal multi-character sequence");
 
     SYM_VALUE_U(sym) = wide ? (wchar_t) c : (unsigned char)c;
     SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
@@ -536,7 +536,7 @@ static int integer_suffix(const char *s)
 
 static void integer_constant(struct token *t, node_t * sym)
 {
-    const char *s = t->name;
+    const char *s = TOK_LITERAL_STR(t);
 
     int base;
     node_t *ty;
@@ -576,7 +576,7 @@ static void integer_constant(struct token *t, node_t * sym)
         }
 
         if (err)
-            error("invalid octal constant %s", t->name);
+            cc_error("invalid octal constant %s", tok2s(t));
     } else {
         base = 10;
         for (; isdigit(*s);) {
@@ -655,7 +655,7 @@ static void integer_constant(struct token *t, node_t * sym)
                 ty = inttype;
         }
         if (suffix < 0)
-            error("invalid suffix '%s' on integer constant", s);
+            cc_error("invalid suffix '%s' on integer constant", s);
         break;
     }
 
@@ -664,12 +664,12 @@ static void integer_constant(struct token *t, node_t * sym)
     switch (TYPE_OP(SYM_TYPE(sym))) {
     case INT:
         if (overflow || n > INTEGER_MAX(longlongtype))
-            error("integer constant overflow: %s", t->name);
+            cc_error("integer constant overflow: %s", tok2s(t));
         SYM_VALUE_I(sym) = n;
         break;
     case UNSIGNED:
         if (overflow)
-            error("integer constant overflow: %s", t->name);
+            cc_error("integer constant overflow: %s", tok2s(t));
         SYM_VALUE_U(sym) = n;
         break;
     default:
@@ -691,7 +691,7 @@ static int float_suffix(const char *s)
 
 static void float_constant(struct token *t, node_t * sym)
 {
-    const char *pc = t->name;
+    const char *pc = TOK_LITERAL_STR(t);
     struct strbuf *s = strbuf_new();
 
     if (pc[0] == '.') {
@@ -703,7 +703,7 @@ static void float_constant(struct token *t, node_t * sym)
         pc += 2;
         if (*pc == '.') {
             if (!isxdigit(pc[1]))
-                error("hexadecimal floating constants require a significand");
+                cc_error("hexadecimal floating constants require a significand");
             goto dotted_hex;
         } else {
             assert(isxdigit(*pc));
@@ -731,10 +731,10 @@ static void float_constant(struct token *t, node_t * sym)
                         strbuf_catn(s, pc++, 1);
                     } while (isdigit(*pc));
                 } else {
-                    error("exponent has no digits");
+                    cc_error("exponent has no digits");
                 }
             } else {
-                error("hexadecimal floating constants require an exponent");
+                cc_error("hexadecimal floating constants require an exponent");
             }
         }
     } else {
@@ -764,8 +764,8 @@ static void float_constant(struct token *t, node_t * sym)
                     strbuf_catn(s, pc++, 1);
                 } while (isdigit(*pc));
             } else {
-                error("exponent used with no following digits: %s",
-                     t->name);
+                cc_error("exponent used with no following digits: %s",
+                         tok2s(t));
             }
         }
     }
@@ -785,17 +785,17 @@ static void float_constant(struct token *t, node_t * sym)
         SYM_TYPE(sym) = doubletype;
         SYM_VALUE_D(sym) = strtod(strbuf_str(s), NULL);
         if (suffix < 0)
-            error("invalid suffix '%s' on float constant", pc);
+            cc_error("invalid suffix '%s' on float constant", pc);
         break;
     }
 
     if (errno == ERANGE)
-        error("float constant overflow: %s", s);
+        cc_error("float constant overflow: %s", s);
 }
 
 static void number_constant(struct token *t, node_t * sym)
 {
-    const char *pc = t->name;
+    const char *pc = TOK_LITERAL_STR(t);
     if (pc[0] == '\'' || pc[0] == 'L') {
         // character
         char_constant(t, sym);
@@ -806,7 +806,7 @@ static void number_constant(struct token *t, node_t * sym)
         // Hex
         pc += 2;
         if (!isxdigit(*pc) && pc[0] != '.') {
-            error("incomplete hex constant: %s", t->name);
+            cc_error("incomplete hex constant: %s", tok2s(t));
             integer_constant(t, sym);
             return;
         }
@@ -836,7 +836,7 @@ static void number_constant(struct token *t, node_t * sym)
 
 static void string_constant(struct token *t, node_t * sym)
 {
-    const char *s = t->name;
+    const char *s = TOK_LITERAL_STR(t);
     bool wide = s[0] == 'L' ? true : false;
     node_t *ty;
     if (wide) {
@@ -845,7 +845,7 @@ static void string_constant(struct token *t, node_t * sym)
         errno = 0;
         size_t wlen = mbstowcs(ws, s + 2, len);
         if (errno == EILSEQ)
-            error("invalid multibyte sequence: %s", s);
+            cc_error("invalid multibyte sequence: %s", s);
         assert(wlen <= len + 1);
         ty = array_type(wchartype);
         TYPE_LEN(ty) = wlen;
@@ -860,9 +860,10 @@ static void string_constant(struct token *t, node_t * sym)
 
 static node_t *number_literal(struct token *t)
 {
-    node_t *sym = lookup(t->name, constants);
+    const char *name = TOK_LITERAL_STR(t);
+    node_t *sym = lookup(name, constants);
     if (!sym) {
-        sym = install(t->name, &constants, CONSTANT);
+        sym = install(name, &constants, CONSTANT);
         number_constant(t, sym);
     }
     int id = isint(SYM_TYPE(sym)) ? INTEGER_LITERAL : FLOAT_LITERAL;
@@ -874,9 +875,10 @@ static node_t *number_literal(struct token *t)
 
 static node_t *string_literal(struct token *t)
 {
-    node_t *sym = lookup(t->name, constants);
+    const char *name = TOK_LITERAL_STR(t);
+    node_t *sym = lookup(name, constants);
     if (!sym) {
-        sym = install(t->name, &constants, CONSTANT);
+        sym = install(name, &constants, CONSTANT);
         string_constant(t, sym);
     }
     node_t *expr = ast_expr(STRING_LITERAL, SYM_TYPE(sym), NULL, NULL);
@@ -887,16 +889,16 @@ static node_t *string_literal(struct token *t)
 
 node_t *new_integer_literal(int i)
 {
-    struct token *t = new_token(&(struct token){.id = NCONSTANT,.name =
-                strd(i) });
+    struct token *t = new_token(&(struct token){
+            .id = NCONSTANT, .value.lexeme = strd(i)});
     node_t *expr = number_literal(t);
     return expr;
 }
 
 node_t *new_string_literal(const char *string)
 {
-    struct token *t = new_token(&(struct token){.id = SCONSTANT,.name =
-                format("\"%s\"", string) });
+    struct token *t = new_token(&(struct token){
+            .id = SCONSTANT, .value.lexeme = format("\"%s\"", string)});
     node_t *expr = string_literal(t);
     return expr;
 }
@@ -924,10 +926,10 @@ static void argcast1(node_t * fty, struct vector * args, struct vector *v)
             vec_push(v, ret);
         } else {
             if (oldstyle)
-                warning(INCOMPATIBLE_TYPES, type2s(src),
+                cc_warning(INCOMPATIBLE_TYPES, type2s(src),
                         type2s(dst));
             else
-                error(INCOMPATIBLE_TYPES, type2s(src),
+                cc_error(INCOMPATIBLE_TYPES, type2s(src),
                       type2s(dst));
         }
     }
@@ -957,13 +959,13 @@ static struct vector *argscast(node_t * fty, struct vector * args)
 
     if (TYPE_OLDSTYLE(fty)) {
         if (len1 > len2)
-            warning("too few arguments to function call");
+            cc_warning("too few arguments to function call");
 
         argcast1(fty, args, v);
     } else {
         if (len1 == 0) {
             if (len2 > 0) {
-                error("too many arguments to function call, expected %d, have %d",
+                cc_error("too many arguments to function call, expected %d, have %d",
                      len1, len2);
                 return NULL;
             }
@@ -974,7 +976,7 @@ static struct vector *argscast(node_t * fty, struct vector * args)
         assert(len1 >= 1);
         if (len1 <= len2) {
             if (!vargs && len1 < len2) {
-                error("too many arguments to function call, expected %d, have %d", len1, len2);
+                cc_error("too many arguments to function call, expected %d, have %d", len1, len2);
                 return NULL;
             }
             SAVE_ERRORS;
@@ -983,9 +985,9 @@ static struct vector *argscast(node_t * fty, struct vector * args)
                 return NULL;
         } else {
             if (vargs)
-                error("too few arguments to function call, expected at least %d, have %d", len1, len2);
+                cc_error("too few arguments to function call, expected at least %d, have %d", len1, len2);
             else
-                error("too few arguments to function call, expected %d, have %d", len1, len2);
+                cc_error("too few arguments to function call, expected %d, have %d", len1, len2);
             return NULL;
         }
     }
@@ -1036,7 +1038,7 @@ static node_t *primary_expr(void)
 
     switch (t) {
     case ID:
-        sym = lookup(token->name, identifiers);
+        sym = lookup(TOK_IDENT_STR(token), identifiers);
         if (sym) {
             ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
             EXPR_SYM(ret) = sym;
@@ -1045,7 +1047,7 @@ static node_t *primary_expr(void)
             if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
                 EXPR_OP(ret) = ENUM;        // enum ids
         } else {
-            error("use of undeclared identifier '%s'", token->name);
+            cc_error("use of undeclared identifier '%s'", tok2s(token));
         }
         expect(t);
         break;
@@ -1074,7 +1076,7 @@ static node_t *primary_expr(void)
         }
         break;
     default:
-        error("invalid postfix expression at '%s'", token->name);
+        cc_error("invalid postfix expression at '%s'", tok2s(token));
         break;
     }
 
@@ -1101,15 +1103,15 @@ static node_t *subscript(node_t * node)
         node_t *ptr =
             isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
         if (isptrto(ptr, FUNCTION))
-            errorf(src,
+            cc_errorf(src,
                    "subscript of pointer to function type '%s'",
                    type2s(rtype(ptr)));
     } else {
         if (!isptr(AST_TYPE(node)) && !isptr(AST_TYPE(e)))
-            errorf(src,
+            cc_errorf(src,
                    "subscripted value is not an array or pointer");
         else
-            errorf(src, "array subscript is not an integer");
+            cc_errorf(src, "array subscript is not an integer");
     }
     if (NO_ERROR) {
         node_t *ty =
@@ -1134,7 +1136,7 @@ static struct vector *argument_expr_list(void)
         }
         args = v;
     } else if (token->id != ')') {
-        error("expect assignment expression");
+        cc_error("expect assignment expression");
     }
 
     return args;
@@ -1229,7 +1231,7 @@ static node_t *direction(node_t * node)
 
     expect(t);
     if (token->id == ID)
-        name = token->name;
+        name = TOK_IDENT_STR(token);
     expect(ID);
     if (node == NULL || name == NULL)
         return ret;
@@ -1241,7 +1243,7 @@ static node_t *direction(node_t * node)
         ensure_type(node, isrecord);
     } else {
         if (!isptr(ty) || !isrecord(rtype(ty)))
-            error("pointer to struct/union type expected, not type '%s'",
+            cc_error("pointer to struct/union type expected, not type '%s'",
                  type2s(ty));
         else
             ty = rtype(ty);
@@ -1271,7 +1273,7 @@ static void ensure_additive_ptr(node_t * node)
     assert(isptr(AST_TYPE(node)));
     node_t *rty = rtype(AST_TYPE(node));
     if (isfunc(rty) || isincomplete(rty))
-        errorf(AST_SRC(node),
+        cc_errorf(AST_SRC(node),
                "increment/decrement of invalid type '%s' (pointer to unknown size)",
                type2s(AST_TYPE(node)));
 }
@@ -1365,12 +1367,12 @@ static node_t *sizeof_expr(void)
 
     SAVE_ERRORS;
     if (isfunc(ty) || isvoid(ty))
-        error("'sizeof' to a '%s' type is invalid", type2s(ty));
+        cc_error("'sizeof' to a '%s' type is invalid", type2s(ty));
     else if (isincomplete(ty))
-        error("'sizeof' to an incomplete type '%s' is invalid",
+        cc_error("'sizeof' to an incomplete type '%s' is invalid",
               type2s(ty));
     else if (n && is_bitfield(n))
-        error("'sizeof' to a bitfield is invalid");
+        cc_error("'sizeof' to a bitfield is invalid");
 
     if (NO_ERROR) {
         ret = ast_uop(t, unsignedlongtype, n ? n : ty);
@@ -1485,9 +1487,9 @@ static node_t *address(void)
         ensure_lvalue(operand);
         if (EXPR_SYM(operand)
             && SYM_SCLASS(EXPR_SYM(operand)) == REGISTER)
-            error("address of register variable requested");
+            cc_error("address of register variable requested");
         else if (is_bitfield(operand))
-            error("address of bitfield requested");
+            cc_error("address of bitfield requested");
     }
     if (NO_ERROR) {
         ret = ast_uop(t, ptr_type(AST_TYPE(operand)), operand);
@@ -1564,7 +1566,7 @@ static node_t *cast_expr(void)
             ret = ast_expr(CAST_EXPR, ty, cast, NULL);
             AST_SRC(ret) = src;
         } else {
-            errorf(AST_SRC(cast), INCOMPATIBLE_TYPES,
+            cc_errorf(AST_SRC(cast), INCOMPATIBLE_TYPES,
                    type2s(AST_TYPE(cast)), type2s(ty));
         }
 
@@ -1760,7 +1762,7 @@ static node_t *cond_expr1(node_t * cond)
     } else if ((isstruct(ty1) && isstruct(ty2)) ||
                (isunion(ty1) && isunion(ty2))) {
         if (!eqtype(ty1, ty2))
-            error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
+            cc_error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
         ty = ty1;
     } else if (isvoid(ty1) && isvoid(ty2)) {
         ty = voidtype;
@@ -1775,7 +1777,7 @@ static node_t *cond_expr1(node_t * cond)
             node_t *vty = isptrto(ty1, VOID) ? ty1 : ty2;
             node_t *tty = vty == ty1 ? ty2 : ty1;
             if (isptrto(tty, FUNCTION)) {
-                error(INCOMPATIBLE_TYPES2, type2s(ty1),
+                cc_error(INCOMPATIBLE_TYPES2, type2s(ty1),
                       type2s(ty2));
             } else {
                 ty = ptr_type(compose(rtype(vty), rtype(tty)));
@@ -1790,7 +1792,7 @@ static node_t *cond_expr1(node_t * cond)
                 then = bitconv(ty, then);
                 els = bitconv(ty, els);
             } else {
-                error(INCOMPATIBLE_TYPES2, type2s(ty1),
+                cc_error(INCOMPATIBLE_TYPES2, type2s(ty1),
                       type2s(ty2));
             }
         }
@@ -1801,7 +1803,7 @@ static node_t *cond_expr1(node_t * cond)
         then = bitconv(ty, then);
         els = bitconv(ty, els);
     } else {
-        error("type mismatch in conditional expression: '%s' and '%s'",
+        cc_error("type mismatch in conditional expression: '%s' and '%s'",
               type2s(ty1), type2s(ty2));
     }
 
@@ -1916,13 +1918,13 @@ node_t *bop(int op, node_t * l, node_t * r)
                 node_t *rty1 = rtype(AST_TYPE(l));
                 node_t *rty2 = rtype(AST_TYPE(r));
                 if (!eqtype(unqual(rty1), unqual(rty2)))
-                    error("'%s' and '%s' are not pointers to compatible types",
+                    cc_error("'%s' and '%s' are not pointers to compatible types",
                          type2s(AST_TYPE(l)),
                          type2s(AST_TYPE(r)));
                 if (NO_ERROR)
                     node = ast_bop(op, inttype, l, r);
             } else {
-                error("expect integer or pointer type, not type '%s'",
+                cc_error("expect integer or pointer type, not type '%s'",
                      type2s(AST_TYPE(r)));
             }
         } else {
@@ -1960,7 +1962,7 @@ node_t *bop(int op, node_t * l, node_t * r)
                 if (!opts.ansi)
                     node = ast_bop(op, inttype, l, ast_conv(AST_TYPE(l), r, BitCast));
                 else
-                    error("comparison of incompatible pointer types ('%s' and '%s')",
+                    cc_error("comparison of incompatible pointer types ('%s' and '%s')",
                           type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
             }
         } else if (isarith(AST_TYPE(l)) && isarith(AST_TYPE(r))) {
@@ -1978,12 +1980,12 @@ node_t *bop(int op, node_t * l, node_t * r)
             if (NO_ERROR)
                 node = ast_bop(op, inttype, ast_conv(AST_TYPE(r), l, IntegerToPointerCast), r);
         } else {
-            error("comparison of invalid types ('%s' and '%s')",
+            cc_error("comparison of invalid types ('%s' and '%s')",
                   type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
         }
         break;
     default:
-        error("unknown op '%s'", id2s(op));
+        cc_error("unknown op '%s'", id2s(op));
         assert(0);
     }
     return node;
@@ -2072,7 +2074,7 @@ static node_t *assignop(int op, node_t * l, node_t * r)
             node_t *ty2 = AST_TYPE(r1);
             if (!((isarith(ty1) && isarith(ty2)) ||
                   (isptr(ty1) && isint(ty2))))
-                error(INCOMPATIBLE_TYPES, type2s(ty2),
+                cc_error(INCOMPATIBLE_TYPES, type2s(ty2),
                       type2s(ty1));
         }
         r = bop(op2, l1, r1);
@@ -2085,7 +2087,7 @@ static node_t *assignop(int op, node_t * l, node_t * r)
         if (r)
             ret = ast_bop('=', retty, l, r);
         else
-            error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
+            cc_error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
     }
     return ret;
 }
@@ -2112,12 +2114,12 @@ long intexpr1(node_t * ty)
     if (ty == NULL)
         ty = AST_TYPE(cond);
     if (!isint(AST_TYPE(cond)) || !isint(ty)) {
-        errorf(src, "expression is not an integer constant expression");
+        cc_errorf(src, "expression is not an integer constant expression");
         return 0;
     }
     node_t *cnst = eval(cond, ty);
     if (cnst == NULL) {
-        errorf(src, "expression is not a compile-time constant");
+        cc_errorf(src, "expression is not a compile-time constant");
         return 0;
     }
     assert(isiliteral(cnst));
@@ -2138,7 +2140,7 @@ node_t *bool_expr(void)
         return NULL;
     // warning for assignment expression
     if (AST_ID(node) == BINARY_OPERATOR && EXPR_OP(node) == '=')
-        warning("using the result of an assignment as a condition "
+        cc_warning("using the result of an assignment as a condition "
                 "without parentheses '%s'",
                 node2s(node));
     if (islvalue(node))
@@ -2153,7 +2155,7 @@ node_t *switch_expr(void)
     if (node == NULL)
         return NULL;
     if (!isint(AST_TYPE(node))) {
-        error("statement requires expression of integer type ('%s' invalid)",
+        cc_error("statement requires expression of integer type ('%s' invalid)",
              type2s(AST_TYPE(node)));
         return NULL;
     }

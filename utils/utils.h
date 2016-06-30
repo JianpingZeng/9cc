@@ -38,6 +38,7 @@ extern int log2i(size_t i);
 
 // string.c
 extern unsigned strhash(const char *s);
+extern unsigned strhashn(const char *s, size_t len);
 extern char *strs(const char *str);
 extern char *strn(const char *src, size_t len);
 extern char *strd(long long n);
@@ -48,20 +49,12 @@ extern char *xstrdup(const char *str);
 extern char *xstrndup(const char *str, size_t n);
 extern bool has_prefix(const char *s, const char *prefix);
 
-// alloc.c
-extern void *alloc_set(void);
-extern void *alloc_map(void);
-extern void *alloc_map_entry(void);
-extern void *alloc_vector(void);
-
 // vector.c
 #include "vector.h"
 // map.c
 #include "map.h"
 // strbuf.c
 #include "strbuf.h"
-// hideset.c
-#include "hideset.h"
 // set.c
 #include "set.h"
 

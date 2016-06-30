@@ -1,5 +1,5 @@
-#ifndef _7CC_H
-#define _7CC_H
+#ifndef _COLOR_H
+#define _COLOR_H
 
 #ifdef CONFIG_COLOR_TERM
 
@@ -68,10 +68,5 @@
 #define PURPLE_BOLD(str)   PURPLE_BOLD_COLOR str RESET
 #define CYAN_BOLD(str)     CYAN_BOLD_COLOR str RESET
 #define WHITE_BOLD(str)    WHITE_BOLD_COLOR str RESET
-
-#define VERSION(major, minor, patch)  (((major) << 16) | ((minor) << 8) | (patch))
-#define MAJOR(version)                ((version) >> 16)
-#define MINOR(version)                (((version) & 0xFF00) >> 8)
-#define PATCH(version)                ((version) & 0xFF)
 
 #endif

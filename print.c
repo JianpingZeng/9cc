@@ -1171,3 +1171,8 @@ void dump_tacs(struct tac *head)
         print_tac(tac);
     RESTORE_OUTFD();
 }
+
+void print_source(struct source src)
+{
+    println("location: %s:%u:%u", src.file, src.line, src.column);
+}

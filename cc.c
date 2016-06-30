@@ -33,8 +33,6 @@ static void parse_opts(int argc, char *argv[])
                 opts.E = true;
             } else if (!strcmp(arg, "-fleading_underscore")) {
                 opts.fleading_underscore = true;
-            } else if (!strncmp(arg, "-fversion=", 10)) {
-                opts.version = atoi(arg+10);
             } else if (!strcmp(arg, "-ansi")) {
                 opts.ansi = true;
             }
@@ -78,9 +76,9 @@ static void translate(void)
 
 static void preprocess(void)
 {
-    struct token *t = get_pptok();
-    for (; t->id != EOI; t = get_pptok())
-        fprintf(outfp, "%s", t->name);
+    struct token *t = get_pptok(cpp_file);
+    for (; t->id != EOI; t = get_pptok(cpp_file))
+        fprintf(outfp, "%s", tok2s(t));
 }
 
 static void cc_exit(void)
@@ -97,8 +95,7 @@ int main(int argc, char *argv[])
     symbol_init();
     type_init();
     cc_init(ifile, ofile);
-    input_init(ifile);
-    cpp_init(opts.cpp_options);
+    cpp_init(ifile, opts.cpp_options);
     
     if (opts.E)
         preprocess();

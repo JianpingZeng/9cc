@@ -17,8 +17,24 @@
 #include <ctype.h>
 #include <stdint.h>
 
-#include "7cc.h"
+#include "config.h"
+#include "color.h"
 #include "utils/utils.h"
+#include "lex.h"
+
+// alloc.c
+extern void *alloc_node(void);
+extern void *alloc_macro(void);
+extern void *alloc_operand(void);
+extern void *alloc_tac(void);
+extern void *alloc_basic_block(void);
+extern void *alloc_reladdr(void);
+extern void *alloc_opcode(void);
+extern void *alloc_hideset(void);
+extern void *alloc_cpp_ident(void);
+
+// error.c
+#include "error.h"
 
 struct cc_options {
     int E:1;
@@ -29,20 +45,9 @@ struct cc_options {
     int Werror:1;
     int ansi:1;
     int ir_dump_level:8;
-    int version;
     struct vector *cpp_options;
 };
 extern struct cc_options opts;
-
-// alloc.c
-extern void *alloc_node(void);
-extern void *alloc_token(void);
-extern void *alloc_macro(void);
-extern void *alloc_operand(void);
-extern void *alloc_tac(void);
-extern void *alloc_basic_block(void);
-extern void *alloc_reladdr(void);
-extern void *alloc_opcode(void);
 
 // value
 #define VALUE_U(v)    ((v).u)
@@ -58,8 +63,6 @@ union value {
     void *p;
     void (*g) ();
 };
-
-#include "lex.h"
 
 /**
  * The coding style tends to avoid typedefs, because
@@ -113,6 +116,10 @@ extern node_t *initializer_list(node_t * ty);
 extern void init_string(node_t * ty, node_t * node);
 extern bool has_static_extent(node_t * sym);
 
+extern void redefinition_error(struct source src, node_t * sym);
+extern void conflicting_types_error(struct source src, node_t * sym);
+extern void field_not_found_error(node_t * ty, const char *name);
+
 // stmt.c
 extern struct vector *funcalls;
 extern void func_body(node_t *decl);
@@ -164,13 +171,24 @@ extern node_t *booltype;        // bool
 #define BITS(bytes)     (CHAR_BIT * (bytes))
 #define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
 
-extern bool isconst1(int kind);
-extern bool isvolatile1(int kind);
-extern bool isrestrict1(int kind);
+#define isconst1(kind)     ((kind) == CONST ||                          \
+                            (kind) == CONST + VOLATILE ||               \
+                            (kind) == CONST + RESTRICT ||               \
+                            (kind) == CONST + VOLATILE + RESTRICT)
 
-extern bool isconst(node_t * ty);
-extern bool isvolatile(node_t * ty);
-extern bool isrestrict(node_t * ty);
+#define isvolatile1(kind)  ((kind) == VOLATILE ||                       \
+                            (kind) == VOLATILE + CONST ||               \
+                            (kind) == VOLATILE + RESTRICT ||            \
+                            (kind) == CONST + VOLATILE + RESTRICT)
+
+#define isrestrict1(kind)  ((kind) == RESTRICT ||                       \
+                            (kind) == RESTRICT + CONST ||               \
+                            (kind) == RESTRICT + VOLATILE ||            \
+                            (kind) == CONST + VOLATILE + RESTRICT)
+
+#define isconst(ty)     isconst1(_TYPE_KIND(ty))
+#define isvolatile(ty)  isvolatile1(_TYPE_KIND(ty))
+#define isrestrict(ty)  isrestrict1(_TYPE_KIND(ty))
 
 #define isinline(ty)    (_TYPE_INLINE(ty))
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
@@ -272,40 +290,16 @@ extern void print_node_size(void);
 extern void dump_operand(struct operand *operand);
 extern void dump_reg(struct reg *reg);
 extern void dump_tacs(struct tac *tac);
+extern void print_source(struct source src);
 
-// error.c
-enum {
-    WRN = 1,                // warning
-    ERR,                    // error
-    FTL,                    // fatal
-};
-extern unsigned errors;
-extern unsigned warnings;
-extern void warningf(struct source src, const char *fmt, ...);
-extern void errorf(struct source src, const char *fmt, ...);
-extern void fatalf(struct source src, const char *fmt, ...);
-#define warning(...)  warningf(source, __VA_ARGS__)
-#define error(...)    errorf(source, __VA_ARGS__)
-#define fatal(...)    fatalf(source, __VA_ARGS__)
-
-#define SAVE_ERRORS    unsigned err = errors
-#define NO_ERROR       (err == errors)
-#define HAS_ERROR      (err != errors)
-
-#define assertf(condtion, desc, ...)            \
-    do {                                        \
-        if (!(condtion)) {                      \
-            derror(desc, __VA_ARGS__);          \
-            assert(condtion);                   \
-        }                                       \
-    } while (0)
+#define cc_warningf(s, ...)  warning(s.file, s.line, s.column, __VA_ARGS__)
+#define cc_errorf(s, ...)  error(s.file, s.line, s.column, __VA_ARGS__)
+#define cc_fatalf(s, ...)  fatal(s.file, s.line, s.column, __VA_ARGS__)
+#define cc_warning(...)  cc_warningf(source, __VA_ARGS__)
+#define cc_error(...)  cc_errorf(source, __VA_ARGS__)
+#define cc_fatal(...)  cc_fatalf(source, __VA_ARGS__)
 
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
-
-extern void redefinition_error(struct source src, node_t * sym);
-extern void conflicting_types_error(struct source src, node_t * sym);
-extern void field_not_found_error(node_t * ty, const char *name);
-
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
 

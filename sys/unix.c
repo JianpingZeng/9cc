@@ -1,4 +1,4 @@
-// define _BSD_SOURCE for mkdtemp, dirname, basename, localtime_r
+// define _BSD_SOURCE for mkdtemp, dirname, basename
 #define _BSD_SOURCE
 #include <unistd.h>
 #include <stdlib.h>
@@ -9,7 +9,6 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <time.h>
 // dirname, basename
 #include <libgen.h>
 // uname
@@ -30,23 +29,13 @@ int file_exists(const char *path)
     return stat(path, &st) == 0;
 }
 
-int file_size(const char *path)
+long file_size(const char *path)
 {
     struct stat st;
     if (stat(path, &st) == 0)
         return st.st_size;
     else
-        return -1;
-}
-
-int isdir(const char *path)
-{
-    if (path == NULL)
         return 0;
-    struct stat st;
-    if (stat(path, &st) != 0)
-        return 0;
-    return S_ISDIR(st.st_mode);
 }
 
 int callsys(const char *file, char **argv)
@@ -165,9 +154,4 @@ const char *join(const char *dir, const char *name)
     p[len1 + 1 + len2] = '\0';
 
     return p;
-}
-
-void set_localtime(const time_t * timep, struct tm *result)
-{
-    localtime_r(timep, result);
 }
