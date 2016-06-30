@@ -78,7 +78,7 @@ static void preprocess(void)
 {
     struct token *t = get_pptok(cpp_file);
     for (; t->id != EOI; t = get_pptok(cpp_file))
-        fprintf(outfp, "%s", t->lexeme);
+        fprintf(outfp, "%s", tok2s(t));
 }
 
 static void cc_exit(void)

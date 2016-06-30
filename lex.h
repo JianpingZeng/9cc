@@ -84,6 +84,9 @@ enum {
 #define ID_BITS    10
 
 // token
+#define TOK_IDENT_STR(t)    ((const char *)(t)->value.ident->str)
+#define TOK_LITERAL_STR(t)  ((t)->value.lexeme)
+
 struct token {
     int id:ID_BITS;
     int kind:ID_BITS;
@@ -91,11 +94,13 @@ struct token {
     bool space;              // leading space
     bool param;              // macro param
     unsigned int pos;        // param posistion
-    const char *lexeme;
     struct source src;
     struct hideset *hideset;
     union {
+        // identifier
         struct ident *ident;
+        // string or number
+        const char *lexeme;
     } value;
 };
 
@@ -232,8 +237,10 @@ struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count);
 extern struct token *lex(struct file *pfile);
 extern struct token *header_name(struct file *pfile);
 extern struct token *new_token(struct token *tok);
+extern struct ident *new_ident(struct file *pfile, const char *name);
 extern void skip_ifstack(struct file *pfile);
 extern const char *id2s(int t);
+extern const char *tok2s(struct token *t);
 
 extern int gettok(void);
 extern struct token *lookahead(void);

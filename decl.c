@@ -52,7 +52,7 @@ static node_t *specifiers(int *sclass, int *fspec)
 
     for (;;) {
         int *p, t = token->id;
-        const char *name = token->lexeme;
+        struct token *tok = token;
         struct source src = source;
         switch (token->id) {
         case AUTO:
@@ -151,8 +151,8 @@ static node_t *specifiers(int *sclass, int *fspec)
             break;
 
         case ID:
-            if (istypedef(token->lexeme)) {
-                tydefty = lookup_typedef(token->lexeme);
+            if (istypedef(TOK_IDENT_STR(token))) {
+                tydefty = lookup_typedef(TOK_IDENT_STR(token));
                 p = &type;
                 gettok();
             } else {
@@ -173,35 +173,35 @@ static node_t *specifiers(int *sclass, int *fspec)
                 if (sclass)
                     cc_errorf(src,
                               "duplicate storage class '%s'",
-                              name);
+                              tok2s(tok));
                 else
                     cc_errorf(src,
                               "type name does not allow storage class "
                               "to be specified",
-                              name);
+                              tok2s(tok));
             } else if (p == &inl) {
                 if (fspec)
                     cc_warningf(src,
                                 "duplicate '%s' declaration specifier",
-                                name);
+                                tok2s(tok));
                 else
                     cc_errorf(src, "function specifier not allowed");
             } else if (p == &cons || p == &res || p == &vol) {
                 cc_warningf(src,
                             "duplicate '%s' declaration specifier",
-                            name);
+                            tok2s(tok));
             } else if (p == &ci) {
                 cc_errorf(src,
                           "duplicate _Complex/_Imaginary specifier '%s'",
-                          name);
+                          tok2s(tok));
             } else if (p == &sign) {
                 cc_errorf(src,
                           "duplicate signed/unsigned speficier '%s'",
-                          name);
+                          tok2s(tok));
             } else if (p == &type || p == &size) {
                 cc_errorf(src,
                           "duplicate type specifier '%s'",
-                          name);
+                          tok2s(tok));
             } else {
                 assert(0);
             }
@@ -409,7 +409,7 @@ static struct vector *parameters(node_t * ftype, int *params)
         if (token->id == ELLIPSIS)
             cc_error("ISO C requires a named parameter before '...'");
         else
-            cc_error("expect parameter declarator at '%s'", token->lexeme);
+            cc_error("expect parameter declarator at '%s'", tok2s(token));
         gettok();
     }
 
@@ -534,7 +534,7 @@ static node_t *tag_decl(void)
 
     expect(t);
     if (token->id == ID) {
-        id = token->lexeme;
+        id = TOK_IDENT_STR(token);
         expect(ID);
     }
     if (token->id == '{') {
@@ -573,11 +573,12 @@ static void ids(node_t *sym)
     if (token->id == ID) {
         int val = 0;
         do {
-            node_t *s = lookup(token->lexeme, identifiers);
+            const char *name = TOK_IDENT_STR(token);
+            node_t *s = lookup(name, identifiers);
             if (s && is_current_scope(s))
                 redefinition_error(source, s);
 
-            s = install(token->lexeme, &identifiers, SCOPE);
+            s = install(name, &identifiers, SCOPE);
             SYM_TYPE(s) = SYM_TYPE(sym);
             AST_SRC(s) = source;
             SYM_SCLASS(s) = ENUM;
@@ -646,17 +647,18 @@ static void fields(node_t * sym)
                     bitfield(field);
                 FIELD_TYPE(field) = ty;
                 if (id) {
+                    const char *name = TOK_IDENT_STR(id);
                     for (int i = 0; i < vec_len(v); i++) {
                         node_t *f = vec_at(v, i);
                         if (FIELD_NAME(f) &&
-                            !strcmp(FIELD_NAME(f), id->lexeme)) {
+                            !strcmp(FIELD_NAME(f), name)) {
                             cc_errorf(id->src,
                                       "redefinition of '%s'",
-                                      id->lexeme);
+                                      name);
                             break;
                         }
                     }
-                    FIELD_NAME(field) = id->lexeme;
+                    FIELD_NAME(field) = name;
                     AST_SRC(field) = id->src;
                 }
             }
@@ -716,7 +718,7 @@ static node_t *ptr_decl(void)
             break;
 
         if (*p != 0)
-            cc_warning("duplicate type qulifier '%s'", token->lexeme);
+            cc_warning("duplicate type qulifier '%s'", tok2s(token));
 
         *p = t;
 
@@ -797,7 +799,7 @@ static void abstract_declarator(node_t ** ty)
             prepend_type(ty, faty);
         }
     } else {
-        cc_error("expect '(' or '[' at '%s'", token->lexeme);
+        cc_error("expect '(' or '[' at '%s'", tok2s(token));
     }
 }
 
@@ -864,7 +866,7 @@ int first_expr(struct token *t)
 bool first_typename(struct token * t)
 {
     return t->kind == INT || t->kind == CONST ||
-        (t->id == ID && istypedef(t->lexeme));
+        (t->id == ID && istypedef(TOK_IDENT_STR(t)));
 }
 
 static node_t *make_decl(struct token *id, node_t * ty, int sclass,
@@ -954,7 +956,7 @@ static struct vector *decls(declfun_p * dcl)
         DECL_SYM(decl) = TYPE_TSYM(basety);
         vec_push(v, decl);
     } else {
-        cc_error("invalid token '%s' in declaration", token->lexeme);
+        cc_error("invalid token '%s' in declaration", tok2s(token));
     }
     match(';', follow);
 
@@ -1220,7 +1222,7 @@ static node_t * typedefdecl(struct token *t, node_t * ty, int fspec, int kind)
     assert(t);
     assert(kind != PARAM);
     
-    const char *id = t->lexeme;
+    const char *id = TOK_IDENT_STR(t);
     struct source src = t->src;
 
     if (isfunc(ty)) {
@@ -1256,7 +1258,7 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
     sclass = PARAM_SCLASS(sclass);
 
     if (t) {
-        id = t->lexeme;
+        id = TOK_IDENT_STR(t);
         src = t->src;
     }
 
@@ -1331,7 +1333,7 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass,
                          int fspec)
 {
     node_t *sym = NULL;
-    const char *id = t->lexeme;
+    const char *id = TOK_IDENT_STR(t);
     struct source src = t->src;
 
     assert(id);
@@ -1381,7 +1383,7 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
                           int fspec)
 {
     node_t *sym = NULL;
-    const char *id = t->lexeme;
+    const char *id = TOK_IDENT_STR(t);
     struct source src = t->src;
 
     assert(id);
@@ -1514,7 +1516,7 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
     }
     
     if (t) {
-        const char *id = t->lexeme;
+        const char *id = TOK_IDENT_STR(t);
         struct source src = t->src;
         node_t *sym = lookup(id, identifiers);
         if (!sym || SYM_SCOPE(sym) != GLOBAL) {
@@ -1558,8 +1560,9 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
 
 node_t *make_localdecl(const char *name, node_t * ty, int sclass)
 {
+    struct ident *ident = new_ident(cpp_file, name);
     struct token *id = new_token(&(struct token){
-            .id = ID, .lexeme = name, .kind = ID, .src = source});
+            .id = ID, .value.ident = ident, .kind = ID, .src = source});
     node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
     return decl;
 }
@@ -1734,7 +1737,7 @@ static void struct_init(node_t * ty, bool brace, struct vector *v)
             const char *name = NULL;
             expect('.');
             if (token->id == ID)
-                name = token->lexeme;
+                name = TOK_IDENT_STR(token);
             expect(ID);
             node_t *field = find_field(ty, name);
             if (field) {
@@ -1866,7 +1869,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
         } else if (token->id == '{') {
             if (designated)
                 cc_error("expect '=' or another designator at '%s'",
-                         token->lexeme);
+                         tok2s(token));
             aggregate_set(ty, v, i, initializer_list(ty));
         } else if ((token->id == '.' && isarray(ty)) ||
                    (token->id == '[' && !isarray(ty))) {
@@ -1945,7 +1948,7 @@ node_t *initializer_list(node_t * ty)
 
             if (first_init(token)) {
                 cc_warning("excess elements in %s initializer at '%s'",
-                           TYPE_NAME(ty), token->lexeme);
+                           TYPE_NAME(ty), tok2s(token));
                 eat_initlist();
             }
         } else {
@@ -1954,7 +1957,7 @@ node_t *initializer_list(node_t * ty)
     } else {
         // inhibit redundant errors
         if (ty)
-            cc_error("expect initializer at '%s'", token->lexeme);
+            cc_error("expect initializer at '%s'", tok2s(token));
     }
 
     match('}', follow);

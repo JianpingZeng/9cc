@@ -17,9 +17,9 @@ static const char *tnames[] = {
 #include "token.def"
 };
 
-static struct token *eoi_token = &(struct token){.id = EOI, .lexeme = "EOI"};
-static struct token *newline_token = &(struct token){.id = '\n', .lexeme = "\n"};
-struct token *space_token = &(struct token){.id = ' ', .lexeme = " "};
+static struct token *eoi_token = &(struct token){.id = EOI};
+static struct token *newline_token = &(struct token){.id = '\n'};
+struct token *space_token = &(struct token){.id = ' '};
 
 struct source source;
 
@@ -53,6 +53,18 @@ const char *id2s(int t)
         return tnames[128 + t - ID];
     else
         return "(null)";
+}
+
+const char *tok2s(struct token *t)
+{
+    if (t->id == ID)
+        return TOK_IDENT_STR(t);
+    else if (t->id == SCONSTANT || t->id == NCONSTANT)
+        return TOK_LITERAL_STR(t);
+    else if (t->value.lexeme)
+        return t->value.lexeme;
+    else
+        return id2s(t->id);
 }
 
 int isletter(int c)
@@ -284,9 +296,14 @@ struct token *new_token(struct token *tok)
 {
     struct token *t = xmalloc(sizeof(struct token));
     memcpy(t, tok, sizeof(struct token));
-    if (!tok->lexeme)
-        t->lexeme = id2s(tok->id);
     return t;
+}
+
+struct ident *new_ident(struct file *pfile, const char *name)
+{
+    const unsigned char *str = (const unsigned char *)name;
+    size_t len = strlen(name);
+    return imap_lookup(pfile->imap, str, len, IMAP_CREATE);
 }
 
 static void line_comment(struct file *pfile)
@@ -394,10 +411,7 @@ static struct ident *identifier(struct file *pfile)
 static struct token *dolex(struct file *pfile)
 {
     register const unsigned char *rpc;
-    int id;
     struct token *result;
-    const char *name = NULL;
-    struct ident *ident = NULL;
     struct buffer *pb = pfile->buffer;
 
     if (pb->need_line)
@@ -405,6 +419,12 @@ static struct token *dolex(struct file *pfile)
     // pb->buf maybe NULL
     if (pb->cur >= pb->limit)
         return eoi_token;
+
+    if (pfile->cur_token == pfile->tokenrun->limit) {
+        pfile->tokenrun = next_tokenrun(pfile->tokenrun, 1024);
+        pfile->cur_token = pfile->tokenrun->base;
+    }
+    result = pfile->cur_token++;
     
  start:
     if (pb->cur >= pb->notes[pb->cur_note].pos)
@@ -416,12 +436,14 @@ static struct token *dolex(struct file *pfile)
     switch (*rpc) {
     case '\n':
         if (rpc >= pb->limit) {
+            pfile->cur_token--;
             return eoi_token;
         } else {
             pb->need_line = true;
             pb->bol = true;
             newline_token->src = source;
             INCLINE(pb, 0);
+            pfile->cur_token--;
             return newline_token;
         }
 
@@ -436,6 +458,7 @@ static struct token *dolex(struct file *pfile)
         while (iswhitespace(*rpc));
         pb->cur = rpc;
         space_token->src = source;
+        pfile->cur_token--;
         return space_token;
 
         // punctuators
@@ -448,216 +471,217 @@ static struct token *dolex(struct file *pfile)
             goto start;
         } else if (rpc[1] == '=') {
             pb->cur++;
-            id = DIVEQ;
+            result->id = DIVEQ;
         } else {
-            id = '/';
+            result->id = '/';
         }
         break;
 
     case '+':
         if (rpc[1] == '+') {
             pb->cur++;
-            id = INCR;
+            result->id = INCR;
         } else if (rpc[1] == '=') {
             pb->cur++;
-            id = ADDEQ;
+            result->id = ADDEQ;
         } else {
-            id = '+';
+            result->id = '+';
         }
         break;
 
     case '-':
         if (rpc[1] == '-') {
             pb->cur++;
-            id = DECR;
+            result->id = DECR;
         } else if (rpc[1] == '=') {
             pb->cur++;
-            id = MINUSEQ;
+            result->id = MINUSEQ;
         } else if (rpc[1] == '>') {
             pb->cur++;
-            id = DEREF;
+            result->id = DEREF;
         } else {
-            id = '-';
+            result->id = '-';
         }
         break;
 
     case '*':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = MULEQ;
+            result->id = MULEQ;
         } else {
-            id = '*';
+            result->id = '*';
         }
         break;
 
     case '=':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = EQ;
+            result->id = EQ;
         } else {
-            id = '=';
+            result->id = '=';
         }
         break;
 
     case '!':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = NEQ;
+            result->id = NEQ;
         } else {
-            id = '!';
+            result->id = '!';
         }
         break;
 
     case '%':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = MODEQ;
+            result->id = MODEQ;
         } else if (rpc[1] == '>') {
             pb->cur++;
-            id = '}';
+            result->id = '}';
         } else if (rpc[1] == ':' && rpc[2] == '%' && rpc[3] == ':') {
             pb->cur += 3;
-            id = SHARPSHARP;
+            result->id = SHARPSHARP;
         } else if (rpc[1] == ':') {
             pb->cur++;
-            id = '#';
+            result->id = '#';
         } else {
-            id = '%';
+            result->id = '%';
         }
         break;
 
     case '^':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = XOREQ;
+            result->id = XOREQ;
         } else {
-            id = '^';
+            result->id = '^';
         }
         break;
 
     case '&':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = BANDEQ;
+            result->id = BANDEQ;
         } else if (rpc[1] == '&') {
             pb->cur++;
-            id = AND;
+            result->id = AND;
         } else {
-            id = '&';
+            result->id = '&';
         }
         break;
 
     case '|':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = BOREQ;
+            result->id = BOREQ;
         } else if (rpc[1] == '|') {
             pb->cur++;
-            id = OR;
+            result->id = OR;
         } else {
-            id = '|';
+            result->id = '|';
         }
         break;
 
     case '<':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = LEQ;
+            result->id = LEQ;
         } else if (rpc[1] == '<' && rpc[2] == '=') {
             pb->cur += 2;
-            id = LSHIFTEQ;
+            result->id = LSHIFTEQ;
         } else if (rpc[1] == '<') {
             pb->cur++;
-            id = LSHIFT;
+            result->id = LSHIFT;
         } else if (rpc[1] == '%') {
             pb->cur++;
-            id = '{';
+            result->id = '{';
         } else if (rpc[1] == ':') {
             pb->cur++;
-            id = '[';
+            result->id = '[';
         } else {
-            id = '<';
+            result->id = '<';
         }
         break;
 
     case '>':
         if (rpc[1] == '=') {
             pb->cur++;
-            id = GEQ;
+            result->id = GEQ;
         } else if (rpc[1] == '>' && rpc[2] == '=') {
             pb->cur += 2;
-            id = RSHIFTEQ;
+            result->id = RSHIFTEQ;
         } else if (rpc[1] == '>') {
             pb->cur++;
-            id = RSHIFT;
+            result->id = RSHIFT;
         } else {
-            id = '>';
+            result->id = '>';
         }
         break;
 
     case '(': case ')':
     case '{': case '}':
     case '[': case ']':
-    case ',': case ';':case '~': case '?':
-        id = *rpc;
+    case ',': case ';':
+    case '~': case '?':
+        result->id = *rpc;
         break;
 
     case ':':
         if (rpc[1] == '>') {
             pb->cur++;
-            id = ']';
+            result->id = ']';
         } else {
-            id = ':';
+            result->id = ':';
         }
         break;
 
     case '#':
         if (rpc[1] == '#') {
             pb->cur++;
-            id = SHARPSHARP;
+            result->id = SHARPSHARP;
         } else {
-            id = '#';
+            result->id = '#';
         }
         break;
 
         // constants
     case '\'':
-        id = NCONSTANT;
-        name = sequence(pfile, false, '\'');
+        result->id = NCONSTANT;
+        result->value.lexeme = sequence(pfile, false, '\'');
         break;
 
     case '"':
-        id = SCONSTANT;
-        name = sequence(pfile, false, '"');
+        result->id = SCONSTANT;
+        result->value.lexeme = sequence(pfile, false, '"');
         break;
 
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-        id = NCONSTANT;
-        name = ppnumber(pfile);
+        result->id = NCONSTANT;
+        result->value.lexeme = ppnumber(pfile);
         break;
 
     case '.':
         if (rpc[1] == '.' && rpc[2] == '.') {
             pb->cur += 2;
-            id = ELLIPSIS;
+            result->id = ELLIPSIS;
         } else if (isdigit(rpc[1])) {
-            id = NCONSTANT;
-            name = ppnumber(pfile);
+            result->id = NCONSTANT;
+            result->value.lexeme = ppnumber(pfile);
         } else {
-            id = '.';
+            result->id = '.';
         }
         break;
 
         // identifiers
     case 'L':
         if (rpc[1] == '\'') {
-            id = NCONSTANT;
-            name = sequence(pfile, true, '\'');
+            result->id = NCONSTANT;
+            result->value.lexeme = sequence(pfile, true, '\'');
             break;
         } else if (rpc[1] == '"') {
-            id = SCONSTANT;
-            name = sequence(pfile, true, '"');
+            result->id = SCONSTANT;
+            result->value.lexeme = sequence(pfile, true, '"');
             break;
         }
         // go through
@@ -672,9 +696,8 @@ static struct token *dolex(struct file *pfile)
     case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R':
     case 'S': case 'T': case 'U': case 'V': case 'W': case 'X':
     case 'Y': case 'Z':
-        id = ID;
-        ident = identifier(pfile);
-        name = (const char *)ident->str;
+        result->id = ID;
+        result->value.ident = identifier(pfile);
         break;
 
     default:
@@ -687,14 +710,6 @@ static struct token *dolex(struct file *pfile)
     }
 
     // done
-    if (pfile->cur_token == pfile->tokenrun->limit) {
-        pfile->tokenrun = next_tokenrun(pfile->tokenrun, 1024);
-        pfile->cur_token = pfile->tokenrun->base;
-    }
-    result = pfile->cur_token++;
-    result->id = id;
-    result->lexeme = name ? name : id2s(id);
-    result->value.ident = ident;
     result->src = source;
     result->bol = pb->bol;
     pb->bol = false;
@@ -749,10 +764,12 @@ struct token *header_name(struct file *pfile)
     MARKC(pb);
     if (ch == '<') {
         const char *name = hq_char_sequence(pfile, '>');
-        return new_token(&(struct token){.lexeme = name, .kind = ch});
+        return new_token(&(struct token){
+                .value.lexeme = name, .kind = ch});
     } else if (ch == '"') {
         const char *name = hq_char_sequence(pfile, '"');
-        return new_token(&(struct token){.lexeme = name, .kind = ch});
+        return new_token(&(struct token){
+                .value.lexeme = name, .kind = ch});
     } else {
         // pptokens
         pb->cur--;
@@ -778,7 +795,7 @@ void skip_ifstack(struct file *pfile)
             t = dolex(pfile);
         if (t->id != ID)
             continue;
-        const char *name = t->lexeme;
+        const char *name = TOK_IDENT_STR(t);
         if (!strcmp(name, "if") ||
             !strcmp(name, "ifdef") ||
             !strcmp(name, "ifndef")) {
@@ -857,12 +874,12 @@ static struct token *combine_scons(struct vector *v, bool wide)
     strbuf_catc(s, '"');
     for (int i = 0; i < vec_len(v); i++) {
         struct token *ti = vec_at(v, i);
-        const char *name = unwrap_scon(ti->lexeme);
+        const char *name = unwrap_scon(tok2s(ti));
         if (name)
             strbuf_cats(s, name);
     }
     strbuf_catc(s, '"');
-    t->lexeme = strbuf_str(s);
+    t->value.lexeme = strbuf_str(s);
     return t;
 }
 
@@ -872,9 +889,11 @@ static struct token *do_cctoken(struct file *pfile)
     if (t->id == SCONSTANT) {
         struct vector *v = vec_new1(t);
         struct token *t1 = peek_token(pfile);
-        bool wide = t->lexeme[0] == 'L';
+        const char *name0 = TOK_LITERAL_STR(t);
+        bool wide = name0[0] == 'L';
         while (t1->id == SCONSTANT) {
-            if (t1->lexeme[0] == 'L')
+            const char *name1 = TOK_LITERAL_STR(t1);
+            if (name1[0] == 'L')
                 wide = true;
             vec_push(v, one_token(pfile));
             t1 = peek_token(pfile);
@@ -929,8 +948,9 @@ static struct token *cctoken(struct file *pfile)
     struct token *t = do_cctoken(pfile);
     // keywords
     if (t->id == ID) {
+        const char *name = TOK_IDENT_STR(t);
         for (int i = 0; i < ARRAY_SIZE(kws); i++) {
-            if (!strcmp(t->lexeme, kws[i])) {
+            if (!strcmp(name, kws[i])) {
                 t->id = kwi[i];
                 break;
             }
@@ -1004,11 +1024,11 @@ int skipto(int (*test[]) (struct token *))
     if (cnt > 1)
         cpp_errorf(t->src,
                    "invalid token '%s', %d tokens skipped",
-                   t->lexeme, cnt);
+                   tok2s(t), cnt);
     else if (cnt)
         cpp_errorf(t->src,
                    "invalid token '%s'",
-                   t->lexeme);
+                   tok2s(t));
     else
         die("nothing skipped, may be an internal error");
     return cnt;

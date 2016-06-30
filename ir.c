@@ -915,7 +915,8 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
     if (isstruct(ty) || isunion(ty)) {
         struct vector *inits = EXPR_INITS(r);
         struct vector *fields = TYPE_FIELDS(ty);
-        for (int i = 0; i < vec_len(inits); i++) {
+        size_t ninits = vec_len(inits);
+        for (int i = 0; i < ninits; i++) {
             node_t *init = vec_at(inits, i);
             node_t *field = vec_at(fields, i);
             node_t *rty = FIELD_TYPE(field);
@@ -932,8 +933,9 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
                     emit_assign(rty, l, init, off, NULL, sty);
             }
         }
-        if (vec_len(inits) < vec_len(fields)) {
-            node_t *field = vec_at(fields, vec_len(inits));
+        size_t nfields = isstruct(ty) ? vec_len(fields) : 1;
+        if (ninits < nfields) {
+            node_t *field = vec_at(fields, ninits);
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
             // as integer

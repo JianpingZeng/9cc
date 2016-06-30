@@ -64,7 +64,7 @@ static node_t *expr_stmt(void)
         else
             ret = NULL;
     } else {
-        cc_error("missing statement before '%s'", token->lexeme);
+        cc_error("missing statement before '%s'", tok2s(token));
     }
     
     expect(';');
@@ -357,7 +357,8 @@ static node_t *label_stmt(void)
     const char *name;
 
     SAVE_ERRORS;
-    name = token->lexeme;
+    if (token->id == ID)
+        name = TOK_IDENT_STR(token);
     expect(ID);
     expect(':');
 
@@ -394,7 +395,8 @@ static node_t *goto_stmt(void)
 
     SAVE_ERRORS;
     expect(GOTO);
-    STMT_LABEL_NAME(ret) = token->lexeme;
+    if (token->id == ID)
+        STMT_LABEL_NAME(ret) = TOK_IDENT_STR(token);
     expect(ID);
     expect(';');
 

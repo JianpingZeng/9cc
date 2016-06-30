@@ -467,7 +467,7 @@ static unsigned escape(const char **ps)
 
 static void char_constant(struct token *t, node_t * sym)
 {
-    const char *s = t->lexeme;
+    const char *s = TOK_LITERAL_STR(t);
     bool wide = s[0] == 'L';
     unsigned long long c = 0;
     char ws[MB_LEN_MAX];
@@ -496,13 +496,13 @@ static void char_constant(struct token *t, node_t * sym)
     }
 
     if (!char_rec && !len)
-        cc_error("incomplete character constant: %s", t->lexeme);
+        cc_error("incomplete character constant: %s", tok2s(t));
     else if (overflow)
         cc_error("extraneous characters in character constant: %s",
-              t->lexeme);
+                 tok2s(t));
     else if ((!wide && c > UINTEGER_MAX(unsignedchartype))
              || (wide && c > UINTEGER_MAX(wchartype)))
-        cc_error("character constant overflow: %s", t->lexeme);
+        cc_error("character constant overflow: %s", tok2s(t));
     else if (len && mbtowc((wchar_t *) & c, ws, len) != len)
         cc_error("illegal multi-character sequence");
 
@@ -536,7 +536,7 @@ static int integer_suffix(const char *s)
 
 static void integer_constant(struct token *t, node_t * sym)
 {
-    const char *s = t->lexeme;
+    const char *s = TOK_LITERAL_STR(t);
 
     int base;
     node_t *ty;
@@ -576,7 +576,7 @@ static void integer_constant(struct token *t, node_t * sym)
         }
 
         if (err)
-            cc_error("invalid octal constant %s", t->lexeme);
+            cc_error("invalid octal constant %s", tok2s(t));
     } else {
         base = 10;
         for (; isdigit(*s);) {
@@ -664,12 +664,12 @@ static void integer_constant(struct token *t, node_t * sym)
     switch (TYPE_OP(SYM_TYPE(sym))) {
     case INT:
         if (overflow || n > INTEGER_MAX(longlongtype))
-            cc_error("integer constant overflow: %s", t->lexeme);
+            cc_error("integer constant overflow: %s", tok2s(t));
         SYM_VALUE_I(sym) = n;
         break;
     case UNSIGNED:
         if (overflow)
-            cc_error("integer constant overflow: %s", t->lexeme);
+            cc_error("integer constant overflow: %s", tok2s(t));
         SYM_VALUE_U(sym) = n;
         break;
     default:
@@ -691,7 +691,7 @@ static int float_suffix(const char *s)
 
 static void float_constant(struct token *t, node_t * sym)
 {
-    const char *pc = t->lexeme;
+    const char *pc = TOK_LITERAL_STR(t);
     struct strbuf *s = strbuf_new();
 
     if (pc[0] == '.') {
@@ -765,7 +765,7 @@ static void float_constant(struct token *t, node_t * sym)
                 } while (isdigit(*pc));
             } else {
                 cc_error("exponent used with no following digits: %s",
-                     t->lexeme);
+                         tok2s(t));
             }
         }
     }
@@ -795,7 +795,7 @@ static void float_constant(struct token *t, node_t * sym)
 
 static void number_constant(struct token *t, node_t * sym)
 {
-    const char *pc = t->lexeme;
+    const char *pc = TOK_LITERAL_STR(t);
     if (pc[0] == '\'' || pc[0] == 'L') {
         // character
         char_constant(t, sym);
@@ -806,7 +806,7 @@ static void number_constant(struct token *t, node_t * sym)
         // Hex
         pc += 2;
         if (!isxdigit(*pc) && pc[0] != '.') {
-            cc_error("incomplete hex constant: %s", t->lexeme);
+            cc_error("incomplete hex constant: %s", tok2s(t));
             integer_constant(t, sym);
             return;
         }
@@ -836,7 +836,7 @@ static void number_constant(struct token *t, node_t * sym)
 
 static void string_constant(struct token *t, node_t * sym)
 {
-    const char *s = t->lexeme;
+    const char *s = TOK_LITERAL_STR(t);
     bool wide = s[0] == 'L' ? true : false;
     node_t *ty;
     if (wide) {
@@ -860,9 +860,10 @@ static void string_constant(struct token *t, node_t * sym)
 
 static node_t *number_literal(struct token *t)
 {
-    node_t *sym = lookup(t->lexeme, constants);
+    const char *name = TOK_LITERAL_STR(t);
+    node_t *sym = lookup(name, constants);
     if (!sym) {
-        sym = install(t->lexeme, &constants, CONSTANT);
+        sym = install(name, &constants, CONSTANT);
         number_constant(t, sym);
     }
     int id = isint(SYM_TYPE(sym)) ? INTEGER_LITERAL : FLOAT_LITERAL;
@@ -874,9 +875,10 @@ static node_t *number_literal(struct token *t)
 
 static node_t *string_literal(struct token *t)
 {
-    node_t *sym = lookup(t->lexeme, constants);
+    const char *name = TOK_LITERAL_STR(t);
+    node_t *sym = lookup(name, constants);
     if (!sym) {
-        sym = install(t->lexeme, &constants, CONSTANT);
+        sym = install(name, &constants, CONSTANT);
         string_constant(t, sym);
     }
     node_t *expr = ast_expr(STRING_LITERAL, SYM_TYPE(sym), NULL, NULL);
@@ -888,7 +890,7 @@ static node_t *string_literal(struct token *t)
 node_t *new_integer_literal(int i)
 {
     struct token *t = new_token(&(struct token){
-            .id = NCONSTANT, .lexeme = strd(i)});
+            .id = NCONSTANT, .value.lexeme = strd(i)});
     node_t *expr = number_literal(t);
     return expr;
 }
@@ -896,7 +898,7 @@ node_t *new_integer_literal(int i)
 node_t *new_string_literal(const char *string)
 {
     struct token *t = new_token(&(struct token){
-            .id = SCONSTANT, .lexeme = format("\"%s\"", string)});
+            .id = SCONSTANT, .value.lexeme = format("\"%s\"", string)});
     node_t *expr = string_literal(t);
     return expr;
 }
@@ -1036,7 +1038,7 @@ static node_t *primary_expr(void)
 
     switch (t) {
     case ID:
-        sym = lookup(token->lexeme, identifiers);
+        sym = lookup(TOK_IDENT_STR(token), identifiers);
         if (sym) {
             ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
             EXPR_SYM(ret) = sym;
@@ -1045,7 +1047,7 @@ static node_t *primary_expr(void)
             if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
                 EXPR_OP(ret) = ENUM;        // enum ids
         } else {
-            cc_error("use of undeclared identifier '%s'", token->lexeme);
+            cc_error("use of undeclared identifier '%s'", tok2s(token));
         }
         expect(t);
         break;
@@ -1074,7 +1076,7 @@ static node_t *primary_expr(void)
         }
         break;
     default:
-        cc_error("invalid postfix expression at '%s'", token->lexeme);
+        cc_error("invalid postfix expression at '%s'", tok2s(token));
         break;
     }
 
@@ -1229,7 +1231,7 @@ static node_t *direction(node_t * node)
 
     expect(t);
     if (token->id == ID)
-        name = token->lexeme;
+        name = TOK_IDENT_STR(token);
     expect(ID);
     if (node == NULL || name == NULL)
         return ret;
