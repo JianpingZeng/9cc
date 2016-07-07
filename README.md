@@ -16,7 +16,7 @@ The compiler is designed to be able to compile itself, so it is written in C. An
 
 ### HOWTO build
 
-For Linux users:
+Make sure you have Linux installed. (any distribution is fine)
 
 To build the compiler, run command:
 
@@ -31,16 +31,13 @@ To run the test suite:
    	make test
 
 
-For Windows users:
-
-Install Visual Studio 2015, then open `VS2015 x64 Native Tools Command Prompt`:
-
-   	nmake -f makefile.nt
-
-
 For Mac OS X users:
 
 Nowadays OS X is shipped with Apple's C library headers, which does _NOT_ support a standard compiler. You can still build the compiler like Linux, but cannot include the standard headers.
+
+### Caveats
+
+1. Adding test cases.
 
 
 ### License (GPLv3)
