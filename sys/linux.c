@@ -8,6 +8,8 @@
  * $2: additional options
  */
 
+#ifdef CONFIG_UBUNTU
+
 char *ld[] = {
     "ld",
     "-A", "x86_64",
@@ -20,6 +22,23 @@ char *ld[] = {
     "/usr/lib/x86_64-linux-gnu/crtn.o",
     NULL
 };
+
+#else
+
+char *ld[] = {
+    "ld",
+    "-A", "x86_64",
+    "-o", "$0",
+    "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
+    "/usr/lib64/crt1.o",
+    "/usr/lib64/crti.o",
+    "$1", "$2",
+    "-lc", "-lm",
+    "/usr/lib64/crtn.o",
+    NULL
+};
+
+#endif
 
 char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
 char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
