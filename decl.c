@@ -171,37 +171,36 @@ static node_t *specifiers(int *sclass, int *fspec)
         if (*p != 0) {
             if (p == &cls) {
                 if (sclass)
-                    cc_errorf(src,
-                              "duplicate storage class '%s'",
-                              tok2s(tok));
+                    errorf(src,
+                           "duplicate storage class '%s'",
+                           tok2s(tok));
                 else
-                    cc_errorf(src,
-                              "type name does not allow storage class "
-                              "to be specified",
-                              tok2s(tok));
+                    errorf(src,
+                           "type name does not allow storage class to be specified",
+                           tok2s(tok));
             } else if (p == &inl) {
                 if (fspec)
-                    cc_warningf(src,
-                                "duplicate '%s' declaration specifier",
-                                tok2s(tok));
+                    warningf(src,
+                             "duplicate '%s' declaration specifier",
+                             tok2s(tok));
                 else
-                    cc_errorf(src, "function specifier not allowed");
+                    errorf(src, "function specifier not allowed");
             } else if (p == &cons || p == &res || p == &vol) {
-                cc_warningf(src,
-                            "duplicate '%s' declaration specifier",
-                            tok2s(tok));
+                warningf(src,
+                         "duplicate '%s' declaration specifier",
+                         tok2s(tok));
             } else if (p == &ci) {
-                cc_errorf(src,
-                          "duplicate _Complex/_Imaginary specifier '%s'",
-                          tok2s(tok));
+                errorf(src,
+                       "duplicate _Complex/_Imaginary specifier '%s'",
+                       tok2s(tok));
             } else if (p == &sign) {
-                cc_errorf(src,
-                          "duplicate signed/unsigned speficier '%s'",
-                          tok2s(tok));
+                errorf(src,
+                       "duplicate signed/unsigned speficier '%s'",
+                       tok2s(tok));
             } else if (p == &type || p == &size) {
-                cc_errorf(src,
-                          "duplicate type specifier '%s'",
-                          tok2s(tok));
+                errorf(src,
+                       "duplicate type specifier '%s'",
+                       tok2s(tok));
             } else {
                 assert(0);
             }
@@ -213,7 +212,7 @@ static node_t *specifiers(int *sclass, int *fspec)
     // default is int
     if (type == 0) {
         if (sign == 0 && size == 0)
-            cc_error("missing type specifier");
+            error("missing type specifier");
         type = INT;
         basety = inttype;
     }
@@ -222,14 +221,14 @@ static node_t *specifiers(int *sclass, int *fspec)
         (size == LONG + LONG && type != INT) ||
         (size == LONG && type != INT && type != DOUBLE)) {
         if (size == LONG + LONG)
-            cc_error("%s %s %s is invalid", id2s(size / 2),
-                     id2s(size / 2), id2s(type));
+            error("%s %s %s is invalid",
+                  id2s(size / 2), id2s(size / 2), id2s(type));
         else
-            cc_error("%s %s is invalid", id2s(size), id2s(type));
+            error("%s %s is invalid", id2s(size), id2s(type));
     } else if (sign && type != INT && type != CHAR) {
-        cc_error("'%s' cannot be signed or unsigned", id2s(type));
+        error("'%s' cannot be signed or unsigned", id2s(type));
     } else if (ci && type != DOUBLE && type != FLOAT) {
-        cc_error("'%s' cannot be %s", id2s(type), id2s(ci));
+        error("'%s' cannot be %s", id2s(type), id2s(ci));
     }
 
     if (type == ID)
@@ -292,7 +291,7 @@ static void array_qualifiers(node_t * atype)
         }
 
         if (*p != 0)
-            cc_warningf(src, "duplicate type qualifier '%s'", id2s(*p));
+            warningf(src, "duplicate type qualifier '%s'", id2s(*p));
 
         *p = t;
     }
@@ -361,8 +360,7 @@ static struct vector *prototype(node_t *ftype)
             if (!first_void)
                 TYPE_VARG(ftype) = 1;
             else
-                cc_error("'void' must be the first and only parameter "
-                         "if specified");
+                error("'void' must be the first and only parameter if specified");
             expect(ELLIPSIS);
             break;
         }
@@ -385,8 +383,7 @@ static struct vector *oldstyle(node_t *ftype)
     }
 
     if (SCOPE > PARAM)
-        cc_error("a parameter list without types is only allowed "
-                 "in a function definition");
+        error("a parameter list without types is only allowed in a function definition");
     return v;
 }
 
@@ -407,9 +404,9 @@ static struct vector *parameters(node_t * ftype, int *params)
     } else {
         TYPE_OLDSTYLE(ftype) = 1;
         if (token->id == ELLIPSIS)
-            cc_error("ISO C requires a named parameter before '...'");
+            error("ISO C requires a named parameter before '...'");
         else
-            cc_error("expect parameter declarator at '%s'", tok2s(token));
+            error("expect parameter declarator at '%s'", tok2s(token));
         gettok();
     }
 
@@ -436,13 +433,13 @@ static void parse_assign(node_t *atype)
             assert(isiliteral(ret));
             TYPE_LEN(atype) = ILITERAL_VALUE(ret);
             if ((long)ILITERAL_VALUE(ret) < 0)
-                cc_error("array has negative size");
+                error("array has negative size");
         } else {
-            cc_error("expect constant expression");
+            error("expect constant expression");
         }
     } else {
-        cc_error("size of array has non-integer type '%s'",
-                 type2s(AST_TYPE(assign)));
+        error("size of array has non-integer type '%s'",
+              type2s(AST_TYPE(assign)));
     }
 }
 
@@ -550,18 +547,17 @@ static node_t *tag_decl(void)
         sym = lookup(id, tags);
         if (sym) {
             if (is_current_scope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
-                cc_errorf(src,
-                          "use of '%s' with tag type that does not match "
-                          "previous declaration '%s' at %s:%u:%u",
-                          id2s(t), type2s(SYM_TYPE(sym)),
-                          AST_SRC(sym).file,
-                          AST_SRC(sym).line,
-                          AST_SRC(sym).column);
+                errorf(src,
+                       "use of '%s' with tag type that does not match previous declaration '%s' at %s:%u:%u",
+                       id2s(t), type2s(SYM_TYPE(sym)),
+                       AST_SRC(sym).file,
+                       AST_SRC(sym).line,
+                       AST_SRC(sym).column);
         } else {
             sym = tag_type(t, id, src);
         }
     } else {
-        cc_error("expected identifier or '{'");
+        error("expected identifier or '{'");
         sym = tag_type(t, NULL, src);
     }
 
@@ -593,7 +589,7 @@ static void ids(node_t *sym)
             expect(',');
         } while (token->id == ID);
     } else {
-        cc_error("expect identifier");
+        error("expect identifier");
     }
 }
 
@@ -613,7 +609,7 @@ static void fields(node_t * sym)
     if (!first_decl(token)) {
         // supports empty record
         if (token->id != '}')
-            cc_error("expect type name or qualifiers");
+            error("expect type name or qualifiers");
         return;
     }
     
@@ -652,9 +648,9 @@ static void fields(node_t * sym)
                         node_t *f = vec_at(v, i);
                         if (FIELD_NAME(f) &&
                             !strcmp(FIELD_NAME(f), name)) {
-                            cc_errorf(id->src,
-                                      "redefinition of '%s'",
-                                      name);
+                            errorf(id->src,
+                                   "redefinition of '%s'",
+                                   name);
                             break;
                         }
                     }
@@ -718,7 +714,7 @@ static node_t *ptr_decl(void)
             break;
 
         if (*p != 0)
-            cc_warning("duplicate type qulifier '%s'", tok2s(token));
+            warning("duplicate type qulifier '%s'", tok2s(token));
 
         *p = t;
 
@@ -799,7 +795,7 @@ static void abstract_declarator(node_t ** ty)
             prepend_type(ty, faty);
         }
     } else {
-        cc_error("expect '(' or '[' at '%s'", tok2s(token));
+        error("expect '(' or '[' at '%s'", tok2s(token));
     }
 }
 
@@ -836,7 +832,7 @@ static void declarator(node_t ** ty, struct token **id, int *params)
         }
         *ty = rtype;
     } else {
-        cc_error("expect identifier or '('");
+        error("expect identifier or '('");
     }
 }
 
@@ -956,7 +952,7 @@ static struct vector *decls(declfun_p * dcl)
         DECL_SYM(decl) = TYPE_TSYM(basety);
         vec_push(v, decl);
     } else {
-        cc_error("invalid token '%s' in declaration", tok2s(token));
+        error("invalid token '%s' in declaration", tok2s(token));
     }
     match(';', follow);
 
@@ -1015,41 +1011,40 @@ static void ensure_bitfield(node_t *field)
 
     if (!isint(ty)) {
         if (name)
-            cc_errorf(src,
-                      "bit-field '%s' has non-integral type '%s'",
-                      name, type2s(ty));
+            errorf(src,
+                   "bit-field '%s' has non-integral type '%s'",
+                   name, type2s(ty));
         else
-            cc_errorf(src,
-                      "anonymous bit-field has non-integral type '%s'",
-                      type2s(ty));
+            errorf(src,
+                   "anonymous bit-field has non-integral type '%s'",
+                   type2s(ty));
     }
 
     if (bitsize < 0) {
         if (name)
-            cc_errorf(src,
-                      "bit-field '%s' has negative width '%d'",
-                      name, bitsize);
+            errorf(src,
+                   "bit-field '%s' has negative width '%d'",
+                   name, bitsize);
         else
-            cc_errorf(src,
-                      "anonymous bit-field has negative width '%d'",
-                      bitsize);
+            errorf(src,
+                   "anonymous bit-field has negative width '%d'",
+                   bitsize);
     }
 
     if (bitsize == 0 && name)
-        cc_errorf(src, "named bit-field '%s' has zero width",
-                  name);
+        errorf(src,
+               "named bit-field '%s' has zero width",
+               name);
 
     if (bitsize > bits) {
         if (name)
-            cc_errorf(src,
-                      "size of bit-field '%s' (%d bits) exceeds size of "
-                      "its type (%d bits)",
-                      name, bitsize, bits);
+            errorf(src,
+                   "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
+                   name, bitsize, bits);
         else
-            cc_errorf(src,
-                      "anonymous bit-field (%d bits) exceeds size of "
-                      "its type (%d bits)",
-                      bitsize, bits);
+            errorf(src,
+                   "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
+                   bitsize, bits);
     }
 }
 
@@ -1063,18 +1058,18 @@ static void ensure_nonbitfield(node_t * field, size_t total, bool last)
         if (isincomplete(ty)) {
             if (last) {
                 if (total == 1)
-                    cc_errorf(src,
-                              "flexible array cannot be the only member");
+                    errorf(src,
+                           "flexible array cannot be the only member");
             } else {
-                cc_errorf(src,
-                          "field has incomplete type '%s'",
-                          type2s(ty));
+                errorf(src,
+                       "field has incomplete type '%s'",
+                       type2s(ty));
             }
         }
     } else if (isfunc(ty)) {
-        cc_errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
+        errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
     } else if (isincomplete(ty)) {
-        cc_errorf(src, "field has incomplete type '%s'", type2s(ty));
+        errorf(src, "field has incomplete type '%s'", type2s(ty));
     }
 }
 
@@ -1096,8 +1091,8 @@ static void ensure_decl(node_t * decl, int sclass, int kind)
     struct source src = AST_SRC(sym);
     if (isvardecl(decl)) {
         if (isincomplete(ty) && SYM_DEFINED(sym))
-            cc_errorf(src, "variable has incomplete type '%s'",
-                      type2s(ty));
+            errorf(src, "variable has incomplete type '%s'",
+                   type2s(ty));
     }
 }
 
@@ -1111,37 +1106,37 @@ static void ensure_main(node_t *ftype, const char *name,
     struct vector *params = TYPE_PARAMS(ftype);
     size_t len = vec_len(params);
     if (rty != inttype)
-        cc_errorf(src, "return type of 'main' is not 'int'");
+        errorf(src, "return type of 'main' is not 'int'");
     for (int i = 0; i < MIN(3, len); i++) {
         node_t *param = vec_at(params, i);
         node_t *ty = SYM_TYPE(param);
         if (i == 0) {
             if (ty != inttype)
-                cc_errorf(src,
-                          "first parameter of 'main' is not 'int'");
+                errorf(src,
+                       "first parameter of 'main' is not 'int'");
         } else if (i == 1 || i == 2) {
             if (!isptrto(ty, POINTER) ||
                 !isptrto(rtype(ty), CHAR))
-                cc_errorf(src,
-                          "%s parameter of 'main' is not 'char **'",
-                          i == 1 ? "second" : "third");
+                errorf(src,
+                       "%s parameter of 'main' is not 'char **'",
+                       i == 1 ? "second" : "third");
         }
     }
     if (len == 1 || len > 3)
-        cc_errorf(src,
-                  "expect 0, 2 or 3 parameters for 'main', have %d",
-                  len);
+        errorf(src,
+               "expect 0, 2 or 3 parameters for 'main', have %d",
+               len);
 }
 
 static void ensure_func(node_t * ftype, struct source src)
 {
     node_t *rty = rtype(ftype);
     if (isarray(rty))
-        cc_errorf(src, "function cannot return array type '%s'",
-                  type2s(rty));
+        errorf(src, "function cannot return array type '%s'",
+               type2s(rty));
     else if (isfunc(rty))
-        cc_errorf(src, "function cannot return function type '%s'",
-                  type2s(rty));
+        errorf(src, "function cannot return function type '%s'",
+               type2s(rty));
 }
 
 /**
@@ -1162,17 +1157,16 @@ static void ensure_func(node_t * ftype, struct source src)
 static void ensure_array_sub(node_t *atype, struct source src, int level, bool outermost)
 {
     if (TYPE_A_STAR(atype) && level != PARAM)
-        cc_errorf(src, "star modifier used outside of function prototype");
+        errorf(src, "star modifier used outside of function prototype");
     
     if (TYPE_A_CONST(atype) || TYPE_A_RESTRICT(atype) ||
         TYPE_A_VOLATILE(atype) || TYPE_A_STATIC(atype)) {
         if (level != PARAM)
-            cc_errorf(src,
-                      "type qualifier used in array declarator outside of "
-                      "function prototype");
+            errorf(src,
+                   "type qualifier used in array declarator outside of function prototype");
         else if (!outermost)
-            cc_errorf(src,
-                      "type qualifier used in non-outermost array type derivation");
+            errorf(src,
+                   "type qualifier used in non-outermost array type derivation");
     }
             
 
@@ -1180,7 +1174,7 @@ static void ensure_array_sub(node_t *atype, struct source src, int level, bool o
     if (isarray(rty))
         ensure_array_sub(rty, src, level, false);
     else if (isfunc(rty))
-        cc_errorf(src, "array of function is invalid");
+        errorf(src, "array of function is invalid");
     
     set_typesize(atype);
 }
@@ -1191,9 +1185,9 @@ static void ensure_array(node_t * atype, struct source src, int level)
 
     node_t *rty = rtype(atype);
     if (isincomplete(rty))
-        cc_errorf(src,
-                  "array has incomplete element type '%s'",
-                  type2s(rty));
+        errorf(src,
+               "array has incomplete element type '%s'",
+               type2s(rty));
 }
 
 static void ensure_inline(node_t *ty, int fspec, struct source src)
@@ -1202,7 +1196,7 @@ static void ensure_inline(node_t *ty, int fspec, struct source src)
         if (isfunc(ty))
             TYPE_INLINE(ty) = 1;
         else
-            cc_errorf(src, "'inline' can only appear on functions");
+            errorf(src, "'inline' can only appear on functions");
     }
 }
 
@@ -1211,8 +1205,7 @@ static void check_oldstyle(node_t *ftype)
     assert(isfunc(ftype));
     
     if (TYPE_PARAMS(ftype) && TYPE_OLDSTYLE(ftype))
-        cc_error("a parameter list without types is only allowed "
-                 "in a function definition");
+        error("a parameter list without types is only allowed in a function definition");
 }
 
 static node_t * typedefdecl(struct token *t, node_t * ty, int fspec, int kind)
@@ -1263,9 +1256,8 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
     }
 
     if (sclass && sclass != REGISTER) {
-        cc_error("invalid storage class specifier '%s' in "
-                 "function declarator",
-                 id2s(sclass));
+        error("invalid storage class specifier '%s' in function declarator",
+              id2s(sclass));
         sclass = 0;
     }
 
@@ -1285,30 +1277,27 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!SYM_DEFINED(TYPE_TSYM(ty)) ||
             SYM_SCOPE(TYPE_TSYM(ty)) == SCOPE)
-            cc_warningf(src,
-                        "declaration of '%s' will not be visible "
-                        "outside of this function",
-                        type2s(ty));
+            warningf(src,
+                     "declaration of '%s' will not be visible outside of this function",
+                     type2s(ty));
     } else if (isvoid(ty)) {
         if (prototype) {
             if (first) {
                 if (id)
-                    cc_errorf(src,
-                              "argument may not have 'void' type");
+                    errorf(src,
+                           "argument may not have 'void' type");
                 else if (isqual(ty))
-                    cc_errorf(src,
-                              "'void' as parameter must not have "
-                              "type qualifiers");
+                    errorf(src,
+                           "'void' as parameter must not have type qualifiers");
             }
         } else {
-            cc_errorf(src, "argument may not have 'void' type");
+            errorf(src, "argument may not have 'void' type");
         }
     }
 
     if (prototype && fvoid && !first)
-        cc_errorf(src,
-                  "'void' must be the first and only parameter "
-                  "if specified");
+        errorf(src,
+               "'void' must be the first and only parameter if specified");
 
     // check inline after conversion (decay)
     ensure_inline(ty, fspec, src);
@@ -1347,10 +1336,9 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass,
         ensure_func(ty, src);
         ensure_main(ty, id, src);
         if (sclass && sclass != EXTERN) {
-            cc_errorf(src,
-                      "function declared in block scope cannot have "
-                      "'%s' storage class",
-                      id2s(sclass));
+            errorf(src,
+                   "function declared in block scope cannot have '%s' storage class",
+                   id2s(sclass));
             sclass = 0;
         }
     } else if (isarray(ty)) {
@@ -1394,7 +1382,7 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
         return typedefdecl(t, ty, fspec, GLOBAL);
 
     if (sclass == AUTO || sclass == REGISTER) {
-        cc_errorf(src, "illegal storage class on file-scoped variable");
+        errorf(src, "illegal storage class on file-scoped variable");
         sclass = 0;
     }
 
@@ -1416,15 +1404,15 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
         SYM_SCLASS(sym) = sclass;
     } else if (eqtype(ty, SYM_TYPE(sym))) {
         if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-            cc_errorf(src,
-                      "static declaration of '%s' follows "
-                      "non-static declaration",
-                      id);
+            errorf(src,
+                   "static declaration of '%s' follows "
+                   "non-static declaration",
+                   id);
         else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
-            cc_errorf(src,
-                      "non-static declaration of '%s' follows "
-                      "static declaration",
-                      id);
+            errorf(src,
+                   "non-static declaration of '%s' follows "
+                   "static declaration",
+                   id);
         if (sclass != EXTERN)
             SYM_SCLASS(sym) = sclass;
     } else {
@@ -1447,7 +1435,7 @@ static void oldstyle_decls(node_t *ftype)
 
         assert(SYM_NAME(sym));
         if (!isvardecl(decl)) {
-            cc_warningf(AST_SRC(sym), "empty declaraion");
+            warningf(AST_SRC(sym), "empty declaraion");
         } else if (TYPE_PARAMS(ftype)) {
             node_t *p = NULL;
             for (int i = 0; i < vec_len(TYPE_PARAMS(ftype)); i++) {
@@ -1463,15 +1451,15 @@ static void oldstyle_decls(node_t *ftype)
                 SYM_TYPE(p) = SYM_TYPE(sym);
                 AST_SRC(p) = AST_SRC(sym);
             } else {
-                cc_errorf(AST_SRC(sym),
-                          "parameter named '%s' is missing",
-                          SYM_NAME(sym));
+                errorf(AST_SRC(sym),
+                       "parameter named '%s' is missing",
+                       SYM_NAME(sym));
             }
         }
     }
     exit_scope();
     if (token->id != '{')
-        cc_error("expect function body after function declarator");
+        error("expect function body after function declarator");
 }
 
 static void ensure_params(node_t *ftype)
@@ -1482,12 +1470,12 @@ static void ensure_params(node_t *ftype)
         SYM_DEFINED(sym) = true;
         // params id is required in prototype
         if (is_anonymous(SYM_NAME(sym)))
-            cc_errorf(AST_SRC(sym), "parameter name omitted");
+            errorf(AST_SRC(sym), "parameter name omitted");
         if (isenum(ty) || isstruct(ty) || isunion(ty)) {
             if (!SYM_DEFINED(TYPE_TSYM(ty)))
-                cc_errorf(AST_SRC(sym),
-                          "variable has incomplete type '%s'",
-                          type2s(ty));
+                errorf(AST_SRC(sym),
+                       "variable has incomplete type '%s'",
+                       type2s(ty));
         }
     }
 }
@@ -1511,7 +1499,7 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
     node_t *decl = ast_decl(FUNC_DECL);
 
     if (sclass && sclass != EXTERN && sclass != STATIC) {
-        cc_error("invalid storage class specifier '%s'", id2s(sclass));
+        error("invalid storage class specifier '%s'", id2s(sclass));
         sclass = 0;
     }
     
@@ -1524,10 +1512,10 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
             make_funcdecl(sym, ftype, sclass, src, decl);
         } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
             if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-                cc_errorf(src,
-                          "static declaaration of '%s' follows "
-                          "non-static declaration",
-                          id);
+                errorf(src,
+                       "static declaaration of '%s' follows "
+                       "non-static declaration",
+                       id);
             else
                 make_funcdecl(sym, ftype, sclass, src, decl);
         } else {
@@ -1639,8 +1627,8 @@ static node_t *init_elem_conv(node_t * ty, node_t * node)
 
     node_t *ret = assignconv(ty, node);
     if (ret == NULL)
-        cc_errorf(AST_SRC(node), INCOMPATIBLE_TYPES,
-                  type2s(AST_TYPE(node)), type2s(ty));
+        errorf(AST_SRC(node), INCOMPATIBLE_TYPES,
+               type2s(AST_TYPE(node)), type2s(ty));
 
     return ret;
 }
@@ -1651,7 +1639,7 @@ void init_string(node_t * ty, node_t * node)
     int len2 = TYPE_LEN(AST_TYPE(node));
     if (len1 > 0) {
         if (len1 < len2 - 1)
-            cc_warning("initializer-string for char array is too long");
+            warning("initializer-string for char array is too long");
     } else if (isincomplete(ty)) {
         TYPE_LEN(ty) = len2;
         set_typesize(ty);
@@ -1665,7 +1653,7 @@ static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
 
     node_t *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
-        cc_warningf(AST_SRC(node), INIT_OVERRIDE);
+        warningf(AST_SRC(node), INIT_OVERRIDE);
 
     if (AST_ID(node) == INITS_EXPR) {
         vec_set(v, i, node);
@@ -1708,7 +1696,7 @@ static void scalar_set(node_t * ty, struct vector *v, int i, node_t * node)
 
     node_t *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
-        cc_warningf(AST_SRC(node), INIT_OVERRIDE);
+        warningf(AST_SRC(node), INIT_OVERRIDE);
 
     if (AST_ID(node) == INITS_EXPR) {
         struct vector *inits;
@@ -1780,7 +1768,7 @@ static void array_init(node_t * ty, bool brace, struct vector *v)
     if (is_string(ty) && token->id == SCONSTANT) {
         node_t *expr = assign_expr();
         if (vec_len(v)) {
-            cc_warningf(AST_SRC(expr), INIT_OVERRIDE);
+            warningf(AST_SRC(expr), INIT_OVERRIDE);
             vec_clear(v);
         }
         aggregate_set(ty, v, 0, expr);
@@ -1802,8 +1790,8 @@ static void array_init(node_t * ty, bool brace, struct vector *v)
 
         c = MAX(c, i);
         if (len > 0 && i >= len)
-            cc_error("array designator index [%d] exceeds array bounds (%d)",
-                     i, len);
+            error("array designator index [%d] exceeds array bounds (%d)",
+                  i, len);
         else
             rty = rtype(ty);
         elem_init(ty, rty, designated, v, i);
@@ -1827,13 +1815,13 @@ static void array_init(node_t * ty, bool brace, struct vector *v)
 static void scalar_init(node_t * ty, struct vector *v)
 {
     if (token->id == '.' || token->id == '[') {
-        cc_error("designator in initializer for scalar type '%s'",
-                 type2s(ty));
+        error("designator in initializer for scalar type '%s'",
+              type2s(ty));
         eat_initializer();
     } else if (token->id == '{') {
         static int braces;
         if (braces++ == 0)
-            cc_warning("too many braces around scalar initializer");
+            warning("too many braces around scalar initializer");
         scalar_set(ty, v, 0, initializer_list(ty));
         braces--;
     } else {
@@ -1863,13 +1851,13 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
     } else if (isstruct(ty) || isunion(ty) || isarray(ty)) {
         if (token->id == '=') {
             if (!designated)
-                cc_error("expect designator before '='");
+                error("expect designator before '='");
             expect('=');
             aggregate_set(ty, v, i, initializer(ty));
         } else if (token->id == '{') {
             if (designated)
-                cc_error("expect '=' or another designator at '%s'",
-                         tok2s(token));
+                error("expect '=' or another designator at '%s'",
+                      tok2s(token));
             aggregate_set(ty, v, i, initializer_list(ty));
         } else if ((token->id == '.' && isarray(ty)) ||
                    (token->id == '[' && !isarray(ty))) {
@@ -1877,8 +1865,8 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
             eat_initializer();
             // inhibit redundant errors
             if (NO_ERROR)
-                cc_error("%s designator cannot initialize non-%s type '%s'",
-                         TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
+                error("%s designator cannot initialize non-%s type '%s'",
+                      TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
         } else {
             node_t *n = find_elem(v, i);
             struct vector *v1 = vec_new();
@@ -1908,7 +1896,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
         if (designated)
             expect('=');
         if (is_string_vec(sty, v)) {
-            cc_warning(INIT_OVERRIDE);
+            warning(INIT_OVERRIDE);
             vec_clear(v);
         }
         scalar_set(ty, v, i, initializer(ty));
@@ -1922,7 +1910,7 @@ static node_t *initializer(node_t * ty)
     } else if (first_expr(token)) {
         return assign_expr();
     } else {
-        cc_error("expect '{' or assignment expression");
+        error("expect '{' or assignment expression");
         return NULL;
     }
 }
@@ -1947,8 +1935,8 @@ node_t *initializer_list(node_t * ty)
                 expect(',');
 
             if (first_init(token)) {
-                cc_warning("excess elements in %s initializer at '%s'",
-                           TYPE_NAME(ty), tok2s(token));
+                warning("excess elements in %s initializer at '%s'",
+                        TYPE_NAME(ty), tok2s(token));
                 eat_initlist();
             }
         } else {
@@ -1957,7 +1945,7 @@ node_t *initializer_list(node_t * ty)
     } else {
         // inhibit redundant errors
         if (ty)
-            cc_error("expect initializer at '%s'", tok2s(token));
+            error("expect initializer at '%s'", tok2s(token));
     }
 
     match('}', follow);
@@ -1983,11 +1971,11 @@ void decl_initializer(node_t * decl, int sclass, int kind)
     expect('=');
 
     if (kind == PARAM) {
-        cc_error("C does not support default arguments");
+        error("C does not support default arguments");
         initializer(NULL);
         return;
     } else if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
-        cc_error("'%s' cannot have an initializer", TYPE_NAME(ty));
+        error("'%s' cannot have an initializer", TYPE_NAME(ty));
         initializer(NULL);
         return;
     }
@@ -2000,15 +1988,15 @@ void decl_initializer(node_t * decl, int sclass, int kind)
 
     if (sclass == EXTERN) {
         if (kind == GLOBAL) {
-            cc_warningf(src, "'extern' variable has an initializer");
+            warningf(src, "'extern' variable has an initializer");
         } else {
-            cc_errorf(src,
-                      "'extern' variable cannot have an initializer");
+            errorf(src,
+                   "'extern' variable cannot have an initializer");
             return;
         }
     } else if (sclass == TYPEDEF) {
-        cc_errorf(src,
-                  "illegal initializer (only variable can be initialized)");
+        errorf(src,
+               "illegal initializer (only variable can be initialized)");
         return;
     }
 
@@ -2019,7 +2007,7 @@ void decl_initializer(node_t * decl, int sclass, int kind)
     }
 
     if (istag(ty) && isincomplete(ty)) {
-        cc_error("variable has incomplete type '%s'", type2s(ty));
+        error("variable has incomplete type '%s'", type2s(ty));
         return;
     }
 
@@ -2029,11 +2017,11 @@ void decl_initializer(node_t * decl, int sclass, int kind)
             if (is_string(ty) && issliteral(init))
                 init_string(ty, init);
             else
-                cc_error("array initializer must be an initializer list or string literal");
+                error("array initializer must be an initializer list or string literal");
         } else if (isstruct(ty) || isunion(ty)) {
             if (!eqtype(ty, AST_TYPE(init)))
-                cc_error("initialzing '%s' with an expression of imcompatible type '%s'",
-                         type2s(ty), type2s(AST_TYPE(init)));
+                error("initialzing '%s' with an expression of imcompatible type '%s'",
+                      type2s(ty), type2s(AST_TYPE(init)));
         } else {
             init = init_elem_conv(ty, init);
         }
@@ -2042,8 +2030,8 @@ void decl_initializer(node_t * decl, int sclass, int kind)
     if (NO_ERROR && init && has_static_extent(sym)) {
         init = eval(init, ty);
         if (init == NULL)
-            cc_errorf(init_src,
-                      "initializer element is not a compile-time constant");
+            errorf(init_src,
+                   "initializer element is not a compile-time constant");
     }
 
     DECL_BODY(decl) = init;
@@ -2051,22 +2039,28 @@ void decl_initializer(node_t * decl, int sclass, int kind)
 
 void redefinition_error(struct source src, node_t * sym)
 {
-    cc_errorf(src, "redefinition of '%s', previous definition at %s:%u:%u",
-              SYM_NAME(sym), AST_SRC(sym).file, AST_SRC(sym).line,
-              AST_SRC(sym).column);
+    errorf(src,
+           "redefinition of '%s', previous definition at %s:%u:%u",
+           SYM_NAME(sym),
+           AST_SRC(sym).file,
+           AST_SRC(sym).line,
+           AST_SRC(sym).column);
 }
 
 void conflicting_types_error(struct source src, node_t * sym)
 {
-    cc_errorf(src, "conflicting types for '%s', previous at %s:%u:%u",
-              SYM_NAME(sym), AST_SRC(sym).file, AST_SRC(sym).line,
-              AST_SRC(sym).column);
+    errorf(src,
+           "conflicting types for '%s', previous at %s:%u:%u",
+           SYM_NAME(sym),
+           AST_SRC(sym).file,
+           AST_SRC(sym).line,
+           AST_SRC(sym).column);
 }
 
 void field_not_found_error(node_t * ty, const char *name)
 {
     if (isincomplete(ty))
-        cc_error("incomplete definition of type '%s'", type2s(ty));
+        error("incomplete definition of type '%s'", type2s(ty));
     else
-        cc_error("'%s' has no field named '%s'", type2s(ty), name);
+        error("'%s' has no field named '%s'", type2s(ty), name);
 }

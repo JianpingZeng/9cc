@@ -292,12 +292,12 @@ extern void dump_reg(struct reg *reg);
 extern void dump_tacs(struct tac *tac);
 extern void print_source(struct source src);
 
-#define cc_warningf(s, ...)  warning(s.file, s.line, s.column, __VA_ARGS__)
-#define cc_errorf(s, ...)  error(s.file, s.line, s.column, __VA_ARGS__)
-#define cc_fatalf(s, ...)  fatal(s.file, s.line, s.column, __VA_ARGS__)
-#define cc_warning(...)  cc_warningf(source, __VA_ARGS__)
-#define cc_error(...)  cc_errorf(source, __VA_ARGS__)
-#define cc_fatal(...)  cc_fatalf(source, __VA_ARGS__)
+#define warningf(s, ...)   err_warning(s.file, s.line, s.column, __VA_ARGS__)
+#define errorf(s, ...)     err_error(s.file, s.line, s.column, __VA_ARGS__)
+#define fatalf(s, ...)     err_fatal(s.file, s.line, s.column, __VA_ARGS__)
+#define warning(...)       warningf(source, __VA_ARGS__)
+#define error(...)         errorf(source, __VA_ARGS__)
+#define fatal(...)         fatalf(source, __VA_ARGS__)
 
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 #define BUILTIN_VA_START    "__builtin_va_start"

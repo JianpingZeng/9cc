@@ -8,38 +8,28 @@
  * $2: additional options
  */
 
-#ifdef CONFIG_UBUNTU
+#ifdef CONFIG_LIB64
 
-char *ld[] = {
-    "ld",
-    "-A", "x86_64",
-    "-o", "$0",
-    "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
-    "/usr/lib/x86_64-linux-gnu/crt1.o",
-    "/usr/lib/x86_64-linux-gnu/crti.o",
-    "$1", "$2",
-    "-lc", "-lm",
-    "/usr/lib/x86_64-linux-gnu/crtn.o",
-    NULL
-};
+#define CRT_DIR  "/usr/lib64/"
 
 #else
 
+#define CRT_DIR  "/usr/lib/x86_64-linux-gnu/"
+
+#endif
+
 char *ld[] = {
     "ld",
     "-A", "x86_64",
     "-o", "$0",
     "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
-    "/usr/lib64/crt1.o",
-    "/usr/lib64/crti.o",
+    CRT_DIR "crt1.o",
+    CRT_DIR "crti.o",
     "$1", "$2",
     "-lc", "-lm",
-    "/usr/lib64/crtn.o",
+    CRT_DIR "crtn.o",
     NULL
 };
-
-#endif
-
 char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
 char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
 

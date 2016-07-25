@@ -1128,7 +1128,7 @@ static struct operand * update_base(struct operand *operand)
   offset - offset to assign
   bfield - not NULL only if left node is a bitfield
   sty - when offset == 0, it means whether offset is zero or not exist.
- */
+*/
 static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty)
 {
@@ -2388,9 +2388,9 @@ static struct vector * filter_global(struct vector *v)
             // but warning only when top file
             if (is_original_file(cpp_file, AST_SRC(sym).file)) {
                 if (isfuncdef(decl))
-                    cc_warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+                    warningf(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
                 else if (isvardecl(decl))
-                    cc_warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+                    warningf(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
             }
             
             continue;

@@ -40,8 +40,8 @@ static void cc_print_lead(int tag,
     fprintf(stderr, "\n");
 }
 
-void warning(const char *file, unsigned int line, unsigned int column,
-             const char *fmt, ...)
+void err_warning(const char *file, unsigned int line, unsigned int column,
+                 const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -50,8 +50,8 @@ void warning(const char *file, unsigned int line, unsigned int column,
     ++warnings;
 }
 
-void error(const char *file, unsigned int line, unsigned int column,
-           const char *fmt, ...)
+void err_error(const char *file, unsigned int line, unsigned int column,
+               const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -64,8 +64,8 @@ void error(const char *file, unsigned int line, unsigned int column,
     }
 }
 
-void fatal(const char *file, unsigned int line, unsigned int column,
-           const char *fmt, ...)
+void err_fatal(const char *file, unsigned int line, unsigned int column,
+               const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
