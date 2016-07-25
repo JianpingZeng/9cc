@@ -5,11 +5,11 @@ The compiler is designed to be able to compile itself, so it is written in C. An
 
 Source Roadmap
 --------------
-	Documentation   Documentation.
-	include			Header files provided by this compiler.
-	sys				System relative utilities.
-	utils			Common utilities (system independent).
-	test			Test suite.
+Documentation   Documentation.
+include		Header files provided by this compiler.
+sys		System relative utilities.
+utils		Common utilities (system independent).
+test		Test suite.
 
 
 HOWTO build
