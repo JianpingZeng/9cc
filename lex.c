@@ -5,7 +5,7 @@ static unsigned char map[256] = {
 #define _x(a, b, c, d)
 #define _t(a, b, c)
 #define _k(a, b, c)
-#include "token.def"
+#include "token.h"
     OTHER,
 };
 
@@ -14,7 +14,7 @@ static const char *tnames[] = {
 #define _x(a, b, c, d)  b,
 #define _t(a, b, c)     b,
 #define _k(a, b, c)     b,
-#include "token.def"
+#include "token.h"
 };
 
 static struct token *eoi_token = &(struct token){.id = EOI};
@@ -909,7 +909,7 @@ static int kinds[] = {
 #define _x(a, b, c, d)  c,
 #define _t(a, b, c)     c,
 #define _k(a, b, c)     c,
-#include "token.def"
+#include "token.h"
 };
 
 static const char *kws[] = {
@@ -917,7 +917,7 @@ static const char *kws[] = {
 #define _x(a, b, c, d)
 #define _t(a, b, c)
 #define _k(a, b, c)  b,
-#include "token.def"
+#include "token.h"
 };
 
 static int kwi[] = {
@@ -925,7 +925,7 @@ static int kwi[] = {
 #define _x(a, b, c, d)
 #define _t(a, b, c)
 #define _k(a, b, c)  a,
-#include "token.def"
+#include "token.h"
 };
 
 struct token *token;

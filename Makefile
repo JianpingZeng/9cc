@@ -46,7 +46,7 @@ LIBCPP_OBJ += input.o
 LIBCPP_OBJ += lex.o
 
 LIBCPP_INC += lex.h
-LIBCPP_INC += token.def
+LIBCPP_INC += token.h
 LIBCPP_INC += cpp.h
 
 CC1_OBJ += alloc.o
@@ -69,8 +69,8 @@ CC1_INC += cc.h
 CC1_INC += ast.h
 CC1_INC += color.h
 CC1_INC += gen.h
-CC1_INC += node.def
-CC1_INC += rop.def
+CC1_INC += node.h
+CC1_INC += rop.h
 
 SYS_INC += $(sys_dir)sys.h
 

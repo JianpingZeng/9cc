@@ -3,7 +3,7 @@
 static const char *node_names[] = {
 #define _ns(a)   "",
 #define _n(a, b) b,
-#include "node.def"
+#include "node.h"
 };
 
 const char *nname(node_t * node)
