@@ -93,31 +93,12 @@ ifeq (Linux, $(KERNEL))
 SYS_OBJ += $(sys_dir)unix.o
 SYS_OBJ += $(sys_dir)linux.o
 
-cpu_has = $(shell cat /proc/cpuinfo|grep ^flags|awk '{if (match($$0, $(1))) {print 1} else {print 0}}')
-HAVE_MMX = $(call cpu_has, /mmx/)
-HAVE_SSE = $(call cpu_has, /sse/)
-HAVE_SSE2 = $(call cpu_has, /sse2/)
-HAVE_SSE4_2 = $(call cpu_has, /sse4_2/)
-HAVE_AVX = $(call cpu_has, /avx/)
-
-ifeq ($(HAVE_SSE4_2), 1)
-
-CFLAGS += -msse4.2
-
-endif
-
 else ifeq (Darwin, $(KERNEL))
 
 SYS_OBJ += $(sys_dir)unix.o
 SYS_OBJ += $(sys_dir)darwin.o
 XCODE_SDK_DIR := $(shell xcrun --show-sdk-path)
 OSX_SDK_VERSION := $(shell xcrun --show-sdk-version)
-cpu_has = $(shell sysctl -n machdep.cpu.features|awk '{if (match($$0, $(1))) {print 1} else {print 0}}')
-HAVE_MMX = $(call cpu_has, /MMX/)
-HAVE_SSE = $(call cpu_has, /SSE/)
-HAVE_SSE2 = $(call cpu_has, /SSE2/)
-HAVE_SSE4_2 = $(call cpu_has, /SSE4.2/)
-HAVE_AVX = $(call cpu_has, /AVX1.0/)
 
 else
 
@@ -158,21 +139,6 @@ else ifeq (Darwin, $(KERNEL))
 	@echo "#define CONFIG_COLOR_TERM" >> $@
 	@echo "#define XCODE_DIR \"$(XCODE_SDK_DIR)\"" >> $@
 	@echo "#define OSX_SDK_VERSION \"$(OSX_SDK_VERSION)\"" >> $@
-endif
-ifeq ($(HAVE_MMX), 1)
-	@echo "#define HAVE_MMX 1" >> $@
-endif
-ifeq ($(HAVE_SSE), 1)
-	@echo "#define HAVE_SSE 1" >> $@
-endif
-ifeq ($(HAVE_SSE2), 1)
-	@echo "#define HAVE_SSE2 1" >> $@
-endif
-ifeq ($(HAVE_SSE4_2), 1)
-	@echo "#define HAVE_SSE4_2 1" >> $@
-endif
-ifeq ($(HAVE_AVX), 1)
-	@echo "#define HAVE_AVX 1" >> $@
 endif
 	@echo >> $@
 	@echo "#endif" >> $@

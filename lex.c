@@ -107,115 +107,6 @@ static void process_line_notes(struct buffer *pb)
     }
 }
 
-#if defined (__GNUC__) && defined (CONFIG_LINUX) && HAVE_SSE2
-
-#include <xmmintrin.h>
-
-static unsigned char repl_chars[3][16] __attribute__((aligned(16))) = {
-    { '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n',
-      '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n' },
-    { '\r', '\r', '\r', '\r', '\r', '\r', '\r', '\r',
-      '\r', '\r', '\r', '\r', '\r', '\r', '\r', '\r' },
-    { '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\',
-      '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\' }
-};
-
-const unsigned char *search_line_sse2(const unsigned char *s,
-                                      const unsigned char *limit)
-{
-    const __v16qi repl_nl = *(const __v16qi *)repl_chars[0];
-    const __v16qi repl_cr = *(const __v16qi *)repl_chars[1];
-    const __v16qi repl_bs = *(const __v16qi *)repl_chars[2];
-    unsigned int mask, misalign, result;
-    const __v16qi *p;
-    __v16qi data, t;
-
-    misalign = (uintptr_t)s & 15;
-    p = (const __v16qi *)((uintptr_t)s & -16);
-    data = *p;
-    mask = -1u << misalign;
-
-    goto start;
-    do {
-        data = *++p;
-        mask = -1;
-        
-    start:
-        // aligned
-        t = __builtin_ia32_pcmpeqb128(data, repl_nl);
-        t |= __builtin_ia32_pcmpeqb128(data, repl_cr);
-        t |= __builtin_ia32_pcmpeqb128(data, repl_bs);
-        result = __builtin_ia32_pmovmskb128(t);
-        result &= mask;
-        
-    } while (!result);
-
-    result = __builtin_ctz(result);
-    return (const unsigned char *)p + result;
-}
-
-#if HAVE_SSE4_2
-
-#include <smmintrin.h>
-
-const unsigned char *search_line_sse42(const unsigned char *s,
-                                       const unsigned char *limit)
-{
-    static const __v16qi search = { '\n', '\r', '\\' };
-
-    uintptr_t si = (uintptr_t)s;
-    uintptr_t index;
-
-    /* Check for unaligned input.  */
-    if (si & 15)
-        {
-            __v16qi sv;
-
-            if (__builtin_expect (limit - s < 16, 0)
-                && __builtin_expect ((si & 0xfff) > 0xff0, 0))
-                return search_line_sse2 (s, limit);
-            
-            sv = __builtin_ia32_loaddqu ((const char *) s);
-            index = __builtin_ia32_pcmpestri128 (search, 3, sv, 16, 0);
-
-            if (__builtin_expect (index < 16, 0))
-                goto found;
-            
-            s = (const unsigned char *)((si + 15) & -16);
-        }
-
-    s -= 16;
-    __asm (".balign 16\n"
-           "0:add $16, %1\n"
-           "%vpcmpestri\t$0, (%1), %2\n"
-           "jnc 0b"
-           : "=&c"(index), "+r"(s)
-           : "x"(search), "a"(3), "d"(16));
-
- found:
-    return s + index;
-}
-
-#define search_line_fast  search_line_sse42
-
-#else
-
-#define search_line_fast  search_line_sse2
-
-#endif /* HAVE_SSE42 */
-
-#else
-
-const unsigned char *search_line_fast(const unsigned char *s,
-                                      const unsigned char *limit)
-{
-    while (*s != '\n' && *s != '\\' && *s != '\r')
-        s++;
-    return s;
-}
-
-#endif
-
 // return an unescaped logical line.
 static void next_clean_line(struct buffer *pb)
 {
@@ -231,7 +122,8 @@ static void next_clean_line(struct buffer *pb)
     
     while (1) {
         // search '\n', '\\', '\r'
-        s = search_line_fast(s, pb->limit);
+        while (*s != '\n' && *s != '\\' && *s != '\r')
+            s++;
 
         c = *s;
         if (c == '\\')
