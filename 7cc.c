@@ -11,7 +11,7 @@
 #include <time.h>
 #include <ctype.h>
 #include "config.h"
-#include "sys/sys.h"
+#include "sys.h"
 #include "utils/utils.h"
 
 static const char *progname;

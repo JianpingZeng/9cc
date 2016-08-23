@@ -11,7 +11,6 @@ LDFLAGS =
 7CC = 7cc
 CC1 = cc1
 utils_dir = utils/
-sys_dir = sys/
 UTILS_OBJ =
 UTILS_INC =
 LIBCPP_OBJ =
@@ -72,7 +71,8 @@ CC1_INC += gen.h
 CC1_INC += node.h
 CC1_INC += rop.h
 
-SYS_INC += $(sys_dir)sys.h
+SYS_INC += sys.h
+SYS_OBJ += sys.o
 
 7CC_OBJ = 7cc.o
 
@@ -90,13 +90,8 @@ endif
 
 ifeq (Linux, $(KERNEL))
 
-SYS_OBJ += $(sys_dir)unix.o
-SYS_OBJ += $(sys_dir)linux.o
-
 else ifeq (Darwin, $(KERNEL))
 
-SYS_OBJ += $(sys_dir)unix.o
-SYS_OBJ += $(sys_dir)darwin.o
 XCODE_SDK_DIR := $(shell xcrun --show-sdk-path)
 OSX_SDK_VERSION := $(shell xcrun --show-sdk-version)
 
@@ -186,10 +181,9 @@ test:: $(TESTS)
 
 objclean::
 	$(RM) *.o *~
-	$(RM) $(sys_dir)*.o $(sys_dir)*~
 	$(RM) $(utils_dir)*.o $(utils_dir)*~
 	$(RM) $(TESTS) test/*.o test/*~
-	$(RM) include/*~ 7cc.exe*
+	$(RM) include/*~
 
 clean:: objclean
 	$(RM) $(7CC) $(CC1)

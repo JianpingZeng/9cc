@@ -11,7 +11,7 @@
 #include "config.h"
 #include "lex.h"
 #include "utils/utils.h"
-#include "sys/sys.h"
+#include "sys.h"
 #include "error.h"
 
 extern void *alloc_macro(void);
