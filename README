@@ -7,7 +7,6 @@ Source Roadmap
 --------------
 Documentation   Documentation.
 include		Header files provided by this compiler.
-sys		System relative utilities.
 utils		Common utilities (system independent).
 test		Test suite.
 
