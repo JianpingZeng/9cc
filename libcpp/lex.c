@@ -222,7 +222,7 @@ static void block_comment(struct file *pfile)
             pb->cur = rpc - 1;
             process_line_notes(pb);
             if (pb->next_line >= pb->limit) {
-                cpp_error("unterminated /* comment");
+                error("unterminated /* comment");
                 return;
             }
             next_clean_line(pb);
@@ -274,7 +274,7 @@ static const char *sequence(struct file *pfile, bool wide, int sep)
         char *str = xstrndup((const char *)rpc, pb->cur - rpc + 1);
         str[pb->cur - rpc] = sep;
         name = str;
-        cpp_error("untermiated %s constant: %s",
+        error("untermiated %s constant: %s",
                   is_char ? "character" : "string", name);
     } else {
         name = xstrndup((const char *)rpc, pb->cur - rpc);
@@ -595,9 +595,9 @@ static struct token *dolex(struct file *pfile)
     default:
         // illegal character
         if (isgraph(*rpc))
-            cpp_error("illegal character '%c'", *rpc);
+            error("illegal character '%c'", *rpc);
         else
-            cpp_error("illegal character '\\0%o'", *rpc);
+            error("illegal character '\\0%o'", *rpc);
         goto start;
     }
 
@@ -635,7 +635,7 @@ static const char *hq_char_sequence(struct file *pfile, int sep)
     }
 
     if (ch != sep)
-        cpp_error("missing '%c' in header name", sep);
+        error("missing '%c' in header name", sep);
 
     name = xstrndup((const char *)rpc, pb->cur - rpc);
     skipline(pfile, true);
@@ -880,7 +880,7 @@ void expect(int t)
     if (token->id == t)
         gettok();
     else
-        cpp_error("expect token '%s'", id2s(t));
+        error("expect token '%s'", id2s(t));
 }
 
 void match(int t, int follow[])
@@ -914,11 +914,11 @@ int skipto(int (*test[]) (struct token *))
     }
  out:
     if (cnt > 1)
-        cpp_errorf(t->src,
+        errorf(t->src,
                    "invalid token '%s', %d tokens skipped",
                    tok2s(t), cnt);
     else if (cnt)
-        cpp_errorf(t->src,
+        errorf(t->src,
                    "invalid token '%s'",
                    tok2s(t));
     else

@@ -251,11 +251,4 @@ extern const char *unwrap_scon(const char *name);
 
 #define FARRAY(...)  ((int (*[]) (struct token *)){__VA_ARGS__, NULL})
 
-#define cpp_warningf(s, ...)  err_warning(s.file, s.line, s.column, __VA_ARGS__)
-#define cpp_errorf(s, ...)    err_error(s.file, s.line, s.column, __VA_ARGS__)
-#define cpp_fatalf(s, ...)    err_fatal(s.file, s.line, s.column, __VA_ARGS__)
-#define cpp_warning(...)      cpp_warningf(source, __VA_ARGS__)
-#define cpp_error(...)        cpp_errorf(source, __VA_ARGS__)
-#define cpp_fatal(...)        cpp_fatalf(source, __VA_ARGS__)
-
 #endif

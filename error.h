@@ -16,4 +16,11 @@ extern void err_fatal(const char *file, unsigned int line, unsigned int column,
 #define NO_ERROR       (__err == errors)
 #define HAS_ERROR      (__err != errors)
 
+#define warningf(s, ...)   err_warning(s.file, s.line, s.column, __VA_ARGS__)
+#define errorf(s, ...)     err_error(s.file, s.line, s.column, __VA_ARGS__)
+#define fatalf(s, ...)     err_fatal(s.file, s.line, s.column, __VA_ARGS__)
+#define warning(...)       warningf(source, __VA_ARGS__)
+#define error(...)         errorf(source, __VA_ARGS__)
+#define fatal(...)         fatalf(source, __VA_ARGS__)
+
 #endif
