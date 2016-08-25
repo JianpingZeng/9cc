@@ -14,8 +14,8 @@
 // uname
 #include <sys/utsname.h>
 
-#include "config.h"
-#include "utils/utils.h"
+#include "../config.h"
+#include "utils.h"
 
 const char *mktmpdir()
 {

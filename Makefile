@@ -72,8 +72,8 @@ CC1_INC += gen.h
 CC1_INC += node.h
 CC1_INC += rop.h
 
-SYS_INC += sys.h
-SYS_OBJ += sys.o
+SYS_INC += $(utils_dir)sys.h
+SYS_OBJ += $(utils_dir)sys.o
 
 7CC_OBJ = 7cc.o
 

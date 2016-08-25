@@ -12,7 +12,7 @@ include		Header files provided by this compiler.
 
 libcpp          C Preprocessor.
 
-utils		Common utilities (system independent).
+utils		Common utilities.
 
 test		Test suite.
 

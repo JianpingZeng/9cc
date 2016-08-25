@@ -10,7 +10,7 @@
 
 #include "../config.h"
 #include "../utils/utils.h"
-#include "../sys.h"
+#include "../utils/sys.h"
 #include "../error.h"
 #include "lex.h"
 

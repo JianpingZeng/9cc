@@ -1,5 +1,5 @@
 #include "cc.h"
-#include "sys.h"
+#include "utils/sys.h"
 
 static FILE *outfp;
 static const char *ifile, *ofile;
