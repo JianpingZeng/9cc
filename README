@@ -3,16 +3,23 @@
 The compiler is designed to be able to compile itself, so it is written in C. And it is intended to support all C99 language features while keeping the code as simple and small as possible.
 
 
-Source Roadmap
---------------
+Source Roadmap:
+---------------
+
 Documentation   Documentation.
+
 include		Header files provided by this compiler.
+
+libcpp          C Preprocessor.
+
 utils		Common utilities (system independent).
+
 test		Test suite.
 
 
-HOWTO build
------------
+HOWTO build:
+------------
+
 Make sure you have Linux installed. (Any distribution is fine)
 
 To build the compiler, run command:
@@ -28,13 +35,15 @@ To run the test suite:
    	make test
 
 
-Caveats
--------
+Caveats:
+--------
+
 1. Adding test cases.
 
 
-License
--------
+License:
+--------
+
 7cc - a standard C compiler
 
 Copyright (c) 2015 Guiyang Huang
@@ -46,8 +55,9 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 
 
-Reference
----------
+Reference:
+----------
+
 1. C Standard Draft: 
 	C99: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf
 	C11: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
