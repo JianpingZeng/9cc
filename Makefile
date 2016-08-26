@@ -26,6 +26,7 @@ RM = @rm -f
 CONFIG_H = config.h
 BUILD_DIR = "$(shell pwd)"
 
+UTILS_OBJ += $(utils_dir)alloc.o
 UTILS_OBJ += $(utils_dir)wrapper.o
 UTILS_OBJ += $(utils_dir)strbuf.o
 UTILS_OBJ += $(utils_dir)vector.o

@@ -49,6 +49,10 @@ extern char *xstrdup(const char *str);
 extern char *xstrndup(const char *str, size_t n);
 extern bool has_prefix(const char *s, const char *prefix);
 
+// alloc.c
+extern void *allocate(size_t n, int a);
+extern void *deallocate(int a);
+
 // vector.c
 #include "vector.h"
 // map.c
