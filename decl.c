@@ -1463,8 +1463,6 @@ static void oldstyle_decls(node_t *ftype)
         }
     }
     exit_scope();
-    if (token->id != '{')
-        error("expect function body after function declarator");
 }
 
 static void ensure_params(node_t *ftype)
@@ -1536,8 +1534,11 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
     }
 
     // old style function parameters declaration
-    if (first_decl(token))
+    if (first_decl(token)) {
         oldstyle_decls(ftype);
+        if (token->id != '{')
+            error("expect function body after function declarator");
+    }
 
     if (TYPE_PARAMS(ftype))
         ensure_params(ftype);
