@@ -52,7 +52,12 @@ void *allocate(size_t n, int a)
     return p->cur - n;
 }
 
-void *deallocate(int a)
+void *newarray(size_t n, int m, int a)
+{
+    return allocate(n*m, a);
+}
+
+void deallocate(int a)
 {
     assert(a < ARRAY_SIZE(area));
     area[a]->next = freebuckets;

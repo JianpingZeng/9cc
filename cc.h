@@ -32,6 +32,10 @@ extern void *alloc_reladdr(void);
 extern void *alloc_opcode(void);
 extern void *alloc_hideset(void);
 extern void *alloc_cpp_ident(void);
+#define NEW(n, a)  allocate((n), (a))
+#define NEW0(n, a)  memset(allocate((n), (a)), 0, (n))
+#define NEWS(s, a)  NEW0(sizeof(s), a)
+enum { PERM = 0, FUNC };
 
 // error.c
 #include "error.h"
@@ -295,5 +299,31 @@ extern void print_source(struct source src);
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
+
+struct metrics {
+    size_t size;
+    int align;
+    unsigned rank;
+};
+// middle end & backend interface
+struct IR {
+    void (*progbeg) (const char *);
+    void (*defvar) (node_t *);
+    void (*defun) (node_t *);
+    void (*progend) (void);
+    struct metrics boolmetrics;
+    struct metrics charmetrics;
+    struct metrics shortmetrics;
+    struct metrics wcharmetrics;
+    struct metrics intmetrics;
+    struct metrics longmetrics;
+    struct metrics longlongmetrics;
+    struct metrics floatmetrics;
+    struct metrics doublemetrics;
+    struct metrics longdoublemetrics;
+    struct metrics ptrmetrics;
+    struct metrics zerometrics;
+};
+extern struct IR *IR;
 
 #endif

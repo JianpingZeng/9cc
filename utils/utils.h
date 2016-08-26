@@ -51,7 +51,8 @@ extern bool has_prefix(const char *s, const char *prefix);
 
 // alloc.c
 extern void *allocate(size_t n, int a);
-extern void *deallocate(int a);
+extern void *newarray(size_t n, int m, int a);
+extern void deallocate(int a);
 
 // vector.c
 #include "vector.h"
