@@ -1001,6 +1001,11 @@ node_t *translation_unit(void)
     return ret;
 }
 
+void finalize(void)
+{
+    
+}
+
 static void ensure_bitfield(node_t *field)
 {
     const char *name = FIELD_NAME(field);

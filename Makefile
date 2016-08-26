@@ -64,6 +64,7 @@ CC1_OBJ += sym.o
 CC1_OBJ += type.o
 CC1_OBJ += ir.o
 CC1_OBJ += block.o
+CC1_OBJ += x86.o
 
 CC1_INC += error.h
 CC1_INC += cc.h

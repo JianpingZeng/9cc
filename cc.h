@@ -110,6 +110,7 @@ extern node_t *new_string_literal(const char *string);
 // decl.c
 extern struct vector *declaration(void);
 extern node_t *translation_unit(void);
+extern void finalize(void);
 extern node_t *typename(void);
 extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
@@ -306,8 +307,8 @@ struct metrics {
     unsigned rank;
 };
 // middle end & backend interface
-struct IR {
-    void (*progbeg) (const char *);
+struct interface {
+    void (*progbeg) (void);
     void (*defvar) (node_t *);
     void (*defun) (node_t *);
     void (*progend) (void);
@@ -324,6 +325,6 @@ struct IR {
     struct metrics ptrmetrics;
     struct metrics zerometrics;
 };
-extern struct IR *IR;
+extern struct interface *IR;
 
 #endif

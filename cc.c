@@ -4,7 +4,8 @@
 static FILE *outfp;
 static const char *ifile, *ofile;
 struct cc_options opts;
-struct IR *IR = &(struct IR){ NULL };
+struct interface *IR = &(struct interface){ NULL };
+extern void IR_init(void);
 
 static void parse_opts(int argc, char *argv[])
 {
@@ -61,6 +62,8 @@ static void cc_init(const char *ifile, const char *ofile)
 static void translate(void)
 {
     node_t *tree;
+
+    IR->progbeg();
     tree = translation_unit();
     if (opts.ast_dump) {
         print_tree(tree);
@@ -73,6 +76,8 @@ static void translate(void)
                 gen(exts, outfp);
         }
     }
+    finalize();
+    IR->progend();
 }
 
 static void preprocess(void)
@@ -86,32 +91,6 @@ static void cc_exit(void)
 {
     if (outfp && outfp != stdout)
         fclose(outfp);
-}
-
-static void metrics_init(void)
-{
-#define METRICS(m, size, align, rank)  IR->m = (struct metrics) { size, align, rank }
-
-    // size  align  rank
-    METRICS(boolmetrics, 1, 1, 10);
-    METRICS(charmetrics, 1, 1, 20);
-    METRICS(shortmetrics, 2, 2, 30);
-    METRICS(wcharmetrics, 4, 4, 40);
-    METRICS(intmetrics, 4, 4, 40);
-    METRICS(longmetrics, 8, 8, 50);
-    METRICS(longlongmetrics, 8, 8, 60);
-    METRICS(floatmetrics, 4, 4, 70);
-    METRICS(doublemetrics, 8, 8, 80);
-    METRICS(longdoublemetrics, 8, 8, 90);
-    METRICS(ptrmetrics, 8, 8, 0);
-    METRICS(zerometrics, 0, 1, 0);
-
-#undef METRICS
-}
-
-static void IR_init(void)
-{
-    metrics_init();
 }
 
 int main(int argc, char *argv[])
