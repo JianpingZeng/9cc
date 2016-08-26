@@ -1,16 +1,5 @@
 #include "cc.h"
 
-static void progbeg(int argc, char *argv[]);
-static void progend(void);
-static void defvar(node_t *node);
-static void defun(node_t *node);
-
-struct imachine *IM = &(struct imachine) {
-    .progbeg = progbeg,
-    .progend = progend,
-    .defvar = defvar,
-    .defun = defun
-};
 
 static void metrics_init(void)
 {
@@ -54,3 +43,9 @@ void arch_init(void)
     metrics_init();
 }
 
+struct imachine *IM = &(struct imachine) {
+    .progbeg = progbeg,
+    .progend = progend,
+    .defvar = defvar,
+    .defun = defun
+};

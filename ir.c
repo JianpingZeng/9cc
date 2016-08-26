@@ -30,13 +30,6 @@ static struct operand * emit_conv_tac(int op, struct operand *l,
                                       int from_opsize,
                                       int to_opsize);
 
-static void defvar(node_t *);
-static void defun(node_t *);
-struct iir *IR = &(struct iir) {
-    .defvar = defvar,
-    .defun = defun
-};
-
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
 static struct vector *extra_lvars;
@@ -2381,6 +2374,11 @@ static void defun(node_t *node)
 {
     
 }
+
+struct iir *IR = &(struct iir) {
+    .defvar = defvar,
+    .defun = defun
+};
 
 static const char *glabel(const char *label)
 {
