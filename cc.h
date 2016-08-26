@@ -327,6 +327,5 @@ struct imachine {
     struct metrics zerometrics;
 };
 extern struct imachine *IM;
-extern void arch_init(void);
 
 #endif

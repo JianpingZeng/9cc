@@ -95,14 +95,13 @@ int main(int argc, char *argv[])
     setup_sys();
     atexit(cc_exit);
     parse_opts(argc, argv);
-    arch_init();
+    IM->progbeg(argc, argv);
     ir_init();
     symbol_init();
     type_init();
     cc_init(ifile, ofile);
     cpp_init(ifile, opts.cpp_options);
 
-    IM->progbeg(argc, argv);
     if (opts.E)
         preprocess();
     else

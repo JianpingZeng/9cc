@@ -3654,6 +3654,7 @@ static void metrics_init(void)
 
 static void progbeg(int argc, char *argv[])
 {
+    metrics_init();
 }
 
 static void progend(void)
@@ -3666,11 +3667,6 @@ static void defvar(node_t *node)
 
 static void defun(node_t *node)
 {
-}
-
-void arch_init(void)
-{
-    metrics_init();
 }
 
 struct imachine *IM = &(struct imachine) {
