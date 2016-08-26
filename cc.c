@@ -6,6 +6,7 @@ static const char *ifile, *ofile;
 struct cc_options opts;
 struct interface *IR = &(struct interface){ NULL };
 extern void IR_init(void);
+struct event events;
 
 static void parse_opts(int argc, char *argv[])
 {
@@ -109,6 +110,8 @@ int main(int argc, char *argv[])
         translate();
     
     IR->progend();
+    if (events.end)
+        events.end();
 
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
