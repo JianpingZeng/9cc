@@ -1,8 +1,10 @@
 #include "cc.h"
 
+struct imachine *IM = &(struct imachine){ NULL };
+
 static void metrics_init(void)
 {
-#define METRICS(m, size, align, rank)  IR->m = (struct metrics) { size, align, rank }
+#define METRICS(m, size, align, rank)  IM->m = (struct metrics) { size, align, rank }
 
     // size  align  rank
     METRICS(boolmetrics, 1, 1, 10);
@@ -37,12 +39,12 @@ static void defun(node_t *node)
 {
 }
 
-void IR_init(void)
+void arch_init(void)
 {
     metrics_init();
-    IR->progbeg = progbeg;
-    IR->progend = progend;
-    IR->defvar = defvar;
-    IR->defun = defun;
+    IM->progbeg = progbeg;
+    IM->progend = progend;
+    IM->defvar = defvar;
+    IM->defun = defun;
 }
 

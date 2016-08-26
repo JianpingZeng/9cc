@@ -4,8 +4,6 @@
 static FILE *outfp;
 static const char *ifile, *ofile;
 struct cc_options opts;
-struct interface *IR = &(struct interface){ NULL };
-extern void IR_init(void);
 struct event events;
 
 static void parse_opts(int argc, char *argv[])
@@ -97,19 +95,19 @@ int main(int argc, char *argv[])
     setup_sys();
     atexit(cc_exit);
     parse_opts(argc, argv);
-    IR_init();
+    arch_init();
     symbol_init();
     type_init();
     cc_init(ifile, ofile);
     cpp_init(ifile, opts.cpp_options);
 
-    IR->progbeg(argc, argv);
+    IM->progbeg(argc, argv);
     if (opts.E)
         preprocess();
     else
         translate();
     
-    IR->progend();
+    IM->progend();
     if (events.end)
         events.end();
 

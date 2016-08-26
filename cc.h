@@ -307,8 +307,8 @@ struct metrics {
     int align;
     unsigned rank;
 };
-// middle end & backend interface
-struct interface {
+// backend interface
+struct imachine {
     void (*progbeg) (int argc, char *argv[]);
     void (*defvar) (node_t *);
     void (*defun) (node_t *);
@@ -326,6 +326,7 @@ struct interface {
     struct metrics ptrmetrics;
     struct metrics zerometrics;
 };
-extern struct interface *IR;
+extern struct imachine *IM;
+extern void arch_init(void);
 
 #endif

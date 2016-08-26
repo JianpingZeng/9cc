@@ -47,10 +47,10 @@ static node_t *install_type(const char *name, int kind, struct metrics m, int op
         break;
 
     case FLOAT:
-        if (_TYPE_SIZE(ty) == IR->floatmetrics.size) {
+        if (_TYPE_SIZE(ty) == IM->floatmetrics.size) {
             VALUE_D(_TYPE_LIMITS_MAX(ty)) = FLT_MAX;
             VALUE_D(_TYPE_LIMITS_MIN(ty)) = FLT_MIN;
-        } else if (_TYPE_SIZE(ty) == IR->doublemetrics.size) {
+        } else if (_TYPE_SIZE(ty) == IM->doublemetrics.size) {
             VALUE_D(_TYPE_LIMITS_MAX(ty)) = DBL_MAX;
             VALUE_D(_TYPE_LIMITS_MIN(ty)) = DBL_MIN;
         } else {
@@ -68,7 +68,7 @@ static node_t *install_type(const char *name, int kind, struct metrics m, int op
 
 void type_init(void)
 {
-#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, IR->metrics, op)
+#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, IM->metrics, op)
 
     // type                     name                    kind            metrics            op
 
@@ -257,8 +257,8 @@ node_t *ptr_type(node_t * type)
     _TYPE_KIND(ty) = POINTER;
     _TYPE_NAME(ty) = "pointer";
     _TYPE_TYPE(ty) = type;
-    _TYPE_SIZE(ty) = IR->ptrmetrics.size;
-    _TYPE_ALIGN(ty) = IR->ptrmetrics.align;
+    _TYPE_SIZE(ty) = IM->ptrmetrics.size;
+    _TYPE_ALIGN(ty) = IM->ptrmetrics.align;
 
     return ty;
 }
@@ -268,7 +268,7 @@ node_t *func_type(void)
     node_t *ty = new_type();
     _TYPE_KIND(ty) = FUNCTION;
     _TYPE_NAME(ty) = "function";
-    _TYPE_ALIGN(ty) = IR->ptrmetrics.align;
+    _TYPE_ALIGN(ty) = IM->ptrmetrics.align;
 
     return ty;
 }
