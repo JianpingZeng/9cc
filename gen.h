@@ -294,6 +294,7 @@ struct iir {
     void (*defun) (node_t *);
 };
 extern struct iir *IR;
+extern void ir_init(void);
 
 extern const char *rop2s(int op);
 extern struct externals * ir(node_t *tree);

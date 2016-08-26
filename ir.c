@@ -2336,7 +2336,7 @@ static void emit_globalvar(node_t *n)
         emit_bss(n);
 }
 
-static void ir_init(void)
+void ir_init(void)
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
@@ -2351,7 +2351,6 @@ struct externals * ir(node_t *tree)
 {
     assert(istudecl(tree) && errors == 0);
 
-    ir_init();
     struct vector *v = filter_global(DECL_EXTS(tree));
     
     for (int i = 0; i < vec_len(v); i++) {

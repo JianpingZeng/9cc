@@ -96,6 +96,7 @@ int main(int argc, char *argv[])
     atexit(cc_exit);
     parse_opts(argc, argv);
     arch_init();
+    ir_init();
     symbol_init();
     type_init();
     cc_init(ifile, ofile);
