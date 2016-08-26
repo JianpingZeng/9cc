@@ -1,6 +1,16 @@
 #include "cc.h"
 
-struct imachine *IM = &(struct imachine){ NULL };
+static void progbeg(int argc, char *argv[]);
+static void progend(void);
+static void defvar(node_t *node);
+static void defun(node_t *node);
+
+struct imachine *IM = &(struct imachine) {
+    .progbeg = progbeg,
+    .progend = progend,
+    .defvar = defvar,
+    .defun = defun
+};
 
 static void metrics_init(void)
 {
@@ -42,9 +52,5 @@ static void defun(node_t *node)
 void arch_init(void)
 {
     metrics_init();
-    IM->progbeg = progbeg;
-    IM->progend = progend;
-    IM->defvar = defvar;
-    IM->defun = defun;
 }
 

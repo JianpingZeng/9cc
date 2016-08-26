@@ -288,6 +288,13 @@ struct opcode {
 extern void gen(struct externals *externals, FILE * fp);
 
 // ir.c
+// middle end interface
+struct iir {
+    void (*defvar) (node_t *);
+    void (*defun) (node_t *);
+};
+extern struct iir *IR;
+
 extern const char *rop2s(int op);
 extern struct externals * ir(node_t *tree);
 extern node_t * reduce(node_t *expr);
