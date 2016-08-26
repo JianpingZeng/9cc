@@ -63,7 +63,6 @@ static void translate(void)
 {
     node_t *tree;
 
-    IR->progbeg();
     tree = translation_unit();
     if (opts.ast_dump) {
         print_tree(tree);
@@ -77,7 +76,6 @@ static void translate(void)
         }
     }
     finalize();
-    IR->progend();
 }
 
 static void preprocess(void)
@@ -103,11 +101,14 @@ int main(int argc, char *argv[])
     type_init();
     cc_init(ifile, ofile);
     cpp_init(ifile, opts.cpp_options);
-    
+
+    IR->progbeg(argc, argv);
     if (opts.E)
         preprocess();
     else
         translate();
+    
+    IR->progend();
 
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

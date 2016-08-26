@@ -308,7 +308,7 @@ struct metrics {
 };
 // middle end & backend interface
 struct interface {
-    void (*progbeg) (void);
+    void (*progbeg) (int argc, char *argv[]);
     void (*defvar) (node_t *);
     void (*defun) (node_t *);
     void (*progend) (void);

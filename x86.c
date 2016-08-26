@@ -21,7 +21,7 @@ static void metrics_init(void)
 #undef METRICS
 }
 
-static void progbeg(void)
+static void progbeg(int argc, char *argv[])
 {
 }
 
