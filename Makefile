@@ -73,6 +73,7 @@ CC1_INC += color.h
 CC1_INC += gen.h
 CC1_INC += node.h
 CC1_INC += rop.h
+CC1_INC += events.h
 
 SYS_INC += $(utils_dir)sys.h
 SYS_OBJ += $(utils_dir)sys.o
