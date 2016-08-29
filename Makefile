@@ -18,8 +18,6 @@ LIBCPP_OBJ =
 LIBCPP_INC =
 CC1_OBJ =
 CC1_INC =
-SYS_OBJ =
-SYS_INC =
 CONFIG_FLAGS =
 KERNEL := $(shell uname)
 RM = @rm -f
@@ -33,12 +31,14 @@ UTILS_OBJ += $(utils_dir)vector.o
 UTILS_OBJ += $(utils_dir)map.o
 UTILS_OBJ += $(utils_dir)string.o
 UTILS_OBJ += $(utils_dir)set.o
+UTILS_OBJ += $(utils_dir)sys.o
 
 UTILS_INC += $(utils_dir)strbuf.h
 UTILS_INC += $(utils_dir)vector.h
 UTILS_INC += $(utils_dir)map.h
 UTILS_INC += $(utils_dir)set.h
 UTILS_INC += $(utils_dir)utils.h
+UTILS_INC += $(utils_dir)sys.h
 
 LIBCPP_OBJ += $(libcpp_dir)cpp.o
 LIBCPP_OBJ += $(libcpp_dir)hideset.o
@@ -72,10 +72,6 @@ CC1_INC += color.h
 CC1_INC += gen.h
 CC1_INC += node.h
 CC1_INC += rop.h
-CC1_INC += events.h
-
-SYS_INC += $(utils_dir)sys.h
-SYS_OBJ += $(utils_dir)sys.o
 
 7CC_OBJ = 7cc.o
 
@@ -108,15 +104,13 @@ CFLAGS += $(CONFIG_FLAGS)
 
 all:: $(CONFIG_H) $(7CC) $(CC1)
 
-$(7CC): $(7CC_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
-	$(CC) $(7CC_OBJ) $(SYS_OBJ) $(UTILS_OBJ) $(LDFLAGS) -o $@
+$(7CC): $(7CC_OBJ) $(UTILS_OBJ)
+	$(CC) $(7CC_OBJ) $(UTILS_OBJ) $(LDFLAGS) -o $@
 
-$(CC1): $(CC1_OBJ) $(LIBCPP_OBJ) $(UTILS_OBJ) $(SYS_OBJ)
-	$(CC) $(CC1_OBJ) $(LIBCPP_OBJ) $(UTILS_OBJ) $(SYS_OBJ) $(LDFLAGS) -o $@
+$(CC1): $(CC1_OBJ) $(LIBCPP_OBJ) $(UTILS_OBJ)
+	$(CC) $(CC1_OBJ) $(LIBCPP_OBJ) $(UTILS_OBJ) $(LDFLAGS) -o $@
 
 $(CC1_OBJ): $(CC1_INC) $(CONFIG_H)
-
-$(SYS_OBJ): $(SYS_INC) $(CONFIG_H)
 
 $(UTILS_OBJ): $(UTILS_INC) $(CONFIG_H)
 

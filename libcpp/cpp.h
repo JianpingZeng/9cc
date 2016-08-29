@@ -13,7 +13,6 @@
 #include "../utils/sys.h"
 #include "../error.h"
 #include "lex.h"
-#include "../events.h"
 
 extern void *alloc_macro(void);
 extern void *alloc_hideset(void);

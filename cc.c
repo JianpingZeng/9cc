@@ -4,7 +4,6 @@
 static FILE *outfp;
 static const char *ifile, *ofile;
 struct cc_options opts;
-struct event events;
 
 static void parse_opts(int argc, char *argv[])
 {
@@ -108,8 +107,6 @@ int main(int argc, char *argv[])
         translate();
     
     IM->progend();
-    if (events.end)
-        events.end();
 
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

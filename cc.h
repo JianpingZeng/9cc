@@ -21,7 +21,6 @@
 #include "color.h"
 #include "utils/utils.h"
 #include "libcpp/lex.h"
-#include "events.h"
 
 // alloc.c
 extern void *alloc_node(void);
