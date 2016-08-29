@@ -58,6 +58,7 @@ CC1_OBJ += ast.o
 CC1_OBJ += cc.o
 CC1_OBJ += print.o
 CC1_OBJ += decl.o
+CC1_OBJ += typechk.o
 CC1_OBJ += eval.o
 CC1_OBJ += expr.o
 CC1_OBJ += stmt.o

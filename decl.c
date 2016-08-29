@@ -16,12 +16,6 @@ static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *typedefdecl(struct token *id, node_t * ty, int fspec, int kind);
 static struct vector *decls(declfun_p * dcl);
 
-static void ensure_field(node_t * field, size_t total, bool last);
-static void ensure_decl(node_t * decl, int sclass, int kind);
-static void ensure_array(node_t * atype, struct source src, int level);
-static void ensure_func(node_t * ftype, struct source src);
-static void ensure_main(node_t *ftype, const char *name, struct source src);
-
 static void decl_initializer(node_t * decl, int sclass, int kind);
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
@@ -34,6 +28,35 @@ static void decl_initializer(node_t * decl, int sclass, int kind);
 #define PARAM_FIRST(i)   (((i) & 0x20000000) >> 29)
 #define PARAM_FVOID(i)   (((i) & 0x10000000) >> 28)
 #define PARAM_SCLASS(i)  ((i) & 0x0fffffff)
+
+static bool first_funcdef(node_t * ty)
+{
+    bool prototype = token->id == '{';
+    bool oldstyle =  first_decl(token) && TYPE_OLDSTYLE(ty);
+
+    return isfunc(ty) && (prototype || oldstyle);
+}
+
+int first_decl(struct token *t)
+{
+    return t->kind == STATIC || first_typename(t);
+}
+
+int first_stmt(struct token *t)
+{
+    return t->kind == IF || first_expr(t);
+}
+
+int first_expr(struct token *t)
+{
+    return t->kind == ID;
+}
+
+bool first_typename(struct token * t)
+{
+    return t->kind == INT || t->kind == CONST ||
+        (t->id == ID && istypedef(TOK_IDENT_STR(t)));
+}
 
 static node_t *specifiers(int *sclass, int *fspec)
 {
@@ -836,383 +859,6 @@ static void declarator(node_t ** ty, struct token **id, int *params)
     }
 }
 
-static bool first_funcdef(node_t * ty)
-{
-    bool prototype = token->id == '{';
-    bool oldstyle =  first_decl(token) && TYPE_OLDSTYLE(ty);
-
-    return isfunc(ty) && (prototype || oldstyle);
-}
-
-int first_decl(struct token *t)
-{
-    return t->kind == STATIC || first_typename(t);
-}
-
-int first_stmt(struct token *t)
-{
-    return t->kind == IF || first_expr(t);
-}
-
-int first_expr(struct token *t)
-{
-    return t->kind == ID;
-}
-
-bool first_typename(struct token * t)
-{
-    return t->kind == INT || t->kind == CONST ||
-        (t->id == ID && istypedef(TOK_IDENT_STR(t)));
-}
-
-static node_t *make_decl(struct token *id, node_t * ty, int sclass,
-                         int fspec, declfun_p * dcl)
-{
-    node_t *decl;
-    if (sclass == TYPEDEF)
-        decl = ast_decl(TYPEDEF_DECL);
-    else if (isfunc(ty))
-        decl = ast_decl(FUNC_DECL);
-    else
-        decl = ast_decl(VAR_DECL);
-    node_t *sym = dcl(id, ty, sclass, fspec);
-
-    DECL_SYM(decl) = sym;
-    return decl;
-}
-
-static struct vector *decls(declfun_p * dcl)
-{
-    struct vector *v = vec_new();
-    node_t *basety;
-    int sclass, fspec;
-    int level = SCOPE;
-    int follow[] = {STATIC, INT, CONST, IF, '}', 0};
-
-    basety = specifiers(&sclass, &fspec);
-    if (token->id == ID || token->id == '*' || token->id == '(') {
-        struct token *id = NULL;
-        node_t *ty = NULL;
-        int params = 0;        // for functioness
-
-        // declarator
-        if (level == GLOBAL)
-            declarator(&ty, &id, &params);
-        else
-            declarator(&ty, &id, NULL);
-        attach_type(&ty, basety);
-
-        if (level == GLOBAL && params) {
-            if (first_funcdef(ty)) {
-                vec_push(v, funcdef(id, ty, sclass, fspec));
-                return v;
-            } else {
-                exit_params();
-            }
-        }
-
-        for (;;) {
-            if (id) {
-                int kind;
-                if (dcl == globaldecl)
-                    kind = GLOBAL;
-                else if (dcl == paramdecl)
-                    kind = PARAM;
-                else
-                    kind = LOCAL;
-                node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
-                if (token->id == '=')
-                    decl_initializer(decl, sclass, kind);
-                ensure_decl(decl, sclass, kind);
-                vec_push(v, decl);
-            }
-
-            if (token->id != ',')
-                break;
-
-            expect(',');
-            id = NULL;
-            ty = NULL;
-            // declarator
-            declarator(&ty, &id, NULL);
-            attach_type(&ty, basety);
-        }
-    } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
-        // struct/union/enum
-        int node_id;
-        node_t *decl;
-        if (isstruct(basety))
-            node_id = STRUCT_DECL;
-        else if (isunion(basety))
-            node_id = UNION_DECL;
-        else
-            node_id = ENUM_DECL;
-
-        decl = ast_decl(node_id);
-        DECL_SYM(decl) = TYPE_TSYM(basety);
-        vec_push(v, decl);
-    } else {
-        error("invalid token '%s' in declaration", tok2s(token));
-    }
-    match(';', follow);
-
-    return v;
-}
-
-node_t *typename(void)
-{
-    node_t *basety;
-    node_t *ty = NULL;
-
-    basety = specifiers(NULL, NULL);
-    if (token->id == '*' || token->id == '(' || token->id == '[')
-        abstract_declarator(&ty);
-
-    attach_type(&ty, basety);
-
-    return ty;
-}
-
-struct vector *declaration(void)
-{
-    assert(SCOPE >= LOCAL);
-    return decls(localdecl);
-}
-
-node_t *translation_unit(void)
-{
-    node_t *ret = ast_decl(TU_DECL);
-    struct vector *v = vec_new();
-
-    for (gettok(); token->id != EOI;) {
-        if (first_decl(token)) {
-            assert(SCOPE == GLOBAL);
-            vec_add(v, decls(globaldecl));
-        } else {
-            if (token->id == ';')
-                // empty declaration
-                gettok();
-            else
-                skipto(FARRAY(first_decl));
-        }
-    }
-
-    DECL_EXTS(ret) = v;
-    return ret;
-}
-
-void finalize(void)
-{
-    
-}
-
-static void ensure_bitfield(node_t *field)
-{
-    const char *name = FIELD_NAME(field);
-    node_t *ty = FIELD_TYPE(field);
-    struct source src = AST_SRC(field);
-    int bitsize = FIELD_BITSIZE(field);
-    int bits = BITS(TYPE_SIZE(ty));
-
-    if (!isint(ty)) {
-        if (name)
-            errorf(src,
-                   "bit-field '%s' has non-integral type '%s'",
-                   name, type2s(ty));
-        else
-            errorf(src,
-                   "anonymous bit-field has non-integral type '%s'",
-                   type2s(ty));
-    }
-
-    if (bitsize < 0) {
-        if (name)
-            errorf(src,
-                   "bit-field '%s' has negative width '%d'",
-                   name, bitsize);
-        else
-            errorf(src,
-                   "anonymous bit-field has negative width '%d'",
-                   bitsize);
-    }
-
-    if (bitsize == 0 && name)
-        errorf(src,
-               "named bit-field '%s' has zero width",
-               name);
-
-    if (bitsize > bits) {
-        if (name)
-            errorf(src,
-                   "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
-                   name, bitsize, bits);
-        else
-            errorf(src,
-                   "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
-                   bitsize, bits);
-    }
-}
-
-static void ensure_nonbitfield(node_t * field, size_t total, bool last)
-{
-    node_t *ty = FIELD_TYPE(field);
-    struct source src = AST_SRC(field);
-        
-    if (isarray(ty)) {
-        ensure_array(ty, source, CONSTANT);
-        if (isincomplete(ty)) {
-            if (last) {
-                if (total == 1)
-                    errorf(src,
-                           "flexible array cannot be the only member");
-            } else {
-                errorf(src,
-                       "field has incomplete type '%s'",
-                       type2s(ty));
-            }
-        }
-    } else if (isfunc(ty)) {
-        errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
-    } else if (isincomplete(ty)) {
-        errorf(src, "field has incomplete type '%s'", type2s(ty));
-    }
-}
-
-static void ensure_field(node_t * field, size_t total, bool last)
-{
-    if (FIELD_ISBIT(field))
-        ensure_bitfield(field);
-    else
-        ensure_nonbitfield(field, total, last);
-}
-
-static void ensure_decl(node_t * decl, int sclass, int kind)
-{
-    if (kind == PARAM)
-        return;
-
-    node_t *sym = DECL_SYM(decl);
-    node_t *ty = SYM_TYPE(sym);
-    struct source src = AST_SRC(sym);
-    if (isvardecl(decl)) {
-        if (isincomplete(ty) && SYM_DEFINED(sym))
-            errorf(src, "variable has incomplete type '%s'",
-                   type2s(ty));
-    }
-}
-
-static void ensure_main(node_t *ftype, const char *name,
-                        struct source src)
-{
-    if (!isfunc(ftype) || !name || strcmp(name, "main"))
-        return;
-    
-    node_t *rty = rtype(ftype);
-    struct vector *params = TYPE_PARAMS(ftype);
-    size_t len = vec_len(params);
-    if (rty != inttype)
-        errorf(src, "return type of 'main' is not 'int'");
-    for (int i = 0; i < MIN(3, len); i++) {
-        node_t *param = vec_at(params, i);
-        node_t *ty = SYM_TYPE(param);
-        if (i == 0) {
-            if (ty != inttype)
-                errorf(src,
-                       "first parameter of 'main' is not 'int'");
-        } else if (i == 1 || i == 2) {
-            if (!isptrto(ty, POINTER) ||
-                !isptrto(rtype(ty), CHAR))
-                errorf(src,
-                       "%s parameter of 'main' is not 'char **'",
-                       i == 1 ? "second" : "third");
-        }
-    }
-    if (len == 1 || len > 3)
-        errorf(src,
-               "expect 0, 2 or 3 parameters for 'main', have %d",
-               len);
-}
-
-static void ensure_func(node_t * ftype, struct source src)
-{
-    node_t *rty = rtype(ftype);
-    if (isarray(rty))
-        errorf(src, "function cannot return array type '%s'",
-               type2s(rty));
-    else if (isfunc(rty))
-        errorf(src, "function cannot return function type '%s'",
-               type2s(rty));
-}
-
-/**
- *  1. Array qualifiers may appear only when in a function parameter.
- *
- *  2. Array qualifiers 'const', 'volatile', 'restrict', 'static' may
- *     appear within the _outermost_ brackets.
- *
- *  3. 'static' is an optimization hint, asserting that the actual array
- *     argument will be non-null and will have the declared size and
- *     type upon entry to the function.
- *
- *  4. The star modifier '*' or non-constant expression describe a
- *     variable length array. The '*' can only appear in array parameter
- *     declarations within function prototypes that are not part of
- *     a function definition.
- */
-static void ensure_array_sub(node_t *atype, struct source src, int level, bool outermost)
-{
-    if (TYPE_A_STAR(atype) && level != PARAM)
-        errorf(src, "star modifier used outside of function prototype");
-    
-    if (TYPE_A_CONST(atype) || TYPE_A_RESTRICT(atype) ||
-        TYPE_A_VOLATILE(atype) || TYPE_A_STATIC(atype)) {
-        if (level != PARAM)
-            errorf(src,
-                   "type qualifier used in array declarator outside of function prototype");
-        else if (!outermost)
-            errorf(src,
-                   "type qualifier used in non-outermost array type derivation");
-    }
-            
-
-    node_t *rty = rtype(atype);
-    if (isarray(rty))
-        ensure_array_sub(rty, src, level, false);
-    else if (isfunc(rty))
-        errorf(src, "array of function is invalid");
-    
-    set_typesize(atype);
-}
-
-static void ensure_array(node_t * atype, struct source src, int level)
-{
-    ensure_array_sub(atype, src, level, true);
-
-    node_t *rty = rtype(atype);
-    if (isincomplete(rty))
-        errorf(src,
-               "array has incomplete element type '%s'",
-               type2s(rty));
-}
-
-static void ensure_inline(node_t *ty, int fspec, struct source src)
-{
-    if (fspec == INLINE) {
-        if (isfunc(ty))
-            TYPE_INLINE(ty) = 1;
-        else
-            errorf(src, "'inline' can only appear on functions");
-    }
-}
-
-static void check_oldstyle(node_t *ftype)
-{
-    assert(isfunc(ftype));
-    
-    if (TYPE_PARAMS(ftype) && TYPE_OLDSTYLE(ftype))
-        error("a parameter list without types is only allowed in a function definition");
-}
-
 static node_t * typedefdecl(struct token *t, node_t * ty, int fspec, int kind)
 {
     int sclass = TYPEDEF;
@@ -1465,24 +1111,6 @@ static void oldstyle_decls(node_t *ftype)
     exit_scope();
 }
 
-static void ensure_params(node_t *ftype)
-{
-    for (int i = 0; i < vec_len(TYPE_PARAMS(ftype)); i++) {
-        node_t *sym = vec_at(TYPE_PARAMS(ftype), i);
-        node_t *ty = SYM_TYPE(sym);
-        SYM_DEFINED(sym) = true;
-        // params id is required in prototype
-        if (is_anonymous(SYM_NAME(sym)))
-            errorf(AST_SRC(sym), "parameter name omitted");
-        if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-            if (!SYM_DEFINED(TYPE_TSYM(ty)))
-                errorf(AST_SRC(sym),
-                       "variable has incomplete type '%s'",
-                       type2s(ty));
-        }
-    }
-}
-
 static void make_funcdecl(node_t *sym, node_t *ty, int sclass, struct source src,
                           node_t *decl)
 {
@@ -1552,6 +1180,100 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
     return decl;
 }
 
+static node_t *make_decl(struct token *id, node_t * ty, int sclass,
+                         int fspec, declfun_p * dcl)
+{
+    node_t *decl;
+    if (sclass == TYPEDEF)
+        decl = ast_decl(TYPEDEF_DECL);
+    else if (isfunc(ty))
+        decl = ast_decl(FUNC_DECL);
+    else
+        decl = ast_decl(VAR_DECL);
+    node_t *sym = dcl(id, ty, sclass, fspec);
+
+    DECL_SYM(decl) = sym;
+    return decl;
+}
+
+static struct vector *decls(declfun_p * dcl)
+{
+    struct vector *v = vec_new();
+    node_t *basety;
+    int sclass, fspec;
+    int level = SCOPE;
+    int follow[] = {STATIC, INT, CONST, IF, '}', 0};
+
+    basety = specifiers(&sclass, &fspec);
+    if (token->id == ID || token->id == '*' || token->id == '(') {
+        struct token *id = NULL;
+        node_t *ty = NULL;
+        int params = 0;        // for functioness
+
+        // declarator
+        if (level == GLOBAL)
+            declarator(&ty, &id, &params);
+        else
+            declarator(&ty, &id, NULL);
+        attach_type(&ty, basety);
+
+        if (level == GLOBAL && params) {
+            if (first_funcdef(ty)) {
+                vec_push(v, funcdef(id, ty, sclass, fspec));
+                return v;
+            } else {
+                exit_params();
+            }
+        }
+
+        for (;;) {
+            if (id) {
+                int kind;
+                if (dcl == globaldecl)
+                    kind = GLOBAL;
+                else if (dcl == paramdecl)
+                    kind = PARAM;
+                else
+                    kind = LOCAL;
+                node_t *decl = make_decl(id, ty, sclass, fspec, dcl);
+                if (token->id == '=')
+                    decl_initializer(decl, sclass, kind);
+                ensure_decl(decl, sclass, kind);
+                vec_push(v, decl);
+            }
+
+            if (token->id != ',')
+                break;
+
+            expect(',');
+            id = NULL;
+            ty = NULL;
+            // declarator
+            declarator(&ty, &id, NULL);
+            attach_type(&ty, basety);
+        }
+    } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
+        // struct/union/enum
+        int node_id;
+        node_t *decl;
+        if (isstruct(basety))
+            node_id = STRUCT_DECL;
+        else if (isunion(basety))
+            node_id = UNION_DECL;
+        else
+            node_id = ENUM_DECL;
+
+        decl = ast_decl(node_id);
+        DECL_SYM(decl) = TYPE_TSYM(basety);
+        vec_push(v, decl);
+    } else {
+        error("invalid token '%s' in declaration", tok2s(token));
+    }
+    match(';', follow);
+
+    return v;
+}
+
 node_t *make_localdecl(const char *name, node_t * ty, int sclass)
 {
     struct ident *ident = new_ident(cpp_file, name);
@@ -1559,6 +1281,53 @@ node_t *make_localdecl(const char *name, node_t * ty, int sclass)
             .id = ID, .value.ident = ident, .kind = ID, .src = source});
     node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
     return decl;
+}
+
+node_t *typename(void)
+{
+    node_t *basety;
+    node_t *ty = NULL;
+
+    basety = specifiers(NULL, NULL);
+    if (token->id == '*' || token->id == '(' || token->id == '[')
+        abstract_declarator(&ty);
+
+    attach_type(&ty, basety);
+
+    return ty;
+}
+
+struct vector *declaration(void)
+{
+    assert(SCOPE >= LOCAL);
+    return decls(localdecl);
+}
+
+node_t *translation_unit(void)
+{
+    node_t *ret = ast_decl(TU_DECL);
+    struct vector *v = vec_new();
+
+    for (gettok(); token->id != EOI;) {
+        if (first_decl(token)) {
+            assert(SCOPE == GLOBAL);
+            vec_add(v, decls(globaldecl));
+        } else {
+            if (token->id == ';')
+                // empty declaration
+                gettok();
+            else
+                skipto(FARRAY(first_decl));
+        }
+    }
+
+    DECL_EXTS(ret) = v;
+    return ret;
+}
+
+void finalize(void)
+{
+    
 }
 
 ///
@@ -2041,32 +1810,4 @@ void decl_initializer(node_t * decl, int sclass, int kind)
     }
 
     DECL_BODY(decl) = init;
-}
-
-void redefinition_error(struct source src, node_t * sym)
-{
-    errorf(src,
-           "redefinition of '%s', previous definition at %s:%u:%u",
-           SYM_NAME(sym),
-           AST_SRC(sym).file,
-           AST_SRC(sym).line,
-           AST_SRC(sym).column);
-}
-
-void conflicting_types_error(struct source src, node_t * sym)
-{
-    errorf(src,
-           "conflicting types for '%s', previous at %s:%u:%u",
-           SYM_NAME(sym),
-           AST_SRC(sym).file,
-           AST_SRC(sym).line,
-           AST_SRC(sym).column);
-}
-
-void field_not_found_error(node_t * ty, const char *name)
-{
-    if (isincomplete(ty))
-        error("incomplete definition of type '%s'", type2s(ty));
-    else
-        error("'%s' has no field named '%s'", type2s(ty), name);
 }

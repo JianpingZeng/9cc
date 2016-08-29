@@ -121,14 +121,23 @@ extern node_t *initializer_list(node_t * ty);
 extern void init_string(node_t * ty, node_t * node);
 extern bool has_static_extent(node_t * sym);
 
-extern void redefinition_error(struct source src, node_t * sym);
-extern void conflicting_types_error(struct source src, node_t * sym);
-extern void field_not_found_error(node_t * ty, const char *name);
-
 // stmt.c
 extern struct vector *funcalls;
 extern void func_body(node_t *decl);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
+
+// typechk.c
+extern void check_oldstyle(node_t *ftype);
+extern void ensure_inline(node_t *ty, int fspec, struct source src);
+extern void ensure_field(node_t * field, size_t total, bool last);
+extern void ensure_decl(node_t * decl, int sclass, int kind);
+extern void ensure_array(node_t * atype, struct source src, int level);
+extern void ensure_func(node_t * ftype, struct source src);
+extern void ensure_main(node_t *ftype, const char *name, struct source src);
+extern void ensure_params(node_t *ftype);
+extern void redefinition_error(struct source src, node_t * sym);
+extern void conflicting_types_error(struct source src, node_t * sym);
+extern void field_not_found_error(node_t * ty, const char *name);
 
 // type.c
 extern void type_init(void);
