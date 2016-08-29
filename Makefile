@@ -31,13 +31,15 @@ UTILS_OBJ += $(utils_dir)vector.o
 UTILS_OBJ += $(utils_dir)map.o
 UTILS_OBJ += $(utils_dir)string.o
 UTILS_OBJ += $(utils_dir)set.o
+UTILS_OBJ += $(utils_dir)list.o
 UTILS_OBJ += $(utils_dir)sys.o
 
+UTILS_INC += $(utils_dir)utils.h
 UTILS_INC += $(utils_dir)strbuf.h
 UTILS_INC += $(utils_dir)vector.h
 UTILS_INC += $(utils_dir)map.h
 UTILS_INC += $(utils_dir)set.h
-UTILS_INC += $(utils_dir)utils.h
+UTILS_INC += $(utils_dir)list.h
 UTILS_INC += $(utils_dir)sys.h
 
 LIBCPP_OBJ += $(libcpp_dir)cpp.o

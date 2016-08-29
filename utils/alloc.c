@@ -25,7 +25,7 @@ static struct bucket *area[] = {
 };
 static struct bucket *freebuckets;
 
-void *allocate(size_t n, int a)
+void *allocate(size_t n, unsigned int a)
 {
     struct bucket *p;
     assert(a < ARRAY_SIZE(area));
@@ -52,12 +52,12 @@ void *allocate(size_t n, int a)
     return p->cur - n;
 }
 
-void *newarray(size_t n, int m, int a)
+void *newarray(size_t n, unsigned int m, unsigned int a)
 {
     return allocate(n*m, a);
 }
 
-void deallocate(int a)
+void deallocate(unsigned int a)
 {
     assert(a < ARRAY_SIZE(area));
     area[a]->next = freebuckets;

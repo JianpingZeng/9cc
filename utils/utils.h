@@ -50,9 +50,9 @@ extern char *xstrndup(const char *str, size_t n);
 extern bool has_prefix(const char *s, const char *prefix);
 
 // alloc.c
-extern void *allocate(size_t n, int a);
-extern void *newarray(size_t n, int m, int a);
-extern void deallocate(int a);
+extern void *allocate(size_t n, unsigned int a);
+extern void *newarray(size_t n, unsigned int m, unsigned int a);
+extern void deallocate(unsigned int a);
 
 // vector.c
 #include "vector.h"
@@ -62,5 +62,7 @@ extern void deallocate(int a);
 #include "strbuf.h"
 // set.c
 #include "set.h"
+// list.c
+#include "list.h"
 
 #endif
