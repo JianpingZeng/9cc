@@ -348,6 +348,11 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
     }
 }
 
+/// initializer:
+///   assignment-expression
+///   '{' initializer-list '}'
+///   '{' initializer-list ',' '}'
+///
 static node_t *initializer(node_t * ty)
 {
     if (token->id == '{') {
@@ -360,6 +365,21 @@ static node_t *initializer(node_t * ty)
     }
 }
 
+/// initializer-list:
+///   designation(opt) initializer
+///   initializer-list ',' designation(opt) initializer
+///
+/// designation:
+///   designator-list '='
+///
+/// designator-list:
+///   designator
+///   designator-list designator
+///
+/// designator:
+///   '[' constant-expression ']'
+///   '.' identifier
+///
 node_t *initializer_list(node_t * ty)
 {
     int follow[] = { ',', IF, '[', ID, '.', DEREF, 0 };

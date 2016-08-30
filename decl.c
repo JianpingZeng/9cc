@@ -56,6 +56,41 @@ bool first_typename(struct token * t)
         (t->id == ID && istypedef(TOK_IDENT_STR(t)));
 }
 
+/// declaration-specifier:
+///   storage-class-specifier declaration-specifiers(opt)
+///   type-specifier          declaration-specifiers(opt)
+///   type-qualifier          declaration-specifiers(opt)
+///   function-specifier      declaration-specifiers(opt)
+///
+/// storage-class-specifier: one of
+///   auto extern register static typedef
+///
+/// type-qualifier: one of
+///   const  volatile  restrict
+///
+/// function-specifier:
+///   inline
+///
+/// type-specifier:
+///   void
+///   char
+///   short
+///   int
+///   long
+///   float
+///   double
+///   signed
+///   unsigned
+///   _Bool
+///   _Complex
+///   _Imaginary
+///   enum-specifier
+///   struct-or-union-specifier
+///   typedef-name
+///
+/// typedef-name:
+///   identifier
+///
 static node_t *specifiers(int *sclass, int *fspec)
 {
     int cls, sign, size, type;
@@ -346,6 +381,18 @@ static void exit_params(void)
     exit_scope();
 }
 
+/// parameter-type-list:
+///   parameter-list
+///   parameter-list ',' '...'
+///
+/// parameter-list:
+///   parameter-declaration
+///   parameter-list parameter-declaration
+///
+/// parameter-declaration:
+///   declaration-specifier declarator
+///   declaration-specifier abstract-declarator(opt)
+///
 static struct vector *prototype(node_t *ftype)
 {
     struct vector *v = vec_new();
@@ -389,6 +436,10 @@ static struct vector *prototype(node_t *ftype)
     return v;
 }
 
+/// identifier-list:
+///   identifier
+///   identifier-list ',' identifier
+///
 static struct vector *oldstyle(node_t *ftype)
 {
     struct vector *v = vec_new();
@@ -542,6 +593,18 @@ static node_t *func_or_array(bool abstract, int *params)
     return ty;
 }
 
+/// enum-specifier:
+///   enum identifier(opt) '{' enumerator-list '}'
+///   enum identifier(opt) '{' enumerator-list ',' '}'
+///   enum identifier
+///
+/// struct-or-union-specifier:
+///   struct-or-union identifier(opt) '{' struct-declaration-list '}'
+///   struct-or-union identifier
+///
+/// struct-or-union:
+///   struct union
+///
 static node_t *tag_decl(void)
 {
     int t = token->id;
@@ -585,6 +648,17 @@ static node_t *tag_decl(void)
     return SYM_TYPE(sym);
 }
 
+/// enumerator-list:
+///   enumerator
+///   enumerator-list ',' enumerator
+///
+/// enumerator:
+///   enumeration-constant
+///   enumeration-constant '=' constant-expression
+///
+/// enumeration-constant:
+///   identifier
+///
 static void ids(node_t *sym)
 {
     if (token->id == ID) {
@@ -622,6 +696,25 @@ static void bitfield(node_t *field)
     FIELD_ISBIT(field) = true;
 }
 
+/// struct-declaration-list:
+///   struct-declaration
+///   struct-declaration-list struct-declaration
+///
+/// struct-declaration:
+///   specifier-qualifier-list struct-declarator-list ';'
+///
+/// specifier-qualifier-list:
+///   type-specifier specifier-qualifier-list(opt)
+///   type-qualifier specifier-qualifier-list(opt)
+///
+/// struct-declarator-list:
+///   struct-declarator
+///   struct-declarator-list ',' struct-declarator
+///
+/// struct-declarator:
+///   declarator
+///   declarator(opt) ':' constant-expression
+///
 static void fields(node_t * sym)
 {
     int follow[] = {INT, CONST, '}', IF, 0};
@@ -695,6 +788,14 @@ static void fields(node_t * sym)
     set_typesize(sty);
 }
 
+/// pointer:
+///   '*' type-qualifier-list(opt)
+///   '*' type-qualifier-list(opt) pointer
+///
+/// type-qualifier-list:
+///   type-qualifier
+///   type-qualifier-list type-qualifier
+///
 static node_t *ptr_decl(void)
 {
     node_t *ret = NULL;
@@ -784,6 +885,16 @@ static void param_declarator(node_t ** ty, struct token **id)
     }
 }
 
+/// abstract-declarator:
+///   pointer
+///   pointer(opt) direct-abstract-declarator
+///
+/// direct-abstract-declarator:
+///   '(' abstract-declarator ')'
+///   direct-abstract-declarator(opt) '[' assignment-expression(opt) ']'
+///   direct-abstract-declarator(opt) '[' '*' ']'
+///   direct-abstract-declarator(opt) '(' parameter-type-list(opt) ')'
+///
 static void abstract_declarator(node_t ** ty)
 {
     assert(ty);
@@ -820,6 +931,19 @@ static void abstract_declarator(node_t ** ty)
     }
 }
 
+/// declarator:
+///   pointer(opt) direct-declarator
+///
+/// direct-declarator:
+///   identifier
+///   '(' declarator ')'
+///   direct-declarator '[' type-qualifier-list(opt) assignment-expression(opt) ']'
+///   direct-declarator '[' static type-qualifier-list(opt) assignment-expression ']'
+///   direct-declarator '[' type-qualifier-list static assignment-expression ']'
+///   direct-declarator '[' type-qualifier-list(opt) '*' ']'
+///   direct-declarator '(' parameter-type-list ')'
+///   direct-declarator '(' identifier-list(opt) ')'
+///
 static void declarator(node_t ** ty, struct token **id, int *params)
 {
     int follow[] = { ',', '=', IF, 0 };
@@ -1071,6 +1195,10 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
     return sym;
 }
 
+/// declaration-list:
+///   declaration
+///   declaration-list declaration
+///
 static void oldstyle_decls(node_t *ftype)
 {
     struct vector *v = vec_new();
@@ -1194,6 +1322,24 @@ static node_t *make_decl(struct token *id, node_t * ty, int sclass,
     return decl;
 }
 
+/// external-declaration:
+///   declaration
+///   function-definition
+///
+/// declaration:
+///   declaration-specifier init-declarator-list(opt) ';'
+///
+/// function-definition:
+///   declaration-specifier declarator declaration-list(opt) compound-statement
+///
+/// init-declarator-list:
+///   init-declarator
+///   init-declarator-list ',' init-declarator
+///
+/// init-declarator:
+///   declarator
+///   declarator '=' initializer
+///
 static struct vector *decls(declfun_p * dcl)
 {
     struct vector *v = vec_new();
@@ -1281,6 +1427,9 @@ node_t *make_localdecl(const char *name, node_t * ty, int sclass)
     return decl;
 }
 
+/// type-name:
+///   specifier-qualifier-list abstract-declarator(opt)
+///
 node_t *typename(void)
 {
     node_t *basety;
@@ -1301,6 +1450,10 @@ struct vector *declaration(void)
     return decls(localdecl);
 }
 
+/// translation-unit:
+///   external-declaration
+///   translation-unit external-declaration
+///
 node_t *translation_unit(void)
 {
     node_t *ret = ast_decl(TU_DECL);
