@@ -77,7 +77,7 @@ enum {
 #define _x(a, b, c, d)  a=d,
 #define _t(a, b, c)     a,
 #define _k(a, b, c)     a,
-#include "token.h"
+#include "token.def"
     TOKEND
 };
 

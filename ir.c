@@ -8,7 +8,7 @@
 
 static const char *rops[] = {
 #define _rop(a, b)  b,
-#include "rop.h"
+#include "rop.def"
 };
 
 static void emit_stmt(node_t *n);

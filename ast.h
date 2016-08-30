@@ -5,7 +5,7 @@
 enum {
 #define _ns(a)   a,
 #define _n(a, b) a,
-#include "node.h"
+#include "node.def"
 };
 
 #define AST_ID(NODE)            ((NODE)->common.id)

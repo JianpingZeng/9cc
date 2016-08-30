@@ -42,7 +42,7 @@ struct reg {
 // op
 enum {
 #define _rop(a, b) a,
-#include "rop.h"
+#include "rop.def"
     IR_END
 };
 

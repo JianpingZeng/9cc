@@ -49,7 +49,7 @@ LIBCPP_OBJ += $(libcpp_dir)input.o
 LIBCPP_OBJ += $(libcpp_dir)lex.o
 
 LIBCPP_INC += $(libcpp_dir)lex.h
-LIBCPP_INC += $(libcpp_dir)token.h
+LIBCPP_INC += $(libcpp_dir)token.def
 LIBCPP_INC += $(libcpp_dir)cpp.h
 
 CC1_OBJ += alloc.o
@@ -74,8 +74,8 @@ CC1_INC += cc.h
 CC1_INC += ast.h
 CC1_INC += color.h
 CC1_INC += gen.h
-CC1_INC += node.h
-CC1_INC += rop.h
+CC1_INC += node.def
+CC1_INC += rop.def
 
 7CC_OBJ = 7cc.o
 
