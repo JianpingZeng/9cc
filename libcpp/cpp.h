@@ -14,9 +14,6 @@
 #include "../error.h"
 #include "lex.h"
 
-extern void *alloc_macro(void);
-extern void *alloc_hideset(void);
-extern void *alloc_cpp_ident(void);
 extern bool eval_cpp_cond(void);
 
 #endif

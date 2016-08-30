@@ -186,7 +186,7 @@ static void emit_noindent(const char *fmt, ...)
 
 static struct reladdr *imm(long value)
 {
-    struct reladdr *operand = (struct reladdr *)alloc_reladdr();
+    struct reladdr *operand = NEWS(struct reladdr, PERM);
     operand->kind = RELADDR_IMM;
     operand->disp = value;
     return operand;
@@ -198,7 +198,7 @@ static struct reladdr *str(const char *fmt, ...)
     va_start(ap, fmt);
     char *text = vformat(fmt, ap);
     va_end(ap);
-    struct reladdr *operand = (struct reladdr *)alloc_reladdr();
+    struct reladdr *operand = NEWS(struct reladdr, PERM);
     operand->kind = RELADDR_NONE;
     operand->base = text;
     return operand;
@@ -206,7 +206,7 @@ static struct reladdr *str(const char *fmt, ...)
 
 static struct reladdr *rs(const char *text)
 {
-    struct reladdr *operand = (struct reladdr *)alloc_reladdr();
+    struct reladdr *operand = NEWS(struct reladdr, PERM);
     operand->kind = RELADDR_NONE;
     operand->base = text;
     return operand;
@@ -215,7 +215,7 @@ static struct reladdr *rs(const char *text)
 static struct reladdr *subscript(const char *base, const char *index,
                                  int scale, long disp)
 {
-    struct reladdr *operand = (struct reladdr *)alloc_reladdr();
+    struct reladdr *operand = NEWS(struct reladdr, PERM);
     operand->kind = RELADDR_SUBSCRIPT;
     operand->base = base;
     operand->index = index;
@@ -233,7 +233,7 @@ static void yy(const char *op, const char *suffix,
                struct reladdr *src, struct reladdr *dst,
                const char *comment)
 {
-    struct opcode *opcode = (struct opcode *)alloc_opcode();
+    struct opcode *opcode = NEWS(struct opcode, PERM);
     opcode->op = op;
     opcode->suffix = suffix;
     opcode->comment = comment;
@@ -251,7 +251,7 @@ static void xx(const char *op, const char *suffix,
 // label
 static void lab(const char *label)
 {
-    struct opcode *opcode = (struct opcode *)alloc_opcode();
+    struct opcode *opcode = NEWS(struct opcode, PERM);
     opcode->kind = OPCODE_LABEL;
     opcode->op = label;
     vec_push(fcon.opcodes, opcode);
@@ -277,7 +277,7 @@ static void macro(const char *fmt, ...)
     va_start(ap, fmt);
     char *text = vformat(fmt, ap);
     va_end(ap);
-    struct opcode *opcode = (struct opcode *)alloc_opcode();
+    struct opcode *opcode = NEWS(struct opcode, PERM);
     opcode->kind = OPCODE_MACRO;
     opcode->op = text;
     vec_push(fcon.opcodes, opcode);
@@ -443,7 +443,7 @@ static struct operand * make_offset_operand(struct operand *operand, long offset
     case IR_NONE:
     case IR_SUBSCRIPT:
         {
-            struct operand *ret = alloc_operand();
+            struct operand *ret = NEWS(struct operand, PERM);
             *ret = *operand;
             ret->op = IR_SUBSCRIPT;
             ret->disp += offset;

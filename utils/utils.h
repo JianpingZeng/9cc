@@ -53,6 +53,10 @@ extern bool has_prefix(const char *s, const char *prefix);
 extern void *allocate(size_t n, unsigned int a);
 extern void *newarray(size_t n, unsigned int m, unsigned int a);
 extern void deallocate(unsigned int a);
+#define NEW(n, a)  allocate((n), (a))
+#define NEW0(n, a)  memset(allocate((n), (a)), 0, (n))
+#define NEWS(s, a)  NEW0(sizeof(s), a)
+enum { PERM = 0, FUNC };
 
 // vector.c
 #include "vector.h"

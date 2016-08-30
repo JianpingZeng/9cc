@@ -70,7 +70,7 @@ static struct uop *dispatch_uop(int op)
 
 static node_t *literal_node(int id)
 {
-    node_t *n = alloc_node();
+    node_t *n = NEWS(node_t, PERM);
     AST_ID(n) = id;
     EXPR_SYM(n) = anonymous(&constants, CONSTANT);
     return n;

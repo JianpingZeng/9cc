@@ -52,7 +52,6 @@ LIBCPP_INC += $(libcpp_dir)lex.h
 LIBCPP_INC += $(libcpp_dir)token.def
 LIBCPP_INC += $(libcpp_dir)cpp.h
 
-CC1_OBJ += alloc.o
 CC1_OBJ += error.o
 CC1_OBJ += ast.o
 CC1_OBJ += cc.o

@@ -2,7 +2,7 @@
 
 static struct basic_block * new_basic_block(void)
 {
-    struct basic_block *block = alloc_basic_block();
+    struct basic_block *block = NEWS(struct basic_block, PERM);
     block->label = gen_block_label();
     block->use = set_new();
     block->def = set_new();
@@ -97,10 +97,10 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
     const char *start_label = SYM_X_LABEL(DECL_SYM(decl));
     const char *end_label = STMT_X_NEXT(DECL_BODY(decl));
 
-    struct basic_block *start = alloc_basic_block();
+    struct basic_block *start = NEWS(struct basic_block, PERM);
     start->label = start_label;
     start->tag = BLOCK_START;
-    struct basic_block *end = alloc_basic_block();
+    struct basic_block *end = NEWS(struct basic_block, PERM);
     end->label = end_label;
     end->tag = BLOCK_END;
 
