@@ -61,7 +61,7 @@ void check_oldstyle(node_t *ftype)
 {
     assert(isfunc(ftype));
     
-    if (TYPE_PARAMS(ftype) && TYPE_OLDSTYLE(ftype))
+    if (TYPE_OLDSTYLE(ftype) && length(TYPE_PARAMS(ftype)))
         error("a parameter list without types is only allowed in a function definition");
 }
 
