@@ -57,33 +57,39 @@ bool first_typename(struct token * t)
 }
 
 /// declaration-specifier:
-///   storage-class-specifier declaration-specifiers(opt)
-///   type-specifier          declaration-specifiers(opt)
-///   type-qualifier          declaration-specifiers(opt)
-///   function-specifier      declaration-specifiers(opt)
+///   storage-class-specifier declaration-specifiers[opt]
+///   type-specifier          declaration-specifiers[opt]
+///   type-qualifier          declaration-specifiers[opt]
+///   function-specifier      declaration-specifiers[opt]
 ///
-/// storage-class-specifier: one of
-///   auto extern register static typedef
+/// storage-class-specifier:
+///   'auto'
+///   'extern'
+///   'register'
+///   'static'
+///   'typedef'
 ///
-/// type-qualifier: one of
-///   const  volatile  restrict
+/// type-qualifier:
+///   'const'
+///   'volatile'
+///   'restrict'
 ///
 /// function-specifier:
-///   inline
+///   'inline'
 ///
 /// type-specifier:
-///   void
-///   char
-///   short
-///   int
-///   long
-///   float
-///   double
-///   signed
-///   unsigned
-///   _Bool
-///   _Complex
-///   _Imaginary
+///   'void'
+///   'char'
+///   'short'
+///   'int'
+///   'long'
+///   'float'
+///   'double'
+///   'signed'
+///   'unsigned'
+///   '_Bool'
+///   '_Complex'
+///   '_Imaginary'
 ///   enum-specifier
 ///   struct-or-union-specifier
 ///   typedef-name
@@ -391,7 +397,7 @@ static void exit_params(void)
 ///
 /// parameter-declaration:
 ///   declaration-specifier declarator
-///   declaration-specifier abstract-declarator(opt)
+///   declaration-specifier abstract-declarator[opt]
 ///
 static struct vector *prototype(node_t *ftype)
 {
@@ -594,16 +600,17 @@ static node_t *func_or_array(bool abstract, int *params)
 }
 
 /// enum-specifier:
-///   enum identifier(opt) '{' enumerator-list '}'
-///   enum identifier(opt) '{' enumerator-list ',' '}'
-///   enum identifier
+///   'enum' identifier[opt] '{' enumerator-list '}'
+///   'enum' identifier[opt] '{' enumerator-list ',' '}'
+///   'enum' identifier
 ///
 /// struct-or-union-specifier:
-///   struct-or-union identifier(opt) '{' struct-declaration-list '}'
+///   struct-or-union identifier[opt] '{' struct-declaration-list '}'
 ///   struct-or-union identifier
 ///
 /// struct-or-union:
-///   struct union
+///   'struct'
+///   'union'
 ///
 static node_t *tag_decl(void)
 {
@@ -704,8 +711,8 @@ static void bitfield(node_t *field)
 ///   specifier-qualifier-list struct-declarator-list ';'
 ///
 /// specifier-qualifier-list:
-///   type-specifier specifier-qualifier-list(opt)
-///   type-qualifier specifier-qualifier-list(opt)
+///   type-specifier specifier-qualifier-list[opt]
+///   type-qualifier specifier-qualifier-list[opt]
 ///
 /// struct-declarator-list:
 ///   struct-declarator
@@ -713,7 +720,7 @@ static void bitfield(node_t *field)
 ///
 /// struct-declarator:
 ///   declarator
-///   declarator(opt) ':' constant-expression
+///   declarator[opt] ':' constant-expression
 ///
 static void fields(node_t * sym)
 {
@@ -789,8 +796,8 @@ static void fields(node_t * sym)
 }
 
 /// pointer:
-///   '*' type-qualifier-list(opt)
-///   '*' type-qualifier-list(opt) pointer
+///   '*' type-qualifier-list[opt]
+///   '*' type-qualifier-list[opt] pointer
 ///
 /// type-qualifier-list:
 ///   type-qualifier
@@ -887,13 +894,13 @@ static void param_declarator(node_t ** ty, struct token **id)
 
 /// abstract-declarator:
 ///   pointer
-///   pointer(opt) direct-abstract-declarator
+///   pointer[opt] direct-abstract-declarator
 ///
 /// direct-abstract-declarator:
 ///   '(' abstract-declarator ')'
-///   direct-abstract-declarator(opt) '[' assignment-expression(opt) ']'
-///   direct-abstract-declarator(opt) '[' '*' ']'
-///   direct-abstract-declarator(opt) '(' parameter-type-list(opt) ')'
+///   direct-abstract-declarator[opt] '[' assignment-expression[opt] ']'
+///   direct-abstract-declarator[opt] '[' '*' ']'
+///   direct-abstract-declarator[opt] '(' parameter-type-list[opt] ')'
 ///
 static void abstract_declarator(node_t ** ty)
 {
@@ -932,17 +939,17 @@ static void abstract_declarator(node_t ** ty)
 }
 
 /// declarator:
-///   pointer(opt) direct-declarator
+///   pointer[opt] direct-declarator
 ///
 /// direct-declarator:
 ///   identifier
 ///   '(' declarator ')'
-///   direct-declarator '[' type-qualifier-list(opt) assignment-expression(opt) ']'
-///   direct-declarator '[' static type-qualifier-list(opt) assignment-expression ']'
-///   direct-declarator '[' type-qualifier-list static assignment-expression ']'
-///   direct-declarator '[' type-qualifier-list(opt) '*' ']'
+///   direct-declarator '[' type-qualifier-list[opt] assignment-expression[opt] ']'
+///   direct-declarator '[' 'static' type-qualifier-list[opt] assignment-expression ']'
+///   direct-declarator '[' type-qualifier-list 'static' assignment-expression ']'
+///   direct-declarator '[' type-qualifier-list[opt] '*' ']'
 ///   direct-declarator '(' parameter-type-list ')'
-///   direct-declarator '(' identifier-list(opt) ')'
+///   direct-declarator '(' identifier-list[opt] ')'
 ///
 static void declarator(node_t ** ty, struct token **id, int *params)
 {
@@ -1327,10 +1334,10 @@ static node_t *make_decl(struct token *id, node_t * ty, int sclass,
 ///   function-definition
 ///
 /// declaration:
-///   declaration-specifier init-declarator-list(opt) ';'
+///   declaration-specifier init-declarator-list[opt] ';'
 ///
 /// function-definition:
-///   declaration-specifier declarator declaration-list(opt) compound-statement
+///   declaration-specifier declarator declaration-list[opt] compound-statement
 ///
 /// init-declarator-list:
 ///   init-declarator
@@ -1428,7 +1435,7 @@ node_t *make_localdecl(const char *name, node_t * ty, int sclass)
 }
 
 /// type-name:
-///   specifier-qualifier-list abstract-declarator(opt)
+///   specifier-qualifier-list abstract-declarator[opt]
 ///
 node_t *typename(void)
 {

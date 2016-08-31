@@ -50,6 +50,9 @@ static struct vector *staticvars;
 static struct vector *localvars;
 static struct vector *allvars;
 
+/// expression-statement:
+///   expression[opt] ';'
+///
 static node_t *expr_stmt(void)
 {
     node_t *ret = NULL;
@@ -77,6 +80,10 @@ static node_t *expr_stmt(void)
  * to restrict the scope of objects and types that might be created
  * as a side effect of using compound literal or type names.
  */
+/// selection-statement:
+///   'if' '(' expression ')' statement
+///   'if' '(' expression ')' statement 'else' statement
+///
 static node_t *if_stmt(void)
 {
     node_t *ret = ast_stmt(IF_STMT, source);
@@ -120,6 +127,9 @@ static node_t *if_stmt(void)
  * Each iterative statement(do/while/for) forms its own block scope,
  * as do the substatements even if they are not compound statements.
  */
+/// iteration-statement:
+///   'while' '(' expression ')' statement
+///
 static node_t *while_stmt(void)
 {
     node_t *ret = ast_stmt(WHILE_STMT, source);
@@ -150,6 +160,9 @@ static node_t *while_stmt(void)
     return ret;
 }
 
+/// iteration-statement:
+///   'do' statement 'while' '(' expression ')' ';'
+///
 static node_t *do_while_stmt(void)
 {
     node_t *ret = ast_stmt(DO_WHILE_STMT, source);
@@ -183,6 +196,10 @@ static node_t *do_while_stmt(void)
     return ret;
 }
 
+/// iteration-statement:
+///   'for' '(' expression[opt] ';' expression[opt] ';' expression[opt] ')' statement
+///   'for' '(' declaration expression[opt] ';' expression[opt] ')' statement
+///
 static node_t *for_stmt(void)
 {
     node_t *ret = ast_stmt(FOR_STMT, source);
@@ -240,6 +257,9 @@ static node_t *for_stmt(void)
  *    the **case** expressions are converted to the type of the control
  *    expression (after the usual unary conversion).
  */
+/// selection-statement:
+///   'switch' '(' expression ')' statement
+///
 static node_t *switch_stmt(void)
 {
     node_t *ret = ast_stmt(SWITCH_STMT, source);
@@ -286,6 +306,9 @@ static void check_case_duplicates(node_t * node)
     }
 }
 
+/// labeled-statement:
+///   'case' constant-expression ':' statement
+///
 static node_t *case_stmt(void)
 {
     node_t *ret = ast_stmt(CASE_STMT, source);
@@ -316,6 +339,9 @@ static node_t *case_stmt(void)
     return ret;
 }
 
+/// labeled-statement:
+///   'default' ':' statement
+///
 static node_t *default_stmt(void)
 {
     node_t *ret = ast_stmt(DEFAULT_STMT, source);
@@ -348,6 +374,9 @@ static node_t *default_stmt(void)
     return ret;
 }
 
+/// labled-statement:
+///   identifier ':' statement
+///
 static node_t *label_stmt(void)
 {
     node_t *ret = ast_stmt(LABEL_STMT, source);
@@ -386,6 +415,9 @@ static node_t *label_stmt(void)
     return ret;
 }
 
+/// jump-statement:
+///   'goto' identifier ';'
+///
 static node_t *goto_stmt(void)
 {
     node_t *ret = ast_stmt(GOTO_STMT, source);
@@ -405,6 +437,9 @@ static node_t *goto_stmt(void)
     return ret;
 }
 
+/// jump-statement:
+///   'break' ';'
+///
 static node_t *break_stmt(void)
 {
     node_t *ret = ast_stmt(BREAK_STMT, source);
@@ -423,6 +458,9 @@ static node_t *break_stmt(void)
     return ret;
 }
 
+/// jump-statement:
+///   'continue' ';'
+///
 static node_t *continue_stmt(void)
 {
     node_t *ret = ast_stmt(CONTINUE_STMT, source);
@@ -465,6 +503,9 @@ static node_t *ensure_return(node_t * expr, struct source src)
     return expr;
 }
 
+/// jump-statement:
+///   'return' expression[opt] ';'
+///
 static node_t *return_stmt(void)
 {
     node_t *ret = ast_stmt(RETURN_STMT, source);
@@ -486,6 +527,14 @@ static node_t *return_stmt(void)
     return ret;
 }
 
+/// statement:
+///   labeled-statement
+///   compound-statement
+///   expression-statement
+///   selection-statement
+///   iteration-statement
+///   jump-statement
+///
 static node_t *statement(void)
 {
     switch (token->id) {
@@ -522,6 +571,17 @@ static node_t *statement(void)
     }
 }
 
+/// compound-statement:
+///   '{' block-item-list[opt] '}'
+///
+/// block-item-list:
+///   block-item
+///   block-item-list block-item
+///
+/// block-item:
+///   declaration
+///   statement
+///
 static node_t *compound_stmt(void (*enter_hook) (void))
 {
     node_t *ret = ast_stmt(COMPOUND_STMT, source);

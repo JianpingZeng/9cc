@@ -366,8 +366,8 @@ static node_t *initializer(node_t * ty)
 }
 
 /// initializer-list:
-///   designation(opt) initializer
-///   initializer-list ',' designation(opt) initializer
+///   designation[opt] initializer
+///   initializer-list ',' designation[opt] initializer
 ///
 /// designation:
 ///   designator-list '='
