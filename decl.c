@@ -101,11 +101,10 @@ static node_t *specifiers(int *sclass, int *fspec)
 {
     int cls, sign, size, type;
     int cons, vol, res, inl;
-    node_t *basety;
+    node_t *basety, *tydefty;
     int ci;                        // _Complex, _Imaginary
-    node_t *tydefty = NULL;
 
-    basety = NULL;
+    basety = tydefty = NULL;
     cls = sign = size = type = 0;
     cons = vol = res = inl = 0;
     ci = 0;
@@ -115,7 +114,6 @@ static node_t *specifiers(int *sclass, int *fspec)
     for (;;) {
         int *p, t = token->id;
         struct token *tok = token;
-        struct source src = source;
         switch (token->id) {
         case AUTO:
         case EXTERN:
@@ -233,36 +231,36 @@ static node_t *specifiers(int *sclass, int *fspec)
         if (*p != 0) {
             if (p == &cls) {
                 if (sclass)
-                    errorf(src,
-                           "duplicate storage class '%s'",
-                           tok2s(tok));
-                else
-                    errorf(src,
-                           "type name does not allow storage class to be specified",
-                           tok2s(tok));
-            } else if (p == &inl) {
-                if (fspec)
-                    warningf(src,
-                             "duplicate '%s' declaration specifier",
+                    error_at(tok->src,
+                             "duplicate storage class '%s'",
                              tok2s(tok));
                 else
-                    errorf(src, "function specifier not allowed");
+                    error_at(tok->src,
+                             "type name does not allow storage class to be specified",
+                             tok2s(tok));
+            } else if (p == &inl) {
+                if (fspec)
+                    warning_at(tok->src,
+                               "duplicate '%s' declaration specifier",
+                               tok2s(tok));
+                else
+                    error_at(tok->src, "function specifier not allowed");
             } else if (p == &cons || p == &res || p == &vol) {
-                warningf(src,
-                         "duplicate '%s' declaration specifier",
-                         tok2s(tok));
+                warning_at(tok->src,
+                           "duplicate '%s' declaration specifier",
+                           tok2s(tok));
             } else if (p == &ci) {
-                errorf(src,
-                       "duplicate _Complex/_Imaginary specifier '%s'",
-                       tok2s(tok));
+                error_at(tok->src,
+                         "duplicate _Complex/_Imaginary specifier '%s'",
+                         tok2s(tok));
             } else if (p == &sign) {
-                errorf(src,
-                       "duplicate signed/unsigned speficier '%s'",
-                       tok2s(tok));
+                error_at(tok->src,
+                         "duplicate signed/unsigned speficier '%s'",
+                         tok2s(tok));
             } else if (p == &type || p == &size) {
-                errorf(src,
-                       "duplicate type specifier '%s'",
-                       tok2s(tok));
+                error_at(tok->src,
+                         "duplicate type specifier '%s'",
+                         tok2s(tok));
             } else {
                 assert(0);
             }
@@ -353,7 +351,7 @@ static void array_qualifiers(node_t * atype)
         }
 
         if (*p != 0)
-            warningf(src, "duplicate type qualifier '%s'", id2s(*p));
+            warning_at(src, "duplicate type qualifier '%s'", id2s(*p));
 
         *p = t;
     }
@@ -638,12 +636,12 @@ static node_t *tag_decl(void)
         sym = lookup(id, tags);
         if (sym) {
             if (is_current_scope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
-                errorf(src,
-                       "use of '%s' with tag type that does not match previous declaration '%s' at %s:%u:%u",
-                       id2s(t), type2s(SYM_TYPE(sym)),
-                       AST_SRC(sym).file,
-                       AST_SRC(sym).line,
-                       AST_SRC(sym).column);
+                error_at(src,
+                         "use of '%s' with tag type that does not match previous declaration '%s' at %s:%u:%u",
+                         id2s(t), type2s(SYM_TYPE(sym)),
+                         AST_SRC(sym).file,
+                         AST_SRC(sym).line,
+                         AST_SRC(sym).column);
         } else {
             sym = tag_type(t, id, src);
         }
@@ -769,9 +767,9 @@ static void fields(node_t * sym)
                         node_t *f = vec_at(v, i);
                         if (FIELD_NAME(f) &&
                             !strcmp(FIELD_NAME(f), name)) {
-                            errorf(id->src,
-                                   "redefinition of '%s'",
-                                   name);
+                            error_at(id->src,
+                                     "redefinition of '%s'",
+                                     name);
                             break;
                         }
                     }
@@ -1057,27 +1055,27 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!SYM_DEFINED(TYPE_TSYM(ty)) ||
             SYM_SCOPE(TYPE_TSYM(ty)) == SCOPE)
-            warningf(src,
-                     "declaration of '%s' will not be visible outside of this function",
-                     type2s(ty));
+            warning_at(src,
+                       "declaration of '%s' will not be visible outside of this function",
+                       type2s(ty));
     } else if (isvoid(ty)) {
         if (prototype) {
             if (first) {
                 if (id)
-                    errorf(src,
-                           "argument may not have 'void' type");
+                    error_at(src,
+                             "argument may not have 'void' type");
                 else if (isqual(ty))
-                    errorf(src,
-                           "'void' as parameter must not have type qualifiers");
+                    error_at(src,
+                             "'void' as parameter must not have type qualifiers");
             }
         } else {
-            errorf(src, "argument may not have 'void' type");
+            error_at(src, "argument may not have 'void' type");
         }
     }
 
     if (prototype && fvoid && !first)
-        errorf(src,
-               "'void' must be the first and only parameter if specified");
+        error_at(src,
+                 "'void' must be the first and only parameter if specified");
 
     // check inline after conversion (decay)
     ensure_inline(ty, fspec, src);
@@ -1116,9 +1114,9 @@ static node_t *localdecl(struct token *t, node_t * ty, int sclass,
         ensure_func(ty, src);
         ensure_main(ty, id, src);
         if (sclass && sclass != EXTERN) {
-            errorf(src,
-                   "function declared in block scope cannot have '%s' storage class",
-                   id2s(sclass));
+            error_at(src,
+                     "function declared in block scope cannot have '%s' storage class",
+                     id2s(sclass));
             sclass = 0;
         }
     } else if (isarray(ty)) {
@@ -1162,7 +1160,7 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
         return typedefdecl(t, ty, fspec, GLOBAL);
 
     if (sclass == AUTO || sclass == REGISTER) {
-        errorf(src, "illegal storage class on file-scoped variable");
+        error_at(src, "illegal storage class on file-scoped variable");
         sclass = 0;
     }
 
@@ -1184,15 +1182,15 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
         SYM_SCLASS(sym) = sclass;
     } else if (eqtype(ty, SYM_TYPE(sym))) {
         if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-            errorf(src,
-                   "static declaration of '%s' follows "
-                   "non-static declaration",
-                   id);
+            error_at(src,
+                     "static declaration of '%s' follows "
+                     "non-static declaration",
+                     id);
         else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
-            errorf(src,
-                   "non-static declaration of '%s' follows "
-                   "static declaration",
-                   id);
+            error_at(src,
+                     "non-static declaration of '%s' follows "
+                     "static declaration",
+                     id);
         if (sclass != EXTERN)
             SYM_SCLASS(sym) = sclass;
     } else {
@@ -1219,7 +1217,7 @@ static void oldstyle_decls(node_t *ftype)
 
         assert(SYM_NAME(sym));
         if (!isvardecl(decl)) {
-            warningf(AST_SRC(sym), "empty declaraion");
+            warning_at(AST_SRC(sym), "empty declaraion");
         } else if (TYPE_PARAMS(ftype)) {
             node_t *p = NULL;
             for (int i = 0; i < vec_len(TYPE_PARAMS(ftype)); i++) {
@@ -1235,9 +1233,9 @@ static void oldstyle_decls(node_t *ftype)
                 SYM_TYPE(p) = SYM_TYPE(sym);
                 AST_SRC(p) = AST_SRC(sym);
             } else {
-                errorf(AST_SRC(sym),
-                       "parameter named '%s' is missing",
-                       SYM_NAME(sym));
+                error_at(AST_SRC(sym),
+                         "parameter named '%s' is missing",
+                         SYM_NAME(sym));
             }
         }
     }
@@ -1276,10 +1274,10 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
             make_funcdecl(sym, ftype, sclass, src, decl);
         } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
             if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-                errorf(src,
-                       "static declaaration of '%s' follows "
-                       "non-static declaration",
-                       id);
+                error_at(src,
+                         "static declaaration of '%s' follows "
+                         "non-static declaration",
+                         id);
             else
                 make_funcdecl(sym, ftype, sclass, src, decl);
         } else {

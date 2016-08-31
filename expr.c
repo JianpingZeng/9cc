@@ -34,9 +34,9 @@ static void ensure_type(node_t * node, bool(*is) (node_t *))
         assert(0);
 
     if (!is(AST_TYPE(node)))
-        errorf(AST_SRC(node),
-               "expect type '%s', not '%s'",
-               name, type2s(AST_TYPE(node)));
+        error_at(AST_SRC(node),
+                 "expect type '%s', not '%s'",
+                 name, type2s(AST_TYPE(node)));
 }
 
 /**
@@ -90,7 +90,7 @@ bool islvalue(node_t * node)
 static void ensure_lvalue(node_t * node)
 {
     if (!islvalue(node))
-        errorf(AST_SRC(node), "expect lvalue at '%s'", node2s(node));
+        error_at(AST_SRC(node), "expect lvalue at '%s'", node2s(node));
 }
 
 static void ensure_assignable(node_t * node)
@@ -98,13 +98,13 @@ static void ensure_assignable(node_t * node)
     node_t *ty = AST_TYPE(node);
     struct source src = AST_SRC(node);
     if (!islvalue(node))
-        errorf(src, "expression is not assignable '%s'", node2s(node));
+        error_at(src, "expression is not assignable '%s'", node2s(node));
     else if (AST_ID(node) == PAREN_EXPR)
         ensure_assignable(EXPR_OPERAND(node, 0));
     else if (isarray(ty))
-        errorf(src, "array type '%s' is not assignable", type2s(ty));
+        error_at(src, "array type '%s' is not assignable", type2s(ty));
     else if (isconst(ty))
-        errorf(src, "read-only variable '%s' is not assignable", node2s(node));
+        error_at(src, "read-only variable '%s' is not assignable", node2s(node));
 }
 
 static bool is_bitfield(node_t * node)
@@ -1110,14 +1110,14 @@ static node_t *subscript(node_t * node)
         node_t *ptr =
             isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
         if (isptrto(ptr, FUNCTION))
-            errorf(src,
-                   "subscript of pointer to function type '%s'",
-                   type2s(rtype(ptr)));
+            error_at(src,
+                     "subscript of pointer to function type '%s'",
+                     type2s(rtype(ptr)));
     } else {
         if (!isptr(AST_TYPE(node)) && !isptr(AST_TYPE(e)))
-            errorf(src, "subscripted value is not an array or pointer");
+            error_at(src, "subscripted value is not an array or pointer");
         else
-            errorf(src, "array subscript is not an integer");
+            error_at(src, "array subscript is not an integer");
     }
     if (NO_ERROR) {
         node_t *ty =
@@ -1283,9 +1283,9 @@ static void ensure_additive_ptr(node_t * node)
     assert(isptr(AST_TYPE(node)));
     node_t *rty = rtype(AST_TYPE(node));
     if (isfunc(rty) || isincomplete(rty))
-        errorf(AST_SRC(node),
-               "increment/decrement of invalid type '%s' (pointer to unknown size)",
-               type2s(AST_TYPE(node)));
+        error_at(AST_SRC(node),
+                 "increment/decrement of invalid type '%s' (pointer to unknown size)",
+                 type2s(AST_TYPE(node)));
 }
 
 static void ensure_increment(node_t * node)
@@ -1602,9 +1602,9 @@ static node_t *cast_expr(void)
             ret = ast_expr(CAST_EXPR, ty, cast, NULL);
             AST_SRC(ret) = src;
         } else {
-            errorf(AST_SRC(cast),
-                   INCOMPATIBLE_TYPES,
-                   type2s(AST_TYPE(cast)), type2s(ty));
+            error_at(AST_SRC(cast),
+                     INCOMPATIBLE_TYPES,
+                     type2s(AST_TYPE(cast)), type2s(ty));
         }
 
         return ret;
@@ -2210,12 +2210,12 @@ long intexpr1(node_t * ty)
     if (ty == NULL)
         ty = AST_TYPE(cond);
     if (!isint(AST_TYPE(cond)) || !isint(ty)) {
-        errorf(src, "expression is not an integer constant expression");
+        error_at(src, "expression is not an integer constant expression");
         return 0;
     }
     node_t *cnst = eval(cond, ty);
     if (cnst == NULL) {
-        errorf(src, "expression is not a compile-time constant");
+        error_at(src, "expression is not a compile-time constant");
         return 0;
     }
     assert(isiliteral(cnst));

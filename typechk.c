@@ -10,40 +10,40 @@ static void ensure_bitfield(node_t *field)
 
     if (!isint(ty)) {
         if (name)
-            errorf(src,
-                   "bit-field '%s' has non-integral type '%s'",
-                   name, type2s(ty));
+            error_at(src,
+                     "bit-field '%s' has non-integral type '%s'",
+                     name, type2s(ty));
         else
-            errorf(src,
-                   "anonymous bit-field has non-integral type '%s'",
-                   type2s(ty));
+            error_at(src,
+                     "anonymous bit-field has non-integral type '%s'",
+                     type2s(ty));
     }
 
     if (bitsize < 0) {
         if (name)
-            errorf(src,
-                   "bit-field '%s' has negative width '%d'",
-                   name, bitsize);
+            error_at(src,
+                     "bit-field '%s' has negative width '%d'",
+                     name, bitsize);
         else
-            errorf(src,
-                   "anonymous bit-field has negative width '%d'",
-                   bitsize);
+            error_at(src,
+                     "anonymous bit-field has negative width '%d'",
+                     bitsize);
     }
 
     if (bitsize == 0 && name)
-        errorf(src,
-               "named bit-field '%s' has zero width",
-               name);
+        error_at(src,
+                 "named bit-field '%s' has zero width",
+                 name);
 
     if (bitsize > bits) {
         if (name)
-            errorf(src,
-                   "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
-                   name, bitsize, bits);
+            error_at(src,
+                     "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
+                     name, bitsize, bits);
         else
-            errorf(src,
-                   "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
-                   bitsize, bits);
+            error_at(src,
+                     "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
+                     bitsize, bits);
     }
 }
 
@@ -53,7 +53,7 @@ void ensure_inline(node_t *ty, int fspec, struct source src)
         if (isfunc(ty))
             TYPE_INLINE(ty) = 1;
         else
-            errorf(src, "'inline' can only appear on functions");
+            error_at(src, "'inline' can only appear on functions");
     }
 }
 
@@ -75,18 +75,18 @@ static void ensure_nonbitfield(node_t * field, size_t total, bool last)
         if (isincomplete(ty)) {
             if (last) {
                 if (total == 1)
-                    errorf(src,
-                           "flexible array cannot be the only member");
+                    error_at(src,
+                             "flexible array cannot be the only member");
             } else {
-                errorf(src,
-                       "field has incomplete type '%s'",
-                       type2s(ty));
+                error_at(src,
+                         "field has incomplete type '%s'",
+                         type2s(ty));
             }
         }
     } else if (isfunc(ty)) {
-        errorf(src, "field has invalid type '%s'", TYPE_NAME(ty));
+        error_at(src, "field has invalid type '%s'", TYPE_NAME(ty));
     } else if (isincomplete(ty)) {
-        errorf(src, "field has incomplete type '%s'", type2s(ty));
+        error_at(src, "field has incomplete type '%s'", type2s(ty));
     }
 }
 
@@ -108,7 +108,7 @@ void ensure_decl(node_t * decl, int sclass, int kind)
     struct source src = AST_SRC(sym);
     if (isvardecl(decl)) {
         if (isincomplete(ty) && SYM_DEFINED(sym))
-            errorf(src, "variable has incomplete type '%s'", type2s(ty));
+            error_at(src, "variable has incomplete type '%s'", type2s(ty));
     }
 }
 
@@ -130,16 +130,16 @@ void ensure_decl(node_t * decl, int sclass, int kind)
 static void ensure_array_sub(node_t *atype, struct source src, int level, bool outermost)
 {
     if (TYPE_A_STAR(atype) && level != PARAM)
-        errorf(src, "star modifier used outside of function prototype");
+        error_at(src, "star modifier used outside of function prototype");
     
     if (TYPE_A_CONST(atype) || TYPE_A_RESTRICT(atype) ||
         TYPE_A_VOLATILE(atype) || TYPE_A_STATIC(atype)) {
         if (level != PARAM)
-            errorf(src,
-                   "type qualifier used in array declarator outside of function prototype");
+            error_at(src,
+                     "type qualifier used in array declarator outside of function prototype");
         else if (!outermost)
-            errorf(src,
-                   "type qualifier used in non-outermost array type derivation");
+            error_at(src,
+                     "type qualifier used in non-outermost array type derivation");
     }
             
 
@@ -147,7 +147,7 @@ static void ensure_array_sub(node_t *atype, struct source src, int level, bool o
     if (isarray(rty))
         ensure_array_sub(rty, src, level, false);
     else if (isfunc(rty))
-        errorf(src, "array of function is invalid");
+        error_at(src, "array of function is invalid");
     
     set_typesize(atype);
 }
@@ -158,20 +158,20 @@ void ensure_array(node_t * atype, struct source src, int level)
 
     node_t *rty = rtype(atype);
     if (isincomplete(rty))
-        errorf(src,
-               "array has incomplete element type '%s'",
-               type2s(rty));
+        error_at(src,
+                 "array has incomplete element type '%s'",
+                 type2s(rty));
 }
 
 void ensure_func(node_t * ftype, struct source src)
 {
     node_t *rty = rtype(ftype);
     if (isarray(rty))
-        errorf(src, "function cannot return array type '%s'",
-               type2s(rty));
+        error_at(src, "function cannot return array type '%s'",
+                 type2s(rty));
     else if (isfunc(rty))
-        errorf(src, "function cannot return function type '%s'",
-               type2s(rty));
+        error_at(src, "function cannot return function type '%s'",
+                 type2s(rty));
 }
 
 void ensure_main(node_t *ftype, const char *name, struct source src)
@@ -183,26 +183,26 @@ void ensure_main(node_t *ftype, const char *name, struct source src)
     struct vector *params = TYPE_PARAMS(ftype);
     size_t len = vec_len(params);
     if (rty != inttype)
-        errorf(src, "return type of 'main' is not 'int'");
+        error_at(src, "return type of 'main' is not 'int'");
     for (int i = 0; i < MIN(3, len); i++) {
         node_t *param = vec_at(params, i);
         node_t *ty = SYM_TYPE(param);
         if (i == 0) {
             if (ty != inttype)
-                errorf(src,
-                       "first parameter of 'main' is not 'int'");
+                error_at(src,
+                         "first parameter of 'main' is not 'int'");
         } else if (i == 1 || i == 2) {
             if (!isptrto(ty, POINTER) ||
                 !isptrto(rtype(ty), CHAR))
-                errorf(src,
-                       "%s parameter of 'main' is not 'char **'",
-                       i == 1 ? "second" : "third");
+                error_at(src,
+                         "%s parameter of 'main' is not 'char **'",
+                         i == 1 ? "second" : "third");
         }
     }
     if (len == 1 || len > 3)
-        errorf(src,
-               "expect 0, 2 or 3 parameters for 'main', have %d",
-               len);
+        error_at(src,
+                 "expect 0, 2 or 3 parameters for 'main', have %d",
+                 len);
 }
 
 void ensure_params(node_t *ftype)
@@ -213,34 +213,34 @@ void ensure_params(node_t *ftype)
         SYM_DEFINED(sym) = true;
         // params id is required in prototype
         if (is_anonymous(SYM_NAME(sym)))
-            errorf(AST_SRC(sym), "parameter name omitted");
+            error_at(AST_SRC(sym), "parameter name omitted");
         if (isenum(ty) || isstruct(ty) || isunion(ty)) {
             if (!SYM_DEFINED(TYPE_TSYM(ty)))
-                errorf(AST_SRC(sym),
-                       "variable has incomplete type '%s'",
-                       type2s(ty));
+                error_at(AST_SRC(sym),
+                         "variable has incomplete type '%s'",
+                         type2s(ty));
         }
     }
 }
 
 void redefinition_error(struct source src, node_t * sym)
 {
-    errorf(src,
-           "redefinition of '%s', previous definition at %s:%u:%u",
-           SYM_NAME(sym),
-           AST_SRC(sym).file,
-           AST_SRC(sym).line,
-           AST_SRC(sym).column);
+    error_at(src,
+             "redefinition of '%s', previous definition at %s:%u:%u",
+             SYM_NAME(sym),
+             AST_SRC(sym).file,
+             AST_SRC(sym).line,
+             AST_SRC(sym).column);
 }
 
 void conflicting_types_error(struct source src, node_t * sym)
 {
-    errorf(src,
-           "conflicting types for '%s', previous at %s:%u:%u",
-           SYM_NAME(sym),
-           AST_SRC(sym).file,
-           AST_SRC(sym).line,
-           AST_SRC(sym).column);
+    error_at(src,
+             "conflicting types for '%s', previous at %s:%u:%u",
+             SYM_NAME(sym),
+             AST_SRC(sym).file,
+             AST_SRC(sym).line,
+             AST_SRC(sym).column);
 }
 
 void field_not_found_error(node_t * ty, const char *name)

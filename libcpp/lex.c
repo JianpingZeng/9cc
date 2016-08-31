@@ -275,7 +275,7 @@ static const char *sequence(struct file *pfile, bool wide, int sep)
         str[pb->cur - rpc] = sep;
         name = str;
         error("untermiated %s constant: %s",
-                  is_char ? "character" : "string", name);
+              is_char ? "character" : "string", name);
     } else {
         name = xstrndup((const char *)rpc, pb->cur - rpc);
     }
@@ -914,13 +914,13 @@ int skipto(int (*test[]) (struct token *))
     }
  out:
     if (cnt > 1)
-        errorf(t->src,
-                   "invalid token '%s', %d tokens skipped",
-                   tok2s(t), cnt);
+        error_at(t->src,
+                 "invalid token '%s', %d tokens skipped",
+                 tok2s(t), cnt);
     else if (cnt)
-        errorf(t->src,
-                   "invalid token '%s'",
-                   tok2s(t));
+        error_at(t->src,
+                 "invalid token '%s'",
+                 tok2s(t));
     else
         die("nothing skipped, may be an internal error");
     return cnt;

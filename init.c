@@ -72,8 +72,8 @@ static node_t *init_elem_conv(node_t * ty, node_t * node)
 
     node_t *ret = assignconv(ty, node);
     if (ret == NULL)
-        errorf(AST_SRC(node), INCOMPATIBLE_TYPES,
-               type2s(AST_TYPE(node)), type2s(ty));
+        error_at(AST_SRC(node), INCOMPATIBLE_TYPES,
+                 type2s(AST_TYPE(node)), type2s(ty));
 
     return ret;
 }
@@ -98,7 +98,7 @@ static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
 
     node_t *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
-        warningf(AST_SRC(node), INIT_OVERRIDE);
+        warning_at(AST_SRC(node), INIT_OVERRIDE);
 
     if (AST_ID(node) == INITS_EXPR) {
         vec_set(v, i, node);
@@ -141,7 +141,7 @@ static void scalar_set(node_t * ty, struct vector *v, int i, node_t * node)
 
     node_t *n = find_elem(v, i);
     if (AST_ID(n) != VINIT_EXPR)
-        warningf(AST_SRC(node), INIT_OVERRIDE);
+        warning_at(AST_SRC(node), INIT_OVERRIDE);
 
     if (AST_ID(node) == INITS_EXPR) {
         struct vector *inits;
@@ -213,7 +213,7 @@ static void array_init(node_t * ty, bool brace, struct vector *v)
     if (is_string(ty) && token->id == SCONSTANT) {
         node_t *expr = assign_expr();
         if (vec_len(v)) {
-            warningf(AST_SRC(expr), INIT_OVERRIDE);
+            warning_at(AST_SRC(expr), INIT_OVERRIDE);
             vec_clear(v);
         }
         aggregate_set(ty, v, 0, expr);
@@ -453,15 +453,15 @@ void decl_initializer(node_t * decl, int sclass, int kind)
 
     if (sclass == EXTERN) {
         if (kind == GLOBAL) {
-            warningf(src, "'extern' variable has an initializer");
+            warning_at(src, "'extern' variable has an initializer");
         } else {
-            errorf(src,
-                   "'extern' variable cannot have an initializer");
+            error_at(src,
+                     "'extern' variable cannot have an initializer");
             return;
         }
     } else if (sclass == TYPEDEF) {
-        errorf(src,
-               "illegal initializer (only variable can be initialized)");
+        error_at(src,
+                 "illegal initializer (only variable can be initialized)");
         return;
     }
 
@@ -495,8 +495,8 @@ void decl_initializer(node_t * decl, int sclass, int kind)
     if (NO_ERROR && init && has_static_extent(sym)) {
         init = eval(init, ty);
         if (init == NULL)
-            errorf(init_src,
-                   "initializer element is not a compile-time constant");
+            error_at(init_src,
+                     "initializer element is not a compile-time constant");
     }
 
     DECL_BODY(decl) = init;

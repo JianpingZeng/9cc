@@ -12,10 +12,8 @@ unsigned int warnings;
 #define MAX_ERRORS 32
 
 static void cc_print_lead(int tag,
-                          const char *file,
-                          unsigned int line, unsigned int column,
-                          const char *fmt,
-                          va_list ap)
+                          const char *file, unsigned int line, unsigned int column,
+                          const char *fmt, va_list ap)
 {
     const char *lead;
     switch (tag) {
@@ -40,8 +38,8 @@ static void cc_print_lead(int tag,
     fprintf(stderr, "\n");
 }
 
-void err_warning(const char *file, unsigned int line, unsigned int column,
-                 const char *fmt, ...)
+void warningf(const char *file, unsigned int line, unsigned int column,
+              const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -50,8 +48,8 @@ void err_warning(const char *file, unsigned int line, unsigned int column,
     ++warnings;
 }
 
-void err_error(const char *file, unsigned int line, unsigned int column,
-               const char *fmt, ...)
+void errorf(const char *file, unsigned int line, unsigned int column,
+            const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -64,8 +62,8 @@ void err_error(const char *file, unsigned int line, unsigned int column,
     }
 }
 
-void err_fatal(const char *file, unsigned int line, unsigned int column,
-               const char *fmt, ...)
+void fatalf(const char *file, unsigned int line, unsigned int column,
+            const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
