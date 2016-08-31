@@ -410,6 +410,7 @@ bool eqtype(node_t * ty1, node_t * ty2)
 node_t *find_field(node_t * sty, const char *name)
 {
     node_t *ty = unqual(sty);
+    assert(isrecord(ty));
 
     if (name == NULL)
         return NULL;

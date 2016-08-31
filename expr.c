@@ -113,6 +113,8 @@ static bool is_bitfield(node_t * node)
         return false;
 
     node_t *ty = AST_TYPE(EXPR_OPERAND(node, 0));
+    if (isptr(ty))
+        ty = rtype(ty);
     const char *name = AST_NAME(node);
     node_t *field = find_field(ty, name);
     return field && FIELD_ISBIT(field);
