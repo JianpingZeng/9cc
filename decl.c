@@ -27,14 +27,6 @@ static struct vector *decls(declfun_p * dcl);
 #define PARAM_FVOID(i)   (((i) & 0x10000000) >> 28)
 #define PARAM_SCLASS(i)  ((i) & 0x0fffffff)
 
-static bool first_funcdef(node_t * ty)
-{
-    bool prototype = token->id == '{';
-    bool oldstyle =  first_decl(token) && TYPE_OLDSTYLE(ty);
-
-    return isfunc(ty) && (prototype || oldstyle);
-}
-
 int first_decl(struct token *t)
 {
     return t->kind == STATIC || first_typename(t);
@@ -1367,7 +1359,8 @@ static struct vector *decls(declfun_p * dcl)
         attach_type(&ty, basety);
 
         if (level == GLOBAL && params) {
-            if (first_funcdef(ty)) {
+            if (isfunc(ty) && (token->id == '{' ||
+                               (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
                 vec_push(v, funcdef(id, ty, sclass, fspec));
                 return v;
             } else {
