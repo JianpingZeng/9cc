@@ -180,12 +180,12 @@ void ensure_main(node_t *ftype, const char *name, struct source src)
         return;
     
     node_t *rty = rtype(ftype);
-    struct vector *params = TYPE_PARAMS(ftype);
-    size_t len = vec_len(params);
+    node_t **params = TYPE_PARAMS(ftype);
+    size_t len = length(params);
     if (rty != inttype)
         error_at(src, "return type of 'main' is not 'int'");
     for (int i = 0; i < MIN(3, len); i++) {
-        node_t *param = vec_at(params, i);
+        node_t *param = params[i];
         node_t *ty = SYM_TYPE(param);
         if (i == 0) {
             if (ty != inttype)
@@ -207,8 +207,8 @@ void ensure_main(node_t *ftype, const char *name, struct source src)
 
 void ensure_params(node_t *ftype)
 {
-    for (int i = 0; i < vec_len(TYPE_PARAMS(ftype)); i++) {
-        node_t *sym = vec_at(TYPE_PARAMS(ftype), i);
+    for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
+        node_t *sym = TYPE_PARAMS(ftype)[i];
         node_t *ty = SYM_TYPE(sym);
         SYM_DEFINED(sym) = true;
         // params id is required in prototype

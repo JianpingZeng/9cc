@@ -214,7 +214,7 @@ static node_t *cast(node_t * dty, node_t * l)
         return NULL;
 
     if (AST_ID(l) == INITS_EXPR && isscalar(dty))
-        l = vec_at(EXPR_INITS(l), 0);
+        l = EXPR_INITS(l)[0];
 
     node_t *sty = AST_TYPE(l);
     if (isarith(dty)) {
@@ -655,9 +655,9 @@ static node_t *doeval(node_t * expr)
     case INITS_EXPR:
         {
             struct vector *v = vec_new();
-            struct vector *inits = EXPR_INITS(expr);
-            for (int i = 0; i < vec_len(inits); i++) {
-                node_t *n = vec_at(inits, i);
+            node_t **inits = EXPR_INITS(expr);
+            for (int i = 0; inits[i]; i++) {
+                node_t *n = inits[i];
                 if (AST_ID(n) == VINIT_EXPR) {
                     vec_push(v, n);
                     continue;
@@ -668,7 +668,7 @@ static node_t *doeval(node_t * expr)
                 vec_push(v, n);
             }
             expr = copy_node(expr);
-            EXPR_INITS(expr) = v;
+            EXPR_INITS(expr) = vtoa(v, PERM);
             return expr;
         }
     case SUBSCRIPT_EXPR:

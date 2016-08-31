@@ -14,7 +14,7 @@ static node_t *globaldecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *localdecl(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *funcdef(struct token *id, node_t * ty, int sclass, int fspec);
 static node_t *typedefdecl(struct token *id, node_t * ty, int fspec, int kind);
-static struct vector *decls(declfun_p * dcl);
+static node_t **decls(declfun_p * dcl);
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
     (((prototype) & 0x01) << 30) |                      \
@@ -442,7 +442,7 @@ static struct vector *oldstyle(node_t *ftype)
     return v;
 }
 
-static struct vector *parameters(node_t * ftype, int *params)
+static node_t **parameters(node_t * ftype, int *params)
 {
     struct vector *ret = NULL;
 
@@ -463,7 +463,7 @@ static struct vector *parameters(node_t * ftype, int *params)
         gettok();
     }
 
-    return ret;
+    return vtoa(ret, PERM);
 }
 
 static void parse_assign(node_t *atype)
@@ -730,9 +730,9 @@ static void fields(node_t * sym)
                        isrecord(basety) &&
                        is_anonymous(TYPE_TAG(basety))) {
                 //C11: anonymous record
-                size_t len = vec_len(TYPE_FIELDS(basety));
+                size_t len = length(TYPE_FIELDS(basety));
                 for (int i = 0; i < len; i++) {
-                    node_t *field = vec_at(TYPE_FIELDS(basety), i);
+                    node_t *field = TYPE_FIELDS(basety)[i];
                     vec_push(v, field);
                     if (i < len - 1)
                         ensure_field(field, vec_len(v), false);
@@ -774,7 +774,7 @@ static void fields(node_t * sym)
         ensure_field(vec_tail(v), vec_len(v), isstruct(sty) && !first_decl(token));
     } while (first_decl(token));
 
-    TYPE_FIELDS(sty) = v;
+    TYPE_FIELDS(sty) = vtoa(v, PERM);
     set_typesize(sty);
 }
 
@@ -1194,7 +1194,7 @@ static void oldstyle_decls(node_t *ftype)
     struct vector *v = vec_new();
     enter_scope();
     while (first_decl(token))
-        vec_add(v, decls(paramdecl));
+        vec_add_array(v, decls(paramdecl));
 
     for (int i = 0; i < vec_len(v); i++) {
         node_t *decl = (node_t *) vec_at(v, i);
@@ -1203,13 +1203,12 @@ static void oldstyle_decls(node_t *ftype)
         assert(SYM_NAME(sym));
         if (!isvardecl(decl)) {
             warning_at(AST_SRC(sym), "empty declaraion");
-        } else if (TYPE_PARAMS(ftype)) {
+        } else {
             node_t *p = NULL;
-            for (int i = 0; i < vec_len(TYPE_PARAMS(ftype)); i++) {
-                node_t *s = vec_at(TYPE_PARAMS(ftype), i);
-                if (SYM_NAME(s)
-                    && !strcmp(SYM_NAME(s),
-                               SYM_NAME(sym))) {
+            for (size_t i = 0; TYPE_PARAMS(ftype)[i]; i++) {
+                node_t *s = TYPE_PARAMS(ftype)[i];
+                if (SYM_NAME(s) &&
+                    !strcmp(SYM_NAME(s), SYM_NAME(sym))) {
                     p = s;
                     break;
                 }
@@ -1330,7 +1329,7 @@ static node_t *make_decl(struct token *id, node_t * ty, int sclass,
 ///   declarator
 ///   declarator '=' initializer
 ///
-static struct vector *decls(declfun_p * dcl)
+static node_t **decls(declfun_p * dcl)
 {
     struct vector *v = vec_new();
     node_t *basety;
@@ -1355,7 +1354,7 @@ static struct vector *decls(declfun_p * dcl)
             if (isfunc(ty) && (token->id == '{' ||
                                (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
                 vec_push(v, funcdef(id, ty, sclass, fspec));
-                return v;
+                return vtoa(v, PERM);
             } else {
                 exit_params();
             }
@@ -1406,7 +1405,7 @@ static struct vector *decls(declfun_p * dcl)
     }
     match(';', follow);
 
-    return v;
+    return vtoa(v, PERM);
 }
 
 node_t *make_localdecl(const char *name, node_t * ty, int sclass)
@@ -1435,7 +1434,7 @@ node_t *typename(void)
     return ty;
 }
 
-struct vector *declaration(void)
+node_t **declaration(void)
 {
     assert(SCOPE >= LOCAL);
     return decls(localdecl);
@@ -1453,7 +1452,7 @@ node_t *translation_unit(void)
     for (gettok(); token->id != EOI;) {
         if (first_decl(token)) {
             assert(SCOPE == GLOBAL);
-            vec_add(v, decls(globaldecl));
+            vec_add_array(v, decls(globaldecl));
         } else {
             if (token->id == ';')
                 // empty declaration
@@ -1463,7 +1462,7 @@ node_t *translation_unit(void)
         }
     }
 
-    DECL_EXTS(ret) = v;
+    DECL_EXTS(ret) = vtoa(v, PERM);
     return ret;
 }
 

@@ -59,7 +59,7 @@ struct ast_type {
     union {
         // function
         struct {
-            struct vector *params;
+            node_t **params;
             unsigned oldstyle:1;
             unsigned varg:1;
         } f;
@@ -67,7 +67,7 @@ struct ast_type {
         struct {
             const char *tag;
             node_t *tsym;
-            struct vector *fields;
+            node_t **fields;
         } s;
         // array
         struct {
@@ -133,7 +133,7 @@ struct ast_decl {
     struct ast_common common;
     node_t *sym;                // the symbol
     node_t *body;                // the initializer expr or func body
-    struct vector *exts;
+    node_t **exts;
     union x x;
 };
 
@@ -159,7 +159,7 @@ struct ast_expr {
     bool prefix;
     node_t *sym;
     node_t *operands[3];
-    struct vector *list;
+    node_t **list;
     union x x;
 };
 
@@ -207,7 +207,7 @@ struct ast_expr {
 struct ast_stmt {
     struct ast_common common;
     long index;
-    struct vector *blks;
+    node_t **blks;
     node_t *list[4];
     union x x;
 };

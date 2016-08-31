@@ -116,10 +116,10 @@ static void print_decl(node_t * node, struct print_context context)
     switch (AST_ID(node)) {
     case TU_DECL:
         {
-            struct vector *exts = DECL_EXTS(node);
+            node_t **exts = DECL_EXTS(node);
             if (exts) {
-                for (int i = 0; i < vec_len(exts); i++) {
-                    node_t *ext = vec_at(exts, i);
+                for (size_t i = 0; exts[i]; i++) {
+                    node_t *ext = exts[i];
                     struct print_context con = {level, ext};
                     print_tree1(con);
                 }
@@ -130,11 +130,13 @@ static void print_decl(node_t * node, struct print_context context)
     case UNION_DECL:
         {
             node_t *ty = SYM_TYPE(sym);
-            struct vector *fields = TYPE_FIELDS(ty);
-            for (int i = 0; i < vec_len(fields); i++) {
-                node_t *field = vec_at(fields, i);
-                struct print_context con = {level, field};
-                print_tree1(con);
+            node_t **fields = TYPE_FIELDS(ty);
+            if (fields) {
+                for (size_t i = 0; fields[i]; i++) {
+                    node_t *field = fields[i];
+                    struct print_context con = {level, field};
+                    print_tree1(con);
+                }
             }
         }
         break;
@@ -189,20 +191,22 @@ static void print_expr(node_t * node, struct print_context context)
             struct print_context con = { level, func };
             print_tree1(con);
         }
-        struct vector *args = EXPR_ARGS(node);
+        node_t **args = EXPR_ARGS(node);
         if (args) {
-            for (int i = 0; i < vec_len(args); i++) {
-                node_t *arg = vec_at(args, i);
+            for (size_t i = 0; args[i]; i++) {
+                node_t *arg = args[i];
                 struct print_context con = { level, arg };
                 print_tree1(con);
             }
         }
     } else if (AST_ID(node) == INITS_EXPR) {
-        struct vector *inits = EXPR_INITS(node);
-        for (int i = 0; i < vec_len(inits); i++) {
-            node_t *init = vec_at(inits, i);
-            struct print_context con = { level, init };
-            print_tree1(con);
+        node_t **inits = EXPR_INITS(node);
+        if (inits) {
+            for (size_t i = 0; inits[i]; i++) {
+                node_t *init = inits[i];
+                struct print_context con = { level, init };
+                print_tree1(con);
+            }
         }
     } else {
         if (EXPR_OPERAND(node, 0)) {
@@ -238,24 +242,26 @@ static void print_stmt(node_t * node, struct print_context context)
     switch (AST_ID(node)) {
     case COMPOUND_STMT:
         {
-            struct vector *blks = STMT_BLKS(node);
-            for (int i = 0; i < vec_len(blks); i++) {
-                node_t *blk = vec_at(blks, i);
-                struct print_context con = {level, blk};
-                print_tree1(con);
+            node_t **blks = STMT_BLKS(node);
+            if (blks) {
+                for (size_t i = 0; blks[i]; i++) {
+                    node_t *blk = blks[i];
+                    struct print_context con = {level, blk};
+                    print_tree1(con);
+                }
             }
         }
         break;
     case FOR_STMT:
         {
-            struct vector *decl = STMT_FOR_DECL(node);
+            node_t **decl = STMT_FOR_DECL(node);
             node_t *init = STMT_FOR_INIT(node);
             node_t *cond = STMT_FOR_COND(node);
             node_t *ctrl = STMT_FOR_CTRL(node);
             node_t *body = STMT_FOR_BODY(node);
             if (decl) {
-                for (int i=0; i < vec_len(decl); i++) {
-                    node_t *dcl = vec_at(decl, i);
+                for (size_t i = 0; decl[i]; i++) {
+                    node_t *dcl = decl[i];
                     struct print_context con = {level, dcl};
                     print_tree1(con);
                 }
@@ -858,12 +864,12 @@ static void dotype2s(struct vector *l, struct vector *r)
         break;
     case FUNCTION:
         {
-            struct vector *params = TYPE_PARAMS(s->type);
-            int len = vec_len(params);
+            node_t **params = TYPE_PARAMS(s->type);
+            size_t len = length(params);
             vec_push(r, paren(FSPACE, NULL));
             vec_push(r, paren(LPAREN, s->type));
-            for (int i = 0; i < len; i++) {
-                node_t *param = vec_at(params, i);
+            for (size_t i = 0; i < len; i++) {
+                node_t *param = params[i];
                 node_t *ty = SYM_TYPE(param);
                 struct vector *v = type2s1(ty);
                 vec_add(r, v);
@@ -1050,14 +1056,15 @@ static const char *expr2s(node_t * node)
     case CALL_EXPR:
         {
             const char *func = expr2s(l);
-            struct vector *args = EXPR_ARGS(node);
+            node_t **args = EXPR_ARGS(node);
+            size_t len = length(args);
             strbuf_cats(s, func);
             strbuf_cats(s, "(");
-            for (int i = 0; i < vec_len(args); i++) {
-                node_t *arg = vec_at(args, i);
+            for (size_t i = 0; i < len; i++) {
+                node_t *arg = args[i];
                 const char *s1 = expr2s(arg);
                 strbuf_cats(s, s1);
-                if (i != vec_len(args) - 1)
+                if (i != len - 1)
                     strbuf_cats(s, ", ");
             }
             strbuf_cats(s, ")");

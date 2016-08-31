@@ -2,7 +2,7 @@
 
 static node_t *statement(void);
 static node_t *compound_stmt(void (*) (void));
-static struct vector * filter_decls(struct vector *decls);
+static node_t **filter_decls(node_t **decls);
 static void warning_unused(void);
 
 static node_t *__loop;
@@ -279,7 +279,7 @@ static node_t *switch_stmt(void)
     if (NO_ERROR) {
         STMT_SWITCH_EXPR(ret) = expr;
         STMT_SWITCH_BODY(ret) = body;
-        STMT_SWITCH_CASES(ret) = CASES;
+        STMT_SWITCH_CASES(ret) = vtoa(CASES, PERM);
         STMT_SWITCH_DEFAULT(ret) = DEFLT;
     } else {
         ret = NULL;
@@ -596,13 +596,13 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token))
             // declaration
-            vec_add(v, filter_decls(declaration()));
+            vec_add_array(v, filter_decls(declaration()));
         else
             // statement
             vec_push_safe(v, statement());
     }
 
-    STMT_BLKS(ret) = v;
+    STMT_BLKS(ret) = vtoa(v, PERM);
 
     expect('}');
     exit_scope();
@@ -695,10 +695,10 @@ void func_body(node_t *decl)
     DECL_BODY(decl) = stmt;
 }
 
-static struct vector * filter_decls(struct vector *decls)
+static node_t **filter_decls(node_t **decls)
 {
-    for (int i = 0; i < vec_len(decls); i++) {
-        node_t *decl = vec_at(decls, i);
+    for (size_t i = 0; decls[i]; i++) {
+        node_t *decl = decls[i];
         node_t *sym = DECL_SYM(decl);
 
         if (!isvardecl(decl) || SYM_SCLASS(sym) == EXTERN)

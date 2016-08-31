@@ -113,8 +113,8 @@ static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
         if (isarray(ty)) {
             rty = rtype(ty);
         } else {
-            if (vec_len(TYPE_FIELDS(ty))) {
-                node_t *field = vec_head(TYPE_FIELDS(ty));
+            if (length(TYPE_FIELDS(ty))) {
+                node_t *field = TYPE_FIELDS(ty)[0];
                 rty = FIELD_TYPE(field);
             }
         }
@@ -129,7 +129,7 @@ static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
             else
                 vec_push_safe(v1, init_elem_conv(rty, node));
 
-            EXPR_INITS(n1) = v1;
+            EXPR_INITS(n1) = vtoa(v1, PERM);
         }
     }
 }
@@ -144,11 +144,11 @@ static void scalar_set(node_t * ty, struct vector *v, int i, node_t * node)
         warning_at(AST_SRC(node), INIT_OVERRIDE);
 
     if (AST_ID(node) == INITS_EXPR) {
-        struct vector *inits;
+        node_t **inits;
     loop:
         inits = EXPR_INITS(node);
-        if (vec_len(inits)) {
-            node = vec_head(inits);
+        if (length(inits)) {
+            node = inits[0];
             if (AST_ID(node) == INITS_EXPR)
                 goto loop;
             vec_set_safe(v, i, init_elem_conv(ty, node));
@@ -161,7 +161,7 @@ static void scalar_set(node_t * ty, struct vector *v, int i, node_t * node)
 static void struct_init(node_t * ty, bool brace, struct vector *v)
 {
     bool designated = false;
-    int len = vec_len(TYPE_FIELDS(ty));
+    int len = length(TYPE_FIELDS(ty));
 
     for (int i = 0;; i++) {
         node_t *fieldty = NULL;
@@ -188,7 +188,7 @@ static void struct_init(node_t * ty, bool brace, struct vector *v)
             break;
 
         if (!designated) {
-            node_t *field = vec_at(TYPE_FIELDS(ty), i);
+            node_t *field = TYPE_FIELDS(ty)[i];
             fieldty = FIELD_TYPE(field);
         }
         elem_init(ty, fieldty, designated, v, i);
@@ -316,7 +316,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
             node_t *n = find_elem(v, i);
             struct vector *v1 = vec_new();
             if (AST_ID(n) == INITS_EXPR) {
-                vec_add(v1, EXPR_INITS(n));
+                vec_add_array(v1, EXPR_INITS(n));
             } else if (AST_ID(n) == STRING_LITERAL) {
                 vec_push(v1, n);
             }
@@ -334,7 +334,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
                     n = ast_inits(ty, source);
                     vec_set(v, i, n);
                 }
-                EXPR_INITS(n) = v1;
+                EXPR_INITS(n) = vtoa(v1, PERM);
             }
         }
     } else {
@@ -414,7 +414,7 @@ node_t *initializer_list(node_t * ty)
     }
 
     match('}', follow);
-    EXPR_INITS(ret) = v;
+    EXPR_INITS(ret) = vtoa(v, PERM);
     return ret;
 }
 

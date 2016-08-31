@@ -23,7 +23,7 @@ static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty);
 static void emit_member_nonbitfield(node_t *n, node_t *field);
 static void emit_member_bitfield(node_t *n, node_t *field);
-static struct vector * filter_global(struct vector *v);
+static struct vector * filter_global(node_t **v);
 static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
                                 long offset, node_t *bfield, bool sty);
 static struct operand * emit_conv_tac(int op, struct operand *l,
@@ -596,12 +596,10 @@ static void emit_decl(node_t *decl)
     emit_assign(SYM_TYPE(sym), l, init, 0, NULL, false);
 }
 
-static void emit_decls(struct vector *decls)
+static void emit_decls(node_t **decls)
 {
-    for (int i = 0; i < vec_len(decls); i++) {
-        node_t *decl = vec_at(decls, i);
-        emit_decl(decl);
-    }
+    for (size_t i = 0; decls[i]; i++)
+        emit_decl(decls[i]);
 }
 
 // int
@@ -913,12 +911,12 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
     assert(AST_ID(r) == INITS_EXPR);
 
     if (isstruct(ty) || isunion(ty)) {
-        struct vector *inits = EXPR_INITS(r);
-        struct vector *fields = TYPE_FIELDS(ty);
-        size_t ninits = vec_len(inits);
+        node_t **inits = EXPR_INITS(r);
+        node_t **fields = TYPE_FIELDS(ty);
+        size_t ninits = length(inits);
         for (int i = 0; i < ninits; i++) {
-            node_t *init = vec_at(inits, i);
-            node_t *field = vec_at(fields, i);
+            node_t *init = inits[i];
+            node_t *field = fields[i];
             node_t *rty = FIELD_TYPE(field);
             long off = offset + FIELD_OFFSET(field);
             if (FIELD_ISBIT(field)) {
@@ -933,9 +931,9 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
                     emit_assign(rty, l, init, off, NULL, sty);
             }
         }
-        size_t nfields = isstruct(ty) ? vec_len(fields) : 1;
+        size_t nfields = isstruct(ty) ? length(fields) : 1;
         if (ninits < nfields) {
-            node_t *field = vec_at(fields, ninits);
+            node_t *field = fields[ninits];
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
             // as integer
@@ -943,17 +941,18 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
         }
     } else if (isarray(ty)) {
         node_t *rty = rtype(ty);
-        struct vector *inits = EXPR_INITS(r);
-        for (int i = 0; i < vec_len(inits); i++) {
-            node_t *init = vec_at(inits, i);
+        node_t **inits = EXPR_INITS(r);
+        size_t ninits = length(inits);
+        for (int i = 0; i < ninits; i++) {
+            node_t *init = inits[i];
             long off = offset + i * TYPE_SIZE(rty);
             if (AST_ID(init) == VINIT_EXPR)
                 emit_zeros(rty, l, off, TYPE_SIZE(rty));
             else
                 emit_assign(rty, l, init, off, NULL, sty);
         }
-        if (vec_len(inits) < TYPE_LEN(ty)) {
-            long off = offset + vec_len(inits) * TYPE_SIZE(rty);
+        if (ninits < TYPE_LEN(ty)) {
+            long off = offset + ninits * TYPE_SIZE(rty);
             size_t bytes = TYPE_SIZE(ty) - off;
             emit_zeros(rty, l, off, bytes);
         }
@@ -1513,14 +1512,14 @@ static void emit_subscript(node_t *n)
 static void emit_call(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    struct vector *args = EXPR_ARGS(n);
-    int len = vec_len(args);
+    node_t **args = EXPR_ARGS(n);
+    size_t len = length(args);
     node_t *rty = AST_TYPE(n);
 
     emit_expr(l);
 
     for (size_t i = 0; i < len; i++) {
-        node_t *arg = vec_at(args, i);
+        node_t *arg = args[i];
         emit_expr(arg);
         // update
         node_t *ty = AST_TYPE(arg);
@@ -1542,7 +1541,7 @@ static void emit_call(node_t *n)
 
     // parameters
     for (size_t i = 0; i < len; i++) {
-        node_t *arg = vec_at(args, i);
+        node_t *arg = args[i];
         emit_param(EXPR_X_ADDR(arg));
     }
     
@@ -2011,9 +2010,9 @@ static void emit_bool_expr(node_t *n)
 
 static void emit_compound_stmt(node_t *stmt)
 {
-    struct vector *blks = STMT_BLKS(stmt);
-    for (int i = 0; i < vec_len(blks); i++) {
-        node_t *node = vec_at(blks, i);
+    node_t **blks = STMT_BLKS(stmt);
+    for (size_t i = 0; blks[i]; i++) {
+        node_t *node = blks[i];
         if (isdecl(node)) {
             emit_decl(node);
         } else if (isstmt(node)) {
@@ -2093,7 +2092,7 @@ static void emit_do_while_stmt(node_t *stmt)
 
 static void emit_for_stmt(node_t *stmt)
 {
-    struct vector *decl = STMT_FOR_DECL(stmt);
+    node_t **decl = STMT_FOR_DECL(stmt);
     node_t *init = STMT_FOR_INIT(stmt);
     node_t *cond = STMT_FOR_COND(stmt);
     node_t *ctrl = STMT_FOR_CTRL(stmt);
@@ -2151,12 +2150,12 @@ static void emit_switch_stmt(node_t *stmt)
 {
     node_t *expr = STMT_SWITCH_EXPR(stmt);
     node_t *body = STMT_SWITCH_BODY(stmt);
-    struct vector *cases = STMT_SWITCH_CASES(stmt);
+    node_t **cases = STMT_SWITCH_CASES(stmt);
 
     emit_expr(expr);
     
-    for (int i = 0; i < vec_len(cases); i++) {
-        node_t *case_stmt = vec_at(cases, i);
+    for (size_t i = 0; cases[i]; i++) {
+        node_t *case_stmt = cases[i];
         emit_switch_jmp(expr, case_stmt);
     }
 
@@ -2387,12 +2386,12 @@ static const char *glabel(const char *label)
         return label;
 }
 
-static struct vector * filter_global(struct vector *v)
+static struct vector * filter_global(node_t **v)
 {
     struct vector *r = vec_new();
     struct map *map = map_newf(NULL);
-    for (int i = 0; i < vec_len(v); i++) {
-        node_t *decl = vec_at(v, i);
+    for (size_t i = 0; v[i]; i++) {
+        node_t *decl = v[i];
         node_t *sym = DECL_SYM(decl);
 
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
@@ -2554,19 +2553,20 @@ static void emit_struct_initializer(node_t *n)
 {
     assert(AST_ID(n) == INITS_EXPR);
     node_t *ty = AST_TYPE(n);
-    struct vector *fields = TYPE_FIELDS(ty);
-    struct vector *inits = EXPR_INITS(n);
-    for (int i = 0; i < vec_len(inits); i++) {
-        node_t *init = vec_at(inits, i);
-        node_t *field = vec_at(fields, i);
+    node_t **fields = TYPE_FIELDS(ty);
+    node_t **inits = EXPR_INITS(n);
+    size_t ninits = length(inits);
+    for (int i = 0; i < ninits; i++) {
+        node_t *init = inits[i];
+        node_t *field = fields[i];
         size_t offset = FIELD_OFFSET(field);
         if (FIELD_ISBIT(field)) {
             if (FIELD_BITSIZE(field)) {
                 int old_bits = 0;
                 unsigned long long old_byte = 0;
-                for (; i < vec_len(inits); i++) {
-                    field = vec_at(fields, i);
-                    init = vec_at(inits, i);
+                for (; i < ninits; i++) {
+                    field = fields[i];
+                    init = inits[i];
                     int bits = FIELD_BITSIZE(field);
                     unsigned long long byte = 0;
                     if (isiliteral(init))
@@ -2587,7 +2587,7 @@ static void emit_struct_initializer(node_t *n)
                     old_bits += bits;
                     old_byte += byte;
                     // next
-                    node_t *next = i < vec_len(inits) - 1 ? vec_at(fields, i+1) : NULL;
+                    node_t *next = i < ninits - 1 ? fields[i+1] : NULL;
                     if (next && FIELD_OFFSET(field) != FIELD_OFFSET(next))
                         break;
                 }
@@ -2609,7 +2609,7 @@ static void emit_struct_initializer(node_t *n)
             }
         }
         // pack
-        node_t *next = i < vec_len(inits) - 1 ? vec_at(fields, i+1) : NULL;
+        node_t *next = i < ninits - 1 ? fields[i+1] : NULL;
         size_t end = next ? FIELD_OFFSET(next) : TYPE_SIZE(ty);
         if (end - offset)
             emit_zero(end - offset);
@@ -2630,8 +2630,8 @@ static void emit_array_initializer(node_t *n)
         assert(AST_ID(n) == INITS_EXPR);
         node_t *rty = rtype(AST_TYPE(n));
         int i;
-        for (i = 0; i < vec_len(EXPR_INITS(n)); i++) {
-            node_t *init = vec_at(EXPR_INITS(n), i);
+        for (i = 0; EXPR_INITS(n)[i]; i++) {
+            node_t *init = EXPR_INITS(n)[i];
             if (AST_ID(init) == VINIT_EXPR)
                 emit_zero(TYPE_SIZE(rty));
             else

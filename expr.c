@@ -903,22 +903,21 @@ node_t *new_string_literal(const char *string)
     return expr;
 }
 
-static void argcast1(node_t * fty, struct vector * args, struct vector *v)
+static struct vector *argcast1(node_t **params, size_t nparams,
+                               node_t **args, size_t nargs,
+                               bool oldstyle)
 {
-    struct vector *params = TYPE_PARAMS(fty);
-    int len1 = vec_len(params);
-    int len2 = vec_len(args);
-    bool oldstyle = TYPE_OLDSTYLE(fty);
-    int cmp1;
+    struct vector *v = vec_new();
+    size_t cmp1;
 
     if (oldstyle)
-        cmp1 = MIN(len1, len2);
+        cmp1 = MIN(nparams, nargs);
     else
-        cmp1 = len1;
+        cmp1 = nparams;
 
-    for (int i = 0; i < cmp1; i++) {
-        node_t *param = vec_at(params, i);
-        node_t *arg = vec_at(args, i);
+    for (size_t i = 0; i < cmp1; i++) {
+        node_t *param = params[i];
+        node_t *arg = args[i];
         node_t *dst = SYM_TYPE(param);
         node_t *src = AST_TYPE(arg);
         node_t *ret = assignconv(dst, arg);
@@ -931,13 +930,15 @@ static void argcast1(node_t * fty, struct vector * args, struct vector *v)
                 error(INCOMPATIBLE_TYPES, type2s(src), type2s(dst));
         }
     }
-    for (int i = cmp1; i < len2; i++) {
-        node_t *arg = vec_at(args, i);
+    for (size_t i = cmp1; i < nargs; i++) {
+        node_t *arg = args[i];
         vec_push(v, conva(arg));
     }
+
+    return v;
 }
 
-static struct vector *argscast(node_t * fty, struct vector * args)
+static node_t **argscast(node_t *fty, node_t **args)
 {
     struct vector *v = vec_new();
     assert(isfunc(fty));
@@ -951,15 +952,16 @@ static struct vector *argscast(node_t * fty, struct vector * args)
      * 5. no function declaration/definition found
      */
 
-    struct vector *params = TYPE_PARAMS(fty);
-    int len1 = vec_len(params);
-    int len2 = vec_len(args);
+    node_t **params = TYPE_PARAMS(fty);
+    size_t len1 = length(params);
+    size_t len2 = length(args);
+    bool oldstyle = TYPE_OLDSTYLE(fty);
 
-    if (TYPE_OLDSTYLE(fty)) {
+    if (oldstyle) {
         if (len1 > len2)
             warning("too few arguments to function call");
 
-        argcast1(fty, args, v);
+        v = argcast1(params, len1, args, len2, oldstyle);
     } else {
         if (len1 == 0) {
             if (len2 > 0) {
@@ -967,7 +969,7 @@ static struct vector *argscast(node_t * fty, struct vector * args)
                       len1, len2);
                 return NULL;
             }
-            return v;
+            return vtoa(v, PERM);
         }
 
         bool vargs = TYPE_VARG(fty);
@@ -979,7 +981,7 @@ static struct vector *argscast(node_t * fty, struct vector * args)
                 return NULL;
             }
             SAVE_ERRORS;
-            argcast1(fty, args, v);
+            v = argcast1(params, len1, args, len2, oldstyle);
             if (HAS_ERROR)
                 return NULL;
         } else {
@@ -992,7 +994,7 @@ static struct vector *argscast(node_t * fty, struct vector * args)
             return NULL;
         }
     }
-    return v;
+    return vtoa(v, PERM);
 }
 
 static node_t *compound_literal(node_t * ty)
@@ -1132,24 +1134,23 @@ static node_t *subscript(node_t * node)
 ///   assignment-expression
 ///   argument-expression-list ',' assignment-expression
 ///
-static struct vector *argument_expr_list(void)
+static node_t **argument_expr_list(void)
 {
-    struct vector *args = NULL;
+    struct vector *v = NULL;
 
     if (first_expr(token)) {
-        struct vector *v = vec_new();
+        v = vec_new();
         for (;;) {
             vec_push_safe(v, assign_expr());
             if (token->id != ',')
                 break;
             expect(',');
         }
-        args = v;
     } else if (token->id != ')') {
         error("expect assignment expression");
     }
 
-    return args;
+    return vtoa(v, PERM);
 }
 
 static node_t *flatten_call(node_t *node)
@@ -1174,8 +1175,8 @@ static void builtin_funcall(node_t *call, node_t *ref)
     const char *fname = SYM_NAME(EXPR_SYM(ref));
     if (!strcmp(fname, BUILTIN_VA_ARG_P)) {
         // __builtin_va_arg_p
-        struct vector *args = EXPR_ARGS(call);
-        node_t *arg1 = vec_at(args, 1);
+        node_t **args = EXPR_ARGS(call);
+        node_t *arg1 = args[1];
         assert(isptr(AST_TYPE(arg1)));
         node_t *ty = rtype(AST_TYPE(arg1));
         // save the type
@@ -1190,17 +1191,17 @@ static void builtin_funcall(node_t *call, node_t *ref)
             EXPR_SYM(operand) = sym;
             SYM_REFS(sym)++;
             // update arg1
-            vec_set(args, 1, ast_uop('&', ptr_type(ty), operand));
+            args[1] = ast_uop('&', ptr_type(ty), operand);
         } else {
             // update arg1 to NULL
-            vec_set(args, 1, NULL);
+            args[1] = NULL;
         }
     }
 }
 
 static node_t *funcall(node_t * node)
 {
-    struct vector *args;
+    node_t **args;
     node_t *ret = NULL;
     struct source src = source;
     
@@ -1213,10 +1214,9 @@ static node_t *funcall(node_t * node)
 
     if (isptrto(AST_TYPE(node), FUNCTION)) {
         node_t *fty = rtype(AST_TYPE(node));
-        struct vector *v;
-        if ((v = argscast(fty, args))) {
+        if ((args = argscast(fty, args))) {
             ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
-            EXPR_ARGS(ret) = v;
+            EXPR_ARGS(ret) = args;
             AST_SRC(ret) = src;
             vec_push(funcalls, ret);
             // handle builtin calls

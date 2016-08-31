@@ -89,8 +89,8 @@ struct pinfo {
     struct vector *pnodes;      // param nodes
     struct paddr *retaddr;      // return addr
 };
-static struct pinfo * alloc_addr_for_funcall(node_t *ftype, struct vector *params);
-static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, struct vector *params);
+static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params);
+static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params);
 
 #define COMMENT(str)    "\t\t## " str
 #define COMMENT1(str)   "## " str
@@ -717,10 +717,10 @@ static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct oper
 static void emit_nonbuiltin_call(struct tac *tac)
 {
     node_t *call = tac->call;
-    struct vector *args = EXPR_ARGS(call);
+    node_t **args = EXPR_ARGS(call);
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
-    size_t len = vec_len(args);
+    size_t len = length(args);
     node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
     struct vector *params = vec_new();
     struct tac *t = tac->prev;
@@ -793,8 +793,8 @@ static void emit_nonbuiltin_call(struct tac *tac)
 static void emit_builtin_va_start(struct tac *tac)
 {
     node_t *call = tac->call;
-    struct vector *args = EXPR_ARGS(call);
-    node_t *arg0 = vec_head(args);
+    node_t **args = EXPR_ARGS(call);
+    node_t *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct pinfo *pinfo = fcon.pinfo;
     unsigned int gp_offset = pinfo->gp << 3;
@@ -843,8 +843,8 @@ static void emit_builtin_va_start(struct tac *tac)
 static void emit_builtin_va_arg_p_memory(struct tac *tac)
 {
     node_t *call = tac->call;
-    struct vector *args = EXPR_ARGS(call);
-    node_t *arg0 = vec_head(args);
+    node_t **args = EXPR_ARGS(call);
+    node_t *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
@@ -910,8 +910,8 @@ static void emit_builtin_va_arg_p_memory(struct tac *tac)
 static void emit_builtin_va_arg_p_record(struct tac *tac)
 {
     node_t *call = tac->call;
-    struct vector *args = EXPR_ARGS(call);
-    node_t *arg0 = vec_head(args);
+    node_t **args = EXPR_ARGS(call);
+    node_t *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
@@ -930,7 +930,7 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
     const char *out_label = gen_label();
 
     // struct/union
-    node_t *arg1 = vec_at(args, 1);
+    node_t *arg1 = args[1];
     struct operand *r = EXPR_X_ADDR(arg1);
     struct set *excepts1 = operand_regs(l);
     struct set *excepts2 = operand_regs(r);
@@ -1085,8 +1085,8 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
 static void emit_builtin_va_arg_p_scalar(struct tac *tac)
 {
     node_t *call = tac->call;
-    struct vector *args = EXPR_ARGS(call);
-    node_t *arg0 = vec_head(args);
+    node_t **args = EXPR_ARGS(call);
+    node_t *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     node_t *ty = EXPR_VA_ARG_TYPE(call);
@@ -2590,7 +2590,7 @@ static void emit_text(struct section *section)
     node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
-    struct vector *params = TYPE_PARAMS(ftype);
+    node_t **params = TYPE_PARAMS(ftype);
     
     // reset registers
     reset_regs();
@@ -3378,8 +3378,8 @@ static struct vector * get_types_for_union(node_t *ty, size_t offset)
 {
     size_t cnt = ROUNDUP(TYPE_SIZE(ty), 8) >> 3;
     struct vector *v1 = vec_new();
-    for (int i = 0; i < vec_len(TYPE_FIELDS(ty)); i++) {
-        node_t *field = vec_at(TYPE_FIELDS(ty), i);
+    for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
+        node_t *field = TYPE_FIELDS(ty)[i];
         node_t *fty = FIELD_TYPE(field);
         struct vector *v2 = get_types(fty, offset);
         struct vector *v3 = get_elements(v2);
@@ -3400,8 +3400,8 @@ static struct vector * get_types_for_union(node_t *ty, size_t offset)
 static struct vector * get_types_for_struct(node_t *ty, size_t offset)
 {
     struct vector *v = vec_new();
-    for (int i = 0; i < vec_len(TYPE_FIELDS(ty)); i++) {
-        node_t *field = vec_at(TYPE_FIELDS(ty), i);
+    for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
+        node_t *field = TYPE_FIELDS(ty)[i];
         node_t *fty = FIELD_TYPE(field);
         size_t off = offset + FIELD_OFFSET(field);
         if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
@@ -3527,7 +3527,7 @@ static void traverse_classes(struct vector *classes,
 }
 
 // params: list of symbols or expressions, may be NULL
-static struct pinfo * alloc_addr_for_params(node_t *ftype, struct vector *params, bool call)
+static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool call)
 {
     int gp = 0;
     int fp = 0;
@@ -3569,8 +3569,8 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, struct vector *params
         }
     }
     
-    for (int i = 0; i < vec_len(params); i++) {
-        node_t *param = vec_at(params, i);
+    for (int i = 0; params[i]; i++) {
+        node_t *param = params[i];
         struct pnode *pnode = new_pnode(param);
         vec_push(pnodes, pnode);
         
@@ -3621,12 +3621,12 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, struct vector *params
     return pinfo;
 }
 
-static struct pinfo * alloc_addr_for_funcall(node_t *ftype, struct vector *params)
+static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params)
 {
     return alloc_addr_for_params(ftype, params, true);
 }
 
-static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, struct vector *params)
+static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params)
 {
     return alloc_addr_for_params(ftype, params, false);
 }

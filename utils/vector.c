@@ -171,26 +171,26 @@ struct vector *vec_sort(struct vector *v, int (*sort) (const void *val1, const v
 }
 
 // Add elements to vector from a null-terminated array
-void vec_add_array(struct vector *v, void **array)
+void vec_add_array(struct vector *v, void *array)
 {
     if (array == NULL)
         return;
-    for (int i = 0; array[i]; i++)
-        vec_push(v, array[i]);
+    void **a = (void **)array;
+    for (int i = 0; a[i]; i++)
+        vec_push(v, a[i]);
 }
 
-void *vtoa(struct vector **v, unsigned int area)
+void *vtoa(struct vector *v, unsigned int area)
 {
     int i = 0;
-    size_t len = vec_len(*v);
+    size_t len = vec_len(v);
     void **array = newarray(sizeof(array[0]), len + 1, area);
 
-    if (*v) {
+    if (v) {
         for (; i < len; i++)
-            array[i] = vec_at(*v, i);
+            array[i] = vec_at(v, i);
     }
 
-    *v = NULL;
     array[i] = NULL;
     return array;
 }
