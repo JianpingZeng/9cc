@@ -379,7 +379,6 @@ static void exit_params(void)
 static struct vector *prototype(node_t *ftype)
 {
     struct vector *v = vec_new();
-    TYPE_OLDSTYLE(ftype) = 0;
     bool first_void = false;
     
     for (int i = 0;; i++) {
@@ -426,7 +425,6 @@ static struct vector *prototype(node_t *ftype)
 static struct vector *oldstyle(node_t *ftype)
 {
     struct vector *v = vec_new();
-    TYPE_OLDSTYLE(ftype) = 1;
     
     for (;;) {
         if (token->id == ID)
@@ -448,9 +446,11 @@ static node_t **parameters(node_t * ftype, int *params)
 
     if (first_decl(token)) {
         // prototype
+        TYPE_OLDSTYLE(ftype) = 0;
         ret = prototype(ftype);
     } else if (token->id == ID) {
         // oldstyle
+        TYPE_OLDSTYLE(ftype) = 1;
         ret = oldstyle(ftype);
     } else if (token->id == ')') {
         TYPE_OLDSTYLE(ftype) = 1;
