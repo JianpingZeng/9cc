@@ -1031,6 +1031,12 @@ static node_t *cast_type(void)
     return ty;
 }
 
+/// primary-expression:
+///   identifier
+///   constant
+///   string-literal
+///   '(' expression ')'
+///
 static node_t *primary_expr(void)
 {
     int t = token->id;
@@ -1122,6 +1128,10 @@ static node_t *subscript(node_t * node)
     return ret;
 }
 
+/// argument-expression-list:
+///   assignment-expression
+///   argument-expression-list ',' assignment-expression
+///
 static struct vector *argument_expr_list(void)
 {
     struct vector *args = NULL;
@@ -1332,6 +1342,17 @@ static node_t *postfix_expr1(node_t * ret)
     return ret;
 }
 
+/// postfix-expression:
+///   primary-expression
+///   postfix-expression '[' expression ']'
+///   postfix-expression '(' argument-expression-list[opt] ')'
+///   postfix-expression '.' identifier
+///   postfix-expression '->' identifier
+///   postfix-expression '++'
+///   postfix-expression '--'
+///   '(' type-name ')' '{' initializer-list '}'
+///   '(' type-name ')' '{' initializer-list ',' '}'
+///
 static node_t *postfix_expr(void)
 {
     node_t *expr = primary_expr();
@@ -1520,6 +1541,17 @@ static node_t *indirection(void)
     return ret;
 }
 
+/// unary-expression:
+///   postfix-expression
+///   '++' unary-expression
+///   '--' unary-expression
+///   unary-operator cast-expression
+///   'sizeof' unary-expression
+///   'sizeof' '(' type-name ')'
+///
+/// unary-operator:
+///   '&' '*' '+' '-' '~' '!'
+///
 static node_t *unary_expr(void)
 {
     switch (token->id) {
@@ -1544,6 +1576,10 @@ static node_t *unary_expr(void)
     }
 }
 
+/// cast-expression:
+///   unary-expression
+///   '(' type-name ')' cast-expression
+///
 static node_t *cast_expr(void)
 {
     struct token *ahead = lookahead();
@@ -1576,6 +1612,12 @@ static node_t *cast_expr(void)
     return unary_expr();
 }
 
+/// multiplicative-expression:
+///   cast-expression
+///   multiplicative-expression '*' cast-expression
+///   multiplicative-expression '/' cast-expression
+///   multiplicative-expression '%' cast-expression
+///
 static node_t *multiple_expr(void)
 {
     node_t *mulp1;
@@ -1592,6 +1634,11 @@ static node_t *multiple_expr(void)
     return mulp1;
 }
 
+/// additive-expression:
+///   multiplicative-expression
+///   additive-expression '+' multiplicative-expression
+///   additive-expression '-' multiplicative-expression
+///
 static node_t *additive_expr(void)
 {
     node_t *add1;
@@ -1608,6 +1655,11 @@ static node_t *additive_expr(void)
     return add1;
 }
 
+/// shift-expression:
+///   additive-expression
+///   shift-expression '<<' additive-expression
+///   shift-expression '>>' additive-expression
+///
 static node_t *shift_expr(void)
 {
     node_t *shift1;
@@ -1624,6 +1676,13 @@ static node_t *shift_expr(void)
     return shift1;
 }
 
+/// relational-expression:
+///   shift-expression
+///   relational-expression '<' shift-expression
+///   relational-expression '>' shift-expression
+///   relational-expression '<=' shift-expression
+///   relational-expression '>=' shift-expression
+///
 static node_t *relation_expr(void)
 {
     node_t *rel;
@@ -1641,6 +1700,11 @@ static node_t *relation_expr(void)
     return rel;
 }
 
+/// equality-expression:
+///   relational-expression
+///   equality-expression '==' relational-expression
+///   equality-expression '!=' relational-expression
+///
 static node_t *equality_expr(void)
 {
     node_t *equl;
@@ -1657,6 +1721,10 @@ static node_t *equality_expr(void)
     return equl;
 }
 
+/// AND-expression:
+///   equality-expression
+///   AND-expression '&' equality-expression
+///
 static node_t *and_expr(void)
 {
     node_t *and1;
@@ -1672,6 +1740,10 @@ static node_t *and_expr(void)
     return and1;
 }
 
+/// exclusive-OR-expression:
+///   AND-expression
+///   exclusive-OR-expression '^' AND-expression
+///
 static node_t *exclusive_or(void)
 {
     node_t *eor;
@@ -1687,6 +1759,10 @@ static node_t *exclusive_or(void)
     return eor;
 }
 
+/// inclusive-OR-expression:
+///   exclusive-OR-expression
+///   inclusive-OR-expression '|' exclusive-OR-expression
+///
 static node_t *inclusive_or(void)
 {
     node_t *ior;
@@ -1702,6 +1778,10 @@ static node_t *inclusive_or(void)
     return ior;
 }
 
+/// logical-AND-expression:
+///   inclusive-OR-expression
+///   logical-AND-expression '&&' inclusive-OR-expression
+///
 static node_t *logic_and(void)
 {
     node_t *and1;
@@ -1717,6 +1797,10 @@ static node_t *logic_and(void)
     return and1;
 }
 
+/// logical-OR-expression:
+///   logical-AND-expression
+///   logical-OR-expression '||' logical-AND-expression
+///
 static node_t *logic_or(void)
 {
     node_t *or1;
@@ -1817,6 +1901,10 @@ static node_t *cond_expr1(node_t * cond)
     return ret;
 }
 
+/// conditional-expression:
+///   logical-OR-expression
+///   logical-OR-expression '?' expression ':' conditional-expression
+///
 static node_t *cond_expr(void)
 {
     node_t *or1 = logic_or();
@@ -1825,6 +1913,13 @@ static node_t *cond_expr(void)
     return or1;
 }
 
+/// assignment-expression:
+///   conditional-expression
+///   unary-expression assignment-operator assignment-expression
+///
+/// assignment-operator:
+///   '=' '*=' '/=' '%=' '+=' '-=' '<<=' '>>=' '&=' '^=' '|='
+///
 node_t *assign_expr(void)
 {
     node_t *or1 = logic_or();
@@ -1838,6 +1933,10 @@ node_t *assign_expr(void)
     return or1;
 }
 
+/// expression:
+///   assignment-expression
+///   expression ',' assignment-expression
+///
 node_t *expression(void)
 {
     node_t *assign1;
@@ -2123,6 +2222,9 @@ long intexpr1(node_t * ty)
     return ILITERAL_VALUE(cnst);
 }
 
+/// constant-expression:
+///   conditional-expression
+///
 long intexpr(void)
 {
     return intexpr1(NULL);
