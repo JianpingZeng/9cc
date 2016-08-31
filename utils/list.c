@@ -21,6 +21,22 @@ struct list *list_append(struct list *list, void *x)
     return new;
 }
 
+struct list *list_concat(struct list *list1, struct list *list2)
+{
+    struct list *p;
+
+    if (!list1)
+        return list2;
+    if (!list2)
+        return list1;
+
+    p = list2->link;
+    list2->link = list1->link;
+    list1->link = p;
+
+    return list2;
+}
+
 size_t list_length(struct list *list)
 {
     size_t n = 0;
