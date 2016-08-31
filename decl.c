@@ -356,19 +356,6 @@ static void array_qualifiers(node_t * atype)
         TYPE_A_RESTRICT(atype) = 1;
 }
 
-static void enter_params(void)
-{
-    /**
-     * To make it easy to distinguish between 'paramaters in parameter'
-     * and 'compound statement of function definition', they both may be
-     * at scope LOCAL (aka PARAM+1), so enter scope again to make things
-     * easy.
-     */
-    enter_scope();
-    if (SCOPE > PARAM)
-        enter_scope();
-}
-
 static void exit_params(void)
 {
     if (SCOPE > PARAM)
@@ -459,8 +446,6 @@ static struct vector *parameters(node_t * ftype, int *params)
 {
     struct vector *ret = NULL;
 
-    enter_params();
-
     if (first_decl(token)) {
         // prototype
         ret = prototype(ftype);
@@ -477,11 +462,6 @@ static struct vector *parameters(node_t * ftype, int *params)
             error("expect parameter declarator at '%s'", tok2s(token));
         gettok();
     }
-
-    if (params && *params == 0)
-        *params = 1;
-    else
-        exit_params();
 
     return ret;
 }
@@ -580,7 +560,20 @@ static node_t *func_or_array(bool abstract, int *params)
         } else {
             node_t *ftype = func_type();
             expect('(');
+            /**
+             * To make it easy to distinguish between 'paramaters in parameter'
+             * and 'compound statement of function definition', they both may be
+             * at scope LOCAL (aka PARAM+1), so enter scope again to make things
+             * easy.
+             */
+            enter_scope();
+            if (SCOPE > PARAM)
+                enter_scope();
             TYPE_PARAMS(ftype) = parameters(ftype, params);
+            if (params && *params == 0)
+                *params = 1;
+            else
+                exit_params();
             match(')', follow);
             attach_type(&ty, ftype);
         }
