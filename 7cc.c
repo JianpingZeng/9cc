@@ -153,7 +153,7 @@ static const char *tempname(const char *dir, const char *hint)
 static char **compose(char *argv[], struct vector *ifiles, const char *ofile,
                       struct vector *options)
 {
-    size_t argc = LIST_LEN(argv);
+    size_t argc = length(argv);
     size_t ac = argc + vec_len(ifiles) + vec_len(options);
     char **av = xmalloc(ac * sizeof(char *));
     int j = 0;

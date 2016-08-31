@@ -51,7 +51,7 @@ size_t list_length(struct list *list)
     return n;
 }
 
-void *ltov(struct list **list, unsigned int area)
+void *ltoa(struct list **list, unsigned int area)
 {
     int i = 0;
     void **array = newarray(sizeof(array[0]), list_length(*list) + 1, area);

@@ -91,3 +91,14 @@ int log2i(size_t i)
         return i >> 1 ? -1 : r;
     }
 }
+
+size_t length(void *array)
+{
+    size_t i = 0;
+    void **a = (void **)array;
+    if (array == NULL)
+        return 0;
+    while (a[i])
+        i++;
+    return i;
+}

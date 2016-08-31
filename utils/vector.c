@@ -179,23 +179,18 @@ void vec_add_array(struct vector *v, void **array)
         vec_push(v, array[i]);
 }
 
-void **vtoa(struct vector *v)
+void *vtoa(struct vector **v, unsigned int area)
 {
-    void **array = NULL;
-    int vlen = vec_len(v);
-    if (vlen > 0) {
-        array = zmalloc((vlen + 1) * sizeof(void *));
-        memcpy(array, v->mem, vlen * sizeof(void *));
-    }
-    return array;
-}
+    int i = 0;
+    size_t len = vec_len(*v);
+    void **array = newarray(sizeof(array[0]), len + 1, area);
 
-size_t array_len(void **array)
-{
-    size_t i = 0;
-    if (array == NULL)
-        return 0;
-    while (array[i])
-        i++;
-    return i;
+    if (*v) {
+        for (; i < len; i++)
+            array[i] = vec_at(*v, i);
+    }
+
+    *v = NULL;
+    array[i] = NULL;
+    return array;
 }
