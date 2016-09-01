@@ -191,13 +191,6 @@ struct token *new_token(struct token *tok)
     return t;
 }
 
-struct ident *new_ident(struct file *pfile, const char *name)
-{
-    const unsigned char *str = (const unsigned char *)name;
-    size_t len = strlen(name);
-    return imap_lookup(pfile->imap, str, len, IMAP_CREATE);
-}
-
 static void line_comment(struct file *pfile)
 {
     struct buffer *pb = pfile->buffer;

@@ -237,7 +237,6 @@ struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count);
 extern struct token *lex(struct file *pfile);
 extern struct token *header_name(struct file *pfile);
 extern struct token *new_token(struct token *tok);
-extern struct ident *new_ident(struct file *pfile, const char *name);
 extern void skip_ifstack(struct file *pfile);
 extern const char *id2s(int t);
 extern const char *tok2s(struct token *t);
