@@ -1077,6 +1077,7 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
     SYM_TYPE(sym) = ty;
     AST_SRC(sym) = src;
     SYM_SCLASS(sym) = sclass;
+    SYM_DEFINED(sym) = true;
 
     return sym;
 }

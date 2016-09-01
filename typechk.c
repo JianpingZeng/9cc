@@ -210,7 +210,6 @@ void ensure_params(node_t *ftype)
     for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
         node_t *sym = TYPE_PARAMS(ftype)[i];
         node_t *ty = SYM_TYPE(sym);
-        SYM_DEFINED(sym) = true;
         // params id is required in prototype
         if (is_anonymous(SYM_NAME(sym)))
             error_at(AST_SRC(sym), "parameter name omitted");
