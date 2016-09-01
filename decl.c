@@ -1049,11 +1049,9 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
         if (prototype) {
             if (first) {
                 if (id)
-                    error_at(src,
-                             "argument may not have 'void' type");
+                    error_at(src, "argument may not have 'void' type");
                 else if (isqual(ty))
-                    error_at(src,
-                             "'void' as parameter must not have type qualifiers");
+                    error_at(src, "'void' as parameter must not have type qualifiers");
             }
         } else {
             error_at(src, "argument may not have 'void' type");
@@ -1061,8 +1059,7 @@ static node_t *paramdecl(struct token *t, node_t * ty, int sclass,
     }
 
     if (prototype && fvoid && !first)
-        error_at(src,
-                 "'void' must be the first and only parameter if specified");
+        error_at(src, "'void' must be the first and only parameter if specified");
 
     // check inline after conversion (decay)
     ensure_inline(ty, fspec, src);
@@ -1171,13 +1168,11 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
     } else if (eqtype(ty, SYM_TYPE(sym))) {
         if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
             error_at(src,
-                     "static declaration of '%s' follows "
-                     "non-static declaration",
+                     "static declaration of '%s' follows non-static declaration",
                      id);
         else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
             error_at(src,
-                     "non-static declaration of '%s' follows "
-                     "static declaration",
+                     "non-static declaration of '%s' follows static declaration",
                      id);
         if (sclass != EXTERN)
             SYM_SCLASS(sym) = sclass;
@@ -1195,7 +1190,7 @@ static node_t *globaldecl(struct token *t, node_t * ty, int sclass,
 static void oldstyle_decls(node_t *ftype)
 {
     struct vector *v = vec_new();
-    enter_scope();
+    
     while (first_decl(token))
         vec_add_array(v, decls(paramdecl));
 
@@ -1226,7 +1221,6 @@ static void oldstyle_decls(node_t *ftype)
             }
         }
     }
-    exit_scope();
 }
 
 static void make_funcdecl(node_t *sym, node_t *ty, int sclass, struct source src,
@@ -1262,8 +1256,7 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
         } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
             if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
                 error_at(src,
-                         "static declaaration of '%s' follows "
-                         "non-static declaration",
+                         "static declaaration of '%s' follows non-static declaration",
                          id);
             else
                 make_funcdecl(sym, ftype, sclass, src, decl);
@@ -1281,7 +1274,9 @@ static node_t *funcdef(struct token *t, node_t * ftype, int sclass,
 
     // old style function parameters declaration
     if (first_decl(token)) {
+        enter_scope();
         oldstyle_decls(ftype);
+        exit_scope();
         if (token->id != '{')
             error("expect function body after function declarator");
     }
