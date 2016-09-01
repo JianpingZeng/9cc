@@ -1314,6 +1314,32 @@ static node_t *make_decl(struct token *id, node_t * ty, int sclass,
     return decl;
 }
 
+node_t *make_localdecl(const char *name, node_t * ty, int sclass)
+{
+    struct ident *ident = new_ident(cpp_file, name);
+    struct token *id = new_token(&(struct token){
+            .id = ID, .value.ident = ident, .kind = ID, .src = source});
+    node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
+    return decl;
+}
+
+/// type-name:
+///   specifier-qualifier-list abstract-declarator[opt]
+///
+node_t *typename(void)
+{
+    node_t *basety;
+    node_t *ty = NULL;
+
+    basety = specifiers(NULL, NULL);
+    if (token->id == '*' || token->id == '(' || token->id == '[')
+        abstract_declarator(&ty);
+
+    attach_type(&ty, basety);
+
+    return ty;
+}
+
 /// external-declaration:
 ///   declaration
 ///   function-definition
@@ -1412,32 +1438,6 @@ static node_t **decls(declfun_p * dcl)
     return vtoa(v, PERM);
 }
 
-node_t *make_localdecl(const char *name, node_t * ty, int sclass)
-{
-    struct ident *ident = new_ident(cpp_file, name);
-    struct token *id = new_token(&(struct token){
-            .id = ID, .value.ident = ident, .kind = ID, .src = source});
-    node_t *decl = make_decl(id, ty, sclass, 0, localdecl);
-    return decl;
-}
-
-/// type-name:
-///   specifier-qualifier-list abstract-declarator[opt]
-///
-node_t *typename(void)
-{
-    node_t *basety;
-    node_t *ty = NULL;
-
-    basety = specifiers(NULL, NULL);
-    if (token->id == '*' || token->id == '(' || token->id == '[')
-        abstract_declarator(&ty);
-
-    attach_type(&ty, basety);
-
-    return ty;
-}
-
 node_t **declaration(void)
 {
     assert(SCOPE >= LOCAL);
@@ -1472,5 +1472,4 @@ node_t *translation_unit(void)
 
 void finalize(void)
 {
-    
 }
