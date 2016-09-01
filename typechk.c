@@ -90,9 +90,9 @@ void ensure_field(node_t * field, size_t total, bool last)
         ensure_nonbitfield(field, total, last);
 }
 
-void ensure_decl(node_t * decl, int sclass, int kind)
+void ensure_decl(node_t * decl, int sclass, int level)
 {
-    if (kind == PARAM)
+    if (level == PARAM)
         return;
 
     node_t *sym = DECL_SYM(decl);

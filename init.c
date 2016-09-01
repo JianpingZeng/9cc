@@ -425,7 +425,7 @@ bool has_static_extent(node_t * sym)
         SYM_SCOPE(sym) == GLOBAL;
 }
 
-void decl_initializer(node_t * decl, int sclass, int kind)
+void decl_initializer(node_t * decl, int sclass, int level)
 {
     node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
@@ -435,7 +435,7 @@ void decl_initializer(node_t * decl, int sclass, int kind)
 
     expect('=');
 
-    if (kind == PARAM) {
+    if (level == PARAM) {
         error("C does not support default arguments");
         initializer(NULL);
         return;
@@ -452,7 +452,7 @@ void decl_initializer(node_t * decl, int sclass, int kind)
     init_src = AST_SRC(init);
 
     if (sclass == EXTERN) {
-        if (kind == GLOBAL) {
+        if (level == GLOBAL) {
             warning_at(src, "'extern' variable has an initializer");
         } else {
             error_at(src,
@@ -465,7 +465,7 @@ void decl_initializer(node_t * decl, int sclass, int kind)
         return;
     }
 
-    if (kind == GLOBAL) {
+    if (level == GLOBAL) {
         if (SYM_DEFINED(sym))
             redefinition_error(src, sym);
         SYM_DEFINED(sym) = true;

@@ -1401,17 +1401,10 @@ static node_t **decls(declfun_p * dcl)
 
         for (;;) {
             if (id) {
-                int kind;
-                if (dcl == globaldecl)
-                    kind = GLOBAL;
-                else if (dcl == paramdecl)
-                    kind = PARAM;
-                else
-                    kind = LOCAL;
                 node_t *decl = make_decl(TOK_IDENT_STR(id), ty, sclass, fspec, id->src, dcl);
                 if (token->id == '=')
-                    decl_initializer(decl, sclass, kind);
-                ensure_decl(decl, sclass, kind);
+                    decl_initializer(decl, sclass, level);
+                ensure_decl(decl, sclass, level);
                 vec_push(v, decl);
             }
 
