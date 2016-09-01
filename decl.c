@@ -1301,6 +1301,7 @@ static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec, nod
         // function definition
         func_body(decl);
         exit_scope();
+        IR->defun(decl);
     }
 
     return decl;
@@ -1434,6 +1435,7 @@ static node_t **decls(declfun_p * dcl)
         decl = ast_decl(node_id);
         DECL_SYM(decl) = TYPE_TSYM(basety);
         vec_push(v, decl);
+        IR->deftype(basety);
     } else {
         error("invalid token '%s' in declaration", tok2s(token));
     }

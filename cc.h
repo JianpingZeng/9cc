@@ -299,12 +299,24 @@ extern void print_source(struct source src);
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
 
+// middle-end interface
+struct iir {
+    void (*dclvar) (node_t *);
+    void (*defvar) (node_t *);
+    void (*dclfun) (node_t *);
+    void (*defun) (node_t *);
+    void (*deftype) (node_t *);
+};
+extern struct iir *IR;
+extern void ir_init(void);
+
+// backend interface
 struct metrics {
     size_t size;
     int align;
     unsigned rank;
 };
-// backend interface
+
 struct imachine {
     void (*progbeg) (int argc, char *argv[]);
     void (*defvar) (node_t *);

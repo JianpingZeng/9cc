@@ -2363,19 +2363,32 @@ struct externals * ir(node_t *tree)
     return exts;
 }
 
+static void dclvar(node_t *node)
+{
+}
+
 static void defvar(node_t *node)
 {
-    
+}
+
+static void dclfun(node_t *node)
+{
 }
 
 static void defun(node_t *node)
+{   
+}
+
+static void deftype(node_t *node)
 {
-    
 }
 
 struct iir *IR = &(struct iir) {
+    .dclvar = dclvar,
     .defvar = defvar,
-    .defun = defun
+    .dclfun = dclfun,
+    .defun = defun,
+    .deftype = deftype
 };
 
 static const char *glabel(const char *label)
