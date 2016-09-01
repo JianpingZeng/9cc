@@ -105,7 +105,7 @@ extern node_t *make_localdecl(const char *name, node_t * ty, int sclass);
 
 // init.c
 extern bool has_static_extent(node_t * sym);
-extern void decl_initializer(node_t * decl, int sclass, int level);
+extern node_t *decl_initializer(node_t * sym, int sclass, int level);
 extern node_t *initializer_list(node_t * ty);
 extern void init_string(node_t * ty, node_t * node);
 

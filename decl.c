@@ -1402,8 +1402,10 @@ static node_t **decls(declfun_p * dcl)
         for (;;) {
             if (id) {
                 node_t *decl = make_decl(TOK_IDENT_STR(id), ty, sclass, fspec, id->src, dcl);
-                if (token->id == '=')
-                    decl_initializer(decl, sclass, level);
+                if (token->id == '=') {
+                    node_t *init = decl_initializer(DECL_SYM(decl), sclass, level);
+                    DECL_BODY(decl) = init;
+                }
                 ensure_decl(decl, sclass, level);
                 vec_push(v, decl);
             }

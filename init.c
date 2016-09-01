@@ -425,9 +425,8 @@ bool has_static_extent(node_t * sym)
         SYM_SCOPE(sym) == GLOBAL;
 }
 
-void decl_initializer(node_t * decl, int sclass, int level)
+node_t *decl_initializer(node_t *sym, int sclass, int level)
 {
-    node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
     struct source src = AST_SRC(sym);
     node_t *init;
@@ -438,16 +437,16 @@ void decl_initializer(node_t * decl, int sclass, int level)
     if (level == PARAM) {
         error("C does not support default arguments");
         initializer(NULL);
-        return;
+        return NULL;
     } else if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
         error("'%s' cannot have an initializer", TYPE_NAME(ty));
         initializer(NULL);
-        return;
+        return NULL;
     }
 
     init = initializer(ty);
     if (init == NULL)
-        return;
+        return NULL;
 
     init_src = AST_SRC(init);
 
@@ -457,12 +456,12 @@ void decl_initializer(node_t * decl, int sclass, int level)
         } else {
             error_at(src,
                      "'extern' variable cannot have an initializer");
-            return;
+            return NULL;
         }
     } else if (sclass == TYPEDEF) {
         error_at(src,
                  "illegal initializer (only variable can be initialized)");
-        return;
+        return NULL;
     }
 
     if (level == GLOBAL) {
@@ -473,7 +472,7 @@ void decl_initializer(node_t * decl, int sclass, int level)
 
     if (istag(ty) && isincomplete(ty)) {
         error("variable has incomplete type '%s'", type2s(ty));
-        return;
+        return NULL;
     }
 
     SAVE_ERRORS;
@@ -499,5 +498,5 @@ void decl_initializer(node_t * decl, int sclass, int level)
                      "initializer element is not a compile-time constant");
     }
 
-    DECL_BODY(decl) = init;
+    return init;
 }
