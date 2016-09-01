@@ -115,14 +115,13 @@ extern void func_body(node_t *decl);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
 
 // typechk.c
-extern void check_oldstyle(node_t *ftype);
 extern void ensure_inline(node_t *ty, int fspec, struct source src);
 extern void ensure_field(node_t * field, size_t total, bool last);
 extern void ensure_decl(node_t * decl, int sclass, int kind);
 extern void ensure_array(node_t * atype, struct source src, int level);
 extern void ensure_func(node_t * ftype, struct source src);
 extern void ensure_main(node_t *ftype, const char *name, struct source src);
-extern void ensure_params(node_t *ftype);
+extern void ensure_params(node_t *params[]);
 extern void redefinition_error(struct source src, node_t * sym);
 extern void conflicting_types_error(struct source src, node_t * sym);
 extern void field_not_found_error(node_t * ty, const char *name);
@@ -205,6 +204,7 @@ extern node_t *booltype;        // bool
 #define TYPE_INLINE(ty)          _TYPE_INLINE(unqual(ty))
 #define TYPE_TYPE(ty)            _TYPE_TYPE(unqual(ty))
 #define TYPE_TAG(ty)             _TYPE_TAG(unqual(ty))
+#define TYPE_PROTO(ty)           _TYPE_PROTO(unqual(ty))
 #define TYPE_PARAMS(ty)          _TYPE_PARAMS(unqual(ty))
 #define TYPE_OLDSTYLE(ty)        _TYPE_OLDSTYLE(unqual(ty))
 #define TYPE_VARG(ty)            _TYPE_VARG(unqual(ty))

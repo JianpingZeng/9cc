@@ -57,14 +57,6 @@ void ensure_inline(node_t *ty, int fspec, struct source src)
     }
 }
 
-void check_oldstyle(node_t *ftype)
-{
-    assert(isfunc(ftype));
-    
-    if (TYPE_OLDSTYLE(ftype) && length(TYPE_PARAMS(ftype)))
-        error("a parameter list without types is only allowed in a function definition");
-}
-
 static void ensure_nonbitfield(node_t * field, size_t total, bool last)
 {
     node_t *ty = FIELD_TYPE(field);
@@ -180,22 +172,19 @@ void ensure_main(node_t *ftype, const char *name, struct source src)
         return;
     
     node_t *rty = rtype(ftype);
-    node_t **params = TYPE_PARAMS(ftype);
+    node_t **params = TYPE_PROTO(ftype);
     size_t len = length(params);
     if (rty != inttype)
         error_at(src, "return type of 'main' is not 'int'");
     for (int i = 0; i < MIN(3, len); i++) {
-        node_t *param = params[i];
-        node_t *ty = SYM_TYPE(param);
+        node_t *ty = params[i];
         if (i == 0) {
             if (ty != inttype)
-                error_at(src,
-                         "first parameter of 'main' is not 'int'");
+                error_at(src, "first parameter of 'main' is not 'int'");
         } else if (i == 1 || i == 2) {
             if (!isptrto(ty, POINTER) ||
                 !isptrto(rtype(ty), CHAR))
-                error_at(src,
-                         "%s parameter of 'main' is not 'char **'",
+                error_at(src, "%s parameter of 'main' is not 'char **'",
                          i == 1 ? "second" : "third");
         }
     }
@@ -205,10 +194,10 @@ void ensure_main(node_t *ftype, const char *name, struct source src)
                  len);
 }
 
-void ensure_params(node_t *ftype)
+void ensure_params(node_t *params[])
 {
-    for (int i = 0; TYPE_PARAMS(ftype)[i]; i++) {
-        node_t *sym = TYPE_PARAMS(ftype)[i];
+    for (int i = 0; params[i]; i++) {
+        node_t *sym = params[i];
         node_t *ty = SYM_TYPE(sym);
         // params id is required in prototype
         if (is_anonymous(SYM_NAME(sym)))

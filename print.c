@@ -864,13 +864,12 @@ static void dotype2s(struct vector *l, struct vector *r)
         break;
     case FUNCTION:
         {
-            node_t **params = TYPE_PARAMS(s->type);
+            node_t **params = TYPE_PROTO(s->type);
             size_t len = length(params);
             vec_push(r, paren(FSPACE, NULL));
             vec_push(r, paren(LPAREN, s->type));
             for (size_t i = 0; i < len; i++) {
-                node_t *param = params[i];
-                node_t *ty = SYM_TYPE(param);
+                node_t *ty = params[i];
                 struct vector *v = type2s1(ty);
                 vec_add(r, v);
                 if (i < len - 1) {

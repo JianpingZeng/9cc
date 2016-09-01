@@ -305,25 +305,25 @@ node_t *tag_type(int t, const char *tag, struct source src)
     return sym;
 }
 
-static bool eqparams(node_t **params1, node_t **params2)
+static bool eqparams(node_t *proto1[], node_t *proto2[])
 {
-    if (params1 == params2) {
+    if (proto1 == proto2) {
         return true;
-    } else if (params1 == NULL || params2 == NULL) {
+    } else if (proto1 == NULL || proto2 == NULL) {
         return false;
     } else {
-        size_t len1 = length(params1);
-        size_t len2 = length(params2);
+        size_t len1 = length(proto1);
+        size_t len2 = length(proto2);
         if (len1 != len2)
             return false;
         for (size_t i = 0; i < len1; i++) {
-            node_t *sym1 = params1[i];
-            node_t *sym2 = params2[i];
-            if (sym1 == sym2)
+            node_t *ty1 = proto1[i];
+            node_t *ty2 = proto2[i];
+            if (ty1 == ty2)
                 continue;
-            else if (sym1 == NULL || sym2 == NULL)
+            else if (ty1 == NULL || ty2 == NULL)
                 return false;
-            else if (eqtype(SYM_TYPE(sym1), SYM_TYPE(sym2)))
+            else if (eqtype(ty1, ty2))
                 continue;
             else
                 return false;
@@ -376,7 +376,7 @@ bool eqtype(node_t * ty1, node_t * ty2)
             return true;
         } else if (!_TYPE_OLDSTYLE(ty1) && !_TYPE_OLDSTYLE(ty2)) {
             // both prototype
-            return eqparams(_TYPE_PARAMS(ty1), _TYPE_PARAMS(ty2));
+            return eqparams(_TYPE_PROTO(ty1), _TYPE_PROTO(ty2));
         } else {
             // one oldstyle, the other prototype
             node_t *oldty = _TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
@@ -385,9 +385,8 @@ bool eqtype(node_t * ty1, node_t * ty2)
             if (TYPE_VARG(newty))
                 return false;
             
-            for (size_t i = 0; _TYPE_PARAMS(newty)[i]; i++) {
-                node_t *sym = _TYPE_PARAMS(newty)[i];
-                node_t *ty = SYM_TYPE(sym);
+            for (size_t i = 0; _TYPE_PROTO(newty)[i]; i++) {
+                node_t *ty = _TYPE_PROTO(newty)[i];
                 if (TYPE_KIND(ty) == _BOOL ||
                     TYPE_KIND(ty) == CHAR ||
                     TYPE_KIND(ty) == SHORT ||
@@ -395,10 +394,10 @@ bool eqtype(node_t * ty1, node_t * ty2)
                     return false;
             }
 
-            if (_TYPE_PARAMS(oldty) == NULL)
+            if (_TYPE_PROTO(oldty)[0] == NULL)
                 return true;
 
-            return eqparams(_TYPE_PARAMS(oldty), _TYPE_PARAMS(newty));
+            return eqparams(_TYPE_PROTO(oldty), _TYPE_PROTO(newty));
         }
 
     default:

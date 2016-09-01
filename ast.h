@@ -35,6 +35,7 @@ struct ast_common {
 #define _TYPE_INLINE(NODE)       ((NODE)->type.inlined)
 #define _TYPE_TYPE(NODE)         AST_TYPE(NODE)
 #define _TYPE_TAG(NODE)          ((NODE)->type.u.s.tag)
+#define _TYPE_PROTO(NODE)        ((NODE)->type.u.f.proto)
 #define _TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
 #define _TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
 #define _TYPE_VARG(NODE)         ((NODE)->type.u.f.varg)
@@ -59,6 +60,7 @@ struct ast_type {
     union {
         // function
         struct {
+            node_t **proto;
             node_t **params;
             unsigned oldstyle:1;
             unsigned varg:1;

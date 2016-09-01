@@ -918,9 +918,8 @@ static struct vector *argcast1(node_t **params, size_t nparams,
         cmp1 = nparams;
 
     for (size_t i = 0; i < cmp1; i++) {
-        node_t *param = params[i];
+        node_t *dst = params[i];
         node_t *arg = args[i];
-        node_t *dst = SYM_TYPE(param);
         node_t *src = AST_TYPE(arg);
         node_t *ret = assignconv(dst, arg);
         if (ret) {
@@ -954,7 +953,7 @@ static node_t **argscast(node_t *fty, node_t **args)
      * 5. no function declaration/definition found
      */
 
-    node_t **params = TYPE_PARAMS(fty);
+    node_t **params = TYPE_PROTO(fty);
     size_t len1 = length(params);
     size_t len2 = length(args);
     bool oldstyle = TYPE_OLDSTYLE(fty);

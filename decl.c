@@ -1,19 +1,20 @@
 #include "cc.h"
 
 static void abstract_declarator(node_t ** ty);
-static void declarator(node_t ** ty, struct token **id, int *params);
+static void declarator(node_t ** ty, struct token **id, node_t ***params);
 static void param_declarator(node_t ** ty, struct token **id);
 static node_t *ptr_decl(void);
 static node_t *tag_decl(void);
 static void ids(node_t *sym);
 static void fields(node_t * sym);
 
+static node_t *funcdef(const char *id, node_t * ty, int sclass, int fspec, node_t *params[], struct source src);
+static node_t *typedefdecl(const char *id, node_t * ty, int fspec, int kind, struct source src);
+
 typedef node_t *declfun_p(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *paramdecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *globaldecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *localdecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
-static node_t *funcdef(const char *id, node_t * ty, int sclass, int fspec, struct source src);
-static node_t *typedefdecl(const char *id, node_t * ty, int fspec, int kind, struct source src);
 static node_t **decls(declfun_p * dcl);
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
@@ -356,8 +357,13 @@ static void array_qualifiers(node_t * atype)
         TYPE_A_RESTRICT(atype) = 1;
 }
 
-static void exit_params(void)
+static void exit_params(node_t *params[])
 {
+    assert(params);
+    if (params[0] && !SYM_DEFINED(params[0]))
+        error_at(AST_SRC(params[0]),
+                 "a parameter list without types is only allowed in a function definition");
+    
     if (SCOPE > PARAM)
         exit_scope();
 
@@ -430,6 +436,7 @@ static struct vector *oldstyle(node_t *ftype)
     for (;;) {
         if (token->id == ID) {
             node_t *sym = paramdecl(TOK_IDENT_STR(token), inttype, 0, 0, token->src);
+            SYM_DEFINED(sym) = false;
             vec_push(v, sym);
         }
         expect(ID);
@@ -443,22 +450,39 @@ static struct vector *oldstyle(node_t *ftype)
     return v;
 }
 
-static node_t **parameters(node_t * ftype, int *params)
+static node_t **parameters(node_t * ftype)
 {
-    struct vector *ret = NULL;
+    node_t **params;
 
     if (first_decl(token)) {
         // prototype
+        int i;
+        struct vector *v;
+        node_t **proto;
+        
+        v = prototype(ftype);
+        params = vtoa(v, FUNC);
+        proto = newarray(sizeof(node_t *), vec_len(v) + 1, PERM);
+        for (i = 0; params[i]; i++)
+            proto[i] = SYM_TYPE(params[i]);
+
+        proto[i] = NULL;
+        TYPE_PROTO(ftype) = proto;
         TYPE_OLDSTYLE(ftype) = 0;
-        ret = prototype(ftype);
     } else if (token->id == ID) {
         // oldstyle
+        struct vector *v;
+        
+        v = oldstyle(ftype);
+        params = vtoa(v, FUNC);
         TYPE_OLDSTYLE(ftype) = 1;
-        ret = oldstyle(ftype);
     } else if (token->id == ')') {
+        params = vtoa(NULL, FUNC);
         TYPE_OLDSTYLE(ftype) = 1;
     } else {
+        params = vtoa(NULL, FUNC);
         TYPE_OLDSTYLE(ftype) = 1;
+
         if (token->id == ELLIPSIS)
             error("ISO C requires a named parameter before '...'");
         else
@@ -466,7 +490,7 @@ static node_t **parameters(node_t * ftype, int *params)
         gettok();
     }
 
-    return vtoa(ret, PERM);
+    return params;
 }
 
 static void parse_assign(node_t *atype)
@@ -548,7 +572,7 @@ static node_t *arrays(bool abstract)
     return atype;
 }
 
-static node_t *func_or_array(bool abstract, int *params)
+static node_t *func_or_array(bool abstract, node_t ***params)
 {
     node_t *ty = NULL;
     int follow[] = { '[', ID, IF, 0 };
@@ -561,6 +585,7 @@ static node_t *func_or_array(bool abstract, int *params)
             match(']', follow);
             attach_type(&ty, atype);
         } else {
+            node_t **args;
             node_t *ftype = func_type();
             expect('(');
             /**
@@ -572,11 +597,11 @@ static node_t *func_or_array(bool abstract, int *params)
             enter_scope();
             if (SCOPE > PARAM)
                 enter_scope();
-            TYPE_PARAMS(ftype) = parameters(ftype, params);
-            if (params && *params == 0)
-                *params = 1;
+            args = parameters(ftype);
+            if (params && *params == NULL)
+                *params = args;
             else
-                exit_params();
+                exit_params(args);
             match(')', follow);
             attach_type(&ty, ftype);
         }
@@ -937,7 +962,7 @@ static void abstract_declarator(node_t ** ty)
 ///   direct-declarator '(' parameter-type-list ')'
 ///   direct-declarator '(' identifier-list[opt] ')'
 ///
-static void declarator(node_t ** ty, struct token **id, int *params)
+static void declarator(node_t ** ty, struct token **id, node_t ***params)
 {
     int follow[] = { ',', '=', IF, 0 };
 
@@ -981,13 +1006,10 @@ static node_t * typedefdecl(const char *id, node_t *ty, int fspec, int kind, str
     assert(id);
     assert(kind != PARAM);
 
-    if (isfunc(ty)) {
-        if (kind == GLOBAL)
-            check_oldstyle(ty);
+    if (isfunc(ty))
         ensure_func(ty, src);
-    } else if (isarray(ty)) {
+    else if (isarray(ty))
         ensure_array(ty, src, kind);
-    }
 
     ensure_inline(ty, fspec, src);
 
@@ -1135,7 +1157,6 @@ static node_t *globaldecl(const char *id, node_t *ty, int sclass, int fspec, str
     }
 
     if (isfunc(ty)) {
-        check_oldstyle(ty);
         ensure_func(ty, src);
         ensure_main(ty, id, src);
     } else if (isarray(ty)) {
@@ -1172,10 +1193,9 @@ static node_t *globaldecl(const char *id, node_t *ty, int sclass, int fspec, str
 ///   declaration
 ///   declaration-list declaration
 ///
-static void oldstyle_decls(node_t *ftype)
+static void oldstyle_decls(node_t *ftype, node_t *params[])
 {
     struct vector *v = vec_new();
-    node_t **params = TYPE_PARAMS(ftype);
     
     while (first_decl(token))
         vec_add_array(v, decls(paramdecl));
@@ -1190,23 +1210,32 @@ static void oldstyle_decls(node_t *ftype)
             continue;
         }
         
-        node_t *p = NULL;
-        for (size_t i = 0; params[i]; i++) {
-            node_t *s = params[i];
-            if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym))) {
-                p = s;
+        int j;
+        for (j = 0; params[j]; j++) {
+            node_t *s = params[j];
+            if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym)))
                 break;
-            }
         }
 
-        if (p) {
-            SYM_TYPE(p) = SYM_TYPE(sym);
-            AST_SRC(p) = AST_SRC(sym);
-        } else {
-            error_at(AST_SRC(sym), "parameter named '%s' is missing",
-                     SYM_NAME(sym));
-        }
+        if (params[j])
+            params[j] = sym;
+        else
+            error_at(AST_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
     }
+
+    for (int i = 0; params[i]; i++) {
+        node_t *p = params[i];
+        if (!SYM_DEFINED(p))
+            params[i] = paramdecl(SYM_NAME(p), inttype, 0, 0, AST_SRC(p));
+    }
+
+    int i;
+    node_t **proto = newarray(sizeof(node_t *), length(params) + 1, PERM);
+    for (i = 0; params[i]; i++)
+        proto[i] = SYM_TYPE(params[i]);
+
+    proto[i] = NULL;
+    TYPE_PROTO(ftype) = proto;
 }
 
 static void make_funcdecl(node_t *sym, node_t *ty, int sclass, struct source src,
@@ -1220,7 +1249,7 @@ static void make_funcdecl(node_t *sym, node_t *ty, int sclass, struct source src
 }
 
 // id maybe NULL
-static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec, struct source src)
+static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec, node_t *params[], struct source src)
 {
     // SCOPE == PARAM (prototype)
     // SCOPE == GLOBAL (oldstyle)
@@ -1257,16 +1286,16 @@ static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec, str
     }
 
     // old style function parameters declaration
-    if (first_decl(token)) {
+    if (TYPE_OLDSTYLE(ftype)) {
         enter_scope();
-        oldstyle_decls(ftype);
-        exit_scope();
+        assert(SCOPE == PARAM);
+        oldstyle_decls(ftype, params);
         if (token->id != '{')
             error("expect function body after function declarator");
     }
 
-    if (TYPE_PARAMS(ftype))
-        ensure_params(ftype);
+    TYPE_PARAMS(ftype) = params;
+    ensure_params(params);
 
     if (token->id == '{') {
         // function definition
@@ -1346,7 +1375,7 @@ static node_t **decls(declfun_p * dcl)
     if (token->id == ID || token->id == '*' || token->id == '(') {
         struct token *id = NULL;
         node_t *ty = NULL;
-        int params = 0;        // for functioness
+        node_t **params = NULL;        // for functioness
         struct source src = source;
 
         // declarator
@@ -1359,12 +1388,14 @@ static node_t **decls(declfun_p * dcl)
         if (level == GLOBAL && params) {
             if (isfunc(ty) && (token->id == '{' ||
                                (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
+                if (TYPE_OLDSTYLE(ty))
+                    exit_scope();
                 node_t *decl = funcdef(id ? TOK_IDENT_STR(id) : NULL,
-                                       ty, sclass, fspec, id ? id->src : src);
+                                       ty, sclass, fspec, params, id ? id->src : src);
                 vec_push(v, decl);
                 return vtoa(v, PERM);
             } else {
-                exit_params();
+                exit_params(params);
             }
         }
 
