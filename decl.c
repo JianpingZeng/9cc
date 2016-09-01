@@ -427,8 +427,10 @@ static struct vector *oldstyle(node_t *ftype)
     struct vector *v = vec_new();
     
     for (;;) {
-        if (token->id == ID)
-            vec_push(v, paramdecl(token, inttype, 0, 0));
+        if (token->id == ID) {
+            node_t *sym = paramdecl(token, inttype, 0, 0);
+            vec_push(v, sym);
+        }
         expect(ID);
         if (token->id != ',')
             break;
@@ -1354,7 +1356,8 @@ static node_t **decls(declfun_p * dcl)
         if (level == GLOBAL && params) {
             if (isfunc(ty) && (token->id == '{' ||
                                (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
-                vec_push(v, funcdef(id, ty, sclass, fspec));
+                node_t *decl = funcdef(id, ty, sclass, fspec);
+                vec_push(v, decl);
                 return vtoa(v, PERM);
             } else {
                 exit_params();
