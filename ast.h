@@ -111,6 +111,7 @@ struct ast_field {
 #define SYM_PREDEFINE(NODE)   ((NODE)->symbol.predefine)
 #define SYM_VALUE(NODE)       ((NODE)->symbol.value)
 #define SYM_REFS(NODE)        ((NODE)->symbol.refs)
+#define SYM_LINK(NODE)        ((NODE)->symbol.link)
 // convenience
 #define SYM_VALUE_U(NODE)     (VALUE_U(SYM_VALUE(NODE)))
 #define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
@@ -124,6 +125,7 @@ struct ast_symbol {
     unsigned predefine : 1;
     union value value;
     unsigned refs;
+    node_t *link;
     union x x;
 };
 

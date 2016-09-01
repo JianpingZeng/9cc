@@ -253,6 +253,7 @@ struct table {
     int scope;
     struct table *up;
     struct map *map;
+    node_t *all;
 };
 
 // sym
