@@ -9,12 +9,7 @@ static FILE *outfd;
 #define RESTORE_OUTFD() \
     outfd = _saved_fd
 
-struct print_context {
-    int level;
-    node_t *node;
-};
-
-static void print_tree1(struct print_context context);
+static void print_tree1(node_t *node, int level);
 
 static void ensure_outfd(void)
 {
@@ -58,14 +53,14 @@ static void print_ty(node_t * ty)
     }
 }
 
-static void print_type(node_t * node, struct print_context context)
+static void print_type(node_t * node, int level)
 {
     putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
     print_ty(node);
     putf("\n");
 }
 
-static void print_field(node_t * node, struct print_context context)
+static void print_field(node_t * node, int level)
 {
     const char *name = FIELD_NAME(node);
     node_t *ty = FIELD_TYPE(node);
@@ -82,17 +77,15 @@ static void print_field(node_t * node, struct print_context context)
     putf("\n");
 }
 
-static void print_label(int level, const char *name)
+static void print_label(const char *name, int level)
 {
     for (int i = 0; i < level; i++)
         putf("  ");
     putf(RED("%s\n"), name);
 }
 
-static void print_decl(node_t * node, struct print_context context)
+static void print_decl(node_t * node, int level)
 {
-    int level;
-
     putf(GREEN("%s ") YELLOW("%p "), nname(node), node);
 
     node_t *sym = DECL_SYM(node);
@@ -111,8 +104,6 @@ static void print_decl(node_t * node, struct print_context context)
         putf("%llu localvars ", vec_len(DECL_X_LVARS(node)));
     putf("\n");
 
-    level = context.level + 1;
-
     switch (AST_ID(node)) {
     case TU_DECL:
         {
@@ -120,8 +111,7 @@ static void print_decl(node_t * node, struct print_context context)
             if (exts) {
                 for (size_t i = 0; exts[i]; i++) {
                     node_t *ext = exts[i];
-                    struct print_context con = {level, ext};
-                    print_tree1(con);
+                    print_tree1(ext, level + 1);
                 }
             }
         }
@@ -134,8 +124,7 @@ static void print_decl(node_t * node, struct print_context context)
             if (fields) {
                 for (size_t i = 0; fields[i]; i++) {
                     node_t *field = fields[i];
-                    struct print_context con = {level, field};
-                    print_tree1(con);
+                    print_tree1(field, level + 1);
                 }
             }
         }
@@ -147,15 +136,12 @@ static void print_decl(node_t * node, struct print_context context)
     }
 
     node_t *init = DECL_BODY(node);
-    if (init) {
-        struct print_context con = { level, init };
-        print_tree1(con);
-    }
+    if (init)
+        print_tree1(init, level + 1);
 }
 
-static void print_expr(node_t * node, struct print_context context)
+static void print_expr(node_t * node, int level)
 {
-    int level;
     int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
 
@@ -183,20 +169,15 @@ static void print_expr(node_t * node, struct print_context context)
 
     putf("\n");
 
-    level = context.level + 1;
-
     if (AST_ID(node) == CALL_EXPR) {
         node_t *func = EXPR_OPERAND(node, 0);
-        if (func) {
-            struct print_context con = { level, func };
-            print_tree1(con);
-        }
+        if (func)
+            print_tree1(func, level + 1);
         node_t **args = EXPR_ARGS(node);
         if (args) {
             for (size_t i = 0; args[i]; i++) {
                 node_t *arg = args[i];
-                struct print_context con = { level, arg };
-                print_tree1(con);
+                print_tree1(arg, level + 1);
             }
         }
     } else if (AST_ID(node) == INITS_EXPR) {
@@ -204,38 +185,23 @@ static void print_expr(node_t * node, struct print_context context)
         if (inits) {
             for (size_t i = 0; inits[i]; i++) {
                 node_t *init = inits[i];
-                struct print_context con = { level, init };
-                print_tree1(con);
+                print_tree1(init, level + 1);
             }
         }
     } else {
-        if (EXPR_OPERAND(node, 0)) {
-            struct print_context lcontext;
-            lcontext.level = level;
-            lcontext.node = EXPR_OPERAND(node, 0);
-            print_tree1(lcontext);
-        }
+        if (EXPR_OPERAND(node, 0))
+            print_tree1(EXPR_OPERAND(node, 0), level + 1);
 
-        if (EXPR_OPERAND(node, 1)) {
-            struct print_context rcontext;
-            rcontext.level = level;
-            rcontext.node = EXPR_OPERAND(node, 1);
-            print_tree1(rcontext);
-        }
+        if (EXPR_OPERAND(node, 1))
+            print_tree1(EXPR_OPERAND(node, 1), level + 1);
 
-        if (EXPR_OPERAND(node, 2)) {
-            struct print_context rcontext;
-            rcontext.level = level;
-            rcontext.node = EXPR_OPERAND(node, 2);
-            print_tree1(rcontext);
-        }
+        if (EXPR_OPERAND(node, 2))
+            print_tree1(EXPR_OPERAND(node, 2), level + 1);
     }
 }
 
-static void print_stmt(node_t * node, struct print_context context)
+static void print_stmt(node_t * node, int level)
 {
-    int level = context.level + 1;
-
     putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
     putf("\n");
 
@@ -246,8 +212,7 @@ static void print_stmt(node_t * node, struct print_context context)
             if (blks) {
                 for (size_t i = 0; blks[i]; i++) {
                     node_t *blk = blks[i];
-                    struct print_context con = {level, blk};
-                    print_tree1(con);
+                    print_tree1(blk, level + 1);
                 }
             }
         }
@@ -262,41 +227,36 @@ static void print_stmt(node_t * node, struct print_context context)
             if (decl) {
                 for (size_t i = 0; decl[i]; i++) {
                     node_t *dcl = decl[i];
-                    struct print_context con = {level, dcl};
-                    print_tree1(con);
+                    print_tree1(dcl, level + 1);
                 }
             } else if (init) {
-                struct print_context con = {level, init};
-                print_tree1(con);
+                print_tree1(init, level + 1);
             } else {
-                for (int i=0; i < level; i++)
+                for (int i = 0; i < level + 1; i++)
                     putf("  ");
                 putf("init: <NULL>\n");
             }
         
             if (cond) {
-                struct print_context con = {level, cond};
-                print_tree1(con);
+                print_tree1(cond, level + 1);
             } else {
-                for (int i=0; i < level; i++)
+                for (int i = 0; i < level + 1; i++)
                     putf("  ");
                 putf("cond: <NULL>\n");
             }
         
             if (ctrl) {
-                struct print_context con = {level, ctrl};
-                print_tree1(con);
+                print_tree1(ctrl, level + 1);
             } else {
-                for (int i=0; i < level; i++)
+                for (int i = 0; i < level + 1; i++)
                     putf("  ");
                 putf("ctrl: <NULL>\n");
             }
 
             if (body) {
-                struct print_context con = {level, body};
-                print_tree1(con);
+                print_tree1(body, level + 1);
             } else {
-                for (int i=0; i < level; i++)
+                for (int i = 0; i < level + 1; i++)
                     putf("  ");
                 putf("ctrl: <NULL>\n");
             }
@@ -308,18 +268,12 @@ static void print_stmt(node_t * node, struct print_context context)
             node_t *then = STMT_THEN(node);
             node_t *els = STMT_ELSE(node);
 
-            if (cond) {
-                struct print_context con = {level, cond};
-                print_tree1(con);
-            }
-            if (then) {
-                struct print_context con = {level, then};
-                print_tree1(con);
-            }
-            if (els) {
-                struct print_context con = {level, els};
-                print_tree1(con);
-            }
+            if (cond)
+                print_tree1(cond, level + 1);
+            if (then)
+                print_tree1(then, level + 1);
+            if (els)
+                print_tree1(els, level + 1);
         }
         break;
     case DO_WHILE_STMT:
@@ -328,14 +282,10 @@ static void print_stmt(node_t * node, struct print_context context)
             node_t *cond = STMT_WHILE_COND(node);
             node_t *body = STMT_WHILE_BODY(node);
 
-            if (cond) {
-                struct print_context con = {level, cond};
-                print_tree1(con);
-            }
-            if (body) {
-                struct print_context con = {level, body};
-                print_tree1(con);
-            }
+            if (cond)
+                print_tree1(cond, level + 1);
+            if (body)
+                print_tree1(body, level + 1);
         }
         break;
     case SWITCH_STMT:
@@ -343,14 +293,10 @@ static void print_stmt(node_t * node, struct print_context context)
             node_t *expr = STMT_SWITCH_EXPR(node);
             node_t *body = STMT_SWITCH_BODY(node);
 
-            if (expr) {
-                struct print_context con = {level, expr};
-                print_tree1(con);
-            }
-            if (body) {
-                struct print_context con = {level, body};
-                print_tree1(con);
-            }
+            if (expr)
+                print_tree1(expr, level + 1);
+            if (body)
+                print_tree1(body, level + 1);
         }
         break;
     case CASE_STMT:
@@ -358,27 +304,23 @@ static void print_stmt(node_t * node, struct print_context context)
         {
             node_t *body = STMT_CASE_BODY(node);
 
-            if (body) {
-                struct print_context con = {level, body};
-                print_tree1(con);
-            }
+            if (body)
+                print_tree1(body, level + 1);
         }
         break;
     case RETURN_STMT:
         {
             node_t *expr = STMT_RETURN_EXPR(node);
 
-            if (expr) {
-                struct print_context con = {level, expr};
-                print_tree1(con);
-            }
+            if (expr)
+                print_tree1(expr, level + 1);
         }
     case GOTO_STMT:
         {
             const char *label = STMT_LABEL_NAME(node);
 
             if (label)
-                print_label(level, label);
+                print_label(label, level + 1);
         }
         break;
     case LABEL_STMT:
@@ -387,20 +329,16 @@ static void print_stmt(node_t * node, struct print_context context)
             node_t *body = STMT_LABEL_BODY(node);
 
             if (label)
-                print_label(level, label);
-            if (body) {
-                struct print_context con = {level, body};
-                print_tree1(con);
-            }
+                print_label(label, level + 1);
+            if (body)
+                print_tree1(body, level + 1);
         }
         break;
     case EXPR_STMT:
         {
             node_t *expr = STMT_EXPR_BODY(node);
-            if (expr) {
-                struct print_context con = {level, expr};
-                print_tree1(con);
-            }
+            if (expr)
+                print_tree1(expr, level + 1);
         }
         break;
     case BREAK_STMT:
@@ -412,31 +350,28 @@ static void print_stmt(node_t * node, struct print_context context)
     }
 }
 
-static void print_tree1(struct print_context context)
+static void print_tree1(node_t *node, int level)
 {
-    node_t *node = context.node;
-
-    for (int i = 0; i < context.level; i++)
+    for (int i = 0; i < level; i++)
         putf("  ");
 
     if (isdecl(node))
-        print_decl(node, context);
+        print_decl(node, level);
     else if (isexpr(node))
-        print_expr(node, context);
+        print_expr(node, level);
     else if (istype(node))
-        print_type(node, context);
+        print_type(node, level);
     else if (isfield(node))
-        print_field(node, context);
+        print_field(node, level);
     else if (isstmt(node))
-        print_stmt(node, context);
+        print_stmt(node, level);
     else
         assert(0);
 }
 
 void print_tree(node_t * tree)
 {
-    struct print_context context = { 0, tree };
-    print_tree1(context);
+    print_tree1(tree, 0);
 }
 
 static const char * operand2s(struct operand *operand)
