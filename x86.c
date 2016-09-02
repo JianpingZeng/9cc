@@ -41,7 +41,6 @@ static const char *suffixp[] = {
     "", "", "ps", "pd"
 };
 // Register Allocation
-static void init_regs(void);
 static void reset_regs(void);
 static struct reg * get_one_ireg(struct set *excepts);
 static struct reg * get_one_freg(struct set *excepts);
@@ -2723,16 +2722,10 @@ static void emit_floats(struct map *floats)
     }
 }
 
-static void gen_init(void)
-{
-    init_regs();
-}
-
 void gen(struct externals *exts)
 {
     assert(errors == 0);
     
-    gen_init();
     for (int i = 0; i < vec_len(exts->sections); i++) {
         struct section *section = vec_at(exts->sections, i);
         switch (section->id) {
@@ -3652,6 +3645,7 @@ static void metrics_init(void)
 static void progbeg(int argc, char *argv[])
 {
     metrics_init();
+    init_regs();
 }
 
 static void progend(void)
