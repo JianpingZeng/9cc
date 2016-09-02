@@ -260,6 +260,7 @@ extern void symbol_init(void);
 extern int scopelevel(void);
 extern void enter_scope(void);
 extern void exit_scope(void);
+extern void foreach(struct table *tp, int level, void (*apply) (node_t *));
 extern bool is_current_scope(node_t *sym);
 extern bool is_anonymous(const char *name);
 

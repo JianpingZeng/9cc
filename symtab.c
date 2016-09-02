@@ -54,6 +54,17 @@ void exit_scope(void)
     level--;
 }
 
+void foreach(struct table *tp, int level, void (*apply) (node_t *))
+{
+    assert(tp);
+    while (tp && tp->scope > level)
+        tp = tp->up;
+    if (tp && tp->scope == level) {
+        for (node_t *p = tp->all; p && SYM_SCOPE(p) == level; p = SYM_LINK(p))
+            apply(p);
+    }
+}
+
 bool is_current_scope(node_t *sym)
 {
     return SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL);
