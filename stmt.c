@@ -61,7 +61,7 @@ static node_t *expr_stmt(void)
         ret = ast_stmt(NULL_STMT, source);
     } else if (first_expr(token)) {
         ret = ast_stmt(EXPR_STMT, source);
-        node_t *expr = reduce(expression());
+        node_t *expr = expression();
         if (expr)
             STMT_EXPR_BODY(ret) = expr;
         else

@@ -2442,11 +2442,6 @@ static struct vector * filter_global(node_t **v)
     return r;
 }
 
-node_t * reduce(node_t *expr)
-{
-    return expr;
-}
-
 //
 // decl
 //
