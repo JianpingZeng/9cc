@@ -168,7 +168,7 @@ struct ifstack {
 
 extern struct file *new_cpp_file(const char *file);
 
-extern struct buffer *with_fp(FILE *fp, const char *name);
+extern struct buffer *with_stdin(const char *name);
 extern struct buffer *with_string(const char *input, const char *name);
 extern struct buffer *with_file(const char *file);
 extern struct buffer *with_tokens(struct vector *v, struct buffer *cur);

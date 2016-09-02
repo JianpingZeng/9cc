@@ -19,8 +19,9 @@ static void free_buffer(struct buffer *pb)
     free(pb);
 }
 
-struct buffer *with_fp(FILE *fp, const char *file)
+struct buffer *with_stdin(const char *file)
 {
+    FILE *fp = stdin;
     struct buffer *pb = new_buffer();
     pb->kind = BK_REGULAR;
     pb->name = file;
