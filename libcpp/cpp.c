@@ -1294,8 +1294,6 @@ void cpp_init(int argc, char *argv[])
         ifile = "<stdin>";
     
     cpp_file = new_cpp_file(ifile);
-    buffer_sentinel(cpp_file, with_stdin(ifile), BS_CONTINUOUS);
-
     init_env(cpp_file);
     init_include_path(cpp_file);
     init_builtin_macros(cpp_file);

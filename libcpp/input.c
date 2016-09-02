@@ -19,7 +19,7 @@ static void free_buffer(struct buffer *pb)
     free(pb);
 }
 
-struct buffer *with_stdin(const char *file)
+static struct buffer *with_stdin(const char *file)
 {
     FILE *fp = stdin;
     struct buffer *pb = new_buffer();
@@ -171,5 +171,7 @@ struct file *new_cpp_file(const char *file)
     // tokenrun
     pfile->tokenrun = next_tokenrun(NULL, 1024);
     pfile->cur_token = pfile->tokenrun->base;
+
+    buffer_sentinel(pfile, with_stdin(file), BS_CONTINUOUS);
     return pfile;
 }
