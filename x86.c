@@ -137,8 +137,6 @@ static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params);
 #define OP_SETNE  "setne"
 #define OP_SETP   "setp"
 
-static FILE *outfp;
-
 // placeholder instruction id
 enum {
     INST_PRESERVED_REG_PUSH = 1,
@@ -169,9 +167,9 @@ static void emit(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(outfp, "\t");
-    vfprintf(outfp, fmt, ap);
-    fprintf(outfp, "\n");
+    printf("\t");
+    vprintf(fmt, ap);
+    printf("\n");
     va_end(ap);
 }
 
@@ -179,8 +177,8 @@ static void emit_noindent(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(outfp, fmt, ap);
-    fprintf(outfp, "\n");
+    vprintf(fmt, ap);
+    printf("\n");
     va_end(ap);
 }
 
@@ -2725,17 +2723,16 @@ static void emit_floats(struct map *floats)
     }
 }
 
-static void gen_init(FILE *fp)
+static void gen_init(void)
 {
-    outfp = fp;
     init_regs();
 }
 
-void gen(struct externals *exts, FILE * fp)
+void gen(struct externals *exts)
 {
-    assert(errors == 0 && fp);
+    assert(errors == 0);
     
-    gen_init(fp);
+    gen_init();
     for (int i = 0; i < vec_len(exts->sections); i++) {
         struct section *section = vec_at(exts->sections, i);
         switch (section->id) {

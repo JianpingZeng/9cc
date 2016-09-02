@@ -285,7 +285,7 @@ struct opcode {
     struct reladdr *operands[2];
 };
 
-extern void gen(struct externals *externals, FILE * fp);
+extern void gen(struct externals *externals);
 
 // ir.c
 extern const char *rop2s(int op);

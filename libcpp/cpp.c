@@ -1244,7 +1244,7 @@ static void init_env(struct file *pfile)
     pfile->time = format("\"%s\"", timestr);
 }
 
-static void init_include(struct file *pfile)
+static void init_include_path(struct file *pfile)
 {
     // add system include paths
     struct vector *sys_include_paths = sys_include_dirs();
@@ -1254,17 +1254,20 @@ static void init_include(struct file *pfile)
     }
 }
 
-static void parseopts(struct file *pfile, struct vector *options)
+void cpp_init(int argc, char *argv[])
 {
+    const char *ifile = NULL;
     struct strbuf *s = strbuf_new();
+    struct vector *v = vec_new();
 
-    for (int i = 0; i < vec_len(options); i++) {
-        const char *arg = vec_at(options, i);
-        if (strlen(arg) < 3)
-            continue;
+    for (int i = 1; i < argc; i++) {
+        const char *arg = argv[i];
         if (!strncmp(arg, "-I", 2)) {
-            add_include(pfile->usr_include_paths, arg + 2);
+            if (arg[2])
+                vec_push(v, (char *)arg + 2);
         } else if (!strncmp(arg, "-D", 2)) {
+            if (arg[2] == 0)
+                continue;
             const char *content = arg + 2;
             char *ptr = strchr(content, '=');
             if (ptr) {
@@ -1279,23 +1282,31 @@ static void parseopts(struct file *pfile, struct vector *options)
                 strbuf_cats(s, format("#define %s\n", content));
             }
         } else if (!strncmp(arg, "-U", 2)) {
-            strbuf_cats(s, format("#undef %s\n", arg + 2));
+            if (arg[2])
+                strbuf_cats(s, format("#undef %s\n", arg + 2));
+        } else if (arg[0] != '-' || !strcmp(arg, "-")) {
+            if (ifile == NULL)
+                ifile = arg;
         }
     }
 
-    if (strbuf_len(s))
-        include_cmdline(pfile, s->str);
-}
-
-void cpp_init(const char *file, struct vector *options)
-{
-    cpp_file = new_file(file);
-    buffer_sentinel(cpp_file, with_file(file), BS_CONTINUOUS);
+    if (ifile == NULL || !strcmp(ifile, "-"))
+        ifile = "<stdin>";
+    
+    cpp_file = new_cpp_file(ifile);
+    buffer_sentinel(cpp_file, with_fp(stdin, ifile), BS_CONTINUOUS);
 
     init_env(cpp_file);
-    init_include(cpp_file);
+    init_include_path(cpp_file);
     init_builtin_macros(cpp_file);
-    parseopts(cpp_file, options);
+
+    for (int i = 0; i < vec_len(v); i++) {
+        const char *dir = vec_at(v, i);
+        add_include(cpp_file->usr_include_paths, dir);
+    }
+    
+    if (strbuf_len(s))
+        include_cmdline(cpp_file, s->str);
 }
 
 /* Getting one expanded token.

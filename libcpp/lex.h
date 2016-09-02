@@ -166,8 +166,9 @@ struct ifstack {
     struct ifstack *prev;
 };
 
-extern struct file *new_file(const char *file);
+extern struct file *new_cpp_file(const char *file);
 
+extern struct buffer *with_fp(FILE *fp, const char *name);
 extern struct buffer *with_string(const char *input, const char *name);
 extern struct buffer *with_file(const char *file);
 extern struct buffer *with_tokens(struct vector *v, struct buffer *cur);
@@ -215,7 +216,7 @@ struct cpp_ident {
     } value;
 };
 
-extern void cpp_init(const char *file, struct vector *options);
+extern void cpp_init(int argc, char *argv[]);
 extern struct token *get_pptok(struct file *pfile);
 extern void unget(struct file *pfile, struct token *t);
 

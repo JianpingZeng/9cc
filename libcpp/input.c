@@ -19,6 +19,34 @@ static void free_buffer(struct buffer *pb)
     free(pb);
 }
 
+struct buffer *with_fp(FILE *fp, const char *file)
+{
+    struct buffer *pb = new_buffer();
+    pb->kind = BK_REGULAR;
+    pb->name = file;
+
+    // read the content
+    fseek(fp, 0, SEEK_END);
+    long size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    char *d = xmalloc(size + 1);
+    if (fread(d, size, 1, fp) != 1)
+        die("Can't read file: %s", file);
+    fclose(fp);
+
+    /**
+     * Add a newline character to the end if the
+     * file doesn't have one, thus the include
+     * directive would work well.
+     */
+    d[size] = '\n';
+
+    pb->buf = (const unsigned char *)d;
+    pb->cur = pb->line_base = pb->next_line = pb->buf;
+    pb->limit = &pb->buf[size];
+    return pb;
+}
+
 struct buffer *with_file(const char *file)
 {
     struct buffer *pb = new_buffer();
@@ -129,7 +157,7 @@ static inline struct ident *alloc_cpp_ident_entry(struct imap *imap)
     return NEWS(struct cpp_ident, PERM);
 }
 
-struct file *new_file(const char *file)
+struct file *new_cpp_file(const char *file)
 {
     struct file *pfile = zmalloc(sizeof(struct file));
     pfile->file = file;

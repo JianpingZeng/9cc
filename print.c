@@ -14,7 +14,7 @@ static void print_tree1(node_t *node, int level);
 static void ensure_outfd(void)
 {
     if (!outfd)
-        outfd = stdout;
+        outfd = stderr;
 }
 
 static void putf(const char *fmt, ...)
