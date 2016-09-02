@@ -57,15 +57,9 @@ static void translate(void)
     if (opts.ast_dump) {
         print_tree(tree);
     } else {
-        if (errors == 0) {
-            struct externals *exts = ir(tree);
-            if (opts.ir_dump)
-                print_ir(exts);
-            else
-                gen(exts);
-        }
+        if (errors == 0)
+            ir(tree);
     }
-    finalize();
 }
 
 static void preprocess(void)

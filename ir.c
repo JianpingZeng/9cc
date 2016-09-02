@@ -15,9 +15,7 @@ static void emit_stmt(node_t *n);
 static void emit_expr(node_t *n);
 static void emit_bool_expr(node_t *n);
 static void emit_bop_bool(node_t *n);
-static void emit_bss(node_t *decl);
 static void emit_data(node_t *decl);
-static void emit_funcdef_section(node_t *decl);
 static const char *get_string_literal_label(const char *name);
 static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty);
@@ -36,7 +34,6 @@ static struct vector *extra_lvars;
 static const char *func_end_label;
 static struct table *tmps;
 static struct table *labels;
-static struct externals *exts;
 static const char *fall = (const char *)&fall;
 static const char *__continue;
 static const char *__break;
@@ -64,6 +61,8 @@ static const char *__break;
 static int ops[] = {
     Zero, Byte, Word, -1, Long, -1, -1, -1, Quad
 };
+
+static struct map *strings, *compounds, *floats;
 
 const char *rop2s(int op)
 {
@@ -1757,10 +1756,10 @@ static void emit_integer_literal(node_t *n)
 
 static const char *get_float_label(const char *name)
 {
-    const char *label = map_get(exts->floats, name);
+    const char *label = map_get(floats, name);
     if (!label) {
         label = gen_sliteral_label();
-        map_put(exts->floats, name, (void *)label);
+        map_put(floats, name, (void *)label);
     }
     return label;
 }
@@ -2322,45 +2321,41 @@ static void emit_function(node_t *decl)
         struct vector *v = DECL_X_LVARS(decl);
         vec_add(v, extra_lvars);
     }
-    emit_funcdef_section(decl);
-}
-
-static void emit_globalvar(node_t *n)
-{
-    assert(isdecl(n));
-    
-    if (DECL_BODY(n))
-        emit_data(n);
-    else
-        emit_bss(n);
 }
 
 void ir_init(void)
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
-    exts = zmalloc(sizeof(struct externals));
-    exts->sections = vec_new();
-    exts->strings = map_new();
-    exts->compounds = map_new();
-    exts->floats = map_new();
+    strings = map_new();
+    compounds = map_new();
+    floats = map_new();
 }
 
-struct externals * ir(node_t *tree)
+void ir(node_t *tree)
 {
-    assert(istudecl(tree) && errors == 0);
+    assert(errors == 0);
 
     struct vector *v = filter_global(DECL_EXTS(tree));
     
     for (int i = 0; i < vec_len(v); i++) {
         node_t *decl = vec_at(v, i);
-        if (isfuncdef(decl))
+        if (isfuncdef(decl)) {
             emit_function(decl);
-        else if (isvardecl(decl))
-            emit_globalvar(decl);
+            IM->defun(decl);
+        } else if (isvardecl(decl)) {
+            if (DECL_BODY(decl)) {
+                emit_data(decl);
+                IM->defvar(decl, DATA);
+            } else {
+                IM->defvar(decl, BSS);
+            }
+        }
     }
 
-    return exts;
+    IM->emit_compounds(compounds);
+    IM->emit_strings(strings);
+    IM->emit_floats(floats);
 }
 
 static void dclvar(node_t *node)
@@ -2447,11 +2442,11 @@ static struct vector * filter_global(node_t **v)
 //
 static struct vector *__xvalues;
 
-#define SET_SECTION_CONTEXT()                   \
+#define SET_XVALUE_CONTEXT()                   \
     struct vector *__saved_xvalues = __xvalues; \
     __xvalues = vec_new()
 
-#define RESTORE_SECTION_CONTEXT()               \
+#define RESTORE_XVALUE_CONTEXT()               \
     __xvalues = __saved_xvalues
 
 #define XVALUES   (__xvalues)
@@ -2461,13 +2456,6 @@ static void emit_initializer(node_t *init);
 static struct xvalue * alloc_xvalue(void)
 {
     return zmalloc(sizeof(struct xvalue));
-}
-
-static struct section * new_section(int id)
-{
-    struct section *section = zmalloc(sizeof(struct section));
-    section->id = id;
-    return section;
 }
 
 static void emit_xvalue(int size, const char *name)
@@ -2483,49 +2471,24 @@ static void emit_zero(size_t bytes)
     emit_xvalue(Zero, format("%llu", bytes));
 }
 
-static void emit_section(struct section *data)
-{
-    vec_push(exts->sections, data);
-}
-
-static void emit_funcdef_section(node_t *decl)
-{
-    node_t *sym = DECL_SYM(decl);
-    struct section *section = new_section(SECTION_TEXT);
-    section->global = SYM_SCLASS(sym) == STATIC ? false : true;
-    section->label = SYM_X_LABEL(sym);
-    section->u.decl = decl;
-    emit_section(section);
-}
-
 static const char *get_string_literal_label(const char *name)
 {
-    const char *label = map_get(exts->strings, name);
+    const char *label = map_get(strings, name);
     if (!label) {
         label = gen_sliteral_label();
-        map_put(exts->strings, name, (void *)label);
+        map_put(strings, name, (void *)label);
     }
     return label;
 }
 
-static struct section *emit_compound_literal_label(const char *label, node_t *init)
+static void emit_compound_literal_label(const char *label, node_t *init)
 {
-    node_t *ty = AST_TYPE(init);
-    
-    struct section *section = new_section(SECTION_DATA);
-    section->label = label;
-    section->size = TYPE_SIZE(ty);
-    section->align = TYPE_ALIGN(ty);
-
-    SET_SECTION_CONTEXT();
+    SET_XVALUE_CONTEXT();
 
     emit_initializer(init);
+    EXPR_X_XVALUES(init) = XVALUES;
 
-    section->u.xvalues = XVALUES;
-
-    RESTORE_SECTION_CONTEXT();
-
-    return section;
+    RESTORE_XVALUE_CONTEXT();
 }
 
 static const char *get_compound_literal_label(node_t *n)
@@ -2533,8 +2496,8 @@ static const char *get_compound_literal_label(node_t *n)
     assert(AST_ID(n) == INITS_EXPR);
     
     const char *label = gen_compound_label();
-    struct section *section = emit_compound_literal_label(label, n);
-    map_put(exts->compounds, label, section);
+    emit_compound_literal_label(label, n);
+    map_put(compounds, label, n);
     return label;
 }
 
@@ -2749,40 +2712,14 @@ static void emit_initializer(node_t *init)
         die("unexpected initializer type: %s", type2s(ty));
 }
 
-static void set_section_basic(struct section *section, node_t *decl)
-{
-    node_t *sym = DECL_SYM(decl);
-    node_t *ty = SYM_TYPE(sym);
-    
-    section->global = SYM_SCLASS(sym) == STATIC ? false : true;
-    section->label = SYM_X_LABEL(sym);
-    section->size = TYPE_SIZE(ty);
-    section->align = TYPE_ALIGN(ty);
-}
-
-static void emit_bss(node_t *decl)
-{
-    struct section *section = new_section(SECTION_BSS);
-    set_section_basic(section, decl);
-    emit_section(section);
-}
-
 static void emit_data(node_t *decl)
-{
-    struct section *section = new_section(SECTION_DATA);
-    set_section_basic(section, decl);
-    
+{   
     // enter context
-    SET_SECTION_CONTEXT();
+    SET_XVALUE_CONTEXT();
 
     emit_initializer(DECL_BODY(decl));
-    emit_section(section);
-
-    section->u.xvalues = XVALUES;
-    // array
-    if (isarray(AST_TYPE(DECL_SYM(decl))))
-        section->array = true;
+    DECL_X_XVALUES(decl) = XVALUES;
     
     // exit context
-    RESTORE_SECTION_CONTEXT();
+    RESTORE_XVALUE_CONTEXT();
 }

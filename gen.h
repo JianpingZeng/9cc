@@ -47,33 +47,12 @@ enum {
 };
 
 enum {
-    SECTION_BSS,
-    SECTION_DATA,
-    SECTION_TEXT
-};
-
-enum {
     ASCIZ = Quad + 1
 };
 
 struct xvalue {
     int size;
     const char *name;
-};
-
-struct section {
-    int id:3;
-    int global:1;
-    int align:6;
-    int array:1;
-    const char *label;
-    size_t size;
-    union {
-        // data
-        struct vector *xvalues;
-        // decl
-        node_t *decl;
-    } u;
 };
 
 enum {
@@ -186,14 +165,6 @@ struct basic_block {
     struct set *out;
 };
 
-// externals
-struct externals {
-    struct vector *sections;
-    struct map *strings;
-    struct map *compounds;
-    struct map *floats;
-};
-
 // sym
 #define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.sym.label)
 #define SYM_X_USES(NODE)      ((NODE)->symbol.x.sym.uses)
@@ -208,11 +179,13 @@ struct externals {
 #define DECL_X_CALLS(NODE)    ((NODE)->decl.x.decl.calls)
 #define DECL_X_HEAD(NODE)     ((NODE)->decl.x.decl.head)
 #define DECL_X_BASIC_BLOCK(NODE)  ((NODE)->decl.x.decl.basic_block)
+#define DECL_X_XVALUES(NODE)  ((NODE)->decl.x.decl.xvalues)
 // expr
 #define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
 #define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.expr.bfalse)
 #define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.expr.array)
+#define EXPR_X_XVALUES(NODE)  ((NODE)->expr.x.expr.xvalues)
 // stmt
 #define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
 #define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
@@ -235,6 +208,7 @@ union x {
         struct basic_block *basic_block;
         struct tac *head;
         struct tac *tail;
+        struct vector *xvalues;
     }decl;
     
     struct {
@@ -244,6 +218,7 @@ union x {
         // label
         const char *btrue;
         const char *bfalse;
+        struct vector *xvalues;
     }expr;
 
     struct {
@@ -285,11 +260,9 @@ struct opcode {
     struct reladdr *operands[2];
 };
 
-extern void gen(struct externals *externals);
-
 // ir.c
 extern const char *rop2s(int op);
-extern struct externals * ir(node_t *tree);
+extern void ir(node_t *tree);
 extern bool is_tmp_operand(struct operand *operand);
 extern bool is_mem_operand(struct operand *operand);
 extern bool is_imm_operand(struct operand *operand);

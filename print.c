@@ -566,36 +566,6 @@ static void print_use(struct tac *tac)
     }
 }
 
-static void print_data(struct section *section)
-{
-    putln("%s:", section->label);
-    for (int i = 0; i < vec_len(section->u.xvalues); i++) {
-        struct xvalue *value = vec_at(section->u.xvalues, i);
-        switch (value->size) {
-        case Zero:
-            putln(".zero %s", value->name);
-            break;
-        case Byte:
-            putln(".byte %s", value->name);
-            break;
-        case Word:
-            putln(".short %s", value->name);
-            break;
-        case Long:
-            putln(".long %s", value->name);
-            break;
-        case Quad:
-            putln(".quad %s", value->name);
-            break;
-        case ASCIZ:
-            putln(".asciz %s", value->name);
-            break;
-        default:
-            assert(0);
-        }
-    }
-}
-
 static void print_sym_set(struct set *set)
 {
     struct vector *objs = set_objects(set);
@@ -636,101 +606,131 @@ static void print_basic_block(struct basic_block *block)
     }
 }
 
-static void print_bss(struct section *section)
-{
-    putln("%s,%llu,%d",
-          section->label, section->size, section->align);
-}
+// static void print_data(struct section *section)
+// {
+//     putln("%s:", section->label);
+//     for (int i = 0; i < vec_len(section->u.xvalues); i++) {
+//         struct xvalue *value = vec_at(section->u.xvalues, i);
+//         switch (value->size) {
+//         case Zero:
+//             putln(".zero %s", value->name);
+//             break;
+//         case Byte:
+//             putln(".byte %s", value->name);
+//             break;
+//         case Word:
+//             putln(".short %s", value->name);
+//             break;
+//         case Long:
+//             putln(".long %s", value->name);
+//             break;
+//         case Quad:
+//             putln(".quad %s", value->name);
+//             break;
+//         case ASCIZ:
+//             putln(".asciz %s", value->name);
+//             break;
+//         default:
+//             assert(0);
+//         }
+//     }
+// }
 
-static void print_text(struct section *section)
-{
-    node_t *decl = section->u.decl;
-    putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
-    struct basic_block *block = DECL_X_BASIC_BLOCK(decl);
-    for (; block; block = block->successors[0])
-        print_basic_block(block);
-    putln("");
-}
+// static void print_bss(struct section *section)
+// {
+//     putln("%s,%llu,%d",
+//           section->label, section->size, section->align);
+// }
 
-static void print_compounds(struct map *compounds)
-{
-    struct vector *keys = map_keys(compounds);
-    if (vec_len(keys)) {
-        for (int i = 0; i < vec_len(keys); i++) {
-            const char *label = vec_at(keys, i);
-            struct section *section = map_get(compounds, label);
-            print_data(section);
-        }
-    }
-}
+// static void print_text(struct section *section)
+// {
+//     node_t *decl = section->u.decl;
+//     putln("%s:", SYM_X_LABEL(DECL_SYM(decl)));
+//     struct basic_block *block = DECL_X_BASIC_BLOCK(decl);
+//     for (; block; block = block->successors[0])
+//         print_basic_block(block);
+//     putln("");
+// }
 
-static void print_strings(struct map *strings)
-{
-    struct vector *keys = map_keys(strings);
-    if (vec_len(keys)) {
-        for (int i = 0; i < vec_len(keys); i++) {
-            const char *name = vec_at(keys, i);
-            const char *label = map_get(strings, name);
-            putln("%s:", label);
-            putln(".string %s", name);
-        }
-    }
-}
+// static void print_compounds(struct map *compounds)
+// {
+//     struct vector *keys = map_keys(compounds);
+//     if (vec_len(keys)) {
+//         for (int i = 0; i < vec_len(keys); i++) {
+//             const char *label = vec_at(keys, i);
+//             struct section *section = map_get(compounds, label);
+//             print_data(section);
+//         }
+//     }
+// }
 
-static void print_floats(struct map *floats)
-{
-    struct vector *keys = map_keys(floats);
-    if (vec_len(keys)) {
-        for (int i = 0; i < vec_len(keys); i++) {
-            const char *name = vec_at(keys, i);
-            const char *label = map_get(floats, name);
-            node_t *sym = lookup(name, constants);
-            assert(sym);
-            node_t *ty = SYM_TYPE(sym);
-            putln("%s:", label);
-            switch (TYPE_KIND(ty)) {
-            case FLOAT:
-                {
-                    float f = SYM_VALUE_D(sym);
-                    putln(".long %u", *(uint32_t *)&f);
-                }
-                break;
-            case DOUBLE:
-            case LONG + DOUBLE:
-                {
-                    double d = SYM_VALUE_D(sym);
-                    putln(".quad %llu", *(uint64_t *)&d);
-                }
-                break;
-            default:
-                assert(0);
-            }
-        }
-    }
-}
+// static void print_strings(struct map *strings)
+// {
+//     struct vector *keys = map_keys(strings);
+//     if (vec_len(keys)) {
+//         for (int i = 0; i < vec_len(keys); i++) {
+//             const char *name = vec_at(keys, i);
+//             const char *label = map_get(strings, name);
+//             putln("%s:", label);
+//             putln(".string %s", name);
+//         }
+//     }
+// }
 
-void print_ir(struct externals *exts)
-{
-    for (int i = 0; i < vec_len(exts->sections); i++) {
-        struct section *section = vec_at(exts->sections, i);
-        switch (section->id) {
-        case SECTION_TEXT:
-            print_text(section);
-            break;
-        case SECTION_DATA:
-            print_data(section);
-            break;
-        case SECTION_BSS:
-            print_bss(section);
-            break;
-        default:
-            assert(0);
-        }
-    }
-    print_compounds(exts->compounds);
-    print_strings(exts->strings);
-    print_floats(exts->floats);
-}
+// static void print_floats(struct map *floats)
+// {
+//     struct vector *keys = map_keys(floats);
+//     if (vec_len(keys)) {
+//         for (int i = 0; i < vec_len(keys); i++) {
+//             const char *name = vec_at(keys, i);
+//             const char *label = map_get(floats, name);
+//             node_t *sym = lookup(name, constants);
+//             assert(sym);
+//             node_t *ty = SYM_TYPE(sym);
+//             putln("%s:", label);
+//             switch (TYPE_KIND(ty)) {
+//             case FLOAT:
+//                 {
+//                     float f = SYM_VALUE_D(sym);
+//                     putln(".long %u", *(uint32_t *)&f);
+//                 }
+//                 break;
+//             case DOUBLE:
+//             case LONG + DOUBLE:
+//                 {
+//                     double d = SYM_VALUE_D(sym);
+//                     putln(".quad %llu", *(uint64_t *)&d);
+//                 }
+//                 break;
+//             default:
+//                 assert(0);
+//             }
+//         }
+//     }
+// }
+
+// void print_ir(struct externals *exts)
+// {
+//     for (int i = 0; i < vec_len(exts->sections); i++) {
+//         struct section *section = vec_at(exts->sections, i);
+//         switch (section->id) {
+//         case SECTION_TEXT:
+//             print_text(section);
+//             break;
+//         case SECTION_DATA:
+//             print_data(section);
+//             break;
+//         case SECTION_BSS:
+//             print_bss(section);
+//             break;
+//         default:
+//             assert(0);
+//         }
+//     }
+//     print_compounds(exts->compounds);
+//     print_strings(exts->strings);
+//     print_floats(exts->floats);
+// }
 
 /**
  * Convert type node to string.

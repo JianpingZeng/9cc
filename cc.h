@@ -94,7 +94,6 @@ extern node_t *new_string_literal(const char *string);
 // decl.c
 extern node_t **declaration(void);
 extern node_t *translation_unit(void);
-extern void finalize(void);
 extern node_t *typename(void);
 extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
@@ -285,7 +284,7 @@ extern struct table *tags;
 // print.c
 extern void print_tree(node_t * tree);
 extern void print_tac(struct tac *tac);
-extern void print_ir(struct externals * tree);
+// extern void print_ir(struct externals * tree);
 extern const char *type2s(node_t * ty);
 extern const char *node2s(node_t * node);
 extern void print_node_size(void);
@@ -316,10 +315,16 @@ struct metrics {
     unsigned rank;
 };
 
+// segments
+enum { TEXT, BSS, DATA };
+
 struct imachine {
     void (*progbeg) (int argc, char *argv[]);
-    void (*defvar) (node_t *);
+    void (*defvar) (node_t *, int);
     void (*defun) (node_t *);
+    void (*emit_compounds) (struct map *);
+    void (*emit_strings) (struct map *);
+    void (*emit_floats) (struct map *);
     void (*progend) (void);
     struct metrics boolmetrics;
     struct metrics charmetrics;

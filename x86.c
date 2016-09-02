@@ -2515,16 +2515,16 @@ static void emit_function_epilogue(void)
     xx(OP_RET, NULL, NULL, NULL);
 }
 
-static void emit_function_prologue(struct section *section)
+static void emit_function_prologue(node_t *decl)
 {
-    node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
+    bool global = SYM_SCLASS(fsym) == STATIC ? false : true;
     
-    if (section->global)
-        macro(".globl %s", section->label);
+    if (global)
+        macro(".globl %s", SYM_X_LABEL(fsym));
     macro(".text");
-    lab(section->label);
+    lab(SYM_X_LABEL(fsym));
     xx(OP_PUSH, suffixi[Q], rs(rbp->r[Q]), NULL);
     xx(OP_MOV, suffixi[Q], rs(rsp->r[Q]), rs(rbp->r[Q]));
 
@@ -2582,9 +2582,8 @@ static void emit_function_prologue(struct section *section)
     emit_placeholder(INST_STACK_SUB);
 }
 
-static void emit_text(struct section *section)
+static void emit_text(node_t *decl)
 {
-    node_t *decl = section->u.decl;
     node_t *fsym = DECL_SYM(decl);
     node_t *ftype = SYM_TYPE(fsym);
     node_t **params = TYPE_PARAMS(ftype);
@@ -2602,7 +2601,7 @@ static void emit_text(struct section *section)
     fcon.preserved_regs = set_new();
     fcon.pinfo = alloc_addr_for_funcdef(ftype, params);
     
-    emit_function_prologue(section);
+    emit_function_prologue(decl);
     if (TYPE_VARG(ftype))
         emit_register_save_area();
     else
@@ -2614,18 +2613,19 @@ static void emit_text(struct section *section)
     finalize_text();
 }
 
-static void emit_data(struct section *section)
+static void emit_data(const char *label, bool global, bool array,
+                      int align, int size, struct vector *xvalues)
 {
-    if (section->global)
-        emit(".globl %s", section->label);
+    if (global)
+        emit(".globl %s", label);
     emit(".data");
-    if (section->align > 1)
-        emit(".align %d", section->align);
-    if (section->array)
-        emit(".size %s, %lu", section->label, section->size);
-    emit_noindent("%s:", section->label);
-    for (int i = 0; i < vec_len(section->u.xvalues); i++) {
-        struct xvalue *value = vec_at(section->u.xvalues, i);
+    if (align > 1)
+        emit(".align %d", align);
+    if (array)
+        emit(".size %s, %lu", label, size);
+    emit_noindent("%s:", label);
+    for (int i = 0; i < vec_len(xvalues); i++) {
+        struct xvalue *value = vec_at(xvalues, i);
         switch (value->size) {
         case Zero:
             emit(".zero %s", value->name);
@@ -2652,14 +2652,16 @@ static void emit_data(struct section *section)
     }
 }
 
-static void emit_bss(struct section *section)
+static void emit_bss(node_t *decl)
 {
-    if (!section->global)
-        emit(".local %s", section->label);
+    node_t *sym = DECL_SYM(decl);
+    node_t *ty = SYM_TYPE(sym);
+    bool global = SYM_SCLASS(sym) == STATIC ? false : true;
+    
+    if (!global)
+        emit(".local %s", SYM_X_LABEL(sym));
     emit(".comm %s,%llu,%d",
-         section->label,
-         section->size,
-         section->align);
+         SYM_X_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
 }
 
 static void emit_compounds(struct map *compounds)
@@ -2668,8 +2670,9 @@ static void emit_compounds(struct map *compounds)
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(keys, i);
-            struct section *section = map_get(compounds, label);
-            emit_data(section);
+            node_t *init = map_get(compounds, label);
+            node_t *ty = AST_TYPE(init);
+            emit_data(label, false, false, TYPE_ALIGN(ty), TYPE_SIZE(ty), EXPR_X_XVALUES(init));
         }
     }
 }
@@ -2720,32 +2723,6 @@ static void emit_floats(struct map *floats)
             }
         }
     }
-}
-
-void gen(struct externals *exts)
-{
-    assert(errors == 0);
-    
-    for (int i = 0; i < vec_len(exts->sections); i++) {
-        struct section *section = vec_at(exts->sections, i);
-        switch (section->id) {
-        case SECTION_BSS:
-            emit_bss(section);
-            break;
-        case SECTION_DATA:
-            emit_data(section);
-            break;
-        case SECTION_TEXT:
-            emit_text(section);
-            break;
-        default:
-            assert(0);
-        }
-    }
-    emit_compounds(exts->compounds);
-    emit_strings(exts->strings);
-    emit_floats(exts->floats);
-    emit(".ident \"7cc: %s\"", VERSION);
 }
 
 ///
@@ -3650,19 +3627,35 @@ static void progbeg(int argc, char *argv[])
 
 static void progend(void)
 {
+    emit(".ident \"7cc: %s\"", VERSION);
 }
 
-static void defvar(node_t *node)
+static void defvar(node_t *decl, int seg)
 {
+    node_t *sym = DECL_SYM(decl);
+    node_t *ty = SYM_TYPE(sym);
+    int align = TYPE_ALIGN(ty);
+    bool global = SYM_SCLASS(sym) == STATIC ? false : true;
+    bool array = isarray(ty);
+    struct vector *xvalues = DECL_X_XVALUES(decl);
+    
+    if (seg == DATA)
+        emit_data(SYM_X_LABEL(sym), global, array, align, TYPE_SIZE(ty), xvalues);
+    else if (seg == BSS)
+        emit_bss(decl);
 }
 
-static void defun(node_t *node)
+static void defun(node_t *decl)
 {
+    emit_text(decl);
 }
 
 struct imachine *IM = &(struct imachine) {
     .progbeg = progbeg,
     .progend = progend,
     .defvar = defvar,
-    .defun = defun
+    .defun = defun,
+    .emit_compounds = emit_compounds,
+    .emit_strings = emit_strings,
+    .emit_floats = emit_floats
 };
