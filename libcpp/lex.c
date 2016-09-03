@@ -896,25 +896,24 @@ void match(int t, int follow[])
     }
 }
 
-int skipto(int (*test[]) (struct token *))
+int skipto(int (*test) (struct token *))
 {
+    int i;
     struct token *t = token;
-    int cnt;
-    for (cnt = 0; token->id != EOI; cnt++, gettok()) {
-        for (int i = 0; test[i]; i++)
-            if (test[i](token))
+    for (i = 0; token->id != EOI; i++, gettok()) {
+            if (test(token))
                 goto out;
     }
  out:
-    if (cnt > 1)
+    if (i > 1)
         error_at(t->src,
                  "invalid token '%s', %d tokens skipped",
-                 tok2s(t), cnt);
-    else if (cnt)
+                 tok2s(t), i);
+    else if (i)
         error_at(t->src,
                  "invalid token '%s'",
                  tok2s(t));
     else
         die("nothing skipped, may be an internal error");
-    return cnt;
+    return i;
 }

@@ -1468,7 +1468,7 @@ node_t *translation_unit(void)
                 // empty declaration
                 gettok();
             else
-                skipto(FARRAY(first_decl));
+                skipto(first_decl);
         }
     }
 
