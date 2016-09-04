@@ -90,15 +90,14 @@ void ensure_field(node_t * field, size_t total, bool last)
         ensure_nonbitfield(field, total, last);
 }
 
-void ensure_decl(node_t * decl, int sclass, int level)
+void ensure_decl(node_t * sym, int sclass, int level)
 {
     if (level == PARAM)
         return;
 
-    node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
     struct source src = AST_SRC(sym);
-    if (isvardecl(decl)) {
+    if (isvardecl(sym)) {
         if (isincomplete(ty) && SYM_DEFINED(sym))
             error_at(src, "variable has incomplete type '%s'", type2s(ty));
     }

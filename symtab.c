@@ -54,14 +54,14 @@ void exit_scope(void)
     level--;
 }
 
-void foreach(struct table *tp, int level, void (*apply) (node_t *))
+void foreach(struct table *tp, int level, void (*apply) (node_t *, void *), void *context)
 {
     assert(tp);
     while (tp && tp->scope > level)
         tp = tp->up;
     if (tp && tp->scope == level) {
         for (node_t *p = tp->all; p && SYM_SCOPE(p) == level; p = SYM_LINK(p))
-            apply(p);
+            apply(p, context);
     }
 }
 

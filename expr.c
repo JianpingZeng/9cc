@@ -1010,10 +1010,9 @@ static node_t *compound_literal(node_t * ty)
     // define local variable
     if (SCOPE >= LOCAL) {
         const char *label = gen_compound_label();
-        node_t *decl = make_localvar(label, ty, 0);
-        DECL_BODY(decl) = inits;
+        node_t *sym = make_localvar(label, ty, 0);
+        SYM_INIT(sym) = inits;
         // set sym
-        node_t *sym = DECL_SYM(decl);
         EXPR_SYM(ret) = sym;
         SYM_REFS(sym)++;
     }
@@ -1185,8 +1184,7 @@ static void builtin_funcall(node_t *call, node_t *ref)
         
         if (isrecord(ty) && TYPE_SIZE(ty) <= MAX_STRUCT_PARAM_SIZE) {
             const char *label = gen_tmpname();
-            node_t *decl = make_localvar(label, ty, 0);
-            node_t *sym = DECL_SYM(decl);
+            node_t *sym = make_localvar(label, ty, 0);
             // passing address
             node_t *operand = ast_expr(REF_EXPR, ty, NULL, NULL);
             EXPR_SYM(operand) = sym;
@@ -1219,7 +1217,7 @@ static node_t *funcall(node_t * node)
             ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
             EXPR_ARGS(ret) = args;
             AST_SRC(ret) = src;
-            vec_push(funcalls, ret);
+            vec_push(funcinfo.calls, ret);
             // handle builtin calls
             node_t *tmp = flatten_call(node);
             if (AST_ID(tmp) == REF_EXPR && isfunc(AST_TYPE(tmp)))
@@ -2259,4 +2257,10 @@ node_t *switch_expr(void)
         return NULL;
     }
     return node;
+}
+
+node_t *decls2expr(node_t **decls)
+{
+    // TODO:
+    return NULL;
 }

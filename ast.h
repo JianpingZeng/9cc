@@ -167,7 +167,6 @@ struct ast_expr {
 
 // for stmt
 #define STMT_FOR_INIT(NODE)    ((NODE)->stmt.list[0])
-#define STMT_FOR_DECL(NODE)    ((NODE)->stmt.blks)
 #define STMT_FOR_COND(NODE)    ((NODE)->stmt.list[1])
 #define STMT_FOR_CTRL(NODE)    ((NODE)->stmt.list[2])
 #define STMT_FOR_BODY(NODE)    ((NODE)->stmt.list[3])

@@ -86,36 +86,46 @@ extern node_t *bool_expr(void);
 extern node_t *switch_expr(void);
 // bop
 extern node_t *bop(int op, node_t * l, node_t * r);
-
 // literals
 extern node_t *new_integer_literal(int i);
 extern node_t *new_string_literal(const char *string);
+extern node_t *decls2expr(node_t **decls);
 
 // decl.c
 extern node_t **declaration(void);
-extern node_t *translation_unit(void);
+extern void translation_unit(void);
 extern node_t *typename(void);
 extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
 extern bool first_typename(struct token *t);
-extern node_t *make_localdecl(const char *name, node_t * ty, int sclass);
+extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
+
+struct funcinfo {
+    const char *name;
+    node_t *type;
+    struct vector *gotos;
+    struct map *labels;
+    struct vector *staticvars;
+    struct vector *localvars;
+    struct vector *calls;
+};
+extern struct funcinfo funcinfo;
 
 // init.c
 extern bool has_static_extent(node_t * sym);
 extern node_t *decl_initializer(node_t * sym, int sclass, int level);
+extern node_t *initializer(node_t * ty);
 extern node_t *initializer_list(node_t * ty);
 extern void init_string(node_t * ty, node_t * node);
 
 // stmt.c
-extern struct vector *funcalls;
-extern void func_body(node_t *decl);
-extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
+extern node_t *compound_stmt(void (*) (void));
 
 // typechk.c
 extern void ensure_inline(node_t *ty, int fspec, struct source src);
 extern void ensure_field(node_t * field, size_t total, bool last);
-extern void ensure_decl(node_t * decl, int sclass, int kind);
+extern void ensure_decl(node_t * sym, int sclass, int kind);
 extern void ensure_array(node_t * atype, struct source src, int level);
 extern void ensure_func(node_t * ftype, struct source src);
 extern void ensure_main(node_t *ftype, const char *name, struct source src);
@@ -260,7 +270,7 @@ extern void symbol_init(void);
 extern int scopelevel(void);
 extern void enter_scope(void);
 extern void exit_scope(void);
-extern void foreach(struct table *tp, int level, void (*apply) (node_t *));
+extern void foreach(struct table *tp, int level, void (*apply) (node_t *, void *), void *);
 extern bool is_current_scope(node_t *sym);
 extern bool is_anonymous(const char *name);
 

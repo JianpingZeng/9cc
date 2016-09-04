@@ -8,14 +8,20 @@ static node_t *tag_decl(void);
 static void ids(node_t *sym);
 static void fields(node_t * sym);
 
-static node_t *funcdef(const char *id, node_t * ty, int sclass, int fspec, node_t *params[], struct source src);
+static node_t *funcdef(const char *id, node_t * ty, int sclass, int fspec,
+                       node_t *params[], struct source src);
 static node_t *typedefdecl(const char *id, node_t * ty, int fspec, int kind, struct source src);
 
 typedef node_t *declfun_p(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *paramdecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *globaldecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *localdecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
-static node_t **decls(declfun_p * dcl);
+static struct vector *decls(declfun_p * dcl);
+
+static void finalize(void);
+static void func_body(node_t *decl);
+
+struct funcinfo funcinfo;
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
     (((prototype) & 0x01) << 30) |                      \
@@ -1090,6 +1096,11 @@ static node_t *paramdecl(const char *id, node_t * ty, int sclass, int fspec, str
     AST_SRC(sym) = src;
     SYM_SCLASS(sym) = sclass;
     SYM_DEFINED(sym) = true;
+    
+    if (token->id == '=') {
+        error("C does not support default arguments");
+        initializer(NULL);
+    }
 
     return sym;
 }
@@ -1135,6 +1146,18 @@ static node_t *localdecl(const char *id, node_t * ty, int sclass, int fspec, str
         SYM_SCLASS(sym) = sclass;
         if (!globl)
             SYM_DEFINED(sym) = true;
+    }
+
+    if (token->id == '=') {
+        node_t *init = decl_initializer(sym, sclass, LOCAL);
+        SYM_INIT(sym) = init;
+    }
+
+    if (!globl) {
+        if (SYM_SCLASS(sym) == STATIC)
+            vec_push(funcinfo.staticvars, sym);
+        else
+            vec_push(funcinfo.localvars, sym);
     }
 
     return sym;
@@ -1186,75 +1209,54 @@ static node_t *globaldecl(const char *id, node_t *ty, int sclass, int fspec, str
         conflicting_types_error(src, sym);
     }
 
+    if (token->id == '=') {
+        node_t *init = decl_initializer(sym, sclass, GLOBAL);
+        SYM_INIT(sym) = init;
+        if (init)
+            IR->defvar(sym);
+    }
+
     return sym;
 }
 
-/// declaration-list:
-///   declaration
-///   declaration-list declaration
-///
-static void oldstyle_decls(node_t *ftype, node_t *params[])
+static void oldparam(node_t *sym, void *context)
 {
-    struct vector *v = vec_new();
-    
-    while (first_decl(token))
-        vec_add_array(v, decls(paramdecl));
+    node_t **params = context;
 
-    for (int i = 0; i < vec_len(v); i++) {
-        node_t *decl = (node_t *) vec_at(v, i);
-        node_t *sym = DECL_SYM(decl);
-
-        assert(SYM_NAME(sym));
-        if (!isvardecl(decl)) {
-            warning_at(AST_SRC(sym), "empty declaraion");
-            continue;
-        }
+    assert(SYM_NAME(sym));
+    if (!isvardecl(sym)) {
+        warning_at(AST_SRC(sym), "empty declaraion");
+        return;
+    }
         
-        int j;
-        for (j = 0; params[j]; j++) {
-            node_t *s = params[j];
-            if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym)))
-                break;
-        }
-
-        if (params[j])
-            params[j] = sym;
-        else
-            error_at(AST_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
+    int j;
+    for (j = 0; params[j]; j++) {
+        node_t *s = params[j];
+        if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym)))
+            break;
     }
 
-    for (int i = 0; params[i]; i++) {
-        node_t *p = params[i];
-        if (!SYM_DEFINED(p))
-            params[i] = paramdecl(SYM_NAME(p), inttype, 0, 0, AST_SRC(p));
-    }
-
-    int i;
-    node_t **proto = newarray(sizeof(node_t *), length(params) + 1, PERM);
-    for (i = 0; params[i]; i++)
-        proto[i] = SYM_TYPE(params[i]);
-
-    proto[i] = NULL;
-    TYPE_PROTO(ftype) = proto;
+    if (params[j])
+        params[j] = sym;
+    else
+        error_at(AST_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
 }
 
-static void make_funcdecl(node_t *sym, node_t *ty, int sclass, struct source src,
-                          node_t *decl)
+static void make_funcdecl(node_t *sym, node_t *ty, int sclass, struct source src)
 {
     SYM_TYPE(sym) = ty;
     AST_SRC(sym) = src;
     SYM_DEFINED(sym) = true;
     SYM_SCLASS(sym) = sclass;
-    DECL_SYM(decl) = sym;
 }
 
 // id maybe NULL
-static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec, node_t *params[], struct source src)
+static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec,
+                       node_t *params[], struct source src)
 {
+    node_t *sym;
     // SCOPE == PARAM (prototype)
     // SCOPE == GLOBAL (oldstyle)
-    
-    node_t *decl = ast_decl(FUNC_DECL);
 
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", id2s(sclass));
@@ -1262,17 +1264,17 @@ static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec, nod
     }
     
     if (id) {
-        node_t *sym = lookup(id, identifiers);
+        sym = lookup(id, identifiers);
         if (!sym || SYM_SCOPE(sym) != GLOBAL) {
             sym = install(id, &identifiers, GLOBAL);
-            make_funcdecl(sym, ftype, sclass, src, decl);
+            make_funcdecl(sym, ftype, sclass, src);
         } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
             if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
                 error_at(src,
                          "static declaaration of '%s' follows non-static declaration",
                          id);
             else
-                make_funcdecl(sym, ftype, sclass, src, decl);
+                make_funcdecl(sym, ftype, sclass, src);
         } else {
             redefinition_error(src, sym);
         }
@@ -1281,15 +1283,37 @@ static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec, nod
         ensure_main(ftype, id, src);
         ensure_inline(ftype, fspec, src);
     } else {
-        node_t *sym = anonymous(&identifiers, GLOBAL);
-        make_funcdecl(sym, ftype, sclass, src, decl);
+        sym = anonymous(&identifiers, GLOBAL);
+        make_funcdecl(sym, ftype, sclass, src);
     }
 
     // old style function parameters declaration
     if (TYPE_OLDSTYLE(ftype)) {
         enter_scope();
         assert(SCOPE == PARAM);
-        oldstyle_decls(ftype, params);
+        /// declaration-list:
+        ///   declaration
+        ///   declaration-list declaration
+        ///
+        while (first_decl(token))
+            decls(paramdecl);
+
+        foreach(identifiers, PARAM, oldparam, params);
+
+        for (int i = 0; params[i]; i++) {
+            node_t *p = params[i];
+            if (!SYM_DEFINED(p))
+                params[i] = paramdecl(SYM_NAME(p), inttype, 0, 0, AST_SRC(p));
+        }
+
+        int i;
+        node_t **proto = newarray(sizeof(node_t *), length(params) + 1, PERM);
+        for (i = 0; params[i]; i++)
+            proto[i] = SYM_TYPE(params[i]);
+
+        proto[i] = NULL;
+        TYPE_PROTO(ftype) = proto;
+    
         if (token->id != '{')
             error("expect function body after function declarator");
     }
@@ -1299,34 +1323,12 @@ static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec, nod
 
     if (token->id == '{') {
         // function definition
-        func_body(decl);
+        func_body(sym);
         exit_scope();
-        IR->defun(decl);
+        IR->defun(sym);
     }
 
-    return decl;
-}
-
-static node_t *make_decl(const char *id, node_t * ty, int sclass,
-                         int fspec, struct source src, declfun_p * dcl)
-{
-    node_t *decl;
-    if (sclass == TYPEDEF)
-        decl = ast_decl(TYPEDEF_DECL);
-    else if (isfunc(ty))
-        decl = ast_decl(FUNC_DECL);
-    else
-        decl = ast_decl(VAR_DECL);
-    node_t *sym = dcl(id, ty, sclass, fspec, src);
-
-    DECL_SYM(decl) = sym;
-    return decl;
-}
-
-node_t *make_localdecl(const char *name, node_t * ty, int sclass)
-{
-    node_t *decl = make_decl(name, ty, sclass, 0, source, localdecl);
-    return decl;
+    return sym;
 }
 
 /// type-name:
@@ -1364,7 +1366,7 @@ node_t *typename(void)
 ///   declarator
 ///   declarator '=' initializer
 ///
-static node_t **decls(declfun_p * dcl)
+static struct vector *decls(declfun_p * dcl)
 {
     struct vector *v = vec_new();
     node_t *basety;
@@ -1391,10 +1393,10 @@ static node_t **decls(declfun_p * dcl)
                                (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
                 if (TYPE_OLDSTYLE(ty))
                     exit_scope();
-                node_t *decl = funcdef(id ? TOK_IDENT_STR(id) : NULL,
-                                       ty, sclass, fspec, params, id ? id->src : src);
-                vec_push(v, decl);
-                return vtoa(v, PERM);
+                
+                funcdef(id ? TOK_IDENT_STR(id) : NULL,
+                        ty, sclass, fspec, params, id ? id->src : src);
+                return NULL;
             } else {
                 exit_params(params);
             }
@@ -1402,13 +1404,13 @@ static node_t **decls(declfun_p * dcl)
 
         for (;;) {
             if (id) {
-                node_t *decl = make_decl(TOK_IDENT_STR(id), ty, sclass, fspec, id->src, dcl);
+                node_t *sym = dcl(TOK_IDENT_STR(id), ty, sclass, fspec, id->src);
                 if (token->id == '=') {
-                    node_t *init = decl_initializer(DECL_SYM(decl), sclass, level);
-                    DECL_BODY(decl) = init;
+                    node_t *init = decl_initializer(sym, sclass, level);
+                    SYM_INIT(sym) = init;
                 }
-                ensure_decl(decl, sclass, level);
-                vec_push(v, decl);
+                ensure_decl(sym, sclass, level);
+                vec_push(v, sym);
             }
 
             if (token->id != ',')
@@ -1423,46 +1425,31 @@ static node_t **decls(declfun_p * dcl)
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
-        int node_id;
-        node_t *decl;
-        if (isstruct(basety))
-            node_id = STRUCT_DECL;
-        else if (isunion(basety))
-            node_id = UNION_DECL;
-        else
-            node_id = ENUM_DECL;
-
-        decl = ast_decl(node_id);
-        DECL_SYM(decl) = TYPE_TSYM(basety);
-        vec_push(v, decl);
         IR->deftype(basety);
     } else {
         error("invalid token '%s' in declaration", tok2s(token));
     }
     match(';', follow);
 
-    return vtoa(v, PERM);
+    return v;
 }
 
 node_t **declaration(void)
 {
     assert(SCOPE >= LOCAL);
-    return decls(localdecl);
+    return vtoa(decls(localdecl), FUNC);
 }
 
 /// translation-unit:
 ///   external-declaration
 ///   translation-unit external-declaration
 ///
-node_t *translation_unit(void)
+void translation_unit(void)
 {
-    node_t *ret = ast_decl(TU_DECL);
-    struct vector *v = vec_new();
-
     for (gettok(); token->id != EOI;) {
         if (first_decl(token)) {
             assert(SCOPE == GLOBAL);
-            vec_add_array(v, decls(globaldecl));
+            decls(globaldecl);
         } else {
             if (token->id == ';')
                 // empty declaration
@@ -1471,12 +1458,107 @@ node_t *translation_unit(void)
                 skipto(first_decl);
         }
     }
-
-    DECL_EXTS(ret) = vtoa(v, PERM);
-    return ret;
+    
+    finalize();
 }
 
 static void finalize(void)
 {
     IR->finalize();
+}
+
+static void predefined_ids(void)
+{
+    {
+        /**
+         * Predefined identifier: __func__
+         * The identifier __func__ is implicitly declared by C99
+         * implementations as if the following declaration appeared
+         * after the opening brace of each function definition:
+         *
+         * static const char __func__[] = "function-name";
+         *
+         */
+        const char *name = "__func__";
+        node_t *type = array_type(qual(CONST, chartype));
+        node_t *sym = make_localvar(name, type, STATIC);
+        SYM_PREDEFINE(sym) = true;
+        // initializer
+        node_t *literal = new_string_literal(funcinfo.name);
+        init_string(type, literal);
+        SYM_INIT(sym) = literal;
+    }
+}
+
+static void backfill_labels(void)
+{
+    for (int i = 0; i < vec_len(funcinfo.gotos); i++) {
+        node_t *goto_stmt = vec_at(funcinfo.gotos, i);
+        const char *name = STMT_LABEL_NAME(goto_stmt);
+        node_t *label_stmt = map_get(funcinfo.labels, name);
+        if (label_stmt) {
+            STMT_X_LABEL(goto_stmt) = STMT_X_LABEL(label_stmt);
+            // update refs
+            STMT_LABEL_REFS(label_stmt)++;
+        } else {
+            error_at(AST_SRC(goto_stmt), "use of undeclared label '%s'", name);
+        }
+    }
+}
+
+// static void warning_unused(void)
+// {
+//     for (int i = 0; i < vec_len(allvars); i++) {
+//         node_t *decl = vec_at(allvars, i);
+//         node_t *sym = DECL_SYM(decl);
+
+//         // ONLY warning, not filter out
+//         // because it may contains side-effect such as function calls.
+//         if (SYM_REFS(sym) == 0) {
+//             if (SYM_PREDEFINE(sym))
+//                 continue;       // filter-out predefined symbols
+//             else
+//                 warning_at(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+//         }
+//         if (SYM_SCLASS(sym) == STATIC) {
+//             SYM_X_LABEL(sym) = gen_static_label();
+//             vec_push(staticvars, decl);
+//         } else {
+//             vec_push(localvars, decl);
+//         }
+//     }
+// }
+
+static void func_body(node_t *sym)
+{
+    node_t *stmt;
+    
+    funcinfo.gotos = vec_new();
+    funcinfo.labels = map_new();
+    funcinfo.type = SYM_TYPE(sym);
+    funcinfo.name = SYM_NAME(sym);
+    funcinfo.staticvars = vec_new();
+    funcinfo.localvars = vec_new();
+    funcinfo.calls = vec_new();
+
+    // compound statement
+    stmt = compound_stmt(predefined_ids);
+    // check goto labels
+    backfill_labels();
+    // check unused
+    // warning_unused();
+
+    // save
+    SYM_X_LVARS(sym) = funcinfo.localvars;
+    SYM_X_SVARS(sym) = funcinfo.staticvars;
+    SYM_X_CALLS(sym) = funcinfo.calls;
+    
+    memset(&funcinfo, 0, sizeof(struct funcinfo));
+
+    SYM_INIT(sym) = stmt;
+}
+
+node_t *make_localvar(const char *name, node_t * ty, int sclass)
+{
+    return localdecl(name, ty, sclass, 0, source);
 }

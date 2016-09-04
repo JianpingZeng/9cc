@@ -1,9 +1,6 @@
 #include "cc.h"
 
 static node_t *statement(void);
-static node_t *compound_stmt(void (*) (void));
-static node_t **filter_decls(node_t **decls);
-static void warning_unused(void);
 
 static node_t *__loop;
 static node_t *__switch;
@@ -40,15 +37,6 @@ static node_t *__switch_ty;
 #define DEFLT         (__default)
 #define SWITCH_TYPE   (__switch_ty)
 
-// funcdef context
-struct vector *funcalls;
-static struct vector *gotos;
-static struct map *labels;
-static node_t *functype;
-static const char *funcname;
-static struct vector *staticvars;
-static struct vector *localvars;
-static struct vector *allvars;
 
 /// expression-statement:
 ///   expression[opt] ';'
@@ -216,7 +204,7 @@ static node_t *for_stmt(void)
     } else {
         if (first_decl(token)) {
             // declaration
-            STMT_FOR_DECL(ret) = filter_decls(declaration());
+            STMT_FOR_INIT(ret) = decls2expr(declaration());
         } else {
             // expression
             STMT_FOR_INIT(ret) = expression();
@@ -391,7 +379,7 @@ static node_t *label_stmt(void)
 
     // install label before parsing body
     if (NO_ERROR) {
-        node_t *n = map_get(labels, name);
+        node_t *n = map_get(funcinfo.labels, name);
         if (n)
             error_at(AST_SRC(ret),
                      "redefinition of label '%s', previous label defined here:%s:%u:%u",
@@ -399,7 +387,7 @@ static node_t *label_stmt(void)
                      AST_SRC(n).file,
                      AST_SRC(n).line,
                      AST_SRC(n).column);
-        map_put(labels, name, ret);
+        map_put(funcinfo.labels, name, ret);
         STMT_LABEL_NAME(ret) = name;
     }
 
@@ -430,7 +418,7 @@ static node_t *goto_stmt(void)
     expect(';');
 
     if (NO_ERROR)
-        vec_push(gotos, ret);
+        vec_push(funcinfo.gotos, ret);
     else
         ret = NULL;
 
@@ -485,13 +473,13 @@ static node_t *ensure_return(node_t * expr, struct source src)
     if (expr == NULL)
         return NULL;
 
-    if (isvoid(rtype(functype))) {
+    if (isvoid(rtype(funcinfo.type))) {
         if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
             error_at(src, "void function should not return a value");
     } else {
         if (!isnullstmt(expr)) {
             node_t *ty1 = AST_TYPE(expr);
-            node_t *ty2 = rtype(functype);
+            node_t *ty2 = rtype(funcinfo.type);
             if (!(expr = assignconv(ty2, expr)))
                 error_at(src,
                          "returning '%s' from function with incompatible result type '%s'",
@@ -582,7 +570,7 @@ static node_t *statement(void)
 ///   declaration
 ///   statement
 ///
-static node_t *compound_stmt(void (*enter_hook) (void))
+node_t *compound_stmt(void (*enter_hook) (void))
 {
     node_t *ret = ast_stmt(COMPOUND_STMT, source);
     struct vector *v = vec_new();
@@ -594,12 +582,18 @@ static node_t *compound_stmt(void (*enter_hook) (void))
         enter_hook();
 
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
-        if (first_decl(token))
+        if (first_decl(token)) {
             // declaration
-            vec_add_array(v, filter_decls(declaration()));
-        else
+            node_t *expr = decls2expr(declaration());
+            if (expr) {
+                node_t *stmt = ast_stmt(EXPR_STMT, AST_SRC(expr));
+                STMT_EXPR_BODY(stmt) = expr;
+                vec_push(v, stmt);
+            }
+        } else {
             // statement
             vec_push_safe(v, statement());
+        }
     }
 
     STMT_BLKS(ret) = vtoa(v, PERM);
@@ -608,133 +602,4 @@ static node_t *compound_stmt(void (*enter_hook) (void))
     exit_scope();
 
     return ret;
-}
-
-static void predefined_ids(void)
-{
-    {
-        /**
-         * Predefined identifier: __func__
-         * The identifier __func__ is implicitly declared by C99
-         * implementations as if the following declaration appeared
-         * after the opening brace of each function definition:
-         *
-         * static const char __func__[] = "function-name";
-         *
-         */
-        const char *name = "__func__";
-        node_t *type = array_type(qual(CONST, chartype));
-        node_t *decl = make_localvar(name, type, STATIC);
-        SYM_PREDEFINE(DECL_SYM(decl)) = true;
-        // initializer
-        node_t *literal = new_string_literal(funcname);
-        init_string(type, literal);
-        DECL_BODY(decl) = literal;
-    }
-}
-
-static void backfill_labels(void)
-{
-    for (int i = 0; i < vec_len(gotos); i++) {
-        node_t *goto_stmt = vec_at(gotos, i);
-        const char *name = STMT_LABEL_NAME(goto_stmt);
-        node_t *label_stmt = map_get(labels, name);
-        if (label_stmt) {
-            STMT_X_LABEL(goto_stmt) = STMT_X_LABEL(label_stmt);
-            // update refs
-            STMT_LABEL_REFS(label_stmt)++;
-        } else {
-            error_at(AST_SRC(goto_stmt), "use of undeclared label '%s'", name);
-        }
-    }
-}
-
-static void set_funcdef_context(node_t *fty, const char *name)
-{
-    gotos = vec_new();
-    labels = map_new();
-    functype = fty;
-    funcname = name;
-    staticvars = vec_new();
-    localvars = vec_new();
-    allvars = vec_new();
-    funcalls = vec_new();
-}
-
-static void restore_funcdef_context(void)
-{
-    gotos = NULL;
-    labels = NULL;
-    functype = NULL;
-    funcname = NULL;
-    staticvars = NULL;
-    localvars = NULL;
-    allvars = NULL;
-    funcalls = NULL;
-}
-
-void func_body(node_t *decl)
-{
-    node_t *sym = DECL_SYM(decl);
-    
-    set_funcdef_context(SYM_TYPE(sym), SYM_NAME(sym));
-    
-    node_t *stmt = compound_stmt(predefined_ids);
-    // check goto labels
-    backfill_labels();
-    // check unused
-    warning_unused();
-
-    // save
-    DECL_X_LVARS(decl) = localvars;
-    DECL_X_SVARS(decl) = staticvars;
-    DECL_X_CALLS(decl) = funcalls;
-    
-    restore_funcdef_context();
-
-    DECL_BODY(decl) = stmt;
-}
-
-static node_t **filter_decls(node_t **decls)
-{
-    for (size_t i = 0; decls[i]; i++) {
-        node_t *decl = decls[i];
-        node_t *sym = DECL_SYM(decl);
-
-        if (!isvardecl(decl) || SYM_SCLASS(sym) == EXTERN)
-            continue;
-
-        vec_push(allvars, decl);
-    }
-    return decls;
-}
-
-static void warning_unused(void)
-{
-    for (int i = 0; i < vec_len(allvars); i++) {
-        node_t *decl = vec_at(allvars, i);
-        node_t *sym = DECL_SYM(decl);
-
-        // ONLY warning, not filter out
-        // because it may contains side-effect such as function calls.
-        if (SYM_REFS(sym) == 0) {
-            if (SYM_PREDEFINE(sym))
-                continue;       // filter-out predefined symbols
-            else
-                warning_at(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
-        }
-        if (SYM_SCLASS(sym) == STATIC) {
-            SYM_X_LABEL(sym) = gen_static_label();
-            vec_push(staticvars, decl);
-        } else {
-            vec_push(localvars, decl);
-        }
-    }
-}
-
-node_t *make_localvar(const char *name, node_t * ty, int sclass)
-{
-    node_t *decl = make_localdecl(name, ty, sclass);
-    vec_push(allvars, decl);
-    return decl;
 }

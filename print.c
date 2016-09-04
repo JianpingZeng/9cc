@@ -224,17 +224,11 @@ static void print_stmt(node_t * node, int level)
         break;
     case FOR_STMT:
         {
-            node_t **decl = STMT_FOR_DECL(node);
             node_t *init = STMT_FOR_INIT(node);
             node_t *cond = STMT_FOR_COND(node);
             node_t *ctrl = STMT_FOR_CTRL(node);
             node_t *body = STMT_FOR_BODY(node);
-            if (decl) {
-                for (size_t i = 0; decl[i]; i++) {
-                    node_t *dcl = decl[i];
-                    print_tree1(dcl, level + 1);
-                }
-            } else if (init) {
+            if (init) {
                 print_tree1(init, level + 1);
             } else {
                 for (int i = 0; i < level + 1; i++)
