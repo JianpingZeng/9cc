@@ -112,6 +112,7 @@ struct ast_field {
 #define SYM_VALUE(NODE)       ((NODE)->symbol.value)
 #define SYM_REFS(NODE)        ((NODE)->symbol.refs)
 #define SYM_LINK(NODE)        ((NODE)->symbol.link)
+#define SYM_INIT(NODE)        ((NODE)->symbol.init)
 // convenience
 #define SYM_VALUE_U(NODE)     (VALUE_U(SYM_VALUE(NODE)))
 #define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
@@ -126,18 +127,7 @@ struct ast_symbol {
     union value value;
     unsigned refs;
     node_t *link;
-    union x x;
-};
-
-#define DECL_SYM(NODE)          ((NODE)->decl.sym)
-#define DECL_BODY(NODE)         ((NODE)->decl.body)
-#define DECL_EXTS(NODE)         ((NODE)->decl.exts)
-
-struct ast_decl {
-    struct ast_common common;
-    node_t *sym;                // the symbol
-    node_t *body;                // the initializer expr or func body
-    node_t **exts;
+    node_t *init;               // the initializer expr or func body
     union x x;
 };
 
@@ -218,7 +208,6 @@ struct ast_stmt {
 
 union ast_node {
     struct ast_common common;
-    struct ast_decl decl;
     struct ast_expr expr;
     struct ast_stmt stmt;
     struct ast_type type;
@@ -232,8 +221,6 @@ extern void *alloc_type(void);
 extern void *alloc_field(void);
 
 extern const char *nname(node_t * node);
-// decl
-extern node_t *ast_decl(int id);
 // expr
 extern node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r);
 extern node_t *ast_uop(int op, node_t * ty, node_t * l);
@@ -256,17 +243,13 @@ extern node_t *copy_node(node_t * node);
 
 // kind
 #define isexpr(n)   (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
-#define isdecl(n)   (AST_ID(n) > BEGIN_DECL_ID && AST_ID(n) < END_DECL_ID)
 #define isstmt(n)   (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
 #define istype(n)   (AST_ID(n) == TYPE_NODE)
 #define isfield(n)  (AST_ID(n) == FIELD_NODE)
 #define issymbol(n) (AST_ID(n) == SYMBOL_NODE)
 
 // decl
-#define istudecl(n)    (AST_ID(n) == TU_DECL)
-#define isfuncdecl(n)  (AST_ID(n) == FUNC_DECL)
-#define isfuncdef(n)   (isfuncdecl(n) && DECL_BODY(n))
-#define isvardecl(n)   (AST_ID(n) == VAR_DECL)
+#define isvardecl(n)   (SYM_SCLASS(n) != TYPEDEF && !isfunc(SYM_TYPE(n)))
 
 // expr
 #define isiliteral(n)  (AST_ID(n) == INTEGER_LITERAL)

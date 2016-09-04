@@ -2,19 +2,6 @@
 
 _ns(BEGIN_NODE_ID)
 
-// decl
-_ns(BEGIN_DECL_ID)
-
-_n(TU_DECL,           "TranslationUnitDecl")
-_n(VAR_DECL,          "VarDecl")
-_n(FUNC_DECL,         "FuncDecl")
-_n(TYPEDEF_DECL,      "TypedefDecl")
-_n(STRUCT_DECL,       "StructDecl")
-_n(UNION_DECL,        "UnionDecl")
-_n(ENUM_DECL,         "EnumDecl")
-
-_ns(END_DECL_ID)
-
 // expr
 _ns(BEGIN_EXPR_ID)
 

@@ -48,13 +48,6 @@ node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r)
     return expr;
 }
 
-node_t *ast_decl(int id)
-{
-    assert(id > BEGIN_DECL_ID && id < END_DECL_ID);
-    node_t *decl = new_node(id);
-    return decl;
-}
-
 node_t *ast_uop(int op, node_t * ty, node_t * l)
 {
     node_t *expr = ast_expr(UNARY_OPERATOR, ty, l, NULL);

@@ -173,13 +173,12 @@ struct basic_block {
 #define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
 #define SYM_X_INMEM(NODE)     ((NODE)->symbol.x.sym.inmem)
 #define SYM_X_FREG(NODE)      ((NODE)->symbol.x.sym.freg)
-// decl
-#define DECL_X_SVARS(NODE)    ((NODE)->decl.x.decl.svars)
-#define DECL_X_LVARS(NODE)    ((NODE)->decl.x.decl.lvars)
-#define DECL_X_CALLS(NODE)    ((NODE)->decl.x.decl.calls)
-#define DECL_X_HEAD(NODE)     ((NODE)->decl.x.decl.head)
-#define DECL_X_BASIC_BLOCK(NODE)  ((NODE)->decl.x.decl.basic_block)
-#define DECL_X_XVALUES(NODE)  ((NODE)->decl.x.decl.xvalues)
+#define SYM_X_SVARS(NODE)     ((NODE)->symbol.x.sym.svars)
+#define SYM_X_LVARS(NODE)     ((NODE)->symbol.x.sym.lvars)
+#define SYM_X_CALLS(NODE)     ((NODE)->symbol.x.sym.calls)
+#define SYM_X_HEAD(NODE)      ((NODE)->symbol.x.sym.head)
+#define SYM_X_BASIC_BLOCK(NODE)  ((NODE)->symbol.x.sym.basic_block)
+#define SYM_X_XVALUES(NODE)   ((NODE)->symbol.x.sym.xvalues)
 // expr
 #define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.expr.addr)
 #define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
@@ -199,9 +198,7 @@ union x {
         struct reg *reg;
         bool inmem;
         bool freg;              // spilled from a floating reg
-    }sym;
-    
-    struct {
+
         struct vector *lvars;        // function local vars
         struct vector *svars;        // function static vars
         struct vector *calls;        // function calls
@@ -209,7 +206,7 @@ union x {
         struct tac *head;
         struct tac *tail;
         struct vector *xvalues;
-    }decl;
+    }sym;
     
     struct {
         struct operand *addr;
