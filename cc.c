@@ -49,19 +49,6 @@ static void parse_opts(int argc, char *argv[])
     }
 }
 
-static void translate(void)
-{
-    node_t *tree;
-
-    tree = translation_unit();
-    if (opts.ast_dump) {
-        print_tree(tree);
-    } else {
-        if (errors == 0)
-            ir(tree);
-    }
-}
-
 static void preprocess(void)
 {
     struct token *t = get_pptok(cpp_file);
@@ -73,8 +60,7 @@ int main(int argc, char *argv[])
 {
     setup_sys();
     parse_opts(argc, argv);
-    IM->progbeg(argc, argv);
-    ir_init();
+    IR->init(argc, argv);
     symbol_init();
     type_init();
     cpp_init(argc, argv);
@@ -82,9 +68,7 @@ int main(int argc, char *argv[])
     if (opts.E)
         preprocess();
     else
-        translate();
-    
-    IM->progend();
+        translation_unit();
 
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

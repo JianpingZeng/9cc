@@ -262,7 +262,6 @@ struct opcode {
 
 // ir.c
 extern const char *rop2s(int op);
-extern void ir(node_t *tree);
 extern bool is_tmp_operand(struct operand *operand);
 extern bool is_mem_operand(struct operand *operand);
 extern bool is_imm_operand(struct operand *operand);

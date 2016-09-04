@@ -2661,55 +2661,51 @@ static void emit_data(node_t *decl)
     RESTORE_XVALUE_CONTEXT();
 }
 
-void ir_init(void)
+static void init(int argc, char *argv[])
 {
     tmps = new_table(NULL, GLOBAL);
     labels = new_table(NULL, GLOBAL);
     strings = map_new();
     compounds = map_new();
     floats = map_new();
+    IM->progbeg(argc, argv);
 }
 
-void ir(node_t *tree)
+static void finalize(void)
 {
-    assert(errors == 0);
-
-    struct vector *v = filter_global(DECL_EXTS(tree));
-    
-    for (int i = 0; i < vec_len(v); i++) {
-        node_t *decl = vec_at(v, i);
-        if (isfuncdef(decl)) {
-            emit_function(decl);
-            IM->defun(decl);
-        } else if (isvardecl(decl)) {
-            if (DECL_BODY(decl)) {
-                emit_data(decl);
-                IM->defvar(decl, DATA);
-            } else {
-                IM->defvar(decl, BSS);
-            }
-        }
-    }
-
     IM->emit_compounds(compounds);
     IM->emit_strings(strings);
     IM->emit_floats(floats);
+    IM->progend();
+}
+
+static void defvar(node_t *sym)
+{
+    SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+
+    if (DECL_BODY(decl)) {
+        emit_data(decl);
+        IM->defvar(decl, DATA);
+    } else {
+        IM->defvar(decl, BSS);
+    }
+}
+
+static void defun(node_t *sym)
+{
+    SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+    emit_function(decl);
+    IM->defun(decl);
 }
 
 static void dclvar(node_t *node)
 {
-}
-
-static void defvar(node_t *node)
-{
+    SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
 }
 
 static void dclfun(node_t *node)
 {
-}
-
-static void defun(node_t *node)
-{   
+    SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
 }
 
 static void deftype(node_t *node)
@@ -2721,5 +2717,7 @@ struct iir *IR = &(struct iir) {
     .defvar = defvar,
     .dclfun = dclfun,
     .defun = defun,
-    .deftype = deftype
+    .deftype = deftype,
+    .init = init,
+    .finalize = finalize
 };

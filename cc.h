@@ -305,9 +305,10 @@ struct iir {
     void (*dclfun) (node_t *);
     void (*defun) (node_t *);
     void (*deftype) (node_t *);
+    void (*init) (int argc, char *argv[]);
+    void (*finalize) (void);
 };
 extern struct iir *IR;
-extern void ir_init(void);
 
 // backend interface
 struct metrics {

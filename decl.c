@@ -1476,6 +1476,7 @@ node_t *translation_unit(void)
     return ret;
 }
 
-void finalize(void)
+static void finalize(void)
 {
+    IR->finalize();
 }
