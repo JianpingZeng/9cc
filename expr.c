@@ -1033,6 +1033,15 @@ static node_t *cast_type(void)
     return ty;
 }
 
+static node_t *make_ref_expr(node_t *sym, struct source src)
+{
+    node_t *ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
+    EXPR_SYM(ret) = sym;
+    AST_SRC(ret) = src;
+    SYM_REFS(sym)++;
+    return ret;
+}
+
 /// primary-expression:
 ///   identifier
 ///   constant
@@ -1049,10 +1058,7 @@ static node_t *primary_expr(void)
     case ID:
         sym = lookup(TOK_IDENT_STR(token), identifiers);
         if (sym) {
-            ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
-            EXPR_SYM(ret) = sym;
-            AST_SRC(ret) = source;
-            SYM_REFS(sym)++;
+            ret = make_ref_expr(sym, source);
             if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
                 EXPR_OP(ret) = ENUM;        // enum ids
         } else {
@@ -1186,9 +1192,7 @@ static void builtin_funcall(node_t *call, node_t *ref)
             const char *label = gen_tmpname();
             node_t *sym = make_localvar(label, ty, 0);
             // passing address
-            node_t *operand = ast_expr(REF_EXPR, ty, NULL, NULL);
-            EXPR_SYM(operand) = sym;
-            SYM_REFS(sym)++;
+            node_t *operand = make_ref_expr(sym, AST_SRC(sym));
             // update arg1
             args[1] = ast_uop('&', ptr_type(ty), operand);
         } else {
@@ -2261,6 +2265,20 @@ node_t *switch_expr(void)
 
 node_t *decls2expr(node_t **decls)
 {
-    // TODO:
-    return NULL;
+    node_t *ret = NULL;
+
+    for (int i = 0; decls[i]; i++) {
+        node_t *sym = decls[i];
+        if (SYM_INIT(sym)) {
+            node_t *l = make_ref_expr(sym, AST_SRC(sym));
+            node_t *r = assignconv(SYM_TYPE(sym), SYM_INIT(sym));
+            node_t *n = ast_bop('=', SYM_TYPE(sym), l, r);
+            if (ret)
+                ret = commaop(',', ret, n);
+            else
+                ret = n;
+        }
+    }
+
+    return ret;
 }
