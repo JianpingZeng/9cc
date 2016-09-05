@@ -1405,10 +1405,6 @@ static struct vector *decls(declfun_p * dcl)
         for (;;) {
             if (id) {
                 node_t *sym = dcl(TOK_IDENT_STR(id), ty, sclass, fspec, id->src);
-                if (token->id == '=') {
-                    node_t *init = decl_initializer(sym, sclass, level);
-                    SYM_INIT(sym) = init;
-                }
                 ensure_decl(sym, sclass, level);
                 vec_push(v, sym);
             }
