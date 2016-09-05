@@ -573,7 +573,7 @@ static node_t *statement(void)
 node_t *compound_stmt(void (*enter_hook) (void))
 {
     node_t *ret = ast_stmt(COMPOUND_STMT, source);
-    struct vector *v = vec_new();
+    struct list *list = NULL;
 
     expect('{');
     enter_scope();
@@ -588,15 +588,17 @@ node_t *compound_stmt(void (*enter_hook) (void))
             if (expr) {
                 node_t *stmt = ast_stmt(EXPR_STMT, AST_SRC(expr));
                 STMT_EXPR_BODY(stmt) = expr;
-                vec_push(v, stmt);
+                list = list_append(list, stmt);
             }
         } else {
             // statement
-            vec_push_safe(v, statement());
+            node_t *stmt = statement();
+            if (stmt)
+                list = list_append(list, stmt);
         }
     }
 
-    STMT_BLKS(ret) = vtoa(v, PERM);
+    STMT_BLKS(ret) = ltoa(&list, FUNC);
 
     expect('}');
     exit_scope();
