@@ -1458,8 +1458,14 @@ void translation_unit(void)
     finalize();
 }
 
+static void doglobal(node_t *sym, void *context)
+{
+    
+}
+
 static void finalize(void)
 {
+    foreach(identifiers, GLOBAL, doglobal, NULL);
     IR->finalize();
 }
 

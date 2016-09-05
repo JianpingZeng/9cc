@@ -92,10 +92,10 @@ static void calculate_in_out(struct basic_block *start)
     } while (changed);
 }
 
-void construct_basic_blocks(node_t *decl, struct tac *head)
+void construct_basic_blocks(node_t *sym, struct tac *head)
 {
-    const char *start_label = SYM_X_LABEL(DECL_SYM(decl));
-    const char *end_label = STMT_X_NEXT(DECL_BODY(decl));
+    const char *start_label = SYM_X_LABEL(sym);
+    const char *end_label = STMT_X_NEXT(SYM_INIT(sym));
 
     struct basic_block *start = NEWS(struct basic_block, PERM);
     start->label = start_label;
@@ -185,7 +185,7 @@ void construct_basic_blocks(node_t *decl, struct tac *head)
 
     struct basic_block *entry = *current;
     entry->successors[0] = end;
-    DECL_X_BASIC_BLOCK(decl) = start;
+    SYM_X_BASIC_BLOCK(sym) = start;
 
     // calculate use[B] and def[B]
     calculate_use_def(start);

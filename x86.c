@@ -2400,10 +2400,10 @@ static void emit_basic_blocks(struct basic_block *start)
     }
 }
 
-static size_t call_returns_size(node_t *decl)
+static size_t call_returns_size(node_t *sym)
 {
     size_t extra_stack_size = 0;
-    struct vector *calls = DECL_X_CALLS(decl);
+    struct vector *calls = SYM_X_CALLS(sym);
     for (int i = 0; i < vec_len(calls); i++) {
         node_t *call = vec_at(calls, i);
         node_t *rty = AST_TYPE(call);
@@ -2413,10 +2413,10 @@ static size_t call_returns_size(node_t *decl)
     return extra_stack_size;
 }
 
-static size_t call_params_size(node_t *decl)
+static size_t call_params_size(node_t *sym)
 {
     size_t extra_stack_size = 0;
-    struct vector *calls = DECL_X_CALLS(decl);
+    struct vector *calls = SYM_X_CALLS(sym);
     for (int i = 0; i < vec_len(calls); i++) {
         node_t *call = vec_at(calls, i);
         node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
@@ -2515,16 +2515,15 @@ static void emit_function_epilogue(void)
     xx(OP_RET, NULL, NULL, NULL);
 }
 
-static void emit_function_prologue(node_t *decl)
+static void emit_function_prologue(node_t *sym)
 {
-    node_t *fsym = DECL_SYM(decl);
-    node_t *ftype = SYM_TYPE(fsym);
-    bool global = SYM_SCLASS(fsym) == STATIC ? false : true;
+    node_t *ftype = SYM_TYPE(sym);
+    bool global = SYM_SCLASS(sym) == STATIC ? false : true;
     
     if (global)
-        macro(".globl %s", SYM_X_LABEL(fsym));
+        macro(".globl %s", SYM_X_LABEL(sym));
     macro(".text");
-    lab(SYM_X_LABEL(fsym));
+    lab(SYM_X_LABEL(sym));
     xx(OP_PUSH, suffixi[Q], rs(rbp->r[Q]), NULL);
     xx(OP_MOV, suffixi[Q], rs(rsp->r[Q]), rs(rbp->r[Q]));
 
@@ -2535,10 +2534,9 @@ static void emit_function_prologue(node_t *decl)
         localsize += REGISTER_SAVE_AREA_SIZE;
     
     // local vars
-    for (int i = 0; i < vec_len(DECL_X_LVARS(decl)); i++) {
-        node_t *lvar = vec_at(DECL_X_LVARS(decl), i);
-        node_t *sym = DECL_SYM(lvar);
-        node_t *ty = SYM_TYPE(sym);
+    for (int i = 0; i < vec_len(SYM_X_LVARS(sym)); i++) {
+        node_t *lvar = vec_at(SYM_X_LVARS(sym), i);
+        node_t *ty = SYM_TYPE(lvar);
         size_t size = TYPE_SIZE(ty);
         localsize = ROUNDUP(localsize + size, 4);
         SYM_X_LOFF(sym) = -localsize;
@@ -2567,7 +2565,7 @@ static void emit_function_prologue(node_t *decl)
     }
 
     // call returns
-    size_t returns_size = call_returns_size(decl);
+    size_t returns_size = call_returns_size(sym);
     if (returns_size) {
         // rounded by 8 bytes. (see emit_return)
         localsize = ROUNDUP(localsize + returns_size, 8);
@@ -2575,23 +2573,22 @@ static void emit_function_prologue(node_t *decl)
     }
     
     // call params
-    localsize += call_params_size(decl);
+    localsize += call_params_size(sym);
     fcon.localsize = fcon.orig_localsize = localsize;
     
     emit_placeholder(INST_PRESERVED_REG_PUSH);
     emit_placeholder(INST_STACK_SUB);
 }
 
-static void emit_text(node_t *decl)
+static void emit_text(node_t *sym)
 {
-    node_t *fsym = DECL_SYM(decl);
-    node_t *ftype = SYM_TYPE(fsym);
+    node_t *ftype = SYM_TYPE(sym);
     node_t **params = TYPE_PARAMS(ftype);
     
     // reset registers
     reset_regs();
     // reset function context
-    fcon.end_label = STMT_X_NEXT(DECL_BODY(decl));
+    fcon.end_label = STMT_X_NEXT(SYM_INIT(sym));
     fcon.calls_return_loff = 0;
     fcon.current_block = NULL;
     fcon.current_tac = NULL;
@@ -2601,13 +2598,13 @@ static void emit_text(node_t *decl)
     fcon.preserved_regs = set_new();
     fcon.pinfo = alloc_addr_for_funcdef(ftype, params);
     
-    emit_function_prologue(decl);
+    emit_function_prologue(sym);
     if (TYPE_VARG(ftype))
         emit_register_save_area();
     else
         emit_register_params();
-    init_basic_blocks(DECL_X_BASIC_BLOCK(decl));
-    emit_basic_blocks(DECL_X_BASIC_BLOCK(decl));
+    init_basic_blocks(SYM_X_BASIC_BLOCK(sym));
+    emit_basic_blocks(SYM_X_BASIC_BLOCK(sym));
     emit_function_epilogue();
     
     finalize_text();
@@ -2652,9 +2649,8 @@ static void emit_data(const char *label, bool global, bool array,
     }
 }
 
-static void emit_bss(node_t *decl)
+static void emit_bss(node_t *sym)
 {
-    node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
     bool global = SYM_SCLASS(sym) == STATIC ? false : true;
     
@@ -3630,24 +3626,23 @@ static void progend(void)
     emit(".ident \"7cc: %s\"", VERSION);
 }
 
-static void defvar(node_t *decl, int seg)
+static void defvar(node_t *sym, int seg)
 {
-    node_t *sym = DECL_SYM(decl);
     node_t *ty = SYM_TYPE(sym);
     int align = TYPE_ALIGN(ty);
     bool global = SYM_SCLASS(sym) == STATIC ? false : true;
     bool array = isarray(ty);
-    struct vector *xvalues = DECL_X_XVALUES(decl);
+    struct vector *xvalues = SYM_X_XVALUES(sym);
     
     if (seg == DATA)
         emit_data(SYM_X_LABEL(sym), global, array, align, TYPE_SIZE(ty), xvalues);
     else if (seg == BSS)
-        emit_bss(decl);
+        emit_bss(sym);
 }
 
-static void defun(node_t *decl)
+static void defun(node_t *sym)
 {
-    emit_text(decl);
+    emit_text(sym);
 }
 
 struct imachine *IM = &(struct imachine) {

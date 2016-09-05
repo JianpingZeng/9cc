@@ -21,7 +21,7 @@ static void emit_assign(node_t *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty);
 static void emit_member_nonbitfield(node_t *n, node_t *field);
 static void emit_member_bitfield(node_t *n, node_t *field);
-static struct vector * filter_global(node_t **v);
+// static struct vector * filter_global(node_t **v);
 static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
                                 long offset, node_t *bfield, bool sty);
 static struct operand * emit_conv_tac(int op, struct operand *l,
@@ -577,29 +577,23 @@ static struct operand * emit_conv_tac(int op, struct operand *l,
     return tac->operands[0];
 }
 
-static void emit_decl(node_t *decl)
-{
-    node_t *sym = DECL_SYM(decl);
-    node_t *init = DECL_BODY(decl);
-    if (!isvardecl(decl))
-        return;
-    else if (SYM_SCLASS(sym) == EXTERN ||
-             SYM_SCLASS(sym) == STATIC)
-        return;
-    else if (!init)
-        return;
+// static void emit_decl(node_t *decl)
+// {
+//     node_t *sym = DECL_SYM(decl);
+//     node_t *init = DECL_BODY(decl);
+//     if (!isvardecl(decl))
+//         return;
+//     else if (SYM_SCLASS(sym) == EXTERN ||
+//              SYM_SCLASS(sym) == STATIC)
+//         return;
+//     else if (!init)
+//         return;
     
-    struct operand *l = make_sym_operand(sym);
-    // set sym x kind
-    SYM_X_KIND(sym) = SYM_KIND_LREF;
-    emit_assign(SYM_TYPE(sym), l, init, 0, NULL, false);
-}
-
-static void emit_decls(node_t **decls)
-{
-    for (size_t i = 0; decls[i]; i++)
-        emit_decl(decls[i]);
-}
+//     struct operand *l = make_sym_operand(sym);
+//     // set sym x kind
+//     SYM_X_KIND(sym) = SYM_KIND_LREF;
+//     emit_assign(SYM_TYPE(sym), l, init, 0, NULL, false);
+// }
 
 // int
 static void emit_uop_bitwise_not(node_t *n)
@@ -1376,10 +1370,7 @@ static struct operand * make_extra_decl(node_t *ty)
     SYM_TYPE(sym) = ty;
     // set scope as LOCAL
     SYM_SCOPE(sym) = LOCAL;
-
-    node_t *decl = ast_decl(VAR_DECL);
-    DECL_SYM(decl) = sym;
-    vec_push(extra_lvars, decl);
+    vec_push(extra_lvars, sym);
     
     struct operand *operand = make_sym_operand(sym);
     SYM_X_KIND(sym) = SYM_KIND_LREF;
@@ -2012,9 +2003,7 @@ static void emit_compound_stmt(node_t *stmt)
     node_t **blks = STMT_BLKS(stmt);
     for (size_t i = 0; blks[i]; i++) {
         node_t *node = blks[i];
-        if (isdecl(node)) {
-            emit_decl(node);
-        } else if (isstmt(node)) {
+        if (isstmt(node)) {
             STMT_X_NEXT(node) = gen_label();
             emit_stmt(node);
         } else {
@@ -2091,7 +2080,6 @@ static void emit_do_while_stmt(node_t *stmt)
 
 static void emit_for_stmt(node_t *stmt)
 {
-    node_t **decl = STMT_FOR_DECL(stmt);
     node_t *init = STMT_FOR_INIT(stmt);
     node_t *cond = STMT_FOR_COND(stmt);
     node_t *ctrl = STMT_FOR_CTRL(stmt);
@@ -2100,9 +2088,7 @@ static void emit_for_stmt(node_t *stmt)
     const char *beg = gen_label();
     const char *mid = gen_label();
     
-    if (decl)
-        emit_decls(decl);
-    else if (init)
+    if (init)
         emit_expr(init);
 
     emit_label(beg);
@@ -2304,9 +2290,9 @@ static void emit_stmt(node_t *stmt)
     }
 }
 
-static void emit_function(node_t *decl)
+static void emit_function(node_t *sym)
 {
-    node_t *stmt = DECL_BODY(decl);
+    node_t *stmt = SYM_INIT(sym);
 
     func_tac_head = NULL;
     func_tac_tail = NULL;
@@ -2314,11 +2300,11 @@ static void emit_function(node_t *decl)
 
     STMT_X_NEXT(stmt) = func_end_label = gen_label();
     emit_stmt(stmt);
-    construct_basic_blocks(decl, func_tac_head);
-    DECL_X_HEAD(decl) = func_tac_head;
+    construct_basic_blocks(sym, func_tac_head);
+    SYM_X_HEAD(sym) = func_tac_head;
     // add extra local vars
     if (extra_lvars) {
-        struct vector *v = DECL_X_LVARS(decl);
+        struct vector *v = SYM_X_LVARS(sym);
         vec_add(v, extra_lvars);
     }
 }
@@ -2331,48 +2317,48 @@ static const char *glabel(const char *label)
         return label;
 }
 
-static struct vector * filter_global(node_t **v)
-{
-    struct vector *r = vec_new();
-    struct map *map = map_newf(NULL);
-    for (size_t i = 0; v[i]; i++) {
-        node_t *decl = v[i];
-        node_t *sym = DECL_SYM(decl);
+// static struct vector * filter_global(node_t **v)
+// {
+//     struct vector *r = vec_new();
+//     struct map *map = map_newf(NULL);
+//     for (size_t i = 0; v[i]; i++) {
+//         node_t *decl = v[i];
+//         node_t *sym = DECL_SYM(decl);
 
-        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+//         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
 
-        // skip unused symbols
-        if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
-            // but warning only when top file
-            if (is_original_file(cpp_file, AST_SRC(sym).file)) {
-                if (isfuncdef(decl))
-                    warning_at(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
-                else if (isvardecl(decl))
-                    warning_at(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
-            }
+//         // skip unused symbols
+//         if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
+//             // but warning only when top file
+//             if (is_original_file(cpp_file, AST_SRC(sym).file)) {
+//                 if (isfuncdef(decl))
+//                     warning_at(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
+//                 else if (isvardecl(decl))
+//                     warning_at(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
+//             }
             
-            continue;
-        }
+//             continue;
+//         }
         
-        if (isfuncdef(decl)) {
-            vec_push(r, decl);
-            vec_add(r, DECL_X_SVARS(decl));
-        } else if (isvardecl(decl)) {
-            node_t *sym = DECL_SYM(decl);
-            if (SYM_SCLASS(sym) == EXTERN)
-                continue;
-            node_t *decl1 = map_get(map, sym);
-            if (decl1) {
-                if (DECL_BODY(decl))
-                    DECL_BODY(decl1) = DECL_BODY(decl);
-            } else {
-                vec_push(r, decl);
-                map_put(map, sym, decl);
-            }
-        }
-    }
-    return r;
-}
+//         if (isfuncdef(decl)) {
+//             vec_push(r, decl);
+//             vec_add(r, DECL_X_SVARS(decl));
+//         } else if (isvardecl(decl)) {
+//             node_t *sym = DECL_SYM(decl);
+//             if (SYM_SCLASS(sym) == EXTERN)
+//                 continue;
+//             node_t *decl1 = map_get(map, sym);
+//             if (decl1) {
+//                 if (DECL_BODY(decl))
+//                     DECL_BODY(decl1) = DECL_BODY(decl);
+//             } else {
+//                 vec_push(r, decl);
+//                 map_put(map, sym, decl);
+//             }
+//         }
+//     }
+//     return r;
+// }
 
 //
 // decl
@@ -2649,13 +2635,13 @@ static void emit_initializer(node_t *init)
         die("unexpected initializer type: %s", type2s(ty));
 }
 
-static void emit_data(node_t *decl)
+static void emit_data(node_t *sym)
 {   
     // enter context
     SET_XVALUE_CONTEXT();
 
-    emit_initializer(DECL_BODY(decl));
-    DECL_X_XVALUES(decl) = XVALUES;
+    emit_initializer(SYM_INIT(sym));
+    SYM_X_XVALUES(sym) = XVALUES;
     
     // exit context
     RESTORE_XVALUE_CONTEXT();
@@ -2683,32 +2669,32 @@ static void defvar(node_t *sym)
 {
     SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
 
-    if (DECL_BODY(decl)) {
-        emit_data(decl);
-        IM->defvar(decl, DATA);
+    if (SYM_INIT(sym)) {
+        emit_data(sym);
+        IM->defvar(sym, DATA);
     } else {
-        IM->defvar(decl, BSS);
+        IM->defvar(sym, BSS);
     }
 }
 
 static void defun(node_t *sym)
 {
     SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
-    emit_function(decl);
-    IM->defun(decl);
+    emit_function(sym);
+    IM->defun(sym);
 }
 
-static void dclvar(node_t *node)
+static void dclvar(node_t *sym)
 {
     SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
 }
 
-static void dclfun(node_t *node)
+static void dclfun(node_t *sym)
 {
     SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
 }
 
-static void deftype(node_t *node)
+static void deftype(node_t *type)
 {
 }
 
