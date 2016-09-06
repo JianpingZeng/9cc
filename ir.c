@@ -2667,7 +2667,10 @@ static void finalize(void)
 
 static void defvar(node_t *sym)
 {
-    SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+    if (SYM_SCOPE(sym) == GLOBAL)
+        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+    else
+        SYM_X_LABEL(sym) = gen_static_label();
 
     if (SYM_INIT(sym)) {
         emit_data(sym);
@@ -2682,6 +2685,11 @@ static void defun(node_t *sym)
     SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     emit_function(sym);
     IM->defun(sym);
+    for (int i = 0; i < vec_len(SYM_X_SVARS(sym)); i++) {
+        node_t *s = vec_at(SYM_X_SVARS(sym), i);
+        if (SYM_REFS(s))
+            IR->defvar(s);
+    }
 }
 
 static void dclvar(node_t *sym)

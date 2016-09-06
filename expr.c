@@ -2269,7 +2269,7 @@ node_t *decls2expr(node_t **decls)
 
     for (int i = 0; decls[i]; i++) {
         node_t *sym = decls[i];
-        if (SYM_INIT(sym)) {
+        if (SYM_INIT(sym) && SYM_SCLASS(sym) != STATIC) {
             node_t *l = make_ref_expr(sym, AST_SRC(sym));
             node_t *r = assignconv(SYM_TYPE(sym), SYM_INIT(sym));
             node_t *n = ast_bop('=', SYM_TYPE(sym), l, r);
