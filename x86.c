@@ -2515,15 +2515,15 @@ static void emit_function_epilogue(void)
     xx(OP_RET, NULL, NULL, NULL);
 }
 
-static void emit_function_prologue(node_t *sym)
+static void emit_function_prologue(node_t *fsym)
 {
-    node_t *ftype = SYM_TYPE(sym);
-    bool global = SYM_SCLASS(sym) == STATIC ? false : true;
+    node_t *ftype = SYM_TYPE(fsym);
+    bool global = SYM_SCLASS(fsym) == STATIC ? false : true;
     
     if (global)
-        macro(".globl %s", SYM_X_LABEL(sym));
+        macro(".globl %s", SYM_X_LABEL(fsym));
     macro(".text");
-    lab(SYM_X_LABEL(sym));
+    lab(SYM_X_LABEL(fsym));
     xx(OP_PUSH, suffixi[Q], rs(rbp->r[Q]), NULL);
     xx(OP_MOV, suffixi[Q], rs(rsp->r[Q]), rs(rbp->r[Q]));
 
@@ -2534,12 +2534,12 @@ static void emit_function_prologue(node_t *sym)
         localsize += REGISTER_SAVE_AREA_SIZE;
     
     // local vars
-    for (int i = 0; i < vec_len(SYM_X_LVARS(sym)); i++) {
-        node_t *lvar = vec_at(SYM_X_LVARS(sym), i);
+    for (int i = 0; i < vec_len(SYM_X_LVARS(fsym)); i++) {
+        node_t *lvar = vec_at(SYM_X_LVARS(fsym), i);
         node_t *ty = SYM_TYPE(lvar);
         size_t size = TYPE_SIZE(ty);
         localsize = ROUNDUP(localsize + size, 4);
-        SYM_X_LOFF(sym) = -localsize;
+        SYM_X_LOFF(lvar) = -localsize;
     }
 
     // params
@@ -2565,7 +2565,7 @@ static void emit_function_prologue(node_t *sym)
     }
 
     // call returns
-    size_t returns_size = call_returns_size(sym);
+    size_t returns_size = call_returns_size(fsym);
     if (returns_size) {
         // rounded by 8 bytes. (see emit_return)
         localsize = ROUNDUP(localsize + returns_size, 8);
@@ -2573,22 +2573,22 @@ static void emit_function_prologue(node_t *sym)
     }
     
     // call params
-    localsize += call_params_size(sym);
+    localsize += call_params_size(fsym);
     fcon.localsize = fcon.orig_localsize = localsize;
     
     emit_placeholder(INST_PRESERVED_REG_PUSH);
     emit_placeholder(INST_STACK_SUB);
 }
 
-static void emit_text(node_t *sym)
+static void emit_text(node_t *fsym)
 {
-    node_t *ftype = SYM_TYPE(sym);
+    node_t *ftype = SYM_TYPE(fsym);
     node_t **params = TYPE_PARAMS(ftype);
     
     // reset registers
     reset_regs();
     // reset function context
-    fcon.end_label = STMT_X_NEXT(SYM_INIT(sym));
+    fcon.end_label = STMT_X_NEXT(SYM_INIT(fsym));
     fcon.calls_return_loff = 0;
     fcon.current_block = NULL;
     fcon.current_tac = NULL;
@@ -2598,13 +2598,13 @@ static void emit_text(node_t *sym)
     fcon.preserved_regs = set_new();
     fcon.pinfo = alloc_addr_for_funcdef(ftype, params);
     
-    emit_function_prologue(sym);
+    emit_function_prologue(fsym);
     if (TYPE_VARG(ftype))
         emit_register_save_area();
     else
         emit_register_params();
-    init_basic_blocks(SYM_X_BASIC_BLOCK(sym));
-    emit_basic_blocks(SYM_X_BASIC_BLOCK(sym));
+    init_basic_blocks(SYM_X_BASIC_BLOCK(fsym));
+    emit_basic_blocks(SYM_X_BASIC_BLOCK(fsym));
     emit_function_epilogue();
     
     finalize_text();
