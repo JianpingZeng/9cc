@@ -248,6 +248,7 @@ extern node_t *copy_node(node_t * node);
 #define issymbol(n) (AST_ID(n) == SYMBOL_NODE)
 
 // decl
+#define isfuncdef(n)   (isfunc(SYM_TYPE(n)) && SYM_INIT(n))
 #define isvardecl(n)   (SYM_SCLASS(n) != TYPEDEF && !isfunc(SYM_TYPE(n)))
 
 // expr

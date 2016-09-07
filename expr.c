@@ -1214,7 +1214,7 @@ static node_t *funcall(node_t * node)
     expect(')');
     if (node == NULL || HAS_ERROR)
         return ret;
-
+    
     if (isptrto(AST_TYPE(node), FUNCTION)) {
         node_t *fty = rtype(AST_TYPE(node));
         if ((args = argscast(fty, args))) {
@@ -2272,7 +2272,7 @@ node_t *decls2expr(node_t **decls)
         if (SYM_INIT(sym) && SYM_SCLASS(sym) != STATIC) {
             SYM_X_KIND(sym) = SYM_KIND_LREF;
             node_t *l = make_ref_expr(sym, AST_SRC(sym));
-            node_t *r = assignconv(SYM_TYPE(sym), SYM_INIT(sym));
+            node_t *r = SYM_INIT(sym);
             node_t *n = ast_bop('=', SYM_TYPE(sym), l, r);
             if (ret)
                 ret = commaop(',', ret, n);

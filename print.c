@@ -84,65 +84,26 @@ static void print_label(const char *name, int level)
     putf(RED("%s\n"), name);
 }
 
-// static void print_decl(node_t * node, int level)
-// {
-//     putf(GREEN("%s ") YELLOW("%p "), nname(node), node);
-
-//     node_t *sym = DECL_SYM(node);
-//     if (sym) {
-//         if (SYM_DEFINED(sym))
-//             putf(YELLOW("<defined> "));
-
-//         node_t *ty = SYM_TYPE(sym);
-//         print_ty(ty);
-//         putf(CYAN("%s "), STR(SYM_NAME(sym)));
-//         putf("<scope: %d>", SYM_SCOPE(sym));
-//         putf(YELLOW("<line:%u col:%u> "), AST_SRC(sym).line,
-//              AST_SRC(sym).column);
-//     }
-//     if (isfuncdef(node))
-//         putf("%llu localvars ", vec_len(DECL_X_LVARS(node)));
-//     putf("\n");
-
-//     switch (AST_ID(node)) {
-//     case TU_DECL:
-//         {
-//             node_t **exts = DECL_EXTS(node);
-//             if (exts) {
-//                 for (size_t i = 0; exts[i]; i++) {
-//                     node_t *ext = exts[i];
-//                     print_tree1(ext, level + 1);
-//                 }
-//             }
-//         }
-//         break;
-//     case STRUCT_DECL:
-//     case UNION_DECL:
-//         {
-//             node_t *ty = SYM_TYPE(sym);
-//             node_t **fields = TYPE_FIELDS(ty);
-//             if (fields) {
-//                 for (size_t i = 0; fields[i]; i++) {
-//                     node_t *field = fields[i];
-//                     print_tree1(field, level + 1);
-//                 }
-//             }
-//         }
-//         break;
-//     case ENUM_DECL:
-//         break;
-//     default:
-//         break;
-//     }
-
-//     node_t *init = DECL_BODY(node);
-//     if (init)
-//         print_tree1(init, level + 1);
-// }
-
-static void print_symbol(node_t *node, int level)
+static void print_symbol(node_t *sym, int level)
 {
+    putf(CYAN("%s "), STR(SYM_NAME(sym)));
     
+    if (SYM_DEFINED(sym))
+        putf(YELLOW("<defined> "));
+
+    node_t *ty = SYM_TYPE(sym);
+    print_ty(ty);
+    putf("<scope: %d>", SYM_SCOPE(sym));
+    putf(YELLOW("<line:%u col:%u> "), AST_SRC(sym).line, AST_SRC(sym).column);
+
+    if (isfuncdef(sym))
+        putf("%llu localvars ", vec_len(SYM_X_LVARS(sym)));
+
+    putf("\n");
+
+    node_t *init = SYM_INIT(sym);
+    if (init)
+        print_tree1(init, level + 1);
 }
 
 static void print_expr(node_t * node, int level)
