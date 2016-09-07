@@ -33,6 +33,7 @@ static struct tac *func_tac_tail;
 static struct vector *extra_lvars;
 static const char *func_end_label;
 static struct table *tmps;
+static struct table *cons;
 static struct table *labels;
 static const char *fall = (const char *)&fall;
 static const char *__continue;
@@ -146,7 +147,7 @@ static struct operand * make_label_operand(const char *label)
 
 static struct operand * make_int_operand(long long i)
 {
-    struct operand *operand = make_named_operand(strd(i), &constants, CONSTANT);
+    struct operand *operand = make_named_operand(strd(i), &cons, CONSTANT);
     SYM_VALUE_I(operand->sym) = i;
     SYM_X_KIND(operand->sym) = SYM_KIND_IMM;
     return operand;
@@ -154,7 +155,7 @@ static struct operand * make_int_operand(long long i)
 
 static struct operand * make_unsigned_operand(unsigned long long u)
 {
-    struct operand *operand = make_named_operand(stru(u), &constants, CONSTANT);
+    struct operand *operand = make_named_operand(stru(u), &cons, CONSTANT);
     SYM_VALUE_U(operand->sym) = u;
     SYM_X_KIND(operand->sym) = SYM_KIND_IMM;
     return operand;
@@ -2654,6 +2655,7 @@ static void emit_data(node_t *sym)
 static void init(int argc, char *argv[])
 {
     tmps = new_table(NULL, GLOBAL);
+    cons = new_table(NULL, CONSTANT);
     labels = new_table(NULL, GLOBAL);
     strings = map_new();
     compounds = map_new();
