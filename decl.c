@@ -1154,10 +1154,12 @@ static node_t *localdecl(const char *id, node_t * ty, int sclass, int fspec, str
     }
 
     if (!globl) {
-        if (SYM_SCLASS(sym) == STATIC)
+        if (SYM_SCLASS(sym) == STATIC) {
             vec_push(funcinfo.staticvars, sym);
-        else
+            SYM_X_LABEL(sym) = gen_static_label();
+        } else {
             vec_push(funcinfo.localvars, sym);
+        }
     }
 
     return sym;
@@ -1460,7 +1462,12 @@ void translation_unit(void)
 
 static void doglobal(node_t *sym, void *context)
 {
-    
+    if (SYM_SCLASS(sym) == EXTERN ||
+        isfunc(SYM_TYPE(sym)) ||
+        SYM_DEFINED(sym))
+        return;
+
+    IR->defvar(sym);
 }
 
 static void finalize(void)

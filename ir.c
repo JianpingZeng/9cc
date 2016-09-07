@@ -2294,6 +2294,10 @@ static void emit_function(node_t *sym)
 {
     node_t *stmt = SYM_INIT(sym);
 
+    const char *name = SYM_NAME(sym);
+    if (!strcmp(name, "__bswap_64"))
+        return;
+
     func_tac_head = NULL;
     func_tac_tail = NULL;
     extra_lvars = NULL;
@@ -2669,8 +2673,6 @@ static void defvar(node_t *sym)
 {
     if (SYM_SCOPE(sym) == GLOBAL)
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
-    else
-        SYM_X_LABEL(sym) = gen_static_label();
 
     if (SYM_INIT(sym)) {
         emit_data(sym);
@@ -2687,8 +2689,7 @@ static void defun(node_t *sym)
     IM->defun(sym);
     for (int i = 0; i < vec_len(SYM_X_SVARS(sym)); i++) {
         node_t *s = vec_at(SYM_X_SVARS(sym), i);
-        if (SYM_REFS(s))
-            IR->defvar(s);
+        IR->defvar(s);
     }
 }
 
