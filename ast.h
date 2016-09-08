@@ -215,7 +215,6 @@ union ast_node {
 };
 
 // ast.c
-extern void *alloc_symbol(void);
 extern void *alloc_type(void);
 extern void *alloc_field(void);
 

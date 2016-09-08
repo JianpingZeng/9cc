@@ -72,7 +72,7 @@ static node_t *literal_node(int id)
 {
     node_t *n = NEWS(node_t, PERM);
     AST_ID(n) = id;
-    EXPR_SYM(n) = anonymous(&constants, CONSTANT);
+    EXPR_SYM(n) = anonymous(&constants, CONSTANT, PERM);
     return n;
 }
 

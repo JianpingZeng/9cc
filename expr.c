@@ -865,7 +865,7 @@ static node_t *number_literal(struct token *t)
     const char *name = TOK_LITERAL_STR(t);
     node_t *sym = lookup(name, constants);
     if (!sym) {
-        sym = install(name, &constants, CONSTANT);
+        sym = install(name, &constants, CONSTANT, PERM);
         number_constant(t, sym);
     }
     int id = isint(SYM_TYPE(sym)) ? INTEGER_LITERAL : FLOAT_LITERAL;
@@ -880,7 +880,7 @@ static node_t *string_literal(struct token *t)
     const char *name = TOK_LITERAL_STR(t);
     node_t *sym = lookup(name, constants);
     if (!sym) {
-        sym = install(name, &constants, CONSTANT);
+        sym = install(name, &constants, CONSTANT, PERM);
         string_constant(t, sym);
     }
     node_t *expr = ast_expr(STRING_LITERAL, SYM_TYPE(sym), NULL, NULL);

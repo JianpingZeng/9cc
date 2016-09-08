@@ -267,7 +267,6 @@ struct table {
 // sym
 extern struct table *new_table(struct table *up, int scope);
 extern void symbol_init(void);
-extern int scopelevel(void);
 extern void enter_scope(void);
 extern void exit_scope(void);
 extern void foreach(struct table *tp, int level, void (*apply) (node_t *, void *), void *);
@@ -275,22 +274,23 @@ extern bool is_current_scope(node_t *sym);
 extern bool is_anonymous(const char *name);
 
 // create an anonymous symbol
-extern node_t *anonymous(struct table **tpp, int scope);
+extern node_t *anonymous(struct table **tpp, int scope, int area);
 
 // generate a tmp symbol
-extern node_t *gen_tmp_sym(void);
+extern node_t *gen_tmp_sym(int area);
 
 // look up a symbol from this table to previous one, and so on
 extern node_t *lookup(const char *name, struct table *table);
 
 // install a symbol with specified scope
-extern node_t *install(const char *name, struct table **tpp, int scope);
+extern node_t *install(const char *name, struct table **tpp, int scope, int area);
 
 extern struct table *identifiers;
 extern struct table *constants;
 extern struct table *tags;
+extern int _scope;
 
-#define SCOPE  scopelevel()
+#define SCOPE  _scope
 
 // print.c
 extern void print_tree(node_t * tree);

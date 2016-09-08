@@ -292,9 +292,9 @@ node_t *tag_type(int t, const char *tag, struct source src)
             redefinition_error(src, sym);
         }
 
-        sym = install(tag, &tags, SCOPE);
+        sym = install(tag, &tags, SCOPE, PERM);
     } else {
-        sym = anonymous(&tags, SCOPE);
+        sym = anonymous(&tags, SCOPE, PERM);
         _TYPE_TAG(ty) = SYM_NAME(sym);
     }
 

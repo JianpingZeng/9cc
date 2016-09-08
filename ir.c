@@ -109,7 +109,7 @@ static node_t * make_named_sym(const char *name, struct table **table, int scope
 {
     node_t *sym = lookup(name, *table);
     if (!sym)
-        sym = install(name, table, scope);
+        sym = install(name, table, scope, PERM);
     return sym;
 }
 
@@ -1367,7 +1367,7 @@ static struct operand * make_extra_decl(node_t *ty)
     if (!extra_lvars)
         extra_lvars = vec_new();
 
-    node_t *sym = gen_tmp_sym();
+    node_t *sym = gen_tmp_sym(FUNC);
     SYM_TYPE(sym) = ty;
     // set scope as LOCAL
     SYM_SCOPE(sym) = LOCAL;

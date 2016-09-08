@@ -693,7 +693,7 @@ static void ids(node_t *sym)
             if (s && is_current_scope(s))
                 redefinition_error(source, s);
 
-            s = install(name, &identifiers, SCOPE);
+            s = install(name, &identifiers, SCOPE, SCOPE < LOCAL ? PERM : FUNC);
             SYM_TYPE(s) = SYM_TYPE(sym);
             AST_SRC(s) = source;
             SYM_SCLASS(s) = ENUM;
@@ -1022,7 +1022,7 @@ static node_t * typedefdecl(const char *id, node_t *ty, int fspec, int kind, str
     node_t *sym = lookup(id, identifiers);
     if (sym && is_current_scope(sym))
         redefinition_error(src, sym);
-    sym = install(id, &identifiers, SCOPE);
+    sym = install(id, &identifiers, SCOPE, SCOPE < LOCAL ? PERM : FUNC);
     SYM_TYPE(sym) = ty;
     AST_SRC(sym) = src;
     SYM_SCLASS(sym) = sclass;
@@ -1087,9 +1087,9 @@ static node_t *paramdecl(const char *id, node_t * ty, int sclass, int fspec, str
         sym = lookup(id, identifiers);
         if (sym && SYM_SCOPE(sym) == SCOPE)
             redefinition_error(source, sym);
-        sym = install(id, &identifiers, SCOPE);
+        sym = install(id, &identifiers, SCOPE, FUNC);
     } else {
-        sym = anonymous(&identifiers, SCOPE);
+        sym = anonymous(&identifiers, SCOPE, FUNC);
     }
 
     SYM_TYPE(sym) = ty;
@@ -1140,7 +1140,7 @@ static node_t *localdecl(const char *id, node_t * ty, int sclass, int fspec, str
                     SYM_SCLASS(sym) == EXTERN)))) {
         redefinition_error(src, sym);
     } else {
-        sym = install(id, &identifiers, SCOPE);
+        sym = install(id, &identifiers, SCOPE, FUNC);
         SYM_TYPE(sym) = ty;
         AST_SRC(sym) = src;
         SYM_SCLASS(sym) = sclass;
@@ -1192,7 +1192,7 @@ static node_t *globaldecl(const char *id, node_t *ty, int sclass, int fspec, str
 
     sym = lookup(id, identifiers);
     if (!sym || SYM_SCOPE(sym) != SCOPE) {
-        sym = install(id, &identifiers, SCOPE);
+        sym = install(id, &identifiers, SCOPE, PERM);
         SYM_TYPE(sym) = ty;
         AST_SRC(sym) = src;
         SYM_SCLASS(sym) = sclass;
@@ -1268,7 +1268,7 @@ static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec,
     if (id) {
         sym = lookup(id, identifiers);
         if (!sym || SYM_SCOPE(sym) != GLOBAL) {
-            sym = install(id, &identifiers, GLOBAL);
+            sym = install(id, &identifiers, GLOBAL, PERM);
             make_funcdecl(sym, ftype, sclass, src);
         } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
             if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
@@ -1285,7 +1285,7 @@ static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec,
         ensure_main(ftype, id, src);
         ensure_inline(ftype, fspec, src);
     } else {
-        sym = anonymous(&identifiers, GLOBAL);
+        sym = anonymous(&identifiers, GLOBAL, PERM);
         make_funcdecl(sym, ftype, sclass, src);
     }
 

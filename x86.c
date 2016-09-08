@@ -3453,7 +3453,7 @@ static struct pnode * new_pnode(node_t *param)
 
 static node_t * new_tmp_param(bool call)
 {
-    node_t *sym = gen_tmp_sym();
+    node_t *sym = gen_tmp_sym(FUNC);
     SYM_TYPE(sym) = ptr_type(voidtype);
     SYM_SCOPE(sym) = call ? LOCAL : PARAM;
     SYM_X_KIND(sym) = SYM_KIND_LREF;

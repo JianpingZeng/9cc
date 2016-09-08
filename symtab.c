@@ -4,7 +4,7 @@ struct table *identifiers;
 struct table *constants;
 struct table *tags;
 
-static int level = GLOBAL;
+int _scope = GLOBAL;
 
 struct table *new_table(struct table *up, int scope)
 {
@@ -28,30 +28,25 @@ void symbol_init(void)
     tags = new_table(NULL, GLOBAL);
 }
 
-int scopelevel(void)
-{
-    return level;
-}
-
 void enter_scope(void)
 {
-    level++;
+    _scope++;
 }
 
 void exit_scope(void)
 {
-    if (tags->scope == level) {
+    if (tags->scope == _scope) {
         struct table *up = tags->up;
         free_table(tags);
         tags = up;
     }
-    if (identifiers->scope == level) {
+    if (identifiers->scope == _scope) {
         struct table *up = identifiers->up;
         free_table(identifiers);
         identifiers = up;
     }
-    assert(level >= GLOBAL);
-    level--;
+    assert(_scope >= GLOBAL);
+    _scope--;
 }
 
 void foreach(struct table *tp, int level, void (*apply) (node_t *, void *), void *context)
@@ -75,16 +70,16 @@ bool is_anonymous(const char *name)
     return name == NULL || !isletter(name[0]);
 }
 
-node_t *anonymous(struct table **tpp, int scope)
+node_t *anonymous(struct table **tpp, int scope, int area)
 {
     static long i;
-    return install(format("@%ld", i++), tpp, scope);
+    return install(format("@%ld", i++), tpp, scope, area);
 }
 
-node_t *gen_tmp_sym(void)
+node_t *gen_tmp_sym(int area)
 {
     const char *name = gen_tmpname();
-    node_t *sym = alloc_symbol();
+    node_t *sym = NEWS(node_t, area);
     SYM_NAME(sym) = SYM_X_LABEL(sym) = name;
     SYM_REFS(sym)++;
     return sym;
@@ -103,7 +98,7 @@ node_t *lookup(const char *name, struct table * table)
     return s;
 }
 
-node_t *install(const char *name, struct table ** tpp, int scope)
+node_t *install(const char *name, struct table ** tpp, int scope, int area)
 {
     node_t *sym;
     struct table *tp = *tpp;
@@ -117,7 +112,7 @@ node_t *install(const char *name, struct table ** tpp, int scope)
 
     assert(tp);
 
-    sym = alloc_symbol();
+    sym = NEWS(node_t, area);
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
     SYM_X_LABEL(sym) = name;

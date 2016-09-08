@@ -23,11 +23,6 @@ static node_t *new_node(int id)
     return n;
 }
 
-void *alloc_symbol(void)
-{
-    return new_node(SYMBOL_NODE);
-}
-
 void *alloc_type(void)
 {
     return new_node(TYPE_NODE);
