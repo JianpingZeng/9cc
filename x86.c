@@ -3645,7 +3645,7 @@ static void defun(node_t *sym)
     emit_text(sym);
 }
 
-struct imachine *IM = &(struct imachine) {
+struct im *IM = &(struct im) {
     .progbeg = progbeg,
     .progend = progend,
     .defvar = defvar,

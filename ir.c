@@ -2733,7 +2733,7 @@ static void deftype(node_t *type)
     }
 }
 
-struct iir *IR = &(struct iir) {
+struct ir *IR = &(struct ir) {
     .dclvar = dclvar,
     .defvar = defvar,
     .dclfun = dclfun,

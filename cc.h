@@ -309,7 +309,7 @@ extern void print_source(struct source src);
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
 
 // middle-end interface
-struct iir {
+struct ir {
     void (*dclvar) (node_t *);
     void (*defvar) (node_t *);
     void (*dclfun) (node_t *);
@@ -318,7 +318,7 @@ struct iir {
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
 };
-extern struct iir *IR;
+extern struct ir *IR;
 
 // backend interface
 struct metrics {
@@ -330,7 +330,7 @@ struct metrics {
 // segments
 enum { TEXT, BSS, DATA };
 
-struct imachine {
+struct im {
     void (*progbeg) (int argc, char *argv[]);
     void (*defvar) (node_t *, int);
     void (*defun) (node_t *);
@@ -351,6 +351,6 @@ struct imachine {
     struct metrics ptrmetrics;
     struct metrics zerometrics;
 };
-extern struct imachine *IM;
+extern struct im *IM;
 
 #endif
