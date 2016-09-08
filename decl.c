@@ -49,7 +49,7 @@ int first_expr(struct token *t)
     return t->kind == ID;
 }
 
-bool first_typename(struct token * t)
+int first_typename(struct token * t)
 {
     return t->kind == INT || t->kind == CONST ||
         (t->id == ID && istypedef(TOK_IDENT_STR(t)));

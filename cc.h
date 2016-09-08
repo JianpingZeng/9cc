@@ -98,7 +98,7 @@ extern node_t *typename(void);
 extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
-extern bool first_typename(struct token *t);
+extern int first_typename(struct token *t);
 extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
 
 struct funcinfo {
@@ -250,12 +250,7 @@ extern bool isbool(node_t *ty);
 
 // sym.c
 // scope level
-enum {
-    CONSTANT,
-    GLOBAL,
-    PARAM,
-    LOCAL,
-};
+enum { CONSTANT, GLOBAL, PARAM, LOCAL };
 
 struct table {
     int scope;
@@ -269,7 +264,7 @@ extern struct table *new_table(struct table *up, int scope);
 extern void symbol_init(void);
 extern void enter_scope(void);
 extern void exit_scope(void);
-extern void foreach(struct table *tp, int level, void (*apply) (node_t *, void *), void *);
+extern void foreach(struct table *tp, int level, void (*apply) (node_t *, void *), void *context);
 extern bool is_current_scope(node_t *sym);
 extern bool is_anonymous(const char *name);
 
