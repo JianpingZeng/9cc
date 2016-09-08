@@ -16,27 +16,32 @@ const char *nname(node_t * node)
     return node_names[AST_ID(node)];
 }
 
-static node_t *new_node(int id)
+static node_t *new_node(int id, int area)
 {
-    node_t *n = NEWS0(node_t, PERM);
+    node_t *n = NEWS0(node_t, area);
     AST_ID(n) = id;
     return n;
 }
 
+void *alloc_symbol(int area)
+{
+    return new_node(SYMBOL_NODE, area);
+}
+
 void *alloc_type(void)
 {
-    return new_node(TYPE_NODE);
+    return new_node(TYPE_NODE, PERM);
 }
 
 void *alloc_field(void)
 {
-    return new_node(FIELD_NODE);
+    return new_node(FIELD_NODE, PERM);
 }
 
 node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
-    node_t *expr = new_node(id);
+    node_t *expr = new_node(id, PERM);
     EXPR_OPERAND(expr, 0) = l;
     EXPR_OPERAND(expr, 1) = r;
     AST_TYPE(expr) = ty;

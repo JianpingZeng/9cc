@@ -2661,6 +2661,8 @@ static void init(int argc, char *argv[])
 
 static void finalize(void)
 {
+    if (opts.ast_dump || opts.ir_dump)
+        return;
     IM->emit_compounds(compounds);
     IM->emit_strings(strings);
     IM->emit_floats(floats);
