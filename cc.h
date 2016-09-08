@@ -317,9 +317,7 @@ extern struct ir *IR;
 
 // backend interface
 struct metrics {
-    size_t size;
-    int align;
-    unsigned rank;
+    unsigned char size, align, rank;
 };
 
 // segments
