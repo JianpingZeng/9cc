@@ -650,7 +650,7 @@ static void replacement_list(struct file *pfile, struct macro *m)
 
 static void define_objlike_macro(struct file *pfile, struct token *t)
 {
-    struct macro *m = NEWS(struct macro, PERM);
+    struct macro *m = NEWS0(struct macro, PERM);
     SAVE_ERRORS;
     m->kind = MACRO_OBJ;
     m->src = t->src;
@@ -662,7 +662,7 @@ static void define_objlike_macro(struct file *pfile, struct token *t)
 
 static void define_funclike_macro(struct file *pfile, struct token *t)
 {
-    struct macro *m = NEWS(struct macro, PERM);
+    struct macro *m = NEWS0(struct macro, PERM);
     SAVE_ERRORS;
     m->kind = MACRO_FUNC;
     m->src = t->src;
@@ -1140,7 +1140,7 @@ static void define_special(struct file *pfile,
                            const char *name,
                            void (*handler) (struct file *, struct token *))
 {
-    struct macro *m = NEWS(struct macro, PERM);
+    struct macro *m = NEWS0(struct macro, PERM);
     m->kind = MACRO_SPECIAL;
     m->handler = handler;
     add_macro_with_name(pfile, name, m);

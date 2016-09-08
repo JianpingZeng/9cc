@@ -2,7 +2,7 @@
 
 struct hideset *hideset_add(struct hideset *s, const unsigned char *name)
 {
-    struct hideset *r = NEWS(struct hideset, PERM);
+    struct hideset *r = NEWS0(struct hideset, PERM);
     r->name = name;
     r->next = s;
     return r;

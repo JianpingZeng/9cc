@@ -155,7 +155,7 @@ bool is_original_file(struct file *pfile, const char *file)
 
 static inline struct ident *alloc_cpp_ident_entry(struct imap *imap)
 {
-    return NEWS(struct cpp_ident, PERM);
+    return NEWS0(struct cpp_ident, PERM);
 }
 
 struct file *new_cpp_file(const char *file)

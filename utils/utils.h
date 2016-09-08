@@ -56,7 +56,8 @@ extern void *newarray(size_t n, unsigned int m, unsigned int a);
 extern void deallocate(unsigned int a);
 #define NEW(n, a)  allocate((n), (a))
 #define NEW0(n, a)  memset(allocate((n), (a)), 0, (n))
-#define NEWS(s, a)  NEW0(sizeof(s), a)
+#define NEWS(s, a)  NEW(sizeof(s), a)
+#define NEWS0(s, a)  NEW0(sizeof(s), a)
 enum { PERM = 0, FUNC };
 
 // vector.c

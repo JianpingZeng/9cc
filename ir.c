@@ -93,14 +93,14 @@ static bool isgref(node_t *sym)
 
 static struct operand * copy_operand(struct operand *operand)
 {
-    struct operand *ret = NEWS(struct operand, PERM);
+    struct operand *ret = NEWS0(struct operand, PERM);
     *ret = *operand;
     return ret;
 }
 
 static struct operand * make_sym_operand(node_t *sym)
 {
-    struct operand *operand = NEWS(struct operand, PERM);
+    struct operand *operand = NEWS0(struct operand, PERM);
     operand->sym = sym;
     return operand;
 }
@@ -182,7 +182,7 @@ static struct tac * make_tac(int op,
                              struct operand *result,
                              int opsize)
 {
-    struct tac *tac = NEWS(struct tac, PERM);
+    struct tac *tac = NEWS0(struct tac, PERM);
     tac->op = op;
     tac->operands[1] = l;
     tac->operands[2] = r;

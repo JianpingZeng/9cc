@@ -18,7 +18,7 @@ const char *nname(node_t * node)
 
 static node_t *new_node(int id)
 {
-    node_t *n = NEWS(node_t, PERM);
+    node_t *n = NEWS0(node_t, PERM);
     AST_ID(n) = id;
     return n;
 }
@@ -89,7 +89,7 @@ node_t *ast_stmt(int id, struct source src)
 
 node_t *copy_node(node_t * node)
 {
-    node_t *copy = NEWS(node_t, PERM);
+    node_t *copy = NEWS0(node_t, PERM);
     memcpy(copy, node, sizeof(node_t));
     return copy;
 }

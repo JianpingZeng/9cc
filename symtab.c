@@ -79,7 +79,7 @@ node_t *anonymous(struct table **tpp, int scope, int area)
 node_t *gen_tmp_sym(int area)
 {
     const char *name = gen_tmpname();
-    node_t *sym = NEWS(node_t, area);
+    node_t *sym = NEWS0(node_t, area);
     SYM_NAME(sym) = SYM_X_LABEL(sym) = name;
     SYM_REFS(sym)++;
     return sym;
@@ -112,7 +112,7 @@ node_t *install(const char *name, struct table ** tpp, int scope, int area)
 
     assert(tp);
 
-    sym = NEWS(node_t, area);
+    sym = NEWS0(node_t, area);
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
     SYM_X_LABEL(sym) = name;
