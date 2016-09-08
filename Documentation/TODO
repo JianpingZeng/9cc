@@ -20,6 +20,12 @@ v0.3.2:
         !cpp改成从标准输入（stdin）读取，打印到标准输出（stdout）
 v0.3.3
         !删除 ast_decl
+        !symbol 使用 area 分配
+        修复 emit_bop_arith 64-bit imm operand 的问题
+        TODO: SYM_X_ 相关整理
+        TODO: 整理 decl_initializer
+        TODO: 整理 typedefdecl
+        TODO: ast_dump, ir_dump 功能恢复
 v0.4:
 
 
