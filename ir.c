@@ -2295,10 +2295,6 @@ static void emit_function(node_t *sym)
 {
     node_t *stmt = SYM_INIT(sym);
 
-    const char *name = SYM_NAME(sym);
-    if (!strcmp(name, "__bswap_64"))
-        return;
-
     func_tac_head = NULL;
     func_tac_tail = NULL;
     extra_lvars = NULL;

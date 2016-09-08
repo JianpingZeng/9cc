@@ -1709,11 +1709,37 @@ static void emit_bop_arith(struct tac *tac, const char *op, bool floating)
     struct reladdr *l_label = operand2s(l, tac->opsize);
     pop_excepts();
 
+    if (is_imm_operand(l) && tac->opsize == Quad) {
+        struct reg *reg;
+        if (floating)
+            reg = dispatch_freg(l->sym, excepts, tac->opsize);
+        else
+            reg = dispatch_ireg(l->sym, excepts, tac->opsize);
+        
+        xx(OP_MOV, suffix[i], l_label, rs(reg->r[i]));
+        l_label = rs(reg->r[i]);
+
+        set_add(excepts, reg);
+    }
+
     vl = operand_regs(l);
     excepts = set_union(excepts, vl);
     push_excepts(excepts);
     struct reladdr *r_label = operand2s(r, tac->opsize);
     pop_excepts();
+
+    if (is_imm_operand(r) && tac->opsize == Quad) {
+        struct reg *reg;
+        if (floating)
+            reg = dispatch_freg(r->sym, excepts, tac->opsize);
+        else
+            reg = dispatch_ireg(r->sym, excepts, tac->opsize);
+
+        xx(OP_MOV, suffix[i], r_label, rs(reg->r[i]));
+        r_label = rs(reg->r[i]);
+
+        set_add(excepts, reg);
+    }
     
     vr = operand_regs(r);
     excepts = set_union(excepts, vr);
