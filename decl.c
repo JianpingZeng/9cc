@@ -12,11 +12,11 @@ static node_t *funcdef(const char *id, node_t * ty, int sclass, int fspec,
                        node_t *params[], struct source src);
 static node_t *typedefdecl(const char *id, node_t * ty, int fspec, int kind, struct source src);
 
-typedef node_t *declfun_p(const char *id, node_t * ty, int sclass, int fspec, struct source src);
+typedef node_t *decl_p(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *paramdecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *globaldecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *localdecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
-static struct vector *decls(declfun_p * dcl);
+static struct vector *decls(decl_p * dcl);
 
 static void finalize(void);
 static void func_body(node_t *decl);
@@ -1368,7 +1368,7 @@ node_t *typename(void)
 ///   declarator
 ///   declarator '=' initializer
 ///
-static struct vector *decls(declfun_p * dcl)
+static struct vector *decls(decl_p * dcl)
 {
     struct vector *v = vec_new();
     node_t *basety;
