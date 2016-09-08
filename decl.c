@@ -1448,6 +1448,7 @@ void translation_unit(void)
         if (first_decl(token)) {
             assert(SCOPE == GLOBAL);
             decls(globaldecl);
+            deallocate(FUNC);
         } else {
             if (token->id == ';')
                 // empty declaration
