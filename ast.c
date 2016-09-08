@@ -82,16 +82,10 @@ node_t *ast_vinit(void)
 node_t *ast_stmt(int id, struct source src)
 {
     assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
-    node_t *stmt = new_node(id);
+    node_t *stmt = NEWS0(node_t, FUNC);
+    AST_ID(stmt) = id;
     AST_SRC(stmt) = src;
     return stmt;
-}
-
-node_t *copy_node(node_t * node)
-{
-    node_t *copy = NEWS0(node_t, PERM);
-    memcpy(copy, node, sizeof(node_t));
-    return copy;
 }
 
 const char *gen_label(void)

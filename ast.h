@@ -237,8 +237,6 @@ extern const char *gen_compound_label(void);
 extern const char *gen_sliteral_label(void);
 extern const char *gen_block_label(void);
 
-extern node_t *copy_node(node_t * node);
-
 // kind
 #define isexpr(n)   (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isstmt(n)   (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)

@@ -68,6 +68,13 @@ static struct uop *dispatch_uop(int op)
     return NULL;
 }
 
+static node_t *copy_node(node_t * node)
+{
+    node_t *copy = NEWS0(node_t, PERM);
+    memcpy(copy, node, sizeof(node_t));
+    return copy;
+}
+
 static node_t *literal_node(int id)
 {
     node_t *n = NEWS0(node_t, PERM);
