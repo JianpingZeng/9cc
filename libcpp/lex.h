@@ -84,8 +84,8 @@ enum {
 #define ID_BITS    10
 
 // token
-#define TOK_IDENT_STR(t)    ((const char *)(t)->value.ident->str)
-#define TOK_LITERAL_STR(t)  ((t)->value.lexeme)
+#define TOK_ID_STR(t)    ((const char *)(t)->value.ident->str)
+#define TOK_LIT_STR(t)  ((t)->value.lexeme)
 
 struct token {
     int id:ID_BITS;

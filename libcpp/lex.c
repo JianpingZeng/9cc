@@ -58,9 +58,9 @@ const char *id2s(int t)
 const char *tok2s(struct token *t)
 {
     if (t->id == ID)
-        return TOK_IDENT_STR(t);
+        return TOK_ID_STR(t);
     else if (t->id == SCONSTANT || t->id == NCONSTANT)
-        return TOK_LITERAL_STR(t);
+        return TOK_LIT_STR(t);
     else if (t->value.lexeme)
         return t->value.lexeme;
     else
@@ -680,7 +680,7 @@ void skip_ifstack(struct file *pfile)
             t = dolex(pfile);
         if (t->id != ID)
             continue;
-        const char *name = TOK_IDENT_STR(t);
+        const char *name = TOK_ID_STR(t);
         if (!strcmp(name, "if") ||
             !strcmp(name, "ifdef") ||
             !strcmp(name, "ifndef")) {
@@ -774,10 +774,10 @@ static struct token *do_cctoken(struct file *pfile)
     if (t->id == SCONSTANT) {
         struct vector *v = vec_new1(t);
         struct token *t1 = peek_token(pfile);
-        const char *name0 = TOK_LITERAL_STR(t);
+        const char *name0 = TOK_LIT_STR(t);
         bool wide = name0[0] == 'L';
         while (t1->id == SCONSTANT) {
-            const char *name1 = TOK_LITERAL_STR(t1);
+            const char *name1 = TOK_LIT_STR(t1);
             if (name1[0] == 'L')
                 wide = true;
             vec_push(v, one_token(pfile));
@@ -833,7 +833,7 @@ static struct token *cctoken(struct file *pfile)
     struct token *t = do_cctoken(pfile);
     // keywords
     if (t->id == ID) {
-        const char *name = TOK_IDENT_STR(t);
+        const char *name = TOK_ID_STR(t);
         for (int i = 0; i < ARRAY_SIZE(kws); i++) {
             if (!strcmp(name, kws[i])) {
                 t->id = kwi[i];

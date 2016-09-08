@@ -52,7 +52,7 @@ int first_expr(struct token *t)
 int first_typename(struct token * t)
 {
     return t->kind == INT || t->kind == CONST ||
-        (t->id == ID && istypedef(TOK_IDENT_STR(t)));
+        (t->id == ID && istypedef(TOK_ID_STR(t)));
 }
 
 /// declaration-specifier:
@@ -210,8 +210,8 @@ static node_t *specifiers(int *sclass, int *fspec)
             break;
 
         case ID:
-            if (istypedef(TOK_IDENT_STR(token))) {
-                tydefty = lookup_typedef(TOK_IDENT_STR(token));
+            if (istypedef(TOK_ID_STR(token))) {
+                tydefty = lookup_typedef(TOK_ID_STR(token));
                 p = &type;
                 gettok();
             } else {
@@ -409,7 +409,7 @@ static struct vector *prototype(node_t *ftype)
             first_void = true;
 
         SAVE_ERRORS;
-        sym = paramdecl(id ? TOK_IDENT_STR(id) : NULL,
+        sym = paramdecl(id ? TOK_ID_STR(id) : NULL,
                         ty, PACK_PARAM(1, i == 0, first_void, sclass), fspec,
                         id ? id->src : src);
         if (NO_ERROR && !first_void)
@@ -441,7 +441,7 @@ static struct vector *oldstyle(node_t *ftype)
     
     for (;;) {
         if (token->id == ID) {
-            node_t *sym = paramdecl(TOK_IDENT_STR(token), inttype, 0, 0, token->src);
+            node_t *sym = paramdecl(TOK_ID_STR(token), inttype, 0, 0, token->src);
             SYM_DEFINED(sym) = false;
             vec_push(v, sym);
         }
@@ -639,7 +639,7 @@ static node_t *tag_decl(void)
 
     expect(t);
     if (token->id == ID) {
-        id = TOK_IDENT_STR(token);
+        id = TOK_ID_STR(token);
         expect(ID);
     }
     if (token->id == '{') {
@@ -688,7 +688,7 @@ static void ids(node_t *sym)
     if (token->id == ID) {
         int val = 0;
         do {
-            const char *name = TOK_IDENT_STR(token);
+            const char *name = TOK_ID_STR(token);
             node_t *s = lookup(name, identifiers);
             if (s && is_current_scope(s))
                 redefinition_error(source, s);
@@ -781,7 +781,7 @@ static void fields(node_t * sym)
                     bitfield(field);
                 FIELD_TYPE(field) = ty;
                 if (id) {
-                    const char *name = TOK_IDENT_STR(id);
+                    const char *name = TOK_ID_STR(id);
                     for (int i = 0; i < vec_len(v); i++) {
                         node_t *f = vec_at(v, i);
                         if (FIELD_NAME(f) &&
@@ -1396,7 +1396,7 @@ static struct vector *decls(declfun_p * dcl)
                 if (TYPE_OLDSTYLE(ty))
                     exit_scope();
                 
-                funcdef(id ? TOK_IDENT_STR(id) : NULL,
+                funcdef(id ? TOK_ID_STR(id) : NULL,
                         ty, sclass, fspec, params, id ? id->src : src);
                 return NULL;
             } else {
@@ -1406,7 +1406,7 @@ static struct vector *decls(declfun_p * dcl)
 
         for (;;) {
             if (id) {
-                node_t *sym = dcl(TOK_IDENT_STR(id), ty, sclass, fspec, id->src);
+                node_t *sym = dcl(TOK_ID_STR(id), ty, sclass, fspec, id->src);
                 ensure_decl(sym, sclass, level);
                 vec_push(v, sym);
             }

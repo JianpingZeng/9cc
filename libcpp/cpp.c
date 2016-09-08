@@ -139,7 +139,7 @@ static struct vector *read_if_tokens(struct file *pfile)
             break;
         if (IS_SPACE(t))
             continue;
-        if (t->id == ID && !strcmp(TOK_IDENT_STR(t), "defined"))
+        if (t->id == ID && !strcmp(TOK_ID_STR(t), "defined"))
             vec_push(v, defined_op(pfile, t));
         else if (t->id == ID)
             // C99 6.10.1.3 says that remaining identifiers
@@ -270,7 +270,7 @@ static void do_include(struct file *pfile)
 {
     struct token *t = header_name(pfile);
     if (t) {
-        include_file(pfile, TOK_LITERAL_STR(t), t->kind == '<');
+        include_file(pfile, TOK_LIT_STR(t), t->kind == '<');
     } else {
         // # include pptokens newline
         struct source src = source;
@@ -290,7 +290,7 @@ static void do_include(struct file *pfile)
 
         struct token *tok = vec_head(r);
         if (tok->id == SCONSTANT) {
-            include_file(pfile, unwrap_scon(TOK_LITERAL_STR(tok)), false);
+            include_file(pfile, unwrap_scon(TOK_LIT_STR(tok)), false);
             for (int i = 1; i < vec_len(r); i++) {
                 struct token *t = vec_at(r, i);
                 if (!IS_SPACE(t)) {
@@ -437,7 +437,7 @@ static void parameters(struct file *pfile, struct macro *m)
             if (t->id == ID) {
                 for (unsigned int j = 0; j < i; j++) {
                     struct token *t1 = v[j];
-                    if (!strcmp(TOK_IDENT_STR(t), TOK_IDENT_STR(t1))) {
+                    if (!strcmp(TOK_ID_STR(t), TOK_ID_STR(t1))) {
                         error("duplicate macro paramter name '%s'",
                               tok2s(t));
                         break;
@@ -534,7 +534,7 @@ static void remove_macro(struct file *pfile, struct token *t)
 static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *m)
 {
     // check redefinition
-    const char *name = TOK_IDENT_STR(t);
+    const char *name = TOK_ID_STR(t);
     struct cpp_ident *ident = lookup_macro(pfile, t);
     struct macro *m1 = ident ? ident->value.macro : NULL;
     size_t len1p = m->nparams;
@@ -558,8 +558,8 @@ static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *
             for (size_t i = 0; i < len1p; i++) {
                 struct token *t1 = m->params[i];
                 struct token *t2 = m1->params[i];
-                if (strcmp(TOK_IDENT_STR(t1),
-                           TOK_IDENT_STR(t2)))
+                if (strcmp(TOK_ID_STR(t1),
+                           TOK_ID_STR(t2)))
                     goto redef;
             }
 
@@ -620,14 +620,14 @@ static void replacement_list(struct file *pfile, struct macro *m)
             v = xrealloc(v, n * sizeof(struct token *));
         }
         if (m->kind == MACRO_FUNC && t->id == ID) {
-            const char *name = TOK_IDENT_STR(t);
+            const char *name = TOK_ID_STR(t);
             if (m->varg && !strcmp(name, "__VA_ARGS__")) {
                 t->param = true;
                 t->pos = m->nparams;
             } else {
                 for (size_t i = 0; i < m->nparams; i++) {
                     struct token *t0 = m->params[i];
-                    if (!strcmp(name, TOK_IDENT_STR(t0))) {
+                    if (!strcmp(name, TOK_ID_STR(t0))) {
                         t->param = true;
                         t->pos = t0->pos;
                     }
@@ -818,7 +818,7 @@ static void directive(struct file *pfile)
     if (t->id != ID)
         goto err;
 
-    const char *name = TOK_IDENT_STR(t);
+    const char *name = TOK_ID_STR(t);
     int len = ARRAY_SIZE(directive_table);
     for (int i = 0; i < len; i++) {
         struct directive_table tb = directive_table[i];

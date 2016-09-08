@@ -169,7 +169,7 @@ static void struct_init(node_t * ty, bool brace, struct vector *v)
             const char *name = NULL;
             expect('.');
             if (token->id == ID)
-                name = TOK_IDENT_STR(token);
+                name = TOK_ID_STR(token);
             expect(ID);
             node_t *field = find_field(ty, name);
             if (field) {

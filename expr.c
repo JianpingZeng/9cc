@@ -469,7 +469,7 @@ static unsigned escape(const char **ps)
 
 static void char_constant(struct token *t, node_t * sym)
 {
-    const char *s = TOK_LITERAL_STR(t);
+    const char *s = TOK_LIT_STR(t);
     bool wide = s[0] == 'L';
     unsigned long long c = 0;
     char ws[MB_LEN_MAX];
@@ -538,7 +538,7 @@ static int integer_suffix(const char *s)
 
 static void integer_constant(struct token *t, node_t * sym)
 {
-    const char *s = TOK_LITERAL_STR(t);
+    const char *s = TOK_LIT_STR(t);
 
     int base;
     node_t *ty;
@@ -693,7 +693,7 @@ static int float_suffix(const char *s)
 
 static void float_constant(struct token *t, node_t * sym)
 {
-    const char *pc = TOK_LITERAL_STR(t);
+    const char *pc = TOK_LIT_STR(t);
     struct strbuf *s = strbuf_new();
 
     if (pc[0] == '.') {
@@ -797,7 +797,7 @@ static void float_constant(struct token *t, node_t * sym)
 
 static void number_constant(struct token *t, node_t * sym)
 {
-    const char *pc = TOK_LITERAL_STR(t);
+    const char *pc = TOK_LIT_STR(t);
     if (pc[0] == '\'' || pc[0] == 'L') {
         // character
         char_constant(t, sym);
@@ -838,7 +838,7 @@ static void number_constant(struct token *t, node_t * sym)
 
 static void string_constant(struct token *t, node_t * sym)
 {
-    const char *s = TOK_LITERAL_STR(t);
+    const char *s = TOK_LIT_STR(t);
     bool wide = s[0] == 'L' ? true : false;
     node_t *ty;
     if (wide) {
@@ -862,7 +862,7 @@ static void string_constant(struct token *t, node_t * sym)
 
 static node_t *number_literal(struct token *t)
 {
-    const char *name = TOK_LITERAL_STR(t);
+    const char *name = TOK_LIT_STR(t);
     node_t *sym = lookup(name, constants);
     if (!sym) {
         sym = install(name, &constants, CONSTANT, PERM);
@@ -877,7 +877,7 @@ static node_t *number_literal(struct token *t)
 
 static node_t *string_literal(struct token *t)
 {
-    const char *name = TOK_LITERAL_STR(t);
+    const char *name = TOK_LIT_STR(t);
     node_t *sym = lookup(name, constants);
     if (!sym) {
         sym = install(name, &constants, CONSTANT, PERM);
@@ -1056,7 +1056,7 @@ static node_t *primary_expr(void)
 
     switch (t) {
     case ID:
-        sym = lookup(TOK_IDENT_STR(token), identifiers);
+        sym = lookup(TOK_ID_STR(token), identifiers);
         if (sym) {
             ret = make_ref_expr(sym, source);
             if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
@@ -1244,7 +1244,7 @@ static node_t *direction(node_t * node)
 
     expect(t);
     if (token->id == ID)
-        name = TOK_IDENT_STR(token);
+        name = TOK_ID_STR(token);
     expect(ID);
     if (node == NULL || name == NULL)
         return ret;

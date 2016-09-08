@@ -373,7 +373,7 @@ static node_t *label_stmt(void)
 
     SAVE_ERRORS;
     if (token->id == ID)
-        name = TOK_IDENT_STR(token);
+        name = TOK_ID_STR(token);
     expect(ID);
     expect(':');
 
@@ -413,7 +413,7 @@ static node_t *goto_stmt(void)
     SAVE_ERRORS;
     expect(GOTO);
     if (token->id == ID)
-        STMT_LABEL_NAME(ret) = TOK_IDENT_STR(token);
+        STMT_LABEL_NAME(ret) = TOK_ID_STR(token);
     expect(ID);
     expect(';');
 
