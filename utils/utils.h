@@ -70,5 +70,7 @@ enum { PERM = 0, FUNC };
 #include "set.h"
 // list.c
 #include "list.h"
+// sys.c
+#include "sys.h"
 
 #endif

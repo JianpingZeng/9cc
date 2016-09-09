@@ -11,7 +11,6 @@
 #include <time.h>
 #include <ctype.h>
 #include "config.h"
-#include "utils/sys.h"
 #include "utils/utils.h"
 
 static const char *progname;
@@ -137,7 +136,7 @@ static void parse_opts(int argc, char *argv[])
 static const char *tempname(const char *dir, const char *hint)
 {
     static long index;
-    const char *base = basename(xstrdup(hint));
+    const char *base = sys_basename(hint);
     const char *name = base;
     const char *path;
 
@@ -235,7 +234,7 @@ int main(int argc, char **argv)
 
     for (int i = 0; i < vec_len(inputs); i++) {
         const char *ifile = vec_at(inputs, i);
-        const char *iname = basename(xstrdup(ifile));
+        const char *iname = sys_basename(ifile);
         const char *ofile = NULL;
         const char *suffix = file_suffix(ifile);
         int ret;

@@ -1177,15 +1177,7 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
 
     if (!isstd) {
         // try current path
-        /**
-         * NOTE!!!
-         * The 'dirname()' manual page says:
-         * Both dirname() and basename() may modify
-         * the contents of path, so it may be desirable
-         * to pass a copy when calling one of these functions.
-         */
-        const char *curfile = xstrdup(pfile->buffer->name);
-        const char *curdir = dirname(curfile);
+        const char *curdir = sys_dirname(pfile->buffer->name);
         const char *file = join(curdir, name);
         if (file_exists(file))
             return file;

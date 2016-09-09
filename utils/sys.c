@@ -17,6 +17,24 @@
 #include "../config.h"
 #include "utils.h"
 
+/**
+ * NOTE!!!
+ * The 'dirname()' manual page says:
+ * Both dirname() and basename() may modify
+ * the contents of path, so it may be desirable
+ * to pass a copy when calling one of these functions.
+ */
+
+char *sys_dirname(const char *path)
+{
+    return dirname(xstrdup(path));
+}
+
+char *sys_basename(const char *path)
+{
+    return basename(xstrdup(path));
+}
+
 const char *mktmpdir()
 {
     static char template[] = "/tmp/7cc.tmp.XXXXXX";

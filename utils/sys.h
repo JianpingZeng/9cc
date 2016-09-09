@@ -1,6 +1,10 @@
 #ifndef _SYS_H
 #define _SYS_H
 
+// basename,dirname
+extern char *sys_dirname(const char *path);
+extern char *sys_basename(const char *path);
+
 // setup
 extern void setup_sys();
 
@@ -12,8 +16,6 @@ extern int rmdir(const char *dir);
 extern const char *abspath(const char *path);
 extern const char *replace_suffix(const char *path, const char *suffix);
 extern const char *join(const char *dir, const char *name);
-extern char *dirname(const char *path);
-extern char *basename(const char *path);
 extern const char *file_suffix(const char *path);
 
 // process

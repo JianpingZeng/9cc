@@ -1,5 +1,4 @@
 #include "cc.h"
-#include "utils/sys.h"
 
 struct cc_options opts;
 
