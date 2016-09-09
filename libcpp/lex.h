@@ -1,6 +1,10 @@
 #ifndef _LEX_H
 #define _LEX_H
 
+// for bool/size_t
+#include <stdbool.h>
+#include <stddef.h>
+
 // hideset.c
 struct hideset {
     const unsigned char *name;

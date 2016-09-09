@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include <locale.h>
 #include <time.h>
 #include "lex.h"
