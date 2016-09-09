@@ -1031,6 +1031,11 @@ static void typedefdecl(const char *id, node_t *ty, int fspec, int level, struct
     SYM_TYPE(sym) = ty;
     AST_SRC(sym) = src;
     SYM_SCLASS(sym) = sclass;
+
+    if (token->id == '=') {
+        error("illegal initializer (only variable can be initialized)");
+        initializer(NULL);
+    }
 }
 
 // id maybe NULL
