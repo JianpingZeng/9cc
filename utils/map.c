@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "utils.h"
 
 // a key-value implementation

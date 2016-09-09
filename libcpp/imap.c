@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "lex.h"
 #include "../utils/utils.h"
 

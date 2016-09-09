@@ -1,3 +1,5 @@
+#include <limits.h>
+#include <stdio.h>
 #include "utils.h"
 
 #define FNV32_BASIS ((unsigned) 0x811c9dc5)

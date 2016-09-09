@@ -1,14 +1,11 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <limits.h>
-#include <ctype.h>
-#include <stdarg.h>
+// for bool/size_t/va_list/memset
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdarg.h>
+#include <string.h>
 
 #define ONES(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
 

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "utils.h"
 
 struct bucket {

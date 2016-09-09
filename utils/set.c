@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "utils.h"
 
 static char value;
