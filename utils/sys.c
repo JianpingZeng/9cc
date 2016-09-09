@@ -35,7 +35,7 @@ char *sys_basename(const char *path)
     return basename(xstrdup(path));
 }
 
-const char *mktmpdir()
+const char *sys_mktmpdir()
 {
     static char template[] = "/tmp/7cc.tmp.XXXXXX";
     int len = strlen("/tmp/7cc.tmp.");
@@ -59,7 +59,7 @@ long file_size(const char *path)
         return 0;
 }
 
-int callsys(const char *file, char **argv)
+int sys_call(const char *file, char **argv)
 {
     pid_t pid;
     int ret = EXIT_SUCCESS;
@@ -122,14 +122,14 @@ const char *file_suffix(const char *path)
     return dot + 1;
 }
 
-int rmdir(const char *dir)
+int sys_rmdir(const char *dir)
 {
     char command[64];
     snprintf(command, sizeof(command), "rm -rf %s", dir);
     return system(command);
 }
 
-const char *abspath(const char *path)
+const char *sys_abspath(const char *path)
 {
     if (!path || !strlen(path))
         return NULL;
@@ -151,7 +151,7 @@ const char *abspath(const char *path)
     }
 }
 
-const char *join(const char *dir, const char *name)
+const char *sys_join(const char *dir, const char *name)
 {
     if (name[0] == '/')
         return strdup(name);
@@ -220,7 +220,7 @@ struct vector *sys_include_dirs(void)
     return v;
 }
 
-void setup_sys()
+void sys_setup(void)
 {
 }
 
@@ -269,7 +269,7 @@ static void handler(int sig)
     exit(EXIT_FAILURE);
 }
 
-void setup_sys()
+void sys_setup(void)
 {
     signal(SIGSEGV, handler);
     signal(SIGABRT, handler);

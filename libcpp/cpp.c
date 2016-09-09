@@ -1148,7 +1148,7 @@ static void define_special(struct file *pfile,
 
 static void add_include(struct vector *v, const char *name)
 {
-    vec_push(v, (char *)abspath(name));
+    vec_push(v, (char *)sys_abspath(name));
 }
 
 static struct token *lineno(unsigned line, const char *file)
@@ -1170,7 +1170,7 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
     size_t len = vec_len(paths);
     for (size_t i = 0; i < len; i++) {
         const char *dir = vec_at(paths, i);
-        const char *file = join(dir, name);
+        const char *file = sys_join(dir, name);
         if (file_exists(file))
             return file;
     }
@@ -1178,7 +1178,7 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
     if (!isstd) {
         // try current path
         const char *curdir = sys_dirname(pfile->buffer->name);
-        const char *file = join(curdir, name);
+        const char *file = sys_join(curdir, name);
         if (file_exists(file))
             return file;
     }

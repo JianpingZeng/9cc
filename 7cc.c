@@ -141,7 +141,7 @@ static const char *tempname(const char *dir, const char *hint)
     const char *path;
 
  beg:
-    path = join(dir, name);
+    path = sys_join(dir, name);
     if (file_exists(path)) {
         name = format("%d.%s", index++, base);
         goto beg;
@@ -182,13 +182,13 @@ static char **compose(char *argv[], struct vector *ifiles, const char *ofile,
 static int link(struct vector *ifiles, const char *ofile,
                 struct vector *options)
 {
-    return callsys(ld[0], compose(ld, ifiles, ofile, options));
+    return sys_call(ld[0], compose(ld, ifiles, ofile, options));
 }
 
 static int assemble(const char *ifile, const char *ofile)
 {
     struct vector *ifiles = vec_new1((char *)ifile);
-    return callsys(as[0], compose(as, ifiles, ofile, NULL));
+    return sys_call(as[0], compose(as, ifiles, ofile, NULL));
 }
 
 static int translate(const char *ifile, const char *ofile,
@@ -196,7 +196,7 @@ static int translate(const char *ifile, const char *ofile,
 {
     struct vector *ifiles = vec_new1((char *)ifile);
     cc[3] = ofile ? "-o" : NULL;
-    return callsys(cc[0], compose(cc, ifiles, ofile, options));
+    return sys_call(cc[0], compose(cc, ifiles, ofile, options));
 }
 
 int main(int argc, char **argv)
@@ -206,7 +206,7 @@ int main(int argc, char **argv)
     size_t fails = 0;
 
     progname = argv[0];
-    setup_sys();
+    sys_setup();
     init_env();
     parse_opts(argc, argv);
 
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    if (!(tmpdir = mktmpdir()))
+    if (!(tmpdir = sys_mktmpdir()))
         die("Can't make temporary directory.");
 
     struct vector *objects = vec_new();
@@ -295,6 +295,6 @@ int main(int argc, char **argv)
     }
 
     if (tmpdir)
-        rmdir(tmpdir);
+        sys_rmdir(tmpdir);
     return ret;
 }

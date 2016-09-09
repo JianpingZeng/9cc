@@ -57,7 +57,7 @@ static void preprocess(void)
 
 int main(int argc, char *argv[])
 {
-    setup_sys();
+    sys_setup();
     parse_opts(argc, argv);
     actions.init(argc, argv);
     symbol_init();
