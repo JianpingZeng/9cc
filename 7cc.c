@@ -271,7 +271,7 @@ int main(int argc, char **argv)
                 ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
                 ret = assemble(ifile, ofile);
                 vec_push(objects, (char *)ofile);
-            } else {
+            } else if (suffix && !strcmp(suffix, "c")) {
                 const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
                 ret = translate(ifile, sfile, cc_options);
                 if (ret == 0) {
@@ -279,6 +279,8 @@ int main(int argc, char **argv)
                     ret = assemble(sfile, ofile);
                     vec_push(objects, (char *)ofile);
                 }
+            } else {
+                vec_push(objects, (char *)ifile);
             }
         }
         if (ret == EXIT_FAILURE)
