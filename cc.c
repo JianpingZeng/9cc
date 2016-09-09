@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 {
     setup_sys();
     parse_opts(argc, argv);
-    IR->init(argc, argv);
+    actions.init(argc, argv);
     symbol_init();
     type_init();
     cpp_init(argc, argv);
@@ -69,6 +69,8 @@ int main(int argc, char *argv[])
         preprocess();
     else
         translation_unit();
+
+    actions.finalize();
 
     return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

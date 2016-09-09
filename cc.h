@@ -303,13 +303,22 @@ extern void print_source(struct source src);
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
 
-// middle-end interface
-struct ir {
+// sema actions
+struct actions {
     void (*dclvar) (node_t *);
     void (*defvar) (node_t *);
     void (*dclfun) (node_t *);
     void (*defun) (node_t *);
     void (*deftype) (node_t *);
+    void (*init) (int argc, char *argv[]);
+    void (*finalize) (void);
+};
+extern struct actions actions;
+
+// middle-end interface
+struct ir {
+    void (*defvar) (node_t *);
+    void (*defun) (node_t *);
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
 };
@@ -324,13 +333,13 @@ struct metrics {
 enum { TEXT, BSS, DATA };
 
 struct im {
-    void (*progbeg) (int argc, char *argv[]);
+    void (*init) (int argc, char *argv[]);
+    void (*finalize) (void);
     void (*defvar) (node_t *, int);
     void (*defun) (node_t *);
     void (*emit_compounds) (struct map *);
     void (*emit_strings) (struct map *);
     void (*emit_floats) (struct map *);
-    void (*progend) (void);
     struct metrics boolmetrics;
     struct metrics charmetrics;
     struct metrics shortmetrics;

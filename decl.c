@@ -1210,7 +1210,7 @@ static node_t *globaldecl(const char *id, node_t *ty, int sclass, int fspec, str
         node_t *init = decl_initializer(sym, sclass, GLOBAL);
         SYM_INIT(sym) = init;
         if (init)
-            IR->defvar(sym);
+            actions.defvar(sym);
     }
 
     return sym;
@@ -1322,7 +1322,7 @@ static node_t *funcdef(const char *id, node_t *ftype, int sclass, int fspec,
         // function definition
         func_body(sym);
         exit_scope();
-        IR->defun(sym);
+        actions.defun(sym);
     }
 
     return sym;
@@ -1422,7 +1422,7 @@ static struct vector *decls(decl_p * dcl)
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
-        IR->deftype(basety);
+        actions.deftype(basety);
     } else {
         error("invalid token '%s' in declaration", tok2s(token));
     }
@@ -1467,13 +1467,12 @@ static void doglobal(node_t *sym, void *context)
         SYM_DEFINED(sym))
         return;
 
-    IR->defvar(sym);
+    actions.defvar(sym);
 }
 
 static void finalize(void)
 {
     foreach(identifiers, GLOBAL, doglobal, NULL);
-    IR->finalize();
 }
 
 static void predefined_ids(void)

@@ -233,3 +233,59 @@ void field_not_found_error(node_t * ty, const char *name)
     else
         error("'%s' has no field named '%s'", type2s(ty), name);
 }
+
+static void init(int argc, char *argv[])
+{
+    IR->init(argc, argv);
+}
+
+static void finalize(void)
+{
+    if (opts.E || opts.ast_dump)
+        return;
+    IR->finalize();
+}
+
+static void dclvar(node_t *n)
+{
+    if (opts.ast_dump)
+        print_tree(n);
+}
+
+static void defvar(node_t *n)
+{
+    if (opts.ast_dump)
+        print_tree(n);
+    else
+        IR->defvar(n);
+}
+
+static void dclfun(node_t *n)
+{
+    if (opts.ast_dump)
+        print_tree(n);
+}
+
+static void defun(node_t *n)
+{
+    if (opts.ast_dump)
+        print_tree(n);
+    else
+        IR->defun(n);
+}
+
+static void deftype(node_t *n)
+{
+    if (opts.ast_dump)
+        print_tree(n);
+}
+
+struct actions actions = {
+    .init = init,
+    .finalize = finalize,
+    .dclvar = dclvar,
+    .defvar = defvar,
+    .dclfun = dclfun,
+    .defun = defun,
+    .deftype = deftype
+};

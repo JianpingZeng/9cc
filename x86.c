@@ -3641,13 +3641,13 @@ static void metrics_init(void)
 #undef METRICS
 }
 
-static void progbeg(int argc, char *argv[])
+static void init(int argc, char *argv[])
 {
     metrics_init();
     init_regs();
 }
 
-static void progend(void)
+static void finalize(void)
 {
     emit(".ident \"7cc: %s\"", VERSION);
 }
@@ -3672,8 +3672,8 @@ static void defun(node_t *sym)
 }
 
 struct im *IM = &(struct im) {
-    .progbeg = progbeg,
-    .progend = progend,
+    .init = init,
+    .finalize = finalize,
     .defvar = defvar,
     .defun = defun,
     .emit_compounds = emit_compounds,

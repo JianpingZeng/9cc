@@ -2656,26 +2656,19 @@ static void init(int argc, char *argv[])
     strings = map_new();
     compounds = map_new();
     floats = map_new();
-    IM->progbeg(argc, argv);
+    IM->init(argc, argv);
 }
 
 static void finalize(void)
 {
-    if (opts.ast_dump || opts.ir_dump)
-        return;
     IM->emit_compounds(compounds);
     IM->emit_strings(strings);
     IM->emit_floats(floats);
-    IM->progend();
+    IM->finalize();
 }
 
 static void defvar(node_t *sym)
 {
-    if (opts.ast_dump) {
-        print_tree(sym);
-        return;
-    }
-    
     if (SYM_SCOPE(sym) == GLOBAL)
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
 
@@ -2689,11 +2682,6 @@ static void defvar(node_t *sym)
 
 static void defun(node_t *sym)
 {
-    if (opts.ast_dump) {
-        print_tree(sym);
-        return;
-    }
-    
     SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     emit_function(sym);
     IM->defun(sym);
@@ -2703,40 +2691,9 @@ static void defun(node_t *sym)
     }
 }
 
-static void dclvar(node_t *sym)
-{
-    if (opts.ast_dump) {
-        print_tree(sym);
-        return;
-    }
-    
-    SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
-}
-
-static void dclfun(node_t *sym)
-{
-    if (opts.ast_dump) {
-        print_tree(sym);
-        return;
-    }
-    
-    SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
-}
-
-static void deftype(node_t *type)
-{
-    if (opts.ast_dump) {
-        print_tree(type);
-        return;
-    }
-}
-
 struct ir *IR = &(struct ir) {
-    .dclvar = dclvar,
     .defvar = defvar,
-    .dclfun = dclfun,
     .defun = defun,
-    .deftype = deftype,
     .init = init,
     .finalize = finalize
 };
