@@ -149,20 +149,16 @@ void ensure_array(node_t * atype, struct source src, int level)
 
     node_t *rty = rtype(atype);
     if (isincomplete(rty))
-        error_at(src,
-                 "array has incomplete element type '%s'",
-                 type2s(rty));
+        error_at(src, "array has incomplete element type '%s'", type2s(rty));
 }
 
 void ensure_func(node_t * ftype, struct source src)
 {
     node_t *rty = rtype(ftype);
     if (isarray(rty))
-        error_at(src, "function cannot return array type '%s'",
-                 type2s(rty));
+        error_at(src, "function cannot return array type '%s'", type2s(rty));
     else if (isfunc(rty))
-        error_at(src, "function cannot return function type '%s'",
-                 type2s(rty));
+        error_at(src, "function cannot return function type '%s'", type2s(rty));
 }
 
 void ensure_main(node_t *ftype, const char *name, struct source src)

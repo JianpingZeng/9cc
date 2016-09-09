@@ -10,7 +10,7 @@ static void fields(node_t * sym);
 
 static node_t *funcdef(const char *id, node_t * ty, int sclass, int fspec,
                        node_t *params[], struct source src);
-static node_t *typedefdecl(const char *id, node_t * ty, int fspec, int kind, struct source src);
+static void typedefdecl(const char *id, node_t * ty, int fspec, int level, struct source src);
 
 typedef node_t *decl_p(const char *id, node_t * ty, int sclass, int fspec, struct source src);
 static node_t *paramdecl(const char *id, node_t * ty, int sclass, int fspec, struct source src);
@@ -1005,17 +1005,22 @@ static void declarator(node_t ** ty, struct token **id, node_t ***params)
     }
 }
 
-static node_t * typedefdecl(const char *id, node_t *ty, int fspec, int kind, struct source src)
+static void typedefdecl(const char *id, node_t *ty, int fspec, int level, struct source src)
 {
     int sclass = TYPEDEF;
 
     assert(id);
-    assert(kind != PARAM);
+
+    if (level == PARAM) {
+        error("invalid storage class specifier '%s' in function declarator",
+              id2s(sclass));
+        sclass = 0;
+    }
 
     if (isfunc(ty))
         ensure_func(ty, src);
     else if (isarray(ty))
-        ensure_array(ty, src, kind);
+        ensure_array(ty, src, level);
 
     ensure_inline(ty, fspec, src);
 
@@ -1026,8 +1031,6 @@ static node_t * typedefdecl(const char *id, node_t *ty, int fspec, int kind, str
     SYM_TYPE(sym) = ty;
     AST_SRC(sym) = src;
     SYM_SCLASS(sym) = sclass;
-
-    return sym;
 }
 
 // id maybe NULL
@@ -1112,10 +1115,6 @@ static node_t *localdecl(const char *id, node_t * ty, int sclass, int fspec, str
     assert(id);
     assert(SCOPE >= LOCAL);
 
-    // typedef
-    if (sclass == TYPEDEF)
-        return typedefdecl(id, ty, fspec, LOCAL, src);
-
     if (isfunc(ty)) {
         ensure_func(ty, src);
         ensure_main(ty, id, src);
@@ -1171,10 +1170,6 @@ static node_t *globaldecl(const char *id, node_t *ty, int sclass, int fspec, str
 
     assert(id);
     assert(SCOPE == GLOBAL);
-
-    // typedef
-    if (sclass == TYPEDEF)
-        return typedefdecl(id, ty, fspec, GLOBAL, src);
 
     if (sclass == AUTO || sclass == REGISTER) {
         error_at(src, "illegal storage class on file-scoped variable");
@@ -1406,9 +1401,13 @@ static struct vector *decls(decl_p * dcl)
 
         for (;;) {
             if (id) {
-                node_t *sym = dcl(TOK_ID_STR(id), ty, sclass, fspec, id->src);
-                ensure_decl(sym, sclass, level);
-                vec_push(v, sym);
+                if (sclass == TYPEDEF) {
+                    typedefdecl(TOK_ID_STR(id), ty, fspec, level, id->src);
+                } else {
+                    node_t *sym = dcl(TOK_ID_STR(id), ty, sclass, fspec, id->src);
+                    ensure_decl(sym, sclass, level);
+                    vec_push(v, sym);
+                }
             }
 
             if (token->id != ',')
