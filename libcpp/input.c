@@ -1,4 +1,7 @@
-#include "cpp.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include "lex.h"
+#include "../utils/utils.h"
 
 struct file *cpp_file;
 

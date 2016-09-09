@@ -1,4 +1,9 @@
-#include "cpp.h"
+#include <stdbool.h>
+#include <locale.h>
+#include <time.h>
+#include "lex.h"
+#include "../utils/utils.h"
+#include "../error.h"
 
 /* ACKNOWLEDGE
  *
@@ -7,6 +12,8 @@
  * http://www.spinellis.gr/blog/20060626/x3J11-86-196.pdf
  *
  */
+
+extern bool eval_cpp_cond(void);
 
 static struct token *expand(struct file *pfile);
 static struct vector *expandv(struct file *pfile, struct vector *v);
