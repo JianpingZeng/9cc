@@ -18,7 +18,6 @@ static struct symbol *globaldecl(const char *id, struct type * ty, int sclass, i
 static struct symbol *localdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src);
 static struct vector *decls(decl_p * dcl);
 
-static void finalize(void);
 static void func_body(struct symbol *decl);
 
 struct funcinfo funcinfo;
@@ -1440,6 +1439,16 @@ struct symbol **declaration(void)
     return vtoa(decls(localdecl), FUNC);
 }
 
+static void doglobal(struct symbol *sym, void *context)
+{
+    if (SYM_SCLASS(sym) == EXTERN ||
+        isfunc(SYM_TYPE(sym)) ||
+        SYM_DEFINED(sym))
+        return;
+
+    actions.defvar(sym);
+}
+
 /// translation-unit:
 ///   external-declaration
 ///   translation-unit external-declaration
@@ -1460,21 +1469,6 @@ void translation_unit(void)
         }
     }
     
-    finalize();
-}
-
-static void doglobal(struct symbol *sym, void *context)
-{
-    if (SYM_SCLASS(sym) == EXTERN ||
-        isfunc(SYM_TYPE(sym)) ||
-        SYM_DEFINED(sym))
-        return;
-
-    actions.defvar(sym);
-}
-
-static void finalize(void)
-{
     foreach(identifiers, GLOBAL, doglobal, NULL);
 }
 
