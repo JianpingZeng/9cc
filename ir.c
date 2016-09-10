@@ -609,14 +609,6 @@ static void emit_uop_bitwise_not(node_t *n)
     EXPR_X_ADDR(n) = tac->operands[0];
 }
 
-// int
-static void emit_uop_sizeof(node_t *n)
-{
-    node_t *l = EXPR_OPERAND(n, 0);
-    node_t *ty = istype(l) ? l : AST_TYPE(l);
-    EXPR_X_ADDR(n) = make_unsigned_operand(TYPE_SIZE(ty));
-}
-
 // arith
 static void emit_uop_minus(node_t *n)
 {
@@ -838,8 +830,6 @@ static void emit_uop(node_t *n)
         emit_uop_logic_not(n);
         break;
     case SIZEOF:
-        emit_uop_sizeof(n);
-        break;
     default:
         assert(0);
     }

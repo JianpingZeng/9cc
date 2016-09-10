@@ -892,7 +892,17 @@ static node_t *string_literal(struct token *t)
 node_t *new_integer_literal(int i)
 {
     struct token *t = new_token(&(struct token){
-            .id = NCONSTANT, .value.lexeme = strd(i)});
+            .id = NCONSTANT, .value.lexeme = strd(i)
+                });
+    node_t *expr = number_literal(t);
+    return expr;
+}
+
+static node_t *new_uint_literal(unsigned long l)
+{
+    struct token *t = new_token(&(struct token){
+            .id = NCONSTANT, .value.lexeme = stru(l)
+                });
     node_t *expr = number_literal(t);
     return expr;
 }
@@ -1399,7 +1409,7 @@ static node_t *sizeof_expr(void)
         error("'sizeof' to a bitfield is invalid");
 
     if (NO_ERROR) {
-        ret = ast_uop(t, unsignedlongtype, n ? n : ty);
+        ret = new_uint_literal(TYPE_SIZE(ty));
         AST_SRC(ret) = src;
     }
 
