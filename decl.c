@@ -8,8 +8,8 @@ static struct type *tag_decl(void);
 static void ids(struct symbol *sym);
 static void fields(struct symbol * sym);
 
-static struct symbol *funcdef(const char *id, struct type * ty, int sclass, int fspec,
-                              struct symbol *params[], struct source src);
+static void funcdef(const char *id, struct type * ty, int sclass, int fspec,
+                    struct symbol *params[], struct source src);
 static void typedefdecl(const char *id, struct type * ty, int fspec, int level, struct source src);
 
 typedef struct symbol *decl_p(const char *id, struct type * ty, int sclass, int fspec, struct source src);
@@ -1253,8 +1253,8 @@ static void make_funcdecl(struct symbol *sym, struct type *ty, int sclass, struc
 }
 
 // id maybe NULL
-static struct symbol *funcdef(const char *id, struct type *ftype, int sclass, int fspec,
-                              struct symbol *params[], struct source src)
+static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
+                    struct symbol *params[], struct source src)
 {
     struct symbol *sym;
     // SCOPE == PARAM (prototype)
@@ -1329,8 +1329,6 @@ static struct symbol *funcdef(const char *id, struct type *ftype, int sclass, in
         exit_scope();
         actions.defun(sym);
     }
-
-    return sym;
 }
 
 /// type-name:
