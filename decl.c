@@ -1035,6 +1035,8 @@ static void typedefdecl(const char *id, struct type *ty, int fspec, int level, s
         error("illegal initializer (only variable can be initialized)");
         initializer(NULL);
     }
+
+    actions.deftype(sym);
 }
 
 // id maybe NULL
@@ -1197,25 +1199,21 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
         SYM_SCLASS(sym) = sclass;
     } else if (eqtype(ty, SYM_TYPE(sym))) {
         if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
-            error_at(src,
-                     "static declaration of '%s' follows non-static declaration",
-                     id);
+            error_at(src, "static declaration of '%s' follows non-static declaration", id);
         else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
-            error_at(src,
-                     "non-static declaration of '%s' follows static declaration",
-                     id);
+            error_at(src, "non-static declaration of '%s' follows static declaration", id);
+
         if (sclass != EXTERN)
             SYM_SCLASS(sym) = sclass;
     } else {
         conflicting_types_error(src, sym);
     }
 
-    if (token->id == '=') {
-        node_t *init = decl_initializer(sym, sclass, GLOBAL);
-        SYM_INIT(sym) = init;
-        if (init)
-            actions.defvar(sym);
-    }
+    if (token->id == '=')
+        SYM_INIT(sym) = decl_initializer(sym, sclass, GLOBAL);
+
+    if (SYM_INIT(sym))
+        actions.defvar(sym);
 
     return sym;
 }
