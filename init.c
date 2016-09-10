@@ -3,11 +3,10 @@
 ///
 /// Initializer
 ///
-static void struct_init(node_t * ty, bool brace, struct vector *v);
-static void array_init(node_t * ty, bool brace, struct vector *v);
-static void scalar_init(node_t * ty, struct vector *v);
-static void elem_init(node_t * sty, node_t * ty, bool designated,
-                      struct vector *v, int i);
+static void struct_init(struct type * ty, bool brace, struct vector *v);
+static void array_init(struct type * ty, bool brace, struct vector *v);
+static void scalar_init(struct type * ty, struct vector *v);
+static void elem_init(struct type * sty, struct type * ty, bool designated, struct vector *v, int i);
 
 #define INIT_OVERRIDE    "initializer overrides prior initialization"
 
@@ -46,12 +45,12 @@ static void eat_initlist(void)
     } while (first_init(token));
 }
 
-static bool is_string(node_t * ty)
+static bool is_string(struct type * ty)
 {
     if (!isarray(ty))
         return false;
 
-    node_t *rty = rtype(ty);
+    struct type *rty = rtype(ty);
     return TYPE_KIND(rty) == CHAR || unqual(rty) == wchartype;
 }
 
@@ -62,7 +61,7 @@ static node_t *find_elem(struct vector *v, int i)
     return vec_at(v, i);
 }
 
-static node_t *init_elem_conv(node_t * ty, node_t * node)
+static node_t *init_elem_conv(struct type * ty, node_t * node)
 {
     // VINIT_EXPR means failure.
     // cannot pass VINIT_EXPR to assignconv
@@ -77,7 +76,7 @@ static node_t *init_elem_conv(node_t * ty, node_t * node)
     return ret;
 }
 
-void init_string(node_t * ty, node_t * node)
+void init_string(struct type * ty, node_t * node)
 {
     int len1 = TYPE_LEN(ty);
     int len2 = TYPE_LEN(AST_TYPE(node));
@@ -90,7 +89,7 @@ void init_string(node_t * ty, node_t * node)
     }
 }
 
-static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
+static void aggregate_set(struct type * ty, struct vector *v, int i, node_t * node)
 {
     if (!node)
         return;
@@ -108,7 +107,7 @@ static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
                && eqtype(unqual(ty), unqual(AST_TYPE(node)))) {
         vec_set(v, i, node);
     } else {
-        node_t *rty = NULL;
+        struct type *rty = NULL;
         if (isarray(ty)) {
             rty = rtype(ty);
         } else {
@@ -133,7 +132,7 @@ static void aggregate_set(node_t * ty, struct vector *v, int i, node_t * node)
     }
 }
 
-static void scalar_set(node_t * ty, struct vector *v, int i, node_t * node)
+static void scalar_set(struct type * ty, struct vector *v, int i, node_t * node)
 {
     if (!node)
         return;
@@ -157,13 +156,13 @@ static void scalar_set(node_t * ty, struct vector *v, int i, node_t * node)
     }
 }
 
-static void struct_init(node_t * ty, bool brace, struct vector *v)
+static void struct_init(struct type * ty, bool brace, struct vector *v)
 {
     bool designated = false;
     int len = length(TYPE_FIELDS(ty));
 
     for (int i = 0;; i++) {
-        node_t *fieldty = NULL;
+        struct type *fieldty = NULL;
 
         if (token->id == '.') {
             const char *name = NULL;
@@ -203,7 +202,7 @@ static void struct_init(node_t * ty, bool brace, struct vector *v)
     }
 }
 
-static void array_init(node_t * ty, bool brace, struct vector *v)
+static void array_init(struct type * ty, bool brace, struct vector *v)
 {
     bool designated = false;
     int c = 0;
@@ -220,7 +219,7 @@ static void array_init(node_t * ty, bool brace, struct vector *v)
     }
 
     for (int i = 0;; i++) {
-        node_t *rty = NULL;
+        struct type *rty = NULL;
 
         if (token->id == '[') {
             expect('[');
@@ -256,7 +255,7 @@ static void array_init(node_t * ty, bool brace, struct vector *v)
     }
 }
 
-static void scalar_init(node_t * ty, struct vector *v)
+static void scalar_init(struct type * ty, struct vector *v)
 {
     if (token->id == '.' || token->id == '[') {
         error("designator in initializer for scalar type '%s'",
@@ -273,13 +272,12 @@ static void scalar_init(node_t * ty, struct vector *v)
     }
 }
 
-static bool is_string_vec(node_t *ty, struct vector *v)
+static bool is_string_vec(struct type *ty, struct vector *v)
 {
     return is_string(ty) && vec_len(v) == 1 && issliteral((node_t *)vec_head(v));
 }
 
-static void elem_init(node_t * sty, node_t * ty, bool designated,
-                      struct vector *v, int i)
+static void elem_init(struct type * sty, struct type * ty, bool designated, struct vector *v, int i)
 {
     if (isunion(sty))
         i = 0;                // always set the first elem
@@ -352,7 +350,7 @@ static void elem_init(node_t * sty, node_t * ty, bool designated,
 ///   '{' initializer-list '}'
 ///   '{' initializer-list ',' '}'
 ///
-node_t *initializer(node_t * ty)
+node_t *initializer(struct type * ty)
 {
     if (token->id == '{') {
         return initializer_list(ty);
@@ -379,7 +377,7 @@ node_t *initializer(node_t * ty)
 ///   '[' constant-expression ']'
 ///   '.' identifier
 ///
-node_t *initializer_list(node_t * ty)
+node_t *initializer_list(struct type * ty)
 {
     int follow[] = { ',', IF, '[', ID, '.', DEREF, 0 };
     node_t *ret = ast_inits(ty, source);
@@ -426,7 +424,7 @@ bool has_static_extent(node_t * sym)
 
 node_t *decl_initializer(node_t *sym, int sclass, int level)
 {
-    node_t *ty = SYM_TYPE(sym);
+    struct type *ty = SYM_TYPE(sym);
     struct source src = AST_SRC(sym);
     node_t *init;
     struct source init_src;

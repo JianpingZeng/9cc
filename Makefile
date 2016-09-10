@@ -58,7 +58,6 @@ LIBCPP_INC += $(libcpp_dir)token.def
 CC1_OBJ += error.o
 CC1_OBJ += ast.o
 CC1_OBJ += cc.o
-CC1_OBJ += print.o
 CC1_OBJ += decl.o
 CC1_OBJ += init.o
 CC1_OBJ += sema.o
@@ -70,6 +69,7 @@ CC1_OBJ += type.o
 CC1_OBJ += ir.o
 CC1_OBJ += block.o
 CC1_OBJ += x86.o
+CC1_OBJ += print.o
 
 CC1_INC += error.h
 CC1_INC += cc.h

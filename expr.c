@@ -15,7 +15,7 @@ static bool is_nullptr(node_t * node);
 #define SAVE_SOURCE        struct source src = source
 #define SET_SOURCE(node)   if (node) AST_SRC(node) = src
 
-static void ensure_type(node_t * node, bool(*is) (node_t *))
+static void ensure_type(node_t * node, bool(*is) (struct type *))
 {
     const char *name;
     if (is == isint)
@@ -34,9 +34,7 @@ static void ensure_type(node_t * node, bool(*is) (node_t *))
         assert(0);
 
     if (!is(AST_TYPE(node)))
-        error_at(AST_SRC(node),
-                 "expect type '%s', not '%s'",
-                 name, type2s(AST_TYPE(node)));
+        error_at(AST_SRC(node), "expect type '%s', not '%s'", name, type2s(AST_TYPE(node)));
 }
 
 /**
@@ -95,7 +93,7 @@ static void ensure_lvalue(node_t * node)
 
 static void ensure_assignable(node_t * node)
 {
-    node_t *ty = AST_TYPE(node);
+    struct type *ty = AST_TYPE(node);
     struct source src = AST_SRC(node);
     if (!islvalue(node))
         error_at(src, "expression is not assignable '%s'", node2s(node));
@@ -112,7 +110,7 @@ static bool is_bitfield(node_t * node)
     if (AST_ID(node) != MEMBER_EXPR)
         return false;
 
-    node_t *ty = AST_TYPE(EXPR_OPERAND(node, 0));
+    struct type *ty = AST_TYPE(EXPR_OPERAND(node, 0));
     if (isptr(ty))
         ty = rtype(ty);
     const char *name = AST_NAME(node);
@@ -120,7 +118,7 @@ static bool is_bitfield(node_t * node)
     return field && FIELD_ISBIT(field);
 }
 
-static const char * castname(node_t *ty, node_t *l)
+static const char * castname(struct type *ty, node_t *l)
 {
     if (isfloat(ty) && isfloat(AST_TYPE(l)))
 	return FloatCast;
@@ -134,7 +132,7 @@ static const char * castname(node_t *ty, node_t *l)
 	return BitCast;
 }
 
-static node_t *wrap(node_t * ty, node_t * node)
+static node_t *wrap(struct type * ty, node_t * node)
 {
     assert(isarith(ty));
     assert(isarith(AST_TYPE(node)));
@@ -145,7 +143,7 @@ static node_t *wrap(node_t * ty, node_t * node)
         return ast_conv(ty, node, castname(ty, node));
 }
 
-static node_t *bitconv(node_t * ty, node_t * node)
+static node_t *bitconv(struct type * ty, node_t * node)
 {
     if (eqtype(ty, AST_TYPE(node)))
         return node;
@@ -220,7 +218,7 @@ static node_t *conva(node_t * node)
 }
 
 // Universal Binary Conversion
-static node_t *conv2(node_t * l, node_t * r)
+static struct type *conv2(struct type * l, struct type * r)
 {
     assert(isarith(l));
     assert(isarith(r));
@@ -228,12 +226,12 @@ static node_t *conv2(node_t * l, node_t * r)
     assert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
     assert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
 
-    node_t *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
+    struct type *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
     if (isfloat(l) || isfloat(r) || TYPE_OP(l) == TYPE_OP(r))
         return max;
 
-    node_t *u = TYPE_OP(l) == UNSIGNED ? l : r;
-    node_t *s = TYPE_OP(l) == INT ? l : r;
+    struct type *u = TYPE_OP(l) == UNSIGNED ? l : r;
+    struct type *s = TYPE_OP(l) == INT ? l : r;
     assert(unqual(s) == s);
 
     if (TYPE_RANK(u) >= TYPE_RANK(s))
@@ -277,9 +275,9 @@ static node_t *conv2(node_t * l, node_t * r)
  *                                  F and F2 are compatible
  */
 
-node_t *assignconv(node_t * ty, node_t * node)
+node_t *assignconv(struct type * ty, node_t * node)
 {
-    node_t *ty2;
+    struct type *ty2;
 
     if (isfunc(AST_TYPE(node)) || isarray(AST_TYPE(node)))
         node = decay(node);
@@ -300,19 +298,19 @@ node_t *assignconv(node_t * ty, node_t * node)
         if (is_nullptr(node)) {
             // always allowed
         } else if (isptrto(ty, VOID) || isptrto(ty2, VOID)) {
-            node_t *vty = isptrto(ty, VOID) ? ty : ty2;
-            node_t *tty = vty == ty ? ty2 : ty;
+            struct type *vty = isptrto(ty, VOID) ? ty : ty2;
+            struct type *tty = vty == ty ? ty2 : ty;
             if (isptrto(tty, FUNCTION)) {
                 return NULL;
             } else {
-                node_t *rty1 = rtype(ty);
-                node_t *rty2 = rtype(ty2);
+                struct type *rty1 = rtype(ty);
+                struct type *rty2 = rtype(ty2);
                 if (!qual_contains(rty1, rty2))
                     return NULL;
             }
         } else {
-            node_t *rty1 = rtype(ty);
-            node_t *rty2 = rtype(ty2);
+            struct type *rty1 = rtype(ty);
+            struct type *rty2 = rtype(ty2);
             if (eqtype(unqual(rty1), unqual(rty2))) {
                 if (!qual_contains(rty1, rty2))
                     return NULL;
@@ -351,7 +349,7 @@ node_t *assignconv(node_t * ty, node_t * node)
  *  void                        any type
  */
 
-static bool is_castable(node_t * dst, node_t * src)
+static bool is_castable(struct type * dst, struct type * src)
 {
     if (isvoid(dst))
         return true;
@@ -541,7 +539,7 @@ static void integer_constant(struct token *t, node_t * sym)
     const char *s = TOK_LIT_STR(t);
 
     int base;
-    node_t *ty;
+    struct type *ty;
     bool overflow = 0;
     unsigned long long n = 0;
 
@@ -840,7 +838,7 @@ static void string_constant(struct token *t, node_t * sym)
 {
     const char *s = TOK_LIT_STR(t);
     bool wide = s[0] == 'L' ? true : false;
-    node_t *ty;
+    struct type *ty;
     if (wide) {
         size_t len = strlen(s) - 3;
         wchar_t *ws = xmalloc(sizeof(wchar_t) * (len+1));
@@ -915,7 +913,7 @@ node_t *new_string_literal(const char *string)
     return expr;
 }
 
-static struct vector *argcast1(node_t **params, size_t nparams,
+static struct vector *argcast1(struct type **params, size_t nparams,
                                node_t **args, size_t nargs,
                                bool oldstyle)
 {
@@ -928,9 +926,9 @@ static struct vector *argcast1(node_t **params, size_t nparams,
         cmp1 = nparams;
 
     for (size_t i = 0; i < cmp1; i++) {
-        node_t *dst = params[i];
+        struct type *dst = params[i];
         node_t *arg = args[i];
-        node_t *src = AST_TYPE(arg);
+        struct type *src = AST_TYPE(arg);
         node_t *ret = assignconv(dst, arg);
         if (ret) {
             vec_push(v, ret);
@@ -949,7 +947,7 @@ static struct vector *argcast1(node_t **params, size_t nparams,
     return v;
 }
 
-static node_t **argscast(node_t *fty, node_t **args)
+static node_t **argscast(struct type *fty, node_t **args)
 {
     struct vector *v = vec_new();
     assert(isfunc(fty));
@@ -963,7 +961,7 @@ static node_t **argscast(node_t *fty, node_t **args)
      * 5. no function declaration/definition found
      */
 
-    node_t **params = TYPE_PROTO(fty);
+    struct type **params = TYPE_PROTO(fty);
     size_t len1 = length(params);
     size_t len2 = length(args);
     bool oldstyle = TYPE_OLDSTYLE(fty);
@@ -1008,14 +1006,14 @@ static node_t **argscast(node_t *fty, node_t **args)
     return vtoa(v, PERM);
 }
 
-static node_t *compound_literal(node_t * ty)
+static node_t *compound_literal(struct type * ty)
 {
     node_t *ret;
     node_t *inits;
 
     inits = initializer_list(ty);
     ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
-    AST_SRC(ret) = AST_SRC(ty);
+    AST_SRC(ret) = AST_SRC(inits);
     
     // define local variable
     if (SCOPE >= LOCAL) {
@@ -1030,15 +1028,13 @@ static node_t *compound_literal(node_t * ty)
     return ret;
 }
 
-static node_t *cast_type(void)
+static struct type *cast_type(void)
 {
-    node_t *ty;
-    struct source src = source;
+    struct type *ty;
 
     expect('(');
     ty = typename();
     expect(')');
-    AST_SRC(ty) = src;
 
     return ty;
 }
@@ -1086,7 +1082,7 @@ static node_t *primary_expr(void)
         break;
     case '(':
         if (first_typename(lookahead())) {
-            node_t *ty = cast_type();
+            struct type *ty = cast_type();
             ret = compound_literal(ty);
         } else {
             struct source src = source;
@@ -1125,8 +1121,7 @@ static node_t *subscript(node_t * node)
     bool kind1 = isptr(AST_TYPE(node)) && isint(AST_TYPE(e));
     bool kind2 = isint(AST_TYPE(node)) && isptr(AST_TYPE(e));
     if (kind1 || kind2) {
-        node_t *ptr =
-            isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
+        struct type *ptr = isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
         if (isptrto(ptr, FUNCTION))
             error_at(src,
                      "subscript of pointer to function type '%s'",
@@ -1138,8 +1133,7 @@ static node_t *subscript(node_t * node)
             error_at(src, "array subscript is not an integer");
     }
     if (NO_ERROR) {
-        node_t *ty =
-            isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
+        struct type *ty = isptr(AST_TYPE(node)) ? AST_TYPE(node) : AST_TYPE(e);
         ret = ast_expr(SUBSCRIPT_EXPR, rtype(ty), node, e);
         AST_SRC(ret) = AST_SRC(node);
     }
@@ -1194,7 +1188,7 @@ static void builtin_funcall(node_t *call, node_t *ref)
         node_t **args = EXPR_ARGS(call);
         node_t *arg1 = args[1];
         assert(isptr(AST_TYPE(arg1)));
-        node_t *ty = rtype(AST_TYPE(arg1));
+        struct type *ty = rtype(AST_TYPE(arg1));
         // save the type
         EXPR_VA_ARG_TYPE(call) = ty;
         
@@ -1226,7 +1220,7 @@ static node_t *funcall(node_t * node)
         return ret;
     
     if (isptrto(AST_TYPE(node), FUNCTION)) {
-        node_t *fty = rtype(AST_TYPE(node));
+        struct type *fty = rtype(AST_TYPE(node));
         if ((args = argscast(fty, args))) {
             ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
             EXPR_ARGS(ret) = args;
@@ -1261,13 +1255,12 @@ static node_t *direction(node_t * node)
 
     SAVE_ERRORS;
     node_t *field = NULL;
-    node_t *ty = AST_TYPE(node);
+    struct type *ty = AST_TYPE(node);
     if (t == '.') {
         ensure_type(node, isrecord);
     } else {
         if (!isptr(ty) || !isrecord(rtype(ty)))
-            error("pointer to struct/union type expected, not type '%s'",
-                  type2s(ty));
+            error("pointer to struct/union type expected, not type '%s'", type2s(ty));
         else
             ty = rtype(ty);
     }
@@ -1294,7 +1287,7 @@ static node_t *direction(node_t * node)
 static void ensure_additive_ptr(node_t * node)
 {
     assert(isptr(AST_TYPE(node)));
-    node_t *rty = rtype(AST_TYPE(node));
+    struct type *rty = rtype(AST_TYPE(node));
     if (isfunc(rty) || isincomplete(rty))
         error_at(AST_SRC(node),
                  "increment/decrement of invalid type '%s' (pointer to unknown size)",
@@ -1383,7 +1376,7 @@ static node_t *sizeof_expr(void)
 
     struct token *ahead = lookahead();
     node_t *n = NULL;
-    node_t *ty = NULL;
+    struct type *ty = NULL;
 
     if (token->id == '(' && first_typename(ahead)) {
         ty = cast_type();
@@ -1599,7 +1592,7 @@ static node_t *cast_expr(void)
     struct source src = source;
 
     if (token->id == '(' && first_typename(ahead)) {
-        node_t *ty = cast_type();
+        struct type *ty = cast_type();
         if (token->id == '{') {
             node_t *node = compound_literal(ty);
             return postfix_expr1(node);
@@ -1701,8 +1694,7 @@ static node_t *relation_expr(void)
     node_t *rel;
 
     rel = shift_expr();
-    while (token->id == '<' || token->id == '>' || token->id == LEQ
-           || token->id == GEQ) {
+    while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
         SAVE_SOURCE;
         expect(t);
@@ -1836,7 +1828,7 @@ static node_t *cond_expr1(node_t * cond)
 
     node_t *ret = NULL;
     node_t *then, *els;
-    node_t *ty = NULL;
+    struct type *ty = NULL;
     struct source src = source;
 
     expect('?');
@@ -1847,8 +1839,8 @@ static node_t *cond_expr1(node_t * cond)
     if (cond == NULL || then == NULL || els == NULL)
         return ret;
 
-    node_t *ty1 = AST_TYPE(then);
-    node_t *ty2 = AST_TYPE(els);
+    struct type *ty1 = AST_TYPE(then);
+    struct type *ty2 = AST_TYPE(els);
 
     SAVE_ERRORS;
     ensure_type(cond, isscalar);
@@ -1866,14 +1858,14 @@ static node_t *cond_expr1(node_t * cond)
         ty = voidtype;
     } else if (isptr(ty1) && isptr(ty2)) {
         if (is_nullptr(then) || is_nullptr(els)) {
-            node_t *nty = is_nullptr(then) ? ty1 : ty2;
-            node_t *tty = nty == ty1 ? ty2 : ty1;
+            struct type *nty = is_nullptr(then) ? ty1 : ty2;
+            struct type *tty = nty == ty1 ? ty2 : ty1;
             ty = ptr_type(compose(rtype(tty), rtype(nty)));
             then = bitconv(ty, then);
             els = bitconv(ty, els);
         } else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
-            node_t *vty = isptrto(ty1, VOID) ? ty1 : ty2;
-            node_t *tty = vty == ty1 ? ty2 : ty1;
+            struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+            struct type *tty = vty == ty1 ? ty2 : ty1;
             if (isptrto(tty, FUNCTION)) {
                 error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
             } else {
@@ -1882,8 +1874,8 @@ static node_t *cond_expr1(node_t * cond)
                 els = bitconv(ty, els);
             }
         } else {
-            node_t *rty1 = rtype(ty1);
-            node_t *rty2 = rtype(ty2);
+            struct type *rty1 = rtype(ty1);
+            struct type *rty2 = rtype(ty2);
             if (eqtype(unqual(rty1), unqual(rty2))) {
                 ty = ptr_type(compose(rty1, rty2));
                 then = bitconv(ty, then);
@@ -1894,7 +1886,7 @@ static node_t *cond_expr1(node_t * cond)
         }
     } else if (((isptr(ty1) && isint(ty2)) ||
                 (isint(ty1) && isptr(ty2))) && !opts.ansi) {
-        node_t *pty = isptr(ty1) ? ty1 : ty2;
+        struct type *pty = isptr(ty1) ? ty1 : ty2;
         ty = pty;
         then = bitconv(ty, then);
         els = bitconv(ty, els);
@@ -1967,7 +1959,7 @@ node_t *expression(void)
 node_t *bop(int op, node_t * l, node_t * r)
 {
     node_t *node = NULL;
-    node_t *ty;
+    struct type *ty;
 
     if (l == NULL || r == NULL)
         return NULL;
@@ -2026,8 +2018,8 @@ node_t *bop(int op, node_t * l, node_t * r)
             } else if (isptr(AST_TYPE(r))) {
                 ensure_additive_ptr(l);
                 ensure_additive_ptr(r);
-                node_t *rty1 = rtype(AST_TYPE(l));
-                node_t *rty2 = rtype(AST_TYPE(r));
+                struct type *rty1 = rtype(AST_TYPE(l));
+                struct type *rty2 = rtype(AST_TYPE(r));
                 if (!eqtype(unqual(rty1), unqual(rty2)))
                     error("'%s' and '%s' are not pointers to compatible types",
                           type2s(AST_TYPE(l)), type2s(AST_TYPE(r)));
@@ -2169,7 +2161,7 @@ static node_t *assignop(int op, node_t * l, node_t * r)
     if (l == NULL || r == NULL)
         return NULL;
 
-    node_t *retty = unqual(AST_TYPE(l));
+    struct type *retty = unqual(AST_TYPE(l));
     SAVE_ERRORS;
     ensure_assignable(l);
     if (HAS_ERROR)
@@ -2180,8 +2172,8 @@ static node_t *assignop(int op, node_t * l, node_t * r)
         node_t *l1 = conv(l);
         node_t *r1 = conv(r);
         if (op2 == '+' || op2 == '-') {
-            node_t *ty1 = AST_TYPE(l1);
-            node_t *ty2 = AST_TYPE(r1);
+            struct type *ty1 = AST_TYPE(l1);
+            struct type *ty2 = AST_TYPE(r1);
             if (!((isarith(ty1) && isarith(ty2)) ||
                   (isptr(ty1) && isint(ty2))))
                 error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
@@ -2190,8 +2182,8 @@ static node_t *assignop(int op, node_t * l, node_t * r)
     }
 
     if (NO_ERROR) {
-        node_t *ty1 = AST_TYPE(l);
-        node_t *ty2 = AST_TYPE(r);
+        struct type *ty1 = AST_TYPE(l);
+        struct type *ty2 = AST_TYPE(r);
         r = assignconv(retty, r);
         if (r)
             ret = ast_bop('=', retty, l, r);
@@ -2213,7 +2205,7 @@ static bool is_nullptr(node_t * node)
     return false;
 }
 
-long intexpr1(node_t * ty)
+long intexpr1(struct type * ty)
 {
     struct source src = source;
     node_t *cond = cond_expr();

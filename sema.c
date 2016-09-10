@@ -3,7 +3,7 @@
 static void ensure_bitfield(node_t *field)
 {
     const char *name = FIELD_NAME(field);
-    node_t *ty = FIELD_TYPE(field);
+    struct type *ty = FIELD_TYPE(field);
     struct source src = AST_SRC(field);
     int bitsize = FIELD_BITSIZE(field);
     int bits = BITS(TYPE_SIZE(ty));
@@ -47,7 +47,7 @@ static void ensure_bitfield(node_t *field)
     }
 }
 
-void ensure_inline(node_t *ty, int fspec, struct source src)
+void ensure_inline(struct type *ty, int fspec, struct source src)
 {
     if (fspec == INLINE) {
         if (isfunc(ty))
@@ -59,7 +59,7 @@ void ensure_inline(node_t *ty, int fspec, struct source src)
 
 static void ensure_nonbitfield(node_t * field, size_t total, bool last)
 {
-    node_t *ty = FIELD_TYPE(field);
+    struct type *ty = FIELD_TYPE(field);
     struct source src = AST_SRC(field);
         
     if (isarray(ty)) {
@@ -95,7 +95,7 @@ void ensure_decl(node_t * sym, int sclass, int level)
     if (level == PARAM)
         return;
 
-    node_t *ty = SYM_TYPE(sym);
+    struct type *ty = SYM_TYPE(sym);
     struct source src = AST_SRC(sym);
     if (isvardecl(sym)) {
         if (isincomplete(ty) && SYM_DEFINED(sym))
@@ -118,7 +118,7 @@ void ensure_decl(node_t * sym, int sclass, int level)
  *     declarations within function prototypes that are not part of
  *     a function definition.
  */
-static void ensure_array_sub(node_t *atype, struct source src, int level, bool outermost)
+static void ensure_array_sub(struct type *atype, struct source src, int level, bool outermost)
 {
     if (TYPE_A_STAR(atype) && level != PARAM)
         error_at(src, "star modifier used outside of function prototype");
@@ -134,7 +134,7 @@ static void ensure_array_sub(node_t *atype, struct source src, int level, bool o
     }
             
 
-    node_t *rty = rtype(atype);
+    struct type *rty = rtype(atype);
     if (isarray(rty))
         ensure_array_sub(rty, src, level, false);
     else if (isfunc(rty))
@@ -143,36 +143,36 @@ static void ensure_array_sub(node_t *atype, struct source src, int level, bool o
     set_typesize(atype);
 }
 
-void ensure_array(node_t * atype, struct source src, int level)
+void ensure_array(struct type * atype, struct source src, int level)
 {
     ensure_array_sub(atype, src, level, true);
 
-    node_t *rty = rtype(atype);
+    struct type *rty = rtype(atype);
     if (isincomplete(rty))
         error_at(src, "array has incomplete element type '%s'", type2s(rty));
 }
 
-void ensure_func(node_t * ftype, struct source src)
+void ensure_func(struct type * ftype, struct source src)
 {
-    node_t *rty = rtype(ftype);
+    struct type *rty = rtype(ftype);
     if (isarray(rty))
         error_at(src, "function cannot return array type '%s'", type2s(rty));
     else if (isfunc(rty))
         error_at(src, "function cannot return function type '%s'", type2s(rty));
 }
 
-void ensure_main(node_t *ftype, const char *name, struct source src)
+void ensure_main(struct type *ftype, const char *name, struct source src)
 {
     if (!isfunc(ftype) || !name || strcmp(name, "main"))
         return;
     
-    node_t *rty = rtype(ftype);
-    node_t **params = TYPE_PROTO(ftype);
+    struct type *rty = rtype(ftype);
+    struct type **params = TYPE_PROTO(ftype);
     size_t len = length(params);
     if (rty != inttype)
         error_at(src, "return type of 'main' is not 'int'");
     for (int i = 0; i < MIN(3, len); i++) {
-        node_t *ty = params[i];
+        struct type *ty = params[i];
         if (i == 0) {
             if (ty != inttype)
                 error_at(src, "first parameter of 'main' is not 'int'");
@@ -193,7 +193,7 @@ void ensure_params(node_t *params[])
 {
     for (int i = 0; params[i]; i++) {
         node_t *sym = params[i];
-        node_t *ty = SYM_TYPE(sym);
+        struct type *ty = SYM_TYPE(sym);
         // params id is required in prototype
         if (is_anonymous(SYM_NAME(sym)))
             error_at(AST_SRC(sym), "parameter name omitted");
@@ -226,7 +226,7 @@ void conflicting_types_error(struct source src, node_t * sym)
              AST_SRC(sym).column);
 }
 
-void field_not_found_error(node_t * ty, const char *name)
+void field_not_found_error(struct type * ty, const char *name)
 {
     if (isincomplete(ty))
         error("incomplete definition of type '%s'", type2s(ty));
@@ -274,10 +274,10 @@ static void defun(node_t *n)
         IR->defun(n);
 }
 
-static void deftype(node_t *n)
+static void deftype(struct type *n)
 {
     if (opts.ast_dump)
-        print_tree(n);
+        print_type(n);
 }
 
 struct actions actions = {

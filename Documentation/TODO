@@ -33,7 +33,7 @@ v0.3.3:
         整理 utils/sys.h
         整理 utils/utils.h
         删除 libcpp/cpp.h
-        TODO: 移除 ast_type => struct type
+        !移除 ast_type => struct type
         TODO: 整理 decl_initializer
         TODO: ast_dump, ir_dump 功能恢复
 

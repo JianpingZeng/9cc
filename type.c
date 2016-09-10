@@ -1,33 +1,33 @@
 #include "cc.h"
 
 // predefined types
-node_t *chartype;                // char
-node_t *unsignedchartype;        // unsigned char
-node_t *signedchartype;          // signed char
-node_t *wchartype;               // wchar_t
-node_t *shorttype;               // short (int)
-node_t *unsignedshorttype;       // unsigned short (int)
-node_t *inttype;                 // int
-node_t *unsignedinttype;         // unsigned (int)
-node_t *longtype;                // long
-node_t *unsignedlongtype;        // unsigned long (int)
-node_t *longlongtype;            // long long (int)
-node_t *unsignedlonglongtype;    // unsigned long long (int)
-node_t *floattype;               // float
-node_t *doubletype;              // double
-node_t *longdoubletype;          // long double
-node_t *voidtype;                // void
-node_t *booltype;                // bool
+struct type *chartype;                // char
+struct type *unsignedchartype;        // unsigned char
+struct type *signedchartype;          // signed char
+struct type *wchartype;               // wchar_t
+struct type *shorttype;               // short (int)
+struct type *unsignedshorttype;       // unsigned short (int)
+struct type *inttype;                 // int
+struct type *unsignedinttype;         // unsigned (int)
+struct type *longtype;                // long
+struct type *unsignedlongtype;        // unsigned long (int)
+struct type *longlongtype;            // long long (int)
+struct type *unsignedlonglongtype;    // unsigned long long (int)
+struct type *floattype;               // float
+struct type *doubletype;              // double
+struct type *longdoubletype;          // long double
+struct type *voidtype;                // void
+struct type *booltype;                // bool
 
 
-static node_t *new_type(void)
+struct type *alloc_type(void)
 {
-    return alloc_type();
+    return NEWS0(struct type, PERM);
 }
 
-static node_t *install_type(const char *name, int kind, struct metrics m, int op)
+static struct type *install_type(const char *name, int kind, struct metrics m, int op)
 {
-    node_t *ty = new_type();
+    struct type *ty = alloc_type();
 
     _TYPE_NAME(ty) = name;
     _TYPE_KIND(ty) = kind;
@@ -103,7 +103,7 @@ void type_init(void)
 #undef INSTALL
 }
 
-int type_op(node_t * type)
+int type_op(struct type * type)
 {
     int kind = TYPE_KIND(type);
     switch (kind) {
@@ -146,16 +146,16 @@ int type_op(node_t * type)
     }
 }
 
-void prepend_type(node_t ** typelist, node_t * type)
+void prepend_type(struct type ** typelist, struct type * type)
 {
     attach_type(&type, *typelist);
     *typelist = type;
 }
 
-void attach_type(node_t ** typelist, node_t * type)
+void attach_type(struct type ** typelist, struct type * type)
 {
     if (*typelist) {
-        node_t *tp = *typelist;
+        struct type *tp = *typelist;
         while (tp && _TYPE_TYPE(tp)) {
             tp = _TYPE_TYPE(tp);
         }
@@ -177,7 +177,7 @@ static int combine(int qual1, int qual2)
     return ret;
 }
 
-bool qual_contains(node_t * ty1, node_t * ty2)
+bool qual_contains(struct type * ty1, struct type * ty2)
 {
     int qual1 = isqual(ty1) ? _TYPE_KIND(ty1) : 0;
     int qual2 = isqual(ty2) ? _TYPE_KIND(ty2) : 0;
@@ -190,12 +190,12 @@ bool qual_contains(node_t * ty1, node_t * ty2)
     return true;
 }
 
-int qual_union(node_t * ty1, node_t * ty2)
+int qual_union(struct type * ty1, struct type * ty2)
 {
     return combine(_TYPE_KIND(ty1), _TYPE_KIND(ty2));
 }
 
-node_t *qual(int t, node_t * ty)
+struct type *qual(int t, struct type * ty)
 {
     assert(ty);
     if (t == 0)
@@ -203,7 +203,7 @@ node_t *qual(int t, node_t * ty)
     
     assert(isconst1(t) || isvolatile1(t) || isrestrict1(t));
     
-    node_t *qty = new_type();
+    struct type *qty = alloc_type();
     if (isqual(ty))
         _TYPE_KIND(qty) = combine(t, _TYPE_KIND(ty));
     else
@@ -212,12 +212,12 @@ node_t *qual(int t, node_t * ty)
     return qty;
 }
 
-node_t *unqual(node_t * ty)
+struct type *unqual(struct type * ty)
 {
     return isqual(ty) ? _TYPE_TYPE(ty) : ty;
 }
 
-node_t *lookup_typedef(const char *id)
+struct type *lookup_typedef(const char *id)
 {
     if (!id)
         return NULL;
@@ -232,18 +232,13 @@ node_t *lookup_typedef(const char *id)
 
 bool istypedef(const char *id)
 {
-    node_t *ty = lookup_typedef(id);
+    struct type *ty = lookup_typedef(id);
     return ty != NULL;
 }
 
-node_t *new_field(void)
+struct type *array_type(struct type * type)
 {
-    return alloc_field();
-}
-
-node_t *array_type(node_t * type)
-{
-    node_t *ty = new_type();
+    struct type *ty = alloc_type();
     _TYPE_KIND(ty) = ARRAY;
     _TYPE_NAME(ty) = "array";
     _TYPE_TYPE(ty) = type;
@@ -251,9 +246,9 @@ node_t *array_type(node_t * type)
     return ty;
 }
 
-node_t *ptr_type(node_t * type)
+struct type *ptr_type(struct type * type)
 {
-    node_t *ty = new_type();
+    struct type *ty = alloc_type();
     _TYPE_KIND(ty) = POINTER;
     _TYPE_NAME(ty) = "pointer";
     _TYPE_TYPE(ty) = type;
@@ -263,9 +258,9 @@ node_t *ptr_type(node_t * type)
     return ty;
 }
 
-node_t *func_type(void)
+struct type *func_type(void)
 {
-    node_t *ty = new_type();
+    struct type *ty = alloc_type();
     _TYPE_KIND(ty) = FUNCTION;
     _TYPE_NAME(ty) = "function";
     _TYPE_ALIGN(ty) = IM->ptrmetrics.align;
@@ -275,7 +270,7 @@ node_t *func_type(void)
 
 node_t *tag_type(int t, const char *tag, struct source src)
 {
-    node_t *ty = new_type();
+    struct type *ty = alloc_type();
     _TYPE_KIND(ty) = t;
     _TYPE_TAG(ty) = tag;
     _TYPE_NAME(ty) = id2s(t);
@@ -305,7 +300,7 @@ node_t *tag_type(int t, const char *tag, struct source src)
     return sym;
 }
 
-static bool eqparams(node_t *proto1[], node_t *proto2[])
+static bool eqparams(struct type *proto1[], struct type *proto2[])
 {
     if (proto1 == proto2) {
         return true;
@@ -317,8 +312,8 @@ static bool eqparams(node_t *proto1[], node_t *proto2[])
         if (len1 != len2)
             return false;
         for (size_t i = 0; i < len1; i++) {
-            node_t *ty1 = proto1[i];
-            node_t *ty2 = proto2[i];
+            struct type *ty1 = proto1[i];
+            struct type *ty2 = proto2[i];
             if (ty1 == ty2)
                 continue;
             else if (ty1 == NULL || ty2 == NULL)
@@ -333,7 +328,7 @@ static bool eqparams(node_t *proto1[], node_t *proto2[])
     }
 }
 
-bool eqtype(node_t * ty1, node_t * ty2)
+bool eqtype(struct type * ty1, struct type * ty2)
 {
     if (ty1 == ty2)
         return true;
@@ -379,14 +374,14 @@ bool eqtype(node_t * ty1, node_t * ty2)
             return eqparams(_TYPE_PROTO(ty1), _TYPE_PROTO(ty2));
         } else {
             // one oldstyle, the other prototype
-            node_t *oldty = _TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
-            node_t *newty = _TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
+            struct type *oldty = _TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
+            struct type *newty = _TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
 
             if (TYPE_VARG(newty))
                 return false;
             
             for (size_t i = 0; _TYPE_PROTO(newty)[i]; i++) {
-                node_t *ty = _TYPE_PROTO(newty)[i];
+                struct type *ty = _TYPE_PROTO(newty)[i];
                 if (TYPE_KIND(ty) == _BOOL ||
                     TYPE_KIND(ty) == CHAR ||
                     TYPE_KIND(ty) == SHORT ||
@@ -406,9 +401,9 @@ bool eqtype(node_t * ty1, node_t * ty2)
     }
 }
 
-node_t *find_field(node_t * sty, const char *name)
+node_t *find_field(struct type * sty, const char *name)
 {
-    node_t *ty = unqual(sty);
+    struct type *ty = unqual(sty);
     assert(isrecord(ty));
 
     if (name == NULL)
@@ -422,7 +417,7 @@ node_t *find_field(node_t * sty, const char *name)
     return NULL;
 }
 
-int indexof_field(node_t * ty, node_t * field)
+int indexof_field(struct type * ty, node_t * field)
 {
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
         node_t *f = TYPE_FIELDS(ty)[i];
@@ -441,7 +436,7 @@ int indexof_field(node_t * ty, node_t * field)
  *
  * The bitfields must be packed as tightly as possible.
  */
-static unsigned struct_size(node_t * ty)
+static unsigned struct_size(struct type * ty)
 {
     int max = 1;
     node_t *prev = NULL;
@@ -449,7 +444,7 @@ static unsigned struct_size(node_t * ty)
 
     for (int i = 0; fields[i]; i++) {
         node_t *field = fields[i];
-        node_t *ty = FIELD_TYPE(field);
+        struct type *ty = FIELD_TYPE(field);
 
         if (FIELD_ISBIT(field)) {
             int bitsize = FIELD_BITSIZE(field);
@@ -540,7 +535,7 @@ static unsigned struct_size(node_t * ty)
     return ROUNDUP(offset, max);
 }
 
-static unsigned union_size(node_t * ty)
+static unsigned union_size(struct type * ty)
 {
     int max = 1;
     int size = 0;
@@ -548,7 +543,7 @@ static unsigned union_size(node_t * ty)
 
     for (int i = 0; fields[i]; i++) {
         node_t *field = fields[i];
-        node_t *ty = FIELD_TYPE(field);
+        struct type *ty = FIELD_TYPE(field);
         int tysize = TYPE_SIZE(ty);
 
         if (tysize == 0)
@@ -572,10 +567,10 @@ static unsigned union_size(node_t * ty)
     return ROUNDUP(size, max);
 }
 
-static unsigned array_size(node_t * ty)
+static unsigned array_size(struct type * ty)
 {
     unsigned size = 1;
-    node_t *rty = ty;
+    struct type *rty = ty;
 
     do {
         size *= TYPE_LEN(rty);
@@ -593,7 +588,7 @@ static unsigned array_size(node_t * ty)
     return size;
 }
 
-void set_typesize(node_t * ty)
+void set_typesize(struct type * ty)
 {
     if (isarray(ty))
         TYPE_SIZE(ty) = array_size(ty);
@@ -603,7 +598,7 @@ void set_typesize(node_t * ty)
         TYPE_SIZE(ty) = union_size(ty);
 }
 
-bool isincomplete(node_t * ty)
+bool isincomplete(struct type * ty)
 {
     if (isvoid(ty))
         return true;
@@ -615,7 +610,7 @@ bool isincomplete(node_t * ty)
         return false;
 }
 
-node_t *unpack(node_t * ty)
+struct type *unpack(struct type * ty)
 {
     if (isenum(ty))
         return _TYPE_TYPE(unqual(ty));
@@ -623,7 +618,7 @@ node_t *unpack(node_t * ty)
         return ty;
 }
 
-node_t *compose(node_t * ty1, node_t * ty2)
+struct type *compose(struct type * ty1, struct type * ty2)
 {
     if (isqual(ty1) && isqual(ty2)) {
         int kind = combine(_TYPE_KIND(ty1), _TYPE_KIND(ty2));
@@ -635,7 +630,7 @@ node_t *compose(node_t * ty1, node_t * ty2)
     }
 }
 
-bool eqarith(node_t * ty1, node_t * ty2)
+bool eqarith(struct type * ty1, struct type * ty2)
 {
     assert(isarith(ty1));
     assert(isarith(ty2));
@@ -644,77 +639,77 @@ bool eqarith(node_t * ty1, node_t * ty2)
         TYPE_OP(ty1) == TYPE_OP(ty2);
 }
 
-bool isfunc(node_t * ty)
+bool isfunc(struct type * ty)
 {
     return TYPE_OP(ty) == FUNCTION;
 }
 
-bool isarray(node_t * ty)
+bool isarray(struct type * ty)
 {
     return TYPE_OP(ty) == ARRAY;
 }
 
-bool isptr(node_t * ty)
+bool isptr(struct type * ty)
 {
     return TYPE_OP(ty) == POINTER;
 }
 
-bool isvoid(node_t * ty)
+bool isvoid(struct type * ty)
 {
     return TYPE_OP(ty) == VOID;
 }
 
-bool isenum(node_t * ty)
+bool isenum(struct type * ty)
 {
     return TYPE_OP(ty) == ENUM;
 }
 
-bool isstruct(node_t * ty)
+bool isstruct(struct type * ty)
 {
     return TYPE_OP(ty) == STRUCT;
 }
 
-bool isunion(node_t * ty)
+bool isunion(struct type * ty)
 {
     return TYPE_OP(ty) == UNION;
 }
 
-bool isrecord(node_t * type)
+bool isrecord(struct type * type)
 {
     return isstruct(type) || isunion(type);
 }
 
-bool istag(node_t * type)
+bool istag(struct type * type)
 {
     return isstruct(type) || isunion(type) || isenum(type);
 }
 
-bool isint(node_t * ty)
+bool isint(struct type * ty)
 {
     return TYPE_OP(ty) == INT || TYPE_OP(ty) == UNSIGNED || isenum(ty);
 }
 
-bool isfloat(node_t * ty)
+bool isfloat(struct type * ty)
 {
     return TYPE_OP(ty) == FLOAT;
 }
 
-bool isarith(node_t * ty)
+bool isarith(struct type * ty)
 {
     return isint(ty) || isfloat(ty);
 }
 
-bool isscalar(node_t * ty)
+bool isscalar(struct type * ty)
 {
     return isarith(ty) || isptr(ty);
 }
 
-bool isptrto(node_t * ty, int kind)
+bool isptrto(struct type * ty, int kind)
 {
     return isptr(ty) && TYPE_KIND(rtype(ty)) == kind;
 }
 
-bool isbool(node_t *ty)
+bool isbool(struct type *ty)
 {
     return unqual(ty) == booltype;
 }

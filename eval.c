@@ -8,20 +8,20 @@
  * 4. initializer (combination of the aboves)
  */
 
-static node_t *scalar_uop(int op, node_t * ty, node_t * l);
-static node_t *arith_uop(int op, node_t * ty, node_t * l);
-static node_t *int_uop(int op, node_t * ty, node_t * l);
+static node_t *scalar_uop(int op, struct type * ty, node_t * l);
+static node_t *arith_uop(int op, struct type * ty, node_t * l);
+static node_t *int_uop(int op, struct type * ty, node_t * l);
 
-static node_t *scalar_bop(int op, node_t * ty, node_t * l, node_t * r);
-static node_t *arith_bop(int op, node_t * ty, node_t * l, node_t * r);
-static node_t *int_bop(int op, node_t * ty, node_t * l, node_t * r);
+static node_t *scalar_bop(int op, struct type * ty, node_t * l, node_t * r);
+static node_t *arith_bop(int op, struct type * ty, node_t * l, node_t * r);
+static node_t *int_bop(int op, struct type * ty, node_t * l, node_t * r);
 
 static node_t *doeval(node_t * expr);
 
 static struct bop {
     int op;
-    bool(*is) (node_t * ty);
-    node_t *(*eval) (int op, node_t * ty, node_t * l, node_t * r);
+    bool(*is) (struct type * ty);
+    node_t *(*eval) (int op, struct type * ty, node_t * l, node_t * r);
 } bops[] = {
     {'%', isint, int_bop},
     {LSHIFT, isint, int_bop},
@@ -42,8 +42,8 @@ static struct bop {
 
 static struct uop {
     int op;
-    bool(*is) (node_t * ty);
-    node_t *(*eval) (int op, node_t * ty, node_t * l);
+    bool(*is) (struct type * ty);
+    node_t *(*eval) (int op, struct type * ty, node_t * l);
 } uops[] = {
     {'+', isarith, arith_uop},
     {'-', isarith, arith_uop},
@@ -83,7 +83,7 @@ static node_t *literal_node(int id)
     return n;
 }
 
-static node_t *int_literal_node(node_t * ty, union value v)
+static node_t *int_literal_node(struct type * ty, union value v)
 {
     node_t *n = literal_node(INTEGER_LITERAL);
     AST_TYPE(n) = ty;
@@ -92,7 +92,7 @@ static node_t *int_literal_node(node_t * ty, union value v)
     return n;
 }
 
-static node_t *float_literal_node(node_t * ty, union value v)
+static node_t *float_literal_node(struct type * ty, union value v)
 {
     node_t *n = literal_node(FLOAT_LITERAL);
     AST_TYPE(n) = ty;
@@ -117,12 +117,12 @@ static node_t *zero_literal(void)
     return _zero_literal;
 }
 
-static node_t *arith2arith(node_t * dty, node_t * l)
+static node_t *arith2arith(struct type * dty, node_t * l)
 {
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
 
-    node_t *sty = AST_TYPE(l);
+    struct type *sty = AST_TYPE(l);
     if (isint(dty) && isint(sty)) {
         union value dst_val = SYM_VALUE(EXPR_SYM(l));
         int src_size = TYPE_SIZE(sty);
@@ -166,7 +166,7 @@ static node_t *arith2arith(node_t * dty, node_t * l)
     assert(0);
 }
 
-static node_t *arith2ptr(node_t * dty, node_t * l)
+static node_t *arith2ptr(struct type * dty, node_t * l)
 {
     assert(isint(AST_TYPE(l)));
     if (!isiliteral(l))
@@ -175,7 +175,7 @@ static node_t *arith2ptr(node_t * dty, node_t * l)
     return int_literal_node(dty, SYM_VALUE(EXPR_SYM(l)));
 }
 
-static node_t *ptr2arith(node_t * dty, node_t * l)
+static node_t *ptr2arith(struct type * dty, node_t * l)
 {
     assert(isint(dty));
     if (!isiliteral(l))
@@ -184,11 +184,11 @@ static node_t *ptr2arith(node_t * dty, node_t * l)
     return int_literal_node(dty, SYM_VALUE(EXPR_SYM(l)));
 }
 
-static node_t *ptr2ptr(node_t * dty, node_t * l)
+static node_t *ptr2ptr(struct type * dty, node_t * l)
 {
     // ptr => ptr
     if (AST_ID(l) == REF_EXPR) {
-        node_t *ty = SYM_TYPE(EXPR_SYM(l));
+        struct type *ty = SYM_TYPE(EXPR_SYM(l));
         if (!isfunc(ty) && !isarray(ty))
             return NULL;
     }
@@ -197,7 +197,7 @@ static node_t *ptr2ptr(node_t * dty, node_t * l)
     return l;
 }
 
-static node_t *func2ptr(node_t * dty, node_t * l)
+static node_t *func2ptr(struct type * dty, node_t * l)
 {
     assert(AST_ID(l) == REF_EXPR);
     l = copy_node(l);
@@ -205,7 +205,7 @@ static node_t *func2ptr(node_t * dty, node_t * l)
     return l;
 }
 
-static node_t *array2ptr(node_t * dty, node_t * l)
+static node_t *array2ptr(struct type * dty, node_t * l)
 {
     assert(AST_ID(l) == REF_EXPR || issliteral(l));
     if (AST_ID(l) == REF_EXPR && !has_static_extent(EXPR_SYM(l)))
@@ -215,7 +215,7 @@ static node_t *array2ptr(node_t * dty, node_t * l)
     return l;
 }
 
-static node_t *cast(node_t * dty, node_t * l)
+static node_t *cast(struct type * dty, node_t * l)
 {
     if (!l)
         return NULL;
@@ -223,7 +223,7 @@ static node_t *cast(node_t * dty, node_t * l)
     if (AST_ID(l) == INITS_EXPR && isscalar(dty))
         l = EXPR_INITS(l)[0];
 
-    node_t *sty = AST_TYPE(l);
+    struct type *sty = AST_TYPE(l);
     if (isarith(dty)) {
         if (isarith(sty))
             return arith2arith(dty, l);
@@ -283,16 +283,7 @@ static node_t *address_uop(node_t * expr)
     assert(0);
 }
 
-static node_t *sizeof_uop(node_t * expr)
-{
-    node_t *l = EXPR_OPERAND(expr, 0);
-    node_t *ty = istype(l) ? l : AST_TYPE(l);
-    union value val;
-    VALUE_U(val) = TYPE_SIZE(ty);
-    return int_literal_node(AST_TYPE(expr), val);
-}
-
-static node_t *scalar_uop(int op, node_t * ty, node_t * l)
+static node_t *scalar_uop(int op, struct type * ty, node_t * l)
 {
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
@@ -312,7 +303,7 @@ static node_t *scalar_uop(int op, node_t * ty, node_t * l)
     }
 }
 
-static node_t *arith_uop(int op, node_t * ty, node_t * l)
+static node_t *arith_uop(int op, struct type * ty, node_t * l)
 {
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
@@ -336,7 +327,7 @@ static node_t *arith_uop(int op, node_t * ty, node_t * l)
     }
 }
 
-static node_t *int_uop(int op, node_t * ty, node_t * l)
+static node_t *int_uop(int op, struct type * ty, node_t * l)
 {
     if (!isiliteral(l))
         return NULL;
@@ -353,7 +344,7 @@ static node_t *int_uop(int op, node_t * ty, node_t * l)
     }
 }
 
-static node_t *scalar_bop(int op, node_t * ty, node_t * l, node_t * r)
+static node_t *scalar_bop(int op, struct type * ty, node_t * l, node_t * r)
 {
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
@@ -411,7 +402,7 @@ static node_t *scalar_bop(int op, node_t * ty, node_t * l, node_t * r)
 }
 
 // both 'ptr' and 'i' are _NOT_ evaluated.
-static node_t *ptr_int_bop(int op, node_t * ty, node_t * ptr, node_t * i)
+static node_t *ptr_int_bop(int op, struct type * ty, node_t * ptr, node_t * i)
 {
     node_t *l = doeval(ptr);
     if (!l)
@@ -443,7 +434,7 @@ static node_t *ptr_int_bop(int op, node_t * ty, node_t * ptr, node_t * i)
     return ast_bop(op, ty, l, r);
 }
 
-static node_t *arith_bop(int op, node_t * ty, node_t * l, node_t * r)
+static node_t *arith_bop(int op, struct type * ty, node_t * l, node_t * r)
 {
     if (!isiliteral(l) && !isfliteral(r))
         return NULL;
@@ -491,7 +482,7 @@ static node_t *arith_bop(int op, node_t * ty, node_t * l, node_t * r)
         return float_literal_node(ty, val);
 }
 
-static node_t *int_bop(int op, node_t * ty, node_t * l, node_t * r)
+static node_t *int_bop(int op, struct type * ty, node_t * l, node_t * r)
 {
     if (!isiliteral(l) || !isiliteral(r))
         return NULL;
@@ -637,7 +628,6 @@ static node_t *doeval(node_t * expr)
                     return NULL;
                 return uop->eval(op, AST_TYPE(expr), l);
             case SIZEOF:
-                return sizeof_uop(expr);
             default:
                 assert(0);
             }
@@ -704,7 +694,7 @@ static node_t *doeval(node_t * expr)
     case MEMBER_EXPR:
         {
             node_t *l = EXPR_OPERAND(expr, 0);
-            node_t *ty = AST_TYPE(l);
+            struct type *ty = AST_TYPE(l);
             l = doeval(l);
             if (!l || !isiliteral(l))
                 return NULL;
@@ -725,7 +715,7 @@ static node_t *doeval(node_t * expr)
     }
 }
 
-node_t *eval(node_t * expr, node_t * ty)
+node_t *eval(node_t * expr, struct type * ty)
 {
     if (!expr)
         return NULL;

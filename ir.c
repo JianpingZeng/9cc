@@ -17,16 +17,12 @@ static void emit_bool_expr(node_t *n);
 static void emit_bop_bool(node_t *n);
 static void emit_data(node_t *decl);
 static const char *get_string_literal_label(const char *name);
-static void emit_assign(node_t *ty, struct operand *l, node_t *r,
-                        long offset, node_t *bfield, bool sty);
+static void emit_assign(struct type *ty, struct operand *l, node_t *r, long offset, node_t *bfield, bool sty);
 static void emit_member_nonbitfield(node_t *n, node_t *field);
 static void emit_member_bitfield(node_t *n, node_t *field);
 // static struct vector * filter_global(node_t **v);
-static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
-                                long offset, node_t *bfield, bool sty);
-static struct operand * emit_conv_tac(int op, struct operand *l,
-                                      int from_opsize,
-                                      int to_opsize);
+static void emit_bitfield_basic(struct type *ty, struct operand *l, struct operand *r, long offset, node_t *bfield, bool sty);
+static struct operand * emit_conv_tac(int op, struct operand *l, int from_opsize, int to_opsize);
 
 static struct tac *func_tac_head;
 static struct tac *func_tac_tail;
@@ -288,7 +284,7 @@ static bool is_block_storage(node_t *sym)
 {
     if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
         SYM_X_KIND(sym) == SYM_KIND_LREF) {
-        node_t *ty = SYM_TYPE(sym);
+        struct type *ty = SYM_TYPE(sym);
         return isrecord(ty) || isarray(ty);
     } else {
         return false;
@@ -312,7 +308,7 @@ static struct operand * make_subscript_operand2(struct operand *l,
                                                 struct operand *index,
                                                 size_t step,
                                                 long disp,
-                                                node_t *indexty)
+                                                struct type *indexty)
 {
     assert(l->op == IR_NONE);
     assert(index->op == IR_NONE);
@@ -339,8 +335,8 @@ static struct operand * make_subscript_operand2(struct operand *l,
         // disp(base,index,scale)
 
         // NOTE: index _MUST_ be a tmp operand.
-        node_t *sty = indexty;
-        node_t *dty = longtype;
+        struct type *sty = indexty;
+        struct type *dty = longtype;
 
         // cast to Quad
         if (TYPE_SIZE(sty) == TYPE_SIZE(dty)) {
@@ -367,8 +363,8 @@ static struct operand * make_subscript_operand2(struct operand *l,
         operand->disp = disp;
     } else {
         // direct
-        node_t *sty = indexty;
-        node_t *dty = longtype;
+        struct type *sty = indexty;
+        struct type *dty = longtype;
 
         // cast to Quad
         if (TYPE_SIZE(sty) != TYPE_SIZE(dty)) {
@@ -408,7 +404,7 @@ static struct operand * make_subscript_operand1(struct operand *l,
                                                 struct operand *index,
                                                 size_t step,
                                                 long disp,
-                                                node_t *indexty)
+                                                struct type *indexty)
 {
     assert(l->op == IR_NONE);
     
@@ -419,8 +415,8 @@ static struct operand * make_subscript_operand1(struct operand *l,
     case IR_INDIRECTION:
         {
             // cast to Quad
-            node_t *sty = indexty;
-            node_t *dty = longtype;
+            struct type *sty = indexty;
+            struct type *dty = longtype;
 
             if (TYPE_SIZE(sty) == TYPE_SIZE(dty)) {
                 struct tac *tac = make_assign_tac(IR_ASSIGNI,
@@ -447,7 +443,7 @@ static struct operand * make_subscript_operand1(struct operand *l,
 static struct operand * make_subscript_operand(struct operand *l,
                                                struct operand *index,
                                                size_t step,
-                                               node_t *indexty)
+                                               struct type *indexty)
 {
     switch (l->op) {
     case IR_NONE:
@@ -613,7 +609,7 @@ static void emit_uop_bitwise_not(node_t *n)
 static void emit_uop_minus(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    node_t *ty = AST_TYPE(n);
+    struct type *ty = AST_TYPE(n);
     int op = isint(ty) ? IR_MINUSI : IR_MINUSF;
 
     emit_expr(l);
@@ -700,7 +696,7 @@ static node_t * fieldof(node_t *n)
         return NULL;
     const char *name = AST_NAME(n);
     node_t *l = EXPR_OPERAND(n, 0);
-    node_t *ty = AST_TYPE(l);
+    struct type *ty = AST_TYPE(l);
     if (isptr(ty))
         ty = rtype(ty);
     assert(isrecord(ty));
@@ -712,7 +708,7 @@ static void emit_uop_increment_bitfield(node_t *n, node_t *nl,
                                         node_t *field, bool prefix,
                                         int opsize, int rop)
 {
-    node_t *ty = AST_TYPE(n);
+    struct type *ty = AST_TYPE(n);
     emit_member_nonbitfield(nl, field);
     struct operand *lvalue = EXPR_X_ADDR(nl);
     emit_member_bitfield(nl, field);
@@ -735,7 +731,7 @@ static void emit_uop_increment(node_t *n)
 {
     bool prefix = EXPR_PREFIX(n);
     node_t *l = EXPR_OPERAND(n, 0);
-    node_t *ty = AST_TYPE(n);
+    struct type *ty = AST_TYPE(n);
     int opsize = ops[TYPE_SIZE(ty)];
     int assignop = isfloat(ty) ? IR_ASSIGNF : IR_ASSIGNI;
     int rop;
@@ -835,7 +831,7 @@ static void emit_uop(node_t *n)
     }
 }
 
-static void do_emit_zeros(node_t *ty, struct operand *l, long *offset,
+static void do_emit_zeros(struct type *ty, struct operand *l, long *offset,
                           size_t *bytes, unsigned size)
 {
     assert(size <= 8);
@@ -852,7 +848,7 @@ static void do_emit_zeros(node_t *ty, struct operand *l, long *offset,
     }
 }
 
-static void emit_zeros(node_t *ty, struct operand *l, long offset, size_t bytes)
+static void emit_zeros(struct type *ty, struct operand *l, long offset, size_t bytes)
 {
     do_emit_zeros(ty, l, &offset, &bytes, 8);
     do_emit_zeros(ty, l, &offset, &bytes, 4);
@@ -890,7 +886,7 @@ static void emit_bytes(struct operand *l, long offset, struct operand *r, size_t
     assert(bytes == 0);
 }
 
-static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bool sty)
+static void emit_inits(struct type *ty, struct operand *l, node_t *r, long offset, bool sty)
 {
     assert(AST_ID(r) == INITS_EXPR);
 
@@ -901,7 +897,7 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
         for (int i = 0; i < ninits; i++) {
             node_t *init = inits[i];
             node_t *field = fields[i];
-            node_t *rty = FIELD_TYPE(field);
+            struct type *rty = FIELD_TYPE(field);
             long off = offset + FIELD_OFFSET(field);
             if (FIELD_ISBIT(field)) {
                 if (AST_ID(init) == VINIT_EXPR)
@@ -924,7 +920,7 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
             emit_zeros(inttype, l, off, bytes);
         }
     } else if (isarray(ty)) {
-        node_t *rty = rtype(ty);
+        struct type *rty = rtype(ty);
         node_t **inits = EXPR_INITS(r);
         size_t ninits = length(inits);
         for (int i = 0; i < ninits; i++) {
@@ -945,7 +941,7 @@ static void emit_inits(node_t *ty, struct operand *l, node_t *r, long offset, bo
     }
 }
 
-static void emit_scalar_basic(node_t *ty, int opsize,
+static void emit_scalar_basic(struct type *ty, int opsize,
                               struct operand *l, struct operand *r,
                               long offset, bool sty)
 {
@@ -960,7 +956,7 @@ static void emit_scalar_basic(node_t *ty, int opsize,
     }
 }
 
-static void emit_scalar(node_t *ty, struct operand *l, node_t *r, long offset, bool sty)
+static void emit_scalar(struct type *ty, struct operand *l, node_t *r, long offset, bool sty)
 {
     emit_expr(r);
     emit_scalar_basic(ty, ops[TYPE_SIZE(ty)], l, EXPR_X_ADDR(r), offset, sty);
@@ -1054,7 +1050,7 @@ static struct operand * get_bfield_mask2(node_t *bfield)
     }
 }
 
-static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r,
+static void emit_bitfield_basic(struct type *ty, struct operand *l, struct operand *r,
                                 long offset, node_t *bfield, bool sty)
 {
     int boff = FIELD_BITOFF(bfield);
@@ -1086,7 +1082,7 @@ static void emit_bitfield_basic(node_t *ty, struct operand *l, struct operand *r
     emit_scalar_basic(ty, opsize, l, tac4->operands[0], offset, sty);
 }
 
-static void emit_bitfield(node_t *ty, struct operand *l, node_t *r,
+static void emit_bitfield(struct type *ty, struct operand *l, node_t *r,
                           long offset, node_t *bfield, bool sty)
 {
     emit_expr(r);
@@ -1112,7 +1108,7 @@ static struct operand * update_base(struct operand *operand)
   bfield - not NULL only if left node is a bitfield
   sty - when offset == 0, it means whether offset is zero or not exist.
 */
-static void emit_assign(node_t *ty, struct operand *l, node_t *r,
+static void emit_assign(struct type *ty, struct operand *l, node_t *r,
                         long offset, node_t *bfield, bool sty)
 {
     assert(ty);
@@ -1200,7 +1196,7 @@ static void emit_bop_bool(node_t *n)
     EXPR_X_ADDR(n) = result;
 }
 
-static int bop2rop(int op, node_t *ty)
+static int bop2rop(int op, struct type *ty)
 {
     switch (op) {
         // scalar
@@ -1255,7 +1251,7 @@ static void emit_bop_arith(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     node_t *r = EXPR_OPERAND(n, 1);
-    node_t *ty = AST_TYPE(n);
+    struct type *ty = AST_TYPE(n);
     int op = bop2rop(EXPR_OP(n), ty);
     int opsize = ops[TYPE_SIZE(ty)];
 
@@ -1286,13 +1282,13 @@ static void emit_bop_plus_minus(node_t *n)
 
         node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
         node_t *i = isint(AST_TYPE(l)) ? l : r;
-        node_t *rty = rtype(AST_TYPE(ptr));
+        struct type *rty = rtype(AST_TYPE(ptr));
         int op = EXPR_OP(n) == '+' ? IR_ADDI : IR_SUBI;
 
         // cast to Quad
         struct operand *index = EXPR_X_ADDR(i);
-        node_t *sty = AST_TYPE(i);
-        node_t *dty = longtype;
+        struct type *sty = AST_TYPE(i);
+        struct type *dty = longtype;
         if (TYPE_SIZE(sty) != TYPE_SIZE(dty)) {
             int rop = TYPE_OP(sty) == INT ? IR_CONV_SI_SI : IR_CONV_UI_SI;
             index = emit_conv_tac(rop,
@@ -1350,7 +1346,7 @@ static void emit_bop(node_t *n)
     }
 }
 
-static struct operand * make_extra_decl(node_t *ty)
+static struct operand * make_extra_decl(struct type *ty)
 {
     assert(isrecord(ty));
 
@@ -1451,7 +1447,7 @@ static void emit_member_bitfield(node_t *n, node_t *field)
     emit_tac(tac);
 
     // extend: type conv
-    node_t *ty = FIELD_TYPE(field);
+    struct type *ty = FIELD_TYPE(field);
     if (size != TYPE_SIZE(ty)) {
         int rop = TYPE_OP(ty) == UNSIGNED ? IR_CONV_UI_UI : IR_CONV_SI_SI;
         tac = make_conv_tac(rop,
@@ -1484,7 +1480,7 @@ static void emit_subscript(node_t *n)
 
     node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
     node_t *i = ptr == l ? r : l;
-    node_t *rty = rtype(AST_TYPE(ptr));
+    struct type *rty = rtype(AST_TYPE(ptr));
     struct operand *addr = EXPR_X_ADDR(ptr);
     EXPR_X_ADDR(n) = make_subscript_operand(addr, EXPR_X_ADDR(i),
                                             TYPE_SIZE(rty), AST_TYPE(i));
@@ -1495,7 +1491,7 @@ static void emit_call(node_t *n)
     node_t *l = EXPR_OPERAND(n, 0);
     node_t **args = EXPR_ARGS(n);
     size_t len = length(args);
-    node_t *rty = AST_TYPE(n);
+    struct type *rty = AST_TYPE(n);
 
     emit_expr(l);
 
@@ -1503,7 +1499,7 @@ static void emit_call(node_t *n)
         node_t *arg = args[i];
         emit_expr(arg);
         // update
-        node_t *ty = AST_TYPE(arg);
+        struct type *ty = AST_TYPE(arg);
         if (isstruct(ty) || isunion(ty))
             EXPR_X_ADDR(arg) = update_base(EXPR_X_ADDR(arg));
     }
@@ -1536,7 +1532,7 @@ static void emit_call(node_t *n)
     }
 }
 
-static void int2int(node_t *sty, node_t *dty, node_t *n)
+static void int2int(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     int op;
@@ -1560,7 +1556,7 @@ static void int2int(node_t *sty, node_t *dty, node_t *n)
     }
 }
 
-static void int2float(node_t *sty, node_t *dty, node_t *n)
+static void int2float(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     int op = TYPE_OP(sty) == UNSIGNED ? IR_CONV_UI_F : IR_CONV_SI_F;
@@ -1571,7 +1567,7 @@ static void int2float(node_t *sty, node_t *dty, node_t *n)
                                    ops[TYPE_SIZE(dty)]);
 }
 
-static void float2int(node_t *sty, node_t *dty, node_t *n)
+static void float2int(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     int op = TYPE_OP(dty) == UNSIGNED ? IR_CONV_F_UI : IR_CONV_F_SI;
@@ -1582,7 +1578,7 @@ static void float2int(node_t *sty, node_t *dty, node_t *n)
                                    ops[TYPE_SIZE(dty)]);
 }
 
-static void float2float(node_t *sty, node_t *dty, node_t *n)
+static void float2float(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     if (TYPE_SIZE(dty) == TYPE_SIZE(sty))
@@ -1594,7 +1590,7 @@ static void float2float(node_t *sty, node_t *dty, node_t *n)
                                        ops[TYPE_SIZE(dty)]);
 }
 
-static void arith2arith(node_t *sty, node_t *dty, node_t *n)
+static void arith2arith(struct type *sty, struct type *dty, node_t *n)
 {
     if (eqarith(sty, dty)) {
         node_t *l = EXPR_OPERAND(n, 0);
@@ -1613,7 +1609,7 @@ static void arith2arith(node_t *sty, node_t *dty, node_t *n)
     }
 }
 
-static void ptr2bool(node_t *sty, node_t *dty, node_t *n)
+static void ptr2bool(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = emit_conv_tac(IR_CONV_P_B,
@@ -1622,7 +1618,7 @@ static void ptr2bool(node_t *sty, node_t *dty, node_t *n)
                                    ops[TYPE_SIZE(dty)]);
 }
 
-static void int2bool(node_t *sty, node_t *dty, node_t *n)
+static void int2bool(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     if (isbool(sty)) {
@@ -1635,7 +1631,7 @@ static void int2bool(node_t *sty, node_t *dty, node_t *n)
     }
 }
 
-static void float2bool(node_t *sty, node_t *dty, node_t *n)
+static void float2bool(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = emit_conv_tac(IR_CONV_F_B,
@@ -1644,35 +1640,35 @@ static void float2bool(node_t *sty, node_t *dty, node_t *n)
                                    ops[TYPE_SIZE(dty)]);
 }
 
-static void ptr2arith(node_t *sty, node_t *dty, node_t *n)
+static void ptr2arith(struct type *sty, struct type *dty, node_t *n)
 {
     assert(isint(dty));
 
     arith2arith(unsignedlongtype, dty, n);
 }
 
-static void arith2ptr(node_t *sty, node_t *dty, node_t *n)
+static void arith2ptr(struct type *sty, struct type *dty, node_t *n)
 {
     assert(isint(sty));
 
     arith2arith(sty, unsignedlongtype, n);
 }
 
-static void ptr2ptr(node_t *sty, node_t *dty, node_t *n)
+static void ptr2ptr(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 //@ function to pointer decay
-static void func2ptr(node_t *sty, node_t *dty, node_t *n)
+static void func2ptr(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = EXPR_X_ADDR(l);
 }
 
 //@ array to pointer decay
-static void array2ptr(node_t *sty, node_t *dty, node_t *n)
+static void array2ptr(struct type *sty, struct type *dty, node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
     EXPR_X_ADDR(n) = make_address_operand(EXPR_X_ADDR(l));
@@ -1681,8 +1677,8 @@ static void array2ptr(node_t *sty, node_t *dty, node_t *n)
 static void emit_conv(node_t *n)
 {
     node_t *l = EXPR_OPERAND(n, 0);
-    node_t *dty = AST_TYPE(n);
-    node_t *sty = AST_TYPE(l);
+    struct type *dty = AST_TYPE(n);
+    struct type *sty = AST_TYPE(l);
 
     emit_expr(l);
 
@@ -1962,7 +1958,7 @@ static void emit_bool_expr(node_t *n)
     } else {
         emit_expr(n);
 
-        node_t *ty = AST_TYPE(n);
+        struct type *ty = AST_TYPE(n);
         int opsize = ops[TYPE_SIZE(ty)];
         struct operand *test = EXPR_X_ADDR(n);
         bool sign = TYPE_OP(ty) == INT;
@@ -2108,7 +2104,7 @@ static void emit_for_stmt(node_t *stmt)
 
 static void emit_switch_jmp(node_t *cond, node_t *case_stmt)
 {
-    node_t *ty = AST_TYPE(cond);
+    struct type *ty = AST_TYPE(cond);
     bool sign = TYPE_OP(ty) == INT;
     struct operand *cond_operand = EXPR_X_ADDR(cond);
     struct operand *case_operand = make_int_operand(STMT_CASE_INDEX(case_stmt));
@@ -2204,7 +2200,7 @@ static void emit_return_stmt(node_t *stmt)
         struct tac *tac = make_tac(IR_RETURNI, NULL, NULL, result, ops[Zero]);
         emit_tac(tac);
     } else {
-        node_t *ty = AST_TYPE(n);
+        struct type *ty = AST_TYPE(n);
         int op = isfloat(ty) ? IR_RETURNF : IR_RETURNI;
         emit_expr(n);
         // may be void
@@ -2437,7 +2433,7 @@ static const char *get_ptr_label(node_t *n)
 static void emit_struct_initializer(node_t *n)
 {
     assert(AST_ID(n) == INITS_EXPR);
-    node_t *ty = AST_TYPE(n);
+    struct type *ty = AST_TYPE(n);
     node_t **fields = TYPE_FIELDS(ty);
     node_t **inits = EXPR_INITS(n);
     size_t ninits = length(inits);
@@ -2483,7 +2479,7 @@ static void emit_struct_initializer(node_t *n)
                 }
             }
         } else {
-            node_t *fty = FIELD_TYPE(field);
+            struct type *fty = FIELD_TYPE(field);
             // maybe zero (flexible array at last)
             if (TYPE_SIZE(fty)) {
                 if (AST_ID(init) == VINIT_EXPR)
@@ -2513,7 +2509,7 @@ static void emit_array_initializer(node_t *n)
             emit_zero(tysize - len);
     } else {
         assert(AST_ID(n) == INITS_EXPR);
-        node_t *rty = rtype(AST_TYPE(n));
+        struct type *rty = rtype(AST_TYPE(n));
         int i;
         for (i = 0; EXPR_INITS(n)[i]; i++) {
             node_t *init = EXPR_INITS(n)[i];
@@ -2530,7 +2526,7 @@ static void emit_array_initializer(node_t *n)
 
 static void emit_address_initializer(node_t *init)
 {
-    node_t *ty = AST_TYPE(init);
+    struct type *ty = AST_TYPE(init);
     if (isiliteral(init)) {
         emit_xvalue(Quad, format("%llu", ILITERAL_VALUE(init)));
     } else {
@@ -2575,7 +2571,7 @@ static void emit_address_initializer(node_t *init)
 
 static void emit_arith_initializer(node_t *init)
 {
-    node_t *ty = AST_TYPE(init);
+    struct type *ty = AST_TYPE(init);
     switch (TYPE_KIND(ty)) {
     case _BOOL:
     case CHAR:
@@ -2613,7 +2609,7 @@ static void emit_arith_initializer(node_t *init)
 
 static void emit_initializer(node_t *init)
 {
-    node_t *ty = AST_TYPE(init);
+    struct type *ty = AST_TYPE(init);
     if (isarith(ty))
         emit_arith_initializer(init);
     else if (isptr(ty))

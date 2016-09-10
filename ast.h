@@ -16,76 +16,8 @@ enum {
 struct ast_common {
     int id;
     const char *name;
-    node_t *type;
+    struct type *type;
     struct source src;
-};
-
-/* Handle carefully for qual/unqual types.
- *
- * macros begin with '_' is for 'atom' access,
- * others use the unqual version of the type.
- * See cc.h for more details.
- */
-#define _TYPE_KIND(NODE)         ((NODE)->type.kind)
-#define _TYPE_NAME(NODE)         AST_NAME(NODE)
-#define _TYPE_SIZE(NODE)         ((NODE)->type.size)
-#define _TYPE_ALIGN(NODE)        ((NODE)->type.align)
-#define _TYPE_LEN(NODE)          ((NODE)->type.u.a.len)
-#define _TYPE_RANK(NODE)         ((NODE)->type.rank)
-#define _TYPE_INLINE(NODE)       ((NODE)->type.inlined)
-#define _TYPE_TYPE(NODE)         AST_TYPE(NODE)
-#define _TYPE_TAG(NODE)          ((NODE)->type.u.s.tag)
-#define _TYPE_PROTO(NODE)        ((NODE)->type.u.f.proto)
-#define _TYPE_PARAMS(NODE)       ((NODE)->type.u.f.params)
-#define _TYPE_OLDSTYLE(NODE)     ((NODE)->type.u.f.oldstyle)
-#define _TYPE_VARG(NODE)         ((NODE)->type.u.f.varg)
-#define _TYPE_TSYM(NODE)         ((NODE)->type.u.s.tsym)
-#define _TYPE_FIELDS(NODE)       ((NODE)->type.u.s.fields)
-#define _TYPE_LIMITS_MAX(NODE)   ((NODE)->type.limits.max)
-#define _TYPE_LIMITS_MIN(NODE)   ((NODE)->type.limits.min)
-#define _TYPE_A_ASSIGN(NODE)     ((NODE)->type.u.a.assign)
-#define _TYPE_A_CONST(NODE)      ((NODE)->type.u.a.is_const)
-#define _TYPE_A_VOLATILE(NODE)   ((NODE)->type.u.a.is_volatile)
-#define _TYPE_A_RESTRICT(NODE)   ((NODE)->type.u.a.is_restrict)
-#define _TYPE_A_STATIC(NODE)     ((NODE)->type.u.a.is_static)
-#define _TYPE_A_STAR(NODE)       ((NODE)->type.u.a.star)
-
-struct ast_type {
-    struct ast_common common;
-    int kind;
-    size_t size;
-    unsigned align;                // align in bytes
-    unsigned rank:8;
-    unsigned inlined:1;
-    union {
-        // function
-        struct {
-            node_t **proto;
-            node_t **params;
-            unsigned oldstyle:1;
-            unsigned varg:1;
-        } f;
-        // enum/struct/union
-        struct {
-            const char *tag;
-            node_t *tsym;
-            node_t **fields;
-        } s;
-        // array
-        struct {
-            size_t len;        // array length
-            node_t *assign;
-            unsigned is_const:1;
-            unsigned is_volatile:1;
-            unsigned is_restrict:1;
-            unsigned is_static:1;
-            unsigned star:1;
-        } a;
-    } u;
-    struct {
-        union value max;
-        union value min;
-    } limits;
 };
 
 #define FIELD_NAME(NODE)        AST_NAME(NODE)
@@ -145,7 +77,7 @@ struct ast_symbol {
 #define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 // va_arg
-#define EXPR_VA_ARG_TYPE(NODE)  EXPR_OPERAND(NODE, 1)
+#define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->expr.type)
     
 struct ast_expr {
     struct ast_common common;
@@ -154,6 +86,7 @@ struct ast_expr {
     node_t *sym;
     node_t *operands[3];
     node_t **list;
+    struct type *type;
     union x x;
 };
 
@@ -209,23 +142,21 @@ union ast_node {
     struct ast_common common;
     struct ast_expr expr;
     struct ast_stmt stmt;
-    struct ast_type type;
     struct ast_field field;
     struct ast_symbol symbol;
 };
 
 // ast.c
 extern void *alloc_symbol(int area);
-extern void *alloc_type(void);
 extern void *alloc_field(void);
 
 extern const char *nname(node_t * node);
 // expr
-extern node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r);
-extern node_t *ast_uop(int op, node_t * ty, node_t * l);
-extern node_t *ast_bop(int op, node_t * ty, node_t * l, node_t * r);
-extern node_t *ast_conv(node_t * ty, node_t * l, const char *name);
-extern node_t *ast_inits(node_t * ty, struct source src);
+extern node_t *ast_expr(int id, struct type * ty, node_t * l, node_t * r);
+extern node_t *ast_uop(int op, struct type * ty, node_t * l);
+extern node_t *ast_bop(int op, struct type * ty, node_t * l, node_t * r);
+extern node_t *ast_conv(struct type * ty, node_t * l, const char *name);
+extern node_t *ast_inits(struct type * ty, struct source src);
 extern node_t *ast_vinit(void);
 // stmt
 extern node_t *ast_stmt(int id, struct source src);
@@ -241,7 +172,6 @@ extern const char *gen_block_label(void);
 // kind
 #define isexpr(n)   (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isstmt(n)   (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
-#define istype(n)   (AST_ID(n) == TYPE_NODE)
 #define isfield(n)  (AST_ID(n) == FIELD_NODE)
 #define issymbol(n) (AST_ID(n) == SYMBOL_NODE)
 

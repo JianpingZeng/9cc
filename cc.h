@@ -62,145 +62,74 @@ union value {
  */
 typedef union ast_node node_t;
 
-// gen.h
-#include "gen.h"
+/*
+ * Handle carefully for qual/unqual types.
+ *
+ * macros begin with '_' is for 'atom' access,
+ * others use the unqual version of the type.
+ */
+#define _TYPE_KIND(NODE)         ((NODE)->kind)
+#define _TYPE_NAME(NODE)         ((NODE)->name)
+#define _TYPE_SIZE(NODE)         ((NODE)->size)
+#define _TYPE_ALIGN(NODE)        ((NODE)->align)
+#define _TYPE_LEN(NODE)          ((NODE)->u.a.len)
+#define _TYPE_RANK(NODE)         ((NODE)->rank)
+#define _TYPE_INLINE(NODE)       ((NODE)->inlined)
+#define _TYPE_TYPE(NODE)         ((NODE)->type)
+#define _TYPE_TAG(NODE)          ((NODE)->u.s.tag)
+#define _TYPE_PROTO(NODE)        ((NODE)->u.f.proto)
+#define _TYPE_PARAMS(NODE)       ((NODE)->u.f.params)
+#define _TYPE_OLDSTYLE(NODE)     ((NODE)->u.f.oldstyle)
+#define _TYPE_VARG(NODE)         ((NODE)->u.f.varg)
+#define _TYPE_TSYM(NODE)         ((NODE)->u.s.tsym)
+#define _TYPE_FIELDS(NODE)       ((NODE)->u.s.fields)
+#define _TYPE_LIMITS_MAX(NODE)   ((NODE)->limits.max)
+#define _TYPE_LIMITS_MIN(NODE)   ((NODE)->limits.min)
+#define _TYPE_A_ASSIGN(NODE)     ((NODE)->u.a.assign)
+#define _TYPE_A_CONST(NODE)      ((NODE)->u.a.is_const)
+#define _TYPE_A_VOLATILE(NODE)   ((NODE)->u.a.is_volatile)
+#define _TYPE_A_RESTRICT(NODE)   ((NODE)->u.a.is_restrict)
+#define _TYPE_A_STATIC(NODE)     ((NODE)->u.a.is_static)
+#define _TYPE_A_STAR(NODE)       ((NODE)->u.a.star)
 
-// ast.h
-#include "ast.h"
-
-// eval.c
-extern node_t *eval(node_t * expr, node_t * ty);
-extern bool eval_cpp_cond(void);
- 
-// expr.c
-#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
-extern node_t *expression(void);
-extern node_t *assign_expr(void);
-extern long intexpr1(node_t * ty);
-extern long intexpr(void);
-extern bool islvalue(node_t * node);
-extern node_t *assignconv(node_t * ty, node_t * node);
-// for expression in conditional statement
-extern node_t *bool_expr(void);
-// for expression in switch statement
-extern node_t *switch_expr(void);
-// bop
-extern node_t *bop(int op, node_t * l, node_t * r);
-// literals
-extern node_t *new_integer_literal(int i);
-extern node_t *new_string_literal(const char *string);
-extern node_t *decls2expr(node_t **decls);
-
-// decl.c
-extern node_t **declaration(void);
-extern void translation_unit(void);
-extern node_t *typename(void);
-extern int first_decl(struct token *t);
-extern int first_stmt(struct token *t);
-extern int first_expr(struct token *t);
-extern int first_typename(struct token *t);
-extern node_t *make_localvar(const char *name, node_t * ty, int sclass);
-
-struct funcinfo {
+struct type {
     const char *name;
-    node_t *type;
-    struct vector *gotos;
-    struct map *labels;
-    struct vector *staticvars;
-    struct vector *localvars;
-    struct vector *calls;
+    struct type *type;
+    int kind;
+    size_t size;
+    unsigned align;                // align in bytes
+    unsigned rank:8;
+    unsigned inlined:1;
+    union {
+        // function
+        struct {
+            struct type **proto;
+            node_t **params;
+            unsigned oldstyle:1;
+            unsigned varg:1;
+        } f;
+        // enum/struct/union
+        struct {
+            const char *tag;
+            node_t *tsym;
+            node_t **fields;
+        } s;
+        // array
+        struct {
+            size_t len;        // array length
+            node_t *assign;
+            unsigned is_const:1;
+            unsigned is_volatile:1;
+            unsigned is_restrict:1;
+            unsigned is_static:1;
+            unsigned star:1;
+        } a;
+    } u;
+    struct {
+        union value max;
+        union value min;
+    } limits;
 };
-extern struct funcinfo funcinfo;
-
-// init.c
-extern bool has_static_extent(node_t * sym);
-extern node_t *decl_initializer(node_t * sym, int sclass, int level);
-extern node_t *initializer(node_t * ty);
-extern node_t *initializer_list(node_t * ty);
-extern void init_string(node_t * ty, node_t * node);
-
-// stmt.c
-extern node_t *compound_stmt(void (*) (void));
-
-// typechk.c
-extern void ensure_inline(node_t *ty, int fspec, struct source src);
-extern void ensure_field(node_t * field, size_t total, bool last);
-extern void ensure_decl(node_t * sym, int sclass, int kind);
-extern void ensure_array(node_t * atype, struct source src, int level);
-extern void ensure_func(node_t * ftype, struct source src);
-extern void ensure_main(node_t *ftype, const char *name, struct source src);
-extern void ensure_params(node_t *params[]);
-extern void redefinition_error(struct source src, node_t * sym);
-extern void conflicting_types_error(struct source src, node_t * sym);
-extern void field_not_found_error(node_t * ty, const char *name);
-
-// type.c
-extern void type_init(void);
-extern int type_op(node_t * type);
-extern void prepend_type(node_t ** typelist, node_t * type);
-extern void attach_type(node_t ** typelist, node_t * type);
-extern node_t *qual(int t, node_t * ty);
-extern node_t *unqual(node_t * ty);
-extern bool eqtype(node_t * ty1, node_t * ty2);
-extern bool eqarith(node_t * ty1, node_t * ty2);
-extern node_t *lookup_typedef(const char *id);
-extern bool istypedef(const char *id);
-extern node_t *new_field(void);
-extern node_t *array_type(node_t * ty);
-extern node_t *ptr_type(node_t * ty);
-extern node_t *func_type(void);
-extern node_t *tag_type(int t, const char *tag, struct source src);
-extern void set_typesize(node_t * ty);
-extern node_t *find_field(node_t * ty, const char *name);
-extern int indexof_field(node_t * ty, node_t * field);
-extern node_t *compose(node_t * ty1, node_t * ty2);
-extern bool qual_contains(node_t * ty1, node_t * ty2);
-extern int qual_union(node_t * ty1, node_t * ty2);
-extern bool isincomplete(node_t * ty);
-extern node_t *unpack(node_t * ty);
-
-extern node_t *chartype;        // char
-extern node_t *unsignedchartype;        // unsigned char
-extern node_t *signedchartype;        // signed char
-extern node_t *wchartype;        // wchar_t
-extern node_t *shorttype;        // short (int)
-extern node_t *unsignedshorttype;        // unsigned short (int)
-extern node_t *inttype;                // int
-extern node_t *unsignedinttype;        // unsigned (int)
-extern node_t *longtype;        // long
-extern node_t *unsignedlongtype;        // unsigned long (int)
-extern node_t *longlongtype;        // long long (int)
-extern node_t *unsignedlonglongtype;        // unsigned long long (int)
-extern node_t *floattype;        // float
-extern node_t *doubletype;        // double
-extern node_t *longdoubletype;        // long double
-extern node_t *voidtype;        // void
-extern node_t *booltype;        // bool
-
-#define BITS(bytes)     (CHAR_BIT * (bytes))
-#define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
-
-#define isconst1(kind)     ((kind) == CONST ||                          \
-                            (kind) == CONST + VOLATILE ||               \
-                            (kind) == CONST + RESTRICT ||               \
-                            (kind) == CONST + VOLATILE + RESTRICT)
-
-#define isvolatile1(kind)  ((kind) == VOLATILE ||                       \
-                            (kind) == VOLATILE + CONST ||               \
-                            (kind) == VOLATILE + RESTRICT ||            \
-                            (kind) == CONST + VOLATILE + RESTRICT)
-
-#define isrestrict1(kind)  ((kind) == RESTRICT ||                       \
-                            (kind) == RESTRICT + CONST ||               \
-                            (kind) == RESTRICT + VOLATILE ||            \
-                            (kind) == CONST + VOLATILE + RESTRICT)
-
-#define isconst(ty)     isconst1(_TYPE_KIND(ty))
-#define isvolatile(ty)  isvolatile1(_TYPE_KIND(ty))
-#define isrestrict(ty)  isrestrict1(_TYPE_KIND(ty))
-
-#define isinline(ty)    (_TYPE_INLINE(ty))
-#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
 
 // operations on the unqual type
 #define TYPE_KIND(ty)            _TYPE_KIND(unqual(ty))
@@ -227,26 +156,166 @@ extern node_t *booltype;        // bool
 #define TYPE_A_STATIC(ty)        _TYPE_A_STATIC(unqual(ty))
 #define TYPE_A_STAR(ty)          _TYPE_A_STAR(unqual(ty))
 
+// gen.h
+#include "gen.h"
+
+// ast.h
+#include "ast.h"
+
+// eval.c
+extern node_t *eval(node_t * expr, struct type * ty);
+extern bool eval_cpp_cond(void);
+ 
+// expr.c
+#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
+extern node_t *expression(void);
+extern node_t *assign_expr(void);
+extern long intexpr1(struct type * ty);
+extern long intexpr(void);
+extern bool islvalue(node_t * node);
+extern node_t *assignconv(struct type * ty, node_t * node);
+// for expression in conditional statement
+extern node_t *bool_expr(void);
+// for expression in switch statement
+extern node_t *switch_expr(void);
+// bop
+extern node_t *bop(int op, node_t * l, node_t * r);
+// literals
+extern node_t *new_integer_literal(int i);
+extern node_t *new_string_literal(const char *string);
+extern node_t *decls2expr(node_t **decls);
+
+// decl.c
+extern node_t **declaration(void);
+extern void translation_unit(void);
+extern struct type *typename(void);
+extern int first_decl(struct token *t);
+extern int first_stmt(struct token *t);
+extern int first_expr(struct token *t);
+extern int first_typename(struct token *t);
+extern node_t *make_localvar(const char *name, struct type * ty, int sclass);
+
+struct funcinfo {
+    const char *name;
+    struct type *type;
+    struct vector *gotos;
+    struct map *labels;
+    struct vector *staticvars;
+    struct vector *localvars;
+    struct vector *calls;
+};
+extern struct funcinfo funcinfo;
+
+// init.c
+extern bool has_static_extent(node_t * sym);
+extern node_t *decl_initializer(node_t * sym, int sclass, int level);
+extern node_t *initializer(struct type * ty);
+extern node_t *initializer_list(struct type * ty);
+extern void init_string(struct type * ty, node_t * node);
+
+// stmt.c
+extern node_t *compound_stmt(void (*) (void));
+
+// typechk.c
+extern void ensure_inline(struct type *ty, int fspec, struct source src);
+extern void ensure_field(node_t * field, size_t total, bool last);
+extern void ensure_decl(node_t * sym, int sclass, int kind);
+extern void ensure_array(struct type * atype, struct source src, int level);
+extern void ensure_func(struct type * ftype, struct source src);
+extern void ensure_main(struct type *ftype, const char *name, struct source src);
+extern void ensure_params(node_t *params[]);
+extern void redefinition_error(struct source src, node_t * sym);
+extern void conflicting_types_error(struct source src, node_t * sym);
+extern void field_not_found_error(struct type * ty, const char *name);
+
+// type.c
+extern void type_init(void);
+extern struct type *alloc_type(void);
+extern int type_op(struct type * type);
+extern void prepend_type(struct type ** typelist, struct type * type);
+extern void attach_type(struct type ** typelist, struct type * type);
+extern struct type *qual(int t, struct type * ty);
+extern struct type *unqual(struct type * ty);
+extern bool eqtype(struct type * ty1, struct type * ty2);
+extern bool eqarith(struct type * ty1, struct type * ty2);
+extern struct type *lookup_typedef(const char *id);
+extern bool istypedef(const char *id);
+extern struct type *array_type(struct type * ty);
+extern struct type *ptr_type(struct type * ty);
+extern struct type *func_type(void);
+extern node_t *tag_type(int t, const char *tag, struct source src);
+extern void set_typesize(struct type * ty);
+extern node_t *find_field(struct type * ty, const char *name);
+extern int indexof_field(struct type * ty, node_t * field);
+extern struct type *compose(struct type * ty1, struct type * ty2);
+extern bool qual_contains(struct type * ty1, struct type * ty2);
+extern int qual_union(struct type * ty1, struct type * ty2);
+extern bool isincomplete(struct type * ty);
+extern struct type *unpack(struct type * ty);
+
+extern struct type *chartype;
+extern struct type *unsignedchartype;
+extern struct type *signedchartype;
+extern struct type *wchartype;
+extern struct type *shorttype;
+extern struct type *unsignedshorttype;
+extern struct type *inttype;
+extern struct type *unsignedinttype;
+extern struct type *longtype;
+extern struct type *unsignedlongtype;
+extern struct type *longlongtype;
+extern struct type *unsignedlonglongtype;
+extern struct type *floattype;
+extern struct type *doubletype;
+extern struct type *longdoubletype;
+extern struct type *voidtype;
+extern struct type *booltype;
+
+#define BITS(bytes)     (CHAR_BIT * (bytes))
+#define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
+
+#define isconst1(kind)     ((kind) == CONST ||                          \
+                            (kind) == CONST + VOLATILE ||               \
+                            (kind) == CONST + RESTRICT ||               \
+                            (kind) == CONST + VOLATILE + RESTRICT)
+
+#define isvolatile1(kind)  ((kind) == VOLATILE ||                       \
+                            (kind) == VOLATILE + CONST ||               \
+                            (kind) == VOLATILE + RESTRICT ||            \
+                            (kind) == CONST + VOLATILE + RESTRICT)
+
+#define isrestrict1(kind)  ((kind) == RESTRICT ||                       \
+                            (kind) == RESTRICT + CONST ||               \
+                            (kind) == RESTRICT + VOLATILE ||            \
+                            (kind) == CONST + VOLATILE + RESTRICT)
+
+#define isconst(ty)     isconst1(_TYPE_KIND(ty))
+#define isvolatile(ty)  isvolatile1(_TYPE_KIND(ty))
+#define isrestrict(ty)  isrestrict1(_TYPE_KIND(ty))
+
+#define isinline(ty)    (_TYPE_INLINE(ty))
+#define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
+
 // alias
 #define rtype(ty)       TYPE_TYPE(ty)
 #define TYPE_OP(ty)     type_op(ty)
 
-extern bool isfunc(node_t * type);
-extern bool isarray(node_t * type);
-extern bool isptr(node_t * type);
-extern bool isvoid(node_t * type);
-extern bool isenum(node_t * type);
-extern bool isstruct(node_t * type);
-extern bool isunion(node_t * type);
-extern bool isrecord(node_t * type);        // isstruct or isunion
-extern bool istag(node_t * type);        // isstruct or isunion or isenum
+extern bool isfunc(struct type * type);
+extern bool isarray(struct type * type);
+extern bool isptr(struct type * type);
+extern bool isvoid(struct type * type);
+extern bool isenum(struct type * type);
+extern bool isstruct(struct type * type);
+extern bool isunion(struct type * type);
+extern bool isrecord(struct type * type);        // isstruct or isunion
+extern bool istag(struct type * type);        // isstruct or isunion or isenum
 
-extern bool isint(node_t * ty);
-extern bool isfloat(node_t * ty);
-extern bool isarith(node_t * ty);
-extern bool isscalar(node_t * ty);
-extern bool isptrto(node_t * ty, int kind);
-extern bool isbool(node_t *ty);
+extern bool isint(struct type * ty);
+extern bool isfloat(struct type * ty);
+extern bool isarith(struct type * ty);
+extern bool isscalar(struct type * ty);
+extern bool isptrto(struct type * ty, int kind);
+extern bool isbool(struct type *ty);
 
 // sym.c
 // scope level
@@ -290,10 +359,10 @@ extern int _scope;
 // print.c
 extern void print_tree(node_t * tree);
 extern void print_tac(struct tac *tac);
+extern void print_type(struct type *ty);
 // extern void print_ir(struct externals * tree);
-extern const char *type2s(node_t * ty);
+extern const char *type2s(struct type * ty);
 extern const char *node2s(node_t * node);
-extern void print_node_size(void);
 extern void dump_operand(struct operand *operand);
 extern void dump_reg(struct reg *reg);
 extern void dump_tacs(struct tac *tac);
@@ -309,7 +378,7 @@ struct actions {
     void (*defvar) (node_t *);
     void (*dclfun) (node_t *);
     void (*defun) (node_t *);
-    void (*deftype) (node_t *);
+    void (*deftype) (struct type *);
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
 };

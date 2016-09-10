@@ -70,9 +70,9 @@ static int *memory_class = (int *)4;
 
 struct ptype {
     size_t offset;
-    node_t *type;
+    struct type *type;
 };
-static struct vector * get_types(node_t *ty, size_t offset);
+static struct vector * get_types(struct type *ty, size_t offset);
 static struct vector * get_elements(struct vector *ptypes);
 static struct vector * get_classes(struct vector *elements);
 
@@ -88,8 +88,8 @@ struct pinfo {
     struct vector *pnodes;      // param nodes
     struct paddr *retaddr;      // return addr
 };
-static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params);
-static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params);
+static struct pinfo * alloc_addr_for_funcall(struct type *ftype, node_t **params);
+static struct pinfo * alloc_addr_for_funcdef(struct type *ftype, node_t **params);
 
 #define COMMENT(str)    "\t\t## " str
 #define COMMENT1(str)   "## " str
@@ -153,7 +153,7 @@ static struct {
     struct pinfo *pinfo;
     struct basic_block *current_block;
     struct tac *current_tac;
-    node_t *current_ftype;
+    struct type *current_ftype;
     // stack size (positive)
     size_t orig_localsize, localsize;
     // allocated preserved registers
@@ -461,7 +461,7 @@ static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
     struct operand *operand = tac->operands[1];
     node_t *arg = pnode->param;
     struct paddr *paddr = pnode->paddr;
-    node_t *ty = AST_TYPE(arg);
+    struct type *ty = AST_TYPE(arg);
     int i = idx[TYPE_SIZE(ty)];
     struct reladdr *src_label = operand2s(operand, TYPE_SIZE(ty));
 
@@ -551,7 +551,7 @@ static void emit_param_record(struct tac *tac, struct pnode *pnode)
 
 static void emit_param(struct tac *tac, struct pnode *pnode)
 {
-    node_t *ty = AST_TYPE(pnode->param);
+    struct type *ty = AST_TYPE(pnode->param);
     if (isint(ty) || isptr(ty) || isfloat(ty))
         emit_param_scalar(tac, pnode);
     else if (isstruct(ty) || isunion(ty))
@@ -570,7 +570,7 @@ static struct set * get_pinfo_regs(struct pinfo *pinfo)
     return set;
 }
 
-static void copy_retval_to_register_record(node_t *rty,
+static void copy_retval_to_register_record(struct type *rty,
                                            struct paddr *retaddr,
                                            struct operand *result)
 {
@@ -677,7 +677,7 @@ static void copy_retval_to_register_record(node_t *rty,
     SYM_X_KIND(result->sym) = SYM_KIND_LREF;
 }
 
-static void copy_retval_to_register_scalar(node_t *rty,
+static void copy_retval_to_register_scalar(struct type *rty,
                                            struct paddr *retaddr,
                                            struct operand *result)
 {
@@ -695,7 +695,7 @@ static void copy_retval_to_stack(struct paddr *retaddr, struct operand *result)
     load(int_regs[RAX], result->sym, Quad);
 }
 
-static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct operand *result)
+static void emit_call_epilogue(struct type *ftype, struct paddr *retaddr, struct operand *result)
 {
     if (retaddr->kind == ADDR_STACK) {
         // memory
@@ -703,7 +703,7 @@ static void emit_call_epilogue(node_t *ftype, struct paddr *retaddr, struct oper
         copy_retval_to_stack(retaddr, result);
     } else if (retaddr->kind == ADDR_REGISTER) {
         // register
-        node_t *rty = rtype(ftype);
+        struct type *rty = rtype(ftype);
         if (isstruct(rty) || isunion(rty))
             copy_retval_to_register_record(rty, retaddr, result);
         else
@@ -718,7 +718,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     size_t len = length(args);
-    node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
+    struct type *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
     struct vector *params = vec_new();
     struct tac *t = tac->prev;
     for (size_t i = 0; i < len; i++, t = t->prev) {
@@ -844,7 +844,7 @@ static void emit_builtin_va_arg_p_memory(struct tac *tac)
     node_t *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
-    node_t *ty = EXPR_VA_ARG_TYPE(call);
+    struct type *ty = EXPR_VA_ARG_TYPE(call);
     size_t size = ROUNDUP(TYPE_SIZE(ty), 8);
 
     struct operand *operand = make_offset_operand(l, 8);
@@ -911,7 +911,7 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
     node_t *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
-    node_t *ty = EXPR_VA_ARG_TYPE(call);
+    struct type *ty = EXPR_VA_ARG_TYPE(call);
     
     struct operand *gp_operand = make_offset_operand(l, 0);
     struct operand *fp_operand = make_offset_operand(l, 4);
@@ -1086,7 +1086,7 @@ static void emit_builtin_va_arg_p_scalar(struct tac *tac)
     node_t *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
-    node_t *ty = EXPR_VA_ARG_TYPE(call);
+    struct type *ty = EXPR_VA_ARG_TYPE(call);
     
     struct operand *gp_operand = make_offset_operand(l, 0);
     struct operand *fp_operand = make_offset_operand(l, 4);
@@ -1148,7 +1148,7 @@ static void emit_builtin_va_arg_p_scalar(struct tac *tac)
 static void emit_builtin_va_arg_p(struct tac *tac)
 {
     node_t *call = tac->call;
-    node_t *ty = EXPR_VA_ARG_TYPE(call);
+    struct type *ty = EXPR_VA_ARG_TYPE(call);
     if (TYPE_SIZE(ty) > MAX_STRUCT_PARAM_SIZE) {
         // by meory
         emit_builtin_va_arg_p_memory(tac);
@@ -1211,7 +1211,7 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
 static void emit_return_by_registers_scalar(struct operand *l, struct paddr *retaddr)
 {
     // scalar
-    node_t *rtype = rtype(fcon.current_ftype);
+    struct type *rtype = rtype(fcon.current_ftype);
     int opsize = TYPE_SIZE(rtype);
     int i = idx[opsize];
     struct reladdr *l_label = operand2s(l, opsize);
@@ -1373,7 +1373,7 @@ static void emit_return(struct tac *tac)
             }
             push_excepts(excepts);
 
-            node_t *rtype = rtype(fcon.current_ftype);
+            struct type *rtype = rtype(fcon.current_ftype);
             if (isstruct(rtype) || isunion(rtype))
                 emit_return_by_registers_record(l, retaddr);
             else
@@ -2432,7 +2432,7 @@ static size_t call_returns_size(node_t *sym)
     struct vector *calls = SYM_X_CALLS(sym);
     for (int i = 0; i < vec_len(calls); i++) {
         node_t *call = vec_at(calls, i);
-        node_t *rty = AST_TYPE(call);
+        struct type *rty = AST_TYPE(call);
         if (isrecord(rty))
             extra_stack_size = MAX(extra_stack_size, TYPE_SIZE(rty));
     }
@@ -2445,7 +2445,7 @@ static size_t call_params_size(node_t *sym)
     struct vector *calls = SYM_X_CALLS(sym);
     for (int i = 0; i < vec_len(calls); i++) {
         node_t *call = vec_at(calls, i);
-        node_t *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
+        struct type *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
         struct pinfo *pinfo = alloc_addr_for_funcall(ftype, EXPR_ARGS(call));
         extra_stack_size = MAX(extra_stack_size, pinfo->size);
     }
@@ -2543,7 +2543,7 @@ static void emit_function_epilogue(void)
 
 static void emit_function_prologue(node_t *fsym)
 {
-    node_t *ftype = SYM_TYPE(fsym);
+    struct type *ftype = SYM_TYPE(fsym);
     bool global = SYM_SCLASS(fsym) == STATIC ? false : true;
     
     if (global)
@@ -2562,7 +2562,7 @@ static void emit_function_prologue(node_t *fsym)
     // local vars
     for (int i = 0; i < vec_len(SYM_X_LVARS(fsym)); i++) {
         node_t *lvar = vec_at(SYM_X_LVARS(fsym), i);
-        node_t *ty = SYM_TYPE(lvar);
+        struct type *ty = SYM_TYPE(lvar);
         size_t size = TYPE_SIZE(ty);
         localsize = ROUNDUP(localsize + size, 4);
         SYM_X_LOFF(lvar) = -localsize;
@@ -2573,7 +2573,7 @@ static void emit_function_prologue(node_t *fsym)
         struct pnode *pnode = vec_at(fcon.pinfo->pnodes, i);
         node_t *sym = pnode->param;
         struct paddr *paddr = pnode->paddr;
-        node_t *ty = SYM_TYPE(sym);
+        struct type *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
         if (paddr->kind == ADDR_REGISTER) {
             if (TYPE_VARG(ftype)) {
@@ -2608,7 +2608,7 @@ static void emit_function_prologue(node_t *fsym)
 
 static void emit_text(node_t *fsym)
 {
-    node_t *ftype = SYM_TYPE(fsym);
+    struct type *ftype = SYM_TYPE(fsym);
     node_t **params = TYPE_PARAMS(ftype);
     
     // reset registers
@@ -2677,7 +2677,7 @@ static void emit_data(const char *label, bool global, bool array,
 
 static void emit_bss(node_t *sym)
 {
-    node_t *ty = SYM_TYPE(sym);
+    struct type *ty = SYM_TYPE(sym);
     bool global = SYM_SCLASS(sym) == STATIC ? false : true;
     
     if (!global)
@@ -2693,7 +2693,7 @@ static void emit_compounds(struct map *compounds)
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(keys, i);
             node_t *init = map_get(compounds, label);
-            node_t *ty = AST_TYPE(init);
+            struct type *ty = AST_TYPE(init);
             emit_data(label, false, false, TYPE_ALIGN(ty), TYPE_SIZE(ty), EXPR_X_XVALUES(init));
         }
     }
@@ -2723,7 +2723,7 @@ static void emit_floats(struct map *floats)
             const char *label = map_get(floats, name);
             node_t *sym = lookup(name, constants);
             assert(sym);
-            node_t *ty = SYM_TYPE(sym);
+            struct type *ty = SYM_TYPE(sym);
             emit(".align %d", TYPE_ALIGN(ty));
             emit_noindent("%s:", label);
             switch (TYPE_KIND(ty)) {
@@ -3235,7 +3235,7 @@ static void update_use(struct tac *tac)
 /// Parameter Classification
 ///
 
-static struct ptype * new_ptype(node_t *ty, size_t offset)
+static struct ptype * new_ptype(struct type *ty, size_t offset)
 {
     struct ptype *ptype = zmalloc(sizeof(struct ptype));
     ptype->offset = offset;
@@ -3248,7 +3248,7 @@ static int * get_class(struct vector *ptypes)
     int *class = no_class;
     for (int i = 0; i < vec_len(ptypes); i++) {
         struct ptype *ptype = vec_at(ptypes, i);
-        node_t *ty = ptype->type;
+        struct type *ty = ptype->type;
         int *class1 = no_class;
         if (isint(ty) || isptr(ty))
             class1 = integer_class;
@@ -3363,13 +3363,13 @@ static struct vector * get_elements(struct vector *ptypes)
     return v;
 }
 
-static struct vector * get_types_for_union(node_t *ty, size_t offset)
+static struct vector * get_types_for_union(struct type *ty, size_t offset)
 {
     size_t cnt = ROUNDUP(TYPE_SIZE(ty), 8) >> 3;
     struct vector *v1 = vec_new();
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
         node_t *field = TYPE_FIELDS(ty)[i];
-        node_t *fty = FIELD_TYPE(field);
+        struct type *fty = FIELD_TYPE(field);
         struct vector *v2 = get_types(fty, offset);
         struct vector *v3 = get_elements(v2);
         // padding with empty elements
@@ -3386,12 +3386,12 @@ static struct vector * get_types_for_union(node_t *ty, size_t offset)
     return v;
 }
 
-static struct vector * get_types_for_struct(node_t *ty, size_t offset)
+static struct vector * get_types_for_struct(struct type *ty, size_t offset)
 {
     struct vector *v = vec_new();
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
         node_t *field = TYPE_FIELDS(ty)[i];
-        node_t *fty = FIELD_TYPE(field);
+        struct type *fty = FIELD_TYPE(field);
         size_t off = offset + FIELD_OFFSET(field);
         if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
             continue;
@@ -3401,10 +3401,10 @@ static struct vector * get_types_for_struct(node_t *ty, size_t offset)
     return v;
 }
 
-static struct vector * get_types_for_array(node_t *ty, size_t offset)
+static struct vector * get_types_for_array(struct type *ty, size_t offset)
 {
     struct vector *v = vec_new();
-    node_t *rty = rtype(ty);
+    struct type *rty = rtype(ty);
     for (int i = 0; i < TYPE_LEN(ty); i++) {
         size_t off = offset + i * TYPE_SIZE(rty);
         struct vector *v2 = get_types(rty, off);
@@ -3413,7 +3413,7 @@ static struct vector * get_types_for_array(node_t *ty, size_t offset)
     return v;
 }
 
-static struct vector * get_types(node_t *ty, size_t offset)
+static struct vector * get_types(struct type *ty, size_t offset)
 {
     if (isint(ty) || isptr(ty) || isfloat(ty))
         return vec_new1(new_ptype(ty, offset));
@@ -3427,7 +3427,7 @@ static struct vector * get_types(node_t *ty, size_t offset)
         assert(0);
 }
 
-static bool is_type_aligned(node_t *ty)
+static bool is_type_aligned(struct type *ty)
 {
     // Now all types are aligned.
     return true;
@@ -3516,7 +3516,7 @@ static void traverse_classes(struct vector *classes,
 }
 
 // params: list of symbols or expressions, may be NULL
-static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool call)
+static struct pinfo * alloc_addr_for_params(struct type *ftype, node_t **params, bool call)
 {
     int gp = 0;
     int fp = 0;
@@ -3526,7 +3526,7 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool
     struct paddr *retaddr = NULL;
 
     // return type
-    node_t *rtype = rtype(ftype);
+    struct type *rtype = rtype(ftype);
     if (!isvoid(rtype)) {
         retaddr = alloc_paddr();
         retaddr->size = TYPE_SIZE(rtype);
@@ -3563,7 +3563,7 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool
         struct pnode *pnode = new_pnode(param);
         vec_push(pnodes, pnode);
         
-        node_t *ty = AST_TYPE(param);
+        struct type *ty = AST_TYPE(param);
         size_t size = TYPE_SIZE(ty);
         if (size > MAX_STRUCT_PARAM_SIZE || !is_type_aligned(ty)) {
             // pass by memory
@@ -3610,12 +3610,12 @@ static struct pinfo * alloc_addr_for_params(node_t *ftype, node_t **params, bool
     return pinfo;
 }
 
-static struct pinfo * alloc_addr_for_funcall(node_t *ftype, node_t **params)
+static struct pinfo * alloc_addr_for_funcall(struct type *ftype, node_t **params)
 {
     return alloc_addr_for_params(ftype, params, true);
 }
 
-static struct pinfo * alloc_addr_for_funcdef(node_t *ftype, node_t **params)
+static struct pinfo * alloc_addr_for_funcdef(struct type *ftype, node_t **params)
 {
     return alloc_addr_for_params(ftype, params, false);
 }
@@ -3654,7 +3654,7 @@ static void finalize(void)
 
 static void defvar(node_t *sym, int seg)
 {
-    node_t *ty = SYM_TYPE(sym);
+    struct type *ty = SYM_TYPE(sym);
     int align = TYPE_ALIGN(ty);
     bool global = SYM_SCLASS(sym) == STATIC ? false : true;
     bool array = isarray(ty);

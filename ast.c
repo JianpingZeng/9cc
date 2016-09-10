@@ -28,17 +28,12 @@ void *alloc_symbol(int area)
     return new_node(SYMBOL_NODE, area);
 }
 
-void *alloc_type(void)
-{
-    return new_node(TYPE_NODE, PERM);
-}
-
 void *alloc_field(void)
 {
     return new_node(FIELD_NODE, PERM);
 }
 
-node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r)
+node_t *ast_expr(int id, struct type * ty, node_t * l, node_t * r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
     node_t *expr = new_node(id, PERM);
@@ -48,21 +43,21 @@ node_t *ast_expr(int id, node_t * ty, node_t * l, node_t * r)
     return expr;
 }
 
-node_t *ast_uop(int op, node_t * ty, node_t * l)
+node_t *ast_uop(int op, struct type * ty, node_t * l)
 {
     node_t *expr = ast_expr(UNARY_OPERATOR, ty, l, NULL);
     EXPR_OP(expr) = op;
     return expr;
 }
 
-node_t *ast_bop(int op, node_t * ty, node_t * l, node_t * r)
+node_t *ast_bop(int op, struct type * ty, node_t * l, node_t * r)
 {
     node_t *expr = ast_expr(BINARY_OPERATOR, ty, l, r);
     EXPR_OP(expr) = op;
     return expr;
 }
 
-node_t *ast_conv(node_t * ty, node_t * l, const char *name)
+node_t *ast_conv(struct type * ty, node_t * l, const char *name)
 {
     node_t *expr = ast_expr(CONV_EXPR, ty, l, NULL);
     AST_NAME(expr) = name;
@@ -70,7 +65,7 @@ node_t *ast_conv(node_t * ty, node_t * l, const char *name)
     return expr;
 }
 
-node_t *ast_inits(node_t * ty, struct source src)
+node_t *ast_inits(struct type * ty, struct source src)
 {
     node_t *expr = ast_expr(INITS_EXPR, NULL, NULL, NULL);
     AST_SRC(expr) = src;

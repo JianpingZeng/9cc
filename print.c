@@ -36,34 +36,41 @@ static void putln(const char *fmt, ...)
     va_end(ap);
 }
 
-static void print_ty(node_t * ty)
+static void print_ty(struct type * ty)
 {
     if (ty) {
         if (isfunc(ty) || isptr(ty) || isarray(ty))
             putf(RED_BOLD("'%s' "), TYPE_NAME(ty));
+
         putf(GREEN("'%s' "), type2s(ty));
+
         if (isarray(ty) || isstruct(ty) || isunion(ty)) {
             putf(YELLOW("<size=%ld> "), TYPE_SIZE(ty));
         } else if (isfunc(ty)) {
-            putf("%s ",
-                 TYPE_OLDSTYLE(ty) ? "oldstyle" : "prototype");
+            putf("%s ", TYPE_OLDSTYLE(ty) ? "oldstyle" : "prototype");
             if (TYPE_INLINE(ty))
                 putf("inline ");
         }
     }
 }
 
-static void print_type(node_t * node, int level)
+static void print_type1(struct type *ty, int level)
 {
-    putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
-    print_ty(node);
+    for (int i = 0; i < level; i++)
+        putf("  ");
+    print_ty(ty);
     putf("\n");
+}
+
+void print_type(struct type *ty)
+{
+    print_type1(ty, 0);
 }
 
 static void print_field(node_t * node, int level)
 {
     const char *name = FIELD_NAME(node);
-    node_t *ty = FIELD_TYPE(node);
+    struct type *ty = FIELD_TYPE(node);
 
     putf(GREEN("%s "), nname(node));
     if (FIELD_ISBIT(node))
@@ -91,7 +98,7 @@ static void print_symbol(node_t *sym, int level)
     if (SYM_DEFINED(sym))
         putf(YELLOW("<defined> "));
 
-    node_t *ty = SYM_TYPE(sym);
+    struct type *ty = SYM_TYPE(sym);
     print_ty(ty);
     putf("<scope: %d>", SYM_SCOPE(sym));
     putf(YELLOW("<line:%u col:%u> "), AST_SRC(sym).line, AST_SRC(sym).column);
@@ -319,8 +326,6 @@ static void print_tree1(node_t *node, int level)
         print_symbol(node, level);
     else if (isexpr(node))
         print_expr(node, level);
-    else if (istype(node))
-        print_type(node, level);
     else if (isfield(node))
         print_field(node, level);
     else if (isstmt(node))
@@ -703,11 +708,11 @@ static void print_basic_block(struct basic_block *block)
 struct type2s {
     int id;
     int qual;
-    node_t *type;
+    struct type *type;
 };
-static struct vector *type2s1(node_t * ty);
+static struct vector *type2s1(struct type * ty);
 
-static struct type2s *paren(int id, node_t * ty)
+static struct type2s *paren(int id, struct type * ty)
 {
     struct type2s *s = zmalloc(sizeof(struct type2s));
     s->id = id;
@@ -759,12 +764,12 @@ static void dotype2s(struct vector *l, struct vector *r)
         break;
     case FUNCTION:
         {
-            node_t **params = TYPE_PROTO(s->type);
+            struct type **params = TYPE_PROTO(s->type);
             size_t len = length(params);
             vec_push(r, paren(FSPACE, NULL));
             vec_push(r, paren(LPAREN, s->type));
             for (size_t i = 0; i < len; i++) {
-                node_t *ty = params[i];
+                struct type *ty = params[i];
                 struct vector *v = type2s1(ty);
                 vec_add(r, v);
                 if (i < len - 1) {
@@ -798,7 +803,7 @@ static void dotype2s(struct vector *l, struct vector *r)
     dotype2s(l, r);
 }
 
-static struct vector *type2s1(node_t * ty)
+static struct vector *type2s1(struct type * ty)
 {
     struct vector *l, *r, *v;
 
@@ -835,7 +840,7 @@ static void qualstr(struct strbuf *s, int q)
         strbuf_cats(s, "restrict ");
 }
 
-const char *type2s(node_t * ty)
+const char *type2s(struct type * ty)
 {
     struct strbuf *buf = strbuf_new();
     struct vector *v = type2s1(ty);
@@ -916,12 +921,6 @@ static const char *expr2s(node_t * node)
         case '~':
         case '!':
         case SIZEOF:
-            strbuf_cats(s, id2s(EXPR_OP(node)));
-            if (istype(l))
-                strbuf_cats(s, type2s(l));
-            else
-                strbuf_cats(s, expr2s(l));
-            break;
         default:
             assert(0);
         }
@@ -1002,37 +1001,12 @@ static const char *expr2s(node_t * node)
 
 const char *node2s(node_t * node)
 {
-    if (istype(node))
-        return type2s(node);
-    else if (issymbol(node))
+    if (issymbol(node))
         return SYM_NAME(node);
     else if (isexpr(node))
         return expr2s(node);
     else
         return AST_NAME(node);
-}
-
-void print_node_size(void)
-{
-    println("ast_expr: %llu\n"
-            "ast_stmt: %llu\n"
-            "ast_type: %llu\n"
-            "ast_type.u: %llu\n"
-            "ast_type.limits: %llu\n"
-            "ast_symbol: %llu\n"
-            "ast_field: %llu\n"
-            "ast_node: %llu (node_t: %llu)\n"
-            "ast_common: %llu\n",
-            sizeof(struct ast_expr),
-            sizeof(struct ast_stmt),
-            sizeof(struct ast_type),
-            FIELD_SIZEOF(struct ast_type, u),
-            FIELD_SIZEOF(struct ast_type, limits),
-            sizeof(struct ast_symbol),
-            sizeof(struct ast_field),
-            sizeof(union ast_node), sizeof(node_t),
-            sizeof(struct ast_common)
-            );
 }
 
 // TODO: typedef names

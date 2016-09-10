@@ -6,7 +6,7 @@ static node_t *__loop;
 static node_t *__switch;
 static struct vector *__cases;
 static node_t *__default;
-static node_t *__switch_ty;
+static struct type *__switch_ty;
 
 #define SET_LOOP_CONTEXT(loop)                  \
     node_t *__saved_loop = __loop;              \
@@ -15,14 +15,14 @@ static node_t *__switch_ty;
 #define RESTORE_LOOP_CONTEXT()                  \
     __loop = __saved_loop
 
-#define SET_SWITCH_CONTEXT(sw, ty)              \
-    node_t *__saved_sw = __switch;              \
-    struct vector *__saved_cases = __cases;     \
-    node_t *__saved_default = __default;        \
-    node_t *__saved_switch_ty = __switch_ty;    \
-    __switch = sw;                              \
-    __cases = vec_new();                        \
-    __default = NULL;                           \
+#define SET_SWITCH_CONTEXT(sw, ty)                      \
+    node_t *__saved_sw = __switch;                      \
+    struct vector *__saved_cases = __cases;             \
+    node_t *__saved_default = __default;                \
+    struct type *__saved_switch_ty = __switch_ty;       \
+    __switch = sw;                                      \
+    __cases = vec_new();                                \
+    __default = NULL;                                   \
     __switch_ty = ty
 
 #define RESTORE_SWITCH_CONTEXT()                \
@@ -478,8 +478,8 @@ static node_t *ensure_return(node_t * expr, struct source src)
             error_at(src, "void function should not return a value");
     } else {
         if (!isnullstmt(expr)) {
-            node_t *ty1 = AST_TYPE(expr);
-            node_t *ty2 = rtype(funcinfo.type);
+            struct type *ty1 = AST_TYPE(expr);
+            struct type *ty2 = rtype(funcinfo.type);
             if (!(expr = assignconv(ty2, expr)))
                 error_at(src,
                          "returning '%s' from function with incompatible result type '%s'",

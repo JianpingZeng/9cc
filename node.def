@@ -52,7 +52,6 @@ _ns(END_STMT_ID)
 
 // misc
 _n(FIELD_NODE,         "Field")
-_n(TYPE_NODE,          "Type")
 _n(SYMBOL_NODE,        "Symbol")
 
 _ns(END_NODE_ID)
