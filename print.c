@@ -67,12 +67,12 @@ void print_type(struct type *ty)
     print_type1(ty, 0);
 }
 
-static void print_field(node_t * node, int level)
+static void print_field1(struct field * node, int level)
 {
     const char *name = FIELD_NAME(node);
     struct type *ty = FIELD_TYPE(node);
 
-    putf(GREEN("%s "), nname(node));
+    putf(GREEN("Field "));
     if (FIELD_ISBIT(node))
         putf(RED("<offset=%d, bitoff=%d, bits=%d> "),
              FIELD_OFFSET(node), FIELD_BITOFF(node), FIELD_BITSIZE(node));
@@ -326,12 +326,15 @@ static void print_tree1(node_t *node, int level)
         print_symbol(node, level);
     else if (isexpr(node))
         print_expr(node, level);
-    else if (isfield(node))
-        print_field(node, level);
     else if (isstmt(node))
         print_stmt(node, level);
     else
         assert(0);
+}
+
+void print_field(struct field *field)
+{
+    print_field1(field, 0);
 }
 
 void print_tree(node_t * tree)

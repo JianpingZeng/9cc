@@ -92,45 +92,6 @@ typedef union ast_node node_t;
 #define _TYPE_A_STATIC(NODE)     ((NODE)->u.a.is_static)
 #define _TYPE_A_STAR(NODE)       ((NODE)->u.a.star)
 
-struct type {
-    const char *name;
-    struct type *type;
-    int kind;
-    size_t size;
-    unsigned align;                // align in bytes
-    unsigned rank:8;
-    unsigned inlined:1;
-    union {
-        // function
-        struct {
-            struct type **proto;
-            node_t **params;
-            unsigned oldstyle:1;
-            unsigned varg:1;
-        } f;
-        // enum/struct/union
-        struct {
-            const char *tag;
-            node_t *tsym;
-            node_t **fields;
-        } s;
-        // array
-        struct {
-            size_t len;        // array length
-            node_t *assign;
-            unsigned is_const:1;
-            unsigned is_volatile:1;
-            unsigned is_restrict:1;
-            unsigned is_static:1;
-            unsigned star:1;
-        } a;
-    } u;
-    struct {
-        union value max;
-        union value min;
-    } limits;
-};
-
 // operations on the unqual type
 #define TYPE_KIND(ty)            _TYPE_KIND(unqual(ty))
 #define TYPE_NAME(ty)            _TYPE_NAME(unqual(ty))
@@ -155,6 +116,63 @@ struct type {
 #define TYPE_A_RESTRICT(ty)      _TYPE_A_RESTRICT(unqual(ty))
 #define TYPE_A_STATIC(ty)        _TYPE_A_STATIC(unqual(ty))
 #define TYPE_A_STAR(ty)          _TYPE_A_STAR(unqual(ty))
+
+struct type {
+    const char *name;
+    struct type *type;
+    int kind;
+    size_t size;
+    unsigned align;                // align in bytes
+    unsigned rank:8;
+    unsigned inlined:1;
+    union {
+        // function
+        struct {
+            struct type **proto;
+            node_t **params;
+            unsigned oldstyle:1;
+            unsigned varg:1;
+        } f;
+        // enum/struct/union
+        struct {
+            const char *tag;
+            node_t *tsym;
+            struct field **fields;
+        } s;
+        // array
+        struct {
+            size_t len;        // array length
+            node_t *assign;
+            unsigned is_const:1;
+            unsigned is_volatile:1;
+            unsigned is_restrict:1;
+            unsigned is_static:1;
+            unsigned star:1;
+        } a;
+    } u;
+    struct {
+        union value max;
+        union value min;
+    } limits;
+};
+
+#define FIELD_NAME(NODE)        ((NODE)->name)
+#define FIELD_TYPE(NODE)        ((NODE)->type)
+#define FIELD_SRC(NODE)         ((NODE)->src)
+#define FIELD_ISBIT(NODE)       ((NODE)->isbit)
+#define FIELD_OFFSET(NODE)      ((NODE)->offset)
+#define FIELD_BITSIZE(NODE)     ((NODE)->bitsize)
+#define FIELD_BITOFF(NODE)      ((NODE)->bitoff)
+
+struct field {
+    const char *name;
+    struct type *type;
+    struct source src;
+    size_t offset;
+    int isbit : 1;
+    int bitsize : 10;
+    int bitoff : 10;
+};
 
 // gen.h
 #include "gen.h"
@@ -218,7 +236,7 @@ extern node_t *compound_stmt(void (*) (void));
 
 // typechk.c
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
-extern void ensure_field(node_t * field, size_t total, bool last);
+extern void ensure_field(struct field * field, size_t total, bool last);
 extern void ensure_decl(node_t * sym, int sclass, int kind);
 extern void ensure_array(struct type * atype, struct source src, int level);
 extern void ensure_func(struct type * ftype, struct source src);
@@ -230,6 +248,7 @@ extern void field_not_found_error(struct type * ty, const char *name);
 
 // type.c
 extern void type_init(void);
+extern struct field *alloc_field(void);
 extern struct type *alloc_type(void);
 extern int type_op(struct type * type);
 extern void prepend_type(struct type ** typelist, struct type * type);
@@ -245,8 +264,8 @@ extern struct type *ptr_type(struct type * ty);
 extern struct type *func_type(void);
 extern node_t *tag_type(int t, const char *tag, struct source src);
 extern void set_typesize(struct type * ty);
-extern node_t *find_field(struct type * ty, const char *name);
-extern int indexof_field(struct type * ty, node_t * field);
+extern struct field *find_field(struct type * ty, const char *name);
+extern int indexof_field(struct type * ty, struct field * field);
 extern struct type *compose(struct type * ty1, struct type * ty2);
 extern bool qual_contains(struct type * ty1, struct type * ty2);
 extern int qual_union(struct type * ty1, struct type * ty2);
@@ -357,6 +376,7 @@ extern int _scope;
 #define SCOPE  _scope
 
 // print.c
+extern void print_field(struct field *field);
 extern void print_tree(node_t * tree);
 extern void print_tac(struct tac *tac);
 extern void print_type(struct type *ty);

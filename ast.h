@@ -20,21 +20,6 @@ struct ast_common {
     struct source src;
 };
 
-#define FIELD_NAME(NODE)        AST_NAME(NODE)
-#define FIELD_TYPE(NODE)        AST_TYPE(NODE)
-#define FIELD_ISBIT(NODE)       ((NODE)->field.isbit)
-#define FIELD_OFFSET(NODE)      ((NODE)->field.offset)
-#define FIELD_BITSIZE(NODE)     ((NODE)->field.bitsize)
-#define FIELD_BITOFF(NODE)      ((NODE)->field.bitoff)
-
-struct ast_field {
-    struct ast_common common;
-    size_t offset;
-    int isbit : 1;
-    int bitsize : 10;
-    int bitoff : 10;
-};
-
 #define SYM_SCOPE(NODE)       ((NODE)->symbol.scope)
 #define SYM_NAME(NODE)        AST_NAME(NODE)
 #define SYM_SCLASS(NODE)      ((NODE)->symbol.sclass)
@@ -142,13 +127,11 @@ union ast_node {
     struct ast_common common;
     struct ast_expr expr;
     struct ast_stmt stmt;
-    struct ast_field field;
     struct ast_symbol symbol;
 };
 
 // ast.c
 extern void *alloc_symbol(int area);
-extern void *alloc_field(void);
 
 extern const char *nname(node_t * node);
 // expr

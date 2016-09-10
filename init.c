@@ -112,7 +112,7 @@ static void aggregate_set(struct type * ty, struct vector *v, int i, node_t * no
             rty = rtype(ty);
         } else {
             if (length(TYPE_FIELDS(ty))) {
-                node_t *field = TYPE_FIELDS(ty)[0];
+                struct field *field = TYPE_FIELDS(ty)[0];
                 rty = FIELD_TYPE(field);
             }
         }
@@ -170,7 +170,7 @@ static void struct_init(struct type * ty, bool brace, struct vector *v)
             if (token->id == ID)
                 name = TOK_ID_STR(token);
             expect(ID);
-            node_t *field = find_field(ty, name);
+            struct field *field = find_field(ty, name);
             if (field) {
                 i = indexof_field(ty, field);
                 fieldty = FIELD_TYPE(field);
@@ -186,7 +186,7 @@ static void struct_init(struct type * ty, bool brace, struct vector *v)
             break;
 
         if (!designated) {
-            node_t *field = TYPE_FIELDS(ty)[i];
+            struct field *field = TYPE_FIELDS(ty)[i];
             fieldty = FIELD_TYPE(field);
         }
         elem_init(ty, fieldty, designated, v, i);

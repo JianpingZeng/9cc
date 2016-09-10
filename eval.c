@@ -700,7 +700,7 @@ static node_t *doeval(node_t * expr)
                 return NULL;
             ty = isptr(ty) ? rtype(ty) : ty;
             assert(isrecord(ty));
-            node_t *field = find_field(ty, AST_NAME(expr));
+            struct field *field = find_field(ty, AST_NAME(expr));
             assert(field);
             long off = FIELD_OFFSET(field) + SYM_VALUE_I(EXPR_SYM(l));
             union value v = {.i = off};

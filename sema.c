@@ -1,10 +1,10 @@
 #include "cc.h"
 
-static void ensure_bitfield(node_t *field)
+static void ensure_bitfield(struct field *field)
 {
     const char *name = FIELD_NAME(field);
     struct type *ty = FIELD_TYPE(field);
-    struct source src = AST_SRC(field);
+    struct source src = FIELD_SRC(field);
     int bitsize = FIELD_BITSIZE(field);
     int bits = BITS(TYPE_SIZE(ty));
 
@@ -57,10 +57,10 @@ void ensure_inline(struct type *ty, int fspec, struct source src)
     }
 }
 
-static void ensure_nonbitfield(node_t * field, size_t total, bool last)
+static void ensure_nonbitfield(struct field * field, size_t total, bool last)
 {
     struct type *ty = FIELD_TYPE(field);
-    struct source src = AST_SRC(field);
+    struct source src = FIELD_SRC(field);
         
     if (isarray(ty)) {
         ensure_array(ty, source, CONSTANT);
@@ -82,7 +82,7 @@ static void ensure_nonbitfield(node_t * field, size_t total, bool last)
     }
 }
 
-void ensure_field(node_t * field, size_t total, bool last)
+void ensure_field(struct field * field, size_t total, bool last)
 {
     if (FIELD_ISBIT(field))
         ensure_bitfield(field);

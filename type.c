@@ -20,6 +20,11 @@ struct type *voidtype;                // void
 struct type *booltype;                // bool
 
 
+struct field *alloc_field(void)
+{
+    return NEWS0(struct field, PERM);
+}
+
 struct type *alloc_type(void)
 {
     return NEWS0(struct type, PERM);
@@ -401,7 +406,7 @@ bool eqtype(struct type * ty1, struct type * ty2)
     }
 }
 
-node_t *find_field(struct type * sty, const char *name)
+struct field *find_field(struct type * sty, const char *name)
 {
     struct type *ty = unqual(sty);
     assert(isrecord(ty));
@@ -409,7 +414,7 @@ node_t *find_field(struct type * sty, const char *name)
     if (name == NULL)
         return NULL;
     for (size_t i = 0; TYPE_FIELDS(ty)[i]; i++) {
-        node_t *field = TYPE_FIELDS(ty)[i];
+        struct field *field = TYPE_FIELDS(ty)[i];
         if (FIELD_NAME(field) && !strcmp(name, FIELD_NAME(field)))
             return field;
     }
@@ -417,10 +422,10 @@ node_t *find_field(struct type * sty, const char *name)
     return NULL;
 }
 
-int indexof_field(struct type * ty, node_t * field)
+int indexof_field(struct type * ty, struct field * field)
 {
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
-        node_t *f = TYPE_FIELDS(ty)[i];
+        struct field *f = TYPE_FIELDS(ty)[i];
         if (field == f)
             return i;
     }
@@ -439,11 +444,11 @@ int indexof_field(struct type * ty, node_t * field)
 static unsigned struct_size(struct type * ty)
 {
     int max = 1;
-    node_t *prev = NULL;
-    node_t **fields = TYPE_FIELDS(ty);
+    struct field *prev = NULL;
+    struct field **fields = TYPE_FIELDS(ty);
 
     for (int i = 0; fields[i]; i++) {
-        node_t *field = fields[i];
+        struct field *field = fields[i];
         struct type *ty = FIELD_TYPE(field);
 
         if (FIELD_ISBIT(field)) {
@@ -539,10 +544,10 @@ static unsigned union_size(struct type * ty)
 {
     int max = 1;
     int size = 0;
-    node_t **fields = TYPE_FIELDS(ty);
+    struct field **fields = TYPE_FIELDS(ty);
 
     for (int i = 0; fields[i]; i++) {
-        node_t *field = fields[i];
+        struct field *field = fields[i];
         struct type *ty = FIELD_TYPE(field);
         int tysize = TYPE_SIZE(ty);
 

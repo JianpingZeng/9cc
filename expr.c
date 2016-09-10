@@ -114,7 +114,7 @@ static bool is_bitfield(node_t * node)
     if (isptr(ty))
         ty = rtype(ty);
     const char *name = AST_NAME(node);
-    node_t *field = find_field(ty, name);
+    struct field *field = find_field(ty, name);
     return field && FIELD_ISBIT(field);
 }
 
@@ -1254,7 +1254,7 @@ static node_t *direction(node_t * node)
         return ret;
 
     SAVE_ERRORS;
-    node_t *field = NULL;
+    struct field *field = NULL;
     struct type *ty = AST_TYPE(node);
     if (t == '.') {
         ensure_type(node, isrecord);
@@ -1272,7 +1272,7 @@ static node_t *direction(node_t * node)
     if (NO_ERROR) {
         if (opts.ansi) {
             // The result has the union of both sets of qualifiers.
-            int q = qual_union(AST_TYPE(node), AST_TYPE(field));
+            int q = qual_union(AST_TYPE(node), FIELD_TYPE(field));
             ret = ast_expr(MEMBER_EXPR, qual(q, FIELD_TYPE(field)), node,  NULL);
         } else {
             ret = ast_expr(MEMBER_EXPR,  FIELD_TYPE(field), node,  NULL);

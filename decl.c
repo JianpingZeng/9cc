@@ -712,9 +712,9 @@ static void ids(node_t *sym)
     }
 }
 
-static void bitfield(node_t *field)
+static void bitfield(struct field *field)
 {
-    AST_SRC(field) = source;
+    FIELD_SRC(field) = source;
     expect(':');
     FIELD_BITSIZE(field) = intexpr();
     FIELD_ISBIT(field) = true;
@@ -756,7 +756,7 @@ static void fields(node_t * sym)
         struct type *basety = specifiers(NULL, NULL);
 
         for (;;) {
-            node_t *field = alloc_field();
+            struct field *field = alloc_field();
             if (token->id == ':') {
                 bitfield(field);
                 FIELD_TYPE(field) = basety;
@@ -766,7 +766,7 @@ static void fields(node_t * sym)
                 //C11: anonymous record
                 size_t len = length(TYPE_FIELDS(basety));
                 for (int i = 0; i < len; i++) {
-                    node_t *field = TYPE_FIELDS(basety)[i];
+                    struct field *field = TYPE_FIELDS(basety)[i];
                     vec_push(v, field);
                     if (i < len - 1)
                         ensure_field(field, vec_len(v), false);
@@ -783,7 +783,7 @@ static void fields(node_t * sym)
                 if (id) {
                     const char *name = TOK_ID_STR(id);
                     for (int i = 0; i < vec_len(v); i++) {
-                        node_t *f = vec_at(v, i);
+                        struct field *f = vec_at(v, i);
                         if (FIELD_NAME(f) &&
                             !strcmp(FIELD_NAME(f), name)) {
                             error_at(id->src,
@@ -793,7 +793,7 @@ static void fields(node_t * sym)
                         }
                     }
                     FIELD_NAME(field) = name;
-                    AST_SRC(field) = id->src;
+                    FIELD_SRC(field) = id->src;
                 }
             }
 

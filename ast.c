@@ -28,11 +28,6 @@ void *alloc_symbol(int area)
     return new_node(SYMBOL_NODE, area);
 }
 
-void *alloc_field(void)
-{
-    return new_node(FIELD_NODE, PERM);
-}
-
 node_t *ast_expr(int id, struct type * ty, node_t * l, node_t * r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);

@@ -3368,7 +3368,7 @@ static struct vector * get_types_for_union(struct type *ty, size_t offset)
     size_t cnt = ROUNDUP(TYPE_SIZE(ty), 8) >> 3;
     struct vector *v1 = vec_new();
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
-        node_t *field = TYPE_FIELDS(ty)[i];
+        struct field *field = TYPE_FIELDS(ty)[i];
         struct type *fty = FIELD_TYPE(field);
         struct vector *v2 = get_types(fty, offset);
         struct vector *v3 = get_elements(v2);
@@ -3390,7 +3390,7 @@ static struct vector * get_types_for_struct(struct type *ty, size_t offset)
 {
     struct vector *v = vec_new();
     for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
-        node_t *field = TYPE_FIELDS(ty)[i];
+        struct field *field = TYPE_FIELDS(ty)[i];
         struct type *fty = FIELD_TYPE(field);
         size_t off = offset + FIELD_OFFSET(field);
         if (FIELD_ISBIT(field) && FIELD_BITSIZE(field) == 0)
