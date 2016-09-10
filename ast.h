@@ -20,34 +20,6 @@ struct ast_common {
     struct source src;
 };
 
-#define SYM_SCOPE(NODE)       ((NODE)->symbol.scope)
-#define SYM_NAME(NODE)        AST_NAME(NODE)
-#define SYM_SCLASS(NODE)      ((NODE)->symbol.sclass)
-#define SYM_TYPE(NODE)        AST_TYPE(NODE)
-#define SYM_DEFINED(NODE)     ((NODE)->symbol.defined)
-#define SYM_PREDEFINE(NODE)   ((NODE)->symbol.predefine)
-#define SYM_VALUE(NODE)       ((NODE)->symbol.value)
-#define SYM_REFS(NODE)        ((NODE)->symbol.refs)
-#define SYM_LINK(NODE)        ((NODE)->symbol.link)
-#define SYM_INIT(NODE)        ((NODE)->symbol.init)
-// convenience
-#define SYM_VALUE_U(NODE)     (VALUE_U(SYM_VALUE(NODE)))
-#define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
-#define SYM_VALUE_D(NODE)     (VALUE_D(SYM_VALUE(NODE)))
-
-struct ast_symbol {
-    struct ast_common common;
-    int scope;
-    int sclass;
-    unsigned defined : 1;
-    unsigned predefine : 1;
-    union value value;
-    unsigned refs;
-    node_t *link;
-    node_t *init;               // the initializer expr or func body
-    union x x;
-};
-
 #define EXPR_OP(NODE)           ((NODE)->expr.op)
 #define EXPR_PREFIX(NODE)       ((NODE)->expr.prefix)
 #define EXPR_OPERAND(NODE, I)   ((NODE)->expr.operands[I])
@@ -63,16 +35,31 @@ struct ast_symbol {
 #define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
 // va_arg
 #define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->expr.type)
+
+// expr
+#define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.addr)
+#define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.btrue)
+#define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.bfalse)
+#define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.array)
+#define EXPR_X_XVALUES(NODE)  ((NODE)->expr.x.xvalues)
     
 struct ast_expr {
     struct ast_common common;
     int op;
     bool prefix;
-    node_t *sym;
+    struct symbol *sym;
     node_t *operands[3];
     node_t **list;
     struct type *type;
-    union x x;
+    struct {
+        struct operand *addr;
+        struct operand *array;
+
+        // label
+        const char *btrue;
+        const char *bfalse;
+        struct vector *xvalues;
+    } x;
 };
 
 // compound stmt
@@ -115,23 +102,28 @@ struct ast_expr {
 // expr stmt
 #define STMT_EXPR_BODY(NODE)    ((NODE)->stmt.list[0])
 
+// stmt
+#define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.label)
+#define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.next)
+
 struct ast_stmt {
     struct ast_common common;
     long index;
     node_t **blks;
     node_t *list[4];
-    union x x;
+    struct {
+        const char *label;
+
+        // label
+        const char *next;
+    } x;
 };
 
 union ast_node {
     struct ast_common common;
     struct ast_expr expr;
     struct ast_stmt stmt;
-    struct ast_symbol symbol;
 };
-
-// ast.c
-extern void *alloc_symbol(int area);
 
 extern const char *nname(node_t * node);
 // expr
@@ -155,8 +147,6 @@ extern const char *gen_block_label(void);
 // kind
 #define isexpr(n)   (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
 #define isstmt(n)   (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
-#define isfield(n)  (AST_ID(n) == FIELD_NODE)
-#define issymbol(n) (AST_ID(n) == SYMBOL_NODE)
 
 // decl
 #define isfuncdef(n)   (isfunc(SYM_TYPE(n)) && SYM_INIT(n))

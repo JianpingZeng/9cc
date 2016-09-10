@@ -92,7 +92,7 @@ static void calculate_in_out(struct basic_block *start)
     } while (changed);
 }
 
-void construct_basic_blocks(node_t *sym, struct tac *head)
+void construct_basic_blocks(struct symbol *sym, struct tac *head)
 {
     const char *start_label = SYM_X_LABEL(sym);
     const char *end_label = STMT_X_NEXT(SYM_INIT(sym));

@@ -227,7 +227,7 @@ struct type *lookup_typedef(const char *id)
     if (!id)
         return NULL;
 
-    node_t *sym = lookup(id, identifiers);
+    struct symbol *sym = lookup(id, identifiers);
 
     if (sym && SYM_SCLASS(sym) == TYPEDEF)
         return SYM_TYPE(sym);
@@ -273,7 +273,7 @@ struct type *func_type(void)
     return ty;
 }
 
-node_t *tag_type(int t, const char *tag, struct source src)
+struct symbol *tag_type(int t, const char *tag, struct source src)
 {
     struct type *ty = alloc_type();
     _TYPE_KIND(ty) = t;
@@ -282,7 +282,7 @@ node_t *tag_type(int t, const char *tag, struct source src)
     if (t == ENUM)
         _TYPE_TYPE(ty) = inttype;
 
-    node_t *sym = NULL;
+    struct symbol *sym = NULL;
     if (tag) {
         sym = lookup(tag, tags);
         if (sym && is_current_scope(sym)) {
@@ -299,7 +299,7 @@ node_t *tag_type(int t, const char *tag, struct source src)
     }
 
     SYM_TYPE(sym) = ty;
-    AST_SRC(sym) = src;
+    SYM_SRC(sym) = src;
     _TYPE_TSYM(ty) = sym;
 
     return sym;

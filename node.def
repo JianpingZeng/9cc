@@ -50,9 +50,6 @@ _n(EXPR_STMT,         "ExprStmt")
 
 _ns(END_STMT_ID)
 
-// misc
-_n(SYMBOL_NODE,        "Symbol")
-
 _ns(END_NODE_ID)
 
 #undef _n

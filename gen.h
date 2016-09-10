@@ -19,7 +19,7 @@ enum {
 };
 
 struct rvar {
-    node_t *sym;
+    struct symbol *sym;
     int size;
 };
 
@@ -127,8 +127,8 @@ struct operand {
     int op;
     int scale;
     long disp;
-    node_t *sym;                // base symbol
-    node_t *index;              // index symbol
+    struct symbol *sym;                // base symbol
+    struct symbol *index;              // index symbol
 };
 
 // three-address code
@@ -163,67 +163,6 @@ struct basic_block {
     struct set *def;
     struct set *in;
     struct set *out;
-};
-
-// sym
-#define SYM_X_LABEL(NODE)     ((NODE)->symbol.x.sym.label)
-#define SYM_X_USES(NODE)      ((NODE)->symbol.x.sym.uses)
-#define SYM_X_REG(NODE)       ((NODE)->symbol.x.sym.reg)
-#define SYM_X_KIND(NODE)      ((NODE)->symbol.x.sym.kind)
-#define SYM_X_LOFF(NODE)      ((NODE)->symbol.x.sym.loff)
-#define SYM_X_INMEM(NODE)     ((NODE)->symbol.x.sym.inmem)
-#define SYM_X_FREG(NODE)      ((NODE)->symbol.x.sym.freg)
-#define SYM_X_SVARS(NODE)     ((NODE)->symbol.x.sym.svars)
-#define SYM_X_LVARS(NODE)     ((NODE)->symbol.x.sym.lvars)
-#define SYM_X_CALLS(NODE)     ((NODE)->symbol.x.sym.calls)
-#define SYM_X_HEAD(NODE)      ((NODE)->symbol.x.sym.head)
-#define SYM_X_BASIC_BLOCK(NODE)  ((NODE)->symbol.x.sym.basic_block)
-#define SYM_X_XVALUES(NODE)   ((NODE)->symbol.x.sym.xvalues)
-// expr
-#define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.expr.addr)
-#define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.expr.btrue)
-#define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.expr.bfalse)
-#define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.expr.array)
-#define EXPR_X_XVALUES(NODE)  ((NODE)->expr.x.expr.xvalues)
-// stmt
-#define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.stmt.label)
-#define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.stmt.next)
-
-union x {
-    struct {
-        const char *label;
-        long loff;              // local offset (<0)
-        int kind;               // kind
-        struct uses uses;       // uses
-        struct reg *reg;
-        bool inmem;
-        bool freg;              // spilled from a floating reg
-
-        struct vector *lvars;        // function local vars
-        struct vector *svars;        // function static vars
-        struct vector *calls;        // function calls
-        struct basic_block *basic_block;
-        struct tac *head;
-        struct tac *tail;
-        struct vector *xvalues;
-    }sym;
-    
-    struct {
-        struct operand *addr;
-        struct operand *array;
-
-        // label
-        const char *btrue;
-        const char *bfalse;
-        struct vector *xvalues;
-    }expr;
-
-    struct {
-        const char *label;
-
-        // label
-        const char *next;
-    }stmt;
 };
 
 // reladdr kind
@@ -263,10 +202,10 @@ extern bool is_tmp_operand(struct operand *operand);
 extern bool is_mem_operand(struct operand *operand);
 extern bool is_imm_operand(struct operand *operand);
 extern bool is_direct_mem_operand(struct operand *operand);
-extern node_t * make_label_sym(const char *name);
+extern struct symbol * make_label_sym(const char *name);
 
 // block.c
-extern void construct_basic_blocks(node_t *sym, struct tac *head);
+extern void construct_basic_blocks(struct symbol *sym, struct tac *head);
 #define REF_SYM(sym)  (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
                        SYM_X_KIND(sym) == SYM_KIND_LREF ||\
                        SYM_X_KIND(sym) == SYM_KIND_TMP)

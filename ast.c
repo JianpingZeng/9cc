@@ -23,11 +23,6 @@ static node_t *new_node(int id, int area)
     return n;
 }
 
-void *alloc_symbol(int area)
-{
-    return new_node(SYMBOL_NODE, area);
-}
-
 node_t *ast_expr(int id, struct type * ty, node_t * l, node_t * r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);

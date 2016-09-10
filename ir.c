@@ -15,7 +15,7 @@ static void emit_stmt(node_t *n);
 static void emit_expr(node_t *n);
 static void emit_bool_expr(node_t *n);
 static void emit_bop_bool(node_t *n);
-static void emit_data(node_t *decl);
+static void emit_data(struct symbol *decl);
 static const char *get_string_literal_label(const char *name);
 static void emit_assign(struct type *ty, struct operand *l, node_t *r, long offset, struct field *bfield, bool sty);
 static void emit_member_nonbitfield(node_t *n, struct field *field);
@@ -80,7 +80,7 @@ static void emit_tac(struct tac *tac)
     }
 }
 
-static bool isgref(node_t *sym)
+static bool isgref(struct symbol *sym)
 {
     return has_static_extent(sym) ||
         SYM_SCOPE(sym) == CONSTANT ||
@@ -94,50 +94,50 @@ static struct operand * copy_operand(struct operand *operand)
     return ret;
 }
 
-static struct operand * make_sym_operand(node_t *sym)
+static struct operand * make_sym_operand(struct symbol *sym)
 {
     struct operand *operand = NEWS0(struct operand, PERM);
     operand->sym = sym;
     return operand;
 }
 
-static node_t * make_named_sym(const char *name, struct table **table, int scope)
+static struct symbol * make_named_sym(const char *name, struct table **table, int scope)
 {
-    node_t *sym = lookup(name, *table);
+    struct symbol *sym = lookup(name, *table);
     if (!sym)
         sym = install(name, table, scope, PERM);
     return sym;
 }
 
-node_t * make_label_sym(const char *name)
+struct symbol * make_label_sym(const char *name)
 {
-    node_t *sym = make_named_sym(name, &labels, GLOBAL);
+    struct symbol *sym = make_named_sym(name, &labels, GLOBAL);
     SYM_X_KIND(sym) = SYM_KIND_LABEL;
     return sym;
 }
 
-static node_t * make_tmp_sym(void)
+static struct symbol * make_tmp_sym(void)
 {
-    node_t *sym = make_named_sym(gen_tmpname_r(), &tmps, GLOBAL);
+    struct symbol *sym = make_named_sym(gen_tmpname_r(), &tmps, GLOBAL);
     SYM_X_KIND(sym) = SYM_KIND_TMP;
     return sym;
 }
 
 static struct operand * make_named_operand(const char *name, struct table **table, int scope)
 {
-    node_t *sym = make_named_sym(name, table, scope);
+    struct symbol *sym = make_named_sym(name, table, scope);
     return make_sym_operand(sym);
 }
 
 static struct operand * make_tmp_operand(void)
 {
-    node_t *sym = make_tmp_sym();
+    struct symbol *sym = make_tmp_sym();
     return make_sym_operand(sym);
 }
 
 static struct operand * make_label_operand(const char *label)
 {
-    node_t *sym = make_label_sym(label);
+    struct symbol *sym = make_label_sym(label);
     return make_sym_operand(sym);
 }
 
@@ -280,7 +280,7 @@ static struct operand * make_indirection_operand(struct operand *l)
     }
 }
 
-static bool is_block_storage(node_t *sym)
+static bool is_block_storage(struct symbol *sym)
 {
     if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
         SYM_X_KIND(sym) == SYM_KIND_LREF) {
@@ -291,7 +291,7 @@ static bool is_block_storage(node_t *sym)
     }
 }
 
-static bool canbe_subscript_base(node_t *sym)
+static bool canbe_subscript_base(struct symbol *sym)
 {
     switch (SYM_X_KIND(sym)) {
     case SYM_KIND_GREF:
@@ -1353,7 +1353,7 @@ static struct operand * make_extra_decl(struct type *ty)
     if (!extra_lvars)
         extra_lvars = vec_new();
 
-    node_t *sym = gen_tmp_sym(FUNC);
+    struct symbol *sym = gen_tmp_sym(FUNC);
     SYM_TYPE(sym) = ty;
     // set scope as LOCAL
     SYM_SCOPE(sym) = LOCAL;
@@ -1726,7 +1726,7 @@ static void emit_paren(node_t *n)
 
 static void emit_integer_literal(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
+    struct symbol *sym = EXPR_SYM(n);
     SYM_X_LABEL(sym) = stru(SYM_VALUE_U(sym));
     SYM_X_KIND(sym) = SYM_KIND_IMM;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
@@ -1744,7 +1744,7 @@ static const char *get_float_label(const char *name)
 
 static void emit_float_literal(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
+    struct symbol *sym = EXPR_SYM(n);
     const char *label = get_float_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
     SYM_X_KIND(sym) = SYM_KIND_GREF;
@@ -1753,7 +1753,7 @@ static void emit_float_literal(node_t *n)
 
 static void emit_string_literal(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
+    struct symbol *sym = EXPR_SYM(n);
     const char *label = get_string_literal_label(SYM_NAME(sym));
     SYM_X_LABEL(sym) = label;
     SYM_X_KIND(sym) = SYM_KIND_GREF;
@@ -1762,7 +1762,7 @@ static void emit_string_literal(node_t *n)
 
 static void emit_compound_literal(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
+    struct symbol *sym = EXPR_SYM(n);
     SYM_X_KIND(sym) = SYM_KIND_LREF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 
@@ -1772,7 +1772,7 @@ static void emit_compound_literal(node_t *n)
 
 static void emit_ref(node_t *n)
 {
-    node_t *sym = EXPR_SYM(n);
+    struct symbol *sym = EXPR_SYM(n);
     SYM_X_KIND(sym) = isgref(sym) ? SYM_KIND_GREF : SYM_KIND_LREF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
@@ -2277,7 +2277,7 @@ static void emit_stmt(node_t *stmt)
     }
 }
 
-static void emit_function(node_t *sym)
+static void emit_function(struct symbol *sym)
 {
     node_t *stmt = SYM_INIT(sym);
 
@@ -2622,7 +2622,7 @@ static void emit_initializer(node_t *init)
         die("unexpected initializer type: %s", type2s(ty));
 }
 
-static void emit_data(node_t *sym)
+static void emit_data(struct symbol *sym)
 {   
     // enter context
     SET_XVALUE_CONTEXT();
@@ -2653,7 +2653,7 @@ static void finalize(void)
     IM->finalize();
 }
 
-static void defvar(node_t *sym)
+static void defvar(struct symbol *sym)
 {
     if (SYM_SCOPE(sym) == GLOBAL)
         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
@@ -2666,13 +2666,13 @@ static void defvar(node_t *sym)
     }
 }
 
-static void defun(node_t *sym)
+static void defun(struct symbol *sym)
 {
     SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     emit_function(sym);
     IM->defun(sym);
     for (int i = 0; i < vec_len(SYM_X_SVARS(sym)); i++) {
-        node_t *s = vec_at(SYM_X_SVARS(sym), i);
+        struct symbol *s = vec_at(SYM_X_SVARS(sym), i);
         IR->defvar(s);
     }
 }

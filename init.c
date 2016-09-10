@@ -415,17 +415,17 @@ node_t *initializer_list(struct type * ty)
     return ret;
 }
 
-bool has_static_extent(node_t * sym)
+bool has_static_extent(struct symbol * sym)
 {
     return SYM_SCLASS(sym) == EXTERN ||
         SYM_SCLASS(sym) == STATIC ||
         SYM_SCOPE(sym) == GLOBAL;
 }
 
-node_t *decl_initializer(node_t *sym, int sclass, int level)
+node_t *decl_initializer(struct symbol *sym, int sclass, int level)
 {
     struct type *ty = SYM_TYPE(sym);
-    struct source src = AST_SRC(sym);
+    struct source src = SYM_SRC(sym);
     node_t *init;
     struct source init_src;
 

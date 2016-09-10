@@ -91,7 +91,7 @@ static void print_label(const char *name, int level)
     putf(RED("%s\n"), name);
 }
 
-static void print_symbol(node_t *sym, int level)
+static void print_symbol1(struct symbol *sym, int level)
 {
     putf(CYAN("%s "), STR(SYM_NAME(sym)));
     
@@ -101,7 +101,7 @@ static void print_symbol(node_t *sym, int level)
     struct type *ty = SYM_TYPE(sym);
     print_ty(ty);
     putf("<scope: %d>", SYM_SCOPE(sym));
-    putf(YELLOW("<line:%u col:%u> "), AST_SRC(sym).line, AST_SRC(sym).column);
+    putf(YELLOW("<line:%u col:%u> "), SYM_SRC(sym).line, SYM_SRC(sym).column);
 
     if (isfuncdef(sym))
         putf("%llu localvars ", vec_len(SYM_X_LVARS(sym)));
@@ -111,6 +111,11 @@ static void print_symbol(node_t *sym, int level)
     node_t *init = SYM_INIT(sym);
     if (init)
         print_tree1(init, level + 1);
+}
+
+void print_symbol(struct symbol *sym)
+{
+    print_symbol1(sym, 0);
 }
 
 static void print_expr(node_t * node, int level)
@@ -322,9 +327,7 @@ static void print_tree1(node_t *node, int level)
     for (int i = 0; i < level; i++)
         putf("  ");
 
-    if (issymbol(node))
-        print_symbol(node, level);
-    else if (isexpr(node))
+    if (isexpr(node))
         print_expr(node, level);
     else if (isstmt(node))
         print_stmt(node, level);
@@ -538,7 +541,7 @@ static void print_sym_set(struct set *set)
 {
     struct vector *objs = set_objects(set);
     for (size_t i = 0; i < vec_len(objs); i++) {
-        node_t *sym = vec_at(objs, i);
+        struct symbol *sym = vec_at(objs, i);
         putf("%s", SYM_X_LABEL(sym));
         if (i < vec_len(objs) - 1)
             putf(", ");
@@ -890,7 +893,7 @@ const char *type2s(struct type * ty)
 /**
  * Convert expression node to string.
  */
-static const char *expr2s(node_t * node)
+const char *expr2s(node_t * node)
 {
     assert(isexpr(node));
 
@@ -1000,16 +1003,6 @@ static const char *expr2s(node_t * node)
         assert(0);
     }
     return STR(strbuf_str(s));
-}
-
-const char *node2s(node_t * node)
-{
-    if (issymbol(node))
-        return SYM_NAME(node);
-    else if (isexpr(node))
-        return expr2s(node);
-    else
-        return AST_NAME(node);
 }
 
 // TODO: typedef names

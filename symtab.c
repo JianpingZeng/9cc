@@ -6,6 +6,11 @@ struct table *tags;
 
 int _scope = GLOBAL;
 
+struct symbol *alloc_symbol(int area)
+{
+    return NEWS0(struct symbol, area);
+}
+
 struct table *new_table(struct table *up, int scope)
 {
     struct table *t = zmalloc(sizeof(struct table));
@@ -49,18 +54,18 @@ void exit_scope(void)
     _scope--;
 }
 
-void foreach(struct table *tp, int level, void (*apply) (node_t *, void *), void *context)
+void foreach(struct table *tp, int level, void (*apply) (struct symbol *, void *), void *context)
 {
     assert(tp);
     while (tp && tp->scope > level)
         tp = tp->up;
     if (tp && tp->scope == level) {
-        for (node_t *p = tp->all; p && SYM_SCOPE(p) == level; p = SYM_LINK(p))
+        for (struct symbol *p = tp->all; p && SYM_SCOPE(p) == level; p = SYM_LINK(p))
             apply(p, context);
     }
 }
 
-bool is_current_scope(node_t *sym)
+bool is_current_scope(struct symbol *sym)
 {
     return SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL);
 }
@@ -70,25 +75,25 @@ bool is_anonymous(const char *name)
     return name == NULL || !isletter(name[0]);
 }
 
-node_t *anonymous(struct table **tpp, int scope, int area)
+struct symbol *anonymous(struct table **tpp, int scope, int area)
 {
     static long i;
     return install(format("@%ld", i++), tpp, scope, area);
 }
 
-node_t *gen_tmp_sym(int area)
+struct symbol *gen_tmp_sym(int area)
 {
     const char *name = gen_tmpname();
-    node_t *sym = alloc_symbol(area);
+    struct symbol *sym = alloc_symbol(area);
     SYM_NAME(sym) = SYM_X_LABEL(sym) = name;
     SYM_REFS(sym)++;
     return sym;
 }
 
-node_t *lookup(const char *name, struct table * table)
+struct symbol *lookup(const char *name, struct table * table)
 {
     assert(name);
-    node_t *s = NULL;
+    struct symbol *s = NULL;
 
     for (struct table * t = table; t; t = t->up) {
         if ((s = map_get(t->map, name)))
@@ -98,9 +103,9 @@ node_t *lookup(const char *name, struct table * table)
     return s;
 }
 
-node_t *install(const char *name, struct table ** tpp, int scope, int area)
+struct symbol *install(const char *name, struct table ** tpp, int scope, int area)
 {
-    node_t *sym;
+    struct symbol *sym;
     struct table *tp = *tpp;
 
     if (scope > tp->scope) {

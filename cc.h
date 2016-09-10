@@ -62,6 +62,9 @@ union value {
  */
 typedef union ast_node node_t;
 
+// gen.h
+#include "gen.h"
+
 /*
  * Handle carefully for qual/unqual types.
  *
@@ -129,14 +132,14 @@ struct type {
         // function
         struct {
             struct type **proto;
-            node_t **params;
+            struct symbol **params;
             unsigned oldstyle:1;
             unsigned varg:1;
         } f;
         // enum/struct/union
         struct {
             const char *tag;
-            node_t *tsym;
+            struct symbol *tsym;
             struct field **fields;
         } s;
         // array
@@ -174,8 +177,108 @@ struct field {
     int bitoff : 10;
 };
 
-// gen.h
-#include "gen.h"
+// symtab.c
+
+#define SYM_SRC(NODE)         ((NODE)->src)
+#define SYM_SCOPE(NODE)       ((NODE)->scope)
+#define SYM_NAME(NODE)        ((NODE)->name)
+#define SYM_SCLASS(NODE)      ((NODE)->sclass)
+#define SYM_TYPE(NODE)        ((NODE)->type)
+#define SYM_DEFINED(NODE)     ((NODE)->defined)
+#define SYM_PREDEFINE(NODE)   ((NODE)->predefine)
+#define SYM_VALUE(NODE)       ((NODE)->value)
+#define SYM_REFS(NODE)        ((NODE)->refs)
+#define SYM_LINK(NODE)        ((NODE)->link)
+#define SYM_INIT(NODE)        ((NODE)->init)
+// convenience
+#define SYM_VALUE_U(NODE)     (VALUE_U(SYM_VALUE(NODE)))
+#define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
+#define SYM_VALUE_D(NODE)     (VALUE_D(SYM_VALUE(NODE)))
+
+// sym
+#define SYM_X_LABEL(NODE)     ((NODE)->x.label)
+#define SYM_X_USES(NODE)      ((NODE)->x.uses)
+#define SYM_X_REG(NODE)       ((NODE)->x.reg)
+#define SYM_X_KIND(NODE)      ((NODE)->x.kind)
+#define SYM_X_LOFF(NODE)      ((NODE)->x.loff)
+#define SYM_X_INMEM(NODE)     ((NODE)->x.inmem)
+#define SYM_X_FREG(NODE)      ((NODE)->x.freg)
+#define SYM_X_SVARS(NODE)     ((NODE)->x.svars)
+#define SYM_X_LVARS(NODE)     ((NODE)->x.lvars)
+#define SYM_X_CALLS(NODE)     ((NODE)->x.calls)
+#define SYM_X_HEAD(NODE)      ((NODE)->x.head)
+#define SYM_X_BASIC_BLOCK(NODE)  ((NODE)->x.basic_block)
+#define SYM_X_XVALUES(NODE)   ((NODE)->x.xvalues)
+
+struct symbol {
+    const char *name;
+    struct type *type;
+    struct source src;
+    int scope;
+    int sclass;
+    unsigned defined : 1;
+    unsigned predefine : 1;
+    union value value;
+    unsigned refs;
+    struct symbol *link;
+    node_t *init;               // the initializer expr or func body
+    struct {
+        const char *label;
+        long loff;              // local offset (<0)
+        int kind;               // kind
+        struct uses uses;       // uses
+        struct reg *reg;
+        bool inmem;
+        bool freg;              // spilled from a floating reg
+
+        struct vector *lvars;        // function local vars
+        struct vector *svars;        // function static vars
+        struct vector *calls;        // function calls
+        struct basic_block *basic_block;
+        struct tac *head;
+        struct tac *tail;
+        struct vector *xvalues;
+    } x;
+};
+
+// scope level
+enum { CONSTANT, GLOBAL, PARAM, LOCAL };
+
+struct table {
+    int scope;
+    struct table *up;
+    struct map *map;
+    struct symbol *all;
+};
+
+// sym
+extern struct symbol *alloc_symbol(int area);
+extern struct table *new_table(struct table *up, int scope);
+extern void symbol_init(void);
+extern void enter_scope(void);
+extern void exit_scope(void);
+extern void foreach(struct table *tp, int level, void (*apply) (struct symbol *, void *), void *context);
+extern bool is_current_scope(struct symbol *sym);
+extern bool is_anonymous(const char *name);
+
+// create an anonymous symbol
+extern struct symbol *anonymous(struct table **tpp, int scope, int area);
+
+// generate a tmp symbol
+extern struct symbol *gen_tmp_sym(int area);
+
+// look up a symbol from this table to previous one, and so on
+extern struct symbol *lookup(const char *name, struct table *table);
+
+// install a symbol with specified scope
+extern struct symbol *install(const char *name, struct table **tpp, int scope, int area);
+
+extern struct table *identifiers;
+extern struct table *constants;
+extern struct table *tags;
+extern int _scope;
+
+#define SCOPE  _scope
 
 // ast.h
 #include "ast.h"
@@ -201,17 +304,17 @@ extern node_t *bop(int op, node_t * l, node_t * r);
 // literals
 extern node_t *new_integer_literal(int i);
 extern node_t *new_string_literal(const char *string);
-extern node_t *decls2expr(node_t **decls);
+extern node_t *decls2expr(struct symbol **decls);
 
 // decl.c
-extern node_t **declaration(void);
+extern struct symbol **declaration(void);
 extern void translation_unit(void);
 extern struct type *typename(void);
 extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
 extern int first_typename(struct token *t);
-extern node_t *make_localvar(const char *name, struct type * ty, int sclass);
+extern struct symbol *make_localvar(const char *name, struct type * ty, int sclass);
 
 struct funcinfo {
     const char *name;
@@ -225,8 +328,8 @@ struct funcinfo {
 extern struct funcinfo funcinfo;
 
 // init.c
-extern bool has_static_extent(node_t * sym);
-extern node_t *decl_initializer(node_t * sym, int sclass, int level);
+extern bool has_static_extent(struct symbol * sym);
+extern node_t *decl_initializer(struct symbol * sym, int sclass, int level);
 extern node_t *initializer(struct type * ty);
 extern node_t *initializer_list(struct type * ty);
 extern void init_string(struct type * ty, node_t * node);
@@ -237,13 +340,13 @@ extern node_t *compound_stmt(void (*) (void));
 // typechk.c
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
 extern void ensure_field(struct field * field, size_t total, bool last);
-extern void ensure_decl(node_t * sym, int sclass, int kind);
+extern void ensure_decl(struct symbol * sym, int sclass, int kind);
 extern void ensure_array(struct type * atype, struct source src, int level);
 extern void ensure_func(struct type * ftype, struct source src);
 extern void ensure_main(struct type *ftype, const char *name, struct source src);
-extern void ensure_params(node_t *params[]);
-extern void redefinition_error(struct source src, node_t * sym);
-extern void conflicting_types_error(struct source src, node_t * sym);
+extern void ensure_params(struct symbol *params[]);
+extern void redefinition_error(struct source src, struct symbol * sym);
+extern void conflicting_types_error(struct source src, struct symbol * sym);
 extern void field_not_found_error(struct type * ty, const char *name);
 
 // type.c
@@ -262,7 +365,7 @@ extern bool istypedef(const char *id);
 extern struct type *array_type(struct type * ty);
 extern struct type *ptr_type(struct type * ty);
 extern struct type *func_type(void);
-extern node_t *tag_type(int t, const char *tag, struct source src);
+extern struct symbol *tag_type(int t, const char *tag, struct source src);
 extern void set_typesize(struct type * ty);
 extern struct field *find_field(struct type * ty, const char *name);
 extern int indexof_field(struct type * ty, struct field * field);
@@ -336,53 +439,15 @@ extern bool isscalar(struct type * ty);
 extern bool isptrto(struct type * ty, int kind);
 extern bool isbool(struct type *ty);
 
-// sym.c
-// scope level
-enum { CONSTANT, GLOBAL, PARAM, LOCAL };
-
-struct table {
-    int scope;
-    struct table *up;
-    struct map *map;
-    node_t *all;
-};
-
-// sym
-extern struct table *new_table(struct table *up, int scope);
-extern void symbol_init(void);
-extern void enter_scope(void);
-extern void exit_scope(void);
-extern void foreach(struct table *tp, int level, void (*apply) (node_t *, void *), void *context);
-extern bool is_current_scope(node_t *sym);
-extern bool is_anonymous(const char *name);
-
-// create an anonymous symbol
-extern node_t *anonymous(struct table **tpp, int scope, int area);
-
-// generate a tmp symbol
-extern node_t *gen_tmp_sym(int area);
-
-// look up a symbol from this table to previous one, and so on
-extern node_t *lookup(const char *name, struct table *table);
-
-// install a symbol with specified scope
-extern node_t *install(const char *name, struct table **tpp, int scope, int area);
-
-extern struct table *identifiers;
-extern struct table *constants;
-extern struct table *tags;
-extern int _scope;
-
-#define SCOPE  _scope
-
 // print.c
 extern void print_field(struct field *field);
 extern void print_tree(node_t * tree);
 extern void print_tac(struct tac *tac);
 extern void print_type(struct type *ty);
+extern void print_symbol(struct symbol *sym);
 // extern void print_ir(struct externals * tree);
 extern const char *type2s(struct type * ty);
-extern const char *node2s(node_t * node);
+extern const char *expr2s(node_t * node);
 extern void dump_operand(struct operand *operand);
 extern void dump_reg(struct reg *reg);
 extern void dump_tacs(struct tac *tac);
@@ -394,10 +459,10 @@ extern void print_source(struct source src);
 
 // sema actions
 struct actions {
-    void (*dclvar) (node_t *);
-    void (*defvar) (node_t *);
-    void (*dclfun) (node_t *);
-    void (*defun) (node_t *);
+    void (*dclvar) (struct symbol *);
+    void (*defvar) (struct symbol *);
+    void (*dclfun) (struct symbol *);
+    void (*defun) (struct symbol *);
     void (*deftype) (struct type *);
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
@@ -406,8 +471,8 @@ extern struct actions actions;
 
 // middle-end interface
 struct ir {
-    void (*defvar) (node_t *);
-    void (*defun) (node_t *);
+    void (*defvar) (struct symbol *);
+    void (*defun) (struct symbol *);
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
 };
@@ -424,8 +489,8 @@ enum { TEXT, BSS, DATA };
 struct im {
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
-    void (*defvar) (node_t *, int);
-    void (*defun) (node_t *);
+    void (*defvar) (struct symbol *, int);
+    void (*defun) (struct symbol *);
     void (*emit_compounds) (struct map *);
     void (*emit_strings) (struct map *);
     void (*emit_floats) (struct map *);

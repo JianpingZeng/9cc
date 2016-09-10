@@ -272,7 +272,7 @@ static node_t *address_uop(node_t * expr)
         assert(EXPR_OP(l) == '*');
         return EXPR_OPERAND(l, 0);
     } else if (AST_ID(l) == REF_EXPR) {
-        node_t *sym = EXPR_SYM(l);
+        struct symbol *sym = EXPR_SYM(l);
         if (!has_static_extent(sym))
             return NULL;
         return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);

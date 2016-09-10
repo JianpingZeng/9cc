@@ -44,16 +44,16 @@ static const char *suffixp[] = {
 static void reset_regs(void);
 static struct reg * get_one_ireg(struct set *excepts);
 static struct reg * get_one_freg(struct set *excepts);
-static struct reg * dispatch_ireg(node_t *sym, struct set *excepts, int opsize);
-static struct reg * dispatch_freg(node_t *sym, struct set *excepts, int opsize);
+static struct reg * dispatch_ireg(struct symbol *sym, struct set *excepts, int opsize);
+static struct reg * dispatch_freg(struct symbol *sym, struct set *excepts, int opsize);
 static void drain_reg(struct reg *reg);
 static void clear_reg(struct reg *reg);
 static bool is_preserved(struct reg *reg);
 static bool is_nonpreserved(struct reg *reg);
 static void for_each_reg(bool (*cond) (struct reg *), void (*action) (struct reg *));
-static void load(struct reg *reg, node_t *sym, int opsize);
-static void store(node_t *sym);
-static struct rvar *find_var(struct reg *reg, node_t *sym);
+static void load(struct reg *reg, struct symbol *sym, int opsize);
+static void store(struct symbol *sym);
+static struct rvar *find_var(struct reg *reg, struct symbol *sym);
 static void update_use(struct tac *tac);
 static void push_excepts(struct set *excepts);
 static void pop_excepts(void);
@@ -77,7 +77,10 @@ static struct vector * get_elements(struct vector *ptypes);
 static struct vector * get_classes(struct vector *elements);
 
 struct pnode {
-    node_t *param;              // symbol or expr
+    union {
+        struct symbol *param;
+        node_t *arg;
+    } u;                        // symbol or expr
     struct paddr *paddr;        // paddr of the param
 };
 
@@ -89,7 +92,7 @@ struct pinfo {
     struct paddr *retaddr;      // return addr
 };
 static struct pinfo * alloc_addr_for_funcall(struct type *ftype, node_t **params);
-static struct pinfo * alloc_addr_for_funcdef(struct type *ftype, node_t **params);
+static struct pinfo * alloc_addr_for_funcdef(struct type *ftype, struct symbol **params);
 
 #define COMMENT(str)    "\t\t## " str
 #define COMMENT1(str)   "## " str
@@ -459,7 +462,7 @@ static struct operand * make_offset_operand(struct operand *operand, long offset
 static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
 {
     struct operand *operand = tac->operands[1];
-    node_t *arg = pnode->param;
+    node_t *arg = pnode->u.arg;
     struct paddr *paddr = pnode->paddr;
     struct type *ty = AST_TYPE(arg);
     int i = idx[TYPE_SIZE(ty)];
@@ -551,7 +554,7 @@ static void emit_param_record(struct tac *tac, struct pnode *pnode)
 
 static void emit_param(struct tac *tac, struct pnode *pnode)
 {
-    struct type *ty = AST_TYPE(pnode->param);
+    struct type *ty = AST_TYPE(pnode->u.arg);
     if (isint(ty) || isptr(ty) || isfloat(ty))
         emit_param_scalar(tac, pnode);
     else if (isstruct(ty) || isunion(ty))
@@ -1178,7 +1181,7 @@ static void emit_return_by_stack(struct operand *l, struct paddr *retaddr)
     // copy l to the address pointed by the implicit first argument
     // rax will contain the address that has passed in by caller in rdi.
     struct pnode *pnode = vec_head(fcon.pinfo->pnodes);
-    node_t *sym = pnode->param;
+    struct symbol *sym = pnode->u.param;
     struct reg *rax = int_regs[RAX];    
     struct set *excepts = operand_regs(l);
     struct reg *tmp = get_one_ireg(excepts);
@@ -2187,7 +2190,7 @@ static void emit_tac(struct tac *tac)
 
 static void do_spill(struct rvar *v)
 {
-    node_t *sym = v->sym;
+    struct symbol *sym = v->sym;
     struct reg *reg = SYM_X_REG(sym);
     int i = idx[v->size];
     
@@ -2225,7 +2228,7 @@ static void do_spill(struct rvar *v)
 
 static void spillv(struct rvar *v)
 {
-    node_t *sym = v->sym;
+    struct symbol *sym = v->sym;
     struct reg *reg = SYM_X_REG(sym);
     if (!reg)
         return;
@@ -2241,7 +2244,7 @@ static void spillv(struct rvar *v)
     SYM_X_REG(sym) = NULL;
 }
 
-static void spill(node_t *sym)
+static void spill(struct symbol *sym)
 {
     struct reg *reg = SYM_X_REG(sym);
     if (!reg)
@@ -2255,15 +2258,15 @@ static void spill(node_t *sym)
     SYM_X_REG(sym) = NULL;
 }
 
-static int sort_symbol(node_t *sym1, node_t *sym2)
+static int sort_symbol(struct symbol *sym1, struct symbol *sym2)
 {
     return strcmp(SYM_X_LABEL(sym1), SYM_X_LABEL(sym2));
 }
 
 static int sort_out(const void *val1, const void *val2)
 {
-    node_t *sym1 = * (node_t **) val1;
-    node_t *sym2 = * (node_t **) val2;
+    struct symbol *sym1 = * (struct symbol **) val1;
+    struct symbol *sym2 = * (struct symbol **) val2;
     return sort_symbol(sym1, sym2);
 }
 
@@ -2272,7 +2275,7 @@ static void finalize_basic_block(struct basic_block *block)
     struct vector *outs = set_objects(block->out);
     struct vector *sorted = vec_sort(outs, sort_out);
     for (size_t i = 0; i < vec_len(sorted); i++) {
-        node_t *sym = vec_at(sorted, i);
+        struct symbol *sym = vec_at(sorted, i);
         spill(sym);
     }
 }
@@ -2284,7 +2287,7 @@ static void at_exit_basic_block(void)
         finalize_basic_block(block);
 }
 
-static void init_sym_addrs(node_t *sym)
+static void init_sym_addrs(struct symbol *sym)
 {
     if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
         SYM_X_KIND(sym) == SYM_KIND_LREF) {
@@ -2313,7 +2316,7 @@ static void init_basic_blocks(struct basic_block *start)
 /**
  * Next-use information
  */
-static void mark_die(node_t *sym)
+static void mark_die(struct symbol *sym)
 {
     if (REF_SYM(sym)) {
         SYM_X_USES(sym).live = false;
@@ -2321,7 +2324,7 @@ static void mark_die(node_t *sym)
     }
 }
 
-static void mark_live(node_t *sym, struct tac *tac)
+static void mark_live(struct symbol *sym, struct tac *tac)
 {
     if (REF_SYM(sym)) {
         SYM_X_USES(sym).live = true;
@@ -2329,7 +2332,7 @@ static void mark_live(node_t *sym, struct tac *tac)
     }
 }
 
-static void init_use(node_t *sym)
+static void init_use(struct symbol *sym)
 {
     if (SYM_X_KIND(sym) == SYM_KIND_GREF ||
         SYM_X_KIND(sym) == SYM_KIND_LREF) {
@@ -2426,7 +2429,7 @@ static void emit_basic_blocks(struct basic_block *start)
     }
 }
 
-static size_t call_returns_size(node_t *sym)
+static size_t call_returns_size(struct symbol *sym)
 {
     size_t extra_stack_size = 0;
     struct vector *calls = SYM_X_CALLS(sym);
@@ -2439,7 +2442,7 @@ static size_t call_returns_size(node_t *sym)
     return extra_stack_size;
 }
 
-static size_t call_params_size(node_t *sym)
+static size_t call_params_size(struct symbol *sym)
 {
     size_t extra_stack_size = 0;
     struct vector *calls = SYM_X_CALLS(sym);
@@ -2489,7 +2492,7 @@ static void emit_register_params(void)
 {
     for (int i = 0; i < vec_len(fcon.pinfo->pnodes); i++) {
         struct pnode *pnode = vec_at(fcon.pinfo->pnodes, i);
-        node_t *sym = pnode->param;
+        struct symbol *sym = pnode->u.param;
         struct paddr *paddr = pnode->paddr;
         if (paddr->kind == ADDR_REGISTER) {
             long loff = SYM_X_LOFF(sym);
@@ -2541,7 +2544,7 @@ static void emit_function_epilogue(void)
     xx(OP_RET, NULL, NULL, NULL);
 }
 
-static void emit_function_prologue(node_t *fsym)
+static void emit_function_prologue(struct symbol *fsym)
 {
     struct type *ftype = SYM_TYPE(fsym);
     bool global = SYM_SCLASS(fsym) == STATIC ? false : true;
@@ -2561,7 +2564,7 @@ static void emit_function_prologue(node_t *fsym)
     
     // local vars
     for (int i = 0; i < vec_len(SYM_X_LVARS(fsym)); i++) {
-        node_t *lvar = vec_at(SYM_X_LVARS(fsym), i);
+        struct symbol *lvar = vec_at(SYM_X_LVARS(fsym), i);
         struct type *ty = SYM_TYPE(lvar);
         size_t size = TYPE_SIZE(ty);
         localsize = ROUNDUP(localsize + size, 4);
@@ -2571,7 +2574,7 @@ static void emit_function_prologue(node_t *fsym)
     // params
     for (int i = 0; i < vec_len(fcon.pinfo->pnodes); i++) {
         struct pnode *pnode = vec_at(fcon.pinfo->pnodes, i);
-        node_t *sym = pnode->param;
+        struct symbol *sym = pnode->u.param;
         struct paddr *paddr = pnode->paddr;
         struct type *ty = SYM_TYPE(sym);
         size_t size = TYPE_SIZE(ty);
@@ -2606,10 +2609,10 @@ static void emit_function_prologue(node_t *fsym)
     emit_placeholder(INST_STACK_SUB);
 }
 
-static void emit_text(node_t *fsym)
+static void emit_text(struct symbol *fsym)
 {
     struct type *ftype = SYM_TYPE(fsym);
-    node_t **params = TYPE_PARAMS(ftype);
+    struct symbol **params = TYPE_PARAMS(ftype);
     
     // reset registers
     reset_regs();
@@ -2675,7 +2678,7 @@ static void emit_data(const char *label, bool global, bool array,
     }
 }
 
-static void emit_bss(node_t *sym)
+static void emit_bss(struct symbol *sym)
 {
     struct type *ty = SYM_TYPE(sym);
     bool global = SYM_SCLASS(sym) == STATIC ? false : true;
@@ -2721,7 +2724,7 @@ static void emit_floats(struct map *floats)
         for (int i = 0; i < vec_len(keys); i++) {
             const char *name = vec_at(keys, i);
             const char *label = map_get(floats, name);
-            node_t *sym = lookup(name, constants);
+            struct symbol *sym = lookup(name, constants);
             assert(sym);
             struct type *ty = SYM_TYPE(sym);
             emit(".align %d", TYPE_ALIGN(ty));
@@ -2868,7 +2871,7 @@ static void reset_regs(void)
     }
 }
 
-static struct rvar * new_rvar(node_t *sym, int size)
+static struct rvar * new_rvar(struct symbol *sym, int size)
 {
     struct rvar *var = zmalloc(sizeof(struct rvar));
     var->sym = sym;
@@ -2877,7 +2880,7 @@ static struct rvar * new_rvar(node_t *sym, int size)
 }
 
 // LD reg, sym
-static void load(struct reg *reg, node_t *sym, int opsize)
+static void load(struct reg *reg, struct symbol *sym, int opsize)
 {
     assert(SYM_X_REG(sym) == NULL);
     if (!REF_SYM(sym))
@@ -2892,13 +2895,13 @@ static void load(struct reg *reg, node_t *sym, int opsize)
 }
 
 // ST sym, reg
-static void store(node_t *sym)
+static void store(struct symbol *sym)
 {
     SYM_X_REG(sym) = NULL;
     SYM_X_INMEM(sym) = true;
 }
 
-struct rvar *find_var(struct reg *reg, node_t *sym)
+struct rvar *find_var(struct reg *reg, struct symbol *sym)
 {
     struct vector *objs = set_objects(reg->vars);
     for (size_t i = 0; i < vec_len(objs); i++) {
@@ -2982,7 +2985,7 @@ static struct reg * get_reg(struct reg **regs, int count, struct set *excepts)
 }
 
 static struct reg * dispatch_reg(struct reg **regs, int count, struct set *excepts,
-                                 node_t *sym, int opsize)
+                                 struct symbol *sym, int opsize)
 {
     // already in reg, return directly
     if (SYM_X_REG(sym))
@@ -2992,12 +2995,12 @@ static struct reg * dispatch_reg(struct reg **regs, int count, struct set *excep
     return reg;
 }
 
-static struct reg * dispatch_ireg(node_t *sym, struct set *excepts, int opsize)
+static struct reg * dispatch_ireg(struct symbol *sym, struct set *excepts, int opsize)
 {
     return dispatch_reg(int_regs, ARRAY_SIZE(int_regs), excepts, sym, opsize);
 }
 
-static struct reg * dispatch_freg(node_t *sym, struct set *excepts, int opsize)
+static struct reg * dispatch_freg(struct symbol *sym, struct set *excepts, int opsize)
 {
     return dispatch_reg(float_regs, ARRAY_SIZE(float_regs), excepts, sym, opsize);
 }
@@ -3035,7 +3038,7 @@ static void clear_reg(struct reg *reg)
     struct vector *vars = set_objects(reg->vars);
     for (size_t i = 0; i < vec_len(vars); i++) {
         struct rvar *v = vec_at(vars, i);
-        node_t *sym = v->sym;
+        struct symbol *sym = v->sym;
         // must be in memory
         assert(SYM_X_INMEM(sym));
         SYM_X_REG(sym) = NULL;
@@ -3077,7 +3080,7 @@ static struct set * operand_regs(struct operand *operand)
     return v;
 }
 
-static void try_load_tmp(node_t *sym, struct set *excepts, int opsize)
+static void try_load_tmp(struct symbol *sym, struct set *excepts, int opsize)
 {
     assert(SYM_X_KIND(sym) == SYM_KIND_TMP);
     if (!SYM_X_REG(sym)) {
@@ -3127,8 +3130,8 @@ static struct reladdr *operand2s_none(struct operand *operand, int opsize)
 // disp(sym, index, scale)
 static struct reladdr *operand2s_subscript(struct operand *operand, int opsize)
 {
-    node_t *sym = operand->sym;
-    node_t *index = operand->index;
+    struct symbol *sym = operand->sym;
+    struct symbol *index = operand->index;
     switch (SYM_X_KIND(sym)) {
     case SYM_KIND_GREF:
         {
@@ -3443,17 +3446,20 @@ static struct paddr * alloc_paddr(void)
     return zmalloc(sizeof(struct paddr));
 }
 
-static struct pnode * new_pnode(node_t *param)
+static struct pnode * new_pnode(void *param, bool call)
 {
     struct pnode *pnode = zmalloc(sizeof(struct pnode));
-    pnode->param = param;
+    if (call)
+        pnode->u.arg = param;
+    else
+        pnode->u.param = param;
     pnode->paddr = alloc_paddr();
     return pnode;
 }
 
-static node_t * new_tmp_param(bool call)
+static void * new_tmp_param(bool call)
 {
-    node_t *sym = gen_tmp_sym(FUNC);
+    struct symbol *sym = gen_tmp_sym(FUNC);
     SYM_TYPE(sym) = ptr_type(voidtype);
     SYM_SCOPE(sym) = call ? LOCAL : PARAM;
     SYM_X_KIND(sym) = SYM_KIND_LREF;
@@ -3516,7 +3522,7 @@ static void traverse_classes(struct vector *classes,
 }
 
 // params: list of symbols or expressions, may be NULL
-static struct pinfo * alloc_addr_for_params(struct type *ftype, node_t **params, bool call)
+static struct pinfo * alloc_addr_for_params(struct type *ftype, void *params, bool call)
 {
     int gp = 0;
     int fp = 0;
@@ -3534,7 +3540,7 @@ static struct pinfo * alloc_addr_for_params(struct type *ftype, node_t **params,
         if (TYPE_SIZE(rtype) > MAX_STRUCT_PARAM_SIZE) {
             // memory, passing as the first argument (pointer)
             node_t *param = new_tmp_param(call);
-            struct pnode *pnode = new_pnode(param);
+            struct pnode *pnode = new_pnode(param, call);
             vec_push(pnodes, pnode);
 
             // param addr
@@ -3557,13 +3563,18 @@ static struct pinfo * alloc_addr_for_params(struct type *ftype, node_t **params,
                              ret_iregs, &ret_gp, ret_fregs, &ret_fp);
         }
     }
-    
-    for (int i = 0; params[i]; i++) {
-        node_t *param = params[i];
-        struct pnode *pnode = new_pnode(param);
+
+    void **pp = (void **)params;
+    for (int i = 0; pp[i]; i++) {
+        void *param = pp[i];
+        struct pnode *pnode = new_pnode(param, call);
         vec_push(pnodes, pnode);
         
-        struct type *ty = AST_TYPE(param);
+        struct type *ty;
+        if (call)
+            ty = AST_TYPE((node_t *)param);
+        else
+            ty = SYM_TYPE((struct symbol *)param);
         size_t size = TYPE_SIZE(ty);
         if (size > MAX_STRUCT_PARAM_SIZE || !is_type_aligned(ty)) {
             // pass by memory
@@ -3615,7 +3626,7 @@ static struct pinfo * alloc_addr_for_funcall(struct type *ftype, node_t **params
     return alloc_addr_for_params(ftype, params, true);
 }
 
-static struct pinfo * alloc_addr_for_funcdef(struct type *ftype, node_t **params)
+static struct pinfo * alloc_addr_for_funcdef(struct type *ftype, struct symbol **params)
 {
     return alloc_addr_for_params(ftype, params, false);
 }
@@ -3652,7 +3663,7 @@ static void finalize(void)
     emit(".ident \"7cc: %s\"", VERSION);
 }
 
-static void defvar(node_t *sym, int seg)
+static void defvar(struct symbol *sym, int seg)
 {
     struct type *ty = SYM_TYPE(sym);
     int align = TYPE_ALIGN(ty);
@@ -3666,7 +3677,7 @@ static void defvar(node_t *sym, int seg)
         emit_bss(sym);
 }
 
-static void defun(node_t *sym)
+static void defun(struct symbol *sym)
 {
     emit_text(sym);
 }

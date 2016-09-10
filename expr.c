@@ -88,7 +88,7 @@ bool islvalue(node_t * node)
 static void ensure_lvalue(node_t * node)
 {
     if (!islvalue(node))
-        error_at(AST_SRC(node), "expect lvalue at '%s'", node2s(node));
+        error_at(AST_SRC(node), "expect lvalue at '%s'", expr2s(node));
 }
 
 static void ensure_assignable(node_t * node)
@@ -96,13 +96,13 @@ static void ensure_assignable(node_t * node)
     struct type *ty = AST_TYPE(node);
     struct source src = AST_SRC(node);
     if (!islvalue(node))
-        error_at(src, "expression is not assignable '%s'", node2s(node));
+        error_at(src, "expression is not assignable '%s'", expr2s(node));
     else if (AST_ID(node) == PAREN_EXPR)
         ensure_assignable(EXPR_OPERAND(node, 0));
     else if (isarray(ty))
         error_at(src, "array type '%s' is not assignable", type2s(ty));
     else if (isconst(ty))
-        error_at(src, "read-only variable '%s' is not assignable", node2s(node));
+        error_at(src, "read-only variable '%s' is not assignable", expr2s(node));
 }
 
 static bool is_bitfield(node_t * node)
@@ -465,7 +465,7 @@ static unsigned escape(const char **ps)
     return c;
 }
 
-static void char_constant(struct token *t, node_t * sym)
+static void char_constant(struct token *t, struct symbol * sym)
 {
     const char *s = TOK_LIT_STR(t);
     bool wide = s[0] == 'L';
@@ -534,7 +534,7 @@ static int integer_suffix(const char *s)
         return -1;        // invalid suffix
 }
 
-static void integer_constant(struct token *t, node_t * sym)
+static void integer_constant(struct token *t, struct symbol * sym)
 {
     const char *s = TOK_LIT_STR(t);
 
@@ -689,7 +689,7 @@ static int float_suffix(const char *s)
         return -1;        // invalid suffix
 }
 
-static void float_constant(struct token *t, node_t * sym)
+static void float_constant(struct token *t, struct symbol * sym)
 {
     const char *pc = TOK_LIT_STR(t);
     struct strbuf *s = strbuf_new();
@@ -793,7 +793,7 @@ static void float_constant(struct token *t, node_t * sym)
         error("float constant overflow: %s", s);
 }
 
-static void number_constant(struct token *t, node_t * sym)
+static void number_constant(struct token *t, struct symbol * sym)
 {
     const char *pc = TOK_LIT_STR(t);
     if (pc[0] == '\'' || pc[0] == 'L') {
@@ -834,7 +834,7 @@ static void number_constant(struct token *t, node_t * sym)
     }
 }
 
-static void string_constant(struct token *t, node_t * sym)
+static void string_constant(struct token *t, struct symbol * sym)
 {
     const char *s = TOK_LIT_STR(t);
     bool wide = s[0] == 'L' ? true : false;
@@ -861,7 +861,7 @@ static void string_constant(struct token *t, node_t * sym)
 static node_t *number_literal(struct token *t)
 {
     const char *name = TOK_LIT_STR(t);
-    node_t *sym = lookup(name, constants);
+    struct symbol *sym = lookup(name, constants);
     if (!sym) {
         sym = install(name, &constants, CONSTANT, PERM);
         number_constant(t, sym);
@@ -876,7 +876,7 @@ static node_t *number_literal(struct token *t)
 static node_t *string_literal(struct token *t)
 {
     const char *name = TOK_LIT_STR(t);
-    node_t *sym = lookup(name, constants);
+    struct symbol *sym = lookup(name, constants);
     if (!sym) {
         sym = install(name, &constants, CONSTANT, PERM);
         string_constant(t, sym);
@@ -1018,7 +1018,7 @@ static node_t *compound_literal(struct type * ty)
     // define local variable
     if (SCOPE >= LOCAL) {
         const char *label = gen_compound_label();
-        node_t *sym = make_localvar(label, ty, 0);
+        struct symbol *sym = make_localvar(label, ty, 0);
         SYM_INIT(sym) = inits;
         // set sym
         EXPR_SYM(ret) = sym;
@@ -1039,7 +1039,7 @@ static struct type *cast_type(void)
     return ty;
 }
 
-static node_t *make_ref_expr(node_t *sym, struct source src)
+static node_t *make_ref_expr(struct symbol *sym, struct source src)
 {
     node_t *ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
     EXPR_SYM(ret) = sym;
@@ -1057,7 +1057,7 @@ static node_t *make_ref_expr(node_t *sym, struct source src)
 static node_t *primary_expr(void)
 {
     int t = token->id;
-    node_t *sym;
+    struct symbol *sym;
     node_t *ret = NULL;
 
     switch (t) {
@@ -1194,9 +1194,9 @@ static void builtin_funcall(node_t *call, node_t *ref)
         
         if (isrecord(ty) && TYPE_SIZE(ty) <= MAX_STRUCT_PARAM_SIZE) {
             const char *label = gen_tmpname();
-            node_t *sym = make_localvar(label, ty, 0);
+            struct symbol *sym = make_localvar(label, ty, 0);
             // passing address
-            node_t *operand = make_ref_expr(sym, AST_SRC(sym));
+            node_t *operand = make_ref_expr(sym, SYM_SRC(sym));
             // update arg1
             args[1] = ast_uop('&', ptr_type(ty), operand);
         } else {
@@ -2245,7 +2245,7 @@ node_t *bool_expr(void)
     // warning for assignment expression
     if (AST_ID(node) == BINARY_OPERATOR && EXPR_OP(node) == '=')
         warning("using the result of an assignment as a condition without parentheses '%s'",
-                node2s(node));
+                expr2s(node));
     if (islvalue(node))
         node = ltor(node);
     return decay(node);
@@ -2265,15 +2265,15 @@ node_t *switch_expr(void)
     return node;
 }
 
-node_t *decls2expr(node_t **decls)
+node_t *decls2expr(struct symbol **decls)
 {
     node_t *ret = NULL;
 
     for (int i = 0; decls[i]; i++) {
-        node_t *sym = decls[i];
+        struct symbol *sym = decls[i];
         if (SYM_INIT(sym) && SYM_SCLASS(sym) != STATIC) {
             SYM_X_KIND(sym) = SYM_KIND_LREF;
-            node_t *l = make_ref_expr(sym, AST_SRC(sym));
+            node_t *l = make_ref_expr(sym, SYM_SRC(sym));
             node_t *r = SYM_INIT(sym);
             node_t *n = ast_bop('=', SYM_TYPE(sym), l, r);
             if (ret)

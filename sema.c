@@ -90,13 +90,13 @@ void ensure_field(struct field * field, size_t total, bool last)
         ensure_nonbitfield(field, total, last);
 }
 
-void ensure_decl(node_t * sym, int sclass, int level)
+void ensure_decl(struct symbol * sym, int sclass, int level)
 {
     if (level == PARAM)
         return;
 
     struct type *ty = SYM_TYPE(sym);
-    struct source src = AST_SRC(sym);
+    struct source src = SYM_SRC(sym);
     if (isvardecl(sym)) {
         if (isincomplete(ty) && SYM_DEFINED(sym))
             error_at(src, "variable has incomplete type '%s'", type2s(ty));
@@ -189,41 +189,41 @@ void ensure_main(struct type *ftype, const char *name, struct source src)
                  len);
 }
 
-void ensure_params(node_t *params[])
+void ensure_params(struct symbol *params[])
 {
     for (int i = 0; params[i]; i++) {
-        node_t *sym = params[i];
+        struct symbol *sym = params[i];
         struct type *ty = SYM_TYPE(sym);
         // params id is required in prototype
         if (is_anonymous(SYM_NAME(sym)))
-            error_at(AST_SRC(sym), "parameter name omitted");
+            error_at(SYM_SRC(sym), "parameter name omitted");
         if (isenum(ty) || isstruct(ty) || isunion(ty)) {
             if (!SYM_DEFINED(TYPE_TSYM(ty)))
-                error_at(AST_SRC(sym),
+                error_at(SYM_SRC(sym),
                          "variable has incomplete type '%s'",
                          type2s(ty));
         }
     }
 }
 
-void redefinition_error(struct source src, node_t * sym)
+void redefinition_error(struct source src, struct symbol * sym)
 {
     error_at(src,
              "redefinition of '%s', previous definition at %s:%u:%u",
              SYM_NAME(sym),
-             AST_SRC(sym).file,
-             AST_SRC(sym).line,
-             AST_SRC(sym).column);
+             SYM_SRC(sym).file,
+             SYM_SRC(sym).line,
+             SYM_SRC(sym).column);
 }
 
-void conflicting_types_error(struct source src, node_t * sym)
+void conflicting_types_error(struct source src, struct symbol * sym)
 {
     error_at(src,
              "conflicting types for '%s', previous at %s:%u:%u",
              SYM_NAME(sym),
-             AST_SRC(sym).file,
-             AST_SRC(sym).line,
-             AST_SRC(sym).column);
+             SYM_SRC(sym).file,
+             SYM_SRC(sym).line,
+             SYM_SRC(sym).column);
 }
 
 void field_not_found_error(struct type * ty, const char *name)
@@ -246,30 +246,30 @@ static void finalize(void)
     IR->finalize();
 }
 
-static void dclvar(node_t *n)
+static void dclvar(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_tree(n);
+        print_symbol(n);
 }
 
-static void defvar(node_t *n)
+static void defvar(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_tree(n);
+        print_symbol(n);
     else
         IR->defvar(n);
 }
 
-static void dclfun(node_t *n)
+static void dclfun(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_tree(n);
+        print_symbol(n);
 }
 
-static void defun(node_t *n)
+static void defun(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_tree(n);
+        print_symbol(n);
     else
         IR->defun(n);
 }
