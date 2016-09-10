@@ -274,7 +274,7 @@ static void defun(struct symbol *n)
         IR->defun(n);
 }
 
-static void deftype(struct type *n)
+static void deftype(struct symbol *n)
 {
     if (opts.ast_dump)
         print_type(n);

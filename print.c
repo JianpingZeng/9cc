@@ -54,17 +54,19 @@ static void print_ty(struct type * ty)
     }
 }
 
-static void print_type1(struct type *ty, int level)
+static void print_type1(struct symbol *sym, int level)
 {
+    struct type *ty = SYM_TYPE(sym);
+    
     for (int i = 0; i < level; i++)
         putf("  ");
     print_ty(ty);
     putf("\n");
 }
 
-void print_type(struct type *ty)
+void print_type(struct symbol *sym)
 {
-    print_type1(ty, 0);
+    print_type1(sym, 0);
 }
 
 static void print_field1(struct field * node, int level)

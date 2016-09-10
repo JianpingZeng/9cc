@@ -443,7 +443,7 @@ extern bool isbool(struct type *ty);
 extern void print_field(struct field *field);
 extern void print_tree(node_t * tree);
 extern void print_tac(struct tac *tac);
-extern void print_type(struct type *ty);
+extern void print_type(struct symbol *sym);
 extern void print_symbol(struct symbol *sym);
 // extern void print_ir(struct externals * tree);
 extern const char *type2s(struct type * ty);
@@ -463,7 +463,7 @@ struct actions {
     void (*defvar) (struct symbol *);
     void (*dclfun) (struct symbol *);
     void (*defun) (struct symbol *);
-    void (*deftype) (struct type *);
+    void (*deftype) (struct symbol *); // struct/union/enum/typedef
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
 };

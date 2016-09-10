@@ -1424,7 +1424,7 @@ static struct vector *decls(decl_p * dcl)
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
-        actions.deftype(basety);
+        actions.deftype(TYPE_TSYM(basety));
     } else {
         error("invalid token '%s' in declaration", tok2s(token));
     }
@@ -1474,25 +1474,23 @@ void translation_unit(void)
 
 static void predefined_ids(void)
 {
-    {
-        /**
-         * Predefined identifier: __func__
-         * The identifier __func__ is implicitly declared by C99
-         * implementations as if the following declaration appeared
-         * after the opening brace of each function definition:
-         *
-         * static const char __func__[] = "function-name";
-         *
-         */
-        const char *name = "__func__";
-        struct type *type = array_type(qual(CONST, chartype));
-        struct symbol *sym = make_localvar(name, type, STATIC);
-        SYM_PREDEFINE(sym) = true;
-        // initializer
-        node_t *literal = new_string_literal(funcinfo.name);
-        init_string(type, literal);
-        SYM_INIT(sym) = literal;
-    }
+    /**
+     * Predefined identifier: __func__
+     * The identifier __func__ is implicitly declared by C99
+     * implementations as if the following declaration appeared
+     * after the opening brace of each function definition:
+     *
+     * static const char __func__[] = "function-name";
+     *
+     */
+    const char *name = "__func__";
+    struct type *type = array_type(qual(CONST, chartype));
+    struct symbol *sym = make_localvar(name, type, STATIC);
+    SYM_PREDEFINE(sym) = true;
+    // initializer
+    node_t *literal = new_string_literal(funcinfo.name);
+    init_string(type, literal);
+    SYM_INIT(sym) = literal;
 }
 
 static void backfill_labels(void)
@@ -1510,29 +1508,6 @@ static void backfill_labels(void)
         }
     }
 }
-
-// static void warning_unused(void)
-// {
-//     for (int i = 0; i < vec_len(allvars); i++) {
-//         node_t *decl = vec_at(allvars, i);
-//         node_t *sym = DECL_SYM(decl);
-
-//         // ONLY warning, not filter out
-//         // because it may contains side-effect such as function calls.
-//         if (SYM_REFS(sym) == 0) {
-//             if (SYM_PREDEFINE(sym))
-//                 continue;       // filter-out predefined symbols
-//             else
-//                 warning_at(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
-//         }
-//         if (SYM_SCLASS(sym) == STATIC) {
-//             SYM_X_LABEL(sym) = gen_static_label();
-//             vec_push(staticvars, decl);
-//         } else {
-//             vec_push(localvars, decl);
-//         }
-//     }
-// }
 
 static void func_body(struct symbol *sym)
 {
