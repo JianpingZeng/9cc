@@ -1167,6 +1167,12 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
         }
     }
 
+    // actions
+    if (isfunc(ty))
+        actions.dclfun(sym);
+    else if (sclass == EXTERN)
+        actions.dclvar(sym);
+
     return sym;
 }
 
@@ -1212,8 +1218,13 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
     if (token->id == '=')
         SYM_INIT(sym) = decl_initializer(sym, sclass, GLOBAL);
 
+    // actions
     if (SYM_INIT(sym))
         actions.defvar(sym);
+    else if (isfunc(ty))
+        actions.dclfun(sym);
+    else
+        actions.dclvar(sym);
 
     return sym;
 }
