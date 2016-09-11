@@ -439,6 +439,29 @@ extern bool isscalar(struct type * ty);
 extern bool isptrto(struct type * ty, int kind);
 extern bool isbool(struct type *ty);
 
+// error.c
+enum { WRN = 1, ERR, FTL };
+
+extern unsigned int errors;
+extern unsigned int warnings;
+extern void warningf(const char *file, unsigned int line, unsigned int column,
+                     const char *fmt, ...);
+extern void errorf(const char *file, unsigned int line, unsigned int column,
+                   const char *fmt, ...);
+extern void fatalf(const char *file, unsigned int line, unsigned int column,
+                   const char *fmt, ...);
+
+#define SAVE_ERRORS    unsigned int __err = errors
+#define NO_ERROR       (__err == errors)
+#define HAS_ERROR      (__err != errors)
+
+#define warning_at(s, ...)   warningf(s.file, s.line, s.column, __VA_ARGS__)
+#define error_at(s, ...)     errorf(s.file, s.line, s.column, __VA_ARGS__)
+#define fatal_at(s, ...)     fatalf(s.file, s.line, s.column, __VA_ARGS__)
+#define warning(...)         warning_at(source, __VA_ARGS__)
+#define error(...)           error_at(source, __VA_ARGS__)
+#define fatal(...)           fatal_at(source, __VA_ARGS__)
+
 // print.c
 extern void print_field(struct field *field);
 extern void print_tree(node_t * tree);

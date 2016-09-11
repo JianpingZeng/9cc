@@ -2,14 +2,13 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "config.h"
-#include "color.h"
-#include "cc.h"
+#include "../config.h"
+#include "../color.h"
+#include "error.h"
 
-unsigned int errors;
-unsigned int warnings;
+unsigned int cpp_errors;
 
-#define MAX_ERRORS 32
+#define MAX_ERRORS 8
 
 static void cc_print_lead(int tag,
                           const char *file, unsigned int line, unsigned int column,
@@ -38,32 +37,31 @@ static void cc_print_lead(int tag,
     fprintf(stderr, "\n");
 }
 
-void warningf(const char *file, unsigned int line, unsigned int column,
-              const char *fmt, ...)
+void cpp_warningf(const char *file, unsigned int line, unsigned int column,
+                  const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
     cc_print_lead(WRN, file, line, column, fmt, ap);
     va_end(ap);
-    ++warnings;
 }
 
-void errorf(const char *file, unsigned int line, unsigned int column,
-            const char *fmt, ...)
+void cpp_errorf(const char *file, unsigned int line, unsigned int column,
+                const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
     cc_print_lead(ERR, file, line, column, fmt, ap);
     va_end(ap);
-    ++errors;
-    if (errors >= MAX_ERRORS) {
+    ++cpp_errors;
+    if (cpp_errors >= MAX_ERRORS) {
         fprintf(stderr, "Too many errors.\n");
         exit(EXIT_FAILURE);
     }
 }
 
-void fatalf(const char *file, unsigned int line, unsigned int column,
-            const char *fmt, ...)
+void cpp_fatalf(const char *file, unsigned int line, unsigned int column,
+                const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

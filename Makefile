@@ -51,9 +51,11 @@ LIBCPP_OBJ += $(libcpp_dir)hideset.o
 LIBCPP_OBJ += $(libcpp_dir)imap.o
 LIBCPP_OBJ += $(libcpp_dir)input.o
 LIBCPP_OBJ += $(libcpp_dir)lex.o
+LIBCPP_OBJ += $(libcpp_dir)error.o
 
 LIBCPP_INC += $(libcpp_dir)lex.h
 LIBCPP_INC += $(libcpp_dir)token.def
+LIBCPP_INC += $(libcpp_dir)error.h
 
 CC1_OBJ += error.o
 CC1_OBJ += ast.o
@@ -71,7 +73,6 @@ CC1_OBJ += block.o
 CC1_OBJ += x86.o
 CC1_OBJ += print.o
 
-CC1_INC += error.h
 CC1_INC += cc.h
 CC1_INC += ast.h
 CC1_INC += color.h
