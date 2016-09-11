@@ -2304,49 +2304,6 @@ static const char *glabel(const char *label)
         return label;
 }
 
-// static struct vector * filter_global(node_t **v)
-// {
-//     struct vector *r = vec_new();
-//     struct map *map = map_newf(NULL);
-//     for (size_t i = 0; v[i]; i++) {
-//         node_t *decl = v[i];
-//         node_t *sym = DECL_SYM(decl);
-
-//         SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
-
-//         // skip unused symbols
-//         if (SYM_SCLASS(sym) == STATIC && SYM_REFS(sym) == 0) {
-//             // but warning only when top file
-//             if (is_original_file(cpp_file, AST_SRC(sym).file)) {
-//                 if (isfuncdef(decl))
-//                     warning_at(AST_SRC(sym), "unused function '%s'", SYM_NAME(sym));
-//                 else if (isvardecl(decl))
-//                     warning_at(AST_SRC(sym), "unused variable '%s'", SYM_NAME(sym));
-//             }
-            
-//             continue;
-//         }
-        
-//         if (isfuncdef(decl)) {
-//             vec_push(r, decl);
-//             vec_add(r, DECL_X_SVARS(decl));
-//         } else if (isvardecl(decl)) {
-//             node_t *sym = DECL_SYM(decl);
-//             if (SYM_SCLASS(sym) == EXTERN)
-//                 continue;
-//             node_t *decl1 = map_get(map, sym);
-//             if (decl1) {
-//                 if (DECL_BODY(decl))
-//                     DECL_BODY(decl1) = DECL_BODY(decl);
-//             } else {
-//                 vec_push(r, decl);
-//                 map_put(map, sym, decl);
-//             }
-//         }
-//     }
-//     return r;
-// }
-
 //
 // decl
 //
@@ -2647,10 +2604,16 @@ static void init(int argc, char *argv[])
 
 static void finalize(void)
 {
-    IM->emit_compounds(compounds);
-    IM->emit_strings(strings);
-    IM->emit_floats(floats);
-    IM->finalize();
+    if (opts.ir_dump) {
+        print_ir_compounds(compounds);
+        print_ir_strings(strings);
+        print_ir_floats(floats);
+    } else {
+        IM->emit_compounds(compounds);
+        IM->emit_strings(strings);
+        IM->emit_floats(floats);
+        IM->finalize();
+    }
 }
 
 static void defvar(struct symbol *sym)
@@ -2660,9 +2623,15 @@ static void defvar(struct symbol *sym)
 
     if (SYM_INIT(sym)) {
         emit_data(sym);
-        IM->defvar(sym, DATA);
+        if (opts.ir_dump)
+            print_ir_data(sym);
+        else
+            IM->defvar(sym, DATA);
     } else {
-        IM->defvar(sym, BSS);
+        if (opts.ir_dump)
+            print_ir_bss(sym);
+        else
+            IM->defvar(sym, BSS);
     }
 }
 
@@ -2670,10 +2639,14 @@ static void defun(struct symbol *sym)
 {
     SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
     emit_function(sym);
-    IM->defun(sym);
-    for (int i = 0; i < vec_len(SYM_X_SVARS(sym)); i++) {
-        struct symbol *s = vec_at(SYM_X_SVARS(sym), i);
-        IR->defvar(s);
+    if (opts.ir_dump) {
+        print_ir_text(sym);
+    } else {
+        IM->defun(sym);
+        for (int i = 0; i < vec_len(SYM_X_SVARS(sym)); i++) {
+            struct symbol *s = vec_at(SYM_X_SVARS(sym), i);
+            IR->defvar(s);
+        }
     }
 }
 
