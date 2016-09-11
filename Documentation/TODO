@@ -36,9 +36,8 @@ v0.3.3:
         ! ast_type => struct type
         ! ast_field => struct field
         ! ast_symbol => struct symbol
-        TODO: 整理 decl_initializer
-        TODO: ast_dump, ir_dump 功能恢复
-
+        ! ast_dump, ir_dump 功能恢复
+        
 v0.3.4:        
         TODO: 完全独立的cpp（错误处理、constant expr）
         
