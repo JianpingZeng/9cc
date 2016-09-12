@@ -1482,7 +1482,7 @@ static void emit_if_simple(struct tac *tac, bool reverse, bool floating)
         jump(jop, SYM_X_LABEL(result->sym));
     } else {
         if (is_imm_operand(l)) {
-            long value = SYM_VALUE_I(l->sym);
+            long value = SYM_VALUE(l->sym).i;
             if (reverse) {
                 if (!value)
                     jump(OP_JMP, SYM_X_LABEL(result->sym));
@@ -2732,14 +2732,14 @@ static void emit_floats(struct map *floats)
             switch (TYPE_KIND(ty)) {
             case FLOAT:
                 {
-                    float f = SYM_VALUE_D(sym);
+                    float f = SYM_VALUE(sym).d;
                     emit(".long %u", *(uint32_t *)&f);
                 }
                 break;
             case DOUBLE:
             case LONG+DOUBLE:
                 {
-                    double d = SYM_VALUE_D(sym);
+                    double d = SYM_VALUE(sym).d;
                     emit(".quad %llu", *(uint64_t *)&d);
                 }
                 break;
@@ -3106,7 +3106,7 @@ static struct reladdr *operand2s_none_ex(struct operand *operand, int opsize, bo
     if (SYM_X_REG(operand->sym) && !mem) {
         return str("%s", SYM_X_REG(operand->sym)->r[i]);
     } else if (SYM_X_KIND(operand->sym) == SYM_KIND_IMM) {
-        return imm(SYM_VALUE_U(operand->sym));
+        return imm(SYM_VALUE(operand->sym).u);
     } else if (SYM_X_KIND(operand->sym) == SYM_KIND_LREF) {
         return subst(rbp->r[Q], SYM_X_LOFF(operand->sym));
     } else if (SYM_X_KIND(operand->sym) == SYM_KIND_GREF) {

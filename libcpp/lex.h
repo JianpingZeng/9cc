@@ -86,6 +86,17 @@ enum {
 };
 
 
+// value
+union value {
+    long long i;
+    unsigned long long u;
+    float f;
+    double d;
+    long double ld;
+    void *p;
+    void (*g) ();
+};
+
 // token
 #define TOK_ID_STR(t)    ((const char *)(t)->u.ident->str)
 #define TOK_LIT_STR(t)  ((t)->u.str)

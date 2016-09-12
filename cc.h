@@ -37,21 +37,6 @@ struct cc_options {
 };
 extern struct cc_options opts;
 
-// value
-#define VALUE_U(v)    ((v).u)
-#define VALUE_I(v)    ((v).i)
-#define VALUE_D(v)    ((v).d)
-#define VALUE_P(v)    ((v).p)
-#define VALUE_G(v)    ((v).g)
-
-union value {
-    long long i;
-    unsigned long long u;
-    long double d;
-    void *p;
-    void (*g) ();
-};
-
 /**
  * The coding style tends to avoid typedefs, because
  * typedefs reduce readability, but it's not a hard rule.
@@ -86,8 +71,7 @@ typedef union ast_node node_t;
 #define _TYPE_VARG(NODE)         ((NODE)->u.f.varg)
 #define _TYPE_TSYM(NODE)         ((NODE)->u.s.tsym)
 #define _TYPE_FIELDS(NODE)       ((NODE)->u.s.fields)
-#define _TYPE_LIMITS_MAX(NODE)   ((NODE)->limits.max)
-#define _TYPE_LIMITS_MIN(NODE)   ((NODE)->limits.min)
+#define _TYPE_LIMITS(NODE)       ((NODE)->limits)
 #define _TYPE_A_ASSIGN(NODE)     ((NODE)->u.a.assign)
 #define _TYPE_A_CONST(NODE)      ((NODE)->u.a.is_const)
 #define _TYPE_A_VOLATILE(NODE)   ((NODE)->u.a.is_volatile)
@@ -111,8 +95,7 @@ typedef union ast_node node_t;
 #define TYPE_VARG(ty)            _TYPE_VARG(unqual(ty))
 #define TYPE_TSYM(ty)            _TYPE_TSYM(unqual(ty))
 #define TYPE_FIELDS(ty)          _TYPE_FIELDS(unqual(ty))
-#define TYPE_LIMITS_MAX(ty)      _TYPE_LIMITS_MAX(unpack(unqual(ty)))
-#define TYPE_LIMITS_MIN(ty)      _TYPE_LIMITS_MIN(unpack(unqual(ty)))
+#define TYPE_LIMITS(ty)          _TYPE_LIMITS(unpack(unqual(ty)))
 #define TYPE_A_ASSIGN(ty)        _TYPE_A_ASSIGN(unqual(ty))
 #define TYPE_A_CONST(ty)         _TYPE_A_CONST(unqual(ty))
 #define TYPE_A_VOLATILE(ty)      _TYPE_A_VOLATILE(unqual(ty))
@@ -190,10 +173,6 @@ struct field {
 #define SYM_REFS(NODE)        ((NODE)->refs)
 #define SYM_LINK(NODE)        ((NODE)->link)
 #define SYM_INIT(NODE)        ((NODE)->init)
-// convenience
-#define SYM_VALUE_U(NODE)     (VALUE_U(SYM_VALUE(NODE)))
-#define SYM_VALUE_I(NODE)     (VALUE_I(SYM_VALUE(NODE)))
-#define SYM_VALUE_D(NODE)     (VALUE_D(SYM_VALUE(NODE)))
 
 // sym
 #define SYM_X_LABEL(NODE)     ((NODE)->x.label)

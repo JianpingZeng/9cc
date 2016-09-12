@@ -31,8 +31,8 @@ struct ast_common {
 #define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
 #define EXPR_ELSE(NODE)         EXPR_OPERAND(NODE, 2)
 // literal
-#define ILITERAL_VALUE(NODE)    (SYM_VALUE_U(EXPR_SYM(NODE)))
-#define FLITERAL_VALUE(NODE)    (SYM_VALUE_D(EXPR_SYM(NODE)))
+#define ILITERAL_VALUE(NODE)    SYM_VALUE(EXPR_SYM(NODE))
+#define FLITERAL_VALUE(NODE)    SYM_VALUE(EXPR_SYM(NODE))
 // va_arg
 #define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->expr.type)
 

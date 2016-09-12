@@ -511,8 +511,8 @@ static void parse_assign(struct type *atype)
         node_t *ret = eval(assign, longtype);
         if (ret) {
             assert(isiliteral(ret));
-            TYPE_LEN(atype) = ILITERAL_VALUE(ret);
-            if ((long)ILITERAL_VALUE(ret) < 0)
+            TYPE_LEN(atype) = ILITERAL_VALUE(ret).i;
+            if (ILITERAL_VALUE(ret).i < 0)
                 error("array has negative size");
         } else {
             error("expect constant expression");
@@ -701,7 +701,7 @@ static void ids(struct symbol *sym)
                 expect('=');
                 val = intexpr();
             }
-            SYM_VALUE_U(s) = val++;
+            SYM_VALUE(s).u = val++;
             if (token->id != ',')
                 break;
             expect(',');

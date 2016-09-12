@@ -9,8 +9,8 @@ static node_t *commaop(int op, node_t * l, node_t * r);
 static node_t *assignop(int op, node_t * l, node_t * r);
 static bool is_nullptr(node_t * node);
 
-#define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
-#define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
+#define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
+#define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 
 #define SAVE_SOURCE        struct source src = source
 #define SET_SOURCE(node)   if (node) AST_SRC(node) = src
@@ -506,7 +506,7 @@ static void char_constant(struct token *t, struct symbol * sym)
     else if (len && mbtowc((wchar_t *) & c, ws, len) != len)
         error("illegal multi-character sequence");
 
-    SYM_VALUE_U(sym) = wide ? (wchar_t) c : (unsigned char)c;
+    SYM_VALUE(sym).u = wide ? (wchar_t) c : (unsigned char)c;
     SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
 }
 
@@ -665,12 +665,12 @@ static void integer_constant(struct token *t, struct symbol * sym)
     case INT:
         if (overflow || n > INTEGER_MAX(longlongtype))
             error("integer constant overflow: %s", tok2s(t));
-        SYM_VALUE_I(sym) = n;
+        SYM_VALUE(sym).i = n;
         break;
     case UNSIGNED:
         if (overflow)
             error("integer constant overflow: %s", tok2s(t));
-        SYM_VALUE_U(sym) = n;
+        SYM_VALUE(sym).u = n;
         break;
     default:
         assert(0);
@@ -775,15 +775,15 @@ static void float_constant(struct token *t, struct symbol * sym)
     switch (suffix) {
     case FLOAT:
         SYM_TYPE(sym) = floattype;
-        SYM_VALUE_D(sym) = strtof(strbuf_str(s), NULL);
+        SYM_VALUE(sym).d = strtof(strbuf_str(s), NULL);
         break;
     case LONG + DOUBLE:
         SYM_TYPE(sym) = longdoubletype;
-        SYM_VALUE_D(sym) = strtold(strbuf_str(s), NULL);
+        SYM_VALUE(sym).d = strtold(strbuf_str(s), NULL);
         break;
     default:
         SYM_TYPE(sym) = doubletype;
-        SYM_VALUE_D(sym) = strtod(strbuf_str(s), NULL);
+        SYM_VALUE(sym).d = strtod(strbuf_str(s), NULL);
         if (suffix < 0)
             error("invalid suffix '%s' on float constant", pc);
         break;
@@ -2201,7 +2201,7 @@ static bool is_nullptr(node_t * node)
     if (cnst == NULL)
         return false;
     if (isiliteral(cnst))
-        return SYM_VALUE_U(EXPR_SYM(cnst)) == 0;
+        return SYM_VALUE(EXPR_SYM(cnst)).u == 0;
     return false;
 }
 
@@ -2224,7 +2224,7 @@ long intexpr1(struct type * ty)
         return 0;
     }
     assert(isiliteral(cnst));
-    return ILITERAL_VALUE(cnst);
+    return ILITERAL_VALUE(cnst).i;
 }
 
 /// constant-expression:

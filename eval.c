@@ -129,26 +129,25 @@ static node_t *arith2arith(struct type * dty, node_t * l)
         int dst_size = TYPE_SIZE(dty);
         if (src_size > dst_size) {
             // narrow
-            VALUE_U(dst_val) &= VALUE_U(TYPE_LIMITS_MAX(dty));
+            dst_val.u &= TYPE_LIMITS(dty).max.u;
             if (TYPE_KIND(dty) == _BOOL)
-                VALUE_U(dst_val) =
-                    VALUE_U(dst_val) == 0 ? 0 : 1;
+                dst_val.u = dst_val.u == 0 ? 0 : 1;
         }
         return int_literal_node(dty, dst_val);
     } else if (isint(dty) && isfloat(sty)) {
         // float => int
         union value src_val = SYM_VALUE(EXPR_SYM(l));
         union value dst_val;
-        VALUE_U(dst_val) = VALUE_D(src_val);
+        dst_val.u = src_val.d;
         return int_literal_node(dty, dst_val);
     } else if (isfloat(dty) && isint(sty)) {
         // int => float
         union value src_val = SYM_VALUE(EXPR_SYM(l));
         union value dst_val;
         if (TYPE_OP(sty) == INT)
-            VALUE_D(dst_val) = (long long)VALUE_U(src_val);
+            dst_val.d = src_val.i;
         else
-            VALUE_D(dst_val) = VALUE_U(src_val);
+            dst_val.d = src_val.u;
         return float_literal_node(dty, dst_val);
     } else if (isfloat(dty) && isfloat(sty)) {
         // float => float
@@ -156,11 +155,11 @@ static node_t *arith2arith(struct type * dty, node_t * l)
         union value src_val = SYM_VALUE(EXPR_SYM(l));
         union value dst_val;
         if (dst_kind == FLOAT)
-            VALUE_D(dst_val) = (float)VALUE_D(src_val);
+            dst_val.d = (float)src_val.d;
         else if (dst_kind == DOUBLE)
-            VALUE_D(dst_val) = (double)VALUE_D(src_val);
+            dst_val.d = (double)src_val.d;
         else
-            VALUE_D(dst_val) = VALUE_D(src_val);
+            dst_val.d = src_val.d;
         return float_literal_node(dty, dst_val);
     }
     assert(0);
@@ -255,9 +254,9 @@ static bool scalar_bool(node_t * expr)
     assert(isiliteral(expr) || isfliteral(expr));
 
     if (isiliteral(expr))
-        return ILITERAL_VALUE(expr) != 0;
+        return ILITERAL_VALUE(expr).u != 0;
     else
-        return FLITERAL_VALUE(expr) != 0;
+        return FLITERAL_VALUE(expr).d != 0;
 }
 
 // '&': 'expr' was not evaluated.
@@ -293,11 +292,9 @@ static node_t *scalar_uop(int op, struct type * ty, node_t * l)
     switch (op) {
     case '!':
         if (isiliteral(l))
-            return VALUE_U(lval) ==
-                0 ? one_literal() : zero_literal();
+            return lval.u == 0 ? one_literal() : zero_literal();
         else
-            return VALUE_D(lval) ==
-                0 ? one_literal() : zero_literal();
+            return lval.d == 0 ? one_literal() : zero_literal();
     default:
         assert(0);
     }
@@ -316,10 +313,10 @@ static node_t *arith_uop(int op, struct type * ty, node_t * l)
         return l;
     case '-':
         if (isiliteral(l)) {
-            VALUE_U(rval) = -VALUE_U(lval);
+            rval.u = - lval.u;
             return int_literal_node(ty, rval);
         } else {
-            VALUE_D(rval) = -VALUE_D(lval);
+            rval.d = - lval.d;
             return float_literal_node(ty, rval);
         }
     default:
@@ -337,7 +334,7 @@ static node_t *int_uop(int op, struct type * ty, node_t * l)
 
     switch (op) {
     case '~':
-        VALUE_U(rval) = ~VALUE_U(lval);
+        rval.u = ~ lval.u;
         return int_literal_node(ty, rval);
     default:
         assert(0);
@@ -355,26 +352,26 @@ static node_t *scalar_bop(int op, struct type * ty, node_t * l, node_t * r)
     union value rval = SYM_VALUE(EXPR_SYM(r));
     bool is_int = AST_TYPE(l);
 
-#define SCALAR_OP(op)                                        \
-    if (is_int) {                                        \
-        bool b;                                                \
-        int sign1 = TYPE_OP(AST_TYPE(l));                \
-        int sign2 = TYPE_OP(AST_TYPE(r));                \
-        if (sign1 == UNSIGNED && sign2 == UNSIGNED) {        \
-            b = VALUE_U(lval) op VALUE_U(rval);                \
-        }  else if (sign1 == INT && sign2 == INT) {        \
-            long long l = VALUE_I(lval);                \
-            long long r = VALUE_I(rval);                \
-            b = l op r;                                        \
-        } else if (sign1 == UNSIGNED) {                        \
-            b = true;                                        \
+#define SCALAR_OP(op)                                   \
+    if (is_int) {                                       \
+        bool b;                                         \
+        int sign1 = TYPE_OP(AST_TYPE(l));               \
+        int sign2 = TYPE_OP(AST_TYPE(r));               \
+        if (sign1 == UNSIGNED && sign2 == UNSIGNED) {   \
+            b = lval.u op rval.u;                       \
+        }  else if (sign1 == INT && sign2 == INT) {     \
+            long long l = lval.i;                       \
+            long long r = rval.i;                       \
+            b = l op r;                                 \
+        } else if (sign1 == UNSIGNED) {                 \
+            b = true;                                   \
         } else {                                        \
-            b = false;                                        \
-        }                                                \
-        return b ? one_literal() : zero_literal();        \
-    } else {                                                \
-        bool b = VALUE_D(lval) op VALUE_D(rval);        \
-        return b ? one_literal() : zero_literal();        \
+            b = false;                                  \
+        }                                               \
+        return b ? one_literal() : zero_literal();      \
+    } else {                                            \
+        bool b = lval.d op rval.d;                      \
+        return b ? one_literal() : zero_literal();      \
     }
 
     switch (op) {
@@ -451,12 +448,12 @@ static node_t *arith_bop(int op, struct type * ty, node_t * l, node_t * r)
     bool is_int = isint(ty);
     union value val;
 
-#define ARITH_BOP(op)                                                \
-    do {                                                        \
-        if (is_int)                                                \
-            VALUE_U(val) = VALUE_U(lval) op VALUE_U(rval);        \
-        else                                                        \
-            VALUE_D(val) = VALUE_D(lval) op VALUE_D(rval);        \
+#define ARITH_BOP(op)                           \
+    do {                                        \
+        if (is_int)                             \
+            val.u = lval.u op rval.u;           \
+        else                                    \
+            val.d = lval.d op rval.d;           \
     } while (0)
 
     switch (op) {
@@ -496,7 +493,7 @@ static node_t *int_bop(int op, struct type * ty, node_t * l, node_t * r)
     union value rval = SYM_VALUE(EXPR_SYM(r));
     union value val;
 
-#define INT_BOP(op)  VALUE_U(val) = VALUE_U(lval) op VALUE_U(rval)
+#define INT_BOP(op)  val.u = lval.u op rval.u
 
     switch (op) {
     case '%':
@@ -702,7 +699,7 @@ static node_t *doeval(node_t * expr)
             assert(isrecord(ty));
             struct field *field = find_field(ty, AST_NAME(expr));
             assert(field);
-            long off = FIELD_OFFSET(field) + SYM_VALUE_I(EXPR_SYM(l));
+            long off = FIELD_OFFSET(field) + SYM_VALUE(EXPR_SYM(l)).i;
             union value v = {.i = off};
             return int_literal_node(longtype, v);
         }
