@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include "lex.h"
 #include "utils/utils.h"
-#include "error.h"
+#include "internal.h"
 
 static unsigned char map[256] = {
 #define _a(a, b, c, d)  c,

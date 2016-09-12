@@ -3,7 +3,7 @@
 #include <assert.h>
 #include "lex.h"
 #include "utils/utils.h"
-#include "error.h"
+#include "internal.h"
 
 /* ACKNOWLEDGE
  *
@@ -13,7 +13,6 @@
  *
  */
 
-extern bool eval_cpp_cond(void);
 
 static struct token *expand(struct file *pfile);
 static struct vector *expandv(struct file *pfile, struct vector *v);

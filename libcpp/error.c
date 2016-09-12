@@ -4,7 +4,7 @@
 #include <assert.h>
 #include "config.h"
 #include "color.h"
-#include "error.h"
+#include "internal.h"
 
 unsigned int cpp_errors;
 

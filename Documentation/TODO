@@ -40,6 +40,7 @@ v0.3.3:
         
 v0.3.4:
         TODO: 完全独立的cpp（错误处理、constant expr）
+        TODO: 从 stdin 读取优化
         TODO: imap 改为原来的hash
         TODO: cpp优化
         

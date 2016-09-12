@@ -56,7 +56,7 @@ LIBCPP_OBJ += $(libcpp_dir)expr.o
 
 LIBCPP_INC += $(libcpp_dir)lex.h
 LIBCPP_INC += $(libcpp_dir)token.def
-LIBCPP_INC += $(libcpp_dir)error.h
+LIBCPP_INC += $(libcpp_dir)internal.h
 
 CC1_OBJ += error.o
 CC1_OBJ += ast.o
