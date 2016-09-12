@@ -252,6 +252,174 @@ static const char *ppnumber(struct file *pfile)
     return xstrndup((const char *)rpc, pb->cur - rpc);
 }
 
+static void char_constant(struct file *pfile, struct token *result)
+{
+    
+}
+
+static void float_constant(struct file *pfile, struct token *result)
+{
+    struct buffer *pb = pfile->buffer;
+    const unsigned char *pc = pb->cur - 1;
+
+    if (pc[0] == '.') {
+        assert(map[pc[1]] & DIGIT);
+        goto dotted;
+    } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
+        // base 16
+        pc += 2;
+        if (*pc == '.') {
+            if (!isxdigit(pc[1]))
+                cpp_error("hexadecimal floating constants require a significand");
+            goto dotted_hex;
+        } else {
+            assert(isxdigit(*pc));
+
+            while (isxdigit(*pc))
+                pc++;
+        dotted_hex:
+            if (*pc == '.') {
+                
+            }
+            if (*pc == 'p' || *pc == 'P') {
+                
+            } else {
+                cpp_error("hexadecimal floating constants require an exponent");
+            }
+        }
+    } else {
+        // base 10
+    }
+}
+
+static void integer_constant(struct file *pfile, struct token *result)
+{
+    struct buffer *pb = pfile->buffer;
+    const unsigned char *pc = pb->cur - 1;
+    bool overflow = 0;
+    unsigned long long n = 0;
+    int base;
+    int suffix;
+
+    if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
+        base = 16;
+        pc += 2;
+        for (; isxdigit(*pc); pc++) {
+            if (n & ~(~0ULL >> 4)) {
+                overflow = 1;
+            } else {
+                int d;
+                if (isxalpha(*pc))
+                    d = (*pc & 0x5f) - 'A' + 10;
+                else
+                    d = *pc - '0';
+
+                n = (n << 4) + d;
+            }
+        }
+    } else if (pc[0] == '0') {
+        base = 8;
+        bool err = 0;
+        for (; map[*pc] & DIGIT; pc++) {
+            if (*pc == '8' || *pc == '9')
+                err = 1;
+
+            if (n & ~(~0ULL >> 3))
+                overflow = 1;
+            else
+                n = (n << 3) + (*pc - '0');
+        }
+
+        if (err)
+            cpp_error("invalid octal constant");
+    } else {
+        base = 10;
+        for (; map[*pc] & DIGIT; pc++) {
+            int d = *pc - '0';
+            if (n > (~0ULL - d) / 10)
+                overflow = 1;
+            else
+                n = n * 10 + d;
+        }
+    }
+
+    // suffix
+    if ((pc[0] == 'u' || pc[0] == 'U') &&
+        ((pc[1] == 'l' && pc[2] == 'l') || (pc[1] == 'L' && pc[2] == 'L'))) {
+        pc += 3;
+        suffix = UNSIGNED + LONG + LONG;
+    } else if (((pc[0] == 'l' && pc[1] == 'l') || (pc[0] == 'L' && pc[1] == 'L')) &&
+               (pc[2] == 'u' || pc[2] == 'U')) {
+        pc += 3;
+        suffix = UNSIGNED + LONG + LONG;
+    } else if ((pc[0] == 'l' || pc[1] == 'l') && (pc[0] == 'L' || pc[1] == 'L')) {
+        pc += 2;
+        suffix = LONG + LONG;
+    } else if ((pc[0] == 'l' || pc[0] == 'L') && (pc[1] == 'u' || pc[1] == 'U')) {
+        pc += 2;
+        suffix = UNSIGNED + LONG;
+    } else if ((pc[0] == 'u' || pc[0] == 'U') && (pc[1] == 'l' || pc[1] == 'L')) {
+        pc += 2;
+        suffix = UNSIGNED + LONG;
+    } else if (pc[0] == 'l' || pc[0] == 'L') {
+        pc += 1;
+        suffix = LONG;
+    } else if (pc[0] == 'u' || pc[0] == 'U') {
+        pc += 1;
+        suffix = UNSIGNED;
+    } else {
+        suffix = 0;
+    }
+    
+    if (overflow)
+        cpp_error("integer constant overflow: %s", strn(pb->cur - 1, pc - pb->cur + 1));
+
+    result->id = ICONSTANT;
+    result->u.num.base = base;
+    result->u.num.suffix = suffix;
+    result->u.num.v.u = n;
+    pb->cur = pc;
+}
+
+// 0-9 or .[0-9]
+static void number(struct file *pfile, struct token *result)
+{
+    struct buffer *pb = pfile->buffer;
+    const unsigned char *pc = pb->cur - 1;
+
+    if (pc[0] == '.') {
+        float_constant(pfile, result);
+    } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
+        // Hex
+        pc += 2;
+        if (!isxdigit(*pc) && pc[0] != '.') {
+            cpp_error("incomplete hex constant");
+            integer_constant(pfile, result);
+            return;
+        }
+        if (*pc == '.') {
+            float_constant(pfile, result);
+        } else {
+            while (isxdigit(*pc))
+                pc++;
+            if (*pc == '.' || *pc == 'p' || *pc == 'P')
+                float_constant(pfile, result);
+            else
+                integer_constant(pfile, result);
+        }
+    } else {
+        // Oct/Dec
+        assert(map[*pc] & DIGIT);
+        
+        while (map[*pc] & DIGIT)
+            pc++;
+        if (*pc == '.' || *pc == 'e' || *pc == 'E')
+            float_constant(pfile, result);
+        else
+            integer_constant(pfile, result);
+    }
+}
+
 static const char *sequence(struct file *pfile, bool wide, int sep)
 {
     struct buffer *pb = pfile->buffer;
@@ -279,6 +447,16 @@ static const char *sequence(struct file *pfile, bool wide, int sep)
     }
 
     return name;
+}
+
+static const char *char_sequence(struct file *pfile, bool wide)
+{
+    return sequence(pfile, wide, '\'');
+}
+
+static const char *string_sequence(struct file *pfile, bool wide)
+{
+    return sequence(pfile, wide, '"');
 }
 
 static struct ident *identifier(struct file *pfile)
@@ -537,18 +715,17 @@ static struct token *dolex(struct file *pfile)
         // constants
     case '\'':
         result->id = NCONSTANT;
-        result->u.str = sequence(pfile, false, '\'');
+        result->u.str = char_sequence(pfile, false);
         break;
 
     case '"':
         result->id = SCONSTANT;
-        result->u.str = sequence(pfile, false, '"');
+        result->u.str = string_sequence(pfile, false);
         break;
 
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-        result->id = NCONSTANT;
-        result->u.str = ppnumber(pfile);
+        number(pfile, result);
         break;
 
     case '.':
@@ -556,8 +733,7 @@ static struct token *dolex(struct file *pfile)
             pb->cur += 2;
             result->id = ELLIPSIS;
         } else if (isdigit(rpc[1])) {
-            result->id = NCONSTANT;
-            result->u.str = ppnumber(pfile);
+            number(pfile, result);
         } else {
             result->id = '.';
         }
@@ -567,11 +743,11 @@ static struct token *dolex(struct file *pfile)
     case 'L':
         if (rpc[1] == '\'') {
             result->id = NCONSTANT;
-            result->u.str = sequence(pfile, true, '\'');
+            result->u.str = char_sequence(pfile, true);
             break;
         } else if (rpc[1] == '"') {
             result->id = SCONSTANT;
-            result->u.str = sequence(pfile, true, '"');
+            result->u.str = string_sequence(pfile, true);
             break;
         }
         // go through

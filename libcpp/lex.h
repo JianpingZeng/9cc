@@ -113,8 +113,14 @@ struct token {
     union {
         // identifier
         struct ident *ident;
-        // string or number
+        // string literal
         const char *str;
+        // number literal
+        struct {
+            int suffix;
+            int base;
+            union value v;
+        } num;
     } u;
 };
 
