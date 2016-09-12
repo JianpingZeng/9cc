@@ -175,7 +175,7 @@ static bool eval_constexpr(struct file *pfile)
     buffer_sentinel(pfile,
                     with_tokens(vec_reverse(tokens), pfile->buffer),
                     BS_RETURN_EOI);
-    bool ret = eval_cpp_cond();
+    bool ret = eval_cpp_const_expr();
     buffer_unsentinel(pfile);
 
     // restore context

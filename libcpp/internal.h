@@ -81,6 +81,6 @@ extern void cpp_fatalf(const char *file, unsigned int line, unsigned int column,
 #define cpp_fatal(...)           cpp_fatal_at(source, __VA_ARGS__)
 
 // expr.c
-extern bool eval_cpp_cond(void);
+extern bool eval_cpp_const_expr(void);
 
 #endif
