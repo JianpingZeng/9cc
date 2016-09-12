@@ -722,9 +722,3 @@ node_t *eval(node_t * expr, struct type * ty)
 
     return cast(ty, doeval(expr));
 }
-
-bool eval_cpp_cond(void)
-{
-    gettok();
-    return intexpr();
-}

@@ -285,7 +285,6 @@ extern int _scope;
 
 // eval.c
 extern node_t *eval(node_t * expr, struct type * ty);
-extern bool eval_cpp_cond(void);
  
 // expr.c
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))

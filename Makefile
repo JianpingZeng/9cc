@@ -52,6 +52,7 @@ LIBCPP_OBJ += $(libcpp_dir)imap.o
 LIBCPP_OBJ += $(libcpp_dir)input.o
 LIBCPP_OBJ += $(libcpp_dir)lex.o
 LIBCPP_OBJ += $(libcpp_dir)error.o
+LIBCPP_OBJ += $(libcpp_dir)expr.o
 
 LIBCPP_INC += $(libcpp_dir)lex.h
 LIBCPP_INC += $(libcpp_dir)token.def
