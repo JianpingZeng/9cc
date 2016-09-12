@@ -37,8 +37,11 @@ v0.3.3:
         ! ast_field => struct field
         ! ast_symbol => struct symbol
         ! ast_dump, ir_dump 功能恢复
-        
-v0.3.4:        
+
+v0.3.4:
+        TODO: number 在 lex.c 处理
+
+v0.3.5:        
         TODO: 完全独立的cpp（错误处理、constant expr）
         
 v0.4:

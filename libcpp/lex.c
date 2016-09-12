@@ -66,8 +66,8 @@ const char *tok2s(struct token *t)
         return TOK_ID_STR(t);
     else if (t->id == SCONSTANT || t->id == NCONSTANT)
         return TOK_LIT_STR(t);
-    else if (t->value.lexeme)
-        return t->value.lexeme;
+    else if (t->u.str)
+        return t->u.str;
     else
         return id2s(t->id);
 }
@@ -537,18 +537,18 @@ static struct token *dolex(struct file *pfile)
         // constants
     case '\'':
         result->id = NCONSTANT;
-        result->value.lexeme = sequence(pfile, false, '\'');
+        result->u.str = sequence(pfile, false, '\'');
         break;
 
     case '"':
         result->id = SCONSTANT;
-        result->value.lexeme = sequence(pfile, false, '"');
+        result->u.str = sequence(pfile, false, '"');
         break;
 
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
         result->id = NCONSTANT;
-        result->value.lexeme = ppnumber(pfile);
+        result->u.str = ppnumber(pfile);
         break;
 
     case '.':
@@ -557,7 +557,7 @@ static struct token *dolex(struct file *pfile)
             result->id = ELLIPSIS;
         } else if (isdigit(rpc[1])) {
             result->id = NCONSTANT;
-            result->value.lexeme = ppnumber(pfile);
+            result->u.str = ppnumber(pfile);
         } else {
             result->id = '.';
         }
@@ -567,11 +567,11 @@ static struct token *dolex(struct file *pfile)
     case 'L':
         if (rpc[1] == '\'') {
             result->id = NCONSTANT;
-            result->value.lexeme = sequence(pfile, true, '\'');
+            result->u.str = sequence(pfile, true, '\'');
             break;
         } else if (rpc[1] == '"') {
             result->id = SCONSTANT;
-            result->value.lexeme = sequence(pfile, true, '"');
+            result->u.str = sequence(pfile, true, '"');
             break;
         }
         // go through
@@ -587,7 +587,7 @@ static struct token *dolex(struct file *pfile)
     case 'S': case 'T': case 'U': case 'V': case 'W': case 'X':
     case 'Y': case 'Z':
         result->id = ID;
-        result->value.ident = identifier(pfile);
+        result->u.ident = identifier(pfile);
         break;
 
     default:
@@ -655,11 +655,11 @@ struct token *header_name(struct file *pfile)
     if (ch == '<') {
         const char *name = hq_char_sequence(pfile, '>');
         return new_token(&(struct token){
-                .value.lexeme = name, .kind = ch});
+                .u.str = name, .kind = ch});
     } else if (ch == '"') {
         const char *name = hq_char_sequence(pfile, '"');
         return new_token(&(struct token){
-                .value.lexeme = name, .kind = ch});
+                .u.str = name, .kind = ch});
     } else {
         // pptokens
         pb->cur--;
@@ -769,7 +769,7 @@ static struct token *combine_scons(struct vector *v, bool wide)
             strbuf_cats(s, name);
     }
     strbuf_catc(s, '"');
-    t->value.lexeme = strbuf_str(s);
+    t->u.str = strbuf_str(s);
     return t;
 }
 

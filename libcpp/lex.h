@@ -85,15 +85,14 @@ enum {
     TOKEND
 };
 
-#define ID_BITS    10
 
 // token
-#define TOK_ID_STR(t)    ((const char *)(t)->value.ident->str)
-#define TOK_LIT_STR(t)  ((t)->value.lexeme)
+#define TOK_ID_STR(t)    ((const char *)(t)->u.ident->str)
+#define TOK_LIT_STR(t)  ((t)->u.str)
 
 struct token {
-    int id:ID_BITS;
-    int kind:ID_BITS;
+    unsigned short id;
+    unsigned short kind;
     bool bol;                // beginning of line
     bool space;              // leading space
     bool param;              // macro param
@@ -104,8 +103,8 @@ struct token {
         // identifier
         struct ident *ident;
         // string or number
-        const char *lexeme;
-    } value;
+        const char *str;
+    } u;
 };
 
 // tokens
@@ -164,7 +163,7 @@ struct file {
 extern struct file *cpp_file;
 
 struct ifstack {
-    int id:ID_BITS;
+    unsigned short id;
     bool b;
     struct source src;
     struct ifstack *prev;

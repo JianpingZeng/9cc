@@ -890,7 +890,7 @@ static node_t *string_literal(struct token *t)
 node_t *new_integer_literal(int i)
 {
     struct token *t = new_token(&(struct token){
-            .id = NCONSTANT, .value.lexeme = strd(i)
+            .id = NCONSTANT, .u.str = strd(i)
                 });
     node_t *expr = number_literal(t);
     return expr;
@@ -899,7 +899,7 @@ node_t *new_integer_literal(int i)
 static node_t *new_uint_literal(unsigned long l)
 {
     struct token *t = new_token(&(struct token){
-            .id = NCONSTANT, .value.lexeme = stru(l)
+            .id = NCONSTANT, .u.str = stru(l)
                 });
     node_t *expr = number_literal(t);
     return expr;
@@ -908,7 +908,7 @@ static node_t *new_uint_literal(unsigned long l)
 node_t *new_string_literal(const char *string)
 {
     struct token *t = new_token(&(struct token){
-            .id = SCONSTANT, .value.lexeme = format("\"%s\"", string)});
+            .id = SCONSTANT, .u.str = format("\"%s\"", string)});
     node_t *expr = string_literal(t);
     return expr;
 }
