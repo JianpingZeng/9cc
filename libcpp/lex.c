@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include "lex.h"
-#include "../utils/utils.h"
+#include "utils/utils.h"
 #include "error.h"
 
 static unsigned char map[256] = {

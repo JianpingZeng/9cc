@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "lex.h"
-#include "../utils/utils.h"
+#include "utils/utils.h"
 
 struct file *cpp_file;
 

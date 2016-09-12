@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "lex.h"
-#include "../utils/utils.h"
+#include "utils/utils.h"
 
 static void imap_expand(struct imap *imap);
 

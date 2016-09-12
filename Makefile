@@ -6,7 +6,7 @@ MINOR = 3
 FIXES = 3
 EXTRAVERSION =
 
-CFLAGS = -Wall -std=c99
+CFLAGS = -Wall -std=c99 -I.
 LDFLAGS =
 7CC = 7cc
 CC1 = cc1

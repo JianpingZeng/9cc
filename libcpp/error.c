@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "../config.h"
-#include "../color.h"
+#include "config.h"
+#include "color.h"
 #include "error.h"
 
 unsigned int cpp_errors;

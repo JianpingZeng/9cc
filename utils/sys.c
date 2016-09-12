@@ -13,7 +13,7 @@
 // uname
 #include <sys/utsname.h>
 
-#include "../config.h"
+#include "config.h"
 #include "utils.h"
 
 /**

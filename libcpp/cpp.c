@@ -2,7 +2,7 @@
 #include <time.h>
 #include <assert.h>
 #include "lex.h"
-#include "../utils/utils.h"
+#include "utils/utils.h"
 #include "error.h"
 
 /* ACKNOWLEDGE
