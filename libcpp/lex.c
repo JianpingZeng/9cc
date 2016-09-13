@@ -1274,9 +1274,9 @@ int skipto(int (*test) (struct token *))
     struct token *t = token;
     for (i = 0; token->id != EOI; i++, gettok()) {
             if (test(token))
-                goto out;
+                break;
     }
- out:
+    
     if (i > 1)
         error_at(t->src,
                  "invalid token '%s', %d tokens skipped",
