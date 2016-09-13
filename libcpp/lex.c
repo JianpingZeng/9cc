@@ -612,7 +612,7 @@ static void char_constant(struct file *pfile, struct token *result, bool wide)
 
     wide ? (pc += 2) : (pc += 1);
 
-    for (; *pc != '\'';) {
+    for (; *pc != '\'' && !ISNEWLINE(*pc);) {
         if (char_rec)
             overflow = 1;
         if (*pc == '\\') {
@@ -631,10 +631,13 @@ static void char_constant(struct file *pfile, struct token *result, bool wide)
         }
     }
 
-    if (*pc == '\'')
+    if (*pc == '\'') {
         pc++;
-
-    s = strn((const char *)pb->cur - 1, pc - pb->cur + 1);
+        s = strn((const char *)pb->cur - 1, pc - pb->cur + 1);
+    } else {
+        s = strn((const char *)pb->cur - 1, pc - pb->cur + 1);
+        error("unterminated character constant: %s", s);
+    }
 
     if (!char_rec && !len)
         error("incomplete character constant: %s", s);
