@@ -99,7 +99,7 @@ union value {
 
 // token
 #define TOK_ID_STR(t)    ((const char *)(t)->u.ident->str)
-#define TOK_LIT_STR(t)  ((t)->u.str)
+#define TOK_LIT_STR(t)   ((t)->u.lit.str)
 
 struct token {
     unsigned short id;
@@ -113,14 +113,14 @@ struct token {
     union {
         // identifier
         struct ident *ident;
-        // string literal
-        const char *str;
-        // number literal
+        // string/number literal
         struct {
+            const char *str;    // literal lexeme
+            unsigned char base; // 0:dec, 8:Oct, 16:hex
+            unsigned char chr;  // 0:no, 1:uchar, 2:wchar_t
             int suffix;
-            int base;
             union value v;
-        } num;
+        } lit;
     } u;
 };
 
