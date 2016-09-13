@@ -515,23 +515,20 @@ static node_t *literal_expr(struct token *t, int id, void (*cnst) (struct token 
 
 node_t *new_integer_literal(int i)
 {
-    struct token *t = new_token(&(struct token){
-            .id = ICONSTANT, .u.lit.str = strd(i), .u.lit.v.i = i});
-    return literal_expr(t, INTEGER_LITERAL, integer_constant);
+    struct token t = {.id = ICONSTANT, .u.lit.str = strd(i), .u.lit.v.i = i};
+    return literal_expr(&t, INTEGER_LITERAL, integer_constant);
 }
 
 static node_t *new_uint_literal(unsigned long l)
 {
-    struct token *t = new_token(&(struct token){
-            .id = ICONSTANT, .u.lit.str = stru(l), .u.lit.v.u = l});
-    return literal_expr(t, INTEGER_LITERAL, integer_constant);
+    struct token t = {.id = ICONSTANT, .u.lit.str = stru(l), .u.lit.v.u = l};
+    return literal_expr(&t, INTEGER_LITERAL, integer_constant);
 }
 
 node_t *new_string_literal(const char *string)
 {
-    struct token *t = new_token(&(struct token){
-            .id = SCONSTANT, .u.lit.str = format("\"%s\"", string)});
-    return literal_expr(t, STRING_LITERAL, string_constant);
+    struct token t = {.id = SCONSTANT, .u.lit.str = format("\"%s\"", string)};
+    return literal_expr(&t, STRING_LITERAL, string_constant);
 }
 
 static struct vector *argcast1(struct type **params, size_t nparams,
