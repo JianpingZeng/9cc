@@ -35,6 +35,8 @@ struct source source;
 #define iswhitespace(ch)  (map[ch] & BLANK)
 #define isnewline(ch)     (map[ch] & NEWLINE)
 #define isdigitletter(ch) (map[ch] & (DIGIT|LETTER))
+#define isxalpha(ch)      (map[ch] & HEX)
+
 #define INCLINE(fs, col)  do {                  \
         fs->line++;                             \
         fs->column = col;                       \
@@ -81,11 +83,6 @@ const char *tok2s(struct token *t)
 int isletter(int c)
 {
     return map[c] & LETTER;
-}
-
-int isxalpha(int c)
-{
-    return map[c] & HEX;
 }
 
 static void add_line_note(struct buffer *pb, const unsigned char *pos, int type)
