@@ -404,7 +404,7 @@ static void integer_constant(struct file *pfile, struct token *result)
         pc += 3;
         sign = 0;
         suffix = UNSIGNED + LONG + LONG;
-    } else if ((pc[0] == 'l' || pc[1] == 'l') && (pc[0] == 'L' || pc[1] == 'L')) {
+    } else if ((pc[0] == 'l' && pc[1] == 'l') || (pc[0] == 'L' && pc[1] == 'L')) {
         pc += 2;
         sign = 1;
         suffix = LONG + LONG;
