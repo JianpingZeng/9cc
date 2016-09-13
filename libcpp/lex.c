@@ -32,10 +32,13 @@ struct token *space_token = &(struct token){.id = ' '};
 
 struct source source;
 
-#define iswhitespace(ch)  (map[ch] & BLANK)
-#define isnewline(ch)     (map[ch] & NEWLINE)
-#define isdigitletter(ch) (map[ch] & (DIGIT|LETTER))
-#define isxalpha(ch)      (map[ch] & HEX)
+#define ISWHITESPACE(ch)  (map[ch] & BLANK)
+#define ISNEWLINE(ch)     (map[ch] & NEWLINE)
+#define ISDIGITLETTER(ch) (map[ch] & (DIGIT|LETTER))
+#define ISXALPHA(ch)      (map[ch] & HEX)
+#define ISDIGIT(ch)       (map[ch] & DIGIT)
+#define ISXDIGIT(ch)      (map[ch] & (DIGIT|HEX))
+#define ISGRAPH(ch)       isgraph(ch)
 
 #define INCLINE(fs, col)  do {                  \
         fs->line++;                             \
@@ -244,34 +247,34 @@ static void float_constant(struct file *pfile, struct token *result)
     const char *s;
 
     if (pc[0] == '.') {
-        assert(map[pc[1]] & DIGIT);
+        assert(ISDIGIT(pc[1]));
         goto dotted;
     } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
         // base 16
         pc += 2;
         if (*pc == '.') {
-            if (!isxdigit(pc[1]))
+            if (!ISXDIGIT(pc[1]))
                 error("hexadecimal floating constants require a significand");
             goto dotted_hex;
         } else {
-            assert(isxdigit(*pc));
+            assert(ISXDIGIT(*pc));
 
-            while (isxdigit(*pc))
+            while (ISXDIGIT(*pc))
                 pc++;
         dotted_hex:
             if (*pc == '.') {
                 pc++;
-                while (isxdigit(*pc))
+                while (ISXDIGIT(*pc))
                     pc++;
             }
             if (*pc == 'p' || *pc == 'P') {
                 pc++;
                 if (*pc == '+' || *pc == '-')
                     pc++;
-                if (map[*pc] & DIGIT) {
+                if (ISDIGIT(*pc)) {
                     do
                         pc++;
-                    while (map[*pc] & DIGIT);
+                    while (ISDIGIT(*pc));
                 } else {
                     error("exponent has no digits");
                 }
@@ -281,24 +284,24 @@ static void float_constant(struct file *pfile, struct token *result)
         }
     } else {
         // base 10
-        assert(map[*pc] & DIGIT);
+        assert(ISDIGIT(*pc));
 
-        while (map[*pc] & DIGIT)
+        while (ISDIGIT(*pc))
             pc++;
     dotted:
         if (*pc == '.') {
             pc++;
-            while (map[*pc] & DIGIT)
+            while (ISDIGIT(*pc))
                 pc++;
         }
         if (*pc == 'e' || *pc == 'E') {
             pc++;
             if (*pc == '+' || *pc == '-')
                 pc++;
-            if (map[*pc] & DIGIT) {
+            if (ISDIGIT(*pc)) {
                 do
                     pc++;
-                while (map[*pc] & DIGIT);
+                while (ISDIGIT(*pc));
             } else {
                 error("exponent used with no following digits");
             }
@@ -353,12 +356,12 @@ static void integer_constant(struct file *pfile, struct token *result)
     if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
         base = 16;
         pc += 2;
-        for (; isxdigit(*pc); pc++) {
+        for (; ISXDIGIT(*pc); pc++) {
             if (n & ~(~0ULL >> 4)) {
                 overflow = 1;
             } else {
                 int d;
-                if (isxalpha(*pc))
+                if (ISXALPHA(*pc))
                     d = (*pc & 0x5f) - 'A' + 10;
                 else
                     d = *pc - '0';
@@ -369,7 +372,7 @@ static void integer_constant(struct file *pfile, struct token *result)
     } else if (pc[0] == '0') {
         base = 8;
         bool err = 0;
-        for (; map[*pc] & DIGIT; pc++) {
+        for (; ISDIGIT(*pc); pc++) {
             if (*pc == '8' || *pc == '9')
                 err = 1;
 
@@ -383,7 +386,7 @@ static void integer_constant(struct file *pfile, struct token *result)
             error("invalid octal constant");
     } else {
         base = 0;
-        for (; map[*pc] & DIGIT; pc++) {
+        for (; ISDIGIT(*pc); pc++) {
             int d = *pc - '0';
             if (n > (~0ULL - d) / 10)
                 overflow = 1;
@@ -444,7 +447,7 @@ static void number(struct file *pfile, struct token *result)
     } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
         // Hex
         pc += 2;
-        if (!isxdigit(*pc) && pc[0] != '.') {
+        if (!ISXDIGIT(*pc) && pc[0] != '.') {
             error("incomplete hex constant");
             integer_constant(pfile, result);
             return;
@@ -452,7 +455,7 @@ static void number(struct file *pfile, struct token *result)
         if (*pc == '.') {
             float_constant(pfile, result);
         } else {
-            while (isxdigit(*pc))
+            while (ISXDIGIT(*pc))
                 pc++;
             if (*pc == '.' || *pc == 'p' || *pc == 'P')
                 float_constant(pfile, result);
@@ -461,9 +464,9 @@ static void number(struct file *pfile, struct token *result)
         }
     } else {
         // Oct/Dec
-        assert(map[*pc] & DIGIT);
+        assert(ISDIGIT(*pc));
         
-        while (map[*pc] & DIGIT)
+        while (ISDIGIT(*pc))
             pc++;
         if (*pc == '.' || *pc == 'e' || *pc == 'E')
             float_constant(pfile, result);
@@ -484,7 +487,7 @@ static const char *string_constant(struct file *pfile, bool wide)
 
     for (;;) {
         ch = *pb->cur++;
-        if (ch == sep || isnewline(ch))
+        if (ch == sep || ISNEWLINE(ch))
             break;
         if (ch == '\\')
             pb->cur++;
@@ -554,7 +557,7 @@ static unsigned int escape(const unsigned char **pc)
     case 'x':
         {
             bool overflow = 0;
-            for (; isxdigit(*s);) {
+            for (; ISXDIGIT(*s);) {
                 if (overflow) {
                     s++;
                     continue;
@@ -563,7 +566,7 @@ static unsigned int escape(const unsigned char **pc)
                     overflow = 1;
                     error("hex escape sequence out of range");
                 } else {
-                    if (map[*s] & DIGIT)
+                    if (ISDIGIT(*s))
                         c = (c << 4) + *s - '0';
                     else
                         c = (c << 4) + (*s & 0x5f) - 'A' + 10;
@@ -577,10 +580,10 @@ static unsigned int escape(const unsigned char **pc)
         {
             int x = 0;
             int n = s[-1] == 'u' ? 4 : 8;
-            for (; isxdigit(*s); x++, s++) {
+            for (; ISXDIGIT(*s); x++, s++) {
                 if (x == n)
                     break;
-                if (map[*s] & DIGIT)
+                if (ISDIGIT(*s))
                     c = (c << 4) + *s - '0';
                 else
                     c = (c << 4) + (*s & 0x5f) - 'A' + 10;
@@ -656,7 +659,7 @@ static struct ident *identifier(struct file *pfile)
     unsigned int hash = IMAP_HASHSTEP(0, *rpc);
     unsigned int len;
     
-    while (isdigitletter(*pb->cur)) {
+    while (ISDIGITLETTER(*pb->cur)) {
         hash = IMAP_HASHSTEP(hash, *pb->cur);
         pb->cur++;
     }
@@ -713,7 +716,7 @@ static struct token *dolex(struct file *pfile)
     case ' ':
         do
             rpc++;
-        while (iswhitespace(*rpc));
+        while (ISWHITESPACE(*rpc));
         pb->cur = rpc;
         space_token->src = source;
         pfile->cur_token--;
@@ -921,7 +924,7 @@ static struct token *dolex(struct file *pfile)
         if (rpc[1] == '.' && rpc[2] == '.') {
             pb->cur += 2;
             result->id = ELLIPSIS;
-        } else if (isdigit(rpc[1])) {
+        } else if (ISDIGIT(rpc[1])) {
             number(pfile, result);
         } else {
             result->id = '.';
@@ -956,7 +959,7 @@ static struct token *dolex(struct file *pfile)
 
     default:
         // illegal character
-        if (isgraph(*rpc))
+        if (ISGRAPH(*rpc))
             error("illegal character '%c'", *rpc);
         else
             error("illegal character '\\0%o'", *rpc);
@@ -990,7 +993,7 @@ static const char *hq_char_sequence(struct file *pfile, int sep)
 
     for (;;) {
         ch = *pb->cur++;
-        if (ch == sep || isnewline(ch)) {
+        if (ch == sep || ISNEWLINE(ch)) {
             pb->cur--;
             break;
         }
@@ -1008,7 +1011,7 @@ struct token *header_name(struct file *pfile)
 {
     struct buffer *pb = pfile->buffer;
     
-    while (iswhitespace(*pb->cur))
+    while (ISWHITESPACE(*pb->cur))
         pb->cur++;
 
     SET_COLUMN(pb, pb->cur - pb->line_base);
