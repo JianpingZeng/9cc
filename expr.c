@@ -451,6 +451,10 @@ static void integer_constant(struct token *t, struct symbol * sym)
         break;
     }
 
+    // overflow
+    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
+        error("integer constant overflow: %s", TOK_LIT_STR(t));
+
     SYM_TYPE(sym) = ty;
     SYM_VALUE(sym) = t->u.lit.v;
 }

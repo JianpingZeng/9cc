@@ -348,7 +348,6 @@ static void integer_constant(struct file *pfile, struct token *result)
     unsigned long long n = 0;
     int base;
     int suffix;
-    bool sign;
     const char *s;
 
     if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
@@ -397,41 +396,33 @@ static void integer_constant(struct file *pfile, struct token *result)
     if ((pc[0] == 'u' || pc[0] == 'U') &&
         ((pc[1] == 'l' && pc[2] == 'l') || (pc[1] == 'L' && pc[2] == 'L'))) {
         pc += 3;
-        sign = 0;
         suffix = UNSIGNED + LONG + LONG;
     } else if (((pc[0] == 'l' && pc[1] == 'l') || (pc[0] == 'L' && pc[1] == 'L')) &&
                (pc[2] == 'u' || pc[2] == 'U')) {
         pc += 3;
-        sign = 0;
         suffix = UNSIGNED + LONG + LONG;
     } else if ((pc[0] == 'l' && pc[1] == 'l') || (pc[0] == 'L' && pc[1] == 'L')) {
         pc += 2;
-        sign = 1;
         suffix = LONG + LONG;
     } else if ((pc[0] == 'l' || pc[0] == 'L') && (pc[1] == 'u' || pc[1] == 'U')) {
         pc += 2;
-        sign = 0;
         suffix = UNSIGNED + LONG;
     } else if ((pc[0] == 'u' || pc[0] == 'U') && (pc[1] == 'l' || pc[1] == 'L')) {
         pc += 2;
-        sign = 0;
         suffix = UNSIGNED + LONG;
     } else if (pc[0] == 'l' || pc[0] == 'L') {
         pc += 1;
-        sign = 1;
         suffix = LONG;
     } else if (pc[0] == 'u' || pc[0] == 'U') {
         pc += 1;
-        sign = 0;
         suffix = UNSIGNED;
     } else {
-        sign = 1;
         suffix = 0;
     }
 
     s = strn((const char *)pb->cur - 1, pc - pb->cur + 1);
     
-    if (overflow || (sign && n > LLONG_MAX))
+    if (overflow)
         error("integer constant overflow: %s", s);
 
     result->id = ICONSTANT;
