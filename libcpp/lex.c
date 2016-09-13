@@ -1282,9 +1282,7 @@ int skipto(int (*test) (struct token *))
                  "invalid token '%s', %d tokens skipped",
                  tok2s(t), i);
     else if (i)
-        error_at(t->src,
-                 "invalid token '%s'",
-                 tok2s(t));
+        error_at(t->src, "invalid token '%s'", tok2s(t));
     else
         die("nothing skipped, may be an internal error");
     return i;
