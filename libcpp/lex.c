@@ -1,6 +1,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <limits.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <wchar.h>
 #include "lex.h"
 #include "utils/utils.h"
 #include "internal.h"
@@ -28,9 +32,14 @@ struct token *space_token = &(struct token){.id = ' '};
 
 struct source source;
 
-#define iswhitespace(ch)  (map[ch] & BLANK)
-#define isnewline(ch)     (map[ch] & NEWLINE)
-#define isdigitletter(ch) (map[ch] & (DIGIT|LETTER))
+#define ISWHITESPACE(ch)  (map[ch] & BLANK)
+#define ISNEWLINE(ch)     (map[ch] & NEWLINE)
+#define ISDIGITLETTER(ch) (map[ch] & (DIGIT|LETTER))
+#define ISXALPHA(ch)      (map[ch] & HEX)
+#define ISDIGIT(ch)       (map[ch] & DIGIT)
+#define ISXDIGIT(ch)      (map[ch] & (DIGIT|HEX))
+#define ISGRAPH(ch)       isgraph(ch)
+
 #define INCLINE(fs, col)  do {                  \
         fs->line++;                             \
         fs->column = col;                       \
@@ -64,10 +73,12 @@ const char *tok2s(struct token *t)
 {
     if (t->id == ID)
         return TOK_ID_STR(t);
-    else if (t->id == SCONSTANT || t->id == NCONSTANT)
+    else if (t->id == SCONSTANT ||
+             t->id == ICONSTANT ||
+             t->id == FCONSTANT)
         return TOK_LIT_STR(t);
-    else if (t->value.lexeme)
-        return t->value.lexeme;
+    else if (t->u.lit.str)
+        return t->u.lit.str;
     else
         return id2s(t->id);
 }
@@ -75,11 +86,6 @@ const char *tok2s(struct token *t)
 int isletter(int c)
 {
     return map[c] & LETTER;
-}
-
-int isxalpha(int c)
-{
-    return map[c] & HEX;
 }
 
 static void add_line_note(struct buffer *pb, const unsigned char *pos, int type)
@@ -233,36 +239,255 @@ static void block_comment(struct file *pfile)
     process_line_notes(pb);
 }
 
-// fs->cur points at prior initial digit or dot.
-static const char *ppnumber(struct file *pfile)
+static void float_constant(struct file *pfile, struct token *result)
 {
     struct buffer *pb = pfile->buffer;
-    const unsigned char *rpc = pb->cur - 1;
-    int ch;
-    for (;;) {
-        ch = *pb->cur++;
-        if (!isdigitletter(ch) && ch != '.') {
-            pb->cur--;
-            break;
+    const unsigned char *pc = pb->cur - 1;
+    int suffix;
+    const char *s;
+
+    if (pc[0] == '.') {
+        assert(ISDIGIT(pc[1]));
+        goto dotted;
+    } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
+        // base 16
+        pc += 2;
+        if (*pc == '.') {
+            if (!ISXDIGIT(pc[1]))
+                cpp_error("hexadecimal floating constants require a significand");
+            goto dotted_hex;
+        } else {
+            assert(ISXDIGIT(*pc));
+
+            while (ISXDIGIT(*pc))
+                pc++;
+        dotted_hex:
+            if (*pc == '.') {
+                pc++;
+                while (ISXDIGIT(*pc))
+                    pc++;
+            }
+            if (*pc == 'p' || *pc == 'P') {
+                pc++;
+                if (*pc == '+' || *pc == '-')
+                    pc++;
+                if (ISDIGIT(*pc)) {
+                    do
+                        pc++;
+                    while (ISDIGIT(*pc));
+                } else {
+                    cpp_error("exponent has no digits");
+                }
+            } else {
+                cpp_error("hexadecimal floating constants require an exponent");
+            }
         }
-        bool is_float = strchr("eEpP", ch) && strchr("+-", *pb->cur);
-        if (is_float)
-            pb->cur++;
+    } else {
+        // base 10
+        assert(ISDIGIT(*pc));
+
+        while (ISDIGIT(*pc))
+            pc++;
+    dotted:
+        if (*pc == '.') {
+            pc++;
+            while (ISDIGIT(*pc))
+                pc++;
+        }
+        if (*pc == 'e' || *pc == 'E') {
+            pc++;
+            if (*pc == '+' || *pc == '-')
+                pc++;
+            if (ISDIGIT(*pc)) {
+                do
+                    pc++;
+                while (ISDIGIT(*pc));
+            } else {
+                cpp_error("exponent used with no following digits");
+            }
+        }
     }
-    return xstrndup((const char *)rpc, pb->cur - rpc);
+
+    // suffix
+    if (*pc == 'f' || *pc == 'F') {
+        pc++;
+        suffix = FLOAT;
+    } else if (*pc == 'l' || *pc == 'L') {
+        pc++;
+        suffix = LONG + DOUBLE;
+    } else {
+        suffix = 0;
+    }
+
+    s = strn((const char *)pb->cur - 1, pc - pb->cur + 1);
+    
+    errno = 0;
+    switch (suffix) {
+    case FLOAT:
+        result->u.lit.v.d = strtof(s, NULL);
+        break;
+    case LONG + DOUBLE:
+        result->u.lit.v.d = strtold(s, NULL);
+        break;
+    default:
+        result->u.lit.v.d = strtod(s, NULL);
+        break;
+    }
+
+    if (errno == ERANGE)
+        cpp_error("float constant overflow: %s", s);
+
+    result->id = FCONSTANT;
+    result->u.lit.suffix = suffix;
+    result->u.lit.str = s;
+    pb->cur = pc;
 }
 
-static const char *sequence(struct file *pfile, bool wide, int sep)
+static void integer_constant(struct file *pfile, struct token *result)
+{
+    struct buffer *pb = pfile->buffer;
+    const unsigned char *pc = pb->cur - 1;
+    bool overflow = 0;
+    unsigned long long n = 0;
+    int base;
+    int suffix;
+    const char *s;
+
+    if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
+        base = 16;
+        pc += 2;
+        for (; ISXDIGIT(*pc); pc++) {
+            if (n & ~(~0ULL >> 4)) {
+                overflow = 1;
+            } else {
+                int d;
+                if (ISXALPHA(*pc))
+                    d = (*pc & 0x5f) - 'A' + 10;
+                else
+                    d = *pc - '0';
+
+                n = (n << 4) + d;
+            }
+        }
+    } else if (pc[0] == '0') {
+        base = 8;
+        bool err = 0;
+        for (; ISDIGIT(*pc); pc++) {
+            if (*pc == '8' || *pc == '9')
+                err = 1;
+
+            if (n & ~(~0ULL >> 3))
+                overflow = 1;
+            else
+                n = (n << 3) + (*pc - '0');
+        }
+
+        if (err)
+            cpp_error("invalid octal constant");
+    } else {
+        base = 0;
+        for (; ISDIGIT(*pc); pc++) {
+            int d = *pc - '0';
+            if (n > (~0ULL - d) / 10)
+                overflow = 1;
+            else
+                n = n * 10 + d;
+        }
+    }
+
+    // suffix
+    if ((pc[0] == 'u' || pc[0] == 'U') &&
+        ((pc[1] == 'l' && pc[2] == 'l') || (pc[1] == 'L' && pc[2] == 'L'))) {
+        pc += 3;
+        suffix = UNSIGNED + LONG + LONG;
+    } else if (((pc[0] == 'l' && pc[1] == 'l') || (pc[0] == 'L' && pc[1] == 'L')) &&
+               (pc[2] == 'u' || pc[2] == 'U')) {
+        pc += 3;
+        suffix = UNSIGNED + LONG + LONG;
+    } else if ((pc[0] == 'l' && pc[1] == 'l') || (pc[0] == 'L' && pc[1] == 'L')) {
+        pc += 2;
+        suffix = LONG + LONG;
+    } else if ((pc[0] == 'l' || pc[0] == 'L') && (pc[1] == 'u' || pc[1] == 'U')) {
+        pc += 2;
+        suffix = UNSIGNED + LONG;
+    } else if ((pc[0] == 'u' || pc[0] == 'U') && (pc[1] == 'l' || pc[1] == 'L')) {
+        pc += 2;
+        suffix = UNSIGNED + LONG;
+    } else if (pc[0] == 'l' || pc[0] == 'L') {
+        pc += 1;
+        suffix = LONG;
+    } else if (pc[0] == 'u' || pc[0] == 'U') {
+        pc += 1;
+        suffix = UNSIGNED;
+    } else {
+        suffix = 0;
+    }
+
+    s = strn((const char *)pb->cur - 1, pc - pb->cur + 1);
+    
+    if (overflow)
+        cpp_error("integer constant overflow: %s", s);
+
+    result->id = ICONSTANT;
+    result->u.lit.base = base;
+    result->u.lit.suffix = suffix;
+    result->u.lit.v.u = n;
+    result->u.lit.str = s;
+    pb->cur = pc;
+}
+
+// 0-9 or .[0-9]
+static void number(struct file *pfile, struct token *result)
+{
+    struct buffer *pb = pfile->buffer;
+    const unsigned char *pc = pb->cur - 1;
+
+    if (pc[0] == '.') {
+        float_constant(pfile, result);
+    } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
+        // Hex
+        pc += 2;
+        if (!ISXDIGIT(*pc) && pc[0] != '.') {
+            cpp_error("incomplete hex constant");
+            integer_constant(pfile, result);
+            return;
+        }
+        if (*pc == '.') {
+            float_constant(pfile, result);
+        } else {
+            while (ISXDIGIT(*pc))
+                pc++;
+            if (*pc == '.' || *pc == 'p' || *pc == 'P')
+                float_constant(pfile, result);
+            else
+                integer_constant(pfile, result);
+        }
+    } else {
+        // Oct/Dec
+        assert(ISDIGIT(*pc));
+        
+        while (ISDIGIT(*pc))
+            pc++;
+        if (*pc == '.' || *pc == 'e' || *pc == 'E')
+            float_constant(pfile, result);
+        else
+            integer_constant(pfile, result);
+    }
+}
+
+static const char *string_constant(struct file *pfile, bool wide)
 {
     struct buffer *pb = pfile->buffer;
     const unsigned char *rpc = pb->cur - 1;
-    bool is_char = sep == '\'';
-    if (wide) pb->cur++;
+    int sep = '"';
     const char *name;
     int ch;
+
+    if (wide) pb->cur++;
+
     for (;;) {
         ch = *pb->cur++;
-        if (ch == sep || isnewline(ch))
+        if (ch == sep || ISNEWLINE(ch))
             break;
         if (ch == '\\')
             pb->cur++;
@@ -272,13 +497,162 @@ static const char *sequence(struct file *pfile, bool wide, int sep)
         char *str = xstrndup((const char *)rpc, pb->cur - rpc + 1);
         str[pb->cur - rpc] = sep;
         name = str;
-        cpp_error("untermiated %s constant: %s",
-                  is_char ? "character" : "string", name);
+        cpp_error("untermiated string constant: %s", name);
     } else {
         name = xstrndup((const char *)rpc, pb->cur - rpc);
     }
 
     return name;
+}
+
+static unsigned int escape(const unsigned char **pc)
+{
+    unsigned int c = 0;
+    const unsigned char *s = *pc;
+    assert(*s == '\\');
+    s += 1;
+    switch (*s++) {
+    case 'a':
+        c = 7;
+        break;
+    case 'b':
+        c = '\b';
+        break;
+    case 'f':
+        c = '\f';
+        break;
+    case 'n':
+        c = '\n';
+        break;
+    case 'r':
+        c = '\r';
+        break;
+    case 't':
+        c = '\t';
+        break;
+    case 'v':
+        c = '\v';
+        break;
+    case '\'':
+    case '"':
+    case '\\':
+    case '\?':
+        c = s[-1];
+        break;
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+        c = s[-1] - '0';
+        if (*s >= '0' && *s <= '7') {
+            c = (c << 3) + (*s++) - '0';
+            if (*s >= '0' && *s <= '7')
+                c = (c << 3) + (*s++) - '0';
+        }
+        break;
+    case 'x':
+        {
+            bool overflow = 0;
+            for (; ISXDIGIT(*s);) {
+                if (overflow) {
+                    s++;
+                    continue;
+                }
+                if (c & ~(WCHAR_MAX >> 4)) {
+                    overflow = 1;
+                    cpp_error("hex escape sequence out of range");
+                } else {
+                    if (ISDIGIT(*s))
+                        c = (c << 4) + *s - '0';
+                    else
+                        c = (c << 4) + (*s & 0x5f) - 'A' + 10;
+                }
+                s++;
+            }
+        }
+        break;
+    case 'u':
+    case 'U':
+        {
+            int x = 0;
+            int n = s[-1] == 'u' ? 4 : 8;
+            for (; ISXDIGIT(*s); x++, s++) {
+                if (x == n)
+                    break;
+                if (ISDIGIT(*s))
+                    c = (c << 4) + *s - '0';
+                else
+                    c = (c << 4) + (*s & 0x5f) - 'A' + 10;
+            }
+        }
+        break;
+    default:
+        c = s[-1];
+        break;
+    }
+
+    *pc = s;
+    return c;
+}
+
+static void char_constant(struct file *pfile, struct token *result, bool wide)
+{
+    struct buffer *pb = pfile->buffer;
+    const unsigned char *pc = pb->cur - 1;
+    unsigned long long c = 0;
+    char ws[MB_LEN_MAX];
+    int len = 0;
+    bool overflow = 0;
+    bool char_rec = 0;
+    const char *s;
+
+    wide ? (pc += 2) : (pc += 1);
+
+    for (; *pc != '\'' && !ISNEWLINE(*pc);) {
+        if (char_rec)
+            overflow = 1;
+        if (*pc == '\\') {
+            c = escape(&pc);
+            char_rec = 1;
+        } else {
+            if (wide) {
+                if (len >= MB_LEN_MAX)
+                    cpp_error("multibyte character overflow");
+                else
+                    ws[len++] = (char)*pc++;
+            } else {
+                c = *pc++;
+                char_rec = 1;
+            }
+        }
+    }
+
+    if (*pc == '\'') {
+        pc++;
+        s = strn((const char *)pb->cur - 1, pc - pb->cur + 1);
+    } else {
+        s = strn((const char *)pb->cur - 1, pc - pb->cur + 1);
+        cpp_error("unterminated character constant: %s", s);
+    }
+
+    if (!char_rec && !len)
+        cpp_error("incomplete character constant: %s", s);
+    else if (overflow)
+        cpp_error("extraneous characters in character constant: %s", s);
+    else if ((!wide && c > UCHAR_MAX) || (wide && c > WCHAR_MAX))
+        cpp_error("character constant overflow: %s", s);
+    else if (len && mbtowc((wchar_t *)&c, ws, len) != len)
+        cpp_error("illegal multi-character sequence");
+    
+    result->id = ICONSTANT;
+    result->u.lit.v.u = wide ? (wchar_t)c : (unsigned char)c;
+    result->u.lit.chr = wide ? 2 : 1;
+    result->u.lit.str = s;
+    pb->cur = pc;
 }
 
 static struct ident *identifier(struct file *pfile)
@@ -288,7 +662,7 @@ static struct ident *identifier(struct file *pfile)
     unsigned int hash = IMAP_HASHSTEP(0, *rpc);
     unsigned int len;
     
-    while (isdigitletter(*pb->cur)) {
+    while (ISDIGITLETTER(*pb->cur)) {
         hash = IMAP_HASHSTEP(hash, *pb->cur);
         pb->cur++;
     }
@@ -345,7 +719,7 @@ static struct token *dolex(struct file *pfile)
     case ' ':
         do
             rpc++;
-        while (iswhitespace(*rpc));
+        while (ISWHITESPACE(*rpc));
         pb->cur = rpc;
         space_token->src = source;
         pfile->cur_token--;
@@ -536,28 +910,25 @@ static struct token *dolex(struct file *pfile)
 
         // constants
     case '\'':
-        result->id = NCONSTANT;
-        result->value.lexeme = sequence(pfile, false, '\'');
+        char_constant(pfile, result, false);
         break;
 
     case '"':
         result->id = SCONSTANT;
-        result->value.lexeme = sequence(pfile, false, '"');
+        result->u.lit.str = string_constant(pfile, false);
         break;
 
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-        result->id = NCONSTANT;
-        result->value.lexeme = ppnumber(pfile);
+        number(pfile, result);
         break;
 
     case '.':
         if (rpc[1] == '.' && rpc[2] == '.') {
             pb->cur += 2;
             result->id = ELLIPSIS;
-        } else if (isdigit(rpc[1])) {
-            result->id = NCONSTANT;
-            result->value.lexeme = ppnumber(pfile);
+        } else if (ISDIGIT(rpc[1])) {
+            number(pfile, result);
         } else {
             result->id = '.';
         }
@@ -566,12 +937,11 @@ static struct token *dolex(struct file *pfile)
         // identifiers
     case 'L':
         if (rpc[1] == '\'') {
-            result->id = NCONSTANT;
-            result->value.lexeme = sequence(pfile, true, '\'');
+            char_constant(pfile, result, true);
             break;
         } else if (rpc[1] == '"') {
             result->id = SCONSTANT;
-            result->value.lexeme = sequence(pfile, true, '"');
+            result->u.lit.str = string_constant(pfile, true);
             break;
         }
         // go through
@@ -587,12 +957,12 @@ static struct token *dolex(struct file *pfile)
     case 'S': case 'T': case 'U': case 'V': case 'W': case 'X':
     case 'Y': case 'Z':
         result->id = ID;
-        result->value.ident = identifier(pfile);
+        result->u.ident = identifier(pfile);
         break;
 
     default:
         // illegal character
-        if (isgraph(*rpc))
+        if (ISGRAPH(*rpc))
             cpp_error("illegal character '%c'", *rpc);
         else
             cpp_error("illegal character '\\0%o'", *rpc);
@@ -626,7 +996,7 @@ static const char *hq_char_sequence(struct file *pfile, int sep)
 
     for (;;) {
         ch = *pb->cur++;
-        if (ch == sep || isnewline(ch)) {
+        if (ch == sep || ISNEWLINE(ch)) {
             pb->cur--;
             break;
         }
@@ -644,7 +1014,7 @@ struct token *header_name(struct file *pfile)
 {
     struct buffer *pb = pfile->buffer;
     
-    while (iswhitespace(*pb->cur))
+    while (ISWHITESPACE(*pb->cur))
         pb->cur++;
 
     SET_COLUMN(pb, pb->cur - pb->line_base);
@@ -655,11 +1025,11 @@ struct token *header_name(struct file *pfile)
     if (ch == '<') {
         const char *name = hq_char_sequence(pfile, '>');
         return new_token(&(struct token){
-                .value.lexeme = name, .kind = ch});
+                .u.lit.str = name, .kind = ch});
     } else if (ch == '"') {
         const char *name = hq_char_sequence(pfile, '"');
         return new_token(&(struct token){
-                .value.lexeme = name, .kind = ch});
+                .u.lit.str = name, .kind = ch});
     } else {
         // pptokens
         pb->cur--;
@@ -769,7 +1139,7 @@ static struct token *combine_scons(struct vector *v, bool wide)
             strbuf_cats(s, name);
     }
     strbuf_catc(s, '"');
-    t->value.lexeme = strbuf_str(s);
+    t->u.lit.str = strbuf_str(s);
     return t;
 }
 
@@ -907,17 +1277,15 @@ int skipto(int (*test) (struct token *))
     struct token *t = token;
     for (i = 0; token->id != EOI; i++, gettok()) {
         if (test(token))
-            goto out;
+            break;
     }
- out:
+    
     if (i > 1)
         cpp_error_at(t->src,
                      "invalid token '%s', %d tokens skipped",
                      tok2s(t), i);
     else if (i)
-        cpp_error_at(t->src,
-                     "invalid token '%s'",
-                     tok2s(t));
+        cpp_error_at(t->src, "invalid token '%s'", tok2s(t));
     else
         die("nothing skipped, may be an internal error");
     return i;

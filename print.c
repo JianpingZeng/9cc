@@ -140,11 +140,11 @@ static void print_expr(node_t * node, int level)
         putf("<" RED("%s") "> ", AST_NAME(node));
     if (isiliteral(node)) {
         if (TYPE_OP(AST_TYPE(node)) == INT)
-            putf(RED("%lld"), ILITERAL_VALUE(node));
+            putf(RED("%lld"), ILITERAL_VALUE(node).i);
         else
-            putf(RED("%llu"), ILITERAL_VALUE(node));
+            putf(RED("%llu"), ILITERAL_VALUE(node).u);
     } else if (isfliteral(node)) {
-        putf(RED("%Lf"), FLITERAL_VALUE(node));
+        putf(RED("%Lf"), FLITERAL_VALUE(node).d);
     }
 
     putf("\n");
@@ -668,14 +668,14 @@ void print_ir_floats(struct map *floats)
             switch (TYPE_KIND(ty)) {
             case FLOAT:
                 {
-                    float f = SYM_VALUE_D(sym);
+                    float f = SYM_VALUE(sym).d;
                     putln(".long %u", *(uint32_t *)&f);
                 }
                 break;
             case DOUBLE:
             case LONG + DOUBLE:
                 {
-                    double d = SYM_VALUE_D(sym);
+                    double d = SYM_VALUE(sym).d;
                     putln(".quad %llu", *(uint64_t *)&d);
                 }
                 break;
@@ -965,12 +965,12 @@ const char *expr2s(node_t * node)
         break;
     case INTEGER_LITERAL:
         if (TYPE_OP(AST_TYPE(node)) == INT)
-            strbuf_cats(s, format("%lld", ILITERAL_VALUE(node)));
+            strbuf_cats(s, format("%lld", ILITERAL_VALUE(node).i));
         else
-            strbuf_cats(s, format("%llu", ILITERAL_VALUE(node)));
+            strbuf_cats(s, format("%llu", ILITERAL_VALUE(node).u));
         break;
     case FLOAT_LITERAL:
-        strbuf_cats(s, format("%Lf", FLITERAL_VALUE(node)));
+        strbuf_cats(s, format("%Lf", FLITERAL_VALUE(node).d));
         break;
     case STRING_LITERAL:
         strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));

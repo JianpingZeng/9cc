@@ -26,11 +26,21 @@ enum {
     TOKEND
 };
 
-#define ID_BITS    10
+
+// value
+union value {
+    long long i;
+    unsigned long long u;
+    float f;
+    double d;
+    long double ld;
+    void *p;
+    void (*g) ();
+};
 
 // token
-#define TOK_ID_STR(t)    ((const char *)(t)->value.ident->str)
-#define TOK_LIT_STR(t)  ((t)->value.lexeme)
+#define TOK_ID_STR(t)    ((const char *)(t)->u.ident->str)
+#define TOK_LIT_STR(t)   ((t)->u.lit.str)
 
 // An identifier
 struct ident {
@@ -40,8 +50,8 @@ struct ident {
 };
 
 struct token {
-    int id:ID_BITS;
-    int kind:ID_BITS;
+    unsigned short id;
+    unsigned short kind;
     bool bol;                // beginning of line
     bool space;              // leading space
     bool param;              // macro param
@@ -51,9 +61,15 @@ struct token {
     union {
         // identifier
         struct ident *ident;
-        // string or number
-        const char *lexeme;
-    } value;
+        // string/number literal
+        struct {
+            const char *str;    // literal lexeme
+            unsigned char base; // 0:dec, 8:Oct, 16:hex
+            unsigned char chr;  // 0:no, 1:uchar, 2:wchar_t
+            int suffix;
+            union value v;
+        } lit;
+    } u;
 };
 
 // tokens
@@ -112,7 +128,7 @@ struct file {
 extern struct file *cpp_file;
 
 struct ifstack {
-    int id:ID_BITS;
+    unsigned short id;
     bool b;
     struct source src;
     struct ifstack *prev;
@@ -178,7 +194,6 @@ extern struct token *ahead_token;
 extern struct token *space_token;
 
 extern int isletter(int c);
-extern int isxalpha(int c);
 
 #define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')

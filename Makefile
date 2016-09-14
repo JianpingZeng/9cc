@@ -3,7 +3,7 @@
 # version
 MAJOR = 0
 MINOR = 3
-FIXES = 3
+FIXES = 4
 EXTRAVERSION =
 
 CFLAGS = -Wall -std=c99 -I.
@@ -46,11 +46,11 @@ UTILS_INC += $(utils_dir)set.h
 UTILS_INC += $(utils_dir)list.h
 UTILS_INC += $(utils_dir)sys.h
 
+LIBCPP_OBJ += $(libcpp_dir)lex.o
 LIBCPP_OBJ += $(libcpp_dir)cpp.o
 LIBCPP_OBJ += $(libcpp_dir)hideset.o
 LIBCPP_OBJ += $(libcpp_dir)imap.o
 LIBCPP_OBJ += $(libcpp_dir)input.o
-LIBCPP_OBJ += $(libcpp_dir)lex.o
 LIBCPP_OBJ += $(libcpp_dir)error.o
 LIBCPP_OBJ += $(libcpp_dir)expr.o
 

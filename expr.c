@@ -9,8 +9,8 @@ static node_t *commaop(int op, node_t * l, node_t * r);
 static node_t *assignop(int op, node_t * l, node_t * r);
 static bool is_nullptr(node_t * node);
 
-#define INTEGER_MAX(type)    (VALUE_I(TYPE_LIMITS_MAX(type)))
-#define UINTEGER_MAX(type)   (VALUE_U(TYPE_LIMITS_MAX(type)))
+#define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
+#define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 
 #define SAVE_SOURCE        struct source src = source
 #define SET_SOURCE(node)   if (node) AST_SRC(node) = src
@@ -370,233 +370,27 @@ static bool is_castable(struct type * dst, struct type * src)
     return false;
 }
 
-static unsigned escape(const char **ps)
-{
-    unsigned c = 0;
-    const char *s = *ps;
-    assert(*s == '\\');
-    s += 1;
-    switch (*s++) {
-    case 'a':
-        c = 7;
-        break;
-    case 'b':
-        c = '\b';
-        break;
-    case 'f':
-        c = '\f';
-        break;
-    case 'n':
-        c = '\n';
-        break;
-    case 'r':
-        c = '\r';
-        break;
-    case 't':
-        c = '\t';
-        break;
-    case 'v':
-        c = '\v';
-        break;
-    case '\'':
-    case '"':
-    case '\\':
-    case '\?':
-        c = s[-1];
-        break;
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-        c = s[-1] - '0';
-        if (*s >= '0' && *s <= '7') {
-            c = (c << 3) + (*s++) - '0';
-            if (*s >= '0' && *s <= '7')
-                c = (c << 3) + (*s++) - '0';
-        }
-        break;
-    case 'x':
-        {
-            bool overflow = 0;
-            for (; isxdigit(*s);) {
-                if (overflow) {
-                    s++;
-                    continue;
-                }
-                if (c >> (BITS(TYPE_SIZE(wchartype)) - 4)) {
-                    overflow = 1;
-                    error("hex escape sequence out of range");
-                } else {
-                    if (isdigit(*s))
-                        c = (c << 4) + *s - '0';
-                    else
-                        c = (c << 4) + (*s & 0x5f) -
-                            'A' + 10;
-                }
-                s++;
-            }
-        }
-        break;
-    case 'u':
-    case 'U':
-        {
-            int x = 0;
-            int n = s[-1] == 'u' ? 4 : 8;
-            for (; isxdigit(*s); x++, s++) {
-                if (x == n)
-                    break;
-                if (isdigit(*s))
-                    c = (c << 4) + *s - '0';
-                else
-                    c = (c << 4) + (*s & 0x5f) - 'A' + 10;
-            }
-        }
-        break;
-    default:
-        c = s[-1];
-        break;
-    }
-
-    *ps = s;
-    return c;
-}
-
-static void char_constant(struct token *t, struct symbol * sym)
-{
-    const char *s = TOK_LIT_STR(t);
-    bool wide = s[0] == 'L';
-    unsigned long long c = 0;
-    char ws[MB_LEN_MAX];
-    int len = 0;
-    bool overflow = 0;
-    bool char_rec = 0;
-    wide ? (s += 2) : (s += 1);
-
-    for (; *s != '\'';) {
-        if (char_rec)
-            overflow = 1;
-        if (*s == '\\') {
-            c = escape(&s);
-            char_rec = 1;
-        } else {
-            if (wide) {
-                if (len >= MB_LEN_MAX)
-                    error("multibyte character overflow");
-                else
-                    ws[len++] = (char)*s++;
-            } else {
-                c = *s++;
-                char_rec = 1;
-            }
-        }
-    }
-
-    if (!char_rec && !len)
-        error("incomplete character constant: %s", tok2s(t));
-    else if (overflow)
-        error("extraneous characters in character constant: %s",
-              tok2s(t));
-    else if ((!wide && c > UINTEGER_MAX(unsignedchartype))
-             || (wide && c > UINTEGER_MAX(wchartype)))
-        error("character constant overflow: %s", tok2s(t));
-    else if (len && mbtowc((wchar_t *) & c, ws, len) != len)
-        error("illegal multi-character sequence");
-
-    SYM_VALUE_U(sym) = wide ? (wchar_t) c : (unsigned char)c;
-    SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
-}
-
-static int integer_suffix(const char *s)
-{
-    if ((s[0] == 'u' || s[0] == 'U') &&
-        ((s[1] == 'l' && s[2] == 'l') || (s[1] == 'L' && s[2] == 'L')))
-        return UNSIGNED + LONG + LONG;
-    else if (((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L'))
-             && (s[2] == 'u' || s[2] == 'U'))
-        return UNSIGNED + LONG + LONG;
-    else if ((s[0] == 'l' && s[1] == 'l') || (s[0] == 'L' && s[1] == 'L'))
-        return LONG + LONG;
-    else if ((s[0] == 'l' || s[0] == 'L') && (s[1] == 'u' || s[1] == 'U'))
-        return UNSIGNED + LONG;
-    else if ((s[0] == 'u' || s[0] == 'U') && (s[1] == 'l' || s[1] == 'L'))
-        return UNSIGNED + LONG;
-    else if (s[0] == 'l' || s[0] == 'L')
-        return LONG;
-    else if (s[0] == 'u' || s[0] == 'U')
-        return UNSIGNED;
-    else if (s[0] == '\0')
-        return 0;        // no suffix
-    else
-        return -1;        // invalid suffix
-}
-
 static void integer_constant(struct token *t, struct symbol * sym)
 {
-    const char *s = TOK_LIT_STR(t);
-
-    int base;
+    int base = t->u.lit.base;
+    int suffix = t->u.lit.suffix;
+    unsigned long long n = t->u.lit.v.u;
     struct type *ty;
-    bool overflow = 0;
-    unsigned long long n = 0;
 
-    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
-        base = 16;
-        s = s + 2;
-        for (; isxdigit(*s);) {
-            if (n & ~(~0ULL >> 4)) {
-                overflow = 1;
-            } else {
-                int d;
-                if (isxalpha(*s))
-                    d = (*s & 0x5f) - 'A' + 10;
-                else
-                    d = *s - '0';
-
-                n = (n << 4) + d;
-            }
-            s++;
-        }
-    } else if (s[0] == '0') {
-        base = 8;
-        bool err = 0;
-        for (; isdigit(*s);) {
-            if (*s == '8' || *s == '9')
-                err = 1;
-
-            if (n & ~(~0ULL >> 3))
-                overflow = 1;
-            else
-                n = (n << 3) + (*s - '0');
-
-            s++;
-        }
-
-        if (err)
-            error("invalid octal constant %s", tok2s(t));
-    } else {
-        base = 10;
-        for (; isdigit(*s);) {
-            int d = *s - '0';
-            if (n > (UINTEGER_MAX(unsignedlonglongtype) - d) / 10)
-                overflow = 1;
-            else
-                n = n * 10 + (*s - '0');
-
-            s++;
-        }
+    // character constant
+    if (t->u.lit.chr) {
+        bool wide = t->u.lit.chr == 2;
+        SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
+        SYM_VALUE(sym).u = wide ? (wchar_t)n : (unsigned char)n;
+        return;
     }
-
-    int suffix = integer_suffix(s);
+    
     switch (suffix) {
     case UNSIGNED + LONG + LONG:
         ty = unsignedlonglongtype;
         break;
     case LONG + LONG:
-        if (n > INTEGER_MAX(longlongtype) && base != 10)
+        if (n > INTEGER_MAX(longlongtype) && base != 0)
             ty = unsignedlonglongtype;
         else
             ty = longlongtype;
@@ -608,7 +402,7 @@ static void integer_constant(struct token *t, struct symbol * sym)
             ty = unsignedlongtype;
         break;
     case LONG:
-        if (base == 10) {
+        if (base == 0) {
             if (n > INTEGER_MAX(longtype))
                 ty = longlongtype;
             else
@@ -633,7 +427,7 @@ static void integer_constant(struct token *t, struct symbol * sym)
             ty = unsignedinttype;
         break;
     default:
-        if (base == 10) {
+        if (base == 0) {
             if (n > INTEGER_MAX(longtype))
                 ty = longlongtype;
             else if (n > INTEGER_MAX(inttype))
@@ -654,183 +448,30 @@ static void integer_constant(struct token *t, struct symbol * sym)
             else
                 ty = inttype;
         }
-        if (suffix < 0)
-            error("invalid suffix '%s' on integer constant", s);
         break;
     }
+
+    // overflow
+    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
+        error("integer constant overflow: %s", TOK_LIT_STR(t));
 
     SYM_TYPE(sym) = ty;
-
-    switch (TYPE_OP(SYM_TYPE(sym))) {
-    case INT:
-        if (overflow || n > INTEGER_MAX(longlongtype))
-            error("integer constant overflow: %s", tok2s(t));
-        SYM_VALUE_I(sym) = n;
-        break;
-    case UNSIGNED:
-        if (overflow)
-            error("integer constant overflow: %s", tok2s(t));
-        SYM_VALUE_U(sym) = n;
-        break;
-    default:
-        assert(0);
-    }
-}
-
-static int float_suffix(const char *s)
-{
-    if (s[0] == 'f' || s[0] == 'F')
-        return FLOAT;
-    else if (s[0] == 'l' || s[0] == 'L')
-        return LONG + DOUBLE;
-    else if (s[0] == '\0')
-        return 0;        // no suffix
-    else
-        return -1;        // invalid suffix
+    SYM_VALUE(sym) = t->u.lit.v;
 }
 
 static void float_constant(struct token *t, struct symbol * sym)
 {
-    const char *pc = TOK_LIT_STR(t);
-    struct strbuf *s = strbuf_new();
-
-    if (pc[0] == '.') {
-        assert(isdigit(pc[1]));
-        goto dotted;
-    } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
-        // base 16
-        strbuf_catn(s, pc, 2);
-        pc += 2;
-        if (*pc == '.') {
-            if (!isxdigit(pc[1]))
-                error("hexadecimal floating constants require a significand");
-            goto dotted_hex;
-        } else {
-            assert(isxdigit(*pc));
-
-            const char *rpc = pc;
-            while (isxdigit(*rpc))
-                rpc++;
-            strbuf_catn(s, pc, rpc - pc);
-            pc = rpc;
-        dotted_hex:
-            if (*pc == '.') {
-                strbuf_catn(s, pc++, 1);
-                rpc = pc;
-                while (isxdigit(*rpc))
-                    rpc++;
-                strbuf_catn(s, pc, rpc - pc);
-                pc = rpc;
-            }
-            if (*pc == 'p' || *pc == 'P') {
-                strbuf_catn(s, pc++, 1);
-                if (*pc == '+' || *pc == '-')
-                    strbuf_catn(s, pc++, 1);
-                if (isdigit(*pc)) {
-                    do {
-                        strbuf_catn(s, pc++, 1);
-                    } while (isdigit(*pc));
-                } else {
-                    error("exponent has no digits");
-                }
-            } else {
-                error("hexadecimal floating constants require an exponent");
-            }
-        }
-    } else {
-        // base 10
-        assert(isdigit(pc[0]));
-
-        const char *rpc = pc;
-        while (isdigit(*rpc))
-            rpc++;
-        strbuf_catn(s, pc, rpc - pc);
-        pc = rpc;
-    dotted:
-        if (*pc == '.') {
-            strbuf_catn(s, pc++, 1);
-            rpc = pc;
-            while (isdigit(*rpc))
-                rpc++;
-            strbuf_catn(s, pc, rpc - pc);
-            pc = rpc;
-        }
-        if (*pc == 'e' || *pc == 'E') {
-            strbuf_catn(s, pc++, 1);
-            if (*pc == '+' || *pc == '-')
-                strbuf_catn(s, pc++, 1);
-            if (isdigit(*pc)) {
-                do {
-                    strbuf_catn(s, pc++, 1);
-                } while (isdigit(*pc));
-            } else {
-                error("exponent used with no following digits: %s",
-                      tok2s(t));
-            }
-        }
-    }
-
-    int suffix = float_suffix(pc);
-    errno = 0;                // must clear first
+    int suffix = t->u.lit.suffix;
     switch (suffix) {
     case FLOAT:
         SYM_TYPE(sym) = floattype;
-        SYM_VALUE_D(sym) = strtof(strbuf_str(s), NULL);
         break;
     case LONG + DOUBLE:
         SYM_TYPE(sym) = longdoubletype;
-        SYM_VALUE_D(sym) = strtold(strbuf_str(s), NULL);
         break;
     default:
         SYM_TYPE(sym) = doubletype;
-        SYM_VALUE_D(sym) = strtod(strbuf_str(s), NULL);
-        if (suffix < 0)
-            error("invalid suffix '%s' on float constant", pc);
         break;
-    }
-
-    if (errno == ERANGE)
-        error("float constant overflow: %s", s);
-}
-
-static void number_constant(struct token *t, struct symbol * sym)
-{
-    const char *pc = TOK_LIT_STR(t);
-    if (pc[0] == '\'' || pc[0] == 'L') {
-        // character
-        char_constant(t, sym);
-    } else if (pc[0] == '.') {
-        // float
-        float_constant(t, sym);
-    } else if (pc[0] == '0' && (pc[1] == 'x' || pc[1] == 'X')) {
-        // Hex
-        pc += 2;
-        if (!isxdigit(*pc) && pc[0] != '.') {
-            error("incomplete hex constant: %s", tok2s(t));
-            integer_constant(t, sym);
-            return;
-        }
-        if (*pc == '.') {
-            // float
-            float_constant(t, sym);
-        } else {
-            while (isxdigit(*pc))
-                pc++;
-            if (*pc == '.' || *pc == 'p' || *pc == 'P')
-                float_constant(t, sym);
-            else
-                integer_constant(t, sym);
-        }
-    } else {
-        // Oct/Dec
-        assert(isdigit(*pc));
-
-        while (isdigit(*pc))
-            pc++;
-        if (*pc == '.' || *pc == 'e' || *pc == 'E')
-            float_constant(t, sym);
-        else
-            integer_constant(t, sym);
     }
 }
 
@@ -858,30 +499,15 @@ static void string_constant(struct token *t, struct symbol * sym)
     SYM_TYPE(sym) = ty;
 }
 
-static node_t *number_literal(struct token *t)
+static node_t *literal_expr(struct token *t, int id, void (*cnst) (struct token *, struct symbol *))
 {
     const char *name = TOK_LIT_STR(t);
     struct symbol *sym = lookup(name, constants);
     if (!sym) {
         sym = install(name, &constants, CONSTANT, PERM);
-        number_constant(t, sym);
+        cnst(t, sym);
     }
-    int id = isint(SYM_TYPE(sym)) ? INTEGER_LITERAL : FLOAT_LITERAL;
     node_t *expr = ast_expr(id, SYM_TYPE(sym), NULL, NULL);
-    AST_SRC(expr) = t->src;
-    EXPR_SYM(expr) = sym;
-    return expr;
-}
-
-static node_t *string_literal(struct token *t)
-{
-    const char *name = TOK_LIT_STR(t);
-    struct symbol *sym = lookup(name, constants);
-    if (!sym) {
-        sym = install(name, &constants, CONSTANT, PERM);
-        string_constant(t, sym);
-    }
-    node_t *expr = ast_expr(STRING_LITERAL, SYM_TYPE(sym), NULL, NULL);
     AST_SRC(expr) = t->src;
     EXPR_SYM(expr) = sym;
     return expr;
@@ -889,28 +515,20 @@ static node_t *string_literal(struct token *t)
 
 node_t *new_integer_literal(int i)
 {
-    struct token *t = new_token(&(struct token){
-            .id = NCONSTANT, .value.lexeme = strd(i)
-                });
-    node_t *expr = number_literal(t);
-    return expr;
+    struct token t = {.id = ICONSTANT, .u.lit.str = strd(i), .u.lit.v.i = i};
+    return literal_expr(&t, INTEGER_LITERAL, integer_constant);
 }
 
 static node_t *new_uint_literal(unsigned long l)
 {
-    struct token *t = new_token(&(struct token){
-            .id = NCONSTANT, .value.lexeme = stru(l)
-                });
-    node_t *expr = number_literal(t);
-    return expr;
+    struct token t = {.id = ICONSTANT, .u.lit.str = stru(l), .u.lit.v.u = l};
+    return literal_expr(&t, INTEGER_LITERAL, integer_constant);
 }
 
 node_t *new_string_literal(const char *string)
 {
-    struct token *t = new_token(&(struct token){
-            .id = SCONSTANT, .value.lexeme = format("\"%s\"", string)});
-    node_t *expr = string_literal(t);
-    return expr;
+    struct token t = {.id = SCONSTANT, .u.lit.str = format("\"%s\"", string)};
+    return literal_expr(&t, STRING_LITERAL, string_constant);
 }
 
 static struct vector *argcast1(struct type **params, size_t nparams,
@@ -1072,12 +690,16 @@ static node_t *primary_expr(void)
         }
         expect(t);
         break;
-    case NCONSTANT:
+    case ICONSTANT:
+        ret = literal_expr(token, INTEGER_LITERAL, integer_constant);
+        expect(t);
+        break;
+    case FCONSTANT:
+        ret = literal_expr(token, FLOAT_LITERAL, float_constant);
+        expect(t);
+        break;
     case SCONSTANT:
-        if (t == NCONSTANT)
-            ret = number_literal(token);
-        else
-            ret = string_literal(token);
+        ret = literal_expr(token, STRING_LITERAL, string_constant);
         expect(t);
         break;
     case '(':
@@ -2201,7 +1823,7 @@ static bool is_nullptr(node_t * node)
     if (cnst == NULL)
         return false;
     if (isiliteral(cnst))
-        return SYM_VALUE_U(EXPR_SYM(cnst)) == 0;
+        return SYM_VALUE(EXPR_SYM(cnst)).u == 0;
     return false;
 }
 
@@ -2224,7 +1846,7 @@ long intexpr1(struct type * ty)
         return 0;
     }
     assert(isiliteral(cnst));
-    return ILITERAL_VALUE(cnst);
+    return ILITERAL_VALUE(cnst).i;
 }
 
 /// constant-expression:

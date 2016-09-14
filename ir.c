@@ -144,7 +144,7 @@ static struct operand * make_label_operand(const char *label)
 static struct operand * make_int_operand(long long i)
 {
     struct operand *operand = make_named_operand(strd(i), &cons, CONSTANT);
-    SYM_VALUE_I(operand->sym) = i;
+    SYM_VALUE(operand->sym).i = i;
     SYM_X_KIND(operand->sym) = SYM_KIND_IMM;
     return operand;
 }
@@ -152,7 +152,7 @@ static struct operand * make_int_operand(long long i)
 static struct operand * make_unsigned_operand(unsigned long long u)
 {
     struct operand *operand = make_named_operand(stru(u), &cons, CONSTANT);
-    SYM_VALUE_U(operand->sym) = u;
+    SYM_VALUE(operand->sym).u = u;
     SYM_X_KIND(operand->sym) = SYM_KIND_IMM;
     return operand;
 }
@@ -329,7 +329,7 @@ static struct operand * make_subscript_operand2(struct operand *l,
     
     if (SYM_X_KIND(index->sym) == SYM_KIND_IMM) {
         // disp(base)
-        long d = SYM_VALUE_I(index->sym) * step + disp;
+        long d = SYM_VALUE(index->sym).i * step + disp;
         operand->disp = d;
     } else if (step == Byte || step == Word || step == Long || step == Quad) {
         // disp(base,index,scale)
@@ -665,7 +665,7 @@ static struct operand * emit_ptr_int(int op,
 {
     struct operand *distance;
     if (SYM_X_KIND(index->sym) == SYM_KIND_IMM) {
-        size_t i = SYM_VALUE_U(index->sym) * step;
+        size_t i = SYM_VALUE(index->sym).u * step;
         distance = make_unsigned_operand(i);
     } else {
         struct tac *tac;
@@ -890,7 +890,7 @@ static void emit_inits(struct type *ty, struct operand *l, node_t *r, long offse
 {
     assert(AST_ID(r) == INITS_EXPR);
 
-    if (isstruct(ty) || isunion(ty)) {
+    if (isstruct(ty)) {
         node_t **inits = EXPR_INITS(r);
         struct field **fields = TYPE_FIELDS(ty);
         size_t ninits = length(inits);
@@ -911,13 +911,23 @@ static void emit_inits(struct type *ty, struct operand *l, node_t *r, long offse
                     emit_assign(rty, l, init, off, NULL, sty);
             }
         }
-        size_t nfields = isstruct(ty) ? length(fields) : 1;
+        size_t nfields = length(fields);
         if (ninits < nfields) {
             struct field *field = fields[ninits];
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
             // as integer
             emit_zeros(inttype, l, off, bytes);
+        }
+    } else if (isunion(ty)) {
+        node_t *init = EXPR_INITS(r)[0];
+        if (!init || AST_ID(init) == VINIT_EXPR) {
+            // as integer
+            size_t bytes = TYPE_SIZE(ty);
+            emit_zeros(inttype, l, offset, bytes);
+        } else {
+            struct type *rty = AST_TYPE(init);
+            emit_assign(rty, l, init, offset, NULL, sty);
         }
     } else if (isarray(ty)) {
         struct type *rty = rtype(ty);
@@ -1727,7 +1737,7 @@ static void emit_paren(node_t *n)
 static void emit_integer_literal(node_t *n)
 {
     struct symbol *sym = EXPR_SYM(n);
-    SYM_X_LABEL(sym) = stru(SYM_VALUE_U(sym));
+    SYM_X_LABEL(sym) = stru(SYM_VALUE(sym).u);
     SYM_X_KIND(sym) = SYM_KIND_IMM;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
@@ -2408,7 +2418,7 @@ static void emit_struct_initializer(node_t *n)
                     int bits = FIELD_BITSIZE(field);
                     unsigned long long byte = 0;
                     if (isiliteral(init))
-                        byte = ILITERAL_VALUE(init);
+                        byte = ILITERAL_VALUE(init).u;
                     while (bits + old_bits >= 8) {
                         unsigned char val;
                         unsigned char l = byte & ~(~0 << (8 - old_bits));
@@ -2485,7 +2495,7 @@ static void emit_address_initializer(node_t *init)
 {
     struct type *ty = AST_TYPE(init);
     if (isiliteral(init)) {
-        emit_xvalue(Quad, format("%llu", ILITERAL_VALUE(init)));
+        emit_xvalue(Quad, format("%llu", ILITERAL_VALUE(init).u));
     } else {
         if (AST_ID(init) == BINARY_OPERATOR) {
             node_t *l = EXPR_OPERAND(init, 0);
@@ -2493,29 +2503,29 @@ static void emit_address_initializer(node_t *init)
             int op = EXPR_OP(init);
             size_t size = TYPE_SIZE(rtype(ty));
             if (isiliteral(l)) {
-                long long i = ILITERAL_VALUE(l) + ILITERAL_VALUE(r);
+                long long i = ILITERAL_VALUE(l).i + ILITERAL_VALUE(r).i;
                 emit_xvalue(Quad, format("%lld", i));
             } else {
                 const char *label = get_ptr_label(init);
                 if (op == '+') {
                     if (TYPE_OP(AST_TYPE(r)) == INT) {
-                        long long i = ILITERAL_VALUE(r);
+                        long long i = ILITERAL_VALUE(r).i;
                         if (i < 0)
                             emit_xvalue(Quad, format("%s%lld", label, i * size));
                         else
                             emit_xvalue(Quad, format("%s+%lld", label, i * size));
                     } else {
-                        emit_xvalue(Quad, format("%s+%llu", label, ILITERAL_VALUE(r) * size));
+                        emit_xvalue(Quad, format("%s+%llu", label, ILITERAL_VALUE(r).u * size));
                     }
                 } else {
                     if (TYPE_OP(AST_TYPE(r)) == INT) {
-                        long long i = ILITERAL_VALUE(r);
+                        long long i = ILITERAL_VALUE(r).i;
                         if (i < 0)
                             emit_xvalue(Quad, format("%s+%lld", label, -i * size));
                         else
                             emit_xvalue(Quad, format("%s-%lld", label, i * size));
                     } else {
-                        emit_xvalue(Quad, format("%s-%llu", label, ILITERAL_VALUE(r) * size));
+                        emit_xvalue(Quad, format("%s-%llu", label, ILITERAL_VALUE(r).u * size));
                     }
                 }
             }
@@ -2532,29 +2542,29 @@ static void emit_arith_initializer(node_t *init)
     switch (TYPE_KIND(ty)) {
     case _BOOL:
     case CHAR:
-        emit_xvalue(Byte, format("%d", ILITERAL_VALUE(init)));
+        emit_xvalue(Byte, format("%d", ILITERAL_VALUE(init).i));
         break;
     case SHORT:
-        emit_xvalue(Word, format("%d", ILITERAL_VALUE(init)));
+        emit_xvalue(Word, format("%d", ILITERAL_VALUE(init).i));
         break;
     case INT:
     case UNSIGNED:
-        emit_xvalue(Long, format("%d", ILITERAL_VALUE(init)));
+        emit_xvalue(Long, format("%d", ILITERAL_VALUE(init).i));
         break;
     case LONG:
     case LONG+LONG:
-        emit_xvalue(Quad, format("%llu", ILITERAL_VALUE(init)));
+        emit_xvalue(Quad, format("%llu", ILITERAL_VALUE(init).u));
         break;
     case FLOAT:
         {
-            float f = FLITERAL_VALUE(init);
+            float f = FLITERAL_VALUE(init).d;
             emit_xvalue(Long, format("%u", *(uint32_t *)&f));
         }
         break;
     case DOUBLE:
     case LONG+DOUBLE:
         {
-            double d = FLITERAL_VALUE(init);
+            double d = FLITERAL_VALUE(init).d;
             emit_xvalue(Quad, format("%llu", *(uint64_t *)&d));
         }
         break;

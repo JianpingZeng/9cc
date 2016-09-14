@@ -17,8 +17,8 @@
 static struct token *expand(struct file *pfile);
 static struct vector *expandv(struct file *pfile, struct vector *v);
 static void include_file(struct file *pfile, const char *file, bool std);
-static struct token *token_zero = &(struct token){.id = NCONSTANT, .value.lexeme = "0"};
-static struct token *token_one = &(struct token){.id = NCONSTANT, .value.lexeme = "1"};
+static struct token *token_zero = &(struct token){.id = ICONSTANT, .u.lit.str = "0", .u.lit.v.i = 0};
+static struct token *token_one = &(struct token){.id = ICONSTANT, .u.lit.str = "1", .u.lit.v.i = 1};
 
 #define IMAP_LOOKUP_HASH(imap, id, opt)                                 \
     (struct cpp_ident *)imap_lookup_with_hash(imap, id->str, id->len, id->hash, opt)
@@ -58,7 +58,7 @@ static struct directive_table {
 
 static inline bool defined(struct file *pfile, struct token *t)
 {
-    struct ident *id = t->value.ident;
+    struct ident *id = t->u.ident;
     struct cpp_ident *ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
     return ident && ident->type == CT_MACRO;
 }
@@ -485,7 +485,7 @@ static void parameters(struct file *pfile, struct macro *m)
 
 static struct cpp_ident *lookup_macro(struct file *pfile, struct token *t)
 {
-    struct ident *id = t->value.ident;
+    struct ident *id = t->u.ident;
     struct cpp_ident *ident;
 
     ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
@@ -663,7 +663,7 @@ static void define_objlike_macro(struct file *pfile, struct token *t)
     replacement_list(pfile, m);
     ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
-        add_macro(pfile, t->value.ident, m);
+        add_macro(pfile, t->u.ident, m);
 }
 
 static void define_funclike_macro(struct file *pfile, struct token *t)
@@ -676,7 +676,7 @@ static void define_funclike_macro(struct file *pfile, struct token *t)
     replacement_list(pfile, m);
     ensure_macro_def(pfile, t, m);
     if (NO_ERROR)
-        add_macro(pfile, t->value.ident, m);
+        add_macro(pfile, t->u.ident, m);
 }
 
 static struct token *read_identifier(struct file *pfile)
@@ -738,8 +738,7 @@ static void do_line(struct file *pfile)
     // TODO: 3rd format
 
     struct token *t = skip_spaces(pfile);
-    // TODO: must be an integer, not floating
-    if (t->id != NCONSTANT) {
+    if (t->id != ICONSTANT) {
         cpp_error("expect integer constant");
         unget(pfile, t);
         skipline(pfile);
@@ -755,7 +754,7 @@ static void do_line(struct file *pfile)
     }
     skipline(pfile);
     unget(pfile, new_token(&(struct token) {
-                .id = LINENO, .value.lexeme = name}));
+                .id = LINENO, .u.lit.str = name}));
 }
 
 static const char *tokens2s(struct vector *v)
@@ -815,8 +814,7 @@ static void directive(struct file *pfile)
     struct token *t = skip_spaces(pfile);
     if (IS_NEWLINE(t) || t->id == EOI)
         return;
-    // TODO: must be an integer, not floating
-    if (t->id == NCONSTANT) {
+    if (t->id == ICONSTANT) {
         unget(pfile, t);
         do_line(pfile);
         return;
@@ -949,7 +947,7 @@ static struct token *stringize(struct vector *v)
         struct token *t = vec_at(v, i);
         const char *name = tok2s(t);
         if (t->id == SCONSTANT ||
-            (t->id == NCONSTANT &&
+            (t->id == ICONSTANT &&
              (name[0] == '\'' || name[0] == 'L')))
             // Any embedded quotation or backslash characters
             // are preceded by a backslash character to preserve
@@ -960,7 +958,7 @@ static struct token *stringize(struct vector *v)
     }
     strbuf_cats(s, "\"");
     return new_token(&(struct token) {
-            .id = SCONSTANT, .value.lexeme = s->str});
+            .id = SCONSTANT, .u.lit.str = s->str});
 }
 
 /**
@@ -1059,7 +1057,7 @@ static struct token *expand(struct file *pfile)
     if (t->id != ID)
         return t;
 
-    struct ident *id = t->value.ident;
+    struct ident *id = t->u.ident;
     const unsigned char *name = id->str;
     struct cpp_ident *ident;
 
@@ -1115,7 +1113,7 @@ static void file_handler(struct file *pfile, struct token *t)
     const char *file = pfile->buffer->name;
     const char *name = format("\"%s\"", file);
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .value.lexeme = name, .src = t->src });
+            .id = SCONSTANT, .u.lit.str = name, .src = t->src });
     unget(pfile, tok);
 }
 
@@ -1124,21 +1122,21 @@ static void line_handler(struct file *pfile, struct token *t)
     unsigned line = pfile->buffer->line;
     const char *name = strd(line);
     struct token *tok = new_token(&(struct token){
-            .id = NCONSTANT, .value.lexeme = name, .src = t->src });
+            .id = ICONSTANT, .u.lit.str = name, .u.lit.v.i = line, .src = t->src });
     unget(pfile, tok);
 }
 
 static void date_handler(struct file *pfile, struct token *t)
 {
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .value.lexeme = pfile->date, .src = t->src });
+            .id = SCONSTANT, .u.lit.str = pfile->date, .src = t->src });
     unget(pfile, tok);
 }
 
 static void time_handler(struct file *pfile, struct token *t)
 {
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .value.lexeme = pfile->time, .src = t->src });
+            .id = SCONSTANT, .u.lit.str = pfile->time, .src = t->src });
     unget(pfile, tok);
 }
 
@@ -1161,7 +1159,7 @@ static struct token *lineno(unsigned line, const char *file)
 {
     const char *name = format("# %u \"%s\"\n", line, file);
     struct token *t = new_token(&(struct token){
-            .id = LINENO, .value.lexeme = name, .src.file = "<built-in>" });
+            .id = LINENO, .u.lit.str = name, .src.file = "<built-in>" });
     return t;
 }
 
