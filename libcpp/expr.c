@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "lex.h"
 #include "internal.h"
 
@@ -9,6 +10,27 @@ static cpp_num cast(void);
 
 #define is_assign_op(op)    (((op) == '=') || ((op) >= MULEQ && (op) <= RSHIFTEQ))
 
+
+static bool first_typename(struct token *tok)
+{
+    // TODO:
+    return false;
+}
+
+static void typename(void)
+{
+    
+}
+
+static void initializer_list(void)
+{
+    
+}
+
+static void args_list(void)
+{
+    
+}
 
 /// primary-expression:
 ///   identifier
@@ -34,9 +56,18 @@ static cpp_num primary(void)
         break;
 
     case '(':
-        expect('(');
-        num = expr();
-        expect(')');
+        if (first_typename(lookahead())) {
+            cpp_error("initializer list is not valid in preprocessor expression");
+            expect('(');
+            typename();
+            expect(')');
+            initializer_list();
+            num = 0;
+        } else {
+            expect('(');
+            num = expr();
+            expect(')');
+        }
         break;
 
     case ID:
@@ -48,6 +79,37 @@ static cpp_num primary(void)
         break;
     }
 
+    return num;
+}
+
+static cpp_num postfix1(cpp_num num)
+{
+    int t = token->id;
+    for (; t == '[' || t == '(' || t == '.' || t == DEREF || t == INCR || t == DECR;) {
+        switch (t) {
+        case '[':
+            expect('[');
+            expr();
+            expect(']');
+            break;
+        case '(':
+            expect('(');
+            args_list();
+            expect(')');
+            break;
+        case '.':
+        case DEREF:
+            expect(t);
+            expect(ID);
+            break;
+        case INCR:
+        case DECR:
+            expect(t);
+            break;
+        default:
+            assert(0);
+        }
+    }
     return num;
 }
 
@@ -64,8 +126,10 @@ static cpp_num primary(void)
 ///
 static cpp_num postfix(void)
 {
-    // TODO:
-    return primary();
+    cpp_num num;
+
+    num = primary();
+    return postfix1(num);
 }
 
 /// unary-expression:
@@ -110,7 +174,17 @@ static cpp_num unary(void)
     case SIZEOF:
         cpp_error("sizeof is not valid in preprocessor expression");
         expect(t);
-        // TODO:
+        if (token->id == '(' && first_typename(lookahead())) {
+            expect('(');
+            typename();
+            expect(')');
+            if (token->id == '{') {
+                initializer_list();
+                postfix1(0);
+            }
+        } else {
+            unary();
+        }
         return 0;
     default:
         return postfix();
@@ -123,8 +197,21 @@ static cpp_num unary(void)
 ///
 static cpp_num cast(void)
 {
-    // TODO: 
-    return unary();
+    if (token->id == '(' && first_typename(lookahead())) {
+        cpp_error("cast is not valid in preprocessor expression");
+        expect('(');
+        typename();
+        expect(')');
+        if (token->id == '{') {
+            initializer_list();
+            postfix1(0);
+        } else {
+            cast();
+        }
+        return 0;
+    } else {
+        return unary();
+    }
 }
 
 /// multiplicative-expression:
@@ -140,16 +227,21 @@ static cpp_num multiple(void)
     num = cast();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
+        expect(t);
         if (t == '*') {
             num *= cast();
         } else if (t == '/') {
             cpp_num num2 = cast();
             if (num2)
                 num /= num2;
+            else
+                cpp_error("division by zero");
         } else {
             cpp_num num2 = cast();
             if (num2)
                 num %= num2;
+            else
+                cpp_error("division by zero");
         }
     }
 
@@ -168,6 +260,7 @@ static cpp_num additive(void)
     num = multiple();
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
+        expect(t);
         if (t == '+')
             num += multiple();
         else
