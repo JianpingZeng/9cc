@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "cc.h"
 
 static const char *node_names[] = {

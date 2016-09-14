@@ -1,3 +1,6 @@
+#include <limits.h>
+#include <float.h>
+#include <assert.h>
 #include "cc.h"
 
 // predefined types

@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <stdint.h>
 #include "cc.h"
 
 /**

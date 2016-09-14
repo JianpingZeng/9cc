@@ -1,21 +1,12 @@
 #ifndef _CC_H
 #define _CC_H
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <memory.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <limits.h>
-#include <float.h>
-#include <wchar.h>
+// for bool
 #include <stdbool.h>
-#include <time.h>
-#include <locale.h>
-#include <ctype.h>
-#include <stdint.h>
+// for size_t
+#include <stddef.h>
+// for CHAR_BIT
+#include <limits.h>
 
 #include "config.h"
 #include "utils/utils.h"

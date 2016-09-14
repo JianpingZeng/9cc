@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "cc.h"
 
 /* Constant expressions in C:

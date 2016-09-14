@@ -1,3 +1,6 @@
+#include <assert.h>
+#include <errno.h>
+#include <stdlib.h>
 #include "cc.h"
 
 static node_t *cast_expr(void);

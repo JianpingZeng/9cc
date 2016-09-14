@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "cc.h"
 
 static void abstract_declarator(struct type ** ty);

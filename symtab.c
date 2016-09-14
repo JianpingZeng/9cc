@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <assert.h>
 #include "cc.h"
 
 struct table *identifiers;
