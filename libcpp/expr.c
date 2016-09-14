@@ -1,14 +1,13 @@
 #include "lex.h"
 #include "internal.h"
 
-static struct cpp_num expr(void);
-static struct cpp_num cond(void);
+typedef long cpp_num;
+
+static cpp_num expr(void);
+static cpp_num cond(void);
+static cpp_num cast(void);
 
 #define is_assign_op(op)    (((op) == '=') || ((op) >= MULEQ && (op) <= RSHIFTEQ))
-
-struct cpp_num {
-    union value v;
-};
 
 
 /// primary-expression:
@@ -17,20 +16,20 @@ struct cpp_num {
 ///   string-literal
 ///   '(' expression ')'
 ///
-static struct cpp_num primary(void)
+static cpp_num primary(void)
 {
     int t = token->id;
-    struct cpp_num num;
+    cpp_num num;
     
     switch (t) {
     case ICONSTANT:
-        num.v.i = token->u.lit.v.i;
+        num = token->u.lit.v.i;
         expect(t);
         break;
 
     case FCONSTANT:
         cpp_error("floating constant in preprocessor expression");
-        num.v.i = 0;
+        num = 0;
         expect(t);
         break;
 
@@ -44,7 +43,7 @@ static struct cpp_num primary(void)
     case SCONSTANT:
     default:
         cpp_error("token '%s' is not valid in preprocessor expression", tok2s(token));
-        num.v.i = 0;
+        num = 0;
         expect(t);
         break;
     }
@@ -63,9 +62,10 @@ static struct cpp_num primary(void)
 ///   '(' type-name ')' '{' initializer-list '}'
 ///   '(' type-name ')' '{' initializer-list ',' '}'
 ///
-static struct cpp_num postfix(void)
+static cpp_num postfix(void)
 {
-    
+    // TODO:
+    return primary();
 }
 
 /// unary-expression:
@@ -76,18 +76,55 @@ static struct cpp_num postfix(void)
 ///   'sizeof' unary-expression
 ///   'sizeof' '(' type-name ')'
 ///
-static struct cpp_num unary(void)
+/// unary-operator:
+///   '&' '*' '+' '-' '~' '!'
+///
+static cpp_num unary(void)
 {
-    
+    int t = token->id;
+    switch (t) {
+    case INCR:
+    case DECR:
+        cpp_error("increment/decrement is not valid in preprocessor expression");
+        expect(t);
+        unary();
+        return 0;
+    case '+':
+        expect(t);
+        return cast();
+    case '-':
+        expect(t);
+        return - cast();
+    case '~':
+        expect(t);
+        return ~ cast();
+    case '!':
+        expect(t);
+        return ! cast();
+    case '&':
+    case '*':
+        cpp_error("address/indirection is not valid in preprocessor expression");
+        expect(t);
+        cast();
+        return 0;
+    case SIZEOF:
+        cpp_error("sizeof is not valid in preprocessor expression");
+        expect(t);
+        // TODO:
+        return 0;
+    default:
+        return postfix();
+    }
 }
 
 /// cast-expression:
 ///   unary-expression
 ///   '(' type-name ')' cast-expression
 ///
-static struct cpp_num cast(void)
+static cpp_num cast(void)
 {
-    
+    // TODO: 
+    return unary();
 }
 
 /// multiplicative-expression:
@@ -96,9 +133,27 @@ static struct cpp_num cast(void)
 ///   multiplicative-expression '/' cast-expression
 ///   multiplicative-expression '%' cast-expression
 ///
-static struct cpp_num multiple(void)
+static cpp_num multiple(void)
 {
-    
+    cpp_num num;
+
+    num = cast();
+    while (token->id == '*' || token->id == '/' || token->id == '%') {
+        int t = token->id;
+        if (t == '*') {
+            num *= cast();
+        } else if (t == '/') {
+            cpp_num num2 = cast();
+            if (num2)
+                num /= num2;
+        } else {
+            cpp_num num2 = cast();
+            if (num2)
+                num %= num2;
+        }
+    }
+
+    return num;
 }
 
 /// additive-expression:
@@ -106,9 +161,20 @@ static struct cpp_num multiple(void)
 ///   additive-expression '+' multiplicative-expression
 ///   additive-expression '-' multiplicative-expression
 ///
-static struct cpp_num additive(void)
+static cpp_num additive(void)
 {
-    
+    cpp_num num;
+
+    num = multiple();
+    while (token->id == '+' || token->id == '-') {
+        int t = token->id;
+        if (t == '+')
+            num += multiple();
+        else
+            num -= multiple();
+    }
+
+    return num;
 }
 
 /// shift-expression:
@@ -116,9 +182,21 @@ static struct cpp_num additive(void)
 ///   shift-expression '<<' additive-expression
 ///   shift-expression '>>' additive-expression
 ///
-static struct cpp_num shift(void)
+static cpp_num shift(void)
 {
-    
+    cpp_num num;
+
+    num = additive();
+    while (token->id == LSHIFT || token->id == RSHIFT) {
+        int t = token->id;
+        expect(t);
+        if (t == LSHIFT)
+            num <<= additive();
+        else
+            num >>= additive();
+    }
+
+    return num;
 }
 
 /// relational-expression:
@@ -128,9 +206,25 @@ static struct cpp_num shift(void)
 ///   relational-expression '<=' shift-expression
 ///   relational-expression '>=' shift-expression
 ///
-static struct cpp_num relational(void)
+static cpp_num relational(void)
 {
-    
+    cpp_num num;
+
+    num = shift();
+    while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
+        int t = token->id;
+        expect(t);
+        if (t == '<')
+            num = num < shift();
+        else if (t == '>')
+            num = num > shift();
+        else if (t == LEQ)
+            num = num <= shift();
+        else
+            num = num >= shift();
+    }
+
+    return num;
 }
 
 /// equality-expression:
@@ -138,75 +232,129 @@ static struct cpp_num relational(void)
 ///   equality-expression '==' relational-expression
 ///   euqality-expression '!=' relational-expression
 ///
-static struct cpp_num equality(void)
+static cpp_num equality(void)
 {
-    
+    cpp_num num;
+
+    num = relational();
+    while (token->id == EQ || token->id == NEQ) {
+        int t = token->id;
+        expect(t);
+        if (t == EQ)
+            num = num == relational();
+        else
+            num = num != relational();
+    }
+
+    return num;
 }
 
 /// AND-expression:
 ///   equality-expression
 ///   AND-expression '&' equality-expression
 ///
-static struct cpp_num and(void)
+static cpp_num and(void)
 {
-    
+    cpp_num num;
+
+    num = equality();
+    while (token->id == '&') {
+        expect('&');
+        num &= equality();
+    }
+
+    return num;
 }
 
 /// exclusive-OR-expression:
 ///   AND-expression
 ///   exclusive-OR-expression '^' AND-expression
 ///
-static struct cpp_num exclusive_or(void)
+static cpp_num exclusive_or(void)
 {
-    
+    cpp_num num;
+
+    num = and();
+    while (token->id == '^') {
+        expect('^');
+        num ^= and();
+    }
+
+    return num;
 }
 
 /// inclusive-OR-expression:
 ///   exclusive-OR-expression
 ///   inclusive-OR-expression '|' exclusive-OR-expression
 ///
-static struct cpp_num inclusive_or(void)
+static cpp_num inclusive_or(void)
 {
-    
+    cpp_num num;
+
+    num = exclusive_or();
+    while (token->id == '|') {
+        expect('|');
+        num |= exclusive_or();
+    }
+
+    return num;
 }
 
 /// logical-AND-expression:
 ///   inclusive-OR-expression
 ///   logical-AND-expression '&&' inclusive-OR-expression
 ///
-static struct cpp_num logical_and(void)
+static cpp_num logical_and(void)
 {
-    
+    cpp_num num;
+
+    num = inclusive_or();
+    while (token->id == AND) {
+        expect(AND);
+        cpp_num num2 = inclusive_or();
+        num = num && num2;
+    }
+
+    return num;
 }
 
 /// logical-OR-expression:
 ///   logical-AND-expression
 ///   logical-OR-expression '||' logical-AND-expression
 ///
-static struct cpp_num logical_or(void)
+static cpp_num logical_or(void)
 {
-    
+    cpp_num num;
+
+    num = logical_and();
+    while (token->id == OR) {
+        expect(OR);
+        cpp_num num2 = logical_and();
+        num = num || num2;
+    }
+
+    return num;
 }
 
-static struct cpp_num cond1(struct cpp_num num)
+static cpp_num cond1(cpp_num num)
 {
-    struct cpp_num num, then, els;
+    cpp_num then, els;
 
     expect('?');
     then = expr();
     expect(':');
-    
+    els = cond();
 
-    return num;
+    return num ? then : els;
 }
 
 /// conditional-expression:
 ///   logical-OR-expression
 ///   logical-OR-expression '?' expression ':' conditional-expression
 ///
-static struct cpp_num cond(void)
+static cpp_num cond(void)
 {
-    struct cpp_num num;
+    cpp_num num;
 
     num = logical_or();
     if (token->id == '?')
@@ -222,9 +370,9 @@ static struct cpp_num cond(void)
 /// assignment-operator:
 ///   '=' '*=' '/=' '%=' '+=' '-=' '<<=' '>>=' '&=' '^=' '|='
 ///
-static struct cpp_num assign(void)
+static cpp_num assign(void)
 {
-    struct cpp_num num;
+    cpp_num num;
 
     num = logical_or();
     if (token->id == '?')
@@ -242,9 +390,9 @@ static struct cpp_num assign(void)
 ///   assignment-expression
 ///   expression ',' assignment-expression
 ///
-static struct cpp_num expr(void)
+static cpp_num expr(void)
 {
-    struct cpp_num num;
+    cpp_num num;
 
     num = assign();
     while (token->id == ',') {
@@ -255,19 +403,11 @@ static struct cpp_num expr(void)
     return num;
 }
 
-static int intexpr(void)
-{
-    struct cpp_num num;
-
-    num = expr();
-    return num.v.i;
-}
-
 /// constant-expression:
 ///   conditional-expression
 ///
 bool eval_cpp_const_expr(void)
 {
     gettok();
-    return intexpr();
+    return cond();
 }
