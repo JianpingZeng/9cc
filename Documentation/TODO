@@ -2,13 +2,16 @@
 版本详情/计划：
 ------------
 
-v0.1:   第一个可以自举的版本
+v0.1:   2016/06/04
+        第一个可以自举的版本
 
-v0.2:   从双缓冲改为一次性读取文件
+v0.2:   2016/06/05
+        从双缓冲改为一次性读取文件
 
-v0.3:   优化cpp性能
+v0.3:   2016/07/25
+        优化cpp性能
 
-v0.3.1:
+v0.3.1: 2016/09/01
         !添加 utils/alloc.c,list.c
         添加 typechk.c, gen.c 改为 x86.c
         !添加 struct im (IM), struct ir (IR)
@@ -18,13 +21,13 @@ v0.3.1:
         !修改 decl.c 的 oldstyle params 解析
         其他代码整理重构
 
-v0.3.2:
+v0.3.2: 2016/09/02
         重命名 sym.c 为 symtab.c
         修改 print_tree 函数，删除 print_context
         重新加回符号表中符号之间的 link 属性
         !cpp改成从标准输入（stdin）读取，打印到标准输出（stdout）
 
-v0.3.3:
+v0.3.3: 2016/09/11
         !删除 ast_decl
         !symbol 使用 area 分配
         修复 emit_bop_arith 64-bit imm operand 的问题
@@ -38,7 +41,7 @@ v0.3.3:
         ! ast_symbol => struct symbol
         ! ast_dump, ir_dump 功能恢复
 
-v0.3.4:
+v0.3.4: 2016/09/14
         ! number 在 lex.c 处理
         ! 修复 ir.c:emit_inits 中 union 问题
 
