@@ -890,7 +890,7 @@ static void emit_inits(struct type *ty, struct operand *l, node_t *r, long offse
 {
     assert(AST_ID(r) == INITS_EXPR);
 
-    if (isstruct(ty) || isunion(ty)) {
+    if (isstruct(ty)) {
         node_t **inits = EXPR_INITS(r);
         struct field **fields = TYPE_FIELDS(ty);
         size_t ninits = length(inits);
@@ -911,13 +911,23 @@ static void emit_inits(struct type *ty, struct operand *l, node_t *r, long offse
                     emit_assign(rty, l, init, off, NULL, sty);
             }
         }
-        size_t nfields = isstruct(ty) ? length(fields) : 1;
+        size_t nfields = length(fields);
         if (ninits < nfields) {
             struct field *field = fields[ninits];
             long off = FIELD_OFFSET(field);
             size_t bytes = TYPE_SIZE(ty) - off;
             // as integer
             emit_zeros(inttype, l, off, bytes);
+        }
+    } else if (isunion(ty)) {
+        node_t *init = EXPR_INITS(r)[0];
+        if (!init || AST_ID(init) == VINIT_EXPR) {
+            // as integer
+            size_t bytes = TYPE_SIZE(ty);
+            emit_zeros(inttype, l, offset, bytes);
+        } else {
+            struct type *rty = AST_TYPE(init);
+            emit_assign(rty, l, init, offset, NULL, sty);
         }
     } else if (isarray(ty)) {
         struct type *rty = rtype(ty);
