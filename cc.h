@@ -21,9 +21,6 @@
 #include "utils/utils.h"
 #include "libcpp/lex.h"
 
-// error.c
-#include "error.h"
-
 struct cc_options {
     int E:1;
     int ast_dump:1;
