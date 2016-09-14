@@ -9,27 +9,40 @@ static cpp_num cond(void);
 static cpp_num cast(void);
 
 #define is_assign_op(op)    (((op) == '=') || ((op) >= MULEQ && (op) <= RSHIFTEQ))
+#define first_typename(t)   ((t)->kind == INT || (t)->kind == CONST)
 
 
-static bool first_typename(struct token *tok)
+static void skip_pair(int p1, int p2)
 {
-    // TODO:
-    return false;
+    int nests = 0;
+
+    for (;;) {
+        if (token->id == p1) {
+            nests++;
+        } else if (token->id == p2) {
+            if (nests == 0)
+                break;
+            nests--;
+        }
+        gettok();
+    }
 }
 
-static void typename(void)
+static inline void typename(void)
 {
-    
+    skip_pair('(', ')');
 }
 
 static void initializer_list(void)
-{
-    
+{    
+    expect('{');
+    skip_pair('{', '}');
+    expect('}');
 }
 
-static void args_list(void)
+static inline void args_list(void)
 {
-    
+    skip_pair('(', ')');
 }
 
 /// primary-expression:
