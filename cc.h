@@ -18,7 +18,6 @@
 #include <stdint.h>
 
 #include "config.h"
-#include "color.h"
 #include "utils/utils.h"
 #include "libcpp/lex.h"
 

@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include "config.h"
-#include "color.h"
+#include "utils/color.h"
 #include "cc.h"
 
 unsigned int errors;

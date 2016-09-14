@@ -1,4 +1,5 @@
 #include "cc.h"
+#include "utils/color.h"
 
 #define STR(str)  ((str) ? (str) : "<null>")
 static FILE *outfd;

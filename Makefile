@@ -45,6 +45,7 @@ UTILS_INC += $(utils_dir)map.h
 UTILS_INC += $(utils_dir)set.h
 UTILS_INC += $(utils_dir)list.h
 UTILS_INC += $(utils_dir)sys.h
+UTILS_INC += $(utils_dir)color.h
 
 LIBCPP_OBJ += $(libcpp_dir)lex.o
 LIBCPP_OBJ += $(libcpp_dir)cpp.o
@@ -76,7 +77,6 @@ CC1_OBJ += print.o
 
 CC1_INC += cc.h
 CC1_INC += ast.h
-CC1_INC += color.h
 CC1_INC += node.def
 CC1_INC += rop.def
 
