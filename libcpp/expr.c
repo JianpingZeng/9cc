@@ -9,8 +9,20 @@ static cpp_num cond(void);
 static cpp_num cast(void);
 
 #define is_assign_op(op)    (((op) == '=') || ((op) >= MULEQ && (op) <= RSHIFTEQ))
-#define first_typename(t)   ((t)->kind == INT || (t)->kind == CONST)
 
+
+static bool is_bop(int op)
+{
+    static int bop[] = { OR, AND, '|', '^', '&', EQ, NEQ, '>', '<', LEQ, GEQ,
+                         LSHIFT, RSHIFT, '+', '-', '*', '/', '%' };
+    static int size = sizeof(bop)/sizeof(bop[0]);
+    
+    for (int i = 0; i < size; i++)
+        if (op == bop[i])
+            return true;
+
+    return false;
+}
 
 static void skip_pair(int p1, int p2)
 {
@@ -30,11 +42,13 @@ static void skip_pair(int p1, int p2)
 
 static inline void typename(void)
 {
+    expect('(');
     skip_pair('(', ')');
+    expect(')');
 }
 
-static void initializer_list(void)
-{    
+static inline void initializer_list(void)
+{
     expect('{');
     skip_pair('{', '}');
     expect('}');
@@ -42,7 +56,9 @@ static void initializer_list(void)
 
 static inline void args_list(void)
 {
+    expect('(');
     skip_pair('(', ')');
+    expect(')');
 }
 
 /// primary-expression:
@@ -69,18 +85,8 @@ static cpp_num primary(void)
         break;
 
     case '(':
-        if (first_typename(lookahead())) {
-            cpp_error("initializer list is not valid in preprocessor expression");
-            expect('(');
-            typename();
-            expect(')');
-            initializer_list();
-            num = 0;
-        } else {
-            expect('(');
-            num = expr();
-            expect(')');
-        }
+        // handled by cast()
+        assert(0);
         break;
 
     case ID:
@@ -187,10 +193,8 @@ static cpp_num unary(void)
     case SIZEOF:
         cpp_error("sizeof is not valid in preprocessor expression");
         expect(t);
-        if (token->id == '(' && first_typename(lookahead())) {
-            expect('(');
+        if (token->id == '(') {
             typename();
-            expect(')');
             if (token->id == '{') {
                 initializer_list();
                 postfix1(0);
@@ -210,18 +214,26 @@ static cpp_num unary(void)
 ///
 static cpp_num cast(void)
 {
-    if (token->id == '(' && first_typename(lookahead())) {
-        cpp_error("cast is not valid in preprocessor expression");
+    if (token->id == '(') {
+        cpp_num num;
         expect('(');
-        typename();
-        expect(')');
-        if (token->id == '{') {
-            initializer_list();
-            postfix1(0);
+        num = expr();
+        if (token->id == ')') {
+            expect(')');
+            if (token->id != EOI && !is_bop(token->id))
+                cpp_error("missing binary operator before token '%s", tok2s(token));
         } else {
-            cast();
+            // skip
+            skip_pair('(', ')');
+            expect(')');
+            if (token->id == '{') {
+                initializer_list();
+                postfix1(0);
+            } else {
+                cast();
+            }
         }
-        return 0;
+        return num;
     } else {
         return unary();
     }
