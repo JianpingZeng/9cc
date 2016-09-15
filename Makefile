@@ -3,7 +3,7 @@
 # version
 MAJOR = 0
 MINOR = 3
-FIXES = 4
+FIXES = 5
 EXTRAVERSION =
 
 CFLAGS = -Wall -std=c99 -I.

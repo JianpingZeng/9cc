@@ -46,10 +46,13 @@ v0.3.4: 2016/09/14
         ! 修复 ir.c:emit_inits 中 union 问题
 
 v0.3.5:        
-        TODO: 完全独立的cpp（错误处理、constant expr）
-        TODO: 从 stdin 读取优化
-        TODO: imap 改为原来的hash
-        TODO: cpp优化
+        ! 完全独立的cpp（错误处理、constant expr）
+        ! 删除 ast.h, gen.h
+        ! 整理 cc.h
+
+v0.3.6:
+        TODO: #if 中报错 (null):0:0 的问题
+        TODO: 优化
         
 v0.4:
         TODO: 新的ast,IR和gen
