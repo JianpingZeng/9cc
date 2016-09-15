@@ -11,23 +11,11 @@ static cpp_num cast(void);
 #define is_assign_op(op)    (((op) == '=') || ((op) >= MULEQ && (op) <= RSHIFTEQ))
 
 
-static bool is_bop(int op)
-{
-    static int bop[] = { OR, AND, '|', '^', '&', EQ, NEQ, '>', '<', LEQ, GEQ,
-                         LSHIFT, RSHIFT, '+', '-', '*', '/', '%' };
-    static int size = sizeof(bop)/sizeof(bop[0]);
-    
-    for (int i = 0; i < size; i++)
-        if (op == bop[i])
-            return true;
-
-    return false;
-}
-
 static void skip_pair(int p1, int p2)
 {
     int nests = 0;
 
+    expect(p1);
     for (;;) {
         if (token->id == p1) {
             nests++;
@@ -38,27 +26,22 @@ static void skip_pair(int p1, int p2)
         }
         gettok();
     }
+    expect(p2);
 }
 
 static inline void typename(void)
 {
-    expect('(');
     skip_pair('(', ')');
-    expect(')');
 }
 
 static inline void initializer_list(void)
 {
-    expect('{');
     skip_pair('{', '}');
-    expect('}');
 }
 
 static inline void args_list(void)
 {
-    expect('(');
     skip_pair('(', ')');
-    expect(')');
 }
 
 /// primary-expression:
@@ -85,8 +68,9 @@ static cpp_num primary(void)
         break;
 
     case '(':
-        // handled by cast()
-        assert(0);
+        expect('(');
+        num = expr();
+        expect(')');
         break;
 
     case ID:
@@ -214,29 +198,7 @@ static cpp_num unary(void)
 ///
 static cpp_num cast(void)
 {
-    if (token->id == '(') {
-        cpp_num num;
-        expect('(');
-        num = expr();
-        if (token->id == ')') {
-            expect(')');
-            if (token->id != EOI && !is_bop(token->id))
-                cpp_error("missing binary operator before token '%s", tok2s(token));
-        } else {
-            // skip
-            skip_pair('(', ')');
-            expect(')');
-            if (token->id == '{') {
-                initializer_list();
-                postfix1(0);
-            } else {
-                cast();
-            }
-        }
-        return num;
-    } else {
-        return unary();
-    }
+    return unary();
 }
 
 /// multiplicative-expression:
@@ -527,5 +489,10 @@ static cpp_num expr(void)
 bool eval_cpp_const_expr(void)
 {
     gettok();
-    return cond();
+
+    bool b = cond();
+    if (token->id != EOI)
+        cpp_error("missing binary operator before token '%s'", tok2s(token));
+
+    return b;
 }
