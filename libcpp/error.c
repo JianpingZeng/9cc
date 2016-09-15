@@ -4,9 +4,8 @@
 #include <assert.h>
 #include "config.h"
 #include "utils/color.h"
+#include "lex.h"
 #include "internal.h"
-
-unsigned int cpp_errors;
 
 #define MAX_ERRORS 8
 
@@ -53,8 +52,8 @@ void cpp_errorf(const char *file, unsigned int line, unsigned int column,
     va_start(ap, fmt);
     cc_print_lead(ERR, file, line, column, fmt, ap);
     va_end(ap);
-    ++cpp_errors;
-    if (cpp_errors >= MAX_ERRORS) {
+    ++cpp_file->errors;
+    if (cpp_file->errors >= MAX_ERRORS) {
         fprintf(stderr, "Too many errors.\n");
         exit(EXIT_FAILURE);
     }

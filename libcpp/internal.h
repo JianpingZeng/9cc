@@ -61,7 +61,6 @@ extern void imap_dump(struct imap *imap);
 // error.c
 enum { WRN = 1, ERR, FTL };
 
-extern unsigned int cpp_errors;
 extern void cpp_warningf(const char *file, unsigned int line, unsigned int column,
                          const char *fmt, ...);
 extern void cpp_errorf(const char *file, unsigned int line, unsigned int column,
@@ -69,9 +68,9 @@ extern void cpp_errorf(const char *file, unsigned int line, unsigned int column,
 extern void cpp_fatalf(const char *file, unsigned int line, unsigned int column,
                        const char *fmt, ...);
 
-#define SAVE_ERRORS    unsigned int __err = cpp_errors
-#define NO_ERROR       (__err == cpp_errors)
-#define HAS_ERROR      (__err != cpp_errors)
+#define SAVE_ERRORS    unsigned int __err = cpp_file->errors
+#define NO_ERROR       (__err == cpp_file->errors)
+#define HAS_ERROR      (__err != cpp_file->errors)
 
 #define cpp_warning_at(s, ...)   cpp_warningf(s.file, s.line, s.column, __VA_ARGS__)
 #define cpp_error_at(s, ...)     cpp_errorf(s.file, s.line, s.column, __VA_ARGS__)
