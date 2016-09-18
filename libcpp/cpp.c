@@ -1289,7 +1289,7 @@ void cpp_init(int argc, char *argv[])
     if (ifile == NULL || !strcmp(ifile, "-"))
         ifile = "";
     
-    cpp_file = new_cpp_file(ifile);
+    cpp_file = input_init(ifile);
     init_env(cpp_file);
     init_include_path(cpp_file);
     init_builtin_macros(cpp_file);

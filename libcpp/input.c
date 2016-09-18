@@ -176,7 +176,7 @@ static inline struct ident *alloc_cpp_ident_entry(struct imap *imap)
     return NEWS0(struct cpp_ident, PERM);
 }
 
-struct file *new_cpp_file(const char *file)
+struct file *input_init(const char *file)
 {
     struct file *pfile = zmalloc(sizeof(struct file));
     pfile->file = file;
