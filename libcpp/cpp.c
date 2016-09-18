@@ -1287,7 +1287,7 @@ void cpp_init(int argc, char *argv[])
     }
 
     if (ifile == NULL || !strcmp(ifile, "-"))
-        ifile = "<stdin>";
+        ifile = "";
     
     cpp_file = new_cpp_file(ifile);
     init_env(cpp_file);

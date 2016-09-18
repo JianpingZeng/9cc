@@ -1,5 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <limits.h>
 #include "lex.h"
 #include "internal.h"
 #include "utils/utils.h"
@@ -23,62 +29,70 @@ static void free_buffer(struct buffer *pb)
     free(pb);
 }
 
-static struct buffer *with_stdin(const char *file)
-{
-    FILE *fp = stdin;
-    struct buffer *pb = new_buffer();
-    pb->kind = BK_REGULAR;
-    pb->name = file;
-
-    // read the content
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    char *d = xmalloc(size + 1);
-    if (fread(d, size, 1, fp) != 1)
-        die("Can't read file: %s", file);
-    fclose(fp);
-
-    /**
-     * Add a newline character to the end if the
-     * file doesn't have one, thus the include
-     * directive would work well.
-     */
-    d[size] = '\n';
-
-    pb->buf = (const unsigned char *)d;
-    pb->cur = pb->line_base = pb->next_line = pb->buf;
-    pb->limit = &pb->buf[size];
-    return pb;
-}
-
 struct buffer *with_file(const char *file)
 {
-    struct buffer *pb = new_buffer();
+    int fd;
+    struct buffer *pb;
+    struct stat st;
+    bool regular;
+    ssize_t size, total, count;
+    char *buf;
+
+    if (file[0] == '\0')
+        fd = 0;
+    else
+        fd = open(file, O_RDONLY | O_NOCTTY, 0666);
+
+    if (fd == -1)
+        die("Can't open file: %s (%s)", file, strerror(errno));
+
+    if (fstat(fd, &st) == -1)
+        die("Can't get file stat: %s (%s)", file, strerror(errno));
+
+    if (S_ISDIR(st.st_mode))
+        die("%s is a directory", file);
+
+    if (S_ISBLK(st.st_mode))
+        die("%s is a block device", file);
+    
+    regular = S_ISREG(st.st_mode) != 0;
+    if (regular)
+        size = st.st_size;
+    else
+        // 8k
+        size = 8 * 1024;
+
+    buf = xmalloc(size + 1);
+    total = 0;
+    while ((count = read(fd, buf + total, size - total)) > 0) {
+        total += count;
+
+        if (total == size) {
+            if (regular)
+                break;
+            size *= 2;
+            buf = xrealloc(buf, size + 1);
+        }
+    }
+
+    if (count < 0)
+        die("Can't read file: %s (%s)", file, strerror(errno));
+
+    close(fd);
+    pb = new_buffer();
     pb->kind = BK_REGULAR;
     pb->name = file;
-
-    //NOTE: must be binary in Windows
-    FILE *fp = fopen(file, "rb");
-    if (fp == NULL)
-        die("Can't open file: %s", file);
-    // read the content
-    long size = file_size(file);
-    char *d = xmalloc(size + 1);
-    if (fread(d, size, 1, fp) != 1)
-        die("Can't read file: %s", file);
-    fclose(fp);
-
+    
     /**
      * Add a newline character to the end if the
      * file doesn't have one, thus the include
      * directive would work well.
      */
-    d[size] = '\n';
-
-    pb->buf = (const unsigned char *)d;
+    buf[total] = '\n';
+    
+    pb->buf = (const unsigned char *)buf;
     pb->cur = pb->line_base = pb->next_line = pb->buf;
-    pb->limit = &pb->buf[size];
+    pb->limit = &pb->buf[total];
     return pb;
 }
 
@@ -176,6 +190,6 @@ struct file *new_cpp_file(const char *file)
     pfile->tokenrun = next_tokenrun(NULL, 1024);
     pfile->cur_token = pfile->tokenrun->base;
 
-    buffer_sentinel(pfile, with_stdin(file), BS_CONTINUOUS);
+    buffer_sentinel(pfile, with_file(file), BS_CONTINUOUS);
     return pfile;
 }
