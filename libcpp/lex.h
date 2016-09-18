@@ -138,7 +138,7 @@ struct ifstack {
 extern struct file *new_cpp_file(const char *file);
 
 extern struct buffer *with_string(const char *input, const char *name);
-extern struct buffer *with_file(const char *file);
+extern struct buffer *with_file(const char *file, const char *name);
 extern struct buffer *with_tokens(struct vector *v, struct buffer *cur);
 
 enum buffer_sentinel_option { BS_CONTINUOUS = 0, BS_RETURN_EOI };

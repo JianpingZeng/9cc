@@ -38,11 +38,6 @@ static void parse_opts(int argc, char *argv[])
         }
     }
 
-    // reopen stdin
-    if (ifile && strcmp(ifile, "-")) {
-        if (freopen(ifile, "r", stdin) == NULL)
-            die("can't read file: %s", ifile);
-    }
     // reopen stdout
     if (ofile && strcmp(ofile, "-")) {
         if (freopen(ofile, "w", stdout) == NULL)

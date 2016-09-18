@@ -82,4 +82,13 @@ extern void cpp_fatalf(const char *file, unsigned int line, unsigned int column,
 // expr.c
 extern bool eval_cpp_const_expr(void);
 
+// cache.c
+struct _cpp_file {
+    const char *name;
+    // full pathname
+    const char *path;
+    const unsigned char *buffer;
+    struct _cpp_file *next;
+};
+
 #endif

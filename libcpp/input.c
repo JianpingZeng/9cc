@@ -29,7 +29,7 @@ static void free_buffer(struct buffer *pb)
     free(pb);
 }
 
-struct buffer *with_file(const char *file)
+struct buffer *with_file(const char *file, const char *name)
 {
     int fd;
     struct buffer *pb;
@@ -190,6 +190,6 @@ struct file *new_cpp_file(const char *file)
     pfile->tokenrun = next_tokenrun(NULL, 1024);
     pfile->cur_token = pfile->tokenrun->base;
 
-    buffer_sentinel(pfile, with_file(file), BS_CONTINUOUS);
+    buffer_sentinel(pfile, with_file(file, file), BS_CONTINUOUS);
     return pfile;
 }

@@ -131,7 +131,7 @@ int sys_rmdir(const char *dir)
 const char *sys_abspath(const char *path)
 {
     if (!path || !strlen(path))
-        return NULL;
+        return path;
     if (path[0] == '~') {
         const char *home = getenv("HOME");
         int hlen = strlen(home);

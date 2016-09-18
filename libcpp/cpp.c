@@ -16,7 +16,7 @@
 
 static struct token *expand(struct file *pfile);
 static struct vector *expandv(struct file *pfile, struct vector *v);
-static void include_file(struct file *pfile, const char *file, bool std);
+static void include_file(struct file *pfile, const char *name, bool std);
 static struct token *token_zero = &(struct token){.id = ICONSTANT, .u.lit.str = "0", .u.lit.v.i = 0};
 static struct token *token_one = &(struct token){.id = ICONSTANT, .u.lit.str = "1", .u.lit.v.i = 1};
 
@@ -1189,22 +1189,22 @@ static const char *find_header(struct file *pfile, const char *name, bool isstd)
     return NULL;
 }
 
-static void include_file(struct file *pfile, const char *file, bool std)
+static void include_file(struct file *pfile, const char *name, bool std)
 {
     const char *path;
 
-    if (!file) {
+    if (!name) {
         cpp_error("empty filename");
         return;
     }
     
-    path = find_header(pfile, file, std);
+    path = find_header(pfile, name, std);
 
     if (path) {
-        buffer_sentinel(pfile, with_file(path), BS_CONTINUOUS);
+        buffer_sentinel(pfile, with_file(path, name), BS_CONTINUOUS);
         unget(pfile, lineno(1, pfile->buffer->name));
     } else {
-        cpp_fatal("'%s' file not found", file);
+        cpp_fatal("'%s' file not found", name);
     }
 }
 
