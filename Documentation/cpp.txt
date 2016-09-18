@@ -1,0 +1,54 @@
+
+cpp line
+
+simple cases:
+=============
+
+'\n':
+
+       | ... | '\n' | ... |
+                     |
+                     |
+                     next_line
+                     |
+                     |
+                     line_note ('\n')
+
+
+'\r\n':
+
+        | ... | '\r' | '\n' | ... |
+                '\n'  |      |
+                      |      |
+                      |      next_line
+                      |
+                      line_note ('\n')
+
+'\r':
+        | ... | '\r' | ... |
+                '\n'  |
+                      |
+                      next_line
+                      |
+                      |
+                      line_note ('\n')
+
+
+escape cases:
+=============
+
+'\\\n':
+
+        | ... | '\\' | '\n' | 'a' | 'b' | 'c' | ... |
+               |
+               |
+               |
+               |
+               line_note ('\\')
+
+        | ... | 'a' |  'b' | 'c' | ... | '\n' |   |   | ... |
+                                               |       |
+                                               |       |
+                                               |       next_line
+                                               |
+                                               line_note ('\n')
