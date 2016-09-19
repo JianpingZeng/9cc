@@ -7,7 +7,7 @@
 #include "lex.h"
 #include "internal.h"
 
-#define MAX_ERRORS 8
+#define MAX_ERRORS 1
 
 static void cc_print_lead(int tag,
                           const char *file, unsigned int line, unsigned int column,

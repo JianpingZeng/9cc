@@ -6,11 +6,11 @@
 
 #define STR(str)  ((str) ? (str) : "<null>")
 static FILE *outfd;
-#define SET_OUTFD(fd) \
-    FILE *_saved_fd = outfd; \
+#define SET_OUTFD(fd)                           \
+    FILE *_saved_fd = outfd;                    \
     outfd = fd
 
-#define RESTORE_OUTFD() \
+#define RESTORE_OUTFD()                         \
     outfd = _saved_fd
 
 

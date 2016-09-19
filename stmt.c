@@ -9,16 +9,16 @@ static struct stmt *__default;
 static struct type *__switch_ty;
 
 #define SET_LOOP_CONTEXT(loop)                  \
-    struct stmt *__saved_loop = __loop;              \
+    struct stmt *__saved_loop = __loop;         \
     __loop = loop
 
 #define RESTORE_LOOP_CONTEXT()                  \
     __loop = __saved_loop
 
 #define SET_SWITCH_CONTEXT(sw, ty)                      \
-    struct stmt *__saved_sw = __switch;                      \
+    struct stmt *__saved_sw = __switch;                 \
     struct vector *__saved_cases = __cases;             \
-    struct stmt *__saved_default = __default;                \
+    struct stmt *__saved_default = __default;           \
     struct type *__saved_switch_ty = __switch_ty;       \
     __switch = sw;                                      \
     __cases = vec_new();                                \

@@ -356,8 +356,8 @@ static struct expr *scalar_bop(int op, struct type * ty, struct expr * l, struct
 #define SCALAR_OP(op)                                   \
     if (is_int) {                                       \
         bool b;                                         \
-        int sign1 = TYPE_OP(EXPR_TYPE(l));               \
-        int sign2 = TYPE_OP(EXPR_TYPE(r));               \
+        int sign1 = TYPE_OP(EXPR_TYPE(l));              \
+        int sign2 = TYPE_OP(EXPR_TYPE(r));              \
         if (sign1 == UNSIGNED && sign2 == UNSIGNED) {   \
             b = lval.u op rval.u;                       \
         }  else if (sign1 == INT && sign2 == INT) {     \

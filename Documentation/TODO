@@ -51,8 +51,8 @@ v0.3.5:
         ! 整理 cc.h
 
 v0.3.6:
-        TODO: #if 中报错 (null):0:0 的问题
-        TODO: 优化（缓存）
+        ! 删除 ast_expr, ast_stmt
+        使用 struct expr, struct stmt
         
 v0.4:
         TODO: 新的ast,IR和gen
@@ -66,6 +66,7 @@ TODO:
 TODO - test case
 TODO - line pptokens
 TODO - pragma
+TODO - #if 中报错 (null):0:0 的问题
 
 // parser
 
