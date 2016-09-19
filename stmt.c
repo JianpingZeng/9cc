@@ -1,24 +1,24 @@
 #include "cc.h"
 
-static node_t *statement(void);
+static struct stmt *statement(void);
 
-static node_t *__loop;
-static node_t *__switch;
+static struct stmt *__loop;
+static struct stmt *__switch;
 static struct vector *__cases;
-static node_t *__default;
+static struct stmt *__default;
 static struct type *__switch_ty;
 
 #define SET_LOOP_CONTEXT(loop)                  \
-    node_t *__saved_loop = __loop;              \
+    struct stmt *__saved_loop = __loop;              \
     __loop = loop
 
 #define RESTORE_LOOP_CONTEXT()                  \
     __loop = __saved_loop
 
 #define SET_SWITCH_CONTEXT(sw, ty)                      \
-    node_t *__saved_sw = __switch;                      \
+    struct stmt *__saved_sw = __switch;                      \
     struct vector *__saved_cases = __cases;             \
-    node_t *__saved_default = __default;                \
+    struct stmt *__saved_default = __default;                \
     struct type *__saved_switch_ty = __switch_ty;       \
     __switch = sw;                                      \
     __cases = vec_new();                                \
@@ -41,15 +41,15 @@ static struct type *__switch_ty;
 /// expression-statement:
 ///   expression[opt] ';'
 ///
-static node_t *expr_stmt(void)
+static struct stmt *expr_stmt(void)
 {
-    node_t *ret = NULL;
+    struct stmt *ret = NULL;
 
     if (token->id == ';') {
         ret = ast_stmt(NULL_STMT, source);
     } else if (first_expr(token)) {
         ret = ast_stmt(EXPR_STMT, source);
-        node_t *expr = expression();
+        struct expr *expr = expression();
         if (expr)
             STMT_EXPR_BODY(ret) = expr;
         else
@@ -72,12 +72,12 @@ static node_t *expr_stmt(void)
 ///   'if' '(' expression ')' statement
 ///   'if' '(' expression ')' statement 'else' statement
 ///
-static node_t *if_stmt(void)
+static struct stmt *if_stmt(void)
 {
-    node_t *ret = ast_stmt(IF_STMT, source);
-    node_t *cond;
-    node_t *thenpart;
-    node_t *elsepart = NULL;
+    struct stmt *ret = ast_stmt(IF_STMT, source);
+    struct expr *cond;
+    struct stmt *thenpart;
+    struct stmt *elsepart = NULL;
 
     enter_scope();
 
@@ -118,11 +118,11 @@ static node_t *if_stmt(void)
 /// iteration-statement:
 ///   'while' '(' expression ')' statement
 ///
-static node_t *while_stmt(void)
+static struct stmt *while_stmt(void)
 {
-    node_t *ret = ast_stmt(WHILE_STMT, source);
-    node_t *cond;
-    node_t *body;
+    struct stmt *ret = ast_stmt(WHILE_STMT, source);
+    struct expr *cond;
+    struct stmt *body;
 
     enter_scope();
 
@@ -151,11 +151,11 @@ static node_t *while_stmt(void)
 /// iteration-statement:
 ///   'do' statement 'while' '(' expression ')' ';'
 ///
-static node_t *do_while_stmt(void)
+static struct stmt *do_while_stmt(void)
 {
-    node_t *ret = ast_stmt(DO_WHILE_STMT, source);
-    node_t *body;
-    node_t *cond;
+    struct stmt *ret = ast_stmt(DO_WHILE_STMT, source);
+    struct stmt *body;
+    struct expr *cond;
 
     enter_scope();
 
@@ -188,10 +188,10 @@ static node_t *do_while_stmt(void)
 ///   'for' '(' expression[opt] ';' expression[opt] ';' expression[opt] ')' statement
 ///   'for' '(' declaration expression[opt] ';' expression[opt] ')' statement
 ///
-static node_t *for_stmt(void)
+static struct stmt *for_stmt(void)
 {
-    node_t *ret = ast_stmt(FOR_STMT, source);
-    node_t *body;
+    struct stmt *ret = ast_stmt(FOR_STMT, source);
+    struct stmt *body;
 
     enter_scope();
 
@@ -248,11 +248,11 @@ static node_t *for_stmt(void)
 /// selection-statement:
 ///   'switch' '(' expression ')' statement
 ///
-static node_t *switch_stmt(void)
+static struct stmt *switch_stmt(void)
 {
-    node_t *ret = ast_stmt(SWITCH_STMT, source);
-    node_t *expr;
-    node_t *body;
+    struct stmt *ret = ast_stmt(SWITCH_STMT, source);
+    struct expr *expr;
+    struct stmt *body;
 
     SAVE_ERRORS;
     expect(SWITCH);
@@ -260,7 +260,7 @@ static node_t *switch_stmt(void)
     expr = switch_expr();
     expect(')');
 
-    SET_SWITCH_CONTEXT(ret, expr ? AST_TYPE(expr) : NULL);
+    SET_SWITCH_CONTEXT(ret, expr ? EXPR_TYPE(expr) : NULL);
 
     body = statement();
 
@@ -278,17 +278,17 @@ static node_t *switch_stmt(void)
     return ret;
 }
 
-static void check_case_duplicates(node_t * node)
+static void check_case_duplicates(struct stmt *node)
 {
     for (int i = vec_len(CASES) - 1; i >= 0; i--) {
-        node_t *n = vec_at(CASES, i);
+        struct stmt *n = vec_at(CASES, i);
         if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
-            error_at(AST_SRC(node),
+            error_at(STMT_SRC(node),
                      "duplicate case value '%lld', previous case defined here: %s:%u:%u",
                      STMT_CASE_INDEX(node),
-                     AST_SRC(n).file,
-                     AST_SRC(n).line,
-                     AST_SRC(n).column);
+                     STMT_SRC(n).file,
+                     STMT_SRC(n).line,
+                     STMT_SRC(n).column);
             break;
         }
     }
@@ -297,10 +297,10 @@ static void check_case_duplicates(node_t * node)
 /// labeled-statement:
 ///   'case' constant-expression ':' statement
 ///
-static node_t *case_stmt(void)
+static struct stmt *case_stmt(void)
 {
-    node_t *ret = ast_stmt(CASE_STMT, source);
-    node_t *body;
+    struct stmt *ret = ast_stmt(CASE_STMT, source);
+    struct stmt *body;
 
     SAVE_ERRORS;
     expect(CASE);
@@ -308,7 +308,7 @@ static node_t *case_stmt(void)
     expect(':');
 
     if (!IN_SWITCH)
-        error_at(AST_SRC(ret), "'case' statement not in switch statement");
+        error_at(STMT_SRC(ret), "'case' statement not in switch statement");
 
     // only check when intexpr is okay.
     if (NO_ERROR) {
@@ -330,10 +330,10 @@ static node_t *case_stmt(void)
 /// labeled-statement:
 ///   'default' ':' statement
 ///
-static node_t *default_stmt(void)
+static struct stmt *default_stmt(void)
 {
-    node_t *ret = ast_stmt(DEFAULT_STMT, source);
-    node_t *stmt;
+    struct stmt *ret = ast_stmt(DEFAULT_STMT, source);
+    struct stmt *stmt;
 
     SAVE_ERRORS;
     expect(DEFAULT);
@@ -341,14 +341,14 @@ static node_t *default_stmt(void)
 
     // print before parsing statement
     if (!IN_SWITCH)
-        error_at(AST_SRC(ret), "'default' statement not in switch statement");
+        error_at(STMT_SRC(ret), "'default' statement not in switch statement");
 
     if (DEFLT)
-        error_at(AST_SRC(ret),
+        error_at(STMT_SRC(ret),
                  "multiple default labels in one switch, previous case defined here:%s:%u:%u",
-                 AST_SRC(DEFLT).file,
-                 AST_SRC(DEFLT).line,
-                 AST_SRC(DEFLT).column);
+                 STMT_SRC(DEFLT).file,
+                 STMT_SRC(DEFLT).line,
+                 STMT_SRC(DEFLT).column);
 
     DEFLT = ret;
     
@@ -365,10 +365,10 @@ static node_t *default_stmt(void)
 /// labled-statement:
 ///   identifier ':' statement
 ///
-static node_t *label_stmt(void)
+static struct stmt *label_stmt(void)
 {
-    node_t *ret = ast_stmt(LABEL_STMT, source);
-    node_t *stmt;
+    struct stmt *ret = ast_stmt(LABEL_STMT, source);
+    struct stmt *stmt;
     const char *name;
 
     SAVE_ERRORS;
@@ -379,14 +379,14 @@ static node_t *label_stmt(void)
 
     // install label before parsing body
     if (NO_ERROR) {
-        node_t *n = map_get(funcinfo.labels, name);
+        struct stmt *n = map_get(funcinfo.labels, name);
         if (n)
-            error_at(AST_SRC(ret),
+            error_at(STMT_SRC(ret),
                      "redefinition of label '%s', previous label defined here:%s:%u:%u",
                      name,
-                     AST_SRC(n).file,
-                     AST_SRC(n).line,
-                     AST_SRC(n).column);
+                     STMT_SRC(n).file,
+                     STMT_SRC(n).line,
+                     STMT_SRC(n).column);
         map_put(funcinfo.labels, name, ret);
         STMT_LABEL_NAME(ret) = name;
     }
@@ -406,9 +406,9 @@ static node_t *label_stmt(void)
 /// jump-statement:
 ///   'goto' identifier ';'
 ///
-static node_t *goto_stmt(void)
+static struct stmt *goto_stmt(void)
 {
-    node_t *ret = ast_stmt(GOTO_STMT, source);
+    struct stmt *ret = ast_stmt(GOTO_STMT, source);
 
     SAVE_ERRORS;
     expect(GOTO);
@@ -428,16 +428,16 @@ static node_t *goto_stmt(void)
 /// jump-statement:
 ///   'break' ';'
 ///
-static node_t *break_stmt(void)
+static struct stmt *break_stmt(void)
 {
-    node_t *ret = ast_stmt(BREAK_STMT, source);
+    struct stmt *ret = ast_stmt(BREAK_STMT, source);
 
     SAVE_ERRORS;
     expect(BREAK);
     expect(';');
 
     if (!IN_LOOP && !IN_SWITCH)
-        error_at(AST_SRC(ret),
+        error_at(STMT_SRC(ret),
                  "'break' statement not in loop or switch statement");
 
     if (!NO_ERROR)
@@ -449,16 +449,16 @@ static node_t *break_stmt(void)
 /// jump-statement:
 ///   'continue' ';'
 ///
-static node_t *continue_stmt(void)
+static struct stmt *continue_stmt(void)
 {
-    node_t *ret = ast_stmt(CONTINUE_STMT, source);
+    struct stmt *ret = ast_stmt(CONTINUE_STMT, source);
 
     SAVE_ERRORS;
     expect(CONTINUE);
     expect(';');
 
     if (!IN_LOOP)
-        error_at(AST_SRC(ret),
+        error_at(STMT_SRC(ret),
                  "'continue' statement not in loop statement");
 
     if (!NO_ERROR)
@@ -467,18 +467,20 @@ static node_t *continue_stmt(void)
     return ret;
 }
 
-static node_t *ensure_return(node_t * expr, struct source src)
+static struct expr *ensure_return(struct stmt *stmt, struct source src)
 {
     // return immediately if expr is NULL. (parsing failed)
+    struct expr *expr = STMT_EXPR_BODY(stmt);
+    
     if (expr == NULL)
         return NULL;
 
     if (isvoid(rtype(funcinfo.type))) {
-        if (!isnullstmt(expr) && !isvoid(AST_TYPE(expr)))
+        if (!isnullstmt(stmt) && !isvoid(EXPR_TYPE(expr)))
             error_at(src, "void function should not return a value");
     } else {
-        if (!isnullstmt(expr)) {
-            struct type *ty1 = AST_TYPE(expr);
+        if (!isnullstmt(stmt)) {
+            struct type *ty1 = EXPR_TYPE(expr);
             struct type *ty2 = rtype(funcinfo.type);
             if (!(expr = assignconv(ty2, expr)))
                 error_at(src,
@@ -494,18 +496,16 @@ static node_t *ensure_return(node_t * expr, struct source src)
 /// jump-statement:
 ///   'return' expression[opt] ';'
 ///
-static node_t *return_stmt(void)
+static struct stmt *return_stmt(void)
 {
-    node_t *ret = ast_stmt(RETURN_STMT, source);
-    node_t *expr;
+    struct stmt *ret = ast_stmt(RETURN_STMT, source);
+    struct expr *expr;
 
     SAVE_ERRORS;
     expect(RETURN);
-    node_t *stmt = expr_stmt();
-    if (stmt) {
-        expr = STMT_EXPR_BODY(stmt);
-        expr = ensure_return(expr, AST_SRC(ret));
-    }
+    struct stmt *stmt = expr_stmt();
+    if (stmt)
+        expr = ensure_return(stmt, STMT_SRC(ret));
 
     if (NO_ERROR)
         STMT_RETURN_EXPR(ret) = expr;
@@ -523,7 +523,7 @@ static node_t *return_stmt(void)
 ///   iteration-statement
 ///   jump-statement
 ///
-static node_t *statement(void)
+static struct stmt *statement(void)
 {
     switch (token->id) {
     case '{':
@@ -570,9 +570,9 @@ static node_t *statement(void)
 ///   declaration
 ///   statement
 ///
-node_t *compound_stmt(void (*enter_hook) (void))
+struct stmt *compound_stmt(void (*enter_hook) (void))
 {
-    node_t *ret = ast_stmt(COMPOUND_STMT, source);
+    struct stmt *ret = ast_stmt(COMPOUND_STMT, source);
     struct list *list = NULL;
 
     expect('{');
@@ -584,15 +584,15 @@ node_t *compound_stmt(void (*enter_hook) (void))
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token)) {
             // declaration
-            node_t *expr = decls2expr(declaration());
+            struct expr *expr = decls2expr(declaration());
             if (expr) {
-                node_t *stmt = ast_stmt(EXPR_STMT, AST_SRC(expr));
+                struct stmt *stmt = ast_stmt(EXPR_STMT, EXPR_SRC(expr));
                 STMT_EXPR_BODY(stmt) = expr;
                 list = list_append(list, stmt);
             }
         } else {
             // statement
-            node_t *stmt = statement();
+            struct stmt *stmt = statement();
             if (stmt)
                 list = list_append(list, stmt);
         }

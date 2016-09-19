@@ -7,75 +7,66 @@ static const char *node_names[] = {
 #include "node.def"
 };
 
-const char *nname(node_t * node)
+const char *nname(int id)
 {
-    if (node == NULL)
-        return "<NULL>";
+    assert(id > BEGIN_NODE_ID && id < END_NODE_ID);
 
-    assert(AST_ID(node) > BEGIN_NODE_ID && AST_ID(node) < END_NODE_ID);
-
-    return node_names[AST_ID(node)];
+    return node_names[id];
 }
 
-static node_t *new_node(int id, int area)
-{
-    node_t *n = NEWS0(node_t, area);
-    AST_ID(n) = id;
-    return n;
-}
-
-node_t *ast_expr(int id, struct type * ty, node_t * l, node_t * r)
+struct expr *ast_expr(int id, struct type *ty, struct expr *l, struct expr *r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
-    node_t *expr = new_node(id, PERM);
+    struct expr *expr = NEWS0(struct expr, PERM);
+    EXPR_ID(expr) = id;
+    EXPR_TYPE(expr) = ty;
     EXPR_OPERAND(expr, 0) = l;
     EXPR_OPERAND(expr, 1) = r;
-    AST_TYPE(expr) = ty;
     return expr;
 }
 
-node_t *ast_uop(int op, struct type * ty, node_t * l)
+struct expr *ast_uop(int op, struct type *ty, struct expr *l)
 {
-    node_t *expr = ast_expr(UNARY_OPERATOR, ty, l, NULL);
+    struct expr *expr = ast_expr(UNARY_OPERATOR, ty, l, NULL);
     EXPR_OP(expr) = op;
     return expr;
 }
 
-node_t *ast_bop(int op, struct type * ty, node_t * l, node_t * r)
+struct expr *ast_bop(int op, struct type *ty, struct expr *l, struct expr *r)
 {
-    node_t *expr = ast_expr(BINARY_OPERATOR, ty, l, r);
+    struct expr *expr = ast_expr(BINARY_OPERATOR, ty, l, r);
     EXPR_OP(expr) = op;
     return expr;
 }
 
-node_t *ast_conv(struct type * ty, node_t * l, const char *name)
+struct expr *ast_conv(struct type *ty, struct expr *l, const char *name)
 {
-    node_t *expr = ast_expr(CONV_EXPR, ty, l, NULL);
-    AST_NAME(expr) = name;
-    AST_SRC(expr) = AST_SRC(l);
+    struct expr *expr = ast_expr(CONV_EXPR, ty, l, NULL);
+    EXPR_NAME(expr) = name;
+    EXPR_SRC(expr) = EXPR_SRC(l);
     return expr;
 }
 
-node_t *ast_inits(struct type * ty, struct source src)
+struct expr *ast_inits(struct type *ty, struct source src)
 {
-    node_t *expr = ast_expr(INITS_EXPR, NULL, NULL, NULL);
-    AST_SRC(expr) = src;
-    AST_TYPE(expr) = ty;
+    struct expr *expr = ast_expr(INITS_EXPR, NULL, NULL, NULL);
+    EXPR_SRC(expr) = src;
+    EXPR_TYPE(expr) = ty;
     return expr;
 }
 
-node_t *ast_vinit(void)
+struct expr *ast_vinit(void)
 {
-    node_t *vinit = ast_expr(VINIT_EXPR, NULL, NULL, NULL);
+    struct expr *vinit = ast_expr(VINIT_EXPR, NULL, NULL, NULL);
     return vinit;
 }
 
-node_t *ast_stmt(int id, struct source src)
+struct stmt *ast_stmt(int id, struct source src)
 {
     assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
-    node_t *stmt = NEWS0(node_t, FUNC);
-    AST_ID(stmt) = id;
-    AST_SRC(stmt) = src;
+    struct stmt *stmt = NEWS0(struct stmt, FUNC);
+    STMT_ID(stmt) = id;
+    STMT_SRC(stmt) = src;
     return stmt;
 }
 

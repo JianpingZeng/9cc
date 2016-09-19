@@ -54,32 +54,32 @@ static bool is_string(struct type * ty)
     return TYPE_KIND(rty) == CHAR || unqual(rty) == wchartype;
 }
 
-static node_t *find_elem(struct vector *v, int i)
+static struct expr *find_elem(struct vector *v, int i)
 {
     for (int j = vec_len(v); j <= i; j++)
         vec_push(v, ast_vinit());
     return vec_at(v, i);
 }
 
-static node_t *init_elem_conv(struct type * ty, node_t * node)
+static struct expr *init_elem_conv(struct type *ty, struct expr *node)
 {
     // VINIT_EXPR means failure.
     // cannot pass VINIT_EXPR to assignconv
-    if (AST_ID(node) == VINIT_EXPR)
+    if (EXPR_ID(node) == VINIT_EXPR)
         return NULL;
 
-    node_t *ret = assignconv(ty, node);
+    struct expr *ret = assignconv(ty, node);
     if (ret == NULL)
-        error_at(AST_SRC(node), INCOMPATIBLE_TYPES,
-                 type2s(AST_TYPE(node)), type2s(ty));
+        error_at(EXPR_SRC(node), INCOMPATIBLE_TYPES,
+                 type2s(EXPR_TYPE(node)), type2s(ty));
 
     return ret;
 }
 
-void init_string(struct type * ty, node_t * node)
+void init_string(struct type *ty, struct expr *node)
 {
     int len1 = TYPE_LEN(ty);
-    int len2 = TYPE_LEN(AST_TYPE(node));
+    int len2 = TYPE_LEN(EXPR_TYPE(node));
     if (len1 > 0) {
         if (len1 < len2 - 1)
             warning("initializer-string for char array is too long");
@@ -89,22 +89,22 @@ void init_string(struct type * ty, node_t * node)
     }
 }
 
-static void aggregate_set(struct type * ty, struct vector *v, int i, node_t * node)
+static void aggregate_set(struct type *ty, struct vector *v, int i, struct expr *node)
 {
     if (!node)
         return;
 
-    node_t *n = find_elem(v, i);
-    if (AST_ID(n) != VINIT_EXPR)
-        warning_at(AST_SRC(node), INIT_OVERRIDE);
+    struct expr *n = find_elem(v, i);
+    if (EXPR_ID(n) != VINIT_EXPR)
+        warning_at(EXPR_SRC(node), INIT_OVERRIDE);
 
-    if (AST_ID(node) == INITS_EXPR) {
+    if (EXPR_ID(node) == INITS_EXPR) {
         vec_set(v, i, node);
     } else if (is_string(ty) && issliteral(node)) {
         init_string(ty, node);
         vec_set(v, i, node);
-    } else if (isrecord(ty) && isrecord(AST_TYPE(node))
-               && eqtype(unqual(ty), unqual(AST_TYPE(node)))) {
+    } else if (isrecord(ty) && isrecord(EXPR_TYPE(node))
+               && eqtype(unqual(ty), unqual(EXPR_TYPE(node)))) {
         vec_set(v, i, node);
     } else {
         struct type *rty = NULL;
@@ -118,7 +118,7 @@ static void aggregate_set(struct type * ty, struct vector *v, int i, node_t * no
         }
 
         if (rty) {
-            node_t *n1 = ast_inits(ty, source);
+            struct expr *n1 = ast_inits(ty, source);
             struct vector *v1 = vec_new();
             vec_set(v, i, n1);
 
@@ -132,22 +132,22 @@ static void aggregate_set(struct type * ty, struct vector *v, int i, node_t * no
     }
 }
 
-static void scalar_set(struct type * ty, struct vector *v, int i, node_t * node)
+static void scalar_set(struct type *ty, struct vector *v, int i, struct expr *node)
 {
     if (!node)
         return;
 
-    node_t *n = find_elem(v, i);
-    if (AST_ID(n) != VINIT_EXPR)
-        warning_at(AST_SRC(node), INIT_OVERRIDE);
+    struct expr *n = find_elem(v, i);
+    if (EXPR_ID(n) != VINIT_EXPR)
+        warning_at(EXPR_SRC(node), INIT_OVERRIDE);
 
-    if (AST_ID(node) == INITS_EXPR) {
-        node_t **inits;
+    if (EXPR_ID(node) == INITS_EXPR) {
+        struct expr **inits;
     loop:
         inits = EXPR_INITS(node);
         if (length(inits)) {
             node = inits[0];
-            if (AST_ID(node) == INITS_EXPR)
+            if (EXPR_ID(node) == INITS_EXPR)
                 goto loop;
             vec_set_safe(v, i, init_elem_conv(ty, node));
         }
@@ -202,16 +202,16 @@ static void struct_init(struct type * ty, bool brace, struct vector *v)
     }
 }
 
-static void array_init(struct type * ty, bool brace, struct vector *v)
+static void array_init(struct type *ty, bool brace, struct vector *v)
 {
     bool designated = false;
     int c = 0;
     int len = TYPE_LEN(ty);
 
     if (is_string(ty) && token->id == SCONSTANT) {
-        node_t *expr = assign_expr();
+        struct expr *expr = assign_expr();
         if (vec_len(v)) {
-            warning_at(AST_SRC(expr), INIT_OVERRIDE);
+            warning_at(EXPR_SRC(expr), INIT_OVERRIDE);
             vec_clear(v);
         }
         aggregate_set(ty, v, 0, expr);
@@ -274,7 +274,7 @@ static void scalar_init(struct type * ty, struct vector *v)
 
 static bool is_string_vec(struct type *ty, struct vector *v)
 {
-    return is_string(ty) && vec_len(v) == 1 && issliteral((node_t *)vec_head(v));
+    return is_string(ty) && vec_len(v) == 1 && issliteral((struct expr *)vec_head(v));
 }
 
 static void elem_init(struct type * sty, struct type * ty, bool designated, struct vector *v, int i)
@@ -310,11 +310,11 @@ static void elem_init(struct type * sty, struct type * ty, bool designated, stru
                 error("%s designator cannot initialize non-%s type '%s'",
                       TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
         } else {
-            node_t *n = find_elem(v, i);
+            struct expr *n = find_elem(v, i);
             struct vector *v1 = vec_new();
-            if (AST_ID(n) == INITS_EXPR) {
+            if (EXPR_ID(n) == INITS_EXPR) {
                 vec_add_array(v1, EXPR_INITS(n));
-            } else if (AST_ID(n) == STRING_LITERAL) {
+            } else if (EXPR_ID(n) == STRING_LITERAL) {
                 vec_push(v1, n);
             }
 
@@ -325,9 +325,9 @@ static void elem_init(struct type * sty, struct type * ty, bool designated, stru
 
             if (is_string_vec(ty, v1)) {
                 // string literal
-                vec_set(v, i, (node_t *) vec_head(v1));
+                vec_set(v, i, (struct expr *) vec_head(v1));
             } else {
-                if (AST_ID(n) != INITS_EXPR) {
+                if (EXPR_ID(n) != INITS_EXPR) {
                     n = ast_inits(ty, source);
                     vec_set(v, i, n);
                 }
@@ -350,7 +350,7 @@ static void elem_init(struct type * sty, struct type * ty, bool designated, stru
 ///   '{' initializer-list '}'
 ///   '{' initializer-list ',' '}'
 ///
-node_t *initializer(struct type * ty)
+struct expr *initializer(struct type * ty)
 {
     if (token->id == '{') {
         return initializer_list(ty);
@@ -377,10 +377,10 @@ node_t *initializer(struct type * ty)
 ///   '[' constant-expression ']'
 ///   '.' identifier
 ///
-node_t *initializer_list(struct type * ty)
+struct expr *initializer_list(struct type * ty)
 {
     int follow[] = { ',', IF, '[', ID, '.', DEREF, 0 };
-    node_t *ret = ast_inits(ty, source);
+    struct expr *ret = ast_inits(ty, source);
     struct vector *v = vec_new();
 
     expect('{');
@@ -422,11 +422,11 @@ bool has_static_extent(struct symbol * sym)
         SYM_SCOPE(sym) == GLOBAL;
 }
 
-node_t *decl_initializer(struct symbol *sym, int sclass, int level)
+struct expr *decl_initializer(struct symbol *sym, int sclass, int level)
 {
     struct type *ty = SYM_TYPE(sym);
     struct source src = SYM_SRC(sym);
-    node_t *init;
+    struct expr *init;
     struct source init_src;
 
     expect('=');
@@ -445,7 +445,7 @@ node_t *decl_initializer(struct symbol *sym, int sclass, int level)
     if (init == NULL)
         return NULL;
 
-    init_src = AST_SRC(init);
+    init_src = EXPR_SRC(init);
 
     if (sclass == EXTERN) {
         if (level == GLOBAL) {
@@ -473,16 +473,16 @@ node_t *decl_initializer(struct symbol *sym, int sclass, int level)
     }
 
     SAVE_ERRORS;
-    if (AST_ID(init) != INITS_EXPR) {
+    if (EXPR_ID(init) != INITS_EXPR) {
         if (isarray(ty)) {
             if (is_string(ty) && issliteral(init))
                 init_string(ty, init);
             else
                 error("array initializer must be an initializer list or string literal");
         } else if (isstruct(ty) || isunion(ty)) {
-            if (!eqtype(ty, AST_TYPE(init)))
+            if (!eqtype(ty, EXPR_TYPE(init)))
                 error("initialzing '%s' with an expression of imcompatible type '%s'",
-                      type2s(ty), type2s(AST_TYPE(init)));
+                      type2s(ty), type2s(EXPR_TYPE(init)));
         } else {
             init = init_elem_conv(ty, init);
         }

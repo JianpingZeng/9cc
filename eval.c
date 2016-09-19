@@ -9,20 +9,20 @@
  * 4. initializer (combination of the aboves)
  */
 
-static node_t *scalar_uop(int op, struct type * ty, node_t * l);
-static node_t *arith_uop(int op, struct type * ty, node_t * l);
-static node_t *int_uop(int op, struct type * ty, node_t * l);
+static struct expr *scalar_uop(int op, struct type * ty, struct expr * l);
+static struct expr *arith_uop(int op, struct type * ty, struct expr * l);
+static struct expr *int_uop(int op, struct type * ty, struct expr * l);
 
-static node_t *scalar_bop(int op, struct type * ty, node_t * l, node_t * r);
-static node_t *arith_bop(int op, struct type * ty, node_t * l, node_t * r);
-static node_t *int_bop(int op, struct type * ty, node_t * l, node_t * r);
+static struct expr *scalar_bop(int op, struct type * ty, struct expr * l, struct expr * r);
+static struct expr *arith_bop(int op, struct type * ty, struct expr * l, struct expr * r);
+static struct expr *int_bop(int op, struct type * ty, struct expr * l, struct expr * r);
 
-static node_t *doeval(node_t * expr);
+static struct expr *doeval(struct expr * expr);
 
 static struct bop {
     int op;
     bool(*is) (struct type * ty);
-    node_t *(*eval) (int op, struct type * ty, node_t * l, node_t * r);
+    struct expr *(*eval) (int op, struct type * ty, struct expr * l, struct expr * r);
 } bops[] = {
     {'%', isint, int_bop},
     {LSHIFT, isint, int_bop},
@@ -44,7 +44,7 @@ static struct bop {
 static struct uop {
     int op;
     bool(*is) (struct type * ty);
-    node_t *(*eval) (int op, struct type * ty, node_t * l);
+    struct expr *(*eval) (int op, struct type * ty, struct expr * l);
 } uops[] = {
     {'+', isarith, arith_uop},
     {'-', isarith, arith_uop},
@@ -69,61 +69,61 @@ static struct uop *dispatch_uop(int op)
     return NULL;
 }
 
-static node_t *copy_node(node_t * node)
+static struct expr *copy_node(struct expr * node)
 {
-    node_t *copy = NEWS0(node_t, PERM);
-    memcpy(copy, node, sizeof(node_t));
+    struct expr *copy = NEWS0(struct expr, PERM);
+    memcpy(copy, node, sizeof(struct expr));
     return copy;
 }
 
-static node_t *literal_node(int id)
+static struct expr *literal_node(int id)
 {
-    node_t *n = NEWS0(node_t, PERM);
-    AST_ID(n) = id;
+    struct expr *n = NEWS0(struct expr, PERM);
+    EXPR_ID(n) = id;
     EXPR_SYM(n) = anonymous(&constants, CONSTANT, PERM);
     return n;
 }
 
-static node_t *int_literal_node(struct type * ty, union value v)
+static struct expr *int_literal_node(struct type * ty, union value v)
 {
-    node_t *n = literal_node(INTEGER_LITERAL);
-    AST_TYPE(n) = ty;
+    struct expr *n = literal_node(INTEGER_LITERAL);
+    EXPR_TYPE(n) = ty;
     SYM_TYPE(EXPR_SYM(n)) = ty;
     SYM_VALUE(EXPR_SYM(n)) = v;
     return n;
 }
 
-static node_t *float_literal_node(struct type * ty, union value v)
+static struct expr *float_literal_node(struct type * ty, union value v)
 {
-    node_t *n = literal_node(FLOAT_LITERAL);
-    AST_TYPE(n) = ty;
+    struct expr *n = literal_node(FLOAT_LITERAL);
+    EXPR_TYPE(n) = ty;
     SYM_TYPE(EXPR_SYM(n)) = ty;
     SYM_VALUE(EXPR_SYM(n)) = v;
     return n;
 }
 
-static node_t *one_literal(void)
+static struct expr *one_literal(void)
 {
-    static node_t *_one_literal;
+    static struct expr *_one_literal;
     if (!_one_literal)
         _one_literal = new_integer_literal(1);
     return _one_literal;
 }
 
-static node_t *zero_literal(void)
+static struct expr *zero_literal(void)
 {
-    static node_t *_zero_literal;
+    static struct expr *_zero_literal;
     if (!_zero_literal)
         _zero_literal = new_integer_literal(0);
     return _zero_literal;
 }
 
-static node_t *arith2arith(struct type * dty, node_t * l)
+static struct expr *arith2arith(struct type * dty, struct expr * l)
 {
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
 
-    struct type *sty = AST_TYPE(l);
+    struct type *sty = EXPR_TYPE(l);
     if (isint(dty) && isint(sty)) {
         union value dst_val = SYM_VALUE(EXPR_SYM(l));
         int src_size = TYPE_SIZE(sty);
@@ -166,16 +166,16 @@ static node_t *arith2arith(struct type * dty, node_t * l)
     assert(0);
 }
 
-static node_t *arith2ptr(struct type * dty, node_t * l)
+static struct expr *arith2ptr(struct type * dty, struct expr * l)
 {
-    assert(isint(AST_TYPE(l)));
+    assert(isint(EXPR_TYPE(l)));
     if (!isiliteral(l))
         return NULL;
     // int => ptr
     return int_literal_node(dty, SYM_VALUE(EXPR_SYM(l)));
 }
 
-static node_t *ptr2arith(struct type * dty, node_t * l)
+static struct expr *ptr2arith(struct type * dty, struct expr * l)
 {
     assert(isint(dty));
     if (!isiliteral(l))
@@ -184,46 +184,46 @@ static node_t *ptr2arith(struct type * dty, node_t * l)
     return int_literal_node(dty, SYM_VALUE(EXPR_SYM(l)));
 }
 
-static node_t *ptr2ptr(struct type * dty, node_t * l)
+static struct expr *ptr2ptr(struct type * dty, struct expr * l)
 {
     // ptr => ptr
-    if (AST_ID(l) == REF_EXPR) {
+    if (EXPR_ID(l) == REF_EXPR) {
         struct type *ty = SYM_TYPE(EXPR_SYM(l));
         if (!isfunc(ty) && !isarray(ty))
             return NULL;
     }
     l = copy_node(l);
-    AST_TYPE(l) = dty;
+    EXPR_TYPE(l) = dty;
     return l;
 }
 
-static node_t *func2ptr(struct type * dty, node_t * l)
+static struct expr *func2ptr(struct type * dty, struct expr * l)
 {
-    assert(AST_ID(l) == REF_EXPR);
+    assert(EXPR_ID(l) == REF_EXPR);
     l = copy_node(l);
-    AST_TYPE(l) = dty;
+    EXPR_TYPE(l) = dty;
     return l;
 }
 
-static node_t *array2ptr(struct type * dty, node_t * l)
+static struct expr *array2ptr(struct type * dty, struct expr * l)
 {
-    assert(AST_ID(l) == REF_EXPR || issliteral(l));
-    if (AST_ID(l) == REF_EXPR && !has_static_extent(EXPR_SYM(l)))
+    assert(EXPR_ID(l) == REF_EXPR || issliteral(l));
+    if (EXPR_ID(l) == REF_EXPR && !has_static_extent(EXPR_SYM(l)))
         return NULL;
     l = copy_node(l);
-    AST_TYPE(l) = dty;
+    EXPR_TYPE(l) = dty;
     return l;
 }
 
-static node_t *cast(struct type * dty, node_t * l)
+static struct expr *cast(struct type * dty, struct expr * l)
 {
     if (!l)
         return NULL;
 
-    if (AST_ID(l) == INITS_EXPR && isscalar(dty))
+    if (EXPR_ID(l) == INITS_EXPR && isscalar(dty))
         l = EXPR_INITS(l)[0];
 
-    struct type *sty = AST_TYPE(l);
+    struct type *sty = EXPR_TYPE(l);
     if (isarith(dty)) {
         if (isarith(sty))
             return arith2arith(dty, l);
@@ -240,17 +240,17 @@ static node_t *cast(struct type * dty, node_t * l)
             return array2ptr(dty, l);
     } else {
         // record or lvalue2rvalue cast
-        if (isrecord(dty) && AST_ID(l) != INITS_EXPR)
+        if (isrecord(dty) && EXPR_ID(l) != INITS_EXPR)
             return NULL;
         l = copy_node(l);
-        AST_TYPE(l) = dty;
+        EXPR_TYPE(l) = dty;
         return l;
     }
     return NULL;
 }
 
 // 'expr' was evaluated and _NOT_ null.
-static bool scalar_bool(node_t * expr)
+static bool scalar_bool(struct expr * expr)
 {
     assert(isiliteral(expr) || isfliteral(expr));
 
@@ -261,29 +261,29 @@ static bool scalar_bool(node_t * expr)
 }
 
 // '&': 'expr' was not evaluated.
-static node_t *address_uop(node_t * expr)
+static struct expr *address_uop(struct expr * expr)
 {
-    node_t *l = EXPR_OPERAND(expr, 0);
+    struct expr *l = EXPR_OPERAND(expr, 0);
     if (!l || !(l = doeval(l)))
         return NULL;
-    if (issliteral(l) || AST_ID(l) == INITS_EXPR) {
-        return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);
-    } else if (AST_ID(l) == UNARY_OPERATOR) {
+    if (issliteral(l) || EXPR_ID(l) == INITS_EXPR) {
+        return ast_uop(EXPR_OP(expr), EXPR_TYPE(expr), l);
+    } else if (EXPR_ID(l) == UNARY_OPERATOR) {
         assert(EXPR_OP(l) == '*');
         return EXPR_OPERAND(l, 0);
-    } else if (AST_ID(l) == REF_EXPR) {
+    } else if (EXPR_ID(l) == REF_EXPR) {
         struct symbol *sym = EXPR_SYM(l);
         if (!has_static_extent(sym))
             return NULL;
-        return ast_uop(EXPR_OP(expr), AST_TYPE(expr), l);
+        return ast_uop(EXPR_OP(expr), EXPR_TYPE(expr), l);
     } else if (isiliteral(l) &&
-               AST_ID(EXPR_OPERAND(expr, 0)) == MEMBER_EXPR) {
+               EXPR_ID(EXPR_OPERAND(expr, 0)) == MEMBER_EXPR) {
         return l;
     }
     assert(0);
 }
 
-static node_t *scalar_uop(int op, struct type * ty, node_t * l)
+static struct expr *scalar_uop(int op, struct type * ty, struct expr * l)
 {
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
@@ -301,7 +301,7 @@ static node_t *scalar_uop(int op, struct type * ty, node_t * l)
     }
 }
 
-static node_t *arith_uop(int op, struct type * ty, node_t * l)
+static struct expr *arith_uop(int op, struct type * ty, struct expr * l)
 {
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
@@ -325,7 +325,7 @@ static node_t *arith_uop(int op, struct type * ty, node_t * l)
     }
 }
 
-static node_t *int_uop(int op, struct type * ty, node_t * l)
+static struct expr *int_uop(int op, struct type * ty, struct expr * l)
 {
     if (!isiliteral(l))
         return NULL;
@@ -342,22 +342,22 @@ static node_t *int_uop(int op, struct type * ty, node_t * l)
     }
 }
 
-static node_t *scalar_bop(int op, struct type * ty, node_t * l, node_t * r)
+static struct expr *scalar_bop(int op, struct type * ty, struct expr * l, struct expr * r)
 {
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
 
-    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
+    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(EXPR_TYPE(r)));
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
-    bool is_int = AST_TYPE(l);
+    bool is_int = EXPR_TYPE(l);
 
 #define SCALAR_OP(op)                                   \
     if (is_int) {                                       \
         bool b;                                         \
-        int sign1 = TYPE_OP(AST_TYPE(l));               \
-        int sign2 = TYPE_OP(AST_TYPE(r));               \
+        int sign1 = TYPE_OP(EXPR_TYPE(l));               \
+        int sign2 = TYPE_OP(EXPR_TYPE(r));               \
         if (sign1 == UNSIGNED && sign2 == UNSIGNED) {   \
             b = lval.u op rval.u;                       \
         }  else if (sign1 == INT && sign2 == INT) {     \
@@ -400,49 +400,49 @@ static node_t *scalar_bop(int op, struct type * ty, node_t * l, node_t * r)
 }
 
 // both 'ptr' and 'i' are _NOT_ evaluated.
-static node_t *ptr_int_bop(int op, struct type * ty, node_t * ptr, node_t * i)
+static struct expr *ptr_int_bop(int op, struct type * ty, struct expr * ptr, struct expr * i)
 {
-    node_t *l = doeval(ptr);
+    struct expr *l = doeval(ptr);
     if (!l)
         return NULL;
-    node_t *r = doeval(i);
+    struct expr *r = doeval(i);
     if (!r || !isiliteral(r))
         return NULL;
     // combine
-    if (AST_ID(l) == BINARY_OPERATOR) {
+    if (EXPR_ID(l) == BINARY_OPERATOR) {
         int op1 = EXPR_OP(l);
-        node_t *r1 = EXPR_OPERAND(l, 1);
+        struct expr *r1 = EXPR_OPERAND(l, 1);
 
         assert(op1 == '+' || op1 == '-');
         assert(isiliteral(r1));
 
-        node_t *n;
+        struct expr *n;
         if (op == op1) {
             n = bop('+', r, r1);
         } else {
-            node_t *r2 = op == '+' ? r : r1;
-            node_t *r3 = r2 == r ? r1 : r;
+            struct expr *r2 = op == '+' ? r : r1;
+            struct expr *r3 = r2 == r ? r1 : r;
             n = bop('-', r2, r3);
             op = '+';
         }
-        r = arith_bop(EXPR_OP(n), AST_TYPE(n), EXPR_OPERAND(n, 0),
+        r = arith_bop(EXPR_OP(n), EXPR_TYPE(n), EXPR_OPERAND(n, 0),
                       EXPR_OPERAND(n, 1));
         l = EXPR_OPERAND(l, 0);
     }
     return ast_bop(op, ty, l, r);
 }
 
-static node_t *arith_bop(int op, struct type * ty, node_t * l, node_t * r)
+static struct expr *arith_bop(int op, struct type * ty, struct expr * l, struct expr * r)
 {
     if (!isiliteral(l) && !isfliteral(r))
         return NULL;
     else if (!isiliteral(r) && !isfliteral(r))
         return NULL;
 
-    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
-    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
-    assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(AST_TYPE(r)));
-    assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(ty));
+    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(EXPR_TYPE(r)));
+    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(ty));
+    assert(TYPE_OP(EXPR_TYPE(l)) == TYPE_OP(EXPR_TYPE(r)));
+    assert(TYPE_OP(EXPR_TYPE(l)) == TYPE_OP(ty));
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -480,15 +480,15 @@ static node_t *arith_bop(int op, struct type * ty, node_t * l, node_t * r)
         return float_literal_node(ty, val);
 }
 
-static node_t *int_bop(int op, struct type * ty, node_t * l, node_t * r)
+static struct expr *int_bop(int op, struct type * ty, struct expr * l, struct expr * r)
 {
     if (!isiliteral(l) || !isiliteral(r))
         return NULL;
 
-    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(AST_TYPE(r)));
-    assert(TYPE_KIND(AST_TYPE(l)) == TYPE_KIND(ty));
-    assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(AST_TYPE(r)));
-    assert(TYPE_OP(AST_TYPE(l)) == TYPE_OP(ty));
+    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(EXPR_TYPE(r)));
+    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(ty));
+    assert(TYPE_OP(EXPR_TYPE(l)) == TYPE_OP(EXPR_TYPE(r)));
+    assert(TYPE_OP(EXPR_TYPE(l)) == TYPE_OP(ty));
 
     union value lval = SYM_VALUE(EXPR_SYM(l));
     union value rval = SYM_VALUE(EXPR_SYM(r));
@@ -522,14 +522,13 @@ static node_t *int_bop(int op, struct type * ty, node_t * l, node_t * r)
     return int_literal_node(ty, val);
 }
 
-static node_t *doeval(node_t * expr)
+static struct expr *doeval(struct expr * expr)
 {
-    assert(isexpr(expr));
-    switch (AST_ID(expr)) {
+    switch (EXPR_ID(expr)) {
     case BINARY_OPERATOR:
         {
-            node_t *l = EXPR_OPERAND(expr, 0);
-            node_t *r = EXPR_OPERAND(expr, 1);
+            struct expr *l = EXPR_OPERAND(expr, 0);
+            struct expr *r = EXPR_OPERAND(expr, 1);
             int op = EXPR_OP(expr);
             struct bop *bop;
             switch (op) {
@@ -559,35 +558,35 @@ static node_t *doeval(node_t * expr)
             case NEQ:
             dispatch:
                 bop = dispatch_bop(op);
-                assert(bop->is(AST_TYPE(l)));
-                assert(bop->is(AST_TYPE(r)));
+                assert(bop->is(EXPR_TYPE(l)));
+                assert(bop->is(EXPR_TYPE(r)));
                 l = doeval(l);
                 if (!l)
                     return NULL;
                 r = doeval(r);
                 if (!r)
                     return NULL;
-                return bop->eval(op, AST_TYPE(expr), l, r);
+                return bop->eval(op, EXPR_TYPE(expr), l, r);
             case '+':
                 {
-                    if (isarith(AST_TYPE(l))
-                        && isarith(AST_TYPE(r)))
+                    if (isarith(EXPR_TYPE(l))
+                        && isarith(EXPR_TYPE(r)))
                         goto dispatch;
                     // ptr + int or int + ptr
-                    node_t *ptr =
-                        isptr(AST_TYPE(l)) ? l : r;
-                    node_t *i = ptr == l ? r : l;
-                    assert(isptr(AST_TYPE(ptr)));
-                    assert(isint(AST_TYPE(i)));
-                    return ptr_int_bop(op, AST_TYPE(expr),
+                    struct expr *ptr =
+                        isptr(EXPR_TYPE(l)) ? l : r;
+                    struct expr *i = ptr == l ? r : l;
+                    assert(isptr(EXPR_TYPE(ptr)));
+                    assert(isint(EXPR_TYPE(i)));
+                    return ptr_int_bop(op, EXPR_TYPE(expr),
                                        ptr, i);
                 }
             case '-':
-                if (!isptr(AST_TYPE(l)))
+                if (!isptr(EXPR_TYPE(l)))
                     goto dispatch;
                 // ptr - int
-                assert(isint(AST_TYPE(r)));
-                return ptr_int_bop(op, AST_TYPE(expr), l, r);
+                assert(isint(EXPR_TYPE(r)));
+                return ptr_int_bop(op, EXPR_TYPE(expr), l, r);
             case AND:
             case OR:
                 l = doeval(l);
@@ -605,7 +604,7 @@ static node_t *doeval(node_t * expr)
         break;
     case UNARY_OPERATOR:
         {
-            node_t *l = EXPR_OPERAND(expr, 0);
+            struct expr *l = EXPR_OPERAND(expr, 0);
             int op = EXPR_OP(expr);
             struct uop *uop;
             switch (op) {
@@ -620,11 +619,11 @@ static node_t *doeval(node_t * expr)
             case '~':
             case '!':
                 uop = dispatch_uop(op);
-                assert(uop->is(AST_TYPE(l)));
+                assert(uop->is(EXPR_TYPE(l)));
                 l = doeval(l);
                 if (!l)
                     return NULL;
-                return uop->eval(op, AST_TYPE(expr), l);
+                return uop->eval(op, EXPR_TYPE(expr), l);
             case SIZEOF:
             default:
                 assert(0);
@@ -636,10 +635,10 @@ static node_t *doeval(node_t * expr)
         return doeval(EXPR_OPERAND(expr, 0));
     case CAST_EXPR:
     case CONV_EXPR:
-        return cast(AST_TYPE(expr), doeval(EXPR_OPERAND(expr, 0)));
+        return cast(EXPR_TYPE(expr), doeval(EXPR_OPERAND(expr, 0)));
     case COND_EXPR:
         {
-            node_t *cond = doeval(EXPR_COND(expr));
+            struct expr *cond = doeval(EXPR_COND(expr));
             if (!cond || (!isiliteral(cond) && !isfliteral(cond)))
                 return NULL;
             if (scalar_bool(cond))
@@ -650,10 +649,10 @@ static node_t *doeval(node_t * expr)
     case INITS_EXPR:
         {
             struct vector *v = vec_new();
-            node_t **inits = EXPR_INITS(expr);
+            struct expr **inits = EXPR_INITS(expr);
             for (int i = 0; inits[i]; i++) {
-                node_t *n = inits[i];
-                if (AST_ID(n) == VINIT_EXPR) {
+                struct expr *n = inits[i];
+                if (EXPR_ID(n) == VINIT_EXPR) {
                     vec_push(v, n);
                     continue;
                 }
@@ -668,20 +667,20 @@ static node_t *doeval(node_t * expr)
         }
     case SUBSCRIPT_EXPR:
         {
-            if (isptr(AST_TYPE(expr)))
+            if (isptr(EXPR_TYPE(expr)))
                 return NULL;
-            node_t *l = EXPR_OPERAND(expr, 0);
-            node_t *r = EXPR_OPERAND(expr, 1);
-            node_t *ptr = isptr(AST_TYPE(l)) ? l : r;
-            node_t *i = isint(AST_TYPE(r)) ? r : l;
-            assert(isptr(AST_TYPE(ptr)));
-            assert(isint(AST_TYPE(i)));
-            node_t *p = ptr_int_bop('+', AST_TYPE(ptr), ptr, i);
-            return ast_uop('*', AST_TYPE(expr), p);
+            struct expr *l = EXPR_OPERAND(expr, 0);
+            struct expr *r = EXPR_OPERAND(expr, 1);
+            struct expr *ptr = isptr(EXPR_TYPE(l)) ? l : r;
+            struct expr *i = isint(EXPR_TYPE(r)) ? r : l;
+            assert(isptr(EXPR_TYPE(ptr)));
+            assert(isint(EXPR_TYPE(i)));
+            struct expr *p = ptr_int_bop('+', EXPR_TYPE(ptr), ptr, i);
+            return ast_uop('*', EXPR_TYPE(expr), p);
         }
     case REF_EXPR:
         if (EXPR_OP(expr) == ENUM)
-            return int_literal_node(AST_TYPE(expr),
+            return int_literal_node(EXPR_TYPE(expr),
                                     SYM_VALUE(EXPR_SYM(expr)));
         else
             return expr;
@@ -691,14 +690,14 @@ static node_t *doeval(node_t * expr)
         return expr;
     case MEMBER_EXPR:
         {
-            node_t *l = EXPR_OPERAND(expr, 0);
-            struct type *ty = AST_TYPE(l);
+            struct expr *l = EXPR_OPERAND(expr, 0);
+            struct type *ty = EXPR_TYPE(l);
             l = doeval(l);
             if (!l || !isiliteral(l))
                 return NULL;
             ty = isptr(ty) ? rtype(ty) : ty;
             assert(isrecord(ty));
-            struct field *field = find_field(ty, AST_NAME(expr));
+            struct field *field = find_field(ty, EXPR_NAME(expr));
             assert(field);
             long off = FIELD_OFFSET(field) + SYM_VALUE(EXPR_SYM(l)).i;
             union value v = {.i = off};
@@ -713,7 +712,7 @@ static node_t *doeval(node_t * expr)
     }
 }
 
-node_t *eval(node_t * expr, struct type * ty)
+struct expr *eval(struct expr * expr, struct type * ty)
 {
     if (!expr)
         return NULL;

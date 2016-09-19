@@ -83,7 +83,7 @@ static struct vector * get_classes(struct vector *elements);
 struct pnode {
     union {
         struct symbol *param;
-        node_t *arg;
+        struct expr *arg;
     } u;                        // symbol or expr
     struct paddr *paddr;        // paddr of the param
 };
@@ -95,7 +95,7 @@ struct pinfo {
     struct vector *pnodes;      // param nodes
     struct paddr *retaddr;      // return addr
 };
-static struct pinfo * alloc_addr_for_funcall(struct type *ftype, node_t **params);
+static struct pinfo * alloc_addr_for_funcall(struct type *ftype, struct expr **params);
 static struct pinfo * alloc_addr_for_funcdef(struct type *ftype, struct symbol **params);
 
 #define COMMENT(str)    "\t\t## " str
@@ -466,9 +466,9 @@ static struct operand * make_offset_operand(struct operand *operand, long offset
 static void emit_param_scalar(struct tac *tac, struct pnode *pnode)
 {
     struct operand *operand = tac->operands[1];
-    node_t *arg = pnode->u.arg;
+    struct expr *arg = pnode->u.arg;
     struct paddr *paddr = pnode->paddr;
-    struct type *ty = AST_TYPE(arg);
+    struct type *ty = EXPR_TYPE(arg);
     int i = idx[TYPE_SIZE(ty)];
     struct reladdr *src_label = operand2s(operand, TYPE_SIZE(ty));
 
@@ -558,7 +558,7 @@ static void emit_param_record(struct tac *tac, struct pnode *pnode)
 
 static void emit_param(struct tac *tac, struct pnode *pnode)
 {
-    struct type *ty = AST_TYPE(pnode->u.arg);
+    struct type *ty = EXPR_TYPE(pnode->u.arg);
     if (isint(ty) || isptr(ty) || isfloat(ty))
         emit_param_scalar(tac, pnode);
     else if (isstruct(ty) || isunion(ty))
@@ -720,12 +720,12 @@ static void emit_call_epilogue(struct type *ftype, struct paddr *retaddr, struct
 
 static void emit_nonbuiltin_call(struct tac *tac)
 {
-    node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
+    struct expr *call = tac->call;
+    struct expr **args = EXPR_ARGS(call);
     struct operand *result = tac->operands[0];
     struct operand *l = tac->operands[1];
     size_t len = length(args);
-    struct type *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
+    struct type *ftype = rtype(EXPR_TYPE(EXPR_OPERAND(call, 0)));
     struct vector *params = vec_new();
     struct tac *t = tac->prev;
     for (size_t i = 0; i < len; i++, t = t->prev) {
@@ -796,9 +796,9 @@ static void emit_nonbuiltin_call(struct tac *tac)
 // void __builtin_va_start(__builtin_va_list, ...);
 static void emit_builtin_va_start(struct tac *tac)
 {
-    node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
-    node_t *arg0 = args[0];
+    struct expr *call = tac->call;
+    struct expr **args = EXPR_ARGS(call);
+    struct expr *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct pinfo *pinfo = fcon.pinfo;
     unsigned int gp_offset = pinfo->gp << 3;
@@ -846,9 +846,9 @@ static void emit_builtin_va_start(struct tac *tac)
 */
 static void emit_builtin_va_arg_p_memory(struct tac *tac)
 {
-    node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
-    node_t *arg0 = args[0];
+    struct expr *call = tac->call;
+    struct expr **args = EXPR_ARGS(call);
+    struct expr *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     struct type *ty = EXPR_VA_ARG_TYPE(call);
@@ -913,9 +913,9 @@ static void emit_builtin_va_arg_p_memory(struct tac *tac)
  */
 static void emit_builtin_va_arg_p_record(struct tac *tac)
 {
-    node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
-    node_t *arg0 = args[0];
+    struct expr *call = tac->call;
+    struct expr **args = EXPR_ARGS(call);
+    struct expr *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     struct type *ty = EXPR_VA_ARG_TYPE(call);
@@ -934,7 +934,7 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
     const char *out_label = gen_label();
 
     // struct/union
-    node_t *arg1 = args[1];
+    struct expr *arg1 = args[1];
     struct operand *r = EXPR_X_ADDR(arg1);
     struct set *excepts1 = operand_regs(l);
     struct set *excepts2 = operand_regs(r);
@@ -1088,9 +1088,9 @@ static void emit_builtin_va_arg_p_record(struct tac *tac)
  */
 static void emit_builtin_va_arg_p_scalar(struct tac *tac)
 {
-    node_t *call = tac->call;
-    node_t **args = EXPR_ARGS(call);
-    node_t *arg0 = args[0];
+    struct expr *call = tac->call;
+    struct expr **args = EXPR_ARGS(call);
+    struct expr *arg0 = args[0];
     struct operand *l = EXPR_X_ADDR(arg0);
     struct operand *result = tac->operands[0];
     struct type *ty = EXPR_VA_ARG_TYPE(call);
@@ -1154,7 +1154,7 @@ static void emit_builtin_va_arg_p_scalar(struct tac *tac)
 // void * __builtin_va_arg_p(__builtin_va_list, ...);
 static void emit_builtin_va_arg_p(struct tac *tac)
 {
-    node_t *call = tac->call;
+    struct expr *call = tac->call;
     struct type *ty = EXPR_VA_ARG_TYPE(call);
     if (TYPE_SIZE(ty) > MAX_STRUCT_PARAM_SIZE) {
         // by meory
@@ -2438,8 +2438,8 @@ static size_t call_returns_size(struct symbol *sym)
     size_t extra_stack_size = 0;
     struct vector *calls = SYM_X_CALLS(sym);
     for (int i = 0; i < vec_len(calls); i++) {
-        node_t *call = vec_at(calls, i);
-        struct type *rty = AST_TYPE(call);
+        struct expr *call = vec_at(calls, i);
+        struct type *rty = EXPR_TYPE(call);
         if (isrecord(rty))
             extra_stack_size = MAX(extra_stack_size, TYPE_SIZE(rty));
     }
@@ -2451,8 +2451,8 @@ static size_t call_params_size(struct symbol *sym)
     size_t extra_stack_size = 0;
     struct vector *calls = SYM_X_CALLS(sym);
     for (int i = 0; i < vec_len(calls); i++) {
-        node_t *call = vec_at(calls, i);
-        struct type *ftype = rtype(AST_TYPE(EXPR_OPERAND(call, 0)));
+        struct expr *call = vec_at(calls, i);
+        struct type *ftype = rtype(EXPR_TYPE(EXPR_OPERAND(call, 0)));
         struct pinfo *pinfo = alloc_addr_for_funcall(ftype, EXPR_ARGS(call));
         extra_stack_size = MAX(extra_stack_size, pinfo->size);
     }
@@ -2621,7 +2621,7 @@ static void emit_text(struct symbol *fsym)
     // reset registers
     reset_regs();
     // reset function context
-    fcon.end_label = STMT_X_NEXT(SYM_INIT(fsym));
+    fcon.end_label = STMT_X_NEXT(SYM_COMPOUND(fsym));
     fcon.calls_return_loff = 0;
     fcon.current_block = NULL;
     fcon.current_tac = NULL;
@@ -2699,8 +2699,8 @@ static void emit_compounds(struct map *compounds)
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(keys, i);
-            node_t *init = map_get(compounds, label);
-            struct type *ty = AST_TYPE(init);
+            struct expr *init = map_get(compounds, label);
+            struct type *ty = EXPR_TYPE(init);
             emit_data(label, false, false, TYPE_ALIGN(ty), TYPE_SIZE(ty), EXPR_X_XVALUES(init));
         }
     }
@@ -3471,7 +3471,7 @@ static void * new_tmp_param(bool call)
     
     if (call) {
         // expr
-        node_t *expr = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
+        struct expr *expr = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
         EXPR_SYM(expr) = sym;
         return expr;
     } else {
@@ -3543,12 +3543,12 @@ static struct pinfo * alloc_addr_for_params(struct type *ftype, void *params, bo
         
         if (TYPE_SIZE(rtype) > MAX_STRUCT_PARAM_SIZE) {
             // memory, passing as the first argument (pointer)
-            node_t *param = new_tmp_param(call);
+            struct expr *param = new_tmp_param(call);
             struct pnode *pnode = new_pnode(param, call);
             vec_push(pnodes, pnode);
 
             // param addr
-            pnode->paddr->size = TYPE_SIZE(AST_TYPE(param));
+            pnode->paddr->size = TYPE_SIZE(EXPR_TYPE(param));
             set_param_reg_addr(pnode->paddr, 0, iarg_regs[gp], REG_INT);
             gp++;
 
@@ -3576,7 +3576,7 @@ static struct pinfo * alloc_addr_for_params(struct type *ftype, void *params, bo
         
         struct type *ty;
         if (call)
-            ty = AST_TYPE((node_t *)param);
+            ty = EXPR_TYPE((struct expr *)param);
         else
             ty = SYM_TYPE((struct symbol *)param);
         size_t size = TYPE_SIZE(ty);
@@ -3625,7 +3625,7 @@ static struct pinfo * alloc_addr_for_params(struct type *ftype, void *params, bo
     return pinfo;
 }
 
-static struct pinfo * alloc_addr_for_funcall(struct type *ftype, node_t **params)
+static struct pinfo * alloc_addr_for_funcall(struct type *ftype, struct expr **params)
 {
     return alloc_addr_for_params(ftype, params, true);
 }

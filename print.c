@@ -13,7 +13,9 @@ static FILE *outfd;
 #define RESTORE_OUTFD() \
     outfd = _saved_fd
 
-static void print_tree1(node_t *node, int level);
+
+static void print_stmt1(struct stmt * node, int level);
+static void print_expr1(struct expr * node, int level);
 
 static void ensure_outfd(void)
 {
@@ -114,9 +116,15 @@ static void print_symbol1(struct symbol *sym, int level)
 
     putf("\n");
 
-    node_t *init = SYM_INIT(sym);
-    if (init)
-        print_tree1(init, level + 1);
+    if (isfuncdef(sym)) {
+        struct stmt *init = SYM_COMPOUND(sym);
+        if (init)
+            print_stmt1(init, level + 1);
+    } else {
+        struct expr *init = SYM_INIT(sym);
+        if (init)
+            print_expr1(init, level + 1);
+    }
 }
 
 void print_symbol(struct symbol *sym)
@@ -124,13 +132,16 @@ void print_symbol(struct symbol *sym)
     print_symbol1(sym, 0);
 }
 
-static void print_expr(node_t * node, int level)
+static void print_expr1(struct expr * node, int level)
 {
+    for (int i = 0; i < level; i++)
+        putf("  ");
+    
     int op = EXPR_OP(node);
     bool prefix = EXPR_PREFIX(node);
 
-    putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
-    print_ty(AST_TYPE(node));
+    putf(PURPLE("%s ") YELLOW("%p "), nname(EXPR_ID(node)), node);
+    print_ty(EXPR_TYPE(node));
     if (islvalue(node))
         putf("'" CYAN("lvalue") "' ");
 
@@ -140,10 +151,10 @@ static void print_expr(node_t * node, int level)
         putf("%s ", (prefix ? "prefix" : "postfix"));
     if (op > 0)
         putf("'%s' ", id2s(op));
-    if (AST_NAME(node))
-        putf("<" RED("%s") "> ", AST_NAME(node));
+    if (EXPR_NAME(node))
+        putf("<" RED("%s") "> ", EXPR_NAME(node));
     if (isiliteral(node)) {
-        if (TYPE_OP(AST_TYPE(node)) == INT)
+        if (TYPE_OP(EXPR_TYPE(node)) == INT)
             putf(RED("%lld"), ILITERAL_VALUE(node).i);
         else
             putf(RED("%llu"), ILITERAL_VALUE(node).u);
@@ -153,62 +164,65 @@ static void print_expr(node_t * node, int level)
 
     putf("\n");
 
-    if (AST_ID(node) == CALL_EXPR) {
-        node_t *func = EXPR_OPERAND(node, 0);
+    if (EXPR_ID(node) == CALL_EXPR) {
+        struct expr *func = EXPR_OPERAND(node, 0);
         if (func)
-            print_tree1(func, level + 1);
-        node_t **args = EXPR_ARGS(node);
+            print_expr1(func, level + 1);
+        struct expr **args = EXPR_ARGS(node);
         if (args) {
             for (size_t i = 0; args[i]; i++) {
-                node_t *arg = args[i];
-                print_tree1(arg, level + 1);
+                struct expr *arg = args[i];
+                print_expr1(arg, level + 1);
             }
         }
-    } else if (AST_ID(node) == INITS_EXPR) {
-        node_t **inits = EXPR_INITS(node);
+    } else if (EXPR_ID(node) == INITS_EXPR) {
+        struct expr **inits = EXPR_INITS(node);
         if (inits) {
             for (size_t i = 0; inits[i]; i++) {
-                node_t *init = inits[i];
-                print_tree1(init, level + 1);
+                struct expr *init = inits[i];
+                print_expr1(init, level + 1);
             }
         }
     } else {
         if (EXPR_OPERAND(node, 0))
-            print_tree1(EXPR_OPERAND(node, 0), level + 1);
+            print_expr1(EXPR_OPERAND(node, 0), level + 1);
 
         if (EXPR_OPERAND(node, 1))
-            print_tree1(EXPR_OPERAND(node, 1), level + 1);
+            print_expr1(EXPR_OPERAND(node, 1), level + 1);
 
         if (EXPR_OPERAND(node, 2))
-            print_tree1(EXPR_OPERAND(node, 2), level + 1);
+            print_expr1(EXPR_OPERAND(node, 2), level + 1);
     }
 }
 
-static void print_stmt(node_t * node, int level)
+static void print_stmt1(struct stmt * node, int level)
 {
-    putf(PURPLE("%s ") YELLOW("%p "), nname(node), node);
+    for (int i = 0; i < level; i++)
+        putf("  ");
+    
+    putf(PURPLE("%s ") YELLOW("%p "), nname(STMT_ID(node)), node);
     putf("\n");
 
-    switch (AST_ID(node)) {
+    switch (STMT_ID(node)) {
     case COMPOUND_STMT:
         {
-            node_t **blks = STMT_BLKS(node);
+            struct stmt **blks = STMT_BLKS(node);
             if (blks) {
                 for (size_t i = 0; blks[i]; i++) {
-                    node_t *blk = blks[i];
-                    print_tree1(blk, level + 1);
+                    struct stmt *blk = blks[i];
+                    print_stmt1(blk, level + 1);
                 }
             }
         }
         break;
     case FOR_STMT:
         {
-            node_t *init = STMT_FOR_INIT(node);
-            node_t *cond = STMT_FOR_COND(node);
-            node_t *ctrl = STMT_FOR_CTRL(node);
-            node_t *body = STMT_FOR_BODY(node);
+            struct expr *init = STMT_FOR_INIT(node);
+            struct expr *cond = STMT_FOR_COND(node);
+            struct expr *ctrl = STMT_FOR_CTRL(node);
+            struct stmt *body = STMT_FOR_BODY(node);
             if (init) {
-                print_tree1(init, level + 1);
+                print_expr1(init, level + 1);
             } else {
                 for (int i = 0; i < level + 1; i++)
                     putf("  ");
@@ -216,7 +230,7 @@ static void print_stmt(node_t * node, int level)
             }
         
             if (cond) {
-                print_tree1(cond, level + 1);
+                print_expr1(cond, level + 1);
             } else {
                 for (int i = 0; i < level + 1; i++)
                     putf("  ");
@@ -224,7 +238,7 @@ static void print_stmt(node_t * node, int level)
             }
         
             if (ctrl) {
-                print_tree1(ctrl, level + 1);
+                print_expr1(ctrl, level + 1);
             } else {
                 for (int i = 0; i < level + 1; i++)
                     putf("  ");
@@ -232,7 +246,7 @@ static void print_stmt(node_t * node, int level)
             }
 
             if (body) {
-                print_tree1(body, level + 1);
+                print_stmt1(body, level + 1);
             } else {
                 for (int i = 0; i < level + 1; i++)
                     putf("  ");
@@ -242,56 +256,56 @@ static void print_stmt(node_t * node, int level)
         break;
     case IF_STMT:
         {
-            node_t *cond = STMT_COND(node);
-            node_t *then = STMT_THEN(node);
-            node_t *els = STMT_ELSE(node);
+            struct expr *cond = STMT_COND(node);
+            struct stmt *then = STMT_THEN(node);
+            struct stmt *els = STMT_ELSE(node);
 
             if (cond)
-                print_tree1(cond, level + 1);
+                print_expr1(cond, level + 1);
             if (then)
-                print_tree1(then, level + 1);
+                print_stmt1(then, level + 1);
             if (els)
-                print_tree1(els, level + 1);
+                print_stmt1(els, level + 1);
         }
         break;
     case DO_WHILE_STMT:
     case WHILE_STMT:
         {
-            node_t *cond = STMT_WHILE_COND(node);
-            node_t *body = STMT_WHILE_BODY(node);
+            struct expr *cond = STMT_WHILE_COND(node);
+            struct stmt *body = STMT_WHILE_BODY(node);
 
             if (cond)
-                print_tree1(cond, level + 1);
+                print_expr1(cond, level + 1);
             if (body)
-                print_tree1(body, level + 1);
+                print_stmt1(body, level + 1);
         }
         break;
     case SWITCH_STMT:
         {
-            node_t *expr = STMT_SWITCH_EXPR(node);
-            node_t *body = STMT_SWITCH_BODY(node);
+            struct expr *expr = STMT_SWITCH_EXPR(node);
+            struct stmt *body = STMT_SWITCH_BODY(node);
 
             if (expr)
-                print_tree1(expr, level + 1);
+                print_expr1(expr, level + 1);
             if (body)
-                print_tree1(body, level + 1);
+                print_stmt1(body, level + 1);
         }
         break;
     case CASE_STMT:
     case DEFAULT_STMT:
         {
-            node_t *body = STMT_CASE_BODY(node);
+            struct stmt *body = STMT_CASE_BODY(node);
 
             if (body)
-                print_tree1(body, level + 1);
+                print_stmt1(body, level + 1);
         }
         break;
     case RETURN_STMT:
         {
-            node_t *expr = STMT_RETURN_EXPR(node);
+            struct expr *expr = STMT_RETURN_EXPR(node);
 
             if (expr)
-                print_tree1(expr, level + 1);
+                print_expr1(expr, level + 1);
         }
     case GOTO_STMT:
         {
@@ -304,19 +318,19 @@ static void print_stmt(node_t * node, int level)
     case LABEL_STMT:
         {
             const char *label = STMT_LABEL_NAME(node);
-            node_t *body = STMT_LABEL_BODY(node);
+            struct stmt *body = STMT_LABEL_BODY(node);
 
             if (label)
                 print_label(label, level + 1);
             if (body)
-                print_tree1(body, level + 1);
+                print_stmt1(body, level + 1);
         }
         break;
     case EXPR_STMT:
         {
-            node_t *expr = STMT_EXPR_BODY(node);
+            struct expr *expr = STMT_EXPR_BODY(node);
             if (expr)
-                print_tree1(expr, level + 1);
+                print_expr1(expr, level + 1);
         }
         break;
     case BREAK_STMT:
@@ -328,27 +342,19 @@ static void print_stmt(node_t * node, int level)
     }
 }
 
-static void print_tree1(node_t *node, int level)
-{
-    for (int i = 0; i < level; i++)
-        putf("  ");
-
-    if (isexpr(node))
-        print_expr(node, level);
-    else if (isstmt(node))
-        print_stmt(node, level);
-    else
-        assert(0);
-}
-
 void print_field(struct field *field)
 {
     print_field1(field, 0);
 }
 
-void print_tree(node_t * tree)
+void print_expr(struct expr *expr)
 {
-    print_tree1(tree, 0);
+    print_expr1(expr, 0);
+}
+
+void print_stmt(struct stmt *stmt)
+{
+    print_stmt1(stmt, 0);
 }
 
 static const char * operand2s(struct operand *operand)
@@ -639,7 +645,7 @@ void print_ir_compounds(struct map *compounds)
     if (vec_len(keys)) {
         for (int i = 0; i < vec_len(keys); i++) {
             const char *label = vec_at(keys, i);
-            node_t *init = map_get(compounds, label);
+            struct expr *init = map_get(compounds, label);
             print_ir_data1(label, EXPR_X_XVALUES(init));
         }
     }
@@ -880,14 +886,12 @@ const char *type2s(struct type * ty)
 /**
  * Convert expression node to string.
  */
-const char *expr2s(node_t * node)
+const char *expr2s(struct expr * node)
 {
-    assert(isexpr(node));
-
     struct strbuf *s = strbuf_new();
-    int id = AST_ID(node);
-    node_t *l = EXPR_OPERAND(node, 0);
-    node_t *r = EXPR_OPERAND(node, 1);
+    int id = EXPR_ID(node);
+    struct expr *l = EXPR_OPERAND(node, 0);
+    struct expr *r = EXPR_OPERAND(node, 1);
 
     switch (id) {
     case BINARY_OPERATOR:
@@ -934,7 +938,7 @@ const char *expr2s(node_t * node)
     case MEMBER_EXPR:
         strbuf_cats(s, expr2s(l));
         strbuf_cats(s, id2s(EXPR_OP(node)));
-        strbuf_cats(s, AST_NAME(node));
+        strbuf_cats(s, EXPR_NAME(node));
         break;
     case PAREN_EXPR:
         strbuf_cats(s, format("(%s)", expr2s(l)));
@@ -942,12 +946,12 @@ const char *expr2s(node_t * node)
     case CALL_EXPR:
         {
             const char *func = expr2s(l);
-            node_t **args = EXPR_ARGS(node);
+            struct expr **args = EXPR_ARGS(node);
             size_t len = length(args);
             strbuf_cats(s, func);
             strbuf_cats(s, "(");
             for (size_t i = 0; i < len; i++) {
-                node_t *arg = args[i];
+                struct expr *arg = args[i];
                 const char *s1 = expr2s(arg);
                 strbuf_cats(s, s1);
                 if (i != len - 1)
@@ -957,9 +961,7 @@ const char *expr2s(node_t * node)
         }
         break;
     case CAST_EXPR:
-        strbuf_cats(s,
-                    format("(%s)%s", type2s(AST_TYPE(node)),
-                           expr2s(l)));
+        strbuf_cats(s, format("(%s)%s", type2s(EXPR_TYPE(node)), expr2s(l)));
         break;
     case CONV_EXPR:
         strbuf_cats(s, expr2s(l));
@@ -968,7 +970,7 @@ const char *expr2s(node_t * node)
         strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));
         break;
     case INTEGER_LITERAL:
-        if (TYPE_OP(AST_TYPE(node)) == INT)
+        if (TYPE_OP(EXPR_TYPE(node)) == INT)
             strbuf_cats(s, format("%lld", ILITERAL_VALUE(node).i));
         else
             strbuf_cats(s, format("%llu", ILITERAL_VALUE(node).u));
@@ -980,7 +982,7 @@ const char *expr2s(node_t * node)
         strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));
         break;
     case COMPOUND_LITERAL:
-        strbuf_cats(s, format("(%s){...}", type2s(AST_TYPE(node))));
+        strbuf_cats(s, format("(%s){...}", type2s(EXPR_TYPE(node))));
         break;
     case INITS_EXPR:
     case VINIT_EXPR:

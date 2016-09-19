@@ -24,16 +24,6 @@ struct cc_options {
 };
 extern struct cc_options opts;
 
-/**
- * The coding style tends to avoid typedefs, because
- * typedefs reduce readability, but it's not a hard rule.
- *
- * The fields of ast_node are designed to be accessed _ONLY_
- * via macros, so it's useful to use typedef to hide the
- * implementation details.
- */
-typedef union ast_node node_t;
-
 // gen
 // operand size
 enum {
@@ -176,7 +166,7 @@ struct tac {
     struct operand *operands[3];
     struct uses uses[6];
     struct tac *next, *prev;
-    node_t *call;               // funcall expr
+    struct expr *call;               // funcall expr
 };
 
 // basic block tag
@@ -322,7 +312,7 @@ struct type {
         // array
         struct {
             size_t len;        // array length
-            node_t *assign;
+            struct expr *assign;
             unsigned is_const:1;
             unsigned is_volatile:1;
             unsigned is_restrict:1;
@@ -366,7 +356,8 @@ struct field {
 #define SYM_VALUE(NODE)       ((NODE)->value)
 #define SYM_REFS(NODE)        ((NODE)->refs)
 #define SYM_LINK(NODE)        ((NODE)->link)
-#define SYM_INIT(NODE)        ((NODE)->init)
+#define SYM_INIT(NODE)        ((NODE)->u.init)
+#define SYM_COMPOUND(NODE)    ((NODE)->u.compound)
 
 // sym
 #define SYM_X_LABEL(NODE)     ((NODE)->x.label)
@@ -394,7 +385,10 @@ struct symbol {
     union value value;
     unsigned refs;
     struct symbol *link;
-    node_t *init;               // the initializer expr or func body
+    union {
+        struct expr *init;               // initializer expr
+        struct stmt *compound;           // function body
+    } u;
     struct {
         const char *label;
         long loff;              // local offset (<0)
@@ -461,24 +455,18 @@ enum {
 #include "node.def"
 };
 
-#define AST_ID(NODE)            ((NODE)->common.id)
-#define AST_NAME(NODE)          ((NODE)->common.name)
-#define AST_TYPE(NODE)          ((NODE)->common.type)
-#define AST_SRC(NODE)           ((NODE)->common.src)
 
-struct ast_common {
-    int id;
-    const char *name;
-    struct type *type;
-    struct source src;
-};
+#define EXPR_ID(NODE)           ((NODE)->id)
+#define EXPR_NAME(NODE)         ((NODE)->name)
+#define EXPR_TYPE(NODE)         ((NODE)->type)
+#define EXPR_SRC(NODE)          ((NODE)->src)
 
-#define EXPR_OP(NODE)           ((NODE)->expr.op)
-#define EXPR_PREFIX(NODE)       ((NODE)->expr.prefix)
-#define EXPR_OPERAND(NODE, I)   ((NODE)->expr.operands[I])
-#define EXPR_ARGS(NODE)         ((NODE)->expr.list)
-#define EXPR_INITS(NODE)        ((NODE)->expr.list)
-#define EXPR_SYM(NODE)          ((NODE)->expr.sym)
+#define EXPR_OP(NODE)           ((NODE)->op)
+#define EXPR_PREFIX(NODE)       ((NODE)->prefix)
+#define EXPR_OPERAND(NODE, I)   ((NODE)->operands[I])
+#define EXPR_ARGS(NODE)         ((NODE)->list)
+#define EXPR_INITS(NODE)        ((NODE)->list)
+#define EXPR_SYM(NODE)          ((NODE)->sym)
 // conditional expr
 #define EXPR_COND(NODE)         EXPR_OPERAND(NODE, 0)
 #define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
@@ -487,23 +475,27 @@ struct ast_common {
 #define ILITERAL_VALUE(NODE)    SYM_VALUE(EXPR_SYM(NODE))
 #define FLITERAL_VALUE(NODE)    SYM_VALUE(EXPR_SYM(NODE))
 // va_arg
-#define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->expr.type)
+#define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->vtype)
 
 // expr
-#define EXPR_X_ADDR(NODE)     ((NODE)->expr.x.addr)
-#define EXPR_X_TRUE(NODE)     ((NODE)->expr.x.btrue)
-#define EXPR_X_FALSE(NODE)    ((NODE)->expr.x.bfalse)
-#define EXPR_X_ARRAY(NODE)    ((NODE)->expr.x.array)
-#define EXPR_X_XVALUES(NODE)  ((NODE)->expr.x.xvalues)
+#define EXPR_X_ADDR(NODE)     ((NODE)->x.addr)
+#define EXPR_X_TRUE(NODE)     ((NODE)->x.btrue)
+#define EXPR_X_FALSE(NODE)    ((NODE)->x.bfalse)
+#define EXPR_X_ARRAY(NODE)    ((NODE)->x.array)
+#define EXPR_X_XVALUES(NODE)  ((NODE)->x.xvalues)
     
-struct ast_expr {
-    struct ast_common common;
+struct expr {
+    int id;
+    const char *name;
+    struct type *type;
+    struct source src;
+
     int op;
     bool prefix;
     struct symbol *sym;
-    node_t *operands[3];
-    node_t **list;
-    struct type *type;
+    struct expr *operands[3];
+    struct expr **list;
+    struct type *vtype;
     struct {
         struct operand *addr;
         struct operand *array;
@@ -515,55 +507,63 @@ struct ast_expr {
     } x;
 };
 
+#define STMT_ID(NODE)      ((NODE)->id)
+#define STMT_NAME(NODE)    ((NODE)->name)
+#define STMT_SRC(NODE)     ((NODE)->src)
+
 // compound stmt
-#define STMT_BLKS(NODE)    ((NODE)->stmt.blks)
+#define STMT_BLKS(NODE)    ((NODE)->blks)
 
 // if stmt
-#define STMT_COND(NODE)    ((NODE)->stmt.list[0])
-#define STMT_THEN(NODE)    ((NODE)->stmt.list[1])
-#define STMT_ELSE(NODE)    ((NODE)->stmt.list[2])
+#define STMT_COND(NODE)    ((NODE)->e[0])
+#define STMT_THEN(NODE)    ((NODE)->s[0])
+#define STMT_ELSE(NODE)    ((NODE)->s[1])
 
 // for stmt
-#define STMT_FOR_INIT(NODE)    ((NODE)->stmt.list[0])
-#define STMT_FOR_COND(NODE)    ((NODE)->stmt.list[1])
-#define STMT_FOR_CTRL(NODE)    ((NODE)->stmt.list[2])
-#define STMT_FOR_BODY(NODE)    ((NODE)->stmt.list[3])
+#define STMT_FOR_INIT(NODE)    ((NODE)->e[0])
+#define STMT_FOR_COND(NODE)    ((NODE)->e[1])
+#define STMT_FOR_CTRL(NODE)    ((NODE)->e[2])
+#define STMT_FOR_BODY(NODE)    ((NODE)->s[0])
 
 // case stmt
-#define STMT_CASE_INDEX(NODE)    ((NODE)->stmt.index)
-#define STMT_CASE_BODY(NODE)     ((NODE)->stmt.list[0])
-#define STMT_CASE_NAME(NODE)     AST_NAME(NODE)
+#define STMT_CASE_INDEX(NODE)    ((NODE)->index)
+#define STMT_CASE_BODY(NODE)     ((NODE)->s[0])
+#define STMT_CASE_NAME(NODE)     STMT_NAME(NODE)
 
 // switch stmt
-#define STMT_SWITCH_EXPR(NODE)     ((NODE)->stmt.list[0])
-#define STMT_SWITCH_BODY(NODE)     ((NODE)->stmt.list[1])
-#define STMT_SWITCH_CASES(NODE)    ((NODE)->stmt.blks)
-#define STMT_SWITCH_DEFAULT(NODE)  ((NODE)->stmt.list[2])
+#define STMT_SWITCH_EXPR(NODE)     ((NODE)->e[0])
+#define STMT_SWITCH_BODY(NODE)     ((NODE)->s[0])
+#define STMT_SWITCH_CASES(NODE)    ((NODE)->blks)
+#define STMT_SWITCH_DEFAULT(NODE)  ((NODE)->s[1])
 
 // label stmt
-#define STMT_LABEL_NAME(NODE)   AST_NAME(NODE)
-#define STMT_LABEL_BODY(NODE)   ((NODE)->stmt.list[0])
-#define STMT_LABEL_REFS(NODE)   ((NODE)->stmt.index)
+#define STMT_LABEL_NAME(NODE)   STMT_NAME(NODE)
+#define STMT_LABEL_BODY(NODE)   ((NODE)->s[0])
+#define STMT_LABEL_REFS(NODE)   ((NODE)->index)
 
 // while stmt
-#define STMT_WHILE_COND(NODE)   ((NODE)->stmt.list[0])
-#define STMT_WHILE_BODY(NODE)   ((NODE)->stmt.list[1])
+#define STMT_WHILE_COND(NODE)   ((NODE)->e[0])
+#define STMT_WHILE_BODY(NODE)   ((NODE)->s[0])
 
 // return stmt
-#define STMT_RETURN_EXPR(NODE)  ((NODE)->stmt.list[0])
+#define STMT_RETURN_EXPR(NODE)  ((NODE)->e[0])
 
 // expr stmt
-#define STMT_EXPR_BODY(NODE)    ((NODE)->stmt.list[0])
+#define STMT_EXPR_BODY(NODE)    ((NODE)->e[0])
 
 // stmt
-#define STMT_X_LABEL(NODE)    ((NODE)->stmt.x.label)
-#define STMT_X_NEXT(NODE)     ((NODE)->stmt.x.next)
+#define STMT_X_LABEL(NODE)    ((NODE)->x.label)
+#define STMT_X_NEXT(NODE)     ((NODE)->x.next)
 
-struct ast_stmt {
-    struct ast_common common;
+struct stmt {
+    int id;
+    const char *name;
+    struct source src;
+    
     long index;
-    node_t **blks;
-    node_t *list[4];
+    struct stmt **blks;
+    struct stmt *s[2];
+    struct expr *e[3];
     struct {
         const char *label;
 
@@ -572,22 +572,16 @@ struct ast_stmt {
     } x;
 };
 
-union ast_node {
-    struct ast_common common;
-    struct ast_expr expr;
-    struct ast_stmt stmt;
-};
-
-extern const char *nname(node_t * node);
+extern const char *nname(int id);
 // expr
-extern node_t *ast_expr(int id, struct type * ty, node_t * l, node_t * r);
-extern node_t *ast_uop(int op, struct type * ty, node_t * l);
-extern node_t *ast_bop(int op, struct type * ty, node_t * l, node_t * r);
-extern node_t *ast_conv(struct type * ty, node_t * l, const char *name);
-extern node_t *ast_inits(struct type * ty, struct source src);
-extern node_t *ast_vinit(void);
+extern struct expr *ast_expr(int id, struct type *ty, struct expr *l, struct expr *r);
+extern struct expr *ast_uop(int op, struct type *ty, struct expr *l);
+extern struct expr *ast_bop(int op, struct type *ty, struct expr *l, struct expr *r);
+extern struct expr *ast_conv(struct type *ty, struct expr *l, const char *name);
+extern struct expr *ast_inits(struct type * ty, struct source src);
+extern struct expr *ast_vinit(void);
 // stmt
-extern node_t *ast_stmt(int id, struct source src);
+extern struct stmt *ast_stmt(int id, struct source src);
 
 extern const char *gen_label(void);
 extern const char *gen_tmpname(void);
@@ -597,21 +591,17 @@ extern const char *gen_compound_label(void);
 extern const char *gen_sliteral_label(void);
 extern const char *gen_block_label(void);
 
-// kind
-#define isexpr(n)   (AST_ID(n) > BEGIN_EXPR_ID && AST_ID(n) < END_EXPR_ID)
-#define isstmt(n)   (AST_ID(n) > BEGIN_STMT_ID && AST_ID(n) < END_STMT_ID)
-
 // decl
-#define isfuncdef(n)   (isfunc(SYM_TYPE(n)) && SYM_INIT(n))
+#define isfuncdef(n)   (isfunc(SYM_TYPE(n)) && SYM_COMPOUND(n))
 #define isvardecl(n)   (SYM_SCLASS(n) != TYPEDEF && !isfunc(SYM_TYPE(n)))
 
 // expr
-#define isiliteral(n)  (AST_ID(n) == INTEGER_LITERAL)
-#define isfliteral(n)  (AST_ID(n) == FLOAT_LITERAL)
-#define issliteral(n)  (AST_ID(n) == STRING_LITERAL)
+#define isiliteral(n)  (EXPR_ID(n) == INTEGER_LITERAL)
+#define isfliteral(n)  (EXPR_ID(n) == FLOAT_LITERAL)
+#define issliteral(n)  (EXPR_ID(n) == STRING_LITERAL)
 
 // stmt
-#define isnullstmt(n)  (AST_ID(n) == NULL_STMT)
+#define isnullstmt(n)  (STMT_ID(n) == NULL_STMT)
 
 // cast name
 #define BitCast                 "BitCast"
@@ -627,26 +617,26 @@ extern const char *gen_block_label(void);
 #define PointerToIntegerCast    "PointerToInteger"
 
 // eval.c
-extern node_t *eval(node_t * expr, struct type * ty);
+extern struct expr *eval(struct expr *expr, struct type *ty);
  
 // expr.c
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
-extern node_t *expression(void);
-extern node_t *assign_expr(void);
-extern long intexpr1(struct type * ty);
+extern struct expr *expression(void);
+extern struct expr *assign_expr(void);
+extern long intexpr1(struct type *ty);
 extern long intexpr(void);
-extern bool islvalue(node_t * node);
-extern node_t *assignconv(struct type * ty, node_t * node);
+extern bool islvalue(struct expr *node);
+extern struct expr *assignconv(struct type *ty, struct expr *node);
 // for expression in conditional statement
-extern node_t *bool_expr(void);
+extern struct expr *bool_expr(void);
 // for expression in switch statement
-extern node_t *switch_expr(void);
+extern struct expr *switch_expr(void);
 // bop
-extern node_t *bop(int op, node_t * l, node_t * r);
+extern struct expr *bop(int op, struct expr *l, struct expr *r);
 // literals
-extern node_t *new_integer_literal(int i);
-extern node_t *new_string_literal(const char *string);
-extern node_t *decls2expr(struct symbol **decls);
+extern struct expr *new_integer_literal(int i);
+extern struct expr *new_string_literal(const char *string);
+extern struct expr *decls2expr(struct symbol **decls);
 
 // decl.c
 extern struct symbol **declaration(void);
@@ -656,7 +646,7 @@ extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
 extern int first_typename(struct token *t);
-extern struct symbol *make_localvar(const char *name, struct type * ty, int sclass);
+extern struct symbol *make_localvar(const char *name, struct type *ty, int sclass);
 
 struct funcinfo {
     const char *name;
@@ -670,52 +660,52 @@ struct funcinfo {
 extern struct funcinfo funcinfo;
 
 // init.c
-extern bool has_static_extent(struct symbol * sym);
-extern node_t *decl_initializer(struct symbol * sym, int sclass, int level);
-extern node_t *initializer(struct type * ty);
-extern node_t *initializer_list(struct type * ty);
-extern void init_string(struct type * ty, node_t * node);
+extern bool has_static_extent(struct symbol *sym);
+extern struct expr *decl_initializer(struct symbol *sym, int sclass, int level);
+extern struct expr *initializer(struct type *ty);
+extern struct expr *initializer_list(struct type *ty);
+extern void init_string(struct type *ty, struct expr *node);
 
 // stmt.c
-extern node_t *compound_stmt(void (*) (void));
+extern struct stmt *compound_stmt(void (*) (void));
 
 // typechk.c
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
-extern void ensure_field(struct field * field, size_t total, bool last);
-extern void ensure_decl(struct symbol * sym, int sclass, int kind);
-extern void ensure_array(struct type * atype, struct source src, int level);
-extern void ensure_func(struct type * ftype, struct source src);
+extern void ensure_field(struct field *field, size_t total, bool last);
+extern void ensure_decl(struct symbol *sym, int sclass, int kind);
+extern void ensure_array(struct type *atype, struct source src, int level);
+extern void ensure_func(struct type *ftype, struct source src);
 extern void ensure_main(struct type *ftype, const char *name, struct source src);
 extern void ensure_params(struct symbol *params[]);
-extern void redefinition_error(struct source src, struct symbol * sym);
-extern void conflicting_types_error(struct source src, struct symbol * sym);
-extern void field_not_found_error(struct type * ty, const char *name);
+extern void redefinition_error(struct source src, struct symbol *sym);
+extern void conflicting_types_error(struct source src, struct symbol *sym);
+extern void field_not_found_error(struct type *ty, const char *name);
 
 // type.c
 extern void type_init(void);
 extern struct field *alloc_field(void);
 extern struct type *alloc_type(void);
-extern int type_op(struct type * type);
-extern void prepend_type(struct type ** typelist, struct type * type);
-extern void attach_type(struct type ** typelist, struct type * type);
-extern struct type *qual(int t, struct type * ty);
-extern struct type *unqual(struct type * ty);
-extern bool eqtype(struct type * ty1, struct type * ty2);
-extern bool eqarith(struct type * ty1, struct type * ty2);
+extern int type_op(struct type *type);
+extern void prepend_type(struct type **typelist, struct type *type);
+extern void attach_type(struct type **typelist, struct type *type);
+extern struct type *qual(int t, struct type *ty);
+extern struct type *unqual(struct type *ty);
+extern bool eqtype(struct type *ty1, struct type *ty2);
+extern bool eqarith(struct type *ty1, struct type *ty2);
 extern struct type *lookup_typedef(const char *id);
 extern bool istypedef(const char *id);
-extern struct type *array_type(struct type * ty);
-extern struct type *ptr_type(struct type * ty);
+extern struct type *array_type(struct type *ty);
+extern struct type *ptr_type(struct type *ty);
 extern struct type *func_type(void);
 extern struct symbol *tag_type(int t, const char *tag, struct source src);
-extern void set_typesize(struct type * ty);
-extern struct field *find_field(struct type * ty, const char *name);
-extern int indexof_field(struct type * ty, struct field * field);
-extern struct type *compose(struct type * ty1, struct type * ty2);
-extern bool qual_contains(struct type * ty1, struct type * ty2);
-extern int qual_union(struct type * ty1, struct type * ty2);
-extern bool isincomplete(struct type * ty);
-extern struct type *unpack(struct type * ty);
+extern void set_typesize(struct type *ty);
+extern struct field *find_field(struct type *ty, const char *name);
+extern int indexof_field(struct type *ty, struct field *field);
+extern struct type *compose(struct type *ty1, struct type *ty2);
+extern bool qual_contains(struct type *ty1, struct type *ty2);
+extern int qual_union(struct type *ty1, struct type *ty2);
+extern bool isincomplete(struct type *ty);
+extern struct type *unpack(struct type *ty);
 
 extern struct type *chartype;
 extern struct type *unsignedchartype;
@@ -764,21 +754,21 @@ extern struct type *booltype;
 #define rtype(ty)       TYPE_TYPE(ty)
 #define TYPE_OP(ty)     type_op(ty)
 
-extern bool isfunc(struct type * type);
-extern bool isarray(struct type * type);
-extern bool isptr(struct type * type);
-extern bool isvoid(struct type * type);
-extern bool isenum(struct type * type);
-extern bool isstruct(struct type * type);
-extern bool isunion(struct type * type);
-extern bool isrecord(struct type * type);        // isstruct or isunion
-extern bool istag(struct type * type);        // isstruct or isunion or isenum
+extern bool isfunc(struct type *type);
+extern bool isarray(struct type *type);
+extern bool isptr(struct type *type);
+extern bool isvoid(struct type *type);
+extern bool isenum(struct type *type);
+extern bool isstruct(struct type *type);
+extern bool isunion(struct type *type);
+extern bool isrecord(struct type *type);     // isstruct or isunion
+extern bool istag(struct type *type);        // isstruct or isunion or isenum
 
-extern bool isint(struct type * ty);
-extern bool isfloat(struct type * ty);
-extern bool isarith(struct type * ty);
-extern bool isscalar(struct type * ty);
-extern bool isptrto(struct type * ty, int kind);
+extern bool isint(struct type *ty);
+extern bool isfloat(struct type *ty);
+extern bool isarith(struct type *ty);
+extern bool isscalar(struct type *ty);
+extern bool isptrto(struct type *ty, int kind);
 extern bool isbool(struct type *ty);
 
 // error.c
@@ -806,7 +796,8 @@ extern void fatalf(const char *file, unsigned int line, unsigned int column,
 
 // print.c
 extern void print_field(struct field *field);
-extern void print_tree(node_t * tree);
+extern void print_expr(struct expr *expr);
+extern void print_stmt(struct stmt *stmt);
 extern void print_tac(struct tac *tac);
 extern void print_type(struct symbol *sym);
 extern void print_symbol(struct symbol *sym);
@@ -816,8 +807,8 @@ extern void print_ir_text(struct symbol *sym);
 extern void print_ir_compounds(struct map *compounds);
 extern void print_ir_strings(struct map *strings);
 extern void print_ir_floats(struct map *floats);
-extern const char *type2s(struct type * ty);
-extern const char *expr2s(node_t * node);
+extern const char *type2s(struct type *ty);
+extern const char *expr2s(struct expr *node);
 extern void dump_operand(struct operand *operand);
 extern void dump_reg(struct reg *reg);
 extern void dump_tacs(struct tac *tac);

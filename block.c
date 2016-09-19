@@ -95,7 +95,7 @@ static void calculate_in_out(struct basic_block *start)
 void construct_basic_blocks(struct symbol *sym, struct tac *head)
 {
     const char *start_label = SYM_X_LABEL(sym);
-    const char *end_label = STMT_X_NEXT(SYM_INIT(sym));
+    const char *end_label = STMT_X_NEXT(SYM_COMPOUND(sym));
 
     struct basic_block *start = NEWS0(struct basic_block, PERM);
     start->label = start_label;

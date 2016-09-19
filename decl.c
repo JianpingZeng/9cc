@@ -501,15 +501,15 @@ static struct symbol **parameters(struct type * ftype)
 
 static void parse_assign(struct type *atype)
 {
-    node_t *assign = assign_expr();
+    struct expr *assign = assign_expr();
     TYPE_A_ASSIGN(atype) =assign;
 
     if (!assign)
         return;
 
-    if (isint(AST_TYPE(assign))) {
+    if (isint(EXPR_TYPE(assign))) {
         // try evaluate the length
-        node_t *ret = eval(assign, longtype);
+        struct expr *ret = eval(assign, longtype);
         if (ret) {
             assert(isiliteral(ret));
             TYPE_LEN(atype) = ILITERAL_VALUE(ret).i;
@@ -520,7 +520,7 @@ static void parse_assign(struct type *atype)
         }
     } else {
         error("size of array has non-integer type '%s'",
-              type2s(AST_TYPE(assign)));
+              type2s(EXPR_TYPE(assign)));
     }
 }
 
@@ -1155,7 +1155,7 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
     }
 
     if (token->id == '=') {
-        node_t *init = decl_initializer(sym, sclass, LOCAL);
+        struct expr *init = decl_initializer(sym, sclass, LOCAL);
         SYM_INIT(sym) = init;
     }
 
@@ -1498,7 +1498,7 @@ static void predefined_ids(void)
     struct symbol *sym = make_localvar(name, type, STATIC);
     SYM_PREDEFINE(sym) = true;
     // initializer
-    node_t *literal = new_string_literal(funcinfo.name);
+    struct expr *literal = new_string_literal(funcinfo.name);
     init_string(type, literal);
     SYM_INIT(sym) = literal;
 }
@@ -1506,22 +1506,22 @@ static void predefined_ids(void)
 static void backfill_labels(void)
 {
     for (int i = 0; i < vec_len(funcinfo.gotos); i++) {
-        node_t *goto_stmt = vec_at(funcinfo.gotos, i);
+        struct stmt *goto_stmt = vec_at(funcinfo.gotos, i);
         const char *name = STMT_LABEL_NAME(goto_stmt);
-        node_t *label_stmt = map_get(funcinfo.labels, name);
+        struct stmt *label_stmt = map_get(funcinfo.labels, name);
         if (label_stmt) {
             STMT_X_LABEL(goto_stmt) = STMT_X_LABEL(label_stmt);
             // update refs
             STMT_LABEL_REFS(label_stmt)++;
         } else {
-            error_at(AST_SRC(goto_stmt), "use of undeclared label '%s'", name);
+            error_at(STMT_SRC(goto_stmt), "use of undeclared label '%s'", name);
         }
     }
 }
 
 static void func_body(struct symbol *sym)
 {
-    node_t *stmt;
+    struct stmt *stmt;
     
     funcinfo.gotos = vec_new();
     funcinfo.labels = map_new();
@@ -1545,7 +1545,7 @@ static void func_body(struct symbol *sym)
     
     memset(&funcinfo, 0, sizeof(struct funcinfo));
 
-    SYM_INIT(sym) = stmt;
+    SYM_COMPOUND(sym) = stmt;
 }
 
 struct symbol *make_localvar(const char *name, struct type * ty, int sclass)
