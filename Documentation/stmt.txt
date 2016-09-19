@@ -1,0 +1,130 @@
+
+Statements
+
+
+if-statement:
+=============
+
+SYNTAX:
+
+(1)     'if' '(' expression ')' statement
+
+(2)     'if' '(' expression ')' statement1 'else' statement2
+
+
+COMMENT:
+
+(1)
+             if expression == 0 goto L
+             statement
+        L:
+
+
+(2)
+             if expression == 0 goto L
+             statement1
+             goto L+1
+        L:   statement2
+        L+1:
+
+
+while-statement:
+================
+
+SYNTAX:
+
+        'while' '(' expression ')' statement
+
+
+COMMENT:
+
+(1)
+        L:
+      L+1: if expression == 0 goto L+2
+           statement
+           goto L
+      L+2:
+
+(2)
+           goto L+1
+        L: statement
+      L+1: if expression != 0 goto L
+      L+2:
+
+NOTE: continue => L+1, break => L+2
+
+
+do-while-statement:
+===================
+
+SYNTAX:
+
+        'do' statement 'while' '(' expression ')' ';'
+
+COMMENT:
+
+        L: statement
+      L+1: if expression != 0 goto L
+      L+2:
+
+NOTE: continue => L+1, break => L+2
+
+
+for-statement:
+==============
+
+SYNTAX:
+
+(1)     'for' '(' expression1[opt] ';' expression2[opt] ';' expression3[opt] ')' statement
+
+(2)     'for' '(' declaration expression2[opt] ';' expression3[opt] ')' statement
+
+
+COMMENT:
+
+        expression1
+        goto L3
+     L: statement
+   L+1: expression3
+   L+3: if expression2 != 0 goto L
+   L+2:
+
+NOTE: continue => L+1, break => L+2
+
+
+switch-statement:
+=================
+
+
+
+jump-statement:
+===============
+
+goto:
+
+        goto label
+
+continue:
+
+        goto L+1
+
+break:
+
+        goto L+2
+
+return:
+
+
+labeled-statement:
+==================
+
+
+
+compound-statement:
+===================
+
+
+expression-statement:
+=====================
+
+
