@@ -625,14 +625,10 @@ extern struct expr *expression(void);
 extern struct expr *assign_expr(void);
 extern long intexpr1(struct type *ty);
 extern long intexpr(void);
-extern bool islvalue(struct expr *node);
-extern struct expr *assignconv(struct type *ty, struct expr *node);
 // for expression in conditional statement
 extern struct expr *bool_expr(void);
 // for expression in switch statement
 extern struct expr *switch_expr(void);
-// bop
-extern struct expr *bop(int op, struct expr *l, struct expr *r);
 // literals
 extern struct expr *new_integer_literal(int i);
 extern struct expr *new_string_literal(const char *string);
@@ -669,7 +665,7 @@ extern void init_string(struct type *ty, struct expr *node);
 // stmt.c
 extern struct stmt *compound_stmt(void (*) (void));
 
-// typechk.c
+// sema.c
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
 extern void ensure_field(struct field *field, size_t total, bool last);
 extern void ensure_decl(struct symbol *sym, int sclass, int kind);
@@ -680,6 +676,17 @@ extern void ensure_params(struct symbol *params[]);
 extern void redefinition_error(struct source src, struct symbol *sym);
 extern void conflicting_types_error(struct source src, struct symbol *sym);
 extern void field_not_found_error(struct type *ty, const char *name);
+
+extern bool islvalue(struct expr *node);
+extern struct expr *assignconv(struct type *ty, struct expr *node);
+extern struct expr **argscast(struct type *fty, struct expr **args);
+extern void ensure_additive_ptr(struct expr *node);
+extern void ensure_increment(struct expr *node);
+extern struct expr *commaop(int op, struct expr *l, struct expr *r);
+extern struct expr *assignop(int op, struct expr *l, struct expr *r);
+extern struct expr *logicop(int op, struct expr *l, struct expr *r);
+extern struct expr *bop(int op, struct expr *l, struct expr *r);
+extern bool is_nullptr(struct expr *node);
 
 // type.c
 extern void type_init(void);
