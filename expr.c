@@ -15,9 +15,6 @@ static bool is_nullptr(struct expr *node);
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 
-#define SAVE_SOURCE        struct source src = source
-#define SET_SOURCE(node)   if (node) EXPR_SRC(node) = src
-
 static void ensure_type(struct expr *node, bool(*is) (struct type *))
 {
     const char *name;
@@ -1257,10 +1254,10 @@ static struct expr *multiple_expr(void)
     mulp1 = cast_expr();
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
-        SAVE_SOURCE;
+        struct source src = source;
         expect(t);
         mulp1 = bop(t, conv(mulp1), conv(cast_expr()));
-        SET_SOURCE(mulp1);
+        if (mulp1) EXPR_SRC(mulp1) = src;
     }
 
     return mulp1;
@@ -1278,10 +1275,10 @@ static struct expr *additive_expr(void)
     add1 = multiple_expr();
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
-        SAVE_SOURCE;
+        struct source src = source;
         expect(t);
         add1 = bop(t, conv(add1), conv(multiple_expr()));
-        SET_SOURCE(add1);
+        if (add1) EXPR_SRC(add1) = src;
     }
 
     return add1;
@@ -1299,10 +1296,10 @@ static struct expr *shift_expr(void)
     shift1 = additive_expr();
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
-        SAVE_SOURCE;
+        struct source src = source;
         expect(t);
         shift1 = bop(t, conv(shift1), conv(additive_expr()));
-        SET_SOURCE(shift1);
+        if (shift1) EXPR_SRC(shift1) = src;
     }
 
     return shift1;
@@ -1322,10 +1319,10 @@ static struct expr *relation_expr(void)
     rel = shift_expr();
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
-        SAVE_SOURCE;
+        struct source src = source;
         expect(t);
         rel = bop(t, conv(rel), conv(shift_expr()));
-        SET_SOURCE(rel);
+        if (rel) EXPR_SRC(rel) = src;
     }
 
     return rel;
@@ -1343,10 +1340,10 @@ static struct expr *equality_expr(void)
     equl = relation_expr();
     while (token->id == EQ || token->id == NEQ) {
         int t = token->id;
-        SAVE_SOURCE;
+        struct source src = source;
         expect(t);
         equl = bop(t, conv(equl), conv(relation_expr()));
-        SET_SOURCE(equl);
+        if (equl) EXPR_SRC(equl) = src;
     }
 
     return equl;
@@ -1362,10 +1359,10 @@ static struct expr *and_expr(void)
 
     and1 = equality_expr();
     while (token->id == '&') {
-        SAVE_SOURCE;
+        struct source src = source;
         expect('&');
         and1 = bop('&', conv(and1), conv(equality_expr()));
-        SET_SOURCE(and1);
+        if (and1) EXPR_SRC(and1) = src;
     }
 
     return and1;
@@ -1381,10 +1378,10 @@ static struct expr *exclusive_or(void)
 
     eor = and_expr();
     while (token->id == '^') {
-        SAVE_SOURCE;
+        struct source src = source;
         expect('^');
         eor = bop('^', conv(eor), conv(and_expr()));
-        SET_SOURCE(eor);
+        if (eor) EXPR_SRC(eor) = src;
     }
 
     return eor;
@@ -1400,10 +1397,10 @@ static struct expr *inclusive_or(void)
 
     ior = exclusive_or();
     while (token->id == '|') {
-        SAVE_SOURCE;
+        struct source src = source;
         expect('|');
         ior = bop('|', conv(ior), conv(exclusive_or()));
-        SET_SOURCE(ior);
+        if (ior) EXPR_SRC(ior) = src;
     }
 
     return ior;
@@ -1419,10 +1416,10 @@ static struct expr *logic_and(void)
 
     and1 = inclusive_or();
     while (token->id == AND) {
-        SAVE_SOURCE;
+        struct source src = source;
         expect(AND);
         and1 = logicop(AND, conv(and1), conv(inclusive_or()));
-        SET_SOURCE(and1);
+        if (and1) EXPR_SRC(and1) = src;
     }
 
     return and1;
@@ -1438,10 +1435,10 @@ static struct expr *logic_or(void)
 
     or1 = logic_and();
     while (token->id == OR) {
-        SAVE_SOURCE;
+        struct source src = source;
         expect(OR);
         or1 = logicop(OR, conv(or1), conv(logic_and()));
-        SET_SOURCE(or1);
+        if (or1) EXPR_SRC(or1) = src;
     }
 
     return or1;
@@ -1574,10 +1571,10 @@ struct expr *expression(void)
 
     assign1 = assign_expr();
     while (token->id == ',') {
-        SAVE_SOURCE;
+        struct source src = source;
         expect(',');
         assign1 = commaop(',', assign1, assign_expr());
-        SET_SOURCE(assign1);
+        if (assign1) EXPR_SRC(assign1) = src;
     }
     return assign1;
 }
