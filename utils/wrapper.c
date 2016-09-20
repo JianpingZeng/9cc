@@ -75,11 +75,6 @@ void *xrealloc(void *ptr, size_t size)
     return p;
 }
 
-void *zmalloc(size_t size)
-{
-    return memset(xmalloc(size), 0, size);
-}
-
 int log2i(size_t i)
 {
     if (i == 0) {
