@@ -620,19 +620,9 @@ extern const char *gen_block_label(void);
 extern struct expr *eval(struct expr *expr, struct type *ty);
  
 // expr.c
-#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
 extern struct expr *expression(void);
 extern struct expr *assign_expr(void);
-extern long intexpr1(struct type *ty);
-extern long intexpr(void);
-// for expression in conditional statement
-extern struct expr *bool_expr(void);
-// for expression in switch statement
-extern struct expr *switch_expr(void);
-// literals
-extern struct expr *new_integer_literal(int i);
-extern struct expr *new_string_literal(const char *string);
-extern struct expr *decls2expr(struct symbol **decls);
+extern struct expr *cond_expr(void);
 
 // decl.c
 extern struct symbol **declaration(void);
@@ -679,14 +669,57 @@ extern void field_not_found_error(struct type *ty, const char *name);
 
 extern bool islvalue(struct expr *node);
 extern struct expr *assignconv(struct type *ty, struct expr *node);
-extern struct expr **argscast(struct type *fty, struct expr **args);
-extern void ensure_additive_ptr(struct expr *node);
-extern void ensure_increment(struct expr *node);
-extern struct expr *commaop(int op, struct expr *l, struct expr *r);
-extern struct expr *assignop(int op, struct expr *l, struct expr *r);
-extern struct expr *logicop(int op, struct expr *l, struct expr *r);
-extern struct expr *bop(int op, struct expr *l, struct expr *r);
-extern bool is_nullptr(struct expr *node);
+extern struct expr *new_integer_literal(int i);
+extern struct expr *new_string_literal(const char *string);
+
+extern long intexpr1(struct type *ty);
+extern long intexpr(void);
+// for expression in conditional statement
+extern struct expr *bool_expr(void);
+// for expression in switch statement
+extern struct expr *switch_expr(void);
+extern struct expr *decls2expr(struct symbol **decls);
+// for eval
+extern struct expr *binop(int op, struct expr *l, struct expr *r);
+
+// sema actions
+struct actions {
+    void (*init) (int argc, char *argv[]);
+    void (*finalize) (void);
+
+    // decl
+    void (*dclvar) (struct symbol *);
+    void (*defvar) (struct symbol *);
+    void (*dclfun) (struct symbol *);
+    void (*defun) (struct symbol *);
+    void (*deftype) (struct symbol *); // struct/union/enum/typedef
+    
+    // expr
+    struct expr * (*commaop) (struct expr *l, struct expr *r, struct source src);
+    struct expr * (*assignop) (int op, struct expr *l, struct expr *r, struct source src);
+    struct expr * (*condop) (struct expr *cond, struct expr *then, struct expr *els, struct source src);
+    struct expr * (*logicop) (int op, struct expr *l, struct expr *r, struct source src);
+    struct expr * (*bop) (int op, struct expr *l, struct expr *r, struct source src);
+    struct expr * (*castop) (struct type *ty, struct expr *cast, struct source src);
+    struct expr * (*pre_increment) (int op, struct expr *unary, struct source src);
+    struct expr * (*minus_plus) (int op, struct expr *operand, struct source src);
+    struct expr * (*bitwise_not) (struct expr *operand, struct source src);
+    struct expr * (*logical_not) (struct expr *operand, struct source src);
+    struct expr * (*address) (struct expr *operand, struct source src);
+    struct expr * (*indirection) (struct expr *operand, struct source src);
+    struct expr * (*sizeofop) (struct type *ty, struct expr *n, struct source src);
+    struct expr * (*subscript) (struct expr *node, struct expr *index, struct source src);
+    struct expr * (*funcall) (struct expr *node, struct expr **args, struct source src);
+    struct expr * (*direction) (struct expr *node, int op, const char *name, struct source src);
+    struct expr * (*post_increment) (struct expr *node, int op, struct source src);
+    struct expr * (*id) (struct token *tok);
+    struct expr * (*iconst) (struct token *tok);
+    struct expr * (*fconst) (struct token *tok);
+    struct expr * (*sconst) (struct token *tok);
+    struct expr * (*paren) (struct expr *node, struct source src);
+    struct expr * (*compound_literal) (struct type *ty, struct expr *init, struct source src);
+};
+extern struct actions actions;
 
 // type.c
 extern void type_init(void);
@@ -824,18 +857,6 @@ extern void print_source(struct source src);
 #define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
-
-// sema actions
-struct actions {
-    void (*dclvar) (struct symbol *);
-    void (*defvar) (struct symbol *);
-    void (*dclfun) (struct symbol *);
-    void (*defun) (struct symbol *);
-    void (*deftype) (struct symbol *); // struct/union/enum/typedef
-    void (*init) (int argc, char *argv[]);
-    void (*finalize) (void);
-};
-extern struct actions actions;
 
 // middle-end interface
 struct ir {

@@ -1,5 +1,13 @@
 #include <assert.h>
+#include <errno.h>
+#include <stdlib.h>
 #include "cc.h"
+
+#define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
+#define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
+
+static struct expr *new_uint_literal(unsigned long l);
+static struct expr *make_ref_expr(struct symbol *sym, struct source src);
 
 /// decl
 
@@ -475,6 +483,18 @@ static struct type *conv2(struct type * l, struct type * r)
     return l;
 }
 
+static bool is_nullptr(struct expr *node)
+{
+    assert(isptr(EXPR_TYPE(node)) || isint(EXPR_TYPE(node)));
+
+    struct expr *cnst = eval(node, inttype);
+    if (cnst == NULL)
+        return false;
+    if (isiliteral(cnst))
+        return SYM_VALUE(EXPR_SYM(cnst)).u == 0;
+    return false;
+}
+
 /**
  *  Assignment Conversions
  *
@@ -628,7 +648,7 @@ static struct vector *argcast1(struct type **params, size_t nparams,
     return v;
 }
 
-struct expr **argscast(struct type *fty, struct expr **args)
+static struct expr **argscast(struct type *fty, struct expr **args)
 {
     struct vector *v = vec_new();
     assert(isfunc(fty));
@@ -687,7 +707,7 @@ struct expr **argscast(struct type *fty, struct expr **args)
     return vtoa(v, PERM);
 }
 
-void ensure_additive_ptr(struct expr *node)
+static void ensure_additive_ptr(struct expr *node)
 {
     assert(isptr(EXPR_TYPE(node)));
     struct type *rty = rtype(EXPR_TYPE(node));
@@ -697,7 +717,7 @@ void ensure_additive_ptr(struct expr *node)
                  type2s(EXPR_TYPE(node)));
 }
 
-void ensure_increment(struct expr *node)
+static void ensure_increment(struct expr *node)
 {
     ensure_type(node, isscalar);
     ensure_assignable(node);
@@ -705,8 +725,10 @@ void ensure_increment(struct expr *node)
         ensure_additive_ptr(node);
 }
 
-struct expr *commaop(int op, struct expr *l, struct expr *r)
+static struct expr *commaop(struct expr *l, struct expr *r, struct source src)
 {
+    struct expr *ret;
+
     if (l == NULL || r == NULL)
         return NULL;
 
@@ -719,7 +741,9 @@ struct expr *commaop(int op, struct expr *l, struct expr *r)
     if (islvalue(r))
         r = ltor(r);
 
-    return ast_bop(op, EXPR_TYPE(r), l, r);
+    ret = ast_bop(',', EXPR_TYPE(r), l, r);
+    EXPR_SRC(ret) = src;
+    return ret;
 }
 
 static int splitop(int op)
@@ -750,7 +774,7 @@ static int splitop(int op)
     }
 }
 
-struct expr *assignop(int op, struct expr *l, struct expr *r)
+static struct expr *assignop(int op, struct expr *l, struct expr *r, struct source src)
 {
     struct expr *ret = NULL;
 
@@ -774,7 +798,7 @@ struct expr *assignop(int op, struct expr *l, struct expr *r)
                   (isptr(ty1) && isint(ty2))))
                 error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
         }
-        r = bop(op2, l1, r1);
+        r = actions.bop(op2, l1, r1, src);
     }
 
     if (NO_ERROR) {
@@ -789,27 +813,113 @@ struct expr *assignop(int op, struct expr *l, struct expr *r)
     return ret;
 }
 
-struct expr *logicop(int op, struct expr *l, struct expr *r)
+static struct expr *condop(struct expr *cond, struct expr *then, struct expr *els, struct source src)
+{
+#define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
+
+    struct expr *ret = NULL;
+    struct type *ty = NULL;
+    
+    cond = conv(cond);
+    then = conv(then);
+    els = conv(els);
+    if (cond == NULL || then == NULL || els == NULL)
+        return ret;
+
+    struct type *ty1 = EXPR_TYPE(then);
+    struct type *ty2 = EXPR_TYPE(els);
+
+    SAVE_ERRORS;
+    ensure_type(cond, isscalar);
+
+    if (isarith(ty1) && isarith(ty2)) {
+        ty = conv2(ty1, ty2);
+        then = wrap(ty, then);
+        els = wrap(ty, els);
+    } else if ((isstruct(ty1) && isstruct(ty2)) ||
+               (isunion(ty1) && isunion(ty2))) {
+        if (!eqtype(ty1, ty2))
+            error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
+        ty = ty1;
+    } else if (isvoid(ty1) && isvoid(ty2)) {
+        ty = voidtype;
+    } else if (isptr(ty1) && isptr(ty2)) {
+        if (is_nullptr(then) || is_nullptr(els)) {
+            struct type *nty = is_nullptr(then) ? ty1 : ty2;
+            struct type *tty = nty == ty1 ? ty2 : ty1;
+            ty = ptr_type(compose(rtype(tty), rtype(nty)));
+            then = bitconv(ty, then);
+            els = bitconv(ty, els);
+        } else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
+            struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+            struct type *tty = vty == ty1 ? ty2 : ty1;
+            if (isptrto(tty, FUNCTION)) {
+                error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
+            } else {
+                ty = ptr_type(compose(rtype(vty), rtype(tty)));
+                then = bitconv(ty, then);
+                els = bitconv(ty, els);
+            }
+        } else {
+            struct type *rty1 = rtype(ty1);
+            struct type *rty2 = rtype(ty2);
+            if (eqtype(unqual(rty1), unqual(rty2))) {
+                ty = ptr_type(compose(rty1, rty2));
+                then = bitconv(ty, then);
+                els = bitconv(ty, els);
+            } else {
+                error(INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
+            }
+        }
+    } else if (((isptr(ty1) && isint(ty2)) ||
+                (isint(ty1) && isptr(ty2))) && !opts.ansi) {
+        struct type *pty = isptr(ty1) ? ty1 : ty2;
+        ty = pty;
+        then = bitconv(ty, then);
+        els = bitconv(ty, els);
+    } else {
+        error("type mismatch in conditional expression: '%s' and '%s'",
+              type2s(ty1), type2s(ty2));
+    }
+
+    if (NO_ERROR) {
+        ret = ast_expr(COND_EXPR, ty, NULL, NULL);
+        EXPR_COND(ret) = cond;
+        EXPR_THEN(ret) = then;
+        EXPR_ELSE(ret) = els;
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
+}
+
+static struct expr *logicop(int op, struct expr *l, struct expr *r, struct source src)
 {
     struct expr *ret = NULL;
 
+    l = conv(l);
+    r = conv(r);
     if (l == NULL || r == NULL)
         return NULL;
 
     SAVE_ERRORS;
     ensure_type(l, isscalar);
     ensure_type(r, isscalar);
-    if (NO_ERROR)
+    if (NO_ERROR) {
         ret = ast_bop(op, inttype, l, r);
+        EXPR_SRC(ret) = src;
+    }
 
     return ret;
 }
 
-struct expr *bop(int op, struct expr *l, struct expr *r)
+static struct expr *bop(int op, struct expr *l, struct expr *r, struct source src)
 {
     struct expr *node = NULL;
     struct type *ty;
 
+    l = conv(l);
+    r = conv(r);
     if (l == NULL || r == NULL)
         return NULL;
 
@@ -942,31 +1052,648 @@ struct expr *bop(int op, struct expr *l, struct expr *r)
     return node;
 }
 
-bool is_nullptr(struct expr *node)
+static struct expr *castop(struct type *ty, struct expr *cast, struct source src)
 {
-    assert(isptr(EXPR_TYPE(node)) || isint(EXPR_TYPE(node)));
+    struct expr *ret = NULL;
 
-    struct expr *cnst = eval(node, inttype);
-    if (cnst == NULL)
-        return false;
-    if (isiliteral(cnst))
-        return SYM_VALUE(EXPR_SYM(cnst)).u == 0;
-    return false;
+    if (cast == NULL)
+        return NULL;
+    cast = decay(cast);
+
+    if (is_castable(ty, EXPR_TYPE(cast))) {
+        ret = ast_expr(CAST_EXPR, ty, cast, NULL);
+        EXPR_SRC(ret) = src;
+    } else {
+        error_at(EXPR_SRC(cast),
+                 INCOMPATIBLE_TYPES,
+                 type2s(EXPR_TYPE(cast)), type2s(ty));
+    }
+
+    return ret;
 }
 
-/// actions
-
-static void init(int argc, char *argv[])
+static struct expr *pre_increment(int t, struct expr *operand, struct source src)
 {
-    IR->init(argc, argv);
+    struct expr *ret = NULL;
+
+    if (operand == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    ensure_increment(operand);
+    if (NO_ERROR) {
+        ret = ast_uop(t, EXPR_TYPE(operand), operand);
+        EXPR_PREFIX(ret) = true;
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
 }
 
-static void finalize(void)
+static struct expr *minus_plus(int t, struct expr *operand, struct source src)
 {
-    if (opts.E || opts.ast_dump)
+    struct expr *ret = NULL;
+
+    operand = conv(operand);
+    if (operand == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    ensure_type(operand, isarith);
+    if (NO_ERROR) {
+        ret = ast_uop(t, EXPR_TYPE(operand), operand);
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
+}
+
+static struct expr *bitwise_not(struct expr *operand, struct source src)
+{
+    struct expr *ret = NULL;
+
+    operand = conv(operand);
+    if (operand == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    ensure_type(operand, isint);
+    if (NO_ERROR) {
+        ret = ast_uop('~', EXPR_TYPE(operand), operand);
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
+}
+
+static struct expr *logical_not(struct expr *operand, struct source src)
+{
+    struct expr *ret = NULL;
+
+    operand = conv(operand);
+    if (operand == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    ensure_type(operand, isscalar);
+    if (NO_ERROR) {
+        ret = ast_uop('!', inttype, operand);
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
+}
+
+/**
+ * The usual conversions are _NOT_ applied to the operand of the '&'
+ * operator, and its result is never an lvalue.
+ */
+static struct expr *address(struct expr *operand, struct source src)
+{
+    struct expr *ret = NULL;
+
+    if (operand == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    if (!isfunc(EXPR_TYPE(operand))) {
+        ensure_lvalue(operand);
+        if (EXPR_SYM(operand) && SYM_SCLASS(EXPR_SYM(operand)) == REGISTER)
+            error("address of register variable requested");
+        else if (is_bitfield(operand))
+            error("address of bitfield requested");
+    }
+    if (NO_ERROR) {
+        ret = ast_uop('&', ptr_type(EXPR_TYPE(operand)), operand);
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
+}
+
+static struct expr *indirection(struct expr *operand, struct source src)
+{
+    struct expr *ret = NULL;
+
+    operand = conv(operand);
+    if (operand == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    ensure_type(operand, isptr);
+    if (NO_ERROR) {
+        ret = ast_uop('*', rtype(EXPR_TYPE(operand)), operand);
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
+}
+
+static struct expr * sizeofop(struct type *ty, struct expr *n, struct source src)
+{
+    struct expr *ret = NULL;
+
+    ty = n ? EXPR_TYPE(n) : ty;
+    if (ty == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    if (isfunc(ty) || isvoid(ty))
+        error("'sizeof' to a '%s' type is invalid", type2s(ty));
+    else if (isincomplete(ty))
+        error("'sizeof' to an incomplete type '%s' is invalid",
+              type2s(ty));
+    else if (n && is_bitfield(n))
+        error("'sizeof' to a bitfield is invalid");
+
+    if (NO_ERROR) {
+        ret = new_uint_literal(TYPE_SIZE(ty));
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
+}
+
+// []
+static struct expr * subscript(struct expr *node, struct expr *index, struct source src)
+{
+    struct expr *ret = NULL;
+
+    node = conv(node);
+    index = conv(index);
+    if (node == NULL || index == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    bool kind1 = isptr(EXPR_TYPE(node)) && isint(EXPR_TYPE(index));
+    bool kind2 = isint(EXPR_TYPE(node)) && isptr(EXPR_TYPE(index));
+    if (kind1 || kind2) {
+        struct type *ptr = isptr(EXPR_TYPE(node)) ? EXPR_TYPE(node) : EXPR_TYPE(index);
+        if (isptrto(ptr, FUNCTION))
+            error_at(src,
+                     "subscript of pointer to function type '%s'",
+                     type2s(rtype(ptr)));
+    } else {
+        if (!isptr(EXPR_TYPE(node)) && !isptr(EXPR_TYPE(index)))
+            error_at(src, "subscripted value is not an array or pointer");
+        else
+            error_at(src, "array subscript is not an integer");
+    }
+    if (NO_ERROR) {
+        struct type *ty = isptr(EXPR_TYPE(node)) ? EXPR_TYPE(node) : EXPR_TYPE(index);
+        ret = ast_expr(SUBSCRIPT_EXPR, rtype(ty), node, index);
+        EXPR_SRC(ret) = EXPR_SRC(node);
+    }
+    return ret;
+}
+
+static struct expr *flatten_call(struct expr *node)
+{
+    switch (EXPR_ID(node)) {
+    case CONV_EXPR:
+    case CAST_EXPR:
+    case PAREN_EXPR:
+        return flatten_call(EXPR_OPERAND(node, 0));
+    case UNARY_OPERATOR:
+        if (EXPR_OP(node) == '&' || EXPR_OP(node) == '*')
+            return flatten_call(EXPR_OPERAND(node, 0));
+        else
+            return node;
+    default:
+        return node;
+    }
+}
+
+static void builtin_funcall(struct expr *call, struct expr *ref)
+{
+    const char *fname = SYM_NAME(EXPR_SYM(ref));
+    if (!strcmp(fname, BUILTIN_VA_ARG_P)) {
+        // __builtin_va_arg_p
+        struct expr **args = EXPR_ARGS(call);
+        struct expr *arg1 = args[1];
+        assert(isptr(EXPR_TYPE(arg1)));
+        struct type *ty = rtype(EXPR_TYPE(arg1));
+        // save the type
+        EXPR_VA_ARG_TYPE(call) = ty;
+        
+        if (isrecord(ty) && TYPE_SIZE(ty) <= MAX_STRUCT_PARAM_SIZE) {
+            const char *label = gen_tmpname();
+            struct symbol *sym = make_localvar(label, ty, 0);
+            // passing address
+            struct expr *operand = make_ref_expr(sym, SYM_SRC(sym));
+            // update arg1
+            args[1] = ast_uop('&', ptr_type(ty), operand);
+        } else {
+            // update arg1 to NULL
+            args[1] = NULL;
+        }
+    }
+}
+
+static struct expr * funcall(struct expr *node, struct expr **args, struct source src)
+{
+    struct expr *ret = NULL;
+    
+    node = conv(node);
+    if (node == NULL)
+        return NULL;
+    
+    if (isptrto(EXPR_TYPE(node), FUNCTION)) {
+        struct type *fty = rtype(EXPR_TYPE(node));
+        if ((args = argscast(fty, args))) {
+            ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
+            EXPR_ARGS(ret) = args;
+            EXPR_SRC(ret) = src;
+            vec_push(funcinfo.calls, ret);
+            // handle builtin calls
+            struct expr *tmp = flatten_call(node);
+            if (EXPR_ID(tmp) == REF_EXPR && isfunc(EXPR_TYPE(tmp)))
+                builtin_funcall(ret, tmp);
+        }
+    } else {
+        ensure_type(node, isfunc);
+    }
+
+    return ret;
+}
+
+// '.', '->'
+static struct expr * direction(struct expr *node, int t, const char *name, struct source src)
+{
+    struct expr *ret = NULL;
+
+    if (node == NULL || name == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    struct field *field = NULL;
+    struct type *ty = EXPR_TYPE(node);
+    if (t == '.') {
+        ensure_type(node, isrecord);
+    } else {
+        if (!isptr(ty) || !isrecord(rtype(ty)))
+            error("pointer to struct/union type expected, not type '%s'", type2s(ty));
+        else
+            ty = rtype(ty);
+    }
+    if (isrecord(ty)) {
+        field = find_field(ty, name);
+        if (field == NULL)
+            field_not_found_error(ty, name);
+    }
+    if (NO_ERROR) {
+        if (opts.ansi) {
+            // The result has the union of both sets of qualifiers.
+            int q = qual_union(EXPR_TYPE(node), FIELD_TYPE(field));
+            ret = ast_expr(MEMBER_EXPR, qual(q, FIELD_TYPE(field)), node,  NULL);
+        } else {
+            ret = ast_expr(MEMBER_EXPR,  FIELD_TYPE(field), node,  NULL);
+        }
+        EXPR_NAME(ret) = FIELD_NAME(field);
+        EXPR_OP(ret) = t;
+        EXPR_SRC(ret) = src;
+    }
+    return ret;
+}
+
+static struct expr * post_increment(struct expr *node, int t, struct source src)
+{
+    struct expr *ret = NULL;
+
+    if (node == NULL)
+        return NULL;
+
+    SAVE_ERRORS;
+    ensure_increment(node);
+    if (NO_ERROR) {
+        ret = ast_uop(t, EXPR_TYPE(node), node);
+        EXPR_SRC(ret) = src;
+    }
+    return ret;
+}
+
+static void integer_constant(struct token *t, struct symbol * sym)
+{
+    int base = t->u.lit.base;
+    int suffix = t->u.lit.suffix;
+    unsigned long long n = t->u.lit.v.u;
+    struct type *ty;
+
+    // character constant
+    if (t->u.lit.chr) {
+        bool wide = t->u.lit.chr == 2;
+        SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
+        SYM_VALUE(sym).u = wide ? (wchar_t)n : (unsigned char)n;
         return;
-    IR->finalize();
+    }
+    
+    switch (suffix) {
+    case UNSIGNED + LONG + LONG:
+        ty = unsignedlonglongtype;
+        break;
+    case LONG + LONG:
+        if (n > INTEGER_MAX(longlongtype) && base != 0)
+            ty = unsignedlonglongtype;
+        else
+            ty = longlongtype;
+        break;
+    case UNSIGNED + LONG:
+        if (n > UINTEGER_MAX(unsignedlongtype))
+            ty = unsignedlonglongtype;
+        else
+            ty = unsignedlongtype;
+        break;
+    case LONG:
+        if (base == 0) {
+            if (n > INTEGER_MAX(longtype))
+                ty = longlongtype;
+            else
+                ty = longtype;
+        } else {
+            if (n > INTEGER_MAX(longlongtype))
+                ty = unsignedlonglongtype;
+            else if (n > UINTEGER_MAX(unsignedlongtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(longtype))
+                ty = unsignedlongtype;
+            else
+                ty = longtype;
+        }
+        break;
+    case UNSIGNED:
+        if (n > UINTEGER_MAX(unsignedlongtype))
+            ty = unsignedlonglongtype;
+        else if (n > UINTEGER_MAX(unsignedinttype))
+            ty = unsignedlongtype;
+        else
+            ty = unsignedinttype;
+        break;
+    default:
+        if (base == 0) {
+            if (n > INTEGER_MAX(longtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(inttype))
+                ty = longtype;
+            else
+                ty = inttype;
+        } else {
+            if (n > INTEGER_MAX(longlongtype))
+                ty = unsignedlonglongtype;
+            else if (n > UINTEGER_MAX(unsignedlongtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(longtype))
+                ty = unsignedlongtype;
+            else if (n > UINTEGER_MAX(unsignedinttype))
+                ty = longtype;
+            else if (n > INTEGER_MAX(inttype))
+                ty = unsignedinttype;
+            else
+                ty = inttype;
+        }
+        break;
+    }
+
+    // overflow
+    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
+        error("integer constant overflow: %s", TOK_LIT_STR(t));
+
+    SYM_TYPE(sym) = ty;
+    SYM_VALUE(sym) = t->u.lit.v;
 }
+
+static void float_constant(struct token *t, struct symbol * sym)
+{
+    int suffix = t->u.lit.suffix;
+    switch (suffix) {
+    case FLOAT:
+        SYM_TYPE(sym) = floattype;
+        break;
+    case LONG + DOUBLE:
+        SYM_TYPE(sym) = longdoubletype;
+        break;
+    default:
+        SYM_TYPE(sym) = doubletype;
+        break;
+    }
+}
+
+static void string_constant(struct token *t, struct symbol * sym)
+{
+    const char *s = TOK_LIT_STR(t);
+    bool wide = s[0] == 'L' ? true : false;
+    struct type *ty;
+    if (wide) {
+        size_t len = strlen(s) - 3;
+        wchar_t *ws = xmalloc(sizeof(wchar_t) * (len+1));
+        errno = 0;
+        size_t wlen = mbstowcs(ws, s + 2, len);
+        if (errno == EILSEQ)
+            error("invalid multibyte sequence: %s", s);
+        assert(wlen <= len + 1);
+        ty = array_type(wchartype);
+        TYPE_LEN(ty) = wlen;
+        set_typesize(ty);
+    } else {
+        ty = array_type(chartype);
+        TYPE_LEN(ty) = strlen(s) - 1;
+        set_typesize(ty);
+    }
+    SYM_TYPE(sym) = ty;
+}
+
+static struct expr *literal_expr(struct token *t, int id,
+                                 void (*cnst) (struct token *, struct symbol *))
+{
+    const char *name = TOK_LIT_STR(t);
+    struct symbol *sym = lookup(name, constants);
+    if (!sym) {
+        sym = install(name, &constants, CONSTANT, PERM);
+        cnst(t, sym);
+    }
+    struct expr *expr = ast_expr(id, SYM_TYPE(sym), NULL, NULL);
+    EXPR_SRC(expr) = t->src;
+    EXPR_SYM(expr) = sym;
+    return expr;
+}
+
+struct expr *new_integer_literal(int i)
+{
+    struct token t = {.id = ICONSTANT, .u.lit.str = strd(i), .u.lit.v.i = i};
+    return literal_expr(&t, INTEGER_LITERAL, integer_constant);
+}
+
+static struct expr *new_uint_literal(unsigned long l)
+{
+    struct token t = {.id = ICONSTANT, .u.lit.str = stru(l), .u.lit.v.u = l};
+    return literal_expr(&t, INTEGER_LITERAL, integer_constant);
+}
+
+struct expr *new_string_literal(const char *string)
+{
+    struct token t = {.id = SCONSTANT, .u.lit.str = format("\"%s\"", string)};
+    return literal_expr(&t, STRING_LITERAL, string_constant);
+}
+
+static struct expr *make_ref_expr(struct symbol *sym, struct source src)
+{
+    struct expr *ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
+    EXPR_SYM(ret) = sym;
+    EXPR_SRC(ret) = src;
+    SYM_REFS(sym)++;
+    return ret;
+}
+
+static struct expr * id(struct token *tok)
+{
+    struct expr *ret = NULL;
+    struct symbol *sym;
+
+    sym = lookup(TOK_ID_STR(tok), identifiers);
+    if (sym) {
+        ret = make_ref_expr(sym, source);
+        if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
+            EXPR_OP(ret) = ENUM;        // enum ids
+    } else {
+        error("use of undeclared identifier '%s'", tok2s(tok));
+    }
+
+    return ret;
+}
+
+static struct expr * iconst(struct token *tok)
+{
+    return literal_expr(tok, INTEGER_LITERAL, integer_constant);
+}
+
+static struct expr * fconst(struct token *tok)
+{
+    return literal_expr(tok, FLOAT_LITERAL, float_constant);
+}
+
+static struct expr * sconst(struct token *tok)
+{
+    return literal_expr(tok, STRING_LITERAL, string_constant);
+}
+
+static struct expr * paren(struct expr *e, struct source src)
+{
+    struct expr *ret = NULL;
+    
+    if (e) {
+        ret = ast_expr(PAREN_EXPR, EXPR_TYPE(e), e, NULL);
+        EXPR_SRC(ret) = src;
+    }
+
+    return ret;
+}
+
+static struct expr * compound_literal(struct type *ty, struct expr *inits, struct source src)
+{
+    struct expr *ret;
+    
+    ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
+    EXPR_SRC(ret) = EXPR_SRC(inits);
+    
+    // define local variable
+    if (SCOPE >= LOCAL) {
+        const char *label = gen_compound_label();
+        struct symbol *sym = make_localvar(label, ty, 0);
+        SYM_INIT(sym) = inits;
+        // set sym
+        EXPR_SYM(ret) = sym;
+        SYM_REFS(sym)++;
+    }
+
+    return ret;
+}
+
+long intexpr1(struct type * ty)
+{
+    struct source src = source;
+    struct expr *cond = cond_expr();
+    if (cond == NULL)
+        // parsing expression failed
+        return 0;
+    if (ty == NULL)
+        ty = EXPR_TYPE(cond);
+    if (!isint(EXPR_TYPE(cond)) || !isint(ty)) {
+        error_at(src, "expression is not an integer constant expression");
+        return 0;
+    }
+    struct expr *cnst = eval(cond, ty);
+    if (cnst == NULL) {
+        error_at(src, "expression is not a compile-time constant");
+        return 0;
+    }
+    assert(isiliteral(cnst));
+    return ILITERAL_VALUE(cnst).i;
+}
+
+/// constant-expression:
+///   conditional-expression
+///
+long intexpr(void)
+{
+    return intexpr1(NULL);
+}
+
+// if/do/while/for
+struct expr *bool_expr(void)
+{
+    // Conversion for expression in conditional statement
+    struct expr *node = expression();
+    if (node == NULL)
+        return NULL;
+    // warning for assignment expression
+    if (EXPR_ID(node) == BINARY_OPERATOR && EXPR_OP(node) == '=')
+        warning("using the result of an assignment as a condition without parentheses '%s'",
+                expr2s(node));
+    if (islvalue(node))
+        node = ltor(node);
+    return decay(node);
+}
+
+// switch
+struct expr *switch_expr(void)
+{
+    struct expr *node = conv(expression());
+    if (node == NULL)
+        return NULL;
+    if (!isint(EXPR_TYPE(node))) {
+        error("statement requires expression of integer type ('%s' invalid)",
+              type2s(EXPR_TYPE(node)));
+        return NULL;
+    }
+    return node;
+}
+
+struct expr *decls2expr(struct symbol **decls)
+{
+    struct expr *ret = NULL;
+
+    for (int i = 0; decls[i]; i++) {
+        struct symbol *sym = decls[i];
+        if (SYM_INIT(sym) && SYM_SCLASS(sym) != STATIC) {
+            SYM_X_KIND(sym) = SYM_KIND_LREF;
+            struct expr *l = make_ref_expr(sym, SYM_SRC(sym));
+            struct expr *r = SYM_INIT(sym);
+            struct expr *n = ast_bop('=', SYM_TYPE(sym), l, r);
+            if (ret)
+                ret = actions.commaop(ret, n, SYM_SRC(sym));
+            else
+                ret = n;
+        }
+    }
+
+    return ret;
+}
+
+struct expr *binop(int op, struct expr *l, struct expr *r)
+{
+    return actions.bop(op, l, r, source);
+}
+
+/// decl
 
 static void dclvar(struct symbol *n)
 {
@@ -1002,12 +1729,53 @@ static void deftype(struct symbol *n)
         print_type(n);
 }
 
+/// init/finalize
+
+static void init(int argc, char *argv[])
+{
+    IR->init(argc, argv);
+}
+
+static void finalize(void)
+{
+    if (opts.E || opts.ast_dump)
+        return;
+    IR->finalize();
+}
+
 struct actions actions = {
     .init = init,
     .finalize = finalize,
+
+    // decl
     .dclvar = dclvar,
     .defvar = defvar,
     .dclfun = dclfun,
     .defun = defun,
-    .deftype = deftype
+    .deftype = deftype,
+
+    // expr
+    .commaop = commaop,
+    .assignop = assignop,
+    .condop = condop,
+    .logicop = logicop,
+    .bop = bop,
+    .castop = castop,
+    .pre_increment = pre_increment,
+    .minus_plus = minus_plus,
+    .bitwise_not = bitwise_not,
+    .logical_not = logical_not,
+    .address = address,
+    .indirection = indirection,
+    .sizeofop = sizeofop,
+    .subscript = subscript,
+    .funcall = funcall,
+    .direction = direction,
+    .post_increment = post_increment,
+    .id = id,
+    .iconst = iconst,
+    .fconst = fconst,
+    .sconst = sconst,
+    .paren = paren,
+    .compound_literal = compound_literal,
 };

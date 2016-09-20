@@ -418,11 +418,11 @@ static struct expr *ptr_int_bop(int op, struct type * ty, struct expr * ptr, str
 
         struct expr *n;
         if (op == op1) {
-            n = bop('+', r, r1);
+            n = binop('+', r, r1);
         } else {
             struct expr *r2 = op == '+' ? r : r1;
             struct expr *r3 = r2 == r ? r1 : r;
-            n = bop('-', r2, r3);
+            n = binop('-', r2, r3);
             op = '+';
         }
         r = arith_bop(EXPR_OP(n), EXPR_TYPE(n), EXPR_OPERAND(n, 0),
