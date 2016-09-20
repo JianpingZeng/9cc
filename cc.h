@@ -603,19 +603,6 @@ extern const char *gen_block_label(void);
 // stmt
 #define isnullstmt(n)  (STMT_ID(n) == NULL_STMT)
 
-// cast name
-#define BitCast                 "BitCast"
-#define LValueToRValue          "LValueToRValue"
-#define FunctionToPointerDecay  "FunctionToPointerDecay"
-#define ArrayToPointerDecay     "ArrayToPointerDecay"
-#define IntegralCast            "IntegralCast"
-#define FloatCast               "FloatingCast"
-#define IntegerToFloatCast      "IntegralToFloating"
-#define FloatToIntegerCast      "FloatingToIntegral"
-#define PointerToBoolean        "PointerToBoolean"
-#define IntegerToPointerCast    "IntegerToPointer"
-#define PointerToIntegerCast    "PointerToInteger"
-
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
  
@@ -877,6 +864,8 @@ enum { TEXT, BSS, DATA };
 
 // backend interface
 struct im {
+    const char *os;
+    const char *arch;
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
     void (*defvar) (struct symbol *, int);

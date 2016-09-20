@@ -3,6 +3,19 @@
 #include <stdlib.h>
 #include "cc.h"
 
+// cast name
+#define BitCast                 "BitCast"
+#define LValueToRValue          "LValueToRValue"
+#define FunctionToPointerDecay  "FunctionToPointerDecay"
+#define ArrayToPointerDecay     "ArrayToPointerDecay"
+#define IntegralCast            "IntegralCast"
+#define FloatCast               "FloatingCast"
+#define IntegerToFloatCast      "IntegralToFloating"
+#define FloatToIntegerCast      "FloatingToIntegral"
+#define PointerToBoolean        "PointerToBoolean"
+#define IntegerToPointerCast    "IntegerToPointer"
+#define PointerToIntegerCast    "PointerToInteger"
+
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 

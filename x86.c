@@ -3664,7 +3664,7 @@ static void init(int argc, char *argv[])
 
 static void finalize(void)
 {
-    emit(".ident \"7cc: %s\"", VERSION);
+    emit(".ident \"7cc: %s-%s-%s\"", VERSION, IM->os, IM->arch);
 }
 
 static void defvar(struct symbol *sym, int seg)
@@ -3687,6 +3687,8 @@ static void defun(struct symbol *sym)
 }
 
 struct im *IM = &(struct im) {
+    .os = "linux",
+    .arch = "x86_64",
     .init = init,
     .finalize = finalize,
     .defvar = defvar,
