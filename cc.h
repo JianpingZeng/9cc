@@ -854,7 +854,7 @@ extern void dump_reg(struct reg *reg);
 extern void dump_tacs(struct tac *tac);
 extern void print_source(struct source src);
 
-#define INCOMPATIBLE_TYPES    "incompatible type conversion from '%s' to '%s'"
+#define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
 
@@ -867,7 +867,7 @@ struct ir {
 };
 extern struct ir *IR;
 
-// backend interface
+// metrics
 struct metrics {
     unsigned char size, align, rank;
 };
@@ -875,6 +875,7 @@ struct metrics {
 // segments
 enum { TEXT, BSS, DATA };
 
+// backend interface
 struct im {
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
