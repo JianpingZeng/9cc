@@ -3635,30 +3635,8 @@ static struct pinfo * alloc_addr_for_funcdef(struct type *ftype, struct symbol *
     return alloc_addr_for_params(ftype, params, false);
 }
 
-static void metrics_init(void)
-{
-#define METRICS(m, size, align, rank)  IM->m = (struct metrics) { size, align, rank }
-
-    // size  align  rank
-    METRICS(boolmetrics, 1, 1, 10);
-    METRICS(charmetrics, 1, 1, 20);
-    METRICS(shortmetrics, 2, 2, 30);
-    METRICS(wcharmetrics, 4, 4, 40);
-    METRICS(intmetrics, 4, 4, 40);
-    METRICS(longmetrics, 8, 8, 50);
-    METRICS(longlongmetrics, 8, 8, 60);
-    METRICS(floatmetrics, 4, 4, 70);
-    METRICS(doublemetrics, 8, 8, 80);
-    METRICS(longdoublemetrics, 8, 8, 90);
-    METRICS(ptrmetrics, 8, 8, 0);
-    METRICS(zerometrics, 0, 1, 0);
-
-#undef METRICS
-}
-
 static void init(int argc, char *argv[])
 {
-    metrics_init();
     init_regs();
 }
 
@@ -3689,6 +3667,19 @@ static void defun(struct symbol *sym)
 struct im *IM = &(struct im) {
     .os = "linux",
     .arch = "x86_64",
+    // size  align  rank
+    .boolmetrics = {1, 1, 10},
+    .charmetrics = {1, 1, 20},
+    .shortmetrics = {2, 2, 30},
+    .wcharmetrics = {4, 4, 40},
+    .intmetrics = {4, 4, 40},
+    .longmetrics = {8, 8, 50},
+    .longlongmetrics = {8, 8, 60},
+    .floatmetrics = {4, 4, 70},
+    .doublemetrics = {8, 8, 80},
+    .longdoublemetrics = {8, 8, 90},
+    .ptrmetrics = {8, 8, 0},
+    .zerometrics = {0, 1, 0},
     .init = init,
     .finalize = finalize,
     .defvar = defvar,
