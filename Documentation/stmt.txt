@@ -2,8 +2,11 @@
 Statements
 
 
+selection-statement:
+====================
+
 if-statement:
-=============
+-------------
 
 SYNTAX:
 
@@ -28,8 +31,44 @@ COMMENT:
         L+1:
 
 
+PSEUDO CODE:
+
+       if_stmt(lab, cnt, brk):
+           expect(IF)
+           expect('(')
+           e = expression()
+           expect(')')
+           branch(e, 0, lab)
+           statement(cnt, brk)
+
+           if (ELSE):
+              expect(ELSE)
+              jump(lab+1)
+              label(lab)
+              statement(cnt, brk)
+              label(lab+1)
+           else:
+              label(lab)
+
+
+switch-statement:
+-----------------
+
+SYNTAX:
+
+        'switch' '(' expression ')' statement
+
+COMMENT:
+
+
+PSEUDO CODE:
+
+
+iteration-statement:
+====================
+
 while-statement:
-================
+----------------
 
 SYNTAX:
 
@@ -54,8 +93,23 @@ COMMENT:
 NOTE: continue => L+1, break => L+2
 
 
+PSEUDO CODE:
+
+       while_stmt(lab, cnt, brk):
+           expect(WHILE)
+           expect('(')
+           e = expression()
+           expect(')')
+           jump(lab+1)
+           label(lab)
+           statement(lab+1, lab+2)
+           label(lab+1)
+           branch(e, lab, 0)
+           label(lab+2)
+
+
 do-while-statement:
-===================
+-------------------
 
 SYNTAX:
 
@@ -70,8 +124,24 @@ COMMENT:
 NOTE: continue => L+1, break => L+2
 
 
+PSEUDO CODE:
+
+       do_while_stmt(lab, cnt, brk):
+           expect(DO)
+           label(lab)
+           statement(lab+1, lab+2)
+           expect(WHILE)
+           expect('(')
+           e = expression()
+           expect(')')
+           expect(';')
+           label(lab+1)
+           branch(e, lab, 0)
+           label(lab+2)
+
+
 for-statement:
-==============
+--------------
 
 SYNTAX:
 
@@ -92,39 +162,195 @@ COMMENT:
 NOTE: continue => L+1, break => L+2
 
 
-switch-statement:
-=================
+PSEUDO CODE:
 
+       for_stmt(lab, cnt, brk):
+           expect(FOR)
+           expect('(')
+           e1 = declOrexpr()
+           e2 = expression();
+           expect(';')
+           e3 = expression();
+           expect(')')
+           emit(e1)
+           jump(lab+3)
+           label(lab)
+           statement(lab+1, lab+2)
+           label(lab+1)
+           emit(e3)
+           branch(e2, lab, 0)
+           label(lab+2)
 
 
 jump-statement:
 ===============
 
 goto:
+-----
+
+SYNTAX:
+
+        'goto' identifier ';'
+
+COMMENT:
 
         goto label
 
+PESUDO CODE:
+
+       goto_stmt():
+           jump(label)
+
+
 continue:
+---------
+
+SYNTAX:
+
+        'continue' ';'
+
+COMMENT:
 
         goto L+1
 
+
+PESUDO CODE:
+
+       continue_stmt(cnt, brk):
+           jump(cnt)
+
+
 break:
+------
+
+SYNTAX:
+
+        'break' ';'
+
+COMMENT:
 
         goto L+2
 
+
+PESUDO CODE:
+
+       break_stmt(cnt, brk):
+           jump(brk)
+
+
 return:
+-------
+
+SYNTAX:
+
+        'return' expression[opt] ';'
+
+COMMENT:
+
+        goto func_end_label
+
+
+PSEUDO CODE:
+
+       return_stmt():
+           e = expression()
+           emit(e)
+           jump(func_end_label)
 
 
 labeled-statement:
 ==================
+
+label-statement:
+----------------
+
+SYNTAX:
+
+        identifier ':' statement
+
+COMMENT:
+
+
+PSEUDO CODE:
+
+
+case-statement:
+---------------
+
+SYNTAX:
+
+        'case' constant-expression ':' statement
+
+COMMENT:
+
+
+PSEUDO CODE:
+
+
+default-statement:
+------------------
+
+SYNTAX:
+
+        'default' ':' statement
+
+COMMENT:
+
+
+PSEUDO CODE:
+
+
+
+expression-statement:
+=====================
+
+SYNTAX:
+
+        expression[opt] ';'
+
+COMMENT:
+
+
+PSEUDO CODE:
 
 
 
 compound-statement:
 ===================
 
+SYNTAX:
+        compound-statement:
+                '{' block-item-list[opt] '}'
 
-expression-statement:
-=====================
+        block-item-list:
+                block-item
+                block-item-list block-item
+
+        block-item:
+                declaration
+                statement
+
+COMMENT:
+
+
+PSEUDO CODE:
+
+
+
+statement:
+==========
+
+SYNTAX:
+        labeled-statement
+        compound-statement
+        expression-statement
+        selection-statement
+        iteration-statement
+        jump-statement
+
+COMMENT:
+
+
+PSEUDO CODE:
 
 
