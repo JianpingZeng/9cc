@@ -352,5 +352,20 @@ COMMENT:
 
 
 PSEUDO CODE:
-
+       statement(cnt, brk):
+           switch(token):
+               case '{':        compound_stmt(cnt, brk)
+               case IF:         if_stmt(genlabel(2), cnt, brk)
+               case SWITCH:     switch_stmt(cnt, brk)
+               case WHILE:      while_stmt(genlabel(3), cnt, brk)
+               case DO:         do_while_stmt(genlabel(3), cnt, brk)
+               case FOR:        for_stmt(genlabel(4), cnt, brk)
+               case GOTO:       goto_stmt(cnt, brk)
+               case CONTINUE:   continue_stmt(cnt, brk)
+               case BREAK:      break_stmt(cnt, brk)
+               case RETURN:     return_stmt()
+               case CASE:       case_stmt(cnt, brk)
+               case DEFAULT:    default_stmt(cnt, brk)
+               case ID:         if (lookahead == ':') label_stmt()
+               default:         expr_stmt();
 
