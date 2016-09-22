@@ -22,6 +22,11 @@
 static struct expr *new_uint_literal(unsigned long l);
 static struct expr *make_ref_expr(struct symbol *sym, struct source src);
 
+struct goto_info {
+    const char *id;
+    struct source src;
+};
+
 /// decl
 
 static void ensure_bitfield(struct field *field)
@@ -1317,7 +1322,7 @@ static struct expr * funcall(struct expr *node, struct expr **args, struct sourc
             ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
             EXPR_ARGS(ret) = args;
             EXPR_SRC(ret) = src;
-            vec_push(funcinfo.calls, ret);
+            vec_push(func.calls, ret);
             // handle builtin calls
             struct expr *tmp = flatten_call(node);
             if (EXPR_ID(tmp) == REF_EXPR && isfunc(EXPR_TYPE(tmp)))
@@ -1704,6 +1709,66 @@ struct expr *decls2expr(struct symbol **decls)
 struct expr *binop(int op, struct expr *l, struct expr *r)
 {
     return actions.bop(op, l, r, source);
+}
+
+/// stmt
+
+void ensure_return(struct expr *expr, bool isnull, struct source src)
+{
+    // return immediately if expr is NULL. (parsing failed)    
+    if (expr == NULL)
+        return;
+
+    if (isvoid(rtype(func.type))) {
+        if (!isnull && !isvoid(EXPR_TYPE(expr)))
+            error_at(src, "void function should not return a value");
+    } else {
+        if (!isnull) {
+            struct type *ty1 = EXPR_TYPE(expr);
+            struct type *ty2 = rtype(func.type);
+            if (!(expr = assignconv(ty2, expr)))
+                error_at(src,
+                         "returning '%s' from function with incompatible result type '%s'",
+                         type2s(ty1), type2s(ty2));
+        } else {
+            error_at(src, "non-void function should return a value");
+        }
+    }
+}
+
+void check_case_duplicates(struct cse *cse, struct swtch *swtch)
+{
+    assert(cse && swtch);
+    
+    for (struct cse *c = swtch->cases; c; c = c->link) {
+        if (c->value == cse->value) {
+            struct source prev = c->src;
+            error_at(cse->src,
+                     "duplicate case value '%lld', previous case defined here: %s:%u:%u",
+                     cse->value, prev.file, prev.line, prev.column);
+            break;
+        }
+    }
+}
+
+void ensure_gotos(void)
+{
+    for (int i = 0; i < vec_len(func.gotos); i++) {
+        struct goto_info *info = vec_at(func.gotos, i);
+        const char *name = info->id;
+        struct symbol *sym = lookup(name, func.labels);
+        if (!sym || !SYM_DEFINED(sym))
+            error_at(info->src, "use of undeclared label '%s'", name);
+    }
+}
+
+
+void mark_goto(const char *id, struct source src)
+{
+    struct goto_info *info = xmalloc(sizeof(struct goto_info));
+    info->id = id;
+    info->src = src;
+    vec_push(func.gotos, info);
 }
 
 /// decl

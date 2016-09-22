@@ -21,7 +21,7 @@ static struct vector *decls(decl_p * dcl);
 
 static void func_body(struct symbol *decl);
 
-struct funcinfo funcinfo;
+struct func func;
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
     (((prototype) & 0x01) << 30) |                      \
@@ -1161,10 +1161,10 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
 
     if (!globl) {
         if (SYM_SCLASS(sym) == STATIC) {
-            vec_push(funcinfo.staticvars, sym);
-            SYM_X_LABEL(sym) = gen_static_label();
+            vec_push(func.staticvars, sym);
+            SYM_X_NAME(sym) = gen_static_label();
         } else {
-            vec_push(funcinfo.localvars, sym);
+            vec_push(func.localvars, sym);
         }
     }
 
@@ -1498,52 +1498,37 @@ static void predefined_ids(void)
     struct symbol *sym = make_localvar(name, type, STATIC);
     SYM_PREDEFINE(sym) = true;
     // initializer
-    struct expr *literal = new_string_literal(funcinfo.name);
+    struct expr *literal = new_string_literal(func.name);
     init_string(type, literal);
     SYM_INIT(sym) = literal;
-}
-
-static void backfill_labels(void)
-{
-    for (int i = 0; i < vec_len(funcinfo.gotos); i++) {
-        struct stmt *goto_stmt = vec_at(funcinfo.gotos, i);
-        const char *name = STMT_LABEL_NAME(goto_stmt);
-        struct stmt *label_stmt = map_get(funcinfo.labels, name);
-        if (label_stmt) {
-            STMT_X_LABEL(goto_stmt) = STMT_X_LABEL(label_stmt);
-            // update refs
-            STMT_LABEL_REFS(label_stmt)++;
-        } else {
-            error_at(STMT_SRC(goto_stmt), "use of undeclared label '%s'", name);
-        }
-    }
 }
 
 static void func_body(struct symbol *sym)
 {
     struct stmt *stmt;
     
-    funcinfo.gotos = vec_new();
-    funcinfo.labels = map_new();
-    funcinfo.type = SYM_TYPE(sym);
-    funcinfo.name = SYM_NAME(sym);
-    funcinfo.staticvars = vec_new();
-    funcinfo.localvars = vec_new();
-    funcinfo.calls = vec_new();
+    func.gotos = vec_new();
+    func.labels = new_table(NULL, LOCAL);
+    func.type = SYM_TYPE(sym);
+    func.name = SYM_NAME(sym);
+    func.staticvars = vec_new();
+    func.localvars = vec_new();
+    func.calls = vec_new();
 
     // compound statement
-    stmt = compound_stmt(predefined_ids);
+    compound_stmt(predefined_ids, 0, 0, NULL);
     // check goto labels
-    backfill_labels();
+    ensure_gotos();
     // check unused
     // warning_unused();
 
     // save
-    SYM_X_LVARS(sym) = funcinfo.localvars;
-    SYM_X_SVARS(sym) = funcinfo.staticvars;
-    SYM_X_CALLS(sym) = funcinfo.calls;
-    
-    memset(&funcinfo, 0, sizeof(struct funcinfo));
+    SYM_X_LVARS(sym) = func.localvars;
+    SYM_X_SVARS(sym) = func.staticvars;
+    SYM_X_CALLS(sym) = func.calls;
+
+    free_table(func.labels);
+    memset(&func, 0, sizeof(struct func));
 
     SYM_COMPOUND(sym) = stmt;
 }

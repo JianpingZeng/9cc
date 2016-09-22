@@ -360,7 +360,7 @@ struct field {
 #define SYM_COMPOUND(NODE)    ((NODE)->u.compound)
 
 // sym
-#define SYM_X_LABEL(NODE)     ((NODE)->x.label)
+#define SYM_X_NAME(NODE)      ((NODE)->x.name)
 #define SYM_X_USES(NODE)      ((NODE)->x.uses)
 #define SYM_X_REG(NODE)       ((NODE)->x.reg)
 #define SYM_X_KIND(NODE)      ((NODE)->x.kind)
@@ -373,6 +373,7 @@ struct field {
 #define SYM_X_HEAD(NODE)      ((NODE)->x.head)
 #define SYM_X_BASIC_BLOCK(NODE)  ((NODE)->x.basic_block)
 #define SYM_X_XVALUES(NODE)   ((NODE)->x.xvalues)
+#define SYM_X_LABEL(NODE)     ((NODE)->x.label)
 
 struct symbol {
     const char *name;
@@ -390,7 +391,7 @@ struct symbol {
         struct stmt *compound;           // function body
     } u;
     struct {
-        const char *label;
+        const char *name;
         long loff;              // local offset (<0)
         int kind;               // kind
         struct uses uses;       // uses
@@ -405,6 +406,9 @@ struct symbol {
         struct tac *head;
         struct tac *tail;
         struct vector *xvalues;
+
+        // for goto labels
+        int label;
     } x;
 };
 
@@ -421,6 +425,7 @@ struct table {
 // sym
 extern struct symbol *alloc_symbol(int area);
 extern struct table *new_table(struct table *up, int scope);
+extern void free_table(struct table *t);
 extern void symbol_init(void);
 extern void enter_scope(void);
 extern void exit_scope(void);
@@ -621,16 +626,32 @@ extern int first_expr(struct token *t);
 extern int first_typename(struct token *t);
 extern struct symbol *make_localvar(const char *name, struct type *ty, int sclass);
 
-struct funcinfo {
+/// switch structs
+
+struct cse {
+    struct source src;
+    int label;
+    long value;
+    struct cse *link;
+};
+
+struct swtch {
+    struct source src;
+    struct type *type;
+    struct cse *cases;
+    struct cse *defalt;
+};
+
+struct func {
     const char *name;
     struct type *type;
     struct vector *gotos;
-    struct map *labels;
+    struct table *labels;
     struct vector *staticvars;
     struct vector *localvars;
     struct vector *calls;
 };
-extern struct funcinfo funcinfo;
+extern struct func func;
 
 // init.c
 extern bool has_static_extent(struct symbol *sym);
@@ -640,7 +661,7 @@ extern struct expr *initializer_list(struct type *ty);
 extern void init_string(struct type *ty, struct expr *node);
 
 // stmt.c
-extern struct stmt *compound_stmt(void (*) (void));
+extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
 
 // sema.c
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
@@ -668,6 +689,11 @@ extern struct expr *switch_expr(void);
 extern struct expr *decls2expr(struct symbol **decls);
 // for eval
 extern struct expr *binop(int op, struct expr *l, struct expr *r);
+
+extern void ensure_return(struct expr *expr, bool isnull, struct source src);
+extern void ensure_gotos(void);
+extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
+extern void mark_goto(const char *id, struct source src);
 
 // sema actions
 struct actions {
@@ -797,6 +823,43 @@ extern bool isarith(struct type *ty);
 extern bool isscalar(struct type *ty);
 extern bool isptrto(struct type *ty, int kind);
 extern bool isbool(struct type *ty);
+
+// tree.c
+enum { LABEL = 1, GEN, JMP, CBR, RET };
+struct code {
+    int id;
+    union {
+        struct {
+            int label;
+        } lab;
+
+        struct {
+            struct expr *tree;
+        } gen;
+
+        struct {
+            int label;
+        } jmp;
+
+        struct {
+            struct expr *tree;
+            int tlab;
+            int flab;
+        } cbr;
+
+        struct {
+            struct expr *tree;
+        } ret;
+    } u;
+    struct code *next, *prev;
+};
+
+extern int genlabel(int count);
+extern void branch(struct expr *expr, int tlab, int flab);
+extern void jmpto(int label);
+extern void ret(struct expr *expr);
+extern void label(int label);
+extern void gen(struct expr *expr);
 
 // error.c
 enum { WRN = 1, ERR, FTL };

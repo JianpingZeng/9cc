@@ -1,65 +1,22 @@
 #include "cc.h"
 
-static struct stmt *statement(void);
-
-static struct stmt *__loop;
-static struct stmt *__switch;
-static struct vector *__cases;
-static struct stmt *__default;
-static struct type *__switch_ty;
-
-#define SET_LOOP_CONTEXT(loop)                  \
-    struct stmt *__saved_loop = __loop;         \
-    __loop = loop
-
-#define RESTORE_LOOP_CONTEXT()                  \
-    __loop = __saved_loop
-
-#define SET_SWITCH_CONTEXT(sw, ty)                      \
-    struct stmt *__saved_sw = __switch;                 \
-    struct vector *__saved_cases = __cases;             \
-    struct stmt *__saved_default = __default;           \
-    struct type *__saved_switch_ty = __switch_ty;       \
-    __switch = sw;                                      \
-    __cases = vec_new();                                \
-    __default = NULL;                                   \
-    __switch_ty = ty
-
-#define RESTORE_SWITCH_CONTEXT()                \
-    __switch = __saved_sw;                      \
-    __cases = __saved_cases;                    \
-    __default = __saved_default;                \
-    __switch_ty = __saved_switch_ty
-
-#define IN_LOOP       (__loop)
-#define IN_SWITCH     (__switch)
-#define CASES         (__cases)
-#define DEFLT         (__default)
-#define SWITCH_TYPE   (__switch_ty)
-
+static void statement(int cnt, int brk, struct swtch *swtch);
 
 /// expression-statement:
 ///   expression[opt] ';'
 ///
-static struct stmt *expr_stmt(void)
-{
-    struct stmt *ret = NULL;
-
+static void expr_stmt(void)
+{    
     if (token->id == ';') {
-        ret = ast_stmt(NULL_STMT, source);
+        // do nothing
     } else if (first_expr(token)) {
-        ret = ast_stmt(EXPR_STMT, source);
-        struct expr *expr = expression();
-        if (expr)
-            STMT_EXPR_BODY(ret) = expr;
-        else
-            ret = NULL;
+        struct expr *e = expression();
+        if (e) gen(e);
     } else {
         error("missing statement before '%s'", tok2s(token));
     }
     
     expect(';');
-    return ret;
 }
 
 /**
@@ -72,43 +29,36 @@ static struct stmt *expr_stmt(void)
 ///   'if' '(' expression ')' statement
 ///   'if' '(' expression ')' statement 'else' statement
 ///
-static struct stmt *if_stmt(void)
+static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
-    struct stmt *ret = ast_stmt(IF_STMT, source);
     struct expr *cond;
-    struct stmt *thenpart;
-    struct stmt *elsepart = NULL;
 
     enter_scope();
 
-    SAVE_ERRORS;
     expect(IF);
     expect('(');
     cond = bool_expr();
     expect(')');
 
+    branch(cond, 0, lab);
+    
     enter_scope();
-    thenpart = statement();
+    statement(cnt, brk, swtch);
     exit_scope();
 
     if (token->id == ELSE) {
         expect(ELSE);
+        jmpto(lab+1);
+        label(lab);
         enter_scope();
-        elsepart = statement();
+        statement(cnt, brk, swtch);
         exit_scope();
+        label(lab+1);
+    } else {
+        label(lab);
     }
 
     exit_scope();
-
-    if (NO_ERROR) {
-        STMT_COND(ret) = cond;
-        STMT_THEN(ret) = thenpart;
-        STMT_ELSE(ret) = elsepart;
-    } else {
-        ret = NULL;
-    }
-
-    return ret;
 }
 
 /**
@@ -118,84 +68,63 @@ static struct stmt *if_stmt(void)
 /// iteration-statement:
 ///   'while' '(' expression ')' statement
 ///
-static struct stmt *while_stmt(void)
+static void while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
-    struct stmt *ret = ast_stmt(WHILE_STMT, source);
     struct expr *cond;
-    struct stmt *body;
 
     enter_scope();
 
-    SAVE_ERRORS;
     expect(WHILE);
     expect('(');
     cond = bool_expr();
     expect(')');
 
-    SET_LOOP_CONTEXT(ret);
-    body = statement();
-    RESTORE_LOOP_CONTEXT();
+    jmpto(lab+1);
+    label(lab);
+    statement(lab+1, lab+2, swtch);
+    label(lab+1);
+    branch(cond, lab, 0);
+    label(lab+2);
 
     exit_scope();
-
-    if (NO_ERROR) {
-        STMT_WHILE_COND(ret) = cond;
-        STMT_WHILE_BODY(ret) = body;
-    } else {
-        ret = NULL;
-    }
-
-    return ret;
 }
 
 /// iteration-statement:
 ///   'do' statement 'while' '(' expression ')' ';'
 ///
-static struct stmt *do_while_stmt(void)
+static void do_while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
-    struct stmt *ret = ast_stmt(DO_WHILE_STMT, source);
-    struct stmt *body;
     struct expr *cond;
 
     enter_scope();
 
-    SAVE_ERRORS;
     expect(DO);
-    
-    SET_LOOP_CONTEXT(ret);
-    body = statement();
-    RESTORE_LOOP_CONTEXT();
-
+    label(lab);
+    statement(lab+1, lab+2, swtch);
     expect(WHILE);
     expect('(');
     cond = bool_expr();
     expect(')');
     expect(';');
+    label(lab+1);
+    branch(cond, lab, 0);
+    label(lab+2);
 
     exit_scope();
-
-    if (NO_ERROR) {
-        STMT_WHILE_COND(ret) = cond;
-        STMT_WHILE_BODY(ret) = body;
-    } else {
-        ret = NULL;
-    }
-
-    return ret;
 }
 
 /// iteration-statement:
 ///   'for' '(' expression[opt] ';' expression[opt] ';' expression[opt] ')' statement
 ///   'for' '(' declaration expression[opt] ';' expression[opt] ')' statement
 ///
-static struct stmt *for_stmt(void)
+static void for_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
-    struct stmt *ret = ast_stmt(FOR_STMT, source);
-    struct stmt *body;
-
+    struct expr *init = NULL;
+    struct expr *cond = NULL;
+    struct expr *ctrl = NULL;
+    
     enter_scope();
 
-    SAVE_ERRORS;
     expect(FOR);
     expect('(');
 
@@ -204,36 +133,35 @@ static struct stmt *for_stmt(void)
     } else {
         if (first_decl(token)) {
             // declaration
-            STMT_FOR_INIT(ret) = decls2expr(declaration());
+            declaration();
         } else {
             // expression
-            STMT_FOR_INIT(ret) = expression();
+            init = expression();
             expect(';');
         }
     }
 
     if (token->id != ';')
-        STMT_FOR_COND(ret) = bool_expr();
+        cond = bool_expr();
 
     expect(';');
 
     if (token->id != ')')
-        STMT_FOR_CTRL(ret) = expression();
+        ctrl = expression();
 
     expect(')');
 
-    SET_LOOP_CONTEXT(ret);
-    body = statement();
-    RESTORE_LOOP_CONTEXT();
-
+    gen(init);
+    jmpto(lab+3);
+    label(lab);
+    statement(lab+1, lab+2, swtch);
+    label(lab+1);
+    gen(ctrl);
+    label(lab+3);
+    branch(cond, lab, 0);
+    label(lab+2);
+    
     exit_scope();
-
-    if (NO_ERROR)
-        STMT_FOR_BODY(ret) = body;
-    else
-        ret = NULL;
-
-    return ret;
 }
 
 /**
@@ -248,271 +176,207 @@ static struct stmt *for_stmt(void)
 /// selection-statement:
 ///   'switch' '(' expression ')' statement
 ///
-static struct stmt *switch_stmt(void)
+static void switch_stmt(int lab, int cnt, int brk)
 {
-    struct stmt *ret = ast_stmt(SWITCH_STMT, source);
     struct expr *expr;
-    struct stmt *body;
+    struct source src = source;
+    struct swtch *swtch = NEWS0(struct swtch, FUNC);
 
-    SAVE_ERRORS;
     expect(SWITCH);
     expect('(');
     expr = switch_expr();
     expect(')');
 
-    SET_SWITCH_CONTEXT(ret, expr ? EXPR_TYPE(expr) : NULL);
-
-    body = statement();
-
-    if (NO_ERROR) {
-        STMT_SWITCH_EXPR(ret) = expr;
-        STMT_SWITCH_BODY(ret) = body;
-        STMT_SWITCH_CASES(ret) = vtoa(CASES, PERM);
-        STMT_SWITCH_DEFAULT(ret) = DEFLT;
-    } else {
-        ret = NULL;
-    }
-
-    RESTORE_SWITCH_CONTEXT();
-    
-    return ret;
-}
-
-static void check_case_duplicates(struct stmt *node)
-{
-    for (int i = vec_len(CASES) - 1; i >= 0; i--) {
-        struct stmt *n = vec_at(CASES, i);
-        if (STMT_CASE_INDEX(n) == STMT_CASE_INDEX(node)) {
-            error_at(STMT_SRC(node),
-                     "duplicate case value '%lld', previous case defined here: %s:%u:%u",
-                     STMT_CASE_INDEX(node),
-                     STMT_SRC(n).file,
-                     STMT_SRC(n).line,
-                     STMT_SRC(n).column);
-            break;
-        }
-    }
+    swtch->src = src;
+    swtch->type = expr ? EXPR_TYPE(expr) : inttype;
+        
+    // TODO:
+    // make a tmp var
+    jmpto(lab);
+    statement(cnt, lab+1, swtch);
+    jmpto(lab+1);
+    label(lab);
+    // TODO:
+    // gen switch code
+    label(lab+1);
 }
 
 /// labeled-statement:
 ///   'case' constant-expression ':' statement
 ///
-static struct stmt *case_stmt(void)
+static void case_stmt(int cnt, int brk, struct swtch *swtch)
 {
-    struct stmt *ret = ast_stmt(CASE_STMT, source);
-    struct stmt *body;
+    struct source src = source;
+    long value;
 
-    SAVE_ERRORS;
     expect(CASE);
-    STMT_CASE_INDEX(ret) = intexpr1(SWITCH_TYPE);
+    value = intexpr1(swtch ? swtch->type : inttype);
     expect(':');
 
-    if (!IN_SWITCH)
-        error_at(STMT_SRC(ret), "'case' statement not in switch statement");
+    if (swtch) {
+        struct cse *cse = NEWS0(struct cse, FUNC);
+        cse->src = src;
+        cse->value = value;
+        cse->label = genlabel(1);
 
-    // only check when intexpr is okay.
-    if (NO_ERROR) {
-        check_case_duplicates(ret);
-        vec_push(CASES, ret);
+        check_case_duplicates(cse, swtch);
+
+        // link
+        cse->link = swtch->cases;
+        swtch->cases = cse;
+    } else {
+        error_at(src, "'case' statement not in switch statement");
     }
 
     // always parse even if not in a switch statement
-    body = statement();
-
-    if (NO_ERROR)
-        STMT_CASE_BODY(ret) = body;
-    else
-        ret = NULL;
-
-    return ret;
+    statement(cnt, brk, swtch);
 }
 
 /// labeled-statement:
 ///   'default' ':' statement
 ///
-static struct stmt *default_stmt(void)
+static void default_stmt(int cnt, int brk, struct swtch *swtch)
 {
-    struct stmt *ret = ast_stmt(DEFAULT_STMT, source);
-    struct stmt *stmt;
+    struct source src = source;
 
-    SAVE_ERRORS;
     expect(DEFAULT);
     expect(':');
 
     // print before parsing statement
-    if (!IN_SWITCH)
-        error_at(STMT_SRC(ret), "'default' statement not in switch statement");
+    if (swtch) {
+        if (swtch->defalt) {
+            struct source prev = swtch->defalt->src;
+            error_at(src,
+                     "multiple default labels in one switch, previous case defined here:%s:%u:%u",
+                     prev.file, prev.line, prev.column);
+        }
 
-    if (DEFLT)
-        error_at(STMT_SRC(ret),
-                 "multiple default labels in one switch, previous case defined here:%s:%u:%u",
-                 STMT_SRC(DEFLT).file,
-                 STMT_SRC(DEFLT).line,
-                 STMT_SRC(DEFLT).column);
-
-    DEFLT = ret;
+        // new default case
+        struct cse *defalt = NEWS0(struct cse, FUNC);
+        defalt->src = src;
+        defalt->label = genlabel(1);
+        swtch->defalt = defalt;
+    } else {
+        error_at(src, "'default' statement not in switch statement");
+    }
     
-    stmt = statement();
-
-    if (NO_ERROR)
-        STMT_CASE_BODY(ret) = stmt;
-    else
-        ret = NULL;
-
-    return ret;
+    statement(cnt, brk, swtch);
 }
 
 /// labled-statement:
 ///   identifier ':' statement
 ///
-static struct stmt *label_stmt(void)
+static void label_stmt(int cnt, int brk, struct swtch *swtch)
 {
-    struct stmt *ret = ast_stmt(LABEL_STMT, source);
-    struct stmt *stmt;
-    const char *name;
+    struct source src = source;
+    const char *id = NULL;
 
-    SAVE_ERRORS;
     if (token->id == ID)
-        name = TOK_ID_STR(token);
+        id = TOK_ID_STR(token);
     expect(ID);
     expect(':');
 
     // install label before parsing body
-    if (NO_ERROR) {
-        struct stmt *n = map_get(funcinfo.labels, name);
-        if (n)
-            error_at(STMT_SRC(ret),
+    if (id) {
+        struct symbol *sym = lookup(id, func.labels);
+        if (!sym) {
+            sym = install(id, &func.labels, LOCAL, FUNC);
+            SYM_DEFINED(sym) = true;
+            SYM_X_LABEL(sym) = genlabel(1);
+        } else if (!SYM_DEFINED(sym)) {
+            SYM_DEFINED(sym) = true;
+        } else {
+            struct source prev = SYM_SRC(sym);
+            error_at(src,
                      "redefinition of label '%s', previous label defined here:%s:%u:%u",
-                     name,
-                     STMT_SRC(n).file,
-                     STMT_SRC(n).line,
-                     STMT_SRC(n).column);
-        map_put(funcinfo.labels, name, ret);
-        STMT_LABEL_NAME(ret) = name;
+                     prev.file, prev.line, prev.column);
+        }
+
+        label(SYM_X_LABEL(sym));
     }
 
-    stmt = statement();
-
-    if (NO_ERROR) {
-        STMT_LABEL_BODY(ret) = stmt;
-        STMT_X_LABEL(ret) = gen_label();
-    } else {
-        ret = NULL;
-    }
-
-    return ret;
+    statement(cnt, brk, swtch);
 }
 
 /// jump-statement:
 ///   'goto' identifier ';'
 ///
-static struct stmt *goto_stmt(void)
+static void goto_stmt(void)
 {
-    struct stmt *ret = ast_stmt(GOTO_STMT, source);
-
-    SAVE_ERRORS;
+    struct source src = source;
+    const char *id = NULL;
+    
     expect(GOTO);
     if (token->id == ID)
-        STMT_LABEL_NAME(ret) = TOK_ID_STR(token);
+        id = TOK_ID_STR(token);
     expect(ID);
     expect(';');
 
-    if (NO_ERROR)
-        vec_push(funcinfo.gotos, ret);
-    else
-        ret = NULL;
+    // lookup
+    if (id) {
+        struct symbol *sym = lookup(id, func.labels);
+        if (!sym) {
+            sym = install(id, &func.labels, LOCAL, FUNC);
+            SYM_X_LABEL(sym) = genlabel(1);
+        }
 
-    return ret;
+        if (!SYM_DEFINED(sym))
+            mark_goto(id, src);
+
+        jmpto(SYM_X_LABEL(sym));
+    }
 }
 
 /// jump-statement:
 ///   'break' ';'
 ///
-static struct stmt *break_stmt(void)
+static void break_stmt(int brk)
 {
-    struct stmt *ret = ast_stmt(BREAK_STMT, source);
-
-    SAVE_ERRORS;
+    struct source src = source;
+    
     expect(BREAK);
     expect(';');
 
-    if (!IN_LOOP && !IN_SWITCH)
-        error_at(STMT_SRC(ret),
-                 "'break' statement not in loop or switch statement");
-
-    if (!NO_ERROR)
-        ret = NULL;
-
-    return ret;
+    if (brk)
+        jmpto(brk);
+    else
+        error_at(src, "'break' statement not in loop or switch statement");
 }
 
 /// jump-statement:
 ///   'continue' ';'
 ///
-static struct stmt *continue_stmt(void)
+static void continue_stmt(int cnt)
 {
-    struct stmt *ret = ast_stmt(CONTINUE_STMT, source);
-
-    SAVE_ERRORS;
+    struct source src = source;
+    
     expect(CONTINUE);
     expect(';');
 
-    if (!IN_LOOP)
-        error_at(STMT_SRC(ret),
-                 "'continue' statement not in loop statement");
-
-    if (!NO_ERROR)
-        ret = NULL;
-
-    return ret;
-}
-
-static struct expr *ensure_return(struct stmt *stmt, struct source src)
-{
-    // return immediately if expr is NULL. (parsing failed)
-    struct expr *expr = STMT_EXPR_BODY(stmt);
-    
-    if (expr == NULL)
-        return NULL;
-
-    if (isvoid(rtype(funcinfo.type))) {
-        if (!isnullstmt(stmt) && !isvoid(EXPR_TYPE(expr)))
-            error_at(src, "void function should not return a value");
-    } else {
-        if (!isnullstmt(stmt)) {
-            struct type *ty1 = EXPR_TYPE(expr);
-            struct type *ty2 = rtype(funcinfo.type);
-            if (!(expr = assignconv(ty2, expr)))
-                error_at(src,
-                         "returning '%s' from function with incompatible result type '%s'",
-                         type2s(ty1), type2s(ty2));
-        } else {
-            error_at(src, "non-void function should return a value");
-        }
-    }
-    return expr;
+    if (cnt)
+        jmpto(cnt);
+    else
+        error_at(src, "'continue' statement not in loop statement");
 }
 
 /// jump-statement:
 ///   'return' expression[opt] ';'
 ///
-static struct stmt *return_stmt(void)
+static void return_stmt(void)
 {
-    struct stmt *ret = ast_stmt(RETURN_STMT, source);
-    struct expr *expr;
+    struct source src = source;
+    struct expr *e;
+    bool isnull = false;
 
-    SAVE_ERRORS;
     expect(RETURN);
-    struct stmt *stmt = expr_stmt();
-    if (stmt)
-        expr = ensure_return(stmt, STMT_SRC(ret));
-
-    if (NO_ERROR)
-        STMT_RETURN_EXPR(ret) = expr;
+    if (token->id == ';')
+        isnull = true;
     else
-        ret = NULL;
+        e = expression();
 
-    return ret;
+    expect(';');
+    ensure_return(e, isnull, src);
+    ret(e);
 }
 
 /// statement:
@@ -523,39 +387,67 @@ static struct stmt *return_stmt(void)
 ///   iteration-statement
 ///   jump-statement
 ///
-static struct stmt *statement(void)
+static void statement(int cnt, int brk, struct swtch *swtch)
 {
     switch (token->id) {
     case '{':
-        return compound_stmt(NULL);
+        compound_stmt(NULL, cnt, brk, swtch);
+        break;
+
     case IF:
-        return if_stmt();
+        if_stmt(genlabel(2), cnt, brk, swtch);
+        break;
+
     case SWITCH:
-        return switch_stmt();
+        switch_stmt(genlabel(2), cnt, brk);
+        break;
+
     case WHILE:
-        return while_stmt();
+        while_stmt(genlabel(3), cnt, brk, swtch);
+        break;
+
     case DO:
-        return do_while_stmt();
+        do_while_stmt(genlabel(3), cnt, brk, swtch);
+        break;
+
     case FOR:
-        return for_stmt();
+        for_stmt(genlabel(4), cnt, brk, swtch);
+        break;
+
     case GOTO:
-        return goto_stmt();
+        goto_stmt();
+        break;
+
     case CONTINUE:
-        return continue_stmt();
+        continue_stmt(cnt);
+        break;
+
     case BREAK:
-        return break_stmt();
+        break_stmt(brk);
+        break;
+
     case RETURN:
-        return return_stmt();
+        return_stmt();
+        break;
+
     case CASE:
-        return case_stmt();
+        case_stmt(cnt, brk, swtch);
+        break;
+
     case DEFAULT:
-        return default_stmt();
+        default_stmt(cnt, brk, swtch);
+        break;
+
     case ID:
-        if (lookahead()->id == ':')
-            return label_stmt();
+        if (lookahead()->id == ':') {
+            label_stmt(cnt, brk, swtch);
+            break;
+        }
         // go through
+
     default:
-        return expr_stmt();
+        expr_stmt();
+        break;
     }
 }
 
@@ -570,38 +462,22 @@ static struct stmt *statement(void)
 ///   declaration
 ///   statement
 ///
-struct stmt *compound_stmt(void (*enter_hook) (void))
+void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch)
 {
-    struct stmt *ret = ast_stmt(COMPOUND_STMT, source);
-    struct list *list = NULL;
-
     expect('{');
     enter_scope();
 
-    if (enter_hook)
-        enter_hook();
+    if (cb) cb();
 
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
-        if (first_decl(token)) {
+        if (first_decl(token))
             // declaration
-            struct expr *expr = decls2expr(declaration());
-            if (expr) {
-                struct stmt *stmt = ast_stmt(EXPR_STMT, EXPR_SRC(expr));
-                STMT_EXPR_BODY(stmt) = expr;
-                list = list_append(list, stmt);
-            }
-        } else {
+            declaration();
+        else
             // statement
-            struct stmt *stmt = statement();
-            if (stmt)
-                list = list_append(list, stmt);
-        }
+            statement(cnt, brk, swtch);
     }
-
-    STMT_BLKS(ret) = ltoa(&list, FUNC);
 
     expect('}');
     exit_scope();
-
-    return ret;
 }

@@ -22,7 +22,7 @@ struct table *new_table(struct table *up, int scope)
     return t;
 }
 
-static void free_table(struct table *t)
+void free_table(struct table *t)
 {
     map_free(t->map);
     free(t);
@@ -87,7 +87,7 @@ struct symbol *gen_tmp_sym(int area)
 {
     const char *name = gen_tmpname();
     struct symbol *sym = alloc_symbol(area);
-    SYM_NAME(sym) = SYM_X_LABEL(sym) = name;
+    SYM_NAME(sym) = SYM_X_NAME(sym) = name;
     SYM_REFS(sym)++;
     return sym;
 }
@@ -122,7 +122,7 @@ struct symbol *install(const char *name, struct table ** tpp, int scope, int are
     sym = alloc_symbol(area);
     SYM_SCOPE(sym) = scope;
     SYM_NAME(sym) = name;
-    SYM_X_LABEL(sym) = name;
+    SYM_X_NAME(sym) = name;
     map_put(tp->map, name, sym);
     // all/link
     SYM_LINK(sym) = tp->all;

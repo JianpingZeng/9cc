@@ -195,12 +195,14 @@ PSEUDO CODE:
            expect(';')
            e3 = expression();
            expect(')')
+
            emit(e1)
            jump(lab+3)
            label(lab)
            statement(lab+1, lab+2)
            label(lab+1)
            emit(e3)
+           label(lab+3)
            branch(e2, lab, 0)
            label(lab+2)
 

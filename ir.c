@@ -1723,7 +1723,7 @@ static void emit_paren(struct expr *n)
 static void emit_integer_literal(struct expr *n)
 {
     struct symbol *sym = EXPR_SYM(n);
-    SYM_X_LABEL(sym) = stru(SYM_VALUE(sym).u);
+    SYM_X_NAME(sym) = stru(SYM_VALUE(sym).u);
     SYM_X_KIND(sym) = SYM_KIND_IMM;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
@@ -1742,7 +1742,7 @@ static void emit_float_literal(struct expr *n)
 {
     struct symbol *sym = EXPR_SYM(n);
     const char *label = get_float_label(SYM_NAME(sym));
-    SYM_X_LABEL(sym) = label;
+    SYM_X_NAME(sym) = label;
     SYM_X_KIND(sym) = SYM_KIND_GREF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
@@ -1751,7 +1751,7 @@ static void emit_string_literal(struct expr *n)
 {
     struct symbol *sym = EXPR_SYM(n);
     const char *label = get_string_literal_label(SYM_NAME(sym));
-    SYM_X_LABEL(sym) = label;
+    SYM_X_NAME(sym) = label;
     SYM_X_KIND(sym) = SYM_KIND_GREF;
     EXPR_X_ADDR(n) = make_sym_operand(sym);
 }
@@ -2364,7 +2364,7 @@ static const char *get_ptr_label(struct expr *n)
     case STRING_LITERAL:
         return get_string_literal_label(SYM_NAME(EXPR_SYM(n)));
     case REF_EXPR:
-        return SYM_X_LABEL(EXPR_SYM(n));
+        return SYM_X_NAME(EXPR_SYM(n));
     case BINARY_OPERATOR:
         return get_ptr_label(EXPR_OPERAND(n, 0));
     case UNARY_OPERATOR:
@@ -2609,7 +2609,7 @@ static void finalize(void)
 static void defvar(struct symbol *sym)
 {
     if (SYM_SCOPE(sym) == GLOBAL)
-        SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+        SYM_X_NAME(sym) = glabel(SYM_NAME(sym));
 
     if (SYM_INIT(sym)) {
         emit_data(sym);
@@ -2627,7 +2627,7 @@ static void defvar(struct symbol *sym)
 
 static void defun(struct symbol *sym)
 {
-    SYM_X_LABEL(sym) = glabel(SYM_NAME(sym));
+    SYM_X_NAME(sym) = glabel(SYM_NAME(sym));
     emit_function(sym);
     if (opts.ir_dump) {
         print_ir_text(sym);

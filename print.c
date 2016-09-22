@@ -363,13 +363,13 @@ static const char * operand2s(struct operand *operand)
     case IR_SUBSCRIPT:
         return format("%ld(%s,%s,%d)",
                       operand->disp,
-                      SYM_X_LABEL(operand->sym),
-                      operand->index ? SYM_X_LABEL(operand->index) : "",
+                      SYM_X_NAME(operand->sym),
+                      operand->index ? SYM_X_NAME(operand->index) : "",
                       operand->scale);
     case IR_INDIRECTION:
-        return format("* %s", SYM_X_LABEL(operand->sym));
+        return format("* %s", SYM_X_NAME(operand->sym));
     case IR_NONE:
-        return SYM_X_LABEL(operand->sym);
+        return SYM_X_NAME(operand->sym);
     default:
         assert(0);
     }
@@ -531,7 +531,7 @@ static void print_use(struct tac *tac)
         if (operand) {
             if (operand->sym && REF_SYM(operand->sym)) {
                 struct uses use = tac->uses[i*2];
-                putf("%s: ", SYM_X_LABEL(operand->sym));
+                putf("%s: ", SYM_X_NAME(operand->sym));
                 if (use.live)
                     putln("live at %p", use.next);
                 else
@@ -539,7 +539,7 @@ static void print_use(struct tac *tac)
             }
             if (operand->index && REF_SYM(operand->index)) {
                 struct uses use = tac->uses[i*2+1];
-                putf("%s: ", SYM_X_LABEL(operand->index));
+                putf("%s: ", SYM_X_NAME(operand->index));
                 if (use.live)
                     putln("live at %p", use.next);
                 else
@@ -554,7 +554,7 @@ static void print_sym_set(struct set *set)
     struct vector *objs = set_objects(set);
     for (size_t i = 0; i < vec_len(objs); i++) {
         struct symbol *sym = vec_at(objs, i);
-        putf("%s", SYM_X_LABEL(sym));
+        putf("%s", SYM_X_NAME(sym));
         if (i < vec_len(objs) - 1)
             putf(", ");
     }
@@ -621,18 +621,18 @@ static void print_ir_data1(const char *name, struct vector *xvalues)
 
 void print_ir_data(struct symbol *sym)
 {
-    print_ir_data1(SYM_X_LABEL(sym), SYM_X_XVALUES(sym));
+    print_ir_data1(SYM_X_NAME(sym), SYM_X_XVALUES(sym));
 }
 
 void print_ir_bss(struct symbol *sym)
 {
     putln("%s,%llu,%d",
-          SYM_X_LABEL(sym), TYPE_SIZE(SYM_TYPE(sym)), TYPE_ALIGN(SYM_TYPE(sym)));
+          SYM_X_NAME(sym), TYPE_SIZE(SYM_TYPE(sym)), TYPE_ALIGN(SYM_TYPE(sym)));
 }
 
 void print_ir_text(struct symbol *sym)
 {
-    putln("%s:", SYM_X_LABEL(sym));
+    putln("%s:", SYM_X_NAME(sym));
     struct basic_block *block = SYM_X_BASIC_BLOCK(sym);
     for (; block; block = block->successors[0])
         print_basic_block(block);
@@ -1002,8 +1002,8 @@ void dump_operand(struct operand *operand)
     SET_OUTFD(stderr);
     println("%p: op:%s,%ld(%s,%s,%d), kind: %d, reg: %s",
             operand, rop2s(operand->op),operand->disp,
-            SYM_X_LABEL(operand->sym),
-            operand->index ? SYM_X_LABEL(operand->index) : "",
+            SYM_X_NAME(operand->sym),
+            operand->index ? SYM_X_NAME(operand->index) : "",
             operand->scale,
             SYM_X_KIND(operand->sym),
             SYM_X_REG(operand->sym) ? SYM_X_REG(operand->sym)->r[Q] : "");
@@ -1017,7 +1017,7 @@ void dump_reg(struct reg *reg)
     struct vector *vars = set_objects(reg->vars);
     for (int i = 0; i < vec_len(vars); i++) {
         struct rvar *v = vec_at(vars, i);
-        println("[%d] %s, %d", i, SYM_X_LABEL(v->sym), v->size);
+        println("[%d] %s, %d", i, SYM_X_NAME(v->sym), v->size);
     }
     RESTORE_OUTFD();
 }

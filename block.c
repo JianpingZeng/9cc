@@ -94,7 +94,7 @@ static void calculate_in_out(struct basic_block *start)
 
 void construct_basic_blocks(struct symbol *sym, struct tac *head)
 {
-    const char *start_label = SYM_X_LABEL(sym);
+    const char *start_label = SYM_X_NAME(sym);
     const char *end_label = STMT_X_NEXT(SYM_COMPOUND(sym));
 
     struct basic_block *start = NEWS0(struct basic_block, PERM);
@@ -159,7 +159,7 @@ void construct_basic_blocks(struct symbol *sym, struct tac *head)
                 entry = *current;
             }
             while (tac && tac->op == IR_LABEL) {
-                const char *label = SYM_X_LABEL(tac->operands[0]->sym);
+                const char *label = SYM_X_NAME(tac->operands[0]->sym);
                 map_put(map, label, entry);
                 tac = tac->next;
             }
@@ -176,7 +176,7 @@ void construct_basic_blocks(struct symbol *sym, struct tac *head)
     for (int i = 0; i < vec_len(branch_tacs); i++) {
         struct tac *tac = vec_at(branch_tacs, i);
         struct basic_block *blk = vec_at(branch_blks, i);
-        const char *label = SYM_X_LABEL(tac->operands[0]->sym);
+        const char *label = SYM_X_NAME(tac->operands[0]->sym);
         struct basic_block *block = map_get(map, label);
         tac->operands[0]->sym = make_label_sym(block->label);
         block->tag = BLOCK_JUMPING_DEST;

@@ -764,7 +764,7 @@ static void emit_nonbuiltin_call(struct tac *tac)
 
     // direct / indirect
     if (l->op == IR_NONE && SYM_X_KIND(l->sym) == SYM_KIND_GREF)
-        xx(OP_CALL, NULL, rs(SYM_X_LABEL(l->sym)), NULL);
+        xx(OP_CALL, NULL, rs(SYM_X_NAME(l->sym)), NULL);
     else
         xx(OP_CALL, " *", operand2s(l, Quad), NULL);
 
@@ -1466,7 +1466,7 @@ static void emit_if_relop(struct tac *tac, bool reverse, bool floating)
     default:
         assert(0);
     }
-    jump(jop, SYM_X_LABEL(result->sym));
+    jump(jop, SYM_X_NAME(result->sym));
 }
 
 // if x goto dest
@@ -1483,21 +1483,21 @@ static void emit_if_simple(struct tac *tac, bool reverse, bool floating)
         xx(OP_XOR, suffixp[i], rs(r->r[i]), rs(r->r[i]));
         xx(OP_UCOMI, suffixf[i], l_label, rs(r->r[i]));
         const char *jop = reverse ? OP_JE : OP_JNE;
-        jump(jop, SYM_X_LABEL(result->sym));
+        jump(jop, SYM_X_NAME(result->sym));
     } else {
         if (is_imm_operand(l)) {
             long value = SYM_VALUE(l->sym).i;
             if (reverse) {
                 if (!value)
-                    jump(OP_JMP, SYM_X_LABEL(result->sym));
+                    jump(OP_JMP, SYM_X_NAME(result->sym));
             } else {
                 if (value)
-                    jump(OP_JMP, SYM_X_LABEL(result->sym));
+                    jump(OP_JMP, SYM_X_NAME(result->sym));
             }
         } else {
             xx(OP_CMP, suffixi[i], imm(0), l_label);
             const char *jop = reverse ? OP_JE : OP_JNE;
-            jump(jop, SYM_X_LABEL(result->sym));
+            jump(jop, SYM_X_NAME(result->sym));
         }
     }
 }
@@ -1532,7 +1532,7 @@ static void emit_iffalse_f(struct tac *tac)
 
 static void emit_goto(struct tac *tac)
 {
-    jump(OP_JMP, SYM_X_LABEL(tac->operands[0]->sym));
+    jump(OP_JMP, SYM_X_NAME(tac->operands[0]->sym));
 }
 
 static void emit_assign_basic(struct operand *l, struct operand *r,
@@ -1679,7 +1679,7 @@ static void emit_uop_address(struct tac *tac)
     switch (l->op) {
     case IR_NONE:
         if (SYM_X_KIND(l->sym) == SYM_KIND_GREF)
-            xx(OP_LEA, suffixi[Q], str("%s(%s)", SYM_X_LABEL(l->sym), rip->r[Q]), rs(reg->r[Q]));
+            xx(OP_LEA, suffixi[Q], str("%s(%s)", SYM_X_NAME(l->sym), rip->r[Q]), rs(reg->r[Q]));
         else if (SYM_X_KIND(l->sym) == SYM_KIND_LREF)
             xx(OP_LEA, suffixi[Q], subst(rbp->r[Q], SYM_X_LOFF(l->sym)), rs(reg->r[Q]));
         else
@@ -2203,7 +2203,7 @@ static void do_spill(struct rvar *v)
         {
             yy(OP_MOV, suffixi[i],
                rs(reg->r[i]),
-               str("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]),
+               str("%s(%s)", SYM_X_NAME(sym), rip->r[Q]),
                format("%d-byte spill", v->size));
             SYM_X_INMEM(sym) = true;
             SYM_X_FREG(sym) = reg->freg;
@@ -2264,7 +2264,7 @@ static void spill(struct symbol *sym)
 
 static int sort_symbol(struct symbol *sym1, struct symbol *sym2)
 {
-    return strcmp(SYM_X_LABEL(sym1), SYM_X_LABEL(sym2));
+    return strcmp(SYM_X_NAME(sym1), SYM_X_NAME(sym2));
 }
 
 static int sort_out(const void *val1, const void *val2)
@@ -2554,9 +2554,9 @@ static void emit_function_prologue(struct symbol *fsym)
     bool global = SYM_SCLASS(fsym) == STATIC ? false : true;
     
     if (global)
-        macro(".globl %s", SYM_X_LABEL(fsym));
+        macro(".globl %s", SYM_X_NAME(fsym));
     macro(".text");
-    lab(SYM_X_LABEL(fsym));
+    lab(SYM_X_NAME(fsym));
     xx(OP_PUSH, suffixi[Q], rs(rbp->r[Q]), NULL);
     xx(OP_MOV, suffixi[Q], rs(rsp->r[Q]), rs(rbp->r[Q]));
 
@@ -2688,9 +2688,9 @@ static void emit_bss(struct symbol *sym)
     bool global = SYM_SCLASS(sym) == STATIC ? false : true;
     
     if (!global)
-        emit(".local %s", SYM_X_LABEL(sym));
+        emit(".local %s", SYM_X_NAME(sym));
     emit(".comm %s,%llu,%d",
-         SYM_X_LABEL(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
+         SYM_X_NAME(sym), TYPE_SIZE(ty), TYPE_ALIGN(ty));
 }
 
 static void emit_compounds(struct map *compounds)
@@ -3115,9 +3115,9 @@ static struct reladdr *operand2s_none_ex(struct operand *operand, int opsize, bo
         return subst(rbp->r[Q], SYM_X_LOFF(operand->sym));
     } else if (SYM_X_KIND(operand->sym) == SYM_KIND_GREF) {
         if (isfunc(SYM_TYPE(operand->sym)))
-            return str("$%s", SYM_X_LABEL(operand->sym));
+            return str("$%s", SYM_X_NAME(operand->sym));
         else
-            return str("%s(%s)", SYM_X_LABEL(operand->sym), rip->r[Q]);
+            return str("%s(%s)", SYM_X_NAME(operand->sym), rip->r[Q]);
     } else if (SYM_X_KIND(operand->sym) == SYM_KIND_TMP) {
         try_load_tmp(operand->sym, NULL, opsize);
         return str("%s", SYM_X_REG(operand->sym)->r[i]);
@@ -3144,20 +3144,20 @@ static struct reladdr *operand2s_subscript(struct operand *operand, int opsize)
                 try_load_tmp(index, NULL, Quad);
                 if (offset > 0)
                     return str("%s+%ld(,%s,%d)",
-                               SYM_X_LABEL(sym), offset, SYM_X_REG(index)->r[Q], operand->scale);
+                               SYM_X_NAME(sym), offset, SYM_X_REG(index)->r[Q], operand->scale);
                 else if (offset < 0)
                     return str("%s%ld(,%s,%d)",
-                               SYM_X_LABEL(sym), offset, SYM_X_REG(index)->r[Q], operand->scale);
+                               SYM_X_NAME(sym), offset, SYM_X_REG(index)->r[Q], operand->scale);
                 else
                     return str("%s(,%s,%d)",
-                               SYM_X_LABEL(sym), SYM_X_REG(index)->r[Q], operand->scale);
+                               SYM_X_NAME(sym), SYM_X_REG(index)->r[Q], operand->scale);
             } else {
                 if (offset > 0)
-                    return str("%s+%ld(%s)", SYM_X_LABEL(sym), offset, rip->r[Q]);
+                    return str("%s+%ld(%s)", SYM_X_NAME(sym), offset, rip->r[Q]);
                 else if (offset < 0)
-                    return str("%s%ld(%s)", SYM_X_LABEL(sym), offset, rip->r[Q]);
+                    return str("%s%ld(%s)", SYM_X_NAME(sym), offset, rip->r[Q]);
                 else
-                    return str("%s(%s)", SYM_X_LABEL(sym), rip->r[Q]);
+                    return str("%s(%s)", SYM_X_NAME(sym), rip->r[Q]);
             }
         }
         break;
@@ -3654,7 +3654,7 @@ static void defvar(struct symbol *sym, int seg)
     struct vector *xvalues = SYM_X_XVALUES(sym);
     
     if (seg == DATA)
-        emit_data(SYM_X_LABEL(sym), global, array, align, TYPE_SIZE(ty), xvalues);
+        emit_data(SYM_X_NAME(sym), global, array, align, TYPE_SIZE(ty), xvalues);
     else if (seg == BSS)
         emit_bss(sym);
 }
