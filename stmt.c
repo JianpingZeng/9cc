@@ -11,7 +11,7 @@ static void expr_stmt(void)
         // do nothing
     } else if (first_expr(token)) {
         struct expr *e = expression();
-        if (e) gen(e);
+        if (e) IR->gen(e);
     } else {
         error("missing statement before '%s'", tok2s(token));
     }
@@ -40,7 +40,7 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     cond = bool_expr();
     expect(')');
 
-    branch(cond, 0, lab);
+    IR->branch(cond, 0, lab);
     
     enter_scope();
     statement(cnt, brk, swtch);
@@ -48,14 +48,14 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 
     if (token->id == ELSE) {
         expect(ELSE);
-        jmpto(lab+1);
-        label(lab);
+        IR->jump(lab+1);
+        IR->label(lab);
         enter_scope();
         statement(cnt, brk, swtch);
         exit_scope();
-        label(lab+1);
+        IR->label(lab+1);
     } else {
-        label(lab);
+        IR->label(lab);
     }
 
     exit_scope();
@@ -79,12 +79,12 @@ static void while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     cond = bool_expr();
     expect(')');
 
-    jmpto(lab+1);
-    label(lab);
+    IR->jump(lab+1);
+    IR->label(lab);
     statement(lab+1, lab+2, swtch);
-    label(lab+1);
-    branch(cond, lab, 0);
-    label(lab+2);
+    IR->label(lab+1);
+    IR->branch(cond, lab, 0);
+    IR->label(lab+2);
 
     exit_scope();
 }
@@ -99,16 +99,16 @@ static void do_while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     enter_scope();
 
     expect(DO);
-    label(lab);
+    IR->label(lab);
     statement(lab+1, lab+2, swtch);
     expect(WHILE);
     expect('(');
     cond = bool_expr();
     expect(')');
     expect(';');
-    label(lab+1);
-    branch(cond, lab, 0);
-    label(lab+2);
+    IR->label(lab+1);
+    IR->branch(cond, lab, 0);
+    IR->label(lab+2);
 
     exit_scope();
 }
@@ -151,15 +151,15 @@ static void for_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 
     expect(')');
 
-    gen(init);
-    jmpto(lab+3);
-    label(lab);
+    IR->gen(init);
+    IR->jump(lab+3);
+    IR->label(lab);
     statement(lab+1, lab+2, swtch);
-    label(lab+1);
-    gen(ctrl);
-    label(lab+3);
-    branch(cond, lab, 0);
-    label(lab+2);
+    IR->label(lab+1);
+    IR->gen(ctrl);
+    IR->label(lab+3);
+    IR->branch(cond, lab, 0);
+    IR->label(lab+2);
     
     exit_scope();
 }
@@ -192,13 +192,13 @@ static void switch_stmt(int lab, int cnt, int brk)
         
     // TODO:
     // make a tmp var
-    jmpto(lab);
+    IR->jump(lab);
     statement(cnt, lab+1, swtch);
-    jmpto(lab+1);
-    label(lab);
+    IR->jump(lab+1);
+    IR->label(lab);
     // TODO:
     // gen switch code
-    label(lab+1);
+    IR->label(lab+1);
 }
 
 /// labeled-statement:
@@ -224,6 +224,8 @@ static void case_stmt(int cnt, int brk, struct swtch *swtch)
         // link
         cse->link = swtch->cases;
         swtch->cases = cse;
+
+        IR->label(cse->label);
     } else {
         error_at(src, "'case' statement not in switch statement");
     }
@@ -255,7 +257,10 @@ static void default_stmt(int cnt, int brk, struct swtch *swtch)
         struct cse *defalt = NEWS0(struct cse, FUNC);
         defalt->src = src;
         defalt->label = genlabel(1);
+        // set
         swtch->defalt = defalt;
+
+        IR->label(defalt->label);
     } else {
         error_at(src, "'default' statement not in switch statement");
     }
@@ -292,7 +297,7 @@ static void label_stmt(int cnt, int brk, struct swtch *swtch)
                      prev.file, prev.line, prev.column);
         }
 
-        label(SYM_X_LABEL(sym));
+        IR->label(SYM_X_LABEL(sym));
     }
 
     statement(cnt, brk, swtch);
@@ -323,7 +328,7 @@ static void goto_stmt(void)
         if (!SYM_DEFINED(sym))
             mark_goto(id, src);
 
-        jmpto(SYM_X_LABEL(sym));
+        IR->jump(SYM_X_LABEL(sym));
     }
 }
 
@@ -338,7 +343,7 @@ static void break_stmt(int brk)
     expect(';');
 
     if (brk)
-        jmpto(brk);
+        IR->jump(brk);
     else
         error_at(src, "'break' statement not in loop or switch statement");
 }
@@ -354,7 +359,7 @@ static void continue_stmt(int cnt)
     expect(';');
 
     if (cnt)
-        jmpto(cnt);
+        IR->jump(cnt);
     else
         error_at(src, "'continue' statement not in loop statement");
 }
@@ -376,7 +381,7 @@ static void return_stmt(void)
 
     expect(';');
     ensure_return(e, isnull, src);
-    ret(e);
+    IR->ret(e);
 }
 
 /// statement:

@@ -2640,9 +2640,55 @@ static void defun(struct symbol *sym)
     }
 }
 
+int genlabel(int count)
+{
+    static int lab = 1;
+    assert(count > 0);
+    lab += count;
+    return lab - count;
+}
+
+static struct code *alloc_code(int id)
+{
+    struct code *code = zmalloc(sizeof(struct code));
+    code->id = id;
+    return code;
+}
+
+static void branch(struct expr *expr, int tlab, int flab)
+{
+    
+}
+
+static void jmpto(int label)
+{
+    
+}
+
+static void ret(struct expr *expr)
+{
+    
+}
+
+static void label(int label)
+{
+    
+}
+
+static void gen(struct expr *expr)
+{
+    
+}
+
 struct ir *IR = &(struct ir) {
     .defvar = defvar,
     .defun = defun,
     .init = init,
-    .finalize = finalize
+    .finalize = finalize,
+
+    .branch = branch,
+    .jump = jmpto,
+    .ret = ret,
+    .label = label,
+    .gen = gen,
 };

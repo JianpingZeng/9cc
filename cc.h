@@ -228,6 +228,37 @@ extern bool is_imm_operand(struct operand *operand);
 extern bool is_direct_mem_operand(struct operand *operand);
 extern struct symbol * make_label_sym(const char *name);
 
+enum { LABEL = 1, GEN, JMP, CBR, RET };
+struct code {
+    int id;
+    union {
+        struct {
+            int label;
+        } lab;
+
+        struct {
+            struct expr *tree;
+        } gen;
+
+        struct {
+            int label;
+        } jmp;
+
+        struct {
+            struct expr *tree;
+            int tlab;
+            int flab;
+        } cbr;
+
+        struct {
+            struct expr *tree;
+        } ret;
+    } u;
+    struct code *next, *prev;
+};
+
+extern int genlabel(int count);
+
 // block.c
 extern void construct_basic_blocks(struct symbol *sym, struct tac *head);
 #define REF_SYM(sym)  (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
@@ -824,43 +855,6 @@ extern bool isscalar(struct type *ty);
 extern bool isptrto(struct type *ty, int kind);
 extern bool isbool(struct type *ty);
 
-// tree.c
-enum { LABEL = 1, GEN, JMP, CBR, RET };
-struct code {
-    int id;
-    union {
-        struct {
-            int label;
-        } lab;
-
-        struct {
-            struct expr *tree;
-        } gen;
-
-        struct {
-            int label;
-        } jmp;
-
-        struct {
-            struct expr *tree;
-            int tlab;
-            int flab;
-        } cbr;
-
-        struct {
-            struct expr *tree;
-        } ret;
-    } u;
-    struct code *next, *prev;
-};
-
-extern int genlabel(int count);
-extern void branch(struct expr *expr, int tlab, int flab);
-extern void jmpto(int label);
-extern void ret(struct expr *expr);
-extern void label(int label);
-extern void gen(struct expr *expr);
-
 // error.c
 enum { WRN = 1, ERR, FTL };
 
@@ -914,6 +908,12 @@ struct ir {
     void (*defun) (struct symbol *);
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
+
+    void (*branch) (struct expr *expr, int tlab, int flab);
+    void (*jump) (int label);
+    void (*ret) (struct expr *expr);
+    void (*label) (int label);
+    void (*gen) (struct expr *expr);
 };
 extern struct ir *IR;
 
