@@ -30,10 +30,6 @@ To build the bootstrap compiler, run command:
 
    	make bootstrap
 
-To run the test suite:
-
-   	make test
-
 
 Caveats:
 --------

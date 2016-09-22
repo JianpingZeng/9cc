@@ -10,12 +10,12 @@ CFLAGS = -Wall -std=c99 -I.
 LDFLAGS =
 7CC = 7cc
 CC1 = cc1
+libutils_dir = libutils/
+libcpp_dir = libcpp/
 LIBCPP = libcpp.a
 LIBUTILS = libutils.a
-utils_dir = utils/
-libcpp_dir = libcpp/
-UTILS_OBJ =
-UTILS_INC =
+LIBUTILS_OBJ =
+LIBUTILS_INC =
 LIBCPP_OBJ =
 LIBCPP_INC =
 CC1_OBJ =
@@ -28,24 +28,24 @@ ARFLAGS = cru
 CONFIG_H = config.h
 BUILD_DIR = "$(shell pwd)"
 
-UTILS_OBJ += $(utils_dir)alloc.o
-UTILS_OBJ += $(utils_dir)wrapper.o
-UTILS_OBJ += $(utils_dir)strbuf.o
-UTILS_OBJ += $(utils_dir)vector.o
-UTILS_OBJ += $(utils_dir)map.o
-UTILS_OBJ += $(utils_dir)string.o
-UTILS_OBJ += $(utils_dir)set.o
-UTILS_OBJ += $(utils_dir)list.o
-UTILS_OBJ += $(utils_dir)sys.o
+LIBUTILS_OBJ += $(libutils_dir)alloc.o
+LIBUTILS_OBJ += $(libutils_dir)wrapper.o
+LIBUTILS_OBJ += $(libutils_dir)strbuf.o
+LIBUTILS_OBJ += $(libutils_dir)vector.o
+LIBUTILS_OBJ += $(libutils_dir)map.o
+LIBUTILS_OBJ += $(libutils_dir)string.o
+LIBUTILS_OBJ += $(libutils_dir)set.o
+LIBUTILS_OBJ += $(libutils_dir)list.o
+LIBUTILS_OBJ += $(libutils_dir)sys.o
 
-UTILS_INC += $(utils_dir)utils.h
-UTILS_INC += $(utils_dir)strbuf.h
-UTILS_INC += $(utils_dir)vector.h
-UTILS_INC += $(utils_dir)map.h
-UTILS_INC += $(utils_dir)set.h
-UTILS_INC += $(utils_dir)list.h
-UTILS_INC += $(utils_dir)sys.h
-UTILS_INC += $(utils_dir)color.h
+LIBUTILS_INC += $(libutils_dir)utils.h
+LIBUTILS_INC += $(libutils_dir)strbuf.h
+LIBUTILS_INC += $(libutils_dir)vector.h
+LIBUTILS_INC += $(libutils_dir)map.h
+LIBUTILS_INC += $(libutils_dir)set.h
+LIBUTILS_INC += $(libutils_dir)list.h
+LIBUTILS_INC += $(libutils_dir)sys.h
+LIBUTILS_INC += $(libutils_dir)color.h
 
 LIBCPP_OBJ += $(libcpp_dir)lex.o
 LIBCPP_OBJ += $(libcpp_dir)cpp.o
@@ -118,8 +118,8 @@ $(CC1): $(CC1_OBJ) $(LIBCPP) $(LIBUTILS)
 
 $(CC1_OBJ): $(CC1_INC) $(CONFIG_H)
 
-$(LIBUTILS): $(UTILS_INC) $(CONFIG_H) $(UTILS_OBJ)
-	$(AR) $(ARFLAGS) $@ $(UTILS_OBJ)
+$(LIBUTILS): $(LIBUTILS_INC) $(CONFIG_H) $(LIBUTILS_OBJ)
+	$(AR) $(ARFLAGS) $@ $(LIBUTILS_OBJ)
 
 $(LIBCPP): $(LIBCPP_INC) $(CONFIG_H) $(LIBCPP_OBJ)
 	$(AR) $(ARFLAGS) $@ $(LIBCPP_OBJ)
@@ -171,24 +171,10 @@ bootstrap: stage3
 	cmp stage2 stage3
 	cmp cc1_stage2 cc1_stage3
 
-TESTS := $(patsubst %.c, %.bin, $(wildcard test/test_*.c))
-
-test/%.o: test/%.c
-	$(CC) -Wall -std=c99 -o $@ -c $<
-
-test/%.bin: test/%.o test/main.o $(LIBUTILS)
-	$(CC) $(LDFLAGS) -o $@ $< test/main.o $(LIBUTILS)
-
-test:: $(TESTS)
-	@for test in $(TESTS); do \
-		./$$test || exit; \
-	done
-
 objclean::
 	$(RM) *.o *.a *~
-	$(RM) $(utils_dir)*.o $(utils_dir)*~
+	$(RM) $(libutils_dir)*.o $(libutils_dir)*~
 	$(RM) $(libcpp_dir)*.o $(libcpp_dir)*~
-	$(RM) $(TESTS) test/*.o test/*~
 	$(RM) include/*~
 
 clean:: objclean

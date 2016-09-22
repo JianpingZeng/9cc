@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include "lex.h"
-#include "utils/utils.h"
+#include "libutils/utils.h"
 #include "internal.h"
 
 static unsigned char map[256] = {
