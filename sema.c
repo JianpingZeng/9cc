@@ -1296,7 +1296,7 @@ static void builtin_funcall(struct expr *call, struct expr *ref)
         
         if (isrecord(ty) && TYPE_SIZE(ty) <= MAX_STRUCT_PARAM_SIZE) {
             const char *label = gen_tmpname();
-            struct symbol *sym = make_localvar(label, ty, 0);
+            struct symbol *sym = mklocalvar(label, ty, 0);
             // passing address
             struct expr *operand = make_ref_expr(sym, SYM_SRC(sym));
             // update arg1
@@ -1534,7 +1534,7 @@ static struct expr *literal_expr(struct token *t, int id,
     return expr;
 }
 
-struct expr *new_integer_literal(int i)
+struct expr *new_int_literal(long i)
 {
     struct token t = {.id = ICONSTANT, .u.lit.str = strd(i), .u.lit.v.i = i};
     return literal_expr(&t, INTEGER_LITERAL, integer_constant);
@@ -1615,7 +1615,7 @@ static struct expr * compound_literal(struct type *ty, struct expr *inits, struc
     // define local variable
     if (SCOPE >= LOCAL) {
         const char *label = gen_compound_label();
-        struct symbol *sym = make_localvar(label, ty, 0);
+        struct symbol *sym = mklocalvar(label, ty, 0);
         SYM_INIT(sym) = inits;
         // set sym
         EXPR_SYM(ret) = sym;
@@ -1709,6 +1709,12 @@ struct expr *decls2expr(struct symbol **decls)
 struct expr *binop(int op, struct expr *l, struct expr *r)
 {
     return actions.bop(op, l, r, source);
+}
+
+struct expr *assign(struct symbol *sym, struct expr *r)
+{
+    struct expr *l = make_ref_expr(sym, SYM_SRC(sym));
+    return ast_bop('=', SYM_TYPE(sym), l, r);
 }
 
 /// stmt

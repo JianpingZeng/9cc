@@ -627,7 +627,8 @@ extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
 extern int first_typename(struct token *t);
-extern struct symbol *make_localvar(const char *name, struct type *ty, int sclass);
+extern struct symbol *mklocalvar(const char *name, struct type *ty, int sclass);
+extern struct symbol *mktmpvar(struct type *ty, int sclass);
 
 /// switch structs
 
@@ -680,7 +681,7 @@ extern void field_not_found_error(struct type *ty, const char *name);
 
 extern bool islvalue(struct expr *node);
 extern struct expr *assignconv(struct type *ty, struct expr *node);
-extern struct expr *new_integer_literal(int i);
+extern struct expr *new_int_literal(long i);
 extern struct expr *new_string_literal(const char *string);
 
 extern long intexpr1(struct type *ty);
@@ -692,6 +693,8 @@ extern struct expr *switch_expr(void);
 extern struct expr *decls2expr(struct symbol **decls);
 // for eval
 extern struct expr *binop(int op, struct expr *l, struct expr *r);
+
+extern struct expr *assign(struct symbol *sym, struct expr *r);
 
 extern void ensure_return(struct expr *expr, bool isnull, struct source src);
 extern void ensure_gotos(void);

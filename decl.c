@@ -1495,7 +1495,7 @@ static void predefined_ids(void)
      */
     const char *name = "__func__";
     struct type *type = array_type(qual(CONST, chartype));
-    struct symbol *sym = make_localvar(name, type, STATIC);
+    struct symbol *sym = mklocalvar(name, type, STATIC);
     SYM_PREDEFINE(sym) = true;
     // initializer
     struct expr *literal = new_string_literal(func.name);
@@ -1533,7 +1533,12 @@ static void func_body(struct symbol *sym)
     SYM_COMPOUND(sym) = stmt;
 }
 
-struct symbol *make_localvar(const char *name, struct type * ty, int sclass)
+struct symbol *mklocalvar(const char *name, struct type * ty, int sclass)
 {
     return localdecl(name, ty, sclass, 0, source);
+}
+
+struct symbol *mktmpvar(struct type *ty, int sclass)
+{
+    return localdecl(gen_tmpname(), ty, sclass, 0, source);
 }

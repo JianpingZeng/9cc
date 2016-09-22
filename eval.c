@@ -106,7 +106,7 @@ static struct expr *one_literal(void)
 {
     static struct expr *_one_literal;
     if (!_one_literal)
-        _one_literal = new_integer_literal(1);
+        _one_literal = new_int_literal(1);
     return _one_literal;
 }
 
@@ -114,7 +114,7 @@ static struct expr *zero_literal(void)
 {
     static struct expr *_zero_literal;
     if (!_zero_literal)
-        _zero_literal = new_integer_literal(0);
+        _zero_literal = new_int_literal(0);
     return _zero_literal;
 }
 

@@ -178,7 +178,7 @@ static void for_stmt(int lab, struct swtch *swtch)
 ///
 static void switch_stmt(int lab, int cnt)
 {
-    struct expr *expr;
+    struct expr *expr, *n, *tmp;
     struct source src = source;
     struct swtch *swtch = NEWS0(struct swtch, FUNC);
 
@@ -190,14 +190,25 @@ static void switch_stmt(int lab, int cnt)
     swtch->src = src;
     swtch->type = expr ? EXPR_TYPE(expr) : inttype;
         
-    // TODO:
     // make a tmp var
+    n = assign(mktmpvar(swtch->type, REGISTER), expr);
+    tmp = EXPR_OPERAND(n, 0);
+
+    actions.gen(n);
     actions.jump(lab);
     statement(cnt, lab+1, swtch);
     actions.jump(lab+1);
     actions.label(lab);
-    // TODO:
+    
     // gen switch code
+    for (struct cse *cs = swtch->cases; cs; cs = cs->link) {
+        struct expr *e = ast_bop(EQ, inttype, tmp, new_int_literal(cs->value));
+        actions.branch(e, cs->label, 0);
+    }
+
+    if (swtch->defalt)
+        actions.jump(swtch->defalt->label);
+    
     actions.label(lab+1);
 }
 
