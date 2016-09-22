@@ -12,9 +12,7 @@ include		Header files provided by this compiler.
 
 libcpp          C Preprocessor.
 
-utils		Common utilities.
-
-test		Test suite.
+libutils	Common utilities.
 
 
 HOWTO build:
