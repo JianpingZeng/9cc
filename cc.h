@@ -228,37 +228,6 @@ extern bool is_imm_operand(struct operand *operand);
 extern bool is_direct_mem_operand(struct operand *operand);
 extern struct symbol * make_label_sym(const char *name);
 
-enum { LABEL = 1, GEN, JMP, CBR, RET };
-struct code {
-    int id;
-    union {
-        struct {
-            int label;
-        } lab;
-
-        struct {
-            struct expr *tree;
-        } gen;
-
-        struct {
-            int label;
-        } jmp;
-
-        struct {
-            struct expr *tree;
-            int tlab;
-            int flab;
-        } cbr;
-
-        struct {
-            struct expr *tree;
-        } ret;
-    } u;
-    struct code *next, *prev;
-};
-
-extern int genlabel(int count);
-
 // block.c
 extern void construct_basic_blocks(struct symbol *sym, struct tac *head);
 #define REF_SYM(sym)  (SYM_X_KIND(sym) == SYM_KIND_GREF ||\
@@ -608,6 +577,8 @@ struct stmt {
     } x;
 };
 
+// ast.c
+
 extern const char *nname(int id);
 // expr
 extern struct expr *ast_expr(int id, struct type *ty, struct expr *l, struct expr *r);
@@ -626,6 +597,7 @@ extern const char *gen_static_label(void);
 extern const char *gen_compound_label(void);
 extern const char *gen_sliteral_label(void);
 extern const char *gen_block_label(void);
+extern int genlabel(int count);
 
 // decl
 #define isfuncdef(n)   (isfunc(SYM_TYPE(n)) && SYM_COMPOUND(n))
@@ -726,6 +698,35 @@ extern void ensure_gotos(void);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
 
+enum { LABEL = 1, GEN, JMP, CBR, RET };
+struct code {
+    int id;
+    union {
+        struct {
+            int label;
+        } lab;
+
+        struct {
+            struct expr *tree;
+        } gen;
+
+        struct {
+            int label;
+        } jmp;
+
+        struct {
+            struct expr *tree;
+            int tlab;
+            int flab;
+        } cbr;
+
+        struct {
+            struct expr *tree;
+        } ret;
+    } u;
+    struct code *next, *prev;
+};
+
 // sema actions
 struct actions {
     void (*init) (int argc, char *argv[]);
@@ -762,6 +763,13 @@ struct actions {
     struct expr * (*sconst) (struct token *tok);
     struct expr * (*paren) (struct expr *node, struct source src);
     struct expr * (*compound_literal) (struct type *ty, struct expr *init, struct source src);
+
+    // stmt
+    void (*branch) (struct expr *expr, int tlab, int flab);
+    void (*jump) (int label);
+    void (*ret) (struct expr *expr);
+    void (*label) (int label);
+    void (*gen) (struct expr *expr);
 };
 extern struct actions actions;
 
@@ -908,12 +916,6 @@ struct ir {
     void (*defun) (struct symbol *);
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
-
-    void (*branch) (struct expr *expr, int tlab, int flab);
-    void (*jump) (int label);
-    void (*ret) (struct expr *expr);
-    void (*label) (int label);
-    void (*gen) (struct expr *expr);
 };
 extern struct ir *IR;
 

@@ -111,3 +111,11 @@ const char *gen_block_label(void)
     static size_t i;
     return format(".LBB_%llu", i++);
 }
+
+int genlabel(int count)
+{
+    static int lab = 1;
+    assert(count > 0);
+    lab += count;
+    return lab - count;
+}

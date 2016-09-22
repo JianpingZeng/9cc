@@ -11,7 +11,7 @@ static void expr_stmt(void)
         // do nothing
     } else if (first_expr(token)) {
         struct expr *e = expression();
-        if (e) IR->gen(e);
+        if (e) actions.gen(e);
     } else {
         error("missing statement before '%s'", tok2s(token));
     }
@@ -40,7 +40,7 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     cond = bool_expr();
     expect(')');
 
-    IR->branch(cond, 0, lab);
+    actions.branch(cond, 0, lab);
     
     enter_scope();
     statement(cnt, brk, swtch);
@@ -48,14 +48,14 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 
     if (token->id == ELSE) {
         expect(ELSE);
-        IR->jump(lab+1);
-        IR->label(lab);
+        actions.jump(lab+1);
+        actions.label(lab);
         enter_scope();
         statement(cnt, brk, swtch);
         exit_scope();
-        IR->label(lab+1);
+        actions.label(lab+1);
     } else {
-        IR->label(lab);
+        actions.label(lab);
     }
 
     exit_scope();
@@ -79,12 +79,12 @@ static void while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     cond = bool_expr();
     expect(')');
 
-    IR->jump(lab+1);
-    IR->label(lab);
+    actions.jump(lab+1);
+    actions.label(lab);
     statement(lab+1, lab+2, swtch);
-    IR->label(lab+1);
-    IR->branch(cond, lab, 0);
-    IR->label(lab+2);
+    actions.label(lab+1);
+    actions.branch(cond, lab, 0);
+    actions.label(lab+2);
 
     exit_scope();
 }
@@ -99,16 +99,16 @@ static void do_while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     enter_scope();
 
     expect(DO);
-    IR->label(lab);
+    actions.label(lab);
     statement(lab+1, lab+2, swtch);
     expect(WHILE);
     expect('(');
     cond = bool_expr();
     expect(')');
     expect(';');
-    IR->label(lab+1);
-    IR->branch(cond, lab, 0);
-    IR->label(lab+2);
+    actions.label(lab+1);
+    actions.branch(cond, lab, 0);
+    actions.label(lab+2);
 
     exit_scope();
 }
@@ -151,15 +151,15 @@ static void for_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 
     expect(')');
 
-    IR->gen(init);
-    IR->jump(lab+3);
-    IR->label(lab);
+    actions.gen(init);
+    actions.jump(lab+3);
+    actions.label(lab);
     statement(lab+1, lab+2, swtch);
-    IR->label(lab+1);
-    IR->gen(ctrl);
-    IR->label(lab+3);
-    IR->branch(cond, lab, 0);
-    IR->label(lab+2);
+    actions.label(lab+1);
+    actions.gen(ctrl);
+    actions.label(lab+3);
+    actions.branch(cond, lab, 0);
+    actions.label(lab+2);
     
     exit_scope();
 }
@@ -192,13 +192,13 @@ static void switch_stmt(int lab, int cnt, int brk)
         
     // TODO:
     // make a tmp var
-    IR->jump(lab);
+    actions.jump(lab);
     statement(cnt, lab+1, swtch);
-    IR->jump(lab+1);
-    IR->label(lab);
+    actions.jump(lab+1);
+    actions.label(lab);
     // TODO:
     // gen switch code
-    IR->label(lab+1);
+    actions.label(lab+1);
 }
 
 /// labeled-statement:
@@ -225,7 +225,7 @@ static void case_stmt(int cnt, int brk, struct swtch *swtch)
         cse->link = swtch->cases;
         swtch->cases = cse;
 
-        IR->label(cse->label);
+        actions.label(cse->label);
     } else {
         error_at(src, "'case' statement not in switch statement");
     }
@@ -260,7 +260,7 @@ static void default_stmt(int cnt, int brk, struct swtch *swtch)
         // set
         swtch->defalt = defalt;
 
-        IR->label(defalt->label);
+        actions.label(defalt->label);
     } else {
         error_at(src, "'default' statement not in switch statement");
     }
@@ -297,7 +297,7 @@ static void label_stmt(int cnt, int brk, struct swtch *swtch)
                      prev.file, prev.line, prev.column);
         }
 
-        IR->label(SYM_X_LABEL(sym));
+        actions.label(SYM_X_LABEL(sym));
     }
 
     statement(cnt, brk, swtch);
@@ -328,7 +328,7 @@ static void goto_stmt(void)
         if (!SYM_DEFINED(sym))
             mark_goto(id, src);
 
-        IR->jump(SYM_X_LABEL(sym));
+        actions.jump(SYM_X_LABEL(sym));
     }
 }
 
@@ -343,7 +343,7 @@ static void break_stmt(int brk)
     expect(';');
 
     if (brk)
-        IR->jump(brk);
+        actions.jump(brk);
     else
         error_at(src, "'break' statement not in loop or switch statement");
 }
@@ -359,7 +359,7 @@ static void continue_stmt(int cnt)
     expect(';');
 
     if (cnt)
-        IR->jump(cnt);
+        actions.jump(cnt);
     else
         error_at(src, "'continue' statement not in loop statement");
 }
@@ -381,7 +381,7 @@ static void return_stmt(void)
 
     expect(';');
     ensure_return(e, isnull, src);
-    IR->ret(e);
+    actions.ret(e);
 }
 
 /// statement:

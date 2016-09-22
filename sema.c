@@ -1771,6 +1771,38 @@ void mark_goto(const char *id, struct source src)
     vec_push(func.gotos, info);
 }
 
+static struct code *alloc_code(int id)
+{
+    struct code *code = zmalloc(sizeof(struct code));
+    code->id = id;
+    return code;
+}
+
+static void branch(struct expr *expr, int tlab, int flab)
+{
+    
+}
+
+static void jmpto(int label)
+{
+    
+}
+
+static void ret(struct expr *expr)
+{
+    
+}
+
+static void label(int label)
+{
+    
+}
+
+static void gen(struct expr *expr)
+{
+    
+}
+
 /// decl
 
 static void dclvar(struct symbol *n)
@@ -1856,4 +1888,11 @@ struct actions actions = {
     .sconst = sconst,
     .paren = paren,
     .compound_literal = compound_literal,
+
+    // stmt
+    .branch = branch,
+    .jump = jmpto,
+    .ret = ret,
+    .label = label,
+    .gen = gen,
 };
