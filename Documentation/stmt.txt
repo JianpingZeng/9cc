@@ -60,8 +60,31 @@ SYNTAX:
 
 COMMENT:
 
+           t = expression
+           goto L
+           statement <LC1, LC2, ...>
+           goto L+1
+        L: if t == case1 goto LC1
+           if t == case2 goto LC2
+           ...
+      L+1:
+
 
 PSEUDO CODE:
+
+       switch_stmt(lab, cnt, brk):
+           expect(SWITCH)
+           expect('(')
+           e = expression()
+           expect(')')
+           e2 = assign(gentmp(), e)
+           jump(lab)
+           statement(cnt, lab+1)
+           jump(lab+1)
+           label(lab)
+           for case in cases:
+               branch(e2, case.label, 0)
+           label(lab+1)
 
 
 iteration-statement:
@@ -261,6 +284,14 @@ PSEUDO CODE:
 labeled-statement:
 ==================
 
+SYNTAX:
+
+        labeled-statement:
+                identifier ':' statement
+                'case' constant-expression ':' statement
+                'default' ':' statement
+
+
 label-statement:
 ----------------
 
@@ -270,8 +301,13 @@ SYNTAX:
 
 COMMENT:
 
+        L: statement
 
 PSEUDO CODE:
+
+       label_stmt(cnt, brk):
+           label(id.label)
+           statement(cnt, brk)
 
 
 case-statement:
@@ -283,8 +319,16 @@ SYNTAX:
 
 COMMENT:
 
+        L: statement
 
 PSEUDO CODE:
+
+       case_stmt(lab, cnt, brk):
+           expect(CASE)
+           case.cnst = constant_expression()
+           expect(':')
+           label(lab)
+           statement(cnt, brk)
 
 
 default-statement:
@@ -296,9 +340,15 @@ SYNTAX:
 
 COMMENT:
 
+        L: statement
 
 PSEUDO CODE:
 
+       default_stmt(lab, cnt, brk):
+           expect(DEFAULT)
+           expect(':')
+           label(lab)
+           statement()
 
 
 expression-statement:
@@ -313,6 +363,7 @@ COMMENT:
 
 PSEUDO CODE:
 
+       emit(expression())
 
 
 compound-statement:
@@ -335,6 +386,15 @@ COMMENT:
 
 PSEUDO CODE:
 
+       expect('{')
+
+       while (first(decl) || first(stmt)):
+             if first(decl):
+                 declaration()
+             else:
+                 statement()
+
+       expect('}')
 
 
 statement:
@@ -355,17 +415,54 @@ PSEUDO CODE:
        statement(cnt, brk):
            switch(token):
                case '{':        compound_stmt(cnt, brk)
+
                case IF:         if_stmt(genlabel(2), cnt, brk)
-               case SWITCH:     switch_stmt(cnt, brk)
+
+               case SWITCH:     switch_stmt(genlabel(2), cnt, brk)
+
                case WHILE:      while_stmt(genlabel(3), cnt, brk)
+
                case DO:         do_while_stmt(genlabel(3), cnt, brk)
+
                case FOR:        for_stmt(genlabel(4), cnt, brk)
+
                case GOTO:       goto_stmt(cnt, brk)
+
                case CONTINUE:   continue_stmt(cnt, brk)
+
                case BREAK:      break_stmt(cnt, brk)
+
                case RETURN:     return_stmt()
-               case CASE:       case_stmt(cnt, brk)
-               case DEFAULT:    default_stmt(cnt, brk)
-               case ID:         if (lookahead == ':') label_stmt()
+
+               case CASE:       case_stmt(genlabel(1), cnt, brk)
+
+               case DEFAULT:    default_stmt(genlabel(1), cnt, brk)
+
+               case ID:         if (lookahead == ':') label_stmt(cnt, brk)
+
                default:         expr_stmt();
+
+
+
+
+Related functions:
+==================
+
+branch(expression, true_label, false_label)
+
+jump(label)
+
+label(label)
+
+emit(expression)
+
+assign(var, expression)
+
+gentmp()
+
+expect(token)
+
+expression()
+
+constant_expression()
 
