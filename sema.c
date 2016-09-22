@@ -1780,7 +1780,7 @@ static struct code *alloc_code(int id)
 
 static void branch(struct expr *expr, int tlab, int flab)
 {
-    
+    assert(tlab == 0 || flab == 0);
 }
 
 static void jmpto(int label)
