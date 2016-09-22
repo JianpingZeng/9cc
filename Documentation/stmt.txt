@@ -386,15 +386,16 @@ COMMENT:
 
 PSEUDO CODE:
 
-       expect('{')
+       compound_stmt(cnt, brk):
+           expect('{')
 
-       while (first(decl) || first(stmt)):
-             if first(decl):
-                 declaration()
-             else:
-                 statement()
+           while (first(decl) || first(stmt)):
+               if first(decl):
+                   declaration()
+               else:
+                   statement(cnt, brk)
 
-       expect('}')
+           expect('}')
 
 
 statement:
