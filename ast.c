@@ -17,7 +17,7 @@ const char *nname(int id)
 struct expr *ast_expr(int id, struct type *ty, struct expr *l, struct expr *r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
-    struct expr *expr = NEWS0(struct expr, FUNC);
+    struct expr *expr = NEWS0(struct expr, PERM);
     EXPR_ID(expr) = id;
     EXPR_TYPE(expr) = ty;
     EXPR_OPERAND(expr, 0) = l;
