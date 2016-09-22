@@ -68,7 +68,7 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 /// iteration-statement:
 ///   'while' '(' expression ')' statement
 ///
-static void while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
+static void while_stmt(int lab, struct swtch *swtch)
 {
     struct expr *cond;
 
@@ -92,7 +92,7 @@ static void while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 /// iteration-statement:
 ///   'do' statement 'while' '(' expression ')' ';'
 ///
-static void do_while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
+static void do_while_stmt(int lab, struct swtch *swtch)
 {
     struct expr *cond;
 
@@ -117,7 +117,7 @@ static void do_while_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 ///   'for' '(' expression[opt] ';' expression[opt] ';' expression[opt] ')' statement
 ///   'for' '(' declaration expression[opt] ';' expression[opt] ')' statement
 ///
-static void for_stmt(int lab, int cnt, int brk, struct swtch *swtch)
+static void for_stmt(int lab, struct swtch *swtch)
 {
     struct expr *init = NULL;
     struct expr *cond = NULL;
@@ -176,7 +176,7 @@ static void for_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 /// selection-statement:
 ///   'switch' '(' expression ')' statement
 ///
-static void switch_stmt(int lab, int cnt, int brk)
+static void switch_stmt(int lab, int cnt)
 {
     struct expr *expr;
     struct source src = source;
@@ -404,19 +404,19 @@ static void statement(int cnt, int brk, struct swtch *swtch)
         break;
 
     case SWITCH:
-        switch_stmt(genlabel(2), cnt, brk);
+        switch_stmt(genlabel(2), cnt);
         break;
 
     case WHILE:
-        while_stmt(genlabel(3), cnt, brk, swtch);
+        while_stmt(genlabel(3), swtch);
         break;
 
     case DO:
-        do_while_stmt(genlabel(3), cnt, brk, swtch);
+        do_while_stmt(genlabel(3), swtch);
         break;
 
     case FOR:
-        for_stmt(genlabel(4), cnt, brk, swtch);
+        for_stmt(genlabel(4), swtch);
         break;
 
     case GOTO:
