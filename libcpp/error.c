@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include "config.h"
-#include "utils/color.h"
+#include "libutils/color.h"
 #include "lex.h"
 #include "internal.h"
 

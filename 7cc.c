@@ -11,7 +11,7 @@
 #include <time.h>
 #include <ctype.h>
 #include "config.h"
-#include "utils/utils.h"
+#include "libutils/utils.h"
 
 static const char *progname;
 static struct vector *inputs;

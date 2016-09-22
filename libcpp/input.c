@@ -8,7 +8,7 @@
 #include <limits.h>
 #include "lex.h"
 #include "internal.h"
-#include "utils/utils.h"
+#include "libutils/utils.h"
 
 struct file *cpp_file;
 

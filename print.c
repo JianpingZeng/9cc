@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include "cc.h"
-#include "utils/color.h"
+#include "libutils/color.h"
 
 #define STR(str)  ((str) ? (str) : "<null>")
 static FILE *outfd;

@@ -9,7 +9,7 @@
 #include <limits.h>
 
 #include "config.h"
-#include "utils/utils.h"
+#include "libutils/utils.h"
 #include "libcpp/lex.h"
 
 struct cc_options {
