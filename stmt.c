@@ -204,7 +204,7 @@ static void switch_stmt(int lab, int cnt)
 /// labeled-statement:
 ///   'case' constant-expression ':' statement
 ///
-static void case_stmt(int cnt, int brk, struct swtch *swtch)
+static void case_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
     struct source src = source;
     long value;
@@ -217,7 +217,7 @@ static void case_stmt(int cnt, int brk, struct swtch *swtch)
         struct cse *cse = NEWS0(struct cse, FUNC);
         cse->src = src;
         cse->value = value;
-        cse->label = genlabel(1);
+        cse->label = lab;
 
         check_case_duplicates(cse, swtch);
 
@@ -225,7 +225,7 @@ static void case_stmt(int cnt, int brk, struct swtch *swtch)
         cse->link = swtch->cases;
         swtch->cases = cse;
 
-        actions.label(cse->label);
+        actions.label(lab);
     } else {
         error_at(src, "'case' statement not in switch statement");
     }
@@ -237,7 +237,7 @@ static void case_stmt(int cnt, int brk, struct swtch *swtch)
 /// labeled-statement:
 ///   'default' ':' statement
 ///
-static void default_stmt(int cnt, int brk, struct swtch *swtch)
+static void default_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
     struct source src = source;
 
@@ -256,11 +256,11 @@ static void default_stmt(int cnt, int brk, struct swtch *swtch)
         // new default case
         struct cse *defalt = NEWS0(struct cse, FUNC);
         defalt->src = src;
-        defalt->label = genlabel(1);
+        defalt->label = lab;
         // set
         swtch->defalt = defalt;
 
-        actions.label(defalt->label);
+        actions.label(lab);
     } else {
         error_at(src, "'default' statement not in switch statement");
     }
@@ -271,7 +271,7 @@ static void default_stmt(int cnt, int brk, struct swtch *swtch)
 /// labled-statement:
 ///   identifier ':' statement
 ///
-static void label_stmt(int cnt, int brk, struct swtch *swtch)
+static void label_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
     struct source src = source;
     const char *id = NULL;
@@ -287,7 +287,7 @@ static void label_stmt(int cnt, int brk, struct swtch *swtch)
         if (!sym) {
             sym = install(id, &func.labels, LOCAL, FUNC);
             SYM_DEFINED(sym) = true;
-            SYM_X_LABEL(sym) = genlabel(1);
+            SYM_X_LABEL(sym) = lab;
         } else if (!SYM_DEFINED(sym)) {
             SYM_DEFINED(sym) = true;
         } else {
@@ -306,7 +306,7 @@ static void label_stmt(int cnt, int brk, struct swtch *swtch)
 /// jump-statement:
 ///   'goto' identifier ';'
 ///
-static void goto_stmt(void)
+static void goto_stmt(int lab)
 {
     struct source src = source;
     const char *id = NULL;
@@ -322,7 +322,7 @@ static void goto_stmt(void)
         struct symbol *sym = lookup(id, func.labels);
         if (!sym) {
             sym = install(id, &func.labels, LOCAL, FUNC);
-            SYM_X_LABEL(sym) = genlabel(1);
+            SYM_X_LABEL(sym) = lab;
         }
 
         if (!SYM_DEFINED(sym))
@@ -420,7 +420,7 @@ static void statement(int cnt, int brk, struct swtch *swtch)
         break;
 
     case GOTO:
-        goto_stmt();
+        goto_stmt(genlabel(1));
         break;
 
     case CONTINUE:
@@ -436,16 +436,16 @@ static void statement(int cnt, int brk, struct swtch *swtch)
         break;
 
     case CASE:
-        case_stmt(cnt, brk, swtch);
+        case_stmt(genlabel(1), cnt, brk, swtch);
         break;
 
     case DEFAULT:
-        default_stmt(cnt, brk, swtch);
+        default_stmt(genlabel(1), cnt, brk, swtch);
         break;
 
     case ID:
         if (lookahead()->id == ':') {
-            label_stmt(cnt, brk, swtch);
+            label_stmt(genlabel(1), cnt, brk, swtch);
             break;
         }
         // go through
