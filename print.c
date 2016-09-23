@@ -16,6 +16,7 @@ static FILE *outfd;
 
 
 static void print_expr1(struct expr * node, int level);
+static void print_stmt1(struct stmt *stmt, int level);
 
 static void putf(const char *fmt, ...)
 {
@@ -100,7 +101,8 @@ static void print_symbol1(struct symbol *sym, int level)
     putf("\n");
 
     if (isfuncdef(sym)) {
-        // TODO: 
+        for (struct stmt *stmt = sym->u.f.stmt; stmt; stmt = stmt->next)
+            print_stmt1(stmt, level + 1);
     } else {
         struct expr *init = sym->u.init;
         if (init)
@@ -174,6 +176,51 @@ static void print_expr1(struct expr * node, int level)
         if (EXPR_OPERAND(node, 2))
             print_expr1(EXPR_OPERAND(node, 2), level + 1);
     }
+}
+
+static void print_stmt1(struct stmt *stmt, int level)
+{
+    for (int i = 0; i < level; i++)
+        putf("  ");
+
+    switch (stmt->id) {
+    case LABEL:
+        putln(".L%d:", stmt->u.lab.label);
+        break;
+
+    case JMP:
+        putln("goto .L%d", stmt->u.lab.label);
+        break;
+
+    case GEN:
+        assert(stmt->u.gen.expr && "null expr in gen node");
+        print_expr1(stmt->u.gen.expr, level + 1);
+        break;
+
+    case CBR:
+        if (stmt->u.cbr.tlab)
+            putln("if expression != 0 goto .L%d", stmt->u.cbr.tlab);
+        else if (stmt->u.cbr.flab)
+            putln("if expression == 0 goto .L%d", stmt->u.cbr.flab);
+
+        if (stmt->u.cbr.expr)
+            print_expr1(stmt->u.cbr.expr, level + 1);
+        break;
+
+    case RET:
+        putln("ret");
+        if (stmt->u.ret.expr)
+            print_expr1(stmt->u.ret.expr, level + 1);
+        break;
+
+    default:
+        assert(0 && "unknown stmt type");
+    }
+}
+
+void print_stmt(struct stmt *stmt)
+{
+    print_stmt1(stmt, 0);
 }
 
 void print_field(struct field *field)

@@ -1271,7 +1271,7 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
             error("'extern' variable cannot have an initializer");
             initializer(NULL);
         } else if (istag(ty) && isincomplete(ty)) {
-            error("variable has incomplete type '%s'", type2s(ty));
+            error("variable '%s' has incomplete type '%s'", id, type2s(ty));
             initializer(NULL);
         } else {
             struct expr *init = initializer(ty);
@@ -1344,7 +1344,7 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
             error("'%s' cannot have an initializer", TYPE_NAME(ty));
             initializer(NULL);
         } else if (istag(ty) && isincomplete(ty)) {
-            error("variable has incomplete type '%s'", type2s(ty));
+            error("variable '%s' has incomplete type '%s'", id, type2s(ty));
             initializer(NULL);
         } else {
             struct expr *init = initializer(ty);
@@ -1503,11 +1503,12 @@ static void predefined_ids(void)
      *
      */
     struct type *type = array_type(qual(CONST, chartype));
-    struct symbol *sym = mklocalvar("__func__", type, STATIC);
-    sym->predefine = true;
     // initializer
     struct expr *literal = new_string_literal(func.name);
     init_string(type, literal);
+    
+    struct symbol *sym = mklocalvar("__func__", type, STATIC);
+    sym->predefine = true;
     sym->u.init = literal;
 }
 

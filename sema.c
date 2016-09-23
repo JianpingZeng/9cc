@@ -133,7 +133,7 @@ void ensure_decl(struct symbol * sym)
     struct source src = sym->src;
     if (isvardecl(sym)) {
         if (isincomplete(ty) && sym->defined)
-            error_at(src, "variable has incomplete type '%s'", type2s(ty));
+            error_at(src, "variable '%s' has incomplete type '%s'", sym->name, type2s(ty));
     }
 }
 
@@ -247,7 +247,7 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
         struct type *ty = p->type;
         if (isvoid(ty)) {
             if (i == 0) {
-                if (p->name) {
+                if (p->name && !is_anonymous(p->name)) {
                     error_at(p->src,
                              "argument may not have 'void' type");
                     p->type = inttype;
@@ -1834,9 +1834,11 @@ static void label(int label)
 
 static void gen(struct expr *expr)
 {
-    struct stmt *stmt = ast_stmt(GEN);
-    stmt->u.gen.expr = expr;
-    add_to_list(stmt);
+    if (expr) {
+        struct stmt *stmt = ast_stmt(GEN);
+        stmt->u.gen.expr = expr;
+        add_to_list(stmt);
+    }
 }
 
 /// decl
