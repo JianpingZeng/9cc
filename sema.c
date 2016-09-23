@@ -257,7 +257,7 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
                     p->type = inttype;
                 } else if (TYPE_VARG(ftype)) {
                     error_at(p->src,
-                         "'void' must be the first and only parameter if specified");
+                             "'void' must be the first and only parameter if specified");
                     p->type = inttype;
                 }
             } else {
@@ -1651,7 +1651,7 @@ static struct expr * compound_literal(struct type *ty, struct expr *inits, struc
     EXPR_SRC(ret) = EXPR_SRC(inits);
     
     // define local variable
-    if (SCOPE >= LOCAL) {
+    if (cscope >= LOCAL) {
         const char *label = gen_compound_label();
         struct symbol *sym = mklocalvar(label, ty, 0);
         sym->u.init = inits;

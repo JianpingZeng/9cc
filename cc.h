@@ -185,9 +185,7 @@ extern struct symbol *install(const char *name, struct table **tpp, int scope, i
 extern struct table *identifiers;
 extern struct table *constants;
 extern struct table *tags;
-extern int _scope;
-
-#define SCOPE  _scope
+extern int cscope;              // current scope
 
 // ast
 // node ids
@@ -479,7 +477,6 @@ extern bool isstruct(struct type *type);
 extern bool isunion(struct type *type);
 extern bool isrecord(struct type *type);     // isstruct or isunion
 extern bool istag(struct type *type);        // isstruct or isunion or isenum
-
 extern bool isint(struct type *ty);
 extern bool isfloat(struct type *ty);
 extern bool isarith(struct type *ty);
@@ -488,8 +485,6 @@ extern bool isptrto(struct type *ty, int kind);
 extern bool isbool(struct type *ty);
 
 // error.c
-enum { WRN = 1, ERR, FTL };
-
 extern unsigned int errors, warnings;
 extern void warningf(struct source src, const char *fmt, ...);
 extern void errorf(struct source src, const char *fmt, ...);
@@ -516,7 +511,6 @@ extern void print_type(struct symbol *sym);
 extern void print_symbol(struct symbol *sym);
 extern const char *type2s(struct type *ty);
 extern const char *expr2s(struct expr *node);
-extern void print_source(struct source src);
 
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define BUILTIN_VA_START    "__builtin_va_start"
@@ -545,7 +539,7 @@ struct machine {
     const char *arch;
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
-    void (*defvar) (struct symbol *, int);
+    void (*defvar) (struct symbol *, int seg);
     void (*defun) (struct symbol *);
     struct metrics boolmetrics;
     struct metrics charmetrics;

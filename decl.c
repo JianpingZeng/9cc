@@ -356,7 +356,7 @@ static void exit_params(struct symbol *params[])
         error_at(params[0]->src,
                  "a parameter list without types is only allowed in a function definition");
     
-    if (SCOPE > PARAM)
+    if (cscope > PARAM)
         exit_scope();
 
     exit_scope();
@@ -432,7 +432,7 @@ static struct symbol **oldstyle(struct type *ftype)
         expect(',');
     }
 
-    if (SCOPE > PARAM)
+    if (cscope > PARAM)
         error("a parameter list without types is only allowed in a function definition");
 
     return ltoa(&params, FUNC);
@@ -578,7 +578,7 @@ static struct type *func_or_array(bool abstract, struct symbol ***params)
              * easy.
              */
             enter_scope();
-            if (SCOPE > PARAM)
+            if (cscope > PARAM)
                 enter_scope();
             args = parameters(ftype);
             if (params && *params == NULL)
@@ -670,7 +670,7 @@ static void ids(struct symbol *sym)
             if (s && is_current_scope(s))
                 redefinition_error(source, s);
 
-            s = install(name, &identifiers, SCOPE, SCOPE < LOCAL ? PERM : FUNC);
+            s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
             s->type = sym->type;
             s->src = source;
             s->sclass = ENUM;
@@ -1005,7 +1005,7 @@ static void decls(decl_p * dcl)
 {
     struct type *basety;
     int sclass, fspec;
-    int level = SCOPE;
+    int level = cscope;
     int follow[] = {STATIC, INT, CONST, IF, '}', 0};
 
     basety = specifiers(&sclass, &fspec);
@@ -1092,7 +1092,7 @@ struct symbol *mktmpvar(struct type *ty, int sclass)
 
 void declaration(void)
 {
-    assert(SCOPE >= LOCAL);
+    assert(cscope >= LOCAL);
     decls(localdecl);
 }
 
@@ -1114,7 +1114,7 @@ void translation_unit(void)
 {
     for (gettok(); token->id != EOI;) {
         if (first_decl(token)) {
-            assert(SCOPE == GLOBAL);
+            assert(cscope == GLOBAL);
             decls(globaldecl);
             deallocate(FUNC);
         } else {
@@ -1153,7 +1153,7 @@ static void typedefdecl(const char *id, struct type *ty, int fspec, int level, s
     struct symbol *sym = lookup(id, identifiers);
     if (sym && is_current_scope(sym))
         redefinition_error(src, sym);
-    sym = install(id, &identifiers, SCOPE, SCOPE < LOCAL ? PERM : FUNC);
+    sym = install(id, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
     sym->type = ty;
     sym->src = src;
     sym->sclass = sclass;
@@ -1192,7 +1192,7 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
             ty = qual(VOLATILE, ty);
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
         if (!TYPE_TSYM(ty)->defined ||
-            TYPE_TSYM(ty)->scope == SCOPE)
+            TYPE_TSYM(ty)->scope == cscope)
             warning_at(src,
                        "declaration of '%s' will not be visible outside of this function",
                        type2s(ty));
@@ -1203,11 +1203,11 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
         
     if (id) {
         sym = lookup(id, identifiers);
-        if (sym && sym->scope == SCOPE)
+        if (sym && sym->scope == cscope)
             redefinition_error(source, sym);
-        sym = install(id, &identifiers, SCOPE, FUNC);
+        sym = install(id, &identifiers, cscope, FUNC);
     } else {
-        sym = anonymous(&identifiers, SCOPE, FUNC);
+        sym = anonymous(&identifiers, cscope, FUNC);
     }
 
     sym->type = ty;
@@ -1228,7 +1228,7 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
     struct symbol *sym = NULL;
 
     assert(id);
-    assert(SCOPE >= LOCAL);
+    assert(cscope >= LOCAL);
 
     if (isfunc(ty)) {
         ensure_func(ty, src);
@@ -1254,7 +1254,7 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
                     sym->sclass == EXTERN)))) {
         redefinition_error(src, sym);
     } else {
-        sym = install(id, &identifiers, SCOPE, FUNC);
+        sym = install(id, &identifiers, cscope, FUNC);
         sym->type = ty;
         sym->src = src;
         sym->sclass = sclass;
@@ -1304,7 +1304,7 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
     struct symbol *sym = NULL;
 
     assert(id);
-    assert(SCOPE == GLOBAL);
+    assert(cscope == GLOBAL);
 
     if (sclass == AUTO || sclass == REGISTER) {
         error_at(src, "illegal storage class on file-scoped variable");
@@ -1321,8 +1321,8 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
     ensure_inline(ty, fspec, src);
 
     sym = lookup(id, identifiers);
-    if (!sym || sym->scope != SCOPE) {
-        sym = install(id, &identifiers, SCOPE, PERM);
+    if (!sym || sym->scope != cscope) {
+        sym = install(id, &identifiers, cscope, PERM);
         sym->type = ty;
         sym->src = src;
         sym->sclass = sclass;
@@ -1412,8 +1412,8 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
                     struct symbol *params[], struct source src)
 {
     struct symbol *sym;
-    // SCOPE == PARAM (prototype)
-    // SCOPE == GLOBAL (oldstyle)
+    // cscope == PARAM (prototype)
+    // cscope == GLOBAL (oldstyle)
 
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", id2s(sclass));
@@ -1447,7 +1447,7 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
     // old style function parameters declaration
     if (TYPE_OLDSTYLE(ftype)) {
         enter_scope();
-        assert(SCOPE == PARAM);
+        assert(cscope == PARAM);
         /// declaration-list:
         ///   declaration
         ///   declaration-list declaration

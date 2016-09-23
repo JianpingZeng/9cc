@@ -6,7 +6,7 @@ struct table *identifiers;
 struct table *constants;
 struct table *tags;
 
-int _scope = GLOBAL;
+int cscope = GLOBAL;
 
 struct symbol *alloc_symbol(int area)
 {
@@ -37,23 +37,23 @@ void symbol_init(void)
 
 void enter_scope(void)
 {
-    _scope++;
+    cscope++;
 }
 
 void exit_scope(void)
 {
-    if (tags->scope == _scope) {
+    if (tags->scope == cscope) {
         struct table *up = tags->up;
         free_table(tags);
         tags = up;
     }
-    if (identifiers->scope == _scope) {
+    if (identifiers->scope == cscope) {
         struct table *up = identifiers->up;
         free_table(identifiers);
         identifiers = up;
     }
-    assert(_scope >= GLOBAL);
-    _scope--;
+    assert(cscope >= GLOBAL);
+    cscope--;
 }
 
 void foreach(struct table *tp, int level, void (*apply) (struct symbol *, void *), void *context)
@@ -69,7 +69,7 @@ void foreach(struct table *tp, int level, void (*apply) (struct symbol *, void *
 
 bool is_current_scope(struct symbol *sym)
 {
-    return sym->scope == SCOPE || (sym->scope == PARAM && SCOPE == LOCAL);
+    return sym->scope == cscope || (sym->scope == PARAM && cscope == LOCAL);
 }
 
 bool is_anonymous(const char *name)

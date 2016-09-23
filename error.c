@@ -6,6 +6,7 @@
 #include "libutils/color.h"
 #include "cc.h"
 
+enum { WRN = 1, ERR, FTL };
 unsigned int errors, warnings;
 
 #define MAX_ERRORS 32

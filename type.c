@@ -294,9 +294,9 @@ struct symbol *tag_type(int t, const char *tag, struct source src)
             redefinition_error(src, sym);
         }
 
-        sym = install(tag, &tags, SCOPE, PERM);
+        sym = install(tag, &tags, cscope, PERM);
     } else {
-        sym = anonymous(&tags, SCOPE, PERM);
+        sym = anonymous(&tags, cscope, PERM);
         _TYPE_TAG(ty) = sym->name;
     }
 

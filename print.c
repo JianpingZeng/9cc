@@ -497,10 +497,4 @@ const char *expr2s(struct expr * node)
     }
     return STR(strbuf_str(s));
 }
-
-void print_source(struct source src)
-{
-    println("location: %s:%u:%u", src.file, src.line, src.column);
-}
-
 // TODO: print typedef names
