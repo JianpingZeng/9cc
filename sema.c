@@ -119,11 +119,8 @@ void ensure_field(struct field * field, size_t total, bool last)
         ensure_nonbitfield(field, total, last);
 }
 
-void ensure_decl(struct symbol * sym, int sclass, int level)
-{
-    if (level == PARAM)
-        return;
-
+void ensure_decl(struct symbol * sym)
+{    
     struct type *ty = SYM_TYPE(sym);
     struct source src = SYM_SRC(sym);
     if (isvardecl(sym)) {

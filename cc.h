@@ -620,7 +620,7 @@ extern struct expr *assign_expr(void);
 extern struct expr *cond_expr(void);
 
 // decl.c
-extern struct symbol **declaration(void);
+extern void declaration(void);
 extern void translation_unit(void);
 extern struct type *typename(void);
 extern int first_decl(struct token *t);
@@ -670,7 +670,7 @@ extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swt
 // sema.c
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
 extern void ensure_field(struct field *field, size_t total, bool last);
-extern void ensure_decl(struct symbol *sym, int sclass, int kind);
+extern void ensure_decl(struct symbol *sym);
 extern void ensure_array(struct type *atype, struct source src, int level);
 extern void ensure_func(struct type *ftype, struct source src);
 extern void ensure_main(struct type *ftype, const char *name, struct source src);

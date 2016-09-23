@@ -4,23 +4,17 @@
 static void abstract_declarator(struct type ** ty);
 static void declarator(struct type ** ty, struct token **id, struct symbol ***params);
 static void param_declarator(struct type ** ty, struct token **id);
-static struct type *ptr_decl(void);
 static struct type *tag_decl(void);
 static void ids(struct symbol *sym);
 static void fields(struct symbol * sym);
 
-static void funcdef(const char *id, struct type * ty, int sclass, int fspec,
-                    struct symbol *params[], struct source src);
-static void typedefdecl(const char *id, struct type * ty, int fspec, int level, struct source src);
-
 typedef struct symbol *decl_p(const char *id, struct type * ty, int sclass, int fspec, struct source src);
-static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src);
-static struct symbol *globaldecl(const char *id, struct type * ty, int sclass, int fspec, struct source src);
-static struct symbol *localdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src);
-static struct vector *decls(decl_p * dcl);
+static struct symbol *paramdecl(const char *, struct type *, int, int, struct source);
+static struct symbol *globaldecl(const char *, struct type *, int, int, struct source);
+static struct symbol *localdecl(const char *, struct type *, int, int, struct source);
+static void decls(decl_p * dcl);
 
-static void func_body(struct symbol *decl);
-
+static void func_body(struct symbol *sym);
 struct func func;
 
 #define PACK_PARAM(prototype, first, fvoid, sclass)     \
@@ -1168,6 +1162,9 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
         }
     }
 
+    // check incomplete type
+    ensure_decl(sym);
+
     // actions
     if (isfunc(ty))
         actions.dclfun(sym);
@@ -1218,6 +1215,9 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
 
     if (token->id == '=')
         SYM_INIT(sym) = decl_initializer(sym, sclass, GLOBAL);
+
+    // check incomplete type
+    ensure_decl(sym);
 
     // actions
     if (SYM_INIT(sym))
@@ -1375,9 +1375,8 @@ struct type *typename(void)
 ///   declarator
 ///   declarator '=' initializer
 ///
-static struct vector *decls(decl_p * dcl)
+static void decls(decl_p * dcl)
 {
-    struct vector *v = vec_new();
     struct type *basety;
     int sclass, fspec;
     int level = SCOPE;
@@ -1405,7 +1404,7 @@ static struct vector *decls(decl_p * dcl)
                 
                 funcdef(id ? TOK_ID_STR(id) : NULL,
                         ty, sclass, fspec, params, id ? id->src : src);
-                return NULL;
+                return;
             } else {
                 exit_params(params);
             }
@@ -1413,13 +1412,10 @@ static struct vector *decls(decl_p * dcl)
 
         for (;;) {
             if (id) {
-                if (sclass == TYPEDEF) {
+                if (sclass == TYPEDEF)
                     typedefdecl(TOK_ID_STR(id), ty, fspec, level, id->src);
-                } else {
-                    struct symbol *sym = dcl(TOK_ID_STR(id), ty, sclass, fspec, id->src);
-                    ensure_decl(sym, sclass, level);
-                    vec_push(v, sym);
-                }
+                else
+                    dcl(TOK_ID_STR(id), ty, sclass, fspec, id->src);
             }
 
             if (token->id != ',')
@@ -1439,14 +1435,12 @@ static struct vector *decls(decl_p * dcl)
         error("invalid token '%s' in declaration", tok2s(token));
     }
     match(';', follow);
-
-    return v;
 }
 
-struct symbol **declaration(void)
+void declaration(void)
 {
     assert(SCOPE >= LOCAL);
-    return vtoa(decls(localdecl), FUNC);
+    decls(localdecl);
 }
 
 static void doglobal(struct symbol *sym, void *context)
