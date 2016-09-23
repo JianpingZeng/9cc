@@ -4,8 +4,9 @@
 #include "cc.h"
 #include "libutils/color.h"
 
-#define STR(str)  ((str) ? (str) : "<null>")
 static FILE *outfd;
+
+#define STR(str)  ((str) ? (str) : "<null>")
 #define SET_OUTFD(fd)                           \
     FILE *_saved_fd = outfd;                    \
     outfd = fd
@@ -17,15 +18,9 @@ static FILE *outfd;
 static void print_stmt1(struct stmt * node, int level);
 static void print_expr1(struct expr * node, int level);
 
-static void ensure_outfd(void)
-{
-    if (!outfd)
-        outfd = stderr;
-}
-
 static void putf(const char *fmt, ...)
 {
-    ensure_outfd();
+    if (!outfd) outfd = stderr;
     va_list ap;
     va_start(ap, fmt);
     vfprintf(outfd, fmt, ap);
@@ -34,7 +29,7 @@ static void putf(const char *fmt, ...)
 
 static void putln(const char *fmt, ...)
 {
-    ensure_outfd();
+    if (!outfd) outfd = stderr;
     va_list ap;
     va_start(ap, fmt);
     vfprintf(outfd, fmt, ap);
@@ -694,6 +689,20 @@ void print_ir_floats(struct map *floats)
             }
         }
     }
+}
+
+void ast_dump_symbol(struct symbol *n)
+{
+    SET_OUTFD(stdout);
+    print_symbol(n);
+    RESTORE_OUTFD();
+}
+
+void ast_dump_type(struct symbol *n)
+{
+    SET_OUTFD(stdout);
+    print_type(n);
+    RESTORE_OUTFD();
 }
 
 /**

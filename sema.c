@@ -1824,32 +1824,34 @@ static void gen(struct expr *expr)
 static void dclgvar(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_symbol(n);
+        ast_dump_symbol(n);
 }
 
 static void defgvar(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_symbol(n);
+        ast_dump_symbol(n);
     else
         IR->defvar(n);
 }
 
-static void defsvar(struct symbol *n)
+static void defsvar(struct symbol *n, const char *funcname)
 {
-    // TODO: 
+    if (opts.ast_dump)
+        return;
+    IR->defvar(n);
 }
 
 static void dclfun(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_symbol(n);
+        ast_dump_symbol(n);
 }
 
 static void defun(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_symbol(n);
+        ast_dump_symbol(n);
     else
         IR->defun(n);
 }
@@ -1857,7 +1859,7 @@ static void defun(struct symbol *n)
 static void deftype(struct symbol *n)
 {
     if (opts.ast_dump)
-        print_type(n);
+        ast_dump_type(n);
 }
 
 /// init/finalize

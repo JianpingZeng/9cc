@@ -709,12 +709,12 @@ struct actions {
     void (*finalize) (void);
 
     // decl
-    void (*dclgvar) (struct symbol *); // declare a global variable
-    void (*defgvar) (struct symbol *); // define a global variable
-    void (*defsvar) (struct symbol *); // define a local static variable
-    void (*dclfun) (struct symbol *);  // declare a function
-    void (*defun) (struct symbol *);   // define a function
-    void (*deftype) (struct symbol *); // declare/define a type: struct/union/enum/typedef
+    void (*dclgvar) (struct symbol *);               // declare a global variable
+    void (*defgvar) (struct symbol *);               // define a global variable
+    void (*defsvar) (struct symbol *, const char *); // define a local static variable
+    void (*dclfun) (struct symbol *);                // declare a function
+    void (*defun) (struct symbol *);                 // define a function
+    void (*deftype) (struct symbol *);               // declare/define a type: struct/union/enum/typedef
     
     // expr
     struct expr * (*commaop) (struct expr *l, struct expr *r, struct source src);
@@ -864,6 +864,9 @@ extern void fatalf(const char *file, unsigned int line, unsigned int column,
 #define fatal(...)           fatal_at(source, __VA_ARGS__)
 
 // print.c
+extern void ast_dump_symbol(struct symbol *);
+extern void ast_dump_type(struct symbol *);
+
 extern void print_field(struct field *field);
 extern void print_expr(struct expr *expr);
 extern void print_stmt(struct stmt *stmt);

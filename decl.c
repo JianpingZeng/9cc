@@ -1281,7 +1281,9 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
             init = ensure_init(init, ty, sym);
             if (init) {
                 SYM_INIT(sym) = init;
-                // TODO: gen assign
+                // gen assign expr
+                if (sclass != STATIC)
+                    actions.gen(assign(sym, init));
             }
         }
     }
@@ -1304,7 +1306,7 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
     else if (sclass == EXTERN)
         actions.dclgvar(sym);
     else if (sclass == STATIC)
-        actions.defsvar(sym);
+        actions.defsvar(sym, func.name);
 
     return sym;
 }
