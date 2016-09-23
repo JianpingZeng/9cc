@@ -127,7 +127,7 @@ static void print_expr1(struct expr * node, int level)
     print_ty(EXPR_TYPE(node));
     if (islvalue(node))
         putf("'" CYAN("lvalue") "' ");
-
+    
     if (EXPR_SYM(node))
         putf(CYAN("%s "), STR(EXPR_SYM(node)->name));
     if (op == INCR || op == DECR)
@@ -472,7 +472,7 @@ const char *expr2s(struct expr * node)
         case '!':
         case SIZEOF:
         default:
-            assert(0);
+            assert(0 && "unexpect unary operator");
         }
         break;
     case SUBSCRIPT_EXPR:
@@ -542,7 +542,7 @@ const char *expr2s(struct expr * node)
         strbuf_cats(s, "{initializer}");
         break;
     default:
-        assert(0);
+        assert(0 && "unknown expr type");
     }
     return STR(strbuf_str(s));
 }

@@ -381,7 +381,7 @@ static void continue_stmt(int cnt)
 static void return_stmt(void)
 {
     struct source src = source;
-    struct expr *e;
+    struct expr *e = NULL;
     bool isnull = false;
 
     expect(RETURN);
