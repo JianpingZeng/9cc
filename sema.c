@@ -1821,18 +1821,23 @@ static void gen(struct expr *expr)
 
 /// decl
 
-static void dclvar(struct symbol *n)
+static void dclgvar(struct symbol *n)
 {
     if (opts.ast_dump)
         print_symbol(n);
 }
 
-static void defvar(struct symbol *n)
+static void defgvar(struct symbol *n)
 {
     if (opts.ast_dump)
         print_symbol(n);
     else
         IR->defvar(n);
+}
+
+static void defsvar(struct symbol *n)
+{
+    // TODO: 
 }
 
 static void dclfun(struct symbol *n)
@@ -1874,8 +1879,9 @@ struct actions actions = {
     .finalize = finalize,
 
     // decl
-    .dclvar = dclvar,
-    .defvar = defvar,
+    .dclgvar = dclgvar,
+    .defgvar = defgvar,
+    .defsvar = defsvar,
     .dclfun = dclfun,
     .defun = defun,
     .deftype = deftype,

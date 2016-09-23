@@ -1106,7 +1106,7 @@ static void doglobal(struct symbol *sym, void *context)
         SYM_DEFINED(sym))
         return;
 
-    actions.defvar(sym);
+    actions.defgvar(sym);
 }
 
 /// translation-unit:
@@ -1302,7 +1302,9 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
     if (isfunc(ty))
         actions.dclfun(sym);
     else if (sclass == EXTERN)
-        actions.dclvar(sym);
+        actions.dclgvar(sym);
+    else if (sclass == STATIC)
+        actions.defsvar(sym);
 
     return sym;
 }
@@ -1375,11 +1377,11 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
 
     // actions
     if (SYM_INIT(sym))
-        actions.defvar(sym);
+        actions.defgvar(sym);
     else if (isfunc(ty))
         actions.dclfun(sym);
     else
-        actions.dclvar(sym);
+        actions.dclgvar(sym);
 
     return sym;
 }

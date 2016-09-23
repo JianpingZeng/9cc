@@ -709,11 +709,12 @@ struct actions {
     void (*finalize) (void);
 
     // decl
-    void (*dclvar) (struct symbol *);
-    void (*defvar) (struct symbol *);
-    void (*dclfun) (struct symbol *);
-    void (*defun) (struct symbol *);
-    void (*deftype) (struct symbol *); // struct/union/enum/typedef
+    void (*dclgvar) (struct symbol *); // declare a global variable
+    void (*defgvar) (struct symbol *); // define a global variable
+    void (*defsvar) (struct symbol *); // define a local static variable
+    void (*dclfun) (struct symbol *);  // declare a function
+    void (*defun) (struct symbol *);   // define a function
+    void (*deftype) (struct symbol *); // declare/define a type: struct/union/enum/typedef
     
     // expr
     struct expr * (*commaop) (struct expr *l, struct expr *r, struct source src);
