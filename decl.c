@@ -896,6 +896,8 @@ static void param_declarator(struct type ** ty, struct token **id)
                 }
                 attach_type(&faty, type1);
                 attach_type(&rtype, faty);
+            } else {
+                attach_type(&rtype, type1);
             }
             *ty = rtype;
         }
