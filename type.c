@@ -105,7 +105,7 @@ void type_init(void)
     INSTALL(doubletype,        "double",                DOUBLE,        doublemetrics,      FLOAT);
     INSTALL(longdoubletype,    "long double",           LONG + DOUBLE, longdoublemetrics,  FLOAT);
     // void
-    INSTALL(voidtype,          "void",                  VOID,          zerometrics,        VOID);
+    INSTALL(voidtype,          "void",                  VOID,          voidmetrics,        VOID);
 
 #undef INSTALL
 }

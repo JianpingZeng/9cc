@@ -313,7 +313,7 @@ struct machine {
     struct metrics doublemetrics;
     struct metrics longdoublemetrics;
     struct metrics ptrmetrics;
-    struct metrics zerometrics;
+    struct metrics voidmetrics;
 };
 
 

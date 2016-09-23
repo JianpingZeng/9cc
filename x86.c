@@ -36,7 +36,7 @@ struct machine *IM = &(struct machine) {
     .doublemetrics = {8, 8, 80},
     .longdoublemetrics = {8, 8, 90},
     .ptrmetrics = {8, 8, 0},
-    .zerometrics = {0, 1, 0},
+    .voidmetrics = {0, 1, 0},
     // func
     .init = init,
     .finalize = finalize,
