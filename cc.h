@@ -690,7 +690,6 @@ extern long intexpr(void);
 extern struct expr *bool_expr(void);
 // for expression in switch statement
 extern struct expr *switch_expr(void);
-extern struct expr *decls2expr(struct symbol **decls);
 // for eval
 extern struct expr *binop(int op, struct expr *l, struct expr *r);
 
@@ -702,33 +701,6 @@ extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
 
 enum { LABEL = 1, GEN, JMP, CBR, RET };
-struct code {
-    int id;
-    union {
-        struct {
-            int label;
-        } lab;
-
-        struct {
-            struct expr *tree;
-        } gen;
-
-        struct {
-            int label;
-        } jmp;
-
-        struct {
-            struct expr *tree;
-            int tlab;
-            int flab;
-        } cbr;
-
-        struct {
-            struct expr *tree;
-        } ret;
-    } u;
-    struct code *next, *prev;
-};
 
 // sema actions
 struct actions {

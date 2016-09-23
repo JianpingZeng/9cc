@@ -1685,27 +1685,6 @@ struct expr *switch_expr(void)
     return node;
 }
 
-struct expr *decls2expr(struct symbol **decls)
-{
-    struct expr *ret = NULL;
-
-    for (int i = 0; decls[i]; i++) {
-        struct symbol *sym = decls[i];
-        if (SYM_INIT(sym) && SYM_SCLASS(sym) != STATIC) {
-            SYM_X_KIND(sym) = SYM_KIND_LREF;
-            struct expr *l = make_ref_expr(sym, SYM_SRC(sym));
-            struct expr *r = SYM_INIT(sym);
-            struct expr *n = ast_bop('=', SYM_TYPE(sym), l, r);
-            if (ret)
-                ret = actions.commaop(ret, n, SYM_SRC(sym));
-            else
-                ret = n;
-        }
-    }
-
-    return ret;
-}
-
 struct expr *binop(int op, struct expr *l, struct expr *r)
 {
     return actions.bop(op, l, r, source);
@@ -1777,36 +1756,30 @@ void mark_goto(const char *id, struct source src)
     vec_push(func.gotos, info);
 }
 
-static struct code *alloc_code(int id)
-{
-    struct code *code = zmalloc(sizeof(struct code));
-    code->id = id;
-    return code;
-}
-
 static void branch(struct expr *expr, int tlab, int flab)
 {
     assert(tlab == 0 || flab == 0);
+    // TODO: 
 }
 
 static void jmpto(int label)
 {
-    
+    // TODO: 
 }
 
 static void ret(struct expr *expr)
 {
-    
+    // TODO: 
 }
 
 static void label(int label)
 {
-    
+    // TODO: 
 }
 
 static void gen(struct expr *expr)
 {
-    
+    // TODO: 
 }
 
 /// decl

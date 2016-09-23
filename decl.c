@@ -1493,9 +1493,8 @@ static void predefined_ids(void)
      * static const char __func__[] = "function-name";
      *
      */
-    const char *name = "__func__";
     struct type *type = array_type(qual(CONST, chartype));
-    struct symbol *sym = mklocalvar(name, type, STATIC);
+    struct symbol *sym = mklocalvar("__func__", type, STATIC);
     SYM_PREDEFINE(sym) = true;
     // initializer
     struct expr *literal = new_string_literal(func.name);
@@ -1504,9 +1503,7 @@ static void predefined_ids(void)
 }
 
 static void func_body(struct symbol *sym)
-{
-    struct stmt *stmt;
-    
+{    
     func.gotos = vec_new();
     func.labels = new_table(NULL, LOCAL);
     func.type = SYM_TYPE(sym);
@@ -1519,8 +1516,6 @@ static void func_body(struct symbol *sym)
     compound_stmt(predefined_ids, 0, 0, NULL);
     // check goto labels
     ensure_gotos();
-    // check unused
-    // warning_unused();
 
     // save
     SYM_X_LVARS(sym) = func.localvars;
@@ -1529,8 +1524,6 @@ static void func_body(struct symbol *sym)
 
     free_table(func.labels);
     memset(&func, 0, sizeof(struct func));
-
-    SYM_COMPOUND(sym) = stmt;
 }
 
 struct symbol *mklocalvar(const char *name, struct type * ty, int sclass)
