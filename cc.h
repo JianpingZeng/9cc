@@ -20,7 +20,6 @@ struct cc_options {
     int Wall:1;
     int Werror:1;
     int ansi:1;
-    int ir_dump_level:8;
 };
 extern struct cc_options opts;
 
