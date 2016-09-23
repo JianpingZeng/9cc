@@ -691,10 +691,10 @@ static void ids(struct symbol *sym)
 
 static void bitfield(struct field *field)
 {
-    FIELD_SRC(field) = source;
+    field->src = source;
     expect(':');
-    FIELD_BITSIZE(field) = intexpr();
-    FIELD_ISBIT(field) = true;
+    field->bitsize = intexpr();
+    field->isbit = true;
 }
 
 /// struct-declaration-list:
@@ -736,7 +736,7 @@ static void fields(struct symbol * sym)
             struct field *field = alloc_field();
             if (token->id == ':') {
                 bitfield(field);
-                FIELD_TYPE(field) = basety;
+                field->type = basety;
             } else if (token->id == ';' &&
                        isrecord(basety) &&
                        is_anonymous(TYPE_TAG(basety))) {
@@ -756,21 +756,18 @@ static void fields(struct symbol * sym)
                 attach_type(&ty, basety);
                 if (token->id == ':')
                     bitfield(field);
-                FIELD_TYPE(field) = ty;
+                field->type = ty;
                 if (id) {
                     const char *name = TOK_ID_STR(id);
                     for (int i = 0; i < vec_len(v); i++) {
                         struct field *f = vec_at(v, i);
-                        if (FIELD_NAME(f) &&
-                            !strcmp(FIELD_NAME(f), name)) {
-                            error_at(id->src,
-                                     "redefinition of '%s'",
-                                     name);
+                        if (f->name && !strcmp(f->name, name)) {
+                            error_at(id->src, "redefinition of '%s'", name);
                             break;
                         }
                     }
-                    FIELD_NAME(field) = name;
-                    FIELD_SRC(field) = id->src;
+                    field->name = name;
+                    field->src = id->src;
                 }
             }
 

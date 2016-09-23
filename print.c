@@ -71,15 +71,15 @@ void print_type(struct symbol *sym)
 
 static void print_field1(struct field * node, int level)
 {
-    const char *name = FIELD_NAME(node);
-    struct type *ty = FIELD_TYPE(node);
+    const char *name = node->name;
+    struct type *ty = node->type;
 
     putf(GREEN("Field "));
-    if (FIELD_ISBIT(node))
+    if (node->isbit)
         putf(RED("<offset=%d, bitoff=%d, bits=%d> "),
-             FIELD_OFFSET(node), FIELD_BITOFF(node), FIELD_BITSIZE(node));
+             node->offset, node->bitoff, node->bitsize);
     else
-        putf(GREEN("<offset=%d> "), FIELD_OFFSET(node));
+        putf(GREEN("<offset=%d> "), node->offset);
 
     print_ty(ty);
     putf(CYAN("%s"), STR(name));

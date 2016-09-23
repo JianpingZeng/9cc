@@ -100,7 +100,7 @@ static void aggregate_set(struct type *ty, struct vector *v, int i, struct expr 
         } else {
             if (length(TYPE_FIELDS(ty))) {
                 struct field *field = TYPE_FIELDS(ty)[0];
-                rty = FIELD_TYPE(field);
+                rty = field->type;
             }
         }
 
@@ -160,7 +160,7 @@ static void struct_init(struct type * ty, bool brace, struct vector *v)
             struct field *field = find_field(ty, name);
             if (field) {
                 i = indexof_field(ty, field);
-                fieldty = FIELD_TYPE(field);
+                fieldty = field->type;
             } else {
                 i--;
                 if (name)
@@ -174,7 +174,7 @@ static void struct_init(struct type * ty, bool brace, struct vector *v)
 
         if (!designated) {
             struct field *field = TYPE_FIELDS(ty)[i];
-            fieldty = FIELD_TYPE(field);
+            fieldty = field->type;
         }
         elem_init(ty, fieldty, designated, v, i);
         designated = false;

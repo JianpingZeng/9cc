@@ -39,10 +39,10 @@ bool has_static_extent(struct symbol * sym)
 
 static void ensure_bitfield(struct field *field)
 {
-    const char *name = FIELD_NAME(field);
-    struct type *ty = FIELD_TYPE(field);
-    struct source src = FIELD_SRC(field);
-    int bitsize = FIELD_BITSIZE(field);
+    const char *name = field->name;
+    struct type *ty = field->type;
+    struct source src = field->src;
+    int bitsize = field->bitsize;
     int bits = BITS(TYPE_SIZE(ty));
 
     if (!isint(ty)) {
@@ -96,8 +96,8 @@ void ensure_inline(struct type *ty, int fspec, struct source src)
 
 static void ensure_nonbitfield(struct field * field, size_t total, bool last)
 {
-    struct type *ty = FIELD_TYPE(field);
-    struct source src = FIELD_SRC(field);
+    struct type *ty = field->type;
+    struct source src = field->src;
         
     if (isarray(ty)) {
         ensure_array(ty, source, CONSTANT);
@@ -121,7 +121,7 @@ static void ensure_nonbitfield(struct field * field, size_t total, bool last)
 
 void ensure_field(struct field * field, size_t total, bool last)
 {
-    if (FIELD_ISBIT(field))
+    if (field->isbit)
         ensure_bitfield(field);
     else
         ensure_nonbitfield(field, total, last);
@@ -403,7 +403,7 @@ static bool is_bitfield(struct expr *node)
         ty = rtype(ty);
     const char *name = EXPR_NAME(node);
     struct field *field = find_field(ty, name);
-    return field && FIELD_ISBIT(field);
+    return field && field->isbit;
 }
 
 static const char * castname(struct type *ty, struct expr *l)
@@ -1400,12 +1400,12 @@ static struct expr * direction(struct expr *node, int t, const char *name, struc
     if (NO_ERROR) {
         if (opts.ansi) {
             // The result has the union of both sets of qualifiers.
-            int q = qual_union(EXPR_TYPE(node), FIELD_TYPE(field));
-            ret = ast_expr(MEMBER_EXPR, qual(q, FIELD_TYPE(field)), node,  NULL);
+            int q = qual_union(EXPR_TYPE(node), field->type);
+            ret = ast_expr(MEMBER_EXPR, qual(q, field->type), node,  NULL);
         } else {
-            ret = ast_expr(MEMBER_EXPR,  FIELD_TYPE(field), node,  NULL);
+            ret = ast_expr(MEMBER_EXPR, field->type, node,  NULL);
         }
-        EXPR_NAME(ret) = FIELD_NAME(field);
+        EXPR_NAME(ret) = field->name;
         EXPR_OP(ret) = t;
         EXPR_SRC(ret) = src;
     }

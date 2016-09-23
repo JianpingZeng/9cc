@@ -115,14 +115,6 @@ struct type {
     } limits;
 };
 
-#define FIELD_NAME(NODE)        ((NODE)->name)
-#define FIELD_TYPE(NODE)        ((NODE)->type)
-#define FIELD_SRC(NODE)         ((NODE)->src)
-#define FIELD_ISBIT(NODE)       ((NODE)->isbit)
-#define FIELD_OFFSET(NODE)      ((NODE)->offset)
-#define FIELD_BITSIZE(NODE)     ((NODE)->bitsize)
-#define FIELD_BITOFF(NODE)      ((NODE)->bitoff)
-
 struct field {
     const char *name;
     struct type *type;

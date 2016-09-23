@@ -417,7 +417,7 @@ struct field *find_field(struct type * sty, const char *name)
         return NULL;
     for (size_t i = 0; TYPE_FIELDS(ty)[i]; i++) {
         struct field *field = TYPE_FIELDS(ty)[i];
-        if (FIELD_NAME(field) && !strcmp(name, FIELD_NAME(field)))
+        if (field->name && !strcmp(name, field->name))
             return field;
     }
 
@@ -451,14 +451,14 @@ static unsigned struct_size(struct type * ty)
 
     for (int i = 0; fields[i]; i++) {
         struct field *field = fields[i];
-        struct type *ty = FIELD_TYPE(field);
+        struct type *ty = field->type;
 
-        if (FIELD_ISBIT(field)) {
-            int bitsize = FIELD_BITSIZE(field);
+        if (field->isbit) {
+            int bitsize = field->bitsize;
             
             if (!isint(ty))
                 continue;
-            if (bitsize < 0 || (FIELD_NAME(field) && bitsize == 0))
+            if (bitsize < 0 || (field->name && bitsize == 0))
                 continue;
 
             if (bitsize > BITS(TYPE_SIZE(ty)))
@@ -467,41 +467,41 @@ static unsigned struct_size(struct type * ty)
             if (bitsize == 0) {
                 if (prev == NULL) {
                     // the first field
-                    FIELD_OFFSET(field) = 0;
-                    FIELD_BITOFF(field) = 0;
-                } else if (FIELD_ISBIT(prev)) {
-                    int prev_end = FIELD_BITSIZE(prev) + FIELD_BITOFF(prev);
+                    field->offset = 0;
+                    field->bitoff = 0;
+                } else if (prev->isbit) {
+                    int prev_end = prev->bitsize + prev->bitoff;
                     int prev_end_rounded = ROUNDUP(prev_end, 8);
                     int bytes = prev_end_rounded >> 3;
-                    size_t offset = FIELD_OFFSET(prev) + bytes;
-                    FIELD_OFFSET(field) = ROUNDUP(offset, TYPE_ALIGN(ty));
-                    FIELD_BITOFF(field) = 0;
+                    size_t offset = prev->offset + bytes;
+                    field->offset = ROUNDUP(offset, TYPE_ALIGN(ty));
+                    field->bitoff = 0;
                 } else {
-                    size_t prev_end = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
+                    size_t prev_end = prev->offset + TYPE_SIZE(prev->type);
                     size_t prev_end_rounded = ROUNDUP(prev_end, TYPE_ALIGN(ty));
-                    FIELD_OFFSET(field) = prev_end_rounded;
-                    FIELD_BITOFF(field) = 0;
+                    field->offset = prev_end_rounded;
+                    field->bitoff = 0;
                 }
                 goto next;
             } else {
                 if (prev == NULL) {
                     // the first field
-                    FIELD_OFFSET(field) = 0;
-                    FIELD_BITOFF(field) = 0;
-                } else if (FIELD_ISBIT(prev)) {
-                    int prev_end = FIELD_BITSIZE(prev) + FIELD_BITOFF(prev);
+                    field->offset = 0;
+                    field->bitoff = 0;
+                } else if (prev->isbit) {
+                    int prev_end = prev->bitsize + prev->bitoff;
                     int prev_end_rounded = ROUNDUP(prev_end, 8);
                     if (bitsize + prev_end <= prev_end_rounded) {
-                        FIELD_OFFSET(field) = FIELD_OFFSET(prev);
-                        FIELD_BITOFF(field) = prev_end;
+                        field->offset = prev->offset;
+                        field->bitoff = prev_end;
                     } else {
                         int bytes = prev_end_rounded >> 3;
-                        FIELD_OFFSET(field) = FIELD_OFFSET(prev) + bytes;
-                        FIELD_BITOFF(field) = 0;
+                        field->offset = prev->offset + bytes;
+                        field->bitoff = 0;
                     }
                 } else {
-                    FIELD_OFFSET(field) = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
-                    FIELD_BITOFF(field) = 0;
+                    field->offset = prev->offset + TYPE_SIZE(prev->type);
+                    field->bitoff = 0;
                 }
             }
         } else {
@@ -509,15 +509,15 @@ static unsigned struct_size(struct type * ty)
 
             if (prev == NULL) {
                 // the first field
-                FIELD_OFFSET(field) = 0;
-            } else if (FIELD_ISBIT(prev)) {
-                int prev_end = FIELD_BITSIZE(prev) + FIELD_BITOFF(prev);
+                field->offset = 0;
+            } else if (prev->isbit) {
+                int prev_end = prev->bitsize + prev->bitoff;
                 int bytes = ROUNDUP(prev_end, 8) >> 3;
-                size_t end = FIELD_OFFSET(prev) + bytes;
-                FIELD_OFFSET(field) = ROUNDUP(end, align);
+                size_t end = prev->offset + bytes;
+                field->offset = ROUNDUP(end, align);
             } else {
-                size_t end = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
-                FIELD_OFFSET(field) = ROUNDUP(end, align);
+                size_t end = prev->offset + TYPE_SIZE(prev->type);
+                field->offset = ROUNDUP(end, align);
             }
         }
 
@@ -530,13 +530,13 @@ static unsigned struct_size(struct type * ty)
 
     size_t offset = 0;
     if (prev) {
-        if (FIELD_ISBIT(prev)) {
-            int bitsize = FIELD_BITSIZE(prev);
-            int bitoff = FIELD_BITOFF(prev);
+        if (prev->isbit) {
+            int bitsize = prev->bitsize;
+            int bitoff = prev->bitoff;
             int bytes = ROUNDUP(bitoff + bitsize, 8) >> 3;
-            offset = FIELD_OFFSET(prev) + bytes;
+            offset = prev->offset + bytes;
         } else {
-            offset = FIELD_OFFSET(prev) + TYPE_SIZE(FIELD_TYPE(prev));
+            offset = prev->offset + TYPE_SIZE(prev->type);
         }
     }
     return ROUNDUP(offset, max);
@@ -550,14 +550,14 @@ static unsigned union_size(struct type * ty)
 
     for (int i = 0; fields[i]; i++) {
         struct field *field = fields[i];
-        struct type *ty = FIELD_TYPE(field);
+        struct type *ty = field->type;
         int tysize = TYPE_SIZE(ty);
 
         if (tysize == 0)
             continue;
 
-        if (FIELD_ISBIT(field)) {
-            int bitsize = FIELD_BITSIZE(field);
+        if (field->isbit) {
+            int bitsize = field->bitsize;
 
             if (!isint(ty))
                 continue;
