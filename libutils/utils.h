@@ -35,8 +35,8 @@ extern size_t length(void *array);
 #define zmalloc(size)  memset(xmalloc(size), 0, (size))
 
 // string.c
-extern unsigned strhash(const char *s);
-extern unsigned strhashn(const char *s, size_t len);
+extern unsigned int strhash(const char *s);
+extern unsigned int strhashn(const char *s, size_t len);
 extern char *strs(const char *str);
 extern char *strn(const char *src, size_t len);
 extern char *strd(long long n);

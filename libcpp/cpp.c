@@ -1119,7 +1119,7 @@ static void file_handler(struct file *pfile, struct token *t)
 
 static void line_handler(struct file *pfile, struct token *t)
 {
-    unsigned line = pfile->buffer->line;
+    unsigned int line = pfile->buffer->line;
     const char *name = strd(line);
     struct token *tok = new_token(&(struct token){
             .id = ICONSTANT, .u.lit.str = name, .u.lit.v.i = line, .src = t->src });
@@ -1155,7 +1155,7 @@ static void add_include(struct vector *v, const char *name)
     vec_push(v, (char *)sys_abspath(name));
 }
 
-static struct token *lineno(unsigned line, const char *file)
+static struct token *lineno(unsigned int line, const char *file)
 {
     const char *name = format("# %u \"%s\"\n", line, file);
     struct token *t = new_token(&(struct token){

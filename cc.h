@@ -84,16 +84,16 @@ struct type {
     struct type *type;
     int kind;
     size_t size;
-    unsigned align;                // align in bytes
-    unsigned rank:8;
-    unsigned inlined:1;
+    unsigned int align;                // align in bytes
+    unsigned int rank:8;
+    unsigned int inlined:1;
     union {
         // function
         struct {
             struct type **proto;
             struct symbol **params;
-            unsigned oldstyle:1;
-            unsigned varg:1;
+            unsigned int oldstyle:1;
+            unsigned int varg:1;
         } f;
         // enum/struct/union
         struct {
@@ -105,11 +105,11 @@ struct type {
         struct {
             size_t len;        // array length
             struct expr *assign;
-            unsigned is_const:1;
-            unsigned is_volatile:1;
-            unsigned is_restrict:1;
-            unsigned is_static:1;
-            unsigned star:1;
+            unsigned int is_const:1;
+            unsigned int is_volatile:1;
+            unsigned int is_restrict:1;
+            unsigned int is_static:1;
+            unsigned int star:1;
         } a;
     } u;
     struct {
@@ -134,14 +134,17 @@ struct symbol {
     struct source src;
     int scope;
     int sclass;
-    unsigned defined : 1;
-    unsigned predefine : 1;
+    bool defined;
+    bool predefine;
+    unsigned int refs;
     union value value;
-    unsigned refs;
     struct symbol *link;
-    struct expr **calls;
     union {
         struct expr *init;               // initializer expr
+        struct {
+            struct expr **calls;
+            struct stmt *stmt;
+        } f;
     } u;
     struct {
         const char *name;
@@ -203,6 +206,34 @@ struct expr {
     struct type *vtype;
 };
 
+/// stmt
+
+// code id
+enum { LABEL = 1, GEN, JMP, CBR, RET };
+
+struct stmt {
+    int id;
+    union {
+        struct {
+            int label;
+        } lab;
+        struct {
+            struct expr *expr;
+        } gen;
+        struct {
+            int label;
+        } jmp;
+        struct {
+            struct expr *expr;
+            int tlab, flab;
+        } cbr;
+        struct {
+            struct expr *expr;
+        } ret;
+    } u;
+    struct stmt *next;
+};
+
 /// switch structs
 
 struct cse {
@@ -228,9 +259,6 @@ struct func {
     struct table *labels;
     struct vector *calls;
 };
-
-// code id
-enum { LABEL = 1, GEN, JMP, CBR, RET };
 
 // sema actions
 struct actions {
@@ -352,6 +380,7 @@ extern struct expr *ast_bop(int op, struct type *ty, struct expr *l, struct expr
 extern struct expr *ast_conv(struct type *ty, struct expr *l, const char *name);
 extern struct expr *ast_inits(struct type * ty, struct source src);
 extern struct expr *ast_vinit(void);
+extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
 extern const char *gen_compound_label(void);
 extern int genlabel(int count);

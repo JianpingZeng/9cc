@@ -61,6 +61,14 @@ struct expr *ast_vinit(void)
     return vinit;
 }
 
+struct stmt *ast_stmt(int id)
+{
+    assert(id >= LABEL && id <= RET);
+    struct stmt *stmt = NEWS0(struct stmt, FUNC);
+    stmt->id = id;
+    return stmt;
+}
+
 const char *gen_tmpname(void)
 {
     static size_t i;

@@ -1525,7 +1525,7 @@ static void func_body(struct symbol *sym)
     ensure_gotos();
 
     // save
-    sym->calls = vtoa(func.calls, FUNC);
+    sym->u.f.calls = vtoa(func.calls, FUNC);
 
     free_table(func.labels);
     func.gotos = NULL;

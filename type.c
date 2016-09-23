@@ -443,7 +443,7 @@ int indexof_field(struct type * ty, struct field * field)
  *
  * The bitfields must be packed as tightly as possible.
  */
-static unsigned struct_size(struct type * ty)
+static unsigned int struct_size(struct type * ty)
 {
     int max = 1;
     struct field *prev = NULL;
@@ -542,7 +542,7 @@ static unsigned struct_size(struct type * ty)
     return ROUNDUP(offset, max);
 }
 
-static unsigned union_size(struct type * ty)
+static unsigned int union_size(struct type * ty)
 {
     int max = 1;
     int size = 0;
@@ -574,9 +574,9 @@ static unsigned union_size(struct type * ty)
     return ROUNDUP(size, max);
 }
 
-static unsigned array_size(struct type * ty)
+static unsigned int array_size(struct type * ty)
 {
-    unsigned size = 1;
+    unsigned int size = 1;
     struct type *rty = ty;
 
     do {

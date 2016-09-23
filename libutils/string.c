@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include "utils.h"
 
-#define FNV32_BASIS ((unsigned) 0x811c9dc5)
-#define FNV32_PRIME ((unsigned) 0x01000193)
+#define FNV32_BASIS ((unsigned int) 0x811c9dc5)
+#define FNV32_PRIME ((unsigned int) 0x01000193)
 
 struct str_table {
     struct str_bucket {
@@ -14,9 +14,9 @@ struct str_table {
 };
 
 // FNV-1a
-unsigned strhash(const char *s)
+unsigned int strhash(const char *s)
 {
-    unsigned hash = FNV32_BASIS;
+    unsigned int hash = FNV32_BASIS;
     for (; *s; s++) {
         hash ^= *s;
         hash *= FNV32_PRIME;
@@ -24,9 +24,9 @@ unsigned strhash(const char *s)
     return hash;
 }
 
-unsigned strhashn(const char *s, size_t len)
+unsigned int strhashn(const char *s, size_t len)
 {
-    unsigned hash = FNV32_BASIS;
+    unsigned int hash = FNV32_BASIS;
     for (size_t i = 0; i < len; i++, s++) {
         hash ^= *s;
         hash *= FNV32_PRIME;

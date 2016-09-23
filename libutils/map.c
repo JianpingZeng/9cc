@@ -7,25 +7,25 @@
 #define MAP_GROW_FACTOR     80
 #define MAP_RESIZE_BITS     2
 
-static void do_alloc_map(struct map *map, unsigned size)
+static void do_alloc_map(struct map *map, unsigned int size)
 {
     map->table = xcalloc(size, sizeof(struct map_entry *));
     map->tablesize = size;
-    map->grow_at = (unsigned)(size * MAP_GROW_FACTOR / 100);
+    map->grow_at = (unsigned int)(size * MAP_GROW_FACTOR / 100);
     map->shrink_at = map->grow_at / ((1 << MAP_RESIZE_BITS) + 1);
 }
 
-static unsigned bucket(struct map *map, const void *key)
+static unsigned int bucket(struct map *map, const void *key)
 {
     if (map->cmpfn)
         return strhash(key) & (map->tablesize - 1);
     else
-        return (unsigned)key & (map->tablesize - 1);
+        return (unsigned int)key & (map->tablesize - 1);
 }
 
-static void rehash(struct map *map, unsigned newsize)
+static void rehash(struct map *map, unsigned int newsize)
 {
-    unsigned oldsize = map->tablesize;
+    unsigned int oldsize = map->tablesize;
     struct map_entry **oldtable = map->table;
 
     do_alloc_map(map, newsize);
@@ -33,7 +33,7 @@ static void rehash(struct map *map, unsigned newsize)
         struct map_entry *entry = oldtable[i];
         while (entry) {
             struct map_entry *next = entry->next;
-            unsigned b = bucket(map, entry->key);
+            unsigned int b = bucket(map, entry->key);
             entry->next = map->table[b];
             map->table[b] = entry;
             entry = next;
@@ -91,7 +91,7 @@ static void map_remove(struct map *map, const void *key)
 
 static void map_add(struct map *map, const void *key, void *value)
 {
-    unsigned b = bucket(map, key);
+    unsigned int b = bucket(map, key);
     struct map_entry *entry = zmalloc(sizeof(struct map_entry));
     entry->key = key;
     entry->value = value;
@@ -116,7 +116,7 @@ struct map *map_new(void)
 
 void map_free(struct map *map)
 {
-    for (unsigned i = 0; i < map->tablesize; i++) {
+    for (unsigned int i = 0; i < map->tablesize; i++) {
         struct map_entry *entry = map->table[i];
         while (entry) {
             struct map_entry *next = entry->next;

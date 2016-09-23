@@ -9,8 +9,8 @@ struct map_entry {
 };
 
 struct map {
-    unsigned size, tablesize;
-    unsigned grow_at, shrink_at;
+    unsigned int size, tablesize;
+    unsigned int grow_at, shrink_at;
     struct map_entry **table;
     int (*cmpfn) (const void *key1, const void *key2);
     struct map_entry *all;

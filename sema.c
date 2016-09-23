@@ -1794,30 +1794,47 @@ void mark_goto(const char *id, struct source src)
     vec_push(func.gotos, info);
 }
 
+static inline void add_to_list(stmt)
+{
+    
+}
+
 static void branch(struct expr *expr, int tlab, int flab)
 {
     assert(tlab == 0 || flab == 0);
-    // TODO: 
+    struct stmt *stmt = ast_stmt(CBR);
+    stmt->u.cbr.expr = expr;
+    stmt->u.cbr.tlab = tlab;
+    stmt->u.cbr.flab = flab;
+    add_to_list(stmt);
 }
 
 static void jmpto(int label)
 {
-    // TODO: 
+    struct stmt *stmt = ast_stmt(JMP);
+    stmt->u.jmp.label = label;
+    add_to_list(stmt);
 }
 
 static void ret(struct expr *expr)
 {
-    // TODO: 
+    struct stmt *stmt = ast_stmt(RET);
+    stmt->u.ret.expr = expr;
+    add_to_list(stmt);
 }
 
 static void label(int label)
 {
-    // TODO: 
+    struct stmt *stmt = ast_stmt(LABEL);
+    stmt->u.lab.label = label;
+    add_to_list(stmt);
 }
 
 static void gen(struct expr *expr)
 {
-    // TODO: 
+    struct stmt *stmt = ast_stmt(GEN);
+    stmt->u.gen.expr = expr;
+    add_to_list(stmt);
 }
 
 /// decl

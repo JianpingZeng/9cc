@@ -107,7 +107,7 @@ struct buffer {
     unsigned int notes_alloc;            // number of notes allocated
     struct ifstack *ifstack;             // top of 'if' stack
     struct vector *ungets;               // lex ungets
-    unsigned line, column;
+    unsigned int line, column;
     struct buffer *prev;                 // previous buffer
 };
 
