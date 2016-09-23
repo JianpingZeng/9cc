@@ -1294,7 +1294,9 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
     else if (sclass == EXTERN)
         actions.dclgvar(sym);
     else if (sclass == STATIC)
-        actions.defsvar(sym, func.name);
+        actions.defsvar(sym);
+    else
+        actions.deflvar(sym);
 
     return sym;
 }

@@ -1857,11 +1857,16 @@ static void defgvar(struct symbol *n)
         IR->defvar(n);
 }
 
-static void defsvar(struct symbol *n, const char *funcname)
+static void defsvar(struct symbol *n)
 {
     if (opts.ast_dump)
         return;
     IR->defvar(n);
+}
+
+static void deflvar(struct symbol *n)
+{
+    // TODO: 
 }
 
 static void dclfun(struct symbol *n)
@@ -1906,6 +1911,7 @@ struct actions actions = {
     .dclgvar = dclgvar,
     .defgvar = defgvar,
     .defsvar = defsvar,
+    .deflvar = deflvar,
     .dclfun = dclfun,
     .defun = defun,
     .deftype = deftype,
