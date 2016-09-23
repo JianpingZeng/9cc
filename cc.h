@@ -127,23 +127,6 @@ struct field {
 
 // symtab.c
 
-#define SYM_SRC(NODE)         ((NODE)->src)
-#define SYM_SCOPE(NODE)       ((NODE)->scope)
-#define SYM_NAME(NODE)        ((NODE)->name)
-#define SYM_SCLASS(NODE)      ((NODE)->sclass)
-#define SYM_TYPE(NODE)        ((NODE)->type)
-#define SYM_DEFINED(NODE)     ((NODE)->defined)
-#define SYM_PREDEFINE(NODE)   ((NODE)->predefine)
-#define SYM_VALUE(NODE)       ((NODE)->value)
-#define SYM_REFS(NODE)        ((NODE)->refs)
-#define SYM_LINK(NODE)        ((NODE)->link)
-#define SYM_INIT(NODE)        ((NODE)->u.init)
-#define SYM_CALLS(NODE)       ((NODE)->calls)
-
-// sym
-#define SYM_X_NAME(NODE)      ((NODE)->x.name)
-#define SYM_X_LABEL(NODE)     ((NODE)->x.label)
-
 struct symbol {
     const char *name;
     struct type *type;
@@ -231,8 +214,8 @@ enum {
 #define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
 #define EXPR_ELSE(NODE)         EXPR_OPERAND(NODE, 2)
 // literal
-#define ILITERAL_VALUE(NODE)    SYM_VALUE(EXPR_SYM(NODE))
-#define FLITERAL_VALUE(NODE)    SYM_VALUE(EXPR_SYM(NODE))
+#define ILITERAL_VALUE(NODE)    EXPR_SYM(NODE)->value
+#define FLITERAL_VALUE(NODE)    EXPR_SYM(NODE)->value
 // va_arg
 #define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->vtype)
     
@@ -266,8 +249,8 @@ extern const char *gen_compound_label(void);
 extern int genlabel(int count);
 
 // decl
-#define isfuncdef(n)   (isfunc(SYM_TYPE(n)) && SYM_DEFINED(n))
-#define isvardecl(n)   (SYM_SCLASS(n) != TYPEDEF && !isfunc(SYM_TYPE(n)))
+#define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
+#define isvardecl(n)   ((n)->sclass != TYPEDEF && !isfunc((n)->type))
 
 // expr
 #define isiliteral(n)  (EXPR_ID(n) == INTEGER_LITERAL)

@@ -62,14 +62,14 @@ void foreach(struct table *tp, int level, void (*apply) (struct symbol *, void *
     while (tp && tp->scope > level)
         tp = tp->up;
     if (tp && tp->scope == level) {
-        for (struct symbol *p = tp->all; p && SYM_SCOPE(p) == level; p = SYM_LINK(p))
+        for (struct symbol *p = tp->all; p && p->scope == level; p = p->link)
             apply(p, context);
     }
 }
 
 bool is_current_scope(struct symbol *sym)
 {
-    return SYM_SCOPE(sym) == SCOPE || (SYM_SCOPE(sym) == PARAM && SCOPE == LOCAL);
+    return sym->scope == SCOPE || (sym->scope == PARAM && SCOPE == LOCAL);
 }
 
 bool is_anonymous(const char *name)
@@ -87,8 +87,8 @@ struct symbol *gen_tmp_sym(int area)
 {
     const char *name = gen_tmpname();
     struct symbol *sym = alloc_symbol(area);
-    SYM_NAME(sym) = SYM_X_NAME(sym) = name;
-    SYM_REFS(sym)++;
+    sym->name = sym->x.name = name;
+    sym->refs++;
     return sym;
 }
 
@@ -120,12 +120,12 @@ struct symbol *install(const char *name, struct table ** tpp, int scope, int are
     assert(tp);
 
     sym = alloc_symbol(area);
-    SYM_SCOPE(sym) = scope;
-    SYM_NAME(sym) = name;
-    SYM_X_NAME(sym) = name;
+    sym->scope = scope;
+    sym->name = name;
+    sym->x.name = name;
     map_put(tp->map, name, sym);
     // all/link
-    SYM_LINK(sym) = tp->all;
+    sym->link = tp->all;
     tp->all = sym;
 
     return sym;

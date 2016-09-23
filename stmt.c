@@ -297,18 +297,18 @@ static void label_stmt(int lab, int cnt, int brk, struct swtch *swtch)
         struct symbol *sym = lookup(id, func.labels);
         if (!sym) {
             sym = install(id, &func.labels, LOCAL, FUNC);
-            SYM_DEFINED(sym) = true;
-            SYM_X_LABEL(sym) = lab;
-        } else if (!SYM_DEFINED(sym)) {
-            SYM_DEFINED(sym) = true;
+            sym->defined = true;
+            sym->x.label = lab;
+        } else if (!sym->defined) {
+            sym->defined = true;
         } else {
-            struct source prev = SYM_SRC(sym);
+            struct source prev = sym->src;
             error_at(src,
                      "redefinition of label '%s', previous label defined here:%s:%u:%u",
                      prev.file, prev.line, prev.column);
         }
 
-        actions.label(SYM_X_LABEL(sym));
+        actions.label(sym->x.label);
     }
 
     statement(cnt, brk, swtch);
@@ -333,13 +333,13 @@ static void goto_stmt(int lab)
         struct symbol *sym = lookup(id, func.labels);
         if (!sym) {
             sym = install(id, &func.labels, LOCAL, FUNC);
-            SYM_X_LABEL(sym) = lab;
+            sym->x.label = lab;
         }
 
-        if (!SYM_DEFINED(sym))
+        if (!sym->defined)
             mark_goto(id, src);
 
-        actions.jump(SYM_X_LABEL(sym));
+        actions.jump(sym->x.label);
     }
 }
 

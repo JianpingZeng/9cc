@@ -352,8 +352,8 @@ static void array_qualifiers(struct type * atype)
 static void exit_params(struct symbol *params[])
 {
     assert(params);
-    if (params[0] && !SYM_DEFINED(params[0]))
-        error_at(SYM_SRC(params[0]),
+    if (params[0] && !params[0]->defined)
+        error_at(params[0]->src,
                  "a parameter list without types is only allowed in a function definition");
     
     if (SCOPE > PARAM)
@@ -423,7 +423,7 @@ static struct symbol **oldstyle(struct type *ftype)
     for (;;) {
         if (token->id == ID) {
             struct symbol *sym = paramdecl(TOK_ID_STR(token), inttype, 0, 0, token->src);
-            SYM_DEFINED(sym) = false;
+            sym->defined = false;
             params = list_append(params, sym);
         }
         expect(ID);
@@ -450,7 +450,7 @@ static struct symbol **parameters(struct type * ftype)
         params = prototype(ftype);
         proto = newarray(sizeof(struct type *), length(params) + 1, PERM);
         for (i = 0; params[i]; i++)
-            proto[i] = SYM_TYPE(params[i]);
+            proto[i] = params[i]->type;
 
         proto[i] = NULL;
         TYPE_PROTO(ftype) = proto;
@@ -627,17 +627,17 @@ static struct type *tag_decl(void)
         else
             fields(sym);
         match('}', follow);
-        SYM_DEFINED(sym) = true;
+        sym->defined = true;
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {
-            if (is_current_scope(sym) && TYPE_OP(SYM_TYPE(sym)) != t)
+            if (is_current_scope(sym) && TYPE_OP(sym->type) != t)
                 error_at(src,
                          "use of '%s' with tag type that does not match previous declaration '%s' at %s:%u:%u",
-                         id2s(t), type2s(SYM_TYPE(sym)),
-                         SYM_SRC(sym).file,
-                         SYM_SRC(sym).line,
-                         SYM_SRC(sym).column);
+                         id2s(t), type2s(sym->type),
+                         sym->src.file,
+                         sym->src.line,
+                         sym->src.column);
         } else {
             sym = tag_type(t, id, src);
         }
@@ -646,7 +646,7 @@ static struct type *tag_decl(void)
         sym = tag_type(t, NULL, src);
     }
 
-    return SYM_TYPE(sym);
+    return sym->type;
 }
 
 /// enumerator-list:
@@ -671,15 +671,15 @@ static void ids(struct symbol *sym)
                 redefinition_error(source, s);
 
             s = install(name, &identifiers, SCOPE, SCOPE < LOCAL ? PERM : FUNC);
-            SYM_TYPE(s) = SYM_TYPE(sym);
-            SYM_SRC(s) = source;
-            SYM_SCLASS(s) = ENUM;
+            s->type = sym->type;
+            s->src = source;
+            s->sclass = ENUM;
             expect(ID);
             if (token->id == '=') {
                 expect('=');
                 val = intexpr();
             }
-            SYM_VALUE(s).u = val++;
+            s->value.u = val++;
             if (token->id != ',')
                 break;
             expect(',');
@@ -719,7 +719,7 @@ static void bitfield(struct field *field)
 static void fields(struct symbol * sym)
 {
     int follow[] = {INT, CONST, '}', IF, 0};
-    struct type *sty = SYM_TYPE(sym);
+    struct type *sty = sym->type;
 
     if (!first_decl(token)) {
         // supports empty record
@@ -1098,9 +1098,9 @@ void declaration(void)
 
 static void doglobal(struct symbol *sym, void *context)
 {
-    if (SYM_SCLASS(sym) == EXTERN ||
-        isfunc(SYM_TYPE(sym)) ||
-        SYM_DEFINED(sym))
+    if (sym->sclass == EXTERN ||
+        isfunc(sym->type) ||
+        sym->defined)
         return;
 
     actions.defgvar(sym);
@@ -1154,9 +1154,9 @@ static void typedefdecl(const char *id, struct type *ty, int fspec, int level, s
     if (sym && is_current_scope(sym))
         redefinition_error(src, sym);
     sym = install(id, &identifiers, SCOPE, SCOPE < LOCAL ? PERM : FUNC);
-    SYM_TYPE(sym) = ty;
-    SYM_SRC(sym) = src;
-    SYM_SCLASS(sym) = sclass;
+    sym->type = ty;
+    sym->src = src;
+    sym->sclass = sclass;
 
     if (token->id == '=') {
         error("illegal initializer (only variable can be initialized)");
@@ -1191,8 +1191,8 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
         if (TYPE_A_RESTRICT(aty))
             ty = qual(VOLATILE, ty);
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!SYM_DEFINED(TYPE_TSYM(ty)) ||
-            SYM_SCOPE(TYPE_TSYM(ty)) == SCOPE)
+        if (!TYPE_TSYM(ty)->defined ||
+            TYPE_TSYM(ty)->scope == SCOPE)
             warning_at(src,
                        "declaration of '%s' will not be visible outside of this function",
                        type2s(ty));
@@ -1203,17 +1203,17 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
         
     if (id) {
         sym = lookup(id, identifiers);
-        if (sym && SYM_SCOPE(sym) == SCOPE)
+        if (sym && sym->scope == SCOPE)
             redefinition_error(source, sym);
         sym = install(id, &identifiers, SCOPE, FUNC);
     } else {
         sym = anonymous(&identifiers, SCOPE, FUNC);
     }
 
-    SYM_TYPE(sym) = ty;
-    SYM_SRC(sym) = src;
-    SYM_SCLASS(sym) = sclass;
-    SYM_DEFINED(sym) = true;
+    sym->type = ty;
+    sym->src = src;
+    sym->sclass = sclass;
+    sym->defined = true;
     
     if (token->id == '=') {
         error("C does not support default arguments");
@@ -1250,16 +1250,16 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
     sym = lookup(id, identifiers);
     if (sym &&
         (is_current_scope(sym) ||
-         (globl && (isfunc(SYM_TYPE(sym)) ||
-                    SYM_SCLASS(sym) == EXTERN)))) {
+         (globl && (isfunc(sym->type) ||
+                    sym->sclass == EXTERN)))) {
         redefinition_error(src, sym);
     } else {
         sym = install(id, &identifiers, SCOPE, FUNC);
-        SYM_TYPE(sym) = ty;
-        SYM_SRC(sym) = src;
-        SYM_SCLASS(sym) = sclass;
+        sym->type = ty;
+        sym->src = src;
+        sym->sclass = sclass;
         if (!globl)
-            SYM_DEFINED(sym) = true;
+            sym->defined = true;
     }
 
     if (token->id == '=') {
@@ -1277,7 +1277,7 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
             struct expr *init = initializer(ty);
             init = ensure_init(init, ty, sym);
             if (init) {
-                SYM_INIT(sym) = init;
+                sym->u.init = init;
                 // gen assign expr
                 if (sclass != STATIC)
                     actions.gen(assign(sym, init));
@@ -1321,19 +1321,19 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
     ensure_inline(ty, fspec, src);
 
     sym = lookup(id, identifiers);
-    if (!sym || SYM_SCOPE(sym) != SCOPE) {
+    if (!sym || sym->scope != SCOPE) {
         sym = install(id, &identifiers, SCOPE, PERM);
-        SYM_TYPE(sym) = ty;
-        SYM_SRC(sym) = src;
-        SYM_SCLASS(sym) = sclass;
-    } else if (eqtype(ty, SYM_TYPE(sym))) {
-        if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
+        sym->type = ty;
+        sym->src = src;
+        sym->sclass = sclass;
+    } else if (eqtype(ty, sym->type)) {
+        if (sclass == STATIC && sym->sclass != STATIC)
             error_at(src, "static declaration of '%s' follows non-static declaration", id);
-        else if (SYM_SCLASS(sym) == STATIC && sclass != STATIC)
+        else if (sym->sclass == STATIC && sclass != STATIC)
             error_at(src, "non-static declaration of '%s' follows static declaration", id);
 
         if (sclass != EXTERN)
-            SYM_SCLASS(sym) = sclass;
+            sym->sclass = sclass;
     } else {
         conflicting_types_error(src, sym);
     }
@@ -1352,21 +1352,21 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
             if (sclass == EXTERN)
                 warning_at(EXPR_SRC(init), "'extern' variable has an initializer");
 
-            if (SYM_DEFINED(sym))
+            if (sym->defined)
                 redefinition_error(src, sym);
 
             init = ensure_init(init, ty, sym);
-            SYM_INIT(sym) = init;
+            sym->u.init = init;
         }
 
-        SYM_DEFINED(sym) = true;
+        sym->defined = true;
     }
 
     // check incomplete type
     ensure_decl(sym);
 
     // actions
-    if (SYM_INIT(sym))
+    if (sym->u.init)
         actions.defgvar(sym);
     else if (isfunc(ty))
         actions.dclfun(sym);
@@ -1380,31 +1380,31 @@ static void oldparam(struct symbol *sym, void *context)
 {
     struct symbol **params = context;
 
-    assert(SYM_NAME(sym));
+    assert(sym->name);
     if (!isvardecl(sym)) {
-        warning_at(SYM_SRC(sym), "empty declaraion");
+        warning_at(sym->src, "empty declaraion");
         return;
     }
         
     int j;
     for (j = 0; params[j]; j++) {
         struct symbol *s = params[j];
-        if (SYM_NAME(s) && !strcmp(SYM_NAME(s), SYM_NAME(sym)))
+        if (s->name && !strcmp(s->name, sym->name))
             break;
     }
 
     if (params[j])
         params[j] = sym;
     else
-        error_at(SYM_SRC(sym), "parameter named '%s' is missing", SYM_NAME(sym));
+        error_at(sym->src, "parameter named '%s' is missing", sym->name);
 }
 
 static void make_funcdecl(struct symbol *sym, struct type *ty, int sclass, struct source src)
 {
-    SYM_TYPE(sym) = ty;
-    SYM_SRC(sym) = src;
-    SYM_DEFINED(sym) = true;
-    SYM_SCLASS(sym) = sclass;
+    sym->type = ty;
+    sym->src = src;
+    sym->defined = true;
+    sym->sclass = sclass;
 }
 
 // id maybe NULL
@@ -1422,11 +1422,11 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
     
     if (id) {
         sym = lookup(id, identifiers);
-        if (!sym || SYM_SCOPE(sym) != GLOBAL) {
+        if (!sym || sym->scope != GLOBAL) {
             sym = install(id, &identifiers, GLOBAL, PERM);
             make_funcdecl(sym, ftype, sclass, src);
-        } else if (eqtype(ftype, SYM_TYPE(sym)) && !SYM_DEFINED(sym)) {
-            if (sclass == STATIC && SYM_SCLASS(sym) != STATIC)
+        } else if (eqtype(ftype, sym->type) && !sym->defined) {
+            if (sclass == STATIC && sym->sclass != STATIC)
                 error_at(src,
                          "static declaaration of '%s' follows non-static declaration",
                          id);
@@ -1459,19 +1459,19 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
 
         for (int i = 0; params[i]; i++) {
             struct symbol *p = params[i];
-            if (!SYM_DEFINED(p))
-                params[i] = paramdecl(SYM_NAME(p), inttype, 0, 0, SYM_SRC(p));
+            if (!p->defined)
+                params[i] = paramdecl(p->name, inttype, 0, 0, p->src);
             // check void
-            if (isvoid(SYM_TYPE(p))) {
-                error_at(SYM_SRC(p), "argument may not have 'void' type");
-                SYM_TYPE(p) = inttype;
+            if (isvoid(p->type)) {
+                error_at(p->src, "argument may not have 'void' type");
+                p->type = inttype;
             }
         }
 
         int i;
         struct type **proto = newarray(sizeof(struct type *), length(params) + 1, PERM);
         for (i = 0; params[i]; i++)
-            proto[i] = SYM_TYPE(params[i]);
+            proto[i] = params[i]->type;
 
         proto[i] = NULL;
         TYPE_PROTO(ftype) = proto;
@@ -1504,19 +1504,19 @@ static void predefined_ids(void)
      */
     struct type *type = array_type(qual(CONST, chartype));
     struct symbol *sym = mklocalvar("__func__", type, STATIC);
-    SYM_PREDEFINE(sym) = true;
+    sym->predefine = true;
     // initializer
     struct expr *literal = new_string_literal(func.name);
     init_string(type, literal);
-    SYM_INIT(sym) = literal;
+    sym->u.init = literal;
 }
 
 static void func_body(struct symbol *sym)
 {    
     func.gotos = vec_new();
     func.labels = new_table(NULL, LOCAL);
-    func.type = SYM_TYPE(sym);
-    func.name = SYM_NAME(sym);
+    func.type = sym->type;
+    func.name = sym->name;
     func.calls = vec_new();
 
     // compound statement
@@ -1525,7 +1525,7 @@ static void func_body(struct symbol *sym)
     ensure_gotos();
 
     // save
-    SYM_CALLS(sym) = vtoa(func.calls, FUNC);
+    sym->calls = vtoa(func.calls, FUNC);
 
     free_table(func.labels);
     func.gotos = NULL;

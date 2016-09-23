@@ -231,8 +231,8 @@ struct type *lookup_typedef(const char *id)
 
     struct symbol *sym = lookup(id, identifiers);
 
-    if (sym && SYM_SCLASS(sym) == TYPEDEF)
-        return SYM_TYPE(sym);
+    if (sym && sym->sclass == TYPEDEF)
+        return sym->type;
     else
         return NULL;
 }
@@ -288,7 +288,7 @@ struct symbol *tag_type(int t, const char *tag, struct source src)
     if (tag) {
         sym = lookup(tag, tags);
         if (sym && is_current_scope(sym)) {
-            if (TYPE_OP(SYM_TYPE(sym)) == t && !SYM_DEFINED(sym))
+            if (TYPE_OP(sym->type) == t && !sym->defined)
                 return sym;
 
             redefinition_error(src, sym);
@@ -297,11 +297,11 @@ struct symbol *tag_type(int t, const char *tag, struct source src)
         sym = install(tag, &tags, SCOPE, PERM);
     } else {
         sym = anonymous(&tags, SCOPE, PERM);
-        _TYPE_TAG(ty) = SYM_NAME(sym);
+        _TYPE_TAG(ty) = sym->name;
     }
 
-    SYM_TYPE(sym) = ty;
-    SYM_SRC(sym) = src;
+    sym->type = ty;
+    sym->src = src;
     _TYPE_TSYM(ty) = sym;
 
     return sym;
@@ -612,7 +612,7 @@ bool isincomplete(struct type * ty)
     else if (isarray(ty))
         return TYPE_SIZE(ty) == 0;
     else if (isenum(ty) || isstruct(ty) || isunion(ty))
-        return !SYM_DEFINED(TYPE_TSYM(ty));
+        return !TYPE_TSYM(ty)->defined;
     else
         return false;
 }

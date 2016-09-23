@@ -56,7 +56,7 @@ static void print_ty(struct type * ty)
 
 static void print_type1(struct symbol *sym, int level)
 {
-    struct type *ty = SYM_TYPE(sym);
+    struct type *ty = sym->type;
     
     for (int i = 0; i < level; i++)
         putf("  ");
@@ -88,21 +88,21 @@ static void print_field1(struct field * node, int level)
 
 static void print_symbol1(struct symbol *sym, int level)
 {
-    putf(CYAN("%s "), STR(SYM_NAME(sym)));
+    putf(CYAN("%s "), STR(sym->name));
     
-    if (SYM_DEFINED(sym))
+    if (sym->defined)
         putf(YELLOW("<defined> "));
 
-    struct type *ty = SYM_TYPE(sym);
+    struct type *ty = sym->type;
     print_ty(ty);
-    putf("<scope: %d>", SYM_SCOPE(sym));
-    putf(YELLOW("<line:%u col:%u> "), SYM_SRC(sym).line, SYM_SRC(sym).column);
+    putf("<scope: %d>", sym->scope);
+    putf(YELLOW("<line:%u col:%u> "), sym->src.line, sym->src.column);
     putf("\n");
 
     if (isfuncdef(sym)) {
         // TODO: 
     } else {
-        struct expr *init = SYM_INIT(sym);
+        struct expr *init = sym->u.init;
         if (init)
             print_expr1(init, level + 1);
     }
@@ -127,7 +127,7 @@ static void print_expr1(struct expr * node, int level)
         putf("'" CYAN("lvalue") "' ");
 
     if (EXPR_SYM(node))
-        putf(CYAN("%s "), STR(SYM_NAME(EXPR_SYM(node))));
+        putf(CYAN("%s "), STR(EXPR_SYM(node)->name));
     if (op == INCR || op == DECR)
         putf("%s ", (prefix ? "prefix" : "postfix"));
     if (op > 0)
@@ -471,7 +471,7 @@ const char *expr2s(struct expr * node)
         strbuf_cats(s, expr2s(l));
         break;
     case REF_EXPR:
-        strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));
+        strbuf_cats(s, EXPR_SYM(node)->name);
         break;
     case INTEGER_LITERAL:
         if (TYPE_OP(EXPR_TYPE(node)) == INT)
@@ -483,7 +483,7 @@ const char *expr2s(struct expr * node)
         strbuf_cats(s, format("%Lf", FLITERAL_VALUE(node).d));
         break;
     case STRING_LITERAL:
-        strbuf_cats(s, SYM_NAME(EXPR_SYM(node)));
+        strbuf_cats(s, EXPR_SYM(node)->name);
         break;
     case COMPOUND_LITERAL:
         strbuf_cats(s, format("(%s){...}", type2s(EXPR_TYPE(node))));

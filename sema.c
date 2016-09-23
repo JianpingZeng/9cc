@@ -32,9 +32,9 @@ struct goto_info {
 
 bool has_static_extent(struct symbol * sym)
 {
-    return SYM_SCLASS(sym) == EXTERN ||
-        SYM_SCLASS(sym) == STATIC ||
-        SYM_SCOPE(sym) == GLOBAL;
+    return sym->sclass == EXTERN ||
+        sym->sclass == STATIC ||
+        sym->scope == GLOBAL;
 }
 
 static void ensure_bitfield(struct field *field)
@@ -129,10 +129,10 @@ void ensure_field(struct field * field, size_t total, bool last)
 
 void ensure_decl(struct symbol * sym)
 {    
-    struct type *ty = SYM_TYPE(sym);
-    struct source src = SYM_SRC(sym);
+    struct type *ty = sym->type;
+    struct source src = sym->src;
     if (isvardecl(sym)) {
-        if (isincomplete(ty) && SYM_DEFINED(sym))
+        if (isincomplete(ty) && sym->defined)
             error_at(src, "variable has incomplete type '%s'", type2s(ty));
     }
 }
@@ -227,13 +227,13 @@ void ensure_params(struct symbol *params[])
 {
     for (int i = 0; params[i]; i++) {
         struct symbol *sym = params[i];
-        struct type *ty = SYM_TYPE(sym);
+        struct type *ty = sym->type;
         // params id is required in prototype
-        if (is_anonymous(SYM_NAME(sym)))
-            error_at(SYM_SRC(sym), "parameter name omitted");
+        if (is_anonymous(sym->name))
+            error_at(sym->src, "parameter name omitted");
         if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-            if (!SYM_DEFINED(TYPE_TSYM(ty)))
-                error_at(SYM_SRC(sym),
+            if (!TYPE_TSYM(ty)->defined)
+                error_at(sym->src,
                          "variable has incomplete type '%s'",
                          type2s(ty));
         }
@@ -244,32 +244,32 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
 {    
     for (int i = 0; params[i]; i++) {
         struct symbol *p = params[i];
-        struct type *ty = SYM_TYPE(p);
+        struct type *ty = p->type;
         if (isvoid(ty)) {
             if (i == 0) {
-                if (SYM_NAME(p)) {
-                    error_at(SYM_SRC(p),
+                if (p->name) {
+                    error_at(p->src,
                              "argument may not have 'void' type");
-                    SYM_TYPE(p) = inttype;
+                    p->type = inttype;
                 } else if (isqual(ty)) {
-                    error_at(SYM_SRC(p),
+                    error_at(p->src,
                              "'void' as parameter must not have type qualifier");
-                    SYM_TYPE(p) = inttype;
+                    p->type = inttype;
                 } else if (TYPE_VARG(ftype)) {
-                    error_at(SYM_SRC(p),
+                    error_at(p->src,
                          "'void' must be the first and only parameter if specified");
-                    SYM_TYPE(p) = inttype;
+                    p->type = inttype;
                 }
             } else {
-                error_at(SYM_SRC(p),
+                error_at(p->src,
                          "'void' must be the first and only parameter if specified");
-                SYM_TYPE(p) = inttype;
+                p->type = inttype;
             }
         }
     }
 
     // make it empty
-    if (length(params) == 1 && isvoid(SYM_TYPE(params[0])))
+    if (length(params) == 1 && isvoid(params[0]->type))
         params[0] = NULL;
 }
 
@@ -277,20 +277,20 @@ void redefinition_error(struct source src, struct symbol * sym)
 {
     error_at(src,
              "redefinition of '%s', previous definition at %s:%u:%u",
-             SYM_NAME(sym),
-             SYM_SRC(sym).file,
-             SYM_SRC(sym).line,
-             SYM_SRC(sym).column);
+             sym->name,
+             sym->src.file,
+             sym->src.line,
+             sym->src.column);
 }
 
 void conflicting_types_error(struct source src, struct symbol * sym)
 {
     error_at(src,
              "conflicting types for '%s', previous at %s:%u:%u",
-             SYM_NAME(sym),
-             SYM_SRC(sym).file,
-             SYM_SRC(sym).line,
-             SYM_SRC(sym).column);
+             sym->name,
+             sym->src.file,
+             sym->src.line,
+             sym->src.column);
 }
 
 void field_not_found_error(struct type * ty, const char *name)
@@ -547,7 +547,7 @@ static bool is_nullptr(struct expr *node)
     if (cnst == NULL)
         return false;
     if (isiliteral(cnst))
-        return SYM_VALUE(EXPR_SYM(cnst)).u == 0;
+        return EXPR_SYM(cnst)->value.u == 0;
     return false;
 }
 
@@ -1214,7 +1214,7 @@ static struct expr *address(struct expr *operand, struct source src)
     SAVE_ERRORS;
     if (!isfunc(EXPR_TYPE(operand))) {
         ensure_lvalue(operand);
-        if (EXPR_SYM(operand) && SYM_SCLASS(EXPR_SYM(operand)) == REGISTER)
+        if (EXPR_SYM(operand) && EXPR_SYM(operand)->sclass == REGISTER)
             error("address of register variable requested");
         else if (is_bitfield(operand))
             error("address of bitfield requested");
@@ -1322,7 +1322,7 @@ static struct expr *flatten_call(struct expr *node)
 
 static void builtin_funcall(struct expr *call, struct expr *ref)
 {
-    const char *fname = SYM_NAME(EXPR_SYM(ref));
+    const char *fname = EXPR_SYM(ref)->name;
     if (!strcmp(fname, BUILTIN_VA_ARG_P)) {
         // __builtin_va_arg_p
         struct expr **args = EXPR_ARGS(call);
@@ -1336,7 +1336,7 @@ static void builtin_funcall(struct expr *call, struct expr *ref)
             const char *label = gen_tmpname();
             struct symbol *sym = mklocalvar(label, ty, 0);
             // passing address
-            struct expr *operand = make_ref_expr(sym, SYM_SRC(sym));
+            struct expr *operand = make_ref_expr(sym, sym->src);
             // update arg1
             args[1] = ast_uop('&', ptr_type(ty), operand);
         } else {
@@ -1438,8 +1438,8 @@ static void integer_constant(struct token *t, struct symbol * sym)
     // character constant
     if (t->u.lit.chr) {
         bool wide = t->u.lit.chr == 2;
-        SYM_TYPE(sym) = wide ? wchartype : unsignedchartype;
-        SYM_VALUE(sym).u = wide ? (wchar_t)n : (unsigned char)n;
+        sym->type = wide ? wchartype : unsignedchartype;
+        sym->value.u = wide ? (wchar_t)n : (unsigned char)n;
         return;
     }
     
@@ -1513,8 +1513,8 @@ static void integer_constant(struct token *t, struct symbol * sym)
     if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
         error("integer constant overflow: %s", TOK_LIT_STR(t));
 
-    SYM_TYPE(sym) = ty;
-    SYM_VALUE(sym) = t->u.lit.v;
+    sym->type = ty;
+    sym->value = t->u.lit.v;
 }
 
 static void float_constant(struct token *t, struct symbol * sym)
@@ -1522,13 +1522,13 @@ static void float_constant(struct token *t, struct symbol * sym)
     int suffix = t->u.lit.suffix;
     switch (suffix) {
     case FLOAT:
-        SYM_TYPE(sym) = floattype;
+        sym->type = floattype;
         break;
     case LONG + DOUBLE:
-        SYM_TYPE(sym) = longdoubletype;
+        sym->type = longdoubletype;
         break;
     default:
-        SYM_TYPE(sym) = doubletype;
+        sym->type = doubletype;
         break;
     }
 }
@@ -1554,7 +1554,7 @@ static void string_constant(struct token *t, struct symbol * sym)
         TYPE_LEN(ty) = strlen(s) - 1;
         set_typesize(ty);
     }
-    SYM_TYPE(sym) = ty;
+    sym->type = ty;
 }
 
 static struct expr *literal_expr(struct token *t, int id,
@@ -1566,7 +1566,7 @@ static struct expr *literal_expr(struct token *t, int id,
         sym = install(name, &constants, CONSTANT, PERM);
         cnst(t, sym);
     }
-    struct expr *expr = ast_expr(id, SYM_TYPE(sym), NULL, NULL);
+    struct expr *expr = ast_expr(id, sym->type, NULL, NULL);
     EXPR_SRC(expr) = t->src;
     EXPR_SYM(expr) = sym;
     return expr;
@@ -1592,10 +1592,10 @@ struct expr *new_string_literal(const char *string)
 
 static struct expr *make_ref_expr(struct symbol *sym, struct source src)
 {
-    struct expr *ret = ast_expr(REF_EXPR, SYM_TYPE(sym), NULL, NULL);
+    struct expr *ret = ast_expr(REF_EXPR, sym->type, NULL, NULL);
     EXPR_SYM(ret) = sym;
     EXPR_SRC(ret) = src;
-    SYM_REFS(sym)++;
+    sym->refs++;
     return ret;
 }
 
@@ -1607,7 +1607,7 @@ static struct expr * id(struct token *tok)
     sym = lookup(TOK_ID_STR(tok), identifiers);
     if (sym) {
         ret = make_ref_expr(sym, source);
-        if (isenum(SYM_TYPE(sym)) && SYM_SCLASS(sym) == ENUM)
+        if (isenum(sym->type) && sym->sclass == ENUM)
             EXPR_OP(ret) = ENUM;        // enum ids
     } else {
         error("use of undeclared identifier '%s'", tok2s(tok));
@@ -1654,10 +1654,10 @@ static struct expr * compound_literal(struct type *ty, struct expr *inits, struc
     if (SCOPE >= LOCAL) {
         const char *label = gen_compound_label();
         struct symbol *sym = mklocalvar(label, ty, 0);
-        SYM_INIT(sym) = inits;
+        sym->u.init = inits;
         // set sym
         EXPR_SYM(ret) = sym;
-        SYM_REFS(sym)++;
+        sym->refs++;
     }
 
     return ret;
@@ -1730,8 +1730,8 @@ struct expr *binop(int op, struct expr *l, struct expr *r)
 
 struct expr *assign(struct symbol *sym, struct expr *r)
 {
-    struct expr *l = make_ref_expr(sym, SYM_SRC(sym));
-    return ast_bop('=', SYM_TYPE(sym), l, r);
+    struct expr *l = make_ref_expr(sym, sym->src);
+    return ast_bop('=', sym->type, l, r);
 }
 
 /// stmt
@@ -1780,7 +1780,7 @@ void ensure_gotos(void)
         struct goto_info *info = vec_at(func.gotos, i);
         const char *name = info->id;
         struct symbol *sym = lookup(name, func.labels);
-        if (!sym || !SYM_DEFINED(sym))
+        if (!sym || !sym->defined)
             error_at(info->src, "use of undeclared label '%s'", name);
     }
 }
