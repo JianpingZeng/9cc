@@ -20,17 +20,6 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec, s
 static void func_body(struct symbol *sym);
 struct func func;
 
-#define PACK_PARAM(prototype, first, fvoid, sclass)     \
-    (((prototype) & 0x01) << 30) |                      \
-    (((first) & 0x01) << 29) |                          \
-    (((fvoid) & 0x01) << 28) |                          \
-    ((sclass) & 0xffffff)
-
-#define PARAM_STYLE(i)   (((i) & 0x40000000) >> 30)
-#define PARAM_FIRST(i)   (((i) & 0x20000000) >> 29)
-#define PARAM_FVOID(i)   (((i) & 0x10000000) >> 28)
-#define PARAM_SCLASS(i)  ((i) & 0x0fffffff)
-
 int first_decl(struct token *t)
 {
     return t->kind == STATIC || first_typename(t);
@@ -385,10 +374,9 @@ static void exit_params(struct symbol *params[])
 ///   declaration-specifier declarator
 ///   declaration-specifier abstract-declarator[opt]
 ///
-static struct vector *prototype(struct type *ftype)
+static struct symbol **prototype(struct type *ftype)
 {
-    struct vector *v = vec_new();
-    bool first_void = false;
+    struct list *list = NULL;
     
     for (int i = 0;; i++) {
         struct type *basety = NULL;
@@ -402,45 +390,41 @@ static struct vector *prototype(struct type *ftype)
         param_declarator(&ty, &id);
         attach_type(&ty, basety);
 
-        if (i == 0 && isvoid(ty))
-            first_void = true;
-
-        SAVE_ERRORS;
         sym = paramdecl(id ? TOK_ID_STR(id) : NULL,
-                        ty, PACK_PARAM(1, i == 0, first_void, sclass), fspec,
-                        id ? id->src : src);
-        if (NO_ERROR && !first_void)
-            vec_push(v, sym);
+                        ty, sclass, fspec, id ? id->src : src);
+        list = list_append(list, sym);
         
         if (token->id != ',')
             break;
 
         expect(',');
         if (token->id == ELLIPSIS) {
-            if (!first_void)
-                TYPE_VARG(ftype) = 1;
-            else
-                error("'void' must be the first and only parameter if specified");
-            expect(ELLIPSIS);
+            TYPE_VARG(ftype) = 1;
+            gettok();
             break;
         }
     }
-    return v;
+
+    // check
+    struct symbol **params = ltoa(&list, FUNC);
+    ensure_prototype(ftype, params);
+
+    return params;
 }
 
 /// identifier-list:
 ///   identifier
 ///   identifier-list ',' identifier
 ///
-static struct vector *oldstyle(struct type *ftype)
+static struct symbol **oldstyle(struct type *ftype)
 {
-    struct vector *v = vec_new();
+    struct list *params = NULL;
     
     for (;;) {
         if (token->id == ID) {
             struct symbol *sym = paramdecl(TOK_ID_STR(token), inttype, 0, 0, token->src);
             SYM_DEFINED(sym) = false;
-            vec_push(v, sym);
+            params = list_append(params, sym);
         }
         expect(ID);
         if (token->id != ',')
@@ -450,7 +434,8 @@ static struct vector *oldstyle(struct type *ftype)
 
     if (SCOPE > PARAM)
         error("a parameter list without types is only allowed in a function definition");
-    return v;
+
+    return ltoa(&params, FUNC);
 }
 
 static struct symbol **parameters(struct type * ftype)
@@ -460,12 +445,10 @@ static struct symbol **parameters(struct type * ftype)
     if (first_decl(token)) {
         // prototype
         int i;
-        struct vector *v;
         struct type **proto;
         
-        v = prototype(ftype);
-        params = vtoa(v, FUNC);
-        proto = newarray(sizeof(struct type *), vec_len(v) + 1, PERM);
+        params = prototype(ftype);
+        proto = newarray(sizeof(struct type *), length(params) + 1, PERM);
         for (i = 0; params[i]; i++)
             proto[i] = SYM_TYPE(params[i]);
 
@@ -474,10 +457,7 @@ static struct symbol **parameters(struct type * ftype)
         TYPE_OLDSTYLE(ftype) = 0;
     } else if (token->id == ID) {
         // oldstyle
-        struct vector *v;
-        
-        v = oldstyle(ftype);
-        params = vtoa(v, FUNC);
+        params = oldstyle(ftype);
         TYPE_OLDSTYLE(ftype) = 1;
     } else if (token->id == ')') {
         params = vtoa(NULL, FUNC);
@@ -1193,10 +1173,6 @@ static void typedefdecl(const char *id, struct type *ty, int fspec, int level, s
 static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
 {
     struct symbol *sym = NULL;
-    bool prototype = PARAM_STYLE(sclass);
-    bool first = PARAM_FIRST(sclass);
-    bool fvoid = PARAM_FVOID(sclass);
-    sclass = PARAM_SCLASS(sclass);
 
     if (sclass && sclass != REGISTER) {
         error("invalid storage class specifier '%s' in function declarator",
@@ -1223,21 +1199,7 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
             warning_at(src,
                        "declaration of '%s' will not be visible outside of this function",
                        type2s(ty));
-    } else if (isvoid(ty)) {
-        if (prototype) {
-            if (first) {
-                if (id)
-                    error_at(src, "argument may not have 'void' type");
-                else if (isqual(ty))
-                    error_at(src, "'void' as parameter must not have type qualifiers");
-            }
-        } else {
-            error_at(src, "argument may not have 'void' type");
-        }
     }
-
-    if (prototype && fvoid && !first)
-        error_at(src, "'void' must be the first and only parameter if specified");
 
     // check inline after conversion (decay)
     ensure_inline(ty, fspec, src);
@@ -1470,6 +1432,11 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
             struct symbol *p = params[i];
             if (!SYM_DEFINED(p))
                 params[i] = paramdecl(SYM_NAME(p), inttype, 0, 0, SYM_SRC(p));
+            // check void
+            if (isvoid(SYM_TYPE(p))) {
+                error_at(SYM_SRC(p), "argument may not have 'void' type");
+                SYM_TYPE(p) = inttype;
+            }
         }
 
         int i;

@@ -675,6 +675,7 @@ extern void ensure_array(struct type *atype, struct source src, int level);
 extern void ensure_func(struct type *ftype, struct source src);
 extern void ensure_main(struct type *ftype, const char *name, struct source src);
 extern void ensure_params(struct symbol *params[]);
+extern void ensure_prototype(struct type *ftype, struct symbol *params[]);
 extern void redefinition_error(struct source src, struct symbol *sym);
 extern void conflicting_types_error(struct source src, struct symbol *sym);
 extern void field_not_found_error(struct type *ty, const char *name);

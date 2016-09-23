@@ -232,6 +232,39 @@ void ensure_params(struct symbol *params[])
     }
 }
 
+void ensure_prototype(struct type *ftype, struct symbol *params[])
+{    
+    for (int i = 0; params[i]; i++) {
+        struct symbol *p = params[i];
+        struct type *ty = SYM_TYPE(p);
+        if (isvoid(ty)) {
+            if (i == 0) {
+                if (SYM_NAME(p)) {
+                    error_at(SYM_SRC(p),
+                             "argument may not have 'void' type");
+                    SYM_TYPE(p) = inttype;
+                } else if (isqual(ty)) {
+                    error_at(SYM_SRC(p),
+                             "'void' as parameter must not have type qualifier");
+                    SYM_TYPE(p) = inttype;
+                } else if (TYPE_VARG(ftype)) {
+                    error_at(SYM_SRC(p),
+                         "'void' must be the first and only parameter if specified");
+                    SYM_TYPE(p) = inttype;
+                }
+            } else {
+                error_at(SYM_SRC(p),
+                         "'void' must be the first and only parameter if specified");
+                SYM_TYPE(p) = inttype;
+            }
+        }
+    }
+
+    // make it empty
+    if (length(params) == 1 && isvoid(SYM_TYPE(params[0])))
+        params[0] = NULL;
+}
+
 void redefinition_error(struct source src, struct symbol * sym)
 {
     error_at(src,
