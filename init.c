@@ -76,19 +76,6 @@ static struct expr *init_elem_conv(struct type *ty, struct expr *node)
     return ret;
 }
 
-void init_string(struct type *ty, struct expr *node)
-{
-    int len1 = TYPE_LEN(ty);
-    int len2 = TYPE_LEN(EXPR_TYPE(node));
-    if (len1 > 0) {
-        if (len1 < len2 - 1)
-            warning("initializer-string for char array is too long");
-    } else if (isincomplete(ty)) {
-        TYPE_LEN(ty) = len2;
-        set_typesize(ty);
-    }
-}
-
 static void aggregate_set(struct type *ty, struct vector *v, int i, struct expr *node)
 {
     if (!node)
@@ -345,6 +332,19 @@ static void elem_init(struct type * sty, struct type * ty, bool designated, stru
     }
 }
 
+void init_string(struct type *ty, struct expr *node)
+{
+    int len1 = TYPE_LEN(ty);
+    int len2 = TYPE_LEN(EXPR_TYPE(node));
+    if (len1 > 0) {
+        if (len1 < len2 - 1)
+            warning("initializer-string for char array is too long");
+    } else if (isincomplete(ty)) {
+        TYPE_LEN(ty) = len2;
+        set_typesize(ty);
+    }
+}
+
 /// initializer:
 ///   assignment-expression
 ///   '{' initializer-list '}'
@@ -415,63 +415,10 @@ struct expr *initializer_list(struct type * ty)
     return ret;
 }
 
-bool has_static_extent(struct symbol * sym)
+struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym)
 {
-    return SYM_SCLASS(sym) == EXTERN ||
-        SYM_SCLASS(sym) == STATIC ||
-        SYM_SCOPE(sym) == GLOBAL;
-}
-
-struct expr *decl_initializer(struct symbol *sym, int sclass, int level)
-{
-    struct type *ty = SYM_TYPE(sym);
-    struct source src = SYM_SRC(sym);
-    struct expr *init;
-    struct source init_src;
-
-    expect('=');
-
-    if (level == PARAM) {
-        error("C does not support default arguments");
-        initializer(NULL);
-        return NULL;
-    } else if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
-        error("'%s' cannot have an initializer", TYPE_NAME(ty));
-        initializer(NULL);
-        return NULL;
-    }
-
-    init = initializer(ty);
-    if (init == NULL)
-        return NULL;
-
-    init_src = EXPR_SRC(init);
-
-    if (sclass == EXTERN) {
-        if (level == GLOBAL) {
-            warning_at(src, "'extern' variable has an initializer");
-        } else {
-            error_at(src,
-                     "'extern' variable cannot have an initializer");
-            return NULL;
-        }
-    } else if (sclass == TYPEDEF) {
-        error_at(src,
-                 "illegal initializer (only variable can be initialized)");
-        return NULL;
-    }
-
-    if (level == GLOBAL) {
-        if (SYM_DEFINED(sym))
-            redefinition_error(src, sym);
-        SYM_DEFINED(sym) = true;
-    }
-
-    if (istag(ty) && isincomplete(ty)) {
-        error("variable has incomplete type '%s'", type2s(ty));
-        return NULL;
-    }
-
+    struct source src = EXPR_SRC(init);
+    
     SAVE_ERRORS;
     if (EXPR_ID(init) != INITS_EXPR) {
         if (isarray(ty)) {
@@ -491,8 +438,7 @@ struct expr *decl_initializer(struct symbol *sym, int sclass, int level)
     if (NO_ERROR && init && has_static_extent(sym)) {
         init = eval(init, ty);
         if (init == NULL)
-            error_at(init_src,
-                     "initializer element is not a compile-time constant");
+            error_at(src, "initializer element is not a compile-time constant");
     }
 
     return init;

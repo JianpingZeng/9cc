@@ -1266,8 +1266,24 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
     }
 
     if (token->id == '=') {
-        struct expr *init = decl_initializer(sym, sclass, LOCAL);
-        SYM_INIT(sym) = init;
+        gettok();
+        if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
+            error("'%s' cannot have an initializer", TYPE_NAME(ty));
+            initializer(NULL);
+        } else if (sclass == EXTERN) {
+            error("'extern' variable cannot have an initializer");
+            initializer(NULL);
+        } else if (istag(ty) && isincomplete(ty)) {
+            error("variable has incomplete type '%s'", type2s(ty));
+            initializer(NULL);
+        } else {
+            struct expr *init = initializer(ty);
+            init = ensure_init(init, ty, sym);
+            if (init) {
+                SYM_INIT(sym) = init;
+                // TODO: gen assign
+            }
+        }
     }
 
     if (!globl) {
@@ -1330,8 +1346,29 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
         conflicting_types_error(src, sym);
     }
 
-    if (token->id == '=')
-        SYM_INIT(sym) = decl_initializer(sym, sclass, GLOBAL);
+    if (token->id == '=') {
+        gettok();
+        if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
+            error("'%s' cannot have an initializer", TYPE_NAME(ty));
+            initializer(NULL);
+        } else if (istag(ty) && isincomplete(ty)) {
+            error("variable has incomplete type '%s'", type2s(ty));
+            initializer(NULL);
+        } else {
+            struct expr *init = initializer(ty);
+
+            if (sclass == EXTERN)
+                warning_at(EXPR_SRC(init), "'extern' variable has an initializer");
+
+            if (SYM_DEFINED(sym))
+                redefinition_error(src, sym);
+
+            init = ensure_init(init, ty, sym);
+            SYM_INIT(sym) = init;
+        }
+
+        SYM_DEFINED(sym) = true;
+    }
 
     // check incomplete type
     ensure_decl(sym);

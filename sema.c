@@ -29,6 +29,13 @@ struct goto_info {
 
 /// decl
 
+bool has_static_extent(struct symbol * sym)
+{
+    return SYM_SCLASS(sym) == EXTERN ||
+        SYM_SCLASS(sym) == STATIC ||
+        SYM_SCOPE(sym) == GLOBAL;
+}
+
 static void ensure_bitfield(struct field *field)
 {
     const char *name = FIELD_NAME(field);

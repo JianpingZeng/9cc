@@ -658,16 +658,16 @@ struct func {
 extern struct func func;
 
 // init.c
-extern bool has_static_extent(struct symbol *sym);
-extern struct expr *decl_initializer(struct symbol *sym, int sclass, int level);
 extern struct expr *initializer(struct type *ty);
 extern struct expr *initializer_list(struct type *ty);
 extern void init_string(struct type *ty, struct expr *node);
+extern struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym);
 
 // stmt.c
 extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
 
 // sema.c
+extern bool has_static_extent(struct symbol *sym);
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
 extern void ensure_field(struct field *field, size_t total, bool last);
 extern void ensure_decl(struct symbol *sym);
