@@ -1288,15 +1288,6 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
         }
     }
 
-    if (!globl) {
-        if (SYM_SCLASS(sym) == STATIC) {
-            vec_push(func.staticvars, sym);
-            SYM_X_NAME(sym) = gen_static_label();
-        } else {
-            vec_push(func.localvars, sym);
-        }
-    }
-
     // check incomplete type
     ensure_decl(sym);
 
@@ -1529,8 +1520,6 @@ static void func_body(struct symbol *sym)
     func.labels = new_table(NULL, LOCAL);
     func.type = SYM_TYPE(sym);
     func.name = SYM_NAME(sym);
-    func.staticvars = vec_new();
-    func.localvars = vec_new();
     func.calls = vec_new();
 
     // compound statement
@@ -1539,10 +1528,12 @@ static void func_body(struct symbol *sym)
     ensure_gotos();
 
     // save
-    SYM_X_LVARS(sym) = func.localvars;
-    SYM_X_SVARS(sym) = func.staticvars;
-    SYM_X_CALLS(sym) = func.calls;
+    SYM_CALLS(sym) = vtoa(func.calls, FUNC);
 
     free_table(func.labels);
-    memset(&func, 0, sizeof(struct func));
+    func.gotos = NULL;
+    func.labels = NULL;
+    func.type = NULL;
+    func.name = NULL;
+    func.calls = NULL;
 }

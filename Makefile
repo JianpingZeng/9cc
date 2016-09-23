@@ -70,14 +70,12 @@ CC1_OBJ += expr.o
 CC1_OBJ += stmt.o
 CC1_OBJ += symtab.o
 CC1_OBJ += type.o
-CC1_OBJ += ir.o
-CC1_OBJ += block.o
+CC1_OBJ += tree.o
 CC1_OBJ += x86.o
 CC1_OBJ += print.o
 
 CC1_INC += cc.h
 CC1_INC += node.def
-CC1_INC += rop.def
 
 7CC_OBJ = 7cc.o
 

@@ -61,55 +61,16 @@ struct expr *ast_vinit(void)
     return vinit;
 }
 
-struct stmt *ast_stmt(int id, struct source src)
-{
-    assert(id > BEGIN_STMT_ID && id < END_STMT_ID);
-    struct stmt *stmt = NEWS0(struct stmt, FUNC);
-    STMT_ID(stmt) = id;
-    STMT_SRC(stmt) = src;
-    return stmt;
-}
-
-const char *gen_label(void)
-{
-    static size_t i;
-    return format(".L%llu", i++);
-}
-
 const char *gen_tmpname(void)
 {
     static size_t i;
     return format(".T%llu", i++);
 }
 
-const char *gen_tmpname_r(void)
-{
-    static size_t i;
-    return format(".t%llu", i++);
-}
-
-const char *gen_static_label(void)
-{
-    static size_t i;
-    return format(".S%llu", i++);
-}
-
 const char *gen_compound_label(void)
 {
     static size_t i;
     return format("__compound_literal.%llu", i++);
-}
-
-const char *gen_sliteral_label(void)
-{
-    static size_t i;
-    return format(".LC%llu", i++);
-}
-
-const char *gen_block_label(void)
-{
-    static size_t i;
-    return format(".LBB_%llu", i++);
 }
 
 int genlabel(int count)

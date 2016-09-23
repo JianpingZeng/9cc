@@ -18,6 +18,7 @@
 
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
+#define MAX_STRUCT_PARAM_SIZE  16
 
 static struct expr *new_uint_literal(unsigned long l);
 static struct expr *make_ref_expr(struct symbol *sym, struct source src);
