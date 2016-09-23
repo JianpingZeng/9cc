@@ -1814,21 +1814,21 @@ static void branch(struct expr *expr, int tlab, int flab)
 static void jmpto(int label)
 {
     struct stmt *stmt = ast_stmt(JMP);
-    stmt->u.jmp.label = label;
+    stmt->u.label = label;
     add_to_list(stmt);
 }
 
 static void ret(struct expr *expr)
 {
     struct stmt *stmt = ast_stmt(RET);
-    stmt->u.ret.expr = expr;
+    stmt->u.expr = expr;
     add_to_list(stmt);
 }
 
 static void label(int label)
 {
     struct stmt *stmt = ast_stmt(LABEL);
-    stmt->u.lab.label = label;
+    stmt->u.label = label;
     add_to_list(stmt);
 }
 
@@ -1836,7 +1836,7 @@ static void gen(struct expr *expr)
 {
     if (expr) {
         struct stmt *stmt = ast_stmt(GEN);
-        stmt->u.gen.expr = expr;
+        stmt->u.expr = expr;
         add_to_list(stmt);
     }
 }

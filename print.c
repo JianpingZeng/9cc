@@ -187,16 +187,16 @@ static void print_stmt1(struct stmt *stmt, int level)
 
     switch (stmt->id) {
     case LABEL:
-        putln(".L%d:", stmt->u.lab.label);
+        putln(".L%d:", stmt->u.label);
         break;
 
     case GEN:
-        assert(stmt->u.gen.expr && "null expr in gen node");
-        print_expr1(stmt->u.gen.expr, level);
+        assert(stmt->u.expr && "null expr in gen node");
+        print_expr1(stmt->u.expr, level);
         break;
 
     case JMP:
-        putln("goto .L%d", stmt->u.lab.label);
+        putln("goto .L%d", stmt->u.label);
         break;
 
     case CBR:
@@ -211,8 +211,8 @@ static void print_stmt1(struct stmt *stmt, int level)
 
     case RET:
         putln("ret");
-        if (stmt->u.ret.expr)
-            print_expr1(stmt->u.ret.expr, level + 1);
+        if (stmt->u.expr)
+            print_expr1(stmt->u.expr, level + 1);
         break;
 
     default:

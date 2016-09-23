@@ -208,28 +208,18 @@ struct expr {
 
 /// stmt
 
-// code id
+// stmt id
 enum { LABEL = 1, GEN, JMP, CBR, RET };
 
 struct stmt {
     int id;
     union {
-        struct {
-            int label;
-        } lab;
-        struct {
-            struct expr *expr;
-        } gen;
-        struct {
-            int label;
-        } jmp;
+        int label;              // LABEL/JMP
+        struct expr *expr;      // GEN/RET
         struct {
             struct expr *expr;
             int tlab, flab;
         } cbr;
-        struct {
-            struct expr *expr;
-        } ret;
     } u;
     struct stmt *next;
 };
