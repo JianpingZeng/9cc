@@ -1512,12 +1512,15 @@ static void predefined_ids(void)
 }
 
 static void func_body(struct symbol *sym)
-{    
+{
+    struct stmt *stmt = NULL;
+
     func.gotos = vec_new();
     func.labels = new_table(NULL, LOCAL);
     func.type = sym->type;
     func.name = sym->name;
     func.calls = vec_new();
+    func.stmt = &stmt;
 
     // compound statement
     compound_stmt(predefined_ids, 0, 0, NULL);
@@ -1526,6 +1529,7 @@ static void func_body(struct symbol *sym)
 
     // save
     sym->u.f.calls = vtoa(func.calls, FUNC);
+    sym->u.f.stmt = stmt;
 
     free_table(func.labels);
     func.gotos = NULL;
@@ -1533,4 +1537,5 @@ static void func_body(struct symbol *sym)
     func.type = NULL;
     func.name = NULL;
     func.calls = NULL;
+    func.stmt = NULL;
 }

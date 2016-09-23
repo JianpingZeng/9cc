@@ -258,6 +258,7 @@ struct func {
     struct vector *gotos;
     struct table *labels;
     struct vector *calls;
+    struct stmt **stmt;
 };
 
 // sema actions

@@ -1794,10 +1794,12 @@ void mark_goto(const char *id, struct source src)
     vec_push(func.gotos, info);
 }
 
-static inline void add_to_list(stmt)
-{
-    
-}
+#define add_to_list(stmt)                       \
+    do {                                        \
+        *func.stmt = stmt;                      \
+        func.stmt = &stmt->next;                \
+    } while (0)
+
 
 static void branch(struct expr *expr, int tlab, int flab)
 {
