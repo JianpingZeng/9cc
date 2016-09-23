@@ -889,11 +889,11 @@ static void param_declarator(struct type ** ty, struct token **id)
             if (token->id == '(' || token->id == '[') {
                 struct type *faty;
                 assert(id);
-                if (*id) {
+                if (*id)
                     faty = func_or_array(false, NULL);
-                } else {
+                else
                     faty = func_or_array(true, NULL);
-                }
+
                 attach_type(&faty, type1);
                 attach_type(&rtype, faty);
             } else {
