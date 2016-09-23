@@ -29,7 +29,7 @@ struct cc_options {
 /*
  * Handle carefully for qual/unqual types.
  *
- * macros begin with '_' is for 'atom' access,
+ * macros begin with '_' are for 'atom' access,
  * others use the unqual version of the type.
  */
 #define _TYPE_KIND(NODE)         ((NODE)->kind)
@@ -318,38 +318,6 @@ struct machine {
 
 
 ///
-/// external variables
-///
-extern struct cc_options opts;
-extern struct func func;
-extern struct actions actions;
-extern struct interface *IR;
-extern struct machine *IM;
-extern struct table *identifiers;
-extern struct table *constants;
-extern struct table *tags;
-extern int cscope;              // current scope
-extern struct type *chartype;
-extern struct type *unsignedchartype;
-extern struct type *signedchartype;
-extern struct type *wchartype;
-extern struct type *shorttype;
-extern struct type *unsignedshorttype;
-extern struct type *inttype;
-extern struct type *unsignedinttype;
-extern struct type *longtype;
-extern struct type *unsignedlongtype;
-extern struct type *longlongtype;
-extern struct type *unsignedlonglongtype;
-extern struct type *floattype;
-extern struct type *doubletype;
-extern struct type *longdoubletype;
-extern struct type *voidtype;
-extern struct type *booltype;
-extern unsigned int errors, warnings;
-
-
-///
 /// external functions
 ///
 
@@ -552,5 +520,38 @@ extern const char *expr2s(struct expr *node);
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
+
+
+///
+/// external variables
+///
+
+extern struct cc_options opts;
+extern struct func func;
+extern struct actions actions;
+extern struct interface *IR;
+extern struct machine *IM;
+extern struct table *identifiers;
+extern struct table *constants;
+extern struct table *tags;
+extern int cscope;              // current scope
+extern struct type *chartype;
+extern struct type *unsignedchartype;
+extern struct type *signedchartype;
+extern struct type *wchartype;
+extern struct type *shorttype;
+extern struct type *unsignedshorttype;
+extern struct type *inttype;
+extern struct type *unsignedinttype;
+extern struct type *longtype;
+extern struct type *unsignedlongtype;
+extern struct type *longlongtype;
+extern struct type *unsignedlonglongtype;
+extern struct type *floattype;
+extern struct type *doubletype;
+extern struct type *longdoubletype;
+extern struct type *voidtype;
+extern struct type *booltype;
+extern unsigned int errors, warnings;
 
 #endif
