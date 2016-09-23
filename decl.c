@@ -14,6 +14,9 @@ static struct symbol *globaldecl(const char *, struct type *, int, int, struct s
 static struct symbol *localdecl(const char *, struct type *, int, int, struct source);
 static void decls(decl_p * dcl);
 
+static void typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src);
+static void funcdef(const char *id, struct type *ftype, int sclass, int fspec, struct symbol *params[], struct source src);
+
 static void func_body(struct symbol *sym);
 struct func func;
 
@@ -999,6 +1002,154 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
     }
 }
 
+/// external-declaration:
+///   declaration
+///   function-definition
+///
+/// declaration:
+///   declaration-specifier init-declarator-list[opt] ';'
+///
+/// function-definition:
+///   declaration-specifier declarator declaration-list[opt] compound-statement
+///
+/// init-declarator-list:
+///   init-declarator
+///   init-declarator-list ',' init-declarator
+///
+/// init-declarator:
+///   declarator
+///   declarator '=' initializer
+///
+static void decls(decl_p * dcl)
+{
+    struct type *basety;
+    int sclass, fspec;
+    int level = SCOPE;
+    int follow[] = {STATIC, INT, CONST, IF, '}', 0};
+
+    basety = specifiers(&sclass, &fspec);
+    if (token->id == ID || token->id == '*' || token->id == '(') {
+        struct token *id = NULL;
+        struct type *ty = NULL;
+        struct symbol **params = NULL;        // for functioness
+        struct source src = source;
+
+        // declarator
+        if (level == GLOBAL)
+            declarator(&ty, &id, &params);
+        else
+            declarator(&ty, &id, NULL);
+        attach_type(&ty, basety);
+
+        if (level == GLOBAL && params) {
+            if (isfunc(ty) && (token->id == '{' ||
+                               (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
+                if (TYPE_OLDSTYLE(ty))
+                    exit_scope();
+                
+                funcdef(id ? TOK_ID_STR(id) : NULL,
+                        ty, sclass, fspec, params, id ? id->src : src);
+                return;
+            } else {
+                exit_params(params);
+            }
+        }
+
+        for (;;) {
+            if (id) {
+                if (sclass == TYPEDEF)
+                    typedefdecl(TOK_ID_STR(id), ty, fspec, level, id->src);
+                else
+                    dcl(TOK_ID_STR(id), ty, sclass, fspec, id->src);
+            }
+
+            if (token->id != ',')
+                break;
+
+            expect(',');
+            id = NULL;
+            ty = NULL;
+            // declarator
+            declarator(&ty, &id, NULL);
+            attach_type(&ty, basety);
+        }
+    } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
+        // struct/union/enum
+        actions.deftype(TYPE_TSYM(basety));
+    } else {
+        error("invalid token '%s' in declaration", tok2s(token));
+    }
+    match(';', follow);
+}
+
+/// type-name:
+///   specifier-qualifier-list abstract-declarator[opt]
+///
+struct type *typename(void)
+{
+    struct type *basety;
+    struct type *ty = NULL;
+
+    basety = specifiers(NULL, NULL);
+    if (token->id == '*' || token->id == '(' || token->id == '[')
+        abstract_declarator(&ty);
+
+    attach_type(&ty, basety);
+
+    return ty;
+}
+
+struct symbol *mklocalvar(const char *name, struct type * ty, int sclass)
+{
+    return localdecl(name, ty, sclass, 0, source);
+}
+
+struct symbol *mktmpvar(struct type *ty, int sclass)
+{
+    return localdecl(gen_tmpname(), ty, sclass, 0, source);
+}
+
+void declaration(void)
+{
+    assert(SCOPE >= LOCAL);
+    decls(localdecl);
+}
+
+static void doglobal(struct symbol *sym, void *context)
+{
+    if (SYM_SCLASS(sym) == EXTERN ||
+        isfunc(SYM_TYPE(sym)) ||
+        SYM_DEFINED(sym))
+        return;
+
+    actions.defvar(sym);
+}
+
+/// translation-unit:
+///   external-declaration
+///   translation-unit external-declaration
+///
+void translation_unit(void)
+{
+    for (gettok(); token->id != EOI;) {
+        if (first_decl(token)) {
+            assert(SCOPE == GLOBAL);
+            decls(globaldecl);
+            deallocate(FUNC);
+        } else {
+            if (token->id == ';')
+                // empty declaration
+                gettok();
+            else
+                skipto(first_decl);
+        }
+    }
+    
+    foreach(identifiers, GLOBAL, doglobal, NULL);
+}
+
+/// decl functions
+
 static void typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src)
 {
     int sclass = TYPEDEF;
@@ -1340,142 +1491,6 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
     }
 }
 
-/// type-name:
-///   specifier-qualifier-list abstract-declarator[opt]
-///
-struct type *typename(void)
-{
-    struct type *basety;
-    struct type *ty = NULL;
-
-    basety = specifiers(NULL, NULL);
-    if (token->id == '*' || token->id == '(' || token->id == '[')
-        abstract_declarator(&ty);
-
-    attach_type(&ty, basety);
-
-    return ty;
-}
-
-/// external-declaration:
-///   declaration
-///   function-definition
-///
-/// declaration:
-///   declaration-specifier init-declarator-list[opt] ';'
-///
-/// function-definition:
-///   declaration-specifier declarator declaration-list[opt] compound-statement
-///
-/// init-declarator-list:
-///   init-declarator
-///   init-declarator-list ',' init-declarator
-///
-/// init-declarator:
-///   declarator
-///   declarator '=' initializer
-///
-static void decls(decl_p * dcl)
-{
-    struct type *basety;
-    int sclass, fspec;
-    int level = SCOPE;
-    int follow[] = {STATIC, INT, CONST, IF, '}', 0};
-
-    basety = specifiers(&sclass, &fspec);
-    if (token->id == ID || token->id == '*' || token->id == '(') {
-        struct token *id = NULL;
-        struct type *ty = NULL;
-        struct symbol **params = NULL;        // for functioness
-        struct source src = source;
-
-        // declarator
-        if (level == GLOBAL)
-            declarator(&ty, &id, &params);
-        else
-            declarator(&ty, &id, NULL);
-        attach_type(&ty, basety);
-
-        if (level == GLOBAL && params) {
-            if (isfunc(ty) && (token->id == '{' ||
-                               (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
-                if (TYPE_OLDSTYLE(ty))
-                    exit_scope();
-                
-                funcdef(id ? TOK_ID_STR(id) : NULL,
-                        ty, sclass, fspec, params, id ? id->src : src);
-                return;
-            } else {
-                exit_params(params);
-            }
-        }
-
-        for (;;) {
-            if (id) {
-                if (sclass == TYPEDEF)
-                    typedefdecl(TOK_ID_STR(id), ty, fspec, level, id->src);
-                else
-                    dcl(TOK_ID_STR(id), ty, sclass, fspec, id->src);
-            }
-
-            if (token->id != ',')
-                break;
-
-            expect(',');
-            id = NULL;
-            ty = NULL;
-            // declarator
-            declarator(&ty, &id, NULL);
-            attach_type(&ty, basety);
-        }
-    } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
-        // struct/union/enum
-        actions.deftype(TYPE_TSYM(basety));
-    } else {
-        error("invalid token '%s' in declaration", tok2s(token));
-    }
-    match(';', follow);
-}
-
-void declaration(void)
-{
-    assert(SCOPE >= LOCAL);
-    decls(localdecl);
-}
-
-static void doglobal(struct symbol *sym, void *context)
-{
-    if (SYM_SCLASS(sym) == EXTERN ||
-        isfunc(SYM_TYPE(sym)) ||
-        SYM_DEFINED(sym))
-        return;
-
-    actions.defvar(sym);
-}
-
-/// translation-unit:
-///   external-declaration
-///   translation-unit external-declaration
-///
-void translation_unit(void)
-{
-    for (gettok(); token->id != EOI;) {
-        if (first_decl(token)) {
-            assert(SCOPE == GLOBAL);
-            decls(globaldecl);
-            deallocate(FUNC);
-        } else {
-            if (token->id == ';')
-                // empty declaration
-                gettok();
-            else
-                skipto(first_decl);
-        }
-    }
-    
-    foreach(identifiers, GLOBAL, doglobal, NULL);
-}
-
 static void predefined_ids(void)
 {
     /**
@@ -1518,14 +1533,4 @@ static void func_body(struct symbol *sym)
 
     free_table(func.labels);
     memset(&func, 0, sizeof(struct func));
-}
-
-struct symbol *mklocalvar(const char *name, struct type * ty, int sclass)
-{
-    return localdecl(name, ty, sclass, 0, source);
-}
-
-struct symbol *mktmpvar(struct type *ty, int sclass)
-{
-    return localdecl(gen_tmpname(), ty, sclass, 0, source);
 }
