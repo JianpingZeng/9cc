@@ -943,6 +943,8 @@ static void abstract_declarator(struct type ** ty)
                     struct type *faty = func_or_array(true, NULL);
                     attach_type(&faty, type1);
                     attach_type(&rtype, faty);
+                } else {
+                    attach_type(&rtype, type1);
                 }
                 *ty = rtype;
             }
