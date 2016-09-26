@@ -79,26 +79,26 @@ static struct expr *copy_node(struct expr * node)
 static struct expr *literal_node(int id)
 {
     struct expr *n = NEWS0(struct expr, PERM);
-    EXPR_ID(n) = id;
-    EXPR_SYM(n) = anonymous(&constants, CONSTANT, PERM);
+    n->id = id;
+    n->sym = anonymous(&constants, CONSTANT, PERM);
     return n;
 }
 
 static struct expr *int_literal_node(struct type * ty, union value v)
 {
     struct expr *n = literal_node(INTEGER_LITERAL);
-    EXPR_TYPE(n) = ty;
-    EXPR_SYM(n)->type = ty;
-    EXPR_SYM(n)->value = v;
+    n->type = ty;
+    n->sym->type = ty;
+    n->sym->value = v;
     return n;
 }
 
 static struct expr *float_literal_node(struct type * ty, union value v)
 {
     struct expr *n = literal_node(FLOAT_LITERAL);
-    EXPR_TYPE(n) = ty;
-    EXPR_SYM(n)->type = ty;
-    EXPR_SYM(n)->value = v;
+    n->type = ty;
+    n->sym->type = ty;
+    n->sym->value = v;
     return n;
 }
 
@@ -123,9 +123,9 @@ static struct expr *arith2arith(struct type * dty, struct expr * l)
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
 
-    struct type *sty = EXPR_TYPE(l);
+    struct type *sty = l->type;
     if (isint(dty) && isint(sty)) {
-        union value dst_val = EXPR_SYM(l)->value;
+        union value dst_val = l->sym->value;
         int src_size = TYPE_SIZE(sty);
         int dst_size = TYPE_SIZE(dty);
         if (src_size > dst_size) {
@@ -137,13 +137,13 @@ static struct expr *arith2arith(struct type * dty, struct expr * l)
         return int_literal_node(dty, dst_val);
     } else if (isint(dty) && isfloat(sty)) {
         // float => int
-        union value src_val = EXPR_SYM(l)->value;
+        union value src_val = l->sym->value;
         union value dst_val;
         dst_val.u = src_val.d;
         return int_literal_node(dty, dst_val);
     } else if (isfloat(dty) && isint(sty)) {
         // int => float
-        union value src_val = EXPR_SYM(l)->value;
+        union value src_val = l->sym->value;
         union value dst_val;
         if (TYPE_OP(sty) == INT)
             dst_val.d = src_val.i;
@@ -153,7 +153,7 @@ static struct expr *arith2arith(struct type * dty, struct expr * l)
     } else if (isfloat(dty) && isfloat(sty)) {
         // float => float
         int dst_kind = TYPE_KIND(dty);
-        union value src_val = EXPR_SYM(l)->value;
+        union value src_val = l->sym->value;
         union value dst_val;
         if (dst_kind == FLOAT)
             dst_val.d = (float)src_val.d;
@@ -168,11 +168,11 @@ static struct expr *arith2arith(struct type * dty, struct expr * l)
 
 static struct expr *arith2ptr(struct type * dty, struct expr * l)
 {
-    assert(isint(EXPR_TYPE(l)));
+    assert(isint(l->type));
     if (!isiliteral(l))
         return NULL;
     // int => ptr
-    return int_literal_node(dty, EXPR_SYM(l)->value);
+    return int_literal_node(dty, l->sym->value);
 }
 
 static struct expr *ptr2arith(struct type * dty, struct expr * l)
@@ -181,37 +181,37 @@ static struct expr *ptr2arith(struct type * dty, struct expr * l)
     if (!isiliteral(l))
         return NULL;
     // ptr => int
-    return int_literal_node(dty, EXPR_SYM(l)->value);
+    return int_literal_node(dty, l->sym->value);
 }
 
 static struct expr *ptr2ptr(struct type * dty, struct expr * l)
 {
     // ptr => ptr
-    if (EXPR_ID(l) == REF_EXPR) {
-        struct type *ty = EXPR_SYM(l)->type;
+    if (l->id == REF_EXPR) {
+        struct type *ty = l->sym->type;
         if (!isfunc(ty) && !isarray(ty))
             return NULL;
     }
     l = copy_node(l);
-    EXPR_TYPE(l) = dty;
+    l->type = dty;
     return l;
 }
 
 static struct expr *func2ptr(struct type * dty, struct expr * l)
 {
-    assert(EXPR_ID(l) == REF_EXPR);
+    assert(l->id == REF_EXPR);
     l = copy_node(l);
-    EXPR_TYPE(l) = dty;
+    l->type = dty;
     return l;
 }
 
 static struct expr *array2ptr(struct type * dty, struct expr * l)
 {
-    assert(EXPR_ID(l) == REF_EXPR || issliteral(l));
-    if (EXPR_ID(l) == REF_EXPR && !has_static_extent(EXPR_SYM(l)))
+    assert(l->id == REF_EXPR || issliteral(l));
+    if (l->id == REF_EXPR && !has_static_extent(l->sym))
         return NULL;
     l = copy_node(l);
-    EXPR_TYPE(l) = dty;
+    l->type = dty;
     return l;
 }
 
@@ -220,10 +220,10 @@ static struct expr *cast(struct type * dty, struct expr * l)
     if (!l)
         return NULL;
 
-    if (EXPR_ID(l) == INITS_EXPR && isscalar(dty))
+    if (l->id == INITS_EXPR && isscalar(dty))
         l = EXPR_INITS(l)[0];
 
-    struct type *sty = EXPR_TYPE(l);
+    struct type *sty = l->type;
     if (isarith(dty)) {
         if (isarith(sty))
             return arith2arith(dty, l);
@@ -240,10 +240,10 @@ static struct expr *cast(struct type * dty, struct expr * l)
             return array2ptr(dty, l);
     } else {
         // record or lvalue2rvalue cast
-        if (isrecord(dty) && EXPR_ID(l) != INITS_EXPR)
+        if (isrecord(dty) && l->id != INITS_EXPR)
             return NULL;
         l = copy_node(l);
-        EXPR_TYPE(l) = dty;
+        l->type = dty;
         return l;
     }
     return NULL;
@@ -266,18 +266,18 @@ static struct expr *address_uop(struct expr * expr)
     struct expr *l = EXPR_OPERAND(expr, 0);
     if (!l || !(l = doeval(l)))
         return NULL;
-    if (issliteral(l) || EXPR_ID(l) == INITS_EXPR) {
-        return ast_uop(EXPR_OP(expr), EXPR_TYPE(expr), l);
-    } else if (EXPR_ID(l) == UNARY_OPERATOR) {
-        assert(EXPR_OP(l) == '*');
+    if (issliteral(l) || l->id == INITS_EXPR) {
+        return ast_uop(expr->op, expr->type, l);
+    } else if (l->id == UNARY_OPERATOR) {
+        assert(l->op == '*');
         return EXPR_OPERAND(l, 0);
-    } else if (EXPR_ID(l) == REF_EXPR) {
-        struct symbol *sym = EXPR_SYM(l);
+    } else if (l->id == REF_EXPR) {
+        struct symbol *sym = l->sym;
         if (!has_static_extent(sym))
             return NULL;
-        return ast_uop(EXPR_OP(expr), EXPR_TYPE(expr), l);
+        return ast_uop(expr->op, expr->type, l);
     } else if (isiliteral(l) &&
-               EXPR_ID(EXPR_OPERAND(expr, 0)) == MEMBER_EXPR) {
+               EXPR_OPERAND(expr, 0)->id == MEMBER_EXPR) {
         return l;
     }
     assert(0);
@@ -288,7 +288,7 @@ static struct expr *scalar_uop(int op, struct type * ty, struct expr * l)
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
 
-    union value lval = EXPR_SYM(l)->value;
+    union value lval = l->sym->value;
 
     switch (op) {
     case '!':
@@ -306,7 +306,7 @@ static struct expr *arith_uop(int op, struct type * ty, struct expr * l)
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
 
-    union value lval = EXPR_SYM(l)->value;
+    union value lval = l->sym->value;
     union value rval;
 
     switch (op) {
@@ -330,7 +330,7 @@ static struct expr *int_uop(int op, struct type * ty, struct expr * l)
     if (!isiliteral(l))
         return NULL;
 
-    union value lval = EXPR_SYM(l)->value;
+    union value lval = l->sym->value;
     union value rval;
 
     switch (op) {
@@ -347,17 +347,17 @@ static struct expr *scalar_bop(int op, struct type * ty, struct expr * l, struct
     if (!isiliteral(l) && !isfliteral(l))
         return NULL;
 
-    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(EXPR_TYPE(r)));
+    assert(TYPE_KIND(l->type) == TYPE_KIND(r->type));
 
-    union value lval = EXPR_SYM(l)->value;
-    union value rval = EXPR_SYM(r)->value;
-    bool is_int = EXPR_TYPE(l);
+    union value lval = l->sym->value;
+    union value rval = r->sym->value;
+    bool is_int = l->type;
 
 #define SCALAR_OP(op)                                   \
     if (is_int) {                                       \
         bool b;                                         \
-        int sign1 = TYPE_OP(EXPR_TYPE(l));              \
-        int sign2 = TYPE_OP(EXPR_TYPE(r));              \
+        int sign1 = TYPE_OP(l->type);                   \
+        int sign2 = TYPE_OP(r->type);                   \
         if (sign1 == UNSIGNED && sign2 == UNSIGNED) {   \
             b = lval.u op rval.u;                       \
         }  else if (sign1 == INT && sign2 == INT) {     \
@@ -409,8 +409,8 @@ static struct expr *ptr_int_bop(int op, struct type * ty, struct expr * ptr, str
     if (!r || !isiliteral(r))
         return NULL;
     // combine
-    if (EXPR_ID(l) == BINARY_OPERATOR) {
-        int op1 = EXPR_OP(l);
+    if (l->id == BINARY_OPERATOR) {
+        int op1 = l->op;
         struct expr *r1 = EXPR_OPERAND(l, 1);
 
         assert(op1 == '+' || op1 == '-');
@@ -425,8 +425,7 @@ static struct expr *ptr_int_bop(int op, struct type * ty, struct expr * ptr, str
             n = binop('-', r2, r3);
             op = '+';
         }
-        r = arith_bop(EXPR_OP(n), EXPR_TYPE(n), EXPR_OPERAND(n, 0),
-                      EXPR_OPERAND(n, 1));
+        r = arith_bop(n->op, n->type, EXPR_OPERAND(n, 0), EXPR_OPERAND(n, 1));
         l = EXPR_OPERAND(l, 0);
     }
     return ast_bop(op, ty, l, r);
@@ -439,13 +438,13 @@ static struct expr *arith_bop(int op, struct type * ty, struct expr * l, struct 
     else if (!isiliteral(r) && !isfliteral(r))
         return NULL;
 
-    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(EXPR_TYPE(r)));
-    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(ty));
-    assert(TYPE_OP(EXPR_TYPE(l)) == TYPE_OP(EXPR_TYPE(r)));
-    assert(TYPE_OP(EXPR_TYPE(l)) == TYPE_OP(ty));
+    assert(TYPE_KIND(l->type) == TYPE_KIND(r->type));
+    assert(TYPE_KIND(l->type) == TYPE_KIND(ty));
+    assert(TYPE_OP(l->type) == TYPE_OP(r->type));
+    assert(TYPE_OP(l->type) == TYPE_OP(ty));
 
-    union value lval = EXPR_SYM(l)->value;
-    union value rval = EXPR_SYM(r)->value;
+    union value lval = l->sym->value;
+    union value rval = r->sym->value;
     bool is_int = isint(ty);
     union value val;
 
@@ -485,13 +484,13 @@ static struct expr *int_bop(int op, struct type * ty, struct expr * l, struct ex
     if (!isiliteral(l) || !isiliteral(r))
         return NULL;
 
-    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(EXPR_TYPE(r)));
-    assert(TYPE_KIND(EXPR_TYPE(l)) == TYPE_KIND(ty));
-    assert(TYPE_OP(EXPR_TYPE(l)) == TYPE_OP(EXPR_TYPE(r)));
-    assert(TYPE_OP(EXPR_TYPE(l)) == TYPE_OP(ty));
+    assert(TYPE_KIND(l->type) == TYPE_KIND(r->type));
+    assert(TYPE_KIND(l->type) == TYPE_KIND(ty));
+    assert(TYPE_OP(l->type) == TYPE_OP(r->type));
+    assert(TYPE_OP(l->type) == TYPE_OP(ty));
 
-    union value lval = EXPR_SYM(l)->value;
-    union value rval = EXPR_SYM(r)->value;
+    union value lval = l->sym->value;
+    union value rval = r->sym->value;
     union value val;
 
 #define INT_BOP(op)  val.u = lval.u op rval.u
@@ -524,12 +523,12 @@ static struct expr *int_bop(int op, struct type * ty, struct expr * l, struct ex
 
 static struct expr *doeval(struct expr * expr)
 {
-    switch (EXPR_ID(expr)) {
+    switch (expr->id) {
     case BINARY_OPERATOR:
         {
             struct expr *l = EXPR_OPERAND(expr, 0);
             struct expr *r = EXPR_OPERAND(expr, 1);
-            int op = EXPR_OP(expr);
+            int op = expr->op;
             struct bop *bop;
             switch (op) {
             case '=':
@@ -558,35 +557,33 @@ static struct expr *doeval(struct expr * expr)
             case NEQ:
             dispatch:
                 bop = dispatch_bop(op);
-                assert(bop->is(EXPR_TYPE(l)));
-                assert(bop->is(EXPR_TYPE(r)));
+                assert(bop->is(l->type));
+                assert(bop->is(r->type));
                 l = doeval(l);
                 if (!l)
                     return NULL;
                 r = doeval(r);
                 if (!r)
                     return NULL;
-                return bop->eval(op, EXPR_TYPE(expr), l, r);
+                return bop->eval(op, expr->type, l, r);
             case '+':
                 {
-                    if (isarith(EXPR_TYPE(l))
-                        && isarith(EXPR_TYPE(r)))
+                    if (isarith(l->type) && isarith(r->type))
                         goto dispatch;
                     // ptr + int or int + ptr
                     struct expr *ptr =
-                        isptr(EXPR_TYPE(l)) ? l : r;
+                        isptr(l->type) ? l : r;
                     struct expr *i = ptr == l ? r : l;
-                    assert(isptr(EXPR_TYPE(ptr)));
-                    assert(isint(EXPR_TYPE(i)));
-                    return ptr_int_bop(op, EXPR_TYPE(expr),
-                                       ptr, i);
+                    assert(isptr(ptr->type));
+                    assert(isint(i->type));
+                    return ptr_int_bop(op, expr->type, ptr, i);
                 }
             case '-':
-                if (!isptr(EXPR_TYPE(l)))
+                if (!isptr(l->type))
                     goto dispatch;
                 // ptr - int
-                assert(isint(EXPR_TYPE(r)));
-                return ptr_int_bop(op, EXPR_TYPE(expr), l, r);
+                assert(isint(r->type));
+                return ptr_int_bop(op, expr->type, l, r);
             case AND:
             case OR:
                 l = doeval(l);
@@ -605,7 +602,7 @@ static struct expr *doeval(struct expr * expr)
     case UNARY_OPERATOR:
         {
             struct expr *l = EXPR_OPERAND(expr, 0);
-            int op = EXPR_OP(expr);
+            int op = expr->op;
             struct uop *uop;
             switch (op) {
             case INCR:
@@ -619,11 +616,11 @@ static struct expr *doeval(struct expr * expr)
             case '~':
             case '!':
                 uop = dispatch_uop(op);
-                assert(uop->is(EXPR_TYPE(l)));
+                assert(uop->is(l->type));
                 l = doeval(l);
                 if (!l)
                     return NULL;
-                return uop->eval(op, EXPR_TYPE(expr), l);
+                return uop->eval(op, expr->type, l);
             case SIZEOF:
             default:
                 assert(0);
@@ -635,7 +632,7 @@ static struct expr *doeval(struct expr * expr)
         return doeval(EXPR_OPERAND(expr, 0));
     case CAST_EXPR:
     case CONV_EXPR:
-        return cast(EXPR_TYPE(expr), doeval(EXPR_OPERAND(expr, 0)));
+        return cast(expr->type, doeval(EXPR_OPERAND(expr, 0)));
     case COND_EXPR:
         {
             struct expr *cond = doeval(EXPR_COND(expr));
@@ -652,7 +649,7 @@ static struct expr *doeval(struct expr * expr)
             struct expr **inits = EXPR_INITS(expr);
             for (int i = 0; inits[i]; i++) {
                 struct expr *n = inits[i];
-                if (EXPR_ID(n) == VINIT_EXPR) {
+                if (n->id == VINIT_EXPR) {
                     vec_push(v, n);
                     continue;
                 }
@@ -667,21 +664,20 @@ static struct expr *doeval(struct expr * expr)
         }
     case SUBSCRIPT_EXPR:
         {
-            if (isptr(EXPR_TYPE(expr)))
+            if (isptr(expr->type))
                 return NULL;
             struct expr *l = EXPR_OPERAND(expr, 0);
             struct expr *r = EXPR_OPERAND(expr, 1);
-            struct expr *ptr = isptr(EXPR_TYPE(l)) ? l : r;
-            struct expr *i = isint(EXPR_TYPE(r)) ? r : l;
-            assert(isptr(EXPR_TYPE(ptr)));
-            assert(isint(EXPR_TYPE(i)));
-            struct expr *p = ptr_int_bop('+', EXPR_TYPE(ptr), ptr, i);
-            return ast_uop('*', EXPR_TYPE(expr), p);
+            struct expr *ptr = isptr(l->type) ? l : r;
+            struct expr *i = isint(r->type) ? r : l;
+            assert(isptr(ptr->type));
+            assert(isint(i->type));
+            struct expr *p = ptr_int_bop('+', ptr->type, ptr, i);
+            return ast_uop('*', expr->type, p);
         }
     case REF_EXPR:
-        if (EXPR_OP(expr) == ENUM)
-            return int_literal_node(EXPR_TYPE(expr),
-                                    EXPR_SYM(expr)->value);
+        if (expr->op == ENUM)
+            return int_literal_node(expr->type, expr->sym->value);
         else
             return expr;
     case INTEGER_LITERAL:
@@ -691,15 +687,15 @@ static struct expr *doeval(struct expr * expr)
     case MEMBER_EXPR:
         {
             struct expr *l = EXPR_OPERAND(expr, 0);
-            struct type *ty = EXPR_TYPE(l);
+            struct type *ty = l->type;
             l = doeval(l);
             if (!l || !isiliteral(l))
                 return NULL;
             ty = isptr(ty) ? rtype(ty) : ty;
             assert(isrecord(ty));
-            struct field *field = find_field(ty, EXPR_NAME(expr));
+            struct field *field = find_field(ty, expr->name);
             assert(field);
-            long off = field->offset + EXPR_SYM(l)->value.i;
+            long off = field->offset + l->sym->value.i;
             union value v = {.i = off};
             return int_literal_node(longtype, v);
         }

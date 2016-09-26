@@ -321,8 +321,8 @@ static void ensure_type(struct expr *node, bool(*is) (struct type *))
     else
         assert(0);
 
-    if (!is(EXPR_TYPE(node)))
-        error_at(EXPR_SRC(node), "expect type '%s', not '%s'", name, type2s(EXPR_TYPE(node)));
+    if (!is(node->type))
+        error_at(node->src, "expect type '%s', not '%s'", name, type2s(node->type));
 }
 
 /**
@@ -346,26 +346,26 @@ static void ensure_type(struct expr *node, bool(*is) (struct type *))
  */
 bool islvalue(struct expr *node)
 {
-    if (EXPR_ID(node) == STRING_LITERAL)
+    if (node->id == STRING_LITERAL)
         return true;
-    if (EXPR_ID(node) == PAREN_EXPR)
+    if (node->id == PAREN_EXPR)
         return islvalue(EXPR_OPERAND(node, 0));
-    if (EXPR_ID(node) == SUBSCRIPT_EXPR)
+    if (node->id == SUBSCRIPT_EXPR)
         return true;
-    if (EXPR_ID(node) == UNARY_OPERATOR && EXPR_OP(node) == '*') {
-        if (isfunc(EXPR_TYPE(node)))
+    if (node->id == UNARY_OPERATOR && node->op == '*') {
+        if (isfunc(node->type))
             return false;
         return true;
     }
-    if (EXPR_ID(node) == MEMBER_EXPR)
-        return EXPR_OP(node) ==
+    if (node->id == MEMBER_EXPR)
+        return node->op ==
             DEREF ? true : islvalue(EXPR_OPERAND(node, 0));
-    if (EXPR_ID(node) == COMPOUND_LITERAL)
+    if (node->id == COMPOUND_LITERAL)
         return true;
-    if (EXPR_ID(node) == REF_EXPR) {
-        if (EXPR_OP(node) == ENUM)
+    if (node->id == REF_EXPR) {
+        if (node->op == ENUM)
             return false;
-        if (isfunc(EXPR_TYPE(node)))
+        if (isfunc(node->type))
             return false;
         return true;
     }
@@ -376,16 +376,16 @@ bool islvalue(struct expr *node)
 static void ensure_lvalue(struct expr *node)
 {
     if (!islvalue(node))
-        error_at(EXPR_SRC(node), "expect lvalue at '%s'", expr2s(node));
+        error_at(node->src, "expect lvalue at '%s'", expr2s(node));
 }
 
 static void ensure_assignable(struct expr *node)
 {
-    struct type *ty = EXPR_TYPE(node);
-    struct source src = EXPR_SRC(node);
+    struct type *ty = node->type;
+    struct source src = node->src;
     if (!islvalue(node))
         error_at(src, "expression is not assignable '%s'", expr2s(node));
-    else if (EXPR_ID(node) == PAREN_EXPR)
+    else if (node->id == PAREN_EXPR)
         ensure_assignable(EXPR_OPERAND(node, 0));
     else if (isarray(ty))
         error_at(src, "array type '%s' is not assignable", type2s(ty));
@@ -395,26 +395,26 @@ static void ensure_assignable(struct expr *node)
 
 static bool is_bitfield(struct expr *node)
 {
-    if (EXPR_ID(node) != MEMBER_EXPR)
+    if (node->id != MEMBER_EXPR)
         return false;
 
-    struct type *ty = EXPR_TYPE(EXPR_OPERAND(node, 0));
+    struct type *ty = EXPR_OPERAND(node, 0)->type;
     if (isptr(ty))
         ty = rtype(ty);
-    const char *name = EXPR_NAME(node);
+    const char *name = node->name;
     struct field *field = find_field(ty, name);
     return field && field->isbit;
 }
 
 static const char * castname(struct type *ty, struct expr *l)
 {
-    if (isfloat(ty) && isfloat(EXPR_TYPE(l)))
+    if (isfloat(ty) && isfloat(l->type))
 	return FloatCast;
-    else if (isfloat(ty) && isint(EXPR_TYPE(l)))
+    else if (isfloat(ty) && isint(l->type))
         return IntegerToFloatCast;
-    else if (isint(ty) && isint(EXPR_TYPE(l)))
+    else if (isint(ty) && isint(l->type))
 	return IntegralCast;
-    else if (isint(ty) && isfloat(EXPR_TYPE(l)))
+    else if (isint(ty) && isfloat(l->type))
 	return FloatToIntegerCast;
     else
 	return BitCast;
@@ -423,9 +423,9 @@ static const char * castname(struct type *ty, struct expr *l)
 static struct expr *wrap(struct type *ty, struct expr *node)
 {
     assert(isarith(ty));
-    assert(isarith(EXPR_TYPE(node)));
+    assert(isarith(node->type));
 
-    if (eqarith(ty, EXPR_TYPE(node)))
+    if (eqarith(ty, node->type))
         return node;
     else
         return ast_conv(ty, node, castname(ty, node));
@@ -433,7 +433,7 @@ static struct expr *wrap(struct type *ty, struct expr *node)
 
 static struct expr *bitconv(struct type *ty, struct expr *node)
 {
-    if (eqtype(ty, EXPR_TYPE(node)))
+    if (eqtype(ty, node->type))
         return node;
     else
         return ast_conv(ty, node, castname(ty, node));
@@ -442,14 +442,14 @@ static struct expr *bitconv(struct type *ty, struct expr *node)
 static struct expr *decay(struct expr *node)
 {
     assert(node);
-    switch (TYPE_KIND(EXPR_TYPE(node))) {
+    switch (TYPE_KIND(node->type)) {
     case FUNCTION:
         // FunctionToPointerDecay
-        return ast_conv(ptr_type(EXPR_TYPE(node)), node, FunctionToPointerDecay);
+        return ast_conv(ptr_type(node->type), node, FunctionToPointerDecay);
 
     case ARRAY:
         // ArrayToPointerDecay
-        return ast_conv(ptr_type(rtype(EXPR_TYPE(node))), node, ArrayToPointerDecay);
+        return ast_conv(ptr_type(rtype(node->type)), node, ArrayToPointerDecay);
 
     default:
         return node;
@@ -459,7 +459,7 @@ static struct expr *decay(struct expr *node)
 static struct expr *ltor(struct expr *node)
 {
     // LValueToRValue
-    return ast_conv(unqual(EXPR_TYPE(node)), node, LValueToRValue);
+    return ast_conv(unqual(node->type), node, LValueToRValue);
 }
 
 // Universal Unary Conversion
@@ -470,14 +470,14 @@ static struct expr *conv(struct expr *node)
     if (islvalue(node))
         node = ltor(node);
 
-    switch (TYPE_KIND(EXPR_TYPE(node))) {
+    switch (TYPE_KIND(node->type)) {
     case _BOOL:
     case CHAR:
     case SHORT:
         return ast_conv(inttype, node, IntegralCast);
 
     case ENUM:
-        return ast_conv(rtype(EXPR_TYPE(node)), node, IntegralCast);
+        return ast_conv(rtype(node->type), node, IntegralCast);
 
     case FUNCTION:
     case ARRAY:
@@ -496,7 +496,7 @@ static struct expr *conva(struct expr *node)
     if (islvalue(node))
         node = ltor(node);
 
-    switch (TYPE_KIND(EXPR_TYPE(node))) {
+    switch (TYPE_KIND(node->type)) {
     case FLOAT:
         return ast_conv(doubletype, node, FloatCast);
 
@@ -541,13 +541,13 @@ static struct type *conv2(struct type * l, struct type * r)
 
 static bool is_nullptr(struct expr *node)
 {
-    assert(isptr(EXPR_TYPE(node)) || isint(EXPR_TYPE(node)));
+    assert(isptr(node->type) || isint(node->type));
 
     struct expr *cnst = eval(node, inttype);
     if (cnst == NULL)
         return false;
     if (isiliteral(cnst))
-        return EXPR_SYM(cnst)->value.u == 0;
+        return ILITERAL_VALUE(cnst).u == 0;
     return false;
 }
 
@@ -579,12 +579,12 @@ struct expr *assignconv(struct type *ty, struct expr *node)
 {
     struct type *ty2;
 
-    if (isfunc(EXPR_TYPE(node)) || isarray(EXPR_TYPE(node)))
+    if (isfunc(node->type) || isarray(node->type))
         node = decay(node);
     if (islvalue(node))
         node = ltor(node);
 
-    ty2 = EXPR_TYPE(node);
+    ty2 = node->type;
 
     if (isarith(ty) && isarith(ty2)) {
         return wrap(ty, node);
@@ -685,7 +685,7 @@ static struct vector *argcast1(struct type **params, size_t nparams,
     for (size_t i = 0; i < cmp1; i++) {
         struct type *dst = params[i];
         struct expr *arg = args[i];
-        struct type *src = EXPR_TYPE(arg);
+        struct type *src = arg->type;
         struct expr *ret = assignconv(dst, arg);
         if (ret) {
             vec_push(v, ret);
@@ -765,19 +765,19 @@ static struct expr **argscast(struct type *fty, struct expr **args)
 
 static void ensure_additive_ptr(struct expr *node)
 {
-    assert(isptr(EXPR_TYPE(node)));
-    struct type *rty = rtype(EXPR_TYPE(node));
+    assert(isptr(node->type));
+    struct type *rty = rtype(node->type);
     if (isfunc(rty) || isincomplete(rty))
-        error_at(EXPR_SRC(node),
+        error_at(node->src,
                  "increment/decrement of invalid type '%s' (pointer to unknown size)",
-                 type2s(EXPR_TYPE(node)));
+                 type2s(node->type));
 }
 
 static void ensure_increment(struct expr *node)
 {
     ensure_type(node, isscalar);
     ensure_assignable(node);
-    if (isptr(EXPR_TYPE(node)))
+    if (isptr(node->type))
         ensure_additive_ptr(node);
 }
 
@@ -788,17 +788,17 @@ static struct expr *commaop(struct expr *l, struct expr *r, struct source src)
     if (l == NULL || r == NULL)
         return NULL;
 
-    if (isarray(EXPR_TYPE(l)) || isfunc(EXPR_TYPE(l)))
+    if (isarray(l->type) || isfunc(l->type))
         l = decay(l);
-    if (isarray(EXPR_TYPE(r)) || isfunc(EXPR_TYPE(r)))
+    if (isarray(r->type) || isfunc(r->type))
         r = decay(r);
     if (islvalue(l))
         l = ltor(l);
     if (islvalue(r))
         r = ltor(r);
 
-    ret = ast_bop(',', EXPR_TYPE(r), l, r);
-    EXPR_SRC(ret) = src;
+    ret = ast_bop(',', r->type, l, r);
+    ret->src = src;
     return ret;
 }
 
@@ -837,7 +837,7 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
     if (l == NULL || r == NULL)
         return NULL;
 
-    struct type *retty = unqual(EXPR_TYPE(l));
+    struct type *retty = unqual(l->type);
     SAVE_ERRORS;
     ensure_assignable(l);
     if (HAS_ERROR)
@@ -848,8 +848,8 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
         struct expr *l1 = conv(l);
         struct expr *r1 = conv(r);
         if (op2 == '+' || op2 == '-') {
-            struct type *ty1 = EXPR_TYPE(l1);
-            struct type *ty2 = EXPR_TYPE(r1);
+            struct type *ty1 = l1->type;
+            struct type *ty2 = r1->type;
             if (!((isarith(ty1) && isarith(ty2)) ||
                   (isptr(ty1) && isint(ty2))))
                 error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
@@ -858,8 +858,8 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
     }
 
     if (NO_ERROR) {
-        struct type *ty1 = EXPR_TYPE(l);
-        struct type *ty2 = EXPR_TYPE(r);
+        struct type *ty1 = l->type;
+        struct type *ty2 = r->type;
         r = assignconv(retty, r);
         if (r)
             ret = ast_bop('=', retty, l, r);
@@ -882,8 +882,8 @@ static struct expr *condop(struct expr *cond, struct expr *then, struct expr *el
     if (cond == NULL || then == NULL || els == NULL)
         return ret;
 
-    struct type *ty1 = EXPR_TYPE(then);
-    struct type *ty2 = EXPR_TYPE(els);
+    struct type *ty1 = then->type;
+    struct type *ty2 = els->type;
 
     SAVE_ERRORS;
     ensure_type(cond, isscalar);
@@ -943,7 +943,7 @@ static struct expr *condop(struct expr *cond, struct expr *then, struct expr *el
         EXPR_COND(ret) = cond;
         EXPR_THEN(ret) = then;
         EXPR_ELSE(ret) = els;
-        EXPR_SRC(ret) = src;
+        ret->src = src;
     }
 
     return ret;
@@ -963,7 +963,7 @@ static struct expr *logicop(int op, struct expr *l, struct expr *r, struct sourc
     ensure_type(r, isscalar);
     if (NO_ERROR) {
         ret = ast_bop(op, inttype, l, r);
-        EXPR_SRC(ret) = src;
+        ret->src = src;
     }
 
     return ret;
@@ -986,7 +986,7 @@ static struct expr *bop(int op, struct expr *l, struct expr *r, struct source sr
         ensure_type(l, isarith);
         ensure_type(r, isarith);
         if (NO_ERROR) {
-            ty = conv2(EXPR_TYPE(l), EXPR_TYPE(r));
+            ty = conv2(l->type, r->type);
             node = ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
         }
         break;
@@ -999,56 +999,56 @@ static struct expr *bop(int op, struct expr *l, struct expr *r, struct source sr
         ensure_type(l, isint);
         ensure_type(r, isint);
         if (NO_ERROR) {
-            ty = conv2(EXPR_TYPE(l), EXPR_TYPE(r));
+            ty = conv2(l->type, r->type);
             node = ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
         }
         break;
     case '+':
-        if (isptr(EXPR_TYPE(l))) {
+        if (isptr(l->type)) {
             ensure_additive_ptr(l);
             ensure_type(r, isint);
             if (NO_ERROR)
-                node = ast_bop(op, EXPR_TYPE(l), l, r);
-        } else if (isptr(EXPR_TYPE(r))) {
+                node = ast_bop(op, l->type, l, r);
+        } else if (isptr(r->type)) {
             ensure_additive_ptr(r);
             ensure_type(l, isint);
             if (NO_ERROR)
-                node = ast_bop(op, EXPR_TYPE(r), l, r);
+                node = ast_bop(op, r->type, l, r);
         } else {
             ensure_type(l, isarith);
             ensure_type(r, isarith);
             if (NO_ERROR) {
-                ty = conv2(EXPR_TYPE(l), EXPR_TYPE(r));
+                ty = conv2(l->type, r->type);
                 node =
                     ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
             }
         }
         break;
     case '-':
-        if (isptr(EXPR_TYPE(l))) {
-            if (isint(EXPR_TYPE(r))) {
+        if (isptr(l->type)) {
+            if (isint(r->type)) {
                 ensure_additive_ptr(l);
                 if (NO_ERROR)
-                    node = ast_bop(op, EXPR_TYPE(l), l, r);
-            } else if (isptr(EXPR_TYPE(r))) {
+                    node = ast_bop(op, l->type, l, r);
+            } else if (isptr(r->type)) {
                 ensure_additive_ptr(l);
                 ensure_additive_ptr(r);
-                struct type *rty1 = rtype(EXPR_TYPE(l));
-                struct type *rty2 = rtype(EXPR_TYPE(r));
+                struct type *rty1 = rtype(l->type);
+                struct type *rty2 = rtype(r->type);
                 if (!eqtype(unqual(rty1), unqual(rty2)))
                     error("'%s' and '%s' are not pointers to compatible types",
-                          type2s(EXPR_TYPE(l)), type2s(EXPR_TYPE(r)));
+                          type2s(l->type), type2s(r->type));
                 if (NO_ERROR)
                     node = ast_bop(op, inttype, l, r);
             } else {
                 error("expect integer or pointer type, not type '%s'",
-                      type2s(EXPR_TYPE(r)));
+                      type2s(r->type));
             }
         } else {
             ensure_type(l, isarith);
             ensure_type(r, isarith);
             if (NO_ERROR) {
-                ty = conv2(EXPR_TYPE(l), EXPR_TYPE(r));
+                ty = conv2(l->type, r->type);
                 node = ast_bop(op, ty, wrap(ty, l), wrap(ty, r));
             }
         }
@@ -1060,15 +1060,15 @@ static struct expr *bop(int op, struct expr *l, struct expr *r, struct source sr
     case GEQ:
     case EQ:
     case NEQ:
-        if (isptr(EXPR_TYPE(l)) && isptr(EXPR_TYPE(r))) {
+        if (isptr(l->type) && isptr(r->type)) {
             // both ptr
-            if (eqtype(EXPR_TYPE(l), EXPR_TYPE(r))) {
+            if (eqtype(l->type, r->type)) {
                 node = ast_bop(op, inttype, l, r);
             } else if (op == EQ || op == NEQ) {
-                if (isptrto(EXPR_TYPE(l), VOID)
-                    || isptrto(EXPR_TYPE(r), VOID)) {
-                    struct expr *l1 = isptrto(EXPR_TYPE(l), VOID) ? l : ast_conv(ptr_type(voidtype), l, BitCast);
-                    struct expr *r1 = isptrto(EXPR_TYPE(r), VOID) ? r : ast_conv(ptr_type(voidtype), r, BitCast);
+                if (isptrto(l->type, VOID)
+                    || isptrto(r->type, VOID)) {
+                    struct expr *l1 = isptrto(l->type, VOID) ? l : ast_conv(ptr_type(voidtype), l, BitCast);
+                    struct expr *r1 = isptrto(r->type, VOID) ? r : ast_conv(ptr_type(voidtype), r, BitCast);
                     node = ast_bop(op, inttype, l1, r1);
                 } else if (is_nullptr(l) || is_nullptr(r)) {
                     node = ast_bop(op, inttype, l, r);
@@ -1077,28 +1077,28 @@ static struct expr *bop(int op, struct expr *l, struct expr *r, struct source sr
             
             if (!node) {
                 if (!opts.ansi)
-                    node = ast_bop(op, inttype, l, ast_conv(EXPR_TYPE(l), r, BitCast));
+                    node = ast_bop(op, inttype, l, ast_conv(l->type, r, BitCast));
                 else
                     error("comparison of incompatible pointer types ('%s' and '%s')",
-                          type2s(EXPR_TYPE(l)), type2s(EXPR_TYPE(r)));
+                          type2s(l->type), type2s(r->type));
             }
-        } else if (isarith(EXPR_TYPE(l)) && isarith(EXPR_TYPE(r))) {
+        } else if (isarith(l->type) && isarith(r->type)) {
             // both arith
-            ty = conv2(EXPR_TYPE(l), EXPR_TYPE(r));
+            ty = conv2(l->type, r->type);
             node = ast_bop(op, inttype, wrap(ty, l), wrap(ty, r));
-        } else if (isptr(EXPR_TYPE(l))) {
+        } else if (isptr(l->type)) {
             // ptr op int
             ensure_type(r, isint);
             if (NO_ERROR)
-                node = ast_bop(op, inttype, l, ast_conv(EXPR_TYPE(l), r, IntegerToPointerCast));
-        } else if (isptr(EXPR_TYPE(r))) {
+                node = ast_bop(op, inttype, l, ast_conv(l->type, r, IntegerToPointerCast));
+        } else if (isptr(r->type)) {
             // int op ptr
             ensure_type(l, isint);
             if (NO_ERROR)
-                node = ast_bop(op, inttype, ast_conv(EXPR_TYPE(r), l, IntegerToPointerCast), r);
+                node = ast_bop(op, inttype, ast_conv(r->type, l, IntegerToPointerCast), r);
         } else {
             error("comparison of invalid types ('%s' and '%s')",
-                  type2s(EXPR_TYPE(l)), type2s(EXPR_TYPE(r)));
+                  type2s(l->type), type2s(r->type));
         }
         break;
     default:
@@ -1116,13 +1116,13 @@ static struct expr *castop(struct type *ty, struct expr *cast, struct source src
         return NULL;
     cast = decay(cast);
 
-    if (is_castable(ty, EXPR_TYPE(cast))) {
+    if (is_castable(ty, cast->type)) {
         ret = ast_expr(CAST_EXPR, ty, cast, NULL);
-        EXPR_SRC(ret) = src;
+        ret->src = src;
     } else {
-        error_at(EXPR_SRC(cast),
+        error_at(cast->src,
                  INCOMPATIBLE_TYPES,
-                 type2s(EXPR_TYPE(cast)), type2s(ty));
+                 type2s(cast->type), type2s(ty));
     }
 
     return ret;
@@ -1138,9 +1138,9 @@ static struct expr *pre_increment(int t, struct expr *operand, struct source src
     SAVE_ERRORS;
     ensure_increment(operand);
     if (NO_ERROR) {
-        ret = ast_uop(t, EXPR_TYPE(operand), operand);
-        EXPR_PREFIX(ret) = true;
-        EXPR_SRC(ret) = src;
+        ret = ast_uop(t, operand->type, operand);
+        ret->prefix = true;
+        ret->src = src;
     }
 
     return ret;
@@ -1157,8 +1157,8 @@ static struct expr *minus_plus(int t, struct expr *operand, struct source src)
     SAVE_ERRORS;
     ensure_type(operand, isarith);
     if (NO_ERROR) {
-        ret = ast_uop(t, EXPR_TYPE(operand), operand);
-        EXPR_SRC(ret) = src;
+        ret = ast_uop(t, operand->type, operand);
+        ret->src = src;
     }
 
     return ret;
@@ -1175,8 +1175,8 @@ static struct expr *bitwise_not(struct expr *operand, struct source src)
     SAVE_ERRORS;
     ensure_type(operand, isint);
     if (NO_ERROR) {
-        ret = ast_uop('~', EXPR_TYPE(operand), operand);
-        EXPR_SRC(ret) = src;
+        ret = ast_uop('~', operand->type, operand);
+        ret->src = src;
     }
 
     return ret;
@@ -1194,7 +1194,7 @@ static struct expr *logical_not(struct expr *operand, struct source src)
     ensure_type(operand, isscalar);
     if (NO_ERROR) {
         ret = ast_uop('!', inttype, operand);
-        EXPR_SRC(ret) = src;
+        ret->src = src;
     }
 
     return ret;
@@ -1212,16 +1212,16 @@ static struct expr *address(struct expr *operand, struct source src)
         return NULL;
 
     SAVE_ERRORS;
-    if (!isfunc(EXPR_TYPE(operand))) {
+    if (!isfunc(operand->type)) {
         ensure_lvalue(operand);
-        if (EXPR_SYM(operand) && EXPR_SYM(operand)->sclass == REGISTER)
+        if (operand->sym && operand->sym->sclass == REGISTER)
             error("address of register variable requested");
         else if (is_bitfield(operand))
             error("address of bitfield requested");
     }
     if (NO_ERROR) {
-        ret = ast_uop('&', ptr_type(EXPR_TYPE(operand)), operand);
-        EXPR_SRC(ret) = src;
+        ret = ast_uop('&', ptr_type(operand->type), operand);
+        ret->src = src;
     }
 
     return ret;
@@ -1238,8 +1238,8 @@ static struct expr *indirection(struct expr *operand, struct source src)
     SAVE_ERRORS;
     ensure_type(operand, isptr);
     if (NO_ERROR) {
-        ret = ast_uop('*', rtype(EXPR_TYPE(operand)), operand);
-        EXPR_SRC(ret) = src;
+        ret = ast_uop('*', rtype(operand->type), operand);
+        ret->src = src;
     }
 
     return ret;
@@ -1249,7 +1249,7 @@ static struct expr * sizeofop(struct type *ty, struct expr *n, struct source src
 {
     struct expr *ret = NULL;
 
-    ty = n ? EXPR_TYPE(n) : ty;
+    ty = n ? n->type : ty;
     if (ty == NULL)
         return NULL;
 
@@ -1264,7 +1264,7 @@ static struct expr * sizeofop(struct type *ty, struct expr *n, struct source src
 
     if (NO_ERROR) {
         ret = new_uint_literal(TYPE_SIZE(ty));
-        EXPR_SRC(ret) = src;
+        ret->src = src;
     }
 
     return ret;
@@ -1281,37 +1281,37 @@ static struct expr * subscript(struct expr *node, struct expr *index, struct sou
         return NULL;
 
     SAVE_ERRORS;
-    bool kind1 = isptr(EXPR_TYPE(node)) && isint(EXPR_TYPE(index));
-    bool kind2 = isint(EXPR_TYPE(node)) && isptr(EXPR_TYPE(index));
+    bool kind1 = isptr(node->type) && isint(index->type);
+    bool kind2 = isint(node->type) && isptr(index->type);
     if (kind1 || kind2) {
-        struct type *ptr = isptr(EXPR_TYPE(node)) ? EXPR_TYPE(node) : EXPR_TYPE(index);
+        struct type *ptr = isptr(node->type) ? node->type : index->type;
         if (isptrto(ptr, FUNCTION))
             error_at(src,
                      "subscript of pointer to function type '%s'",
                      type2s(rtype(ptr)));
     } else {
-        if (!isptr(EXPR_TYPE(node)) && !isptr(EXPR_TYPE(index)))
+        if (!isptr(node->type) && !isptr(index->type))
             error_at(src, "subscripted value is not an array or pointer");
         else
             error_at(src, "array subscript is not an integer");
     }
     if (NO_ERROR) {
-        struct type *ty = isptr(EXPR_TYPE(node)) ? EXPR_TYPE(node) : EXPR_TYPE(index);
+        struct type *ty = isptr(node->type) ? node->type : index->type;
         ret = ast_expr(SUBSCRIPT_EXPR, rtype(ty), node, index);
-        EXPR_SRC(ret) = EXPR_SRC(node);
+        ret->src = node->src;
     }
     return ret;
 }
 
 static struct expr *flatten_call(struct expr *node)
 {
-    switch (EXPR_ID(node)) {
+    switch (node->id) {
     case CONV_EXPR:
     case CAST_EXPR:
     case PAREN_EXPR:
         return flatten_call(EXPR_OPERAND(node, 0));
     case UNARY_OPERATOR:
-        if (EXPR_OP(node) == '&' || EXPR_OP(node) == '*')
+        if (node->op == '&' || node->op == '*')
             return flatten_call(EXPR_OPERAND(node, 0));
         else
             return node;
@@ -1322,13 +1322,13 @@ static struct expr *flatten_call(struct expr *node)
 
 static void builtin_funcall(struct expr *call, struct expr *ref)
 {
-    const char *fname = EXPR_SYM(ref)->name;
+    const char *fname = ref->sym->name;
     if (!strcmp(fname, BUILTIN_VA_ARG_P)) {
         // __builtin_va_arg_p
         struct expr **args = EXPR_ARGS(call);
         struct expr *arg1 = args[1];
-        assert(isptr(EXPR_TYPE(arg1)));
-        struct type *ty = rtype(EXPR_TYPE(arg1));
+        assert(isptr(arg1->type));
+        struct type *ty = rtype(arg1->type);
         // save the type
         EXPR_VA_ARG_TYPE(call) = ty;
         
@@ -1354,16 +1354,16 @@ static struct expr * funcall(struct expr *node, struct expr **args, struct sourc
     if (node == NULL)
         return NULL;
     
-    if (isptrto(EXPR_TYPE(node), FUNCTION)) {
-        struct type *fty = rtype(EXPR_TYPE(node));
+    if (isptrto(node->type, FUNCTION)) {
+        struct type *fty = rtype(node->type);
         if ((args = argscast(fty, args))) {
             ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
             EXPR_ARGS(ret) = args;
-            EXPR_SRC(ret) = src;
+            ret->src = src;
             vec_push(func.calls, ret);
             // handle builtin calls
             struct expr *tmp = flatten_call(node);
-            if (EXPR_ID(tmp) == REF_EXPR && isfunc(EXPR_TYPE(tmp)))
+            if (tmp->id == REF_EXPR && isfunc(tmp->type))
                 builtin_funcall(ret, tmp);
         }
     } else {
@@ -1383,7 +1383,7 @@ static struct expr * direction(struct expr *node, int t, const char *name, struc
 
     SAVE_ERRORS;
     struct field *field = NULL;
-    struct type *ty = EXPR_TYPE(node);
+    struct type *ty = node->type;
     if (t == '.') {
         ensure_type(node, isrecord);
     } else {
@@ -1400,14 +1400,14 @@ static struct expr * direction(struct expr *node, int t, const char *name, struc
     if (NO_ERROR) {
         if (opts.ansi) {
             // The result has the union of both sets of qualifiers.
-            int q = qual_union(EXPR_TYPE(node), field->type);
+            int q = qual_union(node->type, field->type);
             ret = ast_expr(MEMBER_EXPR, qual(q, field->type), node,  NULL);
         } else {
             ret = ast_expr(MEMBER_EXPR, field->type, node,  NULL);
         }
-        EXPR_NAME(ret) = field->name;
-        EXPR_OP(ret) = t;
-        EXPR_SRC(ret) = src;
+        ret->name = field->name;
+        ret->op = t;
+        ret->src = src;
     }
     return ret;
 }
@@ -1422,8 +1422,8 @@ static struct expr * post_increment(struct expr *node, int t, struct source src)
     SAVE_ERRORS;
     ensure_increment(node);
     if (NO_ERROR) {
-        ret = ast_uop(t, EXPR_TYPE(node), node);
-        EXPR_SRC(ret) = src;
+        ret = ast_uop(t, node->type, node);
+        ret->src = src;
     }
     return ret;
 }
@@ -1567,8 +1567,8 @@ static struct expr *literal_expr(struct token *t, int id,
         cnst(t, sym);
     }
     struct expr *expr = ast_expr(id, sym->type, NULL, NULL);
-    EXPR_SRC(expr) = t->src;
-    EXPR_SYM(expr) = sym;
+    expr->src = t->src;
+    expr->sym = sym;
     return expr;
 }
 
@@ -1593,8 +1593,8 @@ struct expr *new_string_literal(const char *string)
 static struct expr *make_ref_expr(struct symbol *sym, struct source src)
 {
     struct expr *ret = ast_expr(REF_EXPR, sym->type, NULL, NULL);
-    EXPR_SYM(ret) = sym;
-    EXPR_SRC(ret) = src;
+    ret->sym = sym;
+    ret->src = src;
     sym->refs++;
     return ret;
 }
@@ -1608,7 +1608,7 @@ static struct expr * id(struct token *tok)
     if (sym) {
         ret = make_ref_expr(sym, source);
         if (isenum(sym->type) && sym->sclass == ENUM)
-            EXPR_OP(ret) = ENUM;        // enum ids
+            ret->op = ENUM;        // enum ids
     } else {
         error("use of undeclared identifier '%s'", tok2s(tok));
     }
@@ -1636,8 +1636,8 @@ static struct expr * paren(struct expr *e, struct source src)
     struct expr *ret = NULL;
     
     if (e) {
-        ret = ast_expr(PAREN_EXPR, EXPR_TYPE(e), e, NULL);
-        EXPR_SRC(ret) = src;
+        ret = ast_expr(PAREN_EXPR, e->type, e, NULL);
+        ret->src = src;
     }
 
     return ret;
@@ -1648,7 +1648,7 @@ static struct expr * compound_literal(struct type *ty, struct expr *inits, struc
     struct expr *ret;
     
     ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
-    EXPR_SRC(ret) = EXPR_SRC(inits);
+    ret->src = inits->src;
     
     // define local variable
     if (cscope >= LOCAL) {
@@ -1656,7 +1656,7 @@ static struct expr * compound_literal(struct type *ty, struct expr *inits, struc
         struct symbol *sym = mklocalvar(label, ty, 0);
         sym->u.init = inits;
         // set sym
-        EXPR_SYM(ret) = sym;
+        ret->sym = sym;
         sym->refs++;
     }
 
@@ -1671,8 +1671,8 @@ long intexpr1(struct type * ty)
         // parsing expression failed
         return 0;
     if (ty == NULL)
-        ty = EXPR_TYPE(cond);
-    if (!isint(EXPR_TYPE(cond)) || !isint(ty)) {
+        ty = cond->type;
+    if (!isint(cond->type) || !isint(ty)) {
         error_at(src, "expression is not an integer constant expression");
         return 0;
     }
@@ -1701,7 +1701,7 @@ struct expr *bool_expr(void)
     if (node == NULL)
         return NULL;
     // warning for assignment expression
-    if (EXPR_ID(node) == BINARY_OPERATOR && EXPR_OP(node) == '=')
+    if (node->id == BINARY_OPERATOR && node->op == '=')
         warning("using the result of an assignment as a condition without parentheses '%s'",
                 expr2s(node));
     if (islvalue(node))
@@ -1715,9 +1715,9 @@ struct expr *switch_expr(void)
     struct expr *node = conv(expression());
     if (node == NULL)
         return NULL;
-    if (!isint(EXPR_TYPE(node))) {
+    if (!isint(node->type)) {
         error("statement requires expression of integer type ('%s' invalid)",
-              type2s(EXPR_TYPE(node)));
+              type2s(node->type));
         return NULL;
     }
     return node;
@@ -1743,11 +1743,11 @@ void ensure_return(struct expr *expr, bool isnull, struct source src)
         return;
 
     if (isvoid(rtype(func.type))) {
-        if (!isnull && !isvoid(EXPR_TYPE(expr)))
+        if (!isnull && !isvoid(expr->type))
             error_at(src, "void function should not return a value");
     } else {
         if (!isnull) {
-            struct type *ty1 = EXPR_TYPE(expr);
+            struct type *ty1 = expr->type;
             struct type *ty2 = rtype(func.type);
             if (!(expr = assignconv(ty2, expr)))
                 error_at(src,

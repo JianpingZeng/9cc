@@ -188,7 +188,7 @@ static void switch_stmt(int lab, int cnt)
     expect(')');
 
     swtch->src = src;
-    swtch->type = expr ? EXPR_TYPE(expr) : inttype;
+    swtch->type = expr ? expr->type : inttype;
         
     // make a tmp var
     n = assign(mktmpvar(swtch->type, REGISTER), expr);

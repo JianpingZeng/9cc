@@ -484,7 +484,7 @@ static void parse_assign(struct type *atype)
     if (!assign)
         return;
 
-    if (isint(EXPR_TYPE(assign))) {
+    if (isint(assign->type)) {
         // try evaluate the length
         struct expr *ret = eval(assign, longtype);
         if (ret) {
@@ -497,7 +497,7 @@ static void parse_assign(struct type *atype)
         }
     } else {
         error("size of array has non-integer type '%s'",
-              type2s(EXPR_TYPE(assign)));
+              type2s(assign->type));
     }
 }
 
@@ -1352,7 +1352,7 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
             struct expr *init = initializer(ty);
 
             if (sclass == EXTERN)
-                warning_at(EXPR_SRC(init), "'extern' variable has an initializer");
+                warning_at(init->src, "'extern' variable has an initializer");
 
             if (sym->defined)
                 redefinition_error(src, sym);

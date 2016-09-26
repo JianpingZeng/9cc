@@ -18,8 +18,8 @@ struct expr *ast_expr(int id, struct type *ty, struct expr *l, struct expr *r)
 {
     assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
     struct expr *expr = NEWS0(struct expr, PERM);
-    EXPR_ID(expr) = id;
-    EXPR_TYPE(expr) = ty;
+    expr->id = id;
+    expr->type = ty;
     EXPR_OPERAND(expr, 0) = l;
     EXPR_OPERAND(expr, 1) = r;
     return expr;
@@ -28,30 +28,30 @@ struct expr *ast_expr(int id, struct type *ty, struct expr *l, struct expr *r)
 struct expr *ast_uop(int op, struct type *ty, struct expr *l)
 {
     struct expr *expr = ast_expr(UNARY_OPERATOR, ty, l, NULL);
-    EXPR_OP(expr) = op;
+    expr->op = op;
     return expr;
 }
 
 struct expr *ast_bop(int op, struct type *ty, struct expr *l, struct expr *r)
 {
     struct expr *expr = ast_expr(BINARY_OPERATOR, ty, l, r);
-    EXPR_OP(expr) = op;
+    expr->op = op;
     return expr;
 }
 
 struct expr *ast_conv(struct type *ty, struct expr *l, const char *name)
 {
     struct expr *expr = ast_expr(CONV_EXPR, ty, l, NULL);
-    EXPR_NAME(expr) = name;
-    EXPR_SRC(expr) = EXPR_SRC(l);
+    expr->name = name;
+    expr->src = l->src;
     return expr;
 }
 
 struct expr *ast_inits(struct type *ty, struct source src)
 {
     struct expr *expr = ast_expr(INITS_EXPR, NULL, NULL, NULL);
-    EXPR_SRC(expr) = src;
-    EXPR_TYPE(expr) = ty;
+    expr->src = src;
+    expr->type = ty;
     return expr;
 }
 

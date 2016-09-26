@@ -170,25 +170,16 @@ enum {
 #include "node.def"
 };
 
-
-#define EXPR_ID(NODE)           ((NODE)->id)
-#define EXPR_NAME(NODE)         ((NODE)->name)
-#define EXPR_TYPE(NODE)         ((NODE)->type)
-#define EXPR_SRC(NODE)          ((NODE)->src)
-
-#define EXPR_OP(NODE)           ((NODE)->op)
-#define EXPR_PREFIX(NODE)       ((NODE)->prefix)
 #define EXPR_OPERAND(NODE, I)   ((NODE)->operands[I])
 #define EXPR_ARGS(NODE)         ((NODE)->list)
 #define EXPR_INITS(NODE)        ((NODE)->list)
-#define EXPR_SYM(NODE)          ((NODE)->sym)
 // conditional expr
 #define EXPR_COND(NODE)         EXPR_OPERAND(NODE, 0)
 #define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
 #define EXPR_ELSE(NODE)         EXPR_OPERAND(NODE, 2)
 // literal
-#define ILITERAL_VALUE(NODE)    EXPR_SYM(NODE)->value
-#define FLITERAL_VALUE(NODE)    EXPR_SYM(NODE)->value
+#define ILITERAL_VALUE(NODE)    ((NODE)->sym->value)
+#define FLITERAL_VALUE(NODE)    ((NODE)->sym->value)
 // va_arg
 #define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->vtype)
     
@@ -379,9 +370,9 @@ extern int genlabel(int count);
 
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
 #define isvardecl(n)   ((n)->sclass != TYPEDEF && !isfunc((n)->type))
-#define isiliteral(n)  (EXPR_ID(n) == INTEGER_LITERAL)
-#define isfliteral(n)  (EXPR_ID(n) == FLOAT_LITERAL)
-#define issliteral(n)  (EXPR_ID(n) == STRING_LITERAL)
+#define isiliteral(n)  ((n)->id == INTEGER_LITERAL)
+#define isfliteral(n)  ((n)->id == FLOAT_LITERAL)
+#define issliteral(n)  ((n)->id == STRING_LITERAL)
 
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);

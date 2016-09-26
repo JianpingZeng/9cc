@@ -65,13 +65,13 @@ static struct expr *init_elem_conv(struct type *ty, struct expr *node)
 {
     // VINIT_EXPR means failure.
     // cannot pass VINIT_EXPR to assignconv
-    if (EXPR_ID(node) == VINIT_EXPR)
+    if (node->id == VINIT_EXPR)
         return NULL;
 
     struct expr *ret = assignconv(ty, node);
     if (ret == NULL)
-        error_at(EXPR_SRC(node), INCOMPATIBLE_TYPES,
-                 type2s(EXPR_TYPE(node)), type2s(ty));
+        error_at(node->src, INCOMPATIBLE_TYPES,
+                 type2s(node->type), type2s(ty));
 
     return ret;
 }
@@ -82,16 +82,16 @@ static void aggregate_set(struct type *ty, struct vector *v, int i, struct expr 
         return;
 
     struct expr *n = find_elem(v, i);
-    if (EXPR_ID(n) != VINIT_EXPR)
-        warning_at(EXPR_SRC(node), INIT_OVERRIDE);
+    if (n->id != VINIT_EXPR)
+        warning_at(node->src, INIT_OVERRIDE);
 
-    if (EXPR_ID(node) == INITS_EXPR) {
+    if (node->id == INITS_EXPR) {
         vec_set(v, i, node);
     } else if (is_string(ty) && issliteral(node)) {
         init_string(ty, node);
         vec_set(v, i, node);
-    } else if (isrecord(ty) && isrecord(EXPR_TYPE(node))
-               && eqtype(unqual(ty), unqual(EXPR_TYPE(node)))) {
+    } else if (isrecord(ty) && isrecord(node->type)
+               && eqtype(unqual(ty), unqual(node->type))) {
         vec_set(v, i, node);
     } else {
         struct type *rty = NULL;
@@ -125,16 +125,16 @@ static void scalar_set(struct type *ty, struct vector *v, int i, struct expr *no
         return;
 
     struct expr *n = find_elem(v, i);
-    if (EXPR_ID(n) != VINIT_EXPR)
-        warning_at(EXPR_SRC(node), INIT_OVERRIDE);
+    if (n->id != VINIT_EXPR)
+        warning_at(node->src, INIT_OVERRIDE);
 
-    if (EXPR_ID(node) == INITS_EXPR) {
+    if (node->id == INITS_EXPR) {
         struct expr **inits;
     loop:
         inits = EXPR_INITS(node);
         if (length(inits)) {
             node = inits[0];
-            if (EXPR_ID(node) == INITS_EXPR)
+            if (node->id == INITS_EXPR)
                 goto loop;
             vec_set_safe(v, i, init_elem_conv(ty, node));
         }
@@ -198,7 +198,7 @@ static void array_init(struct type *ty, bool brace, struct vector *v)
     if (is_string(ty) && token->id == SCONSTANT) {
         struct expr *expr = assign_expr();
         if (vec_len(v)) {
-            warning_at(EXPR_SRC(expr), INIT_OVERRIDE);
+            warning_at(expr->src, INIT_OVERRIDE);
             vec_clear(v);
         }
         aggregate_set(ty, v, 0, expr);
@@ -299,9 +299,9 @@ static void elem_init(struct type * sty, struct type * ty, bool designated, stru
         } else {
             struct expr *n = find_elem(v, i);
             struct vector *v1 = vec_new();
-            if (EXPR_ID(n) == INITS_EXPR) {
+            if (n->id == INITS_EXPR) {
                 vec_add_array(v1, EXPR_INITS(n));
-            } else if (EXPR_ID(n) == STRING_LITERAL) {
+            } else if (n->id == STRING_LITERAL) {
                 vec_push(v1, n);
             }
 
@@ -314,7 +314,7 @@ static void elem_init(struct type * sty, struct type * ty, bool designated, stru
                 // string literal
                 vec_set(v, i, (struct expr *) vec_head(v1));
             } else {
-                if (EXPR_ID(n) != INITS_EXPR) {
+                if (n->id != INITS_EXPR) {
                     n = ast_inits(ty, source);
                     vec_set(v, i, n);
                 }
@@ -335,7 +335,7 @@ static void elem_init(struct type * sty, struct type * ty, bool designated, stru
 void init_string(struct type *ty, struct expr *node)
 {
     int len1 = TYPE_LEN(ty);
-    int len2 = TYPE_LEN(EXPR_TYPE(node));
+    int len2 = TYPE_LEN(node->type);
     if (len1 > 0) {
         if (len1 < len2 - 1)
             warning("initializer-string for char array is too long");
@@ -417,19 +417,19 @@ struct expr *initializer_list(struct type * ty)
 
 struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym)
 {
-    struct source src = EXPR_SRC(init);
+    struct source src = init->src;
     
     SAVE_ERRORS;
-    if (EXPR_ID(init) != INITS_EXPR) {
+    if (init->id != INITS_EXPR) {
         if (isarray(ty)) {
             if (is_string(ty) && issliteral(init))
                 init_string(ty, init);
             else
                 error("array initializer must be an initializer list or string literal");
         } else if (isstruct(ty) || isunion(ty)) {
-            if (!eqtype(ty, EXPR_TYPE(init)))
+            if (!eqtype(ty, init->type))
                 error("initialzing '%s' with an expression of imcompatible type '%s'",
-                      type2s(ty), type2s(EXPR_TYPE(init)));
+                      type2s(ty), type2s(init->type));
         } else {
             init = init_elem_conv(ty, init);
         }

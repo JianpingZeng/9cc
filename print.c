@@ -120,24 +120,24 @@ static void print_expr1(struct expr * node, int level)
     for (int i = 0; i < level; i++)
         putf("  ");
     
-    int op = EXPR_OP(node);
-    bool prefix = EXPR_PREFIX(node);
+    int op = node->op;
+    bool prefix = node->prefix;
 
-    putf(PURPLE("%s ") YELLOW("%p "), nname(EXPR_ID(node)), node);
-    print_ty(EXPR_TYPE(node));
+    putf(PURPLE("%s ") YELLOW("%p "), nname(node->id), node);
+    print_ty(node->type);
     if (islvalue(node))
         putf("'" CYAN("lvalue") "' ");
     
-    if (EXPR_SYM(node))
-        putf(CYAN("%s "), STR(EXPR_SYM(node)->name));
+    if (node->sym)
+        putf(CYAN("%s "), STR(node->sym->name));
     if (op == INCR || op == DECR)
         putf("%s ", (prefix ? "prefix" : "postfix"));
     if (op > 0)
         putf("'%s' ", id2s(op));
-    if (EXPR_NAME(node))
-        putf("<" RED("%s") "> ", EXPR_NAME(node));
+    if (node->name)
+        putf("<" RED("%s") "> ", node->name);
     if (isiliteral(node)) {
-        if (TYPE_OP(EXPR_TYPE(node)) == INT)
+        if (TYPE_OP(node->type) == INT)
             putf(RED("%lld"), ILITERAL_VALUE(node).i);
         else
             putf(RED("%llu"), ILITERAL_VALUE(node).u);
@@ -147,7 +147,7 @@ static void print_expr1(struct expr * node, int level)
 
     putf("\n");
 
-    if (EXPR_ID(node) == CALL_EXPR) {
+    if (node->id == CALL_EXPR) {
         struct expr *func = EXPR_OPERAND(node, 0);
         if (func)
             print_expr1(func, level + 1);
@@ -158,7 +158,7 @@ static void print_expr1(struct expr * node, int level)
                 print_expr1(arg, level + 1);
             }
         }
-    } else if (EXPR_ID(node) == INITS_EXPR) {
+    } else if (node->id == INITS_EXPR) {
         struct expr **inits = EXPR_INITS(node);
         if (inits) {
             for (size_t i = 0; inits[i]; i++) {
@@ -442,26 +442,26 @@ const char *type2s(struct type * ty)
 const char *expr2s(struct expr * node)
 {
     struct strbuf *s = strbuf_new();
-    int id = EXPR_ID(node);
+    int id = node->id;
     struct expr *l = EXPR_OPERAND(node, 0);
     struct expr *r = EXPR_OPERAND(node, 1);
 
     switch (id) {
     case BINARY_OPERATOR:
         strbuf_cats(s, expr2s(l));
-        strbuf_cats(s, format(" %s ", id2s(EXPR_OP(node))));
+        strbuf_cats(s, format(" %s ", id2s(node->op)));
         strbuf_cats(s, expr2s(r));
         break;
     case UNARY_OPERATOR:
-        switch (EXPR_OP(node)) {
+        switch (node->op) {
         case INCR:
         case DECR:
-            if (EXPR_PREFIX(node)) {
-                strbuf_cats(s, id2s(EXPR_OP(node)));
+            if (node->prefix) {
+                strbuf_cats(s, id2s(node->op));
                 strbuf_cats(s, expr2s(l));
             } else {
                 strbuf_cats(s, expr2s(l));
-                strbuf_cats(s, id2s(EXPR_OP(node)));
+                strbuf_cats(s, id2s(node->op));
             }
             break;
         case '*':
@@ -490,8 +490,8 @@ const char *expr2s(struct expr * node)
         break;
     case MEMBER_EXPR:
         strbuf_cats(s, expr2s(l));
-        strbuf_cats(s, id2s(EXPR_OP(node)));
-        strbuf_cats(s, EXPR_NAME(node));
+        strbuf_cats(s, id2s(node->op));
+        strbuf_cats(s, node->name);
         break;
     case PAREN_EXPR:
         strbuf_cats(s, format("(%s)", expr2s(l)));
@@ -514,16 +514,16 @@ const char *expr2s(struct expr * node)
         }
         break;
     case CAST_EXPR:
-        strbuf_cats(s, format("(%s)%s", type2s(EXPR_TYPE(node)), expr2s(l)));
+        strbuf_cats(s, format("(%s)%s", type2s(node->type), expr2s(l)));
         break;
     case CONV_EXPR:
         strbuf_cats(s, expr2s(l));
         break;
     case REF_EXPR:
-        strbuf_cats(s, EXPR_SYM(node)->name);
+        strbuf_cats(s, node->sym->name);
         break;
     case INTEGER_LITERAL:
-        if (TYPE_OP(EXPR_TYPE(node)) == INT)
+        if (TYPE_OP(node->type) == INT)
             strbuf_cats(s, format("%lld", ILITERAL_VALUE(node).i));
         else
             strbuf_cats(s, format("%llu", ILITERAL_VALUE(node).u));
@@ -532,10 +532,10 @@ const char *expr2s(struct expr * node)
         strbuf_cats(s, format("%Lf", FLITERAL_VALUE(node).d));
         break;
     case STRING_LITERAL:
-        strbuf_cats(s, EXPR_SYM(node)->name);
+        strbuf_cats(s, node->sym->name);
         break;
     case COMPOUND_LITERAL:
-        strbuf_cats(s, format("(%s){...}", type2s(EXPR_TYPE(node))));
+        strbuf_cats(s, format("(%s){...}", type2s(node->type)));
         break;
     case INITS_EXPR:
     case VINIT_EXPR:
