@@ -547,7 +547,7 @@ static bool is_nullptr(struct expr *node)
     if (cnst == NULL)
         return false;
     if (isiliteral(cnst))
-        return ILITERAL_VALUE(cnst).u == 0;
+        return cnst->sym->value.u == 0;
     return false;
 }
 
@@ -1682,7 +1682,7 @@ long intexpr1(struct type * ty)
         return 0;
     }
     assert(isiliteral(cnst));
-    return ILITERAL_VALUE(cnst).i;
+    return cnst->sym->value.i;
 }
 
 /// constant-expression:

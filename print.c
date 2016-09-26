@@ -138,11 +138,11 @@ static void print_expr1(struct expr * node, int level)
         putf("<" RED("%s") "> ", node->name);
     if (isiliteral(node)) {
         if (TYPE_OP(node->type) == INT)
-            putf(RED("%lld"), ILITERAL_VALUE(node).i);
+            putf(RED("%lld"), node->sym->value.i);
         else
-            putf(RED("%llu"), ILITERAL_VALUE(node).u);
+            putf(RED("%llu"), node->sym->value.u);
     } else if (isfliteral(node)) {
-        putf(RED("%Lf"), FLITERAL_VALUE(node).d);
+        putf(RED("%Lf"), node->sym->value.d);
     }
 
     putf("\n");
@@ -524,12 +524,12 @@ const char *expr2s(struct expr * node)
         break;
     case INTEGER_LITERAL:
         if (TYPE_OP(node->type) == INT)
-            strbuf_cats(s, format("%lld", ILITERAL_VALUE(node).i));
+            strbuf_cats(s, format("%lld", node->sym->value.i));
         else
-            strbuf_cats(s, format("%llu", ILITERAL_VALUE(node).u));
+            strbuf_cats(s, format("%llu", node->sym->value.u));
         break;
     case FLOAT_LITERAL:
-        strbuf_cats(s, format("%Lf", FLITERAL_VALUE(node).d));
+        strbuf_cats(s, format("%Lf", node->sym->value.d));
         break;
     case STRING_LITERAL:
         strbuf_cats(s, node->sym->name);

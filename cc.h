@@ -177,9 +177,6 @@ enum {
 #define EXPR_COND(NODE)         EXPR_OPERAND(NODE, 0)
 #define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
 #define EXPR_ELSE(NODE)         EXPR_OPERAND(NODE, 2)
-// literal
-#define ILITERAL_VALUE(NODE)    ((NODE)->sym->value)
-#define FLITERAL_VALUE(NODE)    ((NODE)->sym->value)
 // va_arg
 #define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->vtype)
     

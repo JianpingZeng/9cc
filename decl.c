@@ -489,8 +489,8 @@ static void parse_assign(struct type *atype)
         struct expr *ret = eval(assign, longtype);
         if (ret) {
             assert(isiliteral(ret));
-            TYPE_LEN(atype) = ILITERAL_VALUE(ret).i;
-            if (ILITERAL_VALUE(ret).i < 0)
+            TYPE_LEN(atype) = ret->sym->value.i;
+            if (ret->sym->value.i < 0)
                 error("array has negative size");
         } else {
             error("expect constant expression");

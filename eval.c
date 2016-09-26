@@ -255,9 +255,9 @@ static bool scalar_bool(struct expr * expr)
     assert(isiliteral(expr) || isfliteral(expr));
 
     if (isiliteral(expr))
-        return ILITERAL_VALUE(expr).u != 0;
+        return expr->sym->value.u != 0;
     else
-        return FLITERAL_VALUE(expr).d != 0;
+        return expr->sym->value.d != 0;
 }
 
 // '&': 'expr' was not evaluated.
