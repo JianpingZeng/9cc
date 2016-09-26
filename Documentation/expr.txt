@@ -217,10 +217,17 @@ SUBSCRIPT_EXPR:
                            scale
 
 
-INITS_EXPR
+INITS_EXPR:
 
-VINIT_EXPR
+        [0] offset  type    init(integer/floating/pointer)
 
+        ...
+
+        [N] offset  type    init
+        
+
+
+VINIT_EXPR:     (removed)
 
 PAREN_EXPR:     (skipped)
 
