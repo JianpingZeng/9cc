@@ -128,8 +128,21 @@ UNARY_OPERATOR:
         ++ (prefix):
         -- (prefix):
 
+                        =
+                       / \
+                      x   +
+                         / \
+                        x   1 
+
         ++ (postfix):
-        ++ (postfix):
+        -- (postfix):
+                           ??
+                         /    \
+                        =      =
+                       / \    / \
+                      t   x  x   +
+                                / \
+                               x   1
 
         +: (skipped)
         -: NEG: NEGI, NEGU, NEGF
@@ -145,18 +158,64 @@ UNARY_OPERATOR:
 
 COND_EXPR:
 
+                        ?
+                      /   \
+                     /     \
+                   cond   RIGHT
+                         /     \
+                        /       \
+                       =         =
+                      / \       / \
+                     /   \     /   \
+                    t1   e1   t2   e2
+
 
 CALL_EXPR:
 
         CALL
 
 REF_EXPR:
+        // arith
 
-        INDIR -> ADDR
+                        INDIR
+                          |
+                          |
+                         ADDR
 
-MEMBER_EXPR
+        // pointer
 
-SUBSCRIPT_EXPR
+                        INDIR
+
+        // function
+        
+
+        // struct/union
+
+        // array
+        
+
+MEMBER_EXPR:
+        e.id
+        e->id
+
+        <the same as array because of alignment of struct>
+                
+
+SUBSCRIPT_EXPR:
+
+        base[index]
+        - base: ptr
+        - index: integer
+
+                    ADD
+                   /    \
+                  /      \
+                base     LSH
+                       /    \
+                    index  CNST
+                            |
+                           scale
+
 
 INITS_EXPR
 
@@ -164,6 +223,13 @@ VINIT_EXPR
 
 
 PAREN_EXPR:     (skipped)
+
+
+
+Template
+=========
+
+        rule  "assembly code template" cost
 
 
 APPENDIX
@@ -177,3 +243,14 @@ x86 address model:
     base:  register
     index: register
     scale: 1/2/4/8
+
+c types:
+
+  integral types:---____ arith types ---
+  floating types:---                    ----- scalar types
+  pointer types: -----------------------
+  array types:   ---_____ aggregate types
+  struct types:  ---
+  union type:
+  function type:
+  void type:
