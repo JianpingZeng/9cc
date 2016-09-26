@@ -1,0 +1,179 @@
+
+Expression
+==========
+
+
+INTEGER_LITERAL:        CNSTI
+
+FLOAT_LITERAL:          CNSTF
+
+STRING_LITERAL:         CNSTP
+
+COMPOUND_LITERAL:       ???
+
+CAST_EXPR
+CONV_EXPR:
+
+        // Format:
+        //      CV[from][to][to_size]
+        //
+        // i.e.:
+        //      CVII4
+        //
+        //      Integer(? bytes) to Integer(4 bytes)
+        //
+        // Abbrevs:
+        // I - signed integer
+        // U - unsigned integer
+        // F - floating
+        // P - pointer
+        // B - bool
+        //
+
+        // signed integer => signed integer
+        CVII1
+        CVII2
+        CVII4
+        CVII8
+
+        // signed integer => unsigned integer
+        CVIU1
+        CVIU2
+        CVIU4
+        CVIU8
+
+        // unsigned integer => unsigned integer
+        CVUU1
+        CVUU2
+        CVUU4
+        CVUU8
+
+        // unsigned integer => signed integer
+        CVUI1
+        CVUI2
+        CVUI4
+        CVUI8
+
+        // floating => floating
+        CVFF4
+        CVFF8
+        CVFF16
+
+        // integer => floating
+        CVIF4
+        CVIF8
+        CVIF16
+
+        // unsigned integer => floating
+        CVUF4
+        CVUF8
+        CVUF16
+
+        // floating => integer
+        CVFI1
+        CVFI2
+        CVFI4
+        CVFI8
+
+        // floating => unsigned integer
+        CVFU1
+        CVFU2
+        CVFU4
+        CVFU8
+
+        // integer => bool
+        CVIB
+
+        // unsigned integer => bool
+        CVUB
+
+        // floating => bool
+        CVFB
+
+        // pointer => bool
+        CVPB
+
+        // pointer???
+        
+
+BINARY_OPERATOR:
+
+        // arith
+        *: MUL: MULI, MULU, MULF
+        /: DIV: DIVI, DIVU, DIVF
+
+        ///
+        +: ADD: ADDI, ADDF
+        -: SUB: SUBI, SUBF
+
+        // int
+        %:  MOD: MODI, MODU
+        <<: SHL: SHLI, SHLU
+        >>: SHR: SHRI, SHRU
+        &:  AND
+        ^:  OR
+        |:  XOR
+
+        // scalar
+        >:  CMP-JG/JA
+        <:  CMP-JL/JB
+        >=: CMP-JGE/JAE
+        <=: CMP-JLE/JBE
+        ==: CMP-JE/JZ
+        !=: CMP-JNE/JNZ
+
+UNARY_OPERATOR:
+
+        // scalar
+        ++ (prefix):
+        -- (prefix):
+
+        ++ (postfix):
+        ++ (postfix):
+
+        +: (skipped)
+        -: NEG: NEGI, NEGU, NEGF
+
+        !:
+
+        // int
+        ~: NOT:
+
+        //
+        &: ADDR:
+        *: INDIR:
+
+COND_EXPR:
+
+
+CALL_EXPR:
+
+        CALL
+
+REF_EXPR:
+
+        INDIR -> ADDR
+
+MEMBER_EXPR
+
+SUBSCRIPT_EXPR
+
+INITS_EXPR
+
+VINIT_EXPR
+
+
+PAREN_EXPR:     (skipped)
+
+
+APPENDIX
+=========
+
+x86 address model:
+
+    disp(base, index, scale)
+
+    disp:  integer constant
+    base:  register
+    index: register
+    scale: 1/2/4/8
