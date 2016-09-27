@@ -37,32 +37,33 @@ static struct type *install_type(const char *name, int kind, struct metrics m, i
 {
     struct type *ty = alloc_type();
 
-    _TYPE_NAME(ty) = name;
-    _TYPE_KIND(ty) = kind;
-    _TYPE_SIZE(ty) = m.size;
-    _TYPE_ALIGN(ty) = m.align;
-    _TYPE_RANK(ty) = m.rank;
+    ty->name = name;
+    ty->kind = kind;
+    ty->op = op;
+    ty->size = m.size;
+    ty->align = m.align;
+    ty->rank = m.rank;
     switch (op) {
     case INT:
-        _TYPE_LIMITS(ty).max.i = ONES(_TYPE_SIZE(ty)) >> 1;
-        _TYPE_LIMITS(ty).min.i = - _TYPE_LIMITS(ty).max.i - 1;
+        ty->limits.max.i = ONES(ty->size) >> 1;
+        ty->limits.min.i = - ty->limits.max.i - 1;
         break;
 
     case UNSIGNED:
-        _TYPE_LIMITS(ty).max.u = ONES(_TYPE_SIZE(ty));
-        _TYPE_LIMITS(ty).min.u = 0;
+        ty->limits.max.u = ONES(ty->size);
+        ty->limits.min.u = 0;
         break;
 
     case FLOAT:
-        if (_TYPE_SIZE(ty) == IM->floatmetrics.size) {
-            _TYPE_LIMITS(ty).max.d = FLT_MAX;
-            _TYPE_LIMITS(ty).min.d = FLT_MIN;
-        } else if (_TYPE_SIZE(ty) == IM->doublemetrics.size) {
-            _TYPE_LIMITS(ty).max.d = DBL_MAX;
-            _TYPE_LIMITS(ty).min.d = DBL_MIN;
+        if (ty->size == IM->floatmetrics.size) {
+            ty->limits.max.d = FLT_MAX;
+            ty->limits.min.d = FLT_MIN;
+        } else if (ty->size == IM->doublemetrics.size) {
+            ty->limits.max.d = DBL_MAX;
+            ty->limits.min.d = DBL_MIN;
         } else {
-            _TYPE_LIMITS(ty).max.d = LDBL_MAX;
-            _TYPE_LIMITS(ty).min.d = LDBL_MIN;
+            ty->limits.max.d = LDBL_MAX;
+            ty->limits.min.d = LDBL_MIN;
         }
         break;
 
@@ -110,49 +111,6 @@ void type_init(void)
 #undef INSTALL
 }
 
-int type_op(struct type * type)
-{
-    int kind = TYPE_KIND(type);
-    switch (kind) {
-    case _BOOL:
-        return UNSIGNED;
-
-    case CHAR:
-        if (unqual(type) == unsignedchartype)
-            return UNSIGNED;
-        else
-            return INT;
-
-    case SHORT:
-        if (unqual(type) == unsignedshorttype)
-            return UNSIGNED;
-        else
-            return INT;
-
-    case LONG:
-        if (unqual(type) == unsignedlongtype)
-            return UNSIGNED;
-        else
-            return INT;
-
-    case LONG + LONG:
-        if (unqual(type) == unsignedlonglongtype)
-            return UNSIGNED;
-        else
-            return INT;
-
-    case DOUBLE:
-    case LONG + DOUBLE:
-        return FLOAT;
-
-    case INT:
-    case UNSIGNED:
-    case FLOAT:
-    default:
-        return kind;
-    }
-}
-
 void prepend_type(struct type ** typelist, struct type * type)
 {
     attach_type(&type, *typelist);
@@ -163,10 +121,10 @@ void attach_type(struct type ** typelist, struct type * type)
 {
     if (*typelist) {
         struct type *tp = *typelist;
-        while (tp && _TYPE_TYPE(tp)) {
-            tp = _TYPE_TYPE(tp);
-        }
-        _TYPE_TYPE(tp) = type;
+        while (tp && tp->type)
+            tp = tp->type;
+        
+        tp->type = type;
     } else {
         *typelist = type;
     }
@@ -186,8 +144,8 @@ static int combine(int qual1, int qual2)
 
 bool qual_contains(struct type * ty1, struct type * ty2)
 {
-    int qual1 = isqual(ty1) ? _TYPE_KIND(ty1) : 0;
-    int qual2 = isqual(ty2) ? _TYPE_KIND(ty2) : 0;
+    int qual1 = isqual(ty1) ? ty1->kind : 0;
+    int qual2 = isqual(ty2) ? ty2->kind : 0;
     if (isconst1(qual2) && !isconst1(qual1))
         return false;
     if (isvolatile1(qual2) && !isvolatile1(qual1))
@@ -199,7 +157,7 @@ bool qual_contains(struct type * ty1, struct type * ty2)
 
 int qual_union(struct type * ty1, struct type * ty2)
 {
-    return combine(_TYPE_KIND(ty1), _TYPE_KIND(ty2));
+    return combine(ty1->kind, ty2->kind);
 }
 
 struct type *qual(int t, struct type * ty)
@@ -212,16 +170,16 @@ struct type *qual(int t, struct type * ty)
     
     struct type *qty = alloc_type();
     if (isqual(ty))
-        _TYPE_KIND(qty) = combine(t, _TYPE_KIND(ty));
+        qty->kind = combine(t, ty->kind);
     else
-        _TYPE_KIND(qty) = t;
-    _TYPE_TYPE(qty) = unqual(ty);
+        qty->kind = t;
+    qty->type = unqual(ty);
     return qty;
 }
 
 struct type *unqual(struct type * ty)
 {
-    return isqual(ty) ? _TYPE_TYPE(ty) : ty;
+    return isqual(ty) ? ty->type : ty;
 }
 
 struct type *lookup_typedef(const char *id)
@@ -246,9 +204,10 @@ bool istypedef(const char *id)
 struct type *array_type(struct type * type)
 {
     struct type *ty = alloc_type();
-    _TYPE_KIND(ty) = ARRAY;
-    _TYPE_NAME(ty) = "array";
-    _TYPE_TYPE(ty) = type;
+    ty->kind = ARRAY;
+    ty->op = ARRAY;
+    ty->name = "array";
+    ty->type = type;
 
     return ty;
 }
@@ -256,11 +215,12 @@ struct type *array_type(struct type * type)
 struct type *ptr_type(struct type * type)
 {
     struct type *ty = alloc_type();
-    _TYPE_KIND(ty) = POINTER;
-    _TYPE_NAME(ty) = "pointer";
-    _TYPE_TYPE(ty) = type;
-    _TYPE_SIZE(ty) = IM->ptrmetrics.size;
-    _TYPE_ALIGN(ty) = IM->ptrmetrics.align;
+    ty->kind = POINTER;
+    ty->op = POINTER;
+    ty->name = "pointer";
+    ty->type = type;
+    ty->size = IM->ptrmetrics.size;
+    ty->align = IM->ptrmetrics.align;
 
     return ty;
 }
@@ -268,9 +228,10 @@ struct type *ptr_type(struct type * type)
 struct type *func_type(void)
 {
     struct type *ty = alloc_type();
-    _TYPE_KIND(ty) = FUNCTION;
-    _TYPE_NAME(ty) = "function";
-    _TYPE_ALIGN(ty) = IM->ptrmetrics.align;
+    ty->kind = FUNCTION;
+    ty->op = FUNCTION;
+    ty->name = "function";
+    ty->align = IM->ptrmetrics.align;
 
     return ty;
 }
@@ -278,11 +239,17 @@ struct type *func_type(void)
 struct symbol *tag_type(int t, const char *tag, struct source src)
 {
     struct type *ty = alloc_type();
-    _TYPE_KIND(ty) = t;
-    _TYPE_TAG(ty) = tag;
-    _TYPE_NAME(ty) = id2s(t);
-    if (t == ENUM)
-        _TYPE_TYPE(ty) = inttype;
+    ty->kind = t;
+    ty->op = t;
+    ty->u.s.tag = tag;
+    ty->name = id2s(t);
+    if (t == ENUM) {
+        ty->type = inttype;
+        ty->size = ty->type->size;
+        ty->align = ty->type->align;
+        ty->rank = ty->type->rank;
+        ty->limits = ty->type->limits;
+    }
 
     struct symbol *sym = NULL;
     if (tag) {
@@ -297,12 +264,12 @@ struct symbol *tag_type(int t, const char *tag, struct source src)
         sym = install(tag, &tags, cscope, PERM);
     } else {
         sym = anonymous(&tags, cscope, PERM);
-        _TYPE_TAG(ty) = sym->name;
+        ty->u.s.tag = sym->name;
     }
 
     sym->type = ty;
     sym->src = src;
-    _TYPE_TSYM(ty) = sym;
+    ty->u.s.tsym = sym;
 
     return sym;
 }
@@ -339,10 +306,10 @@ bool eqtype(struct type * ty1, struct type * ty2)
 {
     if (ty1 == ty2)
         return true;
-    else if (_TYPE_KIND(ty1) != _TYPE_KIND(ty2))
+    else if (ty1->kind != ty2->kind)
         return false;
 
-    switch (_TYPE_KIND(ty1)) {
+    switch (ty1->kind) {
     case CONST:
     case VOLATILE:
     case RESTRICT:
@@ -350,7 +317,7 @@ bool eqtype(struct type * ty1, struct type * ty2)
     case CONST + RESTRICT:
     case VOLATILE + RESTRICT:
     case CONST + VOLATILE + RESTRICT:
-        return eqtype(_TYPE_TYPE(ty1), _TYPE_TYPE(ty2));
+        return eqtype(ty1->type, ty2->type);
     case ENUM:
     case UNION:
     case STRUCT:
@@ -369,26 +336,26 @@ bool eqtype(struct type * ty1, struct type * ty2)
         return ty1 == ty2;
     case POINTER:
     case ARRAY:
-        return eqtype(_TYPE_TYPE(ty1), _TYPE_TYPE(ty2));
+        return eqtype(ty1->type, ty2->type);
     case FUNCTION:
-        if (!eqtype(_TYPE_TYPE(ty1), _TYPE_TYPE(ty2)))
+        if (!eqtype(ty1->type, ty2->type))
             return false;
-        if (_TYPE_OLDSTYLE(ty1) && _TYPE_OLDSTYLE(ty2)) {
+        if (ty1->u.f.oldstyle && ty2->u.f.oldstyle) {
             // both oldstyle
             return true;
-        } else if (!_TYPE_OLDSTYLE(ty1) && !_TYPE_OLDSTYLE(ty2)) {
+        } else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
             // both prototype
-            return eqparams(_TYPE_PROTO(ty1), _TYPE_PROTO(ty2));
+            return eqparams(ty1->u.f.proto, ty2->u.f.proto);
         } else {
             // one oldstyle, the other prototype
-            struct type *oldty = _TYPE_OLDSTYLE(ty1) ? ty1 : ty2;
-            struct type *newty = _TYPE_OLDSTYLE(ty1) ? ty2 : ty1;
+            struct type *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
+            struct type *newty = ty1->u.f.oldstyle ? ty2 : ty1;
 
             if (TYPE_VARG(newty))
                 return false;
             
-            for (size_t i = 0; _TYPE_PROTO(newty)[i]; i++) {
-                struct type *ty = _TYPE_PROTO(newty)[i];
+            for (size_t i = 0; newty->u.f.proto[i]; i++) {
+                struct type *ty = newty->u.f.proto[i];
                 if (TYPE_KIND(ty) == _BOOL ||
                     TYPE_KIND(ty) == CHAR ||
                     TYPE_KIND(ty) == SHORT ||
@@ -396,10 +363,10 @@ bool eqtype(struct type * ty1, struct type * ty2)
                     return false;
             }
 
-            if (_TYPE_PROTO(oldty)[0] == NULL)
+            if (oldty->u.f.proto[0] == NULL)
                 return true;
 
-            return eqparams(_TYPE_PROTO(oldty), _TYPE_PROTO(newty));
+            return eqparams(oldty->u.f.proto, newty->u.f.proto);
         }
 
     default:
@@ -617,21 +584,13 @@ bool isincomplete(struct type * ty)
         return false;
 }
 
-struct type *unpack(struct type * ty)
-{
-    if (isenum(ty))
-        return _TYPE_TYPE(unqual(ty));
-    else
-        return ty;
-}
-
 struct type *compose(struct type * ty1, struct type * ty2)
 {
     if (isqual(ty1) && isqual(ty2)) {
-        int kind = combine(_TYPE_KIND(ty1), _TYPE_KIND(ty2));
+        int kind = combine(ty1->kind, ty2->kind);
         return qual(kind, unqual(ty1));
     } else if (isqual(ty2)) {
-        return qual(_TYPE_KIND(ty2), ty1);
+        return qual(ty2->kind, ty1);
     } else {
         return ty1;
     }
@@ -719,4 +678,38 @@ bool isptrto(struct type * ty, int kind)
 bool isbool(struct type *ty)
 {
     return unqual(ty) == booltype;
+}
+
+short tytop(struct type *ty)
+{
+    size_t size = TYPE_SIZE(ty);
+
+    switch (TYPE_OP(ty)) {
+    case INT:
+        return I + MKOPSIZE(size);
+
+    case UNSIGNED:
+        return U + MKOPSIZE(size);
+
+    case FLOAT:
+        return F + MKOPSIZE(size);
+        
+    case FUNCTION:
+        return P + MKOPSIZE(IM->ptrmetrics.size);
+        
+    case POINTER:
+        return P + MKOPSIZE(size);
+        
+    case ARRAY:
+    case STRUCT:
+    case UNION:
+        return S;
+
+    case ENUM:
+        return I + MKOPSIZE(size);
+        
+    case VOID:
+    default:
+        assert(0 && "unexpected type op");
+    }
 }

@@ -28,65 +28,45 @@ struct cc_options {
 
 /*
  * Handle carefully for qual/unqual types.
- *
- * macros begin with '_' are for 'atom' access,
- * others use the unqual version of the type.
  */
-#define _TYPE_KIND(NODE)         ((NODE)->kind)
-#define _TYPE_NAME(NODE)         ((NODE)->name)
-#define _TYPE_SIZE(NODE)         ((NODE)->size)
-#define _TYPE_ALIGN(NODE)        ((NODE)->align)
-#define _TYPE_LEN(NODE)          ((NODE)->u.a.len)
-#define _TYPE_RANK(NODE)         ((NODE)->rank)
-#define _TYPE_INLINE(NODE)       ((NODE)->inlined)
-#define _TYPE_TYPE(NODE)         ((NODE)->type)
-#define _TYPE_TAG(NODE)          ((NODE)->u.s.tag)
-#define _TYPE_PROTO(NODE)        ((NODE)->u.f.proto)
-#define _TYPE_PARAMS(NODE)       ((NODE)->u.f.params)
-#define _TYPE_OLDSTYLE(NODE)     ((NODE)->u.f.oldstyle)
-#define _TYPE_VARG(NODE)         ((NODE)->u.f.varg)
-#define _TYPE_TSYM(NODE)         ((NODE)->u.s.tsym)
-#define _TYPE_FIELDS(NODE)       ((NODE)->u.s.fields)
-#define _TYPE_LIMITS(NODE)       ((NODE)->limits)
-#define _TYPE_A_ASSIGN(NODE)     ((NODE)->u.a.assign)
-#define _TYPE_A_CONST(NODE)      ((NODE)->u.a.is_const)
-#define _TYPE_A_VOLATILE(NODE)   ((NODE)->u.a.is_volatile)
-#define _TYPE_A_RESTRICT(NODE)   ((NODE)->u.a.is_restrict)
-#define _TYPE_A_STATIC(NODE)     ((NODE)->u.a.is_static)
-#define _TYPE_A_STAR(NODE)       ((NODE)->u.a.star)
 
 // operations on the unqual type
-#define TYPE_KIND(ty)            _TYPE_KIND(unqual(ty))
-#define TYPE_NAME(ty)            _TYPE_NAME(unqual(ty))
-#define TYPE_SIZE(ty)            _TYPE_SIZE(unpack(unqual(ty)))
-#define TYPE_ALIGN(ty)           _TYPE_ALIGN(unpack(unqual(ty)))
-#define TYPE_LEN(ty)             _TYPE_LEN(unqual(ty))
-#define TYPE_RANK(ty)            _TYPE_RANK(unpack(unqual(ty)))
-#define TYPE_INLINE(ty)          _TYPE_INLINE(unqual(ty))
-#define TYPE_TYPE(ty)            _TYPE_TYPE(unqual(ty))
-#define TYPE_TAG(ty)             _TYPE_TAG(unqual(ty))
-#define TYPE_PROTO(ty)           _TYPE_PROTO(unqual(ty))
-#define TYPE_PARAMS(ty)          _TYPE_PARAMS(unqual(ty))
-#define TYPE_OLDSTYLE(ty)        _TYPE_OLDSTYLE(unqual(ty))
-#define TYPE_VARG(ty)            _TYPE_VARG(unqual(ty))
-#define TYPE_TSYM(ty)            _TYPE_TSYM(unqual(ty))
-#define TYPE_FIELDS(ty)          _TYPE_FIELDS(unqual(ty))
-#define TYPE_LIMITS(ty)          _TYPE_LIMITS(unpack(unqual(ty)))
-#define TYPE_A_ASSIGN(ty)        _TYPE_A_ASSIGN(unqual(ty))
-#define TYPE_A_CONST(ty)         _TYPE_A_CONST(unqual(ty))
-#define TYPE_A_VOLATILE(ty)      _TYPE_A_VOLATILE(unqual(ty))
-#define TYPE_A_RESTRICT(ty)      _TYPE_A_RESTRICT(unqual(ty))
-#define TYPE_A_STATIC(ty)        _TYPE_A_STATIC(unqual(ty))
-#define TYPE_A_STAR(ty)          _TYPE_A_STAR(unqual(ty))
+#define TYPE_KIND(ty)            (unqual(ty)->kind)
+#define TYPE_OP(ty)              (unqual(ty)->op)
+#define TYPE_NAME(ty)            (unqual(ty)->name)
+#define TYPE_SIZE(ty)            (unqual(ty)->size)
+#define TYPE_ALIGN(ty)           (unqual(ty)->align)
+#define TYPE_RANK(ty)            (unqual(ty)->rank)
+#define TYPE_INLINE(ty)          (unqual(ty)->inlined)
+#define TYPE_TYPE(ty)            (unqual(ty)->type)
+#define TYPE_LIMITS(ty)          (unqual(ty)->limits)
+// function
+#define TYPE_PROTO(ty)           (unqual(ty)->u.f.proto)
+#define TYPE_PARAMS(ty)          (unqual(ty)->u.f.params)
+#define TYPE_OLDSTYLE(ty)        (unqual(ty)->u.f.oldstyle)
+#define TYPE_VARG(ty)            (unqual(ty)->u.f.varg)
+// enum/struct/union
+#define TYPE_TAG(ty)             (unqual(ty)->u.s.tag)
+#define TYPE_TSYM(ty)            (unqual(ty)->u.s.tsym)
+#define TYPE_FIELDS(ty)          (unqual(ty)->u.s.fields)
+// array
+#define TYPE_LEN(ty)             (unqual(ty)->u.a.len)
+#define TYPE_A_ASSIGN(ty)        (unqual(ty)->u.a.assign)
+#define TYPE_A_CONST(ty)         (unqual(ty)->u.a.con)
+#define TYPE_A_VOLATILE(ty)      (unqual(ty)->u.a.vol)
+#define TYPE_A_RESTRICT(ty)      (unqual(ty)->u.a.res)
+#define TYPE_A_STATIC(ty)        (unqual(ty)->u.a.stc)
+#define TYPE_A_STAR(ty)          (unqual(ty)->u.a.star)
 
 struct type {
     const char *name;
     struct type *type;
-    int kind;
     size_t size;
-    unsigned int align;                // align in bytes
-    unsigned int rank:8;
-    unsigned int inlined:1;
+    short kind;
+    short op;
+    unsigned char align;                // align in bytes
+    unsigned char rank;
+    bool inlined;
     union {
         // function
         struct {
@@ -105,10 +85,10 @@ struct type {
         struct {
             size_t len;        // array length
             struct expr *assign;
-            unsigned int is_const:1;
-            unsigned int is_volatile:1;
-            unsigned int is_restrict:1;
-            unsigned int is_static:1;
+            unsigned int con:1;
+            unsigned int vol:1;
+            unsigned int res:1;
+            unsigned int stc:1;
             unsigned int star:1;
         } a;
     } u;
@@ -201,13 +181,14 @@ struct expr {
 #define OPKIND(op)  ((op) & 0x3F0)
 #define OPID(op)    ((op) & 0x3FF)
 #define MKOPSIZE(op)  ((op) << 10)
+#define mkop(op, ty)  OPKIND((op) + tytop(ty))
 
 // op size
 // 1,2,4,8,16
 
 // op type
-// bool/integer/unsigned/floating/pointer/struct
-enum { B = 1, I, U, F, P, S };
+// integer/unsigned/floating/pointer/struct
+enum { I = 1, U, F, P, S };
 
 // op kind
 enum {
@@ -491,7 +472,6 @@ extern void mark_goto(const char *id, struct source src);
 extern void type_init(void);
 extern struct field *alloc_field(void);
 extern struct type *alloc_type(void);
-extern int type_op(struct type *type);
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
 extern struct type *qual(int t, struct type *ty);
@@ -511,7 +491,7 @@ extern struct type *compose(struct type *ty1, struct type *ty2);
 extern bool qual_contains(struct type *ty1, struct type *ty2);
 extern int qual_union(struct type *ty1, struct type *ty2);
 extern bool isincomplete(struct type *ty);
-extern struct type *unpack(struct type *ty);
+extern short tytop(struct type *ty);
 
 #define BITS(bytes)     (CHAR_BIT * (bytes))
 #define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
@@ -531,14 +511,13 @@ extern struct type *unpack(struct type *ty);
                             (kind) == RESTRICT + VOLATILE ||            \
                             (kind) == CONST + VOLATILE + RESTRICT)
 
-#define isconst(ty)     isconst1(_TYPE_KIND(ty))
-#define isvolatile(ty)  isvolatile1(_TYPE_KIND(ty))
-#define isrestrict(ty)  isrestrict1(_TYPE_KIND(ty))
-#define isinline(ty)    (_TYPE_INLINE(ty))
+#define isconst(ty)     isconst1((ty)->kind)
+#define isvolatile(ty)  isvolatile1((ty)->kind)
+#define isrestrict(ty)  isrestrict1((ty)->kind)
+#define isinline(ty)    ((ty)->inlined)
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
 // alias
 #define rtype(ty)       TYPE_TYPE(ty)
-#define TYPE_OP(ty)     type_op(ty)
 
 extern bool isfunc(struct type *type);
 extern bool isarray(struct type *type);

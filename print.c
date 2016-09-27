@@ -363,7 +363,7 @@ static struct vector *type2s1(struct type * ty)
     while (ty) {
         struct type2s *s = zmalloc(sizeof(struct type2s));
         if (isqual(ty)) {
-            s->qual = _TYPE_KIND(ty);
+            s->qual = ty->kind;
             s->type = unqual(ty);
         } else {
             s->type = ty;
@@ -372,7 +372,7 @@ static struct vector *type2s1(struct type * ty)
         if (isenum(s->type))
             ty = NULL;
         else
-            ty = _TYPE_TYPE(s->type);
+            ty = s->type->type;
     }
 
     l = vec_reverse(v);
