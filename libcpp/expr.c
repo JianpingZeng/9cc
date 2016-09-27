@@ -389,8 +389,8 @@ static cpp_num logical_and(void)
     cpp_num num;
 
     num = inclusive_or();
-    while (token->id == AND) {
-        expect(AND);
+    while (token->id == ANDAND) {
+        expect(ANDAND);
         cpp_num num2 = inclusive_or();
         num = num && num2;
     }
@@ -407,8 +407,8 @@ static cpp_num logical_or(void)
     cpp_num num;
 
     num = logical_and();
-    while (token->id == OR) {
-        expect(OR);
+    while (token->id == OROR) {
+        expect(OROR);
         cpp_num num2 = logical_and();
         num = num || num2;
     }

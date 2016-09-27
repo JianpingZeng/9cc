@@ -584,14 +584,14 @@ static struct expr *doeval(struct expr * expr)
                 // ptr - int
                 assert(isint(r->type));
                 return ptr_int_bop(op, expr->type, l, r);
-            case AND:
-            case OR:
+            case ANDAND:
+            case OROR:
                 l = doeval(l);
                 if (!l || (!isiliteral(l) && !isfliteral(l)))
                     return NULL;
-                if (op == AND && !scalar_bool(l))
+                if (op == ANDAND && !scalar_bool(l))
                     return zero_literal();
-                else if (op == OR && scalar_bool(l))
+                else if (op == OROR && scalar_bool(l))
                     return one_literal();
                 return doeval(r);
             default:

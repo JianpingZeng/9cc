@@ -828,7 +828,7 @@ static struct token *dolex(struct file *pfile)
             result->id = BANDEQ;
         } else if (rpc[1] == '&') {
             pb->cur++;
-            result->id = AND;
+            result->id = ANDAND;
         } else {
             result->id = '&';
         }
@@ -840,7 +840,7 @@ static struct token *dolex(struct file *pfile)
             result->id = BOREQ;
         } else if (rpc[1] == '|') {
             pb->cur++;
-            result->id = OR;
+            result->id = OROR;
         } else {
             result->id = '|';
         }

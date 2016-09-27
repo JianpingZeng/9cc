@@ -197,19 +197,20 @@ _t(LSHIFTEQ,    "<<=",         LSHIFTEQ)
 _t(RSHIFTEQ,    ">>=",         RSHIFTEQ)
 // assign op end
 
-_t(LEQ,         "<=",          LEQ)
 _t(LSHIFT,      "<<",          LSHIFT)
-_t(GEQ,         ">=",          GEQ)
 _t(RSHIFT,      ">>",          RSHIFT)
+
+_t(GEQ,         ">=",          GEQ)
+_t(LEQ,         "<=",          LEQ)
+_t(EQ,          "==",          EQ)
+_t(NEQ,         "!=",          NEQ)
 
 _t(INCR,        "++",          ID)
 _t(DECR,        "--",          ID)
 _t(DEREF,       "->",          DEREF)
-_t(EQ,          "==",          EQ)
-_t(NEQ,         "!=",          NEQ)
 
-_t(AND,         "&&",          AND)
-_t(OR,          "||",          OR)
+_t(ANDAND,      "&&",          ANDAND)
+_t(OROR,        "||",          OROR)
 
 _t(SHARPSHARP,  "##",	       0)
 _t(LINENO,      "line",        0)

@@ -432,10 +432,10 @@ static struct expr *logic_and(void)
     struct expr *and1;
 
     and1 = inclusive_or();
-    while (token->id == AND) {
+    while (token->id == ANDAND) {
         struct source src = source;
-        expect(AND);
-        and1 = actions.logicop(AND, and1, inclusive_or(), src);
+        expect(ANDAND);
+        and1 = actions.logicop(ANDAND, and1, inclusive_or(), src);
     }
 
     return and1;
@@ -450,10 +450,10 @@ static struct expr *logic_or(void)
     struct expr *or1;
 
     or1 = logic_and();
-    while (token->id == OR) {
+    while (token->id == OROR) {
         struct source src = source;
-        expect(OR);
-        or1 = actions.logicop(OR, or1, logic_and(), src);
+        expect(OROR);
+        or1 = actions.logicop(OROR, or1, logic_and(), src);
     }
 
     return or1;
