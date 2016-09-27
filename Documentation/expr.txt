@@ -232,8 +232,19 @@ VINIT_EXPR:     (removed)
 PAREN_EXPR:     (skipped)
 
 
+COMMENT
+========
 
-Template
+        uint16 op;
+
+      High                         Low
+        | zzzz | zzyy | yyyy | xxxx |
+
+        zzzz-zz: op size, [10-15], 6 bits, (1024-65535) 1,2,4,8,16
+        yy-yyyy: op, [4-9], 6 bits, (16-1023)
+        xxxx: op type, [0-3], 4 bits, (0-15), I,U,F,P,S
+
+TEMPLATE
 =========
 
         rule  "assembly code template" cost

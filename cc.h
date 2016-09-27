@@ -194,6 +194,63 @@ struct expr {
     struct type *vtype;
 };
 
+/// operator
+#define OPSIZE(op)  ((op) >> 10)
+#define OPTYPE(op)  ((op) & 0xF)
+#define OPINDEX(op) (((op) >> 4) & 0x3F)
+#define OPKIND(op)  ((op) & 0x3F0)
+#define OPID(op)    ((op) & 0x3FF)
+#define MKOPSIZE(op)  ((op) << 10)
+
+// op size
+// 1,2,4,8,16
+
+// op type
+// bool/integer/unsigned/floating/pointer/struct
+enum { B = 1, I, U, F, P, S };
+
+// op kind
+enum {
+    // constant
+    CNST = 1 << 4,
+    // address
+    ADDRL = 2 << 4,
+    ADDRG = 3 << 4,
+    ADDRP = 4 << 4,
+    // indirection
+    INDIR = 5 << 4,
+
+    // convert
+    CVI = 10 << 4,
+    CVU = 11 << 4,
+    CVF = 12 << 4,
+    CVP = 13 << 4,
+
+    // binary operator
+    ASGN = 20 << 4,
+    MUL = 21 << 4,
+    DIV = 22 << 4,
+    ADD = 23 << 4,
+    SUB = 24 << 4,
+    MOD = 25 << 4,
+    SHL = 26 << 4,
+    SHR = 27 << 4,
+    AND = 28 << 4,
+    OR = 29 << 4,
+    XOR = 30 << 4,
+    
+    EQL = 40 << 4,
+    NE = 41 << 4,
+    GT = 42 << 4,
+    GE = 43 << 4,
+    LT = 44 << 4,
+    LE = 45 << 4,
+
+    // unary operator
+    NEG = 50 << 4,
+    NOT = 51 << 4,
+};
+
 /// stmt
 
 // stmt id
