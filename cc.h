@@ -153,23 +153,16 @@ enum {
 #define EXPR_OPERAND(NODE, I)   ((NODE)->operands[I])
 #define EXPR_ARGS(NODE)         ((NODE)->list)
 #define EXPR_INITS(NODE)        ((NODE)->list)
-// conditional expr
-#define EXPR_COND(NODE)         EXPR_OPERAND(NODE, 0)
-#define EXPR_THEN(NODE)         EXPR_OPERAND(NODE, 1)
-#define EXPR_ELSE(NODE)         EXPR_OPERAND(NODE, 2)
 // va_arg
 #define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->vtype)
     
 struct expr {
-    int id;
+    short op;
     const char *name;
     struct type *type;
     struct source src;
-
-    int op;
-    bool prefix;
     struct symbol *sym;
-    struct expr *operands[3];
+    struct expr *operands[2];
     struct expr **list;
     struct type *vtype;
 };
@@ -579,6 +572,8 @@ extern struct machine *IM;
 extern struct table *identifiers;
 extern struct table *constants;
 extern struct table *tags;
+extern struct table *globals;
+extern struct table *externals;
 extern int cscope;              // current scope
 extern struct type *chartype;
 extern struct type *unsignedchartype;

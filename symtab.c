@@ -5,6 +5,8 @@
 struct table *identifiers;
 struct table *constants;
 struct table *tags;
+struct table *globals;
+struct table *externals;
 
 int cscope = GLOBAL;
 
@@ -30,9 +32,10 @@ void free_table(struct table *t)
 
 void symbol_init(void)
 {
-    identifiers = new_table(NULL, GLOBAL);
+    globals = identifiers = new_table(NULL, GLOBAL);
     constants = new_table(NULL, CONSTANT);
     tags = new_table(NULL, GLOBAL);
+    externals = new_table(NULL, GLOBAL);
 }
 
 void enter_scope(void)
