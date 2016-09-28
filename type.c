@@ -21,6 +21,8 @@ struct type *doubletype;              // double
 struct type *longdoubletype;          // long double
 struct type *voidtype;                // void
 struct type *booltype;                // bool
+struct type *voidptype;               // void *
+struct type *funcptype;               // void (*) ()
 
 
 struct field *alloc_field(void)
@@ -107,6 +109,10 @@ void type_init(void)
     INSTALL(longdoubletype,    "long double",           LONG + DOUBLE, longdoublemetrics,  FLOAT);
     // void
     INSTALL(voidtype,          "void",                  VOID,          voidmetrics,        VOID);
+    // void *
+    INSTALL(voidptype,         "void *",                POINTER,       ptrmetrics,         POINTER);
+    // void (*) ()
+    INSTALL(funcptype,         "void (*) ()",           POINTER,       ptrmetrics,         POINTER);
 
 #undef INSTALL
 }
@@ -219,8 +225,8 @@ struct type *ptr_type(struct type * type)
     ty->op = POINTER;
     ty->name = "pointer";
     ty->type = type;
-    ty->size = IM->ptrmetrics.size;
-    ty->align = IM->ptrmetrics.align;
+    ty->size = voidptype->size;
+    ty->align = voidptype->align;
 
     return ty;
 }
@@ -231,7 +237,7 @@ struct type *func_type(void)
     ty->kind = FUNCTION;
     ty->op = FUNCTION;
     ty->name = "function";
-    ty->align = IM->ptrmetrics.align;
+    ty->align = funcptype->align;
 
     return ty;
 }
@@ -695,7 +701,7 @@ short tytop(struct type *ty)
         return F + MKOPSIZE(size);
         
     case FUNCTION:
-        return P + MKOPSIZE(IM->ptrmetrics.size);
+        return P + MKOPSIZE(funcptype->size);
         
     case POINTER:
         return P + MKOPSIZE(size);

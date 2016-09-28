@@ -592,6 +592,8 @@ extern struct type *doubletype;
 extern struct type *longdoubletype;
 extern struct type *voidtype;
 extern struct type *booltype;
+extern struct type *voidptype;
+extern struct type *funcptype;
 extern unsigned int errors, warnings;
 
 #endif
