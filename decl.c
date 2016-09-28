@@ -1230,14 +1230,17 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
     assert(id);
     assert(cscope >= LOCAL);
 
+    if (sclass == 0)
+        sclass = isfunc(ty) ? EXTERN : AUTO;
+
     if (isfunc(ty)) {
         ensure_func(ty, src);
         ensure_main(ty, id, src);
-        if (sclass && sclass != EXTERN) {
+        if (sclass != EXTERN) {
             error_at(src,
                      "function declared in block scope cannot have '%s' storage class",
                      id2s(sclass));
-            sclass = 0;
+            sclass = EXTERN;
         }
     } else if (isarray(ty)) {
         ensure_array(ty, src, LOCAL);
@@ -1245,21 +1248,37 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
 
     ensure_inline(ty, fspec, src);
 
-    bool globl = isfunc(ty) || sclass == EXTERN;
-
     sym = lookup(id, identifiers);
-    if (sym &&
-        (is_current_scope(sym) ||
-         (globl && (isfunc(sym->type) ||
-                    sym->sclass == EXTERN)))) {
-        redefinition_error(src, sym);
+    if (sclass == EXTERN) {
+        if (sym == NULL || !is_current_scope(sym) || eqtype(ty, sym->type)) {
+            struct symbol *p = lookup(id, globals);
+            if (p == NULL || eqtype(ty, p->type)) {
+                p = lookup(id, externals);
+                if (p && !eqtype(ty, p->type))
+                    redefinition_error(src, p);
+            } else {
+                redefinition_error(src, p);
+            }
+        } else {
+            redefinition_error(src, p);
+        }
     } else {
-        sym = install(id, &identifiers, cscope, FUNC);
-        sym->type = ty;
-        sym->src = src;
-        sym->sclass = sclass;
-        if (!globl)
-            sym->defined = true;
+        if (sym && is_current_scope(sym))
+            redefinition_error(src, sym);
+    }
+
+    sym = install(id, &identifiers, cscope, sclass == EXTERN ? PERM : FUNC);
+    sym->type = ty;
+    sym->src = src;
+    sym->sclass = sclass;
+    if (sclass != EXTERN)
+        sym->defined = true;
+
+    if (sclass == EXTERN) {
+        struct symbol *p = install(id, &externals, GLOBAL, PERM);
+        p->type = ty;
+        p->src = src;
+        p->sclass = EXTERN;
     }
 
     if (token->id == '=') {
