@@ -112,7 +112,7 @@ void type_init(void)
     // void *
     INSTALL(voidptype,         "void *",                POINTER,       ptrmetrics,         POINTER);
     // void (*) ()
-    INSTALL(funcptype,         "void (*) ()",           POINTER,       ptrmetrics,         POINTER);
+    INSTALL(funcptype,         "void (*) ()",           FUNCTION,      ptrmetrics,         FUNCTION);
 
 #undef INSTALL
 }
