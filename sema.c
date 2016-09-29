@@ -274,34 +274,6 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
         params[0] = NULL;
 }
 
-void redefinition_error(struct source src, struct symbol * sym)
-{
-    error_at(src,
-             "redefinition of '%s', previous definition at %s:%u:%u",
-             sym->name,
-             sym->src.file,
-             sym->src.line,
-             sym->src.column);
-}
-
-void conflicting_types_error(struct source src, struct symbol * sym)
-{
-    error_at(src,
-             "conflicting types for '%s', previous at %s:%u:%u",
-             sym->name,
-             sym->src.file,
-             sym->src.line,
-             sym->src.column);
-}
-
-void field_not_found_error(struct type * ty, const char *name)
-{
-    if (isincomplete(ty))
-        error("incomplete definition of type '%s'", type2s(ty));
-    else
-        error("'%s' has no field named '%s'", type2s(ty), name);
-}
-
 /// expr
 
 static void ensure_type(struct expr *node, bool(*is) (struct type *))
@@ -1365,8 +1337,12 @@ static struct expr * direction(struct expr *node, int t, const char *name, struc
     }
     if (isrecord(ty)) {
         field = find_field(ty, name);
-        if (field == NULL)
-            field_not_found_error(ty, name);
+        if (field == NULL) {
+            if (isincomplete(ty))
+                error(INCOMPLETE_DEFINITION_OF_TYPE, type2s(ty));
+            else
+                error(FIELD_NOT_FOUND_ERROR, type2s(ty), name);
+        }
     }
     if (NO_ERROR) {
         if (opts.ansi) {

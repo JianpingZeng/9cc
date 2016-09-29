@@ -163,8 +163,12 @@ static void struct_init(struct type * ty, bool brace, struct vector *v)
                 fieldty = field->type;
             } else {
                 i--;
-                if (name)
-                    field_not_found_error(ty, name);
+                if (name) {
+                    if (isincomplete(ty))
+                        error(INCOMPLETE_DEFINITION_OF_TYPE, type2s(ty));
+                    else
+                        error(FIELD_NOT_FOUND_ERROR, type2s(ty), name);
+                }
             }
             designated = true;
         }

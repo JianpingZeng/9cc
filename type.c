@@ -264,7 +264,8 @@ struct symbol *tag_type(int t, const char *tag, struct source src)
             if (TYPE_OP(sym->type) == t && !sym->defined)
                 return sym;
 
-            redefinition_error(src, sym);
+            error_at(src, REDEFINITION_ERROR,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
         }
 
         sym = install(tag, &tags, cscope, PERM);

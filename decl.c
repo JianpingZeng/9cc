@@ -668,7 +668,7 @@ static void ids(struct symbol *sym)
             const char *name = TOK_ID_STR(token);
             struct symbol *s = lookup(name, identifiers);
             if (s && is_current_scope(s))
-                redefinition_error(source, s);
+                error(REDEFINITION_ERROR, s->name, s->src.file, s->src.line, s->src.column);
 
             s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
             s->type = sym->type;
@@ -1152,7 +1152,7 @@ static void typedefdecl(const char *id, struct type *ty, int fspec, int level, s
 
     struct symbol *sym = lookup(id, identifiers);
     if (sym && is_current_scope(sym))
-        redefinition_error(src, sym);
+        error_at(src, REDEFINITION_ERROR, sym->name, sym->src.file, sym->src.line, sym->src.column);
     sym = install(id, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
     sym->type = ty;
     sym->src = src;
@@ -1204,7 +1204,7 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
     if (id) {
         sym = lookup(id, identifiers);
         if (sym && sym->scope == cscope)
-            redefinition_error(source, sym);
+            error(REDEFINITION_ERROR, sym->name, sym->src.file, sym->src.line, sym->src.column);
         sym = install(id, &identifiers, cscope, FUNC);
     } else {
         sym = anonymous(&identifiers, cscope, FUNC);
@@ -1255,16 +1255,20 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
             if (p == NULL || eqtype(ty, p->type)) {
                 p = lookup(id, externals);
                 if (p && !eqtype(ty, p->type))
-                    redefinition_error(src, p);
+                    error_at(src, REDEFINITION_ERROR,
+                             p->name, p->src.file, p->src.line, p->src.column);
             } else {
-                redefinition_error(src, p);
+                error_at(src, REDEFINITION_ERROR,
+                         p->name, p->src.file, p->src.line, p->src.column);
             }
         } else {
-            redefinition_error(src, p);
+            error_at(src, REDEFINITION_ERROR,
+                     p->name, p->src.file, p->src.line, p->src.column);
         }
     } else {
         if (sym && is_current_scope(sym))
-            redefinition_error(src, sym);
+            error_at(src, REDEFINITION_ERROR,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
     }
 
     sym = install(id, &identifiers, cscope, sclass == EXTERN ? PERM : FUNC);
@@ -1356,7 +1360,8 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
         if (sclass != EXTERN)
             sym->sclass = sclass;
     } else {
-        conflicting_types_error(src, sym);
+        error_at(src, CONFLICTING_TYPES_ERROR,
+                 sym->name, sym->src.file, sym->src.line, sym->src.column);
     }
 
     if (token->id == '=') {
@@ -1374,7 +1379,8 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
                 warning_at(init->src, "'extern' variable has an initializer");
 
             if (sym->defined)
-                redefinition_error(src, sym);
+                error_at(src, REDEFINITION_ERROR,
+                         sym->name, sym->src.file, sym->src.line, sym->src.column);
 
             init = ensure_init(init, ty, sym);
             sym->u.init = init;
@@ -1454,7 +1460,8 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
             else
                 make_funcdecl(sym, ftype, sclass, src);
         } else {
-            redefinition_error(src, sym);
+            error_at(src, REDEFINITION_ERROR,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
         }
 
         ensure_func(ftype, src);
