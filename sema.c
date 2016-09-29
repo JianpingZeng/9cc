@@ -1383,12 +1383,7 @@ static struct expr * post_increment(struct expr *node, int t, struct source src)
 
 static struct expr * compound_literal(struct type *ty, struct expr *inits, struct source src)
 {
-    struct expr *ret;
-    
-    ret = ast_expr(COMPOUND, ty, inits, NULL);
-    ret->src = inits->src;
-
-    return ret;
+    return inits;
 }
 
 /// primary

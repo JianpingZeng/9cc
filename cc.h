@@ -142,12 +142,6 @@ struct table {
     struct map *map;
     struct symbol *all;
 };
-
-#define EXPR_OPERAND(NODE, I)   ((NODE)->operands[I])
-#define EXPR_ARGS(NODE)         ((NODE)->list)
-#define EXPR_INITS(NODE)        ((NODE)->list)
-// va_arg
-#define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->vtype)
     
 struct expr {
     bool invalid;
@@ -156,9 +150,21 @@ struct expr {
     struct type *type;
     struct source src;
     struct symbol *sym;
-    struct expr *operands[2];
-    struct expr **list;
+    struct expr *kids[2];
     struct type *vtype;
+    union {
+        struct expr **args;
+        struct init **inits;
+    } u;
+};
+
+// initializer
+struct init {
+    size_t offset;
+    short boff;
+    short bsize;
+    struct type *type;
+    struct expr *body;
 };
 
 /// operator

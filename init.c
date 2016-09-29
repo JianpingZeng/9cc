@@ -384,12 +384,13 @@ struct expr *initializer(struct type * ty)
 struct expr *initializer_list(struct type * ty)
 {
     int follow[] = { ',', IF, '[', ID, '.', DEREF, 0 };
-    struct expr *ret = ast_inits(ty, source);
+    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
     struct vector *v = vec_new();
 
     expect('{');
-    if (first_init(token)) {
-        if (ty) {
+
+    if (ty) {
+        if (first_init(token)) {
             if (isstruct(ty) || isunion(ty))
                 struct_init(ty, true, v);
             else if (isarray(ty))
@@ -406,12 +407,10 @@ struct expr *initializer_list(struct type * ty)
                 eat_initlist();
             }
         } else {
-            eat_initlist();
+            error("expect initializer at '%s'", tok2s(token));
         }
     } else {
-        // inhibit redundant errors
-        if (ty)
-            error("expect initializer at '%s'", tok2s(token));
+        eat_initlist();
     }
 
     match('}', follow);
