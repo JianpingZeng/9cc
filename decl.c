@@ -1153,10 +1153,12 @@ static void typedefdecl(const char *id, struct type *ty, int fspec, int level, s
     struct symbol *sym = lookup(id, identifiers);
     if (sym && is_current_scope(sym))
         error_at(src, REDEFINITION_ERROR, sym->name, sym->src.file, sym->src.line, sym->src.column);
+
     sym = install(id, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
     sym->type = ty;
     sym->src = src;
     sym->sclass = sclass;
+    sym->defined = true;
 
     if (token->id == '=') {
         error("illegal initializer (only variable can be initialized)");
