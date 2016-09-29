@@ -143,13 +143,6 @@ struct table {
     struct symbol *all;
 };
 
-// ast node ids
-enum {
-#define _ns(a)   a,
-#define _n(a, b) a,
-#include "node.def"
-};
-
 #define EXPR_OPERAND(NODE, I)   ((NODE)->operands[I])
 #define EXPR_ARGS(NODE)         ((NODE)->list)
 #define EXPR_INITS(NODE)        ((NODE)->list)
@@ -157,6 +150,7 @@ enum {
 #define EXPR_VA_ARG_TYPE(NODE)  ((NODE)->vtype)
     
 struct expr {
+    bool invalid;
     short op;
     const char *name;
     struct type *type;
@@ -185,44 +179,9 @@ enum { I = 1, U, F, P, S };
 
 // op kind
 enum {
-    // constant
-    CNST = 1 << 4,
-    // address
-    ADDRL = 2 << 4,
-    ADDRG = 3 << 4,
-    ADDRP = 4 << 4,
-    // indirection
-    INDIR = 5 << 4,
-
-    // convert
-    CVI = 10 << 4,
-    CVU = 11 << 4,
-    CVF = 12 << 4,
-    CVP = 13 << 4,
-
-    // binary operator
-    ASGN = 20 << 4,
-    MUL = 21 << 4,
-    DIV = 22 << 4,
-    ADD = 23 << 4,
-    SUB = 24 << 4,
-    MOD = 25 << 4,
-    SHL = 26 << 4,
-    SHR = 27 << 4,
-    AND = 28 << 4,
-    OR = 29 << 4,
-    XOR = 30 << 4,
-    
-    EQL = 40 << 4,
-    NE = 41 << 4,
-    GT = 42 << 4,
-    GE = 43 << 4,
-    LT = 44 << 4,
-    LE = 45 << 4,
-
-    // unary operator
-    NEG = 50 << 4,
-    NOT = 51 << 4,
+    OPNONE,
+#define _n(a)  a << 4,
+#include "node.def"
 };
 
 /// stmt
@@ -384,13 +343,8 @@ extern struct symbol *lookup(const char *name, struct table *table);
 extern struct symbol *install(const char *name, struct table **tpp, int scope, int area);
 
 /// ast.c
-extern const char *nname(int id);
-extern struct expr *ast_expr(int id, struct type *ty, struct expr *l, struct expr *r);
-extern struct expr *ast_uop(int op, struct type *ty, struct expr *l);
-extern struct expr *ast_bop(int op, struct type *ty, struct expr *l, struct expr *r);
-extern struct expr *ast_conv(struct type *ty, struct expr *l, const char *name);
-extern struct expr *ast_inits(struct type * ty, struct source src);
-extern struct expr *ast_vinit(void);
+extern const char *nname(int op);
+extern struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r);
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
 extern const char *gen_compound_label(void);
@@ -445,8 +399,8 @@ extern void conflicting_types_error(struct source src, struct symbol *sym);
 extern void field_not_found_error(struct type *ty, const char *name);
 extern bool islvalue(struct expr *node);
 extern struct expr *assignconv(struct type *ty, struct expr *node);
-extern struct expr *new_int_literal(long i);
-extern struct expr *new_string_literal(const char *string);
+extern struct expr *cnsti(long i, struct type *ty);
+extern struct expr *cnsts(const char *string);
 extern long intexpr1(struct type *ty);
 extern long intexpr(void);
 // for expression in conditional statement
@@ -460,6 +414,7 @@ extern void ensure_return(struct expr *expr, bool isnull, struct source src);
 extern void ensure_gotos(void);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
+extern struct expr *expr_error(void);
 
 // type.c
 extern void type_init(void);

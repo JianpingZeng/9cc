@@ -2,63 +2,24 @@
 #include "cc.h"
 
 static const char *node_names[] = {
-#define _ns(a)   "",
-#define _n(a, b) b,
+    "OPNONE",
+#define _n(a) #a,
 #include "node.def"
 };
 
-const char *nname(int id)
+const char *nname(int op)
 {
-    assert(id > BEGIN_NODE_ID && id < END_NODE_ID);
-
-    return node_names[id];
+    return node_names[OPINDEX(op)];
 }
 
-struct expr *ast_expr(int id, struct type *ty, struct expr *l, struct expr *r)
+struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r)
 {
-    assert(id > BEGIN_EXPR_ID && id < END_EXPR_ID);
     struct expr *expr = NEWS0(struct expr, PERM);
-    expr->id = id;
+    expr->op = op;
     expr->type = ty;
     EXPR_OPERAND(expr, 0) = l;
     EXPR_OPERAND(expr, 1) = r;
     return expr;
-}
-
-struct expr *ast_uop(int op, struct type *ty, struct expr *l)
-{
-    struct expr *expr = ast_expr(UNARY_OPERATOR, ty, l, NULL);
-    expr->op = op;
-    return expr;
-}
-
-struct expr *ast_bop(int op, struct type *ty, struct expr *l, struct expr *r)
-{
-    struct expr *expr = ast_expr(BINARY_OPERATOR, ty, l, r);
-    expr->op = op;
-    return expr;
-}
-
-struct expr *ast_conv(struct type *ty, struct expr *l, const char *name)
-{
-    struct expr *expr = ast_expr(CONV_EXPR, ty, l, NULL);
-    expr->name = name;
-    expr->src = l->src;
-    return expr;
-}
-
-struct expr *ast_inits(struct type *ty, struct source src)
-{
-    struct expr *expr = ast_expr(INITS_EXPR, NULL, NULL, NULL);
-    expr->src = src;
-    expr->type = ty;
-    return expr;
-}
-
-struct expr *ast_vinit(void)
-{
-    struct expr *vinit = ast_expr(VINIT_EXPR, NULL, NULL, NULL);
-    return vinit;
 }
 
 struct stmt *ast_stmt(int id)

@@ -1,35 +1,49 @@
-// node
-
-_ns(BEGIN_NODE_ID)
-
 // expr
-_ns(BEGIN_EXPR_ID)
 
-_n(BINARY_OPERATOR,   "BinaryOperator")
-_n(UNARY_OPERATOR,    "UnaryOperator")
-_n(COND_EXPR,         "ConditionalExpr")
-_n(MEMBER_EXPR,       "MemberExpr")
-_n(PAREN_EXPR,        "ParenExpr")
-_n(REF_EXPR,          "RefExpr")
-_n(CAST_EXPR,         "CastExpr")
-_n(CALL_EXPR,         "CallExpr")
-_n(INITS_EXPR,        "InitListExpr")
-_n(VINIT_EXPR,        "ImplicitValueInitExpr")
-_n(CONV_EXPR,         "ImplicitCastExpr")
-_n(SUBSCRIPT_EXPR,    "ArraySubscriptExpr")
+// constant
+_n(CNST)
 
-_ns(BEGIN_LITERAL_ID)
+// address
+_n(ADDRL)
+_n(ADDRG)
+_n(ADDRP)
 
-_n(INTEGER_LITERAL,         "IntegerLiteral")
-_n(FLOAT_LITERAL,           "FloatLiteral")
-_n(STRING_LITERAL,          "StringLiteral")
-_n(COMPOUND_LITERAL,	    "CompoundLiteral")
+// indirection
+_n(INDIR)
 
-_ns(END_LITERAL_ID)
+// convert
+_n(CVI)
+_n(CVU)
+_n(CVF)
+_n(CVP)
 
-_ns(END_EXPR_ID)
+// binary
+_n(ASGN)
+_n(MUL)
+_n(DIV)
+_n(ADD)
+_n(SUB)
+_n(MOD)
+_n(SHL)
+_n(SHR)
+_n(AND)
+_n(OR)
+_n(XOR)
+_n(EQL)
+_n(NE)
+_n(GT)
+_n(GE)
+_n(LT)
+_n(LE)
 
-_ns(END_NODE_ID)
+// unary
+_n(NEG)
+_n(NOT)
+
+// others
+_n(RIGHT)
+_n(COND)
+_n(MEMBER)
+_n(COMPOUND)
 
 #undef _n
-#undef _ns

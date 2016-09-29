@@ -20,8 +20,9 @@
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 #define MAX_STRUCT_PARAM_SIZE  16
 
-static struct expr *new_uint_literal(unsigned long l);
+static struct expr *bop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *make_ref_expr(struct symbol *sym, struct source src);
+static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src);
 
 struct goto_info {
     const char *id;
@@ -462,6 +463,21 @@ static struct expr *ltor(struct expr *node)
     return ast_conv(unqual(node->type), node, LValueToRValue);
 }
 
+static struct expr *lvalue(struct expr *n)
+{
+    assert(OPKIND(n->op) == INDIR);
+    return EXPR_OPERAND(n, 0);
+}
+
+static struct expr *rvalue(struct expr *n)
+{
+    struct type *ty;
+    assert(isptr(n->type));
+    
+    ty = unqual(rtype(n->type));
+    return ast_expr(mkop(INDIR, ty), ty, n, NULL);
+}
+
 // Universal Unary Conversion
 static struct expr *conv(struct expr *node)
 {
@@ -797,7 +813,7 @@ static struct expr *commaop(struct expr *l, struct expr *r, struct source src)
     if (islvalue(r))
         r = ltor(r);
 
-    ret = ast_bop(',', r->type, l, r);
+    ret = ast_expr(RIGHT, r->type, l, r);
     ret->src = src;
     return ret;
 }
@@ -854,7 +870,7 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
                   (isptr(ty1) && isint(ty2))))
                 error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
         }
-        r = actions.bop(op2, l1, r1, src);
+        r = bop(op2, l1, r1, src);
     }
 
     if (NO_ERROR) {
@@ -862,7 +878,7 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
         struct type *ty2 = r->type;
         r = assignconv(retty, r);
         if (r)
-            ret = ast_bop('=', retty, l, r);
+            ret = ast_expr(ASGN, retty, l, r);
         else
             error(INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
     }
@@ -939,10 +955,7 @@ static struct expr *condop(struct expr *cond, struct expr *then, struct expr *el
     }
 
     if (NO_ERROR) {
-        ret = ast_expr(COND_EXPR, ty, NULL, NULL);
-        EXPR_COND(ret) = cond;
-        EXPR_THEN(ret) = then;
-        EXPR_ELSE(ret) = els;
+        ret = ast_expr(COND, ty, cond, ast_expr(RIGHT, ty, then, els));
         ret->src = src;
     }
 
@@ -953,6 +966,8 @@ static struct expr *logicop(int op, struct expr *l, struct expr *r, struct sourc
 {
     struct expr *ret = NULL;
 
+    assert(op == ANDAND || op == OROR);
+    
     l = conv(l);
     r = conv(r);
     if (l == NULL || r == NULL)
@@ -962,7 +977,7 @@ static struct expr *logicop(int op, struct expr *l, struct expr *r, struct sourc
     ensure_type(l, isscalar);
     ensure_type(r, isscalar);
     if (NO_ERROR) {
-        ret = ast_bop(op, inttype, l, r);
+        ret = ast_expr(op == ANDAND ? AND : OR, inttype, l, r);
         ret->src = src;
     }
 
@@ -1108,6 +1123,8 @@ static struct expr *bop(int op, struct expr *l, struct expr *r, struct source sr
     return node;
 }
 
+/// cast
+
 static struct expr *castop(struct type *ty, struct expr *cast, struct source src)
 {
     struct expr *ret = NULL;
@@ -1128,6 +1145,8 @@ static struct expr *castop(struct type *ty, struct expr *cast, struct source src
     return ret;
 }
 
+/// unary
+
 static struct expr *pre_increment(int t, struct expr *operand, struct source src)
 {
     struct expr *ret = NULL;
@@ -1137,11 +1156,8 @@ static struct expr *pre_increment(int t, struct expr *operand, struct source src
 
     SAVE_ERRORS;
     ensure_increment(operand);
-    if (NO_ERROR) {
-        ret = ast_uop(t, operand->type, operand);
-        ret->prefix = true;
-        ret->src = src;
-    }
+    if (NO_ERROR)
+        ret = incr(t == INCR ? ADD : SUB, operand, cnsti(1, inttype), src);
 
     return ret;
 }
@@ -1270,6 +1286,8 @@ static struct expr * sizeofop(struct type *ty, struct expr *n, struct source src
     return ret;
 }
 
+/// postfix
+
 // []
 static struct expr * subscript(struct expr *node, struct expr *index, struct source src)
 {
@@ -1303,49 +1321,6 @@ static struct expr * subscript(struct expr *node, struct expr *index, struct sou
     return ret;
 }
 
-static struct expr *flatten_call(struct expr *node)
-{
-    switch (node->id) {
-    case CONV_EXPR:
-    case CAST_EXPR:
-    case PAREN_EXPR:
-        return flatten_call(EXPR_OPERAND(node, 0));
-    case UNARY_OPERATOR:
-        if (node->op == '&' || node->op == '*')
-            return flatten_call(EXPR_OPERAND(node, 0));
-        else
-            return node;
-    default:
-        return node;
-    }
-}
-
-static void builtin_funcall(struct expr *call, struct expr *ref)
-{
-    const char *fname = ref->sym->name;
-    if (!strcmp(fname, BUILTIN_VA_ARG_P)) {
-        // __builtin_va_arg_p
-        struct expr **args = EXPR_ARGS(call);
-        struct expr *arg1 = args[1];
-        assert(isptr(arg1->type));
-        struct type *ty = rtype(arg1->type);
-        // save the type
-        EXPR_VA_ARG_TYPE(call) = ty;
-        
-        if (isrecord(ty) && TYPE_SIZE(ty) <= MAX_STRUCT_PARAM_SIZE) {
-            const char *label = gen_tmpname();
-            struct symbol *sym = mklocalvar(label, ty, 0);
-            // passing address
-            struct expr *operand = make_ref_expr(sym, sym->src);
-            // update arg1
-            args[1] = ast_uop('&', ptr_type(ty), operand);
-        } else {
-            // update arg1 to NULL
-            args[1] = NULL;
-        }
-    }
-}
-
 static struct expr * funcall(struct expr *node, struct expr **args, struct source src)
 {
     struct expr *ret = NULL;
@@ -1361,10 +1336,6 @@ static struct expr * funcall(struct expr *node, struct expr **args, struct sourc
             EXPR_ARGS(ret) = args;
             ret->src = src;
             vec_push(func.calls, ret);
-            // handle builtin calls
-            struct expr *tmp = flatten_call(node);
-            if (tmp->id == REF_EXPR && isfunc(tmp->type))
-                builtin_funcall(ret, tmp);
         }
     } else {
         ensure_type(node, isfunc);
@@ -1422,11 +1393,29 @@ static struct expr * post_increment(struct expr *node, int t, struct source src)
     SAVE_ERRORS;
     ensure_increment(node);
     if (NO_ERROR) {
-        ret = ast_uop(t, node->type, node);
+        ret = ast_expr(RIGHT,
+                       node->type,
+                       ast_expr(RIGHT,
+                                node->type,
+                                node,
+                                incr(t == INCR ? ADD : SUB, node, cnsti(1, inttype), src)),
+                       node);
         ret->src = src;
     }
     return ret;
 }
+
+static struct expr * compound_literal(struct type *ty, struct expr *inits, struct source src)
+{
+    struct expr *ret;
+    
+    ret = ast_expr(COMPOUND, ty, inits, NULL);
+    ret->src = inits->src;
+
+    return ret;
+}
+
+/// primary
 
 static void integer_constant(struct token *t, struct symbol * sym)
 {
@@ -1557,42 +1546,73 @@ static void string_constant(struct token *t, struct symbol * sym)
     sym->type = ty;
 }
 
-static struct expr *literal_expr(struct token *t, int id,
+static struct expr *literal_expr(struct token *t, int op,
                                  void (*cnst) (struct token *, struct symbol *))
 {
+    struct expr *expr;
     const char *name = TOK_LIT_STR(t);
     struct symbol *sym = lookup(name, constants);
     if (!sym) {
         sym = install(name, &constants, CONSTANT, PERM);
         cnst(t, sym);
     }
-    struct expr *expr = ast_expr(id, sym->type, NULL, NULL);
+    if (t->id == SCONSTANT)
+        expr = ast_expr(mkop(op, voidptype), sym->type, NULL, NULL);
+    else
+        expr = ast_expr(mkop(op, sym->type), sym->type, NULL, NULL);
     expr->src = t->src;
     expr->sym = sym;
     return expr;
 }
 
-struct expr *new_int_literal(long i)
+struct expr *cnsti(long i, struct type *ty)
 {
-    struct token t = {.id = ICONSTANT, .u.lit.str = strd(i), .u.lit.v.i = i};
-    return literal_expr(&t, INTEGER_LITERAL, integer_constant);
+    int op = TYPE_OP(ty);
+    struct token t = {.id = ICONSTANT, .u.lit.str = op == INT ? strd(i) : stru(i), .u.lit.v.i = i};
+    return literal_expr(&t, CNST, integer_constant);
 }
 
-static struct expr *new_uint_literal(unsigned long l)
-{
-    struct token t = {.id = ICONSTANT, .u.lit.str = stru(l), .u.lit.v.u = l};
-    return literal_expr(&t, INTEGER_LITERAL, integer_constant);
-}
-
-struct expr *new_string_literal(const char *string)
+struct expr *cnsts(const char *string)
 {
     struct token t = {.id = SCONSTANT, .u.lit.str = format("\"%s\"", string)};
-    return literal_expr(&t, STRING_LITERAL, string_constant);
+    return literal_expr(&t, CNST, string_constant);
+}
+
+static struct expr * iconst(struct token *tok)
+{
+    return literal_expr(tok, CNST, integer_constant);
+}
+
+static struct expr * fconst(struct token *tok)
+{
+    return literal_expr(tok, CNST, float_constant);
+}
+
+static struct expr * sconst(struct token *tok)
+{
+    return literal_expr(tok, CNST, string_constant);
 }
 
 static struct expr *make_ref_expr(struct symbol *sym, struct source src)
 {
-    struct expr *ret = ast_expr(REF_EXPR, sym->type, NULL, NULL);
+    int op;
+    struct type *ty = sym->type;
+    struct expr *ret;
+
+    if (sym->scope == GLOBAL || sym->sclass = STATIC || sym->sclass == EXTERN)
+        op = ADDRG;
+    else if (sym->scope == PARAM)
+        op = ADDRP;
+    else
+        op = ADDRL;
+
+    if (isfunc(ty))
+        ret = ast_expr(mkop(op, funcptype), ty, NULL, NULL);
+    else if (isarray(ty))
+        ret = ast_expr(mkop(op, voidptype), ty, NULL, NULL);
+    else
+        ret = ast_expr(mkop(op, voidptype), ptr_type(ty), NULL, NULL);
+    
     ret->sym = sym;
     ret->src = src;
     sym->refs++;
@@ -1601,66 +1621,59 @@ static struct expr *make_ref_expr(struct symbol *sym, struct source src)
 
 static struct expr * id(struct token *tok)
 {
-    struct expr *ret = NULL;
+    const char *id = TOK_ID_STR(tok);
     struct symbol *sym;
 
-    sym = lookup(TOK_ID_STR(tok), identifiers);
+    sym = lookup(id, identifiers);
     if (sym) {
-        ret = make_ref_expr(sym, source);
         if (isenum(sym->type) && sym->sclass == ENUM)
-            ret->op = ENUM;        // enum ids
+            // enum ids
+            return cnsti(sym->value.i, rtype(sym->type));
+        else
+            return make_ref_expr(sym, source);
+    } else if (lookahead()->id == '(') {
+        // lookup in externals
+        sym = lookup(id, externals);
+        if (sym == NULL) {
+            // implicit function declaration: int id();
+            warning("implicit declaration of '%s'", id);
+
+            struct type *ftype = func_type();
+            ftype->type = inttype;
+            ftype->u.f.oldstyle = true;
+            ftype->u.f.proto = ltoa(NULL, PERM);
+            
+            sym = install(id, &externals, GLOBAL, PERM);
+            sym->sclass = EXTERN;
+            sym->type = ftype;
+            sym->src = source;
+
+            return make_ref_expr(sym, source);
+        } else if (isfunc(sym->type) || isptrto(sym->type, FUNCTION)) {
+            warning("use of out-of-scope declaration of '%s', previous declaration is here: %s:%u:%u",
+                    id, sym->src.file, sym->src.line, sym->src.column);
+            return make_ref_expr(sym, source);
+        } else {
+            error("use of '%s' does not match previous declaration at: %s:%u:%u",
+                  id, sym->src.file, sym->src.line, sym->src.column);
+            return NULL;
+        }
     } else {
-        error("use of undeclared identifier '%s'", tok2s(tok));
+        error("use of undeclared identifier '%s'", id);
+        return NULL;
     }
-
-    return ret;
-}
-
-static struct expr * iconst(struct token *tok)
-{
-    return literal_expr(tok, INTEGER_LITERAL, integer_constant);
-}
-
-static struct expr * fconst(struct token *tok)
-{
-    return literal_expr(tok, FLOAT_LITERAL, float_constant);
-}
-
-static struct expr * sconst(struct token *tok)
-{
-    return literal_expr(tok, STRING_LITERAL, string_constant);
 }
 
 static struct expr * paren(struct expr *e, struct source src)
 {
-    struct expr *ret = NULL;
-    
-    if (e) {
-        ret = ast_expr(PAREN_EXPR, e->type, e, NULL);
-        ret->src = src;
-    }
-
-    return ret;
+    return e;
 }
 
-static struct expr * compound_literal(struct type *ty, struct expr *inits, struct source src)
-{
-    struct expr *ret;
-    
-    ret = ast_expr(COMPOUND_LITERAL, ty, inits, NULL);
-    ret->src = inits->src;
-    
-    // define local variable
-    if (cscope >= LOCAL) {
-        const char *label = gen_compound_label();
-        struct symbol *sym = mklocalvar(label, ty, 0);
-        sym->u.init = inits;
-        // set sym
-        ret->sym = sym;
-        sym->refs++;
-    }
+/// convenience
 
-    return ret;
+static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
+{
+    return assignop('=', expr, bop(op, expr, cnst, src), src);
 }
 
 long intexpr1(struct type * ty)
@@ -1732,6 +1745,16 @@ struct expr *assign(struct symbol *sym, struct expr *r)
 {
     struct expr *l = make_ref_expr(sym, sym->src);
     return ast_bop('=', sym->type, l, r);
+}
+
+struct expr *expr_error(void)
+{
+    static struct expr *expr;
+    if (!expr) {
+        expr = ast_expr(OPNONE, voidtype, NULL, NULL);
+        expr->invalid = true;
+    }
+    return expr;
 }
 
 /// stmt
