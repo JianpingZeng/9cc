@@ -29,8 +29,8 @@ enum {
 
 // value
 union value {
-    long long i;
-    unsigned long long u;
+    long i;
+    unsigned long u;
     float f;
     double d;
     long double ld;
