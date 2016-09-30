@@ -414,7 +414,7 @@ struct expr *initializer_list(struct type * ty)
     }
 
     match('}', follow);
-    EXPR_INITS(ret) = vtoa(v, PERM);
+    EXPR_INITS(ret) = vtoa(v, FUNC);
     return ret;
 }
 

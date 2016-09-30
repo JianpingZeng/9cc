@@ -14,7 +14,7 @@ const char *nname(int op)
 
 struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r)
 {
-    struct expr *expr = NEWS0(struct expr, PERM);
+    struct expr *expr = NEWS0(struct expr, FUNC);
     expr->op = op;
     expr->type = ty;
     EXPR_OPERAND(expr, 0) = l;
