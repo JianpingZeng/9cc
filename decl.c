@@ -1550,7 +1550,7 @@ static void func_body(struct symbol *sym)
     func.labels = new_table(NULL, LOCAL);
     func.type = sym->type;
     func.name = sym->name;
-    func.calls = vec_new();
+    func.calls = NULL;
     func.stmt = &stmt;
 
     // compound statement
@@ -1559,7 +1559,7 @@ static void func_body(struct symbol *sym)
     ensure_gotos();
 
     // save
-    sym->u.f.calls = vtoa(func.calls, FUNC);
+    sym->u.f.calls = ltoa(&func.calls, FUNC);
     sym->u.f.stmt = stmt;
 
     free_table(func.labels);
@@ -1567,6 +1567,5 @@ static void func_body(struct symbol *sym)
     func.labels = NULL;
     func.type = NULL;
     func.name = NULL;
-    func.calls = NULL;
     func.stmt = NULL;
 }

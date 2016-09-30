@@ -294,8 +294,10 @@ static void ensure_type(struct expr *node, bool(*is) (struct type *))
     else
         assert(0);
 
-    if (!is(node->type))
+    if (!is(node->type)) {
         error_at(node->src, "expect type '%s', not '%s'", name, type2s(node->type));
+        node->invalid = true;
+    }
 }
 
 /**
@@ -356,14 +358,19 @@ static void ensure_assignable(struct expr *node)
 {
     struct type *ty = node->type;
     struct source src = node->src;
-    if (!islvalue(node))
+    if (!islvalue(node)) {
         error_at(src, "expression is not assignable '%s'", expr2s(node));
-    else if (node->id == PAREN_EXPR)
+        node->invalid = true;
+    } else if (node->id == PAREN_EXPR) {
         ensure_assignable(EXPR_OPERAND(node, 0));
-    else if (isarray(ty))
+        node->invalid = true;
+    } else if (isarray(ty)) {
         error_at(src, "array type '%s' is not assignable", type2s(ty));
-    else if (isconst(ty))
+        node->invalid = true;
+    } else if (isconst(ty)) {
         error_at(src, "read-only variable '%s' is not assignable", expr2s(node));
+        node->invalid = true;
+    }
 }
 
 static bool is_bitfield(struct expr *node)
@@ -438,7 +445,7 @@ static struct expr *ltor(struct expr *node)
 static struct expr *lvalue(struct expr *n)
 {
     assert(OPKIND(n->op) == INDIR);
-    return EXPR_OPERAND(n, 0);
+    return n->kids[0];
 }
 
 static struct expr *rvalue(struct expr *n)
@@ -755,10 +762,12 @@ static void ensure_additive_ptr(struct expr *node)
 {
     assert(isptr(node->type));
     struct type *rty = rtype(node->type);
-    if (isfunc(rty) || isincomplete(rty))
+    if (isfunc(rty) || isincomplete(rty)) {
         error_at(node->src,
                  "increment/decrement of invalid type '%s' (pointer to unknown size)",
                  type2s(node->type));
+        node->invalid = true;
+    }
 }
 
 static void ensure_increment(struct expr *node)
@@ -1121,51 +1130,51 @@ static struct expr *castop(struct type *ty, struct expr *cast, struct source src
 
 static struct expr *pre_increment(int t, struct expr *operand, struct source src)
 {
-    struct expr *ret = NULL;
-
     if (operand == NULL)
         return NULL;
 
-    SAVE_ERRORS;
     ensure_increment(operand);
-    if (NO_ERROR)
-        ret = incr(t == INCR ? ADD : SUB, operand, cnsti(1, inttype), src);
+    if (operand->invalid)
+        return NULL;
 
-    return ret;
+    return incr(t == INCR ? ADD : SUB, operand, cnsti(1, inttype), src);
 }
 
 static struct expr *minus_plus(int t, struct expr *operand, struct source src)
 {
-    struct expr *ret = NULL;
+    struct expr *ret;
 
     operand = conv(operand);
     if (operand == NULL)
         return NULL;
 
-    SAVE_ERRORS;
     ensure_type(operand, isarith);
-    if (NO_ERROR) {
-        ret = ast_uop(t, operand->type, operand);
-        ret->src = src;
-    }
+    if (operand->invalid)
+        return NULL;
+
+    if (t == '+')
+        return operand;
+    
+    ret = ast_expt(mkop(NEG, operand->type), operand->type, operand, NULL);
+    ret->src = src;
 
     return ret;
 }
 
 static struct expr *bitwise_not(struct expr *operand, struct source src)
 {
-    struct expr *ret = NULL;
+    struct expr *ret;
 
     operand = conv(operand);
     if (operand == NULL)
         return NULL;
 
-    SAVE_ERRORS;
     ensure_type(operand, isint);
-    if (NO_ERROR) {
-        ret = ast_uop('~', operand->type, operand);
-        ret->src = src;
-    }
+    if (operand->invalid)
+        return NULL;
+    
+    ret = ast_expr(mkop(NOT, operand->type), operand->type, operand, NULL);
+    ret->src = src;
 
     return ret;
 }
@@ -1295,23 +1304,25 @@ static struct expr * subscript(struct expr *node, struct expr *index, struct sou
 
 static struct expr * funcall(struct expr *node, struct expr **args, struct source src)
 {
-    struct expr *ret = NULL;
+    struct expr *ret;
     
     node = conv(node);
     if (node == NULL)
         return NULL;
-    
-    if (isptrto(node->type, FUNCTION)) {
-        struct type *fty = rtype(node->type);
-        if ((args = argscast(fty, args))) {
-            ret = ast_expr(CALL_EXPR, rtype(fty), node, NULL);
-            EXPR_ARGS(ret) = args;
-            ret->src = src;
-            vec_push(func.calls, ret);
-        }
-    } else {
-        ensure_type(node, isfunc);
+
+    if (!isptrto(node->type, FUNCTION)) {
+        error("expect type 'function', not '%s'", type2s(node->type));
+        return NULL;
     }
+    
+    struct type *fty = rtype(node->type);
+    if ((args = argscast(fty, args)) == NULL)
+        return NULL;
+    
+    ret = ast_expr(CALL, rtype(fty), node, NULL);
+    ret->u.args = args;
+    ret->src = src;
+    func.calls = list_append(func.calls, ret);
 
     return ret;
 }
@@ -1319,65 +1330,69 @@ static struct expr * funcall(struct expr *node, struct expr **args, struct sourc
 // '.', '->'
 static struct expr * direction(struct expr *node, int t, const char *name, struct source src)
 {
-    struct expr *ret = NULL;
-
+    struct expr *ret;
+    struct field *field;
+    struct type *ty, *fty;
+    
     if (node == NULL || name == NULL)
         return NULL;
-
-    SAVE_ERRORS;
-    struct field *field = NULL;
-    struct type *ty = node->type;
+    
+    ty = node->type;
     if (t == '.') {
-        ensure_type(node, isrecord);
+        if (!isrecord(ty)) {
+            error("expect type 'struct/union', not '%s'", type2s(ty));
+            return NULL;
+        }
     } else {
-        if (!isptr(ty) || !isrecord(rtype(ty)))
+        if (!isptr(ty) || !isrecord(rtype(ty))) {
             error("pointer to struct/union type expected, not type '%s'", type2s(ty));
-        else
-            ty = rtype(ty);
-    }
-    if (isrecord(ty)) {
-        field = find_field(ty, name);
-        if (field == NULL) {
-            if (isincomplete(ty))
-                error(INCOMPLETE_DEFINITION_OF_TYPE, type2s(ty));
-            else
-                error(FIELD_NOT_FOUND_ERROR, type2s(ty), name);
-        }
-    }
-    if (NO_ERROR) {
-        if (opts.ansi) {
-            // The result has the union of both sets of qualifiers.
-            int q = qual_union(node->type, field->type);
-            ret = ast_expr(MEMBER_EXPR, qual(q, field->type), node,  NULL);
+            return NULL;
         } else {
-            ret = ast_expr(MEMBER_EXPR, field->type, node,  NULL);
+            ty = rtype(ty);
         }
-        ret->name = field->name;
-        ret->op = t;
-        ret->src = src;
     }
+
+    field = find_field(ty, name);
+    if (field == NULL) {
+        if (isincomplete(ty))
+            error(INCOMPLETE_DEFINITION_OF_TYPE, type2s(ty));
+        else
+            error(FIELD_NOT_FOUND_ERROR, type2s(ty), name);
+
+        return NULL;
+    }
+    
+    fty = field->type;
+    if (opts.ansi) {
+        // The result has the union of both sets of qualifiers.
+        int q = qual_union(node->type, field->type);
+        fty = qual(q, field->type);
+    }
+    ret = ast_expr(MEMBER, fty, node,  NULL);
+    ret->u.field = field;
+    ret->src = src;
     return ret;
 }
 
 static struct expr * post_increment(struct expr *node, int t, struct source src)
 {
-    struct expr *ret = NULL;
+    struct expr *ret;
 
     if (node == NULL)
         return NULL;
 
-    SAVE_ERRORS;
     ensure_increment(node);
-    if (NO_ERROR) {
-        ret = ast_expr(RIGHT,
-                       node->type,
-                       ast_expr(RIGHT,
-                                node->type,
-                                node,
-                                incr(t == INCR ? ADD : SUB, node, cnsti(1, inttype), src)),
-                       node);
-        ret->src = src;
-    }
+    if (node->invalid)
+        return NULL;
+
+    ret = ast_expr(RIGHT,
+                   node->type,
+                   ast_expr(RIGHT,
+                            node->type,
+                            node,
+                            incr(t == INCR ? ADD : SUB, node, cnsti(1, inttype), src)),
+                   node);
+    ret->src = src;
     return ret;
 }
 

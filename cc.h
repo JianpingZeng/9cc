@@ -155,6 +155,7 @@ struct expr {
     union {
         struct expr **args;
         struct init **inits;
+        struct field *field;
     } u;
 };
 
@@ -231,7 +232,7 @@ struct func {
     struct type *type;
     struct vector *gotos;
     struct table *labels;
-    struct vector *calls;
+    struct list *calls;
     struct stmt **stmt;
 };
 

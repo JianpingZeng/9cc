@@ -40,10 +40,12 @@ _n(LE)
 _n(NEG)
 _n(NOT)
 
+// postfix
+_n(COMPOUND)
+_n(CALL)
+
 // others
 _n(RIGHT)
 _n(COND)
-_n(MEMBER)
-_n(COMPOUND)
 
 #undef _n
