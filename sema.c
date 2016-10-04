@@ -19,9 +19,10 @@
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 #define MAX_STRUCT_PARAM_SIZE  16
+#define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
 
 static struct expr *bop(int op, struct expr *l, struct expr *r, struct source src);
-static struct expr *make_ref_expr(struct symbol *sym, struct source src);
+static struct expr *mkref(struct symbol *sym, struct source src);
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src);
 
 struct goto_info {
@@ -348,12 +349,6 @@ bool islvalue(struct expr *node)
     return false;
 }
 
-static void ensure_lvalue(struct expr *node)
-{
-    if (!islvalue(node))
-        error_at(node->src, "expect lvalue at '%s'", expr2s(node));
-}
-
 static void ensure_assignable(struct expr *node)
 {
     struct type *ty = node->type;
@@ -375,15 +370,10 @@ static void ensure_assignable(struct expr *node)
 
 static bool is_bitfield(struct expr *node)
 {
-    if (node->id != MEMBER_EXPR)
+    if (node->op != MEMBER)
         return false;
 
-    struct type *ty = EXPR_OPERAND(node, 0)->type;
-    if (isptr(ty))
-        ty = rtype(ty);
-    const char *name = node->name;
-    struct field *field = find_field(ty, name);
-    return field && field->isbit;
+    return node->u.field->isbit;
 }
 
 static const char * castname(struct type *ty, struct expr *l)
@@ -448,13 +438,23 @@ static struct expr *lvalue(struct expr *n)
     return n->kids[0];
 }
 
-static struct expr *rvalue(struct expr *n)
+static struct expr *rvalue(struct expr *n, struct source src)
 {
     struct type *ty;
     assert(isptr(n->type));
     
     ty = unqual(rtype(n->type));
     return ast_expr(mkop(INDIR, ty), ty, n, NULL);
+}
+
+static struct expr *rettype(struct expr *n, struct type *ty)
+{
+    struct expr *ret = ast_expr(n->op, ty, n->kids[0], n->kids[1]);
+    ret->sym = n->sym;
+    ret->src = n->src;
+    ret->u = n->u;
+    ret->vtype = n->vtype;
+    return ret;
 }
 
 // Universal Unary Conversion
@@ -868,8 +868,6 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
 
 static struct expr *condop(struct expr *cond, struct expr *then, struct expr *els, struct source src)
 {
-#define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
-
     struct expr *ret = NULL;
     struct type *ty = NULL;
     
@@ -1180,21 +1178,32 @@ static struct expr *bitwise_not(struct expr *operand, struct source src)
 }
 
 static struct expr *logical_not(struct expr *operand, struct source src)
-{
-    struct expr *ret = NULL;
-
+{    
     operand = conv(operand);
     if (operand == NULL)
         return NULL;
 
-    SAVE_ERRORS;
     ensure_type(operand, isscalar);
-    if (NO_ERROR) {
-        ret = ast_uop('!', inttype, operand);
-        ret->src = src;
-    }
+    if (operand.invalid)
+        return NULL;
 
-    return ret;
+    struct type *ty = operand->type;
+    struct expr *cond, *then, *els;
+    struct expr *t1 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
+    struct expr *t2 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
+    then = assignop('=', t1, cnsti(0, inttype), src);
+    els = assignop('=', t2, cnsti(1, inttype), src);
+
+    if (isptr(ty))
+        cond = bop(mkop(EQL, ty), operand, cnstp(0, ty), src);
+    else if (isint(ty))
+        cond = bop(mkop(EQL, ty), operand, cnsti(0, ty), src);
+    else if (isfloat(ty))
+        cond = bop(mkop(EQL, ty), operand, cnstf(0, ty), src);
+    else
+        assert(0 && "unkown scalar type");
+
+    return condop(cond, then, els, src);
 }
 
 /**
@@ -1203,103 +1212,101 @@ static struct expr *logical_not(struct expr *operand, struct source src)
  */
 static struct expr *address(struct expr *operand, struct source src)
 {
-    struct expr *ret = NULL;
-
     if (operand == NULL)
         return NULL;
 
-    SAVE_ERRORS;
-    if (!isfunc(operand->type)) {
-        ensure_lvalue(operand);
-        if (operand->sym && operand->sym->sclass == REGISTER)
+    struct type *ty = operand->type;
+    if (!isfunc(ty)) {
+        if (!islvalue(node)) {
+            error_at(node->src, "expect lvalue at '%s'", expr2s(node));
+            return NULL;
+        }
+        if (operand->sym && operand->sym->sclass == REGISTER) {
             error("address of register variable requested");
-        else if (is_bitfield(operand))
+            return NULL;
+        } else if (is_bitfield(operand)) {
             error("address of bitfield requested");
-    }
-    if (NO_ERROR) {
-        ret = ast_uop('&', ptr_type(operand->type), operand);
-        ret->src = src;
-    }
+            return NULL;
+        }
+    } 
 
-    return ret;
+    if (isfunc(ty) || isarray(ty))
+        return rettype(operand, ptr_type(ty));
+    else
+        return lvalue(operand);
 }
 
 static struct expr *indirection(struct expr *operand, struct source src)
 {
-    struct expr *ret = NULL;
+    struct expr *ret;
 
     operand = conv(operand);
     if (operand == NULL)
         return NULL;
 
-    SAVE_ERRORS;
     ensure_type(operand, isptr);
-    if (NO_ERROR) {
-        ret = ast_uop('*', rtype(operand->type), operand);
-        ret->src = src;
-    }
+    if (operand->invalid)
+        return NULL;
 
-    return ret;
+    return rvalue(operand, src);
 }
 
 static struct expr * sizeofop(struct type *ty, struct expr *n, struct source src)
 {
-    struct expr *ret = NULL;
+    struct expr *ret;
 
     ty = n ? n->type : ty;
     if (ty == NULL)
         return NULL;
 
-    SAVE_ERRORS;
-    if (isfunc(ty) || isvoid(ty))
+    if (isfunc(ty) || isvoid(ty)) {
         error("'sizeof' to a '%s' type is invalid", type2s(ty));
-    else if (isincomplete(ty))
-        error("'sizeof' to an incomplete type '%s' is invalid",
-              type2s(ty));
-    else if (n && is_bitfield(n))
+        return NULL;
+    } else if (isincomplete(ty)) {
+        error("'sizeof' to an incomplete type '%s' is invalid", type2s(ty));
+        return NULL;
+    } else if (n && is_bitfield(n)) {
         error("'sizeof' to a bitfield is invalid");
-
-    if (NO_ERROR) {
-        ret = new_uint_literal(TYPE_SIZE(ty));
-        ret->src = src;
+        return NULL;
     }
 
+    ret = cnsti(TYPE_SIZE(ty), unsignedlongtype);
+    ret->src = src;
     return ret;
 }
 
 /// postfix
 
-// []
+// e1[e2]
+// == *(e1+e2)
 static struct expr * subscript(struct expr *node, struct expr *index, struct source src)
 {
-    struct expr *ret = NULL;
-
     node = conv(node);
     index = conv(index);
     if (node == NULL || index == NULL)
         return NULL;
 
-    SAVE_ERRORS;
     bool kind1 = isptr(node->type) && isint(index->type);
     bool kind2 = isint(node->type) && isptr(index->type);
     if (kind1 || kind2) {
         struct type *ptr = isptr(node->type) ? node->type : index->type;
-        if (isptrto(ptr, FUNCTION))
+        if (isptrto(ptr, FUNCTION)) {
             error_at(src,
                      "subscript of pointer to function type '%s'",
                      type2s(rtype(ptr)));
+            return NULL;
+        }
+        
+        struct expr *expr = bop('+', node, index, src);
+        return rvalue(expr, src);
     } else {
         if (!isptr(node->type) && !isptr(index->type))
             error_at(src, "subscripted value is not an array or pointer");
         else
             error_at(src, "array subscript is not an integer");
+
+        return NULL;
     }
-    if (NO_ERROR) {
-        struct type *ty = isptr(node->type) ? node->type : index->type;
-        ret = ast_expr(SUBSCRIPT_EXPR, rtype(ty), node, index);
-        ret->src = node->src;
-    }
-    return ret;
 }
 
 static struct expr * funcall(struct expr *node, struct expr **args, struct source src)
@@ -1564,6 +1571,8 @@ struct expr *cnsts(const char *string)
     return literal_expr(&t, CNST, string_constant);
 }
 
+struct expr *cnstf
+
 static struct expr * iconst(struct token *tok)
 {
     return literal_expr(tok, CNST, integer_constant);
@@ -1579,7 +1588,7 @@ static struct expr * sconst(struct token *tok)
     return literal_expr(tok, CNST, string_constant);
 }
 
-static struct expr *make_ref_expr(struct symbol *sym, struct source src)
+static struct expr *mkref(struct symbol *sym, struct source src)
 {
     int op;
     struct type *ty = sym->type;
@@ -1602,7 +1611,11 @@ static struct expr *make_ref_expr(struct symbol *sym, struct source src)
     ret->sym = sym;
     ret->src = src;
     sym->refs++;
-    return ret;
+
+    if (isptr(ret->type))
+        return rvalue(ret, src);
+    else
+        return ret;
 }
 
 static struct expr * id(struct token *tok)
@@ -1616,7 +1629,7 @@ static struct expr * id(struct token *tok)
             // enum ids
             return cnsti(sym->value.i, rtype(sym->type));
         else
-            return make_ref_expr(sym, source);
+            return mkref(sym, source);
     } else if (lookahead()->id == '(') {
         // lookup in externals
         sym = lookup(id, externals);
@@ -1634,11 +1647,11 @@ static struct expr * id(struct token *tok)
             sym->type = ftype;
             sym->src = source;
 
-            return make_ref_expr(sym, source);
+            return mkref(sym, source);
         } else if (isfunc(sym->type) || isptrto(sym->type, FUNCTION)) {
             warning("use of out-of-scope declaration of '%s', previous declaration is here: %s:%u:%u",
                     id, sym->src.file, sym->src.line, sym->src.column);
-            return make_ref_expr(sym, source);
+            return mkref(sym, source);
         } else {
             error("use of '%s' does not match previous declaration at: %s:%u:%u",
                   id, sym->src.file, sym->src.line, sym->src.column);
@@ -1729,7 +1742,7 @@ struct expr *binop(int op, struct expr *l, struct expr *r)
 
 struct expr *assign(struct symbol *sym, struct expr *r)
 {
-    struct expr *l = make_ref_expr(sym, sym->src);
+    struct expr *l = mkref(sym, sym->src);
     return ast_bop('=', sym->type, l, r);
 }
 

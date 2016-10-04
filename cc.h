@@ -187,8 +187,53 @@ enum { I = 1, U, F, P, S };
 // op kind
 enum {
     OPNONE,
-#define _n(a)  a << 4,
-#include "node.def"
+    // constant
+    CNST = 1 << 4,
+
+    // address
+    ADDRL = 2 << 4,
+    ADDRG = 3 << 4,
+    ADDRP = 4 << 4,
+
+    // indirection
+    INDIR = 5 << 4,
+
+    // convert
+    CVI = 6 << 4,
+    CVU = 7 << 4,
+    CVF = 8 << 4,
+    CVP = 9 << 4,
+
+    // binary
+    ASGN = 10 << 4,
+    MUL = 11 << 4,
+    DIV = 12 << 4,
+    ADD = 13 << 4,
+    SUB = 14 << 4,
+    MOD = 15 << 4,
+    SHL = 16 << 4,
+    SHR = 17 << 4,
+    AND = 18 << 4,
+    OR = 19 << 4,
+    XOR = 20 << 4,
+    EQL = 21 << 4,
+    NE = 22 << 4,
+    GT = 23 << 4,
+    GE = 24 << 4,
+    LT = 25 << 4,
+    LE = 26 << 4,
+
+    // unary
+    NEG = 27 << 4,
+    NOT = 28 << 4,
+
+    // postfix
+    COMPOUND = 29 << 4,
+    CALL = 30 << 4,
+
+    // others
+    RIGHT = 31 << 4,
+    COND = 32 << 4
 };
 
 /// stmt
@@ -359,9 +404,12 @@ extern int genlabel(int count);
 
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
 #define isvardecl(n)   ((n)->sclass != TYPEDEF && !isfunc((n)->type))
-#define isiliteral(n)  ((n)->id == INTEGER_LITERAL)
-#define isfliteral(n)  ((n)->id == FLOAT_LITERAL)
-#define issliteral(n)  ((n)->id == STRING_LITERAL)
+#define isiliteral(n)  ((n)->op == CNST+I || (n)->op == CNST+U)
+#define isfliteral(n)  ((n)->op == CNST+F)
+#define issliteral(n)  ((n)->op == CNST+P)
+
+// tree.c
+extern struct expr *addrof(struct expr *expr);
 
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
@@ -379,8 +427,7 @@ extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
 extern int first_typename(struct token *t);
-extern struct symbol *mklocalvar(const char *name, struct type *ty, int sclass);
-extern struct symbol *mktmpvar(struct type *ty, int sclass);
+extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 
 // init.c
 extern struct expr *initializer(struct type *ty);
@@ -507,12 +554,10 @@ extern void fatalf(struct source src, const char *fmt, ...);
 extern void ast_dump_symbol(struct symbol *);
 extern void ast_dump_type(struct symbol *);
 
-extern void print_field(struct field *field);
 extern void print_expr(struct expr *expr);
 extern void print_type(struct symbol *sym);
 extern void print_symbol(struct symbol *sym);
 extern const char *type2s(struct type *ty);
-extern const char *expr2s(struct expr *node);
 
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define REDEFINITION_ERROR  "redefinition of '%s', previous definition at %s:%u:%u"

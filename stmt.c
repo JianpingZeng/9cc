@@ -191,8 +191,8 @@ static void switch_stmt(int lab, int cnt)
     swtch->type = expr ? expr->type : inttype;
         
     // make a tmp var
-    n = assign(mktmpvar(swtch->type, REGISTER), expr);
-    tmp = EXPR_OPERAND(n, 0);
+    n = assign(mklocal(gen_tmpname(), swtch->type, REGISTER), expr);
+    tmp = n->kids[0];
 
     actions.gen(n);
     actions.jump(lab);
@@ -202,7 +202,7 @@ static void switch_stmt(int lab, int cnt)
     
     // gen switch code
     for (struct cse *cs = swtch->cases; cs; cs = cs->link) {
-        struct expr *e = ast_bop(EQ, inttype, tmp, new_int_literal(cs->value));
+        struct expr *e = actions.bop(EQ, tmp, cnsti(cs->value, longtype), src);
         actions.branch(e, cs->label, 0);
     }
 

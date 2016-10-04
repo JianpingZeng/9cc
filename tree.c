@@ -2,6 +2,12 @@
 #include <stdint.h>
 #include "cc.h"
 
+struct expr *addrof(struct expr *expr)
+{
+    //TODO:
+    return NULL;
+}
+
 static void init(int argc, char *argv[])
 {
 }

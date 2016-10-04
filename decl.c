@@ -1080,14 +1080,9 @@ struct type *typename(void)
     return ty;
 }
 
-struct symbol *mklocalvar(const char *name, struct type * ty, int sclass)
+struct symbol *mklocal(const char *name, struct type * ty, int sclass)
 {
     return localdecl(name, ty, sclass, 0, source);
-}
-
-struct symbol *mktmpvar(struct type *ty, int sclass)
-{
-    return localdecl(gen_tmpname(), ty, sclass, 0, source);
 }
 
 void declaration(void)
@@ -1265,7 +1260,7 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
             }
         } else {
             error_at(src, REDEFINITION_ERROR,
-                     p->name, p->src.file, p->src.line, p->src.column);
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
         }
     } else {
         if (sym && is_current_scope(sym))
@@ -1534,10 +1529,10 @@ static void predefined_ids(void)
      */
     struct type *type = array_type(qual(CONST, chartype));
     // initializer
-    struct expr *literal = new_string_literal(func.name);
+    struct expr *literal = cnsts(func.name);
     init_string(type, literal);
     
-    struct symbol *sym = mklocalvar("__func__", type, STATIC);
+    struct symbol *sym = mklocal("__func__", type, STATIC);
     sym->predefine = true;
     sym->u.init = literal;
 }
