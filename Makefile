@@ -70,7 +70,6 @@ CC1_OBJ += stmt.o
 CC1_OBJ += sema.o
 CC1_OBJ += init.o
 CC1_OBJ += eval.o
-CC1_OBJ += tree.o
 CC1_OBJ += x86.o
 CC1_OBJ += print.o
 
