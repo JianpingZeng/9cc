@@ -38,7 +38,7 @@ static struct bop {
     {'<', isscalar, scalar_bop},
     {LEQ, isscalar, scalar_bop},
     {GEQ, isscalar, scalar_bop},
-    {EQ, isscalar, scalar_bop},
+    {EQL, isscalar, scalar_bop},
     {NEQ, isscalar, scalar_bop},};
 
 static struct uop {
@@ -388,8 +388,8 @@ static struct expr *scalar_bop(int op, struct type * ty, struct expr * l, struct
     case LEQ:
         SCALAR_OP(<=);
         break;
-    case EQ:
-        SCALAR_OP( ==);
+    case EQL:
+        SCALAR_OP(==);
         break;
     case NEQ:
         SCALAR_OP(!=);
@@ -553,7 +553,7 @@ static struct expr *doeval(struct expr * expr)
             case '>':
             case GEQ:
             case LEQ:
-            case EQ:
+            case EQL:
             case NEQ:
             dispatch:
                 bop = dispatch_bop(op);

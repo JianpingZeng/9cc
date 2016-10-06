@@ -202,7 +202,7 @@ static void switch_stmt(int lab, int cnt)
     
     // gen switch code
     for (struct cse *cs = swtch->cases; cs; cs = cs->link) {
-        struct expr *e = actions.bop(EQ, tmp, cnsti(cs->value, longtype), src);
+        struct expr *e = actions.bop(EQL, tmp, cnsti(cs->value, longtype), src);
         actions.branch(e, cs->label, 0);
     }
 

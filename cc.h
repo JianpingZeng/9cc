@@ -144,11 +144,9 @@ struct table {
 };
     
 struct expr {
-    bool invalid;
     short op;
     const char *name;
     struct type *type;
-    struct source src;
     struct symbol *sym;
     struct expr *kids[2];
     struct type *vtype;
@@ -186,7 +184,6 @@ enum { I = 1, U, F, P, S };
 
 // op kind
 enum {
-    OPNONE,
     // constant
     CNST = 1 << 4,
 
@@ -213,10 +210,10 @@ enum {
     MOD = 15 << 4,
     SHL = 16 << 4,
     SHR = 17 << 4,
-    AND = 18 << 4,
-    OR = 19 << 4,
+    BAND = 18 << 4,
+    BOR = 19 << 4,
     XOR = 20 << 4,
-    EQL = 21 << 4,
+    EQ = 21 << 4,
     NE = 22 << 4,
     GT = 23 << 4,
     GE = 24 << 4,
@@ -465,7 +462,6 @@ extern void ensure_return(struct expr *expr, bool isnull, struct source src);
 extern void ensure_gotos(void);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
-extern struct expr *expr_error(void);
 
 // type.c
 extern void type_init(void);

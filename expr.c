@@ -359,7 +359,7 @@ static struct expr *equality_expr(void)
     struct expr *equl;
 
     equl = relation_expr();
-    while (token->id == EQ || token->id == NEQ) {
+    while (token->id == EQL || token->id == NEQ) {
         int t = token->id;
         struct source src = source;
         expect(t);

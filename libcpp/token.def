@@ -202,7 +202,7 @@ _t(RSHIFT,      ">>",          RSHIFT)
 
 _t(GEQ,         ">=",          GEQ)
 _t(LEQ,         "<=",          LEQ)
-_t(EQ,          "==",          EQ)
+_t(EQL,         "==",          EQ)
 _t(NEQ,         "!=",          NEQ)
 
 _t(INCR,        "++",          ID)

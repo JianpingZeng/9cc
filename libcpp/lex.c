@@ -780,7 +780,7 @@ static struct token *dolex(struct file *pfile)
     case '=':
         if (rpc[1] == '=') {
             pb->cur++;
-            result->id = EQ;
+            result->id = EQL;
         } else {
             result->id = '=';
         }

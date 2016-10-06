@@ -317,10 +317,10 @@ static cpp_num equality(void)
     cpp_num num;
 
     num = relational();
-    while (token->id == EQ || token->id == NEQ) {
+    while (token->id == EQL || token->id == NEQ) {
         int t = token->id;
         expect(t);
-        if (t == EQ)
+        if (t == EQL)
             num = num == relational();
         else
             num = num != relational();
