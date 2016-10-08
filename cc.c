@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "cc.h"
 
-struct cc_options opts;
+struct options opts;
 
 static void parse_opts(int argc, char *argv[])
 {
@@ -23,7 +23,7 @@ static void parse_opts(int argc, char *argv[])
         } else if (!strcmp(arg, "-Wall")) {
             opts.Wall = true;
         } else if (!strcmp(arg, "-E")) {
-            opts.E = true;
+            opts.preprocess_only = true;
         } else if (!strcmp(arg, "-fleading_underscore")) {
             opts.fleading_underscore = true;
         } else if (!strcmp(arg, "-ansi")) {
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     type_init();
     cpp_init(argc, argv);
 
-    if (opts.E)
+    if (opts.preprocess_only)
         preprocess();
     else
         translation_unit();

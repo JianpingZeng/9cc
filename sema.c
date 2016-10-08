@@ -1864,7 +1864,7 @@ static void init(int argc, char *argv[])
 
 static void finalize(void)
 {
-    if (opts.E || opts.ast_dump)
+    if (opts.preprocess_only || opts.ast_dump)
         return;
     IR->finalize();
 }

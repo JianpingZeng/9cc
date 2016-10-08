@@ -16,8 +16,8 @@
 /// type declarations
 ///
 
-struct cc_options {
-    int E:1;
+struct options {
+    int preprocess_only:1;
     int ast_dump:1;
     int ir_dump:1;
     int fleading_underscore:1;
@@ -565,7 +565,7 @@ extern const char *type2s(struct type *ty);
 /// external variables
 ///
 
-extern struct cc_options opts;
+extern struct options opts;
 extern struct func func;
 extern struct actions actions;
 extern struct interface *IR;
