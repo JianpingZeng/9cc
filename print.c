@@ -17,6 +17,7 @@ static FILE *outfd;
 
 static void print_expr1(struct expr * node, int level);
 static void print_stmt1(struct stmt *stmt, int level);
+static void print_field(struct field *field);
 
 static void putf(const char *fmt, ...)
 {
@@ -87,6 +88,11 @@ static void print_field1(struct field * node, int level)
     putf("\n");
 }
 
+static void print_field(struct field *field)
+{
+    print_field1(field, 0);
+}
+
 static void print_symbol1(struct symbol *sym, int level)
 {
     putf(CYAN("%s "), STR(sym->name));
@@ -120,62 +126,12 @@ static void print_expr1(struct expr * node, int level)
     for (int i = 0; i < level; i++)
         putf("  ");
     
-    int op = node->op;
-    bool prefix = node->prefix;
+    // TODO: 
+}
 
-    putf(PURPLE("%s ") YELLOW("%p "), nname(node->id), node);
-    print_ty(node->type);
-    if (islvalue(node))
-        putf("'" CYAN("lvalue") "' ");
-    
-    if (node->sym)
-        putf(CYAN("%s "), STR(node->sym->name));
-    if (op == INCR || op == DECR)
-        putf("%s ", (prefix ? "prefix" : "postfix"));
-    if (op > 0)
-        putf("'%s' ", id2s(op));
-    if (node->name)
-        putf("<" RED("%s") "> ", node->name);
-    if (isiliteral(node)) {
-        if (TYPE_OP(node->type) == INT)
-            putf(RED("%lld"), node->sym->value.i);
-        else
-            putf(RED("%llu"), node->sym->value.u);
-    } else if (isfliteral(node)) {
-        putf(RED("%Lf"), node->sym->value.d);
-    }
-
-    putf("\n");
-
-    if (node->id == CALL_EXPR) {
-        struct expr *func = EXPR_OPERAND(node, 0);
-        if (func)
-            print_expr1(func, level + 1);
-        struct expr **args = EXPR_ARGS(node);
-        if (args) {
-            for (size_t i = 0; args[i]; i++) {
-                struct expr *arg = args[i];
-                print_expr1(arg, level + 1);
-            }
-        }
-    } else if (node->id == INITS_EXPR) {
-        struct expr **inits = EXPR_INITS(node);
-        if (inits) {
-            for (size_t i = 0; inits[i]; i++) {
-                struct expr *init = inits[i];
-                print_expr1(init, level + 1);
-            }
-        }
-    } else {
-        if (EXPR_OPERAND(node, 0))
-            print_expr1(EXPR_OPERAND(node, 0), level + 1);
-
-        if (EXPR_OPERAND(node, 1))
-            print_expr1(EXPR_OPERAND(node, 1), level + 1);
-
-        if (EXPR_OPERAND(node, 2))
-            print_expr1(EXPR_OPERAND(node, 2), level + 1);
-    }
+void print_expr(struct expr *expr)
+{
+    print_expr1(expr, 0);
 }
 
 static void print_stmt1(struct stmt *stmt, int level)
@@ -223,16 +179,6 @@ static void print_stmt1(struct stmt *stmt, int level)
 void print_stmt(struct stmt *stmt)
 {
     print_stmt1(stmt, 0);
-}
-
-void print_field(struct field *field)
-{
-    print_field1(field, 0);
-}
-
-void print_expr(struct expr *expr)
-{
-    print_expr1(expr, 0);
 }
 
 void ast_dump_symbol(struct symbol *n)
