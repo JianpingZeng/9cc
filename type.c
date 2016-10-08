@@ -57,10 +57,10 @@ static struct type *install_type(const char *name, int kind, struct metrics m, i
         break;
 
     case FLOAT:
-        if (ty->size == IM->floatmetrics.size) {
+        if (kind == FLOAT) {
             ty->limits.max.d = FLT_MAX;
             ty->limits.min.d = FLT_MIN;
-        } else if (ty->size == IM->doublemetrics.size) {
+        } else if (kind == DOUBLE) {
             ty->limits.max.d = DBL_MAX;
             ty->limits.min.d = DBL_MIN;
         } else {
@@ -78,7 +78,7 @@ static struct type *install_type(const char *name, int kind, struct metrics m, i
 
 void type_init(void)
 {
-#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, IM->metrics, op)
+#define INSTALL(type, name, kind, metrics, op)    type = install_type(name, kind, IR->metrics, op)
 
     // type                     name                    kind            metrics            op
 

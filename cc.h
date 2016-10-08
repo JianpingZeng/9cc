@@ -329,14 +329,6 @@ struct actions {
     void (*gen) (struct expr *expr);
 };
 
-// middle-end interface
-struct interface {
-    void (*defvar) (struct symbol *);
-    void (*defun) (struct symbol *);
-    void (*init) (int argc, char *argv[]);
-    void (*finalize) (void);
-};
-
 // metrics
 struct metrics {
     unsigned char size, align, rank;
@@ -346,12 +338,12 @@ struct metrics {
 enum { TEXT, BSS, DATA };
 
 // backend interface
-struct machine {
+struct interface {
     const char *os;
     const char *arch;
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
-    void (*defvar) (struct symbol *, int seg);
+    void (*defvar) (struct symbol *);
     void (*defun) (struct symbol *);
     struct metrics boolmetrics;
     struct metrics charmetrics;
@@ -577,7 +569,6 @@ extern struct cc_options opts;
 extern struct func func;
 extern struct actions actions;
 extern struct interface *IR;
-extern struct machine *IM;
 extern struct table *identifiers;
 extern struct table *constants;
 extern struct table *tags;

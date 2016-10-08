@@ -12,7 +12,7 @@ static void finalize(void)
 {
 }
 
-static void defvar(struct symbol *sym, int seg)
+static void defvar(struct symbol *sym)
 {
 }
 
@@ -20,7 +20,7 @@ static void defun(struct symbol *sym)
 {
 }
 
-struct machine *IM = &(struct machine) {
+struct interface *IR = &(struct interface) {
     // os/arch
     .os = "linux",
     .arch = "x86_64",
