@@ -520,21 +520,22 @@ extern short tytop(struct type *ty);
 // alias
 #define rtype(ty)       TYPE_TYPE(ty)
 
-extern bool isfunc(struct type *type);
-extern bool isarray(struct type *type);
-extern bool isptr(struct type *type);
-extern bool isvoid(struct type *type);
-extern bool isenum(struct type *type);
-extern bool isstruct(struct type *type);
-extern bool isunion(struct type *type);
-extern bool isrecord(struct type *type);     // isstruct or isunion
-extern bool istag(struct type *type);        // isstruct or isunion or isenum
-extern bool isint(struct type *ty);
-extern bool isfloat(struct type *ty);
-extern bool isarith(struct type *ty);
-extern bool isscalar(struct type *ty);
-extern bool isptrto(struct type *ty, int kind);
-extern bool isbool(struct type *ty);
+#define isfunc(ty)         (TYPE_OP(ty) == FUNCTION)
+#define isarray(ty)        (TYPE_OP(ty) == ARRAY)
+#define isptr(ty)          (TYPE_OP(ty) == POINTER)
+#define isvoid(ty)         (TYPE_OP(ty) == VOID)
+#define isenum(ty)         (TYPE_OP(ty) == ENUM)
+#define isstruct(ty)       (TYPE_OP(ty) == STRUCT)
+#define isunion(ty)        (TYPE_OP(ty) == UNION)
+#define isrecord(ty)       (isstruct(ty) || isunion(ty))
+#define istag(ty)          (isstruct(ty) || isunion(ty) || isenum(ty))
+#define isint(ty)          (TYPE_OP(ty) == INT || TYPE_OP(ty) == UNSIGNED || isenum(ty))
+#define isfloat(ty)        (TYPE_OP(ty) == FLOAT)
+#define isarith(ty)        (isint(ty) || isfloat(ty))
+#define isscalar(ty)       (isarith(ty) || isptr(ty))
+#define isbool(ty)         (unqual(ty) == booltype)
+#define isptrto(ty, kind)  (isptr(ty) && TYPE_KIND(rtype(ty)) == kind)
+
 
 // error.c
 extern void warningf(struct source src, const char *fmt, ...);
