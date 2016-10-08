@@ -219,18 +219,21 @@ enum {
     GE = 24 << 4,
     LT = 25 << 4,
     LE = 26 << 4,
+    AND = 27 << 4,
+    OR = 28 << 4,
 
     // unary
-    NEG = 27 << 4,
-    NOT = 28 << 4,
+    NEG = 30 << 4,
+    NOT = 31 << 4,
 
     // postfix
-    COMPOUND = 29 << 4,
-    CALL = 30 << 4,
+    COMPOUND = 32 << 4,
+    CALL = 33 << 4,
 
     // others
-    RIGHT = 31 << 4,
-    COND = 32 << 4
+    RIGHT = 34 << 4,
+    COND = 35 << 4,
+    MEMBER = 36 << 4
 };
 
 /// stmt
@@ -537,7 +540,6 @@ extern void fatalf(struct source src, const char *fmt, ...);
 
 #define SAVE_ERRORS    unsigned int __err = errors
 #define NO_ERROR       (__err == errors)
-#define HAS_ERROR      (__err != errors)
 
 #define warning_at(s, ...)   warningf(s, __VA_ARGS__)
 #define error_at(s, ...)     errorf(s, __VA_ARGS__)

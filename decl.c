@@ -1373,7 +1373,7 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
             struct expr *init = initializer(ty);
 
             if (sclass == EXTERN)
-                warning_at(init->src, "'extern' variable has an initializer");
+                warning_at(src, "'extern' variable has an initializer");
 
             if (sym->defined)
                 error_at(src, REDEFINITION_ERROR,
