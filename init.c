@@ -294,12 +294,10 @@ static void elem_init(struct type * sty, struct type * ty, bool designated, stru
             aggregate_set(ty, v, i, initializer_list(ty));
         } else if ((token->id == '.' && isarray(ty)) ||
                    (token->id == '[' && !isarray(ty))) {
-            SAVE_ERRORS;
             eat_initializer();
             // inhibit redundant errors
-            if (NO_ERROR)
-                error("%s designator cannot initialize non-%s type '%s'",
-                      TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
+            error("%s designator cannot initialize non-%s type '%s'",
+                  TYPE_NAME(ty), TYPE_NAME(ty), type2s(ty));
         } else {
             struct expr *n = find_elem(v, i);
             struct vector *v1 = vec_new();
@@ -418,11 +416,8 @@ struct expr *initializer_list(struct type * ty)
     return ret;
 }
 
-struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym)
-{
-    struct source src = init->src;
-    
-    SAVE_ERRORS;
+struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src)
+{    
     if (init->id != INITS_EXPR) {
         if (isarray(ty)) {
             if (is_string(ty) && issliteral(init))
@@ -438,7 +433,7 @@ struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym)
         }
     }
 
-    if (NO_ERROR && init && has_static_extent(sym)) {
+    if (init && has_static_extent(sym)) {
         init = eval(init, ty);
         if (init == NULL)
             error_at(src, "initializer element is not a compile-time constant");

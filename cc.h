@@ -433,13 +433,16 @@ extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 extern struct expr *initializer(struct type *ty);
 extern struct expr *initializer_list(struct type *ty);
 extern void init_string(struct type *ty, struct expr *node);
-extern struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym);
+extern struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
 
 // stmt.c
 extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
 
 // sema.c
-extern bool has_static_extent(struct symbol *sym);
+#define has_static_extent(sym)  ((sym)->sclass == EXTERN || \
+                                 (sym)->sclass == STATIC || \
+                                 (sym)->scope == GLOBAL)
+
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
 extern void ensure_field(struct field *field, size_t total, bool last);
 extern void ensure_decl(struct symbol *sym);
@@ -537,9 +540,6 @@ extern bool isbool(struct type *ty);
 extern void warningf(struct source src, const char *fmt, ...);
 extern void errorf(struct source src, const char *fmt, ...);
 extern void fatalf(struct source src, const char *fmt, ...);
-
-#define SAVE_ERRORS    unsigned int __err = errors
-#define NO_ERROR       (__err == errors)
 
 #define warning_at(s, ...)   warningf(s, __VA_ARGS__)
 #define error_at(s, ...)     errorf(s, __VA_ARGS__)

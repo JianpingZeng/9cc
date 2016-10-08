@@ -1294,8 +1294,9 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
             error("variable '%s' has incomplete type '%s'", id, type2s(ty));
             initializer(NULL);
         } else {
+            struct source src2 = source;
             struct expr *init = initializer(ty);
-            init = ensure_init(init, ty, sym);
+            init = ensure_init(init, ty, sym, src2);
             if (init) {
                 sym->u.init = init;
                 // gen assign expr
@@ -1370,6 +1371,7 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
             error("variable '%s' has incomplete type '%s'", id, type2s(ty));
             initializer(NULL);
         } else {
+            struct source src2 = source;
             struct expr *init = initializer(ty);
 
             if (sclass == EXTERN)
@@ -1379,7 +1381,7 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
                 error_at(src, REDEFINITION_ERROR,
                          sym->name, sym->src.file, sym->src.line, sym->src.column);
 
-            init = ensure_init(init, ty, sym);
+            init = ensure_init(init, ty, sym, src2);
             sym->u.init = init;
         }
 

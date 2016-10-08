@@ -21,13 +21,6 @@ struct goto_info {
 
 /// decl
 
-bool has_static_extent(struct symbol * sym)
-{
-    return sym->sclass == EXTERN ||
-        sym->sclass == STATIC ||
-        sym->scope == GLOBAL;
-}
-
 static void ensure_bitfield(struct field *field)
 {
     const char *name = field->name;
@@ -1557,7 +1550,7 @@ static struct expr *mkref(struct symbol *sym, struct source src)
     struct type *ty = sym->type;
     struct expr *ret;
 
-    if (sym->scope == GLOBAL || sym->sclass == STATIC || sym->sclass == EXTERN)
+    if (has_static_extent(sym))
         op = ADDRG;
     else if (sym->scope == PARAM)
         op = ADDRP;
