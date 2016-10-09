@@ -523,13 +523,10 @@ extern short tytop(struct type *ty);
 
 
 // error.c
-extern void warningf(struct source src, const char *fmt, ...);
-extern void errorf(struct source src, const char *fmt, ...);
-extern void fatalf(struct source src, const char *fmt, ...);
+extern void warning_at(struct source src, const char *fmt, ...);
+extern void error_at(struct source src, const char *fmt, ...);
+extern void fatal_at(struct source src, const char *fmt, ...);
 
-#define warning_at(s, ...)   warningf(s, __VA_ARGS__)
-#define error_at(s, ...)     errorf(s, __VA_ARGS__)
-#define fatal_at(s, ...)     fatalf(s, __VA_ARGS__)
 #define warning(...)         warning_at(source, __VA_ARGS__)
 #define error(...)           error_at(source, __VA_ARGS__)
 #define fatal(...)           fatal_at(source, __VA_ARGS__)

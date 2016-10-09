@@ -36,7 +36,7 @@ static void cc_print_lead(int level, struct source src, const char *fmt, va_list
     fprintf(stderr, "\n");
 }
 
-void warningf(struct source src, const char *fmt, ...)
+void warning_at(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -45,7 +45,7 @@ void warningf(struct source src, const char *fmt, ...)
     warnings++;
 }
 
-void errorf(struct source src, const char *fmt, ...)
+void error_at(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -57,7 +57,7 @@ void errorf(struct source src, const char *fmt, ...)
     }
 }
 
-void fatalf(struct source src, const char *fmt, ...)
+void fatal_at(struct source src, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
