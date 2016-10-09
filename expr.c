@@ -86,12 +86,14 @@ static struct expr *primary_expr(void)
 ///
 static struct expr **argument_expr_list(void)
 {
-    struct vector *v = NULL;
+    struct list *l = NULL;
 
     if (first_expr(token)) {
-        v = vec_new();
         for (;;) {
-            vec_push_safe(v, assign_expr());
+            struct expr *assign = assign_expr();
+            if (assign)
+                l = list_append(l, assign);
+
             if (token->id != ',')
                 break;
             expect(',');
@@ -100,7 +102,7 @@ static struct expr **argument_expr_list(void)
         error("expect assignment expression");
     }
 
-    return vtoa(v, PERM);
+    return ltoa(&l, FUNC);
 }
 
 static struct expr *postfix_expr1(struct expr *ret)
