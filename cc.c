@@ -48,9 +48,14 @@ static void preprocess(void)
         printf("%s", tok2s(t));
 }
 
+static void doexit(void)
+{
+}
+
 int main(int argc, char *argv[])
 {
     sys_setup();
+    atexit(doexit);
     parse_opts(argc, argv);
     actions.init(argc, argv);
     symbol_init();
