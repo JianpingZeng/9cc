@@ -1620,6 +1620,7 @@ static struct expr * id(struct token *tok)
 
 static struct expr * paren(struct expr *e, struct source src)
 {
+    e->paren = true;
     return e;
 }
 
@@ -1660,8 +1661,8 @@ static struct expr *do_bool_expr(struct expr *node, struct source src)
     if (node == NULL)
         return NULL;
     // warning for assignment expression
-    if (node->op == ASGN)
-        warning("using the result of an assignment as a condition without parentheses");
+    if (node->op == ASGN && !node->paren)
+        warning_at(src, "using the result of an assignment as a condition without parentheses");
     if (islvalue(node))
         node = ltor(node);
     return decay(node);
@@ -1674,8 +1675,8 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
     if (node == NULL)
         return NULL;
     if (!isint(node->type)) {
-        error("statement requires expression of integer type ('%s' invalid)",
-              type2s(node->type));
+        error_at(src, "statement requires expression of integer type ('%s' invalid)",
+                 type2s(node->type));
         return NULL;
     }
     return node;

@@ -145,6 +145,7 @@ struct table {
     
 struct expr {
     short op;
+    bool paren;
     const char *name;
     struct type *type;
     struct symbol *sym;
