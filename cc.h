@@ -469,7 +469,7 @@ extern bool istypedef(const char *id);
 extern struct type *array_type(struct type *ty);
 extern struct type *ptr_type(struct type *ty);
 extern struct type *func_type(struct type *ty);
-extern struct symbol *tag_type(int t, const char *tag, struct source src);
+extern struct type *tag_type(int t, const char *tag);
 extern void set_typesize(struct type *ty);
 extern struct field *find_field(struct type *ty, const char *name);
 extern int indexof_field(struct type *ty, struct field *field);

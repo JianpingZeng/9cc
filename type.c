@@ -243,7 +243,7 @@ struct type *func_type(struct type * type)
     return ty;
 }
 
-struct symbol *tag_type(int t, const char *tag, struct source src)
+struct type *tag_type(int t, const char *tag)
 {
     struct type *ty = alloc_type();
     ty->kind = t;
@@ -258,28 +258,7 @@ struct symbol *tag_type(int t, const char *tag, struct source src)
         ty->limits = ty->type->limits;
     }
 
-    struct symbol *sym = NULL;
-    if (tag) {
-        sym = lookup(tag, tags);
-        if (sym && is_current_scope(sym)) {
-            if (TYPE_OP(sym->type) == t && !sym->defined)
-                return sym;
-
-            error_at(src, REDEFINITION_ERROR,
-                     sym->name, sym->src.file, sym->src.line, sym->src.column);
-        }
-
-        sym = install(tag, &tags, cscope, PERM);
-    } else {
-        sym = anonymous(&tags, cscope, PERM);
-        ty->u.s.tag = sym->name;
-    }
-
-    sym->type = ty;
-    sym->src = src;
-    ty->u.s.tsym = sym;
-
-    return sym;
+    return ty;
 }
 
 static bool eqparams(struct type *proto1[], struct type *proto2[])

@@ -593,6 +593,33 @@ static struct type *func_or_array(bool abstract, struct symbol ***params)
     return ty;
 }
 
+static struct symbol *tag_symbol(int t, const char *tag, struct source src)
+{
+    struct type *ty = tag_type(t, tag);
+    struct symbol *sym = NULL;
+    if (tag) {
+        sym = lookup(tag, tags);
+        if (sym && is_current_scope(sym)) {
+            if (TYPE_OP(sym->type) == t && !sym->defined)
+                return sym;
+
+            error_at(src, REDEFINITION_ERROR,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
+        }
+
+        sym = install(tag, &tags, cscope, PERM);
+    } else {
+        sym = anonymous(&tags, cscope, PERM);
+        ty->u.s.tag = sym->name;
+    }
+
+    sym->type = ty;
+    sym->src = src;
+    ty->u.s.tsym = sym;
+
+    return sym;
+}
+
 /// enum-specifier:
 ///   'enum' identifier[opt] '{' enumerator-list '}'
 ///   'enum' identifier[opt] '{' enumerator-list ',' '}'
@@ -621,7 +648,7 @@ static struct type *tag_decl(void)
     }
     if (token->id == '{') {
         expect('{');
-        sym = tag_type(t, id, src);
+        sym = tag_symbol(t, id, src);
         if (t == ENUM)
             ids(sym);
         else
@@ -639,11 +666,11 @@ static struct type *tag_decl(void)
                          sym->src.line,
                          sym->src.column);
         } else {
-            sym = tag_type(t, id, src);
+            sym = tag_symbol(t, id, src);
         }
     } else {
         error("expected identifier or '{'");
-        sym = tag_type(t, NULL, src);
+        sym = tag_symbol(t, NULL, src);
     }
 
     return sym->type;
