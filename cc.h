@@ -321,6 +321,10 @@ struct actions {
     struct expr * (*paren) (struct expr *node, struct source src);
     struct expr * (*compound_literal) (struct type *ty, struct expr *init, struct source src);
 
+    long (*intexpr) (struct expr *expr, struct type *ty, struct source src);
+    struct expr * (*bool_expr) (struct expr *expr, struct source src);
+    struct expr * (*switch_expr) (struct expr *expr, struct source src);
+
     // stmt
     void (*branch) (struct expr *expr, int tlab, int flab);
     void (*jump) (int label);
@@ -410,7 +414,12 @@ extern struct expr *eval(struct expr *expr, struct type *ty);
 // expr.c
 extern struct expr *expression(void);
 extern struct expr *assign_expr(void);
-extern struct expr *cond_expr(void);
+extern long intexpr1(struct type *ty);
+extern long intexpr(void);
+// for expression in conditional statement
+extern struct expr *bool_expr(void);
+// for expression in switch statement
+extern struct expr *switch_expr(void);
 
 // decl.c
 extern void declaration(void);
@@ -448,12 +457,6 @@ extern bool islvalue(struct expr *node);
 extern struct expr *assignconv(struct type *ty, struct expr *node);
 extern struct expr *cnsti(long i, struct type *ty);
 extern struct expr *cnsts(const char *string);
-extern long intexpr1(struct type *ty);
-extern long intexpr(void);
-// for expression in conditional statement
-extern struct expr *bool_expr(void);
-// for expression in switch statement
-extern struct expr *switch_expr(void);
 // for eval
 extern struct expr *binop(int op, struct expr *l, struct expr *r);
 extern struct expr *assign(struct symbol *sym, struct expr *r);

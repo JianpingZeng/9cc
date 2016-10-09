@@ -1630,10 +1630,11 @@ static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct so
     return assignop('=', expr, bop(op, expr, cnst, src), src);
 }
 
-long intexpr1(struct type * ty)
+/// constant-expression:
+///   conditional-expression
+///
+static long do_intexpr(struct expr *cond, struct type *ty, struct source src)
 {
-    struct source src = source;
-    struct expr *cond = cond_expr();
     if (cond == NULL)
         // parsing expression failed
         return 0;
@@ -1652,19 +1653,10 @@ long intexpr1(struct type * ty)
     return cnst->sym->value.i;
 }
 
-/// constant-expression:
-///   conditional-expression
-///
-long intexpr(void)
-{
-    return intexpr1(NULL);
-}
-
 // if/do/while/for
-struct expr *bool_expr(void)
+static struct expr *do_bool_expr(struct expr *node, struct source src)
 {
     // Conversion for expression in conditional statement
-    struct expr *node = expression();
     if (node == NULL)
         return NULL;
     // warning for assignment expression
@@ -1676,9 +1668,9 @@ struct expr *bool_expr(void)
 }
 
 // switch
-struct expr *switch_expr(void)
+static struct expr *do_switch_expr(struct expr *expr, struct source src)
 {
-    struct expr *node = conv(expression());
+    struct expr *node = conv(expr);
     if (node == NULL)
         return NULL;
     if (!isint(node->type)) {
@@ -1906,6 +1898,10 @@ struct actions actions = {
     .sconst = sconst,
     .paren = paren,
     .compound_literal = compound_literal,
+
+    .intexpr = do_intexpr,
+    .bool_expr = do_bool_expr,
+    .switch_expr = do_switch_expr,
 
     // stmt
     .branch = branch,

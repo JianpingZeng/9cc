@@ -2,7 +2,8 @@
 #include "cc.h"
 
 static struct expr *cast_expr(void);
-static struct expr *cond_expr1(struct expr *o);
+static struct expr *cond_expr1(struct expr *);
+static struct expr *cond_expr(void);
 static struct expr *unary_expr(void);
 
 #define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
@@ -476,7 +477,7 @@ static struct expr *cond_expr1(struct expr *cond)
 ///   logical-OR-expression
 ///   logical-OR-expression '?' expression ':' conditional-expression
 ///
-struct expr *cond_expr(void)
+static struct expr *cond_expr(void)
 {
     struct expr *or1 = logic_or();
     if (token->id == '?')
@@ -520,4 +521,29 @@ struct expr *expression(void)
         assign1 = actions.commaop(assign1, assign_expr(), src);
     }
     return assign1;
+}
+
+long intexpr1(struct type *ty)
+{
+    struct source src = source;
+    return actions.intexpr(cond_expr(), ty, src);
+}
+
+long intexpr(void)
+{
+    return intexpr1(NULL);
+}
+
+// for expression in conditional statement
+struct expr *bool_expr(void)
+{
+    struct source src = source;
+    return actions.bool_expr(expression(), src);
+}
+
+// for expression in switch statement
+struct expr *switch_expr(void)
+{
+    struct source src = source;
+    return actions.switch_expr(expression(), src);
 }
