@@ -43,6 +43,10 @@ void warning_at(struct source src, const char *fmt, ...)
     cc_print_lead(WRN, src, fmt, ap);
     va_end(ap);
     warnings++;
+    if (opts.Werror && errors++ >= MAX_ERRORS) {
+        fprintf(stderr, "Too many errors.\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void error_at(struct source src, const char *fmt, ...)
