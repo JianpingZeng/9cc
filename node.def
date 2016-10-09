@@ -1,0 +1,53 @@
+
+// constant
+_n(CNST,        "CNST")
+
+// address
+_n(ADDRL,       "ADDRL")
+_n(ADDRG,       "ADDRG")
+_n(ADDRP,       "ADDRP")
+
+// indirection
+_n(INDIR,       "INDIR")
+
+// convert
+_n(CVI,         "CVI")
+_n(CVU,         "CVU")
+_n(CVF,         "CVF")
+_n(CVP,         "CVP")
+
+// binary
+_n(ASGN,        "ASGN")
+_n(MUL,         "MUL")
+_n(DIV,         "DIV")
+_n(ADD,         "ADD")
+_n(SUB,         "SUB")
+_n(MOD,         "MOD")
+_n(SHL,         "SHL")
+_n(SHR,         "SHR")
+_n(BAND,        "BAND")
+_n(BOR,         "BOR")
+_n(XOR,         "XOR")
+_n(EQ,          "EQ")
+_n(NE,          "NE")
+_n(GT,          "GT")
+_n(GE,          "GE")
+_n(LT,          "LT")
+_n(LE,          "LE")
+_n(AND,         "AND")
+_n(OR,          "OR")
+
+// unary
+_n(NEG,         "NEG")
+_n(NOT,         "NOT")
+
+// postfix
+_n(COMPOUND,    "COMPOUND")
+_n(CALL,        "CALL")
+
+// others
+_n(RIGHT,       "RIGHT")
+_n(COND,        "COND")
+_n(MEMBER,      "MEMBER")
+
+#undef _n

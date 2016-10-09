@@ -1,10 +1,16 @@
 #include <assert.h>
 #include "cc.h"
 
+static const char *nnames[] = {
+    "null",
+#define _n(_, b) b,
+#include "node.def"
+};
+
 static const char *nname(int op)
 {
-    //TODO:
-    return "null";
+    assert(OPINDEX(op) > OPNONE && OPINDEX(op) < OPEND);
+    return nnames[OPINDEX(op)];
 }
 
 struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r)

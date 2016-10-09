@@ -74,6 +74,7 @@ CC1_OBJ += x86.o
 CC1_OBJ += print.o
 
 CC1_INC += cc.h
+CC1_INC += node.def
 
 7CC_OBJ = 7cc.o
 

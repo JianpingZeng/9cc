@@ -168,10 +168,17 @@ struct init {
 };
 
 /// operator
+/*
+  zzzz zzyy yyxx xxxx
+
+  zzzz-zz: op size
+  yy-yy:   op type
+  xx-xxxx: op kind
+ */
 #define OPSIZE(op)  ((op) >> 10)
-#define OPTYPE(op)  ((op) & 0xF)
-#define OPINDEX(op) (((op) >> 4) & 0x3F)
-#define OPKIND(op)  ((op) & 0x3F0)
+#define OPTYPE(op)  (((op) >> 6) & 0xF)
+#define OPINDEX(op) ((op) & 0x3F)
+#define OPKIND(op)  ((op) & 0x3F)
 #define OPID(op)    ((op) & 0x3FF)
 #define MKOPSIZE(op)  ((op) << 10)
 #define mkop(op, ty)  OPKIND((op) + tytop(ty))
@@ -181,60 +188,20 @@ struct init {
 
 // op type
 // integer/unsigned/floating/pointer/struct
-enum { I = 1, U, F, P, S };
+enum {
+    I = 1 << 6,
+    U = 2 << 6,
+    F = 3 << 6,
+    P = 4 << 6,
+    S = 5 << 6
+};
 
 // op kind
 enum {
-    // constant
-    CNST = 1 << 4,
-
-    // address
-    ADDRL = 2 << 4,
-    ADDRG = 3 << 4,
-    ADDRP = 4 << 4,
-
-    // indirection
-    INDIR = 5 << 4,
-
-    // convert
-    CVI = 6 << 4,
-    CVU = 7 << 4,
-    CVF = 8 << 4,
-    CVP = 9 << 4,
-
-    // binary
-    ASGN = 10 << 4,
-    MUL = 11 << 4,
-    DIV = 12 << 4,
-    ADD = 13 << 4,
-    SUB = 14 << 4,
-    MOD = 15 << 4,
-    SHL = 16 << 4,
-    SHR = 17 << 4,
-    BAND = 18 << 4,
-    BOR = 19 << 4,
-    XOR = 20 << 4,
-    EQ = 21 << 4,
-    NE = 22 << 4,
-    GT = 23 << 4,
-    GE = 24 << 4,
-    LT = 25 << 4,
-    LE = 26 << 4,
-    AND = 27 << 4,
-    OR = 28 << 4,
-
-    // unary
-    NEG = 30 << 4,
-    NOT = 31 << 4,
-
-    // postfix
-    COMPOUND = 32 << 4,
-    CALL = 33 << 4,
-
-    // others
-    RIGHT = 34 << 4,
-    COND = 35 << 4,
-    MEMBER = 36 << 4
+    OPNONE,
+#define _n(a, _) a,
+#include "node.def"
+    OPEND
 };
 
 /// stmt
