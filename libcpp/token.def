@@ -202,7 +202,7 @@ _t(RSHIFT,      ">>",          RSHIFT)
 
 _t(GEQ,         ">=",          GEQ)
 _t(LEQ,         "<=",          LEQ)
-_t(EQL,         "==",          EQ)
+_t(EQL,         "==",          EQL)
 _t(NEQ,         "!=",          NEQ)
 
 _t(INCR,        "++",          ID)
@@ -223,9 +223,6 @@ _t(POINTER,     "pointer",     0)
 // preprocess
 _t(IFDEF,	"ifdef",	0)
 _t(IFNDEF,	"ifndef",	0)
-
-// EOI
-_t(EOI,		"EOI",		0)
 
 #undef _k
 #undef _t

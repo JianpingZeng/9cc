@@ -23,7 +23,7 @@ enum {
 #define _t(a, b, c)     a,
 #define _k(a, b, c)     a,
 #include "token.def"
-    TOKEND
+    EOI
 };
 
 
