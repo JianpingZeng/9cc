@@ -569,7 +569,7 @@ static struct type *func_or_array(bool abstract, struct symbol ***params)
             attach_type(&ty, atype);
         } else {
             struct symbol **args;
-            struct type *ftype = func_type();
+            struct type *ftype = func_type(NULL);
             expect('(');
             /**
              * To make it easy to distinguish between 'paramaters in parameter'

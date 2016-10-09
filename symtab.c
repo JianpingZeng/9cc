@@ -86,15 +86,6 @@ struct symbol *anonymous(struct table **tpp, int scope, int area)
     return install(format("@%ld", i++), tpp, scope, area);
 }
 
-struct symbol *gen_tmp_sym(int area)
-{
-    const char *name = gen_tmpname();
-    struct symbol *sym = alloc_symbol(area);
-    sym->name = sym->x.name = name;
-    sym->refs++;
-    return sym;
-}
-
 struct symbol *lookup(const char *name, struct table * table)
 {
     assert(name);

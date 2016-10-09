@@ -30,7 +30,7 @@ struct field *alloc_field(void)
     return NEWS0(struct field, PERM);
 }
 
-struct type *alloc_type(void)
+static struct type *alloc_type(void)
 {
     return NEWS0(struct type, PERM);
 }
@@ -231,12 +231,13 @@ struct type *ptr_type(struct type * type)
     return ty;
 }
 
-struct type *func_type(void)
+struct type *func_type(struct type * type)
 {
     struct type *ty = alloc_type();
     ty->kind = FUNCTION;
     ty->op = FUNCTION;
     ty->name = "function";
+    ty->type = type;
     ty->align = funcptype->align;
 
     return ty;

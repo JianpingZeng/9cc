@@ -370,7 +370,6 @@ struct interface {
 ///
 
 // symtab.c
-extern struct symbol *alloc_symbol(int area);
 extern struct table *new_table(struct table *up, int scope);
 extern void free_table(struct table *t);
 extern void symbol_init(void);
@@ -379,21 +378,14 @@ extern void exit_scope(void);
 extern void foreach(struct table *tp, int level, void (*apply) (struct symbol *, void *), void *context);
 extern bool is_current_scope(struct symbol *sym);
 extern bool is_anonymous(const char *name);
-
 // create an anonymous symbol
 extern struct symbol *anonymous(struct table **tpp, int scope, int area);
-
-// generate a tmp symbol
-extern struct symbol *gen_tmp_sym(int area);
-
 // look up a symbol from this table to previous one, and so on
 extern struct symbol *lookup(const char *name, struct table *table);
-
 // install a symbol with specified scope
 extern struct symbol *install(const char *name, struct table **tpp, int scope, int area);
 
 /// ast.c
-extern const char *nname(int op);
 extern struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r);
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
@@ -405,9 +397,6 @@ extern int genlabel(int count);
 #define isiliteral(n)  ((n)->op == CNST+I || (n)->op == CNST+U)
 #define isfliteral(n)  ((n)->op == CNST+F)
 #define issliteral(n)  ((n)->op == CNST+P)
-
-// tree.c
-extern struct expr *addrof(struct expr *expr);
 
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
@@ -469,7 +458,6 @@ extern void mark_goto(const char *id, struct source src);
 // type.c
 extern void type_init(void);
 extern struct field *alloc_field(void);
-extern struct type *alloc_type(void);
 extern void prepend_type(struct type **typelist, struct type *type);
 extern void attach_type(struct type **typelist, struct type *type);
 extern struct type *qual(int t, struct type *ty);
@@ -480,7 +468,7 @@ extern struct type *lookup_typedef(const char *id);
 extern bool istypedef(const char *id);
 extern struct type *array_type(struct type *ty);
 extern struct type *ptr_type(struct type *ty);
-extern struct type *func_type(void);
+extern struct type *func_type(struct type *ty);
 extern struct symbol *tag_type(int t, const char *tag, struct source src);
 extern void set_typesize(struct type *ty);
 extern struct field *find_field(struct type *ty, const char *name);

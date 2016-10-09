@@ -1592,8 +1592,7 @@ static struct expr * id(struct token *tok)
             // implicit function declaration: int id();
             warning("implicit declaration of '%s'", id);
 
-            struct type *ftype = func_type();
-            ftype->type = inttype;
+            struct type *ftype = func_type(inttype);
             ftype->u.f.oldstyle = true;
             ftype->u.f.proto = ltoa(NULL, PERM);
             

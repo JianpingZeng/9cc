@@ -1,7 +1,7 @@
 #include <assert.h>
 #include "cc.h"
 
-const char *nname(int op)
+static const char *nname(int op)
 {
     //TODO:
     return "null";
@@ -43,10 +43,4 @@ int genlabel(int count)
     assert(count > 0);
     lab += count;
     return lab - count;
-}
-
-struct expr *addrof(struct expr *expr)
-{
-    //TODO:
-    return NULL;
 }
