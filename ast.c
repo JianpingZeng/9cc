@@ -7,7 +7,7 @@ static const char *nnames[] = {
 #include "node.def"
 };
 
-static const char *nname(int op)
+const char *nname(int op)
 {
     assert(OPINDEX(op) > OPNONE && OPINDEX(op) < OPEND);
     return nnames[OPINDEX(op)];

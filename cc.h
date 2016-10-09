@@ -352,6 +352,7 @@ extern struct symbol *lookup(const char *name, struct table *table);
 extern struct symbol *install(const char *name, struct table **tpp, int scope, int area);
 
 /// ast.c
+extern const char *nname(int op);
 extern struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r);
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
