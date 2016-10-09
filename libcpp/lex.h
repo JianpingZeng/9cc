@@ -5,11 +5,24 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// source
+///
+/// type declarations
+///
+
 struct source {
     unsigned int line;
     unsigned int column;
     const char *file;
+};
+
+union value {
+    long i;
+    unsigned long u;
+    float f;
+    double d;
+    long double ld;
+    void *p;
+    void (*g) ();
 };
 
 enum {
@@ -26,28 +39,16 @@ enum {
     EOI
 };
 
-
-// value
-union value {
-    long i;
-    unsigned long u;
-    float f;
-    double d;
-    long double ld;
-    void *p;
-    void (*g) ();
-};
-
-// token
-#define TOK_ID_STR(t)    ((const char *)(t)->u.ident->str)
-#define TOK_LIT_STR(t)   ((t)->u.lit.str)
-
 // An identifier
 struct ident {
     unsigned int hash;
     unsigned int len;
     const unsigned char *str;
 };
+
+// token
+#define TOK_ID_STR(t)    ((const char *)(t)->u.ident->str)
+#define TOK_LIT_STR(t)   ((t)->u.lit.str)
 
 struct token {
     unsigned short id;
@@ -83,8 +84,6 @@ struct line_note {
     const unsigned char *pos;
     int type;
 };
-
-// input.c
 
 // buffer kind
 enum { BK_REGULAR = 1, BK_STRING, BK_TOKEN };
@@ -126,8 +125,6 @@ struct file {
     unsigned int errors;
 };
 
-extern struct file *cpp_file;
-
 struct ifstack {
     unsigned short id;
     bool b;
@@ -135,24 +132,6 @@ struct ifstack {
     struct ifstack *prev;
 };
 
-extern struct file *input_init(const char *file);
-
-extern struct buffer *with_string(const char *input, const char *name);
-extern struct buffer *with_file(const char *file, const char *name);
-extern struct buffer *with_tokens(struct vector *v, struct buffer *cur);
-
-enum buffer_sentinel_option { BS_CONTINUOUS = 0, BS_RETURN_EOI };
-
-extern void buffer_sentinel(struct file *pfile, struct buffer *pb,
-                          enum buffer_sentinel_option opt);
-extern void buffer_unsentinel(struct file *pfile);
-
-extern void if_sentinel(struct file *pfile, struct ifstack *i);
-extern void if_unsentinel(struct file *pfile);
-
-extern bool is_original_file(struct file *pfile, const char *file);
-
-// cpp.c
 // macro kind
 enum {
     MACRO_OBJ,
@@ -184,16 +163,35 @@ struct cpp_ident {
     } value;
 };
 
+enum buffer_sentinel_option { BS_CONTINUOUS = 0, BS_RETURN_EOI };
+
+
+///
+/// external functions
+///
+
+// input.c
+extern struct file *input_init(const char *file);
+
+extern struct buffer *with_string(const char *input, const char *name);
+extern struct buffer *with_file(const char *file, const char *name);
+extern struct buffer *with_tokens(struct vector *v, struct buffer *cur);
+
+extern void buffer_sentinel(struct file *pfile, struct buffer *pb,
+                          enum buffer_sentinel_option opt);
+extern void buffer_unsentinel(struct file *pfile);
+
+extern void if_sentinel(struct file *pfile, struct ifstack *i);
+extern void if_unsentinel(struct file *pfile);
+
+extern bool is_original_file(struct file *pfile, const char *file);
+
+// cpp.c
 extern void cpp_init(int argc, char *argv[]);
 extern struct token *get_pptok(struct file *pfile);
 extern void unget(struct file *pfile, struct token *t);
 
 // lex.c
-extern struct source source;
-extern struct token *token;
-extern struct token *ahead_token;
-extern struct token *space_token;
-
 extern int isletter(int c);
 
 #define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
@@ -215,5 +213,16 @@ extern void expect(int t);
 extern void match(int t, int follow[]);
 extern int skipto(int (*test) (struct token *));
 extern const char *unwrap_scon(const char *name);
+
+
+///
+/// external variables
+///
+
+extern struct file *cpp_file;
+extern struct source source;
+extern struct token *token;
+extern struct token *ahead_token;
+extern struct token *space_token;
 
 #endif
