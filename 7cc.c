@@ -21,7 +21,6 @@ static struct {
     int E:1;
     int S:1;
     int ast_dump:1;
-    int ir_dump:1;
     /* Linker options
        -l
        -L
@@ -51,7 +50,6 @@ static void usage(void)
             "OPTIONS:\n", VERSION);
     fprintf(stderr,
             "  -ast-dump       Only print abstract syntax tree\n"
-            "  -ir-dump        Only print intermediate representation\n"
             "  -c              Only run preprocess, compile and assemble steps\n"
             "  -Dname          \n"
             "  -Dname=value    Define a macro\n"
@@ -105,9 +103,6 @@ static void parse_opts(int argc, char *argv[])
                 opts.S = true;
             } else if (!strcmp(arg, "-ast-dump")) {
                 opts.ast_dump = true;
-                vec_push(opts.cc_options, arg);
-            } else if (!strncmp(arg, "-ir-dump", 8)) {
-                opts.ir_dump = true;
                 vec_push(opts.cc_options, arg);
             } else if (!strcmp(arg, "-Wall") ||
                        !strcmp(arg, "-Werror") ||
@@ -210,7 +205,7 @@ int main(int argc, char **argv)
     init_env();
     parse_opts(argc, argv);
 
-    bool partial = opts.E || opts.ast_dump || opts.ir_dump || opts.S || opts.c;
+    bool partial = opts.E || opts.ast_dump || opts.S || opts.c;
 
     if (argc == 1) {
         usage();
@@ -238,7 +233,7 @@ int main(int argc, char **argv)
         const char *ofile = NULL;
         const char *suffix = file_suffix(ifile);
         int ret;
-        if (opts.E || opts.ast_dump || opts.ir_dump) {
+        if (opts.E || opts.ast_dump) {
             if (output)
                 ofile = output;
             ret = translate(ifile, ofile, cc_options);

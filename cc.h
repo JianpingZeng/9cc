@@ -19,7 +19,6 @@
 struct options {
     int preprocess_only:1;
     int ast_dump:1;
-    int ir_dump:1;
     int fleading_underscore:1;
     int Wall:1;
     int Werror:1;

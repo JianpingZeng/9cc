@@ -16,8 +16,6 @@ static void parse_opts(int argc, char *argv[])
             ofile = argv[i];
         } else if (!strcmp(arg, "-ast-dump")) {
             opts.ast_dump = true;
-        } else if (!strncmp(arg, "-ir-dump", 8)) {
-            opts.ir_dump = true;
         } else if (!strcmp(arg, "-Werror")) {
             opts.Werror = true;
         } else if (!strcmp(arg, "-Wall")) {
