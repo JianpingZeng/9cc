@@ -424,8 +424,6 @@ extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 // init.c
 extern struct expr *initializer(struct type *ty);
 extern struct expr *initializer_list(struct type *ty);
-extern void init_string(struct type *ty, struct expr *node);
-extern struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
 
 // stmt.c
 extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
@@ -443,6 +441,8 @@ extern void ensure_func(struct type *ftype, struct source src);
 extern void ensure_main(struct type *ftype, const char *name, struct source src);
 extern void ensure_params(struct symbol *params[]);
 extern void ensure_prototype(struct type *ftype, struct symbol *params[]);
+extern void init_string(struct type *ty, struct expr *node);
+extern struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
 extern bool islvalue(struct expr *node);
 extern struct expr *assignconv(struct type *ty, struct expr *node);
 extern struct expr *cnsti(long i, struct type *ty);

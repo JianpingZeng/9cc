@@ -2,9 +2,9 @@
 
 # version
 MAJOR = 0
-MINOR = 3
-FIXES = 6
-EXTRAVERSION =
+MINOR = 4
+FIXES = 0
+EXTRAVERSION = -dev
 
 CFLAGS = -Wall -std=c99 -I.
 LDFLAGS =

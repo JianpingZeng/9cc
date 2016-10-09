@@ -257,6 +257,28 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
         params[0] = NULL;
 }
 
+/// init
+
+void init_string(struct type *ty, struct expr *node)
+{
+    int len1 = TYPE_LEN(ty);
+    int len2 = TYPE_LEN(node->type);
+    if (len1 > 0) {
+        if (len1 < len2 - 1)
+            warning("initializer-string for char array is too long");
+    } else if (isincomplete(ty)) {
+        TYPE_LEN(ty) = len2;
+        set_typesize(ty);
+    }
+}
+
+struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src)
+{    
+    // TODO:
+    return init;
+}
+
+
 /// expr
 
 /**
