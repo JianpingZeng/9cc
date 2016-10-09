@@ -277,7 +277,7 @@ struct swtch {
 struct func {
     const char *name;
     struct type *type;
-    struct vector *gotos;
+    struct list *gotos;
     struct table *labels;
     struct list *calls;
     struct stmt **stmt;

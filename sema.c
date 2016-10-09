@@ -1734,8 +1734,9 @@ void check_case_duplicates(struct cse *cse, struct swtch *swtch)
 
 void ensure_gotos(void)
 {
-    for (int i = 0; i < vec_len(func.gotos); i++) {
-        struct goto_info *info = vec_at(func.gotos, i);
+    struct goto_info **gotos = ltoa(&func.gotos, FUNC);
+    for (int i = 0; gotos[i]; i++) {
+        struct goto_info *info = gotos[i];
         const char *name = info->id;
         struct symbol *sym = lookup(name, func.labels);
         if (!sym || !sym->defined)
@@ -1749,7 +1750,7 @@ void mark_goto(const char *id, struct source src)
     struct goto_info *info = xmalloc(sizeof(struct goto_info));
     info->id = id;
     info->src = src;
-    vec_push(func.gotos, info);
+    func.gotos = list_append(func.gotos, info);
 }
 
 #define add_to_list(stmt)                       \

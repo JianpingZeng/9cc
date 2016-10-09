@@ -1570,7 +1570,7 @@ static void func_body(struct symbol *sym)
 {
     struct stmt *stmt = NULL;
 
-    func.gotos = vec_new();
+    func.gotos = NULL;
     func.labels = new_table(NULL, LOCAL);
     func.type = sym->type;
     func.name = sym->name;
@@ -1587,7 +1587,6 @@ static void func_body(struct symbol *sym)
     sym->u.f.stmt = stmt;
 
     free_table(func.labels);
-    func.gotos = NULL;
     func.labels = NULL;
     func.type = NULL;
     func.name = NULL;
