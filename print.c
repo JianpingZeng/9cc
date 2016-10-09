@@ -16,8 +16,12 @@ static FILE *outfd;
 
 
 static void print_expr1(struct expr * node, int level);
+static void print_expr(struct expr *expr);
 static void print_stmt1(struct stmt *stmt, int level);
+static void print_stmt(struct stmt *stmt);
 static void print_field(struct field *field);
+static void print_type(struct symbol *sym);
+static void print_symbol(struct symbol *sym);
 
 static void putf(const char *fmt, ...)
 {
@@ -66,7 +70,7 @@ static void print_type1(struct symbol *sym, int level)
     putf("\n");
 }
 
-void print_type(struct symbol *sym)
+static void print_type(struct symbol *sym)
 {
     print_type1(sym, 0);
 }
@@ -116,7 +120,7 @@ static void print_symbol1(struct symbol *sym, int level)
     }
 }
 
-void print_symbol(struct symbol *sym)
+static void print_symbol(struct symbol *sym)
 {
     print_symbol1(sym, 0);
 }
@@ -129,7 +133,7 @@ static void print_expr1(struct expr * node, int level)
     // TODO: 
 }
 
-void print_expr(struct expr *expr)
+static void print_expr(struct expr *expr)
 {
     print_expr1(expr, 0);
 }
@@ -176,7 +180,7 @@ static void print_stmt1(struct stmt *stmt, int level)
     }
 }
 
-void print_stmt(struct stmt *stmt)
+static void print_stmt(struct stmt *stmt)
 {
     print_stmt1(stmt, 0);
 }

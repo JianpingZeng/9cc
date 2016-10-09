@@ -501,10 +501,6 @@ extern void fatal_at(struct source src, const char *fmt, ...);
 // print.c
 extern void ast_dump_symbol(struct symbol *);
 extern void ast_dump_type(struct symbol *);
-
-extern void print_expr(struct expr *expr);
-extern void print_type(struct symbol *sym);
-extern void print_symbol(struct symbol *sym);
 extern const char *type2s(struct type *ty);
 
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
