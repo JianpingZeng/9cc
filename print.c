@@ -17,7 +17,7 @@ static FILE *outfd;
 
 static void print_expr1(struct expr * node, int level);
 static void print_stmt1(struct stmt *stmt, int level);
-static void print_field(struct field *field);
+static void print_field1(struct field *field, int level);
 static void print_type(struct symbol *sym);
 static void print_symbol(struct symbol *sym);
 
@@ -99,6 +99,11 @@ static void print_type1(struct symbol *sym, int level)
         putf("  ");
     print_ty(ty);
     putf("\n");
+    if (isstruct(ty) || isunion(ty)) {
+        struct field **fields = TYPE_FIELDS(ty);
+        for (int i = 0; fields[i]; i++)
+            print_field1(fields[i], level + 1);
+    }
 }
 
 static void print_type(struct symbol *sym)
@@ -111,6 +116,9 @@ static void print_field1(struct field * node, int level)
     const char *name = node->name;
     struct type *ty = node->type;
 
+    for (int i = 0; i < level; i++)
+        putf("  ");
+    
     putf(GREEN("Field "));
     if (node->isbit)
         putf(RED("<offset=%d, bitoff=%d, bits=%d> "),
@@ -121,11 +129,6 @@ static void print_field1(struct field * node, int level)
     print_ty(ty);
     putf(CYAN("%s"), STR(name));
     putf("\n");
-}
-
-static void print_field(struct field *field)
-{
-    print_field1(field, 0);
 }
 
 static void print_symbol1(struct symbol *sym, int level)
