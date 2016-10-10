@@ -819,7 +819,7 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
         return NULL;
     }
 
-    return ast_expr(ASGN, retty, l, r);
+    return ast_expr(mkop(ASGN, retty), retty, l, r);
 }
 
 static struct expr *condop(struct expr *cond, struct expr *then, struct expr *els, struct source src)
