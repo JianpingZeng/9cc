@@ -501,7 +501,6 @@ extern void fatal_at(struct source src, const char *fmt, ...);
 extern void ast_dump_symbol(struct symbol *);
 extern void ast_dump_type(struct symbol *);
 extern const char *type2s(struct type *ty);
-extern const char *nname(int op);
 
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define REDEFINITION_ERROR  "redefinition of '%s', previous definition at %s:%u:%u"

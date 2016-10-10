@@ -21,32 +21,13 @@ static void print_field(struct field *field);
 static void print_type(struct symbol *sym);
 static void print_symbol(struct symbol *sym);
 
-static void putf(const char *fmt, ...)
-{
-    if (!outfd) outfd = stderr;
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(outfd, fmt, ap);
-    va_end(ap);
-}
-
-static void putln(const char *fmt, ...)
-{
-    if (!outfd) outfd = stderr;
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(outfd, fmt, ap);
-    fprintf(outfd, "\n");
-    va_end(ap);
-}
-
 static const char *nnames[] = {
     "null",
 #define _n(_, b) b,
 #include "node.def"
 };
 
-const char *nname(int op)
+static const char *nname(int op)
 {
     assert(OPINDEX(op) > OPNONE && OPINDEX(op) < OPEND);
     return nnames[OPINDEX(op)];
@@ -71,6 +52,25 @@ static char *opfullname(int op)
         return format("%s%s%d", kind, type, OPSIZE(op));
     else
         return format("%s%s", kind, type);
+}
+
+static void putf(const char *fmt, ...)
+{
+    if (!outfd) outfd = stderr;
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(outfd, fmt, ap);
+    va_end(ap);
+}
+
+static void putln(const char *fmt, ...)
+{
+    if (!outfd) outfd = stderr;
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(outfd, fmt, ap);
+    fprintf(outfd, "\n");
+    va_end(ap);
 }
 
 static void print_ty(struct type * ty)
