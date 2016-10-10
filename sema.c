@@ -303,7 +303,7 @@ struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym,
 bool islvalue(struct expr *node)
 {
     // TODO: 
-    return false;
+    return true;
 }
 
 static bool ensure_assignable(struct expr *node, struct source src)
@@ -333,7 +333,7 @@ static bool is_bitfield(struct expr *node)
 static struct expr *cast(struct type *ty, struct expr *n)
 {
     //TODO:
-    return NULL;
+    return n;
 }
 
 static struct expr *wrap(struct type *ty, struct expr *node)

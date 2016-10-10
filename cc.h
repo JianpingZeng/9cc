@@ -145,7 +145,6 @@ struct table {
 struct expr {
     short op;
     bool paren;
-    const char *name;
     struct type *type;
     struct symbol *sym;
     struct expr *kids[2];
@@ -175,13 +174,14 @@ struct init {
   yy-yy:   op type
   xx-xxxx: op kind
  */
-#define OPSIZE(op)  ((op) >> 10)
-#define OPTYPE(op)  (((op) >> 6) & 0xF)
-#define OPINDEX(op) ((op) & 0x3F)
-#define OPKIND(op)  ((op) & 0x3F)
-#define OPID(op)    ((op) & 0x3FF)
+#define OPSIZE(op)    ((op) >> 10)
+#define OPTYPE(op)    ((op) & 0x3C0)
+#define OPKIND(op)    ((op) & 0x3F)
+
+#define OPINDEX(op)   ((op) & 0x3F)
+#define OPID(op)      ((op) & 0x3FF)
 #define MKOPSIZE(op)  ((op) << 10)
-#define mkop(op, ty)  OPKIND((op) + tytop(ty))
+#define mkop(op, ty)  (op) + tytop(ty)
 
 // op size
 // 1,2,4,8,16
@@ -352,7 +352,6 @@ extern struct symbol *lookup(const char *name, struct table *table);
 extern struct symbol *install(const char *name, struct table **tpp, int scope, int area);
 
 /// ast.c
-extern const char *nname(int op);
 extern struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r);
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
@@ -361,9 +360,9 @@ extern int genlabel(int count);
 
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
 #define isvardecl(n)   ((n)->sclass != TYPEDEF && !isfunc((n)->type))
-#define isiliteral(n)  ((n)->op == CNST+I || (n)->op == CNST+U)
-#define isfliteral(n)  ((n)->op == CNST+F)
-#define issliteral(n)  ((n)->op == CNST+P)
+#define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
+#define isfliteral(n)  (OPID((n)->op) == CNST+F)
+#define issliteral(n)  (OPID((n)->op) == CNST+P)
 
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
@@ -502,6 +501,7 @@ extern void fatal_at(struct source src, const char *fmt, ...);
 extern void ast_dump_symbol(struct symbol *);
 extern void ast_dump_type(struct symbol *);
 extern const char *type2s(struct type *ty);
+extern const char *nname(int op);
 
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define REDEFINITION_ERROR  "redefinition of '%s', previous definition at %s:%u:%u"

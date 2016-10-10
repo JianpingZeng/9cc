@@ -1,18 +1,6 @@
 #include <assert.h>
 #include "cc.h"
 
-static const char *nnames[] = {
-    "null",
-#define _n(_, b) b,
-#include "node.def"
-};
-
-const char *nname(int op)
-{
-    assert(OPINDEX(op) > OPNONE && OPINDEX(op) < OPEND);
-    return nnames[OPINDEX(op)];
-}
-
 struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r)
 {
     struct expr *expr = NEWS0(struct expr, FUNC);

@@ -16,9 +16,7 @@ static FILE *outfd;
 
 
 static void print_expr1(struct expr * node, int level);
-static void print_expr(struct expr *expr);
 static void print_stmt1(struct stmt *stmt, int level);
-static void print_stmt(struct stmt *stmt);
 static void print_field(struct field *field);
 static void print_type(struct symbol *sym);
 static void print_symbol(struct symbol *sym);
@@ -40,6 +38,39 @@ static void putln(const char *fmt, ...)
     vfprintf(outfd, fmt, ap);
     fprintf(outfd, "\n");
     va_end(ap);
+}
+
+static const char *nnames[] = {
+    "null",
+#define _n(_, b) b,
+#include "node.def"
+};
+
+const char *nname(int op)
+{
+    assert(OPINDEX(op) > OPNONE && OPINDEX(op) < OPEND);
+    return nnames[OPINDEX(op)];
+}
+
+static char *opfullname(int op)
+{
+    const char *kind, *type;
+
+    kind = nname(op);
+    switch (OPTYPE(op)) {
+    case I: type = "I"; break;
+    case U: type = "U"; break;
+    case F: type = "F"; break;
+    case P: type = "P"; break;
+    case S: type = "S"; break;
+    case 0: type = ""; break;
+    default: assert(0 && "unknown op type");
+    }
+
+    if (OPSIZE(op))
+        return format("%s%s%d", kind, type, OPSIZE(op));
+    else
+        return format("%s%s", kind, type);
 }
 
 static void print_ty(struct type * ty)
@@ -130,12 +161,16 @@ static void print_expr1(struct expr * node, int level)
     for (int i = 0; i < level; i++)
         putf("  ");
     
-    // TODO: 
-}
+    const char *name = opfullname(node->op);
+    putf("%s", name);
+    if (node->sym)
+        putf("  %s", node->sym->name);
 
-static void print_expr(struct expr *expr)
-{
-    print_expr1(expr, 0);
+    putf("\n");
+    if (node->kids[0])
+        print_expr1(node->kids[0], level + 1);
+    if (node->kids[1])
+        print_expr1(node->kids[1], level + 1);
 }
 
 static void print_stmt1(struct stmt *stmt, int level)
@@ -178,11 +213,6 @@ static void print_stmt1(struct stmt *stmt, int level)
     default:
         assert(0 && "unknown stmt type");
     }
-}
-
-static void print_stmt(struct stmt *stmt)
-{
-    print_stmt1(stmt, 0);
 }
 
 void ast_dump_symbol(struct symbol *n)

@@ -15,5 +15,5 @@
 struct expr *eval(struct expr * expr, struct type * ty)
 {
     // TODO:
-    return NULL;
+    return cnsti(1, ty);
 }
