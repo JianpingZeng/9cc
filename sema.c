@@ -21,7 +21,7 @@ struct goto_info {
 
 /// lex
 
-void skip_to_rbrace(void)
+static void skip_balance(int l, int r, const char *name)
 {
     int nests = 0;
     struct source src = source;
@@ -29,31 +29,36 @@ void skip_to_rbrace(void)
     for (;;) {
         if (token->id == EOI)
             break;
-        if (token->id == '}') {
+        if (token->id == r) {
             if (nests-- == 0)
                 break;
-        } else if (token->id == '{') {
+        } else if (token->id == l) {
             nests++;
         }
         gettok();
     }
 
-    if (token->id == '}') {
+    if (token->id == r) {
         gettok();
-        error_at(src, "expect '}'");
+        error_at(src, "expect '%s'", id2s(r));
     } else {
-        error("unclosed brace, missing '}'");
+        error("unclosed %s, missing '%s'", name, id2s(r));
     }
+}
+
+void skip_to_rbrace(void)
+{
+    skip_balance('{', '}', "brace");
 }
 
 void skip_to_rbracket(void)
 {
-    // TODO: 
+    skip_balance('(', ')', "bracket");
 }
 
 void skip_to_rsquarebracket(void)
 {
-    // TODO: 
+    skip_balance('[', ']', "square bracket");
 }
 
 void skip_to_decl(void)
