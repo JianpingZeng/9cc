@@ -592,6 +592,15 @@ bool eqarith(struct type * ty1, struct type * ty2)
         TYPE_OP(ty1) == TYPE_OP(ty2);
 }
 
+bool isstring(struct type *ty)
+{
+    if (!isarray(ty))
+        return false;
+
+    struct type *rty = rtype(ty);
+    return TYPE_KIND(rty) == CHAR || unqual(rty) == wchartype;
+}
+
 short tytop(struct type *ty)
 {
     size_t size = TYPE_SIZE(ty);

@@ -443,6 +443,7 @@ extern struct type *compose(struct type *ty1, struct type *ty2);
 extern bool qual_contains(struct type *ty1, struct type *ty2);
 extern int qual_union(struct type *ty1, struct type *ty2);
 extern bool isincomplete(struct type *ty);
+extern bool isstring(struct type *ty);
 extern short tytop(struct type *ty);
 
 #define BITS(bytes)     (CHAR_BIT * (bytes))
