@@ -63,7 +63,18 @@ void skip_to_rsquarebracket(void)
 
 void skip_to_decl(void)
 {
-    // TODO: 
+    struct source src = source;
+    int i;
+    
+    for (i = 0; ; i++) {
+        if (token->id == EOI)
+            break;
+        if (first_decl(token))
+            break;
+        gettok();
+    }
+
+    error_at(src, "expect decalaration, %d tokens skipped", i);
 }
 
 /// decl
