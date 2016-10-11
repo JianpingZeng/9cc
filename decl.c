@@ -1138,7 +1138,7 @@ void translation_unit(void)
                 // empty declaration
                 gettok();
             else
-                skipto(first_decl);
+                skip_to_decl();
         }
     }
     

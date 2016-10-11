@@ -1258,23 +1258,3 @@ void match(int t, void (*otherwise) (void))
     else
         otherwise();
 }
-
-int skipto(int (*test) (struct token *))
-{
-    int i;
-    struct token *t = token;
-    for (i = 0; token->id != EOI; i++, gettok()) {
-        if (test(token))
-            break;
-    }
-    
-    if (i > 1)
-        cpp_error_at(t->src,
-                     "invalid token '%s', %d tokens skipped",
-                     tok2s(t), i);
-    else if (i)
-        cpp_error_at(t->src, "invalid token '%s'", tok2s(t));
-    else
-        die("nothing skipped, may be an internal error");
-    return i;
-}
