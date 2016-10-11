@@ -558,14 +558,13 @@ static struct type *arrays(bool abstract)
 static struct type *func_or_array(bool abstract, struct symbol ***params)
 {
     struct type *ty = NULL;
-    int follow[] = { '[', ID, IF, 0 };
 
     for (; token->id == '(' || token->id == '[';) {
         if (token->id == '[') {
             struct type *atype;
             expect('[');
             atype = arrays(abstract);
-            match(']', follow);
+            match(']', skip_to_rsquarebracket);
             attach_type(&ty, atype);
         } else {
             struct symbol **args;
@@ -585,7 +584,7 @@ static struct type *func_or_array(bool abstract, struct symbol ***params)
                 *params = args;
             else
                 exit_params(args);
-            match(')', follow);
+            match(')', skip_to_rbracket);
             attach_type(&ty, ftype);
         }
     }
@@ -639,7 +638,6 @@ static struct type *tag_decl(void)
     const char *id = NULL;
     struct symbol *sym = NULL;
     struct source src = source;
-    int follow[] = {INT, CONST, STATIC, IF, 0};
 
     expect(t);
     if (token->id == ID) {
@@ -653,7 +651,7 @@ static struct type *tag_decl(void)
             ids(sym);
         else
             fields(sym);
-        match('}', follow);
+        match('}', skip_to_rbrace);
         sym->defined = true;
     } else if (id) {
         sym = lookup(id, tags);
@@ -745,7 +743,6 @@ static void bitfield(struct field *field)
 ///
 static void fields(struct symbol * sym)
 {
-    int follow[] = {INT, CONST, '}', IF, 0};
     struct type *sty = sym->type;
 
     if (!first_decl(token)) {
@@ -805,7 +802,7 @@ static void fields(struct symbol * sym)
             ensure_field(field, vec_len(v), false);
         }
     next:
-        match(';', follow);
+        match(';', skip_to_decl);
         ensure_field(vec_tail(v), vec_len(v), isstruct(sty) && !first_decl(token));
     } while (first_decl(token));
 
@@ -975,8 +972,6 @@ static void abstract_declarator(struct type ** ty)
 ///
 static void declarator(struct type ** ty, struct token **id, struct symbol ***params)
 {
-    int follow[] = { ',', '=', IF, 0 };
-
     assert(ty && id);
     
     if (token->id == '*') {
@@ -996,7 +991,7 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
         struct type *rtype = NULL;
         expect('(');
         declarator(&rtype, id, params);
-        match(')', follow);
+        match(')', skip_to_rbracket);
         if (token->id == '[' || token->id == '(') {
             struct type *faty = func_or_array(false, params);
             attach_type(&faty, type1);
@@ -1033,7 +1028,6 @@ static void decls(decl_p * dcl)
     struct type *basety;
     int sclass, fspec;
     int level = cscope;
-    int follow[] = {STATIC, INT, CONST, IF, '}', 0};
 
     basety = specifiers(&sclass, &fspec);
     if (token->id == ID || token->id == '*' || token->id == '(') {
@@ -1087,7 +1081,7 @@ static void decls(decl_p * dcl)
     } else {
         error("invalid token '%s' in declaration", tok2s(token));
     }
-    match(';', follow);
+    match(';', skip_to_decl);
 }
 
 /// type-name:

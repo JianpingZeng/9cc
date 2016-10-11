@@ -210,7 +210,7 @@ extern const char *tok2s(struct token *t);
 extern int gettok(void);
 extern struct token *lookahead(void);
 extern void expect(int t);
-extern void match(int t, int follow[]);
+extern void match(int t, void (*otherwise) (void));
 extern int skipto(int (*test) (struct token *));
 extern const char *unwrap_scon(const char *name);
 

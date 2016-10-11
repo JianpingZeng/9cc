@@ -298,6 +298,9 @@ struct actions {
     void (*ret) (struct expr *expr);
     void (*label) (int label);
     void (*gen) (struct expr *expr);
+
+    // init
+    struct expr * (*initlist) (struct type *ty);
 };
 
 // metrics
@@ -398,6 +401,11 @@ extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swt
 #define has_static_extent(sym)  ((sym)->sclass == EXTERN || \
                                  (sym)->sclass == STATIC || \
                                  (sym)->scope == GLOBAL)
+
+extern void skip_to_rbrace(void);
+extern void skip_to_rbracket(void);
+extern void skip_to_rsquarebracket(void);
+extern void skip_to_decl(void);
 
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
 extern void ensure_field(struct field *field, size_t total, bool last);

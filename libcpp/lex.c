@@ -1251,24 +1251,12 @@ void expect(int t)
         cpp_error("expect token '%s'", id2s(t));
 }
 
-void match(int t, int follow[])
+void match(int t, void (*otherwise) (void))
 {
-    if (token->id == t) {
+    if (token->id == t)
         gettok();
-    } else {
-        int n;
-        expect(t);
-        for (n = 0; token->id != EOI; gettok()) {
-            int *k;
-            for (k = follow; *k && *k != token->kind; k++)
-                ;        // continue
-            if (*k == token->kind)
-                break;
-        }
-
-        if (n > 0)
-            fprintf(stderr, "%d tokens skipped.\n", n);
-    }
+    else
+        otherwise();
 }
 
 int skipto(int (*test) (struct token *))

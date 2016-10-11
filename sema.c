@@ -19,6 +19,48 @@ struct goto_info {
     struct source src;
 };
 
+/// lex
+
+void skip_to_rbrace(void)
+{
+    int nests = 0;
+    struct source src = source;
+
+    for (;;) {
+        if (token->id == EOI)
+            break;
+        if (token->id == '}') {
+            if (nests-- == 0)
+                break;
+        } else if (token->id == '{') {
+            nests++;
+        }
+        gettok();
+    }
+
+    if (token->id == '}') {
+        gettok();
+        error_at(src, "expect '}'");
+    } else {
+        error("unclosed brace, missing '}'");
+    }
+}
+
+void skip_to_rbracket(void)
+{
+    // TODO: 
+}
+
+void skip_to_rsquarebracket(void)
+{
+    // TODO: 
+}
+
+void skip_to_decl(void)
+{
+    // TODO: 
+}
+
 /// decl
 
 static void ensure_bitfield(struct field *field)
@@ -278,6 +320,12 @@ struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym,
     return init;
 }
 
+static struct expr *initlist(struct type *ty)
+{
+    // TODO:
+    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
+    return ret;
+}
 
 /// expr
 
@@ -1932,4 +1980,7 @@ struct actions actions = {
     .ret = ret,
     .label = label,
     .gen = gen,
+
+    // init
+    .initlist = initlist,
 };

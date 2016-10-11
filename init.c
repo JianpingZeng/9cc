@@ -1,12 +1,69 @@
+#include <assert.h>
 #include "cc.h"
 
 ///
 /// Initialization        C99 [6.7.8]
 ///
+static void parse_initializer(void);
+static void parse_initializer_list(void);
 
-static bool first_init(struct token *t)
+// designation
+struct desig {
+    int id;                     // '.' or '['
+    union {
+        const char *name;
+        long index;
+    };
+};
+
+
+static void parse_designated_initializer(void)
 {
-    return t->id == '{' || first_expr(t) || t->id == '.' || t->id == '[';
+    assert(token->id == '.' || token->id == '[');
+    
+    do {
+        if (token->id == '.') {
+            expect('.');
+            expect(ID);
+        } else {
+            expect('[');
+            intexpr();
+            expect(']');
+        }
+    } while (token->id == '.' || token->id == '[');
+    expect('=');
+    parse_initializer();
+}
+
+static void parse_initializer(void)
+{
+    if (token->id == '{') {
+        parse_initializer_list();
+    } else {
+        assign_expr();
+    }
+}
+
+static void parse_initializer_list(void)
+{
+    expect('{');
+    
+    for (;;) {
+        if (token->id == '.' || token->id == '[')
+            parse_designated_initializer();
+        else
+            parse_initializer();
+
+        if (token->id != ',')
+            break;
+
+        expect(',');
+
+        if (token->id == '}')
+            break;
+    }
+
+    match('}', skip_to_rbrace);
 }
 
 /// initializer:
@@ -16,14 +73,10 @@ static bool first_init(struct token *t)
 ///
 struct expr *initializer(struct type * ty)
 {
-    if (token->id == '{') {
+    if (token->id == '{')
         return initializer_list(ty);
-    } else if (first_expr(token)) {
+    else
         return assign_expr();
-    } else {
-        error("expect '{' or assignment expression");
-        return NULL;
-    }
 }
 
 /// initializer-list:
@@ -43,35 +96,7 @@ struct expr *initializer(struct type * ty)
 ///
 struct expr *initializer_list(struct type * ty)
 {
-    int follow[] = { ',', IF, '[', ID, '.', DEREF, 0 };
-    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
-
-    expect('{');
+    parse_initializer_list();
     
-    for (; first_init(token);) {
-        if (token->id == '.' || token->id == '[') {
-            do {
-                if (token->id == '.') {
-                    expect('.');
-                    expect(ID);
-                } else {
-                    expect('[');
-                    intexpr();
-                    expect(']');
-                }
-            } while (token->id == '.' || token->id == '[');
-            expect('=');
-        }
-
-        initializer(ty);
-
-        if (token->id != ',')
-            break;
-
-        expect(',');
-    }
-
-    match('}', follow);
-    
-    return ret;
+    return actions.initlist(ty);
 }
