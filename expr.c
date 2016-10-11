@@ -6,7 +6,7 @@ static struct expr *cond_expr1(struct expr *);
 static struct expr *cond_expr(void);
 static struct expr *unary_expr(void);
 
-#define is_assign_op(op)    ((op == '=') || (op >= MULEQ && op <= RSHIFTEQ))
+#define is_assign_tok(t)    ((t)->id == '=' || (t)->kind == ADDEQ)
 
 static struct expr *compound_literal(struct type * ty)
 {
@@ -499,7 +499,7 @@ struct expr *assign_expr(void)
     struct expr *or1 = logic_or();
     if (token->id == '?')
         return cond_expr1(or1);
-    if (is_assign_op(token->id)) {
+    if (is_assign_tok(token)) {
         struct source src = source;
         int t = token->id;
         expect(t);
