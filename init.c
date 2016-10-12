@@ -4,20 +4,11 @@
 ///
 /// Initialization        C99 [6.7.8]
 ///
-static void parse_initializer(void);
-static void parse_initializer_list(void);
 
-// designation
-struct desig {
-    int id;                     // '.' or '['
-    union {
-        const char *name;
-        long index;
-    };
-};
+static void parse_initializer(struct type *ty, long offset);
+static void parse_initializer_list(struct type *ty, long offset);
 
-
-static void parse_designated_initializer(void)
+static void parse_designated_initializer(struct type *ty, long offset)
 {
     assert(token->id == '.' || token->id == '[');
     
@@ -28,31 +19,33 @@ static void parse_designated_initializer(void)
         } else {
             expect('[');
             intexpr();
-            expect(']');
+            match(']', skip_to_rsquarebracket);
         }
     } while (token->id == '.' || token->id == '[');
+
     expect('=');
-    parse_initializer();
+
+    parse_initializer(ty, offset);
 }
 
-static void parse_initializer(void)
+static void parse_initializer(struct type *ty, long offset)
 {
     if (token->id == '{') {
-        parse_initializer_list();
+        parse_initializer_list(ty, offset);
     } else {
         assign_expr();
     }
 }
 
-static void parse_initializer_list(void)
+static void parse_initializer_list(struct type *ty, long offset)
 {
     expect('{');
     
-    for (;;) {
+    for (;;) {        
         if (token->id == '.' || token->id == '[')
-            parse_designated_initializer();
+            parse_designated_initializer(ty, offset);
         else
-            parse_initializer();
+            parse_initializer(ty, offset);
 
         if (token->id != ',')
             break;
@@ -96,7 +89,7 @@ struct expr *initializer(struct type * ty)
 ///
 struct expr *initializer_list(struct type * ty)
 {
-    parse_initializer_list();
+    parse_initializer_list(ty, 0);
     
     return actions.initlist(ty);
 }
