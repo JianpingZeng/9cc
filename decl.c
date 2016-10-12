@@ -564,7 +564,7 @@ static struct type *func_or_array(bool abstract, struct symbol ***params)
             struct type *atype;
             expect('[');
             atype = arrays(abstract);
-            match(']', skip_to_rsquarebracket);
+            match(']', skip_to_squarebracket);
             attach_type(&ty, atype);
         } else {
             struct symbol **args;
@@ -584,7 +584,7 @@ static struct type *func_or_array(bool abstract, struct symbol ***params)
                 *params = args;
             else
                 exit_params(args);
-            match(')', skip_to_rbracket);
+            match(')', skip_to_bracket);
             attach_type(&ty, ftype);
         }
     }
@@ -651,7 +651,7 @@ static struct type *tag_decl(void)
             ids(sym);
         else
             fields(sym);
-        match('}', skip_to_rbrace);
+        match('}', skip_to_brace);
         sym->defined = true;
     } else if (id) {
         sym = lookup(id, tags);
@@ -991,7 +991,7 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
         struct type *rtype = NULL;
         expect('(');
         declarator(&rtype, id, params);
-        match(')', skip_to_rbracket);
+        match(')', skip_to_bracket);
         if (token->id == '[' || token->id == '(') {
             struct type *faty = func_or_array(false, params);
             attach_type(&faty, type1);

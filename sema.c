@@ -46,17 +46,17 @@ static void skip_balance(int l, int r, const char *name)
     }
 }
 
-void skip_to_rbrace(void)
+void skip_to_brace(void)
 {
     skip_balance('{', '}', "brace");
 }
 
-void skip_to_rbracket(void)
+void skip_to_bracket(void)
 {
     skip_balance('(', ')', "bracket");
 }
 
-void skip_to_rsquarebracket(void)
+void skip_to_squarebracket(void)
 {
     skip_balance('[', ']', "square bracket");
 }

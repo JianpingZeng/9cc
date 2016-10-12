@@ -30,7 +30,7 @@ static void parse_initializer_list(struct type *ty, long offset)
                 } else {
                     expect('[');
                     intexpr();
-                    match(']', skip_to_rsquarebracket);
+                    match(']', skip_to_squarebracket);
                 }
             } while (token->id == '.' || token->id == '[');
 
@@ -48,7 +48,7 @@ static void parse_initializer_list(struct type *ty, long offset)
             break;
     }
 
-    match('}', skip_to_rbrace);
+    match('}', skip_to_brace);
 }
 
 /// initializer:

@@ -399,9 +399,9 @@ extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swt
                                  (sym)->sclass == STATIC || \
                                  (sym)->scope == GLOBAL)
 
-extern void skip_to_rbrace(void);
-extern void skip_to_rbracket(void);
-extern void skip_to_rsquarebracket(void);
+extern void skip_to_brace(void);
+extern void skip_to_bracket(void);
+extern void skip_to_squarebracket(void);
 extern void skip_to_decl(void);
 
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
