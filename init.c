@@ -10,6 +10,7 @@ struct desig {
     struct type *type;
     long offset;
     struct field *field;
+    struct desig *prev;
 };
 
 static void parse_initializer(struct desig *);
