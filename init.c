@@ -8,26 +8,6 @@
 static void parse_initializer(struct type *ty, long offset);
 static void parse_initializer_list(struct type *ty, long offset);
 
-static void parse_designated_initializer(struct type *ty, long offset)
-{
-    assert(token->id == '.' || token->id == '[');
-    
-    do {
-        if (token->id == '.') {
-            expect('.');
-            expect(ID);
-        } else {
-            expect('[');
-            intexpr();
-            match(']', skip_to_rsquarebracket);
-        }
-    } while (token->id == '.' || token->id == '[');
-
-    expect('=');
-
-    parse_initializer(ty, offset);
-}
-
 static void parse_initializer(struct type *ty, long offset)
 {
     if (token->id == '{') {
@@ -42,10 +22,22 @@ static void parse_initializer_list(struct type *ty, long offset)
     expect('{');
     
     for (;;) {        
-        if (token->id == '.' || token->id == '[')
-            parse_designated_initializer(ty, offset);
-        else
-            parse_initializer(ty, offset);
+        if (token->id == '.' || token->id == '[') {
+            do {
+                if (token->id == '.') {
+                    expect('.');
+                    expect(ID);
+                } else {
+                    expect('[');
+                    intexpr();
+                    match(']', skip_to_rsquarebracket);
+                }
+            } while (token->id == '.' || token->id == '[');
+
+            expect('=');
+        }
+
+        parse_initializer(ty, offset);
 
         if (token->id != ',')
             break;
