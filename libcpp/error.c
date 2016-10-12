@@ -7,8 +7,6 @@
 #include "lex.h"
 #include "internal.h"
 
-#define MAX_ERRORS 1
-
 static void cc_print_lead(int tag, struct source src, const char *fmt, va_list ap)
 {
     const char *lead;
@@ -40,6 +38,7 @@ void cpp_warning_at(struct source src, const char *fmt, ...)
     va_start(ap, fmt);
     cc_print_lead(WRN, src, fmt, ap);
     va_end(ap);
+    cpp_file->warnings++;
 }
 
 void cpp_error_at(struct source src, const char *fmt, ...)
@@ -48,10 +47,7 @@ void cpp_error_at(struct source src, const char *fmt, ...)
     va_start(ap, fmt);
     cc_print_lead(ERR, src, fmt, ap);
     va_end(ap);
-    if (cpp_file->errors++ >= MAX_ERRORS) {
-        fprintf(stderr, "Too many errors.\n");
-        exit(EXIT_FAILURE);
-    }
+    cpp_file->errors++;
 }
 
 void cpp_fatal_at(struct source src, const char *fmt, ...)

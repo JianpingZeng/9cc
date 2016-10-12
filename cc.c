@@ -69,5 +69,5 @@ int main(int argc, char *argv[])
 
     actions.finalize();
 
-    return errors > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+    return errors() > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

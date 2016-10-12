@@ -122,7 +122,7 @@ struct file {
     struct token *cur_token;
     const char *date;            // current date string (quoted)
     const char *time;            // current time string (quoted)
-    unsigned int errors;
+    unsigned int errors, warnings;
 };
 
 struct ifstack {

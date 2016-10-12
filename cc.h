@@ -495,6 +495,8 @@ extern short tytop(struct type *ty);
 
 
 // error.c
+extern unsigned int errors(void);
+extern unsigned int warnings(void);
 extern void warning_at(struct source src, const char *fmt, ...);
 extern void error_at(struct source src, const char *fmt, ...);
 extern void fatal_at(struct source src, const char *fmt, ...);
@@ -551,6 +553,5 @@ extern struct type *voidtype;
 extern struct type *booltype;
 extern struct type *voidptype;
 extern struct type *funcptype;
-extern unsigned int errors, warnings;
 
 #endif
