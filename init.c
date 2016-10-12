@@ -20,7 +20,13 @@ static void scalar_init(struct desig *desig, struct expr *expr)
     // TODO: 
 }
 
-void parse_designator(void)
+struct desig *next_designator(struct desig *desig)
+{
+    // TODO:
+    return NULL;
+}
+
+struct desig *parse_designator(struct desig *desig)
 {
     assert(token->id == '.' || token->id == '[');
     
@@ -36,6 +42,9 @@ void parse_designator(void)
     } while (token->id == '.' || token->id == '[');
 
     expect('=');
+
+    // TODO:
+    return NULL;
 }
 
 static void parse_initializer(struct desig *desig)
@@ -48,13 +57,17 @@ static void parse_initializer(struct desig *desig)
 
 static void parse_initializer_list(struct desig *desig)
 {
+    struct desig *d = desig;
+    
     expect('{');
     
-    for (;;) {        
+    for (;;) {
         if (token->id == '.' || token->id == '[')
-            parse_designator();
+            d = parse_designator(desig);
+        else
+            d = next_designator(d);
 
-        parse_initializer(desig);
+        parse_initializer(d);
 
         if (token->id != ',')
             break;
