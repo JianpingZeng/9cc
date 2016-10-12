@@ -151,7 +151,7 @@ struct expr {
     struct type *vtype;
     union {
         struct expr **args;
-        struct init *inits;
+        struct init **inits;
         struct field *field;
     } u;
 };
@@ -163,7 +163,6 @@ struct init {
     short bsize;
     struct type *type;
     struct expr *body;
-    struct init *next;
 };
 
 /// operator
