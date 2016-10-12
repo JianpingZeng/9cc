@@ -336,13 +336,6 @@ struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym,
     return init;
 }
 
-static struct expr *initlist(struct type *ty)
-{
-    // TODO:
-    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
-    return ret;
-}
-
 /// expr
 
 /**
@@ -1996,7 +1989,4 @@ struct actions actions = {
     .ret = ret,
     .label = label,
     .gen = gen,
-
-    // init
-    .initlist = initlist,
 };

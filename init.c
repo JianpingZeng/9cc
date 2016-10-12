@@ -89,7 +89,9 @@ struct expr *initializer(struct type * ty)
 ///
 struct expr *initializer_list(struct type * ty)
 {
+    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
+    
     parse_initializer_list(ty, 0);
     
-    return actions.initlist(ty);
+    return ret;
 }
