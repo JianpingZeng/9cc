@@ -125,7 +125,7 @@ static struct desig *sema_desig(struct desig *desig, struct desig **ds)
                 d->offset = desig->offset + field->offset;
                 d->type = field->type;
                 d->u.field = field;
-                d->prev = desig;
+                d->prev = desig->id === DESIG_NONE ? NULL : desig;
                 desig = d;
             }
             break;
@@ -148,7 +148,7 @@ static struct desig *sema_desig(struct desig *desig, struct desig **ds)
                 struct type *rty = rtype(desig->type);
                 d->offset = desig->offset + d->u.index * TYPE_SIZE(rty);
                 d->type = rty;
-                d->prev = desig;
+                d->prev = desig->id == DESIG_NONE ? NULL : desig;
                 desig = d;
             }
             break;
