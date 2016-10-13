@@ -16,7 +16,7 @@ struct desig {
 static void parse_initializer(struct desig *);
 static void parse_initializer_list(struct desig *);
 
-static void scalar_init(struct desig *desig, struct expr *expr)
+static void element_init(struct desig *desig, struct expr *expr)
 {
     // TODO: 
 }
@@ -53,7 +53,7 @@ static void parse_initializer(struct desig *desig)
     if (token->id == '{')
         parse_initializer_list(desig);
     else
-        scalar_init(desig, assign_expr());
+        element_init(desig, assign_expr());
 }
 
 static void parse_initializer_list(struct desig *desig)
