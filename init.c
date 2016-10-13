@@ -5,15 +5,15 @@
 /// Initialization        C99 [6.7.8]
 ///
 
-// designator type
+// designator id
 enum { DESIG_NONE, DESIG_FIELD, DESIG_INDEX };
 
 // designator
 struct desig {
-    int id;                     // designator type
+    int id;                     // designator id
     struct source src;          // source location
     struct type *type;          // destination type
-    long offset;                // destination absolute offset
+    long offset;                // destination offset (absolute)
     union {
         struct field *field;    // struct/union field
         long index;             // array index
