@@ -72,13 +72,11 @@ static struct desig *new_desig_index(long index, struct source src)
     return d;
 }
 
+// copy designator list
 static struct desig *copy_desig(struct desig *desig)
 {
     struct desig *ret = NULL;
     struct desig **pp = &ret;
-    
-    if (!desig)
-        return NULL;
     
     // others
     for (struct desig *s = desig; s; s = s->prev) {
