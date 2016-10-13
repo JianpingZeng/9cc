@@ -78,7 +78,6 @@ static struct desig *copy_desig(struct desig *desig)
     struct desig *ret = NULL;
     struct desig **pp = &ret;
     
-    // others
     for (struct desig *s = desig; s; s = s->prev) {
         *pp = NEWS(struct desig, FUNC);
         *(*pp) = *s;
