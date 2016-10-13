@@ -398,6 +398,8 @@ extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swt
                                  (sym)->sclass == STATIC || \
                                  (sym)->scope == GLOBAL)
 
+extern void field_not_found_error(struct source src, struct type *ty, const char *name);
+
 extern void skip_to_brace(void);
 extern void skip_to_bracket(void);
 extern void skip_to_squarebracket(void);
@@ -411,8 +413,10 @@ extern void ensure_func(struct type *ftype, struct source src);
 extern void ensure_main(struct type *ftype, const char *name, struct source src);
 extern void ensure_params(struct symbol *params[]);
 extern void ensure_prototype(struct type *ftype, struct symbol *params[]);
+
 extern void init_string(struct type *ty, struct expr *node);
 extern struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
+
 extern bool islvalue(struct expr *node);
 extern struct expr *assignconv(struct type *ty, struct expr *node);
 extern struct expr *cnsti(long i, struct type *ty);
@@ -512,8 +516,6 @@ extern const char *type2s(struct type *ty);
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define REDEFINITION_ERROR  "redefinition of '%s', previous definition at %s:%u:%u"
 #define CONFLICTING_TYPES_ERROR  "conflicting types for '%s', previous at %s:%u:%u"
-#define FIELD_NOT_FOUND_ERROR  "'%s' has no field named '%s'"
-#define INCOMPLETE_DEFINITION_OF_TYPE  "incomplete definition of type '%s'"
 
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"

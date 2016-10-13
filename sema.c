@@ -19,6 +19,16 @@ struct goto_info {
     struct source src;
 };
 
+/// error
+
+void field_not_found_error(struct source src, struct type *ty, const char *name)
+{
+    if (isincomplete(ty))
+        error_at(src, "incomplete definition of type '%s'", type2s(ty));
+    else
+        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
+}
+
 /// lex
 
 static void skip_balance(int l, int r, const char *name)
@@ -1402,11 +1412,7 @@ static struct expr * direction(struct expr *node, int t, const char *name, struc
 
     field = find_field(ty, name);
     if (field == NULL) {
-        if (isincomplete(ty))
-            error_at(src, INCOMPLETE_DEFINITION_OF_TYPE, type2s(ty));
-        else
-            error_at(src, FIELD_NOT_FOUND_ERROR, type2s(ty), name);
-
+        field_not_found_error(src, ty, name);
         return NULL;
     }
     
