@@ -74,23 +74,17 @@ static struct desig *new_desig_index(long index, struct source src)
 
 static struct desig *copy_desig(struct desig *desig)
 {
-    struct desig *ret;
-    struct desig **pp;
+    struct desig *ret = NULL;
+    struct desig **pp = &ret;
     
     if (!desig)
         return NULL;
-
-    // the first one
-    ret = NEWS(struct desig, FUNC);
-    *ret = *desig;
-    pp = &ret->prev;
-
+    
     // others
-    for (struct desig *s = desig->prev; s; s = s->prev) {
-        struct desig *d = NEWS(struct desig, FUNC);
-        *d = *s;
-        *pp = d;
-        pp = &d->prev;
+    for (struct desig *s = desig; s; s = s->prev) {
+        *pp = NEWS(struct desig, FUNC);
+        *(*pp) = *s;
+        pp = &(*pp)->prev;
     }
 
     return ret;
