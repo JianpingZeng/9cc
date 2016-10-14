@@ -1875,11 +1875,23 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
             return NULL;
         }
         if (isrecord(desig->type)) {
-            struct field *field = TYPE_FIELDS(desig->type)[0];
-            struct desig *d = new_desig_field(field, source);
-            d->offset = desig->offset + field->offset;
-            d->prev = copy_desig(desig);
-            return d;
+            struct field **fields = TYPE_FIELDS(desig->type);
+            if (isempty(fields)) {
+                // TODO: empty record
+                if (isincomplete(desig->type))
+                    error("initialize incomplete type '%s'",
+                          type2s(desig->type));
+                else
+                    error("initialize empty %s is not supported yet",
+                          id2s(TYPE_KIND(desig->type)));
+                return NULL;
+            } else {
+                struct field *field = fields[0];
+                struct desig *d = new_desig_field(field, source);
+                d->offset = desig->offset + field->offset;
+                d->prev = copy_desig(desig);
+                return d;
+            }
         } else if (isarray(desig->type)) {
             struct type *rty = rtype(desig->type);
             struct desig *d = new_desig_index(0, source);

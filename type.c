@@ -350,7 +350,7 @@ bool eqtype(struct type * ty1, struct type * ty2)
                     return false;
             }
 
-            if (oldty->u.f.proto[0] == NULL)
+            if (isempty(oldty->u.f.proto))
                 return true;
 
             return eqparams(oldty->u.f.proto, newty->u.f.proto);
