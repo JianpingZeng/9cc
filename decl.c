@@ -5,8 +5,6 @@ static void abstract_declarator(struct type ** ty);
 static void declarator(struct type ** ty, struct token **id, struct symbol ***params);
 static void param_declarator(struct type ** ty, struct token **id);
 static struct type *tag_decl(void);
-static void ids(struct symbol *sym);
-static void fields(struct symbol * sym);
 
 typedef struct symbol *decl_p(const char *id, struct type * ty, int sclass, int fspec, struct source src);
 static struct symbol *paramdecl(const char *, struct type *, int, int, struct source);
@@ -619,61 +617,6 @@ static struct symbol *tag_symbol(int t, const char *tag, struct source src)
     return sym;
 }
 
-/// enum-specifier:
-///   'enum' identifier[opt] '{' enumerator-list '}'
-///   'enum' identifier[opt] '{' enumerator-list ',' '}'
-///   'enum' identifier
-///
-/// struct-or-union-specifier:
-///   struct-or-union identifier[opt] '{' struct-declaration-list '}'
-///   struct-or-union identifier
-///
-/// struct-or-union:
-///   'struct'
-///   'union'
-///
-static struct type *tag_decl(void)
-{
-    int t = token->id;
-    const char *id = NULL;
-    struct symbol *sym = NULL;
-    struct source src = source;
-
-    expect(t);
-    if (token->id == ID) {
-        id = TOK_ID_STR(token);
-        expect(ID);
-    }
-    if (token->id == '{') {
-        expect('{');
-        sym = tag_symbol(t, id, src);
-        if (t == ENUM)
-            ids(sym);
-        else
-            fields(sym);
-        match('}', skip_to_brace);
-        sym->defined = true;
-    } else if (id) {
-        sym = lookup(id, tags);
-        if (sym) {
-            if (is_current_scope(sym) && TYPE_OP(sym->type) != t)
-                error_at(src,
-                         "use of '%s' with tag type that does not match previous declaration '%s' at %s:%u:%u",
-                         id2s(t), type2s(sym->type),
-                         sym->src.file,
-                         sym->src.line,
-                         sym->src.column);
-        } else {
-            sym = tag_symbol(t, id, src);
-        }
-    } else {
-        error("expected identifier or '{'");
-        sym = tag_symbol(t, NULL, src);
-    }
-
-    return sym->type;
-}
-
 /// enumerator-list:
 ///   enumerator
 ///   enumerator-list ',' enumerator
@@ -808,6 +751,64 @@ static void fields(struct symbol * sym)
 
     TYPE_FIELDS(sty) = vtoa(v, PERM);
     set_typesize(sty);
+}
+
+/// enum-specifier:
+///   'enum' identifier[opt] '{' enumerator-list '}'
+///   'enum' identifier[opt] '{' enumerator-list ',' '}'
+///   'enum' identifier
+///
+/// struct-or-union-specifier:
+///   struct-or-union identifier[opt] '{' struct-declaration-list '}'
+///   struct-or-union identifier
+///
+/// [GNU]:
+///   struct-or-union identifier[opt] '{' '}'
+///
+/// struct-or-union:
+///   'struct'
+///   'union'
+///
+static struct type *tag_decl(void)
+{
+    int t = token->id;
+    const char *id = NULL;
+    struct symbol *sym = NULL;
+    struct source src = source;
+
+    expect(t);
+    if (token->id == ID) {
+        id = TOK_ID_STR(token);
+        expect(ID);
+    }
+    if (token->id == '{') {
+        expect('{');
+        sym = tag_symbol(t, id, src);
+        if (t == ENUM)
+            ids(sym);
+        else
+            fields(sym);
+        match('}', skip_to_brace);
+        sym->defined = true;
+    } else if (id) {
+        sym = lookup(id, tags);
+        if (sym) {
+            if (is_current_scope(sym) && TYPE_OP(sym->type) != t)
+                error_at(src,
+                         "use of '%s' with tag type that does not match previous declaration '%s' at %s:%u:%u",
+                         id2s(t), type2s(sym->type),
+                         sym->src.file,
+                         sym->src.line,
+                         sym->src.column);
+        } else {
+            sym = tag_symbol(t, id, src);
+        }
+    } else {
+        error("expected identifier or '{'");
+        sym = tag_symbol(t, NULL, src);
+    }
+
+    return sym->type;
 }
 
 /// pointer:

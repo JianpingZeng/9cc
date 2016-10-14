@@ -97,6 +97,9 @@ static void parse_initializer_list(struct desig *desig, struct list **plist)
 ///   '{' initializer-list '}'
 ///   '{' initializer-list ',' '}'
 ///
+/// [GNU]:
+///   '{' '}'
+///
 struct expr *initializer(struct type * ty)
 {
     if (token->id == '{')
