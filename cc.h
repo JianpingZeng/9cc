@@ -445,6 +445,7 @@ extern void ensure_prototype(struct type *ftype, struct symbol *params[]);
 
 extern void init_string(struct type *ty, struct expr *node);
 extern struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
+extern struct desig *next_designator(struct desig *desig);
 
 extern bool islvalue(struct expr *node);
 extern struct expr *assignconv(struct type *ty, struct expr *node);

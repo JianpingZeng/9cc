@@ -1789,6 +1789,103 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct lis
     }
 }
 
+static bool ensure_designator(struct desig *d, int id)
+{
+    if (isincomplete(d->type)) {
+        error_at(d->src,
+                 "%s designator of incomplete type '%s'",
+                 id2s(id), type2s(d->type));
+        return false;
+    }
+    return true;
+}
+
+static struct desig *next_designator1(struct desig *desig, bool initial)
+{
+    assert(desig);
+    
+    switch (desig->id) {
+    case DESIG_FIELD:
+        {
+            struct desig *prev = desig->prev;
+
+            assert(prev);
+            assert(isrecord(prev->type));
+
+            struct field **fields = TYPE_FIELDS(prev->type);
+            size_t len = length(fields);
+            int idx = indexof_field(prev->type, desig->u.field);
+            assert(idx >= 0);
+            if (idx < len - 1) {
+                struct field *field = fields[idx+1];
+                struct desig *d = new_desig_field(field, source);
+                d->offset = prev->offset + field->offset;
+                d->prev = copy_desig(prev);
+                return d;
+            } else {
+                return next_designator1(prev, false);
+            }
+        }
+        break;
+
+    case DESIG_INDEX:
+        {
+            struct desig *prev = desig->prev;
+
+            assert(prev);
+            assert(isarray(prev->type));
+
+            size_t len = TYPE_LEN(prev->type);
+            long idx = desig->u.index;
+            if (len == 0 || idx < len - 1) {
+                struct type *rty = desig->type;
+                struct desig *d = new_desig_index(idx+1, source);
+                d->type = rty;
+                d->offset = desig->offset + TYPE_SIZE(rty);
+                d->prev = copy_desig(prev);
+                return d;
+            } else {
+                return next_designator1(prev, false);
+            }
+        }
+        break;
+
+    case DESIG_NONE:
+        assert(desig->prev == NULL);
+        if (!initial) {
+            error("excess elements in %s initializer", TYPE_NAME(desig->type));
+            return NULL;
+        }
+        if (isrecord(desig->type)) {
+            struct field *field = TYPE_FIELDS(desig->type)[0];
+            struct desig *d = new_desig_field(field, source);
+            d->offset = desig->offset + field->offset;
+            d->prev = copy_desig(desig);
+            return d;
+        } else if (isarray(desig->type)) {
+            struct type *rty = rtype(desig->type);
+            struct desig *d = new_desig_index(0, source);
+            d->type = rty;
+            d->offset = desig->offset;
+            d->prev = copy_desig(desig);
+            return d;
+        } else {
+            return desig;
+        }
+        break;
+    }
+    
+    CC_UNAVAILABLE
+}
+
+struct desig *next_designator(struct desig *desig)
+{
+    if (!desig)
+        return NULL;
+
+    return next_designator1(desig, true);
+}
+
 static struct desig *do_designator(struct desig *desig, struct desig **ds)
 {
     assert(desig && ds);
@@ -1818,6 +1915,10 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
                 d->u.field = field;
                 d->prev = desig;
                 desig = d;
+
+                // check incomplete type
+                if (!ensure_designator(d, STRUCT))
+                    return NULL;
             }
             break;
 
@@ -1841,6 +1942,10 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
                 d->type = rty;
                 d->prev = desig;
                 desig = d;
+
+                // check incomplete type
+                if (!ensure_designator(d, ARRAY))
+                    return NULL;
             }
             break;
 
