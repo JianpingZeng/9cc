@@ -70,8 +70,8 @@ CC1_OBJ += stmt.o
 CC1_OBJ += sema.o
 CC1_OBJ += init.o
 CC1_OBJ += eval.o
-CC1_OBJ += x86.o
 CC1_OBJ += print.o
+CC1_OBJ += x86_64-linux.o
 
 CC1_INC += cc.h
 CC1_INC += node.def
@@ -79,28 +79,20 @@ CC1_INC += node.def
 7CC_OBJ = 7cc.o
 
 ifneq (, ${STAGE})
-
 CONFIG_FLAGS += -DSTAGE=${STAGE}
-
 else
-
 CFLAGS += -g
 # CFLAGS += -pg
 # LDFLAGS += -pg
-
 endif
 
 ifeq (Linux, $(KERNEL))
 
 else ifeq (Darwin, $(KERNEL))
-
 XCODE_SDK_DIR := $(shell xcrun --show-sdk-path)
 OSX_SDK_VERSION := $(shell xcrun --show-sdk-version)
-
 else
-
 $(error unsupported platform '$(KERNEL)')
-
 endif
 
 CFLAGS += $(CONFIG_FLAGS)
