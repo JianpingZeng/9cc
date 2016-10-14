@@ -38,7 +38,7 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     expect(IF);
     expect('(');
     cond = bool_expr();
-    expect(')');
+    match(')', skip_to_bracket);
 
     actions.branch(cond, 0, lab);
     
@@ -77,7 +77,7 @@ static void while_stmt(int lab, struct swtch *swtch)
     expect(WHILE);
     expect('(');
     cond = bool_expr();
-    expect(')');
+    match(')', skip_to_bracket);
 
     actions.jump(lab+1);
     actions.label(lab);
@@ -104,7 +104,7 @@ static void do_while_stmt(int lab, struct swtch *swtch)
     expect(WHILE);
     expect('(');
     cond = bool_expr();
-    expect(')');
+    match(')', skip_to_bracket);
     expect(';');
     actions.label(lab+1);
     actions.branch(cond, lab, 0);
@@ -149,7 +149,7 @@ static void for_stmt(int lab, struct swtch *swtch)
     if (token->id != ')')
         ctrl = expression();
 
-    expect(')');
+    match(')', skip_to_bracket);
 
     actions.gen(init);
     actions.jump(lab+3);
@@ -185,7 +185,7 @@ static void switch_stmt(int lab, int cnt)
     expect(SWITCH);
     expect('(');
     expr = switch_expr();
-    expect(')');
+    match(')', skip_to_bracket);
 
     swtch->src = src;
     swtch->type = expr ? expr->type : inttype;
@@ -494,6 +494,6 @@ void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch)
             statement(cnt, brk, swtch);
     }
 
-    expect('}');
+    match('}', skip_to_brace);
     exit_scope();
 }
