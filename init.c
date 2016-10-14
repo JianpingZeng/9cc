@@ -20,22 +20,29 @@ struct desig {
         const char *name;       // designator identifier
     } u;
     struct desig *prev;
+    struct desig *all;
 };
 
 static void parse_initializer(struct desig *);
 static void parse_initializer_list(struct desig *);
 
 // for debug
-static const char *desig2s(struct desig *desig)
+static const char *desig2s1(struct desig *desig, const char *prefix)
 {
-    const char *s = "";
+    const char *s = prefix;
     
     assert(desig);
 
-    for (struct desig *d = desig; d; d = d->prev) {
+    for (struct desig *d = desig; d;) {
         switch (d->id) {
         case DESIG_NONE:
-            s = format("<%s>%s", type2s(d->type), s);
+            assert(d->prev == NULL);
+            if (d->all) {
+                d = d->all;
+                continue;
+            } else {
+                s = format("<%s>%s", type2s(d->type), s);
+            }
             break;
 
         case DESIG_FIELD:
@@ -49,15 +56,27 @@ static const char *desig2s(struct desig *desig)
         default:
             assert(0 && "unknown designator type");
         }
+        d = d->prev;
     }
     
     return s;
 }
 
-static struct desig *new_desig_name(const char *name, struct source src)
+static const char *desig2s(struct desig *desig)
+{
+    return desig2s1(desig, "");
+}
+
+static struct desig *new_desig(int id)
 {
     struct desig *d = NEWS0(struct desig, FUNC);
-    d->id = DESIG_FIELD;
+    d->id = id;
+    return d;
+}
+
+static struct desig *new_desig_name(const char *name, struct source src)
+{
+    struct desig *d = new_desig(DESIG_FIELD);
     d->u.name = name;
     d->src = src;
     return d;
@@ -65,8 +84,7 @@ static struct desig *new_desig_name(const char *name, struct source src)
 
 static struct desig *new_desig_index(long index, struct source src)
 {
-    struct desig *d = NEWS0(struct desig, FUNC);
-    d->id = DESIG_INDEX;
+    struct desig *d = new_desig(DESIG_INDEX);
     d->u.index = index;
     d->src = src;
     return d;
@@ -214,8 +232,11 @@ static void parse_initializer(struct desig *desig)
 {
     if (token->id == '{') {
         // begin a new root designator
-        struct desig d = {.id = DESIG_NONE, .type = desig->type, .offset = desig->offset};
-        parse_initializer_list(&d);
+        struct desig *d = new_desig(DESIG_NONE);
+        d->type = desig->type;
+        d->offset = desig->offset;
+        d->all = desig;         // all link
+        parse_initializer_list(d);
     } else {
         element_init(desig, assign_expr());
     }
