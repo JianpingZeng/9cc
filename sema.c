@@ -370,8 +370,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
         case DESIG_FIELD:
             {
                 const char *name = d->u.name;
-                if (!name)
-                    return NULL;
+                assert(name);
                 if (!isrecord(desig->type)) {
                     error_at(d->src,
                              "%s designator cannot initialize non-%s type '%s'",

@@ -108,8 +108,8 @@ static struct desig *parse_designator(struct desig *desig)
                 if (token->id == ID)
                     list = list_append(list, new_desig_name(TOK_ID_STR(token), src));
                 else
-                    // create a desig with name of NULL
-                    list = list_append(list, new_desig_name(NULL, src));
+                    // set desig to NULL
+                    desig = NULL;
             }
             expect(ID);
         } else {
