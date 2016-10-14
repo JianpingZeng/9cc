@@ -10,7 +10,7 @@
 #define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
 #define TYPE_ERROR  "expect type '%s', not '%s'"
 
-static struct expr *bop(int op, struct expr *l, struct expr *r, struct source src);
+static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *mkref(struct symbol *sym, struct source src);
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src);
 
@@ -328,7 +328,7 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
 /// init
 
 // TODO: 
-static void element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
+static void do_element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
 {
     struct desig *desig = *pdesig;
     if (!desig || !expr)
@@ -345,7 +345,7 @@ static void element_init(struct desig **pdesig, struct expr *expr, struct list *
             d->offset = desig->offset + field->offset;
             d->prev = desig;
             *pdesig = d;
-            element_init(&d, expr, plist);
+            do_element_init(&d, expr, plist);
         }
     } else if (isunion(desig->type)) {
         
@@ -909,7 +909,7 @@ static bool ensure_increment(struct expr *node, struct source src)
     return true;
 }
 
-static struct expr *commaop(struct expr *l, struct expr *r, struct source src)
+static struct expr *do_comma(struct expr *l, struct expr *r, struct source src)
 {
     if (l == NULL || r == NULL)
         return NULL;
@@ -954,7 +954,7 @@ static int splitop(int op)
     }
 }
 
-static struct expr *assignop(int op, struct expr *l, struct expr *r, struct source src)
+static struct expr *do_assign(int op, struct expr *l, struct expr *r, struct source src)
 {
     if (l == NULL || r == NULL)
         return NULL;
@@ -976,7 +976,7 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
                 return NULL;
             }
         }
-        r = bop(op2, l1, r1, src);
+        r = do_bop(op2, l1, r1, src);
     }
 
     struct type *retty = unqual(l->type);
@@ -992,7 +992,7 @@ static struct expr *assignop(int op, struct expr *l, struct expr *r, struct sour
     return ast_expr(mkop(ASGN, retty), retty, l, r);
 }
 
-static struct expr *condop(struct expr *cond, struct expr *then, struct expr *els, struct source src)
+static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *els, struct source src)
 {
     struct type *ty = NULL;
     
@@ -1068,7 +1068,7 @@ static struct expr *condop(struct expr *cond, struct expr *then, struct expr *el
     return ast_expr(COND, ty, cond, ast_expr(RIGHT, ty, then, els));
 }
 
-static struct expr *logicop(int op, struct expr *l, struct expr *r, struct source src)
+static struct expr *do_logic(int op, struct expr *l, struct expr *r, struct source src)
 {
     assert(op == ANDAND || op == OROR);
     
@@ -1112,7 +1112,7 @@ static int top(int op)
     }
 }
 
-static struct expr *bop(int op, struct expr *l, struct expr *r, struct source src)
+static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src)
 {
     struct type *ty;
 
@@ -1156,14 +1156,14 @@ static struct expr *bop(int op, struct expr *l, struct expr *r, struct source sr
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(l->type));
-            struct expr *mul = bop('*', r, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = do_bop('*', r, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), l->type), l->type, l, mul);
         } else if (isptr(r->type) && isint(l->type)) {
             if (!ensure_additive_ptr(r, src))
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(r->type));
-            struct expr *mul = bop('*', l, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = do_bop('*', l, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), r->type), r->type, mul, r);
         } else {
             if (!isarith(l->type)) {
@@ -1183,7 +1183,7 @@ static struct expr *bop(int op, struct expr *l, struct expr *r, struct source sr
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(l->type));
-            struct expr *mul = bop('*', r, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = do_bop('*', r, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), l->type), l->type, l, mul);
         } else if (isptr(l->type) && isptr(r->type)) {
             if (!ensure_additive_ptr(l, src) || !ensure_additive_ptr(r, src))
@@ -1264,7 +1264,7 @@ static struct expr *bop(int op, struct expr *l, struct expr *r, struct source sr
 
 /// cast
 
-static struct expr *castop(struct type *ty, struct expr *cast, struct source src)
+static struct expr *do_cast(struct type *ty, struct expr *cast, struct source src)
 {
     int op;
 
@@ -1305,7 +1305,7 @@ static struct expr *castop(struct type *ty, struct expr *cast, struct source src
 
 /// unary
 
-static struct expr *pre_increment(int t, struct expr *operand, struct source src)
+static struct expr * do_pre_increment(int t, struct expr *operand, struct source src)
 {
     if (operand == NULL)
         return NULL;
@@ -1316,7 +1316,7 @@ static struct expr *pre_increment(int t, struct expr *operand, struct source src
     return incr(t == INCR ? ADD : SUB, operand, cnsti(1, inttype), src);
 }
 
-static struct expr *minus_plus(int t, struct expr *operand, struct source src)
+static struct expr * do_minus_plus(int t, struct expr *operand, struct source src)
 {
     operand = conv(operand);
     if (operand == NULL)
@@ -1333,7 +1333,7 @@ static struct expr *minus_plus(int t, struct expr *operand, struct source src)
         return ast_expr(mkop(NEG, operand->type), operand->type, operand, NULL);
 }
 
-static struct expr *bitwise_not(struct expr *operand, struct source src)
+static struct expr * do_bitwise_not(struct expr *operand, struct source src)
 {
     operand = conv(operand);
     if (operand == NULL)
@@ -1347,7 +1347,7 @@ static struct expr *bitwise_not(struct expr *operand, struct source src)
     return ast_expr(mkop(NOT, operand->type), operand->type, operand, NULL);
 }
 
-static struct expr *logical_not(struct expr *operand, struct source src)
+static struct expr * do_logical_not(struct expr *operand, struct source src)
 {    
     operand = conv(operand);
     if (operand == NULL)
@@ -1360,17 +1360,17 @@ static struct expr *logical_not(struct expr *operand, struct source src)
 
     struct expr *t1 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
     struct expr *t2 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
-    struct expr *then = assignop('=', t1, cnsti(0, inttype), src);
-    struct expr *els = assignop('=', t2, cnsti(1, inttype), src);
+    struct expr *then = do_assign('=', t1, cnsti(0, inttype), src);
+    struct expr *els = do_assign('=', t2, cnsti(1, inttype), src);
 
-    return condop(operand, then, els, src);
+    return do_cond(operand, then, els, src);
 }
 
 /**
  * The usual conversions are _NOT_ applied to the operand of the '&'
  * operator, and its result is never an lvalue.
  */
-static struct expr *address(struct expr *operand, struct source src)
+static struct expr * do_address(struct expr *operand, struct source src)
 {
     if (operand == NULL)
         return NULL;
@@ -1396,7 +1396,7 @@ static struct expr *address(struct expr *operand, struct source src)
         return lvalue(operand);
 }
 
-static struct expr *indirection(struct expr *operand, struct source src)
+static struct expr * do_indirection(struct expr *operand, struct source src)
 {
     operand = conv(operand);
     if (operand == NULL)
@@ -1410,7 +1410,7 @@ static struct expr *indirection(struct expr *operand, struct source src)
     return rvalue(operand);
 }
 
-static struct expr * sizeofop(struct type *ty, struct expr *n, struct source src)
+static struct expr * do_sizeof(struct type *ty, struct expr *n, struct source src)
 {
     ty = n ? n->type : ty;
     if (ty == NULL)
@@ -1434,7 +1434,7 @@ static struct expr * sizeofop(struct type *ty, struct expr *n, struct source src
 
 // e1[e2]
 // == *(e1+e2)
-static struct expr * subscript(struct expr *node, struct expr *index, struct source src)
+static struct expr * do_subscript(struct expr *node, struct expr *index, struct source src)
 {
     node = conv(node);
     index = conv(index);
@@ -1452,7 +1452,7 @@ static struct expr * subscript(struct expr *node, struct expr *index, struct sou
             return NULL;
         }
         
-        struct expr *expr = bop('+', node, index, src);
+        struct expr *expr = do_bop('+', node, index, src);
         return rvalue(expr);
     } else {
         if (!isptr(node->type) && !isptr(index->type))
@@ -1464,7 +1464,7 @@ static struct expr * subscript(struct expr *node, struct expr *index, struct sou
     }
 }
 
-static struct expr * funcall(struct expr *node, struct expr **args, struct source src)
+static struct expr * do_funcall(struct expr *node, struct expr **args, struct source src)
 {
     struct expr *ret;
     
@@ -1489,7 +1489,7 @@ static struct expr * funcall(struct expr *node, struct expr **args, struct sourc
 }
 
 // '.', '->'
-static struct expr * direction(struct expr *node, int t, const char *name, struct source src)
+static struct expr * do_direction(struct expr *node, int t, const char *name, struct source src)
 {
     struct expr *ret;
     struct field *field;
@@ -1530,7 +1530,7 @@ static struct expr * direction(struct expr *node, int t, const char *name, struc
     return ret;
 }
 
-static struct expr * post_increment(struct expr *node, int t, struct source src)
+static struct expr * do_post_increment(struct expr *node, int t, struct source src)
 {
     struct expr *ret;
 
@@ -1550,7 +1550,7 @@ static struct expr * post_increment(struct expr *node, int t, struct source src)
     return ret;
 }
 
-static struct expr * compound_literal(struct type *ty, struct expr *inits, struct source src)
+static struct expr * do_compound_literal(struct type *ty, struct expr *inits, struct source src)
 {
     return inits;
 }
@@ -1717,17 +1717,17 @@ struct expr *cnsts(const char *string)
     return literal_expr(&t, CNST, string_constant);
 }
 
-static struct expr * iconst(struct token *tok)
+static struct expr * do_iconst(struct token *tok)
 {
     return literal_expr(tok, CNST, integer_constant);
 }
 
-static struct expr * fconst(struct token *tok)
+static struct expr * do_fconst(struct token *tok)
 {
     return literal_expr(tok, CNST, float_constant);
 }
 
-static struct expr * sconst(struct token *tok)
+static struct expr * do_sconst(struct token *tok)
 {
     return literal_expr(tok, CNST, string_constant);
 }
@@ -1761,7 +1761,7 @@ static struct expr *mkref(struct symbol *sym, struct source src)
         return ret;
 }
 
-static struct expr * id(struct token *tok)
+static struct expr * do_id(struct token *tok)
 {
     const char *id = TOK_ID_STR(tok);
     struct symbol *sym;
@@ -1805,7 +1805,7 @@ static struct expr * id(struct token *tok)
     }
 }
 
-static struct expr * paren(struct expr *e, struct source src)
+static struct expr * do_paren(struct expr *e, struct source src)
 {
     e->paren = true;
     return e;
@@ -1815,7 +1815,7 @@ static struct expr * paren(struct expr *e, struct source src)
 
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
 {
-    return assignop('=', expr, bop(op, expr, cnst, src), src);
+    return do_assign('=', expr, do_bop(op, expr, cnst, src), src);
 }
 
 /// constant-expression:
@@ -1871,13 +1871,13 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
 
 struct expr *binop(int op, struct expr *l, struct expr *r)
 {
-    return bop(op, l, r, source);
+    return do_bop(op, l, r, source);
 }
 
 struct expr *assign(struct symbol *sym, struct expr *r)
 {
     struct expr *l = mkref(sym, sym->src);
-    return assignop('=', l, r, sym->src);
+    return do_assign('=', l, r, sym->src);
 }
 
 /// stmt
@@ -1948,7 +1948,7 @@ void mark_goto(const char *id, struct source src)
     } while (0)
 
 
-static void branch(struct expr *expr, int tlab, int flab)
+static void do_branch(struct expr *expr, int tlab, int flab)
 {
     assert(tlab == 0 || flab == 0);
     struct stmt *stmt = ast_stmt(CBR);
@@ -1958,28 +1958,28 @@ static void branch(struct expr *expr, int tlab, int flab)
     add_to_list(stmt);
 }
 
-static void jmpto(int label)
+static void do_jump(int label)
 {
     struct stmt *stmt = ast_stmt(JMP);
     stmt->u.label = label;
     add_to_list(stmt);
 }
 
-static void ret(struct expr *expr)
+static void do_return(struct expr *expr)
 {
     struct stmt *stmt = ast_stmt(RET);
     stmt->u.expr = expr;
     add_to_list(stmt);
 }
 
-static void label(int label)
+static void do_label(int label)
 {
     struct stmt *stmt = ast_stmt(LABEL);
     stmt->u.label = label;
     add_to_list(stmt);
 }
 
-static void gen(struct expr *expr)
+static void do_gen(struct expr *expr)
 {
     if (expr) {
         struct stmt *stmt = ast_stmt(GEN);
@@ -2064,43 +2064,43 @@ struct actions actions = {
     .deftype = deftype,
 
     // expr
-    .commaop = commaop,
-    .assignop = assignop,
-    .condop = condop,
-    .logicop = logicop,
-    .bop = bop,
-    .castop = castop,
-    .pre_increment = pre_increment,
-    .minus_plus = minus_plus,
-    .bitwise_not = bitwise_not,
-    .logical_not = logical_not,
-    .address = address,
-    .indirection = indirection,
-    .sizeofop = sizeofop,
-    .subscript = subscript,
-    .funcall = funcall,
-    .direction = direction,
-    .post_increment = post_increment,
-    .id = id,
-    .iconst = iconst,
-    .fconst = fconst,
-    .sconst = sconst,
-    .paren = paren,
-    .compound_literal = compound_literal,
+    .commaop = do_comma,
+    .assignop = do_assign,
+    .condop = do_cond,
+    .logicop = do_logic,
+    .bop = do_bop,
+    .castop = do_cast,
+    .pre_increment = do_pre_increment,
+    .minus_plus = do_minus_plus,
+    .bitwise_not = do_bitwise_not,
+    .logical_not = do_logical_not,
+    .address = do_address,
+    .indirection = do_indirection,
+    .sizeofop = do_sizeof,
+    .subscript = do_subscript,
+    .funcall = do_funcall,
+    .direction = do_direction,
+    .post_increment = do_post_increment,
+    .id = do_id,
+    .iconst = do_iconst,
+    .fconst = do_fconst,
+    .sconst = do_sconst,
+    .paren = do_paren,
+    .compound_literal = do_compound_literal,
 
     .intexpr = do_intexpr,
     .bool_expr = do_bool_expr,
     .switch_expr = do_switch_expr,
 
     // stmt
-    .branch = branch,
-    .jump = jmpto,
-    .ret = ret,
-    .label = label,
-    .gen = gen,
+    .branch = do_branch,
+    .jump = do_jump,
+    .ret = do_return,
+    .label = do_label,
+    .gen = do_gen,
 
     // init
-    .element_init = element_init,
+    .element_init = do_element_init,
     .designator = do_designator,
     .initializer_list = do_initializer_list,
 };
