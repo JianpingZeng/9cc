@@ -23,7 +23,6 @@ struct desig {
     struct desig *all;
 };
 
-static void parse_initializer(struct desig *);
 static void parse_initializer_list(struct desig *);
 
 // for debug
@@ -90,6 +89,15 @@ static struct desig *new_desig_index(long index, struct source src)
     return d;
 }
 
+static struct desig *new_desig_field(struct field *field, struct source src)
+{
+    struct desig *d = new_desig(DESIG_FIELD);
+    d->u.field = field;
+    d->type = field->type;
+    d->src = src;
+    return d;
+}
+
 // copy designator list
 static struct desig *copy_desig(struct desig *desig)
 {
@@ -105,16 +113,16 @@ static struct desig *copy_desig(struct desig *desig)
     return ret;
 }
 
-static void element_init(struct desig *desig, struct expr *expr)
+// TODO: 
+static void element_init(struct desig **pdesig, struct expr *expr)
 {
-    // TODO: 
+    struct desig *desig = *pdesig;
     if (!desig || !expr)
         return;
 
     dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
 }
 
-// TODO: incomplete array type
 static struct desig *sema_desig(struct desig *desig, struct desig **ds)
 {
     assert(desig && ds);
@@ -179,9 +187,84 @@ static struct desig *sema_desig(struct desig *desig, struct desig **ds)
     return desig;
 }
 
-static struct desig *next_designator1(struct desig *desig)
+static struct desig *next_designator1(struct desig *desig, bool initial)
 {
-    // TODO:
+    assert(desig);
+    
+    switch (desig->id) {
+    case DESIG_FIELD:
+        {
+            struct desig *prev = desig->prev;
+
+            assert(prev);
+            assert(isrecord(prev->type));
+
+            struct field **fields = TYPE_FIELDS(prev->type);
+            size_t len = length(fields);
+            int idx = indexof_field(prev->type, desig->u.field);
+            assert(idx >= 0);
+            if (idx < len - 1) {
+                struct field *field = fields[idx+1];
+                struct desig *d = new_desig_field(field, source);
+                d->offset = prev->offset + field->offset;
+                d->prev = copy_desig(prev);
+                return d;
+            } else {
+                return next_designator1(prev, false);
+            }
+        }
+        break;
+
+    case DESIG_INDEX:
+        {
+            struct desig *prev = desig->prev;
+
+            assert(prev);
+            assert(isarray(prev->type));
+
+            size_t len = TYPE_LEN(prev->type);
+            long idx = desig->u.index;
+            if (len == 0 || idx < len - 1) {
+                struct type *rty = desig->type;
+                struct desig *d = new_desig_index(idx+1, source);
+                d->type = rty;
+                d->offset = desig->offset + TYPE_SIZE(rty);
+                d->prev = copy_desig(prev);
+                return d;
+            } else {
+                return next_designator1(prev, false);
+            }
+        }
+        break;
+
+    case DESIG_NONE:
+        assert(desig->prev == NULL);
+        if (!initial) {
+            error("excess elements in %s initializer", TYPE_NAME(desig->type));
+            return NULL;
+        }
+        if (isrecord(desig->type)) {
+            struct field *field = TYPE_FIELDS(desig->type)[0];
+            struct desig *d = new_desig_field(field, source);
+            d->offset = desig->offset + field->offset;
+            d->prev = copy_desig(desig);
+            return d;
+        } else if (isarray(desig->type)) {
+            struct type *rty = rtype(desig->type);
+            struct desig *d = new_desig_index(0, source);
+            d->type = rty;
+            d->offset = desig->offset;
+            d->prev = copy_desig(desig);
+            return d;
+        } else {
+            return desig;
+        }
+        break;
+
+    default:
+        assert(0 && "unknown designator id");
+    }
+    
     return NULL;
 }
 
@@ -190,7 +273,7 @@ static struct desig *next_designator(struct desig *desig)
     if (!desig)
         return NULL;
 
-    return next_designator1(desig);
+    return next_designator1(desig, true);
 }
 
 static struct desig *parse_designator(struct desig *desig)
@@ -228,17 +311,18 @@ static struct desig *parse_designator(struct desig *desig)
     return desig ? sema_desig(desig, ltoa(&list, FUNC)) : NULL;
 }
 
-static void parse_initializer(struct desig *desig)
+static void parse_initializer(struct desig **pdesig)
 {
     if (token->id == '{') {
         // begin a new root designator
+        struct desig *desig = *pdesig;
         struct desig *d = new_desig(DESIG_NONE);
         d->type = desig->type;
         d->offset = desig->offset;
         d->all = desig;         // all link
         parse_initializer_list(d);
     } else {
-        element_init(desig, assign_expr());
+        element_init(pdesig, assign_expr());
     }
 }
 
@@ -254,7 +338,7 @@ static void parse_initializer_list(struct desig *desig)
         else
             d = next_designator(d);
 
-        parse_initializer(d);
+        parse_initializer(&d);
 
         if (token->id != ',')
             break;
@@ -302,6 +386,7 @@ struct expr *initializer_list(struct type * ty)
         struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
         struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0};
         parse_initializer_list(&desig);
+        // TODO: incomplete array type
         // TODO: sort inits
         // TODO: merge bitfields
         return ret;
