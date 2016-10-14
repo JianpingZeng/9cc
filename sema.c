@@ -1458,7 +1458,7 @@ static void integer_constant(struct token *t, struct symbol * sym)
 {
     int base = t->u.lit.base;
     int suffix = t->u.lit.suffix;
-    unsigned long long n = t->u.lit.v.u;
+    unsigned long n = t->u.lit.v.u;
     struct type *ty;
 
     // character constant

@@ -7,7 +7,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#define ONES(size)  (size)>=sizeof(unsigned long long) ? ~0ULL : ~((~0ULL)<<(CHAR_BIT*size))
+#define ONES(size)  (size)>=sizeof(unsigned long) ? ~0UL : ~((~0UL)<<(CHAR_BIT*size))
 
 #define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
 
@@ -15,7 +15,7 @@
 
 #define FLEX_ARRAY                /* flexible array */
 
-#define ALIGN_SIZE          (sizeof (long long))
+#define ALIGN_SIZE          (sizeof (long))
 #define ROUNDUP(x, align)   (((x)+((align)-1))&(~((align)-1)))
 
 #define MAX(x, y)    (((x) > (y)) ? (x) : (y))
@@ -39,8 +39,8 @@ extern unsigned int strhash(const char *s);
 extern unsigned int strhashn(const char *s, size_t len);
 extern char *strs(const char *str);
 extern char *strn(const char *src, size_t len);
-extern char *strd(long long n);
-extern char *stru(unsigned long long n);
+extern char *strd(long n);
+extern char *stru(unsigned long n);
 extern char *vformat(const char *fmt, va_list ap);
 extern char *format(const char *fmt, ...);
 extern char *xstrdup(const char *str);

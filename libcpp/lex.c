@@ -348,7 +348,7 @@ static void integer_constant(struct file *pfile, struct token *result)
     struct buffer *pb = pfile->buffer;
     const unsigned char *pc = pb->cur - 1;
     bool overflow = 0;
-    unsigned long long n = 0;
+    unsigned long n = 0;
     int base;
     int suffix;
     const char *s;
@@ -357,7 +357,7 @@ static void integer_constant(struct file *pfile, struct token *result)
         base = 16;
         pc += 2;
         for (; ISXDIGIT(*pc); pc++) {
-            if (n & ~(~0ULL >> 4)) {
+            if (n & ~(~0UL >> 4)) {
                 overflow = 1;
             } else {
                 int d;
@@ -376,7 +376,7 @@ static void integer_constant(struct file *pfile, struct token *result)
             if (*pc == '8' || *pc == '9')
                 err = 1;
 
-            if (n & ~(~0ULL >> 3))
+            if (n & ~(~0UL >> 3))
                 overflow = 1;
             else
                 n = (n << 3) + (*pc - '0');
@@ -388,7 +388,7 @@ static void integer_constant(struct file *pfile, struct token *result)
         base = 0;
         for (; ISDIGIT(*pc); pc++) {
             int d = *pc - '0';
-            if (n > (~0ULL - d) / 10)
+            if (n > (~0UL - d) / 10)
                 overflow = 1;
             else
                 n = n * 10 + d;
@@ -603,7 +603,7 @@ static void char_constant(struct file *pfile, struct token *result, bool wide)
 {
     struct buffer *pb = pfile->buffer;
     const unsigned char *pc = pb->cur - 1;
-    unsigned long long c = 0;
+    unsigned long c = 0;
     char ws[MB_LEN_MAX];
     int len = 0;
     bool overflow = 0;

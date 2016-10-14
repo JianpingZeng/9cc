@@ -77,13 +77,13 @@ char *strs(const char *str)
     return strn(str, s - str);
 }
 
-char *strd(long long n)
+char *strd(long n)
 {
     char str[32], *s = str + sizeof(str);
-    unsigned long long m;
+    unsigned long m;
 
-    if (n == LLONG_MIN)
-        m = (unsigned long long)LLONG_MAX + 1;
+    if (n == LONG_MIN)
+        m = (unsigned long)LONG_MAX + 1;
     else if (n < 0)
         m = -n;
     else
@@ -99,10 +99,10 @@ char *strd(long long n)
     return strn(s, str + sizeof(str) - s);
 }
 
-char *stru(unsigned long long n)
+char *stru(unsigned long n)
 {
     char str[32], *s = str + sizeof(str);
-    unsigned long long m = n;
+    unsigned long m = n;
 
     do {
         *--s = m % 10 + '0';
