@@ -11,6 +11,7 @@ enum { DESIG_NONE, DESIG_FIELD, DESIG_INDEX };
 // designator
 struct desig {
     int id;                     // designator id
+    int braces;                 // braces count
     struct source src;          // source location
     struct type *type;          // destination type
     long offset;                // destination offset (absolute)
@@ -308,10 +309,18 @@ static void parse_initializer(struct desig **pdesig)
     if (token->id == '{') {
         // begin a new root designator
         struct desig *desig = *pdesig;
-        struct desig *d = new_desig(DESIG_NONE);
-        d->type = desig->type;
-        d->offset = desig->offset;
-        d->all = desig;         // all link
+        struct desig *d;
+
+        if (desig->id == DESIG_NONE) {
+            d = desig;
+            d->braces++;
+        } else {
+            d = new_desig(DESIG_NONE);
+            d->type = desig->type;
+            d->offset = desig->offset;
+            d->all = desig;         // all link
+        }
+        
         parse_initializer_list(d);
     } else {
         element_init(pdesig, assign_expr());
