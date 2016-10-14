@@ -1797,9 +1797,17 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct lis
     }
 }
 
-static bool ensure_designator(struct desig *d, int id)
+static bool ensure_designator(struct desig *d)
 {
     if (isincomplete(d->type)) {
+        int id;
+        if (d->id == DESIG_FIELD)
+            id = STRUCT;
+        else if (d->id == DESIG_INDEX)
+            id = ARRAY;
+        else
+            id = TYPE_KIND(d->type);
+
         error_at(d->src,
                  "%s designator of incomplete type '%s'",
                  id2s(id), type2s(d->type));
@@ -1808,12 +1816,7 @@ static bool ensure_designator(struct desig *d, int id)
     return true;
 }
 
-static struct desig *check_designator(struct desig *d, int id)
-{
-    if (!ensure_designator(d, id))
-        return NULL;
-    return d;
-}
+#define check_designator(d)  ensure_designator(d) ? (d) : NULL
 
 static struct desig *next_designator1(struct desig *desig, bool initial)
 {
@@ -1836,7 +1839,7 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 struct desig *d = new_desig_field(field, source);
                 d->offset = prev->offset + field->offset;
                 d->prev = copy_desig(prev);
-                return check_designator(d, STRUCT);
+                return check_designator(d);
             } else {
                 return next_designator1(prev, false);
             }
@@ -1858,7 +1861,7 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 d->type = rty;
                 d->offset = desig->offset + TYPE_SIZE(rty);
                 d->prev = copy_desig(prev);
-                return check_designator(d, ARRAY);
+                return check_designator(d);
             } else {
                 return next_designator1(prev, false);
             }
@@ -1932,7 +1935,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
                 desig = d;
 
                 // check incomplete type
-                if (!ensure_designator(d, STRUCT))
+                if (!ensure_designator(d))
                     return NULL;
             }
             break;
@@ -1959,7 +1962,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
                 desig = d;
 
                 // check incomplete type
-                if (!ensure_designator(d, ARRAY))
+                if (!ensure_designator(d))
                     return NULL;
             }
             break;
