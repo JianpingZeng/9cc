@@ -325,130 +325,6 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
         params[0] = NULL;
 }
 
-/// init
-
-// TODO: 
-static void do_element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
-{
-    struct desig *desig = *pdesig;
-    if (!desig || !expr)
-        return;
-
-    dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
-
-    if (isstruct(desig->type)) {
-        if (eqtype(unqual(desig->type), unqual(expr->type))) {
-            // TODO: 
-        } else {
-            struct field *field = TYPE_FIELDS(desig->type)[0];
-            struct desig *d = new_desig_field(field, source);
-            d->offset = desig->offset + field->offset;
-            d->prev = desig;
-            *pdesig = d;
-            do_element_init(&d, expr, plist);
-        }
-    } else if (isunion(desig->type)) {
-        
-    } else if (isarray(desig->type)) {
-        
-    } else {
-        // scalar type
-        if (desig->braces)
-            warning_at(desig->src, "too many braces around scalar initializer");
-    }
-}
-
-static struct desig *do_designator(struct desig *desig, struct desig **ds)
-{
-    assert(desig && ds);
-
-    desig = copy_desig(desig);
-
-    for (int i = 0; ds[i]; i++) {
-        struct desig *d = ds[i];
-        switch (d->id) {
-        case DESIG_FIELD:
-            {
-                const char *name = d->u.name;
-                assert(name);
-                if (!isrecord(desig->type)) {
-                    error_at(d->src,
-                             "%s designator cannot initialize non-%s type '%s'",
-                             id2s(STRUCT), id2s(STRUCT), type2s(desig->type));
-                    return NULL;
-                }
-                struct field *field = find_field(desig->type, name);
-                if (!field) {
-                    field_not_found_error(d->src, desig->type, name);
-                    return NULL;
-                }
-                d->offset = desig->offset + field->offset;
-                d->type = field->type;
-                d->u.field = field;
-                d->prev = desig;
-                desig = d;
-            }
-            break;
-
-        case DESIG_INDEX:
-            {
-                if (!isarray(desig->type)) {
-                    error_at(d->src,
-                             "%s designator cannot initialize non-%s type '%s'",
-                             id2s(ARRAY), id2s(ARRAY), type2s(desig->type));
-                    return NULL;
-                }
-                size_t len = TYPE_LEN(desig->type);
-                if (len && d->u.index >= len) {
-                    error_at(d->src,
-                             "array designator index [%ld] exceeds array bounds (%lu)",
-                             d->u.index, len);
-                    return NULL;
-                }
-                struct type *rty = rtype(desig->type);
-                d->offset = desig->offset + d->u.index * TYPE_SIZE(rty);
-                d->type = rty;
-                d->prev = desig;
-                desig = d;
-            }
-            break;
-
-        default:
-            assert(0 && "unexpected designator id");
-        }
-    }
-    
-    return desig;
-}
-
-static struct expr * do_initializer_list(struct type *ty, struct init **inits)
-{
-    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
-    // TODO: incomplete array type
-    // TODO: sort inits
-    // TODO: merge bitfields
-    return ret;
-}
-
-void init_string(struct type *ty, struct expr *node)
-{
-    int len1 = TYPE_LEN(ty);
-    int len2 = TYPE_LEN(node->type);
-    if (len1 > 0) {
-        if (len1 < len2 - 1)
-            warning("initializer-string for char array is too long");
-    } else if (isincomplete(ty)) {
-        TYPE_LEN(ty) = len2;
-        set_typesize(ty);
-    }
-}
-
-struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src)
-{    
-    // TODO:
-    return init;
-}
-
 /// expr
 
 /**
@@ -1878,6 +1754,130 @@ struct expr *assign(struct symbol *sym, struct expr *r)
 {
     struct expr *l = mkref(sym, sym->src);
     return do_assign('=', l, r, sym->src);
+}
+
+/// init
+
+// TODO: 
+static void do_element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
+{
+    struct desig *desig = *pdesig;
+    if (!desig || !expr)
+        return;
+
+    dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
+
+    if (isstruct(desig->type)) {
+        if (eqtype(unqual(desig->type), unqual(expr->type))) {
+            // TODO: 
+        } else {
+            struct field *field = TYPE_FIELDS(desig->type)[0];
+            struct desig *d = new_desig_field(field, source);
+            d->offset = desig->offset + field->offset;
+            d->prev = desig;
+            *pdesig = d;
+            do_element_init(&d, expr, plist);
+        }
+    } else if (isunion(desig->type)) {
+        
+    } else if (isarray(desig->type)) {
+        
+    } else {
+        // scalar type
+        if (desig->braces)
+            warning_at(desig->src, "too many braces around scalar initializer");
+    }
+}
+
+static struct desig *do_designator(struct desig *desig, struct desig **ds)
+{
+    assert(desig && ds);
+
+    desig = copy_desig(desig);
+
+    for (int i = 0; ds[i]; i++) {
+        struct desig *d = ds[i];
+        switch (d->id) {
+        case DESIG_FIELD:
+            {
+                const char *name = d->u.name;
+                assert(name);
+                if (!isrecord(desig->type)) {
+                    error_at(d->src,
+                             "%s designator cannot initialize non-%s type '%s'",
+                             id2s(STRUCT), id2s(STRUCT), type2s(desig->type));
+                    return NULL;
+                }
+                struct field *field = find_field(desig->type, name);
+                if (!field) {
+                    field_not_found_error(d->src, desig->type, name);
+                    return NULL;
+                }
+                d->offset = desig->offset + field->offset;
+                d->type = field->type;
+                d->u.field = field;
+                d->prev = desig;
+                desig = d;
+            }
+            break;
+
+        case DESIG_INDEX:
+            {
+                if (!isarray(desig->type)) {
+                    error_at(d->src,
+                             "%s designator cannot initialize non-%s type '%s'",
+                             id2s(ARRAY), id2s(ARRAY), type2s(desig->type));
+                    return NULL;
+                }
+                size_t len = TYPE_LEN(desig->type);
+                if (len && d->u.index >= len) {
+                    error_at(d->src,
+                             "array designator index [%ld] exceeds array bounds (%lu)",
+                             d->u.index, len);
+                    return NULL;
+                }
+                struct type *rty = rtype(desig->type);
+                d->offset = desig->offset + d->u.index * TYPE_SIZE(rty);
+                d->type = rty;
+                d->prev = desig;
+                desig = d;
+            }
+            break;
+
+        default:
+            assert(0 && "unexpected designator id");
+        }
+    }
+    
+    return desig;
+}
+
+static struct expr * do_initializer_list(struct type *ty, struct init **inits)
+{
+    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
+    // TODO: incomplete array type
+    // TODO: sort inits
+    // TODO: merge bitfields
+    return ret;
+}
+
+void init_string(struct type *ty, struct expr *node)
+{
+    int len1 = TYPE_LEN(ty);
+    int len2 = TYPE_LEN(node->type);
+    if (len1 > 0) {
+        if (len1 < len2 - 1)
+            warning("initializer-string for char array is too long");
+    } else if (isincomplete(ty)) {
+        TYPE_LEN(ty) = len2;
+        set_typesize(ty);
+    }
+}
+
+struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src)
+{    
+    // TODO:
+    return init;
 }
 
 /// stmt
