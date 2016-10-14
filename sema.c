@@ -1759,33 +1759,41 @@ struct expr *assign(struct symbol *sym, struct expr *r)
 /// init
 
 // TODO: 
+static void simple_init(struct desig *desig, struct expr *expr, struct list **plist)
+{
+    dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
+}
+
+// TODO: 
 static void do_element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
 {
     struct desig *desig = *pdesig;
     if (!desig || !expr)
         return;
 
-    dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
-
-    if (isstruct(desig->type)) {
+    if (isstruct(desig->type) || isunion(desig->type)) {
         if (eqtype(unqual(desig->type), unqual(expr->type))) {
-            // TODO: 
+            simple_init(desig, expr, plist);
         } else {
             struct field *field = TYPE_FIELDS(desig->type)[0];
             struct desig *d = new_desig_field(field, source);
             d->offset = desig->offset + field->offset;
             d->prev = desig;
             *pdesig = d;
-            do_element_init(&d, expr, plist);
+            do_element_init(pdesig, expr, plist);
         }
-    } else if (isunion(desig->type)) {
-        
     } else if (isarray(desig->type)) {
-        
+        if (isstring(desig->type) && issliteral(expr)) {
+            // string
+        } else {
+            
+        }
     } else {
         // scalar type
         if (desig->braces)
             warning_at(desig->src, "too many braces around scalar initializer");
+
+        simple_init(desig, expr, plist);
     }
 }
 
@@ -1798,6 +1806,13 @@ static bool ensure_designator(struct desig *d, int id)
         return false;
     }
     return true;
+}
+
+static struct desig *check_designator(struct desig *d, int id)
+{
+    if (!ensure_designator(d, id))
+        return NULL;
+    return d;
 }
 
 static struct desig *next_designator1(struct desig *desig, bool initial)
@@ -1821,7 +1836,7 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 struct desig *d = new_desig_field(field, source);
                 d->offset = prev->offset + field->offset;
                 d->prev = copy_desig(prev);
-                return d;
+                return check_designator(d, STRUCT);
             } else {
                 return next_designator1(prev, false);
             }
@@ -1843,7 +1858,7 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 d->type = rty;
                 d->offset = desig->offset + TYPE_SIZE(rty);
                 d->prev = copy_desig(prev);
-                return d;
+                return check_designator(d, ARRAY);
             } else {
                 return next_designator1(prev, false);
             }
