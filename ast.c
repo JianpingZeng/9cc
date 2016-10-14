@@ -38,3 +38,50 @@ int genlabel(int count)
     lab += count;
     return lab - count;
 }
+
+struct desig *new_desig(int id)
+{
+    struct desig *d = NEWS0(struct desig, FUNC);
+    d->id = id;
+    return d;
+}
+
+struct desig *new_desig_name(const char *name, struct source src)
+{
+    struct desig *d = new_desig(DESIG_FIELD);
+    d->u.name = name;
+    d->src = src;
+    return d;
+}
+
+struct desig *new_desig_index(long index, struct source src)
+{
+    struct desig *d = new_desig(DESIG_INDEX);
+    d->u.index = index;
+    d->src = src;
+    return d;
+}
+
+struct desig *new_desig_field(struct field *field, struct source src)
+{
+    struct desig *d = new_desig(DESIG_FIELD);
+    d->u.field = field;
+    d->type = field->type;
+    d->src = src;
+    return d;
+}
+
+// copy designator list
+struct desig *copy_desig(struct desig *desig)
+{
+    struct desig *ret = NULL;
+    struct desig **pp = &ret;
+    
+    for (struct desig *s = desig; s; s = s->prev) {
+        *pp = NEWS(struct desig, FUNC);
+        *(*pp) = *s;
+        pp = &(*pp)->prev;
+    }
+
+    return ret;
+}

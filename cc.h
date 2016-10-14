@@ -156,6 +156,25 @@ struct expr {
     } u;
 };
 
+// designator id
+enum { DESIG_NONE, DESIG_FIELD, DESIG_INDEX };
+
+// designator
+struct desig {
+    int id;                     // designator id
+    int braces;                 // braces count
+    struct source src;          // source location
+    struct type *type;          // destination type
+    long offset;                // destination offset (absolute)
+    union {
+        struct field *field;    // struct/union field
+        long index;             // array index
+        const char *name;       // designator identifier
+    } u;
+    struct desig *prev;
+    struct desig *all;
+};
+
 // initializer
 struct init {
     size_t offset;
@@ -299,7 +318,9 @@ struct actions {
     void (*gen) (struct expr *expr);
 
     // init
-    struct expr * (*initlist) (struct type *ty, struct init **inits);
+    void (*element_init) (struct desig **pdesig, struct expr *expr, struct list **plist);
+    struct desig * (*designator) (struct desig *desig, struct desig **ds);
+    struct expr * (*initializer_list) (struct type *ty, struct init **inits);
 };
 
 // metrics
@@ -359,6 +380,11 @@ extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
 extern const char *gen_compound_label(void);
 extern int genlabel(int count);
+extern struct desig *new_desig(int id);
+extern struct desig *new_desig_name(const char *name, struct source src);
+extern struct desig *new_desig_index(long index, struct source src);
+extern struct desig *new_desig_field(struct field *field, struct source src);
+extern struct desig *copy_desig(struct desig *desig);
 
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
 #define isvardecl(n)   ((n)->sclass != TYPEDEF && !isfunc((n)->type))
@@ -515,6 +541,7 @@ extern void fatal_at(struct source src, const char *fmt, ...);
 extern void ast_dump_symbol(struct symbol *);
 extern void ast_dump_type(struct symbol *);
 extern const char *type2s(struct type *ty);
+extern const char *desig2s(struct desig *desig);
 
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define REDEFINITION_ERROR  "redefinition of '%s', previous definition at %s:%u:%u"

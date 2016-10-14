@@ -419,3 +419,39 @@ const char *type2s(struct type * ty)
     return strbuf_str(strbuf_strip(buf));
 }
 // TODO: print typedef names
+
+// for debug
+const char *desig2s(struct desig *desig)
+{
+    const char *s = "";
+    
+    assert(desig);
+
+    for (struct desig *d = desig; d;) {
+        switch (d->id) {
+        case DESIG_NONE:
+            assert(d->prev == NULL);
+            if (d->all) {
+                d = d->all;
+                continue;
+            } else {
+                s = format("<%s>%s", type2s(d->type), s);
+            }
+            break;
+
+        case DESIG_FIELD:
+            s = format(".%s%s", d->u.field->name, s);
+            break;
+
+        case DESIG_INDEX:
+            s = format("[%ld]%s", d->u.index, s);
+            break;
+
+        default:
+            assert(0 && "unknown designator type");
+        }
+        d = d->prev;
+    }
+    
+    return s;
+}

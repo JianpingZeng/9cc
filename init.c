@@ -5,204 +5,7 @@
 /// Initialization        C99 [6.7.8]
 ///
 
-// designator id
-enum { DESIG_NONE, DESIG_FIELD, DESIG_INDEX };
-
-// designator
-struct desig {
-    int id;                     // designator id
-    int braces;                 // braces count
-    struct source src;          // source location
-    struct type *type;          // destination type
-    long offset;                // destination offset (absolute)
-    union {
-        struct field *field;    // struct/union field
-        long index;             // array index
-        const char *name;       // designator identifier
-    } u;
-    struct desig *prev;
-    struct desig *all;
-};
-
 static void parse_initializer_list(struct desig *, struct list **);
-
-// for debug
-static const char *desig2s(struct desig *desig)
-{
-    const char *s = "";
-    
-    assert(desig);
-
-    for (struct desig *d = desig; d;) {
-        switch (d->id) {
-        case DESIG_NONE:
-            assert(d->prev == NULL);
-            if (d->all) {
-                d = d->all;
-                continue;
-            } else {
-                s = format("<%s>%s", type2s(d->type), s);
-            }
-            break;
-
-        case DESIG_FIELD:
-            s = format(".%s%s", d->u.field->name, s);
-            break;
-
-        case DESIG_INDEX:
-            s = format("[%ld]%s", d->u.index, s);
-            break;
-
-        default:
-            assert(0 && "unknown designator type");
-        }
-        d = d->prev;
-    }
-    
-    return s;
-}
-
-static struct desig *new_desig(int id)
-{
-    struct desig *d = NEWS0(struct desig, FUNC);
-    d->id = id;
-    return d;
-}
-
-static struct desig *new_desig_name(const char *name, struct source src)
-{
-    struct desig *d = new_desig(DESIG_FIELD);
-    d->u.name = name;
-    d->src = src;
-    return d;
-}
-
-static struct desig *new_desig_index(long index, struct source src)
-{
-    struct desig *d = new_desig(DESIG_INDEX);
-    d->u.index = index;
-    d->src = src;
-    return d;
-}
-
-static struct desig *new_desig_field(struct field *field, struct source src)
-{
-    struct desig *d = new_desig(DESIG_FIELD);
-    d->u.field = field;
-    d->type = field->type;
-    d->src = src;
-    return d;
-}
-
-// copy designator list
-static struct desig *copy_desig(struct desig *desig)
-{
-    struct desig *ret = NULL;
-    struct desig **pp = &ret;
-    
-    for (struct desig *s = desig; s; s = s->prev) {
-        *pp = NEWS(struct desig, FUNC);
-        *(*pp) = *s;
-        pp = &(*pp)->prev;
-    }
-
-    return ret;
-}
-
-// TODO: 
-static void element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
-{
-    struct desig *desig = *pdesig;
-    if (!desig || !expr)
-        return;
-
-    dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
-
-    if (isstruct(desig->type)) {
-        if (eqtype(unqual(desig->type), unqual(expr->type))) {
-            // TODO: 
-        } else {
-            struct field *field = TYPE_FIELDS(desig->type)[0];
-            struct desig *d = new_desig_field(field, source);
-            d->offset = desig->offset + field->offset;
-            d->prev = desig;
-            *pdesig = d;
-            element_init(&d, expr, plist);
-        }
-    } else if (isunion(desig->type)) {
-        
-    } else if (isarray(desig->type)) {
-        
-    } else {
-        // scalar type
-        if (desig->braces)
-            warning_at(desig->src, "too many braces around scalar initializer");
-    }
-}
-
-static struct desig *sema_designator(struct desig *desig, struct desig **ds)
-{
-    assert(desig && ds);
-
-    desig = copy_desig(desig);
-
-    for (int i = 0; ds[i]; i++) {
-        struct desig *d = ds[i];
-        switch (d->id) {
-        case DESIG_FIELD:
-            {
-                const char *name = d->u.name;
-                if (!name)
-                    return NULL;
-                if (!isrecord(desig->type)) {
-                    error_at(d->src,
-                             "%s designator cannot initialize non-%s type '%s'",
-                             id2s(STRUCT), id2s(STRUCT), type2s(desig->type));
-                    return NULL;
-                }
-                struct field *field = find_field(desig->type, name);
-                if (!field) {
-                    field_not_found_error(d->src, desig->type, name);
-                    return NULL;
-                }
-                d->offset = desig->offset + field->offset;
-                d->type = field->type;
-                d->u.field = field;
-                d->prev = desig;
-                desig = d;
-            }
-            break;
-
-        case DESIG_INDEX:
-            {
-                if (!isarray(desig->type)) {
-                    error_at(d->src,
-                             "%s designator cannot initialize non-%s type '%s'",
-                             id2s(ARRAY), id2s(ARRAY), type2s(desig->type));
-                    return NULL;
-                }
-                size_t len = TYPE_LEN(desig->type);
-                if (len && d->u.index >= len) {
-                    error_at(d->src,
-                             "array designator index [%ld] exceeds array bounds (%lu)",
-                             d->u.index, len);
-                    return NULL;
-                }
-                struct type *rty = rtype(desig->type);
-                d->offset = desig->offset + d->u.index * TYPE_SIZE(rty);
-                d->type = rty;
-                d->prev = desig;
-                desig = d;
-            }
-            break;
-
-        default:
-            assert(0 && "unexpected designator id");
-        }
-    }
-    
-    return desig;
-}
 
 static struct desig *next_designator1(struct desig *desig, bool initial)
 {
@@ -322,7 +125,7 @@ static struct desig *parse_designator(struct desig *desig)
 
     expect('=');
 
-    return desig ? sema_designator(desig, ltoa(&list, FUNC)) : NULL;
+    return desig ? actions.designator(desig, ltoa(&list, FUNC)) : NULL;
 }
 
 static void parse_initializer(struct desig **pdesig, struct list **plist)
@@ -345,7 +148,7 @@ static void parse_initializer(struct desig **pdesig, struct list **plist)
         
         parse_initializer_list(d, plist);
     } else {
-        element_init(pdesig, assign_expr(), plist);
+        actions.element_init(pdesig, assign_expr(), plist);
     }
 }
 
@@ -411,7 +214,7 @@ struct expr *initializer_list(struct type * ty)
 
         parse_initializer_list(&desig, &list);        
 
-        return actions.initlist(ty, ltoa(&list, FUNC));
+        return actions.initializer_list(ty, ltoa(&list, FUNC));
     } else {
         parse_initializer_list(NULL, NULL);
         return NULL;
