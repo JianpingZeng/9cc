@@ -297,6 +297,9 @@ struct actions {
     void (*ret) (struct expr *expr);
     void (*label) (int label);
     void (*gen) (struct expr *expr);
+
+    // init
+    struct expr * (*initlist) (struct type *ty, struct init **inits);
 };
 
 // metrics

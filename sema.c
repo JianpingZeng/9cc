@@ -346,6 +346,15 @@ struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym,
     return init;
 }
 
+struct expr * initlist(struct type *ty, struct init **inits)
+{
+    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
+    // TODO: incomplete array type
+    // TODO: sort inits
+    // TODO: merge bitfields
+    return ret;
+}
+
 /// expr
 
 /**
@@ -1995,4 +2004,7 @@ struct actions actions = {
     .ret = ret,
     .label = label,
     .gen = gen,
+
+    // init
+    .initlist = initlist,
 };

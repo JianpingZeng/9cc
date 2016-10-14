@@ -24,7 +24,7 @@ struct desig {
     struct desig *all;
 };
 
-static void parse_initializer_list(struct desig *);
+static void parse_initializer_list(struct desig *, struct list **);
 
 // for debug
 static const char *desig2s(struct desig *desig)
@@ -110,7 +110,7 @@ static struct desig *copy_desig(struct desig *desig)
 }
 
 // TODO: 
-static void element_init(struct desig **pdesig, struct expr *expr)
+static void element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
 {
     struct desig *desig = *pdesig;
     if (!desig || !expr)
@@ -127,7 +127,7 @@ static void element_init(struct desig **pdesig, struct expr *expr)
             d->offset = desig->offset + field->offset;
             d->prev = desig;
             *pdesig = d;
-            element_init(&d, expr);
+            element_init(&d, expr, plist);
         }
     } else if (isunion(desig->type)) {
         
@@ -325,7 +325,7 @@ static struct desig *parse_designator(struct desig *desig)
     return desig ? sema_designator(desig, ltoa(&list, FUNC)) : NULL;
 }
 
-static void parse_initializer(struct desig **pdesig)
+static void parse_initializer(struct desig **pdesig, struct list **plist)
 {
     if (token->id == '{') {
         // begin a new root designator
@@ -343,13 +343,13 @@ static void parse_initializer(struct desig **pdesig)
             d->all = desig;         // all link
         }
         
-        parse_initializer_list(d);
+        parse_initializer_list(d, plist);
     } else {
-        element_init(pdesig, assign_expr());
+        element_init(pdesig, assign_expr(), plist);
     }
 }
 
-static void parse_initializer_list(struct desig *desig)
+static void parse_initializer_list(struct desig *desig, struct list **plist)
 {
     struct desig *d = desig;
     
@@ -361,7 +361,7 @@ static void parse_initializer_list(struct desig *desig)
         else
             d = next_designator(d);
 
-        parse_initializer(&d);
+        parse_initializer(&d, plist);
 
         if (token->id != ',')
             break;
@@ -406,15 +406,14 @@ struct expr *initializer(struct type * ty)
 struct expr *initializer_list(struct type * ty)
 {
     if (ty) {
-        struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
         struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0, .src = source};
-        parse_initializer_list(&desig);
-        // TODO: incomplete array type
-        // TODO: sort inits
-        // TODO: merge bitfields
-        return ret;
+        struct list *list = NULL;
+
+        parse_initializer_list(&desig, &list);        
+
+        return actions.initlist(ty, ltoa(&list, FUNC));
     } else {
-        parse_initializer_list(NULL);
+        parse_initializer_list(NULL, NULL);
         return NULL;
     }
 }
