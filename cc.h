@@ -520,6 +520,8 @@ extern const char *type2s(struct type *ty);
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
 
+#define CC_UNAVAILABLE  assert(0 && "unavailable code");
+
 
 ///
 /// external variables

@@ -255,12 +255,9 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
             return desig;
         }
         break;
-
-    default:
-        assert(0 && "unknown designator id");
     }
     
-    return NULL;
+    CC_UNAVAILABLE
 }
 
 static struct desig *next_designator(struct desig *desig)
