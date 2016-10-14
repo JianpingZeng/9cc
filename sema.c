@@ -57,9 +57,8 @@ int first_typename(struct token * t)
 static void skip_balance(int l, int r, const char *name)
 {
     int nests = 0;
-    struct source src = source;
 
-    for (;;) {
+    while (1) {
         if (token->id == EOI)
             break;
         if (token->id == r) {
@@ -71,12 +70,10 @@ static void skip_balance(int l, int r, const char *name)
         gettok();
     }
 
-    if (token->id == r) {
+    if (token->id == r)
         gettok();
-        error_at(src, "expect '%s'", id2s(r));
-    } else {
+    else
         error("unclosed %s, missing '%s'", name, id2s(r));
-    }
 }
 
 void skip_to_brace(void)
@@ -94,20 +91,30 @@ void skip_to_squarebracket(void)
     skip_balance('[', ']', "square bracket");
 }
 
-void skip_to_decl(void)
-{
-    struct source src = source;
-    int i;
-    
-    for (i = 0; ; i++) {
+void skip_syntax(int (*first) (struct token *))
+{    
+    while (1) {
         if (token->id == EOI)
             break;
-        if (first_decl(token))
+        if (first(token))
             break;
         gettok();
     }
+}
 
-    error_at(src, "expect decalaration, %d tokens skipped", i);
+void skip_to_decl(void)
+{
+    skip_syntax(first_decl);
+}
+
+void skip_to_stmt(void)
+{
+    skip_syntax(first_stmt);
+}
+
+void skip_to_expr(void)
+{
+    skip_syntax(first_expr);
 }
 
 /// decl

@@ -1253,8 +1253,10 @@ void expect(int t)
 
 void match(int t, void (*otherwise) (void))
 {
-    if (token->id == t)
+    if (token->id == t) {
         gettok();
-    else
+    } else {
+        cpp_error("expect token '%s'", id2s(t));
         otherwise();
+    }
 }

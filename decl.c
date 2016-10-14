@@ -1111,11 +1111,13 @@ void translation_unit(void)
             decls(globaldecl);
             deallocate(FUNC);
         } else {
-            if (token->id == ';')
+            if (token->id == ';') {
                 // empty declaration
                 gettok();
-            else
+            } else {
+                error("expect declaration");
                 skip_to_decl();
+            }
         }
     }
     

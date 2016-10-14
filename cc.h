@@ -436,6 +436,8 @@ extern void skip_to_brace(void);
 extern void skip_to_bracket(void);
 extern void skip_to_squarebracket(void);
 extern void skip_to_decl(void);
+extern void skip_to_stmt(void);
+extern void skip_to_expr(void);
 
 extern void ensure_inline(struct type *ty, int fspec, struct source src);
 extern void ensure_field(struct field *field, size_t total, bool last);
