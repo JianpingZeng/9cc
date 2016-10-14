@@ -280,6 +280,8 @@ struct actions {
     void (*dclfun) (struct symbol *);  // declare a function
     void (*defun) (struct symbol *);   // define a function
     void (*deftype) (struct symbol *); // declare/define a type: struct/union/enum/typedef
+
+    void (*func_body) (struct symbol *sym);
     
     // expr
     struct expr * (*commaop) (struct expr *l, struct expr *r, struct source src);
@@ -409,10 +411,6 @@ extern struct expr *switch_expr(void);
 extern void declaration(void);
 extern void translation_unit(void);
 extern struct type *typename(void);
-extern int first_decl(struct token *t);
-extern int first_stmt(struct token *t);
-extern int first_expr(struct token *t);
-extern int first_typename(struct token *t);
 extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 
 // init.c
@@ -428,6 +426,11 @@ extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swt
                                  (sym)->scope == GLOBAL)
 
 extern void field_not_found_error(struct source src, struct type *ty, const char *name);
+
+extern int first_decl(struct token *t);
+extern int first_stmt(struct token *t);
+extern int first_expr(struct token *t);
+extern int first_typename(struct token *t);
 
 extern void skip_to_brace(void);
 extern void skip_to_bracket(void);

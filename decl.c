@@ -15,30 +15,6 @@ static void decls(decl_p * dcl);
 static void typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src);
 static void funcdef(const char *id, struct type *ftype, int sclass, int fspec, struct symbol *params[], struct source src);
 
-static void func_body(struct symbol *sym);
-struct func func;
-
-int first_decl(struct token *t)
-{
-    return t->kind == STATIC || first_typename(t);
-}
-
-int first_stmt(struct token *t)
-{
-    return t->kind == IF || first_expr(t);
-}
-
-int first_expr(struct token *t)
-{
-    return t->kind == ID;
-}
-
-int first_typename(struct token * t)
-{
-    return t->kind == INT || t->kind == CONST ||
-        (t->id == ID && istypedef(TOK_ID_STR(t)));
-}
-
 /// declaration-specifier:
 ///   storage-class-specifier declaration-specifiers[opt]
 ///   type-specifier          declaration-specifiers[opt]
@@ -1534,56 +1510,8 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
 
     if (token->id == '{') {
         // function definition
-        func_body(sym);
+        actions.func_body(sym);
         exit_scope();
         actions.defun(sym);
     }
-}
-
-static void predefined_ids(void)
-{
-    /**
-     * Predefined identifier: __func__
-     * The identifier __func__ is implicitly declared by C99
-     * implementations as if the following declaration appeared
-     * after the opening brace of each function definition:
-     *
-     * static const char __func__[] = "function-name";
-     *
-     */
-    struct type *type = array_type(qual(CONST, chartype));
-    // initializer
-    struct expr *literal = cnsts(func.name);
-    init_string(type, literal);
-    
-    struct symbol *sym = mklocal("__func__", type, STATIC);
-    sym->predefine = true;
-    sym->u.init = literal;
-}
-
-static void func_body(struct symbol *sym)
-{
-    struct stmt *stmt = NULL;
-
-    func.gotos = NULL;
-    func.labels = new_table(NULL, LOCAL);
-    func.type = sym->type;
-    func.name = sym->name;
-    func.calls = NULL;
-    func.stmt = &stmt;
-
-    // compound statement
-    compound_stmt(predefined_ids, 0, 0, NULL);
-    // check goto labels
-    ensure_gotos();
-
-    // save
-    sym->u.f.calls = ltoa(&func.calls, FUNC);
-    sym->u.f.stmt = stmt;
-
-    free_table(func.labels);
-    func.labels = NULL;
-    func.type = NULL;
-    func.name = NULL;
-    func.stmt = NULL;
 }

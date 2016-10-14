@@ -19,6 +19,8 @@ struct goto_info {
     struct source src;
 };
 
+struct func func;
+
 /// error
 
 void field_not_found_error(struct source src, struct type *ty, const char *name)
@@ -30,6 +32,27 @@ void field_not_found_error(struct source src, struct type *ty, const char *name)
 }
 
 /// lex
+
+int first_decl(struct token *t)
+{
+    return t->kind == STATIC || first_typename(t);
+}
+
+int first_stmt(struct token *t)
+{
+    return t->kind == IF || first_expr(t);
+}
+
+int first_expr(struct token *t)
+{
+    return t->kind == ID;
+}
+
+int first_typename(struct token * t)
+{
+    return t->kind == INT || t->kind == CONST ||
+        (t->id == ID && istypedef(TOK_ID_STR(t)));
+}
 
 static void skip_balance(int l, int r, const char *name)
 {
@@ -323,6 +346,54 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
     // make it empty
     if (length(params) == 1 && isvoid(params[0]->type))
         params[0] = NULL;
+}
+
+static void predefined_ids(void)
+{
+    /**
+     * Predefined identifier: __func__
+     * The identifier __func__ is implicitly declared by C99
+     * implementations as if the following declaration appeared
+     * after the opening brace of each function definition:
+     *
+     * static const char __func__[] = "function-name";
+     *
+     */
+    struct type *type = array_type(qual(CONST, chartype));
+    // initializer
+    struct expr *literal = cnsts(func.name);
+    init_string(type, literal);
+    
+    struct symbol *sym = mklocal("__func__", type, STATIC);
+    sym->predefine = true;
+    sym->u.init = literal;
+}
+
+static void do_func_body(struct symbol *sym)
+{
+    struct stmt *stmt = NULL;
+
+    func.gotos = NULL;
+    func.labels = new_table(NULL, LOCAL);
+    func.type = sym->type;
+    func.name = sym->name;
+    func.calls = NULL;
+    func.stmt = &stmt;
+
+    // compound statement
+    compound_stmt(predefined_ids, 0, 0, NULL);
+    // check goto labels
+    ensure_gotos();
+
+    // save
+    sym->u.f.calls = ltoa(&func.calls, FUNC);
+    sym->u.f.stmt = stmt;
+
+    free_table(func.labels);
+    func.labels = NULL;
+    func.type = NULL;
+    func.name = NULL;
+    func.stmt = NULL;
 }
 
 /// expr
@@ -2197,6 +2268,8 @@ struct actions actions = {
     .dclfun = dclfun,
     .defun = defun,
     .deftype = deftype,
+
+    .func_body = do_func_body,
 
     // expr
     .commaop = do_comma,
