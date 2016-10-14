@@ -118,7 +118,7 @@ static void element_init(struct desig **pdesig, struct expr *expr)
     dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
 }
 
-static struct desig *sema_desig(struct desig *desig, struct desig **ds)
+static struct desig *sema_designator(struct desig *desig, struct desig **ds)
 {
     assert(desig && ds);
 
@@ -300,7 +300,7 @@ static struct desig *parse_designator(struct desig *desig)
 
     expect('=');
 
-    return desig ? sema_desig(desig, ltoa(&list, FUNC)) : NULL;
+    return desig ? sema_designator(desig, ltoa(&list, FUNC)) : NULL;
 }
 
 static void parse_initializer(struct desig **pdesig)
