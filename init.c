@@ -117,6 +117,27 @@ static void element_init(struct desig **pdesig, struct expr *expr)
         return;
 
     dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
+
+    if (isstruct(desig->type)) {
+        if (eqtype(unqual(desig->type), unqual(expr->type))) {
+            // TODO: 
+        } else {
+            struct field *field = TYPE_FIELDS(desig->type)[0];
+            struct desig *d = new_desig_field(field, source);
+            d->offset = desig->offset + field->offset;
+            d->prev = desig;
+            *pdesig = d;
+            element_init(&d, expr);
+        }
+    } else if (isunion(desig->type)) {
+        
+    } else if (isarray(desig->type)) {
+        
+    } else {
+        // scalar type
+        if (desig->braces)
+            warning_at(desig->src, "too many braces around scalar initializer");
+    }
 }
 
 static struct desig *sema_designator(struct desig *desig, struct desig **ds)
@@ -318,6 +339,7 @@ static void parse_initializer(struct desig **pdesig)
             d = new_desig(DESIG_NONE);
             d->type = desig->type;
             d->offset = desig->offset;
+            d->src = desig->src;
             d->all = desig;         // all link
         }
         
@@ -385,7 +407,7 @@ struct expr *initializer_list(struct type * ty)
 {
     if (ty) {
         struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
-        struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0};
+        struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0, .src = source};
         parse_initializer_list(&desig);
         // TODO: incomplete array type
         // TODO: sort inits
