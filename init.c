@@ -26,9 +26,9 @@ struct desig {
 static void parse_initializer_list(struct desig *);
 
 // for debug
-static const char *desig2s1(struct desig *desig, const char *prefix)
+static const char *desig2s(struct desig *desig)
 {
-    const char *s = prefix;
+    const char *s = "";
     
     assert(desig);
 
@@ -59,11 +59,6 @@ static const char *desig2s1(struct desig *desig, const char *prefix)
     }
     
     return s;
-}
-
-static const char *desig2s(struct desig *desig)
-{
-    return desig2s1(desig, "");
 }
 
 static struct desig *new_desig(int id)
