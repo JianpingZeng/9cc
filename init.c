@@ -134,8 +134,8 @@ static struct desig *sema_designator(struct desig *desig, struct desig **ds)
                     return NULL;
                 if (!isrecord(desig->type)) {
                     error_at(d->src,
-                             "expect struct or union type, not '%s'",
-                             type2s(desig->type));
+                             "%s designator cannot initialize non-%s type '%s'",
+                             id2s(STRUCT), id2s(STRUCT), type2s(desig->type));
                     return NULL;
                 }
                 struct field *field = find_field(desig->type, name);
@@ -155,8 +155,8 @@ static struct desig *sema_designator(struct desig *desig, struct desig **ds)
             {
                 if (!isarray(desig->type)) {
                     error_at(d->src,
-                             "expect array type, not '%s'",
-                             type2s(desig->type));
+                             "%s designator cannot initialize non-%s type '%s'",
+                             id2s(ARRAY), id2s(ARRAY), type2s(desig->type));
                     return NULL;
                 }
                 size_t len = TYPE_LEN(desig->type);
