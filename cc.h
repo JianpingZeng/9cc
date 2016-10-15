@@ -281,6 +281,12 @@ struct actions {
     void (*defun) (struct symbol *);   // define a function
     void (*deftype) (struct symbol *); // declare/define a type: struct/union/enum/typedef
 
+    struct symbol * (*globaldecl) (const char *, struct type *, int, int, struct source);
+    struct symbol * (*localdecl) (const char *, struct type *, int, int, struct source);
+    struct symbol * (*paramdecl) (const char *, struct type *, int, int, struct source);
+    void (*typedefdecl) (const char *, struct type *, int, int, struct source);
+    void (*funcdef) (const char *, struct type *, int, int, struct symbol *[], struct source);
+
     void (*func_body) (struct symbol *sym);
     
     // expr
@@ -408,10 +414,9 @@ extern struct expr *bool_expr(void);
 extern struct expr *switch_expr(void);
 
 // decl.c
-extern void declaration(void);
+extern void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct source));
 extern void translation_unit(void);
 extern struct type *typename(void);
-extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 
 // init.c
 extern struct expr *initializer(struct type *ty);
@@ -439,17 +444,10 @@ extern void skip_to_decl(void);
 extern void skip_to_stmt(void);
 extern void skip_to_expr(void);
 
-extern void ensure_inline(struct type *ty, int fspec, struct source src);
 extern void ensure_field(struct field *field, size_t total, bool last);
-extern void ensure_decl(struct symbol *sym);
-extern void ensure_array(struct type *atype, struct source src, int level);
-extern void ensure_func(struct type *ftype, struct source src);
-extern void ensure_main(struct type *ftype, const char *name, struct source src);
-extern void ensure_params(struct symbol *params[]);
 extern void ensure_prototype(struct type *ftype, struct symbol *params[]);
 
 extern void init_string(struct type *ty, struct expr *node);
-extern struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
 extern struct desig *next_designator(struct desig *desig);
 
 extern bool islvalue(struct expr *node);
@@ -460,9 +458,9 @@ extern struct expr *cnsts(const char *string);
 extern struct expr *binop(int op, struct expr *l, struct expr *r);
 extern struct expr *assign(struct symbol *sym, struct expr *r);
 extern void ensure_return(struct expr *expr, bool isnull, struct source src);
-extern void ensure_gotos(void);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
+extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 
 // type.c
 extern void type_init(void);
