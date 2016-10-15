@@ -1,16 +1,17 @@
 #include <assert.h>
 #include "cc.h"
 
-static void abstract_declarator(struct type ** ty);
-static void declarator(struct type ** ty, struct token **id, struct symbol ***params);
 static void param_declarator(struct type ** ty, struct token **id);
 static struct type *tag_decl(void);
+static void exit_params(struct symbol *params[]);
 
 typedef struct symbol *decl_p(const char *id, struct type * ty, int sclass, int fspec, struct source src);
 static struct symbol *paramdecl(const char *, struct type *, int, int, struct source);
 static struct symbol *globaldecl(const char *, struct type *, int, int, struct source);
 static struct symbol *localdecl(const char *, struct type *, int, int, struct source);
 static void decls(decl_p * dcl);
+
+static void doglobal(struct symbol *sym, void *context);
 
 static void typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src);
 static void funcdef(const char *id, struct type *ftype, int sclass, int fspec, struct symbol *params[], struct source src);
@@ -221,7 +222,7 @@ static struct type *specifiers(int *sclass, int *fspec)
                          "duplicate type specifier '%s'",
                          tok2s(tok));
             } else {
-                assert(0);
+                CC_UNAVAILABLE
             }
         }
 
@@ -321,19 +322,6 @@ static void array_qualifiers(struct type * atype)
         TYPE_A_VOLATILE(atype) = 1;
     if (res)
         TYPE_A_RESTRICT(atype) = 1;
-}
-
-static void exit_params(struct symbol *params[])
-{
-    assert(params);
-    if (params[0] && !params[0]->defined)
-        error_at(params[0]->src,
-                 "a parameter list without types is only allowed in a function definition");
-    
-    if (cscope > PARAM)
-        exit_scope();
-
-    exit_scope();
 }
 
 /// parameter-type-list:
@@ -566,6 +554,163 @@ static struct type *func_or_array(bool abstract, struct symbol ***params)
     return ty;
 }
 
+/// pointer:
+///   '*' type-qualifier-list[opt]
+///   '*' type-qualifier-list[opt] pointer
+///
+/// type-qualifier-list:
+///   type-qualifier
+///   type-qualifier-list type-qualifier
+///
+static struct type *ptr_decl(void)
+{
+    struct type *ret = NULL;
+    int con, vol, res, type;
+
+    assert(token->id == '*');
+
+    for (;;) {
+        int *p, t = token->id;
+        switch (token->id) {
+        case CONST:
+            p = &con;
+            break;
+
+        case VOLATILE:
+            p = &vol;
+            break;
+
+        case RESTRICT:
+            p = &res;
+            break;
+
+        case '*':
+            {
+                struct type *pty = ptr_type(NULL);
+                con = vol = res = type = 0;
+                p = &type;
+                prepend_type(&ret, pty);
+            }
+            break;
+
+        default:
+            p = NULL;
+            break;
+        }
+
+        if (p == NULL)
+            break;
+
+        if (*p != 0)
+            warning("duplicate type qulifier '%s'", tok2s(token));
+
+        *p = t;
+
+        if (t == CONST || t == VOLATILE || t == RESTRICT)
+            ret = qual(t, ret);
+
+        gettok();
+    }
+
+    return ret;
+}
+
+/// abstract-declarator:
+///   pointer
+///   pointer[opt] direct-abstract-declarator
+///
+/// direct-abstract-declarator:
+///   '(' abstract-declarator ')'
+///   direct-abstract-declarator[opt] '[' assignment-expression[opt] ']'
+///   direct-abstract-declarator[opt] '[' '*' ']'
+///   direct-abstract-declarator[opt] '(' parameter-type-list[opt] ')'
+///
+static void abstract_declarator(struct type ** ty)
+{
+    assert(ty);
+
+    if (token->id == '*' || token->id == '(' || token->id == '[') {
+        if (token->id == '*') {
+            struct type *pty = ptr_decl();
+            prepend_type(ty, pty);
+        }
+
+        if (token->id == '(') {
+            if (first_decl(lookahead())) {
+                struct type *faty = func_or_array(true, NULL);
+                prepend_type(ty, faty);
+            } else {
+                struct type *type1 = *ty;
+                struct type *rtype = NULL;
+                expect('(');
+                abstract_declarator(&rtype);
+                expect(')');
+                if (token->id == '[' || token->id == '(') {
+                    struct type *faty = func_or_array(true, NULL);
+                    attach_type(&faty, type1);
+                    attach_type(&rtype, faty);
+                } else {
+                    attach_type(&rtype, type1);
+                }
+                *ty = rtype;
+            }
+        } else if (token->id == '[') {
+            struct type *faty = func_or_array(true, NULL);
+            prepend_type(ty, faty);
+        }
+    } else {
+        error("expect '(' or '[' at '%s'", tok2s(token));
+    }
+}
+
+/// declarator:
+///   pointer[opt] direct-declarator
+///
+/// direct-declarator:
+///   identifier
+///   '(' declarator ')'
+///   direct-declarator '[' type-qualifier-list[opt] assignment-expression[opt] ']'
+///   direct-declarator '[' 'static' type-qualifier-list[opt] assignment-expression ']'
+///   direct-declarator '[' type-qualifier-list 'static' assignment-expression ']'
+///   direct-declarator '[' type-qualifier-list[opt] '*' ']'
+///   direct-declarator '(' parameter-type-list ')'
+///   direct-declarator '(' identifier-list[opt] ')'
+///
+static void declarator(struct type ** ty, struct token **id, struct symbol ***params)
+{
+    assert(ty && id);
+    
+    if (token->id == '*') {
+        struct type *pty = ptr_decl();
+        prepend_type(ty, pty);
+    }
+
+    if (token->id == ID) {
+        *id = token;
+        expect(ID);
+        if (token->id == '[' || token->id == '(') {
+            struct type *faty = func_or_array(false, params);
+            prepend_type(ty, faty);
+        }
+    } else if (token->id == '(') {
+        struct type *type1 = *ty;
+        struct type *rtype = NULL;
+        expect('(');
+        declarator(&rtype, id, params);
+        match(')', skip_to_bracket);
+        if (token->id == '[' || token->id == '(') {
+            struct type *faty = func_or_array(false, params);
+            attach_type(&faty, type1);
+            attach_type(&rtype, faty);
+        } else {
+            attach_type(&rtype, type1);
+        }
+        *ty = rtype;
+    } else {
+        error("expect identifier or '('");
+    }
+}
+
 static struct symbol *tag_symbol(int t, const char *tag, struct source src)
 {
     struct type *ty = tag_type(t, tag);
@@ -787,67 +932,6 @@ static struct type *tag_decl(void)
     return sym->type;
 }
 
-/// pointer:
-///   '*' type-qualifier-list[opt]
-///   '*' type-qualifier-list[opt] pointer
-///
-/// type-qualifier-list:
-///   type-qualifier
-///   type-qualifier-list type-qualifier
-///
-static struct type *ptr_decl(void)
-{
-    struct type *ret = NULL;
-    int con, vol, res, type;
-
-    assert(token->id == '*');
-
-    for (;;) {
-        int *p, t = token->id;
-        switch (token->id) {
-        case CONST:
-            p = &con;
-            break;
-
-        case VOLATILE:
-            p = &vol;
-            break;
-
-        case RESTRICT:
-            p = &res;
-            break;
-
-        case '*':
-            {
-                struct type *pty = ptr_type(NULL);
-                con = vol = res = type = 0;
-                p = &type;
-                prepend_type(&ret, pty);
-            }
-            break;
-
-        default:
-            p = NULL;
-            break;
-        }
-
-        if (p == NULL)
-            break;
-
-        if (*p != 0)
-            warning("duplicate type qulifier '%s'", tok2s(token));
-
-        *p = t;
-
-        if (t == CONST || t == VOLATILE || t == RESTRICT)
-            ret = qual(t, ret);
-
-        gettok();
-    }
-
-    return ret;
-}
-
 static void param_declarator(struct type ** ty, struct token **id)
 {
     if (token->id == '*') {
@@ -886,100 +970,17 @@ static void param_declarator(struct type ** ty, struct token **id)
     }
 }
 
-/// abstract-declarator:
-///   pointer
-///   pointer[opt] direct-abstract-declarator
-///
-/// direct-abstract-declarator:
-///   '(' abstract-declarator ')'
-///   direct-abstract-declarator[opt] '[' assignment-expression[opt] ']'
-///   direct-abstract-declarator[opt] '[' '*' ']'
-///   direct-abstract-declarator[opt] '(' parameter-type-list[opt] ')'
-///
-static void abstract_declarator(struct type ** ty)
+static void exit_params(struct symbol *params[])
 {
-    assert(ty);
-
-    if (token->id == '*' || token->id == '(' || token->id == '[') {
-        if (token->id == '*') {
-            struct type *pty = ptr_decl();
-            prepend_type(ty, pty);
-        }
-
-        if (token->id == '(') {
-            if (first_decl(lookahead())) {
-                struct type *faty = func_or_array(true, NULL);
-                prepend_type(ty, faty);
-            } else {
-                struct type *type1 = *ty;
-                struct type *rtype = NULL;
-                expect('(');
-                abstract_declarator(&rtype);
-                expect(')');
-                if (token->id == '[' || token->id == '(') {
-                    struct type *faty = func_or_array(true, NULL);
-                    attach_type(&faty, type1);
-                    attach_type(&rtype, faty);
-                } else {
-                    attach_type(&rtype, type1);
-                }
-                *ty = rtype;
-            }
-        } else if (token->id == '[') {
-            struct type *faty = func_or_array(true, NULL);
-            prepend_type(ty, faty);
-        }
-    } else {
-        error("expect '(' or '[' at '%s'", tok2s(token));
-    }
-}
-
-/// declarator:
-///   pointer[opt] direct-declarator
-///
-/// direct-declarator:
-///   identifier
-///   '(' declarator ')'
-///   direct-declarator '[' type-qualifier-list[opt] assignment-expression[opt] ']'
-///   direct-declarator '[' 'static' type-qualifier-list[opt] assignment-expression ']'
-///   direct-declarator '[' type-qualifier-list 'static' assignment-expression ']'
-///   direct-declarator '[' type-qualifier-list[opt] '*' ']'
-///   direct-declarator '(' parameter-type-list ')'
-///   direct-declarator '(' identifier-list[opt] ')'
-///
-static void declarator(struct type ** ty, struct token **id, struct symbol ***params)
-{
-    assert(ty && id);
+    assert(params);
+    if (params[0] && !params[0]->defined)
+        error_at(params[0]->src,
+                 "a parameter list without types is only allowed in a function definition");
     
-    if (token->id == '*') {
-        struct type *pty = ptr_decl();
-        prepend_type(ty, pty);
-    }
+    if (cscope > PARAM)
+        exit_scope();
 
-    if (token->id == ID) {
-        *id = token;
-        expect(ID);
-        if (token->id == '[' || token->id == '(') {
-            struct type *faty = func_or_array(false, params);
-            prepend_type(ty, faty);
-        }
-    } else if (token->id == '(') {
-        struct type *type1 = *ty;
-        struct type *rtype = NULL;
-        expect('(');
-        declarator(&rtype, id, params);
-        match(')', skip_to_bracket);
-        if (token->id == '[' || token->id == '(') {
-            struct type *faty = func_or_array(false, params);
-            attach_type(&faty, type1);
-            attach_type(&rtype, faty);
-        } else {
-            attach_type(&rtype, type1);
-        }
-        *ty = rtype;
-    } else {
-        error("expect identifier or '('");
-    }
+    exit_scope();
 }
 
 /// external-declaration:
@@ -1061,6 +1062,31 @@ static void decls(decl_p * dcl)
     match(';', skip_to_decl);
 }
 
+/// translation-unit:
+///   external-declaration
+///   translation-unit external-declaration
+///
+void translation_unit(void)
+{
+    for (gettok(); token->id != EOI;) {
+        if (first_decl(token)) {
+            assert(cscope == GLOBAL);
+            decls(globaldecl);
+            deallocate(FUNC);
+        } else {
+            if (token->id == ';') {
+                // empty declaration
+                gettok();
+            } else {
+                error("expect declaration");
+                skip_to_decl();
+            }
+        }
+    }
+    
+    foreach(identifiers, GLOBAL, doglobal, NULL);
+}
+
 /// type-name:
 ///   specifier-qualifier-list abstract-declarator[opt]
 ///
@@ -1097,31 +1123,6 @@ static void doglobal(struct symbol *sym, void *context)
         return;
 
     actions.defgvar(sym);
-}
-
-/// translation-unit:
-///   external-declaration
-///   translation-unit external-declaration
-///
-void translation_unit(void)
-{
-    for (gettok(); token->id != EOI;) {
-        if (first_decl(token)) {
-            assert(cscope == GLOBAL);
-            decls(globaldecl);
-            deallocate(FUNC);
-        } else {
-            if (token->id == ';') {
-                // empty declaration
-                gettok();
-            } else {
-                error("expect declaration");
-                skip_to_decl();
-            }
-        }
-    }
-    
-    foreach(identifiers, GLOBAL, doglobal, NULL);
 }
 
 /// decl functions
