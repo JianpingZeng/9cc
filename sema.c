@@ -429,7 +429,7 @@ static struct symbol ** do_prototype(struct type *ftype, struct symbol *params[]
     return params;
 }
 
-static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, int fspec, struct source src)
+static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass, int fspec, struct source src)
 {
     struct symbol *sym = NULL;
 
@@ -509,7 +509,7 @@ static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, in
     return sym;
 }
 
-static struct symbol *localdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
+static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
 {
     struct symbol *sym = NULL;
 
@@ -612,7 +612,7 @@ static struct symbol *localdecl(const char *id, struct type * ty, int sclass, in
 }
 
 // id maybe NULL
-static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
+static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
 {
     struct symbol *sym = NULL;
 
@@ -671,7 +671,7 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
     return sym;
 }
 
-static void typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src)
+static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src)
 {
     int sclass = TYPEDEF;
 
@@ -740,7 +740,7 @@ static void make_funcdecl(struct symbol *sym, struct type *ty, int sclass, struc
 }
 
 // id maybe NULL
-static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
+static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec,
                     struct symbol *params[], struct source src)
 {
     struct symbol *sym;
@@ -784,7 +784,7 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
         for (int i = 0; params[i]; i++) {
             struct symbol *p = params[i];
             if (!p->defined)
-                params[i] = paramdecl(p->name, inttype, 0, 0, p->src);
+                params[i] = do_paramdecl(p->name, inttype, 0, 0, p->src);
             // check void
             if (isvoid(p->type)) {
                 error_at(p->src, "argument may not have 'void' type");
@@ -865,7 +865,7 @@ static void do_func_body(struct symbol *sym)
 
 struct symbol *mklocal(const char *name, struct type * ty, int sclass)
 {
-    return localdecl(name, ty, sclass, 0, source);
+    return do_localdecl(name, ty, sclass, 0, source);
 }
 
 /// expr
@@ -1328,7 +1328,7 @@ static bool ensure_increment(struct expr *node, struct source src)
     return true;
 }
 
-static struct expr *do_comma(struct expr *l, struct expr *r, struct source src)
+static struct expr *do_commaop(struct expr *l, struct expr *r, struct source src)
 {
     if (l == NULL || r == NULL)
         return NULL;
@@ -1373,7 +1373,7 @@ static int splitop(int op)
     }
 }
 
-static struct expr *do_assign(int op, struct expr *l, struct expr *r, struct source src)
+static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src)
 {
     if (l == NULL || r == NULL)
         return NULL;
@@ -1411,7 +1411,7 @@ static struct expr *do_assign(int op, struct expr *l, struct expr *r, struct sou
     return ast_expr(mkop(ASGN, retty), retty, l, r);
 }
 
-static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *els, struct source src)
+static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr *els, struct source src)
 {
     struct type *ty = NULL;
     
@@ -1487,7 +1487,7 @@ static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *e
     return ast_expr(COND, ty, cond, ast_expr(RIGHT, ty, then, els));
 }
 
-static struct expr *do_logic(int op, struct expr *l, struct expr *r, struct source src)
+static struct expr *do_logicop(int op, struct expr *l, struct expr *r, struct source src)
 {
     assert(op == ANDAND || op == OROR);
     
@@ -1683,7 +1683,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
 
 /// cast
 
-static struct expr *do_cast(struct type *ty, struct expr *cast, struct source src)
+static struct expr *do_castop(struct type *ty, struct expr *cast, struct source src)
 {
     int op;
 
@@ -1779,10 +1779,10 @@ static struct expr * do_logical_not(struct expr *operand, struct source src)
 
     struct expr *t1 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
     struct expr *t2 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
-    struct expr *then = do_assign('=', t1, cnsti(0, inttype), src);
-    struct expr *els = do_assign('=', t2, cnsti(1, inttype), src);
+    struct expr *then = do_assignop('=', t1, cnsti(0, inttype), src);
+    struct expr *els = do_assignop('=', t2, cnsti(1, inttype), src);
 
-    return do_cond(operand, then, els, src);
+    return do_condop(operand, then, els, src);
 }
 
 /**
@@ -1829,7 +1829,7 @@ static struct expr * do_indirection(struct expr *operand, struct source src)
     return rvalue(operand);
 }
 
-static struct expr * do_sizeof(struct type *ty, struct expr *n, struct source src)
+static struct expr * do_sizeofop(struct type *ty, struct expr *n, struct source src)
 {
     ty = n ? n->type : ty;
     if (ty == NULL)
@@ -2234,7 +2234,7 @@ static struct expr * do_paren(struct expr *e, struct source src)
 
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
 {
-    return do_assign('=', expr, do_bop(op, expr, cnst, src), src);
+    return do_assignop('=', expr, do_bop(op, expr, cnst, src), src);
 }
 
 /// constant-expression:
@@ -2296,7 +2296,7 @@ struct expr *binop(int op, struct expr *l, struct expr *r)
 struct expr *assign(struct symbol *sym, struct expr *r)
 {
     struct expr *l = mkref(sym, sym->src);
-    return do_assign('=', l, r, sym->src);
+    return do_assignop('=', l, r, sym->src);
 }
 
 /// init
@@ -2638,7 +2638,7 @@ static void do_jump(int label)
     add_to_list(stmt);
 }
 
-static void do_return(struct expr *expr)
+static void do_ret(struct expr *expr)
 {
     struct stmt *stmt = ast_stmt(RET);
     stmt->u.expr = expr;
@@ -2735,57 +2735,61 @@ struct actions actions = {
     .dclfun = dclfun,
     .defun = defun,
     .deftype = deftype,
-    
-    .globaldecl = globaldecl,
-    .localdecl = localdecl,
-    .paramdecl = paramdecl,
-    .typedefdecl = typedefdecl,
-    .funcdef = funcdef,
 
-    .array_index = do_array_index,
-    .prototype = do_prototype,
-    .enum_id = do_enum_id,
-    .fields = do_fields,
-    .func_body = do_func_body,
-    
+#define INSTALL(name)  .name = do_##name
+
+    INSTALL(globaldecl),
+    INSTALL(localdecl),
+    INSTALL(paramdecl),
+    INSTALL(typedefdecl),
+    INSTALL(funcdef),
+
+    INSTALL(array_index),
+    INSTALL(prototype),
+    INSTALL(enum_id),
+    INSTALL(fields),
+    INSTALL(func_body),
+
     // expr
-    .commaop = do_comma,
-    .assignop = do_assign,
-    .condop = do_cond,
-    .logicop = do_logic,
-    .bop = do_bop,
-    .castop = do_cast,
-    .pre_increment = do_pre_increment,
-    .minus_plus = do_minus_plus,
-    .bitwise_not = do_bitwise_not,
-    .logical_not = do_logical_not,
-    .address = do_address,
-    .indirection = do_indirection,
-    .sizeofop = do_sizeof,
-    .subscript = do_subscript,
-    .funcall = do_funcall,
-    .direction = do_direction,
-    .post_increment = do_post_increment,
-    .id = do_id,
-    .iconst = do_iconst,
-    .fconst = do_fconst,
-    .sconst = do_sconst,
-    .paren = do_paren,
-    .compound_literal = do_compound_literal,
+    INSTALL(commaop),
+    INSTALL(assignop),
+    INSTALL(condop),
+    INSTALL(logicop),
+    INSTALL(bop),
+    INSTALL(castop),
+    INSTALL(pre_increment),
+    INSTALL(minus_plus),
+    INSTALL(bitwise_not),
+    INSTALL(logical_not),
+    INSTALL(address),
+    INSTALL(indirection),
+    INSTALL(sizeofop),
+    INSTALL(subscript),
+    INSTALL(funcall),
+    INSTALL(direction),
+    INSTALL(post_increment),
+    INSTALL(id),
+    INSTALL(iconst),
+    INSTALL(fconst),
+    INSTALL(sconst),
+    INSTALL(paren),
+    INSTALL(compound_literal),
 
-    .intexpr = do_intexpr,
-    .bool_expr = do_bool_expr,
-    .switch_expr = do_switch_expr,
+    INSTALL(intexpr),
+    INSTALL(bool_expr),
+    INSTALL(switch_expr),
 
     // stmt
-    .branch = do_branch,
-    .jump = do_jump,
-    .ret = do_return,
-    .label = do_label,
-    .gen = do_gen,
+    INSTALL(branch),
+    INSTALL(jump),
+    INSTALL(ret),
+    INSTALL(label),
+    INSTALL(gen),
 
     // init
-    .element_init = do_element_init,
-    .designator = do_designator,
-    .initializer_list = do_initializer_list,
+    INSTALL(element_init),
+    INSTALL(designator),
+    INSTALL(initializer_list),
+    
+#undef INSTALL
 };
