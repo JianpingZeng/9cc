@@ -2736,7 +2736,7 @@ static void init(int argc, char *argv[])
 
 static void finalize(void)
 {
-    if (opts.ast_dump)
+    if (opts.ast_dump || errors())
         return;
     foreach(identifiers, GLOBAL, doglobal, NULL);
     IR->finalize();
