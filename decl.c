@@ -272,48 +272,6 @@ static struct type *specifiers(int *sclass, int *fspec)
     return basety;
 }
 
-static void array_qualifiers(struct type * atype)
-{
-    int cons, vol, res;
-    int *p;
-    cons = vol = res = 0;
-    while (token->kind == CONST) {
-        int t = token->id;
-        struct source src = source;
-        switch (t) {
-        case CONST:
-            p = &cons;
-            gettok();
-            break;
-
-        case VOLATILE:
-            p = &vol;
-            gettok();
-            break;
-
-        case RESTRICT:
-            p = &res;
-            gettok();
-            break;
-
-        default:
-            assert(0);
-        }
-
-        if (*p != 0)
-            warning_at(src, "duplicate type qualifier '%s'", id2s(*p));
-
-        *p = t;
-    }
-
-    if (cons)
-        TYPE_A_CONST(atype) = 1;
-    if (vol)
-        TYPE_A_VOLATILE(atype) = 1;
-    if (res)
-        TYPE_A_RESTRICT(atype) = 1;
-}
-
 /// parameter-type-list:
 ///   parameter-list
 ///   parameter-list ',' '...'
@@ -422,10 +380,52 @@ static struct symbol **parameters(struct type * ftype)
     return params;
 }
 
+static void array_qualifiers(struct type * atype)
+{
+    int cons, vol, res;
+    int *p;
+    cons = vol = res = 0;
+    while (token->kind == CONST) {
+        int t = token->id;
+        struct source src = source;
+        switch (t) {
+        case CONST:
+            p = &cons;
+            gettok();
+            break;
+
+        case VOLATILE:
+            p = &vol;
+            gettok();
+            break;
+
+        case RESTRICT:
+            p = &res;
+            gettok();
+            break;
+
+        default:
+            CC_UNAVAILABLE
+        }
+
+        if (*p != 0)
+            warning_at(src, "duplicate type qualifier '%s'", id2s(*p));
+
+        *p = t;
+    }
+
+    if (cons)
+        TYPE_A_CONST(atype) = 1;
+    if (vol)
+        TYPE_A_VOLATILE(atype) = 1;
+    if (res)
+        TYPE_A_RESTRICT(atype) = 1;
+}
+
 static void parse_assign(struct type *atype)
 {
     struct expr *assign = assign_expr();
-    TYPE_A_ASSIGN(atype) =assign;
+    TYPE_A_ASSIGN(atype) = assign;
 
     if (!assign)
         return;
@@ -451,50 +451,33 @@ static struct type *arrays(bool abstract)
 {
     struct type *atype = array_type(NULL);
 
+    //NOTE: '*' is in `first_expr`
+
     if (abstract) {
-        if (token->id == '*') {
-            if (lookahead()->id != ']') {
-                parse_assign(atype);
-            } else {
-                expect('*');
-                TYPE_A_STAR(atype) = 1;
-            }
+        if (token->id == '*' && lookahead()->id == ']') {
+            gettok();
+            TYPE_A_STAR(atype) = 1;
         } else if (first_expr(token)) {
             parse_assign(atype);
         }
     } else {
         if (token->id == STATIC) {
-            expect(STATIC);
+            gettok();
             TYPE_A_STATIC(atype) = 1;
-            if (token->kind == CONST)
-                array_qualifiers(atype);
+            array_qualifiers(atype);
             parse_assign(atype);
-        } else if (token->kind == CONST) {
-            if (token->kind == CONST)
-                array_qualifiers(atype);
+        } else {
+            array_qualifiers(atype);
             if (token->id == STATIC) {
-                expect(STATIC);
+                gettok();
                 TYPE_A_STATIC(atype) = 1;
                 parse_assign(atype);
-            } else if (token->id == '*') {
-                if (lookahead()->id != ']') {
-                    parse_assign(atype);
-                } else {
-                    expect('*');
-                    TYPE_A_STAR(atype) = 1;
-                }
+            } else if (token->id == '*' && lookahead()->id == ']') {
+                gettok();
+                TYPE_A_STAR(atype) = 1;
             } else if (first_expr(token)) {
                 parse_assign(atype);
             }
-        } else if (token->id == '*') {
-            if (lookahead()->id != ']') {
-                parse_assign(atype);
-            } else {
-                expect('*');
-                TYPE_A_STAR(atype) = 1;
-            }
-        } else if (first_expr(token)) {
-            parse_assign(atype);
         }
     }
 
