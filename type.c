@@ -117,25 +117,6 @@ void type_init(void)
 #undef INSTALL
 }
 
-void prepend_type(struct type ** typelist, struct type * type)
-{
-    attach_type(&type, *typelist);
-    *typelist = type;
-}
-
-void attach_type(struct type ** typelist, struct type * type)
-{
-    if (*typelist) {
-        struct type *tp = *typelist;
-        while (tp && tp->type)
-            tp = tp->type;
-        
-        tp->type = type;
-    } else {
-        *typelist = type;
-    }
-}
-
 static int combine(int qual1, int qual2)
 {
     int ret = 0;

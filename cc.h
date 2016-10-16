@@ -467,8 +467,6 @@ extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 // type.c
 extern void type_init(void);
 extern struct field *alloc_field(void);
-extern void prepend_type(struct type **typelist, struct type *type);
-extern void attach_type(struct type **typelist, struct type *type);
 extern struct type *qual(int t, struct type *ty);
 extern struct type *unqual(struct type *ty);
 extern bool eqtype(struct type *ty1, struct type *ty2);

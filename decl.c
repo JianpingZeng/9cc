@@ -6,6 +6,25 @@ static struct type *tag_decl(void);
 static void exit_params(struct symbol *params[]);
 static void doglobal(struct symbol *sym, void *context);
 
+static void attach_type(struct type ** typelist, struct type * type)
+{
+    if (*typelist) {
+        struct type *tp = *typelist;
+        while (tp && tp->type)
+            tp = tp->type;
+        
+        tp->type = type;
+    } else {
+        *typelist = type;
+    }
+}
+
+static void prepend_type(struct type ** typelist, struct type * type)
+{
+    attach_type(&type, *typelist);
+    *typelist = type;
+}
+
 /// declaration-specifier:
 ///   storage-class-specifier declaration-specifiers[opt]
 ///   type-specifier          declaration-specifiers[opt]
