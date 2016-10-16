@@ -422,31 +422,6 @@ static void array_qualifiers(struct type * atype)
         TYPE_A_RESTRICT(atype) = 1;
 }
 
-static void parse_assign(struct type *atype)
-{
-    struct expr *assign = assign_expr();
-    TYPE_A_ASSIGN(atype) = assign;
-
-    if (!assign)
-        return;
-
-    if (isint(assign->type)) {
-        // try evaluate the length
-        struct expr *ret = eval(assign, longtype);
-        if (ret) {
-            assert(isiliteral(ret));
-            TYPE_LEN(atype) = ret->sym->value.i;
-            if (ret->sym->value.i < 0)
-                error("array has negative size");
-        } else {
-            error("expect constant expression");
-        }
-    } else {
-        error("size of array has non-integer type '%s'",
-              type2s(assign->type));
-    }
-}
-
 static struct type *arrays(bool abstract)
 {
     struct type *atype = array_type(NULL);
@@ -458,25 +433,29 @@ static struct type *arrays(bool abstract)
             gettok();
             TYPE_A_STAR(atype) = 1;
         } else if (first_expr(token)) {
-            parse_assign(atype);
+            struct source src = source;
+            actions.array_index(atype, assign_expr(), src);
         }
     } else {
         if (token->id == STATIC) {
             gettok();
             TYPE_A_STATIC(atype) = 1;
             array_qualifiers(atype);
-            parse_assign(atype);
+            struct source src = source;
+            actions.array_index(atype, assign_expr(), src);
         } else {
             array_qualifiers(atype);
             if (token->id == STATIC) {
                 gettok();
                 TYPE_A_STATIC(atype) = 1;
-                parse_assign(atype);
+                struct source src = source;
+                actions.array_index(atype, assign_expr(), src);
             } else if (token->id == '*' && lookahead()->id == ']') {
                 gettok();
                 TYPE_A_STAR(atype) = 1;
             } else if (first_expr(token)) {
-                parse_assign(atype);
+                struct source src = source;
+                actions.array_index(atype, assign_expr(), src);
             }
         }
     }

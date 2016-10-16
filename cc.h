@@ -289,6 +289,7 @@ struct actions {
     void (*typedefdecl) (const char *, struct type *, int, int, struct source);
     void (*funcdef) (const char *, struct type *, int, int, struct symbol *[], struct source);
 
+    void (*array_index) (struct type *atype, struct expr *assign, struct source src);
     struct symbol ** (*prototype) (struct type *ftype, struct symbol *params[]);
     void (*enum_id) (const char *name, int val, struct symbol *sym);
     void (*fields) (struct symbol *sym);

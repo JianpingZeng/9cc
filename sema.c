@@ -351,6 +351,31 @@ static void ensure_params(struct symbol *params[])
     }
 }
 
+static void do_array_index(struct type *atype, struct expr *assign, struct source src)
+{
+    if (!assign)
+        return;
+
+    TYPE_A_ASSIGN(atype) = assign;
+
+    if (isint(assign->type)) {
+        // try evaluate the length
+        struct expr *ret = eval(assign, longtype);
+        if (ret) {
+            assert(isiliteral(ret));
+            TYPE_LEN(atype) = ret->sym->value.i;
+            if (ret->sym->value.i < 0)
+                error_at(src, "array has negative size");
+        } else {
+            error_at(src, "expect constant expression");
+        }
+    } else {
+        error_at(src,
+                 "size of array has non-integer type '%s'",
+                 type2s(assign->type));
+    }
+}
+
 static struct symbol ** do_prototype(struct type *ftype, struct symbol *params[])
 {    
     for (int i = 0; params[i]; i++) {
@@ -2708,6 +2733,7 @@ struct actions actions = {
     .typedefdecl = typedefdecl,
     .funcdef = funcdef,
 
+    .array_index = do_array_index,
     .prototype = do_prototype,
     .enum_id = do_enum_id,
     .fields = do_fields,
