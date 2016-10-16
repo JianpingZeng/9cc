@@ -358,10 +358,7 @@ static struct symbol **prototype(struct type *ftype)
     }
 
     // check
-    struct symbol **params = ltoa(&list, FUNC);
-    ensure_prototype(ftype, params);
-
-    return params;
+    return actions.prototype(ftype, ltoa(&list, FUNC));
 }
 
 /// identifier-list:

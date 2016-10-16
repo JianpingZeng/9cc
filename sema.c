@@ -351,7 +351,7 @@ static void ensure_params(struct symbol *params[])
     }
 }
 
-void ensure_prototype(struct type *ftype, struct symbol *params[])
+static struct symbol ** do_prototype(struct type *ftype, struct symbol *params[])
 {    
     for (int i = 0; params[i]; i++) {
         struct symbol *p = params[i];
@@ -382,6 +382,8 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
     // make it empty
     if (length(params) == 1 && isvoid(params[0]->type))
         params[0] = NULL;
+
+    return params;
 }
 
 static struct symbol *globaldecl(const char *id, struct type *ty, int sclass, int fspec, struct source src)
@@ -572,8 +574,9 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
     struct symbol *sym = NULL;
 
     if (sclass && sclass != REGISTER) {
-        error("invalid storage class specifier '%s' in function declarator",
-              id2s(sclass));
+        error_at(src,
+                 "invalid storage class specifier '%s' in function declarator",
+                 id2s(sclass));
         sclass = 0;
     }
 
@@ -604,7 +607,9 @@ static struct symbol *paramdecl(const char *id, struct type * ty, int sclass, in
     if (id) {
         sym = lookup(id, identifiers);
         if (sym && sym->scope == cscope)
-            error(REDEFINITION_ERROR, sym->name, sym->src.file, sym->src.line, sym->src.column);
+            error_at(src,
+                     REDEFINITION_ERROR,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
         sym = install(id, &identifiers, cscope, FUNC);
     } else {
         sym = anonymous(&identifiers, cscope, FUNC);
@@ -2703,6 +2708,7 @@ struct actions actions = {
     .typedefdecl = typedefdecl,
     .funcdef = funcdef,
 
+    .prototype = do_prototype,
     .enum_id = do_enum_id,
     .fields = do_fields,
     .func_body = do_func_body,

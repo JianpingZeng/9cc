@@ -289,6 +289,7 @@ struct actions {
     void (*typedefdecl) (const char *, struct type *, int, int, struct source);
     void (*funcdef) (const char *, struct type *, int, int, struct symbol *[], struct source);
 
+    struct symbol ** (*prototype) (struct type *ftype, struct symbol *params[]);
     void (*enum_id) (const char *name, int val, struct symbol *sym);
     void (*fields) (struct symbol *sym);
     void (*func_body) (struct symbol *sym);
@@ -446,8 +447,6 @@ extern void skip_to_squarebracket(void);
 extern void skip_to_decl(void);
 extern void skip_to_stmt(void);
 extern void skip_to_expr(void);
-
-extern void ensure_prototype(struct type *ftype, struct symbol *params[]);
 
 extern void init_string(struct type *ty, struct expr *node);
 extern struct desig *next_designator(struct desig *desig);
