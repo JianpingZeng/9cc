@@ -672,17 +672,17 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
     return sym;
 }
 
+// level: GLOBAL/PARAM/LOCAL
 static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src)
 {
     int sclass = TYPEDEF;
 
     assert(id);
 
-    if (level == PARAM) {
-        error("invalid storage class specifier '%s' in function declarator",
-              id2s(sclass));
-        sclass = 0;
-    }
+    if (level == PARAM)
+        error_at(src,
+                 "invalid storage class specifier '%s' in function declarator",
+                 id2s(sclass));
 
     if (isfunc(ty))
         ensure_func(ty, src);
