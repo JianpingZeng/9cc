@@ -34,13 +34,13 @@ static void cc_print_lead(int level, struct source src, const char *fmt, va_list
     const char *lead;
     switch (level) {
     case WRN:
-        lead = PURPLE("warning:");
+        lead = PURPLE_BOLD("warning:");
         break;
     case ERR:
-        lead = RED("error:");
+        lead = RED_BOLD("error:");
         break;
     case FTL:
-        lead = RED("fatal:");
+        lead = RED_BOLD("fatal:");
         break;
     default:
         assert(0);

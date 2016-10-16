@@ -8,6 +8,7 @@
 #define MAX_STRUCT_PARAM_SIZE  16
 #define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
 #define TYPE_ERROR  "expect type '%s', not '%s'"
+#define INLINE_ERROR  "'inline' can only appear on functions"
 #define INSTALL(name)  .name = do_##name
 #define call(func)  do_##func
 
@@ -160,7 +161,7 @@ static void ensure_inline(struct type *ty, int fspec, struct source src)
         if (isfunc(ty))
             TYPE_INLINE(ty) = 1;
         else
-            error_at(src, "'inline' can only appear on functions");
+            error_at(src, INLINE_ERROR);
     }
 }
 
@@ -684,12 +685,13 @@ static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level
                  "invalid storage class specifier '%s' in function declarator",
                  id2s(sclass));
 
+    if (fspec == INLINE)
+        error_at(src, INLINE_ERROR);
+
     if (isfunc(ty))
         ensure_func(ty, src);
     else if (isarray(ty))
         ensure_array(ty, src, level);
-
-    ensure_inline(ty, fspec, src);
 
     struct symbol *sym = lookup(id, identifiers);
     if (sym && is_current_scope(sym))
