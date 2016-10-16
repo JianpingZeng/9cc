@@ -349,7 +349,7 @@ static struct symbol **prototype(struct type *ftype)
         if (token->id != ',')
             break;
 
-        expect(',');
+        gettok();
         if (token->id == ELLIPSIS) {
             TYPE_VARG(ftype) = 1;
             gettok();
@@ -372,7 +372,7 @@ static struct symbol **oldstyle(struct type *ftype)
 {
     struct list *params = NULL;
 
-    for (;;) {
+    while (1) {
         if (token->id == ID) {
             struct symbol *sym = actions.paramdecl(TOK_ID_STR(token), inttype, 0, 0, token->src);
             sym->defined = false;
@@ -381,7 +381,7 @@ static struct symbol **oldstyle(struct type *ftype)
         expect(ID);
         if (token->id != ',')
             break;
-        expect(',');
+        gettok();
     }
 
     if (cscope > PARAM)
@@ -514,14 +514,14 @@ static struct type *func_or_array(bool abstract, struct symbol ***params)
     for (; token->id == '(' || token->id == '[';) {
         if (token->id == '[') {
             struct type *atype;
-            expect('[');
+            gettok();
             atype = arrays(abstract);
             match(']', skip_to_squarebracket);
             attach_type(&ty, atype);
         } else {
             struct symbol **args;
             struct type *ftype = func_type(NULL);
-            expect('(');
+            gettok();
             /**
              * To make it easy to distinguish between 'paramaters in parameter'
              * and 'compound statement of function definition', they both may be
@@ -634,7 +634,7 @@ static void abstract_declarator(struct type ** ty)
                 struct type *rtype = NULL;
                 expect('(');
                 abstract_declarator(&rtype);
-                expect(')');
+                match(')', skip_to_bracket);
                 if (token->id == '[' || token->id == '(') {
                     struct type *faty = func_or_array(true, NULL);
                     attach_type(&faty, type1);
@@ -677,7 +677,7 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
 
     if (token->id == ID) {
         *id = token;
-        expect(ID);
+        gettok();
         if (token->id == '[' || token->id == '(') {
             struct type *faty = func_or_array(false, params);
             prepend_type(ty, faty);
@@ -685,7 +685,7 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
     } else if (token->id == '(') {
         struct type *type1 = *ty;
         struct type *rtype = NULL;
-        expect('(');
+        gettok();
         declarator(&rtype, id, params);
         match(')', skip_to_bracket);
         if (token->id == '[' || token->id == '(') {
@@ -911,7 +911,7 @@ static void param_declarator(struct type ** ty, struct token **id)
             struct type *rtype = NULL;
             expect('(');
             param_declarator(&rtype, id);
-            expect(')');
+            match(')', skip_to_bracket);
             if (token->id == '(' || token->id == '[') {
                 struct type *faty;
                 assert(id);
@@ -1010,7 +1010,7 @@ void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct s
             if (token->id != ',')
                 break;
 
-            expect(',');
+            gettok();
             id = NULL;
             ty = NULL;
             // declarator
