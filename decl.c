@@ -863,13 +863,13 @@ static struct type *tag_decl(void)
     struct symbol *sym = NULL;
     struct source src = source;
 
-    expect(t);
+    gettok();                   // consume `t`
     if (token->id == ID) {
         id = TOK_ID_STR(token);
-        expect(ID);
+        gettok();
     }
     if (token->id == '{') {
-        expect('{');
+        gettok();
         sym = tag_symbol(t, id, src);
         if (t == ENUM)
             enum_body(sym);
