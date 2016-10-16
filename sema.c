@@ -122,6 +122,24 @@ void skip_to_expr(void)
 
 /// decl
 
+struct symbol *lookup_typedef(const char *id)
+{
+    if (!id)
+        return NULL;
+
+    struct symbol *sym = lookup(id, identifiers);
+
+    if (sym && sym->sclass == TYPEDEF)
+        return sym;
+    else
+        return NULL;
+}
+
+bool istypedef(const char *id)
+{
+    return lookup_typedef(id) != NULL;
+}
+
 void do_enum_id(const char *name, int val, struct symbol *sym)
 {
     struct symbol *s = lookup(name, identifiers);
@@ -2163,7 +2181,7 @@ static struct expr *mkref(struct symbol *sym, struct source src)
         ret = ast_expr(mkop(op, voidptype), ptr_type(ty), NULL, NULL);
     
     ret->sym = sym;
-    sym->refs++;
+    use(sym);
 
     if (isptr(ret->type))
         return rvalue(ret);

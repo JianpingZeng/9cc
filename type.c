@@ -169,25 +169,6 @@ struct type *unqual(struct type * ty)
     return isqual(ty) ? ty->type : ty;
 }
 
-struct type *lookup_typedef(const char *id)
-{
-    if (!id)
-        return NULL;
-
-    struct symbol *sym = lookup(id, identifiers);
-
-    if (sym && sym->sclass == TYPEDEF)
-        return sym->type;
-    else
-        return NULL;
-}
-
-bool istypedef(const char *id)
-{
-    struct type *ty = lookup_typedef(id);
-    return ty != NULL;
-}
-
 struct type *array_type(struct type * type)
 {
     struct type *ty = alloc_type();

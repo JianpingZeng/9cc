@@ -180,12 +180,16 @@ static struct type *specifiers(int *sclass, int *fspec)
             break;
 
         case ID:
-            if (istypedef(TOK_ID_STR(token))) {
-                tydefty = lookup_typedef(TOK_ID_STR(token));
-                p = &type;
-                gettok();
-            } else {
-                p = NULL;
+            {
+                struct symbol *sym = lookup_typedef(TOK_ID_STR(token));
+                if (sym) {
+                    use(sym);
+                    tydefty = sym->type;
+                    p = &type;
+                    gettok();
+                } else {
+                    p = NULL;
+                }
             }
             break;
 

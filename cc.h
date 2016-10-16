@@ -372,6 +372,8 @@ struct interface {
 /// external functions
 ///
 
+#define use(sym)  ((sym)->refs++)
+
 // symtab.c
 extern struct table *new_table(struct table *up, int scope);
 extern void free_table(struct table *t);
@@ -449,6 +451,9 @@ extern void skip_to_decl(void);
 extern void skip_to_stmt(void);
 extern void skip_to_expr(void);
 
+extern struct symbol *lookup_typedef(const char *id);
+extern bool istypedef(const char *id);
+
 extern void init_string(struct type *ty, struct expr *node);
 extern struct desig *next_designator(struct desig *desig);
 
@@ -471,8 +476,6 @@ extern struct type *qual(int t, struct type *ty);
 extern struct type *unqual(struct type *ty);
 extern bool eqtype(struct type *ty1, struct type *ty2);
 extern bool eqarith(struct type *ty1, struct type *ty2);
-extern struct type *lookup_typedef(const char *id);
-extern bool istypedef(const char *id);
 extern struct type *array_type(struct type *ty);
 extern struct type *ptr_type(struct type *ty);
 extern struct type *func_type(struct type *ty);
