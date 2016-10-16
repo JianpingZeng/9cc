@@ -744,8 +744,8 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
                     struct symbol *params[], struct source src)
 {
     struct symbol *sym;
-    // cscope == PARAM (prototype)
-    // cscope == GLOBAL (oldstyle)
+
+    assert(cscope == PARAM);
 
     if (sclass && sclass != EXTERN && sclass != STATIC) {
         error("invalid storage class specifier '%s'", id2s(sclass));
@@ -779,15 +779,6 @@ static void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
 
     // old style function parameters declaration
     if (TYPE_OLDSTYLE(ftype)) {
-        enter_scope();
-        assert(cscope == PARAM);
-        /// declaration-list:
-        ///   declaration
-        ///   declaration-list declaration
-        ///
-        while (first_decl(token))
-            decls(paramdecl);
-
         foreach(identifiers, PARAM, oldparam, params);
 
         for (int i = 0; params[i]; i++) {

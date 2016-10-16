@@ -3,12 +3,6 @@
 
 static void statement(int cnt, int brk, struct swtch *swtch);
 
-static void declaration(void)
-{
-    assert(cscope >= LOCAL);
-    decls(actions.localdecl);
-}
-
 /// expression-statement:
 ///   expression[opt] ';'
 ///

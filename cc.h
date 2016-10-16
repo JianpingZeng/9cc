@@ -421,7 +421,7 @@ extern struct expr *bool_expr(void);
 extern struct expr *switch_expr(void);
 
 // decl.c
-extern void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct source));
+extern void declaration(void);
 extern void translation_unit(void);
 extern struct type *typename(void);
 

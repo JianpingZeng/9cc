@@ -944,7 +944,7 @@ static void exit_params(struct symbol *params[])
 ///   declarator
 ///   declarator '=' initializer
 ///
-void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct source))
+static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct source))
 {
     struct type *basety;
     int sclass, fspec;
@@ -967,8 +967,18 @@ void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct s
         if (level == GLOBAL && params) {
             if (isfunc(ty) && (token->id == '{' ||
                                (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
-                if (TYPE_OLDSTYLE(ty))
+                if (TYPE_OLDSTYLE(ty)) {
                     exit_scope();
+                    // start with a new table
+                    enter_scope();
+                    assert(cscope == PARAM);
+                    /// declaration-list:
+                    ///   declaration
+                    ///   declaration-list declaration
+                    ///
+                    while (first_decl(token))
+                        decls(actions.paramdecl);
+                }
 
                 actions.funcdef(id ? TOK_ID_STR(id) : NULL,
                                 ty, sclass, fspec, params, id ? id->src : src);
@@ -1007,6 +1017,12 @@ void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct s
         error("invalid token '%s' in declaration", tok2s(token));
     }
     match(';', skip_to_decl);
+}
+
+void declaration(void)
+{
+    assert(cscope >= LOCAL);
+    decls(actions.localdecl);
 }
 
 /// translation-unit:
