@@ -330,7 +330,7 @@ static struct symbol **prototype(struct type *ftype)
 {
     struct list *list = NULL;
 
-    for (int i = 0;; i++) {
+    while (1) {
         struct type *basety = NULL;
         int sclass, fspec;
         struct type *ty = NULL;
@@ -383,9 +383,6 @@ static struct symbol **oldstyle(struct type *ftype)
             break;
         gettok();
     }
-
-    if (cscope > PARAM)
-        error("a parameter list without types is only allowed in a function definition");
 
     return ltoa(&params, FUNC);
 }
