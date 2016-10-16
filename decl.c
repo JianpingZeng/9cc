@@ -329,7 +329,7 @@ static void array_qualifiers(struct type * atype)
 static struct symbol **prototype(struct type *ftype)
 {
     struct list *list = NULL;
-    
+
     for (int i = 0;; i++) {
         struct type *basety = NULL;
         int sclass, fspec;
@@ -345,7 +345,7 @@ static struct symbol **prototype(struct type *ftype)
         sym = actions.paramdecl(id ? TOK_ID_STR(id) : NULL,
                                 ty, sclass, fspec, id ? id->src : src);
         list = list_append(list, sym);
-        
+
         if (token->id != ',')
             break;
 
@@ -371,7 +371,7 @@ static struct symbol **prototype(struct type *ftype)
 static struct symbol **oldstyle(struct type *ftype)
 {
     struct list *params = NULL;
-    
+
     for (;;) {
         if (token->id == ID) {
             struct symbol *sym = actions.paramdecl(TOK_ID_STR(token), inttype, 0, 0, token->src);
@@ -398,7 +398,7 @@ static struct symbol **parameters(struct type * ftype)
         // prototype
         int i;
         struct type **proto;
-        
+
         params = prototype(ftype);
         proto = newarray(sizeof(struct type *), length(params) + 1, PERM);
         for (i = 0; params[i]; i++)
@@ -669,7 +669,7 @@ static void abstract_declarator(struct type ** ty)
 static void declarator(struct type ** ty, struct token **id, struct symbol ***params)
 {
     assert(ty && id);
-    
+
     if (token->id == '*') {
         struct type *pty = ptr_decl();
         prepend_type(ty, pty);
@@ -739,33 +739,27 @@ static struct symbol *tag_symbol(int t, const char *tag, struct source src)
 /// enumeration-constant:
 ///   identifier
 ///
-static void ids(struct symbol *sym)
+static void enum_body(struct symbol *sym)
 {
-    if (token->id == ID) {
-        int val = 0;
-        do {
-            const char *name = TOK_ID_STR(token);
-            struct symbol *s = lookup(name, identifiers);
-            if (s && is_current_scope(s))
-                error(REDEFINITION_ERROR, s->name, s->src.file, s->src.line, s->src.column);
-
-            s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
-            s->type = sym->type;
-            s->src = source;
-            s->sclass = ENUM;
-            expect(ID);
-            if (token->id == '=') {
-                expect('=');
-                val = intexpr();
-            }
-            s->value.u = val++;
-            if (token->id != ',')
-                break;
-            expect(',');
-        } while (token->id == ID);
-    } else {
+    int val = 0;
+    
+    if (token->id != ID) {
         error("expect identifier");
+        return;
     }
+
+    do {
+        const char *name = TOK_ID_STR(token);
+        gettok();
+        if (token->id == '=') {
+            gettok();
+            val = intexpr();
+        }
+        actions.enum_id(name, val++, sym);
+        if (token->id != ',')
+            break;
+        gettok();
+    } while (token->id == ID);
 }
 
 static void bitfield(struct field *field)
@@ -795,36 +789,26 @@ static void bitfield(struct field *field)
 ///   declarator
 ///   declarator[opt] ':' constant-expression
 ///
-static void fields(struct symbol * sym)
+static void struct_body(struct symbol *sym)
 {
-    struct type *sty = sym->type;
-
-    if (!first_decl(token)) {
-        // supports empty record
-        if (token->id != '}')
-            error("expect type name or qualifiers");
-        return;
-    }
+    struct field **pp = &sym->type->u.s.field;
     
-    struct vector *v = vec_new();
-    do {
+    while (first_decl(token)) {
         struct type *basety = specifiers(NULL, NULL);
 
-        for (;;) {
+        while (1) {
             struct field *field = alloc_field();
             if (token->id == ':') {
                 bitfield(field);
                 field->type = basety;
             } else if (token->id == ';' &&
                        isrecord(basety) &&
-                       is_anonymous(TYPE_TAG(basety))) {
+                       TYPE_TSYM(basety)->anonymous) {
                 //C11: anonymous record
-                size_t len = length(TYPE_FIELDS(basety));
-                for (int i = 0; i < len; i++) {
-                    struct field *field = TYPE_FIELDS(basety)[i];
-                    vec_push(v, field);
-                    if (i < len - 1)
-                        ensure_field(field, vec_len(v), false);
+                struct field *p = TYPE_FIELDS(basety);
+                for (; p; p = p->link) {
+                    *pp = p;
+                    pp = &p->link;
                 }
                 goto next;
             } else {
@@ -836,32 +820,24 @@ static void fields(struct symbol * sym)
                     bitfield(field);
                 field->type = ty;
                 if (id) {
-                    const char *name = TOK_ID_STR(id);
-                    for (int i = 0; i < vec_len(v); i++) {
-                        struct field *f = vec_at(v, i);
-                        if (f->name && !strcmp(f->name, name)) {
-                            error_at(id->src, "redefinition of '%s'", name);
-                            break;
-                        }
-                    }
-                    field->name = name;
+                    field->name = TOK_ID_STR(id);
                     field->src = id->src;
                 }
             }
 
-            vec_push(v, field);
+            // link
+            *pp = field;
+            pp = &field->link;
+
             if (token->id != ',')
                 break;
-            expect(',');
-            ensure_field(field, vec_len(v), false);
+            gettok();
         }
     next:
         match(';', skip_to_decl);
-        ensure_field(vec_tail(v), vec_len(v), isstruct(sty) && !first_decl(token));
-    } while (first_decl(token));
+    }
 
-    TYPE_FIELDS(sty) = vtoa(v, PERM);
-    set_typesize(sty);
+    actions.fields(sym);
 }
 
 /// enum-specifier:
@@ -896,21 +872,19 @@ static struct type *tag_decl(void)
         expect('{');
         sym = tag_symbol(t, id, src);
         if (t == ENUM)
-            ids(sym);
+            enum_body(sym);
         else
-            fields(sym);
+            struct_body(sym);
         match('}', skip_to_brace);
         sym->defined = true;
+        actions.deftype(sym);
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {
             if (is_current_scope(sym) && TYPE_OP(sym->type) != t)
                 error_at(src,
                          "use of '%s' with tag type that does not match previous declaration '%s' at %s:%u:%u",
-                         id2s(t), type2s(sym->type),
-                         sym->src.file,
-                         sym->src.line,
-                         sym->src.column);
+                         id2s(t), type2s(sym->type), sym->src.file, sym->src.line, sym->src.column);
         } else {
             sym = tag_symbol(t, id, src);
         }
@@ -966,7 +940,7 @@ static void exit_params(struct symbol *params[])
     if (params[0] && !params[0]->defined)
         error_at(params[0]->src,
                  "a parameter list without types is only allowed in a function definition");
-    
+
     if (cscope > PARAM)
         exit_scope();
 
@@ -1016,7 +990,7 @@ void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct s
                                (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
                 if (TYPE_OLDSTYLE(ty))
                     exit_scope();
-                
+
                 actions.funcdef(id ? TOK_ID_STR(id) : NULL,
                                 ty, sclass, fspec, params, id ? id->src : src);
                 return;
@@ -1045,7 +1019,11 @@ void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct s
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
-        actions.deftype(TYPE_TSYM(basety));
+        if (isstruct(basety) || isunion(basety)) {
+            // anonymous record (can't be referenced)
+            if (TYPE_TSYM(basety)->anonymous)
+                warning("declaration does not declare anything");
+        }
     } else {
         error("invalid token '%s' in declaration", tok2s(token));
     }
@@ -1073,7 +1051,7 @@ void translation_unit(void)
             }
         }
     }
-    
+
     foreach(identifiers, GLOBAL, doglobal, NULL);
 }
 
@@ -1096,9 +1074,7 @@ struct type *typename(void)
 
 static void doglobal(struct symbol *sym, void *context)
 {
-    if (sym->sclass == EXTERN ||
-        isfunc(sym->type) ||
-        sym->defined)
+    if (sym->sclass == EXTERN || isfunc(sym->type) || sym->defined)
         return;
 
     actions.defgvar(sym);

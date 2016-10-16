@@ -122,6 +122,29 @@ void skip_to_expr(void)
 
 /// decl
 
+void do_enum_id(const char *name, int val, struct symbol *sym)
+{
+    struct symbol *s = lookup(name, identifiers);
+    if (s && is_current_scope(s))
+        error(REDEFINITION_ERROR, name, s->src.file, s->src.line, s->src.column);
+
+    s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
+    s->type = sym->type;
+    s->src = source;
+    s->sclass = ENUM;
+    s->value.u = val;
+}
+
+static void ensure_inline(struct type *ty, int fspec, struct source src)
+{
+    if (fspec == INLINE) {
+        if (isfunc(ty))
+            TYPE_INLINE(ty) = 1;
+        else
+            error_at(src, "'inline' can only appear on functions");
+    }
+}
+
 static void ensure_bitfield(struct field *field)
 {
     const char *name = field->name;
@@ -169,33 +192,19 @@ static void ensure_bitfield(struct field *field)
     }
 }
 
-static void ensure_inline(struct type *ty, int fspec, struct source src)
-{
-    if (fspec == INLINE) {
-        if (isfunc(ty))
-            TYPE_INLINE(ty) = 1;
-        else
-            error_at(src, "'inline' can only appear on functions");
-    }
-}
-
-static void ensure_nonbitfield(struct field * field, size_t total, bool last)
+static void ensure_nonbitfield(struct field *field, bool one)
 {
     struct type *ty = field->type;
     struct source src = field->src;
+    bool last = field->link == NULL;
         
     if (isarray(ty)) {
-        ensure_array(ty, source, CONSTANT);
+        ensure_array(ty, src, CONSTANT);
         if (isincomplete(ty)) {
-            if (last) {
-                if (total == 1)
-                    error_at(src,
-                             "flexible array cannot be the only member");
-            } else {
-                error_at(src,
-                         "field has incomplete type '%s'",
-                         type2s(ty));
-            }
+            if (one)
+                error_at(src, "flexible array cannot be the only member");
+            else if (!last)
+                error_at(src, "field has incomplete type '%s'", type2s(ty));
         }
     } else if (isfunc(ty)) {
         error_at(src, "field has invalid type '%s'", TYPE_NAME(ty));
@@ -204,12 +213,29 @@ static void ensure_nonbitfield(struct field * field, size_t total, bool last)
     }
 }
 
-void ensure_field(struct field * field, size_t total, bool last)
+static void do_fields(struct symbol *sym)
 {
-    if (field->isbit)
-        ensure_bitfield(field);
-    else
-        ensure_nonbitfield(field, total, last);
+    struct field *first = sym->type->u.s.field;
+    bool one = first && first->link == NULL;
+
+    for (struct field *p = first; p; p = p->link) {
+        // check redefinition
+        if (p->name) {
+            struct field *f = first;
+            while (f != p) {
+                if (f->name == p->name)
+                    error_at(p->src,
+                             REDEFINITION_ERROR,
+                             p->name, f->src.file, f->src.line, f->src.column);
+                f = f->link;
+            }
+        }
+        if (p->isbit)
+            ensure_bitfield(p);
+        else
+            ensure_nonbitfield(p, one);
+    }
+    set_typesize(sym->type);
 }
 
 static void ensure_decl(struct symbol * sym)
@@ -314,7 +340,7 @@ static void ensure_params(struct symbol *params[])
         struct symbol *sym = params[i];
         struct type *ty = sym->type;
         // params id is required in prototype
-        if (is_anonymous(sym->name))
+        if (sym->anonymous)
             error_at(sym->src, "parameter name omitted");
         if (isenum(ty) || isstruct(ty) || isunion(ty)) {
             if (!TYPE_TSYM(ty)->defined)
@@ -332,7 +358,7 @@ void ensure_prototype(struct type *ftype, struct symbol *params[])
         struct type *ty = p->type;
         if (isvoid(ty)) {
             if (i == 0) {
-                if (p->name && !is_anonymous(p->name)) {
+                if (p->name && !p->anonymous) {
                     error_at(p->src,
                              "argument may not have 'void' type");
                     p->type = inttype;
@@ -2253,9 +2279,9 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct lis
         if (eqtype(unqual(desig->type), unqual(expr->type))) {
             simple_init(desig, expr, plist);
         } else {
-            struct field *field = TYPE_FIELDS(desig->type)[0];
-            struct desig *d = new_desig_field(field, source);
-            d->offset = desig->offset + field->offset;
+            struct field *first = TYPE_FIELDS(desig->type);
+            struct desig *d = new_desig_field(first, source);
+            d->offset = desig->offset + first->offset;
             d->prev = desig;
             *pdesig = d;
             do_element_init(pdesig, expr, plist);
@@ -2308,12 +2334,8 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
             assert(prev);
             assert(isrecord(prev->type));
 
-            struct field **fields = TYPE_FIELDS(prev->type);
-            size_t len = length(fields);
-            int idx = indexof_field(prev->type, desig->u.field);
-            assert(idx >= 0);
-            if (idx < len - 1) {
-                struct field *field = fields[idx+1];
+            struct field *field = desig->u.field->link;
+            if (field) {
                 struct desig *d = new_desig_field(field, source);
                 d->offset = prev->offset + field->offset;
                 d->prev = copy_desig(prev);
@@ -2353,8 +2375,13 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
             return NULL;
         }
         if (isrecord(desig->type)) {
-            struct field **fields = TYPE_FIELDS(desig->type);
-            if (isempty(fields)) {
+            struct field *first = TYPE_FIELDS(desig->type);
+            if (first) {
+                struct desig *d = new_desig_field(first, source);
+                d->offset = desig->offset + first->offset;
+                d->prev = copy_desig(desig);
+                return d;
+            } else {
                 // TODO: empty record
                 if (isincomplete(desig->type))
                     error("initialize incomplete type '%s'",
@@ -2363,12 +2390,6 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                     error("initialize empty %s is not supported yet",
                           id2s(TYPE_KIND(desig->type)));
                 return NULL;
-            } else {
-                struct field *field = fields[0];
-                struct desig *d = new_desig_field(field, source);
-                d->offset = desig->offset + field->offset;
-                d->prev = copy_desig(desig);
-                return d;
             }
         } else if (isarray(desig->type)) {
             struct type *rty = rtype(desig->type);
@@ -2675,14 +2696,17 @@ struct actions actions = {
     .dclfun = dclfun,
     .defun = defun,
     .deftype = deftype,
-
+    
     .globaldecl = globaldecl,
     .localdecl = localdecl,
     .paramdecl = paramdecl,
     .typedefdecl = typedefdecl,
     .funcdef = funcdef,
-    .func_body = do_func_body,
 
+    .enum_id = do_enum_id,
+    .fields = do_fields,
+    .func_body = do_func_body,
+    
     // expr
     .commaop = do_comma,
     .assignop = do_assign,

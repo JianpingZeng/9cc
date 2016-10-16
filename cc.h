@@ -47,7 +47,7 @@ struct options {
 // enum/struct/union
 #define TYPE_TAG(ty)             (unqual(ty)->u.s.tag)
 #define TYPE_TSYM(ty)            (unqual(ty)->u.s.tsym)
-#define TYPE_FIELDS(ty)          (unqual(ty)->u.s.fields)
+#define TYPE_FIELDS(ty)          (unqual(ty)->u.s.field)
 // array
 #define TYPE_LEN(ty)             (unqual(ty)->u.a.len)
 #define TYPE_A_ASSIGN(ty)        (unqual(ty)->u.a.assign)
@@ -63,7 +63,7 @@ struct type {
     size_t size;
     short kind;
     short op;
-    unsigned char align;                // align in bytes
+    unsigned char align;        // align in bytes
     unsigned char rank;
     bool inlined;
     union {
@@ -78,11 +78,11 @@ struct type {
         struct {
             const char *tag;
             struct symbol *tsym;
-            struct field **fields;
+            struct field *field; // first field
         } s;
         // array
         struct {
-            size_t len;        // array length
+            size_t len;         // array length
             struct expr *assign;
             unsigned int con:1;
             unsigned int vol:1;
@@ -105,6 +105,7 @@ struct field {
     int isbit : 1;
     int bitsize : 10;
     int bitoff : 10;
+    struct field *link;
 };
 
 struct symbol {
@@ -115,6 +116,7 @@ struct symbol {
     int sclass;
     bool defined;
     bool predefine;
+    bool anonymous;
     unsigned int refs;
     union value value;
     struct symbol *link;
@@ -287,6 +289,8 @@ struct actions {
     void (*typedefdecl) (const char *, struct type *, int, int, struct source);
     void (*funcdef) (const char *, struct type *, int, int, struct symbol *[], struct source);
 
+    void (*enum_id) (const char *name, int val, struct symbol *sym);
+    void (*fields) (struct symbol *sym);
     void (*func_body) (struct symbol *sym);
     
     // expr
@@ -374,7 +378,6 @@ extern void enter_scope(void);
 extern void exit_scope(void);
 extern void foreach(struct table *tp, int level, void (*apply) (struct symbol *, void *), void *context);
 extern bool is_current_scope(struct symbol *sym);
-extern bool is_anonymous(const char *name);
 // create an anonymous symbol
 extern struct symbol *anonymous(struct table **tpp, int scope, int area);
 // look up a symbol from this table to previous one, and so on
@@ -444,7 +447,6 @@ extern void skip_to_decl(void);
 extern void skip_to_stmt(void);
 extern void skip_to_expr(void);
 
-extern void ensure_field(struct field *field, size_t total, bool last);
 extern void ensure_prototype(struct type *ftype, struct symbol *params[]);
 
 extern void init_string(struct type *ty, struct expr *node);
@@ -479,7 +481,6 @@ extern struct type *func_type(struct type *ty);
 extern struct type *tag_type(int t, const char *tag);
 extern void set_typesize(struct type *ty);
 extern struct field *find_field(struct type *ty, const char *name);
-extern int indexof_field(struct type *ty, struct field *field);
 extern struct type *compose(struct type *ty1, struct type *ty2);
 extern bool qual_contains(struct type *ty1, struct type *ty2);
 extern int qual_union(struct type *ty1, struct type *ty2);

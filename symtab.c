@@ -75,15 +75,12 @@ bool is_current_scope(struct symbol *sym)
     return sym->scope == cscope || (sym->scope == PARAM && cscope == LOCAL);
 }
 
-bool is_anonymous(const char *name)
-{
-    return name == NULL || !isletter(name[0]);
-}
-
 struct symbol *anonymous(struct table **tpp, int scope, int area)
 {
     static long i;
-    return install(format("@%ld", i++), tpp, scope, area);
+    struct symbol *sym = install(format("@%ld", i++), tpp, scope, area);
+    sym->anonymous = true;
+    return sym;
 }
 
 struct symbol *lookup(const char *name, struct table * table)

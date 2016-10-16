@@ -100,9 +100,9 @@ static void print_type1(struct symbol *sym, int level)
     print_ty(ty);
     putf("\n");
     if (isstruct(ty) || isunion(ty)) {
-        struct field **fields = TYPE_FIELDS(ty);
-        for (int i = 0; fields[i]; i++)
-            print_field1(fields[i], level + 1);
+        struct field *first = TYPE_FIELDS(ty);
+        for (struct field *p = first; p; p = p->link)
+            print_field1(p, level + 1);
     }
 }
 

@@ -362,31 +362,19 @@ bool eqtype(struct type * ty1, struct type * ty2)
     }
 }
 
-struct field *find_field(struct type * sty, const char *name)
+struct field *find_field(struct type *ty, const char *name)
 {
-    struct type *ty = unqual(sty);
     assert(isrecord(ty));
 
     if (name == NULL)
         return NULL;
-    for (size_t i = 0; TYPE_FIELDS(ty)[i]; i++) {
-        struct field *field = TYPE_FIELDS(ty)[i];
-        if (field->name && !strcmp(name, field->name))
-            return field;
+
+    for (struct field *p = TYPE_FIELDS(ty); p; p = p->link) {
+        if (p->name == name)
+            return p;
     }
 
     return NULL;
-}
-
-int indexof_field(struct type * ty, struct field * field)
-{
-    for (int i = 0; TYPE_FIELDS(ty)[i]; i++) {
-        struct field *f = TYPE_FIELDS(ty)[i];
-        if (field == f)
-            return i;
-    }
-    assert(0);
-    return -1;
 }
 
 /* Structure alignment requirements
@@ -401,10 +389,9 @@ static unsigned int struct_size(struct type * ty)
 {
     int max = 1;
     struct field *prev = NULL;
-    struct field **fields = TYPE_FIELDS(ty);
+    struct field *first = TYPE_FIELDS(ty);
 
-    for (int i = 0; fields[i]; i++) {
-        struct field *field = fields[i];
+    for (struct field *field = first; field; field = field->link) {
         struct type *ty = field->type;
 
         if (field->isbit) {
@@ -500,10 +487,9 @@ static unsigned int union_size(struct type * ty)
 {
     int max = 1;
     int size = 0;
-    struct field **fields = TYPE_FIELDS(ty);
+    struct field *first = TYPE_FIELDS(ty);
 
-    for (int i = 0; fields[i]; i++) {
-        struct field *field = fields[i];
+    for (struct field *field = first; field; field = field->link) {
         struct type *ty = field->type;
         int tysize = TYPE_SIZE(ty);
 
