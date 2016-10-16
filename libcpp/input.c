@@ -18,7 +18,7 @@ static struct buffer *new_buffer(void)
     pb->bol = true;
     pb->need_line = true;
     pb->line = 1;
-    pb->column = 0;
+    pb->column = 1;
     pb->ungets = vec_new();
     return pb;
 }

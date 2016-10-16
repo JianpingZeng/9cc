@@ -42,7 +42,7 @@ struct source source;
 
 #define INCLINE(fs, col)  do {                  \
         fs->line++;                             \
-        fs->column = col;                       \
+        fs->column = col + 1;                   \
     } while (0)
 
 #define MARK(t)  source = t->src
@@ -53,7 +53,7 @@ struct source source;
         source.column = fs->column;             \
     } while (0)
 
-#define SET_COLUMN(fs, col)  fs->column = col
+#define SET_COLUMN(fs, col)  fs->column = (col) + 1
 
 const char *id2s(int t)
 {

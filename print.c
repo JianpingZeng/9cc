@@ -82,7 +82,7 @@ static void print_ty(struct type * ty)
         putf(GREEN("'%s' "), type2s(ty));
 
         if (isarray(ty) || isstruct(ty) || isunion(ty)) {
-            putf(YELLOW("<size=%ld> "), TYPE_SIZE(ty));
+            putf("<" YELLOW("size=%ld") "> ", TYPE_SIZE(ty));
         } else if (isfunc(ty)) {
             putf("%s ", TYPE_OLDSTYLE(ty) ? "oldstyle" : "prototype");
             if (TYPE_INLINE(ty))
@@ -97,6 +97,14 @@ static void print_type1(struct symbol *sym, int level)
     
     for (int i = 0; i < level; i++)
         putf("  ");
+    if (sym->sclass == TYPEDEF)
+        putf(GREEN_BOLD("TypedefDecl ") CYAN_BOLD("%s "), sym->name);
+    else if (isstruct(ty))
+        putf(GREEN_BOLD("StructDecl "));
+    else if (isunion(ty))
+        putf(GREEN_BOLD("UnionDecl "));
+    else if (isenum(ty))
+        putf(GREEN_BOLD("EnumDecl "));
     print_ty(ty);
     putf("\n");
     if (isstruct(ty) || isunion(ty)) {
@@ -127,21 +135,21 @@ static void print_field1(struct field * node, int level)
         putf(GREEN("<offset=%d> "), node->offset);
 
     print_ty(ty);
-    putf(CYAN("%s"), STR(name));
+    putf(CYAN_BOLD("%s"), STR(name));
     putf("\n");
 }
 
 static void print_symbol1(struct symbol *sym, int level)
 {
-    putf(CYAN("%s "), STR(sym->name));
+    putf(CYAN_BOLD("%s "), STR(sym->name));
     
     if (sym->defined)
         putf(YELLOW("<defined> "));
 
     struct type *ty = sym->type;
     print_ty(ty);
-    putf("<scope: %d>", sym->scope);
-    putf(YELLOW("<line:%u col:%u> "), sym->src.line, sym->src.column);
+    putf("<" YELLOW("%s:line:%u col:%u") "> ",
+         sym->src.file, sym->src.line, sym->src.column);
     putf("\n");
 
     if (isfuncdef(sym)) {
