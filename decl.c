@@ -1072,5 +1072,6 @@ static void doglobal(struct symbol *sym, void *context)
     if (sym->sclass == EXTERN || isfunc(sym->type) || sym->defined)
         return;
 
+    sym->defined = true;
     actions.defgvar(sym);
 }

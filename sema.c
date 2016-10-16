@@ -2670,21 +2670,6 @@ static void dclgvar(struct symbol *n)
         ast_dump_symbol(n);
 }
 
-static void defgvar(struct symbol *n)
-{
-    if (opts.ast_dump)
-        ast_dump_symbol(n);
-    else
-        IR->defvar(n);
-}
-
-static void defsvar(struct symbol *n)
-{
-    if (opts.ast_dump)
-        return;
-    IR->defvar(n);
-}
-
 static void deflvar(struct symbol *n)
 {
     // TODO: 
@@ -2696,18 +2681,39 @@ static void dclfun(struct symbol *n)
         ast_dump_symbol(n);
 }
 
-static void defun(struct symbol *n)
-{
-    if (opts.ast_dump)
-        ast_dump_symbol(n);
-    else
-        IR->defun(n);
-}
-
 static void deftype(struct symbol *n)
 {
     if (opts.ast_dump)
         ast_dump_type(n);
+}
+
+static void defsvar(struct symbol *n)
+{
+    if (opts.ast_dump || errors())
+        return;
+    IR->defvar(n);
+}
+
+static void defgvar(struct symbol *n)
+{
+    if (opts.ast_dump) {
+        ast_dump_symbol(n);
+        return;
+    }
+    if (errors())
+        return;
+    IR->defvar(n);
+}
+
+static void defun(struct symbol *n)
+{
+    if (opts.ast_dump) {
+        ast_dump_symbol(n);
+        return;
+    }
+    if (errors())
+        return;
+    IR->defun(n);
 }
 
 /// init/finalize
