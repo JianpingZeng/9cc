@@ -3,13 +3,9 @@
 #include "internal.h"
 
 typedef long cpp_num;
-
 static cpp_num expr(void);
 static cpp_num cond(void);
 static cpp_num cast(void);
-
-#define is_assign_op(op)    (((op) == '=') || ((op) >= MULEQ && (op) <= RSHIFTEQ))
-
 
 static void skip_pair(int p1, int p2)
 {
@@ -457,7 +453,7 @@ static cpp_num assign(void)
     num = logical_or();
     if (token->id == '?')
         return cond1(num);
-    if (is_assign_op(token->id)) {
+    if (is_assign_tok(token)) {
         cpp_error("assignment is not allowed in preprocessor expression");
         expect(token->id);
         num = assign();

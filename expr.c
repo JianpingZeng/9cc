@@ -6,8 +6,6 @@ static struct expr *cond_expr1(struct expr *);
 static struct expr *cond_expr(void);
 static struct expr *unary_expr(void);
 
-#define is_assign_tok(t)    ((t)->id == '=' || (t)->kind == ADDEQ)
-
 static struct expr *compound_literal(struct type * ty)
 {
     struct expr *inits;

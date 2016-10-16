@@ -197,6 +197,7 @@ extern int isletter(int c);
 #define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 #define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
+#define is_assign_tok(t)    ((t)->id == '=' || (t)->kind == ADDEQ)
 
 struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count);
 
