@@ -871,6 +871,15 @@ struct symbol *mklocal(const char *name, struct type * ty, int sclass)
     return call(localdecl)(name, ty, sclass, 0, source);
 }
 
+static void doglobal(struct symbol *sym, void *context)
+{
+    if (sym->sclass == EXTERN || isfunc(sym->type) || sym->defined)
+        return;
+
+    sym->defined = true;
+    actions.defgvar(sym);
+}
+
 /// expr
 
 /**
@@ -2727,8 +2736,9 @@ static void init(int argc, char *argv[])
 
 static void finalize(void)
 {
-    if (opts.preprocess_only || opts.ast_dump)
+    if (opts.ast_dump)
         return;
+    foreach(identifiers, GLOBAL, doglobal, NULL);
     IR->finalize();
 }
 

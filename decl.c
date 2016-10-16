@@ -4,7 +4,6 @@
 static void param_declarator(struct type ** ty, struct token **id);
 static struct type *tag_decl(void);
 static void exit_params(struct symbol *params[]);
-static void doglobal(struct symbol *sym, void *context);
 
 static void attach_type(struct type ** typelist, struct type * type)
 {
@@ -1047,7 +1046,7 @@ void translation_unit(void)
         }
     }
 
-    foreach(identifiers, GLOBAL, doglobal, NULL);
+    actions.finalize();
 }
 
 /// type-name:
@@ -1065,13 +1064,4 @@ struct type *typename(void)
     attach_type(&ty, basety);
 
     return ty;
-}
-
-static void doglobal(struct symbol *sym, void *context)
-{
-    if (sym->sclass == EXTERN || isfunc(sym->type) || sym->defined)
-        return;
-
-    sym->defined = true;
-    actions.defgvar(sym);
 }

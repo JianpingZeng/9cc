@@ -67,7 +67,5 @@ int main(int argc, char *argv[])
     else
         translation_unit();
 
-    actions.finalize();
-
     return errors() > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
