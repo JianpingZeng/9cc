@@ -3,12 +3,13 @@
 #include <stdlib.h>
 #include "cc.h"
 
-
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 #define MAX_STRUCT_PARAM_SIZE  16
 #define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
 #define TYPE_ERROR  "expect type '%s', not '%s'"
+#define INSTALL(name)  .name = do_##name
+#define call(func)  do_##func
 
 static void ensure_array(struct type * atype, struct source src, int level);
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
@@ -784,7 +785,7 @@ static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec
         for (int i = 0; params[i]; i++) {
             struct symbol *p = params[i];
             if (!p->defined)
-                params[i] = do_paramdecl(p->name, inttype, 0, 0, p->src);
+                params[i] = call(paramdecl)(p->name, inttype, 0, 0, p->src);
             // check void
             if (isvoid(p->type)) {
                 error_at(p->src, "argument may not have 'void' type");
@@ -865,7 +866,7 @@ static void do_func_body(struct symbol *sym)
 
 struct symbol *mklocal(const char *name, struct type * ty, int sclass)
 {
-    return do_localdecl(name, ty, sclass, 0, source);
+    return call(localdecl)(name, ty, sclass, 0, source);
 }
 
 /// expr
@@ -1395,7 +1396,7 @@ static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct s
                 return NULL;
             }
         }
-        r = do_bop(op2, l1, r1, src);
+        r = call(bop)(op2, l1, r1, src);
     }
 
     struct type *retty = unqual(l->type);
@@ -1575,14 +1576,14 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(l->type));
-            struct expr *mul = do_bop('*', r, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = call(bop)('*', r, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), l->type), l->type, l, mul);
         } else if (isptr(r->type) && isint(l->type)) {
             if (!ensure_additive_ptr(r, src))
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(r->type));
-            struct expr *mul = do_bop('*', l, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = call(bop)('*', l, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), r->type), r->type, mul, r);
         } else {
             if (!isarith(l->type)) {
@@ -1602,7 +1603,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(l->type));
-            struct expr *mul = do_bop('*', r, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = call(bop)('*', r, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), l->type), l->type, l, mul);
         } else if (isptr(l->type) && isptr(r->type)) {
             if (!ensure_additive_ptr(l, src) || !ensure_additive_ptr(r, src))
@@ -1779,10 +1780,10 @@ static struct expr * do_logical_not(struct expr *operand, struct source src)
 
     struct expr *t1 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
     struct expr *t2 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
-    struct expr *then = do_assignop('=', t1, cnsti(0, inttype), src);
-    struct expr *els = do_assignop('=', t2, cnsti(1, inttype), src);
+    struct expr *then = call(assignop)('=', t1, cnsti(0, inttype), src);
+    struct expr *els = call(assignop)('=', t2, cnsti(1, inttype), src);
 
-    return do_condop(operand, then, els, src);
+    return call(condop)(operand, then, els, src);
 }
 
 /**
@@ -1871,7 +1872,7 @@ static struct expr * do_subscript(struct expr *node, struct expr *index, struct 
             return NULL;
         }
         
-        struct expr *expr = do_bop('+', node, index, src);
+        struct expr *expr = call(bop)('+', node, index, src);
         return rvalue(expr);
     } else {
         if (!isptr(node->type) && !isptr(index->type))
@@ -2234,7 +2235,7 @@ static struct expr * do_paren(struct expr *e, struct source src)
 
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
 {
-    return do_assignop('=', expr, do_bop(op, expr, cnst, src), src);
+    return call(assignop)('=', expr, call(bop)(op, expr, cnst, src), src);
 }
 
 /// constant-expression:
@@ -2290,13 +2291,13 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
 
 struct expr *binop(int op, struct expr *l, struct expr *r)
 {
-    return do_bop(op, l, r, source);
+    return call(bop)(op, l, r, source);
 }
 
 struct expr *assign(struct symbol *sym, struct expr *r)
 {
     struct expr *l = mkref(sym, sym->src);
-    return do_assignop('=', l, r, sym->src);
+    return call(assignop)('=', l, r, sym->src);
 }
 
 /// init
@@ -2323,7 +2324,7 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct lis
             d->offset = desig->offset + first->offset;
             d->prev = desig;
             *pdesig = d;
-            do_element_init(pdesig, expr, plist);
+            call(element_init)(pdesig, expr, plist);
         }
     } else if (isarray(desig->type)) {
         if (isstring(desig->type) && issliteral(expr)) {
@@ -2736,8 +2737,6 @@ struct actions actions = {
     .defun = defun,
     .deftype = deftype,
 
-#define INSTALL(name)  .name = do_##name
-
     INSTALL(globaldecl),
     INSTALL(localdecl),
     INSTALL(paramdecl),
@@ -2790,6 +2789,4 @@ struct actions actions = {
     INSTALL(element_init),
     INSTALL(designator),
     INSTALL(initializer_list),
-    
-#undef INSTALL
 };
