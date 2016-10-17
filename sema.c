@@ -150,7 +150,7 @@ bool istypedef(const char *id)
     return lookup_typedef(id) != NULL;
 }
 
-void do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
+struct symbol *do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
 {
     struct symbol *s = lookup(name, identifiers);
     if (s && is_current_scope(s))
@@ -162,6 +162,7 @@ void do_enum_id(const char *name, int val, struct symbol *sym, struct source src
     s->src = src;
     s->sclass = ENUM;
     s->value.u = val;
+    return s;
 }
 
 static void ensure_inline(struct type *ty, int fspec, struct source src)

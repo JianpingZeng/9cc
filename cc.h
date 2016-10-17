@@ -134,6 +134,7 @@ struct symbol {
         // enum/struct/union
         struct {
             struct field *flist; // first field
+            struct symbol **ids; // enum ids
         } s;
     } u;
     struct {
@@ -293,7 +294,7 @@ struct actions {
 
     void (*array_index) (struct type *atype, struct expr *assign, struct source src);
     struct symbol ** (*prototype) (struct type *ftype, struct symbol *params[]);
-    void (*enum_id) (const char *name, int val, struct symbol *sym, struct source src);
+    struct symbol * (*enum_id) (const char *name, int val, struct symbol *sym, struct source src);
     void (*direct_field) (struct symbol *sym, struct field *field);
     void (*indirect_field) (struct symbol *sym, struct field *field);
     void (*func_body) (struct symbol *sym);

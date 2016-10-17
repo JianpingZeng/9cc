@@ -19,7 +19,7 @@ static void print_expr1(struct expr * node, int level);
 static void print_stmt1(struct stmt *stmt, int level);
 static void print_field1(struct field *field, int level);
 static void print_type(struct symbol *sym);
-static void print_symbol(struct symbol *sym);
+static void print_symbol1(struct symbol *sym, int level, const char *prefix);
 
 static const char *nnames[] = {
     "null",
@@ -115,6 +115,10 @@ static void print_type1(struct symbol *sym, int level)
         struct field *first = sym->u.s.flist;
         for (struct field *p = first; p; p = p->link)
             print_field1(p, level + 1);
+    } else if (isenum(ty)) {
+        struct symbol **ids = sym->u.s.ids;
+        for (int i = 0; ids[i]; i++)
+            print_symbol1(ids[i], level + 1, "EnumConstantDecl");
     }
 }
 
@@ -155,8 +159,12 @@ static void print_field1(struct field * node, int level)
     }
 }
 
-static void print_symbol1(struct symbol *sym, int level)
+static void print_symbol1(struct symbol *sym, int level, const char *prefix)
 {
+    for (int i = 0; i < level; i++)
+        putf("  ");
+
+    putf(GREEN_BOLD("%s "), prefix);
     putf(YELLOW("%p ") CYAN_BOLD("%s "), sym, STR(sym->name));
     
     if (sym->defined)
@@ -177,9 +185,9 @@ static void print_symbol1(struct symbol *sym, int level)
     }
 }
 
-static void print_symbol(struct symbol *sym)
+static void print_symbol(struct symbol *sym, const char *prefix)
 {
-    print_symbol1(sym, 0);
+    print_symbol1(sym, 0, prefix);
 }
 
 static void print_expr1(struct expr * node, int level)
@@ -244,8 +252,7 @@ static void print_stmt1(struct stmt *stmt, int level)
 static void ast_dump_symbol(struct symbol *n, const char *prefix, bool funcdef)
 {
     SET_OUTFD(stdout);
-    putf(GREEN_BOLD("%s "), prefix);
-    print_symbol(n);
+    print_symbol(n, prefix);
     if (funcdef) {
         for (struct stmt *stmt = n->u.f.stmt; stmt; stmt = stmt->next)
             print_stmt1(stmt, 1);

@@ -720,13 +720,12 @@ static struct symbol *tag_symbol(int t, const char *tag, struct source src)
 static void enum_body(struct symbol *sym)
 {
     int val = 0;
+    struct list *list = NULL;
     
-    if (token->id != ID) {
+    if (token->id != ID)
         error("expect identifier");
-        return;
-    }
 
-    do {
+    while (token->id == ID) {
         const char *name = TOK_ID_STR(token);
         struct source src = source;
         gettok();
@@ -734,11 +733,14 @@ static void enum_body(struct symbol *sym)
             gettok();
             val = intexpr();
         }
-        actions.enum_id(name, val++, sym, src);
+        struct symbol *p = actions.enum_id(name, val++, sym, src);
+        list = list_append(list, p);
         if (token->id != ',')
             break;
         gettok();
-    } while (token->id == ID);
+    }
+
+    sym->u.s.ids = ltoa(&list, PERM);
 }
 
 static void bitfield(struct field *field)
