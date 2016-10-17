@@ -14,10 +14,19 @@ static FILE *outfd;
 #define RESTORE_OUTFD()                         \
     outfd = _saved_fd
 
+#define kVarDecl            "VarDecl"
+#define kTypedefDecl        "TypedefDecl"
+#define kFuncDecl           "FuncDecl"
+#define kStructDecl         "StructDecl"
+#define kUnionDecl          "UnionDecl"
+#define kEnumDecl           "EnumDecl"
+#define kFieldDecl          "FieldDecl"
+#define kIndirectFieldDecl  "IndirectFieldDecl"
+#define kField              "Field"
+#define kEnumConstDecl      "EnumConstantDecl"
 
 static void print_expr1(struct expr * node, int level);
 static void print_stmt1(struct stmt *stmt, int level);
-static void print_field1(struct field *field, int level);
 static void print_type(struct symbol *sym);
 static void print_symbol1(struct symbol *sym, int level, const char *prefix);
 
@@ -73,6 +82,12 @@ static void putln(const char *fmt, ...)
     va_end(ap);
 }
 
+static void print_level(int level)
+{
+    for (int i = 0; i < level; i++)
+        putf("  ");
+}
+
 static void print_ty(struct type * ty)
 {
     if (ty) {
@@ -91,20 +106,60 @@ static void print_ty(struct type * ty)
     }
 }
 
+static void print_field1(struct field * node, int level, const char *prefix)
+{
+    const char *name = node->name;
+    struct type *ty = node->type;
+
+    print_level(level);
+
+    putf(GREEN("%s ") YELLOW("%p "), prefix, node);
+    if (node->isbit)
+        putf("<" RED("offset=%d, bitoff=%d, bits=%d" "> "),
+             node->offset, node->bitoff, node->bitsize);
+    else
+        putf("<" GREEN("offset=%d") "> ", node->offset);
+
+    print_ty(ty);
+    if (name)
+        putf(CYAN_BOLD("%s"), name);
+    else
+        putf("anonymous");
+    putf("\n");
+}
+
+static void print_field(struct field * node, int level)
+{
+    if (isindirect(node)) {
+        print_level(level);
+        putf(GREEN("%s ") YELLOW("%p "), kIndirectFieldDecl, node);
+        putf(CYAN_BOLD("%s"), node->indir->name);
+        putf("\n");
+        for (int i = 0; node->of[i]; i++)
+            print_field1(node->of[i], level + 1, kField);
+        print_field1(node->indir, level + 1, kField);
+    } else {
+        print_field1(node, level, kFieldDecl);
+    }
+}
+
 static void print_type1(struct symbol *sym, int level)
 {
     struct type *ty = sym->type;
     
-    for (int i = 0; i < level; i++)
-        putf("  ");
+    print_level(level);
     if (sym->sclass == TYPEDEF)
-        putf(GREEN_BOLD("TypedefDecl ") YELLOW("%p ") CYAN_BOLD("%s "), sym, sym->name);
+        putf(GREEN_BOLD("%s ") YELLOW("%p ") CYAN_BOLD("%s "),
+             kTypedefDecl, sym, sym->name);
     else if (isstruct(ty))
-        putf(GREEN_BOLD("StructDecl ") YELLOW("%p "), sym);
+        putf(GREEN_BOLD("%s ") YELLOW("%p "),
+             kStructDecl, sym);
     else if (isunion(ty))
-        putf(GREEN_BOLD("UnionDecl ") YELLOW("%p "), sym);
+        putf(GREEN_BOLD("%s ") YELLOW("%p "),
+             kUnionDecl, sym);
     else if (isenum(ty))
-        putf(GREEN_BOLD("EnumDecl ") YELLOW("%p "), sym);
+        putf(GREEN_BOLD("%s ") YELLOW("%p "),
+             kEnumDecl, sym);
     else
         CC_UNAVAILABLE
     print_ty(ty);
@@ -114,11 +169,11 @@ static void print_type1(struct symbol *sym, int level)
     if (isstruct(ty) || isunion(ty)) {
         struct field *first = sym->u.s.flist;
         for (struct field *p = first; p; p = p->link)
-            print_field1(p, level + 1);
+            print_field(p, level + 1);
     } else if (isenum(ty)) {
         struct symbol **ids = sym->u.s.ids;
         for (int i = 0; ids[i]; i++)
-            print_symbol1(ids[i], level + 1, "EnumConstantDecl");
+            print_symbol1(ids[i], level + 1, kEnumConstDecl);
     }
 }
 
@@ -127,42 +182,9 @@ static void print_type(struct symbol *sym)
     print_type1(sym, 0);
 }
 
-static void print_field1(struct field * node, int level)
-{
-    for (int i = 0; i < level; i++)
-        putf("  ");
-    
-    if (isindirect(node)) {
-        putf(GREEN("IndirectField ") YELLOW("%p "), node);
-        putf(CYAN_BOLD("%s"), node->indir->name);
-        putf("\n");
-        for (int i = 0; node->of[i]; i++)
-            print_field1(node->of[i], level + 1);
-        print_field1(node->indir, level + 1);
-    } else {
-        const char *name = node->name;
-        struct type *ty = node->type;
-
-        putf(GREEN("Field ") YELLOW("%p "), node);
-        if (node->isbit)
-            putf("<" RED("offset=%d, bitoff=%d, bits=%d" "> "),
-                 node->offset, node->bitoff, node->bitsize);
-        else
-            putf("<" GREEN("offset=%d") "> ", node->offset);
-
-        print_ty(ty);
-        if (name)
-            putf(CYAN_BOLD("%s"), name);
-        else
-            putf("anonymous");
-        putf("\n");
-    }
-}
-
 static void print_symbol1(struct symbol *sym, int level, const char *prefix)
 {
-    for (int i = 0; i < level; i++)
-        putf("  ");
+    print_level(level);
 
     putf(GREEN_BOLD("%s "), prefix);
     putf(YELLOW("%p ") CYAN_BOLD("%s "), sym, STR(sym->name));
@@ -192,10 +214,9 @@ static void print_symbol(struct symbol *sym, const char *prefix)
 
 static void print_expr1(struct expr * node, int level)
 {
-    for (int i = 0; i < level; i++)
-        putf("  ");
-    
     const char *name = opfullname(node->op);
+
+    print_level(level);
     putf(PURPLE_BOLD("%s"), name);
     if (node->sym)
         putf("  %s", node->sym->name);
@@ -209,10 +230,8 @@ static void print_expr1(struct expr * node, int level)
 
 static void print_stmt1(struct stmt *stmt, int level)
 {
-    if (stmt->id != GEN) {
-        for (int i = 0; i < level; i++)
-            putf("  ");
-    }
+    if (stmt->id != GEN)
+        print_level(level);
 
     switch (stmt->id) {
     case LABEL:
@@ -262,17 +281,17 @@ static void ast_dump_symbol(struct symbol *n, const char *prefix, bool funcdef)
 
 void ast_dump_vardecl(struct symbol *n)
 {
-    ast_dump_symbol(n, "VarDecl", false);
+    ast_dump_symbol(n, kVarDecl, false);
 }
 
 void ast_dump_funcdecl(struct symbol *n)
 {
-    ast_dump_symbol(n, "FuncDecl", false);
+    ast_dump_symbol(n, kFuncDecl, false);
 }
 
 void ast_dump_funcdef(struct symbol *n)
 {
-    ast_dump_symbol(n, "FuncDecl", true);
+    ast_dump_symbol(n, kFuncDecl, true);
 }
 
 void ast_dump_typedecl(struct symbol *n)
