@@ -753,7 +753,8 @@ static void bitfield(struct field *field)
 ///   struct-declaration-list struct-declaration
 ///
 /// struct-declaration:
-///   specifier-qualifier-list struct-declarator-list ';'
+///   [C99] specifier-qualifier-list struct-declarator-list ';'
+///   [C11] specifier-qualifier-list struct-declarator-list[opt] ';'
 ///
 /// specifier-qualifier-list:
 ///   type-specifier specifier-qualifier-list[opt]
@@ -824,11 +825,9 @@ static void struct_body(struct symbol *sym)
 ///   'enum' identifier
 ///
 /// struct-or-union-specifier:
-///   struct-or-union identifier[opt] '{' struct-declaration-list '}'
-///   struct-or-union identifier
-///
-/// [GNU]:
-///   struct-or-union identifier[opt] '{' '}'
+///       struct-or-union identifier[opt] '{' struct-declaration-list '}'
+///       struct-or-union identifier
+/// [GNU] struct-or-union identifier[opt] '{' '}'
 ///
 /// struct-or-union:
 ///   'struct'
