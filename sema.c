@@ -244,9 +244,9 @@ static void ensure_nonbitfield(struct field *field, bool one)
 static void do_direct_field(struct symbol *sym, struct field *field)
 {
     struct field **pp = &sym->type->u.s.field;
+    struct field *p;
 
-    while (*pp) {
-        struct field *p = *pp;
+    while ((p = *pp)) {
         if (field->name && field->name == p->name)
             error_at(field->src,
                      DUPLICATE_MEMBER_ERROR,
