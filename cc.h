@@ -298,7 +298,6 @@ struct actions {
     struct symbol * (*enum_id) (const char *name, int val, struct symbol *sym, struct source src);
     void (*direct_field) (struct symbol *sym, struct field *field);
     void (*indirect_field) (struct symbol *sym, struct field *field);
-    void (*func_body) (struct symbol *sym);
     
     // expr
     struct expr * (*commaop) (struct expr *l, struct expr *r, struct source src);

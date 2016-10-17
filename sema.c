@@ -19,6 +19,7 @@ static struct expr *mkref(struct symbol *sym, struct source src);
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src);
 static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
 static void ensure_gotos(void);
+static void func_body(struct symbol *sym);
 static void dclgvar(struct symbol *); // declare a global variable
 static void defgvar(struct symbol *); // define a global variable
 static void defsvar(struct symbol *); // define a local static variable
@@ -884,7 +885,7 @@ static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec
 
     if (token->id == '{') {
         // function definition
-        actions.func_body(sym);
+        func_body(sym);
         exit_scope();
         events(defun)(sym);
     }
@@ -911,7 +912,7 @@ static void predefined_ids(void)
     sym->u.init = literal;
 }
 
-static void do_func_body(struct symbol *sym)
+static void func_body(struct symbol *sym)
 {
     struct stmt *stmt = NULL;
 
@@ -2827,7 +2828,6 @@ struct actions actions = {
     INSTALL(enum_id),
     INSTALL(direct_field),
     INSTALL(indirect_field),
-    INSTALL(func_body),
 
     // expr
     INSTALL(commaop),
