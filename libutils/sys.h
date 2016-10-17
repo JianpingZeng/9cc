@@ -1,5 +1,5 @@
-#ifndef _SYS_H
-#define _SYS_H
+#ifndef SYS_H
+#define SYS_H
 
 // setup
 extern void sys_setup(void);

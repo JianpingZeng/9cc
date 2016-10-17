@@ -1,5 +1,5 @@
-#ifndef _COLOR_H
-#define _COLOR_H
+#ifndef COLOR_H
+#define COLOR_H
 
 #ifdef CONFIG_COLOR_TERM
 

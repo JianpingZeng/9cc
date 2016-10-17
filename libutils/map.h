@@ -1,5 +1,5 @@
-#ifndef _MAP_H
-#define _MAP_H
+#ifndef MAP_H
+#define MAP_H
 
 struct map_entry {
     const void *key;

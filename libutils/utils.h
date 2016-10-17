@@ -1,5 +1,5 @@
-#ifndef _UTILS_H
-#define _UTILS_H
+#ifndef UTILS_H
+#define UTILS_H
 
 // for bool/size_t/va_list/memset
 #include <stdbool.h>

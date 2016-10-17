@@ -1,5 +1,5 @@
-#ifndef _CC_H
-#define _CC_H
+#ifndef CC_H
+#define CC_H
 
 // for bool
 #include <stdbool.h>

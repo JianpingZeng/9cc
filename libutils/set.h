@@ -1,5 +1,5 @@
-#ifndef _SET_H
-#define _SET_H
+#ifndef SET_H
+#define SET_H
 
 /// pointers set
 

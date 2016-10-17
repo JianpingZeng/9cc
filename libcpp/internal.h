@@ -1,5 +1,5 @@
-#ifndef _CPP_INTERNAL_H
-#define _CPP_INTERNAL_H
+#ifndef CPP_INTERNAL_H
+#define CPP_INTERNAL_H
 
 // for bool/size_t
 #include <stdbool.h>

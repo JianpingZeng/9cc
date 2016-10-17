@@ -1,5 +1,5 @@
-#ifndef _STRBUF_H
-#define _STRBUF_H
+#ifndef STRBUF_H
+#define STRBUF_H
 
 struct strbuf {
     char *str;

@@ -1,5 +1,5 @@
-#ifndef _VECTOR_H
-#define _VECTOR_H
+#ifndef VECTOR_H
+#define VECTOR_H
 
 struct vector {
     void **mem;
