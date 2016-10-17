@@ -535,8 +535,10 @@ extern void fatal_at(struct source src, const char *fmt, ...);
 #define fatal(...)           fatal_at(source, __VA_ARGS__)
 
 // print.c
-extern void ast_dump_symbol(struct symbol *);
-extern void ast_dump_type(struct symbol *);
+extern void ast_dump_vardecl(struct symbol *);
+extern void ast_dump_typedecl(struct symbol *);
+extern void ast_dump_funcdecl(struct symbol *);
+extern void ast_dump_funcdef(struct symbol *);
 extern const char *type2s(struct type *ty);
 extern const char *desig2s(struct desig *desig);
 

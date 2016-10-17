@@ -2686,7 +2686,7 @@ static void do_gen(struct expr *expr)
 static void dclgvar(struct symbol *n)
 {
     if (opts.ast_dump)
-        ast_dump_symbol(n);
+        ast_dump_vardecl(n);
 }
 
 static void deflvar(struct symbol *n)
@@ -2697,13 +2697,13 @@ static void deflvar(struct symbol *n)
 static void dclfun(struct symbol *n)
 {
     if (opts.ast_dump)
-        ast_dump_symbol(n);
+        ast_dump_funcdecl(n);
 }
 
 static void deftype(struct symbol *n)
 {
     if (opts.ast_dump)
-        ast_dump_type(n);
+        ast_dump_typedecl(n);
 }
 
 static void defsvar(struct symbol *n)
@@ -2716,7 +2716,7 @@ static void defsvar(struct symbol *n)
 static void defgvar(struct symbol *n)
 {
     if (opts.ast_dump) {
-        ast_dump_symbol(n);
+        ast_dump_vardecl(n);
         return;
     }
     if (errors())
@@ -2727,7 +2727,7 @@ static void defgvar(struct symbol *n)
 static void defun(struct symbol *n)
 {
     if (opts.ast_dump) {
-        ast_dump_symbol(n);
+        ast_dump_funcdef(n);
         return;
     }
     if (errors())

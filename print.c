@@ -144,7 +144,7 @@ static void print_symbol1(struct symbol *sym, int level)
     putf(CYAN_BOLD("%s "), STR(sym->name));
     
     if (sym->defined)
-        putf(YELLOW("<defined> "));
+        putf("<" YELLOW("defined") "> ");
 
     struct type *ty = sym->type;
     print_ty(ty);
@@ -153,8 +153,7 @@ static void print_symbol1(struct symbol *sym, int level)
     putf("\n");
 
     if (isfuncdef(sym)) {
-        for (struct stmt *stmt = sym->u.f.stmt; stmt; stmt = stmt->next)
-            print_stmt1(stmt, level + 1);
+        //NOTE: print in ast_dump_symbol
     } else {
         struct expr *init = sym->u.init;
         if (init)
@@ -173,7 +172,7 @@ static void print_expr1(struct expr * node, int level)
         putf("  ");
     
     const char *name = opfullname(node->op);
-    putf("%s", name);
+    putf(PURPLE_BOLD("%s"), name);
     if (node->sym)
         putf("  %s", node->sym->name);
 
@@ -226,14 +225,34 @@ static void print_stmt1(struct stmt *stmt, int level)
     }
 }
 
-void ast_dump_symbol(struct symbol *n)
+static void ast_dump_symbol(struct symbol *n, const char *prefix, bool funcdef)
 {
     SET_OUTFD(stdout);
+    putf(GREEN_BOLD("%s "), prefix);
     print_symbol(n);
+    if (funcdef) {
+        for (struct stmt *stmt = n->u.f.stmt; stmt; stmt = stmt->next)
+            print_stmt1(stmt, 1);
+    }
     RESTORE_OUTFD();
 }
 
-void ast_dump_type(struct symbol *n)
+void ast_dump_vardecl(struct symbol *n)
+{
+    ast_dump_symbol(n, "VarDecl", false);
+}
+
+void ast_dump_funcdecl(struct symbol *n)
+{
+    ast_dump_symbol(n, "FuncDecl", false);
+}
+
+void ast_dump_funcdef(struct symbol *n)
+{
+    ast_dump_symbol(n, "FuncDecl", true);
+}
+
+void ast_dump_typedecl(struct symbol *n)
 {
     SET_OUTFD(stdout);
     print_type(n);
