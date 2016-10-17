@@ -753,8 +753,8 @@ static void bitfield(struct field *field)
 ///   struct-declaration-list struct-declaration
 ///
 /// struct-declaration:
-///   [C99] specifier-qualifier-list struct-declarator-list ';'
-///   [C11] specifier-qualifier-list struct-declarator-list[opt] ';'
+///       specifier-qualifier-list struct-declarator-list ';'
+/// [C11] specifier-qualifier-list struct-declarator-list[opt] ';'
 ///
 /// specifier-qualifier-list:
 ///   type-specifier specifier-qualifier-list[opt]
