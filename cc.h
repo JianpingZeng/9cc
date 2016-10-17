@@ -97,16 +97,20 @@ struct type {
     } limits;
 };
 
+#define isindirect(field)  ((field)->indir)
+#define direct(field)  (isindirect(field) ? (field)->indir : (field))
+
 struct field {
     const char *name;
     struct type *type;
     struct source src;
     size_t offset;
     int isbit : 1;
-    int isindirect : 1;
     int bitsize : 10;
     int bitoff : 10;
-    struct field *link;
+    struct field *indir;        // indirect field
+    struct field **of;          // indirect of
+    struct field *link;         // next field
 };
 
 struct symbol {
@@ -385,6 +389,8 @@ extern struct symbol *lookup(const char *name, struct table *table);
 extern struct symbol *install(const char *name, struct table **tpp, int scope, int area);
 
 /// ast.c
+extern struct field *alloc_field(void);
+extern struct field *new_indirect_field(struct field *field);
 extern struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r);
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
@@ -464,7 +470,6 @@ extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 
 // type.c
 extern void type_init(void);
-extern struct field *alloc_field(void);
 extern struct type *qual(int t, struct type *ty);
 extern struct type *unqual(struct type *ty);
 extern bool eqtype(struct type *ty1, struct type *ty2);

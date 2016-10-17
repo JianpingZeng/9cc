@@ -261,6 +261,8 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
 {
     struct field *first = field->type->u.s.field;
     struct field **pp;
+    struct field *indir = NULL;
+    struct field **indirp = &indir;
 
     call(direct_field)(sym, field);
     
@@ -275,11 +277,25 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
                          q->name, p->src.file, p->src.line, p->src.column);
             pp = &p->link;
         }
-        q->isindirect = true;
+        if (isindirect(q)) {
+            struct field *n = new_indirect_field(q->indir);
+            struct list *list = list_append(NULL, field);
+            for (int i = 0; q->of[i]; i++)
+                list = list_append(list, q->of[i]);
+            n->of = ltoa(&list, PERM);
+            *indirp = n;
+            indirp = &n->link;
+        } else if (q->name) {
+            struct field *n = new_indirect_field(q);
+            struct list *list = list_append(NULL, field);
+            n->of = ltoa(&list, PERM);
+            *indirp = n;
+            indirp = &n->link;
+        }
     }
 
-    if (first)
-        *pp = first;
+    if (indir)
+        *pp = indir;
 }
 
 static void ensure_fields(struct symbol *sym)
@@ -288,6 +304,8 @@ static void ensure_fields(struct symbol *sym)
     bool one = first && first->link == NULL;
 
     for (struct field *p = first; p; p = p->link) {
+        if (isindirect(p))
+            continue;
         if (p->isbit)
             ensure_bitfield(p);
         else
@@ -1995,11 +2013,11 @@ static struct expr * do_direction(struct expr *node, int t, const char *name, st
         return NULL;
     }
     
-    fty = field->type;
+    fty = direct(field)->type;
     if (opts.ansi) {
         // The result has the union of both sets of qualifiers.
-        int q = qual_union(node->type, field->type);
-        fty = qual(q, field->type);
+        int q = qual_union(node->type, fty);
+        fty = qual(q, fty);
     }
     ret = ast_expr(MEMBER, fty, node,  NULL);
     ret->u.field = field;

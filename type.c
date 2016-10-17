@@ -24,12 +24,6 @@ struct type *booltype;                // bool
 struct type *voidptype;               // void *
 struct type *funcptype;               // void (*) ()
 
-
-struct field *alloc_field(void)
-{
-    return NEWS0(struct field, PERM);
-}
-
 static struct type *alloc_type(void)
 {
     return NEWS0(struct type, PERM);
@@ -332,7 +326,7 @@ struct field *find_field(struct type *ty, const char *name)
         return NULL;
 
     for (struct field *p = TYPE_FIELDS(ty); p; p = p->link) {
-        if (p->name == name)
+        if (direct(p)->name == name)
             return p;
     }
 
@@ -356,7 +350,7 @@ static unsigned int struct_size(struct type * ty)
     for (struct field *field = first; field; field = field->link) {
         struct type *ty = field->type;
 
-        if (field->isindirect)
+        if (isindirect(field))
             continue;
 
         if (field->isbit) {
@@ -459,6 +453,8 @@ static unsigned int union_size(struct type * ty)
         int tysize = TYPE_SIZE(ty);
 
         if (tysize == 0)
+            continue;
+        if (isindirect(field))
             continue;
 
         if (field->isbit) {

@@ -98,14 +98,18 @@ static void print_type1(struct symbol *sym, int level)
     for (int i = 0; i < level; i++)
         putf("  ");
     if (sym->sclass == TYPEDEF)
-        putf(GREEN_BOLD("TypedefDecl ") CYAN_BOLD("%s "), sym->name);
+        putf(GREEN_BOLD("TypedefDecl ") YELLOW("%p ") CYAN_BOLD("%s "), sym, sym->name);
     else if (isstruct(ty))
-        putf(GREEN_BOLD("StructDecl "));
+        putf(GREEN_BOLD("StructDecl ") YELLOW("%p "), sym);
     else if (isunion(ty))
-        putf(GREEN_BOLD("UnionDecl "));
+        putf(GREEN_BOLD("UnionDecl ") YELLOW("%p "), sym);
     else if (isenum(ty))
-        putf(GREEN_BOLD("EnumDecl "));
+        putf(GREEN_BOLD("EnumDecl ") YELLOW("%p "), sym);
+    else
+        CC_UNAVAILABLE
     print_ty(ty);
+    putf("<" YELLOW("%s:line:%u col:%u") "> ",
+         sym->src.file, sym->src.line, sym->src.column);
     putf("\n");
     if (isstruct(ty) || isunion(ty)) {
         struct field *first = TYPE_FIELDS(ty);
@@ -121,33 +125,39 @@ static void print_type(struct symbol *sym)
 
 static void print_field1(struct field * node, int level)
 {
-    const char *name = node->name;
-    struct type *ty = node->type;
-
     for (int i = 0; i < level; i++)
         putf("  ");
+    
+    if (isindirect(node)) {
+        putf(GREEN("IndirectField ") YELLOW("%p "), node);
+        putf(CYAN_BOLD("%s"), node->indir->name);
+        putf("\n");
+        for (int i = 0; node->of[i]; i++)
+            print_field1(node->of[i], level + 1);
+        print_field1(node->indir, level + 1);
+    } else {
+        const char *name = node->name;
+        struct type *ty = node->type;
 
-    if (node->isindirect)
-        putf(GREEN("IndirectFieldDecl "));
-    else
-        putf(GREEN("FieldDecl "));
-    if (node->isbit)
-        putf(RED("<offset=%d, bitoff=%d, bits=%d> "),
-             node->offset, node->bitoff, node->bitsize);
-    else
-        putf(GREEN("<offset=%d> "), node->offset);
+        putf(GREEN("Field ") YELLOW("%p "), node);
+        if (node->isbit)
+            putf("<" RED("offset=%d, bitoff=%d, bits=%d" "> "),
+                 node->offset, node->bitoff, node->bitsize);
+        else
+            putf("<" GREEN("offset=%d") "> ", node->offset);
 
-    print_ty(ty);
-    if (name)
-        putf(CYAN_BOLD("%s"), name);
-    else
-        putf("anonymous");
-    putf("\n");
+        print_ty(ty);
+        if (name)
+            putf(CYAN_BOLD("%s"), name);
+        else
+            putf("anonymous");
+        putf("\n");
+    }
 }
 
 static void print_symbol1(struct symbol *sym, int level)
 {
-    putf(CYAN_BOLD("%s "), STR(sym->name));
+    putf(YELLOW("%p ") CYAN_BOLD("%s "), sym, STR(sym->name));
     
     if (sym->defined)
         putf("<" YELLOW("defined") "> ");

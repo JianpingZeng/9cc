@@ -1,6 +1,20 @@
 #include <assert.h>
 #include "cc.h"
 
+struct field *alloc_field(void)
+{
+    return NEWS0(struct field, PERM);
+}
+
+struct field *new_indirect_field(struct field *field)
+{
+    assert(field);
+    assert(field->name);
+    struct field *p = alloc_field();
+    p->indir = field;
+    return p;
+}
+
 struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r)
 {
     assert(OPINDEX(op) > OPNONE && OPINDEX(op) < OPEND);
