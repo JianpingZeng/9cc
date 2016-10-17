@@ -2283,15 +2283,18 @@ static struct expr * do_id(struct token *tok)
         if (sym == NULL) {
             // implicit function declaration: int id();
             warning("implicit declaration of '%s'", id);
-
+            
             struct type *ftype = func_type(inttype);
+            struct list *list = NULL;
             ftype->u.f.oldstyle = true;
-            ftype->u.f.proto = ltoa(NULL, PERM);
+            ftype->u.f.proto = ltoa(&list, PERM);
             
             sym = install(id, &externals, GLOBAL, PERM);
             sym->sclass = EXTERN;
             sym->type = ftype;
             sym->src = source;
+
+            events(dclfun)(sym);
 
             return mkref(sym, source);
         } else if (isfunc(sym->type) || isptrto(sym->type, FUNCTION)) {
