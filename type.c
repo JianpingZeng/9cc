@@ -199,12 +199,11 @@ struct type *func_type(struct type * type)
     return ty;
 }
 
-struct type *tag_type(int t, const char *tag)
+struct type *tag_type(int t)
 {
     struct type *ty = alloc_type();
     ty->kind = t;
     ty->op = t;
-    ty->u.s.tag = tag;
     ty->name = id2s(t);
     if (t == ENUM) {
         ty->type = inttype;

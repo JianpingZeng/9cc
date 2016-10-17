@@ -45,9 +45,8 @@ struct options {
 #define TYPE_OLDSTYLE(ty)        (unqual(ty)->u.f.oldstyle)
 #define TYPE_VARG(ty)            (unqual(ty)->u.f.varg)
 // enum/struct/union
-#define TYPE_TAG(ty)             (unqual(ty)->u.s.tag)
 #define TYPE_TSYM(ty)            (unqual(ty)->u.s.tsym)
-#define TYPE_FIELDS(ty)          (unqual(ty)->u.s.tsym->u.s.flist)
+#define TYPE_FIELDS(ty)          (TYPE_TSYM(ty)->u.s.flist)
 // array
 #define TYPE_LEN(ty)             (unqual(ty)->u.a.len)
 #define TYPE_A_ASSIGN(ty)        (unqual(ty)->u.a.assign)
@@ -76,7 +75,6 @@ struct type {
         } f;
         // enum/struct/union
         struct {
-            const char *tag;
             struct symbol *tsym; // tag symbol
         } s;
         // array
@@ -482,7 +480,7 @@ extern bool eqarith(struct type *ty1, struct type *ty2);
 extern struct type *array_type(struct type *ty);
 extern struct type *ptr_type(struct type *ty);
 extern struct type *func_type(struct type *ty);
-extern struct type *tag_type(int t, const char *tag);
+extern struct type *tag_type(int t);
 extern void set_typesize(struct type *ty);
 extern struct field *find_field(struct type *ty, const char *name);
 extern struct type *compose(struct type *ty1, struct type *ty2);

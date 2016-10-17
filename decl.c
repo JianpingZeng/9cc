@@ -681,7 +681,7 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
 
 static struct symbol *tag_symbol(int t, const char *tag, struct source src)
 {
-    struct type *ty = tag_type(t, tag);
+    struct type *ty = tag_type(t);
     struct symbol *sym = NULL;
     if (tag) {
         sym = lookup(tag, tags);
@@ -696,7 +696,6 @@ static struct symbol *tag_symbol(int t, const char *tag, struct source src)
         sym = install(tag, &tags, cscope, PERM);
     } else {
         sym = anonymous(&tags, cscope, PERM);
-        ty->u.s.tag = sym->name;
     }
 
     sym->type = ty;

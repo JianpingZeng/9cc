@@ -471,13 +471,14 @@ const char *type2s(struct type * ty)
             } else {
                 strbuf_cats(buf, "[]");
             }
-        } else if (isenum(s->type) || isstruct(s->type)
-                   || isunion(s->type)) {
+        } else if (isenum(s->type) ||
+                   isstruct(s->type) ||
+                   isunion(s->type)) {
             qualstr(buf, s->qual);
             strbuf_cats(buf, TYPE_NAME(s->type));
-            if (TYPE_TAG(s->type)) {
+            if (TYPE_TSYM(s->type)->name) {
                 strbuf_cats(buf, " ");
-                strbuf_cats(buf, TYPE_TAG(s->type));
+                strbuf_cats(buf, TYPE_TSYM(s->type)->name);
             }
         } else {
             qualstr(buf, s->qual);
