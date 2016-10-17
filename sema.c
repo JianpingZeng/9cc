@@ -2313,11 +2313,6 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
     return node;
 }
 
-struct expr *binop(int op, struct expr *l, struct expr *r)
-{
-    return call(bop)(op, l, r, source);
-}
-
 struct expr *assign(struct symbol *sym, struct expr *r)
 {
     struct expr *l = mkref(sym, sym->src);

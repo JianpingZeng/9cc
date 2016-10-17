@@ -454,8 +454,6 @@ extern bool islvalue(struct expr *node);
 extern struct expr *assignconv(struct type *ty, struct expr *node);
 extern struct expr *cnsti(long i, struct type *ty);
 extern struct expr *cnsts(const char *string);
-// for eval
-extern struct expr *binop(int op, struct expr *l, struct expr *r);
 extern struct expr *assign(struct symbol *sym, struct expr *r);
 extern void ensure_return(struct expr *expr, bool isnull, struct source src);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
