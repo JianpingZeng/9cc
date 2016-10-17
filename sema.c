@@ -2266,6 +2266,25 @@ static struct expr *mkref(struct symbol *sym, struct source src)
         return ret;
 }
 
+// implicit function declaration: int id();
+static struct symbol * implicit_func_decl(const char *id)
+{
+    struct type *ftype = func_type(inttype);
+    struct list *list = NULL;
+    ftype->u.f.oldstyle = true;
+    ftype->u.f.proto = ltoa(&list, PERM);
+            
+    struct symbol *sym = install(id, &externals, GLOBAL, PERM);
+    sym->sclass = EXTERN;
+    sym->type = ftype;
+    sym->src = source;
+
+    events(dclfun)(sym);
+    warning("implicit declaration of '%s'", id);
+
+    return sym;
+}
+
 static struct expr * do_id(struct token *tok)
 {
     const char *id = TOK_ID_STR(tok);
@@ -2283,20 +2302,7 @@ static struct expr * do_id(struct token *tok)
         sym = lookup(id, externals);
         if (sym == NULL) {
             // implicit function declaration: int id();
-            warning("implicit declaration of '%s'", id);
-            
-            struct type *ftype = func_type(inttype);
-            struct list *list = NULL;
-            ftype->u.f.oldstyle = true;
-            ftype->u.f.proto = ltoa(&list, PERM);
-            
-            sym = install(id, &externals, GLOBAL, PERM);
-            sym->sclass = EXTERN;
-            sym->type = ftype;
-            sym->src = source;
-
-            events(dclfun)(sym);
-
+            sym = implicit_func_decl(id);
             return mkref(sym, source);
         } else if (isfunc(sym->type) || isptrto(sym->type, FUNCTION)) {
             warning("use of out-of-scope declaration of '%s', previous declaration is here: %s:%u:%u",
