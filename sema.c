@@ -489,10 +489,17 @@ static struct symbol ** do_prototype(struct type *ftype, struct symbol *params[]
     return params;
 }
 
-static void do_tagdecl(struct symbol *sym)
+static void do_enumdecl(struct symbol *sym, struct symbol *ids[])
 {
-    if (isrecord(sym->type))
-        ensure_fields(sym);
+    sym->defined = true;
+    sym->u.s.ids = ids;
+    events(deftype)(sym);
+}
+
+static void do_recorddecl(struct symbol *sym)
+{
+    sym->defined = true;
+    ensure_fields(sym);
     events(deftype)(sym);
 }
 
@@ -2807,7 +2814,8 @@ struct actions actions = {
     .finalize = finalize,
 
     // decl
-    INSTALL(tagdecl),
+    INSTALL(enumdecl),
+    INSTALL(recorddecl),
     INSTALL(globaldecl),
     INSTALL(localdecl),
     INSTALL(paramdecl),

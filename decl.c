@@ -740,7 +740,7 @@ static void enum_body(struct symbol *sym)
         gettok();
     }
 
-    sym->u.s.ids = ltoa(&list, PERM);
+    actions.enumdecl(sym, ltoa(&list, PERM));
 }
 
 static void bitfield(struct field *field)
@@ -813,6 +813,8 @@ static void struct_body(struct symbol *sym)
     next:
         match(';', skip_to_decl);
     }
+
+    actions.recorddecl(sym);
 }
 
 /// enum-specifier:
@@ -849,8 +851,6 @@ static struct type *tag_decl(void)
         else
             struct_body(sym);
         match('}', skip_to_brace);
-        sym->defined = true;
-        actions.tagdecl(sym);
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {

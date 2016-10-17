@@ -285,7 +285,8 @@ struct actions {
     void (*finalize) (void);
 
     // decl
-    void (*tagdecl) (struct symbol *sym);
+    void (*enumdecl) (struct symbol *sym, struct symbol *ids[]);
+    void (*recorddecl) (struct symbol *sym);
     struct symbol * (*globaldecl) (const char *, struct type *, int, int, struct source);
     struct symbol * (*localdecl) (const char *, struct type *, int, int, struct source);
     struct symbol * (*paramdecl) (const char *, struct type *, int, int, struct source);
