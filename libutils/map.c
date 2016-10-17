@@ -20,7 +20,7 @@ static unsigned int bucket(struct map *map, const void *key)
     if (map->cmpfn)
         return strhash(key) & (map->tablesize - 1);
     else
-        return (unsigned int)key & (map->tablesize - 1);
+        return (unsigned long)key & (map->tablesize - 1);
 }
 
 static void rehash(struct map *map, unsigned int newsize)

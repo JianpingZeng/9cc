@@ -19,6 +19,7 @@ static struct expr *mkref(struct symbol *sym, struct source src);
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src);
 static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
 static void ensure_gotos(void);
+static void init_string(struct type *ty, struct expr *node);
 static void func_body(struct symbol *sym);
 static void dclgvar(struct symbol *); // declare a global variable
 static void defgvar(struct symbol *); // define a global variable
@@ -37,7 +38,7 @@ struct func func;
 
 /// error
 
-void field_not_found_error(struct source src, struct type *ty, const char *name)
+static void field_not_found_error(struct source src, struct type *ty, const char *name)
 {
     if (isincomplete(ty))
         error_at(src, "incomplete definition of type '%s'", type2s(ty));
@@ -974,7 +975,7 @@ static void doglobal(struct symbol *sym, void *context)
  *
  * Functions and objects are often treated **differently** in C.
  */
-bool islvalue(struct expr *node)
+static bool islvalue(struct expr *node)
 {
     // TODO: 
     return true;
@@ -1189,7 +1190,7 @@ static bool is_nullptr(struct expr *node)
  *                                  F and F2 are compatible
  */
 
-struct expr *assignconv(struct type *ty, struct expr *node)
+static struct expr *assignconv(struct type *ty, struct expr *node)
 {
     struct type *ty2;
 
@@ -2617,7 +2618,7 @@ static struct expr * do_initializer_list(struct type *ty, struct init **inits)
     return ret;
 }
 
-void init_string(struct type *ty, struct expr *node)
+static void init_string(struct type *ty, struct expr *node)
 {
     int len1 = TYPE_LEN(ty);
     int len2 = TYPE_LEN(node->type);
@@ -2638,7 +2639,7 @@ static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbo
 
 /// stmt
 
-void ensure_return(struct expr *expr, bool isnull, struct source src)
+static void ensure_return(struct expr *expr, bool isnull, struct source src)
 {
     // return immediately if expr is NULL. (parsing failed)    
     if (expr == NULL)
@@ -2721,8 +2722,9 @@ static void do_jump(int label)
     add_to_list(stmt);
 }
 
-static void do_ret(struct expr *expr)
+static void do_ret(struct expr *expr, bool isnull, struct source src)
 {
+    ensure_return(expr, isnull, src);
     struct stmt *stmt = ast_stmt(RET);
     stmt->u.expr = expr;
     add_to_list(stmt);

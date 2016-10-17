@@ -329,7 +329,7 @@ struct actions {
     // stmt
     void (*branch) (struct expr *expr, int tlab, int flab);
     void (*jump) (int label);
-    void (*ret) (struct expr *expr);
+    void (*ret) (struct expr *expr, bool isnull, struct source src);
     void (*label) (int label);
     void (*gen) (struct expr *expr);
 
@@ -441,8 +441,6 @@ extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swt
                                  (sym)->sclass == STATIC || \
                                  (sym)->scope == GLOBAL)
 
-extern void field_not_found_error(struct source src, struct type *ty, const char *name);
-
 extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
@@ -458,15 +456,11 @@ extern void skip_to_expr(void);
 extern struct symbol *lookup_typedef(const char *id);
 extern bool istypedef(const char *id);
 
-extern void init_string(struct type *ty, struct expr *node);
 extern struct desig *next_designator(struct desig *desig);
 
-extern bool islvalue(struct expr *node);
-extern struct expr *assignconv(struct type *ty, struct expr *node);
 extern struct expr *cnsti(long i, struct type *ty);
 extern struct expr *cnsts(const char *string);
 extern struct expr *assign(struct symbol *sym, struct expr *r);
-extern void ensure_return(struct expr *expr, bool isnull, struct source src);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
 extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);

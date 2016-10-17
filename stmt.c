@@ -258,12 +258,12 @@ static void default_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 
     // print before parsing statement
     if (swtch) {
-        if (swtch->defalt) {
-            struct source prev = swtch->defalt->src;
+        if (swtch->defalt)
             error_at(src,
                      "multiple default labels in one switch, previous case defined here:%s:%u:%u",
-                     prev.file, prev.line, prev.column);
-        }
+                     swtch->defalt->src.file,
+                     swtch->defalt->src.line,
+                     swtch->defalt->src.column);
 
         // new default case
         struct cse *defalt = NEWS0(struct cse, FUNC);
@@ -303,10 +303,9 @@ static void label_stmt(int lab, int cnt, int brk, struct swtch *swtch)
         } else if (!sym->defined) {
             sym->defined = true;
         } else {
-            struct source prev = sym->src;
             error_at(src,
                      "redefinition of label '%s', previous label defined here:%s:%u:%u",
-                     prev.file, prev.line, prev.column);
+                     sym->src.file, sym->src.line, sym->src.column);
         }
 
         actions.label(sym->x.label);
@@ -392,8 +391,7 @@ static void return_stmt(void)
         e = expression();
 
     expect(';');
-    ensure_return(e, isnull, src);
-    actions.ret(e);
+    actions.ret(e, isnull, src);
 }
 
 /// statement:
