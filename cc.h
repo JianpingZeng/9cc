@@ -289,7 +289,7 @@ struct actions {
 
     void (*array_index) (struct type *atype, struct expr *assign, struct source src);
     struct symbol ** (*prototype) (struct type *ftype, struct symbol *params[]);
-    void (*enum_id) (const char *name, int val, struct symbol *sym);
+    void (*enum_id) (const char *name, int val, struct symbol *sym, struct source src);
     void (*direct_field) (struct symbol *sym, struct field *field);
     void (*indirect_field) (struct symbol *sym, struct field *field);
     void (*func_body) (struct symbol *sym);
@@ -549,10 +549,10 @@ extern void ast_dump_funcdef(struct symbol *);
 extern const char *type2s(struct type *ty);
 extern const char *desig2s(struct desig *desig);
 
-#define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
-#define REDEFINITION_ERROR  "redefinition of '%s', previous definition at %s:%u:%u"
-#define CONFLICTING_TYPES_ERROR  "conflicting types for '%s', previous at %s:%u:%u"
-#define DUPLICATE_MEMBER_ERROR  "duplicate member '%s', previous declaration at %s:%u:%u"
+#define ERR_INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
+#define ERR_REDEFINITION  "redefinition of '%s', previous definition at %s:%u:%u"
+#define ERR_CONFLICTING_TYPES  "conflicting types for '%s', previous at %s:%u:%u"
+#define ERR_DUPLICATE_MEMBER  "duplicate member '%s', previous declaration at %s:%u:%u"
 
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"

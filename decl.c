@@ -689,7 +689,7 @@ static struct symbol *tag_symbol(int t, const char *tag, struct source src)
             if (TYPE_OP(sym->type) == t && !sym->defined)
                 return sym;
 
-            error_at(src, REDEFINITION_ERROR,
+            error_at(src, ERR_REDEFINITION,
                      sym->name, sym->src.file, sym->src.line, sym->src.column);
         }
 
@@ -728,12 +728,13 @@ static void enum_body(struct symbol *sym)
 
     do {
         const char *name = TOK_ID_STR(token);
+        struct source src = source;
         gettok();
         if (token->id == '=') {
             gettok();
             val = intexpr();
         }
-        actions.enum_id(name, val++, sym);
+        actions.enum_id(name, val++, sym, src);
         if (token->id != ',')
             break;
         gettok();

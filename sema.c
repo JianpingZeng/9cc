@@ -6,9 +6,9 @@
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 #define MAX_STRUCT_PARAM_SIZE  16
-#define INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
-#define TYPE_ERROR  "expect type '%s', not '%s'"
-#define INLINE_ERROR  "'inline' can only appear on functions"
+#define ERR_INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
+#define ERR_TYPE  "expect type '%s', not '%s'"
+#define ERR_INLINE  "'inline' can only appear on functions"
 #define INSTALL(name)  .name = do_##name
 #define call(func)  do_##func
 #define events(func)  func
@@ -150,15 +150,16 @@ bool istypedef(const char *id)
     return lookup_typedef(id) != NULL;
 }
 
-void do_enum_id(const char *name, int val, struct symbol *sym)
+void do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
 {
     struct symbol *s = lookup(name, identifiers);
     if (s && is_current_scope(s))
-        error(REDEFINITION_ERROR, name, s->src.file, s->src.line, s->src.column);
+        error_at(src, ERR_REDEFINITION,
+                 name, s->src.file, s->src.line, s->src.column);
 
     s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
     s->type = sym->type;
-    s->src = source;
+    s->src = src;
     s->sclass = ENUM;
     s->value.u = val;
 }
@@ -169,7 +170,7 @@ static void ensure_inline(struct type *ty, int fspec, struct source src)
         if (isfunc(ty))
             TYPE_INLINE(ty) = 1;
         else
-            error_at(src, INLINE_ERROR);
+            error_at(src, ERR_INLINE);
     }
 }
 
@@ -249,7 +250,7 @@ static void do_direct_field(struct symbol *sym, struct field *field)
     while ((p = *pp)) {
         if (field->name && field->name == p->name)
             error_at(field->src,
-                     DUPLICATE_MEMBER_ERROR,
+                     ERR_DUPLICATE_MEMBER,
                      field->name, p->src.file, p->src.line, p->src.column);
         pp = &p->link;
     }
@@ -273,7 +274,7 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
         while ((p = *pp)) {
             if (q->name && q->name == p->name)
                 error_at(q->src,
-                         DUPLICATE_MEMBER_ERROR,
+                         ERR_DUPLICATE_MEMBER,
                          q->name, p->src.file, p->src.line, p->src.column);
             pp = &p->link;
         }
@@ -530,7 +531,7 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass,
         if (sclass != EXTERN)
             sym->sclass = sclass;
     } else {
-        error_at(src, CONFLICTING_TYPES_ERROR,
+        error_at(src, ERR_CONFLICTING_TYPES,
                  sym->name, sym->src.file, sym->src.line, sym->src.column);
     }
 
@@ -550,7 +551,7 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass,
                 warning_at(src, "'extern' variable has an initializer");
 
             if (sym->defined)
-                error_at(src, REDEFINITION_ERROR,
+                error_at(src, ERR_REDEFINITION,
                          sym->name, sym->src.file, sym->src.line, sym->src.column);
 
             init = ensure_init(init, ty, sym, src2);
@@ -606,19 +607,19 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
             if (p == NULL || eqtype(ty, p->type)) {
                 p = lookup(id, externals);
                 if (p && !eqtype(ty, p->type))
-                    error_at(src, REDEFINITION_ERROR,
+                    error_at(src, ERR_REDEFINITION,
                              p->name, p->src.file, p->src.line, p->src.column);
             } else {
-                error_at(src, REDEFINITION_ERROR,
+                error_at(src, ERR_REDEFINITION,
                          p->name, p->src.file, p->src.line, p->src.column);
             }
         } else {
-            error_at(src, REDEFINITION_ERROR,
+            error_at(src, ERR_REDEFINITION,
                      sym->name, sym->src.file, sym->src.line, sym->src.column);
         }
     } else {
         if (sym && is_current_scope(sym))
-            error_at(src, REDEFINITION_ERROR,
+            error_at(src, ERR_REDEFINITION,
                      sym->name, sym->src.file, sym->src.line, sym->src.column);
     }
 
@@ -715,8 +716,7 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
     if (id) {
         sym = lookup(id, identifiers);
         if (sym && sym->scope == cscope)
-            error_at(src,
-                     REDEFINITION_ERROR,
+            error_at(src, ERR_REDEFINITION,
                      sym->name, sym->src.file, sym->src.line, sym->src.column);
         sym = install(id, &identifiers, cscope, FUNC);
     } else {
@@ -749,7 +749,7 @@ static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level
                  id2s(sclass));
 
     if (fspec == INLINE)
-        error_at(src, INLINE_ERROR);
+        error_at(src, ERR_INLINE);
 
     if (isfunc(ty))
         ensure_func(ty, src);
@@ -758,7 +758,8 @@ static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level
 
     struct symbol *sym = lookup(id, identifiers);
     if (sym && is_current_scope(sym))
-        error_at(src, REDEFINITION_ERROR, sym->name, sym->src.file, sym->src.line, sym->src.column);
+        error_at(src, ERR_REDEFINITION,
+                 sym->name, sym->src.file, sym->src.line, sym->src.column);
 
     sym = install(id, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
     sym->type = ty;
@@ -831,7 +832,7 @@ static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec
             else
                 make_funcdecl(sym, ftype, sclass, src);
         } else {
-            error_at(src, REDEFINITION_ERROR,
+            error_at(src, ERR_REDEFINITION,
                      sym->name, sym->src.file, sym->src.line, sym->src.column);
         }
 
@@ -1296,9 +1297,9 @@ static struct vector *argcast1(struct type **params, size_t nparams,
             vec_push(v, ret);
         } else {
             if (oldstyle) {
-                warning_at(src, INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
+                warning_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
             } else {
-                error_at(src, INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
+                error_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
                 return NULL;
             }
         }
@@ -1390,7 +1391,7 @@ static bool ensure_additive_ptr(struct expr *node, struct source src)
 static bool ensure_increment(struct expr *node, struct source src)
 {
     if (!isscalar(node->type)) {
-        error_at(src, TYPE_ERROR, "scalar", type2s(node->type));
+        error_at(src, ERR_TYPE, "scalar", type2s(node->type));
         return false;
     }
 
@@ -1466,7 +1467,7 @@ static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct s
             struct type *ty2 = r1->type;
             if (!((isarith(ty1) && isarith(ty2)) ||
                   (isptr(ty1) && isint(ty2)))) {
-                error_at(src, INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
+                error_at(src, ERR_INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
                 return NULL;
             }
         }
@@ -1479,7 +1480,7 @@ static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct s
 
     r = assignconv(retty, r);
     if (!r) {
-        error_at(src, INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
+        error_at(src, ERR_INCOMPATIBLE_TYPES, type2s(ty2), type2s(ty1));
         return NULL;
     }
 
@@ -1497,7 +1498,7 @@ static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr 
         return NULL;
 
     if (!isscalar(cond->type)) {
-        error_at(src, TYPE_ERROR, "scalar", type2s(cond->type));
+        error_at(src, ERR_TYPE, "scalar", type2s(cond->type));
         return NULL;
     }
     
@@ -1511,7 +1512,7 @@ static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr 
     } else if ((isstruct(ty1) && isstruct(ty2)) ||
                (isunion(ty1) && isunion(ty2))) {
         if (!eqtype(ty1, ty2)) {
-            error_at(src, INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
+            error_at(src, ERR_INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
             return NULL;
         }
         ty = ty1;
@@ -1528,7 +1529,7 @@ static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr 
             struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
             struct type *tty = vty == ty1 ? ty2 : ty1;
             if (isptrto(tty, FUNCTION)) {
-                error_at(src, INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
+                error_at(src, ERR_INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
                 return NULL;
             } else {
                 ty = ptr_type(compose(rtype(vty), rtype(tty)));
@@ -1543,7 +1544,7 @@ static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr 
                 then = bitconv(ty, then);
                 els = bitconv(ty, els);
             } else {
-                error_at(src, INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
+                error_at(src, ERR_INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
                 return NULL;
             }
         }
@@ -1572,11 +1573,11 @@ static struct expr *do_logicop(int op, struct expr *l, struct expr *r, struct so
         return NULL;
 
     if (!isscalar(l->type)) {
-        error_at(src, TYPE_ERROR, "scalar", type2s(l->type));
+        error_at(src, ERR_TYPE, "scalar", type2s(l->type));
         return NULL;
     }
     if (!isscalar(r->type)) {
-        error_at(src, TYPE_ERROR, "scalar", type2s(r->type));
+        error_at(src, ERR_TYPE, "scalar", type2s(r->type));
         return NULL;
     }
 
@@ -1619,11 +1620,11 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
     case '*':
     case '/':
         if (!isarith(l->type)) {
-            error_at(src, TYPE_ERROR, "arith", type2s(l->type));
+            error_at(src, ERR_TYPE, "arith", type2s(l->type));
             return NULL;
         }
         if (!isarith(r->type)) {
-            error_at(src, TYPE_ERROR, "arith", type2s(r->type));
+            error_at(src, ERR_TYPE, "arith", type2s(r->type));
             return NULL;
         }
         ty = conv2(l->type, r->type);
@@ -1635,11 +1636,11 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
     case '^':
     case '|':
         if (!isint(l->type)) {
-            error_at(src, TYPE_ERROR, "integer", type2s(l->type));
+            error_at(src, ERR_TYPE, "integer", type2s(l->type));
             return NULL;
         }
         if (!isint(r->type)) {
-            error_at(src, TYPE_ERROR, "integer", type2s(r->type));
+            error_at(src, ERR_TYPE, "integer", type2s(r->type));
             return NULL;
         }
         ty = conv2(l->type, r->type);
@@ -1661,11 +1662,11 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
             return ast_expr(mkop(top(op), r->type), r->type, mul, r);
         } else {
             if (!isarith(l->type)) {
-                error_at(src, TYPE_ERROR, "arith", type2s(l->type));
+                error_at(src, ERR_TYPE, "arith", type2s(l->type));
                 return NULL;
             }
             if (!isarith(r->type)) {
-                error_at(src, TYPE_ERROR, "arith", type2s(r->type));
+                error_at(src, ERR_TYPE, "arith", type2s(r->type));
                 return NULL;
             }
             ty = conv2(l->type, r->type);
@@ -1693,11 +1694,11 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
             return ast_expr(mkop(top(op), l->type), inttype, l, r);
         } else {
             if (!isarith(l->type)) {
-                error_at(src, TYPE_ERROR, "arith", type2s(l->type));
+                error_at(src, ERR_TYPE, "arith", type2s(l->type));
                 return NULL;
              }
             if (!isarith(r->type)) {
-                error_at(src, TYPE_ERROR, "arith", type2s(r->type));
+                error_at(src, ERR_TYPE, "arith", type2s(r->type));
                 return NULL;
             }
             ty = conv2(l->type, r->type);
@@ -1768,7 +1769,7 @@ static struct expr *do_castop(struct type *ty, struct expr *cast, struct source 
 
     if (!can_cast(ty, cast->type)) {
         error_at(src,
-                 INCOMPATIBLE_TYPES,
+                 ERR_INCOMPATIBLE_TYPES,
                  type2s(cast->type), type2s(ty));
         return NULL;
     }
@@ -1817,7 +1818,7 @@ static struct expr * do_minus_plus(int t, struct expr *operand, struct source sr
         return NULL;
 
     if (!isarith(operand->type)) {
-        error_at(src, TYPE_ERROR, "arith", type2s(operand->type));
+        error_at(src, ERR_TYPE, "arith", type2s(operand->type));
         return NULL;
     }
 
@@ -1834,7 +1835,7 @@ static struct expr * do_bitwise_not(struct expr *operand, struct source src)
         return NULL;
 
     if (!isint(operand->type)) {
-        error_at(src, TYPE_ERROR, "integer", type2s(operand->type));
+        error_at(src, ERR_TYPE, "integer", type2s(operand->type));
         return NULL;
     }
     
@@ -1848,7 +1849,7 @@ static struct expr * do_logical_not(struct expr *operand, struct source src)
         return NULL;
 
     if (!isscalar(operand->type)) {
-        error_at(src, TYPE_ERROR, "scalar", type2s(operand->type));
+        error_at(src, ERR_TYPE, "scalar", type2s(operand->type));
         return NULL;
     }
 
@@ -1897,7 +1898,7 @@ static struct expr * do_indirection(struct expr *operand, struct source src)
         return NULL;
 
     if (!isptr(operand->type)) {
-        error_at(src, TYPE_ERROR, "pointer", type2s(operand->type));
+        error_at(src, ERR_TYPE, "pointer", type2s(operand->type));
         return NULL;
     }
 
