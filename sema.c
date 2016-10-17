@@ -11,6 +11,7 @@
 #define INLINE_ERROR  "'inline' can only appear on functions"
 #define INSTALL(name)  .name = do_##name
 #define call(func)  do_##func
+#define events(func)  func
 
 static void ensure_array(struct type * atype, struct source src, int level);
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
@@ -18,6 +19,13 @@ static struct expr *mkref(struct symbol *sym, struct source src);
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src);
 static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
 static void ensure_gotos(void);
+static void dclgvar(struct symbol *); // declare a global variable
+static void defgvar(struct symbol *); // define a global variable
+static void defsvar(struct symbol *); // define a local static variable
+static void deflvar(struct symbol *); // define a local variable
+static void dclfun(struct symbol *);  // declare a function
+static void defun(struct symbol *);   // define a function
+static void deftype(struct symbol *); // declare/define a type: struct/union/enum/typedef
 
 struct goto_info {
     const char *id;
@@ -431,6 +439,11 @@ static struct symbol ** do_prototype(struct type *ftype, struct symbol *params[]
     return params;
 }
 
+static void do_tagdecl(struct symbol *sym)
+{
+    events(deftype)(sym);
+}
+
 static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass, int fspec, struct source src)
 {
     struct symbol *sym = NULL;
@@ -502,11 +515,11 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass,
 
     // actions
     if (sym->u.init)
-        actions.defgvar(sym);
+        events(defgvar)(sym);
     else if (isfunc(ty))
-        actions.dclfun(sym);
+        events(dclfun)(sym);
     else
-        actions.dclgvar(sym);
+        events(dclgvar)(sym);
 
     return sym;
 }
@@ -602,13 +615,13 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
 
     // actions
     if (isfunc(ty))
-        actions.dclfun(sym);
+        events(dclfun)(sym);
     else if (sclass == EXTERN)
-        actions.dclgvar(sym);
+        events(dclgvar)(sym);
     else if (sclass == STATIC)
-        actions.defsvar(sym);
+        events(defsvar)(sym);
     else
-        actions.deflvar(sym);
+        events(deflvar)(sym);
 
     return sym;
 }
@@ -708,7 +721,7 @@ static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level
         initializer(NULL);
     }
 
-    actions.deftype(sym);
+    events(deftype)(sym);
 }
 
 static void oldparam(struct symbol *sym, void *context)
@@ -814,7 +827,7 @@ static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec
         // function definition
         actions.func_body(sym);
         exit_scope();
-        actions.defun(sym);
+        events(defun)(sym);
     }
 }
 
@@ -877,7 +890,7 @@ static void doglobal(struct symbol *sym, void *context)
         return;
 
     sym->defined = true;
-    actions.defgvar(sym);
+    events(defgvar)(sym);
 }
 
 /// expr
@@ -2747,14 +2760,7 @@ struct actions actions = {
     .finalize = finalize,
 
     // decl
-    .dclgvar = dclgvar,
-    .defgvar = defgvar,
-    .defsvar = defsvar,
-    .deflvar = deflvar,
-    .dclfun = dclfun,
-    .defun = defun,
-    .deftype = deftype,
-
+    INSTALL(tagdecl),
     INSTALL(globaldecl),
     INSTALL(localdecl),
     INSTALL(paramdecl),

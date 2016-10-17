@@ -855,7 +855,7 @@ static struct type *tag_decl(void)
             struct_body(sym);
         match('}', skip_to_brace);
         sym->defined = true;
-        actions.deftype(sym);
+        actions.tagdecl(sym);
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {

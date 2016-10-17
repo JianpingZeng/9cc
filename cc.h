@@ -275,14 +275,7 @@ struct actions {
     void (*finalize) (void);
 
     // decl
-    void (*dclgvar) (struct symbol *); // declare a global variable
-    void (*defgvar) (struct symbol *); // define a global variable
-    void (*defsvar) (struct symbol *); // define a local static variable
-    void (*deflvar) (struct symbol *); // define a local variable
-    void (*dclfun) (struct symbol *);  // declare a function
-    void (*defun) (struct symbol *);   // define a function
-    void (*deftype) (struct symbol *); // declare/define a type: struct/union/enum/typedef
-
+    void (*tagdecl) (struct symbol *sym);
     struct symbol * (*globaldecl) (const char *, struct type *, int, int, struct source);
     struct symbol * (*localdecl) (const char *, struct type *, int, int, struct source);
     struct symbol * (*paramdecl) (const char *, struct type *, int, int, struct source);
