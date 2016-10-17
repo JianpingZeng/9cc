@@ -241,23 +241,53 @@ static void ensure_nonbitfield(struct field *field, bool one)
     }
 }
 
-static void do_fields(struct symbol *sym)
+static void do_direct_field(struct symbol *sym, struct field *field)
+{
+    struct field **pp = &sym->type->u.s.field;
+
+    while (*pp) {
+        struct field *p = *pp;
+        if (field->name && field->name == p->name)
+            error_at(field->src,
+                     DUPLICATE_MEMBER_ERROR,
+                     field->name, p->src.file, p->src.line, p->src.column);
+        pp = &p->link;
+    }
+
+    *pp = field;
+}
+
+static void do_indirect_field(struct symbol *sym, struct field *field)
+{
+    struct field *first = field->type->u.s.field;
+    struct field **pp;
+
+    call(direct_field)(sym, field);
+    
+    for (struct field *q = first; q; q = q->link) {
+        struct field *p;
+        
+        pp = &sym->type->u.s.field;
+        while ((p = *pp)) {
+            if (q->name && q->name == p->name)
+                error_at(q->src,
+                         DUPLICATE_MEMBER_ERROR,
+                         q->name, p->src.file, p->src.line, p->src.column);
+            pp = &p->link;
+        }
+        q->isindirect = true;
+    }
+
+    if (first)
+        *pp = first;
+}
+
+static void ensure_fields(struct symbol *sym)
 {
     struct field *first = sym->type->u.s.field;
     bool one = first && first->link == NULL;
 
     for (struct field *p = first; p; p = p->link) {
-        // check redefinition
-        if (p->name) {
-            struct field *f = first;
-            while (f != p) {
-                if (f->name == p->name)
-                    error_at(p->src,
-                             REDEFINITION_ERROR,
-                             p->name, f->src.file, f->src.line, f->src.column);
-                f = f->link;
-            }
-        }
         if (p->isbit)
             ensure_bitfield(p);
         else
@@ -441,6 +471,8 @@ static struct symbol ** do_prototype(struct type *ftype, struct symbol *params[]
 
 static void do_tagdecl(struct symbol *sym)
 {
+    if (isrecord(sym->type))
+        ensure_fields(sym);
     events(deftype)(sym);
 }
 
@@ -2765,7 +2797,8 @@ struct actions actions = {
     INSTALL(array_index),
     INSTALL(prototype),
     INSTALL(enum_id),
-    INSTALL(fields),
+    INSTALL(direct_field),
+    INSTALL(indirect_field),
     INSTALL(func_body),
 
     // expr

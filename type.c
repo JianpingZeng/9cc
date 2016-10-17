@@ -356,6 +356,9 @@ static unsigned int struct_size(struct type * ty)
     for (struct field *field = first; field; field = field->link) {
         struct type *ty = field->type;
 
+        if (field->isindirect)
+            continue;
+
         if (field->isbit) {
             int bitsize = field->bitsize;
             

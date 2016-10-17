@@ -126,8 +126,11 @@ static void print_field1(struct field * node, int level)
 
     for (int i = 0; i < level; i++)
         putf("  ");
-    
-    putf(GREEN("Field "));
+
+    if (node->isindirect)
+        putf(GREEN("IndirectFieldDecl "));
+    else
+        putf(GREEN("FieldDecl "));
     if (node->isbit)
         putf(RED("<offset=%d, bitoff=%d, bits=%d> "),
              node->offset, node->bitoff, node->bitsize);
@@ -135,7 +138,10 @@ static void print_field1(struct field * node, int level)
         putf(GREEN("<offset=%d> "), node->offset);
 
     print_ty(ty);
-    putf(CYAN_BOLD("%s"), STR(name));
+    if (name)
+        putf(CYAN_BOLD("%s"), name);
+    else
+        putf("anonymous");
     putf("\n");
 }
 

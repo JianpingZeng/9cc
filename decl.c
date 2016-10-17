@@ -769,9 +769,7 @@ static void bitfield(struct field *field)
 ///   declarator[opt] ':' constant-expression
 ///
 static void struct_body(struct symbol *sym)
-{
-    struct field **pp = &sym->type->u.s.field;
-    
+{    
     while (first_decl(token)) {
         struct type *basety = specifiers(NULL, NULL);
 
@@ -783,12 +781,9 @@ static void struct_body(struct symbol *sym)
             } else if (token->id == ';' &&
                        isrecord(basety) &&
                        TYPE_TSYM(basety)->anonymous) {
-                //C11: anonymous record
-                struct field *p = TYPE_FIELDS(basety);
-                for (; p; p = p->link) {
-                    *pp = p;
-                    pp = &p->link;
-                }
+                //C11: anonymous struct/union
+                field->type = basety;
+                actions.indirect_field(sym, field);
                 goto next;
             } else {
                 struct type *ty = NULL;
@@ -805,8 +800,7 @@ static void struct_body(struct symbol *sym)
             }
 
             // link
-            *pp = field;
-            pp = &field->link;
+            actions.direct_field(sym, field);
 
             if (token->id != ',')
                 break;
@@ -815,8 +809,6 @@ static void struct_body(struct symbol *sym)
     next:
         match(';', skip_to_decl);
     }
-
-    actions.fields(sym);
 }
 
 /// enum-specifier:

@@ -103,6 +103,7 @@ struct field {
     struct source src;
     size_t offset;
     int isbit : 1;
+    int isindirect : 1;
     int bitsize : 10;
     int bitoff : 10;
     struct field *link;
@@ -285,7 +286,8 @@ struct actions {
     void (*array_index) (struct type *atype, struct expr *assign, struct source src);
     struct symbol ** (*prototype) (struct type *ftype, struct symbol *params[]);
     void (*enum_id) (const char *name, int val, struct symbol *sym);
-    void (*fields) (struct symbol *sym);
+    void (*direct_field) (struct symbol *sym, struct field *field);
+    void (*indirect_field) (struct symbol *sym, struct field *field);
     void (*func_body) (struct symbol *sym);
     
     // expr
@@ -545,6 +547,7 @@ extern const char *desig2s(struct desig *desig);
 #define INCOMPATIBLE_TYPES  "incompatible type conversion from '%s' to '%s'"
 #define REDEFINITION_ERROR  "redefinition of '%s', previous definition at %s:%u:%u"
 #define CONFLICTING_TYPES_ERROR  "conflicting types for '%s', previous at %s:%u:%u"
+#define DUPLICATE_MEMBER_ERROR  "duplicate member '%s', previous declaration at %s:%u:%u"
 
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
