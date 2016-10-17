@@ -83,11 +83,6 @@ const char *tok2s(struct token *t)
         return id2s(t->id);
 }
 
-int isletter(int c)
-{
-    return map[c] & LETTER;
-}
-
 static void add_line_note(struct buffer *pb, const unsigned char *pos, int type)
 {
     if (pb->notes_used == pb->notes_alloc) {

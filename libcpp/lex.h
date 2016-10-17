@@ -192,8 +192,6 @@ extern struct token *get_pptok(struct file *pfile);
 extern void unget(struct file *pfile, struct token *t);
 
 // lex.c
-extern int isletter(int c);
-
 #define IS_SPACE(t)    (((struct token *)(t))->id == ' ')
 #define IS_NEWLINE(t)  (((struct token *)(t))->id == '\n')
 #define IS_LINENO(t)   (((struct token *)(t))->id == LINENO)
