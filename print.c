@@ -112,7 +112,7 @@ static void print_type1(struct symbol *sym, int level)
          sym->src.file, sym->src.line, sym->src.column);
     putf("\n");
     if (isstruct(ty) || isunion(ty)) {
-        struct field *first = TYPE_FIELDS(ty);
+        struct field *first = sym->u.s.flist;
         for (struct field *p = first; p; p = p->link)
             print_field1(p, level + 1);
     }

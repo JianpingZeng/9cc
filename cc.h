@@ -47,7 +47,7 @@ struct options {
 // enum/struct/union
 #define TYPE_TAG(ty)             (unqual(ty)->u.s.tag)
 #define TYPE_TSYM(ty)            (unqual(ty)->u.s.tsym)
-#define TYPE_FIELDS(ty)          (unqual(ty)->u.s.field)
+#define TYPE_FIELDS(ty)          (unqual(ty)->u.s.tsym->u.s.flist)
 // array
 #define TYPE_LEN(ty)             (unqual(ty)->u.a.len)
 #define TYPE_A_ASSIGN(ty)        (unqual(ty)->u.a.assign)
@@ -77,8 +77,7 @@ struct type {
         // enum/struct/union
         struct {
             const char *tag;
-            struct symbol *tsym;
-            struct field *field; // first field
+            struct symbol *tsym; // tag symbol
         } s;
         // array
         struct {
@@ -127,10 +126,15 @@ struct symbol {
     struct symbol *link;
     union {
         struct expr *init;               // initializer expr
+        // function
         struct {
             struct expr **calls;
             struct stmt *stmt;
         } f;
+        // enum/struct/union
+        struct {
+            struct field *flist; // first field
+        } s;
     } u;
     struct {
         const char *name;

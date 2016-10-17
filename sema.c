@@ -244,7 +244,7 @@ static void ensure_nonbitfield(struct field *field, bool one)
 
 static void do_direct_field(struct symbol *sym, struct field *field)
 {
-    struct field **pp = &sym->type->u.s.field;
+    struct field **pp = &sym->u.s.flist;
     struct field *p;
 
     while ((p = *pp)) {
@@ -260,7 +260,7 @@ static void do_direct_field(struct symbol *sym, struct field *field)
 
 static void do_indirect_field(struct symbol *sym, struct field *field)
 {
-    struct field *first = field->type->u.s.field;
+    struct field *first = TYPE_FIELDS(field->type);
     struct field **pp;
     struct field *indir = NULL;
     struct field **indirp = &indir;
@@ -270,7 +270,7 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
     for (struct field *q = first; q; q = q->link) {
         struct field *p;
         
-        pp = &sym->type->u.s.field;
+        pp = &sym->u.s.flist;
         while ((p = *pp)) {
             if (q->name && q->name == p->name)
                 error_at(q->src,
@@ -301,7 +301,7 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
 
 static void ensure_fields(struct symbol *sym)
 {
-    struct field *first = sym->type->u.s.field;
+    struct field *first = sym->u.s.flist;
     bool one = first && first->link == NULL;
 
     for (struct field *p = first; p; p = p->link) {
