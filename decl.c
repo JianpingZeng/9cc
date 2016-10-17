@@ -784,6 +784,7 @@ static void struct_body(struct symbol *sym)
                        TYPE_TSYM(basety)->anonymous) {
                 //C11: anonymous struct/union
                 field->type = basety;
+                field->src = source;
                 actions.indirect_field(sym, field);
                 goto next;
             } else {
