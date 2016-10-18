@@ -896,8 +896,8 @@ static void make_funcdecl(struct symbol *sym, struct type *ty, int sclass, struc
 }
 
 // id maybe NULL
-static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec,
-                    struct symbol *params[], struct source src)
+void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
+             struct symbol *params[], struct source src)
 {
     struct symbol *sym;
 
@@ -2914,7 +2914,6 @@ struct actions actions = {
     INSTALL(localdecl),
     INSTALL(paramdecl),
     INSTALL(typedefdecl),
-    INSTALL(funcdef),
 
     INSTALL(array_index),
     INSTALL(prototype),
