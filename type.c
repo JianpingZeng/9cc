@@ -576,6 +576,6 @@ short ty2op(struct type *ty)
         
     case VOID:
     default:
-        assert(0 && "unexpected type op");
+        CC_UNAVAILABLE
     }
 }
