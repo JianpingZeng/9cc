@@ -204,7 +204,7 @@ struct init {
 #define OPINDEX(op)   ((op) & 0x3F)
 #define OPID(op)      ((op) & 0x3FF)
 #define MKOPSIZE(op)  ((op) << 10)
-#define mkop(op, ty)  (op) + ty2op(ty)
+#define mkop(op, ty)  ((op) + ty2op(ty))
 
 // op size
 // 1,2,4,8,16
