@@ -948,10 +948,10 @@ struct symbol *mklocal(const char *name, struct type * ty, int sclass)
 
 static void doglobal(struct symbol *sym, void *context)
 {
+    // typedefs and enum ids are _defined_
     if (sym->defined ||
         sym->sclass == EXTERN ||
-        isfunc(sym->type) ||
-        sym->sclass == ENUM)
+        isfunc(sym->type))
         return;
 
     sym->defined = true;
