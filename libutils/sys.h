@@ -28,6 +28,4 @@ extern char *ld[];
 extern char *as[];
 extern char *cc[];
 
-#define BUILTIN_HEADER "7cc.h"
-
 #endif

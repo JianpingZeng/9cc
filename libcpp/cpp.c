@@ -1222,7 +1222,7 @@ static void init_builtin_macros(struct file *pfile)
     define_special(pfile, "__LINE__", line_handler);
     define_special(pfile, "__DATE__", date_handler);
     define_special(pfile, "__TIME__", time_handler);
-    include_file(pfile, BUILTIN_HEADER, true);
+    include_file(pfile, "7cc.h", true);
 }
 
 static void init_env(struct file *pfile)
