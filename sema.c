@@ -20,6 +20,7 @@
 #define ERR_ARRAY_OF_FUNC        "array of function is invalid"
 #define ERR_FUNC_RET_ARRAY       "function cannot return array type '%s'"
 #define ERR_FUNC_RET_FUNC        "function cannot return function type '%s'"
+#define ERR_INCOMPLETE_VAR       "variable '%s' has incomplete type '%s'"
 
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *mkref(struct symbol *sym, struct source src);
@@ -215,13 +216,17 @@ static void finish_type(struct type *ty)
  *     declarations within function prototypes that are not part of
  *     a function definition.
  */
-static void ensure_array_sub(struct type *atype, struct source src, int level, bool outermost)
+static void check_array_qualifiers1(struct type *ty, struct source src, int level, bool outermost)
 {
-    if (TYPE_A_STAR(atype) && level != PARAM)
+    assert(isarray(ty));
+    
+    if (TYPE_A_STAR(ty) && level != PARAM)
         error_at(src, "star modifier used outside of function prototype");
 
-    if (TYPE_A_CONST(atype) || TYPE_A_RESTRICT(atype) ||
-        TYPE_A_VOLATILE(atype) || TYPE_A_STATIC(atype)) {
+    if (TYPE_A_CONST(ty) ||
+        TYPE_A_RESTRICT(ty) ||
+        TYPE_A_VOLATILE(ty) ||
+        TYPE_A_STATIC(ty)) {
         if (level != PARAM)
             error_at(src,
                      "type qualifier used in array declarator outside of function prototype");
@@ -230,23 +235,15 @@ static void ensure_array_sub(struct type *atype, struct source src, int level, b
                      "type qualifier used in non-outermost array type derivation");
     }
 
-
-    struct type *rty = rtype(atype);
+    struct type *rty = rtype(ty);
     if (isarray(rty))
-        ensure_array_sub(rty, src, level, false);
-    else if (isfunc(rty))
-        error_at(src, "array of function is invalid");
-
-    set_typesize(atype);
+        check_array_qualifiers1(rty, src, level, false);
 }
 
-static void ensure_array(struct type * atype, struct source src, int level)
+// check and apply array qualifiers
+static inline void check_array_qualifiers(struct type *ty, struct source src, int level)
 {
-    ensure_array_sub(atype, src, level, true);
-
-    struct type *rty = rtype(atype);
-    if (isincomplete(rty))
-        error_at(src, "array has incomplete element type '%s'", type2s(rty));
+    check_array_qualifiers1(ty, src, level, true);
 }
 
 static void ensure_func(struct type * ftype, struct source src)
@@ -364,9 +361,10 @@ static void ensure_nonbitfield(struct field *p, bool one)
     struct type *ty = p->type;
 
     finish_type(ty);
+    general_type_check(ty, p->src);
 
     if (isarray(ty)) {
-        ensure_array(ty, p->src, CONSTANT);
+        check_array_qualifiers(ty, p->src, CONSTANT);
         if (isincomplete(ty)) {
             if (one)
                 error_at(p->src, "flexible array cannot be the only member");
@@ -377,9 +375,23 @@ static void ensure_nonbitfield(struct field *p, bool one)
         error_at(p->src, "field has invalid type '%s'", TYPE_NAME(ty));
     } else if (isincomplete(ty)) {
         error_at(p->src, "field has incomplete type '%s'", type2s(ty));
-    } else if (isptr(ty)) {
-        general_type_check(rtype(ty), p->src);
     }
+}
+
+static void ensure_fields(struct symbol *sym)
+{
+    struct field *first = sym->u.s.flist;
+    bool one = first && first->link == NULL;
+
+    for (struct field *p = first; p; p = p->link) {
+        if (isindirect(p))
+            continue;
+        if (isbitfield(p))
+            ensure_bitfield(p);
+        else
+            ensure_nonbitfield(p, one);
+    }
+    set_typesize(sym->type);
 }
 
 static void do_direct_field(struct symbol *sym, struct field *field)
@@ -439,33 +451,7 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
         *pp = indir;
 }
 
-static void ensure_fields(struct symbol *sym)
-{
-    struct field *first = sym->u.s.flist;
-    bool one = first && first->link == NULL;
-
-    for (struct field *p = first; p; p = p->link) {
-        if (isindirect(p))
-            continue;
-        if (isbitfield(p))
-            ensure_bitfield(p);
-        else
-            ensure_nonbitfield(p, one);
-    }
-    set_typesize(sym->type);
-}
-
-static void ensure_decl(struct symbol * sym)
-{    
-    struct type *ty = sym->type;
-    struct source src = sym->src;
-    if (isvardecl(sym)) {
-        if (isincomplete(ty) && sym->defined)
-            error_at(src, "variable '%s' has incomplete type '%s'", sym->name, type2s(ty));
-    }
-}
-
-static void ensure_main(struct type *ftype, const char *name, struct source src)
+static void check_main_func(struct type *ftype, const char *name, struct source src)
 {
     if (!isfunc(ftype) || !name || strcmp(name, "main"))
         return;
@@ -586,7 +572,7 @@ static void do_recorddecl(struct symbol *sym)
 
 static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass, int fspec, struct source src)
 {
-    struct symbol *sym = NULL;
+    struct symbol *sym;
 
     assert(id);
     assert(cscope == GLOBAL);
@@ -596,12 +582,13 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass,
         sclass = 0;
     }
 
-    if (isfunc(ty)) {
-        ensure_func(ty, src);
-        ensure_main(ty, id, src);
-    } else if (isarray(ty)) {
-        ensure_array(ty, src, GLOBAL);
-    }
+    finish_type(ty);
+    general_type_check(ty, src);
+
+    if (isfunc(ty))
+        check_main_func(ty, id, src);
+    else if (isarray(ty))
+        check_array_qualifiers(ty, src, GLOBAL);
 
     ensure_inline(ty, fspec, src);
 
@@ -650,8 +637,9 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass,
         sym->defined = true;
     }
 
-    // check incomplete type
-    ensure_decl(sym);
+    // check incomplete type after intialized
+    if (isincomplete(ty))
+        error_at(src, ERR_INCOMPLETE_VAR, id, type2s(ty));
 
     // actions
     if (sym->u.init)
@@ -666,7 +654,7 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass,
 
 static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
 {
-    struct symbol *sym = NULL;
+    struct symbol *sym;
 
     assert(id);
     assert(cscope >= LOCAL);
@@ -674,9 +662,11 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
     if (sclass == 0)
         sclass = isfunc(ty) ? EXTERN : AUTO;
 
+    finish_type(ty);
+    general_type_check(ty, src);
+    
     if (isfunc(ty)) {
-        ensure_func(ty, src);
-        ensure_main(ty, id, src);
+        check_main_func(ty, id, src);
         if (sclass != EXTERN) {
             error_at(src,
                      "function declared in block scope cannot have '%s' storage class",
@@ -684,7 +674,7 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
             sclass = EXTERN;
         }
     } else if (isarray(ty)) {
-        ensure_array(ty, src, LOCAL);
+        check_array_qualifiers(ty, src, LOCAL);
     }
 
     ensure_inline(ty, fspec, src);
@@ -750,8 +740,9 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
         }
     }
 
-    // check incomplete type
-    ensure_decl(sym);
+    // check incomplete type after initialized
+    if (isincomplete(ty))
+        error_at(src, ERR_INCOMPLETE_VAR, id, type2s(ty));
 
     // actions
     if (isfunc(ty))
@@ -769,7 +760,7 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
 // id maybe NULL
 static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
 {
-    struct symbol *sym = NULL;
+    struct symbol *sym;
 
     if (sclass && sclass != REGISTER) {
         error_at(src,
@@ -777,6 +768,8 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
                  id2s(sclass));
         sclass = 0;
     }
+
+    finish_type(ty);
 
     if (isfunc(ty)) {
         ensure_func(ty, src);
@@ -896,8 +889,8 @@ static void make_funcdecl(struct symbol *sym, struct type *ty, int sclass, struc
 }
 
 // id maybe NULL
-void funcdef(const char *id, struct type *ftype, int sclass, int fspec,
-             struct symbol *params[], struct source src)
+static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec,
+                       struct symbol *params[], struct source src)
 {
     struct symbol *sym;
 
@@ -2914,6 +2907,7 @@ struct actions actions = {
     INSTALL(localdecl),
     INSTALL(paramdecl),
     INSTALL(typedefdecl),
+    INSTALL(funcdef),
 
     INSTALL(array_index),
     INSTALL(prototype),

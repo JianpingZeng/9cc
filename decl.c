@@ -947,8 +947,8 @@ static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, s
                         decls(actions.paramdecl);
                 }
 
-                funcdef(id ? TOK_ID_STR(id) : NULL,
-                        ty, sclass, fspec, params, id ? id->src : src);
+                actions.funcdef(id ? TOK_ID_STR(id) : NULL,
+                                ty, sclass, fspec, params, id ? id->src : src);
                 return;
             } else {
                 exit_params(params);

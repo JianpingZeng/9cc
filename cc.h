@@ -284,6 +284,7 @@ struct actions {
     struct symbol * (*localdecl) (const char *, struct type *, int, int, struct source);
     struct symbol * (*paramdecl) (const char *, struct type *, int, int, struct source);
     void (*typedefdecl) (const char *, struct type *, int, int, struct source);
+    void (*funcdef) (const char *, struct type *, int, int, struct symbol *[], struct source);
 
     void (*array_index) (struct type *atype, struct expr *assign, struct source src);
     struct symbol ** (*prototype) (struct type *ftype, struct symbol *params[]);
@@ -406,7 +407,6 @@ extern struct desig *new_desig_field(struct field *field, struct source src);
 extern struct desig *copy_desig(struct desig *desig);
 
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
-#define isvardecl(n)   ((n)->sclass != TYPEDEF && !isfunc((n)->type))
 #define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
 #define isfliteral(n)  (OPID((n)->op) == CNST+F)
 #define issliteral(n)  (OPID((n)->op) == CNST+P)
@@ -453,7 +453,6 @@ extern struct symbol *tag_symbol(int t, const char *tag, struct source src);
 
 extern struct symbol *lookup_typedef(const char *id);
 extern bool istypedef(const char *id);
-extern void funcdef(const char *, struct type *, int, int, struct symbol *[], struct source);
 extern struct desig *next_designator(struct desig *desig);
 
 extern struct expr *cnsti(long i, struct type *ty);
