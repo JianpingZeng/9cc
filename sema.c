@@ -164,6 +164,7 @@ struct symbol *do_enum_id(const char *name, int val, struct symbol *sym, struct 
     s->src = src;
     s->sclass = ENUM;
     s->value.u = val;
+    s->defined = true;
     return s;
 }
 
@@ -947,7 +948,10 @@ struct symbol *mklocal(const char *name, struct type * ty, int sclass)
 
 static void doglobal(struct symbol *sym, void *context)
 {
-    if (sym->sclass == EXTERN || isfunc(sym->type) || sym->defined)
+    if (sym->defined ||
+        sym->sclass == EXTERN ||
+        isfunc(sym->type) ||
+        sym->sclass == ENUM)
         return;
 
     sym->defined = true;
