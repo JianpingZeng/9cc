@@ -351,7 +351,7 @@ static void set_struct_size(struct type * ty)
         if (isindirect(field))
             continue;
 
-        if (field->isbit) {
+        if (isbitfield(field)) {
             int bitsize = field->bitsize;
             
             if (!isint(ty))
@@ -367,7 +367,7 @@ static void set_struct_size(struct type * ty)
                     // the first field
                     field->offset = 0;
                     field->bitoff = 0;
-                } else if (prev->isbit) {
+                } else if (isbitfield(prev)) {
                     int prev_end = prev->bitsize + prev->bitoff;
                     int prev_end_rounded = ROUNDUP(prev_end, 8);
                     int bytes = prev_end_rounded >> 3;
@@ -386,7 +386,7 @@ static void set_struct_size(struct type * ty)
                     // the first field
                     field->offset = 0;
                     field->bitoff = 0;
-                } else if (prev->isbit) {
+                } else if (isbitfield(prev)) {
                     int prev_end = prev->bitsize + prev->bitoff;
                     int prev_end_rounded = ROUNDUP(prev_end, 8);
                     if (bitsize + prev_end <= prev_end_rounded) {
@@ -408,7 +408,7 @@ static void set_struct_size(struct type * ty)
             if (prev == NULL) {
                 // the first field
                 field->offset = 0;
-            } else if (prev->isbit) {
+            } else if (isbitfield(prev)) {
                 int prev_end = prev->bitsize + prev->bitoff;
                 int bytes = ROUNDUP(prev_end, 8) >> 3;
                 size_t end = prev->offset + bytes;
@@ -426,7 +426,7 @@ static void set_struct_size(struct type * ty)
 
     size_t offset = 0;
     if (prev) {
-        if (prev->isbit) {
+        if (isbitfield(prev)) {
             int bitsize = prev->bitsize;
             int bitoff = prev->bitoff;
             int bytes = ROUNDUP(bitoff + bitsize, 8) >> 3;
@@ -455,7 +455,7 @@ static void set_union_size(struct type * ty)
         if (isindirect(field))
             continue;
 
-        if (field->isbit) {
+        if (isbitfield(field)) {
             int bitsize = field->bitsize;
 
             if (!isint(ty))

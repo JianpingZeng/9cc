@@ -311,7 +311,7 @@ static void ensure_fields(struct symbol *sym)
     for (struct field *p = first; p; p = p->link) {
         if (isindirect(p))
             continue;
-        if (p->isbit)
+        if (isbitfield(p))
             ensure_bitfield(p);
         else
             ensure_nonbitfield(p, one);
@@ -1006,7 +1006,7 @@ static bool is_bitfield(struct expr *node)
     if (node->op != MEMBER)
         return false;
 
-    return node->u.field->isbit;
+    return isbitfield(node->u.field);
 }
 
 static struct expr *cast(struct type *ty, struct expr *n)
