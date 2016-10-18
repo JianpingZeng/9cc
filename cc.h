@@ -204,7 +204,7 @@ struct init {
 #define OPINDEX(op)   ((op) & 0x3F)
 #define OPID(op)      ((op) & 0x3FF)
 #define MKOPSIZE(op)  ((op) << 10)
-#define mkop(op, ty)  (op) + tytop(ty)
+#define mkop(op, ty)  (op) + ty2op(ty)
 
 // op size
 // 1,2,4,8,16
@@ -478,7 +478,7 @@ extern bool qual_contains(struct type *ty1, struct type *ty2);
 extern int qual_union(struct type *ty1, struct type *ty2);
 extern bool isincomplete(struct type *ty);
 extern bool isstring(struct type *ty);
-extern short tytop(struct type *ty);
+extern short ty2op(struct type *ty);
 
 #define isconst1(kind)     ((kind) == CONST ||                          \
                             (kind) == CONST + VOLATILE ||               \

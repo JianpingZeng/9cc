@@ -547,7 +547,7 @@ bool isstring(struct type *ty)
     return TYPE_KIND(rty) == CHAR || unqual(rty) == wchartype;
 }
 
-short tytop(struct type *ty)
+short ty2op(struct type *ty)
 {
     size_t size = TYPE_SIZE(ty);
 
