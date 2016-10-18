@@ -135,9 +135,11 @@ void skip_to_expr(void)
 /// type check
 
 /*
- * Check `array of function`, `function returning array` and
- * `function returning function` recursively.
- * Both two cases are always invalid.
+ * Check for:
+ * - `array of function`
+ * - `function returning array`
+ * - `function returning function`
+ * recursively. Above cases are always invalid.
  * Return on the first error or done.
  */
 static void general_type_check(struct type *ty, struct source src)
