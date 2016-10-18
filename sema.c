@@ -21,7 +21,6 @@
 #define ERR_FUNC_RET_ARRAY       "function cannot return array type '%s'"
 #define ERR_FUNC_RET_FUNC        "function cannot return function type '%s'"
 
-static void ensure_array(struct type * atype, struct source src, int level);
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *mkref(struct symbol *sym, struct source src);
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src);
@@ -190,6 +189,75 @@ static void general_type_check(struct type *ty, struct source src)
     }
 }
 
+// calculate array size
+static void finish_type(struct type *ty)
+{
+    if (isarray(ty)) {
+        finish_type(rtype(ty));
+        set_typesize(ty);
+    } else if (isfunc(ty) || isptr(ty)) {
+        finish_type(rtype(ty));
+    }
+}
+
+/**
+ *  1. Array qualifiers may appear only when in a function parameter.
+ *
+ *  2. Array qualifiers 'const', 'volatile', 'restrict', 'static' may
+ *     appear within the _outermost_ brackets.
+ *
+ *  3. 'static' is an optimization hint, asserting that the actual array
+ *     argument will be non-null and will have the declared size and
+ *     type upon entry to the function.
+ *
+ *  4. The star modifier '*' or non-constant expression describe a
+ *     variable length array. The '*' can only appear in array parameter
+ *     declarations within function prototypes that are not part of
+ *     a function definition.
+ */
+static void ensure_array_sub(struct type *atype, struct source src, int level, bool outermost)
+{
+    if (TYPE_A_STAR(atype) && level != PARAM)
+        error_at(src, "star modifier used outside of function prototype");
+
+    if (TYPE_A_CONST(atype) || TYPE_A_RESTRICT(atype) ||
+        TYPE_A_VOLATILE(atype) || TYPE_A_STATIC(atype)) {
+        if (level != PARAM)
+            error_at(src,
+                     "type qualifier used in array declarator outside of function prototype");
+        else if (!outermost)
+            error_at(src,
+                     "type qualifier used in non-outermost array type derivation");
+    }
+
+
+    struct type *rty = rtype(atype);
+    if (isarray(rty))
+        ensure_array_sub(rty, src, level, false);
+    else if (isfunc(rty))
+        error_at(src, "array of function is invalid");
+
+    set_typesize(atype);
+}
+
+static void ensure_array(struct type * atype, struct source src, int level)
+{
+    ensure_array_sub(atype, src, level, true);
+
+    struct type *rty = rtype(atype);
+    if (isincomplete(rty))
+        error_at(src, "array has incomplete element type '%s'", type2s(rty));
+}
+
+static void ensure_func(struct type * ftype, struct source src)
+{
+    struct type *rty = rtype(ftype);
+    if (isarray(rty))
+        error_at(src, "function cannot return array type '%s'", type2s(rty));
+    else if (isfunc(rty))
+        error_at(src, "function cannot return function type '%s'", type2s(rty));
+}
+
 /// error
 
 static void field_not_found_error(struct source src, struct type *ty, const char *name)
@@ -294,7 +362,9 @@ static void ensure_bitfield(struct field *p)
 static void ensure_nonbitfield(struct field *p, bool one)
 {
     struct type *ty = p->type;
-        
+
+    finish_type(ty);
+
     if (isarray(ty)) {
         ensure_array(ty, p->src, CONSTANT);
         if (isincomplete(ty)) {
@@ -393,64 +463,6 @@ static void ensure_decl(struct symbol * sym)
         if (isincomplete(ty) && sym->defined)
             error_at(src, "variable '%s' has incomplete type '%s'", sym->name, type2s(ty));
     }
-}
-
-/**
- *  1. Array qualifiers may appear only when in a function parameter.
- *
- *  2. Array qualifiers 'const', 'volatile', 'restrict', 'static' may
- *     appear within the _outermost_ brackets.
- *
- *  3. 'static' is an optimization hint, asserting that the actual array
- *     argument will be non-null and will have the declared size and
- *     type upon entry to the function.
- *
- *  4. The star modifier '*' or non-constant expression describe a
- *     variable length array. The '*' can only appear in array parameter
- *     declarations within function prototypes that are not part of
- *     a function definition.
- */
-static void ensure_array_sub(struct type *atype, struct source src, int level, bool outermost)
-{
-    if (TYPE_A_STAR(atype) && level != PARAM)
-        error_at(src, "star modifier used outside of function prototype");
-    
-    if (TYPE_A_CONST(atype) || TYPE_A_RESTRICT(atype) ||
-        TYPE_A_VOLATILE(atype) || TYPE_A_STATIC(atype)) {
-        if (level != PARAM)
-            error_at(src,
-                     "type qualifier used in array declarator outside of function prototype");
-        else if (!outermost)
-            error_at(src,
-                     "type qualifier used in non-outermost array type derivation");
-    }
-            
-
-    struct type *rty = rtype(atype);
-    if (isarray(rty))
-        ensure_array_sub(rty, src, level, false);
-    else if (isfunc(rty))
-        error_at(src, "array of function is invalid");
-    
-    set_typesize(atype);
-}
-
-static void ensure_array(struct type * atype, struct source src, int level)
-{
-    ensure_array_sub(atype, src, level, true);
-
-    struct type *rty = rtype(atype);
-    if (isincomplete(rty))
-        error_at(src, "array has incomplete element type '%s'", type2s(rty));
-}
-
-static void ensure_func(struct type * ftype, struct source src)
-{
-    struct type *rty = rtype(ftype);
-    if (isarray(rty))
-        error_at(src, "function cannot return array type '%s'", type2s(rty));
-    else if (isfunc(rty))
-        error_at(src, "function cannot return function type '%s'", type2s(rty));
 }
 
 static void ensure_main(struct type *ftype, const char *name, struct source src)
