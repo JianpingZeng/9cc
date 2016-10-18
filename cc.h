@@ -92,9 +92,6 @@ struct type {
     } limits;
 };
 
-#define isindirect(field)  ((field)->indir)
-#define direct(field)  (isindirect(field) ? (field)->indir : (field))
-
 struct field {
     const char *name;
     struct type *type;
@@ -373,6 +370,11 @@ struct interface {
 ///
 
 #define use(sym)  ((sym)->refs++)
+#define isindirect(field)  ((field)->indir)
+#define direct(field)  (isindirect(field) ? (field)->indir : (field))
+#define has_static_extent(sym)  ((sym)->sclass == EXTERN || \
+                                 (sym)->sclass == STATIC || \
+                                 (sym)->scope == GLOBAL)
 
 // symtab.c
 extern struct table *new_table(struct table *up, int scope);
@@ -435,10 +437,6 @@ extern struct expr *initializer_list(struct type *ty);
 extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
 
 // sema.c
-#define has_static_extent(sym)  ((sym)->sclass == EXTERN || \
-                                 (sym)->sclass == STATIC || \
-                                 (sym)->scope == GLOBAL)
-
 extern int first_decl(struct token *t);
 extern int first_stmt(struct token *t);
 extern int first_expr(struct token *t);
@@ -502,8 +500,6 @@ extern short tytop(struct type *ty);
 #define isrestrict(ty)  isrestrict1((ty)->kind)
 #define isinline(ty)    ((ty)->inlined)
 #define isqual(ty)      (isconst(ty) || isvolatile(ty) || isrestrict(ty))
-// alias
-#define rtype(ty)       TYPE_TYPE(ty)
 
 #define isfunc(ty)         (TYPE_OP(ty) == FUNCTION)
 #define isarray(ty)        (TYPE_OP(ty) == ARRAY)
@@ -521,6 +517,8 @@ extern short tytop(struct type *ty);
 #define isbool(ty)         (unqual(ty) == booltype)
 #define isptrto(ty, kind)  (isptr(ty) && TYPE_KIND(rtype(ty)) == kind)
 
+// alias
+#define rtype(ty)  TYPE_TYPE(ty)
 
 // error.c
 extern unsigned int errors(void);
