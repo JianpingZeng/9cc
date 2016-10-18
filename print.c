@@ -465,11 +465,11 @@ const char *type2s(struct type * ty)
             qualstr(buf, s->qual);
         } else if (isarray(s->type)) {
             if (TYPE_LEN(s->type) > 0) {
-                strbuf_cats(buf, "[");
+                strbuf_cats(buf, " [");
                 strbuf_catd(buf, TYPE_LEN(s->type));
                 strbuf_cats(buf, "]");
             } else {
-                strbuf_cats(buf, "[]");
+                strbuf_cats(buf, " []");
             }
         } else if (isenum(s->type) ||
                    isstruct(s->type) ||
