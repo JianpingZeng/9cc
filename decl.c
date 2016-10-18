@@ -679,32 +679,6 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
     }
 }
 
-static struct symbol *tag_symbol(int t, const char *tag, struct source src)
-{
-    struct type *ty = tag_type(t);
-    struct symbol *sym = NULL;
-    if (tag) {
-        sym = lookup(tag, tags);
-        if (sym && is_current_scope(sym)) {
-            if (TYPE_OP(sym->type) == t && !sym->defined)
-                return sym;
-
-            error_at(src, ERR_REDEFINITION,
-                     sym->name, sym->src.file, sym->src.line, sym->src.column);
-        }
-
-        sym = install(tag, &tags, cscope, PERM);
-    } else {
-        sym = anonymous(&tags, cscope, PERM);
-    }
-
-    sym->type = ty;
-    sym->src = src;
-    ty->u.s.tsym = sym;
-
-    return sym;
-}
-
 /// enumerator-list:
 ///   enumerator
 ///   enumerator-list ',' enumerator

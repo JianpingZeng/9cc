@@ -6,12 +6,20 @@
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 #define MAX_STRUCT_PARAM_SIZE  16
-#define ERR_INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
-#define ERR_TYPE  "expect type '%s', not '%s'"
-#define ERR_INLINE  "'inline' can only appear on functions"
 #define INSTALL(name)  .name = do_##name
 #define call(func)  do_##func
 #define events(func)  func
+
+#define ERR_INCOMPATIBLE_TYPES   "incompatible type conversion from '%s' to '%s'"
+#define ERR_INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
+#define ERR_REDEFINITION         "redefinition of '%s', previous definition at %s:%u:%u"
+#define ERR_CONFLICTING_TYPES    "conflicting types for '%s', previous at %s:%u:%u"
+#define ERR_DUPLICATE_MEMBER     "duplicate member '%s', previous declaration at %s:%u:%u"
+#define ERR_TYPE                 "expect type '%s', not '%s'"
+#define ERR_INLINE               "'inline' can only appear on functions"
+#define ERR_ARRAY_OF_FUNC        "array of function is invalid"
+#define ERR_FUNC_RET_ARRAY       "function cannot return array type '%s'"
+#define ERR_FUNC_RET_FUNC        "function cannot return function type '%s'"
 
 static void ensure_array(struct type * atype, struct source src, int level);
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
@@ -35,16 +43,6 @@ struct goto_info {
 };
 
 struct func func;
-
-/// error
-
-static void field_not_found_error(struct source src, struct type *ty, const char *name)
-{
-    if (isincomplete(ty))
-        error_at(src, "incomplete definition of type '%s'", type2s(ty));
-    else
-        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
-}
 
 /// lex
 
@@ -132,6 +130,34 @@ void skip_to_expr(void)
     skip_syntax(first_expr);
 }
 
+///
+
+struct symbol *tag_symbol(int t, const char *tag, struct source src)
+{
+    struct type *ty = tag_type(t);
+    struct symbol *sym = NULL;
+    if (tag) {
+        sym = lookup(tag, tags);
+        if (sym && is_current_scope(sym)) {
+            if (TYPE_OP(sym->type) == t && !sym->defined)
+                return sym;
+
+            error_at(src, ERR_REDEFINITION,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
+        }
+
+        sym = install(tag, &tags, cscope, PERM);
+    } else {
+        sym = anonymous(&tags, cscope, PERM);
+    }
+
+    sym->type = ty;
+    sym->src = src;
+    ty->u.s.tsym = sym;
+
+    return sym;
+}
+
 /// type check
 
 /*
@@ -147,21 +173,31 @@ static void general_type_check(struct type *ty, struct source src)
     if (isarray(ty)) {
         struct type *rty = rtype(ty);
         if (isfunc(rty))
-            error_at(src, "array of function is invalid");
+            error_at(src, ERR_ARRAY_OF_FUNC);
         else
             general_type_check(rty, src);
     } else if (isfunc(ty)) {
         struct type *rty = rtype(ty);
         if (isarray(rty))
-            error_at(src, "function cannot return array type '%s'", type2s(rty));
+            error_at(src, ERR_FUNC_RET_ARRAY, type2s(rty));
         else if (isfunc(rty))
-            error_at(src, "function cannot return function type '%s'", type2s(rty));
+            error_at(src, ERR_FUNC_RET_FUNC, type2s(rty));
         else
             general_type_check(rty, src);
     } else if (isptr(ty)) {
         struct type *rty = rtype(ty);
         general_type_check(rty, src);
     }
+}
+
+/// error
+
+static void field_not_found_error(struct source src, struct type *ty, const char *name)
+{
+    if (isincomplete(ty))
+        error_at(src, "incomplete definition of type '%s'", type2s(ty));
+    else
+        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
 }
 
 /// decl
