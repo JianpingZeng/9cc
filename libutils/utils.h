@@ -1,11 +1,16 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-// for bool/size_t/va_list/memset
+// for bool
 #include <stdbool.h>
+// for size_t
 #include <stddef.h>
+// for va_list
 #include <stdarg.h>
+// for memset
 #include <string.h>
+// for CHAR_BIT
+#include <limits.h>
 
 #define ONES(size)  (size)>=sizeof(unsigned long) ? ~0UL : ~((~0UL)<<(CHAR_BIT*size))
 
@@ -17,6 +22,9 @@
 
 #define ALIGN_SIZE          (sizeof (long))
 #define ROUNDUP(x, align)   (((x)+((align)-1))&(~((align)-1)))
+
+#define BITS(bytes)     (CHAR_BIT * (bytes))
+#define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
 
 #define MAX(x, y)    (((x) > (y)) ? (x) : (y))
 #define MIN(x, y)    ((x) < (y) ? (x) : (y))

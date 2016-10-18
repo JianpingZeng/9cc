@@ -5,8 +5,6 @@
 #include <stdbool.h>
 // for size_t
 #include <stddef.h>
-// for CHAR_BIT
-#include <limits.h>
 
 #include "config.h"
 #include "libutils/utils.h"
@@ -483,9 +481,6 @@ extern int qual_union(struct type *ty1, struct type *ty2);
 extern bool isincomplete(struct type *ty);
 extern bool isstring(struct type *ty);
 extern short tytop(struct type *ty);
-
-#define BITS(bytes)     (CHAR_BIT * (bytes))
-#define BYTES(bits)     ((ROUNDUP(bits, CHAR_BIT)) / (CHAR_BIT))
 
 #define isconst1(kind)     ((kind) == CONST ||                          \
                             (kind) == CONST + VOLATILE ||               \
