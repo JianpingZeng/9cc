@@ -218,30 +218,30 @@ struct type *tag_type(int t)
 
 static bool eqparams(struct type *proto1[], struct type *proto2[])
 {
-    if (proto1 == proto2) {
-        return true;
-    } else if (proto1 == NULL || proto2 == NULL) {
-        return false;
-    } else {
-        size_t len1 = length(proto1);
-        size_t len2 = length(proto2);
-        if (len1 != len2)
-            return false;
-        for (size_t i = 0; i < len1; i++) {
-            struct type *ty1 = proto1[i];
-            struct type *ty2 = proto2[i];
-            if (ty1 == ty2)
-                continue;
-            else if (ty1 == NULL || ty2 == NULL)
-                return false;
-            else if (eqtype(ty1, ty2))
-                continue;
-            else
-                return false;
-        }
+    assert(proto1 && proto2);
 
+    if (proto1 == proto2)
         return true;
+
+    size_t len1 = length(proto1);
+    size_t len2 = length(proto2);
+    if (len1 != len2)
+        return false;
+    for (size_t i = 0; i < len1; i++) {
+        struct type *ty1 = proto1[i];
+        struct type *ty2 = proto2[i];
+
+        assert(ty1 && ty2);
+
+        if (ty1 == ty2)
+            continue;
+        else if (eqtype(ty1, ty2))
+            continue;
+        else
+            return false;
     }
+
+    return true;
 }
 
 bool eqtype(struct type * ty1, struct type * ty2)
@@ -312,8 +312,7 @@ bool eqtype(struct type * ty1, struct type * ty2)
         }
 
     default:
-        assert(0);
-        return false;
+        CC_UNAVAILABLE
     }
 }
 
