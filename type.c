@@ -339,7 +339,7 @@ struct field *find_field(struct type *ty, const char *name)
  *
  * The bitfields must be packed as tightly as possible.
  */
-static unsigned int struct_size(struct type * ty)
+static void set_struct_size(struct type * ty)
 {
     int max = 1;
     struct field *prev = NULL;
@@ -424,8 +424,6 @@ static unsigned int struct_size(struct type * ty)
         prev = field;
     }
 
-    TYPE_ALIGN(ty) = max;
-
     size_t offset = 0;
     if (prev) {
         if (prev->isbit) {
@@ -437,10 +435,12 @@ static unsigned int struct_size(struct type * ty)
             offset = prev->offset + TYPE_SIZE(prev->type);
         }
     }
-    return ROUNDUP(offset, max);
+
+    TYPE_ALIGN(ty) = max;
+    TYPE_SIZE(ty) = ROUNDUP(offset, max);
 }
 
-static unsigned int union_size(struct type * ty)
+static void set_union_size(struct type * ty)
 {
     int max = 1;
     int size = 0;
@@ -469,39 +469,25 @@ static unsigned int union_size(struct type * ty)
     }
 
     TYPE_ALIGN(ty) = max;
-
-    return ROUNDUP(size, max);
+    TYPE_SIZE(ty) = ROUNDUP(size, max);
 }
 
-static unsigned int array_size(struct type * ty)
+static void set_array_size(struct type * ty)
 {
-    unsigned int size = 1;
-    struct type *rty = ty;
+    struct type *rty = rtype(ty);
 
-    do {
-        size *= TYPE_LEN(rty);
-        rty = rtype(rty);
-    } while (isarray(rty));
-
-    size *= TYPE_SIZE(rty);
-
-    // set align
-    do {
-        TYPE_ALIGN(ty) = TYPE_ALIGN(rty);
-        ty = rtype(ty);
-    } while (isarray(ty));
-
-    return size;
+    TYPE_ALIGN(ty) = TYPE_ALIGN(rty);
+    TYPE_SIZE(ty) = TYPE_LEN(ty) * TYPE_SIZE(rty);
 }
 
 void set_typesize(struct type * ty)
 {
     if (isarray(ty))
-        TYPE_SIZE(ty) = array_size(ty);
+        set_array_size(ty);
     else if (isstruct(ty))
-        TYPE_SIZE(ty) = struct_size(ty);
+        set_struct_size(ty);
     else if (isunion(ty))
-        TYPE_SIZE(ty) = union_size(ty);
+        set_union_size(ty);
 }
 
 bool isincomplete(struct type * ty)
