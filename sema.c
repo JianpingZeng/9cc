@@ -132,6 +132,36 @@ void skip_to_expr(void)
     skip_syntax(first_expr);
 }
 
+/// type check
+
+/*
+ * Check `array of function`, `function returning array` and
+ * `function returning function` recursively.
+ * Both two cases are always invalid.
+ * Return on the first error or done.
+ */
+static void general_type_check(struct type *ty, struct source src)
+{
+    if (isarray(ty)) {
+        struct type *rty = rtype(ty);
+        if (isfunc(rty))
+            error_at(src, "array of function is invalid");
+        else
+            general_type_check(rty, src);
+    } else if (isfunc(ty)) {
+        struct type *rty = rtype(ty);
+        if (isarray(rty))
+            error_at(src, "function cannot return array type '%s'", type2s(rty));
+        else if (isfunc(rty))
+            error_at(src, "function cannot return function type '%s'", type2s(rty));
+        else
+            general_type_check(rty, src);
+    } else if (isptr(ty)) {
+        struct type *rty = rtype(ty);
+        general_type_check(rty, src);
+    }
+}
+
 /// decl
 
 struct symbol *lookup_typedef(const char *id)
@@ -239,6 +269,8 @@ static void ensure_nonbitfield(struct field *p, bool one)
         error_at(p->src, "field has invalid type '%s'", TYPE_NAME(ty));
     } else if (isincomplete(ty)) {
         error_at(p->src, "field has incomplete type '%s'", type2s(ty));
+    } else if (isptr(ty)) {
+        general_type_check(rtype(ty), p->src);
     }
 }
 
