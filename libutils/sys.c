@@ -37,9 +37,8 @@ char *sys_basename(const char *path)
 const char *sys_mktmpdir()
 {
     static char template[] = "/tmp/7cc.tmp.XXXXXX";
-    int len = strlen("/tmp/7cc.tmp.");
     // reset suffix every time
-    memset(template + len, 'X', strlen(template) - len);
+    strncpy(template, "/tmp/7cc.tmp.XXXXXX", ARRAY_SIZE(template));
     return mkdtemp(template);
 }
 
