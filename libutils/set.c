@@ -1,7 +1,14 @@
 #include <assert.h>
+#include <stdlib.h>
 #include "utils.h"
 
 static char value;
+
+void set_free(struct set *set)
+{
+    map_free(set->map);
+    free(set);
+}
 
 struct set *set_new(void)
 {

@@ -9,6 +9,7 @@ struct set {
 
 extern struct set *set_new(void);
 extern struct set *set_new1(const void *element);
+extern void set_free(struct set *set);
 extern struct set *set_copy(struct set *set);
 extern void set_add(struct set *set, const void *element);
 extern void set_remove(struct set *set, const void *element);

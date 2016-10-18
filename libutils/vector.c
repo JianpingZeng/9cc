@@ -10,6 +10,12 @@ static void vec_grow(struct vector *v)
     v->mem = xrealloc(v->mem, v->alloc * sizeof(void *));
 }
 
+void vec_free(struct vector *v)
+{
+    free(v->mem);
+    free(v);
+}
+
 struct vector *vec_new(void)
 {
     struct vector *v = zmalloc(sizeof(struct vector));

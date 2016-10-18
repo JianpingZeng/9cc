@@ -20,8 +20,6 @@ struct strbuf *strbuf_new(void)
 
 void strbuf_free(struct strbuf *s)
 {
-    if (!s)
-        return;
     free(s->str);
     free(s);
 }
