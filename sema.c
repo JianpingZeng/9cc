@@ -178,71 +178,67 @@ static void ensure_inline(struct type *ty, int fspec, struct source src)
     }
 }
 
-static void ensure_bitfield(struct field *field)
+static void ensure_bitfield(struct field *p)
 {
-    const char *name = field->name;
-    struct type *ty = field->type;
-    struct source src = field->src;
-    int bitsize = field->bitsize;
+    struct type *ty = p->type;
+    int bitsize = p->bitsize;
     int bits = BITS(TYPE_SIZE(ty));
 
     if (!isint(ty)) {
-        if (name)
-            error_at(src,
+        if (p->name)
+            error_at(p->src,
                      "bit-field '%s' has non-integral type '%s'",
-                     name, type2s(ty));
+                     p->name, type2s(ty));
         else
-            error_at(src,
+            error_at(p->src,
                      "anonymous bit-field has non-integral type '%s'",
                      type2s(ty));
     }
 
     if (bitsize < 0) {
-        if (name)
-            error_at(src,
+        if (p->name)
+            error_at(p->src,
                      "bit-field '%s' has negative width '%d'",
-                     name, bitsize);
+                     p->name, bitsize);
         else
-            error_at(src,
+            error_at(p->src,
                      "anonymous bit-field has negative width '%d'",
                      bitsize);
     }
 
-    if (bitsize == 0 && name)
-        error_at(src,
+    if (bitsize == 0 && p->name)
+        error_at(p->src,
                  "named bit-field '%s' has zero width",
-                 name);
+                 p->name);
 
     if (bitsize > bits) {
-        if (name)
-            error_at(src,
+        if (p->name)
+            error_at(p->src,
                      "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
-                     name, bitsize, bits);
+                     p->name, bitsize, bits);
         else
-            error_at(src,
+            error_at(p->src,
                      "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
                      bitsize, bits);
     }
 }
 
-static void ensure_nonbitfield(struct field *field, bool one)
+static void ensure_nonbitfield(struct field *p, bool one)
 {
-    struct type *ty = field->type;
-    struct source src = field->src;
-    bool last = field->link == NULL;
+    struct type *ty = p->type;
         
     if (isarray(ty)) {
-        ensure_array(ty, src, CONSTANT);
+        ensure_array(ty, p->src, CONSTANT);
         if (isincomplete(ty)) {
             if (one)
-                error_at(src, "flexible array cannot be the only member");
-            else if (!last)
-                error_at(src, "field has incomplete type '%s'", type2s(ty));
+                error_at(p->src, "flexible array cannot be the only member");
+            else if (p->link)   // NOT the last field
+                error_at(p->src, "field has incomplete type '%s'", type2s(ty));
         }
     } else if (isfunc(ty)) {
-        error_at(src, "field has invalid type '%s'", TYPE_NAME(ty));
+        error_at(p->src, "field has invalid type '%s'", TYPE_NAME(ty));
     } else if (isincomplete(ty)) {
-        error_at(src, "field has incomplete type '%s'", type2s(ty));
+        error_at(p->src, "field has incomplete type '%s'", type2s(ty));
     }
 }
 

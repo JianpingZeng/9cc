@@ -97,9 +97,9 @@ struct field {
     struct type *type;
     struct source src;
     size_t offset;
-    int isbit : 1;
-    int bitsize : 10;
-    int bitoff : 10;
+    bool isbit;
+    int bitsize;
+    int bitoff;
     struct field *indir;        // indirect field
     struct field **of;          // indirect of
     struct field *link;         // next field
