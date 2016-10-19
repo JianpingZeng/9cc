@@ -8,10 +8,8 @@ static struct expr *unary_expr(void);
 
 static struct expr *compound_literal(struct type * ty)
 {
-    struct expr *inits;
     struct source src = source;
-
-    inits = initializer_list(ty);
+    struct expr *inits = initializer_list(ty);
     
     return actions.compound_literal(ty, inits, src);
 }
@@ -22,7 +20,7 @@ static struct type *cast_type(void)
 
     expect('(');
     ty = typename();
-    expect(')');
+    match(')', skip_to_bracket);
 
     return ty;
 }
@@ -35,25 +33,24 @@ static struct type *cast_type(void)
 ///
 static struct expr *primary_expr(void)
 {
-    int t = token->id;
     struct expr *ret = NULL;
-    
-    switch (t) {
+ 
+    switch (token->id) {
     case ID:
         ret = actions.id(token);
-        expect(t);
+        gettok();
         break;
     case ICONSTANT:
         ret = actions.iconst(token);
-        expect(t);
+        gettok();
         break;
     case FCONSTANT:
         ret = actions.fconst(token);
-        expect(t);
+        gettok();
         break;
     case SCONSTANT:
         ret = actions.sconst(token);
-        expect(t);
+        gettok();
         break;
     case '(':
         if (first_typename(lookahead())) {
@@ -63,9 +60,9 @@ static struct expr *primary_expr(void)
             struct source src = source;
             struct expr *e;
             
-            expect('(');
+            gettok();
             e = expression();
-            expect(')');
+            match(')', skip_to_bracket);
 
             ret = actions.paren(e, src);
         }
@@ -94,7 +91,7 @@ static struct expr **argument_expr_list(void)
 
             if (token->id != ',')
                 break;
-            expect(',');
+            gettok();
         }
     } else if (token->id != ')') {
         error("expect assignment expression");
@@ -113,9 +110,9 @@ static struct expr *postfix_expr1(struct expr *ret)
                 struct source src = source;
                 struct expr *index;
 
-                expect('[');
+                gettok();
                 index = expression();
-                expect(']');
+                match(']', skip_to_squarebracket);
 
                 ret = actions.subscript(ret, index, src);
             }
@@ -125,9 +122,9 @@ static struct expr *postfix_expr1(struct expr *ret)
                 struct source src = source;
                 struct expr **args;
 
-                expect('(');
+                gettok();
                 args = argument_expr_list();
-                expect(')');
+                match(')', skip_to_bracket);
 
                 ret = actions.funcall(ret, args, src);
             }
@@ -139,7 +136,7 @@ static struct expr *postfix_expr1(struct expr *ret)
                 struct source src = source;
                 const char *name = NULL;
 
-                expect(t);
+                gettok();
                 if (token->id == ID)
                     name = TOK_ID_STR(token);
                 expect(ID);
@@ -153,13 +150,12 @@ static struct expr *postfix_expr1(struct expr *ret)
                 int t = token->id;
                 struct source src = source;
 
-                expect(t);
-
+                gettok();
                 ret = actions.post_increment(ret, t, src);
             }
             break;
         default:
-            assert(0);
+            CC_UNAVAILABLE
         }
     }
 
@@ -203,23 +199,23 @@ static struct expr *unary_expr(void)
     switch (t) {
     case INCR:
     case DECR:
-        expect(t);
+        gettok();
         return actions.pre_increment(t, unary_expr(), src);
     case '+':
     case '-':
-        expect(t);
+        gettok();
         return actions.minus_plus(t, cast_expr(), src);
     case '~':
-        expect(t);
+        gettok();
         return actions.bitwise_not(cast_expr(), src);
     case '!':
-        expect(t);
+        gettok();
         return actions.logical_not(cast_expr(), src);
     case '&':
-        expect(t);
+        gettok();
         return actions.address(cast_expr(), src);
     case '*':
-        expect(t);
+        gettok();
         return actions.indirection(cast_expr(), src);
     case SIZEOF:
         {
@@ -227,7 +223,7 @@ static struct expr *unary_expr(void)
             struct expr *n = NULL;
             struct type *ty = NULL;
 
-            expect(t);
+            gettok();
             ahead = lookahead();
             if (token->id == '(' && first_typename(ahead)) {
                 ty = cast_type();
@@ -281,7 +277,7 @@ static struct expr *multiple_expr(void)
     while (token->id == '*' || token->id == '/' || token->id == '%') {
         int t = token->id;
         struct source src = source;
-        expect(t);
+        gettok();
         mulp1 = actions.bop(t, mulp1, cast_expr(), src);
     }
 
@@ -301,7 +297,7 @@ static struct expr *additive_expr(void)
     while (token->id == '+' || token->id == '-') {
         int t = token->id;
         struct source src = source;
-        expect(t);
+        gettok();
         add1 = actions.bop(t, add1, multiple_expr(), src);
     }
 
@@ -321,7 +317,7 @@ static struct expr *shift_expr(void)
     while (token->id == LSHIFT || token->id == RSHIFT) {
         int t = token->id;
         struct source src = source;
-        expect(t);
+        gettok();
         shift1 = actions.bop(t, shift1, additive_expr(), src);
     }
 
@@ -343,7 +339,7 @@ static struct expr *relation_expr(void)
     while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
         int t = token->id;
         struct source src = source;
-        expect(t);
+        gettok();
         rel = actions.bop(t, rel, shift_expr(), src);
     }
 
@@ -363,7 +359,7 @@ static struct expr *equality_expr(void)
     while (token->id == EQL || token->id == NEQ) {
         int t = token->id;
         struct source src = source;
-        expect(t);
+        gettok();
         equl = actions.bop(t, equl, relation_expr(), src);
     }
 
@@ -381,7 +377,7 @@ static struct expr *and_expr(void)
     and1 = equality_expr();
     while (token->id == '&') {
         struct source src = source;
-        expect('&');
+        gettok();
         and1 = actions.bop('&', and1, equality_expr(), src);
     }
 
@@ -399,7 +395,7 @@ static struct expr *exclusive_or(void)
     eor = and_expr();
     while (token->id == '^') {
         struct source src = source;
-        expect('^');
+        gettok();
         eor = actions.bop('^', eor, and_expr(), src);
     }
 
@@ -417,7 +413,7 @@ static struct expr *inclusive_or(void)
     ior = exclusive_or();
     while (token->id == '|') {
         struct source src = source;
-        expect('|');
+        gettok();
         ior = actions.bop('|', ior, exclusive_or(), src);
     }
 
@@ -435,7 +431,7 @@ static struct expr *logic_and(void)
     and1 = inclusive_or();
     while (token->id == ANDAND) {
         struct source src = source;
-        expect(ANDAND);
+        gettok();
         and1 = actions.logicop(ANDAND, and1, inclusive_or(), src);
     }
 
@@ -453,7 +449,7 @@ static struct expr *logic_or(void)
     or1 = logic_and();
     while (token->id == OROR) {
         struct source src = source;
-        expect(OROR);
+        gettok();
         or1 = actions.logicop(OROR, or1, logic_and(), src);
     }
 
@@ -500,7 +496,7 @@ struct expr *assign_expr(void)
     if (is_assign_tok(token)) {
         struct source src = source;
         int t = token->id;
-        expect(t);
+        gettok();
         return actions.assignop(t, or1, assign_expr(), src);
     }
     return or1;
@@ -517,7 +513,7 @@ struct expr *expression(void)
     assign1 = assign_expr();
     while (token->id == ',') {
         struct source src = source;
-        expect(',');
+        gettok();
         assign1 = actions.commaop(assign1, assign_expr(), src);
     }
     return assign1;
