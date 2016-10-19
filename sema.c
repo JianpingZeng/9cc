@@ -166,7 +166,6 @@ struct symbol *tag_symbol(int t, const char *tag, struct source src)
  * - `function returning array`
  * - `function returning function`
  * recursively. Above cases are always invalid.
- * Return on the first error or done.
  */
 
 /**
