@@ -29,6 +29,7 @@
 #define ERR_FUNC_RET_ARRAY       "function cannot return array type '%s'"
 #define ERR_FUNC_RET_FUNC        "function cannot return function type '%s'"
 #define ERR_INCOMPLETE_VAR       "variable '%s' has incomplete type '%s'"
+#define ERR_INCOMPLETE_ELEM      "array has incomplete element type '%s'"
 
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src);
@@ -354,7 +355,7 @@ static void check_params_in_funcdef(struct symbol *params[])
             struct type *rty = rtype(ty);
             if (isincomplete(rty))
                 error_at(sym->src,
-                         "array has incomplete element type '%s'",
+                         ERR_INCOMPLETE_ELEM,
                          type2s(rty));
         }
     }
@@ -1730,7 +1731,12 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
         ty->u.p.decay = fty;
     } else if (isarray(ty)) {
         struct type *aty = ty;
-        ty = ptr_type(rtype(ty));
+        struct type *rty = rtype(ty);
+        // check incomplete
+        if (isincomplete(rty))
+            error_at(src, ERR_INCOMPLETE_ELEM, type2s(rty));
+        
+        ty = ptr_type(rty);
         ty->u.p.decay = aty;
         // apply array qualifiers
         if (TYPE_A_CONST(aty))
@@ -1757,18 +1763,18 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
     } else {
         sym = anonymous(&identifiers, cscope, FUNC);
     }
-
+    
     sym->type = ty;
     sym->src = src;
     sym->sclass = sclass;
     sym->nonnull = nonnull;
     sym->defined = true;
-    
+
     if (token->id == '=') {
         error("C does not support default arguments");
         initializer(NULL);
     }
-
+    
     return sym;
 }
 
