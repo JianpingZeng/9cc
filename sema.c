@@ -207,6 +207,7 @@ static void ensure_func_array(struct type *ty, int level, struct source src, boo
         }
 
         ensure_func_array(rty, level, src, false);
+        set_typesize(ty);       // calculate array size
     } else if (isfunc(ty)) {
         struct type *rty = rtype(ty);
         if (isarray(rty))
@@ -221,20 +222,8 @@ static void ensure_func_array(struct type *ty, int level, struct source src, boo
     }
 }
 
-// calculate array size
-static void calc_array_size(struct type *ty)
-{
-    if (isarray(ty)) {
-        calc_array_size(rtype(ty));
-        set_typesize(ty);
-    } else if (isfunc(ty) || isptr(ty)) {
-        calc_array_size(rtype(ty));
-    }
-}
-
 static void finish_type(struct type *ty, int level, struct source src)
 {
-    calc_array_size(ty);
     ensure_func_array(ty, level, src, true);
 }
 
