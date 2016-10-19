@@ -53,6 +53,8 @@ struct options {
 #define TYPE_A_RESTRICT(ty)      (unqual(ty)->u.a.res)
 #define TYPE_A_STATIC(ty)        (unqual(ty)->u.a.stc)
 #define TYPE_A_STAR(ty)          (unqual(ty)->u.a.star)
+// pointer
+#define TYPE_P_DECAY(ty)         (unqual(ty)->u.p.decay)
 
 struct type {
     const char *name;

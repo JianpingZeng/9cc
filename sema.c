@@ -192,6 +192,19 @@ static void finish_type(struct type *ty, int level, struct source src)
     ensure_func_array(ty, level, src, true);
 }
 
+static void check_func_array_in_funcdef(struct type *ty, struct source src)
+{
+    if (isarray(ty)) {
+        struct type *rty = rtype(ty);
+        if (TYPE_A_STAR(ty))
+            error_at(src, "variable length array must be bound in function definition");
+        check_func_array_in_funcdef(rty, src);
+    } else if (isptr(ty)) {
+        struct type *rty = rtype(ty);
+        check_func_array_in_funcdef(rty, src);
+    }
+}
+
 static void ensure_inline(struct type *ty, int fspec, struct source src)
 {
     if (fspec == INLINE) {
@@ -324,15 +337,25 @@ static void check_params_in_funcdef(struct symbol *params[])
         // parameter name is required in prototype
         if (sym->anonymous)
             error_at(sym->src, "parameter name omitted");
-        // ignore incomplete array
+        // get the original type without decay
+        if (isptr(ty) && TYPE_P_DECAY(ty))
+            ty = TYPE_P_DECAY(ty);
+
+        // check variable length array (star modifier)
+        check_func_array_in_funcdef(ty, sym->src);
+        
+        // check incomplete type
         if (isenum(ty) || isstruct(ty) || isunion(ty)) {
             if (!TYPE_TSYM(ty)->defined)
                 error_at(sym->src,
                          "variable has incomplete type '%s'",
                          type2s(ty));
-        } else if (isptr(ty) && ty->u.p.decay && isarray(ty->u.p.decay)) {
-            // if the original parameter is array type
-            // TODO: 
+        } else if (isarray(ty)) {
+            struct type *rty = rtype(ty);
+            if (isincomplete(rty))
+                error_at(sym->src,
+                         "array has incomplete element type '%s'",
+                         type2s(rty));
         }
     }
 }
