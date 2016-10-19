@@ -1455,15 +1455,14 @@ static void do_array_index(struct type *atype, struct expr *assign, struct sourc
     if (!assign)
         return;
 
-    TYPE_A_ASSIGN(atype) = assign;
-
     if (isint(assign->type)) {
+        TYPE_A_ASSIGN(atype) = assign;
         // try evaluate the length
-        struct expr *ret = eval(assign, longtype);
-        if (ret) {
-            assert(isiliteral(ret));
-            TYPE_LEN(atype) = ret->sym->value.i;
-            if (ret->sym->value.i < 0)
+        struct expr *n = eval(assign, longtype);
+        if (n) {
+            assert(isiliteral(n));
+            TYPE_LEN(atype) = n->sym->value.i;
+            if (n->sym->value.i < 0)
                 error_at(src, "array has negative size");
         } else {
             error_at(src, "expect constant expression");
@@ -1482,7 +1481,7 @@ static struct symbol ** do_prototype(struct type *ftype, struct symbol *params[]
         struct type *ty = p->type;
         if (isvoid(ty)) {
             if (i == 0) {
-                if (p->name && !p->anonymous) {
+                if (!p->anonymous) {
                     error_at(p->src,
                              "argument may not have 'void' type");
                     p->type = inttype;
