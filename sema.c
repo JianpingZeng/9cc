@@ -294,7 +294,6 @@ static void ensure_fields(struct symbol *sym)
         else
             ensure_nonbitfield(p, one);
     }
-    set_typesize(sym->type);
 }
 
 static void check_main_func(struct type *ftype, const char *name, struct source src)
@@ -1521,8 +1520,9 @@ static void do_enumdecl(struct symbol *sym, struct symbol *ids[])
 
 static void do_recorddecl(struct symbol *sym)
 {
-    sym->defined = true;
     ensure_fields(sym);
+    sym->defined = true;
+    set_typesize(sym->type);
     events(deftype)(sym);
 }
 
