@@ -750,25 +750,25 @@ static bool can_cast(struct type * dst, struct type * src)
 }
 
 // return NULL on error.
-static struct vector *argcast1(struct type **params, size_t nparams,
-                               struct expr **args, size_t nargs,
-                               bool oldstyle, struct source src)
+static struct expr **argcast1(struct type **params, size_t nparams,
+                              struct expr **args, size_t nargs,
+                              bool oldstyle, struct source src)
 {
-    struct vector *v = vec_new();
-    size_t cmp1;
+    struct list *list = NULL;
+    size_t ncmp;
 
     if (oldstyle)
-        cmp1 = MIN(nparams, nargs);
+        ncmp = MIN(nparams, nargs);
     else
-        cmp1 = nparams;
+        ncmp = nparams;
 
-    for (size_t i = 0; i < cmp1; i++) {
+    for (size_t i = 0; i < ncmp; i++) {
         struct type *dty = params[i];
         struct expr *arg = args[i];
         struct type *sty = arg->type;
         struct expr *ret = assignconv(dty, arg);
         if (ret) {
-            vec_push(v, ret);
+            list = list_append(list, ret);
         } else {
             if (oldstyle) {
                 warning_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
@@ -778,12 +778,12 @@ static struct vector *argcast1(struct type **params, size_t nparams,
             }
         }
     }
-    for (size_t i = cmp1; i < nargs; i++) {
+    for (size_t i = ncmp; i < nargs; i++) {
         struct expr *arg = args[i];
-        vec_push(v, conva(arg));
+        list = list_append(list, conva(arg));
     }
 
-    return v;
+    return ltoa(&list, FUNC);
 }
 
 /*
@@ -798,9 +798,9 @@ static struct vector *argcast1(struct type **params, size_t nparams,
 // return NULL on error.
 static struct expr **argscast(struct type *fty, struct expr **args, struct source src)
 {
-    struct vector *v = vec_new();
     assert(isfunc(fty));
-
+    
+    struct list *list = NULL;
     struct type **params = TYPE_PROTO(fty);
     size_t len1 = length(params);
     size_t len2 = length(args);
@@ -810,43 +810,40 @@ static struct expr **argscast(struct type *fty, struct expr **args, struct sourc
         if (len1 > len2)
             warning_at(src, "too few arguments to function call");
 
-        v = argcast1(params, len1, args, len2, oldstyle, src);
-    } else {
-        if (len1 == 0) {
-            if (len2 > 0) {
-                error_at(src,
-                         "too many arguments to function call, expected %d, have %d",
-                         len1, len2);
-                return NULL;
-            }
-            return vtoa(v, FUNC);
-        }
+        return argcast1(params, len1, args, len2, oldstyle, src);
+    }
 
-        bool vargs = TYPE_VARG(fty);
-        assert(len1 >= 1);
-        if (len1 <= len2) {
-            if (!vargs && len1 < len2) {
-                error_at(src,
-                         "too many arguments to function call, expected %d, have %d",
-                         len1, len2);
-                return NULL;
-            }
-            v = argcast1(params, len1, args, len2, oldstyle, src);
-            if (v == NULL)
-                return NULL;
-        } else {
-            if (vargs)
-                error_at(src,
-                         "too few arguments to function call, expected at least %d, have %d",
-                         len1, len2);
-            else
-                error_at(src,
-                         "too few arguments to function call, expected %d, have %d",
-                         len1, len2);
+    if (len1 == 0) {
+        if (len2 > 0) {
+            error_at(src,
+                     "too many arguments to function call, expected %d, have %d",
+                     len1, len2);
             return NULL;
         }
+        return ltoa(&list, FUNC);
     }
-    return vtoa(v, FUNC);
+
+    bool vargs = TYPE_VARG(fty);
+    if (len1 <= len2) {
+        if (!vargs && len1 < len2) {
+            error_at(src,
+                     "too many arguments to function call, expected %d, have %d",
+                     len1, len2);
+            return NULL;
+        }
+
+        return argcast1(params, len1, args, len2, oldstyle, src);
+    } else {
+        if (vargs)
+            error_at(src,
+                     "too few arguments to function call, expected at least %d, have %d",
+                     len1, len2);
+        else
+            error_at(src,
+                     "too few arguments to function call, expected %d, have %d",
+                     len1, len2);
+        return NULL;
+    }
 }
 
 static bool ensure_additive_ptr(struct expr *node, struct source src)
