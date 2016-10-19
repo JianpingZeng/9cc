@@ -28,14 +28,7 @@ static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct so
 static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
 static void ensure_gotos(void);
 static void init_string(struct type *ty, struct expr *node);
-static void func_body(struct symbol *sym);
-static void dclgvar(struct symbol *); // declare a global variable
-static void defgvar(struct symbol *); // define a global variable
-static void defsvar(struct symbol *); // define a local static variable
-static void deflvar(struct symbol *); // define a local variable
-static void dclfun(struct symbol *);  // declare a function
-static void defun(struct symbol *);   // define a function
-static void deftype(struct symbol *); // declare/define a type: struct/union/enum/typedef
+static void doglobal(struct symbol *sym, void *context);
 
 struct goto_info {
     const char *id;
@@ -44,118 +37,78 @@ struct goto_info {
 
 struct func func;
 
-/// lex
-
-int first_decl(struct token *t)
+// declare a global variable
+static void dclgvar(struct symbol *n)
 {
-    return t->kind == STATIC || first_typename(t);
+    if (opts.ast_dump)
+        ast_dump_vardecl(n);
 }
 
-int first_stmt(struct token *t)
+// declare a function
+static void dclfun(struct symbol *n)
 {
-    return t->kind == IF || first_expr(t);
+    if (opts.ast_dump)
+        ast_dump_funcdecl(n);
 }
 
-int first_expr(struct token *t)
+// declare/define a type: struct/union/enum/typedef
+static void deftype(struct symbol *n)
 {
-    return t->kind == ID;
+    if (opts.ast_dump)
+        ast_dump_typedecl(n);
 }
 
-int first_typename(struct token * t)
+// define a local variable
+static void deflvar(struct symbol *n)
 {
-    return t->kind == INT || t->kind == CONST ||
-        (t->id == ID && istypedef(TOK_ID_STR(t)));
+    // TODO: 
 }
 
-static void skip_balance(int l, int r, const char *name)
+// define a local static variable
+static void defsvar(struct symbol *n)
 {
-    int nests = 0;
+    if (opts.ast_dump || errors())
+        return;
+    IR->defvar(n);
+}
 
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (token->id == r) {
-            if (nests-- == 0)
-                break;
-        } else if (token->id == l) {
-            nests++;
-        }
-        gettok();
+// define a global variable
+static void defgvar(struct symbol *n)
+{
+    if (opts.ast_dump) {
+        ast_dump_vardecl(n);
+        return;
     }
-
-    if (token->id == r)
-        gettok();
-    else
-        error("unclosed %s, missing '%s'", name, id2s(r));
+    if (errors())
+        return;
+    IR->defvar(n);
 }
 
-void skip_to_brace(void)
+// define a function
+static void defun(struct symbol *n)
 {
-    skip_balance('{', '}', "brace");
-}
-
-void skip_to_bracket(void)
-{
-    skip_balance('(', ')', "bracket");
-}
-
-void skip_to_squarebracket(void)
-{
-    skip_balance('[', ']', "square bracket");
-}
-
-void skip_syntax(int (*first) (struct token *))
-{    
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (first(token))
-            break;
-        gettok();
+    if (opts.ast_dump) {
+        ast_dump_funcdef(n);
+        return;
     }
+    if (errors())
+        return;
+    IR->defun(n);
 }
 
-void skip_to_decl(void)
+/// init/finalize
+
+static void init(int argc, char *argv[])
 {
-    skip_syntax(first_decl);
+    IR->init(argc, argv);
 }
 
-void skip_to_stmt(void)
+static void finalize(void)
 {
-    skip_syntax(first_stmt);
-}
-
-void skip_to_expr(void)
-{
-    skip_syntax(first_expr);
-}
-
-///
-
-struct symbol *tag_symbol(int t, const char *tag, struct source src)
-{
-    struct type *ty = tag_type(t);
-    struct symbol *sym = NULL;
-    if (tag) {
-        sym = lookup(tag, tags);
-        if (sym && is_current_scope(sym)) {
-            if (TYPE_OP(sym->type) == t && !sym->defined)
-                return sym;
-
-            error_at(src, ERR_REDEFINITION,
-                     sym->name, sym->src.file, sym->src.line, sym->src.column);
-        }
-
-        sym = install(tag, &tags, cscope, PERM);
-    } else {
-        sym = anonymous(&tags, cscope, PERM);
-    }
-
-    sym->type = ty;
-    sym->src = src;
-    ty->u.s.tsym = sym;
-
-    return sym;
+    if (opts.ast_dump || errors())
+        return;
+    foreach(identifiers, GLOBAL, doglobal, NULL);
+    IR->finalize();
 }
 
 /// type check
@@ -225,52 +178,6 @@ static void ensure_func_array(struct type *ty, int level, struct source src, boo
 static void finish_type(struct type *ty, int level, struct source src)
 {
     ensure_func_array(ty, level, src, true);
-}
-
-/// error
-
-static void field_not_found_error(struct source src, struct type *ty, const char *name)
-{
-    if (isincomplete(ty))
-        error_at(src, "incomplete definition of type '%s'", type2s(ty));
-    else
-        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
-}
-
-/// decl
-
-struct symbol *lookup_typedef(const char *id)
-{
-    if (!id)
-        return NULL;
-
-    struct symbol *sym = lookup(id, identifiers);
-
-    if (sym && sym->sclass == TYPEDEF)
-        return sym;
-    else
-        return NULL;
-}
-
-bool istypedef(const char *id)
-{
-    return lookup_typedef(id) != NULL;
-}
-
-struct symbol *do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
-{
-    struct symbol *s = lookup(name, identifiers);
-    if (s && is_current_scope(s))
-        error_at(src, ERR_REDEFINITION,
-                 name, s->src.file, s->src.line, s->src.column);
-
-    s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
-    s->type = sym->type;
-    s->src = src;
-    s->sclass = ENUM;
-    s->value.u = val;
-    s->defined = true;
-    return s;
 }
 
 static void ensure_inline(struct type *ty, int fspec, struct source src)
@@ -364,6 +271,175 @@ static void ensure_fields(struct symbol *sym)
     set_typesize(sym->type);
 }
 
+static void check_main_func(struct type *ftype, const char *name, struct source src)
+{
+    if (!isfunc(ftype) || !name || strcmp(name, "main"))
+        return;
+    
+    struct type *rty = rtype(ftype);
+    struct type **params = TYPE_PROTO(ftype);
+    size_t len = length(params);
+    if (rty != inttype)
+        error_at(src, "return type of 'main' is not 'int'");
+    for (int i = 0; i < MIN(3, len); i++) {
+        struct type *ty = params[i];
+        if (i == 0) {
+            if (ty != inttype)
+                error_at(src, "first parameter of 'main' is not 'int'");
+        } else if (i == 1 || i == 2) {
+            if (!isptrto(ty, POINTER) ||
+                !isptrto(rtype(ty), CHAR))
+                error_at(src, "%s parameter of 'main' is not 'char **'",
+                         i == 1 ? "second" : "third");
+        }
+    }
+    if (len == 1 || len > 3)
+        error_at(src,
+                 "expect 0, 2 or 3 parameters for 'main', have %d",
+                 len);
+}
+
+static void check_params_in_funcdef(struct symbol *params[])
+{
+    for (int i = 0; params[i]; i++) {
+        struct symbol *sym = params[i];
+        struct type *ty = sym->type;
+        // parameter name is required in prototype
+        if (sym->anonymous)
+            error_at(sym->src, "parameter name omitted");
+        if (isarray(ty)) {
+            // TODO: recheck `*` modifier
+        } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+            if (!TYPE_TSYM(ty)->defined)
+                error_at(sym->src,
+                         "variable has incomplete type '%s'",
+                         type2s(ty));
+        }
+    }
+}
+
+/// private
+
+static void field_not_found_error(struct source src, struct type *ty, const char *name)
+{
+    if (isincomplete(ty))
+        error_at(src, "incomplete definition of type '%s'", type2s(ty));
+    else
+        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
+}
+
+static void oldparam(struct symbol *sym, void *context)
+{
+    struct symbol **params = context;
+
+    assert(sym->name);
+
+    // _NOT_ a variable
+    if (sym->sclass == TYPEDEF || isfunc(sym->type)) {
+        warning_at(sym->src, "empty declaraion");
+        return;
+    }
+        
+    for (int j = 0; params[j]; j++) {
+        struct symbol *s = params[j];
+        assert(s->name);
+        if (s->name == sym->name) {
+            // replace id with declared symbol
+            params[j] = sym;
+            return;
+        }
+    }
+
+    // _NOT_ found in id list
+    error_at(sym->src, "parameter named '%s' is missing", sym->name);
+}
+
+static void mkfuncdecl(struct symbol *sym, struct type *ty, int sclass, struct source src)
+{
+    sym->type = ty;
+    sym->src = src;
+    sym->defined = true;
+    sym->sclass = sclass;
+}
+
+static void predefined_ids(void)
+{
+    /**
+     * Predefined identifier: __func__
+     * The identifier __func__ is implicitly declared by C99
+     * implementations as if the following declaration appeared
+     * after the opening brace of each function definition:
+     *
+     * static const char __func__[] = "function-name";
+     *
+     */
+    struct type *type = array_type(qual(CONST, chartype));
+    // initializer
+    struct expr *literal = cnsts(func.name);
+    init_string(type, literal);
+    
+    struct symbol *sym = mklocal("__func__", type, STATIC);
+    sym->predefine = true;
+    sym->u.init = literal;
+}
+
+static void func_body(struct symbol *sym)
+{
+    struct stmt *stmt = NULL;
+
+    func.gotos = NULL;
+    func.labels = new_table(NULL, LOCAL);
+    func.type = sym->type;
+    func.name = sym->name;
+    func.calls = NULL;
+    func.stmt = &stmt;
+
+    // compound statement
+    compound_stmt(predefined_ids, 0, 0, NULL);
+    // check goto labels
+    ensure_gotos();
+
+    // save
+    sym->u.f.calls = ltoa(&func.calls, FUNC);
+    sym->u.f.stmt = stmt;
+
+    free_table(func.labels);
+    func.labels = NULL;
+    func.type = NULL;
+    func.name = NULL;
+    func.stmt = NULL;
+}
+
+static void doglobal(struct symbol *sym, void *context)
+{
+    // typedefs and enum ids are _defined_
+    if (sym->defined ||
+        sym->sclass == EXTERN ||
+        isfunc(sym->type))
+        return;
+
+    sym->defined = true;
+    events(defgvar)(sym);
+}
+
+/// decl
+
+static struct symbol *do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
+{
+    struct symbol *s = lookup(name, identifiers);
+    if (s && is_current_scope(s))
+        error_at(src, ERR_REDEFINITION,
+                 name, s->src.file, s->src.line, s->src.column);
+
+    s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
+    s->type = sym->type;
+    s->src = src;
+    s->sclass = ENUM;
+    s->value.u = val;
+    s->defined = true;
+    return s;
+}
+
 static void do_direct_field(struct symbol *sym, struct field *field)
 {
     struct field **pp = &sym->u.s.flist;
@@ -419,53 +495,6 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
 
     if (indir)
         *pp = indir;
-}
-
-static void check_main_func(struct type *ftype, const char *name, struct source src)
-{
-    if (!isfunc(ftype) || !name || strcmp(name, "main"))
-        return;
-    
-    struct type *rty = rtype(ftype);
-    struct type **params = TYPE_PROTO(ftype);
-    size_t len = length(params);
-    if (rty != inttype)
-        error_at(src, "return type of 'main' is not 'int'");
-    for (int i = 0; i < MIN(3, len); i++) {
-        struct type *ty = params[i];
-        if (i == 0) {
-            if (ty != inttype)
-                error_at(src, "first parameter of 'main' is not 'int'");
-        } else if (i == 1 || i == 2) {
-            if (!isptrto(ty, POINTER) ||
-                !isptrto(rtype(ty), CHAR))
-                error_at(src, "%s parameter of 'main' is not 'char **'",
-                         i == 1 ? "second" : "third");
-        }
-    }
-    if (len == 1 || len > 3)
-        error_at(src,
-                 "expect 0, 2 or 3 parameters for 'main', have %d",
-                 len);
-}
-
-static void check_params_in_funcdef(struct symbol *params[])
-{
-    for (int i = 0; params[i]; i++) {
-        struct symbol *sym = params[i];
-        struct type *ty = sym->type;
-        // parameter name is required in prototype
-        if (sym->anonymous)
-            error_at(sym->src, "parameter name omitted");
-        if (isarray(ty)) {
-            // TODO: recheck `*` modifier
-        } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-            if (!TYPE_TSYM(ty)->defined)
-                error_at(sym->src,
-                         "variable has incomplete type '%s'",
-                         type2s(ty));
-        }
-    }
 }
 
 static void do_array_index(struct type *atype, struct expr *assign, struct source src)
@@ -823,40 +852,6 @@ static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level
     events(deftype)(sym);
 }
 
-static void oldparam(struct symbol *sym, void *context)
-{
-    struct symbol **params = context;
-
-    assert(sym->name);
-
-    // _NOT_ a variable
-    if (sym->sclass == TYPEDEF || isfunc(sym->type)) {
-        warning_at(sym->src, "empty declaraion");
-        return;
-    }
-        
-    for (int j = 0; params[j]; j++) {
-        struct symbol *s = params[j];
-        assert(s->name);
-        if (s->name == sym->name) {
-            // replace id with declared symbol
-            params[j] = sym;
-            return;
-        }
-    }
-
-    // _NOT_ found in id list
-    error_at(sym->src, "parameter named '%s' is missing", sym->name);
-}
-
-static void mkfuncdecl(struct symbol *sym, struct type *ty, int sclass, struct source src)
-{
-    sym->type = ty;
-    sym->src = src;
-    sym->defined = true;
-    sym->sclass = sclass;
-}
-
 // id maybe NULL
 static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
                        struct symbol *params[], struct source src)
@@ -935,71 +930,6 @@ static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
         // oldstyle
         error("expect function body after function declarator");
     }
-}
-
-static void predefined_ids(void)
-{
-    /**
-     * Predefined identifier: __func__
-     * The identifier __func__ is implicitly declared by C99
-     * implementations as if the following declaration appeared
-     * after the opening brace of each function definition:
-     *
-     * static const char __func__[] = "function-name";
-     *
-     */
-    struct type *type = array_type(qual(CONST, chartype));
-    // initializer
-    struct expr *literal = cnsts(func.name);
-    init_string(type, literal);
-    
-    struct symbol *sym = mklocal("__func__", type, STATIC);
-    sym->predefine = true;
-    sym->u.init = literal;
-}
-
-static void func_body(struct symbol *sym)
-{
-    struct stmt *stmt = NULL;
-
-    func.gotos = NULL;
-    func.labels = new_table(NULL, LOCAL);
-    func.type = sym->type;
-    func.name = sym->name;
-    func.calls = NULL;
-    func.stmt = &stmt;
-
-    // compound statement
-    compound_stmt(predefined_ids, 0, 0, NULL);
-    // check goto labels
-    ensure_gotos();
-
-    // save
-    sym->u.f.calls = ltoa(&func.calls, FUNC);
-    sym->u.f.stmt = stmt;
-
-    free_table(func.labels);
-    func.labels = NULL;
-    func.type = NULL;
-    func.name = NULL;
-    func.stmt = NULL;
-}
-
-struct symbol *mklocal(const char *name, struct type * ty, int sclass)
-{
-    return call(localdecl)(name, ty, sclass, 0, source);
-}
-
-static void doglobal(struct symbol *sym, void *context)
-{
-    // typedefs and enum ids are _defined_
-    if (sym->defined ||
-        sym->sclass == EXTERN ||
-        isfunc(sym->type))
-        return;
-
-    sym->defined = true;
-    events(defgvar)(sym);
 }
 
 /// expr
@@ -2800,73 +2730,139 @@ static void do_gen(struct expr *expr)
     }
 }
 
-/// decl
+/// public
 
-static void dclgvar(struct symbol *n)
+int first_decl(struct token *t)
 {
-    if (opts.ast_dump)
-        ast_dump_vardecl(n);
+    return t->kind == STATIC || first_typename(t);
 }
 
-static void deflvar(struct symbol *n)
+int first_stmt(struct token *t)
 {
-    // TODO: 
+    return t->kind == IF || first_expr(t);
 }
 
-static void dclfun(struct symbol *n)
+int first_expr(struct token *t)
 {
-    if (opts.ast_dump)
-        ast_dump_funcdecl(n);
+    return t->kind == ID;
 }
 
-static void deftype(struct symbol *n)
+int first_typename(struct token * t)
 {
-    if (opts.ast_dump)
-        ast_dump_typedecl(n);
+    return t->kind == INT || t->kind == CONST ||
+        (t->id == ID && istypedef(TOK_ID_STR(t)));
 }
 
-static void defsvar(struct symbol *n)
+static void skip_balance(int l, int r, const char *name)
 {
-    if (opts.ast_dump || errors())
-        return;
-    IR->defvar(n);
-}
+    int nests = 0;
 
-static void defgvar(struct symbol *n)
-{
-    if (opts.ast_dump) {
-        ast_dump_vardecl(n);
-        return;
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (token->id == r) {
+            if (nests-- == 0)
+                break;
+        } else if (token->id == l) {
+            nests++;
+        }
+        gettok();
     }
-    if (errors())
-        return;
-    IR->defvar(n);
+
+    if (token->id == r)
+        gettok();
+    else
+        error("unclosed %s, missing '%s'", name, id2s(r));
 }
 
-static void defun(struct symbol *n)
+void skip_to_brace(void)
 {
-    if (opts.ast_dump) {
-        ast_dump_funcdef(n);
-        return;
+    skip_balance('{', '}', "brace");
+}
+
+void skip_to_bracket(void)
+{
+    skip_balance('(', ')', "bracket");
+}
+
+void skip_to_squarebracket(void)
+{
+    skip_balance('[', ']', "square bracket");
+}
+
+static void skip_syntax(int (*first) (struct token *))
+{    
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (first(token))
+            break;
+        gettok();
     }
-    if (errors())
-        return;
-    IR->defun(n);
 }
 
-/// init/finalize
-
-static void init(int argc, char *argv[])
+void skip_to_decl(void)
 {
-    IR->init(argc, argv);
+    skip_syntax(first_decl);
 }
 
-static void finalize(void)
+void skip_to_stmt(void)
 {
-    if (opts.ast_dump || errors())
-        return;
-    foreach(identifiers, GLOBAL, doglobal, NULL);
-    IR->finalize();
+    skip_syntax(first_stmt);
+}
+
+void skip_to_expr(void)
+{
+    skip_syntax(first_expr);
+}
+
+struct symbol *lookup_typedef(const char *id)
+{
+    if (!id)
+        return NULL;
+
+    struct symbol *sym = lookup(id, identifiers);
+
+    if (sym && sym->sclass == TYPEDEF)
+        return sym;
+    else
+        return NULL;
+}
+
+bool istypedef(const char *id)
+{
+    return lookup_typedef(id) != NULL;
+}
+
+struct symbol *tag_symbol(int t, const char *tag, struct source src)
+{
+    struct type *ty = tag_type(t);
+    struct symbol *sym = NULL;
+    if (tag) {
+        sym = lookup(tag, tags);
+        if (sym && is_current_scope(sym)) {
+            if (TYPE_OP(sym->type) == t && !sym->defined)
+                return sym;
+
+            error_at(src, ERR_REDEFINITION,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
+        }
+
+        sym = install(tag, &tags, cscope, PERM);
+    } else {
+        sym = anonymous(&tags, cscope, PERM);
+    }
+
+    sym->type = ty;
+    sym->src = src;
+    ty->u.s.tsym = sym;
+
+    return sym;
+}
+
+struct symbol *mklocal(const char *name, struct type * ty, int sclass)
+{
+    return call(localdecl)(name, ty, sclass, 0, source);
 }
 
 struct actions actions = {
