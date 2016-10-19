@@ -1288,6 +1288,7 @@ static void string_constant(struct token *t, struct symbol * sym)
         size_t wlen = mbstowcs(ws, s + 2, len);
         if (errno == EILSEQ)
             error("invalid multibyte sequence: %s", s);
+        free(ws);
         assert(wlen <= len + 1);
         ty = array_type(wchartype);
         TYPE_LEN(ty) = wlen;
@@ -2905,7 +2906,7 @@ void check_case_duplicates(struct cse *cse, struct swtch *swtch)
 
 void mark_goto(const char *id, struct source src)
 {
-    struct goto_info *info = xmalloc(sizeof(struct goto_info));
+    struct goto_info *info = NEW(sizeof(struct goto_info), FUNC);
     info->id = id;
     info->src = src;
     func.gotos = list_append(func.gotos, info);
