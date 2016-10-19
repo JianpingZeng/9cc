@@ -1436,12 +1436,14 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
             for (int i = 0; q->of[i]; i++)
                 list = list_append(list, q->of[i]);
             n->of = ltoa(&list, PERM);
+            n->offset = q->offset;
             *indirp = n;
             indirp = &n->link;
         } else if (q->name) {
             struct field *n = new_indirect_field(q);
             struct list *list = list_append(NULL, field);
             n->of = ltoa(&list, PERM);
+            n->offset = q->offset;
             *indirp = n;
             indirp = &n->link;
         }

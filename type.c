@@ -331,6 +331,18 @@ struct field *find_field(struct type *ty, const char *name)
     return NULL;
 }
 
+static void update_indirect_offset(struct type *ty)
+{
+    assert(isrecord(ty));
+
+    struct field *first = TYPE_FIELDS(ty);
+    for (struct field *p = first; p; p = p->link) {
+        if (!isindirect(p))
+            continue;
+        p->offset += p->of[0]->offset;
+    }
+}
+
 /* Structure alignment requirements
  *
  * The rule is that the structure will be padded out
@@ -436,6 +448,8 @@ static void set_struct_size(struct type * ty)
         }
     }
 
+    update_indirect_offset(ty);
+
     TYPE_ALIGN(ty) = max;
     TYPE_SIZE(ty) = ROUNDUP(offset, max);
 }
@@ -467,6 +481,8 @@ static void set_union_size(struct type * ty)
         size = MAX(size, tysize);
         max = MAX(max, TYPE_ALIGN(ty));
     }
+
+    update_indirect_offset(ty);
 
     TYPE_ALIGN(ty) = max;
     TYPE_SIZE(ty) = ROUNDUP(size, max);
