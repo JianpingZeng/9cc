@@ -418,6 +418,7 @@ extern struct desig *copy_desig(struct desig *desig);
 #define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
 #define isfliteral(n)  (OPID((n)->op) == CNST+F)
 #define issliteral(n)  (OPID((n)->op) == CNST+P)
+#define iszinit(n)     ((n)->op == 0)
 
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);

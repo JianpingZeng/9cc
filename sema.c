@@ -461,7 +461,7 @@ static bool ensure_assignable(struct expr *node, struct source src)
     return true;
 }
 
-static bool is_bitfield(struct expr *node)
+static bool isbfield(struct expr *node)
 {
     if (node->op != MEMBER)
         return false;
@@ -1086,15 +1086,13 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 d->offset = desig->offset + first->offset;
                 d->prev = copy_desig(desig);
                 return d;
-            } else {
-                // TODO: empty record
-                if (isincomplete(desig->type))
-                    error("initialize incomplete type '%s'",
-                          type2s(desig->type));
-                else
-                    error("initialize empty %s is not supported yet",
-                          id2s(TYPE_KIND(desig->type)));
+            } else if (isincomplete(desig->type)) {
+                error("initialize incomplete type '%s'",
+                      type2s(desig->type));
                 return NULL;
+            } else {
+                // empty record
+                return desig;
             }
         } else if (isarray(desig->type)) {
             struct type *rty = rtype(desig->type);
@@ -2321,7 +2319,7 @@ static struct expr * do_address(struct expr *operand, struct source src)
         if (operand->sym && operand->sym->sclass == REGISTER) {
             error_at(src, "address of register variable requested");
             return NULL;
-        } else if (is_bitfield(operand)) {
+        } else if (isbfield(operand)) {
             error_at(src, "address of bitfield requested");
             return NULL;
         }
@@ -2359,7 +2357,7 @@ static struct expr * do_sizeofop(struct type *ty, struct expr *n, struct source 
     } else if (isincomplete(ty)) {
         error_at(src, "'sizeof' to an incomplete type '%s' is invalid", type2s(ty));
         return NULL;
-    } else if (n && is_bitfield(n)) {
+    } else if (n && isbfield(n)) {
         error_at(src, "'sizeof' to a bitfield is invalid");
         return NULL;
     }
@@ -2610,10 +2608,16 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct lis
         return;
 
     if (isstruct(desig->type) || isunion(desig->type)) {
-        if (eqtype(unqual(desig->type), unqual(expr->type))) {
+        struct field *first = TYPE_FIELDS(desig->type);
+        if (first == NULL) {
+            // empty record
+            if (iszinit(expr))
+                simple_init(desig, expr, plist);
+            else
+                error_at(desig->src, "todo");
+        } else if (eqtype(unqual(desig->type), unqual(expr->type))) {
             simple_init(desig, expr, plist);
         } else {
-            struct field *first = TYPE_FIELDS(desig->type);
             struct desig *d = new_desig_field(first, source);
             d->offset = desig->offset + first->offset;
             d->prev = desig;
@@ -2660,7 +2664,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
                     return NULL;
                 }
                 d->offset = desig->offset + field->offset;
-                d->type = field->type;
+                d->type = direct(field)->type;
                 d->u.field = field;
                 d->prev = desig;
                 desig = d;
