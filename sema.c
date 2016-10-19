@@ -168,38 +168,6 @@ struct symbol *tag_symbol(int t, const char *tag, struct source src)
  * recursively. Above cases are always invalid.
  * Return on the first error or done.
  */
-static void general_type_check(struct type *ty, struct source src)
-{
-    if (isarray(ty)) {
-        struct type *rty = rtype(ty);
-        if (isfunc(rty))
-            error_at(src, ERR_ARRAY_OF_FUNC);
-        else
-            general_type_check(rty, src);
-    } else if (isfunc(ty)) {
-        struct type *rty = rtype(ty);
-        if (isarray(rty))
-            error_at(src, ERR_FUNC_RET_ARRAY, type2s(rty));
-        else if (isfunc(rty))
-            error_at(src, ERR_FUNC_RET_FUNC, type2s(rty));
-        else
-            general_type_check(rty, src);
-    } else if (isptr(ty)) {
-        struct type *rty = rtype(ty);
-        general_type_check(rty, src);
-    }
-}
-
-// calculate array size
-static void finish_type(struct type *ty)
-{
-    if (isarray(ty)) {
-        finish_type(rtype(ty));
-        set_typesize(ty);
-    } else if (isfunc(ty) || isptr(ty)) {
-        finish_type(rtype(ty));
-    }
-}
 
 /**
  *  1. Array qualifiers may appear only when in a function parameter.
@@ -216,43 +184,59 @@ static void finish_type(struct type *ty)
  *     declarations within function prototypes that are not part of
  *     a function definition.
  */
-static void check_array_qualifiers1(struct type *ty, struct source src, int level, bool outermost)
+static void ensure_func_array(struct type *ty, int level, struct source src, bool outermost)
 {
-    assert(isarray(ty));
-    
-    if (TYPE_A_STAR(ty) && level != PARAM)
-        error_at(src, "star modifier used outside of function prototype");
+    if (isarray(ty)) {
+        struct type *rty = rtype(ty);
 
-    if (TYPE_A_CONST(ty) ||
-        TYPE_A_RESTRICT(ty) ||
-        TYPE_A_VOLATILE(ty) ||
-        TYPE_A_STATIC(ty)) {
-        if (level != PARAM)
-            error_at(src,
-                     "type qualifier used in array declarator outside of function prototype");
-        else if (!outermost)
-            error_at(src,
-                     "type qualifier used in non-outermost array type derivation");
+        if (isfunc(rty))
+            error_at(src, ERR_ARRAY_OF_FUNC);
+        
+        if (TYPE_A_STAR(ty) && level != PARAM)
+            error_at(src, "star modifier used outside of function prototype");
+
+        if (TYPE_A_CONST(ty) ||
+            TYPE_A_RESTRICT(ty) ||
+            TYPE_A_VOLATILE(ty) ||
+            TYPE_A_STATIC(ty)) {
+            if (level != PARAM)
+                error_at(src,
+                         "type qualifier used in array declarator outside of function prototype");
+            if (!outermost)
+                error_at(src,
+                         "type qualifier used in non-outermost array type derivation");
+        }
+
+        ensure_func_array(rty, level, src, false);
+    } else if (isfunc(ty)) {
+        struct type *rty = rtype(ty);
+        if (isarray(rty))
+            error_at(src, ERR_FUNC_RET_ARRAY, type2s(rty));
+        else if (isfunc(rty))
+            error_at(src, ERR_FUNC_RET_FUNC, type2s(rty));
+
+        ensure_func_array(rty, level, src, true);
+    } else if (isptr(ty)) {
+        struct type *rty = rtype(ty);
+        ensure_func_array(rty, level, src, true);
     }
-
-    struct type *rty = rtype(ty);
-    if (isarray(rty))
-        check_array_qualifiers1(rty, src, level, false);
 }
 
-// check and apply array qualifiers
-static inline void check_array_qualifiers(struct type *ty, struct source src, int level)
+// calculate array size
+static void calc_array_size(struct type *ty)
 {
-    check_array_qualifiers1(ty, src, level, true);
+    if (isarray(ty)) {
+        calc_array_size(rtype(ty));
+        set_typesize(ty);
+    } else if (isfunc(ty) || isptr(ty)) {
+        calc_array_size(rtype(ty));
+    }
 }
 
-static void ensure_func(struct type * ftype, struct source src)
+static void finish_type(struct type *ty, int level, struct source src)
 {
-    struct type *rty = rtype(ftype);
-    if (isarray(rty))
-        error_at(src, "function cannot return array type '%s'", type2s(rty));
-    else if (isfunc(rty))
-        error_at(src, "function cannot return function type '%s'", type2s(rty));
+    calc_array_size(ty);
+    ensure_func_array(ty, level, src, true);
 }
 
 /// error
@@ -360,11 +344,9 @@ static void ensure_nonbitfield(struct field *p, bool one)
 {
     struct type *ty = p->type;
 
-    finish_type(ty);
-    general_type_check(ty, p->src);
+    finish_type(ty, CONSTANT,  p->src);
 
     if (isarray(ty)) {
-        check_array_qualifiers(ty, p->src, CONSTANT);
         if (isincomplete(ty)) {
             if (one)
                 error_at(p->src, "flexible array cannot be the only member");
@@ -479,15 +461,17 @@ static void check_main_func(struct type *ftype, const char *name, struct source 
                  len);
 }
 
-static void ensure_params(struct symbol *params[])
+static void check_params_in_funcdef(struct symbol *params[])
 {
     for (int i = 0; params[i]; i++) {
         struct symbol *sym = params[i];
         struct type *ty = sym->type;
-        // params id is required in prototype
+        // parameter name is required in prototype
         if (sym->anonymous)
             error_at(sym->src, "parameter name omitted");
-        if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+        if (isarray(ty)) {
+            // TODO: recheck `*` modifier
+        } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
             if (!TYPE_TSYM(ty)->defined)
                 error_at(sym->src,
                          "variable has incomplete type '%s'",
@@ -582,13 +566,10 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass,
         sclass = 0;
     }
 
-    finish_type(ty);
-    general_type_check(ty, src);
+    finish_type(ty, GLOBAL, src);
 
     if (isfunc(ty))
         check_main_func(ty, id, src);
-    else if (isarray(ty))
-        check_array_qualifiers(ty, src, GLOBAL);
 
     ensure_inline(ty, fspec, src);
 
@@ -662,8 +643,7 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
     if (sclass == 0)
         sclass = isfunc(ty) ? EXTERN : AUTO;
 
-    finish_type(ty);
-    general_type_check(ty, src);
+    finish_type(ty, LOCAL, src);
     
     if (isfunc(ty)) {
         check_main_func(ty, id, src);
@@ -673,8 +653,6 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
                      id2s(sclass));
             sclass = EXTERN;
         }
-    } else if (isarray(ty)) {
-        check_array_qualifiers(ty, src, LOCAL);
     }
 
     ensure_inline(ty, fspec, src);
@@ -761,6 +739,7 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
 static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
 {
     struct symbol *sym;
+    bool nonnull = false;
 
     if (sclass && sclass != REGISTER) {
         error_at(src,
@@ -769,13 +748,15 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
         sclass = 0;
     }
 
-    finish_type(ty);
+    if (fspec == INLINE)
+        error_at(src, ERR_INLINE);
+
+    finish_type(ty, PARAM, src);
 
     if (isfunc(ty)) {
-        ensure_func(ty, src);
         ty = ptr_type(ty);
     } else if (isarray(ty)) {
-        ensure_array(ty, src, PARAM);
+        // apply array qualifiers
         struct type *aty = ty;
         ty = ptr_type(rtype(ty));
         if (TYPE_A_CONST(aty))
@@ -784,16 +765,14 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
             ty = qual(RESTRICT, ty);
         if (TYPE_A_RESTRICT(aty))
             ty = qual(VOLATILE, ty);
+        if (TYPE_A_STATIC(aty))
+            nonnull = true;
     } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!TYPE_TSYM(ty)->defined ||
-            TYPE_TSYM(ty)->scope == cscope)
+        if (!TYPE_TSYM(ty)->defined || TYPE_TSYM(ty)->scope == cscope)
             warning_at(src,
                        "declaration of '%s' will not be visible outside of this function",
                        type2s(ty));
     }
-
-    // check inline after conversion (decay)
-    ensure_inline(ty, fspec, src);
         
     if (id) {
         sym = lookup(id, identifiers);
@@ -808,6 +787,7 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
     sym->type = ty;
     sym->src = src;
     sym->sclass = sclass;
+    sym->nonnull = nonnull;
     sym->defined = true;
     
     if (token->id == '=') {
@@ -822,6 +802,7 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
 static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src)
 {
     int sclass = TYPEDEF;
+    struct symbol *sym;
 
     assert(id);
 
@@ -833,12 +814,9 @@ static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level
     if (fspec == INLINE)
         error_at(src, ERR_INLINE);
 
-    if (isfunc(ty))
-        ensure_func(ty, src);
-    else if (isarray(ty))
-        ensure_array(ty, src, level);
+    finish_type(ty, level, src);
 
-    struct symbol *sym = lookup(id, identifiers);
+    sym = lookup(id, identifiers);
     if (sym && is_current_scope(sym))
         error_at(src, ERR_REDEFINITION,
                  sym->name, sym->src.file, sym->src.line, sym->src.column);
@@ -862,25 +840,28 @@ static void oldparam(struct symbol *sym, void *context)
     struct symbol **params = context;
 
     assert(sym->name);
-    if (!isvardecl(sym)) {
+
+    // _NOT_ a variable
+    if (sym->sclass == TYPEDEF || isfunc(sym->type)) {
         warning_at(sym->src, "empty declaraion");
         return;
     }
         
-    int j;
-    for (j = 0; params[j]; j++) {
+    for (int j = 0; params[j]; j++) {
         struct symbol *s = params[j];
-        if (s->name && !strcmp(s->name, sym->name))
-            break;
+        assert(s->name);
+        if (s->name == sym->name) {
+            // replace id with declared symbol
+            params[j] = sym;
+            return;
+        }
     }
 
-    if (params[j])
-        params[j] = sym;
-    else
-        error_at(sym->src, "parameter named '%s' is missing", sym->name);
+    // _NOT_ found in id list
+    error_at(sym->src, "parameter named '%s' is missing", sym->name);
 }
 
-static void make_funcdecl(struct symbol *sym, struct type *ty, int sclass, struct source src)
+static void mkfuncdecl(struct symbol *sym, struct type *ty, int sclass, struct source src)
 {
     sym->type = ty;
     sym->src = src;
@@ -889,7 +870,7 @@ static void make_funcdecl(struct symbol *sym, struct type *ty, int sclass, struc
 }
 
 // id maybe NULL
-static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec,
+static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
                        struct symbol *params[], struct source src)
 {
     struct symbol *sym;
@@ -900,37 +881,42 @@ static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec
         error("invalid storage class specifier '%s'", id2s(sclass));
         sclass = 0;
     }
+
+    finish_type(ty, GLOBAL, src);
     
     if (id) {
         sym = lookup(id, identifiers);
         if (!sym || sym->scope != GLOBAL) {
             sym = install(id, &identifiers, GLOBAL, PERM);
-            make_funcdecl(sym, ftype, sclass, src);
-        } else if (eqtype(ftype, sym->type) && !sym->defined) {
+            mkfuncdecl(sym, ty, sclass, src);
+        } else if (eqtype(ty, sym->type) && !sym->defined) {
             if (sclass == STATIC && sym->sclass != STATIC)
                 error_at(src,
                          "static declaaration of '%s' follows non-static declaration",
                          id);
             else
-                make_funcdecl(sym, ftype, sclass, src);
+                mkfuncdecl(sym, ty, sclass, src);
         } else {
             error_at(src, ERR_REDEFINITION,
                      sym->name, sym->src.file, sym->src.line, sym->src.column);
         }
 
-        ensure_func(ftype, src);
-        ensure_main(ftype, id, src);
-        ensure_inline(ftype, fspec, src);
+        check_main_func(ty, id, src);
     } else {
         sym = anonymous(&identifiers, GLOBAL, PERM);
-        make_funcdecl(sym, ftype, sclass, src);
+        mkfuncdecl(sym, ty, sclass, src);
     }
 
+    if (fspec == INLINE)
+        TYPE_INLINE(ty) = INLINE;
+
     // old style function parameters declaration
-    if (TYPE_OLDSTYLE(ftype)) {
+    if (TYPE_OLDSTYLE(ty)) {
+        int i;
+
         foreach(identifiers, PARAM, oldparam, params);
 
-        for (int i = 0; params[i]; i++) {
+        for (i = 0; params[i]; i++) {
             struct symbol *p = params[i];
             if (!p->defined)
                 params[i] = call(paramdecl)(p->name, inttype, 0, 0, p->src);
@@ -941,26 +927,25 @@ static void do_funcdef(const char *id, struct type *ftype, int sclass, int fspec
             }
         }
 
-        int i;
         struct type **proto = newarray(sizeof(struct type *), length(params) + 1, PERM);
         for (i = 0; params[i]; i++)
             proto[i] = params[i]->type;
 
         proto[i] = NULL;
-        TYPE_PROTO(ftype) = proto;
-    
-        if (token->id != '{')
-            error("expect function body after function declarator");
+        TYPE_PROTO(ty) = proto;
     }
 
-    TYPE_PARAMS(ftype) = params;
-    ensure_params(params);
+    TYPE_PARAMS(ty) = params;
+    check_params_in_funcdef(params);
 
     if (token->id == '{') {
         // function definition
         func_body(sym);
         exit_scope();
         events(defun)(sym);
+    } else {
+        // oldstyle
+        error("expect function body after function declarator");
     }
 }
 

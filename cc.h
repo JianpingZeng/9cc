@@ -114,6 +114,7 @@ struct symbol {
     bool defined;
     bool predefine;
     bool anonymous;
+    bool nonnull;
     unsigned int refs;
     union value value;
     struct symbol *link;
