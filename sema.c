@@ -285,16 +285,21 @@ static void ensure_fields(struct symbol *sym)
 
 static void check_main_func(struct type *ftype, const char *name, struct source src)
 {
-    if (!isfunc(ftype) || !name || strcmp(name, "main"))
+    assert(isfunc(ftype));
+    assert(name);
+    
+    if (strcmp(name, "main"))
         return;
     
     struct type *rty = rtype(ftype);
-    struct type **params = TYPE_PROTO(ftype);
-    size_t len = length(params);
-    if (rty != inttype)
+    struct type **proto = TYPE_PROTO(ftype);
+    size_t len = length(proto);
+
+    if (rty != inttype && rty != voidtype)
         error_at(src, "return type of 'main' is not 'int'");
+
     for (int i = 0; i < MIN(3, len); i++) {
-        struct type *ty = params[i];
+        struct type *ty = proto[i];
         if (i == 0) {
             if (ty != inttype)
                 error_at(src, "first parameter of 'main' is not 'int'");
