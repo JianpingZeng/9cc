@@ -148,7 +148,7 @@ static void finalize(void)
  *     declarations within function prototypes that are not part of
  *     a function definition.
  */
-static void ensure_func_array(struct type *ty, int level, struct source src, bool outermost)
+static void ensure_func_array(struct type *ty, bool param, struct source src, bool outermost)
 {
     if (isarray(ty)) {
         struct type *rty = rtype(ty);
@@ -156,14 +156,14 @@ static void ensure_func_array(struct type *ty, int level, struct source src, boo
         if (isfunc(rty))
             error_at(src, ERR_ARRAY_OF_FUNC);
         
-        if (TYPE_A_STAR(ty) && level != PARAM)
+        if (TYPE_A_STAR(ty) && !param)
             error_at(src, "star modifier used outside of function prototype");
 
         if (TYPE_A_CONST(ty) ||
             TYPE_A_RESTRICT(ty) ||
             TYPE_A_VOLATILE(ty) ||
             TYPE_A_STATIC(ty)) {
-            if (level != PARAM)
+            if (!param)
                 error_at(src,
                          "type qualifier used in array declarator outside of function prototype");
             if (!outermost)
@@ -171,7 +171,7 @@ static void ensure_func_array(struct type *ty, int level, struct source src, boo
                          "type qualifier used in non-outermost array type derivation");
         }
 
-        ensure_func_array(rty, level, src, false);
+        ensure_func_array(rty, param, src, false);
         set_typesize(ty);       // calculate array size
     } else if (isfunc(ty)) {
         struct type *rty = rtype(ty);
@@ -180,16 +180,16 @@ static void ensure_func_array(struct type *ty, int level, struct source src, boo
         else if (isfunc(rty))
             error_at(src, ERR_FUNC_RET_FUNC, type2s(rty));
 
-        ensure_func_array(rty, CONSTANT, src, true);
+        ensure_func_array(rty, false, src, true);
     } else if (isptr(ty)) {
         struct type *rty = rtype(ty);
-        ensure_func_array(rty, level, src, false);
+        ensure_func_array(rty, param, src, false);
     }
 }
 
-static void finish_type(struct type *ty, int level, struct source src)
+static void finish_type(struct type *ty, bool param, struct source src)
 {
-    ensure_func_array(ty, level, src, true);
+    ensure_func_array(ty, param, src, true);
 }
 
 static void check_func_array_in_funcdef(struct type *ty, struct source src)
@@ -264,7 +264,7 @@ static void ensure_nonbitfield(struct field *p, bool one)
 {
     struct type *ty = p->type;
 
-    finish_type(ty, CONSTANT,  p->src);
+    finish_type(ty, false,  p->src);
 
     if (isarray(ty)) {
         if (isincomplete(ty)) {
@@ -1537,7 +1537,7 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass,
         sclass = 0;
     }
 
-    finish_type(ty, GLOBAL, src);
+    finish_type(ty, false, src);
 
     if (isfunc(ty))
         check_main_func(ty, id, src);
@@ -1614,7 +1614,7 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
     if (sclass == 0)
         sclass = isfunc(ty) ? EXTERN : AUTO;
 
-    finish_type(ty, LOCAL, src);
+    finish_type(ty, false, src);
     
     if (isfunc(ty)) {
         check_main_func(ty, id, src);
@@ -1722,7 +1722,7 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
     if (fspec == INLINE)
         error_at(src, ERR_INLINE);
 
-    finish_type(ty, PARAM, src);
+    finish_type(ty, true, src);
 
     if (isfunc(ty)) {
         struct type *fty = ty;
@@ -1788,7 +1788,7 @@ static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level
     if (fspec == INLINE)
         error_at(src, ERR_INLINE);
 
-    finish_type(ty, level, src);
+    finish_type(ty, level == PARAM, src);
 
     sym = lookup(id, identifiers);
     if (sym && is_current_scope(sym))
@@ -1822,7 +1822,7 @@ static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
         sclass = 0;
     }
 
-    finish_type(ty, GLOBAL, src);
+    finish_type(ty, false, src);
     
     if (id) {
         sym = lookup(id, identifiers);
