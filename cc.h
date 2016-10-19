@@ -85,6 +85,10 @@ struct type {
             unsigned int stc:1;
             unsigned int star:1;
         } a;
+        // pointer
+        struct {
+            struct type *decay; // original type in parameter
+        } p;
     } u;
     struct {
         union value max;

@@ -842,6 +842,7 @@ static struct type *tag_decl(void)
     return sym->type;
 }
 
+//BUG:
 static void param_declarator(struct type ** ty, struct token **id)
 {
     if (token->id == '*') {

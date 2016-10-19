@@ -180,10 +180,10 @@ static void ensure_func_array(struct type *ty, int level, struct source src, boo
         else if (isfunc(rty))
             error_at(src, ERR_FUNC_RET_FUNC, type2s(rty));
 
-        ensure_func_array(rty, level, src, true);
+        ensure_func_array(rty, CONSTANT, src, true);
     } else if (isptr(ty)) {
         struct type *rty = rtype(ty);
-        ensure_func_array(rty, level, src, true);
+        ensure_func_array(rty, level, src, false);
     }
 }
 
@@ -324,13 +324,15 @@ static void check_params_in_funcdef(struct symbol *params[])
         // parameter name is required in prototype
         if (sym->anonymous)
             error_at(sym->src, "parameter name omitted");
-        if (isarray(ty)) {
-            // TODO: recheck `*` modifier
-        } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+        // ignore incomplete array
+        if (isenum(ty) || isstruct(ty) || isunion(ty)) {
             if (!TYPE_TSYM(ty)->defined)
                 error_at(sym->src,
                          "variable has incomplete type '%s'",
                          type2s(ty));
+        } else if (isptr(ty) && ty->u.p.decay && isarray(ty->u.p.decay)) {
+            // if the original parameter is array type
+            // TODO: 
         }
     }
 }
@@ -1700,11 +1702,14 @@ static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass,
     finish_type(ty, PARAM, src);
 
     if (isfunc(ty)) {
-        ty = ptr_type(ty);
+        struct type *fty = ty;
+        ty = ptr_type(fty);
+        ty->u.p.decay = fty;
     } else if (isarray(ty)) {
-        // apply array qualifiers
         struct type *aty = ty;
         ty = ptr_type(rtype(ty));
+        ty->u.p.decay = aty;
+        // apply array qualifiers
         if (TYPE_A_CONST(aty))
             ty = qual(CONST, ty);
         if (TYPE_A_VOLATILE(aty))
@@ -1857,6 +1862,7 @@ static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
         events(defun)(sym);
     } else {
         // oldstyle
+        assert(TYPE_OLDSTYLE(ty));
         error("expect function body after function declarator");
     }
 }
