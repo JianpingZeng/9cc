@@ -71,22 +71,26 @@ static void parse_initializer_list(struct desig *desig, struct list **plist)
     struct desig *d = desig;
     
     expect('{');
-    
-    for (;;) {
-        if (token->id == '.' || token->id == '[')
-            d = parse_designator(desig);
-        else
-            d = next_designator(d);
 
-        parse_initializer(&d, plist);
+    if (token->id == '}') {
+        actions.element_init(&desig, zinit(desig->type), plist);
+    } else {
+        while (1) {
+            if (token->id == '.' || token->id == '[')
+                d = parse_designator(desig);
+            else
+                d = next_designator(d);
 
-        if (token->id != ',')
-            break;
+            parse_initializer(&d, plist);
 
-        expect(',');
+            if (token->id != ',')
+                break;
 
-        if (token->id == '}')
-            break;
+            expect(',');
+
+            if (token->id == '}')
+                break;
+        }
     }
 
     match('}', skip_to_brace);

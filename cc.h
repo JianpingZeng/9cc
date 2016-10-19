@@ -402,6 +402,7 @@ extern struct symbol *install(const char *name, struct table **tpp, int scope, i
 /// ast.c
 extern struct field *alloc_field(void);
 extern struct field *new_indirect_field(struct field *field);
+extern struct expr *zinit(struct type *ty);
 extern struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r);
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);

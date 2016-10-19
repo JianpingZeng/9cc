@@ -15,6 +15,13 @@ struct field *new_indirect_field(struct field *field)
     return p;
 }
 
+struct expr *zinit(struct type *ty)
+{
+    struct expr *expr = NEWS0(struct expr, FUNC);
+    expr->type = ty;
+    return expr;
+}
+
 struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r)
 {
     assert(OPINDEX(op) > OPNONE && OPINDEX(op) < OPEND);
