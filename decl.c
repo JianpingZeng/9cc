@@ -1,9 +1,11 @@
 #include <assert.h>
 #include "cc.h"
 
+// 0 means both
+enum { DIRECT = 1, ABSTRACT };
+
 static void param_declarator(struct type ** ty, struct token **id);
 static struct type *tag_decl(void);
-static void exit_params(struct symbol *params[]);
 
 static void attach_type(struct type ** typelist, struct type * type)
 {
@@ -22,6 +24,19 @@ static void prepend_type(struct type ** typelist, struct type * type)
 {
     attach_type(&type, *typelist);
     *typelist = type;
+}
+
+static void exit_params(struct symbol *params[])
+{
+    assert(params);
+    if (params[0] && !params[0]->defined)
+        error_at(params[0]->src,
+                 "a parameter list without types is only allowed in a function definition");
+
+    if (cscope > PARAM)
+        exit_scope();
+
+    exit_scope();
 }
 
 /// declaration-specifier:
@@ -444,13 +459,13 @@ static void array_qualifiers(struct type * atype)
         TYPE_A_RESTRICT(atype) = 1;
 }
 
-static struct type *arrays(bool abstract)
+static struct type *arrays(int abstract)
 {
     struct type *atype = array_type(NULL);
 
     //NOTE: '*' is in `first_expr`
-
-    if (abstract) {
+    switch (abstract) {
+    case ABSTRACT:
         if (token->id == '*' && lookahead()->id == ']') {
             gettok();
             TYPE_A_STAR(atype) = 1;
@@ -458,7 +473,9 @@ static struct type *arrays(bool abstract)
             struct source src = source;
             actions.array_index(atype, assign_expr(), src);
         }
-    } else {
+        break;
+
+    case DIRECT:
         if (token->id == STATIC) {
             gettok();
             TYPE_A_STATIC(atype) = 1;
@@ -480,12 +497,20 @@ static struct type *arrays(bool abstract)
                 actions.array_index(atype, assign_expr(), src);
             }
         }
+        break;
+
+    case 0:
+        die("TODO: unimplemented yet");
+        break;
+
+    default:
+        CC_UNAVAILABLE
     }
 
     return atype;
 }
 
-static struct type *func_or_array(bool abstract, struct symbol ***params)
+static struct type *func_or_array(int abstract, struct symbol ***params)
 {
     struct type *ty = NULL;
 
@@ -605,7 +630,7 @@ static void abstract_declarator(struct type ** ty)
 
         if (token->id == '(') {
             if (first_decl(lookahead())) {
-                struct type *faty = func_or_array(true, NULL);
+                struct type *faty = func_or_array(ABSTRACT, NULL);
                 prepend_type(ty, faty);
             } else {
                 struct type *type1 = *ty;
@@ -614,7 +639,7 @@ static void abstract_declarator(struct type ** ty)
                 abstract_declarator(&rtype);
                 match(')', skip_to_bracket);
                 if (token->id == '[' || token->id == '(') {
-                    struct type *faty = func_or_array(true, NULL);
+                    struct type *faty = func_or_array(ABSTRACT, NULL);
                     attach_type(&faty, type1);
                     attach_type(&rtype, faty);
                 } else {
@@ -623,11 +648,11 @@ static void abstract_declarator(struct type ** ty)
                 *ty = rtype;
             }
         } else if (token->id == '[') {
-            struct type *faty = func_or_array(true, NULL);
+            struct type *faty = func_or_array(ABSTRACT, NULL);
             prepend_type(ty, faty);
         }
     } else {
-        error("expect '(' or '[' at '%s'", tok2s(token));
+        error("expect '(', '[' or '*' at '%s'", tok2s(token));
     }
 }
 
@@ -657,7 +682,7 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
         *id = token;
         gettok();
         if (token->id == '[' || token->id == '(') {
-            struct type *faty = func_or_array(false, params);
+            struct type *faty = func_or_array(DIRECT, params);
             prepend_type(ty, faty);
         }
     } else if (token->id == '(') {
@@ -667,7 +692,7 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
         declarator(&rtype, id, params);
         match(')', skip_to_bracket);
         if (token->id == '[' || token->id == '(') {
-            struct type *faty = func_or_array(false, params);
+            struct type *faty = func_or_array(DIRECT, params);
             attach_type(&faty, type1);
             attach_type(&rtype, faty);
         } else {
@@ -676,6 +701,45 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
         *ty = rtype;
     } else {
         error("expect identifier or '('");
+    }
+}
+
+// Both 'abstract-declarator' and 'direct-declarator' are allowed.
+static void param_declarator(struct type ** ty, struct token **id)
+{
+    if (token->id == '*') {
+        struct type *pty = ptr_decl();
+        prepend_type(ty, pty);
+    }
+
+    if (token->id == '(') {
+        if (first_decl(lookahead())) {
+            abstract_declarator(ty);
+        } else {
+            struct type *type1 = *ty;
+            struct type *rtype = NULL;
+            expect('(');
+            param_declarator(&rtype, id);
+            match(')', skip_to_bracket);
+            if (token->id == '(' || token->id == '[') {
+                struct type *faty;
+                assert(id);
+                if (*id)
+                    faty = func_or_array(0, NULL);
+                else
+                    faty = func_or_array(0, NULL);
+
+                attach_type(&faty, type1);
+                attach_type(&rtype, faty);
+            } else {
+                attach_type(&rtype, type1);
+            }
+            *ty = rtype;
+        }
+    } else if (token->id == '[') {
+        abstract_declarator(ty);
+    } else if (token->id == ID) {
+        declarator(ty, id, NULL);
     }
 }
 
@@ -840,58 +904,6 @@ static struct type *tag_decl(void)
     }
 
     return sym->type;
-}
-
-//BUG:
-static void param_declarator(struct type ** ty, struct token **id)
-{
-    if (token->id == '*') {
-        struct type *pty = ptr_decl();
-        prepend_type(ty, pty);
-    }
-
-    if (token->id == '(') {
-        if (first_decl(lookahead())) {
-            abstract_declarator(ty);
-        } else {
-            struct type *type1 = *ty;
-            struct type *rtype = NULL;
-            expect('(');
-            param_declarator(&rtype, id);
-            match(')', skip_to_bracket);
-            if (token->id == '(' || token->id == '[') {
-                struct type *faty;
-                assert(id);
-                if (*id)
-                    faty = func_or_array(false, NULL);
-                else
-                    faty = func_or_array(true, NULL);
-
-                attach_type(&faty, type1);
-                attach_type(&rtype, faty);
-            } else {
-                attach_type(&rtype, type1);
-            }
-            *ty = rtype;
-        }
-    } else if (token->id == '[') {
-        abstract_declarator(ty);
-    } else if (token->id == ID) {
-        declarator(ty, id, NULL);
-    }
-}
-
-static void exit_params(struct symbol *params[])
-{
-    assert(params);
-    if (params[0] && !params[0]->defined)
-        error_at(params[0]->src,
-                 "a parameter list without types is only allowed in a function definition");
-
-    if (cscope > PARAM)
-        exit_scope();
-
-    exit_scope();
 }
 
 /// external-declaration:
