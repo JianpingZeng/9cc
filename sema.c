@@ -10,6 +10,14 @@
 #define call(func)  do_##func
 #define events(func)  func
 
+#define add_to_list(stmt)                       \
+    do {                                        \
+        *func.stmt = stmt;                      \
+        func.stmt = &stmt->next;                \
+    } while (0)
+
+#define check_designator(d)  ensure_designator(d) ? (d) : NULL
+
 #define ERR_INCOMPATIBLE_TYPES   "incompatible type conversion from '%s' to '%s'"
 #define ERR_INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
 #define ERR_REDEFINITION         "redefinition of '%s', previous definition at %s:%u:%u"
@@ -23,10 +31,8 @@
 #define ERR_INCOMPLETE_VAR       "variable '%s' has incomplete type '%s'"
 
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
-static struct expr *mkref(struct symbol *sym, struct source src);
-static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src);
-static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src);
-static void ensure_gotos(void);
+static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src);
+static struct expr *assignconv(struct type *ty, struct expr *node);
 static void init_string(struct type *ty, struct expr *node);
 static void doglobal(struct symbol *sym, void *context);
 
@@ -36,6 +42,10 @@ struct goto_info {
 };
 
 struct func func;
+
+///
+/// events
+///
 
 // declare a global variable
 static void dclgvar(struct symbol *n)
@@ -111,7 +121,9 @@ static void finalize(void)
     IR->finalize();
 }
 
+///
 /// type check
+///
 
 /*
  * Check for:
@@ -190,7 +202,7 @@ static void ensure_inline(struct type *ty, int fspec, struct source src)
     }
 }
 
-static void ensure_bitfield(struct field *p)
+static void check_bitfield(struct field *p)
 {
     struct type *ty = p->type;
     int bitsize = p->bitsize;
@@ -264,7 +276,7 @@ static void ensure_fields(struct symbol *sym)
         if (isindirect(p))
             continue;
         if (isbitfield(p))
-            ensure_bitfield(p);
+            check_bitfield(p);
         else
             ensure_nonbitfield(p, one);
     }
@@ -318,7 +330,560 @@ static void check_params_in_funcdef(struct symbol *params[])
     }
 }
 
+static void ensure_return(struct expr *expr, bool isnull, struct source src)
+{
+    // return immediately if expr is NULL. (parsing failed)    
+    if (expr == NULL)
+        return;
+
+    if (isvoid(rtype(func.type))) {
+        if (!isnull && !isvoid(expr->type))
+            error_at(src, "void function should not return a value");
+    } else {
+        if (!isnull) {
+            struct type *ty1 = expr->type;
+            struct type *ty2 = rtype(func.type);
+            if (!(expr = assignconv(ty2, expr)))
+                error_at(src,
+                         "returning '%s' from function with incompatible result type '%s'",
+                         type2s(ty1), type2s(ty2));
+        } else {
+            error_at(src, "non-void function should return a value");
+        }
+    }
+}
+
+static void ensure_gotos(void)
+{
+    struct goto_info **gotos = ltoa(&func.gotos, FUNC);
+    for (int i = 0; gotos[i]; i++) {
+        struct goto_info *info = gotos[i];
+        const char *name = info->id;
+        struct symbol *sym = lookup(name, func.labels);
+        if (!sym || !sym->defined)
+            error_at(info->src, "use of undeclared label '%s'", name);
+    }
+}
+
+static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src)
+{    
+    // TODO:
+    return init;
+}
+
+static bool ensure_designator(struct desig *d)
+{
+    if (isincomplete(d->type)) {
+        int id;
+        if (d->id == DESIG_FIELD)
+            id = STRUCT;
+        else if (d->id == DESIG_INDEX)
+            id = ARRAY;
+        else
+            id = TYPE_KIND(d->type);
+
+        error_at(d->src,
+                 "%s designator of incomplete type '%s'",
+                 id2s(id), type2s(d->type));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Object,Lvalue,Designator
+ *
+ * An _object_ is a region of memory that can be examined and stored into.
+ *
+ * An _lvalue_ is an expression that refers to an _object_ in such a way
+ * that the object may be examined or altered.
+ *
+ * Only an _lvalue_ expression **may be** used on the left-hand side of an
+ * assignment.
+ *
+ * An _lvalue_ dose **NOT** necessarily permit modification of the _object_
+ * it designates.
+ *
+ * A _function_ designator is a value of function type. It is neither an
+ * _object_ nor an _lvalue_.
+ *
+ * Functions and objects are often treated **differently** in C.
+ */
+static bool islvalue(struct expr *node)
+{
+    // TODO: 
+    return true;
+}
+
+static bool ensure_assignable(struct expr *node, struct source src)
+{
+    struct type *ty = node->type;
+    if (!islvalue(node)) {
+        error_at(src, "expression is not assignable");
+        return false;
+    } else if (isarray(ty)) {
+        error_at(src, "array type '%s' is not assignable", type2s(ty));
+        return false;
+    } else if (isconst(ty)) {
+        error_at(src, "read-only variable is not assignable");
+        return false;
+    }
+    return true;
+}
+
+static bool is_bitfield(struct expr *node)
+{
+    if (node->op != MEMBER)
+        return false;
+
+    return isbitfield(node->u.field);
+}
+
+static struct expr *cast(struct type *ty, struct expr *n)
+{
+    //TODO:
+    return n;
+}
+
+static struct expr *wrap(struct type *ty, struct expr *node)
+{
+    assert(isarith(ty));
+    assert(isarith(node->type));
+
+    if (eqarith(ty, node->type))
+        return node;
+    else
+        return cast(ty, node);
+}
+
+static struct expr *bitconv(struct type *ty, struct expr *node)
+{
+    if (eqtype(ty, node->type))
+        return node;
+    else
+        return cast(ty, node);
+}
+
+static struct expr *decay(struct expr *node)
+{
+    assert(node);
+    switch (TYPE_KIND(node->type)) {
+    case FUNCTION:
+        // FunctionToPointerDecay
+        return cast(ptr_type(node->type), node);
+
+    case ARRAY:
+        // ArrayToPointerDecay
+        return cast(ptr_type(rtype(node->type)), node);
+
+    default:
+        return node;
+    }
+}
+
+static struct expr *ltor(struct expr *node)
+{
+    // LValueToRValue
+    return cast(unqual(node->type), node);
+}
+
+static struct expr *lvalue(struct expr *n)
+{
+    assert(OPKIND(n->op) == INDIR);
+    return n->kids[0];
+}
+
+static struct expr *rvalue(struct expr *n)
+{
+    struct type *ty;
+    assert(isptr(n->type));
+    
+    ty = unqual(rtype(n->type));
+    return ast_expr(mkop(INDIR, ty), ty, n, NULL);
+}
+
+static struct expr *rettype(struct expr *n, struct type *ty)
+{
+    struct expr *ret = ast_expr(n->op, ty, n->kids[0], n->kids[1]);
+    ret->sym = n->sym;
+    ret->u = n->u;
+    ret->vtype = n->vtype;
+    return ret;
+}
+
+// Universal Unary Conversion
+static struct expr *conv(struct expr *node)
+{
+    if (node == NULL)
+        return NULL;
+    if (islvalue(node))
+        node = ltor(node);
+
+    switch (TYPE_KIND(node->type)) {
+    case _BOOL:
+    case CHAR:
+    case SHORT:
+        return cast(inttype, node);
+
+    case ENUM:
+        return cast(rtype(node->type), node);
+
+    case FUNCTION:
+    case ARRAY:
+        return decay(node);
+
+    default:
+        return node;
+    }
+}
+
+// Default function argument conversion
+static struct expr *conva(struct expr *node)
+{
+    if (node == NULL)
+        return NULL;
+    if (islvalue(node))
+        node = ltor(node);
+
+    switch (TYPE_KIND(node->type)) {
+    case FLOAT:
+        return cast(doubletype, node);
+
+    default:
+        return conv(node);
+    }
+}
+
+// Universal Binary Conversion
+static struct type *conv2(struct type * l, struct type * r)
+{
+    assert(isarith(l));
+    assert(isarith(r));
+
+    assert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
+    assert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
+
+    struct type *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
+    if (isfloat(l) || isfloat(r) || TYPE_OP(l) == TYPE_OP(r))
+        return max;
+
+    struct type *u = TYPE_OP(l) == UNSIGNED ? l : r;
+    struct type *s = TYPE_OP(l) == INT ? l : r;
+    assert(unqual(s) == s);
+
+    if (TYPE_RANK(u) >= TYPE_RANK(s))
+        return u;
+
+    if (TYPE_SIZE(u) < TYPE_SIZE(s)) {
+        return s;
+    } else {
+        if (s == inttype)
+            return unsignedinttype;
+        else if (s == longtype)
+            return unsignedlongtype;
+        else
+            return unsignedlonglongtype;
+    }
+
+    return l;
+}
+
+static bool is_nullptr(struct expr *node)
+{
+    assert(isptr(node->type) || isint(node->type));
+
+    struct expr *cnst = eval(node, inttype);
+    if (cnst == NULL)
+        return false;
+    if (isiliteral(cnst))
+        return cnst->sym->value.u == 0;
+    return false;
+}
+
+/**
+ *  Assignment Conversions
+ *
+ *  Left side type              Permitted right side type
+ *  ------------------------------------------------------
+ *  any arith                   any arith
+ *
+ *  _Bool                       any pointer
+ *
+ *  struct or union             compatible struct or union
+ *
+ *  (void *)                    (a) the constant 0
+ *                              (b) pointer to (object) T
+ *                              (c) (void *)
+ *
+ *  pointer to (object) T       (a) the constant 0
+ *                              (b) pointer to T2, where
+ *                                  T and T2 are compatible
+ *
+ *  pointer to (function) F     (a) the constant 0
+ *                              (b) pointer to F2, where
+ *                                  F and F2 are compatible
+ */
+
+static struct expr *assignconv(struct type *ty, struct expr *node)
+{
+    struct type *ty2;
+
+    if (isfunc(node->type) || isarray(node->type))
+        node = decay(node);
+    if (islvalue(node))
+        node = ltor(node);
+
+    ty2 = node->type;
+
+    if (isarith(ty) && isarith(ty2)) {
+        return wrap(ty, node);
+    } else if (isbool(ty) && isptr(ty2)) {
+        return cast(ty, node);
+    } else if ((isstruct(ty) && isstruct(ty2)) ||
+               (isunion(ty) && isunion(ty2))) {
+        if (eqtype(unqual(ty), unqual(ty2)))
+            return bitconv(ty, node);
+    } else if (isptr(ty) && isptr(ty2)) {
+        if (is_nullptr(node)) {
+            // always allowed
+        } else if (isptrto(ty, VOID) || isptrto(ty2, VOID)) {
+            struct type *vty = isptrto(ty, VOID) ? ty : ty2;
+            struct type *tty = vty == ty ? ty2 : ty;
+            if (isptrto(tty, FUNCTION)) {
+                return NULL;
+            } else {
+                struct type *rty1 = rtype(ty);
+                struct type *rty2 = rtype(ty2);
+                if (!qual_contains(rty1, rty2))
+                    return NULL;
+            }
+        } else {
+            struct type *rty1 = rtype(ty);
+            struct type *rty2 = rtype(ty2);
+            if (eqtype(unqual(rty1), unqual(rty2))) {
+                if (!qual_contains(rty1, rty2))
+                    return NULL;
+            } else {
+                return NULL;
+            }
+        }
+        return bitconv(ty, node);
+    } else if (isptr(ty) && isint(ty2)) {
+        if (is_nullptr(node))
+            return bitconv(ty, node);
+    }
+    return NULL;
+}
+
+/**
+ *  Explicit Casting Conversions
+ *
+ *  Destination type            Permitted source type
+ *  --------------------------------------------------
+ *  any arith                   any arith
+ *
+ *  any integer                 any pointer
+ *
+ *  pointer to (object) T, or   (a) any integer type
+ *  (void *)                    (b) (void *)
+ *                              (c) pointer to (object) Q, for any Q
+ *
+ *  pointer to (function) T     (a) any integer type
+ *                              (b) pointer to (function) Q, for any Q
+ *
+ *  struct or union             none; not a permitted cast
+ *
+ *  array or function           none; not a permitted cast
+ *
+ *  void                        any type
+ */
+
+static bool can_cast(struct type * dst, struct type * src)
+{
+    if (isvoid(dst))
+        return true;
+    if (isarith(dst) && isarith(src))
+        return true;
+    if (isint(dst) && isptr(src))
+        return true;
+    if (isptrto(dst, FUNCTION)) {
+        if (isint(src) || isptrto(src, FUNCTION))
+            return true;
+    } else if (isptr(dst)) {
+        if (isint(src) || isptrto(src, VOID))
+            return true;
+        if (isptr(src) && !isfunc(rtype(src)))
+            return true;
+    }
+
+    return false;
+}
+
+// return NULL on error.
+static struct vector *argcast1(struct type **params, size_t nparams,
+                               struct expr **args, size_t nargs,
+                               bool oldstyle, struct source src)
+{
+    struct vector *v = vec_new();
+    size_t cmp1;
+
+    if (oldstyle)
+        cmp1 = MIN(nparams, nargs);
+    else
+        cmp1 = nparams;
+
+    for (size_t i = 0; i < cmp1; i++) {
+        struct type *dty = params[i];
+        struct expr *arg = args[i];
+        struct type *sty = arg->type;
+        struct expr *ret = assignconv(dty, arg);
+        if (ret) {
+            vec_push(v, ret);
+        } else {
+            if (oldstyle) {
+                warning_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
+            } else {
+                error_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
+                return NULL;
+            }
+        }
+    }
+    for (size_t i = cmp1; i < nargs; i++) {
+        struct expr *arg = args[i];
+        vec_push(v, conva(arg));
+    }
+
+    return v;
+}
+
+/*
+ * There are 5 cases:
+ *
+ * 1. function declaration with prototype
+ * 2. function definition with prototype
+ * 3. function declaration with oldstyle
+ * 4. function definition with oldstyle
+ * 5. no function declaration/definition found
+ */
+// return NULL on error.
+static struct expr **argscast(struct type *fty, struct expr **args, struct source src)
+{
+    struct vector *v = vec_new();
+    assert(isfunc(fty));
+
+    struct type **params = TYPE_PROTO(fty);
+    size_t len1 = length(params);
+    size_t len2 = length(args);
+    bool oldstyle = TYPE_OLDSTYLE(fty);
+
+    if (oldstyle) {
+        if (len1 > len2)
+            warning_at(src, "too few arguments to function call");
+
+        v = argcast1(params, len1, args, len2, oldstyle, src);
+    } else {
+        if (len1 == 0) {
+            if (len2 > 0) {
+                error_at(src,
+                         "too many arguments to function call, expected %d, have %d",
+                         len1, len2);
+                return NULL;
+            }
+            return vtoa(v, FUNC);
+        }
+
+        bool vargs = TYPE_VARG(fty);
+        assert(len1 >= 1);
+        if (len1 <= len2) {
+            if (!vargs && len1 < len2) {
+                error_at(src,
+                         "too many arguments to function call, expected %d, have %d",
+                         len1, len2);
+                return NULL;
+            }
+            v = argcast1(params, len1, args, len2, oldstyle, src);
+            if (v == NULL)
+                return NULL;
+        } else {
+            if (vargs)
+                error_at(src,
+                         "too few arguments to function call, expected at least %d, have %d",
+                         len1, len2);
+            else
+                error_at(src,
+                         "too few arguments to function call, expected %d, have %d",
+                         len1, len2);
+            return NULL;
+        }
+    }
+    return vtoa(v, FUNC);
+}
+
+static bool ensure_additive_ptr(struct expr *node, struct source src)
+{
+    assert(isptr(node->type));
+    struct type *rty = rtype(node->type);
+    if (isfunc(rty) || isincomplete(rty)) {
+        error_at(src,
+                 "increment/decrement of invalid type '%s' (pointer to unknown size)",
+                 type2s(node->type));
+        return false;
+    }
+    return true;
+}
+
+static bool ensure_increment(struct expr *node, struct source src)
+{
+    if (!isscalar(node->type)) {
+        error_at(src, ERR_TYPE, "scalar", type2s(node->type));
+        return false;
+    }
+
+    if (!ensure_assignable(node, src))
+        return false;
+
+    if (isptr(node->type))
+        return ensure_additive_ptr(node, src);
+
+    return true;
+}
+
+///
 /// private
+///
+
+static void skip_balance(int l, int r, const char *name)
+{
+    int nests = 0;
+
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (token->id == r) {
+            if (nests-- == 0)
+                break;
+        } else if (token->id == l) {
+            nests++;
+        }
+        gettok();
+    }
+
+    if (token->id == r)
+        gettok();
+    else
+        error("unclosed %s, missing '%s'", name, id2s(r));
+}
+
+static void skip_syntax(int (*first) (struct token *))
+{    
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (first(token))
+            break;
+        gettok();
+    }
+}
 
 static void field_not_found_error(struct source src, struct type *ty, const char *name)
 {
@@ -421,6 +986,365 @@ static void doglobal(struct symbol *sym, void *context)
     sym->defined = true;
     events(defgvar)(sym);
 }
+
+static void init_string(struct type *ty, struct expr *node)
+{
+    int len1 = TYPE_LEN(ty);
+    int len2 = TYPE_LEN(node->type);
+    if (len1 > 0) {
+        if (len1 < len2 - 1)
+            warning("initializer-string for char array is too long");
+    } else if (isincomplete(ty)) {
+        TYPE_LEN(ty) = len2;
+        set_typesize(ty);
+    }
+}
+
+static struct desig *next_designator1(struct desig *desig, bool initial)
+{
+    assert(desig);
+    
+    switch (desig->id) {
+    case DESIG_FIELD:
+        {
+            struct desig *prev = desig->prev;
+
+            assert(prev);
+            assert(isrecord(prev->type));
+
+            struct field *field = desig->u.field->link;
+            if (field) {
+                struct desig *d = new_desig_field(field, source);
+                d->offset = prev->offset + field->offset;
+                d->prev = copy_desig(prev);
+                return check_designator(d);
+            } else {
+                return next_designator1(prev, false);
+            }
+        }
+        break;
+
+    case DESIG_INDEX:
+        {
+            struct desig *prev = desig->prev;
+
+            assert(prev);
+            assert(isarray(prev->type));
+
+            size_t len = TYPE_LEN(prev->type);
+            long idx = desig->u.index;
+            if (len == 0 || idx < len - 1) {
+                struct type *rty = desig->type;
+                struct desig *d = new_desig_index(idx+1, source);
+                d->type = rty;
+                d->offset = desig->offset + TYPE_SIZE(rty);
+                d->prev = copy_desig(prev);
+                return check_designator(d);
+            } else {
+                return next_designator1(prev, false);
+            }
+        }
+        break;
+
+    case DESIG_NONE:
+        assert(desig->prev == NULL);
+        if (!initial) {
+            error("excess elements in %s initializer", TYPE_NAME(desig->type));
+            return NULL;
+        }
+        if (isrecord(desig->type)) {
+            struct field *first = TYPE_FIELDS(desig->type);
+            if (first) {
+                struct desig *d = new_desig_field(first, source);
+                d->offset = desig->offset + first->offset;
+                d->prev = copy_desig(desig);
+                return d;
+            } else {
+                // TODO: empty record
+                if (isincomplete(desig->type))
+                    error("initialize incomplete type '%s'",
+                          type2s(desig->type));
+                else
+                    error("initialize empty %s is not supported yet",
+                          id2s(TYPE_KIND(desig->type)));
+                return NULL;
+            }
+        } else if (isarray(desig->type)) {
+            struct type *rty = rtype(desig->type);
+            struct desig *d = new_desig_index(0, source);
+            d->type = rty;
+            d->offset = desig->offset;
+            d->prev = copy_desig(desig);
+            return d;
+        } else {
+            return desig;
+        }
+        break;
+    }
+    
+    CC_UNAVAILABLE
+}
+
+// TODO: 
+static void simple_init(struct desig *desig, struct expr *expr, struct list **plist)
+{
+    dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
+}
+
+static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
+{
+    return call(assignop)('=', expr, call(bop)(op, expr, cnst, src), src);
+}
+
+static struct expr *mkref(struct symbol *sym, struct source src)
+{
+    int op;
+    struct type *ty = sym->type;
+    struct expr *ret;
+
+    if (has_static_extent(sym))
+        op = ADDRG;
+    else if (sym->scope == PARAM)
+        op = ADDRP;
+    else
+        op = ADDRL;
+
+    if (isfunc(ty))
+        ret = ast_expr(mkop(op, funcptype), ty, NULL, NULL);
+    else if (isarray(ty))
+        ret = ast_expr(mkop(op, voidptype), ty, NULL, NULL);
+    else
+        ret = ast_expr(mkop(op, voidptype), ptr_type(ty), NULL, NULL);
+    
+    ret->sym = sym;
+    use(sym);
+
+    if (isptr(ret->type))
+        return rvalue(ret);
+    else
+        return ret;
+}
+
+// implicit function declaration: int id();
+static struct symbol * implicit_func_decl(const char *id)
+{
+    struct type *ftype = func_type(inttype);
+    struct list *list = NULL;
+    ftype->u.f.oldstyle = true;
+    ftype->u.f.proto = ltoa(&list, PERM);
+            
+    struct symbol *sym = install(id, &externals, GLOBAL, PERM);
+    sym->sclass = EXTERN;
+    sym->type = ftype;
+    sym->src = source;
+
+    events(dclfun)(sym);
+    warning("implicit declaration of '%s'", id);
+
+    return sym;
+}
+
+static void integer_constant(struct token *t, struct symbol * sym)
+{
+    int base = t->u.lit.base;
+    int suffix = t->u.lit.suffix;
+    unsigned long n = t->u.lit.v.u;
+    struct type *ty;
+
+    // character constant
+    if (t->u.lit.chr) {
+        bool wide = t->u.lit.chr == 2;
+        sym->type = wide ? wchartype : unsignedchartype;
+        sym->value.u = wide ? (wchar_t)n : (unsigned char)n;
+        return;
+    }
+    
+    switch (suffix) {
+    case UNSIGNED + LONG + LONG:
+        ty = unsignedlonglongtype;
+        break;
+    case LONG + LONG:
+        if (n > INTEGER_MAX(longlongtype) && base != 0)
+            ty = unsignedlonglongtype;
+        else
+            ty = longlongtype;
+        break;
+    case UNSIGNED + LONG:
+        if (n > UINTEGER_MAX(unsignedlongtype))
+            ty = unsignedlonglongtype;
+        else
+            ty = unsignedlongtype;
+        break;
+    case LONG:
+        if (base == 0) {
+            if (n > INTEGER_MAX(longtype))
+                ty = longlongtype;
+            else
+                ty = longtype;
+        } else {
+            if (n > INTEGER_MAX(longlongtype))
+                ty = unsignedlonglongtype;
+            else if (n > UINTEGER_MAX(unsignedlongtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(longtype))
+                ty = unsignedlongtype;
+            else
+                ty = longtype;
+        }
+        break;
+    case UNSIGNED:
+        if (n > UINTEGER_MAX(unsignedlongtype))
+            ty = unsignedlonglongtype;
+        else if (n > UINTEGER_MAX(unsignedinttype))
+            ty = unsignedlongtype;
+        else
+            ty = unsignedinttype;
+        break;
+    default:
+        if (base == 0) {
+            if (n > INTEGER_MAX(longtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(inttype))
+                ty = longtype;
+            else
+                ty = inttype;
+        } else {
+            if (n > INTEGER_MAX(longlongtype))
+                ty = unsignedlonglongtype;
+            else if (n > UINTEGER_MAX(unsignedlongtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(longtype))
+                ty = unsignedlongtype;
+            else if (n > UINTEGER_MAX(unsignedinttype))
+                ty = longtype;
+            else if (n > INTEGER_MAX(inttype))
+                ty = unsignedinttype;
+            else
+                ty = inttype;
+        }
+        break;
+    }
+
+    // overflow
+    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
+        error("integer constant overflow: %s", TOK_LIT_STR(t));
+
+    sym->type = ty;
+    sym->value = t->u.lit.v;
+}
+
+static void float_constant(struct token *t, struct symbol * sym)
+{
+    int suffix = t->u.lit.suffix;
+    switch (suffix) {
+    case FLOAT:
+        sym->type = floattype;
+        break;
+    case LONG + DOUBLE:
+        sym->type = longdoubletype;
+        break;
+    default:
+        sym->type = doubletype;
+        break;
+    }
+}
+
+static void string_constant(struct token *t, struct symbol * sym)
+{
+    const char *s = TOK_LIT_STR(t);
+    bool wide = s[0] == 'L' ? true : false;
+    struct type *ty;
+    if (wide) {
+        size_t len = strlen(s) - 3;
+        wchar_t *ws = xmalloc(sizeof(wchar_t) * (len+1));
+        errno = 0;
+        size_t wlen = mbstowcs(ws, s + 2, len);
+        if (errno == EILSEQ)
+            error("invalid multibyte sequence: %s", s);
+        assert(wlen <= len + 1);
+        ty = array_type(wchartype);
+        TYPE_LEN(ty) = wlen;
+        set_typesize(ty);
+    } else {
+        ty = array_type(chartype);
+        TYPE_LEN(ty) = strlen(s) - 1;
+        set_typesize(ty);
+    }
+    sym->type = ty;
+}
+
+static struct expr *literal_expr(struct token *t, int op,
+                                 void (*cnst) (struct token *, struct symbol *))
+{
+    struct expr *expr;
+    const char *name = TOK_LIT_STR(t);
+    struct symbol *sym = lookup(name, constants);
+    if (!sym) {
+        sym = install(name, &constants, CONSTANT, PERM);
+        cnst(t, sym);
+    }
+    if (t->id == SCONSTANT)
+        expr = ast_expr(mkop(op, voidptype), sym->type, NULL, NULL);
+    else
+        expr = ast_expr(mkop(op, sym->type), sym->type, NULL, NULL);
+    expr->sym = sym;
+    return expr;
+}
+
+static int top(int op)
+{
+    switch (op) {
+    case '*': return MUL;
+    case '/': return DIV;
+    case '%': return MOD;
+    case LSHIFT: return SHL;
+    case RSHIFT: return SHR;
+    case '&': return BAND;
+    case '^': return XOR;
+    case '|': return BOR;
+    case '+': return ADD;
+    case '-': return SUB;
+    case '>': return GT;
+    case '<': return LT;
+    case GEQ: return GE;
+    case LEQ: return LE;
+    case EQL: return EQ;
+    case NEQ: return NE;
+    default: assert(0 && "unexpected binary operator");
+    }
+}
+
+static int splitop(int op)
+{
+    switch (op) {
+    case MULEQ:
+        return '*';
+    case DIVEQ:
+        return '/';
+    case MODEQ:
+        return '%';
+    case ADDEQ:
+        return '+';
+    case MINUSEQ:
+        return '-';
+    case LSHIFTEQ:
+        return LSHIFT;
+    case RSHIFTEQ:
+        return RSHIFT;
+    case BANDEQ:
+        return '&';
+    case BOREQ:
+        return '|';
+    case XOREQ:
+        return '^';
+    default:
+        assert(0);
+    }
+}
+
+///
+/// actions
+///
 
 /// decl
 
@@ -934,464 +1858,6 @@ static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
 
 /// expr
 
-/**
- * Object,Lvalue,Designator
- *
- * An _object_ is a region of memory that can be examined and stored into.
- *
- * An _lvalue_ is an expression that refers to an _object_ in such a way
- * that the object may be examined or altered.
- *
- * Only an _lvalue_ expression **may be** used on the left-hand side of an
- * assignment.
- *
- * An _lvalue_ dose **NOT** necessarily permit modification of the _object_
- * it designates.
- *
- * A _function_ designator is a value of function type. It is neither an
- * _object_ nor an _lvalue_.
- *
- * Functions and objects are often treated **differently** in C.
- */
-static bool islvalue(struct expr *node)
-{
-    // TODO: 
-    return true;
-}
-
-static bool ensure_assignable(struct expr *node, struct source src)
-{
-    struct type *ty = node->type;
-    if (!islvalue(node)) {
-        error_at(src, "expression is not assignable");
-        return false;
-    } else if (isarray(ty)) {
-        error_at(src, "array type '%s' is not assignable", type2s(ty));
-        return false;
-    } else if (isconst(ty)) {
-        error_at(src, "read-only variable is not assignable");
-        return false;
-    }
-    return true;
-}
-
-static bool is_bitfield(struct expr *node)
-{
-    if (node->op != MEMBER)
-        return false;
-
-    return isbitfield(node->u.field);
-}
-
-static struct expr *cast(struct type *ty, struct expr *n)
-{
-    //TODO:
-    return n;
-}
-
-static struct expr *wrap(struct type *ty, struct expr *node)
-{
-    assert(isarith(ty));
-    assert(isarith(node->type));
-
-    if (eqarith(ty, node->type))
-        return node;
-    else
-        return cast(ty, node);
-}
-
-static struct expr *bitconv(struct type *ty, struct expr *node)
-{
-    if (eqtype(ty, node->type))
-        return node;
-    else
-        return cast(ty, node);
-}
-
-static struct expr *decay(struct expr *node)
-{
-    assert(node);
-    switch (TYPE_KIND(node->type)) {
-    case FUNCTION:
-        // FunctionToPointerDecay
-        return cast(ptr_type(node->type), node);
-
-    case ARRAY:
-        // ArrayToPointerDecay
-        return cast(ptr_type(rtype(node->type)), node);
-
-    default:
-        return node;
-    }
-}
-
-static struct expr *ltor(struct expr *node)
-{
-    // LValueToRValue
-    return cast(unqual(node->type), node);
-}
-
-static struct expr *lvalue(struct expr *n)
-{
-    assert(OPKIND(n->op) == INDIR);
-    return n->kids[0];
-}
-
-static struct expr *rvalue(struct expr *n)
-{
-    struct type *ty;
-    assert(isptr(n->type));
-    
-    ty = unqual(rtype(n->type));
-    return ast_expr(mkop(INDIR, ty), ty, n, NULL);
-}
-
-static struct expr *rettype(struct expr *n, struct type *ty)
-{
-    struct expr *ret = ast_expr(n->op, ty, n->kids[0], n->kids[1]);
-    ret->sym = n->sym;
-    ret->u = n->u;
-    ret->vtype = n->vtype;
-    return ret;
-}
-
-// Universal Unary Conversion
-static struct expr *conv(struct expr *node)
-{
-    if (node == NULL)
-        return NULL;
-    if (islvalue(node))
-        node = ltor(node);
-
-    switch (TYPE_KIND(node->type)) {
-    case _BOOL:
-    case CHAR:
-    case SHORT:
-        return cast(inttype, node);
-
-    case ENUM:
-        return cast(rtype(node->type), node);
-
-    case FUNCTION:
-    case ARRAY:
-        return decay(node);
-
-    default:
-        return node;
-    }
-}
-
-// Default function argument conversion
-static struct expr *conva(struct expr *node)
-{
-    if (node == NULL)
-        return NULL;
-    if (islvalue(node))
-        node = ltor(node);
-
-    switch (TYPE_KIND(node->type)) {
-    case FLOAT:
-        return cast(doubletype, node);
-
-    default:
-        return conv(node);
-    }
-}
-
-// Universal Binary Conversion
-static struct type *conv2(struct type * l, struct type * r)
-{
-    assert(isarith(l));
-    assert(isarith(r));
-
-    assert(TYPE_SIZE(l) >= TYPE_SIZE(inttype));
-    assert(TYPE_SIZE(r) >= TYPE_SIZE(inttype));
-
-    struct type *max = TYPE_RANK(l) > TYPE_RANK(r) ? l : r;
-    if (isfloat(l) || isfloat(r) || TYPE_OP(l) == TYPE_OP(r))
-        return max;
-
-    struct type *u = TYPE_OP(l) == UNSIGNED ? l : r;
-    struct type *s = TYPE_OP(l) == INT ? l : r;
-    assert(unqual(s) == s);
-
-    if (TYPE_RANK(u) >= TYPE_RANK(s))
-        return u;
-
-    if (TYPE_SIZE(u) < TYPE_SIZE(s)) {
-        return s;
-    } else {
-        if (s == inttype)
-            return unsignedinttype;
-        else if (s == longtype)
-            return unsignedlongtype;
-        else
-            return unsignedlonglongtype;
-    }
-
-    return l;
-}
-
-static bool is_nullptr(struct expr *node)
-{
-    assert(isptr(node->type) || isint(node->type));
-
-    struct expr *cnst = eval(node, inttype);
-    if (cnst == NULL)
-        return false;
-    if (isiliteral(cnst))
-        return cnst->sym->value.u == 0;
-    return false;
-}
-
-/**
- *  Assignment Conversions
- *
- *  Left side type              Permitted right side type
- *  ------------------------------------------------------
- *  any arith                   any arith
- *
- *  _Bool                       any pointer
- *
- *  struct or union             compatible struct or union
- *
- *  (void *)                    (a) the constant 0
- *                              (b) pointer to (object) T
- *                              (c) (void *)
- *
- *  pointer to (object) T       (a) the constant 0
- *                              (b) pointer to T2, where
- *                                  T and T2 are compatible
- *
- *  pointer to (function) F     (a) the constant 0
- *                              (b) pointer to F2, where
- *                                  F and F2 are compatible
- */
-
-static struct expr *assignconv(struct type *ty, struct expr *node)
-{
-    struct type *ty2;
-
-    if (isfunc(node->type) || isarray(node->type))
-        node = decay(node);
-    if (islvalue(node))
-        node = ltor(node);
-
-    ty2 = node->type;
-
-    if (isarith(ty) && isarith(ty2)) {
-        return wrap(ty, node);
-    } else if (isbool(ty) && isptr(ty2)) {
-        return cast(ty, node);
-    } else if ((isstruct(ty) && isstruct(ty2)) ||
-               (isunion(ty) && isunion(ty2))) {
-        if (eqtype(unqual(ty), unqual(ty2)))
-            return bitconv(ty, node);
-    } else if (isptr(ty) && isptr(ty2)) {
-        if (is_nullptr(node)) {
-            // always allowed
-        } else if (isptrto(ty, VOID) || isptrto(ty2, VOID)) {
-            struct type *vty = isptrto(ty, VOID) ? ty : ty2;
-            struct type *tty = vty == ty ? ty2 : ty;
-            if (isptrto(tty, FUNCTION)) {
-                return NULL;
-            } else {
-                struct type *rty1 = rtype(ty);
-                struct type *rty2 = rtype(ty2);
-                if (!qual_contains(rty1, rty2))
-                    return NULL;
-            }
-        } else {
-            struct type *rty1 = rtype(ty);
-            struct type *rty2 = rtype(ty2);
-            if (eqtype(unqual(rty1), unqual(rty2))) {
-                if (!qual_contains(rty1, rty2))
-                    return NULL;
-            } else {
-                return NULL;
-            }
-        }
-        return bitconv(ty, node);
-    } else if (isptr(ty) && isint(ty2)) {
-        if (is_nullptr(node))
-            return bitconv(ty, node);
-    }
-    return NULL;
-}
-
-/**
- *  Explicit Casting Conversions
- *
- *  Destination type            Permitted source type
- *  --------------------------------------------------
- *  any arith                   any arith
- *
- *  any integer                 any pointer
- *
- *  pointer to (object) T, or   (a) any integer type
- *  (void *)                    (b) (void *)
- *                              (c) pointer to (object) Q, for any Q
- *
- *  pointer to (function) T     (a) any integer type
- *                              (b) pointer to (function) Q, for any Q
- *
- *  struct or union             none; not a permitted cast
- *
- *  array or function           none; not a permitted cast
- *
- *  void                        any type
- */
-
-static bool can_cast(struct type * dst, struct type * src)
-{
-    if (isvoid(dst))
-        return true;
-    if (isarith(dst) && isarith(src))
-        return true;
-    if (isint(dst) && isptr(src))
-        return true;
-    if (isptrto(dst, FUNCTION)) {
-        if (isint(src) || isptrto(src, FUNCTION))
-            return true;
-    } else if (isptr(dst)) {
-        if (isint(src) || isptrto(src, VOID))
-            return true;
-        if (isptr(src) && !isfunc(rtype(src)))
-            return true;
-    }
-
-    return false;
-}
-
-// return NULL on error.
-static struct vector *argcast1(struct type **params, size_t nparams,
-                               struct expr **args, size_t nargs,
-                               bool oldstyle, struct source src)
-{
-    struct vector *v = vec_new();
-    size_t cmp1;
-
-    if (oldstyle)
-        cmp1 = MIN(nparams, nargs);
-    else
-        cmp1 = nparams;
-
-    for (size_t i = 0; i < cmp1; i++) {
-        struct type *dty = params[i];
-        struct expr *arg = args[i];
-        struct type *sty = arg->type;
-        struct expr *ret = assignconv(dty, arg);
-        if (ret) {
-            vec_push(v, ret);
-        } else {
-            if (oldstyle) {
-                warning_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
-            } else {
-                error_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
-                return NULL;
-            }
-        }
-    }
-    for (size_t i = cmp1; i < nargs; i++) {
-        struct expr *arg = args[i];
-        vec_push(v, conva(arg));
-    }
-
-    return v;
-}
-
-/*
- * There are 5 cases:
- *
- * 1. function declaration with prototype
- * 2. function definition with prototype
- * 3. function declaration with oldstyle
- * 4. function definition with oldstyle
- * 5. no function declaration/definition found
- */
-// return NULL on error.
-static struct expr **argscast(struct type *fty, struct expr **args, struct source src)
-{
-    struct vector *v = vec_new();
-    assert(isfunc(fty));
-
-    struct type **params = TYPE_PROTO(fty);
-    size_t len1 = length(params);
-    size_t len2 = length(args);
-    bool oldstyle = TYPE_OLDSTYLE(fty);
-
-    if (oldstyle) {
-        if (len1 > len2)
-            warning_at(src, "too few arguments to function call");
-
-        v = argcast1(params, len1, args, len2, oldstyle, src);
-    } else {
-        if (len1 == 0) {
-            if (len2 > 0) {
-                error_at(src,
-                         "too many arguments to function call, expected %d, have %d",
-                         len1, len2);
-                return NULL;
-            }
-            return vtoa(v, FUNC);
-        }
-
-        bool vargs = TYPE_VARG(fty);
-        assert(len1 >= 1);
-        if (len1 <= len2) {
-            if (!vargs && len1 < len2) {
-                error_at(src,
-                         "too many arguments to function call, expected %d, have %d",
-                         len1, len2);
-                return NULL;
-            }
-            v = argcast1(params, len1, args, len2, oldstyle, src);
-            if (v == NULL)
-                return NULL;
-        } else {
-            if (vargs)
-                error_at(src,
-                         "too few arguments to function call, expected at least %d, have %d",
-                         len1, len2);
-            else
-                error_at(src,
-                         "too few arguments to function call, expected %d, have %d",
-                         len1, len2);
-            return NULL;
-        }
-    }
-    return vtoa(v, FUNC);
-}
-
-static bool ensure_additive_ptr(struct expr *node, struct source src)
-{
-    assert(isptr(node->type));
-    struct type *rty = rtype(node->type);
-    if (isfunc(rty) || isincomplete(rty)) {
-        error_at(src,
-                 "increment/decrement of invalid type '%s' (pointer to unknown size)",
-                 type2s(node->type));
-        return false;
-    }
-    return true;
-}
-
-static bool ensure_increment(struct expr *node, struct source src)
-{
-    if (!isscalar(node->type)) {
-        error_at(src, ERR_TYPE, "scalar", type2s(node->type));
-        return false;
-    }
-
-    if (!ensure_assignable(node, src))
-        return false;
-
-    if (isptr(node->type))
-        return ensure_additive_ptr(node, src);
-
-    return true;
-}
-
 static struct expr *do_commaop(struct expr *l, struct expr *r, struct source src)
 {
     if (l == NULL || r == NULL)
@@ -1407,34 +1873,6 @@ static struct expr *do_commaop(struct expr *l, struct expr *r, struct source src
         r = ltor(r);
 
     return ast_expr(RIGHT, r->type, l, r);
-}
-
-static int splitop(int op)
-{
-    switch (op) {
-    case MULEQ:
-        return '*';
-    case DIVEQ:
-        return '/';
-    case MODEQ:
-        return '%';
-    case ADDEQ:
-        return '+';
-    case MINUSEQ:
-        return '-';
-    case LSHIFTEQ:
-        return LSHIFT;
-    case RSHIFTEQ:
-        return RSHIFT;
-    case BANDEQ:
-        return '&';
-    case BOREQ:
-        return '|';
-    case XOREQ:
-        return '^';
-    default:
-        assert(0);
-    }
 }
 
 static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src)
@@ -1570,29 +2008,6 @@ static struct expr *do_logicop(int op, struct expr *l, struct expr *r, struct so
     }
 
     return ast_expr(op == ANDAND ? AND : OR, inttype, l, r);
-}
-
-static int top(int op)
-{
-    switch (op) {
-    case '*': return MUL;
-    case '/': return DIV;
-    case '%': return MOD;
-    case LSHIFT: return SHL;
-    case RSHIFT: return SHR;
-    case '&': return BAND;
-    case '^': return XOR;
-    case '|': return BOR;
-    case '+': return ADD;
-    case '-': return SUB;
-    case '>': return GT;
-    case '<': return LT;
-    case GEQ: return GE;
-    case LEQ: return LE;
-    case EQL: return EQ;
-    case NEQ: return NE;
-    default: assert(0 && "unexpected binary operator");
-    }
 }
 
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src)
@@ -2040,166 +2455,6 @@ static struct expr * do_compound_literal(struct type *ty, struct expr *inits, st
 
 /// primary
 
-static void integer_constant(struct token *t, struct symbol * sym)
-{
-    int base = t->u.lit.base;
-    int suffix = t->u.lit.suffix;
-    unsigned long n = t->u.lit.v.u;
-    struct type *ty;
-
-    // character constant
-    if (t->u.lit.chr) {
-        bool wide = t->u.lit.chr == 2;
-        sym->type = wide ? wchartype : unsignedchartype;
-        sym->value.u = wide ? (wchar_t)n : (unsigned char)n;
-        return;
-    }
-    
-    switch (suffix) {
-    case UNSIGNED + LONG + LONG:
-        ty = unsignedlonglongtype;
-        break;
-    case LONG + LONG:
-        if (n > INTEGER_MAX(longlongtype) && base != 0)
-            ty = unsignedlonglongtype;
-        else
-            ty = longlongtype;
-        break;
-    case UNSIGNED + LONG:
-        if (n > UINTEGER_MAX(unsignedlongtype))
-            ty = unsignedlonglongtype;
-        else
-            ty = unsignedlongtype;
-        break;
-    case LONG:
-        if (base == 0) {
-            if (n > INTEGER_MAX(longtype))
-                ty = longlongtype;
-            else
-                ty = longtype;
-        } else {
-            if (n > INTEGER_MAX(longlongtype))
-                ty = unsignedlonglongtype;
-            else if (n > UINTEGER_MAX(unsignedlongtype))
-                ty = longlongtype;
-            else if (n > INTEGER_MAX(longtype))
-                ty = unsignedlongtype;
-            else
-                ty = longtype;
-        }
-        break;
-    case UNSIGNED:
-        if (n > UINTEGER_MAX(unsignedlongtype))
-            ty = unsignedlonglongtype;
-        else if (n > UINTEGER_MAX(unsignedinttype))
-            ty = unsignedlongtype;
-        else
-            ty = unsignedinttype;
-        break;
-    default:
-        if (base == 0) {
-            if (n > INTEGER_MAX(longtype))
-                ty = longlongtype;
-            else if (n > INTEGER_MAX(inttype))
-                ty = longtype;
-            else
-                ty = inttype;
-        } else {
-            if (n > INTEGER_MAX(longlongtype))
-                ty = unsignedlonglongtype;
-            else if (n > UINTEGER_MAX(unsignedlongtype))
-                ty = longlongtype;
-            else if (n > INTEGER_MAX(longtype))
-                ty = unsignedlongtype;
-            else if (n > UINTEGER_MAX(unsignedinttype))
-                ty = longtype;
-            else if (n > INTEGER_MAX(inttype))
-                ty = unsignedinttype;
-            else
-                ty = inttype;
-        }
-        break;
-    }
-
-    // overflow
-    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
-        error("integer constant overflow: %s", TOK_LIT_STR(t));
-
-    sym->type = ty;
-    sym->value = t->u.lit.v;
-}
-
-static void float_constant(struct token *t, struct symbol * sym)
-{
-    int suffix = t->u.lit.suffix;
-    switch (suffix) {
-    case FLOAT:
-        sym->type = floattype;
-        break;
-    case LONG + DOUBLE:
-        sym->type = longdoubletype;
-        break;
-    default:
-        sym->type = doubletype;
-        break;
-    }
-}
-
-static void string_constant(struct token *t, struct symbol * sym)
-{
-    const char *s = TOK_LIT_STR(t);
-    bool wide = s[0] == 'L' ? true : false;
-    struct type *ty;
-    if (wide) {
-        size_t len = strlen(s) - 3;
-        wchar_t *ws = xmalloc(sizeof(wchar_t) * (len+1));
-        errno = 0;
-        size_t wlen = mbstowcs(ws, s + 2, len);
-        if (errno == EILSEQ)
-            error("invalid multibyte sequence: %s", s);
-        assert(wlen <= len + 1);
-        ty = array_type(wchartype);
-        TYPE_LEN(ty) = wlen;
-        set_typesize(ty);
-    } else {
-        ty = array_type(chartype);
-        TYPE_LEN(ty) = strlen(s) - 1;
-        set_typesize(ty);
-    }
-    sym->type = ty;
-}
-
-static struct expr *literal_expr(struct token *t, int op,
-                                 void (*cnst) (struct token *, struct symbol *))
-{
-    struct expr *expr;
-    const char *name = TOK_LIT_STR(t);
-    struct symbol *sym = lookup(name, constants);
-    if (!sym) {
-        sym = install(name, &constants, CONSTANT, PERM);
-        cnst(t, sym);
-    }
-    if (t->id == SCONSTANT)
-        expr = ast_expr(mkop(op, voidptype), sym->type, NULL, NULL);
-    else
-        expr = ast_expr(mkop(op, sym->type), sym->type, NULL, NULL);
-    expr->sym = sym;
-    return expr;
-}
-
-struct expr *cnsti(long i, struct type *ty)
-{
-    int op = TYPE_OP(ty);
-    struct token t = {.id = ICONSTANT, .u.lit.str = op == INT ? strd(i) : stru(i), .u.lit.v.i = i};
-    return literal_expr(&t, CNST, integer_constant);
-}
-
-struct expr *cnsts(const char *string)
-{
-    struct token t = {.id = SCONSTANT, .u.lit.str = format("\"%s\"", string)};
-    return literal_expr(&t, CNST, string_constant);
-}
-
 static struct expr * do_iconst(struct token *tok)
 {
     return literal_expr(tok, CNST, integer_constant);
@@ -2213,54 +2468,6 @@ static struct expr * do_fconst(struct token *tok)
 static struct expr * do_sconst(struct token *tok)
 {
     return literal_expr(tok, CNST, string_constant);
-}
-
-static struct expr *mkref(struct symbol *sym, struct source src)
-{
-    int op;
-    struct type *ty = sym->type;
-    struct expr *ret;
-
-    if (has_static_extent(sym))
-        op = ADDRG;
-    else if (sym->scope == PARAM)
-        op = ADDRP;
-    else
-        op = ADDRL;
-
-    if (isfunc(ty))
-        ret = ast_expr(mkop(op, funcptype), ty, NULL, NULL);
-    else if (isarray(ty))
-        ret = ast_expr(mkop(op, voidptype), ty, NULL, NULL);
-    else
-        ret = ast_expr(mkop(op, voidptype), ptr_type(ty), NULL, NULL);
-    
-    ret->sym = sym;
-    use(sym);
-
-    if (isptr(ret->type))
-        return rvalue(ret);
-    else
-        return ret;
-}
-
-// implicit function declaration: int id();
-static struct symbol * implicit_func_decl(const char *id)
-{
-    struct type *ftype = func_type(inttype);
-    struct list *list = NULL;
-    ftype->u.f.oldstyle = true;
-    ftype->u.f.proto = ltoa(&list, PERM);
-            
-    struct symbol *sym = install(id, &externals, GLOBAL, PERM);
-    sym->sclass = EXTERN;
-    sym->type = ftype;
-    sym->src = source;
-
-    events(dclfun)(sym);
-    warning("implicit declaration of '%s'", id);
-
-    return sym;
 }
 
 static struct expr * do_id(struct token *tok)
@@ -2301,13 +2508,6 @@ static struct expr * do_paren(struct expr *e, struct source src)
 {
     e->paren = true;
     return e;
-}
-
-/// convenience
-
-static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
-{
-    return call(assignop)('=', expr, call(bop)(op, expr, cnst, src), src);
 }
 
 /// constant-expression:
@@ -2361,19 +2561,7 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
     return node;
 }
 
-struct expr *assign(struct symbol *sym, struct expr *r)
-{
-    struct expr *l = mkref(sym, sym->src);
-    return call(assignop)('=', l, r, sym->src);
-}
-
 /// init
-
-// TODO: 
-static void simple_init(struct desig *desig, struct expr *expr, struct list **plist)
-{
-    dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
-}
 
 // TODO: 
 static void do_element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
@@ -2406,120 +2594,6 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct lis
 
         simple_init(desig, expr, plist);
     }
-}
-
-static bool ensure_designator(struct desig *d)
-{
-    if (isincomplete(d->type)) {
-        int id;
-        if (d->id == DESIG_FIELD)
-            id = STRUCT;
-        else if (d->id == DESIG_INDEX)
-            id = ARRAY;
-        else
-            id = TYPE_KIND(d->type);
-
-        error_at(d->src,
-                 "%s designator of incomplete type '%s'",
-                 id2s(id), type2s(d->type));
-        return false;
-    }
-    return true;
-}
-
-#define check_designator(d)  ensure_designator(d) ? (d) : NULL
-
-static struct desig *next_designator1(struct desig *desig, bool initial)
-{
-    assert(desig);
-    
-    switch (desig->id) {
-    case DESIG_FIELD:
-        {
-            struct desig *prev = desig->prev;
-
-            assert(prev);
-            assert(isrecord(prev->type));
-
-            struct field *field = desig->u.field->link;
-            if (field) {
-                struct desig *d = new_desig_field(field, source);
-                d->offset = prev->offset + field->offset;
-                d->prev = copy_desig(prev);
-                return check_designator(d);
-            } else {
-                return next_designator1(prev, false);
-            }
-        }
-        break;
-
-    case DESIG_INDEX:
-        {
-            struct desig *prev = desig->prev;
-
-            assert(prev);
-            assert(isarray(prev->type));
-
-            size_t len = TYPE_LEN(prev->type);
-            long idx = desig->u.index;
-            if (len == 0 || idx < len - 1) {
-                struct type *rty = desig->type;
-                struct desig *d = new_desig_index(idx+1, source);
-                d->type = rty;
-                d->offset = desig->offset + TYPE_SIZE(rty);
-                d->prev = copy_desig(prev);
-                return check_designator(d);
-            } else {
-                return next_designator1(prev, false);
-            }
-        }
-        break;
-
-    case DESIG_NONE:
-        assert(desig->prev == NULL);
-        if (!initial) {
-            error("excess elements in %s initializer", TYPE_NAME(desig->type));
-            return NULL;
-        }
-        if (isrecord(desig->type)) {
-            struct field *first = TYPE_FIELDS(desig->type);
-            if (first) {
-                struct desig *d = new_desig_field(first, source);
-                d->offset = desig->offset + first->offset;
-                d->prev = copy_desig(desig);
-                return d;
-            } else {
-                // TODO: empty record
-                if (isincomplete(desig->type))
-                    error("initialize incomplete type '%s'",
-                          type2s(desig->type));
-                else
-                    error("initialize empty %s is not supported yet",
-                          id2s(TYPE_KIND(desig->type)));
-                return NULL;
-            }
-        } else if (isarray(desig->type)) {
-            struct type *rty = rtype(desig->type);
-            struct desig *d = new_desig_index(0, source);
-            d->type = rty;
-            d->offset = desig->offset;
-            d->prev = copy_desig(desig);
-            return d;
-        } else {
-            return desig;
-        }
-        break;
-    }
-    
-    CC_UNAVAILABLE
-}
-
-struct desig *next_designator(struct desig *desig)
-{
-    if (!desig)
-        return NULL;
-
-    return next_designator1(desig, true);
 }
 
 static struct desig *do_designator(struct desig *desig, struct desig **ds)
@@ -2602,92 +2676,7 @@ static struct expr * do_initializer_list(struct type *ty, struct init **inits)
     return ret;
 }
 
-static void init_string(struct type *ty, struct expr *node)
-{
-    int len1 = TYPE_LEN(ty);
-    int len2 = TYPE_LEN(node->type);
-    if (len1 > 0) {
-        if (len1 < len2 - 1)
-            warning("initializer-string for char array is too long");
-    } else if (isincomplete(ty)) {
-        TYPE_LEN(ty) = len2;
-        set_typesize(ty);
-    }
-}
-
-static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src)
-{    
-    // TODO:
-    return init;
-}
-
 /// stmt
-
-static void ensure_return(struct expr *expr, bool isnull, struct source src)
-{
-    // return immediately if expr is NULL. (parsing failed)    
-    if (expr == NULL)
-        return;
-
-    if (isvoid(rtype(func.type))) {
-        if (!isnull && !isvoid(expr->type))
-            error_at(src, "void function should not return a value");
-    } else {
-        if (!isnull) {
-            struct type *ty1 = expr->type;
-            struct type *ty2 = rtype(func.type);
-            if (!(expr = assignconv(ty2, expr)))
-                error_at(src,
-                         "returning '%s' from function with incompatible result type '%s'",
-                         type2s(ty1), type2s(ty2));
-        } else {
-            error_at(src, "non-void function should return a value");
-        }
-    }
-}
-
-void check_case_duplicates(struct cse *cse, struct swtch *swtch)
-{
-    assert(cse && swtch);
-    
-    for (struct cse *c = swtch->cases; c; c = c->link) {
-        if (c->value == cse->value) {
-            struct source prev = c->src;
-            error_at(cse->src,
-                     "duplicate case value '%lld', previous case defined here: %s:%u:%u",
-                     cse->value, prev.file, prev.line, prev.column);
-            break;
-        }
-    }
-}
-
-static void ensure_gotos(void)
-{
-    struct goto_info **gotos = ltoa(&func.gotos, FUNC);
-    for (int i = 0; gotos[i]; i++) {
-        struct goto_info *info = gotos[i];
-        const char *name = info->id;
-        struct symbol *sym = lookup(name, func.labels);
-        if (!sym || !sym->defined)
-            error_at(info->src, "use of undeclared label '%s'", name);
-    }
-}
-
-
-void mark_goto(const char *id, struct source src)
-{
-    struct goto_info *info = xmalloc(sizeof(struct goto_info));
-    info->id = id;
-    info->src = src;
-    func.gotos = list_append(func.gotos, info);
-}
-
-#define add_to_list(stmt)                       \
-    do {                                        \
-        *func.stmt = stmt;                      \
-        func.stmt = &stmt->next;                \
-    } while (0)
-
 
 static void do_branch(struct expr *expr, int tlab, int flab)
 {
@@ -2730,7 +2719,9 @@ static void do_gen(struct expr *expr)
     }
 }
 
+///
 /// public
+///
 
 int first_decl(struct token *t)
 {
@@ -2753,28 +2744,6 @@ int first_typename(struct token * t)
         (t->id == ID && istypedef(TOK_ID_STR(t)));
 }
 
-static void skip_balance(int l, int r, const char *name)
-{
-    int nests = 0;
-
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (token->id == r) {
-            if (nests-- == 0)
-                break;
-        } else if (token->id == l) {
-            nests++;
-        }
-        gettok();
-    }
-
-    if (token->id == r)
-        gettok();
-    else
-        error("unclosed %s, missing '%s'", name, id2s(r));
-}
-
 void skip_to_brace(void)
 {
     skip_balance('{', '}', "brace");
@@ -2788,17 +2757,6 @@ void skip_to_bracket(void)
 void skip_to_squarebracket(void)
 {
     skip_balance('[', ']', "square bracket");
-}
-
-static void skip_syntax(int (*first) (struct token *))
-{    
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (first(token))
-            break;
-        gettok();
-    }
 }
 
 void skip_to_decl(void)
@@ -2863,6 +2821,56 @@ struct symbol *tag_symbol(int t, const char *tag, struct source src)
 struct symbol *mklocal(const char *name, struct type * ty, int sclass)
 {
     return call(localdecl)(name, ty, sclass, 0, source);
+}
+
+struct desig *next_designator(struct desig *desig)
+{
+    if (!desig)
+        return NULL;
+
+    return next_designator1(desig, true);
+}
+
+struct expr *cnsti(long i, struct type *ty)
+{
+    int op = TYPE_OP(ty);
+    struct token t = {.id = ICONSTANT, .u.lit.str = op == INT ? strd(i) : stru(i), .u.lit.v.i = i};
+    return literal_expr(&t, CNST, integer_constant);
+}
+
+struct expr *cnsts(const char *string)
+{
+    struct token t = {.id = SCONSTANT, .u.lit.str = format("\"%s\"", string)};
+    return literal_expr(&t, CNST, string_constant);
+}
+
+struct expr *assign(struct symbol *sym, struct expr *r)
+{
+    struct expr *l = mkref(sym, sym->src);
+    return call(assignop)('=', l, r, sym->src);
+}
+
+void check_case_duplicates(struct cse *cse, struct swtch *swtch)
+{
+    assert(cse && swtch);
+    
+    for (struct cse *c = swtch->cases; c; c = c->link) {
+        if (c->value == cse->value) {
+            struct source prev = c->src;
+            error_at(cse->src,
+                     "duplicate case value '%lld', previous case defined here: %s:%u:%u",
+                     cse->value, prev.file, prev.line, prev.column);
+            break;
+        }
+    }
+}
+
+void mark_goto(const char *id, struct source src)
+{
+    struct goto_info *info = xmalloc(sizeof(struct goto_info));
+    info->id = id;
+    info->src = src;
+    func.gotos = list_append(func.gotos, info);
 }
 
 struct actions actions = {
