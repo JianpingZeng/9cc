@@ -213,6 +213,15 @@ static void print_symbol(struct symbol *sym, const char *prefix)
     print_symbol1(sym, 0, prefix);
 }
 
+static void print_init1(struct init *init, int level)
+{
+    for (struct init *p = init; p; p = p->link) {
+        print_level(level);
+        putln("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%s', body=%p") ">",
+             p->offset, p->boff, p->bsize, type2s(p->type), p->body);
+    }
+}
+
 static void print_expr1(struct expr * node, int level)
 {
     const char *name = opfullname(node->op);
@@ -227,6 +236,12 @@ static void print_expr1(struct expr * node, int level)
         print_expr1(node->kids[0], level + 1);
     if (node->kids[1])
         print_expr1(node->kids[1], level + 1);
+
+    switch (OPINDEX(node->op)) {
+    case COMPOUND:
+        print_init1(node->u.inits, level + 1);
+        break;
+    }
 }
 
 static void print_stmt1(struct stmt *stmt, int level)
