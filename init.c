@@ -5,7 +5,7 @@
 /// Initialization        C99 [6.7.8]
 ///
 
-static void parse_initializer_list(struct desig *, struct list **);
+static void parse_initializer_list(struct desig *, struct init **);
 
 static struct desig *parse_designator(struct desig *desig)
 {
@@ -42,7 +42,7 @@ static struct desig *parse_designator(struct desig *desig)
     return desig ? actions.designator(desig, ltoa(&list, FUNC)) : NULL;
 }
 
-static void parse_initializer(struct desig **pdesig, struct list **plist)
+static void parse_initializer(struct desig **pdesig, struct init **pinit)
 {
     if (token->id == '{') {
         // begin a new root designator
@@ -60,20 +60,20 @@ static void parse_initializer(struct desig **pdesig, struct list **plist)
             d->all = desig;         // all link
         }
         
-        parse_initializer_list(d, plist);
+        parse_initializer_list(d, pinit);
     } else {
-        actions.element_init(pdesig, assign_expr(), plist);
+        actions.element_init(pdesig, assign_expr(), pinit);
     }
 }
 
-static void parse_initializer_list(struct desig *desig, struct list **plist)
+static void parse_initializer_list(struct desig *desig, struct init **pinit)
 {
     struct desig *d = desig;
     
     expect('{');
 
     if (token->id == '}') {
-        actions.element_init(&desig, zinit(desig->type), plist);
+        actions.element_init(&desig, zinit(desig->type), pinit);
     } else {
         while (1) {
             if (token->id == '.' || token->id == '[')
@@ -81,7 +81,7 @@ static void parse_initializer_list(struct desig *desig, struct list **plist)
             else
                 d = next_designator(d);
 
-            parse_initializer(&d, plist);
+            parse_initializer(&d, pinit);
 
             if (token->id != ',')
                 break;
@@ -129,11 +129,11 @@ struct expr *initializer_list(struct type * ty)
 {
     if (ty) {
         struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0, .src = source};
-        struct list *list = NULL;
+        struct init *init = NULL;
 
-        parse_initializer_list(&desig, &list);        
+        parse_initializer_list(&desig, &init);        
 
-        return actions.initializer_list(ty, ltoa(&list, FUNC));
+        return actions.initializer_list(ty, init);
     } else {
         parse_initializer_list(NULL, NULL);
         return NULL;

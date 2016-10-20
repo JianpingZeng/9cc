@@ -30,6 +30,7 @@
 #define ERR_FUNC_RET_FUNC        "function cannot return function type '%s'"
 #define ERR_INCOMPLETE_VAR       "variable '%s' has incomplete type '%s'"
 #define ERR_INCOMPLETE_ELEM      "array has incomplete element type '%s'"
+#define ERR_INIT_EMPTY_RECORD    "initializer for aggregate with no elements requires explicit braces"
 
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src);
@@ -1090,8 +1091,7 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 d->prev = copy_desig(desig);
                 return d;
             } else if (isincomplete(desig->type)) {
-                error("initialize incomplete type '%s'",
-                      type2s(desig->type));
+                error("initialize incomplete type '%s'", type2s(desig->type));
                 return NULL;
             } else {
                 // empty record
@@ -1114,10 +1114,16 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
     CC_UNAVAILABLE
 }
 
-// TODO: 
-static void simple_init(struct desig *desig, struct expr *expr, struct list **plist)
+static void offset_init(struct desig *desig, struct expr *expr, struct init **pinit)
 {
+    // TODO: 
     dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
+}
+
+static void string_init(struct desig *desig, struct expr *expr, struct init **pinit)
+{
+    // TODO:
+    dlog("%s: (offset=%ld) <expr %p> <string>", desig2s(desig), desig->offset, expr);
 }
 
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
@@ -2605,7 +2611,7 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
 /// init
 
 // TODO: 
-static void do_element_init(struct desig **pdesig, struct expr *expr, struct list **plist)
+static void do_element_init(struct desig **pdesig, struct expr *expr, struct init **pinit)
 {
     struct desig *desig = *pdesig;
     if (!desig || !expr)
@@ -2616,30 +2622,39 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct lis
         if (first == NULL) {
             // empty record
             if (iszinit(expr))
-                simple_init(desig, expr, plist);
+                offset_init(desig, expr, pinit);
             else
-                error_at(desig->src, "todo");
+                error_at(desig->src, ERR_INIT_EMPTY_RECORD);
         } else if (eqtype(unqual(desig->type), unqual(expr->type))) {
-            simple_init(desig, expr, plist);
+            offset_init(desig, expr, pinit);
         } else {
+            // set to first field
             struct desig *d = new_desig_field(first, source);
             d->offset = desig->offset + first->offset;
             d->prev = desig;
             *pdesig = d;
-            call(element_init)(pdesig, expr, plist);
+            call(element_init)(pdesig, expr, pinit);
         }
     } else if (isarray(desig->type)) {
         if (isstring(desig->type) && issliteral(expr)) {
             // string
+            string_init(desig, expr, pinit);
         } else {
-            
+            // set to first index
+            struct type *rty = rtype(desig->type);
+            struct desig *d = new_desig_index(0, source);
+            d->type = rty;
+            d->offset = desig->offset;
+            d->prev = desig;
+            *pdesig = d;
+            call(element_init)(pdesig, expr, pinit);
         }
     } else {
         // scalar type
         if (desig->braces)
             warning_at(desig->src, "too many braces around scalar initializer");
 
-        simple_init(desig, expr, plist);
+        offset_init(desig, expr, pinit);
     }
 }
 
@@ -2725,7 +2740,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
     return desig;
 }
 
-static struct expr * do_initializer_list(struct type *ty, struct init **inits)
+static struct expr * do_initializer_list(struct type *ty, struct init *init)
 {
     struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
     // TODO: incomplete array type

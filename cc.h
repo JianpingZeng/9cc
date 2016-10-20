@@ -163,7 +163,7 @@ struct expr {
     struct type *vtype;
     union {
         struct expr **args;
-        struct init **inits;
+        struct init *inits;
         struct field *field;
     } u;
 };
@@ -194,6 +194,7 @@ struct init {
     short bsize;
     struct type *type;
     struct expr *body;
+    struct init *link;
 };
 
 /// operator
@@ -336,9 +337,9 @@ struct actions {
     void (*gen) (struct expr *expr);
 
     // init
-    void (*element_init) (struct desig **pdesig, struct expr *expr, struct list **plist);
+    void (*element_init) (struct desig **pdesig, struct expr *expr, struct init **pinit);
     struct desig * (*designator) (struct desig *desig, struct desig **ds);
-    struct expr * (*initializer_list) (struct type *ty, struct init **inits);
+    struct expr * (*initializer_list) (struct type *ty, struct init *init);
 };
 
 // metrics
