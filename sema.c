@@ -2682,7 +2682,7 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct ini
                 offset_init(desig, expr, pinit);
             else
                 error_at(desig->src, ERR_INIT_EMPTY_RECORD);
-        } else if (isstruct(expr->type) || isunion(expr->type)) {
+        } else if (eqtype(unqual(desig->type), unqual(expr->type))) {
             offset_init(desig, expr, pinit);
         } else {
             // set to first field
