@@ -30,6 +30,7 @@
 #define ERR_INCOMPLETE_VAR       "variable '%s' has incomplete type '%s'"
 #define ERR_INCOMPLETE_ELEM      "array has incomplete element type '%s'"
 #define ERR_INIT_EMPTY_RECORD    "initializer for aggregate with no elements requires explicit braces"
+#define ERR_INIT_OVERRIDE        "initializer overrides prior initialization"
 
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src);
@@ -1116,12 +1117,69 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
 
 static void offset_init(struct desig *desig, struct expr *expr, struct init **pinit)
 {
-    // TODO: 
-    dlog("%s: (offset=%ld) <expr %p>", desig2s(desig), desig->offset, expr);
+    assert(desig && expr && pinit);
+    assert(!isarray(desig->type));
+
+    struct type *ty = desig->type;
+    struct init **ilist = pinit;
+    struct init *p;
+    
+    if (isincomplete(ty) || isfunc(ty)) {
+        error_at(desig->src, "'%s' cannot have an initializer",
+                 TYPE_NAME(ty));
+        return;
+    }
+
+    //possible: scalar/struct/union
+
+    // assignment conversion
+    struct expr *n = assignconv(ty, expr);
+    if (n == NULL) {
+        error_at(desig->src, ERR_INCOMPATIBLE_TYPES,
+                 type2s(expr->type), type2s(ty));
+        return;
+    }
+
+    // check override
+    for (; (p = *ilist); ilist = &p->link) {
+        if (p->offset > desig->offset)
+            break;
+        if (p->offset == desig->offset) {
+            if (desig->id == DESIG_FIELD &&
+                isbitfield(desig->u.field)) {
+                // bitfield
+                if (p->boff < desig->u.field->bitoff)
+                    continue;
+                else if (p->boff > desig->u.field->bitoff)
+                    break;
+                // fall through
+            }
+
+            // overlapped
+            warning_at(desig->src, ERR_INIT_OVERRIDE);
+            p = p->link;    // remove from the list
+            break;
+        }
+    }
+
+    // insert
+    struct init *init = NEWS0(struct init, FUNC);
+    init->type = desig->type;
+    init->offset = desig->offset;
+    init->body = n;
+    if (desig->id == DESIG_FIELD) {
+        assert(!isindirect(desig->u.field));
+        init->boff = desig->u.field->bitoff;
+        init->bsize = desig->u.field->bitsize;
+    }
+    init->link = p;
+    *ilist = init;
 }
 
 static void string_init(struct desig *desig, struct expr *expr, struct init **pinit)
 {
+    assert(desig && expr && pinit);
+    
     // TODO:
     dlog("%s: (offset=%ld) <expr %p> <string>", desig2s(desig), desig->offset, expr);
 }
@@ -2625,7 +2683,7 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct ini
                 offset_init(desig, expr, pinit);
             else
                 error_at(desig->src, ERR_INIT_EMPTY_RECORD);
-        } else if (eqtype(unqual(desig->type), unqual(expr->type))) {
+        } else if (isstruct(expr->type) || isunion(expr->type)) {
             offset_init(desig, expr, pinit);
         } else {
             // set to first field
@@ -2742,11 +2800,12 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
 
 static struct expr * do_initializer_list(struct type *ty, struct init *init)
 {
-    struct expr *ret = ast_expr(COMPOUND, ty, NULL, NULL);
+    struct expr *n = ast_expr(COMPOUND, ty, NULL, NULL);
     // TODO: incomplete array type
     // TODO: sort inits
     // TODO: merge bitfields
-    return ret;
+    n->u.inits = init;
+    return n;
 }
 
 /// stmt
