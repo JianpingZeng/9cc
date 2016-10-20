@@ -1187,7 +1187,7 @@ static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct so
     return call(assignop)('=', expr, call(bop)(op, expr, cnst, src), src);
 }
 
-static struct expr *mkref(struct symbol *sym, struct source src)
+static struct expr *mkref(struct symbol *sym)
 {
     int op;
     struct type *ty = sym->type;
@@ -2359,8 +2359,8 @@ static struct expr * do_logical_not(struct expr *operand, struct source src)
         return NULL;
     }
 
-    struct expr *t1 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
-    struct expr *t2 = mkref(mklocal(gen_tmpname(), inttype, REGISTER), src);
+    struct expr *t1 = mkref(mklocal(gen_tmpname(), inttype, REGISTER));
+    struct expr *t2 = mkref(mklocal(gen_tmpname(), inttype, REGISTER));
     struct expr *then = call(assignop)('=', t1, cnsti(0, inttype), src);
     struct expr *els = call(assignop)('=', t2, cnsti(1, inttype), src);
 
@@ -2585,18 +2585,18 @@ static struct expr * do_id(struct token *tok)
             // enum ids
             return cnsti(sym->value.i, rtype(sym->type));
         else
-            return mkref(sym, source);
+            return mkref(sym);
     } else if (lookahead()->id == '(') {
         // lookup in externals
         sym = lookup(id, externals);
         if (sym == NULL) {
             // implicit function declaration: int id();
             sym = implicit_func_decl(id);
-            return mkref(sym, source);
+            return mkref(sym);
         } else if (isfunc(sym->type) || isptrto(sym->type, FUNCTION)) {
             warning("use of out-of-scope declaration of '%s', previous declaration is here: %s:%u:%u",
                     id, sym->src.file, sym->src.line, sym->src.column);
-            return mkref(sym, source);
+            return mkref(sym);
         } else {
             error("use of '%s' does not match previous declaration at: %s:%u:%u",
                   id, sym->src.file, sym->src.line, sym->src.column);
@@ -2976,7 +2976,7 @@ struct expr *cnsts(const char *string)
 
 struct expr *assign(struct symbol *sym, struct expr *r)
 {
-    struct expr *l = mkref(sym, sym->src);
+    struct expr *l = mkref(sym);
     return call(assignop)('=', l, r, sym->src);
 }
 
