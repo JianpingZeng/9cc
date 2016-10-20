@@ -2,12 +2,44 @@
 Expression
 ==========
 
+        Expression that can be lvalues:
+
+        Expression          Additional requirements
+        --------------------------------------------
+        name                name must be a variable
+        e[k]                none
+        (e)                 e must be an lvalue
+        e.name              e must be an lvalue
+        e->name             none
+        *e                  none
+        string-constant     none
+        --------------------------------------------
+
+        Operators requiring lvalue operands:
+
+        Operator            Requirement
+        ---------------------------------------------------------------
+        & (unary)           operand must be an lvalue or function name
+        ++ --               operand must be an lvalue (postfix, prefix)
+        = += -= *= /= %=    left operand must be an lvalue
+        <<= >>= &= ^= |=
+        ---------------------------------------------------------------
+
 primary:
 --------
 
 (1) constant: CNSTI/CNSTU/CNSTF/CNSTP
 
+    ------------------------------------------------
+    Result: _NOT_ an lvalue (except string constant)
+    ------------------------------------------------
+
 (2)id:
+
+    -----------------------------------------------------
+    Result: an lvalue (except enum constant) or function
+    -----------------------------------------------------
+
        kind       op              type
      0. enum id:  CNST            integer
      1. function: ADDRGP          function
@@ -21,7 +53,27 @@ postfix:
 --------
 
 (1) compound literal: COMPOUND
+
+    ----------------------------------
+    Result: an lvalue (to the object)
+    ----------------------------------
+
+    Requirements:
+    1. create an unnamed object of the designated type
+
+
+
 (2) (post) tree++, tree--:
+
+    ------------------------
+    Result: _NOT_ an lvalue
+    ------------------------
+
+    Requirements:
+    1. tree must be scalar type
+    2. tree must be an lvalue and modifiable
+
+
   相当于 tmp = tree, tree = tree + 1, tmp
 
                    RIGHT
@@ -67,17 +119,47 @@ postfix:
 
 (3) direction: tree->id, tree.id
 
+    ----------------------------------------------
+    Result:
+    tree->id:       an lvalue
+    tree.id:        an lvalue if tree is an lvalue
+    -----------------------------------------------
+
+    Requirements:
+    1. tree.id:     tree must be struct or union type
+       tree->id:    tree must be pointer to struct or union type
+
+
             MEMBER (.u.field)
               |
              tree
 
 (4) funcall: tree()
 
+    --------------------------
+    Result: _NEVER_ an lvalue
+    --------------------------
+
+    Requirements:
+    1. tree must be pointer to function after usual unary conversions
+
+
              CALL (.u.args)
               |
              tree
 
 (5) subscript: tree1[tree2]
+
+    ---------------------------
+    Result: _ALWAYS_ an lvalue
+    ---------------------------
+
+    Requirements:
+    1. tree1 (integer) and tree2 (pointer)
+    or tree1 (pointer) and tree2 (integer)
+
+
+
   相当于 *(tree1+tree2)
 
                 INDIR
@@ -92,9 +174,20 @@ unary:
 
 (1) sizeof:     sizeof (type-name), sizeof tree
 
+    ----------------------------
+    Result:     _NOT_ an lvalue
+    ----------------------------
+    
+
                 CNST   (integer)
 
 (2) (prefix) ++tree, --tree:
+
+    ----------------------------
+    Result:     _NOT_ an lvalue
+    ----------------------------
+
+
   相当于 tree = tree + 1
 
              ASGN
@@ -104,9 +197,18 @@ unary:
               tree   CNST (1)
 
 (3) + tree:
+
+    ----------------------------
+    Result:     _NOT_ an lvalue
+    ----------------------------
+
   相当于 tree
 
 (4) - tree:
+
+    ----------------------------
+    Result:     _NOT_ an lvalue
+    ----------------------------
 
         NEG
          |
@@ -114,11 +216,19 @@ unary:
 
 (5) ~ tree:
 
+    ----------------------------
+    Result:     _NOT_ an lvalue
+    ----------------------------
+
         NOT
          |
         tree
 
 (6) ! tree:
+
+    ----------------------------
+    Result:     _NOT_ an lvalue
+    ----------------------------
 
                 COND
                 /   \
@@ -130,11 +240,26 @@ unary:
 
 (7) * tree:
 
+    --------------------------------
+    Result:   an lvalue or function
+    --------------------------------
+
+
         INDIR
           |
          tree
 
 (8) & tree:
+
+    -----------------------------
+      Result: _NEVER_ an lvalue
+    -----------------------------
+
+      Requirements:
+      1. tree must be an lvalue or function
+      2. the object cannot be declared with 'REGISTER'
+      3. the object cannot be a bit field
+
 
                kind     op              type
         1. function:    tree            ptr to function
@@ -145,12 +270,21 @@ unary:
 cast: (type-name) tree
 -----
 
+        ------------------------
+        Result: _NOT_ an lvalue
+        ------------------------
+
         CVxx
          |
         tree
 
 binary:
 -------
+
+        ------------------------
+        Result: _NOT_ an lvalue
+        ------------------------
+        
 
 FORM:  tree1 op tree2
 
@@ -162,6 +296,11 @@ FORM:  tree1 op tree2
 conditional:
 ------------
 
+        ------------------------
+        Result: _NOT_ an lvalue
+        ------------------------
+
+
 FORM: tree0 ? tree1 : tree2
 
             COND
@@ -172,6 +311,11 @@ FORM: tree0 ? tree1 : tree2
 
 assignment:
 -----------
+
+        --------------------------
+        Result: _NEVER_ an lvalue
+        --------------------------
+        
 
 FORM: tree1 = tree2, tree1 op= tree2
 
@@ -188,6 +332,11 @@ FORM: tree1 = tree2, tree1 op= tree2
 
 comma:
 ------
+
+        ------------------------
+        Result: _NOT_ an lvalue
+        ------------------------
+
 
 FORM: tree1, tree2, tree3, ..., treeN
 
