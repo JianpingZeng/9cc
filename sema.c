@@ -1115,13 +1115,12 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
     CC_UNAVAILABLE
 }
 
-static void offset_init(struct desig *desig, struct expr *expr, struct init **pinit)
+static void offset_init(struct desig *desig, struct expr *expr, struct init **ilist)
 {
-    assert(desig && expr && pinit);
+    assert(desig && expr && ilist);
     assert(!isarray(desig->type));
 
     struct type *ty = desig->type;
-    struct init **ilist = pinit;
     struct init *p;
     
     if (isincomplete(ty) || isfunc(ty)) {
