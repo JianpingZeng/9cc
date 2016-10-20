@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "cc.h"
 
+#define MAX_STRUCT_PARAM_SIZE  16
+
 static void init(int argc, char *argv[])
 {
 }

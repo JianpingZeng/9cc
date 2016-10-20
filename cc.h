@@ -128,7 +128,7 @@ struct symbol {
         struct expr *init;               // initializer expr
         // function
         struct {
-            struct expr **calls;
+            struct expr *xcall; // call with max parameter size
             struct stmt *stmt;
         } f;
         // enum/struct/union
@@ -253,6 +253,13 @@ struct stmt {
     struct stmt *next;
 };
 
+/// goto info
+struct goinfo {
+    const char *id;
+    struct source src;
+    struct goinfo *link;
+};
+
 /// switch structs
 
 struct cse {
@@ -274,9 +281,9 @@ struct swtch {
 struct func {
     const char *name;
     struct type *type;
-    struct list *gotos;
+    struct goinfo *gotos;
     struct table *labels;
-    struct list *calls;
+    struct expr *xcall;
     struct stmt **stmt;
 };
 

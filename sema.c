@@ -5,10 +5,9 @@
 
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
-#define MAX_STRUCT_PARAM_SIZE  16
-#define INSTALL(name)  .name = do_##name
+#define INIT(name)  .name = do_##name
 #define call(func)  do_##func
-#define events(func)  func
+#define events(func)  ev_##func
 
 #define add_to_list(stmt)                       \
     do {                                        \
@@ -38,11 +37,6 @@ static struct expr *assignconv(struct type *ty, struct expr *node);
 static void init_string(struct type *ty, struct expr *node);
 static void doglobal(struct symbol *sym, void *context);
 
-struct goto_info {
-    const char *id;
-    struct source src;
-};
-
 struct func func;
 
 ///
@@ -50,34 +44,34 @@ struct func func;
 ///
 
 // declare a global variable
-static void dclgvar(struct symbol *n)
+static void ev_dclgvar(struct symbol *n)
 {
     if (opts.ast_dump)
         ast_dump_vardecl(n);
 }
 
 // declare a function
-static void dclfun(struct symbol *n)
+static void ev_dclfun(struct symbol *n)
 {
     if (opts.ast_dump)
         ast_dump_funcdecl(n);
 }
 
 // declare/define a type: struct/union/enum/typedef
-static void deftype(struct symbol *n)
+static void ev_deftype(struct symbol *n)
 {
     if (opts.ast_dump)
         ast_dump_typedecl(n);
 }
 
 // define a local variable
-static void deflvar(struct symbol *n)
+static void ev_deflvar(struct symbol *n)
 {
     // TODO: 
 }
 
 // define a local static variable
-static void defsvar(struct symbol *n)
+static void ev_defsvar(struct symbol *n)
 {
     if (opts.ast_dump || errors())
         return;
@@ -85,7 +79,7 @@ static void defsvar(struct symbol *n)
 }
 
 // define a global variable
-static void defgvar(struct symbol *n)
+static void ev_defgvar(struct symbol *n)
 {
     if (opts.ast_dump) {
         ast_dump_vardecl(n);
@@ -97,7 +91,7 @@ static void defgvar(struct symbol *n)
 }
 
 // define a function
-static void defun(struct symbol *n)
+static void ev_defun(struct symbol *n)
 {
     if (opts.ast_dump) {
         ast_dump_funcdef(n);
@@ -106,6 +100,14 @@ static void defun(struct symbol *n)
     if (errors())
         return;
     IR->defun(n);
+}
+
+// a funcall
+static void ev_funcall(struct expr *call)
+{
+    // compare the func.call and call
+    // and set the larger to func.call
+    // TODO: 
 }
 
 /// init/finalize
@@ -386,13 +388,10 @@ static void ensure_return(struct expr *expr, bool isnull, struct source src)
 
 static void ensure_gotos(void)
 {
-    struct goto_info **gotos = ltoa(&func.gotos, FUNC);
-    for (int i = 0; gotos[i]; i++) {
-        struct goto_info *info = gotos[i];
-        const char *name = info->id;
-        struct symbol *sym = lookup(name, func.labels);
+    for (struct goinfo *p = func.gotos; p; p = p->link) {
+        struct symbol *sym = lookup(p->id, func.labels);
         if (!sym || !sym->defined)
-            error_at(info->src, "use of undeclared label '%s'", name);
+            error_at(p->src, "use of undeclared label '%s'", p->id);
     }
 }
 
@@ -984,7 +983,7 @@ static void func_body(struct symbol *sym)
     func.labels = new_table(NULL, LOCAL);
     func.type = sym->type;
     func.name = sym->name;
-    func.calls = NULL;
+    func.xcall = NULL;
     func.stmt = &stmt;
 
     // compound statement
@@ -993,13 +992,14 @@ static void func_body(struct symbol *sym)
     ensure_gotos();
 
     // save
-    sym->u.f.calls = ltoa(&func.calls, FUNC);
+    sym->u.f.xcall = func.xcall;
     sym->u.f.stmt = stmt;
 
     free_table(func.labels);
     func.labels = NULL;
     func.type = NULL;
     func.name = NULL;
+    func.xcall = NULL;
     func.stmt = NULL;
 }
 
@@ -2428,7 +2428,8 @@ static struct expr * do_funcall(struct expr *node, struct expr **args, struct so
     
     ret = ast_expr(CALL, rtype(fty), node, NULL);
     ret->u.args = args;
-    func.calls = list_append(func.calls, ret);
+    
+    events(funcall)(ret);
 
     return ret;
 }
@@ -2939,10 +2940,11 @@ void check_case_duplicates(struct cse *cse, struct swtch *swtch)
 
 void mark_goto(const char *id, struct source src)
 {
-    struct goto_info *info = NEW(sizeof(struct goto_info), FUNC);
-    info->id = id;
-    info->src = src;
-    func.gotos = list_append(func.gotos, info);
+    struct goinfo *p = NEW(sizeof(struct goinfo), FUNC);
+    p->id = id;
+    p->src = src;
+    p->link = func.gotos;
+    func.gotos = p;
 }
 
 struct actions actions = {
@@ -2950,58 +2952,58 @@ struct actions actions = {
     .finalize = finalize,
 
     // decl
-    INSTALL(enumdecl),
-    INSTALL(recorddecl),
-    INSTALL(globaldecl),
-    INSTALL(localdecl),
-    INSTALL(paramdecl),
-    INSTALL(typedefdecl),
-    INSTALL(funcdef),
+    INIT(enumdecl),
+    INIT(recorddecl),
+    INIT(globaldecl),
+    INIT(localdecl),
+    INIT(paramdecl),
+    INIT(typedefdecl),
+    INIT(funcdef),
 
-    INSTALL(array_index),
-    INSTALL(prototype),
-    INSTALL(enum_id),
-    INSTALL(direct_field),
-    INSTALL(indirect_field),
+    INIT(array_index),
+    INIT(prototype),
+    INIT(enum_id),
+    INIT(direct_field),
+    INIT(indirect_field),
 
     // expr
-    INSTALL(commaop),
-    INSTALL(assignop),
-    INSTALL(condop),
-    INSTALL(logicop),
-    INSTALL(bop),
-    INSTALL(castop),
-    INSTALL(pre_increment),
-    INSTALL(minus_plus),
-    INSTALL(bitwise_not),
-    INSTALL(logical_not),
-    INSTALL(address),
-    INSTALL(indirection),
-    INSTALL(sizeofop),
-    INSTALL(subscript),
-    INSTALL(funcall),
-    INSTALL(direction),
-    INSTALL(post_increment),
-    INSTALL(id),
-    INSTALL(iconst),
-    INSTALL(fconst),
-    INSTALL(sconst),
-    INSTALL(paren),
-    INSTALL(compound_literal),
+    INIT(commaop),
+    INIT(assignop),
+    INIT(condop),
+    INIT(logicop),
+    INIT(bop),
+    INIT(castop),
+    INIT(pre_increment),
+    INIT(minus_plus),
+    INIT(bitwise_not),
+    INIT(logical_not),
+    INIT(address),
+    INIT(indirection),
+    INIT(sizeofop),
+    INIT(subscript),
+    INIT(funcall),
+    INIT(direction),
+    INIT(post_increment),
+    INIT(id),
+    INIT(iconst),
+    INIT(fconst),
+    INIT(sconst),
+    INIT(paren),
+    INIT(compound_literal),
 
-    INSTALL(intexpr),
-    INSTALL(bool_expr),
-    INSTALL(switch_expr),
+    INIT(intexpr),
+    INIT(bool_expr),
+    INIT(switch_expr),
 
     // stmt
-    INSTALL(branch),
-    INSTALL(jump),
-    INSTALL(ret),
-    INSTALL(label),
-    INSTALL(gen),
+    INIT(branch),
+    INIT(jump),
+    INIT(ret),
+    INIT(label),
+    INIT(gen),
 
     // init
-    INSTALL(element_init),
-    INSTALL(designator),
-    INSTALL(initializer_list),
+    INIT(element_init),
+    INIT(designator),
+    INIT(initializer_list),
 };
