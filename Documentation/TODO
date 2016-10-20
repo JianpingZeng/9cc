@@ -65,6 +65,11 @@ v0.4:
         TODO: 新的ast,IR和gen
 
 
+BUGS:
+-----
+
+1. 在文件EOI处出现expect错误时，source location 为 "null:0:0"
+
 
 TODO:
 -----

@@ -1040,6 +1040,9 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
             assert(isrecord(prev->type));
 
             struct field *field = desig->u.field->link;
+            // skip indirect field
+            while (field && isindirect(field))
+                field = field->link;
             if (field) {
                 struct desig *d = new_desig_field(field, source);
                 d->offset = prev->offset + field->offset;
@@ -1092,7 +1095,8 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 return NULL;
             } else {
                 // empty record
-                return desig;
+                error("excess elements in %s initializer", TYPE_NAME(desig->type));
+                return NULL;
             }
         } else if (isarray(desig->type)) {
             struct type *rty = rtype(desig->type);
@@ -2663,8 +2667,19 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
                     field_not_found_error(d->src, desig->type, name);
                     return NULL;
                 }
+                // indirect
+                if (isindirect(field)) {
+                    for (int i = 0; field->of[i]; i++) {
+                        struct field *p = field->of[i];
+                        struct desig *d = new_desig_field(p, p->src);
+                        d->offset = desig->offset + p->offset;
+                        d->prev = desig;
+                        desig = d;
+                    }
+                    field = direct(field);
+                }
                 d->offset = desig->offset + field->offset;
-                d->type = direct(field)->type;
+                d->type = field->type;
                 d->u.field = field;
                 d->prev = desig;
                 desig = d;
