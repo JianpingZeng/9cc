@@ -35,7 +35,6 @@
 static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src);
 static struct expr *assignconv(struct type *ty, struct expr *node);
-static void init_string(struct type *ty, struct expr *node);
 static void doglobal(struct symbol *sym, void *context);
 
 struct func func;
@@ -955,6 +954,19 @@ static void mkfuncdecl(struct symbol *sym, struct type *ty, int sclass, struct s
     sym->sclass = sclass;
 }
 
+static void init_string(struct type *ty, struct expr *node)
+{
+    int len1 = TYPE_LEN(ty);
+    int len2 = TYPE_LEN(node->type);
+    if (len1 > 0) {
+        if (len1 < len2 - 1)
+            warning("initializer-string for char array is too long");
+    } else if (isincomplete(ty)) {
+        TYPE_LEN(ty) = len2;
+        set_typesize(ty);
+    }
+}
+
 static void predefined_ids(void)
 {
     /**
@@ -1014,19 +1026,6 @@ static void doglobal(struct symbol *sym, void *context)
 
     sym->defined = true;
     events(defgvar)(sym);
-}
-
-static void init_string(struct type *ty, struct expr *node)
-{
-    int len1 = TYPE_LEN(ty);
-    int len2 = TYPE_LEN(node->type);
-    if (len1 > 0) {
-        if (len1 < len2 - 1)
-            warning("initializer-string for char array is too long");
-    } else if (isincomplete(ty)) {
-        TYPE_LEN(ty) = len2;
-        set_typesize(ty);
-    }
 }
 
 static struct desig *next_designator1(struct desig *desig, bool initial)
