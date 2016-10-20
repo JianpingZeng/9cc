@@ -2,6 +2,63 @@
 Expression
 ==========
 
+primary:
+        constant: CNSTI/CNSTU/CNSTF/CNSTP
+        id:
+             kind       op              type
+           1. function: ADDRGP          function
+           2. array:    ADDR            array
+           3. others:
+                        INDIR           type
+                          |
+                         ADDR           ptr to type
+
+postfix:
+        compound literal:       COMPOUND
+        post ++/--:
+                        RIGHT
+                        /   \
+                    RIGHT   node
+                    /   \
+                  node  ASGN
+                        /   \
+                      node  ADD/SUB
+                             /   \
+                           node   CNST (1)
+
+         为什么不是以下这样呢？
+         
+                        RIGHT
+                        /   \
+                     ASGN   node
+                    /   \
+                  node  ADD/SUB
+                        /   \
+                      node  CNST (1)
+
+         这里解释下：
+                首先注意下，虽然画出来是树，其实是DAG，因为node都是同一个指针。
+                RIGHT 树也是从左到右遍历子树。因此低层的 RIGHT 树保证了在 ASGN 树
+                执行前，对 node 树的「右值」进行计算和保存。上面的图详细的标注如下：
+
+                        RIGHT
+                        /   \
+                    RIGHT   node's rvalue
+                    /   \
+         node's rvalue  ASGN
+                        /   \
+             node's lvalue  ADD/SUB
+                             /   \
+                 node's rvalue   CNST (1)
+
+         伪代码如下：
+                 t1 = rvalue(node)
+                 t2 = lvalue(node)
+                 [t2] = t1 + 1
+                 return t1
+
+Draft
+======
 
 INTEGER_LITERAL:        CNSTI
 
