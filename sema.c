@@ -2610,7 +2610,6 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
 
 /// init
 
-// TODO: 
 static void do_element_init(struct desig **pdesig, struct expr *expr, struct init **pinit)
 {
     struct desig *desig = *pdesig;
