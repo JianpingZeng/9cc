@@ -1,6 +1,18 @@
 #include <assert.h>
 #include "cc.h"
 
+static struct expr *expression(void);
+static struct expr *assign_expr(void);
+static long intexpr1(struct type *ty);
+static long intexpr(void);
+// for expression in conditional statement
+static struct expr *bool_expr(void);
+// for expression in switch statement
+static struct expr *switch_expr(void);
+static struct expr *initializer_list(struct type *ty);
+static void declaration(void);
+static struct type *typename(void);
+
 /*=================================================================*
  *                        expression                               *
  *=================================================================*/
@@ -492,7 +504,7 @@ static struct expr *cond_expr(void)
 /// assignment-operator:
 ///   '=' '*=' '/=' '%=' '+=' '-=' '<<=' '>>=' '&=' '^=' '|='
 ///
-struct expr *assign_expr(void)
+static struct expr *assign_expr(void)
 {
     struct expr *or1 = logic_or();
     if (token->id == '?')
@@ -510,7 +522,7 @@ struct expr *assign_expr(void)
 ///   assignment-expression
 ///   expression ',' assignment-expression
 ///
-struct expr *expression(void)
+static struct expr *expression(void)
 {
     struct expr *assign1;
 
@@ -523,26 +535,26 @@ struct expr *expression(void)
     return assign1;
 }
 
-long intexpr1(struct type *ty)
+static long intexpr1(struct type *ty)
 {
     struct source src = source;
     return actions.intexpr(cond_expr(), ty, src);
 }
 
-long intexpr(void)
+static long intexpr(void)
 {
     return intexpr1(NULL);
 }
 
 // for expression in conditional statement
-struct expr *bool_expr(void)
+static struct expr *bool_expr(void)
 {
     struct source src = source;
     return actions.bool_expr(expression(), src);
 }
 
 // for expression in switch statement
-struct expr *switch_expr(void)
+static struct expr *switch_expr(void)
 {
     struct source src = source;
     return actions.switch_expr(expression(), src);
@@ -1171,7 +1183,7 @@ struct expr *initializer(struct type * ty)
 ///   '[' constant-expression ']'
 ///   '.' identifier
 ///
-struct expr *initializer_list(struct type * ty)
+static struct expr *initializer_list(struct type * ty)
 {
     if (ty) {
         struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0, .src = source};
@@ -2189,10 +2201,27 @@ static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, s
     match(';', skip_to_decl);
 }
 
-void declaration(void)
+static void declaration(void)
 {
     assert(cscope >= LOCAL);
     decls(actions.localdecl);
+}
+
+/// type-name:
+///   specifier-qualifier-list abstract-declarator[opt]
+///
+static struct type *typename(void)
+{
+    struct type *basety;
+    struct type *ty = NULL;
+
+    basety = specifiers(NULL, NULL);
+    if (token->id == '*' || token->id == '(' || token->id == '[')
+        abstract_declarator(&ty);
+
+    attach_type(&ty, basety);
+
+    return ty;
 }
 
 /// translation-unit:
@@ -2218,21 +2247,4 @@ void translation_unit(void)
     }
 
     actions.finalize();
-}
-
-/// type-name:
-///   specifier-qualifier-list abstract-declarator[opt]
-///
-struct type *typename(void)
-{
-    struct type *basety;
-    struct type *ty = NULL;
-
-    basety = specifiers(NULL, NULL);
-    if (token->id == '*' || token->id == '(' || token->id == '[')
-        abstract_declarator(&ty);
-
-    attach_type(&ty, basety);
-
-    return ty;
 }

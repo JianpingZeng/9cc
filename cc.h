@@ -432,28 +432,9 @@ extern struct desig *copy_desig(struct desig *desig);
 extern struct expr *eval(struct expr *expr, struct type *ty);
  
 // parser.c
-
-// expr
-extern struct expr *expression(void);
-extern struct expr *assign_expr(void);
-extern long intexpr1(struct type *ty);
-extern long intexpr(void);
-// for expression in conditional statement
-extern struct expr *bool_expr(void);
-// for expression in switch statement
-extern struct expr *switch_expr(void);
-
-// decl
-extern void declaration(void);
 extern void translation_unit(void);
-extern struct type *typename(void);
-
-// stmt
 extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
-
-// init
 extern struct expr *initializer(struct type *ty);
-extern struct expr *initializer_list(struct type *ty);
 
 // sema.c
 extern int first_decl(struct token *t);
