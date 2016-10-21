@@ -456,13 +456,13 @@ extern struct symbol *tag_symbol(int t, const char *tag, struct source src);
 
 extern struct symbol *lookup_typedef(const char *id);
 extern bool istypedef(const char *id);
+
 extern struct desig *next_designator(struct desig *desig);
 
 extern struct expr *cnsti(long i, struct type *ty);
 extern struct expr *cnsts(const char *string);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
-extern struct symbol *mktmp(const char *name, struct type *ty, int sclass);
 
 // type.c
 extern void type_init(void);

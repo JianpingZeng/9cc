@@ -5,7 +5,6 @@
 
 static struct expr *assignconv(struct type *ty, struct expr *node);
 static void doglobal(struct symbol *sym, void *context);
-static void field_not_found_error(struct source src, struct type *ty, const char *name);
 struct func func;
 
 #define ERR_INCOMPATIBLE_TYPES   "incompatible type conversion from '%s' to '%s'"
@@ -121,6 +120,58 @@ static void finalize(void)
         return;
     foreach(identifiers, GLOBAL, doglobal, NULL);
     IR->finalize();
+}
+
+/*=================================================================*
+ *                           Private                               *
+ *=================================================================*/
+
+static void skip_balance(int l, int r, const char *name)
+{
+    int nests = 0;
+
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (token->id == r) {
+            if (nests-- == 0)
+                break;
+        } else if (token->id == l) {
+            nests++;
+        }
+        gettok();
+    }
+
+    if (token->id == r)
+        gettok();
+    else
+        error("unclosed %s, missing '%s'", name, id2s(r));
+}
+
+static void skip_to_first(int (*first) (struct token *))
+{    
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (first(token))
+            break;
+        gettok();
+    }
+}
+
+static void field_not_found_error(struct source src, struct type *ty, const char *name)
+{
+    if (isincomplete(ty))
+        error_at(src, "incomplete definition of type '%s'", type2s(ty));
+    else
+        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
+}
+
+struct symbol *mktmp(const char *name, struct type *ty, int sclass)
+{
+    struct symbol *sym = actions.localdecl(name, ty, sclass, 0, source);
+    sym->temporary = true;
+    return sym;
 }
 
 /*=================================================================*
@@ -2833,51 +2884,6 @@ static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
 }
 
 /*=================================================================*
- *                           Private                               *
- *=================================================================*/
-
-static void skip_balance(int l, int r, const char *name)
-{
-    int nests = 0;
-
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (token->id == r) {
-            if (nests-- == 0)
-                break;
-        } else if (token->id == l) {
-            nests++;
-        }
-        gettok();
-    }
-
-    if (token->id == r)
-        gettok();
-    else
-        error("unclosed %s, missing '%s'", name, id2s(r));
-}
-
-static void skip_to_first(int (*first) (struct token *))
-{    
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (first(token))
-            break;
-        gettok();
-    }
-}
-
-static void field_not_found_error(struct source src, struct type *ty, const char *name)
-{
-    if (isincomplete(ty))
-        error_at(src, "incomplete definition of type '%s'", type2s(ty));
-    else
-        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
-}
-
-/*=================================================================*
  *                          Public                                 *
  *=================================================================*/
 
@@ -2973,13 +2979,6 @@ struct symbol *tag_symbol(int t, const char *tag, struct source src)
     sym->src = src;
     ty->u.s.tsym = sym;
 
-    return sym;
-}
-
-struct symbol *mktmp(const char *name, struct type *ty, int sclass)
-{
-    struct symbol *sym = actions.localdecl(name, ty, sclass, 0, source);
-    sym->temporary = true;
     return sym;
 }
 
