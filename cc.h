@@ -428,6 +428,9 @@ extern struct desig *copy_desig(struct desig *desig);
 #define issliteral(n)  (OPID((n)->op) == CNST+P)
 #define iszinit(n)     ((n)->op == 0)
 
+// tree.c
+extern struct expr * reduce(struct expr *expr);
+
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
  

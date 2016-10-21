@@ -66,6 +66,7 @@ CC1_OBJ += symtab.o
 CC1_OBJ += type.o
 CC1_OBJ += parser.o
 CC1_OBJ += sema.o
+CC1_OBJ += tree.o
 CC1_OBJ += eval.o
 CC1_OBJ += print.o
 CC1_OBJ += x86_64-linux.o

@@ -1,6 +1,7 @@
 #include <assert.h>
 #include "cc.h"
 
+static struct expr *expression0(void); // topmost expression (can be simplified)
 static struct expr *expression(void);
 static struct expr *assign_expr(void);
 static long intexpr1(struct type *ty);
@@ -535,6 +536,11 @@ static struct expr *expression(void)
     return assign1;
 }
 
+static struct expr *expression0(void)
+{
+    return reduce(expression());
+}
+
 static long intexpr1(struct type *ty)
 {
     struct source src = source;
@@ -573,7 +579,7 @@ static void expr_stmt(void)
     if (token->id == ';') {
         // do nothing
     } else if (first_expr(token)) {
-        struct expr *e = expression();
+        struct expr *e = expression0();
         if (e) actions.gen(e);
     } else {
         error("missing statement before '%s'", tok2s(token));
@@ -699,7 +705,7 @@ static void for_stmt(int lab, struct swtch *swtch)
             declaration();
         } else {
             // expression
-            init = expression();
+            init = expression0();
             expect(';');
         }
     }
@@ -710,7 +716,7 @@ static void for_stmt(int lab, struct swtch *swtch)
     expect(';');
 
     if (token->id != ')')
-        ctrl = expression();
+        ctrl = expression0();
 
     match(')', skip_to_bracket);
 
