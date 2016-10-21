@@ -2359,8 +2359,8 @@ static struct expr * do_logical_not(struct expr *operand, struct source src)
         return NULL;
     }
 
-    struct expr *t1 = mkref(mklocal(gen_tmpname(), inttype, REGISTER));
-    struct expr *t2 = mkref(mklocal(gen_tmpname(), inttype, REGISTER));
+    struct expr *t1 = mkref(mktmp(gen_tmpname(), inttype, REGISTER));
+    struct expr *t2 = mkref(mktmp(gen_tmpname(), inttype, REGISTER));
     struct expr *then = call(assignop)('=', t1, cnsti(0, inttype), src);
     struct expr *els = call(assignop)('=', t2, cnsti(1, inttype), src);
 
@@ -2951,6 +2951,13 @@ struct symbol *tag_symbol(int t, const char *tag, struct source src)
 struct symbol *mklocal(const char *name, struct type * ty, int sclass)
 {
     return call(localdecl)(name, ty, sclass, 0, source);
+}
+
+struct symbol *mktmp(const char *name, struct type *ty, int sclass)
+{
+    struct symbol *sym = call(localdecl)(name, ty, sclass, 0, source);
+    sym->temporary = true;
+    return sym;
 }
 
 struct desig *next_designator(struct desig *desig)

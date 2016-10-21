@@ -746,6 +746,7 @@ static void for_stmt(int lab, struct swtch *swtch)
 static void switch_stmt(int lab, int cnt)
 {
     struct expr *expr, *n, *tmp;
+    struct symbol *sym;
     struct source src = source;
     struct swtch *swtch = NEWS0(struct swtch, FUNC);
 
@@ -758,7 +759,8 @@ static void switch_stmt(int lab, int cnt)
     swtch->type = expr ? expr->type : inttype;
         
     // make a tmp var
-    n = assign(mklocal(gen_tmpname(), swtch->type, REGISTER), expr);
+    sym = mktmp(gen_tmpname(), swtch->type, REGISTER);
+    n = assign(sym, expr);
     tmp = n->kids[0];
 
     actions.gen(n);
