@@ -1,16 +1,14 @@
 #include <assert.h>
 #include "cc.h"
 
-static struct expr *expression0(void); // topmost expression (can be simplified)
+static struct expr *expression0(void); // topmost expression that can be simplified
 static struct expr *expression(void);
 static struct expr *assign_expr(void);
-static long intexpr1(struct type *ty);
+static long intexpr1(struct type *);
 static long intexpr(void);
-// for expression in conditional statement
-static struct expr *bool_expr(void);
-// for expression in switch statement
-static struct expr *switch_expr(void);
-static struct expr *initializer_list(struct type *ty);
+static struct expr *bool_expr(void); // for expression in conditional statement
+static struct expr *switch_expr(void); // for expression in switch statement
+static struct expr *initializer_list(struct type *);
 static void declaration(void);
 static struct type *typename(void);
 
@@ -23,7 +21,7 @@ static struct expr *cond_expr1(struct expr *);
 static struct expr *cond_expr(void);
 static struct expr *unary_expr(void);
 
-static struct expr *compound_literal(struct type * ty)
+static struct expr *compound_literal(struct type *ty)
 {
     struct source src = source;
     struct expr *inits = initializer_list(ty);
@@ -1166,7 +1164,7 @@ static void parse_initializer_list(struct desig *desig, struct init **pinit)
 ///       '{' initializer-list ',' '}'
 /// [GNU] '{' '}'
 ///
-struct expr *initializer(struct type * ty)
+struct expr *initializer(struct type *ty)
 {
     if (token->id == '{')
         return initializer_list(ty);
@@ -1189,7 +1187,7 @@ struct expr *initializer(struct type * ty)
 ///   '[' constant-expression ']'
 ///   '.' identifier
 ///
-static struct expr *initializer_list(struct type * ty)
+static struct expr *initializer_list(struct type *ty)
 {
     if (ty) {
         struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0, .src = source};
@@ -1211,10 +1209,10 @@ static struct expr *initializer_list(struct type * ty)
 // 0 means both
 enum { DIRECT = 1, ABSTRACT };
 
-static void param_declarator(struct type ** ty, struct token **id);
+static void param_declarator(struct type **, struct token **);
 static struct type *tag_decl(void);
 
-static void attach_type(struct type ** typelist, struct type * type)
+static void attach_type(struct type **typelist, struct type *type)
 {
     if (*typelist) {
         struct type *tp = *typelist;
@@ -1227,7 +1225,7 @@ static void attach_type(struct type ** typelist, struct type * type)
     }
 }
 
-static void prepend_type(struct type ** typelist, struct type * type)
+static void prepend_type(struct type **typelist, struct type *type)
 {
     attach_type(&type, *typelist);
     *typelist = type;
@@ -1586,7 +1584,7 @@ static struct symbol **oldstyle(struct type *ftype)
     return ltoa(&params, FUNC);
 }
 
-static struct symbol **parameters(struct type * ftype)
+static struct symbol **parameters(struct type *ftype)
 {
     struct symbol **params;
 
@@ -1624,7 +1622,7 @@ static struct symbol **parameters(struct type * ftype)
     return params;
 }
 
-static void array_qualifiers(struct type * atype)
+static void array_qualifiers(struct type *atype)
 {
     int cons, vol, res;
     int *p;
@@ -1822,7 +1820,7 @@ static struct type *ptr_decl(void)
 ///   direct-abstract-declarator[opt] '[' '*' ']'
 ///   direct-abstract-declarator[opt] '(' parameter-type-list[opt] ')'
 ///
-static void abstract_declarator(struct type ** ty)
+static void abstract_declarator(struct type **ty)
 {
     assert(ty);
 
@@ -1873,7 +1871,7 @@ static void abstract_declarator(struct type ** ty)
 ///   direct-declarator '(' parameter-type-list ')'
 ///   direct-declarator '(' identifier-list[opt] ')'
 ///
-static void declarator(struct type ** ty, struct token **id, struct symbol ***params)
+static void declarator(struct type **ty, struct token **id, struct symbol ***params)
 {
     assert(ty && id);
 
@@ -1909,7 +1907,7 @@ static void declarator(struct type ** ty, struct token **id, struct symbol ***pa
 }
 
 // Both 'abstract-declarator' and 'direct-declarator' are allowed.
-static void param_declarator(struct type ** ty, struct token **id)
+static void param_declarator(struct type **ty, struct token **id)
 {
     assert(ty && id);
     

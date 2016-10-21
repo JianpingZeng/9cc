@@ -429,7 +429,7 @@ extern struct desig *copy_desig(struct desig *desig);
 #define iszinit(n)     ((n)->op == 0)
 
 // tree.c
-extern struct expr * reduce(struct expr *expr);
+extern struct expr *reduce(struct expr *expr);
 
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
@@ -540,8 +540,8 @@ extern void ast_dump_vardecl(struct symbol *);
 extern void ast_dump_typedecl(struct symbol *);
 extern void ast_dump_funcdecl(struct symbol *);
 extern void ast_dump_funcdef(struct symbol *);
-extern const char *type2s(struct type *ty);
-extern const char *desig2s(struct desig *desig);
+extern const char *type2s(struct type *);
+extern const char *desig2s(struct desig *);
 
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
