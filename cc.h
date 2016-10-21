@@ -431,7 +431,9 @@ extern struct desig *copy_desig(struct desig *desig);
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
  
-// expr.c
+// parser.c
+
+// expr
 extern struct expr *expression(void);
 extern struct expr *assign_expr(void);
 extern long intexpr1(struct type *ty);
@@ -441,17 +443,17 @@ extern struct expr *bool_expr(void);
 // for expression in switch statement
 extern struct expr *switch_expr(void);
 
-// decl.c
+// decl
 extern void declaration(void);
 extern void translation_unit(void);
 extern struct type *typename(void);
 
-// init.c
+// stmt
+extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
+
+// init
 extern struct expr *initializer(struct type *ty);
 extern struct expr *initializer_list(struct type *ty);
-
-// stmt.c
-extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
 
 // sema.c
 extern int first_decl(struct token *t);
