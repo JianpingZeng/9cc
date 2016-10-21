@@ -1633,7 +1633,7 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
     // make a tmp var
     sym = mktmp(gen_tmpname(), expr->type, REGISTER);
     asgn = assign(sym, expr);
-    return asgn;
+    return rvalue(asgn);
 }
 
 /*=================================================================*
