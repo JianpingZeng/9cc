@@ -48,6 +48,6 @@ _n(CALL,        "CALL")
 // others
 _n(RIGHT,       "RIGHT")
 _n(COND,        "COND")
-_n(MEMBER,      "MEMBER")
+_n(BFIELD,      "BFIELD")
 
 #undef _n

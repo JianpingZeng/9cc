@@ -33,6 +33,13 @@ struct func func;
 
 #define check_designator(d)  ensure_designator(d) ? (d) : NULL
 
+#define isaddrop(op)  (OPINDEX(op) == ADDRL || \
+                       OPINDEX(op) == ADDRG || \
+                       OPINDEX(op) == ADDRP)
+#define isindirop(op)  (OPINDEX(op) == INDIR)
+#define isbfieldop(op)  (OPINDEX(op) == BFIELD)
+
+#define isbfield(node)  isbfieldop((node)->op)
 
 /*=================================================================*
  *                          Events                                 *
@@ -182,32 +189,33 @@ struct symbol *mktmp(const char *name, struct type *ty, int sclass)
  */
 static bool islvalue(struct expr *node)
 {
-    // TODO: 
-    return true;
+    if (isindirop(node->op) && !isfunc(node->type))
+        return true;
+    if (isbfieldop(node->op))
+        return true;
+    if (issliteral(node))
+        return true;
+    if (isaddrop(node->op) && !isfunc(node->type))
+        return true;
+    return false;
 }
 
 static bool assignable(struct expr *node, struct source src)
 {
     struct type *ty = node->type;
     if (!islvalue(node)) {
-        error_at(src, "expression is not assignable");
+        error_at(src, "expression is not assignable (not an lvalue)");
         return false;
-    } else if (isarray(ty)) {
+    }
+    if (isarray(ty)) {
         error_at(src, "array type '%s' is not assignable", type2s(ty));
         return false;
-    } else if (isconst(ty)) {
+    }
+    if (isconst(ty)) {
         error_at(src, "read-only variable is not assignable");
         return false;
     }
     return true;
-}
-
-static bool isbfield(struct expr *node)
-{
-    if (node->op != MEMBER)
-        return false;
-
-    return direct(node->u.field)->isbit;
 }
 
 static struct expr *cast(struct type *ty, struct expr *n)
@@ -876,6 +884,45 @@ static struct expr *assign(struct symbol *sym, struct expr *r)
     return asgn;
 }
 
+static struct expr *member(struct expr *addr, const char *name, struct source src)
+{
+    struct expr *ret;
+    struct field *field;
+    struct type *ty, *fty;
+
+    assert(isptr(addr->type) && isrecord(rtype(addr->type)));
+    
+    ty = rtype(addr->type);
+    field = find_field(ty, name);
+    if (!field) {
+        field_not_found_error(src, ty, name);
+        return NULL;
+    }
+
+    fty = direct(field)->type;
+    if (opts.ansi) {
+        // The result has the union of both sets of qualifiers.
+        int q = qual_union(addr->type, fty);
+        fty = qual(q, fty);
+    }
+
+    if (direct(field)->isbit) {
+        // bit field
+        ret = ast_expr(BFIELD, fty, addr, NULL);
+        ret->u.field = field;
+    } else {
+        ret = ast_expr(mkop(INDIR, fty),
+                       fty,
+                       actions.bop('+',
+                                   addr,
+                                   cnsti(field->offset, unsignedlongtype),
+                                   src),
+                       NULL);
+    }
+    
+    return ret;
+}
+
 /// actions-expr
 
 static struct expr *do_commaop(struct expr *l, struct expr *r, struct source src)
@@ -1410,9 +1457,7 @@ static struct expr *do_funcall(struct expr *node, struct expr **args, struct sou
 // '.', '->'
 static struct expr *do_direction(struct expr *node, int t, const char *name, struct source src)
 {
-    struct expr *ret;
-    struct field *field;
-    struct type *ty, *fty;
+    struct type *ty;
 
     if (!node || !name)
         return NULL;
@@ -1424,31 +1469,23 @@ static struct expr *do_direction(struct expr *node, int t, const char *name, str
                      type2s(ty));
             return NULL;
         }
+        struct expr *addr = addrof(node);
+        struct expr *ret = member(addr, name, src);
+
+        if (!ret) return NULL;
+        if (!islvalue(node))
+            ret = ast_expr(RIGHT, ret->type, ret, NULL);
+
+        return ret;
     } else {
         if (!isptr(ty) || !isrecord(rtype(ty))) {
             error_at(src, "pointer to struct/union type expected, not type '%s'",
                      type2s(ty));
             return NULL;
         }
-        ty = rtype(ty);
-    }
 
-    field = find_field(ty, name);
-    if (!field) {
-        field_not_found_error(src, ty, name);
-        return NULL;
+        return member(node, name, src);
     }
-
-    fty = direct(field)->type;
-    if (opts.ansi) {
-        // The result has the union of both sets of qualifiers.
-        int q = qual_union(node->type, fty);
-        fty = qual(q, fty);
-    }
-    ret = ast_expr(MEMBER, fty, node, NULL);
-    ret->u.field = field;
-    
-    return ret;
 }
 
 static struct expr *do_post_increment(struct expr *node, int t, struct source src)
@@ -1481,7 +1518,7 @@ static struct expr *do_compound_literal(struct type *ty, struct expr *inits, str
     sym = mktmp(gen_compound_label(), ty, 0);
     asgn = assign(sym, inits);
     if (asgn)
-        return asgn->kids[0];
+        return rvalue(asgn->kids[0]);
     else
         return NULL;
 }

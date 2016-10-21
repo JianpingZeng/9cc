@@ -33,7 +33,6 @@ Expression
                         pointer
                         arith
                         struct/union
-                        (except array and function)
         ---------------------------------------------------------------------------
         assign          pointer                 ASGN
                         arith
@@ -121,7 +120,7 @@ Expression
         ->id            pointer                 INDIR+ADD/BFIELD
                         arith
                         struct/union
-                        pointer
+                        array
                         
         () (funcall)    void                    RIGHT+CALL
                         pointer

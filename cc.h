@@ -430,6 +430,7 @@ extern struct desig *copy_desig(struct desig *desig);
 
 // tree.c
 extern struct expr *reduce(struct expr *expr);
+extern struct expr *addrof(struct expr *expr);
 
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
