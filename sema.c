@@ -3,19 +3,13 @@
 #include <stdlib.h>
 #include "cc.h"
 
-#define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
-#define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
-#define INIT(name)  .name = do_##name
-#define call(func)  do_##func
-#define events(func)  ev_##func
-
-#define add_to_list(stmt)                       \
-    do {                                        \
-        *func.stmt = stmt;                      \
-        func.stmt = &stmt->next;                \
-    } while (0)
-
-#define check_designator(d)  ensure_designator(d) ? (d) : NULL
+static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
+static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src);
+static struct symbol *do_localdecl(const char *, struct type *, int, int, struct source);
+static void do_gen(struct expr *expr);
+static struct expr *assignconv(struct type *ty, struct expr *node);
+static void doglobal(struct symbol *sym, void *context);
+struct func func;
 
 #define ERR_INCOMPATIBLE_TYPES   "incompatible type conversion from '%s' to '%s'"
 #define ERR_INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
@@ -32,46 +26,54 @@
 #define ERR_INIT_EMPTY_RECORD    "initializer for aggregate with no elements requires explicit braces"
 #define ERR_INIT_OVERRIDE        "initializer overrides prior initialization"
 
-static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
-static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src);
-static struct expr *assignconv(struct type *ty, struct expr *node);
-static void doglobal(struct symbol *sym, void *context);
+#define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
+#define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
+#define INIT(name)  .name = do_##name
+#define call(func)  do_##func
+#define events(func)  func
 
-struct func func;
+#define add_to_list(stmt)                       \
+    do {                                        \
+        *func.stmt = stmt;                      \
+        func.stmt = &stmt->next;                \
+    } while (0)
 
-///
-/// events
-///
+#define check_designator(d)  ensure_designator(d) ? (d) : NULL
+
+
+/*=================================================================*
+ *                          Events                                 *
+ *=================================================================*/
 
 // declare a global variable
-static void ev_dclgvar(struct symbol *n)
+static void dclgvar(struct symbol *n)
 {
     if (opts.ast_dump)
         ast_dump_vardecl(n);
 }
 
 // declare a function
-static void ev_dclfun(struct symbol *n)
+static void dclfun(struct symbol *n)
 {
     if (opts.ast_dump)
         ast_dump_funcdecl(n);
 }
 
 // declare/define a type: struct/union/enum/typedef
-static void ev_deftype(struct symbol *n)
+static void deftype(struct symbol *n)
 {
     if (opts.ast_dump)
         ast_dump_typedecl(n);
 }
 
 // define a local variable
-static void ev_deflvar(struct symbol *n)
+static void deflvar(struct symbol *n)
 {
     // TODO: 
 }
 
 // define a local static variable
-static void ev_defsvar(struct symbol *n)
+static void defsvar(struct symbol *n)
 {
     if (opts.ast_dump || errors())
         return;
@@ -79,7 +81,7 @@ static void ev_defsvar(struct symbol *n)
 }
 
 // define a global variable
-static void ev_defgvar(struct symbol *n)
+static void defgvar(struct symbol *n)
 {
     if (opts.ast_dump) {
         ast_dump_vardecl(n);
@@ -91,7 +93,7 @@ static void ev_defgvar(struct symbol *n)
 }
 
 // define a function
-static void ev_defun(struct symbol *n)
+static void defun(struct symbol *n)
 {
     if (opts.ast_dump) {
         ast_dump_funcdef(n);
@@ -103,7 +105,7 @@ static void ev_defun(struct symbol *n)
 }
 
 // a funcall
-static void ev_funcall(struct expr *call)
+static void funcall(struct expr *call)
 {
     // compare the func.call and call
     // and set the larger to func.call
@@ -125,300 +127,54 @@ static void finalize(void)
     IR->finalize();
 }
 
-///
-/// type check
-///
+/*=================================================================*
+ *                           Private                               *
+ *=================================================================*/
 
-/*
- * Check for:
- * - `array of function`
- * - `function returning array`
- * - `function returning function`
- * recursively. Above cases are always invalid.
- */
-
-/**
- *  1. Array qualifiers may appear only when in a function parameter.
- *
- *  2. Array qualifiers 'const', 'volatile', 'restrict', 'static' may
- *     appear within the _outermost_ brackets.
- *
- *  3. 'static' is an optimization hint, asserting that the actual array
- *     argument will be non-null and will have the declared size and
- *     type upon entry to the function.
- *
- *  4. The star modifier '*' or non-constant expression describe a
- *     variable length array. The '*' can only appear in array parameter
- *     declarations within function prototypes that are not part of
- *     a function definition.
- */
-static void ensure_func_array(struct type *ty, bool param, struct source src, bool outermost)
+static void skip_balance(int l, int r, const char *name)
 {
-    if (isarray(ty)) {
-        struct type *rty = rtype(ty);
+    int nests = 0;
 
-        if (isfunc(rty))
-            error_at(src, ERR_ARRAY_OF_FUNC);
-        
-        if (TYPE_A_STAR(ty) && !param)
-            error_at(src, "star modifier used outside of function prototype");
-
-        if (TYPE_A_CONST(ty) ||
-            TYPE_A_RESTRICT(ty) ||
-            TYPE_A_VOLATILE(ty) ||
-            TYPE_A_STATIC(ty)) {
-            if (!param)
-                error_at(src,
-                         "type qualifier used in array declarator outside of function prototype");
-            if (!outermost)
-                error_at(src,
-                         "type qualifier used in non-outermost array type derivation");
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (token->id == r) {
+            if (nests-- == 0)
+                break;
+        } else if (token->id == l) {
+            nests++;
         }
-
-        ensure_func_array(rty, param, src, false);
-        set_typesize(ty);       // calculate array size
-    } else if (isfunc(ty)) {
-        struct type *rty = rtype(ty);
-        if (isarray(rty))
-            error_at(src, ERR_FUNC_RET_ARRAY, type2s(rty));
-        else if (isfunc(rty))
-            error_at(src, ERR_FUNC_RET_FUNC, type2s(rty));
-
-        ensure_func_array(rty, false, src, true);
-    } else if (isptr(ty)) {
-        struct type *rty = rtype(ty);
-        ensure_func_array(rty, param, src, false);
+        gettok();
     }
+
+    if (token->id == r)
+        gettok();
+    else
+        error("unclosed %s, missing '%s'", name, id2s(r));
 }
 
-static void finish_type(struct type *ty, bool param, struct source src)
-{
-    ensure_func_array(ty, param, src, true);
-}
-
-static void check_func_array_in_funcdef(struct type *ty, struct source src)
-{
-    if (isarray(ty)) {
-        struct type *rty = rtype(ty);
-        if (TYPE_A_STAR(ty))
-            error_at(src, "variable length array must be bound in function definition");
-        check_func_array_in_funcdef(rty, src);
-    } else if (isptr(ty)) {
-        struct type *rty = rtype(ty);
-        check_func_array_in_funcdef(rty, src);
-    }
-}
-
-static void ensure_inline(struct type *ty, int fspec, struct source src)
-{
-    if (fspec == INLINE) {
-        if (isfunc(ty))
-            TYPE_INLINE(ty) = 1;
-        else
-            error_at(src, ERR_INLINE);
-    }
-}
-
-static void check_bitfield(struct field *p)
-{
-    struct type *ty = p->type;
-    int bitsize = p->bitsize;
-    int bits = BITS(TYPE_SIZE(ty));
-
-    if (!isint(ty)) {
-        if (p->name)
-            error_at(p->src,
-                     "bit-field '%s' has non-integral type '%s'",
-                     p->name, type2s(ty));
-        else
-            error_at(p->src,
-                     "anonymous bit-field has non-integral type '%s'",
-                     type2s(ty));
-    }
-
-    if (bitsize < 0) {
-        if (p->name)
-            error_at(p->src,
-                     "bit-field '%s' has negative width '%d'",
-                     p->name, bitsize);
-        else
-            error_at(p->src,
-                     "anonymous bit-field has negative width '%d'",
-                     bitsize);
-    }
-
-    if (bitsize == 0 && p->name)
-        error_at(p->src,
-                 "named bit-field '%s' has zero width",
-                 p->name);
-
-    if (bitsize > bits) {
-        if (p->name)
-            error_at(p->src,
-                     "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
-                     p->name, bitsize, bits);
-        else
-            error_at(p->src,
-                     "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
-                     bitsize, bits);
-    }
-}
-
-static void ensure_nonbitfield(struct field *p, bool one)
-{
-    struct type *ty = p->type;
-
-    finish_type(ty, false,  p->src);
-
-    if (isarray(ty)) {
-        if (isincomplete(ty)) {
-            if (one)
-                error_at(p->src, "flexible array cannot be the only member");
-            else if (p->link)   // NOT the last field
-                error_at(p->src, "field has incomplete type '%s'", type2s(ty));
-        }
-    } else if (isfunc(ty)) {
-        error_at(p->src, "field has invalid type '%s'", TYPE_NAME(ty));
-    } else if (isincomplete(ty)) {
-        error_at(p->src, "field has incomplete type '%s'", type2s(ty));
-    }
-}
-
-static void ensure_fields(struct symbol *sym)
-{
-    struct field *first = sym->u.s.flist;
-    bool one = first && first->link == NULL;
-
-    for (struct field *p = first; p; p = p->link) {
-        if (isindirect(p))
-            continue;
-        if (isbitfield(p))
-            check_bitfield(p);
-        else
-            ensure_nonbitfield(p, one);
-    }
-}
-
-static void check_main_func(struct type *ftype, const char *name, struct source src)
-{
-    assert(isfunc(ftype));
-    assert(name);
-    
-    if (strcmp(name, "main"))
-        return;
-    
-    struct type *rty = rtype(ftype);
-    struct type **proto = TYPE_PROTO(ftype);
-    size_t len = length(proto);
-
-    if (rty != inttype && rty != voidtype)
-        error_at(src, "return type of 'main' is not 'int'");
-
-    for (int i = 0; i < MIN(3, len); i++) {
-        struct type *ty = proto[i];
-        if (i == 0) {
-            if (ty != inttype)
-                error_at(src, "first parameter of 'main' is not 'int'");
-        } else if (i == 1 || i == 2) {
-            if (!isptrto(ty, POINTER) ||
-                !isptrto(rtype(ty), CHAR))
-                error_at(src, "%s parameter of 'main' is not 'char **'",
-                         i == 1 ? "second" : "third");
-        }
-    }
-    if (len == 1 || len > 3)
-        error_at(src,
-                 "expect 0, 2 or 3 parameters for 'main', have %d",
-                 len);
-}
-
-static void check_params_in_funcdef(struct symbol *params[])
-{
-    for (int i = 0; params[i]; i++) {
-        struct symbol *sym = params[i];
-        struct type *ty = sym->type;
-        // parameter name is required in prototype
-        if (sym->anonymous)
-            error_at(sym->src, "parameter name omitted");
-        // get the original type without decay
-        if (isptr(ty) && TYPE_P_DECAY(ty))
-            ty = TYPE_P_DECAY(ty);
-
-        // check variable length array (star modifier)
-        check_func_array_in_funcdef(ty, sym->src);
-        
-        // check incomplete type
-        if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-            if (!TYPE_TSYM(ty)->defined)
-                error_at(sym->src,
-                         "variable has incomplete type '%s'",
-                         type2s(ty));
-        } else if (isarray(ty)) {
-            struct type *rty = rtype(ty);
-            if (isincomplete(rty))
-                error_at(sym->src,
-                         ERR_INCOMPLETE_ELEM,
-                         type2s(rty));
-        }
-    }
-}
-
-static void ensure_return(struct expr *expr, bool isnull, struct source src)
-{
-    // return immediately if expr is NULL. (parsing failed)    
-    if (expr == NULL)
-        return;
-
-    if (isvoid(rtype(func.type))) {
-        if (!isnull && !isvoid(expr->type))
-            error_at(src, "void function should not return a value");
-    } else {
-        if (!isnull) {
-            struct type *ty1 = expr->type;
-            struct type *ty2 = rtype(func.type);
-            if (!(expr = assignconv(ty2, expr)))
-                error_at(src,
-                         "returning '%s' from function with incompatible result type '%s'",
-                         type2s(ty1), type2s(ty2));
-        } else {
-            error_at(src, "non-void function should return a value");
-        }
-    }
-}
-
-static void ensure_gotos(void)
-{
-    for (struct goinfo *p = func.gotos; p; p = p->link) {
-        struct symbol *sym = lookup(p->id, func.labels);
-        if (!sym || !sym->defined)
-            error_at(p->src, "use of undeclared label '%s'", p->id);
-    }
-}
-
-static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src)
+static void skip_syntax(int (*first) (struct token *))
 {    
-    // TODO:
-    return init;
-}
-
-static bool ensure_designator(struct desig *d)
-{
-    if (isincomplete(d->type)) {
-        int id;
-        if (d->id == DESIG_FIELD)
-            id = STRUCT;
-        else if (d->id == DESIG_INDEX)
-            id = ARRAY;
-        else
-            id = TYPE_KIND(d->type);
-
-        error_at(d->src,
-                 "%s designator of incomplete type '%s'",
-                 id2s(id), type2s(d->type));
-        return false;
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (first(token))
+            break;
+        gettok();
     }
-    return true;
 }
+
+static void field_not_found_error(struct source src, struct type *ty, const char *name)
+{
+    if (isincomplete(ty))
+        error_at(src, "incomplete definition of type '%s'", type2s(ty));
+    else
+        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
+}
+
+/*=================================================================*
+ *                        Sema-Expression                          *
+ *=================================================================*/
 
 /**
  * Object,Lvalue,Designator
@@ -875,366 +631,6 @@ static bool ensure_increment(struct expr *node, struct source src)
     return true;
 }
 
-///
-/// private
-///
-
-static void skip_balance(int l, int r, const char *name)
-{
-    int nests = 0;
-
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (token->id == r) {
-            if (nests-- == 0)
-                break;
-        } else if (token->id == l) {
-            nests++;
-        }
-        gettok();
-    }
-
-    if (token->id == r)
-        gettok();
-    else
-        error("unclosed %s, missing '%s'", name, id2s(r));
-}
-
-static void skip_syntax(int (*first) (struct token *))
-{    
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (first(token))
-            break;
-        gettok();
-    }
-}
-
-static void field_not_found_error(struct source src, struct type *ty, const char *name)
-{
-    if (isincomplete(ty))
-        error_at(src, "incomplete definition of type '%s'", type2s(ty));
-    else
-        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
-}
-
-static void oldparam(struct symbol *sym, void *context)
-{
-    struct symbol **params = context;
-
-    assert(sym->name);
-
-    // _NOT_ a variable
-    if (sym->sclass == TYPEDEF || isfunc(sym->type)) {
-        warning_at(sym->src, "empty declaraion");
-        return;
-    }
-        
-    for (int j = 0; params[j]; j++) {
-        struct symbol *s = params[j];
-        assert(s->name);
-        if (s->name == sym->name) {
-            // replace id with declared symbol
-            params[j] = sym;
-            return;
-        }
-    }
-
-    // _NOT_ found in id list
-    error_at(sym->src, "parameter named '%s' is missing", sym->name);
-}
-
-static void mkfuncdecl(struct symbol *sym, struct type *ty, int sclass, struct source src)
-{
-    sym->type = ty;
-    sym->src = src;
-    sym->defined = true;
-    sym->sclass = sclass;
-}
-
-static void init_string(struct type *ty, struct expr *node)
-{
-    int len1 = TYPE_LEN(ty);
-    int len2 = TYPE_LEN(node->type);
-    if (len1 > 0) {
-        if (len1 < len2 - 1)
-            warning("initializer-string for char array is too long");
-    } else if (isincomplete(ty)) {
-        TYPE_LEN(ty) = len2;
-        set_typesize(ty);
-    }
-}
-
-static void predefined_ids(void)
-{
-    /**
-     * Predefined identifier: __func__
-     * The identifier __func__ is implicitly declared by C99
-     * implementations as if the following declaration appeared
-     * after the opening brace of each function definition:
-     *
-     * static const char __func__[] = "function-name";
-     *
-     */
-    struct type *type = array_type(qual(CONST, chartype));
-    // initializer
-    struct expr *literal = cnsts(func.name);
-    init_string(type, literal);
-    
-    struct symbol *sym = mklocal("__func__", type, STATIC);
-    sym->predefine = true;
-    sym->u.init = literal;
-}
-
-static void func_body(struct symbol *sym)
-{
-    struct stmt *stmt = NULL;
-
-    func.gotos = NULL;
-    func.labels = new_table(NULL, LOCAL);
-    func.type = sym->type;
-    func.name = sym->name;
-    func.xcall = NULL;
-    func.stmt = &stmt;
-
-    // compound statement
-    compound_stmt(predefined_ids, 0, 0, NULL);
-    // check goto labels
-    ensure_gotos();
-
-    // save
-    sym->u.f.xcall = func.xcall;
-    sym->u.f.stmt = stmt;
-
-    free_table(func.labels);
-    func.labels = NULL;
-    func.type = NULL;
-    func.name = NULL;
-    func.xcall = NULL;
-    func.stmt = NULL;
-}
-
-static void doglobal(struct symbol *sym, void *context)
-{
-    // typedefs and enum ids are _defined_
-    if (sym->defined ||
-        sym->sclass == EXTERN ||
-        isfunc(sym->type))
-        return;
-
-    sym->defined = true;
-    events(defgvar)(sym);
-}
-
-static struct desig *next_designator1(struct desig *desig, bool initial)
-{
-    assert(desig);
-    
-    switch (desig->id) {
-    case DESIG_FIELD:
-        {
-            struct desig *prev = desig->prev;
-
-            assert(prev);
-            assert(isrecord(prev->type));
-
-            struct field *field = desig->u.field->link;
-            // skip indirect field
-            while (field && isindirect(field))
-                field = field->link;
-            if (field) {
-                struct desig *d = new_desig_field(field, source);
-                d->offset = prev->offset + field->offset;
-                d->prev = copy_desig(prev);
-                return check_designator(d);
-            } else {
-                return next_designator1(prev, false);
-            }
-        }
-        break;
-
-    case DESIG_INDEX:
-        {
-            struct desig *prev = desig->prev;
-
-            assert(prev);
-            assert(isarray(prev->type));
-
-            size_t len = TYPE_LEN(prev->type);
-            long idx = desig->u.index;
-            if (len == 0 || idx < len - 1) {
-                struct type *rty = desig->type;
-                struct desig *d = new_desig_index(idx+1, source);
-                d->type = rty;
-                d->offset = desig->offset + TYPE_SIZE(rty);
-                d->prev = copy_desig(prev);
-                return check_designator(d);
-            } else {
-                return next_designator1(prev, false);
-            }
-        }
-        break;
-
-    case DESIG_NONE:
-        assert(desig->prev == NULL);
-        if (!initial) {
-            error("excess elements in %s initializer", TYPE_NAME(desig->type));
-            return NULL;
-        }
-        if (isrecord(desig->type)) {
-            struct field *first = TYPE_FIELDS(desig->type);
-            if (first) {
-                struct desig *d = new_desig_field(first, source);
-                d->offset = desig->offset + first->offset;
-                d->prev = copy_desig(desig);
-                return d;
-            } else if (isincomplete(desig->type)) {
-                error("initialize incomplete type '%s'", type2s(desig->type));
-                return NULL;
-            } else {
-                // empty record
-                error("excess elements in %s initializer", TYPE_NAME(desig->type));
-                return NULL;
-            }
-        } else if (isarray(desig->type)) {
-            struct type *rty = rtype(desig->type);
-            struct desig *d = new_desig_index(0, source);
-            d->type = rty;
-            d->offset = desig->offset;
-            d->prev = copy_desig(desig);
-            return d;
-        } else {
-            return desig;
-        }
-        break;
-    }
-    
-    CC_UNAVAILABLE
-}
-
-static void offset_init(struct desig *desig, struct expr *expr, struct init **ilist)
-{
-    assert(desig && expr && ilist);
-    assert(!isarray(desig->type));
-
-    struct type *ty = desig->type;
-    struct init *p;
-    
-    if (isincomplete(ty) || isfunc(ty)) {
-        error_at(desig->src, "'%s' cannot have an initializer",
-                 TYPE_NAME(ty));
-        return;
-    }
-
-    //possible: scalar/struct/union
-
-    // assignment conversion
-    struct expr *n = assignconv(ty, expr);
-    if (n == NULL) {
-        error_at(desig->src, ERR_INCOMPATIBLE_TYPES,
-                 type2s(expr->type), type2s(ty));
-        return;
-    }
-
-    // check override
-    for (; (p = *ilist); ilist = &p->link) {
-        if (p->offset > desig->offset)
-            break;
-        if (p->offset == desig->offset) {
-            if (desig->id == DESIG_FIELD &&
-                isbitfield(desig->u.field)) {
-                // bitfield
-                if (p->boff < desig->u.field->bitoff)
-                    continue;
-                else if (p->boff > desig->u.field->bitoff)
-                    break;
-                // fall through
-            }
-
-            // overlapped
-            warning_at(desig->src, ERR_INIT_OVERRIDE);
-            p = p->link;    // remove from the list
-            break;
-        }
-    }
-
-    // insert
-    struct init *init = NEWS0(struct init, FUNC);
-    init->type = desig->type;
-    init->offset = desig->offset;
-    init->body = n;
-    if (desig->id == DESIG_FIELD) {
-        assert(!isindirect(desig->u.field));
-        init->boff = desig->u.field->bitoff;
-        init->bsize = desig->u.field->bitsize;
-    }
-    init->link = p;
-    *ilist = init;
-}
-
-static void string_init(struct desig *desig, struct expr *expr, struct init **pinit)
-{
-    assert(desig && expr && pinit);
-    
-    // TODO:
-    dlog("%s: (offset=%ld) <expr %p> <string>", desig2s(desig), desig->offset, expr);
-}
-
-static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
-{
-    return call(assignop)('=', expr, call(bop)(op, expr, cnst, src), src);
-}
-
-static struct expr *mkref(struct symbol *sym)
-{
-    int op;
-    struct type *ty = sym->type;
-    struct expr *ret;
-
-    if (has_static_extent(sym))
-        op = ADDRG;
-    else if (sym->scope == PARAM)
-        op = ADDRP;
-    else
-        op = ADDRL;
-
-    if (isfunc(ty))
-        ret = ast_expr(mkop(op, funcptype), ty, NULL, NULL);
-    else if (isarray(ty))
-        ret = ast_expr(mkop(op, voidptype), ty, NULL, NULL);
-    else
-        ret = ast_expr(mkop(op, voidptype), ptr_type(ty), NULL, NULL);
-    
-    ret->sym = sym;
-    use(sym);
-
-    if (isptr(ret->type))
-        return rvalue(ret);
-    else
-        return ret;
-}
-
-// implicit function declaration: int id();
-static struct symbol * implicit_func_decl(const char *id)
-{
-    struct type *ftype = func_type(inttype);
-    struct list *list = NULL;
-    ftype->u.f.oldstyle = true;
-    ftype->u.f.proto = ltoa(&list, PERM);
-            
-    struct symbol *sym = install(id, &externals, GLOBAL, PERM);
-    sym->sclass = EXTERN;
-    sym->type = ftype;
-    sym->src = source;
-
-    events(dclfun)(sym);
-    warning("implicit declaration of '%s'", id);
-
-    return sym;
-}
-
 static void integer_constant(struct token *t, struct symbol * sym)
 {
     int base = t->u.lit.base;
@@ -1383,6 +779,59 @@ static struct expr *literal_expr(struct token *t, int op,
     return expr;
 }
 
+static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
+{
+    return call(assignop)('=', expr, call(bop)(op, expr, cnst, src), src);
+}
+
+static struct expr *mkref(struct symbol *sym)
+{
+    int op;
+    struct type *ty = sym->type;
+    struct expr *ret;
+
+    if (has_static_extent(sym))
+        op = ADDRG;
+    else if (sym->scope == PARAM)
+        op = ADDRP;
+    else
+        op = ADDRL;
+
+    if (isfunc(ty))
+        ret = ast_expr(mkop(op, funcptype), ty, NULL, NULL);
+    else if (isarray(ty))
+        ret = ast_expr(mkop(op, voidptype), ty, NULL, NULL);
+    else
+        ret = ast_expr(mkop(op, voidptype), ptr_type(ty), NULL, NULL);
+    
+    ret->sym = sym;
+    use(sym);
+
+    if (isptr(ret->type))
+        return rvalue(ret);
+    else
+        return ret;
+}
+
+// implicit function declaration: int id();
+static struct symbol * implicit_func_decl(const char *id)
+{
+    struct type *ftype = func_type(inttype);
+    struct list *list = NULL;
+    ftype->u.f.oldstyle = true;
+    ftype->u.f.proto = ltoa(&list, PERM);
+            
+    struct symbol *sym = install(id, &externals, GLOBAL, PERM);
+    sym->sclass = EXTERN;
+    sym->type = ftype;
+    sym->src = source;
+
+    events(dclfun)(sym);
+    warning("implicit declaration of '%s'", id);
+
+    return sym;
+}
+
 static int top(int op)
 {
     switch (op) {
@@ -1434,532 +883,15 @@ static int splitop(int op)
     }
 }
 
-///
-/// actions
-///
-
-/// decl
-
-static struct symbol *do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
+static struct expr *assign(struct symbol *sym, struct expr *r)
 {
-    struct symbol *s = lookup(name, identifiers);
-    if (s && is_current_scope(s))
-        error_at(src, ERR_REDEFINITION,
-                 name, s->src.file, s->src.line, s->src.column);
-
-    s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
-    s->type = sym->type;
-    s->src = src;
-    s->sclass = ENUM;
-    s->value.u = val;
-    s->defined = true;
-    return s;
+    struct expr *l = mkref(sym);
+    struct expr *asgn = call(assignop)('=', l, r, sym->src);
+    call(gen)(asgn);
+    return asgn;
 }
 
-static void do_direct_field(struct symbol *sym, struct field *field)
-{
-    struct field **pp = &sym->u.s.flist;
-    struct field *p;
-
-    while ((p = *pp)) {
-        if (field->name && field->name == p->name)
-            error_at(field->src,
-                     ERR_DUPLICATE_MEMBER,
-                     field->name, p->src.file, p->src.line, p->src.column);
-        pp = &p->link;
-    }
-
-    *pp = field;
-}
-
-static void do_indirect_field(struct symbol *sym, struct field *field)
-{
-    struct field *first = TYPE_FIELDS(field->type);
-    struct field **pp;
-    struct field *indir = NULL;
-    struct field **indirp = &indir;
-
-    call(direct_field)(sym, field);
-    
-    for (struct field *q = first; q; q = q->link) {
-        struct field *p;
-        
-        pp = &sym->u.s.flist;
-        while ((p = *pp)) {
-            if (q->name && q->name == p->name)
-                error_at(q->src,
-                         ERR_DUPLICATE_MEMBER,
-                         q->name, p->src.file, p->src.line, p->src.column);
-            pp = &p->link;
-        }
-        if (isindirect(q)) {
-            struct field *n = new_indirect_field(q->indir);
-            struct list *list = list_append(NULL, field);
-            for (int i = 0; q->of[i]; i++)
-                list = list_append(list, q->of[i]);
-            n->of = ltoa(&list, PERM);
-            n->offset = q->offset;
-            *indirp = n;
-            indirp = &n->link;
-        } else if (q->name) {
-            struct field *n = new_indirect_field(q);
-            struct list *list = list_append(NULL, field);
-            n->of = ltoa(&list, PERM);
-            n->offset = q->offset;
-            *indirp = n;
-            indirp = &n->link;
-        }
-    }
-
-    if (indir)
-        *pp = indir;
-}
-
-static void do_array_index(struct type *atype, struct expr *assign, struct source src)
-{
-    if (!assign)
-        return;
-
-    if (isint(assign->type)) {
-        TYPE_A_ASSIGN(atype) = assign;
-        // try evaluate the length
-        struct expr *n = eval(assign, longtype);
-        if (n) {
-            assert(isiliteral(n));
-            TYPE_LEN(atype) = n->sym->value.i;
-            if (n->sym->value.i < 0)
-                error_at(src, "array has negative size");
-        } else {
-            error_at(src, "expect constant expression");
-        }
-    } else {
-        error_at(src,
-                 "size of array has non-integer type '%s'",
-                 type2s(assign->type));
-    }
-}
-
-static struct symbol ** do_prototype(struct type *ftype, struct symbol *params[])
-{    
-    for (int i = 0; params[i]; i++) {
-        struct symbol *p = params[i];
-        struct type *ty = p->type;
-        if (isvoid(ty)) {
-            if (i == 0) {
-                if (!p->anonymous) {
-                    error_at(p->src,
-                             "argument may not have 'void' type");
-                    p->type = inttype;
-                } else if (isqual(ty)) {
-                    error_at(p->src,
-                             "'void' as parameter must not have type qualifier");
-                    p->type = inttype;
-                } else if (TYPE_VARG(ftype)) {
-                    error_at(p->src,
-                             "'void' must be the first and only parameter if specified");
-                    p->type = inttype;
-                }
-            } else {
-                error_at(p->src,
-                         "'void' must be the first and only parameter if specified");
-                p->type = inttype;
-            }
-        }
-    }
-
-    // make it empty
-    if (length(params) == 1 && isvoid(params[0]->type))
-        params[0] = NULL;
-
-    return params;
-}
-
-static void do_enumdecl(struct symbol *sym, struct symbol *ids[])
-{
-    sym->defined = true;
-    sym->u.s.ids = ids;
-    events(deftype)(sym);
-}
-
-static void do_recorddecl(struct symbol *sym)
-{
-    ensure_fields(sym);
-    sym->defined = true;
-    set_typesize(sym->type);
-    events(deftype)(sym);
-}
-
-static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass, int fspec, struct source src)
-{
-    struct symbol *sym;
-
-    assert(id);
-    assert(cscope == GLOBAL);
-
-    if (sclass == AUTO || sclass == REGISTER) {
-        error_at(src, "illegal storage class on file-scoped variable");
-        sclass = 0;
-    }
-
-    finish_type(ty, false, src);
-
-    if (isfunc(ty))
-        check_main_func(ty, id, src);
-
-    ensure_inline(ty, fspec, src);
-
-    sym = lookup(id, identifiers);
-    if (!sym || sym->scope != cscope) {
-        sym = install(id, &identifiers, cscope, PERM);
-        sym->type = ty;
-        sym->src = src;
-        sym->sclass = sclass;
-    } else if (eqtype(ty, sym->type)) {
-        if (sclass == STATIC && sym->sclass != STATIC)
-            error_at(src, "static declaration of '%s' follows non-static declaration", id);
-        else if (sym->sclass == STATIC && sclass != STATIC)
-            error_at(src, "non-static declaration of '%s' follows static declaration", id);
-
-        if (sclass != EXTERN)
-            sym->sclass = sclass;
-    } else {
-        error_at(src, ERR_CONFLICTING_TYPES,
-                 sym->name, sym->src.file, sym->src.line, sym->src.column);
-    }
-
-    if (token->id == '=') {
-        gettok();
-        if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
-            error("'%s' cannot have an initializer", TYPE_NAME(ty));
-            initializer(NULL);
-        } else if (istag(ty) && isincomplete(ty)) {
-            error("variable '%s' has incomplete type '%s'", id, type2s(ty));
-            initializer(NULL);
-        } else {
-            struct source src2 = source;
-            struct expr *init = initializer(ty);
-
-            if (sclass == EXTERN)
-                warning_at(src, "'extern' variable has an initializer");
-
-            if (sym->defined)
-                error_at(src, ERR_REDEFINITION,
-                         sym->name, sym->src.file, sym->src.line, sym->src.column);
-
-            init = ensure_init(init, ty, sym, src2);
-            sym->u.init = init;
-        }
-
-        sym->defined = true;
-    }
-
-    // check incomplete type after intialized
-    if (isincomplete(ty))
-        error_at(src, ERR_INCOMPLETE_VAR, id, type2s(ty));
-
-    // actions
-    if (sym->u.init)
-        events(defgvar)(sym);
-    else if (isfunc(ty))
-        events(dclfun)(sym);
-    else
-        events(dclgvar)(sym);
-
-    return sym;
-}
-
-static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
-{
-    struct symbol *sym;
-
-    assert(id);
-    assert(cscope >= LOCAL);
-
-    if (sclass == 0)
-        sclass = isfunc(ty) ? EXTERN : AUTO;
-
-    finish_type(ty, false, src);
-    
-    if (isfunc(ty)) {
-        check_main_func(ty, id, src);
-        if (sclass != EXTERN) {
-            error_at(src,
-                     "function declared in block scope cannot have '%s' storage class",
-                     id2s(sclass));
-            sclass = EXTERN;
-        }
-    }
-
-    ensure_inline(ty, fspec, src);
-
-    sym = lookup(id, identifiers);
-    if (sclass == EXTERN) {
-        if (sym == NULL || !is_current_scope(sym) || eqtype(ty, sym->type)) {
-            struct symbol *p = lookup(id, globals);
-            if (p == NULL || eqtype(ty, p->type)) {
-                p = lookup(id, externals);
-                if (p && !eqtype(ty, p->type))
-                    error_at(src, ERR_REDEFINITION,
-                             p->name, p->src.file, p->src.line, p->src.column);
-            } else {
-                error_at(src, ERR_REDEFINITION,
-                         p->name, p->src.file, p->src.line, p->src.column);
-            }
-        } else {
-            error_at(src, ERR_REDEFINITION,
-                     sym->name, sym->src.file, sym->src.line, sym->src.column);
-        }
-    } else {
-        if (sym && is_current_scope(sym))
-            error_at(src, ERR_REDEFINITION,
-                     sym->name, sym->src.file, sym->src.line, sym->src.column);
-    }
-
-    sym = install(id, &identifiers, cscope, sclass == EXTERN ? PERM : FUNC);
-    sym->type = ty;
-    sym->src = src;
-    sym->sclass = sclass;
-    if (sclass != EXTERN)
-        sym->defined = true;
-
-    if (sclass == EXTERN) {
-        struct symbol *p = install(id, &externals, GLOBAL, PERM);
-        p->type = ty;
-        p->src = src;
-        p->sclass = EXTERN;
-    }
-
-    if (token->id == '=') {
-        gettok();
-        if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
-            error("'%s' cannot have an initializer", TYPE_NAME(ty));
-            initializer(NULL);
-        } else if (sclass == EXTERN) {
-            error("'extern' variable cannot have an initializer");
-            initializer(NULL);
-        } else if (istag(ty) && isincomplete(ty)) {
-            error("variable '%s' has incomplete type '%s'", id, type2s(ty));
-            initializer(NULL);
-        } else {
-            struct source src2 = source;
-            struct expr *init = initializer(ty);
-            init = ensure_init(init, ty, sym, src2);
-            if (init) {
-                sym->u.init = init;
-                // gen assign expr
-                if (sclass != STATIC)
-                    actions.gen(assign(sym, init));
-            }
-        }
-    }
-
-    // check incomplete type after initialized
-    if (isincomplete(ty))
-        error_at(src, ERR_INCOMPLETE_VAR, id, type2s(ty));
-
-    // actions
-    if (isfunc(ty))
-        events(dclfun)(sym);
-    else if (sclass == EXTERN)
-        events(dclgvar)(sym);
-    else if (sclass == STATIC)
-        events(defsvar)(sym);
-    else
-        events(deflvar)(sym);
-
-    return sym;
-}
-
-// id maybe NULL
-static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
-{
-    struct symbol *sym;
-    bool nonnull = false;
-
-    if (sclass && sclass != REGISTER) {
-        error_at(src,
-                 "invalid storage class specifier '%s' in function declarator",
-                 id2s(sclass));
-        sclass = 0;
-    }
-
-    if (fspec == INLINE)
-        error_at(src, ERR_INLINE);
-
-    finish_type(ty, true, src);
-
-    if (isfunc(ty)) {
-        struct type *fty = ty;
-        ty = ptr_type(fty);
-        ty->u.p.decay = fty;
-    } else if (isarray(ty)) {
-        struct type *aty = ty;
-        struct type *rty = rtype(ty);
-        // check incomplete
-        if (isincomplete(rty))
-            error_at(src, ERR_INCOMPLETE_ELEM, type2s(rty));
-        
-        ty = ptr_type(rty);
-        ty->u.p.decay = aty;
-        // apply array qualifiers
-        if (TYPE_A_CONST(aty))
-            ty = qual(CONST, ty);
-        if (TYPE_A_VOLATILE(aty))
-            ty = qual(RESTRICT, ty);
-        if (TYPE_A_RESTRICT(aty))
-            ty = qual(VOLATILE, ty);
-        if (TYPE_A_STATIC(aty))
-            nonnull = true;
-    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
-        if (!TYPE_TSYM(ty)->defined || TYPE_TSYM(ty)->scope == cscope)
-            warning_at(src,
-                       "declaration of '%s' will not be visible outside of this function",
-                       type2s(ty));
-    }
-        
-    if (id) {
-        sym = lookup(id, identifiers);
-        if (sym && sym->scope == cscope)
-            error_at(src, ERR_REDEFINITION,
-                     sym->name, sym->src.file, sym->src.line, sym->src.column);
-        sym = install(id, &identifiers, cscope, FUNC);
-    } else {
-        sym = anonymous(&identifiers, cscope, FUNC);
-    }
-    
-    sym->type = ty;
-    sym->src = src;
-    sym->sclass = sclass;
-    sym->nonnull = nonnull;
-    sym->defined = true;
-
-    if (token->id == '=') {
-        error("C does not support default arguments");
-        initializer(NULL);
-    }
-    
-    return sym;
-}
-
-// level: GLOBAL/PARAM/LOCAL
-static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src)
-{
-    int sclass = TYPEDEF;
-    struct symbol *sym;
-
-    assert(id);
-
-    if (level == PARAM)
-        error_at(src,
-                 "invalid storage class specifier '%s' in function declarator",
-                 id2s(sclass));
-
-    if (fspec == INLINE)
-        error_at(src, ERR_INLINE);
-
-    finish_type(ty, level == PARAM, src);
-
-    sym = lookup(id, identifiers);
-    if (sym && is_current_scope(sym))
-        error_at(src, ERR_REDEFINITION,
-                 sym->name, sym->src.file, sym->src.line, sym->src.column);
-
-    sym = install(id, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
-    sym->type = ty;
-    sym->src = src;
-    sym->sclass = sclass;
-    sym->defined = true;
-
-    if (token->id == '=') {
-        error("illegal initializer (only variable can be initialized)");
-        initializer(NULL);
-    }
-
-    events(deftype)(sym);
-}
-
-// id maybe NULL
-static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
-                       struct symbol *params[], struct source src)
-{
-    struct symbol *sym;
-
-    assert(cscope == PARAM);
-
-    if (sclass && sclass != EXTERN && sclass != STATIC) {
-        error("invalid storage class specifier '%s'", id2s(sclass));
-        sclass = 0;
-    }
-
-    finish_type(ty, false, src);
-    
-    if (id) {
-        sym = lookup(id, identifiers);
-        if (!sym || sym->scope != GLOBAL) {
-            sym = install(id, &identifiers, GLOBAL, PERM);
-            mkfuncdecl(sym, ty, sclass, src);
-        } else if (eqtype(ty, sym->type) && !sym->defined) {
-            if (sclass == STATIC && sym->sclass != STATIC)
-                error_at(src,
-                         "static declaaration of '%s' follows non-static declaration",
-                         id);
-            else
-                mkfuncdecl(sym, ty, sclass, src);
-        } else {
-            error_at(src, ERR_REDEFINITION,
-                     sym->name, sym->src.file, sym->src.line, sym->src.column);
-        }
-
-        check_main_func(ty, id, src);
-    } else {
-        sym = anonymous(&identifiers, GLOBAL, PERM);
-        mkfuncdecl(sym, ty, sclass, src);
-    }
-
-    if (fspec == INLINE)
-        TYPE_INLINE(ty) = INLINE;
-
-    // old style function parameters declaration
-    if (TYPE_OLDSTYLE(ty)) {
-        int i;
-
-        foreach(identifiers, PARAM, oldparam, params);
-
-        for (i = 0; params[i]; i++) {
-            struct symbol *p = params[i];
-            if (!p->defined)
-                params[i] = call(paramdecl)(p->name, inttype, 0, 0, p->src);
-            // check void
-            if (isvoid(p->type)) {
-                error_at(p->src, "argument may not have 'void' type");
-                p->type = inttype;
-            }
-        }
-
-        struct type **proto = newarray(sizeof(struct type *), length(params) + 1, PERM);
-        for (i = 0; params[i]; i++)
-            proto[i] = params[i]->type;
-
-        proto[i] = NULL;
-        TYPE_PROTO(ty) = proto;
-    }
-
-    TYPE_PARAMS(ty) = params;
-    check_params_in_funcdef(params);
-
-    if (token->id == '{') {
-        // function definition
-        func_body(sym);
-        exit_scope();
-        events(defun)(sym);
-    } else {
-        // oldstyle
-        assert(TYPE_OLDSTYLE(ty));
-        error("expect function body after function declarator");
-    }
-}
-
-/// expr
+/// actions-expr
 
 static struct expr *do_commaop(struct expr *l, struct expr *r, struct source src)
 {
@@ -2554,7 +1486,11 @@ static struct expr * do_post_increment(struct expr *node, int t, struct source s
 
 static struct expr * do_compound_literal(struct type *ty, struct expr *inits, struct source src)
 {
-    return inits;
+    if (cscope < LOCAL)
+        return inits;
+
+    struct symbol *sym = mktmp(gen_compound_label(), ty, 0);
+    return assign(sym, inits);
 }
 
 /// primary
@@ -2654,18 +1590,285 @@ static struct expr *do_bool_expr(struct expr *node, struct source src)
 // switch
 static struct expr *do_switch_expr(struct expr *expr, struct source src)
 {
-    struct expr *node = conv(expr);
-    if (node == NULL)
+    struct symbol *sym;
+    struct expr *asgn;
+    expr = conv(expr);
+    if (expr == NULL)
         return NULL;
-    if (!isint(node->type)) {
+    if (!isint(expr->type)) {
         error_at(src, "statement requires expression of integer type ('%s' invalid)",
-                 type2s(node->type));
+                 type2s(expr->type));
         return NULL;
     }
-    return node;
+    // make a tmp var
+    sym = mktmp(gen_tmpname(), expr->type, REGISTER);
+    asgn = assign(sym, expr);
+    return asgn;
 }
 
-/// init
+/*=================================================================*
+ *                        Sema-Statement                           *
+ *=================================================================*/
+
+static void ensure_return(struct expr *expr, bool isnull, struct source src)
+{
+    // return immediately if expr is NULL. (parsing failed)    
+    if (expr == NULL)
+        return;
+
+    if (isvoid(rtype(func.type))) {
+        if (!isnull && !isvoid(expr->type))
+            error_at(src, "void function should not return a value");
+    } else {
+        if (!isnull) {
+            struct type *ty1 = expr->type;
+            struct type *ty2 = rtype(func.type);
+            if (!(expr = assignconv(ty2, expr)))
+                error_at(src,
+                         "returning '%s' from function with incompatible result type '%s'",
+                         type2s(ty1), type2s(ty2));
+        } else {
+            error_at(src, "non-void function should return a value");
+        }
+    }
+}
+
+static void ensure_gotos(void)
+{
+    for (struct goinfo *p = func.gotos; p; p = p->link) {
+        struct symbol *sym = lookup(p->id, func.labels);
+        if (!sym || !sym->defined)
+            error_at(p->src, "use of undeclared label '%s'", p->id);
+    }
+}
+
+/// actions-stmt
+
+static void do_branch(struct expr *expr, int tlab, int flab)
+{
+    assert(tlab == 0 || flab == 0);
+    struct stmt *stmt = ast_stmt(CBR);
+    stmt->u.cbr.expr = expr;
+    stmt->u.cbr.tlab = tlab;
+    stmt->u.cbr.flab = flab;
+    add_to_list(stmt);
+}
+
+static void do_jump(int label)
+{
+    struct stmt *stmt = ast_stmt(JMP);
+    stmt->u.label = label;
+    add_to_list(stmt);
+}
+
+static void do_ret(struct expr *expr, bool isnull, struct source src)
+{
+    ensure_return(expr, isnull, src);
+    struct stmt *stmt = ast_stmt(RET);
+    stmt->u.expr = expr;
+    add_to_list(stmt);
+}
+
+static void do_label(int label)
+{
+    struct stmt *stmt = ast_stmt(LABEL);
+    stmt->u.label = label;
+    add_to_list(stmt);
+}
+
+static void do_gen(struct expr *expr)
+{
+    if (expr) {
+        struct stmt *stmt = ast_stmt(GEN);
+        stmt->u.expr = expr;
+        add_to_list(stmt);
+    }
+}
+
+/*=================================================================*
+ *                        Sema-Initialization                      *
+ *=================================================================*/
+
+static struct expr *ensure_init(struct expr *init, struct type *ty, struct symbol *sym, struct source src)
+{    
+    // TODO:
+    return init;
+}
+
+static bool ensure_designator(struct desig *d)
+{
+    if (isincomplete(d->type)) {
+        int id;
+        if (d->id == DESIG_FIELD)
+            id = STRUCT;
+        else if (d->id == DESIG_INDEX)
+            id = ARRAY;
+        else
+            id = TYPE_KIND(d->type);
+
+        error_at(d->src,
+                 "%s designator of incomplete type '%s'",
+                 id2s(id), type2s(d->type));
+        return false;
+    }
+    return true;
+}
+
+/// actions-init
+
+static void offset_init(struct desig *desig, struct expr *expr, struct init **ilist)
+{
+    assert(desig && expr && ilist);
+    assert(!isarray(desig->type));
+
+    struct type *ty = desig->type;
+    struct init *p;
+    
+    if (isincomplete(ty) || isfunc(ty)) {
+        error_at(desig->src, "'%s' cannot have an initializer",
+                 TYPE_NAME(ty));
+        return;
+    }
+
+    //possible: scalar/struct/union
+
+    // assignment conversion
+    struct expr *n = assignconv(ty, expr);
+    if (n == NULL) {
+        error_at(desig->src, ERR_INCOMPATIBLE_TYPES,
+                 type2s(expr->type), type2s(ty));
+        return;
+    }
+
+    // check override
+    for (; (p = *ilist); ilist = &p->link) {
+        if (p->offset > desig->offset)
+            break;
+        if (p->offset == desig->offset) {
+            if (desig->id == DESIG_FIELD &&
+                isbitfield(desig->u.field)) {
+                // bitfield
+                if (p->boff < desig->u.field->bitoff)
+                    continue;
+                else if (p->boff > desig->u.field->bitoff)
+                    break;
+                // fall through
+            }
+
+            // overlapped
+            warning_at(desig->src, ERR_INIT_OVERRIDE);
+            p = p->link;    // remove from the list
+            break;
+        }
+    }
+
+    // insert
+    struct init *init = NEWS0(struct init, FUNC);
+    init->type = desig->type;
+    init->offset = desig->offset;
+    init->body = n;
+    if (desig->id == DESIG_FIELD) {
+        assert(!isindirect(desig->u.field));
+        init->boff = desig->u.field->bitoff;
+        init->bsize = desig->u.field->bitsize;
+    }
+    init->link = p;
+    *ilist = init;
+}
+
+static void string_init(struct desig *desig, struct expr *expr, struct init **pinit)
+{
+    assert(desig && expr && pinit);
+    
+    // TODO:
+    dlog("%s: (offset=%ld) <expr %p> <string>", desig2s(desig), desig->offset, expr);
+}
+
+static struct desig *next_designator1(struct desig *desig, bool initial)
+{
+    assert(desig);
+    
+    switch (desig->id) {
+    case DESIG_FIELD:
+        {
+            struct desig *prev = desig->prev;
+
+            assert(prev);
+            assert(isrecord(prev->type));
+
+            struct field *field = desig->u.field->link;
+            // skip indirect field
+            while (field && isindirect(field))
+                field = field->link;
+            if (field) {
+                struct desig *d = new_desig_field(field, source);
+                d->offset = prev->offset + field->offset;
+                d->prev = copy_desig(prev);
+                return check_designator(d);
+            } else {
+                return next_designator1(prev, false);
+            }
+        }
+        break;
+
+    case DESIG_INDEX:
+        {
+            struct desig *prev = desig->prev;
+
+            assert(prev);
+            assert(isarray(prev->type));
+
+            size_t len = TYPE_LEN(prev->type);
+            long idx = desig->u.index;
+            if (len == 0 || idx < len - 1) {
+                struct type *rty = desig->type;
+                struct desig *d = new_desig_index(idx+1, source);
+                d->type = rty;
+                d->offset = desig->offset + TYPE_SIZE(rty);
+                d->prev = copy_desig(prev);
+                return check_designator(d);
+            } else {
+                return next_designator1(prev, false);
+            }
+        }
+        break;
+
+    case DESIG_NONE:
+        assert(desig->prev == NULL);
+        if (!initial) {
+            error("excess elements in %s initializer", TYPE_NAME(desig->type));
+            return NULL;
+        }
+        if (isrecord(desig->type)) {
+            struct field *first = TYPE_FIELDS(desig->type);
+            if (first) {
+                struct desig *d = new_desig_field(first, source);
+                d->offset = desig->offset + first->offset;
+                d->prev = copy_desig(desig);
+                return d;
+            } else if (isincomplete(desig->type)) {
+                error("initialize incomplete type '%s'", type2s(desig->type));
+                return NULL;
+            } else {
+                // empty record
+                error("excess elements in %s initializer", TYPE_NAME(desig->type));
+                return NULL;
+            }
+        } else if (isarray(desig->type)) {
+            struct type *rty = rtype(desig->type);
+            struct desig *d = new_desig_index(0, source);
+            d->type = rty;
+            d->offset = desig->offset;
+            d->prev = copy_desig(desig);
+            return d;
+        } else {
+            return desig;
+        }
+        break;
+    }
+    
+    CC_UNAVAILABLE
+}
 
 static void do_element_init(struct desig **pdesig, struct expr *expr, struct init **pinit)
 {
@@ -2806,52 +2009,881 @@ static struct expr * do_initializer_list(struct type *ty, struct init *init)
     return n;
 }
 
-/// stmt
+/*=================================================================*
+ *                        Sema-Declaration                         *
+ *=================================================================*/
 
-static void do_branch(struct expr *expr, int tlab, int flab)
-{
-    assert(tlab == 0 || flab == 0);
-    struct stmt *stmt = ast_stmt(CBR);
-    stmt->u.cbr.expr = expr;
-    stmt->u.cbr.tlab = tlab;
-    stmt->u.cbr.flab = flab;
-    add_to_list(stmt);
-}
+/*
+ * Check for:
+ * - `array of function`
+ * - `function returning array`
+ * - `function returning function`
+ * recursively. Above cases are always invalid.
+ */
 
-static void do_jump(int label)
+/**
+ *  1. Array qualifiers may appear only when in a function parameter.
+ *
+ *  2. Array qualifiers 'const', 'volatile', 'restrict', 'static' may
+ *     appear within the _outermost_ brackets.
+ *
+ *  3. 'static' is an optimization hint, asserting that the actual array
+ *     argument will be non-null and will have the declared size and
+ *     type upon entry to the function.
+ *
+ *  4. The star modifier '*' or non-constant expression describe a
+ *     variable length array. The '*' can only appear in array parameter
+ *     declarations within function prototypes that are not part of
+ *     a function definition.
+ */
+static void ensure_func_array(struct type *ty, bool param, struct source src, bool outermost)
 {
-    struct stmt *stmt = ast_stmt(JMP);
-    stmt->u.label = label;
-    add_to_list(stmt);
-}
+    if (isarray(ty)) {
+        struct type *rty = rtype(ty);
 
-static void do_ret(struct expr *expr, bool isnull, struct source src)
-{
-    ensure_return(expr, isnull, src);
-    struct stmt *stmt = ast_stmt(RET);
-    stmt->u.expr = expr;
-    add_to_list(stmt);
-}
+        if (isfunc(rty))
+            error_at(src, ERR_ARRAY_OF_FUNC);
+        
+        if (TYPE_A_STAR(ty) && !param)
+            error_at(src, "star modifier used outside of function prototype");
 
-static void do_label(int label)
-{
-    struct stmt *stmt = ast_stmt(LABEL);
-    stmt->u.label = label;
-    add_to_list(stmt);
-}
+        if (TYPE_A_CONST(ty) ||
+            TYPE_A_RESTRICT(ty) ||
+            TYPE_A_VOLATILE(ty) ||
+            TYPE_A_STATIC(ty)) {
+            if (!param)
+                error_at(src,
+                         "type qualifier used in array declarator outside of function prototype");
+            if (!outermost)
+                error_at(src,
+                         "type qualifier used in non-outermost array type derivation");
+        }
 
-static void do_gen(struct expr *expr)
-{
-    if (expr) {
-        struct stmt *stmt = ast_stmt(GEN);
-        stmt->u.expr = expr;
-        add_to_list(stmt);
+        ensure_func_array(rty, param, src, false);
+        set_typesize(ty);       // calculate array size
+    } else if (isfunc(ty)) {
+        struct type *rty = rtype(ty);
+        if (isarray(rty))
+            error_at(src, ERR_FUNC_RET_ARRAY, type2s(rty));
+        else if (isfunc(rty))
+            error_at(src, ERR_FUNC_RET_FUNC, type2s(rty));
+
+        ensure_func_array(rty, false, src, true);
+    } else if (isptr(ty)) {
+        struct type *rty = rtype(ty);
+        ensure_func_array(rty, param, src, false);
     }
 }
 
-///
-/// public
-///
+static void finish_type(struct type *ty, bool param, struct source src)
+{
+    ensure_func_array(ty, param, src, true);
+}
+
+static void check_func_array_in_funcdef(struct type *ty, struct source src)
+{
+    if (isarray(ty)) {
+        struct type *rty = rtype(ty);
+        if (TYPE_A_STAR(ty))
+            error_at(src, "variable length array must be bound in function definition");
+        check_func_array_in_funcdef(rty, src);
+    } else if (isptr(ty)) {
+        struct type *rty = rtype(ty);
+        check_func_array_in_funcdef(rty, src);
+    }
+}
+
+static void ensure_inline(struct type *ty, int fspec, struct source src)
+{
+    if (fspec == INLINE) {
+        if (isfunc(ty))
+            TYPE_INLINE(ty) = 1;
+        else
+            error_at(src, ERR_INLINE);
+    }
+}
+
+static void check_bitfield(struct field *p)
+{
+    struct type *ty = p->type;
+    int bitsize = p->bitsize;
+    int bits = BITS(TYPE_SIZE(ty));
+
+    if (!isint(ty)) {
+        if (p->name)
+            error_at(p->src,
+                     "bit-field '%s' has non-integral type '%s'",
+                     p->name, type2s(ty));
+        else
+            error_at(p->src,
+                     "anonymous bit-field has non-integral type '%s'",
+                     type2s(ty));
+    }
+
+    if (bitsize < 0) {
+        if (p->name)
+            error_at(p->src,
+                     "bit-field '%s' has negative width '%d'",
+                     p->name, bitsize);
+        else
+            error_at(p->src,
+                     "anonymous bit-field has negative width '%d'",
+                     bitsize);
+    }
+
+    if (bitsize == 0 && p->name)
+        error_at(p->src,
+                 "named bit-field '%s' has zero width",
+                 p->name);
+
+    if (bitsize > bits) {
+        if (p->name)
+            error_at(p->src,
+                     "size of bit-field '%s' (%d bits) exceeds size of its type (%d bits)",
+                     p->name, bitsize, bits);
+        else
+            error_at(p->src,
+                     "anonymous bit-field (%d bits) exceeds size of its type (%d bits)",
+                     bitsize, bits);
+    }
+}
+
+static void ensure_nonbitfield(struct field *p, bool one)
+{
+    struct type *ty = p->type;
+
+    finish_type(ty, false,  p->src);
+
+    if (isarray(ty)) {
+        if (isincomplete(ty)) {
+            if (one)
+                error_at(p->src, "flexible array cannot be the only member");
+            else if (p->link)   // NOT the last field
+                error_at(p->src, "field has incomplete type '%s'", type2s(ty));
+        }
+    } else if (isfunc(ty)) {
+        error_at(p->src, "field has invalid type '%s'", TYPE_NAME(ty));
+    } else if (isincomplete(ty)) {
+        error_at(p->src, "field has incomplete type '%s'", type2s(ty));
+    }
+}
+
+static void ensure_fields(struct symbol *sym)
+{
+    struct field *first = sym->u.s.flist;
+    bool one = first && first->link == NULL;
+
+    for (struct field *p = first; p; p = p->link) {
+        if (isindirect(p))
+            continue;
+        if (isbitfield(p))
+            check_bitfield(p);
+        else
+            ensure_nonbitfield(p, one);
+    }
+}
+
+static void check_main_func(struct type *ftype, const char *name, struct source src)
+{
+    assert(isfunc(ftype));
+    assert(name);
+    
+    if (strcmp(name, "main"))
+        return;
+    
+    struct type *rty = rtype(ftype);
+    struct type **proto = TYPE_PROTO(ftype);
+    size_t len = length(proto);
+
+    if (rty != inttype && rty != voidtype)
+        error_at(src, "return type of 'main' is not 'int'");
+
+    for (int i = 0; i < MIN(3, len); i++) {
+        struct type *ty = proto[i];
+        if (i == 0) {
+            if (ty != inttype)
+                error_at(src, "first parameter of 'main' is not 'int'");
+        } else if (i == 1 || i == 2) {
+            if (!isptrto(ty, POINTER) ||
+                !isptrto(rtype(ty), CHAR))
+                error_at(src, "%s parameter of 'main' is not 'char **'",
+                         i == 1 ? "second" : "third");
+        }
+    }
+    if (len == 1 || len > 3)
+        error_at(src,
+                 "expect 0, 2 or 3 parameters for 'main', have %d",
+                 len);
+}
+
+static void check_params_in_funcdef(struct symbol *params[])
+{
+    for (int i = 0; params[i]; i++) {
+        struct symbol *sym = params[i];
+        struct type *ty = sym->type;
+        // parameter name is required in prototype
+        if (sym->anonymous)
+            error_at(sym->src, "parameter name omitted");
+        // get the original type without decay
+        if (isptr(ty) && TYPE_P_DECAY(ty))
+            ty = TYPE_P_DECAY(ty);
+
+        // check variable length array (star modifier)
+        check_func_array_in_funcdef(ty, sym->src);
+        
+        // check incomplete type
+        if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+            if (!TYPE_TSYM(ty)->defined)
+                error_at(sym->src,
+                         "variable has incomplete type '%s'",
+                         type2s(ty));
+        } else if (isarray(ty)) {
+            struct type *rty = rtype(ty);
+            if (isincomplete(rty))
+                error_at(sym->src,
+                         ERR_INCOMPLETE_ELEM,
+                         type2s(rty));
+        }
+    }
+}
+
+static void oldparam(struct symbol *sym, void *context)
+{
+    struct symbol **params = context;
+
+    assert(sym->name);
+
+    // _NOT_ a variable
+    if (sym->sclass == TYPEDEF || isfunc(sym->type)) {
+        warning_at(sym->src, "empty declaraion");
+        return;
+    }
+        
+    for (int j = 0; params[j]; j++) {
+        struct symbol *s = params[j];
+        assert(s->name);
+        if (s->name == sym->name) {
+            // replace id with declared symbol
+            params[j] = sym;
+            return;
+        }
+    }
+
+    // _NOT_ found in id list
+    error_at(sym->src, "parameter named '%s' is missing", sym->name);
+}
+
+static void mkfuncdecl(struct symbol *sym, struct type *ty, int sclass, struct source src)
+{
+    sym->type = ty;
+    sym->src = src;
+    sym->defined = true;
+    sym->sclass = sclass;
+}
+
+static void init_string(struct type *ty, struct expr *node)
+{
+    int len1 = TYPE_LEN(ty);
+    int len2 = TYPE_LEN(node->type);
+    if (len1 > 0) {
+        if (len1 < len2 - 1)
+            warning("initializer-string for char array is too long");
+    } else if (isincomplete(ty)) {
+        TYPE_LEN(ty) = len2;
+        set_typesize(ty);
+    }
+}
+
+static struct symbol *mklocal(const char *name, struct type * ty, int sclass)
+{
+    return call(localdecl)(name, ty, sclass, 0, source);
+}
+
+static void predefined_ids(void)
+{
+    /**
+     * Predefined identifier: __func__
+     * The identifier __func__ is implicitly declared by C99
+     * implementations as if the following declaration appeared
+     * after the opening brace of each function definition:
+     *
+     * static const char __func__[] = "function-name";
+     *
+     */
+    struct type *type = array_type(qual(CONST, chartype));
+    // initializer
+    struct expr *literal = cnsts(func.name);
+    init_string(type, literal);
+    
+    struct symbol *sym = mklocal("__func__", type, STATIC);
+    sym->predefine = true;
+    sym->u.init = literal;
+}
+
+static void func_body(struct symbol *sym)
+{
+    struct stmt *stmt = NULL;
+
+    func.gotos = NULL;
+    func.labels = new_table(NULL, LOCAL);
+    func.type = sym->type;
+    func.name = sym->name;
+    func.xcall = NULL;
+    func.stmt = &stmt;
+
+    // compound statement
+    compound_stmt(predefined_ids, 0, 0, NULL);
+    // check goto labels
+    ensure_gotos();
+
+    // save
+    sym->u.f.xcall = func.xcall;
+    sym->u.f.stmt = stmt;
+
+    free_table(func.labels);
+    func.labels = NULL;
+    func.type = NULL;
+    func.name = NULL;
+    func.xcall = NULL;
+    func.stmt = NULL;
+}
+
+static void doglobal(struct symbol *sym, void *context)
+{
+    // typedefs and enum ids are _defined_
+    if (sym->defined ||
+        sym->sclass == EXTERN ||
+        isfunc(sym->type))
+        return;
+
+    sym->defined = true;
+    events(defgvar)(sym);
+}
+
+/// actions-decl
+
+static void do_array_index(struct type *atype, struct expr *assign, struct source src)
+{
+    if (!assign)
+        return;
+
+    if (isint(assign->type)) {
+        TYPE_A_ASSIGN(atype) = assign;
+        // try evaluate the length
+        struct expr *n = eval(assign, longtype);
+        if (n) {
+            assert(isiliteral(n));
+            TYPE_LEN(atype) = n->sym->value.i;
+            if (n->sym->value.i < 0)
+                error_at(src, "array has negative size");
+        } else {
+            error_at(src, "expect constant expression");
+        }
+    } else {
+        error_at(src,
+                 "size of array has non-integer type '%s'",
+                 type2s(assign->type));
+    }
+}
+
+static struct symbol **do_prototype(struct type *ftype, struct symbol *params[])
+{    
+    for (int i = 0; params[i]; i++) {
+        struct symbol *p = params[i];
+        struct type *ty = p->type;
+        if (isvoid(ty)) {
+            if (i == 0) {
+                if (!p->anonymous) {
+                    error_at(p->src,
+                             "argument may not have 'void' type");
+                    p->type = inttype;
+                } else if (isqual(ty)) {
+                    error_at(p->src,
+                             "'void' as parameter must not have type qualifier");
+                    p->type = inttype;
+                } else if (TYPE_VARG(ftype)) {
+                    error_at(p->src,
+                             "'void' must be the first and only parameter if specified");
+                    p->type = inttype;
+                }
+            } else {
+                error_at(p->src,
+                         "'void' must be the first and only parameter if specified");
+                p->type = inttype;
+            }
+        }
+    }
+
+    // make it empty
+    if (length(params) == 1 && isvoid(params[0]->type))
+        params[0] = NULL;
+
+    return params;
+}
+
+static struct symbol *do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
+{
+    struct symbol *s = lookup(name, identifiers);
+    if (s && is_current_scope(s))
+        error_at(src, ERR_REDEFINITION,
+                 name, s->src.file, s->src.line, s->src.column);
+
+    s = install(name, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
+    s->type = sym->type;
+    s->src = src;
+    s->sclass = ENUM;
+    s->value.u = val;
+    s->defined = true;
+    return s;
+}
+
+static void do_direct_field(struct symbol *sym, struct field *field)
+{
+    struct field **pp = &sym->u.s.flist;
+    struct field *p;
+
+    while ((p = *pp)) {
+        if (field->name && field->name == p->name)
+            error_at(field->src,
+                     ERR_DUPLICATE_MEMBER,
+                     field->name, p->src.file, p->src.line, p->src.column);
+        pp = &p->link;
+    }
+
+    *pp = field;
+}
+
+static void do_indirect_field(struct symbol *sym, struct field *field)
+{
+    struct field *first = TYPE_FIELDS(field->type);
+    struct field **pp;
+    struct field *indir = NULL;
+    struct field **indirp = &indir;
+
+    call(direct_field)(sym, field);
+    
+    for (struct field *q = first; q; q = q->link) {
+        struct field *p;
+        
+        pp = &sym->u.s.flist;
+        while ((p = *pp)) {
+            if (q->name && q->name == p->name)
+                error_at(q->src,
+                         ERR_DUPLICATE_MEMBER,
+                         q->name, p->src.file, p->src.line, p->src.column);
+            pp = &p->link;
+        }
+        if (isindirect(q)) {
+            struct field *n = new_indirect_field(q->indir);
+            struct list *list = list_append(NULL, field);
+            for (int i = 0; q->of[i]; i++)
+                list = list_append(list, q->of[i]);
+            n->of = ltoa(&list, PERM);
+            n->offset = q->offset;
+            *indirp = n;
+            indirp = &n->link;
+        } else if (q->name) {
+            struct field *n = new_indirect_field(q);
+            struct list *list = list_append(NULL, field);
+            n->of = ltoa(&list, PERM);
+            n->offset = q->offset;
+            *indirp = n;
+            indirp = &n->link;
+        }
+    }
+
+    if (indir)
+        *pp = indir;
+}
+
+static void do_enumdecl(struct symbol *sym, struct symbol *ids[])
+{
+    sym->defined = true;
+    sym->u.s.ids = ids;
+    events(deftype)(sym);
+}
+
+static void do_recorddecl(struct symbol *sym)
+{
+    ensure_fields(sym);
+    sym->defined = true;
+    set_typesize(sym->type);
+    events(deftype)(sym);
+}
+
+static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass, int fspec, struct source src)
+{
+    struct symbol *sym;
+
+    assert(id);
+    assert(cscope == GLOBAL);
+
+    if (sclass == AUTO || sclass == REGISTER) {
+        error_at(src, "illegal storage class on file-scoped variable");
+        sclass = 0;
+    }
+
+    finish_type(ty, false, src);
+
+    if (isfunc(ty))
+        check_main_func(ty, id, src);
+
+    ensure_inline(ty, fspec, src);
+
+    sym = lookup(id, identifiers);
+    if (!sym || sym->scope != cscope) {
+        sym = install(id, &identifiers, cscope, PERM);
+        sym->type = ty;
+        sym->src = src;
+        sym->sclass = sclass;
+    } else if (eqtype(ty, sym->type)) {
+        if (sclass == STATIC && sym->sclass != STATIC)
+            error_at(src, "static declaration of '%s' follows non-static declaration", id);
+        else if (sym->sclass == STATIC && sclass != STATIC)
+            error_at(src, "non-static declaration of '%s' follows static declaration", id);
+
+        if (sclass != EXTERN)
+            sym->sclass = sclass;
+    } else {
+        error_at(src, ERR_CONFLICTING_TYPES,
+                 sym->name, sym->src.file, sym->src.line, sym->src.column);
+    }
+
+    if (token->id == '=') {
+        gettok();
+        if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
+            error("'%s' cannot have an initializer", TYPE_NAME(ty));
+            initializer(NULL);
+        } else if (istag(ty) && isincomplete(ty)) {
+            error("variable '%s' has incomplete type '%s'", id, type2s(ty));
+            initializer(NULL);
+        } else {
+            struct source src2 = source;
+            struct expr *init = initializer(ty);
+
+            if (sclass == EXTERN)
+                warning_at(src, "'extern' variable has an initializer");
+
+            if (sym->defined)
+                error_at(src, ERR_REDEFINITION,
+                         sym->name, sym->src.file, sym->src.line, sym->src.column);
+
+            init = ensure_init(init, ty, sym, src2);
+            sym->u.init = init;
+        }
+
+        sym->defined = true;
+    }
+
+    // check incomplete type after intialized
+    if (isincomplete(ty))
+        error_at(src, ERR_INCOMPLETE_VAR, id, type2s(ty));
+
+    // actions
+    if (sym->u.init)
+        events(defgvar)(sym);
+    else if (isfunc(ty))
+        events(dclfun)(sym);
+    else
+        events(dclgvar)(sym);
+
+    return sym;
+}
+
+static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
+{
+    struct symbol *sym;
+
+    assert(id);
+    assert(cscope >= LOCAL);
+
+    if (sclass == 0)
+        sclass = isfunc(ty) ? EXTERN : AUTO;
+
+    finish_type(ty, false, src);
+    
+    if (isfunc(ty)) {
+        check_main_func(ty, id, src);
+        if (sclass != EXTERN) {
+            error_at(src,
+                     "function declared in block scope cannot have '%s' storage class",
+                     id2s(sclass));
+            sclass = EXTERN;
+        }
+    }
+
+    ensure_inline(ty, fspec, src);
+
+    sym = lookup(id, identifiers);
+    if (sclass == EXTERN) {
+        if (sym == NULL || !is_current_scope(sym) || eqtype(ty, sym->type)) {
+            struct symbol *p = lookup(id, globals);
+            if (p == NULL || eqtype(ty, p->type)) {
+                p = lookup(id, externals);
+                if (p && !eqtype(ty, p->type))
+                    error_at(src, ERR_REDEFINITION,
+                             p->name, p->src.file, p->src.line, p->src.column);
+            } else {
+                error_at(src, ERR_REDEFINITION,
+                         p->name, p->src.file, p->src.line, p->src.column);
+            }
+        } else {
+            error_at(src, ERR_REDEFINITION,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
+        }
+    } else {
+        if (sym && is_current_scope(sym))
+            error_at(src, ERR_REDEFINITION,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
+    }
+
+    sym = install(id, &identifiers, cscope, sclass == EXTERN ? PERM : FUNC);
+    sym->type = ty;
+    sym->src = src;
+    sym->sclass = sclass;
+    if (sclass != EXTERN)
+        sym->defined = true;
+
+    if (sclass == EXTERN) {
+        struct symbol *p = install(id, &externals, GLOBAL, PERM);
+        p->type = ty;
+        p->src = src;
+        p->sclass = EXTERN;
+    }
+
+    if (token->id == '=') {
+        gettok();
+        if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
+            error("'%s' cannot have an initializer", TYPE_NAME(ty));
+            initializer(NULL);
+        } else if (sclass == EXTERN) {
+            error("'extern' variable cannot have an initializer");
+            initializer(NULL);
+        } else if (istag(ty) && isincomplete(ty)) {
+            error("variable '%s' has incomplete type '%s'", id, type2s(ty));
+            initializer(NULL);
+        } else {
+            struct source src2 = source;
+            struct expr *init = initializer(ty);
+            init = ensure_init(init, ty, sym, src2);
+            if (init) {
+                sym->u.init = init;
+                // gen assign expr
+                if (sclass != STATIC)
+                    assign(sym, init);
+            }
+        }
+    }
+
+    // check incomplete type after initialized
+    if (isincomplete(ty))
+        error_at(src, ERR_INCOMPLETE_VAR, id, type2s(ty));
+
+    // actions
+    if (isfunc(ty))
+        events(dclfun)(sym);
+    else if (sclass == EXTERN)
+        events(dclgvar)(sym);
+    else if (sclass == STATIC)
+        events(defsvar)(sym);
+    else
+        events(deflvar)(sym);
+
+    return sym;
+}
+
+// id maybe NULL
+static struct symbol *do_paramdecl(const char *id, struct type * ty, int sclass, int fspec, struct source src)
+{
+    struct symbol *sym;
+    bool nonnull = false;
+
+    if (sclass && sclass != REGISTER) {
+        error_at(src,
+                 "invalid storage class specifier '%s' in function declarator",
+                 id2s(sclass));
+        sclass = 0;
+    }
+
+    if (fspec == INLINE)
+        error_at(src, ERR_INLINE);
+
+    finish_type(ty, true, src);
+
+    if (isfunc(ty)) {
+        struct type *fty = ty;
+        ty = ptr_type(fty);
+        ty->u.p.decay = fty;
+    } else if (isarray(ty)) {
+        struct type *aty = ty;
+        struct type *rty = rtype(ty);
+        // check incomplete
+        if (isincomplete(rty))
+            error_at(src, ERR_INCOMPLETE_ELEM, type2s(rty));
+        
+        ty = ptr_type(rty);
+        ty->u.p.decay = aty;
+        // apply array qualifiers
+        if (TYPE_A_CONST(aty))
+            ty = qual(CONST, ty);
+        if (TYPE_A_VOLATILE(aty))
+            ty = qual(RESTRICT, ty);
+        if (TYPE_A_RESTRICT(aty))
+            ty = qual(VOLATILE, ty);
+        if (TYPE_A_STATIC(aty))
+            nonnull = true;
+    } else if (isenum(ty) || isstruct(ty) || isunion(ty)) {
+        if (!TYPE_TSYM(ty)->defined || TYPE_TSYM(ty)->scope == cscope)
+            warning_at(src,
+                       "declaration of '%s' will not be visible outside of this function",
+                       type2s(ty));
+    }
+        
+    if (id) {
+        sym = lookup(id, identifiers);
+        if (sym && sym->scope == cscope)
+            error_at(src, ERR_REDEFINITION,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
+        sym = install(id, &identifiers, cscope, FUNC);
+    } else {
+        sym = anonymous(&identifiers, cscope, FUNC);
+    }
+    
+    sym->type = ty;
+    sym->src = src;
+    sym->sclass = sclass;
+    sym->nonnull = nonnull;
+    sym->defined = true;
+
+    if (token->id == '=') {
+        error("C does not support default arguments");
+        initializer(NULL);
+    }
+    
+    return sym;
+}
+
+// level: GLOBAL/PARAM/LOCAL
+static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level, struct source src)
+{
+    int sclass = TYPEDEF;
+    struct symbol *sym;
+
+    assert(id);
+
+    if (level == PARAM)
+        error_at(src,
+                 "invalid storage class specifier '%s' in function declarator",
+                 id2s(sclass));
+
+    if (fspec == INLINE)
+        error_at(src, ERR_INLINE);
+
+    finish_type(ty, level == PARAM, src);
+
+    sym = lookup(id, identifiers);
+    if (sym && is_current_scope(sym))
+        error_at(src, ERR_REDEFINITION,
+                 sym->name, sym->src.file, sym->src.line, sym->src.column);
+
+    sym = install(id, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
+    sym->type = ty;
+    sym->src = src;
+    sym->sclass = sclass;
+    sym->defined = true;
+
+    if (token->id == '=') {
+        error("illegal initializer (only variable can be initialized)");
+        initializer(NULL);
+    }
+
+    events(deftype)(sym);
+}
+
+// id maybe NULL
+static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
+                       struct symbol *params[], struct source src)
+{
+    struct symbol *sym;
+
+    assert(cscope == PARAM);
+
+    if (sclass && sclass != EXTERN && sclass != STATIC) {
+        error("invalid storage class specifier '%s'", id2s(sclass));
+        sclass = 0;
+    }
+
+    finish_type(ty, false, src);
+    
+    if (id) {
+        sym = lookup(id, identifiers);
+        if (!sym || sym->scope != GLOBAL) {
+            sym = install(id, &identifiers, GLOBAL, PERM);
+            mkfuncdecl(sym, ty, sclass, src);
+        } else if (eqtype(ty, sym->type) && !sym->defined) {
+            if (sclass == STATIC && sym->sclass != STATIC)
+                error_at(src,
+                         "static declaaration of '%s' follows non-static declaration",
+                         id);
+            else
+                mkfuncdecl(sym, ty, sclass, src);
+        } else {
+            error_at(src, ERR_REDEFINITION,
+                     sym->name, sym->src.file, sym->src.line, sym->src.column);
+        }
+
+        check_main_func(ty, id, src);
+    } else {
+        sym = anonymous(&identifiers, GLOBAL, PERM);
+        mkfuncdecl(sym, ty, sclass, src);
+    }
+
+    if (fspec == INLINE)
+        TYPE_INLINE(ty) = INLINE;
+
+    // old style function parameters declaration
+    if (TYPE_OLDSTYLE(ty)) {
+        int i;
+
+        foreach(identifiers, PARAM, oldparam, params);
+
+        for (i = 0; params[i]; i++) {
+            struct symbol *p = params[i];
+            if (!p->defined)
+                params[i] = call(paramdecl)(p->name, inttype, 0, 0, p->src);
+            // check void
+            if (isvoid(p->type)) {
+                error_at(p->src, "argument may not have 'void' type");
+                p->type = inttype;
+            }
+        }
+
+        struct type **proto = newarray(sizeof(struct type *), length(params) + 1, PERM);
+        for (i = 0; params[i]; i++)
+            proto[i] = params[i]->type;
+
+        proto[i] = NULL;
+        TYPE_PROTO(ty) = proto;
+    }
+
+    TYPE_PARAMS(ty) = params;
+    check_params_in_funcdef(params);
+
+    if (token->id == '{') {
+        // function definition
+        func_body(sym);
+        exit_scope();
+        events(defun)(sym);
+    } else {
+        // oldstyle
+        assert(TYPE_OLDSTYLE(ty));
+        error("expect function body after function declarator");
+    }
+}
+
+/*=================================================================*
+ *                          Public                                 *
+ *=================================================================*/
 
 int first_decl(struct token *t)
 {
@@ -2948,11 +2980,6 @@ struct symbol *tag_symbol(int t, const char *tag, struct source src)
     return sym;
 }
 
-struct symbol *mklocal(const char *name, struct type * ty, int sclass)
-{
-    return call(localdecl)(name, ty, sclass, 0, source);
-}
-
 struct symbol *mktmp(const char *name, struct type *ty, int sclass)
 {
     struct symbol *sym = call(localdecl)(name, ty, sclass, 0, source);
@@ -2979,12 +3006,6 @@ struct expr *cnsts(const char *string)
 {
     struct token t = {.id = SCONSTANT, .u.lit.str = format("\"%s\"", string)};
     return literal_expr(&t, CNST, string_constant);
-}
-
-struct expr *assign(struct symbol *sym, struct expr *r)
-{
-    struct expr *l = mkref(sym);
-    return call(assignop)('=', l, r, sym->src);
 }
 
 void check_case_duplicates(struct cse *cse, struct swtch *swtch)

@@ -461,10 +461,8 @@ extern struct desig *next_designator(struct desig *desig);
 
 extern struct expr *cnsti(long i, struct type *ty);
 extern struct expr *cnsts(const char *string);
-extern struct expr *assign(struct symbol *sym, struct expr *r);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
-extern struct symbol *mklocal(const char *name, struct type *ty, int sclass);
 extern struct symbol *mktmp(const char *name, struct type *ty, int sclass);
 
 // type.c
