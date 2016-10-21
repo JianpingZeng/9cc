@@ -2,7 +2,7 @@
 Expression
 ==========
 
-        Expression that can be lvalues:
+1. Expression that can be lvalues:
 
         Expression          Additional requirements
         --------------------------------------------
@@ -15,7 +15,7 @@ Expression
         string-constant     none
         --------------------------------------------
 
-        Operators requiring lvalue operands:
+2. Operators requiring lvalue operands:
 
         Operator            Requirement
         ---------------------------------------------------------------
@@ -24,6 +24,137 @@ Expression
         = += -= *= /= %=    left operand must be an lvalue
         <<= >>= &= ^= |=
         ---------------------------------------------------------------
+
+3. Result
+
+        Expression      Result type             Result tree     Requirements
+        --------------------------------------------------------------------------
+        comma           void                    RIGHT
+                        pointer
+                        arith
+                        struct/union
+                        (except array and function)
+        ---------------------------------------------------------------------------
+        assign          pointer                 ASGN
+                        arith
+                        struct/union
+        ---------------------------------------------------------------------------
+        cond            void                    COND
+                        pointer
+                        arith
+                        struct/union
+        ---------------------------------------------------------------------------
+        logical-or      integer                 OR              scalar || scalar
+        logical-and     integer                 AND             scalar && scalar
+        ---------------------------------------------------------------------------
+        binary
+        *               arith                   MUL             arith * arith
+        /               arith                   DIV             arith / arith
+        %               integer                 MOD             integer % integer
+        <<              integer                 SHL             integer << integer
+        >>              integer                 SHR             integer >> integer
+        &               integer                 BAND            integer & integer
+        ^               integer                 XOR             integer ^ integer
+        |               integer                 BOR             integer | integer
+        
+        +               arith                   ADD             arith + arith
+                        pointer                 ADD             pointer + integer
+                                                                integer + pointer
+                                                                
+        -               arith                   SUB             arith - arith
+                        pointer                 SUB             pointer - integer
+                        integer                 SUB             pointer - pointer
+                        
+        >               integer                 GT              scalar
+        <               integer                 LT              scalar
+        >=              integer                 GE              scalar
+        <=              integer                 LE              scalar
+        ==              integer                 EQ              scalar
+        !=              integer                 NE              scalar
+        ---------------------------------------------------------------------------
+        cast            void                    CV
+                        pointer
+                        arith
+        ---------------------------------------------------------------------------
+        unary
+        sizeof          integer                 CNST
+        +               arith                                   + arith        
+        -               arith                   NEG             - arith
+        
+        !               arith                   COND            ! arith
+                        pointer                                 ! pointer
+                        
+        ~               integer                 NOT             ~ integer
+        
+        &               pointer                 ???             & lvalue
+                                                ADDR            INDIR+ADDR
+                                                ADD             INDIR+ADD
+                                                SUB             INDIR+SUB
+                                    left kid of ASGN            INDIR+ASGN
+                                                ...             ...
+                                                
+        *               void                    INDIR+???       * pointer
+                        pointer
+                        arith
+                        struct/union
+                        array
+                        function
+                        
+        ++ (prefix)     arith                   ASGN            ++ arith
+                        pointer                                 ++ pointer
+                        
+        -- (prefix)     arith                   ASGN            -- arith
+                        pointer                                 -- pointer
+        ---------------------------------------------------------------------------
+        postfix
+        ++ (postfix)    arith                   RIGHT           arith ++
+                        pointer                                 pointer ++
+                        
+        -- (postfix)    arith                   RIGHT           arith --
+                        pointer                                 pointer --
+
+        .id             pointer                 INDIR+ADD/BFIELD/RIGHT
+                        arith
+                        struct/union
+                        array
+                        
+        ->id            pointer                 INDIR+ADD/BFIELD
+                        arith
+                        struct/union
+                        pointer
+                        
+        () (funcall)    void                    RIGHT+CALL
+                        pointer
+                        arith
+                        struct/union
+                        
+        [] (subscript)  pointer                 INDIR+ADD
+                        arith
+                        struct/union
+                        array
+                        
+        (){} (compound-literal) pointer         INDIR+ADDR
+                                arith
+                                struct/union
+                                array
+        ---------------------------------------------------------------------------
+        primary
+        identifier      pointer                 INDIR+ADDR
+                        arith                   INDIR+ADDR
+                        struct/union            INDIR+ADDR
+                        array                   ADDR
+                        function                ADDR
+                        
+        enum-id         integer                 CNST       
+
+        integer-constant  integer               CNST
+
+        float-constant  floating                CNST
+
+        string-literal  array                   CNST
+
+        (expression)
+        ---------------------------------------------------------------------------
 
 primary:
 --------
