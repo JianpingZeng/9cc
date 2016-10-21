@@ -315,7 +315,10 @@ assignment:
         --------------------------
         Result: _NEVER_ an lvalue
         --------------------------
-        
+
+Result tree:    ASGN
+Result type:    pointer/arith/struct/union
+                return the rvalue of tree1
 
 FORM: tree1 = tree2, tree1 op= tree2
 
@@ -336,6 +339,10 @@ comma:
         ------------------------
         Result: _NOT_ an lvalue
         ------------------------
+
+Result tree:    RIGHT
+Result type:    void/pointer/arith/struct/union
+                (this is, except function and array [decay])
 
 
 FORM: tree1, tree2, tree3, ..., treeN

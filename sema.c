@@ -186,7 +186,7 @@ static bool islvalue(struct expr *node)
     return true;
 }
 
-static bool ensure_assignable(struct expr *node, struct source src)
+static bool assignable(struct expr *node, struct source src)
 {
     struct type *ty = node->type;
     if (!islvalue(node)) {
@@ -207,7 +207,7 @@ static bool isbfield(struct expr *node)
     if (node->op != MEMBER)
         return false;
 
-    return node->u.field->isbit;
+    return direct(node->u.field)->isbit;
 }
 
 static struct expr *cast(struct type *ty, struct expr *n)
@@ -600,14 +600,14 @@ static bool ensure_additive_ptr(struct expr *node, struct source src)
     return true;
 }
 
-static bool ensure_increment(struct expr *node, struct source src)
+static bool increasable(struct expr *node, struct source src)
 {
     if (!isscalar(node->type)) {
         error_at(src, ERR_TYPE, "scalar", type2s(node->type));
         return false;
     }
 
-    if (!ensure_assignable(node, src))
+    if (!assignable(node, src))
         return false;
 
     if (isptr(node->type))
@@ -746,7 +746,7 @@ static void string_constant(struct token *t, struct symbol * sym)
     sym->type = ty;
 }
 
-static struct expr *literal_expr(struct token *t, int op,
+static struct expr *literal_expr(struct token *t,
                                  void (*cnst) (struct token *, struct symbol *))
 {
     struct expr *expr;
@@ -757,9 +757,9 @@ static struct expr *literal_expr(struct token *t, int op,
         cnst(t, sym);
     }
     if (t->id == SCONSTANT)
-        expr = ast_expr(mkop(op, voidptype), sym->type, NULL, NULL);
+        expr = ast_expr(mkop(CNST, voidptype), sym->type, NULL, NULL);
     else
-        expr = ast_expr(mkop(op, sym->type), sym->type, NULL, NULL);
+        expr = ast_expr(mkop(CNST, sym->type), sym->type, NULL, NULL);
     expr->sym = sym;
     return expr;
 }
@@ -900,7 +900,7 @@ static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct s
     if (l == NULL || r == NULL)
         return NULL;
 
-    if (!ensure_assignable(l, src))
+    if (!assignable(l, src))
         return NULL;
 
     if (op != '=') {
@@ -1225,10 +1225,9 @@ static struct expr *do_castop(struct type *ty, struct expr *cast, struct source 
 
 static struct expr * do_pre_increment(int t, struct expr *operand, struct source src)
 {
-    if (operand == NULL)
+    if (!operand)
         return NULL;
-
-    if (!ensure_increment(operand, src))
+    if (!increasable(operand, src))
         return NULL;
 
     return incr(t == INCR ? ADD : SUB, operand, cnsti(1, inttype), src);
@@ -1382,21 +1381,22 @@ static struct expr * do_subscript(struct expr *node, struct expr *index, struct 
     }
 }
 
-static struct expr * do_funcall(struct expr *node, struct expr **args, struct source src)
+static struct expr *do_funcall(struct expr *node, struct expr **args, struct source src)
 {
     struct expr *ret;
+    struct type *fty;
     
     node = conv(node);
-    if (node == NULL)
+    if (!node)
         return NULL;
-
     if (!isptrto(node->type, FUNCTION)) {
         error_at(src, "expect type 'function', not '%s'", type2s(node->type));
         return NULL;
     }
     
-    struct type *fty = rtype(node->type);
-    if ((args = argscast(fty, args, src)) == NULL)
+    fty = rtype(node->type);
+    args = argscast(fty, args, src);
+    if (!args)
         return NULL;
     
     ret = ast_expr(CALL, rtype(fty), node, NULL);
@@ -1408,55 +1408,56 @@ static struct expr * do_funcall(struct expr *node, struct expr **args, struct so
 }
 
 // '.', '->'
-static struct expr * do_direction(struct expr *node, int t, const char *name, struct source src)
+static struct expr *do_direction(struct expr *node, int t, const char *name, struct source src)
 {
     struct expr *ret;
     struct field *field;
     struct type *ty, *fty;
-    
-    if (node == NULL || name == NULL)
+
+    if (!node || !name)
         return NULL;
     
     ty = node->type;
     if (t == '.') {
         if (!isrecord(ty)) {
-            error_at(src, "expect type 'struct/union', not '%s'", type2s(ty));
+            error_at(src, "expect type 'struct/union', not '%s'",
+                     type2s(ty));
             return NULL;
         }
     } else {
         if (!isptr(ty) || !isrecord(rtype(ty))) {
-            error_at(src, "pointer to struct/union type expected, not type '%s'", type2s(ty));
+            error_at(src, "pointer to struct/union type expected, not type '%s'",
+                     type2s(ty));
             return NULL;
-        } else {
-            ty = rtype(ty);
         }
+        ty = rtype(ty);
     }
 
     field = find_field(ty, name);
-    if (field == NULL) {
+    if (!field) {
         field_not_found_error(src, ty, name);
         return NULL;
     }
-    
+
     fty = direct(field)->type;
     if (opts.ansi) {
         // The result has the union of both sets of qualifiers.
         int q = qual_union(node->type, fty);
         fty = qual(q, fty);
     }
-    ret = ast_expr(MEMBER, fty, node,  NULL);
+    ret = ast_expr(MEMBER, fty, node, NULL);
     ret->u.field = field;
+    
     return ret;
 }
 
-static struct expr * do_post_increment(struct expr *node, int t, struct source src)
+static struct expr *do_post_increment(struct expr *node, int t, struct source src)
 {
     struct expr *ret;
 
-    if (node == NULL)
+    if (!node)
         return NULL;
-
-    if (!ensure_increment(node, src))
+    if (!increasable(node, src))
         return NULL;
 
     ret = ast_expr(RIGHT,
@@ -1469,33 +1470,40 @@ static struct expr * do_post_increment(struct expr *node, int t, struct source s
     return ret;
 }
 
-static struct expr * do_compound_literal(struct type *ty, struct expr *inits, struct source src)
+static struct expr *do_compound_literal(struct type *ty, struct expr *inits, struct source src)
 {
+    struct symbol *sym;
+    struct expr *asgn;
+    
     if (cscope < LOCAL)
         return inits;
 
-    struct symbol *sym = mktmp(gen_compound_label(), ty, 0);
-    return assign(sym, inits);
+    sym = mktmp(gen_compound_label(), ty, 0);
+    asgn = assign(sym, inits);
+    if (asgn)
+        return asgn->kids[0];
+    else
+        return NULL;
 }
 
 /// primary
 
-static struct expr * do_iconst(struct token *tok)
+static struct expr *do_iconst(struct token *tok)
 {
-    return literal_expr(tok, CNST, integer_constant);
+    return literal_expr(tok, integer_constant);
 }
 
-static struct expr * do_fconst(struct token *tok)
+static struct expr *do_fconst(struct token *tok)
 {
-    return literal_expr(tok, CNST, float_constant);
+    return literal_expr(tok, float_constant);
 }
 
-static struct expr * do_sconst(struct token *tok)
+static struct expr *do_sconst(struct token *tok)
 {
-    return literal_expr(tok, CNST, string_constant);
+    return literal_expr(tok, string_constant);
 }
 
-static struct expr * do_id(struct token *tok)
+static struct expr *do_id(struct token *tok)
 {
     const char *id = TOK_ID_STR(tok);
     struct symbol *sym;
@@ -1529,10 +1537,10 @@ static struct expr * do_id(struct token *tok)
     }
 }
 
-static struct expr * do_paren(struct expr *e, struct source src)
+static struct expr *do_paren(struct expr *expr, struct source src)
 {
-    e->paren = true;
-    return e;
+    expr->paren = true;
+    return expr;
 }
 
 /// constant-expression:
@@ -2977,13 +2985,13 @@ struct expr *cnsti(long i, struct type *ty)
 {
     int op = TYPE_OP(ty);
     struct token t = {.id = ICONSTANT, .u.lit.str = op == INT ? strd(i) : stru(i), .u.lit.v.i = i};
-    return literal_expr(&t, CNST, integer_constant);
+    return literal_expr(&t, integer_constant);
 }
 
 struct expr *cnsts(const char *string)
 {
     struct token t = {.id = SCONSTANT, .u.lit.str = format("\"%s\"", string)};
-    return literal_expr(&t, CNST, string_constant);
+    return literal_expr(&t, string_constant);
 }
 
 void check_case_duplicates(struct cse *cse, struct swtch *swtch)
