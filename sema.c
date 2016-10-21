@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include "cc.h"
 
-static struct expr *assignconv(struct type *ty, struct expr *node);
-static void doglobal(struct symbol *sym, void *context);
 struct func func;
 
 #define ERR_INCOMPATIBLE_TYPES   "incompatible type conversion from '%s' to '%s'"
@@ -105,21 +103,6 @@ static void funcall(struct expr *call)
     // compare the func.call and call
     // and set the larger to func.call
     // TODO: 
-}
-
-/// init/finalize
-
-static void init(int argc, char *argv[])
-{
-    IR->init(argc, argv);
-}
-
-static void finalize(void)
-{
-    if (opts.ast_dump || errors())
-        return;
-    foreach(identifiers, GLOBAL, doglobal, NULL);
-    IR->finalize();
 }
 
 /*=================================================================*
@@ -3025,6 +3008,21 @@ void mark_goto(const char *id, struct source src)
     p->src = src;
     p->link = func.gotos;
     func.gotos = p;
+}
+
+/// init/finalize
+
+static void init(int argc, char *argv[])
+{
+    IR->init(argc, argv);
+}
+
+static void finalize(void)
+{
+    if (opts.ast_dump || errors())
+        return;
+    foreach(identifiers, GLOBAL, doglobal, NULL);
+    IR->finalize();
 }
 
 struct actions actions = {
