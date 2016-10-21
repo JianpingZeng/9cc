@@ -9,6 +9,7 @@ static struct symbol *do_localdecl(const char *, struct type *, int, int, struct
 static void do_gen(struct expr *expr);
 static struct expr *assignconv(struct type *ty, struct expr *node);
 static void doglobal(struct symbol *sym, void *context);
+static void field_not_found_error(struct source src, struct type *ty, const char *name);
 struct func func;
 
 #define ERR_INCOMPATIBLE_TYPES   "incompatible type conversion from '%s' to '%s'"
@@ -128,51 +129,6 @@ static void finalize(void)
 }
 
 /*=================================================================*
- *                           Private                               *
- *=================================================================*/
-
-static void skip_balance(int l, int r, const char *name)
-{
-    int nests = 0;
-
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (token->id == r) {
-            if (nests-- == 0)
-                break;
-        } else if (token->id == l) {
-            nests++;
-        }
-        gettok();
-    }
-
-    if (token->id == r)
-        gettok();
-    else
-        error("unclosed %s, missing '%s'", name, id2s(r));
-}
-
-static void skip_syntax(int (*first) (struct token *))
-{    
-    while (1) {
-        if (token->id == EOI)
-            break;
-        if (first(token))
-            break;
-        gettok();
-    }
-}
-
-static void field_not_found_error(struct source src, struct type *ty, const char *name)
-{
-    if (isincomplete(ty))
-        error_at(src, "incomplete definition of type '%s'", type2s(ty));
-    else
-        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
-}
-
-/*=================================================================*
  *                        Sema-Expression                          *
  *=================================================================*/
 
@@ -222,7 +178,7 @@ static bool isbfield(struct expr *node)
     if (node->op != MEMBER)
         return false;
 
-    return isbitfield(node->u.field);
+    return node->u.field->isbit;
 }
 
 static struct expr *cast(struct type *ty, struct expr *n)
@@ -1746,7 +1702,7 @@ static void offset_init(struct desig *desig, struct expr *expr, struct init **il
             break;
         if (p->offset == desig->offset) {
             if (desig->id == DESIG_FIELD &&
-                isbitfield(desig->u.field)) {
+                desig->u.field->isbit) {
                 // bitfield
                 if (p->boff < desig->u.field->bitoff)
                     continue;
@@ -2176,7 +2132,7 @@ static void ensure_fields(struct symbol *sym)
     for (struct field *p = first; p; p = p->link) {
         if (isindirect(p))
             continue;
-        if (isbitfield(p))
+        if (p->isbit)
             check_bitfield(p);
         else
             ensure_nonbitfield(p, one);
@@ -2882,6 +2838,51 @@ static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
 }
 
 /*=================================================================*
+ *                           Private                               *
+ *=================================================================*/
+
+static void skip_balance(int l, int r, const char *name)
+{
+    int nests = 0;
+
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (token->id == r) {
+            if (nests-- == 0)
+                break;
+        } else if (token->id == l) {
+            nests++;
+        }
+        gettok();
+    }
+
+    if (token->id == r)
+        gettok();
+    else
+        error("unclosed %s, missing '%s'", name, id2s(r));
+}
+
+static void skip_to_first(int (*first) (struct token *))
+{    
+    while (1) {
+        if (token->id == EOI)
+            break;
+        if (first(token))
+            break;
+        gettok();
+    }
+}
+
+static void field_not_found_error(struct source src, struct type *ty, const char *name)
+{
+    if (isincomplete(ty))
+        error_at(src, "incomplete definition of type '%s'", type2s(ty));
+    else
+        error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
+}
+
+/*=================================================================*
  *                          Public                                 *
  *=================================================================*/
 
@@ -2923,17 +2924,17 @@ void skip_to_squarebracket(void)
 
 void skip_to_decl(void)
 {
-    skip_syntax(first_decl);
+    skip_to_first(first_decl);
 }
 
 void skip_to_stmt(void)
 {
-    skip_syntax(first_stmt);
+    skip_to_first(first_stmt);
 }
 
 void skip_to_expr(void)
 {
-    skip_syntax(first_expr);
+    skip_to_first(first_expr);
 }
 
 struct symbol *lookup_typedef(const char *id)

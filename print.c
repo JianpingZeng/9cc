@@ -114,7 +114,7 @@ static void print_field1(struct field * node, int level, const char *prefix)
     print_level(level);
 
     putf(GREEN("%s ") YELLOW("%p "), prefix, node);
-    if (isbitfield(node))
+    if (node->isbit)
         putf("<" RED("offset=%lu, bitoff=%d, bits=%d" "> "),
              node->offset, node->bitoff, node->bitsize);
     else
