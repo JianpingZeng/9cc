@@ -3,10 +3,6 @@
 #include <stdlib.h>
 #include "cc.h"
 
-static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src);
-static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src);
-static struct symbol *do_localdecl(const char *, struct type *, int, int, struct source);
-static void do_gen(struct expr *expr);
 static struct expr *assignconv(struct type *ty, struct expr *node);
 static void doglobal(struct symbol *sym, void *context);
 static void field_not_found_error(struct source src, struct type *ty, const char *name);
@@ -30,7 +26,6 @@ struct func func;
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 #define INIT(name)  .name = do_##name
-#define call(func)  do_##func
 #define events(func)  func
 
 #define add_to_list(stmt)                       \
@@ -737,7 +732,7 @@ static struct expr *literal_expr(struct token *t, int op,
 
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
 {
-    return call(assignop)('=', expr, call(bop)(op, expr, cnst, src), src);
+    return actions.assignop('=', expr, actions.bop(op, expr, cnst, src), src);
 }
 
 static struct expr *mkref(struct symbol *sym)
@@ -842,8 +837,8 @@ static int splitop(int op)
 static struct expr *assign(struct symbol *sym, struct expr *r)
 {
     struct expr *l = mkref(sym);
-    struct expr *asgn = call(assignop)('=', l, r, sym->src);
-    call(gen)(asgn);
+    struct expr *asgn = actions.assignop('=', l, r, sym->src);
+    actions.gen(asgn);
     return asgn;
 }
 
@@ -888,7 +883,7 @@ static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct s
                 return NULL;
             }
         }
-        r = call(bop)(op2, l1, r1, src);
+        r = actions.bop(op2, l1, r1, src);
     }
 
     struct type *retty = unqual(l->type);
@@ -1045,14 +1040,14 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(l->type));
-            struct expr *mul = call(bop)('*', r, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = actions.bop('*', r, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), l->type), l->type, l, mul);
         } else if (isptr(r->type) && isint(l->type)) {
             if (!ensure_additive_ptr(r, src))
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(r->type));
-            struct expr *mul = call(bop)('*', l, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = actions.bop('*', l, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), r->type), r->type, mul, r);
         } else {
             if (!isarith(l->type)) {
@@ -1072,7 +1067,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(l->type));
-            struct expr *mul = call(bop)('*', r, cnsti(size, unsignedlongtype), src);
+            struct expr *mul = actions.bop('*', r, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(top(op), l->type), l->type, l, mul);
         } else if (isptr(l->type) && isptr(r->type)) {
             if (!ensure_additive_ptr(l, src) || !ensure_additive_ptr(r, src))
@@ -1249,10 +1244,10 @@ static struct expr * do_logical_not(struct expr *operand, struct source src)
 
     struct expr *t1 = mkref(mktmp(gen_tmpname(), inttype, REGISTER));
     struct expr *t2 = mkref(mktmp(gen_tmpname(), inttype, REGISTER));
-    struct expr *then = call(assignop)('=', t1, cnsti(0, inttype), src);
-    struct expr *els = call(assignop)('=', t2, cnsti(1, inttype), src);
+    struct expr *then = actions.assignop('=', t1, cnsti(0, inttype), src);
+    struct expr *els = actions.assignop('=', t2, cnsti(1, inttype), src);
 
-    return call(condop)(operand, then, els, src);
+    return actions.condop(operand, then, els, src);
 }
 
 /**
@@ -1341,7 +1336,7 @@ static struct expr * do_subscript(struct expr *node, struct expr *index, struct 
             return NULL;
         }
         
-        struct expr *expr = call(bop)('+', node, index, src);
+        struct expr *expr = actions.bop('+', node, index, src);
         return rvalue(expr);
     } else {
         if (!isptr(node->type) && !isptr(index->type))
@@ -1848,7 +1843,7 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct ini
             d->offset = desig->offset + first->offset;
             d->prev = desig;
             *pdesig = d;
-            call(element_init)(pdesig, expr, pinit);
+            actions.element_init(pdesig, expr, pinit);
         }
     } else if (isarray(desig->type)) {
         if (isstring(desig->type) && issliteral(expr)) {
@@ -1862,7 +1857,7 @@ static void do_element_init(struct desig **pdesig, struct expr *expr, struct ini
             d->offset = desig->offset;
             d->prev = desig;
             *pdesig = d;
-            call(element_init)(pdesig, expr, pinit);
+            actions.element_init(pdesig, expr, pinit);
         }
     } else {
         // scalar type
@@ -2252,7 +2247,7 @@ static void init_string(struct type *ty, struct expr *node)
 
 static struct symbol *mklocal(const char *name, struct type * ty, int sclass)
 {
-    return call(localdecl)(name, ty, sclass, 0, source);
+    return actions.localdecl(name, ty, sclass, 0, source);
 }
 
 static void predefined_ids(void)
@@ -2416,7 +2411,7 @@ static void do_indirect_field(struct symbol *sym, struct field *field)
     struct field *indir = NULL;
     struct field **indirp = &indir;
 
-    call(direct_field)(sym, field);
+    actions.direct_field(sym, field);
     
     for (struct field *q = first; q; q = q->link) {
         struct field *p;
@@ -2806,7 +2801,7 @@ static void do_funcdef(const char *id, struct type *ty, int sclass, int fspec,
         for (i = 0; params[i]; i++) {
             struct symbol *p = params[i];
             if (!p->defined)
-                params[i] = call(paramdecl)(p->name, inttype, 0, 0, p->src);
+                params[i] = actions.paramdecl(p->name, inttype, 0, 0, p->src);
             // check void
             if (isvoid(p->type)) {
                 error_at(p->src, "argument may not have 'void' type");
@@ -2983,7 +2978,7 @@ struct symbol *tag_symbol(int t, const char *tag, struct source src)
 
 struct symbol *mktmp(const char *name, struct type *ty, int sclass)
 {
-    struct symbol *sym = call(localdecl)(name, ty, sclass, 0, source);
+    struct symbol *sym = actions.localdecl(name, ty, sclass, 0, source);
     sym->temporary = true;
     return sym;
 }
