@@ -156,7 +156,7 @@ struct table {
 };
     
 struct expr {
-    short op;
+    int op;
     bool paren;
     struct type *type;
     struct symbol *sym;
