@@ -484,10 +484,8 @@ static struct expr *assignconv(struct type *ty, struct expr *node)
 {
     struct type *ty2;
 
-    if (isfunc(node->type) || isarray(node->type))
-        node = decay(node);
-    if (islvalue(node))
-        node = ltor(node);
+    node = decay(node);
+    node = ltor(node);
 
     ty2 = node->type;
 
@@ -1633,8 +1631,8 @@ static struct expr *do_bool_expr(struct expr *node, struct source src)
     // warning for assignment expression
     if (node->op == ASGN && !node->paren)
         warning_at(src, "using the result of an assignment as a condition without parentheses");
-    if (islvalue(node))
-        node = ltor(node);
+
+    node = ltor(node);
     return decay(node);
 }
 
