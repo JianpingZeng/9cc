@@ -8,9 +8,30 @@ struct expr *reduce(struct expr *expr)
     return expr;
 }
 
-// get the address
+// get the address of an expr returning struct/union
 struct expr *addrof(struct expr *expr)
 {
-    // TODO:
-    return NULL;
+    struct expr *p = expr;
+
+    while (1) {
+        switch (OPINDEX(p->op)) {
+        case RIGHT:
+            assert(p->kids[1] || p->kids[0]);
+            p = p->kids[1] ? p->kids[1] : p->kids[0];
+            continue;
+        case ASGN:
+            p = p->kids[0];
+            continue;
+        case COND:
+            p = mkref(p->sym);
+            // fall through
+        case INDIR:
+            if (p == expr)
+                return p->kids[0];
+            p = p->kids[0];
+            return ast_expr(RIGHT, p->type, reduce(expr), p);
+        default:
+            CC_UNAVAILABLE
+        }
+    }
 }

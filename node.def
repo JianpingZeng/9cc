@@ -49,5 +49,6 @@ _n(CALL,        "CALL")
 _n(RIGHT,       "RIGHT")
 _n(COND,        "COND")
 _n(BFIELD,      "BFIELD")
+_n(ARG,         "ARG")
 
 #undef _n

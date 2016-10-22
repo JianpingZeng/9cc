@@ -54,7 +54,6 @@ static void doexit(void)
 
 int main(int argc, char *argv[])
 {
-    sys_setup();
     atexit(doexit);
     parse_opts(argc, argv);
     actions.init(argc, argv);

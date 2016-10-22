@@ -42,11 +42,11 @@ static const char *nname(int op)
     return nnames[OPINDEX(op)];
 }
 
-static char *opfullname(int op)
+static char *opidname(int op)
 {
-    const char *kind, *type;
+    const char *index, *type;
 
-    kind = nname(op);
+    index = nname(op);
     switch (OPTYPE(op)) {
     case I: type = "I"; break;
     case U: type = "U"; break;
@@ -56,11 +56,8 @@ static char *opfullname(int op)
     case 0: type = ""; break;
     default: assert(0 && "unknown op type");
     }
-
-    if (OPSIZE(op))
-        return format("%s%s%d", kind, type, OPSIZE(op));
-    else
-        return format("%s%s", kind, type);
+    
+    return format("%s%s", index, type);
 }
 
 static void putf(const char *fmt, ...)
@@ -222,14 +219,25 @@ static void print_init1(struct init *init, int level)
     }
 }
 
-static void print_expr1(struct expr * node, int level)
+static void print_args1(struct expr **args, int level)
 {
-    const char *name = opfullname(node->op);
+    assert(args);
+    for (int i = 0; args[i]; i++) {
+        print_level(level);
+        putf("ARG[%d]: \n", i);
+        print_expr1(args[i], level + 1);
+    }
+}
+
+static void print_expr1(struct expr *node, int level)
+{
+    const char *name = opidname(node->op);
 
     print_level(level);
-    putf(PURPLE_BOLD("%s"), name);
+    putf(PURPLE_BOLD("%s ") YELLOW("%p "), name, node);
+    putf(GREEN("'%s' "), type2s(node->type));
     if (node->sym)
-        putf("  %s", node->sym->name);
+        putf(CYAN_BOLD("%s"), node->sym->name);
 
     putf("\n");
     if (node->kids[0])
@@ -240,6 +248,9 @@ static void print_expr1(struct expr * node, int level)
     switch (OPINDEX(node->op)) {
     case COMPOUND:
         print_init1(node->u.inits, level + 1);
+        break;
+    case CALL:
+        print_args1(node->u.args, level + 1);
         break;
     }
 }

@@ -36,10 +36,8 @@ struct func func;
 #define isaddrop(op)  (OPINDEX(op) == ADDRL || \
                        OPINDEX(op) == ADDRG || \
                        OPINDEX(op) == ADDRP)
-#define isindirop(op)  (OPINDEX(op) == INDIR)
-#define isbfieldop(op)  (OPINDEX(op) == BFIELD)
 
-#define isbfield(node)  isbfieldop((node)->op)
+#define isbfield(node)  ((node)->op == BFIELD)
 
 /*=================================================================*
  *                          Events                                 *
@@ -105,7 +103,7 @@ static void defun(struct symbol *n)
 }
 
 // a funcall
-static void funcall(struct expr *call)
+static void funcall(struct type *fty, struct expr **args)
 {
     // compare the func.call and call
     // and set the larger to func.call
@@ -189,9 +187,9 @@ struct symbol *mktmp(const char *name, struct type *ty, int sclass)
  */
 static bool islvalue(struct expr *node)
 {
-    if (isindirop(node->op) && !isfunc(node->type))
+    if (OPINDEX(node->op) == INDIR && !isfunc(node->type))
         return true;
-    if (isbfieldop(node->op))
+    if (node->op == BFIELD)
         return true;
     if (issliteral(node))
         return true;
@@ -216,6 +214,15 @@ static bool assignable(struct expr *node, struct source src)
         return false;
     }
     return true;
+}
+
+static struct expr *rettype(struct type *ty, struct expr *n)
+{
+    struct expr *ret = ast_expr(n->op, ty, n->kids[0], n->kids[1]);
+    ret->sym = n->sym;
+    ret->u = n->u;
+    ret->paren = n->paren;
+    return ret;
 }
 
 static struct expr *cast(struct type *ty, struct expr *n)
@@ -249,11 +256,11 @@ static struct expr *decay(struct expr *node)
     switch (TYPE_KIND(node->type)) {
     case FUNCTION:
         // FunctionToPointerDecay
-        return cast(ptr_type(node->type), node);
+        return rettype(ptr_type(node->type), node);
 
     case ARRAY:
         // ArrayToPointerDecay
-        return cast(ptr_type(rtype(node->type)), node);
+        return rettype(ptr_type(rtype(node->type)), node);
 
     default:
         return node;
@@ -263,7 +270,10 @@ static struct expr *decay(struct expr *node)
 static struct expr *ltor(struct expr *node)
 {
     // LValueToRValue
-    return cast(unqual(node->type), node);
+    if (islvalue(node))
+        return rettype(unqual(node->type), node);
+    else
+        return node;
 }
 
 static struct expr *lvalue(struct expr *n)
@@ -281,22 +291,13 @@ static struct expr *rvalue(struct expr *n)
     return ast_expr(mkop(INDIR, ty), ty, n, NULL);
 }
 
-static struct expr *rettype(struct expr *n, struct type *ty)
-{
-    struct expr *ret = ast_expr(n->op, ty, n->kids[0], n->kids[1]);
-    ret->sym = n->sym;
-    ret->u = n->u;
-    ret->vtype = n->vtype;
-    return ret;
-}
-
 // Universal Unary Conversion
 static struct expr *conv(struct expr *node)
 {
-    if (node == NULL)
+    if (!node)
         return NULL;
-    if (islvalue(node))
-        node = ltor(node);
+
+    node = ltor(node);
 
     switch (TYPE_KIND(node->type)) {
     case _BOOL:
@@ -520,9 +521,11 @@ static struct expr **argcast1(struct type **params, size_t nparams,
             list = list_append(list, ret);
         } else {
             if (oldstyle) {
-                warning_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
+                warning_at(src, ERR_INCOMPATIBLE_TYPES,
+                           type2s(sty), type2s(dty));
             } else {
-                error_at(src, ERR_INCOMPATIBLE_TYPES, type2s(sty), type2s(dty));
+                error_at(src, ERR_INCOMPATIBLE_TYPES,
+                         type2s(sty), type2s(dty));
                 return NULL;
             }
         }
@@ -544,53 +547,54 @@ static struct expr **argcast1(struct type **params, size_t nparams,
  * 4. function definition with oldstyle
  * 5. no function declaration/definition found
  */
-// return NULL on error.
 static struct expr **argscast(struct type *fty, struct expr **args, struct source src)
 {
     assert(isfunc(fty));
     
     struct list *list = NULL;
     struct type **params = TYPE_PROTO(fty);
-    size_t len1 = length(params);
-    size_t len2 = length(args);
+    size_t nparams = length(params);
+    size_t nargs = length(args);
     bool oldstyle = TYPE_OLDSTYLE(fty);
 
     if (oldstyle) {
-        if (len1 > len2)
+        if (nparams > nargs)
             warning_at(src, "too few arguments to function call");
 
-        return argcast1(params, len1, args, len2, oldstyle, src);
+        return argcast1(params, nparams, args, nargs, oldstyle, src);
     }
 
-    if (len1 == 0) {
-        if (len2 > 0) {
+    // prototype
+
+    if (nparams == 0) {
+        if (nargs > 0) {
             error_at(src,
                      "too many arguments to function call, expected %d, have %d",
-                     len1, len2);
+                     nparams, nargs);
             return NULL;
         }
         return ltoa(&list, FUNC);
     }
 
     bool vargs = TYPE_VARG(fty);
-    if (len1 <= len2) {
-        if (!vargs && len1 < len2) {
+    if (nparams <= nargs) {
+        if (!vargs && nparams < nargs) {
             error_at(src,
                      "too many arguments to function call, expected %d, have %d",
-                     len1, len2);
+                     nparams, nargs);
             return NULL;
         }
 
-        return argcast1(params, len1, args, len2, oldstyle, src);
+        return argcast1(params, nparams, args, nargs, oldstyle, src);
     } else {
         if (vargs)
             error_at(src,
                      "too few arguments to function call, expected at least %d, have %d",
-                     len1, len2);
+                     nparams, nargs);
         else
             error_at(src,
                      "too few arguments to function call, expected %d, have %d",
-                     len1, len2);
+                     nparams, nargs);
         return NULL;
     }
 }
@@ -774,10 +778,29 @@ static struct expr *literal_expr(struct token *t,
 
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
 {
-    return actions.assignop('=', expr, actions.bop(op, expr, cnst, src), src);
+    return actions.assign('=', expr, actions.bop(op, expr, cnst, src), src);
 }
 
-static struct expr *mkref(struct symbol *sym)
+// implicit function declaration: int id();
+static struct symbol * implicit_func_decl(const char *id)
+{
+    struct type *ftype = func_type(inttype);
+    struct list *list = NULL;
+    ftype->u.f.oldstyle = true;
+    ftype->u.f.proto = ltoa(&list, PERM);
+            
+    struct symbol *sym = install(id, &externals, GLOBAL, PERM);
+    sym->sclass = EXTERN;
+    sym->type = ftype;
+    sym->src = source;
+
+    events(dclfun)(sym);
+    warning("implicit declaration of '%s'", id);
+
+    return sym;
+}
+
+struct expr *mkref(struct symbol *sym)
 {
     int op;
     struct type *ty = sym->type;
@@ -806,28 +829,9 @@ static struct expr *mkref(struct symbol *sym)
         return ret;
 }
 
-// implicit function declaration: int id();
-static struct symbol * implicit_func_decl(const char *id)
+static int id2op(int id)
 {
-    struct type *ftype = func_type(inttype);
-    struct list *list = NULL;
-    ftype->u.f.oldstyle = true;
-    ftype->u.f.proto = ltoa(&list, PERM);
-            
-    struct symbol *sym = install(id, &externals, GLOBAL, PERM);
-    sym->sclass = EXTERN;
-    sym->type = ftype;
-    sym->src = source;
-
-    events(dclfun)(sym);
-    warning("implicit declaration of '%s'", id);
-
-    return sym;
-}
-
-static int top(int op)
-{
-    switch (op) {
+    switch (id) {
     case '*': return MUL;
     case '/': return DIV;
     case '%': return MOD;
@@ -879,14 +883,11 @@ static int splitop(int op)
 static struct expr *assign(struct symbol *sym, struct expr *r)
 {
     struct expr *l = mkref(sym);
-    struct expr *asgn = actions.assignop('=', l, r, sym->src);
-    actions.gen(asgn);
-    return asgn;
+    return actions.assign('=', l, r, sym->src);
 }
 
 static struct expr *member(struct expr *addr, const char *name, struct source src)
 {
-    struct expr *ret;
     struct field *field;
     struct type *ty, *fty;
 
@@ -906,56 +907,48 @@ static struct expr *member(struct expr *addr, const char *name, struct source sr
         fty = qual(q, fty);
     }
 
+    addr = ast_expr(ADD+P, addr->type, addr, cnsti(field->offset, unsignedlongtype));
+
     if (direct(field)->isbit) {
         // bit field
-        ret = ast_expr(BFIELD, fty, addr, NULL);
-        ret->u.field = field;
-    } else {
-        ret = ast_expr(mkop(INDIR, fty),
-                       fty,
-                       actions.bop('+',
-                                   addr,
-                                   cnsti(field->offset, unsignedlongtype),
-                                   src),
-                       NULL);
+        addr = ast_expr(BFIELD, fty, rvalue(addr), NULL);
+        addr->u.field = field;
+    } else if (!isarray(fty)) {
+        addr = rvalue(addr);
     }
     
-    return ret;
+    return addr;
 }
 
 /// actions-expr
 
-static struct expr *do_commaop(struct expr *l, struct expr *r, struct source src)
+static struct expr *do_comma(struct expr *l, struct expr *r, struct source src)
 {
-    if (l == NULL || r == NULL)
+    if (!l || !r)
         return NULL;
 
-    if (isarray(l->type) || isfunc(l->type))
-        l = decay(l);
-    if (isarray(r->type) || isfunc(r->type))
-        r = decay(r);
-    if (islvalue(l))
-        l = ltor(l);
-    if (islvalue(r))
-        r = ltor(r);
+    l = decay(l);
+    r = decay(r);
+    l = ltor(l);
+    r = ltor(r);
 
     return ast_expr(RIGHT, r->type, l, r);
 }
 
-static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct source src)
+static struct expr *do_assign(int id, struct expr *l, struct expr *r, struct source src)
 {
-    if (l == NULL || r == NULL)
+    if (!l || !r)
         return NULL;
 
     if (!assignable(l, src))
         return NULL;
 
-    if (op != '=') {
+    if (id != '=') {
         // compound assignment
-        int op2 = splitop(op);
+        int id2 = splitop(id);
         struct expr *l1 = conv(l);
         struct expr *r1 = conv(r);
-        if (op2 == '+' || op2 == '-') {
+        if (id2 == '+' || id2 == '-') {
             struct type *ty1 = l1->type;
             struct type *ty2 = r1->type;
             if (!((isarith(ty1) && isarith(ty2)) ||
@@ -964,7 +957,7 @@ static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct s
                 return NULL;
             }
         }
-        r = actions.bop(op2, l1, r1, src);
+        r = actions.bop(id2, l1, r1, src);
     }
 
     struct type *retty = unqual(l->type);
@@ -977,17 +970,28 @@ static struct expr *do_assignop(int op, struct expr *l, struct expr *r, struct s
         return NULL;
     }
 
+    if (l->op == BFIELD) {
+        int n = 8 * TYPE_SIZE(l->u.field->type) - l->u.field->bitsize;
+        r = actions.bop(RSHIFT,
+                        actions.bop(LSHIFT, r, cnsti(n, inttype), src),
+                        cnsti(n, inttype),
+                        src);
+    } else {
+        l = lvalue(l);
+    }
+
     return ast_expr(mkop(ASGN, retty), retty, l, r);
 }
 
-static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr *els, struct source src)
+static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *els, struct source src)
 {
-    struct type *ty = NULL;
+    struct type *ty;
     
     cond = conv(cond);
     then = conv(then);
     els = conv(els);
-    if (cond == NULL || then == NULL || els == NULL)
+
+    if (!cond || !then || !els)
         return NULL;
 
     if (!isscalar(cond->type)) {
@@ -1004,10 +1008,9 @@ static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr 
         els = wrap(ty, els);
     } else if ((isstruct(ty1) && isstruct(ty2)) ||
                (isunion(ty1) && isunion(ty2))) {
-        if (!eqtype(ty1, ty2)) {
-            error_at(src, ERR_INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
-            return NULL;
-        }
+        if (!eqtype(ty1, ty2))
+            goto err_incompatible;
+
         ty = ty1;
     } else if (isvoid(ty1) && isvoid(ty2)) {
         ty = voidtype;
@@ -1015,35 +1018,33 @@ static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr 
         if (is_nullptr(then) || is_nullptr(els)) {
             struct type *nty = is_nullptr(then) ? ty1 : ty2;
             struct type *tty = nty == ty1 ? ty2 : ty1;
+
             ty = ptr_type(compose(rtype(tty), rtype(nty)));
             then = bitconv(ty, then);
             els = bitconv(ty, els);
-        } else if (isptrto(ty1, VOID) || isptrto(ty2, VOID)) {
-            struct type *vty = isptrto(ty1, VOID) ? ty1 : ty2;
+        } else if (isvoid(rtype(ty1)) || isvoid(rtype(ty2))) {
+            struct type *vty = isvoid(rtype(ty1)) ? ty1 : ty2;
             struct type *tty = vty == ty1 ? ty2 : ty1;
-            if (isptrto(tty, FUNCTION)) {
-                error_at(src, ERR_INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
-                return NULL;
-            } else {
-                ty = ptr_type(compose(rtype(vty), rtype(tty)));
-                then = bitconv(ty, then);
-                els = bitconv(ty, els);
-            }
+
+            if (isptrto(tty, FUNCTION))
+                goto err_incompatible;
+            
+            ty = ptr_type(compose(rtype(vty), rtype(tty)));
+            then = bitconv(ty, then);
+            els = bitconv(ty, els);
         } else {
             struct type *rty1 = rtype(ty1);
             struct type *rty2 = rtype(ty2);
-            if (eqtype(unqual(rty1), unqual(rty2))) {
-                ty = ptr_type(compose(rty1, rty2));
-                then = bitconv(ty, then);
-                els = bitconv(ty, els);
-            } else {
-                error_at(src, ERR_INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
-                return NULL;
-            }
+
+            if (!eqtype(unqual(rty1), unqual(rty2)))
+                goto err_incompatible;
+            
+            ty = ptr_type(compose(rty1, rty2));
+            then = bitconv(ty, then);
+            els = bitconv(ty, els);
         }
-    } else if (!opts.ansi &&
-               ((isptr(ty1) && isint(ty2)) ||
-                (isint(ty1) && isptr(ty2)))) {
+    } else if (((isptr(ty1) && isint(ty2)) ||
+                (isint(ty1) && isptr(ty2))) && !opts.ansi) {
         ty = isptr(ty1) ? ty1 : ty2;
         then = bitconv(ty, then);
         els = bitconv(ty, els);
@@ -1053,10 +1054,25 @@ static struct expr *do_condop(struct expr *cond, struct expr *then, struct expr 
         return NULL;
     }
 
-    return ast_expr(COND, ty, cond, ast_expr(RIGHT, ty, then, els));
+    struct symbol *t;
+    if (!isvoid(ty)) {
+        t = mktmp(gen_tmpname(), ty, REGISTER);
+        then = assign(t, then);
+        els = assign(t, els);
+    } else {
+        t = NULL;
+    }
+
+    struct expr *p = ast_expr(COND, ty, cond, ast_expr(RIGHT, ty, then, els));
+    p->sym = t;
+    return p;
+
+ err_incompatible:
+    error_at(src, ERR_INCOMPATIBLE_TYPES2, type2s(ty1), type2s(ty2));
+    return NULL;
 }
 
-static struct expr *do_logicop(int op, struct expr *l, struct expr *r, struct source src)
+static struct expr *do_logical(int op, struct expr *l, struct expr *r, struct source src)
 {
     assert(op == ANDAND || op == OROR);
     
@@ -1077,16 +1093,18 @@ static struct expr *do_logicop(int op, struct expr *l, struct expr *r, struct so
     return ast_expr(op == ANDAND ? AND : OR, inttype, l, r);
 }
 
-static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source src)
+static struct expr *do_bop(int id, struct expr *l, struct expr *r, struct source src)
 {
     struct type *ty;
+    int op;
 
     l = conv(l);
     r = conv(r);
-    if (l == NULL || r == NULL)
+    if (!l || !r)
         return NULL;
 
-    switch (op) {
+    op = id2op(id);
+    switch (id) {
     case '*':
     case '/':
         if (!isarith(l->type)) {
@@ -1098,7 +1116,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
             return NULL;
         }
         ty = conv2(l->type, r->type);
-        return ast_expr(mkop(top(op), ty), ty, wrap(ty, l), wrap(ty, r));
+        return ast_expr(mkop(op, ty), ty, wrap(ty, l), wrap(ty, r));
     case '%':
     case LSHIFT:
     case RSHIFT:
@@ -1114,7 +1132,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
             return NULL;
         }
         ty = conv2(l->type, r->type);
-        return ast_expr(mkop(top(op), ty), ty, wrap(ty, l), wrap(ty, r));
+        return ast_expr(mkop(op, ty), ty, wrap(ty, l), wrap(ty, r));
     case '+':
         if (isptr(l->type) && isint(r->type)) {
             if (!ensure_additive_ptr(l, src))
@@ -1122,14 +1140,14 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
 
             size_t size = TYPE_SIZE(rtype(l->type));
             struct expr *mul = actions.bop('*', r, cnsti(size, unsignedlongtype), src);
-            return ast_expr(mkop(top(op), l->type), l->type, l, mul);
+            return ast_expr(mkop(op, l->type), l->type, l, mul);
         } else if (isptr(r->type) && isint(l->type)) {
             if (!ensure_additive_ptr(r, src))
                 return NULL;
 
             size_t size = TYPE_SIZE(rtype(r->type));
             struct expr *mul = actions.bop('*', l, cnsti(size, unsignedlongtype), src);
-            return ast_expr(mkop(top(op), r->type), r->type, mul, r);
+            return ast_expr(mkop(op, r->type), r->type, mul, r);
         } else {
             if (!isarith(l->type)) {
                 error_at(src, ERR_TYPE, "arith", type2s(l->type));
@@ -1140,7 +1158,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
                 return NULL;
             }
             ty = conv2(l->type, r->type);
-            return ast_expr(mkop(top(op), ty), ty, wrap(ty, l), wrap(ty, r));
+            return ast_expr(mkop(op, ty), ty, wrap(ty, l), wrap(ty, r));
         }
     case '-':
         if (isptr(l->type) && isint(r->type)) {
@@ -1149,7 +1167,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
 
             size_t size = TYPE_SIZE(rtype(l->type));
             struct expr *mul = actions.bop('*', r, cnsti(size, unsignedlongtype), src);
-            return ast_expr(mkop(top(op), l->type), l->type, l, mul);
+            return ast_expr(mkop(op, l->type), l->type, l, mul);
         } else if (isptr(l->type) && isptr(r->type)) {
             if (!ensure_additive_ptr(l, src) || !ensure_additive_ptr(r, src))
                 return NULL;
@@ -1161,7 +1179,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
                 return NULL;
             }
             
-            return ast_expr(mkop(top(op), l->type), inttype, l, r);
+            return ast_expr(mkop(op, l->type), inttype, l, r);
         } else {
             if (!isarith(l->type)) {
                 error_at(src, ERR_TYPE, "arith", type2s(l->type));
@@ -1172,7 +1190,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
                 return NULL;
             }
             ty = conv2(l->type, r->type);
-            return ast_expr(mkop(top(op), ty), ty, wrap(ty, l), wrap(ty, r));
+            return ast_expr(mkop(op, ty), ty, wrap(ty, l), wrap(ty, r));
         }
         // scalar op scalar
     case '>':
@@ -1184,24 +1202,24 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
         if (isptr(l->type) && isptr(r->type)) {
             // both ptr
             if (eqtype(l->type, r->type))
-                return ast_expr(mkop(top(op), l->type), inttype, l, r);
+                return ast_expr(mkop(op, l->type), inttype, l, r);
 
-            if (op == EQL || op == NEQ) {
+            if (id == EQL || id == NEQ) {
                 if (isptrto(l->type, VOID)) {
                     ty = ptr_type(voidtype);
-                    return ast_expr(mkop(top(op), ty), inttype, l, cast(ty, r));
+                    return ast_expr(mkop(op, ty), inttype, l, cast(ty, r));
                 } else if (isptrto(r->type, VOID)) {
                     ty = ptr_type(voidtype);
-                    return ast_expr(mkop(top(op), ty), inttype, cast(ty, l), r);
+                    return ast_expr(mkop(op, ty), inttype, cast(ty, l), r);
                 } else if (is_nullptr(l)) {
-                    return ast_expr(mkop(top(op), r->type), inttype, l, r);
+                    return ast_expr(mkop(op, r->type), inttype, l, r);
                 } else if (is_nullptr(r)) {
-                    return ast_expr(mkop(top(op), l->type), inttype, l, r);
+                    return ast_expr(mkop(op, l->type), inttype, l, r);
                 }
             }
             
             if (!opts.ansi) {
-                return ast_expr(mkop(top(op), l->type), inttype, l, cast(l->type, r));
+                return ast_expr(mkop(op, l->type), inttype, l, cast(l->type, r));
             } else {
                 error_at(src, "comparison of incompatible pointer types ('%s' and '%s')",
                          type2s(l->type), type2s(r->type));
@@ -1210,13 +1228,13 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
         } else if (isarith(l->type) && isarith(r->type)) {
             // both arith
             ty = conv2(l->type, r->type);
-            return ast_expr(mkop(top(op), ty), inttype, wrap(ty, l), wrap(ty, r));
+            return ast_expr(mkop(op, ty), inttype, wrap(ty, l), wrap(ty, r));
         } else if (isptr(l->type) && isint(r->type)) {
             // ptr op int
-            return ast_expr(mkop(top(op), l->type), inttype, l, cast(l->type, r));
+            return ast_expr(mkop(op, l->type), inttype, l, cast(l->type, r));
         } else if (isptr(r->type) && isint(l->type)) {
             // int op ptr
-            return ast_expr(mkop(top(op), r->type), inttype, cast(r->type, l), r);
+            return ast_expr(mkop(op, r->type), inttype, cast(r->type, l), r);
         } else {
             error_at(src, "comparison of invalid types ('%s' and '%s')",
                      type2s(l->type), type2s(r->type));
@@ -1229,7 +1247,7 @@ static struct expr *do_bop(int op, struct expr *l, struct expr *r, struct source
 
 /// cast
 
-static struct expr *do_castop(struct type *ty, struct expr *cast, struct source src)
+static struct expr *do_cast(struct type *ty, struct expr *cast, struct source src)
 {
     int op;
 
@@ -1311,23 +1329,19 @@ static struct expr * do_bitwise_not(struct expr *operand, struct source src)
     return ast_expr(mkop(NOT, operand->type), operand->type, operand, NULL);
 }
 
-static struct expr * do_logical_not(struct expr *operand, struct source src)
+// '!'
+static struct expr * do_logical_not(struct expr *expr, struct source src)
 {    
-    operand = conv(operand);
-    if (operand == NULL)
+    expr = conv(expr);
+    if (!expr)
         return NULL;
 
-    if (!isscalar(operand->type)) {
-        error_at(src, ERR_TYPE, "scalar", type2s(operand->type));
+    if (!isscalar(expr->type)) {
+        error_at(src, ERR_TYPE, "scalar", type2s(expr->type));
         return NULL;
     }
 
-    struct expr *t1 = mkref(mktmp(gen_tmpname(), inttype, REGISTER));
-    struct expr *t2 = mkref(mktmp(gen_tmpname(), inttype, REGISTER));
-    struct expr *then = actions.assignop('=', t1, cnsti(0, inttype), src);
-    struct expr *els = actions.assignop('=', t2, cnsti(1, inttype), src);
-
-    return actions.condop(operand, then, els, src);
+    return actions.cond(expr, cnsti(0, inttype), cnsti(1, inttype), src);
 }
 
 /**
@@ -1355,23 +1369,23 @@ static struct expr * do_address(struct expr *operand, struct source src)
     } 
 
     if (isfunc(ty) || isarray(ty))
-        return rettype(operand, ptr_type(ty));
+        return rettype(ptr_type(ty), operand);
     else
         return lvalue(operand);
 }
 
-static struct expr * do_indirection(struct expr *operand, struct source src)
+static struct expr *do_indirection(struct expr *expr, struct source src)
 {
-    operand = conv(operand);
-    if (operand == NULL)
+    expr = conv(expr);
+    if (!expr)
         return NULL;
 
-    if (!isptr(operand->type)) {
-        error_at(src, ERR_TYPE, "pointer", type2s(operand->type));
+    if (!isptr(expr->type)) {
+        error_at(src, ERR_TYPE, "pointer", type2s(expr->type));
         return NULL;
     }
 
-    return rvalue(operand);
+    return rvalue(expr);
 }
 
 static struct expr * do_sizeofop(struct type *ty, struct expr *n, struct source src)
@@ -1431,25 +1445,43 @@ static struct expr * do_subscript(struct expr *node, struct expr *index, struct 
 static struct expr *do_funcall(struct expr *node, struct expr **args, struct source src)
 {
     struct expr *ret;
-    struct type *fty;
+    struct type *fty, *rty;
     
     node = conv(node);
     if (!node)
         return NULL;
     if (!isptrto(node->type, FUNCTION)) {
-        error_at(src, "expect type 'function', not '%s'", type2s(node->type));
+        error_at(src, "expect type 'function', not '%s'",
+                 type2s(node->type));
         return NULL;
     }
     
     fty = rtype(node->type);
+    rty = rtype(fty);
+
+    // check incomplete return type
+    if (isrecord(rty) && isincomplete(rty)) {
+        error_at(src, "calling function with incomplete return type '%s'",
+                 type2s(rty));
+        return NULL;
+    }
+    
     args = argscast(fty, args, src);
     if (!args)
         return NULL;
+
+    if (isrecord(rty)) {
+        struct symbol *sym = mktmp(gen_tmpname(), rty, 0);
+        struct expr *ref = mkref(sym);
+        struct expr *call = ast_expr(CALL, rty, node, addrof(ref));
+        call->u.args = args;
+        ret = ast_expr(RIGHT, rty, call, ref);
+    } else {
+        ret = ast_expr(CALL, rty, node, NULL);
+        ret->u.args = args;
+    }
     
-    ret = ast_expr(CALL, rtype(fty), node, NULL);
-    ret->u.args = args;
-    
-    events(funcall)(ret);
+    events(funcall)(fty, args);
 
     return ret;
 }
@@ -1517,10 +1549,7 @@ static struct expr *do_compound_literal(struct type *ty, struct expr *inits, str
 
     sym = mktmp(gen_compound_label(), ty, 0);
     asgn = assign(sym, inits);
-    if (asgn)
-        return rvalue(asgn->kids[0]);
-    else
-        return NULL;
+    return rvalue(asgn->kids[0]);
 }
 
 /// primary
@@ -1622,18 +1651,20 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
 {
     struct symbol *sym;
     struct expr *asgn;
+
     expr = conv(expr);
-    if (expr == NULL)
+    if (!expr)
         return NULL;
     if (!isint(expr->type)) {
-        error_at(src, "statement requires expression of integer type ('%s' invalid)",
+        error_at(src,
+                 "statement requires expression of integer type ('%s' invalid)",
                  type2s(expr->type));
         return NULL;
     }
     // make a tmp var
     sym = mktmp(gen_tmpname(), expr->type, REGISTER);
     asgn = assign(sym, expr);
-    return rvalue(asgn);
+    return rvalue(asgn->kids[0]);
 }
 
 /*=================================================================*
@@ -2133,7 +2164,7 @@ static void ensure_inline(struct type *ty, int fspec, struct source src)
     }
 }
 
-static void check_bitfield(struct field *p)
+static void ensure_bitfield(struct field *p)
 {
     struct type *ty = p->type;
     int bitsize = p->bitsize;
@@ -2148,6 +2179,8 @@ static void check_bitfield(struct field *p)
             error_at(p->src,
                      "anonymous bit-field has non-integral type '%s'",
                      type2s(ty));
+
+        p->type = inttype;
     }
 
     if (bitsize < 0) {
@@ -2207,7 +2240,7 @@ static void ensure_fields(struct symbol *sym)
         if (isindirect(p))
             continue;
         if (p->isbit)
-            check_bitfield(p);
+            ensure_bitfield(p);
         else
             ensure_nonbitfield(p, one);
     }
@@ -2700,7 +2733,7 @@ static struct symbol *do_localdecl(const char *id, struct type * ty, int sclass,
                 sym->u.init = init;
                 // gen assign expr
                 if (sclass != STATIC)
-                    assign(sym, init);
+                    actions.gen(assign(sym, init));
             }
         }
     }
@@ -3090,12 +3123,12 @@ struct actions actions = {
     INIT(indirect_field),
 
     // expr
-    INIT(commaop),
-    INIT(assignop),
-    INIT(condop),
-    INIT(logicop),
+    INIT(comma),
+    INIT(assign),
+    INIT(cond),
+    INIT(logical),
     INIT(bop),
-    INIT(castop),
+    INIT(cast),
     INIT(pre_increment),
     INIT(minus_plus),
     INIT(bitwise_not),

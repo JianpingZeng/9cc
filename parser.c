@@ -273,7 +273,7 @@ static struct expr *cast_expr(void)
         }
 
         struct expr *cast = cast_expr();
-        return actions.castop(ty, cast, src);
+        return actions.cast(ty, cast, src);
     }
     return unary_expr();
 }
@@ -447,7 +447,7 @@ static struct expr *logic_and(void)
     while (token->id == ANDAND) {
         struct source src = source;
         gettok();
-        and1 = actions.logicop(ANDAND, and1, inclusive_or(), src);
+        and1 = actions.logical(ANDAND, and1, inclusive_or(), src);
     }
 
     return and1;
@@ -465,7 +465,7 @@ static struct expr *logic_or(void)
     while (token->id == OROR) {
         struct source src = source;
         gettok();
-        or1 = actions.logicop(OROR, or1, logic_and(), src);
+        or1 = actions.logical(OROR, or1, logic_and(), src);
     }
 
     return or1;
@@ -481,7 +481,7 @@ static struct expr *cond_expr1(struct expr *cond)
     expect(':');
     els = cond_expr();
 
-    return actions.condop(cond, then, els, src);
+    return actions.cond(cond, then, els, src);
 }
 
 /// conditional-expression:
@@ -512,7 +512,7 @@ static struct expr *assign_expr(void)
         struct source src = source;
         int t = token->id;
         gettok();
-        return actions.assignop(t, or1, assign_expr(), src);
+        return actions.assign(t, or1, assign_expr(), src);
     }
     return or1;
 }
@@ -529,7 +529,7 @@ static struct expr *expression(void)
     while (token->id == ',') {
         struct source src = source;
         gettok();
-        assign1 = actions.commaop(assign1, assign_expr(), src);
+        assign1 = actions.comma(assign1, assign_expr(), src);
     }
     return assign1;
 }

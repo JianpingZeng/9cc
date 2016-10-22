@@ -161,7 +161,6 @@ struct expr {
     struct type *type;
     struct symbol *sym;
     struct expr *kids[2];
-    struct type *vtype;
     union {
         struct expr **args;
         struct init *inits;
@@ -213,7 +212,7 @@ struct init {
 #define OPINDEX(op)   ((op) & 0x3F)
 #define OPID(op)      ((op) & 0x3FF)
 #define MKOPSIZE(op)  ((op) << 10)
-#define mkop(op, ty)  ((op) + ty2op(ty))
+#define mkop(op, ty)  OPID((op) + ty2op(ty))
 
 // op size
 // 1,2,4,8,16
@@ -294,53 +293,53 @@ struct actions {
     void (*finalize) (void);
 
     // decl
-    void (*enumdecl) (struct symbol *sym, struct symbol *ids[]);
-    void (*recorddecl) (struct symbol *sym);
+    void (*enumdecl) (struct symbol *, struct symbol *ids[]);
+    void (*recorddecl) (struct symbol *);
     struct symbol * (*globaldecl) (const char *, struct type *, int, int, struct source);
     struct symbol * (*localdecl) (const char *, struct type *, int, int, struct source);
     struct symbol * (*paramdecl) (const char *, struct type *, int, int, struct source);
     void (*typedefdecl) (const char *, struct type *, int, int, struct source);
     void (*funcdef) (const char *, struct type *, int, int, struct symbol *[], struct source);
 
-    void (*array_index) (struct type *atype, struct expr *assign, struct source src);
-    struct symbol ** (*prototype) (struct type *ftype, struct symbol *params[]);
-    struct symbol * (*enum_id) (const char *name, int val, struct symbol *sym, struct source src);
+    void (*array_index) (struct type *aty, struct expr *assign, struct source);
+    struct symbol ** (*prototype) (struct type *fty, struct symbol *params[]);
+    struct symbol * (*enum_id) (const char *name, int val, struct symbol *sym, struct source);
     void (*direct_field) (struct symbol *sym, struct field *field);
     void (*indirect_field) (struct symbol *sym, struct field *field);
     
     // expr
-    struct expr * (*commaop) (struct expr *l, struct expr *r, struct source src);
-    struct expr * (*assignop) (int op, struct expr *l, struct expr *r, struct source src);
-    struct expr * (*condop) (struct expr *cond, struct expr *then, struct expr *els, struct source src);
-    struct expr * (*logicop) (int op, struct expr *l, struct expr *r, struct source src);
-    struct expr * (*bop) (int op, struct expr *l, struct expr *r, struct source src);
-    struct expr * (*castop) (struct type *ty, struct expr *cast, struct source src);
-    struct expr * (*pre_increment) (int op, struct expr *unary, struct source src);
-    struct expr * (*minus_plus) (int op, struct expr *operand, struct source src);
-    struct expr * (*bitwise_not) (struct expr *operand, struct source src);
-    struct expr * (*logical_not) (struct expr *operand, struct source src);
-    struct expr * (*address) (struct expr *operand, struct source src);
-    struct expr * (*indirection) (struct expr *operand, struct source src);
-    struct expr * (*sizeofop) (struct type *ty, struct expr *n, struct source src);
-    struct expr * (*subscript) (struct expr *node, struct expr *index, struct source src);
-    struct expr * (*funcall) (struct expr *node, struct expr **args, struct source src);
-    struct expr * (*direction) (struct expr *node, int op, const char *name, struct source src);
-    struct expr * (*post_increment) (struct expr *node, int op, struct source src);
-    struct expr * (*id) (struct token *tok);
-    struct expr * (*iconst) (struct token *tok);
-    struct expr * (*fconst) (struct token *tok);
-    struct expr * (*sconst) (struct token *tok);
-    struct expr * (*paren) (struct expr *node, struct source src);
-    struct expr * (*compound_literal) (struct type *ty, struct expr *init, struct source src);
+    struct expr * (*comma) (struct expr *l, struct expr *r, struct source);
+    struct expr * (*assign) (int id, struct expr *l, struct expr *r, struct source);
+    struct expr * (*cond) (struct expr *cond, struct expr *then, struct expr *els, struct source);
+    struct expr * (*logical) (int id, struct expr *l, struct expr *r, struct source);
+    struct expr * (*bop) (int id, struct expr *l, struct expr *r, struct source);
+    struct expr * (*cast) (struct type *ty, struct expr *cast, struct source);
+    struct expr * (*pre_increment) (int id, struct expr *unary, struct source);
+    struct expr * (*minus_plus) (int id, struct expr *operand, struct source);
+    struct expr * (*bitwise_not) (struct expr *operand, struct source);
+    struct expr * (*logical_not) (struct expr *operand, struct source);
+    struct expr * (*address) (struct expr *operand, struct source);
+    struct expr * (*indirection) (struct expr *operand, struct source);
+    struct expr * (*sizeofop) (struct type *ty, struct expr *n, struct source);
+    struct expr * (*subscript) (struct expr *node, struct expr *index, struct source);
+    struct expr * (*funcall) (struct expr *node, struct expr **args, struct source);
+    struct expr * (*direction) (struct expr *node, int id, const char *name, struct source);
+    struct expr * (*post_increment) (struct expr *node, int id, struct source);
+    struct expr * (*id) (struct token *);
+    struct expr * (*iconst) (struct token *);
+    struct expr * (*fconst) (struct token *);
+    struct expr * (*sconst) (struct token *);
+    struct expr * (*paren) (struct expr *node, struct source);
+    struct expr * (*compound_literal) (struct type *ty, struct expr *init, struct source);
 
-    long (*intexpr) (struct expr *expr, struct type *ty, struct source src);
-    struct expr * (*bool_expr) (struct expr *expr, struct source src);
-    struct expr * (*switch_expr) (struct expr *expr, struct source src);
+    long (*intexpr) (struct expr *expr, struct type *ty, struct source);
+    struct expr * (*bool_expr) (struct expr *expr, struct source);
+    struct expr * (*switch_expr) (struct expr *expr, struct source);
 
     // stmt
     void (*branch) (struct expr *expr, int tlab, int flab);
     void (*jump) (int label);
-    void (*ret) (struct expr *expr, bool isnull, struct source src);
+    void (*ret) (struct expr *expr, bool isnull, struct source);
     void (*label) (int label);
     void (*gen) (struct expr *expr);
 
@@ -464,6 +463,8 @@ extern struct expr *cnsti(long i, struct type *ty);
 extern struct expr *cnsts(const char *string);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
+
+struct expr *mkref(struct symbol *sym);
 
 // type.c
 extern void type_init(void);
