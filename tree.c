@@ -19,13 +19,11 @@ struct expr *addrof(struct expr *expr)
             assert(p->kids[1] || p->kids[0]);
             p = p->kids[1] ? p->kids[1] : p->kids[0];
             continue;
-        case ASGN:
-            p = p->kids[0];
-            continue;
         case COND:
             p = mkref(p->sym);
             // fall through
         case INDIR:
+        case ASGN:
             if (p == expr)
                 return p->kids[0];
             p = p->kids[0];

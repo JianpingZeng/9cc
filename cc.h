@@ -315,11 +315,11 @@ struct actions {
     struct expr * (*bop) (int id, struct expr *l, struct expr *r, struct source);
     struct expr * (*cast) (struct type *ty, struct expr *cast, struct source);
     struct expr * (*pre_increment) (int id, struct expr *unary, struct source);
-    struct expr * (*minus_plus) (int id, struct expr *operand, struct source);
-    struct expr * (*bitwise_not) (struct expr *operand, struct source);
-    struct expr * (*logical_not) (struct expr *operand, struct source);
-    struct expr * (*address) (struct expr *operand, struct source);
-    struct expr * (*indirection) (struct expr *operand, struct source);
+    struct expr * (*minus_plus) (int id, struct expr *expr, struct source);
+    struct expr * (*bitwise_not) (struct expr *expr, struct source);
+    struct expr * (*logical_not) (struct expr *expr, struct source);
+    struct expr * (*address) (struct expr *expr, struct source);
+    struct expr * (*indirection) (struct expr *expr, struct source);
     struct expr * (*sizeofop) (struct type *ty, struct expr *n, struct source);
     struct expr * (*subscript) (struct expr *node, struct expr *index, struct source);
     struct expr * (*funcall) (struct expr *node, struct expr **args, struct source);
