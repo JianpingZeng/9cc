@@ -156,7 +156,7 @@ static struct expr *postfix_expr1(struct expr *ret)
                     name = TOK_ID_STR(token);
                 expect(ID);
 
-                ret = actions.direction(ret, t, name, src);
+                ret = actions.direction(t, name, ret, src);
             }
             break;
         case INCR:
@@ -166,7 +166,7 @@ static struct expr *postfix_expr1(struct expr *ret)
                 struct source src = source;
 
                 gettok();
-                ret = actions.post_increment(ret, t, src);
+                ret = actions.post_increment(t, ret, src);
             }
             break;
         default:

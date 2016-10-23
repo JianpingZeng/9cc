@@ -518,7 +518,7 @@ bool isincomplete(struct type * ty)
         return false;
 }
 
-struct type *compose(struct type * ty1, struct type * ty2)
+struct type *compose(struct type *ty1, struct type *ty2)
 {
     if (isqual(ty1) && isqual(ty2)) {
         int kind = combine(ty1->kind, ty2->kind);
