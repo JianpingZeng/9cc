@@ -43,14 +43,20 @@ struct stmt *ast_stmt(int id)
 
 const char *gen_tmpname(void)
 {
-    static size_t i;
-    return format(".T%llu", i++);
+    static unsigned int i;
+    return format(".T%u", i++);
 }
 
 const char *gen_compound_label(void)
 {
-    static size_t i;
-    return format("__compound_literal.%llu", i++);
+    static unsigned int i;
+    return format("__compound_literal.%u", i++);
+}
+
+const char *gen_string_label(void)
+{
+    static unsigned int i;
+    return format("__string_literal.%u", i++);
 }
 
 int genlabel(int count)

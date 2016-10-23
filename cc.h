@@ -413,6 +413,7 @@ extern struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct exp
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
 extern const char *gen_compound_label(void);
+extern const char *gen_string_label(void);
 extern int genlabel(int count);
 extern struct desig *new_desig(int id);
 extern struct desig *new_desig_name(const char *name, struct source src);
