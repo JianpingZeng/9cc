@@ -1159,7 +1159,7 @@ static void parse_initializer_list(struct desig *desig, struct init **pinit)
 ///       '{' initializer-list ',' '}'
 /// [GNU] '{' '}'
 ///
-struct expr *initializer(struct type *ty)
+static struct expr *initializer(struct type *ty)
 {
     if (token->id == '{')
         return initializer_list(ty);
@@ -1538,7 +1538,8 @@ static struct symbol **prototype(struct type *ftype)
         attach_type(&ty, basety);
 
         sym = actions.paramdecl(id ? TOK_ID_STR(id) : NULL,
-                                ty, sclass, fspec, id ? id->src : src);
+                                ty, sclass, fspec, NULL,
+                                id ? id->src : src);
         list = list_append(list, sym);
 
         if (token->id != ',')
@@ -1566,7 +1567,10 @@ static struct symbol **oldstyle(struct type *ftype)
 
     while (1) {
         if (token->id == ID) {
-            struct symbol *sym = actions.paramdecl(TOK_ID_STR(token), inttype, 0, 0, token->src);
+            const char *name = TOK_ID_STR(token);
+            struct symbol *sym;
+
+            sym = actions.paramdecl(name, inttype, 0, 0, NULL, token->src);
             sym->defined = false;
             params = list_append(params, sym);
         }
@@ -2125,7 +2129,7 @@ static struct type *tag_decl(void)
 ///   declarator
 ///   declarator '=' initializer
 ///
-static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct source))
+static void decls(decl_fp dcl)
 {
     struct type *basety;
     int sclass, fspec;
@@ -2161,8 +2165,9 @@ static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, s
                         decls(actions.paramdecl);
                 }
 
-                actions.funcdef(id ? TOK_ID_STR(id) : NULL,
-                                ty, sclass, fspec, params, id ? id->src : src);
+                funcdef(id ? TOK_ID_STR(id) : NULL,
+                        ty, sclass, fspec, params,
+                        id ? id->src : src);
                 return;
             } else {
                 exit_params(params);
@@ -2171,10 +2176,18 @@ static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, s
 
         for (;;) {
             if (id) {
+                const char *name = TOK_ID_STR(id);
+                struct expr *init = NULL;
+
+                if (token->id == '=') {
+                    gettok();
+                    init = initializer(ty);
+                }
+
                 if (sclass == TYPEDEF)
-                    actions.typedefdecl(TOK_ID_STR(id), ty, fspec, level, id->src);
+                    actions.typedefdecl(name, ty, fspec, level, init, id->src);
                 else
-                    dcl(TOK_ID_STR(id), ty, sclass, fspec, id->src);
+                    dcl(name, ty, sclass, fspec, init, id->src);
             }
 
             if (token->id != ',')

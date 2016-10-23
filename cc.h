@@ -286,6 +286,9 @@ struct func {
     struct stmt **stmt;
 };
 
+typedef struct symbol * (*decl_fp) (const char *, struct type *, int, int,
+                                    struct expr *, struct source);
+
 // sema actions
 struct actions {
     void (*init) (int argc, char *argv[]);
@@ -294,11 +297,7 @@ struct actions {
     // decl
     void (*enumdecl) (struct symbol *, struct symbol *ids[]);
     void (*recorddecl) (struct symbol *);
-    struct symbol * (*globaldecl) (const char *, struct type *, int, int, struct source);
-    struct symbol * (*localdecl) (const char *, struct type *, int, int, struct source);
-    struct symbol * (*paramdecl) (const char *, struct type *, int, int, struct source);
-    void (*typedefdecl) (const char *, struct type *, int, int, struct source);
-    void (*funcdef) (const char *, struct type *, int, int, struct symbol *[], struct source);
+    decl_fp globaldecl, localdecl, paramdecl, typedefdecl;
 
     void (*array_index) (struct type *aty, struct expr *assign, struct source);
     struct symbol ** (*prototype) (struct type *fty, struct symbol *params[]);
@@ -437,7 +436,6 @@ extern struct expr *eval(struct expr *expr, struct type *ty);
 // parser.c
 extern void translation_unit(void);
 extern void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch);
-extern struct expr *initializer(struct type *ty);
 
 // sema.c
 extern int first_decl(struct token *t);
@@ -464,7 +462,8 @@ extern struct expr *cnsts(const char *string);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
 
-struct expr *mkref(struct symbol *sym);
+extern struct expr *mkref(struct symbol *sym);
+extern void funcdef(const char *, struct type *, int, int, struct symbol *[], struct source);
 
 // type.c
 extern void type_init(void);

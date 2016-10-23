@@ -176,8 +176,11 @@ static void field_not_found_error(struct source src, struct type *ty,
 
 struct symbol *mktmp(const char *name, struct type *ty, int sclass)
 {
-    struct symbol *sym = actions.localdecl(name, ty, sclass, 0, source);
+    struct symbol *sym;
+
+    sym = actions.localdecl(name, ty, sclass, 0, NULL, source);
     sym->temporary = true;
+
     return sym;
 }
 
@@ -810,7 +813,8 @@ static struct expr *string_literal(struct token *t,
         cnst(t, sym);
     }
     if (!sym->x.name) {
-
+        const char *label = gen_string_label();
+        // TODO: 
     }
     expr = ast_expr(mkop(CNST, voidptype), sym->type, NULL, NULL);
     expr->sym = sym;
@@ -2201,10 +2205,8 @@ static struct expr * do_initializer_list(struct type *ty, struct init *init)
  *     declarations within function prototypes that are not part of
  *     a function definition.
  */
-static void ensure_func_array(struct type *ty,
-                              bool param,
-                              struct source src,
-                              bool outermost)
+static void ensure_func_array(struct type *ty, bool param, bool outermost,
+                              struct source src)
 {
     if (isarray(ty)) {
         struct type *rty = rtype(ty);
@@ -2213,8 +2215,8 @@ static void ensure_func_array(struct type *ty,
             error_at(src, ERR_ARRAY_OF_FUNC);
 
         if (TYPE_A_STAR(ty) && !param)
-            error_at(src, "star modifier used "
-                     "outside of function prototype");
+            error_at(src,
+                     "star modifier used outside of function prototype");
 
         if (TYPE_A_CONST(ty) ||
             TYPE_A_RESTRICT(ty) ||
@@ -2229,7 +2231,7 @@ static void ensure_func_array(struct type *ty,
                          "in non-outermost array type derivation");
         }
 
-        ensure_func_array(rty, param, src, false);
+        ensure_func_array(rty, param, false, src);
         set_typesize(ty);       // calculate array size
     } else if (isfunc(ty)) {
         struct type *rty = rtype(ty);
@@ -2238,16 +2240,16 @@ static void ensure_func_array(struct type *ty,
         else if (isfunc(rty))
             error_at(src, ERR_FUNC_RET_FUNC, type2s(rty));
 
-        ensure_func_array(rty, false, src, true);
+        ensure_func_array(rty, false, true, src);
     } else if (isptr(ty)) {
         struct type *rty = rtype(ty);
-        ensure_func_array(rty, param, src, false);
+        ensure_func_array(rty, param, false, src);
     }
 }
 
 static void finish_type(struct type *ty, bool param, struct source src)
 {
-    ensure_func_array(ty, param, src, true);
+    ensure_func_array(ty, param, true, src);
 }
 
 static void check_func_array_in_funcdef(struct type *ty, struct source src)
@@ -2473,11 +2475,10 @@ static void init_string(struct type *ty, struct expr *node)
     }
 }
 
-static struct symbol *mklocal(const char *name,
-                              struct type *ty,
-                              int sclass)
+static struct symbol *mklocal(const char *name, struct type *ty,
+                              int sclass, struct source src)
 {
-    return actions.localdecl(name, ty, sclass, 0, source);
+    return actions.localdecl(name, ty, sclass, 0, NULL, src);
 }
 
 static void predefined_ids(void)
@@ -2496,7 +2497,7 @@ static void predefined_ids(void)
     struct expr *literal = cnsts(func.name);
     init_string(type, literal);
 
-    struct symbol *sym = mklocal("__func__", type, STATIC);
+    struct symbol *sym = mklocal("__func__", type, STATIC, source);
     sym->predefine = true;
     sym->u.init = literal;
 }
@@ -2696,10 +2697,9 @@ static void do_recorddecl(struct symbol *sym)
     events(deftype)(sym);
 }
 
-static struct symbol *do_globaldecl(const char *id,
-                                    struct type *ty,
-                                    int sclass,
-                                    int fspec,
+static struct symbol *do_globaldecl(const char *id, struct type *ty,
+                                    int sclass, int fspec,
+                                    struct expr *init,
                                     struct source src)
 {
     struct symbol *sym;
@@ -2720,8 +2720,8 @@ static struct symbol *do_globaldecl(const char *id,
     ensure_inline(ty, fspec, src);
 
     sym = lookup(id, identifiers);
-    if (!sym || sym->scope != cscope) {
-        sym = install(id, &identifiers, cscope, PERM);
+    if (!sym || sym->scope != GLOBAL) {
+        sym = install(id, &identifiers, GLOBAL, PERM);
         sym->type = ty;
         sym->src = src;
         sym->sclass = sclass;
@@ -2740,20 +2740,14 @@ static struct symbol *do_globaldecl(const char *id,
                  sym->name, sym->src.file, sym->src.line, sym->src.column);
     }
 
-    if (token->id == '=') {
-        gettok();
+    if (init) {
         if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
             error("'%s' cannot have an initializer",
                   TYPE_NAME(ty));
-            initializer(NULL);
         } else if (istag(ty) && isincomplete(ty)) {
             error("variable '%s' has incomplete type '%s'",
                   id, type2s(ty));
-            initializer(NULL);
         } else {
-            struct source src2 = source;
-            struct expr *init = initializer(ty);
-
             if (sclass == EXTERN)
                 warning_at(src, "'extern' variable has an initializer");
 
@@ -2762,7 +2756,7 @@ static struct symbol *do_globaldecl(const char *id,
                          sym->name,
                          sym->src.file, sym->src.line, sym->src.column);
 
-            init = ensure_init(init, ty, sym, src2);
+            init = ensure_init(init, ty, sym, src);
             sym->u.init = init;
         }
 
@@ -2784,10 +2778,9 @@ static struct symbol *do_globaldecl(const char *id,
     return sym;
 }
 
-static struct symbol *do_localdecl(const char *id,
-                                   struct type *ty,
-                                   int sclass,
-                                   int fspec,
+static struct symbol *do_localdecl(const char *id, struct type *ty,
+                                   int sclass, int fspec,
+                                   struct expr *init,
                                    struct source src)
 {
     struct symbol *sym;
@@ -2855,21 +2848,15 @@ static struct symbol *do_localdecl(const char *id,
         p->sclass = EXTERN;
     }
 
-    if (token->id == '=') {
-        gettok();
+    if (init) {
         if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
             error("'%s' cannot have an initializer", TYPE_NAME(ty));
-            initializer(NULL);
         } else if (sclass == EXTERN) {
             error("'extern' variable cannot have an initializer");
-            initializer(NULL);
         } else if (istag(ty) && isincomplete(ty)) {
             error("variable '%s' has incomplete type '%s'", id, type2s(ty));
-            initializer(NULL);
         } else {
-            struct source src2 = source;
-            struct expr *init = initializer(ty);
-            init = ensure_init(init, ty, sym, src2);
+            init = ensure_init(init, ty, sym, src);
             if (init) {
                 sym->u.init = init;
                 // gen assign expr
@@ -2897,10 +2884,9 @@ static struct symbol *do_localdecl(const char *id,
 }
 
 // id maybe NULL
-static struct symbol *do_paramdecl(const char *id,
-                                   struct type *ty,
-                                   int sclass,
-                                   int fspec,
+static struct symbol *do_paramdecl(const char *id, struct type *ty,
+                                   int sclass, int fspec,
+                                   struct expr *init,
                                    struct source src)
 {
     struct symbol *sym;
@@ -2963,20 +2949,17 @@ static struct symbol *do_paramdecl(const char *id,
     sym->nonnull = nonnull;
     sym->defined = true;
 
-    if (token->id == '=') {
-        error("C does not support default arguments");
-        initializer(NULL);
-    }
+    if (init)
+        error_at(src, "C does not support default arguments");
 
     return sym;
 }
 
 // level: GLOBAL/PARAM/LOCAL
-static void do_typedefdecl(const char *id,
-                           struct type *ty,
-                           int fspec,
-                           int level,
-                           struct source src)
+static struct symbol *do_typedefdecl(const char *id, struct type *ty,
+                                     int fspec, int level,
+                                     struct expr *init,
+                                     struct source src)
 {
     int sclass = TYPEDEF;
     struct symbol *sym;
@@ -3004,21 +2987,18 @@ static void do_typedefdecl(const char *id,
     sym->sclass = sclass;
     sym->defined = true;
 
-    if (token->id == '=') {
-        error("illegal initializer (only variable can be initialized)");
-        initializer(NULL);
-    }
+    if (init)
+        error_at(src, "illegal initializer "
+                 "(only variable can be initialized)");
 
     events(deftype)(sym);
+
+    return sym;
 }
 
 // id maybe NULL
-static void do_funcdef(const char *id,
-                       struct type *ty,
-                       int sclass,
-                       int fspec,
-                       struct symbol *params[],
-                       struct source src)
+void funcdef(const char *id, struct type *ty, int sclass, int fspec,
+             struct symbol *params[], struct source src)
 {
     struct symbol *sym;
 
@@ -3067,7 +3047,7 @@ static void do_funcdef(const char *id,
         for (i = 0; params[i]; i++) {
             struct symbol *p = params[i];
             if (!p->defined)
-                params[i] = actions.paramdecl(p->name, inttype, 0, 0, p->src);
+                params[i] = actions.paramdecl(p->name, inttype, 0, 0, NULL, p->src);
             // check void
             if (isvoid(p->type)) {
                 error_at(p->src, "argument may not have 'void' type");
@@ -3276,7 +3256,6 @@ struct actions actions = {
     INIT(localdecl),
     INIT(paramdecl),
     INIT(typedefdecl),
-    INIT(funcdef),
 
     INIT(array_index),
     INIT(prototype),
