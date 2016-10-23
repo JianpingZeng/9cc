@@ -550,9 +550,9 @@ static struct expr *initconv(struct type *ty, struct expr *node)
 }
 
 // return NULL on error.
-static struct expr **argcast1(struct type **params, size_t nparams,
-                              struct expr **args, size_t nargs,
-                              bool oldstyle, struct source src)
+static struct expr **argsconv1(struct type **params, size_t nparams,
+                               struct expr **args, size_t nargs,
+                               bool oldstyle, struct source src)
 {
     struct list *list = NULL;
     size_t ncmp;
@@ -597,7 +597,7 @@ static struct expr **argcast1(struct type **params, size_t nparams,
  * 4. function definition with oldstyle
  * 5. no function declaration/definition found
  */
-static struct expr **argscast(struct type *fty, struct expr **args, struct source src)
+static struct expr **argsconv(struct type *fty, struct expr **args, struct source src)
 {
     assert(isfunc(fty));
 
@@ -611,7 +611,7 @@ static struct expr **argscast(struct type *fty, struct expr **args, struct sourc
         if (nparams > nargs)
             warning_at(src, "too few arguments to function call");
 
-        return argcast1(params, nparams, args, nargs, oldstyle, src);
+        return argsconv1(params, nparams, args, nargs, oldstyle, src);
     }
 
     // prototype
@@ -633,7 +633,7 @@ static struct expr **argscast(struct type *fty, struct expr **args, struct sourc
             return NULL;
         }
 
-        return argcast1(params, nparams, args, nargs, oldstyle, src);
+        return argsconv1(params, nparams, args, nargs, oldstyle, src);
     } else {
         if (vargs)
             error_at(src,
@@ -1533,7 +1533,7 @@ static struct expr *do_funcall(struct expr *node, struct expr **args, struct sou
         return NULL;
     }
 
-    args = argscast(fty, args, src);
+    args = argsconv(fty, args, src);
     if (!args)
         return NULL;
 
