@@ -236,11 +236,11 @@ static void print_expr1(struct expr *node, int level)
     print_level(level);
     putf(PURPLE_BOLD("%s ") YELLOW("%p "), name, node);
     putf(GREEN("'%s' "), type2s(node->type));
-    if (node->sym) {
+    if (node->x.sym) {
         if (issliteral(node))
-            putf(CYAN_BOLD("%s"), node->sym->u.cnst->name);
+            putf(CYAN_BOLD("%s"), node->x.sym->u.cnst->name);
         else
-            putf(CYAN_BOLD("%s"), node->sym->name);
+            putf(CYAN_BOLD("%s"), node->x.sym->name);
     }
 
     putf("\n");
@@ -251,10 +251,10 @@ static void print_expr1(struct expr *node, int level)
 
     switch (OPINDEX(node->op)) {
     case COMPOUND:
-        print_init1(node->u.inits, level + 1);
+        print_init1(node->x.u.inits, level + 1);
         break;
     case CALL:
-        print_args1(node->u.args, level + 1);
+        print_args1(node->x.u.args, level + 1);
         break;
     }
 }

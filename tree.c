@@ -20,7 +20,7 @@ struct expr *addrof(struct expr *expr)
             p = p->kids[1] ? p->kids[1] : p->kids[0];
             continue;
         case COND:
-            p = mkref(p->sym);
+            p = mkref(p->x.sym);
             // fall through
         case INDIR:
         case ASGN:

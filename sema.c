@@ -267,9 +267,8 @@ static bool addable_ptr(struct expr *node, struct source src)
 {
     struct type *rty = rtype(node->type);
     if (isfunc(rty) || isincomplete(rty)) {
-        error_at(src,
-                 "increment/decrement of invalid type '%s'"
-                 " (pointer to unknown size)",
+        error_at(src, "increment/decrement of invalid type "
+                 "'%s' (pointer to unknown size)",
                  type2s(node->type));
         return false;
     }
@@ -301,7 +300,7 @@ static bool isnullptr(struct expr *node)
     if (cnst == NULL)
         return false;
     if (isiliteral(cnst))
-        return cnst->sym->value.u == 0;
+        return cnst->x.sym->value.u == 0;
     return false;
 }
 
@@ -309,10 +308,11 @@ static bool isnullptr(struct expr *node)
 
 static struct expr *rettype(struct type *ty, struct expr *n)
 {
-    struct expr *ret = ast_expr(n->op, ty, n->kids[0], n->kids[1]);
-    ret->sym = n->sym;
-    ret->u = n->u;
-    ret->paren = n->paren;
+    struct expr *ret;
+
+    ret = ast_expr(n->op, ty, n->kids[0], n->kids[1]);
+    ret->x = n->x;
+
     return ret;
 }
 
@@ -778,7 +778,7 @@ static struct expr *arith_literal(struct token *t,
         cnst(t, sym);
     }
     expr = ast_expr(mkop(CNST, sym->type), sym->type, NULL, NULL);
-    expr->sym = sym;
+    expr->x.sym = sym;
     return expr;
 }
 
@@ -858,7 +858,7 @@ struct expr *mkref(struct symbol *sym)
     else
         ret = ast_expr(mkop(op, voidptype), ptr_type(ty), NULL, NULL);
 
-    ret->sym = sym;
+    ret->x.sym = sym;
     use(sym);
 
     if (isptr(ret->type))
@@ -964,7 +964,7 @@ static struct expr *member(struct expr *addr, const char *name, struct source sr
     if (direct(field)->isbit) {
         // bit field
         addr = ast_expr(BFIELD, fty, rvalue(addr), NULL);
-        addr->u.field = field;
+        addr->x.u.field = field;
     } else if (!isarray(fty)) {
         addr = rvalue(addr);
     }
@@ -1024,7 +1024,7 @@ static struct expr *do_assign(int id, struct expr *l, struct expr *r, struct sou
     }
 
     if (l->op == BFIELD) {
-        int n = 8 * TYPE_SIZE(l->u.field->type) - l->u.field->bitsize;
+        int n = 8 * TYPE_SIZE(l->x.u.field->type) - l->x.u.field->bitsize;
         r = actions.bop(RSHIFT,
                         actions.bop(LSHIFT, r, cnsti(n, inttype), src),
                         cnsti(n, inttype),
@@ -1119,7 +1119,7 @@ static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *e
     struct expr *p = ast_expr(COND, ty,
                               cond,
                               ast_expr(RIGHT, ty, then, els));
-    p->sym = t;
+    p->x.sym = t;
     return p;
 
  err_incompatible:
@@ -1414,7 +1414,7 @@ static struct expr *do_address(struct expr *expr, struct source src)
     else
         expr = lvalue(expr);
 
-    if (isaddrop(expr->op) && expr->sym->sclass == REGISTER) {
+    if (isaddrop(expr->op) && expr->x.sym->sclass == REGISTER) {
         error_at(src, "address of register variable requested");
         return NULL;
     }
@@ -1529,11 +1529,11 @@ static struct expr *do_funcall(struct expr *node, struct expr **args, struct sou
         struct symbol *sym = mktmp(gen_tmpname(), rty, 0);
         struct expr *ref = mkref(sym);
         struct expr *call = ast_expr(CALL, rty, node, addrof(ref));
-        call->u.args = args;
+        call->x.u.args = args;
         ret = ast_expr(RIGHT, rty, call, ref);
     } else {
         ret = ast_expr(CALL, rty, node, NULL);
-        ret->u.args = args;
+        ret->x.u.args = args;
     }
 
     events(funcall)(fty, args);
@@ -1655,7 +1655,7 @@ static struct expr *do_id(struct token *tok)
 
 static struct expr *do_paren(struct expr *expr, struct source src)
 {
-    expr->paren = true;
+    expr->x.paren = true;
     return expr;
 }
 
@@ -1679,7 +1679,7 @@ static long do_intexpr(struct expr *cond, struct type *ty, struct source src)
         return 0;
     }
     assert(isiliteral(cnst));
-    return cnst->sym->value.i;
+    return cnst->x.sym->value.i;
 }
 
 // if/do/while/for
@@ -1689,7 +1689,7 @@ static struct expr *do_bool_expr(struct expr *node, struct source src)
     if (node == NULL)
         return NULL;
     // warning for assignment expression
-    if (node->op == ASGN && !node->paren)
+    if (node->op == ASGN && !node->x.paren)
         warning_at(src, "using the result of an assignment "
                     "as a condition without parentheses");
 
@@ -2124,7 +2124,7 @@ static struct expr *do_initializer_list(struct type *ty, struct init *init)
     // TODO: incomplete array type
     // TODO: sort inits
     // TODO: merge bitfields
-    n->u.inits = init;
+    n->x.u.inits = init;
     return n;
 }
 
@@ -2501,8 +2501,8 @@ static void do_array_index(struct type *atype, struct expr *assign, struct sourc
         struct expr *n = eval(assign, longtype);
         if (n) {
             assert(isiliteral(n));
-            TYPE_LEN(atype) = n->sym->value.i;
-            if (n->sym->value.i < 0)
+            TYPE_LEN(atype) = n->x.sym->value.i;
+            if (n->x.sym->value.i < 0)
                 error_at(src, "array has negative size");
         } else {
             error_at(src, "expect constant expression");

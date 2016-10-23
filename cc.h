@@ -160,15 +160,17 @@ struct table {
     
 struct expr {
     int op;
-    bool paren;
     struct type *type;
-    struct symbol *sym;
     struct expr *kids[2];
-    union {
-        struct expr **args;
-        struct init *inits;
-        struct field *field;
-    } u;
+    struct {
+        bool paren;
+        struct symbol *sym;
+        union {
+            struct expr **args;
+            struct init *inits;
+            struct field *field;
+        } u;
+    } x;
 };
 
 // designator id
@@ -427,7 +429,7 @@ extern struct desig *copy_desig(struct desig *desig);
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
 #define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
 #define isfliteral(n)  (OPID((n)->op) == CNST+F)
-#define issliteral(n)  ((OPID((n)->op) == ADDRG+P) && (n)->sym->literal)
+#define issliteral(n)  ((OPID((n)->op) == ADDRG+P) && (n)->x.sym->literal)
 #define iszinit(n)     ((n)->op == 0)
 
 // tree.c
