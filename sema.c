@@ -254,9 +254,9 @@ static bool castable(struct type *dty, struct type *sty)
         if (isint(sty) || isptrto(sty, FUNCTION))
             return true;
     } else if (isptr(dty)) {
-        if (isint(sty) || isptrto(sty, VOID))
+        if (isint(sty))
             return true;
-        if (isptr(sty) && !isfunc(rtype(sty)))
+        if (isptr(sty) && !isptrto(sty, FUNCTION))
             return true;
     }
 
@@ -294,14 +294,14 @@ static bool increasable(struct expr *node, struct source src)
 // TODO: 
 static bool isnullptr(struct expr *node)
 {
+    struct expr *cnst;
     assert(isptr(node->type) || isint(node->type));
 
-    struct expr *cnst = eval(node, inttype);
-    if (cnst == NULL)
+    cnst = eval(node, inttype);
+    if (!cnst || !isiliteral(cnst))
         return false;
-    if (isiliteral(cnst))
-        return cnst->x.sym->value.u == 0;
-    return false;
+
+    return cnst->x.sym->value.u == 0;
 }
 
 /// conversion
@@ -483,51 +483,62 @@ static struct type *conv2(struct type *l, struct type *r)
  *                                  F and F2 are compatible
  */
 
-static struct expr *assignconv(struct type *ty, struct expr *node)
+static struct expr *assignconv(struct type *dty, struct expr *node)
 {
-    struct type *ty2;
+    struct type *sty;
 
     node = decay(node);
     node = ltor(node);
+    sty = node->type;
 
-    ty2 = node->type;
+    if (isarith(dty) && isarith(sty))
+        return wrap(dty, node);
 
-    if (isarith(ty) && isarith(ty2)) {
-        return wrap(ty, node);
-    } else if (isbool(ty) && isptr(ty2)) {
-        return cast(ty, node);
-    } else if ((isstruct(ty) && isstruct(ty2)) ||
-               (isunion(ty) && isunion(ty2))) {
-        if (eqtype(unqual(ty), unqual(ty2)))
-            return bitconv(ty, node);
-    } else if (isptr(ty) && isptr(ty2)) {
+    if (isbool(dty) && isptr(sty))
+        return cast(dty, node);
+
+    if ((isstruct(dty) && isstruct(sty)) ||
+        (isunion(dty) && isunion(sty))) {
+        if (!eqtype(unqual(dty), unqual(sty)))
+            return NULL;
+
+        return bitconv(dty, node);
+    }
+
+    if (isptr(dty) && isptr(sty)) {
         if (isnullptr(node)) {
             // always allowed
-        } else if (isptrto(ty, VOID) || isptrto(ty2, VOID)) {
-            struct type *vty = isptrto(ty, VOID) ? ty : ty2;
-            struct type *tty = vty == ty ? ty2 : ty;
-            if (isptrto(tty, FUNCTION)) {
+        } else if (isptrto(dty, VOID) || isptrto(sty, VOID)) {
+            struct type *vty, *nvty;
+            struct type *rty1, *rty2;
+
+            vty = isptrto(dty, VOID) ? dty : sty;
+            nvty = (vty == dty) ? sty : dty;
+
+            if (isptrto(nvty, FUNCTION))
                 return NULL;
-            } else {
-                struct type *rty1 = rtype(ty);
-                struct type *rty2 = rtype(ty2);
-                if (!qual_contains(rty1, rty2))
-                    return NULL;
-            }
+
+            rty1 = rtype(dty);
+            rty2 = rtype(sty);
+            if (!qual_contains(rty1, rty2))
+                return NULL;
         } else {
-            struct type *rty1 = rtype(ty);
-            struct type *rty2 = rtype(ty2);
-            if (eqtype(unqual(rty1), unqual(rty2))) {
-                if (!qual_contains(rty1, rty2))
-                    return NULL;
-            } else {
+            struct type *rty1, *rty2;
+
+            rty1 = rtype(dty);
+            rty2 = rtype(sty);
+            if (!eqtype(unqual(rty1), unqual(rty2)))
                 return NULL;
-            }
+            if (!qual_contains(rty1, rty2))
+                return NULL;
         }
-        return bitconv(ty, node);
-    } else if (isptr(ty) && isint(ty2)) {
+
+        return bitconv(dty, node);
+    }
+
+    if (isptr(dty) && isint(sty)) {
         if (isnullptr(node))
-            return bitconv(ty, node);
+            return bitconv(dty, node);
     }
     return NULL;
 }
@@ -552,12 +563,12 @@ static struct expr **argcast1(struct type **params, size_t nparams,
         ncmp = nparams;
 
     for (size_t i = 0; i < ncmp; i++) {
-        struct type *dty = params[i];
         struct expr *arg = args[i];
+        struct type *dty = params[i];
         struct type *sty = arg->type;
-        struct expr *ret = assignconv(dty, arg);
-        if (ret) {
-            list = list_append(list, ret);
+        arg = assignconv(dty, arg);
+        if (arg) {
+            list = list_append(list, arg);
         } else {
             if (oldstyle) {
                 warning_at(src, ERR_INCOMPATIBLE_TYPES,
@@ -1036,7 +1047,8 @@ static struct expr *do_assign(int id, struct expr *l, struct expr *r, struct sou
     return ast_expr(mkop(ASGN, retty), retty, l, r);
 }
 
-static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *els, struct source src)
+static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *els,
+                            struct source src)
 {
     struct type *ty;
 
