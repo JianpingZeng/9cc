@@ -236,8 +236,12 @@ static void print_expr1(struct expr *node, int level)
     print_level(level);
     putf(PURPLE_BOLD("%s ") YELLOW("%p "), name, node);
     putf(GREEN("'%s' "), type2s(node->type));
-    if (node->sym)
-        putf(CYAN_BOLD("%s"), node->sym->name);
+    if (node->sym) {
+        if (issliteral(node))
+            putf(CYAN_BOLD("%s"), node->sym->u.cnst->name);
+        else
+            putf(CYAN_BOLD("%s"), node->sym->name);
+    }
 
     putf("\n");
     if (node->kids[0])

@@ -117,16 +117,20 @@ struct symbol {
     struct source src;
     int scope;
     int sclass;
-    bool defined;
-    bool predefine;
-    bool anonymous;
-    bool temporary;
-    bool nonnull;
+    int defined:1;
+    int predefine:1;
+    int anonymous:1;
+    int temporary:1;
+    int nonnull:1;
+    int literal:1;
     unsigned int refs;
     union value value;
     struct symbol *link;
     union {
-        struct expr *init;               // initializer expr
+        // varibale initializer
+        struct expr *init;
+        // string literal
+        struct symbol *cnst;
         // function
         struct {
             struct expr *xcall; // call with max parameter size
@@ -423,7 +427,7 @@ extern struct desig *copy_desig(struct desig *desig);
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
 #define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
 #define isfliteral(n)  (OPID((n)->op) == CNST+F)
-#define issliteral(n)  (OPID((n)->op) == CNST+P)
+#define issliteral(n)  ((OPID((n)->op) == ADDRG+P) && (n)->sym->literal)
 #define iszinit(n)     ((n)->op == 0)
 
 // tree.c

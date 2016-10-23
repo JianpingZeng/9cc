@@ -5,38 +5,22 @@
 
 struct func func;
 
-#define ERR_INCOMPATIBLE_TYPES   \
-    "incompatible type conversion from '%s' to '%s'"
-#define ERR_INCOMPATIBLE_TYPES2  \
-    "imcompatible types '%s' and '%s' in conditional expression"
-#define ERR_REDEFINITION         \
-    "redefinition of '%s', previous definition at %s:%u:%u"
-#define ERR_CONFLICTING_TYPES    \
-    "conflicting types for '%s', previous at %s:%u:%u"
-#define ERR_DUPLICATE_MEMBER     \
-    "duplicate member '%s', previous declaration at %s:%u:%u"
-#define ERR_TYPE                 \
-    "expect type '%s', not '%s'"
-#define ERR_INLINE               \
-    "'inline' can only appear on functions"
-#define ERR_ARRAY_OF_FUNC        \
-    "array of function is invalid"
-#define ERR_FUNC_RET_ARRAY       \
-    "function cannot return array type '%s'"
-#define ERR_FUNC_RET_FUNC        \
-    "function cannot return function type '%s'"
-#define ERR_INCOMPLETE_VAR       \
-    "variable '%s' has incomplete type '%s'"
-#define ERR_INCOMPLETE_ELEM      \
-    "array has incomplete element type '%s'"
-#define ERR_INIT_EMPTY_RECORD    \
-    "initializer for aggregate with no elements requires explicit braces"
-#define ERR_INIT_OVERRIDE        \
-    "initializer overrides prior initialization"
-#define ERR_BOP_OPERANDS         \
-    "invalid operands to binary expression ('%s' and '%s')"
-#define ERR_BOP_COMPARISION      \
-    "comparison of incompatible pointer types ('%s' and '%s')"
+#define ERR_INCOMPATIBLE_TYPES   "incompatible type conversion from '%s' to '%s'"
+#define ERR_INCOMPATIBLE_TYPES2  "imcompatible types '%s' and '%s' in conditional expression"
+#define ERR_REDEFINITION         "redefinition of '%s', previous definition at %s:%u:%u"
+#define ERR_CONFLICTING_TYPES    "conflicting types for '%s', previous at %s:%u:%u"
+#define ERR_DUPLICATE_MEMBER     "duplicate member '%s', previous declaration at %s:%u:%u"
+#define ERR_TYPE                 "expect type '%s', not '%s'"
+#define ERR_INLINE               "'inline' can only appear on functions"
+#define ERR_ARRAY_OF_FUNC        "array of function is invalid"
+#define ERR_FUNC_RET_ARRAY       "function cannot return array type '%s'"
+#define ERR_FUNC_RET_FUNC        "function cannot return function type '%s'"
+#define ERR_INCOMPLETE_VAR       "variable '%s' has incomplete type '%s'"
+#define ERR_INCOMPLETE_ELEM      "array has incomplete element type '%s'"
+#define ERR_INIT_EMPTY_RECORD    "initializer for aggregate with no elements requires explicit braces"
+#define ERR_INIT_OVERRIDE        "initializer overrides prior initialization"
+#define ERR_BOP_OPERANDS         "invalid operands to binary expression ('%s' and '%s')"
+#define ERR_BOP_COMPARISION      "comparison of incompatible pointer types ('%s' and '%s')"
 
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
@@ -165,8 +149,7 @@ static void skip_to_first(int (*first) (struct token *))
     }
 }
 
-static void field_not_found_error(struct source src, struct type *ty,
-                                  const char *name)
+static void field_not_found_error(struct source src, struct type *ty, const char *name)
 {
     if (isincomplete(ty))
         error_at(src, "incomplete definition of type '%s'", type2s(ty));
@@ -212,8 +195,6 @@ static bool islvalue(struct expr *node)
     if (OPINDEX(node->op) == INDIR && !isfunc(node->type))
         return true;
     if (node->op == BFIELD)
-        return true;
-    if (issliteral(node))
         return true;
     if (isaddrop(node->op) && !isfunc(node->type))
         return true;
@@ -311,6 +292,7 @@ static bool increasable(struct expr *node, struct source src)
         return true;
 }
 
+// TODO: 
 static bool isnullptr(struct expr *node)
 {
     assert(isptr(node->type) || isint(node->type));
@@ -604,8 +586,7 @@ static struct expr **argcast1(struct type **params, size_t nparams,
  * 4. function definition with oldstyle
  * 5. no function declaration/definition found
  */
-static struct expr **argscast(struct type *fty, struct expr **args,
-                              struct source src)
+static struct expr **argscast(struct type *fty, struct expr **args, struct source src)
 {
     assert(isfunc(fty));
 
@@ -786,12 +767,12 @@ static void string_constant(struct token *t, struct symbol *sym)
 }
 
 static struct expr *arith_literal(struct token *t,
-                                  void (*cnst) (struct token *,
-                                                struct symbol *))
+                                  void (*cnst) (struct token *, struct symbol *))
 {
     struct expr *expr;
     const char *name = TOK_LIT_STR(t);
     struct symbol *sym = lookup(name, constants);
+
     if (!sym) {
         sym = install(name, &constants, CONSTANT, PERM);
         cnst(t, sym);
@@ -802,32 +783,40 @@ static struct expr *arith_literal(struct token *t,
 }
 
 static struct expr *string_literal(struct token *t,
-                                   void (*cnst) (struct token *,
-                                                 struct symbol *))
+                                   void (*cnst) (struct token *, struct symbol *))
 {
-    struct expr *expr;
     const char *name = TOK_LIT_STR(t);
     struct symbol *sym = lookup(name, constants);
+
     if (!sym) {
         sym = install(name, &constants, CONSTANT, PERM);
         cnst(t, sym);
     }
     if (!sym->x.name) {
-        const char *label = gen_string_label();
-        // TODO: 
+        const char *label;
+        struct symbol *id;
+
+        label = gen_string_label();
+        id = install(label, &identifiers, GLOBAL, PERM);
+        id->type = sym->type;
+        id->sclass = STATIC;
+        id->literal = true;
+        id->defined = true;
+        id->u.cnst = sym;
+        sym->x.name = label;
+        return mkref(id);
+    } else {
+        struct symbol *id;
+
+        id = lookup(sym->x.name, identifiers);
+        assert(id);
+        return mkref(id);
     }
-    expr = ast_expr(mkop(CNST, voidptype), sym->type, NULL, NULL);
-    expr->sym = sym;
-    return expr;
 }
 
-static struct expr *incr(int op, struct expr *expr, struct expr *cnst,
-                         struct source src)
+static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
 {
-    return actions.assign('=',
-                          expr,
-                          actions.bop(op, expr, cnst, src),
-                          src);
+    return actions.assign('=', expr, actions.bop(op, expr, cnst, src), src);
 }
 
 // implicit function declaration: int id();
@@ -949,8 +938,7 @@ static struct expr *gen_assign(struct symbol *sym, struct expr *r)
     return ref;
 }
 
-static struct expr *member(struct expr *addr, const char *name,
-                           struct source src)
+static struct expr *member(struct expr *addr, const char *name, struct source src)
 {
     struct field *field;
     struct type *ty, *fty;
@@ -986,8 +974,7 @@ static struct expr *member(struct expr *addr, const char *name,
 
 /// actions-expr
 
-static struct expr *do_comma(struct expr *l, struct expr *r,
-                             struct source src)
+static struct expr *do_comma(struct expr *l, struct expr *r, struct source src)
 {
     if (!l || !r)
         return NULL;
@@ -1000,8 +987,7 @@ static struct expr *do_comma(struct expr *l, struct expr *r,
     return ast_expr(RIGHT, r->type, l, r);
 }
 
-static struct expr *do_assign(int id, struct expr *l, struct expr *r,
-                              struct source src)
+static struct expr *do_assign(int id, struct expr *l, struct expr *r, struct source src)
 {
     if (!l || !r)
         return NULL;
@@ -1050,10 +1036,7 @@ static struct expr *do_assign(int id, struct expr *l, struct expr *r,
     return ast_expr(mkop(ASGN, retty), retty, l, r);
 }
 
-static struct expr *do_cond(struct expr *cond,
-                            struct expr *then,
-                            struct expr *els,
-                            struct source src)
+static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *els, struct source src)
 {
     struct type *ty;
 
@@ -1144,8 +1127,7 @@ static struct expr *do_cond(struct expr *cond,
     return NULL;
 }
 
-static struct expr *do_logical(int op, struct expr *l, struct expr *r,
-                               struct source src)
+static struct expr *do_logical(int op, struct expr *l, struct expr *r, struct source src)
 {
     assert(op == ANDAND || op == OROR);
 
@@ -1166,8 +1148,7 @@ static struct expr *do_logical(int op, struct expr *l, struct expr *r,
     return ast_expr(op == ANDAND ? AND : OR, inttype, l, r);
 }
 
-static struct expr *do_bop(int id, struct expr *l, struct expr *r,
-                           struct source src)
+static struct expr *do_bop(int id, struct expr *l, struct expr *r, struct source src)
 {
     struct type *ty;
     int op;
@@ -1219,10 +1200,7 @@ static struct expr *do_bop(int id, struct expr *l, struct expr *r,
                 return NULL;
 
             size = TYPE_SIZE(rtype(l->type));
-            mul = actions.bop('*',
-                              r,
-                              cnsti(size, unsignedlongtype),
-                              src);
+            mul = actions.bop('*', r, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(op, l->type), l->type, l, mul);
         } else if (isint(l->type) && isptr(r->type)) {
             size_t size;
@@ -1232,10 +1210,7 @@ static struct expr *do_bop(int id, struct expr *l, struct expr *r,
                 return NULL;
 
             size = TYPE_SIZE(rtype(r->type));
-            mul = actions.bop('*',
-                              l,
-                              cnsti(size, unsignedlongtype),
-                              src);
+            mul = actions.bop('*', l, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(op, r->type), r->type, mul, r);
         } else {
             error_at(src, ERR_BOP_OPERANDS,
@@ -1254,10 +1229,7 @@ static struct expr *do_bop(int id, struct expr *l, struct expr *r,
                 return NULL;
 
             size = TYPE_SIZE(rtype(l->type));
-            mul = actions.bop('*',
-                              r,
-                              cnsti(size, unsignedlongtype),
-                              src);
+            mul = actions.bop('*', r, cnsti(size, unsignedlongtype), src);
             return ast_expr(mkop(op, l->type), l->type, l, mul);
         } else if (isptr(l->type) && isptr(r->type)) {
             if (!addable_ptr(l, src) || !addable_ptr(r, src))
@@ -1298,12 +1270,10 @@ static struct expr *do_bop(int id, struct expr *l, struct expr *r,
             if (id == EQL || id == NEQ) {
                 if (isptrto(l->type, VOID)) {
                     ty = ptr_type(voidtype);
-                    return ast_expr(mkop(op, ty), inttype,
-                                    l, cast(ty, r));
+                    return ast_expr(mkop(op, ty), inttype, l, cast(ty, r));
                 } else if (isptrto(r->type, VOID)) {
                     ty = ptr_type(voidtype);
-                    return ast_expr(mkop(op, ty), inttype,
-                                    cast(ty, l), r);
+                    return ast_expr(mkop(op, ty), inttype, cast(ty, l), r);
                 } else if (isnullptr(l)) {
                     return ast_expr(mkop(op, r->type), inttype, l, r);
                 } else if (isnullptr(r)) {
@@ -1312,13 +1282,12 @@ static struct expr *do_bop(int id, struct expr *l, struct expr *r,
             }
 
             if (!opts.ansi) {
-                return ast_expr(mkop(op, l->type), inttype,
-                                l, cast(l->type, r));
-            } else {
                 error_at(src, ERR_BOP_COMPARISION,
                          type2s(l->type), type2s(r->type));
                 return NULL;
             }
+
+            return ast_expr(mkop(op, l->type), inttype, l, cast(l->type, r));
         } else if (isptr(l->type) && isint(r->type)) {
             // ptr op int
             return ast_expr(mkop(op, l->type), inttype,
@@ -1339,8 +1308,7 @@ static struct expr *do_bop(int id, struct expr *l, struct expr *r,
 
 /// cast
 
-static struct expr *do_cast(struct type *ty, struct expr *expr,
-                            struct source src)
+static struct expr *do_cast(struct type *ty, struct expr *expr, struct source src)
 {
     if (!expr)
         return NULL;
@@ -1358,8 +1326,7 @@ static struct expr *do_cast(struct type *ty, struct expr *expr,
 /// unary
 
 // '++', '--'
-static struct expr *do_pre_increment(int t, struct expr *expr,
-                                     struct source src)
+static struct expr *do_pre_increment(int t, struct expr *expr, struct source src)
 {
     if (!expr)
         return NULL;
@@ -1370,8 +1337,7 @@ static struct expr *do_pre_increment(int t, struct expr *expr,
 }
 
 // '+', '-'
-static struct expr *do_minus_plus(int t, struct expr *expr,
-                                  struct source src)
+static struct expr *do_minus_plus(int t, struct expr *expr, struct source src)
 {
     expr = conv(expr);
     if (!expr)
@@ -1476,8 +1442,7 @@ static struct expr *do_indirection(struct expr *expr, struct source src)
 }
 
 // 'sizeof'
-static struct expr *do_sizeofop(struct type *ty, struct expr *n,
-                                struct source src)
+static struct expr *do_sizeofop(struct type *ty, struct expr *n, struct source src)
 {
     ty = n ? n->type : ty;
     if (!ty)
@@ -1502,8 +1467,7 @@ static struct expr *do_sizeofop(struct type *ty, struct expr *n,
 /// postfix
 
 // 'e1[e2]' (aka '*(e1+e2)')
-static struct expr *do_subscript(struct expr *node, struct expr *index,
-                                 struct source src)
+static struct expr *do_subscript(struct expr *node, struct expr *index, struct source src)
 {
     node = conv(node);
     index = conv(index);
@@ -1533,8 +1497,7 @@ static struct expr *do_subscript(struct expr *node, struct expr *index,
     }
 }
 
-static struct expr *do_funcall(struct expr *node, struct expr **args,
-                               struct source src)
+static struct expr *do_funcall(struct expr *node, struct expr **args, struct source src)
 {
     struct expr *ret;
     struct type *fty, *rty;
@@ -1579,9 +1542,7 @@ static struct expr *do_funcall(struct expr *node, struct expr **args,
 }
 
 // '.', '->'
-static struct expr *do_direction(struct expr *node, int t,
-                                 const char *name,
-                                 struct source src)
+static struct expr *do_direction(struct expr *node, int t, const char *name, struct source src)
 {
     struct type *ty;
 
@@ -1616,8 +1577,7 @@ static struct expr *do_direction(struct expr *node, int t,
     }
 }
 
-static struct expr *do_post_increment(struct expr *node, int t,
-                                      struct source src)
+static struct expr *do_post_increment(struct expr *node, int t, struct source src)
 {
     if (!node)
         return NULL;
@@ -1627,14 +1587,11 @@ static struct expr *do_post_increment(struct expr *node, int t,
     return ast_expr(RIGHT, node->type,
                     ast_expr(RIGHT, node->type,
                              node,
-                             incr(t == INCR ? ADD : SUB,
-                                 node, cnsti(1, inttype), src)),
+                             incr(t == INCR ? ADD : SUB, node, cnsti(1, inttype), src)),
                     node);
 }
 
-static struct expr *do_compound_literal(struct type *ty,
-                                        struct expr *inits,
-                                        struct source src)
+static struct expr *do_compound_literal(struct type *ty, struct expr *inits, struct source src)
 {
     if (cscope < LOCAL)
         return inits;
@@ -1705,8 +1662,7 @@ static struct expr *do_paren(struct expr *expr, struct source src)
 /// constant-expression:
 ///   conditional-expression
 ///
-static long do_intexpr(struct expr *cond, struct type *ty,
-                       struct source src)
+static long do_intexpr(struct expr *cond, struct type *ty, struct source src)
 {
     if (cond == NULL)
         // parsing expression failed
@@ -1869,9 +1825,7 @@ static bool ensure_designator(struct desig *d)
 
 /// actions-init
 
-static void offset_init(struct desig *desig,
-                        struct expr *expr,
-                        struct init **ilist)
+static void offset_init(struct desig *desig, struct expr *expr, struct init **ilist)
 {
     assert(desig && expr && ilist);
     assert(!isarray(desig->type));
@@ -1931,9 +1885,7 @@ static void offset_init(struct desig *desig,
     *ilist = init;
 }
 
-static void string_init(struct desig *desig,
-                        struct expr *expr,
-                        struct init **pinit)
+static void string_init(struct desig *desig, struct expr *expr, struct init **pinit)
 {
     assert(desig && expr && pinit);
 
@@ -2031,9 +1983,7 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
     CC_UNAVAILABLE
 }
 
-static void do_element_init(struct desig **pdesig,
-                            struct expr *expr,
-                            struct init **pinit)
+static void do_element_init(struct desig **pdesig, struct expr *expr, struct init **pinit)
 {
     struct desig *desig = *pdesig;
     if (!desig || !expr)
@@ -2168,7 +2118,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
     return desig;
 }
 
-static struct expr * do_initializer_list(struct type *ty, struct init *init)
+static struct expr *do_initializer_list(struct type *ty, struct init *init)
 {
     struct expr *n = ast_expr(COMPOUND, ty, NULL, NULL);
     // TODO: incomplete array type
@@ -2205,8 +2155,7 @@ static struct expr * do_initializer_list(struct type *ty, struct init *init)
  *     declarations within function prototypes that are not part of
  *     a function definition.
  */
-static void ensure_func_array(struct type *ty, bool param, bool outermost,
-                              struct source src)
+static void ensure_func_array(struct type *ty, bool param, bool outermost, struct source src)
 {
     if (isarray(ty)) {
         struct type *rty = rtype(ty);
@@ -2360,8 +2309,7 @@ static void ensure_fields(struct symbol *sym)
     }
 }
 
-static void check_main_func(struct type *ftype, const char *name,
-                            struct source src)
+static void check_main_func(struct type *ftype, const char *name, struct source src)
 {
     assert(isfunc(ftype));
     assert(name);
@@ -2451,10 +2399,8 @@ static void oldparam(struct symbol *sym, void *context)
     error_at(sym->src, "parameter named '%s' is missing", sym->name);
 }
 
-static void mkfuncdecl(struct symbol *sym,
-                       struct type *ty,
-                       int sclass,
-                       struct source src)
+static void mkfuncdecl(struct symbol *sym, struct type *ty,
+                       int sclass, struct source src)
 {
     sym->type = ty;
     sym->src = src;
@@ -2544,8 +2490,7 @@ static void doglobal(struct symbol *sym, void *context)
 
 /// actions-decl
 
-static void do_array_index(struct type *atype, struct expr *assign,
-                           struct source src)
+static void do_array_index(struct type *atype, struct expr *assign, struct source src)
 {
     if (!assign)
         return;
@@ -2569,8 +2514,7 @@ static void do_array_index(struct type *atype, struct expr *assign,
     }
 }
 
-static struct symbol **do_prototype(struct type *ftype,
-                                    struct symbol *params[])
+static struct symbol **do_prototype(struct type *ftype, struct symbol *params[])
 {
     for (int i = 0; params[i]; i++) {
         struct symbol *p = params[i];
@@ -2605,9 +2549,7 @@ static struct symbol **do_prototype(struct type *ftype,
     return params;
 }
 
-static struct symbol *do_enum_id(const char *name, int val,
-                                 struct symbol *sym,
-                                 struct source src)
+static struct symbol *do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
 {
     struct symbol *s = lookup(name, identifiers);
     if (s && is_current_scope(s))
