@@ -170,6 +170,136 @@ struct symbol *mktmp(const char *name, struct type *ty, int sclass)
  *                        Sema-Expression                          *
  *=================================================================*/
 
+static void integer_constant(struct token *t, struct symbol *sym)
+{
+    int base = t->u.lit.base;
+    int suffix = t->u.lit.suffix;
+    unsigned long n = t->u.lit.v.u;
+    struct type *ty;
+
+    // character constant
+    if (t->u.lit.chr) {
+        bool wide = t->u.lit.chr == 2;
+        sym->type = wide ? wchartype : unsignedchartype;
+        sym->value.u = wide ? (wchar_t)n : (unsigned char)n;
+        return;
+    }
+
+    switch (suffix) {
+    case UNSIGNED + LONG + LONG:
+        ty = unsignedlonglongtype;
+        break;
+    case LONG + LONG:
+        if (n > INTEGER_MAX(longlongtype) && base != 0)
+            ty = unsignedlonglongtype;
+        else
+            ty = longlongtype;
+        break;
+    case UNSIGNED + LONG:
+        if (n > UINTEGER_MAX(unsignedlongtype))
+            ty = unsignedlonglongtype;
+        else
+            ty = unsignedlongtype;
+        break;
+    case LONG:
+        if (base == 0) {
+            if (n > INTEGER_MAX(longtype))
+                ty = longlongtype;
+            else
+                ty = longtype;
+        } else {
+            if (n > INTEGER_MAX(longlongtype))
+                ty = unsignedlonglongtype;
+            else if (n > UINTEGER_MAX(unsignedlongtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(longtype))
+                ty = unsignedlongtype;
+            else
+                ty = longtype;
+        }
+        break;
+    case UNSIGNED:
+        if (n > UINTEGER_MAX(unsignedlongtype))
+            ty = unsignedlonglongtype;
+        else if (n > UINTEGER_MAX(unsignedinttype))
+            ty = unsignedlongtype;
+        else
+            ty = unsignedinttype;
+        break;
+    default:
+        if (base == 0) {
+            if (n > INTEGER_MAX(longtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(inttype))
+                ty = longtype;
+            else
+                ty = inttype;
+        } else {
+            if (n > INTEGER_MAX(longlongtype))
+                ty = unsignedlonglongtype;
+            else if (n > UINTEGER_MAX(unsignedlongtype))
+                ty = longlongtype;
+            else if (n > INTEGER_MAX(longtype))
+                ty = unsignedlongtype;
+            else if (n > UINTEGER_MAX(unsignedinttype))
+                ty = longtype;
+            else if (n > INTEGER_MAX(inttype))
+                ty = unsignedinttype;
+            else
+                ty = inttype;
+        }
+        break;
+    }
+
+    // overflow
+    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
+        error("integer constant overflow: %s", TOK_LIT_STR(t));
+
+    sym->type = ty;
+    sym->value = t->u.lit.v;
+}
+
+static void float_constant(struct token *t, struct symbol *sym)
+{
+    int suffix = t->u.lit.suffix;
+    switch (suffix) {
+    case FLOAT:
+        sym->type = floattype;
+        break;
+    case LONG + DOUBLE:
+        sym->type = longdoubletype;
+        break;
+    default:
+        sym->type = doubletype;
+        break;
+    }
+}
+
+static void string_constant(struct token *t, struct symbol *sym)
+{
+    const char *s = TOK_LIT_STR(t);
+    bool wide = s[0] == 'L' ? true : false;
+    struct type *ty;
+    if (wide) {
+        size_t len = strlen(s) - 3;
+        wchar_t *ws = xmalloc(sizeof(wchar_t) * (len+1));
+        errno = 0;
+        size_t wlen = mbstowcs(ws, s + 2, len);
+        if (errno == EILSEQ)
+            error("invalid multibyte sequence: %s", s);
+        free(ws);
+        assert(wlen <= len + 1);
+        ty = array_type(wchartype);
+        TYPE_LEN(ty) = wlen;
+        set_typesize(ty);
+    } else {
+        ty = array_type(chartype);
+        TYPE_LEN(ty) = strlen(s) - 1;
+        set_typesize(ty);
+    }
+    sym->type = ty;
+}
+
 /**
  * Object,Lvalue,Designator
  *
@@ -372,6 +502,11 @@ static struct expr *cast(struct type *dty, struct expr *n)
         return direct_cast(dty, n);
 
     CC_UNAVAILABLE
+}
+
+static struct expr *explicit_cast(struct type *dty, struct expr *n)
+{
+    return cast(dty, n);
 }
 
 static struct expr *wrap(struct type *ty, struct expr *node)
@@ -680,136 +815,6 @@ static struct expr **argsconv(struct type *fty, struct expr **args, struct sourc
                      "expected %d, have %d", nparams, nargs);
         return NULL;
     }
-}
-
-static void integer_constant(struct token *t, struct symbol *sym)
-{
-    int base = t->u.lit.base;
-    int suffix = t->u.lit.suffix;
-    unsigned long n = t->u.lit.v.u;
-    struct type *ty;
-
-    // character constant
-    if (t->u.lit.chr) {
-        bool wide = t->u.lit.chr == 2;
-        sym->type = wide ? wchartype : unsignedchartype;
-        sym->value.u = wide ? (wchar_t)n : (unsigned char)n;
-        return;
-    }
-
-    switch (suffix) {
-    case UNSIGNED + LONG + LONG:
-        ty = unsignedlonglongtype;
-        break;
-    case LONG + LONG:
-        if (n > INTEGER_MAX(longlongtype) && base != 0)
-            ty = unsignedlonglongtype;
-        else
-            ty = longlongtype;
-        break;
-    case UNSIGNED + LONG:
-        if (n > UINTEGER_MAX(unsignedlongtype))
-            ty = unsignedlonglongtype;
-        else
-            ty = unsignedlongtype;
-        break;
-    case LONG:
-        if (base == 0) {
-            if (n > INTEGER_MAX(longtype))
-                ty = longlongtype;
-            else
-                ty = longtype;
-        } else {
-            if (n > INTEGER_MAX(longlongtype))
-                ty = unsignedlonglongtype;
-            else if (n > UINTEGER_MAX(unsignedlongtype))
-                ty = longlongtype;
-            else if (n > INTEGER_MAX(longtype))
-                ty = unsignedlongtype;
-            else
-                ty = longtype;
-        }
-        break;
-    case UNSIGNED:
-        if (n > UINTEGER_MAX(unsignedlongtype))
-            ty = unsignedlonglongtype;
-        else if (n > UINTEGER_MAX(unsignedinttype))
-            ty = unsignedlongtype;
-        else
-            ty = unsignedinttype;
-        break;
-    default:
-        if (base == 0) {
-            if (n > INTEGER_MAX(longtype))
-                ty = longlongtype;
-            else if (n > INTEGER_MAX(inttype))
-                ty = longtype;
-            else
-                ty = inttype;
-        } else {
-            if (n > INTEGER_MAX(longlongtype))
-                ty = unsignedlonglongtype;
-            else if (n > UINTEGER_MAX(unsignedlongtype))
-                ty = longlongtype;
-            else if (n > INTEGER_MAX(longtype))
-                ty = unsignedlongtype;
-            else if (n > UINTEGER_MAX(unsignedinttype))
-                ty = longtype;
-            else if (n > INTEGER_MAX(inttype))
-                ty = unsignedinttype;
-            else
-                ty = inttype;
-        }
-        break;
-    }
-
-    // overflow
-    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
-        error("integer constant overflow: %s", TOK_LIT_STR(t));
-
-    sym->type = ty;
-    sym->value = t->u.lit.v;
-}
-
-static void float_constant(struct token *t, struct symbol *sym)
-{
-    int suffix = t->u.lit.suffix;
-    switch (suffix) {
-    case FLOAT:
-        sym->type = floattype;
-        break;
-    case LONG + DOUBLE:
-        sym->type = longdoubletype;
-        break;
-    default:
-        sym->type = doubletype;
-        break;
-    }
-}
-
-static void string_constant(struct token *t, struct symbol *sym)
-{
-    const char *s = TOK_LIT_STR(t);
-    bool wide = s[0] == 'L' ? true : false;
-    struct type *ty;
-    if (wide) {
-        size_t len = strlen(s) - 3;
-        wchar_t *ws = xmalloc(sizeof(wchar_t) * (len+1));
-        errno = 0;
-        size_t wlen = mbstowcs(ws, s + 2, len);
-        if (errno == EILSEQ)
-            error("invalid multibyte sequence: %s", s);
-        free(ws);
-        assert(wlen <= len + 1);
-        ty = array_type(wchartype);
-        TYPE_LEN(ty) = wlen;
-        set_typesize(ty);
-    } else {
-        ty = array_type(chartype);
-        TYPE_LEN(ty) = strlen(s) - 1;
-        set_typesize(ty);
-    }
-    sym->type = ty;
 }
 
 static struct expr *arith_literal(struct token *t,
@@ -1438,7 +1443,7 @@ static struct expr *do_cast(struct type *ty, struct expr *expr, struct source sr
         return NULL;
     }
 
-    return cast(ty, expr);
+    return explicit_cast(ty, expr);
 }
 
 /// unary
