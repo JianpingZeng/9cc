@@ -312,7 +312,7 @@ bool eqtype(struct type * ty1, struct type * ty2)
         }
 
     default:
-        CC_UNAVAILABLE
+        CC_UNAVAILABLE();
     }
 }
 
@@ -578,6 +578,6 @@ short ty2op(struct type *ty)
         
     case VOID:
     default:
-        CC_UNAVAILABLE
+        CC_UNAVAILABLE();
     }
 }

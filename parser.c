@@ -170,7 +170,7 @@ static struct expr *postfix_expr1(struct expr *ret)
             }
             break;
         default:
-            CC_UNAVAILABLE
+            CC_UNAVAILABLE();
         }
     }
 
@@ -1449,7 +1449,7 @@ static struct type *specifiers(int *sclass, int *fspec)
                          "duplicate type specifier '%s'",
                          tok2s(tok));
             } else {
-                CC_UNAVAILABLE
+                CC_UNAVAILABLE();
             }
         }
 
@@ -1646,7 +1646,7 @@ static void array_qualifiers(struct type *atype)
             break;
 
         default:
-            CC_UNAVAILABLE
+            CC_UNAVAILABLE();
         }
 
         if (*p != 0)
@@ -1705,7 +1705,7 @@ static struct type *arrays(int abstract)
         break;
 
     default:
-        CC_UNAVAILABLE
+        CC_UNAVAILABLE();
     }
 
     return atype;

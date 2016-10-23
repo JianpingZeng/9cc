@@ -501,7 +501,7 @@ static struct expr *cast(struct type *dty, struct expr *n)
     if (isvoid(dty))
         return direct_cast(dty, n);
 
-    CC_UNAVAILABLE
+    CC_UNAVAILABLE();
 }
 
 static struct expr *explicit_cast(struct type *dty, struct expr *n)
@@ -2123,7 +2123,7 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
         break;
     }
 
-    CC_UNAVAILABLE
+    CC_UNAVAILABLE();
 }
 
 static void do_element_init(struct desig **pdesig, struct expr *expr, struct init **pinit)

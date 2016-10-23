@@ -29,7 +29,7 @@ struct expr *addrof(struct expr *expr)
             p = p->kids[0];
             return ast_expr(RIGHT, p->type, reduce(expr), p);
         default:
-            CC_UNAVAILABLE
+            CC_UNAVAILABLE();
         }
     }
 }

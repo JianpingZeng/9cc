@@ -555,7 +555,7 @@ extern const char *desig2s(struct desig *);
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
 
-#define CC_UNAVAILABLE  assert(0 && "unavailable code");
+#define CC_UNAVAILABLE()  assert(0 && "unavailable code")
 
 
 ///

@@ -159,7 +159,7 @@ static void print_type1(struct symbol *sym, int level)
         putf(GREEN_BOLD("%s ") YELLOW("%p "),
              kEnumDecl, sym);
     else
-        CC_UNAVAILABLE
+        CC_UNAVAILABLE();
     print_ty(ty);
     putf("<" YELLOW("%s:line:%u col:%u") "> ",
          sym->src.file, sym->src.line, sym->src.column);
