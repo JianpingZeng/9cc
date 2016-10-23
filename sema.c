@@ -1521,7 +1521,7 @@ static struct expr *do_address(struct expr *expr, struct source src)
     ty = expr->type;
     if (!isfunc(ty)) {
         if (!islvalue(expr)) {
-            error_at(src, "expect lvalue");
+            error_at(src, "lvalue required as unary '&' operand");
             return NULL;
         }
         if (isbfield(expr)) {
