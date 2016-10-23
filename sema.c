@@ -196,7 +196,7 @@ static bool islvalue(struct expr *node)
         return true;
     if (node->op == BFIELD)
         return true;
-    if (isaddrop(node->op) && !isfunc(node->type))
+    if (isaddrop(node->op) && isarray(node->type))
         return true;
     return false;
 }
