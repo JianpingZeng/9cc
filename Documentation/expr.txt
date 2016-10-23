@@ -158,11 +158,15 @@ Expression
 primary:
 --------
 
-(1) constant: CNSTI/CNSTU/CNSTF/CNSTP
+(1) constant:
 
     ------------------------------------------------
     Result: _NOT_ an lvalue (except string constant)
     ------------------------------------------------
+
+    integer-constant: CNSTI, CNSTU
+    floating-constant: CNSTF
+    string-literal: ADDRGP
 
 (2)id:
 
