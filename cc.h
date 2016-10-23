@@ -140,8 +140,7 @@ struct symbol {
     } u;
     struct {
         const char *name;
-        // for goto labels
-        int label;
+        int label;              // for goto labels
     } x;
 };
 

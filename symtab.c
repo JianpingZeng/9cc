@@ -113,7 +113,6 @@ struct symbol *install(const char *name, struct table ** tpp, int scope, int are
     sym = alloc_symbol(area);
     sym->scope = scope;
     sym->name = name;
-    sym->x.name = name;
     map_put(tp->map, name, sym);
     // all/link
     sym->link = tp->all;
