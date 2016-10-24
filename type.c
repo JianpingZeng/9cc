@@ -247,6 +247,12 @@ static bool eqparams(struct type *proto1[], struct type *proto2[])
     return true;
 }
 
+bool compatible(struct type *ty1, struct type *ty2)
+{
+    // TODO:
+    return true;
+}
+
 bool eqtype(struct type * ty1, struct type * ty2)
 {
     if (ty1 == ty2)

@@ -64,12 +64,25 @@ Expression
                         pointer                 SUB             pointer - integer
                         integer                 SUB             pointer - pointer
                         
-        >               integer                 GT              scalar
-        <               integer                 LT              scalar
-        >=              integer                 GE              scalar
-        <=              integer                 LE              scalar
-        ==              integer                 EQ              scalar
-        !=              integer                 NE              scalar
+        >               integer                 GT              arith > arith
+                                                                pointer > pointer
+                                                                
+        <               integer                 LT              arith < arith
+                                                                pointer < pointer
+                                                                
+        >=              integer                 GE              arith >= arith
+                                                                pointer >= pointer
+                                                                
+        <=              integer                 LE              arith <= arith
+                                                                pointer <= pointer
+                                                                
+        ==              integer                 EQ              arith == arith
+                                                                pointer == pointer
+                                                                pointer == 0
+                                                                
+        !=              integer                 NE              arith != arith
+                                                                pointer != pointer
+                                                                pointer != 0
         ---------------------------------------------------------------------------
         cast            void                    CV
                         pointer

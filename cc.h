@@ -517,6 +517,7 @@ extern void funcdef(const char *, struct type *, int, int, struct symbol *[], st
 extern void type_init(void);
 extern struct type *qual(int t, struct type *ty);
 extern struct type *unqual(struct type *ty);
+extern bool compatible(struct type *ty1, struct type *ty2);
 extern bool eqtype(struct type *ty1, struct type *ty2);
 extern bool eqarith(struct type *ty1, struct type *ty2);
 extern struct type *array_type(struct type *ty);
