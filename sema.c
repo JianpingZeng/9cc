@@ -548,12 +548,15 @@ static struct expr *cast(struct type *ty, struct expr *n)
             sty->op == UNSIGNED ||
             sty->op == ENUM)
             return castip(ty, n);
-    } else  if (isstruct(dty) || isunion(dty)) {
+    } else if (isstruct(dty) || isunion(dty)) {
         // cast to struct/union
         return n;
     } else if (isvoid(dty)) {
         // cast to void
-        return ast_expr(RIGHT, ty, n, NULL);
+        if (isvoid(sty))
+            return n;
+        else
+            return ast_expr(RIGHT, ty, n, NULL);
     }
 
     CC_UNAVAILABLE();
@@ -1494,10 +1497,14 @@ static struct expr *do_minus_plus(int t, struct expr *expr, struct source src)
     }
 
     // result is _NOT_ an lvalue
-    if (t == '+')
-        return ast_expr(RIGHT, expr->type, expr, NULL);
-    else
+    if (t == '+') {
+        if (islvalue(expr))
+            return ast_expr(RIGHT, expr->type, expr, NULL);
+        else
+            return expr;
+    } else {
         return ast_expr(mkop(NEG, expr->type), expr->type, expr, NULL);
+    }
 }
 
 // '~'
