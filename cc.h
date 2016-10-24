@@ -204,40 +204,78 @@ struct init {
 
 /// operator
 /*
-  zzzz zzyy yyxx xxxx
+  zzzz zzxx xxxx yyyy
 
   zzzz-zz: op size
-  yy-yy:   op type
   xx-xxxx: op kind
+  yy-yy:   op type
  */
 #define OPSIZE(op)    ((op) >> 10)
-#define OPTYPE(op)    ((op) & 0x3C0)
-#define OPKIND(op)    ((op) & 0x3F)
+#define OPKIND(op)    ((op) & 0x3F0)
+#define OPTYPE(op)    ((op) & 0xF)
 
-#define OPINDEX(op)   ((op) & 0x3F)
+#define OPINDEX(op)   (((op) >> 4) & 0x3F)
 #define OPID(op)      ((op) & 0x3FF)
 #define MKOPSIZE(op)  ((op) << 10)
 #define mkop(op, ty)  OPID((op) + ty2op(ty))
+#define MKINDEX(i)    ((i) << 4)
 
-// op size
+/// op size
 // 1,2,4,8,16
 
-// op type
-// integer/unsigned/floating/pointer/struct
-enum {
-    I = 1 << 6,
-    U = 2 << 6,
-    F = 3 << 6,
-    P = 4 << 6,
-    S = 5 << 6
-};
+/// op type
+// I - integer
+// U - unsigned
+// F - floating
+// P - pointer
+// S - struct/union/array
+enum { I = 1, U, F, P, S };
 
 // op kind
 enum {
-    OPNONE,
-#define _n(a, _) a,
-#include "node.def"
-    OPEND
+    /// constant
+    CNST = MKINDEX(1),
+    /// address
+    ADDRG = MKINDEX(2),
+    ADDRP = MKINDEX(3),
+    ADDRL = MKINDEX(4),
+    /// indirection
+    INDIR = MKINDEX(5),
+    /// conversion
+    CVI = MKINDEX(6),
+    CVU = MKINDEX(7),
+    CVF = MKINDEX(8),
+    CVP = MKINDEX(9),
+    /// binary
+    ASGN = MKINDEX(10),
+    MUL = MKINDEX(11),
+    DIV = MKINDEX(12),
+    ADD = MKINDEX(13),
+    SUB = MKINDEX(14),
+    MOD = MKINDEX(15),
+    SHL = MKINDEX(16),
+    SHR = MKINDEX(17),
+    BAND = MKINDEX(18),
+    BOR = MKINDEX(19),
+    XOR = MKINDEX(20),
+    EQ = MKINDEX(21),
+    NE = MKINDEX(22),
+    GT = MKINDEX(23),
+    GE = MKINDEX(24),
+    LT = MKINDEX(25),
+    LE = MKINDEX(26),
+    AND = MKINDEX(27),
+    OR = MKINDEX(28),
+    /// unary
+    NEG = MKINDEX(29),
+    NOT = MKINDEX(30),
+    /// postfix
+    COMPOUND = MKINDEX(31),
+    CALL = MKINDEX(32),
+    BFIELD = MKINDEX(33),
+    /// others
+    COND = MKINDEX(34),
+    RIGHT = MKINDEX(35),
 };
 
 /// stmt

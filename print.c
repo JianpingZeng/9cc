@@ -32,13 +32,53 @@ static void print_symbol1(struct symbol *sym, int level, const char *prefix);
 
 static const char *nnames[] = {
     "null",
-#define _n(_, b) b,
-#include "node.def"
+    /// constant
+    "CNST",
+    /// address
+    "ADDRG",
+    "ADDRP",
+    "ADDRL",
+    /// indirection
+    "INDIR",
+    // conversion
+    "CVI",
+    "CVU",
+    "CVF",
+    "CVP",
+    /// binary
+    "ASGN",
+    "MUL",
+    "DIV",
+    "ADD",
+    "SUB",
+    "MOD",
+    "SHL",
+    "SHR",
+    "BAND",
+    "BOR",
+    "XOR",
+    "EQ",
+    "NE",
+    "GT",
+    "GE",
+    "LT",
+    "LE",
+    "AND",
+    "OR"
+    /// unary
+    "NEG",
+    "NOT",
+    /// postfix
+    "COMPOUND",
+    "CALL",
+    "BFIELD",
+    /// others
+    "COND",
+    "RIGHT",
 };
 
 static const char *nname(int op)
 {
-    assert(OPINDEX(op) > OPNONE && OPINDEX(op) < OPEND);
     return nnames[OPINDEX(op)];
 }
 
