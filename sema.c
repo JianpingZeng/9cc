@@ -2048,11 +2048,34 @@ static void do_gen(struct expr *expr)
  *                        Sema-Initialization                      *
  *=================================================================*/
 
-static struct expr *ensure_init(struct expr *init, struct type *ty,
-                                struct symbol *sym, struct source src)
+static void ensure_init(int level, int sclass, struct symbol *sym,
+                        struct expr *init, struct source src)
 {
-    // TODO:
-    return init;
+    struct type *ty = sym->type;
+    
+    if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
+        error_at(src, "'%s' cannot have an initializer", TYPE_NAME(ty));
+        return;
+    }
+
+    if (istag(ty) && isincomplete(ty)) {
+        error_at(src, "variable '%s' has incomplete type '%s'",
+                 sym->name, type2s(ty));
+        return;
+    }
+
+    if (sclass == EXTERN) {
+        if (level == GLOBAL) {
+            warning_at(src, "'extern' variable has an initializer");
+        } else {
+            error_at(src, "'extern' variable cannot have an initializer");
+            return;
+        }
+    }
+
+    // TODO: finish incomplete type
+    
+    sym->u.init = init;
 }
 
 static bool ensure_designator(struct desig *d)
@@ -2934,25 +2957,11 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty,
     }
 
     if (init) {
-        if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
-            error("'%s' cannot have an initializer",
-                  TYPE_NAME(ty));
-        } else if (istag(ty) && isincomplete(ty)) {
-            error("variable '%s' has incomplete type '%s'",
-                  id, type2s(ty));
-        } else {
-            if (sclass == EXTERN)
-                warning_at(src, "'extern' variable has an initializer");
-
-            if (sym->defined)
-                error_at(src, ERR_REDEFINITION,
-                         sym->name,
-                         sym->src.file, sym->src.line, sym->src.column);
-
-            init = ensure_init(init, ty, sym, src);
-            sym->u.init = init;
-        }
-
+        ensure_init(GLOBAL, sclass, sym, init, src);
+        if (sym->defined)
+            error_at(src, ERR_REDEFINITION,
+                     sym->name,
+                     sym->src.file, sym->src.line, sym->src.column);
         sym->defined = true;
     }
 
@@ -3000,9 +3009,7 @@ static struct symbol *do_localdecl(const char *id, struct type *ty,
 
     sym = lookup(id, identifiers);
     if (sclass == EXTERN) {
-        if (sym == NULL ||
-            !is_current_scope(sym) ||
-            eqtype(ty, sym->type)) {
+        if (!sym || !is_current_scope(sym) || eqtype(ty, sym->type)) {
             struct symbol *p = lookup(id, globals);
             if (p == NULL || eqtype(ty, p->type)) {
                 p = lookup(id, externals);
@@ -3042,21 +3049,10 @@ static struct symbol *do_localdecl(const char *id, struct type *ty,
     }
 
     if (init) {
-        if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
-            error("'%s' cannot have an initializer", TYPE_NAME(ty));
-        } else if (sclass == EXTERN) {
-            error("'extern' variable cannot have an initializer");
-        } else if (istag(ty) && isincomplete(ty)) {
-            error("variable '%s' has incomplete type '%s'", id, type2s(ty));
-        } else {
-            init = ensure_init(init, ty, sym, src);
-            if (init) {
-                sym->u.init = init;
-                // gen assign expr
-                if (sclass != STATIC)
-                    gen_assign(sym, init);
-            }
-        }
+        ensure_init(LOCAL, sclass, sym, init, src);
+        // gen assign expr
+        if (sym->u.init && sclass != STATIC)
+            gen_assign(sym, init);
     }
 
     // check incomplete type after initialized
