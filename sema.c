@@ -457,7 +457,7 @@ static bool increasable(struct expr *node, struct source src)
         return true;
 }
 
-// TODO: 
+// TODO: constant 0 (int or pointer)
 static bool isnullptr(struct expr *node)
 {
     struct expr *cnst;
@@ -785,17 +785,6 @@ static struct expr *assignconv(struct type *dty, struct expr *expr)
         if (!eqtype(unqual(rty1), unqual(rty2)))
             return NULL;
         if (!qual_contains(rty1, rty2))
-            return NULL;
-
-        goto ok;
-    }
-
-    if (isptr(dty) && isint(sty)) {
-        // constant 0
-        struct expr *ret;
-
-        ret = eval(expr, inttype);
-        if (!ret || !isiliteral(ret) || ret->x.sym->value.i)
             return NULL;
 
         goto ok;
@@ -1325,26 +1314,27 @@ static inline struct expr *bop_eq(int t, struct expr *l, struct expr *r, struct 
     if (isarith(ty1) && isarith(ty2)) {
         // both arith
         ty = conv2(ty1, ty2);
-    } else if (isptr(ty1) && isptr(ty2)) {
+    } else if (isptr(ty1) && isnullptr(r)) {
+        // ptr NULL
+        ty = ptritype;
+    } else if (isnullptr(l) && isptr(ty2)) {
+        // NULL ptr
+        ty = ptritype;
+    } else if (isptr(ty1) && isptrto(ty2, VOID)) {
+        // ptr (void *)
+        ty = ptritype;
+    } else if (isptrto(ty1, VOID) && isptr(ty2)) {
+        // (void *) ptr
+        ty = ptritype;
+    }  else if (isptr(ty1) && isptr(ty2)) {
         // both ptr
-
-        // TODO: void * and NULL
-        
         if (!compatible(rtype(ty1), rtype(ty2))) {
             error_at(src, ERR_COMPARISION_INCOMPATIBLE,
                      type2s(ty1), type2s(ty2));
             return NULL;
         }
-
+        
         ty = ptritype;
-    } else if (isptr(ty1) && isint(ty2)) {
-        // ptr op int
-        // TODO: warning or error
-        ty = conv2(ptritype, ty2);
-    } else if (isint(ty1) && isptr(ty2)) {
-        // int op ptr
-        // TODO: warning or error
-        ty = conv2(ty1, ptritype);
     } else {
         error_at(src, ERR_COMPARISION_INCOMPATIBLE,
                  type2s(ty1), type2s(ty2));
