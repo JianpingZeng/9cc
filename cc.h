@@ -233,49 +233,50 @@ enum { I = 1, U, F, P, S };
 
 // op kind
 enum {
+    /// comma
+    RIGHT = MKINDEX(1),
+    /// cond
+    COND = MKINDEX(2),
     /// constant
-    CNST = MKINDEX(1),
+    CNST = MKINDEX(3),
     /// address
-    ADDRG = MKINDEX(2),
-    ADDRP = MKINDEX(3),
-    ADDRL = MKINDEX(4),
+    ADDRG = MKINDEX(4),
+    ADDRP = MKINDEX(5),
+    ADDRL = MKINDEX(6),
     /// indirection
-    INDIR = MKINDEX(5),
-    /// conversion
-    CVI = MKINDEX(6),
-    CVU = MKINDEX(7),
-    CVF = MKINDEX(8),
-    CVP = MKINDEX(9),
+    INDIR = MKINDEX(7),
     /// binary
-    ASGN = MKINDEX(10),
-    MUL = MKINDEX(11),
-    DIV = MKINDEX(12),
-    ADD = MKINDEX(13),
-    SUB = MKINDEX(14),
-    MOD = MKINDEX(15),
-    SHL = MKINDEX(16),
-    SHR = MKINDEX(17),
-    BAND = MKINDEX(18),
-    BOR = MKINDEX(19),
-    XOR = MKINDEX(20),
-    EQ = MKINDEX(21),
-    NE = MKINDEX(22),
-    GT = MKINDEX(23),
-    GE = MKINDEX(24),
-    LT = MKINDEX(25),
-    LE = MKINDEX(26),
-    AND = MKINDEX(27),
-    OR = MKINDEX(28),
+    ASGN = MKINDEX(8),
+    MUL = MKINDEX(9),
+    DIV = MKINDEX(10),
+    ADD = MKINDEX(11),
+    SUB = MKINDEX(12),
+    MOD = MKINDEX(13),
+    SHL = MKINDEX(14),
+    SHR = MKINDEX(15),
+    BAND = MKINDEX(16),
+    BOR = MKINDEX(17),
+    XOR = MKINDEX(18),
+    EQ = MKINDEX(19),
+    NE = MKINDEX(20),
+    GT = MKINDEX(21),
+    GE = MKINDEX(22),
+    LT = MKINDEX(23),
+    LE = MKINDEX(24),
+    AND = MKINDEX(25),
+    OR = MKINDEX(26),
     /// unary
-    NEG = MKINDEX(29),
-    NOT = MKINDEX(30),
+    NEG = MKINDEX(27),
+    NOT = MKINDEX(28),
     /// postfix
-    COMPOUND = MKINDEX(31),
-    CALL = MKINDEX(32),
-    BFIELD = MKINDEX(33),
-    /// others
-    COND = MKINDEX(34),
-    RIGHT = MKINDEX(35),
+    COMPOUND = MKINDEX(29),
+    CALL = MKINDEX(30),
+    BFIELD = MKINDEX(31),
+    /// conversion
+    CVI = MKINDEX(32),
+    CVU = MKINDEX(33),
+    CVF = MKINDEX(34),
+    CVP = MKINDEX(35),
 };
 
 /// stmt
@@ -629,5 +630,6 @@ extern struct type *voidtype;
 extern struct type *booltype;
 extern struct type *voidptype;
 extern struct type *funcptype;
+extern struct type *ptritype;
 
 #endif

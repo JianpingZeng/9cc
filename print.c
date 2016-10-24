@@ -32,6 +32,10 @@ static void print_symbol1(struct symbol *sym, int level, const char *prefix);
 
 static const char *nnames[] = {
     "null",
+    /// comma
+    "RIGHT",
+    /// cond
+    "COND",
     /// constant
     "CNST",
     /// address
@@ -40,11 +44,6 @@ static const char *nnames[] = {
     "ADDRL",
     /// indirection
     "INDIR",
-    // conversion
-    "CVI",
-    "CVU",
-    "CVF",
-    "CVP",
     /// binary
     "ASGN",
     "MUL",
@@ -64,7 +63,7 @@ static const char *nnames[] = {
     "LT",
     "LE",
     "AND",
-    "OR"
+    "OR",
     /// unary
     "NEG",
     "NOT",
@@ -72,9 +71,11 @@ static const char *nnames[] = {
     "COMPOUND",
     "CALL",
     "BFIELD",
-    /// others
-    "COND",
-    "RIGHT",
+    /// conversion
+    "CVI",
+    "CVU",
+    "CVF",
+    "CVP",
 };
 
 static const char *nname(int op)
@@ -289,7 +290,7 @@ static void print_expr1(struct expr *node, int level)
     if (node->kids[1])
         print_expr1(node->kids[1], level + 1);
 
-    switch (OPINDEX(node->op)) {
+    switch (OPKIND(node->op)) {
     case COMPOUND:
         print_init1(node->x.u.inits, level + 1);
         break;

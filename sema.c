@@ -34,9 +34,9 @@ struct func func;
 
 #define check_designator(d)  ensure_designator(d) ? (d) : NULL
 
-#define isaddrop(op)  (OPINDEX(op) == ADDRL || \
-                       OPINDEX(op) == ADDRG || \
-                       OPINDEX(op) == ADDRP)
+#define isaddrop(op)  (OPKIND(op) == ADDRL || \
+                       OPKIND(op) == ADDRG || \
+                       OPKIND(op) == ADDRP)
 
 #define isbfield(node)  ((node)->op == BFIELD)
 
@@ -321,7 +321,7 @@ static void string_constant(struct token *t, struct symbol *sym)
  */
 static bool islvalue(struct expr *node)
 {
-    if (OPINDEX(node->op) == INDIR && !isfunc(node->type))
+    if (OPKIND(node->op) == INDIR && !isfunc(node->type))
         return true;
     if (node->op == BFIELD)
         return true;
@@ -460,53 +460,111 @@ static struct expr *rvalue(struct expr *n)
     return ast_expr(mkop(INDIR, ty), ty, n, NULL);
 }
 
-static struct expr *direct_cast(struct type *dty, struct expr *n)
+static struct expr *cast2bool(struct type *ty, struct expr *n)
 {
+    // TODO:
     return NULL;
 }
 
-static struct expr *cast2bool(struct type *dty, struct expr *n)
+static struct expr *cast_arith(struct type *ty, struct expr *n)
 {
-    return NULL;
+    struct type *sty, *dty;
+    int sop, dop, op;
+
+    sty = unqual(n->type);
+    dty = unqual(ty);
+    sop = sty->op == ENUM ? sty->type->op : sty->op;
+    dop = dty->op == ENUM ? dty->type->op : dty->op;
+
+    if (sop == dop && sty->size == dty->size)
+        return n;
+
+    if (sop == INT)
+        op = CVI;
+    else if (sop == UNSIGNED)
+        op = CVU;
+    else if (sop == FLOAT)
+        op = CVF;
+    else
+        CC_UNAVAILABLE();
+
+    return ast_expr(mkop(op, ty), ty, n, NULL);
 }
 
-static struct expr *cast2int(struct type *dty, struct expr *n)
+static struct expr *castip(struct type *ty, struct expr *n)
 {
-    return NULL;
+    int op;
+    
+    n = cast_arith(ptritype, n);
+    op = ptritype->op == UNSIGNED ? CVU : CVI;
+        
+    return ast_expr(mkop(op, ty), ty, n, NULL);
 }
 
-static struct expr *cast2float(struct type *dty, struct expr *n)
+static struct expr *castpi(struct type *ty, struct expr *n)
 {
-    return NULL;
+    n = ast_expr(mkop(CVP, ptritype), ptritype, n, NULL);
+
+    return cast_arith(ty, n);
 }
 
-static struct expr *cast2ptr(struct type *dty, struct expr *n)
+static struct expr *castpp(struct type *ty, struct expr *n)
 {
-    return NULL;
+    return rettype(ty, n);
 }
 
-static struct expr *cast(struct type *dty, struct expr *n)
+/// cast 'n' to type 'ty'
+static struct expr *cast(struct type *ty, struct expr *n)
 {
-    // cast to bool is special
-    if (isbool(dty))
-        return cast2bool(dty, n);
-    if (isint(dty))
-        return cast2int(dty, n);
-    if (isfloat(dty))
-        return cast2float(dty, n);
-    if (isptr(dty))
-        return cast2ptr(dty, n);
-    if (isstruct(dty) || isunion(dty))
-        return direct_cast(dty, n);
-    if (isvoid(dty))
-        return direct_cast(dty, n);
+    struct type *sty, *dty;
+
+    sty = unqual(n->type);
+    dty = unqual(ty);
+    
+    if (isbool(dty)) {
+        // cast to bool is special
+        return cast2bool(ty, n);
+    } else if (isint(dty)) {
+        // cast to integer
+        if (sty->op == INT ||
+            sty->op == UNSIGNED ||
+            sty->op == FLOAT ||
+            sty->op == ENUM)
+            return cast_arith(ty, n);
+        if (sty->op == POINTER)
+            return castpi(ty, n);
+    } else if (isfloat(dty)) {
+        // cast to floating
+        if (sty->op == INT ||
+            sty->op == UNSIGNED ||
+            sty->op == FLOAT ||
+            sty->op == ENUM)
+            return cast_arith(ty, n);
+    } else if (isptr(dty)) {
+        // cast to pointer
+        if (sty->op == POINTER)
+            return castpp(ty, n);
+        if (sty->op == INT ||
+            sty->op == UNSIGNED ||
+            sty->op == ENUM)
+            return castip(ty, n);
+    } else  if (isstruct(dty) || isunion(dty)) {
+        // cast to struct/union
+        return n;
+    } else if (isvoid(dty)) {
+        // cast to void
+        return ast_expr(RIGHT, ty, n, NULL);
+    }
 
     CC_UNAVAILABLE();
 }
 
-static struct expr *explicit_cast(struct type *dty, struct expr *n)
+static struct expr *explicit_cast(struct type *ty, struct expr *n)
 {
-    return cast(dty, n);
+    n = cast(ty, n);
+    if (islvalue(n))
+        n = ast_expr(RIGHT, ty, n, NULL);
+    return n;
 }
 
 static struct expr *decay(struct expr *node)
@@ -1794,7 +1852,7 @@ static struct expr *do_bool_expr(struct expr *node, struct source src)
     if (!node)
         return NULL;
     // warning for assignment expression
-    if (OPINDEX(node->op) == ASGN && !node->x.paren)
+    if (OPKIND(node->op) == ASGN && !node->x.paren)
         warning_at(src, "using the result of an assignment "
                     "as a condition without parentheses");
 

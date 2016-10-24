@@ -14,7 +14,7 @@ struct expr *addrof(struct expr *expr)
     struct expr *p = expr;
 
     while (1) {
-        switch (OPINDEX(p->op)) {
+        switch (OPKIND(p->op)) {
         case RIGHT:
             assert(p->kids[1] || p->kids[0]);
             p = p->kids[1] ? p->kids[1] : p->kids[0];
