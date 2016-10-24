@@ -520,14 +520,6 @@ static struct expr *wrap(struct type *ty, struct expr *node)
         return cast(ty, node);
 }
 
-static struct expr *bitconv(struct type *ty, struct expr *node)
-{
-    if (eqtype(ty, node->type))
-        return node;
-    else
-        return cast(ty, node);
-}
-
 static struct expr *decay(struct expr *node)
 {
     assert(node);
@@ -647,6 +639,7 @@ static struct type *conv2(struct type *l, struct type *r)
  *  pointer to (object) T       (a) the constant 0
  *                              (b) pointer to T2, where
  *                                  T and T2 are compatible
+ *                              (c) (void *)
  *
  *  pointer to (function) F     (a) the constant 0
  *                              (b) pointer to F2, where
@@ -662,55 +655,64 @@ static struct expr *assignconv(struct type *dty, struct expr *expr)
     sty = expr->type;
 
     if (isarith(dty) && isarith(sty))
-        return wrap(dty, expr);
+        goto ok;
 
     if (isbool(dty) && isptr(sty))
-        return cast(dty, expr);
+        goto ok;
 
     if ((isstruct(dty) && isstruct(sty)) ||
         (isunion(dty) && isunion(sty))) {
         if (!eqtype(unqual(dty), unqual(sty)))
             return NULL;
 
-        return bitconv(dty, expr);
+        goto ok;
+    }
+
+    if (isnullptr(expr) && isptr(dty))
+        goto ok;
+
+    if ((isptrto(dty, VOID) && isptr(sty)) ||
+        (isptrto(sty, VOID) && isptr(dty))) {
+        struct type *rty1, *rty2;
+
+        rty1 = rtype(dty);
+        rty2 = rtype(sty);
+        if (isfunc(rty1) || isfunc(rty2))
+            return NULL;
+        if (!qual_contains(rty1, rty2))
+            return NULL;
+
+        goto ok;
     }
 
     if (isptr(dty) && isptr(sty)) {
-        if (isnullptr(expr)) {
-            // always allowed
-        } else if (isptrto(dty, VOID) || isptrto(sty, VOID)) {
-            struct type *vty, *nvty;
-            struct type *rty1, *rty2;
+        struct type *rty1, *rty2;
 
-            vty = isptrto(dty, VOID) ? dty : sty;
-            nvty = (vty == dty) ? sty : dty;
+        rty1 = rtype(dty);
+        rty2 = rtype(sty);
+        if (!eqtype(unqual(rty1), unqual(rty2)))
+            return NULL;
+        if (!qual_contains(rty1, rty2))
+            return NULL;
 
-            if (isptrto(nvty, FUNCTION))
-                return NULL;
-
-            rty1 = rtype(dty);
-            rty2 = rtype(sty);
-            if (!qual_contains(rty1, rty2))
-                return NULL;
-        } else {
-            struct type *rty1, *rty2;
-
-            rty1 = rtype(dty);
-            rty2 = rtype(sty);
-            if (!eqtype(unqual(rty1), unqual(rty2)))
-                return NULL;
-            if (!qual_contains(rty1, rty2))
-                return NULL;
-        }
-
-        return bitconv(dty, expr);
+        goto ok;
     }
 
     if (isptr(dty) && isint(sty)) {
-        if (isnullptr(expr))
-            return bitconv(dty, expr);
+        // constant 0
+        struct expr *ret;
+
+        ret = eval(expr, inttype);
+        if (!ret || !isiliteral(ret) || ret->x.sym->value.i)
+            return NULL;
+
+        goto ok;
     }
+
+    // fail
     return NULL;
+ ok:
+    return cast(dty, expr);
 }
 
 static struct expr *initconv(struct type *ty, struct expr *node)
