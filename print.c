@@ -94,7 +94,6 @@ static char *opidname(int op)
     case F: type = "F"; break;
     case P: type = "P"; break;
     case S: type = "S"; break;
-    case B: type = "B"; break;
     case 0: type = ""; break;
     default: assert(0 && "unknown op type");
     }

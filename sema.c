@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include "cc.h"
 
+static struct expr *condexpr(struct type *ty,
+                             struct expr *cond, struct expr *then, struct expr *els);
 struct func func;
 
 #define ERR_INCOMPATIBLE_TYPES   "incompatible type conversion from '%s' to '%s'"
@@ -509,29 +511,10 @@ static struct expr *castpp(struct type *ty, struct expr *n)
 
 static struct expr *cast2bool(struct type *ty, struct expr *n)
 {
-    struct type *sty;
-    int sop, op;
-
-    sty = unqual(n->type);
-    if (isbool(sty))
+    if (isbool(n->type))
         return n;
-    if (sty->op == POINTER) {
-        n = ast_expr(mkop(CVP, ptritype), ptritype, n, NULL);
-        sty = n->type;
-    }
 
-    sop = sty->op == ENUM ? sty->type->op : sty->op;
-    if (sop == INT)
-        op = CVI;
-    else if (sop == UNSIGNED)
-        op = CVU;
-    else if (sop == FLOAT)
-        op = CVF;
-    else
-        CC_UNAVAILABLE();
-
-    // _don't_ use `mkop' here.
-    return ast_expr(op+B, ty, n, NULL);
+    return condexpr(ty, n, cnsti(1, booltype), cnsti(0, booltype));
 }
 
 /// cast 'n' to type 'ty'
@@ -890,7 +873,9 @@ static struct expr **argsconv(struct type *fty, struct expr **args, struct sourc
     }
 }
 
-static struct expr *arith_literal(struct token *t,
+/// ty == NULL means auto.
+static struct expr *arith_literal(struct type *ty,
+                                  struct token *t,
                                   void (*cnst) (struct token *, struct symbol *))
 {
     struct expr *expr;
@@ -901,7 +886,9 @@ static struct expr *arith_literal(struct token *t,
         sym = install(name, &constants, CONSTANT, PERM);
         cnst(t, sym);
     }
-    expr = ast_expr(mkop(CNST, sym->type), sym->type, NULL, NULL);
+    if (!ty)
+        ty = sym->type;
+    expr = ast_expr(mkop(CNST, ty), ty, NULL, NULL);
     expr->x.sym = sym;
     return expr;
 }
@@ -1802,12 +1789,12 @@ static struct expr *do_compound_literal(struct type *ty, struct expr *inits, str
 
 static struct expr *do_iconst(struct token *tok)
 {
-    return arith_literal(tok, integer_constant);
+    return arith_literal(NULL, tok, integer_constant);
 }
 
 static struct expr *do_fconst(struct token *tok)
 {
-    return arith_literal(tok, float_constant);
+    return arith_literal(NULL, tok, float_constant);
 }
 
 static struct expr *do_sconst(struct token *tok)
@@ -3329,13 +3316,12 @@ struct desig *next_designator(struct desig *desig)
 
 struct expr *cnsti(long i, struct type *ty)
 {
-    int op = TYPE_OP(ty);
     struct token t = {
         .id = ICONSTANT,
-        .u.lit.str = op == INT ? strd(i) : stru(i),
+        .u.lit.str = (TYPE_OP(ty) == INT) ? strd(i) : stru(i),
         .u.lit.v.i = i
     };
-    return arith_literal(&t, integer_constant);
+    return arith_literal(ty, &t, integer_constant);
 }
 
 struct expr *cnsts(const char *string)

@@ -229,8 +229,7 @@ struct init {
 // F - floating
 // P - pointer
 // S - struct/union/array
-// B - bool (only in CVIB/CVUB/CVFB)
-enum { I = 1, U, F, P, S, B };
+enum { I = 1, U, F, P, S };
 
 // op kind
 enum {
