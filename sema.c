@@ -509,17 +509,6 @@ static struct expr *explicit_cast(struct type *dty, struct expr *n)
     return cast(dty, n);
 }
 
-static struct expr *wrap(struct type *ty, struct expr *node)
-{
-    assert(isarith(ty));
-    assert(isarith(node->type));
-
-    if (eqarith(ty, node->type))
-        return node;
-    else
-        return cast(ty, node);
-}
-
 static struct expr *decay(struct expr *node)
 {
     assert(node);
@@ -1043,7 +1032,7 @@ static struct expr *bop_arith(int t, struct expr *l, struct expr *r, struct sour
     op = id2op(t);
     ty = conv2(l->type, r->type);
 
-    return ast_expr(mkop(op, ty), ty, wrap(ty, l), wrap(ty, r));
+    return ast_expr(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
 }
 
 // '%', '&', '^', '|', 'LSHIFT', 'RHIFT'
@@ -1064,7 +1053,7 @@ static struct expr *bop_int(int t, struct expr *l, struct expr *r, struct source
     op = id2op(t);
     ty = conv2(l->type, r->type);
     
-    return ast_expr(mkop(op, ty), ty, wrap(ty, l), wrap(ty, r));
+    return ast_expr(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
 }
 
 // '+'
@@ -1075,7 +1064,7 @@ static struct expr *bop_add(struct expr *l, struct expr *r, struct source src)
     
     if (isarith(l->type) && isarith(r->type)) {
         ty = conv2(l->type, r->type);
-        return ast_expr(mkop(op, ty), ty, wrap(ty, l), wrap(ty, r));
+        return ast_expr(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
     } else if (isptr(l->type) && isint(r->type)) {
         size_t size;
         struct expr *mul;
@@ -1097,8 +1086,7 @@ static struct expr *bop_add(struct expr *l, struct expr *r, struct source src)
         mul = actions.bop('*', l, cnsti(size, unsignedlongtype), src);
         return ast_expr(mkop(op, r->type), r->type, mul, r);
     } else {
-        error_at(src, ERR_BOP_OPERANDS,
-                 type2s(l->type), type2s(r->type));
+        error_at(src, ERR_BOP_OPERANDS, type2s(l->type), type2s(r->type));
         return NULL;
     }
 }
@@ -1111,7 +1099,7 @@ static struct expr *bop_sub(struct expr *l, struct expr *r, struct source src)
 
     if (isarith(l->type) && isarith(r->type)) {
         ty = conv2(l->type, r->type);
-        return ast_expr(mkop(op, ty), ty, wrap(ty, l), wrap(ty, r));
+        return ast_expr(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
     } else if (isptr(l->type) && isint(r->type)) {
         size_t size;
         struct expr *mul;
@@ -1123,11 +1111,13 @@ static struct expr *bop_sub(struct expr *l, struct expr *r, struct source src)
         mul = actions.bop('*', r, cnsti(size, unsignedlongtype), src);
         return ast_expr(mkop(op, l->type), l->type, l, mul);
     } else if (isptr(l->type) && isptr(r->type)) {
+        struct type *rty1, *rty2;
+        
         if (!addable_ptr(l, src) || !addable_ptr(r, src))
             return NULL;
 
-        struct type *rty1 = rtype(l->type);
-        struct type *rty2 = rtype(r->type);
+        rty1 = rtype(l->type);
+        rty2 = rtype(r->type);
         if (!eqtype(unqual(rty1), unqual(rty2))) {
             error_at(src, "'%s' and '%s' "
                      "are not pointers to compatible types",
@@ -1137,13 +1127,11 @@ static struct expr *bop_sub(struct expr *l, struct expr *r, struct source src)
 
         return ast_expr(mkop(op, l->type), inttype, l, r);
     } else {
-        error_at(src, ERR_BOP_OPERANDS,
-                 type2s(l->type), type2s(r->type));
+        error_at(src, ERR_BOP_OPERANDS, type2s(l->type), type2s(r->type));
         return NULL;
     }
 }
 
-// '>', '<', '>=', '<='
 static struct expr *bop_rel(int t, struct expr *l, struct expr *r, struct source src)
 {
     int op = id2op(t);
@@ -1152,12 +1140,25 @@ static struct expr *bop_rel(int t, struct expr *l, struct expr *r, struct source
     if (isarith(l->type) && isarith(r->type)) {
         // both arith
         ty = conv2(l->type, r->type);
-        return ast_expr(mkop(op, ty), inttype,
-                        wrap(ty, l), wrap(ty, r));
+        return ast_expr(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
     } else if (isptr(l->type) && isptr(r->type)) {
         // both ptr
         if (eqtype(l->type, r->type))
             return ast_expr(mkop(op, l->type), inttype, l, r);
+
+        if (t == EQL || t == NEQ) {
+            if (isptrto(l->type, VOID)) {
+                ty = ptr_type(voidtype);
+                return ast_expr(mkop(op, ty), inttype, l, cast(ty, r));
+            } else if (isptrto(r->type, VOID)) {
+                ty = ptr_type(voidtype);
+                return ast_expr(mkop(op, ty), inttype, cast(ty, l), r);
+            } else if (isnullptr(l)) {
+                return ast_expr(mkop(op, r->type), inttype, l, r);
+            } else if (isnullptr(r)) {
+                return ast_expr(mkop(op, l->type), inttype, l, r);
+            }
+        }
 
         if (!opts.ansi) {
             error_at(src, ERR_BOP_COMPARISION,
@@ -1168,12 +1169,10 @@ static struct expr *bop_rel(int t, struct expr *l, struct expr *r, struct source
         return ast_expr(mkop(op, l->type), inttype, l, cast(l->type, r));
     } else if (isptr(l->type) && isint(r->type)) {
         // ptr op int
-        return ast_expr(mkop(op, l->type), inttype,
-                        l, cast(l->type, r));
+        return ast_expr(mkop(op, l->type), inttype, l, cast(l->type, r));
     } else if (isptr(r->type) && isint(l->type)) {
         // int op ptr
-        return ast_expr(mkop(op, r->type), inttype,
-                        cast(r->type, l), r);
+        return ast_expr(mkop(op, r->type), inttype, cast(r->type, l), r);
     } else {
         error_at(src, ERR_BOP_COMPARISION,
                  type2s(l->type), type2s(r->type));
@@ -1181,54 +1180,16 @@ static struct expr *bop_rel(int t, struct expr *l, struct expr *r, struct source
     }
 }
 
-// 'EQL', 'NEQ'
-static struct expr *bop_eq(int t, struct expr *l, struct expr *r, struct source src)
+// '>', '<', '>=', '<='
+static inline struct expr *bop_cmp(int t, struct expr *l, struct expr *r, struct source src)
 {
-    int op = id2op(t);
-    struct type *ty;
-    
-    if (isarith(l->type) && isarith(r->type)) {
-        // both arith
-        ty = conv2(l->type, r->type);
-        return ast_expr(mkop(op, ty), inttype,
-                        wrap(ty, l), wrap(ty, r));
-    } else if (isptr(l->type) && isptr(r->type)) {
-        // both ptr
-        if (eqtype(l->type, r->type))
-            return ast_expr(mkop(op, l->type), inttype, l, r);
+    return bop_rel(t, l, r, src);
+}
 
-        if (isptrto(l->type, VOID)) {
-            ty = ptr_type(voidtype);
-            return ast_expr(mkop(op, ty), inttype, l, cast(ty, r));
-        } else if (isptrto(r->type, VOID)) {
-            ty = ptr_type(voidtype);
-            return ast_expr(mkop(op, ty), inttype, cast(ty, l), r);
-        } else if (isnullptr(l)) {
-            return ast_expr(mkop(op, r->type), inttype, l, r);
-        } else if (isnullptr(r)) {
-            return ast_expr(mkop(op, l->type), inttype, l, r);
-        }
-
-        if (!opts.ansi) {
-            error_at(src, ERR_BOP_COMPARISION,
-                     type2s(l->type), type2s(r->type));
-            return NULL;
-        }
-
-        return ast_expr(mkop(op, l->type), inttype, l, cast(l->type, r));
-    } else if (isptr(l->type) && isint(r->type)) {
-        // ptr op int
-        return ast_expr(mkop(op, l->type), inttype,
-                        l, cast(l->type, r));
-    } else if (isptr(r->type) && isint(l->type)) {
-        // int op ptr
-        return ast_expr(mkop(op, r->type), inttype,
-                        cast(r->type, l), r);
-    } else {
-        error_at(src, ERR_BOP_COMPARISION,
-                 type2s(l->type), type2s(r->type));
-        return NULL;
-    }
+// 'EQL', 'NEQ'
+static inline struct expr *bop_eq(int t, struct expr *l, struct expr *r, struct source src)
+{
+    return bop_rel(t, l, r, src);
 }
 
 /// actions-expr
@@ -1422,7 +1383,7 @@ static struct expr *do_bop(int t, struct expr *l, struct expr *r, struct source 
     case '<':
     case LEQ:
     case GEQ:
-        return bop_rel(t, l, r, src);
+        return bop_cmp(t, l, r, src);
     case EQL:
     case NEQ:
         return bop_eq(t, l, r, src);
