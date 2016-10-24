@@ -360,7 +360,7 @@ static bool islvalue(struct expr *node)
 {
     if (OPKIND(node->op) == INDIR)
         return true;
-    if (node->op == BFIELD)
+    if (isbfield(node))
         return true;
     if (isaddrop(node->op) && isarray(node->type))
         return true;
@@ -1405,7 +1405,7 @@ static struct expr *do_assign(int t, struct expr *l, struct expr *r, struct sour
         return NULL;
     }
 
-    if (l->op == BFIELD) {
+    if (isbfield(l)) {
         int n = 8 * TYPE_SIZE(l->x.u.field->type) - l->x.u.field->bitsize;
         r = actions.bop(RSHIFT,
                         actions.bop(LSHIFT, r, cnsti(n, inttype), src),
