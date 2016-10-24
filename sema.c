@@ -460,12 +460,6 @@ static struct expr *rvalue(struct expr *n)
     return ast_expr(mkop(INDIR, ty), ty, n, NULL);
 }
 
-static struct expr *cast2bool(struct type *ty, struct expr *n)
-{
-    // TODO:
-    return NULL;
-}
-
 static struct expr *cast_arith(struct type *ty, struct expr *n)
 {
     struct type *sty, *dty;
@@ -511,6 +505,33 @@ static struct expr *castpi(struct type *ty, struct expr *n)
 static struct expr *castpp(struct type *ty, struct expr *n)
 {
     return rettype(ty, n);
+}
+
+static struct expr *cast2bool(struct type *ty, struct expr *n)
+{
+    struct type *sty;
+    int sop, op;
+
+    sty = unqual(n->type);
+    if (isbool(sty))
+        return n;
+    if (sty->op == POINTER) {
+        n = ast_expr(mkop(CVP, ptritype), ptritype, n, NULL);
+        sty = n->type;
+    }
+
+    sop = sty->op == ENUM ? sty->type->op : sty->op;
+    if (sop == INT)
+        op = CVI;
+    else if (sop == UNSIGNED)
+        op = CVU;
+    else if (sop == FLOAT)
+        op = CVF;
+    else
+        CC_UNAVAILABLE();
+
+    // _don't_ use `mkop' here.
+    return ast_expr(op+B, ty, n, NULL);
 }
 
 /// cast 'n' to type 'ty'
@@ -1041,6 +1062,25 @@ static struct expr *gen_assign(struct symbol *sym, struct expr *r)
     return ref;
 }
 
+static struct expr *condexpr(struct type *ty,
+                             struct expr *cond, struct expr *then, struct expr *els)
+{
+    struct symbol *sym;
+    struct expr *ret;
+    
+    if (!isvoid(ty)) {
+        sym = mktmp(gen_tmpname(), ty, REGISTER);
+        then = assign(sym, then);
+        els = assign(sym, els);
+    } else {
+        sym = NULL;
+    }
+
+    ret = ast_expr(COND, ty, cond, ast_expr(RIGHT, ty, then, els));
+    ret->x.sym = sym;
+    return ret;
+}
+
 static struct expr *member(struct expr *addr, const char *name, struct source src)
 {
     struct field *field;
@@ -1320,8 +1360,6 @@ static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *e
                             struct source src)
 {
     struct type *ty, *ty1, *ty2;
-    struct symbol *sym;
-    struct expr *ret;
 
     if (!cond || !then || !els)
         return NULL;
@@ -1378,17 +1416,7 @@ static struct expr *do_cond(struct expr *cond, struct expr *then, struct expr *e
         return NULL;
     }
 
-    if (!isvoid(ty)) {
-        sym = mktmp(gen_tmpname(), ty, REGISTER);
-        then = assign(sym, then);
-        els = assign(sym, els);
-    } else {
-        sym = NULL;
-    }
-
-    ret = ast_expr(COND, ty, cond, ast_expr(RIGHT, ty, then, els));
-    ret->x.sym = sym;
-    return ret;
+    return condexpr(ty, cond, then, els);
 
  err_incompatible:
     error_at(src,
