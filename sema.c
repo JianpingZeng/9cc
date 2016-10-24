@@ -358,7 +358,7 @@ static void string_constant(struct token *t, struct symbol *sym)
  */
 static bool islvalue(struct expr *node)
 {
-    if (OPKIND(node->op) == INDIR && !isfunc(node->type))
+    if (OPKIND(node->op) == INDIR)
         return true;
     if (node->op == BFIELD)
         return true;
@@ -494,6 +494,9 @@ static struct expr *rvalue(struct expr *n)
     assert(isptr(n->type));
 
     ty = unqual(rtype(n->type));
+    
+    assert(!isfunc(ty) && !isarray(ty));
+
     return ast_expr(mkop(INDIR, ty), ty, n, NULL);
 }
 
