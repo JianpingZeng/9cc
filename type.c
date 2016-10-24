@@ -219,7 +219,8 @@ struct type *tag_type(int t)
     return ty;
 }
 
-static bool eqparams(struct type *proto1[], struct type *proto2[])
+static bool cmparams(struct type *proto1[], struct type *proto2[],
+                     bool (*cmp) (struct type *, struct type *))
 {
     assert(proto1 && proto2);
 
@@ -238,7 +239,7 @@ static bool eqparams(struct type *proto1[], struct type *proto2[])
 
         if (ty1 == ty2)
             continue;
-        else if (eqtype(ty1, ty2))
+        else if (cmp(ty1, ty2))
             continue;
         else
             return false;
@@ -249,8 +250,72 @@ static bool eqparams(struct type *proto1[], struct type *proto2[])
 
 bool compatible(struct type *ty1, struct type *ty2)
 {
-    // TODO:
-    return true;
+    int kind1, kind2;
+    
+    ty1 = unqual(ty1);
+    ty2 = unqual(ty2);
+
+    kind1 = ty1->kind == ENUM ? ty1->type->kind : ty1->kind;
+    kind2 = ty2->kind == ENUM ? ty2->type->kind : ty2->kind;
+
+    if (kind1 != kind2)
+        return false;
+
+    switch (kind1) {
+    case STRUCT:
+    case UNION:
+    case CHAR:
+        // char/signed char/unsigned char are always different.
+        return ty1 == ty2;
+    case POINTER:
+    case ARRAY:
+        return compatible(rtype(ty1), rtype(ty2));
+    case FUNCTION:
+        if (!compatible(ty1->type, ty2->type))
+            return false;
+        if (ty1->u.f.oldstyle && ty2->u.f.oldstyle) {
+            // both oldstyle
+            return true;
+        } else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
+            // both prototype
+            return cmparams(ty1->u.f.proto, ty2->u.f.proto, compatible);
+        } else {
+            // one oldstyle, the other prototype
+            struct type *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
+            struct type *newty = ty1->u.f.oldstyle ? ty2 : ty1;
+
+            if (TYPE_VARG(newty))
+                return false;
+            
+            for (size_t i = 0; newty->u.f.proto[i]; i++) {
+                struct type *ty = newty->u.f.proto[i];
+                if (TYPE_KIND(ty) == _BOOL ||
+                    TYPE_KIND(ty) == CHAR ||
+                    TYPE_KIND(ty) == SHORT ||
+                    TYPE_KIND(ty) == FLOAT)
+                    return false;
+            }
+
+            if (isempty(oldty->u.f.proto))
+                return true;
+
+            return cmparams(oldty->u.f.proto, newty->u.f.proto, compatible);
+        }
+        return false;
+    case _BOOL:
+    case SHORT:
+    case INT:
+    case UNSIGNED:
+    case LONG:
+    case LONG + LONG:
+    case FLOAT:
+    case DOUBLE:
+    case LONG + DOUBLE:
+    case VOID:
+        return true;
+    default:
+        CC_UNAVAILABLE();
+    }
 }
 
 bool eqtype(struct type * ty1, struct type * ty2)
@@ -296,7 +361,7 @@ bool eqtype(struct type * ty1, struct type * ty2)
             return true;
         } else if (!ty1->u.f.oldstyle && !ty2->u.f.oldstyle) {
             // both prototype
-            return eqparams(ty1->u.f.proto, ty2->u.f.proto);
+            return cmparams(ty1->u.f.proto, ty2->u.f.proto, eqtype);
         } else {
             // one oldstyle, the other prototype
             struct type *oldty = ty1->u.f.oldstyle ? ty1 : ty2;
@@ -317,9 +382,8 @@ bool eqtype(struct type * ty1, struct type * ty2)
             if (isempty(oldty->u.f.proto))
                 return true;
 
-            return eqparams(oldty->u.f.proto, newty->u.f.proto);
+            return cmparams(oldty->u.f.proto, newty->u.f.proto, eqtype);
         }
-
     default:
         CC_UNAVAILABLE();
     }
