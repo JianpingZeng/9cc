@@ -218,7 +218,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
     if (t->u.lit.chr) {
         bool wide = t->u.lit.chr == 2;
         sym->type = wide ? wchartype : unsignedchartype;
-        sym->value.u = wide ? (wchar_t)n : (unsigned char)n;
+        sym->u.c.value.u = wide ? (wchar_t)n : (unsigned char)n;
         return;
     }
 
@@ -293,7 +293,7 @@ static void integer_constant(struct token *t, struct symbol *sym)
         error("integer constant overflow: %s", TOK_LIT_STR(t));
 
     sym->type = ty;
-    sym->value = t->u.lit.v;
+    sym->u.c.value = t->u.lit.v;
 }
 
 static void float_constant(struct token *t, struct symbol *sym)
@@ -463,8 +463,8 @@ static bool isnullptr(struct expr *n)
     struct type *ty = n->type;
 
     return OPKIND(n->op) == CNST &&
-        ((isint(ty) && n->x.sym->value.i == 0) ||
-         (isptrto(ty, VOID) && n->x.sym->value.p == NULL));
+        ((isint(ty) && n->x.sym->u.c.value.i == 0) ||
+         (isptrto(ty, VOID) && n->x.sym->u.c.value.p == NULL));
 }
 
 /// conversion
@@ -897,23 +897,24 @@ static struct expr **argsconv(struct type *fty, struct expr **args, struct sourc
     }
 }
 
-/// ty == NULL means auto.
-static struct expr *arith_literal(struct type *ty,
-                                  struct token *t,
-                                  void (*cnst) (struct token *, struct symbol *))
+static struct expr *mkiliteral(struct type *ty, long i)
 {
     struct expr *expr;
-    const char *name = TOK_LIT_STR(t);
-    struct symbol *sym = lookup(name, constants);
 
-    if (!sym) {
-        sym = install(name, &constants, CONSTANT, PERM);
-        cnst(t, sym);
-    }
-    if (!ty)
-        ty = sym->type;
     expr = ast_expr(mkop(CNST, ty), ty, NULL, NULL);
-    expr->x.sym = sym;
+    expr->x.value.i = i;
+    return expr;
+}
+
+static struct expr *arith_literal(struct token *t,
+                                  void (*cnst) (struct token *, struct symbol *))
+{
+    static struct symbol sym;
+    struct expr *expr;
+
+    cnst(t, &sym);
+    expr = ast_expr(mkop(CNST, sym.type), sym.type, NULL, NULL);
+    expr->x.value = sym.u.c.value;
     return expr;
 }
 
@@ -921,10 +922,10 @@ static struct expr *string_literal(struct token *t,
                                    void (*cnst) (struct token *, struct symbol *))
 {
     const char *name = TOK_LIT_STR(t);
-    struct symbol *sym = lookup(name, constants);
+    struct symbol *sym = lookup(name, strings);
 
     if (!sym) {
-        sym = install(name, &constants, CONSTANT, PERM);
+        sym = install(name, &strings, CONSTANT, PERM);
         cnst(t, sym);
     }
     if (!sym->x.name) {
@@ -937,7 +938,7 @@ static struct expr *string_literal(struct token *t,
         id->sclass = STATIC;
         id->literal = true;
         id->defined = true;
-        id->u.cnst = sym;
+        id->u.c.cnst = sym;
         sym->x.name = label;
         return mkref(id);
     } else {
@@ -1851,12 +1852,12 @@ static struct expr *do_compound_literal(struct type *ty, struct expr *inits, str
 
 static struct expr *do_iconst(struct token *tok)
 {
-    return arith_literal(NULL, tok, integer_constant);
+    return arith_literal(tok, integer_constant);
 }
 
 static struct expr *do_fconst(struct token *tok)
 {
-    return arith_literal(NULL, tok, float_constant);
+    return arith_literal(tok, float_constant);
 }
 
 static struct expr *do_sconst(struct token *tok)
@@ -1873,7 +1874,7 @@ static struct expr *do_id(struct token *tok)
     if (sym) {
         if (isenum(sym->type) && sym->sclass == ENUM)
             // enum ids
-            return cnsti(sym->value.i, rtype(sym->type));
+            return cnsti(sym->u.c.value.i, rtype(sym->type));
         else
             return mkref(sym);
     } else if (lookahead()->id == '(') {
@@ -1927,7 +1928,7 @@ static long do_intexpr(struct expr *cond, struct type *ty, struct source src)
         return 0;
     }
     assert(isiliteral(cnst));
-    return cnst->x.sym->value.i;
+    return cnst->x.sym->u.c.value.i;
 }
 
 // if/do/while/for
@@ -2772,8 +2773,8 @@ static void do_array_index(struct type *atype, struct expr *assign, struct sourc
         struct expr *n = eval(assign, longtype);
         if (n) {
             assert(isiliteral(n));
-            TYPE_LEN(atype) = n->x.sym->value.i;
-            if (n->x.sym->value.i < 0)
+            TYPE_LEN(atype) = n->x.sym->u.c.value.i;
+            if (n->x.sym->u.c.value.i < 0)
                 error_at(src, "array has negative size");
         } else {
             error_at(src, "expect constant expression");
@@ -2831,7 +2832,7 @@ static struct symbol *do_enum_id(const char *name, int val, struct symbol *sym, 
     s->type = sym->type;
     s->src = src;
     s->sclass = ENUM;
-    s->value.u = val;
+    s->u.c.value.i = val;
     s->defined = true;
     return s;
 }
@@ -3374,12 +3375,7 @@ struct desig *next_designator(struct desig *desig)
 
 struct expr *cnsti(long i, struct type *ty)
 {
-    struct token t = {
-        .id = ICONSTANT,
-        .u.lit.str = (TYPE_OP(ty) == INT) ? strd(i) : stru(i),
-        .u.lit.v.i = i
-    };
-    return arith_literal(ty, &t, integer_constant);
+    return mkiliteral(ty, i);
 }
 
 struct expr *cnsts(const char *string)

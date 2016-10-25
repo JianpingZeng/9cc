@@ -124,13 +124,14 @@ struct symbol {
     int nonnull:1;
     int literal:1;
     unsigned int refs;
-    union value value;
-    struct symbol *link;
     union {
         // varibale initializer
         struct expr *init;
-        // string literal
-        struct symbol *cnst;
+        // literal/enum id
+        union {
+            struct symbol *cnst;  // string literal
+            union value value;   // integer/floating literal
+        } c;
         // function
         struct {
             struct expr *xcall; // call with max parameter size
@@ -146,6 +147,7 @@ struct symbol {
         const char *name;
         int label;              // for goto labels
     } x;
+    struct symbol *link;        // link in symtab
 };
 
 // scope level
@@ -170,6 +172,7 @@ struct expr {
             struct init *inits;
             struct field *field;
         } u;
+        union value value;
     } x;
 };
 
@@ -608,7 +611,7 @@ extern struct func func;
 extern struct actions actions;
 extern struct interface *IR;
 extern struct table *identifiers;
-extern struct table *constants;
+extern struct table *strings;
 extern struct table *tags;
 extern struct table *globals;
 extern struct table *externals;

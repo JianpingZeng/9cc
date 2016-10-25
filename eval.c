@@ -18,6 +18,36 @@ struct expr *eval(struct expr *expr, struct type * ty)
     return cnsti(1, ty);
 }
 
+static struct expr *cvii(int op, struct type *ty, struct expr *l)
+{
+    return NULL;
+}
+
+static struct expr *cvif(int op, struct type *ty, struct expr *l)
+{
+    return NULL;
+}
+
+static struct expr *cvfi(int op, struct type *ty, struct expr *l)
+{
+    return NULL;
+}
+
+static struct expr *cvff(int op, struct type *ty, struct expr *l)
+{
+    return NULL;
+}
+
+static struct expr *cvpi(int op, struct type *ty, struct expr *l)
+{
+    return NULL;
+}
+
+static struct expr *cvip(int op, struct type *ty, struct expr *l)
+{
+    return NULL;
+}
+
 // fold constants
 struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
 {
@@ -102,19 +132,32 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
     case CVI+U:
     case CVU+U:
     case CVU+I:
+        if (OPKIND(op) == CNST)
+            return cvii(op, ty, l);
         break;
     case CVI+F:
     case CVU+F:
+        if (OPKIND(op) == CNST)
+            return cvif(op, ty, l);
         break;
-    case CVF+F:
     case CVF+I:
     case CVF+U:
+        if (OPKIND(op) == CNST)
+            return cvfi(op, ty, l);
+        break;
+    case CVF+F:
+        if (OPKIND(op) == CNST)
+            return cvff(op, ty, l);
         break;
     case CVP+I:
     case CVP+U:
+        if (OPKIND(op) == CNST)
+            return cvpi(op, ty, l);
         break;
     case CVI+P:
     case CVU+P:
+        if (OPKIND(op) == CNST)
+            return cvip(op, ty, l);
         break;
     }
     return ast_expr(op, ty, l, r);

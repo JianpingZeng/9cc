@@ -3,7 +3,7 @@
 #include "cc.h"
 
 struct table *identifiers;
-struct table *constants;
+struct table *strings;
 struct table *tags;
 struct table *globals;
 struct table *externals;
@@ -33,7 +33,7 @@ void free_table(struct table *t)
 void symbol_init(void)
 {
     globals = identifiers = new_table(NULL, GLOBAL);
-    constants = new_table(NULL, CONSTANT);
+    strings = new_table(NULL, CONSTANT);
     tags = new_table(NULL, GLOBAL);
     externals = new_table(NULL, GLOBAL);
 }

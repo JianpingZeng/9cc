@@ -17,8 +17,16 @@
 static struct token *expand(struct file *pfile);
 static struct vector *expandv(struct file *pfile, struct vector *v);
 static void include_file(struct file *pfile, const char *name, bool std);
-static struct token *token_zero = &(struct token){.id = ICONSTANT, .u.lit.str = "0", .u.lit.v.i = 0};
-static struct token *token_one = &(struct token){.id = ICONSTANT, .u.lit.str = "1", .u.lit.v.i = 1};
+static struct token *token_zero = &(struct token){
+    .id = ICONSTANT,
+    .u.lit.str = "0",
+    .u.lit.v.i = 0
+};
+static struct token *token_one = &(struct token){
+    .id = ICONSTANT,
+    .u.lit.str = "1",
+    .u.lit.v.i = 1
+};
 
 #define IMAP_LOOKUP_HASH(imap, id, opt)                                 \
     (struct cpp_ident *)imap_lookup_with_hash(imap, id->str, id->len, id->hash, opt)

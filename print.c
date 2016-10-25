@@ -279,7 +279,7 @@ static void print_expr1(struct expr *node, int level)
     putf(GREEN("'%s' "), type2s(node->type));
     if (node->x.sym) {
         if (issliteral(node))
-            putf(CYAN_BOLD("%s"), node->x.sym->u.cnst->name);
+            putf(CYAN_BOLD("%s"), node->x.sym->u.c.cnst->name);
         else
             putf(CYAN_BOLD("%s"), node->x.sym->name);
     }
