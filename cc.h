@@ -480,6 +480,7 @@ extern struct expr *addrof(struct expr *expr);
 
 // eval.c
 extern struct expr *eval(struct expr *expr, struct type *ty);
+extern struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r);
  
 // parser.c
 extern void translation_unit(void);

@@ -12,8 +12,110 @@
  * 4. initializer (combination of the aboves)
  */
 
-struct expr *eval(struct expr * expr, struct type * ty)
+struct expr *eval(struct expr *expr, struct type * ty)
 {
     // TODO:
     return cnsti(1, ty);
+}
+
+// fold constants
+struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
+{
+    switch (op) {
+        // binary
+    case ADD+I:
+    case ADD+U:
+    case ADD+F:
+    case ADD+P:
+        break;
+    case SUB+I:
+    case SUB+U:
+    case SUB+F:
+    case SUB+P:
+        break;
+    case MUL+I:
+    case MUL+U:
+    case MUL+F:
+        break;
+    case DIV+I:
+    case DIV+U:
+    case DIV+F:
+        break;
+    case MOD+I:
+    case MOD+U:
+        break;
+    case SHL+I:
+    case SHL+U:
+        break;
+    case SHR+I:
+    case SHR+U:
+        break;
+    case BAND+I:
+    case BAND+U:
+        break;
+    case BOR+I:
+    case BOR+U:
+        break;
+    case XOR+I:
+    case XOR+U:
+        break;
+    case GT+I:
+    case GT+U:
+    case GT+F:
+    case GT+P:
+        break;
+    case GE+I:
+    case GE+U:
+    case GE+F:
+    case GE+P:
+        break;
+    case LT+I:
+    case LT+U:
+    case LT+F:
+    case LT+P:
+        break;
+    case LE+I:
+    case LE+U:
+    case LE+F:
+    case LE+P:
+        break;
+    case EQ+I:
+    case EQ+U:
+    case EQ+F:
+    case EQ+P:
+        break;
+    case NE+I:
+    case NE+U:
+    case NE+F:
+    case NE+P:
+        break;
+        // unary
+    case NEG+I:
+    case NEG+U:
+    case NEG+F:
+        break;
+    case NOT+I:
+    case NOT+U:
+        break;
+        // cast
+    case CVI+I:
+    case CVI+U:
+    case CVU+U:
+    case CVU+I:
+        break;
+    case CVI+F:
+    case CVU+F:
+        break;
+    case CVF+F:
+    case CVF+I:
+    case CVF+U:
+        break;
+    case CVP+I:
+    case CVP+U:
+        break;
+    case CVI+P:
+    case CVU+P:
+        break;
+    }
+    return ast_expr(op, ty, l, r);
 }

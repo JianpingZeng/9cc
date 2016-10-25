@@ -457,17 +457,14 @@ static bool increasable(struct expr *node, struct source src)
         return true;
 }
 
-// TODO: constant 0 (int or pointer)
-static bool isnullptr(struct expr *node)
+// constant 0 (int or pointer)
+static bool isnullptr(struct expr *n)
 {
-    struct expr *cnst;
-    assert(isptr(node->type) || isint(node->type));
+    struct type *ty = n->type;
 
-    cnst = eval(node, inttype);
-    if (!cnst || !isiliteral(cnst))
-        return false;
-
-    return cnst->x.sym->value.u == 0;
+    return OPKIND(n->op) == CNST &&
+        ((isint(ty) && n->x.sym->value.i == 0) ||
+         (isptrto(ty, VOID) && n->x.sym->value.p == NULL));
 }
 
 /// conversion
@@ -522,7 +519,7 @@ static struct expr *cast_arith(struct type *ty, struct expr *n)
     else
         CC_UNAVAILABLE();
 
-    return ast_expr(mkop(op, ty), ty, n, NULL);
+    return simplify(mkop(op, ty), ty, n, NULL);
 }
 
 static struct expr *castip(struct type *ty, struct expr *n)
@@ -532,12 +529,12 @@ static struct expr *castip(struct type *ty, struct expr *n)
     n = cast_arith(ptritype, n);
     op = ptritype->op == UNSIGNED ? CVU : CVI;
         
-    return ast_expr(mkop(op, ty), ty, n, NULL);
+    return simplify(mkop(op, ty), ty, n, NULL);
 }
 
 static struct expr *castpi(struct type *ty, struct expr *n)
 {
-    n = ast_expr(mkop(CVP, ptritype), ptritype, n, NULL);
+    n = simplify(mkop(CVP, ptritype), ptritype, n, NULL);
 
     return cast_arith(ty, n);
 }
@@ -1147,7 +1144,7 @@ static struct expr *bop_arith(int t, struct expr *l, struct expr *r, struct sour
     op = id2op(t);
     ty = conv2(l->type, r->type);
 
-    return ast_expr(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
+    return simplify(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
 }
 
 // '%', '&', '^', '|', 'LSHIFT', 'RHIFT'
@@ -1168,7 +1165,7 @@ static struct expr *bop_int(int t, struct expr *l, struct expr *r, struct source
     op = id2op(t);
     ty = conv2(l->type, r->type);
     
-    return ast_expr(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
+    return simplify(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
 }
 
 // '+'
@@ -1180,7 +1177,7 @@ static struct expr *bop_add(struct expr *l, struct expr *r, struct source src)
     
     if (isarith(ty1) && isarith(ty2)) {
         struct type *ty = conv2(ty1, ty2);
-        return ast_expr(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
+        return simplify(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
     } else if (isptr(ty1) && isint(ty2)) {
         size_t size;
             
@@ -1191,7 +1188,7 @@ static struct expr *bop_add(struct expr *l, struct expr *r, struct source src)
         if (size > 1)
             r = actions.bop('*', r, cnsti(size, ptritype), src);
 
-        return ast_expr(mkop(op, ty1), ty1, l, cast(ptritype, r));
+        return simplify(mkop(op, ty1), ty1, l, cast(ptritype, r));
     } else if (isint(ty1) && isptr(ty2)) {
         size_t size;
             
@@ -1202,7 +1199,7 @@ static struct expr *bop_add(struct expr *l, struct expr *r, struct source src)
         if (size > 1)
             l = actions.bop('*', l, cnsti(size, ptritype), src);
 
-        return ast_expr(mkop(op, ty2), ty2, cast(ptritype, l), r);
+        return simplify(mkop(op, ty2), ty2, cast(ptritype, l), r);
     } else {
         error_at(src, ERR_BOP_OPERANDS, type2s(ty1), type2s(ty2));
         return NULL;
@@ -1218,7 +1215,7 @@ static struct expr *bop_sub(struct expr *l, struct expr *r, struct source src)
 
     if (isarith(ty1) && isarith(ty2)) {
         struct type *ty = conv2(ty1, ty2);
-        return ast_expr(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
+        return simplify(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
     } else if (isptr(ty1) && isint(ty2)) {
         size_t size;
             
@@ -1229,7 +1226,7 @@ static struct expr *bop_sub(struct expr *l, struct expr *r, struct source src)
         if (size > 1)
             r = actions.bop('*', r, cnsti(size, ptritype), src);
 
-        return ast_expr(mkop(op, ty1), ty1, l, cast(ptritype, r));
+        return simplify(mkop(op, ty1), ty1, l, cast(ptritype, r));
     } else if (isptr(ty1) && isptr(ty2)) {        
         if (!addable_ptr(l, src) || !addable_ptr(r, src))
             return NULL;
@@ -1240,7 +1237,7 @@ static struct expr *bop_sub(struct expr *l, struct expr *r, struct source src)
             return NULL;
         }
 
-        return ast_expr(mkop(op, ty1), inttype, l, r);
+        return simplify(mkop(op, ty1), inttype, l, r);
     } else {
         error_at(src, ERR_BOP_OPERANDS, type2s(ty1), type2s(ty2));
         return NULL;
@@ -1299,7 +1296,7 @@ static inline struct expr *bop_rel(int t, struct expr *l, struct expr *r, struct
     }
 
     op = id2op(t);
-    return ast_expr(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
+    return simplify(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
 }
 
 // 'EQL', 'NEQ'
@@ -1342,7 +1339,7 @@ static inline struct expr *bop_eq(int t, struct expr *l, struct expr *r, struct 
     }
 
     op = id2op(t);
-    return ast_expr(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
+    return simplify(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
 }
 
 /// actions-expr
@@ -1583,7 +1580,7 @@ static struct expr *do_minus_plus(int t, struct expr *expr, struct source src)
         else
             return expr;
     } else {
-        return ast_expr(mkop(NEG, expr->type), expr->type, expr, NULL);
+        return simplify(mkop(NEG, expr->type), expr->type, expr, NULL);
     }
 }
 
@@ -1600,7 +1597,7 @@ static struct expr *do_bitwise_not(struct expr *expr, struct source src)
         return NULL;
     }
 
-    return ast_expr(mkop(NOT, expr->type), expr->type, expr, NULL);
+    return simplify(mkop(NOT, expr->type), expr->type, expr, NULL);
 }
 
 // '!'
