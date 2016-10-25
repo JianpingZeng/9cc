@@ -319,13 +319,13 @@ static void float_constant(struct file *pfile, struct token *result)
     errno = 0;
     switch (suffix) {
     case FLOAT:
-        result->u.lit.v.d = strtof(s, NULL);
+        result->u.lit.v.f = strtof(s, NULL);
         break;
     case LONG + DOUBLE:
         result->u.lit.v.d = strtold(s, NULL);
         break;
     default:
-        result->u.lit.v.d = strtod(s, NULL);
+        result->u.lit.v.ld = strtod(s, NULL);
         break;
     }
 
