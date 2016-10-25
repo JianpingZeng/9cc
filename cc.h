@@ -270,7 +270,7 @@ enum {
     OR = MKINDEX(26),
     /// unary
     NEG = MKINDEX(27),
-    NOT = MKINDEX(28),
+    BNOT = MKINDEX(28),
     /// postfix
     COMPOUND = MKINDEX(29),
     CALL = MKINDEX(30),

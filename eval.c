@@ -199,8 +199,8 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
     case NEG+U:
     case NEG+F:
         break;
-    case NOT+I:
-    case NOT+U:
+    case BNOT+I:
+    case BNOT+U:
         break;
         // cast
     case CVI+I:

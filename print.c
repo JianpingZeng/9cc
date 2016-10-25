@@ -66,7 +66,7 @@ static const char *nnames[] = {
     "OR",
     /// unary
     "NEG",
-    "NOT",
+    "BNOT",
     /// postfix
     "COMPOUND",
     "CALL",

@@ -232,7 +232,7 @@ int main(int argc, char **argv)
         const char *iname = sys_basename(ifile);
         const char *ofile = NULL;
         const char *suffix = file_suffix(ifile);
-        int ret;
+        int ret = 0;
         if (opts.E || opts.ast_dump) {
             if (output)
                 ofile = output;

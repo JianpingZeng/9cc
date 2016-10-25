@@ -1598,7 +1598,7 @@ static struct expr *do_bitwise_not(struct expr *expr, struct source src)
         return NULL;
     }
 
-    return simplify(mkop(NOT, expr->type), expr->type, expr, NULL);
+    return simplify(mkop(BNOT, expr->type), expr->type, expr, NULL);
 }
 
 // '!'
