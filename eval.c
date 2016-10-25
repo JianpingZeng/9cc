@@ -12,12 +12,20 @@
  * 4. initializer (combination of the aboves)
  */
 
-#define xxcv(func, o, ty, l)                    \
-    if (OPKIND((l)->o) == CNST) {               \
-        cv##func(o, ty, l);                     \
+#define xxuop(func, ty, l)                      \
+    if (OPKIND((l)->op) == CNST) {              \
+        func(ty, l);                            \
         (l)->op = mkop(CNST, ty);               \
         (l)->type = ty;                         \
         return l;                               \
+    }
+
+#define xxbop(func, ty, l, r)                                   \
+    if (OPKIND((l)->op) == CNST && OPKIND((r)->op) == CNST) {   \
+        struct expr *n = func(ty, l, r);                        \
+        (n)->op = mkop(CNST, ty);                               \
+        (n)->type = ty;                                         \
+        return n;                                               \
     }
 
 struct expr *eval(struct expr *expr, struct type * ty)
@@ -26,14 +34,14 @@ struct expr *eval(struct expr *expr, struct type * ty)
     return cnsti(1, ty);
 }
 
-static void cvii(int op, struct type *ty, struct expr *l)
+static void cvii(struct type *ty, struct expr *l)
 {
     if (TYPE_SIZE(l->type) > TYPE_SIZE(ty))
         // narrow
         l->x.value.u &= TYPE_LIMITS(ty).max.u;
 }
 
-static void cvif(int op, struct type *ty, struct expr *l)
+static void cvif(struct type *ty, struct expr *l)
 {
     switch (TYPE_KIND(ty)) {
     case FLOAT:
@@ -50,7 +58,7 @@ static void cvif(int op, struct type *ty, struct expr *l)
     }
 }
 
-static void cvuf(int op, struct type *ty, struct expr *l)
+static void cvuf(struct type *ty, struct expr *l)
 {
     switch (TYPE_KIND(ty)) {
     case FLOAT:
@@ -67,7 +75,7 @@ static void cvuf(int op, struct type *ty, struct expr *l)
     }
 }
 
-static void cvfi(int op, struct type *ty, struct expr *l)
+static void cvfi(struct type *ty, struct expr *l)
 {
     switch (TYPE_KIND(l->type)) {
     case FLOAT:
@@ -84,7 +92,7 @@ static void cvfi(int op, struct type *ty, struct expr *l)
     }
 }
 
-static void cvff(int op, struct type *ty, struct expr *l)
+static void cvff(struct type *ty, struct expr *l)
 {
     int dkind = TYPE_KIND(ty);
     int skind = TYPE_KIND(l->type);
@@ -113,14 +121,58 @@ static void cvff(int op, struct type *ty, struct expr *l)
     }
 }
 
-static void cvpi(int op, struct type *ty, struct expr *l)
+static void cvpi(struct type *ty, struct expr *l)
 {
-    assert(TYPE_SIZE(ty) == TYPE_SIZE(ptritype));
+    assert(TYPE_SIZE(ty) == TYPE_SIZE(ptritype) &&
+           "Fatal: Non-converted pointer type");
 }
 
-static void cvip(int op, struct type *ty, struct expr *l)
+static void cvip(struct type *ty, struct expr *l)
 {
-    assert(TYPE_SIZE(l->type) == TYPE_SIZE(ptritype));
+    assert(TYPE_SIZE(l->type) == TYPE_SIZE(ptritype) &&
+           "Fatal: Non-converted pointer type");
+}
+
+static void negi(struct type *ty, struct expr *l)
+{
+    l->x.value.u = -l->x.value.u;
+}
+
+static void negf(struct type *ty, struct expr *l)
+{
+    switch (TYPE_KIND(ty)) {
+    case FLOAT:
+        l->x.value.f = -l->x.value.f;
+        break;
+    case DOUBLE:
+        l->x.value.d = -l->x.value.d;
+        break;
+    case LONG+DOUBLE:
+        l->x.value.ld = -l->x.value.ld;
+        break;
+    default:
+        CC_UNAVAILABLE();
+    }
+}
+
+static void bnot(struct type *ty, struct expr *l)
+{
+    l->x.value.u = ~l->x.value.u;
+}
+
+static struct expr *addi(struct type *ty, struct expr *l, struct expr *r)
+{
+    return NULL;
+}
+
+static struct expr *addf(struct type *ty, struct expr *l, struct expr *r)
+{
+    return NULL;
+}
+
+static struct expr *addp(struct type *ty, struct expr *l, struct expr *r)
+{
+    return NULL;
 }
 
 // fold constants
@@ -130,8 +182,13 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
         // binary
     case ADD+I:
     case ADD+U:
+        xxbop(addi, ty, l, r);
+        break;
     case ADD+F:
+        xxbop(addf, ty, l, r);
+        break;
     case ADD+P:
+        xxbop(addp, ty, l, r);
         break;
     case SUB+I:
     case SUB+U:
@@ -197,38 +254,42 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
         // unary
     case NEG+I:
     case NEG+U:
+        xxuop(negi, ty, l);
+        break;
     case NEG+F:
+        xxuop(negf, ty, l);
         break;
     case BNOT+I:
     case BNOT+U:
+        xxuop(bnot, ty, l);
         break;
         // cast
     case CVI+I:
     case CVI+U:
     case CVU+U:
     case CVU+I:
-        xxcv(ii, op, ty, l);
+        xxuop(cvii, ty, l);
         break;
     case CVI+F:
-        xxcv(if, op, ty, l);
+        xxuop(cvif, ty, l);
         break;
     case CVU+F:
-        xxcv(uf, op, ty, l);
+        xxuop(cvuf, ty, l);
         break;
     case CVF+I:
     case CVF+U:
-        xxcv(fi, op, ty, l);
+        xxuop(cvfi, ty, l);
         break;
     case CVF+F:
-        xxcv(ff, op, ty, l);
+        xxuop(cvff, ty, l);
         break;
     case CVP+I:
     case CVP+U:
-        xxcv(pi, op, ty, l);
+        xxuop(cvpi, ty, l);
         break;
     case CVI+P:
     case CVU+P:
-        xxcv(ip, op, ty, l);
+        xxuop(cvip, ty, l);
         break;
     }
     return ast_expr(op, ty, l, r);
