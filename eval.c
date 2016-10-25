@@ -13,66 +13,66 @@
  */
 
 #define xxcv(func, ty, l)                       \
-    if (OPKIND((l)->op) == CNST) {              \
+    if (OPKIND(l->op) == CNST) {                \
         cv##func(ty, l);                        \
-        (l)->op = mkop(CNST, ty);               \
-        (l)->type = ty;                         \
+        l->op = mkop(CNST, ty);                 \
+        l->type = ty;                           \
         return l;                               \
     }
 
 #define foldcnst1i(oper, vf, ty, l)             \
-    if (OPKIND((l)->op) == CNST) {              \
-        (l)->x.value.vf = oper (l)->x.value.vf; \
-        (l)->op = mkop(CNST, ty);               \
-        (l)->type = ty;                         \
+    if (OPKIND(l->op) == CNST) {                \
+        l->x.value.vf = oper l->x.value.vf;     \
+        l->op = mkop(CNST, ty);                 \
+        l->type = ty;                           \
         return l;                               \
     }
 
 #define foldcnst1f(oper, vf1, vf2, vf3, ty, l)          \
-    if (OPKIND((l)->op) == CNST) {                      \
+    if (OPKIND(l->op) == CNST) {                        \
         switch (TYPE_KIND(ty)) {                        \
         case FLOAT:                                     \
-            (l)->x.value.vf1 = oper (l)->x.value.vf1;   \
+            l->x.value.vf1 = oper l->x.value.vf1;       \
             break;                                      \
         case DOUBLE:                                    \
-            (l)->x.value.vf2 = oper (l)->x.value.vf2;   \
+            l->x.value.vf2 = oper l->x.value.vf2;       \
             break;                                      \
         case LONG+DOUBLE:                               \
-            (l)->x.value.vf3 = oper (l)->x.value.vf3;   \
+            l->x.value.vf3 = oper l->x.value.vf3;       \
             break;                                      \
         default:                                        \
             CC_UNAVAILABLE();                           \
         }                                               \
-        (l)->op = mkop(CNST, ty);                       \
-        (l)->type = ty;                                 \
+        l->op = mkop(CNST, ty);                         \
+        l->type = ty;                                   \
         return l;                                       \
     }
 
 #define foldcnst2i(oper, vf, ty, l, r)                          \
-    if (OPKIND((l)->op) == CNST && OPKIND((r)->op) == CNST) {   \
-        (l)->x.value.vf = (l)->x.value.vf oper (r)->x.value.vf; \
-        (l)->op = mkop(CNST, ty);                               \
-        (l)->type = ty;                                         \
+    if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {       \
+        l->x.value.vf = l->x.value.vf oper r->x.value.vf;       \
+        l->op = mkop(CNST, ty);                                 \
+        l->type = ty;                                           \
         return l;                                               \
     }
 
 #define foldcnst2f(oper, vf1, vf2, vf3, ty, l, r)                       \
-    if (OPKIND((l)->op) == CNST && OPKIND((r)->op) == CNST) {           \
+    if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {               \
         switch (TYPE_KIND(ty)) {                                        \
         case FLOAT:                                                     \
-            (l)->x.value.vf1 = (l)->x.value.vf1 oper (r)->x.value.vf1;  \
+            l->x.value.vf1 = l->x.value.vf1 oper r->x.value.vf1;        \
             break;                                                      \
         case DOUBLE:                                                    \
-            (l)->x.value.vf2 = (l)->x.value.vf2 oper (r)->x.value.vf2;  \
+            l->x.value.vf2 = l->x.value.vf2 oper r->x.value.vf2;        \
             break;                                                      \
         case LONG+DOUBLE:                                               \
-            (l)->x.value.vf3 = (l)->x.value.vf3 oper (r)->x.value.vf3;  \
+            l->x.value.vf3 = l->x.value.vf3 oper r->x.value.vf3;        \
             break;                                                      \
         default:                                                        \
             CC_UNAVAILABLE();                                           \
         }                                                               \
-        (l)->op = mkop(CNST, ty);                                       \
-        (l)->type = ty;                                                 \
+        l->op = mkop(CNST, ty);                                         \
+        l->type = ty;                                                   \
         return l;                                                       \
     }
 
@@ -80,14 +80,14 @@
 #define foldcnst2fx(oper, ty, l, r)  foldcnst2f(oper, f, d, ld, ty, l, r)
 
 #define exchange(l, r)                                  \
-    if (OPKIND((l)->op) == CNST) {                      \
+    if (OPKIND(l->op) == CNST) {                        \
         struct expr *tmp; tmp = l; l = r; r = tmp;      \
     }
 
 #define xfoldcnst2(func, opid, ty, l, r)                        \
-    if ((OPKIND((l)->op) == ADD || OPKIND((l)->op) == SUB) &&   \
-        OPKIND((l)->kids[1]->op) == CNST) {                     \
-        if (OPKIND((r)->op) == CNST)                            \
+    if ((OPKIND(l->op) == ADD || OPKIND(l->op) == SUB) &&       \
+        OPKIND(l->kids[1]->op) == CNST) {                       \
+        if (OPKIND(r->op) == CNST)                              \
             return xfold##func(opid, ty, l, r);                 \
         else                                                    \
             return xswap(opid, ty, l, r);                       \
