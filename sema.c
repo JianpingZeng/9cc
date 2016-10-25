@@ -1920,8 +1920,6 @@ static struct expr *do_paren(struct expr *expr, struct source src)
 ///
 static long do_intexpr(struct expr *cond, struct type *ty, struct source src)
 {
-    struct expr *cnst;
-
     if (!cond)
         return 0;
     if (!ty)
@@ -1930,13 +1928,11 @@ static long do_intexpr(struct expr *cond, struct type *ty, struct source src)
         error_at(src, "expression is not an integer constant expression");
         return 0;
     }
-    cnst = eval(cond, ty);
-    if (!cnst) {
+    if (!isiliteral(cond)) {
         error_at(src, "expression is not a compile-time constant");
         return 0;
     }
-    assert(isiliteral(cnst));
-    return cnst->x.value.i;
+    return cond->x.value.i;
 }
 
 // if/do/while/for
@@ -2778,18 +2774,15 @@ static void do_array_index(struct type *atype, struct expr *assign, struct sourc
     if (isint(assign->type)) {
         TYPE_A_ASSIGN(atype) = assign;
         // try evaluate the length
-        struct expr *n = eval(assign, longtype);
-        if (n) {
-            assert(isiliteral(n));
-            TYPE_LEN(atype) = n->x.value.i;
-            if (n->x.value.i < 0)
+        if (isiliteral(assign)) {
+            TYPE_LEN(atype) = assign->x.value.i;
+            if (assign->x.value.i < 0)
                 error_at(src, "array has negative size");
         } else {
             error_at(src, "expect constant expression");
         }
     } else {
-        error_at(src,
-                 "size of array has non-integer type '%s'",
+        error_at(src, "size of array has non-integer type '%s'",
                  type2s(assign->type));
     }
 }
