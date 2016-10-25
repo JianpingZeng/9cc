@@ -289,7 +289,7 @@ static void print_expr1(struct expr *node, int level)
         if (TYPE_KIND(node->type) == FLOAT)
             putf(RED("%f"), node->x.value.f);
         else if (TYPE_KIND(node->type) == DOUBLE)
-            putf(RED("%Lf"), node->x.value.d);
+            putf(RED("%f"), node->x.value.d);
         else
             putf(RED("%Lf"), node->x.value.ld);
     } else if (ispliteral(node)) {

@@ -12,21 +12,72 @@
  * 4. initializer (combination of the aboves)
  */
 
-#define foldcnst1(func, ty, l)                  \
+#define xxcv(func, ty, l)                       \
     if (OPKIND((l)->op) == CNST) {              \
-        func(ty, l);                            \
+        cv##func(ty, l);                        \
         (l)->op = mkop(CNST, ty);               \
         (l)->type = ty;                         \
         return l;                               \
     }
 
-#define foldcnst2(func, ty, l, r)                               \
-    if (OPKIND((l)->op) == CNST && OPKIND((r)->op) == CNST) {   \
-        struct expr *n = func(ty, l, r);                        \
-        (n)->op = mkop(CNST, ty);                               \
-        (n)->type = ty;                                         \
-        return n;                                               \
+#define foldcnst1i(oper, vf, ty, l)             \
+    if (OPKIND((l)->op) == CNST) {              \
+        (l)->x.value.vf = oper (l)->x.value.vf; \
+        (l)->op = mkop(CNST, ty);               \
+        (l)->type = ty;                         \
+        return l;                               \
     }
+
+#define foldcnst1f(oper, vf1, vf2, vf3, ty, l)          \
+    if (OPKIND((l)->op) == CNST) {                      \
+        switch (TYPE_KIND(ty)) {                        \
+        case FLOAT:                                     \
+            (l)->x.value.vf1 = oper (l)->x.value.vf1;   \
+            break;                                      \
+        case DOUBLE:                                    \
+            (l)->x.value.vf2 = oper (l)->x.value.vf2;   \
+            break;                                      \
+        case LONG+DOUBLE:                               \
+            (l)->x.value.vf3 = oper (l)->x.value.vf3;   \
+            break;                                      \
+        default:                                        \
+            CC_UNAVAILABLE();                           \
+        }                                               \
+        (l)->op = mkop(CNST, ty);                       \
+        (l)->type = ty;                                 \
+        return l;                                       \
+    }
+
+#define foldcnst2i(oper, vf, ty, l, r)                          \
+    if (OPKIND((l)->op) == CNST && OPKIND((r)->op) == CNST) {   \
+        (l)->x.value.vf = (l)->x.value.vf oper (r)->x.value.vf; \
+        (l)->op = mkop(CNST, ty);                               \
+        (l)->type = ty;                                         \
+        return l;                                               \
+    }
+
+#define foldcnst2f(oper, vf1, vf2, vf3, ty, l, r)                       \
+    if (OPKIND((l)->op) == CNST && OPKIND((r)->op) == CNST) {           \
+        switch (TYPE_KIND(ty)) {                                        \
+        case FLOAT:                                                     \
+            (l)->x.value.vf1 = (l)->x.value.vf1 oper (r)->x.value.vf1;  \
+            break;                                                      \
+        case DOUBLE:                                                    \
+            (l)->x.value.vf2 = (l)->x.value.vf2 oper (r)->x.value.vf2;  \
+            break;                                                      \
+        case LONG+DOUBLE:                                               \
+            (l)->x.value.vf3 = (l)->x.value.vf3 oper (r)->x.value.vf3;  \
+            break;                                                      \
+        default:                                                        \
+            CC_UNAVAILABLE();                                           \
+        }                                                               \
+        (l)->op = mkop(CNST, ty);                                       \
+        (l)->type = ty;                                                 \
+        return l;                                                       \
+    }
+
+#define foldcnst1fx(oper, ty, l)  foldcnst1f(oper, f, d, ld, ty, l)
+#define foldcnst2fx(oper, ty, l, r)  foldcnst2f(oper, f, d, ld, ty, l, r)
 
 struct expr *eval(struct expr *expr, struct type * ty)
 {
@@ -133,48 +184,6 @@ static void cvip(struct type *ty, struct expr *l)
            "Fatal: Non-converted pointer type");
 }
 
-static void negi(struct type *ty, struct expr *l)
-{
-    l->x.value.u = -l->x.value.u;
-}
-
-static void negf(struct type *ty, struct expr *l)
-{
-    switch (TYPE_KIND(ty)) {
-    case FLOAT:
-        l->x.value.f = -l->x.value.f;
-        break;
-    case DOUBLE:
-        l->x.value.d = -l->x.value.d;
-        break;
-    case LONG+DOUBLE:
-        l->x.value.ld = -l->x.value.ld;
-        break;
-    default:
-        CC_UNAVAILABLE();
-    }
-}
-
-static void bnot(struct type *ty, struct expr *l)
-{
-    l->x.value.u = ~l->x.value.u;
-}
-
-static struct expr *addi(struct type *ty, struct expr *l, struct expr *r)
-{
-    return NULL;
-}
-
-static struct expr *addf(struct type *ty, struct expr *l, struct expr *r)
-{
-    return NULL;
-}
-
-static struct expr *addp(struct type *ty, struct expr *l, struct expr *r)
-{
-    return NULL;
-}
-
 // fold constants
 struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
 {
@@ -182,114 +191,169 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
         // binary
     case ADD+I:
     case ADD+U:
-        foldcnst2(addi, ty, l, r);
+    case ADD+P:
+        foldcnst2i(+, u, ty, l, r);
         break;
     case ADD+F:
-        foldcnst2(addf, ty, l, r);
+        foldcnst2fx(+, ty, l, r);
         break;
-    case ADD+P:
-        foldcnst2(addp, ty, l, r);
-        break;
+
     case SUB+I:
     case SUB+U:
-    case SUB+F:
     case SUB+P:
+        foldcnst2i(-, u, ty, l, r);
         break;
+    case SUB+F:
+        foldcnst2fx(-, ty, l, r);
+        break;
+
     case MUL+I:
+        foldcnst2i(*, i, ty, l, r);
+        break;
     case MUL+U:
+        foldcnst2i(*, u, ty, l, r);
+        break;
     case MUL+F:
+        foldcnst2fx(*, ty, l, r);
         break;
+
     case DIV+I:
+        foldcnst2i(/, i, ty, l, r);
+        break;
     case DIV+U:
+        foldcnst2i(/, u, ty, l, r);
+        break;
     case DIV+F:
+        foldcnst2fx(/, ty, l, r);
         break;
+
     case MOD+I:
-    case MOD+U:
+        foldcnst2i(%, i, ty, l, r);
         break;
+    case MOD+U:
+        foldcnst2i(%, u, ty, l, r);
+        break;
+
     case SHL+I:
     case SHL+U:
+        foldcnst2i(<<, u, ty, l, r);
         break;
+
     case SHR+I:
     case SHR+U:
+        foldcnst2i(>>, u, ty, l, r);
         break;
+
     case BAND+I:
     case BAND+U:
+        foldcnst2i(&, u, ty, l, r);
         break;
+
     case BOR+I:
     case BOR+U:
+        foldcnst2i(|, u, ty, l, r);
         break;
+
     case XOR+I:
     case XOR+U:
+        foldcnst2i(^, u, ty, l, r);
         break;
+
+        // rel
     case GT+I:
     case GT+U:
-    case GT+F:
     case GT+P:
+        foldcnst2i(>, u, ty, l, r);
         break;
+    case GT+F:
+        foldcnst2fx(>, ty, l, r);
+        break;
+
     case GE+I:
     case GE+U:
-    case GE+F:
     case GE+P:
+        foldcnst2i(>=, u, ty, l, r);
         break;
+    case GE+F:
+        foldcnst2fx(>=, ty, l, r);
+        break;
+        
     case LT+I:
     case LT+U:
-    case LT+F:
     case LT+P:
+        foldcnst2i(<, u, ty, l, r);
         break;
+    case LT+F:
+        foldcnst2fx(<, ty, l, r);
+        break;
+        
     case LE+I:
     case LE+U:
-    case LE+F:
     case LE+P:
+        foldcnst2i(<=, u, ty, l, r);
         break;
+    case LE+F:
+        foldcnst2fx(<=, ty, l, r);
+        break;
+
+        // eq
     case EQ+I:
     case EQ+U:
-    case EQ+F:
     case EQ+P:
+        foldcnst2i(==, u, ty, l, r);
         break;
+    case EQ+F:
+        foldcnst2fx(==, ty, l, r);
+        break;
+
     case NE+I:
     case NE+U:
-    case NE+F:
     case NE+P:
+        foldcnst2i(!=, u, ty, l, r);
         break;
+    case NE+F:
+        foldcnst2fx(!=, ty, l, r);
+        break;
+
         // unary
     case NEG+I:
     case NEG+U:
-        foldcnst1(negi, ty, l);
+        foldcnst1i(-, u, ty, l);
         break;
     case NEG+F:
-        foldcnst1(negf, ty, l);
+        foldcnst1fx(-, ty, l);
         break;
     case BNOT+I:
     case BNOT+U:
-        foldcnst1(bnot, ty, l);
+        foldcnst1i(~, u, ty, l);
         break;
         // cast
     case CVI+I:
     case CVI+U:
     case CVU+U:
     case CVU+I:
-        foldcnst1(cvii, ty, l);
+        xxcv(ii, ty, l);
         break;
     case CVI+F:
-        foldcnst1(cvif, ty, l);
+        xxcv(if, ty, l);
         break;
     case CVU+F:
-        foldcnst1(cvuf, ty, l);
+        xxcv(uf, ty, l);
         break;
     case CVF+I:
     case CVF+U:
-        foldcnst1(cvfi, ty, l);
+        xxcv(fi, ty, l);
         break;
     case CVF+F:
-        foldcnst1(cvff, ty, l);
+        xxcv(ff, ty, l);
         break;
     case CVP+I:
     case CVP+U:
-        foldcnst1(cvpi, ty, l);
+        xxcv(pi, ty, l);
         break;
     case CVI+P:
     case CVU+P:
-        foldcnst1(cvip, ty, l);
+        xxcv(ip, ty, l);
         break;
     }
     return ast_expr(op, ty, l, r);

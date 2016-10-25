@@ -207,7 +207,7 @@ struct symbol *mktmp(const char *name, struct type *ty, int sclass)
  *                        Sema-Expression                          *
  *=================================================================*/
 
-static void integer_constant(struct token *t, struct symbol *sym)
+static struct type *integer_constant(struct token *t)
 {
     int base = t->u.lit.base;
     int suffix = t->u.lit.suffix;
@@ -217,9 +217,9 @@ static void integer_constant(struct token *t, struct symbol *sym)
     // character constant
     if (t->u.lit.chr) {
         bool wide = t->u.lit.chr == 2;
-        sym->type = wide ? wchartype : unsignedchartype;
-        sym->u.c.value.u = wide ? (wchar_t)n : (unsigned char)n;
-        return;
+        ty = wide ? wchartype : unsignedchartype;
+        t->u.lit.v.u = wide ? (wchar_t)n : (unsigned char)n;
+        return ty;
     }
 
     switch (suffix) {
@@ -292,23 +292,19 @@ static void integer_constant(struct token *t, struct symbol *sym)
     if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
         error("integer constant overflow: %s", TOK_LIT_STR(t));
 
-    sym->type = ty;
-    sym->u.c.value = t->u.lit.v;
+    return ty;
 }
 
-static void float_constant(struct token *t, struct symbol *sym)
+static struct type *float_constant(struct token *t)
 {
     int suffix = t->u.lit.suffix;
     switch (suffix) {
     case FLOAT:
-        sym->type = floattype;
-        break;
+        return floattype;
     case LONG + DOUBLE:
-        sym->type = longdoubletype;
-        break;
+        return longdoubletype;
     default:
-        sym->type = doubletype;
-        break;
+        return doubletype;
     }
 }
 
@@ -907,14 +903,14 @@ static struct expr *mkiliteral(struct type *ty, long i)
 }
 
 static struct expr *arith_literal(struct token *t,
-                                  void (*cnst) (struct token *, struct symbol *))
+                                  struct type * (*cnst) (struct token *))
 {
-    static struct symbol sym;
+    struct type *ty;
     struct expr *expr;
 
-    cnst(t, &sym);
-    expr = ast_expr(mkop(CNST, sym.type), sym.type, NULL, NULL);
-    expr->x.value = sym.u.c.value;
+    ty = cnst(t);
+    expr = ast_expr(mkop(CNST, ty), ty, NULL, NULL);
+    expr->x.value = token->u.lit.v;
     return expr;
 }
 
