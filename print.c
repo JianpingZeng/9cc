@@ -278,10 +278,23 @@ static void print_expr1(struct expr *node, int level)
     putf(PURPLE_BOLD("%s ") YELLOW("%p "), name, node);
     putf(GREEN("'%s' "), type2s(node->type));
     if (node->x.sym) {
-        if (issliteral(node))
+        if (issliteral(node)) {
             putf(CYAN_BOLD("%s"), node->x.sym->u.c.cnst->name);
-        else
+        } else if (isiliteral(node)) {
+            if (TYPE_OP(node->type) == INT)
+                putf(RED("%ld"), node->x.value.i);
+            else
+                putf(RED("%lu"), node->x.value.u);
+        } else if (isfliteral(node)) {
+            if (TYPE_KIND(node->type) == FLOAT)
+                putf(RED("%f"), node->x.value.f);
+            else if (TYPE_KIND(node->type) == DOUBLE)
+                putf(RED("%Lf"), node->x.value.d);
+            else
+                putf(RED("%Lf"), node->x.value.ld);
+        } else {
             putf(CYAN_BOLD("%s"), node->x.sym->name);
+        }
     }
 
     putf("\n");
