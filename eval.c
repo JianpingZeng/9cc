@@ -12,9 +12,10 @@
  * 4. initializer (combination of the aboves)
  */
 
-#define xxcv(func, op, ty, l)                   \
-    if (OPKIND((l)->op) == CNST) {              \
-        cv##func(op, ty, l);                    \
+#define xxcv(func, o, ty, l)                    \
+    if (OPKIND((l)->o) == CNST) {               \
+        cv##func(o, ty, l);                     \
+        (l)->op = mkop(CNST, ty);               \
         (l)->type = ty;                         \
         return l;                               \
     }
