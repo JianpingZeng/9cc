@@ -12,7 +12,7 @@
  * 4. initializer (combination of the aboves)
  */
 
-#define xxuop(func, ty, l)                      \
+#define foldcnst1(func, ty, l)                  \
     if (OPKIND((l)->op) == CNST) {              \
         func(ty, l);                            \
         (l)->op = mkop(CNST, ty);               \
@@ -20,7 +20,7 @@
         return l;                               \
     }
 
-#define xxbop(func, ty, l, r)                                   \
+#define foldcnst2(func, ty, l, r)                               \
     if (OPKIND((l)->op) == CNST && OPKIND((r)->op) == CNST) {   \
         struct expr *n = func(ty, l, r);                        \
         (n)->op = mkop(CNST, ty);                               \
@@ -182,13 +182,13 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
         // binary
     case ADD+I:
     case ADD+U:
-        xxbop(addi, ty, l, r);
+        foldcnst2(addi, ty, l, r);
         break;
     case ADD+F:
-        xxbop(addf, ty, l, r);
+        foldcnst2(addf, ty, l, r);
         break;
     case ADD+P:
-        xxbop(addp, ty, l, r);
+        foldcnst2(addp, ty, l, r);
         break;
     case SUB+I:
     case SUB+U:
@@ -254,42 +254,42 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
         // unary
     case NEG+I:
     case NEG+U:
-        xxuop(negi, ty, l);
+        foldcnst1(negi, ty, l);
         break;
     case NEG+F:
-        xxuop(negf, ty, l);
+        foldcnst1(negf, ty, l);
         break;
     case BNOT+I:
     case BNOT+U:
-        xxuop(bnot, ty, l);
+        foldcnst1(bnot, ty, l);
         break;
         // cast
     case CVI+I:
     case CVI+U:
     case CVU+U:
     case CVU+I:
-        xxuop(cvii, ty, l);
+        foldcnst1(cvii, ty, l);
         break;
     case CVI+F:
-        xxuop(cvif, ty, l);
+        foldcnst1(cvif, ty, l);
         break;
     case CVU+F:
-        xxuop(cvuf, ty, l);
+        foldcnst1(cvuf, ty, l);
         break;
     case CVF+I:
     case CVF+U:
-        xxuop(cvfi, ty, l);
+        foldcnst1(cvfi, ty, l);
         break;
     case CVF+F:
-        xxuop(cvff, ty, l);
+        foldcnst1(cvff, ty, l);
         break;
     case CVP+I:
     case CVP+U:
-        xxuop(cvpi, ty, l);
+        foldcnst1(cvpi, ty, l);
         break;
     case CVI+P:
     case CVU+P:
-        xxuop(cvip, ty, l);
+        foldcnst1(cvip, ty, l);
         break;
     }
     return ast_expr(op, ty, l, r);
