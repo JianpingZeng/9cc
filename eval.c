@@ -79,11 +79,43 @@
 #define foldcnst1fx(oper, ty, l)  foldcnst1f(oper, f, d, ld, ty, l)
 #define foldcnst2fx(oper, ty, l, r)  foldcnst2f(oper, f, d, ld, ty, l, r)
 
-struct expr *eval(struct expr *expr, struct type * ty)
-{
-    // TODO:
-    return cnsti(1, ty);
-}
+#define exchange(l, r)                                  \
+    if (OPKIND((l)->op) == CNST) {                      \
+        struct expr *tmp; tmp = l; l = r; r = tmp;      \
+    }
+
+#define xfoldcnst2(func, opid, ty, l, r)                        \
+    if ((OPKIND((l)->op) == ADD || OPKIND((l)->op) == SUB) &&   \
+        OPKIND((l)->kids[1]->op) == CNST) {                     \
+        if (OPKIND((r)->op) == CNST)                            \
+            return xfold##func(opid, ty, l, r);                 \
+        else                                                    \
+            return xswap(opid, ty, l, r);                       \
+    }
+
+#define doxfoldadd(oper, vfi, vf1, vf2, vf3, op, ty, a, b)              \
+    do {                                                                \
+        switch (OPTYPE(op)) {                                           \
+        case I:                                                         \
+        case U:                                                         \
+            a->x.value.vfi = a->x.value.vfi oper b->x.value.vfi;        \
+            break;                                                      \
+        case F:                                                         \
+            switch (TYPE_KIND(ty)) {                                    \
+            case FLOAT:                                                 \
+                a->x.value.vf1 = a->x.value.vf1 oper b->x.value.vf1;    \
+                break;                                                  \
+            case DOUBLE:                                                \
+                a->x.value.vf2 = a->x.value.vf2 oper b->x.value.vf2;    \
+                break;                                                  \
+            case LONG+DOUBLE:                                           \
+                a->x.value.vf3 = a->x.value.vf3 oper b->x.value.vf3;    \
+                break;                                                  \
+            }                                                           \
+            break;                                                      \
+        }                                                               \
+    } while (0)
+
 
 static void cvii(struct type *ty, struct expr *l)
 {
@@ -184,6 +216,37 @@ static void cvip(struct type *ty, struct expr *l)
            "Fatal: Non-converted pointer type");
 }
 
+// fold l->kids[1] and r
+static struct expr *xfoldadd(int op, struct type *ty, struct expr *l, struct expr *r)
+{
+    struct expr *r2 = l->kids[1]; // cnst
+    int kind1 = OPKIND(op);
+    int kind2 = OPKIND(l->op);
+
+    if ((kind1 == ADD && kind2 == ADD) ||
+        (kind1 == SUB && kind2 == SUB)) {
+        doxfoldadd(+, u, f, d, ld, op, ty, r2, r);
+        return l;
+    } else if ((kind1 == ADD && kind2 == SUB) ||
+               (kind1 == SUB && kind2 == ADD)) {
+        doxfoldadd(-, u, f, d, ld, op, ty, r2, r);
+        return l;
+    }
+
+    CC_UNAVAILABLE();
+}
+
+// swap l->kids[1] andr 
+static struct expr *xswap(int op, struct type *ty, struct expr *l, struct expr *r)
+{
+    struct expr *r2 = l->kids[1]; // cnst
+    int op2 = l->op;
+
+    l->op = op;
+    l->kids[1] = r;
+    return ast_expr(op2, ty, l, r2);
+}
+
 // fold constants
 struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
 {
@@ -193,18 +256,26 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
     case ADD+U:
     case ADD+P:
         foldcnst2i(+, u, ty, l, r);
+        exchange(l, r);
+        xfoldcnst2(add, op, ty, l, r);
         break;
     case ADD+F:
         foldcnst2fx(+, ty, l, r);
+        exchange(l, r);
+        xfoldcnst2(add, op, ty, l, r);
         break;
 
     case SUB+I:
     case SUB+U:
     case SUB+P:
         foldcnst2i(-, u, ty, l, r);
+        exchange(l, r);
+        xfoldcnst2(add, op, ty, l, r);
         break;
     case SUB+F:
         foldcnst2fx(-, ty, l, r);
+        exchange(l, r);
+        xfoldcnst2(add, op, ty, l, r);
         break;
 
     case MUL+I:
@@ -357,4 +428,10 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
         break;
     }
     return ast_expr(op, ty, l, r);
+}
+
+struct expr *eval(struct expr *expr, struct type * ty)
+{
+    // TODO:
+    return cnsti(1, ty);
 }
