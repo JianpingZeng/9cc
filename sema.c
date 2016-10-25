@@ -463,8 +463,8 @@ static bool isnullptr(struct expr *n)
     struct type *ty = n->type;
 
     return OPKIND(n->op) == CNST &&
-        ((isint(ty) && n->x.sym->u.c.value.i == 0) ||
-         (isptrto(ty, VOID) && n->x.sym->u.c.value.p == NULL));
+        ((isint(ty) && n->x.value.i == 0) ||
+         (isptrto(ty, VOID) && n->x.value.p == NULL));
 }
 
 /// conversion
@@ -1928,7 +1928,7 @@ static long do_intexpr(struct expr *cond, struct type *ty, struct source src)
         return 0;
     }
     assert(isiliteral(cnst));
-    return cnst->x.sym->u.c.value.i;
+    return cnst->x.value.i;
 }
 
 // if/do/while/for
@@ -2773,8 +2773,8 @@ static void do_array_index(struct type *atype, struct expr *assign, struct sourc
         struct expr *n = eval(assign, longtype);
         if (n) {
             assert(isiliteral(n));
-            TYPE_LEN(atype) = n->x.sym->u.c.value.i;
-            if (n->x.sym->u.c.value.i < 0)
+            TYPE_LEN(atype) = n->x.value.i;
+            if (n->x.value.i < 0)
                 error_at(src, "array has negative size");
         } else {
             error_at(src, "expect constant expression");

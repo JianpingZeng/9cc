@@ -12,40 +12,114 @@
  * 4. initializer (combination of the aboves)
  */
 
+#define xxcv(func, op, ty, l)                   \
+    if (OPKIND((l)->op) == CNST) {              \
+        cv##func(op, ty, l);                    \
+        (l)->type = ty;                         \
+        return l;                               \
+    }
+
 struct expr *eval(struct expr *expr, struct type * ty)
 {
     // TODO:
     return cnsti(1, ty);
 }
 
-static struct expr *cvii(int op, struct type *ty, struct expr *l)
+static void cvii(int op, struct type *ty, struct expr *l)
 {
-    return NULL;
+    if (TYPE_SIZE(l->type) > TYPE_SIZE(ty))
+        // narrow
+        l->x.value.u &= TYPE_LIMITS(ty).max.u;
 }
 
-static struct expr *cvif(int op, struct type *ty, struct expr *l)
+static void cvif(int op, struct type *ty, struct expr *l)
 {
-    return NULL;
+    switch (TYPE_KIND(ty)) {
+    case FLOAT:
+        l->x.value.f = l->x.value.i;
+        break;
+    case DOUBLE:
+        l->x.value.d = l->x.value.i;
+        break;
+    case LONG+DOUBLE:
+        l->x.value.ld = l->x.value.i;
+        break;
+    default:
+        CC_UNAVAILABLE();
+    }
 }
 
-static struct expr *cvfi(int op, struct type *ty, struct expr *l)
+static void cvuf(int op, struct type *ty, struct expr *l)
 {
-    return NULL;
+    switch (TYPE_KIND(ty)) {
+    case FLOAT:
+        l->x.value.f = l->x.value.u;
+        break;
+    case DOUBLE:
+        l->x.value.d = l->x.value.u;
+        break;
+    case LONG+DOUBLE:
+        l->x.value.ld = l->x.value.u;
+        break;
+    default:
+        CC_UNAVAILABLE();
+    }
 }
 
-static struct expr *cvff(int op, struct type *ty, struct expr *l)
+static void cvfi(int op, struct type *ty, struct expr *l)
 {
-    return NULL;
+    switch (TYPE_KIND(l->type)) {
+    case FLOAT:
+        l->x.value.u = l->x.value.f;
+        break;
+    case DOUBLE:
+        l->x.value.u = l->x.value.d;
+        break;
+    case LONG+DOUBLE:
+        l->x.value.u = l->x.value.ld;
+        break;
+    default:
+        CC_UNAVAILABLE();
+    }
 }
 
-static struct expr *cvpi(int op, struct type *ty, struct expr *l)
+static void cvff(int op, struct type *ty, struct expr *l)
 {
-    return NULL;
+    int dkind = TYPE_KIND(ty);
+    int skind = TYPE_KIND(l->type);
+
+    switch (skind) {
+    case FLOAT:
+        if (dkind == DOUBLE)
+            l->x.value.d = l->x.value.f;
+        else if (dkind == LONG+DOUBLE)
+            l->x.value.ld = l->x.value.f;
+        break;
+    case DOUBLE:
+        if (dkind == FLOAT)
+            l->x.value.f = l->x.value.d;
+        else if (dkind == LONG+DOUBLE)
+            l->x.value.ld = l->x.value.d;
+        break;
+    case LONG+DOUBLE:
+        if (dkind == FLOAT)
+            l->x.value.f = l->x.value.ld;
+        else if (dkind == DOUBLE)
+            l->x.value.d = l->x.value.ld;
+        break;
+    default:
+        CC_UNAVAILABLE();
+    }
 }
 
-static struct expr *cvip(int op, struct type *ty, struct expr *l)
+static void cvpi(int op, struct type *ty, struct expr *l)
 {
-    return NULL;
+    assert(TYPE_SIZE(ty) == TYPE_SIZE(ptritype));
+}
+
+static void cvip(int op, struct type *ty, struct expr *l)
+{
+    assert(TYPE_SIZE(l->type) == TYPE_SIZE(ptritype));
 }
 
 // fold constants
@@ -132,32 +206,28 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
     case CVI+U:
     case CVU+U:
     case CVU+I:
-        if (OPKIND(op) == CNST)
-            return cvii(op, ty, l);
+        xxcv(ii, op, ty, l);
         break;
     case CVI+F:
+        xxcv(if, op, ty, l);
+        break;
     case CVU+F:
-        if (OPKIND(op) == CNST)
-            return cvif(op, ty, l);
+        xxcv(uf, op, ty, l);
         break;
     case CVF+I:
     case CVF+U:
-        if (OPKIND(op) == CNST)
-            return cvfi(op, ty, l);
+        xxcv(fi, op, ty, l);
         break;
     case CVF+F:
-        if (OPKIND(op) == CNST)
-            return cvff(op, ty, l);
+        xxcv(ff, op, ty, l);
         break;
     case CVP+I:
     case CVP+U:
-        if (OPKIND(op) == CNST)
-            return cvpi(op, ty, l);
+        xxcv(pi, op, ty, l);
         break;
     case CVI+P:
     case CVU+P:
-        if (OPKIND(op) == CNST)
-            return cvip(op, ty, l);
+        xxcv(ip, op, ty, l);
         break;
     }
     return ast_expr(op, ty, l, r);
