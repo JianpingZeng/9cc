@@ -1075,6 +1075,18 @@ static struct expr *condexpr(struct type *ty,
 {
     struct symbol *sym;
     struct expr *ret;
+
+    if (OPKIND(cond->op) == CNST) {
+        bool b;
+        if (OPTYPE(cond->op) == P)
+            b = cond->x.value.p;
+        else
+            b = cond->x.value.u;
+        if (b)
+            return explicit_cast(ty, then);
+        else
+            return explicit_cast(ty, els);
+    }
     
     if (!isvoid(ty)) {
         sym = mktmp(gen_tmpname(), ty, REGISTER);
@@ -1610,7 +1622,7 @@ static struct expr *do_logical_not(struct expr *expr, struct source src)
         return NULL;
     }
 
-    return actions.cond(expr, cnsti(0, inttype), cnsti(1, inttype), src);
+    return condexpr(inttype, expr, cnsti(0, inttype), cnsti(1, inttype));
 }
 
 /**
