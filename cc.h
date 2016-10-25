@@ -474,6 +474,7 @@ extern struct desig *copy_desig(struct desig *desig);
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
 #define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
 #define isfliteral(n)  (OPID((n)->op) == CNST+F)
+#define ispliteral(n)  (OPID((n)->op) == CNST+P)
 #define issliteral(n)  ((OPID((n)->op) == ADDRG+P) && (n)->x.sym->literal)
 #define iszinit(n)     ((n)->op == 0)
 

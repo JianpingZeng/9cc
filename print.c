@@ -292,6 +292,8 @@ static void print_expr1(struct expr *node, int level)
             putf(RED("%Lf"), node->x.value.d);
         else
             putf(RED("%Lf"), node->x.value.ld);
+    } else if (ispliteral(node)) {
+        putf(RED("%p"), node->x.value.p);
     } else if (node->x.sym) {
         putf(CYAN_BOLD("%s"), node->x.sym->name);
     }
