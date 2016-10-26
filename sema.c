@@ -2772,12 +2772,9 @@ static void func_body(struct symbol *sym)
 static void doglobal(struct symbol *sym, void *context)
 {
     // typedefs and enum ids are _defined_
-    if (sym->defined ||
-        sym->sclass == EXTERN ||
-        isfunc(sym->type))
+    if (sym->defined || sym->sclass == EXTERN || isfunc(sym->type))
         return;
 
-    sym->defined = true;
     events(defgvar)(sym);
 }
 
