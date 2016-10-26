@@ -136,6 +136,7 @@ struct symbol {
         struct {
             struct expr *xcall; // call with max parameter size
             struct stmt *stmt;
+            struct symbol *lvars; // all local vars
         } f;
         // enum/struct/union
         struct {
@@ -148,6 +149,7 @@ struct symbol {
         int label;              // for goto labels
     } x;
     struct symbol *link;        // link in symtab
+    struct symbol *local;       // link of local vars
 };
 
 // scope level
@@ -332,6 +334,7 @@ struct func {
     struct table *labels;
     struct expr *xcall;
     struct stmt **stmt;
+    struct symbol **lvars;
 };
 
 typedef struct symbol * (*decl_fp) (const char *, struct type *, int, int,

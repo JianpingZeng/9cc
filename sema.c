@@ -69,13 +69,19 @@ struct func func;
         func.stmt = &stmt->next;                \
     } while (0)
 
-#define check_designator(d)  ensure_designator(d) ? (d) : NULL
+#define link_lvar(sym)                          \
+    do {                                        \
+        *func.lvars = sym;                      \
+        func.lvars = &sym->local;               \
+    } while (0)
 
 #define isaddrop(op)  (OPKIND(op) == ADDRL || \
                        OPKIND(op) == ADDRG || \
                        OPKIND(op) == ADDRP)
 
 #define isbfield(node)  ((node)->op == BFIELD)
+
+#define check_designator(d)  ensure_designator(d) ? (d) : NULL
 
 /*=================================================================*
  *                          Events                                 *
@@ -105,12 +111,13 @@ static void deftype(struct symbol *n)
 // define a local variable
 static void deflvar(struct symbol *n)
 {
-    // TODO:
+    link_lvar(n);
 }
 
 // define a local static variable
 static void defsvar(struct symbol *n)
 {
+    link_lvar(n);    
     if (opts.ast_dump || errors())
         return;
     IR->defvar(n);
@@ -2003,6 +2010,15 @@ static void ensure_gotos(void)
     }
 }
 
+static void warning_unused_lvars(struct symbol *lvar)
+{
+    for (struct symbol *sym = lvar; sym; sym = sym->local) {
+        if (sym->refs == 0 && !sym->predefine &&
+            !sym->temporary && !isfunc(sym->type))
+            warning_at(sym->src, "unused variable '%s'", sym->name);
+    }
+}
+
 /// actions-stmt
 
 static void do_branch(struct expr *expr, int tlab, int flab)
@@ -2727,6 +2743,7 @@ static void predefined_ids(void)
 static void func_body(struct symbol *sym)
 {
     struct stmt *stmt = NULL;
+    struct symbol *lvars = NULL;
 
     func.gotos = NULL;
     func.labels = new_table(NULL, LOCAL);
@@ -2734,22 +2751,22 @@ static void func_body(struct symbol *sym)
     func.name = sym->name;
     func.xcall = NULL;
     func.stmt = &stmt;
+    func.lvars = &lvars;
 
     // compound statement
     compound_stmt(predefined_ids, 0, 0, NULL);
     // check goto labels
     ensure_gotos();
+    // warning unused vars
+    warning_unused_lvars(lvars);
 
     // save
     sym->u.f.xcall = func.xcall;
     sym->u.f.stmt = stmt;
+    sym->u.f.lvars = lvars;
 
     free_table(func.labels);
-    func.labels = NULL;
-    func.type = NULL;
-    func.name = NULL;
-    func.xcall = NULL;
-    func.stmt = NULL;
+    memset(&func, 0, sizeof(struct func));
 }
 
 static void doglobal(struct symbol *sym, void *context)
