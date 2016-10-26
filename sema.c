@@ -2981,7 +2981,7 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty,
     }
 
     // check incomplete type after intialized
-    if (isincomplete(ty))
+    if (isincomplete(ty) && sym->defined)
         error_at(src, ERR_INCOMPLETE_VAR, id, type2s(ty));
 
     // actions
@@ -3071,7 +3071,7 @@ static struct symbol *do_localdecl(const char *id, struct type *ty,
     }
 
     // check incomplete type after initialized
-    if (isincomplete(ty))
+    if (isincomplete(ty) && sym->defined)
         error_at(src, ERR_INCOMPLETE_VAR, id, type2s(ty));
 
     // actions

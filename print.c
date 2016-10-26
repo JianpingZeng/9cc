@@ -205,14 +205,16 @@ static void print_type1(struct symbol *sym, int level)
     putf("<" YELLOW("%s:line:%u col:%u") "> ",
          sym->src.file, sym->src.line, sym->src.column);
     putf("\n");
-    if (isstruct(ty) || isunion(ty)) {
-        struct field *first = sym->u.s.flist;
-        for (struct field *p = first; p; p = p->link)
-            print_field(p, level + 1);
-    } else if (isenum(ty)) {
-        struct symbol **ids = sym->u.s.ids;
-        for (int i = 0; ids[i]; i++)
-            print_symbol1(ids[i], level + 1, kEnumConstDecl);
+    if (sym->sclass != TYPEDEF) {
+        if (isstruct(ty) || isunion(ty)) {
+            struct field *first = sym->u.s.flist;
+            for (struct field *p = first; p; p = p->link)
+                print_field(p, level + 1);
+        } else if (isenum(ty)) {
+            struct symbol **ids = sym->u.s.ids;
+            for (int i = 0; ids[i]; i++)
+                print_symbol1(ids[i], level + 1, kEnumConstDecl);
+        }
     }
 }
 
