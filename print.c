@@ -233,8 +233,12 @@ static void print_symbol1(struct symbol *sym, int level, const char *prefix)
 
     struct type *ty = sym->type;
     print_ty(ty);
+    // location
     putf("<" YELLOW("%s:line:%u col:%u") "> ",
          sym->src.file, sym->src.line, sym->src.column);
+    // scope
+    if (sym->scope >= LOCAL)
+        putf("<" YELLOW("scope:%d") ">", sym->scope);
     putf("\n");
 
     if (isfuncdef(sym)) {
@@ -359,6 +363,10 @@ static void ast_dump_symbol(struct symbol *n, const char *prefix, bool funcdef)
     SET_OUTFD(stdout);
     print_symbol(n, prefix);
     if (funcdef) {
+        for (struct symbol *sym = n->u.f.lvars; sym; sym = sym->local) {
+            if (!sym->temporary && !(sym->predefine && sym->refs == 0))
+                print_symbol1(sym, 1, kVarDecl);
+        }
         for (struct stmt *stmt = n->u.f.stmt; stmt; stmt = stmt->next)
             print_stmt1(stmt, 1);
     }
@@ -551,7 +559,7 @@ const char *type2s(struct type * ty)
             qualstr(buf, s->qual);
         } else if (isarray(s->type)) {
             if (TYPE_LEN(s->type) > 0) {
-                strbuf_cats(buf, " [");
+                strbuf_cats(buf, "[");
                 strbuf_catd(buf, TYPE_LEN(s->type));
                 strbuf_cats(buf, "]");
             } else {
