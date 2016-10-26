@@ -1108,12 +1108,12 @@ static struct expr *condexpr(struct type *ty,
 static struct expr *member(struct expr *addr, const char *name, struct source src)
 {
     struct field *field;
-    struct type *ty, *fty;
+    struct type *sty, *fty;
 
-    ty = rtype(addr->type);
-    field = find_field(ty, name);
+    sty = rtype(addr->type);
+    field = find_field(sty, name);
     if (!field) {
-        field_not_found_error(src, ty, name);
+        field_not_found_error(src, sty, name);
         return NULL;
     }
 
@@ -1126,7 +1126,7 @@ static struct expr *member(struct expr *addr, const char *name, struct source sr
 
     addr = ast_expr(ADD+P, addr->type,
                     addr,
-                    cnsti(field->offset, unsignedlongtype));
+                    cnsti(field->offset, unsignedptrtype));
 
     if (direct(field)->isbit) {
         // bit field
