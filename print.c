@@ -260,8 +260,10 @@ static void print_init1(struct init *init, int level)
 {
     for (struct init *p = init; p; p = p->link) {
         print_level(level);
-        putln("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%s', body=%p") ">",
-             p->offset, p->boff, p->bsize, type2s(p->type), p->body);
+        putln("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%s', typesize=%lu") ">",
+              p->offset, p->boff, p->bsize, type2s(p->type), TYPE_SIZE(p->type));
+        if (p->body)
+            print_expr1(p->body, level + 1);
     }
 }
 
