@@ -917,16 +917,15 @@ static struct expr *string_literal(struct token *t,
 {
     const char *name = TOK_LIT_STR(t);
     struct symbol *sym = lookup(name, strings);
+    struct symbol *id;
 
     if (!sym) {
         sym = install(name, &strings, CONSTANT, PERM);
         cnst(t, sym);
     }
-    if (!sym->x.name) {
-        const char *label;
-        struct symbol *id;
 
-        label = gen_string_label();
+    if (!sym->x.name) {
+        const char *label = gen_string_label();
         id = install(label, &identifiers, GLOBAL, PERM);
         id->type = sym->type;
         id->sclass = STATIC;
@@ -934,14 +933,12 @@ static struct expr *string_literal(struct token *t,
         id->defined = true;
         id->u.c.cnst = sym;
         sym->x.name = label;
-        return mkref(id);
     } else {
-        struct symbol *id;
-
         id = lookup(sym->x.name, identifiers);
         assert(id);
-        return mkref(id);
     }
+
+    return mkref(id);
 }
 
 static struct expr *incr(int op, struct expr *expr, struct expr *cnst, struct source src)
