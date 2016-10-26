@@ -1,0 +1,5 @@
+BUGS:
+-----
+
+1. 在文件EOI处出现expect错误时，source location 为 "null:0:0"
+2. 宏的报错src不对，例如assert。

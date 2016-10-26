@@ -243,7 +243,8 @@ static void print_symbol1(struct symbol *sym, int level, const char *prefix)
 
     if (isfuncdef(sym)) {
         //NOTE: print in ast_dump_symbol
-    } else {
+    } else if (sym->sclass != ENUM) {
+        // skip enum id
         struct expr *init = sym->u.init;
         if (init)
             print_expr1(init, level + 1);
