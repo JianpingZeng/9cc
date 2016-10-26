@@ -116,6 +116,29 @@
         }                                                               \
     } while (0)
 
+#define foldlogic(opid, oper, ty, l, r)                         \
+    if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {       \
+        int i;                                                  \
+        if (OPTYPE(l->op) == P && OPTYPE(r->op) == P)           \
+            i = l->x.value.p oper r->x.value.p;                 \
+        else if (OPTYPE(l->op) == P)                            \
+            i = l->x.value.p oper r->x.value.u;                 \
+        else if (OPTYPE(r->op) == P)                            \
+            i = l->x.value.u oper r->x.value.p;                 \
+        else                                                    \
+            i = l->x.value.u oper r->x.value.u;                 \
+        return cnsti(i, ty);                                    \
+    } else if (OPKIND(l->op) == CNST) {                         \
+        bool b;                                                 \
+        if (OPTYPE(l->op) == P)                                 \
+            b = l->x.value.p;                                   \
+        else                                                    \
+            b = l->x.value.u;                                   \
+        if (opid == AND && !b)                                  \
+            return cnsti(0, ty);                                \
+        else if (opid == OR && b)                               \
+            return cnsti(1, ty);                                \
+    }
 
 static void cvii(struct type *ty, struct expr *l)
 {
@@ -384,6 +407,14 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
         break;
     case NE+F:
         foldcnst2fx(!=, ty, l, r);
+        break;
+
+        // logical
+    case AND:
+        foldlogic(op, &&, ty, l, r);
+        break;
+    case OR:
+        foldlogic(op, ||, ty, l, r);
         break;
 
         // unary
