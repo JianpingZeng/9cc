@@ -37,7 +37,7 @@ struct func func;
 #define ERR_INCOMPLETE_VAR \
     "variable '%s' has incomplete type '%s'"
 
-#define ERR_INCOMPLETE_ELEM \
+#define ERR_INCOMPLETE_ELEMENT \
     "array has incomplete element type '%s'"
 
 #define ERR_INIT_EMPTY_RECORD \
@@ -2477,6 +2477,12 @@ static void ensure_func_array(struct type *ty, bool param, bool outermost, struc
 static void finish_type(struct type *ty, bool param, struct source src)
 {
     ensure_func_array(ty, param, true, src);
+    // array has incomplte element type is always illegal.
+    if (isarray(ty)) {
+        struct type *rty = rtype(ty);
+        if (isincomplete(rty))
+            error_at(src, ERR_INCOMPLETE_ELEMENT, type2s(rty));
+    }
 }
 
 static void check_func_array_in_funcdef(struct type *ty, struct source src)
@@ -2641,12 +2647,6 @@ static void check_params_in_funcdef(struct symbol *params[])
                 error_at(sym->src,
                          "variable has incomplete type '%s'",
                          type2s(ty));
-        } else if (isarray(ty)) {
-            struct type *rty = rtype(ty);
-            if (isincomplete(rty))
-                error_at(sym->src,
-                         ERR_INCOMPLETE_ELEM,
-                         type2s(rty));
         }
     }
 }
@@ -3116,12 +3116,8 @@ static struct symbol *do_paramdecl(const char *id, struct type *ty,
         ty->u.p.decay = fty;
     } else if (isarray(ty)) {
         struct type *aty = ty;
-        struct type *rty = rtype(ty);
-        // check incomplete
-        if (isincomplete(rty))
-            error_at(src, ERR_INCOMPLETE_ELEM, type2s(rty));
 
-        ty = ptr_type(rty);
+        ty = ptr_type(rtype(ty));
         ty->u.p.decay = aty;
         // apply array qualifiers
         if (TYPE_A_CONST(aty))
