@@ -23,7 +23,8 @@ struct type *voidtype;                // void
 struct type *booltype;                // bool
 struct type *voidptype;               // void *
 struct type *funcptype;               // void (*) ()
-struct type *ptritype;                // integer alias for ptr 
+struct type *unsignedptrtype;         // unsigned integer alias for pointer type
+struct type *signedptrtype;           // signed integer alias for pointer type
 
 static struct type *alloc_type(void)
 {
@@ -111,7 +112,8 @@ void type_init(void)
 
 #undef INSTALL
 
-    ptritype = unsignedlongtype;
+    unsignedptrtype = unsignedlongtype;
+    signedptrtype = longtype;
 }
 
 static int combine(int qual1, int qual2)

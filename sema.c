@@ -526,18 +526,15 @@ static struct expr *cast_arith(struct type *ty, struct expr *n)
 }
 
 static struct expr *castip(struct type *ty, struct expr *n)
-{
-    int op;
-    
-    n = cast_arith(ptritype, n);
-    op = ptritype->op == UNSIGNED ? CVU : CVI;
+{    
+    n = cast_arith(unsignedptrtype, n);
         
-    return simplify(mkop(op, ty), ty, n, NULL);
+    return simplify(mkop(CVU, ty), ty, n, NULL);
 }
 
 static struct expr *castpi(struct type *ty, struct expr *n)
 {
-    n = simplify(mkop(CVP, ptritype), ptritype, n, NULL);
+    n = simplify(mkop(CVP, unsignedptrtype), unsignedptrtype, n, NULL);
 
     return cast_arith(ty, n);
 }
@@ -1202,9 +1199,9 @@ static struct expr *bop_add(struct expr *l, struct expr *r, struct source src)
 
         size = TYPE_SIZE(rtype(ty1));
         if (size > 1)
-            r = actions.bop('*', r, cnsti(size, ptritype), src);
+            r = actions.bop('*', r, cnsti(size, unsignedptrtype), src);
 
-        return simplify(mkop(op, ty1), ty1, l, cast(ptritype, r));
+        return simplify(mkop(op, ty1), ty1, l, cast(unsignedptrtype, r));
     } else if (isint(ty1) && isptr(ty2)) {
         size_t size;
             
@@ -1213,9 +1210,9 @@ static struct expr *bop_add(struct expr *l, struct expr *r, struct source src)
 
         size = TYPE_SIZE(rtype(ty2));
         if (size > 1)
-            l = actions.bop('*', l, cnsti(size, ptritype), src);
+            l = actions.bop('*', l, cnsti(size, unsignedptrtype), src);
 
-        return simplify(mkop(op, ty2), ty2, cast(ptritype, l), r);
+        return simplify(mkop(op, ty2), ty2, cast(unsignedptrtype, l), r);
     } else {
         error_at(src, ERR_BOP_OPERANDS, type2s(ty1), type2s(ty2));
         return NULL;
@@ -1240,9 +1237,9 @@ static struct expr *bop_sub(struct expr *l, struct expr *r, struct source src)
 
         size = TYPE_SIZE(rtype(ty1));
         if (size > 1)
-            r = actions.bop('*', r, cnsti(size, ptritype), src);
+            r = actions.bop('*', r, cnsti(size, unsignedptrtype), src);
 
-        return simplify(mkop(op, ty1), ty1, l, cast(ptritype, r));
+        return simplify(mkop(op, ty1), ty1, l, cast(unsignedptrtype, r));
     } else if (isptr(ty1) && isptr(ty2)) {        
         if (!addable_ptr(l, src) || !addable_ptr(r, src))
             return NULL;
@@ -1280,7 +1277,7 @@ static inline struct expr *bop_rel(int t, struct expr *l, struct expr *r, struct
             return NULL;
         }
 
-        ty = ptritype;
+        ty = unsignedptrtype;
     } else if (isptr(ty1) && isint(ty2)) {
         // ptr op int
         if (opts.ansi) {
@@ -1292,7 +1289,7 @@ static inline struct expr *bop_rel(int t, struct expr *l, struct expr *r, struct
                        TYPE_NAME(ty1), TYPE_NAME(ty2));
         }
 
-        ty = conv2(ptritype, ty2);
+        ty = conv2(unsignedptrtype, ty2);
     } else if (isint(ty1) && isptr(ty2)) {
         // int op ptr
         if (opts.ansi) {
@@ -1304,7 +1301,7 @@ static inline struct expr *bop_rel(int t, struct expr *l, struct expr *r, struct
                        TYPE_NAME(ty1), TYPE_NAME(ty2));
         }
 
-        ty = conv2(ty1, ptritype);
+        ty = conv2(ty1, unsignedptrtype);
     } else {
         error_at(src, ERR_COMPARISION_INCOMPATIBLE,
                  type2s(ty1), type2s(ty2));
@@ -1329,16 +1326,16 @@ static inline struct expr *bop_eq(int t, struct expr *l, struct expr *r, struct 
         ty = conv2(ty1, ty2);
     } else if (isptr(ty1) && isnullptr(r)) {
         // ptr NULL
-        ty = ptritype;
+        ty = unsignedptrtype;
     } else if (isnullptr(l) && isptr(ty2)) {
         // NULL ptr
-        ty = ptritype;
+        ty = unsignedptrtype;
     } else if (isptr(ty1) && isptrto(ty2, VOID)) {
         // ptr (void *)
-        ty = ptritype;
+        ty = unsignedptrtype;
     } else if (isptrto(ty1, VOID) && isptr(ty2)) {
         // (void *) ptr
-        ty = ptritype;
+        ty = unsignedptrtype;
     }  else if (isptr(ty1) && isptr(ty2)) {
         // both ptr
         if (!compatible(rtype(ty1), rtype(ty2))) {
@@ -1347,7 +1344,7 @@ static inline struct expr *bop_eq(int t, struct expr *l, struct expr *r, struct 
             return NULL;
         }
         
-        ty = ptritype;
+        ty = unsignedptrtype;
     } else {
         error_at(src, ERR_COMPARISION_INCOMPATIBLE,
                  type2s(ty1), type2s(ty2));

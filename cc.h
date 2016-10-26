@@ -639,6 +639,7 @@ extern struct type *voidtype;
 extern struct type *booltype;
 extern struct type *voidptype;
 extern struct type *funcptype;
-extern struct type *ptritype;
+extern struct type *unsignedptrtype;
+extern struct type *signedptrtype;
 
 #endif

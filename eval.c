@@ -229,13 +229,13 @@ static void cvff(struct type *ty, struct expr *l)
 
 static void cvpi(struct type *ty, struct expr *l)
 {
-    assert(TYPE_SIZE(ty) == TYPE_SIZE(ptritype) &&
+    assert(TYPE_SIZE(ty) == TYPE_SIZE(unsignedptrtype) &&
            "Fatal: Non-converted pointer type");
 }
 
 static void cvip(struct type *ty, struct expr *l)
 {
-    assert(TYPE_SIZE(l->type) == TYPE_SIZE(ptritype) &&
+    assert(TYPE_SIZE(l->type) == TYPE_SIZE(unsignedptrtype) &&
            "Fatal: Non-converted pointer type");
 }
 
