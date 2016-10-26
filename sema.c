@@ -1507,7 +1507,7 @@ static struct expr *do_logical(int t, struct expr *l, struct expr *r, struct sou
         return NULL;
     }
 
-    return ast_expr(t == ANDAND ? AND : OR, inttype, l, r);
+    return simplify(t == ANDAND ? AND : OR, inttype, l, r);
 }
 
 static struct expr *do_bop(int t, struct expr *l, struct expr *r, struct source src)
@@ -2778,6 +2778,25 @@ static void doglobal(struct symbol *sym, void *context)
     events(defgvar)(sym);
 }
 
+static void warning_unused_global(struct symbol *sym, void *context)
+{
+    if (sym->sclass != STATIC || sym->refs)
+        return;
+
+    // only `STATIC' and 'non-refed' symbol is counted.
+    if (isfunc(sym->type)) {
+        if (sym->anonymous)
+            warning_at(sym->src, "unused function");
+        else
+            warning_at(sym->src, "unused function '%s'", sym->name);
+    } else {
+        if (sym->anonymous)
+            warning_at(sym->src, "unused variable");
+        else
+            warning_at(sym->src, "unused variable '%s'", sym->name);
+    }
+}
+
 /// actions-decl
 
 static void do_array_index(struct type *atype, struct expr *assign, struct source src)
@@ -3435,6 +3454,7 @@ static void init(int argc, char *argv[])
 
 static void finalize(void)
 {
+    foreach(identifiers, GLOBAL, warning_unused_global, NULL);
     if (opts.ast_dump || errors())
         return;
     foreach(identifiers, GLOBAL, doglobal, NULL);
