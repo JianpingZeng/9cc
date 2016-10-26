@@ -98,6 +98,7 @@
         switch (OPTYPE(op)) {                                           \
         case I:                                                         \
         case U:                                                         \
+        case P:                                                         \
             a->x.value.vfi = a->x.value.vfi oper b->x.value.vfi;        \
             break;                                                      \
         case F:                                                         \
@@ -249,10 +250,12 @@ static struct expr *xfoldadd(int op, struct type *ty, struct expr *l, struct exp
     if ((kind1 == ADD && kind2 == ADD) ||
         (kind1 == SUB && kind2 == SUB)) {
         doxfoldadd(+, u, f, d, ld, op, ty, r2, r);
+        l->type = ty;
         return l;
     } else if ((kind1 == ADD && kind2 == SUB) ||
                (kind1 == SUB && kind2 == ADD)) {
         doxfoldadd(-, u, f, d, ld, op, ty, r2, r);
+        l->type = ty;
         return l;
     }
 
@@ -273,6 +276,7 @@ static struct expr *xswap(int op, struct type *ty, struct expr *l, struct expr *
 // fold constants
 struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
 {
+    // return ast_expr(op, ty, l, r);
     switch (op) {
         // binary
     case ADD+I:

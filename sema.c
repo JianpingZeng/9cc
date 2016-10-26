@@ -1108,7 +1108,7 @@ static struct expr *condexpr(struct type *ty,
 static struct expr *member(struct expr *addr, const char *name, struct source src)
 {
     struct field *field;
-    struct type *sty, *fty;
+    struct type *sty, *fty, *pfty;
 
     sty = rtype(addr->type);
     field = find_field(sty, name);
@@ -1123,8 +1123,12 @@ static struct expr *member(struct expr *addr, const char *name, struct source sr
         int q = qual_union(addr->type, fty);
         fty = qual(q, fty);
     }
+    if (isarray(fty))
+        pfty = fty;
+    else
+        pfty = ptr_type(fty);
 
-    addr = ast_expr(ADD+P, addr->type,
+    addr = simplify(ADD+P, pfty,
                     addr,
                     cnsti(field->offset, unsignedptrtype));
 
