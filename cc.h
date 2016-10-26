@@ -170,9 +170,9 @@ struct expr {
         bool paren;
         struct symbol *sym;
         union {
-            struct expr **args;
-            struct init *inits;
-            struct field *field;
+            struct expr **args; // for CALL
+            struct init *ilist; // for COMPOUND
+            struct field *field; // for BFIELD
         } u;
         union value value;
     } x;
@@ -398,7 +398,7 @@ struct actions {
     /// initializer
     void (*element_init) (struct desig **pdesig, struct expr *expr, struct init **pinit);
     struct desig * (*designator) (struct desig *desig, struct desig **ds);
-    struct expr * (*initializer_list) (struct type *ty, struct init *init);
+    struct expr * (*initializer_list) (struct type *ty, struct init *ilist);
 };
 
 // metrics

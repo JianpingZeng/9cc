@@ -793,12 +793,6 @@ static struct expr *assignconv(struct type *dty, struct expr *expr)
     return cast(dty, expr);
 }
 
-static struct expr *initconv(struct type *ty, struct expr *node)
-{
-    // TODO:
-    return node;
-}
-
 // return NULL on error.
 static struct expr **argsconv1(struct type **params, size_t nparams,
                                struct expr **args, size_t nargs,
@@ -1048,23 +1042,13 @@ static struct expr *assign(struct symbol *sym, struct expr *r)
     return actions.assign('=', mkref(sym), r, sym->src);
 }
 
-// initialization assignment
-// may be 'array' type
-static struct expr *gen_assign(struct symbol *sym, struct expr *r)
+// initialization assignment (return the ref)
+static struct expr *iassign(struct symbol *sym, struct expr *r)
 {
-    struct type *ty = unqual(sym->type);
-    struct type *ty1 = sym->type;
-    struct type *ty2 = r->type;
+    struct type *ty = sym->type;
     struct expr *ref, *l;
 
     ref = l = mkref(sym);
-
-    r = initconv(ty, r);
-    if (!r) {
-        error_at(sym->src, ERR_INCOMPATIBLE_CONV,
-                 type2s(ty2), type2s(ty1));
-        return NULL;
-    }
 
     if (!isarray(ty))
         l = lvalue(l);
@@ -1861,7 +1845,7 @@ static struct expr *do_compound_literal(struct type *ty, struct expr *inits, str
         return inits;
 
     sym = mktmp(gen_compound_label(), ty, 0);
-    return gen_assign(sym, inits);
+    return iassign(sym, inits);
 }
 
 /// primary
@@ -1972,7 +1956,7 @@ static struct expr *do_switch_expr(struct expr *expr, struct source src)
     }
     // make a tmp var
     sym = mktmp(gen_tmpname(), expr->type, REGISTER);
-    return gen_assign(sym, expr);
+    return iassign(sym, expr);
 }
 
 /*=================================================================*
@@ -2118,30 +2102,10 @@ static bool ensure_designator(struct desig *d)
 
 /// actions-init
 
-static void offset_init(struct desig *desig, struct expr *expr, struct init **ilist)
+static void offset_init1(struct desig *desig, struct expr *expr, struct init **ilist)
 {
-    assert(desig && expr && ilist);
-    assert(!isarray(desig->type));
-
-    struct type *ty = desig->type;
-    struct init *p;
-
-    if (isincomplete(ty) || isfunc(ty)) {
-        error_at(desig->src, "'%s' cannot have an initializer",
-                 TYPE_NAME(ty));
-        return;
-    }
-
-    //possible: scalar/struct/union
-
-    // assignment conversion
-    struct expr *n = assignconv(ty, expr);
-    if (n == NULL) {
-        error_at(desig->src, ERR_INCOMPATIBLE_CONV,
-                 type2s(expr->type), type2s(ty));
-        return;
-    }
-
+    struct init *p, *init;
+    
     // check override
     for (; (p = *ilist); ilist = &p->link) {
         if (p->offset > desig->offset)
@@ -2165,10 +2129,10 @@ static void offset_init(struct desig *desig, struct expr *expr, struct init **il
     }
 
     // insert
-    struct init *init = NEWS0(struct init, FUNC);
+    init = NEWS0(struct init, FUNC);
     init->type = desig->type;
     init->offset = desig->offset;
-    init->body = n;
+    init->body = expr;
     if (desig->id == DESIG_FIELD) {
         assert(!isindirect(desig->u.field));
         init->boff = desig->u.field->bitoff;
@@ -2178,13 +2142,35 @@ static void offset_init(struct desig *desig, struct expr *expr, struct init **il
     *ilist = init;
 }
 
-static void string_init(struct desig *desig, struct expr *expr, struct init **pinit)
+static void offset_init(struct desig *desig, struct expr *expr, struct init **ilist)
 {
-    assert(desig && expr && pinit);
+    assert(!isarray(desig->type));
 
-    // TODO:
-    dlog("%s: (offset=%ld) <expr %p> <string>",
-         desig2s(desig), desig->offset, expr);
+    struct type *ty = desig->type;
+
+    if (isincomplete(ty) || isfunc(ty)) {
+        error_at(desig->src, "'%s' cannot have an initializer",
+                 TYPE_NAME(ty));
+        return;
+    }
+
+    //possible: scalar/struct/union
+
+    // assignment conversion
+    struct expr *n = assignconv(ty, expr);
+    if (n == NULL) {
+        error_at(desig->src, ERR_INCOMPATIBLE_CONV,
+                 type2s(expr->type), type2s(ty));
+        return;
+    }
+
+    offset_init1(desig, n, ilist);
+}
+
+static void string_init(struct desig *desig, struct expr *expr, struct init **ilist)
+{
+    // TODO: override check
+    offset_init1(desig, expr, ilist);
 }
 
 static struct desig *next_designator1(struct desig *desig, bool initial)
@@ -2411,13 +2397,12 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
     return desig;
 }
 
-static struct expr *do_initializer_list(struct type *ty, struct init *init)
+static struct expr *do_initializer_list(struct type *ty, struct init *ilist)
 {
     struct expr *n = ast_expr(COMPOUND, ty, NULL, NULL);
     // TODO: incomplete array type
-    // TODO: sort inits
     // TODO: merge bitfields
-    n->x.u.inits = init;
+    n->x.u.ilist = ilist;
     return n;
 }
 
@@ -3085,7 +3070,7 @@ static struct symbol *do_localdecl(const char *id, struct type *ty,
         ensure_init(LOCAL, sclass, sym, init, src);
         // gen assign expr
         if (sym->u.init && sclass != STATIC)
-            gen_assign(sym, init);
+            iassign(sym, init);
     }
 
     // check incomplete type after initialized

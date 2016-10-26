@@ -1186,11 +1186,11 @@ static struct expr *initializer_list(struct type *ty)
 {
     if (ty) {
         struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0, .src = source};
-        struct init *init = NULL;
+        struct init *ilist = NULL;
 
-        parse_initializer_list(&desig, &init);        
+        parse_initializer_list(&desig, &ilist);        
 
-        return actions.initializer_list(ty, init);
+        return actions.initializer_list(ty, ilist);
     } else {
         parse_initializer_list(NULL, NULL);
         return NULL;

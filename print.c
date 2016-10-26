@@ -313,7 +313,7 @@ static void print_expr1(struct expr *node, int level)
 
     switch (OPKIND(node->op)) {
     case COMPOUND:
-        print_init1(node->x.u.inits, level + 1);
+        print_init1(node->x.u.ilist, level + 1);
         break;
     case CALL:
         print_args1(node->x.u.args, level + 1);
