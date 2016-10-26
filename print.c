@@ -571,7 +571,7 @@ const char *type2s(struct type * ty)
                    isunion(s->type)) {
             qualstr(buf, s->qual);
             strbuf_cats(buf, TYPE_NAME(s->type));
-            if (TYPE_TSYM(s->type)->name) {
+            if (!TYPE_TSYM(s->type)->anonymous) {
                 strbuf_cats(buf, " ");
                 strbuf_cats(buf, TYPE_TSYM(s->type)->name);
             }
