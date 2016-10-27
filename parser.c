@@ -2085,6 +2085,8 @@ static void struct_body(struct symbol *sym)
                 if (id) {
                     field->name = TOK_ID_STR(id);
                     field->src = id->src;
+                } else {
+                    field->src = source;
                 }
             }
 
