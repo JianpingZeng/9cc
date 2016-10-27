@@ -40,12 +40,13 @@ static struct type *cast_type(void)
     return ty;
 }
 
-/// primary-expression:
-///   identifier
-///   constant
-///   string-literal
-///   '(' expression ')'
-///
+/*
+ primary-expression:
+   identifier
+   constant
+   string-literal
+   '(' expression ')'
+*/
 static struct expr *primary_expr(void)
 {
     struct expr *ret = NULL;
@@ -90,10 +91,11 @@ static struct expr *primary_expr(void)
     return ret;
 }
 
-/// argument-expression-list:
-///   assignment-expression
-///   argument-expression-list ',' assignment-expression
-///
+/*
+ argument-expression-list:
+   assignment-expression
+   argument-expression-list ',' assignment-expression
+*/
 static struct expr **argument_expr_list(void)
 {
     struct list *l = NULL;
@@ -177,17 +179,18 @@ static struct expr *postfix_expr1(struct expr *ret)
     return ret;
 }
 
-/// postfix-expression:
-///   primary-expression
-///   postfix-expression '[' expression ']'
-///   postfix-expression '(' argument-expression-list[opt] ')'
-///   postfix-expression '.' identifier
-///   postfix-expression '->' identifier
-///   postfix-expression '++'
-///   postfix-expression '--'
-///   '(' type-name ')' '{' initializer-list '}'
-///   '(' type-name ')' '{' initializer-list ',' '}'
-///
+/*
+ postfix-expression:
+   primary-expression
+   postfix-expression '[' expression ']'
+   postfix-expression '(' argument-expression-list[opt] ')'
+   postfix-expression '.' identifier
+   postfix-expression '->' identifier
+   postfix-expression '++'
+   postfix-expression '--'
+   '(' type-name ')' '{' initializer-list '}'
+   '(' type-name ')' '{' initializer-list ',' '}'
+*/
 static struct expr *postfix_expr(void)
 {
     struct expr *expr = primary_expr();
@@ -195,17 +198,18 @@ static struct expr *postfix_expr(void)
     return postfix_expr1(expr);
 }
 
-/// unary-expression:
-///   postfix-expression
-///   '++' unary-expression
-///   '--' unary-expression
-///   unary-operator cast-expression
-///   'sizeof' unary-expression
-///   'sizeof' '(' type-name ')'
-///
-/// unary-operator:
-///   '&' '*' '+' '-' '~' '!'
-///
+/*
+ unary-expression:
+   postfix-expression
+   '++' unary-expression
+   '--' unary-expression
+   unary-operator cast-expression
+   'sizeof' unary-expression
+   'sizeof' '(' type-name ')'
+
+ unary-operator:
+   '&' '*' '+' '-' '~' '!'
+*/
 static struct expr *unary_expr(void)
 {
     int t = token->id;
@@ -256,10 +260,11 @@ static struct expr *unary_expr(void)
     }
 }
 
-/// cast-expression:
-///   unary-expression
-///   '(' type-name ')' cast-expression
-///
+/*
+ cast-expression:
+   unary-expression
+   '(' type-name ')' cast-expression
+*/
 static struct expr *cast_expr(void)
 {
     struct token *ahead = lookahead();
@@ -278,12 +283,13 @@ static struct expr *cast_expr(void)
     return unary_expr();
 }
 
-/// multiplicative-expression:
-///   cast-expression
-///   multiplicative-expression '*' cast-expression
-///   multiplicative-expression '/' cast-expression
-///   multiplicative-expression '%' cast-expression
-///
+/*
+ multiplicative-expression:
+   cast-expression
+   multiplicative-expression '*' cast-expression
+   multiplicative-expression '/' cast-expression
+   multiplicative-expression '%' cast-expression
+*/
 static struct expr *multiple_expr(void)
 {
     struct expr *mulp1;
@@ -299,11 +305,12 @@ static struct expr *multiple_expr(void)
     return mulp1;
 }
 
-/// additive-expression:
-///   multiplicative-expression
-///   additive-expression '+' multiplicative-expression
-///   additive-expression '-' multiplicative-expression
-///
+/*
+ additive-expression:
+   multiplicative-expression
+   additive-expression '+' multiplicative-expression
+   additive-expression '-' multiplicative-expression
+*/
 static struct expr *additive_expr(void)
 {
     struct expr *add1;
@@ -319,11 +326,12 @@ static struct expr *additive_expr(void)
     return add1;
 }
 
-/// shift-expression:
-///   additive-expression
-///   shift-expression '<<' additive-expression
-///   shift-expression '>>' additive-expression
-///
+/*
+ shift-expression:
+   additive-expression
+   shift-expression '<<' additive-expression
+   shift-expression '>>' additive-expression
+*/
 static struct expr *shift_expr(void)
 {
     struct expr *shift1;
@@ -339,13 +347,14 @@ static struct expr *shift_expr(void)
     return shift1;
 }
 
-/// relational-expression:
-///   shift-expression
-///   relational-expression '<' shift-expression
-///   relational-expression '>' shift-expression
-///   relational-expression '<=' shift-expression
-///   relational-expression '>=' shift-expression
-///
+/*
+ relational-expression:
+   shift-expression
+   relational-expression '<' shift-expression
+   relational-expression '>' shift-expression
+   relational-expression '<=' shift-expression
+   relational-expression '>=' shift-expression
+*/
 static struct expr *relation_expr(void)
 {
     struct expr *rel;
@@ -361,11 +370,12 @@ static struct expr *relation_expr(void)
     return rel;
 }
 
-/// equality-expression:
-///   relational-expression
-///   equality-expression '==' relational-expression
-///   equality-expression '!=' relational-expression
-///
+/*
+ equality-expression:
+   relational-expression
+   equality-expression '==' relational-expression
+   equality-expression '!=' relational-expression
+*/
 static struct expr *equality_expr(void)
 {
     struct expr *equl;
@@ -381,10 +391,11 @@ static struct expr *equality_expr(void)
     return equl;
 }
 
-/// AND-expression:
-///   equality-expression
-///   AND-expression '&' equality-expression
-///
+/*
+ AND-expression:
+   equality-expression
+   AND-expression '&' equality-expression
+*/
 static struct expr *and_expr(void)
 {
     struct expr *and1;
@@ -399,10 +410,11 @@ static struct expr *and_expr(void)
     return and1;
 }
 
-/// exclusive-OR-expression:
-///   AND-expression
-///   exclusive-OR-expression '^' AND-expression
-///
+/*
+ exclusive-OR-expression:
+   AND-expression
+   exclusive-OR-expression '^' AND-expression
+*/
 static struct expr *exclusive_or(void)
 {
     struct expr *eor;
@@ -417,10 +429,11 @@ static struct expr *exclusive_or(void)
     return eor;
 }
 
-/// inclusive-OR-expression:
-///   exclusive-OR-expression
-///   inclusive-OR-expression '|' exclusive-OR-expression
-///
+/*
+ inclusive-OR-expression:
+   exclusive-OR-expression
+   inclusive-OR-expression '|' exclusive-OR-expression
+*/
 static struct expr *inclusive_or(void)
 {
     struct expr *ior;
@@ -435,10 +448,11 @@ static struct expr *inclusive_or(void)
     return ior;
 }
 
-/// logical-AND-expression:
-///   inclusive-OR-expression
-///   logical-AND-expression '&&' inclusive-OR-expression
-///
+/*
+ logical-AND-expression:
+   inclusive-OR-expression
+   logical-AND-expression '&&' inclusive-OR-expression
+*/
 static struct expr *logic_and(void)
 {
     struct expr *and1;
@@ -453,10 +467,11 @@ static struct expr *logic_and(void)
     return and1;
 }
 
-/// logical-OR-expression:
-///   logical-AND-expression
-///   logical-OR-expression '||' logical-AND-expression
-///
+/*
+ logical-OR-expression:
+   logical-AND-expression
+   logical-OR-expression '||' logical-AND-expression
+*/
 static struct expr *logic_or(void)
 {
     struct expr *or1;
@@ -484,10 +499,11 @@ static struct expr *cond_expr1(struct expr *cond)
     return actions.cond(cond, then, els, src);
 }
 
-/// conditional-expression:
-///   logical-OR-expression
-///   logical-OR-expression '?' expression ':' conditional-expression
-///
+/*
+ conditional-expression:
+   logical-OR-expression
+   logical-OR-expression '?' expression ':' conditional-expression
+*/
 static struct expr *cond_expr(void)
 {
     struct expr *or1 = logic_or();
@@ -496,13 +512,14 @@ static struct expr *cond_expr(void)
     return or1;
 }
 
-/// assignment-expression:
-///   conditional-expression
-///   unary-expression assignment-operator assignment-expression
-///
-/// assignment-operator:
-///   '=' '*=' '/=' '%=' '+=' '-=' '<<=' '>>=' '&=' '^=' '|='
-///
+/*
+ assignment-expression:
+   conditional-expression
+   unary-expression assignment-operator assignment-expression
+
+ assignment-operator:
+   '=' '*=' '/=' '%=' '+=' '-=' '<<=' '>>=' '&=' '^=' '|='
+*/
 static struct expr *assign_expr(void)
 {
     struct expr *or1 = logic_or();
@@ -517,10 +534,11 @@ static struct expr *assign_expr(void)
     return or1;
 }
 
-/// expression:
-///   assignment-expression
-///   expression ',' assignment-expression
-///
+/*
+ expression:
+   assignment-expression
+   expression ',' assignment-expression
+*/
 static struct expr *expression(void)
 {
     struct expr *assign1;
@@ -569,9 +587,10 @@ static struct expr *switch_expr(void)
  *=================================================================*/
 static void statement(int cnt, int brk, struct swtch *swtch);
 
-/// expression-statement:
-///   expression[opt] ';'
-///
+/*
+ expression-statement:
+   expression[opt] ';'
+*/
 static void expr_stmt(void)
 {    
     if (token->id == ';') {
@@ -586,16 +605,17 @@ static void expr_stmt(void)
     expect(';');
 }
 
-/**
- * The entire **if** statement forms its own block scope, as do the
- * substatements even if they are not compound statements. This serves
- * to restrict the scope of objects and types that might be created
- * as a side effect of using compound literal or type names.
- */
-/// selection-statement:
-///   'if' '(' expression ')' statement
-///   'if' '(' expression ')' statement 'else' statement
-///
+/*
+ The entire **if** statement forms its own block scope, as do the
+ substatements even if they are not compound statements. This serves
+ to restrict the scope of objects and types that might be created
+ as a side effect of using compound literal or type names.
+*/
+/*
+ selection-statement:
+   'if' '(' expression ')' statement
+   'if' '(' expression ')' statement 'else' statement
+*/
 static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
     struct expr *cond;
@@ -628,13 +648,14 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     exit_scope();
 }
 
-/**
- * Each iterative statement(do/while/for) forms its own block scope,
- * as do the substatements even if they are not compound statements.
- */
-/// iteration-statement:
-///   'while' '(' expression ')' statement
-///
+/*
+ Each iterative statement(do/while/for) forms its own block scope,
+ as do the substatements even if they are not compound statements.
+*/
+/*
+ iteration-statement:
+   'while' '(' expression ')' statement
+*/
 static void while_stmt(int lab, struct swtch *swtch)
 {
     struct expr *cond;
@@ -656,9 +677,10 @@ static void while_stmt(int lab, struct swtch *swtch)
     exit_scope();
 }
 
-/// iteration-statement:
-///   'do' statement 'while' '(' expression ')' ';'
-///
+/*
+ iteration-statement:
+   'do' statement 'while' '(' expression ')' ';'
+*/
 static void do_while_stmt(int lab, struct swtch *swtch)
 {
     struct expr *cond;
@@ -680,10 +702,11 @@ static void do_while_stmt(int lab, struct swtch *swtch)
     exit_scope();
 }
 
-/// iteration-statement:
-///   'for' '(' expression[opt] ';' expression[opt] ';' expression[opt] ')' statement
-///   'for' '(' declaration expression[opt] ';' expression[opt] ')' statement
-///
+/*
+ iteration-statement:
+   'for' '(' expression[opt] ';' expression[opt] ';' expression[opt] ')' statement
+   'for' '(' declaration expression[opt] ';' expression[opt] ')' statement
+*/
 static void for_stmt(int lab, struct swtch *swtch)
 {
     struct expr *init = NULL;
@@ -731,18 +754,19 @@ static void for_stmt(int lab, struct swtch *swtch)
     exit_scope();
 }
 
-/**
- * Switch Statements Notes:
- *
- * 1. The control expression is subject to the usual unary convresion.
- *
- * 2. When comparing the control expression and the **case** expressions,
- *    the **case** expressions are converted to the type of the control
- *    expression (after the usual unary conversion).
- */
-/// selection-statement:
-///   'switch' '(' expression ')' statement
-///
+/*
+ Switch Statements Notes:
+
+ 1. The control expression is subject to the usual unary convresion.
+
+ 2. When comparing the control expression and the **case** expressions,
+    the **case** expressions are converted to the type of the control
+    expression (after the usual unary conversion).
+*/
+/*
+ selection-statement:
+   'switch' '(' expression ')' statement
+*/
 static void switch_stmt(int lab, int cnt)
 {
     struct expr *expr;
@@ -774,9 +798,10 @@ static void switch_stmt(int lab, int cnt)
     actions.label(lab+1);
 }
 
-/// labeled-statement:
-///   'case' constant-expression ':' statement
-///
+/*
+ labeled-statement:
+   'case' constant-expression ':' statement
+*/
 static void case_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
     struct source src = source;
@@ -807,9 +832,10 @@ static void case_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     statement(cnt, brk, swtch);
 }
 
-/// labeled-statement:
-///   'default' ':' statement
-///
+/*
+ labeled-statement:
+   'default' ':' statement
+*/
 static void default_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
     struct source src = source;
@@ -841,9 +867,10 @@ static void default_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     statement(cnt, brk, swtch);
 }
 
-/// labled-statement:
-///   identifier ':' statement
-///
+/*
+ labled-statement:
+   identifier ':' statement 
+*/
 static void label_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 {
     struct source src = source;
@@ -875,9 +902,10 @@ static void label_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     statement(cnt, brk, swtch);
 }
 
-/// jump-statement:
-///   'goto' identifier ';'
-///
+/*
+ jump-statement:
+   'goto' identifier ';'
+*/
 static void goto_stmt(int lab)
 {
     struct source src = source;
@@ -904,9 +932,10 @@ static void goto_stmt(int lab)
     }
 }
 
-/// jump-statement:
-///   'break' ';'
-///
+/*
+ jump-statement:
+   'break' ';'
+*/
 static void break_stmt(int brk)
 {
     struct source src = source;
@@ -920,9 +949,10 @@ static void break_stmt(int brk)
         error_at(src, "'break' statement not in loop or switch statement");
 }
 
-/// jump-statement:
-///   'continue' ';'
-///
+/*
+ jump-statement:
+   'continue' ';'
+*/
 static void continue_stmt(int cnt)
 {
     struct source src = source;
@@ -936,9 +966,10 @@ static void continue_stmt(int cnt)
         error_at(src, "'continue' statement not in loop statement");
 }
 
-/// jump-statement:
-///   'return' expression[opt] ';'
-///
+/*
+ jump-statement:
+   'return' expression[opt] ';'
+*/
 static void return_stmt(void)
 {
     struct source src = source;
@@ -955,14 +986,15 @@ static void return_stmt(void)
     actions.ret(e, isnull, src);
 }
 
-/// statement:
-///   labeled-statement
-///   compound-statement
-///   expression-statement
-///   selection-statement
-///   iteration-statement
-///   jump-statement
-///
+/*
+ statement:
+   labeled-statement
+   compound-statement
+   expression-statement
+   selection-statement
+   iteration-statement
+   jump-statement
+*/
 static void statement(int cnt, int brk, struct swtch *swtch)
 {
     switch (token->id) {
@@ -1027,17 +1059,18 @@ static void statement(int cnt, int brk, struct swtch *swtch)
     }
 }
 
-/// compound-statement:
-///   '{' block-item-list[opt] '}'
-///
-/// block-item-list:
-///   block-item
-///   block-item-list block-item
-///
-/// block-item:
-///   declaration
-///   statement
-///
+/*
+ compound-statement:
+   '{' block-item-list[opt] '}'
+
+ block-item-list:
+   block-item
+   block-item-list block-item
+
+ block-item:
+   declaration
+   statement
+*/
 void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch)
 {
     expect('{');
@@ -1153,13 +1186,14 @@ static void parse_initializer_list(struct desig *desig, struct init **pinit)
     match('}', skip_to_brace);
 }
 
-/// initializer:
-///       assignment-expression
-///       '{' initializer-list '}'
-///       '{' initializer-list ',' '}'
-/// [GNU] '{' '}'
-///
-static struct expr *initializer(struct type *ty)
+/*
+ initializer:
+       assignment-expression
+       '{' initializer-list '}'
+       '{' initializer-list ',' '}'
+ [GNU] '{' '}'
+*/
+struct expr *initializer(struct type *ty)
 {
     if (token->id == '{')
         return initializer_list(ty);
@@ -1167,21 +1201,22 @@ static struct expr *initializer(struct type *ty)
         return assign_expr();
 }
 
-/// initializer-list:
-///   designation[opt] initializer
-///   initializer-list ',' designation[opt] initializer
-///
-/// designation:
-///   designator-list '='
-///
-/// designator-list:
-///   designator
-///   designator-list designator
-///
-/// designator:
-///   '[' constant-expression ']'
-///   '.' identifier
-///
+/*
+ initializer-list:
+   designation[opt] initializer
+   initializer-list ',' designation[opt] initializer
+
+ designation:
+   designator-list '='
+
+ designator-list:
+   designator
+   designator-list designator
+
+ designator:
+   '[' constant-expression ']'
+   '.' identifier
+*/
 static struct expr *initializer_list(struct type *ty)
 {
     if (ty) {
@@ -1239,47 +1274,48 @@ static void exit_params(struct symbol *params[])
     exit_scope();
 }
 
-/// declaration-specifier:
-///   storage-class-specifier declaration-specifiers[opt]
-///   type-specifier          declaration-specifiers[opt]
-///   type-qualifier          declaration-specifiers[opt]
-///   function-specifier      declaration-specifiers[opt]
-///
-/// storage-class-specifier:
-///   'auto'
-///   'extern'
-///   'register'
-///   'static'
-///   'typedef'
-///
-/// type-qualifier:
-///   'const'
-///   'volatile'
-///   'restrict'
-///
-/// function-specifier:
-///   'inline'
-///
-/// type-specifier:
-///   'void'
-///   'char'
-///   'short'
-///   'int'
-///   'long'
-///   'float'
-///   'double'
-///   'signed'
-///   'unsigned'
-///   '_Bool'
-///   '_Complex'
-///   '_Imaginary'
-///   enum-specifier
-///   struct-or-union-specifier
-///   typedef-name
-///
-/// typedef-name:
-///   identifier
-///
+/*
+ declaration-specifier:
+   storage-class-specifier declaration-specifiers[opt]
+   type-specifier          declaration-specifiers[opt]
+   type-qualifier          declaration-specifiers[opt]
+   function-specifier      declaration-specifiers[opt]
+
+ storage-class-specifier:
+   'auto'
+   'extern'
+   'register'
+   'static'
+   'typedef'
+
+ type-qualifier:
+   'const'
+   'volatile'
+   'restrict'
+
+ function-specifier:
+   'inline'
+
+ type-specifier:
+   'void'
+   'char'
+   'short'
+   'int'
+   'long'
+   'float'
+   'double'
+   'signed'
+   'unsigned'
+   '_Bool'
+   '_Complex'
+   '_Imaginary'
+   enum-specifier
+   struct-or-union-specifier
+   typedef-name
+
+ typedef-name:
+   identifier
+*/
 static struct type *specifiers(int *sclass, int *fspec)
 {
     int cls, sign, size, type;
@@ -1509,18 +1545,19 @@ static struct type *specifiers(int *sclass, int *fspec)
     return basety;
 }
 
-/// parameter-type-list:
-///   parameter-list
-///   parameter-list ',' '...'
-///
-/// parameter-list:
-///   parameter-declaration
-///   parameter-list parameter-declaration
-///
-/// parameter-declaration:
-///   declaration-specifier declarator
-///   declaration-specifier abstract-declarator[opt]
-///
+/*
+ parameter-type-list:
+   parameter-list
+   parameter-list ',' '...'
+
+ parameter-list:
+   parameter-declaration
+   parameter-list parameter-declaration
+
+ parameter-declaration:
+   declaration-specifier declarator
+   declaration-specifier abstract-declarator[opt]
+*/
 static struct symbol **prototype(struct type *ftype)
 {
     struct list *list = NULL;
@@ -1537,9 +1574,9 @@ static struct symbol **prototype(struct type *ftype)
         param_declarator(&ty, &id);
         attach_type(&ty, basety);
 
-        sym = actions.paramdecl(id ? TOK_ID_STR(id) : NULL,
-                                ty, sclass, fspec, NULL,
-                                id ? id->src : src);
+        sym = paramdecl(id ? TOK_ID_STR(id) : NULL,
+                        ty, sclass, fspec,
+                        id ? id->src : src);
         list = list_append(list, sym);
 
         if (token->id != ',')
@@ -1557,10 +1594,11 @@ static struct symbol **prototype(struct type *ftype)
     return actions.prototype(ftype, ltoa(&list, FUNC));
 }
 
-/// identifier-list:
-///   identifier
-///   identifier-list ',' identifier
-///
+/*
+ identifier-list:
+   identifier
+   identifier-list ',' identifier
+*/
 static struct symbol **oldstyle(struct type *ftype)
 {
     struct list *params = NULL;
@@ -1570,7 +1608,7 @@ static struct symbol **oldstyle(struct type *ftype)
             const char *name = TOK_ID_STR(token);
             struct symbol *sym;
 
-            sym = actions.paramdecl(name, inttype, 0, 0, NULL, token->src);
+            sym = paramdecl(name, inttype, 0, 0, token->src);
             sym->defined = false;
             params = list_append(params, sym);
         }
@@ -1748,14 +1786,15 @@ static struct type *func_or_array(int abstract, struct symbol ***params)
     return ty;
 }
 
-/// pointer:
-///   '*' type-qualifier-list[opt]
-///   '*' type-qualifier-list[opt] pointer
-///
-/// type-qualifier-list:
-///   type-qualifier
-///   type-qualifier-list type-qualifier
-///
+/*
+ pointer:
+   '*' type-qualifier-list[opt]
+   '*' type-qualifier-list[opt] pointer
+
+ type-qualifier-list:
+   type-qualifier
+   type-qualifier-list type-qualifier
+*/
 static struct type *ptr_decl(void)
 {
     struct type *ret = NULL;
@@ -1809,16 +1848,17 @@ static struct type *ptr_decl(void)
     return ret;
 }
 
-/// abstract-declarator:
-///   pointer
-///   pointer[opt] direct-abstract-declarator
-///
-/// direct-abstract-declarator:
-///   '(' abstract-declarator ')'
-///   direct-abstract-declarator[opt] '[' assignment-expression[opt] ']'
-///   direct-abstract-declarator[opt] '[' '*' ']'
-///   direct-abstract-declarator[opt] '(' parameter-type-list[opt] ')'
-///
+/*
+ abstract-declarator:
+   pointer
+   pointer[opt] direct-abstract-declarator
+
+ direct-abstract-declarator:
+   '(' abstract-declarator ')'
+   direct-abstract-declarator[opt] '[' assignment-expression[opt] ']'
+   direct-abstract-declarator[opt] '[' '*' ']'
+   direct-abstract-declarator[opt] '(' parameter-type-list[opt] ')'
+*/
 static void abstract_declarator(struct type **ty)
 {
     assert(ty);
@@ -1857,19 +1897,20 @@ static void abstract_declarator(struct type **ty)
     }
 }
 
-/// declarator:
-///   pointer[opt] direct-declarator
-///
-/// direct-declarator:
-///   identifier
-///   '(' declarator ')'
-///   direct-declarator '[' type-qualifier-list[opt] assignment-expression[opt] ']'
-///   direct-declarator '[' 'static' type-qualifier-list[opt] assignment-expression ']'
-///   direct-declarator '[' type-qualifier-list 'static' assignment-expression ']'
-///   direct-declarator '[' type-qualifier-list[opt] '*' ']'
-///   direct-declarator '(' parameter-type-list ')'
-///   direct-declarator '(' identifier-list[opt] ')'
-///
+/*
+ declarator:
+   pointer[opt] direct-declarator
+
+ direct-declarator:
+   identifier
+   '(' declarator ')'
+   direct-declarator '[' type-qualifier-list[opt] assignment-expression[opt] ']'
+   direct-declarator '[' 'static' type-qualifier-list[opt] assignment-expression ']'
+   direct-declarator '[' type-qualifier-list 'static' assignment-expression ']'
+   direct-declarator '[' type-qualifier-list[opt] '*' ']'
+   direct-declarator '(' parameter-type-list ')'
+   direct-declarator '(' identifier-list[opt] ')'
+*/
 static void declarator(struct type **ty, struct token **id, struct symbol ***params)
 {
     assert(ty && id);
@@ -1948,17 +1989,18 @@ static void param_declarator(struct type **ty, struct token **id)
     }
 }
 
-/// enumerator-list:
-///   enumerator
-///   enumerator-list ',' enumerator
-///
-/// enumerator:
-///   enumeration-constant
-///   enumeration-constant '=' constant-expression
-///
-/// enumeration-constant:
-///   identifier
-///
+/*
+ enumerator-list:
+   enumerator
+   enumerator-list ',' enumerator
+
+ enumerator:
+   enumeration-constant
+   enumeration-constant '=' constant-expression
+
+ enumeration-constant:
+   identifier
+*/
 static void enum_body(struct symbol *sym)
 {
     int val = 0;
@@ -1993,26 +2035,27 @@ static void bitfield(struct field *field)
     field->isbit = true;
 }
 
-/// struct-declaration-list:
-///   struct-declaration
-///   struct-declaration-list struct-declaration
-///
-/// struct-declaration:
-///       specifier-qualifier-list struct-declarator-list ';'
-/// [C11] specifier-qualifier-list struct-declarator-list[opt] ';'
-///
-/// specifier-qualifier-list:
-///   type-specifier specifier-qualifier-list[opt]
-///   type-qualifier specifier-qualifier-list[opt]
-///
-/// struct-declarator-list:
-///   struct-declarator
-///   struct-declarator-list ',' struct-declarator
-///
-/// struct-declarator:
-///   declarator
-///   declarator[opt] ':' constant-expression
-///
+/*
+ struct-declaration-list:
+   struct-declaration
+   struct-declaration-list struct-declaration
+
+ struct-declaration:
+       specifier-qualifier-list struct-declarator-list ';'
+ [C11] specifier-qualifier-list struct-declarator-list[opt] ';'
+
+ specifier-qualifier-list:
+   type-specifier specifier-qualifier-list[opt]
+   type-qualifier specifier-qualifier-list[opt]
+
+ struct-declarator-list:
+   struct-declarator
+   struct-declarator-list ',' struct-declarator
+
+ struct-declarator:
+   declarator
+   declarator[opt] ':' constant-expression
+*/
 static void struct_body(struct symbol *sym)
 {    
     while (first_decl(token)) {
@@ -2059,20 +2102,21 @@ static void struct_body(struct symbol *sym)
     actions.recorddecl(sym);
 }
 
-/// enum-specifier:
-///   'enum' identifier[opt] '{' enumerator-list '}'
-///   'enum' identifier[opt] '{' enumerator-list ',' '}'
-///   'enum' identifier
-///
-/// struct-or-union-specifier:
-///       struct-or-union identifier[opt] '{' struct-declaration-list '}'
-///       struct-or-union identifier
-/// [GNU] struct-or-union identifier[opt] '{' '}'
-///
-/// struct-or-union:
-///   'struct'
-///   'union'
-///
+/*
+ enum-specifier:
+   'enum' identifier[opt] '{' enumerator-list '}'
+   'enum' identifier[opt] '{' enumerator-list ',' '}'
+   'enum' identifier
+
+ struct-or-union-specifier:
+       struct-or-union identifier[opt] '{' struct-declaration-list '}'
+       struct-or-union identifier
+ [GNU] struct-or-union identifier[opt] '{' '}'
+
+ struct-or-union:
+   'struct'
+   'union'
+*/
 static struct type *tag_decl(void)
 {
     int t = token->id;
@@ -2098,8 +2142,10 @@ static struct type *tag_decl(void)
         if (sym) {
             if (is_current_scope(sym) && TYPE_OP(sym->type) != t)
                 error_at(src,
-                         "use of '%s' with tag type that does not match previous declaration '%s' at %s:%u:%u",
-                         id2s(t), type2s(sym->type), sym->src.file, sym->src.line, sym->src.column);
+                         "use of '%s' with tag type that does not match "
+                         "previous declaration '%s' at %s:%u:%u",
+                         id2s(t), type2s(sym->type),
+                         sym->src.file, sym->src.line, sym->src.column);
         } else {
             sym = tag_symbol(t, id, src);
         }
@@ -2111,25 +2157,26 @@ static struct type *tag_decl(void)
     return sym->type;
 }
 
-/// external-declaration:
-///   declaration
-///   function-definition
-///
-/// declaration:
-///   declaration-specifier init-declarator-list[opt] ';'
-///
-/// function-definition:
-///   declaration-specifier declarator declaration-list[opt] compound-statement
-///
-/// init-declarator-list:
-///   init-declarator
-///   init-declarator-list ',' init-declarator
-///
-/// init-declarator:
-///   declarator
-///   declarator '=' initializer
-///
-static void decls(decl_fp dcl)
+/*
+ external-declaration:
+   declaration
+   function-definition
+
+ declaration:
+   declaration-specifier init-declarator-list[opt] ';'
+
+ function-definition:
+   declaration-specifier declarator declaration-list[opt] compound-statement
+
+ init-declarator-list:
+   init-declarator
+   init-declarator-list ',' init-declarator
+
+ init-declarator:
+   declarator
+   declarator '=' initializer
+*/
+static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct source))
 {
     struct type *basety;
     int sclass, fspec;
@@ -2162,7 +2209,7 @@ static void decls(decl_fp dcl)
                     ///   declaration-list declaration
                     ///
                     while (first_decl(token))
-                        decls(actions.paramdecl);
+                        decls(paramdecl);
                 }
 
                 funcdef(id ? TOK_ID_STR(id) : NULL,
@@ -2177,17 +2224,10 @@ static void decls(decl_fp dcl)
         for (;;) {
             if (id) {
                 const char *name = TOK_ID_STR(id);
-                struct expr *init = NULL;
-
-                if (token->id == '=') {
-                    gettok();
-                    init = initializer(ty);
-                }
-
                 if (sclass == TYPEDEF)
-                    actions.typedefdecl(name, ty, fspec, level, init, id->src);
+                    typedefdecl(name, ty, fspec, level, id->src);
                 else
-                    dcl(name, ty, sclass, fspec, init, id->src);
+                    dcl(name, ty, sclass, fspec, id->src);
             }
 
             if (token->id != ',')
@@ -2212,12 +2252,13 @@ static void decls(decl_fp dcl)
 static void declaration(void)
 {
     assert(cscope >= LOCAL);
-    decls(actions.localdecl);
+    decls(localdecl);
 }
 
-/// type-name:
-///   specifier-qualifier-list abstract-declarator[opt]
-///
+/*
+ type-name:
+   specifier-qualifier-list abstract-declarator[opt]
+*/
 static struct type *typename(void)
 {
     struct type *basety;
@@ -2232,16 +2273,17 @@ static struct type *typename(void)
     return ty;
 }
 
-/// translation-unit:
-///   external-declaration
-///   translation-unit external-declaration
-///
+/*
+ translation-unit:
+   external-declaration
+   translation-unit external-declaration
+*/
 void translation_unit(void)
 {
     for (gettok(); token->id != EOI;) {
         if (first_decl(token)) {
             assert(cscope == GLOBAL);
-            decls(actions.globaldecl);
+            decls(globaldecl);
             deallocate(FUNC);
         } else {
             if (token->id == ';') {
