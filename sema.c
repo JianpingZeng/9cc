@@ -204,7 +204,7 @@ struct symbol *mktmp(const char *name, struct type *ty, int sclass)
 {
     struct symbol *sym;
 
-    sym = localdecl(name, ty, sclass, 0, source);
+    sym = actions.localdecl(name, ty, sclass, 0, NULL, source);
     sym->temporary = true;
 
     return sym;
@@ -2752,7 +2752,7 @@ static void mkfuncdecl(struct symbol *sym, struct type *ty,
 static struct symbol *mklocal(const char *name, struct type *ty,
                               int sclass, struct source src)
 {
-    return localdecl(name, ty, sclass, 0, src);
+    return actions.localdecl(name, ty, sclass, 0, NULL, src);
 }
 
 static void predefined_ids(void)
@@ -3000,8 +3000,8 @@ static void do_tagdecl(struct type *ty, int sclass, int fspec, struct source src
         error_at(src, ERR_INLINE);
 }
 
-struct symbol *globaldecl(const char *id, struct type *ty, int sclass, int fspec,
-                          struct source src)
+static struct symbol *do_globaldecl(const char *id, struct type *ty, int sclass, int fspec,
+                                    struct expr *init, struct source src)
 {
     struct symbol *sym;
 
@@ -3041,10 +3041,7 @@ struct symbol *globaldecl(const char *id, struct type *ty, int sclass, int fspec
                  sym->name, sym->src.file, sym->src.line, sym->src.column);
     }
 
-    if (token->id == '=') {
-        struct expr *init;
-        gettok();
-        init = initializer(ty);
+    if (init) {
         init = ensure_init(GLOBAL, sclass, sym, init, src);
         if (sym->defined)
             error_at(src, ERR_REDEFINITION,
@@ -3069,8 +3066,8 @@ struct symbol *globaldecl(const char *id, struct type *ty, int sclass, int fspec
     return sym;
 }
 
-struct symbol *localdecl(const char *id, struct type *ty, int sclass, int fspec,
-                         struct source src)
+static struct symbol *do_localdecl(const char *id, struct type *ty, int sclass, int fspec,
+                                   struct expr *init, struct source src)
 {
     struct symbol *sym;
 
@@ -3135,10 +3132,7 @@ struct symbol *localdecl(const char *id, struct type *ty, int sclass, int fspec,
         p->sclass = EXTERN;
     }
 
-    if (token->id == '=') {
-        struct expr *init;
-        gettok();
-        init = initializer(ty);
+    if (init) {
         init = ensure_init(LOCAL, sclass, sym, init, src);
         // gen assign expr
         if (init && sclass != STATIC)
@@ -3163,8 +3157,8 @@ struct symbol *localdecl(const char *id, struct type *ty, int sclass, int fspec,
 }
 
 // id maybe NULL
-struct symbol *paramdecl(const char *id, struct type *ty, int sclass, int fspec,
-                         struct source src)
+static struct symbol *do_paramdecl(const char *id, struct type *ty, int sclass, int fspec,
+                                   struct expr *init, struct source src)
 {
     struct symbol *sym;
     bool nonnull = false;
@@ -3222,17 +3216,11 @@ struct symbol *paramdecl(const char *id, struct type *ty, int sclass, int fspec,
     sym->nonnull = nonnull;
     sym->defined = true;
 
-    if (token->id == '=') {
-        error("C does not support default arguments");
-        gettok();
-        initializer(NULL);
-    }
-
     return sym;
 }
 
 // level: GLOBAL/PARAM/LOCAL
-struct symbol *typedefdecl(const char *id, struct type *ty, int fspec, int level,
+static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level,
                            struct source src)
 {
     int sclass = TYPEDEF;
@@ -3261,15 +3249,7 @@ struct symbol *typedefdecl(const char *id, struct type *ty, int fspec, int level
     sym->sclass = sclass;
     sym->defined = true;
 
-    if (token->id == '=') {
-        error("illegal initializer (only variable can be initialized)");
-        gettok();
-        initializer(NULL);
-    }
-
     events(deftype)(sym);
-
-    return sym;
 }
 
 // id maybe NULL
@@ -3323,7 +3303,7 @@ void funcdef(const char *id, struct type *ty, int sclass, int fspec,
         for (i = 0; params[i]; i++) {
             struct symbol *p = params[i];
             if (!p->defined)
-                params[i] = paramdecl(p->name, inttype, 0, 0, p->src);
+                params[i] = actions.paramdecl(p->name, inttype, 0, 0, NULL, p->src);
             // check void
             if (isvoid(p->type)) {
                 error_at(p->src, "argument may not have 'void' type");
@@ -3524,6 +3504,10 @@ struct actions actions = {
     INIT(enumdecl),
     INIT(recorddecl),
     INIT(tagdecl),
+    INIT(globaldecl),
+    INIT(localdecl),
+    INIT(paramdecl),
+    INIT(typedefdecl),
 
     INIT(array_index),
     INIT(prototype),

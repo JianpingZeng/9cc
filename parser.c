@@ -1193,7 +1193,7 @@ static void parse_initializer_list(struct desig *desig, struct init **pinit)
        '{' initializer-list ',' '}'
  [GNU] '{' '}'
 */
-struct expr *initializer(struct type *ty)
+static struct expr *initializer(struct type *ty)
 {
     if (token->id == '{')
         return initializer_list(ty);
@@ -1574,9 +1574,9 @@ static struct symbol **prototype(struct type *ftype)
         param_declarator(&ty, &id);
         attach_type(&ty, basety);
 
-        sym = paramdecl(id ? TOK_ID_STR(id) : NULL,
-                        ty, sclass, fspec,
-                        id ? id->src : src);
+        sym = actions.paramdecl(id ? TOK_ID_STR(id) : NULL,
+                                ty, sclass, fspec, NULL,
+                                id ? id->src : src);
         list = list_append(list, sym);
 
         if (token->id != ',')
@@ -1608,7 +1608,7 @@ static struct symbol **oldstyle(struct type *ftype)
             const char *name = TOK_ID_STR(token);
             struct symbol *sym;
 
-            sym = paramdecl(name, inttype, 0, 0, token->src);
+            sym = actions.paramdecl(name, inttype, 0, 0, NULL, token->src);
             sym->defined = false;
             params = list_append(params, sym);
         }
@@ -2175,7 +2175,7 @@ static struct type *tag_decl(void)
    declarator
    declarator '=' initializer
 */
-static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, struct source))
+static void decls(decl_fp dcl)
 {
     struct type *basety;
     int sclass, fspec;
@@ -2208,7 +2208,7 @@ static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, s
                     ///   declaration-list declaration
                     ///
                     while (first_decl(token))
-                        decls(paramdecl);
+                        decls(actions.paramdecl);
                 }
 
                 funcdef(id ? TOK_ID_STR(id) : NULL,
@@ -2223,10 +2223,27 @@ static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, s
         for (;;) {
             if (id) {
                 const char *name = TOK_ID_STR(id);
+                struct expr *init = NULL;
+
+                if (token->id == '=') {
+                    if (level == PARAM) {
+                        error("C does not support default arguments");
+                        gettok();
+                        initializer(NULL);
+                    } else if (sclass == TYPEDEF) {
+                        error("illegal initializer (only variable can be initialized)");
+                        gettok();
+                        initializer(NULL);
+                    } else {
+                        gettok();
+                        init = initializer(ty);
+                    }
+                }
+
                 if (sclass == TYPEDEF)
-                    typedefdecl(name, ty, fspec, level, id->src);
+                    actions.typedefdecl(name, ty, fspec, level, id->src);
                 else
-                    dcl(name, ty, sclass, fspec, id->src);
+                    dcl(name, ty, sclass, fspec, init, id->src);
             }
 
             if (token->id != ',')
@@ -2251,7 +2268,7 @@ static void decls(struct symbol *(*dcl)(const char *, struct type *, int, int, s
 static void declaration(void)
 {
     assert(cscope >= LOCAL);
-    decls(localdecl);
+    decls(actions.localdecl);
 }
 
 /*
@@ -2282,7 +2299,7 @@ void translation_unit(void)
     for (gettok(); token->id != EOI;) {
         if (first_decl(token)) {
             assert(cscope == GLOBAL);
-            decls(globaldecl);
+            decls(actions.globaldecl);
             deallocate(FUNC);
         } else {
             if (token->id == ';') {
