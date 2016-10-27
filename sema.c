@@ -3223,14 +3223,13 @@ static struct symbol *do_paramdecl(const char *id, struct type *ty, int sclass, 
 static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level,
                            struct source src)
 {
-    int sclass = TYPEDEF;
     struct symbol *sym;
 
     assert(id);
 
     if (level == PARAM)
         error_at(src, "invalid storage class specifier '%s' "
-                 "in function declarator", id2s(sclass));
+                 "in function declarator", id2s(TYPEDEF));
 
     if (fspec == INLINE)
         error_at(src, ERR_INLINE);
@@ -3246,7 +3245,7 @@ static void do_typedefdecl(const char *id, struct type *ty, int fspec, int level
     sym = install(id, &identifiers, cscope, cscope < LOCAL ? PERM : FUNC);
     sym->type = ty;
     sym->src = src;
-    sym->sclass = sclass;
+    sym->sclass = TYPEDEF;
     sym->defined = true;
 
     events(deftype)(sym);
