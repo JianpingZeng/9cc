@@ -2202,11 +2202,7 @@ static void decls(decl_fp dcl)
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
-        if (isstruct(basety) || isunion(basety)) {
-            // anonymous record (can't be referenced)
-            if (TYPE_TSYM(basety)->anonymous)
-                warning("declaration does not declare anything");
-        }
+        actions.tagdecl(basety, sclass, fspec, source);
     } else {
         error("invalid token '%s' in declaration", tok2s(token));
     }

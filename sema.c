@@ -2928,6 +2928,25 @@ static void do_recorddecl(struct symbol *sym)
     events(deftype)(sym);
 }
 
+static void do_tagdecl(struct type *ty, int sclass, int fspec, struct source src)
+{
+    if (isstruct(ty) || isunion(ty)) {
+        // anonymous record (can't be referenced)
+        if (TYPE_TSYM(ty)->anonymous)
+            warning_at(src, "declaration does not declare anything");
+    }
+    if (sclass)
+        warning_at(src, "'%s' ignored on this declaration", id2s(sclass));
+    if (isconst(ty))
+        warning_at(src, "'%s' ignored on this declaration", id2s(CONST));
+    if (isvolatile(ty))
+        warning_at(src, "'%s' ignored on this declaration", id2s(VOLATILE));
+    if (isrestrict(ty))
+        warning_at(src, "'%s' ignored on this declaration", id2s(RESTRICT));
+    if (fspec == INLINE)
+        error_at(src, ERR_INLINE);
+}
+
 static struct symbol *do_globaldecl(const char *id, struct type *ty,
                                     int sclass, int fspec,
                                     struct expr *init,
@@ -3447,6 +3466,7 @@ struct actions actions = {
     // decl
     INIT(enumdecl),
     INIT(recorddecl),
+    INIT(tagdecl),
     INIT(globaldecl),
     INIT(localdecl),
     INIT(paramdecl),

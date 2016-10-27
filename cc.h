@@ -348,6 +348,7 @@ struct actions {
     /// decl
     void (*enumdecl) (struct symbol *, struct symbol *ids[]);
     void (*recorddecl) (struct symbol *);
+    void (*tagdecl) (struct type *, int sclass, int fspec, struct source);
     decl_fp globaldecl, localdecl, paramdecl, typedefdecl;
     
     void (*array_index) (struct type *aty, struct expr *assign, struct source);
