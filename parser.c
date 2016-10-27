@@ -2027,14 +2027,6 @@ static void enum_body(struct symbol *sym)
     actions.enumdecl(sym, ltoa(&list, PERM));
 }
 
-static void bitfield(struct field *field)
-{
-    field->src = source;
-    expect(':');
-    field->bitsize = intexpr();
-    field->isbit = true;
-}
-
 /*
  struct-declaration-list:
    struct-declaration
@@ -2064,7 +2056,10 @@ static void struct_body(struct symbol *sym)
         while (1) {
             struct field *field = alloc_field();
             if (token->id == ':') {
-                bitfield(field);
+                field->src = source;
+                gettok();
+                field->bitsize = intexpr();
+                field->isbit = true;
                 field->type = basety;
                 // link
                 actions.direct_field(sym, field);
@@ -2081,8 +2076,11 @@ static void struct_body(struct symbol *sym)
                 struct token *id = NULL;
                 declarator(&ty, &id, NULL);
                 attach_type(&ty, basety);
-                if (token->id == ':')
-                    bitfield(field);
+                if (token->id == ':') {
+                    gettok();
+                    field->bitsize = intexpr();
+                    field->isbit = true;
+                }
                 field->type = ty;
                 if (id) {
                     field->name = TOK_ID_STR(id);
