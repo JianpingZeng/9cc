@@ -2066,6 +2066,8 @@ static void struct_body(struct symbol *sym)
             if (token->id == ':') {
                 bitfield(field);
                 field->type = basety;
+                // link
+                actions.direct_field(sym, field);
             } else if (token->id == ';' &&
                        isrecord(basety) &&
                        TYPE_TSYM(basety)->anonymous) {
@@ -2085,13 +2087,10 @@ static void struct_body(struct symbol *sym)
                 if (id) {
                     field->name = TOK_ID_STR(id);
                     field->src = id->src;
-                } else {
-                    field->src = source;
+                    // link
+                    actions.direct_field(sym, field);
                 }
             }
-
-            // link
-            actions.direct_field(sym, field);
 
             if (token->id != ',')
                 break;
