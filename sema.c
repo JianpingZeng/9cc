@@ -1042,9 +1042,11 @@ static struct expr *assign(struct symbol *sym, struct expr *r)
 // initialization assignment (return the ref)
 static struct expr *iassign(struct symbol *sym, struct expr *r)
 {
-    struct type *ty = sym->type;
+    struct type *ty;
     struct expr *ref, *l;
 
+    assert(r);
+    ty = sym->type;
     ref = l = mkref(sym);
 
     if (!isarray(ty))
@@ -2048,20 +2050,70 @@ static void do_gen(struct expr *expr)
  *                        Sema-Initialization                      *
  *=================================================================*/
 
-static void ensure_init(int level, int sclass, struct symbol *sym,
-                        struct expr *init, struct source src)
+static void init_string(struct type *ty, struct expr *init, struct source src)
+{
+    int len1 = TYPE_LEN(ty);
+    int len2 = TYPE_LEN(init->type);
+    if (len1 > 0) {
+        if (len1 < len2 - 1)
+            warning_at(src, "initializer-string for char array is too long");
+    } else if (isincomplete(ty)) {
+        TYPE_LEN(ty) = len2;
+        set_typesize(ty);
+    }
+}
+
+// dty - arith/pointer/struct/union/array
+static struct expr *ensure_init_compound(struct symbol *sym,
+                                         struct expr *init, struct source src)
+{
+    struct type *dty = sym->type;
+    struct type *sty = init->type;
+    
+    // TODO: 
+    return init;
+}
+
+// dty - arith/pointer/struct/union/array
+static struct expr *ensure_init_assign(struct symbol *sym,
+                                       struct expr *init, struct source src)
+{
+    struct type *dty = sym->type;
+    struct type *sty = init->type;
+    
+    if (isarray(dty)) {
+        if (isstring(dty) && issliteral(init)) {
+            init_string(dty, init, src);
+        } else {
+            error_at(src, "array initializer must be an initializer list"
+                     " or string literal");
+            return NULL;
+        }
+    } else {
+        init = assignconv(dty, init);
+        if (init == NULL)
+            error_at(src, "initializing '%s' with an expression of"
+                     " incompatible type '%s'",
+                     type2s(dty), type2s(sty));
+    }
+
+    return init;
+}
+
+static struct expr *ensure_init(int level, int sclass, struct symbol *sym,
+                                struct expr *init, struct source src)
 {
     struct type *ty = sym->type;
     
     if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
         error_at(src, "'%s' cannot have an initializer", TYPE_NAME(ty));
-        return;
+        return NULL;
     }
 
     if (istag(ty) && isincomplete(ty)) {
         error_at(src, "variable '%s' has incomplete type '%s'",
                  sym->name, type2s(ty));
-        return;
+        return NULL;
     }
 
     if (sclass == EXTERN) {
@@ -2069,13 +2121,14 @@ static void ensure_init(int level, int sclass, struct symbol *sym,
             warning_at(src, "'extern' variable has an initializer");
         } else {
             error_at(src, "'extern' variable cannot have an initializer");
-            return;
+            return NULL;
         }
     }
 
-    // TODO: finish incomplete type
-    
-    sym->u.init = init;
+    if (OPKIND(init->op) == COMPOUND)
+        return ensure_init_compound(sym, init, src);
+    else
+        return ensure_init_assign(sym, init, src);
 }
 
 static bool ensure_designator(struct desig *d)
@@ -2096,8 +2149,6 @@ static bool ensure_designator(struct desig *d)
     }
     return true;
 }
-
-/// actions-init
 
 static void offset_init1(struct desig *desig, struct expr *expr, struct init **ilist)
 {
@@ -2139,6 +2190,27 @@ static void offset_init1(struct desig *desig, struct expr *expr, struct init **i
     *ilist = init;
 }
 
+static void scalar_init(struct desig *desig, struct expr *expr, struct init **ilist)
+{
+    // TODO: 
+}
+
+static void union_init(struct desig *desig, struct expr *expr, struct init **ilist)
+{
+    // TODO: 
+}
+
+static void struct_init(struct desig *desig, struct expr *expr, struct init **ilist)
+{
+    // TODO: 
+}
+
+static void string_init(struct desig *desig, struct expr *expr, struct init **ilist)
+{
+    // TODO: override check
+    offset_init1(desig, expr, ilist);
+}
+
 static void offset_init(struct desig *desig, struct expr *expr, struct init **ilist)
 {
     assert(!isarray(desig->type));
@@ -2152,22 +2224,14 @@ static void offset_init(struct desig *desig, struct expr *expr, struct init **il
     }
 
     //possible: scalar/struct/union
-
-    // assignment conversion
-    struct expr *n = assignconv(ty, expr);
-    if (n == NULL) {
-        error_at(desig->src, ERR_INCOMPATIBLE_CONV,
-                 type2s(expr->type), type2s(ty));
-        return;
-    }
-
-    offset_init1(desig, n, ilist);
-}
-
-static void string_init(struct desig *desig, struct expr *expr, struct init **ilist)
-{
-    // TODO: override check
-    offset_init1(desig, expr, ilist);
+    if (isscalar(ty))
+        scalar_init(desig, expr, ilist);
+    else if (isstruct(ty))
+        struct_init(desig, expr, ilist);
+    else if (isunion(ty))
+        union_init(desig, expr, ilist);
+    else
+        CC_UNAVAILABLE();
 }
 
 static struct desig *next_designator1(struct desig *desig, bool initial)
@@ -2259,12 +2323,14 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
     CC_UNAVAILABLE();
 }
 
+/// actions-init
+
 static void do_element_init(struct desig **pdesig, struct expr *expr, struct init **pinit)
 {
     struct desig *desig = *pdesig;
     if (!desig || !expr)
         return;
-
+    
     if (isstruct(desig->type) || isunion(desig->type)) {
         struct field *first = TYPE_FIELDS(desig->type);
         if (first == NULL) {
@@ -2683,19 +2749,6 @@ static void mkfuncdecl(struct symbol *sym, struct type *ty,
     sym->sclass = sclass;
 }
 
-static void init_string(struct type *ty, struct expr *node)
-{
-    int len1 = TYPE_LEN(ty);
-    int len2 = TYPE_LEN(node->type);
-    if (len1 > 0) {
-        if (len1 < len2 - 1)
-            warning("initializer-string for char array is too long");
-    } else if (isincomplete(ty)) {
-        TYPE_LEN(ty) = len2;
-        set_typesize(ty);
-    }
-}
-
 static struct symbol *mklocal(const char *name, struct type *ty,
                               int sclass, struct source src)
 {
@@ -2716,7 +2769,7 @@ static void predefined_ids(void)
     struct type *type = array_type(qual(CONST, chartype));
     // initializer
     struct expr *literal = cnsts(func.name);
-    init_string(type, literal);
+    init_string(type, literal, source);
 
     struct symbol *sym = mklocal("__func__", type, STATIC, source);
     sym->predefine = true;
@@ -2991,11 +3044,12 @@ static struct symbol *do_globaldecl(const char *id, struct type *ty,
     }
 
     if (init) {
-        ensure_init(GLOBAL, sclass, sym, init, src);
+        init = ensure_init(GLOBAL, sclass, sym, init, src);
         if (sym->defined)
             error_at(src, ERR_REDEFINITION,
                      sym->name,
                      sym->src.file, sym->src.line, sym->src.column);
+        sym->u.init = init;
         sym->defined = true;
     }
 
@@ -3083,9 +3137,9 @@ static struct symbol *do_localdecl(const char *id, struct type *ty,
     }
 
     if (init) {
-        ensure_init(LOCAL, sclass, sym, init, src);
+        init = ensure_init(LOCAL, sclass, sym, init, src);
         // gen assign expr
-        if (sym->u.init && sclass != STATIC)
+        if (init && sclass != STATIC)
             iassign(sym, init);
     }
 
