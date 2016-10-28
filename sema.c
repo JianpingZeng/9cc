@@ -200,13 +200,32 @@ static void field_not_found_error(struct source src, struct type *ty, const char
         error_at(src, "'%s' has no field named '%s'", type2s(ty), name);
 }
 
-struct symbol *mktmp(const char *name, struct type *ty, int sclass)
+static struct symbol *mklocal(const char *name, struct type *ty, int sclass)
 {
     struct symbol *sym;
 
-    sym = actions.localdecl(name, ty, sclass, 0, NULL, source);
-    sym->temporary = true;
+    assert(cscope >= LOCAL);
 
+    // `name' must be unique
+    sym = install(name, &identifiers, cscope, FUNC);
+    sym->type = ty;
+    sym->sclass = sclass;
+    sym->defined = true;
+
+    if (sclass == STATIC)
+        events(defsvar)(sym);
+    else
+        events(deflvar)(sym);
+
+    return sym;
+}
+
+static struct symbol *mktmp(const char *name, struct type *ty, int sclass)
+{
+    struct symbol *sym;
+
+    sym = mklocal(name, ty, sclass);
+    sym->temporary = true;
     return sym;
 }
 
@@ -2749,12 +2768,6 @@ static void mkfuncdecl(struct symbol *sym, struct type *ty,
     sym->sclass = sclass;
 }
 
-static struct symbol *mklocal(const char *name, struct type *ty,
-                              int sclass, struct source src)
-{
-    return actions.localdecl(name, ty, sclass, 0, NULL, src);
-}
-
 static void predefined_ids(void)
 {
     /**
@@ -2771,7 +2784,7 @@ static void predefined_ids(void)
     struct expr *literal = cnsts(func.name);
     init_string(type, literal, source);
 
-    struct symbol *sym = mklocal("__func__", type, STATIC, source);
+    struct symbol *sym = mklocal("__func__", type, STATIC);
     sym->predefine = true;
     sym->u.init = literal;
 }
