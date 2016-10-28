@@ -438,6 +438,7 @@ struct interface {
 ///
 
 #define use(sym)  ((sym)->refs++)
+#define unuse(sym)  ((sym)->refs--)
 #define isindirect(field)  ((field)->indir)
 #define direct(field)  (isindirect(field) ? (field)->indir : (field))
 #define has_static_extent(sym)  ((sym)->sclass == EXTERN || \
