@@ -6,10 +6,18 @@
 #include "cc.h"
 
 #define MAX_STRUCT_PARAM_SIZE  16
+
+typedef struct expr TREE_TYPE;
+#define LEFT_KID(p)  ((p)->kids[0])
+#define RIGHT_KID(p)  ((p)->kids[1])
+#define TREE_OP(p)  ((p)->op)
+#define TREE_STATE(p)   ((p)->x.state)
 %}
 
-%%
+%term CNSTI4 = 1024
 
+%%
+stmt:   CNSTI4  ""
 %%
 
 static void init(int argc, char *argv[])

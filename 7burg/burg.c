@@ -61,7 +61,7 @@ struct entry {
 static char *prefix = "burg";
 static int trace;
 static struct entry *tokens[509]; // prime
-static struct nonterm *startn;
+static struct nonterm *start;
 static unsigned int rules_cnt;     // count of rules
 static struct rule *rules;         // all rules
 static unsigned int nts_cnt;       // count of nonterms
@@ -258,8 +258,8 @@ struct nonterm *nonterm(char *name)
     nt->num = ++nts_cnt;
 
     // start symbol
-    if (!startn)
-        startn = nt;
+    if (nt->num == 1)
+        start = nt;
 
     // link to all nonterms
     *pnts = nt;
@@ -653,12 +653,12 @@ static void emit_case(struct term *t)
         break;
     case 1:
         print("%2assert(l);\n");
-        print("%2%?_label1(l);\n");
+        print("%2%?_label(l);\n");
         break;
     case 2:
         print("%2assert(l && r);\n");
-        print("%2%?_label1(l);\n");
-        print("%2%?_label1(r);\n");
+        print("%2%?_label(l);\n");
+        print("%2%?_label(r);\n");
         break;
     default:
         assert(0 && "illegal nkids");
@@ -721,10 +721,10 @@ static void emit_case(struct term *t)
     print("%2break;\n");
 }
 
-static void emit_func_label1(void)
+static void emit_func_label(void)
 {
-    // static void ?_label1(TREE_TYPE *t)
-    print("static void %?_label1(%s *t)\n", kTREE_TYPE);
+    // static void ?_label(TREE_TYPE *t)
+    print("static void %?_label(%s *t)\n", kTREE_TYPE);
     print("{\n");
 
     // int c;
@@ -754,28 +754,11 @@ static void emit_func_label1(void)
     for (struct term *t = ts; t; t = t->all)
         emit_case(t);
     // default:
-    //   assert(0 && "unknown op in label1");
+    //   assert(0 && "unknown op in label");
     print("%1default:\n");
-    print("%2assert(0 && \"%s\");\n", "unknown op in label1");
+    print("%2assert(0 && \"%s\");\n", "unknown op in label");
     // end switch
     print("%1}\n");
-    print("}\n\n");
-}
-
-static void emit_func_label(void)
-{
-    emit_func_label1();
-    // static STATE_TYPE ?_label(TREE_TYPE *p)
-    print("// label a tree recursively\n");
-    print("// return zero if the tree can't be reduced to 'start' (aka '%K')\n",
-          startn);
-    print("static %s %?_label(%s *p)\n", kSTATE_TYPE, kTREE_TYPE);
-    print("{\n");
-    // ?_label1(p);
-    print("%1%?_label1(p);\n");
-    // return ((struct ?_state *)TREE_STATE(p))->rule.xx ? (STATE_TYPE)TREE_STATE(p) : 0;
-    print("%1return ((struct %?_state *)%s(p))->rule.%K ? (%s)%s(p) : 0;\n",
-          kTREE_STATE, startn, kSTATE_TYPE, kTREE_STATE);
     print("}\n\n");
 }
 
@@ -926,16 +909,17 @@ int main(int argc, char *argv[])
         fatal("parser failed with code: %d", ret);
 
     // check start symbol
-    if (startn && startn->rules) {
-        emit_prologue();
-        emit_includes();
-        emit_macros();
-        emit_types();
-        emit_variables();
-        emit_forwards();
-        emit_functions();
-        emit_epilogue();
-    }
+    if (!start || !start->rules)
+        fatal("missing 'start' rule");
+
+    emit_prologue();
+    emit_includes();
+    emit_macros();
+    emit_types();
+    emit_variables();
+    emit_forwards();
+    emit_functions();
+    emit_epilogue();
 
     // emit text left
     if (!feof(stdin)) {

@@ -175,6 +175,7 @@ struct expr {
             struct field *field; // for BFIELD
         } u;
         union value value;
+        void *state;
     } x;
 };
 
