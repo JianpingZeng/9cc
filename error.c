@@ -45,9 +45,11 @@ static void cc_print_lead(int level, struct source src, const char *fmt, va_list
         assert(0);
     }
 
-    fprint(stderr, CLEAR "%S:" RESET " %s " CLEAR, src, lead);
+    fprint(stderr, CLEAR "%S:" RESET " %s ", src, lead);
+    fprint(stderr, CLEAR);
     vfprint(stderr, fmt, ap);
-    fprint(stderr, RESET "\n");
+    fprint(stderr, RESET);
+    fprint(stderr, "\n");
 }
 
 void warning_at(struct source src, const char *fmt, ...)

@@ -94,9 +94,13 @@ static struct expr *reduce1(struct expr *p, int warn)
 }
 
 // remove expressions with no side-effect.
+// expr may be NULL.
 struct expr *reduce(struct expr *expr)
 {
-    return reduce1(expr, 0);
+    if (expr)
+        return reduce1(expr, 0);
+    else
+        return NULL;
 }
 
 // get the address of an expr returning struct/union

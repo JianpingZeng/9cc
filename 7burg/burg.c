@@ -173,6 +173,19 @@ static void fatal(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
+char *xstrdup(const char *s)
+{
+    return strcpy(malloc(strlen(s) + 1), s);
+}
+
+char *xstrndup(const char *s, size_t n)
+{
+    char *d = malloc(n + 1);
+    strncpy(d, s, n);
+    d[n] = '\0';
+    return d;
+}
+
 // 'i' can be represented in 'n' bits.
 static int bits(int i)
 {
@@ -190,7 +203,7 @@ static char *format(char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, ARRAY_SIZE(buf), fmt, ap);
     va_end(ap);
-    return strdup(buf);
+    return xstrdup(buf);
 }
 
 // FNV-1a
@@ -414,7 +427,7 @@ static void emit_var_nts(void)
             // if _NOT_ found
             // static short ?_nts_j[] = { buf, 0 };
             print("static short %?_nts_%d[] = { %s0 };\n", j, buf);
-            str[j] = strdup(buf);
+            str[j] = xstrdup(buf);
         }
         nts[i] = j;
     }
@@ -516,7 +529,7 @@ static void emit_func_nts_kids(void)
         for (j = 0; str[j] && strcmp(str[j], buf); j++)
             /* continue next */ ;
         if (str[j] == NULL)
-            str[j] = strdup(buf);
+            str[j] = xstrdup(buf);
         nts[i] = j;
     }
     for (int j = 0; str[j] && j < rules_cnt; j++) {

@@ -1,6 +1,9 @@
 #ifndef BURG_H
 #define BURG_H
 
+// for size_t
+#include <stddef.h>
+
 enum { kTERM, kNONTERM };
 struct tok {
     char *name;
@@ -43,6 +46,8 @@ struct rule {
 
 extern int yyparse(void);
 extern void yyerror(const char *msg, ...);
+extern char *xstrdup(const char *);
+extern char *xstrndup(const char *, size_t);
 extern struct nonterm *nonterm(char *name);
 extern struct term *term(char *name, int val);
 extern struct pattern *pattern(char *name, struct pattern *l, struct pattern *r);

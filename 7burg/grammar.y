@@ -113,7 +113,7 @@ static int yylex(void)
             p = bp + strlen(bp);
         while (p > bp && isspace(p[-1]))
             p--;
-        yylval.sval = strndup(bp, p - bp);
+        yylval.sval = xstrndup(bp, p - bp);
         bp = p;
         cost--;
         return COST;            // always return COST
@@ -147,7 +147,7 @@ static int yylex(void)
             char *src = bp - 1;
             while (isalpha(*bp) || isdigit(*bp) || *bp == '_')
                 bp++;
-            yylval.sval = strndup(src, bp - src);
+            yylval.sval = xstrndup(src, bp - src);
             return ID;
         } else if (c == '"') {
             char *src = bp;
@@ -155,7 +155,7 @@ static int yylex(void)
                 bp++;
             if (*bp != '"')
                 fprintf(stderr, "%d: unclosed string literal\n", lineno);
-            yylval.sval = strndup(src, bp++ - src);
+            yylval.sval = xstrndup(src, bp++ - src);
             cost++;             // expect cost
             return TEMPLATE;
         }
