@@ -12,6 +12,8 @@ typedef struct expr TREE_TYPE;
 #define RIGHT_KID(p)  ((p)->kids[1])
 #define TREE_OP(p)  ((p)->op)
 #define TREE_STATE(p)   ((p)->x.state)
+
+#define burg(name)  burg_##name
 %}
 
 %term CNSTI4 = 1024
@@ -58,4 +60,16 @@ struct interface *IR = &(struct interface) {
     .finalize = finalize,
     .defvar = defvar,
     .defun = defun,
+    // xface
+    .x = {
+        .label = burg(label),
+        .rule = burg(rule),
+        .kids = burg(nts_kids),
+        .rule_names = burg(rule_names),
+        .nt_names = burg(nt_names),
+        .templates = burg(rule_templates),
+        .nts = burg(nts),
+        .max_kids = burg(max_nts),
+        .nts_count = burg(max_nt),
+    },
 };

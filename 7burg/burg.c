@@ -455,7 +455,7 @@ static void emit_var_nt_names(void)
 static void emit_var_rule_names(void)
 {
     print("// rule strings\n");
-    print("static char *%?_rule_names[] = {\n%10,\n");
+    print("static const char *%?_rule_names[] = {\n%10,\n");
     for (struct rule *r = rules; r; r = r->all)
         print("%1/* %d */ \"%R\",\n", r->num, r);
     print("};\n\n");
