@@ -175,6 +175,8 @@ struct expr {
             struct field *field; // for BFIELD
         } u;
         union value value;
+    } s;
+    struct {
         void *state;
     } x;
 };
@@ -481,7 +483,7 @@ extern struct desig *copy_desig(struct desig *desig);
 #define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
 #define isfliteral(n)  (OPID((n)->op) == CNST+F)
 #define ispliteral(n)  (OPID((n)->op) == CNST+P)
-#define issliteral(n)  ((OPID((n)->op) == ADDRG+P) && (n)->x.sym->literal)
+#define issliteral(n)  ((OPID((n)->op) == ADDRG+P) && (n)->s.sym->literal)
 #define iszinit(n)     ((n)->op == 0)
 
 // tree.c

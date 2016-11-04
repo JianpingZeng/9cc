@@ -288,23 +288,23 @@ static void print_expr1(struct expr *node, int level)
     putf(GREEN("'%s' "), type2s(node->type));
 
     if (issliteral(node)) {
-        putf(CYAN_BOLD("%s"), node->x.sym->u.c.cnst->name);
+        putf(CYAN_BOLD("%s"), node->s.sym->u.c.cnst->name);
     } else if (isiliteral(node)) {
         if (TYPE_OP(node->type) == INT)
-            putf(RED("%ld"), node->x.value.i);
+            putf(RED("%ld"), node->s.value.i);
         else
-            putf(RED("%lu"), node->x.value.u);
+            putf(RED("%lu"), node->s.value.u);
     } else if (isfliteral(node)) {
         if (TYPE_KIND(node->type) == FLOAT)
-            putf(RED("%f"), node->x.value.f);
+            putf(RED("%f"), node->s.value.f);
         else if (TYPE_KIND(node->type) == DOUBLE)
-            putf(RED("%f"), node->x.value.d);
+            putf(RED("%f"), node->s.value.d);
         else
-            putf(RED("%Lf"), node->x.value.ld);
+            putf(RED("%Lf"), node->s.value.ld);
     } else if (ispliteral(node)) {
-        putf(RED("%p"), node->x.value.p);
-    } else if (node->x.sym) {
-        putf(CYAN_BOLD("%s"), node->x.sym->name);
+        putf(RED("%p"), node->s.value.p);
+    } else if (node->s.sym) {
+        putf(CYAN_BOLD("%s"), node->s.sym->name);
     }
 
     putf("\n");
@@ -315,10 +315,10 @@ static void print_expr1(struct expr *node, int level)
 
     switch (OPKIND(node->op)) {
     case COMPOUND:
-        print_init1(node->x.u.ilist, level + 1);
+        print_init1(node->s.u.ilist, level + 1);
         break;
     case CALL:
-        print_args1(node->x.u.args, level + 1);
+        print_args1(node->s.u.args, level + 1);
         break;
     }
 }

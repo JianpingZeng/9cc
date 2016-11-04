@@ -22,7 +22,7 @@
 
 #define foldcnst1i(oper, vf, ty, l)             \
     if (OPKIND(l->op) == CNST) {                \
-        l->x.value.vf = oper l->x.value.vf;     \
+        l->s.value.vf = oper l->s.value.vf;     \
         l->op = mkop(CNST, ty);                 \
         l->type = ty;                           \
         return l;                               \
@@ -32,13 +32,13 @@
     if (OPKIND(l->op) == CNST) {                        \
         switch (TYPE_KIND(ty)) {                        \
         case FLOAT:                                     \
-            l->x.value.vf1 = oper l->x.value.vf1;       \
+            l->s.value.vf1 = oper l->s.value.vf1;       \
             break;                                      \
         case DOUBLE:                                    \
-            l->x.value.vf2 = oper l->x.value.vf2;       \
+            l->s.value.vf2 = oper l->s.value.vf2;       \
             break;                                      \
         case LONG+DOUBLE:                               \
-            l->x.value.vf3 = oper l->x.value.vf3;       \
+            l->s.value.vf3 = oper l->s.value.vf3;       \
             break;                                      \
         default:                                        \
             CC_UNAVAILABLE();                           \
@@ -50,7 +50,7 @@
 
 #define foldcnst2i(oper, vf, ty, l, r)                          \
     if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {       \
-        l->x.value.vf = l->x.value.vf oper r->x.value.vf;       \
+        l->s.value.vf = l->s.value.vf oper r->s.value.vf;       \
         l->op = mkop(CNST, ty);                                 \
         l->type = ty;                                           \
         return l;                                               \
@@ -60,13 +60,13 @@
     if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {               \
         switch (TYPE_KIND(ty)) {                                        \
         case FLOAT:                                                     \
-            l->x.value.vf1 = l->x.value.vf1 oper r->x.value.vf1;        \
+            l->s.value.vf1 = l->s.value.vf1 oper r->s.value.vf1;        \
             break;                                                      \
         case DOUBLE:                                                    \
-            l->x.value.vf2 = l->x.value.vf2 oper r->x.value.vf2;        \
+            l->s.value.vf2 = l->s.value.vf2 oper r->s.value.vf2;        \
             break;                                                      \
         case LONG+DOUBLE:                                               \
-            l->x.value.vf3 = l->x.value.vf3 oper r->x.value.vf3;        \
+            l->s.value.vf3 = l->s.value.vf3 oper r->s.value.vf3;        \
             break;                                                      \
         default:                                                        \
             CC_UNAVAILABLE();                                           \
@@ -99,18 +99,18 @@
         case I:                                                         \
         case U:                                                         \
         case P:                                                         \
-            a->x.value.vfi = a->x.value.vfi oper b->x.value.vfi;        \
+            a->s.value.vfi = a->s.value.vfi oper b->s.value.vfi;        \
             break;                                                      \
         case F:                                                         \
             switch (TYPE_KIND(ty)) {                                    \
             case FLOAT:                                                 \
-                a->x.value.vf1 = a->x.value.vf1 oper b->x.value.vf1;    \
+                a->s.value.vf1 = a->s.value.vf1 oper b->s.value.vf1;    \
                 break;                                                  \
             case DOUBLE:                                                \
-                a->x.value.vf2 = a->x.value.vf2 oper b->x.value.vf2;    \
+                a->s.value.vf2 = a->s.value.vf2 oper b->s.value.vf2;    \
                 break;                                                  \
             case LONG+DOUBLE:                                           \
-                a->x.value.vf3 = a->x.value.vf3 oper b->x.value.vf3;    \
+                a->s.value.vf3 = a->s.value.vf3 oper b->s.value.vf3;    \
                 break;                                                  \
             }                                                           \
             break;                                                      \
@@ -121,20 +121,20 @@
     if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {       \
         int i;                                                  \
         if (OPTYPE(l->op) == P && OPTYPE(r->op) == P)           \
-            i = l->x.value.p oper r->x.value.p;                 \
+            i = l->s.value.p oper r->s.value.p;                 \
         else if (OPTYPE(l->op) == P)                            \
-            i = l->x.value.p oper r->x.value.u;                 \
+            i = l->s.value.p oper r->s.value.u;                 \
         else if (OPTYPE(r->op) == P)                            \
-            i = l->x.value.u oper r->x.value.p;                 \
+            i = l->s.value.u oper r->s.value.p;                 \
         else                                                    \
-            i = l->x.value.u oper r->x.value.u;                 \
+            i = l->s.value.u oper r->s.value.u;                 \
         return cnsti(i, ty);                                    \
     } else if (OPKIND(l->op) == CNST) {                         \
         bool b;                                                 \
         if (OPTYPE(l->op) == P)                                 \
-            b = l->x.value.p;                                   \
+            b = l->s.value.p;                                   \
         else                                                    \
-            b = l->x.value.u;                                   \
+            b = l->s.value.u;                                   \
         if (opid == AND && !b)                                  \
             return cnsti(0, ty);                                \
         else if (opid == OR && b)                               \
@@ -145,20 +145,20 @@ static void cvii(struct type *ty, struct expr *l)
 {
     if (TYPE_SIZE(l->type) > TYPE_SIZE(ty))
         // narrow
-        l->x.value.u &= TYPE_LIMITS(ty).max.u;
+        l->s.value.u &= TYPE_LIMITS(ty).max.u;
 }
 
 static void cvif(struct type *ty, struct expr *l)
 {
     switch (TYPE_KIND(ty)) {
     case FLOAT:
-        l->x.value.f = l->x.value.i;
+        l->s.value.f = l->s.value.i;
         break;
     case DOUBLE:
-        l->x.value.d = l->x.value.i;
+        l->s.value.d = l->s.value.i;
         break;
     case LONG+DOUBLE:
-        l->x.value.ld = l->x.value.i;
+        l->s.value.ld = l->s.value.i;
         break;
     default:
         CC_UNAVAILABLE();
@@ -169,13 +169,13 @@ static void cvuf(struct type *ty, struct expr *l)
 {
     switch (TYPE_KIND(ty)) {
     case FLOAT:
-        l->x.value.f = l->x.value.u;
+        l->s.value.f = l->s.value.u;
         break;
     case DOUBLE:
-        l->x.value.d = l->x.value.u;
+        l->s.value.d = l->s.value.u;
         break;
     case LONG+DOUBLE:
-        l->x.value.ld = l->x.value.u;
+        l->s.value.ld = l->s.value.u;
         break;
     default:
         CC_UNAVAILABLE();
@@ -186,13 +186,13 @@ static void cvfi(struct type *ty, struct expr *l)
 {
     switch (TYPE_KIND(l->type)) {
     case FLOAT:
-        l->x.value.u = l->x.value.f;
+        l->s.value.u = l->s.value.f;
         break;
     case DOUBLE:
-        l->x.value.u = l->x.value.d;
+        l->s.value.u = l->s.value.d;
         break;
     case LONG+DOUBLE:
-        l->x.value.u = l->x.value.ld;
+        l->s.value.u = l->s.value.ld;
         break;
     default:
         CC_UNAVAILABLE();
@@ -207,21 +207,21 @@ static void cvff(struct type *ty, struct expr *l)
     switch (skind) {
     case FLOAT:
         if (dkind == DOUBLE)
-            l->x.value.d = l->x.value.f;
+            l->s.value.d = l->s.value.f;
         else if (dkind == LONG+DOUBLE)
-            l->x.value.ld = l->x.value.f;
+            l->s.value.ld = l->s.value.f;
         break;
     case DOUBLE:
         if (dkind == FLOAT)
-            l->x.value.f = l->x.value.d;
+            l->s.value.f = l->s.value.d;
         else if (dkind == LONG+DOUBLE)
-            l->x.value.ld = l->x.value.d;
+            l->s.value.ld = l->s.value.d;
         break;
     case LONG+DOUBLE:
         if (dkind == FLOAT)
-            l->x.value.f = l->x.value.ld;
+            l->s.value.f = l->s.value.ld;
         else if (dkind == DOUBLE)
-            l->x.value.d = l->x.value.ld;
+            l->s.value.d = l->s.value.ld;
         break;
     default:
         CC_UNAVAILABLE();

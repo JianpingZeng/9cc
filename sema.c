@@ -485,8 +485,8 @@ static bool isnullptr(struct expr *n)
     struct type *ty = n->type;
 
     return OPKIND(n->op) == CNST &&
-        ((isint(ty) && n->x.value.i == 0) ||
-         (isptrto(ty, VOID) && n->x.value.p == NULL));
+        ((isint(ty) && n->s.value.i == 0) ||
+         (isptrto(ty, VOID) && n->s.value.p == NULL));
 }
 
 /// conversion
@@ -496,7 +496,7 @@ static struct expr *rettype(struct type *ty, struct expr *n)
     struct expr *ret;
 
     ret = ast_expr(n->op, ty, n->kids[0], n->kids[1]);
-    ret->x = n->x;
+    ret->s = n->s;
 
     return ret;
 }
@@ -915,7 +915,7 @@ static struct expr *mkiliteral(struct type *ty, long i)
     struct expr *expr;
 
     expr = ast_expr(mkop(CNST, ty), ty, NULL, NULL);
-    expr->x.value.i = i;
+    expr->s.value.i = i;
     return expr;
 }
 
@@ -927,7 +927,7 @@ static struct expr *arith_literal(struct token *t,
 
     ty = cnst(t);
     expr = ast_expr(mkop(CNST, ty), ty, NULL, NULL);
-    expr->x.value = token->u.lit.v;
+    expr->s.value = token->u.lit.v;
     return expr;
 }
 
@@ -1004,7 +1004,7 @@ struct expr *mkref(struct symbol *sym)
     else
         ret = ast_expr(mkop(op, voidptype), ptr_type(ty), NULL, NULL);
 
-    ret->x.sym = sym;
+    ret->s.sym = sym;
     use(sym);
 
     if (isptr(ret->type))
@@ -1085,9 +1085,9 @@ static struct expr *condexpr(struct type *ty,
     if (OPKIND(cond->op) == CNST) {
         bool b;
         if (OPTYPE(cond->op) == P)
-            b = cond->x.value.p;
+            b = cond->s.value.p;
         else
-            b = cond->x.value.u;
+            b = cond->s.value.u;
         if (b)
             return explicit_cast(ty, then);
         else
@@ -1103,7 +1103,7 @@ static struct expr *condexpr(struct type *ty,
     }
 
     ret = ast_expr(COND, ty, cond, ast_expr(RIGHT, ty, then, els));
-    ret->x.sym = sym;
+    ret->s.sym = sym;
     return ret;
 }
 
@@ -1137,7 +1137,7 @@ static struct expr *member(struct expr *addr, const char *name, struct source sr
     if (direct(field)->isbit) {
         // bit field
         addr = ast_expr(BFIELD, fty, rvalue(addr), NULL);
-        addr->x.u.field = field;
+        addr->s.u.field = field;
     } else if (!isarray(fty)) {
         addr = rvalue(addr);
     }
@@ -1412,7 +1412,7 @@ static struct expr *do_assign(int t, struct expr *l, struct expr *r, struct sour
     }
 
     if (isbfield(l)) {
-        int n = 8 * TYPE_SIZE(l->x.u.field->type) - l->x.u.field->bitsize;
+        int n = 8 * TYPE_SIZE(l->s.u.field->type) - l->s.u.field->bitsize;
         r = actions.bop(RSHIFT,
                         actions.bop(LSHIFT, r, cnsti(n, inttype), src),
                         cnsti(n, inttype),
@@ -1664,7 +1664,7 @@ static struct expr *do_address(struct expr *expr, struct source src)
     else
         expr = lvalue(expr);
 
-    if (isaddrop(expr->op) && expr->x.sym->sclass == REGISTER) {
+    if (isaddrop(expr->op) && expr->s.sym->sclass == REGISTER) {
         error_at(src, "address of register variable requested");
         return NULL;
     }
@@ -1791,11 +1791,11 @@ static struct expr *do_funcall(struct expr *expr, struct expr **args, struct sou
         sym = mktmp(gen_tmpname(), rty, 0);
         ref = mkref(sym);
         call = ast_expr(CALL, rty, expr, addrof(ref));
-        call->x.u.args = args;
+        call->s.u.args = args;
         ret = ast_expr(RIGHT, rty, call, ref);
     } else {
         ret = ast_expr(CALL, rty, expr, NULL);
-        ret->x.u.args = args;
+        ret->s.u.args = args;
     }
 
     events(funcall)(fty, args);
@@ -1921,7 +1921,7 @@ static struct expr *do_id(struct token *tok)
 
 static struct expr *do_paren(struct expr *expr, struct source src)
 {
-    expr->x.paren = true;
+    expr->s.paren = true;
     return expr;
 }
 
@@ -1942,7 +1942,7 @@ static long do_intexpr(struct expr *cond, struct type *ty, struct source src)
         error_at(src, "expression is not a compile-time constant");
         return 0;
     }
-    return cond->x.value.i;
+    return cond->s.value.i;
 }
 
 // if/do/while/for
@@ -1951,7 +1951,7 @@ static struct expr *do_bool_expr(struct expr *node, struct source src)
     if (!node)
         return NULL;
     // warning for assignment expression
-    if (OPKIND(node->op) == ASGN && !node->x.paren)
+    if (OPKIND(node->op) == ASGN && !node->s.paren)
         warning_at(src, "using the result of an assignment "
                     "as a condition without parentheses");
 
@@ -2484,7 +2484,7 @@ static struct expr *do_initializer_list(struct type *ty, struct init *ilist)
     struct expr *n = ast_expr(COMPOUND, ty, NULL, NULL);
     // TODO: incomplete array type
     // TODO: merge bitfields
-    n->x.u.ilist = ilist;
+    n->s.u.ilist = ilist;
     return n;
 }
 
@@ -2857,8 +2857,8 @@ static void do_array_index(struct type *atype, struct expr *assign, struct sourc
         TYPE_A_ASSIGN(atype) = assign;
         // try evaluate the length
         if (isiliteral(assign)) {
-            TYPE_LEN(atype) = assign->x.value.i;
-            if (assign->x.value.i < 0)
+            TYPE_LEN(atype) = assign->s.value.i;
+            if (assign->s.value.i < 0)
                 error_at(src, "array has negative size");
         } else {
             error_at(src, "expect constant expression");
