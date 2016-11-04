@@ -72,3 +72,4 @@ gmon.out
 
 config.h
 7burg/7burg
+x86_64-linux.c
