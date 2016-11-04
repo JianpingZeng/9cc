@@ -73,8 +73,10 @@ CC1_OBJ += sema.o
 CC1_OBJ += tree.o
 CC1_OBJ += eval.o
 CC1_OBJ += print.o
+CC1_OBJ += gen.o
 CC1_OBJ += x86_64-linux.o
 
+CC1_INC += gen.h
 CC1_INC += cc.h
 
 7CC_OBJ = 7cc.o

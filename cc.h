@@ -9,6 +9,7 @@
 #include "config.h"
 #include "libutils/utils.h"
 #include "libcpp/lex.h"
+#include "gen.h"
 
 ///
 /// type declarations
@@ -433,6 +434,7 @@ struct interface {
     struct metrics longdoublemetrics;
     struct metrics ptrmetrics;
     struct metrics voidmetrics;
+    struct xface x;
 };
 
 
