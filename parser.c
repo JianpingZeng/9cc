@@ -84,7 +84,7 @@ static struct expr *primary_expr(void)
         }
         break;
     default:
-        error("invalid postfix expression at '%s'", tok2s(token));
+        error("invalid postfix expression at '%t'", token);
         break;
     }
 
@@ -599,7 +599,7 @@ static void expr_stmt(void)
         struct expr *e = expression0();
         if (e) actions.gen(e);
     } else {
-        error("missing statement before '%s'", tok2s(token));
+        error("missing statement before '%t'", token);
     }
     
     expect(';');
@@ -847,10 +847,8 @@ static void default_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     if (swtch) {
         if (swtch->defalt)
             error_at(src,
-                     "multiple default labels in one switch, previous case defined here:%s:%u:%u",
-                     swtch->defalt->src.file,
-                     swtch->defalt->src.line,
-                     swtch->defalt->src.column);
+                     "multiple default labels in one switch, previous case defined here: %S",
+                     swtch->defalt->src);
 
         // new default case
         struct cse *defalt = NEWS0(struct cse, FUNC);
@@ -892,8 +890,8 @@ static void label_stmt(int lab, int cnt, int brk, struct swtch *swtch)
             sym->defined = true;
         } else {
             error_at(src,
-                     "redefinition of label '%s', previous label defined here:%s:%u:%u",
-                     sym->src.file, sym->src.line, sym->src.column);
+                     "redefinition of label '%s', previous label defined here: %S",
+                     sym->name, sym->src);
         }
 
         actions.label(sym->x.label);
@@ -1455,35 +1453,34 @@ static struct type *specifiers(int *sclass, int *fspec)
             if (p == &cls) {
                 if (sclass)
                     error_at(tok->src,
-                             "duplicate storage class '%s'",
-                             tok2s(tok));
+                             "duplicate storage class '%t'",
+                             tok);
                 else
                     error_at(tok->src,
-                             "type name does not allow storage class to be specified",
-                             tok2s(tok));
+                             "type name does not allow storage class to be specified");
             } else if (p == &inl) {
                 if (fspec)
                     warning_at(tok->src,
-                               "duplicate '%s' declaration specifier",
-                               tok2s(tok));
+                               "duplicate '%t' declaration specifier",
+                               tok);
                 else
                     error_at(tok->src, "function specifier not allowed");
             } else if (p == &cons || p == &res || p == &vol) {
                 warning_at(tok->src,
-                           "duplicate '%s' declaration specifier",
-                           tok2s(tok));
+                           "duplicate '%t' declaration specifier",
+                           tok);
             } else if (p == &ci) {
                 error_at(tok->src,
-                         "duplicate _Complex/_Imaginary specifier '%s'",
-                         tok2s(tok));
+                         "duplicate _Complex/_Imaginary specifier '%t'",
+                         tok);
             } else if (p == &sign) {
                 error_at(tok->src,
-                         "duplicate signed/unsigned speficier '%s'",
-                         tok2s(tok));
+                         "duplicate signed/unsigned speficier '%t'",
+                         tok);
             } else if (p == &type || p == &size) {
                 error_at(tok->src,
-                         "duplicate type specifier '%s'",
-                         tok2s(tok));
+                         "duplicate type specifier '%t'",
+                         tok);
             } else {
                 CC_UNAVAILABLE();
             }
@@ -1652,7 +1649,7 @@ static struct symbol **parameters(struct type *ftype)
         if (token->id == ELLIPSIS)
             error("ISO C requires a named parameter before '...'");
         else
-            error("expect parameter declarator at '%s'", tok2s(token));
+            error("expect parameter declarator at '%t'", token);
         gettok();
     }
 
@@ -1835,7 +1832,7 @@ static struct type *ptr_decl(void)
             break;
 
         if (*p != 0)
-            warning("duplicate type qulifier '%s'", tok2s(token));
+            warning("duplicate type qulifier '%t'", token);
 
         *p = t;
 
@@ -2142,9 +2139,8 @@ static struct type *tag_decl(void)
             if (is_current_scope(sym) && TYPE_OP(sym->type) != t)
                 error_at(src,
                          "use of '%s' with tag type that does not match "
-                         "previous declaration '%s' at %s:%u:%u",
-                         id2s(t), type2s(sym->type),
-                         sym->src.file, sym->src.line, sym->src.column);
+                         "previous declaration '%T' at %S",
+                         id2s(t), sym->type, sym->src);
         } else {
             sym = tag_symbol(t, id, src);
         }
@@ -2260,7 +2256,7 @@ static void decls(decl_fp dcl)
         // struct/union/enum
         actions.tagdecl(basety, sclass, fspec, source);
     } else {
-        error("invalid token '%s' in declaration", tok2s(token));
+        error("invalid token '%t' in declaration", token);
     }
     match(';', skip_to_decl);
 }

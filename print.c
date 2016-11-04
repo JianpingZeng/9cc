@@ -29,6 +29,8 @@ static void print_expr1(struct expr * node, int level);
 static void print_stmt1(struct stmt *stmt, int level);
 static void print_type(struct symbol *sym);
 static void print_symbol1(struct symbol *sym, int level, const char *prefix);
+static const char *type2s(struct type * ty);
+static const char *desig2s(struct desig *desig);
 
 static const char *nnames[] = {
     "null",
@@ -78,6 +80,117 @@ static const char *nnames[] = {
     "CVP",
 };
 
+void vfprint(FILE *fp, const char *fmt, va_list ap)
+{
+    for (; *fmt; fmt++) {
+        if (*fmt == '%') {
+            switch (*++fmt) {
+            case 'c':
+                fprintf(fp, "%c", (char)va_arg(ap, int));
+                break;
+            case 'd':
+            case 'i':
+                fprintf(fp, "%d", va_arg(ap, int));
+                break;
+            case 'u':
+                fprintf(fp, "%u", va_arg(ap, unsigned int));
+                break;
+            case 'x':
+                fprintf(fp, "%x", va_arg(ap, int));
+                break;
+            case 'X':
+                fprintf(fp, "%X", va_arg(ap, int));
+                break;
+            case 'o':
+                fprintf(fp, "%o", va_arg(ap, int));
+                break;
+            case 's':
+                fputs(va_arg(ap, char *), fp);
+                break;
+            case 'p':
+                fprintf(fp, "%p", va_arg(ap, void *));
+                break;
+            case 'f':
+                fprintf(fp, "%f", va_arg(ap, double));
+                break;
+                // lu, ld
+            case 'l':
+                if (fmt[1] == 'd') {
+                    fmt++;
+                    fprintf(fp, "%ld", va_arg(ap, long));
+                } else if (fmt[1] == 'u') {
+                    fmt++;
+                    
+                } else {
+                    putc(*fmt, fp);
+                }
+                break;
+                // Lf
+            case 'L':
+                if (fmt[1] == 'f') {
+                    fmt++;
+                    fprintf(fp, "%Lf", va_arg(ap, long double));
+                } else {
+                    putc(*fmt, fp);
+                }
+                break;
+                /// customize
+                // type
+            case 'T':
+                {
+                    struct type *ty = va_arg(ap, struct type *);
+                    fprintf(fp, "%s", type2s(ty));
+                }
+                break;
+                // source
+            case 'S':
+                {
+                    struct source src = va_arg(ap, struct source);
+                    fprintf(fp, "%s:%u:%u", src.file, src.line, src.column);
+                }
+                break;
+                // token
+            case 't':
+                {
+                    struct token *t = va_arg(ap, struct token *);
+                    fprintf(fp, "%s", tok2s(t));
+                }
+                break;
+                // desig
+            case 'D':
+                {
+                    struct desig *d = va_arg(ap, struct desig *);
+                    fprintf(fp, "%s", desig2s(d));
+                }
+                break;
+            default:
+                putc(*fmt, fp);
+                break;
+            }
+        } else {
+            putc(*fmt, fp);
+        }
+    }
+}
+
+void fprint(FILE *fp, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vfprint(fp, fmt, ap);
+    va_end(ap);
+}
+
+void print(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vfprint(stdout, fmt, ap);
+    va_end(ap);
+}
+
 static const char *nname(int op)
 {
     return nnames[OPINDEX(op)];
@@ -106,17 +219,7 @@ static void putf(const char *fmt, ...)
     if (!outfd) outfd = stderr;
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(outfd, fmt, ap);
-    va_end(ap);
-}
-
-static void putln(const char *fmt, ...)
-{
-    if (!outfd) outfd = stderr;
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(outfd, fmt, ap);
-    fprintf(outfd, "\n");
+    vfprint(outfd, fmt, ap);
     va_end(ap);
 }
 
@@ -132,7 +235,7 @@ static void print_ty(struct type * ty)
         if (isfunc(ty) || isptr(ty) || isarray(ty))
             putf(RED_BOLD("'%s' "), TYPE_NAME(ty));
 
-        putf(GREEN("'%s' "), type2s(ty));
+        putf(GREEN("'%T' "), ty);
 
         if (isarray(ty) || isstruct(ty) || isunion(ty)) {
             putf("<" YELLOW("size=%ld") "> ", TYPE_SIZE(ty));
@@ -262,8 +365,8 @@ static void print_init1(struct init *init, int level)
 {
     for (struct init *p = init; p; p = p->link) {
         print_level(level);
-        putln("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%s', typesize=%lu") ">",
-              p->offset, p->boff, p->bsize, type2s(p->type), TYPE_SIZE(p->type));
+        putf("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%T', typesize=%lu") ">\n",
+             p->offset, p->boff, p->bsize, p->type, TYPE_SIZE(p->type));
         if (p->body)
             print_expr1(p->body, level + 1);
     }
@@ -285,7 +388,7 @@ static void print_expr1(struct expr *node, int level)
 
     print_level(level);
     putf(PURPLE_BOLD("%s ") YELLOW("%p "), name, node);
-    putf(GREEN("'%s' "), type2s(node->type));
+    putf(GREEN("'%T' "), node->type);
 
     if (issliteral(node)) {
         putf(CYAN_BOLD("%s"), node->s.sym->u.c.cnst->name);
@@ -330,7 +433,7 @@ static void print_stmt1(struct stmt *stmt, int level)
 
     switch (stmt->id) {
     case LABEL:
-        putln(".L%d:", stmt->u.label);
+        putf(".L%d:\n", stmt->u.label);
         break;
 
     case GEN:
@@ -339,21 +442,21 @@ static void print_stmt1(struct stmt *stmt, int level)
         break;
 
     case JMP:
-        putln("goto .L%d", stmt->u.label);
+        putf("goto .L%d\n", stmt->u.label);
         break;
 
     case CBR:
         if (stmt->u.cbr.tlab)
-            putln("iftrue goto .L%d", stmt->u.cbr.tlab);
+            putf("iftrue goto .L%d\n", stmt->u.cbr.tlab);
         else if (stmt->u.cbr.flab)
-            putln("iffalse goto .L%d", stmt->u.cbr.flab);
+            putf("iffalse goto .L%d\n", stmt->u.cbr.flab);
 
         if (stmt->u.cbr.expr)
             print_expr1(stmt->u.cbr.expr, level + 1);
         break;
 
     case RET:
-        putln("ret");
+        putf("ret\n");
         if (stmt->u.expr)
             print_expr1(stmt->u.expr, level + 1);
         break;
@@ -543,7 +646,7 @@ static void qualstr(struct strbuf *s, int q)
         strbuf_cats(s, "restrict ");
 }
 
-const char *type2s(struct type * ty)
+static const char *type2s(struct type * ty)
 {
     struct strbuf *buf = strbuf_new();
     struct vector *v = type2s1(ty);
@@ -590,7 +693,7 @@ const char *type2s(struct type * ty)
 // TODO: print typedef names
 
 // for debug
-const char *desig2s(struct desig *desig)
+static const char *desig2s(struct desig *desig)
 {
     const char *s = "";
     

@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
@@ -24,7 +23,7 @@ unsigned int warnings(void)
 static void exit_if_too_many_errors(void)
 {
     if (errors() >= MAX_ERRORS) {
-        fprintf(stderr, "Too many errors.\n");
+        fprint(stderr, "Too many errors.\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -46,12 +45,9 @@ static void cc_print_lead(int level, struct source src, const char *fmt, va_list
         assert(0);
     }
 
-    fprintf(stderr, CLEAR "%s:%u:%u:" RESET " %s ",
-            src.file, src.line, src.column, lead);
-    fprintf(stderr, CLEAR);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, RESET);
-    fprintf(stderr, "\n");
+    fprint(stderr, CLEAR "%S:" RESET " %s " CLEAR, src, lead);
+    vfprint(stderr, fmt, ap);
+    fprint(stderr, RESET "\n");
 }
 
 void warning_at(struct source src, const char *fmt, ...)

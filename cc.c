@@ -45,7 +45,7 @@ static void preprocess(void)
 {
     struct token *t = get_pptok(cpp_file);
     for (; t->id != EOI; t = get_pptok(cpp_file))
-        printf("%s", tok2s(t));
+        print("%t", t);
 }
 
 static void doexit(void)

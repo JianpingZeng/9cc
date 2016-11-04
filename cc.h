@@ -5,6 +5,8 @@
 #include <stdbool.h>
 // for size_t
 #include <stddef.h>
+// for FILE *
+#include <stdio.h>
 
 #include "config.h"
 #include "libutils/utils.h"
@@ -600,8 +602,9 @@ extern void ast_dump_vardecl(struct symbol *);
 extern void ast_dump_typedecl(struct symbol *);
 extern void ast_dump_funcdecl(struct symbol *);
 extern void ast_dump_funcdef(struct symbol *);
-extern const char *type2s(struct type *);
-extern const char *desig2s(struct desig *);
+extern void vfprint(FILE *fp, const char *fmt, va_list ap);
+extern void fprint(FILE *fp, const char *fmt, ...);
+extern void print(const char *fmt, ...);
 
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
