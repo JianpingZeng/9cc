@@ -926,17 +926,16 @@ int main(int argc, char *argv[])
         fatal("parser failed with code: %d", ret);
 
     // check start symbol
-    if (!startn || !startn->rules)
-        fatal("missing 'start' rule");
-
-    emit_prologue();
-    emit_includes();
-    emit_macros();
-    emit_types();
-    emit_variables();
-    emit_forwards();
-    emit_functions();
-    emit_epilogue();
+    if (startn && startn->rules) {
+        emit_prologue();
+        emit_includes();
+        emit_macros();
+        emit_types();
+        emit_variables();
+        emit_forwards();
+        emit_functions();
+        emit_epilogue();
+    }
 
     // emit text left
     if (!feof(stdin)) {
