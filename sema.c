@@ -845,8 +845,8 @@ static struct tree **argsconv1(struct type **params, size_t nparams,
     return ltoa(&list, FUNC);
 }
 
-static struct tree **
-argsconv(struct type *fty, struct tree **args, struct source src)
+static struct tree **argsconv(struct type *fty, struct tree **args,
+                              struct source src)
 {
     struct list *list = NULL;
     struct type **params = TYPE_PROTO(fty);
@@ -905,9 +905,8 @@ static struct tree *mkiliteral(struct type *ty, long i)
     return expr;
 }
 
-static struct tree *
-arith_literal(struct token *t,
-              struct type * (*cnst) (struct token *))
+static struct tree *arith_literal(struct token *t,
+                                  struct type * (*cnst) (struct token *))
 {
     struct type *ty;
     struct tree *expr;
@@ -918,9 +917,9 @@ arith_literal(struct token *t,
     return expr;
 }
 
-static struct tree *
-string_literal(struct token *t,
-               void (*cnst) (struct token *, struct symbol *))
+static struct tree *string_literal(struct token *t,
+                                   void (*cnst) (struct token *,
+                                                 struct symbol *))
 {
     const char *name = TOK_LIT_STR(t);
     struct symbol *sym = lookup(name, strings);
@@ -948,8 +947,8 @@ string_literal(struct token *t,
     return mkref(id);
 }
 
-static struct tree *
-incr(int op, struct tree *expr, struct tree *cnst, struct source src)
+static struct tree *incr(int op, struct tree *expr, struct tree *cnst,
+                         struct source src)
 {
     return actions.assign('=', expr, actions.bop(op, expr, cnst, src), src);
 }
@@ -1096,8 +1095,8 @@ static struct tree *condexpr(struct type *ty, struct tree *cond,
     return ret;
 }
 
-static struct tree *
-member(struct tree *addr, const char *name, struct source src)
+static struct tree *member(struct tree *addr, const char *name,
+                           struct source src)
 {
     struct field *field;
     struct type *sty, *fty, *pfty;
@@ -1136,8 +1135,8 @@ member(struct tree *addr, const char *name, struct source src)
 }
 
 // '*', '/'
-static struct tree *
-bop_arith(int t, struct tree *l, struct tree *r, struct source src)
+static struct tree *bop_arith(int t, struct tree *l, struct tree *r,
+                              struct source src)
 {
     int op;
     struct type *ty;
@@ -1158,8 +1157,8 @@ bop_arith(int t, struct tree *l, struct tree *r, struct source src)
 }
 
 // '%', '&', '^', '|', 'LSHIFT', 'RHIFT'
-static struct tree *
-bop_int(int t, struct tree *l, struct tree *r, struct source src)
+static struct tree *bop_int(int t, struct tree *l, struct tree *r,
+                            struct source src)
 {
     int op;
     struct type *ty;
@@ -1180,8 +1179,8 @@ bop_int(int t, struct tree *l, struct tree *r, struct source src)
 }
 
 // '+'
-static struct tree *
-bop_add(struct tree *l, struct tree *r, struct source src)
+static struct tree *bop_add(struct tree *l, struct tree *r,
+                            struct source src)
 {
     int op = ADD;
     struct type *ty1 = l->type;
@@ -1219,8 +1218,8 @@ bop_add(struct tree *l, struct tree *r, struct source src)
 }
 
 // '-'
-static struct tree *
-bop_sub(struct tree *l, struct tree *r, struct source src)
+static struct tree *bop_sub(struct tree *l, struct tree *r,
+                            struct source src)
 {
     int op = SUB;
     struct type *ty1 = l->type;
@@ -1257,8 +1256,8 @@ bop_sub(struct tree *l, struct tree *r, struct source src)
 }
 
 // '>', '<', '>=', '<='
-static struct tree *
-bop_rel(int t, struct tree *l, struct tree *r, struct source src)
+static struct tree *bop_rel(int t, struct tree *l, struct tree *r,
+                            struct source src)
 {
     int op;
     struct type *ty, *ty1, *ty2;
@@ -1311,8 +1310,8 @@ bop_rel(int t, struct tree *l, struct tree *r, struct source src)
 }
 
 // 'EQL', 'NEQ'
-static struct tree *
-bop_eq(int t, struct tree *l, struct tree *r, struct source src)
+static struct tree *bop_eq(int t, struct tree *l, struct tree *r,
+                           struct source src)
 {
     int op;
     struct type *ty, *ty1, *ty2;
@@ -1354,8 +1353,8 @@ bop_eq(int t, struct tree *l, struct tree *r, struct source src)
 
 /// actions-expr
 
-static struct tree *
-do_comma(struct tree *l, struct tree *r, struct source src)
+static struct tree *do_comma(struct tree *l, struct tree *r,
+                             struct source src)
 {
     if (!l || !r)
         return NULL;
@@ -1368,8 +1367,8 @@ do_comma(struct tree *l, struct tree *r, struct source src)
     return ast_expr(RIGHT, r->type, l, r);
 }
 
-static struct tree *
-do_assign(int t, struct tree *l, struct tree *r, struct source src)
+static struct tree *do_assign(int t, struct tree *l, struct tree *r,
+                              struct source src)
 {
     struct type *ty1, *ty2, *retty;
     
@@ -1486,8 +1485,8 @@ static struct tree *do_cond(struct tree *cond, struct tree *then,
     return NULL;
 }
 
-static struct tree *
-do_logical(int t, struct tree *l, struct tree *r, struct source src)
+static struct tree *do_logical(int t, struct tree *l, struct tree *r,
+                               struct source src)
 {
     if (!l || !r)
         return NULL;
@@ -1507,8 +1506,8 @@ do_logical(int t, struct tree *l, struct tree *r, struct source src)
     return simplify(t == ANDAND ? AND : OR, inttype, l, r);
 }
 
-static struct tree *
-do_bop(int t, struct tree *l, struct tree *r, struct source src)
+static struct tree *do_bop(int t, struct tree *l, struct tree *r,
+                           struct source src)
 {
     if (!l || !r)
         return NULL;
@@ -1546,8 +1545,8 @@ do_bop(int t, struct tree *l, struct tree *r, struct source src)
 
 /// cast
 
-static struct tree *
-do_cast(struct type *ty, struct tree *expr, struct source src)
+static struct tree *do_cast(struct type *ty, struct tree *expr,
+                            struct source src)
 {
     if (!expr)
         return NULL;
@@ -1564,8 +1563,8 @@ do_cast(struct type *ty, struct tree *expr, struct source src)
 /// unary
 
 // '++', '--'
-static struct tree *
-do_pre_increment(int t, struct tree *expr, struct source src)
+static struct tree *do_pre_increment(int t, struct tree *expr,
+                                     struct source src)
 {
     if (!expr)
         return NULL;
@@ -1576,8 +1575,8 @@ do_pre_increment(int t, struct tree *expr, struct source src)
 }
 
 // '+', '-'
-static struct tree *
-do_minus_plus(int t, struct tree *expr, struct source src)
+static struct tree *do_minus_plus(int t, struct tree *expr,
+                                  struct source src)
 {
     if (!expr)
         return NULL;
@@ -1693,8 +1692,8 @@ static struct tree *do_indirection(struct tree *expr, struct source src)
 }
 
 // 'sizeof'
-static struct tree *
-do_sizeofop(struct type *ty, struct tree *n, struct source src)
+static struct tree *do_sizeofop(struct type *ty, struct tree *n,
+                                struct source src)
 {
     ty = n ? n->type : ty;
     if (!ty)
@@ -1717,8 +1716,8 @@ do_sizeofop(struct type *ty, struct tree *n, struct source src)
 /// postfix
 
 // 'base[index]' == '*(base+index)'
-static struct tree *
-do_subscript(struct tree *base, struct tree *index, struct source src)
+static struct tree *do_subscript(struct tree *base, struct tree *index,
+                                 struct source src)
 {
     if (!base || !index)
         return NULL;
@@ -1751,8 +1750,8 @@ do_subscript(struct tree *base, struct tree *index, struct source src)
     }
 }
 
-static struct tree *
-do_funcall(struct tree *expr, struct tree **args, struct source src)
+static struct tree *do_funcall(struct tree *expr, struct tree **args,
+                               struct source src)
 {
     struct tree *ret;
     struct type *fty, *rty;
@@ -1800,8 +1799,8 @@ do_funcall(struct tree *expr, struct tree **args, struct source src)
 }
 
 // '.', '->'
-static struct tree *
-do_direction(int t, const char *name, struct tree *expr, struct source src)
+static struct tree *do_direction(int t, const char *name,
+                                 struct tree *expr, struct source src)
 {
     struct type *ty;
 
@@ -1837,8 +1836,8 @@ do_direction(int t, const char *name, struct tree *expr, struct source src)
     }
 }
 
-static struct tree *
-do_post_increment(int t, struct tree *node, struct source src)
+static struct tree *do_post_increment(int t, struct tree *node,
+                                      struct source src)
 {
     if (!node)
         return NULL;
@@ -1852,8 +1851,9 @@ do_post_increment(int t, struct tree *node, struct source src)
                     node);
 }
 
-static struct tree *
-do_compound_literal(struct type *ty, struct tree *inits, struct source src)
+static struct tree *do_compound_literal(struct type *ty,
+                                        struct tree *inits,
+                                        struct source src)
 {
     struct symbol *sym;
     
@@ -1926,8 +1926,8 @@ static struct tree *do_paren(struct tree *expr, struct source src)
 /// constant-expression:
 ///   conditional-expression
 ///
-static long
-do_intexpr(struct tree *cond, struct type *ty, struct source src)
+static long do_intexpr(struct tree *cond, struct type *ty,
+                       struct source src)
 {
     if (!cond)
         return 0;
@@ -2068,8 +2068,8 @@ static void do_gen(struct tree *expr)
  *                        Sema-Initialization                      *
  *=================================================================*/
 
-static void
-init_string(struct type *ty, struct tree *init, struct source src)
+static void init_string(struct type *ty, struct tree *init,
+                        struct source src)
 {
     int len1 = TYPE_LEN(ty);
     int len2 = TYPE_LEN(init->type);
@@ -2084,9 +2084,9 @@ init_string(struct type *ty, struct tree *init, struct source src)
 }
 
 // dty - arith/pointer/struct/union/array
-static struct tree *
-ensure_init_compound(struct symbol *sym,
-                     struct tree *init, struct source src)
+static struct tree *ensure_init_compound(struct symbol *sym,
+                                         struct tree *init,
+                                         struct source src)
 {
     struct type *dty = sym->type;
     struct type *sty = init->type;
@@ -2096,9 +2096,9 @@ ensure_init_compound(struct symbol *sym,
 }
 
 // dty - arith/pointer/struct/union/array
-static struct tree *
-ensure_init_assign(struct symbol *sym,
-                   struct tree *init, struct source src)
+static struct tree *ensure_init_assign(struct symbol *sym,
+                                       struct tree *init,
+                                       struct source src)
 {
     struct type *dty = sym->type;
     struct type *sty = init->type;
@@ -2121,9 +2121,8 @@ ensure_init_assign(struct symbol *sym,
     return init;
 }
 
-static struct tree *
-ensure_init(int level, int sclass, struct symbol *sym,
-            struct tree *init, struct source src)
+static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
+                                struct tree *init, struct source src)
 {
     struct type *ty = sym->type;
     
@@ -2172,8 +2171,8 @@ static bool ensure_designator(struct desig *d)
     return true;
 }
 
-static void
-offset_init1(struct desig *desig, struct tree *expr, struct init **ilist)
+static void offset_init1(struct desig *desig, struct tree *expr,
+                         struct init **ilist)
 {
     struct init *p, *init;
     
@@ -2213,33 +2212,33 @@ offset_init1(struct desig *desig, struct tree *expr, struct init **ilist)
     *ilist = init;
 }
 
-static void
-scalar_init(struct desig *desig, struct tree *expr, struct init **ilist)
+static void scalar_init(struct desig *desig, struct tree *expr,
+                        struct init **ilist)
 {
     // TODO: 
 }
 
-static void
-union_init(struct desig *desig, struct tree *expr, struct init **ilist)
+static void union_init(struct desig *desig, struct tree *expr,
+                       struct init **ilist)
 {
     // TODO: 
 }
 
-static void
-struct_init(struct desig *desig, struct tree *expr, struct init **ilist)
+static void struct_init(struct desig *desig, struct tree *expr,
+                        struct init **ilist)
 {
     // TODO: 
 }
 
-static void
-string_init(struct desig *desig, struct tree *expr, struct init **ilist)
+static void string_init(struct desig *desig, struct tree *expr,
+                        struct init **ilist)
 {
     // TODO: override check
     offset_init1(desig, expr, ilist);
 }
 
-static void
-offset_init(struct desig *desig, struct tree *expr, struct init **ilist)
+static void offset_init(struct desig *desig, struct tree *expr,
+                        struct init **ilist)
 {
     assert(!isarray(desig->type));
 
@@ -2855,8 +2854,8 @@ static void warning_unused_global(struct symbol *sym, void *context)
 
 /// actions-decl
 
-static void
-do_array_index(struct type *atype, struct tree *assign, struct source src)
+static void do_array_index(struct type *atype, struct tree *assign,
+                           struct source src)
 {
     if (!assign)
         return;
@@ -2877,8 +2876,8 @@ do_array_index(struct type *atype, struct tree *assign, struct source src)
     }
 }
 
-static struct symbol **
-do_prototype(struct type *ftype, struct symbol *params[])
+static struct symbol **do_prototype(struct type *ftype,
+                                    struct symbol *params[])
 {
     for (int i = 0; params[i]; i++) {
         struct symbol *p = params[i];
@@ -2913,8 +2912,8 @@ do_prototype(struct type *ftype, struct symbol *params[])
     return params;
 }
 
-static struct symbol *
-do_enum_id(const char *name, int val, struct symbol *sym, struct source src)
+static struct symbol *do_enum_id(const char *name, int val,
+                                 struct symbol *sym, struct source src)
 {
     struct symbol *s = lookup(name, identifiers);
     if (s && is_current_scope(s))
@@ -3001,8 +3000,8 @@ static void do_recorddecl(struct symbol *sym)
     events(deftype)(sym);
 }
 
-static void
-do_tagdecl(struct type *ty, int sclass, int fspec, struct source src)
+static void do_tagdecl(struct type *ty, int sclass, int fspec,
+                       struct source src)
 {
     if (isstruct(ty) || isunion(ty)) {
         // anonymous record (can't be referenced)
@@ -3021,9 +3020,9 @@ do_tagdecl(struct type *ty, int sclass, int fspec, struct source src)
         error_at(src, ERR_INLINE);
 }
 
-static struct symbol *
-do_globaldecl(const char *id, struct type *ty, int sclass, int fspec,
-              struct tree *init, struct source src)
+static struct symbol *do_globaldecl(const char *id, struct type *ty,
+                                    int sclass, int fspec,
+                                    struct tree *init, struct source src)
 {
     struct symbol *sym;
 
@@ -3085,9 +3084,9 @@ do_globaldecl(const char *id, struct type *ty, int sclass, int fspec,
     return sym;
 }
 
-static struct symbol *
-do_localdecl(const char *id, struct type *ty, int sclass, int fspec,
-             struct tree *init, struct source src)
+static struct symbol *do_localdecl(const char *id, struct type *ty,
+                                   int sclass, int fspec,
+                                   struct tree *init, struct source src)
 {
     struct symbol *sym;
 
@@ -3169,9 +3168,9 @@ do_localdecl(const char *id, struct type *ty, int sclass, int fspec,
 }
 
 // id maybe NULL
-static struct symbol *
-do_paramdecl(const char *id, struct type *ty, int sclass, int fspec,
-             struct tree *init, struct source src)
+static struct symbol *do_paramdecl(const char *id, struct type *ty,
+                                   int sclass, int fspec,
+                                   struct tree *init, struct source src)
 {
     struct symbol *sym;
     bool nonnull = false;
@@ -3231,9 +3230,8 @@ do_paramdecl(const char *id, struct type *ty, int sclass, int fspec,
 }
 
 // level: GLOBAL/PARAM/LOCAL
-static void
-do_typedefdecl(const char *id, struct type *ty, int fspec, int level,
-               struct source src)
+static void do_typedefdecl(const char *id, struct type *ty,
+                           int fspec, int level, struct source src)
 {
     struct symbol *sym;
 
