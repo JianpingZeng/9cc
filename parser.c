@@ -1,16 +1,20 @@
 #include <assert.h>
 #include "cc.h"
 
-static struct tree *expr0(void); // topmost expression that can be simplified
+// topmost expression that can be simplified
+static struct tree *expr0(void);
 static struct tree *expr(void);
 static struct tree *assign_expr(void);
 static long intexpr1(struct type *);
 static long intexpr(void);
-static struct tree *bool_expr(void); // for expression in conditional statement
-static struct tree *switch_expr(void); // for expression in switch statement
-static struct tree *initializer_list(struct type *);
-static void declaration(void);
-static struct type *typename(void);
+// for expression in conditional statement
+static struct tree *bool_expr(void);
+// for expression in switch statement
+static struct tree *switch_expr(void);
+static struct tree *parse_initializer_list(struct type *);
+static void parse_decls(decl_fp dcl);
+static struct type *parse_typename(void);
+#define next_token_of(func)  (func(lookahead()))
 
 /*=================================================================*
  *                        expression                               *
@@ -24,7 +28,7 @@ static struct tree *unary_expr(void);
 static struct tree *compound_literal(struct type *ty)
 {
     struct source src = source;
-    struct tree *inits = initializer_list(ty);
+    struct tree *inits = parse_initializer_list(ty);
     
     return actions.compound_literal(ty, inits, src);
 }
@@ -34,7 +38,7 @@ static struct type *cast_type(void)
     struct type *ty;
 
     expect('(');
-    ty = typename();
+    ty = parse_typename();
     match(')', skip_to_bracket);
 
     return ty;
@@ -69,7 +73,7 @@ static struct tree *primary_expr(void)
         gettok();
         break;
     case '(':
-        if (first_typename(lookahead())) {
+        if (next_token_of(first_typename)) {
             struct type *ty = cast_type();
             ret = compound_literal(ty);
         } else {
@@ -238,13 +242,11 @@ static struct tree *unary_expr(void)
         return actions.indirection(cast_expr(), src);
     case SIZEOF:
         {
-            struct token *ahead;
             struct tree *n = NULL;
             struct type *ty = NULL;
 
             gettok();
-            ahead = lookahead();
-            if (token->id == '(' && first_typename(ahead)) {
+            if (token->id == '(' && next_token_of(first_typename)) {
                 ty = cast_type();
                 if (token->id == '{') {
                     struct tree *node = compound_literal(ty);
@@ -267,10 +269,9 @@ static struct tree *unary_expr(void)
 */
 static struct tree *cast_expr(void)
 {
-    struct token *ahead = lookahead();
     struct source src = source;
 
-    if (token->id == '(' && first_typename(ahead)) {
+    if (token->id == '(' && next_token_of(first_typename)) {
         struct type *ty = cast_type();
         if (token->id == '{') {
             struct tree *node = compound_literal(ty);
@@ -723,7 +724,7 @@ static void for_stmt(int lab, struct swtch *swtch)
     } else {
         if (first_decl(token)) {
             // declaration
-            declaration();
+            parse_decls(actions.localdecl);
         } else {
             // expression
             init = expr0();
@@ -1045,7 +1046,7 @@ static void statement(int cnt, int brk, struct swtch *swtch)
         break;
 
     case ID:
-        if (lookahead()->id == ':') {
+        if (next_token_is(':')) {
             label_stmt(genlabel(1), cnt, brk, swtch);
             break;
         }
@@ -1079,7 +1080,7 @@ void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch)
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token))
             // declaration
-            declaration();
+            parse_decls(actions.localdecl);
         else
             // statement
             statement(cnt, brk, swtch);
@@ -1093,7 +1094,7 @@ void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch)
  *                        initialization                           *
  *=================================================================*/
 
-static void parse_initializer_list(struct desig *, struct init **);
+static void parse_initializer_list1(struct desig *, struct init **);
 
 static struct desig *parse_designator(struct desig *desig)
 {
@@ -1108,7 +1109,9 @@ static struct desig *parse_designator(struct desig *desig)
             // only create list item when desig != NULL
             if (desig) {
                 if (token->id == ID)
-                    list = list_append(list, new_desig_name(TOK_ID_STR(token), src));
+                    list = list_append(list,
+                                       new_desig_name(TOK_ID_STR(token),
+                                                      src));
                 else
                     // set desig to NULL
                     desig = NULL;
@@ -1130,7 +1133,7 @@ static struct desig *parse_designator(struct desig *desig)
     return desig ? actions.designator(desig, ltoa(&list, FUNC)) : NULL;
 }
 
-static void parse_initializer(struct desig **pdesig, struct init **pinit)
+static void parse_initializer1(struct desig **pdesig, struct init **pinit)
 {
     if (token->id == '{') {
         // begin a new root designator
@@ -1148,13 +1151,14 @@ static void parse_initializer(struct desig **pdesig, struct init **pinit)
             d->all = desig;         // all link
         }
         
-        parse_initializer_list(d, pinit);
+        parse_initializer_list1(d, pinit);
     } else {
         actions.element_init(pdesig, assign_expr(), pinit);
     }
 }
 
-static void parse_initializer_list(struct desig *desig, struct init **pinit)
+static void parse_initializer_list1(struct desig *desig,
+                                    struct init **pinit)
 {
     struct desig *d = desig;
     
@@ -1169,7 +1173,7 @@ static void parse_initializer_list(struct desig *desig, struct init **pinit)
             else
                 d = next_designator(d);
 
-            parse_initializer(&d, pinit);
+            parse_initializer1(&d, pinit);
 
             if (token->id != ',')
                 break;
@@ -1191,10 +1195,10 @@ static void parse_initializer_list(struct desig *desig, struct init **pinit)
        '{' initializer-list ',' '}'
  [GNU] '{' '}'
 */
-static struct tree *initializer(struct type *ty)
+static struct tree *parse_initializer(struct type *ty)
 {
     if (token->id == '{')
-        return initializer_list(ty);
+        return parse_initializer_list(ty);
     else
         return assign_expr();
 }
@@ -1215,17 +1219,22 @@ static struct tree *initializer(struct type *ty)
    '[' constant-expression ']'
    '.' identifier
 */
-static struct tree *initializer_list(struct type *ty)
+static struct tree *parse_initializer_list(struct type *ty)
 {
     if (ty) {
-        struct desig desig = {.id = DESIG_NONE, .type = ty, .offset = 0, .src = source};
+        struct desig desig = {
+            .id = DESIG_NONE,
+            .type = ty,
+            .offset = 0,
+            .src = source
+        };
         struct init *ilist = NULL;
 
-        parse_initializer_list(&desig, &ilist);        
+        parse_initializer_list1(&desig, &ilist);        
 
         return actions.initializer_list(ty, ilist);
     } else {
-        parse_initializer_list(NULL, NULL);
+        parse_initializer_list1(NULL, NULL);
         return NULL;
     }
 }
@@ -1236,9 +1245,8 @@ static struct tree *initializer_list(struct type *ty)
 
 // 0 means both
 enum { DIRECT = 1, ABSTRACT };
-
-static void param_declarator(struct type **, struct token **);
-static struct type *tag_decl(void);
+static void parse_param_declarator(struct type **, struct token **);
+static struct type *parse_tag_decl(void);
 
 static void attach_type(struct type **typelist, struct type *type)
 {
@@ -1264,7 +1272,8 @@ static void exit_params(struct symbol *params[])
     assert(params);
     if (params[0] && !params[0]->defined)
         error_at(params[0]->src,
-                 "a parameter list without types is only allowed in a function definition");
+                 "a parameter list without types is only allowed "
+                 "in a function definition");
 
     if (cscope > PARAM)
         exit_scope();
@@ -1314,14 +1323,14 @@ static void exit_params(struct symbol *params[])
  typedef-name:
    identifier
 */
-static struct type *specifiers(int *sclass, int *fspec)
+static struct type *parse_specifiers(int *sclass, int *fspec)
 {
     int cls, sign, size, type;
     int cons, vol, res, inl;
-    struct type *basety, *tydefty;
+    struct type *basety;
     int ci;                        // _Complex, _Imaginary
 
-    basety = tydefty = NULL;
+    basety = NULL;
     cls = sign = size = type = 0;
     cons = vol = res = inl = 0;
     ci = 0;
@@ -1331,7 +1340,7 @@ static struct type *specifiers(int *sclass, int *fspec)
     for (;;) {
         int *p, t = token->id;
         struct token *tok = token;
-        switch (token->id) {
+        switch (t) {
         case AUTO:
         case EXTERN:
         case REGISTER:
@@ -1365,7 +1374,7 @@ static struct type *specifiers(int *sclass, int *fspec)
         case STRUCT:
         case UNION:
             p = &type;
-            basety = tag_decl();
+            basety = parse_tag_decl();
             break;
 
         case LONG:
@@ -1373,7 +1382,7 @@ static struct type *specifiers(int *sclass, int *fspec)
                 t = LONG + LONG;
                 size = 0;        // clear
             }
-            // go through
+            // fall through
         case SHORT:
             p = &size;
             gettok();
@@ -1429,10 +1438,11 @@ static struct type *specifiers(int *sclass, int *fspec)
 
         case ID:
             {
-                struct symbol *sym = lookup_typedef(TOK_ID_STR(token));
-                if (sym) {
+                const char *id = TOK_ID_STR(token);
+                struct symbol *sym = lookup(id, identifiers);
+                if (sym && sym->sclass == TYPEDEF) {
                     use(sym);
-                    tydefty = sym->type;
+                    basety = sym->type;
                     p = &type;
                     gettok();
                 } else {
@@ -1453,11 +1463,11 @@ static struct type *specifiers(int *sclass, int *fspec)
             if (p == &cls) {
                 if (sclass)
                     error_at(tok->src,
-                             "duplicate storage class '%t'",
-                             tok);
+                             "duplicate storage class '%t'", tok);
                 else
                     error_at(tok->src,
-                             "type name does not allow storage class to be specified");
+                             "type name does not allow storage class "
+                             "to be specified");
             } else if (p == &inl) {
                 if (fspec)
                     warning_at(tok->src,
@@ -1475,12 +1485,9 @@ static struct type *specifiers(int *sclass, int *fspec)
                          tok);
             } else if (p == &sign) {
                 error_at(tok->src,
-                         "duplicate signed/unsigned speficier '%t'",
-                         tok);
+                         "duplicate signed/unsigned speficier '%t'", tok);
             } else if (p == &type || p == &size) {
-                error_at(tok->src,
-                         "duplicate type specifier '%t'",
-                         tok);
+                error_at(tok->src, "duplicate type specifier '%t'", tok);
             } else {
                 CC_UNAVAILABLE();
             }
@@ -1502,7 +1509,7 @@ static struct type *specifiers(int *sclass, int *fspec)
         (size == LONG && type != INT && type != DOUBLE)) {
         if (size == LONG + LONG)
             error("%s %s %s is invalid",
-                  id2s(size / 2), id2s(size / 2), id2s(type));
+                  id2s(size/2), id2s(size/2), id2s(type));
         else
             error("%s %s is invalid", id2s(size), id2s(type));
     } else if (sign && type != INT && type != CHAR) {
@@ -1511,9 +1518,7 @@ static struct type *specifiers(int *sclass, int *fspec)
         error("'%s' cannot be %s", id2s(type), id2s(ci));
     }
 
-    if (type == ID)
-        basety = tydefty;
-    else if (type == CHAR && sign)
+    if (type == CHAR && sign)
         basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
     else if (size == SHORT)
         basety = sign == UNSIGNED ? unsignedshorttype : shorttype;
@@ -1555,7 +1560,7 @@ static struct type *specifiers(int *sclass, int *fspec)
    declaration-specifier declarator
    declaration-specifier abstract-declarator[opt]
 */
-static struct symbol **prototype(struct type *ftype)
+static struct symbol **parse_prototype(struct type *ftype)
 {
     struct list *list = NULL;
 
@@ -1567,8 +1572,8 @@ static struct symbol **prototype(struct type *ftype)
         struct symbol *sym;
         struct source src = source;
 
-        basety = specifiers(&sclass, &fspec);
-        param_declarator(&ty, &id);
+        basety = parse_specifiers(&sclass, &fspec);
+        parse_param_declarator(&ty, &id);
         attach_type(&ty, basety);
 
         sym = actions.paramdecl(id ? TOK_ID_STR(id) : NULL,
@@ -1596,7 +1601,7 @@ static struct symbol **prototype(struct type *ftype)
    identifier
    identifier-list ',' identifier
 */
-static struct symbol **oldstyle(struct type *ftype)
+static struct symbol **parse_oldstyle(struct type *ftype)
 {
     struct list *params = NULL;
 
@@ -1618,7 +1623,7 @@ static struct symbol **oldstyle(struct type *ftype)
     return ltoa(&params, FUNC);
 }
 
-static struct symbol **parameters(struct type *ftype)
+static struct symbol **parse_parameters(struct type *ftype)
 {
     struct symbol **params;
 
@@ -1627,7 +1632,7 @@ static struct symbol **parameters(struct type *ftype)
         int i;
         struct type **proto;
 
-        params = prototype(ftype);
+        params = parse_prototype(ftype);
         proto = newarray(sizeof(struct type *), length(params) + 1, PERM);
         for (i = 0; params[i]; i++)
             proto[i] = params[i]->type;
@@ -1637,7 +1642,7 @@ static struct symbol **parameters(struct type *ftype)
         TYPE_OLDSTYLE(ftype) = 0;
     } else if (token->id == ID) {
         // oldstyle
-        params = oldstyle(ftype);
+        params = parse_oldstyle(ftype);
         TYPE_OLDSTYLE(ftype) = 1;
     } else if (token->id == ')') {
         params = vtoa(NULL, FUNC);
@@ -1645,7 +1650,6 @@ static struct symbol **parameters(struct type *ftype)
     } else {
         params = vtoa(NULL, FUNC);
         TYPE_OLDSTYLE(ftype) = 1;
-
         if (token->id == ELLIPSIS)
             error("ISO C requires a named parameter before '...'");
         else
@@ -1656,7 +1660,7 @@ static struct symbol **parameters(struct type *ftype)
     return params;
 }
 
-static void array_qualifiers(struct type *atype)
+static void parse_array_qualifiers(struct type *atype)
 {
     int cons, vol, res;
     int *p;
@@ -1698,14 +1702,14 @@ static void array_qualifiers(struct type *atype)
         TYPE_A_RESTRICT(atype) = 1;
 }
 
-static struct type *arrays(int abstract)
+static struct type *parse_array(int abstract)
 {
     struct type *atype = array_type(NULL);
 
     //NOTE: '*' is in `first_expr`
     switch (abstract) {
     case ABSTRACT:
-        if (token->id == '*' && lookahead()->id == ']') {
+        if (token->id == '*' && next_token_is(']')) {
             gettok();
             TYPE_A_STAR(atype) = 1;
         } else if (first_expr(token)) {
@@ -1719,17 +1723,17 @@ static struct type *arrays(int abstract)
         if (token->id == STATIC) {
             gettok();
             TYPE_A_STATIC(atype) = 1;
-            array_qualifiers(atype);
+            parse_array_qualifiers(atype);
             struct source src = source;
             actions.array_index(atype, assign_expr(), src);
         } else {
-            array_qualifiers(atype);
+            parse_array_qualifiers(atype);
             if (token->id == STATIC) {
                 gettok();
                 TYPE_A_STATIC(atype) = 1;
                 struct source src = source;
                 actions.array_index(atype, assign_expr(), src);
-            } else if (token->id == '*' && lookahead()->id == ']') {
+            } else if (token->id == '*' && next_token_is(']')) {
                 gettok();
                 TYPE_A_STAR(atype) = 1;
             } else if (first_expr(token)) {
@@ -1746,7 +1750,8 @@ static struct type *arrays(int abstract)
     return atype;
 }
 
-static struct type *func_or_array(int abstract, struct symbol ***params)
+static struct type *parse_func_or_array(int abstract,
+                                        struct symbol ***params)
 {
     struct type *ty = NULL;
 
@@ -1754,23 +1759,24 @@ static struct type *func_or_array(int abstract, struct symbol ***params)
         if (token->id == '[') {
             struct type *atype;
             gettok();
-            atype = arrays(abstract);
+            atype = parse_array(abstract);
             match(']', skip_to_squarebracket);
             attach_type(&ty, atype);
         } else {
             struct symbol **args;
             struct type *ftype = func_type(NULL);
             gettok();
-            /**
-             * To make it easy to distinguish between 'paramaters in parameter'
-             * and 'compound statement of function definition', they both may be
-             * at scope LOCAL (aka PARAM+1), so enter scope again to make things
-             * easy.
+            /*
+              To make it easy to distinguish between
+              'paramaters in parameter' and
+              'compound statement of function definition',
+              they both may be at scope LOCAL (aka PARAM+1),
+              so enter scope again to make things easy.
              */
             enter_scope();
             if (cscope > PARAM)
                 enter_scope();
-            args = parameters(ftype);
+            args = parse_parameters(ftype);
             if (params && *params == NULL)
                 *params = args;
             else
@@ -1792,7 +1798,7 @@ static struct type *func_or_array(int abstract, struct symbol ***params)
    type-qualifier
    type-qualifier-list type-qualifier
 */
-static struct type *ptr_decl(void)
+static struct type *parse_ptr(void)
 {
     struct type *ret = NULL;
     int con, vol, res, type;
@@ -1856,28 +1862,28 @@ static struct type *ptr_decl(void)
    direct-abstract-declarator[opt] '[' '*' ']'
    direct-abstract-declarator[opt] '(' parameter-type-list[opt] ')'
 */
-static void abstract_declarator(struct type **ty)
+static void parse_abstract_declarator(struct type **ty)
 {
     assert(ty);
 
     if (token->id == '*' || token->id == '(' || token->id == '[') {
         if (token->id == '*') {
-            struct type *pty = ptr_decl();
+            struct type *pty = parse_ptr();
             prepend_type(ty, pty);
         }
 
         if (token->id == '(') {
-            if (first_decl(lookahead())) {
-                struct type *faty = func_or_array(ABSTRACT, NULL);
+            if (next_token_of(first_decl)) {
+                struct type *faty = parse_func_or_array(ABSTRACT, NULL);
                 prepend_type(ty, faty);
             } else {
                 struct type *type1 = *ty;
                 struct type *rtype = NULL;
                 expect('(');
-                abstract_declarator(&rtype);
+                parse_abstract_declarator(&rtype);
                 match(')', skip_to_bracket);
                 if (token->id == '[' || token->id == '(') {
-                    struct type *faty = func_or_array(ABSTRACT, NULL);
+                    struct type *faty = parse_func_or_array(ABSTRACT, NULL);
                     attach_type(&faty, type1);
                     attach_type(&rtype, faty);
                 } else {
@@ -1886,7 +1892,7 @@ static void abstract_declarator(struct type **ty)
                 *ty = rtype;
             }
         } else if (token->id == '[') {
-            struct type *faty = func_or_array(ABSTRACT, NULL);
+            struct type *faty = parse_func_or_array(ABSTRACT, NULL);
             prepend_type(ty, faty);
         }
     } else {
@@ -1908,12 +1914,14 @@ static void abstract_declarator(struct type **ty)
    direct-declarator '(' parameter-type-list ')'
    direct-declarator '(' identifier-list[opt] ')'
 */
-static void declarator(struct type **ty, struct token **id, struct symbol ***params)
+static void parse_declarator(struct type **ty,
+                             struct token **id,
+                             struct symbol ***params)
 {
     assert(ty && id);
 
     if (token->id == '*') {
-        struct type *pty = ptr_decl();
+        struct type *pty = parse_ptr();
         prepend_type(ty, pty);
     }
 
@@ -1921,17 +1929,17 @@ static void declarator(struct type **ty, struct token **id, struct symbol ***par
         *id = token;
         gettok();
         if (token->id == '[' || token->id == '(') {
-            struct type *faty = func_or_array(DIRECT, params);
+            struct type *faty = parse_func_or_array(DIRECT, params);
             prepend_type(ty, faty);
         }
     } else if (token->id == '(') {
         struct type *type1 = *ty;
         struct type *rtype = NULL;
         gettok();
-        declarator(&rtype, id, params);
+        parse_declarator(&rtype, id, params);
         match(')', skip_to_bracket);
         if (token->id == '[' || token->id == '(') {
-            struct type *faty = func_or_array(DIRECT, params);
+            struct type *faty = parse_func_or_array(DIRECT, params);
             attach_type(&faty, type1);
             attach_type(&rtype, faty);
         } else {
@@ -1944,28 +1952,27 @@ static void declarator(struct type **ty, struct token **id, struct symbol ***par
 }
 
 // Both 'abstract-declarator' and 'direct-declarator' are allowed.
-static void param_declarator(struct type **ty, struct token **id)
+static void parse_param_declarator(struct type **ty, struct token **id)
 {
     assert(ty && id);
     
     if (token->id == '*') {
-        struct type *pty = ptr_decl();
+        struct type *pty = parse_ptr();
         prepend_type(ty, pty);
     }
 
     if (token->id == '(') {
-        struct token *ahead = lookahead();
-        if (ahead->id == ')' || first_decl(ahead)) {
-            struct type *faty = func_or_array(0, NULL);
+        if (next_token_is(')') || next_token_of(first_decl)) {
+            struct type *faty = parse_func_or_array(0, NULL);
             prepend_type(ty, faty);
         } else {
             struct type *type1 = *ty;
             struct type *rtype = NULL;
             expect('(');
-            param_declarator(&rtype, id);
+            parse_param_declarator(&rtype, id);
             match(')', skip_to_bracket);
             if (token->id == '(' || token->id == '[') {
-                struct type *faty = func_or_array(0, NULL);
+                struct type *faty = parse_func_or_array(0, NULL);
                 attach_type(&faty, type1);
                 attach_type(&rtype, faty);
             } else {
@@ -1974,13 +1981,13 @@ static void param_declarator(struct type **ty, struct token **id)
             *ty = rtype;
         }
     } else if (token->id == '[') {
-        struct type *faty = func_or_array(0, NULL);
+        struct type *faty = parse_func_or_array(0, NULL);
         prepend_type(ty, faty);
     } else if (token->id == ID) {
         *id = token;
         gettok();
         if (token->id == '[' || token->id == '(') {
-            struct type *faty = func_or_array(0, NULL);
+            struct type *faty = parse_func_or_array(0, NULL);
             prepend_type(ty, faty);
         }
     }
@@ -1998,7 +2005,7 @@ static void param_declarator(struct type **ty, struct token **id)
  enumeration-constant:
    identifier
 */
-static void enum_body(struct symbol *sym)
+static void parse_enum_body(struct symbol *sym)
 {
     int val = 0;
     struct list *list = NULL;
@@ -2007,14 +2014,14 @@ static void enum_body(struct symbol *sym)
         error("expect identifier");
 
     while (token->id == ID) {
-        const char *name = TOK_ID_STR(token);
+        const char *id = TOK_ID_STR(token);
         struct source src = source;
         gettok();
         if (token->id == '=') {
             gettok();
             val = intexpr();
         }
-        struct symbol *p = actions.enum_id(name, val++, sym, src);
+        struct symbol *p = actions.enum_id(id, val++, sym, src);
         list = list_append(list, p);
         if (token->id != ',')
             break;
@@ -2045,10 +2052,10 @@ static void enum_body(struct symbol *sym)
    declarator
    declarator[opt] ':' constant-expression
 */
-static void struct_body(struct symbol *sym)
+static void parse_struct_body(struct symbol *sym)
 {    
     while (first_decl(token)) {
-        struct type *basety = specifiers(NULL, NULL);
+        struct type *basety = parse_specifiers(NULL, NULL);
 
         while (1) {
             struct field *field = alloc_field();
@@ -2071,7 +2078,7 @@ static void struct_body(struct symbol *sym)
             } else {
                 struct type *ty = NULL;
                 struct token *id = NULL;
-                declarator(&ty, &id, NULL);
+                parse_declarator(&ty, &id, NULL);
                 attach_type(&ty, basety);
                 if (token->id == ':') {
                     gettok();
@@ -2113,14 +2120,14 @@ static void struct_body(struct symbol *sym)
    'struct'
    'union'
 */
-static struct type *tag_decl(void)
+static struct type *parse_tag_decl(void)
 {
     int t = token->id;
     const char *id = NULL;
-    struct symbol *sym = NULL;
+    struct symbol *sym;
     struct source src = source;
 
-    gettok();                   // consume `t`
+    gettok();
     if (token->id == ID) {
         id = TOK_ID_STR(token);
         gettok();
@@ -2129,17 +2136,16 @@ static struct type *tag_decl(void)
         gettok();
         sym = tag_symbol(t, id, src);
         if (t == ENUM)
-            enum_body(sym);
+            parse_enum_body(sym);
         else
-            struct_body(sym);
+            parse_struct_body(sym);
         match('}', skip_to_brace);
     } else if (id) {
         sym = lookup(id, tags);
         if (sym) {
             if (is_current_scope(sym) && TYPE_OP(sym->type) != t)
-                error_at(src,
-                         "use of '%s' with tag type that does not match "
-                         "previous declaration '%T' at %S",
+                error_at(src, "use of '%s' with tag type that does "
+                         "not match previous declaration '%T' at %S",
                          id2s(t), sym->type, sym->src);
         } else {
             sym = tag_symbol(t, id, src);
@@ -2171,13 +2177,13 @@ static struct type *tag_decl(void)
    declarator
    declarator '=' initializer
 */
-static void decls(decl_fp dcl)
+static void parse_decls(decl_fp dcl)
 {
     struct type *basety;
     int sclass, fspec;
     int level = cscope;
 
-    basety = specifiers(&sclass, &fspec);
+    basety = parse_specifiers(&sclass, &fspec);
     if (token->id == ID || token->id == '*' || token->id == '(') {
         struct token *id = NULL;
         struct type *ty = NULL;
@@ -2186,14 +2192,15 @@ static void decls(decl_fp dcl)
 
         // declarator
         if (level == GLOBAL)
-            declarator(&ty, &id, &params);
+            parse_declarator(&ty, &id, &params);
         else
-            declarator(&ty, &id, NULL);
+            parse_declarator(&ty, &id, NULL);
         attach_type(&ty, basety);
 
         if (level == GLOBAL && params) {
-            if (isfunc(ty) && (token->id == '{' ||
-                               (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
+            if (isfunc(ty) &&
+                (token->id == '{' ||
+                 (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
                 if (TYPE_OLDSTYLE(ty)) {
                     exit_scope();
                     // start with a new table
@@ -2204,7 +2211,7 @@ static void decls(decl_fp dcl)
                     ///   declaration-list declaration
                     ///
                     while (first_decl(token))
-                        decls(actions.paramdecl);
+                        parse_decls(actions.paramdecl);
                 }
 
                 funcdef(id ? TOK_ID_STR(id) : NULL,
@@ -2216,7 +2223,7 @@ static void decls(decl_fp dcl)
             }
         }
 
-        for (;;) {
+        while (1) {
             if (id) {
                 const char *name = TOK_ID_STR(id);
                 struct tree *init = NULL;
@@ -2225,14 +2232,15 @@ static void decls(decl_fp dcl)
                     if (level == PARAM) {
                         error("C does not support default arguments");
                         gettok();
-                        initializer(NULL);
+                        parse_initializer(NULL);
                     } else if (sclass == TYPEDEF) {
-                        error("illegal initializer (only variable can be initialized)");
+                        error("illegal initializer "
+                              "(only variable can be initialized)");
                         gettok();
-                        initializer(NULL);
+                        parse_initializer(NULL);
                     } else {
                         gettok();
-                        init = initializer(ty);
+                        init = parse_initializer(ty);
                     }
                 }
 
@@ -2249,7 +2257,7 @@ static void decls(decl_fp dcl)
             id = NULL;
             ty = NULL;
             // declarator
-            declarator(&ty, &id, NULL);
+            parse_declarator(&ty, &id, NULL);
             attach_type(&ty, basety);
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
@@ -2261,24 +2269,18 @@ static void decls(decl_fp dcl)
     match(';', skip_to_decl);
 }
 
-static void declaration(void)
-{
-    assert(cscope >= LOCAL);
-    decls(actions.localdecl);
-}
-
 /*
  type-name:
    specifier-qualifier-list abstract-declarator[opt]
 */
-static struct type *typename(void)
+static struct type *parse_typename(void)
 {
     struct type *basety;
     struct type *ty = NULL;
 
-    basety = specifiers(NULL, NULL);
+    basety = parse_specifiers(NULL, NULL);
     if (token->id == '*' || token->id == '(' || token->id == '[')
-        abstract_declarator(&ty);
+        parse_abstract_declarator(&ty);
 
     attach_type(&ty, basety);
 
@@ -2295,7 +2297,7 @@ void translation_unit(void)
     for (gettok(); token->id != EOI;) {
         if (first_decl(token)) {
             assert(cscope == GLOBAL);
-            decls(actions.globaldecl);
+            parse_decls(actions.globaldecl);
             deallocate(FUNC);
         } else {
             if (token->id == ';') {

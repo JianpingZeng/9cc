@@ -201,6 +201,13 @@ static void field_not_found_error(struct source src,
         error_at(src, "'%T' has no field named '%s'", ty, name);
 }
 
+static bool istypedef(const char *id)
+{
+    assert(id);
+    struct symbol *sym = lookup(id, identifiers);
+    return sym && sym->sclass == TYPEDEF;
+}
+
 static struct symbol *mklocal(const char *name, struct type *ty, int sclass)
 {
     struct symbol *sym;
@@ -1893,7 +1900,7 @@ static struct tree *do_id(struct token *tok)
             return cnsti(sym->u.c.value.i, rtype(sym->type));
         else
             return mkref(sym);
-    } else if (lookahead()->id == '(') {
+    } else if (next_token_is('(')) {
         // lookup in externals
         sym = lookup(id, externals);
         if (sym == NULL) {
@@ -3393,24 +3400,6 @@ void skip_to_stmt(void)
 void skip_to_expr(void)
 {
     skip_to_first(first_expr);
-}
-
-struct symbol *lookup_typedef(const char *id)
-{
-    if (!id)
-        return NULL;
-
-    struct symbol *sym = lookup(id, identifiers);
-
-    if (sym && sym->sclass == TYPEDEF)
-        return sym;
-    else
-        return NULL;
-}
-
-bool istypedef(const char *id)
-{
-    return lookup_typedef(id) != NULL;
 }
 
 struct symbol *tag_symbol(int t, const char *tag, struct source src)

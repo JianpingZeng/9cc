@@ -518,8 +518,6 @@ extern void skip_to_stmt(void);
 extern void skip_to_expr(void);
 
 extern struct symbol *tag_symbol(int t, const char *tag, struct source src);
-extern struct symbol *lookup_typedef(const char *id);
-extern bool istypedef(const char *id);
 extern struct desig *next_designator(struct desig *desig);
 extern struct tree *cnsti(long i, struct type *ty);
 extern struct tree *cnsts(const char *string);
