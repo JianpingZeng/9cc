@@ -79,7 +79,7 @@ struct func func;
                        OPKIND(op) == ADDRG || \
                        OPKIND(op) == ADDRP)
 
-#define isbfield(node)  ((node)->op == BFIELD)
+#define isbfield(expr)  ((expr)->op == BFIELD)
 
 #define check_designator(d)  ensure_designator(d) ? (d) : NULL
 
@@ -386,21 +386,21 @@ static void string_constant(struct token *t, struct symbol *sym)
  *
  * Functions and objects are often treated **differently** in C.
  */
-static bool islvalue(struct tree *node)
+static bool islvalue(struct tree *expr)
 {
-    if (OPKIND(node->op) == INDIR)
+    if (OPKIND(expr->op) == INDIR)
         return true;
-    if (isbfield(node))
+    if (isbfield(expr))
         return true;
-    if (isaddrop(node->op) && isarray(node->type))
+    if (isaddrop(expr->op) && isarray(expr->type))
         return true;
     return false;
 }
 
-static bool assignable(struct tree *node, struct source src)
+static bool assignable(struct tree *expr, struct source src)
 {
-    struct type *ty = node->type;
-    if (!islvalue(node)) {
+    struct type *ty = expr->type;
+    if (!islvalue(expr)) {
         error_at(src, "expression is not assignable (not an lvalue)");
         return false;
     }
@@ -459,30 +459,30 @@ static bool castable(struct type *dty, struct type *sty)
     return false;
 }
 
-static bool addable_ptr(struct tree *node, struct source src)
+static bool addable_ptr(struct tree *expr, struct source src)
 {
-    struct type *rty = rtype(node->type);
+    struct type *rty = rtype(expr->type);
     if (isfunc(rty) || isincomplete(rty)) {
         error_at(src, "increment/decrement of invalid type "
                  "'%T' (pointer to unknown size)",
-                 node->type);
+                 expr->type);
         return false;
     }
     return true;
 }
 
-static bool increasable(struct tree *node, struct source src)
+static bool increasable(struct tree *expr, struct source src)
 {
-    if (!isscalar(node->type)) {
-        error_at(src, ERR_TYPE, "scalar", node->type);
+    if (!isscalar(expr->type)) {
+        error_at(src, ERR_TYPE, "scalar", expr->type);
         return false;
     }
 
-    if (!assignable(node, src))
+    if (!assignable(expr, src))
         return false;
 
-    if (isptr(node->type))
-        return addable_ptr(node, src);
+    if (isptr(expr->type))
+        return addable_ptr(expr, src);
     else
         return true;
 }
@@ -636,70 +636,70 @@ static struct tree *explicit_cast(struct type *ty, struct tree *n)
     return n;
 }
 
-static struct tree *decay(struct tree *node)
+static struct tree *decay(struct tree *expr)
 {
-    assert(node);
-    switch (TYPE_KIND(node->type)) {
+    assert(expr);
+    switch (TYPE_KIND(expr->type)) {
     case FUNCTION:
         // FunctionToPointerDecay
-        return rettype(ptr_type(node->type), node);
+        return rettype(ptr_type(expr->type), expr);
 
     case ARRAY:
         // ArrayToPointerDecay
-        return rettype(ptr_type(rtype(node->type)), node);
+        return rettype(ptr_type(rtype(expr->type)), expr);
 
     default:
-        return node;
+        return expr;
     }
 }
 
-static struct tree *ltor(struct tree *node)
+static struct tree *ltor(struct tree *expr)
 {
     // LValueToRValue
-    if (islvalue(node))
-        return rettype(unqual(node->type), node);
+    if (islvalue(expr))
+        return rettype(unqual(expr->type), expr);
     else
-        return node;
+        return expr;
 }
 
 // Universal Unary Conversion
-static struct tree *conv(struct tree *node)
+static struct tree *conv(struct tree *expr)
 {
-    assert(node);
+    assert(expr);
 
-    node = ltor(node);
+    expr = ltor(expr);
 
-    switch (TYPE_KIND(node->type)) {
+    switch (TYPE_KIND(expr->type)) {
     case _BOOL:
     case CHAR:
     case SHORT:
-        return cast(inttype, node);
+        return cast(inttype, expr);
 
     case ENUM:
-        return cast(rtype(node->type), node);
+        return cast(rtype(expr->type), expr);
 
     case FUNCTION:
     case ARRAY:
-        return decay(node);
+        return decay(expr);
 
     default:
-        return node;
+        return expr;
     }
 }
 
 // Default function argument conversion
-static struct tree *conva(struct tree *node)
+static struct tree *conva(struct tree *expr)
 {
-    assert(node);
+    assert(expr);
 
-    node = ltor(node);
+    expr = ltor(expr);
 
-    switch (TYPE_KIND(node->type)) {
+    switch (TYPE_KIND(expr->type)) {
     case FLOAT:
-        return cast(doubletype, node);
+        return cast(doubletype, expr);
 
     default:
-        return conv(node);
+        return conv(expr);
     }
 }
 
@@ -1843,19 +1843,20 @@ static struct tree *do_direction(int t, const char *name,
     }
 }
 
-static struct tree *do_post_increment(int t, struct tree *node,
+static struct tree *do_post_increment(int t, struct tree *expr,
                                       struct source src)
 {
-    if (!node)
+    if (!expr)
         return NULL;
-    if (!increasable(node, src))
+    if (!increasable(expr, src))
         return NULL;
 
-    return ast_expr(RIGHT, node->type,
-                    ast_expr(RIGHT, node->type,
-                             node,
-                             incr(t == INCR ? '+' : '-', node, cnsti(1, inttype), src)),
-                    node);
+    return ast_expr(RIGHT, expr->type,
+                    ast_expr(RIGHT, expr->type,
+                             expr,
+                             incr(t == INCR ? '+' : '-',
+                                  expr, cnsti(1, inttype), src)),
+                    expr);
 }
 
 static struct tree *do_compound_literal(struct type *ty,
@@ -1952,16 +1953,16 @@ static long do_intexpr(struct tree *cond, struct type *ty,
 }
 
 // if/do/while/for
-static struct tree *do_bool_expr(struct tree *node, struct source src)
+static struct tree *do_bool_expr(struct tree *expr, struct source src)
 {
-    if (!node)
+    if (!expr)
         return NULL;
     // warning for assignment expression
-    if (OPKIND(node->op) == ASGN && !node->s.paren)
+    if (OPKIND(expr->op) == ASGN && !expr->s.paren)
         warning_at(src, "using the result of an assignment "
                     "as a condition without parentheses");
 
-    return decay(ltor(node));
+    return decay(ltor(expr));
 }
 
 // switch

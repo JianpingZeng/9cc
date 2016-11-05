@@ -2,15 +2,15 @@
 #include "cc.h"
 
 // topmost expression that can be simplified
-static struct tree *expr0(void);
-static struct tree *expr(void);
-static struct tree *assign_expr(void);
-static long intexpr1(struct type *);
-static long intexpr(void);
+static struct tree *parse_expr0(void);
+static struct tree *parse_expr(void);
+static struct tree *parse_assign_expr(void);
+static long parse_intexpr1(struct type *);
+static long parse_intexpr(void);
 // for expression in conditional statement
-static struct tree *bool_expr(void);
+static struct tree *parse_expr_in_cond(void);
 // for expression in switch statement
-static struct tree *switch_expr(void);
+static struct tree *parse_expr_in_switch(void);
 static struct tree *parse_initializer_list(struct type *);
 static void parse_decls(decl_fp dcl);
 static struct type *parse_typename(void);
@@ -20,12 +20,12 @@ static struct type *parse_typename(void);
  *                        expression                               *
  *=================================================================*/
 
-static struct tree *cast_expr(void);
-static struct tree *cond_expr1(struct tree *);
-static struct tree *cond_expr(void);
-static struct tree *unary_expr(void);
+static struct tree *parse_cast_expr(void);
+static struct tree *parse_cond_expr1(struct tree *);
+static struct tree *parse_cond_expr(void);
+static struct tree *parse_unary_expr(void);
 
-static struct tree *compound_literal(struct type *ty)
+static struct tree *parse_compound_literal(struct type *ty)
 {
     struct source src = source;
     struct tree *inits = parse_initializer_list(ty);
@@ -33,7 +33,7 @@ static struct tree *compound_literal(struct type *ty)
     return actions.compound_literal(ty, inits, src);
 }
 
-static struct type *cast_type(void)
+static struct type *parse_cast_type(void)
 {
     struct type *ty;
 
@@ -51,7 +51,7 @@ static struct type *cast_type(void)
    string-literal
    '(' expression ')'
 */
-static struct tree *primary_expr(void)
+static struct tree *parse_primary_expr(void)
 {
     struct tree *ret = NULL;
  
@@ -74,16 +74,15 @@ static struct tree *primary_expr(void)
         break;
     case '(':
         if (next_token_of(first_typename)) {
-            struct type *ty = cast_type();
-            ret = compound_literal(ty);
+            struct type *ty = parse_cast_type();
+            ret = parse_compound_literal(ty);
         } else {
             struct source src = source;
             struct tree *e;
             
             gettok();
-            e = expr();
+            e = parse_expr();
             match(')', skip_to_bracket);
-
             ret = actions.paren(e, src);
         }
         break;
@@ -100,13 +99,13 @@ static struct tree *primary_expr(void)
    assignment-expression
    argument-expression-list ',' assignment-expression
 */
-static struct tree **argument_expr_list(void)
+static struct tree **parse_argument_expr_list(void)
 {
     struct list *l = NULL;
 
     if (first_expr(token)) {
         for (;;) {
-            struct tree *assign = assign_expr();
+            struct tree *assign = parse_assign_expr();
             if (assign)
                 l = list_append(l, assign);
 
@@ -121,7 +120,7 @@ static struct tree **argument_expr_list(void)
     return ltoa(&l, FUNC);
 }
 
-static struct tree *postfix_expr1(struct tree *ret)
+static struct tree *parse_postfix_expr1(struct tree *ret)
 {
     for (; token_is('[') || token_is('(') || token_is('.') ||
              token_is(DEREF) || token_is(INCR) || token_is(DECR);) {
@@ -132,9 +131,8 @@ static struct tree *postfix_expr1(struct tree *ret)
                 struct tree *index;
 
                 gettok();
-                index = expr();
+                index = parse_expr();
                 match(']', skip_to_squarebracket);
-
                 ret = actions.subscript(ret, index, src);
             }
             break;
@@ -144,9 +142,8 @@ static struct tree *postfix_expr1(struct tree *ret)
                 struct tree **args;
 
                 gettok();
-                args = argument_expr_list();
+                args = parse_argument_expr_list();
                 match(')', skip_to_bracket);
-
                 ret = actions.funcall(ret, args, src);
             }
             break;
@@ -161,7 +158,6 @@ static struct tree *postfix_expr1(struct tree *ret)
                 if (token_is(ID))
                     name = TOK_ID_STR(token);
                 expect(ID);
-
                 ret = actions.direction(t, name, ret, src);
             }
             break;
@@ -195,11 +191,11 @@ static struct tree *postfix_expr1(struct tree *ret)
    '(' type-name ')' '{' initializer-list '}'
    '(' type-name ')' '{' initializer-list ',' '}'
 */
-static struct tree *postfix_expr(void)
+static struct tree *parse_postfix_expr(void)
 {
-    struct tree *expr = primary_expr();
+    struct tree *expr = parse_primary_expr();
 
-    return postfix_expr1(expr);
+    return parse_postfix_expr1(expr);
 }
 
 /*
@@ -214,7 +210,7 @@ static struct tree *postfix_expr(void)
  unary-operator:
    '&' '*' '+' '-' '~' '!'
 */
-static struct tree *unary_expr(void)
+static struct tree *parse_unary_expr(void)
 {
     int t = token->id;
     struct source src = source;
@@ -223,23 +219,23 @@ static struct tree *unary_expr(void)
     case INCR:
     case DECR:
         gettok();
-        return actions.pre_increment(t, unary_expr(), src);
+        return actions.pre_increment(t, parse_unary_expr(), src);
     case '+':
     case '-':
         gettok();
-        return actions.minus_plus(t, cast_expr(), src);
+        return actions.minus_plus(t, parse_cast_expr(), src);
     case '~':
         gettok();
-        return actions.bitwise_not(cast_expr(), src);
+        return actions.bitwise_not(parse_cast_expr(), src);
     case '!':
         gettok();
-        return actions.logical_not(cast_expr(), src);
+        return actions.logical_not(parse_cast_expr(), src);
     case '&':
         gettok();
-        return actions.address(cast_expr(), src);
+        return actions.address(parse_cast_expr(), src);
     case '*':
         gettok();
-        return actions.indirection(cast_expr(), src);
+        return actions.indirection(parse_cast_expr(), src);
     case SIZEOF:
         {
             struct tree *n = NULL;
@@ -247,18 +243,18 @@ static struct tree *unary_expr(void)
 
             gettok();
             if (token_is('(') && next_token_of(first_typename)) {
-                ty = cast_type();
+                ty = parse_cast_type();
                 if (token_is('{')) {
-                    struct tree *node = compound_literal(ty);
-                    n = postfix_expr1(node);
+                    struct tree *expr = parse_compound_literal(ty);
+                    n = parse_postfix_expr1(expr);
                 }
             } else {
-                n = unary_expr();
+                n = parse_unary_expr();
             }
             return actions.sizeofop(ty, n, src);
         }
     default:
-        return postfix_expr();
+        return parse_postfix_expr();
     }
 }
 
@@ -267,21 +263,22 @@ static struct tree *unary_expr(void)
    unary-expression
    '(' type-name ')' cast-expression
 */
-static struct tree *cast_expr(void)
+static struct tree *parse_cast_expr(void)
 {
     struct source src = source;
 
     if (token_is('(') && next_token_of(first_typename)) {
-        struct type *ty = cast_type();
+        struct type *ty = parse_cast_type();
+
         if (token_is('{')) {
-            struct tree *node = compound_literal(ty);
-            return postfix_expr1(node);
+            struct tree *expr = parse_compound_literal(ty);
+            return parse_postfix_expr1(expr);
         }
 
-        struct tree *cast = cast_expr();
+        struct tree *cast = parse_cast_expr();
         return actions.cast(ty, cast, src);
     }
-    return unary_expr();
+    return parse_unary_expr();
 }
 
 /*
@@ -291,16 +288,15 @@ static struct tree *cast_expr(void)
    multiplicative-expression '/' cast-expression
    multiplicative-expression '%' cast-expression
 */
-static struct tree *multiple_expr(void)
+static struct tree *parse_multiple_expr(void)
 {
-    struct tree *mulp1;
+    struct tree *mulp1 = parse_cast_expr();
 
-    mulp1 = cast_expr();
     while (token_is('*') || token_is('/') || token_is('%')) {
         int t = token->id;
         struct source src = source;
         gettok();
-        mulp1 = actions.bop(t, mulp1, cast_expr(), src);
+        mulp1 = actions.bop(t, mulp1, parse_cast_expr(), src);
     }
 
     return mulp1;
@@ -312,16 +308,15 @@ static struct tree *multiple_expr(void)
    additive-expression '+' multiplicative-expression
    additive-expression '-' multiplicative-expression
 */
-static struct tree *additive_expr(void)
+static struct tree *parse_additive_expr(void)
 {
-    struct tree *add1;
+    struct tree *add1 = parse_multiple_expr();
 
-    add1 = multiple_expr();
     while (token_is('+') || token_is('-')) {
         int t = token->id;
         struct source src = source;
         gettok();
-        add1 = actions.bop(t, add1, multiple_expr(), src);
+        add1 = actions.bop(t, add1, parse_multiple_expr(), src);
     }
 
     return add1;
@@ -333,16 +328,15 @@ static struct tree *additive_expr(void)
    shift-expression '<<' additive-expression
    shift-expression '>>' additive-expression
 */
-static struct tree *shift_expr(void)
+static struct tree *parse_shift_expr(void)
 {
-    struct tree *shift1;
+    struct tree *shift1 = parse_additive_expr();
 
-    shift1 = additive_expr();
     while (token_is(LSHIFT) || token_is(RSHIFT)) {
         int t = token->id;
         struct source src = source;
         gettok();
-        shift1 = actions.bop(t, shift1, additive_expr(), src);
+        shift1 = actions.bop(t, shift1, parse_additive_expr(), src);
     }
 
     return shift1;
@@ -356,17 +350,16 @@ static struct tree *shift_expr(void)
    relational-expression '<=' shift-expression
    relational-expression '>=' shift-expression
 */
-static struct tree *relation_expr(void)
+static struct tree *parse_relation_expr(void)
 {
-    struct tree *rel;
+    struct tree *rel = parse_shift_expr();
 
-    rel = shift_expr();
     while (token_is('<') || token_is('>') ||
            token_is(LEQ) || token_is(GEQ)) {
         int t = token->id;
         struct source src = source;
         gettok();
-        rel = actions.bop(t, rel, shift_expr(), src);
+        rel = actions.bop(t, rel, parse_shift_expr(), src);
     }
 
     return rel;
@@ -378,16 +371,15 @@ static struct tree *relation_expr(void)
    equality-expression '==' relational-expression
    equality-expression '!=' relational-expression
 */
-static struct tree *equality_expr(void)
+static struct tree *parse_equality_expr(void)
 {
-    struct tree *equl;
+    struct tree *equl = parse_relation_expr();
 
-    equl = relation_expr();
     while (token_is(EQL) || token_is(NEQ)) {
         int t = token->id;
         struct source src = source;
         gettok();
-        equl = actions.bop(t, equl, relation_expr(), src);
+        equl = actions.bop(t, equl, parse_relation_expr(), src);
     }
 
     return equl;
@@ -398,15 +390,14 @@ static struct tree *equality_expr(void)
    equality-expression
    AND-expression '&' equality-expression
 */
-static struct tree *and_expr(void)
+static struct tree *parse_and_expr(void)
 {
-    struct tree *and1;
+    struct tree *and1 = parse_equality_expr();
 
-    and1 = equality_expr();
     while (token_is('&')) {
         struct source src = source;
         gettok();
-        and1 = actions.bop('&', and1, equality_expr(), src);
+        and1 = actions.bop('&', and1, parse_equality_expr(), src);
     }
 
     return and1;
@@ -417,15 +408,14 @@ static struct tree *and_expr(void)
    AND-expression
    exclusive-OR-expression '^' AND-expression
 */
-static struct tree *exclusive_or(void)
+static struct tree *parse_exclusive_or(void)
 {
-    struct tree *eor;
+    struct tree *eor = parse_and_expr();
 
-    eor = and_expr();
     while (token_is('^')) {
         struct source src = source;
         gettok();
-        eor = actions.bop('^', eor, and_expr(), src);
+        eor = actions.bop('^', eor, parse_and_expr(), src);
     }
 
     return eor;
@@ -436,15 +426,14 @@ static struct tree *exclusive_or(void)
    exclusive-OR-expression
    inclusive-OR-expression '|' exclusive-OR-expression
 */
-static struct tree *inclusive_or(void)
+static struct tree *parse_inclusive_or(void)
 {
-    struct tree *ior;
+    struct tree *ior = parse_exclusive_or();
 
-    ior = exclusive_or();
     while (token_is('|')) {
         struct source src = source;
         gettok();
-        ior = actions.bop('|', ior, exclusive_or(), src);
+        ior = actions.bop('|', ior, parse_exclusive_or(), src);
     }
 
     return ior;
@@ -455,15 +444,14 @@ static struct tree *inclusive_or(void)
    inclusive-OR-expression
    logical-AND-expression '&&' inclusive-OR-expression
 */
-static struct tree *logic_and(void)
+static struct tree *parse_logic_and(void)
 {
-    struct tree *and1;
+    struct tree *and1 = parse_inclusive_or();
 
-    and1 = inclusive_or();
     while (token_is(ANDAND)) {
         struct source src = source;
         gettok();
-        and1 = actions.logical(ANDAND, and1, inclusive_or(), src);
+        and1 = actions.logical(ANDAND, and1, parse_inclusive_or(), src);
     }
 
     return and1;
@@ -474,29 +462,28 @@ static struct tree *logic_and(void)
    logical-AND-expression
    logical-OR-expression '||' logical-AND-expression
 */
-static struct tree *logic_or(void)
+static struct tree *parse_logic_or(void)
 {
-    struct tree *or1;
+    struct tree *or1 = parse_logic_and();
 
-    or1 = logic_and();
     while (token_is(OROR)) {
         struct source src = source;
         gettok();
-        or1 = actions.logical(OROR, or1, logic_and(), src);
+        or1 = actions.logical(OROR, or1, parse_logic_and(), src);
     }
 
     return or1;
 }
 
-static struct tree *cond_expr1(struct tree *cond)
+static struct tree *parse_cond_expr1(struct tree *cond)
 {
     struct tree *then, *els;
     struct source src = source;
 
     expect('?');
-    then = expr();
+    then = parse_expr();
     expect(':');
-    els = cond_expr();
+    els = parse_cond_expr();
 
     return actions.cond(cond, then, els, src);
 }
@@ -506,11 +493,12 @@ static struct tree *cond_expr1(struct tree *cond)
    logical-OR-expression
    logical-OR-expression '?' expression ':' conditional-expression
 */
-static struct tree *cond_expr(void)
+static struct tree *parse_cond_expr(void)
 {
-    struct tree *or1 = logic_or();
+    struct tree *or1 = parse_logic_or();
+
     if (token_is('?'))
-        return cond_expr1(or1);
+        return parse_cond_expr1(or1);
     return or1;
 }
 
@@ -522,16 +510,17 @@ static struct tree *cond_expr(void)
  assignment-operator:
    '=' '*=' '/=' '%=' '+=' '-=' '<<=' '>>=' '&=' '^=' '|='
 */
-static struct tree *assign_expr(void)
+static struct tree *parse_assign_expr(void)
 {
-    struct tree *or1 = logic_or();
+    struct tree *or1 = parse_logic_or();
+
     if (token_is('?'))
-        return cond_expr1(or1);
+        return parse_cond_expr1(or1);
     if (is_assign_tok(token)) {
         struct source src = source;
         int t = token->id;
         gettok();
-        return actions.assign(t, or1, assign_expr(), src);
+        return actions.assign(t, or1, parse_assign_expr(), src);
     }
     return or1;
 }
@@ -541,47 +530,46 @@ static struct tree *assign_expr(void)
    assignment-expression
    expression ',' assignment-expression
 */
-static struct tree *expr(void)
+static struct tree *parse_expr(void)
 {
-    struct tree *assign1;
+    struct tree *assign1 = parse_assign_expr();
 
-    assign1 = assign_expr();
     while (token_is(',')) {
         struct source src = source;
         gettok();
-        assign1 = actions.comma(assign1, assign_expr(), src);
+        assign1 = actions.comma(assign1, parse_assign_expr(), src);
     }
     return assign1;
 }
 
-static struct tree *expr0(void)
+static struct tree *parse_expr0(void)
 {
-    return root(expr());
+    return root(parse_expr());
 }
 
-static long intexpr1(struct type *ty)
+static long parse_intexpr1(struct type *ty)
 {
     struct source src = source;
-    return actions.intexpr(cond_expr(), ty, src);
+    return actions.intexpr(parse_cond_expr(), ty, src);
 }
 
-static long intexpr(void)
+static long parse_intexpr(void)
 {
-    return intexpr1(NULL);
+    return parse_intexpr1(NULL);
 }
 
 // for expression in conditional statement
-static struct tree *bool_expr(void)
+static struct tree *parse_expr_in_cond(void)
 {
     struct source src = source;
-    return actions.bool_expr(expr(), src);
+    return actions.bool_expr(parse_expr(), src);
 }
 
 // for expression in switch statement
-static struct tree *switch_expr(void)
+static struct tree *parse_expr_in_switch(void)
 {
     struct source src = source;
-    return actions.switch_expr(expr(), src);
+    return actions.switch_expr(parse_expr(), src);
 }
 
 /*=================================================================*
@@ -598,7 +586,7 @@ static void expr_stmt(void)
     if (token_is(';')) {
         // do nothing
     } else if (first_expr(token)) {
-        struct tree *e = expr0();
+        struct tree *e = parse_expr0();
         if (e) actions.gen(e);
     } else {
         error("missing statement before '%t'", token);
@@ -626,7 +614,7 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
 
     expect(IF);
     expect('(');
-    cond = bool_expr();
+    cond = parse_expr_in_cond();
     match(')', skip_to_bracket);
 
     actions.branch(cond, 0, lab);
@@ -666,7 +654,7 @@ static void while_stmt(int lab, struct swtch *swtch)
 
     expect(WHILE);
     expect('(');
-    cond = bool_expr();
+    cond = parse_expr_in_cond();
     match(')', skip_to_bracket);
 
     actions.jump(lab+1);
@@ -694,7 +682,7 @@ static void do_while_stmt(int lab, struct swtch *swtch)
     statement(lab+1, lab+2, swtch);
     expect(WHILE);
     expect('(');
-    cond = bool_expr();
+    cond = parse_expr_in_cond();
     match(')', skip_to_bracket);
     expect(';');
     actions.label(lab+1);
@@ -728,18 +716,18 @@ static void for_stmt(int lab, struct swtch *swtch)
             parse_decls(actions.localdecl);
         } else {
             // expression
-            init = expr0();
+            init = parse_expr0();
             expect(';');
         }
     }
 
     if (token_is_not(';'))
-        cond = bool_expr();
+        cond = parse_expr_in_cond();
 
     expect(';');
 
     if (token_is_not(')'))
-        ctrl = expr0();
+        ctrl = parse_expr0();
 
     match(')', skip_to_bracket);
 
@@ -777,7 +765,7 @@ static void switch_stmt(int lab, int cnt)
 
     expect(SWITCH);
     expect('(');
-    expr = switch_expr();
+    expr = parse_expr_in_switch();
     match(')', skip_to_bracket);
 
     swtch->src = src;
@@ -790,7 +778,9 @@ static void switch_stmt(int lab, int cnt)
     
     // gen switch code
     for (struct cse *cs = swtch->cases; cs; cs = cs->link) {
-        struct tree *e = actions.bop(EQL, expr, cnsti(cs->value, longtype), src);
+        struct tree *e = actions.bop(EQL,
+                                     expr, cnsti(cs->value, longtype),
+                                     src);
         actions.branch(e, cs->label, 0);
     }
 
@@ -810,7 +800,7 @@ static void case_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     long value;
 
     expect(CASE);
-    value = intexpr1(swtch ? swtch->type : inttype);
+    value = parse_intexpr1(swtch ? swtch->type : inttype);
     expect(':');
 
     if (swtch) {
@@ -980,7 +970,7 @@ static void return_stmt(void)
     if (token_is(';'))
         isnull = true;
     else
-        e = expr();
+        e = parse_expr();
 
     expect(';');
     actions.ret(e, isnull, src);
@@ -1121,7 +1111,7 @@ static struct desig *parse_designator(struct desig *desig)
         } else {
             expect('[');
             struct source src = source;
-            long index = intexpr();
+            long index = parse_intexpr();
             match(']', skip_to_squarebracket);
             // only create list item when desig != NULL
             if (desig)
@@ -1154,7 +1144,7 @@ static void parse_initializer1(struct desig **pdesig, struct init **pinit)
         
         parse_initializer_list1(d, pinit);
     } else {
-        actions.element_init(pdesig, assign_expr(), pinit);
+        actions.element_init(pdesig, parse_assign_expr(), pinit);
     }
 }
 
@@ -1201,7 +1191,7 @@ static struct tree *parse_initializer(struct type *ty)
     if (token_is('{'))
         return parse_initializer_list(ty);
     else
-        return assign_expr();
+        return parse_assign_expr();
 }
 
 /*
@@ -1715,7 +1705,7 @@ static struct type *parse_array(int abstract)
             TYPE_A_STAR(atype) = 1;
         } else if (first_expr(token)) {
             struct source src = source;
-            actions.array_index(atype, assign_expr(), src);
+            actions.array_index(atype, parse_assign_expr(), src);
         }
         break;
 
@@ -1726,20 +1716,20 @@ static struct type *parse_array(int abstract)
             TYPE_A_STATIC(atype) = 1;
             parse_array_qualifiers(atype);
             struct source src = source;
-            actions.array_index(atype, assign_expr(), src);
+            actions.array_index(atype, parse_assign_expr(), src);
         } else {
             parse_array_qualifiers(atype);
             if (token_is(STATIC)) {
                 gettok();
                 TYPE_A_STATIC(atype) = 1;
                 struct source src = source;
-                actions.array_index(atype, assign_expr(), src);
+                actions.array_index(atype, parse_assign_expr(), src);
             } else if (token_is('*') && next_token_is(']')) {
                 gettok();
                 TYPE_A_STAR(atype) = 1;
             } else if (first_expr(token)) {
                 struct source src = source;
-                actions.array_index(atype, assign_expr(), src);
+                actions.array_index(atype, parse_assign_expr(), src);
             }
         }
         break;
@@ -2020,7 +2010,7 @@ static void parse_enum_body(struct symbol *sym)
         gettok();
         if (token_is('=')) {
             gettok();
-            val = intexpr();
+            val = parse_intexpr();
         }
         struct symbol *p = actions.enum_id(id, val++, sym, src);
         list = list_append(list, p);
@@ -2063,7 +2053,7 @@ static void parse_struct_body(struct symbol *sym)
             if (token_is(':')) {
                 field->src = source;
                 gettok();
-                field->bitsize = intexpr();
+                field->bitsize = parse_intexpr();
                 field->isbit = true;
                 field->type = basety;
                 // link
@@ -2083,7 +2073,7 @@ static void parse_struct_body(struct symbol *sym)
                 attach_type(&ty, basety);
                 if (token_is(':')) {
                     gettok();
-                    field->bitsize = intexpr();
+                    field->bitsize = parse_intexpr();
                     field->isbit = true;
                 }
                 field->type = ty;
