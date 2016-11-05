@@ -1391,16 +1391,7 @@ static struct tree *do_assign(int t, struct tree *l, struct tree *r,
     if (t != '=') {
         // compound assignment
         int t2 = splitop(t);
-        if (t2 == '+' || t2 == '-') {
-            if (!((isarith(ty1) && isarith(ty2)) ||
-                  (isptr(ty1) && isint(ty2)))) {
-                error_at(src, ERR_INCOMPATIBLE_CONV, ty2, ty1);
-                return NULL;
-            }
-        }
-        r = actions.bop(t2, l, r, src);
-        if (!r)
-            return NULL;
+        return actions.assign('=', l, actions.bop(t2, l, r, src), src);
     }
 
     retty = unqual(l->type);
