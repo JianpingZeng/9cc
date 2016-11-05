@@ -211,6 +211,8 @@ extern struct token *lookahead(void);
 extern void expect(int t);
 extern void match(int t, void (*otherwise) (void));
 extern const char *unwrap_scon(const char *name);
+#define token_is(t)  (token->id == (t))
+#define token_is_not(t)  (token->id != (t))
 #define next_token_is(t)  (lookahead()->id == (t))
 
 ///

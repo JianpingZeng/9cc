@@ -164,18 +164,18 @@ static void skip_balance(int l, int r, const char *name)
     int nests = 0;
 
     while (1) {
-        if (token->id == EOI)
+        if (token_is(EOI))
             break;
-        if (token->id == r) {
+        if (token_is(r)) {
             if (nests-- == 0)
                 break;
-        } else if (token->id == l) {
+        } else if (token_is(l)) {
             nests++;
         }
         gettok();
     }
 
-    if (token->id == r)
+    if (token_is(r))
         gettok();
     else
         error("unclosed %s, missing '%s'", name, id2s(r));
@@ -184,7 +184,7 @@ static void skip_balance(int l, int r, const char *name)
 static void skip_to_first(int (*first) (struct token *))
 {
     while (1) {
-        if (token->id == EOI)
+        if (token_is(EOI))
             break;
         if (first(token))
             break;
@@ -3335,7 +3335,7 @@ void funcdef(const char *id, struct type *ty, int sclass, int fspec,
     TYPE_PARAMS(ty) = params;
     check_params_in_funcdef(params);
 
-    if (token->id == '{') {
+    if (token_is('{')) {
         // function definition
         func_body(sym);
         exit_scope();

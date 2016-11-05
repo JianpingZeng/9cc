@@ -110,11 +110,11 @@ static struct tree **argument_expr_list(void)
             if (assign)
                 l = list_append(l, assign);
 
-            if (token->id != ',')
+            if (token_is_not(','))
                 break;
             gettok();
         }
-    } else if (token->id != ')') {
+    } else if (token_is_not(')')) {
         error("expect assignment expression");
     }
 
@@ -123,8 +123,8 @@ static struct tree **argument_expr_list(void)
 
 static struct tree *postfix_expr1(struct tree *ret)
 {
-    for (; token->id == '[' || token->id == '(' || token->id == '.' ||
-             token->id == DEREF || token->id == INCR || token->id == DECR;) {
+    for (; token_is('[') || token_is('(') || token_is('.') ||
+             token_is(DEREF) || token_is(INCR) || token_is(DECR);) {
         switch (token->id) {
         case '[':
             {
@@ -158,7 +158,7 @@ static struct tree *postfix_expr1(struct tree *ret)
                 const char *name = NULL;
 
                 gettok();
-                if (token->id == ID)
+                if (token_is(ID))
                     name = TOK_ID_STR(token);
                 expect(ID);
 
@@ -246,9 +246,9 @@ static struct tree *unary_expr(void)
             struct type *ty = NULL;
 
             gettok();
-            if (token->id == '(' && next_token_of(first_typename)) {
+            if (token_is('(') && next_token_of(first_typename)) {
                 ty = cast_type();
-                if (token->id == '{') {
+                if (token_is('{')) {
                     struct tree *node = compound_literal(ty);
                     n = postfix_expr1(node);
                 }
@@ -271,9 +271,9 @@ static struct tree *cast_expr(void)
 {
     struct source src = source;
 
-    if (token->id == '(' && next_token_of(first_typename)) {
+    if (token_is('(') && next_token_of(first_typename)) {
         struct type *ty = cast_type();
-        if (token->id == '{') {
+        if (token_is('{')) {
             struct tree *node = compound_literal(ty);
             return postfix_expr1(node);
         }
@@ -296,7 +296,7 @@ static struct tree *multiple_expr(void)
     struct tree *mulp1;
 
     mulp1 = cast_expr();
-    while (token->id == '*' || token->id == '/' || token->id == '%') {
+    while (token_is('*') || token_is('/') || token_is('%')) {
         int t = token->id;
         struct source src = source;
         gettok();
@@ -317,7 +317,7 @@ static struct tree *additive_expr(void)
     struct tree *add1;
 
     add1 = multiple_expr();
-    while (token->id == '+' || token->id == '-') {
+    while (token_is('+') || token_is('-')) {
         int t = token->id;
         struct source src = source;
         gettok();
@@ -338,7 +338,7 @@ static struct tree *shift_expr(void)
     struct tree *shift1;
 
     shift1 = additive_expr();
-    while (token->id == LSHIFT || token->id == RSHIFT) {
+    while (token_is(LSHIFT) || token_is(RSHIFT)) {
         int t = token->id;
         struct source src = source;
         gettok();
@@ -361,7 +361,8 @@ static struct tree *relation_expr(void)
     struct tree *rel;
 
     rel = shift_expr();
-    while (token->id == '<' || token->id == '>' || token->id == LEQ || token->id == GEQ) {
+    while (token_is('<') || token_is('>') ||
+           token_is(LEQ) || token_is(GEQ)) {
         int t = token->id;
         struct source src = source;
         gettok();
@@ -382,7 +383,7 @@ static struct tree *equality_expr(void)
     struct tree *equl;
 
     equl = relation_expr();
-    while (token->id == EQL || token->id == NEQ) {
+    while (token_is(EQL) || token_is(NEQ)) {
         int t = token->id;
         struct source src = source;
         gettok();
@@ -402,7 +403,7 @@ static struct tree *and_expr(void)
     struct tree *and1;
 
     and1 = equality_expr();
-    while (token->id == '&') {
+    while (token_is('&')) {
         struct source src = source;
         gettok();
         and1 = actions.bop('&', and1, equality_expr(), src);
@@ -421,7 +422,7 @@ static struct tree *exclusive_or(void)
     struct tree *eor;
 
     eor = and_expr();
-    while (token->id == '^') {
+    while (token_is('^')) {
         struct source src = source;
         gettok();
         eor = actions.bop('^', eor, and_expr(), src);
@@ -440,7 +441,7 @@ static struct tree *inclusive_or(void)
     struct tree *ior;
 
     ior = exclusive_or();
-    while (token->id == '|') {
+    while (token_is('|')) {
         struct source src = source;
         gettok();
         ior = actions.bop('|', ior, exclusive_or(), src);
@@ -459,7 +460,7 @@ static struct tree *logic_and(void)
     struct tree *and1;
 
     and1 = inclusive_or();
-    while (token->id == ANDAND) {
+    while (token_is(ANDAND)) {
         struct source src = source;
         gettok();
         and1 = actions.logical(ANDAND, and1, inclusive_or(), src);
@@ -478,7 +479,7 @@ static struct tree *logic_or(void)
     struct tree *or1;
 
     or1 = logic_and();
-    while (token->id == OROR) {
+    while (token_is(OROR)) {
         struct source src = source;
         gettok();
         or1 = actions.logical(OROR, or1, logic_and(), src);
@@ -508,7 +509,7 @@ static struct tree *cond_expr1(struct tree *cond)
 static struct tree *cond_expr(void)
 {
     struct tree *or1 = logic_or();
-    if (token->id == '?')
+    if (token_is('?'))
         return cond_expr1(or1);
     return or1;
 }
@@ -524,7 +525,7 @@ static struct tree *cond_expr(void)
 static struct tree *assign_expr(void)
 {
     struct tree *or1 = logic_or();
-    if (token->id == '?')
+    if (token_is('?'))
         return cond_expr1(or1);
     if (is_assign_tok(token)) {
         struct source src = source;
@@ -545,7 +546,7 @@ static struct tree *expr(void)
     struct tree *assign1;
 
     assign1 = assign_expr();
-    while (token->id == ',') {
+    while (token_is(',')) {
         struct source src = source;
         gettok();
         assign1 = actions.comma(assign1, assign_expr(), src);
@@ -594,7 +595,7 @@ static void statement(int cnt, int brk, struct swtch *swtch);
 */
 static void expr_stmt(void)
 {    
-    if (token->id == ';') {
+    if (token_is(';')) {
         // do nothing
     } else if (first_expr(token)) {
         struct tree *e = expr0();
@@ -634,8 +635,8 @@ static void if_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     statement(cnt, brk, swtch);
     exit_scope();
 
-    if (token->id == ELSE) {
-        expect(ELSE);
+    if (token_is(ELSE)) {
+        gettok();
         actions.jump(lab+1);
         actions.label(lab);
         enter_scope();
@@ -719,8 +720,8 @@ static void for_stmt(int lab, struct swtch *swtch)
     expect(FOR);
     expect('(');
 
-    if (token->id == ';') {
-        expect(';');
+    if (token_is(';')) {
+        gettok();
     } else {
         if (first_decl(token)) {
             // declaration
@@ -732,12 +733,12 @@ static void for_stmt(int lab, struct swtch *swtch)
         }
     }
 
-    if (token->id != ';')
+    if (token_is_not(';'))
         cond = bool_expr();
 
     expect(';');
 
-    if (token->id != ')')
+    if (token_is_not(')'))
         ctrl = expr0();
 
     match(')', skip_to_bracket);
@@ -875,7 +876,7 @@ static void label_stmt(int lab, int cnt, int brk, struct swtch *swtch)
     struct source src = source;
     const char *id = NULL;
 
-    if (token->id == ID)
+    if (token_is(ID))
         id = TOK_ID_STR(token);
     expect(ID);
     expect(':');
@@ -911,7 +912,7 @@ static void goto_stmt(int lab)
     const char *id = NULL;
     
     expect(GOTO);
-    if (token->id == ID)
+    if (token_is(ID))
         id = TOK_ID_STR(token);
     expect(ID);
     expect(';');
@@ -976,7 +977,7 @@ static void return_stmt(void)
     bool isnull = false;
 
     expect(RETURN);
-    if (token->id == ';')
+    if (token_is(';'))
         isnull = true;
     else
         e = expr();
@@ -1100,15 +1101,15 @@ static struct desig *parse_designator(struct desig *desig)
 {
     struct list *list = NULL;
     
-    assert(token->id == '.' || token->id == '[');
+    assert(token_is('.') || token_is('['));
     
     do {
-        if (token->id == '.') {
-            expect('.');
+        if (token_is('.')) {
+            gettok();
             struct source src = source;
             // only create list item when desig != NULL
             if (desig) {
-                if (token->id == ID)
+                if (token_is(ID))
                     list = list_append(list,
                                        new_desig_name(TOK_ID_STR(token),
                                                       src));
@@ -1126,7 +1127,7 @@ static struct desig *parse_designator(struct desig *desig)
             if (desig)
                 list = list_append(list, new_desig_index(index, src));
         }
-    } while (token->id == '.' || token->id == '[');
+    } while (token_is('.') || token_is('['));
 
     expect('=');
 
@@ -1135,7 +1136,7 @@ static struct desig *parse_designator(struct desig *desig)
 
 static void parse_initializer1(struct desig **pdesig, struct init **pinit)
 {
-    if (token->id == '{') {
+    if (token_is('{')) {
         // begin a new root designator
         struct desig *desig = *pdesig;
         struct desig *d;
@@ -1164,23 +1165,23 @@ static void parse_initializer_list1(struct desig *desig,
     
     expect('{');
 
-    if (token->id == '}') {
+    if (token_is('}')) {
         actions.element_init(&desig, zinit(desig->type), pinit);
     } else {
         while (1) {
-            if (token->id == '.' || token->id == '[')
+            if (token_is('.') || token_is('['))
                 d = parse_designator(desig);
             else
                 d = next_designator(d);
 
             parse_initializer1(&d, pinit);
 
-            if (token->id != ',')
+            if (token_is_not(','))
                 break;
 
             expect(',');
 
-            if (token->id == '}')
+            if (token_is('}'))
                 break;
         }
     }
@@ -1197,7 +1198,7 @@ static void parse_initializer_list1(struct desig *desig,
 */
 static struct tree *parse_initializer(struct type *ty)
 {
-    if (token->id == '{')
+    if (token_is('{'))
         return parse_initializer_list(ty);
     else
         return assign_expr();
@@ -1581,11 +1582,11 @@ static struct symbol **parse_prototype(struct type *ftype)
                                 id ? id->src : src);
         list = list_append(list, sym);
 
-        if (token->id != ',')
+        if (token_is_not(','))
             break;
 
         gettok();
-        if (token->id == ELLIPSIS) {
+        if (token_is(ELLIPSIS)) {
             TYPE_VARG(ftype) = 1;
             gettok();
             break;
@@ -1606,7 +1607,7 @@ static struct symbol **parse_oldstyle(struct type *ftype)
     struct list *params = NULL;
 
     while (1) {
-        if (token->id == ID) {
+        if (token_is(ID)) {
             const char *name = TOK_ID_STR(token);
             struct symbol *sym;
 
@@ -1615,7 +1616,7 @@ static struct symbol **parse_oldstyle(struct type *ftype)
             params = list_append(params, sym);
         }
         expect(ID);
-        if (token->id != ',')
+        if (token_is_not(','))
             break;
         gettok();
     }
@@ -1640,17 +1641,17 @@ static struct symbol **parse_parameters(struct type *ftype)
         proto[i] = NULL;
         TYPE_PROTO(ftype) = proto;
         TYPE_OLDSTYLE(ftype) = 0;
-    } else if (token->id == ID) {
+    } else if (token_is(ID)) {
         // oldstyle
         params = parse_oldstyle(ftype);
         TYPE_OLDSTYLE(ftype) = 1;
-    } else if (token->id == ')') {
+    } else if (token_is(')')) {
         params = vtoa(NULL, FUNC);
         TYPE_OLDSTYLE(ftype) = 1;
     } else {
         params = vtoa(NULL, FUNC);
         TYPE_OLDSTYLE(ftype) = 1;
-        if (token->id == ELLIPSIS)
+        if (token_is(ELLIPSIS))
             error("ISO C requires a named parameter before '...'");
         else
             error("expect parameter declarator at '%t'", token);
@@ -1709,7 +1710,7 @@ static struct type *parse_array(int abstract)
     //NOTE: '*' is in `first_expr`
     switch (abstract) {
     case ABSTRACT:
-        if (token->id == '*' && next_token_is(']')) {
+        if (token_is('*') && next_token_is(']')) {
             gettok();
             TYPE_A_STAR(atype) = 1;
         } else if (first_expr(token)) {
@@ -1720,7 +1721,7 @@ static struct type *parse_array(int abstract)
 
     case DIRECT:
     case 0:
-        if (token->id == STATIC) {
+        if (token_is(STATIC)) {
             gettok();
             TYPE_A_STATIC(atype) = 1;
             parse_array_qualifiers(atype);
@@ -1728,12 +1729,12 @@ static struct type *parse_array(int abstract)
             actions.array_index(atype, assign_expr(), src);
         } else {
             parse_array_qualifiers(atype);
-            if (token->id == STATIC) {
+            if (token_is(STATIC)) {
                 gettok();
                 TYPE_A_STATIC(atype) = 1;
                 struct source src = source;
                 actions.array_index(atype, assign_expr(), src);
-            } else if (token->id == '*' && next_token_is(']')) {
+            } else if (token_is('*') && next_token_is(']')) {
                 gettok();
                 TYPE_A_STAR(atype) = 1;
             } else if (first_expr(token)) {
@@ -1755,8 +1756,8 @@ static struct type *parse_func_or_array(int abstract,
 {
     struct type *ty = NULL;
 
-    for (; token->id == '(' || token->id == '[';) {
-        if (token->id == '[') {
+    for (; token_is('(') || token_is('[');) {
+        if (token_is('[')) {
             struct type *atype;
             gettok();
             atype = parse_array(abstract);
@@ -1803,9 +1804,9 @@ static struct type *parse_ptr(void)
     struct type *ret = NULL;
     int con, vol, res, type;
 
-    assert(token->id == '*');
+    assert(token_is('*'));
 
-    for (;;) {
+    while (1) {
         int *p, t = token->id;
         switch (token->id) {
         case CONST:
@@ -1866,13 +1867,13 @@ static void parse_abstract_declarator(struct type **ty)
 {
     assert(ty);
 
-    if (token->id == '*' || token->id == '(' || token->id == '[') {
-        if (token->id == '*') {
+    if (token_is('*') || token_is('(') || token_is('[')) {
+        if (token_is('*')) {
             struct type *pty = parse_ptr();
             prepend_type(ty, pty);
         }
 
-        if (token->id == '(') {
+        if (token_is('(')) {
             if (next_token_of(first_decl)) {
                 struct type *faty = parse_func_or_array(ABSTRACT, NULL);
                 prepend_type(ty, faty);
@@ -1882,7 +1883,7 @@ static void parse_abstract_declarator(struct type **ty)
                 expect('(');
                 parse_abstract_declarator(&rtype);
                 match(')', skip_to_bracket);
-                if (token->id == '[' || token->id == '(') {
+                if (token_is('[') || token_is('(')) {
                     struct type *faty = parse_func_or_array(ABSTRACT, NULL);
                     attach_type(&faty, type1);
                     attach_type(&rtype, faty);
@@ -1891,7 +1892,7 @@ static void parse_abstract_declarator(struct type **ty)
                 }
                 *ty = rtype;
             }
-        } else if (token->id == '[') {
+        } else if (token_is('[')) {
             struct type *faty = parse_func_or_array(ABSTRACT, NULL);
             prepend_type(ty, faty);
         }
@@ -1920,25 +1921,25 @@ static void parse_declarator(struct type **ty,
 {
     assert(ty && id);
 
-    if (token->id == '*') {
+    if (token_is('*')) {
         struct type *pty = parse_ptr();
         prepend_type(ty, pty);
     }
 
-    if (token->id == ID) {
+    if (token_is(ID)) {
         *id = token;
         gettok();
-        if (token->id == '[' || token->id == '(') {
+        if (token_is('[') || token_is('(')) {
             struct type *faty = parse_func_or_array(DIRECT, params);
             prepend_type(ty, faty);
         }
-    } else if (token->id == '(') {
+    } else if (token_is('(')) {
         struct type *type1 = *ty;
         struct type *rtype = NULL;
         gettok();
         parse_declarator(&rtype, id, params);
         match(')', skip_to_bracket);
-        if (token->id == '[' || token->id == '(') {
+        if (token_is('[') || token_is('(')) {
             struct type *faty = parse_func_or_array(DIRECT, params);
             attach_type(&faty, type1);
             attach_type(&rtype, faty);
@@ -1956,12 +1957,12 @@ static void parse_param_declarator(struct type **ty, struct token **id)
 {
     assert(ty && id);
     
-    if (token->id == '*') {
+    if (token_is('*')) {
         struct type *pty = parse_ptr();
         prepend_type(ty, pty);
     }
 
-    if (token->id == '(') {
+    if (token_is('(')) {
         if (next_token_is(')') || next_token_of(first_decl)) {
             struct type *faty = parse_func_or_array(0, NULL);
             prepend_type(ty, faty);
@@ -1971,7 +1972,7 @@ static void parse_param_declarator(struct type **ty, struct token **id)
             expect('(');
             parse_param_declarator(&rtype, id);
             match(')', skip_to_bracket);
-            if (token->id == '(' || token->id == '[') {
+            if (token_is('(') || token_is('[')) {
                 struct type *faty = parse_func_or_array(0, NULL);
                 attach_type(&faty, type1);
                 attach_type(&rtype, faty);
@@ -1980,13 +1981,13 @@ static void parse_param_declarator(struct type **ty, struct token **id)
             }
             *ty = rtype;
         }
-    } else if (token->id == '[') {
+    } else if (token_is('[')) {
         struct type *faty = parse_func_or_array(0, NULL);
         prepend_type(ty, faty);
-    } else if (token->id == ID) {
+    } else if (token_is(ID)) {
         *id = token;
         gettok();
-        if (token->id == '[' || token->id == '(') {
+        if (token_is('[') || token_is('(')) {
             struct type *faty = parse_func_or_array(0, NULL);
             prepend_type(ty, faty);
         }
@@ -2010,20 +2011,20 @@ static void parse_enum_body(struct symbol *sym)
     int val = 0;
     struct list *list = NULL;
     
-    if (token->id != ID)
+    if (token_is_not(ID))
         error("expect identifier");
 
-    while (token->id == ID) {
+    while (token_is(ID)) {
         const char *id = TOK_ID_STR(token);
         struct source src = source;
         gettok();
-        if (token->id == '=') {
+        if (token_is('=')) {
             gettok();
             val = intexpr();
         }
         struct symbol *p = actions.enum_id(id, val++, sym, src);
         list = list_append(list, p);
-        if (token->id != ',')
+        if (token_is_not(','))
             break;
         gettok();
     }
@@ -2059,7 +2060,7 @@ static void parse_struct_body(struct symbol *sym)
 
         while (1) {
             struct field *field = alloc_field();
-            if (token->id == ':') {
+            if (token_is(':')) {
                 field->src = source;
                 gettok();
                 field->bitsize = intexpr();
@@ -2067,7 +2068,7 @@ static void parse_struct_body(struct symbol *sym)
                 field->type = basety;
                 // link
                 actions.direct_field(sym, field);
-            } else if (token->id == ';' &&
+            } else if (token_is(';') &&
                        isrecord(basety) &&
                        TYPE_TSYM(basety)->anonymous) {
                 //C11: anonymous struct/union
@@ -2080,7 +2081,7 @@ static void parse_struct_body(struct symbol *sym)
                 struct token *id = NULL;
                 parse_declarator(&ty, &id, NULL);
                 attach_type(&ty, basety);
-                if (token->id == ':') {
+                if (token_is(':')) {
                     gettok();
                     field->bitsize = intexpr();
                     field->isbit = true;
@@ -2094,7 +2095,7 @@ static void parse_struct_body(struct symbol *sym)
                 }
             }
 
-            if (token->id != ',')
+            if (token_is_not(','))
                 break;
             gettok();
         }
@@ -2128,11 +2129,11 @@ static struct type *parse_tag_decl(void)
     struct source src = source;
 
     gettok();
-    if (token->id == ID) {
+    if (token_is(ID)) {
         id = TOK_ID_STR(token);
         gettok();
     }
-    if (token->id == '{') {
+    if (token_is('{')) {
         gettok();
         sym = tag_symbol(t, id, src);
         if (t == ENUM)
@@ -2184,7 +2185,7 @@ static void parse_decls(decl_fp dcl)
     int level = cscope;
 
     basety = parse_specifiers(&sclass, &fspec);
-    if (token->id == ID || token->id == '*' || token->id == '(') {
+    if (token_is(ID) || token_is('*') || token_is('(')) {
         struct token *id = NULL;
         struct type *ty = NULL;
         struct symbol **params = NULL;        // for functioness
@@ -2199,7 +2200,7 @@ static void parse_decls(decl_fp dcl)
 
         if (level == GLOBAL && params) {
             if (isfunc(ty) &&
-                (token->id == '{' ||
+                (token_is('{') ||
                  (first_decl(token) && TYPE_OLDSTYLE(ty)))) {
                 if (TYPE_OLDSTYLE(ty)) {
                     exit_scope();
@@ -2228,7 +2229,7 @@ static void parse_decls(decl_fp dcl)
                 const char *name = TOK_ID_STR(id);
                 struct tree *init = NULL;
 
-                if (token->id == '=') {
+                if (token_is('=')) {
                     if (level == PARAM) {
                         error("C does not support default arguments");
                         gettok();
@@ -2250,7 +2251,7 @@ static void parse_decls(decl_fp dcl)
                     dcl(name, ty, sclass, fspec, init, id->src);
             }
 
-            if (token->id != ',')
+            if (token_is_not(','))
                 break;
 
             gettok();
@@ -2279,7 +2280,7 @@ static struct type *parse_typename(void)
     struct type *ty = NULL;
 
     basety = parse_specifiers(NULL, NULL);
-    if (token->id == '*' || token->id == '(' || token->id == '[')
+    if (token_is('*') || token_is('(') || token_is('['))
         parse_abstract_declarator(&ty);
 
     attach_type(&ty, basety);
@@ -2294,13 +2295,13 @@ static struct type *parse_typename(void)
 */
 void translation_unit(void)
 {
-    for (gettok(); token->id != EOI;) {
+    for (gettok(); token_is_not(EOI);) {
         if (first_decl(token)) {
             assert(cscope == GLOBAL);
             parse_decls(actions.globaldecl);
             deallocate(FUNC);
         } else {
-            if (token->id == ';') {
+            if (token_is(';')) {
                 // empty declaration
                 gettok();
             } else {
