@@ -241,7 +241,8 @@ static void cvip(struct type *ty, struct tree *l)
 }
 
 // fold l->kids[1] and r
-static struct tree *xfoldadd(int op, struct type *ty, struct tree *l, struct tree *r)
+static struct tree *xfoldadd(int op, struct type *ty,
+                             struct tree *l, struct tree *r)
 {
     struct tree *r2 = l->kids[1]; // cnst
     int kind1 = OPKIND(op);
@@ -263,7 +264,8 @@ static struct tree *xfoldadd(int op, struct type *ty, struct tree *l, struct tre
 }
 
 // swap l->kids[1] andr 
-static struct tree *xswap(int op, struct type *ty, struct tree *l, struct tree *r)
+static struct tree *xswap(int op, struct type *ty,
+                          struct tree *l, struct tree *r)
 {
     struct tree *r2 = l->kids[1]; // cnst
     int op2 = l->op;
@@ -274,7 +276,7 @@ static struct tree *xswap(int op, struct type *ty, struct tree *l, struct tree *
 }
 
 // fold constants
-struct tree *simplify(int op, struct type *ty, struct tree *l, struct tree *r)
+struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
 {
     // return ast_expr(op, ty, l, r);
     switch (op) {

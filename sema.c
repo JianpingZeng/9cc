@@ -549,19 +549,19 @@ static struct tree *cast_arith(struct type *ty, struct tree *n)
     else
         CC_UNAVAILABLE();
 
-    return simplify(mkop(op, ty), ty, n, NULL);
+    return fold(mkop(op, ty), ty, n, NULL);
 }
 
 static struct tree *castip(struct type *ty, struct tree *n)
 {    
     n = cast_arith(unsignedptrtype, n);
         
-    return simplify(mkop(CVU, ty), ty, n, NULL);
+    return fold(mkop(CVU, ty), ty, n, NULL);
 }
 
 static struct tree *castpi(struct type *ty, struct tree *n)
 {
-    n = simplify(mkop(CVP, unsignedptrtype), unsignedptrtype, n, NULL);
+    n = fold(mkop(CVP, unsignedptrtype), unsignedptrtype, n, NULL);
 
     return cast_arith(ty, n);
 }
@@ -1126,9 +1126,9 @@ static struct tree *member(struct tree *addr, const char *name,
     else
         pfty = ptr_type(fty);
 
-    addr = simplify(ADD+P, pfty,
-                    addr,
-                    cnsti(field->offset, unsignedptrtype));
+    addr = fold(ADD+P, pfty,
+                addr,
+                cnsti(field->offset, unsignedptrtype));
 
     if (direct(field)->isbit) {
         // bit field
@@ -1160,7 +1160,7 @@ static struct tree *bop_arith(int t, struct tree *l, struct tree *r,
     op = id2op(t);
     ty = conv2(l->type, r->type);
 
-    return simplify(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
+    return fold(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
 }
 
 // '%', '&', '^', '|', 'LSHIFT', 'RHIFT'
@@ -1182,7 +1182,7 @@ static struct tree *bop_int(int t, struct tree *l, struct tree *r,
     op = id2op(t);
     ty = conv2(l->type, r->type);
     
-    return simplify(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
+    return fold(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
 }
 
 // '+'
@@ -1195,7 +1195,7 @@ static struct tree *bop_add(struct tree *l, struct tree *r,
     
     if (isarith(ty1) && isarith(ty2)) {
         struct type *ty = conv2(ty1, ty2);
-        return simplify(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
+        return fold(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
     } else if (isptr(ty1) && isint(ty2)) {
         size_t size;
             
@@ -1206,7 +1206,7 @@ static struct tree *bop_add(struct tree *l, struct tree *r,
         if (size > 1)
             r = actions.bop('*', r, cnsti(size, unsignedptrtype), src);
 
-        return simplify(mkop(op, ty1), ty1, l, cast(unsignedptrtype, r));
+        return fold(mkop(op, ty1), ty1, l, cast(unsignedptrtype, r));
     } else if (isint(ty1) && isptr(ty2)) {
         size_t size;
             
@@ -1217,7 +1217,7 @@ static struct tree *bop_add(struct tree *l, struct tree *r,
         if (size > 1)
             l = actions.bop('*', l, cnsti(size, unsignedptrtype), src);
 
-        return simplify(mkop(op, ty2), ty2, cast(unsignedptrtype, l), r);
+        return fold(mkop(op, ty2), ty2, cast(unsignedptrtype, l), r);
     } else {
         error_at(src, ERR_BOP_OPERANDS, ty1, ty2);
         return NULL;
@@ -1234,7 +1234,7 @@ static struct tree *bop_sub(struct tree *l, struct tree *r,
 
     if (isarith(ty1) && isarith(ty2)) {
         struct type *ty = conv2(ty1, ty2);
-        return simplify(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
+        return fold(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
     } else if (isptr(ty1) && isint(ty2)) {
         size_t size;
             
@@ -1245,7 +1245,7 @@ static struct tree *bop_sub(struct tree *l, struct tree *r,
         if (size > 1)
             r = actions.bop('*', r, cnsti(size, unsignedptrtype), src);
 
-        return simplify(mkop(op, ty1), ty1, l, cast(unsignedptrtype, r));
+        return fold(mkop(op, ty1), ty1, l, cast(unsignedptrtype, r));
     } else if (isptr(ty1) && isptr(ty2)) {        
         if (!addable_ptr(l, src) || !addable_ptr(r, src))
             return NULL;
@@ -1255,7 +1255,7 @@ static struct tree *bop_sub(struct tree *l, struct tree *r,
             return NULL;
         }
 
-        return simplify(mkop(op, ty1), inttype, l, r);
+        return fold(mkop(op, ty1), inttype, l, r);
     } else {
         error_at(src, ERR_BOP_OPERANDS, ty1, ty2);
         return NULL;
@@ -1313,7 +1313,7 @@ static struct tree *bop_rel(int t, struct tree *l, struct tree *r,
     }
 
     op = id2op(t);
-    return simplify(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
+    return fold(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
 }
 
 // 'EQL', 'NEQ'
@@ -1355,7 +1355,7 @@ static struct tree *bop_eq(int t, struct tree *l, struct tree *r,
     }
 
     op = id2op(t);
-    return simplify(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
+    return fold(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
 }
 
 /// actions-expr
@@ -1501,7 +1501,7 @@ static struct tree *do_logical(int t, struct tree *l, struct tree *r,
         return NULL;
     }
 
-    return simplify(t == ANDAND ? AND : OR, inttype, l, r);
+    return fold(t == ANDAND ? AND : OR, inttype, l, r);
 }
 
 static struct tree *do_bop(int t, struct tree *l, struct tree *r,
@@ -1593,7 +1593,7 @@ static struct tree *do_minus_plus(int t, struct tree *expr,
         else
             return expr;
     } else {
-        return simplify(mkop(NEG, expr->type), expr->type, expr, NULL);
+        return fold(mkop(NEG, expr->type), expr->type, expr, NULL);
     }
 }
 
@@ -1610,7 +1610,7 @@ static struct tree *do_bitwise_not(struct tree *expr, struct source src)
         return NULL;
     }
 
-    return simplify(mkop(BNOT, expr->type), expr->type, expr, NULL);
+    return fold(mkop(BNOT, expr->type), expr->type, expr, NULL);
 }
 
 // '!'

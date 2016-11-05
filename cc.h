@@ -525,8 +525,8 @@ extern struct tree *addrof(struct tree *expr);
 
 // eval.c
 extern struct tree *eval(struct tree *expr, struct type *ty);
-extern struct tree *simplify(int op, struct type *ty,
-                             struct tree *l, struct tree *r);
+extern struct tree *fold(int op, struct type *ty,
+                         struct tree *l, struct tree *r);
  
 // parser.c
 extern void translation_unit(void);
