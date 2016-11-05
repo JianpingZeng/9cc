@@ -2,11 +2,11 @@
 #define GEN_H
 
 // forward declaration
-struct expr;
+struct tree;
 
 struct xface {
-    void (*label) (struct expr *);
-    struct expr ** (*kids) (struct expr *, int ruleno, struct expr *kids[]);
+    void (*label) (struct tree *);
+    struct tree ** (*kids) (struct tree *, int ruleno, struct tree *kids[]);
     int (*rule) (void *state, int nt_kind);
     const char **rule_names;
     const char **nt_names;

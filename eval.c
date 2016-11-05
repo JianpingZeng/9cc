@@ -81,7 +81,7 @@
 
 #define exchange(l, r)                                  \
     if (OPKIND(l->op) == CNST) {                        \
-        struct expr *tmp; tmp = l; l = r; r = tmp;      \
+        struct tree *tmp; tmp = l; l = r; r = tmp;      \
     }
 
 #define xfoldcnst2(func, opid, ty, l, r)                        \
@@ -141,14 +141,14 @@
             return cnsti(1, ty);                                \
     }
 
-static void cvii(struct type *ty, struct expr *l)
+static void cvii(struct type *ty, struct tree *l)
 {
     if (TYPE_SIZE(l->type) > TYPE_SIZE(ty))
         // narrow
         l->s.value.u &= TYPE_LIMITS(ty).max.u;
 }
 
-static void cvif(struct type *ty, struct expr *l)
+static void cvif(struct type *ty, struct tree *l)
 {
     switch (TYPE_KIND(ty)) {
     case FLOAT:
@@ -165,7 +165,7 @@ static void cvif(struct type *ty, struct expr *l)
     }
 }
 
-static void cvuf(struct type *ty, struct expr *l)
+static void cvuf(struct type *ty, struct tree *l)
 {
     switch (TYPE_KIND(ty)) {
     case FLOAT:
@@ -182,7 +182,7 @@ static void cvuf(struct type *ty, struct expr *l)
     }
 }
 
-static void cvfi(struct type *ty, struct expr *l)
+static void cvfi(struct type *ty, struct tree *l)
 {
     switch (TYPE_KIND(l->type)) {
     case FLOAT:
@@ -199,7 +199,7 @@ static void cvfi(struct type *ty, struct expr *l)
     }
 }
 
-static void cvff(struct type *ty, struct expr *l)
+static void cvff(struct type *ty, struct tree *l)
 {
     int dkind = TYPE_KIND(ty);
     int skind = TYPE_KIND(l->type);
@@ -228,22 +228,22 @@ static void cvff(struct type *ty, struct expr *l)
     }
 }
 
-static void cvpi(struct type *ty, struct expr *l)
+static void cvpi(struct type *ty, struct tree *l)
 {
     assert(TYPE_SIZE(ty) == TYPE_SIZE(unsignedptrtype) &&
            "Fatal: Non-converted pointer type");
 }
 
-static void cvip(struct type *ty, struct expr *l)
+static void cvip(struct type *ty, struct tree *l)
 {
     assert(TYPE_SIZE(l->type) == TYPE_SIZE(unsignedptrtype) &&
            "Fatal: Non-converted pointer type");
 }
 
 // fold l->kids[1] and r
-static struct expr *xfoldadd(int op, struct type *ty, struct expr *l, struct expr *r)
+static struct tree *xfoldadd(int op, struct type *ty, struct tree *l, struct tree *r)
 {
-    struct expr *r2 = l->kids[1]; // cnst
+    struct tree *r2 = l->kids[1]; // cnst
     int kind1 = OPKIND(op);
     int kind2 = OPKIND(l->op);
 
@@ -263,9 +263,9 @@ static struct expr *xfoldadd(int op, struct type *ty, struct expr *l, struct exp
 }
 
 // swap l->kids[1] andr 
-static struct expr *xswap(int op, struct type *ty, struct expr *l, struct expr *r)
+static struct tree *xswap(int op, struct type *ty, struct tree *l, struct tree *r)
 {
-    struct expr *r2 = l->kids[1]; // cnst
+    struct tree *r2 = l->kids[1]; // cnst
     int op2 = l->op;
 
     l->op = op;
@@ -274,7 +274,7 @@ static struct expr *xswap(int op, struct type *ty, struct expr *l, struct expr *
 }
 
 // fold constants
-struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
+struct tree *simplify(int op, struct type *ty, struct tree *l, struct tree *r)
 {
     // return ast_expr(op, ty, l, r);
     switch (op) {
@@ -465,7 +465,7 @@ struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r)
     return ast_expr(op, ty, l, r);
 }
 
-struct expr *eval(struct expr *expr, struct type * ty)
+struct tree *eval(struct tree *expr, struct type * ty)
 {
     // TODO:
     return cnsti(1, ty);

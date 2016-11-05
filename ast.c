@@ -15,16 +15,16 @@ struct field *new_indirect_field(struct field *field)
     return p;
 }
 
-struct expr *zinit(struct type *ty)
+struct tree *zinit(struct type *ty)
 {
-    struct expr *expr = NEWS0(struct expr, FUNC);
+    struct tree *expr = NEWS0(struct tree, FUNC);
     expr->type = ty;
     return expr;
 }
 
-struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r)
+struct tree *ast_expr(int op, struct type *ty, struct tree *l, struct tree *r)
 {
-    struct expr *expr = NEWS0(struct expr, FUNC);
+    struct tree *expr = NEWS0(struct tree, FUNC);
     expr->op = op;
     expr->type = ty;
     expr->kids[0] = l;

@@ -25,7 +25,7 @@ static FILE *outfd;
 #define kField              "Field"
 #define kEnumConstDecl      "EnumConstantDecl"
 
-static void print_expr1(struct expr * node, int level);
+static void print_expr1(struct tree * node, int level);
 static void print_stmt1(struct stmt *stmt, int level);
 static void print_type(struct symbol *sym);
 static void print_symbol1(struct symbol *sym, int level, const char *prefix);
@@ -350,7 +350,7 @@ static void print_symbol1(struct symbol *sym, int level, const char *prefix)
         //NOTE: print in ast_dump_symbol
     } else if (sym->sclass != ENUM) {
         // skip enum id
-        struct expr *init = sym->u.init;
+        struct tree *init = sym->u.init;
         if (init)
             print_expr1(init, level + 1);
     }
@@ -372,7 +372,7 @@ static void print_init1(struct init *init, int level)
     }
 }
 
-static void print_args1(struct expr **args, int level)
+static void print_args1(struct tree **args, int level)
 {
     assert(args);
     for (int i = 0; args[i]; i++) {
@@ -382,7 +382,7 @@ static void print_args1(struct expr **args, int level)
     }
 }
 
-static void print_expr1(struct expr *node, int level)
+static void print_expr1(struct tree *node, int level)
 {
     const char *name = opidname(node->op);
 

@@ -3,42 +3,42 @@
 
 #define WRN_EXPR_RESULT_NOT_USED  "expression result not used"
 
-static struct expr *reduce1(struct expr *p, int warn)
+static struct tree *root1(struct tree *p, int warn)
 {    
     switch (OPKIND(p->op)) {
     case RIGHT:
         if (p->kids[1] == NULL)
-            return reduce1(p->kids[0], warn);
+            return root1(p->kids[0], warn);
         // TODO: 
         return p;
     case COND:
         {
-            struct expr *r = p->kids[1];
+            struct tree *r = p->kids[1];
             assert(OPKIND(r->op) == RIGHT);
 
             if (p->s.sym && OPKIND(r->kids[0]->op) == ASGN)
-                r->kids[0] = reduce1(r->kids[0]->kids[1], warn+1);
+                r->kids[0] = root1(r->kids[0]->kids[1], warn+1);
             else
-                r->kids[0] = reduce1(r->kids[0], warn+1);
+                r->kids[0] = root1(r->kids[0], warn+1);
 
             if (p->s.sym && OPKIND(r->kids[1]->op) == ASGN)
-                r->kids[1] = reduce1(r->kids[1]->kids[1], warn+1);
+                r->kids[1] = root1(r->kids[1]->kids[1], warn+1);
             else
-                r->kids[1] = reduce1(r->kids[1], warn+1);
+                r->kids[1] = root1(r->kids[1], warn+1);
 
             // discard the result
             if (p->s.sym)
                 unuse(p->s.sym);
             p->s.sym = NULL;
             if (r->kids[0] == NULL && r->kids[1] == NULL)
-                return reduce1(p->kids[0], warn);
+                return root1(p->kids[0], warn);
             else
                 return p;
         }
     case AND:
     case OR:
-        if (reduce1(p->kids[1], warn) == NULL)
-            return reduce1(p->kids[0], warn+1);
+        if (root1(p->kids[1], warn) == NULL)
+            return root1(p->kids[0], warn+1);
         else
             return p;
         // binary
@@ -61,8 +61,8 @@ static struct expr *reduce1(struct expr *p, int warn)
         if (warn++ == 0)
             warning(WRN_EXPR_RESULT_NOT_USED);
         p = ast_expr(RIGHT, p->type,
-                     reduce1(p->kids[0], warn),
-                     reduce1(p->kids[1], warn));
+                     root1(p->kids[0], warn),
+                     root1(p->kids[1], warn));
         return p->kids[0] || p->kids[1] ? p : NULL;
     case INDIR:
     case BFIELD:
@@ -76,7 +76,7 @@ static struct expr *reduce1(struct expr *p, int warn)
     case CVU:
     case CVF:
     case CVP:
-        return reduce1(p->kids[0], warn);
+        return root1(p->kids[0], warn);
     case CNST:
     case ADDRG:
     case ADDRP:
@@ -95,18 +95,18 @@ static struct expr *reduce1(struct expr *p, int warn)
 
 // remove expressions with no side-effect.
 // expr may be NULL.
-struct expr *reduce(struct expr *expr)
+struct tree *root(struct tree *expr)
 {
     if (expr)
-        return reduce1(expr, 0);
+        return root1(expr, 0);
     else
         return NULL;
 }
 
 // get the address of an expr returning struct/union
-struct expr *addrof(struct expr *expr)
+struct tree *addrof(struct tree *expr)
 {
-    struct expr *p = expr;
+    struct tree *p = expr;
 
     while (1) {
         switch (OPKIND(p->op)) {
@@ -122,7 +122,7 @@ struct expr *addrof(struct expr *expr)
             if (p == expr)
                 return p->kids[0];
             p = p->kids[0];
-            return ast_expr(RIGHT, p->type, reduce(expr), p);
+            return ast_expr(RIGHT, p->type, root(expr), p);
         default:
             CC_UNAVAILABLE();
         }

@@ -83,7 +83,7 @@ struct type {
         // array
         struct {
             size_t len;         // array length
-            struct expr *assign;
+            struct tree *assign;
             unsigned int con:1;
             unsigned int vol:1;
             unsigned int res:1;
@@ -129,7 +129,7 @@ struct symbol {
     unsigned int refs;
     union {
         // varibale initializer
-        struct expr *init;
+        struct tree *init;
         // literal/enum id
         union {
             struct symbol *cnst;  // string literal
@@ -137,7 +137,7 @@ struct symbol {
         } c;
         // function
         struct {
-            struct expr *xcall; // call with max parameter size
+            struct tree *xcall; // call with max parameter size
             struct stmt *stmt;
             struct symbol *lvars; // all local vars
         } f;
@@ -164,16 +164,17 @@ struct table {
     struct map *map;
     struct symbol *all;
 };
-    
-struct expr {
+
+// expression tree
+struct tree {
     int op;
     struct type *type;
-    struct expr *kids[2];
+    struct tree *kids[2];
     struct {
         bool paren;
         struct symbol *sym;
         union {
-            struct expr **args; // for CALL
+            struct tree **args; // for CALL
             struct init *ilist; // for COMPOUND
             struct field *field; // for BFIELD
         } u;
@@ -209,7 +210,7 @@ struct init {
     short boff;
     short bsize;
     struct type *type;
-    struct expr *body;
+    struct tree *body;
     struct init *link;
 };
 
@@ -299,9 +300,9 @@ struct stmt {
     int id;
     union {
         int label;              // LABEL/JMP
-        struct expr *expr;      // GEN/RET
+        struct tree *expr;      // GEN/RET
         struct {
-            struct expr *expr;
+            struct tree *expr;
             int tlab, flab;
         } cbr;
     } u;
@@ -338,12 +339,13 @@ struct func {
     struct type *type;
     struct goinfo *gotos;
     struct table *labels;
-    struct expr *xcall;
+    struct tree *xcall;
     struct stmt **stmt;
     struct symbol **lvars;
 };
 
-typedef struct symbol * (*decl_fp) (const char *, struct type *, int, int, struct expr *, struct source);
+typedef struct symbol * (*decl_fp) (const char *, struct type *, int, int,
+                                    struct tree *, struct source);
 
 // sema actions
 struct actions {
@@ -357,55 +359,55 @@ struct actions {
     decl_fp globaldecl, localdecl, paramdecl;
     void (*typedefdecl) (const char *, struct type *, int, int, struct source);
     
-    void (*array_index) (struct type *aty, struct expr *assign, struct source);
+    void (*array_index) (struct type *aty, struct tree *assign, struct source);
     struct symbol ** (*prototype) (struct type *fty, struct symbol *params[]);
     struct symbol * (*enum_id) (const char *name, int val, struct symbol *sym, struct source);
     void (*direct_field) (struct symbol *sym, struct field *field);
     void (*indirect_field) (struct symbol *sym, struct field *field);
     
     /// expr
-    struct expr * (*comma) (struct expr *l, struct expr *r, struct source);
-    struct expr * (*assign) (int t, struct expr *l, struct expr *r, struct source);
-    struct expr * (*cond) (struct expr *cond, struct expr *then, struct expr *els, struct source);
-    struct expr * (*logical) (int t, struct expr *l, struct expr *r, struct source);
-    struct expr * (*bop) (int t, struct expr *l, struct expr *r, struct source);
-    struct expr * (*cast) (struct type *ty, struct expr *, struct source);
+    struct tree * (*comma) (struct tree *l, struct tree *r, struct source);
+    struct tree * (*assign) (int t, struct tree *l, struct tree *r, struct source);
+    struct tree * (*cond) (struct tree *cond, struct tree *then, struct tree *els, struct source);
+    struct tree * (*logical) (int t, struct tree *l, struct tree *r, struct source);
+    struct tree * (*bop) (int t, struct tree *l, struct tree *r, struct source);
+    struct tree * (*cast) (struct type *ty, struct tree *, struct source);
     // unary
-    struct expr * (*pre_increment) (int t, struct expr *, struct source);
-    struct expr * (*minus_plus) (int t, struct expr *, struct source);
-    struct expr * (*bitwise_not) (struct expr *, struct source);
-    struct expr * (*logical_not) (struct expr *, struct source);
-    struct expr * (*address) (struct expr *, struct source);
+    struct tree * (*pre_increment) (int t, struct tree *, struct source);
+    struct tree * (*minus_plus) (int t, struct tree *, struct source);
+    struct tree * (*bitwise_not) (struct tree *, struct source);
+    struct tree * (*logical_not) (struct tree *, struct source);
+    struct tree * (*address) (struct tree *, struct source);
     // postfix
-    struct expr * (*indirection) (struct expr *, struct source);
-    struct expr * (*sizeofop) (struct type *ty, struct expr *, struct source);
-    struct expr * (*subscript) (struct expr *base, struct expr *index, struct source);
-    struct expr * (*funcall) (struct expr *expr, struct expr **args, struct source);
-    struct expr * (*direction) (int t, const char *name, struct expr *, struct source);
-    struct expr * (*post_increment) (int t, struct expr *, struct source);
-    struct expr * (*compound_literal) (struct type *ty, struct expr *init, struct source);
+    struct tree * (*indirection) (struct tree *, struct source);
+    struct tree * (*sizeofop) (struct type *ty, struct tree *, struct source);
+    struct tree * (*subscript) (struct tree *base, struct tree *index, struct source);
+    struct tree * (*funcall) (struct tree *expr, struct tree **args, struct source);
+    struct tree * (*direction) (int t, const char *name, struct tree *, struct source);
+    struct tree * (*post_increment) (int t, struct tree *, struct source);
+    struct tree * (*compound_literal) (struct type *ty, struct tree *init, struct source);
     // primary
-    struct expr * (*id) (struct token *);
-    struct expr * (*iconst) (struct token *);
-    struct expr * (*fconst) (struct token *);
-    struct expr * (*sconst) (struct token *);
-    struct expr * (*paren) (struct expr *node, struct source);
+    struct tree * (*id) (struct token *);
+    struct tree * (*iconst) (struct token *);
+    struct tree * (*fconst) (struct token *);
+    struct tree * (*sconst) (struct token *);
+    struct tree * (*paren) (struct tree *node, struct source);
 
-    long (*intexpr) (struct expr *expr, struct type *ty, struct source);
-    struct expr * (*bool_expr) (struct expr *expr, struct source);
-    struct expr * (*switch_expr) (struct expr *expr, struct source);
+    long (*intexpr) (struct tree *expr, struct type *ty, struct source);
+    struct tree * (*bool_expr) (struct tree *expr, struct source);
+    struct tree * (*switch_expr) (struct tree *expr, struct source);
 
     /// stmt
-    void (*branch) (struct expr *expr, int tlab, int flab);
+    void (*branch) (struct tree *expr, int tlab, int flab);
     void (*jump) (int label);
-    void (*ret) (struct expr *expr, bool isnull, struct source);
+    void (*ret) (struct tree *expr, bool isnull, struct source);
     void (*label) (int label);
-    void (*gen) (struct expr *expr);
+    void (*gen) (struct tree *expr);
 
     /// initializer
-    void (*element_init) (struct desig **pdesig, struct expr *expr, struct init **pinit);
+    void (*element_init) (struct desig **pdesig, struct tree *expr, struct init **pinit);
     struct desig * (*designator) (struct desig *desig, struct desig **ds);
-    struct expr * (*initializer_list) (struct type *ty, struct init *ilist);
+    struct tree * (*initializer_list) (struct type *ty, struct init *ilist);
 };
 
 // metrics
@@ -470,8 +472,8 @@ extern struct symbol *install(const char *name, struct table **tpp, int scope, i
 /// ast.c
 extern struct field *alloc_field(void);
 extern struct field *new_indirect_field(struct field *field);
-extern struct expr *zinit(struct type *ty);
-extern struct expr *ast_expr(int op, struct type *ty, struct expr *l, struct expr *r);
+extern struct tree *zinit(struct type *ty);
+extern struct tree *ast_expr(int op, struct type *ty, struct tree *l, struct tree *r);
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_tmpname(void);
 extern const char *gen_compound_label(void);
@@ -491,12 +493,12 @@ extern struct desig *copy_desig(struct desig *desig);
 #define iszinit(n)     ((n)->op == 0)
 
 // tree.c
-extern struct expr *reduce(struct expr *expr);
-extern struct expr *addrof(struct expr *expr);
+extern struct tree *root(struct tree *expr);
+extern struct tree *addrof(struct tree *expr);
 
 // eval.c
-extern struct expr *eval(struct expr *expr, struct type *ty);
-extern struct expr *simplify(int op, struct type *ty, struct expr *l, struct expr *r);
+extern struct tree *eval(struct tree *expr, struct type *ty);
+extern struct tree *simplify(int op, struct type *ty, struct tree *l, struct tree *r);
  
 // parser.c
 extern void translation_unit(void);
@@ -519,11 +521,11 @@ extern struct symbol *tag_symbol(int t, const char *tag, struct source src);
 extern struct symbol *lookup_typedef(const char *id);
 extern bool istypedef(const char *id);
 extern struct desig *next_designator(struct desig *desig);
-extern struct expr *cnsti(long i, struct type *ty);
-extern struct expr *cnsts(const char *string);
+extern struct tree *cnsti(long i, struct type *ty);
+extern struct tree *cnsts(const char *string);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
 extern void mark_goto(const char *id, struct source src);
-extern struct expr *mkref(struct symbol *sym);
+extern struct tree *mkref(struct symbol *sym);
 extern void funcdef(const char *, struct type *, int, int, struct symbol *[], struct source);
 
 // type.c
