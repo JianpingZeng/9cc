@@ -2,6 +2,8 @@
 #include <assert.h>
 #include "cc.h"
 
+#define NBUCKETS  ARRAY_SIZE(((struct table *)0)->buckets)
+
 struct table *identifiers;
 struct table *strings;
 struct table *tags;
@@ -10,23 +12,16 @@ struct table *externals;
 
 int cscope = GLOBAL;
 
-struct symbol *alloc_symbol(int area)
-{
-    return NEWS0(struct symbol, area);
-}
-
 struct table *new_table(struct table *up, int scope)
 {
     struct table *t = zmalloc(sizeof(struct table));
     t->up = up;
     t->scope = scope;
-    t->map = map_new();
     return t;
 }
 
 void free_table(struct table *t)
 {
-    map_free(t->map);
     free(t);
 }
 
@@ -59,15 +54,20 @@ void exit_scope(void)
     cscope--;
 }
 
-void foreach(struct table *tp, int level, void (*apply) (struct symbol *, void *), void *context)
+void foreach(struct table *tp, int level,
+             void (*apply) (struct symbol *, void *),
+             void *context)
 {
+    struct symbol *p;
+
     assert(tp);
+
     while (tp && tp->scope > level)
         tp = tp->up;
-    if (tp && tp->scope == level) {
-        for (struct symbol *p = tp->all; p && p->scope == level; p = p->link)
+
+    if (tp && tp->scope == level)
+        for (p = tp->all; p && p->scope == level; p = p->link)
             apply(p, context);
-    }
 }
 
 bool is_current_scope(struct symbol *sym)
@@ -78,28 +78,34 @@ bool is_current_scope(struct symbol *sym)
 struct symbol *anonymous(struct table **tpp, int scope, int area)
 {
     static long i;
-    struct symbol *sym = install(format("@%ld", i++), tpp, scope, area);
+    struct symbol *sym;
+
+    sym = install(format("@%ld", i++), tpp, scope, area);
     sym->anonymous = true;
     return sym;
 }
 
 struct symbol *lookup(const char *name, struct table * table)
 {
+    unsigned int hash;
+
     assert(name);
-    struct symbol *s = NULL;
 
-    for (struct table * t = table; t; t = t->up) {
-        if ((s = map_get(t->map, name)))
-            return s;
-    }
+    hash = strhash(name) & (NBUCKETS - 1);
+    for (struct table *t = table; t; t = t->up)
+        for (struct entry *p = t->buckets[hash]; p; p = p->link)
+            if (name == p->sym.name)
+                return &p->sym;
 
-    return s;
+    return NULL;
 }
 
-struct symbol *install(const char *name, struct table ** tpp, int scope, int area)
+struct symbol *install(const char *name,
+                       struct table ** tpp, int scope, int area)
 {
-    struct symbol *sym;
     struct table *tp = *tpp;
+    unsigned int hash;
+    struct entry *p;
 
     if (scope > tp->scope) {
         tp = *tpp = new_table(tp, scope);
@@ -110,13 +116,16 @@ struct symbol *install(const char *name, struct table ** tpp, int scope, int are
 
     assert(tp);
 
-    sym = alloc_symbol(area);
-    sym->scope = scope;
-    sym->name = name;
-    map_put(tp->map, name, sym);
+    // entry
+    hash = strhash(name) & (NBUCKETS - 1);
+    p = NEWS0(struct entry, area);
+    p->sym.name = name;
+    p->sym.scope = scope;
+    p->link = tp->buckets[hash];
+    tp->buckets[hash] = p;
     // all/link
-    sym->link = tp->all;
-    tp->all = sym;
+    p->sym.link = tp->all;
+    tp->all = &p->sym;
 
-    return sym;
+    return &p->sym;
 }

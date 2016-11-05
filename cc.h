@@ -160,8 +160,11 @@ enum { CONSTANT, GLOBAL, PARAM, LOCAL };
 
 struct table {
     int scope;
+    struct entry {
+        struct symbol sym;
+        struct entry *link;
+    } *buckets[256];
     struct table *up;
-    struct map *map;
     struct symbol *all;
 };
 
