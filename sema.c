@@ -1471,44 +1471,25 @@ static struct tree *do_bop(int t, struct tree *l, struct tree *r,
     r = conv(r);
 
     switch (t) {
-    case '*':
-        return bop_arith(MUL, l, r, src);
-    case '/':
-        return bop_arith(DIV, l, r, src);
-    case '%':
-        return bop_int(MOD, l, r, src);
-    case LSHIFT:
-        return bop_int(SHL, l, r, src);
-    case RSHIFT:
-        return bop_int(SHR, l, r, src);
-    case '&':
-        return bop_int(BAND, l, r, src);
-    case '^':
-        return bop_int(XOR, l, r, src);
-    case '|':
-        return bop_int(BOR, l, r, src);
-    case '+':
-        return bop_add(ADD, l, r, src);
-    case '-':
-        return bop_sub(SUB, l, r, src);
-    case '>':
-        return bop_rel(GT, l, r, src);
-    case '<':
-        return bop_rel(LT, l, r, src);
-    case LEQ:
-        return bop_rel(LE, l, r, src);
-    case GEQ:
-        return bop_rel(GE, l, r, src);
-    case EQL:
-        return bop_eq(EQ, l, r, src);
-    case NEQ:
-        return bop_eq(NE, l, r, src);
-    case ANDAND:
-        return bop_logical(AND, l, r, src);
-    case OROR:
-        return bop_logical(OR, l, r, src);
-    default:
-        assert(0 && "unknown binary operator");
+    case '*':    return bop_arith(MUL, l, r, src);
+    case '/':    return bop_arith(DIV, l, r, src);
+    case '%':    return bop_int(MOD, l, r, src);
+    case LSHIFT: return bop_int(SHL, l, r, src);
+    case RSHIFT: return bop_int(SHR, l, r, src);
+    case '&':    return bop_int(BAND, l, r, src);
+    case '^':    return bop_int(XOR, l, r, src);
+    case '|':    return bop_int(BOR, l, r, src);
+    case '+':    return bop_add(ADD, l, r, src);
+    case '-':    return bop_sub(SUB, l, r, src);
+    case '>':    return bop_rel(GT, l, r, src);
+    case '<':    return bop_rel(LT, l, r, src);
+    case LEQ:    return bop_rel(LE, l, r, src);
+    case GEQ:    return bop_rel(GE, l, r, src);
+    case EQL:    return bop_eq(EQ, l, r, src);
+    case NEQ:    return bop_eq(NE, l, r, src);
+    case ANDAND: return bop_logical(AND, l, r, src);
+    case OROR:   return bop_logical(OR, l, r, src);
+    default:     assert(0 && "unknown binary operator");
     }
 }
 
