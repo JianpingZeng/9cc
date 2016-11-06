@@ -20,10 +20,37 @@ static struct type *parse_typename(void);
  *                        expression                               *
  *=================================================================*/
 
+// binary op precedence
+enum {
+    PREC_NONE,
+    PREC_LOGICOR,
+    PREC_LOGICAND,
+    PREC_BOR,
+    PREC_XOR,
+    PREC_BAND,
+    PREC_EQ,
+    PREC_REL,
+    PREC_SHIFT,
+    PREC_ADD,
+    PREC_MUL,
+    NUM_PRECS
+};
+
 static struct tree *parse_cast_expr(void);
 static struct tree *parse_cond_expr1(struct tree *);
 static struct tree *parse_cond_expr(void);
 static struct tree *parse_unary_expr(void);
+
+static bool token_is_bop(void)
+{
+    return  token_is('*') || token_is('/') || token_is('%') ||
+        token_is('+') || token_is('-') ||
+        token_is(LSHIFT) || token_is(RSHIFT) ||
+        token_is('<') || token_is('>') || token_is(GEQ) || token_is(LEQ) ||
+        token_is(EQL) || token_is(NEQ) ||
+        token_is('&') || token_is('^') || token_is('|') ||
+        token_is(OROR) || token_is(ANDAND);
+}
 
 static struct tree *parse_compound_literal(struct type *ty)
 {
@@ -287,192 +314,142 @@ static struct tree *parse_cast_expr(void)
    multiplicative-expression '*' cast-expression
    multiplicative-expression '/' cast-expression
    multiplicative-expression '%' cast-expression
-*/
-static struct tree *parse_multiple_expr(void)
-{
-    struct tree *mulp1 = parse_cast_expr();
 
-    while (token_is('*') || token_is('/') || token_is('%')) {
-        int t = token->id;
-        struct source src = source;
-        gettok();
-        mulp1 = actions.bop(t, mulp1, parse_cast_expr(), src);
-    }
-
-    return mulp1;
-}
-
-/*
  additive-expression:
    multiplicative-expression
    additive-expression '+' multiplicative-expression
    additive-expression '-' multiplicative-expression
-*/
-static struct tree *parse_additive_expr(void)
-{
-    struct tree *add1 = parse_multiple_expr();
 
-    while (token_is('+') || token_is('-')) {
-        int t = token->id;
-        struct source src = source;
-        gettok();
-        add1 = actions.bop(t, add1, parse_multiple_expr(), src);
-    }
-
-    return add1;
-}
-
-/*
  shift-expression:
    additive-expression
    shift-expression '<<' additive-expression
    shift-expression '>>' additive-expression
-*/
-static struct tree *parse_shift_expr(void)
-{
-    struct tree *shift1 = parse_additive_expr();
 
-    while (token_is(LSHIFT) || token_is(RSHIFT)) {
-        int t = token->id;
-        struct source src = source;
-        gettok();
-        shift1 = actions.bop(t, shift1, parse_additive_expr(), src);
-    }
-
-    return shift1;
-}
-
-/*
  relational-expression:
    shift-expression
    relational-expression '<' shift-expression
    relational-expression '>' shift-expression
    relational-expression '<=' shift-expression
    relational-expression '>=' shift-expression
-*/
-static struct tree *parse_relation_expr(void)
-{
-    struct tree *rel = parse_shift_expr();
 
-    while (token_is('<') || token_is('>') ||
-           token_is(LEQ) || token_is(GEQ)) {
-        int t = token->id;
-        struct source src = source;
-        gettok();
-        rel = actions.bop(t, rel, parse_shift_expr(), src);
-    }
-
-    return rel;
-}
-
-/*
  equality-expression:
    relational-expression
    equality-expression '==' relational-expression
    equality-expression '!=' relational-expression
-*/
-static struct tree *parse_equality_expr(void)
-{
-    struct tree *equl = parse_relation_expr();
 
-    while (token_is(EQL) || token_is(NEQ)) {
-        int t = token->id;
-        struct source src = source;
-        gettok();
-        equl = actions.bop(t, equl, parse_relation_expr(), src);
-    }
-
-    return equl;
-}
-
-/*
  AND-expression:
    equality-expression
    AND-expression '&' equality-expression
-*/
-static struct tree *parse_and_expr(void)
-{
-    struct tree *and1 = parse_equality_expr();
 
-    while (token_is('&')) {
-        struct source src = source;
-        gettok();
-        and1 = actions.bop('&', and1, parse_equality_expr(), src);
-    }
-
-    return and1;
-}
-
-/*
  exclusive-OR-expression:
    AND-expression
    exclusive-OR-expression '^' AND-expression
-*/
-static struct tree *parse_exclusive_or(void)
-{
-    struct tree *eor = parse_and_expr();
 
-    while (token_is('^')) {
-        struct source src = source;
-        gettok();
-        eor = actions.bop('^', eor, parse_and_expr(), src);
-    }
-
-    return eor;
-}
-
-/*
  inclusive-OR-expression:
    exclusive-OR-expression
    inclusive-OR-expression '|' exclusive-OR-expression
-*/
-static struct tree *parse_inclusive_or(void)
-{
-    struct tree *ior = parse_exclusive_or();
 
-    while (token_is('|')) {
-        struct source src = source;
-        gettok();
-        ior = actions.bop('|', ior, parse_exclusive_or(), src);
-    }
-
-    return ior;
-}
-
-/*
  logical-AND-expression:
    inclusive-OR-expression
    logical-AND-expression '&&' inclusive-OR-expression
-*/
-static struct tree *parse_logic_and(void)
-{
-    struct tree *and1 = parse_inclusive_or();
 
-    while (token_is(ANDAND)) {
-        struct source src = source;
-        gettok();
-        and1 = actions.logical(ANDAND, and1, parse_inclusive_or(), src);
-    }
-
-    return and1;
-}
-
-/*
  logical-OR-expression:
    logical-AND-expression
    logical-OR-expression '||' logical-AND-expression
-*/
-static struct tree *parse_logic_or(void)
+ */
+static struct tree *parse_binary_expr(void)
 {
-    struct tree *or1 = parse_logic_and();
+    // Parse a binary expression using precedence.
+    struct {
+        struct tree *expr;
+        int prec;
+        int op;
+        struct source src;
+    } stack[NUM_PRECS];
+    
+    int sp;                     // stack pointer
 
-    while (token_is(OROR)) {
+    // pop stack[sp] and stack[sp-1]
+#define POP()                                                   \
+    do {                                                        \
+        stack[sp-1].expr = actions.bop(stack[sp].op,            \
+                                       stack[sp-1].expr,        \
+                                       stack[sp].expr,          \
+                                       stack[sp].src);          \
+        sp--;                                                   \
+    } while (0)
+    
+    // init stack
+    stack[0].src = source;
+    stack[0].expr = parse_cast_expr();
+    stack[0].prec = PREC_NONE;
+    sp = 0;
+    
+    while (token_is_bop()) {
+        int prec;
+        int t = token->id;
         struct source src = source;
+
+        switch (t) {
+        case '*':
+        case '%':
+        case '/':
+            prec = PREC_MUL;
+            break;
+        case '+':
+        case '-':
+            prec = PREC_ADD;
+            break;
+        case LSHIFT:
+        case RSHIFT:
+            prec = PREC_SHIFT;
+            break;
+        case '<':
+        case '>':
+        case GEQ:
+        case LEQ:
+            prec = PREC_REL;
+            break;
+        case NEQ:
+        case EQL:
+            prec = PREC_EQ;
+            break;
+        case '&':
+            prec = PREC_BAND;
+            break;
+        case '^':
+            prec = PREC_XOR;
+            break;
+        case '|':
+            prec = PREC_BOR;
+            break;
+        case ANDAND:
+            prec = PREC_LOGICAND;
+            break;
+        case OROR:
+            prec = PREC_LOGICOR;
+            break;
+        default:
+            CC_UNAVAILABLE();
+        }
+
+        while (prec <= stack[sp].prec)
+            POP();
+
         gettok();
-        or1 = actions.logical(OROR, or1, parse_logic_and(), src);
+        // push
+        sp++;
+        stack[sp].expr = parse_cast_expr();
+        stack[sp].prec = prec;
+        stack[sp].op = t;
+        stack[sp].src = src;
     }
 
-    return or1;
+    while (sp > 0)
+        POP();
+    
+    return stack[0].expr;
+#undef POP
 }
 
 static struct tree *parse_cond_expr1(struct tree *cond)
@@ -495,7 +472,7 @@ static struct tree *parse_cond_expr1(struct tree *cond)
 */
 static struct tree *parse_cond_expr(void)
 {
-    struct tree *or1 = parse_logic_or();
+    struct tree *or1 = parse_binary_expr();
 
     if (token_is('?'))
         return parse_cond_expr1(or1);
@@ -512,7 +489,7 @@ static struct tree *parse_cond_expr(void)
 */
 static struct tree *parse_assign_expr(void)
 {
-    struct tree *or1 = parse_logic_or();
+    struct tree *or1 = parse_binary_expr();
 
     if (token_is('?'))
         return parse_cond_expr1(or1);

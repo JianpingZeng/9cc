@@ -383,8 +383,6 @@ struct actions {
                            struct tree *then,
                            struct tree *els,
                            struct source);
-    struct tree * (*logical) (int t, struct tree *l, struct tree *r,
-                              struct source);
     struct tree * (*bop) (int t, struct tree *l, struct tree *r,
                           struct source);
     struct tree * (*cast) (struct type *ty, struct tree *, struct source);

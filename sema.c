@@ -1358,6 +1358,21 @@ static struct tree *bop_eq(int t, struct tree *l, struct tree *r,
     return fold(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
 }
 
+static struct tree *bop_logical(int t, struct tree *l, struct tree *r,
+                                struct source src)
+{
+    if (!isscalar(l->type)) {
+        error_at(src, ERR_TYPE, "scalar", l->type);
+        return NULL;
+    }
+    if (!isscalar(r->type)) {
+        error_at(src, ERR_TYPE, "scalar", r->type);
+        return NULL;
+    }
+
+    return fold(t == ANDAND ? AND : OR, inttype, l, r);
+}
+
 /// actions-expr
 
 static struct tree *do_comma(struct tree *l, struct tree *r,
@@ -1483,27 +1498,6 @@ static struct tree *do_cond(struct tree *cond, struct tree *then,
     return NULL;
 }
 
-static struct tree *do_logical(int t, struct tree *l, struct tree *r,
-                               struct source src)
-{
-    if (!l || !r)
-        return NULL;
-    
-    l = conv(l);
-    r = conv(r);
-
-    if (!isscalar(l->type)) {
-        error_at(src, ERR_TYPE, "scalar", l->type);
-        return NULL;
-    }
-    if (!isscalar(r->type)) {
-        error_at(src, ERR_TYPE, "scalar", r->type);
-        return NULL;
-    }
-
-    return fold(t == ANDAND ? AND : OR, inttype, l, r);
-}
-
 static struct tree *do_bop(int t, struct tree *l, struct tree *r,
                            struct source src)
 {
@@ -1536,6 +1530,9 @@ static struct tree *do_bop(int t, struct tree *l, struct tree *r,
     case EQL:
     case NEQ:
         return bop_eq(t, l, r, src);
+    case ANDAND:
+    case OROR:
+        return bop_logical(t, l, r, src);
     default:
         assert(0 && "unknown binary operator");
     }
@@ -3503,7 +3500,6 @@ struct actions actions = {
     INIT(comma),
     INIT(assign),
     INIT(cond),
-    INIT(logical),
     INIT(bop),
     INIT(cast),
     INIT(pre_increment),
