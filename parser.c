@@ -700,12 +700,14 @@ static void for_stmt(int lab, struct swtch *swtch)
 
     match(')', skip_to_bracket);
 
-    actions.gen(init);
+    if (init)
+        actions.gen(init);
     actions.jump(lab+3);
     actions.label(lab);
     statement(lab+1, lab+2, swtch);
     actions.label(lab+1);
-    actions.gen(ctrl);
+    if (ctrl)
+        actions.gen(ctrl);
     actions.label(lab+3);
     actions.branch(cond, lab, 0);
     actions.label(lab+2);
@@ -960,58 +962,45 @@ static void statement(int cnt, int brk, struct swtch *swtch)
     case '{':
         compound_stmt(NULL, cnt, brk, swtch);
         break;
-
     case IF:
         if_stmt(genlabel(2), cnt, brk, swtch);
         break;
-
     case SWITCH:
         switch_stmt(genlabel(2), cnt);
         break;
-
     case WHILE:
         while_stmt(genlabel(3), swtch);
         break;
-
     case DO:
         do_while_stmt(genlabel(3), swtch);
         break;
-
     case FOR:
         for_stmt(genlabel(4), swtch);
         break;
-
     case GOTO:
         goto_stmt(genlabel(1));
         break;
-
     case CONTINUE:
         continue_stmt(cnt);
         break;
-
     case BREAK:
         break_stmt(brk);
         break;
-
     case RETURN:
         return_stmt();
         break;
-
     case CASE:
         case_stmt(genlabel(1), cnt, brk, swtch);
         break;
-
     case DEFAULT:
         default_stmt(genlabel(1), cnt, brk, swtch);
         break;
-
     case ID:
         if (next_token_is(':')) {
             label_stmt(genlabel(1), cnt, brk, swtch);
             break;
         }
-        // go through
-
+        // fall through
     default:
         expr_stmt();
         break;

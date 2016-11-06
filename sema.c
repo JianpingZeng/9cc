@@ -2008,11 +2008,10 @@ static void do_label(int label)
 
 static void do_gen(struct tree *expr)
 {
-    if (expr) {
-        struct stmt *stmt = ast_stmt(GEN);
-        stmt->u.expr = expr;
-        add_to_list(stmt);
-    }
+    assert(expr && "null expr");
+    struct stmt *stmt = ast_stmt(GEN);
+    stmt->u.expr = expr;
+    add_to_list(stmt);
 }
 
 /*=================================================================*
