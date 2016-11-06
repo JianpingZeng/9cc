@@ -1008,46 +1008,6 @@ struct tree *mkref(struct symbol *sym)
         return ret;
 }
 
-static int id2op(int id)
-{
-    switch (id) {
-    case '*':    return MUL;
-    case '/':    return DIV;
-    case '%':    return MOD;
-    case LSHIFT: return SHL;
-    case RSHIFT: return SHR;
-    case '&':    return BAND;
-    case '^':    return XOR;
-    case '|':    return BOR;
-    case '+':    return ADD;
-    case '-':    return SUB;
-    case '>':    return GT;
-    case '<':    return LT;
-    case GEQ:    return GE;
-    case LEQ:    return LE;
-    case EQL:    return EQ;
-    case NEQ:    return NE;
-    default:     assert(0 && "illegal binary operator");
-    }
-}
-
-static int splitop(int op)
-{
-    switch (op) {
-    case MULEQ:    return '*';
-    case DIVEQ:    return '/';
-    case MODEQ:    return '%';
-    case ADDEQ:    return '+';
-    case MINUSEQ:  return '-';
-    case LSHIFTEQ: return LSHIFT;
-    case RSHIFTEQ: return RSHIFT;
-    case BANDEQ:   return '&';
-    case BOREQ:    return '|';
-    case XOREQ:    return '^';
-    default:       assert(0 && "illegal compound assignment operator");
-    }
-}
-
 static struct tree *assign(struct symbol *sym, struct tree *r)
 {
     return actions.assign('=', mkref(sym), r, sym->src);
@@ -1142,10 +1102,9 @@ static struct tree *member(struct tree *addr, const char *name,
 }
 
 // '*', '/'
-static struct tree *bop_arith(int t, struct tree *l, struct tree *r,
+static struct tree *bop_arith(int op, struct tree *l, struct tree *r,
                               struct source src)
 {
-    int op;
     struct type *ty;
 
     if (!isarith(l->type)) {
@@ -1157,17 +1116,15 @@ static struct tree *bop_arith(int t, struct tree *l, struct tree *r,
         return NULL;
     }
 
-    op = id2op(t);
     ty = conv2(l->type, r->type);
 
     return fold(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
 }
 
 // '%', '&', '^', '|', 'LSHIFT', 'RHIFT'
-static struct tree *bop_int(int t, struct tree *l, struct tree *r,
+static struct tree *bop_int(int op, struct tree *l, struct tree *r,
                             struct source src)
 {
-    int op;
     struct type *ty;
     
     if (!isint(l->type)) {
@@ -1179,17 +1136,15 @@ static struct tree *bop_int(int t, struct tree *l, struct tree *r,
         return NULL;
     }
 
-    op = id2op(t);
     ty = conv2(l->type, r->type);
     
     return fold(mkop(op, ty), ty, cast(ty, l), cast(ty, r));
 }
 
 // '+'
-static struct tree *bop_add(struct tree *l, struct tree *r,
+static struct tree *bop_add(int op, struct tree *l, struct tree *r,
                             struct source src)
 {
-    int op = ADD;
     struct type *ty1 = l->type;
     struct type *ty2 = r->type;
     
@@ -1225,10 +1180,9 @@ static struct tree *bop_add(struct tree *l, struct tree *r,
 }
 
 // '-'
-static struct tree *bop_sub(struct tree *l, struct tree *r,
+static struct tree *bop_sub(int op, struct tree *l, struct tree *r,
                             struct source src)
 {
-    int op = SUB;
     struct type *ty1 = l->type;
     struct type *ty2 = r->type;
 
@@ -1263,10 +1217,9 @@ static struct tree *bop_sub(struct tree *l, struct tree *r,
 }
 
 // '>', '<', '>=', '<='
-static struct tree *bop_rel(int t, struct tree *l, struct tree *r,
+static struct tree *bop_rel(int op, struct tree *l, struct tree *r,
                             struct source src)
 {
-    int op;
     struct type *ty, *ty1, *ty2;
 
     ty1 = l->type;
@@ -1312,15 +1265,13 @@ static struct tree *bop_rel(int t, struct tree *l, struct tree *r,
         return NULL;
     }
 
-    op = id2op(t);
     return fold(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
 }
 
 // 'EQL', 'NEQ'
-static struct tree *bop_eq(int t, struct tree *l, struct tree *r,
+static struct tree *bop_eq(int op, struct tree *l, struct tree *r,
                            struct source src)
 {
-    int op;
     struct type *ty, *ty1, *ty2;
 
     ty1 = l->type;
@@ -1354,11 +1305,10 @@ static struct tree *bop_eq(int t, struct tree *l, struct tree *r,
         return NULL;
     }
 
-    op = id2op(t);
     return fold(mkop(op, ty), inttype, cast(ty, l), cast(ty, r));
 }
 
-static struct tree *bop_logical(int t, struct tree *l, struct tree *r,
+static struct tree *bop_logical(int op, struct tree *l, struct tree *r,
                                 struct source src)
 {
     if (!isscalar(l->type)) {
@@ -1370,7 +1320,7 @@ static struct tree *bop_logical(int t, struct tree *l, struct tree *r,
         return NULL;
     }
 
-    return fold(t == ANDAND ? AND : OR, inttype, l, r);
+    return fold(op, inttype, l, r);
 }
 
 /// actions-expr
@@ -1405,7 +1355,20 @@ static struct tree *do_assign(int t, struct tree *l, struct tree *r,
 
     if (t != '=') {
         // compound assignment
-        int t2 = splitop(t);
+        int t2;
+        switch (t) {
+        case MULEQ:    t2 = '*'; break;
+        case DIVEQ:    t2 = '/'; break;
+        case MODEQ:    t2 = '%'; break;
+        case ADDEQ:    t2 = '+'; break;
+        case MINUSEQ:  t2 = '-'; break;
+        case LSHIFTEQ: t2 = LSHIFT; break;
+        case RSHIFTEQ: t2 = RSHIFT; break;
+        case BANDEQ:   t2 = '&'; break;
+        case BOREQ:    t2 = '|'; break;
+        case XOREQ:    t2 = '^'; break;
+        default:       assert(0 && "illegal compound assignment operator");
+        }
         return actions.assign('=', l, actions.bop(t2, l, r, src), src);
     }
 
@@ -1509,30 +1472,41 @@ static struct tree *do_bop(int t, struct tree *l, struct tree *r,
 
     switch (t) {
     case '*':
+        return bop_arith(MUL, l, r, src);
     case '/':
-        return bop_arith(t, l, r, src);
+        return bop_arith(DIV, l, r, src);
     case '%':
+        return bop_int(MOD, l, r, src);
     case LSHIFT:
+        return bop_int(SHL, l, r, src);
     case RSHIFT:
+        return bop_int(SHR, l, r, src);
     case '&':
+        return bop_int(BAND, l, r, src);
     case '^':
+        return bop_int(XOR, l, r, src);
     case '|':
-        return bop_int(t, l, r, src);
+        return bop_int(BOR, l, r, src);
     case '+':
-        return bop_add(l, r, src);
+        return bop_add(ADD, l, r, src);
     case '-':
-        return bop_sub(l, r, src);
+        return bop_sub(SUB, l, r, src);
     case '>':
+        return bop_rel(GT, l, r, src);
     case '<':
+        return bop_rel(LT, l, r, src);
     case LEQ:
+        return bop_rel(LE, l, r, src);
     case GEQ:
-        return bop_rel(t, l, r, src);
+        return bop_rel(GE, l, r, src);
     case EQL:
+        return bop_eq(EQ, l, r, src);
     case NEQ:
-        return bop_eq(t, l, r, src);
+        return bop_eq(NE, l, r, src);
     case ANDAND:
+        return bop_logical(AND, l, r, src);
     case OROR:
-        return bop_logical(t, l, r, src);
+        return bop_logical(OR, l, r, src);
     default:
         assert(0 && "unknown binary operator");
     }
