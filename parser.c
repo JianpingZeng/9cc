@@ -41,17 +41,6 @@ static struct tree *parse_cond_expr1(struct tree *);
 static struct tree *parse_cond_expr(void);
 static struct tree *parse_unary_expr(void);
 
-static bool token_is_bop(void)
-{
-    return  token_is('*') || token_is('/') || token_is('%') ||
-        token_is('+') || token_is('-') ||
-        token_is(LSHIFT) || token_is(RSHIFT) ||
-        token_is('<') || token_is('>') || token_is(GEQ) || token_is(LEQ) ||
-        token_is(EQL) || token_is(NEQ) ||
-        token_is('&') || token_is('^') || token_is('|') ||
-        token_is(OROR) || token_is(ANDAND);
-}
-
 static struct tree *parse_compound_literal(struct type *ty)
 {
     struct source src = source;
@@ -385,12 +374,12 @@ static struct tree *parse_binary_expr(void)
     stack[0].prec = PREC_NONE;
     sp = 0;
     
-    while (token_is_bop()) {
+    while (1) {
         int prec;
-        int t = token->id;
-        struct source src = source;
+        int t;
+        struct source src;
 
-        switch (t) {
+        switch (token->id) {
         case '*':
         case '%':
         case '/':
@@ -430,12 +419,14 @@ static struct tree *parse_binary_expr(void)
             prec = PREC_LOGICOR;
             break;
         default:
-            CC_UNAVAILABLE();
+            goto out;
         }
 
         while (prec <= stack[sp].prec)
             POP();
 
+        t = token->id;
+        src = source;
         gettok();
         // push
         sp++;
@@ -445,6 +436,7 @@ static struct tree *parse_binary_expr(void)
         stack[sp].src = src;
     }
 
+ out:
     while (sp > 0)
         POP();
     
