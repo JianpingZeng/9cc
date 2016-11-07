@@ -15,14 +15,11 @@ static struct tree *root1(struct tree *p, int warn)
             // postfix increment
             return p->kids[0]->kids[1];
         if (p->kids[0] &&
-            OPKIND(p->kids[0]->op) == CALL &&
+            OPID(p->kids[0]->op) == CALL+S &&
             p->kids[1] &&
-            OPKIND(p->kids[1]->op) == INDIR) {
+            OPID(p->kids[1]->op) == INDIR+S)
             // funcall
-            deuse(p->kids[0]->s.sym);
-            p->kids[0]->s.sym = NULL;
             return p->kids[0];
-        }
         p = ast_expr(RIGHT, p->type,
                      root1(p->kids[0], warn),
                      root1(p->kids[1], warn));

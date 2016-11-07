@@ -1720,11 +1720,11 @@ static struct tree *do_funcall(struct tree *expr, struct tree **args,
 
         sym = mktmp(gen_tmpname(), rty, 0);
         ref = mkref(sym);
-        call = ast_expr(CALL, rty, expr, addrof(ref));
+        call = ast_expr(mkop(CALL, rty), rty, expr, addrof(ref));
         call->s.u.args = args;
         ret = ast_expr(RIGHT, rty, call, ref);
     } else {
-        ret = ast_expr(CALL, rty, expr, NULL);
+        ret = ast_expr(mkop(CALL, rty), rty, expr, NULL);
         ret->s.u.args = args;
     }
 
