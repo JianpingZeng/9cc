@@ -9,8 +9,24 @@ static struct tree *root1(struct tree *p, int warn)
     case RIGHT:
         if (p->kids[1] == NULL)
             return root1(p->kids[0], warn);
-        // TODO: 
-        return p;
+        if (p->kids[0] &&
+            p->kids[0]->op == RIGHT &&
+            p->kids[0]->kids[0] == p->kids[1])
+            // postfix increment
+            return p->kids[0]->kids[1];
+        if (p->kids[0] &&
+            OPKIND(p->kids[0]->op) == CALL &&
+            p->kids[1] &&
+            OPKIND(p->kids[1]->op) == INDIR) {
+            // funcall
+            deuse(p->kids[0]->s.sym);
+            p->kids[0]->s.sym = NULL;
+            return p->kids[0];
+        }
+        p = ast_expr(RIGHT, p->type,
+                     root1(p->kids[0], warn),
+                     root1(p->kids[1], warn));
+        return p->kids[0] || p->kids[1] ? p : NULL;
     case COND:
         {
             struct tree *r = p->kids[1];
@@ -28,7 +44,7 @@ static struct tree *root1(struct tree *p, int warn)
 
             // discard the result
             if (p->s.sym)
-                unuse(p->s.sym);
+                deuse(p->s.sym);
             p->s.sym = NULL;
             if (r->kids[0] == NULL && r->kids[1] == NULL)
                 return root1(p->kids[0], warn);
