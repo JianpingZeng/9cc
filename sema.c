@@ -2595,6 +2595,8 @@ static void ensure_nonbitfield(struct field *p, bool one)
         }
     } else if (isfunc(ty)) {
         error_at(p->src, "field has invalid type '%s'", TYPE_NAME(ty));
+        // fix to pointer
+        p->type = ptr_type(ty);
     } else if (isincomplete(ty)) {
         error_at(p->src, "field has incomplete type '%T'", ty);
     }
