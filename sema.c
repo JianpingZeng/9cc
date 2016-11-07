@@ -352,7 +352,7 @@ static void string_constant(struct token *t, struct symbol *sym)
         free(ws);
         assert(wlen <= len + 1);
         ty = array_type(wchartype);
-        TYPE_LEN(ty) = wlen + 1;
+        TYPE_LEN(ty) = wlen;
         set_typesize(ty);
     } else {
         ty = array_type(chartype);
