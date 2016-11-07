@@ -128,3 +128,17 @@ struct tree *addrof(struct tree *expr)
         }
     }
 }
+
+// get the right-most kid of a RIGHT tree
+struct tree *rightkid(struct tree *expr)
+{
+    while (expr && expr->op == RIGHT) {
+        if (expr->kids[1])
+            expr = expr->kids[1];
+        else if (expr->kids[0])
+            expr = expr->kids[0];
+        else
+            assert(0 && "empty RIGHT tree");
+    }
+    return expr;
+}

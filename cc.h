@@ -521,6 +521,7 @@ extern struct desig *copy_desig(struct desig *desig);
 // tree.c
 extern struct tree *root(struct tree *expr);
 extern struct tree *addrof(struct tree *expr);
+extern struct tree *rightkid(struct tree *expr);
 
 // eval.c
 extern struct tree *eval(struct tree *expr, struct type *ty);

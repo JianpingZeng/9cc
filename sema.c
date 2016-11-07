@@ -1642,7 +1642,7 @@ static struct tree *do_sizeofop(struct type *ty, struct tree *n,
     } else if (isincomplete(ty)) {
         error_at(src, "'sizeof' to an incomplete type '%T' is invalid", ty);
         return NULL;
-    } else if (n && isbfield(n)) {
+    } else if (n && isbfield(rightkid(n))) {
         error_at(src, "'sizeof' to a bitfield is invalid");
         return NULL;
     }
