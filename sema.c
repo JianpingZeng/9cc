@@ -929,29 +929,21 @@ static struct tree *string_literal(struct token *t,
                                                  struct symbol *))
 {
     const char *name = TOK_LIT_STR(t);
-    struct symbol *sym = lookup(name, strings);
-    struct symbol *id;
+    struct symbol *sym = lookup(name, constants);
 
     if (!sym) {
-        sym = install(name, &strings, CONSTANT, PERM);
+        sym = install(name, &constants, CONSTANT, PERM);
         cnst(t, sym);
     }
 
     if (!sym->x.name) {
-        const char *label = gen_string_label();
-        id = install(label, &identifiers, GLOBAL, PERM);
-        id->type = sym->type;
-        id->sclass = STATIC;
-        id->literal = true;
-        id->defined = true;
-        id->u.c.cnst = sym;
-        sym->x.name = label;
-    } else {
-        id = lookup(sym->x.name, identifiers);
-        assert(id);
+        sym->x.name = gen_string_label();
+        sym->sclass = STATIC;
+        sym->string = true;
+        sym->defined = true;
     }
 
-    return mkref(id);
+    return mkref(sym);
 }
 
 static struct tree *incr(int op, struct tree *expr, struct tree *cnst,
