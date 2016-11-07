@@ -27,747 +27,182 @@ Expression
 
 3. Result
 
-        Expression      Result type             Result tree     Requirements
-        --------------------------------------------------------------------------
-        comma           void                    RIGHT
+        Expression      Result type             Result tree     lvalue          Requirements
+        ---------------------------------------------------------------------------------------
+        comma           void                    RIGHT           No
                         pointer
                         arith
                         struct/union
-        ---------------------------------------------------------------------------
-        assign          pointer                 ASGN
+        ---------------------------------------------------------------------------------------
+        assign          pointer                 ASGN            No
                         arith
                         struct/union
-        ---------------------------------------------------------------------------
-        cond            void                    COND
-                        pointer
-                        arith
+        ---------------------------------------------------------------------------------------
+        cond            void                    COND            No              COND(cond, RIGHT(then, els))
+                        pointer                                                 COND(cond, RIGHT(ASGN(t, then),
+                        arith                                                                    ASGN(t, els)))
                         struct/union
-        ---------------------------------------------------------------------------
-        logical-or      integer                 OR              scalar || scalar
-        logical-and     integer                 AND             scalar && scalar
-        ---------------------------------------------------------------------------
-        binary
-        *               arith                   MUL             arith * arith
-        /               arith                   DIV             arith / arith
-        %               integer                 MOD             integer % integer
-        <<              integer                 SHL             integer << integer
-        >>              integer                 SHR             integer >> integer
-        &               integer                 BAND            integer & integer
-        ^               integer                 XOR             integer ^ integer
-        |               integer                 BOR             integer | integer
+        ---------------------------------------------------------------------------------------
+
+binary:
+
+        Expression      Result type             Result tree     lvalue          Requirements
+        ---------------------------------------------------------------------------------------
+        logical-or      integer                 OR              No              scalar || scalar
+        logical-and     integer                 AND             No              scalar && scalar
+
+        *               arith                   MUL             No              arith * arith
+        /               arith                   DIV             No              arith / arith
         
-        +               arith                   ADD             arith + arith
-                        pointer                 ADD             pointer + integer
-                                                                integer + pointer
+        %               integer                 MOD             No              integer % integer
+        <<              integer                 SHL             No              integer << integer
+        >>              integer                 SHR             No              integer >> integer
+        &               integer                 BAND            No              integer & integer
+        ^               integer                 XOR             No              integer ^ integer
+        |               integer                 BOR             No              integer | integer
+        
+        +               arith                   ADD             No              arith + arith
+                        pointer                 ADD                             pointer + integer
+                                                                                integer + pointer
                                                                 
-        -               arith                   SUB             arith - arith
-                        pointer                 SUB             pointer - integer
-                        integer                 SUB             pointer - pointer
+        -               arith                   SUB             No              arith - arith
+                        pointer                 SUB                             pointer - integer
+                        integer                 SUB                             pointer - pointer
                         
-        >               integer                 GT              arith > arith
-                                                                pointer > pointer
+        >               integer                 GT              No              arith > arith
+                                                                                pointer > pointer
                                                                 
-        <               integer                 LT              arith < arith
-                                                                pointer < pointer
+        <               integer                 LT              No              arith < arith
+                                                                                pointer < pointer
                                                                 
-        >=              integer                 GE              arith >= arith
-                                                                pointer >= pointer
+        >=              integer                 GE              No              arith >= arith
+                                                                                pointer >= pointer
                                                                 
-        <=              integer                 LE              arith <= arith
-                                                                pointer <= pointer
+        <=              integer                 LE              No              arith <= arith
+                                                                                pointer <= pointer
                                                                 
-        ==              integer                 EQ              arith == arith
-                                                                pointer == pointer
-                                                                pointer == 0
+        ==              integer                 EQ              No              arith == arith
+                                                                                pointer == pointer
+                                                                                pointer == 0
                                                                 
-        !=              integer                 NE              arith != arith
-                                                                pointer != pointer
-                                                                pointer != 0
-        ---------------------------------------------------------------------------
-        cast            void                    CV
-                        pointer
+        !=              integer                 NE              No              arith != arith
+                                                                                pointer != pointer
+                                                                                pointer != 0
+        ---------------------------------------------------------------------------------------
+
+
+cast:
+
+        Expression      Result type             Result tree     lvalue          Requirements
+        ---------------------------------------------------------------------------------------
+        cast            void                    CV??            No
+                        pointer                 RIGHT
                         arith
-        ---------------------------------------------------------------------------
-        unary
-        sizeof          integer                 CNST
-        +               arith                                   + arith        
-        -               arith                   NEG             - arith
-        
-        !               arith                   COND            ! arith
-                        pointer                                 ! pointer
-                        
-        ~               integer                 NOT             ~ integer
-        
-        &               pointer                 ???             & lvalue
-                                                ADDR            INDIR+ADDR
-                                                ADD             INDIR+ADD
-                                                SUB             INDIR+SUB
-                                    left kid of ASGN            INDIR+ASGN
-                                                ...             ...
+        ---------------------------------------------------------------------------------------
+
+
+unary:
+
+        Expression      Result type             Result tree     lvalue          Requirements
+        ---------------------------------------------------------------------------------------
+        sizeof          integer                 CNST            No
+
+        +               arith                   RIGHT,          No
+                                                !!!
                                                 
-        *               void                    INDIR+???       * pointer
-                        pointer
+        -               arith                   NEG             No
+        
+        !               arith                   COND            No              COND(e, RIGHT(ASGN(t, CNST0)
+                        pointer                                                               ASGN(t, CNST1)))  
+                        
+        ~               integer                 BNOT            No
+        
+        &               pointer                 ???             No
+                                                ADDR
+                                                
+        *               void                    INDIR+???,      Yes (except function type)
+                        pointer                 ADDR
                         arith
                         struct/union
                         array
                         function
                         
-        ++ (prefix)     arith                   ASGN            ++ arith
-                        pointer                                 ++ pointer
+        ++ (prefix)     arith                   ASGN            No              ASGN(l, ADD(l, CNST1))
+                        pointer                                 
                         
-        -- (prefix)     arith                   ASGN            -- arith
-                        pointer                                 -- pointer
-        ---------------------------------------------------------------------------
-        postfix
-        ++ (postfix)    arith                   RIGHT           arith ++
-                        pointer                                 pointer ++
-                        
-        -- (postfix)    arith                   RIGHT           arith --
-                        pointer                                 pointer --
-
-        .id             pointer                 INDIR+ADD/BFIELD/RIGHT
-                        arith
-                        struct/union
-                        array
-                        
-        ->id            pointer                 INDIR+ADD/BFIELD
-                        arith
-                        struct/union
-                        array
-                        
-        () (funcall)    void                    RIGHT+CALL
-                        pointer
-                        arith
-                        struct/union
-                        
-        [] (subscript)  pointer                 INDIR+ADD
-                        arith
-                        struct/union
-                        array
-                        
-        (){} (compound-literal) pointer         INDIR+ADDR
-                                arith
-                                struct/union
-                                array
-        ---------------------------------------------------------------------------
-        primary
-        identifier      pointer                 INDIR+ADDR
-                        arith                   INDIR+ADDR
-                        struct/union            INDIR+ADDR
-                        array                   ADDR
-                        function                ADDR
-                        
-        enum-id         integer                 CNST       
-
-        integer-constant  integer               CNST
-
-        float-constant  floating                CNST
-
-        string-literal  array                   CNST
-
-        (expression)
-        ---------------------------------------------------------------------------
-
-primary:
---------
-
-(1) constant:
-
-    ------------------------------------------------
-    Result: _NOT_ an lvalue (except string constant)
-    ------------------------------------------------
-
-    integer-constant: CNSTI, CNSTU
-    floating-constant: CNSTF
-    string-literal: ADDRGP
-
-(2)id:
-
-    -----------------------------------------------------
-    Result: an lvalue (except enum constant) or function
-    -----------------------------------------------------
-
-       kind       op              type
-     0. enum id:  CNST            integer
-     1. function: ADDRGP          function
-     2. array:    ADDR            array
-     3. others:
-                  INDIR           type
-                    |
-                   ADDR           ptr to type
+        -- (prefix)     arith                   ASGN            No
+                        pointer                                 
+        ---------------------------------------------------------------------------------------
 
 postfix:
---------
 
-(1) compound literal: COMPOUND
-
-    ----------------------------------
-    Result: an lvalue (to the object)
-    ----------------------------------
-
-    Requirements:
-    1. create an unnamed object of the designated type
-
-
-
-(2) (post) tree++, tree--:
-
-    ------------------------
-    Result: _NOT_ an lvalue
-    ------------------------
-
-    Requirements:
-    1. tree must be scalar type
-    2. tree must be an lvalue and modifiable
-
-
-  相当于 tmp = tree, tree = tree + 1, tmp
-
-                   RIGHT
-                   /   \
-               RIGHT   tree
-               /   \
-             tree  ASGN
-                   /   \
-                 tree  ADD/SUB
-                        /   \
-                      tree   CNST (1)
-
-    为什么不是以下这样呢？
-    
-                   RIGHT
-                   /   \
-                ASGN   tree
-               /   \
-             tree  ADD/SUB
-                   /   \
-                 tree  CNST (1)
-
-    这里解释下：
-           首先注意下，虽然画出来是树，其实是 DAG，因为 tree 都是同一个指针。
-           RIGHT 树也是从左到右遍历子树。因此低层的 RIGHT 树保证了在 ASGN 树
-           执行前，对 tree 树的「右值」进行计算和保存。上面的图详细的标注如下：
-
-                   RIGHT
-                   /   \
-               RIGHT   tree's rvalue
-               /   \
-    tree's rvalue  ASGN
-                   /   \
-        tree's lvalue  ADD/SUB
-                        /   \
-            tree's rvalue   CNST (1)
-
-    伪代码如下：
-           t1 = rvalue(tree)
-           t2 = lvalue(tree)
-           [t2] = t1 + 1
-           return t1
-
-(3) direction: tree->id, tree.id
-
-    ----------------------------------------------
-    Result:
-    tree->id:       an lvalue
-    tree.id:        an lvalue if tree is an lvalue
-    -----------------------------------------------
-
-    Requirements:
-    1. tree.id:     tree must be struct or union type
-       tree->id:    tree must be pointer to struct or union type
-
-
-            MEMBER (.u.field)
-              |
-             tree
-
-(4) funcall: tree()
-
-    --------------------------
-    Result: _NEVER_ an lvalue
-    --------------------------
-
-    Requirements:
-    1. tree must be pointer to function after usual unary conversions
-
-
-             CALL (.u.args)
-              |
-             tree
-
-(5) subscript: tree1[tree2]
-
-    ---------------------------
-    Result: _ALWAYS_ an lvalue
-    ---------------------------
-
-    Requirements:
-    1. tree1 (integer) and tree2 (pointer)
-    or tree1 (pointer) and tree2 (integer)
-
-
-
-  相当于 *(tree1+tree2)
-
-                INDIR
-                  |
-                 ADD
-                /   \
-             tree1  tree2
-
-
-unary:
--------
-
-(1) sizeof:     sizeof (type-name), sizeof tree
-
-    ----------------------------
-    Result:     _NOT_ an lvalue
-    ----------------------------
-    
-
-                CNST   (integer)
-
-(2) (prefix) ++tree, --tree:
-
-    ----------------------------
-    Result:     _NOT_ an lvalue
-    ----------------------------
-
-
-  相当于 tree = tree + 1
-
-             ASGN
-             /   \
-          tree  ADD/SUB
-                /    \
-              tree   CNST (1)
-
-(3) + tree:
-
-    ----------------------------
-    Result:     _NOT_ an lvalue
-    ----------------------------
-
-  相当于 tree
-
-(4) - tree:
-
-    ----------------------------
-    Result:     _NOT_ an lvalue
-    ----------------------------
-
-        NEG
-         |
-        tree
-
-(5) ~ tree:
-
-    ----------------------------
-    Result:     _NOT_ an lvalue
-    ----------------------------
-
-        NOT
-         |
-        tree
-
-(6) ! tree:
-
-    ----------------------------
-    Result:     _NOT_ an lvalue
-    ----------------------------
-
-                COND
-                /   \
-             tree  RIGHT
-                   /   \
-                ASGN   ASGN
-                /  \    /  \
-               t1   0  t2   1
-
-(7) * tree:
-
-    --------------------------------
-    Result:   an lvalue or function
-    --------------------------------
-
-
-        INDIR
-          |
-         tree
-
-(8) & tree:
-
-    -----------------------------
-      Result: _NEVER_ an lvalue
-    -----------------------------
-
-      Requirements:
-      1. tree must be an lvalue or function
-      2. the object cannot be declared with 'REGISTER'
-      3. the object cannot be a bit field
-
-
-               kind     op              type
-        1. function:    tree            ptr to function
-        2. array:       tree            ptr to array
-        3. others:      tree->kids[0]   kids[0]'s type
-
-
-cast: (type-name) tree
------
-
-        ------------------------
-        Result: _NOT_ an lvalue
-        ------------------------
-
-        CVxx
-         |
-        tree
-
-binary:
--------
-
-        ------------------------
-        Result: _NOT_ an lvalue
-        ------------------------
-        
-
-FORM:  tree1 op tree2
-
-             op
-            /  \
-         tree1 tree2
-
-
-conditional:
-------------
-
-        ------------------------
-        Result: _NOT_ an lvalue
-        ------------------------
-
-
-FORM: tree0 ? tree1 : tree2
-
-            COND
-           /   \
-        tree0  RIGHT
-               /   \
-            tree1  tree2
-
-assignment:
------------
-
-        --------------------------
-        Result: _NEVER_ an lvalue
-        --------------------------
-
-Result tree:    ASGN
-Result type:    pointer/arith/struct/union
-                return the rvalue of tree1
-
-FORM: tree1 = tree2, tree1 op= tree2
-
-            ASGN
-            /  \
-        tree1 tree2
-
-
-            ASGN
-            /   \
-         tree1  op
-               /   \
-            tree1  tree2
-
-comma:
-------
-
-        ------------------------
-        Result: _NOT_ an lvalue
-        ------------------------
-
-Result tree:    RIGHT
-Result type:    void/pointer/arith/struct/union
-                (this is, except function and array [decay])
-
-
-FORM: tree1, tree2, tree3, ..., treeN
-
-             RIGHT
-             /   \
-           RIGHT treeN
-           /  \
-         RIGHT ...
-         ...
-        /  \
-      RIGHT tree3
-      /  \
-   tree1 tree2
-
-Draft
-======
-
-INTEGER_LITERAL:        CNSTI
-
-FLOAT_LITERAL:          CNSTF
-
-STRING_LITERAL:         CNSTP
-
-COMPOUND_LITERAL:       ???
-
-CAST_EXPR
-CONV_EXPR:
-
-        // Format:
-        //      CV[from][to][to_size]
-        //
-        // i.e.:
-        //      CVII4
-        //
-        //      Integer(? bytes) to Integer(4 bytes)
-        //
-        // Abbrevs:
-        // I - signed integer
-        // U - unsigned integer
-        // F - floating
-        // P - pointer
-        // B - bool
-        //
-
-        // signed integer => signed integer
-        CVII1
-        CVII2
-        CVII4
-        CVII8
-
-        // signed integer => unsigned integer
-        CVIU1
-        CVIU2
-        CVIU4
-        CVIU8
-
-        // unsigned integer => unsigned integer
-        CVUU1
-        CVUU2
-        CVUU4
-        CVUU8
-
-        // unsigned integer => signed integer
-        CVUI1
-        CVUI2
-        CVUI4
-        CVUI8
-
-        // floating => floating
-        CVFF4
-        CVFF8
-        CVFF16
-
-        // integer => floating
-        CVIF4
-        CVIF8
-        CVIF16
-
-        // unsigned integer => floating
-        CVUF4
-        CVUF8
-        CVUF16
-
-        // floating => integer
-        CVFI1
-        CVFI2
-        CVFI4
-        CVFI8
-
-        // floating => unsigned integer
-        CVFU1
-        CVFU2
-        CVFU4
-        CVFU8
-
-        // integer => bool
-        CVIB
-
-        // unsigned integer => bool
-        CVUB
-
-        // floating => bool
-        CVFB
-
-        // pointer => bool
-        CVPB
-
-        // pointer???
-        
-
-BINARY_OPERATOR:
-
-        // arith
-        *: MUL: MULI, MULU, MULF
-        /: DIV: DIVI, DIVU, DIVF
-
-        ///
-        +: ADD: ADDI, ADDF
-        -: SUB: SUBI, SUBF
-
-        // int
-        %:  MOD: MODI, MODU
-        <<: SHL: SHLI, SHLU
-        >>: SHR: SHRI, SHRU
-        &:  AND
-        ^:  OR
-        |:  XOR
-
-        // scalar
-        >:  CMP-JG/JA
-        <:  CMP-JL/JB
-        >=: CMP-JGE/JAE
-        <=: CMP-JLE/JBE
-        ==: CMP-JE/JZ
-        !=: CMP-JNE/JNZ
-
-UNARY_OPERATOR:
-
-        // scalar
-        ++ (prefix):
-        -- (prefix):
-
-                        =
-                       / \
-                      x   +
-                         / \
-                        x   1 
-
-        ++ (postfix):
-        -- (postfix):
-                           ??
-                         /    \
-                        =      =
-                       / \    / \
-                      t   x  x   +
-                                / \
-                               x   1
-
-        +: (skipped)
-        -: NEG: NEGI, NEGU, NEGF
-
-        !:
-
-        // int
-        ~: NOT:
-
-        //
-        &: ADDR:
-        *: INDIR:
-
-COND_EXPR:
-
-                        ?
-                      /   \
-                     /     \
-                   cond   RIGHT
-                         /     \
-                        /       \
-                       =         =
-                      / \       / \
-                     /   \     /   \
-                    t1   e1   t2   e2
-
-
-CALL_EXPR:
-
-        CALL
-
-REF_EXPR:
-        // arith
-
-                        INDIR
-                          |
-                          |
-                         ADDR
-
-        // pointer
-
-                        INDIR
-
-        // function
-        
-
-        // struct/union
-
-        // array
-        
-
-MEMBER_EXPR:
-        e.id
-        e->id
-
-        <the same as array because of alignment of struct>
-                
-
-SUBSCRIPT_EXPR:
-
-        base[index]
-        - base: ptr
-        - index: integer
-
-                    ADD
-                   /    \
-                  /      \
-                base     LSH
-                       /    \
-                    index  CNST
-                            |
-                           scale
-
-
-INITS_EXPR:
-
-        [0] offset  type    init(integer/floating/pointer)
-
-        ...
-
-        [N] offset  type    init
-        
-
-
-VINIT_EXPR:     (removed)
-
-PAREN_EXPR:     (skipped)
+        Expression          Result type             Result tree     lvalue      Requirements
+        ---------------------------------------------------------------------------------------
+        ++ (postfix)        arith                   RIGHT           No          RIGHT(RIGHT(l,
+                            pointer                                                         ASGN(l, ADD(l, CNST1)))
+                                                                                      l)
+        -- (postfix)        arith                   RIGHT           No
+                            pointer                                   
+
+        e.id                pointer                 INDIR+ADD,      Yes if e is an lvaue
+                            arith                   BFIELD,
+                            struct/union            RIGHT
+                            array
+                        
+        e->id               pointer                 INDIR+ADD,      Yes
+                            arith                   BFIELD
+                            struct/union
+                            array
+                        
+        funcall             void                    RIGHT+CALL      No
+                            pointer
+                            arith
+                            struct/union
+                        
+        subscript           pointer                 INDIR+ADD       Yes
+                            arith
+                            struct/union
+                            array
+                        
+        compound-literal    pointer                 INDIR+ADDR      Yes
+                            arith
+                            struct/union
+                            array
+        ---------------------------------------------------------------------------------------
+
+primary:
+
+        Expression          Result type             Result tree     lvalue       Requirements                          
+        ---------------------------------------------------------------------------------------
+        identifier          pointer                 INDIR+ADDR      Yes
+                            arith                   INDIR+ADDR      Yes
+                            struct/union            INDIR+ADDR      Yes
+                            array                   ADDR            Yes
+                            function                ADDR            No
+                        
+        enum-id             integer                 CNST            No
+
+        integer-constant    integer                 CNST            No
+
+        float-constant      floating                CNST            No
+
+        string-literal      array                   ADDR            Yes
+
+        (expression)
+        ---------------------------------------------------------------------------------------
 
 
 COMMENT
 ========
 
-operator:
-
-        uint16 op;
+operator: (uint16)
 
       High                         Low
         | zzzz | zzyy | yyyy | xxxx |
 
-        zzzz-zz: op size, [10-15], 6 bits, (1024-65535) 1,2,4,8,16
-        yy-yyyy: op, [4-9], 6 bits, (16-1023)
-        xxxx: op type, [0-3], 4 bits, (0-15), I,U,F,P,S
-
-constant:
-
-        integer: CNSTI, CNSTU
-        floating: CNSTF
-        string: CNSTP
-
-identifier:
-
-        ADDRGP: global
-        ADDRPP: param
-        ADDRLP: local
-        
-
-TEMPLATE
-=========
-
-        rule  "assembly code template" cost
+        zzzz-zz: op size, 1,2,4,8,16
+        yy-yyyy: op kind
+        xxxx: op type, I,U,F,P,S
 
 
 APPENDIX
@@ -784,7 +219,7 @@ x86 address model:
 
 c types:
 
-  integral types:---____ arith types ---
+  integral types:---____ arith types ___
   floating types:---                    ----- scalar types
   pointer types: -----------------------
   array types:   ---_____ aggregate types
