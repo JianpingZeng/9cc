@@ -2578,7 +2578,7 @@ static void ensure_bitfield(struct field *p)
     }
 }
 
-static void ensure_nonbitfield(struct field *p, bool one)
+static void ensure_field(struct field *p, bool one)
 {
     struct type *ty = p->type;
 
@@ -2613,7 +2613,7 @@ static void ensure_fields(struct symbol *sym)
         if (p->isbit)
             ensure_bitfield(p);
         else
-            ensure_nonbitfield(p, one);
+            ensure_field(p, one);
     }
 }
 
