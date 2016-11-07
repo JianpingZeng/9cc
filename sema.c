@@ -79,8 +79,6 @@ struct func func;
                        OPKIND(op) == ADDRG || \
                        OPKIND(op) == ADDRP)
 
-#define isbfield(expr)  ((expr)->op == BFIELD)
-
 #define check_designator(d)  ensure_designator(d) ? (d) : NULL
 
 /*=================================================================*
@@ -385,7 +383,7 @@ static bool islvalue(struct tree *expr)
 {
     if (OPKIND(expr->op) == INDIR)
         return true;
-    if (isbfield(expr))
+    if (expr->op == BFIELD)
         return true;
     if (isaddrop(expr->op) && isarray(expr->type))
         return true;
@@ -1366,7 +1364,7 @@ static struct tree *do_assign(int t, struct tree *l, struct tree *r,
         return NULL;
     }
 
-    if (isbfield(l)) {
+    if (l->op == BFIELD) {
         int n = 8 * TYPE_SIZE(l->s.u.field->type) - l->s.u.field->bitsize;
         r = actions.bop(RSHIFT,
                         actions.bop(LSHIFT, r, cnsti(n, inttype), src),
@@ -1586,7 +1584,7 @@ static struct tree *do_address(struct tree *expr, struct source src)
             error_at(src, "lvalue required as unary '&' operand");
             return NULL;
         }
-        if (isbfield(expr)) {
+        if (expr->op == BFIELD) {
             error_at(src, "address of bitfield requested");
             return NULL;
         }
@@ -1642,7 +1640,7 @@ static struct tree *do_sizeofop(struct type *ty, struct tree *n,
     } else if (isincomplete(ty)) {
         error_at(src, "'sizeof' to an incomplete type '%T' is invalid", ty);
         return NULL;
-    } else if (n && isbfield(rightkid(n))) {
+    } else if (n && rightkid(n)->op == BFIELD) {
         error_at(src, "'sizeof' to a bitfield is invalid");
         return NULL;
     }
