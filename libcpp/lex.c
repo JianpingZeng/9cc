@@ -470,16 +470,19 @@ static void number(struct file *pfile, struct token *result)
     }
 }
 
-static const char *string_constant(struct file *pfile, bool wide)
+static void string_constant(struct file *pfile,
+                            struct token *result,
+                            bool wide)
 {
     struct buffer *pb = pfile->buffer;
-    const unsigned char *rpc = pb->cur - 1;
+    const unsigned char *rpc;
     int sep = '"';
     const char *name;
     int ch;
 
     if (wide) pb->cur++;
 
+    rpc = pb->cur;
     for (;;) {
         ch = *pb->cur++;
         if (ch == sep || ISNEWLINE(ch))
@@ -488,16 +491,13 @@ static const char *string_constant(struct file *pfile, bool wide)
             pb->cur++;
     }
 
-    if (ch != sep) {
-        char *str = xstrndup((const char *)rpc, pb->cur - rpc + 1);
-        str[pb->cur - rpc] = sep;
-        name = str;
-        cpp_error("untermiated string constant: %s", name);
-    } else {
-        name = xstrndup((const char *)rpc, pb->cur - rpc);
-    }
-
-    return name;
+    name = xstrndup((const char *)rpc, pb->cur - rpc - 1);
+    if (ch != sep)
+        cpp_error("untermiated string constant: \"%s\"", name);
+    
+    result->id = SCONSTANT;
+    result->u.lit.str = name;
+    result->u.lit.wide = wide;
 }
 
 static unsigned int escape(const unsigned char **pc)
@@ -594,7 +594,9 @@ static unsigned int escape(const unsigned char **pc)
     return c;
 }
 
-static void char_constant(struct file *pfile, struct token *result, bool wide)
+static void char_constant(struct file *pfile,
+                          struct token *result,
+                          bool wide)
 {
     struct buffer *pb = pfile->buffer;
     const unsigned char *pc = pb->cur - 1;
@@ -645,7 +647,7 @@ static void char_constant(struct file *pfile, struct token *result, bool wide)
     
     result->id = ICONSTANT;
     result->u.lit.v.u = wide ? (wchar_t)c : (unsigned char)c;
-    result->u.lit.chr = wide ? 2 : 1;
+    result->u.lit.wide = wide;
     result->u.lit.str = s;
     pb->cur = pc;
 }
@@ -909,8 +911,7 @@ static struct token *dolex(struct file *pfile)
         break;
 
     case '"':
-        result->id = SCONSTANT;
-        result->u.lit.str = string_constant(pfile, false);
+        string_constant(pfile, result, false);
         break;
 
     case '0': case '1': case '2': case '3': case '4':
@@ -935,8 +936,7 @@ static struct token *dolex(struct file *pfile)
             char_constant(pfile, result, true);
             break;
         } else if (rpc[1] == '"') {
-            result->id = SCONSTANT;
-            result->u.lit.str = string_constant(pfile, true);
+            string_constant(pfile, result, true);
             break;
         }
         // go through
@@ -1108,34 +1108,24 @@ static struct token *peek_token(struct file *pfile)
     return t;
 }
 
-const char *unwrap_scon(const char *name)
+static struct token *combine_scons(struct vector *v)
 {
+    struct token *t0 = new_token(vec_head(v));
+    bool wide = false;
     struct strbuf *s = strbuf_new();
 
-    if (name[0] == '"')
-        strbuf_catn(s, name + 1, strlen(name) - 2);
-    else
-        strbuf_catn(s, name + 2, strlen(name) - 3);
-
-    return strbuf_str(s);
-}
-
-static struct token *combine_scons(struct vector *v, bool wide)
-{
-    struct token *t = new_token(vec_head(v));
-    struct strbuf *s = strbuf_new();
-    if (wide)
-        strbuf_catc(s, 'L');
-    strbuf_catc(s, '"');
-    for (int i = 0; i < vec_len(v); i++) {
-        struct token *ti = vec_at(v, i);
-        const char *name = unwrap_scon(tok2s(ti));
+    for (size_t i = 0; i < vec_len(v); i++) {
+        struct token *t = vec_at(v, i);
+        const char *name = TOK_ID_STR(t);
         if (name)
             strbuf_cats(s, name);
+        if (t->u.lit.wide)
+            wide = true;
     }
-    strbuf_catc(s, '"');
-    t->u.lit.str = strbuf_str(s);
-    return t;
+
+    t0->u.lit.str = strbuf_str(s);
+    t0->u.lit.wide = wide;
+    return t0;
 }
 
 static struct token *do_cctoken(struct file *pfile)
@@ -1144,17 +1134,12 @@ static struct token *do_cctoken(struct file *pfile)
     if (t->id == SCONSTANT) {
         struct vector *v = vec_new1(t);
         struct token *t1 = peek_token(pfile);
-        const char *name0 = TOK_LIT_STR(t);
-        bool wide = name0[0] == 'L';
         while (t1->id == SCONSTANT) {
-            const char *name1 = TOK_LIT_STR(t1);
-            if (name1[0] == 'L')
-                wide = true;
             vec_push(v, one_token(pfile));
             t1 = peek_token(pfile);
         }
         if (vec_len(v) > 1)
-            return combine_scons(v, wide);
+            return combine_scons(v);
     }
     return t;
 }

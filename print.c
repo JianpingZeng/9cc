@@ -391,7 +391,7 @@ static void print_expr1(struct tree *node, int level)
     putf(GREEN("'%T' "), node->type);
 
     if (issliteral(node)) {
-        putf(CYAN_BOLD("%s"), node->s.sym->name);
+        putf(CYAN_BOLD("\"%s\""), node->s.sym->name);
     } else if (isiliteral(node)) {
         if (TYPE_OP(node->type) == INT)
             putf(RED("%ld"), node->s.value.i);

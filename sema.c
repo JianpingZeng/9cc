@@ -249,12 +249,8 @@ static struct type *integer_constant(struct token *t)
     struct type *ty;
 
     // character constant
-    if (t->u.lit.chr) {
-        bool wide = t->u.lit.chr == 2;
-        ty = wide ? wchartype : unsignedchartype;
-        t->u.lit.v.u = wide ? (wchar_t)n : (unsigned char)n;
-        return ty;
-    }
+    if (is_char_cnst(t))
+        return t->u.lit.wide ? wchartype : unsignedchartype;
 
     switch (suffix) {
     case UNSIGNED + LONG + LONG:
@@ -345,23 +341,22 @@ static struct type *float_constant(struct token *t)
 static void string_constant(struct token *t, struct symbol *sym)
 {
     const char *s = TOK_LIT_STR(t);
-    bool wide = s[0] == 'L' ? true : false;
     struct type *ty;
-    if (wide) {
-        size_t len = strlen(s) - 3;
-        wchar_t *ws = xmalloc(sizeof(wchar_t) * (len+1));
+    if (t->u.lit.wide) {
+        size_t len = strlen(s);
+        wchar_t *ws = xmalloc(sizeof(wchar_t) * (len + 1));
         errno = 0;
-        size_t wlen = mbstowcs(ws, s + 2, len);
+        size_t wlen = mbstowcs(ws, s, len);
         if (errno == EILSEQ)
             error("invalid multibyte sequence: %s", s);
         free(ws);
         assert(wlen <= len + 1);
         ty = array_type(wchartype);
-        TYPE_LEN(ty) = wlen;
+        TYPE_LEN(ty) = wlen + 1;
         set_typesize(ty);
     } else {
         ty = array_type(chartype);
-        TYPE_LEN(ty) = strlen(s) - 1;
+        TYPE_LEN(ty) = strlen(s) + 1;
         set_typesize(ty);
     }
     sym->type = ty;
@@ -939,7 +934,7 @@ static struct tree *string_literal(struct token *t,
     if (!sym->x.name) {
         sym->x.name = gen_string_label();
         sym->sclass = STATIC;
-        sym->string = true;
+        sym->u.c.string = true;
         sym->defined = true;
     }
 

@@ -304,7 +304,7 @@ static void do_include(struct file *pfile)
 
         struct token *tok = vec_head(r);
         if (tok->id == SCONSTANT) {
-            include_file(pfile, unwrap_scon(TOK_LIT_STR(tok)), false);
+            include_file(pfile, TOK_LIT_STR(tok), false);
             for (int i = 1; i < vec_len(r); i++) {
                 struct token *t = vec_at(r, i);
                 if (!IS_SPACE(t)) {
@@ -755,7 +755,7 @@ static void do_line(struct file *pfile)
     const char *name;
     struct token *t2 = skip_spaces(pfile);
     if (t2->id == SCONSTANT) {
-        name = format("# %s %s\n", tok2s(t), tok2s(t2));
+        name = format("# %s \"%s\"\n", tok2s(t), tok2s(t2));
     } else {
         name = format("# %s \"%s\"\n", tok2s(t), pfile->buffer->name);
         unget(pfile, t2);
@@ -950,23 +950,26 @@ static const char *backslash(const char *name)
 static struct token *stringize(struct vector *v)
 {
     struct strbuf *s = strbuf_new();
-    strbuf_cats(s, "\"");
     for (int i = 0; i < vec_len(v); i++) {
         struct token *t = vec_at(v, i);
         const char *name = tok2s(t);
-        if (t->id == SCONSTANT ||
-            (t->id == ICONSTANT &&
-             (name[0] == '\'' || name[0] == 'L')))
-            // Any embedded quotation or backslash characters
-            // are preceded by a backslash character to preserve
-            // their meaning in the string.
+        /*
+          Any embedded quotation or backslash characters
+          are preceded by a backslash character to preserve
+          their meaning in the string.
+        */
+        if (t->id == SCONSTANT) {
+            strbuf_cats(s, "\\\"");
             strbuf_cats(s, backslash(name));
-        else
+            strbuf_cats(s, "\\\"");
+        } else if (is_char_cnst(t)) {
+            strbuf_cats(s, backslash(name));
+        } else {
             strbuf_cats(s, name);
+        }    
     }
-    strbuf_cats(s, "\"");
     return new_token(&(struct token) {
-            .id = SCONSTANT, .u.lit.str = s->str});
+            .id = SCONSTANT, .u.lit.str = strbuf_str(s) });
 }
 
 /**
@@ -1119,9 +1122,8 @@ static struct token *expand(struct file *pfile)
 static void file_handler(struct file *pfile, struct token *t)
 {
     const char *file = pfile->buffer->name;
-    const char *name = format("\"%s\"", file);
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .u.lit.str = name, .src = t->src });
+            .id = SCONSTANT, .u.lit.str = file, .src = t->src });
     unget(pfile, tok);
 }
 
@@ -1241,11 +1243,11 @@ static void init_env(struct file *pfile)
     // mmm dd yyyy
     char datestr[20];
     strftime(datestr, sizeof(datestr), "%b %e %Y", now);
-    pfile->date = format("\"%s\"", datestr);
+    pfile->date = xstrdup(datestr);
     // hh:mm:ss
     char timestr[10];
     strftime(timestr, sizeof(timestr), "%T", now);
-    pfile->time = format("\"%s\"", timestr);
+    pfile->time = xstrdup(timestr);
 }
 
 static void init_include_path(struct file *pfile)

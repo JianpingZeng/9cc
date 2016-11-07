@@ -65,8 +65,8 @@ struct token {
         // string/number literal
         struct {
             const char *str;    // literal lexeme
-            unsigned char base; // 0:dec, 8:Oct, 16:hex
-            unsigned char chr;  // 0:no, 1:uchar, 2:wchar_t
+            bool wide;          // wide string
+            char base;          // 0:dec, 8:Oct, 16:hex
             int suffix;
             union value v;
         } lit;
@@ -210,10 +210,13 @@ extern int gettok(void);
 extern struct token *lookahead(void);
 extern void expect(int t);
 extern void match(int t, void (*otherwise) (void));
-extern const char *unwrap_scon(const char *name);
 #define token_is(t)  (token->id == (t))
 #define token_is_not(t)  (token->id != (t))
 #define next_token_is(t)  (lookahead()->id == (t))
+#define is_char_cnst(t)  ((t)->id == ICONSTANT && \
+                          (t)->u.lit.str && \
+                          (t)->u.lit.str[0] == '\'' && \
+                          (t)->u.lit.str[0] == 'L')
 
 ///
 /// external variables

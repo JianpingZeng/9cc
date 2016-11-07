@@ -125,14 +125,14 @@ struct symbol {
     int anonymous:1;
     int temporary:1;
     int nonnull:1;
-    int string:1;
     unsigned int refs;
     union {
         // varibale initializer
         struct tree *init;
         // literal/enum id
         union {
-            union value value;   // integer/floating literal
+            bool string; // string literal
+            union value value;  // integer/floating literal
         } c;
         // function
         struct {
@@ -513,7 +513,9 @@ extern struct desig *copy_desig(struct desig *desig);
 #define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
 #define isfliteral(n)  (OPID((n)->op) == CNST+F)
 #define ispliteral(n)  (OPID((n)->op) == CNST+P)
-#define issliteral(n)  ((n)->s.sym->string)
+#define issliteral(n)  (OPID((n)->op) == ADDRG+P && \
+                        isarray((n)->type) && \
+                        (n)->s.sym->u.c.string)
 #define iszinit(n)     ((n)->op == 0)
 
 // tree.c

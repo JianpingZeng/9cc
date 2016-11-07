@@ -144,8 +144,7 @@ char *format(const char *fmt, ...)
 char *xstrdup(const char *str)
 {
     char *ret = xmalloc(strlen(str) + 1);
-    strcpy(ret, str);
-    return ret;
+    return strcpy(ret, str);
 }
 
 char *xstrndup(const char *str, size_t n)
