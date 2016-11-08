@@ -206,11 +206,9 @@ static bool istypedef(const char *id)
     return sym && sym->sclass == TYPEDEF;
 }
 
-static struct symbol *mklocal(const char *name, struct type *ty, int sclass)
+static struct symbol *mkvar(const char *name, struct type *ty, int sclass)
 {
     struct symbol *sym;
-
-    assert(cscope >= LOCAL);
 
     // `name' must be unique
     sym = install(name, &identifiers, cscope, FUNC);
@@ -220,8 +218,12 @@ static struct symbol *mklocal(const char *name, struct type *ty, int sclass)
 
     if (sclass == STATIC)
         events(defsvar)(sym);
-    else
+    else if (cscope == GLOBAL)
+        events(defgvar)(sym);
+    else if (cscope >= LOCAL)
         events(deflvar)(sym);
+    else
+        CC_UNAVAILABLE();
 
     return sym;
 }
@@ -230,7 +232,7 @@ static struct symbol *mktmp(const char *name, struct type *ty, int sclass)
 {
     struct symbol *sym;
 
-    sym = mklocal(name, ty, sclass);
+    sym = mkvar(name, ty, sclass);
     sym->temporary = true;
     return sym;
 }
@@ -2727,7 +2729,7 @@ static void predefined_ids(void)
     struct tree *literal = cnsts(func.name);
     init_string(type, literal, source);
 
-    struct symbol *sym = mklocal("__func__", type, STATIC);
+    struct symbol *sym = mkvar("__func__", type, STATIC);
     sym->predefine = true;
     sym->u.init = literal;
 }
