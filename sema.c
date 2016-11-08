@@ -1792,9 +1792,6 @@ static struct tree *do_compound_literal(struct type *ty,
                                         struct source src)
 {
     struct symbol *sym;
-    
-    if (cscope < LOCAL)
-        return inits;
 
     sym = mktmp(gen_compound_label(), ty, 0);
     return iassign(sym, inits);
@@ -2003,8 +2000,9 @@ static void do_gen(struct tree *expr)
  *                        Sema-Initialization                      *
  *=================================================================*/
 
-static void init_string(struct type *ty, struct tree *init,
-                        struct source src)
+static void finish_string(struct type *ty,
+                          struct tree *init,
+                          struct source src)
 {
     int len1 = TYPE_LEN(ty);
     int len2 = TYPE_LEN(init->type);
@@ -2040,7 +2038,7 @@ static struct tree *ensure_init_assign(struct symbol *sym,
     
     if (isarray(dty)) {
         if (isstring(dty) && issliteral(init)) {
-            init_string(dty, init, src);
+            finish_string(dty, init, src);
         } else {
             error_at(src, "array initializer must be an initializer list "
                      "or string literal");
@@ -2106,7 +2104,8 @@ static bool ensure_designator(struct desig *d)
     return true;
 }
 
-static void offset_init1(struct desig *desig, struct tree *expr,
+static void offset_init1(struct desig *desig,
+                         struct tree *expr,
                          struct init **ilist)
 {
     struct init *p, *init;
@@ -2147,32 +2146,37 @@ static void offset_init1(struct desig *desig, struct tree *expr,
     *ilist = init;
 }
 
-static void scalar_init(struct desig *desig, struct tree *expr,
+static void scalar_init(struct desig *desig,
+                        struct tree *expr,
                         struct init **ilist)
 {
     // TODO: 
 }
 
-static void union_init(struct desig *desig, struct tree *expr,
+static void union_init(struct desig *desig,
+                       struct tree *expr,
                        struct init **ilist)
 {
     // TODO: 
 }
 
-static void struct_init(struct desig *desig, struct tree *expr,
+static void struct_init(struct desig *desig,
+                        struct tree *expr,
                         struct init **ilist)
 {
     // TODO: 
 }
 
-static void string_init(struct desig *desig, struct tree *expr,
+static void string_init(struct desig *desig,
+                        struct tree *expr,
                         struct init **ilist)
 {
     // TODO: override check
     offset_init1(desig, expr, ilist);
 }
 
-static void offset_init(struct desig *desig, struct tree *expr,
+static void offset_init(struct desig *desig,
+                        struct tree *expr,
                         struct init **ilist)
 {
     assert(!isarray(desig->type));
@@ -2727,7 +2731,7 @@ static void predefined_ids(void)
     struct type *type = array_type(qual(CONST, chartype));
     // initializer
     struct tree *literal = cnsts(func.name);
-    init_string(type, literal, source);
+    finish_string(type, literal, source);
 
     struct symbol *sym = mkvar("__func__", type, STATIC);
     sym->predefine = true;

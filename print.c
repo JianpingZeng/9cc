@@ -609,7 +609,7 @@ static void dotype2s(struct vector *l, struct vector *r)
     dotype2s(l, r);
 }
 
-static struct vector *type2s1(struct type * ty)
+static struct vector *type2s1(struct type *ty)
 {
     struct vector *l, *r, *v;
 
@@ -646,7 +646,7 @@ static void qualstr(struct strbuf *s, int q)
         strbuf_cats(s, "restrict ");
 }
 
-static const char *type2s(struct type * ty)
+static const char *type2s(struct type *ty)
 {
     struct strbuf *buf = strbuf_new();
     struct vector *v = type2s1(ty);
