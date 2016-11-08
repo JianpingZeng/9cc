@@ -291,6 +291,8 @@ enum {
     CVU = MKINDEX(33),
     CVF = MKINDEX(34),
     CVP = MKINDEX(35),
+    // others
+    INITS = MKINDEX(36),
 };
 
 /// stmt

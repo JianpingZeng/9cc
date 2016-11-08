@@ -2426,7 +2426,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
 
 static struct tree *do_initializer_list(struct type *ty, struct init *ilist)
 {
-    struct tree *n = ast_expr(COMPOUND, ty, NULL, NULL);
+    struct tree *n = ast_expr(INITS, ty, NULL, NULL);
     // TODO: incomplete array type
     // TODO: merge bitfields
     n->s.u.ilist = ilist;

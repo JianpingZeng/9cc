@@ -78,6 +78,8 @@ static const char *nnames[] = {
     "CVU",
     "CVF",
     "CVP",
+    // others
+    "INITS",
 };
 
 void vfprint(FILE *fp, const char *fmt, va_list ap)
