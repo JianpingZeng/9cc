@@ -79,8 +79,6 @@ struct func func;
                        OPKIND(op) == ADDRG || \
                        OPKIND(op) == ADDRP)
 
-#define check_designator(d)  ensure_designator(d) ? (d) : NULL
-
 /*=================================================================*
  *                          Events                                 *
  *=================================================================*/
@@ -2198,10 +2196,12 @@ static void offset_init(struct desig *desig, struct tree *expr,
         CC_UNAVAILABLE();
 }
 
+#define check_designator(d)  ensure_designator(d) ? (d) : NULL
+
 static struct desig *next_designator1(struct desig *desig, bool initial)
 {
     assert(desig);
-
+    
     switch (desig->id) {
     case DESIG_FIELD:
         {
