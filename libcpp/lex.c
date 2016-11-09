@@ -190,6 +190,25 @@ struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count)
     return run;
 }
 
+const char *mkident(const char *name)
+{
+    const unsigned char *rpc = (const unsigned char *)name;
+    const unsigned char *pc = rpc + 1;
+    unsigned int hash = IMAP_HASHSTEP(0, *rpc);
+    unsigned int len;
+    struct ident *ident;
+    
+    while (ISDIGITLETTER(*pc)) {
+        hash = IMAP_HASHSTEP(hash, *pc);
+        pc++;
+    }
+    len = pc - rpc;
+    hash = IMAP_HASHFINISH(hash, len);
+    ident = imap_lookup_with_hash(cpp_file->imap,
+                                  rpc, len, hash, IMAP_CREATE);
+    return (const char *)ident->str;
+}
+
 struct token *new_token(struct token *tok)
 {
     struct token *t = xmalloc(sizeof(struct token));

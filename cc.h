@@ -488,6 +488,8 @@ extern void foreach(struct table *tp, int level,
 extern bool is_current_scope(struct symbol *sym);
 // create an anonymous symbol
 extern struct symbol *anonymous(struct table **tpp, int scope, int area);
+// create an temporary symbol
+extern struct symbol *temporary(int scope, int area);
 // look up a symbol from this table to previous one, and so on
 extern struct symbol *lookup(const char *name, struct table *table);
 // install a symbol with specified scope
@@ -501,8 +503,6 @@ extern struct tree *zinit(struct type *ty);
 extern struct tree *ast_expr(int op, struct type *ty,
                              struct tree *l, struct tree *r);
 extern struct stmt *ast_stmt(int id);
-extern const char *gen_tmpname(void);
-extern const char *gen_compound_label(void);
 extern const char *gen_string_label(void);
 extern int genlabel(int count);
 extern struct desig *new_desig(int id);

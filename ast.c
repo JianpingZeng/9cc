@@ -40,18 +40,6 @@ struct stmt *ast_stmt(int id)
     return stmt;
 }
 
-const char *gen_tmpname(void)
-{
-    static unsigned int i;
-    return format(".T%u", i++);
-}
-
-const char *gen_compound_label(void)
-{
-    static unsigned int i;
-    return format("__compound_literal.%u", i++);
-}
-
 const char *gen_string_label(void)
 {
     static unsigned int i;

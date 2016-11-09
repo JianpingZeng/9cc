@@ -77,11 +77,23 @@ bool is_current_scope(struct symbol *sym)
 
 struct symbol *anonymous(struct table **tpp, int scope, int area)
 {
-    static long i;
+    static unsigned int i;
     struct symbol *sym;
 
-    sym = install(format("@%ld", i++), tpp, scope, area);
+    sym = install(format("@%u", ++i), tpp, scope, area);
     sym->anonymous = true;
+    return sym;
+}
+
+struct symbol *temporary(int scope, int area)
+{
+    static unsigned int i;
+    struct symbol *sym;
+
+    sym = NEWS0(struct symbol, area);
+    sym->name = format(".T%u", ++i);
+    sym->scope = scope;
+    sym->temporary = true;
     return sym;
 }
 

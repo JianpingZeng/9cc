@@ -204,34 +204,15 @@ static bool istypedef(const char *id)
     return sym && sym->sclass == TYPEDEF;
 }
 
-static struct symbol *mkvar(const char *name, struct type *ty, int sclass)
+static struct symbol *mktmp(struct type *ty, int sclass)
 {
     struct symbol *sym;
 
-    // `name' must be unique
-    sym = install(name, &identifiers, cscope, FUNC);
+    sym = temporary(cscope, FUNC);
     sym->type = ty;
     sym->sclass = sclass;
     sym->defined = true;
-
-    if (sclass == STATIC)
-        events(defsvar)(sym);
-    else if (cscope == GLOBAL)
-        events(defgvar)(sym);
-    else if (cscope >= LOCAL)
-        events(deflvar)(sym);
-    else
-        CC_UNAVAILABLE();
-
-    return sym;
-}
-
-static struct symbol *mktmp(const char *name, struct type *ty, int sclass)
-{
-    struct symbol *sym;
-
-    sym = mkvar(name, ty, sclass);
-    sym->temporary = true;
+    
     return sym;
 }
 
@@ -1035,7 +1016,7 @@ static struct tree *condexpr(struct type *ty, struct tree *cond,
     }
     
     if (!isvoid(ty)) {
-        sym = mktmp(gen_tmpname(), ty, REGISTER);
+        sym = mktmp(ty, REGISTER);
         then = assign(sym, then);
         els = assign(sym, els);
     } else {
@@ -1718,7 +1699,7 @@ static struct tree *do_funcall(struct tree *expr, struct tree **args,
         struct symbol *sym;
         struct tree *ref, *call;
 
-        sym = mktmp(gen_tmpname(), rty, 0);
+        sym = mktmp(rty, 0);
         ref = mkref(sym);
         call = ast_expr(mkop(CALL, rty), rty, expr, addrof(ref));
         call->s.u.args = args;
@@ -1793,7 +1774,8 @@ static struct tree *do_compound_literal(struct type *ty,
 {
     struct symbol *sym;
 
-    sym = mktmp(gen_compound_label(), ty, 0);
+    // TODO: 
+    sym = mktmp(ty, 0);
     return iassign(sym, inits);
 }
 
@@ -1905,7 +1887,7 @@ static struct tree *do_switch_expr(struct tree *expr, struct source src)
         return NULL;
     }
     // make a tmp var
-    sym = mktmp(gen_tmpname(), expr->type, REGISTER);
+    sym = mktmp(expr->type, REGISTER);
     return iassign(sym, expr);
 }
 
@@ -1947,11 +1929,9 @@ static void ensure_gotos(void)
 
 static void warning_unused_lvars(struct symbol *lvar)
 {
-    for (struct symbol *sym = lvar; sym; sym = sym->local) {
-        if (sym->refs == 0 && !sym->predefine &&
-            !sym->temporary && !isfunc(sym->type))
+    for (struct symbol *sym = lvar; sym; sym = sym->local)
+        if (sym->refs == 0 && !sym->predefine && !isfunc(sym->type))
             warning_at(sym->src, "unused variable '%s'", sym->name);
-    }
 }
 
 /// actions-stmt
@@ -2150,7 +2130,7 @@ static void scalar_init(struct desig *desig,
                         struct tree *expr,
                         struct init **ilist)
 {
-    // TODO: 
+    
 }
 
 static void union_init(struct desig *desig,
@@ -2164,7 +2144,30 @@ static void struct_init(struct desig *desig,
                         struct tree *expr,
                         struct init **ilist)
 {
-    // TODO: 
+    struct init *p;
+    
+    // check override
+    for (; (p = *ilist); ilist = &p->link) {
+        if (p->offset > desig->offset)
+            break;
+        if (p->offset == desig->offset) {
+            // overlapped
+            warning_at(desig->src, ERR_INIT_OVERRIDE);
+            p = p->link;    // remove from the list
+            break;
+        }
+    }
+
+    if (expr->op == COMPOUND) {
+        // TODO: 
+    } else {
+        struct init *init = NEWS0(struct init, FUNC);
+        init->type = desig->type;
+        init->offset = desig->offset;
+        init->body = expr;
+        init->link = p;
+        *ilist = init;
+    }
 }
 
 static void string_init(struct desig *desig,
@@ -2182,10 +2185,16 @@ static void offset_init(struct desig *desig,
     assert(!isarray(desig->type));
 
     struct type *ty = desig->type;
+    struct type *sty = expr->type;
 
     if (isincomplete(ty) || isfunc(ty)) {
         error_at(desig->src, "'%s' cannot have an initializer",
                  TYPE_NAME(ty));
+        return;
+    }
+
+    if (!(expr = assignconv(ty, expr))) {
+        error_at(desig->src, ERR_INCOMPATIBLE_CONV, sty, ty);
         return;
     }
 
@@ -2728,14 +2737,20 @@ static void predefined_ids(void)
      * static const char __func__[] = "function-name";
      *
      */
-    struct type *type = array_type(qual(CONST, chartype));
-    // initializer
-    struct tree *literal = cnsts(func.name);
-    finish_string(type, literal, source);
+    static const char *name;
+    struct symbol *sym;
+    struct type *ty;
+    struct tree *init;
 
-    struct symbol *sym = mkvar("__func__", type, STATIC);
+    ty = array_type(qual(CONST, chartype));
+    // initializer
+    init = cnsts(func.name);
+    // __func__
+    if (!name)
+        name = mkident("__func__");
+
+    sym = actions.localdecl(name, ty, STATIC, 0, init, source);
     sym->predefine = true;
-    sym->u.init = literal;
 }
 
 static void func_body(struct symbol *sym)
