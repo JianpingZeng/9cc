@@ -78,6 +78,10 @@ static struct tree *root1(struct tree *p, int warn)
                      root1(p->kids[1], warn));
         return p->kids[0] || p->kids[1] ? p : NULL;
     case INDIR:
+        if (iscpliteral(p))
+            // TODO: compound literal
+            return p;
+        // fall through
     case BFIELD:
         // unary
     case NEG:
@@ -97,9 +101,6 @@ static struct tree *root1(struct tree *p, int warn)
         return NULL;
     case CALL:
     case ASGN:
-        return p;
-    case COMPOUND:
-        // TODO:
         return p;
     default:
         CC_UNAVAILABLE();

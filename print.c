@@ -25,11 +25,11 @@ static FILE *outfd;
 #define kField              "Field"
 #define kEnumConstDecl      "EnumConstantDecl"
 
-static void print_expr1(struct tree * node, int level);
+static void print_expr1(struct tree *expr, int level);
 static void print_stmt1(struct stmt *stmt, int level);
 static void print_type(struct symbol *sym);
 static void print_symbol1(struct symbol *sym, int level, const char *prefix);
-static const char *type2s(struct type * ty);
+static const char *type2s(struct type *ty);
 static const char *desig2s(struct desig *desig);
 
 static const char *nnames[] = {
@@ -70,7 +70,7 @@ static const char *nnames[] = {
     "NEG",
     "BNOT",
     /// postfix
-    "COMPOUND",
+    "INITS",
     "CALL",
     "BFIELD",
     /// conversion
@@ -78,8 +78,6 @@ static const char *nnames[] = {
     "CVU",
     "CVF",
     "CVP",
-    // others
-    "INITS",
 };
 
 void vfprint(FILE *fp, const char *fmt, va_list ap)
@@ -231,7 +229,7 @@ static void print_level(int level)
         putf("  ");
 }
 
-static void print_ty(struct type * ty)
+static void print_ty(struct type *ty)
 {
     if (ty) {
         if (isfunc(ty) || isptr(ty) || isarray(ty))
@@ -249,19 +247,19 @@ static void print_ty(struct type * ty)
     }
 }
 
-static void print_field1(struct field * node, int level, const char *prefix)
+static void print_field1(struct field *field, int level, const char *prefix)
 {
-    const char *name = node->name;
-    struct type *ty = node->type;
+    const char *name = field->name;
+    struct type *ty = field->type;
 
     print_level(level);
 
-    putf(GREEN("%s ") YELLOW("%p "), prefix, node);
-    if (node->isbit)
+    putf(GREEN("%s ") YELLOW("%p "), prefix, field);
+    if (field->isbit)
         putf("<" RED("offset=%lu, bitoff=%d, bits=%d" "> "),
-             node->offset, node->bitoff, node->bitsize);
+             field->offset, field->bitoff, field->bitsize);
     else
-        putf("<" GREEN("offset=%lu") "> ", node->offset);
+        putf("<" GREEN("offset=%lu") "> ", field->offset);
 
     print_ty(ty);
     if (name)
@@ -271,19 +269,19 @@ static void print_field1(struct field * node, int level, const char *prefix)
     putf("\n");
 }
 
-static void print_field(struct field * node, int level)
+static void print_field(struct field *field, int level)
 {
-    if (isindirect(node)) {
+    if (isindirect(field)) {
         print_level(level);
-        putf(GREEN("%s ") YELLOW("%p "), kIndirectFieldDecl, node);
-        putf("<" GREEN("offset=%lu") "> ", node->offset);
-        putf(CYAN_BOLD("%s"), node->indir->name);
+        putf(GREEN("%s ") YELLOW("%p "), kIndirectFieldDecl, field);
+        putf("<" GREEN("offset=%lu") "> ", field->offset);
+        putf(CYAN_BOLD("%s"), field->indir->name);
         putf("\n");
-        for (int i = 0; node->of[i]; i++)
-            print_field1(node->of[i], level + 1, kField);
-        print_field1(node->indir, level + 1, kField);
+        for (int i = 0; field->of[i]; i++)
+            print_field1(field->of[i], level + 1, kField);
+        print_field1(field->indir, level + 1, kField);
     } else {
-        print_field1(node, level, kFieldDecl);
+        print_field1(field, level, kFieldDecl);
     }
 }
 
@@ -384,48 +382,46 @@ static void print_args1(struct tree **args, int level)
     }
 }
 
-static void print_expr1(struct tree *node, int level)
+static void print_expr1(struct tree *expr, int level)
 {
-    const char *name = opidname(node->op);
+    const char *name = opidname(expr->op);
 
     print_level(level);
-    putf(PURPLE_BOLD("%s ") YELLOW("%p "), name, node);
-    putf(GREEN("'%T' "), node->type);
+    putf(PURPLE_BOLD("%s ") YELLOW("%p "), name, expr);
+    putf(GREEN("'%T' "), expr->type);
 
-    if (issliteral(node)) {
-        putf(CYAN_BOLD("\"%s\""), node->s.sym->name);
-    } else if (isiliteral(node)) {
-        if (TYPE_OP(node->type) == INT)
-            putf(RED("%ld"), node->s.value.i);
+    if (issliteral(expr)) {
+        putf(CYAN_BOLD("\"%s\""), expr->s.sym->name);
+    } else if (isiliteral(expr)) {
+        if (TYPE_OP(expr->type) == INT)
+            putf(RED("%ld"), expr->s.value.i);
         else
-            putf(RED("%lu"), node->s.value.u);
-    } else if (isfliteral(node)) {
-        if (TYPE_KIND(node->type) == FLOAT)
-            putf(RED("%f"), node->s.value.f);
-        else if (TYPE_KIND(node->type) == DOUBLE)
-            putf(RED("%f"), node->s.value.d);
+            putf(RED("%lu"), expr->s.value.u);
+    } else if (isfliteral(expr)) {
+        if (TYPE_KIND(expr->type) == FLOAT)
+            putf(RED("%f"), expr->s.value.f);
+        else if (TYPE_KIND(expr->type) == DOUBLE)
+            putf(RED("%f"), expr->s.value.d);
         else
-            putf(RED("%Lf"), node->s.value.ld);
-    } else if (ispliteral(node)) {
-        putf(RED("%p"), node->s.value.p);
-    } else if (node->s.sym) {
-        putf(CYAN_BOLD("%s"), node->s.sym->name);
+            putf(RED("%Lf"), expr->s.value.ld);
+    } else if (ispliteral(expr)) {
+        putf(RED("%p"), expr->s.value.p);
+    } else if (expr->s.sym) {
+        putf(CYAN_BOLD("%s"), expr->s.sym->name);
     }
 
     putf("\n");
-    if (node->kids[0])
-        print_expr1(node->kids[0], level + 1);
-    if (node->kids[1])
-        print_expr1(node->kids[1], level + 1);
+    if (expr->kids[0])
+        print_expr1(expr->kids[0], level + 1);
+    if (expr->kids[1])
+        print_expr1(expr->kids[1], level + 1);
 
-    switch (OPKIND(node->op)) {
-    case COMPOUND:
-        print_init1(node->s.u.ilist, level + 1);
-        break;
-    case CALL:
-        print_args1(node->s.u.args, level + 1);
-        break;
-    }
+    if (OPKIND(expr->op) == CALL)
+        // print arguments
+        print_args1(expr->s.u.args, level + 1);
+    else if (iscpliteral(expr))
+        // print compound literal
+        print_init1(expr->kids[0]->s.u.ilist, level + 1);
 }
 
 static void print_stmt1(struct stmt *stmt, int level)
@@ -505,9 +501,7 @@ void ast_dump_typedecl(struct symbol *n)
     RESTORE_OUTFD();
 }
 
-/**
- * Convert type node to string.
- */
+/// Convert type node to string.
 
 #define LPAREN  1
 #define RPAREN  2
@@ -518,9 +512,9 @@ struct type2s {
     int qual;
     struct type *type;
 };
-static struct vector *type2s1(struct type * ty);
+static struct vector *type2s1(struct type *ty);
 
-static struct type2s *paren(int id, struct type * ty)
+static struct type2s *paren(int id, struct type *ty)
 {
     struct type2s *s = zmalloc(sizeof(struct type2s));
     s->id = id;

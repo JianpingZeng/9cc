@@ -75,10 +75,6 @@ struct func func;
         func.lvars = &sym->local;               \
     } while (0)
 
-#define isaddrop(op)  (OPKIND(op) == ADDRL || \
-                       OPKIND(op) == ADDRG || \
-                       OPKIND(op) == ADDRP)
-
 /*=================================================================*
  *                          Events                                 *
  *=================================================================*/
@@ -913,7 +909,7 @@ static struct tree *string_literal(struct token *t,
     if (!sym->x.name) {
         sym->x.name = gen_string_label();
         sym->sclass = STATIC;
-        sym->u.c.string = true;
+        sym->string = true;
         sym->defined = true;
     }
 
@@ -1772,11 +1768,10 @@ static struct tree *do_compound_literal(struct type *ty,
                                         struct tree *inits,
                                         struct source src)
 {
-    struct symbol *sym;
-
-    // TODO: 
-    sym = mktmp(ty, 0);
-    return iassign(sym, inits);
+    struct symbol *sym = mktmp(ty, 0);
+    sym->u.init = inits;
+    sym->compound = true;
+    return mkref(sym);
 }
 
 /// primary
@@ -2059,7 +2054,8 @@ static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
         }
     }
 
-    if (OPKIND(init->op) == COMPOUND)
+    // TODO: 
+    if (OPKIND(init->op) == INITS)
         return ensure_init_compound(sym, init, src);
     else
         return ensure_init_assign(sym, init, src);
@@ -2158,7 +2154,7 @@ static void struct_init(struct desig *desig,
         }
     }
 
-    if (expr->op == COMPOUND) {
+    if (iscpliteral(expr)) {
         // TODO: 
     } else {
         struct init *init = NEWS0(struct init, FUNC);

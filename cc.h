@@ -125,13 +125,14 @@ struct symbol {
     int anonymous:1;
     int temporary:1;
     int nonnull:1;
-    unsigned int refs;
+    int string:1;               // string literal
+    int compound:1;             // compound literal
+    int refs;
     union {
         // varibale initializer
         struct tree *init;
         // literal/enum id
         union {
-            bool string; // string literal
             union value value;  // integer/floating literal
         } c;
         // function
@@ -177,7 +178,7 @@ struct tree {
         struct symbol *sym;
         union {
             struct tree **args; // for CALL
-            struct init *ilist; // for COMPOUND
+            struct init *ilist; // for INITS
             struct field *field; // for BFIELD
         } u;
         union value value;
@@ -283,7 +284,7 @@ enum {
     NEG = MKINDEX(27),
     BNOT = MKINDEX(28),
     /// postfix
-    COMPOUND = MKINDEX(29),
+    INITS = MKINDEX(29),
     CALL = MKINDEX(30),
     BFIELD = MKINDEX(31),
     /// conversion
@@ -291,9 +292,11 @@ enum {
     CVU = MKINDEX(33),
     CVF = MKINDEX(34),
     CVP = MKINDEX(35),
-    // others
-    INITS = MKINDEX(36),
 };
+
+#define isaddrop(op)  (OPKIND(op) == ADDRL || \
+                       OPKIND(op) == ADDRG || \
+                       OPKIND(op) == ADDRP)
 
 /// stmt
 
@@ -517,8 +520,12 @@ extern struct desig *copy_desig(struct desig *desig);
 #define ispliteral(n)  (OPID((n)->op) == CNST+P)
 #define issliteral(n)  (OPID((n)->op) == ADDRG+P && \
                         isarray((n)->type) && \
-                        (n)->s.sym->u.c.string)
+                        (n)->s.sym->string)
 #define iszinit(n)     ((n)->op == 0)
+// compound literal
+#define iscpliteral(n)  (OPKIND((n)->op) == INDIR && \
+                         isaddrop((n)->kids[0]->op) &&  \
+                         (n)->kids[0]->s.sym->compound)
 
 // tree.c
 extern struct tree *root(struct tree *expr);
