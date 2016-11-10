@@ -120,7 +120,7 @@ void vfprint(FILE *fp, const char *fmt, va_list ap)
                     fprintf(fp, "%ld", va_arg(ap, long));
                 } else if (fmt[1] == 'u') {
                     fmt++;
-                    
+                    fprintf(fp, "%lu", va_arg(ap, unsigned long));
                 } else {
                     putc(*fmt, fp);
                 }
@@ -365,8 +365,17 @@ static void print_init1(struct tree *init, int level)
 {
     for (struct init *p = init->s.u.ilist; p; p = p->link) {
         print_level(level);
-        putf("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%T'") ">\n",
-             p->offset, p->boff, p->bsize, p->type);
+        if (p->desig->kind == DESIG_FIELD &&
+            p->desig->u.field->isbit)
+            putf("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%T'") ">\n",
+                 p->desig->offset,
+                 p->desig->u.field->bitoff,
+                 p->desig->u.field->bitsize,
+                 p->desig->type);
+        else
+            putf("<" GREEN("offset=%lu, type='%T'") ">\n",
+                 p->desig->offset, p->desig->type);;
+
         if (p->body)
             print_expr1(p->body, level + 1);
     }
@@ -422,6 +431,8 @@ static void print_expr1(struct tree *expr, int level)
     else if (iscpliteral(expr))
         // print compound literal
         print_init1(COMPOUND_SYM(expr)->u.init, level + 1);
+    else if (OPKIND(expr->op) == INITS)
+        print_init1(expr, level + 1);
 }
 
 static void print_stmt1(struct stmt *stmt, int level)
@@ -696,7 +707,7 @@ static const char *desig2s(struct desig *desig)
     assert(desig);
 
     for (struct desig *d = desig; d;) {
-        switch (d->id) {
+        switch (d->kind) {
         case DESIG_NONE:
             assert(d->prev == NULL);
             if (d->all) {

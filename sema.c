@@ -2065,9 +2065,9 @@ static bool check_designator(struct desig *d)
 {
     if (isincomplete(d->type)) {
         int id;
-        if (d->id == DESIG_FIELD)
+        if (d->kind == DESIG_FIELD)
             id = STRUCT;
-        else if (d->id == DESIG_INDEX)
+        else if (d->kind == DESIG_INDEX)
             id = ARRAY;
         else
             id = TYPE_KIND(d->type);
@@ -2080,6 +2080,18 @@ static bool check_designator(struct desig *d)
     return true;
 }
 
+// TODO: update offset
+static struct desig *concat_desig(struct desig *d1, struct desig *d2)
+{
+    struct desig *p = d2;
+
+    while (p->prev->kind != DESIG_NONE)
+        p = p->prev;
+
+    p->prev = copy_desig(d1);
+    return d2;
+}
+
 static void offset_init1(struct desig *desig,
                          struct tree *expr,
                          struct init **ilist)
@@ -2088,15 +2100,19 @@ static void offset_init1(struct desig *desig,
     
     // check override
     for (; (p = *ilist); ilist = &p->link) {
-        if (p->offset > desig->offset)
+        struct desig *pd = p->desig;
+        if (pd->offset > desig->offset)
             break;
-        if (p->offset == desig->offset) {
-            if (desig->id == DESIG_FIELD &&
+        if (pd->offset == desig->offset) {
+            if (desig->kind == DESIG_FIELD &&
                 desig->u.field->isbit) {
                 // bitfield
-                if (p->boff < desig->u.field->bitoff)
+
+                assert(pd->kind == DESIG_FIELD && pd->u.field->isbit);
+
+                if (pd->u.field->bitoff < desig->u.field->bitoff)
                     continue;
-                else if (p->boff > desig->u.field->bitoff)
+                else if (pd->u.field->bitoff > desig->u.field->bitoff)
                     break;
                 // fall through
             }
@@ -2110,14 +2126,8 @@ static void offset_init1(struct desig *desig,
 
     // insert
     init = NEWS0(struct init, FUNC);
-    init->type = desig->type;
-    init->offset = desig->offset;
+    init->desig = desig;
     init->body = expr;
-    if (desig->id == DESIG_FIELD) {
-        assert(!isindirect(desig->u.field));
-        init->boff = desig->u.field->bitoff;
-        init->bsize = desig->u.field->bitsize;
-    }
     init->link = p;
     *ilist = init;
 }
@@ -2126,7 +2136,8 @@ static void scalar_init(struct desig *desig,
                         struct tree *expr,
                         struct init **ilist)
 {
-    // TODO: 
+    // TODO:
+    offset_init1(desig, expr, ilist);
 }
 
 static void struct_init(struct desig *desig,
@@ -2136,9 +2147,8 @@ static void struct_init(struct desig *desig,
     if (iscpliteral(expr)) {
         struct tree *init = COMPOUND_SYM(expr)->u.init;
         for (struct init *i = init->s.u.ilist; i; i = i->link) {
-            // TODO: 
-            struct desig *d;
-            offset_init1(d, expr, ilist);
+            struct desig *d = concat_desig(desig, i->desig);
+            offset_init1(d, i->body, ilist);
         }
     } else {
         offset_init1(desig, expr, ilist);
@@ -2186,7 +2196,7 @@ static struct desig *next_designator1(struct desig *desig, int next)
 {
     assert(desig);
     
-    switch (desig->id) {
+    switch (desig->kind) {
     case DESIG_FIELD:
         {
             struct desig *prev = desig->prev;
@@ -2329,7 +2339,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
 
     for (int i = 0; ds[i]; i++) {
         struct desig *d = ds[i];
-        switch (d->id) {
+        switch (d->kind) {
         case DESIG_FIELD:
             {
                 const char *name = d->u.name;

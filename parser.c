@@ -1089,7 +1089,7 @@ static void parse_initializer1(struct desig **pdesig, struct init **pinit)
         struct desig *desig = *pdesig;
         struct desig *d;
 
-        if (desig->id == DESIG_NONE) {
+        if (desig->kind == DESIG_NONE) {
             d = desig;
             d->braces++;
         } else {
@@ -1173,7 +1173,7 @@ static struct tree *parse_initializer_list(struct type *ty)
 {
     if (ty) {
         struct desig desig = {
-            .id = DESIG_NONE,
+            .kind = DESIG_NONE,
             .type = ty,
             .offset = 0,
             .src = source

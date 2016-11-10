@@ -188,31 +188,28 @@ struct tree {
     } x;
 };
 
-// designator id
+// designator kind
 enum { DESIG_NONE, DESIG_FIELD, DESIG_INDEX };
 
 // designator
 struct desig {
-    int id;                     // designator id
+    int kind;                   // designator kind
     int braces;                 // braces count
-    struct source src;          // source location
-    struct type *type;          // destination type
     long offset;                // destination offset (absolute)
+    struct type *type;          // destination type
     union {
         struct field *field;    // struct/union field
         long index;             // array index
         const char *name;       // designator identifier
     } u;
+    struct source src;          // source location
     struct desig *prev;
     struct desig *all;
 };
 
 // initializer
 struct init {
-    size_t offset;
-    short boff;
-    short bsize;
-    struct type *type;
+    struct desig *desig;
     struct tree *body;
     struct init *link;
 };
@@ -508,7 +505,7 @@ extern struct tree *ast_expr(int op, struct type *ty,
 extern struct stmt *ast_stmt(int id);
 extern const char *gen_string_label(void);
 extern int genlabel(int count);
-extern struct desig *new_desig(int id);
+extern struct desig *new_desig(int kind);
 extern struct desig *new_desig_name(const char *name, struct source src);
 extern struct desig *new_desig_index(long index, struct source src);
 extern struct desig *new_desig_field(struct field *field, struct source src);

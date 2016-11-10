@@ -55,10 +55,10 @@ int genlabel(int count)
     return lab - count;
 }
 
-struct desig *new_desig(int id)
+struct desig *new_desig(int kind)
 {
     struct desig *d = NEWS0(struct desig, FUNC);
-    d->id = id;
+    d->kind = kind;
     return d;
 }
 
