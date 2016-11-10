@@ -1110,6 +1110,7 @@ static void parse_initializer_list1(struct desig *desig,
                                     struct init **pinit)
 {
     struct desig *d = desig;
+    int next = 0;
     
     expect('{');
 
@@ -1120,7 +1121,7 @@ static void parse_initializer_list1(struct desig *desig,
             if (token_is('.') || token_is('['))
                 d = parse_designator(desig);
             else
-                d = next_designator(d);
+                d = next_designator(d, next++);
 
             parse_initializer1(&d, pinit);
 

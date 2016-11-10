@@ -526,6 +526,7 @@ extern struct desig *copy_desig(struct desig *desig);
 #define iscpliteral(n)  (OPKIND((n)->op) == INDIR && \
                          isaddrop((n)->kids[0]->op) &&  \
                          (n)->kids[0]->s.sym->compound)
+#define COMPOUND_SYM(n)  ((n)->kids[0]->s.sym)
 
 // tree.c
 extern struct tree *root(struct tree *expr);
@@ -556,7 +557,7 @@ extern void skip_to_stmt(void);
 extern void skip_to_expr(void);
 
 extern struct symbol *tag_symbol(int t, const char *tag, struct source src);
-extern struct desig *next_designator(struct desig *desig);
+extern struct desig *next_designator(struct desig *desig, int next);
 extern struct tree *cnsti(long i, struct type *ty);
 extern struct tree *cnsts(const char *string);
 extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);

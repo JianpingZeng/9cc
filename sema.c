@@ -2061,7 +2061,7 @@ static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
         return ensure_init_assign(sym, init, src);
 }
 
-static bool ensure_designator(struct desig *d)
+static bool check_designator(struct desig *d)
 {
     if (isincomplete(d->type)) {
         int id;
@@ -2126,13 +2126,6 @@ static void scalar_init(struct desig *desig,
                         struct tree *expr,
                         struct init **ilist)
 {
-    
-}
-
-static void union_init(struct desig *desig,
-                       struct tree *expr,
-                       struct init **ilist)
-{
     // TODO: 
 }
 
@@ -2140,29 +2133,15 @@ static void struct_init(struct desig *desig,
                         struct tree *expr,
                         struct init **ilist)
 {
-    struct init *p;
-    
-    // check override
-    for (; (p = *ilist); ilist = &p->link) {
-        if (p->offset > desig->offset)
-            break;
-        if (p->offset == desig->offset) {
-            // overlapped
-            warning_at(desig->src, ERR_INIT_OVERRIDE);
-            p = p->link;    // remove from the list
-            break;
-        }
-    }
-
     if (iscpliteral(expr)) {
-        // TODO: 
+        struct tree *init = COMPOUND_SYM(expr)->u.init;
+        for (struct init *i = init->s.u.ilist; i; i = i->link) {
+            // TODO: 
+            struct desig *d;
+            offset_init1(d, expr, ilist);
+        }
     } else {
-        struct init *init = NEWS0(struct init, FUNC);
-        init->type = desig->type;
-        init->offset = desig->offset;
-        init->body = expr;
-        init->link = p;
-        *ilist = init;
+        offset_init1(desig, expr, ilist);
     }
 }
 
@@ -2197,17 +2176,13 @@ static void offset_init(struct desig *desig,
     //possible: scalar/struct/union
     if (isscalar(ty))
         scalar_init(desig, expr, ilist);
-    else if (isstruct(ty))
+    else if (isstruct(ty) || isunion(ty))
         struct_init(desig, expr, ilist);
-    else if (isunion(ty))
-        union_init(desig, expr, ilist);
     else
         CC_UNAVAILABLE();
 }
 
-#define check_designator(d)  ensure_designator(d) ? (d) : NULL
-
-static struct desig *next_designator1(struct desig *desig, bool initial)
+static struct desig *next_designator1(struct desig *desig, int next)
 {
     assert(desig);
     
@@ -2227,9 +2202,9 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 struct desig *d = new_desig_field(field, source);
                 d->offset = prev->offset + field->offset;
                 d->prev = copy_desig(prev);
-                return check_designator(d);
+                return check_designator(d) ? d : NULL;
             } else {
-                return next_designator1(prev, false);
+                return next_designator1(prev, ++next);
             }
         }
         break;
@@ -2249,16 +2224,16 @@ static struct desig *next_designator1(struct desig *desig, bool initial)
                 d->type = rty;
                 d->offset = desig->offset + TYPE_SIZE(rty);
                 d->prev = copy_desig(prev);
-                return check_designator(d);
+                return check_designator(d) ? d : NULL;
             } else {
-                return next_designator1(prev, false);
+                return next_designator1(prev, ++next);
             }
         }
         break;
 
     case DESIG_NONE:
         assert(desig->prev == NULL);
-        if (!initial) {
+        if (next) {
             error("excess elements in %s initializer",
                   TYPE_NAME(desig->type));
             return NULL;
@@ -2388,7 +2363,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
                 desig = d;
 
                 // check incomplete type
-                if (!ensure_designator(d))
+                if (!check_designator(d))
                     return NULL;
             }
             break;
@@ -2416,7 +2391,7 @@ static struct desig *do_designator(struct desig *desig, struct desig **ds)
                 desig = d;
 
                 // check incomplete type
-                if (!ensure_designator(d))
+                if (!check_designator(d))
                     return NULL;
             }
             break;
@@ -3374,12 +3349,12 @@ struct symbol *tag_symbol(int t, const char *tag, struct source src)
     return sym;
 }
 
-struct desig *next_designator(struct desig *desig)
+struct desig *next_designator(struct desig *desig, int next)
 {
     if (!desig)
         return NULL;
 
-    return next_designator1(desig, true);
+    return next_designator1(desig, next);
 }
 
 struct tree *cnsti(long i, struct type *ty)

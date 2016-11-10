@@ -361,12 +361,12 @@ static void print_symbol(struct symbol *sym, const char *prefix)
     print_symbol1(sym, 0, prefix);
 }
 
-static void print_init1(struct init *init, int level)
+static void print_init1(struct tree *init, int level)
 {
-    for (struct init *p = init; p; p = p->link) {
+    for (struct init *p = init->s.u.ilist; p; p = p->link) {
         print_level(level);
-        putf("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%T', typesize=%lu") ">\n",
-             p->offset, p->boff, p->bsize, p->type, TYPE_SIZE(p->type));
+        putf("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%T'") ">\n",
+             p->offset, p->boff, p->bsize, p->type);
         if (p->body)
             print_expr1(p->body, level + 1);
     }
@@ -421,7 +421,7 @@ static void print_expr1(struct tree *expr, int level)
         print_args1(expr->s.u.args, level + 1);
     else if (iscpliteral(expr))
         // print compound literal
-        print_init1(expr->kids[0]->s.u.ilist, level + 1);
+        print_init1(COMPOUND_SYM(expr)->u.init, level + 1);
 }
 
 static void print_stmt1(struct stmt *stmt, int level)

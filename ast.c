@@ -22,7 +22,8 @@ struct tree *zinit(struct type *ty)
     return expr;
 }
 
-struct tree *ast_expr(int op, struct type *ty, struct tree *l, struct tree *r)
+struct tree *ast_expr(int op, struct type *ty,
+                      struct tree *l, struct tree *r)
 {
     struct tree *expr = NEWS0(struct tree, FUNC);
     expr->op = op;
