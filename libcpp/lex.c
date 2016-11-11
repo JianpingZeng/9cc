@@ -1135,7 +1135,7 @@ static struct token *combine_scons(struct vector *v)
 
     for (size_t i = 0; i < vec_len(v); i++) {
         struct token *t = vec_at(v, i);
-        const char *name = TOK_ID_STR(t);
+        const char *name = TOK_LIT_STR(t);
         if (name)
             strbuf_cats(s, name);
         if (t->u.lit.wide)
