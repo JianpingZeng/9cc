@@ -4,15 +4,6 @@
 #include "cc.h"
 #include "libutils/color.h"
 
-static FILE *outfd;
-
-#define STR(str)  ((str) ? (str) : "<null>")
-#define SET_OUTFD(fd)                           \
-    FILE *_saved_fd = outfd;                    \
-    outfd = fd
-
-#define RESTORE_OUTFD()                         \
-    outfd = _saved_fd
 
 #define kVarDecl            "VarDecl"
 #define kTypedefDecl        "TypedefDecl"
@@ -24,13 +15,6 @@ static FILE *outfd;
 #define kIndirectFieldDecl  "IndirectFieldDecl"
 #define kField              "Field"
 #define kEnumConstDecl      "EnumConstantDecl"
-
-static void print_expr1(struct tree *expr, int level);
-static void print_stmt1(struct stmt *stmt, int level);
-static void print_type(struct symbol *sym);
-static void print_symbol1(struct symbol *sym, int level, const char *prefix);
-static const char *type2s(struct type *ty);
-static const char *desig2s(struct desig *desig);
 
 static const char *nnames[] = {
     "null",
@@ -79,6 +63,12 @@ static const char *nnames[] = {
     "CVF",
     "CVP",
 };
+
+static void print_symbol1(FILE *fp, struct symbol *sym,
+                          int level, const char *prefix);
+static void print_expr1(FILE *fp, struct tree *expr, int level);
+static const char *type2s(struct type *ty);
+static const char *desig2s(struct desig *desig);
 
 void vfprint(FILE *fp, const char *fmt, va_list ap)
 {
@@ -191,16 +181,11 @@ void print(const char *fmt, ...)
     va_end(ap);
 }
 
-static const char *nname(int op)
-{
-    return nnames[OPINDEX(op)];
-}
-
 static char *opidname(int op)
 {
     const char *index, *type;
 
-    index = nname(op);
+    index = nnames[OPINDEX(op)];
     switch (OPTYPE(op)) {
     case I: type = "I"; break;
     case U: type = "U"; break;
@@ -214,137 +199,134 @@ static char *opidname(int op)
     return format("%s%s", index, type);
 }
 
-static void putf(const char *fmt, ...)
-{
-    if (!outfd) outfd = stderr;
-    va_list ap;
-    va_start(ap, fmt);
-    vfprint(outfd, fmt, ap);
-    va_end(ap);
-}
-
-static void print_level(int level)
+static void print_level(FILE *fp, int level)
 {
     for (int i = 0; i < level; i++)
-        putf("  ");
+        fprint(fp, "  ");
 }
 
-static void print_ty(struct type *ty)
+static void print_ty(FILE *fp, struct type *ty)
 {
     if (ty) {
         if (isfunc(ty) || isptr(ty) || isarray(ty))
-            putf(RED_BOLD("'%s' "), TYPE_NAME(ty));
+            fprint(fp, RED_BOLD("'%s' "), TYPE_NAME(ty));
 
-        putf(GREEN("'%T' "), ty);
+        fprint(fp, GREEN("'%T' "), ty);
 
         if (isarray(ty) || isstruct(ty) || isunion(ty)) {
-            putf("<" YELLOW("size=%ld") "> ", TYPE_SIZE(ty));
+            fprint(fp, "<" YELLOW("size=%ld") "> ", TYPE_SIZE(ty));
         } else if (isfunc(ty)) {
-            putf("%s ", TYPE_OLDSTYLE(ty) ? "oldstyle" : "prototype");
+            fprint(fp, "%s ", TYPE_OLDSTYLE(ty) ? "oldstyle" : "prototype");
             if (TYPE_INLINE(ty))
-                putf("inline ");
+                fprint(fp, "inline ");
         }
     }
 }
 
-static void print_field1(struct field *field, int level, const char *prefix)
+static void print_field1(FILE *fp, struct field *field,
+                         int level, const char *prefix)
 {
     const char *name = field->name;
     struct type *ty = field->type;
 
-    print_level(level);
+    print_level(fp, level);
+    fprint(fp, GREEN("%s ") YELLOW("%p "), prefix, field);
 
-    putf(GREEN("%s ") YELLOW("%p "), prefix, field);
     if (field->isbit)
-        putf("<" RED("offset=%lu, bitoff=%d, bits=%d" "> "),
-             field->offset, field->bitoff, field->bitsize);
+        fprint(fp, "<" RED("offset=%lu, bitoff=%d, bits=%d" "> "),
+               field->offset, field->bitoff, field->bitsize);
     else
-        putf("<" GREEN("offset=%lu") "> ", field->offset);
+        fprint(fp, "<" GREEN("offset=%lu") "> ", field->offset);
 
-    print_ty(ty);
+    print_ty(fp, ty);
+
     if (name)
-        putf(CYAN_BOLD("%s"), name);
+        fprint(fp, CYAN_BOLD("%s"), name);
     else
-        putf("anonymous");
-    putf("\n");
+        fprint(fp, "anonymous");
+
+    fprint(fp, "\n");
 }
 
-static void print_field(struct field *field, int level)
+static void print_field(FILE *fp, struct field *field, int level)
 {
     if (isindirect(field)) {
-        print_level(level);
-        putf(GREEN("%s ") YELLOW("%p "), kIndirectFieldDecl, field);
-        putf("<" GREEN("offset=%lu") "> ", field->offset);
-        putf(CYAN_BOLD("%s"), field->indir->name);
-        putf("\n");
+        print_level(fp, level);
+        fprint(fp, GREEN("%s ") YELLOW("%p "), kIndirectFieldDecl, field);
+        fprint(fp, "<" GREEN("offset=%lu") "> ", field->offset);
+        fprint(fp, CYAN_BOLD("%s"), field->indir->name);
+        fprint(fp, "\n");
+
         for (int i = 0; field->of[i]; i++)
-            print_field1(field->of[i], level + 1, kField);
-        print_field1(field->indir, level + 1, kField);
+            print_field1(fp, field->of[i], level + 1, kField);
+
+        print_field1(fp, field->indir, level + 1, kField);
     } else {
-        print_field1(field, level, kFieldDecl);
+        print_field1(fp, field, level, kFieldDecl);
     }
 }
 
-static void print_type1(struct symbol *sym, int level)
+static void print_type1(FILE *fp, struct symbol *sym, int level)
 {
     struct type *ty = sym->type;
     
-    print_level(level);
+    print_level(fp, level);
     if (sym->sclass == TYPEDEF)
-        putf(GREEN_BOLD("%s ") YELLOW("%p ") CYAN_BOLD("%s "),
-             kTypedefDecl, sym, sym->name);
+        fprint(fp, GREEN_BOLD("%s ") YELLOW("%p ") CYAN_BOLD("%s "),
+               kTypedefDecl, sym, sym->name);
     else if (isstruct(ty))
-        putf(GREEN_BOLD("%s ") YELLOW("%p "),
-             kStructDecl, sym);
+        fprint(fp, GREEN_BOLD("%s ") YELLOW("%p "),
+               kStructDecl, sym);
     else if (isunion(ty))
-        putf(GREEN_BOLD("%s ") YELLOW("%p "),
-             kUnionDecl, sym);
+        fprint(fp, GREEN_BOLD("%s ") YELLOW("%p "),
+               kUnionDecl, sym);
     else if (isenum(ty))
-        putf(GREEN_BOLD("%s ") YELLOW("%p "),
-             kEnumDecl, sym);
+        fprint(fp, GREEN_BOLD("%s ") YELLOW("%p "),
+               kEnumDecl, sym);
     else
         CC_UNAVAILABLE();
-    print_ty(ty);
-    putf("<" YELLOW("%s:line:%u col:%u") "> ",
-         sym->src.file, sym->src.line, sym->src.column);
-    putf("\n");
+    print_ty(fp, ty);
+    fprint(fp, "<" YELLOW("%s:line:%u col:%u") "> ",
+           sym->src.file, sym->src.line, sym->src.column);
+    fprint(fp, "\n");
     if (sym->sclass != TYPEDEF) {
         if (isstruct(ty) || isunion(ty)) {
             struct field *first = sym->u.s.flist;
             for (struct field *p = first; p; p = p->link)
-                print_field(p, level + 1);
+                print_field(fp, p, level + 1);
         } else if (isenum(ty)) {
             struct symbol **ids = sym->u.s.ids;
             for (int i = 0; ids[i]; i++)
-                print_symbol1(ids[i], level + 1, kEnumConstDecl);
+                print_symbol1(fp, ids[i], level + 1, kEnumConstDecl);
         }
     }
 }
 
-static void print_type(struct symbol *sym)
+static void print_type(FILE *fp, struct symbol *sym)
 {
-    print_type1(sym, 0);
+    print_type1(fp, sym, 0);
 }
 
-static void print_symbol1(struct symbol *sym, int level, const char *prefix)
+static void print_symbol1(FILE *fp, struct symbol *sym,
+                          int level, const char *prefix)
 {
-    print_level(level);
+    print_level(fp, level);
 
-    putf(GREEN_BOLD("%s "), prefix);
-    putf(YELLOW("%p ") CYAN_BOLD("%s "), sym, STR(sym->name));
+    fprint(fp, GREEN_BOLD("%s "), prefix);
+    fprint(fp, YELLOW("%p ") CYAN_BOLD("%s "), sym, sym->name);
     
     if (sym->defined)
-        putf("<" YELLOW("defined") "> ");
+        fprint(fp, "<" YELLOW("defined") "> ");
 
     struct type *ty = sym->type;
-    print_ty(ty);
+    print_ty(fp, ty);
     // location
-    putf("<" YELLOW("%s:line:%u col:%u") "> ",
-         sym->src.file, sym->src.line, sym->src.column);
+    fprint(fp, "<" YELLOW("%s:line:%u col:%u") "> ",
+           sym->src.file, sym->src.line, sym->src.column);
     // scope
     if (sym->scope >= LOCAL)
-        putf("<" YELLOW("scope:%d") ">", sym->scope);
-    putf("\n");
+        fprint(fp, "<" YELLOW("scope:%d") ">", sym->scope);
+    fprint(fp, "\n");
 
     if (isfuncdef(sym)) {
         //NOTE: print in ast_dump_symbol
@@ -352,122 +334,124 @@ static void print_symbol1(struct symbol *sym, int level, const char *prefix)
         // skip enum id
         struct tree *init = sym->u.init;
         if (init)
-            print_expr1(init, level + 1);
+            print_expr1(fp, init, level + 1);
     }
 }
 
-static void print_symbol(struct symbol *sym, const char *prefix)
+static void print_symbol(FILE *fp, struct symbol *sym, const char *prefix)
 {
-    print_symbol1(sym, 0, prefix);
+    print_symbol1(fp, sym, 0, prefix);
 }
 
-static void print_init1(struct tree *init, int level)
+static void print_init1(FILE *fp, struct tree *init, int level)
 {
     for (struct init *p = init->s.u.ilist; p; p = p->link) {
-        print_level(level);
+        print_level(fp, level);
         if (p->desig->kind == DESIG_FIELD &&
             p->desig->u.field->isbit)
-            putf("<" GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%T'") ">\n",
-                 p->desig->offset,
-                 p->desig->u.field->bitoff,
-                 p->desig->u.field->bitsize,
-                 p->desig->type);
+            fprint(fp, "<"
+                   GREEN("offset=%lu, boff=%lu, bsize=%lu, type='%T'")
+                   ">\n",
+                   p->desig->offset,
+                   p->desig->u.field->bitoff,
+                   p->desig->u.field->bitsize,
+                   p->desig->type);
         else
-            putf("<" GREEN("offset=%lu, type='%T'") ">\n",
-                 p->desig->offset, p->desig->type);;
+            fprint(fp, "<" GREEN("offset=%lu, type='%T'") ">\n",
+                   p->desig->offset, p->desig->type);;
 
         if (p->body)
-            print_expr1(p->body, level + 1);
+            print_expr1(fp, p->body, level + 1);
     }
 }
 
-static void print_args1(struct tree **args, int level)
+static void print_args1(FILE *fp, struct tree **args, int level)
 {
     assert(args);
     for (int i = 0; args[i]; i++) {
-        print_level(level);
-        putf("ARG[%d]: \n", i);
-        print_expr1(args[i], level + 1);
+        print_level(fp, level);
+        fprint(fp, "ARG[%d]: \n", i);
+        print_expr1(fp, args[i], level + 1);
     }
 }
 
-static void print_expr1(struct tree *expr, int level)
+static void print_expr1(FILE *fp, struct tree *expr, int level)
 {
     const char *name = opidname(expr->op);
 
-    print_level(level);
-    putf(PURPLE_BOLD("%s ") YELLOW("%p "), name, expr);
-    putf(GREEN("'%T' "), expr->type);
+    print_level(fp, level);
+    fprint(fp, PURPLE_BOLD("%s ") YELLOW("%p "), name, expr);
+    fprint(fp, GREEN("'%T' "), expr->type);
 
     if (issliteral(expr)) {
-        putf(CYAN_BOLD("\"%s\""), expr->s.sym->name);
+        fprint(fp, CYAN_BOLD("\"%s\""), expr->s.sym->name);
     } else if (isiliteral(expr)) {
         if (TYPE_OP(expr->type) == INT)
-            putf(RED("%ld"), expr->s.value.i);
+            fprint(fp, RED("%ld"), expr->s.value.i);
         else
-            putf(RED("%lu"), expr->s.value.u);
+            fprint(fp, RED("%lu"), expr->s.value.u);
     } else if (isfliteral(expr)) {
         if (TYPE_KIND(expr->type) == FLOAT)
-            putf(RED("%f"), expr->s.value.f);
+            fprint(fp, RED("%f"), expr->s.value.f);
         else if (TYPE_KIND(expr->type) == DOUBLE)
-            putf(RED("%f"), expr->s.value.d);
+            fprint(fp, RED("%f"), expr->s.value.d);
         else
-            putf(RED("%Lf"), expr->s.value.ld);
+            fprint(fp, RED("%Lf"), expr->s.value.ld);
     } else if (ispliteral(expr)) {
-        putf(RED("%p"), expr->s.value.p);
+        fprint(fp, RED("%p"), expr->s.value.p);
     } else if (expr->s.sym) {
-        putf(CYAN_BOLD("%s"), expr->s.sym->name);
+        fprint(fp, CYAN_BOLD("%s"), expr->s.sym->name);
     }
 
-    putf("\n");
+    fprint(fp, "\n");
     if (expr->kids[0])
-        print_expr1(expr->kids[0], level + 1);
+        print_expr1(fp, expr->kids[0], level + 1);
     if (expr->kids[1])
-        print_expr1(expr->kids[1], level + 1);
+        print_expr1(fp, expr->kids[1], level + 1);
 
     if (OPKIND(expr->op) == CALL)
         // print arguments
-        print_args1(expr->s.u.args, level + 1);
+        print_args1(fp, expr->s.u.args, level + 1);
     else if (iscpliteral(expr))
         // print compound literal
-        print_init1(COMPOUND_SYM(expr)->u.init, level + 1);
+        print_init1(fp, COMPOUND_SYM(expr)->u.init, level + 1);
     else if (OPKIND(expr->op) == INITS)
-        print_init1(expr, level + 1);
+        print_init1(fp, expr, level + 1);
 }
 
-static void print_stmt1(struct stmt *stmt, int level)
+static void print_stmt1(FILE *fp, struct stmt *stmt, int level)
 {
     if (stmt->id != GEN)
-        print_level(level);
+        print_level(fp, level);
 
     switch (stmt->id) {
     case LABEL:
-        putf(".L%d:\n", stmt->u.label);
+        fprint(fp, ".L%d:\n", stmt->u.label);
         break;
 
     case GEN:
         assert(stmt->u.expr && "null expr in gen node");
-        print_expr1(stmt->u.expr, level);
+        print_expr1(fp, stmt->u.expr, level);
         break;
 
     case JMP:
-        putf("goto .L%d\n", stmt->u.label);
+        fprint(fp, "goto .L%d\n", stmt->u.label);
         break;
 
     case CBR:
         if (stmt->u.cbr.tlab)
-            putf("iftrue goto .L%d\n", stmt->u.cbr.tlab);
+            fprint(fp, "iftrue goto .L%d\n", stmt->u.cbr.tlab);
         else if (stmt->u.cbr.flab)
-            putf("iffalse goto .L%d\n", stmt->u.cbr.flab);
+            fprint(fp, "iffalse goto .L%d\n", stmt->u.cbr.flab);
 
         if (stmt->u.cbr.expr)
-            print_expr1(stmt->u.cbr.expr, level + 1);
+            print_expr1(fp, stmt->u.cbr.expr, level + 1);
         break;
 
     case RET:
-        putf("ret\n");
+        fprint(fp, "ret\n");
         if (stmt->u.expr)
-            print_expr1(stmt->u.expr, level + 1);
+            print_expr1(fp, stmt->u.expr, level + 1);
         break;
 
     default:
@@ -475,41 +459,35 @@ static void print_stmt1(struct stmt *stmt, int level)
     }
 }
 
-static void ast_dump_symbol(struct symbol *n, const char *prefix, bool funcdef)
+void print_expr(FILE *fp, struct tree *expr)
 {
-    SET_OUTFD(stdout);
-    print_symbol(n, prefix);
-    if (funcdef) {
-        for (struct symbol *sym = n->u.f.lvars; sym; sym = sym->local) {
-            if (!sym->temporary && !(sym->predefine && sym->refs == 0))
-                print_symbol1(sym, 1, kVarDecl);
-        }
-        for (struct stmt *stmt = n->u.f.stmt; stmt; stmt = stmt->next)
-            print_stmt1(stmt, 1);
-    }
-    RESTORE_OUTFD();
+    print_expr1(fp, expr, 0);
 }
 
 void ast_dump_vardecl(struct symbol *n)
 {
-    ast_dump_symbol(n, kVarDecl, false);
+    print_symbol(stdout, n, kVarDecl);
 }
 
 void ast_dump_funcdecl(struct symbol *n)
 {
-    ast_dump_symbol(n, kFuncDecl, false);
+    print_symbol(stdout, n, kFuncDecl);
 }
 
 void ast_dump_funcdef(struct symbol *n)
 {
-    ast_dump_symbol(n, kFuncDecl, true);
+    print_symbol(stdout, n, kFuncDecl);
+    for (struct symbol *sym = n->u.f.lvars; sym; sym = sym->local) {
+        if (!sym->temporary && !(sym->predefine && sym->refs == 0))
+            print_symbol1(stdout, sym, 1, kVarDecl);
+    }
+    for (struct stmt *stmt = n->u.f.stmt; stmt; stmt = stmt->next)
+        print_stmt1(stdout, stmt, 1);
 }
 
 void ast_dump_typedecl(struct symbol *n)
 {
-    SET_OUTFD(stdout);
-    print_type(n);
-    RESTORE_OUTFD();
+    print_type(stdout, n);
 }
 
 /// Convert type node to string.

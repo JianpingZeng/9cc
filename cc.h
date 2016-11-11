@@ -641,6 +641,7 @@ extern void ast_dump_vardecl(struct symbol *);
 extern void ast_dump_typedecl(struct symbol *);
 extern void ast_dump_funcdecl(struct symbol *);
 extern void ast_dump_funcdef(struct symbol *);
+extern void print_expr(FILE *fp, struct tree *);
 extern void vfprint(FILE *fp, const char *fmt, va_list ap);
 extern void fprint(FILE *fp, const char *fmt, ...);
 extern void print(const char *fmt, ...);
