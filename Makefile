@@ -12,8 +12,8 @@ LDFLAGS =
 CC1 = cc1
 libutils_dir = libutils/
 libcpp_dir = libcpp/
-7burg_dir = 7burg/
-7BURG = $(7burg_dir)7burg
+burg_dir = burg/
+BURG = $(burg_dir)burg
 LIBCPP = $(libcpp_dir)libcpp.a
 LIBUTILS = $(libutils_dir)libutils.a
 LIBUTILS_OBJ =
@@ -22,8 +22,8 @@ LIBCPP_OBJ =
 LIBCPP_INC =
 CC1_OBJ =
 CC1_INC =
-7BURG_OBJ =
-7BURG_INC =
+BURG_OBJ =
+BURG_INC =
 CONFIG_FLAGS =
 KERNEL := $(shell uname)
 RM = @rm -f
@@ -81,10 +81,10 @@ CC1_INC += cc.h
 
 7CC_OBJ = 7cc.o
 
-7BURG_INC += $(7burg_dir)burg.h
+BURG_INC += $(burg_dir)burg.h
 
-7BURG_OBJ += $(7burg_dir)burg.o
-7BURG_OBJ += $(7burg_dir)grammar.o
+BURG_OBJ += $(burg_dir)burg.o
+BURG_OBJ += $(burg_dir)grammar.o
 
 ifneq (, ${STAGE})
 CONFIG_FLAGS += -DSTAGE=${STAGE}
@@ -115,11 +115,11 @@ $(CC1): $(LIBUTILS) $(LIBCPP) $(CC1_OBJ)
 
 $(CC1_OBJ): $(CC1_INC) $(CONFIG_H)
 
-$(7BURG): $(7BURG_INC) $(7BURG_OBJ)
-	$(CC) $(7BURG_OBJ) -o $@
+$(BURG): $(BURG_INC) $(BURG_OBJ)
+	$(CC) $(BURG_OBJ) -o $@
 
-x86_64-linux.o: $(CC1_INC) $(CONFIG_H) $(7BURG)
-	$(7BURG) x86_64-linux.7 -o x86_64-linux.c
+x86_64-linux.o: $(CC1_INC) $(CONFIG_H) $(BURG)
+	$(BURG) x86_64-linux.7 -o x86_64-linux.c
 	$(CC) $(CFLAGS) -c x86_64-linux.c -o $@
 
 $(LIBUTILS): $(LIBUTILS_INC) $(CONFIG_H) $(LIBUTILS_OBJ)
@@ -177,10 +177,10 @@ bootstrap: stage3
 
 objclean::
 	$(RM) *.o
-	$(RM) $(LIBCPP) $(LIBUTILS) $(7BURG)
+	$(RM) $(LIBCPP) $(LIBUTILS) $(BURG)
 	$(RM) $(libutils_dir)*.o
 	$(RM) $(libcpp_dir)*.o
-	$(RM) $(7burg_dir)*.o
+	$(RM) $(burg_dir)*.o
 
 clean:: objclean
 	$(RM) $(7CC) $(CC1) x86_64-linux.c
