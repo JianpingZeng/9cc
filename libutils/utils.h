@@ -68,12 +68,8 @@ enum { PERM = 0, FUNC };
 
 // vector.c
 #include "vector.h"
-// map.c
-#include "map.h"
 // strbuf.c
 #include "strbuf.h"
-// set.c
-#include "set.h"
 // list.c
 #include "list.h"
 // sys.c

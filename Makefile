@@ -36,17 +36,13 @@ LIBUTILS_OBJ += $(libutils_dir)alloc.o
 LIBUTILS_OBJ += $(libutils_dir)wrapper.o
 LIBUTILS_OBJ += $(libutils_dir)strbuf.o
 LIBUTILS_OBJ += $(libutils_dir)vector.o
-LIBUTILS_OBJ += $(libutils_dir)map.o
 LIBUTILS_OBJ += $(libutils_dir)string.o
-LIBUTILS_OBJ += $(libutils_dir)set.o
 LIBUTILS_OBJ += $(libutils_dir)list.o
 LIBUTILS_OBJ += $(libutils_dir)sys.o
 
 LIBUTILS_INC += $(libutils_dir)utils.h
 LIBUTILS_INC += $(libutils_dir)strbuf.h
 LIBUTILS_INC += $(libutils_dir)vector.h
-LIBUTILS_INC += $(libutils_dir)map.h
-LIBUTILS_INC += $(libutils_dir)set.h
 LIBUTILS_INC += $(libutils_dir)list.h
 LIBUTILS_INC += $(libutils_dir)sys.h
 LIBUTILS_INC += $(libutils_dir)color.h
