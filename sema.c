@@ -58,6 +58,9 @@ struct func func;
 #define ERR_PTR_TO_INCOMPATIBLE_TYPES \
     "'%T' and '%T' are not pointers to compatible types"
 
+#define ERR_INCOMPATIBLE_INIT \
+    "initializing '%T' with an expression of incompatible type '%T'"
+
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 #define INIT(name)  .name = do_##name
@@ -1701,7 +1704,7 @@ static struct tree *do_funcall(struct tree *expr, struct tree **args,
         call->s.u.args = args;
         ret = ast_expr(RIGHT, rty, call, ref);
     } else {
-        ret = ast_expr(mkop(CALL, rty), rty, expr, NULL);
+        ret = ast_expr(CALL, rty, expr, NULL);
         ret->s.u.args = args;
     }
 
@@ -1991,41 +1994,58 @@ static void finish_string(struct type *ty,
     }
 }
 
-// dty - arith/pointer/struct/union/array
-static struct tree *ensure_init_compound(struct symbol *sym,
-                                         struct tree *init,
-                                         struct source src)
+static struct tree *ensure_init_scalar_struct(struct symbol *sym,
+                                              struct tree *init,
+                                              struct source src)
 {
     struct type *dty = sym->type;
     struct type *sty = init->type;
-    
-    // TODO: 
+
+    if (!(init = assignconv(dty, init))) {
+        error_at(src, ERR_INCOMPATIBLE_INIT, dty, sty);
+        return NULL;
+    }
+
+    if (iscpliteral(init)) {
+        if (isscalar(dty)) {
+            struct init *i = COMPOUND_SYM(init)->u.init->s.u.ilist;
+            return i->body;
+        } else {
+            return COMPOUND_SYM(init)->u.init;
+        }
+    }
+
     return init;
 }
 
-// dty - arith/pointer/struct/union/array
-static struct tree *ensure_init_assign(struct symbol *sym,
-                                       struct tree *init,
-                                       struct source src)
+static struct tree *ensure_init_array(struct symbol *sym,
+                                      struct tree *init,
+                                      struct source src)
 {
     struct type *dty = sym->type;
     struct type *sty = init->type;
+    int dlen = TYPE_LEN(dty);
+    int slen = TYPE_LEN(sty);
     
-    if (isarray(dty)) {
-        if (isstring(dty) && issliteral(init)) {
-            finish_string(dty, init, src);
-        } else {
-            error_at(src, "array initializer must be an initializer list "
-                     "or string literal");
-            return NULL;
-        }
-    } else {
-        init = assignconv(dty, init);
-        if (init == NULL)
-            error_at(src, "initializing '%T' with an expression of "
-                     "incompatible type '%T'", dty, sty);
+    if (isstring(dty) && issliteral(init)) {
+        finish_string(dty, init, src);
+        return init;
     }
 
+    if (iscpliteral(init))
+        init = COMPOUND_SYM(init)->u.init;
+
+    if (!eqtype(dty, sty)) {
+        error_at(src, "cannot initialize array of type '%T' "
+                 "with array of type '%T'", dty, sty);
+        return NULL;
+    } else if (OPKIND(init->op) != INITS) {
+        error_at(src, "array initializer must be an "
+                 "initializer list or string literal");
+        return NULL;
+    }
+
+    // TODO: length/zinit
     return init;
 }
 
@@ -2033,11 +2053,6 @@ static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
                                 struct tree *init, struct source src)
 {
     struct type *ty = sym->type;
-    
-    if (!(isscalar(ty) || isarray(ty) || isrecord(ty))) {
-        error_at(src, "'%s' cannot have an initializer", TYPE_NAME(ty));
-        return NULL;
-    }
 
     if (istag(ty) && isincomplete(ty)) {
         error_at(src, "variable '%s' has incomplete type '%T'",
@@ -2054,11 +2069,14 @@ static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
         }
     }
 
-    // TODO: 
-    if (OPKIND(init->op) == INITS)
-        return ensure_init_compound(sym, init, src);
-    else
-        return ensure_init_assign(sym, init, src);
+    if (isarray(ty)) {
+        return ensure_init_array(sym, init, src);
+    } else if (isscalar(ty) || isstruct(ty) || isunion(ty)) {
+        return ensure_init_scalar_struct(sym, init, src);
+    } else {
+        error_at(src, "'%s' cannot have an initializer", TYPE_NAME(ty));
+        return NULL;
+    }
 }
 
 static bool check_designator(struct desig *d)
@@ -2080,18 +2098,26 @@ static bool check_designator(struct desig *d)
     return true;
 }
 
-// TODO: update offset
 static struct desig *concat_desig(struct desig *d1, struct desig *d2)
 {
-    struct desig *p = d2;
-
-    while (p->prev->kind != DESIG_NONE)
+    struct desig *p;
+    
+    if (d2->kind == DESIG_NONE)
+        return d1;
+    
+    p = d2;
+    while (p->prev->kind != DESIG_NONE) {
+        p->offset += d1->offset;
         p = p->prev;
+    }
 
+    p->offset += d1->offset;
     p->prev = copy_desig(d1);
+
     return d2;
 }
 
+// TODO: 
 static void offset_init1(struct desig *desig,
                          struct tree *expr,
                          struct init **ilist)
@@ -2132,37 +2158,6 @@ static void offset_init1(struct desig *desig,
     *ilist = init;
 }
 
-static void scalar_init(struct desig *desig,
-                        struct tree *expr,
-                        struct init **ilist)
-{
-    // TODO:
-    offset_init1(desig, expr, ilist);
-}
-
-static void struct_init(struct desig *desig,
-                        struct tree *expr,
-                        struct init **ilist)
-{
-    if (iscpliteral(expr)) {
-        struct tree *init = COMPOUND_SYM(expr)->u.init;
-        for (struct init *i = init->s.u.ilist; i; i = i->link) {
-            struct desig *d = concat_desig(desig, i->desig);
-            offset_init1(d, i->body, ilist);
-        }
-    } else {
-        offset_init1(desig, expr, ilist);
-    }
-}
-
-static void string_init(struct desig *desig,
-                        struct tree *expr,
-                        struct init **ilist)
-{
-    // TODO: override check
-    offset_init1(desig, expr, ilist);
-}
-
 static void offset_init(struct desig *desig,
                         struct tree *expr,
                         struct init **ilist)
@@ -2184,12 +2179,23 @@ static void offset_init(struct desig *desig,
     }
 
     //possible: scalar/struct/union
-    if (isscalar(ty))
-        scalar_init(desig, expr, ilist);
-    else if (isstruct(ty) || isunion(ty))
-        struct_init(desig, expr, ilist);
-    else
-        CC_UNAVAILABLE();
+    if (iscpliteral(expr)) {
+        struct tree *init = COMPOUND_SYM(expr)->u.init;
+        for (struct init *i = init->s.u.ilist; i; i = i->link) {
+            struct desig *d = concat_desig(desig, i->desig);
+            offset_init1(d, i->body, ilist);
+        }
+    } else {
+        offset_init1(desig, expr, ilist);
+    }
+}
+
+static void string_init(struct desig *desig,
+                        struct tree *expr,
+                        struct init **ilist)
+{
+    // TODO: override check
+    offset_init1(desig, expr, ilist);
 }
 
 static struct desig *next_designator1(struct desig *desig, int next)
