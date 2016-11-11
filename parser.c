@@ -1172,15 +1172,12 @@ static struct tree *parse_initializer(struct type *ty)
 static struct tree *parse_initializer_list(struct type *ty)
 {
     if (ty) {
-        struct desig desig = {
-            .kind = DESIG_NONE,
-            .type = ty,
-            .offset = 0,
-            .src = source
-        };
         struct init *ilist = NULL;
+        struct desig *desig = new_desig(DESIG_NONE);
+        desig->type = ty;
+        desig->src = source;
 
-        parse_initializer_list1(&desig, &ilist);        
+        parse_initializer_list1(desig, &ilist);
 
         return actions.initializer_list(ty, ilist);
     } else {
