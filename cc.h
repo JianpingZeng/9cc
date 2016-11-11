@@ -458,39 +458,37 @@ struct interface {
                                  (sym)->scope == GLOBAL)
 
 // symtab.c
-extern struct table *new_table(struct table *up, int scope);
-extern void free_table(struct table *t);
+extern struct table *new_table(struct table *, int);
+extern void free_table(struct table *);
 extern void symbol_init(void);
 extern void enter_scope(void);
 extern void exit_scope(void);
-extern void foreach(struct table *tp, int level,
-                    void (*apply) (struct symbol *, void *),
-                    void *context);
-extern bool is_current_scope(struct symbol *sym);
+extern void foreach(struct table *, int,
+                    void (*) (struct symbol *, void *), void *);
+extern bool is_current_scope(struct symbol *);
 // create an anonymous symbol
-extern struct symbol *anonymous(struct table **tpp, int scope, int area);
+extern struct symbol *anonymous(struct table **, int, int);
 // create an temporary symbol
-extern struct symbol *temporary(int scope, int area);
+extern struct symbol *temporary(int, int);
 // look up a symbol from this table to previous one, and so on
-extern struct symbol *lookup(const char *name, struct table *table);
+extern struct symbol *lookup(const char *, struct table *);
 // install a symbol with specified scope
-extern struct symbol *install(const char *name,
-                              struct table **tpp, int scope, int area);
+extern struct symbol *install(const char *, struct table **, int, int);
 
 /// ast.c
 extern struct field *alloc_field(void);
-extern struct field *new_indirect_field(struct field *field);
-extern struct tree *zinit(struct type *ty);
-extern struct tree *ast_expr(int op, struct type *ty,
-                             struct tree *l, struct tree *r);
-extern struct stmt *ast_stmt(int id);
+extern struct field *new_indirect_field(struct field *);
+extern struct tree *zinit(struct type *);
+extern struct tree *ast_expr(int, struct type *,
+                             struct tree *, struct tree *);
+extern struct stmt *ast_stmt(int);
 extern const char *gen_string_label(void);
-extern int genlabel(int count);
-extern struct desig *new_desig(int kind);
-extern struct desig *new_desig_name(const char *name, struct source src);
-extern struct desig *new_desig_index(long index, struct source src);
-extern struct desig *new_desig_field(struct field *field, struct source src);
-extern struct desig *copy_desig(struct desig *desig);
+extern int genlabel(int);
+extern struct desig *new_desig(int);
+extern struct desig *new_desig_name(const char *, struct source);
+extern struct desig *new_desig_index(long, struct source);
+extern struct desig *new_desig_field(struct field *, struct source);
+extern struct desig *copy_desig(struct desig *);
 
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
 #define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
@@ -507,25 +505,23 @@ extern struct desig *copy_desig(struct desig *desig);
 #define COMPOUND_SYM(n)  ((n)->kids[0]->s.sym)
 
 // tree.c
-extern struct tree *root(struct tree *expr);
-extern struct tree *addrof(struct tree *expr);
-extern struct tree *rightkid(struct tree *expr);
+extern struct tree *root(struct tree *);
+extern struct tree *addrof(struct tree *);
+extern struct tree *rightkid(struct tree *);
 
 // eval.c
-extern struct tree *eval(struct tree *expr, struct type *ty);
-extern struct tree *fold(int op, struct type *ty,
-                         struct tree *l, struct tree *r);
+extern struct tree *eval(struct tree *, struct type *);
+extern struct tree *fold(int, struct type *, struct tree *, struct tree *);
  
 // parser.c
 extern void translation_unit(void);
-extern void compound_stmt(void (*cb) (void), int cnt, int brk,
-                          struct swtch *swtch);
+extern void compound_stmt(void (*) (void), int, int, struct swtch *);
 
 // sema.c
-extern int first_decl(struct token *t);
-extern int first_stmt(struct token *t);
-extern int first_expr(struct token *t);
-extern int first_typename(struct token *t);
+extern int first_decl(struct token *);
+extern int first_stmt(struct token *);
+extern int first_expr(struct token *);
+extern int first_typename(struct token *);
 
 extern void skip_to_brace(void);
 extern void skip_to_bracket(void);
@@ -534,35 +530,35 @@ extern void skip_to_decl(void);
 extern void skip_to_stmt(void);
 extern void skip_to_expr(void);
 
-extern struct symbol *tag_symbol(int t, const char *tag, struct source src);
-extern struct desig *next_designator(struct desig *desig, int next);
-extern struct tree *cnsti(long i, struct type *ty);
-extern struct tree *cnsts(const char *string);
-extern void check_case_duplicates(struct cse *cse, struct swtch *swtch);
-extern void mark_goto(const char *id, struct source src);
-extern struct tree *mkref(struct symbol *sym);
+extern struct symbol *tag_symbol(int, const char *, struct source);
+extern struct desig *next_designator(struct desig *, int);
+extern struct tree *cnsti(long, struct type *);
+extern struct tree *cnsts(const char *);
+extern void check_case_duplicates(struct cse *, struct swtch *);
+extern void mark_goto(const char *, struct source);
+extern struct tree *mkref(struct symbol *);
 extern void funcdef(const char *, struct type *, int, int,
                     struct symbol *[], struct source);
 
 // type.c
 extern void type_init(void);
-extern struct type *qual(int t, struct type *ty);
-extern struct type *unqual(struct type *ty);
-extern bool compatible(struct type *ty1, struct type *ty2);
-extern bool eqtype(struct type *ty1, struct type *ty2);
-extern bool eqarith(struct type *ty1, struct type *ty2);
-extern struct type *array_type(struct type *ty);
-extern struct type *ptr_type(struct type *ty);
-extern struct type *func_type(struct type *ty);
-extern struct type *tag_type(int t);
-extern void set_typesize(struct type *ty);
-extern struct field *find_field(struct type *ty, const char *name);
-extern struct type *compose(struct type *ty1, struct type *ty2);
-extern bool qual_contains(struct type *ty1, struct type *ty2);
-extern int qual_union(struct type *ty1, struct type *ty2);
-extern bool isincomplete(struct type *ty);
-extern bool isstring(struct type *ty);
-extern short ty2op(struct type *ty);
+extern struct type *qual(int, struct type *);
+extern struct type *unqual(struct type *);
+extern bool compatible(struct type *, struct type *);
+extern bool eqtype(struct type *, struct type *);
+extern bool eqarith(struct type *, struct type *);
+extern struct type *array_type(struct type *);
+extern struct type *ptr_type(struct type *);
+extern struct type *func_type(struct type *);
+extern struct type *tag_type(int);
+extern void set_typesize(struct type *);
+extern struct field *find_field(struct type *, const char *);
+extern struct type *compose(struct type *, struct type *);
+extern bool qual_contains(struct type *, struct type *);
+extern int qual_union(struct type *, struct type *);
+extern bool isincomplete(struct type *);
+extern bool isstring(struct type *);
+extern short ty2op(struct type *);
 
 #define isconst1(kind)     ((kind) == CONST ||                          \
                             (kind) == CONST + VOLATILE ||               \
@@ -609,9 +605,9 @@ extern short ty2op(struct type *ty);
 // error.c
 extern unsigned int errors(void);
 extern unsigned int warnings(void);
-extern void warning_at(struct source src, const char *fmt, ...);
-extern void error_at(struct source src, const char *fmt, ...);
-extern void fatal_at(struct source src, const char *fmt, ...);
+extern void warning_at(struct source, const char *, ...);
+extern void error_at(struct source, const char *, ...);
+extern void fatal_at(struct source, const char *, ...);
 
 #define warning(...)         warning_at(source, __VA_ARGS__)
 #define error(...)           error_at(source, __VA_ARGS__)
@@ -622,10 +618,10 @@ extern void ast_dump_vardecl(struct symbol *);
 extern void ast_dump_typedecl(struct symbol *);
 extern void ast_dump_funcdecl(struct symbol *);
 extern void ast_dump_funcdef(struct symbol *);
-extern void print_expr(FILE *fp, struct tree *);
-extern void vfprint(FILE *fp, const char *fmt, va_list ap);
-extern void fprint(FILE *fp, const char *fmt, ...);
-extern void print(const char *fmt, ...);
+extern void print_expr(FILE *, struct tree *);
+extern void vfprint(FILE *, const char *, va_list);
+extern void fprint(FILE *, const char *, ...);
+extern void print(const char *, ...);
 
 #define BUILTIN_VA_START    "__builtin_va_start"
 #define BUILTIN_VA_ARG_P    "__builtin_va_arg_p"
