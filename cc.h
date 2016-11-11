@@ -353,83 +353,64 @@ typedef struct symbol * (*decl_fp) (const char *, struct type *, int, int,
 
 // sema actions
 struct actions {
-    void (*init) (int argc, char *argv[]);
+    void (*init) (int, char *[]);
     void (*finalize) (void);
 
     /// decl
-    void (*enumdecl) (struct symbol *, struct symbol *ids[]);
-    void (*recorddecl) (struct symbol *);
-    void (*tagdecl) (struct type *, int sclass, int fspec, struct source);
-    decl_fp globaldecl, localdecl, paramdecl;
-    void (*typedefdecl) (const char *,
-                         struct type *, int, int, struct source);
+    void (*enumdcl) (struct symbol *, struct symbol *[]);
+    void (*structdcl) (struct symbol *);
+    void (*tagdcl) (struct type *, int, int, struct source);
+    decl_fp globaldcl, localdcl, paramdcl;
+    void (*tydefdcl) (const char *, struct type *, int, int, struct source);
     
-    void (*array_index) (struct type *aty,
-                         struct tree *assign,
-                         struct source);
-    struct symbol ** (*prototype) (struct type *fty,
-                                   struct symbol *params[]);
-    struct symbol * (*enum_id) (const char *name,
-                                int val,
-                                struct symbol *sym,
-                                struct source);
-    void (*direct_field) (struct symbol *sym, struct field *field);
-    void (*indirect_field) (struct symbol *sym, struct field *field);
+    void (*arrayidx) (struct type *, struct tree *, struct source);
+    struct symbol ** (*prototype) (struct type *, struct symbol *[]);
+    struct symbol * (*enumid) (const char *, int, struct symbol *, struct source);
+    void (*direct_field) (struct symbol *, struct field *);
+    void (*indirect_field) (struct symbol *, struct field *);
     
     /// expr
-    struct tree * (*comma) (struct tree *l, struct tree *r, struct source);
-    struct tree * (*assign) (int t, struct tree *l, struct tree *r,
-                             struct source);
-    struct tree * (*cond) (struct tree *cond,
-                           struct tree *then,
-                           struct tree *els,
-                           struct source);
-    struct tree * (*bop) (int t, struct tree *l, struct tree *r,
-                          struct source);
-    struct tree * (*cast) (struct type *ty, struct tree *, struct source);
+    struct tree * (*comma) (struct tree *, struct tree *, struct source);
+    struct tree * (*assign) (int, struct tree *, struct tree *, struct source);
+    struct tree * (*cond) (struct tree *, struct tree *, struct tree *, struct source);
+    struct tree * (*bop) (int, struct tree *, struct tree *, struct source);
+    struct tree * (*cast) (struct type *, struct tree *, struct source);
     // unary
-    struct tree * (*pre_increment) (int t, struct tree *, struct source);
-    struct tree * (*minus_plus) (int t, struct tree *, struct source);
-    struct tree * (*bitwise_not) (struct tree *, struct source);
-    struct tree * (*logical_not) (struct tree *, struct source);
+    struct tree * (*preincr) (int, struct tree *, struct source);
+    struct tree * (*minus_plus) (int, struct tree *, struct source);
+    struct tree * (*bitnot) (struct tree *, struct source);
+    struct tree * (*lognot) (struct tree *, struct source);
     struct tree * (*address) (struct tree *, struct source);
     // postfix
     struct tree * (*indirection) (struct tree *, struct source);
-    struct tree * (*sizeofop) (struct type *ty, struct tree *,
-                               struct source);
-    struct tree * (*subscript) (struct tree *base, struct tree *index,
-                                struct source);
-    struct tree * (*funcall) (struct tree *expr, struct tree **args,
-                              struct source);
-    struct tree * (*direction) (int t, const char *name, struct tree *,
-                                struct source);
-    struct tree * (*post_increment) (int t, struct tree *, struct source);
-    struct tree * (*compound_literal) (struct type *ty, struct tree *init,
-                                       struct source);
+    struct tree * (*sizeofop) (struct type *, struct tree *, struct source);
+    struct tree * (*subscript) (struct tree *, struct tree *, struct source);
+    struct tree * (*funcall) (struct tree *, struct tree **, struct source);
+    struct tree * (*direction) (int, const char *, struct tree *, struct source);
+    struct tree * (*postincr) (int, struct tree *, struct source);
+    struct tree * (*cpliteral) (struct type *, struct tree *, struct source);
     // primary
     struct tree * (*id) (struct token *);
     struct tree * (*iconst) (struct token *);
     struct tree * (*fconst) (struct token *);
     struct tree * (*sconst) (struct token *);
-    struct tree * (*paren) (struct tree *expr, struct source);
+    struct tree * (*paren) (struct tree *, struct source);
 
-    long (*intexpr) (struct tree *expr, struct type *ty, struct source);
-    struct tree * (*bool_expr) (struct tree *expr, struct source);
-    struct tree * (*switch_expr) (struct tree *expr, struct source);
+    long (*intexpr) (struct tree *, struct type *, struct source);
+    struct tree * (*boolexpr) (struct tree *, struct source);
+    struct tree * (*swtchexpr) (struct tree *, struct source);
 
     /// stmt
-    void (*branch) (struct tree *expr, int tlab, int flab);
-    void (*jump) (int label);
-    void (*ret) (struct tree *expr, bool isnull, struct source);
-    void (*label) (int label);
-    void (*gen) (struct tree *expr);
+    void (*branch) (struct tree *, int, int);
+    void (*jump) (int);
+    void (*ret) (struct tree *, bool, struct source);
+    void (*label) (int);
+    void (*gen) (struct tree *);
 
     /// initializer
-    void (*element_init) (struct desig **pdesig,
-                          struct tree *expr,
-                          struct init **pinit);
-    struct desig * (*designator) (struct desig *desig, struct desig **ds);
-    struct tree * (*initializer_list) (struct type *ty, struct init *ilist);
+    void (*eleminit) (struct desig **, struct tree *, struct init **);
+    struct desig * (*designator) (struct desig *, struct desig **);
+    struct tree * (*initlist) (struct type *, struct init *);
 };
 
 // metrics

@@ -46,7 +46,7 @@ static struct tree *parse_compound_literal(struct type *ty)
     struct source src = source;
     struct tree *inits = parse_initializer_list(ty);
     
-    return actions.compound_literal(ty, inits, src);
+    return actions.cpliteral(ty, inits, src);
 }
 
 static struct type *parse_cast_type(void)
@@ -184,7 +184,7 @@ static struct tree *parse_postfix_expr1(struct tree *ret)
                 struct source src = source;
 
                 gettok();
-                ret = actions.post_increment(t, ret, src);
+                ret = actions.postincr(t, ret, src);
             }
             break;
         default:
@@ -235,17 +235,17 @@ static struct tree *parse_unary_expr(void)
     case INCR:
     case DECR:
         gettok();
-        return actions.pre_increment(t, parse_unary_expr(), src);
+        return actions.preincr(t, parse_unary_expr(), src);
     case '+':
     case '-':
         gettok();
         return actions.minus_plus(t, parse_cast_expr(), src);
     case '~':
         gettok();
-        return actions.bitwise_not(parse_cast_expr(), src);
+        return actions.bitnot(parse_cast_expr(), src);
     case '!':
         gettok();
-        return actions.logical_not(parse_cast_expr(), src);
+        return actions.lognot(parse_cast_expr(), src);
     case '&':
         gettok();
         return actions.address(parse_cast_expr(), src);
@@ -531,14 +531,14 @@ static long parse_intexpr(void)
 static struct tree *parse_expr_in_cond(void)
 {
     struct source src = source;
-    return actions.bool_expr(parse_expr(), src);
+    return actions.boolexpr(parse_expr(), src);
 }
 
 // for expression in switch statement
 static struct tree *parse_expr_in_switch(void)
 {
     struct source src = source;
-    return actions.switch_expr(parse_expr(), src);
+    return actions.swtchexpr(parse_expr(), src);
 }
 
 /*=================================================================*
@@ -682,7 +682,7 @@ static void for_stmt(int lab, struct swtch *swtch)
     } else {
         if (first_decl(token)) {
             // declaration
-            parse_decls(actions.localdecl);
+            parse_decls(actions.localdcl);
         } else {
             // expression
             init = parse_expr0();
@@ -1029,7 +1029,7 @@ void compound_stmt(void (*cb) (void), int cnt, int brk, struct swtch *swtch)
     while (first_decl(token) || first_expr(token) || first_stmt(token)) {
         if (first_decl(token))
             // declaration
-            parse_decls(actions.localdecl);
+            parse_decls(actions.localdcl);
         else
             // statement
             statement(cnt, brk, swtch);
@@ -1102,7 +1102,7 @@ static void parse_initializer1(struct desig **pdesig, struct init **pinit)
         
         parse_initializer_list1(d, pinit);
     } else {
-        actions.element_init(pdesig, parse_assign_expr(), pinit);
+        actions.eleminit(pdesig, parse_assign_expr(), pinit);
     }
 }
 
@@ -1115,7 +1115,7 @@ static void parse_initializer_list1(struct desig *desig,
     expect('{');
 
     if (token_is('}')) {
-        actions.element_init(&desig, zinit(desig->type), pinit);
+        actions.eleminit(&desig, zinit(desig->type), pinit);
     } else {
         while (1) {
             if (token_is('.') || token_is('['))
@@ -1179,7 +1179,7 @@ static struct tree *parse_initializer_list(struct type *ty)
 
         parse_initializer_list1(desig, &ilist);
 
-        return actions.initializer_list(ty, ilist);
+        return actions.initlist(ty, ilist);
     } else {
         parse_initializer_list1(NULL, NULL);
         return NULL;
@@ -1523,9 +1523,9 @@ static struct symbol **parse_prototype(struct type *ftype)
         parse_param_declarator(&ty, &id);
         attach_type(&ty, basety);
 
-        sym = actions.paramdecl(id ? TOK_ID_STR(id) : NULL,
-                                ty, sclass, fspec, NULL,
-                                id ? id->src : src);
+        sym = actions.paramdcl(id ? TOK_ID_STR(id) : NULL,
+                               ty, sclass, fspec, NULL,
+                               id ? id->src : src);
         list = list_append(list, sym);
 
         if (token_is_not(','))
@@ -1557,7 +1557,7 @@ static struct symbol **parse_oldstyle(struct type *ftype)
             const char *name = TOK_ID_STR(token);
             struct symbol *sym;
 
-            sym = actions.paramdecl(name, inttype, 0, 0, NULL, token->src);
+            sym = actions.paramdcl(name, inttype, 0, 0, NULL, token->src);
             sym->defined = false;
             params = list_append(params, sym);
         }
@@ -1661,7 +1661,7 @@ static struct type *parse_array(int abstract)
             TYPE_A_STAR(atype) = 1;
         } else if (first_expr(token)) {
             struct source src = source;
-            actions.array_index(atype, parse_assign_expr(), src);
+            actions.arrayidx(atype, parse_assign_expr(), src);
         }
         break;
 
@@ -1672,20 +1672,20 @@ static struct type *parse_array(int abstract)
             TYPE_A_STATIC(atype) = 1;
             parse_array_qualifiers(atype);
             struct source src = source;
-            actions.array_index(atype, parse_assign_expr(), src);
+            actions.arrayidx(atype, parse_assign_expr(), src);
         } else {
             parse_array_qualifiers(atype);
             if (token_is(STATIC)) {
                 gettok();
                 TYPE_A_STATIC(atype) = 1;
                 struct source src = source;
-                actions.array_index(atype, parse_assign_expr(), src);
+                actions.arrayidx(atype, parse_assign_expr(), src);
             } else if (token_is('*') && next_token_is(']')) {
                 gettok();
                 TYPE_A_STAR(atype) = 1;
             } else if (first_expr(token)) {
                 struct source src = source;
-                actions.array_index(atype, parse_assign_expr(), src);
+                actions.arrayidx(atype, parse_assign_expr(), src);
             }
         }
         break;
@@ -1968,14 +1968,14 @@ static void parse_enum_body(struct symbol *sym)
             gettok();
             val = parse_intexpr();
         }
-        struct symbol *p = actions.enum_id(id, val++, sym, src);
+        struct symbol *p = actions.enumid(id, val++, sym, src);
         list = list_append(list, p);
         if (token_is_not(','))
             break;
         gettok();
     }
 
-    actions.enumdecl(sym, ltoa(&list, PERM));
+    actions.enumdcl(sym, ltoa(&list, PERM));
 }
 
 /*
@@ -2049,7 +2049,7 @@ static void parse_struct_body(struct symbol *sym)
         match(';', skip_to_decl);
     }
 
-    actions.recorddecl(sym);
+    actions.structdcl(sym);
 }
 
 /*
@@ -2158,7 +2158,7 @@ static void parse_decls(decl_fp dcl)
                     ///   declaration-list declaration
                     ///
                     while (first_decl(token))
-                        parse_decls(actions.paramdecl);
+                        parse_decls(actions.paramdcl);
                 }
 
                 funcdef(id ? TOK_ID_STR(id) : NULL,
@@ -2192,7 +2192,7 @@ static void parse_decls(decl_fp dcl)
                 }
 
                 if (sclass == TYPEDEF)
-                    actions.typedefdecl(name, ty, fspec, level, id->src);
+                    actions.tydefdcl(name, ty, fspec, level, id->src);
                 else
                     dcl(name, ty, sclass, fspec, init, id->src);
             }
@@ -2209,7 +2209,7 @@ static void parse_decls(decl_fp dcl)
         }
     } else if (isenum(basety) || isstruct(basety) || isunion(basety)) {
         // struct/union/enum
-        actions.tagdecl(basety, sclass, fspec, source);
+        actions.tagdcl(basety, sclass, fspec, source);
     } else {
         error("invalid token '%t' in declaration", token);
     }
@@ -2244,7 +2244,7 @@ void translation_unit(void)
     for (gettok(); token_is_not(EOI);) {
         if (first_decl(token)) {
             assert(cscope == GLOBAL);
-            parse_decls(actions.globaldecl);
+            parse_decls(actions.globaldcl);
             deallocate(FUNC);
         } else {
             if (token_is(';')) {
