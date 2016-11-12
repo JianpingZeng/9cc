@@ -88,7 +88,7 @@
 
 
 /* Copy the first part of user declarations.  */
-#line 1 "grammar.y"
+#line 1 "7burg/grammar.y"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,7 +96,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-#include "burg.h"
+#include "7burg.h"
 static int yylex(void);
 static int lineno;
 
@@ -121,14 +121,14 @@ static int lineno;
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 13 "grammar.y"
+#line 13 "7burg/grammar.y"
 {
     int ival;
     char *sval;
     struct pattern *pval;
 }
 /* Line 193 of yacc.c.  */
-#line 132 "grammar.c"
+#line 132 "7burg/grammar.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -141,7 +141,7 @@ typedef union YYSTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 145 "grammar.c"
+#line 145 "7burg/grammar.c"
 
 #ifdef short
 # undef short
@@ -1352,59 +1352,59 @@ yyreduce:
   switch (yyn)
     {
         case 7:
-#line 37 "grammar.y"
+#line 37 "7burg/grammar.y"
     { if (nonterm((yyvsp[(2) - (3)].sval))->num != 1)
                                         yyerror("redeclaration of the start symbol"); }
     break;
 
   case 9:
-#line 40 "grammar.y"
+#line 40 "7burg/grammar.y"
     { yyerrok; }
     break;
 
   case 11:
-#line 44 "grammar.y"
+#line 44 "7burg/grammar.y"
     { term((yyvsp[(2) - (4)].sval), (yyvsp[(4) - (4)].ival)); }
     break;
 
   case 13:
-#line 49 "grammar.y"
+#line 49 "7burg/grammar.y"
     { rule((yyvsp[(2) - (7)].sval), (yyvsp[(4) - (7)].pval), (yyvsp[(5) - (7)].sval), (yyvsp[(6) - (7)].sval)); }
     break;
 
   case 15:
-#line 51 "grammar.y"
+#line 51 "7burg/grammar.y"
     { yyerrok; }
     break;
 
   case 16:
-#line 54 "grammar.y"
+#line 54 "7burg/grammar.y"
     { nonterm((yyval.sval) = (yyvsp[(1) - (1)].sval)); }
     break;
 
   case 17:
-#line 57 "grammar.y"
+#line 57 "7burg/grammar.y"
     { if (*(yyvsp[(1) - (1)].sval) == 0) (yyval.sval) = "0"; }
     break;
 
   case 18:
-#line 60 "grammar.y"
+#line 60 "7burg/grammar.y"
     { (yyval.pval) = pattern((yyvsp[(1) - (1)].sval), NULL, NULL); }
     break;
 
   case 19:
-#line 61 "grammar.y"
+#line 61 "7burg/grammar.y"
     { (yyval.pval) = pattern((yyvsp[(1) - (4)].sval), (yyvsp[(3) - (4)].pval), NULL); }
     break;
 
   case 20:
-#line 62 "grammar.y"
+#line 62 "7burg/grammar.y"
     { (yyval.pval) = pattern((yyvsp[(1) - (6)].sval), (yyvsp[(3) - (6)].pval), (yyvsp[(5) - (6)].pval)); }
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1408 "grammar.c"
+#line 1408 "7burg/grammar.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1618,7 +1618,7 @@ yyreturn:
 }
 
 
-#line 65 "grammar.y"
+#line 65 "7burg/grammar.y"
 
 
 static char buf[BUFSIZ];

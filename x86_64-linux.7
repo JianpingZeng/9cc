@@ -16,10 +16,52 @@ typedef struct tree TREE_TYPE;
 #define burg(name)  burg_##name
 %}
 
-%term CNSTI4 = 1024
+%term ADDRGP8=8259
+%term ADDRPP8=8275
+%term ADDRLP8=8291
+
+%term INDIRI1=1137
+%term INDIRI2=2161
+%term INDIRI4=4209
+%term INDIRI8=8305
+%term INDIRU1=1138
+%term INDIRU2=2162
+%term INDIRU4=4210
+%term INDIRU8=8306
+%term INDIRF4=4211
+%term INDIRF8=8307
+%term INDIRF16=16499
+%term INDIRP8=8308
+%term INDIRS=117
+
+%term ASGNI1=1153
+%term ASGNI2=2177
+%term ASGNI4=4225
+%term ASGNI8=8321
+%term ASGNU1=1154
+%term ASGNU2=2178
+%term ASGNU4=4226
+%term ASGNU8=8322
+%term ASGNF4=4227
+%term ASGNF8=8323
+%term ASGNF16=16515
+%term ASGNP8=8324
+%term ASGNS=133
+
+%term ADDI4=4273
+%term ADDI8=8369
+%term ADDU4=4274
+%term ADDU8=8370
+%term ADDF4=4275
+%term ADDF8=8371
+%term ADDF16=16563
+%term ADDP8=8372
 
 %%
-stmt:   CNSTI4  ""
+stmt: ASGNI4(reg, mem)          ""
+reg: ADDI4(reg, mem)            ""
+mem4: INDIRI4(addr)             ""
+addr: ADDRLP8                   ""
 %%
 
 static void init(int argc, char *argv[])

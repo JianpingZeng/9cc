@@ -45,12 +45,12 @@ struct rule {
 };
 
 extern int yyparse(void);
-extern void yyerror(const char *msg, ...);
+extern void yyerror(const char *, ...);
 extern char *xstrdup(const char *);
 extern char *xstrndup(const char *, size_t);
-extern struct nonterm *nonterm(char *name);
-extern struct term *term(char *name, int val);
-extern struct pattern *pattern(char *name, struct pattern *l, struct pattern *r);
-extern void rule(char *name, struct pattern *pattern, char *template, char *cost);
+extern struct nonterm *nonterm(char *);
+extern struct term *term(char *, int);
+extern struct pattern *pattern(char *, struct pattern *, struct pattern *);
+extern void rule(char *, struct pattern *, char *, char *);
 
 #endif

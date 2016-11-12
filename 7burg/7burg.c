@@ -5,11 +5,11 @@
 #include <assert.h>
 #include <limits.h>
 #include <ctype.h>
-#include "burg.h"
+#include "7burg.h"
 
 /*
  The following symbols must be defined in the prologue section
- of the specification file (.burg file) by client:
+ of the specification file by client:
 
  TREE_TYPE: the tree type, for example:
 	struct tree {

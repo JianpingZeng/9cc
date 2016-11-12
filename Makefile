@@ -12,8 +12,8 @@ LDFLAGS =
 CC1 = cc1
 libutils_dir = libutils/
 libcpp_dir = libcpp/
-burg_dir = burg/
-BURG = $(burg_dir)burg
+burg_dir = 7burg/
+BURG = $(burg_dir)7burg
 LIBCPP = $(libcpp_dir)libcpp.a
 LIBUTILS = $(libutils_dir)libutils.a
 LIBUTILS_OBJ =
@@ -77,9 +77,9 @@ CC1_INC += cc.h
 
 7CC_OBJ = 7cc.o
 
-BURG_INC += $(burg_dir)burg.h
+BURG_INC += $(burg_dir)7burg.h
 
-BURG_OBJ += $(burg_dir)burg.o
+BURG_OBJ += $(burg_dir)7burg.o
 BURG_OBJ += $(burg_dir)grammar.o
 
 ifneq (, ${STAGE})
