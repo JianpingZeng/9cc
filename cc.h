@@ -230,7 +230,6 @@ struct init {
 #define OPID(op)      ((op) & 0x3FF)
 #define MKOPSIZE(op)  ((op) << 10)
 #define mkop(op, ty)  OPID((op) + ty2op(ty))
-#define MKINDEX(i)    ((i) << 4)
 
 /// op size
 // 1,2,4,8,16
@@ -246,49 +245,49 @@ enum { I = 1, U, F, P, S };
 // op kind
 enum {
     /// comma
-    RIGHT = MKINDEX(1),
+    RIGHT = 1<<4,
     /// cond
-    COND = MKINDEX(2),
+    COND = 2<<4,
     /// constant
-    CNST = MKINDEX(3),
+    CNST = 3<<4,
     /// address
-    ADDRG = MKINDEX(4),
-    ADDRP = MKINDEX(5),
-    ADDRL = MKINDEX(6),
+    ADDRG = 4<<4,
+    ADDRP = 5<<4,
+    ADDRL = 6<<4,
     /// indirection
-    INDIR = MKINDEX(7),
+    INDIR = 7<<4,
     /// binary
-    ASGN = MKINDEX(8),
-    MUL = MKINDEX(9),
-    DIV = MKINDEX(10),
-    ADD = MKINDEX(11),
-    SUB = MKINDEX(12),
-    MOD = MKINDEX(13),
-    SHL = MKINDEX(14),
-    SHR = MKINDEX(15),
-    BAND = MKINDEX(16),
-    BOR = MKINDEX(17),
-    XOR = MKINDEX(18),
-    EQ = MKINDEX(19),
-    NE = MKINDEX(20),
-    GT = MKINDEX(21),
-    GE = MKINDEX(22),
-    LT = MKINDEX(23),
-    LE = MKINDEX(24),
-    AND = MKINDEX(25),
-    OR = MKINDEX(26),
+    ASGN = 8<<4,
+    MUL = 9<<4,
+    DIV = 10<<4,
+    ADD = 11<<4,
+    SUB = 12<<4,
+    MOD = 13<<4,
+    SHL = 14<<4,
+    SHR = 15<<4,
+    BAND = 16<<4,
+    BOR = 17<<4,
+    XOR = 18<<4,
+    EQ = 19<<4,
+    NE = 20<<4,
+    GT = 21<<4,
+    GE = 22<<4,
+    LT = 23<<4,
+    LE = 24<<4,
+    AND = 25<<4,
+    OR = 26<<4,
     /// unary
-    NEG = MKINDEX(27),
-    BNOT = MKINDEX(28),
+    NEG = 27<<4,
+    BNOT = 28<<4,
     /// postfix
-    INITS = MKINDEX(29),
-    CALL = MKINDEX(30),
-    BFIELD = MKINDEX(31),
+    INITS = 29<<4,
+    CALL = 30<<4,
+    BFIELD = 31<<4,
     /// conversion
-    CVI = MKINDEX(32),
-    CVU = MKINDEX(33),
-    CVF = MKINDEX(34),
-    CVP = MKINDEX(35),
+    CVI = 32<<4,
+    CVU = 33<<4,
+    CVF = 34<<4,
+    CVP = 35<<4,
 };
 
 #define isaddrop(op)  (OPKIND(op) == ADDRL || \

@@ -2806,8 +2806,10 @@ do_arrayidx(struct type *atype, struct tree *assign, struct source src)
         // try evaluate the length
         if (isiliteral(assign)) {
             TYPE_LEN(atype) = assign->s.value.i;
-            if (assign->s.value.i < 0)
+            if (assign->s.value.i < 0) {
                 error_at(src, "array has negative size");
+                TYPE_LEN(atype) = 1;
+            }
         } else {
             error_at(src, "expect constant expression");
         }
