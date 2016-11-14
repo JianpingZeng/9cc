@@ -14,6 +14,34 @@ typedef struct tree TREE_TYPE;
 #define TREE_STATE(p)   ((p)->x.state)
 
 #define burg(name)  burg_##name
+
+enum {
+    RAX, RBX, RCX, RDX, RSI, RDI,
+    R8, R9, R10, R11, R12, R13, R14, R15,
+    NUM_IREGS,
+    RSP, RBP, RIP
+};
+
+enum {
+    XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
+    XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15,
+    NUM_FREGS
+};
+
+#define NUM_IARG_REGS  6
+#define NUM_FARG_REGS  8
+#define NUM_IRET_REGS  2
+#define NUM_FRET_REGS  2
+#define REG_SAVE_AREA_SIZE  (NUM_IARG_REGS * 8 + NUM_FARG_REGS * 16)
+#define STACK_PARAM_BASE_OFF  16
+
+static struct symbol *iregs[NUM_IREGS];
+static struct symbol *fregs[NUM_FREGS];
+static struct symbol *rsp, *rbp, *rip;
+static struct symbol *iarg_regs[NUM_IARG_REGS];
+static struct symbol *farg_regs[NUM_FARG_REGS];
+static struct symbol *iret_regs[NUM_IRET_REGS];
+static struct symbol *fret_regs[NUM_FRET_REGS];
 %}
 
 %term ADDRGP8=8259
@@ -66,10 +94,105 @@ addr: ADDRLP8                   ""
 
 static void init(int argc, char *argv[])
 {
+    iregs[RAX] = mkreg("%%rax", RAX, IREG);
+    reg_alias(iregs[RAX], Q, "%%rax");
+    reg_alias(iregs[RAX], L, "%%eax");
+    reg_alias(iregs[RAX], W, "%%ax");
+    reg_alias(iregs[RAX], B, "%%al");
+    
+    iregs[RBX] = mkreg("%%rbx", RBX, IREG);
+    reg_alias(iregs[RBX], Q, "%%rbx");
+    reg_alias(iregs[RBX], L, "%%ebx");
+    reg_alias(iregs[RBX], W, "%%bx");
+    reg_alias(iregs[RBX], B, "%%bl");
+    
+    iregs[RCX] = mkreg("%%rcx", RCX, IREG);
+    reg_alias(iregs[RCX], Q, "%%rcx");
+    reg_alias(iregs[RCX], L, "%%ecx");
+    reg_alias(iregs[RCX], W, "%%cx");
+    reg_alias(iregs[RCX], B, "%%cl");
+    
+    iregs[RDX] = mkreg("%%rdx", RDX, IREG);
+    reg_alias(iregs[RDX], Q, "%%rdx");
+    reg_alias(iregs[RDX], L, "%%edx");
+    reg_alias(iregs[RDX], W, "%%dx");
+    reg_alias(iregs[RDX], B, "%%dl");
+    
+    iregs[RSI] = mkreg("%%rsi", RSI, IREG);
+    reg_alias(iregs[RSI], Q, "%%rsi");
+    reg_alias(iregs[RSI], L, "%%esi");
+    reg_alias(iregs[RSI], W, "%%si");
+    reg_alias(iregs[RSI], B, "%%sil");
+    
+    iregs[RDI] = mkreg("%%rdi", RDI, IREG);
+    reg_alias(iregs[RDI], Q, "%%rdi");
+    reg_alias(iregs[RDI], L, "%%edi");
+    reg_alias(iregs[RDI], W, "%%di");
+    reg_alias(iregs[RDI], B, "%%dil");
+    
+    for (int i = R8, j = 8; i <= R15; i++, j++) {
+        iregs[i] = mkreg(format("%%r%d", j), i, IREG);
+        reg_alias(iregs[i], Q, format("%%r%d", j));
+        reg_alias(iregs[i], L, format("%%r%dd", j));
+        reg_alias(iregs[i], W, format("%%r%dw", j));
+        reg_alias(iregs[i], B, format("%%r%db", j));
+    }
+
+    for (int i = XMM0; i <= XMM15; i++) {
+        const char *name = format("%%xmm%d", i);
+        fregs[i] = mkreg(name, i, FREG);
+        reg_alias(fregs[i], Q, name);
+        reg_alias(fregs[i], L, name);
+    }
+
+    rsp = mksreg("%%rsp");
+    reg_alias(rsp, Q, "%%rsp");
+    reg_alias(rsp, L, "%%esp");
+    reg_alias(rsp, W, "%%sp");
+
+    rbp = mksreg("%%rbp");
+    reg_alias(rbp, Q, "%%rbp");
+    reg_alias(rbp, L, "%%ebp");
+    reg_alias(rbp, W, "%%bp");
+
+    rip = mksreg("%%rip");
+    reg_alias(rip, Q, "%%rip");
+    reg_alias(rip, L, "%%eip");
+    reg_alias(rip, W, "%%ip");
+
+    // preserved
+    reg_preserved(rsp);
+    reg_preserved(rbp);
+    reg_preserved(iregs[RBX]);
+    reg_preserved(iregs[R12]);
+    reg_preserved(iregs[R13]);
+    reg_preserved(iregs[R14]);
+    reg_preserved(iregs[R15]);
+
+    // integer args
+    iarg_regs[0] = iregs[RDI];
+    iarg_regs[1] = iregs[RSI];
+    iarg_regs[2] = iregs[RDX];
+    iarg_regs[3] = iregs[RCX];
+    iarg_regs[4] = iregs[R8];
+    iarg_regs[5] = iregs[R9];
+
+    // float args
+    for (int i = XMM0, j = 0; i < XMM8; i++, j++)
+        farg_regs[j] = fregs[i];
+
+    // integer return
+    iret_regs[0] = iregs[RAX];
+    iret_regs[1] = iregs[RDX];
+
+    // float return
+    fret_regs[0] = fregs[XMM0];
+    fret_regs[1] = fregs[XMM1];
 }
 
 static void finalize(void)
 {
+    print(".ident \"7cc: %s-%s-%s\"", VERSION, IR->os, IR->arch);
 }
 
 static void defvar(struct symbol *sym)
@@ -78,6 +201,8 @@ static void defvar(struct symbol *sym)
 
 static void defun(struct symbol *sym)
 {
+    gencode(sym);
+    emitcode(sym);
 }
 
 struct interface *IR = &(struct interface) {
@@ -106,7 +231,7 @@ struct interface *IR = &(struct interface) {
     .x = {
         .label = burg(label),
         .rule = burg(rule),
-        .kids = burg(nts_kids),
+        .nt_kids = burg(nts_kids),
         .rule_names = burg(rule_names),
         .nt_names = burg(nt_names),
         .templates = burg(rule_templates),

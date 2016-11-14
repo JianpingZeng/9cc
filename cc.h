@@ -147,10 +147,7 @@ struct symbol {
             struct symbol **ids; // enum ids
         } s;
     } u;
-    struct {
-        const char *name;
-        int label;              // for goto labels
-    } x;
+    struct xsymbol x;
     struct symbol *link;        // link in symtab
     struct symbol *local;       // link of local vars
 };
@@ -440,7 +437,7 @@ struct interface {
     struct metrics longdoublemetrics;
     struct metrics ptrmetrics;
     struct metrics voidmetrics;
-    struct xface x;
+    struct xinterface x;
 };
 
 
