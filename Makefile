@@ -13,6 +13,7 @@ CC1 = cc1
 libutils_dir = libutils/
 libcpp_dir = libcpp/
 burg_dir = 7burg/
+target_dir = amd64/
 BURG = $(burg_dir)7burg
 LIBCPP = $(libcpp_dir)libcpp.a
 LIBUTILS = $(libutils_dir)libutils.a
@@ -35,10 +36,11 @@ CC1_OBJ += tree.o
 CC1_OBJ += eval.o
 CC1_OBJ += print.o
 CC1_OBJ += gen.o
-CC1_OBJ += x86_64-linux.o
 
 CC1_INC += gen.h
 CC1_INC += cc.h
+
+TARGET_OBJ = $(target_dir)x86_64-linux.o
 
 7CC_OBJ = 7cc.o
 
@@ -66,14 +68,13 @@ all:: $(CONFIG_H) $(7CC) $(CC1)
 $(7CC): $(LIBUTILS) $(7CC_OBJ)
 	$(CC) $(7CC_OBJ) $(LIBUTILS) $(LDFLAGS) -o $@
 
-$(CC1): $(LIBUTILS) $(LIBCPP) $(CC1_OBJ)
-	$(CC) $(CC1_OBJ) $(LIBCPP) $(LIBUTILS) $(LDFLAGS) -o $@
+$(CC1): $(LIBUTILS) $(LIBCPP) $(CC1_OBJ) $(TARGET_OBJ)
+	$(CC) $(CC1_OBJ) $(TARGET_OBJ) $(LIBCPP) $(LIBUTILS) $(LDFLAGS) -o $@
 
 $(CC1_OBJ): $(CC1_INC) $(CONFIG_H)
 
-x86_64-linux.o: $(CC1_INC) $(CONFIG_H) $(BURG)
-	$(BURG) x86_64-linux.7 -o x86_64-linux.c
-	$(CC) $(CFLAGS) -c x86_64-linux.c -o $@
+$(TARGET_OBJ): $(CC1_INC) $(CONFIG_H) $(BURG)
+	cd $(target_dir) && make BURG=../$(BURG)
 
 $(BURG):
 	cd $(burg_dir) && make
@@ -136,8 +137,10 @@ objclean::
 	@cd $(burg_dir) && make clean
 	@cd $(libutils_dir) && make clean
 	@cd $(libcpp_dir) && make clean
+	@cd $(target_dir) && make clean
 
 clean:: objclean
-	$(RM) $(7CC) $(CC1) x86_64-linux.c
-	$(RM) stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3 $(CONFIG_H)
+	$(RM) $(7CC) $(CC1)
+	$(RM) stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3
+	$(RM) $(CONFIG_H)
 
