@@ -4,7 +4,7 @@
 #define WRN_EXPR_RESULT_NOT_USED  "expression result not used"
 
 static struct tree *root1(struct tree *p, int warn)
-{    
+{
     switch (OPKIND(p->op)) {
     case RIGHT:
         if (p->kids[1] == NULL)

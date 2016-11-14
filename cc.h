@@ -24,8 +24,8 @@ struct options {
     int Wall:1;
     int Werror:1;
     int ansi:1;
-    char *ifile;
-    char *ofile;
+    const char *ifile;
+    const char *ofile;
 };
 
 /*
@@ -360,13 +360,13 @@ struct actions {
     void (*tagdcl) (struct type *, int, int, struct source);
     decl_fp globaldcl, localdcl, paramdcl;
     void (*tydefdcl) (const char *, struct type *, int, int, struct source);
-    
+
     void (*arrayidx) (struct type *, struct tree *, struct source);
     struct symbol ** (*prototype) (struct type *, struct symbol *[]);
     struct symbol * (*enumid) (const char *, int, struct symbol *, struct source);
     void (*direct_field) (struct symbol *, struct field *);
     void (*indirect_field) (struct symbol *, struct field *);
-    
+
     /// expr
     struct tree * (*comma) (struct tree *, struct tree *, struct source);
     struct tree * (*assign) (int, struct tree *, struct tree *, struct source);
@@ -417,7 +417,7 @@ struct metrics {
 };
 
 // segments
-enum { TEXT, BSS, DATA };
+enum { TEXT = 1, BSS, DATA };
 
 // backend interface
 struct interface {
@@ -425,11 +425,16 @@ struct interface {
     const char *arch;
     void (*init) (int argc, char *argv[]);
     void (*finalize) (void);
+    void (*defsym) (struct symbol *);
     void (*defvar) (struct symbol *);
+    void (*export) (struct symbol *);
+    void (*local) (struct symbol *);
     void (*defun) (struct symbol *);
     void (*defconst) (struct tree *);
     void (*defaddress) (struct tree *);
+    void (*defstring) (struct tree *);
     void (*defzero) (int);
+    void (*segment) (int);
     void (*gen) (struct symbol *);
     void (*emit) (struct symbol *);
     struct metrics boolmetrics;
@@ -517,7 +522,7 @@ extern void emitcode(struct symbol *);
 // eval.c
 extern struct tree *eval(struct tree *, struct type *);
 extern struct tree *fold(int, struct type *, struct tree *, struct tree *);
- 
+
 // parser.c
 extern void translation_unit(void);
 extern void compound_stmt(void (*) (void), int, int, struct swtch *);

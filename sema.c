@@ -5,6 +5,7 @@
 
 static struct tree *condexpr(struct type *, struct tree *,
                              struct tree *, struct tree *);
+static void genvar(struct symbol *);
 struct func func;
 
 #define ERR_INCOMPATIBLE_CONV \
@@ -83,63 +84,65 @@ struct func func;
  *=================================================================*/
 
 // declare a global variable
-static void dclgvar(struct symbol *n)
+static void dclgvar(struct symbol *s)
 {
     if (opts.ast_dump)
-        ast_dump_vardecl(n);
+        ast_dump_vardecl(s);
 }
 
 // declare a function
-static void dclfun(struct symbol *n)
+static void dclfun(struct symbol *s)
 {
     if (opts.ast_dump)
-        ast_dump_funcdecl(n);
+        ast_dump_funcdecl(s);
 }
 
 // declare/define a type: struct/union/enum/typedef
-static void deftype(struct symbol *n)
+static void deftype(struct symbol *s)
 {
     if (opts.ast_dump)
-        ast_dump_typedecl(n);
+        ast_dump_typedecl(s);
 }
 
 // define a local variable
-static void deflvar(struct symbol *n)
+static void deflvar(struct symbol *s)
 {
-    link_lvar(n);
+    link_lvar(s);
 }
 
 // define a local static variable
-static void defsvar(struct symbol *n)
+static void defsvar(struct symbol *s)
 {
-    link_lvar(n);    
+    link_lvar(s);
     if (opts.ast_dump || errors())
         return;
-    IR->defvar(n);
+    genvar(s);
 }
 
 // define a global variable
-static void defgvar(struct symbol *n)
+static void defgvar(struct symbol *s)
 {
     if (opts.ast_dump) {
-        ast_dump_vardecl(n);
+        ast_dump_vardecl(s);
         return;
     }
     if (errors())
         return;
-    IR->defvar(n);
+    genvar(s);
 }
 
 // define a function
-static void defun(struct symbol *n)
+static void defun(struct symbol *s)
 {
     if (opts.ast_dump) {
-        ast_dump_funcdef(n);
+        ast_dump_funcdef(s);
         return;
     }
     if (errors())
         return;
-    IR->defun(n);
+    IR->defsym(s);
+    IR->segment(TEXT);
+    IR->defun(s);
 }
 
 // a funcall
@@ -153,6 +156,19 @@ static void funcall(struct type *fty, struct tree **args)
 /*=================================================================*
  *                           Private                               *
  *=================================================================*/
+
+static void genvar(struct symbol *s)
+{
+    int seg = s->u.init ? DATA : BSS;
+
+    IR->defsym(s);
+    if (seg == DATA && s->sclass != STATIC)
+        IR->export(s);
+    else if (seg == BSS && s->sclass == STATIC)
+        IR->local(s);
+    IR->segment(seg);
+    IR->defvar(s);
+}
 
 static void skip_balance(int l, int r, const char *name)
 {

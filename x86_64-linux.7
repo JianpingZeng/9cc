@@ -41,6 +41,8 @@ static struct symbol *iarg_regs[NUM_IARG_REGS];
 static struct symbol *farg_regs[NUM_FARG_REGS];
 static struct symbol *iret_regs[NUM_IRET_REGS];
 static struct symbol *fret_regs[NUM_FRET_REGS];
+
+static int cseg;
 %}
 
 %term ADDRGP8=8259
@@ -93,71 +95,60 @@ addr: ADDRLP8                   ""
 
 static void init(int argc, char *argv[])
 {
-    iregs[RAX] = mkreg("%%rax", RAX, IREG);
-    reg_alias(iregs[RAX], Q, "%%rax");
-    reg_alias(iregs[RAX], L, "%%eax");
-    reg_alias(iregs[RAX], W, "%%ax");
-    reg_alias(iregs[RAX], B, "%%al");
-    
-    iregs[RBX] = mkreg("%%rbx", RBX, IREG);
-    reg_alias(iregs[RBX], Q, "%%rbx");
-    reg_alias(iregs[RBX], L, "%%ebx");
-    reg_alias(iregs[RBX], W, "%%bx");
-    reg_alias(iregs[RBX], B, "%%bl");
-    
-    iregs[RCX] = mkreg("%%rcx", RCX, IREG);
-    reg_alias(iregs[RCX], Q, "%%rcx");
-    reg_alias(iregs[RCX], L, "%%ecx");
-    reg_alias(iregs[RCX], W, "%%cx");
-    reg_alias(iregs[RCX], B, "%%cl");
-    
-    iregs[RDX] = mkreg("%%rdx", RDX, IREG);
-    reg_alias(iregs[RDX], Q, "%%rdx");
-    reg_alias(iregs[RDX], L, "%%edx");
-    reg_alias(iregs[RDX], W, "%%dx");
-    reg_alias(iregs[RDX], B, "%%dl");
-    
-    iregs[RSI] = mkreg("%%rsi", RSI, IREG);
-    reg_alias(iregs[RSI], Q, "%%rsi");
-    reg_alias(iregs[RSI], L, "%%esi");
-    reg_alias(iregs[RSI], W, "%%si");
-    reg_alias(iregs[RSI], B, "%%sil");
-    
-    iregs[RDI] = mkreg("%%rdi", RDI, IREG);
-    reg_alias(iregs[RDI], Q, "%%rdi");
-    reg_alias(iregs[RDI], L, "%%edi");
-    reg_alias(iregs[RDI], W, "%%di");
-    reg_alias(iregs[RDI], B, "%%dil");
-    
+    iregs[RAX] = mkreg("%rax", RAX, IREG);
+    reg_alias(iregs[RAX], Q, "%rax");
+    reg_alias(iregs[RAX], L, "%eax");
+    reg_alias(iregs[RAX], W, "%ax");
+    reg_alias(iregs[RAX], B, "%al");
+
+    iregs[RBX] = mkreg("%rbx", RBX, IREG);
+    reg_alias(iregs[RBX], Q, "%rbx");
+    reg_alias(iregs[RBX], L, "%ebx");
+    reg_alias(iregs[RBX], W, "%bx");
+    reg_alias(iregs[RBX], B, "%bl");
+
+    iregs[RCX] = mkreg("%rcx", RCX, IREG);
+    reg_alias(iregs[RCX], Q, "%rcx");
+    reg_alias(iregs[RCX], L, "%ecx");
+    reg_alias(iregs[RCX], W, "%cx");
+    reg_alias(iregs[RCX], B, "%cl");
+
+    iregs[RDX] = mkreg("%rdx", RDX, IREG);
+    reg_alias(iregs[RDX], Q, "%rdx");
+    reg_alias(iregs[RDX], L, "%edx");
+    reg_alias(iregs[RDX], W, "%dx");
+    reg_alias(iregs[RDX], B, "%dl");
+
+    iregs[RSI] = mkreg("%rsi", RSI, IREG);
+    reg_alias(iregs[RSI], Q, "%rsi");
+    reg_alias(iregs[RSI], L, "%esi");
+    reg_alias(iregs[RSI], W, "%si");
+    reg_alias(iregs[RSI], B, "%sil");
+
+    iregs[RDI] = mkreg("%rdi", RDI, IREG);
+    reg_alias(iregs[RDI], Q, "%rdi");
+    reg_alias(iregs[RDI], L, "%edi");
+    reg_alias(iregs[RDI], W, "%di");
+    reg_alias(iregs[RDI], B, "%dil");
+
     for (int i = R8, j = 8; i <= R15; i++, j++) {
-        iregs[i] = mkreg(format("%%r%d", j), i, IREG);
-        reg_alias(iregs[i], Q, format("%%r%d", j));
-        reg_alias(iregs[i], L, format("%%r%dd", j));
-        reg_alias(iregs[i], W, format("%%r%dw", j));
-        reg_alias(iregs[i], B, format("%%r%db", j));
+        iregs[i] = mkreg(format("%r%d", j), i, IREG);
+        reg_alias(iregs[i], Q, format("%r%d", j));
+        reg_alias(iregs[i], L, format("%r%dd", j));
+        reg_alias(iregs[i], W, format("%r%dw", j));
+        reg_alias(iregs[i], B, format("%r%db", j));
     }
 
     for (int i = XMM0; i <= XMM15; i++) {
-        const char *name = format("%%xmm%d", i);
+        const char *name = format("%xmm%d", i);
         fregs[i] = mkreg(name, i, FREG);
         reg_alias(fregs[i], Q, name);
         reg_alias(fregs[i], L, name);
     }
 
-    rsp = mksreg("%%rsp");
-    reg_alias(rsp, Q, "%%rsp");
-    reg_alias(rsp, L, "%%esp");
-    reg_alias(rsp, W, "%%sp");
-
-    rbp = mksreg("%%rbp");
-    reg_alias(rbp, Q, "%%rbp");
-    reg_alias(rbp, L, "%%ebp");
-    reg_alias(rbp, W, "%%bp");
-
-    rip = mksreg("%%rip");
-    reg_alias(rip, Q, "%%rip");
-    reg_alias(rip, L, "%%eip");
-    reg_alias(rip, W, "%%ip");
+    rsp = mksreg("%rsp");
+    rbp = mksreg("%rbp");
+    rip = mksreg("%rip");
 
     // preserved
     reg_preserved(rsp);
@@ -196,14 +187,67 @@ static void finalize(void)
     print("\t.ident\t\"7cc: %s-%s-%s\"\n", VERSION, IR->os, IR->arch);
 }
 
-static void defvar(struct symbol *sym)
+static void defun(struct symbol *s)
 {
+    if (s->sclass != STATIC)
+        print("\t.globl %s\n", s->x.name);
+    print("\t.type\t%s, @function\n", s->x.name);
+    print("%s:\n", s->x.name);
+    print("\tpushq %s\n", rbp->name);
+    print("\tmovq %s, %s\n", rsp->name, rbp->name);
+    gencode(s);
+    emitcode(s);
+    print("\tleave\n");
+    print("\tret\n");
+    print("\t.size\t%s, .-%s\n", s->x.name, s->x.name);
 }
 
-static void defun(struct symbol *sym)
+static void defsym(struct symbol *s)
 {
-    gencode(sym);
-    emitcode(sym);
+    if (s->x.name)
+        return;
+    if (opts.fleading_underscore)
+        s->x.name = format("_%s", s->name);
+    else
+        s->x.name = s->name;
+}
+
+static void defvar(struct symbol *s)
+{
+    struct type *ty = s->type;
+    int align = TYPE_ALIGN(ty);
+    size_t size = TYPE_SIZE(ty);
+
+    if (cseg == DATA) {
+        print("\t.align %d\n", align);
+        print("\t.type\t%s, @object\n", s->x.name);
+        print("\t.size\t%s, %lu\n", s->x.name, size);
+        print("%s:\n", s->x.name);
+    } else if (cseg == BSS) {
+        print("\t.comm %s,%lu,%d\n", s->x.name, size, align);
+    }
+}
+
+static void export(struct symbol *s)
+{
+    print("\t.globl %s\n", s->x.name);
+}
+
+static void local(struct symbol *s)
+{
+    print("\t.local %s\n", s->x.name);
+}
+
+static void segment(int seg)
+{
+    if (cseg == seg)
+        return;
+    cseg = seg;
+    if (seg == TEXT)
+        print("\t.text\n");
+    else if (seg == DATA)
+        print("\t.data\n");
+    /* BSS: ignored */
 }
 
 struct interface *IR = &(struct interface) {
@@ -226,8 +270,12 @@ struct interface *IR = &(struct interface) {
     // func
     .init = init,
     .finalize = finalize,
+    .defsym = defsym,
     .defvar = defvar,
+    .export = export,
+    .local = local,
     .defun = defun,
+    .segment = segment,
     .gen = gen,
     .emit = emit,
     // xface
