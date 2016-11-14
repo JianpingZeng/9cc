@@ -230,13 +230,13 @@ static void cvff(struct type *ty, struct tree *l)
 
 static void cvpi(struct type *ty, struct tree *l)
 {
-    assert(TYPE_SIZE(ty) == TYPE_SIZE(unsignedptrtype) &&
+    assert(TYPE_SIZE(ty) == TYPE_SIZE(uptrtype) &&
            "Fatal: Non-converted pointer type");
 }
 
 static void cvip(struct type *ty, struct tree *l)
 {
-    assert(TYPE_SIZE(l->type) == TYPE_SIZE(unsignedptrtype) &&
+    assert(TYPE_SIZE(l->type) == TYPE_SIZE(uptrtype) &&
            "Fatal: Non-converted pointer type");
 }
 

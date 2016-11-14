@@ -1466,17 +1466,17 @@ static struct type *parse_specifiers(int *sclass, int *fspec)
     }
 
     if (type == CHAR && sign)
-        basety = sign == UNSIGNED ? unsignedchartype : signedchartype;
+        basety = sign == UNSIGNED ? uchartype : schartype;
     else if (size == SHORT)
-        basety = sign == UNSIGNED ? unsignedshorttype : shorttype;
+        basety = sign == UNSIGNED ? ushorttype : shorttype;
     else if (type == INT && size == LONG)
-        basety = sign == UNSIGNED ? unsignedlongtype : longtype;
+        basety = sign == UNSIGNED ? ulongtype : longtype;
     else if (size == LONG + LONG)
-        basety = sign == UNSIGNED ? unsignedlonglongtype : longlongtype;
+        basety = sign == UNSIGNED ? ullongtype : llongtype;
     else if (type == DOUBLE && size == LONG)
         basety = longdoubletype;
     else if (sign == UNSIGNED)
-        basety = unsignedinttype;
+        basety = uinttype;
 
     // qulifier
     if (cons)

@@ -4,34 +4,35 @@
 #include "cc.h"
 
 // predefined types
-struct type *chartype;                // char
-struct type *unsignedchartype;        // unsigned char
-struct type *signedchartype;          // signed char
-struct type *wchartype;               // wchar_t
-struct type *shorttype;               // short (int)
-struct type *unsignedshorttype;       // unsigned short (int)
-struct type *inttype;                 // int
-struct type *unsignedinttype;         // unsigned (int)
-struct type *longtype;                // long
-struct type *unsignedlongtype;        // unsigned long (int)
-struct type *longlongtype;            // long long (int)
-struct type *unsignedlonglongtype;    // unsigned long long (int)
-struct type *floattype;               // float
-struct type *doubletype;              // double
-struct type *longdoubletype;          // long double
-struct type *voidtype;                // void
-struct type *booltype;                // bool
-struct type *voidptype;               // void *
-struct type *funcptype;               // void (*) ()
-struct type *unsignedptrtype;         // unsigned integer alias for pointer type
-struct type *signedptrtype;           // signed integer alias for pointer type
+struct type *chartype;          // char
+struct type *uchartype;         // unsigned char
+struct type *schartype;         // signed char
+struct type *wchartype;         // wchar_t
+struct type *shorttype;         // short (int)
+struct type *ushorttype;        // unsigned short (int)
+struct type *inttype;           // int
+struct type *uinttype;          // unsigned (int)
+struct type *longtype;          // long
+struct type *ulongtype;         // unsigned long (int)
+struct type *llongtype;         // long long (int)
+struct type *ullongtype;        // unsigned long long (int)
+struct type *floattype;         // float
+struct type *doubletype;        // double
+struct type *longdoubletype;    // long double
+struct type *voidtype;          // void
+struct type *booltype;          // bool
+struct type *voidptype;         // void *
+struct type *funcptype;         // void (*) ()
+struct type *uptrtype;          // unsigned integer alias for pointer type
+struct type *sptrtype;          // signed integer alias for pointer type
 
 static struct type *alloc_type(void)
 {
     return NEWS0(struct type, PERM);
 }
 
-static struct type *install_type(const char *name, int kind, struct metrics m, int op)
+static struct type *
+install_type(const char *name, int kind, struct metrics m, int op)
 {
     struct type *ty = alloc_type();
 
@@ -82,22 +83,22 @@ void type_init(void)
     INSTALL(booltype,          "_Bool",                 _BOOL,         boolmetrics,        UNSIGNED);
     // char
     INSTALL(chartype,          "char",                  CHAR,          charmetrics,        INT);
-    INSTALL(unsignedchartype,  "unsigned char",         CHAR,          charmetrics,        UNSIGNED);
-    INSTALL(signedchartype,    "signed char",           CHAR,          charmetrics,        INT);
+    INSTALL(uchartype,         "unsigned char",         CHAR,          charmetrics,        UNSIGNED);
+    INSTALL(schartype,         "signed char",           CHAR,          charmetrics,        INT);
     // wchar_t
     INSTALL(wchartype,         "wchar_t",               UNSIGNED,      wcharmetrics,       UNSIGNED);
     // short
     INSTALL(shorttype,         "short",                 SHORT,         shortmetrics,       INT);
-    INSTALL(unsignedshorttype, "unsigned short",        SHORT,         shortmetrics,       UNSIGNED);
+    INSTALL(ushorttype,        "unsigned short",        SHORT,         shortmetrics,       UNSIGNED);
     // int
     INSTALL(inttype,           "int",                   INT,           intmetrics,         INT);
-    INSTALL(unsignedinttype,   "unsigned int",          UNSIGNED,      intmetrics,         UNSIGNED);
+    INSTALL(uinttype,          "unsigned int",          UNSIGNED,      intmetrics,         UNSIGNED);
     // long
     INSTALL(longtype,          "long",                  LONG,          longmetrics,        INT);
-    INSTALL(unsignedlongtype,  "unsigned long",         LONG,          longmetrics,        UNSIGNED);
+    INSTALL(ulongtype,         "unsigned long",         LONG,          longmetrics,        UNSIGNED);
     // long long
-    INSTALL(longlongtype,      "long long",             LONG + LONG,   longlongmetrics,    INT);
-    INSTALL(unsignedlonglongtype, "unsigned long long", LONG + LONG,   longlongmetrics,    UNSIGNED);
+    INSTALL(llongtype,         "long long",             LONG + LONG,   longlongmetrics,    INT);
+    INSTALL(ullongtype,        "unsigned long long",    LONG + LONG,   longlongmetrics,    UNSIGNED);
     // float
     INSTALL(floattype,         "float",                 FLOAT,         floatmetrics,       FLOAT);
     // double
@@ -112,8 +113,8 @@ void type_init(void)
 
 #undef INSTALL
 
-    unsignedptrtype = unsignedlongtype;
-    signedptrtype = longtype;
+    uptrtype = ulongtype;
+    sptrtype = longtype;
 }
 
 static int combine(int qual1, int qual2)

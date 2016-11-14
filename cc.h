@@ -594,7 +594,7 @@ extern short ty2op(struct type *);
 #define isfloat(ty)        (TYPE_OP(ty) == FLOAT)
 #define isarith(ty)        (isint(ty) || isfloat(ty))
 #define isscalar(ty)       (isarith(ty) || isptr(ty))
-#define isbool(ty)         (unqual(ty) == booltype)
+#define isbool(ty)         (TYPE_KIND(ty) == _BOOL)
 #define isptrto(ty, kind)  (isptr(ty) && TYPE_KIND(rtype(ty)) == kind)
 
 // alias
@@ -626,6 +626,11 @@ extern void print(const char *, ...);
 
 #define CC_UNAVAILABLE()  assert(0 && "unavailable code")
 
+#ifdef NDEBUG
+#define debug(x)  ((void)0)
+#else
+#define debug(x)  x
+#endif
 
 ///
 /// external variables
@@ -642,17 +647,17 @@ extern struct table *globals;
 extern struct table *externals;
 extern int cscope;              // current scope
 extern struct type *chartype;
-extern struct type *unsignedchartype;
-extern struct type *signedchartype;
+extern struct type *uchartype;
+extern struct type *schartype;
 extern struct type *wchartype;
 extern struct type *shorttype;
-extern struct type *unsignedshorttype;
+extern struct type *ushorttype;
 extern struct type *inttype;
-extern struct type *unsignedinttype;
+extern struct type *uinttype;
 extern struct type *longtype;
-extern struct type *unsignedlongtype;
-extern struct type *longlongtype;
-extern struct type *unsignedlonglongtype;
+extern struct type *ulongtype;
+extern struct type *llongtype;
+extern struct type *ullongtype;
 extern struct type *floattype;
 extern struct type *doubletype;
 extern struct type *longdoubletype;
@@ -660,7 +665,7 @@ extern struct type *voidtype;
 extern struct type *booltype;
 extern struct type *voidptype;
 extern struct type *funcptype;
-extern struct type *unsignedptrtype;
-extern struct type *signedptrtype;
+extern struct type *uptrtype;
+extern struct type *sptrtype;
 
 #endif

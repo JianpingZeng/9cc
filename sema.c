@@ -228,68 +228,68 @@ static struct type *integer_constant(struct token *t)
 
     // character constant
     if (is_char_cnst(t))
-        return t->u.lit.wide ? wchartype : unsignedchartype;
+        return t->u.lit.wide ? wchartype : uchartype;
 
     switch (suffix) {
     case UNSIGNED + LONG + LONG:
-        ty = unsignedlonglongtype;
+        ty = ullongtype;
         break;
     case LONG + LONG:
-        if (n > INTEGER_MAX(longlongtype) && base != 0)
-            ty = unsignedlonglongtype;
+        if (n > INTEGER_MAX(llongtype) && base != 0)
+            ty = ullongtype;
         else
-            ty = longlongtype;
+            ty = llongtype;
         break;
     case UNSIGNED + LONG:
-        if (n > UINTEGER_MAX(unsignedlongtype))
-            ty = unsignedlonglongtype;
+        if (n > UINTEGER_MAX(ulongtype))
+            ty = ullongtype;
         else
-            ty = unsignedlongtype;
+            ty = ulongtype;
         break;
     case LONG:
         if (base == 0) {
             if (n > INTEGER_MAX(longtype))
-                ty = longlongtype;
+                ty = llongtype;
             else
                 ty = longtype;
         } else {
-            if (n > INTEGER_MAX(longlongtype))
-                ty = unsignedlonglongtype;
-            else if (n > UINTEGER_MAX(unsignedlongtype))
-                ty = longlongtype;
+            if (n > INTEGER_MAX(llongtype))
+                ty = ullongtype;
+            else if (n > UINTEGER_MAX(ulongtype))
+                ty = llongtype;
             else if (n > INTEGER_MAX(longtype))
-                ty = unsignedlongtype;
+                ty = ulongtype;
             else
                 ty = longtype;
         }
         break;
     case UNSIGNED:
-        if (n > UINTEGER_MAX(unsignedlongtype))
-            ty = unsignedlonglongtype;
-        else if (n > UINTEGER_MAX(unsignedinttype))
-            ty = unsignedlongtype;
+        if (n > UINTEGER_MAX(ulongtype))
+            ty = ullongtype;
+        else if (n > UINTEGER_MAX(uinttype))
+            ty = ulongtype;
         else
-            ty = unsignedinttype;
+            ty = uinttype;
         break;
     default:
         if (base == 0) {
             if (n > INTEGER_MAX(longtype))
-                ty = longlongtype;
+                ty = llongtype;
             else if (n > INTEGER_MAX(inttype))
                 ty = longtype;
             else
                 ty = inttype;
         } else {
-            if (n > INTEGER_MAX(longlongtype))
-                ty = unsignedlonglongtype;
-            else if (n > UINTEGER_MAX(unsignedlongtype))
-                ty = longlongtype;
+            if (n > INTEGER_MAX(llongtype))
+                ty = ullongtype;
+            else if (n > UINTEGER_MAX(ulongtype))
+                ty = llongtype;
             else if (n > INTEGER_MAX(longtype))
-                ty = unsignedlongtype;
-            else if (n > UINTEGER_MAX(unsignedinttype))
+                ty = ulongtype;
+            else if (n > UINTEGER_MAX(uinttype))
                 ty = longtype;
             else if (n > INTEGER_MAX(inttype))
-                ty = unsignedinttype;
+                ty = uinttype;
             else
                 ty = inttype;
         }
@@ -297,7 +297,7 @@ static struct type *integer_constant(struct token *t)
     }
 
     // overflow
-    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(longlongtype))
+    if (TYPE_OP(ty) == INT && n > INTEGER_MAX(llongtype))
         error("integer constant overflow: %s", TOK_LIT_STR(t));
 
     return ty;
@@ -527,14 +527,14 @@ static struct tree *cast_arith(struct type *ty, struct tree *n)
 
 static struct tree *castip(struct type *ty, struct tree *n)
 {    
-    n = cast_arith(unsignedptrtype, n);
+    n = cast_arith(uptrtype, n);
         
     return fold(mkop(CVU, ty), ty, n, NULL);
 }
 
 static struct tree *castpi(struct type *ty, struct tree *n)
 {
-    n = fold(mkop(CVP, unsignedptrtype), unsignedptrtype, n, NULL);
+    n = fold(mkop(CVP, uptrtype), uptrtype, n, NULL);
 
     return cast_arith(ty, n);
 }
@@ -700,11 +700,11 @@ static struct type *conv2(struct type *l, struct type *r)
         return s;
     } else {
         if (s == inttype)
-            return unsignedinttype;
+            return uinttype;
         else if (s == longtype)
-            return unsignedlongtype;
+            return ulongtype;
         else
-            return unsignedlonglongtype;
+            return ullongtype;
     }
 
     return l;
@@ -1053,7 +1053,7 @@ member(struct tree *addr, const char *name, struct source src)
 
     addr = fold(ADD+P, pfty,
                 addr,
-                cnsti(field->offset, unsignedptrtype));
+                cnsti(field->offset, uptrtype));
 
     if (direct(field)->isbit) {
         // bit field
@@ -1124,9 +1124,9 @@ bop_add(int op, struct tree *l, struct tree *r, struct source src)
 
         size = TYPE_SIZE(rtype(ty1));
         if (size > 1)
-            r = actions.bop('*', r, cnsti(size, unsignedptrtype), src);
+            r = actions.bop('*', r, cnsti(size, uptrtype), src);
 
-        return fold(mkop(op, ty1), ty1, l, cast(unsignedptrtype, r));
+        return fold(mkop(op, ty1), ty1, l, cast(uptrtype, r));
     } else if (isint(ty1) && isptr(ty2)) {
         size_t size;
             
@@ -1135,9 +1135,9 @@ bop_add(int op, struct tree *l, struct tree *r, struct source src)
 
         size = TYPE_SIZE(rtype(ty2));
         if (size > 1)
-            l = actions.bop('*', l, cnsti(size, unsignedptrtype), src);
+            l = actions.bop('*', l, cnsti(size, uptrtype), src);
 
-        return fold(mkop(op, ty2), ty2, cast(unsignedptrtype, l), r);
+        return fold(mkop(op, ty2), ty2, cast(uptrtype, l), r);
     } else {
         error_at(src, ERR_BOP_OPERANDS, ty1, ty2);
         return NULL;
@@ -1162,9 +1162,9 @@ bop_sub(int op, struct tree *l, struct tree *r, struct source src)
 
         size = TYPE_SIZE(rtype(ty1));
         if (size > 1)
-            r = actions.bop('*', r, cnsti(size, unsignedptrtype), src);
+            r = actions.bop('*', r, cnsti(size, uptrtype), src);
 
-        return fold(mkop(op, ty1), ty1, l, cast(unsignedptrtype, r));
+        return fold(mkop(op, ty1), ty1, l, cast(uptrtype, r));
     } else if (isptr(ty1) && isptr(ty2)) {        
         if (!addable_ptr(l, src) || !addable_ptr(r, src))
             return NULL;
@@ -1200,7 +1200,7 @@ bop_rel(int op, struct tree *l, struct tree *r, struct source src)
             return NULL;
         }
 
-        ty = unsignedptrtype;
+        ty = uptrtype;
     } else if (isptr(ty1) && isint(ty2)) {
         // ptr op int
         if (opts.ansi) {
@@ -1212,7 +1212,7 @@ bop_rel(int op, struct tree *l, struct tree *r, struct source src)
                        TYPE_NAME(ty1), TYPE_NAME(ty2));
         }
 
-        ty = conv2(unsignedptrtype, ty2);
+        ty = conv2(uptrtype, ty2);
     } else if (isint(ty1) && isptr(ty2)) {
         // int op ptr
         if (opts.ansi) {
@@ -1224,7 +1224,7 @@ bop_rel(int op, struct tree *l, struct tree *r, struct source src)
                        TYPE_NAME(ty1), TYPE_NAME(ty2));
         }
 
-        ty = conv2(ty1, unsignedptrtype);
+        ty = conv2(ty1, uptrtype);
     } else {
         error_at(src, ERR_COMPARISION_INCOMPATIBLE, ty1, ty2);
         return NULL;
@@ -1247,16 +1247,16 @@ bop_eq(int op, struct tree *l, struct tree *r, struct source src)
         ty = conv2(ty1, ty2);
     } else if (isptr(ty1) && isnullptr(r)) {
         // ptr NULL
-        ty = unsignedptrtype;
+        ty = uptrtype;
     } else if (isnullptr(l) && isptr(ty2)) {
         // NULL ptr
-        ty = unsignedptrtype;
+        ty = uptrtype;
     } else if (isptr(ty1) && isptrto(ty2, VOID)) {
         // ptr (void *)
-        ty = unsignedptrtype;
+        ty = uptrtype;
     } else if (isptrto(ty1, VOID) && isptr(ty2)) {
         // (void *) ptr
-        ty = unsignedptrtype;
+        ty = uptrtype;
     }  else if (isptr(ty1) && isptr(ty2)) {
         // both ptr
         if (!compatible(rtype(ty1), rtype(ty2))) {
@@ -1264,7 +1264,7 @@ bop_eq(int op, struct tree *l, struct tree *r, struct source src)
             return NULL;
         }
         
-        ty = unsignedptrtype;
+        ty = uptrtype;
     } else {
         error_at(src, ERR_COMPARISION_INCOMPATIBLE, ty1, ty2);
         return NULL;
@@ -1625,7 +1625,7 @@ do_sizeofop(struct type *ty, struct tree *n, struct source src)
         return NULL;
     }
 
-    return cnsti(TYPE_SIZE(ty), unsignedlongtype);
+    return cnsti(TYPE_SIZE(ty), ulongtype);
 }
 
 /// postfix
