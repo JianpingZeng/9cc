@@ -34,8 +34,8 @@ enum { B, W, L, Q };
 
 extern struct symbol *mkreg(const char *, int, int);
 extern struct symbol *mksreg(const char *);
-extern void gencode(struct symbol *);
-extern void emitcode(struct symbol *);
+extern void gen(struct symbol *s);
+extern void emit(struct symbol *s);
 
 #define reg_alias(s, i, name)                           \
     do { (s)->x.reg.alias[i] = name; } while (0)

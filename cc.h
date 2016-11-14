@@ -504,6 +504,8 @@ extern struct desig *copy_desig(struct desig *);
 extern struct tree *root(struct tree *);
 extern struct tree *addrof(struct tree *);
 extern struct tree *rightkid(struct tree *);
+extern void gencode(struct symbol *);
+extern void emitcode(struct symbol *);
 
 // eval.c
 extern struct tree *eval(struct tree *, struct type *);

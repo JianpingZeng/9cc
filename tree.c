@@ -156,3 +156,13 @@ struct tree *rightkid(struct tree *expr)
     }
     return expr;
 }
+
+void gencode(struct symbol *s)
+{
+    
+}
+
+void emitcode(struct symbol *s)
+{
+    
+}

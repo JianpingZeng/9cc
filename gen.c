@@ -23,22 +23,12 @@ struct symbol *mksreg(const char *name)
     return s;
 }
 
-void gencode(struct symbol *s)
+void gen(struct symbol *s)
 {
     
 }
 
-void emitcode(struct symbol *s)
-{
-    
-}
-
-static void gen(struct symbol *s)
-{
-    
-}
-
-static void emit(struct symbol *s)
+void emit(struct symbol *s)
 {
     
 }
