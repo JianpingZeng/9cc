@@ -6,14 +6,12 @@ struct options opts;
 
 static void parse_opts(int argc, char *argv[])
 {
-    const char *ifile = NULL, *ofile = NULL;
-
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (!strcmp(arg, "-o")) {
             if (++i >= argc)
                 die("missing target file while -o option given");
-            ofile = argv[i];
+            opts.ofile = argv[i];
         } else if (!strcmp(arg, "-ast-dump")) {
             opts.ast_dump = true;
         } else if (!strcmp(arg, "-Werror")) {
@@ -27,17 +25,17 @@ static void parse_opts(int argc, char *argv[])
         } else if (!strcmp(arg, "-ansi")) {
             opts.ansi = true;
         } else if (arg[0] != '-' || !strcmp(arg, "-")) {
-            if (ifile == NULL)
-                ifile = arg;
-            else if (ofile == NULL)
-                ofile = arg;
+            if (opts.ifile == NULL)
+                opts.ifile = arg;
+            else if (opts.ofile == NULL)
+                opts.ofile = arg;
         }
     }
 
     // reopen stdout
-    if (ofile && strcmp(ofile, "-")) {
-        if (freopen(ofile, "w", stdout) == NULL)
-            die("can't write file: %s", ofile);
+    if (opts.ofile && strcmp(opts.ofile, "-")) {
+        if (freopen(opts.ofile, "w", stdout) == NULL)
+            die("can't write file: %s", opts.ofile);
     }
 }
 

@@ -24,6 +24,8 @@ struct options {
     int Wall:1;
     int Werror:1;
     int ansi:1;
+    char *ifile;
+    char *ofile;
 };
 
 /*
@@ -425,6 +427,11 @@ struct interface {
     void (*finalize) (void);
     void (*defvar) (struct symbol *);
     void (*defun) (struct symbol *);
+    void (*defconst) (struct tree *);
+    void (*defaddress) (struct tree *);
+    void (*defzero) (int);
+    void (*gen) (struct symbol *);
+    void (*emit) (struct symbol *);
     struct metrics boolmetrics;
     struct metrics charmetrics;
     struct metrics shortmetrics;

@@ -23,6 +23,11 @@ struct symbol *mksreg(const char *name)
     return s;
 }
 
+static void rewrite(void)
+{
+    
+}
+
 void gen(struct symbol *s)
 {
     

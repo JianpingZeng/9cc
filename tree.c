@@ -159,10 +159,10 @@ struct tree *rightkid(struct tree *expr)
 
 void gencode(struct symbol *s)
 {
-    
+    IR->gen(s);
 }
 
 void emitcode(struct symbol *s)
 {
-    
+    IR->emit(s);
 }

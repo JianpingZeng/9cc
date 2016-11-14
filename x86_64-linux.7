@@ -187,11 +187,13 @@ static void init(int argc, char *argv[])
     // float return
     fret_regs[0] = fregs[XMM0];
     fret_regs[1] = fregs[XMM1];
+
+    print("\t.file\t\"%s\"\n", sys_basename(opts.ifile));
 }
 
 static void finalize(void)
 {
-    print(".ident \"7cc: %s-%s-%s\"", VERSION, IR->os, IR->arch);
+    print("\t.ident\t\"7cc: %s-%s-%s\"\n", VERSION, IR->os, IR->arch);
 }
 
 static void defvar(struct symbol *sym)
@@ -226,6 +228,8 @@ struct interface *IR = &(struct interface) {
     .finalize = finalize,
     .defvar = defvar,
     .defun = defun,
+    .gen = gen,
+    .emit = emit,
     // xface
     .x = {
         .label = burg(label),

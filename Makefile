@@ -40,7 +40,9 @@ CC1_OBJ += gen.o
 CC1_INC += gen.h
 CC1_INC += cc.h
 
-TARGET_OBJ = $(target_dir)x86_64-linux.o
+TARGET_SPEC = x86_64-linux.7
+TARGET_OBJ = x86_64-linux.o
+TARGET_SRC = x86_64-linux.c
 
 7CC_OBJ = 7cc.o
 
@@ -73,8 +75,11 @@ $(CC1): $(LIBUTILS) $(LIBCPP) $(CC1_OBJ) $(TARGET_OBJ)
 
 $(CC1_OBJ): $(CC1_INC) $(CONFIG_H)
 
-$(TARGET_OBJ): $(CC1_INC) $(CONFIG_H) $(BURG)
-	cd $(target_dir) && make BURG=../$(BURG)
+$(TARGET_OBJ): $(TARGET_SRC)
+	$(CC) $(CFLAGS) -c $(TARGET_SRC) -o $@
+
+$(TARGET_SRC): $(TARGET_SPEC) $(CC1_INC) $(CONFIG_H) $(BURG)
+	$(BURG) $(TARGET_SPEC) -o $@
 
 $(BURG):
 	cd $(burg_dir) && make
@@ -137,10 +142,10 @@ objclean::
 	@cd $(burg_dir) && make clean
 	@cd $(libutils_dir) && make clean
 	@cd $(libcpp_dir) && make clean
-	@cd $(target_dir) && make clean
 
 clean:: objclean
 	$(RM) $(7CC) $(CC1)
 	$(RM) stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3
 	$(RM) $(CONFIG_H)
+	$(RM) $(TARGET_SRC)
 
