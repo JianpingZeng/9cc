@@ -16,7 +16,7 @@ unsigned int strhash(const char *s)
     return hash;
 }
 
-unsigned int strhashn(const char *s, size_t len)
+unsigned int strnhash(const char *s, size_t len)
 {
     unsigned int hash = FNV32_BASIS;
     for (size_t i = 0; i < len; i++, s++) {

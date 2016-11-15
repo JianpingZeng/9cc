@@ -16,7 +16,7 @@ char *strn(const char *src, size_t len)
     unsigned int hash;
     char *dst;
 
-    hash = strhashn(src, len) & (ARRAY_SIZE(strtab) - 1);
+    hash = strnhash(src, len) & (ARRAY_SIZE(strtab) - 1);
     for (p = strtab[hash]; p; p = p->link) {
         if (p->len == len && !memcmp(src, p->str, len))
             return p->str;
