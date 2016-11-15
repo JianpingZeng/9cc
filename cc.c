@@ -3,6 +3,12 @@
 #include "cc.h"
 
 struct options opts;
+char debug[128];
+
+static void dgb(void)
+{
+    D(debug['y'] = true);
+}
 
 static void parse_opts(int argc, char *argv[])
 {
@@ -54,6 +60,7 @@ int main(int argc, char *argv[])
 {
     atexit(doexit);
     parse_opts(argc, argv);
+    dgb();
     actions.init(argc, argv);
     symbol_init();
     type_init();

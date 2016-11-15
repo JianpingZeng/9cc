@@ -45,21 +45,22 @@ static void usage(void)
             "USAGE: %s [options] <files>\n\n"
             "OPTIONS:\n", progname, VERSION, progname);
     fprintf(stderr,
+            "  -ansi           Strict type checking\n"
             "  -ast-dump       Only print abstract syntax tree\n"
             "  -c              Only run preprocess, compile and assemble steps\n"
-            "  -Dname          \n"
-            "  -Dname=value    Define a macro\n"
-            "  -Uname          Undefine a macro\n"
+            "  -Dname          Define a macro\n"
+            "  -Dname=value    Define a macro with value\n"
             "  -E              Only run the preprocessor\n"
             "  -h, --help      Display available options\n"
             "  -Idir           Add dir to include search path\n"
-            "  -lx             Search for library x\n"
             "  -Ldir           Add dir to library search path\n"
+            "  -lx             Search for library x\n"
             "  -o <file>       Write output to <file>\n"
             "  -S              Only run preprocess and compilation steps\n"
+            "  -Uname          Undefine a macro\n"
+            "  -v, --version   Display version and options\n"
             "  -Wall           Enable all warnings\n"
-            "  -Werror         Treat warnings as errors\n"
-            "  -v, --version   Display version and options\n");
+            "  -Werror         Treat warnings as errors\n");
 }
 
 static void parse_opts(int argc, char *argv[])
@@ -95,7 +96,8 @@ static void parse_opts(int argc, char *argv[])
                    !strncmp(arg, "-U", 2) ||
                    !strcmp(arg, "-g") ||
                    !strncmp(arg, "-std=", 5) ||
-                   !strncmp(arg, "-O", 2)) {
+                   !strncmp(arg, "-O", 2) ||
+                   !strcmp(arg, "-ansi")) {
             clist = list_append(clist, arg);
         } else if (!strncmp(arg, "-l", 2) ||
                    !strncmp(arg, "-L", 2)) {
