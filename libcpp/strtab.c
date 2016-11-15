@@ -3,44 +3,35 @@
 #include "libutils/utils.h"
 
 struct strtab {
-    struct strbucket {
-        char *str;
-        size_t len;
-        struct strbucket *next;
-    } *buckets[1024];
+    char *str;
+    size_t len;
+    struct strtab *link;
 };
+
+static struct strtab *strtab[1024];
 
 char *strn(const char *src, size_t len)
 {
-    static struct strtab *table;
-    struct strbucket *ps;
+    struct strtab *p;
     unsigned int hash;
+    char *dst;
 
-    if (src == NULL || len <= 0)
-        return NULL;
-
-    if (!table)
-        table = zmalloc(sizeof(struct strtab));
-
-    hash = strhashn(src, len);
-    hash = hash & (ARRAY_SIZE(table->buckets) - 1);
-    for (ps = table->buckets[hash]; ps; ps = ps->next) {
-        if (ps->len == len &&
-            !memcmp(src, ps->str, len))
-            return ps->str;
+    hash = strhashn(src, len) & (ARRAY_SIZE(strtab) - 1);
+    for (p = strtab[hash]; p; p = p->link) {
+        if (p->len == len && !memcmp(src, p->str, len))
+            return p->str;
     }
 
     // alloc
-    char *dst = xmalloc(len + 1);
-    ps = xmalloc(sizeof(struct strbucket));
-    ps->str = dst;
-    ps->len = len;
+    dst = xmalloc(len + 1);
+    p = xmalloc(sizeof(struct strtab));
+    p->str = dst;
+    p->len = len;
     memcpy(dst, src, len);
     dst[len] = '\0';
-    ps->next = table->buckets[hash];
-    table->buckets[hash] = ps;
-
-    return ps->str;
+    p->link = strtab[hash];
+    strtab[hash] = p;
+    return p->str;
 }
 
 char *strs(const char *str)
