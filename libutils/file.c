@@ -13,7 +13,6 @@
 // uname
 #include <sys/utsname.h>
 
-#include "config.h"
 #include "utils.h"
 
 /**
@@ -24,17 +23,17 @@
  * to pass a copy when calling one of these functions.
  */
 
-char *sys_dirname(const char *path)
+char *xdirname(const char *path)
 {
     return dirname(xstrdup(path));
 }
 
-char *sys_basename(const char *path)
+char *xbasename(const char *path)
 {
     return basename(xstrdup(path));
 }
 
-const char *sys_mktmpdir()
+const char *mktmpdir()
 {
     static char template[] = "/tmp/7cc.tmp.XXXXXX";
     // reset suffix every time
@@ -42,13 +41,13 @@ const char *sys_mktmpdir()
     return mkdtemp(template);
 }
 
-int file_exists(const char *path)
+int fexists(const char *path)
 {
     struct stat st;
     return stat(path, &st) == 0;
 }
 
-long file_size(const char *path)
+long fsize(const char *path)
 {
     struct stat st;
     if (stat(path, &st) == 0)
@@ -57,7 +56,7 @@ long file_size(const char *path)
         return 0;
 }
 
-int sys_call(const char *file, char **argv)
+int proc(const char *file, char **argv)
 {
     pid_t pid;
     int ret = EXIT_SUCCESS;
@@ -68,7 +67,8 @@ int sys_call(const char *file, char **argv)
     } else if (pid > 0) {
         int status;
         int n;
-        while ((n = waitpid(pid, &status, 0)) != pid || (n == -1 && errno == EINTR))
+        while ((n = waitpid(pid, &status, 0)) != pid ||
+               (n == -1 && errno == EINTR))
             ; // may be EINTR by a signal, so loop it.
         if (n != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
             ret = EXIT_FAILURE;
@@ -80,12 +80,7 @@ int sys_call(const char *file, char **argv)
     return ret;
 }
 
-/* TODO:
- *  Functions below are quick and dirty, not robust at all.
- *  
- */
-
-const char *replace_suffix(const char *path, const char *suffix)
+const char *resuffix(const char *path, const char *suffix)
 {
     assert(path && suffix);
     int dot_index = -1;
@@ -112,7 +107,7 @@ const char *replace_suffix(const char *path, const char *suffix)
     return p;
 }
 
-const char *file_suffix(const char *path)
+const char *fsuffix(const char *path)
 {
     const char *dot = strrchr(path, '.');
     if (!dot || *dot == '\0')
@@ -120,17 +115,17 @@ const char *file_suffix(const char *path)
     return dot + 1;
 }
 
-int sys_rmdir(const char *dir)
+int rmdir(const char *dir)
 {
     char command[64];
     snprintf(command, sizeof(command), "rm -rf %s", dir);
     return system(command);
 }
 
-const char *sys_abspath(const char *path)
+char *abspath(const char *path)
 {
     if (!path || !strlen(path))
-        return path;
+        return NULL;
     if (path[0] == '~') {
         const char *home = getenv("HOME");
         int hlen = strlen(home);
@@ -149,7 +144,7 @@ const char *sys_abspath(const char *path)
     }
 }
 
-const char *sys_join(const char *dir, const char *name)
+const char *join(const char *dir, const char *name)
 {
     if (name[0] == '/')
         return strdup(name);
@@ -174,107 +169,3 @@ const char *sys_join(const char *dir, const char *name)
 
     return p;
 }
-
-#ifdef CONFIG_LINUX
-
-/**
- * $0: output file
- * $1: input files
- * $2: additional options
- */
-
-#ifdef CONFIG_LIB64
-
-#define CRT_DIR  "/usr/lib64/"
-
-#else
-
-#define CRT_DIR  "/usr/lib/x86_64-linux-gnu/"
-
-#endif
-
-char *ld[] = {
-    "ld",
-    "-A", "x86_64",
-    "-o", "$0",
-    "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
-    CRT_DIR "crt1.o",
-    CRT_DIR "crti.o",
-    "$1", "$2",
-    "-lc", "-lm",
-    CRT_DIR "crtn.o",
-    NULL
-};
-char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
-char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
-
-struct vector *sys_include_dirs(void)
-{
-    struct vector *v = vec_new();
-    vec_push(v, BUILD_DIR "/include");
-    vec_push(v, "/usr/include");
-    vec_push(v, "/usr/include/linux");
-    vec_push(v, "/usr/include/x86_64-linux-gnu");
-    return v;
-}
-
-void sys_setup(void)
-{
-}
-
-#elif defined (CONFIG_DARWIN)
-
-// trace
-#include <execinfo.h>
-#include <signal.h>
-
-/**
- * $0: output file
- * $1: input files
- * $2: additional options
- */
-
-char *ld[] = {
-    "ld",
-    "-o", "$0",
-    "$1", "$2",
-    "-lc", "-lm",
-    "-macosx_version_min", OSX_SDK_VERSION,
-    "-arch", "x86_64",
-    NULL
-};
-
-char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
-char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
-
-struct vector *sys_include_dirs(void)
-{
-    struct vector *v = vec_new();
-    vec_push(v, BUILD_DIR "/include");
-    vec_push(v, XCODE_DIR "/usr/include");
-    return v;
-}
-
-static void handler(int sig)
-{
-    void *array[20];
-    size_t size;
-
-    size = backtrace(array, sizeof array / sizeof array[0]);
-
-    fprintf(stderr, "Stack trace:\n");
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
-    exit(EXIT_FAILURE);
-}
-
-void sys_setup(void)
-{
-    signal(SIGSEGV, handler);
-    signal(SIGABRT, handler);
-}
-
-#else
-
-#error "unknown platform"
-
-#endif

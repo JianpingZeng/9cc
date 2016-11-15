@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "config.h"
 #include "libutils/color.h"
 #include "lex.h"
 #include "internal.h"
 
-static void cc_print_lead(int tag, struct source src, const char *fmt, va_list ap)
+static void
+cc_print_lead(int tag, struct source src, const char *fmt, va_list ap)
 {
     const char *lead;
     switch (tag) {

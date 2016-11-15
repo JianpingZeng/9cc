@@ -88,4 +88,7 @@ struct _cpp_file {
     struct _cpp_file *next;
 };
 
+// sys.c
+extern struct vector *sys_include_dirs(void);
+
 #endif

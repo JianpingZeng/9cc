@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "config.h"
 #include "libutils/color.h"
 #include "cc.h"
 

@@ -61,13 +61,24 @@ extern void deallocate(unsigned int a);
 #define NEWS0(s, a)  NEW0(sizeof(s), a)
 enum { PERM = 0, FUNC };
 
+// file.c
+extern char *xdirname(const char *path);
+extern char *xbasename(const char *path);
+extern const char *mktmpdir();
+extern int rmdir(const char *dir);
+extern char *abspath(const char *path);
+extern const char *join(const char *dir, const char *name);
+extern int fexists(const char *path);
+extern long fsize(const char *path);
+extern const char *fsuffix(const char *path);
+extern const char *resuffix(const char *path, const char *suffix);
+extern int proc(const char *file, char **argv);
+
 // vector.c
 #include "vector.h"
 // strbuf.c
 #include "strbuf.h"
 // list.c
 #include "list.h"
-// sys.c
-#include "sys.h"
 
 #endif

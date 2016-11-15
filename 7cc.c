@@ -13,6 +13,9 @@
 #include "config.h"
 #include "libutils/utils.h"
 
+static char *ld[];
+static char *as[];
+static char *cc[];
 static const char *progname;
 static struct vector *inputs;
 static const char *output;
@@ -131,20 +134,21 @@ static void parse_opts(int argc, char *argv[])
 static const char *tempname(const char *dir, const char *hint)
 {
     static long index;
-    const char *base = sys_basename(hint);
+    const char *base = xbasename(hint);
     const char *name = base;
     const char *path;
 
  beg:
-    path = sys_join(dir, name);
-    if (file_exists(path)) {
+    path = join(dir, name);
+    if (fexists(path)) {
         name = format("%d.%s", index++, base);
         goto beg;
     }
     return path;
 }
 
-static char **compose(char *argv[], struct vector *ifiles, const char *ofile,
+static char **compose(char *argv[],
+                      struct vector *ifiles, const char *ofile,
                       struct vector *options)
 {
     size_t argc = length(argv);
@@ -177,13 +181,13 @@ static char **compose(char *argv[], struct vector *ifiles, const char *ofile,
 static int link(struct vector *ifiles, const char *ofile,
                 struct vector *options)
 {
-    return sys_call(ld[0], compose(ld, ifiles, ofile, options));
+    return proc(ld[0], compose(ld, ifiles, ofile, options));
 }
 
 static int assemble(const char *ifile, const char *ofile)
 {
     struct vector *ifiles = vec_new1((char *)ifile);
-    return sys_call(as[0], compose(as, ifiles, ofile, NULL));
+    return proc(as[0], compose(as, ifiles, ofile, NULL));
 }
 
 static int translate(const char *ifile, const char *ofile,
@@ -191,7 +195,7 @@ static int translate(const char *ifile, const char *ofile,
 {
     struct vector *ifiles = vec_new1((char *)ifile);
     cc[3] = ofile ? "-o" : NULL;
-    return sys_call(cc[0], compose(cc, ifiles, ofile, options));
+    return proc(cc[0], compose(cc, ifiles, ofile, options));
 }
 
 int main(int argc, char **argv)
@@ -201,7 +205,6 @@ int main(int argc, char **argv)
     size_t fails = 0;
 
     progname = argv[0];
-    sys_setup();
     init_env();
     parse_opts(argc, argv);
 
@@ -219,7 +222,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    if (!(tmpdir = sys_mktmpdir()))
+    if (!(tmpdir = mktmpdir()))
         die("Can't make temporary directory.");
 
     struct vector *objects = vec_new();
@@ -229,9 +232,9 @@ int main(int argc, char **argv)
 
     for (int i = 0; i < vec_len(inputs); i++) {
         const char *ifile = vec_at(inputs, i);
-        const char *iname = sys_basename(ifile);
+        const char *iname = xbasename(ifile);
         const char *ofile = NULL;
-        const char *suffix = file_suffix(ifile);
+        const char *suffix = fsuffix(ifile);
         int ret = 0;
         if (opts.E || opts.ast_dump) {
             if (output)
@@ -241,18 +244,18 @@ int main(int argc, char **argv)
             if (output)
                 ofile = output;
             else
-                ofile = replace_suffix(iname, "s");
+                ofile = resuffix(iname, "s");
             ret = translate(ifile, ofile, cc_options);
         } else if (opts.c) {
             if (output)
                 ofile = output;
             else
-                ofile = replace_suffix(iname, "o");
+                ofile = resuffix(iname, "o");
             // base on suffix
             if (suffix && !strcmp(suffix, "s")) {
                 ret = assemble(ifile, ofile);
             } else {
-                const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
+                const char *sfile = tempname(tmpdir, resuffix(ifile, "s"));
                 ret = translate(ifile, sfile, cc_options);
                 if (ret == 0)
                     ret = assemble(sfile, ofile);
@@ -263,14 +266,14 @@ int main(int argc, char **argv)
                 vec_push(objects, (char *)ifile);
                 ret = EXIT_SUCCESS;
             } else if (suffix && !strcmp(suffix, "s")) {
-                ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
+                ofile = tempname(tmpdir, resuffix(ifile, "o"));
                 ret = assemble(ifile, ofile);
                 vec_push(objects, (char *)ofile);
             } else if (suffix && !strcmp(suffix, "c")) {
-                const char *sfile = tempname(tmpdir, replace_suffix(ifile, "s"));
+                const char *sfile = tempname(tmpdir, resuffix(ifile, "s"));
                 ret = translate(ifile, sfile, cc_options);
                 if (ret == 0) {
-                    ofile = tempname(tmpdir, replace_suffix(ifile, "o"));
+                    ofile = tempname(tmpdir, resuffix(ifile, "o"));
                     ret = assemble(sfile, ofile);
                     vec_push(objects, (char *)ofile);
                 }
@@ -292,6 +295,52 @@ int main(int argc, char **argv)
     }
 
     if (tmpdir)
-        sys_rmdir(tmpdir);
+        rmdir(tmpdir);
     return ret;
 }
+
+/**
+ * $0: output file
+ * $1: input files
+ * $2: additional options
+ */
+#ifdef CONFIG_LINUX
+
+#ifdef CONFIG_LIB64
+#define CRT_DIR  "/usr/lib64/"
+#else
+#define CRT_DIR  "/usr/lib/x86_64-linux-gnu/"
+#endif
+
+static char *ld[] = {
+    "ld",
+    "-A", "x86_64",
+    "-o", "$0",
+    "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
+    CRT_DIR "crt1.o",
+    CRT_DIR "crti.o",
+    "$1", "$2",
+    "-lc", "-lm",
+    CRT_DIR "crtn.o",
+    NULL
+};
+static char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
+static char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
+
+#elif defined (CONFIG_DARWIN)
+
+static char *ld[] = {
+    "ld",
+    "-o", "$0",
+    "$1", "$2",
+    "-lc", "-lm",
+    "-macosx_version_min", OSX_SDK_VERSION,
+    "-arch", "x86_64",
+    NULL
+};
+static char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
+static char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
+
+#else
+#error "unknown platform"
+#endif
