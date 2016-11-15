@@ -16,41 +16,34 @@
 static char *ld[];
 static char *as[];
 static char *cc[];
-static const char *progname;
-static struct vector *inputs;
-static const char *output;
-static struct {
-    int c:1;
-    int E:1;
-    int S:1;
-    int ast_dump:1;
-    /* Linker options
-       -l
-       -L
-     */
-    struct vector *ld_options;
+static char **inputs;
+static char *output;
+static char cflag;
+static char Eflag;
+static char Sflag;
+static char ast_dump;
+static char **ld_options;
+static char **cc_options;
+static const char *tmpdir;
+static const char *progname = "7cc";
 
-    /* C Preprocessor options
-       -I
-       -D
-       -U
-     */
-    /* Compiler options
-       -ast-dump
-       -ir-dump
-       -fleading_underscore
-       -Wall
-       -Werror
-     */
-    struct vector *cc_options;
-} opts;
+static void error(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    fprintf(stderr, "%s: ", progname);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(EXIT_FAILURE);
+}
 
 static void usage(void)
 {
     fprintf(stderr,
-            "OVERVIEW: 7cc - A Standard C Compiler v%s\n\n"
-            "USAGE: 7cc [options] <files>\n\n"
-            "OPTIONS:\n", VERSION);
+            "OVERVIEW: %s - A Standard C Compiler v%s\n\n"
+            "USAGE: %s [options] <files>\n\n"
+            "OPTIONS:\n", progname, VERSION, progname);
     fprintf(stderr,
             "  -ast-dump       Only print abstract syntax tree\n"
             "  -c              Only run preprocess, compile and assemble steps\n"
@@ -69,69 +62,61 @@ static void usage(void)
             "  -v, --version   Display version and options\n");
 }
 
-static void init_env(void)
-{
-    opts.ld_options = vec_new();
-    opts.cc_options = vec_new();
-#ifdef CONFIG_DARWIN
-    vec_push(opts.cc_options, "-fleading_underscore");
-#endif
-    inputs = vec_new();
-}
-
 static void parse_opts(int argc, char *argv[])
 {
+    struct list *ilist = NULL;
+    struct list *clist = NULL;
+    struct list *dlist = NULL;
+    
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
-        if (arg[0] == '-') {
-            if (!strcmp(arg, "-o")) {
-                if (++i >= argc)
-                    die("missing file name after '-o'");
-                else if (output)
-                    fprintf(stderr,
-                            "warning: output file overwritten\n");
-                output = argv[i];
-            } else if (!strcmp(arg, "-h") ||
-                       !strcmp(arg, "--help") ||
-                       !strcmp(arg, "-v") ||
-                       !strcmp(arg, "--version")) {
-                usage();
-                exit(EXIT_FAILURE);
-            } else if (!strcmp(arg, "-c")) {
-                opts.c = true;
-            } else if (!strcmp(arg, "-E")) {
-                opts.E = true;
-                vec_push(opts.cc_options, arg);
-            } else if (!strcmp(arg, "-S")) {
-                opts.S = true;
-            } else if (!strcmp(arg, "-ast-dump")) {
-                opts.ast_dump = true;
-                vec_push(opts.cc_options, arg);
-            } else if (!strcmp(arg, "-Wall") ||
-                       !strcmp(arg, "-Werror") ||
-                       !strncmp(arg, "-I", 2) ||
-                       !strncmp(arg, "-D", 2) ||
-                       !strncmp(arg, "-U", 2)) {
-                vec_push(opts.cc_options, arg);
-            } else if (!strncmp(arg, "-l", 2) ||
-                       !strncmp(arg, "-L", 2)) {
-                vec_push(opts.ld_options, arg);
-            } else if (!strcmp(arg, "-g") ||
-                       !strncmp(arg, "-std=", 5) ||
-                       !strncmp(arg, "-O", 2)) {
-                // just ignore without any hint
-            } else {
-                fprintf(stderr,
-                        "warning: ignored unknown option: %s\n",
-                        arg);
-            }
+        if (!strcmp(arg, "-o")) {
+            if (++i >= argc)
+                error("missing file name after '-o'");
+            output = argv[i];
+        } else if (!strcmp(arg, "-h") || !strcmp(arg, "--help") ||
+                   !strcmp(arg, "-v") || !strcmp(arg, "--version")) {
+            usage();
+            exit(EXIT_FAILURE);
+        } else if (!strcmp(arg, "-c")) {
+            cflag = true;
+        } else if (!strcmp(arg, "-S")) {
+            Sflag = true;
+        } else if (!strcmp(arg, "-E")) {
+            Eflag = true;
+            clist = list_append(clist, arg);
+        } else if (!strcmp(arg, "-ast-dump")) {
+            ast_dump = true;
+            clist = list_append(clist, arg);
+        } else if (!strcmp(arg, "-Wall") ||
+                   !strcmp(arg, "-Werror") ||
+                   !strncmp(arg, "-I", 2) ||
+                   !strncmp(arg, "-D", 2) ||
+                   !strncmp(arg, "-U", 2) ||
+                   !strcmp(arg, "-g") ||
+                   !strncmp(arg, "-std=", 5) ||
+                   !strncmp(arg, "-O", 2)) {
+            clist = list_append(clist, arg);
+        } else if (!strncmp(arg, "-l", 2) ||
+                   !strncmp(arg, "-L", 2)) {
+            dlist = list_append(dlist, arg);
+        } else if (arg[0] == '-') {
+            error("unknown option: %s", arg);
         } else {
-            vec_push(inputs, arg);
+            ilist = list_append(ilist, arg);
         }
     }
+
+#ifdef CONFIG_DARWIN
+    clist = list_append(clist, "-fleading_underscore");
+#endif
+
+    inputs = ltoa(&ilist, PERM);
+    cc_options = ltoa(&clist, PERM);
+    ld_options = ltoa(&dlist, PERM);
 }
 
-static const char *tempname(const char *dir, const char *hint)
+static char *tempname(const char *dir, const char *hint)
 {
     static long index;
     const char *base = xbasename(hint);
@@ -144,15 +129,16 @@ static const char *tempname(const char *dir, const char *hint)
         name = format("%d.%s", index++, base);
         goto beg;
     }
-    return path;
+    return (char *)path;
 }
 
-static char **compose(char *argv[],
-                      struct vector *ifiles, const char *ofile,
-                      struct vector *options)
+static char **compose(char *argv[], char *ifiles[],
+                      char *ofile, char *options[])
 {
-    size_t argc = length(argv);
-    size_t ac = argc + vec_len(ifiles) + vec_len(options);
+    int argc = length(argv);
+    int nifiles = length(ifiles);
+    int noptions = length(options);
+    int ac = argc + nifiles + noptions;
     char **av = xmalloc(ac * sizeof(char *));
     int j = 0;
     for (int i = 0; i < argc; i++) {
@@ -161,13 +147,13 @@ static char **compose(char *argv[],
             int k = arg[1] - '0';
             assert(k >= 0 && k <= 2);
             if (k == 0) {
-                av[j++] = (char *)(ofile ? ofile : "a.out");
+                av[j++] = ofile ? ofile : "a.out";
             } else if (k == 1) {
-                for (int i = 0; i < vec_len(ifiles); i++)
-                    av[j++] = vec_at(ifiles, i);
+                for (int i = 0; i < nifiles; i++)
+                    av[j++] = ifiles[i];
             } else {
-                for (int i = 0; i < vec_len(options); i++)
-                    av[j++] = vec_at(options, i);
+                for (int i = 0; i < noptions; i++)
+                    av[j++] = options[i];
             }
         } else {
             av[j++] = arg;
@@ -178,124 +164,113 @@ static char **compose(char *argv[],
     return av;
 }
 
-static int link(struct vector *ifiles, const char *ofile,
-                struct vector *options)
+static int link(char *ifiles[], char *ofile, char *options[])
 {
     return proc(ld[0], compose(ld, ifiles, ofile, options));
 }
 
-static int assemble(const char *ifile, const char *ofile)
+static int assemble(char *ifile, char *ofile)
 {
-    struct vector *ifiles = vec_new1((char *)ifile);
+    struct list *ilist = list_append(NULL, ifile);
+    char **ifiles = ltoa(&ilist, PERM);
     return proc(as[0], compose(as, ifiles, ofile, NULL));
 }
 
-static int translate(const char *ifile, const char *ofile,
-                     struct vector *options)
+static int translate(char *ifile, char *ofile, char *options[])
 {
-    struct vector *ifiles = vec_new1((char *)ifile);
+    struct list *ilist = list_append(NULL, ifile);
+    char **ifiles = ltoa(&ilist, PERM);
     cc[3] = ofile ? "-o" : NULL;
     return proc(cc[0], compose(cc, ifiles, ofile, options));
+}
+
+static void doexit(void)
+{
+    if (tmpdir)
+        rmdir(tmpdir);
 }
 
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
-    const char *tmpdir;
-    size_t fails = 0;
+    int fails = 0;
+    int partial;
+    int ninputs;
+    struct list *objects = NULL;
 
-    progname = argv[0];
-    init_env();
+    atexit(doexit);
     parse_opts(argc, argv);
-
-    bool partial = opts.E || opts.ast_dump || opts.S || opts.c;
+    partial = cflag || Sflag || Eflag || ast_dump;
+    ninputs = length(inputs);
 
     if (argc == 1) {
         usage();
-        return EXIT_SUCCESS;
-    } else if (vec_empty(inputs)) {
-        fprintf(stderr, "no input file.\n");
-        return EXIT_FAILURE;
-    } else if (output && vec_len(inputs) > 1 && partial) {
-        fprintf(stderr,
-                "7cc: cannot specify -o when generating multiple output files\n");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
+    } else if (ninputs == 0) {
+        error("no input file.");
+    } else if (output && ninputs > 1 && partial) {
+        error("cannot specify -o when generating multiple output files");
     }
 
     if (!(tmpdir = mktmpdir()))
-        die("Can't make temporary directory.");
+        error("Can't make temporary directory");
 
-    struct vector *objects = vec_new();
-
-    // construct compiler options
-    struct vector *cc_options = opts.cc_options;
-
-    for (int i = 0; i < vec_len(inputs); i++) {
-        const char *ifile = vec_at(inputs, i);
-        const char *iname = xbasename(ifile);
-        const char *ofile = NULL;
+    for (int i = 0; i < ninputs; i++) {
+        char *ifile = inputs[i];
+        char *iname = xbasename(ifile);
+        char *ofile = NULL;
         const char *suffix = fsuffix(ifile);
-        int ret = 0;
-        if (opts.E || opts.ast_dump) {
+        int r = EXIT_SUCCESS;
+        if (Eflag || ast_dump) {
             if (output)
                 ofile = output;
-            ret = translate(ifile, ofile, cc_options);
-        } else if (opts.S) {
-            if (output)
-                ofile = output;
-            else
-                ofile = resuffix(iname, "s");
-            ret = translate(ifile, ofile, cc_options);
-        } else if (opts.c) {
+            r = translate(ifile, ofile, cc_options);
+        } else if (Sflag) {
             if (output)
                 ofile = output;
             else
-                ofile = resuffix(iname, "o");
+                ofile = (char *)resuffix(iname, "s");
+            r = translate(ifile, ofile, cc_options);
+        } else if (cflag) {
+            if (output)
+                ofile = output;
+            else
+                ofile = (char *)resuffix(iname, "o");
             // base on suffix
             if (suffix && !strcmp(suffix, "s")) {
-                ret = assemble(ifile, ofile);
+                r = assemble(ifile, ofile);
             } else {
-                const char *sfile = tempname(tmpdir, resuffix(ifile, "s"));
-                ret = translate(ifile, sfile, cc_options);
-                if (ret == 0)
-                    ret = assemble(sfile, ofile);
+                char *sfile = tempname(tmpdir, resuffix(ifile, "s"));
+                if ((r = translate(ifile, sfile, cc_options)) == 0)
+                    r = assemble(sfile, ofile);
             }
         } else {
             // base on suffix
-            if (suffix && !strcmp(suffix, "o")) {
-                vec_push(objects, (char *)ifile);
-                ret = EXIT_SUCCESS;
-            } else if (suffix && !strcmp(suffix, "s")) {
+            if (suffix && !strcmp(suffix, "s")) {
                 ofile = tempname(tmpdir, resuffix(ifile, "o"));
-                ret = assemble(ifile, ofile);
-                vec_push(objects, (char *)ofile);
+                r = assemble(ifile, ofile);
+                objects = list_append(objects, ifile);
             } else if (suffix && !strcmp(suffix, "c")) {
-                const char *sfile = tempname(tmpdir, resuffix(ifile, "s"));
-                ret = translate(ifile, sfile, cc_options);
-                if (ret == 0) {
+                char *sfile = tempname(tmpdir, resuffix(ifile, "s"));
+                if ((r = translate(ifile, sfile, cc_options)) == 0) {
                     ofile = tempname(tmpdir, resuffix(ifile, "o"));
-                    ret = assemble(sfile, ofile);
-                    vec_push(objects, (char *)ofile);
+                    r = assemble(sfile, ofile);
+                    objects = list_append(objects, ifile);
                 }
             } else {
-                vec_push(objects, (char *)ifile);
+                objects = list_append(objects, ifile);
             }
         }
-        if (ret == EXIT_FAILURE)
+        if (r == EXIT_FAILURE)
             fails++;
     }
 
-    if (fails) {
-        ret = EXIT_FAILURE;
-        fprintf(stderr, "%lu succeed, %lu failed.\n",
-                vec_len(inputs) - fails, fails);
-    } else if (!partial) {
+    if (fails)
+        error("%lu succeed, %lu failed.", ninputs - fails, fails);
+    else if (!partial)
         // link
-        ret = link(objects, output, opts.ld_options);
-    }
+        ret = link(ltoa(&objects, PERM), output, ld_options);
 
-    if (tmpdir)
-        rmdir(tmpdir);
     return ret;
 }
 
