@@ -15,9 +15,9 @@ static struct tree *root1(struct tree *p, int warn)
             // postfix increment
             return p->kids[0]->kids[1];
         if (p->kids[0] &&
-            OPID(p->kids[0]->op) == CALL+S &&
+            opid(p->kids[0]->op) == CALL+S &&
             p->kids[1] &&
-            OPID(p->kids[1]->op) == INDIR+S)
+            opid(p->kids[1]->op) == INDIR+S)
             // funcall
             return p->kids[0];
         p = ast_expr(RIGHT, p->type,

@@ -217,6 +217,12 @@ extern void match(int t, void (*otherwise) (void));
                           (t)->u.lit.str[0] == '\'' && \
                           (t)->u.lit.str[0] == 'L')
 
+// strtab.c
+extern char *strs(const char *);
+extern char *strn(const char *, size_t);
+extern char *strd(long);
+extern char *stru(unsigned long);
+
 ///
 /// external variables
 ///

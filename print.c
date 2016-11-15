@@ -191,7 +191,7 @@ static char *opidname(int op)
 {
     const char *index, *type;
 
-    index = nnames[OPINDEX(op)];
+    index = nnames[opindex(op)];
     switch (OPTYPE(op)) {
     case I: type = "I"; break;
     case U: type = "U"; break;

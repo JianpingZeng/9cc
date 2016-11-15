@@ -510,7 +510,7 @@ static void string_constant(struct file *pfile,
             pb->cur++;
     }
 
-    name = xstrndup((const char *)rpc, pb->cur - rpc - 1);
+    name = strn((const char *)rpc, pb->cur - rpc - 1);
     if (ch != sep)
         cpp_error("untermiated string constant: \"%s\"", name);
     

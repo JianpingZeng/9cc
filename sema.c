@@ -5,7 +5,7 @@
 
 static struct tree *condexpr(struct type *, struct tree *,
                              struct tree *, struct tree *);
-static void genvar(struct symbol *);
+static void defglobal(struct symbol *);
 struct func func;
 
 #define ERR_INCOMPATIBLE_CONV \
@@ -116,7 +116,7 @@ static void defsvar(struct symbol *s)
     link_lvar(s);
     if (opts.ast_dump || errors())
         return;
-    genvar(s);
+    defglobal(s);
 }
 
 // define a global variable
@@ -128,7 +128,7 @@ static void defgvar(struct symbol *s)
     }
     if (errors())
         return;
-    genvar(s);
+    defglobal(s);
 }
 
 // define a function
@@ -157,7 +157,70 @@ static void funcall(struct type *fty, struct tree **args)
  *                           Private                               *
  *=================================================================*/
 
-static void genvar(struct symbol *s)
+static void geninit_struct(struct symbol *s)
+{
+    // TODO: 
+}
+
+static void geninit_array(struct symbol *s)
+{
+    // TODO:
+    struct tree *init = s->u.init;
+    struct type *ty = s->type;
+    size_t size = TYPE_SIZE(ty);
+
+    if (isstring(ty) && issliteral(init)) {
+        IR->defstring(init->s.sym->name, size);
+    } else {
+        error_at(s->src, "illegal %s initializer for '%s'",
+                 TYPE_NAME(ty), s->name);
+        IR->defzero(size);
+    }
+}
+
+static void geninit_ptr(struct symbol *s)
+{
+    struct tree *init = s->u.init;
+    struct type *ty = s->type;
+    size_t size = TYPE_SIZE(ty);
+
+    if (OPKIND(init->op) == CNST) {
+        IR->defconst(OPTYPE(init->op), size, init->s.value);
+    } else if (opid(init->op) == ADDRG+P) {
+        IR->defaddress(init->s.sym->x.name, 0);
+    } else if (opid(init->op) == ADD+P &&
+               opid(init->kids[0]->op) == ADDRG+P &&
+               OPKIND(init->kids[1]->op) == CNST) {
+        IR->defaddress(init->kids[0]->s.sym->x.name,
+                       init->kids[1]->s.value.i);
+    } else if (opid(init->op) == SUB+P &&
+               opid(init->kids[0]->op) == ADDRG+P &&
+               OPKIND(init->kids[1]->op) == CNST) {
+        IR->defaddress(init->kids[0]->s.sym->x.name,
+                       -init->kids[1]->s.value.i);
+    } else {
+        error_at(s->src, "illegal %s initializer for '%s'",
+                 TYPE_NAME(ty), s->name);
+        IR->defzero(size);
+    }
+}
+
+static void geninit_arith(struct symbol *s)
+{
+    struct tree *init = s->u.init;
+    struct type *ty = s->type;
+    size_t size = TYPE_SIZE(ty);
+    
+    if (OPKIND(init->op) == CNST) {
+        IR->defconst(OPTYPE(init->op), size, init->s.value);
+    } else {
+        error_at(s->src, "illegal %s initializer for '%s'",
+                 TYPE_NAME(ty), s->name);
+        IR->defzero(size);
+    }
+}
+
+static void defglobal(struct symbol *s)
 {
     int seg = s->u.init ? DATA : BSS;
 
@@ -168,6 +231,36 @@ static void genvar(struct symbol *s)
         IR->local(s);
     IR->segment(seg);
     IR->defvar(s);
+    if (s->u.init) {
+        if (isarith(s->type))
+            geninit_arith(s);
+        else if (isptr(s->type))
+            geninit_ptr(s);
+        else if (isarray(s->type))
+            geninit_array(s);
+        else if (isstruct(s->type))
+            geninit_struct(s);
+        else
+            CC_UNAVAILABLE();
+    }
+}
+
+static void doconstant(struct symbol *sym, void *context)
+{
+    if (sym->string && sym->refs > 0) {
+        IR->segment(RODATA);
+        IR->defvar(sym);
+        IR->defstring(sym->name, -1);
+    }
+}
+
+static void doglobal(struct symbol *sym, void *context)
+{
+    // typedefs and enum ids are _defined_
+    if (sym->defined || sym->sclass == EXTERN || isfunc(sym->type))
+        return;
+
+    events(defgvar)(sym);
 }
 
 static void skip_balance(int l, int r, const char *name)
@@ -925,11 +1018,11 @@ string_literal(struct token *t, void (*cnst) (struct token *,
         cnst(t, sym);
     }
 
-    if (!sym->x.name) {
-        sym->x.name = gen_string_label();
+    if (!sym->defined) {
         sym->sclass = STATIC;
         sym->string = true;
         sym->defined = true;
+        IR->defsym(sym);
     }
 
     return mkref(sym);
@@ -2044,6 +2137,7 @@ static struct tree *ensure_init_array(struct symbol *sym,
     
     if (isstring(dty) && issliteral(init)) {
         finish_string(dty, init, src);
+        deuse(init->s.sym);
         return init;
     }
 
@@ -2781,15 +2875,6 @@ static void func_body(struct symbol *sym)
     memset(&func, 0, sizeof(struct func));
 }
 
-static void doglobal(struct symbol *sym, void *context)
-{
-    // typedefs and enum ids are _defined_
-    if (sym->defined || sym->sclass == EXTERN || isfunc(sym->type))
-        return;
-
-    events(defgvar)(sym);
-}
-
 static void warning_unused_global(struct symbol *sym, void *context)
 {
     if (sym->sclass != STATIC || sym->refs)
@@ -3438,6 +3523,7 @@ static void finalize(void)
     if (opts.ast_dump || errors())
         return;
     foreach(identifiers, GLOBAL, doglobal, NULL);
+    foreach(constants, CONSTANT, doconstant, NULL);
     IR->finalize();
 }
 

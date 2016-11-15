@@ -15,6 +15,7 @@ LIBCPP_OBJ += imap.o
 LIBCPP_OBJ += input.o
 LIBCPP_OBJ += error.o
 LIBCPP_OBJ += expr.o
+LIBCPP_OBJ += strtab.o
 
 LIBCPP_INC += lex.h
 LIBCPP_INC += token.def

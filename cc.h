@@ -225,10 +225,10 @@ struct init {
 #define OPKIND(op)    ((op) & 0x3F0)
 #define OPTYPE(op)    ((op) & 0xF)
 
-#define OPINDEX(op)   (((op) >> 4) & 0x3F)
-#define OPID(op)      ((op) & 0x3FF)
-#define MKOPSIZE(op)  ((op) << 10)
-#define mkop(op, ty)  OPID((op) + ty2op(ty))
+#define opindex(op)   (((op) >> 4) & 0x3F)
+#define opid(op)      ((op) & 0x3FF)
+#define mkopsize(op)  ((op) << 10)
+#define mkop(op, ty)  opid((op) + ty2op(ty))
 
 /// op size
 // 1,2,4,8,16
@@ -417,7 +417,7 @@ struct metrics {
 };
 
 // segments
-enum { TEXT = 1, BSS, DATA };
+enum { TEXT = 1, BSS, DATA, RODATA };
 
 // backend interface
 struct interface {
@@ -432,7 +432,7 @@ struct interface {
     void (*defun) (struct symbol *);
     void (*defconst) (int, int, union value);
     void (*defaddress) (const char *, long);
-    void (*defstring) (const char *, size_t);
+    void (*defstring) (const char *, long);
     void (*defzero) (size_t);
     void (*segment) (int);
     void (*gen) (struct symbol *);
@@ -490,7 +490,6 @@ extern struct tree *zinit(struct type *);
 extern struct tree *ast_expr(int, struct type *,
                              struct tree *, struct tree *);
 extern struct stmt *ast_stmt(int);
-extern const char *gen_string_label(void);
 extern int genlabel(int);
 extern struct desig *new_desig(int);
 extern struct desig *new_desig_name(const char *, struct source);
@@ -499,11 +498,10 @@ extern struct desig *new_desig_field(struct field *, struct source);
 extern struct desig *copy_desig(struct desig *);
 
 #define isfuncdef(n)   (isfunc((n)->type) && (n)->defined)
-#define isiliteral(n)  (OPID((n)->op) == CNST+I || OPID((n)->op) == CNST+U)
-#define isfliteral(n)  (OPID((n)->op) == CNST+F)
-#define ispliteral(n)  (OPID((n)->op) == CNST+P)
-#define issliteral(n)  (OPID((n)->op) == ADDRG+P && \
-                        isarray((n)->type) && \
+#define isiliteral(n)  (opid((n)->op) == CNST+I || opid((n)->op) == CNST+U)
+#define isfliteral(n)  (opid((n)->op) == CNST+F)
+#define ispliteral(n)  (opid((n)->op) == CNST+P)
+#define issliteral(n)  (opid((n)->op) == ADDRG+P && \
                         (n)->s.sym->string)
 #define iszinit(n)     ((n)->op == 0)
 // compound literal

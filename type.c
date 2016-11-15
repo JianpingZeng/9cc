@@ -630,19 +630,19 @@ short ty2op(struct type *ty)
 
     switch (TYPE_OP(ty)) {
     case INT:
-        return I + MKOPSIZE(size);
+        return I + mkopsize(size);
 
     case UNSIGNED:
-        return U + MKOPSIZE(size);
+        return U + mkopsize(size);
 
     case FLOAT:
-        return F + MKOPSIZE(size);
+        return F + mkopsize(size);
         
     case FUNCTION:
-        return P + MKOPSIZE(funcptype->size);
+        return P + mkopsize(funcptype->size);
         
     case POINTER:
-        return P + MKOPSIZE(size);
+        return P + mkopsize(size);
         
     case ARRAY:
     case STRUCT:
@@ -650,7 +650,7 @@ short ty2op(struct type *ty)
         return S;
 
     case ENUM:
-        return I + MKOPSIZE(size);
+        return I + mkopsize(size);
         
     case VOID:
     default:

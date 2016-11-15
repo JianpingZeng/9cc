@@ -204,12 +204,22 @@ static void defun(struct symbol *s)
 
 static void defsym(struct symbol *s)
 {
-    if (s->x.name)
-        return;
-    if (opts.fleading_underscore)
-        s->x.name = format("_%s", s->name);
-    else
+    static unsigned int strlabel, stclabel;
+
+    if (s->string) {
+        s->x.name = format("__string_literal.%u", strlabel++);
+    } else if (s->temporary) {
         s->x.name = s->name;
+    } else if (s->scope >= LOCAL && s->sclass == STATIC) {
+        s->x.name = format("%s.%u", s->name, stclabel++);
+    } else if (s->scope == GLOBAL || s->sclass == EXTERN) {
+        if (opts.fleading_underscore)
+            s->x.name = format("_%s", s->name);
+        else
+            s->x.name = s->name;
+    } else {
+        s->x.name = s->name;
+    }
 }
 
 static void defvar(struct symbol *s)
@@ -225,6 +235,8 @@ static void defvar(struct symbol *s)
         print("%s:\n", s->x.name);
     } else if (cseg == BSS) {
         print("\t.comm %s,%lu,%d\n", s->x.name, size, align);
+    } else if (cseg == RODATA) {
+        print("%s:\n", s->x.name);
     }
 }
 
@@ -269,18 +281,27 @@ static void defaddress(const char *s, long offset)
         print("\t.quad %s%ld\n", s, offset);
 }
 
-static void defstring(const char *s, size_t n)
+static void defstring(const char *s, long n)
 {
-    size_t len = strlen(s);
+    size_t len;
+
+    if (n == 0)
+        return;
+    if (n < 0) {
+        print("\t.string \"%s\"\n", s);
+        return;
+    }
+    
+    len = strlen(s);
     if (len + 1 == n) {
-        print("\t.asciz \"%s\"\n", s);
+        print("\t.string \"%s\"\n", s);
     } else if (len + 1 < n) {
-        print("\t.asciz \"%s\"\n", s);
+        print("\t.string \"%s\"\n", s);
         IR->defzero(n - len - 1);
     } else {
         // truncate
-        print("\t.asciz \"");
-        for (size_t i = 0; i < n - 1; i++)
+        print("\t.ascii \"");
+        for (size_t i = 0; i < n; i++)
             print("%c", s[i]);
         print("\"\n");
     }
@@ -310,6 +331,8 @@ static void segment(int seg)
         print("\t.text\n");
     else if (seg == DATA)
         print("\t.data\n");
+    else if (seg == RODATA)
+        print("\t.section\t.rodata\n");
     /* BSS: ignored */
 }
 

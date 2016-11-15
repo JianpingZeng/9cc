@@ -8,7 +8,7 @@
 enum { WRN = 1, ERR, FTL };
 static unsigned int cc_errors, cc_warnings;
 
-#define MAX_ERRORS 32
+#define MAX_ERRORS 10
 
 unsigned int errors(void)
 {

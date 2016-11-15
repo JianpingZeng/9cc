@@ -11,11 +11,12 @@ struct hideset {
     struct hideset *next;
 };
 
-extern struct hideset *hideset_add(struct hideset *s, const unsigned char *name);
-extern bool hideset_has(struct hideset *s, const unsigned char *name);
-extern struct hideset *hideset_union(struct hideset *a, struct hideset *b);
-extern struct hideset *hideset_intersection(struct hideset *a,
-                                            struct hideset *b);
+extern struct hideset *hideset_add(struct hideset *, const unsigned char *);
+extern bool hideset_has(struct hideset *, const unsigned char *);
+extern struct hideset *hideset_union(struct hideset *,
+                                     struct hideset *);
+extern struct hideset *hideset_intersection(struct hideset *,
+                                            struct hideset *);
 
 // imap.c
 /*
@@ -43,37 +44,37 @@ struct imap {
     unsigned int collisions;
 };
 
-extern struct imap *imap_new(unsigned int cap);
-extern void imap_free(struct imap *imap);
-extern struct ident *imap_lookup(struct imap *imap,
-                                 const unsigned char *str,
-                                 size_t len,
-                                 enum imap_lookup_option opt);
-extern struct ident *imap_lookup_with_hash(struct imap *imap,
-                                           const unsigned char *str,
-                                           size_t len,
-                                           unsigned int hash,
-                                           enum imap_lookup_option opt);
-typedef int (*imap_cb) (struct imap *imap, struct ident *id, const void *context);
-extern void imap_foreach(struct imap *imap, imap_cb cb, const void *context);
-extern void imap_dump(struct imap *imap);
+extern struct imap *imap_new(unsigned int);
+extern void imap_free(struct imap *);
+extern struct ident *imap_lookup(struct imap *,
+                                 const unsigned char *,
+                                 size_t,
+                                 enum imap_lookup_option);
+extern struct ident *imap_lookup_with_hash(struct imap *,
+                                           const unsigned char *,
+                                           size_t,
+                                           unsigned int,
+                                           enum imap_lookup_option);
+typedef int (*imap_cb) (struct imap *, struct ident *, const void *);
+extern void imap_foreach(struct imap *, imap_cb, const void *);
+extern void imap_dump(struct imap *);
 
 // error.c
 enum { WRN = 1, ERR, FTL };
 
 struct source;
 
-extern void cpp_warning_at(struct source src, const char *fmt, ...);
-extern void cpp_error_at(struct source src, const char *fmt, ...);
-extern void cpp_fatal_at(struct source src, const char *fmt, ...);
+extern void cpp_warning_at(struct source, const char *, ...);
+extern void cpp_error_at(struct source, const char *, ...);
+extern void cpp_fatal_at(struct source, const char *, ...);
 
 #define SAVE_ERRORS    unsigned int __err = cpp_file->errors
 #define NO_ERROR       (__err == cpp_file->errors)
 #define HAS_ERROR      (__err != cpp_file->errors)
 
-#define cpp_warning(...)         cpp_warning_at(source, __VA_ARGS__)
-#define cpp_error(...)           cpp_error_at(source, __VA_ARGS__)
-#define cpp_fatal(...)           cpp_fatal_at(source, __VA_ARGS__)
+#define cpp_warning(...)  cpp_warning_at(source, __VA_ARGS__)
+#define cpp_error(...)    cpp_error_at(source, __VA_ARGS__)
+#define cpp_fatal(...)    cpp_fatal_at(source, __VA_ARGS__)
 
 // expr.c
 extern bool eval_cpp_const_expr(void);

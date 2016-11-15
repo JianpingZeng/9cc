@@ -41,12 +41,6 @@ struct stmt *ast_stmt(int id)
     return stmt;
 }
 
-const char *gen_string_label(void)
-{
-    static unsigned int i;
-    return format("__string_literal.%u", i++);
-}
-
 int genlabel(int count)
 {
     static int lab = 1;
