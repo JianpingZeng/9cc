@@ -26,34 +26,15 @@ unsigned int strhashn(const char *s, size_t len)
     return hash;
 }
 
-char *vformat(const char *fmt, va_list ap)
-{
-    size_t size = 128;
-    void *buffer = NULL;
-    va_list aq;
-    for (;;) {
-        size_t avail = size;
-        buffer = zmalloc(avail);
-        va_copy(aq, ap);
-        int total = vsnprintf(buffer, avail, fmt, aq);
-        va_end(aq);
-        if (avail <= total) {
-            size = total + 8;
-            continue;
-        }
-        break;
-    }
-
-    return buffer;
-}
-
 char *format(const char *fmt, ...)
 {
+    char buf[BUFSIZ];
     va_list ap;
     va_start(ap, fmt);
-    char *r = vformat(fmt, ap);
+    if (vsnprintf(buf, ARRAY_SIZE(buf), fmt, ap) >= ARRAY_SIZE(buf))
+        die("buffer is too short to hold the result string");
     va_end(ap);
-    return r;
+    return xstrdup(buf);
 }
 
 char *xstrdup(const char *str)

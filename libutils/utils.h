@@ -46,7 +46,6 @@ extern size_t length(void *array);
 // string.c
 extern unsigned int strhash(const char *s);
 extern unsigned int strhashn(const char *s, size_t len);
-extern char *vformat(const char *fmt, va_list ap);
 extern char *format(const char *fmt, ...);
 extern char *xstrdup(const char *str);
 extern char *xstrndup(const char *str, size_t n);
