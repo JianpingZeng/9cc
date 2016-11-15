@@ -1127,14 +1127,14 @@ static struct token *peek_token(struct file *pfile)
     return t;
 }
 
-static struct token *combine_scons(struct vector *v)
+static struct token *combine_scons(struct token **v)
 {
-    struct token *t0 = new_token(vec_head(v));
+    struct token *t0 = new_token(v[0]);
     bool wide = false;
     struct strbuf *s = strbuf_new();
 
-    for (size_t i = 0; i < vec_len(v); i++) {
-        struct token *t = vec_at(v, i);
+    for (size_t i = 0; v[i]; i++) {
+        struct token *t = v[i];
         const char *name = TOK_LIT_STR(t);
         if (name)
             strbuf_cats(s, name);
@@ -1150,15 +1150,15 @@ static struct token *combine_scons(struct vector *v)
 static struct token *do_cctoken(struct file *pfile)
 {
     struct token *t = one_token(pfile);
-    if (t->id == SCONSTANT) {
-        struct vector *v = vec_new1(t);
-        struct token *t1 = peek_token(pfile);
-        while (t1->id == SCONSTANT) {
-            vec_push(v, one_token(pfile));
+    if (t->id == SCONSTANT && peek_token(pfile)->id == SCONSTANT) {
+        struct token *t1;
+        struct list *list = list_append(NULL, t);
+        do {
+            list = list_append(list, one_token(pfile));
             t1 = peek_token(pfile);
-        }
-        if (vec_len(v) > 1)
-            return combine_scons(v);
+        } while (t1->id == SCONSTANT);
+
+        return combine_scons(ltoa(&list, PERM));
     }
     return t;
 }
