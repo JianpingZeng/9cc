@@ -103,7 +103,7 @@ void vfprint(FILE *fp, const char *fmt, va_list ap)
             case 'f':
                 fprintf(fp, "%f", va_arg(ap, double));
                 break;
-                // lu, ld
+                // lu, ld, llu, lld
             case 'l':
                 if (fmt[1] == 'd') {
                     fmt++;
@@ -111,6 +111,12 @@ void vfprint(FILE *fp, const char *fmt, va_list ap)
                 } else if (fmt[1] == 'u') {
                     fmt++;
                     fprintf(fp, "%lu", va_arg(ap, unsigned long));
+                } else if (fmt[1] == 'l' && fmt[2] == 'd') {
+                    fmt += 2;
+                    fprintf(fp, "%lld", va_arg(ap, long long));
+                } else if (fmt[1] == 'l' && fmt[2] == 'u') {
+                    fmt += 2;
+                    fprintf(fp, "%llu", va_arg(ap, unsigned long long));
                 } else {
                     putc(*fmt, fp);
                 }
@@ -392,11 +398,11 @@ static void print_expr1(FILE *fp, struct tree *expr, int level)
             fprint(fp, RED("%lu"), expr->s.value.u);
     } else if (isfliteral(expr)) {
         if (TYPE_KIND(expr->type) == FLOAT)
-            fprint(fp, RED("%f"), expr->s.value.f);
+            fprint(fp, RED("%f"), (float)expr->s.value.d);
         else if (TYPE_KIND(expr->type) == DOUBLE)
-            fprint(fp, RED("%f"), expr->s.value.d);
+            fprint(fp, RED("%f"), (double)expr->s.value.d);
         else
-            fprint(fp, RED("%Lf"), expr->s.value.ld);
+            fprint(fp, RED("%Lf"), (long double)expr->s.value.d);
     } else if (ispliteral(expr)) {
         fprint(fp, RED("%p"), expr->s.value.p);
     } else if (expr->s.sym) {

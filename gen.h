@@ -31,6 +31,7 @@ struct xsymbol {
 
 enum { IREG, FREG };
 enum { B, W, L, Q };
+enum { Zero = 0, Byte = 1, Word = 2, Long = 4, Quad = 8 };
 
 extern struct symbol *mkreg(const char *, int, int);
 extern struct symbol *mksreg(const char *);

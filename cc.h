@@ -430,10 +430,10 @@ struct interface {
     void (*export) (struct symbol *);
     void (*local) (struct symbol *);
     void (*defun) (struct symbol *);
-    void (*defconst) (struct tree *);
-    void (*defaddress) (struct tree *);
-    void (*defstring) (struct tree *);
-    void (*defzero) (int);
+    void (*defconst) (int, int, union value);
+    void (*defaddress) (const char *, long);
+    void (*defstring) (const char *, size_t);
+    void (*defzero) (size_t);
     void (*segment) (int);
     void (*gen) (struct symbol *);
     void (*emit) (struct symbol *);

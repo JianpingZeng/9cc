@@ -18,9 +18,7 @@ struct source {
 union value {
     long i;
     unsigned long u;
-    float f;
-    double d;
-    long double ld;
+    long double d;
     void *p;
     void (*g) ();
 };

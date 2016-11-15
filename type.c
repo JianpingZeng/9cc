@@ -55,14 +55,14 @@ install_type(const char *name, int kind, struct metrics m, int op)
 
     case FLOAT:
         if (kind == FLOAT) {
-            ty->limits.max.f = FLT_MAX;
-            ty->limits.min.f = FLT_MIN;
+            ty->limits.max.d = FLT_MAX;
+            ty->limits.min.d = FLT_MIN;
         } else if (kind == DOUBLE) {
             ty->limits.max.d = DBL_MAX;
             ty->limits.min.d = DBL_MIN;
         } else {
-            ty->limits.max.ld = LDBL_MAX;
-            ty->limits.min.ld = LDBL_MIN;
+            ty->limits.max.d = LDBL_MAX;
+            ty->limits.min.d = LDBL_MIN;
         }
         break;
 

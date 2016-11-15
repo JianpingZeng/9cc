@@ -28,25 +28,7 @@
         return l;                               \
     }
 
-#define foldcnst1f(oper, vf1, vf2, vf3, ty, l)          \
-    if (OPKIND(l->op) == CNST) {                        \
-        switch (TYPE_KIND(ty)) {                        \
-        case FLOAT:                                     \
-            l->s.value.vf1 = oper l->s.value.vf1;       \
-            break;                                      \
-        case DOUBLE:                                    \
-            l->s.value.vf2 = oper l->s.value.vf2;       \
-            break;                                      \
-        case LONG+DOUBLE:                               \
-            l->s.value.vf3 = oper l->s.value.vf3;       \
-            break;                                      \
-        default:                                        \
-            CC_UNAVAILABLE();                           \
-        }                                               \
-        l->op = mkop(CNST, ty);                         \
-        l->type = ty;                                   \
-        return l;                                       \
-    }
+#define foldcnst1f(oper, vf, ty, l)  foldcnst1i(oper, vf, ty, l)
 
 #define foldcnst2i(oper, vf, ty, l, r)                          \
     if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {       \
@@ -56,28 +38,7 @@
         return l;                                               \
     }
 
-#define foldcnst2f(oper, vf1, vf2, vf3, ty, l, r)                       \
-    if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {               \
-        switch (TYPE_KIND(ty)) {                                        \
-        case FLOAT:                                                     \
-            l->s.value.vf1 = l->s.value.vf1 oper r->s.value.vf1;        \
-            break;                                                      \
-        case DOUBLE:                                                    \
-            l->s.value.vf2 = l->s.value.vf2 oper r->s.value.vf2;        \
-            break;                                                      \
-        case LONG+DOUBLE:                                               \
-            l->s.value.vf3 = l->s.value.vf3 oper r->s.value.vf3;        \
-            break;                                                      \
-        default:                                                        \
-            CC_UNAVAILABLE();                                           \
-        }                                                               \
-        l->op = mkop(CNST, ty);                                         \
-        l->type = ty;                                                   \
-        return l;                                                       \
-    }
-
-#define foldcnst1fx(oper, ty, l)  foldcnst1f(oper, f, d, ld, ty, l)
-#define foldcnst2fx(oper, ty, l, r)  foldcnst2f(oper, f, d, ld, ty, l, r)
+#define foldcnst2f(oper, vf, ty, l, r)  foldcnst2i(oper, vf, ty, l, r)
 
 #define exchange(l, r)                                  \
     if (OPKIND(l->op) == CNST) {                        \
@@ -93,7 +54,7 @@
             return xswap(opid, ty, l, r);                       \
     }
 
-#define doxfoldadd(oper, vfi, vf1, vf2, vf3, op, ty, a, b)              \
+#define doxfoldadd(oper, vfi, vff, op, ty, a, b)                        \
     do {                                                                \
         switch (OPTYPE(op)) {                                           \
         case I:                                                         \
@@ -102,17 +63,7 @@
             a->s.value.vfi = a->s.value.vfi oper b->s.value.vfi;        \
             break;                                                      \
         case F:                                                         \
-            switch (TYPE_KIND(ty)) {                                    \
-            case FLOAT:                                                 \
-                a->s.value.vf1 = a->s.value.vf1 oper b->s.value.vf1;    \
-                break;                                                  \
-            case DOUBLE:                                                \
-                a->s.value.vf2 = a->s.value.vf2 oper b->s.value.vf2;    \
-                break;                                                  \
-            case LONG+DOUBLE:                                           \
-                a->s.value.vf3 = a->s.value.vf3 oper b->s.value.vf3;    \
-                break;                                                  \
-            }                                                           \
+            a->s.value.vff = a->s.value.vff oper b->s.value.vff;        \
             break;                                                      \
         }                                                               \
     } while (0)
@@ -152,13 +103,13 @@ static void cvif(struct type *ty, struct tree *l)
 {
     switch (TYPE_KIND(ty)) {
     case FLOAT:
-        l->s.value.f = l->s.value.i;
+        l->s.value.d = (float)l->s.value.i;
         break;
     case DOUBLE:
-        l->s.value.d = l->s.value.i;
+        l->s.value.d = (double)l->s.value.i;
         break;
     case LONG+DOUBLE:
-        l->s.value.ld = l->s.value.i;
+        l->s.value.d = (long double)l->s.value.i;
         break;
     default:
         CC_UNAVAILABLE();
@@ -169,13 +120,13 @@ static void cvuf(struct type *ty, struct tree *l)
 {
     switch (TYPE_KIND(ty)) {
     case FLOAT:
-        l->s.value.f = l->s.value.u;
+        l->s.value.d = (float)l->s.value.u;
         break;
     case DOUBLE:
-        l->s.value.d = l->s.value.u;
+        l->s.value.d = (double)l->s.value.u;
         break;
     case LONG+DOUBLE:
-        l->s.value.ld = l->s.value.u;
+        l->s.value.d = (long double)l->s.value.u;
         break;
     default:
         CC_UNAVAILABLE();
@@ -186,13 +137,13 @@ static void cvfi(struct type *ty, struct tree *l)
 {
     switch (TYPE_KIND(l->type)) {
     case FLOAT:
-        l->s.value.u = l->s.value.f;
+        l->s.value.u = (float)l->s.value.d;
         break;
     case DOUBLE:
-        l->s.value.u = l->s.value.d;
+        l->s.value.u = (double)l->s.value.d;
         break;
     case LONG+DOUBLE:
-        l->s.value.u = l->s.value.ld;
+        l->s.value.u = (long double)l->s.value.d;
         break;
     default:
         CC_UNAVAILABLE();
@@ -207,21 +158,21 @@ static void cvff(struct type *ty, struct tree *l)
     switch (skind) {
     case FLOAT:
         if (dkind == DOUBLE)
-            l->s.value.d = l->s.value.f;
+            l->s.value.d = (double)l->s.value.d;
         else if (dkind == LONG+DOUBLE)
-            l->s.value.ld = l->s.value.f;
+            l->s.value.d = (long double)l->s.value.d;
         break;
     case DOUBLE:
         if (dkind == FLOAT)
-            l->s.value.f = l->s.value.d;
+            l->s.value.d = (float)l->s.value.d;
         else if (dkind == LONG+DOUBLE)
-            l->s.value.ld = l->s.value.d;
+            l->s.value.d = (long double)l->s.value.d;
         break;
     case LONG+DOUBLE:
         if (dkind == FLOAT)
-            l->s.value.f = l->s.value.ld;
+            l->s.value.d = (float)l->s.value.d;
         else if (dkind == DOUBLE)
-            l->s.value.d = l->s.value.ld;
+            l->s.value.d = (double)l->s.value.d;
         break;
     default:
         CC_UNAVAILABLE();
@@ -250,12 +201,12 @@ static struct tree *xfoldadd(int op, struct type *ty,
 
     if ((kind1 == ADD && kind2 == ADD) ||
         (kind1 == SUB && kind2 == SUB)) {
-        doxfoldadd(+, u, f, d, ld, op, ty, r2, r);
+        doxfoldadd(+, u, d, op, ty, r2, r);
         l->type = ty;
         return l;
     } else if ((kind1 == ADD && kind2 == SUB) ||
                (kind1 == SUB && kind2 == ADD)) {
-        doxfoldadd(-, u, f, d, ld, op, ty, r2, r);
+        doxfoldadd(-, u, d, op, ty, r2, r);
         l->type = ty;
         return l;
     }
@@ -289,7 +240,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         xfoldcnst2(add, op, ty, l, r);
         break;
     case ADD+F:
-        foldcnst2fx(+, ty, l, r);
+        foldcnst2f(+, d, ty, l, r);
         exchange(l, r);
         xfoldcnst2(add, op, ty, l, r);
         break;
@@ -302,7 +253,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         xfoldcnst2(add, op, ty, l, r);
         break;
     case SUB+F:
-        foldcnst2fx(-, ty, l, r);
+        foldcnst2f(-, d, ty, l, r);
         exchange(l, r);
         xfoldcnst2(add, op, ty, l, r);
         break;
@@ -314,7 +265,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst2i(*, u, ty, l, r);
         break;
     case MUL+F:
-        foldcnst2fx(*, ty, l, r);
+        foldcnst2f(*, d, ty, l, r);
         break;
 
     case DIV+I:
@@ -324,7 +275,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst2i(/, u, ty, l, r);
         break;
     case DIV+F:
-        foldcnst2fx(/, ty, l, r);
+        foldcnst2f(/, d, ty, l, r);
         break;
 
     case MOD+I:
@@ -366,7 +317,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst2i(>, u, ty, l, r);
         break;
     case GT+F:
-        foldcnst2fx(>, ty, l, r);
+        foldcnst2f(>, d, ty, l, r);
         break;
 
     case GE+I:
@@ -375,7 +326,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst2i(>=, u, ty, l, r);
         break;
     case GE+F:
-        foldcnst2fx(>=, ty, l, r);
+        foldcnst2f(>=, d, ty, l, r);
         break;
         
     case LT+I:
@@ -384,7 +335,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst2i(<, u, ty, l, r);
         break;
     case LT+F:
-        foldcnst2fx(<, ty, l, r);
+        foldcnst2f(<, d, ty, l, r);
         break;
         
     case LE+I:
@@ -393,7 +344,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst2i(<=, u, ty, l, r);
         break;
     case LE+F:
-        foldcnst2fx(<=, ty, l, r);
+        foldcnst2f(<=, d, ty, l, r);
         break;
 
         // eq
@@ -403,7 +354,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst2i(==, u, ty, l, r);
         break;
     case EQ+F:
-        foldcnst2fx(==, ty, l, r);
+        foldcnst2f(==, d, ty, l, r);
         break;
 
     case NE+I:
@@ -412,7 +363,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst2i(!=, u, ty, l, r);
         break;
     case NE+F:
-        foldcnst2fx(!=, ty, l, r);
+        foldcnst2f(!=, d, ty, l, r);
         break;
 
         // logical
@@ -429,7 +380,7 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         foldcnst1i(-, u, ty, l);
         break;
     case NEG+F:
-        foldcnst1fx(-, ty, l);
+        foldcnst1f(-, d, ty, l);
         break;
     case BNOT+I:
     case BNOT+U:

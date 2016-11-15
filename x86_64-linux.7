@@ -228,6 +228,58 @@ static void defvar(struct symbol *s)
     }
 }
 
+static void defconst(int suffix, int size, union value v)
+{
+    switch (suffix) {
+    case I: case U: case P:
+        if (size == Byte)
+            print("\t.byte %d\n", (int)v.i);
+        else if (size == Word)
+            print("\t.short %d\n", (int)v.i);
+        else if (size == Long)
+            print("\t.long %d\n", (int)v.i);
+        else if (size == Quad)
+            print("\t.quad %ld\n", v.i);
+        else
+            CC_UNAVAILABLE();
+        break;
+    case F:
+        if (size == Long) {
+            float f = v.d;
+            print("\t.long %u\n", *(uint32_t *)&f);
+        } else if (size == Quad) {
+            double d = v.d;
+            print("\t.quad %lu\n", *(uint64_t *)&d);
+        } else {
+            CC_UNAVAILABLE();
+        }
+        break;
+    default:
+        CC_UNAVAILABLE();
+    }
+}
+
+static void defaddress(const char *s, long offset)
+{
+    if (offset == 0)
+        print("\t.quad %s\n", s);
+    else if (offset > 0)
+        print("\t.quad %s+%ld\n", s, offset);
+    else
+        print("\t.quad %s%ld\n", s, offset);
+}
+
+static void defstring(const char *s, size_t n)
+{
+    // TODO: 
+    print("\t.asciz \"%s\"\n", s);
+}
+
+static void defzero(size_t size)
+{
+    print("\t.zero %lu\n", size);
+}
+
 static void export(struct symbol *s)
 {
     print("\t.globl %s\n", s->x.name);
@@ -272,6 +324,10 @@ struct interface *IR = &(struct interface) {
     .finalize = finalize,
     .defsym = defsym,
     .defvar = defvar,
+    .defconst = defconst,
+    .defaddress = defaddress,
+    .defstring = defstring,
+    .defzero = defzero,
     .export = export,
     .local = local,
     .defun = defun,
