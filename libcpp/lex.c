@@ -1136,13 +1136,12 @@ static struct token *combine_scons(struct token **v)
     for (size_t i = 0; v[i]; i++) {
         struct token *t = v[i];
         const char *name = TOK_LIT_STR(t);
-        if (name)
-            strbuf_cats(s, name);
+        strbuf_cats(s, name);
         if (t->u.lit.wide)
             wide = true;
     }
 
-    t0->u.lit.str = strbuf_str(s);
+    t0->u.lit.str = strs(strbuf_str(s));
     t0->u.lit.wide = wide;
     return t0;
 }

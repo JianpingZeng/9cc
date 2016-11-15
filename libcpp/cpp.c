@@ -5,15 +5,6 @@
 #include "libutils/utils.h"
 #include "internal.h"
 
-/* ACKNOWLEDGE
- *
- * Based on Dave Prosser's algorithm described in this document:
- *
- * http://www.spinellis.gr/blog/20060626/x3J11-86-196.pdf
- *
- */
-
-
 static struct token *expand(struct file *pfile);
 static struct vector *expandv(struct file *pfile, struct vector *v);
 static void include_file(struct file *pfile, const char *name, bool std);
@@ -45,7 +36,7 @@ static void do_error(struct file *);
 static void do_warning(struct file *);
 static void do_pragma(struct file *);
 
-static struct directive_table {
+static struct {
     const char *name;
     void (*handler) (struct file *);
 } directive_table[] = {
@@ -831,11 +822,9 @@ static void directive(struct file *pfile)
         goto err;
 
     const char *name = TOK_ID_STR(t);
-    int len = ARRAY_SIZE(directive_table);
-    for (int i = 0; i < len; i++) {
-        struct directive_table tb = directive_table[i];
-        if (!strcmp(name, tb.name)) {
-            tb.handler(pfile);
+    for (int i = 0; i < ARRAY_SIZE(directive_table); i++) {
+        if (!strcmp(name, directive_table[i].name)) {
+            directive_table[i].handler(pfile);
             return;
         }
     }
