@@ -271,8 +271,19 @@ static void defaddress(const char *s, long offset)
 
 static void defstring(const char *s, size_t n)
 {
-    // TODO: 
-    print("\t.asciz \"%s\"\n", s);
+    size_t len = strlen(s);
+    if (len + 1 == n) {
+        print("\t.asciz \"%s\"\n", s);
+    } else if (len + 1 < n) {
+        print("\t.asciz \"%s\"\n", s);
+        IR->defzero(n - len - 1);
+    } else {
+        // truncate
+        print("\t.asciz \"");
+        for (size_t i = 0; i < n - 1; i++)
+            print("%c", s[i]);
+        print("\"\n");
+    }
 }
 
 static void defzero(size_t size)
