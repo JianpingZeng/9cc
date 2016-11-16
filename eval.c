@@ -3,15 +3,6 @@
 
 /// constant expression evaluation
 
-/*
- * Constant expressions in C:
- *
- * 1. interger
- * 2. floating
- * 3. address (address of a static extent)
- * 4. initializer (combination of the aboves)
- */
-
 #define xxcv(func, ty, l)                       \
     do {                                        \
         if (OPKIND(l->op) == CNST) {            \

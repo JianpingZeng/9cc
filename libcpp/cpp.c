@@ -120,7 +120,8 @@ static struct token *defined_op(struct file *pfile, struct token *t)
             return t;
         }
     } else {
-        cpp_error_at(t->src, "expect identifier or ( after defined operator");
+        cpp_error_at(t->src,
+                     "expect identifier or ( after defined operator");
         return t;
     }
 }
@@ -291,8 +292,8 @@ static void do_include(struct file *pfile)
             for (int i = 1; i < vec_len(r); i++) {
                 struct token *t = vec_at(r, i);
                 if (!IS_SPACE(t)) {
-                    cpp_error_at(t->src,
-                                 "extra tokens at end of #include directive '%s'",
+                    cpp_error_at(t->src, "extra tokens at "
+                                 "end of #include directive '%s'",
                                  tok2s(t));
                     break;
                 }
@@ -386,7 +387,8 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
     size_t lenp = m->nparams;
     // check args and params
     if (lenv < lenp) {
-        cpp_error("too few arguments provided to function-like macro invocation");
+        cpp_error("too few arguments "
+                  "provided to function-like macro invocation");
     } else if (lenv > lenp) {
         if (m->varg) {
             // merge 'variable arguments'
@@ -401,7 +403,8 @@ static struct vector *arguments(struct file *pfile, struct macro *m)
                 vec_pop(v);
             vec_push(v, v2);
         } else {
-            cpp_error("too many arguments provided to function-like macro invocation");
+            cpp_error("too many arguments "
+                      "provided to function-like macro invocation");
         }
     }
 
@@ -486,7 +489,7 @@ static void add_macro(struct ident *ident, struct macro *m)
             m->builtin = true;
 
     ident->type = CT_MACRO;
-    ident->value.macro = m;
+    ident->u.macro = m;
 }
 
 static void add_macro_with_name(struct file *pfile,
@@ -497,17 +500,15 @@ static void add_macro_with_name(struct file *pfile,
     add_macro(id, m);
 }
 
-static void remove_macro(struct token *t)
+static void remove_macro(struct ident *ident)
 {
-    struct ident *ident = t->u.ident;
-
     if (ident->type == CT_MACRO) {
-        struct macro *m = ident->value.macro;
+        struct macro *m = ident->u.macro;
         if (m->builtin) {
-            cpp_error("Can't undefine predefined macro '%s'", tok2s(t));
+            cpp_error("Can't undefine predefined macro '%s'", ident->str);
         } else {
             ident->type = 0;
-            ident->value.macro = NULL;
+            ident->u.macro = NULL;
         }
     }
 }
@@ -517,7 +518,7 @@ static void ensure_macro_def(struct token *t, struct macro *m)
     // check redefinition
     const char *name = TOK_ID_STR(t);
     struct ident *ident = t->u.ident;
-    struct macro *m1 = ident->type == CT_MACRO ? ident->value.macro : NULL;
+    struct macro *m1 = ident->type == CT_MACRO ? ident->u.macro : NULL;
     size_t len1p = m->nparams;
     size_t len1b = m->nbody;
     
@@ -554,8 +555,8 @@ static void ensure_macro_def(struct token *t, struct macro *m)
             return;
 
         redef:
-            cpp_error_at(t->src,
-                         "'%s' macro redefinition, previous definition at %s:%u:%u",
+            cpp_error_at(t->src, "'%s' macro redefinition, "
+                         "previous definition at %s:%u:%u",
                          name, m1->src.file, m1->src.line,
                          m1->src.column);
         }
@@ -569,11 +570,11 @@ static void ensure_macro_def(struct token *t, struct macro *m)
         struct token *t = m->body[i];
         if (t->id == SHARPSHARP) {
             if (i == 0)
-                cpp_error_at(t->src,
-                             "'##' cannot appear at the beginning of a replacement list");
+                cpp_error_at(t->src, "'##' cannot appear at "
+                             "the beginning of a replacement list");
             else if (i == len1b - 1)
-                cpp_error_at(t->src,
-                             "'##' cannot appear at the end of a replacement list");
+                cpp_error_at(t->src, "'##' cannot appear at "
+                             "the end of a replacement list");
         } else if (t->id == '#') {
             struct token *t1 = i + 1 < len1b ? m->body[i+1] : NULL;
             if (m->kind != MACRO_FUNC ||
@@ -687,7 +688,7 @@ static void do_undef(struct file *pfile)
         skipline(pfile);
         return;
     }
-    remove_macro(t);
+    remove_macro(t->u.ident);
     t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         cpp_warning("extra tokens at the end of #undef directive");
@@ -845,8 +846,8 @@ static struct token *with_tmp_lex(struct file *pfile, const char *input)
         unget(pfile, t1);
     if (peek(pfile)->id != EOI) {
         struct token *t2 = lex(pfile);
-        cpp_error_at(src,
-                     "pasting formed '%s%s', an invalid preprocessing token",
+        cpp_error_at(src, "pasting formed '%s%s', "
+                     "an invalid preprocessing token",
                      tok2s(t), tok2s(t2));
     }
 
@@ -869,7 +870,8 @@ static struct vector *hsadd(struct vector *r, struct hideset *hideset)
  * Paste last of left side with first of right side.
  * The 'rs' is selected with no leading spaces and trailing spaces.
  */
-static struct vector *glue(struct file *pfile, struct vector *ls, struct vector *rs)
+static struct vector *glue(struct file *pfile,
+                           struct vector *ls, struct vector *rs)
 {
     struct vector *r = vec_new();
 
@@ -1040,7 +1042,7 @@ static struct token *expand(struct file *pfile)
         hideset_has(t->hideset, name))
         return t;
 
-    struct macro *m = ident->value.macro;
+    struct macro *m = ident->u.macro;
 
     switch (m->kind) {
     case MACRO_OBJ:
@@ -1084,7 +1086,10 @@ static void file_handler(struct file *pfile, struct token *t)
 {
     const char *file = pfile->buffer->name;
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .u.lit.str = file, .src = t->src });
+        .id = SCONSTANT,
+        .u.lit.str = file,
+        .src = t->src
+    });
     unget(pfile, tok);
 }
 
@@ -1093,21 +1098,31 @@ static void line_handler(struct file *pfile, struct token *t)
     unsigned int line = pfile->buffer->line;
     const char *name = strd(line);
     struct token *tok = new_token(&(struct token){
-            .id = ICONSTANT, .u.lit.str = name, .u.lit.v.i = line, .src = t->src });
+        .id = ICONSTANT,
+        .u.lit.str = name,
+        .u.lit.v.i = line,
+        .src = t->src
+    });
     unget(pfile, tok);
 }
 
 static void date_handler(struct file *pfile, struct token *t)
 {
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .u.lit.str = pfile->date, .src = t->src });
+        .id = SCONSTANT,
+        .u.lit.str = pfile->date,
+        .src = t->src
+    });
     unget(pfile, tok);
 }
 
 static void time_handler(struct file *pfile, struct token *t)
 {
     struct token *tok = new_token(&(struct token){
-            .id = SCONSTANT, .u.lit.str = pfile->time, .src = t->src });
+        .id = SCONSTANT,
+        .u.lit.str = pfile->time,
+        .src = t->src
+    });
     unget(pfile, tok);
 }
 
@@ -1130,11 +1145,15 @@ static struct token *lineno(unsigned int line, const char *file)
 {
     const char *name = format("# %u \"%s\"\n", line, file);
     struct token *t = new_token(&(struct token){
-            .id = LINENO, .u.lit.str = name, .src.file = "<built-in>" });
+        .id = LINENO,
+        .u.lit.str = name,
+        .src.file = "<built-in>"
+    });
     return t;
 }
 
-static const char *find_header(struct file *pfile, const char *name, bool isstd)
+static const char *find_header(struct file *pfile,
+                               const char *name, bool isstd)
 {
     struct vector *paths;
     if (isstd)
@@ -1283,7 +1302,8 @@ struct token *get_pptok(struct file *pfile)
         if (t->id == EOI) {
             struct ifstack *stack = pfile->buffer->ifstack;
             if (stack)
-                cpp_error_at(stack->src, "unterminated conditional directive");
+                cpp_error_at(stack->src,
+                             "unterminated conditional directive");
             if (pfile->buffer->return_eoi) {
                 return t;
             } else {

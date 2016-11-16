@@ -154,7 +154,7 @@ struct ident {
     int type:8;
     union {
         struct macro *macro;
-    } value;
+    } u;
 };
 
 enum buffer_sentinel_option { BS_CONTINUOUS = 0, BS_RETURN_EOI };
