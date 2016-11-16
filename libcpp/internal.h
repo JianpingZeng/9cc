@@ -19,10 +19,6 @@ extern struct hideset *hideset_intersection(struct hideset *,
                                             struct hideset *);
 
 // idtab
-#define ID_HASHSEED  FNV32_BASIS
-#define ID_HASHSTEP(h, c)                               \
-    do { h ^= (c); h *= FNV32_PRIME; } while (0)
-
 enum idtab_lookup_option { ID_SEARCH = 0, ID_CREATE };
 
 struct idtab_entry {

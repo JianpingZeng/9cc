@@ -3,6 +3,9 @@
 #include <ctype.h>
 #include "utils.h"
 
+#define FNV32_BASIS ((unsigned int) 0x811c9dc5)
+#define FNV32_PRIME ((unsigned int) 0x01000193)
+
 // FNV-1a
 unsigned int strhash(const char *s)
 {

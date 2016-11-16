@@ -664,18 +664,15 @@ static void char_constant(struct file *pfile,
 static struct ident *identifier(struct file *pfile)
 {
     struct buffer *pb = pfile->buffer;
-    const char *rpc = (const char *)pb->cur - 1;
-    unsigned int hash = ID_HASHSEED;
+    const unsigned char *rpc = pb->cur - 1;
     unsigned int len;
 
-    ID_HASHSTEP(hash, *rpc);
-    while (ISDIGITLETTER(*pb->cur)) {
-        ID_HASHSTEP(hash, *pb->cur);
+    while (ISDIGITLETTER(*pb->cur))
         pb->cur++;
-    }
-    len = (const char *)pb->cur - rpc;
-    return idtab_lookup_with_hash(pfile->idtab,
-                                  rpc, len, hash, ID_CREATE);
+
+    len = pb->cur - rpc;
+    return idtab_lookup(pfile->idtab,
+                        (const char *)rpc, len, ID_CREATE);
 }
 
 static struct token *dolex(struct file *pfile)
