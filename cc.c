@@ -5,10 +5,8 @@
 struct options opts;
 char debug[128];
 
-static void dgb(void)
-{
-    D(debug['A'] = true);
-}
+static void doexit(void);
+static void dgb(void);
 
 static void parse_opts(int argc, char *argv[])
 {
@@ -52,10 +50,6 @@ static void preprocess(void)
         print("%t", t);
 }
 
-static void doexit(void)
-{
-}
-
 int main(int argc, char *argv[])
 {
     atexit(doexit);
@@ -72,4 +66,13 @@ int main(int argc, char *argv[])
         translation_unit();
 
     return errors() > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+}
+
+static void dgb(void)
+{
+    D(debug['A'] = true);
+}
+
+static void doexit(void)
+{
 }

@@ -18,46 +18,38 @@ extern struct hideset *hideset_union(struct hideset *,
 extern struct hideset *hideset_intersection(struct hideset *,
                                             struct hideset *);
 
-// imap.c
-/*
-  An identifier hash map.
+// idtab
+#define ID_HASHSEED  FNV32_BASIS
+#define ID_HASHSTEP(h, c)                               \
+    do { h ^= (c); h *= FNV32_PRIME; } while (0)
 
-  ACKNOWLEDGE:
+enum idtab_lookup_option { ID_SEARCH = 0, ID_CREATE };
 
-  imap is modified from cpp_hash_table in GCC.
- */
-
-#define IMAP_HASHSTEP(h, c)  ((h) * 67 + ((c) - 133))
-#define IMAP_HASHFINISH(h, len)  ((h) + (len))
-
-enum imap_lookup_option { IMAP_SEARCH = 0, IMAP_CREATE };
-
-// An identifier hash table for lexer.
-struct imap {
-    struct ident **table;
-    unsigned int nslots;        // number of slots
-    unsigned int nelements;     // number of elements
-    // Callback, allocate an entry
-    struct ident * (*alloc_entry) (struct imap *);
-    // Statistics
-    unsigned int searches;
-    unsigned int collisions;
+struct idtab_entry {
+    struct ident *ident;
+    struct idtab_entry *link;
 };
 
-extern struct imap *imap_new(unsigned int);
-extern void imap_free(struct imap *);
-extern struct ident *imap_lookup(struct imap *,
-                                 const unsigned char *,
-                                 size_t,
-                                 enum imap_lookup_option);
-extern struct ident *imap_lookup_with_hash(struct imap *,
-                                           const unsigned char *,
-                                           size_t,
-                                           unsigned int,
-                                           enum imap_lookup_option);
-typedef int (*imap_cb) (struct imap *, struct ident *, const void *);
-extern void imap_foreach(struct imap *, imap_cb, const void *);
-extern void imap_dump(struct imap *);
+struct idtab {
+    struct idtab_entry **table;
+    unsigned int nslots;        // number of slots
+    unsigned int nelements;     // number of elements
+    unsigned int searches;
+    unsigned int collisions;
+    struct ident * (*alloc_ident) (struct idtab *);
+};
+
+extern struct idtab *idtab_new(unsigned int);
+extern void idtab_free(struct idtab *);
+extern struct ident *idtab_lookup(struct idtab *,
+                                  const char *, size_t,
+                                  enum idtab_lookup_option);
+extern struct ident *idtab_lookup_with_hash(struct idtab *,
+                                            const char *, size_t,
+                                            unsigned int,
+                                            enum idtab_lookup_option);
+typedef int (*idtab_cb) (struct idtab *, struct ident *, const void *);
+extern void idtab_foreach(struct idtab *, idtab_cb, const void *);
 
 // error.c
 enum { WRN = 1, ERR, FTL };

@@ -19,10 +19,6 @@ static struct token *token_one = &(struct token){
     .u.lit.v.i = 1
 };
 
-#define IMAP_LOOKUP_HASH(imap, id, opt)  (struct cpp_ident *)   \
-    imap_lookup_with_hash(imap, (const unsigned char *)id->str, \
-                          id->len, id->hash, opt)
-
 static void do_if(struct file *);
 static void do_ifdef(struct file *);
 static void do_ifndef(struct file *);
@@ -56,12 +52,7 @@ static struct {
     { "pragma",  do_pragma }
 };
 
-static inline bool defined(struct file *pfile, struct token *t)
-{
-    struct ident *id = t->u.ident;
-    struct cpp_ident *ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
-    return ident && ident->type == CT_MACRO;
-}
+#define mdefined(ident)  ((ident)->type == CT_MACRO)
 
 static struct token *skip_spaces(struct file *pfile)
 {
@@ -115,12 +106,12 @@ static struct token *defined_op(struct file *pfile, struct token *t)
      */
     struct token *t1 = skip_spaces(pfile);
     if (t1->id == ID) {
-        return defined(pfile, t1) ? token_one : token_zero;
+        return mdefined(t1->u.ident) ? token_one : token_zero;
     } else if (t1->id == '(') {
         struct token *t2 = skip_spaces(pfile);
         struct token *t3 = skip_spaces(pfile);
         if (t2->id == ID && t3->id == ')') {
-            return defined(pfile, t2) ? token_one : token_zero;
+            return mdefined(t2->u.ident) ? token_one : token_zero;
         } else {
             cpp_error_at(t->src,
                          "expect 'identifier )' after 'defined ('");
@@ -248,7 +239,7 @@ static void do_ifdef_section(struct file *pfile, int id)
     if (t->id != ID)
         cpp_fatal("expect identifier");
 
-    bool b = defined(pfile, t);
+    bool b = mdefined(t->u.ident);
     bool skip = id == IFDEF ? !b : b;
 
     if_sentinel(pfile, &(struct ifstack){.id = id,.src = src,.b = !skip});
@@ -483,50 +474,34 @@ static void parameters(struct file *pfile, struct macro *m)
     m->params = v;
 }
 
-static struct cpp_ident *lookup_macro(struct file *pfile, struct token *t)
-{
-    struct ident *id = t->u.ident;
-    struct cpp_ident *ident;
-
-    ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
-    if (ident && ident->type == CT_MACRO)
-        return ident;
-    else
-        return NULL;
-}
-
-static void add_macro(struct file *pfile, struct ident *id, struct macro *m)
+static void add_macro(struct ident *ident, struct macro *m)
 {
     static const char *builtins[] = {
         "__STDC__",
         "__STDC_VERSION__",
         "__STDC_HOSTED__"
     };
-    for (int i = 0; i < ARRAY_SIZE(builtins); i++) {
-        if (!strcmp((const char *)id->str, builtins[i]))
+    for (int i = 0; i < ARRAY_SIZE(builtins); i++)
+        if (!strcmp(ident->str, builtins[i]))
             m->builtin = true;
-    }
-    struct cpp_ident *ident;
-    ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_CREATE);
+
     ident->type = CT_MACRO;
     ident->value.macro = m;
 }
 
-static void add_macro_with_name(struct file *pfile, const char *name, struct macro *m)
+static void add_macro_with_name(struct file *pfile,
+                                const char *name, struct macro *m)
 {
-    struct ident *id = imap_lookup(pfile->imap,
-                                   (const unsigned char *)name,
-                                   strlen(name), IMAP_CREATE);
-    add_macro(pfile, id, m);
+    struct ident *id = idtab_lookup(pfile->idtab,
+                                    name, strlen(name), ID_CREATE);
+    add_macro(id, m);
 }
 
-static void remove_macro(struct file *pfile, struct token *t)
+static void remove_macro(struct token *t)
 {
-    struct cpp_ident *ident;
+    struct ident *ident = t->u.ident;
 
-    ident = lookup_macro(pfile, t);
-
-    if (ident) {
+    if (ident->type == CT_MACRO) {
         struct macro *m = ident->value.macro;
         if (m->builtin) {
             cpp_error("Can't undefine predefined macro '%s'", tok2s(t));
@@ -537,12 +512,12 @@ static void remove_macro(struct file *pfile, struct token *t)
     }
 }
 
-static void ensure_macro_def(struct file *pfile, struct token *t, struct macro *m)
+static void ensure_macro_def(struct token *t, struct macro *m)
 {
     // check redefinition
     const char *name = TOK_ID_STR(t);
-    struct cpp_ident *ident = lookup_macro(pfile, t);
-    struct macro *m1 = ident ? ident->value.macro : NULL;
+    struct ident *ident = t->u.ident;
+    struct macro *m1 = ident->type == CT_MACRO ? ident->value.macro : NULL;
     size_t len1p = m->nparams;
     size_t len1b = m->nbody;
     
@@ -661,9 +636,9 @@ static void define_objlike_macro(struct file *pfile, struct token *t)
     m->kind = MACRO_OBJ;
     m->src = t->src;
     replacement_list(pfile, m);
-    ensure_macro_def(pfile, t, m);
+    ensure_macro_def(t, m);
     if (NO_ERROR)
-        add_macro(pfile, t->u.ident, m);
+        add_macro(t->u.ident, m);
 }
 
 static void define_funclike_macro(struct file *pfile, struct token *t)
@@ -674,9 +649,9 @@ static void define_funclike_macro(struct file *pfile, struct token *t)
     m->src = t->src;
     parameters(pfile, m);
     replacement_list(pfile, m);
-    ensure_macro_def(pfile, t, m);
+    ensure_macro_def(t, m);
     if (NO_ERROR)
-        add_macro(pfile, t->u.ident, m);
+        add_macro(t->u.ident, m);
 }
 
 static struct token *read_identifier(struct file *pfile)
@@ -712,7 +687,7 @@ static void do_undef(struct file *pfile)
         skipline(pfile);
         return;
     }
-    remove_macro(pfile, t);
+    remove_macro(t);
     t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         cpp_warning("extra tokens at the end of #undef directive");
@@ -1058,14 +1033,10 @@ static struct token *expand(struct file *pfile)
     if (t->id != ID)
         return t;
 
-    struct ident *id = t->u.ident;
-    const char *name = id->str;
-    struct cpp_ident *ident;
+    struct ident *ident = t->u.ident;
+    const char *name = ident->str;
 
-    ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);
-
-    if (ident == NULL ||
-        ident->type != CT_MACRO ||
+    if (ident->type != CT_MACRO ||
         hideset_has(t->hideset, name))
         return t;
 

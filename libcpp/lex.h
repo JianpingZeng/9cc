@@ -37,13 +37,6 @@ enum {
     EOI
 };
 
-// An identifier
-struct ident {
-    unsigned int hash;
-    unsigned int len;
-    const char *str;
-};
-
 // token
 #define TOK_ID_STR(t)    ((t)->u.ident->str)
 #define TOK_LIT_STR(t)   ((t)->u.lit.str)
@@ -113,7 +106,7 @@ struct file {
     const char *file;           // file name
     struct buffer *buffer;      // current buffer (top of buffer stack)
     struct vector *tokens;      // parser ungets
-    struct imap *imap;          // identifier hash map
+    struct idtab *idtab;        // identifier hash map
     struct vector *std_include_paths;
     struct vector *usr_include_paths;
     struct tokenrun *tokenrun;
@@ -150,11 +143,14 @@ struct macro {
     struct source src;
 };
 
-// cpp_ident type
+// ident type
 enum { CT_MACRO = 1 };
 
-struct cpp_ident {
-    struct ident id;
+// An identifier
+struct ident {
+    unsigned int hash;
+    unsigned int len;
+    const char *str;
     int type:8;
     union {
         struct macro *macro;
@@ -199,7 +195,7 @@ struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count);
 
 extern struct token *lex(struct file *pfile);
 extern struct token *header_name(struct file *pfile);
-extern const char *mkident(const char *name);
+extern const char *ids(const char *name);
 extern struct token *new_token(struct token *tok);
 extern void skip_ifstack(struct file *pfile);
 extern const char *id2s(int t);

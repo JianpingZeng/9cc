@@ -190,23 +190,13 @@ struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count)
     return run;
 }
 
-const char *mkident(const char *name)
+const char *ids(const char *name)
 {
-    const unsigned char *rpc = (const unsigned char *)name;
-    const unsigned char *pc = rpc + 1;
-    unsigned int hash = IMAP_HASHSTEP(0, *rpc);
-    unsigned int len;
     struct ident *ident;
-    
-    while (ISDIGITLETTER(*pc)) {
-        hash = IMAP_HASHSTEP(hash, *pc);
-        pc++;
-    }
-    len = pc - rpc;
-    hash = IMAP_HASHFINISH(hash, len);
-    ident = imap_lookup_with_hash(cpp_file->imap,
-                                  rpc, len, hash, IMAP_CREATE);
-    return (const char *)ident->str;
+
+    ident = idtab_lookup(cpp_file->idtab,
+                         name, strlen(name), ID_CREATE);
+    return ident->str;
 }
 
 struct token *new_token(struct token *tok)
@@ -674,18 +664,18 @@ static void char_constant(struct file *pfile,
 static struct ident *identifier(struct file *pfile)
 {
     struct buffer *pb = pfile->buffer;
-    const unsigned char *rpc = pb->cur - 1;
-    unsigned int hash = IMAP_HASHSTEP(0, *rpc);
+    const char *rpc = (const char *)pb->cur - 1;
+    unsigned int hash = ID_HASHSEED;
     unsigned int len;
-    
+
+    ID_HASHSTEP(hash, *rpc);
     while (ISDIGITLETTER(*pb->cur)) {
-        hash = IMAP_HASHSTEP(hash, *pb->cur);
+        ID_HASHSTEP(hash, *pb->cur);
         pb->cur++;
     }
-    len = pb->cur - rpc;
-    hash = IMAP_HASHFINISH(hash, len);
-    return imap_lookup_with_hash(pfile->imap,
-                                 rpc, len, hash, IMAP_CREATE);
+    len = (const char *)pb->cur - rpc;
+    return idtab_lookup_with_hash(pfile->idtab,
+                                  rpc, len, hash, ID_CREATE);
 }
 
 static struct token *dolex(struct file *pfile)

@@ -13,15 +13,6 @@ void die(const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
-void println(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-}
-
 void dlog(const char *fmt, ...)
 {
     va_list ap;
@@ -31,7 +22,7 @@ void dlog(const char *fmt, ...)
     va_end(ap);
 }
 
-void dwarning(const char *fmt, ...)
+void dwarn(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

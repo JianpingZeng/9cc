@@ -31,9 +31,8 @@
 
 // wrapper.c
 extern void die(const char *fmt, ...);
-extern void println(const char *fmt, ...);
 extern void dlog(const char *fmt, ...);
-extern void dwarning(const char *fmt, ...);
+extern void dwarn(const char *fmt, ...);
 extern void derror(const char *fmt, ...);
 extern void *xmalloc(size_t size);
 extern void *xcalloc(size_t count, size_t size);
@@ -44,6 +43,8 @@ extern size_t length(void *array);
 #define zmalloc(size)  memset(xmalloc(size), 0, (size))
 
 // string.c
+#define FNV32_BASIS ((unsigned int) 0x811c9dc5)
+#define FNV32_PRIME ((unsigned int) 0x01000193)
 extern unsigned int strhash(const char *s);
 extern unsigned int strnhash(const char *s, size_t len);
 extern char *format(const char *fmt, ...);

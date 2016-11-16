@@ -2787,7 +2787,7 @@ static void predefined_ids(void)
     init = cnsts(func.name);
     // __func__
     if (!name)
-        name = mkident("__func__");
+        name = ids("__func__");
 
     sym = actions.localdcl(name, ty, STATIC, 0, init, source);
     sym->predefine = true;

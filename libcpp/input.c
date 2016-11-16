@@ -171,9 +171,9 @@ bool is_original_file(struct file *pfile, const char *file)
         return false;
 }
 
-static inline struct ident *alloc_cpp_ident_entry(struct imap *imap)
+static inline struct ident *alloc_cpp_ident(struct idtab *t)
 {
-    return NEWS0(struct cpp_ident, PERM);
+    return NEWS0(struct ident, PERM);
 }
 
 struct file *input_init(const char *file)
@@ -184,8 +184,8 @@ struct file *input_init(const char *file)
     pfile->std_include_paths = vec_new();
     pfile->usr_include_paths = vec_new();
     // 2^13: 8k slots
-    pfile->imap = imap_new(13);
-    pfile->imap->alloc_entry = alloc_cpp_ident_entry;
+    pfile->idtab = idtab_new(13);
+    pfile->idtab->alloc_ident = alloc_cpp_ident;
     // tokenrun
     pfile->tokenrun = next_tokenrun(NULL, 1024);
     pfile->cur_token = pfile->tokenrun->base;
