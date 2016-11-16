@@ -4,7 +4,7 @@
 #include "libutils/color.h"
 #include "cc.h"
 
-enum { WRN = 1, ERR, FTL };
+enum { WRN = 1, ERR, FTL, ITL };
 static unsigned int cc_errors, cc_warnings;
 
 #define MAX_ERRORS 10
@@ -27,7 +27,8 @@ static void exit_if_too_many_errors(void)
     }
 }
 
-static void cc_print_lead(int level, struct source src, const char *fmt, va_list ap)
+static void
+cc_print_lead(int level, struct source src, const char *fmt, va_list ap)
 {
     const char *lead;
     switch (level) {
@@ -39,6 +40,9 @@ static void cc_print_lead(int level, struct source src, const char *fmt, va_list
         break;
     case FTL:
         lead = RED_BOLD("fatal:");
+        break;
+    case ITL:
+        lead = RED_BOLD("internal:");
         break;
     default:
         assert(0);
@@ -81,4 +85,12 @@ void fatal_at(struct source src, const char *fmt, ...)
     cc_print_lead(FTL, src, fmt, ap);
     va_end(ap);
     exit(EXIT_FAILURE);
+}
+
+void intal_at(struct source src, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    cc_print_lead(ITL, src, fmt, ap);
+    va_end(ap);
 }

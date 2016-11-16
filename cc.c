@@ -7,7 +7,7 @@ char debug[128];
 
 static void dgb(void)
 {
-    D(debug['y'] = true);
+    D(debug['A'] = true);
 }
 
 static void parse_opts(int argc, char *argv[])

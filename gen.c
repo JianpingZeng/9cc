@@ -79,7 +79,7 @@ static void geninit_ptr(struct symbol *s)
                        -init->kids[1]->s.value.i);
     } else {
         if (debug['A'])
-            error_at(s->src, "illegal initializer for '%s'", s->name);
+            intal_at(s->src, "illegal initializer for '%s'", s->name);
         IR->defzero(TYPE_SIZE(s->type));
     }
 }
@@ -92,7 +92,7 @@ static void geninit_arith(struct symbol *s)
         IR->defconst(OPTYPE(init->op), TYPE_SIZE(s->type), init->s.value);
     } else {
         if (debug['A'])
-            error_at(s->src, "illegal initializer for '%s'", s->name);
+            intal_at(s->src, "illegal initializer for '%s'", s->name);
         IR->defzero(TYPE_SIZE(s->type));
     }
 }
