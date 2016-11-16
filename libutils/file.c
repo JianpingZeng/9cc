@@ -117,8 +117,15 @@ const char *fsuffix(const char *path)
 
 int rmdir(const char *dir)
 {
-    char command[64];
+    char command[1024];
     snprintf(command, sizeof(command), "rm -rf %s", dir);
+    return system(command);
+}
+
+int rmfile(const char *file)
+{
+    char command[1024];
+    snprintf(command, sizeof(command), "rm -f %s", file);
     return system(command);
 }
 

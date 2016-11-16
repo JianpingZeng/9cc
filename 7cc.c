@@ -263,8 +263,11 @@ int main(int argc, char **argv)
                 objects = list_append(objects, ifile);
             }
         }
-        if (r == EXIT_FAILURE)
+        if (r == EXIT_FAILURE) {
             fails++;
+            if (ofile)
+                rmfile(ofile);
+        }
     }
 
     if (fails)

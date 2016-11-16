@@ -67,6 +67,7 @@ extern char *xdirname(const char *path);
 extern char *xbasename(const char *path);
 extern const char *mktmpdir();
 extern int rmdir(const char *dir);
+extern int rmfile(const char *file);
 extern char *abspath(const char *path);
 extern const char *join(const char *dir, const char *name);
 extern int fexists(const char *path);

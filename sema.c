@@ -2098,6 +2098,7 @@ static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
                                 struct tree *init, struct source src)
 {
     struct type *ty = sym->type;
+    struct type *sty = init->type;
 
     if (istag(ty) && isincomplete(ty)) {
         error_at(src, "variable '%s' has incomplete type '%T'",
@@ -2116,7 +2117,7 @@ static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
 
     if (isscalar(ty)) {
         if (!(init = assignconv(ty, init))) {
-            error_at(src, ERR_INCOMPATIBLE_INIT, ty, init->type);
+            error_at(src, ERR_INCOMPATIBLE_INIT, ty, sty);
             return NULL;
         }
         return ensure_init_scalar(sym, init, src);
@@ -2124,7 +2125,7 @@ static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
         return ensure_init_array(sym, init, src);
     } else if (isstruct(ty) || isunion(ty)) {
         if (!(init = assignconv(ty, init))) {
-            error_at(src, ERR_INCOMPATIBLE_INIT, ty, init->type);
+            error_at(src, ERR_INCOMPATIBLE_INIT, ty, sty);
             return NULL;
         }
         return ensure_init_struct(sym, init, src);
