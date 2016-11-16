@@ -41,11 +41,11 @@ enum {
 struct ident {
     unsigned int hash;
     unsigned int len;
-    const unsigned char *str;
+    const char *str;
 };
 
 // token
-#define TOK_ID_STR(t)    ((const char *)(t)->u.ident->str)
+#define TOK_ID_STR(t)    ((t)->u.ident->str)
 #define TOK_LIT_STR(t)   ((t)->u.lit.str)
 
 struct token {

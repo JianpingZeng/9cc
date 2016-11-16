@@ -19,8 +19,9 @@ static struct token *token_one = &(struct token){
     .u.lit.v.i = 1
 };
 
-#define IMAP_LOOKUP_HASH(imap, id, opt)                                 \
-    (struct cpp_ident *)imap_lookup_with_hash(imap, id->str, id->len, id->hash, opt)
+#define IMAP_LOOKUP_HASH(imap, id, opt)  (struct cpp_ident *)   \
+    imap_lookup_with_hash(imap, (const unsigned char *)id->str, \
+                          id->len, id->hash, opt)
 
 static void do_if(struct file *);
 static void do_ifdef(struct file *);
@@ -1058,7 +1059,7 @@ static struct token *expand(struct file *pfile)
         return t;
 
     struct ident *id = t->u.ident;
-    const unsigned char *name = id->str;
+    const char *name = id->str;
     struct cpp_ident *ident;
 
     ident = IMAP_LOOKUP_HASH(pfile->imap, id, IMAP_SEARCH);

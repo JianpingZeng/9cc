@@ -1,7 +1,7 @@
 #include "internal.h"
 #include "libutils/utils.h"
 
-struct hideset *hideset_add(struct hideset *s, const unsigned char *name)
+struct hideset *hideset_add(struct hideset *s, const char *name)
 {
     struct hideset *r = NEWS0(struct hideset, PERM);
     r->name = name;
@@ -9,7 +9,7 @@ struct hideset *hideset_add(struct hideset *s, const unsigned char *name)
     return r;
 }
 
-bool hideset_has(struct hideset * s, const unsigned char *name)
+bool hideset_has(struct hideset * s, const char *name)
 {
     for (; s; s = s->next) {
         if (s->name == name)

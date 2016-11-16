@@ -91,7 +91,7 @@ struct ident *imap_lookup_with_hash(struct imap *imap,
     char *d = xmalloc(len + 1);
     memcpy(d, str, len);
     d[len] = '\0';
-    result->str = (const unsigned char *)d;
+    result->str = d;
 
     if (++imap->nelements * 4 >= imap->nslots * 3)
         imap_expand(imap);

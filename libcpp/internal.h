@@ -7,12 +7,12 @@
 
 // hideset.c
 struct hideset {
-    const unsigned char *name;
+    const char *name;
     struct hideset *next;
 };
 
-extern struct hideset *hideset_add(struct hideset *, const unsigned char *);
-extern bool hideset_has(struct hideset *, const unsigned char *);
+extern struct hideset *hideset_add(struct hideset *, const char *);
+extern bool hideset_has(struct hideset *, const char *);
 extern struct hideset *hideset_union(struct hideset *,
                                      struct hideset *);
 extern struct hideset *hideset_intersection(struct hideset *,
