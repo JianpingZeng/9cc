@@ -7,6 +7,8 @@
 #include <stddef.h>
 // for FILE *
 #include <stdio.h>
+// for assert
+#include <assert.h>
 
 #include "config.h"
 #include "libutils/utils.h"

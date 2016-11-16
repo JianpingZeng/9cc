@@ -35,8 +35,10 @@ enum { Zero = 0, Byte = 1, Word = 2, Long = 4, Quad = 8 };
 
 extern struct symbol *mkreg(const char *, int, int);
 extern struct symbol *mksreg(const char *);
-extern void gen(struct symbol *s);
-extern void emit(struct symbol *s);
+extern void gen(struct symbol *);
+extern void emit(struct symbol *);
+extern void genglobal(struct symbol *);
+extern void genstring(struct symbol *);
 
 #define reg_alias(s, i, name)                           \
     do { (s)->x.reg.alias[i] = name; } while (0)

@@ -5,7 +5,6 @@
 
 static struct tree *condexpr(struct type *, struct tree *,
                              struct tree *, struct tree *);
-static void defglobal(struct symbol *);
 struct func func;
 
 #define ERR_INCOMPATIBLE_CONV \
@@ -62,6 +61,9 @@ struct func func;
 #define ERR_INCOMPATIBLE_INIT \
     "initializing '%T' with an expression of incompatible type '%T'"
 
+#define ERR_INITIALIZER_NOT_CONST \
+    "initializer is not a compile-time constant"
+
 #define INTEGER_MAX(type)    (TYPE_LIMITS(type).max.i)
 #define UINTEGER_MAX(type)   (TYPE_LIMITS(type).max.u)
 #define INIT(name)  .name = do_##name
@@ -116,7 +118,8 @@ static void defsvar(struct symbol *s)
     link_lvar(s);
     if (opts.ast_dump || errors())
         return;
-    defglobal(s);
+    IR->defsym(s);
+    genglobal(s);
 }
 
 // define a global variable
@@ -128,7 +131,8 @@ static void defgvar(struct symbol *s)
     }
     if (errors())
         return;
-    defglobal(s);
+    IR->defsym(s);
+    genglobal(s);
 }
 
 // define a function
@@ -157,101 +161,10 @@ static void funcall(struct type *fty, struct tree **args)
  *                           Private                               *
  *=================================================================*/
 
-static void geninit_struct(struct symbol *s)
-{
-    // TODO: 
-}
-
-static void geninit_array(struct symbol *s)
-{
-    // TODO:
-    struct tree *init = s->u.init;
-    struct type *ty = s->type;
-    size_t size = TYPE_SIZE(ty);
-
-    if (isstring(ty) && issliteral(init)) {
-        IR->defstring(init->s.sym->name, size);
-    } else {
-        error_at(s->src, "illegal %s initializer for '%s'",
-                 TYPE_NAME(ty), s->name);
-        IR->defzero(size);
-    }
-}
-
-static void geninit_ptr(struct symbol *s)
-{
-    struct tree *init = s->u.init;
-    struct type *ty = s->type;
-    size_t size = TYPE_SIZE(ty);
-
-    if (OPKIND(init->op) == CNST) {
-        IR->defconst(OPTYPE(init->op), size, init->s.value);
-    } else if (opid(init->op) == ADDRG+P) {
-        IR->defaddress(init->s.sym->x.name, 0);
-    } else if (opid(init->op) == ADD+P &&
-               opid(init->kids[0]->op) == ADDRG+P &&
-               OPKIND(init->kids[1]->op) == CNST) {
-        IR->defaddress(init->kids[0]->s.sym->x.name,
-                       init->kids[1]->s.value.i);
-    } else if (opid(init->op) == SUB+P &&
-               opid(init->kids[0]->op) == ADDRG+P &&
-               OPKIND(init->kids[1]->op) == CNST) {
-        IR->defaddress(init->kids[0]->s.sym->x.name,
-                       -init->kids[1]->s.value.i);
-    } else {
-        error_at(s->src, "illegal %s initializer for '%s'",
-                 TYPE_NAME(ty), s->name);
-        IR->defzero(size);
-    }
-}
-
-static void geninit_arith(struct symbol *s)
-{
-    struct tree *init = s->u.init;
-    struct type *ty = s->type;
-    size_t size = TYPE_SIZE(ty);
-    
-    if (OPKIND(init->op) == CNST) {
-        IR->defconst(OPTYPE(init->op), size, init->s.value);
-    } else {
-        error_at(s->src, "illegal %s initializer for '%s'",
-                 TYPE_NAME(ty), s->name);
-        IR->defzero(size);
-    }
-}
-
-static void defglobal(struct symbol *s)
-{
-    int seg = s->u.init ? DATA : BSS;
-
-    IR->defsym(s);
-    if (seg == DATA && s->sclass != STATIC)
-        IR->export(s);
-    else if (seg == BSS && s->sclass == STATIC)
-        IR->local(s);
-    IR->segment(seg);
-    IR->defvar(s);
-    if (s->u.init) {
-        if (isarith(s->type))
-            geninit_arith(s);
-        else if (isptr(s->type))
-            geninit_ptr(s);
-        else if (isarray(s->type))
-            geninit_array(s);
-        else if (isstruct(s->type))
-            geninit_struct(s);
-        else
-            CC_UNAVAILABLE();
-    }
-}
-
 static void doconstant(struct symbol *sym, void *context)
 {
-    if (sym->string && sym->refs > 0) {
-        IR->segment(RODATA);
-        IR->defvar(sym);
-        IR->defstring(sym->name, -1);
-    }
+    if (sym->string && sym->refs > 0)
+        genstring(sym);
 }
 
 static void doglobal(struct symbol *sym, void *context)
@@ -296,8 +209,8 @@ static void skip_to_first(int (*first) (struct token *))
     }
 }
 
-static void field_not_found_error(struct source src,
-                                  struct type *ty, const char *name)
+static void
+field_not_found_error(struct source src, struct type *ty, const char *name)
 {
     if (isincomplete(ty))
         error_at(src, "incomplete definition of type '%T'", ty);
@@ -2102,27 +2015,50 @@ static void finish_string(struct type *ty,
     }
 }
 
-static struct tree *ensure_init_scalar_struct(struct symbol *sym,
-                                              struct tree *init,
-                                              struct source src)
+static struct tree *ensure_init_scalar(struct symbol *sym,
+                                       struct tree *init,
+                                       struct source src)
 {
-    struct type *dty = sym->type;
-    struct type *sty = init->type;
-
-    if (!(init = assignconv(dty, init))) {
-        error_at(src, ERR_INCOMPATIBLE_INIT, dty, sty);
-        return NULL;
+    struct type *ty = sym->type;
+    
+    if (iscpliteral(init)) {
+        struct init *i = COMPOUND_SYM(init)->u.init->s.u.ilist;
+        init = i->body;
     }
 
-    if (iscpliteral(init)) {
-        if (isscalar(dty)) {
-            struct init *i = COMPOUND_SYM(init)->u.init->s.u.ilist;
-            return i->body;
-        } else {
-            return COMPOUND_SYM(init)->u.init;
+    if (has_static_extent(sym)) {
+        int c1, c2, c3, c4;
+        
+        if (isarith(ty) && OPKIND(init->op) != CNST) {
+            error_at(src, ERR_INITIALIZER_NOT_CONST);
+            return NULL;
+        }
+
+        c1 = OPKIND(init->op) == CNST;
+        c2 = opid(init->op) == ADDRG+P;
+        c3 = opid(init->op) == ADD+P &&
+            opid(init->kids[0]->op) == ADDRG+P &&
+            OPKIND(init->kids[1]->op) == CNST;
+        c4 = opid(init->op) == SUB+P &&
+            opid(init->kids[0]->op) == ADDRG+P &&
+            OPKIND(init->kids[1]->op) == CNST;
+
+        if (isptr(ty) && !(c1 || c2 || c3 || c4)) {
+            error_at(src, ERR_INITIALIZER_NOT_CONST);
+            return NULL;
         }
     }
 
+    return init;
+}
+
+static struct tree *ensure_init_struct(struct symbol *sym,
+                                       struct tree *init,
+                                       struct source src)
+{
+    if (iscpliteral(init)) {
+        return COMPOUND_SYM(init)->u.init;
+    }
     return init;
 }
 
@@ -2178,10 +2114,20 @@ static struct tree *ensure_init(int level, int sclass, struct symbol *sym,
         }
     }
 
-    if (isarray(ty)) {
+    if (isscalar(ty)) {
+        if (!(init = assignconv(ty, init))) {
+            error_at(src, ERR_INCOMPATIBLE_INIT, ty, init->type);
+            return NULL;
+        }
+        return ensure_init_scalar(sym, init, src);
+    } else if (isarray(ty)) {
         return ensure_init_array(sym, init, src);
-    } else if (isscalar(ty) || isstruct(ty) || isunion(ty)) {
-        return ensure_init_scalar_struct(sym, init, src);
+    } else if (isstruct(ty) || isunion(ty)) {
+        if (!(init = assignconv(ty, init))) {
+            error_at(src, ERR_INCOMPATIBLE_INIT, ty, init->type);
+            return NULL;
+        }
+        return ensure_init_struct(sym, init, src);
     } else {
         error_at(src, "'%s' cannot have an initializer", TYPE_NAME(ty));
         return NULL;
