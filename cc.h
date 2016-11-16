@@ -617,6 +617,7 @@ extern unsigned int warnings(void);
 extern void warning_at(struct source, const char *, ...);
 extern void error_at(struct source, const char *, ...);
 extern void fatal_at(struct source, const char *, ...);
+extern void intal_at(struct source, const char *, ...);
 
 #define warning(...)         warning_at(source, __VA_ARGS__)
 #define error(...)           error_at(source, __VA_ARGS__)
