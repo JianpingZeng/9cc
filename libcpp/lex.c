@@ -1103,10 +1103,9 @@ struct token *lex(struct file *pfile)
     return t;
 }
 
-/* Parser tokens
- */
+/// Parser tokens
 
-static struct token *one_token(struct file *pfile)
+static struct token *get_cpp_token(struct file *pfile)
 {
     if (pfile->tokens && pfile->tokens->len) {
         return vec_pop(pfile->tokens);
@@ -1120,9 +1119,9 @@ static struct token *one_token(struct file *pfile)
     }
 }
 
-static struct token *peek_token(struct file *pfile)
+static struct token *peek_cpp_token(struct file *pfile)
 {
-    struct token *t = one_token(pfile);
+    struct token *t = get_cpp_token(pfile);
     vec_push(pfile->tokens, t);
     return t;
 }
@@ -1149,18 +1148,18 @@ static struct token *combine_scons(struct token **v, size_t len)
     return t0;
 }
 
-static struct token *do_cctoken(struct file *pfile)
+static struct token *do_get_cc_token(struct file *pfile)
 {
-    struct token *t = one_token(pfile);
-    if (t->id == SCONSTANT && peek_token(pfile)->id == SCONSTANT) {
+    struct token *t = get_cpp_token(pfile);
+    if (t->id == SCONSTANT && peek_cpp_token(pfile)->id == SCONSTANT) {
         struct token *t1;
         struct list *list = list_append(NULL, t);
         size_t len = strlen(TOK_LIT_STR(t));
         do {
-            t1 = one_token(pfile);
+            t1 = get_cpp_token(pfile);
             list = list_append(list, t1);
             len += strlen(TOK_LIT_STR(t1));
-        } while (peek_token(pfile)->id == SCONSTANT);
+        } while (peek_cpp_token(pfile)->id == SCONSTANT);
 
         return combine_scons(ltoa(&list, PERM), len);
     }
@@ -1206,9 +1205,9 @@ static int tkind(int t)
         return 0;
 }
 
-static struct token *cctoken(struct file *pfile)
+static struct token *get_cc_token(struct file *pfile)
 {
-    struct token *t = do_cctoken(pfile);
+    struct token *t = do_get_cc_token(pfile);
     // keywords
     if (t->id == ID) {
         const char *name = TOK_ID_STR(t);
@@ -1230,7 +1229,7 @@ int gettok(void)
         token = ahead_token;
         ahead_token = NULL;
     } else {
-        token = cctoken(cpp_file);
+        token = get_cc_token(cpp_file);
     }
     MARK(token);
     return token->id;
@@ -1239,7 +1238,7 @@ int gettok(void)
 struct token *lookahead(void)
 {
     if (ahead_token == NULL) {
-        ahead_token = cctoken(cpp_file);
+        ahead_token = get_cc_token(cpp_file);
         // restore source
         MARK(token);
     }
