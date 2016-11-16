@@ -42,14 +42,14 @@
 
 #define BLACK_BOLD_COLOR    ""
 #define RED_BOLD_COLOR      ""
-#define GREEN__BOLDCOLOR    ""
+#define GREEN_BOLD_COLOR    ""
 #define YELLOW_BOLD_COLOR   ""
 #define BLUE_BOLD_COLOR     ""
 #define PURPLE_BOLD_COLOR   ""
 #define CYAN_BOLD_COLOR     ""
 #define WHITE_BOLD_COLOR    ""
 
-#endif                                // CONFIG_COLOR_TERM
+#endif /* CONFIG_COLOR_TERM */
 
 #define BLACK(str)    BLACK_COLOR str RESET
 #define RED(str)      RED_COLOR str RESET
