@@ -520,7 +520,6 @@ extern void gencode(struct symbol *);
 extern void emitcode(struct symbol *);
 
 // eval.c
-extern struct tree *eval(struct tree *, struct type *);
 extern struct tree *fold(int, struct type *, struct tree *, struct tree *);
 
 // parser.c

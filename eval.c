@@ -13,46 +13,58 @@
  */
 
 #define xxcv(func, ty, l)                       \
-    if (OPKIND(l->op) == CNST) {                \
-        cv##func(ty, l);                        \
-        l->op = mkop(CNST, ty);                 \
-        l->type = ty;                           \
-        return l;                               \
-    }
+    do {                                        \
+        if (OPKIND(l->op) == CNST) {            \
+            cv##func(ty, l);                    \
+            l->op = mkop(CNST, ty);             \
+            l->type = ty;                       \
+            return l;                           \
+        }                                       \
+    } while (0)
 
-#define foldcnst1i(oper, vf, ty, l)             \
-    if (OPKIND(l->op) == CNST) {                \
-        l->s.value.vf = oper l->s.value.vf;     \
-        l->op = mkop(CNST, ty);                 \
-        l->type = ty;                           \
-        return l;                               \
-    }
+#define foldcnst1(oper, vf, ty, l)              \
+    do {                                        \
+        if (OPKIND(l->op) == CNST) {            \
+            l->s.value.vf = oper l->s.value.vf; \
+            l->op = mkop(CNST, ty);             \
+            l->type = ty;                       \
+            return l;                           \
+        }                                       \
+    } while (0)
 
-#define foldcnst1f(oper, vf, ty, l)  foldcnst1i(oper, vf, ty, l)
+#define foldcnst1i(oper, vf, ty, l)  foldcnst1(oper, vf, ty, l)
+#define foldcnst1f(oper, vf, ty, l)  foldcnst1(oper, vf, ty, l)
 
-#define foldcnst2i(oper, vf, ty, l, r)                          \
-    if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {       \
-        l->s.value.vf = l->s.value.vf oper r->s.value.vf;       \
-        l->op = mkop(CNST, ty);                                 \
-        l->type = ty;                                           \
-        return l;                                               \
-    }
+#define foldcnst2(oper, vf, ty, l, r)                           \
+    do {                                                        \
+        if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {   \
+            l->s.value.vf = l->s.value.vf oper r->s.value.vf;   \
+            l->op = mkop(CNST, ty);                             \
+            l->type = ty;                                       \
+            return l;                                           \
+        }                                                       \
+    } while (0)
 
-#define foldcnst2f(oper, vf, ty, l, r)  foldcnst2i(oper, vf, ty, l, r)
+#define foldcnst2i(oper, vf, ty, l, r)  foldcnst2(oper, vf, ty, l, r)
+#define foldcnst2f(oper, vf, ty, l, r)  foldcnst2(oper, vf, ty, l, r)
 
 #define exchange(l, r)                                  \
-    if (OPKIND(l->op) == CNST) {                        \
-        struct tree *tmp; tmp = l; l = r; r = tmp;      \
-    }
+    do {                                                \
+        if (OPKIND(l->op) == CNST) {                    \
+            struct tree *tmp; tmp = l; l = r; r = tmp;  \
+        }                                               \
+    } while (0)
 
 #define xfoldcnst2(func, opid, ty, l, r)                        \
-    if ((OPKIND(l->op) == ADD || OPKIND(l->op) == SUB) &&       \
-        OPKIND(l->kids[1]->op) == CNST) {                       \
-        if (OPKIND(r->op) == CNST)                              \
-            return xfold##func(opid, ty, l, r);                 \
-        else                                                    \
-            return xswap(opid, ty, l, r);                       \
-    }
+    do {                                                        \
+        if ((OPKIND(l->op) == ADD || OPKIND(l->op) == SUB) &&   \
+            OPKIND(l->kids[1]->op) == CNST) {                   \
+            if (OPKIND(r->op) == CNST)                          \
+                return xfold##func(opid, ty, l, r);             \
+            else                                                \
+                return xswap(opid, ty, l, r);                   \
+        }                                                       \
+    } while (0)
 
 #define doxfoldadd(oper, vfi, vff, op, ty, a, b)                        \
     do {                                                                \
@@ -69,28 +81,30 @@
     } while (0)
 
 #define foldlogic(opid, oper, ty, l, r)                         \
-    if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {       \
-        int i;                                                  \
-        if (OPTYPE(l->op) == P && OPTYPE(r->op) == P)           \
-            i = l->s.value.p oper r->s.value.p;                 \
-        else if (OPTYPE(l->op) == P)                            \
-            i = l->s.value.p oper r->s.value.u;                 \
-        else if (OPTYPE(r->op) == P)                            \
-            i = l->s.value.u oper r->s.value.p;                 \
-        else                                                    \
-            i = l->s.value.u oper r->s.value.u;                 \
-        return cnsti(i, ty);                                    \
-    } else if (OPKIND(l->op) == CNST) {                         \
-        bool b;                                                 \
-        if (OPTYPE(l->op) == P)                                 \
-            b = l->s.value.p;                                   \
-        else                                                    \
-            b = l->s.value.u;                                   \
-        if (opid == AND && !b)                                  \
-            return cnsti(0, ty);                                \
-        else if (opid == OR && b)                               \
-            return cnsti(1, ty);                                \
-    }
+    do {                                                        \
+        if (OPKIND(l->op) == CNST && OPKIND(r->op) == CNST) {   \
+            int i;                                              \
+            if (OPTYPE(l->op) == P && OPTYPE(r->op) == P)       \
+                i = l->s.value.p oper r->s.value.p;             \
+            else if (OPTYPE(l->op) == P)                        \
+                i = l->s.value.p oper r->s.value.u;             \
+            else if (OPTYPE(r->op) == P)                        \
+                i = l->s.value.u oper r->s.value.p;             \
+            else                                                \
+                i = l->s.value.u oper r->s.value.u;             \
+            return cnsti(i, ty);                                \
+        } else if (OPKIND(l->op) == CNST) {                     \
+            bool b;                                             \
+            if (OPTYPE(l->op) == P)                             \
+                b = l->s.value.p;                               \
+            else                                                \
+                b = l->s.value.u;                               \
+            if (opid == AND && !b)                              \
+                return cnsti(0, ty);                            \
+            else if (opid == OR && b)                           \
+                return cnsti(1, ty);                            \
+        }                                                       \
+    } while (0)
 
 static void cvii(struct type *ty, struct tree *l)
 {
@@ -416,10 +430,4 @@ struct tree *fold(int op, struct type *ty, struct tree *l, struct tree *r)
         break;
     }
     return ast_expr(op, ty, l, r);
-}
-
-struct tree *eval(struct tree *expr, struct type * ty)
-{
-    // TODO:
-    return cnsti(1, ty);
 }
