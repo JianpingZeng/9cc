@@ -1,4 +1,9 @@
-NOTE: This is the develop branch, see also https://github.com/huangguiyang/7cc/tree/master for stable codebase.
+
+/*---------------------------------------------------.
+|           This is the develop branch               |
+`----------------------------------------------------*
+
+see also https://github.com/huangguiyang/7cc/tree/master for stable codebase.
 
 
 7cc - a standard C compiler
