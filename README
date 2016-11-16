@@ -1,3 +1,6 @@
+NOTE: This is the develop branch, see also https://github.com/huangguiyang/7cc/tree/master for stable codebase.
+
+
 7cc - a standard C compiler
 
 The compiler is designed to be able to compile itself, so it is written in C. And it is intended to support all C99 language features while keeping the code as simple and small as possible.
@@ -6,15 +9,15 @@ The compiler is designed to be able to compile itself, so it is written in C. An
 Source Roadmap:
 ---------------
 
-Documentation   Documentation.
+7burg           The bottom-up tree rewriting generator.
+
+doc             Documentation.
 
 include		Header files provided by this compiler.
 
 libcpp          C Preprocessor.
 
 libutils	Common utilities.
-
-7burg           The code-generator generator.
 
 
 HOWTO build:
