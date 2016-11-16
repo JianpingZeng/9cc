@@ -50,6 +50,7 @@ extern char *format(const char *fmt, ...);
 extern char *xstrdup(const char *str);
 extern char *xstrndup(const char *str, size_t n);
 extern bool has_prefix(const char *s, const char *prefix);
+extern char *strip(const char *str);
 
 // alloc.c
 extern void *allocate(size_t n, unsigned int a);

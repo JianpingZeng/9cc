@@ -627,59 +627,70 @@ static struct vector *type2s1(struct type *ty)
     return r;
 }
 
-static void qualstr(struct strbuf *s, int q)
+static const char *qualstr(int q)
 {
-    if (isconst1(q))
-        strbuf_cats(s, "const ");
-    if (isvolatile1(q))
-        strbuf_cats(s, "volatile ");
-    if (isrestrict1(q))
-        strbuf_cats(s, "restrict ");
+    switch (q) {
+    case CONST:
+        return "const ";
+    case VOLATILE:
+        return "volatile ";
+    case RESTRICT:
+        return "restrict ";
+    case CONST+VOLATILE:
+        return "const volatile ";
+    case CONST+RESTRICT:
+        return "const restrict ";
+    case VOLATILE+RESTRICT:
+        return "volatile restrict ";
+    case CONST+VOLATILE+RESTRICT:
+        return "const volatile restrict ";
+    default:
+        return "";
+    }
 }
 
 static const char *type2s(struct type *ty)
 {
-    struct strbuf *buf = strbuf_new();
+    char buf[1024];
+    char *bp = buf, *be = buf + ARRAY_SIZE(buf);
+    int size = ARRAY_SIZE(buf);
     struct vector *v = type2s1(ty);
     for (int i = 0; i < vec_len(v); i++) {
         struct type2s *s = vec_at(v, i);
         if (s->id == LPAREN) {
-            strbuf_cats(buf, "(");
+            snprintf(bp, size, "(");
         } else if (s->id == RPAREN) {
-            strbuf_cats(buf, ")");
+            snprintf(bp, size, ")");
         } else if (s->id == FCOMMA) {
-            strbuf_cats(buf, ",");
+            snprintf(bp, size, ",");
         } else if (s->id == FSPACE) {
-            strbuf_cats(buf, " ");
+            snprintf(bp, size, " ");
         } else if (s->id == ELLIPSIS) {
-            strbuf_cats(buf, "...");
+            snprintf(bp, size, "...");
         } else if (isptr(s->type)) {
-            strbuf_cats(buf, "*");
-            qualstr(buf, s->qual);
+            snprintf(bp, size, "*%s", qualstr(s->qual));
         } else if (isarray(s->type)) {
-            if (TYPE_LEN(s->type) > 0) {
-                strbuf_cats(buf, "[");
-                strbuf_catd(buf, TYPE_LEN(s->type));
-                strbuf_cats(buf, "]");
-            } else {
-                strbuf_cats(buf, " []");
-            }
+            if (TYPE_LEN(s->type) > 0)
+                snprintf(bp, size, "[%lu]", TYPE_LEN(s->type));
+            else
+                snprintf(bp, size, " []");
         } else if (isenum(s->type) ||
                    isstruct(s->type) ||
                    isunion(s->type)) {
-            qualstr(buf, s->qual);
-            strbuf_cats(buf, TYPE_NAME(s->type));
+            snprintf(bp, size, "%s%s", qualstr(s->qual), TYPE_NAME(s->type));
             if (!TYPE_TSYM(s->type)->anonymous) {
-                strbuf_cats(buf, " ");
-                strbuf_cats(buf, TYPE_TSYM(s->type)->name);
+                bp += strlen(bp);
+                size = be - bp;
+                snprintf(bp, size, " %s", TYPE_TSYM(s->type)->name);
             }
         } else {
-            qualstr(buf, s->qual);
-            strbuf_cats(buf, TYPE_NAME(s->type));
+            snprintf(bp, size, "%s%s", qualstr(s->qual), TYPE_NAME(s->type));
         }
+        bp += strlen(bp);
+        size = be - bp;
     }
 
-    return strbuf_str(strbuf_strip(buf));
+    return strip(buf);
 }
 // TODO: print typedef names
 

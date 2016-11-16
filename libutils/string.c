@@ -1,5 +1,6 @@
 #include <limits.h>
 #include <stdio.h>
+#include <ctype.h>
 #include "utils.h"
 
 #define FNV32_BASIS ((unsigned int) 0x811c9dc5)
@@ -56,4 +57,14 @@ bool has_prefix(const char *s, const char *prefix)
     if (!s || !prefix)
         return false;
     return !strncmp(s, prefix, strlen(prefix));
+}
+
+char *strip(const char *str)
+{
+    const char *p1 = str, *p2 = str + strlen(str);
+    while (isblank(*p1))
+        p1++;
+    while (p2 > p1 && isblank(p2[-1]))
+        p2--;
+    return xstrndup(p1, p2 - p1);
 }
