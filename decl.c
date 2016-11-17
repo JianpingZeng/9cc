@@ -1457,7 +1457,8 @@ static void doglobal(struct symbol *sym, void *context)
 {
     if (SYM_SCLASS(sym) == EXTERN ||
         isfunc(SYM_TYPE(sym)) ||
-        SYM_DEFINED(sym))
+        SYM_DEFINED(sym) ||
+        SYM_SCLASS(sym) == TYPEDEF)
         return;
 
     actions.defvar(sym);
