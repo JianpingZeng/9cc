@@ -197,4 +197,5 @@ struct file *input_init(const char *file)
 void cpp_dump(struct file *pfile)
 {
     idtab_dump(pfile->idtab);
+    strtab_dump();
 }

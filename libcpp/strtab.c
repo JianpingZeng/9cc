@@ -9,6 +9,9 @@ struct strtab {
 };
 
 static struct strtab *strtab[1024];
+static unsigned int nelements;
+static unsigned int searches;
+static unsigned int collisions;
 
 char *strn(const char *src, size_t len)
 {
@@ -16,12 +19,16 @@ char *strn(const char *src, size_t len)
     unsigned int hash;
     char *dst;
 
+    searches++;
     hash = strnhash(src, len) & (ARRAY_SIZE(strtab) - 1);
     for (p = strtab[hash]; p; p = p->link) {
         if (p->len == len && !memcmp(src, p->str, len))
             return p->str;
     }
 
+    if (strtab[hash])
+        collisions++;
+    nelements++;
     // alloc
     dst = xmalloc(len + 1);
     p = xmalloc(sizeof(struct strtab));
@@ -76,4 +83,10 @@ char *stru(unsigned long n)
     } while ((m /= 10) != 0);
 
     return strn(s, str + sizeof(str) - s);
+}
+
+void strtab_dump(void)
+{
+    dlog("strtab: %u elements, %u slots, %u searches, %u collisions.",
+         nelements, ARRAY_SIZE(strtab), searches, collisions);
 }

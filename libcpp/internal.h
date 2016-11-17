@@ -68,16 +68,10 @@ extern void cpp_fatal_at(struct source, const char *, ...);
 // expr.c
 extern bool eval_cpp_const_expr(void);
 
-// cache.c
-struct _cpp_file {
-    const char *name;
-    // full pathname
-    const char *path;
-    const unsigned char *buffer;
-    struct _cpp_file *next;
-};
-
 // sys.c
 extern struct vector *sys_include_dirs(void);
+
+// dump
+extern void strtab_dump(void);
 
 #endif
