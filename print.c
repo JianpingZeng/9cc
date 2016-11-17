@@ -16,7 +16,7 @@
 #define kField              "Field"
 #define kEnumConstDecl      "EnumConstantDecl"
 
-static const char *nnames[] = {
+static const char *opkindstr[] = {
     "null",
     /// comma
     "RIGHT",
@@ -62,6 +62,10 @@ static const char *nnames[] = {
     "CVU",
     "CVF",
     "CVP",
+};
+
+static const char *optypestr[] = {
+    "", "I", "U", "F", "P", "S"
 };
 
 static void print_symbol1(FILE *fp, struct symbol *sym,
@@ -191,17 +195,8 @@ static char *opidname(int op)
 {
     const char *index, *type;
 
-    index = nnames[opindex(op)];
-    switch (OPTYPE(op)) {
-    case I: type = "I"; break;
-    case U: type = "U"; break;
-    case F: type = "F"; break;
-    case P: type = "P"; break;
-    case S: type = "S"; break;
-    case 0: type = ""; break;
-    default: assert(0 && "unknown op type");
-    }
-    
+    index = opkindstr[opindex(op)];
+    type = optypestr[OPTYPE(op)];
     return format("%s%s", index, type);
 }
 
