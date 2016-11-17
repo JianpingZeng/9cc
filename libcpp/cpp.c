@@ -1297,7 +1297,7 @@ void cpp_init(int argc, char *argv[])
 /// get one expanded token.
 struct token *get_pptok(struct file *pfile)
 {
-    for (;;) {
+    while (1) {
         struct token *t = expand(pfile);
         if (t->id == EOI) {
             if (pfile->buffer->ifstack)
