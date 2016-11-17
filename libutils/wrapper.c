@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include "utils.h"
 
+static size_t mallocs, reallocs;
+
 void die(const char *fmt, ...)
 {
     va_list ap;
@@ -47,6 +49,7 @@ void *xmalloc(size_t size)
     void *p = malloc(size);
     if (!p)
         die("memory exhausted");
+    mallocs += size;
     return p;
 }
 
@@ -55,6 +58,7 @@ void *xcalloc(size_t count, size_t size)
     void *p = calloc(count, size);
     if (!p)
         die("memory exhausted");
+    mallocs += count * size;
     return p;
 }
 
@@ -63,6 +67,7 @@ void *xrealloc(void *ptr, size_t size)
     void *p = realloc(ptr, size);
     if (!p)
         die("memory exhausted");
+    reallocs += size;
     return p;
 }
 
@@ -89,4 +94,12 @@ size_t length(void *array)
     while (a[i])
         i++;
     return i;
+}
+
+void malloc_dump(void)
+{
+    dlog("malloc: %lu bytes. (about %lu KiB or %lu MiB)",
+         mallocs, mallocs >> 10, mallocs >> 20);
+    dlog("realloc: %lu bytes. (about %lu KiB or %lu MiB)",
+         reallocs, reallocs >> 10, reallocs >> 20);
 }

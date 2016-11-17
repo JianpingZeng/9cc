@@ -17,6 +17,8 @@ void debug_init(int argc, char *argv[])
 
 void debug_exit(void)
 {
-    if (debug['S'])
+    if (debug['S']) {
         cpp_dump(cpp_file);
+        malloc_dump();
+    }
 }

@@ -39,6 +39,7 @@ extern void *xcalloc(size_t count, size_t size);
 extern void *xrealloc(void *ptr, size_t size);
 extern int log2i(size_t i);
 extern size_t length(void *array);
+extern void malloc_dump(void);
 #define isempty(array)  ((array)[0] == NULL)
 #define zmalloc(size)  memset(xmalloc(size), 0, (size))
 
