@@ -26,3 +26,5 @@
 #include <libgen.h>
 // uname
 #include <sys/utsname.h>
+// file control
+#include <fcntl.h>
