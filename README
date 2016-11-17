@@ -38,6 +38,18 @@ To build the bootstrap compiler, run command:
 
    	make bootstrap
 
+To install the compiler, run command:
+
+        make install
+
+Then you can read the man page using command:
+
+        man 7cc
+
+To uninstall, run command:
+
+        make uninstall
+
 
 Caveats:
 --------

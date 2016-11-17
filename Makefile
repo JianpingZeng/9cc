@@ -10,14 +10,18 @@ CFLAGS = -Wall -std=c99 -I.
 LDFLAGS =
 CONFIG_FLAGS =
 KERNEL := $(shell uname)
-RM = @rm -f
 AR = ar
 ARFLAGS = cru
 CONFIG_H = config.h
-BUILD_DIR = "$(shell pwd)"
 libutils_dir = libutils/
 libcpp_dir = libcpp/
 burg_dir = 7burg/
+bin_dir = /usr/local/bin/
+lib_dir = /usr/local/lib/7cc
+man_dir = /usr/local/share/man/man1/
+# 7CC_LIB_DIR = "$(shell pwd)"
+7CC_LIB_DIR = $(lib_dir)
+
 BURG = $(burg_dir)7burg
 7CC = 7cc
 7CC_OBJ =
@@ -113,6 +117,8 @@ $(CC1): $(LIBUTILS) $(LIBCPP) $(CC1_OBJ) $(TARGET_OBJ)
 
 $(CC1_OBJ): $(CC1_INC) $(CONFIG_H)
 
+$(7CC_OBJ): $(CONFIG_H)
+
 $(TARGET_OBJ): $(TARGET_SRC)
 	$(CC) $(CFLAGS) -c $(TARGET_SRC) -o $@
 
@@ -138,7 +144,7 @@ $(CONFIG_H):
 	@echo "#define CONFIG_H" >> $@
 	@echo >> $@
 	@echo "#define VERSION \"$(MAJOR).$(MINOR).$(FIXES)$(EXTRAVERSION)\"" >> $@
-	@echo "#define BUILD_DIR \"$(BUILD_DIR)\"" >> $@
+	@echo "#define _7CC_LIB_DIR \"$(7CC_LIB_DIR)\"" >> $@
 ifeq (Darwin, $(KERNEL))
 	@echo "#define XCODE_DIR \"$(XCODE_SDK_DIR)\"" >> $@
 	@echo "#define OSX_SDK_VERSION \"$(OSX_SDK_VERSION)\"" >> $@
@@ -174,16 +180,28 @@ bootstrap: stage3
 	cmp stage2 stage3
 	cmp cc1_stage2 cc1_stage3
 
+install:: $(7CC) $(CC1)
+	cp $(7CC) $(bin_dir)
+	cp doc/7cc.1 $(man_dir)
+	mkdir -p $(lib_dir)
+	cp $(CC1) $(lib_dir)
+	cp -R include $(lib_dir)
+
+uninstall::
+	rm -f $(bin_dir)$(7CC)
+	rm -rf $(lib_dir)
+	rm -f $(man_dir)7cc.1
+
 objclean::
-	$(RM) $(CC1_OBJ)
-	$(RM) *.o
-	$(RM) $(LIBUTILS_OBJ) $(LIBUTILS)
-	$(RM) $(LIBCPP_OBJ) $(LIBCPP)
+	@rm -f $(CC1_OBJ)
+	@rm -f *.o
+	@rm -f $(LIBUTILS_OBJ) $(LIBUTILS)
+	@rm -f $(LIBCPP_OBJ) $(LIBCPP)
 	@cd $(burg_dir) && make clean
 
 clean:: objclean
-	$(RM) $(7CC) $(CC1)
-	$(RM) stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3
-	$(RM) $(CONFIG_H)
-	$(RM) $(TARGET_SRC)
+	@rm -f $(7CC) $(CC1)
+	@rm -f stage1 stage2 stage3 cc1_stage1 cc1_stage2 cc1_stage3
+	@rm -f $(CONFIG_H)
+	@rm -f $(TARGET_SRC)
 

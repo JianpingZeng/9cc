@@ -307,7 +307,7 @@ static char *ld[] = {
     NULL
 };
 static char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
-static char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
+static char *cc[] = { _7CC_LIB_DIR "/cc1", "$1", "$2", "-o", "$0", NULL };
 
 #elif defined (CONFIG_DARWIN)
 
@@ -321,7 +321,7 @@ static char *ld[] = {
     NULL
 };
 static char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
-static char *cc[] = { "./cc1", "$1", "$2", "-o", "$0", NULL };
+static char *cc[] = { _7CC_LIB_DIR "/cc1", "$1", "$2", "-o", "$0", NULL };
 
 #else
 #error "unknown platform"
