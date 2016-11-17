@@ -6,14 +6,17 @@ void debug_init(int argc, char *argv[])
 {
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
-        if (!strcmp(arg, "-debugd"))
+        if (!strcmp(arg, "-debugv"))
             // developer verbose mode
-            debug['d'] = true;
+            debug['v'] = true;
+        else if (!strcmp(arg, "-debugS"))
+            // Statistics
+            debug['S'] = true;
     }
 }
 
 void debug_exit(void)
 {
-    if (debug['d'])
+    if (debug['S'])
         cpp_dump(cpp_file);
 }

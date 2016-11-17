@@ -78,7 +78,7 @@ static void geninit_ptr(struct symbol *s)
         IR->defaddress(init->kids[0]->s.sym->x.name,
                        -init->kids[1]->s.value.i);
     } else {
-        if (debug['d'])
+        if (debug['v'])
             intal_at(s->src, "illegal initializer for '%s'", s->name);
         IR->defzero(TYPE_SIZE(s->type));
     }
@@ -91,7 +91,7 @@ static void geninit_arith(struct symbol *s)
     if (OPKIND(init->op) == CNST) {
         IR->defconst(OPTYPE(init->op), TYPE_SIZE(s->type), init->s.value);
     } else {
-        if (debug['d'])
+        if (debug['v'])
             intal_at(s->src, "illegal initializer for '%s'", s->name);
         IR->defzero(TYPE_SIZE(s->type));
     }
