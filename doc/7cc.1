@@ -1,0 +1,68 @@
+.\" Manpage for 7cc.
+.TH 7CC 1 "17 Dec 2016" "0.4.0" "7cc"
+.SH NAME
+7cc \- A standard C compiler
+.SH SYNOPSIS
+\fB7cc\fP [\fIoptions\fP] \fIfilename\fP ...
+.SH DESCRIPTION
+.PP
+\fB7cc\fP is a standard C compiler which conforms to the C99 standard.
+.PP
+\fB7cc\fP interprets the following options, and unrecognized options are ignored with an error message printed to stderr.
+.TP
+.B \-ansi
+Strict type checking.
+.TP
+.B \-ast-dump
+Only print abstract syntax tree.
+.TP
+.B \-c
+Only run preprocess, compile and assemble steps.
+.TP
+.B \-debugX
+Enable debug option X, X can be any visible ASCII character.
+.TP
+.B \-Dname
+Define a macro.
+.TP
+.B \-Dname=value
+Define a macro with value.
+.TP
+.B \-E
+Only run the preprocessor.
+.TP
+.B \-h, \--help
+Display available options.
+.TP
+.B \-Idir
+Add dir to include search path.
+.TP
+.B \-Ldir
+Add dir to library search path.
+.TP
+.B -lx
+Search for library x.
+.TP
+.B \-o <file>
+Write output to <file>.
+.TP
+.B \-S
+Only run preprocess and compilation steps.
+.TP
+.B \-Uname
+Undefine a macro.
+.TP
+.B \-v, \--version
+Display version and options.
+.TP
+.B \-Wall
+Enable all warnings.
+.TP
+.B \-Werror
+Treat warnings as errors.
+.SH SEE ALSO
+\fBas(1)\fP, \fBld(1)\fP
+.SH BUGS
+To report bugs, please visit <\fI\%https://www.github.com/huangguiyang/7cc/issues\fP>. Feel free to commit an issue.
+.SH AUTHOR
+Guiyang Huang (<mohu3g@163.com>)

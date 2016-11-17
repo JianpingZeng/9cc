@@ -49,7 +49,7 @@ CC1_INC += gen.h
 CC1_INC += cc.h
 CC1_INC += debug.h
 
-TARGET_SPEC = x86_64-linux.7
+TARGET_SPEC = x86_64-linux.7brg
 TARGET_OBJ = x86_64-linux.o
 TARGET_SRC = x86_64-linux.c
 
