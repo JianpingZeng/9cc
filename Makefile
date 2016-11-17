@@ -215,7 +215,7 @@ install:: $(7CC) $(CC1)
 	cp -R include $(INSTALL_LIB_DIR)
 
 uninstall::
-	rm -f $(INSTALL_BIN_DIR)$(7CC)
+	rm -f $(INSTALL_BIN_DIR)7cc
 	rm -rf $(INSTALL_LIB_DIR)
 	rm -f $(INSTALL_MAN_DIR)7cc.1
 

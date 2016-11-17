@@ -117,7 +117,7 @@ struct tokenrun *next_tokenrun(struct tokenrun *prev, unsigned int count);
 
 extern struct token *lex(struct file *pfile);
 extern struct token *header_name(struct file *pfile);
-extern struct token *new_token(struct token *tok);
+extern struct token *alloc_token(void);
 extern void skip_ifstack(struct file *pfile);
 
 // strtab.c

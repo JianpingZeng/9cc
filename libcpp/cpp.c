@@ -729,8 +729,11 @@ static void do_line(struct file *pfile)
         unget(pfile, t2);
     }
     skipline(pfile);
-    unget(pfile, new_token(&(struct token) {
-                .id = LINENO, .u.lit.str = name}));
+    
+    t = alloc_token();
+    t->id = LINENO;
+    t->u.lit.str = name;
+    unget(pfile, t);
 }
 
 static const char *tokens2s(struct vector *v)
@@ -935,8 +938,11 @@ static struct token *stringize(struct vector *v)
             strbuf_cats(s, name);
         }    
     }
-    return new_token(&(struct token) {
-            .id = SCONSTANT, .u.lit.str = strbuf_str(s) });
+
+    struct token *t = alloc_token();
+    t->id = SCONSTANT;
+    t->u.lit.str = strbuf_str(s);
+    return t;
 }
 
 /**
@@ -1085,11 +1091,10 @@ static struct token *expand(struct file *pfile)
 static void file_handler(struct file *pfile, struct token *t)
 {
     const char *file = pfile->buffer->name;
-    struct token *tok = new_token(&(struct token){
-        .id = SCONSTANT,
-        .u.lit.str = file,
-        .src = t->src
-    });
+    struct token *tok = alloc_token();
+    tok->id = SCONSTANT;
+    tok->u.lit.str = file;
+    tok->src = t->src;
     unget(pfile, tok);
 }
 
@@ -1097,32 +1102,29 @@ static void line_handler(struct file *pfile, struct token *t)
 {
     unsigned int line = pfile->buffer->line;
     const char *name = strd(line);
-    struct token *tok = new_token(&(struct token){
-        .id = ICONSTANT,
-        .u.lit.str = name,
-        .u.lit.v.i = line,
-        .src = t->src
-    });
+    struct token *tok = alloc_token();
+    tok->id = ICONSTANT;
+    tok->u.lit.str = name;
+    tok->u.lit.v.i = line;
+    tok->src = t->src;
     unget(pfile, tok);
 }
 
 static void date_handler(struct file *pfile, struct token *t)
 {
-    struct token *tok = new_token(&(struct token){
-        .id = SCONSTANT,
-        .u.lit.str = pfile->date,
-        .src = t->src
-    });
+    struct token *tok = alloc_token();
+    tok->id = SCONSTANT;
+    tok->u.lit.str = pfile->date;
+    tok->src = t->src;
     unget(pfile, tok);
 }
 
 static void time_handler(struct file *pfile, struct token *t)
 {
-    struct token *tok = new_token(&(struct token){
-        .id = SCONSTANT,
-        .u.lit.str = pfile->time,
-        .src = t->src
-    });
+    struct token *tok = alloc_token();
+    tok->id = SCONSTANT;
+    tok->u.lit.str = pfile->time;
+    tok->src = t->src;
     unget(pfile, tok);
 }
 
@@ -1144,11 +1146,10 @@ static void add_include(struct vector *v, const char *name)
 static struct token *lineno(unsigned int line, const char *file)
 {
     const char *name = format("# %u \"%s\"\n", line, file);
-    struct token *t = new_token(&(struct token){
-        .id = LINENO,
-        .u.lit.str = name,
-        .src.file = "<built-in>"
-    });
+    struct token *t = alloc_token();
+    t->id = LINENO;
+    t->u.lit.str = name;
+    t->src.file = "<built-in>";
     return t;
 }
 

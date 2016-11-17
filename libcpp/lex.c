@@ -199,7 +199,12 @@ const char *ids(const char *name)
     return ident->str;
 }
 
-struct token *new_token(struct token *tok)
+struct token *alloc_token(void)
+{
+    return zmalloc(sizeof(struct token));
+}
+
+static struct token *copy_token(struct token *tok)
 {
     struct token *t = xmalloc(sizeof(struct token));
     memcpy(t, tok, sizeof(struct token));
@@ -1025,12 +1030,16 @@ struct token *header_name(struct file *pfile)
     MARKC(pb);
     if (ch == '<') {
         const char *name = hq_char_sequence(pfile, '>');
-        return new_token(&(struct token){
-                .u.lit.str = name, .kind = ch});
+        struct token *t = alloc_token();
+        t->u.lit.str = name;
+        t->kind = ch;
+        return t;
     } else if (ch == '"') {
         const char *name = hq_char_sequence(pfile, '"');
-        return new_token(&(struct token){
-                .u.lit.str = name, .kind = ch});
+        struct token *t = alloc_token();
+        t->u.lit.str = name;
+        t->kind = ch;
+        return t;
     } else {
         // pptokens
         pb->cur--;
@@ -1115,7 +1124,7 @@ static struct token *peek_cpp_token(struct file *pfile)
 
 static struct token *combine_scons(struct token **v, size_t len)
 {
-    struct token *t0 = new_token(v[0]);
+    struct token *t0 = copy_token(v[0]);
     bool wide = false;
     char *s = xmalloc(len + 1);
     char *bp = s;
