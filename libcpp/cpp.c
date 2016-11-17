@@ -1297,25 +1297,26 @@ void cpp_init(int argc, char *argv[])
 /// get one expanded token.
 struct token *get_pptok(struct file *pfile)
 {
-    while (1) {
-        struct token *t = expand(pfile);
-        if (t->id == EOI) {
-            if (pfile->buffer->ifstack)
-                cpp_error_at(pfile->buffer->ifstack->src,
-                             "unterminated conditional directive");
-            if (pfile->buffer->return_eoi)
-                return t;
+    struct token *t;
 
-            buffer_unsentinel(pfile);
-            if (pfile->buffer)
-                return lineno(pfile->buffer->line, pfile->buffer->name);
-            else
-                return t;
-        }
-        if (t->id == '#' && t->bol) {
-            directive(pfile);
-            continue;
-        }
-        return t;
+ expand:
+    t = expand(pfile);
+    if (t->id == EOI) {
+        if (pfile->buffer->ifstack)
+            cpp_error_at(pfile->buffer->ifstack->src,
+                         "unterminated conditional directive");
+        if (pfile->buffer->return_eoi)
+            return t;
+
+        buffer_unsentinel(pfile);
+        if (pfile->buffer)
+            return lineno(pfile->buffer->line, pfile->buffer->name);
+        else
+            return t;
     }
+    if (t->id == '#' && t->bol) {
+        directive(pfile);
+        goto expand;
+    }
+    return t;
 }

@@ -206,7 +206,7 @@ bootstrap: stage3
 	cmp stage2 stage3
 	cmp cc1_stage2 cc1_stage3
 
-install:: $(7CC) $(CC1)
+install:: config.h  $(7CC) $(CC1)
 	cp $(7CC) $(INSTALL_BIN_DIR)
 	mkdir -p $(INSTALL_MAN_DIR)
 	cp doc/7cc.1 $(INSTALL_MAN_DIR)
