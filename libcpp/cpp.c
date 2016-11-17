@@ -1294,27 +1294,23 @@ void cpp_init(int argc, char *argv[])
         include_cmdline(cpp_file, s->str);
 }
 
-/* Getting one expanded token.
- */
+/// get one expanded token.
 struct token *get_pptok(struct file *pfile)
 {
     for (;;) {
         struct token *t = expand(pfile);
         if (t->id == EOI) {
-            struct ifstack *stack = pfile->buffer->ifstack;
-            if (stack)
-                cpp_error_at(stack->src,
+            if (pfile->buffer->ifstack)
+                cpp_error_at(pfile->buffer->ifstack->src,
                              "unterminated conditional directive");
-            if (pfile->buffer->return_eoi) {
+            if (pfile->buffer->return_eoi)
                 return t;
-            } else {
-                buffer_unsentinel(pfile);
-                if (pfile->buffer)
-                    return lineno(pfile->buffer->line,
-                                  pfile->buffer->name);
-                else
-                    return t;
-            }
+
+            buffer_unsentinel(pfile);
+            if (pfile->buffer)
+                return lineno(pfile->buffer->line, pfile->buffer->name);
+            else
+                return t;
         }
         if (t->id == '#' && t->bol) {
             directive(pfile);
