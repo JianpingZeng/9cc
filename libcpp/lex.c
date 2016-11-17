@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <wchar.h>
-#include "lex.h"
 #include "libutils.h"
 #include "internal.h"
 

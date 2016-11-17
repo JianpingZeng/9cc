@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <limits.h>
-#include "lex.h"
 #include "internal.h"
 #include "libutils.h"
 

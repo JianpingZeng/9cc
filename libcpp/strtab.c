@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include "lex.h"
 #include "libutils.h"
 
 struct strtab {

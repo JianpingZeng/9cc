@@ -1,5 +1,4 @@
 #include <assert.h>
-#include "lex.h"
 #include "internal.h"
 
 typedef long cpp_num;

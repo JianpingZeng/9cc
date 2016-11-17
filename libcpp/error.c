@@ -3,7 +3,6 @@
 #include <stdarg.h>
 #include <assert.h>
 #include "color.h"
-#include "lex.h"
 #include "internal.h"
 
 static void

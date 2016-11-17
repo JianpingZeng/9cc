@@ -1,6 +1,5 @@
 #include "compat.h"
 #include <stdlib.h>
-#include "lex.h"
 #include "internal.h"
 #include "libutils.h"
 

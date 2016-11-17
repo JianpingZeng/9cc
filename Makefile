@@ -79,7 +79,6 @@ LIBUTILS_OBJ += $(BUILD_DIR)libutils/string.o
 LIBUTILS_OBJ += $(BUILD_DIR)libutils/list.o
 LIBUTILS_OBJ += $(BUILD_DIR)libutils/file.o
 
-LIBCPP_INC += libcpp/lex.h
 LIBCPP_INC += libcpp/token.def
 LIBCPP_INC += libcpp/internal.h
 LIBCPP_INC += libcpp/libcpp.h

@@ -2,7 +2,6 @@
 #include <locale.h>
 #include <time.h>
 #include <assert.h>
-#include "lex.h"
 #include "libutils.h"
 #include "internal.h"
 
