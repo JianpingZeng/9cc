@@ -48,6 +48,7 @@ static void usage(void)
             "  -ansi           Strict type checking\n"
             "  -ast-dump       Only print abstract syntax tree\n"
             "  -c              Only run preprocess, compile and assemble steps\n"
+            "  -debugX         enable debug option 'X'\n"
             "  -Dname          Define a macro\n"
             "  -Dname=value    Define a macro with value\n"
             "  -E              Only run the preprocessor\n"
@@ -97,7 +98,8 @@ static void parse_opts(int argc, char *argv[])
                    !strcmp(arg, "-g") ||
                    !strncmp(arg, "-std=", 5) ||
                    !strncmp(arg, "-O", 2) ||
-                   !strcmp(arg, "-ansi")) {
+                   !strcmp(arg, "-ansi") ||
+                   !strncmp(arg, "-debug", 6)) {
             clist = list_append(clist, arg);
         } else if (!strncmp(arg, "-l", 2) ||
                    !strncmp(arg, "-L", 2)) {

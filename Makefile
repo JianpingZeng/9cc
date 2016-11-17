@@ -41,11 +41,13 @@ CC1_OBJ += parser.o
 CC1_OBJ += sema.o
 CC1_OBJ += tree.o
 CC1_OBJ += eval.o
-CC1_OBJ += print.o
 CC1_OBJ += gen.o
+CC1_OBJ += print.o
+CC1_OBJ += debug.o
 
 CC1_INC += gen.h
 CC1_INC += cc.h
+CC1_INC += debug.h
 
 TARGET_SPEC = x86_64-linux.7
 TARGET_OBJ = x86_64-linux.o

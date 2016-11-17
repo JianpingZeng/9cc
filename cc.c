@@ -3,10 +3,6 @@
 #include "cc.h"
 
 struct options opts;
-char debug[128];
-
-static void doexit(void);
-static void dgb(void);
 
 static void parse_opts(int argc, char *argv[])
 {
@@ -50,11 +46,16 @@ static void preprocess(void)
         print("%t", t);
 }
 
+static void doexit(void)
+{
+    debug_exit();
+}
+
 int main(int argc, char *argv[])
 {
     atexit(doexit);
     parse_opts(argc, argv);
-    dgb();
+    debug_init(argc, argv);
     actions.init(argc, argv);
     symbol_init();
     type_init();
@@ -66,13 +67,4 @@ int main(int argc, char *argv[])
         translation_unit();
 
     return errors() > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
-}
-
-static void dgb(void)
-{
-    D(debug['A'] = true);
-}
-
-static void doexit(void)
-{
 }

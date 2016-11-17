@@ -46,6 +46,7 @@ extern struct ident *idtab_lookup_with_hash(struct idtab *,
                                             enum idtab_lookup_option);
 typedef int (*idtab_cb) (struct idtab *, struct ident *, const void *);
 extern void idtab_foreach(struct idtab *, idtab_cb, const void *);
+extern void idtab_dump(struct idtab *t);
 
 // error.c
 enum { WRN = 1, ERR, FTL };

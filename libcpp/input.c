@@ -193,3 +193,8 @@ struct file *input_init(const char *file)
     buffer_sentinel(pfile, with_file(file, file), BS_CONTINUOUS);
     return pfile;
 }
+
+void cpp_dump(struct file *pfile)
+{
+    idtab_dump(pfile->idtab);
+}

@@ -179,6 +179,7 @@ extern void if_sentinel(struct file *pfile, struct ifstack *i);
 extern void if_unsentinel(struct file *pfile);
 
 extern bool is_original_file(struct file *pfile, const char *file);
+extern void cpp_dump(struct file *pfile);
 
 // cpp.c
 extern void cpp_init(int argc, char *argv[]);

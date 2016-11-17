@@ -14,6 +14,7 @@
 #include "libutils/utils.h"
 #include "libcpp/lex.h"
 #include "gen.h"
+#include "debug.h"
 
 ///
 /// type declarations
@@ -638,12 +639,6 @@ extern void print(const char *, ...);
 
 #define CC_UNAVAILABLE()  assert(0 && "unavailable code")
 
-#ifdef NDEBUG
-#define D(x)  ((void)0)
-#else
-#define D(x)  x
-#endif
-
 ///
 /// external variables
 ///
@@ -679,6 +674,5 @@ extern struct type *voidptype;
 extern struct type *funcptype;
 extern struct type *uptrtype;
 extern struct type *sptrtype;
-extern char debug[128];
 
 #endif

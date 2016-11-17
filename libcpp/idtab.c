@@ -97,3 +97,9 @@ void idtab_foreach(struct idtab *t, idtab_cb cb, const void *v)
                 goto stop;
  stop:;
 }
+
+void idtab_dump(struct idtab *t)
+{
+    dlog("idtab: %u elements, %u slots, %u searches, %u collisions.",
+         t->nelements, t->nslots, t->searches, t->collisions);
+}
