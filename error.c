@@ -93,4 +93,5 @@ void intal_at(struct source src, const char *fmt, ...)
     va_start(ap, fmt);
     cc_print_lead(ITL, src, fmt, ap);
     va_end(ap);
+    cc_errors++;
 }
