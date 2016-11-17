@@ -17,7 +17,7 @@ INSTALL_BIN_DIR = /usr/local/bin/
 INSTALL_LIB_DIR = /usr/local/lib/7cc
 INSTALL_MAN_DIR = /usr/local/share/man/man1/
 # 7CC_LIB_DIR = "$(shell pwd)"
-7CC_LIB_DIR = $(INSTALL_LIB_DIR)
+7CC_LIB_DIR ?= $(INSTALL_LIB_DIR)
 
 # build dir
 BUILD_DIR = build/
