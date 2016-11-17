@@ -116,7 +116,7 @@ all:: config.h $(7CC) $(CC1)
 $(7CC): $(7CC_OBJ) $(LIBUTILS)
 	$(CC) $^ $(LDFLAGS) -o $@
 
-$(CC1): $(LIBUTILS) $(LIBCPP) $(CC1_OBJ) $(ARCH_OBJ)
+$(CC1): $(CC1_OBJ) $(ARCH_OBJ) $(LIBCPP) $(LIBUTILS)
 	$(CC) $^ $(LDFLAGS) -o $@
 
 $(LIBUTILS): $(LIBUTILS_OBJ)
@@ -195,6 +195,7 @@ bootstrap: stage3
 
 install:: $(7CC) $(CC1)
 	cp $(7CC) $(INSTALL_BIN_DIR)
+	mkdir -p $(INSTALL_MAN_DIR)
 	cp doc/7cc.1 $(INSTALL_MAN_DIR)
 	mkdir -p $(INSTALL_LIB_DIR)
 	cp $(CC1) $(INSTALL_LIB_DIR)
