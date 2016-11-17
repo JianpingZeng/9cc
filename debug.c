@@ -8,10 +8,10 @@ void debug_init(int argc, char *argv[])
         const char *arg = argv[i];
         if (!strcmp(arg, "-debugv"))
             // developer verbose mode
-            debug['v'] = true;
+            debug['v'] += 1;
         else if (!strcmp(arg, "-debugS"))
             // Statistics
-            debug['S'] = true;
+            debug['S'] += 1;
     }
 }
 
