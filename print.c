@@ -191,15 +191,6 @@ void print(const char *fmt, ...)
     va_end(ap);
 }
 
-static char *opidname(int op)
-{
-    const char *index, *type;
-
-    index = opkindstr[opindex(op)];
-    type = optypestr[OPTYPE(op)];
-    return format("%s%s", index, type);
-}
-
 static void print_level(FILE *fp, int level)
 {
     for (int i = 0; i < level; i++)
@@ -378,10 +369,9 @@ static void print_args1(FILE *fp, struct tree **args, int level)
 
 static void print_expr1(FILE *fp, struct tree *expr, int level)
 {
-    const char *name = opidname(expr->op);
-
     print_level(fp, level);
-    fprint(fp, PURPLE_BOLD("%s ") YELLOW("%p "), name, expr);
+    fprint(fp, PURPLE_BOLD("%s%s ") YELLOW("%p "),
+           opkindstr[opindex(expr->op)], optypestr[OPTYPE(expr->op)], expr);
     fprint(fp, GREEN("'%T' "), expr->type);
 
     if (issliteral(expr)) {
