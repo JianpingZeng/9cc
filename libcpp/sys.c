@@ -1,6 +1,6 @@
 #include "config.h"
 #include "internal.h"
-#include "libutils/utils.h"
+#include "libutils.h"
 
 #ifdef CONFIG_LINUX
 

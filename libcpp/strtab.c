@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "lex.h"
-#include "libutils/utils.h"
+#include "libutils.h"
 
 struct strtab {
     char *str;

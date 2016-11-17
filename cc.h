@@ -11,8 +11,8 @@
 #include <assert.h>
 
 #include "config.h"
-#include "libutils/utils.h"
-#include "libcpp/lex.h"
+#include "libutils.h"
+#include "libcpp.h"
 #include "gen.h"
 #include "debug.h"
 

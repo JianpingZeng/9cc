@@ -6,7 +6,7 @@ MINOR = 4
 FIXES = 0
 EXTRAVERSION = -dev
 
-CFLAGS = -Wall -std=c99 -I.
+CFLAGS = -Wall -std=c99 -I. -Ilibutils -Ilibcpp
 LDFLAGS =
 CONFIG_FLAGS =
 KERNEL := $(shell uname)
@@ -64,7 +64,7 @@ CC1_OBJ += $(BUILD_DIR)gen.o
 CC1_OBJ += $(BUILD_DIR)print.o
 CC1_OBJ += $(BUILD_DIR)debug.o
 
-LIBUTILS_INC += libutils/utils.h
+LIBUTILS_INC += libutils/libutils.h
 LIBUTILS_INC += libutils/strbuf.h
 LIBUTILS_INC += libutils/vector.h
 LIBUTILS_INC += libutils/list.h
@@ -81,6 +81,7 @@ LIBUTILS_OBJ += $(BUILD_DIR)libutils/file.o
 LIBCPP_INC += libcpp/lex.h
 LIBCPP_INC += libcpp/token.def
 LIBCPP_INC += libcpp/internal.h
+LIBCPP_INC += libcpp/libcpp.h
 
 LIBCPP_OBJ += $(BUILD_DIR)libcpp/lex.o
 LIBCPP_OBJ += $(BUILD_DIR)libcpp/cpp.o

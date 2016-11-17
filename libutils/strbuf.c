@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <ctype.h>
-#include "utils.h"
+#include "libutils.h"
 
 #define STRING_INIT_SIZE    32
 

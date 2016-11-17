@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "lex.h"
 #include "internal.h"
-#include "libutils/utils.h"
+#include "libutils.h"
 
 static void idtab_expand(struct idtab *);
 

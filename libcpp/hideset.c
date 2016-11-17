@@ -1,5 +1,5 @@
 #include "internal.h"
-#include "libutils/utils.h"
+#include "libutils.h"
 
 struct hideset *hideset_add(struct hideset *s, const char *name)
 {

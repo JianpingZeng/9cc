@@ -1,7 +1,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <ctype.h>
-#include "utils.h"
+#include "libutils.h"
 
 #define FNV32_BASIS ((unsigned int) 0x811c9dc5)
 #define FNV32_PRIME ((unsigned int) 0x01000193)
@@ -27,17 +27,6 @@ unsigned int strnhash(const char *s, size_t len)
     return hash;
 }
 
-char *format(const char *fmt, ...)
-{
-    char buf[BUFSIZ];
-    va_list ap;
-    va_start(ap, fmt);
-    if (vsnprintf(buf, ARRAY_SIZE(buf), fmt, ap) >= ARRAY_SIZE(buf))
-        die("buffer is too short to hold the result string");
-    va_end(ap);
-    return xstrdup(buf);
-}
-
 char *xstrdup(const char *str)
 {
     char *ret = xmalloc(strlen(str) + 1);
@@ -50,6 +39,17 @@ char *xstrndup(const char *str, size_t n)
     strncpy(ret, str, n);
     ret[n] = '\0';
     return ret;
+}
+
+char *format(const char *fmt, ...)
+{
+    char buf[BUFSIZ];
+    va_list ap;
+    va_start(ap, fmt);
+    if (vsnprintf(buf, ARRAY_SIZE(buf), fmt, ap) >= ARRAY_SIZE(buf))
+        die("buffer is too short to hold the result string");
+    va_end(ap);
+    return xstrdup(buf);
 }
 
 bool has_prefix(const char *s, const char *prefix)

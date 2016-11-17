@@ -1,5 +1,12 @@
 // define _BSD_SOURCE for mkdtemp, dirname, basename
+#ifndef _BSD_SOURCE
 #define _BSD_SOURCE
+#endif
+
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -13,7 +20,7 @@
 // uname
 #include <sys/utsname.h>
 
-#include "utils.h"
+#include "libutils.h"
 
 /**
  * NOTE!!!

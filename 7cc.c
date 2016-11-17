@@ -11,7 +11,7 @@
 #include <time.h>
 #include <ctype.h>
 #include "config.h"
-#include "libutils/utils.h"
+#include "libutils.h"
 
 static char *ld[];
 static char *as[];

@@ -2,7 +2,7 @@
 #include <time.h>
 #include <assert.h>
 #include "lex.h"
-#include "libutils/utils.h"
+#include "libutils.h"
 #include "internal.h"
 
 static struct token *expand(struct file *pfile);

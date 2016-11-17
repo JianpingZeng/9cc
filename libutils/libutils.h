@@ -1,5 +1,5 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef LIBUTILS_H
+#define LIBUTILS_H
 
 // for bool
 #include <stdbool.h>
@@ -83,4 +83,4 @@ extern int proc(const char *file, char **argv);
 // list.c
 #include "list.h"
 
-#endif
+#endif /* LIBUTILS_H */
