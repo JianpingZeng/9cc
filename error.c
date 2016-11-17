@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "libutils/color.h"
+#include "color.h"
 #include "cc.h"
 
 enum { WRN = 1, ERR, FTL, ITL };

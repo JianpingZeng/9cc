@@ -2,8 +2,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include "cc.h"
-#include "libutils/color.h"
-
+#include "color.h"
 
 #define kVarDecl            "VarDecl"
 #define kTypedefDecl        "TypedefDecl"

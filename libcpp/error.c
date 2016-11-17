@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "libutils/color.h"
+#include "color.h"
 #include "lex.h"
 #include "internal.h"
 
