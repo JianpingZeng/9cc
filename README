@@ -28,7 +28,7 @@ libutils	Common utilities.
 HOWTO build:
 ------------
 
-Make sure you have any Linux distribution installed. (Ubuntu is preferred)
+Make sure you have any Linux distribution installed.
 
 To build the compiler, run command:
 
@@ -49,6 +49,14 @@ Then you can read the man page using command:
 To uninstall, run command:
 
         make uninstall
+
+
+Troubleshooting:
+----------------
+
+If your Linux distribution's crt objects (crt1.o, crti.o, crtn.o) are located in '/usr/lib64/' (like Fedora), edit the Makefile and add CFLAGS -DCONFIG_LIB64. The default locatation is '/usr/lib/x86-64-linux-gnu/'. (like Ubuntu)
+
+See 7cc.c for more details.
 
 
 Caveats:
