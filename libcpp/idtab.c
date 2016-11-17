@@ -1,3 +1,4 @@
+#include "compat.h"
 #include <stdlib.h>
 #include "lex.h"
 #include "internal.h"
@@ -51,7 +52,7 @@ struct ident *idtab_lookup_with_hash(struct idtab *t,
     result = t->alloc_ident(t);
     result->len = len;
     result->hash = hash;
-    result->str = xstrndup(str, len);
+    result->str = strndup(str, len);
     
     p = xmalloc(sizeof(struct idtab_entry));
     p->ident = result;

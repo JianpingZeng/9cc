@@ -1,44 +1,9 @@
-// define _BSD_SOURCE for mkdtemp, dirname, basename
-#ifndef _BSD_SOURCE
-#define _BSD_SOURCE
-#endif
-
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE
-#endif
-
-#include <unistd.h>
+#include "compat.h"
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-// dirname, basename
-#include <libgen.h>
-// uname
-#include <sys/utsname.h>
-
 #include "libutils.h"
-
-/**
- * NOTE!!!
- * The 'dirname()' manual page says:
- * Both dirname() and basename() may modify
- * the contents of path, so it may be desirable
- * to pass a copy when calling one of these functions.
- */
-
-char *xdirname(const char *path)
-{
-    return dirname(xstrdup(path));
-}
-
-char *xbasename(const char *path)
-{
-    return basename(xstrdup(path));
-}
 
 const char *mktmpdir()
 {

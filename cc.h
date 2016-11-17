@@ -1,6 +1,8 @@
 #ifndef CC_H
 #define CC_H
 
+#include "config.h"
+
 // for bool
 #include <stdbool.h>
 // for size_t
@@ -10,7 +12,6 @@
 // for assert
 #include <assert.h>
 
-#include "config.h"
 #include "libutils.h"
 #include "libcpp.h"
 #include "gen.h"

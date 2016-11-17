@@ -12,7 +12,8 @@
 // for CHAR_BIT
 #include <limits.h>
 
-#define ONES(size)  (size)>=sizeof(unsigned long) ? ~0UL : ~((~0UL)<<(CHAR_BIT*size))
+#define ONES(size)                                                      \
+    (size)>=sizeof(unsigned long) ? ~0UL : ~((~0UL)<<(CHAR_BIT*size))
 
 #define ARRAY_SIZE(array)    (sizeof(array) / sizeof((array)[0]))
 
@@ -39,7 +40,6 @@ extern void *xcalloc(size_t count, size_t size);
 extern void *xrealloc(void *ptr, size_t size);
 extern int log2i(size_t i);
 extern size_t length(void *array);
-extern void malloc_dump(void);
 #define isempty(array)  ((array)[0] == NULL)
 #define zmalloc(size)  memset(xmalloc(size), 0, (size))
 
@@ -47,8 +47,6 @@ extern void malloc_dump(void);
 extern unsigned int strhash(const char *s);
 extern unsigned int strnhash(const char *s, size_t len);
 extern char *format(const char *fmt, ...);
-extern char *xstrdup(const char *str);
-extern char *xstrndup(const char *str, size_t n);
 extern bool has_prefix(const char *s, const char *prefix);
 extern char *strip(const char *str);
 
@@ -63,8 +61,6 @@ extern void deallocate(unsigned int a);
 enum { PERM = 0, FUNC };
 
 // file.c
-extern char *xdirname(const char *path);
-extern char *xbasename(const char *path);
 extern const char *mktmpdir();
 extern int rmdir(const char *dir);
 extern int rmfile(const char *file);

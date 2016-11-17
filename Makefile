@@ -69,6 +69,7 @@ LIBUTILS_INC += libutils/strbuf.h
 LIBUTILS_INC += libutils/vector.h
 LIBUTILS_INC += libutils/list.h
 LIBUTILS_INC += libutils/color.h
+LIBUTILS_INC += libutils/compat.h
 
 LIBUTILS_OBJ += $(BUILD_DIR)libutils/alloc.o
 LIBUTILS_OBJ += $(BUILD_DIR)libutils/wrapper.o

@@ -2,6 +2,8 @@
  * 7cc
  * driver of the c compiler
  */
+#include "config.h"
+#include "compat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +12,6 @@
 #include <stdbool.h>
 #include <time.h>
 #include <ctype.h>
-#include "config.h"
 #include "libutils.h"
 
 static char *ld[];
@@ -123,7 +124,7 @@ static void parse_opts(int argc, char *argv[])
 static char *tempname(const char *dir, const char *hint)
 {
     static long index;
-    const char *base = xbasename(hint);
+    const char *base = basename(strdup(hint));
     const char *name = base;
     const char *path;
 
@@ -168,7 +169,7 @@ static char **compose(char *argv[], char *ifiles[],
     return av;
 }
 
-static int link(char *ifiles[], char *ofile, char *options[])
+static int lnk(char *ifiles[], char *ofile, char *options[])
 {
     return proc(ld[0], compose(ld, ifiles, ofile, options));
 }
@@ -221,7 +222,7 @@ int main(int argc, char **argv)
 
     for (int i = 0; i < ninputs; i++) {
         char *ifile = inputs[i];
-        char *iname = xbasename(ifile);
+        char *iname = basename(strdup(ifile));
         char *ofile = NULL;
         const char *suffix = fsuffix(ifile);
         int r = EXIT_SUCCESS;
@@ -276,7 +277,7 @@ int main(int argc, char **argv)
         error("%lu succeed, %lu failed.", ninputs - fails, fails);
     else if (!partial)
         // link
-        ret = link(ltoa(&objects, PERM), output, ld_options);
+        ret = lnk(ltoa(&objects, PERM), output, ld_options);
 
     return ret;
 }

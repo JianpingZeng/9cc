@@ -1,3 +1,4 @@
+#include "compat.h"
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -1006,7 +1007,7 @@ static const char *hq_char_sequence(struct file *pfile, int sep)
     if (ch != sep)
         cpp_error("missing '%c' in header name", sep);
 
-    name = xstrndup((const char *)rpc, pb->cur - rpc);
+    name = strndup((const char *)rpc, pb->cur - rpc);
     skipline(pfile, true);
     return name;
 }

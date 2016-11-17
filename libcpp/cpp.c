@@ -1,3 +1,4 @@
+#include "compat.h"
 #include <locale.h>
 #include <time.h>
 #include <assert.h>
@@ -943,7 +944,7 @@ static struct token *stringize(struct vector *v)
  * Select an argument for expansion.
  * Remove the leading and trailing spaces.
  */
-static struct vector *select(struct vector *args, int index)
+static struct vector *selct(struct vector *args, int index)
 {
     struct vector *v = vec_new();
     vec_add(v, vec_at_safe(args, index));
@@ -972,7 +973,7 @@ static struct vector *subst(struct file *pfile,
         bool t1_inparams = t1 && t1->param;
 
         if (t0->id == '#' && t1_inparams) {
-            struct vector *iv = select(args, t1->pos);
+            struct vector *iv = selct(args, t1->pos);
             struct token *ot = stringize(iv);
             PUSH_SPACE(r, t0);
             vec_push(r, ot);
@@ -980,7 +981,7 @@ static struct vector *subst(struct file *pfile,
 
         } else if (t0->id == SHARPSHARP && t1_inparams) {
 
-            struct vector *iv = select(args, t1->pos);
+            struct vector *iv = selct(args, t1->pos);
             if (vec_len(iv))
                 r = glue(pfile, r, iv);
             i++;
@@ -994,7 +995,7 @@ static struct vector *subst(struct file *pfile,
         } else if (t0_inparams && (t1 && t1->id == SHARPSHARP)) {
 
             hideset = t1->hideset;
-            struct vector *iv = select(args, t0->pos);
+            struct vector *iv = selct(args, t0->pos);
             if (vec_len(iv)) {
                 PUSH_SPACE(r, t0);
                 vec_add(r, iv);
@@ -1005,7 +1006,7 @@ static struct vector *subst(struct file *pfile,
                 struct token *t2 = i + 2 < len ? body[i+2] : NULL;
                 bool t2_inparams = t2 && t2->param;
                 if (t2_inparams) {
-                    struct vector *iv2 = select(args, t2->pos);
+                    struct vector *iv2 = selct(args, t2->pos);
                     vec_add(r, iv2);
                     i++;
                 }
@@ -1014,7 +1015,7 @@ static struct vector *subst(struct file *pfile,
 
         } else if (t0_inparams) {
 
-            struct vector *iv = select(args, t0->pos);
+            struct vector *iv = selct(args, t0->pos);
             struct vector *ov = expandv(pfile, iv);
             PUSH_SPACE(r, t0);
             vec_add(r, ov);
@@ -1171,7 +1172,7 @@ static const char *find_header(struct file *pfile,
 
     if (!isstd) {
         // try current path
-        const char *curdir = xdirname(pfile->buffer->name);
+        const char *curdir = dirname(strdup(pfile->buffer->name));
         const char *file = join(curdir, name);
         if (fexists(file))
             return file;
@@ -1223,11 +1224,11 @@ static void init_env(struct file *pfile)
     // mmm dd yyyy
     char datestr[20];
     strftime(datestr, sizeof(datestr), "%b %e %Y", now);
-    pfile->date = xstrdup(datestr);
+    pfile->date = strdup(datestr);
     // hh:mm:ss
     char timestr[10];
     strftime(timestr, sizeof(timestr), "%T", now);
-    pfile->time = xstrdup(timestr);
+    pfile->time = strdup(timestr);
 }
 
 static void init_include_path(struct file *pfile)
@@ -1257,9 +1258,9 @@ void cpp_init(int argc, char *argv[])
             const char *content = arg + 2;
             char *ptr = strchr(content, '=');
             if (ptr) {
-                char *name = xstrndup(content, ptr - content);
+                char *name = strndup(content, ptr - content);
                 if (ptr - content < strlen(content) - 1) {
-                    char *value = xstrdup(ptr + 1);
+                    char *value = strdup(ptr + 1);
                     strbuf_cats(s, format("#define %s %s\n", name, value));
                 } else {
                     strbuf_cats(s, format("#define %s\n", name));

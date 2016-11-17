@@ -1,4 +1,5 @@
 %{
+#include "compat.h"
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -179,7 +180,7 @@ static void init(int argc, char *argv[])
     fret_regs[0] = fregs[XMM0];
     fret_regs[1] = fregs[XMM1];
 
-    print("\t.file\t\"%s\"\n", xbasename(opts.ifile));
+    print("\t.file\t\"%s\"\n", basename(strdup(opts.ifile)));
 }
 
 static void finalize(void)

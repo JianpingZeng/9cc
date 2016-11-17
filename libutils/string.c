@@ -1,3 +1,4 @@
+#include "compat.h"
 #include <limits.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -27,20 +28,6 @@ unsigned int strnhash(const char *s, size_t len)
     return hash;
 }
 
-char *xstrdup(const char *str)
-{
-    char *ret = xmalloc(strlen(str) + 1);
-    return strcpy(ret, str);
-}
-
-char *xstrndup(const char *str, size_t n)
-{
-    char *ret = xmalloc(n + 1);
-    strncpy(ret, str, n);
-    ret[n] = '\0';
-    return ret;
-}
-
 char *format(const char *fmt, ...)
 {
     char buf[BUFSIZ];
@@ -49,7 +36,7 @@ char *format(const char *fmt, ...)
     if (vsnprintf(buf, ARRAY_SIZE(buf), fmt, ap) >= ARRAY_SIZE(buf))
         die("buffer is too short to hold the result string");
     va_end(ap);
-    return xstrdup(buf);
+    return strdup(buf);
 }
 
 bool has_prefix(const char *s, const char *prefix)
@@ -66,5 +53,5 @@ char *strip(const char *str)
         p1++;
     while (p2 > p1 && isblank(p2[-1]))
         p2--;
-    return xstrndup(p1, p2 - p1);
+    return strndup(p1, p2 - p1);
 }
