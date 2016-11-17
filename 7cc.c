@@ -48,7 +48,7 @@ static void usage(void)
             "  -ansi           Strict type checking\n"
             "  -ast-dump       Only print abstract syntax tree\n"
             "  -c              Only run preprocess, compile and assemble steps\n"
-            "  -debugX         Enable debug option 'X'\n"
+            "  -debugX         Enable debug option X\n"
             "  -Dname          Define a macro\n"
             "  -Dname=value    Define a macro with value\n"
             "  -E              Only run the preprocessor\n"

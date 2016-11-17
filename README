@@ -28,7 +28,7 @@ libutils	Common utilities.
 HOWTO build:
 ------------
 
-Make sure you have Linux installed. (Any distribution is fine)
+Make sure you have any Linux distribution installed. (Ubuntu is preferred)
 
 To build the compiler, run command:
 
