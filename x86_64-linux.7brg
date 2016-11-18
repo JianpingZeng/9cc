@@ -241,27 +241,27 @@ static void defvar(struct symbol *s)
     }
 }
 
-static void defconst(int suffix, int size, union value v)
+static void defconst(int suffix, int size, union value *v)
 {
     switch (suffix) {
     case I: case U: case P:
         if (size == Byte)
-            print("\t.byte %d\n", (int)v.i);
+            print("\t.byte %d\n", (int)v->i);
         else if (size == Word)
-            print("\t.short %d\n", (int)v.i);
+            print("\t.short %d\n", (int)v->i);
         else if (size == Long)
-            print("\t.long %d\n", (int)v.i);
+            print("\t.long %d\n", (int)v->i);
         else if (size == Quad)
-            print("\t.quad %ld\n", v.i);
+            print("\t.quad %ld\n", v->i);
         else
             CC_UNAVAILABLE();
         break;
     case F:
         if (size == Long) {
-            float f = v.d;
+            float f = v->d;
             print("\t.long %u\n", *(uint32_t *)&f);
         } else if (size == Quad) {
-            double d = v.d;
+            double d = v->d;
             print("\t.quad %lu\n", *(uint64_t *)&d);
         } else {
             CC_UNAVAILABLE();

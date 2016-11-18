@@ -64,7 +64,7 @@ static void geninit_ptr(struct symbol *s)
     struct tree *init = s->u.init;
 
     if (OPKIND(init->op) == CNST) {
-        IR->defconst(OPTYPE(init->op), TYPE_SIZE(s->type), init->s.value);
+        IR->defconst(OPTYPE(init->op), TYPE_SIZE(s->type), &init->s.value);
     } else if (opid(init->op) == ADDRG+P) {
         IR->defaddress(init->s.sym->x.name, 0);
     } else if (opid(init->op) == ADD+P &&
@@ -89,7 +89,7 @@ static void geninit_arith(struct symbol *s)
     struct tree *init = s->u.init;
 
     if (OPKIND(init->op) == CNST) {
-        IR->defconst(OPTYPE(init->op), TYPE_SIZE(s->type), init->s.value);
+        IR->defconst(OPTYPE(init->op), TYPE_SIZE(s->type), &init->s.value);
     } else {
         if (debug['v'])
             intal_at(s->src, "illegal initializer for '%s'", s->name);

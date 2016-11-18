@@ -434,7 +434,7 @@ struct interface {
     void (*export) (struct symbol *);
     void (*local) (struct symbol *);
     void (*defun) (struct symbol *);
-    void (*defconst) (int, int, union value);
+    void (*defconst) (int, int, union value *);
     void (*defaddress) (const char *, long);
     void (*defstring) (const char *, long);
     void (*defzero) (size_t);
