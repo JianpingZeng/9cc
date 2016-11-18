@@ -16,6 +16,14 @@ struct idtab *idtab_new(unsigned int cap)
 
 void idtab_free(struct idtab *t)
 {
+    for (unsigned int i = 0; i < t->nslots; i++) {
+        struct idtab_entry *entry = t->table[i];
+        while (entry) {
+            struct idtab_entry *next = entry->link;
+            free(entry);
+            entry = next;
+        }
+    }
     free(t->table);
     free(t);
 }
