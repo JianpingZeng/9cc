@@ -1,0 +1,28 @@
+# diagnostic messages
+
+name = err_incompat_conv
+msg = "incompatible type conversion from '%T' to '%T'"
+
+name = err_redefinition
+msg = "redefinition of '%s', previous definition at %S"
+
+name = err_conflict_types
+msg = "conflicting types for '%s', previous at %S"
+
+name = err_duplicate_member
+msg = "duplicate member '%s', previous declaration at %S"
+
+name = err_type
+msg = "expect type '%s', not '%T'"
+
+name = err_inline
+msg = "'inline' can only appear on functions"
+
+name  = err_array_of_func
+msg = "array of function is invalid"
+
+name = err_func_ret_array
+msg = "function cannot return array type '%T'"
+
+name = err_func_ret_func
+msg = "function cannot return function type '%T'"
