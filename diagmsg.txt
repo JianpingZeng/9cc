@@ -26,3 +26,33 @@ msg = "function cannot return array type '%T'"
 
 name = err_func_ret_func
 msg = "function cannot return function type '%T'"
+
+name = err_incomplete_var
+msg = "variable '%s' has incomplete type '%T'"
+
+name = err_incomplete_array_element
+msg = "array has incomplete element type '%T'"
+
+name = err_init_empty_record
+msg = "initializer for aggregate with no elements requires explicit braces"
+
+name = err_init_override
+msg = "initializer overrides prior initialization"
+
+name = err_bop_operands
+msg = "invalid operands to binary expression ('%T' and '%T')"
+
+name = err_incompat_compare
+msg = "comparision of incompatible types ('%T' and '%T')"
+
+name = err_ptr_int_compare
+msg = "comparision of '%s' and '%s' is illegal in ISO C"
+
+name = err_incompat_ptrs
+msg = "'%T' and '%T' are not pointers to compatible types"
+
+name = err_incompat_init
+msg = "initializing '%T' with an expression of incompatible type '%T'"
+
+name = err_initializer_not_const
+msg = "initializer is not a compile-time constant"
