@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <ctype.h>
-#include "7burg.h"
+#include "burg.h"
 
 /*
  The following symbols must be defined in the prologue section
@@ -164,7 +164,7 @@ static void print(const char *fmt, ...)
 static void fatal(const char *fmt, ...)
 {
     va_list ap;
-    
+
     va_start(ap, fmt);
     fprintf(stderr, "error: ");
     vfprintf(stderr, fmt, ap);
@@ -233,7 +233,7 @@ static struct tok *install(char *name, int kind)
         assert(0 && "illegal kind");
     tok->kind = kind;
     tok->name = name;
-    
+
     entry = NEWS(struct entry);
     entry->t = tok;
     entry->link = tokens[hash];
@@ -301,7 +301,7 @@ struct term *term(char *name, int val)
 
     term->all = *p;
     *p = term;
-    
+
     return term;
 }
 
@@ -330,7 +330,7 @@ struct pattern *pattern(char *name, struct pattern *l, struct pattern *r)
     else if (t->kind == kTERM && ((struct term *)t)->nkids != nkids)
         yyerror("inconsistent kids in termial '%s' (%d != %d)",
                 name, ((struct term *)t)->nkids, nkids);
-    
+
     p->t = t;
     p->left = l;
     p->right = r;
@@ -353,7 +353,7 @@ void rule(char *name, struct pattern *pattern, char *template, char *cost)
     char *endptr;
 
     nt = nonterm(name);
-    
+
     rule = NEWS0(struct rule);
     rule->nterm = nt;
     rule->pattern = pattern;
@@ -509,7 +509,7 @@ static void emit_func_nts_kids(void)
     struct rule *r;
     int *nts = NEWARRAY(sizeof(int), rules_cnt);
     char **str = NEWARRAY(sizeof(char *), rules_cnt);
-    
+
     // static TREE_TYPE **?_nts_kids(TREE_TYPE *p, int ruleno, TREE_TYPE *kids[])
     print("static %s **%?_nts_kids(%s *p, int ruleno, %s *kids[])\n",
           kTREE_TYPE, kTREE_TYPE, kTREE_TYPE);
@@ -602,7 +602,7 @@ static void emit_closure_part(char *tabs, struct rule *r, char *c, int cost)
 static void emit_func_closure(struct nonterm *nt)
 {
     assert(nt->nlink);
-    
+
     // static void ?_closure_xx(TREE_TYPE *t, int c)
     print("static void %?_closure_%K(%s *t, int c)\n",
           nt, kTREE_TYPE);
@@ -917,7 +917,7 @@ int main(int argc, char *argv[])
         perror("Can't open file for output");
         exit(EXIT_FAILURE);
     }
-    
+
     if ((ret = yyparse()))
         fatal("parser failed with code: %d", ret);
 
@@ -940,6 +940,6 @@ int main(int argc, char *argv[])
         while ((c = getc(stdin)) != EOF)
             putc(c, stdout);
     }
-    
+
     return 0;
 }

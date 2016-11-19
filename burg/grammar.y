@@ -5,7 +5,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-#include "7burg.h"
+#include "burg.h"
 static int yylex(void);
 static int lineno;
 %}

@@ -7,9 +7,9 @@
 
 const char *mktmpdir()
 {
-    static char template[] = "/tmp/7cc.tmp.XXXXXX";
+    static char template[] = "/tmp/9cc.tmp.XXXXXX";
     // reset suffix every time
-    strncpy(template, "/tmp/7cc.tmp.XXXXXX", ARRAY_SIZE(template));
+    strncpy(template, "/tmp/9cc.tmp.XXXXXX", ARRAY_SIZE(template));
     return mkdtemp(template);
 }
 

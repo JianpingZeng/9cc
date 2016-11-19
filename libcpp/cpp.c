@@ -244,7 +244,7 @@ static void do_ifdef_section(struct file *pfile, int id)
     bool skip = id == IFDEF ? !b : b;
 
     if_sentinel(pfile, &(struct ifstack){.id = id,.src = src,.b = !skip});
-    
+
     t = skip_spaces(pfile);
     if (!IS_NEWLINE(t) && t->id != EOI) {
         cpp_error("extra tokens in '%s' directive", id2s(id));
@@ -521,7 +521,7 @@ static void ensure_macro_def(struct token *t, struct macro *m)
     struct macro *m1 = ident->type == CT_MACRO ? ident->u.macro : NULL;
     size_t len1p = m->nparams;
     size_t len1b = m->nbody;
-    
+
     if (m1) {
         if (m1->builtin) {
             cpp_error_at(t->src, "Can't redefine predefined macro '%s'",
@@ -529,7 +529,7 @@ static void ensure_macro_def(struct token *t, struct macro *m)
         } else {
             size_t len2p = m1->nparams;
             size_t len2b = m1->nbody;
-            
+
             // compare definition
             if (m->kind != m1->kind ||
                 m->varg != m1->varg ||
@@ -729,7 +729,7 @@ static void do_line(struct file *pfile)
         unget(pfile, t2);
     }
     skipline(pfile);
-    
+
     t = alloc_token();
     t->id = LINENO;
     t->u.lit.str = name;
@@ -855,7 +855,7 @@ static struct token *with_tmp_lex(struct file *pfile, const char *input)
     }
 
     buffer_unsentinel(pfile);
-    
+
     return t;
 }
 
@@ -936,7 +936,7 @@ static struct token *stringize(struct vector *v)
             strbuf_cats(s, backslash(name));
         } else {
             strbuf_cats(s, name);
-        }    
+        }
     }
 
     struct token *t = alloc_token();
@@ -1188,7 +1188,7 @@ static void include_file(struct file *pfile, const char *name, bool std)
         cpp_error("empty filename");
         return;
     }
-    
+
     path = find_header(pfile, name, std);
 
     if (path) {
@@ -1213,7 +1213,7 @@ static void init_builtin_macros(struct file *pfile)
     define_special(pfile, "__LINE__", line_handler);
     define_special(pfile, "__DATE__", date_handler);
     define_special(pfile, "__TIME__", time_handler);
-    include_file(pfile, "7cc.h", true);
+    include_file(pfile, "9cc.h", true);
 }
 
 static void init_env(struct file *pfile)
@@ -1279,7 +1279,7 @@ void cpp_init(int argc, char *argv[])
 
     if (ifile == NULL || !strcmp(ifile, "-"))
         ifile = "";
-    
+
     cpp_file = input_init(ifile);
     init_env(cpp_file);
     init_include_path(cpp_file);
@@ -1289,7 +1289,7 @@ void cpp_init(int argc, char *argv[])
         const char *dir = vec_at(v, i);
         add_include(cpp_file->usr_include_paths, dir);
     }
-    
+
     if (strbuf_len(s))
         include_cmdline(cpp_file, s->str);
 }

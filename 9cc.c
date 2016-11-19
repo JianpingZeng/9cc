@@ -1,5 +1,5 @@
 /*
- * 7cc
+ * 9cc
  * driver of the c compiler
  */
 #include "config.h"
@@ -26,7 +26,7 @@ static char ast_dump;
 static char **ld_options;
 static char **cc_options;
 static const char *tmpdir;
-static const char *progname = "7cc";
+static const char *progname = "9cc";
 
 static void error(const char *fmt, ...)
 {
@@ -70,7 +70,7 @@ static void parse_opts(int argc, char *argv[])
     struct list *ilist = NULL;
     struct list *clist = NULL;
     struct list *dlist = NULL;
-    
+
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (!strcmp(arg, "-o")) {
@@ -308,7 +308,7 @@ static char *ld[] = {
     NULL
 };
 static char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
-static char *cc[] = { _7CC_LIB_DIR "/cc1", "$1", "$2", "-o", "$0", NULL };
+static char *cc[] = { _9CC_LIB_DIR "/cc1", "$1", "$2", "-o", "$0", NULL };
 
 #elif defined (CONFIG_DARWIN)
 
@@ -322,7 +322,7 @@ static char *ld[] = {
     NULL
 };
 static char *as[] = { "as", "-o", "$0", "$1", "$2", NULL };
-static char *cc[] = { _7CC_LIB_DIR "/cc1", "$1", "$2", "-o", "$0", NULL };
+static char *cc[] = { _9CC_LIB_DIR "/cc1", "$1", "$2", "-o", "$0", NULL };
 
 #else
 #error "unknown platform"

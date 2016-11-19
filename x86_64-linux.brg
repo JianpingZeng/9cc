@@ -185,7 +185,7 @@ static void init(int argc, char *argv[])
 
 static void finalize(void)
 {
-    print("\t.ident\t\"7cc: %s-%s-%s\"\n", VERSION, IR->os, IR->arch);
+    print("\t.ident\t\"9cc: %s-%s-%s\"\n", VERSION, IR->os, IR->arch);
 }
 
 static void defun(struct symbol *s)
@@ -292,7 +292,7 @@ static void defstring(const char *s, long n)
         print("\t.string \"%s\"\n", s);
         return;
     }
-    
+
     len = strlen(s);
     if (len + 1 == n) {
         print("\t.string \"%s\"\n", s);
