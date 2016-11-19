@@ -13,7 +13,7 @@ def gen_diag_c(arg):
     pass
 
 
-def main(arg):
+def main():
     pass
 
 
